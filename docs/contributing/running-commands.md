@@ -432,8 +432,10 @@ test asserting on something another feature registers (a listener, a validator, 
 plugin name, a wire method, a schema entry) failing with a message that a thing is
 *missing* or *not produced*. Check the tags before believing it.
 
-A `git archive HEAD` scratch tree carries the same trap: a bare run there
-reproduces the same mistake and confirms a red that does not exist.
+No agent runs tests in a `git archive HEAD` scratch tree, a worktree or any
+other copy: code is tested in the main checkout (`ai/rules/precommit-verify.md`).
+A bare run in such a copy carries the same trap besides, and confirms a red
+that does not exist.
 
 To scope a run to one package and keep the tags, read the tag list out of
 `feature-gates.txt` and pass it with `-tags`, prefixed by `ze_core`:
@@ -1360,9 +1362,9 @@ reader can see how much of the run has judged nothing yet. No red refuses a
 commit: `./le commit create` (`checkVerificationGates` in
 `internal/le/commit/prepare.go`) reports the verification certificate and reads
 no failure index, because a red prevents a release, never a commit
-(`ai/META-DECISIONS.md`, "Ze is pre-release"). `./le commit push` only derives
-the verification debt from the recorded verify runs
-(`ai/rules/precommit-verify.md`). This action tells you whether to keep working
+(`ai/META-DECISIONS.md`, "Ze is pre-release"). `./le commit push` reads no
+verify record at all: it derives the push debt from git and the commit
+trailers (`../contributing/committing.md`, "Pushing"). This action tells you whether to keep working
 or to go and fix something, and which reds to name in your commit body, and it
 starts no run.
 
@@ -1469,8 +1471,7 @@ the checkout's earlier index recorded for it, marked `outside-run` with
 `carried-from` naming the commit and run that judged it. A red therefore stays
 red in the index until a run reaches that stage. A stage's own rerun shows
 the red but publishes no index. A stage no run has judged is `outside-run`
-with no verdict: not running a stage is the derived verification debt's
-business, not a red. A stage an interrupt cut short is the same: its exit is
+with no verdict: a stage no run reached is unjudged, not a red. A stage an interrupt cut short is the same: its exit is
 what its process died with, not a verdict, so the index writes it
 `interrupted` with no exit and no group (or carries the earlier verdict for
 it), with its own rerun as the command that judges it. So a green
@@ -1522,8 +1523,10 @@ tool call reaches le through pipes; Thomas's shell reaches it with his terminal.
 
 The refusal names which stream is not a terminal, says why (a full run loads
 the whole shared machine, and only Thomas knows when that is safe), then gives
-two lines: the exact command this invocation was given, to hand to Thomas, and
-`./le verify changed`, the scoped run that is the agent's own evidence. A
+two lines: the exact command this invocation was given, for Thomas, and the
+agent's own evidence, the scoped tests of what its change reaches, run in the
+main checkout. No agent runs any `./le verify` command, `./le verify changed`
+included: GitHub CI verifies a pushed commit. A
 terminal question that errors is refused the same way, naming the error.
 
 No keyword, flag or environment variable skips the gate.

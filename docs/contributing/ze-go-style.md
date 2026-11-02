@@ -714,7 +714,7 @@ below. The buffer and pool rules are in "Performance" above.
 
 | Standard Go | Ze | Rule | Why |
 |---|---|---|---|
-| `go test ./...` for verification | `./le verify changed`, scoped to the packages, feature tags and suites the change reaches | `ai/rules/testing.md` | Day-to-day evidence covers what the change can reach; the whole-tree run is the release check, not an agent's |
+| `go test ./...` for verification | The scoped package tests and functional suites the change reaches, with its feature tags, run in the main checkout | `ai/rules/testing.md` | Day-to-day evidence covers what the change can reach; no agent runs `./le verify`, and the whole-tree run is the release check GitHub CI runs |
 | Unit tests prove correctness | Unit tests and `.ci` functional tests, both required | `ai/rules/completion.md` | A unit test proves the algorithm; a `.ci` test proves a user can reach the feature |
 | `testify/assert` | The standard library `testing` package | (convention) | No test framework dependencies |
 | `go test -race` once | `go test -race -count=20 ./internal/component/bgp/reactor/...` for reactor code | `ai/rules/testing.md` | A rare schedule needs repeated runs to surface |

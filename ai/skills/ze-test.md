@@ -15,9 +15,9 @@ See also: `/ze-debug` (a test is failing and you do not know why), `/ze-verify`
 ## Step 1 — Draft it where nothing can see it (BLOCKING)
 
 **Never write or iterate on a `.ci` inside `test/<suite>/`.** That directory is
-live: every verification in the checkout runs it (`./le verify changed`, and
-Thomas's release check `./le verify worktree`), including runs by other
-sessions working on unrelated things, who then have to work out whether your
+live: every suite run in the checkout runs it (an agent's scoped
+`./le test functional` run, GitHub CI, and Thomas's release check), including
+runs by other sessions working on unrelated things, who then have to work out whether your
 half-written test is their regression.
 
 Write it here instead:

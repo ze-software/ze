@@ -23,7 +23,7 @@ See also: `/ze-find-alloc` (find allocations to fix)
 5. Read callers of the function to understand how the result is used
 6. Apply the appropriate fix pattern (see below)
 7. Update any page from step 3 that this change made wrong, in the same diff, before you verify
-8. Verify with the targeted set: the scoped package test of the changed package under `./le job run`, its component group (`./le test unit <group>`), and `./le verify changed` over the commit. The full verification is Thomas's release check: never start it, and give Thomas the exact command when one is owed
+8. Verify with the targeted set, in the main checkout: the scoped package test of the changed package under `./le job run` and its component group (`./le test unit <group>`). Never run any `./le verify` command: GitHub CI verifies the pushed commit
 
 ## Pre-Flight Checks
 
@@ -184,7 +184,7 @@ After making changes:
 
 1. **Compile:** `go build ./...`
 2. **Test:** the scoped package test of each changed package under `./le job run`, then its component group (`./le test unit <group>`)
-3. **Scoped verify:** `./le verify changed` over the commit, which runs the stages the change set reaches in a fresh worktree. Never `./le test unit all` or a full verification: that is Thomas's release check, so give Thomas the exact command when one is owed
+3. **No verify run:** never `./le verify changed`, `./le test unit all` or a full verification. The scoped runs above are the evidence, and GitHub CI verifies the pushed commit
 4. **Check for Pack() deprecation:** If ALL callers now use WriteTo, add deprecation comment to Pack()
 5. **Documentation:** the pages from instruction 3 describe the code as it now stands, and the diff carries those edits (`ai/rules/documentation.md`)
 

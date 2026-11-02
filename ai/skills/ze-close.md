@@ -60,8 +60,9 @@ not produce it. No specific model is required (`ai/rules/planning.md`).
 ## Precondition
 
 The implementation is complete and the targeted tests for what it changed are
-green (`/ze-implement` steps 1-10). The scoped verify has not run yet: it
-runs once, after this skill's closing commit (step 6f). If feature code is
+green (`/ze-implement` steps 1-10). Those scoped runs are the evidence: no
+agent runs any `./le verify` command, and GitHub CI verifies the pushed commit
+(step 6f). If feature code is
 still missing, go back: this skill does not implement.
 
 Two entry statuses are valid, `in-progress` and `verification`, and they differ
@@ -138,8 +139,8 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
 3. **Re-run what the step 2 fixes touched:** the scoped package test for each
    package a fix changed, under `./le job run`, and the functional test of the
    behavior it changed. Skip this step when step 2 changed nothing. Never run
-   `./le verify current`, `current fast` or `./le verify worktree`: each is
-   Thomas's release check, and none of them sees this work before commit A.
+   any `./le verify` command: GitHub CI verifies the pushed commit, and these
+   scoped runs, in the main checkout, are the evidence.
 4. **Documentation review (BLOCKING):** This step VERIFIES the pages `/ze-implement` already updated, and finds the gaps it left. It is not where documentation starts (`ai/rules/documentation.md`). A page this step finds stale is a defect of the phase that changed the behavior. Repair it here. Record a Mistake Log row, so the next spec does not repeat it. Use the spec's **Documentation Update Checklist** table. For each row:
    - Answer Yes or No. Every Yes MUST name the file and the update, and MUST point at the commit or diff hunk that already made it.
    - Every No MUST be backed by source-aware evidence. At minimum, grep `docs/` for source anchors pointing at changed files and check the category does not apply.
@@ -198,7 +199,7 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
      yours** (`ai/rules/completion.md`).
    Running the commit script finishes the closure. There is no step 7. Every
    change below MUST be in that single script; the only things after it are
-   releasing the claim (6e) and the scoped verify over the commits it made (6f).
+   releasing the claim (6e) and the report of the evidence (6f).
 
    a. **Route any lesson to its governing surface.** Follow the lesson-routing
       rule in `ai/rules/planning.md`. Update an existing rule, architecture page,
@@ -265,16 +266,12 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
       - **Commit B (spec closure):** run `./le commit create append remove <spec-path>` using the same actual path with the spec closure commit message. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file <spec-path>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
       - The native command owns the session ID, message files, executable script, ignored-path rejection, the commit itself, and journal-row checks.
    e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then release this session's spec claim, `./le spec release`, which also frees a slot against the WIP cap (`./le spec wip`). Report the resulting commit SHA(s), the script path, message files, commit subjects, and included files.
-   f. **The scoped verify, once, over the closing commits.** `./le verify
-      changed` judges what the spec changed since the upstream, and is the
-      evidence a push owes. The agent running this skill has done other work, so
-      it MUST NOT start the run itself (`ai/rules/commands.md`): name `./le verify
-      changed` as owed in the report, and the main thread runs it, itself or
-      through a fresh `/ze-verify` agent. A full verification is not owed here:
-      it is Thomas's release check, and an agent only gives him its exact
-      command. A red there gets a fix commit of its own. It does
-      not reopen the spec and does not hold the closing commits
-      (`ai/rules/pre-release.md`).
+   f. **No verify run over the closing commits.** No agent runs any `./le
+      verify` command, `./le verify changed` included: GitHub CI verifies the
+      pushed commit. The scoped runs of steps 3 and 5 are the closure's
+      evidence, and the report names them. A red CI later reports gets a fix
+      commit of its own. It does not reopen the spec and does not hold the
+      closing commits (`ai/rules/pre-release.md`).
 
    **Why one script, two commits, no follow-up:** closure must not depend on a
    later reminder to remove the spec. Include all required changes in the script.
@@ -292,4 +289,4 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
 
 ## Done when
 
-Done when commits A and B have landed, `./le spec release` has run, and the report names both SHAs and `./le verify changed` as owed; or, when blocked, the spec has `Status` `blocked`, a `## Blocker` section, and its handback commit SHA is reported.
+Done when commits A and B have landed, `./le spec release` has run, and the report names both SHAs and the scoped test runs that are the evidence; or, when blocked, the spec has `Status` `blocked`, a `## Blocker` section, and its handback commit SHA is reported.

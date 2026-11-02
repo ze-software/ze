@@ -24,14 +24,14 @@ See also: `/ze-debrief` (deep dive on current session/spec)
    - Uncommitted changes (count and key files)
    - Recent commits (last 5)
 4. **Release categories:** Use the inventory's category counts, not an independent set of directory globs. Show release fixes first, with validation and delivery alongside their prerequisites. Then read the selected spec's **Work Not Done** table and list any row whose owning spec is absent from the inventory.
-5. **Test state:** Check `tmp/ze-verify.log`. If it exists, report its age and whether it shows failures.
+5. **Test state:** Check `tmp/ze-verify.log`. If it exists, report its age and whether it shows failures. Never start a verify to refresh it.
    - Passing: "Tests: PASS (Nh ago)"
    - Failing: "Tests: FAIL -- [count] failures (Nh ago)"
    - Missing: "Tests: no run recorded"
-   An old or missing run is not an attention item. During development only
-   the targeted tests for what changed run, and the scoped verify
-   (`./le verify changed`) runs once per piece of work, over its final commit.
-   A full verification is the release check, which only Thomas starts.
+   An old or missing run is not an attention item. An agent runs only the
+   scoped tests for what changed, and never any `./le verify` command: GitHub
+   CI verifies the pushed commit, and a full verification is the release check
+   Thomas starts himself.
 6. **Present the status** using this format:
 
 ```

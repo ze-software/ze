@@ -35,20 +35,18 @@ See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone v
    with MUST on BOTH sides? Fix what they find before you draft the message.
 3. **Verification decision:** A commit owes the focused test for what it
    changed, run once (`ai/rules/testing.md`). It never owes the full gate,
-   which runs once per piece of work, over its final commit.
+   which GitHub CI runs on the pushed commit.
    - If the scope is only `docs/`, `ai/`, `.claude/`, `plan/`, or `README.md`
      files, skip verification entirely and record the skip reason.
-   - Before verification, run `./le verify status check` with one `path <file>` pair per scoped file.
-   - If it prints FRESH, MUST NOT run anything again. Use the
-     reported timestamp as evidence.
-   - If it prints STALE and verification applies, run the scoped package test
-     for each changed package under `./le job run`, the functional test of
-     each behavior the commit changed. `./le verify changed` judges the commit
-     once it lands. Never run `./le verify current`, `current fast` or
-     `./le verify worktree`: each is Thomas's release check, so give him the
-     exact command when one is owed.
-4. **Failure handling:** If verification fails, read
-   `tmp/ze-verify-failures.log` first and ask of each red whether it says the
+   - Otherwise run, in the main checkout, the scoped package test for each
+     changed package under `./le job run` and the functional test of each
+     behavior the commit changed. A run already made over the same tree is
+     the evidence and is not run again.
+   - Never run any `./le verify` command, `./le verify status check` and
+     `./le verify changed` included: no agent runs one, and GitHub CI verifies
+     the pushed commit.
+4. **Failure handling:** If verification fails, read the failing run's output
+   first and ask of each red whether it says the
    product is wrong (`ai/rules/pre-release.md`). A red does not hold the
    commit: name the red test and its cause in one line of the commit body, and
    report each red that exposes a product defect so it gets its source fix.
@@ -79,8 +77,8 @@ See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone v
 
 - **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the script from `./le commit create`, then run the exact `script=` path it printed.
 - `./le commit create` is the sole staging and commit route. There is no hand-written fallback.
-- Always run `./le verify status check` with the scoped paths before verification. A FRESH PASS is authoritative and forbids rerunning anything.
-- If verification is STALE and required, run step 3's focused set once, then proceed from its result. Do not stack extra health checks or speculative gates.
+- Never run any `./le verify` command. A scoped run already made over the same tree is authoritative and forbids rerunning it.
+- If verification is required, run step 3's focused set once, then proceed from its result. Do not stack extra health checks or speculative gates.
 - Do not run late completeness audits, health checks, recent-commit style reviews, remaining-work tables, or companion-artifact reviews unless the user explicitly asks for them.
 - Step 2's style gate is the ONE exception, and it stays inside its bounds: one grep, one read of the added lines, four questions. It never grows into `/ze-review`.
 - Never include spec files unless the user explicitly asks.

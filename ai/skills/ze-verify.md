@@ -1,22 +1,23 @@
 ---
 name: ze-verify
-description: Run the tests that cover what changed (targeted, or ./le verify changed once committed) and report. Never runs the full verification; it names Thomas's command when one is owed.
+description: Run the scoped tests that cover what changed, directly in the main checkout, and report. Never runs any ./le verify command; GitHub CI verifies a pushed commit.
 ---
 
 # Verify
 
-Run the tests that cover what changed and report results clearly. A full
-verification is Thomas's release check, never run here (below).
+Run the tests that cover what changed and report results clearly. No agent
+runs any `./le verify` command, `./le verify changed` included: GitHub CI/CD
+verifies a pushed commit, and the scoped test runs below are the agent's
+evidence (`ai/rules/precommit-verify.md`).
 
 | Mode | When | What runs |
 |------|------|-----------|
-| targeted (the default) | during development: after a phase, a fix or a review round | the scoped package tests, component groups and functional suites for what changed |
-| scoped | the work is committed (for a spec, after `/ze-close` landed commit A), or a push is owed | `./le verify changed` |
-| full | the caller asks for the release check | nothing: give Thomas the exact command, `./le verify current` or `./le verify worktree commit <revision>` |
+| targeted (the only mode) | after a phase, a fix, a review round, or once the work is committed | the scoped package tests, component groups and functional suites for what changed, run directly in the main checkout |
+| full | the caller asks for the release check | nothing: GitHub CI runs it on the pushed commit, and Thomas starts `./le verify current` himself when he chooses |
 
-A full verification refuses an agent: it loads the whole shared machine, and
-only Thomas knows when that is safe (`docs/contributing/running-commands.md`,
-"A full verification is Thomas's to start").
+Every run happens in the main checkout, never in a worktree, an export or a
+copy of the tree. When another session's in-progress edit breaks the build,
+report what broke and whose it is, and wait for it to clear.
 
 See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after passing)
 
@@ -45,9 +46,7 @@ phase itself.
 
 ## Steps
 
-1. **Check freshness:** Run `./le verify status check`. A FRESH answer forbids
-   rerunning the gate. A STALE answer names why verification is owed.
-2. **Run verification** in the foreground, giving each call the largest
+1. **Run the scoped tests** in the foreground, giving each call the largest
    timeout the harness allows. Never poll or kill a slow live run. Native job
    admission queues or attaches equivalent work.
    - **Targeted:** run `./le repo changed scope print both` to name the changed
@@ -57,31 +56,24 @@ phase itself.
      for each package (`./le test unit <group>`), and the functional suite for
      each behavior the change touched (`./le test functional <suite>`), picking
      the rungs of `docs/contributing/testing.md`, "The escalation ladder".
-     Do not widen to `./le test unit all`, `./le test functional gating` or a
-     full verification.
-   - **Scoped:** run `./le verify changed`, which judges the change set since
-     the upstream in a fresh worktree at HEAD; `commit <revision>` names
-     another commit. Its record is what a push owes.
-   - **Full:** run nothing. Hand Thomas the exact command to run at his
-     terminal: `./le verify current`, or `./le verify worktree commit
-     <revision>` for a commit other than HEAD.
-3. **Parse results:** On failure, search the log:
-   - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-verify.log`
+     Do not widen to `./le test unit all`, `./le test functional gating` or
+     any `./le verify` command.
+   - **Full:** run nothing. GitHub CI verifies the pushed commit.
+2. **Parse results:** On failure, search each run's output:
+   - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL"` over the output
    - Also check exit code
-4. **Report** using this format:
+3. **Report** using this format:
 
    **On success:**
    ```
-   ## Verify (targeted|full): PASS
-   - Lint: pass
-   - Unit tests: pass ([count] tests)
-   - Functional tests: pass ([count] tests)
-   - ExaBGP compat: pass
+   ## Verify (targeted): PASS
+   - Unit tests: pass ([count] tests, packages named)
+   - Functional tests: pass ([count] tests, suites named)
    ```
 
    **On failure:**
    ```
-   ## Verify (targeted|full): FAIL
+   ## Verify (targeted): FAIL
 
    ### Failures
    | # | Type | Test | Error |
@@ -95,16 +87,16 @@ phase itself.
    - Functional tests: pass/fail
    ```
 
-5. **On failure:** Do NOT propose fixes automatically. Report all failures and ask the user how to proceed.
+4. **On failure:** Do NOT propose fixes automatically. Report all failures and ask the user how to proceed.
 
 ## Fallback
 
 A slow run and admission contention are not failures. Full mode runs nothing,
 so it has no fallback: never substitute `./le go lint run`, `./le test unit all`
 or `./le test functional gating` for the release check, because each loads the
-whole shared machine the same way. In scoped mode, when `./le verify changed`
-cannot run for an environmental reason, fall back to the targeted runs of step
-2 for what changed.
+whole shared machine the same way. When a targeted run cannot build because
+another session's edit broke the tree, report it and wait; never move the run
+to a copy of the tree.
 
 Report whichever stages completed and which one stopped the run. This gives partial results instead of no results.
 
@@ -114,7 +106,7 @@ Report whichever stages completed and which one stopped the run. This gives part
 - List EVERY failure. No omissions, no "and N more".
 - Never say "pre-existing" or "unrelated" to justify ignoring a failure.
 - The user decides what to do about failures.
-- If another session is running verify, wait for it instead of starting a duplicate run.
+- If another session is running the same tests, wait for it instead of starting a duplicate run.
 
 ## Done when
 

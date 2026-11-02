@@ -26,8 +26,8 @@ file and costs about a tenth of reading it. Never read a whole file to hunt for
 a symbol, and never report that you cannot look.
 
 **Your prompt cache lives five minutes, so you run no command that can take
-longer:** no `./le go lint run`, no `./le verify worktree`, no
-`./le test unit all`, no `./le test functional` suite. A call that outlasts the
+longer:** no `./le go lint run`, no `./le test unit all`, no `./le test
+functional` suite, and no `./le verify` command at all, which no agent runs. A call that outlasts the
 window ends the cache, and your next call rewrites every token you hold for one
 result. Prove your package with the scoped package test under `./le job run`,
 name the gates you owe in your handoff, and let the main thread run them, or a
@@ -37,9 +37,10 @@ fresh agent that holds nothing else (`ai/rules/commands.md`). Never write a poll
 **Land your change yourself, the moment its package tests pass.** Landing is
 `./le commit create`, the script it prints, and `./le repo compiles check` when
 the commit carried Go. Never build an export, archive or copy of HEAD to
-pre-test your commit set: `./le repo compiles check` and the main thread's
-`./le verify changed` already judge what git holds, and a red they find is fixed
-forward in a new commit. Never investigate a red your own diff did not cause:
+pre-test your commit set, and never develop or test in a worktree or a copy of
+the tree: `./le repo compiles check` already judges what git holds, GitHub CI
+verifies the pushed commit, and a red either finds is fixed forward in a new
+commit. When another session's edit breaks the build, report it and wait. Never investigate a red your own diff did not cause:
 name it in the commit body and move on. A finished change left uncommitted at
 your call budget costs a whole successor agent just to commit it
 (`ai/rules/precommit-verify.md`).

@@ -1,9 +1,9 @@
 ---
 title: Pre-Commit Verification
-when: before running the verification gate, or after running a commit script that carried Go
+when: before running tests to judge a change, before any `./le verify` command, or after running a commit script that carried Go
 severity: blocking
 ---
 directives ## Directives
-  the-gate-runs-on-a-commit-not-the-working-tree
+  no-agent-runs-verify-and-tests-run-in-the-main-checkout
   only-one-check-compiles-what-git-holds
-  land-first-then-verify-never-a-private-export
+  land-first-never-a-private-export

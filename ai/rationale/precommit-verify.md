@@ -2,6 +2,16 @@
 
 Why: `ai/rules/precommit-verify.md`
 
+## No agent runs verify (2026-11-02)
+
+Thomas ruled that no agent runs any `./le verify` command, `./le verify
+changed` included, and that code is developed and tested in the main checkout
+only, never in a worktree or a copy of the tree. Sessions that ran `./le verify
+changed` as their evidence overloaded the host and left orphaned daemons
+behind. GitHub CI/CD verifies a pushed commit, and an agent's evidence is the
+scoped test runs of what its change reaches. The section below records the
+earlier design, in which the main thread ran `./le verify changed`.
+
 ## Land first, then verify (2026-10-26)
 
 Measured over the subagent transcripts of 2026-10-25 and 2026-10-26: 186 agents

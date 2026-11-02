@@ -281,11 +281,12 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 ```bash
 ./le test functional gating          # All gated functional tests
 ./le test unit all              # Component-group unit tests
-./le verify changed        # Scoped verification of HEAD's change set, in a fresh worktree
 ```
 
-The full verification (`./le verify current`) is Thomas's release check, refused
-without a terminal. When one is owed, give him that command; never start it.
+No agent runs any `./le verify` command, `./le verify changed` included: an
+agent runs the one `.ci` or the suite its change reaches, in the main checkout,
+and GitHub CI verifies the pushed commit. The full verification
+(`./le verify current`) is Thomas's release check, refused without a terminal.
 
 ## Checklist
 

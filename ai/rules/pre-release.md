@@ -21,15 +21,15 @@
 **Three re-runs are forbidden by name: a gate that passed, a log you have already read, and a tree unchanged since the last run.** A re-run is earned by one thing only, which is an edit to the code under test.
 **Re-reading is the same waste as re-running, and it MUST NOT be spent either.** Opening the same failure summary a second time to look for something new is the tell that the session is avoiding the product.
 
-**When a run leaves reds, you MUST write them into one list of known reds, and you MUST NOT start another full verify while a listed red is still open.** A full verify here is any run wider than the failure: lint over the tree, `./le test unit all`, a whole functional suite, `./le verify`.
+**When a run leaves reds, you MUST write them into one list of known reds, and you MUST NOT start another full verify while a listed red is still open.** A full verify here is any run wider than the failure: lint over the tree, `./le test unit all`, a whole functional suite. No agent runs `./le verify` at all.
 **Each fix MUST be proven by rerunning only the test that failed: the one Go test with `-run` over its package, or the one `.ci` selection, alone and under the load that broke it.** The package or the suite around it is the next step out, and only after the test itself passes. The recipes are `docs/contributing/running-commands.md` for a Go test and `docs/functional-tests.md`, "Run a single test", for a `.ci`.
-**When every listed red passes its targeted rerun, `./le verify changed` MUST run once over the commit that holds the fixes.** The reds it leaves become the next list. A full verification is Thomas's release check, run on a quiet machine: an agent never starts it, and gives him the exact command when one is owed.
+**When every listed red passes its targeted rerun, the package tests and the functional tests the fixes reach MUST run once, directly, in the main checkout.** The reds they leave become the next list. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit, and a full verification is Thomas's release check.
 
 **During product implementation, test and gate repair MUST NOT displace the agreed product change.** Before a third unrelated scaffolding repair, return to that change and report the remaining failures. This limit governs incidental repairs. A commissioned baseline verification task MUST repair the scaffolding needed for its agreed proof, without adding absent features.
 **A new spec, compaction, or handoff MUST NOT reset the count of incidental repairs.**
 
 **A commit MUST NOT be held for a green gate.** A local commit reaches nobody, so it can cost nobody anything, and it protects finished work from the next crash or checkout.
-**The gate is owed before a push, which is the act that reaches a reader** (`ai/rules/git-safety.md` carries the push route). Verification debt is what a push still owes, derived from git and the scoped record `./le verify changed` writes, and it MUST NOT be read as a reason to stop committing.
+**The gate is GitHub CI's, on the pushed commit, and no agent runs it locally** (`ai/rules/git-safety.md` carries the push route). The push debt is the person acts a push still owes, derived from git and the commit trailers, and it MUST NOT be read as a reason to stop committing.
 
 ## What This Never Relaxes
 

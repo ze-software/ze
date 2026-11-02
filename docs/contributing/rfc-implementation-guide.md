@@ -894,8 +894,9 @@ Read the signed, enrolled, relocated, and unsigned counts with
 Before marking implementation complete:
 
 ```
-[ ] Verify the agreed implementation boundary through ./le verify changed
-    (the full run is Thomas's release check: give him the command)
+[ ] Verify the agreed implementation boundary through the scoped package
+    tests and functional suites it reaches, in the main checkout
+    (no agent runs ./le verify; GitHub CI verifies the pushed commit)
 [ ] Fuzz targets pass: ./le test fuzz run
 [ ] Functional tests pass: ./le test functional gating
 [ ] RFC MUST tests have both polarities: ./le rfc check

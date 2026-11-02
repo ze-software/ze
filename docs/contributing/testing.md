@@ -16,9 +16,11 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 test proves the checkout builds and its tests run
 (`../guide/developer-setup.md`, "After Setup").
 
-`./le verify current` is the full verification, Thomas's release check. It runs
-only when stdin and stdout are both terminals, so Thomas starts it by hand at
-one; an agent is refused, and its evidence is `./le verify changed`.
+`./le verify current` is the full verification, Thomas's release check, which
+GitHub CI also runs on a pushed commit. It runs only when stdin and stdout are
+both terminals, so Thomas starts it by hand at one. No agent runs any
+`./le verify` command, `./le verify changed` included: an agent's evidence is
+the scoped test runs of what its change reaches, run in the main checkout.
 
 `./le` is the compiled repository development entry point. Each area exposes
 its own verbs, for example `./le test functional plugin`,
@@ -38,23 +40,23 @@ Use the narrowest test that covers your change. Escalate only when needed.
 | 1 | `./le job run label one-test command go test ./pkg/... -run TestName` | Iterating on one test | seconds |
 | 2 | `./le test unit bgp` | Checking one component group | 10s to 1:30 |
 | 3 | `./le test functional plugin` | Checking the user-visible path | varies |
-| 4 | `./le verify changed` | Judging a commit's change set: the evidence a push owes | minutes |
+| 4 | GitHub CI on the pushed commit | Judging the pushed change set: no agent runs it locally | minutes |
 | 5 | `./le verify current` | The release check, which only Thomas starts, at a terminal | the longest |
 
 Steps 1 to 3 are development: run the ones that cover what you changed, and
 `./le repo changed scope print both` names them
-(`running-commands.md`, "The changed-set selector"). Step 4 runs once the work
-is committed: it judges the change set from the merge base with the upstream to
-the commit, in a throwaway worktree, and its green scoped record is what
-`./le commit push` asks for. A red it finds gets a fix commit; it does not hold
-the commit it judged.
+(`running-commands.md`, "The changed-set selector"). Run them in the main
+checkout, never in a worktree or a copy of the tree. Step 4 is CI's: it runs
+once the work is pushed, and `./le commit push` asks for no local verify
+record. A red it finds gets a fix commit; it does not hold the commit it
+judged. `./le verify changed` still exists for Thomas, and no agent runs it.
 
 Step 5 is the full verification, and it is not an agent's to run. The dispatcher refuses `./le verify
 current`, `./le verify current fast` and every form of `./le verify worktree`
 unless stdin and stdout are both terminals, because a full run
 loads the whole shared machine and only Thomas knows when that is safe. The
-refusal prints the exact command line to hand to Thomas, and `./le verify
-changed` for the agent's own evidence. No keyword or environment variable
+refusal prints the exact command line for Thomas, and the scoped tests that
+are the agent's own evidence. No keyword or environment variable
 skips it. When Thomas starts `./le verify current`, it runs every stage in a fresh detached worktree
 at HEAD, through the same lifecycle as `./le verify worktree`, so an edit made
 while it runs cannot move the tree it judges; `./le verify current fast` runs
@@ -96,7 +98,6 @@ round-trip.
 ```sh
 ./le job run label bgp-message command go test ./internal/component/bgp/message/...
 ./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
-./le verify changed
 ```
 
 Dynamic-group coverage exercises each plugin's real configuration boundary:
@@ -381,7 +382,8 @@ rule is `ai/rules/testing.md`, and the design is
 When Thomas starts `./le verify current`, it runs the full population in a fresh detached worktree at
 HEAD; `./le verify current fast` runs the changed-files population in place.
 Both are release checks that start only at a terminal (see the ladder above).
-`./le verify changed` runs the changed population in a throwaway worktree.
+`./le verify changed` runs the changed population in a throwaway worktree; Thomas
+may start it, and no agent does.
 `./le verify list full` and `./le verify list fast` print each population. The
 unit stages use a two-pass strategy to stay fast:
 
@@ -761,8 +763,8 @@ Reproducing a load-dependent flake is
 | Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
 | Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
-| Judge my committed change set before a push | `./le verify changed` |
-| Have the release check run: Thomas runs it at his terminal, and an agent only gives him the command | `./le verify current` |
+| Judge my committed change set before a push | the scoped package tests and functional suites `./le repo changed scope print both` names; GitHub CI verifies the pushed commit, and no agent runs `./le verify` |
+| Have the release check run: GitHub CI runs it on a pushed commit, and Thomas runs it at his terminal | `./le verify current` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
 | List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |

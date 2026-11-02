@@ -105,7 +105,7 @@ Ask the question from Bash instead
 
 | Task | Read first | Then use |
 |---|---|---|
-| Generate and run a commit script | `ai/rules/git-safety.md` | Fast path: use `./le commit create`, then run it with `bash` and the path its `script=` line prints. if verification is considered, run `./le verify status check` first and never rerun verify when FRESH (`ai/rules/precommit-verify.md`) |
+| Generate and run a commit script | `ai/rules/git-safety.md` | Fast path: use `./le commit create`, then run it with `bash` and the path its `script=` line prints. The evidence is the scoped test runs; no agent runs any `./le verify` command (`ai/rules/precommit-verify.md`) |
 | Record a problem the work uncovered | `ai/rules/planning.md` | Follow the lesson-routing rule. Include a warranted journal row in its scoped commit with `file <path>`; a row is not a closure artifact |
 
 ### Modifying Existing Code
@@ -340,7 +340,7 @@ disagree, the manifest is right and the row is stale.
 | `./le cli list` | `internal/le/cli/list.Answer` | every registered command, by verb, read from the live handlers and schemas |
 | `./le cli ownership` | `internal/le/cli/ownership.Answer` | each command is owned by exactly one plugin or component: owners are cmd/ze-free, root handlers are internal, and every central root states why it has no owner |
 | `./le cli stdio` | `internal/le/cli/stdio.Answer` | every command that takes a filename routes it through the helper that resolves "-", so an operator can always pipe into and out of one |
-| `./le commit` | `internal/le/commit.Answer` | prepare explicit commits without touching the shared staging index; `push "<owner authorisation>"` prepares the push-only script that pushes the verified commit P; `debt-status [commit <rev>]` answers the verification debt derived from git and the green record (exit 0 nothing owed, 1 owed, 2 cannot answer); `create ... attest <commit> "<owner words>"` prepares an owner attestation as an empty commit |
+| `./le commit` | `internal/le/commit.Answer` | prepare explicit commits without touching the shared staging index; `push "<owner authorisation>"` prepares the push-only script that pushes HEAD as P; `debt-status [commit <rev>]` answers the push debt derived from git and the commit trailers, with no verify record read (exit 0 nothing owed, 1 owed, 3 cannot answer); `create ... attest <commit> "<owner words>"` prepares an owner attestation as an empty commit |
 | `./le config claims` | `internal/le/config/claims.Answer` | every config subtree an operator can write is delivered to a plugin, a hub handler, or a recorded exception |
 | `./le config coercion` | `internal/le/config/coercion.Answer` | config parsers coerce the string form every YANG leaf is delivered as, so an operator's value is never silently replaced by the default |
 | `./le config ports` | `internal/le/config/ports.Answer` | the Go listener-default table and the YANG refine port defaults still agree, service by service |
@@ -652,7 +652,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | chaos, fault injection, scheduler | `docs/architecture/chaos-web-dashboard.md`, `docs/guide/chaos-testing.md` |
 | changed set, scoped verify, which packages changed, change-set selector, reverse dependency depth, feature scope, staticcheck matrix rows, `ZE_VERIFY_SCOPE_TAGS` | `./le repo changed scope`, `internal/le/repo/changed.Answer`, `internal/le/go/staticcheck.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/commands.md` |
 | declared failure group, VERIFY FAILURE GROUP, whose red is this, attributing a structural red, failure index | `internal/le/verify/engine.RunMode`, `internal/le/doc/wiring.Group`, `internal/le/verify.Reds`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/precommit-verify.md` |
-| commit, commit script, commit message, verified commit, verify freshness, owner override, commit no test, verification debt, gate owed, push refused | `internal/le/commit.Answer`, `internal/le/verify/status.Answer`, `ai/rules/git-safety.md`, `ai/rules/precommit-verify.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
+| commit, commit script, commit message, verified commit, verify freshness, owner override, commit no test, push debt, gate owed, push refused | `internal/le/commit.Answer`, `internal/le/verify/status.Answer`, `ai/rules/git-safety.md`, `ai/rules/precommit-verify.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
 | weekly update, Zeledon, ze-news, Discord announcement, website changes, homepage latest updates | `ai/skills/ze-weekly-update.md`, `website/AI.md`, `website/changes/discord/STYLE.md`, `internal/le/weekly`, `internal/le/site` |
 | spec status, spec metadata, RFC gaps, spec closure, release fixes, release validation, release delivery, post-release features, post-release engineering, proposals, work not done, session handoff, handover | `ai/rules/planning.md`, `docs/contributing/spec-workflow.md`, `plan/README.md`, `plan/templates/TEMPLATE.md`, `plan/templates/TEMPLATE-CLOSURE.md`, `./le spec status` |
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/repo-maintenance.md`, `docs/contributing/documentation-testing.md` |

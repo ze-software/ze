@@ -14,9 +14,8 @@ See also: `/ze-commit` (commit without verification), `/ze-commit-check` (commit
 1. **Targeted verify (if Go code changed):** Check if any `.go` files are modified. If yes:
    run the scoped package test of each changed package under `./le job run`, the targeted set
    `./le repo changed scope print both` names. If it fails, report every failure. If no `.go` files
-   changed: skip. Never run `./le verify current`, `current fast` or `./le verify worktree`: each is
-   Thomas's release check, which refuses an agent, so give him the exact command when one is owed.
-   `./le verify changed` judges the commit once the work lands.
+   changed: skip. Never run any `./le verify` command, `./le verify changed` included: GitHub CI
+   verifies the pushed commit, and these scoped runs, in the main checkout, are the evidence.
 2. **Show scope:** Run `git status` and `git diff --stat` to identify all changed files.
 
 3. **Completeness check:** For each changed file, check whether companion artifacts

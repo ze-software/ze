@@ -61,7 +61,7 @@ See also: `/ze-commit-check` (commit with verification only when needed)
 
 - **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the script from `./le commit create`, then run the exact `script=` path it printed.
 - `./le commit create` is the sole staging and commit route. There is no hand-written fallback.
-- Do not run `./le verify worktree`, lint, health checks, completeness audits, recent-commit style reviews, or remaining-work scans for `/ze-commit`.
+- Do not run any `./le verify` command, lint, health checks, completeness audits, recent-commit style reviews, or remaining-work scans for `/ze-commit`.
 - Step 2's style gate is the ONE exception, and it stays inside its bounds: one grep, one read of the added lines, four questions. It never grows into `/ze-review`. When the diff needs a review, the user asks for one.
 - Never include spec files unless the user explicitly asks.
 - Never include documentation changes unless they're part of the task.
