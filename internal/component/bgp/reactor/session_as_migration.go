@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
@@ -78,19 +79,16 @@ func setMigrationAS(n *PeerSettings, migrationAS uint32) error {
 // sent and received to this peer as if this was a natively configured iBGP session, as
 // defined by [RFC4271] and [RFC4456]."
 //
-// This is the ONE rule. IsIBGP, IsEBGP, Peer.IsIBGP, Peer.IsEBGP, the RFC 7606 branch
+// The rule itself is filterapi.InternalSession, which a plugin judging a peer from its
+// delivered config calls too. IsIBGP, IsEBGP, Peer.IsIBGP, Peer.IsEBGP, the RFC 7606 branch
 // (session_validation.go), the RFC 6286 internal-peer test (session_open_validation.go)
-// and the plugin peer-type report (reactor_api.go) all reach the verdict through it. They
-// were four separate copies of the equality, and a migration session classified iBGP by
-// one and eBGP by another sends a route with the wrong AS_PATH to a peer that trusts it.
+// and the plugin peer-type report (reactor_api.go) all reach the verdict through this
+// method. They were four separate copies of the equality, and a migration session
+// classified iBGP by one and eBGP by another sends a route with the wrong AS_PATH to a
+// peer that trusts it.
 func (n *PeerSettings) isIBGPWith(peerAS uint32) bool {
-	if peerAS == n.LocalAS {
-		return true
-	}
-	if n.MigrationAS == 0 {
-		return false
-	}
-	return peerAS == n.MigrationAS
+	// RFC 7705 Section 4.2
+	return filterapi.InternalSession(peerAS, n.LocalAS, n.MigrationAS)
 }
 
 // peerASAccepted reports whether an AS a peer presented in its OPEN is one this session is
