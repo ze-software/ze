@@ -209,11 +209,17 @@ func (l *mobikeNativeLab) prepare(ctx context.Context, root, source string, stat
 func (l *mobikeNativeLab) writeSwanConfig(root, source string) error {
 	var config strings.Builder
 	config.WriteString("include /etc/strongswan.conf\n")
+	// The lab-wide drop-in is required; a scenario's own strongswan.conf is
+	// optional, as prepareScenario (ipsec.go) mounts it only when it exists.
+	scenarioConfig := filepath.Join(source, "strongswan.conf")
 	for _, path := range []string{
 		filepath.Join(root, "test", "interop-ipsec", swanLabConfig),
-		filepath.Join(source, "strongswan.conf"),
+		scenarioConfig,
 	} {
 		content, err := os.ReadFile(path) //nolint:gosec // the path comes from the checkout and the lab source directory listed above
+		if path == scenarioConfig && errors.Is(err, os.ErrNotExist) {
+			continue
+		}
 		if err != nil {
 			return fmt.Errorf("read native strongSwan settings: %w", err)
 		}

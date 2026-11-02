@@ -50,16 +50,12 @@ func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 	extra := map[string][]string{
 		"eap-tls":                         {"ze-env"},
 		"eap-tls13":                       {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
-		"eap-nak-method-negotiation":      {"strongswan.conf"},
 		"initiator-rekey-answer-narrows":  {"ze-env"},
 		"ipsec-bgp-redistribute-frr":      {"frr.conf"},
-		"mobike-initiator":                {"strongswan.conf"},
-		"mobike-responder":                {"strongswan.conf"},
 		"peer-reload-narrowing":           {"ze-narrowed.conf"},
 		"real-nat-transport-ze-initiator": {"nat.conf"},
 		"real-nat-transport-ze-responder": {"nat.conf"},
 		"real-nat-tunnel-control":         {"nat.conf"},
-		"responder-eap-mschapv2":          {"strongswan.conf"},
 		"responder-eap-tls13":             {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
 	}
 	for _, name := range ipsec.ScenarioNames() {
@@ -112,6 +108,99 @@ func TestIPsecTreeIsGoOnly(t *testing.T) {
 	}
 	if ipsec.Action != "test integration/interop-ipsec" {
 		t.Fatalf("native action = %q", ipsec.Action)
+	}
+}
+
+// VALIDATES: every strongSwan peer writes each log line the moment charon logs
+// it, set in exactly one place, the lab-wide drop-in.
+// PREVENTS: a checker that reads charon's log (waitLog, logs) timing out on a
+// line charon already logged. With no filelog configured, charon logs through a
+// default file logger on stdout opened without flush_line (strongSwan 6.1.0
+// src/libcharon/daemon.c, load_loggers: add_file_logger(this, "stdout", ...),
+// file_logger->open(file_logger, FALSE, FALSE)); musl buffers stdout in full
+// when it is a pipe, which Docker's log capture is, so the line sits in the
+// buffer until later output pushes it out. Measured in evidence-nightly run
+// 41298258262: mtu-negotiated-transform waited 90 s for "selected proposal: ESP"
+// that the Child SA had already used.
+func TestEveryStrongSwanPeerFlushesEachLogLine(t *testing.T) {
+	shared, err := os.ReadFile("strongswan-lab.conf")
+	if err != nil {
+		t.Fatalf("shared lab drop-in unreadable: %v", err)
+	}
+	if !labFlushesEachLine(string(shared)) {
+		t.Fatal("strongswan-lab.conf does not set charon.filelog.stderr.flush_line = yes for the lab")
+	}
+	err = filepath.WalkDir("scenarios", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		body, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if strings.Contains(string(body), "flush_line") {
+			t.Errorf("%s carries its own flush_line setting; the lab settles it in strongswan-lab.conf", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// labFlushesEachLine reports whether body sets flush_line = yes on charon's
+// stderr file logger, the logger the lab's peers write to `docker logs`.
+// It reads strongswan.conf's section syntax line by line: `name {` opens a
+// section, `}` closes one, `key = value` sets a key in the open section, and `#`
+// starts a comment. The lab file writes one statement per line.
+func labFlushesEachLine(body string) bool {
+	var path []string
+	for line := range strings.Lines(body) {
+		if comment := strings.IndexByte(line, '#'); comment >= 0 {
+			line = line[:comment]
+		}
+		line = strings.TrimSpace(line)
+		switch {
+		case line == "":
+		case line == "}":
+			if len(path) > 0 {
+				path = path[:len(path)-1]
+			}
+		case strings.HasSuffix(line, "{"):
+			path = append(path, strings.TrimSpace(strings.TrimSuffix(line, "{")))
+		default:
+			key, value, ok := strings.Cut(line, "=")
+			if ok && strings.Join(path, ".") == "charon.filelog.stderr" &&
+				strings.TrimSpace(key) == "flush_line" && strings.TrimSpace(value) == "yes" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// VALIDATES: the flush check reads the setting at its section path,
+// charon.filelog.stderr, and nowhere else.
+// PREVENTS: a flush_line that strongSwan applies to another logger, or ignores,
+// passing for the one the lab's checkers read.
+func TestLabFlushCheckRequiresTheStderrLogger(t *testing.T) {
+	placed := "charon {\n    filelog {\n        stderr {\n            default = 1\n            flush_line = yes\n        }\n    }\n}\n"
+	if !labFlushesEachLine(placed) {
+		t.Fatalf("the check refused charon.filelog.stderr.flush_line = yes:\n%s", placed)
+	}
+	for name, body := range map[string]string{
+		"another logger":  "charon {\n    filelog {\n        stdout {\n            flush_line = yes\n        }\n    }\n}\n",
+		"charon level":    "charon {\n    flush_line = yes\n    filelog {\n        stderr {\n            default = 1\n        }\n    }\n}\n",
+		"in a comment":    "# flush_line = yes\ncharon {\n    filelog {\n        stderr {\n            default = 1\n        }\n    }\n}\n",
+		"another process": "charon-nm {\n    filelog {\n        stderr {\n            flush_line = yes\n        }\n    }\n}\n",
+		"set to no":       "charon {\n    filelog {\n        stderr {\n            flush_line = no\n        }\n    }\n}\n",
+	} {
+		if labFlushesEachLine(body) {
+			t.Errorf("%s: the check accepted a misplaced flush_line:\n%s", name, body)
+		}
 	}
 }
 

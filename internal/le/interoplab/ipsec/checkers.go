@@ -346,10 +346,11 @@ func checkEAPMSCHAPv2(ctx context.Context, lab *scenarioLab) error {
 // to reach it, which is what makes it a fact about ze's bytes rather than about
 // ze's intent.
 //
-// The scenario's strongswan.conf sets `flush_line = yes`, so both lines reach
-// `docker logs` when charon writes them rather than when its stdio buffer fills.
-// Without it a short exchange leaves them invisible and the wait below fails on
-// charon's buffer instead of on charon's exchange.
+// The lab-wide drop-in (test/interop-ipsec/strongswan-lab.conf) sets
+// `flush_line = yes`, so both lines reach `docker logs` when charon writes them
+// rather than when its stdio buffer fills. Without it a short exchange leaves
+// them invisible and the wait below fails on charon's buffer instead of on
+// charon's exchange.
 var eapNakFacts = [...]string{
 	"initiating EAP_MD5 method",
 	"EAP/RES/NAK",

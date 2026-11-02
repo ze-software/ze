@@ -2046,7 +2046,8 @@ before the notify, so that is the failure the run reports.
 Every scenario that starts a strongSwan peer mounts
 `test/interop-ipsec/strongswan-lab.conf` read-only at
 `/etc/strongswan.d/98-lab.conf`. It carries the charon settings the whole lab
-needs, and today that is one: `charon.plugins.bypass-lan.load = no`.
+needs, and today that is two: `charon.plugins.bypass-lan.load = no`, and a
+stderr `filelog` with `flush_line = yes` at charon's default level.
 
 charon loads `bypass-lan` by default, and that plugin installs a PASS shunt for
 every locally attached subnet. This lab puts both containers on 172.28.0.0/24, so
@@ -2061,7 +2062,21 @@ A scenario's own `strongswan.conf` still mounts at
 MUST NOT set `bypass-lan` itself: `TestNoScenarioCarriesItsOwnBypassLanOverride`
 (`test/interop-ipsec/parity_test.go`) refuses a second copy, because two files
 setting one value is a disagreement with nothing to arbitrate it.
+
+The logger exists because charon, with no logger configured, logs through a
+default stdout logger opened without line flushing (strongSwan 6.1.0
+`load_loggers`, `src/libcharon/daemon.c`), and stdio fully buffers stdout on the
+pipe `docker logs` reads. A checker waiting for a charon line then waits on the
+buffer rather than on the exchange. Each scenario that read charon's log used to
+carry a private copy of this logger; `mtu-negotiated-transform`, which had none,
+timed out in evidence-nightly run 41298258262 waiting for a
+`selected proposal: ESP:` line the Child SA had already used. A scenario MUST NOT
+set `flush_line` itself (`TestEveryStrongSwanPeerFlushesEachLogLine`); it MAY add
+options to the same `stderr` logger, as `child-rekey-refused-keeps-the-sa` adds
+its timestamps. The native MOBIKE lab composes the same two files, the scenario's
+only when it exists (`writeSwanConfig`).
 <!-- source: internal/le/interoplab/ipsec/ipsec.go -- prepareScenario mounts the lab drop-in -->
+<!-- source: internal/le/interoplab/ipsec/mobike_netns_linux.go -- writeSwanConfig -->
 <!-- source: test/interop-ipsec/strongswan-lab.conf -- the lab-wide charon settings -->
 
 ### AES CCM on the strongSwan peer
@@ -2101,7 +2116,7 @@ accepts nothing else. The checker reads charon's
 directions. The ESP datapath is the Linux kernel's `ecb(cipher_null)` on both
 ends, which needs `CONFIG_CRYPTO_NULL` on the Docker host kernel.
 
-The scenario's `strongswan.conf` sends charon's log to stderr with
+The lab-wide `strongswan-lab.conf` sends charon's log to stderr with
 `flush_line = yes`, at the unchanged default level. StrongSwan's default
 stdout logger can retain the selected ESP proposal in its buffer after the
 Child SA is installed. The flushed logger makes that exact proposal observable
