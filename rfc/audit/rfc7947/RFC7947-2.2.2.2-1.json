@@ -1,13 +1,13 @@
 {
-  "note": "The client must accept a leftmost AS that is not the RS AS, and MUST allow any such check to be disabled. TestLoopIngressAcceptsNonAdjacentLeftmostAS asserts acceptance of [65002 65003] from RS peer AS 65010, so any leftmost-AS equality check goes red. TestLoopIngressRejectsLocalASFromRouteServer shows the filter reads AS_PATH and rejects a local-AS loop on the same session. ze has no such check, so the disable clause holds by absence. Note: check.log reports both discrimination records for these units as producer-changed (loop.go moved), and they need re-recording.",
+  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of 06b26570b6, e145f7bf39 or 0a030d3e7a. RFC 7947 Section 2.2.2.2 read: \"If the route server client BGP system has implemented a check for this, the BGP implementation MUST allow this check to be disabled and SHOULD allow the check to be disabled on a per-peer basis.\" 0a030d3e7a moved both tagged units from reactor/filter to internal/component/bgp/reactor/loopdetect/loop_test.go; their bodies and comments are byte-identical to the judged ones (diffed). Re-reading the producer changes the judgement. Ze HAS implemented this check: Session.firstASMismatch / firstASPathMismatch (internal/component/bgp/reactor/session_validation.go) treat-as-withdraw an eBGP UPDATE whose leftmost AS_SEQUENCE AS is not the peer AS, and firstASPeer disables it only when this session's transmitted OPEN carries Role RS-client (localRSClient, session_negotiate.go), a per-peer setting. The code therefore complies (disable switch present, per peer), but the tagged tests exercise only LoopIngress, which never reads that equality: TestLoopIngressAcceptsNonAdjacentLeftmostAS asserts LoopIngress accepts [65002 65003] from AS 65010, and TestLoopIngressRejectsLocalASFromRouteServer asserts a local-AS loop (RFC 4271 Section 9.1.2, a neighbouring rule) is denied. Removing the disable (dropping && !s.localRSClient) makes Ze non-compliant and leaves both tagged tests green, so they cannot fail on non-compliance. The positive's doc comment is also false: it says no ingress step tests that equality, so there is no check to allow to be disabled. The units that do discriminate the requirement exist untagged: internal/component/bgp/reactor/session_first_as_test.go::TestSessionASPAFirstASRoles (RS-client-to-RS and RS-client-loose accept the mismatched path unchanged; RS-to-client and remote-RS-only withdraw it exactly). Owed: retag 2.2.2.2-1 onto those cases, record their discrimination against firstASPeer, and correct the false comment. Verdict: weak (was enforced).",
   "requirement_sha": "64b1ed3928399078",
   "tests": {
-    "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS": "a79790000633b034",
-    "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressRejectsLocalASFromRouteServer": "a79790000633b034"
+    "internal/component/bgp/reactor/loopdetect/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS": "cb38ccad8cc87788",
+    "internal/component/bgp/reactor/loopdetect/loop_test.go::TestLoopIngressRejectsLocalASFromRouteServer": "cb38ccad8cc87788"
   },
   "units": {
-    "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS": "4723252bedfba8fa",
-    "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressRejectsLocalASFromRouteServer": "5ef87a26db6ddf4f"
+    "internal/component/bgp/reactor/loopdetect/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS": "4723252bedfba8fa",
+    "internal/component/bgp/reactor/loopdetect/loop_test.go::TestLoopIngressRejectsLocalASFromRouteServer": "5ef87a26db6ddf4f"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }
