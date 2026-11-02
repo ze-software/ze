@@ -137,7 +137,7 @@ func TestMigrateFlowTrafficClassAboveOctet(t *testing.T) {
 //
 // VALIDATES: both migrated configs carry traffic-class 37 and not 101.
 // PREVENTS: the ported fixtures' migrated config being refused at load, the
-// AC-12 finding of plan/release/fixes/spec-config-validate-every-repo-config.md.
+// AC-12 finding of spec-config-validate-every-repo-config (closed).
 func TestMigrateFlowTrafficClassOldFixtures(t *testing.T) {
 	for _, version := range []string{"old-4.2", "old-5.0"} {
 		t.Run(version, func(t *testing.T) {

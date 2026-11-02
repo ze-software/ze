@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | config |
 | Priority | P1 |
 | Release reason | RFC 8212 correctness: configs the repository ships and drives (perf DUT, demos, interop scenarios, netlab goldens, `.ci` bodies) left EBGP directions closed and exchanged no routes, and nothing caught it. `ze config validate` now warns (e2af3bbac6); every config the repository uses must pass it |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 5/5 - BLOCKED on link-local runtime environment; independent Review Gate owed |
+| Phase | 5/5 - closed: runtime proof complete, Review Gate clean (see Review Gate) |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
@@ -122,7 +122,9 @@ This is the durable record of parent `ses_e631cb616ffe3yt3BVP45Yn2nO`'s
 reconciled implementation evidence. No test or review ran for this handoff.
 The earlier recovery instructions are historical, not a second work queue.
 No owned implementation repair remains pending beyond findings a future review
-can expose. Required runtime proof and foreign gate reds remain open.
+can expose. At this handoff, required runtime proof and foreign gate reds
+remained open; the closure evidence after the compatibility allowances below
+supersedes that state.
 
 #### Landed repairs included in the future review population
 
@@ -145,9 +147,9 @@ a passing package run. The later completed results supersede its missing verdict
 
 | AC | Final evidence and limit |
 |----|--------------------------|
-| AC-1 | Linux PASS: 2813 Ze configs, 241 migrated ExaBGP configs, 20 declared/asserted refusals, 489 exit-expectation skips, 29 load sequences/71 steps, 80 legacy native fixtures with reasons. Zero findings and zero host verdicts for every code, including kernel-capability, node-other-os and host-backend. macOS remains unproven and post-release |
+| AC-1 | Linux PASS: 2813 Ze configs, 241 migrated ExaBGP configs, 20 declared/asserted refusals, 489 exit-expectation skips, 29 load sequences/71 steps, 80 legacy native fixtures with reasons. Zero findings and zero host verdicts for every code, including kernel-capability, node-other-os and host-backend. macOS remains unproven and post-release. The Git-derived discovery no longer reads `plan/private/router.conf` and `plan/private/lns.conf`, which `.gitignore` ignores; they are treated as private files, not repository configs, until the owner answers |
 | AC-2 | Preserve the recorded perf-config mutation: removing 664be57056 produces four RFC8212 findings for perf-receiver/perf-sender import/export, restoring it removes them. Original scratch is absent. This is historical mutation evidence, not a newly observed walk |
-| AC-3 | Corpus findings cleared, including the later eight role-clear findings. Reconciled changed-carrier union: 349 files, not 349 new main passes. Historical export runs remain labeled below. Exactly one Linux runtime selector remains blocked: linklocal-only-multihop-withdraw |
+| AC-3 | Corpus findings cleared, including the later eight role-clear findings. Reconciled changed-carrier union: 349 files, not 349 new main passes. Historical export runs remain labeled below. At this handoff one Linux runtime selector was unrun: linklocal-only-multihop-withdraw, since run and passing (closure evidence below) |
 | AC-4 | `28bd5b5c9c`: netlab 26.10 `./le test netlab check` PASS for all three nodes, including rendering and validation. Supersedes the initial claim that it was unrun |
 | AC-5 | Shared classification and native parsing/config-direction proofs retained from `01e6f725b7`, plus the 80 reasoned legacy classifications in the completed corpus. No legacy fixture deleted |
 | AC-6, AC-7 | Full-tag race named PASS for `TestValidateReportsNodeOfAnotherOS` and `TestValidateReportsHostBackendVerdict`, including marked/unmarked subtests. Linux corpus has no host-code skips. Injected plan9 schema is not macOS execution |
@@ -217,57 +219,56 @@ Both final reasons name third-redirect as the first divergence. These are
 declared allowances after `88e7a340ab`, not wire-equivalence PASS and not proof
 of later frames. The allowance-every-frame spec named above retains that defect.
 
-## Blocker
+### Closure evidence (2026-11-02, supersedes the blocked handoff)
 
-**BLOCKED: `linklocal-only-multihop-withdraw` has not reached its required wire
-assertions.** The owner/environment provider must supply a bounded native
-launcher inside the disposable managed Ze guest.
+The handoff above recorded `linklocal-only-multihop-withdraw` as blocked on the
+execution environment (a read-only procfs in the container, no capabilities
+over guest SSH). That reading was wrong: the native unprivileged user-namespace
+route on this Ze-kernel host had never been tried. Logs are under
+`tmp/session/2026-11-02-215330/scratch/`.
 
-| Route | Observed failure |
-|-------|------------------|
-| Container | `write /proc/sys/net/ipv4/ip_forward in zell3383-r: open /proc/sys/net/ipv4/ip_forward: read-only file system` |
-| Native guest SSH | `uid=1001(ze) gid=1001(ze) groups=1000(docker),1001(ze)`, CapPrm/CapEff/CapAmb all zero. `unshare --net true` reports `unshare: unshare(0x40000000): Operation not permitted` |
+| AC | Fresh evidence |
+|----|----------------|
+| AC-1 | `go test -tags "$tags" -count=1 -run '^TestRepositoryConfigsValidate$' -v ./internal/component/config/cli/` (tags: `ze_core` plus every `ze_` gate in `feature-gates.txt`), through `./le job run`, `close-sweep-v.log`: `validated 2827 Ze configs and 241 migrated ExaBGP configs; 20 declared refused and asserted refused; 489 skipped as refused by an exit expectation; 29 load sequences (71 steps); 80 legacy native fixtures skipped; host verdicts skipped: []`, `--- PASS: TestRepositoryConfigsValidate`, zero findings. The earlier full-tag race run (`job-phase5-ac1-8ac66f81.log`, 2825 configs) found six `config-bgp-rfc8212-no-policy` findings in `test/reload/reload-add-peer-role-capability.ci`, added by another session in bb50677cb4; bf8162f81a states the policy in both bodies, after which the sweep passes |
+| AC-2 | Freshly observed (`job-phase5-ac2-mutation-9171615d.log`): with 664be57056 reverted the sweep names `test/perf/configs/ze.conf` four times with `config-bgp-rfc8212-no-policy` (perf-receiver and perf-sender, import and export); restored, the file diff is empty and the file is in no finding |
+| AC-3 | `linklocal-only-multihop-withdraw` PASS 1/1, no skip (`job-linklocal-native-3bd4fba5.log`), through `./le job run ... unshare --user --map-root-user --net --mount sh -c 'mount -t tmpfs tmpfs /run/netns && ip link set lo up && exec ./le test bgp plugin --parallel 1 linklocal-only-multihop-withdraw'` |
+| AC-3, AC-19 | `test/parse` 426/426 under the new `exit=` enforcement (`job-phase5-parse-016b9385.log`). After 99baaf4948, `TestCIAcceptOnlyLint`, `TestParseCICorpusReadsUnderTheGenericParser` and `TestPeerASDerivationReachesEveryCIFile` PASS (`job-runner-ci-corpus-v-324fc113.log`) |
+| AC-21 | `./le go lint run scope` over config/cli, test/runner, test/fixture, doctor, core/diagnostic, bgp/config, pkg/plugin/rpc, pkg/plugin/sdk, test/labconfig, test/exabgpnative and exabgp/migration (`close-lint.log`): host and Linux integration builds report two findings, darwin, freebsd and openbsd 0 issues. Both findings are in files carrying another live session's uncommitted hunks: goconst `rfc` in `runLE`'s caller in `internal/test/fixture/ui_fixture_le_rfc_answers.go`, and embedlit on the `netlink.Veth` literal in `internal/test/fixture/register_sflow_agent_address_linux.go`. Owner: `plan/release/validation/spec-lint-backlog-3-test-tooling.md`. A red holds a release, not a commit (`ai/rules/pre-release.md`) |
+| AC-22 | All nine controls PASS in `job-phase5-ac1-8ac66f81.log`: placeholders 40, ports 244, test plugins 17, declared refusal 1, load sequence 20, migrate input 1, native classification 80, statement shape 3, host verdict 11; `TestSweepRefusesAnEmptyCarrierKind` and both `TestSweepSourceDiscovery*` PASS |
 
-Producer: `internal/test/fixture/plugin_fixture_clamped_path_linux.go`
-`createTestNetns` creates named namespaces, `clampedPath.wire` and `wireIPv6`
-write forwarding through `testNetns.writeSysctl` inside the owned router
-namespace. `startInNetns` does not change credentials.
+Count deltas against the November 1 table (2778 to 2827 configs, 487 to 489
+exit-expectation skips, 242 to 244 port findings restored): between c7f5ce38b6
+and HEAD, 51 `.conf`/`.ci`/`.tape` files were added and 18 deleted, and
+bb4fead1d6 replaced the directory walk by Git discovery, which now admits two
+tracked `vendor/` `.conf` files (classified non-Ze) and every directory named
+`draft` outside the runner's draft tree. No per-file reconciliation was made,
+so the split of each delta between corpus growth and discovery is unexplained.
 
-Required provision: start the unchanged runner/helpers as nonroot UID/GID 1000,
-with effective/ambient CAP_SYS_ADMIN for namespace creation/entry and
-CAP_NET_ADMIN/CAP_NET_RAW for topology and sockets. Permit the fixture's
-owned namespace mounts and writes to its router's
-`/proc/sys/net/ipv4/ip_forward` and `/proc/sys/net/ipv6/conf/all/forwarding`.
-More capabilities alone cannot repair the container's read-only procfs.
-The permission must be supplied by the permitted guest launcher, not by a
-host sysctl change, privileged container, security-profile bypass or sudo.
+`TestPluginObserversWaitForTheScriptedPeer` is red before this spec's work:
+7e68ebce69 records it as a known red, owned by
+`plan/release/validation/spec-observer-peer-wait-backlog.md`.
 
-After provision, use fresh main-built binaries and run only
-`./le --name config-phase5-proof test bgp plugin --parallel 1 linklocal-only-multihop-withdraw`.
-Require its unchanged wire assertions to pass without skips. This is an
-execution-environment blocker, not a demonstrated Linux primitive limit.
+Owner question pending, not answered here: whether the gitignored
+`plan/private/router.conf` and `plan/private/lns.conf` belong in the sweep. The
+provisional reading leaves them out (AC-1 row of the final proof record).
 
 ### Remaining foreign reds and proof limits
 
-These are the last recorded verdicts, not a fresh audit of their owners' trees.
-Reconcile owner results before a failed-selector-only rerun. AC-21 stays red.
+These are the last recorded verdicts, not a fresh audit of their owners' trees,
+except where the closure evidence above re-ran a check.
 
 | Finding | Owner and next action |
 |---------|-----------------------|
-| Fixture lint: errorlint `%q` in plugin_fixture_06_events.go; goconst `veth` in plugin_fixture_rfc2545_joint_subnet_linux.go and register_sflow_agent_address_linux.go; goconst `update` in ui_fixture_le_docvalid_answers.go, ui_fixture_le_placement_answers.go and ui_fixture_le_vendor_web_answers.go; goconst `rfc` in ui_fixture_le_rfc_answers.go; embedlit in register_sflow_agent_address_linux.go; unparam in misc_fixture_runner_derived_debt.go and plugin_fixture_13_peer_lifecycle.go | All under `internal/test/fixture/`. Package owner: `plan/release/validation/spec-lint-backlog-3-test-tooling.md`. Preserve its concurrent hunks and obtain its result |
+| Fixture lint: errorlint `%q` in plugin_fixture_06_events.go; goconst `veth` in plugin_fixture_rfc2545_joint_subnet_linux.go and register_sflow_agent_address_linux.go; goconst `update` in ui_fixture_le_docvalid_answers.go, ui_fixture_le_placement_answers.go and ui_fixture_le_vendor_web_answers.go; goconst `rfc` in ui_fixture_le_rfc_answers.go; embedlit in register_sflow_agent_address_linux.go; unparam in misc_fixture_runner_derived_debt.go and plugin_fixture_13_peer_lifecycle.go | All under `internal/test/fixture/`. Package owner: `plan/release/validation/spec-lint-backlog-3-test-tooling.md`. 59ff106163 and b760ebbab9 cleared the errorlint, `veth`/`update` goconst and unparam findings; the closure lint run leaves only goconst `rfc` and embedlit, both in files holding that session's uncommitted hunks |
 | Setup lint: `could not import go/parser (Config.Importer.Import(go/parser) returned nil but no error)` in `internal/le/test/weakened/scope_go.go` | Same tooling owner. Analyzer importer failure, not a missing import. Diagnose before retry |
 | Four misspell findings in `internal/component/doctor/answer.go`: marshalled twice, coloured, colour | Provenance command-surface-parity (`0b403ea3d3`, `5a91877b02`), no live spec of that name. `plan/release/validation/spec-lint-backlog-0-umbrella.md` coordinates routing. Direct child ownership remains unresolved |
-| `TestCIAcceptOnlyLint` names `test/parse/graceful-restart-llgr-forked.ci` | Owner filter-wire-0-umbrella, introducing path commit `efa0d0957e`. Only after its cause changes: full-tag race `-run '^TestCIAcceptOnlyLint$' ./internal/test/runner`. Other helper controls passed, but their package run was red |
+| `TestCIAcceptOnlyLint` names `test/parse/graceful-restart-llgr-forked.ci` | Owner filter-wire-0-umbrella, introducing path commit `efa0d0957e`. Resolved: `TestCIAcceptOnlyLint` PASS after 99baaf4948 (`job-runner-ci-corpus-v-324fc113.log`) |
 | Doc gate: shipping wiki/live `clear debug` mode mismatch, plus five stale anchors in commands.md/core-design.md (`runIngressPolicyChain`), meta/role.md (`broadcastValidateOpen`), verify-freshness-scope.md (`IsProse`), route-policy.md (`MustRegisterAttachment`) | Parent owns routing to the command catalog, BGP/filter and verification-tooling owners. Direct assignments were not established. Discovery/doctor pages had no anchor findings. DOCS-TO-CODE stale was a warning, not another passing gate |
 | Historical tier refusal in `internal/component/bfd/api` | Foreign BFD ownership, not a sweep-import refusal. Preserve the recorded distinction |
-| macOS corpus and `test ui doctor-bgp-md5` | Unproven, scheduled post-release by the owner's standing macOS rule. The doctor case declares `skip-os=linux,freebsd`. Darwin lint and injected-OS Linux units do not discharge either execution |
-| Independent full Review Gate | Still owed over the complete implementation population, including every earlier commit listed here and the two repairs without Spec-work trailers. The remaining-proof audit and test judgments are not this gate. No clean review, closure or deletion is claimed |
+| macOS corpus and `test ui doctor-bgp-md5` | Unproven, post-release by the owner's standing macOS rule. Owned by `plan/post-release/engineering/spec-config-sweep-macos-proof.md`. The doctor case declares `skip-os=linux,freebsd`. Darwin lint and injected-OS Linux units do not discharge either execution |
+| Independent full Review Gate | Done at closure: see Review Gate |
 
-The spec stays open and blocked. Release the parent's claim after this handoff
-commit succeeds. Resume with the bounded environment provision and foreign-owner
-results, then the independent full Review Gate. Retained scratch logs, scripts,
-and the DelayOpen capture support review until it completes. Normal idle cleanup
-owns launchers/build outputs. No task-owned guest, server or heavy job remains.
+The blocked handoff was cleared by the closure evidence above.
 
 ### Handoff enumeration (nothing dropped)
 
@@ -330,7 +331,7 @@ Corrections to the handoff, verified at the producer:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/config/cli/validate_corpus_test.go` (243L) - `TestRepositoryConfigsValidate`: walks the tree (skipping `sweepSkippedDirs`), reads every `.conf` and the `.ci` bodies `collectCorpusCarriers` yields, classifies a body by `firstConfigKeyword` against the schema and `registry.GatedConfigRootRequirements`, migrates non-Ze bodies with `migration.ParseExaBGPConfig`/`MigrateFromExaBGP`/`SerializeTree`, skips a `.ci` matching `refusedExit` (non-zero exit), excuses an RFC 8212 warning when the `.ci` has `expect=` naming 8212 or the scenario directory name holds 8212, ignores codes in `hostVerdictCodes` (only `config-kernel-capability`), copies the runner's port rule in `expandRecordPorts`
+- [ ] `internal/component/config/cli/validate_corpus_test.go` (976L) - `TestRepositoryConfigsValidate`: takes its sources from `sweepSourceFiles` (`validate_corpus_discovery_test.go`), which lists `*.conf`, `*.ci` and `*.tape` with `git ls-files --cached --others --exclude-standard` (tracked files plus untracked files the ignore rules permit), drops the runner's draft tree (`runner.SuiteDir` with draft set), and refuses an incomplete listing; it reads every `.conf` and the `.ci` bodies `collectCorpusCarriers` yields, classifies a body by `firstConfigKeyword` against the schema and `registry.GatedConfigRootRequirements`, migrates non-Ze bodies with `migration.ParseExaBGPConfig`/`MigrateFromExaBGP`/`SerializeTree`, skips a `.ci` matching `refusedExit` (non-zero exit), excuses an RFC 8212 warning when the `.ci` has `expect=` naming 8212 or the scenario directory name holds 8212, counts a code as a host verdict through `isHostVerdict`, which reads `diagnostic.Lookup(code).HostVerdict` (`internal/core/diagnostic/codes.go` marks `config-kernel-capability`, `config-node-other-os` and `config-host-backend`), and expands ports through `runner.ExpandPorts`. At the spec's start it held a `hostVerdictCodes` list (only `config-kernel-capability`) and a copy of the runner's port rule in `expandRecordPorts`; both are gone
 - [ ] `internal/component/config/cli/cmd_validate.go` - `runValidation`: YANG, `kernelcap.Refuse` reported as `config-kernel-capability` (documented as a host verdict), MCP, gNMI, `config.VerifyPluginConfig` reported as `config-plugin-verify`, BGP, `addRFC8212Warning`
 - [ ] `internal/component/bgp/config/loader_test.go` - `TestParseAllConfigFiles`, `curatedNativeExampleFixtures` (8 files), `legacyExampleFixtureReason` (prefix and name rules)
 - [ ] `internal/component/config/yang_schema.go` - `yangToNode` returns nil for a node whose `ze:os` is not `runtime.GOOS`
@@ -605,6 +606,7 @@ Finding counts are from `sweep-findings-556.txt`; they sum to 556.
 ## Design Insights
 
 - The netlab checker validates goldens by exit code, and RFC 8212 is a warning with exit 0, so the checker could never have caught it; the sweep is the check that does.
+- ExaBGP behaviour wins for `traffic-class` above 63, because RFC 8955 Section 4.2.2.11 states only a SHOULD: "The six least significant bits contain the DSCP value.  All other bits SHOULD be treated as 0." ExaBGP 4.2 and 5.0 accept up to 0xFFFF (`if number < 0 or number > 0xFFFF:`, `ClassValue`, lib/exabgp/bgp/message/update/nlri/flow.py@4.2.25:355; `MAX_TRAFFIC_CLASS = 0xFFFF`, src/exabgp/bgp/message/update/nlri/flow.py@5.0:37) and send the value as one unmasked octet (`return 1, character(value)`, flow.py@4.2.25:219; `return 1, bytes([value])`, flow.py@5.0:218), so 101 leaves as 0x65. ExaBGP 6.0 decodes that octet as `return NumericValue(int(_number(string)) & MAX_DSCP_VALUE)` (`_dscp`, src/exabgp/bgp/message/update/nlri/flow.py@main:695), which reads 37. The migration (`flowTrafficClassDSCP`) therefore writes each operand from 64 to 255 as `n & 0x3F` with its operator kept and warns naming the route: `traffic-class 101` becomes `traffic-class 37`, the same match on an RFC-following receiver. An operand of 256 or more is never sent by ExaBGP (`bytes([v])` raises), so Ze refuses it.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
@@ -660,5 +662,178 @@ Finding counts are from `sweep-findings-556.txt`; they sum to 556.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-config-validate-every-repo-config.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- `ze config validate` reports host verdicts by code, set by the producer: `config-node-other-os` (`NodeOfAnotherOSError`, from the `ze:os` pruning in `yang_schema.go`) and `config-host-backend` (`diagnostic.HostVerdict` marking in the backend gate and the iface, firewall, traffic and vpp verifiers), beside `config-kernel-capability`; `codes.go` marks all three `HostVerdict`.
+- `TestRepositoryConfigsValidate` sweeps every repository config with zero findings, each exclusion derived from a declaration: Git-derived discovery (`sweepSourceFiles`), the shared placeholder renderer (`internal/test/labconfig`), `runner.ExpandPorts`, the test-only plugin composition, `refused=` on `.ci` blocks, cumulative load sequences for tapes and `.ci` merges, `ze config migrate` input, the shared native classification (`internal/test/exabgpnative`), and the statement-shape rule. `TestSweepDerivesEachExclusion` disables each rule and sees its findings return; `emptyKinds` refuses a sweep in which a carrier kind produced nothing.
+- Runner: `$PORT3` reserved and an unreserved `$PORTn` refused; every foreground helper honours its `exit=`; `exit=` refused where the arm never checks it (`classifyStepArm`, `checkExitAssertable`); the parse suite binds `exit=`.
+- Product fixes: ExaBGP migration of `family { all; }` and of DSCP values above 63; doctor runs `parsed-config` checks before load validation so `doctor-config-reference` is reported, and the plugin protocol declares that phase once (`pkg/plugin/rpc`).
+- Config fixes: hundreds of `.ci` bodies, the netlab template and goldens, two interop scenarios, demo fragments and tapes, as listed per AC in the records above.
+
+### Bugs Found/Fixed
+- Runner dropped `exit=` on non-final helpers and on daemon steps (`runOrchestrated`); covered by `TestForegroundHelperCommandExit`, `TestForegroundHelperFileExit`, `TestParseRefusesExitTheArmDrops`, `TestParseSuiteHonoursCommandExit`.
+- `$PORT3` expanded to `<port>3`; covered by `TestRecordPortExpansionRefusesUnreservedPort`.
+- Doctor's filter-reference check hidden by the load refusal; covered by `TestDoctorReferenceBeforeLoadRefusal` and `test/ui/doctor-config-reference.ci`.
+- `parsed-config` absent from the plugin protocol's phase set; covered by `TestRunPluginRegistryChecks_ParsedConfig`.
+
+### Documentation Updates
+- `docs/guide/command-reference.md`: the `config-node-other-os` and `config-host-backend` rows.
+- `docs/architecture/config/yang-config-design.md`: the `ze:os` row names `NodeOfAnotherOSError` and the code.
+- `docs/architecture/testing/ci-format.md`: `refused=`, `$PORT3`, port expansion scope, Git discovery, `exit=` acceptance table.
+- `docs/architecture/doctor-and-health-checks.md` ("The phase decides what a check may read") and `docs/guide/health-checks.md`.
+- `./le doc check all` (`close-doccheck.log`): source anchors pass; the only red is the foreign `clear debug` wiki/live catalog mode mismatch.
+
+### Deviations from Plan
+- AC-4: the EBGP policy is rendered by `contrib/netlab/ze/ze.j2`, not `bgp.j2` as Files to Modify named.
+- AC-1 runs on Linux only; the macOS run moves to `plan/post-release/engineering/spec-config-sweep-macos-proof.md` under the owner's macOS rule.
+- Discovery became Git-derived (bb4fead1d6), so the sweep no longer reads the gitignored `plan/private/*.conf` (owner question pending).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The handoff recorded `linklocal-only-multihop-withdraw` as an environment blocker needing a privileged guest launcher | An unprivileged user namespace on the Ze-kernel host runs it; that route had never been tried | The parent's proof agent tried it | Recorded in Closure evidence |
+| approach | 5dcffd85d0 added a doctor phase to `internal/core/diagnostic` only | The plugin protocol's phase set in `pkg/plugin/rpc` was a second declaration and refused it | Review | ebeecfbc66 declares it once |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Validate every config the repository generates or uses | Done | `validate_corpus_test.go` `TestRepositoryConfigsValidate` | Linux; macOS homed post-release |
+| Over-reports removed by derived rules, never a list | Done | `TestSweepDerivesEachExclusion` | nine rules |
+| Every real defect fixed, sweep green with zero findings | Done | `close-sweep-v.log` | 2827 configs |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done (Linux) | `close-sweep-v.log` summary line, zero findings | macOS: Work Not Done |
+| AC-2 | Done | `job-phase5-ac2-mutation-9171615d.log` | fresh |
+| AC-3 | Done | corpus zero findings; `linklocal-only-multihop-withdraw` PASS; parse 426/426 | |
+| AC-4 | Done | 28bd5b5c9c netlab check; goldens carry `final accept` | `ze.j2` (Deviations) |
+| AC-5 | Done | `internal/test/exabgpnative`, `TestParseAllConfigFiles` | |
+| AC-6 | Done (Linux) | `TestValidateReportsNodeOfAnotherOS` | |
+| AC-7 | Done (Linux) | `TestValidateReportsHostBackendVerdict` | |
+| AC-8, AC-9 | Done | `internal/test/labconfig`, corpus | |
+| AC-10, AC-11 | Done | statement shape 3, test plugins 17 | |
+| AC-12 | Done | migration commits; Design Insights quotes ExaBGP source | |
+| AC-13 | Done | 29 sequences, 71 steps | |
+| AC-14 | Done | both interop scenarios PASS | |
+| AC-15, AC-16 | Done | load sequence 20; 20 asserted refusals | |
+| AC-17, AC-18 | Done | corpus; 84c0fc6cea runs | |
+| AC-19 | Done | `TestRecordPortExpansionRefusesUnreservedPort`; five consumers pass | |
+| AC-20 | Done | `TestUnknownRedistributeFamilyRefusesLoad` | |
+| AC-21 | Done for this spec's code | `close-lint.log`: two foreign in-flight findings remain, owned by spec-lint-backlog-3-test-tooling; tier result names bfd/api only | |
+| AC-22 | Done | nine controls PASS | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRepositoryConfigsValidate`, `TestSweepDerivesEachExclusion` | Done | `internal/component/config/cli/validate_corpus_test.go` | |
+| `TestValidateReportsNodeOfAnotherOS`, `TestValidateReportsHostBackendVerdict` | Done | `internal/component/config/cli/cmd_validate_host_test.go` | |
+| `TestRecordPortExpansionRefusesUnreservedPort` | Done | `internal/test/runner/runner_exec_test.go` | |
+| `TestParseAllConfigFiles`, `TestUnknownRedistributeFamilyRefusesLoad` | Done | `internal/component/bgp/config/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/labconfig/`, `internal/test/exabgpnative/`, `cmd_validate_host_test.go` | Done | created |
+| `contrib/netlab/ze/bgp.j2` | Changed | policy rendered in `ze.j2` |
+| other Files to Modify | Done | per AC commits |
+
+### Audit Summary
+- **Total items:** 22 ACs
+- **Done:** 22 (AC-1, AC-6, AC-7 on Linux)
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-4 template file (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every config the repository generates or uses passes `ze config validate` | functional sweep over the real validation path (`runValidation`) | `close-sweep-v.log`: 2827 Ze configs, 241 migrated, zero findings |
+| The sweep catches an RFC 8212 regression like the perf DUT config | mutation | `job-phase5-ac2-mutation-9171615d.log`: four findings with 664be57056 reverted, none restored |
+| Each exclusion is what turns its findings away | differential | `TestSweepDerivesEachExclusion`, nine controls |
+| Fixed configs still do their job at runtime | functional and interop | linklocal-only-multihop-withdraw, parse 426/426, the reload, static, firewall, plugin and interop selections in the final proof record |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-1 run on macOS, and `test ui doctor-bgp-md5` (`skip-os=linux,freebsd`) | Only a macOS host can run them; `ai/META-DECISIONS.md`: "Production is Linux. A check, test or defect that exists only on macOS waits until after the first release." | `plan/post-release/engineering/spec-config-sweep-macos-proof.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/config-validate-every-repo-config-cad30e56-065d-40be-a53c-322aefe738fa.md` (47 files: the population's 44 surviving files, both spec files and the citation repoint in `migrate_flow_traffic_class_test.go`) |
+| `./le spec review check` | clean (`review_gate: OK`, hashes match) |
+| Rounds | 1 |
+| Reviewer lenses used | wiring and process boundary (doctor phase in `pkg/plugin/rpc`, SDK, every phase runner), logic and guards (runner `exit=` arms, discovery refusals, empty-kind guard), removed-behavior (deleted walk exclusions, deleted helper arms), docs against producers, style pass on every changed Go file |
+
+Population: every `Spec-work: config-validate-every-repo-config` commit
+(175a44e816, bb4fead1d6, 5dcffd85d0, 7b8707e23e, 59ff106163, 5068a67531,
+cbc12349c2, ebeecfbc66, d16ef35b3a, b760ebbab9, 99baaf4948, 8b45e5bd2c,
+0011ff954f, bf8162f81a) plus f90191eab4 and 26da0eef6e. Pre-checks:
+`./le test weakened check base origin/main` names no file of this population
+(`close-weakened.log`; its 20 findings are other sessions' l2tp, reactor,
+filterapi, ospf and schema-helper tests); `./le repo check` names none either
+(`close-repocheck.log`).
+
+Run 1: 0 BLOCKER, 0 ISSUE. NOTEs:
+1. `runOrchestrated` quick-exit ze arm reads a wait error that is not an `*exec.ExitError` as exit 0, while the helper arm now fails it as `exit_code_unreadable`. `awaitQuickZe` writes to in-memory builders, so no realistic input produces that error.
+2. The helper arm's `exit_code_unreadable` path has no test, for the same reason.
+3. `runChecks` names `diagnostic.DoctorPhaseParsedConfig` directly where the other phases use the `doctorCheckPhase*` aliases in `internal/component/doctor/registry.go`.
+4. Git discovery now admits two tracked `vendor/` `.conf` files; they classify non-Ze and validate nothing.
+5. The final helper accepts both `exit=` and `expect=exit:code=` with different values without a parse refusal (`record_parse.go`); the run then fails visibly, not silently.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | none in this run; earlier review rounds fixed 5068a67531, cbc12349c2, ebeecfbc66, d16ef35b3a, 8b45e5bd2c, 99baaf4948 | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/test/labconfig/`, `internal/test/exabgpnative/` | Yes | `ls -d` at closure |
+| `internal/component/config/cli/cmd_validate_host_test.go` | Yes | `ls -d` at closure |
+| `test/runner/helper-command-exit.ci` | Yes | `ls -d` at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | sweep green | `close-sweep-v.log`: `--- PASS: TestRepositoryConfigsValidate`, summary line quoted in Closure evidence |
+| AC-19 | no copy of the runner rule | `grep -rn expandRecordPorts` finds 0; the sweep calls `runner.ExpandPorts` |
+| AC-21 | scoped lint | `close-lint.log`: two foreign findings only |
+| AC-6, AC-7 | wiring tests exist | `func TestValidateReportsNodeOfAnotherOS(`, `func TestValidateReportsHostBackendVerdict(` in `cmd_validate_host_test.go` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config validate` host verdicts | `TestValidateReportsNodeOfAnotherOS`, `TestValidateReportsHostBackendVerdict` drive `runValidation` | Yes |
+| Repository files | `TestRepositoryConfigsValidate` | Yes |
+| `.ci` with `$PORT3` | `TestRecordPortExpansionRefusesUnreservedPort` | Yes |
+| `ze doctor` reference check | `test/ui/doctor-config-reference.ci` | Yes (5dcffd85d0, red then PASS) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-2 | confirmed | Linux sweep: `host verdicts skipped: []` |
+| A-3 | confirmed | 20 declared bodies asserted refused |
+| A-4 | confirmed | 3cb09bb0a9 judged expectations |
+| A-5 | confirmed | statement shape moves only the three `vtysh.conf` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| command-reference host codes | `internal/core/diagnostic/codes.go` marks `HostVerdict` on `config-node-other-os`, `config-host-backend` | Yes |
+| ci-format `exit=` table | `steparm.go` `classifyStepArm`, `stepArm.assertsExit` | Yes |
+| doctor phase order | `doctor.go` `runChecks`: pre-config, missing-config, parsed-config, post-config | Yes |
+| yang-config-design `ze:os` | `NodeOfAnotherOSError` named in the `ze:os` row | Yes |
 </content>
 </invoke>
