@@ -6,41 +6,9 @@
     "unit-sha": "ec31444d779a723a",
     "claim-sha": "ded354c19c56d1be",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
-    "producer-sha": "4865ab799033434e",
-    "break": "line 568: \"key.addPath\" -\u003e \"false\"",
-    "paired": [
-      {
-        "producer": "internal/component/bgp/reactor/forward_path_id.go::generate",
-        "producer-sha": "53faf4865730dc76",
-        "break": "line 139: \"ok\" -\u003e \"true\""
-      },
-      {
-        "producer": "internal/component/bgp/reactor/session_ownership.go::bindSourcePath",
-        "producer-sha": "c8f26b1dd55b64df",
-        "break": "line 470: \"entry != nil || stagedSlot\" -\u003e \"entry != nil \u0026\u0026 stagedSlot\""
-      }
-    ],
-    "solo": [
-      {
-        "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
-        "break": "line 568: \"key.addPath\" -\u003e \"false\"",
-        "seconds": 34,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.564s"
-      },
-      {
-        "producer": "internal/component/bgp/reactor/forward_path_id.go::generate",
-        "break": "line 139: \"ok\" -\u003e \"true\"",
-        "seconds": 32,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.486s"
-      },
-      {
-        "producer": "internal/component/bgp/reactor/session_ownership.go::bindSourcePath",
-        "break": "line 470: \"entry != nil || stagedSlot\" -\u003e \"entry != nil \u0026\u0026 stagedSlot\"",
-        "seconds": 31,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.516s"
-      }
-    ]
+    "producer": "internal/component/bgp/reactor/session_ownership.go::key",
+    "producer-sha": "69f2c7598aaba070",
+    "break": "line 186: \"raw = raw[4:]\" -\u003e \"raw, key.addPath, id = raw[4:], false, 0\""
   },
   {
     "rid": "RFC7947-x-5",
