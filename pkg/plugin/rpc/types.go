@@ -678,7 +678,7 @@ type FilterUpdateInput struct {
 
 // FilterUpdateOutput is the verdict on one route of a filter-update exchange.
 type FilterUpdateOutput struct {
-	Action FilterAction `json:"action"`           // Typed decision; wire form is "accept"/"reject"/"modify"
+	Action FilterAction `json:"action"`           // Typed decision; wire form is "accept"/"reject"/"modify"/"withdraw"
 	Update string       `json:"update,omitempty"` // Delta-only modified attributes (only for action=modify)
 	// Raw is a full raw UPDATE-body replacement (only for action=modify with
 	// raw). []byte so encoding/json base64-encodes it on the wire (see the input

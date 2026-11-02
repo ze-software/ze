@@ -18,6 +18,7 @@ const (
 	wireAccept      = "accept"
 	wireReject      = "reject"
 	wireModify      = "modify"
+	wireWithdraw    = "withdraw"
 	wireImport      = "import"
 	wireExport      = "export"
 	wireBoth        = "both"
@@ -143,7 +144,11 @@ func (d *MessageDirection) UnmarshalText(data []byte) error {
 }
 
 // FilterAction is the typed wire decision returned by a filter plugin
-// via FilterUpdateOutput.Action. Wire form: "accept", "reject", "modify".
+// via FilterUpdateOutput.Action. Wire form: "accept", "reject", "modify",
+// "withdraw". A withdraw removes the route: on import it is treated as
+// withdrawn from the peer that sent it, on export it is withdrawn toward the
+// destination. A reject only stops the route, and a route the peer already
+// holds stays where it is.
 type FilterAction uint8
 
 const (
@@ -151,6 +156,7 @@ const (
 	FilterAccept      FilterAction = 1
 	FilterReject      FilterAction = 2
 	FilterModify      FilterAction = 3
+	FilterWithdraw    FilterAction = 4
 )
 
 func (a FilterAction) String() string {
@@ -161,6 +167,8 @@ func (a FilterAction) String() string {
 		return wireReject
 	case FilterModify:
 		return wireModify
+	case FilterWithdraw:
+		return wireWithdraw
 	case FilterUnspecified:
 		return wireUnspecified
 	default:
@@ -186,6 +194,8 @@ func (a *FilterAction) UnmarshalText(data []byte) error {
 		*a = FilterReject
 	case wireModify:
 		*a = FilterModify
+	case wireWithdraw:
+		*a = FilterWithdraw
 	default:
 		return fmt.Errorf("rpc: unknown filter action %q", string(data))
 	}

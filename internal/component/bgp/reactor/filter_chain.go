@@ -226,6 +226,10 @@ type PolicyChainResult struct {
 	Teardown      bool
 	NotifyCode    uint8
 	NotifySubcode uint8
+	// Withdrawn marks a library chain member's withdraw verdict (dry run
+	// only): Action is PolicyAccept and Text is the withdrawal the route
+	// becomes, which is what the peer is sent instead of the UPDATE.
+	Withdrawn bool
 }
 
 // PolicyFilterFunc is the signature for calling a named filter.
@@ -899,6 +903,11 @@ func toPolicyAction(a rpc.FilterAction) (PolicyAction, bool) {
 		return PolicyReject, true
 	case rpc.FilterModify:
 		return PolicyModify, true
+	case rpc.FilterWithdraw:
+		// A withdraw is a structured member's verdict (policychain); the
+		// text chain carries no withdrawal, so a text-mode filter answering
+		// it fails under its on-error rather than reading as a reject.
+		return PolicyReject, false
 	case rpc.FilterUnspecified:
 		return PolicyReject, false
 	default:

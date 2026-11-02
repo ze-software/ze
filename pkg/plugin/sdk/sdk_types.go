@@ -229,12 +229,13 @@ type FilterUpdateOutput = rpc.FilterUpdateOutput
 // FilterAction is the typed wire decision for a filter-update response.
 type FilterAction = rpc.FilterAction
 
-// FilterAction values: wire form is "accept", "reject", "modify".
+// FilterAction values: wire form is "accept", "reject", "modify", "withdraw".
 const (
 	FilterUnspecified = rpc.FilterUnspecified
 	FilterAccept      = rpc.FilterAccept
 	FilterReject      = rpc.FilterReject
 	FilterModify      = rpc.FilterModify
+	FilterWithdraw    = rpc.FilterWithdraw
 )
 
 // FilterDirection is the typed wire direction for a FilterDecl.

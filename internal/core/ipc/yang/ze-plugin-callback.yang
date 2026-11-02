@@ -539,11 +539,16 @@ to the single document the record path would have carried.";
                         enum accept { ze:help "Pass update unchanged"; }
                         enum reject { ze:help "Drop update, short-circuit chain"; }
                         enum modify { ze:help "Apply delta changes"; }
+                        enum withdraw { ze:help "Remove the route: withdrawn on import, withdrawn toward the peer on export"; }
                     }
                     mandatory true;
                     description
-                        "A value outside the three is read as reject, and the chain records that
-                         the filter failed rather than decided.";
+                        "A withdraw removes the route rather than only stopping it: on import the
+                         route is treated as withdrawn by the peer that sent it, on export it is
+                         withdrawn toward the destination. It is answered by a filter the policy
+                         chain runs as a member; a text-mode filter answering it fails under its
+                         on-error. A value outside the four is read as reject, and the chain
+                         records that the filter failed rather than decided.";
                     ze:help "Filter decision";
                 }
                 leaf update {

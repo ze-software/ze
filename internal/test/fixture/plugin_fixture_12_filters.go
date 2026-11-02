@@ -271,6 +271,8 @@ func p12FilterImportDriver(name, filterName string, attributes []string, action 
 			verb = "MODIFY"
 		case sdk.FilterReject:
 			verb = "REJECT"
+		case sdk.FilterWithdraw:
+			verb = "WITHDRAW"
 		case sdk.FilterAccept, sdk.FilterUnspecified:
 			verb = "ACCEPT"
 		default:

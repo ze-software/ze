@@ -44,6 +44,9 @@ const (
 	DecisionPass
 	// DecisionReject stops the chain: the route is rejected.
 	DecisionReject
+	// DecisionWithdraw stops the chain: the route is removed, treated as
+	// withdrawn on import and withdrawn toward the destination on export.
+	DecisionWithdraw
 )
 
 // Evaluator judges one route over the view, writing the fields it changes
@@ -282,6 +285,11 @@ const (
 	OutcomeUnspecified OutcomeAction = iota
 	OutcomeAccept
 	OutcomeReject
+	// OutcomeWithdraw removes the route: a member answered withdraw. The
+	// caller MUST withdraw it (import: the announcements become withdrawals;
+	// export: the route is withdrawn toward the destination) and MUST NOT read
+	// it as a reject, which only stops the route.
+	OutcomeWithdraw
 )
 
 // Outcome is one run's answer. Failed marks a reject that no filter decided:
@@ -401,6 +409,11 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		if decision == DecisionReject {
 			traceStep(record, m, TraceReject, nil, nil)
 			return Outcome{Action: OutcomeReject, Member: m.name}
+		}
+		if decision == DecisionWithdraw {
+			sets.folded.Reset()
+			traceStep(record, m, TraceWithdraw, nil, nil)
+			return Outcome{Action: OutcomeWithdraw, Member: m.name}
 		}
 		err = c.overlayNumeric(view, &sets.member)
 		if err == nil {
@@ -599,11 +612,11 @@ func (m *member) refuseUndeclared(sets *Sets) error {
 
 func decisionError(decision Decision) error {
 	switch decision {
-	case DecisionPass, DecisionReject:
+	case DecisionPass, DecisionReject, DecisionWithdraw:
 		return nil
 	case DecisionUnspecified:
 	}
-	return fmt.Errorf("BUG: evaluator answered decision %d, neither pass nor reject", decision)
+	return fmt.Errorf("BUG: evaluator answered decision %d, not pass, reject or withdraw", decision)
 }
 
 // failure answers whether a member failure rejects the route (fail-closed)

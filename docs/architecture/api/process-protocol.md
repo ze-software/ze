@@ -1296,8 +1296,13 @@ handler calls `show.Enrich()` (mode "detail") or `show.EnrichBrief()` (mode "bri
 <!-- source: internal/component/plugin/server/enricher.go -- registerProxyEnrichers, makeProxyCall -->
 
 **filter-update:** Engine sends a batch of routes to a plugin's filters, and
-the plugin answers one verdict per route, in request order: accept, reject, or
-modify (delta-only changed attributes, or sets). Each route names its filter so
+the plugin answers one verdict per route, in request order: accept, reject,
+modify (delta-only changed attributes, or sets), or withdraw. A reject only
+stops the route, so a version the peer already holds stays; a withdraw removes
+it: on import the route is treated as withdrawn by the peer that sent it, on
+export it is withdrawn toward the destination. Withdraw is answered by a filter
+the policy chain runs as a member, and carries no sets; a text-mode filter
+answering it fails under its `on-error`. Each route names its filter so
 the plugin can dispatch to the correct handler. A batch holds the routes queued
 for the plugin when the exchange starts, at most `rpc.FilterUpdateBatchMax`
 (64), under one `rpc.FilterUpdateTimeout`; a failed batch (timeout, error, a

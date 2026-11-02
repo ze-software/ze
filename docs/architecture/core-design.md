@@ -1294,7 +1294,13 @@ code position:
    loop step by `reactor/loopdetect` `BindLoopDetection` during configuration. It
    remains in `Policy.Filters` but executes only at the loop step, never again
    as an RPC; no other type is bound in process. `Reject` drops the route; `Teardown`
-   closes the session (import only). A raw override stops later filters but
+   closes the session (import only). A library chain member's `withdraw`
+   (`policychain.OutcomeWithdraw`) removes the route instead: on import the
+   UPDATE's routes become withdrawals (`ingressChainWithdrawal`, through
+   `buildWithdrawalPayload`), so an earlier version leaves the RIB; on export
+   the forward rail sets `SetWithdraw` toward that destination and the
+   originated rail sends the withdrawal (`egressInjectedWithdrawal`). A
+   text-mode filter answering `withdraw` fails under its `on-error`. A raw override stops later filters but
    still receives the final decision. An accepted raw override or `Modify`
    text delta rebuilds the cached `WireUpdate` through the same progressive
    build used on egress.

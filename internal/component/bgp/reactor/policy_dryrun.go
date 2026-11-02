@@ -124,6 +124,9 @@ const (
 	dryRunActionAccept = "accept"
 	dryRunActionReject = "reject"
 	dryRunActionModify = "modify"
+	// dryRunActionWithdraw is a chain member's withdraw verdict: the route
+	// is sent as a withdrawal.
+	dryRunActionWithdraw = "withdraw"
 )
 
 var (
@@ -303,6 +306,10 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		// A raw rewrite changes the wire payload without a text delta.
 		actionStr = dryRunActionModify
 	case PolicyAccept:
+		if result.Withdrawn {
+			actionStr = dryRunActionWithdraw
+			break
+		}
 		if textAfter == textBefore {
 			actionStr = dryRunActionAccept
 		} else {

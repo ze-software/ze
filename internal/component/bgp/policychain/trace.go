@@ -21,6 +21,8 @@ const (
 	TracePass
 	// TraceReject: the member rejected the route (a policy decision).
 	TraceReject
+	// TraceWithdraw: the member withdrew the route (a policy decision).
+	TraceWithdraw
 	// TraceFailClosed: the member failed, and its on-error rejected the route.
 	TraceFailClosed
 	// TraceFailOpen: the member failed, and its on-error passed the route on

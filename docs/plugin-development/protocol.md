@@ -802,8 +802,13 @@ the value in the field's shape:
   announce, one with host bits set, or a value whose shape names another
   kind of NLRI (a label stack for a unicast entry, a plain prefix for a
   labeled one) fails the route.
-- The route fails the same way when the answer carries `sets` beside `accept`
-  or `reject`, or a text `update`.
+- `"action":"withdraw"` removes the route rather than only stopping it: on
+  import the engine treats the route's announcements as withdrawn by the peer
+  that sent them, so a version accepted earlier leaves the RIB; on export the
+  route is withdrawn toward that destination. The later filters of the chain
+  are not called.
+- The route fails the same way when the answer carries `sets` beside `accept`,
+  `reject` or `withdraw`, or a text `update`.
 - A filter that declares `raw` among its reads may answer `"action":"modify"`
   with a whole-body `raw` rewrite and no `sets`. The rewrite is terminal: the
   later filters of the chain are not called, the chain's final still decides

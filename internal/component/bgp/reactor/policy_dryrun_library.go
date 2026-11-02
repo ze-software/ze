@@ -50,6 +50,9 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryD
 		Sender: dry.intent.peerAS, SenderKnown: dry.direction == directionImport}, dry.intent,
 		dry.direction, "", dry.peer, record)
 	outcome := res.outcome
+	if outcome.Action == policychain.OutcomeWithdraw {
+		return dryRunWithdrawal(dry, trace)
+	}
 	if outcome.Teardown {
 		return PolicyChainResult{Action: PolicyReject, Teardown: true,
 			NotifyCode: outcome.NotifyCode, NotifySubcode: outcome.NotifySubcode}, trace, nil
@@ -71,6 +74,26 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryD
 	return PolicyChainResult{Action: PolicyAccept, Text: string(AppendUpdateForFilter(nil, attrs, modified, nil))}, trace, res.wireChanges
 }
 
+// dryRunWithdrawal renders a member's withdraw verdict as the live import and
+// export paths apply it (ingressChainWithdrawal, egressInjectedWithdrawal): the
+// route's announcements as withdrawals, under the dry run's context. Display
+// only: it allocates the rendered text. A body the conversion refuses is a
+// failed reject, as the live paths drop or suppress it.
+func dryRunWithdrawal(dry libraryDryRun, trace []plugin.PolicyTraceEntry) (PolicyChainResult, []plugin.PolicyTraceEntry, []string) {
+	buf := make([]byte, len(dry.payload)+4)
+	n := buildWithdrawalPayload(dry.payload, buf, bgpctx.Registry.Get(dry.ctxID))
+	if n == 0 {
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
+	}
+	withdrawal := wireu.NewWireUpdate(buf[:n], dry.ctxID)
+	attrs, err := withdrawal.Attrs()
+	if err != nil {
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
+	}
+	return PolicyChainResult{Action: PolicyAccept, Withdrawn: true,
+		Text: string(AppendUpdateForFilter(nil, attrs, withdrawal, nil))}, trace, nil
+}
+
 // libraryTraceText renders the UPDATE as the chain rewrote it up to step,
 // for the step's text-after, the way a text filter's entry carries the text
 // after its delta: after a passing or failed-open member the folded sets so
@@ -82,7 +105,7 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryD
 // running is the run's text as the text members up to step left it.
 func (r *Reactor) libraryTraceText(step policychain.MemberTrace, running *libraryText, dry libraryDryRun, textBefore string) (string, error) {
 	switch step.Step {
-	case policychain.TraceReject, policychain.TraceFailClosed:
+	case policychain.TraceReject, policychain.TraceWithdraw, policychain.TraceFailClosed:
 		return "", nil
 	case policychain.TracePass, policychain.TraceFailOpen:
 	case policychain.TraceUnspecified:
@@ -146,6 +169,8 @@ func libraryTraceEntry(step policychain.MemberTrace) plugin.PolicyTraceEntry {
 		}
 	case policychain.TraceReject, policychain.TraceFailClosed:
 		entry.Action = dryRunActionReject
+	case policychain.TraceWithdraw:
+		entry.Action = dryRunActionWithdraw
 	case policychain.TraceFailOpen:
 		entry.Action = dryRunActionAccept
 	case policychain.TraceUnspecified:

@@ -82,6 +82,10 @@ type egressStepResult struct {
 	// timeout, an unparseable filter response, a missing API server, or a filter
 	// panic as "policy said no". See errAllDestinationsSuppressed.
 	failed bool
+	// withdraw is a member's withdraw verdict (accept is false): the route
+	// MUST be withdrawn toward this destination, never only suppressed, so a
+	// version the destination already holds leaves it.
+	withdraw bool
 }
 
 // buildOrderedIngressSteps merges the registered in-process ingress filters with
@@ -183,6 +187,9 @@ func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src
 			directionImport, modifySiteImportChain, peerAddr.String(), nil)
 		if res.outcome.Teardown {
 			return ingressStepResult{teardown: true, notifyCode: res.outcome.NotifyCode, notifySubcode: res.outcome.NotifySubcode}
+		}
+		if res.outcome.Action == policychain.OutcomeWithdraw {
+			return ingressChainWithdrawal(payload, srcCtx, peerAddr, res.outcome.Member)
 		}
 		if res.outcome.Action != policychain.OutcomeAccept {
 			// RFC 8212 Section 3: the same withdrawals rule as the text chain.
@@ -367,6 +374,9 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		intent := libraryIntentContext{asn4: asn4, localAS: destLocalAS, peerAS: destPeerAS, asPathEditable: !destInternal}
 		res := r.runLibraryChain(library, wireUpdate, wireUpdate.Payload(), session, intent,
 			directionExport, modifySiteExportChain, destAddrStr, nil)
+		if res.outcome.Action == policychain.OutcomeWithdraw {
+			return egressStepResult{withdraw: true} // accept == false: withdraw toward this peer
+		}
 		if res.outcome.Action != policychain.OutcomeAccept {
 			return egressStepResult{failed: res.outcome.Failed} // accept == false: suppress for this peer
 		}
@@ -472,6 +482,27 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 
 // ingressPolicyWithdrawals keeps the withdrawal half of a denied UPDATE. The
 // returned replacement owns its bytes when announcements had to be removed.
+// ingressChainWithdrawal answers a chain member's withdraw verdict on import:
+// every route the UPDATE carries becomes a withdrawal, so a version the peer
+// sent earlier leaves the RIB, where a reject only drops this UPDATE. It is
+// the treat-as-withdraw shape of RFC 7606 Section 2 ("as though all contained
+// routes had been withdrawn"), asked by policy rather than by an error.
+//
+// The result is owned: receive storage is reused. An UPDATE the conversion
+// refuses (malformed, or two MP families that one MP_UNREACH_NLRI cannot
+// carry, buildWithdrawalPayload) is dropped and the refusal logged at WARN,
+// because the withdraw then could not be honored.
+func ingressChainWithdrawal(payload []byte, source *bgpctx.EncodingContext, peerAddr netip.Addr, member string) ingressStepResult {
+	buf := make([]byte, len(payload)+4)
+	n := buildWithdrawalPayload(payload, buf, source)
+	if n == 0 {
+		fwdLogger().Warn("import filter: a withdraw verdict cannot be applied to this UPDATE -- route dropped, an earlier version stays",
+			"peer", peerAddr.String(), "filter", member)
+		return ingressStepResult{} // accept == false: drop the route
+	}
+	return ingressStepResult{accept: true, modifiedPayload: buf[:n]}
+}
+
 func ingressPolicyWithdrawals(payload []byte) ingressStepResult {
 	withdrawals := policyWithdrawals(payload)
 	if withdrawals == nil {

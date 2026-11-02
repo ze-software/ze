@@ -33,6 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -97,6 +98,9 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 		// An originated, injected or redistributed route has no source peer.
 		res := r.runEgressPolicyChainASN4(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
 			policyview.ExportSession(facts.filterInfo, filterapi.PeerFilterInfo{}, false), &update, facts.sendASN4)
+		if res.withdraw {
+			return egressInjectedWithdrawal(body, facts)
+		}
 		if !res.accept {
 			// RFC 8212 Section 3.
 			if !res.failed && !facts.exportPolicy.AcceptsAtEnd(facts.isEBGP) {
@@ -289,4 +293,23 @@ func (r *Reactor) normalizeVPNNextHop(peer *Peer, facts *peerForwardFacts, body,
 	const vpnNextHopGrowthMax = 8 + 16 + 1
 	out, _, fail := buildModifiedPayloadWithLimit(body, &mods, r.attrModHandlers, nil, nil, maxUpdateBody+vpnNextHopGrowthMax)
 	return out, fail
+}
+
+// egressInjectedWithdrawal answers an export member's withdraw verdict on an
+// originated, injected or redistributed route: the body's announcements are
+// rewritten as withdrawals and sent instead, so a version the destination
+// holds leaves it, where a reject sends only the body's own withdrawals. The
+// body is encoded for the destination, so its send context frames the
+// conversion. A body the conversion refuses is suppressed, and the refusal is
+// logged at WARN, because the withdraw then could not be honored. The result
+// is owned, as the caller's override contract asks.
+func egressInjectedWithdrawal(body []byte, facts *peerForwardFacts) (suppress bool, override []byte) {
+	buf := make([]byte, len(body)+4)
+	n := buildWithdrawalPayload(body, buf, bgpctx.Registry.Get(facts.sendCtxID))
+	if n == 0 {
+		fwdLogger().Warn("export filter: a withdraw verdict cannot be applied to this UPDATE -- route suppressed",
+			"peer", facts.addrStr)
+		return true, nil
+	}
+	return false, buf[:n]
 }

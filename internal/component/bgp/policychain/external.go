@@ -169,13 +169,16 @@ func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, sett
 		return verdict, errExternalAnsweredText
 	}
 	switch out.Action {
-	case rpc.FilterAccept, rpc.FilterReject:
+	case rpc.FilterAccept, rpc.FilterReject, rpc.FilterWithdraw:
 		if len(out.Sets) > 0 {
 			return verdict, errExternalSetsOn
 		}
 		verdict.decision = DecisionPass
 		if out.Action == rpc.FilterReject {
 			verdict.decision = DecisionReject
+		}
+		if out.Action == rpc.FilterWithdraw {
+			verdict.decision = DecisionWithdraw
 		}
 		return verdict, nil
 	case rpc.FilterModify:

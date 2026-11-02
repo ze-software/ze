@@ -801,6 +801,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			payload := sourceWire.Payload()
 			suppressed := false
 			stepFailed := false
+			withdrawn := false
 			for i := range a.r.orderedEgressSteps {
 				step := &a.r.orderedEgressSteps[i]
 				var res egressStepResult
@@ -814,6 +815,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				if !res.accept {
 					suppressed = true
 					stepFailed = res.failed
+					withdrawn = res.withdraw
 					break
 				}
 				if res.wireOverride != nil {
@@ -829,6 +831,12 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// complete replay.
 			if suppressed && stepFailed {
 				continue
+			}
+			// A member answered withdraw: the route is withdrawn toward this
+			// destination whatever it holds.
+			if withdrawn {
+				mods.SetWithdraw()
+				exportWireOverride = nil
 			}
 			// A genuine policy reject decided this destination must not hold
 			// the route, and it may hold the previous generation: it is sent the
