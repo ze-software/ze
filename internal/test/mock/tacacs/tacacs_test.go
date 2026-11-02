@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"io"
 	"net"
+	"slices"
 	"testing"
 	"time"
 
@@ -181,10 +182,8 @@ func receivedOne(t *testing.T, from int, want func(Record) bool) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		for _, record := range Received()[from:] {
-			if want(record) {
-				return
-			}
+		if slices.ContainsFunc(Received()[from:], want) {
+			return
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf("no matching record past %d in %v", from, Received()[from:])

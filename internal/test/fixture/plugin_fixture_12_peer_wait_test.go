@@ -357,7 +357,10 @@ func configuredPeer12(ci string, field *regexp.Regexp, address string) (scripted
 			end = blocks[index+1][0]
 		}
 		match := field.FindStringSubmatch(ci[block[1]:end])
-		if match == nil || match[1] != address {
+		if len(match) < 2 {
+			continue
+		}
+		if match[1] != address {
 			continue
 		}
 		remote := remoteIP12.FindStringSubmatch(ci[block[1]:end])
