@@ -42,17 +42,17 @@ func editorOnConfig(t *testing.T) Model {
 	return model
 }
 
-// TestEditorCommitBlocksOnMissingLeakFilter drives `commit` over a config the
-// BGP peer pipeline refuses.
+// TestEditorCommitBlocksOnPeerPipelineRefusal drives `commit` over a config the
+// BGP peer pipeline refuses, through a stubbed peer validator that answers
+// one refusal naming the peer.
 //
 // VALIDATES: AC-39. The refusal reads as a blocked commit naming the peer,
 // while the operator still has the config on the screen, rather than as a
 // `commit failed:` line about a file already written.
 // PREVENTS: the editor accepting every peer-pipeline refusal and discovering it
-// one step later at reload. That gap hid EVERY such refusal, not only this
-// spec's rule.
-func TestEditorCommitBlocksOnMissingLeakFilter(t *testing.T) {
-	refusal := "peer peer1: role peer requires a filter against a transit leak in the import and export filter chain"
+// one step later at reload. That gap hid EVERY such refusal.
+func TestEditorCommitBlocksOnPeerPipelineRefusal(t *testing.T) {
+	refusal := "peer peer1: the BGP peer pipeline refuses this config"
 	withPeerValidator(t, func(*config.Tree) error { return errors.New(refusal) })
 
 	model := editorOnConfig(t)
@@ -116,8 +116,8 @@ func TestEditorValidationSkipsTheEngineWithoutABGPBlock(t *testing.T) {
 	assert.False(t, asked, "the seam is not consulted in either case")
 }
 
-// TestEditorCommitConfirmedBlocksOnMissingLeakFilter drives the OTHER commit
-// command over the same refused config.
+// TestEditorCommitConfirmedBlocksOnPeerPipelineRefusal drives the OTHER commit
+// command over the same stubbed refusal.
 //
 // VALIDATES: AC-39 on the safe-commit path. `commit confirmed <N>` writes the
 // trial config to .conf and starts a rollback timer, so a config the daemon
@@ -127,8 +127,8 @@ func TestEditorValidationSkipsTheEngineWithoutABGPBlock(t *testing.T) {
 // cmdCommitConfirmed validated with Validate, which never reaches the BGP peer
 // pipeline; cmdCommit validated with ValidateTransition, which does. Found by
 // the closure review, fixed by making both commit commands take one path.
-func TestEditorCommitConfirmedBlocksOnMissingLeakFilter(t *testing.T) {
-	refusal := "peer peer1: role peer requires a filter against a transit leak in the import and export filter chains"
+func TestEditorCommitConfirmedBlocksOnPeerPipelineRefusal(t *testing.T) {
+	refusal := "peer peer1: the BGP peer pipeline refuses this config"
 	withPeerValidator(t, func(*config.Tree) error { return errors.New(refusal) })
 
 	model := editorOnConfig(t)
