@@ -50,6 +50,9 @@ import (
 	// for the same reason.
 	_ "github.com/ze-software/ze/internal/plugins/completion"
 
+	// help (help command, help ai) reaches plugin/all through cli/client too.
+	_ "github.com/ze-software/ze/internal/plugins/help"
+
 	// traffic/cli and firewall/cli each own a ROOT whose name internal/test/cli
 	// also registers, for the ze-test suite of that name. ze-test imports
 	// plugin/all, so a generated import would put two roots of one name in that
@@ -501,18 +504,6 @@ func registerLocalCommands() {
 		Section:   registry.SectionSystem,
 		Subs:      pipeOperatorSubs(),
 	})
-	command.MustRegisterLocalMeta("help command", printHelpCommand, registry.Meta{
-		ShortHelp: "List every command this binary carries with its summary.",
-		Description: "A filter word keeps the commands whose path holds it, and the answer renders as " +
-			"JSON for a program to read.",
-		Mode: commandModeOffline,
-	})
-	command.MustRegisterLocalMeta("help ai", printAIHelp, registry.Meta{
-		ShortHelp: "Print the agent reference this binary builds from its own registries.",
-		Description: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
-			"for a program to read.",
-		Mode: commandModeOffline,
-	})
 	// `update` is a YANG verb, so a root handler named `update` would be
 	// unreachable behind the isYANGVerb branch in zeDispatch. RunCommand consults
 	// the local-handler registry before the YANG tree (cmdutil.go), so
@@ -678,20 +669,34 @@ func declaredCommandHelp(args []string) (path []string, node *command.Node, err 
 	return helpPath, found, nil
 }
 
+// invokeHelp runs the handler the help plugin registered at path
+// (internal/plugins/help) on args, judged against the model by InvokeLocal.
+func invokeHelp(path string, args []string) int {
+	handler, _, err := command.LookupLocal(strings.Fields(path), cli.IsDeclaredCommand)
+	if err != nil {
+		return reportDispatchError(err)
+	}
+	if handler == nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ze ").Str(path).Str(" is not registered in this binary: it is built without the help plugin\n")
+		tb.StdErr() //nolint:errcheck // CLI diagnostic
+		return 1
+	}
+	return command.InvokeLocal(path, handler, args)
+}
+
 func dispatchHelp(args []string) int {
 	switch {
 	case len(args) > 0 && args[0] == "command":
-		if slices.Contains(args[1:], "--help") || slices.Contains(args[1:], "-h") {
-			helpCommandUsage()
-			return 0
-		}
-		return command.InvokeLocal("help command", printHelpCommand, args[1:])
+		// `ze help command --help` never reaches here: declaredCommandHelp
+		// answers it from the model, as for every declared command.
+		return invokeHelp("help command", args[1:])
 	case len(args) > 0 && args[0] == "ai":
 		// Canonical form: ze help ai [cli|api|mcp|dispatch|all] [--json].
-		return command.InvokeLocal("help ai", printAIHelp, args[1:])
+		return invokeHelp("help ai", args[1:])
 	case aiHelpRequested(args):
 		// Deprecated alias: ze help --ai [--cli|--api|...]. Still accepted.
-		return command.InvokeLocal("help ai", printAIHelp, args)
+		return invokeHelp("help ai", args)
 	case slices.Contains(args, "--help") || slices.Contains(args, "-h"):
 		helpUsage()
 		return 0

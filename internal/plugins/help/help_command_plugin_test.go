@@ -1,4 +1,4 @@
-//go:build ze_core && ze_bgp
+//go:build ze_bgp
 
 // VALIDATES: AC-3. `ze help command --json` names a command only a PLUGIN
 // provides, and reports the shape, the column order and the address fields that
@@ -13,7 +13,7 @@
 // gate. The normal unit run carries every feature tag
 // (internal/le/go/toolchain, Toolchain.TestTags).
 
-package main
+package help_test
 
 import (
 	"bytes"
@@ -22,16 +22,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/ze-software/ze/internal/plugins/help"
 )
 
 func TestHelpCommandNamesAPluginCommand(t *testing.T) {
 	var out bytes.Buffer
-	require.Equal(t, 0, renderHelpCommand(&out, []string{flagJSON}))
+	require.Equal(t, 0, help.RenderHelpCommand(&out, []string{help.FlagJSON}))
 
-	var entries []commandEntry
+	var entries []help.CommandEntry
 	require.NoError(t, json.Unmarshal(out.Bytes(), &entries))
 
-	byPath := make(map[string]commandEntry, len(entries))
+	byPath := make(map[string]help.CommandEntry, len(entries))
 	for _, entry := range entries {
 		byPath[entry.Path] = entry
 	}
@@ -66,12 +67,12 @@ func TestHelpCommandNamesAPluginCommand(t *testing.T) {
 // to close.
 func TestHelpCommandReportsAPluginDeclaredAlias(t *testing.T) {
 	var out bytes.Buffer
-	require.Equal(t, 0, renderHelpCommand(&out, []string{flagJSON}))
+	require.Equal(t, 0, help.RenderHelpCommand(&out, []string{help.FlagJSON}))
 
-	var entries []commandEntry
+	var entries []help.CommandEntry
 	require.NoError(t, json.Unmarshal(out.Bytes(), &entries))
 
-	byPath := make(map[string]commandEntry, len(entries))
+	byPath := make(map[string]help.CommandEntry, len(entries))
 	for _, entry := range entries {
 		byPath[entry.Path] = entry
 	}
@@ -108,12 +109,12 @@ func TestHelpCommandReportsAPluginDeclaredAlias(t *testing.T) {
 // one of the eleven keys and hold no address.
 func TestHelpCommandGivesAMetaCommandItsOwnAnswer(t *testing.T) {
 	var out bytes.Buffer
-	require.Equal(t, 0, renderHelpCommand(&out, []string{flagJSON}))
+	require.Equal(t, 0, help.RenderHelpCommand(&out, []string{help.FlagJSON}))
 
-	var entries []commandEntry
+	var entries []help.CommandEntry
 	require.NoError(t, json.Unmarshal(out.Bytes(), &entries))
 
-	byPath := make(map[string]commandEntry, len(entries))
+	byPath := make(map[string]help.CommandEntry, len(entries))
 	for _, entry := range entries {
 		byPath[entry.Path] = entry
 	}
@@ -127,7 +128,7 @@ func TestHelpCommandGivesAMetaCommandItsOwnAnswer(t *testing.T) {
 	require.Len(t, parent.ColumnOrders, 1)
 	routeColumns := parent.ColumnOrders[0]
 
-	for path, want := range map[string]commandEntry{
+	for path, want := range map[string]help.CommandEntry{
 		"show bgp rib help":     {AnswerShape: "map"},
 		"show bgp rib events":   {AnswerShape: "map"},
 		"show bgp rib commands": {AnswerShape: "tab", ColumnOrders: [][]string{{"name", "description"}}},

@@ -61,6 +61,7 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/explain/yang"
 	_ "github.com/ze-software/ze/internal/plugins/fib/kernel/yang"
 	_ "github.com/ze-software/ze/internal/plugins/fib/p4/yang"
+	_ "github.com/ze-software/ze/internal/plugins/help/yang"
 	_ "github.com/ze-software/ze/internal/plugins/host-cmd/yang"
 	_ "github.com/ze-software/ze/internal/plugins/kernel/yang"
 	_ "github.com/ze-software/ze/internal/plugins/log/yang"

@@ -1,29 +1,27 @@
 // Design: docs/architecture/api/commands.md — command catalog
 //
-// help_command.go implements `ze help command [filter] [--json]`.
+// help_command.go implements `ze help command [<filter>] [--json] [--verbose]`.
 // It walks the full command tree (YANG verbs + offline local commands)
 // and emits a flat, greppable catalog with descriptions.
 
-//go:build ze_core
-
 // JSON output is consumable by external tooling (e.g., wiki generators).
 
-package main
+package help
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"slices"
 	"sort"
 	"strings"
 
-	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
 	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -286,51 +284,84 @@ type commandEntry struct {
 	Subcommands []string       `json:"subcommands,omitempty"`
 }
 
-// printHelpCommand implements `ze help command [filter...] [--json] [--verbose]`.
-// Output routes through a helpfmt.RenderWriter so a broken pipe surfaces as a
-// non-zero exit; returns the exit code.
-func printHelpCommand(validated command.ValidatedArgs) int {
-	args := validated.Tokens()
-	return renderHelpCommand(os.Stdout, args)
+// catalogAnswer is the answer of `help command`: the catalog rows the filter
+// kept. asJSON and verbose record the local `--json`, `--verbose` and `-v`
+// rendering flags; they are not data, so JSON never carries them, and the
+// daemon dispatcher refuses a flag before a handler runs.
+type catalogAnswer struct {
+	Commands []commandEntry `json:"command-catalog"`
+	asJSON   bool
+	verbose  bool
 }
 
-// renderHelpCommand writes the catalog to w and returns the exit code. Split
-// from printHelpCommand so tests can drive a failing writer.
-func renderHelpCommand(w io.Writer, args []string) int {
-	jsonOutput := slices.Contains(args, flagJSON)
-	verbose := slices.Contains(args, "--verbose") || slices.Contains(args, "-v")
-	filter := extractCommandFilter(args)
+// answerHelpCommand answers `help command [<filter>] [--json] [--verbose]`
+// with the catalog rows as DATA, so `| json` reaches them on every route.
+// The local route prints them through render, the daemon's text route
+// through drawCatalog. The handler writes nothing.
+func answerHelpCommand(validated command.ValidatedArgs) command.LocalAnswer {
+	return helpCommandAnswer(validated.Tokens())
+}
 
+// helpCommandAnswer builds the `help command` answer from the tokens.
+func helpCommandAnswer(args []string) command.LocalAnswer {
 	entries, err := collectCommands()
 	if err != nil {
 		var tb textbuf.Buffer
-		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
-		return 1
+		tb.Str("error: ").Err(err).Byte('\n')
+		return command.LocalAnswer{Code: 1, Diagnostic: tb.String()}
 	}
-
-	if filter != "" {
+	if filter := extractCommandFilter(args); filter != "" {
 		entries = filterCommands(entries, filter)
 	}
+	return command.LocalAnswer{Payload: catalogAnswer{
+		Commands: entries,
+		asJSON:   slices.Contains(args, flagJSON),
+		verbose:  slices.Contains(args, "--verbose") || slices.Contains(args, "-v"),
+	}}
+}
 
-	if jsonOutput {
-		return printCommandJSON(w, entries)
+// printCatalog prints a catalog answer to w, its diagnostics to diag, and
+// returns the exit code: 1 when a write to w fails, so `ze help command |
+// head` closing the pipe does not report a truncated page as whole.
+func printCatalog(w, diag io.Writer, answer catalogAnswer) int {
+	if answer.asJSON {
+		return printCommandJSON(w, diag, answer.Commands)
 	}
-
 	rw := helpfmt.NewRenderWriter(w)
-	if verbose {
-		printCommandVerbose(rw, entries)
+	if answer.verbose {
+		printCommandVerbose(rw, diag, answer.Commands)
 	} else {
-		printCommandTable(rw, entries)
+		printCommandTable(rw, diag, answer.Commands)
 	}
 	return rw.ExitCode()
 }
 
-// extractCommandFilter returns the first positional argument (not a flag).
+// drawCatalog draws the catalog table for the daemon's text route, where no
+// local flag reaches the handler. "no commands found" is part of the text.
+func drawCatalog(raw json.RawMessage) (string, error) {
+	var entries []commandEntry
+	if err := json.Unmarshal(raw, &entries); err != nil {
+		return "", err
+	}
+	var out bytes.Buffer
+	printCommandTable(helpfmt.NewRenderWriter(&out), &out, entries)
+	return out.String(), nil
+}
+
+// extractCommandFilter returns the filter: the value of the model's keyed
+// `filter <text>`, else the first word that is neither a flag nor one of the
+// model's option keywords.
 func extractCommandFilter(args []string) string {
-	for _, a := range args {
-		if !strings.HasPrefix(a, "-") {
-			return a
+	for i, a := range args {
+		if a == keywordFilter && i+1 < len(args) {
+			return args[i+1]
 		}
+	}
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") {
+			continue
+		}
+		return a
 	}
 	return ""
 }
@@ -400,7 +431,7 @@ func collectCommands() ([]commandEntry, error) {
 		}
 		mode := lc.Meta.Mode
 		if mode == "" {
-			mode = commandModeOffline
+			mode = modeOffline
 		}
 		entries = append(entries, commandEntry{
 			Path:        lc.Path,
@@ -552,7 +583,7 @@ func argKindString(k command.ArgKind) string {
 	case command.ArgFlag:
 		return "flag"
 	case command.ArgString:
-		return typeNameString
+		return "string"
 	default:
 		panic("BUG: unknown command argument kind")
 	}
@@ -590,7 +621,7 @@ func filterCommands(entries []commandEntry, filter string) []commandEntry {
 }
 
 // printCommandJSON writes entries as a JSON array to w and returns the exit code.
-func printCommandJSON(w io.Writer, entries []commandEntry) int {
+func printCommandJSON(w, diag io.Writer, entries []commandEntry) int {
 	rw := helpfmt.NewRenderWriter(w)
 	enc := json.NewEncoder(rw)
 	// A usage line spells an argument as <id>, and encoding/json escapes the
@@ -602,16 +633,18 @@ func printCommandJSON(w io.Writer, entries []commandEntry) int {
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(entries); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // one-shot error to stderr
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n')
+		diag.Write(tb.Bytes()) //nolint:errcheck // a best-effort diagnostic
 		return 1
 	}
 	return rw.ExitCode()
 }
 
 // printCommandVerbose writes a detailed entry for each command through rw.
-func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
+func printCommandVerbose(rw *helpfmt.RenderWriter, diag io.Writer, entries []commandEntry) {
 	if len(entries) == 0 {
-		fmt.Fprintf(os.Stderr, "no commands found\n") //nolint:errcheck // one-shot diagnostic to stderr
+		io.WriteString(diag, "no commands found\n") //nolint:errcheck // a best-effort diagnostic
 		return
 	}
 
@@ -733,9 +766,9 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
 }
 
 // printCommandTable writes entries as a human-readable table through rw.
-func printCommandTable(rw *helpfmt.RenderWriter, entries []commandEntry) {
+func printCommandTable(rw *helpfmt.RenderWriter, diag io.Writer, entries []commandEntry) {
 	if len(entries) == 0 {
-		fmt.Fprintf(os.Stderr, "no commands found\n") //nolint:errcheck // one-shot diagnostic to stderr
+		io.WriteString(diag, "no commands found\n") //nolint:errcheck // a best-effort diagnostic
 		return
 	}
 
@@ -765,21 +798,4 @@ func printCommandTable(rw *helpfmt.RenderWriter, entries []commandEntry) {
 	}
 	rw.Line("")
 	rw.Line(tb.Reset().Int(int64(len(entries))).Str(" commands").Slice())
-}
-
-// helpCommandUsage prints usage for `ze help command`.
-func helpCommandUsage() {
-	p := helpfmt.Page{
-		Command:   "ze help command",
-		ShortHelp: "List all available commands with descriptions",
-		Usage:     []string{"ze help command [<filter>] [--json] [--verbose]"},
-		Sections: []helpfmt.HelpSection{
-			{Title: helpOptionsSectionTitle, Entries: []helpfmt.HelpEntry{
-				{Name: "<filter>", Desc: "Show only commands matching this string (path or description)"},
-				{Name: "--verbose, -v", Desc: "Show full description, arguments, pipes, and subcommands"},
-				{Name: flagJSON, Desc: "Output as JSON array (for tooling, wiki generation)"},
-			}},
-		},
-	}
-	p.WriteErr()
 }

@@ -2,7 +2,7 @@
 
 <!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
 <!-- source: internal/plugins/env/env.go -- ze env subcommands -->
-<!-- source: cmd/ze/help_ai.go -- ze help ai output -->
+<!-- source: internal/plugins/help/help_ai.go -- ze help ai output -->
 <!-- source: internal/le/repo/inventory/inventory.go -- Answer -->
 <!-- source: internal/le/cli/list/commandlist.go -- Answer -->
 <!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
@@ -86,7 +86,7 @@ with everything it started: the run string is given to a shell, and a shell
 that runs more than one command holds the plugin as its own child.
 <!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
 <!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
-<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
 <!-- source: internal/component/command/declared.go -- DeclaredForCommand -->
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp -->
 

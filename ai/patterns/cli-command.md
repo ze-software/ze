@@ -503,7 +503,7 @@ defer store.Close() //nolint:errcheck // releases the writer lock
 ### How `help ai` consumes the registry
 
 `aihelp.CLISubcommands()` (`internal/component/aihelp/aihelp.go`), which
-`cmd/ze/help_ai.go` renders, enumerates:
+`internal/plugins/help/help_ai.go` renders, enumerates:
 
 1. YANG verb subtree (show, set, del, update, ...).
 2. `registry.ListRoot()` for top-level subcommands.

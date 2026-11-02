@@ -1,6 +1,4 @@
-//go:build ze_core
-
-package main
+package help_test
 
 import (
 	"bytes"
@@ -13,11 +11,12 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/plugins/help"
 )
 
 func TestCollectCommands(t *testing.T) {
 	entries := collectCommandsForTest(t)
-	require.NotEmpty(t, entries, "collectCommands must return commands")
+	require.NotEmpty(t, entries, "help.CollectCommands must return commands")
 
 	for _, e := range entries {
 		assert.NotEmpty(t, e.Path, "every entry must have a path")
@@ -38,34 +37,34 @@ func TestCollectCommands(t *testing.T) {
 }
 
 func TestFilterCommands(t *testing.T) {
-	entries := []commandEntry{
+	entries := []help.CommandEntry{
 		{Path: "show bgp peers", ShortHelp: "List all BGP peer sessions", Mode: "read-only"},
 		{Path: "set bgp peer", ShortHelp: "Configure a BGP peer", Mode: "daemon"},
 		{Path: "show interface", ShortHelp: "List OS network interfaces", Mode: "read-only"},
 	}
 
-	filtered := filterCommands(entries, "bgp")
+	filtered := help.FilterCommands(entries, "bgp")
 	assert.Len(t, filtered, 2)
 	for _, e := range filtered {
 		assert.Contains(t, e.Path+e.ShortHelp, "bgp")
 	}
 
-	filtered = filterCommands(entries, "BGP")
+	filtered = help.FilterCommands(entries, "BGP")
 	assert.Len(t, filtered, 2, "filter must be case-insensitive")
 
-	filtered = filterCommands(entries, "interface")
+	filtered = help.FilterCommands(entries, "interface")
 	assert.Len(t, filtered, 1)
 	assert.Equal(t, "show interface", filtered[0].Path)
 
-	filtered = filterCommands(entries, "nonexistent")
+	filtered = help.FilterCommands(entries, "nonexistent")
 	assert.Empty(t, filtered)
 }
 
 func TestExtractCommandFilter(t *testing.T) {
-	assert.Equal(t, "bgp", extractCommandFilter([]string{"bgp", "--json"}))
-	assert.Equal(t, "", extractCommandFilter([]string{"--json"}))
-	assert.Equal(t, "show", extractCommandFilter([]string{"show"}))
-	assert.Equal(t, "", extractCommandFilter(nil))
+	assert.Equal(t, "bgp", help.ExtractCommandFilter([]string{"bgp", "--json"}))
+	assert.Equal(t, "", help.ExtractCommandFilter([]string{"--json"}))
+	assert.Equal(t, "show", help.ExtractCommandFilter([]string{"show"}))
+	assert.Equal(t, "", help.ExtractCommandFilter(nil))
 }
 
 // VALIDATES: the published command catalog spells an argument placeholder as
@@ -76,21 +75,21 @@ func TestExtractCommandFilter(t *testing.T) {
 // said otherwise. The bytes decode to the same string, so no parser complains
 // and nothing goes red. A person reading the reference is the one who pays.
 func TestCommandJSONDoesNotEscapeAngleBrackets(t *testing.T) {
-	entries := []commandEntry{{
+	entries := []help.CommandEntry{{
 		Path:      "request cache expire",
 		ShortHelp: "Remove a cached message immediately.\nUsage: request cache expire <id>.",
 		Mode:      "daemon",
 	}}
 
 	var out bytes.Buffer
-	require.Equal(t, 0, printCommandJSON(&out, entries))
+	require.Equal(t, 0, help.PrintCommandJSON(&out, entries))
 
 	assert.Contains(t, out.String(), "<id>",
 		"the catalog must publish the placeholder as written")
 	assert.NotContains(t, strings.ToLower(out.String()), "u003c",
 		"an angle bracket must not reach the catalog as a unicode escape")
 
-	var round []commandEntry
+	var round []help.CommandEntry
 	require.NoError(t, json.Unmarshal(out.Bytes(), &round))
 	require.Len(t, round, 1)
 	assert.Equal(t, entries[0].ShortHelp, round[0].ShortHelp,
@@ -182,7 +181,7 @@ func TestHelpCommandJSONPublishesUsage(t *testing.T) {
 // PREVENTS: a catalog reader that parses the answer back seeing a kind it
 // cannot name.
 func TestHelpCommandJSONGrammarRoundTrips(t *testing.T) {
-	entries := []commandEntry{{
+	entries := []help.CommandEntry{{
 		Path:       "show system sockets",
 		Mode:       "daemon",
 		WireMethod: "ze-cmd:show-system-sockets",
@@ -194,11 +193,11 @@ func TestHelpCommandJSONGrammarRoundTrips(t *testing.T) {
 	}}
 
 	var out bytes.Buffer
-	require.Equal(t, 0, printCommandJSON(&out, entries))
+	require.Equal(t, 0, help.PrintCommandJSON(&out, entries))
 	assert.Contains(t, out.String(), `"kind": "option"`,
 		"the catalog must publish the kind as a word")
 
-	var round []commandEntry
+	var round []help.CommandEntry
 	require.NoError(t, json.Unmarshal(out.Bytes(), &round))
 	require.Len(t, round, 1)
 	assert.Equal(t, entries[0].Grammar, round[0].Grammar)
@@ -213,7 +212,7 @@ func TestHelpCommandJSONGrammarRoundTrips(t *testing.T) {
 // PREVENTS: an agent parsing one string for two answers, and the table row
 // cutting a summary at the first newline.
 func TestCommandCatalogCarriesSummaryAndHelp(t *testing.T) {
-	entries := []commandEntry{{
+	entries := []help.CommandEntry{{
 		Path:        "show bgp rib",
 		Mode:        "read-only",
 		ShortHelp:   "Show the BGP RIB.",
@@ -243,14 +242,14 @@ func TestCommandCatalogCarriesSummaryAndHelp(t *testing.T) {
 
 	// The table row prints the declared summary whole, with no newline cut.
 	var buf bytes.Buffer
-	printCommandTable(helpfmt.NewRenderWriter(&buf), entries)
+	help.PrintCommandTable(helpfmt.NewRenderWriter(&buf), entries)
 	assert.Contains(t, buf.String(), "Show the BGP RIB.")
 	assert.Contains(t, buf.String(), "The row carries state, ASN and uptime.",
 		"the table row cut the description at its first newline")
 
 	// The verbose page prints the summary and then the long explanation.
 	buf.Reset()
-	printCommandVerbose(helpfmt.NewRenderWriter(&buf), entries)
+	help.PrintCommandVerbose(helpfmt.NewRenderWriter(&buf), entries)
 	verbose := buf.String()
 	assert.Contains(t, verbose, "  Show the BGP RIB.\n")
 	assert.Contains(t, verbose, "  The RIB answers per family.\n")
@@ -269,7 +268,7 @@ func TestCommandCatalogDerivesNeitherHelpTextFromTheOther(t *testing.T) {
 
 	checked := 0
 	for _, e := range collectCommandsForTest(t) {
-		node := findNode(tree, e.Path)
+		node := help.FindNode(tree, e.Path)
 		if node == nil {
 			continue
 		}
@@ -290,12 +289,12 @@ func TestCommandCatalogDerivesNeitherHelpTextFromTheOther(t *testing.T) {
 // silent about the order of its columns.
 func TestHelpCommandReportsTheDeclaredColumnOrder(t *testing.T) {
 	var out bytes.Buffer
-	require.Equal(t, 0, renderHelpCommand(&out, []string{flagJSON}))
+	require.Equal(t, 0, help.RenderHelpCommand(&out, []string{help.FlagJSON}))
 
-	var entries []commandEntry
+	var entries []help.CommandEntry
 	require.NoError(t, json.Unmarshal(out.Bytes(), &entries))
 
-	byPath := make(map[string]commandEntry, len(entries))
+	byPath := make(map[string]help.CommandEntry, len(entries))
 	for _, entry := range entries {
 		byPath[entry.Path] = entry
 	}
@@ -357,14 +356,14 @@ func TestHelpCommandDerivesEveryDeclarationFromOneReader(t *testing.T) {
 // VALIDATES: a plugin's declared argument reaches the published usage line as a
 // PLACEHOLDER an operator fills in, not as a keyword an operator types.
 // PREVENTS: the catalog publishing `show sysctl key key` and
-// `show sysctl profile name`. pluginUsage concatenates the declared tokens
+// `show sysctl profile name`. help.PluginUsage concatenates the declared tokens
 // verbatim, which is right, so a bare identifier in the declaration is a wrong
 // invocation form on the website and in `show command help`.
 func TestHelpCommandPublishesAPluginArgumentAsAPlaceholder(t *testing.T) {
 	var out bytes.Buffer
-	require.Equal(t, 0, renderHelpCommand(&out, []string{flagJSON}))
+	require.Equal(t, 0, help.RenderHelpCommand(&out, []string{help.FlagJSON}))
 
-	var entries []commandEntry
+	var entries []help.CommandEntry
 	require.NoError(t, json.Unmarshal(out.Bytes(), &entries))
 
 	usage := make(map[string]string, len(entries))

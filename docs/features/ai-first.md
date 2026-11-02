@@ -1,7 +1,7 @@
 # AI-First Design
 
 <!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
-<!-- source: cmd/ze/help_ai.go -- ze help ai machine-readable reference -->
+<!-- source: internal/plugins/help/help_ai.go -- ze help ai machine-readable reference -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: ai/rules/repo-maintenance.md -- Current Discovery Surfaces -->
 <!-- source: internal/le/repo/inventory/register.go -- inventory command registration -->
@@ -47,6 +47,18 @@ it is generated from code, not written by hand.
 `ze help command` is the human-facing catalog. The native
 `./le cli catalog update file <destination>` action renders the corresponding
 Markdown from the live registries.
+
+Both commands are served by the daemon too, so `ze cli -c`, SSH, REST, gRPC,
+MCP and the web reach them. `--json`, `--verbose` and `-v` are flags of the
+local `ze help` command only. On every other surface `help command` answers
+its catalog rows as data: it prints the table, and `help command bgp | json`
+gives the same rows as JSON. `help ai` answers its Markdown page as text, and
+the structured reference is the MCP `ze_reference` tool. A bare word means the
+same on every surface: `help command json` filters on the word `json`, and
+`help ai json` prints the summary.
+<!-- source: internal/plugins/help/register.go -- render, renderTo -->
+<!-- source: internal/plugins/help/help_command.go -- catalogAnswer, helpCommandAnswer, drawCatalog -->
+<!-- source: internal/plugins/help/help_ai.go -- aiHelpAnswer, referenceAnswer -->
 
 ## Structured Diagnostics
 

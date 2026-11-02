@@ -12,7 +12,7 @@ answered wrongly. A command whose answer is text or bytes, such as `show data
 cat` returning the bytes of one stored file, declares the `blob` shape: it
 prints the bytes unchanged, `| json` shows them inside an envelope that names
 their encoding, and every row operator is refused by name.
-<!-- source: cmd/ze/help_command.go -- operatorsFor, pathHasOnlyPlainLocalHandler -->
+<!-- source: internal/plugins/help/help_command.go -- operatorsFor, pathHasOnlyPlainLocalHandler -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 
 ### The simple way: set a default once

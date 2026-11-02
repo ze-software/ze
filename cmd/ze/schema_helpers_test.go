@@ -31,15 +31,6 @@ func wireToPathsForTest(t testing.TB) map[string][]string {
 	return paths
 }
 
-func collectCommandsForTest(t testing.TB) []commandEntry {
-	t.Helper()
-	entries, err := collectCommands()
-	if err != nil {
-		t.Fatalf("collectCommands: %v", err)
-	}
-	return entries
-}
-
 func commandTreeForTest(t testing.TB) *cli.Command {
 	t.Helper()
 	tree, err := cli.BuildCommandTree(false)

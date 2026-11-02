@@ -4,7 +4,7 @@ title: MCP Integration (Guide)
 # MCP Integration
 
 <!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
-<!-- source: cmd/ze/help_ai.go -- ze help ai output -->
+<!-- source: internal/plugins/help/help_ai.go -- ze help ai output -->
 
 Ze includes an MCP (Model Context Protocol) server that lets AI assistants
 control BGP operations. The server runs inside the daemon and wraps the

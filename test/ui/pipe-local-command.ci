@@ -16,6 +16,8 @@ expect=exit:code=0
 expect=stdout:contains=COVERED: clear debug [done]
 expect=stdout:contains=COVERED: delete debug module [done]
 expect=stdout:contains=COVERED: delete debug profile name [done]
+expect=stdout:contains=COVERED: help ai [done]
+expect=stdout:contains=COVERED: help command [done]
 expect=stdout:contains=COVERED: request wireguard keypair [done]
 expect=stdout:contains=COVERED: set debug active name [done]
 expect=stdout:contains=COVERED: set debug module [done]
@@ -52,4 +54,4 @@ expect=stdout:contains=COVERED: show skills [done]
 expect=stdout:contains=COVERED: show yang completion [done]
 expect=stdout:contains=COVERED: show yang doc [done]
 expect=stdout:contains=COVERED: show yang tree [done]
-expect=stdout:contains=OK: 39/39 local-data commands and local one-shot save
+expect=stdout:contains=OK: 41/41 local-data commands and local one-shot save

@@ -1,4 +1,4 @@
-//go:build ze_core && ze_vrrp
+//go:build ze_vrrp
 
 // VALIDATES: AC-3 for a plugin command the YANG model DOES describe. Such a
 // command carries no wire method, so it reaches the catalog through
@@ -17,7 +17,7 @@
 // unit run carries every feature tag (internal/le/go/toolchain,
 // Toolchain.TestTags).
 
-package main
+package help_test
 
 import (
 	"bytes"
@@ -26,13 +26,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/ze-software/ze/internal/plugins/help"
 )
 
 func TestHelpCommandKeepsTheModelHelpOfAPluginCommand(t *testing.T) {
 	var out bytes.Buffer
-	require.Equal(t, 0, renderHelpCommand(&out, []string{flagJSON}))
+	require.Equal(t, 0, help.RenderHelpCommand(&out, []string{help.FlagJSON}))
 
-	var entries []commandEntry
+	var entries []help.CommandEntry
 	require.NoError(t, json.Unmarshal(out.Bytes(), &entries))
 
 	const path = "show vrrp interface"

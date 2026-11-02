@@ -15,6 +15,9 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	// The help plugin is hand-wired outside plugin/all (it imports
+	// cli/client, which cycles with plugin/all), so this binary links it here.
+	_ "github.com/ze-software/ze/internal/plugins/help"
 )
 
 // The two schema views this coverage walk names in its command, its evidence
@@ -35,7 +38,7 @@ const envConfigDirDotted = "ze.config.dir"
 // this walk was never run against.
 const pluginNameRIB = "rib"
 
-const CompletionMarker = "OK: 39/39 local-data commands and local one-shot save"
+const CompletionMarker = "OK: 41/41 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -79,6 +82,8 @@ func Evidence() []Invocation {
 		{Command: "show config graph %s | json compact", Evidence: "show config graph"},
 		{Command: "show data cat --path %s meta/instance/name | json compact", Evidence: "show data cat"},
 		{Command: "show yang doc --list | json compact", Evidence: "show yang doc"},
+		{Command: "help command peer | json compact", Evidence: "help command"},
+		{Command: "help ai cli | json compact", Evidence: "help ai"},
 		{Command: "set debug module coverage.local flag f | json compact", Evidence: "set debug module"},
 		{Command: "set debug timeout 90s | json compact", Evidence: "set debug timeout"},
 		{Command: "set debug profile name p1 | json compact", Evidence: "set debug profile name"},
@@ -445,9 +450,10 @@ func blobContent(command, evidence string, output io.Writer) (string, error) {
 	return content, nil
 }
 
-// runBlobCommands covers the five commands that answer text or bytes as they
-// are. Each content is checked against the fixture it was read from, so an
-// answer of the wrong file, or of nothing, is refused.
+// runBlobCommands covers the six commands that answer text or bytes as they
+// are, and the help catalog beside them. Each content is checked against the
+// fixture it was read from, so an answer of the wrong file, or of nothing, is
+// refused.
 func runBlobCommands(output io.Writer, configPath, blobPath string) error {
 	stored, err := os.ReadFile(configPath) //nolint:gosec // G304: the fixture this scenario wrote
 	if err != nil {
@@ -492,7 +498,51 @@ func runBlobCommands(output io.Writer, configPath, blobPath string) error {
 	if err != nil {
 		return err
 	}
-	return require(strings.Contains(content, "show "), "show yang doc --list listed no command: %q", content)
+	if err := require(strings.Contains(content, "show "), "show yang doc --list listed no command: %q", content); err != nil {
+		return err
+	}
+
+	// The two help answers are generated from this binary's registries, so
+	// the check is that each is the answer asked for: the catalog rows
+	// filtered to peer, and the reference's cli section.
+	if err := checkHelpCatalog(output); err != nil {
+		return err
+	}
+	content, err = blobContent("help ai cli | json compact", "help ai", output)
+	if err != nil {
+		return err
+	}
+	return require(strings.HasPrefix(content, "# Ze AI Reference"), "help ai cli answered no reference: %q", content)
+}
+
+// checkHelpCatalog covers `help command`, which answers its catalog as rows:
+// every row the filter kept holds the filter word in its path or summary.
+func checkHelpCatalog(output io.Writer) error {
+	payload, err := localJSON("help command peer | json compact", "help command", output)
+	if err != nil {
+		return err
+	}
+	document, err := exactObject(payload, "help command", "command-catalog")
+	if err != nil {
+		return err
+	}
+	rows, isList := document["command-catalog"].([]any)
+	if err := require(isList && len(rows) > 0, "help command peer answered no catalog rows: %#v", payload); err != nil {
+		return err
+	}
+	for _, row := range rows {
+		entry, isEntry := object(row)
+		if !isEntry {
+			return fmt.Errorf("help command peer answered a row that is not an object: %#v", row)
+		}
+		path, _ := entry["path"].(string)
+		summary, _ := entry["short-help"].(string)
+		text := strings.ToLower(path + " " + summary)
+		if err := require(strings.Contains(text, "peer"), "help command peer kept a row without peer: %#v", entry); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func runScenario(output io.Writer, work string) error {

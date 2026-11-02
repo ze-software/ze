@@ -1852,9 +1852,9 @@ and `./le cli list` both list `summary` on the command. Each row carries the
 command's summary under `description` and its long explanation under
 `description`. The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
-<!-- source: cmd/ze/help_command.go -- appendPluginCommands -->
+<!-- source: internal/plugins/help/help_command.go -- appendPluginCommands -->
 <!-- source: internal/le/cli/list/commandlist.go -- aliasesFor -->
-<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
 
 `show bgp summary` was a second spelling of this command until 2026-08. It is
 removed, not aliased, so it answers an unknown-command error. `show bgp` gives

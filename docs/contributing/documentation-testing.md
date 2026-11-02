@@ -214,7 +214,7 @@ with its own `ze:method`. Every
 loaded module is walked, so a module whose name carries no `-api` suffix is
 judged with the rest. An offline local command declares its help in a
 `registry.Meta` beside its handler and reaches no YANG module at all, and
-`ze help command --json` merges it with the tree (`cmd/ze/help_command.go`,
+`ze help command --json` merges it with the tree (`internal/plugins/help/help_command.go`,
 `collectCommands`). A CONFIG node declares its help in a `-conf` module, and
 `entryShortHelp` (`internal/component/cli/completer.go`) puts it on the row
 under the completion menu.
