@@ -239,6 +239,9 @@ func p12FilterExportRejectDriver() Driver {
 		if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "updates-sent", 2) {
 			return fmt.Errorf("ze never wrote the fence UPDATE to peer2")
 		}
+		if err := p12WaitPeersEOR(ctx, plugin, peerNameOne); err != nil {
+			return err
+		}
 		rejected, passed := state.exportRejected.Load(), state.exportPassed.Load()
 		if rejected == 0 {
 			return fmt.Errorf("export filter never saw the forward of 10.0.0.0/24 to peer2")

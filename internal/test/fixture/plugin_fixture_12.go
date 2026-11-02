@@ -317,6 +317,79 @@ func p12WaitAllPeerFields(ctx context.Context, plugin *sdk.Plugin, peers []p12Pe
 	return fmt.Errorf("timeout waiting for %s", what)
 }
 
+// The ze peer names the two-peer relay and route-server scenarios configure.
+const (
+	p12PeerSource = "source-peer"
+	p12PeerDest   = "dest-peer"
+)
+
+// p12PeerWaitDelay is the pause between two reads of a peer's counters.
+const p12PeerWaitDelay = 250 * time.Millisecond
+
+// p12WaitPeersEOR waits until ze has sent its initial-sync End-of-RIB to every
+// named peer, the point at which each session is Established and its initial
+// sync is on the wire.
+//
+// Observe quiesces and stops ze as soon as a scenario returns, and `request
+// quiesce` reports a peer whose TCP connect has not completed as settled
+// (docs/architecture/api/commands.md, "What the barrier does NOT cover"). So a
+// scenario whose .ci scripts a peer waits here before it ends.
+// TestPluginObservers12WaitForTheScriptedPeer reads the peer names of each
+// call, so pass them as string literals or package constants.
+func p12WaitPeersEOR(ctx context.Context, plugin *sdk.Plugin, peers ...string) error {
+	for _, peer := range peers {
+		if !Poll(ctx, WaitAttempts(80, p12PeerWaitDelay, 80), p12PeerWaitDelay, func() bool {
+			sent, ok := p12PeerCounter(ctx, plugin, peer, "eor-sent")
+			return ok && sent >= 1
+		}) {
+			return fmt.Errorf("%s initial-sync End-of-RIB never reached the wire", peer)
+		}
+	}
+	return nil
+}
+
+// p12UpdatesSentMark is one peer's updates-sent counter at one point of a
+// scenario, so a later read can tell the UPDATEs ze sent after it.
+type p12UpdatesSentMark struct {
+	peer    string
+	updates int
+}
+
+// p12MarkUpdatesSent reads every named peer's updates-sent counter.
+func p12MarkUpdatesSent(ctx context.Context, plugin *sdk.Plugin, peers ...string) ([]p12UpdatesSentMark, error) {
+	marks := make([]p12UpdatesSentMark, 0, len(peers))
+	for _, peer := range peers {
+		updates, ok := p12PeerCounter(ctx, plugin, peer, "updates-sent")
+		if !ok {
+			return nil, fmt.Errorf("%s updates-sent could not be read", peer)
+		}
+		marks = append(marks, p12UpdatesSentMark{peer: peer, updates: updates})
+	}
+	return marks, nil
+}
+
+// p12EmitOnWire runs command and returns once ze has put at least one more
+// UPDATE on every named peer's wire than it had before the command.
+func p12EmitOnWire(ctx context.Context, plugin *sdk.Plugin, command string, peers ...string) error {
+	marks, err := p12MarkUpdatesSent(ctx, plugin, peers...)
+	if err != nil {
+		return err
+	}
+	if err := p12RequireDone(ctx, plugin, command); err != nil {
+		return err
+	}
+	for _, mark := range marks {
+		minimum := mark.updates + 1
+		if !Poll(ctx, WaitAttempts(80, p12PeerWaitDelay, 80), p12PeerWaitDelay, func() bool {
+			updates, ok := p12PeerCounter(ctx, plugin, mark.peer, "updates-sent")
+			return ok && updates >= minimum
+		}) {
+			return fmt.Errorf("%q put no UPDATE on %s's wire (updates-sent stayed at %d)", command, mark.peer, mark.updates)
+		}
+	}
+	return nil
+}
+
 func p12RouteTotal(ctx context.Context, plugin *sdk.Plugin) (int, bool) {
 	status, data, err := p12DispatchObject(ctx, plugin, "show bgp adj-rib-in status")
 	if err != nil || status != statusDone {
@@ -332,13 +405,6 @@ func p12RouteTotal(ctx context.Context, plugin *sdk.Plugin) (int, bool) {
 func p12Quiesce(ctx context.Context, plugin *sdk.Plugin) error {
 	err := p12RequireDone(ctx, plugin, "request quiesce")
 	return err
-}
-
-// p12SettleDelay is the pause between two settle cycles.
-const p12SettleDelay = 200 * time.Millisecond
-
-func p12Settle(ctx context.Context, cycles int) {
-	Poll(ctx, cycles+1, p12SettleDelay, func() bool { return false })
 }
 
 func p12BusSubscribe(plugin *sdk.Plugin) p12Scenario {

@@ -68,8 +68,15 @@ func p12SignalDaemon(path string) error {
 	return nil
 }
 
+// p12ReloadL2TP reads one L2TP config field before and after a SIGHUP reload.
+// It first waits for peer1's initial-sync End-of-RIB, which the .ci peer
+// expects: the scenario otherwise reads only L2TP config, and the run would end
+// with the BGP session possibly still connecting.
 func p12ReloadL2TP(field string, beforeWant, afterWant int) p12Scenario {
 	return func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, plugin, peerNameOne); err != nil {
+			return err
+		}
 		read := func() (int, bool) {
 			status, data, err := p12DispatchObject(ctx, plugin, "show l2tp config")
 			if err != nil || status != statusDone {

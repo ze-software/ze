@@ -11,14 +11,7 @@ import (
 
 func p12AS112Announce(ctx context.Context, plugin *sdk.Plugin) error {
 	peers := []p12Peer{{"peer4", addrLoopback}, {"peer6", "::1"}}
-	if err := p12WaitAllPeerFields(ctx, plugin, peers, "state", func(_ p12Peer, value any) bool {
-		return value == stateEstablished
-	}, "both peers established"); err != nil {
-		return err
-	}
-	if err := p12WaitAllPeerFields(ctx, plugin, peers, "eor-sent", func(_ p12Peer, value any) bool {
-		return p12NumberAtLeast(value, 1)
-	}, "initial EOR sent on both sessions"); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, "peer4", "peer6"); err != nil {
 		return err
 	}
 	base := make(map[string]int, len(peers))
@@ -43,10 +36,7 @@ func p12AS112Announce(ctx context.Context, plugin *sdk.Plugin) error {
 func p12AS112Single(command string) p12Scenario {
 	return func(ctx context.Context, plugin *sdk.Plugin) error {
 		peer := p12Peer{peerNameOne, addrLoopback}
-		if err := p12WaitPeerField(ctx, plugin, peer, "state", func(value any) bool { return value == stateEstablished }, "peer1 established"); err != nil {
-			return err
-		}
-		if err := p12WaitPeerField(ctx, plugin, peer, "eor-sent", func(value any) bool { return p12NumberAtLeast(value, 1) }, "initial EOR sent"); err != nil {
+		if err := p12WaitPeersEOR(ctx, plugin, peerNameOne); err != nil {
 			return err
 		}
 		base, ok := p12Number(p12PeerField(ctx, plugin, peer.name, peer.addr, "updates-sent"))
@@ -62,10 +52,7 @@ func p12AS112Single(command string) p12Scenario {
 
 func p12AS112Withdraw(ctx context.Context, plugin *sdk.Plugin) error {
 	peer := p12Peer{peerNameOne, addrLoopback}
-	if err := p12WaitPeerField(ctx, plugin, peer, "state", func(value any) bool { return value == stateEstablished }, "peer1 established"); err != nil {
-		return err
-	}
-	if err := p12WaitPeerField(ctx, plugin, peer, "eor-sent", func(value any) bool { return p12NumberAtLeast(value, 1) }, "initial EOR sent"); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameOne); err != nil {
 		return err
 	}
 	base, ok := p12Number(p12PeerField(ctx, plugin, peer.name, peer.addr, "updates-sent"))
@@ -84,10 +71,19 @@ func p12AS112Withdraw(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
+// p12RedistributeNotConfigured emits a route from a source no `import` rule
+// names and proves no UPDATE reached the peer. The emit is synchronous up to
+// the BGP consumer, and `request quiesce` drains the forward path behind it, so
+// an UPDATE a missing import let through is counted in updates-sent by the time
+// the quiesce answers. The siblings that do import (redistribute-l2tp-announce,
+// redistribute-as112-origin-ebgp) see the same counter move on the same path.
 func p12RedistributeNotConfigured(source string) p12Scenario {
 	return func(ctx context.Context, plugin *sdk.Plugin) error {
-		peer := p12Peer{peerNameOne, addrLoopback}
-		if err := p12WaitPeerField(ctx, plugin, peer, "connections-established", func(value any) bool { return p12NumberAtLeast(value, 1) }, "peer1 session established at least once"); err != nil {
+		if err := p12WaitPeersEOR(ctx, plugin, peerNameOne); err != nil {
+			return err
+		}
+		before, err := p12MarkUpdatesSent(ctx, plugin, peerNameOne)
+		if err != nil {
 			return err
 		}
 		command := "request " + source + " emit add "
@@ -99,41 +95,60 @@ func p12RedistributeNotConfigured(source string) p12Scenario {
 		if err := p12RequireDone(ctx, plugin, command); err != nil {
 			return err
 		}
-		p12Settle(ctx, 10)
+		if err := p12Quiesce(ctx, plugin); err != nil {
+			return err
+		}
+		after, err := p12MarkUpdatesSent(ctx, plugin, peerNameOne)
+		if err != nil {
+			return err
+		}
+		if after[0].updates != before[0].updates {
+			return fmt.Errorf("no import names %s, yet ze sent peer1 %d UPDATE(s) after the emit", source, after[0].updates-before[0].updates)
+		}
+		fmt.Fprintln(os.Stderr, "OK: the "+source+" emit put no UPDATE on peer1's wire")
 		return nil
 	}
 }
 
+// p12L2TPAdd and p12L2TPRemove are the fakel2tp emits of the redistribution
+// scenarios.
+const (
+	p12L2TPAdd    = "request fakel2tp emit add ipv4/unicast 10.0.0.1/32"
+	p12L2TPRemove = "request fakel2tp emit remove ipv4/unicast 10.0.0.1/32"
+)
+
+// p12L2TPAnnounce returns once the redistributed /32 is on peer1's wire. The
+// scenario waits for the session's initial-sync End-of-RIB before the emit and
+// for updates-sent to step past it after, never on a clock: fixed two-second
+// sleeps stood here before, which a loaded host overruns.
 func p12L2TPAnnounce(ctx context.Context, plugin *sdk.Plugin) error {
-	p12Settle(ctx, 10)
-	if err := p12RequireDone(ctx, plugin, "request fakel2tp emit add ipv4/unicast 10.0.0.1/32"); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameOne); err != nil {
 		return err
 	}
-	p12Settle(ctx, 10)
-	return nil
+	return p12EmitOnWire(ctx, plugin, p12L2TPAdd, peerNameOne)
 }
 
+// p12L2TPMultiPeer returns once the redistributed /32 is on both scripted
+// peers' wires, each with its own NEXT_HOP.
 func p12L2TPMultiPeer(ctx context.Context, plugin *sdk.Plugin) error {
-	p12Settle(ctx, 10)
-	if err := p12RequireDone(ctx, plugin, "request fakel2tp emit add ipv4/unicast 10.0.0.1/32"); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameOne, "peer2"); err != nil {
 		return err
 	}
-	p12Settle(ctx, 15)
-	return nil
+	return p12EmitOnWire(ctx, plugin, p12L2TPAdd, peerNameOne, "peer2")
 }
 
+// p12L2TPWithdraw returns once the announce and then the withdrawal are each on
+// peer1's wire. The withdrawal is emitted only after the announce is sent, so
+// the peer sees them in that order.
 func p12L2TPWithdraw(ctx context.Context, plugin *sdk.Plugin) error {
-	p12Settle(ctx, 10)
-	for _, command := range []string{
-		"request fakel2tp emit add ipv4/unicast 10.0.0.1/32",
-		"request fakel2tp emit remove ipv4/unicast 10.0.0.1/32",
-	} {
-		if err := p12RequireDone(ctx, plugin, command); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameOne); err != nil {
+		return err
+	}
+	for _, command := range []string{p12L2TPAdd, p12L2TPRemove} {
+		if err := p12EmitOnWire(ctx, plugin, command, peerNameOne); err != nil {
 			return err
 		}
-		p12Settle(ctx, 3)
 	}
-	p12Settle(ctx, 10)
 	return nil
 }
 
@@ -175,6 +190,9 @@ func p12LateJoinTrigger(ctx context.Context, _ []string) error {
 
 func p12RelayWithdraw(reflector bool) p12Scenario {
 	return func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, plugin, p12PeerSource, p12PeerDest); err != nil {
+			return err
+		}
 		if err := p12Quiesce(ctx, plugin); err != nil {
 			return err
 		}

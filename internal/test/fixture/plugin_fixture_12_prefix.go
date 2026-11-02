@@ -110,7 +110,7 @@ func p12WarnOnlyDropsNLRI(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("AC-2: warn-only must not install routes past the maximum: count=%d, maximum=2, announced=4, after-control=3", count)
 	}
 	fmt.Fprintf(os.Stderr, "OK AC-2: %d of 4 announced routes are installed, never past the maximum of 2, so the over-limit UPDATE was dropped\n", count)
-	return nil
+	return p12WaitPeersEOR(ctx, plugin, peerNameOne)
 }
 
 func p12RouteServerReplay(plugin *sdk.Plugin) p12Scenario {
@@ -153,7 +153,7 @@ func p12RouteServerReplay(plugin *sdk.Plugin) p12Scenario {
 		return nil
 	})
 
-	return func(ctx context.Context, _ *sdk.Plugin) error {
+	return func(ctx context.Context, plugin *sdk.Plugin) error {
 		idleWindow := WaitBudget(60, 30*time.Second)
 		idle := time.NewTimer(idleWindow)
 		defer idle.Stop()
@@ -165,7 +165,7 @@ func p12RouteServerReplay(plugin *sdk.Plugin) p12Scenario {
 			complete := len(eorPeers) >= 2 && forwardSeen
 			mu.Unlock()
 			if complete {
-				return nil
+				return p12WaitPeersEOR(ctx, plugin, p12PeerSource)
 			}
 			select {
 			case <-ctx.Done():
@@ -211,7 +211,14 @@ func mustJSONP12(value any) []byte {
 	return raw
 }
 
+// p12QuiesceBarrier sends two routes and quiesces. It first waits for peer1's
+// initial-sync End-of-RIB: a peer whose TCP connect has not completed is
+// reported settled, so without it the quiesce could answer, and the run end,
+// before the session the .ci checks exists.
 func p12QuiesceBarrier(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameOne); err != nil {
+		return err
+	}
 	for _, command := range []string{
 		cmdAnnounceFirstPrefix,
 		"update text nhop 101.1.101.1 nlri add 1.2.0.0/25",

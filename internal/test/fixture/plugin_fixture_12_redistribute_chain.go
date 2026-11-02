@@ -153,7 +153,7 @@ func redistChainBGPSourceReachesConsumer(ctx context.Context, plugin *sdk.Plugin
 	}
 	err := redistChainWait(ctx, plugin, redistChainSink, "10.0.0.0/24")
 	if err == nil {
-		return nil
+		return p12WaitPeersEOR(ctx, plugin, peerNameOne)
 	}
 	// Name the stage. The chain has two halves either side of the Loc-RIB, and
 	// the failure reads the same from the consumer whichever half broke.
@@ -297,7 +297,7 @@ func redistChainPeerRouteReachesAdjRIBIn(ctx context.Context, plugin *sdk.Plugin
 	}
 	if reached {
 		fmt.Fprintln(os.Stderr, "OK: the peer's "+prefix+" reached the Adj-RIB-In")
-		return nil
+		return p12WaitPeersEOR(ctx, plugin, peerNameOne)
 	}
 	var tb textbuf.Buffer
 	tb.Str("the peer announced ").Str(prefix).Str(" and the Adj-RIB-In never held it; `show bgp rib received` holds [")
@@ -332,7 +332,7 @@ func redistChainOperatorStateGrantServes(ctx context.Context, plugin *sdk.Plugin
 	}
 	if reached {
 		fmt.Fprintln(os.Stderr, "OK: the operator's state grant brought the peer up in the Loc-RIB")
-		return nil
+		return p12WaitPeersEOR(ctx, plugin, peerNameOne)
 	}
 	var tb textbuf.Buffer
 	tb.Str("the Loc-RIB never counted the peer as up through the operator's `receive [ state ]` grant; `show bgp rib status` answered ")
