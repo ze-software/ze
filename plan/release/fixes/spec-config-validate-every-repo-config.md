@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | blocked |
 | Scope | config |
 | Priority | P1 |
 | Release reason | RFC 8212 correctness: configs the repository ships and drives (perf DUT, demos, interop scenarios, netlab goldens, `.ci` bodies) left EBGP directions closed and exchanged no routes, and nothing caught it. `ze config validate` now warns (e2af3bbac6); every config the repository uses must pass it |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 - BLOCKED on link-local runtime environment; independent Review Gate owed |
 | Handoff | - |
-| Updated | 2026-11-01 |
+| Updated | 2026-11-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -36,10 +36,16 @@ green with zero findings. The 556 findings of the last run are in the session
 scratch `tmp/session/2026-10-31-204407/scratch/sweep-findings-556.txt`; every
 one is accounted for in Acceptance Criteria (the per-bucket counts sum to 556).
 
-### Implementation record (2026-11-01)
+### Implementation record (2026-11-02)
 
-`./le spec claim` refused the claim (WIP cap 12 of 12 in progress), so the
-Status row stays `ready`; the cap is the owner's to decide.
+On November 1, `./le spec claim` refused the claim at the WIP cap. On
+November 2, Thomas requested implementation and said "ignore spec limit".
+The parent claimed this spec with `ZE_SPEC_WIP_CAP=24`; this is a one-spec
+exception, not a change to the standing cap rule.
+
+The next table preserves the November 1 record. Its outstanding-work statements
+are superseded by the final proof record below. Historical export/worktree runs
+remain historical evidence, not current main-checkout passes.
 
 | AC | State | Commits | Evidence |
 |----|-------|---------|----------|
@@ -67,9 +73,201 @@ Status row stays `ready`; the cap is the owner's to decide.
 
 Test-judge: test/ui/cli-config-dump-{sensitive,json-sensitive,strip-private}.ci: (a) adding local ip auto and import/export final accept leaves every assertion (exit 0, router-id / $9$ / SECRET-DATA) and the masked md5 password in the dump; all three pass and their bodies now validate.
 
-Owed outside this host: the AC-1 macOS run; `./le test netlab check` (AC-4); `./le test qemu all` for the needs-linux tests named under AC-16 and Agent B's 7 static, 4 firewall and 10 capability-needing plugin tests; `./le test qemu netns` for the seven `rpki-aspa-*` tests (ff15eecba0).
+The AC-1 macOS run needs a macOS host and remains unproven. The owner's
+standing release rule leaves macOS-only checks until after the first release.
+The final proof record below accounts for the Linux selections individually.
 
 Found, owned elsewhere: the exabgp-compat mock stops comparing an allowed case at its first divergent frame (`plan/release/validation/spec-exabgp-compat-allowance-checks-every-frame.md`, 660ec70b4b).
+
+### Initial proof recovery (2026-11-02, superseded)
+
+The November 1 table is historical evidence, not a verdict on the current
+shared tree. `spec state latest` returned no file; the referenced October 31
+session directory is absent. Commits recover the following additional record.
+The old AC-1 filter-wire finding is no longer the same input:
+`test/plugin/filter-wire-thirdparty-compiled-in.ci` now declares `export {
+final accept; }` for both peers. This source correction does not establish a
+zero-finding verdict for the rest of today's corpus.
+
+| AC | Recovered or current evidence | Remaining action |
+|----|-------------------------------|------------------|
+| AC-1, AC-22 | The current `runSweep`, `checkBody`, `checkRefused` and `requireRuleTurnsFindingsAway` in `validate_corpus_test.go` retain the corpus, refusal and differential checks. The November 2 race run reached the corpus test but the tool's 120-second timeout terminated it (exit 143); no corpus verdict or exclusion-test run was produced | A dedicated proof agent runs these two tests to completion with an adequate tool timeout; report every finding and host-code count |
+| AC-2 | The earlier table records the perf-config mutation red and restoration; its original scratch output is unavailable | Preserve the historical claim; do not call it a newly observed mutation proof |
+| AC-4 | 28bd5b5c9c records `./le test netlab check` passing render and validation for all three nodes under netlab 26.10, and the independent golden-order judgment. Current `Checker.Run` calls `compare` and `validateGolden`; the latter still checks exit status, not warnings | This supersedes the old claim that the netlab check was never run; no repeat solely for a fresh timestamp |
+| AC-6, AC-7 | Newly observed `--- PASS` for `TestValidateReportsNodeOfAnotherOS` and `TestValidateReportsHostBackendVerdict`, including marked and unmarked subtests, under the full feature tags and `-race` | Linux unit proof only; injected OS is not a macOS execution |
+| AC-21 | f7d8710ee8 fixes six lint findings and records a clean scoped host/integration/darwin/freebsd/openbsd matrix. That commit says it ran in a worktree; it is historical evidence and does not satisfy today's main-checkout proof rule | Run only the spec's changed-package lint scope in main; retain the recorded tier result and investigate only a refusal of this spec's imports |
+| Other ACs | The implementation commits and named runs in the November 1 table remain the recovered record; this audit did not re-execute them | Complete the Linux/QEMU population above and any affected-suite evidence not recorded in those commits |
+
+The new command was `CGO_ENABLED=1 ./le job run label config-proof-recovery
+quiet command go test -race -tags "$tags" -run
+'^(TestRepositoryConfigsValidate|TestSweepDerivesEachExclusion|TestValidateReportsNodeOfAnotherOS|TestValidateReportsHostBackendVerdict)$'
+-v ./internal/component/config/cli/`, with `tags` derived from
+`feature-gates.txt` plus `ze_core` as documented in `running-commands.md`.
+Only the two named host tests finished. The interrupted corpus run is not a
+test failure or a passing package run.
+
+At initial recovery, the two November 2 owned journal rows needed implementation.
+Both repairs have since landed, as recorded below:
+
+| Work package | Producer diagnosis | Required proof |
+|--------------|--------------------|----------------|
+| Runner helper exit contract and placeholder documentation | `Runner.runOrchestrated` in `internal/test/runner/runner_exec.go` checks `cmd.ExitCode` only in the quick-Ze arm. Both foreground helper arms ignore it; the non-final arm fails every nonzero `Wait`, and the final arm consults only file-level `ExpectExitCode`. The placeholder page says every text expands, but the execution sites cover tmpfs, exec, stdin, env and HTTP, not assertion values | Add regression cases for declared zero/nonzero exits and mismatches on both helper positions; preserve timeout handling and file-level semantics. Correct the documented expansion scope. Do not work around the defect by rearranging commands |
+| Doctor reference diagnostic reachability | `doctor.runChecks` in `internal/component/doctor/doctor.go` returns on `config.ReadConfig` failure before post-config checks. `config.loadConfig` refuses invalid custom sections before returning a tree; `bgp/config.checkFilterReferences` requires that tree. The old journal path `doctor/checks_config.go` has moved to `internal/component/bgp/config/filter_reference_doctor.go` | Reproduce `test/ui/doctor-config-reference.ci` through its native runner, then repair the diagnostic path without weakening its undefined-reference assertion; a new passing fixture alone would not repair the reachability defect |
+
+No closure review was performed. Phase 5 remains open.
+
+### Final proof record and blocked handoff (2026-11-02)
+
+This is the durable record of parent `ses_e631cb616ffe3yt3BVP45Yn2nO`'s
+reconciled implementation evidence. No test or review ran for this handoff.
+The earlier recovery instructions are historical, not a second work queue.
+No owned implementation repair remains pending beyond findings a future review
+can expose. Required runtime proof and foreign gate reds remain open.
+
+#### Landed repairs included in the future review population
+
+| Commit | Repair and retained proof |
+|--------|---------------------------|
+| `175a44e816` | Foreground helper `exit=` contract and placeholder documentation. `TestForegroundHelperCommandExit`, `TestForegroundHelperFileExit`, and `TestForegroundHelperExitTimeout` pass under race, including both helper positions, signals, timeouts and final-file conflicts. `test runner helper-command-exit` failed with the helper check disabled and passes after promotion. Stress: 80 invocations, parallel 4, burners 2, no reproduction. The package run still failed at `TestCIAcceptOnlyLint` below |
+| `bb4fead1d61aea7206caa582bc6b7cf130c67e36` | Git-derived corpus discovery and explicit closed policy in both role-clear fixtures. Discovery regression red before the repair, then race PASS, including missing/unreadable source controls. Both role-clear twins pass after promotion. Their draft stress selection completed 80 invocations, parallel 4, burners 2, no reproduction. Independent judge `ses_e62c72805ffedG6YKudd35zgBr` approved fixtures and discovery/exclusion coverage |
+| `5dcffd85d0c49d5c8152ebb1571714191c6c371f` | Doctor reference finding before validated-load refusal. Unchanged `test ui --pattern doctor-config-reference` red then PASS. Full-tag race packages doctor and BGP config PASS, with diagnostic's earlier PASS retained. `TestDoctorReferenceBeforeLoadRefusal` PASS through the local answer route. Coverage observes syntax refusal, parsed dispatch, load refusal and successful post-load paths. Parsed-phase sort comparison remains unexercised, not full branch coverage |
+| `f90191eab4003dbbd0a54b36d59f83fcc593eee7` | Six direct lint findings cleared: one runner failure-label constant and five discovery path joins. Host/integration lint over runner and config/cli, and Darwin/FreeBSD/OpenBSD lint over runner, each exit 0 and `0 issues`. No automatic Spec-work trailer: include explicitly in review |
+| `26da0eef6ee8c33834e85a67f39ef4bff8a45956` | Connected-distance fixture provides a reachable nonlocal next hop. Independent judge `ses_e62450d15ffeK9MS6utJRtoWW2` approved setup without assertion changes. Both distance polarities pass in fresh namespaces, including the unchanged proto-250 checks. No automatic Spec-work trailer: include explicitly in review |
+
+#### Acceptance evidence retained at handoff
+
+All November 2 Go proof used the full feature-tag set from `feature-gates.txt`
+plus `ze_core`, through `./le job run` in main. Race runs used `CGO_ENABLED=1`.
+The completed corpus command was `go test -race -tags "$tags" -timeout 20m
+-run '^TestRepositoryConfigsValidate$|^TestSweepDerivesEachExclusion$/(statement_shape|host_verdict)$'
+-v ./internal/component/config/cli/`. The earlier interrupted command is not
+a passing package run. The later completed results supersede its missing verdict.
+
+| AC | Final evidence and limit |
+|----|--------------------------|
+| AC-1 | Linux PASS: 2813 Ze configs, 241 migrated ExaBGP configs, 20 declared/asserted refusals, 489 exit-expectation skips, 29 load sequences/71 steps, 80 legacy native fixtures with reasons. Zero findings and zero host verdicts for every code, including kernel-capability, node-other-os and host-backend. macOS remains unproven and post-release |
+| AC-2 | Preserve the recorded perf-config mutation: removing 664be57056 produces four RFC8212 findings for perf-receiver/perf-sender import/export, restoring it removes them. Original scratch is absent. This is historical mutation evidence, not a newly observed walk |
+| AC-3 | Corpus findings cleared, including the later eight role-clear findings. Reconciled changed-carrier union: 349 files, not 349 new main passes. Historical export runs remain labeled below. Exactly one Linux runtime selector remains blocked: linklocal-only-multihop-withdraw |
+| AC-4 | `28bd5b5c9c`: netlab 26.10 `./le test netlab check` PASS for all three nodes, including rendering and validation. Supersedes the initial claim that it was unrun |
+| AC-5 | Shared classification and native parsing/config-direction proofs retained from `01e6f725b7`, plus the 80 reasoned legacy classifications in the completed corpus. No legacy fixture deleted |
+| AC-6, AC-7 | Full-tag race named PASS for `TestValidateReportsNodeOfAnotherOS` and `TestValidateReportsHostBackendVerdict`, including marked/unmarked subtests. Linux corpus has no host-code skips. Injected plan9 schema is not macOS execution |
+| AC-8, AC-9 | Shared labconfig and BGP/IPsec renderer race evidence from `c782411791` retained. Completed corpus validates rendered link-local and PKI inputs |
+| AC-10, AC-11 | Completed corpus plus the exclusion differential results below prove statement classification and test-plugin composition |
+| AC-12 | Migration/bridge race and DSCP regression evidence from `794c3ac052`/`7c85bafe4a`, plus migrated-config validation retained. Final old-4.2/old-5.0 conf-flow results are declared allowances, not wire-equivalence passes |
+| AC-13 | Standalone and cumulative tape-order validation retained, including showcase-lab base and IRR fragment, within 29 sequences/71 steps. No live demo recording is owed |
+| AC-14 | Both corrected interop scenarios pass through the main-built Ze guest: bgp-delayopen-frr and bgp-session-protection-frr. bgp-rfc2545-third-party-linklocal-frr also passes. Each reports 1 passed/0 failed, no skips |
+| AC-15, AC-16 | Completed cumulative validation and 20 asserted refusals retained. All four formerly unrun Linux reload cases now pass, listed below |
+| AC-17, AC-18 | Recorded parse/format/dump/completion/doctor-claims and policy-root-migrate passes in `84c0fc6cea` retained with corpus validation. Doctor reference reachability is now separately repaired and proved |
+| AC-19 | `TestRecordPortExpansionRefusesUnreservedPort` and runner/CLI race evidence retained. Five reached consumers pass: bgp-rpki-added-live, bgp-rpki-attach-live, ipsec-added-live, reload-listener-rejected, bmp-lg-http-routes |
+| AC-20 | `d3345c8082` retains the passing no-final control `TestUnknownRedistributeFamilyRefusesLoad` |
+| AC-21 | NOT CLEAN. Completed main lint exposed six owned findings, now cleared, plus the foreign findings below. Historical tier result names bfd/api, not sweep imports. Historical worktree lint is not substituted for main evidence |
+| AC-22 | All nine differential controls pass across completed runs: placeholders 40 restored findings, ports 243, test plugins 17, declared refusal 1, load sequence 20, migrate input 1, native classification 80, statement shape 3, host verdict 11 with plan9 schema. The two traversal-error cases passed after Git-derived discovery. Seven successful controls were not repeated |
+
+Independent remaining-proof audit `ses_e61f2c7f6ffeQkj2f8iH8GipoV` rejected
+the proposed blanket standalone smoke debt. AC-1/AC-13 require offline and
+cumulative validation, which the retained corpus supplies. This applies to
+`test/perf/configs-filter/ze.conf`, stress 01-bulk-ipv4/02-multi-peer/03-session-flap/05-profile-1m,
+and demo cli-dashboard/config-graph/config-views/health-reports/rib-fib/zefs-config,
+showcase-lab and the IRR fragment. Their runtime behavior is not proved by
+the sweep, and no new runtime smoke obligation is invented for them.
+`validate_corpus_test.go` `judgeSequence`, `load` and `checkBody` use editor
+merge/replace and offline validation, not live demo execution.
+
+#### Exact Linux runtime and package reconciliation
+
+| Selection | Retained result |
+|-----------|-----------------|
+| `test bgp reload static-bfd-profile-reload-deleted static-bfd-profile-reload-passive tx-iface-wireguard-invalid-bad-public-key tx-iface-wireguard-invalid-no-private-key` | Four named PASS, no skips, fresh user/network/mount namespaces on Linux 7.2.9-ze |
+| `test static static-distance-beats-ebgp static-distance-loses-to-ebgp static-kernel-distance-bgp-wins static-kernel-distance-reload static-kernel-distance-route-override static-kernel-distance-static-wins static-kernel-igp-cost-reselect` | Seven named PASS, no skips, same isolated native route |
+| `test firewall copp-bgp copp-over-limit-drop copp-trusted copp-unknown-source-drop` | Four named PASS across runs. Over-limit and unknown-source initially collided on the shared ze_copp table, then passed with `--parallel 1` in isolation. Do not claim the initial concurrent run passed |
+| `test bgp plugin --parallel 1 dns-stub-lookup dns-stub-answer-change connected-distance-arbitration connected-distance-raised-loses iface-tunnel-kinds tunnel-ttl-default` | All six have named PASS, no skips. Raised-distance passed only after 26da0eef6ee8, with its affected twin also passing |
+| `test bgp plugin --parallel 1 rpki-aspa-disabled rpki-aspa-invalid rpki-aspa-policy-logonly rpki-aspa-policy-reject rpki-aspa-policy-unknown-reject rpki-aspa-unknown rpki-aspa-valid` | Seven named PASS, no skips, managed Ze-system guest kernel 7.3.0-ze, runner-provisioned namespaces/links and daemon UID/GID 1000 |
+| `test bgp plugin --parallel 1 ddos-announce-rate-limit ddos-direction ddos-incident-confidence ddos-policy` | All four have named PASS across runs, no skips. PERFMON resolved the BPF verifier environment refusal for three. Confidence passed separately after accounting/tracking provision below |
+| `test firewall --parallel 1 gtsm-listener-floor gtsm-related-icmp` | Both named PASS, no skips, managed Ze guest |
+| `test qemu docker-lab lab 'test integration interop' env 'INTEROP_SCENARIO=<scenario>' timeout 20m` | Each of bgp-delayopen-frr, bgp-session-protection-frr and bgp-rfc2545-third-party-linklocal-frr PASS. Fresh main-built binaries, FRR 10.7.1, Ze guest. Existing assertions passed, not a new discrimination walk or a proven collision-arbitration order |
+| `go test -race -tags "$tags" -timeout 5m -run '^TestValidateBGPPeersWithPolicyRunsPeerValidatorAlone$' -v ./internal/component/config/infra` | Named PASS, exit 0. No missing infra selector remains |
+
+Confidence environment proof used an independently approved fresh container
+namespace inside the disposable Ze guest (`ses_e620b5f80ffeOEPB5z7WJGtTCf`).
+Accounting readback was 1, with an accept-only output ct-state tracking rule
+before traffic. Runner UID/EUID/GID were 1000, with effective/ambient mask
+`0xc001003400` (NET_ADMIN, NET_RAW, NET_BIND_SERVICE, BPF, SYS_RESOURCE, PERFMON).
+`ZE_TEST_NETNS` was unset, so the runner used that prepared namespace.
+Only the unchanged `ddos-incident-confidence` ran: named PASS 1/1.
+The earlier empty recent-flow ring was an environment prerequisite failure,
+not a product repair. Managed runs report VM stopped and left-behind none.
+
+Historical package evidence remains in `5f65d1f35c` (config/host verifiers),
+`01e6f725b7` (native classification/reactor direction), `e2af3bbac6` (RFC8212),
+`698a7a547a`, `5dc57599fb` and `c7f5ce38b6` (runner/CLI/tmpfs/fixture).
+Historical export-based functional claims are `6ca76b741b` (55 parse),
+`99839b2060` (39 UI), `86280b3a20` (22 plugin), `cf5d6b8c9e` (five reload),
+`41f87f7d4a` (plugin), `f194d2760c` (mixed) and `3cb09bb0a9` (RFC subjects).
+Their completed runs were not repeated to change provenance. Final evidence
+reconciliation found no further unrun Linux functional or package selector.
+
+#### Final compatibility allowances
+
+| Command through the named launcher and job admission | Final result |
+|-----------------------------------------------------|--------------|
+| `./le --name config-phase5-proof test exabgp old-4.2 conf-flow` | Exit 0, conf-flow SKIP, 0 passing cases, 1 allowed difference |
+| `./le --name config-phase5-proof test exabgp old-5.0 conf-flow` | Exit 0, conf-flow SKIP, 0 passing cases, 1 allowed difference |
+
+Both final reasons name third-redirect as the first divergence. These are
+declared allowances after `88e7a340ab`, not wire-equivalence PASS and not proof
+of later frames. The allowance-every-frame spec named above retains that defect.
+
+## Blocker
+
+**BLOCKED: `linklocal-only-multihop-withdraw` has not reached its required wire
+assertions.** The owner/environment provider must supply a bounded native
+launcher inside the disposable managed Ze guest.
+
+| Route | Observed failure |
+|-------|------------------|
+| Container | `write /proc/sys/net/ipv4/ip_forward in zell3383-r: open /proc/sys/net/ipv4/ip_forward: read-only file system` |
+| Native guest SSH | `uid=1001(ze) gid=1001(ze) groups=1000(docker),1001(ze)`, CapPrm/CapEff/CapAmb all zero. `unshare --net true` reports `unshare: unshare(0x40000000): Operation not permitted` |
+
+Producer: `internal/test/fixture/plugin_fixture_clamped_path_linux.go`
+`createTestNetns` creates named namespaces, `clampedPath.wire` and `wireIPv6`
+write forwarding through `testNetns.writeSysctl` inside the owned router
+namespace. `startInNetns` does not change credentials.
+
+Required provision: start the unchanged runner/helpers as nonroot UID/GID 1000,
+with effective/ambient CAP_SYS_ADMIN for namespace creation/entry and
+CAP_NET_ADMIN/CAP_NET_RAW for topology and sockets. Permit the fixture's
+owned namespace mounts and writes to its router's
+`/proc/sys/net/ipv4/ip_forward` and `/proc/sys/net/ipv6/conf/all/forwarding`.
+More capabilities alone cannot repair the container's read-only procfs.
+The permission must be supplied by the permitted guest launcher, not by a
+host sysctl change, privileged container, security-profile bypass or sudo.
+
+After provision, use fresh main-built binaries and run only
+`./le --name config-phase5-proof test bgp plugin --parallel 1 linklocal-only-multihop-withdraw`.
+Require its unchanged wire assertions to pass without skips. This is an
+execution-environment blocker, not a demonstrated Linux primitive limit.
+
+### Remaining foreign reds and proof limits
+
+These are the last recorded verdicts, not a fresh audit of their owners' trees.
+Reconcile owner results before a failed-selector-only rerun. AC-21 stays red.
+
+| Finding | Owner and next action |
+|---------|-----------------------|
+| Fixture lint: errorlint `%q` in plugin_fixture_06_events.go; goconst `veth` in plugin_fixture_rfc2545_joint_subnet_linux.go and register_sflow_agent_address_linux.go; goconst `update` in ui_fixture_le_docvalid_answers.go, ui_fixture_le_placement_answers.go and ui_fixture_le_vendor_web_answers.go; goconst `rfc` in ui_fixture_le_rfc_answers.go; embedlit in register_sflow_agent_address_linux.go; unparam in misc_fixture_runner_derived_debt.go and plugin_fixture_13_peer_lifecycle.go | All under `internal/test/fixture/`. Package owner: `plan/release/validation/spec-lint-backlog-3-test-tooling.md`. Preserve its concurrent hunks and obtain its result |
+| Setup lint: `could not import go/parser (Config.Importer.Import(go/parser) returned nil but no error)` in `internal/le/test/weakened/scope_go.go` | Same tooling owner. Analyzer importer failure, not a missing import. Diagnose before retry |
+| Four misspell findings in `internal/component/doctor/answer.go`: marshalled twice, coloured, colour | Provenance command-surface-parity (`0b403ea3d3`, `5a91877b02`), no live spec of that name. `plan/release/validation/spec-lint-backlog-0-umbrella.md` coordinates routing. Direct child ownership remains unresolved |
+| `TestCIAcceptOnlyLint` names `test/parse/graceful-restart-llgr-forked.ci` | Owner filter-wire-0-umbrella, introducing path commit `efa0d0957e`. Only after its cause changes: full-tag race `-run '^TestCIAcceptOnlyLint$' ./internal/test/runner`. Other helper controls passed, but their package run was red |
+| Doc gate: shipping wiki/live `clear debug` mode mismatch, plus five stale anchors in commands.md/core-design.md (`runIngressPolicyChain`), meta/role.md (`broadcastValidateOpen`), verify-freshness-scope.md (`IsProse`), route-policy.md (`MustRegisterAttachment`) | Parent owns routing to the command catalog, BGP/filter and verification-tooling owners. Direct assignments were not established. Discovery/doctor pages had no anchor findings. DOCS-TO-CODE stale was a warning, not another passing gate |
+| Historical tier refusal in `internal/component/bfd/api` | Foreign BFD ownership, not a sweep-import refusal. Preserve the recorded distinction |
+| macOS corpus and `test ui doctor-bgp-md5` | Unproven, scheduled post-release by the owner's standing macOS rule. The doctor case declares `skip-os=linux,freebsd`. Darwin lint and injected-OS Linux units do not discharge either execution |
+| Independent full Review Gate | Still owed over the complete implementation population, including every earlier commit listed here and the two repairs without Spec-work trailers. The remaining-proof audit and test judgments are not this gate. No clean review, closure or deletion is claimed |
+
+The spec stays open and blocked. Release the parent's claim after this handoff
+commit succeeds. Resume with the bounded environment provision and foreign-owner
+results, then the independent full Review Gate. Retained scratch logs, scripts,
+and the DelayOpen capture support review until it completes. Normal idle cleanup
+owns launchers/build outputs. No task-owned guest, server or heavy job remains.
 
 ### Handoff enumeration (nothing dropped)
 
