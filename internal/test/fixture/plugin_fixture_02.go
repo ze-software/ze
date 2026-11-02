@@ -242,13 +242,32 @@ func apiRouteRefresh02(ctx context.Context, plugin *sdk.Plugin) error {
 	if _, err := requireDone02(ctx, plugin, "request peer peer1 refresh ipv4/unicast"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK: route-refresh sent")
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(time.Second):
-		return nil
+	// The command answers done whether or not it wrote anything: a peer that is
+	// not Established, or that did not negotiate route refresh, is skipped
+	// (reactorAPIAdapter.sendRouteRefresh). The sent counter steps only once the
+	// message is on the socket, so it is what the scenario waits for, where a
+	// fixed one-second pause stood before.
+	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
+		sent, err := routeRefreshSent02(ctx, plugin)
+		return err == nil && sent >= 1
+	}) {
+		return fmt.Errorf("ze answered the refresh request but wrote no ROUTE-REFRESH to peer1")
 	}
+	fmt.Fprintln(os.Stderr, "OK: route-refresh sent")
+	return nil
+}
+
+// routeRefreshSent02 answers how many ROUTE-REFRESH messages ze has written to
+// peer1 (127.0.0.1).
+func routeRefreshSent02(ctx context.Context, plugin *sdk.Plugin) (int, error) {
+	peers, err := peerFields02(ctx, plugin, "peer1")
+	if err != nil {
+		return 0, err
+	}
+	row, _ := peers["127.0.0.1"].(map[string]any)
+	messages, _ := row["messages"].(map[string]any)
+	sent, _ := messages["sent"].(map[string]any)
+	return int02(sent["route-refresh"]), nil
 }
 
 func apiSubscribe02(ctx context.Context, plugin *sdk.Plugin) error {
