@@ -75,11 +75,13 @@ func runDebugCommands(output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	document, err := exactObject(payload, "show debug profile", "debug-profiles")
-	if err != nil {
-		return err
+	// A one-key envelope whose value is a list reaches `| json` as the list
+	// itself, the same unwrapping rows() accepts.
+	listed := payload
+	if document, isObject := object(payload); isObject {
+		listed = document["debug-profiles"]
 	}
-	profiles, _ := document["debug-profiles"].([]any)
+	profiles, _ := listed.([]any)
 	if err := require(slices.Contains(profiles, any("default")) && slices.Contains(profiles, any("p1")),
 		"show debug profile listed %#v, want default and p1", payload); err != nil {
 		return err
