@@ -1,0 +1,139 @@
+# Test: community-scrub-own-ga.ci with bgp-filter-community forked (spec-filter-wire-6-stage-filters AC-8).
+# The same expectations as the internal twin: bgp-filter-community runs as a
+# real external process over TLS connect-back (`ze plugin bgp-filter-community`),
+# so its chain members answer through filter-update in the child.
+# Test: RFC 7454 Section 11 own-Global-Administrator scrub
+# VALIDATES: AC-6, AC-7 -- an own-GA value outside the keep-list is removed on
+#            ingress, one inside it survives, and a foreign GA is never touched
+# PREVENTS: a scrub that removes everything (which would delete a customer's
+#           signal to its own upstream, the failure Section 11 bullet two names)
+#           and a scrub that removes nothing (which would leave every forged
+#           value in place). Either failure alone still leaves a route in the
+#           RIB, so this test asserts all three values by name.
+#
+# Flow:
+# 1. ze-peer sends a route carrying three STANDARD communities:
+#      65000:64  own AS in the high half, function 64, IN the keep-list -> survives
+#      65000:99  own AS in the high half, function 99, NOT in the list  -> removed
+#      64512:99  another AS in the high half                            -> survives
+# 2. The peer has `scrub-own-ga true` and `scrub-keep-function 64`.
+# 3. The stored route carries exactly the two survivors.
+#
+# STANDARD rather than LARGE, and the reason is the RIB rather than the scrub.
+# Section 11 speaks of "your number in the high-order bits", which the scrub reads
+# in both widths (ownGAStandardValues and ownGALargeValues). Only the standard
+# width can be ASSERTED here: for a RECEIVED route the RIB emits no
+# large-community field at all (enrichRouteMapFromBundle,
+# internal/component/bgp/plugins/rib/rib_attr_format.go) and the pipeline offers
+# no large-community filter (rib_pipeline.go). The large width is proven by
+# TestScrubKeepList and TestScrubIgnoresForeignGA. The RIB gap has its own row in
+# plan/journal/unwired-feature.md.
+
+# The forked process reads its own level from the underscore form, as
+# stage-filter-forked.ci does: the dotted form does not reach it.
+option=env:var=ze_log_bgp_filter_community:value=info
+# The forked copy logs to its own stderr. The relay passes its INFO lines on
+# (ze.log.relay), and the daemon's relay logger writes them (ze.log.plugin.relay).
+option=env:var=ze.log.relay:value=info
+option=env:var=ze.log.plugin.relay:value=info
+option=env:var=ze.log.bgp.reactor.session:value=debug
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# The session must OUTLIVE the observer, because everything this test asserts is
+# per-session state. Without linger, Peer.completed (internal/test/peer/peer.go)
+# returns as soon as the send below is done and the connection closes; the RIB
+# plugin then takes the !isUp && wasUp branch of handleStructuredState
+# (internal/component/bgp/plugins/rib/rib.go), calls peerRIB.Release() and drops
+# the peer from bgpPeers, which is correct for a session with
+# `graceful-restart disable`. The observer was racing that purge and lost 3 to 4
+# times in 40, reporting an emptied Adj-RIB-In as a scrub that ate the
+# keep-list value.
+option=linger:value=true
+# Marker(16) + Len=003E(62) + Type=02 + WdLen=0000 + AttrLen=0023(35)
+#   ORIGIN:    40010100 (IGP)
+#   AS_PATH:   40020602010000FDE9 (AS_SEQ [65001])
+#   NEXT_HOP:  40030401010101
+#   COMMUNITY: C0 08 0C (code 8, 12 octets = three 4-octet values)
+#       FDE80040 (65000:64)  FDE80063 (65000:99)  FC000063 (64512:99)
+#   NLRI:      180A0000 (10.0.0.0/24)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020602010000FDE940030401010101C0080CFDE80040FDE80063FC000063180A0000
+EOF_PEER
+
+# ze configuration: one eBGP peer with the Section 11 scrub and one kept function.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub { server local { ip 127.0.0.1; port 0; secret community-scrub-own-ga-forked-secret-0001; } }
+	external bgp-filter-community { run "ze plugin bgp-filter-community"; }
+	external test-scrub {
+		run "le test fixture plugin/community-scrub-own-ga"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { filters [ bgp-filter-community:ingress ]; final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			ingress {
+				community {
+					scrub-own-ga true
+					scrub-keep-function 64
+				}
+			}
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The filter emits one info log per modified payload. scrub-own-ga proves the
+# leaf reached the filter, and the payload only changes here because the scrub
+# removed a value: no tag and no strip set is configured.
+expect=stderr:pattern=community ingress applied
+expect=stderr:pattern=peer=peer1
+expect=stderr:pattern=scrub-own-ga=true
+# Negative regressions:
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=treat-as-withdraw
+reject=stderr:pattern=ZE-OBSERVER-FAIL

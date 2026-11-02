@@ -1,0 +1,120 @@
+# Test: community-blackhole-noexport.ci with bgp-filter-community forked (spec-filter-wire-6-stage-filters AC-9).
+# The same expectations as the internal twin: bgp-filter-community runs as a
+# real external process over TLS connect-back (`ze plugin bgp-filter-community`),
+# so its chain members answer through filter-update in the child.
+# Test: RFC 7999 Section 3.2 blackhole propagation guard
+# VALIDATES: AC-19 -- a route received carrying BLACKHOLE gains NO_EXPORT
+# PREVENTS: the guard existing as a function nothing calls. The leaf, the
+#           per-peer config lookup and the wire rebuild are all exercised here;
+#           the unit test drives only the last of the three.
+# RFC requirement: RFC7999-3.2-1 positive -- a receiver adds NO_EXPORT to a
+#           route tagged with BLACKHOLE
+#
+# Flow:
+# 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1,
+#    COMMUNITY=65535:666 (BLACKHOLE), NLRI=10.0.0.0/24
+# 2. The ingress filter reads wireu.CommunityPolicy.RFC7999Blackhole and adds
+#    NO_EXPORT (65535:65281)
+# 3. The stored route carries BOTH values, asserted through the RIB query and
+#    through the production log line
+
+# The forked process reads its own level from the underscore form, as
+# stage-filter-forked.ci does: the dotted form does not reach it.
+option=env:var=ze_log_bgp_filter_community:value=info
+# The forked copy logs to its own stderr. The relay passes its INFO lines on
+# (ze.log.relay), and the daemon's relay logger writes them (ze.log.plugin.relay).
+option=env:var=ze.log.relay:value=info
+option=env:var=ze.log.plugin.relay:value=info
+option=env:var=ze.log.bgp.reactor.session:value=debug
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=linger:value=true
+# Marker(16) + Len=0036(54) + Type=02 + WdLen=0000 + AttrLen=001B(27)
+#   ORIGIN:    40010100 (IGP)
+#   AS_PATH:   40020602010000FDE9 (AS_SEQ [65001])
+#   NEXT_HOP:  40030401010101
+#   COMMUNITY: C00804FFFF029A (65535:666, BLACKHOLE per RFC 7999 Section 2)
+#   NLRI:      180A0000 (10.0.0.0/24)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FFFF029A180A0000
+EOF_PEER
+
+# ze configuration: one eBGP peer with the propagation guard set to no-export.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub { server local { ip 127.0.0.1; port 0; secret community-blackhole-noexport-forked-secret-0001; } }
+	external bgp-filter-community { run "ze plugin bgp-filter-community"; }
+	external test-blackhole {
+		run "le test fixture plugin/community-blackhole-noexport"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { filters [ bgp-filter-community:ingress ]; final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			ingress {
+				community {
+					blackhole-propagation no-export
+				}
+			}
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The filter emits one info log when it modifies a received payload. The
+# blackhole-propagation field proves the leaf reached the filter, and not just
+# that some community rule fired.
+expect=stderr:pattern=community ingress applied
+expect=stderr:pattern=peer=peer1
+expect=stderr:pattern=blackhole-propagation=no-export
+# Negative regressions:
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=treat-as-withdraw
+reject=stderr:pattern=ZE-OBSERVER-FAIL

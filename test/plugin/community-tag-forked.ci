@@ -1,0 +1,124 @@
+# Test: community-tag.ci with bgp-filter-community forked (spec-filter-wire-6-stage-filters AC-8).
+# The same expectations as the internal twin: bgp-filter-community runs as a
+# real external process over TLS connect-back (`ze plugin bgp-filter-community`),
+# so its chain members answer through filter-update in the child.
+# Test: Community filter ingress tagging
+# VALIDATES: AC-6 -- ingress tagging adds configured communities to received UPDATE
+# STATUS: Phase 2 (spec-ci-observer-per-test-audit) -- runtime_fail sentinel
+#         wired; AC-6 is verified via the bgp.filter.community info log
+#         "community ingress applied", asserted at the bottom of this file.
+# PREVENTS: Community filter not wired, tag silently failing
+#
+# Flow:
+# 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+# 2. Community filter adds community 65000:100 on ingress (configured in tag list)
+# 3. Production log "community ingress applied" fires -- asserted via expect=stderr
+
+# Source peer (ASN 65001) on 127.0.0.1
+# The forked process reads its own level from the underscore form, as
+# stage-filter-forked.ci does: the dotted form does not reach it.
+option=env:var=ze_log_bgp_filter_community:value=info
+# The forked copy logs to its own stderr. The relay passes its INFO lines on
+# (ze.log.relay), and the daemon's relay logger writes them (ze.log.plugin.relay).
+option=env:var=ze.log.relay:value=info
+option=env:var=ze.log.plugin.relay:value=info
+option=env:var=ze.log.bgp.reactor.session:value=debug
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=linger:value=true
+# Send UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+# Marker(16) + Len=002F(47) + Type=02 + WdLen=0000 + AttrLen=0014(20)
+#   ORIGIN: 40010100 (IGP)
+#   AS_PATH: 40020602010000FDE9 (AS_SEQ [65001])
+#   NEXT_HOP: 40030401010101
+#   NLRI: 180A0000 (10.0.0.0/24)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+# ze configuration: community definition + ingress tag
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub { server local { ip 127.0.0.1; port 0; secret community-tag-forked-secret-0001; } }
+	external bgp-filter-community { run "ze plugin bgp-filter-community"; }
+	external test-tag {
+		run "le test fixture plugin/community-tag"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { filters [ bgp-filter-community:ingress ]; final accept; }
+		export { final accept; }
+	}
+	community {
+		standard mark-transit {
+			value 65000:100
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			ingress {
+				community {
+					tag mark-transit
+				}
+			}
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# AC-6 verification: the community filter plugin emits an info log when
+# the ingress filter actually modifies a received UPDATE payload. A bug
+# that skipped the filter, applied it to the wrong peer, or emitted the
+# wrong tag list would each break one of these assertions.
+expect=stderr:pattern=community ingress applied
+expect=stderr:pattern=peer=peer1
+expect=stderr:pattern=tag=\[mark-transit\]
+# Negative regressions:
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=treat-as-withdraw
+reject=stderr:pattern=ZE-OBSERVER-FAIL

@@ -1,0 +1,175 @@
+# Test: community-strip.ci with bgp-filter-community forked (spec-filter-wire-6-stage-filters AC-8).
+# The same expectations as the internal twin: bgp-filter-community runs as a
+# real external process over TLS connect-back (`ze plugin bgp-filter-community`),
+# so its chain members answer through filter-update in the child.
+# Test: Community filter egress stripping
+# VALIDATES: AC-7 -- dest peer receives the re-advertised UPDATE without the stripped community
+# PREVENTS: egress community stripping being configured but not applied on the wire
+
+# Source peer (ASN 65001) on 127.0.0.1
+# The forked process reads its own level from the underscore form, as
+# stage-filter-forked.ci does: the dotted form does not reach it.
+option=env:var=ze_log_bgp_filter_community:value=info
+# The forked copy logs to its own stderr. The relay passes its INFO lines on
+# (ze.log.relay), and the daemon's relay logger writes them (ze.log.plugin.relay).
+option=env:var=ze.log.relay:value=info
+option=env:var=ze.log.plugin.relay:value=info
+# bgp.adj.rib.in, not bgp.adj-rib-in: the plugin registers as "bgp-adj-rib-in"
+# (adj_rib_in/register.go) and its engine logger name is CanonicalSubsystemName of
+# that (plugin/inprocess.go), which maps every hyphen to a dot. getLogEnv splits
+# the subsystem on "." only (core/slogutil/slogutil.go), so a hyphenated key
+# matches no lookup and the level silently stays at the WARN default.
+option=env:var=ze.log.bgp.adj.rib.in:value=info
+option=env:var=ze.log.bgp.reactor.session:value=debug
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+# The source must outlive the DEST peer's assertion, not just its own. Waiting
+# for its own End-of-RIB (below) proves nothing about the dest: the two sessions
+# establish independently, so under load the source completes and closes while
+# the dest is still coming up. ze then correctly reads that close as session-down
+# and withdraws the source's routes, and the dest receives the withdraw BEFORE
+# the re-advertisement its expect=bgp rule is waiting for -- a mismatch on a
+# route that was never wrong. linger holds the session open until teardown, the
+# same reason rr-basic.ci and nexthop-self.ci carry it.
+option=linger:value=true
+# Send UPDATE with COMMUNITY 65000:200: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1,
+#   COMMUNITY=65000:200 (0xFDE800C8), NLRI=10.0.0.0/24
+# Attrs: ORIGIN(4) + AS_PATH(9) + NEXT_HOP(7) + COMMUNITY(7) = 27 = 0x1B
+# Total msg: 16(marker)+2(len)+1(type)+2(wdLen)+2(attrLen)+27(attrs)+4(NLRI) = 54 = 0x36
+# COMMUNITY attr (non-extended length): C0 08 04 FDE800C8 (Optional Transitive code=8 len=4 val=65000:200)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE800C8180A0000
+# Hold the source session open long enough for the forwarding plugin to
+# re-advertise the route and send EOR.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+# Dest peer (ASN 65002) on 127.0.0.2 -- expect stripped re-advertisement
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+# // the removed End-of-RIB rule was unsatisfiable by construction, so
+# it asserted nothing and only produced a red that the runner used to mask. This
+# peer's EOR is emitted by its OWN initial sync the moment it establishes
+# (peer_initial_sync.go), which is BEFORE the source peer's route is forwarded to
+# it. That early EOR does not match the route rule above, and checker.go silently
+# swallows an unmatched EOR instead of re-offering it, so the seq=2 slot could
+# never be filled -- the shutdown withdraw landed there instead. RFC 4724 orders
+# the EOR only against this speaker's own initial dump, never against routes
+# learned afterwards, so there is no ordering here for a test to assert. The
+# forwarded-route rule above is this test's actual subject and is unchanged.
+EOF_DEST
+
+# ze configuration: two peers, egress strip on dest peer
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub { server local { ip 127.0.0.1; port 0; secret community-strip-forked-secret-0001; } }
+	external bgp-filter-community { run "ze plugin bgp-filter-community"; }
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	external test-strip {
+		run "le test fixture plugin/community-strip"
+		encoder json
+	}
+}
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { filters [ bgp-filter-community:egress ]; final accept; }
+	}
+	community {
+		standard unwanted {
+			value 65000:200
+		}
+	}
+
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			egress {
+				community {
+					strip unwanted
+				}
+			}
+		}
+		# This peer is the relay DESTINATION: bgp-rs asks adj-rib-in to replay the
+		# stored route here when this session establishes, and each replayed route
+		# leaves as an UPDATE on this peer's wire. adj-rib-in therefore originates
+		# toward this peer and needs the permission to do it (maySend,
+		# internal/component/bgp/reactor/send_permission.go). The source peer
+		# needs no such grant: nothing replays toward the peer the route came from.
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=treat-as-withdraw
+reject=stderr:pattern=ZE-OBSERVER-FAIL

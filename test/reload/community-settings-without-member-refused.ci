@@ -1,0 +1,140 @@
+# Test: a reload that leaves community settings no chain member runs is refused.
+# Initial config: peer1 established, tagging received routes with `mark`
+#                 through bgp-filter-community:ingress named in the bgp-level
+#                 import chain.
+# Live change:    config2.conf drops the member from the chain and keeps the
+#                 peer's `filter ingress community tag mark`.
+# Expected:       bgp-filter-community refuses at config-verify, naming the
+#                 peer, the setting and the member to add; the session is kept
+#                 and `show reload-status` reports the reload failed.
+#
+# VALIDATES: AC-11 of spec-filter-wire-6-stage-filters (verify half; the boot
+#            half is test/parse/community-settings-without-member-refused.ci).
+# PREVENTS:  a reload that silently stops tagging, because the setting stayed
+#            while nothing in the chain runs it any more.
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+# ze-peer creates this file on the daemon's first UPDATE; the staged fixture
+# holds its first reload until it exists.
+option=established-file:path=established
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# The clean shutdown after the last stage, on the SAME connection: Cease (6) /
+# Administrative Shutdown (2, RFC 4486) with the RFC 8203 default text.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+	community {
+		standard mark {
+			value 1:100
+		}
+	}
+	filter {
+		import { filters [ bgp-filter-community:ingress ]; final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		filter {
+			ingress {
+				community {
+					tag mark
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# The reload: the same plugin block, the import chain member gone.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+	community {
+		standard mark {
+			value 1:100
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		filter {
+			ingress {
+				community {
+					tag mark
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+await-file established
+reload config2.conf
+# The daemon records the reload as failed, so the running config keeps the member.
+has show reload-status => "last-outcome":"failed"
+say COMMUNITY-MEMBER-REFUSED: reload refused, session kept
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-community -:stdin=ze-bgp:timeout=60s
+expect=stderr:contains=peer peer1 sets filter ingress community, and its import chain does not run bgp-filter-community:ingress
+expect=stderr:contains=filter { import { filters [ bgp-filter-community:ingress ]; } }
+expect=stderr:contains=COMMUNITY-MEMBER-REFUSED: reload refused, session kept
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

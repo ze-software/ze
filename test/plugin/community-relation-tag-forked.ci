@@ -1,0 +1,132 @@
+# Test: community-relation-tag.ci with bgp-filter-community forked (spec-filter-wire-6-stage-filters AC-10).
+# The same expectations as the internal twin: bgp-filter-community runs as a
+# real external process over TLS connect-back (`ze plugin bgp-filter-community`),
+# so its chain members answer through filter-update in the child.
+# Test: RFC 8195 Section 3.2 relation-to-origin community
+# VALIDATES: AC-1 -- a route from a peer resolved as a provider carries <localAS>:3:4
+# PREVENTS: the cross-plugin seam breaking in silence. The relation parameter
+#           comes from meta["src-peer-role"], which the ROLE plugin publishes and
+#           the COMMUNITY plugin reads. No unit test can prove that hand-off: the
+#           community plugin's tests inject the key, and the role plugin's tests
+#           cannot see who reads it. Only a run with both plugins loaded does.
+#
+# Flow:
+# 1. ze declares peer1 `role { import customer }`, so peer1 IS a provider to us
+#    (RFC 9234 Section 4.2 Table 2 complement, applied by resolvePeerRole).
+# 2. bgp-role publishes meta["src-peer-role"] = "provider" from its in-process
+#    annotation filter, which runs before the peer's import chain.
+# 3. The import chain names the member bgp-filter-community:relation, which
+#    reads the key and writes large community 65000:3:4.
+#
+# The ORDER is the point. Run before the role annotation, the relation member
+# would read a key nothing had written and write no tag at all.
+
+# The forked process reads its own level from the underscore form, as
+# stage-filter-forked.ci does: the dotted form does not reach it.
+option=env:var=ze_log_bgp_filter_community:value=info
+# The forked copy logs to its own stderr. The relay passes its INFO lines on
+# (ze.log.relay), and the daemon's relay logger writes them (ze.log.plugin.relay).
+option=env:var=ze.log.relay:value=info
+option=env:var=ze.log.plugin.relay:value=info
+option=env:var=ze.log.bgp.reactor.session:value=debug
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=linger:value=true
+# ze-peer mirrors a role capability by default. Drop it and advertise nothing,
+# so resolvePeerRole must fall back to the CONFIG complement. That is the case
+# RFC 9234 Section 4.2 names as the expected early-adopter one, and it is the
+# path an operator who has only configured a role actually takes.
+option=open:value=drop-capability:code=9
+# Marker(16) + Len=002F(47) + Type=02 + WdLen=0000 + AttrLen=0014(20)
+#   ORIGIN:   40010100 (IGP)
+#   AS_PATH:  40020602010000FDE9 (AS_SEQ [65001])
+#   NEXT_HOP: 40030401010101
+#   NLRI:     180A0000 (10.0.0.0/24)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+# ze configuration: one eBGP peer declared a transit provider, tagging on.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub { server local { ip 127.0.0.1; port 0; secret community-relation-tag-forked-secret-0001; } }
+	external bgp-filter-community { run "ze plugin bgp-filter-community"; }
+	external test-relation {
+		run "le test fixture plugin/community-relation-tag"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+bgp {
+	filter {
+		import { filters [ bgp-filter-community:relation ]; final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		role {
+			import customer
+			export default
+		}
+
+		filter {
+			ingress {
+				community {
+					relation-tag true
+				}
+			}
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration. BOTH plugins are loaded on purpose: bgp-role is the
+# producer of the meta key and bgp-filter-community is its consumer.
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The relation filter emits one info log per modified payload. peer-role proves
+# the meta key arrived, and parameter proves the mapping ran on it.
+expect=stderr:pattern=community relation tag applied
+expect=stderr:pattern=peer=peer1
+expect=stderr:pattern=peer-role=provider
+expect=stderr:pattern=parameter=4
+# Negative regressions:
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=treat-as-withdraw
+reject=stderr:pattern=ZE-OBSERVER-FAIL

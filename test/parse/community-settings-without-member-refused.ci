@@ -1,0 +1,51 @@
+# Test: community settings no chain member runs are refused when the daemon boots.
+# VALIDATES: AC-11 of spec-filter-wire-6-stage-filters (boot half): the daemon
+#            runs the bgp-filter-community config verifier at startup and
+#            refuses peer1's `filter ingress community tag` because no import
+#            chain names bgp-filter-community:ingress, so it exits 1.
+#            `ze config validate` reads the schema only and does not run a
+#            plugin's verifier (docs/guide/configuration.md), so the boot is
+#            the judged surface.
+# PREVENTS:  a config that loads and tags nothing.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4
+	community {
+		standard mark {
+			value 1:100
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		filter {
+			ingress {
+				community {
+					tag mark
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=peer peer1 sets filter ingress community, and its import chain does not run bgp-filter-community:ingress
