@@ -35,7 +35,7 @@ func writeZefsCreds(t *testing.T, user, hash string) storage.Storage {
 		t.Fatalf("close: %v", err)
 	}
 
-	db, err := storage.OpenReadOnly(dir)
+	db, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		t.Fatalf("zefs.Open: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestUsersFromZefsDBIgnoresRemoteDefaultPointer(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err := storage.OpenReadOnly(dir)
+	db, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestUsersFromZefsDBRejectsLegacySSHOnlyDatabase(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err := storage.OpenReadOnly(dir)
+	db, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestUsersFromZefsDBFailsClosedOnMissingHash(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err := storage.OpenReadOnly(dir)
+	db, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +224,7 @@ func TestUsersFromZefsDBRespectsAdminDisabled(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err := storage.OpenReadOnly(dir)
+	db, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +254,7 @@ func TestUsersFromZefsDBAllowsExplicitFalse(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err := storage.OpenReadOnly(dir)
+	db, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		t.Fatal(err)
 	}

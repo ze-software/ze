@@ -540,7 +540,7 @@ func TestResolvePasswordNoTTYNeverPrompts(t *testing.T) {
 // keep resolving via the zefs hash.
 func TestResolvePasswordSourcesBypassPromptPolicy(t *testing.T) {
 	dbPath := seedSuperAdminZefs(t, t.TempDir())
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("OpenReadOnly: %v", err)
 	}

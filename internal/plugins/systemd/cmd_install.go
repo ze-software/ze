@@ -245,7 +245,7 @@ func (rt *serviceRuntime) warnDaemonUserConfig(configDir string) {
 }
 
 func (r realServiceOps) activeConfigs(configDir string) ([][]byte, error) {
-	store, err := storage.OpenReadOnly(configDir)
+	store, err := storage.OpenReadOnly(configDir, configDir)
 	if err != nil {
 		return nil, err
 	}

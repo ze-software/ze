@@ -378,7 +378,7 @@ var errStoreUnavailable = errors.New("credential store unavailable")
 // node or mode INSIDE the store, with the repair, and the operator must see it.
 // Only a bare fs.ErrPermission says this user lacks access.
 func openStoreIfReadable(dbPath string) (storage.Storage, error) {
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	switch {
 	case err == nil:
 		return store, nil

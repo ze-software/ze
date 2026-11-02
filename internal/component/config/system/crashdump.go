@@ -104,7 +104,7 @@ func readCrashDumpConfig(configPath string) (name string, data []byte, err error
 		return configPath, data, nil
 	}
 
-	store, err := storage.OpenReadOnly(resolve.StoreDir(""))
+	store, err := storage.OpenReadOnly(resolve.StoreDir(""), resolve.StoreDir(""))
 	if err != nil {
 		return "", nil, fmt.Errorf("crash-dump intent: storage: %w", err)
 	}

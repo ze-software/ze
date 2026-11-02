@@ -173,7 +173,7 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 	} else if !strings.Contains(activeText, "router-id 2.2.2.2") {
 		return fmt.Errorf("accepted push did not update active config:\n%s", activeText)
 	}
-	store, err := storage.OpenReadOnly(cfgDir)
+	store, err := storage.OpenReadOnly(cfgDir, cfgDir)
 	if err != nil {
 		return err
 	}

@@ -105,7 +105,7 @@ func resolveDiff(store storage.Storage, args []string, diag *textbuf.Buffer) (*c
 	var revisionData []byte
 	if n, err := strconv.Atoi(file1); err == nil {
 		if store == nil {
-			revisionStore, err = storage.OpenReadOnly(resolve.StoreDir(file2))
+			revisionStore, err = storage.OpenReadOnly(resolve.StoreDir(file2), resolve.StoreDir(file2))
 			if err != nil {
 				diag.Str("error: config diff history: ").Err(err).Byte('\n')
 				return nil, exitError

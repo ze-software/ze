@@ -98,7 +98,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 }
 
 func resolveStorageWithDiag(configPath string) (storage.Storage, []diagnostic.Diagnostic) {
-	s, err := storage.OpenReadOnly(resolve.StoreDir(configPath))
+	s, err := storage.OpenReadOnly(resolve.StoreDir(configPath), resolve.StoreDir(configPath))
 	if err == nil {
 		return s, nil
 	}

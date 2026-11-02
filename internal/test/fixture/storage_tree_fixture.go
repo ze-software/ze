@@ -162,7 +162,7 @@ func storageInitScenario(ctx context.Context) error {
 	if _, err := storageRequireCommand(ctx, "admin\nsecret123\n127.0.0.1\n2222\n\n", "init", "--web-cert", "127.0.0.1"); err != nil {
 		return err
 	}
-	store, err := storage.OpenReadOnly(".")
+	store, err := storage.OpenReadOnly(".", ".")
 	if err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func storageStartScenario(ctx context.Context, existing bool) error {
 	if !bytes.Contains(output, []byte("OK: storage probe authenticated")) {
 		return fmt.Errorf("daemon never authenticated probe:\n%s", output)
 	}
-	store, err := storage.OpenReadOnly(".")
+	store, err := storage.OpenReadOnly(".", ".")
 	if err != nil {
 		return err
 	}
@@ -359,7 +359,7 @@ func storageArchives(blob string) ([]string, error) {
 // storageTreeEqualsBlob compares the published tree with the retired archive
 // key by key, and with the values the scenario seeded.
 func storageTreeEqualsBlob(archive string, values map[string][]byte) error {
-	tree, err := storage.OpenReadOnly(".")
+	tree, err := storage.OpenReadOnly(".", ".")
 	if err != nil {
 		return err
 	}
@@ -818,7 +818,7 @@ func storageEphemeralScenario(ctx context.Context) error {
 	if _, err := os.Stat("ca-fingerprint"); !errors.Is(err, fs.ErrNotExist) {
 		return errors.Join(errors.New("plugin started despite corrupt persistent CA"), err)
 	}
-	store, err = storage.OpenReadOnly(".")
+	store, err = storage.OpenReadOnly(".", ".")
 	if err != nil {
 		return err
 	}
@@ -844,7 +844,7 @@ func storageExplicitRestart(ctx context.Context) error {
 	if _, err := storageRequireCommand(ctx, "", "start", "router.conf"); err != nil {
 		return err
 	}
-	store, err := storage.OpenReadOnly(".")
+	store, err := storage.OpenReadOnly(".", ".")
 	if err != nil {
 		return err
 	}
@@ -938,7 +938,7 @@ func storageOSPFRestart(ctx context.Context) error {
 		if _, err := storageRequireCommand(ctx, "", "start", "ospf.conf"); err != nil {
 			return err
 		}
-		store, err := storage.OpenReadOnly(".")
+		store, err := storage.OpenReadOnly(".", ".")
 		if err != nil {
 			return err
 		}

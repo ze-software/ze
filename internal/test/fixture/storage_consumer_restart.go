@@ -105,7 +105,7 @@ func storageConsumerDaemonEnv(ctx context.Context, dir, config, logName string, 
 }
 
 func storageConsumerKey(dir, key string) ([]byte, error) {
-	store, err := storage.OpenReadOnly(dir)
+	store, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		return nil, err
 	}

@@ -168,7 +168,7 @@ func (p *storeProbe02) seq02(deadline time.Time) int {
 	if time.Now().After(deadline) {
 		return 0
 	}
-	store, err := storage.OpenReadOnly(p.store)
+	store, err := storage.OpenReadOnly(p.store, p.store)
 	if err != nil {
 		return 0
 	}

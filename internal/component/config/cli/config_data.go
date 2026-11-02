@@ -67,16 +67,10 @@ const (
 // configPath is the resolved path, which the caller never typed, so naming it
 // would make the two routes answer the same request with different words.
 func withRuntimeStore(configPath, named string, fn func(storage.Storage) command.LocalAnswer) command.LocalAnswer {
-	store, err := storage.OpenReadOnly(resolve.StoreDir(configPath))
+	store, err := storage.OpenReadOnly(resolve.StoreDir(configPath), resolve.StoreDir(named))
 	if err != nil {
-		// The storage error names a file of the store as filepath.Join wrote
-		// it, so the store's directory is swapped for the prefix the same Join
-		// writes for the caller's directory ("." joins to nothing).
-		openedPrefix := resolve.StoreDir(configPath) + string(filepath.Separator)
-		namedPrefix := strings.TrimSuffix(filepath.Join(resolve.StoreDir(named), "x"), "x")
-		reason := strings.Replace(err.Error(), openedPrefix, namedPrefix, 1)
 		var tb textbuf.Buffer
-		return command.LocalRefusal(exitError, tb.Str("error: config storage: ").Str(reason).Byte('\n').String())
+		return command.LocalRefusal(exitError, tb.Str("error: config storage: ").Str(err.Error()).Byte('\n').String())
 	}
 	defer func() {
 		if err := store.Close(); err != nil {

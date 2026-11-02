@@ -39,11 +39,60 @@ const (
 
 // Open opens a live tree for its sole writer. The caller MUST Close the handle.
 // Blob detection is stat-only and always refuses, including a both-present state.
-func Open(dir string) (Storage, error) { return openLive(dir, false) }
+func Open(dir string) (Storage, error) { return openLive(storeFolder{path: dir, shown: dir}, false) }
 
 // OpenReadOnly allows inspection beside a live owner and refuses every mutation.
 // The caller MUST Close the handle.
-func OpenReadOnly(dir string) (Storage, error) { return openLive(dir, true) }
+//
+// dir is the folder every file is opened in, and shown is the same folder as
+// the caller spelled it, the only one a refusal of the open names. They
+// differ for a daemon handler answering a remote caller: it opens the store
+// beside the path it resolved, and names it beside the path the caller typed,
+// so the caller reads the refusal the local command prints. A caller holding
+// one spelling passes it twice.
+func OpenReadOnly(dir, shown string) (Storage, error) {
+	return openLive(storeFolder{path: dir, shown: shown}, true)
+}
+
+// storeFolder is a store folder under its two names: path, which every file
+// access uses, and shown, which every refusal of the open names.
+type storeFolder struct {
+	path  string
+	shown string
+}
+
+// entry is the path a file access uses for the folder entry name.
+func (f storeFolder) entry(name string) string { return filepath.Join(f.path, name) }
+
+// named is the folder entry name as a refusal shows it.
+func (f storeFolder) named(name string) string { return filepath.Join(f.shown, name) }
+
+// statRefusal answers a failed lstat of the folder entry name, other than
+// its absence, naming the entry as shown: the os error names the path the
+// lstat used, so only its cause is kept.
+func (f storeFolder) statRefusal(name string, err error) error {
+	if pathErr, ok := errors.AsType[*fs.PathError](err); ok {
+		err = pathErr.Err
+	}
+	return fmt.Errorf("cannot check %s: %w; give the user ze runs search access to %s", f.named(name), err, f.shown)
+}
+
+// open opens the folder for the open path. A failed walk names the folder as
+// shown: zefs names each component it reached by the absolute path it built,
+// a path a caller on another route never typed, so only the cause is kept.
+func (f storeFolder) open() (*os.File, error) {
+	folder, err := openFolder(f.path)
+	if err == nil {
+		return folder, nil
+	}
+	var errno unix.Errno
+	if !errors.As(err, &errno) {
+		// Only the walk's start (the working directory, the root) fails
+		// without an errno, and neither names the store's path.
+		return nil, err
+	}
+	return nil, fmt.Errorf("%w: store folder %s cannot be opened: %w; give the user ze runs as read and search access to it, with no symbolic link on its path", ErrPermissions, f.shown, errno)
+}
 
 // OpenTree opens the exact offline tree path. The canonical database name uses
 // the live opener and ownership lock. Caller MUST Close the result.
@@ -56,7 +105,7 @@ func OpenTree(path string, writable bool) (Storage, error) {
 		if writable {
 			return Open(dir)
 		}
-		return OpenReadOnly(dir)
+		return OpenReadOnly(dir, dir)
 	}
 	folder, err := openFolder(dir)
 	if err != nil {
@@ -99,35 +148,35 @@ func splitStorePath(path string) (string, string, error) {
 	return dir, name, nil
 }
 
-// detect answers whether dir holds a live tree an ordinary opener may use. An
-// import intent is checked first, even beside an existing tree or canonical
-// seed: an unfinished import or restore reports ErrImportPending naming its
-// recovery command, and nothing is moved here.
-func detect(dir string) error {
-	if err := pendingImport(dir); err != nil {
+// detect answers whether the folder holds a live tree an ordinary opener may
+// use. An import intent is checked first, even beside an existing tree or
+// canonical seed: an unfinished import or restore reports ErrImportPending
+// naming its recovery command, and nothing is moved here. Every refusal names
+// the folder as shown.
+func detect(at storeFolder) error {
+	if err := pendingImport(at); err != nil {
 		return err
 	}
-	blob := filepath.Join(dir, blobName)
-	if _, err := os.Lstat(blob); err == nil {
+	if _, err := os.Lstat(at.entry(blobName)); err == nil {
+		blob := at.named(blobName)
 		return fmt.Errorf("blob artifact %s is not a live store; run ze init --from %s", blob, blob)
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		return err
+		return at.statRefusal(blobName, err)
 	}
-	path := filepath.Join(dir, treeName)
-	if _, err := os.Lstat(path); err != nil {
+	if _, err := os.Lstat(at.entry(treeName)); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("%w: %s; run ze init", ErrNoStore, path)
+			return fmt.Errorf("%w: %s; run ze init", ErrNoStore, at.named(treeName))
 		}
-		return err
+		return at.statRefusal(treeName, err)
 	}
 	return nil
 }
 
-func openLive(dir string, readonly bool) (Storage, error) {
-	if err := detect(dir); err != nil {
+func openLive(at storeFolder, readonly bool) (Storage, error) {
+	if err := detect(at); err != nil {
 		return nil, err
 	}
-	folder, err := openFolder(dir)
+	folder, err := at.open()
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +194,7 @@ func openLive(dir string, readonly bool) (Storage, error) {
 	}
 	// The intent check is repeated under the owner lock, so an import that
 	// started between detect and the lock is never handed a writer.
-	if err := pendingImport(dir); err != nil {
+	if err := pendingImport(at); err != nil {
 		return nil, errors.Join(err, owner.Close(), result.Close())
 	}
 	// Only the owner sweeps, and only once it holds the lock: a reader open
@@ -238,7 +287,7 @@ func openLockNode(folder *os.File, name string) (fd int, created bool, err error
 // Create auto-creates an empty tree, or reopens the completed winner. A busy
 // winner still owns its lock and is refused. The caller MUST Close the result.
 func Create(dir string) (Storage, error) {
-	if err := detect(dir); err == nil {
+	if err := detect(storeFolder{path: dir, shown: dir}); err == nil {
 		return Open(dir)
 	} else if !errors.Is(err, ErrNoStore) {
 		return nil, err
@@ -288,7 +337,7 @@ func populateOwned(folder, owner *os.File, populate func(Storage) error, replace
 		// check, even beside an existing tree: publishing over it would bury
 		// the nodes its intent recorded. Replace is the operator's explicit
 		// choice and skips this.
-		if err := pendingImport(folder.Name()); err != nil {
+		if err := pendingImport(storeFolder{path: folder.Name(), shown: folder.Name()}); err != nil {
 			return nil, err
 		}
 		for _, name := range []string{treeName, blobName} {

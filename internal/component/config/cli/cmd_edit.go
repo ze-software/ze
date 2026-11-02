@@ -458,7 +458,7 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 		var err error
 		store, err = storage.Open(resolve.StoreDir(configPath))
 		if errors.Is(err, storage.ErrBusy) {
-			store, err = storage.OpenReadOnly(resolve.StoreDir(configPath))
+			store, err = storage.OpenReadOnly(resolve.StoreDir(configPath), resolve.StoreDir(configPath))
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: config edit: %v\n", err)

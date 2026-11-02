@@ -59,7 +59,16 @@ start` nor a plain `ze init` publishes an empty tree over the operator's store;
 --yes`) proceeds, because replacing whatever sits there is its explicit order.
 The live opener validates the tree before it creates `database.lock`, so a
 refused open leaves no lock file behind.
-<!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, detect, openLive, lockOwner, populateOwned -->
+
+`OpenReadOnly(dir, shown)` takes the folder twice. Every file is opened under
+`dir`, and every refusal of the open (the pending intent, the blob, the missing
+tree, an entry it cannot check, a folder it cannot open) names the folder as
+`shown`. A daemon handler answering a remote caller opens the store beside the
+path it resolved and passes the folder of the path the caller typed, so the
+caller reads the refusal the local command prints and never a path it did not
+type. A caller with one spelling passes it twice.
+<!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, storeFolder, detect, openLive, lockOwner, populateOwned -->
+<!-- source: internal/component/config/cli/config_data.go -- withRuntimeStore -->
 
 `ze init --from <source>` imports a blob through `ImportBlob`. A local path is
 read in place. An `http`, `https` or `tftp` source is fetched first by the shared

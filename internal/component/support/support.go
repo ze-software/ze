@@ -589,7 +589,7 @@ func collectConfig(opts *collectOptions) (any, error) {
 	var err error
 
 	if opts.ConfigPath == "" {
-		store, openErr := storage.OpenReadOnly(resolve.StoreDir(""))
+		store, openErr := storage.OpenReadOnly(resolve.StoreDir(""), resolve.StoreDir(""))
 		if openErr != nil {
 			return map[string]any{keyAvailable: false, keyReason: tb.Str("storage: ").Err(openErr).String()}, nil
 		}

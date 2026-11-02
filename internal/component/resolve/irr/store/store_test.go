@@ -392,7 +392,7 @@ func TestLegacyReadOnlyInspection(t *testing.T) {
 	if err := owner.WriteKey(zefs.KeyIRRCache.Pattern, legacy); err != nil {
 		t.Fatal(err)
 	}
-	inspection, err := storage.OpenReadOnly(dir)
+	inspection, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		t.Fatal(err)
 	}

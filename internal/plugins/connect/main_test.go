@@ -37,7 +37,7 @@ func TestAddCredentials(t *testing.T) {
 		t.Fatalf("AddCredentialsFromReader: exit %d", code)
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestAddCredentialsRejectsTruncatedPassword(t *testing.T) {
 		t.Fatal("a truncated password was accepted")
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestAddCredentialsReportsOverLongPassword(t *testing.T) {
 	if !strings.Contains(got, "reading stdin") {
 		t.Errorf("the read failure was not reported, stderr said: %q", got)
 	}
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestAddDefaultPort(t *testing.T) {
 		t.Fatalf("exit %d", code)
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestRemoveCredentials(t *testing.T) {
 		t.Fatalf("RemoveCredentials: exit %d", code)
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -249,7 +249,7 @@ func TestSetDefault(t *testing.T) {
 		t.Fatalf("SetDefault: exit %d", code)
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

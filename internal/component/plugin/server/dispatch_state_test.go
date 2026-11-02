@@ -171,7 +171,7 @@ func TestPluginStateTransportParity(t *testing.T) {
 			statestore.SetStore(corruptStateStore{Storage: store})
 			_, _, err = p.StateGet(ctx, key)
 			requireStateStatus(t, err, rpc.StateCorrupt)
-			readonly, err := storage.OpenReadOnly(dir)
+			readonly, err := storage.OpenReadOnly(dir, dir)
 			if err != nil {
 				t.Fatal(err)
 			}

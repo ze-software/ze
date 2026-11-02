@@ -117,7 +117,7 @@ func storedDelegationFile(path string) ([]byte, bool) {
 		return nil, false
 	}
 
-	store, err := storage.OpenReadOnly(path)
+	store, err := storage.OpenReadOnly(path, path)
 	if err != nil {
 		if errors.Is(err, storage.ErrNoStore) {
 			return nil, false

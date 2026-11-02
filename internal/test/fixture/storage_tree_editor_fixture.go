@@ -110,7 +110,7 @@ const editorRouterID = "2.2.2.2"
 // storageAssertActive reads the active config named by path from the tree in
 // its folder and checks it holds editorRouterID.
 func storageAssertActive(path string) error {
-	store, err := storage.OpenReadOnly(filepath.Dir(path))
+	store, err := storage.OpenReadOnly(filepath.Dir(path), filepath.Dir(path))
 	if err != nil {
 		return err
 	}

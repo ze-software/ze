@@ -20,7 +20,7 @@ import (
 // hasActiveConfig reports whether file/active/ze.conf exists in the database.
 func hasActiveConfig(t *testing.T, dbPath string) bool {
 	t.Helper()
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if filepath.Ext(dbPath) == ".zefs" {
 		store, err = storage.OpenBlob(dbPath, false)
 	}

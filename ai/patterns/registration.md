@@ -114,7 +114,7 @@ imports it directly. `cmd/ze` keeps only no-owner / process-global commands.
 - `registry.MustRegisterRootHandler(name, handler, Meta)` -- **owner-backed** `ze <name>`: handler + metadata, dispatched by the registry. `handler` is `func(*RuntimeContext, []string) int`. Rejects empty name / nil handler / duplicate owner.
 - `registry.RegisterRoot(name, Meta)` -- **no-owner / process-global** metadata only; `cmd/ze/main.go` dispatches it (start, version, help, ...).
 - `command.MustRegisterLocal(path, handler)` / `MustRegisterLocalMeta(...)` -- path-keyed offline shortcuts, in package `command` (`internal/component/command/local.go`) because the handler takes `command.ValidatedArgs`.
-- A storage-backed shortcut opens its own store when it runs (`storage.OpenReadOnly(resolve.StoreDir(path))` for a read, `resolve.StorageFor(path)` for a write) and closes it itself: the registry holds no store (`ai/patterns/cli-command.md`, "Storage-dependent commands").
+- A storage-backed shortcut opens its own store when it runs (`storage.OpenReadOnly(resolve.StoreDir(path), resolve.StoreDir(path))` for a read, `resolve.StorageFor(path)` for a write) and closes it itself: the registry holds no store (`ai/patterns/cli-command.md`, "Storage-dependent commands").
 
 **Query:**
 - `registry.LookupRoot(name)` -- owner root dispatch (used by `main.go` before the static switch).

@@ -85,7 +85,7 @@ func checkIRRDataFreshness(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagn
 	if dir == "" {
 		dir = resolve.StoreDir("")
 	}
-	persistence, err := storage.OpenReadOnly(dir)
+	persistence, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		return nil // The storage check reports unavailable or unsafe stores.
 	}

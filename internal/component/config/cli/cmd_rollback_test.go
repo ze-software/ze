@@ -99,7 +99,7 @@ func TestCmdRollbackRestores(t *testing.T) {
 	assert.Equal(t, originalContent, string(data))
 
 	// Verify rollback backed up the current config before overwriting
-	store, err = storage.OpenReadOnly(filepath.Dir(configPath))
+	store, err = storage.OpenReadOnly(filepath.Dir(configPath), filepath.Dir(configPath))
 	require.NoError(t, err)
 	defer store.Close() //nolint:errcheck // Test cleanup.
 	entries, err := store.ListVersions(configPath)

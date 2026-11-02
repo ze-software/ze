@@ -76,7 +76,7 @@ func captureStderr(t *testing.T, fn func()) string {
 // requireStore checks dir holds a live tree carrying every initFromValues key.
 func requireStore(t *testing.T, dir string) {
 	t.Helper()
-	store, err := storage.OpenReadOnly(dir)
+	store, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		t.Fatalf("OpenReadOnly: %v", err)
 	}

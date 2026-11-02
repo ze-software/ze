@@ -321,7 +321,7 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 // resolveRIRStoreCopyBytes answers the delegation table a store holds, so a
 // later run can be compared against it byte for byte.
 func resolveRIRStoreCopyBytes(path string) ([]byte, error) {
-	store, err := storage.OpenReadOnly(path)
+	store, err := storage.OpenReadOnly(path, path)
 	if err != nil {
 		return nil, fmt.Errorf("open the store at %s: %w", path, err)
 	}
@@ -377,7 +377,7 @@ func resolveRIRStoreCopy(path string) error {
 // resolveRIRStoredCopyUnchanged reads the delegation key back and compares it
 // with what was stored before the refresh ran.
 func resolveRIRStoredCopyUnchanged(path string, want []byte) error {
-	store, err := storage.OpenReadOnly(path)
+	store, err := storage.OpenReadOnly(path, path)
 	if err != nil {
 		return err
 	}

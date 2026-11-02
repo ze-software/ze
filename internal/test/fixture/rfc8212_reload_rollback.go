@@ -236,7 +236,7 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 }
 
 func rfc8212ReloadActive() ([]byte, error) {
-	store, err := storage.OpenReadOnly(".")
+	store, err := storage.OpenReadOnly(".", ".")
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +245,7 @@ func rfc8212ReloadActive() ([]byte, error) {
 }
 
 func rfc8212ReloadDurable(want []byte) error {
-	store, err := storage.OpenReadOnly(".")
+	store, err := storage.OpenReadOnly(".", ".")
 	if err != nil {
 		return err
 	}

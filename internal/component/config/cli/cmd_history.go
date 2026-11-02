@@ -62,7 +62,7 @@ func cmdHistoryImpl(store storage.Storage, args []string) int {
 
 	if store == nil {
 		var err error
-		store, err = storage.OpenReadOnly(resolve.StoreDir(fs.Arg(0)))
+		store, err = storage.OpenReadOnly(resolve.StoreDir(fs.Arg(0)), resolve.StoreDir(fs.Arg(0)))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: config history: %v\n", err)
 			return exitError

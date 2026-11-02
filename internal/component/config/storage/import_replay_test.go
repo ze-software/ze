@@ -156,7 +156,7 @@ func interruptedRestore(t *testing.T, state string) (string, string, map[string]
 // finishes each state without inventing another stage or retirement name.
 func TestRestoreResumesInterrupted(t *testing.T) {
 	seed := func(dir string) (Storage, error) { return CreatePopulated(dir, func(Storage) error { return nil }) }
-	openers := []func(string) (Storage, error){Open, OpenReadOnly, Create, seed}
+	openers := []func(string) (Storage, error){Open, openReadOnly, Create, seed}
 	for _, state := range []string{"pre-move", "tree-moved", "absent", "published"} {
 		t.Run(state, func(t *testing.T) {
 			source, dir, values, intent := interruptedRestore(t, state)

@@ -57,7 +57,7 @@ func loginMain() int {
 		dir = defaultZeFSDir
 	}
 
-	db, err := storage.OpenReadOnly(dir)
+	db, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "login refused: cannot open store folder %s: %v\n", dir, err) //nolint:errcheck // serial console output
 		return 1

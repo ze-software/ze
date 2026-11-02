@@ -15,7 +15,7 @@ import (
 
 func TestOpenMissingDoesNotCreate(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "absent")
-	for _, open := range []func(string) (Storage, error){Open, OpenReadOnly} {
+	for _, open := range []func(string) (Storage, error){Open, openReadOnly} {
 		_, err := open(dir)
 		require.ErrorIs(t, err, ErrNoStore)
 		require.NoDirExists(t, dir)
@@ -44,7 +44,7 @@ func TestOpenRefusesBlobStatOnly(t *testing.T) {
 				}
 				before, err := os.Lstat(path)
 				require.NoError(t, err)
-				for _, open := range []func(string) (Storage, error){Open, OpenReadOnly, Create} {
+				for _, open := range []func(string) (Storage, error){Open, openReadOnly, Create} {
 					s, openErr := open(dir)
 					if s != nil {
 						require.NoError(t, s.Close())
@@ -278,7 +278,7 @@ func TestStorageReadOnlyAndOwnerContention(t *testing.T) {
 			lockPath := filepath.Join(dir, "database.lock")
 			if backend == "tree" {
 				writer = newTreeStorage(t, dir)
-				openReader = func() (Storage, error) { return OpenReadOnly(dir) }
+				openReader = func() (Storage, error) { return OpenReadOnly(dir, dir) }
 				openWriter = func() (Storage, error) { return Open(dir) }
 			} else {
 				writer = newBlobStorageAt(t, dir)
@@ -414,7 +414,7 @@ func TestTreeReadOnlySeesPublishedWrites(t *testing.T) {
 	dir := t.TempDir()
 	writer := newTreeStorage(t, dir)
 	require.NoError(t, writer.WriteKey("meta/state/value", []byte("before")))
-	reader, err := OpenReadOnly(dir)
+	reader, err := OpenReadOnly(dir, dir)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, reader.Close()) })
 	before, err := reader.ReadKey("meta/state/value")
@@ -440,7 +440,7 @@ func TestOpenRefusesUnfinishedImport(t *testing.T) {
 	replaced := filepath.Join(dir, "database.replaced-20260101T000000.000000000")
 	require.NoError(t, os.Mkdir(replaced, 0o700))
 	seed := func(dir string) (Storage, error) { return CreatePopulated(dir, func(Storage) error { return nil }) }
-	openers := []func(string) (Storage, error){Open, OpenReadOnly, Create, seed}
+	openers := []func(string) (Storage, error){Open, openReadOnly, Create, seed}
 	for _, open := range openers {
 		s, err := open(dir)
 		if s != nil {

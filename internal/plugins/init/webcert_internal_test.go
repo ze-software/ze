@@ -40,7 +40,7 @@ func TestInitPlugin_WebCertUsesSelfcert(t *testing.T) {
 		t.Fatalf("runInit with --web-cert/--web-cert-name exit = %d, want 0", code)
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

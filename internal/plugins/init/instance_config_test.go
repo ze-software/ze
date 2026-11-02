@@ -20,7 +20,7 @@ func TestZeInitActiveConfigFollowsInstanceName(t *testing.T) {
 	if code := runInit(strings.NewReader(creds), nil, dbPath, false, "", "", false, false); code != 0 {
 		t.Fatalf("runInit exit = %d, want 0", code)
 	}
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestZeInitManagedWritesNoDiscoveredConfig(t *testing.T) {
 	if code := runInit(strings.NewReader(creds), nil, dbPath, true, "", "", false, false); code != 0 {
 		t.Fatalf("runInit exit = %d, want 0", code)
 	}
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

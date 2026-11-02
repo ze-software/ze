@@ -483,14 +483,16 @@ Storage is opened only after global flag parsing, so never open it from
 `init()`. There is no process-wide store handle: each command opens the store
 it needs when it runs and closes it when it is done. `resolve.StoreDir(path)`
 (`internal/core/resolve`) names the store folder (the config file's folder, or
-`ze.config.dir`, or the default), `storage.OpenReadOnly(dir)` opens it for a
-read (any number of readers beside a running daemon), and
+`ze.config.dir`, or the default), `storage.OpenReadOnly(dir, shown)` opens it
+for a read (any number of readers beside a running daemon), and
 `resolve.StorageFor(path)` opens the one writable handle (refused with
 `storage.ErrBusy` while a daemon owns it).
 
 ```go
 // internal/component/config/cli/cmd_history.go: a read-only offline command
-store, err := storage.OpenReadOnly(resolve.StoreDir(fs.Arg(0)))
+// dir is opened and shown is named in a refusal: a command holding one
+// spelling passes it twice, a daemon handler the resolved path and the typed one.
+store, err := storage.OpenReadOnly(resolve.StoreDir(fs.Arg(0)), resolve.StoreDir(fs.Arg(0)))
 if err != nil { /* report; the folder is named in err */ return 1 }
 defer store.Close() //nolint:errcheck // read-only handle
 
@@ -528,7 +530,7 @@ there. `le completion words` answers from the same tables
 | Map dispatch (simple) | `internal/component/config/storage/cli/main.go` | Stateless subcommands (`ze data`) |
 | **Root handler registration** | `internal/component/bgp/cli/register.go` | Canonical owner `register.go` (RegisterRootHandler + `show` shortcuts) |
 | **Root + owner schema** | `internal/component/bgp/cli/register.go` + `internal/component/bgp/cli/yang/` | Owner-owned YANG tools schema, blank-imported by the owner |
-| **Storage-bound** | `internal/component/config/cli/cmd_history.go`, `cmd_rollback.go` | `storage.OpenReadOnly(resolve.StoreDir(...))` for a read, `resolve.StorageFor(...)` for a write |
+| **Storage-bound** | `internal/component/config/cli/cmd_history.go`, `cmd_rollback.go` | `storage.OpenReadOnly(resolve.StoreDir(...), ...)` for a read, `resolve.StorageFor(...)` for a write |
 | **No-owner / process-global** | `internal/plugins/skills/register.go` | `RegisterRoot` metadata + `MustRegisterLocalMeta` for commands with no component owner |
 | Online RPC | `internal/component/cmd/show/show.go` | Read-only verb |
 | Online RPC | `internal/component/cmd/set/set.go` | Write verb |

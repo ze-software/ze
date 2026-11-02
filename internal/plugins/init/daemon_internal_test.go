@@ -108,7 +108,7 @@ func TestInitForcePopulationFailurePreservesStore(t *testing.T) {
 	if code := runInit(strings.NewReader("new-admin\nsecret\n\n\n\n"), nil, dir, false, "", "\u2603", false, true); code == 0 {
 		t.Fatal("invalid certificate name accepted")
 	}
-	remaining, err := storage.OpenReadOnly(dir)
+	remaining, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		t.Fatal(err)
 	}

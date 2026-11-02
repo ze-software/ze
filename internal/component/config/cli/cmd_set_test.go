@@ -124,7 +124,7 @@ func TestCmdSetCreatesBackup(t *testing.T) {
 		t.Fatalf("cmdSet returned %d, want %d", code, exitOK)
 	}
 
-	store, err = storage.OpenReadOnly(filepath.Dir(configPath))
+	store, err = storage.OpenReadOnly(filepath.Dir(configPath), filepath.Dir(configPath))
 	if err != nil {
 		t.Fatal(err)
 	}

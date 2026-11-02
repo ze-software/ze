@@ -270,7 +270,7 @@ func TestImportRecoveryRefusesChangedIdentityOrBytes(t *testing.T) {
 			if change == "destination inode" {
 				// Every opener reports the unfinished intent, even beside this
 				// tree; the unrelated replacement is read through the tree itself.
-				_, err := OpenReadOnly(dir)
+				_, err := OpenReadOnly(dir, dir)
 				require.ErrorIs(t, err, ErrImportPending)
 				folder, err := openFolder(dir)
 				require.NoError(t, err)

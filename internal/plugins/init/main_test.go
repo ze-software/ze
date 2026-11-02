@@ -51,7 +51,7 @@ func TestZeInitPipedStdin(t *testing.T) {
 	}
 
 	// Verify credentials can be read back
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestZeInitAlreadyExists(t *testing.T) {
 	}
 
 	// Verify original data preserved
-	store2, err := storage.OpenReadOnly(dbPath)
+	store2, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestZeInitDefaults(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestZeInitInteractive(t *testing.T) {
 	}
 
 	// Verify credentials stored
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestZeInitIdentityName(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -223,7 +223,7 @@ func TestZeInitEmptyName(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -258,7 +258,7 @@ func TestZeInitNameSpecialChars(t *testing.T) {
 				t.Fatalf("expected exit code 0, got %d", code)
 			}
 
-			store, err := storage.OpenReadOnly(dbPath)
+			store, err := storage.OpenReadOnly(dbPath, dbPath)
 			if err != nil {
 				t.Fatalf("Open: %v", err)
 			}
@@ -284,7 +284,7 @@ func TestZeInitManagedKey(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestZeInitManagedKey(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store2, err := storage.OpenReadOnly(dbPath2)
+	store2, err := storage.OpenReadOnly(dbPath2, dbPath2)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -334,7 +334,7 @@ func TestZeInitForce(t *testing.T) {
 	}
 
 	// New database should have new credentials
-	store2, err := storage.OpenReadOnly(dbPath)
+	store2, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open new: %v", err)
 	}
@@ -385,7 +385,7 @@ func TestZeInitForceNoExisting(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

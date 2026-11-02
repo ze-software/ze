@@ -48,7 +48,7 @@ func cmdListWithStorage(store storage.Storage, args []string) int {
 	}
 	if store == nil {
 		var err error
-		store, err = storage.OpenReadOnly(resolve.StoreDir(""))
+		store, err = storage.OpenReadOnly(resolve.StoreDir(""), resolve.StoreDir(""))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: config list: %v\n", err)
 			return exitError
@@ -137,7 +137,7 @@ func catAnswer(store storage.Storage, args []string) command.LocalAnswer {
 	}
 	if store == nil {
 		var err error
-		store, err = storage.OpenReadOnly(resolve.StoreDir(""))
+		store, err = storage.OpenReadOnly(resolve.StoreDir(""), resolve.StoreDir(""))
 		if err != nil {
 			var tb textbuf.Buffer
 			return command.LocalRefusal(exitError, tb.Str("error: config cat: ").Err(err).Byte('\n').String())

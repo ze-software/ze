@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
@@ -153,6 +154,79 @@ func TestLocalCommandDaemonMatchesLocal(t *testing.T) {
 	if checked == 0 {
 		t.Fatal("the dispatcher serves no local-data command: the bridge loaded nothing")
 	}
+
+	matchHistoryStoreStates(t, d, work)
+}
+
+// matchHistoryStoreStates runs `show config history` on both routes against
+// the store states the loop above never meets, because its working directory
+// holds no store: a canonical blob where the store should be, a store folder
+// that cannot be opened, and a store that answers.
+//
+// VALIDATES: AC-4 for the store the history opens. The daemon route opens the
+// store beside the path it resolved, so every refusal of that open, and the
+// rows of a store that answers, must read as the local route's do.
+// PREVENTS: a refusal on the daemon route naming the resolved absolute path
+// the caller never typed. It runs after the loop because each state changes
+// what every store-reading command would answer there.
+func matchHistoryStoreStates(t *testing.T, d *pluginserver.Dispatcher, work string) {
+	t.Helper()
+	history := "show config history " + matchStringValue
+
+	t.Run("show config history with a blob artifact", func(t *testing.T) {
+		blob := filepath.Join(work, storage.BlobName)
+		if err := os.WriteFile(blob, []byte("not a store"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			if err := os.Remove(blob); err != nil {
+				t.Errorf("remove %s: %v", blob, err)
+			}
+		}()
+		matchRoutes(t, d, history, history)
+	})
+
+	// A superuser ignores the mode, and then both routes open the folder:
+	// the comparison still holds, over an answer instead of a refusal.
+	t.Run("show config history with an unreadable store folder", func(t *testing.T) {
+		folder := filepath.Join(work, "unreadable")
+		if err := os.Mkdir(folder, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(folder, matchStringValue), []byte(matchConfig), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(filepath.Join(folder, storage.TreeName), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		// Search access lets both routes find the file and the tree, and
+		// without read access the store folder itself cannot be opened.
+		if err := os.Chmod(folder, 0o300); err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			if err := os.Chmod(folder, 0o700); err != nil {
+				t.Errorf("restore mode of %s: %v", folder, err)
+			}
+		}()
+		inside := "show config history unreadable/" + matchStringValue
+		matchRoutes(t, d, inside, inside)
+	})
+
+	t.Run("show config history with a store", func(t *testing.T) {
+		store, err := storage.Create(work)
+		if err != nil {
+			t.Fatalf("create store: %v", err)
+		}
+		file := filepath.Join(work, matchStringValue)
+		if err := store.WriteVersion(file, []byte(matchConfig), time.Now()); err != nil {
+			t.Fatalf("write version: %v", err)
+		}
+		if err := store.Close(); err != nil {
+			t.Fatalf("close store: %v", err)
+		}
+		matchRoutes(t, d, history, history)
+	})
 }
 
 // matchInput is a command path followed by its mandatory arguments, if any.

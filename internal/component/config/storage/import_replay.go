@@ -578,18 +578,19 @@ func (i importIntent) refusal(folder *os.File, err error) error {
 // unfinished or unreadable, whether or not a tree exists. It moves nothing.
 // The one exception is a retiring import whose tree is published and whose
 // source is already archived: that tree is the operator's store now, and the
-// remaining cleanup waits for the explicit recovery command.
-func pendingImport(dir string) error {
-	intentPath := filepath.Join(dir, importIntentName)
-	treePath := filepath.Join(dir, treeName)
-	found, err := present(intentPath)
+// remaining cleanup waits for the explicit recovery command. Every refusal
+// names the folder as shown.
+func pendingImport(at storeFolder) error {
+	intentPath := at.named(importIntentName)
+	treePath := at.named(treeName)
+	found, err := present(at.entry(importIntentName))
 	if err != nil {
-		return err
+		return at.statRefusal(importIntentName, err)
 	}
 	if !found {
 		return nil
 	}
-	folder, err := openFolder(dir)
+	folder, err := at.open()
 	if err != nil {
 		return err
 	}

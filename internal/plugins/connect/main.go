@@ -221,7 +221,7 @@ func AddCredentials(dbPath, host, port, user, password string) int {
 
 // ListRemotes prints all stored remote credentials.
 func ListRemotes(dbPath string) int {
-	store, err := storage.OpenReadOnly(dbPath)
+	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: open database: %v\n", err)
 		return 1

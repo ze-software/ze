@@ -85,7 +85,7 @@ func TestReaderOpenSweepsNothing(t *testing.T) {
 	require.NoError(t, created.Close())
 	names := plantStages(t, dir)
 
-	s, err := OpenReadOnly(dir)
+	s, err := OpenReadOnly(dir, dir)
 	require.NoError(t, err)
 	defer s.Close() //nolint:errcheck // test cleanup.
 
@@ -242,7 +242,7 @@ func TestWriteConfigFileNeedsTheOwnedStoreFolder(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "published", string(got))
 
-	reader, err := OpenReadOnly(dir)
+	reader, err := OpenReadOnly(dir, dir)
 	require.NoError(t, err)
 	defer reader.Close() //nolint:errcheck // test cleanup.
 	err = WriteConfigFile(reader, path, []byte("refused"))
