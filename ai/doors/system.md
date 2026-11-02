@@ -137,9 +137,14 @@ which. Code that only works internal is broken.
   A local-data command (`command.MustRegisterLocalData`) is answered in the
   caller's own process, from a registry that `init()` filled, and the daemon
   dispatcher serves the same handler under its YANG path for every other
-  interface (`commands.md`, "Served by the daemon too"). gNMI and the
-  metrics exporters serve the config tree and the metrics registry, not
-  commands.
+  interface (`commands.md`, "Served by the daemon too"). A plain local
+  command (`command.MustRegisterLocal`) answers `ze <verb>` alone; where a
+  remote caller needs the same answer, its owner registers a builtin RPC on
+  the same path that calls the same producer (`commands.md`, "Local commands
+  already served by the daemon under the same path"). Which surfaces offer
+  each kind is one predicate, `command.AnswerSurface` (`commands.md`, "Which
+  surfaces offer a command"). gNMI and the metrics exporters serve the config
+  tree and the metrics registry, not commands.
 - **Every message a user sees names the problem, why, and the exact fix**, on
   every interface (`ai/rules/user-facing-errors.md`).
 

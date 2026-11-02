@@ -211,7 +211,7 @@ ze config show --backup <artifact> <name> [path...]  # Read a config inside a ba
 ze config diff --backup <artifact> <N> <name>        # Diff inside a backup
 ```
 
-From another surface (`ze cli`, SSH, the web, MCP, REST, gRPC) the daemon runs
+From a daemon surface (SSH, the web, MCP, REST, gRPC) the daemon runs
 `show config dump`, `validation`, `diff`, `history`, `graph` and `fmt` only on a
 file inside the configuration directories `show config list` searches, never
 on standard input (`-`), and never rewrites a file with `fmt -w`; the refusal
@@ -404,7 +404,8 @@ decodes under is refused, with the names that do. `--plugin /path/to/program`
 runs a third-party program that answers the same `decode capability <code>
 <hex>` and `decode nlri <family> <hex>` requests on standard input. Only the
 local `ze` process runs a program path, so the `plugin` keyword takes a name.
-<!-- source: internal/component/bgp/cli/decode_answer.go -- answerDecode, applyDecodeLeaves, inputRoute -->
+<!-- source: internal/component/bgp/cli/decode_answer.go -- answerDecode, applyDecodeLeaves -->
+<!-- source: internal/component/command/route.go -- Route, CallerLocal -->
 <!-- source: internal/component/bgp/cli/decode_plugin.go -- parseDecodePlugin, decodePlugins -->
 <!-- source: internal/component/bgp/cli/encode.go -- answerEncode, applyEncodeLeaves -->
 <!-- source: internal/component/bgp/cli/yang/ze-bgp-tools-cmd.yang -- decode, encode -->
@@ -1912,7 +1913,10 @@ the ordered table, and `show bgp | summary` gives the aggregate fields that
 
 `show ping` and `show traceroute` use Ze's internal ICMP engine and work without
 the daemon running (registered as local handlers). `monitor ping` and `monitor
-traceroute` also work offline, streaming results until Ctrl-C.
+traceroute` also work offline, streaming results until Ctrl-C. Through the
+daemon, `ze cli -c` and SSH stream them the same way from the router, and MCP,
+REST, gRPC and the web admin console get one sample: the rows of a bounded ping
+run, or one traceroute probe round.
 
 ```
 ze show ping 8.8.8.8                          # 5 probes, 5s timeout
@@ -2831,7 +2835,10 @@ Commands sent to the running daemon. Access through three entry points:
 
 **Note:** Some `ze show` subcommands run locally without a daemon (version,
 bgp decode/encode, env, schema, yang, completion). These are dispatched
-via local handlers before attempting SSH connection.
+via local handlers before attempting SSH connection. The daemon serves the
+same commands to SSH, the web, MCP, REST and gRPC, through the same handler
+or, for `show version`, `show ping` and `show interface`, through an RPC that
+calls the same producer, so the answer is the one `ze <verb>` prints.
 
 `ze cli` accepts `-c <command>` for single-shot execution and
 `--format <format>`. The flag has no default of its own. A command that names no

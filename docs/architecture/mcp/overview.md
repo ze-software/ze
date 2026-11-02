@@ -455,6 +455,20 @@ A command that a plugin registers with `Hidden` never becomes a tool.
 `buildCommandMeta` skips it, so the tool list and the completion tree hide the
 same commands.
 
+The command list is the dispatcher's, so every command the daemon serves is a
+tool: the builtin RPCs, and the local and local-data commands it serves through
+the handler `ze <verb>` runs (`doctor` becomes `ze_doctor`, `show env list` the
+`list` action of `ze_show_env`), each answering what the local route answers. A
+streaming command declared `OneShotStreamingOnly` (`monitor bgp`, `monitor
+event`) is not a tool, because a tool call runs once and such a command has no
+one-shot answer; `buildCommandMeta` drops it (`streamingPathsOff`), and a call
+that names it in full is refused with the places it streams. Which surfaces
+offer each kind of command is `docs/architecture/api/commands.md`, "Which
+surfaces offer a command".
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta -->
+<!-- source: cmd/ze/hub/streaming_surface.go -- streamingPathsOff -->
+<!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData -->
+
 A tool call becomes one text command (`dispatchGenerated`). The reserved
 `peer` argument goes after the command's own `peer` keyword
 (`spliceSelector`). Every typed parameter goes where the dispatcher binds it,

@@ -111,7 +111,9 @@ func StaticCommandTree(tree *command.Node) AdminCommandTree {
 //
 // trees answers the tree for each request: the YANG operational command tree
 // (builtin, local and local-data commands under their YANG paths) with the
-// plugin commands the surface predicate lists overlaid. The handler reads its
+// plugin commands the surface predicate lists overlaid, and with every
+// streaming-only command removed, since the console runs a command once. The
+// handler reads its
 // shape for the navigation columns and its two help texts for the command
 // form, so the page shows the same summary and explanation every other surface
 // shows. A nil tree serves an empty console rather than panicking.

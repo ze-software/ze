@@ -22,15 +22,16 @@ every producer below for its list and compares it with the predicate.
 | entry source | `VisibleCommandEntries()` returns every command `ListedOnDaemonSurfaces` lists (no `Hidden` one) as a `command.CommandEntry` | RLock over the registry map, mirroring `All()` and `Complete()` |
 | injection | `MergeCommandPaths` splits each command name on spaces and inserts tree nodes | non-destructive: an existing node is never mutated. Each of the two help fields is set only on a leaf the call creates, or on one that holds nothing in THAT field |
 | SSH | `mergePluginCommands` merges into the per-session tree | the tree is rebuilt per session, so a plugin that exited is absent next session |
-| Web | `pluginAwareCommandCompleter` builds a throwaway overlay per `/cli/complete` request and composites it, YANG winning a name collision | the shared YANG tree stays immutable and is never mutated |
-| Web admin | `adminCommandTrees` (`cmd/ze/hub/service_web.go`) answers, per request, `command.OverlayCommandPaths` of the YANG tree and `VisibleCommandEntries()`: a copy of each node on a merged path, every other subtree shared | the shared YANG tree is never written, so a plugin that exited is gone on the next request |
-| MCP, REST, gRPC | `buildCommandMeta` (`cmd/ze/hub/command_meta.go`) lists the dispatcher's commands (builtins and the local-data commands it serves) and the plugin commands `ListedOnDaemonSurfaces` lists | built from the live dispatcher on each list call |
+| Web | `pluginAwareCommandCompleter` builds a throwaway overlay per `/cli/complete` request and composites it, YANG winning a name collision, with every streaming-only command removed (`streamingPathsOff`) | the shared YANG tree stays immutable and is never mutated |
+| Web admin | `adminCommandTrees` (`cmd/ze/hub/service_web.go`) answers, per request, `command.OverlayCommandPaths` of the YANG tree and `VisibleCommandEntries()`: a copy of each node on a merged path, every other subtree shared, with every streaming-only command removed (`streamingPathsOff`) | the shared YANG tree is never written, so a plugin that exited is gone on the next request |
+| MCP, REST, gRPC | `buildCommandMeta` (`cmd/ze/hub/command_meta.go`) lists the dispatcher's commands (builtins and the local-data commands it serves) and the plugin commands `ListedOnDaemonSurfaces` lists, minus every streaming-only command (`streamingPathsOff`) | built from the live dispatcher on each list call |
 | `ze cli` | `BuildRuntimeTreeFromDispatch` (`internal/component/cli/client/main.go`): the daemon's `system command list`, plus every local-data command the client answers itself (`command.ServeLocal`) | built at attach; the local-data commands are offered with or without a daemon |
 
 <!-- source: internal/component/command/surface.go -- AnswerSurface, ListedOnDaemonSurfaces -->
 <!-- source: internal/component/plugin/server/command_registry.go -- VisibleCommandEntries -->
 <!-- source: internal/component/command/node.go -- OverlayCommandPaths -->
 <!-- source: cmd/ze/hub/service_web.go -- adminCommandTrees -->
+<!-- source: cmd/ze/hub/streaming_surface.go -- streamingPathsOff -->
 <!-- source: internal/component/command/node.go -- MergeCommandPaths -->
 <!-- source: internal/component/cli/client/inject.go -- injectPluginCommands, the client-side tree -->
 <!-- source: internal/component/cli/client/main.go -- applyCommandText, nodeAtPath -->

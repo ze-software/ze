@@ -93,9 +93,10 @@ func operatorsFor(cliPath string, declared command.Declared, wireToPaths map[str
 	// only when the path has no daemon handler: a daemon surface reaches that
 	// registered handler independently of the local shortcut.
 	//
-	// `show data cat` has no daemon handler and answers the bytes of one stored
-	// file deliberately. `show version` is the opposite case: its local
-	// shortcut prints, while its separately registered daemon handler pipes.
+	// A local-data command (`show data cat`, which answers a stored file as a
+	// blob) answers DATA on every route, so it publishes operators. `show
+	// version` keeps a printing local shortcut, while its separately
+	// registered daemon handler pipes.
 	if pathHasOnlyPlainLocalHandler(cliPath, wireToPaths) {
 		return nil, ""
 	}

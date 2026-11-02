@@ -367,10 +367,13 @@ route the path comes back unchanged, `-` included, and on every other route
 `-` is refused, and a named path is read only when, made absolute and with
 every symbolic link resolved, it lies inside one of the directories the daemon
 already reads configuration from. Those are the directories `show config
-list` enumerates: the search directories and the store's directory, which
-`internal/component/config/cli` registers with
-`command.RegisterCallerPathDirs`. The filesystem root never counts as one,
-since a daemon started from `/` has it as its working directory. A path
+list` enumerates: the search directories (the user's `ze` directory under
+`XDG_CONFIG_HOME`, else `~/.config/ze`, and the working directory of the
+process) and the store's directory, which `internal/component/config/cli`
+registers with `command.RegisterCallerPathDirs`. On the daemon route the
+working directory is the daemon's, wherever it was started. The filesystem
+root never counts as one, since a daemon started from `/` has it as its
+working directory. A path
 outside them, a `..` that climbs out, a link that points out and a missing
 file are refused alike, so the refusal says nothing about files outside the
 directories, and it names the local `ze` command that reads any file. The
@@ -401,6 +404,7 @@ config commands above go through the parser alone. Ze's config grammar has no
 include statement, so the confined file is the only file a parse reads.
 <!-- source: internal/component/command/caller_path.go -- CallerPath, RegisterCallerPathDirs, confinedDirs -->
 <!-- source: internal/component/config/cli/register.go -- callerPathDirs -->
+<!-- source: internal/component/config/cli/cmd_list.go -- configSearchDirs -->
 <!-- source: internal/component/config/loader.go -- LoadConfig, ReadConfig, loadConfig -->
 <!-- source: internal/component/config/yang/cli/yang_data.go -- dataTree, dataCompletion, dataDoc, leafAndFlagRefusal -->
 <!-- source: internal/component/plugin/server/command.go -- flagRefusal -->
@@ -440,7 +444,7 @@ registered itself. The two routes call one producer, so they cannot drift:
 | `show traceroute` | `tracerouteResults` | `showTracerouteLocal` prints it | `handleTraceroute` |
 | `show interface` | `iface.ListInterfaces`, `iface.GetInterface` | `cmdShow` renders the list or one interface (`--json` prints the payload) | `handleShowInterface`, `handleShowInterfaceDetail` answer it as data |
 | `show version` | `zeversion.Answer` | `printVersion` prints it (`ze show version`, `ze version`, `ze --version`) | `handleShowVersion`; `--extended` reaches both routes as a token, since the model declares no leaf |
-| `monitor ping`, `monitor traceroute` | `NewPingSession`, `NewTracerouteSession` | the local loop prints each result | the `ze cli` view and the hub's SSH session factory inject the producer itself as the view factory; the RPC only acknowledges |
+| `monitor ping`, `monitor traceroute` | `NewPingSession`, `NewTracerouteSession` | the local loop prints each result | the `ze cli` view and the hub's SSH session factory inject the producer itself as the view factory; SSH exec and `ze cli -c` stream from the same producer (`streamMonitorPing`, `streamMonitorTraceroute`), and the one-shot RPC answers a sample of it: `handleMonitorPing` the rows of a bounded run, `handleMonitorTraceroute` one probe round |
 
 The bridge leaves such a path to its builtin: when the YANG node's own RPC is
 registered as a builtin, the local-data handler on that path is the command's
@@ -460,6 +464,32 @@ daemon route like every other caller path (`command.CallerPath`).
 <!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, AnswerLocalData -->
 <!-- source: internal/component/ping/cmd/ping.go -- pingResults, handleShowPing -->
 <!-- source: internal/component/traceroute/cmd/traceroute.go -- tracerouteResults, handleTraceroute -->
+<!-- source: internal/component/ping/cmd/monitor.go -- handleMonitorPing, streamMonitorPing -->
+<!-- source: internal/component/traceroute/cmd/monitor.go -- handleMonitorTraceroute, streamMonitorTraceroute -->
+
+#### Which surfaces offer a command
+
+One predicate, `command.AnswerSurface`, answers for a command and a surface
+whether the surface must offer it, must not, or offers it with a qualifier,
+and why. It reads only the registration: its kind, and the hidden, streaming,
+streaming-only and TUI-only declarations. Each surface producer asks it, and
+`TestEveryCommandOnEverySurface` (`cmd/ze/hub`) asks each producer and fails a
+gap or an offer the predicate refuses, naming the command, the surface, the
+kind and the expected answer.
+
+| Registration | SSH, `ze cli` | Shell completion (`ze <verb>`) | Web admin, web completion, MCP, REST, gRPC |
+|--------------|---------------|--------------------------------|--------------------------------------------|
+| Hidden (a plugin command declared `Hidden`) | Not offered | Not offered | Not offered. It still runs when typed in full |
+| Builtin RPC, local, local-data | Offered | Offered | Offered: the daemon serves each through its handler |
+| Plugin command (Stage 1 declaration) | Offered | Not offered: no plugin runs in the shell's process | Offered |
+| Streaming (`RegisterStreamingHandler`) | Offered as a stream | Offered as a stream | By its one-shot declaration: `OneShotSample` offered, `OneShotStreamingOnly` not ("One-shot answer of a streaming command") |
+| A live view with no RPC | Offered as TUI-only, when `cli.RegisterView` declares it | Not offered | Not offered. An undeclared one fails the check. No view is TUI-only today |
+
+The producers that ask it: the SSH and web admin trees, the web terminal
+completer, `buildCommandMeta` (the MCP, REST and gRPC list) and the `ze cli`
+tree. `command-completion.md` names each one.
+<!-- source: internal/component/command/surface.go -- AnswerSurface, answerView, ListedOnDaemonSurfaces, OffersCommand -->
+<!-- source: cmd/ze/hub/surface_parity_test.go -- TestEveryCommandOnEverySurface -->
 
 ---
 
@@ -1286,7 +1316,7 @@ A chain the answer's shape cannot support is refused AFTER the command has run, 
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 <!-- source: internal/component/command/pipe_save.go -- validateSaveOps -->
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
-<!-- source: cmd/ze/help_command.go -- operatorsFor -->
+<!-- source: internal/plugins/help/help_command.go -- operatorsFor -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
 <!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
@@ -2203,7 +2233,7 @@ every hidden plugin command.
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip -->
 <!-- source: internal/component/command/node.go -- MergeCommandPaths, CommandEntry -->
 <!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands (SSH per-session) -->
-<!-- source: internal/component/cli/client/main.go -- newAttachedModel, buildRuntimeTreeFromDispatch -->
+<!-- source: internal/component/cli/client/main.go -- newAttachedModel, BuildRuntimeTreeFromDispatch -->
 <!-- source: cmd/ze/hub/web_completer.go -- pluginAwareCommandCompleter (web live overlay) -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, WaitForStartupComplete -->
@@ -2363,7 +2393,7 @@ not yet hold.
 An OFFLINE LOCAL command carries the same two texts in a `registry.Meta`,
 declared beside its handler in Go rather than in a YANG module. `ShortHelp` is
 the summary and `Description` is the explanation, and the same empty-is-unwritten
-rule holds for both. `collectCommands` (`cmd/ze/help_command.go`) merges these
+rule holds for both. `collectCommands` (`internal/plugins/help/help_command.go`) merges these
 registrations into `ze help command --json` after the tree, and skips one whose
 path the tree already holds, so the catalog publishes the node's texts for such
 a path and the registration's for every other. `./le doc yang-contract help-shape` holds
@@ -2421,7 +2451,8 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/plugin/server/schema.go -- RegisteredRPC, RegisterRPCs -->
 <!-- source: internal/component/aihelp/aihelp.go -- RPC, Build -->
 <!-- source: internal/core/helpfmt/helpfmt.go -- Page, (*Page).WriteTo -->
-<!-- source: cmd/ze/help_command.go -- commandEntry, printCommandTable, printCommandVerbose -->
+<!-- source: internal/plugins/help/help_command.go -- commandEntry, catalogAnswer, drawCatalog, printCommandTable, printCommandVerbose -->
+<!-- source: internal/plugins/help/register.go -- render, renderTo -->
 <!-- source: internal/component/command/registry/registry.go -- Meta -->
 <!-- source: internal/component/command/local.go -- ListLocal -->
 <!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
@@ -3029,7 +3060,7 @@ Two rules govern what such an entry carries.
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
 <!-- source: internal/le/cli/list/commandlist.go -- Collect, Answer -->
 <!-- source: internal/le/cli/catalog/catalog.go -- Collect, operatorsFor -->
-<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
 
 #### A plugin declares its own answer shape
 

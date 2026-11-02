@@ -21,7 +21,8 @@ With no argument, `ze doctor` checks the active config in the store. `config
 stdin. The file is always the value of the `config` keyword: a bare path such as
 `ze doctor router.conf` is refused with an error that names
 `ze doctor config <file>`.
-<!-- source: internal/component/doctor/doctor.go -- Run, refuseDoctorArgs -->
+<!-- source: internal/component/doctor/doctor.go -- Run -->
+<!-- source: internal/component/doctor/answer.go -- Answer, readDoctorRequest -->
 
 `ze doctor kernel-capabilities` asks a different question: it probes every
 kernel feature Ze enrolls, whatever the configuration uses, prints one row per

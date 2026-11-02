@@ -18,7 +18,7 @@ The daemon dispatcher they feed is
 - **The command model is infrastructure.** Every component and plugin registers
   commands into it, so it must hold no knowledge of any one owner: no BGP word, no
   peer grammar, no plugin help string (`docs/architecture/command-ownership.md#what-shared-code-may-carry`).
-- **A command is served in one of three places**
+- **A command is served in one of four places**
   (`docs/architecture/api/commands.md`):
   - by the daemon dispatcher, under its YANG path
   - by an offline fallback (`command.MustRegisterOfflineFallback`), only after
@@ -26,13 +26,25 @@ The daemon dispatcher they feed is
   - by a local-data handler (`command.MustRegisterLocalData`), in the caller's
     own process, and by the daemon through the same handler when a YANG node
     declares its path
+  - by a plain local handler (`command.MustRegisterLocal`,
+    `MustRegisterLocalMeta`), for `ze <verb>` alone; a remote caller reaches
+    the same answer only through a builtin RPC its owner registers on the same
+    path, calling the same producer (`show version`, `show ping`, `monitor
+    ping`)
 
   Pick one on purpose. A local-data command is answered locally by
   `command.ServeLocal` (the `ze cli` client, `internal/component/cli/client`)
   and the plain `ze <verb>` handler, and for REST, gRPC, MCP, SSH and the web
   by the dispatcher (`plugin/server` `loadLocalData`). The handler reads
-  `ValidatedArgs.Route()` to refuse what only the caller's own process holds
-  (`commands.md`, "Served by the daemon too").
+  `ValidatedArgs.Route()` to refuse what only the caller's own process holds,
+  and `command.CallerPath` to confine a file its caller names (`commands.md`,
+  "Served by the daemon too"). An answer about the daemon's host stays plain
+  local plus a builtin, because `ze cli` answers a local-data command in its
+  own process before it asks the daemon.
+- **Which surfaces offer a command is one predicate**, `command.AnswerSurface`
+  (`internal/component/command/surface.go`), read by every surface producer
+  and judged by `TestEveryCommandOnEverySurface` (`commands.md`, "Which
+  surfaces offer a command"). A surface never keeps its own list.
 - **SSH can be compiled out** (`ze_ssh` in `feature-gates.txt`). The command
   model and the editor cannot.
 - **SSH sessions dispatch through the shared dispatcher.** The hub hands the SSH
