@@ -102,13 +102,13 @@ func TestPingParseArgsSizeMissingValue(t *testing.T) {
 // through to the destination branch and streamed at a hardcoded 1s -- while
 // docs/guide/command-reference.md advertised the flag as working.
 func TestMonitorPingParseArgsInterval(t *testing.T) {
-	mp, err := parseMonitorPingArgs([]string{"10.0.0.1", "interval", "500ms"})
+	mp, err := monitorPingOf(t, "10.0.0.1", "interval", "500ms")
 	require.NoError(t, err)
 	assert.Equal(t, "10.0.0.1", mp.Dest.String())
 	assert.Equal(t, 500*time.Millisecond, mp.Interval)
 	assert.Equal(t, defaultPingTimeout, mp.Timeout)
 
-	mp, err = parseMonitorPingArgs([]string{"10.0.0.1"})
+	mp, err = monitorPingOf(t, "10.0.0.1")
 	require.NoError(t, err)
 	assert.Equal(t, defaultPingMonitorInterval, mp.Interval, "omitted interval uses the default")
 	assert.Equal(t, 0, mp.Count, "omitted count streams until interrupted")
@@ -124,7 +124,7 @@ func TestMonitorPingParseArgsInterval(t *testing.T) {
 // nothing. Accept-and-ignore is banned by
 // ai/rules/completion.md.
 func TestMonitorPingParseArgsCountAndSize(t *testing.T) {
-	mp, err := parseMonitorPingArgs([]string{"10.0.0.1", "count", "5", "size", "1400"})
+	mp, err := monitorPingOf(t, "10.0.0.1", "count", "5", "size", "1400")
 	require.NoError(t, err)
 	assert.Equal(t, "10.0.0.1", mp.Dest.String())
 	assert.Equal(t, 5, mp.Count)
@@ -148,19 +148,19 @@ func TestMonitorPingParseArgsBounds(t *testing.T) {
 		{name: "interval maximum", args: []string{"interval", "30s"}},
 		{name: "interval below", args: []string{"interval", "99ms"}, wantErr: "interval must be"},
 		{name: "interval above", args: []string{"interval", "31s"}, wantErr: "interval must be"},
-		{name: "interval not a duration", args: []string{"interval", "soon"}, wantErr: "interval must be"},
+		{name: "interval not a duration", args: []string{"interval", "soon"}, wantErr: `invalid value "soon", does not match expected pattern`},
 		{name: "count minimum", args: []string{"count", "1"}},
 		{name: "count maximum", args: []string{"count", "100"}},
-		{name: "count zero", args: []string{"count", "0"}, wantErr: "count must be"},
-		{name: "count above", args: []string{"count", "101"}, wantErr: "count must be"},
+		{name: "count zero", args: []string{"count", "0"}, wantErr: "value 0 out of range 1..100"},
+		{name: "count above", args: []string{"count", "101"}, wantErr: "value 101 out of range 1..100"},
 		{name: "size minimum", args: []string{"size", "1"}},
 		{name: "size maximum", args: []string{"size", "65507"}},
-		{name: "size zero", args: []string{"size", "0"}, wantErr: "size must be"},
-		{name: "size above", args: []string{"size", "65508"}, wantErr: "size must be"},
+		{name: "size zero", args: []string{"size", "0"}, wantErr: "value 0 out of range 1..65507"},
+		{name: "size above", args: []string{"size", "65508"}, wantErr: "value 65508 out of range 1..65507"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := parseMonitorPingArgs(append([]string{"127.0.0.1"}, tc.args...))
+			_, err := monitorPingOf(t, append([]string{"127.0.0.1"}, tc.args...)...)
 			if tc.wantErr != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
@@ -177,17 +177,17 @@ func TestMonitorPingParseArgsBounds(t *testing.T) {
 // argument all error.
 // PREVENTS: a trailing keyword or a stray token being silently swallowed.
 func TestMonitorPingParseArgsErrors(t *testing.T) {
-	_, err := parseMonitorPingArgs([]string{})
+	_, err := monitorPingOf(t)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing destination")
+	assert.Contains(t, err.Error(), "required argument missing: destination")
 
 	for _, arg := range []string{"interval", "timeout", "count", "size"} {
-		_, err = parseMonitorPingArgs([]string{"127.0.0.1", arg})
+		_, err = monitorPingOf(t, "127.0.0.1", arg)
 		assert.Error(t, err, "trailing %s must error", arg)
 		assert.Contains(t, err.Error(), "requires a value")
 	}
 
-	_, err = parseMonitorPingArgs([]string{"127.0.0.1", "8.8.8.8"})
+	_, err = monitorPingOf(t, "127.0.0.1", "8.8.8.8")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected argument")
 }

@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -23,6 +25,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/plugins/completion"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The fixture plugin: one visible command with no YANG node and one hidden
@@ -448,18 +451,33 @@ func viewRegistration(v cli.ViewInfo) command.CommandRegistration {
 // TestStreamingOneShotAnswersCarryData proves AC-9: a streaming command a
 // one-shot surface offers (declared pluginserver.OneShotSample) answers one
 // sample there, never an echo of its request. Method: every streaming prefix
-// is read from the registry, its one-shot route is dispatched with no
-// argument through the dispatcher every one-shot surface uses, and the answer
-// must be data, or an error saying why it cannot answer. A payload that
+// is read from the registry, its one-shot route is dispatched through the
+// dispatcher every one-shot surface uses, and the answer must be a success
+// carrying data. A payload that
 // carries its own "status" word restates the response status rather than
 // carrying data, which is the shape every monitor command answered before
 // (`{"status":"monitor-configured"}`). A streaming-only command is judged by
 // TestEveryCommandOnEverySurface instead: no one-shot surface may offer it.
+//
+// Each command is called with a valid argument for every mandatory leaf its
+// YANG model declares, derived from the leaf's type (sampleArguments), so a
+// command is judged on a call it can answer: an answer that refuses or fails
+// is not a sample. The test runs in a user and network namespace of its own
+// (userns.Enter), where it is root over its own loopback, so a probe command
+// can open its ICMP socket without privilege on the host.
 func TestStreamingOneShotAnswersCarryData(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	if err != nil {
 		t.Fatalf("server: %v", err)
 	}
+	schema, err := yangloader.DefaultLoader()
+	if err != nil {
+		t.Fatalf("yang loader: %v", err)
+	}
+	argDefs := yangloader.PathToArgDefs(schema)
 	samples := 0
 	for _, prefix := range pluginserver.StreamingPrefixes() {
 		oneShot, ok := pluginserver.StreamingOneShot(prefix)
@@ -470,13 +488,14 @@ func TestStreamingOneShotAnswersCarryData(t *testing.T) {
 			continue
 		}
 		samples++
-		resp, err := serverDispatcher(server, "")(t.Context(), plugin.CallerIdentity{Username: "surface-check"}, prefix)
+		call := prefix + sampleArguments(t, prefix, argDefs[prefix])
+		resp, err := serverDispatcher(server, "")(t.Context(), plugin.CallerIdentity{Username: "surface-check"}, call)
 		if err != nil {
-			t.Errorf("%q one-shot: %v", prefix, err)
+			t.Errorf("%q one-shot: %v", call, err)
 			continue
 		}
 		if failure := oneShotWithoutData(resp); failure != "" {
-			t.Errorf("%q declares a one-shot sample, but %s", prefix, failure)
+			t.Errorf("%q declares a one-shot sample, but %q %s", prefix, call, failure)
 		}
 	}
 	if samples == 0 {
@@ -512,16 +531,64 @@ func TestStreamingOnlyRefusesOnOneShotSurfaces(t *testing.T) {
 	}
 }
 
+// sampleStrings are the values sampleValue offers a string leaf, in order. The
+// first is a loopback address: a destination leaf takes it, and the call then
+// stays on the test's own loopback.
+var sampleStrings = []string{"127.0.0.1", "::1", "lo", "sample", "1"}
+
+// sampleArguments answers ` <leaf> <value>` for every mandatory leaf of defs,
+// each value derived from the leaf's own type by sampleValue, so the call is
+// one the model accepts. A mandatory leaf whose type yields no value fails the
+// test: the call could not be built, and guessing one would test nothing.
+func sampleArguments(t *testing.T, prefix string, defs []command.ArgDef) string {
+	t.Helper()
+	var tb textbuf.Buffer
+	for i := range defs {
+		if !defs[i].Mandatory() {
+			continue
+		}
+		tb.Byte(' ').Str(defs[i].Name())
+		if defs[i].Kind() == command.ArgFlag {
+			continue
+		}
+		value, ok := sampleValue(&defs[i])
+		if !ok {
+			t.Fatalf("%q: no valid sample value derives from the type of mandatory leaf %q", prefix, defs[i].Name())
+		}
+		tb.Byte(' ').Str(value)
+	}
+	return tb.String()
+}
+
+// sampleValue answers a value def accepts: the lowest value of a range, the
+// first enum value, or the first of sampleStrings the leaf's pattern and
+// length admit. Every candidate is judged by command.ValidateArgString, the
+// validator every route runs, so an answer is always one the model accepts.
+func sampleValue(def *command.ArgDef) (string, bool) {
+	candidates := slices.Clone(sampleStrings)
+	for r := range def.Ranges() {
+		candidates = append([]string{strconv.FormatUint(r.Min, 10)}, candidates...)
+		break
+	}
+	for value := range def.EnumValues() {
+		candidates = append([]string{value}, candidates...)
+		break
+	}
+	for _, candidate := range candidates {
+		if command.ValidateArgString(candidate, def) == nil {
+			return candidate, true
+		}
+	}
+	return "", false
+}
+
 // oneShotWithoutData answers why resp carries no sample, or "" when it does.
 func oneShotWithoutData(resp *plugin.Response) string {
 	if resp == nil {
 		return "the dispatcher answered nothing"
 	}
 	if resp.Status == plugin.StatusError {
-		if resp.Error == "" {
-			return "it refused with no reason"
-		}
-		return "" // it says why it cannot answer, which is an answer
+		return "it refused a valid call, so it answered no sample: " + resp.Error
 	}
 	if resp.Data == nil {
 		return "it answered no data"
