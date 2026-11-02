@@ -39,7 +39,13 @@ func init() {
 	// JSON, a certificate or a binary blob. Those bytes are the answer, so it
 	// answers a command.Blob, prints them unchanged, and refuses the row
 	// operators by name.
-	command.MustRegisterLocalData("show data cat", dataCat, registry.Meta{}, command.RenderLocalAnswer)
+	//
+	// A key may hold a secret (meta/web/key, the HTTPS private key; the
+	// bcrypt hashes under meta/auth and meta/ssh; a config file's secrets), so
+	// on the daemon the answer is authorized as more than a read: the built-in
+	// read-only profile, which allows every `show`, refuses it before the
+	// store is opened.
+	command.MustRegisterLocalData("show data cat", dataCat, registry.Meta{NotReadOnly: true}, command.RenderLocalAnswer)
 
 	command.RegisterShape([]string{"show data list", "show data registered"}, command.ShapeTab)
 	command.RegisterShape([]string{"show data cat"}, command.ShapeBlob)

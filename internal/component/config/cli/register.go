@@ -137,8 +137,13 @@ func init() {
 	command.RegisterColumns([]string{"show config list"}, command.ColumnOrder{keySource, keyPath})
 	command.MustRegisterLocalData("show config cat", func(validated command.ValidatedArgs) command.LocalAnswer {
 		return catAnswer(nil, validated.Tokens())
-	}, registry.Meta{ShortHelp: "Print the full configuration text for a stored snapshot."},
-		command.RenderLocalAnswer)
+	}, registry.Meta{
+		ShortHelp: "Print the full configuration text for a stored snapshot.",
+		// The name may be any store key (meta/web/key included), and a config
+		// file carries its secrets, so on the daemon the answer is authorized
+		// as more than a read, as `show data cat` is.
+		NotReadOnly: true,
+	}, command.RenderLocalAnswer)
 
 	// cat, fmt and graph answer TEXT the operator reads as it is (a stored
 	// file, a formatted config, the graph's indented JSON), so each answers a

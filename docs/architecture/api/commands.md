@@ -343,15 +343,23 @@ answer:
 | Web CLI terminal | Above the rendered answer |
 
 A plugin that sends a command through the engine (`dispatch-command`) receives
-the status and the data; the warning lines are a user-surface field and do not
-cross the plugin connection.
+the status and the data, and the warning lines too when it negotiated Stage 1
+protocol version 2 (`rpc.ProtocolVersionWarningLines`): they ride the `wrn`
+terminator of the answer. A plugin at version 1 receives the bytes it received
+before the field existed (`docs/plugin-development/protocol.md`).
+<!-- source: pkg/plugin/rpc/types.go -- ProtocolVersionWarningLines -->
 
 Authorization reads the verb (`IsReadOnlyPath`), unless the registration
 declares its daemon form does more than read with `registry.Meta.NotReadOnly`.
 `show plugin declarations config` declares it, because answering starts each
 external plugin's `run` line from the file, so it is judged in the edit
 section and the read-only profile, whose edit section denies by default,
-refuses it before any process starts.
+refuses it before any process starts. `show data cat` and `show config cat`
+declare it too: either reads any store key, the HTTPS private key
+(`meta/web/key`) and the bcrypt hashes under `meta/auth` and `meta/ssh`
+included, so a secret reaches only a caller the edit section allows.
+<!-- source: internal/component/config/storage/cli/register.go -- show data cat NotReadOnly -->
+<!-- source: internal/component/config/cli/register.go -- show config cat NotReadOnly -->
 
 The handler learns which route called it from `ValidatedArgs.Route()`:
 `command.RouteLocal` on `ServeLocal` and the plain `ze <verb>` handler,
