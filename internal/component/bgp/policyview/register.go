@@ -3,7 +3,10 @@
 
 package policyview
 
-import "github.com/ze-software/ze/internal/component/policy"
+import (
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/policy"
+)
 
 // The BGP field readers, one per field the BGP import and export attachments
 // carry (internal/component/bgp/config/register.go). The field names stay
@@ -28,4 +31,51 @@ func init() {
 	MustRegisterReader(policy.FieldAggregator, readAggregator)
 	MustRegisterReader(policy.FieldOriginatorID, readOriginatorID)
 	MustRegisterReader(policy.FieldClusterList, readClusterList)
+	for _, fact := range sessionFacts {
+		MustRegisterReader(fact.field, readSessionFact(fact.answer))
+		mustRegisterWriter(fact.field, fact.write, 0, "")
+	}
+}
+
+// The session fact fields, registered by the BGP engine that owns the facts
+// (spec-filter-wire-6-stage-filters D-7, D-9). The plain names describe the
+// session's peer: the sender on import, the destination on export. The
+// source-peer forms describe the peer an exported route came from.
+var (
+	FieldPeerName       = policy.MustRegisterField("peer-name", policy.RouteView{})
+	FieldPeerGroup      = policy.MustRegisterField("peer-group", policy.RouteView{})
+	FieldPeerAddress    = policy.MustRegisterField("peer-address", policy.RouteView{})
+	FieldLocalAS        = policy.MustRegisterField("local-as", policy.RouteView{})
+	FieldPeerAS         = policy.MustRegisterField("peer-as", policy.RouteView{})
+	FieldRouteServerAS  = policy.MustRegisterField("route-server-as", policy.RouteView{})
+	FieldIBGP           = policy.MustRegisterField("ibgp", policy.RouteView{})
+	FieldRSClient       = policy.MustRegisterField("rs-client", policy.RouteView{})
+	FieldLLGRAdvertised = policy.MustRegisterField("llgr-advertised", policy.RouteView{})
+
+	FieldSourcePeerName    = policy.MustRegisterField("source-peer-name", policy.RouteView{})
+	FieldSourcePeerGroup   = policy.MustRegisterField("source-peer-group", policy.RouteView{})
+	FieldSourcePeerAddress = policy.MustRegisterField("source-peer-address", policy.RouteView{})
+	FieldSourcePeerAS      = policy.MustRegisterField("source-peer-as", policy.RouteView{})
+	FieldSourceIBGP        = policy.MustRegisterField("source-ibgp", policy.RouteView{})
+	FieldSourceRSClient    = policy.MustRegisterField("source-rs-client", policy.RouteView{})
+)
+
+// sessionFacts is the one declaration of how each session fact field is
+// answered and written; init registers a reader and a writer per row.
+var sessionFacts = []sessionFact{
+	{FieldPeerName, textFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) string { return p.Name }), writeText},
+	{FieldPeerGroup, textFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) string { return p.GroupName }), writeText},
+	{FieldPeerAddress, addressFact((*Session).peerFacts), writeAddress},
+	{FieldLocalAS, asFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) uint32 { return p.LocalAS }), writeNumber},
+	{FieldPeerAS, asFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) uint32 { return p.PeerAS }), writeNumber},
+	{FieldRouteServerAS, answerRouteServerAS, writeNumber},
+	{FieldIBGP, flagFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) bool { return p.IsIBGP }), writeFlag},
+	{FieldRSClient, flagFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) bool { return p.RSClient }), writeFlag},
+	{FieldLLGRAdvertised, answerLLGRAdvertised, writeFlag},
+	{FieldSourcePeerName, textFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) string { return p.Name }), writeText},
+	{FieldSourcePeerGroup, textFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) string { return p.GroupName }), writeText},
+	{FieldSourcePeerAddress, addressFact((*Session).sourceFacts), writeAddress},
+	{FieldSourcePeerAS, asFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) uint32 { return p.PeerAS }), writeNumber},
+	{FieldSourceIBGP, flagFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) bool { return p.IsIBGP }), writeFlag},
+	{FieldSourceRSClient, flagFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) bool { return p.RSClient }), writeFlag},
 }

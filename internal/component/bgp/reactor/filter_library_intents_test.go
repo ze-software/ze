@@ -97,7 +97,7 @@ func runLibraryImport(t *testing.T, body []byte) ingressStepResult {
 	addr := netip.MustParseAddr("10.0.0.4")
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 		ImportPolicy: libraryPolicy(t, libraryIntentImport, libraryTypeIntents, routepolicy.FinalAccept)})
-	return r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
+	return r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(body), body)
 }
 
 // TestLibraryNLRIDropMatchesTextSubset proves the NLRI subset intent at UPDATE
@@ -267,14 +267,14 @@ func TestLibraryASPathIntentsMatchText(t *testing.T) {
 		if text := textBody(t, received, true, 65000, 65002); !bytes.Equal(text, want) {
 			t.Fatalf("text path = %x, want %x", text, want)
 		}
-		out := r.runEgressPolicyChainASN4(exportPolicy(t), "10.0.0.5", 65002, 65000, false, testWireUpdate(received), true)
+		out := r.runEgressPolicyChainASN4(exportPolicy(t), "10.0.0.5", 65002, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(received), true)
 		if !out.accept || out.wireOverride == nil || !bytes.Equal(out.wireOverride.Payload(), want) {
 			t.Fatalf("export = %+v, want accept with %x", out, want)
 		}
 	})
 
 	t.Run("export-internal-untouched", func(t *testing.T) {
-		out := r.runEgressPolicyChainASN4(exportPolicy(t), "10.0.0.5", 65000, 65000, true, testWireUpdate(received), true)
+		out := r.runEgressPolicyChainASN4(exportPolicy(t), "10.0.0.5", 65000, 65000, true, policyview.Session{EBGP: false}, testWireUpdate(received), true)
 		if !out.accept || out.wireOverride != nil {
 			t.Fatalf("export = %+v, want accept with the AS_PATH unchanged", out)
 		}

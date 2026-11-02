@@ -94,7 +94,7 @@ func TestFilterUnavailableAppliesOnError(t *testing.T) {
 			ImportPolicy: mixedPolicy(t, libraryTypeLP200,
 				policychain.Member{Name: "member"}, policychain.Member{Name: filter, Plugin: plug})})
 
-		if in := r.runIngressPolicyChain(peer, addr, testWireUpdate(received), received); in.accept {
+		if in := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received); in.accept {
 			t.Fatalf("import = %+v, want the route dropped under on-error reject", in)
 		}
 		if transport.calls != 1 {

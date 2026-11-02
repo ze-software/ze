@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"net/netip"
 	"slices"
 	"strings"
@@ -225,12 +226,12 @@ func TestLoopPolicyUnknownGuardFailsClosed(t *testing.T) {
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001, ImportPolicy: policy})
 	r := &Reactor{}
 	body := policyChainAdvertisingBody()
-	result := r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
+	result := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(body), body)
 	if result.accept {
 		t.Fatal("unknown external guard accepted without a filter server")
 	}
 	r.api = liveFilterServer(t)
-	result = r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
+	result = r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(body), body)
 	if result.accept {
 		t.Fatal("unknown external plugin accepted through the real RPC transport")
 	}
@@ -270,7 +271,7 @@ func TestLoopPolicyManualExportRefusal(t *testing.T) {
 	if suppress, _ := r.exportFilterForBody(peer, body); !suppress {
 		t.Fatal("snapshot origination bypassed the unsupported internal ref")
 	}
-	result := r.runEgressPolicyChain(policy, settings.Address.String(), 65001, 65000, false, testWireUpdate(body))
+	result := r.runEgressPolicyChain(policy, settings.Address.String(), 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
 	if result.accept || !result.failed {
 		t.Fatalf("forwarded export bypassed the unsupported internal ref: %+v", result)
 	}
@@ -387,7 +388,7 @@ func TestLoopPolicyExportOwnershipConsumers(t *testing.T) {
 		t.Errorf("snapshot export: suppress=%v override=%x calls=%d", suppress, override, calls)
 	}
 	calls = 0
-	result := r.runEgressPolicyChain(policy, settings.Address.String(), 65001, 65000, false, testWireUpdate(body))
+	result := r.runEgressPolicyChain(policy, settings.Address.String(), 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
 	if result.accept || !result.failed || result.wireOverride != nil || calls != 0 {
 		t.Errorf("forwarded export: result=%+v calls=%d", result, calls)
 	}

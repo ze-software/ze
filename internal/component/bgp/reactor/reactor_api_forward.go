@@ -17,6 +17,7 @@ import (
 	"maps"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -462,20 +463,21 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				resolved:       true,
 				peer:           peer,
 			}
-			if len(a.r.egressFilters) > 0 {
-				srcInfo.filterInfo = filterapi.PeerFilterInfo{
-					Address: s.Address,
-					PeerAS:  peer.PeerAS(),
-					// Effective per-peer local AS, mirroring the dest filterInfo
-					// (peer_forward_facts.go). Kept in sync so no egress filter
-					// ever reads a silent zero from src.LocalAS.
-					LocalAS:   s.LocalAS,
-					Name:      s.Name,
-					GroupName: s.GroupName,
-					// The one IBGP rule, so a filter never compares PeerAS with
-					// LocalAS (which reads an RFC 7705 migration session as EBGP).
-					IsIBGP: srcInfo.isIBGP,
-				}
+			// Filled for every forwarded UPDATE, once per source: the in-process
+			// egress filters and the export chain's source-peer fields read it.
+			srcInfo.filterInfo = filterapi.PeerFilterInfo{
+				Address: s.Address,
+				PeerAS:  peer.PeerAS(),
+				// Effective per-peer local AS, mirroring the dest filterInfo
+				// (peer_forward_facts.go). Kept in sync so no egress filter
+				// ever reads a silent zero from src.LocalAS.
+				LocalAS:   s.LocalAS,
+				Name:      s.Name,
+				GroupName: s.GroupName,
+				// The one IBGP rule, so a filter never compares PeerAS with
+				// LocalAS (which reads an RFC 7705 migration session as EBGP).
+				IsIBGP:   srcInfo.isIBGP,
+				RSClient: s.RSClient,
 			}
 			continue
 		}
@@ -803,7 +805,8 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				step := &a.r.orderedEgressSteps[i]
 				var res egressStepResult
 				if step.policyChain {
-					res = a.r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, sourceWire)
+					res = a.r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
+						policyview.ExportSession(destFilter, srcFilter, srcInfo.resolved), sourceWire)
 				} else {
 					accept, panicked := safeEgressFilter(step.inproc, srcFilter, destFilter, payload, update.Meta, &mods)
 					res = egressStepResult{accept: accept, failed: panicked}

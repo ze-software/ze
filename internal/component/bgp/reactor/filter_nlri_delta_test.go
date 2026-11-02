@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"encoding/hex"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"net/netip"
 	"slices"
 	"strings"
@@ -70,7 +71,7 @@ func runImportDrop(t *testing.T, body []byte, drop ...string) ingressStepResult 
 		policyFilterSeam: dropPrefixFilter(drop...),
 		attrModHandlers:  attrModHandlersWithDefaults(),
 	}
-	return r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
+	return r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(body), body)
 }
 
 func nlriHex(t *testing.T, s string) []byte {
@@ -282,7 +283,7 @@ func TestFilterModifyRefusesReorderedMPAnswer(t *testing.T) {
 		policyFilterSeam: answerFilter("mp ipv6/unicast add 2001:db8:2::/48 2001:db8:1::/48"),
 		attrModHandlers:  attrModHandlersWithDefaults(),
 	}
-	res := r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
+	res := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(body), body)
 	assert.False(t, res.accept, "a reordered answer must drop the route")
 	assert.Nil(t, res.modifiedPayload)
 }
@@ -304,7 +305,7 @@ func TestExportFilterModifyRefusalSuppresses(t *testing.T) {
 		attrModHandlers:  attrModHandlersWithDefaults(),
 	}
 	refs := []routepolicy.Ref{{Name: "prefix-list"}}
-	got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, routepolicy.FinalAccept), "10.0.0.2", 65002, 65000, false, testWireUpdate(body), true)
+	got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, routepolicy.FinalAccept), "10.0.0.2", 65002, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), true)
 	assert.False(t, got.accept, "fail-closed: the route is withheld")
 	assert.True(t, got.failed, "the step must report that it could not apply the answer")
 }

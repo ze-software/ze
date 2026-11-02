@@ -296,19 +296,20 @@ func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceI
 			resolved:       true,
 			peer:           srcPeer,
 		}
-		if len(a.r.egressFilters) > 0 {
-			info.filterInfo = filterapi.PeerFilterInfo{
-				Address: s.Address,
-				PeerAS:  srcPeer.PeerAS(),
-				// Effective per-peer local AS, matching the forward-path src/dest
-				// filterInfo fills (reactor_api_forward.go, peer_forward_facts.go)
-				// so no egress filter ever reads a silent zero from src.LocalAS.
-				LocalAS:   s.LocalAS,
-				Name:      s.Name,
-				GroupName: s.GroupName,
-				// The one IBGP rule, as the forward-path fills carry it.
-				IsIBGP: info.isIBGP,
-			}
+		// Filled for every source: the in-process egress filters and the
+		// export chain's source-peer fields read it.
+		info.filterInfo = filterapi.PeerFilterInfo{
+			Address: s.Address,
+			PeerAS:  srcPeer.PeerAS(),
+			// Effective per-peer local AS, matching the forward-path src/dest
+			// filterInfo fills (reactor_api_forward.go, peer_forward_facts.go)
+			// so no egress filter ever reads a silent zero from src.LocalAS.
+			LocalAS:   s.LocalAS,
+			Name:      s.Name,
+			GroupName: s.GroupName,
+			// The one IBGP rule, as the forward-path fills carry it.
+			IsIBGP:   info.isIBGP,
+			RSClient: s.RSClient,
 		}
 	}
 	a.r.mu.RUnlock()

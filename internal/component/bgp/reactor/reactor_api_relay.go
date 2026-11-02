@@ -132,22 +132,23 @@ func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 			resolved: true,
 			peer:     srcPeer,
 		}
-		if len(a.r.egressFilters) > 0 {
-			out.info.filterInfo = filterapi.PeerFilterInfo{
-				Address: s.Address,
-				PeerAS:  srcPeer.PeerAS(),
-				// Effective per-peer local AS, matching the forward path's src
-				// filterInfo so no egress filter reads a silent zero.
-				LocalAS:   s.LocalAS,
-				Name:      s.Name,
-				GroupName: s.GroupName,
-				// The one IBGP rule, as the forward path's src fill carries it.
-				IsIBGP: out.info.isIBGP,
-				// RFC 9494 Section 4.3: a rebuilt route carries no stale level,
-				// so LLGREgressFilter recovers it from this flag and the stored
-				// bytes (filterapi.MetaKeyRebuilt).
-				LLGRAdvertised: srcPeer.sessionAdvertisedLLGR(),
-			}
+		// Filled for every source: the in-process egress filters and the
+		// export chain's source-peer fields read it.
+		out.info.filterInfo = filterapi.PeerFilterInfo{
+			Address: s.Address,
+			PeerAS:  srcPeer.PeerAS(),
+			// Effective per-peer local AS, matching the forward path's src
+			// filterInfo so no egress filter reads a silent zero.
+			LocalAS:   s.LocalAS,
+			Name:      s.Name,
+			GroupName: s.GroupName,
+			// The one IBGP rule, as the forward path's src fill carries it.
+			IsIBGP:   out.info.isIBGP,
+			RSClient: s.RSClient,
+			// RFC 9494 Section 4.3: a rebuilt route carries no stale level,
+			// so LLGREgressFilter recovers it from this flag and the stored
+			// bytes (filterapi.MetaKeyRebuilt).
+			LLGRAdvertised: srcPeer.sessionAdvertisedLLGR(),
 		}
 		out.ctxID = fwdContextIDWithASN4(srcPeer.recvContextID(), true)
 		out.srcID = srcPeer.SourceID()

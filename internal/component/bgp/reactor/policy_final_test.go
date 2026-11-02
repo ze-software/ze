@@ -3,6 +3,7 @@ package reactor
 
 import (
 	"bytes"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"net/netip"
 	"testing"
 
@@ -83,11 +84,11 @@ func TestPolicyFinalNilAPIRails(t *testing.T) {
 			peer.settings.ImportPolicy = policy
 			r := &Reactor{}
 			want := final == routepolicy.FinalAccept
-			in := r.runIngressPolicyChain(peer, peer.Settings().Address, testWireUpdate(body), body)
+			in := r.runIngressPolicyChain(peer, peer.Settings().Address, nil, testWireUpdate(body), body)
 			if in.accept != want {
 				t.Fatalf("ingress final=%v accept=%v", final, in.accept)
 			}
-			out := r.runEgressPolicyChain(policy, "192.0.2.1", 65001, 65000, false, testWireUpdate(body))
+			out := r.runEgressPolicyChain(policy, "192.0.2.1", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
 			if out.accept != want || out.failed {
 				t.Fatalf("forward final=%v result=%+v", final, out)
 			}
@@ -270,8 +271,8 @@ func TestPolicyFinalOnlyDecisionDoesNotAllocate(t *testing.T) {
 	peer.settings.ImportPolicy = policy
 	r := &Reactor{}
 	allocations := testing.AllocsPerRun(100, func() {
-		in := r.runIngressPolicyChain(peer, peer.Settings().Address, update, body)
-		out := r.runEgressPolicyChain(policy, "192.0.2.1", 65001, 65000, false, update)
+		in := r.runIngressPolicyChain(peer, peer.Settings().Address, nil, update, body)
+		out := r.runEgressPolicyChain(policy, "192.0.2.1", 65001, 65000, false, policyview.Session{EBGP: true}, update)
 		suppressed, _ := r.exportFilterForBody(peer, body)
 		if in.accept || out.accept || out.failed || !suppressed {
 			panic("final reject failed")

@@ -132,7 +132,7 @@ func TestExternalIntentsBytesEqualInProcess(t *testing.T) {
 			inProcess := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
 			inPeer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 				ImportPolicy: libraryPolicy(t, libraryIntentImport, libraryTypeIntents, routepolicy.FinalAccept)})
-			want := inProcess.runIngressPolicyChain(inPeer, addr, contextUpdate(t, received), received)
+			want := inProcess.runIngressPolicyChain(inPeer, addr, nil, contextUpdate(t, received), received)
 			if !want.accept || want.modifiedPayload == nil {
 				t.Fatalf("in-process import = %+v, want accept with a body", want)
 			}
@@ -142,7 +142,7 @@ func TestExternalIntentsBytesEqualInProcess(t *testing.T) {
 			r := &Reactor{attrModHandlers: attrModHandlersWithDefaults(), filterTransportSeam: transport}
 			peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 				ImportPolicy: externalIntentPolicy(t)})
-			got := r.runIngressPolicyChain(peer, addr, contextUpdate(t, received), received)
+			got := r.runIngressPolicyChain(peer, addr, nil, contextUpdate(t, received), received)
 			if !got.accept || !bytes.Equal(got.modifiedPayload, want.modifiedPayload) {
 				t.Fatalf("external import = accept %v body %x, want %x", got.accept, got.modifiedPayload, want.modifiedPayload)
 			}
@@ -176,7 +176,7 @@ func TestRawRewriteTerminal(t *testing.T) {
 			r := &Reactor{attrModHandlers: attrModHandlersWithDefaults(), filterTransportSeam: transport}
 			peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 				ImportPolicy: mixedPolicy(t, "", policychain.Member{Name: "f", Plugin: "probe"})})
-			got := r.runIngressPolicyChain(peer, addr, testWireUpdate(received), received)
+			got := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received)
 			if got.accept != tc.accept {
 				t.Fatalf("import accept = %v, want %v", got.accept, tc.accept)
 			}

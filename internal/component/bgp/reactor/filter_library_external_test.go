@@ -115,7 +115,7 @@ func TestMixedChainExternalReadsInProcessSet(t *testing.T) {
 	addr := netip.MustParseAddr("10.0.0.4")
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 		ImportPolicy: mixedPolicy(t, libraryTypeLP200, policychain.Member{Name: "member"}, policychain.Member{Name: "f", Plugin: "probe"})})
-	in := r.runIngressPolicyChain(peer, addr, testWireUpdate(received), received)
+	in := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received)
 	if !in.accept || !bytes.Equal(in.modifiedPayload, want) {
 		t.Fatalf("import = accept %v body %x, want accept with %x", in.accept, in.modifiedPayload, want)
 	}
@@ -142,7 +142,7 @@ func TestExternalSetsBytesEqualInProcess(t *testing.T) {
 	inProcess := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
 	inPeer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 		ImportPolicy: libraryPolicy(t, libraryTestImport, libraryTypeLP200, routepolicy.FinalAccept)})
-	want := inProcess.runIngressPolicyChain(inPeer, addr, testWireUpdate(received), received)
+	want := inProcess.runIngressPolicyChain(inPeer, addr, nil, testWireUpdate(received), received)
 	if !want.accept || want.modifiedPayload == nil {
 		t.Fatalf("in-process import = %+v, want accept with a body", want)
 	}
@@ -166,7 +166,7 @@ func TestExternalSetsBytesEqualInProcess(t *testing.T) {
 			r := &Reactor{attrModHandlers: attrModHandlersWithDefaults(), filterTransportSeam: transport}
 			peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 				ImportPolicy: mixedPolicy(t, "", policychain.Member{Name: "f", Plugin: "probe"})})
-			got := r.runIngressPolicyChain(peer, addr, testWireUpdate(received), received)
+			got := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received)
 			if !got.accept || !bytes.Equal(got.modifiedPayload, tc.want) {
 				t.Fatalf("external import = accept %v body %x, want %x", got.accept, got.modifiedPayload, tc.want)
 			}
@@ -183,7 +183,7 @@ func TestMixedChainNoServerFailsClosed(t *testing.T) {
 	addr := netip.MustParseAddr("10.0.0.4")
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 		ImportPolicy: mixedPolicy(t, libraryTypeLP200, policychain.Member{Name: "member"}, policychain.Member{Name: "f", Plugin: "probe"})})
-	if in := r.runIngressPolicyChain(peer, addr, testWireUpdate(received), received); in.accept {
+	if in := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received); in.accept {
 		t.Fatalf("import = %+v, want the route dropped", in)
 	}
 }

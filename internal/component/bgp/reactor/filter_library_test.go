@@ -87,13 +87,13 @@ func TestLibraryChainSetsLocalPreferenceBytes(t *testing.T) {
 	addr := netip.MustParseAddr("10.0.0.4")
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 		ImportPolicy: libraryPolicy(t, libraryTestImport, libraryTypeLP200, routepolicy.FinalAccept)})
-	in := r.runIngressPolicyChain(peer, addr, testWireUpdate(received), received)
+	in := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received)
 	if !in.accept || !bytes.Equal(in.modifiedPayload, want) {
 		t.Fatalf("import = accept %v body %x, want accept with %x", in.accept, in.modifiedPayload, want)
 	}
 
 	out := r.runEgressPolicyChainASN4(libraryPolicy(t, libraryTestExport, libraryTypeLP200, routepolicy.FinalAccept),
-		"10.0.0.5", 65002, 65000, false, testWireUpdate(received), true)
+		"10.0.0.5", 65002, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(received), true)
 	if !out.accept || out.wireOverride == nil || !bytes.Equal(out.wireOverride.Payload(), want) {
 		t.Fatalf("export = %+v, want accept with %x", out, want)
 	}
@@ -107,7 +107,7 @@ func TestLibraryChainRejects(t *testing.T) {
 	received := libraryTestBody(100)
 
 	out := r.runEgressPolicyChainASN4(libraryPolicy(t, libraryTestExport, libraryTypeReject, routepolicy.FinalAccept),
-		"10.0.0.5", 65002, 65000, false, testWireUpdate(received), true)
+		"10.0.0.5", 65002, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(received), true)
 	if out.accept || out.failed {
 		t.Fatalf("export = %+v, want a policy suppression (accept false, failed false)", out)
 	}
@@ -115,7 +115,7 @@ func TestLibraryChainRejects(t *testing.T) {
 	addr := netip.MustParseAddr("10.0.0.4")
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 		ImportPolicy: libraryPolicy(t, libraryTestImport, libraryTypeReject, routepolicy.FinalReject)})
-	if in := r.runIngressPolicyChain(peer, addr, testWireUpdate(received), received); in.accept {
+	if in := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received); in.accept {
 		t.Fatalf("import = %+v, want the route dropped", in)
 	}
 }

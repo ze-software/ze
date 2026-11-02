@@ -85,6 +85,15 @@ func appendJSONString(buf []byte, s string) []byte {
 	return buf
 }
 
+// AppendJSONQuoted appends s to buf as one JSON string, quotes included, with
+// the escaping appendJSONString applies. The policy view writes a session
+// fact (a peer or group name) into the filter-update fields object with it.
+func AppendJSONQuoted(buf []byte, s string) []byte {
+	buf = append(buf, '"')
+	buf = appendJSONString(buf, s)
+	return append(buf, '"')
+}
+
 // appendReplacingByte appends s to buf replacing every occurrence of `from`
 // with `to`. Intended for token-sanitizing user-visible strings (e.g.,
 // NOTIFICATION error names "Administrative Shutdown" → "Administrative-Shutdown").

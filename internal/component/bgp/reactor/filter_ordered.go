@@ -152,7 +152,9 @@ func buildOrderedEgressSteps() []orderedEgressStep {
 // It renders text only for active external filters, then applies the final using
 // the same resolved peer generation. Rejection retains explicit withdrawals.
 // peer may be nil (peer disconnected) -- then the step is a no-op accept.
-func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpdate *wireu.WireUpdate, payload []byte) ingressStepResult {
+// src holds the session facts the received path built for this UPDATE; the
+// chain's session fact fields read them (policyview.ImportSession).
+func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, src *filterapi.PeerFilterInfo, wireUpdate *wireu.WireUpdate, payload []byte) ingressStepResult {
 	if peer == nil {
 		return ingressStepResult{accept: true}
 	}
@@ -171,7 +173,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpd
 		// none it fails under its on-error (runLibraryChain).
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 		intent := libraryIntentContext{asn4: srcCtx != nil && srcCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: true}
-		res := r.runLibraryChain(library, wireUpdate, payload, policyview.Session{EBGP: external, Sender: peerAS, SenderKnown: true}, intent,
+		res := r.runLibraryChain(library, wireUpdate, payload, importSession(src, external, peerAS), intent,
 			directionImport, modifySiteImportChain, peerAddr.String(), nil)
 		if res.outcome.Teardown {
 			return ingressStepResult{teardown: true, notifyCode: res.outcome.NotifyCode, notifySubcode: res.outcome.NotifySubcode}
@@ -288,6 +290,16 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpd
 	return ingressStepResult{accept: true}
 }
 
+// importSession answers the import chain's session. src is nil only on a
+// rail that built no session facts (a direct test of the chain); the fact
+// fields then answer absent, never a zero.
+func importSession(src *filterapi.PeerFilterInfo, external bool, peerAS uint32) policyview.Session {
+	if src == nil {
+		return policyview.Session{EBGP: external, Sender: peerAS, SenderKnown: true}
+	}
+	return policyview.ImportSession(*src)
+}
+
 // runEgressPolicyChain runs the destination peer's configured export policy chain
 // (external text/RPC filters) as one ordered egress step. It is the former export
 // PolicyFilterChain block from forwardUpdateCore, unchanged in semantics: it
@@ -297,7 +309,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpd
 // Teardown is import-only and never fires on export. Unlike ingress, this reads the
 // original payload: egress in-process filters defer their edits into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
-func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate) egressStepResult {
+func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, session policyview.Session, wireUpdate *wireu.WireUpdate) egressStepResult {
 	if !hasActiveFilter(exportPolicy, directionExport) {
 		// RFC 8212 Section 3: classify the destination, not the source encoding.
 		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
@@ -305,7 +317,7 @@ func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrSt
 	// A forwarded wire is still in the SOURCE peer's encoding, so the AS_PATH
 	// raw bytes are 2- or 4-octet per the source's negotiated ASN4.
 	srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
-	return r.runEgressPolicyChainASN4(exportPolicy, destAddrStr, destPeerAS, destLocalAS, destInternal, wireUpdate, srcCtx != nil && srcCtx.ASN4())
+	return r.runEgressPolicyChainASN4(exportPolicy, destAddrStr, destPeerAS, destLocalAS, destInternal, session, wireUpdate, srcCtx != nil && srcCtx.ASN4())
 }
 
 // runEgressPolicyChainASN4 is the shared body of the export policy chain. It is
@@ -330,7 +342,11 @@ func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrSt
 // destInternal is the destination session's internal verdict, which both
 // callers take from the peer's forwarding facts (!isEBGP). It decides whether
 // the AS_PATH edits of the filter's answer apply (RFC 4271 Section 5.1.2).
-func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
+//
+// session carries the destination's facts and, on a forwarded route, the
+// source's (policyview.ExportSession), which the chain's session fact fields
+// read.
+func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, session policyview.Session, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
 	if !hasActiveFilter(exportPolicy, directionExport) {
 		// RFC 8212 Section 3.
 		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
@@ -343,7 +359,7 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		}
 		// External members reach their plugin as on the import step.
 		intent := libraryIntentContext{asn4: asn4, localAS: destLocalAS, peerAS: destPeerAS, asPathEditable: !destInternal}
-		res := r.runLibraryChain(library, wireUpdate, wireUpdate.Payload(), policyview.Session{EBGP: !destInternal}, intent,
+		res := r.runLibraryChain(library, wireUpdate, wireUpdate.Payload(), session, intent,
 			directionExport, modifySiteExportChain, destAddrStr, nil)
 		if res.outcome.Action != policychain.OutcomeAccept {
 			return egressStepResult{failed: res.outcome.Failed} // accept == false: suppress for this peer

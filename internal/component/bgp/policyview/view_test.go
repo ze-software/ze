@@ -396,14 +396,18 @@ func TestZeroReaderRefused(t *testing.T) {
 func TestWireViewEveryReaderAllocationFree(t *testing.T) {
 	update := wireu.NewWireUpdate(fullUpdate(), fourOctet(t))
 	var view View
+	// A session holding every fact, so each session fact reader answers
+	// present too and its allocation count is measured.
+	session := ImportSession(sessionPeer())
+	session.Source, session.SourceKnown = sessionPeer(), true
 	for field := range readerTable.slots {
 		r := mustReader(t, field)
-		view.Reset(update, Session{})
+		view.Reset(update, session)
 		if x, err := view.Read(r); err != nil || !x.Present() {
 			t.Fatalf("read %s: present=%v err=%v", field, x.Present(), err)
 		}
 		allocs := testing.AllocsPerRun(50, func() {
-			view.Reset(update, Session{})
+			view.Reset(update, session)
 			if _, err := view.Read(r); err != nil {
 				t.Fatal(err)
 			}

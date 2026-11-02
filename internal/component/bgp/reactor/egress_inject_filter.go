@@ -30,6 +30,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -93,7 +94,9 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 	if hasActiveFilter(facts.exportPolicy, directionExport) {
 		var update wireu.WireUpdate
 		wireu.InitWireUpdate(&update, body, facts.sendCtxID)
-		res := r.runEgressPolicyChainASN4(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, &update, facts.sendASN4)
+		// An originated, injected or redistributed route has no source peer.
+		res := r.runEgressPolicyChainASN4(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
+			policyview.ExportSession(facts.filterInfo, filterapi.PeerFilterInfo{}, false), &update, facts.sendASN4)
 		if !res.accept {
 			// RFC 8212 Section 3.
 			if !res.failed && !facts.exportPolicy.AcceptsAtEnd(facts.isEBGP) {

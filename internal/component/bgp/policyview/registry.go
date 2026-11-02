@@ -16,7 +16,7 @@ import (
 // slotsMax bounds the registered readers, so a View's slot table is a fixed
 // array that Reset invalidates without clearing. Raise it when a BGP field
 // beyond it registers: MustRegisterReader refuses the one past the bound.
-const slotsMax = 32
+const slotsMax = 64
 
 // ErrNoReader is answered by ReaderFor for a field no BGP reader registered.
 var ErrNoReader = errors.New("no BGP policy view reader is registered for the field")
@@ -27,8 +27,9 @@ type readFunc func(v *View) (Value, error)
 // readerTable holds the registered readers. It is written only from init()
 // (MustRegisterReader) and read afterwards, so it needs no lock.
 var readerTable struct {
-	slots map[policy.Field]int
-	reads []readFunc
+	slots  map[policy.Field]int
+	reads  []readFunc
+	fields []policy.Field // in registration order, for Fields
 }
 
 // MustRegisterReader registers how the BGP view reads field. It MUST be called
@@ -47,7 +48,13 @@ func MustRegisterReader(field policy.Field, read func(v *View) (Value, error)) {
 	}
 	readerTable.slots[field] = len(readerTable.reads)
 	readerTable.reads = append(readerTable.reads, read)
+	readerTable.fields = append(readerTable.fields, field)
 }
+
+// Fields answers every field the BGP view reads, in registration order: what
+// a BGP attachment carries is derived from it, never listed a second time
+// (spec-filter-wire-6-stage-filters D-9). The caller MUST NOT modify it.
+func Fields() []policy.Field { return readerTable.fields }
 
 // ReaderFor answers the reader of field, resolved once when a chain compiles.
 // A field no BGP reader registered answers ErrNoReader: a BGP attachment MUST

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"net"
 	"net/netip"
 	"reflect"
@@ -268,7 +269,7 @@ func TestRFC8212Section3AbsentExportRejectsOnEBGP(t *testing.T) {
 			if suppress, override := r.exportFilterForBody(peer, body); !suppress || override != nil {
 				t.Fatalf("absent EBGP snapshot=%v exported %x", snapshot, override)
 			}
-			got := r.runEgressPolicyChain(settings.ExportPolicy, "192.0.2.2", 65001, 65000, false, testWireUpdate(body))
+			got := r.runEgressPolicyChain(settings.ExportPolicy, "192.0.2.2", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
 			if got.accept || got.failed {
 				t.Fatalf("general forwarding did not give policy rejection: %+v", got)
 			}
@@ -301,7 +302,7 @@ func TestRFC8212AbsentPolicyAcceptsOnIBGP(t *testing.T) {
 		r := &Reactor{}
 		body := policyChainAdvertisingBody()
 		update := testWireUpdate(body)
-		if got := r.runIngressPolicyChain(peer, settings.Address, update, body); !got.accept || got.modifiedPayload != nil {
+		if got := r.runIngressPolicyChain(peer, settings.Address, nil, update, body); !got.accept || got.modifiedPayload != nil {
 			t.Fatalf("IBGP ingress migration=%d changed: %+v", migration, got)
 		}
 		for _, snapshot := range []bool{false, true} {
@@ -313,7 +314,7 @@ func TestRFC8212AbsentPolicyAcceptsOnIBGP(t *testing.T) {
 			}
 		}
 		for _, asn4 := range []bool{false, true} {
-			got := r.runEgressPolicyChainASN4(settings.ExportPolicy, "192.0.2.2", remote, 65000, settings.IsIBGP(), update, asn4)
+			got := r.runEgressPolicyChainASN4(settings.ExportPolicy, "192.0.2.2", remote, 65000, settings.IsIBGP(), policyview.Session{EBGP: !settings.IsIBGP()}, update, asn4)
 			if !got.accept || got.failed || got.wireOverride != nil {
 				t.Fatalf("source ASN4=%v changed IBGP destination: %+v", asn4, got)
 			}

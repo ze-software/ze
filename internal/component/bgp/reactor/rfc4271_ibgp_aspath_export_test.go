@@ -5,6 +5,7 @@ package reactor
 
 import (
 	"encoding/binary"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"net/netip"
 	"testing"
 
@@ -34,7 +35,7 @@ func exportFilterTo(t *testing.T, delta string, body []byte, destPeerAS uint32) 
 		},
 		attrModHandlers: attrModHandlersWithDefaults(),
 	}
-	res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "aspath-edit"}}, routepolicy.FinalAccept), "10.0.0.30", destPeerAS, 65000, destPeerAS == 65000, wireu.NewWireUpdate(body, ctxID), true)
+	res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "aspath-edit"}}, routepolicy.FinalAccept), "10.0.0.30", destPeerAS, 65000, destPeerAS == 65000, policyview.Session{EBGP: !(destPeerAS == 65000)}, wireu.NewWireUpdate(body, ctxID), true)
 	require.True(t, res.accept, "the export chain accepts the route")
 
 	payload := body

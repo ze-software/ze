@@ -84,7 +84,7 @@ func TestLibraryChainServesTextMember(t *testing.T) {
 	addr := netip.MustParseAddr("10.0.0.4")
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 		ImportPolicy: mixedPolicy(t, "", policychain.Member{Name: "f", Plugin: "probe"}, policychain.Member{Name: "t", Plugin: "text"})})
-	in := r.runIngressPolicyChain(peer, addr, testWireUpdate(received), received)
+	in := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received)
 	if !in.accept || !bytes.Equal(in.modifiedPayload, want) {
 		t.Fatalf("import = accept %v body %x, want accept with %x", in.accept, in.modifiedPayload, want)
 	}
@@ -118,9 +118,9 @@ func TestLibraryChainTextOnlyMatchesTextChain(t *testing.T) {
 			text := mustPolicy(t, []routepolicy.Ref{{Name: "text:t"}}, routepolicy.FinalAccept)
 
 			onText := r.runIngressPolicyChain(NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001, ImportPolicy: text}),
-				addr, testWireUpdate(received), received)
+				addr, nil, testWireUpdate(received), received)
 			onLibrary := r.runIngressPolicyChain(NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001, ImportPolicy: library}),
-				addr, testWireUpdate(received), received)
+				addr, nil, testWireUpdate(received), received)
 			if onText.accept != onLibrary.accept || !bytes.Equal(onText.modifiedPayload, onLibrary.modifiedPayload) {
 				t.Fatalf("library = accept %v body %x, text = accept %v body %x",
 					onLibrary.accept, onLibrary.modifiedPayload, onText.accept, onText.modifiedPayload)
@@ -146,7 +146,7 @@ func TestLibraryChainServesUndeclaredTextFilter(t *testing.T) {
 	addr := netip.MustParseAddr("10.0.0.4")
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 		ImportPolicy: mixedPolicy(t, "", policychain.Member{Name: "undeclared", Plugin: "text"})})
-	in := r.runIngressPolicyChain(peer, addr, testWireUpdate(received), received)
+	in := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received)
 	if !in.accept || !bytes.Equal(in.modifiedPayload, want) {
 		t.Fatalf("import = accept %v body %x, want accept with %x", in.accept, in.modifiedPayload, want)
 	}

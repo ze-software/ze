@@ -364,6 +364,13 @@ route under the filter's `on-error`.
 | Internal (a goroutine in the daemon) | The typed `DirectBridge` filter slot, at Stage 5 | The engine's lazy view: `Fields()` encodes the declared fields only when called, `Raw()` the raw body, `Engine()` the engine's typed view for a filter compiled with it |
 | Forked (any process) | The `filter-update` batch handler | The decoded input: `Fields()` and `Raw()` answer what the message carried, `Engine()` is nil |
 
+A filter that needs to know which session it judges declares the session
+facts in its `reads` (`peer-name`, `peer-group`, `peer-address`, `local-as`,
+`peer-as`, `route-server-as`, `ibgp`, `rs-client`, `llgr-advertised`, and on
+export the `source-peer-*` facts), and reads them from `Fields()` like a route
+field, on both transports (protocol.md, "The Route Fields of filter-update").
+It never keeps its own map of peers for this.
+
 The slot is callable only from Stage 5 until the bridge closes. A stopped,
 crashed or respawning plugin is unavailable: the engine applies the filter's
 `on-error` and never answers from the old plugin's state.

@@ -19,7 +19,9 @@ package policyview
 
 import (
 	"errors"
+	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -49,6 +51,18 @@ type Session struct {
 	// On export the session's peer is the destination, so no sender is known.
 	Sender      uint32
 	SenderKnown bool
+	// Peer holds the facts of the session's peer, valid only when PeerKnown:
+	// the sender on import, the destination on export (ImportSession,
+	// ExportSession). The session fact fields read it (session.go).
+	Peer      filterapi.PeerFilterInfo
+	PeerKnown bool
+	// Source holds the facts of the peer an exported route came from, valid
+	// only when SourceKnown: the source-peer-* fields read it.
+	Source      filterapi.PeerFilterInfo
+	SourceKnown bool
+	// receiving marks a session ImportSession built: the received path fills
+	// every fact of Peer, llgr-advertised included.
+	receiving bool
 }
 
 // View is one route's lazy view during one synchronous chain run.
@@ -270,6 +284,10 @@ type Value struct {
 	numbered  bool
 	ebgp      bool
 	family    family.Family
+	// text, addr and flag hold a session fact (session.go).
+	text string
+	addr netip.Addr
+	flag bool
 	// overlaid marks a value SetWire wrote: a chain member's set, which the
 	// UPDATE's own attributes do not carry (formatted writes it from wire).
 	overlaid bool

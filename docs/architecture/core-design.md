@@ -1589,8 +1589,18 @@ subject above.
   declared in the policy library (`internal/component/policy/register.go`);
   `policyview` registers how BGP reads each one, so the library learns no BGP
   type. The BGP import and export attachments carry exactly the fields the view
-  reads, and `bgpconfig`'s `init` refuses to start a binary in which they
-  disagree.
+  reads: `bgpconfig`'s `init` takes the carried set from the view's reader
+  registry (`policyview.Fields`), so no second list exists to disagree.
+- **Session facts are fields of the same view.** `policyview` registers
+  `peer-name`, `peer-group`, `peer-address`, `local-as`, `peer-as`,
+  `route-server-as`, `ibgp`, `rs-client` and `llgr-advertised` for the
+  session's peer, and the `source-peer-*`, `source-ibgp` and
+  `source-rs-client` facts of an exported route's source. The reactor fills
+  them from the `filterapi.PeerFilterInfo` it already builds:
+  `policyview.ImportSession` on the received path, `policyview.ExportSession`
+  on each export rail. A fact the session does not hold answers absent, never
+  a zero, and a forked filter receives the facts it declared in `fields`, so
+  both transports read one value.
 - **Decoded on first read, borrowed, cached for the run.** A field's value
   points into the received bytes and is valid only during the synchronous
   chain run, because a received UPDATE lives in a reusable read buffer. A run

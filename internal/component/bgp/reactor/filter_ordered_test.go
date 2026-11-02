@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"net/netip"
 	"testing"
 
@@ -48,7 +49,7 @@ func TestRunEgressPolicyChainASN4NilAPIWithExportFiltersFailsClosed(t *testing.T
 	r := &Reactor{} // r.api == nil: the whole subject
 	filters := []routepolicy.Ref{{Name: "reject-private-asn"}}
 
-	res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.1", 65001, 65000, false, testWireUpdate([]byte{0, 0, 0, 0}), false)
+	res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.1", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate([]byte{0, 0, 0, 0}), false)
 
 	require.False(t, res.accept,
 		"nil API server with export filters configured must suppress the route (fail closed), not accept it unfiltered")
@@ -70,7 +71,7 @@ func TestRunEgressPolicyChainNilAPIWithExportFiltersFailsClosed(t *testing.T) {
 	r := &Reactor{}
 	filters := []routepolicy.Ref{{Name: "reject-private-asn"}}
 
-	res := r.runEgressPolicyChain(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.2", 65001, 65000, false, testWireUpdate([]byte{0, 0, 0, 0}))
+	res := r.runEgressPolicyChain(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.2", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate([]byte{0, 0, 0, 0}))
 
 	require.False(t, res.accept,
 		"forwarded egress path: nil API server with export filters must suppress, not accept")
@@ -95,17 +96,17 @@ func TestRunEgressPolicyChainAbsentExportFollowsRFC8212Default(t *testing.T) {
 
 	r := &Reactor{}
 
-	res := r.runEgressPolicyChain(mustPolicy(t, nil, routepolicy.FinalAccept), "10.0.0.3", 65001, 65000, false, testWireUpdate([]byte{0, 0, 0, 0}))
+	res := r.runEgressPolicyChain(mustPolicy(t, nil, routepolicy.FinalAccept), "10.0.0.3", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate([]byte{0, 0, 0, 0}))
 
 	require.True(t, res.accept,
 		"an accepting export policy with no filters is a legitimate accept, not a guard miss")
 
-	res = r.runEgressPolicyChain(filterapi.Policy{}, "10.0.0.6", 65000, 65000, true, testWireUpdate([]byte{0, 0, 0, 0}))
+	res = r.runEgressPolicyChain(filterapi.Policy{}, "10.0.0.6", 65000, 65000, true, policyview.Session{EBGP: false}, testWireUpdate([]byte{0, 0, 0, 0}))
 
 	require.True(t, res.accept,
 		"no export policy configured toward an internal destination is a legitimate accept")
 
-	res = r.runEgressPolicyChain(filterapi.Policy{}, "10.0.0.7", 65001, 65000, false, testWireUpdate([]byte{0, 0, 0, 0}))
+	res = r.runEgressPolicyChain(filterapi.Policy{}, "10.0.0.7", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate([]byte{0, 0, 0, 0}))
 
 	require.False(t, res.accept,
 		"RFC 8212 Section 3: no export policy toward an EBGP destination rejects")
@@ -136,7 +137,7 @@ func TestRunIngressPolicyChainNilAPIWithImportFiltersFailsClosed(t *testing.T) {
 		ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "block-bogons"}}, routepolicy.FinalAccept),
 	})
 
-	res := r.runIngressPolicyChain(peer, addr, testWireUpdate([]byte{0, 0, 0, 0}), []byte{0, 0, 0, 0})
+	res := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate([]byte{0, 0, 0, 0}), []byte{0, 0, 0, 0})
 
 	require.False(t, res.accept,
 		"ingress: nil API server with import filters must drop the route (fail closed), not accept unfiltered")
@@ -160,7 +161,7 @@ func TestRunIngressPolicyChainNoImportFiltersAccepts(t *testing.T) {
 		PeerAS:  65001,
 	})
 
-	res := r.runIngressPolicyChain(peer, addr, testWireUpdate([]byte{0, 0, 0, 0}), []byte{0, 0, 0, 0})
+	res := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate([]byte{0, 0, 0, 0}), []byte{0, 0, 0, 0})
 
 	require.True(t, res.accept,
 		"no import policy configured is a legitimate accept, not a guard miss")
@@ -238,7 +239,7 @@ func TestRunIngressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 	}
 
 	body := policyChainAdvertisingBody()
-	res := r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
+	res := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(body), body)
 
 	require.False(t, res.accept,
 		"an import modification that could not be applied must DROP the route, never accept it unmodified")
@@ -262,7 +263,7 @@ func TestRunEgressPolicyChainASN4ModifyFailureFailsClosed(t *testing.T) {
 	filters := []routepolicy.Ref{{Name: "set-local-pref"}}
 
 	body := policyChainAdvertisingBody()
-	res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.7", 65001, 65000, false, testWireUpdate(body), false)
+	res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.7", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 	require.False(t, res.accept,
 		"an export modification that could not be applied must suppress the route, never send it unmodified")
@@ -284,7 +285,7 @@ func TestRunEgressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 	filters := []routepolicy.Ref{{Name: "set-local-pref"}}
 
 	body := policyChainAdvertisingBody()
-	res := r.runEgressPolicyChain(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.8", 65001, 65000, false, testWireUpdate(body))
+	res := r.runEgressPolicyChain(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.8", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
 
 	require.False(t, res.accept, "forwarded egress path must suppress on a modify failure")
 	require.True(t, res.failed, "a step that could not run is not a policy decision")
@@ -332,7 +333,7 @@ func TestRunEgressPolicyChainASN4ShortRawOverrideFailsClosed(t *testing.T) {
 	filters := []routepolicy.Ref{{Name: "mp-reach-surgery"}}
 
 	body := []byte{0, 0, 0, 0}
-	res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.11", 65001, 65000, false, testWireUpdate(body), false)
+	res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.11", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 	require.False(t, res.accept,
 		"a raw override that cannot be decoded must suppress the route, never send the original unmodified")
@@ -364,7 +365,7 @@ func TestRunIngressPolicyChainShortRawOverrideFailsClosed(t *testing.T) {
 	}
 
 	body := []byte{0, 0, 0, 0}
-	res := r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
+	res := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(body), body)
 
 	require.False(t, res.accept,
 		"an import raw override that cannot be decoded must DROP the route, never accept it unmodified")
@@ -393,7 +394,7 @@ func TestPolicyChainRawOverrideBoundary(t *testing.T) {
 			attrModHandlers: map[uint8]filterapi.AttrModHandler{},
 		}
 
-		res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "plain"}}, routepolicy.FinalAccept), "10.0.0.13", 65001, 65000, false, testWireUpdate(body), false)
+		res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "plain"}}, routepolicy.FinalAccept), "10.0.0.13", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 		require.True(t, res.accept, "a filter that asked for no raw override must still accept")
 		assert.False(t, res.failed, "no override requested is not a failure")
@@ -410,7 +411,7 @@ func TestPolicyChainRawOverrideBoundary(t *testing.T) {
 			attrModHandlers: map[uint8]filterapi.AttrModHandler{},
 		}
 
-		res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "mp-reach-surgery"}}, routepolicy.FinalAccept), "10.0.0.14", 65001, 65000, false, testWireUpdate(body), false)
+		res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "mp-reach-surgery"}}, routepolicy.FinalAccept), "10.0.0.14", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 		require.True(t, res.accept, "a decodable raw override must be accepted, not refused")
 		assert.False(t, res.failed, "an applied override is not a failure")
@@ -441,7 +442,7 @@ func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
 			attrModHandlers:  handlers,
 		}
 
-		res := r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
+		res := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(body), body)
 
 		require.True(t, res.accept, "an applicable modification must not be refused")
 		require.NotNil(t, res.modifiedPayload, "the modified payload must reach the caller")
@@ -455,7 +456,7 @@ func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
 			attrModHandlers:  handlers,
 		}
 
-		res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept), "10.0.0.10", 65001, 65000, false, testWireUpdate(body), false)
+		res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept), "10.0.0.10", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 		require.True(t, res.accept, "an applicable modification must not be refused")
 		assert.False(t, res.failed, "an applied modification is not a failure")
@@ -499,7 +500,7 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 			ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept),
 		})
 
-		res := newReactor().runIngressPolicyChain(peer, addr, testWireUpdate(withdrawal), withdrawal)
+		res := newReactor().runIngressPolicyChain(peer, addr, nil, testWireUpdate(withdrawal), withdrawal)
 
 		require.True(t, res.accept, "a withdrawal the chain cannot decorate is still accepted")
 		assert.Nil(t, res.modifiedPayload,
@@ -507,7 +508,7 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 	})
 
 	t.Run("egress", func(t *testing.T) {
-		res := newReactor().runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept), "10.0.0.21", 65001, 65000, false, testWireUpdate(withdrawal), false)
+		res := newReactor().runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept), "10.0.0.21", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(withdrawal), false)
 
 		require.True(t, res.accept, "a withdrawal the chain cannot decorate is still forwarded")
 		assert.False(t, res.failed, "refusing to create is not a step that could not run")
@@ -519,7 +520,7 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 	// a gate stuck closed reddens here rather than passing both halves above.
 	t.Run("advertising-body-still-modified", func(t *testing.T) {
 		body := policyChainAdvertisingBody()
-		res := newReactor().runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept), "10.0.0.22", 65001, 65000, false, testWireUpdate(body), false)
+		res := newReactor().runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept), "10.0.0.22", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 		require.True(t, res.accept)
 		require.NotNil(t, res.wireOverride, "an advertisement is still decorated")
@@ -586,7 +587,7 @@ func TestImportChainPassesTheSourceContextWidthToThePrepend(t *testing.T) {
 			}
 
 			body := asPathBodyAtWidth(asn4)
-			res := r.runIngressPolicyChain(peer, addr, wireu.NewWireUpdate(body, ctxID), body)
+			res := r.runIngressPolicyChain(peer, addr, nil, wireu.NewWireUpdate(body, ctxID), body)
 
 			require.True(t, res.accept, "the import chain accepted the modified route")
 			require.NotNil(t, res.modifiedPayload, "the import chain rebuilt the payload")
@@ -621,7 +622,7 @@ func TestExportChainPassesItsWidthToThePrepend(t *testing.T) {
 			filters := []routepolicy.Ref{{Name: "prepend-twice"}}
 
 			body := asPathBodyAtWidth(asn4)
-			res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.21", 65001, 65000, false,
+			res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.21", 65001, 65000, false, policyview.Session{EBGP: true},
 				wireu.NewWireUpdate(body, ctxID), asn4)
 
 			require.True(t, res.accept, "the export chain accepted the modified route")
@@ -663,7 +664,7 @@ func TestForwardedExportChainPassesTheSourceContextWidthToThePrepend(t *testing.
 			filters := []routepolicy.Ref{{Name: "prepend-twice"}}
 
 			body := asPathBodyAtWidth(asn4)
-			res := r.runEgressPolicyChain(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.22", 65001, 65000, false,
+			res := r.runEgressPolicyChain(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.22", 65001, 65000, false, policyview.Session{EBGP: true},
 				wireu.NewWireUpdate(body, ctxID))
 
 			require.True(t, res.accept, "the forwarded export chain accepted the modified route")
