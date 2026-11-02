@@ -13,7 +13,7 @@ import (
 // LocalAnswer rather than written by the parser or the handler.
 // PREVENTS: the flag set's Usage hook printing help on the process's stderr
 // from inside the parser, which on a daemon route reaches the daemon's stderr.
-// Method: the help request compared with the page rendered without colour (the
+// Method: the help request compared with the page rendered without color (the
 // test's stderr is no terminal), and an unknown option's line checked whole.
 func TestYANGDataRefusalsAreReturned(t *testing.T) {
 	var page bytes.Buffer

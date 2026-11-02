@@ -14,7 +14,7 @@ import (
 
 // neighUpdate builds one netlink neighbor notification on link 7.
 func neighUpdate(msgType uint16, ip, mac string, state int) netlink.NeighUpdate {
-	nu := netlink.NeighUpdate{Type: msgType, Neigh: netlink.Neigh{LinkIndex: 7, IP: net.ParseIP(ip), State: state}}
+	nu := netlink.NeighUpdate{Type: msgType, LinkIndex: 7, IP: net.ParseIP(ip), State: state}
 	if mac != "" {
 		hw, err := net.ParseMAC(mac)
 		if err != nil {

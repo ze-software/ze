@@ -252,7 +252,7 @@ func TestRuntimeWriteDoesNotWaitForADirectorySync(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Error("a runtime-state write waited for a configuration guard's directory sync")
 		close(release)
-		<-counted
+		assert.NoError(t, <-counted)
 		require.NoError(t, <-written)
 		return
 	}

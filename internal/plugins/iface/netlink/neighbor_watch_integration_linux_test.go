@@ -34,7 +34,7 @@ func TestIntegrationNeighbourWatchSeesPreexistingEntry(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	veth := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: "w0"}, PeerName: "w1"}
+	veth := &netlink.Veth{Name: "w0", PeerName: "w1"}
 	if err := netlink.LinkAdd(veth); err != nil {
 		t.Fatalf("add veth: %v", err)
 	}

@@ -28,7 +28,7 @@ func TestIntegrationAddressWatchSignalsAddAndDelete(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	dummy := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "aw0"}}
+	dummy := &netlink.Dummy{Name: "aw0"}
 	if err := netlink.LinkAdd(dummy); err != nil {
 		t.Fatalf("add dummy: %v", err)
 	}
