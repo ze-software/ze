@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Shipped-behaviour defect: a reload adding a peer that carries a plugin capability (`role`, `software-version`, `hostname`, `graceful-restart`, `link-local-next-hop`, the ExaBGP bridge's codes) is refused, against the owner rule that a peer with any of its settings joins the running config without a restart |
@@ -13,6 +13,21 @@
 | Updated | 2026-11-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Implementation Status
+
+Implementation complete; next step `/ze-close` (Review Gate, then the two
+closure commits). Not closed.
+
+| Commit | What landed |
+|--------|-------------|
+| 22051cb019 | Reactor: a reload judges plugin capabilities on an unchanged peer (`Session.pluginCapabilitiesKept`), `TestReloadPluginCapabilityChange` |
+| f3b68fe48f | Test peer: each session writes its own established-file marker |
+| 93bd019e2d | Reactor: a capability-block edit restarts only when the plugin capability did, `TestReloadCapabilityBlockEdit` |
+| bb50677cb4 | SDK verify answer carries the candidate declaration, refusal deleted, per-plugin tests, docs (AC-7), seven reload `.ci` (five refused files replaced), judge-approved |
+
+Gates still owed by `/ze-close`: the Review Gate, and the interop decision
+(the spec states N-A: no wire format change).
 
 ## Task
 

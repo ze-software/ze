@@ -329,15 +329,6 @@ func (p *PeerInfo) LocalAddrStr() string {
 	return p.LocalAddress.String()
 }
 
-// PeerCapabilityConfig holds BGP capability configuration for a peer.
-// Used by plugin protocol Stage 2 to deliver matching config.
-// Values is a flexible map allowing any capability to be represented.
-type PeerCapabilityConfig struct {
-	Address        string            // Peer IP address
-	Values         map[string]string // capability-name -> value (e.g., "hostname" -> "router1.example.com")
-	CapabilityJSON string            // Full capability block as JSON - plugins extract what they need
-}
-
 // ReactorStats holds BGP reactor-level statistics.
 type ReactorStats struct {
 	StartTime time.Time
@@ -422,9 +413,6 @@ type ReactorIntrospector interface {
 
 	// GetPeerProcessBindings returns process bindings for a specific peer.
 	GetPeerProcessBindings(peerAddr netip.Addr) []PeerProcessBinding
-
-	// GetPeerCapabilityConfigs returns capability configurations for all peers.
-	GetPeerCapabilityConfigs() []PeerCapabilityConfig
 }
 
 // PolicyTraceEntry records an external filter result, or marks a named in-process

@@ -1374,7 +1374,6 @@ func (m *mockIntrospector) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.Peer
 func (m *mockIntrospector) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
 	return nil
 }
-func (m *mockIntrospector) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig { return nil }
 
 // TestCollectPrefixWarningsOneStale verifies that a single stale peer shows the specific warning.
 // Bus seeded with one prefix-stale entry; banner reads from the bus.

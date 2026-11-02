@@ -42,7 +42,6 @@ func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapab
 	return nil
 }
 func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding { return nil }
-func (m *mockReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig         { return nil }
 
 // --- ReactorPeerController ---
 

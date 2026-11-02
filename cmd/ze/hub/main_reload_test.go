@@ -73,7 +73,6 @@ func (r *reloadTestReactor) Stats() plugin.ReactorStats {
 func (r *reloadTestReactor) GetPeerProcessBindings(netip.Addr) []plugin.PeerProcessBinding {
 	return nil
 }
-func (r *reloadTestReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig { return nil }
 func (r *reloadTestReactor) PeerNegotiatedCapabilities(netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil
 }

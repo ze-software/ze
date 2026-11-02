@@ -1419,8 +1419,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	peersToStart := make(map[netip.AddrPort]*Peer, len(r.peers))
 	maps.Copy(peersToStart, r.peers)
 
-	// Release lock before waiting for API - plugins need RLock in GetPeerCapabilityConfigs()
-	// during their startup protocol. Holding the write lock here causes deadlock.
+	// Release the lock before waiting for the API: plugins take r.mu.RLock through
+	// the reactor adapter during their startup protocol, so holding the write lock
+	// here deadlocks.
 	r.mu.Unlock()
 
 	// When using an external plugin server (BGP running as a config-driven plugin),

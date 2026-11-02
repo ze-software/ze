@@ -475,53 +475,6 @@ func (a *reactorAPIAdapter) SoftClearPeer(sel *selector.Selector, sender plugin.
 	return families, lastErr
 }
 
-// GetPeerCapabilityConfigs returns capability configurations for all peers.
-// Used by plugin protocol Stage 2 to deliver matching config.
-// Extracts known capability values into a flexible map for pattern matching.
-func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig {
-	a.r.mu.RLock()
-	defer a.r.mu.RUnlock()
-
-	result := make([]plugin.PeerCapabilityConfig, 0, len(a.r.peers))
-	for _, p := range a.r.peers {
-		s := p.Settings()
-		// Through the accessor: a reload swap can replace both block fields on
-		// the shared PeerSettings (pluginCapabilityConfigSettings).
-		capabilityJSON, rawCapabilityConfig := p.pluginCapabilityConfig()
-		cfg := plugin.PeerCapabilityConfig{
-			Address:        s.Address.String(),
-			Values:         make(map[string]string),
-			CapabilityJSON: capabilityJSON,
-		}
-
-		// Extract capability values via ConfigProvider interface.
-		// Each capability that implements ConfigProvider returns its own
-		// scoped key-value pairs (e.g., "rfc4724:restart-time" or "draft-xxx:field").
-		// This allows new capabilities to be added without modifying this code.
-		// Through the accessor: a reload swap can replace the slice on the shared
-		// PeerSettings (peer_settings_negotiation.go), and this runs on the plugin
-		// protocol's goroutine.
-		for _, cap := range p.configuredCapabilities() {
-			if provider, ok := cap.(capability.ConfigProvider); ok {
-				maps.Copy(cfg.Values, provider.ConfigValues())
-			}
-		}
-
-		// Also include raw capability config values for plugin-declared capabilities.
-		// Format: "<name>:<field>" -> value (RFC-style scoping, matches ConfigProvider pattern).
-		// Server.go adds "capability " prefix when building path.
-		for capName, fields := range rawCapabilityConfig {
-			for fieldName, value := range fields {
-				key := capName + ":" + fieldName
-				cfg.Values[key] = value
-			}
-		}
-
-		result = append(result, cfg)
-	}
-	return result
-}
-
 // GetConfigTree returns the full config as a map for plugin config delivery.
 func (a *reactorAPIAdapter) GetConfigTree() map[string]any {
 	a.r.mu.RLock()

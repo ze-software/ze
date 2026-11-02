@@ -284,10 +284,9 @@ func negotiatedOutcomeEqual(a, b *capability.Negotiated) bool {
 // lands in the same place.
 //
 // Capabilities is the whole set, and the reason it qualifies is read at its
-// consumers rather than assumed. Its three readers are buildOpen, which runs once
-// per connection (session_negotiate.go), GetPeerCapabilityConfigs (reactor_api.go)
-// and validatePeerFamilies (reactor.go), which answer on demand; all three now go
-// through the p.mu-guarded Peer.ConfiguredCapabilities. Nothing in an established
+// consumers rather than assumed. Its readers are buildOpen, which runs once per
+// connection (session_negotiate.go), and validatePeerFamilies (reactor.go), which
+// answers on demand; both go through the p.mu-guarded Peer.ConfiguredCapabilities. Nothing in an established
 // session caches it, so the new set governs the next OPEN while the running
 // session keeps the negotiation the probe proved unchanged.
 //
@@ -313,22 +312,9 @@ func negotiatedCapabilitySettings(dst, src *PeerSettings) {
 // compares it with the declaration recorded when the running OPEN was built
 // (pluginDeclarationsKept). A block edit therefore restarts exactly when that
 // comparison does: a plugin capability changed for a code the peer advertised.
-// Their one reader on a running peer, GetPeerCapabilityConfigs (reactor_api.go),
-// goes through the p.mu-guarded Peer.pluginCapabilityConfig.
 func pluginCapabilityConfigSettings(dst, src *PeerSettings) {
 	dst.CapabilityConfigJSON = src.CapabilityConfigJSON
 	dst.RawCapabilityConfig = src.RawCapabilityConfig
-}
-
-// pluginCapabilityConfig returns the peer's capability block as plugins receive
-// it, under p.mu: a reload swap replaces both fields on the shared PeerSettings
-// (pluginCapabilityConfigSettings), so a reader on another goroutine MUST use
-// this accessor. The map is replaced whole and never written in place, so the
-// caller may range over it after the lock is released.
-func (p *Peer) pluginCapabilityConfig() (string, map[string]map[string]string) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.settings.CapabilityConfigJSON, p.settings.RawCapabilityConfig
 }
 
 // hotSwappableWithPluginCapabilityConfig is the swap set when the plugin

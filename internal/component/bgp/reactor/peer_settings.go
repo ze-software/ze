@@ -653,13 +653,12 @@ type PeerSettings struct {
 	// Used for plugin-declared capabilities that don't have Go capability types.
 	RawCapabilityConfig map[string]map[string]string
 
-	// CapabilityConfigJSON is the entire capability block as JSON for plugin delivery.
-	// Plugins receive this and extract what they need based on their YANG knowledge.
-	// This replaces the need for per-plugin extraction code in the config loader.
+	// CapabilityConfigJSON is the entire capability block as JSON. Nothing reads
+	// it: plugins take their config from the config tree, and their capabilities
+	// reach the OPEN through the injector store, never through this field.
 	// A reload swaps it and RawCapabilityConfig onto a running peer when the
 	// plugin capabilities its OPEN carried are kept (pluginCapabilityConfigSettings,
-	// peer_settings_negotiation.go), so a reader of a running peer's value goes
-	// through Peer.pluginCapabilityConfig.
+	// peer_settings_negotiation.go).
 	CapabilityConfigJSON string
 }
 

@@ -112,9 +112,6 @@ func TestCoordinatorWithoutReactor(t *testing.T) {
 	if peers := c.Peers(); peers != nil {
 		t.Errorf("expected nil peers, got %v", peers)
 	}
-	if caps := c.GetPeerCapabilityConfigs(); caps != nil {
-		t.Errorf("expected nil caps, got %v", caps)
-	}
 
 	// PeerController: returns ErrNoReactor
 	addr := netip.MustParseAddr("10.0.0.1")
@@ -367,7 +364,6 @@ func (m *mockReactor) PeerNegotiatedCapabilities(netip.Addr) *PeerCapabilitiesIn
 	return nil
 }
 func (m *mockReactor) GetPeerProcessBindings(netip.Addr) []PeerProcessBinding { return nil }
-func (m *mockReactor) GetPeerCapabilityConfigs() []PeerCapabilityConfig       { return nil }
 func (m *mockReactor) Stop()                                                  {}
 func (m *mockReactor) DisablePeer(netip.Addr, string) error                   { return nil }
 func (m *mockReactor) EnablePeer(netip.Addr) error                            { return nil }

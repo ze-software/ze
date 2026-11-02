@@ -1331,7 +1331,6 @@ func (m *mockReactorBatch) ClearRIBIn() int { return 0 }
 func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
 	return nil
 }
-func (m *mockReactorBatch) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig { return nil }
 func (m *mockReactorBatch) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil
 }

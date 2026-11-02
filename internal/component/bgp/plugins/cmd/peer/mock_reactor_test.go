@@ -119,7 +119,6 @@ func (m *mockReactor) ApplyConfigDiff(tree map[string]any) error {
 	return nil
 }
 func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding { return nil }
-func (m *mockReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig         { return nil }
 func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return m.peerCaps
 }

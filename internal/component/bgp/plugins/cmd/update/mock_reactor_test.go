@@ -82,7 +82,6 @@ func (m *mockReactor) DrainPeerSync(_ context.Context) error                    
 func (m *mockReactor) VerifyConfig(_ map[string]any) error                             { return nil }
 func (m *mockReactor) ApplyConfigDiff(_ map[string]any) error                          { return nil }
 func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding { return nil }
-func (m *mockReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig         { return nil }
 func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return m.peerCaps
 }
