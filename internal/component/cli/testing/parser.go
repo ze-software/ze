@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -312,6 +313,17 @@ func (tc *testCase) parseOption(rest string) error {
 		}
 	}
 
+	switch opt.Type {
+	case "width", "height":
+		value := opt.Values["value"]
+		dimension, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("option=%s:value=%s: set value to a positive integer: %w", opt.Type, value, err)
+		}
+		if dimension <= 0 {
+			return fmt.Errorf("option=%s:value=%s: set value to a positive integer", opt.Type, value)
+		}
+	}
 	tc.Options = append(tc.Options, opt)
 	return nil
 }

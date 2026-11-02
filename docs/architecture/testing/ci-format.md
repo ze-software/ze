@@ -2534,6 +2534,17 @@ reads the live RIB, and a plugin command comes from the live dispatcher. A
 headless test has neither, so a completion over a VALUE stays empty there.
 <!-- source: internal/component/cli/testing/headless.go -- headlessCommandTree -->
 
+### Dimensions and Timeout
+
+Editor dimensions use `option=width:value=<columns>` and
+`option=height:value=<rows>`. Missing, nonnumeric, nonpositive and overflowing
+integer values are parse errors. Dimensions default to 80×24 and apply to the
+initial model, each new session and every restarted model through the terminal
+resize event. `option=timeout:value=<duration>` defaults to 30 seconds and
+refuses nonpositive durations or overflow after concurrency headroom is applied.
+<!-- source: internal/component/cli/testing/parser.go -- parseOption -->
+<!-- source: internal/component/cli/testing/runner.go -- testBudget, runTestCaseIn -->
+
 ### Wait Actions
 
 | Action | Purpose | Example |

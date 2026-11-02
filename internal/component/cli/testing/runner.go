@@ -6,12 +6,15 @@ package testing
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -100,7 +103,13 @@ func testBudget(tc *testCase, headroom int) (time.Duration, error) {
 		if err != nil {
 			return 0, fmt.Errorf("option=timeout:value=%s: %w", val, err)
 		}
+		if d <= 0 {
+			return 0, fmt.Errorf("option=timeout:value=%s: set value to a positive duration", val)
+		}
 		timeout = d
+	}
+	if timeout > time.Duration(math.MaxInt64)/time.Duration(headroom) {
+		return 0, fmt.Errorf("option=timeout with headroom %d exceeds the duration limit: reduce the timeout", headroom)
 	}
 	return timeout * time.Duration(headroom), nil
 }
@@ -289,24 +298,36 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 	}
 	defer configStore.Close() //nolint:errcheck // test cleanup
 
+	// Every constructor uses the same resize event as an interactive terminal.
+	// Apply it before any authored step, including after a restart or session creation.
+	sizeModel := func(hm *headlessModel, err error) (*headlessModel, error) {
+		if err != nil {
+			return nil, err
+		}
+		if err := hm.sendMsg(tea.WindowSizeMsg{Width: width, Height: height}); err != nil {
+			return nil, err
+		}
+		return hm, nil
+	}
+
 	// createModel builds a HeadlessModel based on the current mode.
 	createModel := func() (*headlessModel, error) {
 		if editorMode == "operational" || editorMode == "command" {
-			return newHeadlessCommandModel()
+			return sizeModel(newHeadlessCommandModel())
 		}
 		if configPath == "" {
 			return nil, errNoConfigFileSpecifiedUseOption
 		}
 		if storageMode == storageModeBlob {
-			return newHeadlessBackupModel(configStore, configPath, sessionUser)
+			return sizeModel(newHeadlessBackupModel(configStore, configPath, sessionUser))
 		}
 		if _, statErr := os.Stat(configPath); os.IsNotExist(statErr) {
 			return nil, fmt.Errorf("config file not found: %s", configPath)
 		}
 		if sessionUser != "" {
-			return newHeadlessModelWithSession(configStore, configPath, sessionUser, sessionOrigin)
+			return sizeModel(newHeadlessModelWithSession(configStore, configPath, sessionUser, sessionOrigin))
 		}
-		return newHeadlessModel(configStore, configPath)
+		return sizeModel(newHeadlessModel(configStore, configPath))
 	}
 
 	// wireHistory sets up history persistence on the model.
@@ -350,10 +371,6 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 		wireFakePingMonitor(hm)
 	}
 
-	// Set window size if specified
-	_ = width
-	_ = height
-
 	// Process steps in order (inputs, expectations, waits, sessions interleaved)
 	for stepIdx, step := range tc.Steps {
 		stepNum := stepIdx + 1
@@ -376,7 +393,7 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 				})
 				hm = existing
 			} else {
-				newHM, sessionErr := newHeadlessModelWithSession(configStore, configPath, sa.User, sa.Origin)
+				newHM, sessionErr := sizeModel(newHeadlessModelWithSession(configStore, configPath, sa.User, sa.Origin))
 				result.Steps = append(result.Steps, trace.StepResult{
 					Step: stepNum, Kind: etSession, Assert: sa.Name,
 					Passed: sessionErr == nil, Detail: trace.ErrString(sessionErr),
