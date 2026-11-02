@@ -765,13 +765,28 @@ func runRIBPlugin(conn net.Conn) int {
 	// store's lookup in memory, so it must learn the gate exists, and the
 	// command that answers it (ribevents.NoteValidationGate), rather than
 	// select every path.
-	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventValidationGate})
+	// gate-query asks this RIB to announce its flowspec-gate again, for a
+	// reader whose subscription went live after the announcement.
+	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventValidationGate, ribevents.EventGateQuery})
 	p.SetEnvelope(true)
 
 	// Start compaction scheduler after 5-stage startup completes.
 	// The scheduler runs as a goroutine tied to the plugin context,
 	// reclaiming dead buffer space in attribute pools under route churn.
 	p.OnStarted(func(ctx context.Context) error {
+		// Both run once this RIB's subscriptions are live: the announcement
+		// tells every reader which command answers the FlowSpec lookup, and
+		// the query makes the receive store announce its validation gate again
+		// in case bgp-rpki enabled it before this RIB subscribed. A failure
+		// leaves a reader in another process failing closed (no FlowSpec rule
+		// forwarded or replayed, every path refused while validation is on),
+		// so it is logged rather than stopping the RIB.
+		if err := r.announceFlowSpecGate(); err != nil {
+			logger().Error("bgp-rib: flowspec-gate not announced: a process without this RIB's lookup forwards and replays no FlowSpec rule", "error", err)
+		}
+		if err := r.askGateOwners(); err != nil {
+			logger().Error("bgp-rib: gate-query not sent: a validation gate enabled before this RIB subscribed stays unknown here", "error", err)
+		}
 		if r.forkRIB != nil {
 			if _, err := p.RouteMetrics(ctx, nil); err != nil {
 				return fmt.Errorf("bgp-rib requires engine next-hop metrics: %w", err)
@@ -1566,6 +1581,9 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: "request bgp rib purge-stale"},
 		// Source-owned DOWN selection; the engine provides causal sent ordering.
 		{Name: "request bgp rib recovery", Hidden: true, Shape: shapeMap},
+		// Plugin-to-plugin plumbing: a process that cannot read this RIB's
+		// FlowSpec lookup in memory asks it here (flowSpecGateCommand).
+		{Name: flowSpecGateCommand, Hidden: true, Shape: shapeMap},
 		// LLGR uses these through the engine dispatcher, not private handlers.
 		{Name: "request bgp rib attach-community"},
 		{Name: "request bgp rib delete-with-community"},

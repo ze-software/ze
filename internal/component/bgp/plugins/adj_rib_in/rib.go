@@ -16,6 +16,7 @@ package adj_rib_in
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -398,6 +399,13 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	r.emitValidation = r.emitValidationEvent
 	r.announceGate = r.emitValidationGateEvent
 	defer ribevents.RegisterValidationLookup(nil, nil)
+	// A store that does not share the selecting RIB's process reads its
+	// FlowSpec lookup through the command the flowspec-gate announcement
+	// names (ribevents.NoteFlowSpecGate asks it through this dispatch).
+	releaseGateDispatch := ribevents.RegisterGateDispatch(func(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
+		return p.DispatchCommandArgs(ctx, command, args, "")
+	})
+	defer releaseGateDispatch()
 
 	// Structured event handler for DirectBridge delivery.
 	// State events use metadata fields directly. UPDATE events are dispatched
@@ -430,6 +438,9 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 
 	// Fallback: JSON event handler for non-DirectBridge delivery.
 	p.OnEvent(func(jsonStr string) error {
+		if r.handleGateEvent(jsonStr) {
+			return nil
+		}
 		event, err := bgp.ParseEvent([]byte(jsonStr))
 		if err != nil {
 			logger().Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
@@ -461,6 +472,14 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 
 	// Subscribe to received events with format=full (includes raw hex bytes).
 	p.SetStartupSubscriptions([]string{"update direction received", "state"}, nil, "full")
+	// The selecting RIB's flowspec-gate, and gate-query from a reader that
+	// needs this store's validation gate announced again; enveloped, so
+	// handleGateEvent tells them from the BGP events.
+	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventFlowSpecGate, ribevents.EventGateQuery})
+	p.SetEnvelope(true)
+	// Once the subscriptions are live, ask the RIB to announce its
+	// flowspec-gate again, in case it announced before this store subscribed.
+	p.OnStarted(r.askGateOwners)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()

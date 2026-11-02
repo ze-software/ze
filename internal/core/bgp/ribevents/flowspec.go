@@ -37,6 +37,15 @@ type flowSpecProvider struct {
 	present  func(ValidationRoute) bool
 	path     func(ValidationRoute) (FlowSpecPath, bool)
 	routes   func() []ValidationRoute
+	// redirect is the RIB's redirect verdict reached in another process; in
+	// the RIB's own process RegisterFlowSpecRedirectLookup holds it instead.
+	redirect func(ValidationRoute, uint64) bool
+	// batch answers many queries at once. Each result MUST be seeded with its
+	// refusing value by the caller.
+	batch func(queries []FlowSpecQuery, results []FlowSpecResult)
+	// announced marks a provider NoteFlowSpecGate installed from an
+	// announcement, as opposed to the one the RIB registered here.
+	announced bool
 }
 
 var flowSpecLookup atomic.Pointer[flowSpecProvider]
@@ -72,7 +81,9 @@ func RegisterFlowSpecLookup(eligible ValidationLookup, present func(ValidationRo
 		flowSpecLookup.Store(nil)
 		return
 	}
-	flowSpecLookup.Store(&flowSpecProvider{eligible: eligible, present: present, path: path, routes: routes})
+	provider := &flowSpecProvider{eligible: eligible, present: present, path: path, routes: routes}
+	provider.batch = provider.localFlowSpecBatch
+	flowSpecLookup.Store(provider)
 }
 
 // LookupFlowSpecPath returns owned attributes for the current received path.
@@ -104,10 +115,16 @@ func FlowSpecRoutes() []ValidationRoute {
 // keyed as RouteEligible keys it (FlowSpecKey, ADD-PATH removed). A forward
 // rail asks it for each rule it sends and moves a refused rule to a copy
 // without 0x0800. With no provider the answer is false: the eligibility gate
-// (RouteEligible) already forwards no FlowSpec route then.
+// (RouteEligible) already forwards no FlowSpec route then. A process that
+// reaches the RIB in another process (NoteFlowSpecGate) asks it, and an
+// answer it cannot obtain is refused.
 func FlowSpecRedirectRefused(route ValidationRoute, msgID uint64) bool {
 	refused := flowSpecRedirect.Load()
-	return refused != nil && (*refused)(route, msgID)
+	if refused != nil {
+		return (*refused)(route, msgID)
+	}
+	provider := flowSpecLookup.Load()
+	return provider != nil && provider.redirect != nil && provider.redirect(route, msgID)
 }
 
 var flowSpecRedirect atomic.Pointer[func(ValidationRoute, uint64) bool]

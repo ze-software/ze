@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -280,3 +281,20 @@ func (rs *routeServer) replayFlowSpecs(destination string, gen, cut uint64) {
 		}
 	}
 }
+
+// askFlowSpecGate emits a gate-query, so the selecting RIB announces its
+// flowspec-gate again for this plugin, whose subscription may have gone live
+// after the RIB's first announcement (ribevents.EventGateQuery).
+func (rs *routeServer) askFlowSpecGate() error {
+	// refuse-by-default: guards ribevents.EventGateQuery -- a nil plugin is a test instance with no engine, and no RIB to ask
+	if rs.plugin == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), flowSpecGateQueryTimeout)
+	defer cancel()
+	_, err := rs.plugin.EmitEvent(ctx, ribevents.Namespace, ribevents.EventGateQuery, "", "", "{}")
+	return err
+}
+
+// flowSpecGateQueryTimeout bounds the gate-query askFlowSpecGate emits.
+const flowSpecGateQueryTimeout = 5 * time.Second

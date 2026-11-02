@@ -168,7 +168,10 @@ func TestForkedGateServesValidatedVerdicts(t *testing.T) {
 			ribevents.RegisterValidationLookup(nil, nil)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			engine := pluginengine.Start(t, transport, runAdjRIBInPlugin)
+			// Registered before the plugin starts: the first registration
+			// wins, and the plugin registers its own (for the FlowSpec gate)
+			// as it runs, which here shares this test's process.
+			var engine *pluginengine.Engine
 			release := ribevents.RegisterGateDispatch(func(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
 				data, err := engine.Execute(ctx, command, args)
 				if err != nil {
@@ -177,6 +180,7 @@ func TestForkedGateServesValidatedVerdicts(t *testing.T) {
 				return "done", data, nil
 			})
 			t.Cleanup(release)
+			engine = pluginengine.Start(t, transport, runAdjRIBInPlugin)
 			// The bridge transport registers the store's lookup in memory
 			// (the daemon case); drop it so this process reads the store only
 			// through the command, as the daemon does while the store is forked.

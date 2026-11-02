@@ -1297,7 +1297,34 @@ announcement. A failed announcement fails the command, so `bgp-rpki` reports
 that validation is not in force. A forked store stores each route's message ID
 from the JSON event, so the msgID match holds there too, and it emits
 `ValidationChange` once validation is enabled, as the daemon's store does.
-FlowSpec authorization (`bgp-rib`'s lookups) does not cross the boundary yet.
+
+FlowSpec authorization crosses the boundary the same way. `bgp-rib` registers
+its FlowSpec lookups (`ribevents.RegisterFlowSpecLookup`,
+`RegisterFlowSpecRedirectLookup`) in its own process and announces
+`bgp-rib/flowspec-gate` (`{"command": "request bgp rib flowspec-gate"}`) once
+its subscriptions are live. A process holding no lookup of its own (the
+daemon while `bgp-rib` runs forked, or a forked `bgp-rr`, `bgp-rs` or
+`bgp-adj-rib-in`) installs a provider that asks through that command
+(`ribevents.NoteFlowSpecGate`): one argument, the JSON
+`ribevents.FlowSpecRequest`
+(`{"queries": [{"operation": "eligible"|"present"|"path"|"redirect", "route": <route>, "msg-id": <id>}], "routes": <bool>}`),
+answered by `{"results": [{"verdict": <bool>, "path": <path>}], "routes": [<route>, ...]}`
+under the same batch bound, timeout and dispatch as the receive gate, with at
+most `ribevents.FlowSpecRoutesMax` (16384) routes per answer. The forward
+path's batch (`RouteEligibleBatch`) asks every FlowSpec rule of a batch in one
+command. An answer that cannot be obtained refuses: not eligible, no path (so
+replay withdraws), redirect refused, no routes replayed. Every reader
+registers a dispatch: `bgp-rr`, `bgp-rs` and `bgp-adj-rib-in` through
+`dispatch-command-args`, the daemon through its command dispatcher.
+
+A subscription delivers future events only, so a reader whose subscription
+went live after an owner announced would never learn the gate. A reader
+therefore emits `bgp-rib/gate-query` once its subscriptions are live (`bgp-rib`
+and `bgp-adj-rib-in` at start, `bgp-rr` and `bgp-rs` once every plugin is
+ready), and each owner announces again on it: `bgp-adj-rib-in` its
+validation gate, `bgp-rib` its FlowSpec gate. An owner announces only after
+its own gate-query subscription is live, so one of the two always reaches
+the other.
 <!-- source: internal/core/bgp/ribevents/validation.go -- NoteValidationGate, DecodeValidationGate, ValidationGate, RouteEligibleBatch -->
 <!-- source: internal/core/bgp/ribevents/gate_remote.go -- EligibilityRequest, AnswerEligibility, RegisterGateDispatch, askGateOwner -->
 <!-- source: internal/component/bgp/reactor/forward_validation.go -- eligibilityBatch -->

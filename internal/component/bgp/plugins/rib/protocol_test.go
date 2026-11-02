@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -127,6 +128,20 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 		"bgp rib uses full format for events")
 
 	require.NoError(t, mux.SendOK(ctx, stage5.ID))
+
+	// ── Started: the FlowSpec gate announcement, then the gate query ────
+	// Both are emitted once the subscriptions are live, so a reader in
+	// another process learns which command answers the FlowSpec lookup and
+	// the receive store announces its validation gate again.
+	for _, want := range []string{ribevents.EventFlowSpecGate, ribevents.EventGateQuery} {
+		emit := readMuxRequestTimeout(t, ctx, mux)
+		require.Equal(t, rpc.MethodEmitEvent, emit.Method)
+		var emitInput rpc.EmitEventInput
+		require.NoError(t, json.Unmarshal(emit.Params, &emitInput))
+		assert.Equal(t, ribevents.Namespace, emitInput.Namespace)
+		assert.Equal(t, want, emitInput.EventType)
+		require.NoError(t, mux.SendResult(ctx, emit.ID, &rpc.EmitEventOutput{}))
+	}
 
 	// ── Plugin is now in event loop ─────────────────────────────────────
 	// Verify the plugin can process an event after startup.

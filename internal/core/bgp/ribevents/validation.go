@@ -243,18 +243,40 @@ func RouteEligibleBatch(queries []EligibilityQuery, answers []bool) {
 	} else {
 		provider.batch(queries, answers)
 	}
+	flowSpecBatch(queries, answers)
+}
+
+// flowSpecBatch applies the FlowSpec half of RouteEligibleBatch: every
+// FlowSpec query goes to the selecting RIB's lookup in one batch, so a RIB in
+// another process is asked once per EligibilityBatchMax rules. Without a RIB
+// no FlowSpec route is eligible or present.
+func flowSpecBatch(queries []EligibilityQuery, answers []bool) {
+	var indexes []int
+	var asked []FlowSpecQuery
 	for i := range queries {
 		if !IsFlowSpec(queries[i].Route.Family) {
 			continue
 		}
-		flowSpec := flowSpecLookup.Load()
+		operation := FlowSpecEligible
 		if queries[i].Present {
-			answers[i] = flowSpec != nil && flowSpec.present != nil && flowSpec.present(queries[i].Route)
+			operation = FlowSpecPresent
+		}
+		indexes = append(indexes, i)
+		asked = append(asked, FlowSpecQuery{Operation: operation, Route: queries[i].Route, MsgID: queries[i].MsgID})
+	}
+	if len(asked) == 0 {
+		return
+	}
+	results := make([]FlowSpecResult, len(asked))
+	if provider := flowSpecLookup.Load(); provider != nil {
+		provider.batch(asked, results)
+	}
+	for k, i := range indexes {
+		if queries[i].Present {
+			answers[i] = results[k].Verdict
 			continue
 		}
-		if flowSpec == nil || !flowSpec.eligible(queries[i].Route, queries[i].MsgID) {
-			answers[i] = false
-		}
+		answers[i] = answers[i] && results[k].Verdict
 	}
 }
 

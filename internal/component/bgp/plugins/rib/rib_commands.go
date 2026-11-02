@@ -138,6 +138,7 @@ func doRegisterBuiltinCommands() {
 		handler CommandHandler
 	}{
 		{[]string{"request bgp rib recovery"}, "Read source-owned DOWN recovery", (*RIBManager).recoveryCommand},
+		{[]string{flowSpecGateCommand}, "Answer the FlowSpec lookup for another process", (*RIBManager).flowSpecGateAnswerCommand},
 		{[]string{"show bgp rib status"}, "Show RIB status (peer count, route counts)",
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				// Optional first arg scopes the per-peer route-counts to one

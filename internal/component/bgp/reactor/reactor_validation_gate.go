@@ -28,13 +28,19 @@ import (
 // command the announcement names, so the forward path reads a forked owner's
 // verdicts (ribevents.RouteEligibleBatch) rather than refusing every route.
 // The release joins eventBusUnsubs too.
+//
+// The selecting RIB's bgp-rib/flowspec-gate is applied the same way
+// (ribevents.NoteFlowSpecGate): with bgp-rib forked, the forward path's
+// FlowSpec authorization and redirect verdicts and policy reload's FlowSpec
+// replay ask it through the command it names, rather than forwarding no rule.
 func (r *Reactor) subscribeValidationGate() {
 	if r.eventBus == nil {
 		return
 	}
 	release := ribevents.RegisterGateDispatch(r.dispatchGateCommand)
 	unsubscribe := ribevents.ValidationGate.Subscribe(r.eventBus, ribevents.NoteValidationGate)
-	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubscribe, release)
+	unsubscribeFlowSpec := ribevents.FlowSpecGate.Subscribe(r.eventBus, ribevents.NoteFlowSpecGate)
+	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubscribe, unsubscribeFlowSpec, release)
 }
 
 // dispatchGateCommand sends the gate owner's eligibility command through the

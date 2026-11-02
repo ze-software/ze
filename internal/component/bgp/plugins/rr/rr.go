@@ -228,7 +228,18 @@ func serveRouteReflector(p *sdk.Plugin) int {
 
 	// Startup ownership comes from Registration.Claims. Mid-life auto-load
 	// and restart deliver this callback to notify an already-running store.
+	// A forked plugin, or one beside a forked bgp-rib, reads the RIB's
+	// FlowSpec lookup through the command its flowspec-gate names.
+	releaseGateDispatch := ribevents.RegisterGateDispatch(rr.dispatchCommand)
+	defer releaseGateDispatch()
+
 	p.OnAllPluginsReady(func() error {
+		// Every plugin has started, so the RIB's gate-query subscription is
+		// live: ask it to announce its flowspec-gate again, in case it did so
+		// before this plugin subscribed.
+		if err := rr.askFlowSpecGate(); err != nil {
+			logger().Error("bgp-rr: gate-query not sent: FlowSpec replay reads no rule until the RIB announces", "error", err)
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		status, _, err := rr.dispatchCommand(ctx, "request bgp adj-rib-in claim-replay")
@@ -256,7 +267,10 @@ func serveRouteReflector(p *sdk.Plugin) int {
 	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType})
 	// The receive store's eligibility change, through the SDK so a forked
 	// bgp-rr hears it too: the daemon's own bus never reaches a subprocess.
-	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange})
+	// The selecting RIB's flowspec-gate names the command that answers its
+	// FlowSpec lookup, so a forked bgp-rr (or one beside a forked bgp-rib)
+	// replays FlowSpec rules rather than withdrawing every one.
+	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventFlowSpecGate})
 	p.SetEnvelope(true)
 
 	ctx, cancel := sdk.SignalContext()
@@ -663,6 +677,13 @@ func (rr *routeReflector) dispatchText(text string) {
 	if envelope, ok := retention.Accepts(text); ok {
 		if err := rr.retained.Record(envelope); err != nil {
 			logger().Warn("bgp-rr: retention verdict refused", "err", err)
+		}
+		return
+	}
+	// The selecting RIB's FlowSpec lookup command (ribevents.NoteFlowSpecGate).
+	if matched, err := ribevents.ApplyFlowSpecGate(text); matched {
+		if err != nil {
+			logger().Warn("bgp-rr: flowspec-gate refused", "err", err)
 		}
 		return
 	}

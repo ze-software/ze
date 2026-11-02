@@ -46,6 +46,11 @@ func startValidationReceiver(t *testing.T, bus *testEventBus) (*rpc.DirectBridge
 			}
 			return ribevents.ValidationGate.Emit(bus, state)
 		}
+		if namespace == ribevents.Namespace && eventType == ribevents.EventGateQuery {
+			// Adj-RIB-In asks the gate owners for their state at start; the
+			// selecting RIB here owns no gate this harness serves.
+			return 0, nil
+		}
 		if namespace != ribevents.Namespace || eventType != ribevents.EventValidationChange {
 			return 0, errors.New("unexpected emitted event " + namespace + "/" + eventType)
 		}

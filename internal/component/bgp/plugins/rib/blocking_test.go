@@ -141,6 +141,14 @@ func TestRIBPluginSentEventsSurviveReplay(t *testing.T) {
 					t.Errorf("answer command: %v", err)
 					return
 				}
+			case rpc.MethodEmitEvent:
+				// The RIB announces its FlowSpec gate and asks for the gate
+				// state at start; no subscriber exists here, as in
+				// internal/test/pluginengine.
+				if err := mux.SendResult(ctx, req.ID, &rpc.EmitEventOutput{}); err != nil {
+					t.Errorf("answer emit-event: %v", err)
+					return
+				}
 			default:
 				t.Errorf("unexpected engine request %q", req.Method)
 				return

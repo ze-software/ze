@@ -56,6 +56,12 @@ func (r *RIBManager) dispatchText(jsonStr string) {
 		ribevents.NoteValidationGate(gate)
 		return
 	}
+	if ribevents.IsGateQuery(jsonStr) {
+		if err := r.announceFlowSpecGate(); err != nil {
+			logger().Error("bgp-rib: flowspec-gate not announced again: a reader that subscribed late reads no FlowSpec rule", "error", err)
+		}
+		return
+	}
 	event, err := parseEvent([]byte(jsonStr))
 	if err != nil {
 		logger().Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])

@@ -35,6 +35,9 @@ type EligibilityAnswer struct {
 // rpc.MaxMessageSize; a caller with more queries sends several commands.
 const EligibilityBatchMax = 1024
 
+// gateStatusDone is the status a gate owner's command answers on success.
+const gateStatusDone = "done"
+
 // GateLookupTimeout bounds one eligibility command. A gate owner that does not
 // answer in time has its routes refused (fail closed) and logged.
 const GateLookupTimeout = 5 * time.Second
@@ -116,7 +119,7 @@ func askGateChunk(dispatch GateDispatch, command string, queries []EligibilityQu
 	if err != nil {
 		return err
 	}
-	if status != "done" {
+	if status != gateStatusDone {
 		return errors.New("the eligibility command answered status " + status + ", want done")
 	}
 	var answer EligibilityAnswer
