@@ -16,8 +16,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"strconv"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
 
@@ -33,6 +31,10 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-traceroute:monitor-traceroute", Handler: handleMonitorTraceroute},
 		pluginserver.RPCRegistration{WireMethod: "ze-traceroute:resolve-traceroute", Handler: handleResolveTraceroute},
 	)
+	// The streaming route of `monitor traceroute` (`ze cli -c`, SSH exec). The
+	// TUI opens the traceroute view first, and `ze monitor traceroute` runs
+	// monitorTracerouteLocal.
+	pluginserver.RegisterStreamingHandler("monitor traceroute", pluginserver.OneShotSample, streamMonitorTraceroute)
 
 	command.MustRegisterLocalMeta("show traceroute", showTracerouteLocal, registry.Meta{
 		ShortHelp: "Trace the network path to a target using the internal ICMP engine (works without the daemon)",
@@ -66,50 +68,11 @@ func monitorTracerouteLocal(validated command.ValidatedArgs) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	var hdr textbuf.Buffer
-	hdr.Str("traceroute to ").Str(req.target.String()).Str(" (Ctrl-C to stop)\n")
-	hdr.StdOut() //nolint:errcheck // stdout
-
-	for round := 1; ; round++ {
-		ch, cancel, sessionErr := NewTracerouteSession(ctx, req.target.String(), req.maxHops)
-		if sessionErr != nil {
-			if round == 1 {
-				var tb textbuf.Buffer
-				tb.Str("monitor traceroute: ").Err(sessionErr).Byte('\n')
-				tb.StdErr() //nolint:errcheck // stderr
-				return 1
-			}
-			break
-		}
-
-		var hops []map[string]any
-		for hop := range ch {
-			hops = append(hops, hop)
-		}
-		cancel()
-
-		if ctx.Err() != nil {
-			break
-		}
-
+	if err := writeTracerouteRounds(ctx, os.Stdout, req); err != nil {
 		var tb textbuf.Buffer
-		tb.Str("--- round ").Int(int64(round)).Str(" ---\n")
-		for _, hop := range hops {
-			ttl, _ := hop[fieldTTL].(int)
-			addr, _ := hop["addr"].(string)
-			tb.Str("  ").Int(int64(ttl)).Str("  ").Str(addr)
-			if rtt, ok := hop["rtt-ms"].(float64); ok {
-				tb.Str("  ").Str(strconv.FormatFloat(rtt, 'f', 3, 64)).Str(" ms")
-			}
-			tb.Byte('\n')
-		}
-		tb.StdOut() //nolint:errcheck // stdout
-
-		select {
-		case <-time.After(time.Second):
-		case <-ctx.Done():
-			return 0
-		}
+		tb.Str("monitor traceroute: ").Err(err).Byte('\n')
+		tb.StdErr() //nolint:errcheck // stderr
+		return 1
 	}
 	return 0
 }
