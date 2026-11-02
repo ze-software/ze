@@ -1,0 +1,58 @@
+# mcp-local-commands - an MCP client lists and runs local commands against a
+# running daemon: show env list, doctor and show config validation.
+#
+# VALIDATES: spec-command-surface-parity story 1 and the MCP reach of A-2: an
+# AI connected over MCP finds `doctor`, `show env list` and
+# `show config validation` in tools/list and runs each through the daemon
+# (serverDispatcher, authz, the LoadBuiltins local bridge or the doctor
+# builtin), and each answer carries its payload, not an error.
+#
+# PREVENTS: a local-only command missing from the daemon's dispatcher, so an AI
+# that cannot open a shell on the box cannot debug it.
+#
+# The validated file sits in the daemon's working directory, which is one of
+# the directories the daemon route reads a caller's file from
+# (command.CallerPath); a path outside them is refused, which this test does
+# not exercise.
+
+tmpfs=valid.conf:terminator=EOF_VALID
+plugin {
+}
+EOF_VALID
+
+stdin=mcp:terminator=EOF_MCP
+wait-tool ze_doctor
+probe tools/list
+probe tools/call {"name":"ze_show_env","arguments":{"action":"list"}}
+probe tools/call {"name":"ze_doctor","arguments":{}}
+probe tools/call {"name":"ze_show_config","arguments":{"action":"validation","file":"valid.conf"}}
+EOF_MCP
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-conf
+cmd=foreground:seq=2:exec=le test mcp --port $PORT:stdin=mcp:timeout=30s
+
+expect=exit:code=0
+# tools/list offers all three: doctor is its own tool, show env list and show
+# config validation are actions of the generated ze_show_env and ze_show_config
+# tools (internal/component/mcp groupCommands, toolName).
+expect=stdout:contains=ze_doctor
+expect=stdout:contains="name":"ze_show_env"
+expect=stdout:contains="name":"ze_show_config"
+# show env list answers the env registry: ze.config.dir is a registered key.
+expect=stdout:contains=ze.config.dir
+# doctor answers the daemon's readiness report.
+expect=stdout:pattern=schema-version
+expect=stdout:pattern=diagnostics
+# show config validation answers a valid verdict on the file it read, sent by
+# the leaf's name ("file": the keyword form) as the generated tool sends it.
+# The payload sits JSON-escaped inside the tool's text content.
+expect=stdout:contains=\"valid\":true,\"path\":\"valid.conf\"
+reject=stdout:contains="isError":true
+# An unknown command answers a tool result with isError true, which the line
+# above rejects. The words "unknown command" are no guard here: tools/list
+# carries them in a tool's argument description.
