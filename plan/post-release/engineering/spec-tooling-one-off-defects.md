@@ -232,6 +232,7 @@ before execution. The responsible component remains unestablished.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `helper-bypassed-by-an-open-coded-copy` | 2026-11-02 | weakening and RFC gates scan Go test units twice |
 | `concurrent-session-corruption` | 2026-10-30 | site build's linux le cross-compiles the live checkout |
 | `review-pin-hashes-uncommitted-content` | 2026-10-30 | closure review pin hashes the working tree, not the landed blob |
 | `gate-verdict-depends-on-the-machine` | 2026-10-29 | dnsresolver system name-server test needs the Linux resolv.conf writer |
