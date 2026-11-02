@@ -38,12 +38,12 @@ func TestRuntimeTreeCarriesDescription(t *testing.T) {
 		{"value":"zz-plugin-bare","short-help":"A plugin command that declares no explanation"}
 	]}`
 
-	tree, err := buildRuntimeTreeFromDispatch(commandListDispatch(list))
+	tree, err := BuildRuntimeTreeFromDispatch(commandListDispatch(list))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if tree == nil {
-		t.Fatal("buildRuntimeTreeFromDispatch returned nil")
+		t.Fatal("BuildRuntimeTreeFromDispatch returned nil")
 	}
 	if node := tree.Children["show"]; node == nil || node.Children["env"] == nil || node.Children["env"].Children["get"] == nil {
 		t.Fatal("show env get is absent from the runtime tree: the answer was not parsed")

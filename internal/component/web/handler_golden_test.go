@@ -579,12 +579,12 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 	mux.Handle("/events", authWrap(broker))
 	mux.Handle("/admin/", editMutationWrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			HandleAdminExecute(renderer, dispatch, nil)(w, r)
+			HandleAdminExecute(renderer, dispatch, StaticCommandTree(nil))(w, r)
 
 			return
 		}
 
-		HandleAdminView(renderer, commandTree)(w, r)
+		HandleAdminView(renderer, StaticCommandTree(commandTree))(w, r)
 	})))
 	mux.Handle("GET /cli", authWrap(HandleCLIPageHTTP(renderer, false)))
 	mux.Handle("POST /cli", mutationWrap(HandleCLICommandWithAuthorizer(editorMgr, schema, renderer, authorizer)))

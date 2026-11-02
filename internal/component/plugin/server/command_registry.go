@@ -516,9 +516,12 @@ func (r *CommandRegistry) CommandCountsByProcess() map[string]int {
 	return counts
 }
 
-// VisibleCommandEntries returns completion-tree entries for every non-hidden
-// registered command. Hidden commands are excluded so they never surface in
-// tab-completion or help (they still dispatch when typed in full via Lookup).
+// VisibleCommandEntries returns completion-tree entries for every registered
+// command that command.ListedOnDaemonSurfaces lists: the surface predicate, not
+// this registry, decides, and it lists no hidden command, so a hidden one never
+// surfaces in tab-completion or help (it still dispatches when typed in full via
+// Lookup). Every daemon surface that lists plugin commands (the SSH tree, the
+// web admin tree, the web terminal completer) reads this one answer.
 // Used to inject plugin-registered commands into the operational command tree
 // (command.MergeCommandPaths) so interactive tab-completion offers them, matching
 // the shell-completion path that already reads Complete().
@@ -533,7 +536,15 @@ func (r *CommandRegistry) VisibleCommandEntries() []command.CommandEntry {
 
 	entries := make([]command.CommandEntry, 0, len(r.commands))
 	for _, cmd := range r.commands {
-		if cmd.Hidden {
+		listed, err := command.ListedOnDaemonSurfaces(command.CommandRegistration{
+			Path: cmd.Name, Kind: command.KindPlugin, Hidden: cmd.Hidden,
+		})
+		if err != nil {
+			// A plugin registration always has a kind and every daemon surface
+			// answers it alike, so only a defect in the predicate lands here.
+			panic("BUG: VisibleCommandEntries: " + err.Error())
+		}
+		if !listed {
 			continue
 		}
 		entries = append(entries, command.CommandEntry{

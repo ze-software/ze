@@ -190,7 +190,7 @@ func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed 
 	m.SetCommandExecutor(executor)
 	m.SetStartMode(unicli.ModeOperational)
 
-	cmdTree, err := buildRuntimeTreeFromDispatch(dispatch)
+	cmdTree, err := BuildRuntimeTreeFromDispatch(dispatch)
 	if err != nil {
 		return unicli.Model{}, err
 	}
@@ -984,9 +984,38 @@ func buildRuntimeTree(client *cliClient) (*Command, error) {
 	return tree, nil
 }
 
-// buildRuntimeTreeFromDispatch is like buildRuntimeTree but uses a direct
+// BuildRuntimeTreeFromDispatch is the `ze cli` interactive completion tree:
+// the daemon's commands as runtimeTreeFromDispatch reads them, plus every
+// local-data command `ze cli` answers in its own process (command.ServeLocal),
+// so a command it serves is a command it offers whether or not a daemon
+// answers. The surface parity check (cmd/ze/hub TestEveryCommandOnEverySurface)
+// asks this producer for the `ze cli` surface.
+func BuildRuntimeTreeFromDispatch(dispatch CommandFunc) (*Command, error) {
+	tree, err := runtimeTreeFromDispatch(dispatch)
+	if err != nil {
+		return nil, err
+	}
+	mergeLocalDataCommands(tree)
+	return tree, nil
+}
+
+// mergeLocalDataCommands adds each local-data registration to tree as a
+// completion node, with its summary. A path the tree already holds keeps its
+// own node (command.MergeCommandPaths is non-destructive).
+func mergeLocalDataCommands(tree *Command) {
+	var entries []cmd.CommandEntry
+	for _, e := range cmd.ListLocal() {
+		if !cmd.HasLocalData(e.Path) {
+			continue
+		}
+		entries = append(entries, cmd.CommandEntry{Name: e.Path, ShortHelp: e.Meta.ShortHelp})
+	}
+	cmd.MergeCommandPaths(tree, entries)
+}
+
+// runtimeTreeFromDispatch is like buildRuntimeTree but uses a direct
 // dispatch function instead of an SSH client.
-func buildRuntimeTreeFromDispatch(dispatch CommandFunc) (*Command, error) {
+func runtimeTreeFromDispatch(dispatch CommandFunc) (*Command, error) {
 	wireToPath, err := WireToPath()
 	if err != nil {
 		return nil, err

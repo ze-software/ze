@@ -93,16 +93,31 @@ func commandFormParameters(defs []command.ArgDef) []CommandParameter {
 // authorization and accounting apply to web and MCP surfaces, not only SSH.
 type CommandDispatcher = plugin.CommandDispatcher
 
+// AdminCommandTree answers the command tree the admin console shows for one
+// request. The hub's source answers the YANG operational command tree with the
+// live plugin registry overlaid (command.OverlayCommandPaths), so a plugin
+// command with no YANG node is offered and one that exited is not.
+type AdminCommandTree func() *command.Node
+
+// StaticCommandTree answers tree on every request: the source for a console
+// with no plugin registry to read.
+func StaticCommandTree(tree *command.Node) AdminCommandTree {
+	return func() *command.Node { return tree }
+}
+
 // HandleAdminView returns an HTTP handler that serves the admin command tree
 // using finder-style column navigation (same layout as config). Leaf commands
 // render a form in the detail panel.
 //
-// tree is the merged YANG operational command tree. The handler reads its
+// trees answers the tree for each request: the YANG operational command tree
+// (builtin, local and local-data commands under their YANG paths) with the
+// plugin commands the surface predicate lists overlaid. The handler reads its
 // shape for the navigation columns and its two help texts for the command
 // form, so the page shows the same summary and explanation every other surface
 // shows. A nil tree serves an empty console rather than panicking.
-func HandleAdminView(renderer *Renderer, tree *command.Node) http.HandlerFunc {
+func HandleAdminView(renderer *Renderer, trees AdminCommandTree) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		tree := trees()
 		parsed, err := ParseURL(r)
 		if err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -164,15 +179,18 @@ func HandleAdminView(renderer *Renderer, tree *command.Node) http.HandlerFunc {
 // dispatches the command through the provided dispatcher, and returns a
 // result in the detail panel.
 //
-// tree is the same merged command tree HandleAdminView renders the form from,
-// so the values the handler reads are the inputs the form printed. A nil tree
-// reads no value, which is what the form offers no input for.
+// trees is the same source HandleAdminView renders the form from, so the
+// values the handler reads are the inputs the form printed. A nil tree reads no
+// value, which is what the form offers no input for. The command still runs
+// through dispatch with the caller's identity, so authorization applies to a
+// plugin command the overlay added exactly as to a builtin.
 //
 // Content negotiation: JSON requests receive the raw command output as
 // a JSON object with "command", "output", and "error" fields.
 // HTMX requests receive the result rendered as a detail panel fragment.
-func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher, tree *command.Node) http.HandlerFunc {
+func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher, trees AdminCommandTree) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		tree := trees()
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return

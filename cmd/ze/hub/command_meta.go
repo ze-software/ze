@@ -177,10 +177,10 @@ func buildCommandMeta(
 	// summary and a plugin explanation keeps both.
 	for _, cmd := range pluginCmds {
 		// A plugin sets Hidden to remove a command from the operator-facing
-		// surfaces. VisibleCommandEntries and Complete already exclude a hidden
-		// command from the completion tree. This list is the only source for two
-		// more surfaces: the MCP tools/list result and the API command list. A
-		// hidden command must reach neither.
+		// surfaces. This list is the only source for three of them, the MCP
+		// tools/list result and the REST and gRPC command lists, so it asks the
+		// surface predicate, as VisibleCommandEntries does for the trees, and a
+		// hidden command reaches none of them.
 		//
 		// The skip is at the top of the loop, because the duplicate branch below
 		// fills help text on a dispatcher entry. That entry keeps the command
@@ -189,7 +189,15 @@ func buildCommandMeta(
 		// The dispatcher loop above needs no equivalent skip.
 		// pluginserver.Command has no Hidden field, and a builtin command has no
 		// hidden state.
-		if cmd.Hidden {
+		listed, err := command.ListedOnDaemonSurfaces(command.CommandRegistration{
+			Path: cmd.Name, Kind: command.KindPlugin, Hidden: cmd.Hidden,
+		})
+		if err != nil {
+			// A plugin registration always has a kind and every daemon surface
+			// answers it alike, so only a defect in the predicate lands here.
+			panic("BUG: buildCommandMeta: " + err.Error())
+		}
+		if !listed {
 			continue
 		}
 		if i, dup := byName[strings.ToLower(cmd.Name)]; dup {

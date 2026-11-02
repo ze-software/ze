@@ -1488,10 +1488,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		LocalUsersLive:    liveAcceptedLocalUsers,
 		EventRing:         apiServer.EventRing(),
 		WebPortalServices: webPortalServices,
-		// Plugin-registered commands for web tab-completion. Startup has frozen
-		// the initial command registry. Resolve each completion request lazily
-		// so plugin additions and removals from reload are visible. This mirrors
-		// the SSH per-session merge.
+		// Plugin-registered commands for web tab-completion and the admin
+		// console tree. Startup has frozen the initial command registry. Resolve
+		// each request lazily so plugin additions and removals from reload are
+		// visible. This mirrors the SSH per-session merge.
 		WebCommands: func() []command.CommandEntry {
 			d := apiServer.Dispatcher()
 			if d == nil {

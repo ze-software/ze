@@ -567,16 +567,13 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	loginHandler := zeweb.LoginHandlerWithAudit(sessionStore, webAuth, loginRenderer, recorder)
 	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
 
-	// Admin command tree for web UI. The merged YANG command tree is passed
-	// whole. Plugin-contributed commands then appear in the admin nav with no
-	// static map to edit (spec-web-2 Phase 6 / Spec D6), and each command's
-	// declared summary and explanation reach its form. The static fallback was
-	// removed because its tree shape (`peer/route/cache`) drifted from the
-	// YANG-derived shape (`peer/show/summary/...`). A silent fallback after
-	// loader failure would surface as broken admin links rather than a clear
-	// error. A nil tree serves an empty console for the same reason.
-	adminViewHandler := zeweb.HandleAdminView(renderer, commandTree)
-	adminExecHandler := zeweb.HandleAdminExecute(renderer, dispatch, commandTree)
+	// The admin console's tree: the YANG operational command tree with the live
+	// plugin registry overlaid per request (adminCommandTrees). Each command's
+	// declared summary and explanation reach its form. A loader failure
+	// disabled the server above rather than serving broken admin links.
+	adminTrees := adminCommandTrees(commandTree, commandEntries)
+	adminViewHandler := zeweb.HandleAdminView(renderer, adminTrees)
+	adminExecHandler := zeweb.HandleAdminExecute(renderer, dispatch, adminTrees)
 
 	srv.HandleFunc("POST /login", loginHandler)
 	srv.Handle("/assets/", assetHandler)
@@ -687,4 +684,21 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 func forceExitOnSignal(sigCh <-chan os.Signal) {
 	<-sigCh
 	exitForced()
+}
+
+// adminCommandTrees is the web admin console's command tree producer. It
+// answers, for each request, base (the YANG operational command tree, which
+// holds every builtin, local and local-data command under its YANG path) with
+// the plugin commands entries lists overlaid on a copy
+// (command.OverlayCommandPaths). entries is the registry's
+// VisibleCommandEntries, which asks the surface predicate
+// (command.ListedOnDaemonSurfaces), so a plugin command with no YANG node is
+// offered, a hidden one is not, and a plugin that registered or exited since
+// startup is reflected on the next request. base is shared and never written.
+// A nil entries (web-only mode, no plugin registry) answers base alone.
+func adminCommandTrees(base *command.Node, entries func() []command.CommandEntry) zeweb.AdminCommandTree {
+	if entries == nil {
+		return zeweb.StaticCommandTree(base)
+	}
+	return func() *command.Node { return command.OverlayCommandPaths(base, entries()) }
 }

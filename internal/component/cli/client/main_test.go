@@ -1141,3 +1141,50 @@ func TestStreamMonitorFailureKeepsDestinationAndRemovesTemp(t *testing.T) {
 		}
 	}
 }
+
+// TestRuntimeTreeOffersLocalDataCommands checks that the `ze cli` completion
+// tree offers every local-data command it answers in its own process
+// (command.ServeLocal), both when the daemon answers its command list without
+// them and when no daemon answers at all.
+//
+// VALIDATES: G4 of spec-command-surface-parity: BuildRuntimeTreeFromDispatch
+// offers the local-data commands `ze cli` serves.
+// PREVENTS: `show env list` running when typed in `ze cli` and never being
+// offered by its tab completion.
+func TestRuntimeTreeOffersLocalDataCommands(t *testing.T) {
+	var localData []string
+	for _, e := range command.ListLocal() {
+		if command.HasLocalData(e.Path) {
+			localData = append(localData, e.Path)
+		}
+	}
+	if len(localData) == 0 {
+		t.Fatal("no local-data command is linked into this test, so nothing is checked")
+	}
+
+	noDaemon := func(string) (unicli.CommandOutput, error) {
+		return unicli.CommandOutput{}, errors.New("no daemon")
+	}
+	sources := map[string]CommandFunc{
+		"daemon answers an empty list": commandListDispatch(`{"commands":[]}`),
+		"no daemon answers":            noDaemon,
+	}
+	for name, dispatch := range sources {
+		tree, err := BuildRuntimeTreeFromDispatch(dispatch)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		for _, path := range localData {
+			node := tree
+			for _, word := range strings.Fields(path) {
+				if node == nil {
+					break
+				}
+				node = node.Children[word]
+			}
+			if node == nil {
+				t.Errorf("%s: the ze cli tree does not offer local-data command %q", name, path)
+			}
+		}
+	}
+}

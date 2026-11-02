@@ -69,12 +69,21 @@ func decodeCommandList(payload []byte) ([]commandEntry, error) {
 // command.MergeCommandPaths. A command therefore enters the client's tree as it
 // enters the SSH and web trees. An existing node is never modified. Each of the two
 // texts is written only on a leaf the merge creates, or on one that holds
-// nothing in THAT field. A hidden command is skipped, so it never surfaces in
-// tab-completion.
+// nothing in THAT field. A command the surface predicate does not list (a
+// hidden one) is skipped, so it never surfaces in tab-completion.
 func injectPluginCommands(tree *cmd.Node, commands []commandEntry, hidden map[string]bool) {
 	entries := make([]cmd.CommandEntry, 0, len(commands))
 	for _, c := range commands {
-		if hidden[strings.ToLower(c.Value)] {
+		// The surface predicate decides, as it does for the daemon's trees.
+		listed, err := cmd.ListedOnDaemonSurfaces(cmd.CommandRegistration{
+			Path: c.Value, Kind: cmd.KindPlugin, Hidden: hidden[strings.ToLower(c.Value)],
+		})
+		if err != nil {
+			// A plugin registration always has a kind and every daemon surface
+			// answers it alike, so only a defect in the predicate lands here.
+			panic("BUG: injectPluginCommands: " + err.Error())
+		}
+		if !listed {
 			continue
 		}
 		entries = append(entries, cmd.CommandEntry{

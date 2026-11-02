@@ -36,7 +36,7 @@ func warningDispatcher() CommandDispatcher {
 func TestAdminCommandShowsTheWarning(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
-	handler := HandleAdminExecute(renderer, warningDispatcher(), nil)
+	handler := HandleAdminExecute(renderer, warningDispatcher(), StaticCommandTree(nil))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/192.168.1.1/teardown?format=json", http.NoBody)
 	rec := httptest.NewRecorder()

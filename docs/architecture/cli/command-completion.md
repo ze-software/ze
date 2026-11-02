@@ -7,22 +7,41 @@ gap was that the interactive tree never consulted it.
 
 ## The producers
 
+Every producer asks one predicate what its surface owes a command:
+`command.AnswerSurface` answers must offer, must not offer, or offer with a
+qualifier (streaming on SSH, `ze cli` and the shell for a monitor command;
+TUI-only for a view its registration declares so), with the reason, from the
+registration kind alone (builtin, local, local-data, plugin, view, hidden,
+streaming). A producer that feeds one list to every daemon surface asks
+`command.ListedOnDaemonSurfaces`. The parity check
+`TestEveryCommandOnEverySurface` (`cmd/ze/hub/surface_parity_test.go`) asks
+every producer below for its list and compares it with the predicate.
+
 | Surface | Producer | How it stays live |
 |---------|----------|-------------------|
-| entry source | `VisibleCommandEntries()` returns every non-`Hidden` command as a `command.CommandEntry` | RLock over the registry map, mirroring `All()` and `Complete()` |
+| entry source | `VisibleCommandEntries()` returns every command `ListedOnDaemonSurfaces` lists (no `Hidden` one) as a `command.CommandEntry` | RLock over the registry map, mirroring `All()` and `Complete()` |
 | injection | `MergeCommandPaths` splits each command name on spaces and inserts tree nodes | non-destructive: an existing node is never mutated. Each of the two help fields is set only on a leaf the call creates, or on one that holds nothing in THAT field |
 | SSH | `mergePluginCommands` merges into the per-session tree | the tree is rebuilt per session, so a plugin that exited is absent next session |
 | Web | `pluginAwareCommandCompleter` builds a throwaway overlay per `/cli/complete` request and composites it, YANG winning a name collision | the shared YANG tree stays immutable and is never mutated |
+| Web admin | `adminCommandTrees` (`cmd/ze/hub/service_web.go`) answers, per request, `command.OverlayCommandPaths` of the YANG tree and `VisibleCommandEntries()`: a copy of each node on a merged path, every other subtree shared | the shared YANG tree is never written, so a plugin that exited is gone on the next request |
+| MCP, REST, gRPC | `buildCommandMeta` (`cmd/ze/hub/command_meta.go`) lists the dispatcher's commands (builtins and the local-data commands it serves) and the plugin commands `ListedOnDaemonSurfaces` lists | built from the live dispatcher on each list call |
+| `ze cli` | `BuildRuntimeTreeFromDispatch` (`internal/component/cli/client/main.go`): the daemon's `system command list`, plus every local-data command the client answers itself (`command.ServeLocal`) | built at attach; the local-data commands are offered with or without a daemon |
 
+<!-- source: internal/component/command/surface.go -- AnswerSurface, ListedOnDaemonSurfaces -->
 <!-- source: internal/component/plugin/server/command_registry.go -- VisibleCommandEntries -->
+<!-- source: internal/component/command/node.go -- OverlayCommandPaths -->
+<!-- source: cmd/ze/hub/service_web.go -- adminCommandTrees -->
 <!-- source: internal/component/command/node.go -- MergeCommandPaths -->
 <!-- source: internal/component/cli/client/inject.go -- injectPluginCommands, the client-side tree -->
 <!-- source: internal/component/cli/client/main.go -- applyCommandText, nodeAtPath -->
 
 The `ze cli` client and the attached console of `ze start --cli` run the same
 rule. Each fetches the command list from the daemon. `injectPluginCommands`
-drops a hidden command and hands every other one to `MergeCommandPaths`. A
-command therefore enters the client's tree as it enters the SSH and web trees.
+drops a command `ListedOnDaemonSurfaces` does not list (a hidden one) and hands
+every other one to `MergeCommandPaths`. A command therefore enters the client's
+tree as it enters the SSH and web trees. `BuildRuntimeTreeFromDispatch` then
+merges every local-data registration, because the client answers those in its
+own process (`mergeLocalDataCommands`).
 
 That answer carries both texts of every command. The `short-help` key holds
 the summary, and `description` holds the explanation. `applyCommandText` writes the

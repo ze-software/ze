@@ -70,7 +70,7 @@ func TestAdminRouteDispatch(t *testing.T) {
 	require.NoError(t, err)
 
 	tree := testCommandTree()
-	handler := HandleAdminView(renderer, tree)
+	handler := HandleAdminView(renderer, StaticCommandTree(tree))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -183,7 +183,7 @@ func TestAdminCommandExecution(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch, nil)
+	handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(nil))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/192.168.1.1/teardown", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -226,7 +226,7 @@ func TestCommandResultCardStack(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch, nil)
+	handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(nil))
 
 	// First command.
 	req1 := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/192.168.1.1/teardown", http.NoBody)
@@ -264,7 +264,7 @@ func TestCommandErrorCard(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch, nil)
+	handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(nil))
 
 	// The test dispatcher returns an error when the command contains "fail".
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/fail/command", http.NoBody)
@@ -289,7 +289,7 @@ func TestAdminContentNegotiation(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch, nil)
+	handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(nil))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/192.168.1.1/teardown?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -320,7 +320,7 @@ func TestAdminContentNegotiationView(t *testing.T) {
 	require.NoError(t, err)
 
 	tree := testCommandTree()
-	handler := HandleAdminView(renderer, tree)
+	handler := HandleAdminView(renderer, StaticCommandTree(tree))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -355,7 +355,7 @@ func TestAdminExecuteCompletesAfterResponseWrite(t *testing.T) {
 		})
 		return resp, nil
 	})
-	handler := HandleAdminExecute(renderer, dispatch, nil)
+	handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(nil))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/request/shutdown?format=json", http.NoBody)
 
 	handler(recorder, req)
@@ -373,7 +373,7 @@ func TestAdminExecuteMethodNotAllowed(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch, nil)
+	handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(nil))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/192.168.1.1/teardown", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -392,7 +392,7 @@ func TestAdminExecuteNilDispatcher(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	handler := HandleAdminExecute(renderer, nil, nil)
+	handler := HandleAdminExecute(renderer, nil, StaticCommandTree(nil))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/teardown", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -442,7 +442,7 @@ func TestAdminErrorContentNegotiation(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch, nil)
+	handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(nil))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/fail/command?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -475,7 +475,7 @@ func TestAdminCommandFormShowsHelp(t *testing.T) {
 	require.NoError(t, err)
 
 	tree := testCommandTree()
-	handler := HandleAdminView(renderer, tree)
+	handler := HandleAdminView(renderer, StaticCommandTree(tree))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/teardown/", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -530,7 +530,7 @@ func TestAdminCommandFormEscapesHelp(t *testing.T) {
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/teardown/", http.NoBody)
 	rec := httptest.NewRecorder()
-	HandleAdminView(renderer, tree).ServeHTTP(rec, req)
+	HandleAdminView(renderer, StaticCommandTree(tree)).ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	body := rec.Body.String()
@@ -611,7 +611,7 @@ func TestAdminExecuteAppendsPostedArguments(t *testing.T) {
 				got = cmd
 				return plugin.NewResponse(plugin.StatusDone, plugin.Map{"result": "executed"}), nil
 			}
-			handler := HandleAdminExecute(renderer, dispatch, tree)
+			handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(tree))
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/socket/open", strings.NewReader(tc.form))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			rec := httptest.NewRecorder()
@@ -666,7 +666,7 @@ func TestAdminExecuteBindsAnAnchoredValueThroughTheDispatcher(t *testing.T) {
 		return d.Dispatch(&pluginserver.CommandContext{}, input)
 	}
 
-	handler := HandleAdminExecute(renderer, dispatch, tree)
+	handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(tree))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/send/bgp/withdraw/all?format=json", strings.NewReader("selector=10.0.0.1"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
@@ -697,7 +697,7 @@ func TestAdminExecuteRefusesAQuoteInAValue(t *testing.T) {
 		dispatched = true
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}
-	handler := HandleAdminExecute(renderer, dispatch, tree)
+	handler := HandleAdminExecute(renderer, dispatch, StaticCommandTree(tree))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/socket/open", strings.NewReader(`label=a%22b`))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()

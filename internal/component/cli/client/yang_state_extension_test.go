@@ -63,8 +63,8 @@ func TestYANGStateSurfacesLoaderError(t *testing.T) {
 			}
 			return err
 		}},
-		{"buildRuntimeTreeFromDispatch", func() error {
-			_, err := buildRuntimeTreeFromDispatch(commandListDispatch(""))
+		{"BuildRuntimeTreeFromDispatch", func() error {
+			_, err := BuildRuntimeTreeFromDispatch(commandListDispatch(""))
 			return err
 		}},
 	}
