@@ -158,7 +158,13 @@ leaves the by-section redo at the first section that sees it, and is handed
 back once. The fence goes up before the session is published Established
 (`enterEstablished`), so no forward sees the destination Established with its
 fence down: one that did parked under the initial-sync hold instead, and the
-replay carried the same UPDATE again.
+replay carried the same UPDATE again. The destination's forward facts are
+published earlier, by the Established callback (`setEncodingContexts`), so a
+forward can find a destination with facts while its fence is still down and
+its receipt not yet taken. `Peer.replayOwns` therefore hands back every
+destination whose session is not yet published Established: served there as
+well, the UPDATE reached it twice, once from the fast path and once in the
+replay, and the replay's copy re-announced the route after its withdrawal.
 
 The fast path decides at receipt, so an UPDATE that reached it before the
 destination's session was up served the destination nothing and handed it
@@ -179,7 +185,7 @@ for an UPDATE numbered below its receipt even after the fence is down
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS, reactorForwardRSSection, withoutPeerKeys -->
 <!-- source: internal/component/bgp/reactor/source_policy_reload.go -- enterEstablished -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped -->
-<!-- test: internal/component/bgp/reactor/forward_replay_fence_test.go TestRSFastPathHandsAFencedDestinationBack, TestRSFastPathRedoHandsAFencedDestinationBack, TestLiveForwardWaitsForPeerUpReplay, TestEstablishedIsPublishedBehindTheReplayFence -->
+<!-- test: internal/component/bgp/reactor/forward_replay_fence_test.go TestRSFastPathHandsAFencedDestinationBack, TestRSFastPathRedoHandsAFencedDestinationBack, TestLiveForwardWaitsForPeerUpReplay, TestEstablishedIsPublishedBehindTheReplayFence, TestRSFastPathHandsBackADestinationNotYetEstablished -->
 
 Live cache entries and reconstructed stored-route replays retain their dispatch
 peer and session generation. Source removal or re-establishment invalidates

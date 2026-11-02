@@ -631,3 +631,63 @@ func TestRSFastPathHandsBackAnUpdateOlderThanTheSession(t *testing.T) {
 	require.Equal(t, 1, dispatched, "an UPDATE newer than the session is the fast path's")
 	require.Empty(t, skipped, "nothing is handed back for an UPDATE newer than the session")
 }
+
+// TestRSFastPathHandsBackADestinationNotYetEstablished proves the fast path
+// leaves a session that is not yet Established to the route server, even
+// once its forward facts are published. Goal: the Established callback
+// publishes the facts (setEncodingContexts) before enterEstablished raises
+// the replay fence and takes the receipt, and an UPDATE meeting the fast
+// path in that window used to be dispatched to the destination; the route
+// server, which had taken delivery of it before it saw the peer up, then
+// replayed it too, so the peer was announced the route twice and the copy
+// behind the replay re-announced it after a withdrawal of the same prefix
+// (RFC 4271 Section 9.2). Method: publish the destination's facts with its
+// state short of Established, its fence never raised and no receipt taken,
+// drive reactorForwardRS, and require a hand-back; then establish the
+// session, lower the fence, and require an UPDATE newer than its receipt to
+// be dispatched, so the hand-back is not a rail that serves nobody.
+func TestRSFastPathHandsBackADestinationNotYetEstablished(t *testing.T) {
+	snapshot := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:                rsFenceFixture,
+		Description:         "route-server fixture that holds the replay fence",
+		RunEngine:           func(net.Conn) int { return 0 },
+		CLIHandler:          func([]string) int { return 0 },
+		RelaysOnRSFastPath:  true,
+		FencesLiveForwards:  true,
+		SignalsSessionReady: true,
+	}))
+
+	r, src, dst, _, ctxID := newSyncOrderRail(t)
+	dst.mu.Lock()
+	dst.settings.ProcessBindings = []ProcessBinding{{
+		PluginName: rsFenceFixture,
+		Send:       map[string]bool{bgpevents.SendUpdate: true},
+		Receive:    map[string]events.Direction{bgpevents.EventState: events.DirReceived},
+	}}
+	dst.mu.Unlock()
+	dst.refreshForwardFacts()
+	dst.state.Store(int32(PeerStateConnecting))
+	dst.sendingInitialRoutes.Store(0)
+	dst.establishedReceipt.Store(0)
+	require.False(t, dst.initialUpdateOwed.Load(), "the fence must be down for this test to judge the state alone")
+	require.NotNil(t, dst.forwardFacts(), "the facts must be published, as the Established callback does first")
+
+	early := nextMsgID()
+	update := syncOrderPublish(t, r, ctxID, early, syncOrderAnnounceBody)
+	skipped, dispatched := reactorForwardRS(r, update, early, netip.MustParseAddr(forwardSourceAddr), src)
+	require.Equal(t, 0, dispatched, "a session not yet Established is the route server's to serve")
+	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the destination must be handed back to the route server")
+
+	dst.enterEstablished()
+	receipt := dst.session.initialReplay.Load()
+	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(rsFenceFixture), receipt))
+	require.False(t, dst.initialUpdateOwed.Load(), "the fence must be down once the route server reported")
+
+	newer := nextMsgID()
+	update = syncOrderPublish(t, r, ctxID, newer, syncOrderAnnounceBody)
+	skipped, dispatched = reactorForwardRS(r, update, newer, netip.MustParseAddr(forwardSourceAddr), src)
+	require.Equal(t, 1, dispatched, "an Established destination takes an UPDATE newer than its receipt from the fast path")
+	require.Empty(t, skipped, "nothing is handed back to the route server once the session is Established")
+}

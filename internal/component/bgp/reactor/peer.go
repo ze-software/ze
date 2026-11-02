@@ -989,14 +989,25 @@ func (p *Peer) takeInitialReplayReceipt() {
 }
 
 // replayOwns reports whether the route server, and not the RS fast path,
-// decides the UPDATE numbered updateID for this destination. It does while
-// the replay fence is up (Peer.initialUpdateOwed), and for an UPDATE numbered
-// below the session's initial-replay receipt even once the fence is down:
-// that UPDATE may have reached the fast path before this session was a
-// destination, so the route server forwards it when it is above its cut,
-// and a fast-path copy as well would reach the peer twice. Safe for
-// concurrent use.
+// decides the UPDATE numbered updateID for this destination. It does until
+// Established is published, while the replay fence is up
+// (Peer.initialUpdateOwed), and for an UPDATE numbered below the session's
+// initial-replay receipt even once the fence is down: that UPDATE may have
+// reached the fast path before this session was a destination, so the route
+// server forwards it when it is above its cut, and a fast-path copy as well
+// would reach the peer twice. Safe for concurrent use.
 func (p *Peer) replayOwns(updateID uint64) bool {
+	// The Established callback publishes the forward facts
+	// (setEncodingContexts) before enterEstablished raises the fence and
+	// takes the receipt, so in that window neither check below can answer
+	// yet. Established is published after both (enterEstablished), so a
+	// session short of it is the route server's: its peer-up cut decides
+	// between the replay and its live rail. Served here as well, the
+	// UPDATE reached the peer twice, and the replay's copy re-announced a
+	// route after its withdrawal (RFC 4271 Section 9.2).
+	if p.State() != PeerStateEstablished {
+		return true
+	}
 	if p.initialUpdateOwed.Load() {
 		return true
 	}
