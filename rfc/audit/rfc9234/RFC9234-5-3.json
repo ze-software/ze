@@ -1,17 +1,17 @@
 {
-  "note": "non-compliant: a route without OTC from Provider, Peer or RS left unstamped or stamped with another ASN. TestOTCIngressFilter stamp_from_provider finds OTC == remote AS 65002 in the rewritten payload; TestCheckOTCIngress stamp_from_provider/peer/rs assert stampASN == remote ASN for each of the three roles. Negatives: Customer/RS-Client not stamped, pure withdrawal and MP_UNREACH-only not stamped",
+  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of db53ccc34d. RFC 9234 Section 5 (row text): \"If a route is received from a Provider, a Peer, or an RS and the OTC Attribute is not present, then it MUST be added with a value equal to the AS number of the remote AS.\" db53ccc34d deleted OTCIngressFilter, which had no non-test caller since the ingress hook removal, and moved its test call sites onto the live bgp-role:otc-ingress filter answer through evaluateRoleFilter (otcIngressAnswer, answerOTC, answerMeta). Every input payload and source role is unchanged; an old reject maps to the FilterWithdraw verdict, an old accept-unmodified to a non-withdraw verdict with no otc set, and an old stamp to FilterModify with the otc set at the expected ASN. The tests now judge the decision the shipped filter returns rather than a dead wrapper, so for the decision this row binds they are stronger than before. The engine's application of a withdraw or modify verdict is the shared filter-chain mechanism, proven by reactor TestWithdrawVerdictReactorRails and TestBuildWithdrawalPayload_IPv4, which carry no tag for this row. Verdict unchanged: enforced. Earlier judgement follows. non-compliant: a route without OTC from Provider, Peer or RS left unstamped or stamped with another ASN. TestOTCIngressFilter stamp_from_provider finds OTC == remote AS 65002 in the rewritten payload; TestCheckOTCIngress stamp_from_provider/peer/rs assert stampASN == remote ASN for each of the three roles. Negatives: Customer/RS-Client not stamped, pure withdrawal and MP_UNREACH-only not stamped",
   "requirement_sha": "2ee81cb8e6e90e03",
   "tests": {
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnMPUnreachOnly": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnPureWithdrawal": "7b0a9e434ba435f3"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnMPUnreachOnly": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnPureWithdrawal": "103ce3a49f6eb93b"
   },
   "units": {
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "a8f63ea4d0fba230",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "5c8a60dca8e82b66",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnMPUnreachOnly": "672d94622228e76b",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnPureWithdrawal": "b961bc40b65c9d04"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "cc7994ab302c941d",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnMPUnreachOnly": "b35975da119fa257",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnPureWithdrawal": "fa30e3752411c1d3"
   },
   "verdict": "enforced"
 }

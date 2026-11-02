@@ -1,13 +1,13 @@
 {
-  "note": "non-compliant: Peer route whose OTC differs from the Peer's AS accepted. TestOTCIngressFilter reject_peer_otc_mismatch asserts accept=false (OTC 65099 vs PeerAS 65003); negative accept_peer_otc_matches asserts accept=true and no rewrite; TestCheckOTCIngress also pins reject_peer_otc_wrong and zero ASN",
+  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of db53ccc34d. RFC 9234 Section 5 (row text): \"If a route with the OTC Attribute is received from a Peer (i.e., remote AS with a Peer Role) and the Attribute has a value that is not equal to the remote (i.e., Peer's) AS number, then it is a route leak and MUST be considered ineligible.\" db53ccc34d deleted OTCIngressFilter, which had no non-test caller since the ingress hook removal, and moved its test call sites onto the live bgp-role:otc-ingress filter answer through evaluateRoleFilter (otcIngressAnswer, answerOTC, answerMeta). Every input payload and source role is unchanged; an old reject maps to the FilterWithdraw verdict, an old accept-unmodified to a non-withdraw verdict with no otc set, and an old stamp to FilterModify with the otc set at the expected ASN. The tests now judge the decision the shipped filter returns rather than a dead wrapper, so for the decision this row binds they are stronger than before. The engine's application of a withdraw or modify verdict is the shared filter-chain mechanism, proven by reactor TestWithdrawVerdictReactorRails and TestBuildWithdrawalPayload_IPv4, which carry no tag for this row. Verdict unchanged: enforced. Earlier judgement follows. non-compliant: Peer route whose OTC differs from the Peer's AS accepted. TestOTCIngressFilter reject_peer_otc_mismatch asserts accept=false (OTC 65099 vs PeerAS 65003); negative accept_peer_otc_matches asserts accept=true and no rewrite; TestCheckOTCIngress also pins reject_peer_otc_wrong and zero ASN",
   "requirement_sha": "d6339ba62c2c3e53",
   "tests": {
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter#2": "7b0a9e434ba435f3"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter#2": "103ce3a49f6eb93b"
   },
   "units": {
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "5c8a60dca8e82b66",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter#2": "5c8a60dca8e82b66"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "cc7994ab302c941d",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter#2": "cc7994ab302c941d"
   },
   "verdict": "enforced"
 }

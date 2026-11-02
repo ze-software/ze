@@ -40,7 +40,7 @@
     "claim-sha": "b26a4f024d7a2e47",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer.go::getPluginCapabilities",
-    "producer-sha": "c1e4d4e4d0c8a4d8",
-    "break": "body of getPluginCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ba37d6f02e36d5c5",
+    "break": "body of getPluginCapabilities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

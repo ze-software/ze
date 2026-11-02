@@ -150,7 +150,7 @@
     "claim-sha": "44f45fdef859a965",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rr/rr.go::handleStateDown",
-    "producer-sha": "b8117c5d5f1046f7",
+    "producer-sha": "d6c6fb2683f9be01",
     "break": "body of handleStateDown replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

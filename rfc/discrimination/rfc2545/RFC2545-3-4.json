@@ -7,8 +7,8 @@
     "claim-sha": "c2008818d4c5fe2e",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
-    "producer-sha": "f8589cb7f51c1b6e",
-    "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "97f772a3cbf7501a",
+    "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-4",

@@ -18,7 +18,7 @@
     "claim-sha": "4b29cb25c7bdc043",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_as_migration.go::isIBGPWith",
-    "producer-sha": "015180dd93c516f4",
-    "break": "body of isIBGPWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "418ad59f9afb8bbc",
+    "break": "body of isIBGPWith replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

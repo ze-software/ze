@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-14 (independent auditor, D4, owner Q-D4 (a)). RFC 9234 Section 3.1: Customer, RS-Client and Peer \"MAY propagate any route learned from a Customer, or that is locally originated\" to a Provider, an RS and a Peer, and \"All other routes MUST NOT be propagated.\" Producer OTCEgressFilter (role/otc.go) suppresses when the destination remote role is provider, peer or rs and the source role (our role toward the source) is customer, peer, rs-client or rs. TestOTCEgressFilter asserts suppression for every member of both sets: Provider-learned to Provider, Peer-learned to Peer and RS, RS-learned to Provider, RS-Client-learned to Provider, Peer and RS (the rs case the earlier verdict found propagated now asserts suppression); TestOTCEgressSuppressProviderLearnedWithoutMeta covers the config fallback with nil meta. Negatives: Customer-learned reaches a Provider and a Customer, RS-Client-learned reaches a Customer and an RS-Client, so the suppression is scoped. Each set member is pinned by at least one exact assertion, so dropping a role from either set goes red; not every source-destination pair is asserted, which the set-membership producer makes redundant.",
+  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of db53ccc34d. RFC 9234 Section 3.1 (row text): \"Customer: MAY propagate any route learned from a Customer, or that is locally originated, to a Provider. All other routes MUST NOT be propagated. Route Server (RS): MAY propagate any available route to a Route Server Client (RS-Client). Route Server Client (RS-Client): MAY propagate any route learned from a Customer, or that is locally originated, to an RS. All other routes MUST NOT be propagated. Peer: MAY propagate any route learned from a Customer, or that is locally originated, to a Peer. All other routes MUST NOT be propagated.\" db53ccc34d deleted OTCIngressFilter, which had no non-test caller since the ingress hook removal, and moved its test call sites onto the live bgp-role:otc-ingress filter answer through evaluateRoleFilter (otcIngressAnswer, answerOTC, answerMeta). Every input payload and source role is unchanged; an old reject maps to the FilterWithdraw verdict, an old accept-unmodified to a non-withdraw verdict with no otc set, and an old stamp to FilterModify with the otc set at the expected ASN. The tests now judge the decision the shipped filter returns rather than a dead wrapper, so for the decision this row binds they are stronger than before. The engine's application of a withdraw or modify verdict is the shared filter-chain mechanism, proven by reactor TestWithdrawVerdictReactorRails and TestBuildWithdrawalPayload_IPv4, which carry no tag for this row. Only the units this row names that called OTCIngressFilter changed; the egress units are byte-identical. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-14 (independent auditor, D4, owner Q-D4 (a)). RFC 9234 Section 3.1: Customer, RS-Client and Peer \"MAY propagate any route learned from a Customer, or that is locally originated\" to a Provider, an RS and a Peer, and \"All other routes MUST NOT be propagated.\" Producer OTCEgressFilter (role/otc.go) suppresses when the destination remote role is provider, peer or rs and the source role (our role toward the source) is customer, peer, rs-client or rs. TestOTCEgressFilter asserts suppression for every member of both sets: Provider-learned to Provider, Peer-learned to Peer and RS, RS-learned to Provider, RS-Client-learned to Provider, Peer and RS (the rs case the earlier verdict found propagated now asserts suppression); TestOTCEgressSuppressProviderLearnedWithoutMeta covers the config fallback with nil meta. Negatives: Customer-learned reaches a Provider and a Customer, RS-Client-learned reaches a Customer and an RS-Client, so the suppression is scoped. Each set member is pinned by at least one exact assertion, so dropping a role from either set goes red; not every source-destination pair is asserted, which the set-membership producer makes redundant.",
   "requirement_sha": "dd09c11c76e8af3a",
   "tests": {
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#2": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#3": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#4": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#5": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#6": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#7": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "7b0a9e434ba435f3"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#2": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#3": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#4": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#5": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#6": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#7": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "103ce3a49f6eb93b"
   },
   "units": {
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter": "4da3b60ddbe7c227",
@@ -19,7 +19,7 @@
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#5": "4da3b60ddbe7c227",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#6": "4da3b60ddbe7c227",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#7": "4da3b60ddbe7c227",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "5ae3d32f3d68b57d"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "bc3af30a6eaf4ee7"
   },
   "verdict": "enforced"
 }

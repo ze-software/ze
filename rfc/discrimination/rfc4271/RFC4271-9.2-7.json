@@ -18,7 +18,7 @@
     "claim-sha": "0b9127ab1e2e4351",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_ownership.go::owesWithdrawal",
-    "producer-sha": "a9abc4c916a60492",
-    "break": "line 422: \"entry == nil\" -\u003e \"true\""
+    "producer-sha": "9891b49aae851b6c",
+    "break": "line 535: \"entry == nil\" -\u003e \"true\""
   }
 ]

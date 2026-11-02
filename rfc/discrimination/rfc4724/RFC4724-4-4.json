@@ -7,8 +7,8 @@
     "claim-sha": "e53359c07bab6278",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
-    "producer-sha": "00ce493dd7bea190",
-    "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4fad0526f2fcaa5a",
+    "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4724-4-4",
@@ -18,8 +18,8 @@
     "claim-sha": "f8cb2866fb968d9a",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
-    "producer-sha": "00ce493dd7bea190",
-    "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4fad0526f2fcaa5a",
+    "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4724-4-4",
@@ -29,8 +29,8 @@
     "claim-sha": "7104a9249f4641af",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
-    "producer-sha": "00ce493dd7bea190",
-    "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4fad0526f2fcaa5a",
+    "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4724-4-4",
@@ -40,7 +40,7 @@
     "claim-sha": "8379e58370351e68",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
-    "producer-sha": "00ce493dd7bea190",
-    "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4fad0526f2fcaa5a",
+    "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

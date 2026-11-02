@@ -7,7 +7,7 @@
     "claim-sha": "ed6fabe89912193c",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr.go::handleStructuredState",
-    "producer-sha": "094694e5f39c3009",
+    "producer-sha": "f203ed5c9dbe8939",
     "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "476524dc0218db15",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr.go::handleStructuredState",
-    "producer-sha": "094694e5f39c3009",
+    "producer-sha": "f203ed5c9dbe8939",
     "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

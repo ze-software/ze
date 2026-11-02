@@ -7,8 +7,8 @@
     "claim-sha": "3a4c98bbae69a33e",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_commands.go::gatherPrefixCandidatesLocked",
-    "producer-sha": "052dc0e1c7879ffa",
-    "break": "body of gatherPrefixCandidatesLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "05a3eccd449d7d27",
+    "break": "body of gatherPrefixCandidatesLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8277-3.1-1",

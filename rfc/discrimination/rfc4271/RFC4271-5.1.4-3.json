@@ -7,7 +7,7 @@
     "claim-sha": "0ae35a67018f4c06",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "bfd2c3a92418d4c2",
+    "producer-sha": "e90bdff7762b5144",
     "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

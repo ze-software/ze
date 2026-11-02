@@ -1,13 +1,13 @@
 {
-  "note": "non-compliant: OTC route from Customer or RS-Client accepted. TestCheckOTCIngress reject_customer_with_otc and reject_rs_client_with_otc assert otcRejectLeak; TestOTCIngressGateRunsForADynamicGroupMember asserts accept=false for an RS-Client member; negative accept_provider_has_otc/accept_rs_has_otc assert otcAccept",
+  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of db53ccc34d. RFC 9234 Section 5 (row text): \"If a route with the OTC Attribute is received from a Customer or an RS-Client, then it is a route leak and MUST be considered ineligible (see Section 3).\" db53ccc34d deleted OTCIngressFilter, which had no non-test caller since the ingress hook removal, and moved its test call sites onto the live bgp-role:otc-ingress filter answer through evaluateRoleFilter (otcIngressAnswer, answerOTC, answerMeta). Every input payload and source role is unchanged; an old reject maps to the FilterWithdraw verdict, an old accept-unmodified to a non-withdraw verdict with no otc set, and an old stamp to FilterModify with the otc set at the expected ASN. The tests now judge the decision the shipped filter returns rather than a dead wrapper, so for the decision this row binds they are stronger than before. The engine's application of a withdraw or modify verdict is the shared filter-chain mechanism, proven by reactor TestWithdrawVerdictReactorRails and TestBuildWithdrawalPayload_IPv4, which carry no tag for this row. Verdict unchanged: enforced. Earlier judgement follows. non-compliant: OTC route from Customer or RS-Client accepted. TestCheckOTCIngress reject_customer_with_otc and reject_rs_client_with_otc assert otcRejectLeak; TestOTCIngressGateRunsForADynamicGroupMember asserts accept=false for an RS-Client member; negative accept_provider_has_otc/accept_rs_has_otc assert otcAccept",
   "requirement_sha": "af215f89cdddb4ff",
   "tests": {
-    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "2ac8fba09ccdee06",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "7b0a9e434ba435f3",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress#2": "7b0a9e434ba435f3"
+    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "8318b202e45b8003",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress#2": "103ce3a49f6eb93b"
   },
   "units": {
-    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "d248f6d80a39daa8",
+    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "381455aa1d6b1ebf",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "a8f63ea4d0fba230",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress#2": "a8f63ea4d0fba230"
   },

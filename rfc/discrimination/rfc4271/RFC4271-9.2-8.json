@@ -7,8 +7,8 @@
     "claim-sha": "76c0fc8f731d610e",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
-    "producer-sha": "13cf02a605ddca00",
-    "break": "line 459: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
+    "producer-sha": "4865ab799033434e",
+    "break": "line 572: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
   },
   {
     "rid": "RFC4271-9.2-8",

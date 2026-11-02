@@ -29,8 +29,8 @@
     "claim-sha": "dcb7fd7166826f35",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_llgr.go::parseLLGRCapValue",
-    "producer-sha": "e746ab56fb60b031",
-    "break": "body of parseLLGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "dbbe3944820d41e0",
+    "break": "body of parseLLGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-5-1",
@@ -40,7 +40,7 @@
     "claim-sha": "9efb8e1d1179f642",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_llgr.go::parseLLGRCapValue",
-    "producer-sha": "e746ab56fb60b031",
-    "break": "body of parseLLGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "dbbe3944820d41e0",
+    "break": "body of parseLLGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
