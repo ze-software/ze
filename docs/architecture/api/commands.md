@@ -387,6 +387,32 @@ command with it.
 <!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows -->
 <!-- source: internal/component/command/local_data.go -- RenderLocalAnswer -->
 
+#### Local commands already served by the daemon under the same path
+
+A few local registrations share their path with a daemon RPC the owner
+registered itself. The two routes call one producer, so they cannot drift:
+
+| Command | Producer | Local route | Daemon route |
+|---------|----------|-------------|--------------|
+| `doctor`, `show doctor` | `doctor.Answer` | the local-data handler `ze doctor` runs, with no plugin check (no plugin runs in the caller's process) | `HandleDoctor`, one RPC for `ze-doctor:doctor` and `ze-doctor:show-doctor`, adding the doctor checks of the plugins the daemon runs |
+| `show ping` | `pingResults` | `showPingLocal` prints it | `handleShowPing` |
+| `show traceroute` | `tracerouteResults` | `showTracerouteLocal` prints it | `handleTraceroute` |
+| `monitor ping`, `monitor traceroute` | `NewPingSession`, `NewTracerouteSession` | the local loop prints each result | the CLI view and the hub's session factory stream the same session; the RPC only acknowledges |
+
+The bridge leaves such a path to its builtin: when the YANG node's own RPC is
+registered as a builtin, the local-data handler on that path is the command's
+no-daemon route (`loadLocalData`). `doctor` is local-data because its answer
+is about the host it runs on, whichever host that is. `show ping` and `show
+traceroute` stay plain local commands, because `ze cli` answers a local-data
+command in its own process before it asks the daemon, and a ping asked through
+`ze cli` is sent from the router. `doctor config <file>` is confined on the
+daemon route like every other caller path (`command.CallerPath`).
+<!-- source: internal/component/doctor/answer.go -- Answer, answerLocal, renderDoctor -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, collectPluginDoctorChecks -->
+<!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, AnswerLocalData -->
+<!-- source: internal/component/ping/cmd/ping.go -- pingResults, handleShowPing -->
+<!-- source: internal/component/traceroute/cmd/traceroute.go -- tracerouteResults, handleTraceroute -->
+
 ---
 
 ## Operational Report Bus (ze-cmd:show-warnings, ze-cmd:show-errors)

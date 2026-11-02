@@ -1,0 +1,32 @@
+# Test: ze doctor answers with no daemon running, through the local route of
+# the producer the daemon's doctor and show doctor also run.
+# VALIDATES: spec-command-surface-parity AC-18 and user flow 5: the readiness
+# report, the kernel-capabilities answer and a refused word all reach the
+# operator from the local process, in the text and JSON drawings as before.
+# PREVENTS: making doctor a daemon command that needs a running daemon, which
+# would leave an operator whose daemon will not start with no readiness check.
+
+option=env:var=ZE_CONFIG_DIR:value=.
+
+tmpfs=probe.conf:mode=600:terminator=EOF_CONF
+environment {
+	web {
+		enabled true
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor config probe.conf
+expect=exit:code=0
+expect=stdout:contains=WARN  [doctor-storage-unavailable]
+expect=stdout:contains=ready (0 errors,
+
+cmd=foreground:seq=2:exec=ze doctor --json kernel-capabilities
+expect=stdout:contains="capabilities"
+expect=stdout:contains="ready"
+
+cmd=foreground:seq=3:exec=ze doctor bogus
+expect=exit:code=1
+expect=stderr:contains=unexpected argument: bogus
+expect=stderr:contains=ze doctor [--json] [config <file>]
+reject=stdout:contains=ready

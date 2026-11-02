@@ -1,4 +1,4 @@
-// Design: docs/architecture/api/commands.md -- show doctor RPC handler (plugin self-containment)
+// Design: docs/architecture/api/commands.md -- doctor and show doctor RPC handler (plugin self-containment)
 
 package cmd
 
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/doctor"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -19,38 +20,28 @@ const (
 	maxDiagnosticsPerCheck = 64
 )
 
-// HandleShowDoctor is the RPC handler for ze-doctor:show-doctor.
-// Registration is deferred until the central show.go entry is removed.
-func HandleShowDoctor(cmdCtx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	var configPath string
-	if len(args) > 0 {
-		configPath = args[0]
+// HandleDoctor is the RPC handler for ze-doctor:doctor and
+// ze-doctor:show-doctor. It runs the one producer `ze doctor` runs locally
+// (doctor.Answer) on the daemon route, adding the doctor checks of the
+// plugins this daemon runs, and maps the answer as the local-data bridge maps
+// every local-data command (pluginserver.AnswerLocalData).
+func HandleDoctor(cmdCtx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	runtime := func() []diagnostic.Diagnostic {
+		return collectPluginDoctorChecks(cmdCtx)
 	}
-
-	diags := diagnostic.RunDoctorChecks(configPath)
-	if diags == nil {
-		diags = []diagnostic.Diagnostic{}
+	answer := func(args command.ValidatedArgs) command.LocalAnswer {
+		return doctor.Answer(args, runtime)
 	}
-
-	if cmdCtx.Server != nil {
-		pluginDiags := collectPluginDoctorChecks(cmdCtx)
-		diags = append(diags, pluginDiags...)
-	}
-
-	ready := true
-	for i := range diags {
-		if diags[i].Severity == diagnostic.SeverityError {
-			ready = false
-			break
-		}
-	}
-
-	result := diagnostic.NewDoctorResult(ready, diags)
-	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
+	return pluginserver.AnswerLocalData("doctor", answer, validated)
 }
 
+// collectPluginDoctorChecks asks every plugin this daemon runs for its doctor
+// checks. A context with no server (a dispatcher built without one) holds no
+// plugin, so it answers none.
 func collectPluginDoctorChecks(cmdCtx *pluginserver.CommandContext) []diagnostic.Diagnostic {
+	if cmdCtx == nil || cmdCtx.Server == nil {
+		return nil
+	}
 	plugins := cmdCtx.Server.DoctorCheckPlugins()
 	if len(plugins) == 0 {
 		return nil

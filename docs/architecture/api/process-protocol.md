@@ -1334,7 +1334,7 @@ naming the plugin.
 <!-- source: pkg/plugin/sdk/sdk_resolver_cache.go -- OnResolverCacheClear -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnDoctorCheck -->
 <!-- source: internal/component/plugin/server/server.go -- CallDoctorCheck, DoctorCheckPlugins -->
-<!-- source: internal/component/doctor/cmd/show.go -- HandleShowDoctor plugin integration -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor plugin integration -->
 
 **enrich-show:** Engine invokes a plugin's declared show enricher at show time.
 Plugin receives the command, key, mode ("detail" or "brief"), and base data map as

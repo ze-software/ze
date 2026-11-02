@@ -33,9 +33,11 @@ import (
 // served here, because its handler prints rather than answering a value.
 //
 // ReadOnly comes from the verb unless the registration declares the daemon
-// form does more than read (registry.Meta.NotReadOnly). A path a builtin
-// already holds is refused by RegisterWithOptions (ErrCommandHeld), as two
-// builtins on one path are, so neither owner wins in silence.
+// form does more than read (registry.Meta.NotReadOnly). A path whose node's
+// own RPC is a builtin is left to that builtin: the owner registered it as the
+// daemon form of the same producer. A path some OTHER registration holds is
+// refused by RegisterWithOptions (ErrCommandHeld), as two builtins on one path
+// are, so neither owner wins in silence.
 func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef) error {
 	declared := make(map[string]string)
 	for wire, paths := range wireToPaths {
@@ -43,9 +45,20 @@ func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, p
 			declared[path] = wire
 		}
 	}
+	builtinWires := make(map[string]bool)
+	for _, reg := range AllBuiltinRPCs() {
+		builtinWires[reg.WireMethod] = true
+	}
 	for _, entry := range command.ListLocal() {
 		wire, hasNode := declared[entry.Path]
 		if !hasNode {
+			continue
+		}
+		if builtinWires[wire] {
+			// The node's own RPC is the daemon form: its owner registered a
+			// builtin that calls the same producer with what only the daemon
+			// holds (doctor's plugin checks), so this handler is that
+			// command's no-daemon route and the builtin already serves the path.
 			continue
 		}
 		handler, rest := command.LookupLocalData(strings.Fields(entry.Path))
@@ -73,8 +86,17 @@ func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, p
 // answer onto the response.
 func localDataHandler(path string, handler command.LocalDataHandler) Handler {
 	return func(_ *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
-		return localAnswerResponse(path, command.AnswerRemote(handler, args))
+		return AnswerLocalData(path, handler, args)
 	}
+}
+
+// AnswerLocalData runs a local-data handler on the daemon route and answers
+// its LocalAnswer as the dispatcher's response, the way the bridge serves every
+// local-data command. A builtin that is the daemon form of a local-data
+// command (the doctor RPCs) answers through here, so its response maps the
+// answer exactly as the bridge would.
+func AnswerLocalData(path string, handler command.LocalDataHandler, args command.ValidatedArgs) (*plugin.Response, error) {
+	return localAnswerResponse(path, command.AnswerRemote(handler, args))
 }
 
 // localAnswerResponse maps a local-data answer onto a daemon response, the

@@ -6,8 +6,8 @@
 // Related: checks_listener.go, checks_reach.go — check implementations
 // Related: checks_helpers.go — shared config-tree navigation helpers
 
-// Runner and output contract: argument parsing, config loading, the three phase
-// calls, and the text/JSON output formats. Check implementations live in the
+// Runner and output contract: config loading, the three phase calls, and the
+// text/JSON drawing of the local route (answer.go reads the arguments). Check implementations live in the
 // checks_*.go siblings, grouped by concern. Every check, this component's own
 // included, arrives through runDoctorChecks: runChecks writes no check out by
 // name, so a check `ze doctor` runs is one some package registered
@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
@@ -34,66 +33,11 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// Run executes the doctor command.
+// Run answers `ze doctor` the way its local route does: the one producer
+// (Answer) on the caller's own host, drawn by renderDoctor. It prints, so it is
+// the route, never the handler: the registered handler is answerLocal.
 func Run(validated command.ValidatedArgs) int {
-	args := validated.Tokens()
-	jsonOutput := false
-	var configPath string
-	kernelMode := false
-
-	// The config file is the value of the config keyword (ai/rules/cli.md:
-	// keyword before value), so no free-form token sits in a positional slot.
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch arg {
-		case "--json":
-			jsonOutput = true
-		case kernelCapabilitiesKeyword:
-			kernelMode = true
-		case configKeyword:
-			if configPath != "" {
-				return refuseDoctorArgs("config is named once; a second config keyword was given")
-			}
-			if index+1 >= len(args) {
-				return refuseDoctorArgs("config needs a file: ze doctor config <file>")
-			}
-			index++
-			// "-" alone is stdin (cliio); any other dash-leading token is an option, never a path.
-			if strings.HasPrefix(args[index], "-") && args[index] != "-" {
-				return refuseDoctorArgs("config needs a file, not the option " + args[index] + ": ze doctor config <file>")
-			}
-			configPath = args[index]
-		case "help", "-h", "--help":
-			usage()
-			return 0
-		default:
-			return refuseDoctorArgs("unexpected argument: " + arg + "; a config file is named with ze doctor config <file>")
-		}
-	}
-
-	// The kernel-capabilities mode asks about the kernel, not a configuration,
-	// so a config path beside it is a contradiction rather than ignored input.
-	if kernelMode {
-		if configPath != "" {
-			return refuseDoctorArgs(kernelCapabilitiesKeyword + " takes no config file: " + configPath)
-		}
-		return runKernelCapabilities(jsonOutput)
-	}
-
-	diags := runChecks(configPath)
-
-	ready := true
-	for i := range diags {
-		if diags[i].Severity == diagnostic.SeverityError {
-			ready = false
-			break
-		}
-	}
-
-	if jsonOutput {
-		return outputJSON(ready, diags)
-	}
-	return outputText(ready, diags)
+	return command.PrintLocalAnswerWith(doctorPath, command.AnswerLocal(answerLocal, validated), renderDoctor)
 }
 
 func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
@@ -203,21 +147,28 @@ func loadDoctorConfig(store storage.Storage, configPath string) ([]byte, string,
 	return data, configName, nil
 }
 
-func outputJSON(ready bool, diags []diagnostic.Diagnostic) int {
-	result := diagnostic.NewDoctorResult(ready, diags)
+// outputJSON draws the readiness result as indented JSON on stdout, and
+// answers exit 1 when the box is not ready.
+func outputJSON(result diagnostic.DoctorResult) int {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(result); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		var msg textbuf.Buffer
+		msg.Str("error: ").Err(err).Byte('\n')
+		os.Stderr.WriteString(msg.String()) //nolint:errcheck // the exit code carries the failure; a stderr write error has no other channel
 		return 1
 	}
-	if !ready {
+	if !result.Ready {
 		return 1
 	}
 	return 0
 }
 
-func outputText(ready bool, diags []diagnostic.Diagnostic) int {
+// outputText draws the readiness result as the text report on stdout, and
+// answers exit 1 when the box is not ready.
+func outputText(result diagnostic.DoctorResult) int {
+	diags := result.Diagnostics
+	ready := result.Ready
 	b := textbuf.Get()
 	defer b.Release()
 
@@ -267,17 +218,9 @@ func outputText(ready bool, diags []diagnostic.Diagnostic) int {
 // it the checks read the active config from the store.
 const configKeyword = "config"
 
-// refuseDoctorArgs writes one error line and the usage, and answers exit 1.
-func refuseDoctorArgs(reason string) int {
-	var msg textbuf.Buffer
-	msg.Str("error: ").Str(reason).Byte('\n')
-	os.Stderr.WriteString(msg.String()) //nolint:errcheck // the exit code carries the failure; a stderr write error has no other channel
-	usage()
-	return 1
-}
-
-func usage() {
-	p := helpfmt.Page{
+// doctorHelpPage is the usage page of ze doctor.
+func doctorHelpPage() helpfmt.Page {
+	return helpfmt.Page{
 		Command:   "ze doctor",
 		ShortHelp: "Check system readiness for running Ze",
 		Usage: []string{
@@ -298,5 +241,4 @@ func usage() {
 			"ze doctor --json kernel-capabilities",
 		},
 	}
-	p.WriteErr()
 }

@@ -1,5 +1,5 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- the kernel capability tier
-// Overview: doctor.go -- the argument parsing that selects this mode
+// Overview: answer.go -- the argument reading that selects this mode
 //
 // `ze doctor kernel-capabilities` probes EVERY enrolled kernel capability with
 // the configuration ignored (kernelcap.ProbeAll) and answers whether this
@@ -29,10 +29,21 @@ type kernelCapabilitiesAnswer struct {
 	Capabilities []kernelcap.Row `json:"capabilities"`
 }
 
-// runKernelCapabilities probes every enrolment, writes the answer to stdout,
-// and returns the exit code: 0 only when the kernel holds every feature.
-func runKernelCapabilities(jsonOutput bool) int {
-	ready, err := writeKernelCapabilities(os.Stdout, kernelcap.ProbeAll(), jsonOutput)
+// newKernelCapabilitiesAnswer builds the answer from the probed rows.
+// Capabilities is never null, so a consumer reads an empty list rather than a
+// missing one.
+func newKernelCapabilitiesAnswer(rows []kernelcap.Row) kernelCapabilitiesAnswer {
+	answer := kernelCapabilitiesAnswer{Ready: kernelReady(rows), Capabilities: rows}
+	if answer.Capabilities == nil {
+		answer.Capabilities = []kernelcap.Row{}
+	}
+	return answer
+}
+
+// outputKernelCapabilities draws the answer on stdout and returns the exit
+// code: 0 only when the kernel holds every feature.
+func outputKernelCapabilities(answer kernelCapabilitiesAnswer, jsonOutput bool) int {
+	ready, err := writeKernelCapabilities(os.Stdout, answer.Capabilities, jsonOutput)
 	if err != nil {
 		var msg textbuf.Buffer
 		msg.Str("error: write kernel capabilities: ").Err(err).Byte('\n')
@@ -45,24 +56,27 @@ func runKernelCapabilities(jsonOutput bool) int {
 	return 0
 }
 
-// writeKernelCapabilities writes rows to w and reports whether the kernel is
-// ready. Ready means at least one capability is enrolled and every one is
-// present: an unknown row is not a pass, and an empty enrolment (a build whose
-// owners enroll nothing, as off Linux) says nothing about the kernel, so it is
-// not a pass either.
-func writeKernelCapabilities(w io.Writer, rows []kernelcap.Row, jsonOutput bool) (bool, error) {
+// kernelReady answers whether the kernel is ready. Ready means at least one
+// capability is enrolled and every one is present: an unknown row is not a
+// pass, and an empty enrolment (a build whose owners enroll nothing, as off
+// Linux) says nothing about the kernel, so it is not a pass either.
+func kernelReady(rows []kernelcap.Row) bool {
 	ready := len(rows) > 0
 	for i := range rows {
 		if rows[i].State != kernelcap.StatePresent.String() {
 			ready = false
 		}
 	}
+	return ready
+}
+
+// writeKernelCapabilities writes rows to w and reports whether the kernel is
+// ready (kernelReady).
+func writeKernelCapabilities(w io.Writer, rows []kernelcap.Row, jsonOutput bool) (bool, error) {
+	ready := kernelReady(rows)
 
 	if jsonOutput {
-		answer := kernelCapabilitiesAnswer{Ready: ready, Capabilities: rows}
-		if answer.Capabilities == nil {
-			answer.Capabilities = []kernelcap.Row{}
-		}
+		answer := newKernelCapabilitiesAnswer(rows)
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return ready, enc.Encode(answer)
