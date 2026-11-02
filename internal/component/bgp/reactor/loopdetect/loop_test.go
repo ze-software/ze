@@ -342,10 +342,6 @@ func routeServerPeer() filterapi.PeerFilterInfo {
 // route server brokers, because the server does not prepend its own AS (RFC 7947
 // Section 2.2.2.1).
 //
-// RFC requirement: RFC7947-2.2.2.2-1 positive -- LoopIngress accepts an UPDATE received from a
-// route server peer in AS 65010 whose AS_PATH is [65002, 65003]: the leftmost AS is not the AS
-// of the peer that sent the message.
-//
 // LoopIngress does not test that equality. The leftmost-AS check lives in the reactor session,
 // Session.firstASMismatch (reactor/session_validation.go), which treats a mismatching UPDATE as
 // withdrawn; Session.firstASPeer disables it for one peer when the local OPEN carries Role
@@ -359,10 +355,6 @@ func TestLoopIngressAcceptsNonAdjacentLeftmostAS(t *testing.T) {
 
 // TestLoopIngressRejectsLocalASFromRouteServer proves the acceptance above is a decision about
 // the leftmost-AS condition rather than a filter that reads AS_PATH and takes everything.
-//
-// RFC requirement: RFC7947-2.2.2.2-1 negative -- on the SAME route server session, LoopIngress
-// denies an UPDATE whose AS_PATH is [65002, 65001] and so carries the local AS 65001. The
-// filter does read AS_PATH and does reject on what it finds there.
 func TestLoopIngressRejectsLocalASFromRouteServer(t *testing.T) {
 	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65001}, false))
 	assert.False(t, accept(routeServerPeer(), body),
