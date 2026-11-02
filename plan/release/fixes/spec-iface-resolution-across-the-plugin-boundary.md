@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | Sites found and verified; per-site design owed |
 | Handoff | - |
-| Updated | 2026-10-29 |
+| Updated | 2026-11-02 |
 
 ## Task
 
@@ -23,6 +23,17 @@ plugin boundary gate so that a new unguarded caller is refused.
 
 Found while fixing the DHCP server, which gets the same guard in its own work
 (`runDHCPServerPlugin`, `internal/plugins/dhcpserver/register.go`).
+
+The rate tracker is the same defect on another piece of iface state: it is
+filled only in the iface plugin's process, and two daemon-side readers still
+read the daemon's empty copy. The `trafficstat` service (`Service.tick` over
+`iface.ListRates`) and the web interfaces page (`page_interfaces.go`, over
+`iface.ListRates` and `iface.GetRate`) each ask the plugin through its own
+command instead, `show interface rate` (`iface.RateCommand`, forwarded with
+`Dispatcher.ForwardToPlugin`), as the rate commands already do
+(`internal/component/iface/cmd/interface_rate.go`, `ratesOf`). Once both are
+rewired, `iface.ListRates` and `GetRate` are deleted. Handed over from
+spec-command-surface-parity at its closure.
 
 ## Required Reading
 
@@ -212,6 +223,8 @@ boundary gate (`./le plugin boundary check`).
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `process-global-read-across-the-plugin-boundary.md` | 2026-10-29 | `iface.Resolve` and `ResolveDevice` callers in forked plugins read an empty selector table |
+| `process-global-read-across-the-plugin-boundary.md` | 2026-11-02 | `trafficstat` `Service.tick` reads the daemon's empty rate tracker |
+| `process-global-read-across-the-plugin-boundary.md` | 2026-11-02 | web interfaces page rate columns read the daemon's empty rate tracker |
 
 ## Checklist
 
