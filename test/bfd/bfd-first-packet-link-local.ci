@@ -75,7 +75,7 @@ bfd {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=le test fixture bfd/bfd-first-packet-link-local-setup:exit=0
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bfd:timeout=45s:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bfd:timeout=45s
 expect=stderr:contains=OK: the first packet on zbl0 selected the session to fe80::b on zbl0
 expect=stderr:contains=OK: the first packet on zbl1 selected the session to fe80::b on zbl1
 expect=stderr:pattern=OK: [0-9]+ frames left on zbl0 with Your Discriminator

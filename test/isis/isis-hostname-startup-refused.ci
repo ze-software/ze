@@ -28,7 +28,7 @@ isis {
 }
 EOF_UTF8
 
-cmd=foreground:seq=1:exec=ze -:stdin=isis-utf8:exit=1:timeout=20s
+cmd=foreground:seq=1:exec=ze -:stdin=isis-utf8:timeout=20s
 expect=exit:code=1
 expect=stderr:contains=config validation failed
 expect=stderr:contains=isis

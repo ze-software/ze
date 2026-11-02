@@ -63,7 +63,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze start invalid-validator.conf:exit=1:timeout=20s
+cmd=foreground:seq=1:exec=ze start invalid-validator.conf:timeout=20s
 expect=exit:code=1
 expect=stderr:contains=config validation failed
 expect=stderr:contains=plugin
