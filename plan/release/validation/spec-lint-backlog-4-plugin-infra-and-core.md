@@ -16,6 +16,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+Admission uses the one-off WIP exception in `plan/release/validation/spec-lint-backlog-0-umbrella.md`, "Owner's one-off WIP exception".
+
 Child of `plan/release/validation/spec-lint-backlog-0-umbrella.md`. Clear the
 findings CI's full `./le go lint run` reported on 2026-11-02 in the plugin
 infrastructure and the public SDK (door `ai/doors/plugin-infra.md`) and in
@@ -78,7 +80,7 @@ Line numbers are the CI run's.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le go lint run scope ./internal/component/plugin/... ./pkg/plugin/... ./internal/core/statestore/...`
+- `./le go lint run scope "./internal/component/plugin/... ./pkg/plugin/... ./internal/core/statestore/..."`
 
 ### Transformation Path
 1. Read each finding; check the error, or annotate with the reason it cannot matter.
@@ -144,6 +146,14 @@ Line numbers are the CI run's.
 2. Fix the test findings, then the registry modernize.
 3. Scoped lint zero; tests pass.
 
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Teardown errors | Error checks distinguish failures the test owns from teardown races, without weakening its assertions (R-1). |
+| Published contracts | The registry rewrite preserves the Stage 1 declaration and SDK exports. Registry tests restore their snapshots. |
+| Plugin and store evidence | All three trees are lint-clean, race tests pass, and ignored errors carry specific reasons (AC-1–3). |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -154,4 +164,4 @@ Line numbers are the CI run's.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope <the three trees>` zero; `./le job run label plugin command go test -race ./internal/component/plugin/... ./pkg/plugin/... ./internal/core/statestore/...`; `./le verify changed` over the commits
+- [ ] `./le go lint run scope "<the three trees>"` zero; `./le job run label plugin command go test -race ./internal/component/plugin/... ./pkg/plugin/... ./internal/core/statestore/...`. Full-run evidence belongs to the umbrella's CI run.

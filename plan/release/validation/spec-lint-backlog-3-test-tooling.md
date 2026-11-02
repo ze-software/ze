@@ -16,6 +16,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+Admission uses the one-off WIP exception in `plan/release/validation/spec-lint-backlog-0-umbrella.md`, "Owner's one-off WIP exception".
+
 Child of `plan/release/validation/spec-lint-backlog-0-umbrella.md`. Clear the
 findings CI's full `./le go lint run` reported on 2026-11-02 in the test
 harness and `le` (door `ai/doors/le-tooling.md`), the chaos tooling under
@@ -129,7 +131,7 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le go lint run scope ./internal/test/... ./internal/le/... ./internal/chaos/... ./tools/freertr-entrypoint/...`
+- `./le go lint run scope "./internal/test/... ./internal/le/... ./internal/chaos/... ./tools/freertr-entrypoint/..."`
 
 ### Transformation Path
 1. Read each finding; fix, or annotate with the reason the linter is wrong there.
@@ -200,6 +202,14 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 4. `internal/chaos`: exhaustive, classified C/O/P.
 5. Scoped lint zero; package tests pass.
 
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Tooling safety | Each gosec annotation traces the trusted path or argv, and real ignored-error defects have red-first proof. |
+| Test and hook contracts | Fixture assertions remain intact. Hook-source changes carry hook-unit evidence and the required digest procedure (R-1). |
+| Tooling evidence | Scoped lint includes the eight excluded locations (A-2), changed-package tests use their tags, and annotations state reasons (AC-1–3). |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -210,4 +220,4 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope <the packages>` zero; `./le job run label unit-pkg command go test -tags <tags> <changed packages>`; `./le ai hooks unit` if a hook source changed; `./le verify changed` over the commits
+- [ ] `./le go lint run scope "<the packages>"` zero; `./le job run label unit-pkg command go test -tags <tags> <changed packages>`; `./le ai hooks unit` if a hook source changed. Full-run evidence belongs to the umbrella's CI run.

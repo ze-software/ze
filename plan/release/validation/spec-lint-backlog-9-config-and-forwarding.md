@@ -16,6 +16,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+Admission uses the one-off WIP exception in `plan/release/validation/spec-lint-backlog-0-umbrella.md`, "Owner's one-off WIP exception".
+
 Child of `plan/release/validation/spec-lint-backlog-0-umbrella.md`. Clear the
 findings CI's full `./le go lint run` reported on 2026-11-02 in
 `internal/component/config/storage` and `config/yang/cli` (door
@@ -67,7 +69,7 @@ errcheck 1, misspell 1. Line numbers are the CI run's.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le go lint run scope ./internal/component/config/storage/... ./internal/component/config/yang/cli/... ./internal/plugins/iface/netlink/...`
+- `./le go lint run scope "./internal/component/config/storage/... ./internal/component/config/yang/cli/... ./internal/plugins/iface/netlink/..."`
 
 ### Transformation Path
 1. Read each finding; fix it.
@@ -133,6 +135,14 @@ errcheck 1, misspell 1. Line numbers are the CI run's.
 2. Fix the five findings.
 3. Scoped lint zero; tests pass.
 
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Test contracts | Storage tests use their own store, error checks retain assertions, and any refusal-text correction matches its producer. |
+| Kernel proof | Netlink tests execute with the required capability, in the QEMU guest when needed. A skip is not AC-2 evidence (R-1). |
+| Config evidence | Three scopes are lint-clean, config and netlink tests pass, and annotations state reasons (AC-1–3). |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -143,4 +153,4 @@ errcheck 1, misspell 1. Line numbers are the CI run's.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope <the three packages>` zero; `./le job run label config command go test -race ./internal/component/config/storage/... ./internal/component/config/yang/cli/...`; `./le test integration iface`; `./le verify changed` over the commits
+- [ ] `./le go lint run scope "<the three packages>"` zero; `./le job run label config command go test -race ./internal/component/config/storage/... ./internal/component/config/yang/cli/...`; `./le test integration iface`. Full-run evidence belongs to the umbrella's CI run.

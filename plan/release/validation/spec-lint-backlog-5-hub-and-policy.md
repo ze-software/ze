@@ -16,6 +16,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+Admission uses the one-off WIP exception in `plan/release/validation/spec-lint-backlog-0-umbrella.md`, "Owner's one-off WIP exception".
+
 Child of `plan/release/validation/spec-lint-backlog-0-umbrella.md`. Clear the
 findings CI's full `./le go lint run` reported on 2026-11-02 in `cmd/ze` and
 `cmd/ze/hub` (door `ai/doors/hub-engine.md`), all in test files, and in
@@ -81,7 +83,7 @@ modernize 1, unused 1. Line numbers are the CI run's.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le go lint run scope ./cmd/ze/... ./internal/component/policy/...`
+- `./le go lint run scope "./cmd/ze/... ./internal/component/policy/..."`
 
 ### Transformation Path
 1. Read each finding; fix, or annotate with the reason the linter is wrong there.
@@ -147,6 +149,14 @@ modernize 1, unused 1. Line numbers are the CI run's.
 2. Policy goconst; hub test findings.
 3. Scoped lint zero; tests pass.
 
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Tagged helper use | Establish whether each unused helper has callers in another build flavor before removal (R-1). |
+| Policy and parity | Config words retain their values, reuse existing declarations, and hub parity tests retain every surface case. |
+| Hub evidence | Both scopes are lint-clean, package tests use their required tags, and annotations state reasons (AC-1–3). |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -157,4 +167,4 @@ modernize 1, unused 1. Line numbers are the CI run's.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope ./cmd/ze/... ./internal/component/policy/...` zero; `./le job run label hub command go test -tags <tags> ./cmd/ze/hub/ ./cmd/ze/ ./internal/component/policy/`; `./le verify changed` over the commits
+- [ ] `./le go lint run scope "./cmd/ze/... ./internal/component/policy/..."` zero; `./le job run label hub command go test -tags <tags> ./cmd/ze/hub/ ./cmd/ze/ ./internal/component/policy/`. Full-run evidence belongs to the umbrella's CI run.

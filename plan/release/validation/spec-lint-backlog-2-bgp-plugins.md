@@ -16,6 +16,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+Admission uses the one-off WIP exception in `plan/release/validation/spec-lint-backlog-0-umbrella.md`, "Owner's one-off WIP exception".
+
 Child of `plan/release/validation/spec-lint-backlog-0-umbrella.md`. Clear the
 findings CI's full `./le go lint run` reported on 2026-11-02 in the BGP plugins
 (door `ai/doors/bgp-plugins.md`): filter_modify 9, role 4, filter_family 2,
@@ -86,7 +88,7 @@ gocritic 1, nilnil 1. Line numbers are the CI run's.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le go lint run scope ./internal/component/bgp/plugins/filter_family/... ./internal/component/bgp/plugins/filter_irr/... ./internal/component/bgp/plugins/filter_modify/... ./internal/component/bgp/plugins/filter_path_asn/... ./internal/component/bgp/plugins/filter_prefix/... ./internal/component/bgp/plugins/filter_remove_private_as/... ./internal/component/bgp/plugins/gr/... ./internal/component/bgp/plugins/role/...`
+- `./le go lint run scope "./internal/component/bgp/plugins/filter_family/... ./internal/component/bgp/plugins/filter_irr/... ./internal/component/bgp/plugins/filter_modify/... ./internal/component/bgp/plugins/filter_path_asn/... ./internal/component/bgp/plugins/filter_prefix/... ./internal/component/bgp/plugins/filter_remove_private_as/... ./internal/component/bgp/plugins/gr/... ./internal/component/bgp/plugins/role/..."`
 
 ### Transformation Path
 1. Read each finding; fix, or annotate with the reason the linter is wrong there.
@@ -153,6 +155,14 @@ gocritic 1, nilnil 1. Line numbers are the CI run's.
 2. Fix per plugin, one commit per plugin or two.
 3. Scoped lint zero; package tests pass.
 
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Role absence | Every caller preserves its outcome after the nilnil repair in `role/config_tx.go` (R-1). |
+| Plugin contracts | Constants stay within their owning plugin, filter verdicts stay intact, and RFC quotes remain byte-exact. |
+| Plugin evidence | All eight scopes are lint-clean, tagged race tests pass, and annotations state their reasons (AC-1–3). |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -163,4 +173,4 @@ gocritic 1, nilnil 1. Line numbers are the CI run's.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope <the eight packages>` zero; `./le job run label bgp-plugins command go test -race -tags ze_bgp <the eight packages>`; `./le verify changed` over the commits
+- [ ] `./le go lint run scope "<the eight packages>"` zero; `./le job run label bgp-plugins command go test -race -tags ze_bgp <the eight packages>`. Full-run evidence belongs to the umbrella's CI run.

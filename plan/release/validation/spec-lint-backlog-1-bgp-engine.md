@@ -16,6 +16,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+Admission uses the one-off WIP exception in `plan/release/validation/spec-lint-backlog-0-umbrella.md`, "Owner's one-off WIP exception".
+
 Child of `plan/release/validation/spec-lint-backlog-0-umbrella.md`. Clear the
 findings CI's full `./le go lint run` reported on 2026-11-02 in the BGP engine
 (door `ai/doors/bgp-engine.md`): reactor 39, policychain 8, config 4, cli 1,
@@ -118,7 +120,7 @@ the reactor.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le go lint run scope ./internal/component/bgp/reactor/... ./internal/component/bgp/policychain/... ./internal/component/bgp/config/... ./internal/component/bgp/cli/... ./internal/component/bgp/redistribute/...`
+- `./le go lint run scope "./internal/component/bgp/reactor/... ./internal/component/bgp/policychain/... ./internal/component/bgp/config/... ./internal/component/bgp/cli/... ./internal/component/bgp/redistribute/..."`
 
 ### Transformation Path
 1. Read each finding at its line; decide fix, or a reasoned annotation where the linter is wrong.
@@ -190,6 +192,14 @@ the reactor.
 4. exhaustive: classify C/O/P per switch, then fix.
 5. Scoped lint zero; package tests pass.
 
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| FSM outcomes | C/O/P classification preserves named, unknown and post-switch outcomes in the reactor (R-1). |
+| Error paths | Each real nilerr, errcheck or gosec defect has red-first proof (AC-4). |
+| Engine evidence | All five scopes are lint-clean and tagged race tests pass, with reasoned annotations and byte-exact RFC quotes (AC-1–3). |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -200,4 +210,4 @@ the reactor.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope <the five packages>` zero; `./le job run label bgp-engine command go test -race -tags ze_bgp <the five packages>`; `./le verify changed` over the commits
+- [ ] `./le go lint run scope "<the five packages>"` zero; `./le job run label bgp-engine command go test -race -tags ze_bgp <the five packages>`. Full-run evidence belongs to the umbrella's CI run.

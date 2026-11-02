@@ -16,6 +16,16 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+### Owner's one-off WIP exception
+
+On 2026-11-02, Thomas authorized this set: "Do not let spec open limit stop you from starting."
+This exception covers the umbrella and its nine children. For each claim, use
+`ZE_SPEC_WIP_CAP=<current in-progress count plus one> ./le spec claim <spec-file>`.
+Read the count with `./le spec wip report`. Set the override only on that command.
+The permanent cap stays unchanged.
+
+### Lint backlog
+
 CI's full `./le go lint run` can finish since the Staticcheck and cache fixes,
 and on 2026-11-02 it reported 228 unique findings across the tree: goconst 50,
 exhaustive 36, errcheck 30, gosec 24, misspell 23, modernize 19, gocritic 17,
@@ -147,6 +157,14 @@ scoped run before it starts, because other sessions edit these files.
 1. Run the children; they are independent and can run in any order.
 2. When the last closes, cite CI's full run (AC-2) and close this umbrella.
 
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Population | Each child's refreshed findings are resolved, including child 3's check of the excluded locations (A-2). |
+| Scoped evidence | Each closed child records zero scoped lint findings and its required package tests (AC-1). |
+| Full-run evidence | Cite the CI lint run after the last child for AC-2, including any new findings under R-1. |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -157,4 +175,4 @@ scoped run before it starts, because other sessions edit these files.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] Each child's scoped `./le go lint run scope <packages>` and package tests; `./le verify changed` over each child's commits; the full run is CI's (AC-2)
+- [ ] Each child's scoped `./le go lint run scope "<packages>"` reports zero and its package tests pass. Cite CI's full run for AC-2.

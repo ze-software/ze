@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 6 findings of the full lint in the web UI, MCP and the command model; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
@@ -15,6 +15,8 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+Admission uses the one-off WIP exception in `plan/release/validation/spec-lint-backlog-0-umbrella.md`, "Owner's one-off WIP exception".
 
 Child of `plan/release/validation/spec-lint-backlog-0-umbrella.md`. Clear the
 findings CI's full `./le go lint run` reported on 2026-11-02 in the web UI and
@@ -68,7 +70,7 @@ are the CI run's.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le go lint run scope ./internal/component/command/... ./internal/component/mcp/... ./internal/component/web/...`
+- `./le go lint run scope "./internal/component/command/... ./internal/component/mcp/... ./internal/component/web/..."`
 
 ### Transformation Path
 1. Read each finding; fix, or annotate with the reason the linter is wrong there.
@@ -134,6 +136,14 @@ are the CI run's.
 2. Fix the six findings.
 3. Scoped lint zero; tests pass.
 
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Constant ownership | Each constant names one concept. Generic command code gains no owner-specific words or registry copies (R-1). |
+| Rendering and surfaces | C/O/P fixes preserve web rendering and unknown outcomes. `AnswerSurface` retains every command's offered surfaces. |
+| API evidence | Three scopes are lint-clean, tagged tests include `TestEveryCommandOnEverySurface`, and annotations state reasons (AC-1–3). |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -144,4 +154,4 @@ are the CI run's.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope <the three packages>` zero; `./le job run label api command go test -race -tags <tags> ./internal/component/command/... ./internal/component/mcp/... ./internal/component/web/...`; `./le verify changed` over the commits
+- [ ] `./le go lint run scope "<the three packages>"` zero; `./le job run label api command go test -race -tags <tags> ./internal/component/command/... ./internal/component/mcp/... ./internal/component/web/...`. Full-run evidence belongs to the umbrella's CI run.

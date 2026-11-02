@@ -16,6 +16,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+Admission uses the one-off WIP exception in `plan/release/validation/spec-lint-backlog-0-umbrella.md`, "Owner's one-off WIP exception".
+
 Child of `plan/release/validation/spec-lint-backlog-0-umbrella.md`. Clear the
 findings CI's full `./le go lint run` reported on 2026-11-02 in the system
 plugins `debug`, `help`, `redistribute` and `skills` (door
@@ -83,7 +85,7 @@ goimports 2, misspell 1, godot 1, unparam 1. Line numbers are the CI run's.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le go lint run scope ./internal/plugins/debug/... ./internal/plugins/help/... ./internal/plugins/redistribute/... ./internal/plugins/skills/... ./internal/plugins/ospf/... ./internal/plugins/isis/...`
+- `./le go lint run scope "./internal/plugins/debug/... ./internal/plugins/help/... ./internal/plugins/redistribute/... ./internal/plugins/skills/... ./internal/plugins/ospf/... ./internal/plugins/isis/..."`
 
 ### Transformation Path
 1. Read each finding; fix, or annotate with the reason the linter is wrong there.
@@ -150,6 +152,14 @@ goimports 2, misspell 1, godot 1, unparam 1. Line numbers are the CI run's.
 2. The OSPF and IS-IS redistribute pair together; the rest per plugin.
 3. Scoped lint zero; tests pass.
 
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Metrics assertions | Establish whether unused helpers lost their callers. Restore lost assertions with judge review rather than remove coverage (A-2, R-1). |
+| Paired consumers | OSPF and IS-IS receive equivalent redistribution fixes, constants remain plugin-owned, and quoted RFC text stays byte-exact. |
+| Routing evidence | Six trees are lint-clean, tagged race tests pass, and annotations state reasons (AC-1–3). |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -160,4 +170,4 @@ goimports 2, misspell 1, godot 1, unparam 1. Line numbers are the CI run's.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope <the six trees>` zero; `./le job run label plugins command go test -race -tags <tags> <changed packages>`; `./le verify changed` over the commits
+- [ ] `./le go lint run scope "<the six trees>"` zero; `./le job run label plugins command go test -race -tags <tags> <changed packages>`. Full-run evidence belongs to the umbrella's CI run.
