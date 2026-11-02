@@ -145,7 +145,7 @@ func runParsedEmptyMPSource(options speakerOptions, _ io.Writer) (resultErr erro
 				// Ze can publish its own Established state before this source
 				// consumes Ze's KEEPALIVE. The checker MUST wait for both.
 				established = true
-				if err := os.WriteFile(parsedEmptyMPSourceReady, []byte("established\n"), 0o600); err != nil {
+				if err := writeParsedEmptyMPReady(parsedEmptyMPSourceReady); err != nil {
 					return err
 				}
 			}
@@ -160,6 +160,19 @@ func runParsedEmptyMPSource(options speakerOptions, _ io.Writer) (resultErr erro
 		}
 	}
 	return errors.New("source lifetime expired before lab teardown")
+}
+
+// writeParsedEmptyMPReady publishes the source's establishment fence for the checker.
+// Exclusive creation refuses an existing marker or symlink rather than overwriting
+// another writer's file. The caller MUST use a fresh marker path for each run.
+func writeParsedEmptyMPReady(path string) error {
+	marker, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // The caller uses the lab's fixed marker or a test-owned path; exclusive creation refuses existing files and symlinks.
+	if err != nil {
+		return err
+	}
+	_, writeErr := marker.WriteString("established\n")
+	closeErr := marker.Close()
+	return errors.Join(writeErr, closeErr)
 }
 
 // parsedEmptyMPPhase implements RFC 7606 Section 5.1: "Since older BGP speakers
