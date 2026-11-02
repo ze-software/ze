@@ -434,9 +434,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   never touched, however stuck or stale it looks: report it instead.
 - When a run fails for a reason outside your change (a build another session
   broke, a stale binary, a missing cache entry), find the cause before running
-  again. Never wait and retry the same run hoping it passes: name what broke and
-  whose it is, then run where it can answer, such as a clean worktree at the
-  commit under test, or before and after the change to see which side a red is on.
+  again. Never retry the same run hoping it passes: name what broke and whose
+  it is, report it, and run again in the main checkout once the cause is gone.
+  Comparing before and after the change, in the main checkout, shows which
+  side a red is on.
 - `sudo` is allowed only for the stress harness (`./le test integration
   stress`): one root run at a time, alone on the host, removing what it
   created, and leaving anything in a shared location usable by the owner's
