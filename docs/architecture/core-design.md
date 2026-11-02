@@ -1640,8 +1640,10 @@ subject above.
 - **Session facts are fields of the same view.** `policyview` registers
   `peer-name`, `peer-group`, `peer-address`, `local-as`, `peer-as`,
   `route-server-as`, `ibgp`, `rs-client` and `llgr-advertised` for the
-  session's peer, and the `source-peer-*`, `source-ibgp` and
-  `source-rs-client` facts of an exported route's source. The reactor fills
+  session's peer, and the `source-peer-*`, `source-ibgp`,
+  `source-rs-client` and `source-llgr-advertised` facts of an exported
+  route's source; `source-llgr-advertised` answers only for a route rebuilt
+  from storage, the one export rail (the relay) that fills it. The reactor fills
   them from the `filterapi.PeerFilterInfo` it already builds:
   `policyview.ImportSession` on the received path, `policyview.ExportSession`
   on each export rail. A fact the session does not hold answers absent, never

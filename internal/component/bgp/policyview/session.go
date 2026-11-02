@@ -213,6 +213,30 @@ func answerLLGRAdvertised(s *Session) Value {
 	return flagFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) bool { return p.LLGRAdvertised })(s)
 }
 
+// answerSourceLLGRAdvertised answers source-llgr-advertised: whether the OPEN
+// Ze sent on the session the exported route came from carried the LLGR
+// capability (RFC 9494 Section 3). It is present only on a route rebuilt from
+// storage (filterapi.MetaKeyRebuilt in the route's metadata): the relay rail
+// that rebuilds it fills the source's LLGRAdvertised from that session's own
+// OPEN, so the egress step can recover the stale level no ingress step wrote
+// on the copy. Every other export rail leaves the field unfilled and carries
+// the level in the "stale" metadata instead, so there an answer would be a
+// zero standing in for an unknown. A received route answers absent too: its
+// session's own fact is llgr-advertised.
+func answerSourceLLGRAdvertised(s *Session) Value {
+	if s.receiving {
+		return Value{}
+	}
+	rebuilt, ok := s.meta[filterapi.MetaKeyRebuilt].(bool)
+	if !ok {
+		return Value{}
+	}
+	if !rebuilt {
+		return Value{}
+	}
+	return flagFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) bool { return p.LLGRAdvertised })(s)
+}
+
 func writeText(buf []byte, _ *View, value Value) ([]byte, bool, error) {
 	return format.AppendJSONQuoted(buf, value.text), true, nil
 }

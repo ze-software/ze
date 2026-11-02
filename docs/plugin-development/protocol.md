@@ -705,6 +705,7 @@ empty string.
 | `ibgp`, `source-ibgp` | boolean: an internal session, an RFC 7705 migration session included | never, once the peer is known | `false` |
 | `rs-client`, `source-rs-client` | boolean: the peer is a configured route-server client | never, once the peer is known | `true` |
 | `llgr-advertised` | boolean: the OPEN Ze sent this session carried the Long-Lived Graceful Restart Capability (RFC 9494 Section 3) | on export: only the received path knows it | `true` |
+| `source-llgr-advertised` | boolean: the OPEN Ze sent the session an exported route came from carried the Long-Lived Graceful Restart Capability (RFC 9494 Section 3) | on import, and on export unless the route was rebuilt from storage (`rebuilt` is true): the live export rails carry the stale level in `stale` instead | `true` |
 | `src-role`, `src-peer-role` | string: route metadata `bgp-role` registers, Ze's role toward the route's source peer and that peer's role toward Ze (`docs/architecture/meta/README.md`) | no ingress step set it | `"customer"` |
 | `stale` | the route's stale level, route metadata `bgp-gr` registers (0 to 255; 2 marks an LLGR-stale route) | no ingress step set it | `2` |
 | `rebuilt` | boolean: route metadata the engine registers, set on a route rebuilt from storage | a live route | `true` |

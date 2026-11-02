@@ -129,3 +129,49 @@ func sessionField(t *testing.T, name string) policy.Field {
 	t.Fatalf("no session fact field %s", name)
 	return policy.Field{}
 }
+
+// TestSourceLLGRAdvertisedOnRebuiltRoute proves source-llgr-advertised
+// answers the source session's LLGR fact on a route rebuilt from storage, the
+// one export rail that fills it (the relay's resolveRelaySource), and is
+// absent everywhere else rather than a false standing in for an unknown: a
+// live export (no rebuilt metadata), metadata saying not rebuilt, a route
+// with no known source, and a received route.
+//
+// VALIDATES: spec-filter-wire-6-stage-filters phase 6 (the LLGR egress step's
+// read of the source's llgr-advertised, R-5), RFC 9494 Section 4.3.
+// PREVENTS: an egress step reading false on a live rail and treating a
+// stale route from an LLGR session as fresh.
+func TestSourceLLGRAdvertisedOnRebuiltRoute(t *testing.T) {
+	source := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("192.0.2.9"), PeerAS: 65009, LLGRAdvertised: true}
+	silent := source
+	silent.LLGRAdvertised = false
+	rebuilt := map[string]any{filterapi.MetaKeyRebuilt: true}
+	tests := []struct {
+		name    string
+		session Session
+		want    string
+	}{
+		{"rebuilt route, source advertised LLGR", ExportSession(sessionPeer(), source, true).WithExportMetadata(rebuilt),
+			`{"source-llgr-advertised":true}`},
+		{"rebuilt route, source did not", ExportSession(sessionPeer(), silent, true).WithExportMetadata(rebuilt),
+			`{"source-llgr-advertised":false}`},
+		{"live export", ExportSession(sessionPeer(), source, true), `{}`},
+		{"metadata says not rebuilt", ExportSession(sessionPeer(), source, true).
+			WithExportMetadata(map[string]any{filterapi.MetaKeyRebuilt: false}), `{}`},
+		{"no known source", ExportSession(sessionPeer(), source, false).WithExportMetadata(rebuilt), `{}`},
+		{"received route", ImportSession(sessionPeer()).WithImportMetadata(rebuilt), `{}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var view View
+			view.Reset(wireu.NewWireUpdate(fullUpdate(), fourOctet(t)), tt.session)
+			got, err := AppendFields(nil, &view, []string{"source-llgr-advertised"})
+			if err != nil {
+				t.Fatalf("AppendFields: %v", err)
+			}
+			if string(got) != tt.want {
+				t.Errorf("fields\n got %s\nwant %s", got, tt.want)
+			}
+		})
+	}
+}

@@ -68,6 +68,10 @@ var (
 	FieldSourcePeerAS      = policy.MustRegisterField("source-peer-as", policy.RouteView{})
 	FieldSourceIBGP        = policy.MustRegisterField("source-ibgp", policy.RouteView{})
 	FieldSourceRSClient    = policy.MustRegisterField("source-rs-client", policy.RouteView{})
+	// FieldSourceLLGRAdvertised is llgr-advertised of an exported route's
+	// source, answered only for a route rebuilt from storage
+	// (answerSourceLLGRAdvertised).
+	FieldSourceLLGRAdvertised = policy.MustRegisterField("source-llgr-advertised", policy.RouteView{})
 )
 
 // sessionFacts is the one declaration of how each session fact field is
@@ -90,4 +94,5 @@ var sessionFacts = []sessionFact{
 	{FieldSourcePeerAS, asFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) uint32 { return p.PeerAS }), writeNumber, false},
 	{FieldSourceIBGP, flagFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) bool { return p.IsIBGP }), writeFlag, false},
 	{FieldSourceRSClient, flagFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) bool { return p.RSClient }), writeFlag, false},
+	{FieldSourceLLGRAdvertised, answerSourceLLGRAdvertised, writeFlag, false},
 }
