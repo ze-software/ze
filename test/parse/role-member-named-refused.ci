@@ -1,0 +1,46 @@
+# Test: an operator reference to the bgp-role OTC member is refused at verify (named form).
+# VALIDATES: AC-7 of spec-filter-wire-6-stage-filters: peer peer1 has
+#            `role { import provider; }`, so bgp-role inserts its RFC 9234
+#            Section 5 OTC member itself; an import chain that names it as
+#            `bgp-role:otc-ingress` is refused with the declared reason, naming the peer,
+#            the filter list and the reference, and config validate exits 1.
+# PREVENTS:  an operator moving, duplicating or deactivating a procedure
+#            RFC 9234 Section 5 says the operator MUST NOT be able to modify.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		role {
+			import provider
+		}
+		filter {
+			import { filters [ bgp-role:otc-ingress ]; final accept; }
+			export { final accept; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config:timeout=15s
+expect=exit:code=1
+expect=stdout:contains=peer peer1: the import filter list names bgp-role:otc-ingress, which its plugin inserts itself
+expect=stdout:contains=The operator MUST NOT have the ability to modify the procedures defined in this section.

@@ -466,9 +466,13 @@ func plugin14OTCForwardWithdrawal(ctx context.Context, plugin *sdk.Plugin) error
 }
 
 func plugin14OTCIngressReject(ctx context.Context, plugin *sdk.Plugin) error {
-	Poll(ctx, 100, plugin14PollDelay, func() bool {
+	// An empty adj-rib-in proves the ingress verdict only once the leaked
+	// UPDATE has arrived: before it, the RIB is empty whatever the filter does.
+	if !Poll(ctx, 100, plugin14PollDelay, func() bool {
 		return plugin14PeerCounter(ctx, plugin, "127.0.0.1", "updates-received") >= 1
-	})
+	}) {
+		return errors.New("the customer peer's leaked UPDATE never arrived, so the adj-rib-in check proves nothing")
+	}
 	if err := plugin14Quiesce(ctx, plugin); err != nil {
 		return err
 	}

@@ -1,5 +1,8 @@
 # Test: OTC ingress filter rejects route leak from customer
 # VALIDATES: RFC 9234 Section 5 ingress rule -- route with OTC from Customer is rejected
+# RFC 9234 Section 5: "If a route with the OTC Attribute is received from a
+# Customer or an RS-Client, then it is a route leak and MUST be considered
+# ineligible (see Section 3)."
 # PREVENTS: Route leaks from downstream peers being accepted and propagated
 
 # ze-peer: acts as a customer peer (role capability code 9, value 3=customer)
@@ -14,9 +17,12 @@ option=timeout:value=15s
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
 # Send UPDATE with OTC attribute after session is established.
-# UPDATE: ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=1.1.1.1, OTC=65001, NLRI=10.0.0.0/24
+# UPDATE: ORIGIN=IGP, AS_PATH=65001, NEXT_HOP=1.1.1.1, OTC=65001, NLRI=10.0.0.0/24
+# The AS_PATH carries the customer's AS: an empty one fails the first-AS
+# check (Session.firstASMismatch) before any filter runs, which would hide
+# the OTC verdict.
 # OTC in UPDATE proves customer is leaking a route tagged by upstream.
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003002000000154001010040020040030401010101C023040000FDE9180A0000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C023040000FDE9180A0000
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
@@ -73,6 +79,11 @@ bgp {
 		attach process test-otc {
 			receive [ update state ]
 		}
+		# The import chain runs before bgp-adj-rib-in, which stores only the
+		# routes the chain accepted: its total-routes is the ingress verdict.
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
 	}
 
 	peer dest-peer {
@@ -112,3 +123,4 @@ expect=exit:code=0
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL
+expect=stderr:contains=OK: OTC ingress filter rejected route leak from customer

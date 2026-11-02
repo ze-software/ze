@@ -1,0 +1,138 @@
+# Test: role-otc-ingress-reject.ci with bgp-role forked (spec-filter-wire-6-stage-filters AC-6).
+# The same expectations as the internal twin: bgp-role runs as a real
+# external process over TLS connect-back (`ze plugin bgp-role`), so its
+# filters answer through filter-update and its state events cross the wire.
+# The forked process reads its own level from the underscore form; the
+# relay passes its INFO lines on (ze.log.relay) and the daemon's relay
+# logger writes them (ze.log.plugin.relay).
+option=env:var=ze_log_bgp_role:value=info
+option=env:var=ze.log.relay:value=info
+option=env:var=ze.log.plugin.relay:value=info
+# Test: OTC ingress filter rejects route leak from customer
+# VALIDATES: RFC 9234 Section 5 ingress rule -- route with OTC from Customer is rejected
+# RFC 9234 Section 5: "If a route with the OTC Attribute is received from a
+# Customer or an RS-Client, then it is a route leak and MUST be considered
+# ineligible (see Section 3)."
+# PREVENTS: Route leaks from downstream peers being accepted and propagated
+
+# ze-peer: acts as a customer peer (role capability code 9, value 3=customer)
+stdin=peer:terminator=EOF_PEER
+# The peer has no expectation left once it sends, so without linger it closes
+# the instant its write lands. ze reads that as session-down and purges the
+# peer's routes, which is the state this test's observer polls for.
+option=linger:value=true
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Role capability: drop ze-peer's default (Provider mirror) then add Customer (0x03).
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+# Send UPDATE with OTC attribute after session is established.
+# UPDATE: ORIGIN=IGP, AS_PATH=65001, NEXT_HOP=1.1.1.1, OTC=65001, NLRI=10.0.0.0/24
+# The AS_PATH carries the customer's AS: an empty one fails the first-AS
+# check (Session.firstASMismatch) before any filter runs, which would hide
+# the OTC verdict.
+# OTC in UPDATE proves customer is leaking a route tagged by upstream.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C023040000FDE9180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Dest peer (Customer, ASN 65002). If ingress reject works, it should receive
+# only EOR and no leaked UPDATE.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_DEST
+
+# native test plugin: keeps the daemon alive while the destination EOR-only
+# assertion proves ingress rejection.
+# Native compiled fixture: plugin/role-otc-ingress-reject
+# ze configuration: local role = provider, source/dest peers are customers
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub { server local { ip 127.0.0.1; port 0; secret role-otc-ingress-reject-forked-secret-0001; } }
+	external bgp-role { run "ze plugin bgp-role"; }
+	external test-otc {
+		run "le test fixture plugin/role-otc-ingress-reject"
+		encoder json
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import provider
+		}
+		attach process test-otc {
+			receive [ update state ]
+		}
+		# The import chain runs before bgp-adj-rib-in, which stores only the
+		# routes the chain accepted: its total-routes is the ingress verdict.
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import provider
+			export default
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OK: OTC ingress filter rejected route leak from customer
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

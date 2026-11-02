@@ -1,0 +1,169 @@
+# Test: role-otc-unicast-scope.ci with bgp-role forked (spec-filter-wire-6-stage-filters AC-6).
+# The same expectations as the internal twin: bgp-role runs as a real
+# external process over TLS connect-back (`ze plugin bgp-role`), so its
+# filters answer through filter-update and its state events cross the wire.
+# The forked process reads its own level from the underscore form; the
+# relay passes its INFO lines on (ze.log.relay) and the daemon's relay
+# logger writes them (ze.log.plugin.relay).
+option=env:var=ze_log_bgp_role:value=info
+option=env:var=ze.log.relay:value=info
+option=env:var=ze.log.plugin.relay:value=info
+# Test: OTC processing scoped to unicast families only per RFC 9234
+# VALIDATES: AC-6, AC-7 -- non-unicast family routes bypass OTC ingress/egress rules
+# PREVENTS: OTC applied to multicast/VPN/flow families violating RFC 9234 Section 5
+
+# ze-peer: customer peer sends multicast UPDATE with OTC (would be rejected if OTC applied)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Hold the session open past this peer's own completion -- see the same option in
+# role-otc-export-unknown.ci for the full reasoning. Without it this peer closes
+# ~1ms after its UPDATE, bgp-adj-rib-in drops the peer's routes on session-down
+# (adj_rib_in/rib.go "delete(r.ribIn, peerAddr)"), and the observer's
+# total-routes poll below can never see the route.
+option=linger:value=true
+# Role capability: drop ze-peer's default (Provider mirror) then add Customer (0x03).
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+# Send UPDATE with MP_REACH_NLRI for IPv4 multicast (AFI=1, SAFI=2) + OTC attribute.
+# If OTC processing applied, this would be rejected (OTC from Customer = leak).
+# Since multicast is out of OTC scope, it should be accepted.
+# UPDATE body:
+#   withdrawn_len=0000
+#   attrs:
+#     ORIGIN=IGP: 40 01 01 00
+#     AS_PATH=[65001]: 40 02 06 02 01 0000FDE9
+#     MP_REACH_NLRI (AFI=1 SAFI=2 nhlen=4 nh=1.1.1.1 nlri=10.0.0.0/24):
+#       80 0E 0D 0001 02 04 01010101 00 180A0000
+#     OTC=65001: C0 23 04 0000FDE9
+#   attr_len = 4+9+16+7 = 36 = 0x24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000244001010040020602010000FDE9800E0D000102040101010100180A0000C023040000FDE9
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Dest peer (Customer, ASN 65002) also negotiates multicast. The route should
+# forward unchanged with OTC still present because OTC processing is out of scope
+# for non-unicast families.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003F0200000028800E0D000102040101010100180A00004001010040020A02020000FDE80000FDE9C023040000FDE9
+# // the removed End-of-RIB rule was unsatisfiable by construction, so
+# it asserted nothing and only produced a red the runner used to mask. This peer's
+# EOR is emitted by its OWN initial sync the moment it establishes
+# (peer_initial_sync.go), which is BEFORE any route is forwarded to it from
+# another peer. That early EOR does not match the route rule(s) above, and
+# checker.go silently swallows an unmatched EOR instead of re-offering it, so the
+# trailing EOR slot could never be filled. RFC 4724 orders the EOR only against
+# this speaker's own initial dump, never against routes learned afterwards, so
+# there is no ordering here for a test to assert. The forwarded-route rule(s)
+# above are this test's actual subject and are unchanged.
+EOF_DEST
+
+# native test plugin: keeps the daemon alive while the destination wire
+# assertion proves multicast bypasses OTC processing.
+# Native compiled fixture: plugin/role-otc-unicast-scope
+# ze configuration: Provider with two Customer peers, ipv4/multicast enabled
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub { server local { ip 127.0.0.1; port 0; secret role-otc-unicast-scope-forked-secret-0001; } }
+	external bgp-role { run "ze plugin bgp-role"; }
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+	external test-scope {
+		run "le test fixture plugin/role-otc-unicast-scope"
+		encoder json
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/multicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import provider
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/multicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import provider
+			export default
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

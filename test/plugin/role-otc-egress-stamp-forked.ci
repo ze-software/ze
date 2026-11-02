@@ -1,0 +1,159 @@
+# Test: role-otc-egress-stamp.ci with bgp-role forked (spec-filter-wire-6-stage-filters AC-6).
+# The same expectations as the internal twin: bgp-role runs as a real
+# external process over TLS connect-back (`ze plugin bgp-role`), so its
+# filters answer through filter-update and its state events cross the wire.
+# The forked process reads its own level from the underscore form; the
+# relay passes its INFO lines on (ze.log.relay) and the daemon's relay
+# logger writes them (ze.log.plugin.relay).
+option=env:var=ze_log_bgp_role:value=info
+option=env:var=ze.log.relay:value=info
+option=env:var=ze.log.plugin.relay:value=info
+# Test: OTC egress stamping -- route to Customer is re-advertised with OTC
+# VALIDATES: RFC 9234 Section 5 egress stamp -- route from Customer forwarded to another Customer with OTC
+# PREVENTS: OTC egress stamping not wired, wrong ASN used for stamping, route not reaching destination peer
+# NOTE: Two-peer test using --bind for separate loopback addresses
+
+# Source peer (Customer, ASN 65001) on 127.0.0.1
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+# The source must outlive the DEST peer's assertion, not just its own. The two
+# sessions establish independently, so under load the source completes on its own
+# End-of-RIB and closes while the dest is still coming up. ze reads that close as
+# session-down and withdraws the source's routes, and the dest then receives the
+# withdraw instead of (or before) the OTC-stamped re-advertisement its expect=bgp
+# rule waits for. linger holds the session open until teardown, as in
+# community-strip.ci and rr-basic.ci.
+option=linger:value=true
+# Role capability: drop ze-peer's default (mirrored Provider) then add Customer (0x03).
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+# Send UPDATE without OTC: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+# Dest peer (Customer, ASN 65002) on 127.0.0.2 -- expect OTC-stamped UPDATE
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=20s
+# Role capability: drop default (Provider mirror) then add Customer (0x03).
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C023040000FDE8180A0000
+# // the removed End-of-RIB rule was unsatisfiable by construction, so
+# it asserted nothing and only produced a red the runner used to mask. This peer's
+# EOR is emitted by its OWN initial sync the moment it establishes
+# (peer_initial_sync.go), which is BEFORE any route is forwarded to it from
+# another peer. That early EOR does not match the route rule(s) above, and
+# checker.go silently swallows an unmatched EOR instead of re-offering it, so the
+# trailing EOR slot could never be filled. RFC 4724 orders the EOR only against
+# this speaker's own initial dump, never against routes learned afterwards, so
+# there is no ordering here for a test to assert. The forwarded-route rule(s)
+# above are this test's actual subject and are unchanged.
+EOF_DEST
+
+# native test plugin: keeps the daemon alive while the destination wire
+# assertion proves OTC stamping.
+# Native compiled fixture: plugin/role-otc-egress-stamp
+# ze configuration: Provider with two Customer peers on different loopback addresses
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub { server local { ip 127.0.0.1; port 0; secret role-otc-egress-stamp-forked-secret-0001; } }
+	external bgp-role { run "ze plugin bgp-role"; }
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+	external test-stamp {
+		run "le test fixture plugin/role-otc-egress-stamp"
+		encoder json
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import provider
+			export default
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import provider
+			export default
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration: two ze-peer instances on different loopback addresses
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL
