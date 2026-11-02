@@ -6,7 +6,8 @@
 // value where it has no answer. The caller cannot tell that value from a real
 // one, so the defect surfaces far from its cause and reads as data
 // (ai/rules/principles.md, first directive). Four shapes produced the family
-// plan/release/fixes/spec-refuse-instead-of-defaulting.md owns:
+// plan/release/fixes/spec-refuse-instead-of-defaulting.md owns, and a fifth
+// (dropped.go) came from the MOBIKE route-source failure:
 //
 //   - a switch whose unmatched value answers a nil error: a `default:` arm that
 //     returns one, or the return after a switch whose every case returns
@@ -18,6 +19,8 @@
 //   - a state or health answer written from a literal: `StatusHealthy` with no
 //     measured read, a check that is one literal return, a literal boolean in
 //     a State, Status or Health value
+//   - an error caught and dropped, the function going on or answering a
+//     non-error, whose only record is a log line below WARN
 //
 // The detection is syntactic, like `arch compound-guard`: it reads one file's
 // AST and resolves no types, so it names a shape for a reader to judge, and the
@@ -48,6 +51,9 @@ const (
 	RulePathIDZero Rule = "path-id-compared-with-zero"
 	// RuleLiteralState is AC-4: a state or health answer from a literal.
 	RuleLiteralState Rule = "state-from-literal"
+	// RuleErrorDroppedBelowWarn is an error caught and dropped whose only
+	// record is a log line below WARN.
+	RuleErrorDroppedBelowWarn Rule = "error-dropped-below-warn"
 	// RuleAnnotationNoGuard is AC-6: an annotation that names no guard.
 	RuleAnnotationNoGuard Rule = "annotation-names-no-guard"
 )
@@ -181,7 +187,10 @@ func (s *fileScan) function(fn string, funcType *ast.FuncType, body *ast.BlockSt
 		case *ast.TypeSwitchStmt:
 			s.defaultArm(typed.Body, results, fn)
 		case *ast.IfStmt:
-			s.missBranch(typed, results, bindings, fn)
+			// A branch the miss rule already refuses is not judged twice.
+			if !s.missBranch(typed, results, bindings, fn) {
+				s.droppedError(typed, results, fn)
+			}
 		case *ast.ReturnStmt:
 			s.collapsedError(typed, results, bindings, fn)
 			if returnsHealthy(typed) {
@@ -442,27 +451,28 @@ func lastStatement(list []ast.Stmt) ast.Stmt {
 }
 
 // missBranch judges an if whose condition is a miss and whose body ends by
-// answering as if it hit.
-func (s *fileScan) missBranch(ifStmt *ast.IfStmt, fnResults results, local bindings, fn string) {
+// answering as if it hit, and reports whether it refused the branch.
+func (s *fileScan) missBranch(ifStmt *ast.IfStmt, fnResults results, local bindings, fn string) bool {
 	ret, isReturn := lastStatement(ifStmt.Body.List).(*ast.ReturnStmt)
 	if !isReturn {
-		return
+		return false
 	}
 	miss, readError, name := s.missOf(ifStmt.Cond, local)
 	if miss == "" {
-		return
+		return false
 	}
 	if !answersPlausibly(ret, fnResults, readError) {
-		return
+		return false
 	}
 	if mentions(ret, name) {
 		// The answer carries what was met (`"could not read: " + err.Error()`).
-		return
+		return false
 	}
 	if recordsMiss(ifStmt.Body.List, name) {
-		return
+		return false
 	}
 	s.addHeader(RuleMissAnswered, fn, miss+" is answered as a value", ifStmt.If, ifStmt.Body.Lbrace, ret)
+	return true
 }
 
 // recordsMiss reports whether a branch records what it met before it

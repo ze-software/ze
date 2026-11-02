@@ -1,4 +1,4 @@
-// VALIDATES: the refuse-by-default check refuses each of its four shapes on a
+// VALIDATES: the refuse-by-default check refuses each of its five shapes on a
 // changed line, accepts an annotated shape that names a visible guard and
 // lists it, refuses an annotation that names none, judges only changed lines,
 // and that report lists every shape under the source roots.
@@ -75,7 +75,7 @@ func writeSource(t *testing.T, tree, rel, source string) {
 }
 
 // TestRefuseByDefaultRefusesEachRuleFixture drives Check over one fixture per
-// rule (AC-1 to AC-4), every line changed, and holds the findings to the
+// rule (AC-1 to AC-4, and the error dropped below WARN), every line changed, and holds the findings to the
 // fixture's own `want:` markers: each shape is refused on its line with its
 // rule, and each correct neighbor in the fixture answers nothing. The rule
 // set is checked whole, so a rule that stops firing reds its own fixture.
@@ -88,6 +88,7 @@ func TestRefuseByDefaultRefusesEachRuleFixture(t *testing.T) {
 		{name: "miss.go", rule: RuleMissAnswered},
 		{name: "pathid.go", rule: RulePathIDZero},
 		{name: "state.go", rule: RuleLiteralState},
+		{name: "dropped.go", rule: RuleErrorDroppedBelowWarn},
 	}
 	for _, current := range cases {
 		t.Run(current.name, func(t *testing.T) {

@@ -278,6 +278,8 @@ func (r CheckReport) Text() string {
 	tb.Str("A caller cannot tell that value from a real one. Return an error, or the protocol's discard,\n")
 	tb.Str("naming what could not be found, read or recognized. ADD-PATH presence follows the negotiated\n")
 	tb.Str("capability the route carries, never the identifier's value. A health answer reads the state.\n")
+	tb.Str("A caught error goes back to the caller, into a counter, or into a WARN line, never only to\n")
+	tb.Str("Debug or Info, which the default level hides.\n")
 	tb.Str("Where the zero IS the answer another branch relies on, name that guard on the line above:\n")
 	tb.Str("  // refuse-by-default: guards <Symbol> -- <why>\n")
 	tb.Str("See docs/contributing/ze-go-style.md, \"A zero value is never an answer\".\n")
