@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -614,6 +615,13 @@ func TestValidateConfigAnswersDiagnosticsAndFails(t *testing.T) {
 	require.NoError(t, json.Unmarshal(encoded, &result))
 	assert.False(t, result.Valid)
 	assert.NotEmpty(t, result.Diagnostics)
+
+	// The verdict also reaches the daemon route, where no exit code is seen:
+	// one line naming the file and how many diagnostics say why.
+	var want strings.Builder
+	want.WriteString("error: " + configPath + " is not a valid configuration: ")
+	want.WriteString(strconv.Itoa(len(result.Diagnostics)) + " diagnostic(s) in the answer say why\n")
+	assert.Equal(t, want.String(), payloadAnswer.Diagnostic)
 }
 
 // TestValidateConfigAnswersAValidConfiguration verifies the same path answers a
@@ -629,8 +637,9 @@ func TestValidateConfigAnswersAValidConfiguration(t *testing.T) {
 
 	payloadAnswer := command.AnswerLocal(dataValidate, commandtest.Args(configPath))
 	payload, code := payloadAnswer.Payload, payloadAnswer.Code
-	require.Equal(t, exitOK, code)
+	require.Equal(t, exitOK, code, payloadAnswer.Diagnostic)
 	require.NotNil(t, payload)
+	require.Empty(t, payloadAnswer.Diagnostic, "a usable configuration carries no verdict line")
 
 	encoded, err := json.Marshal(payload)
 	require.NoError(t, err)

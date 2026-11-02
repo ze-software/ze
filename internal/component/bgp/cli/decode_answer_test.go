@@ -134,6 +134,32 @@ func TestShowBGPDecodeLocalOutputIsUnchanged(t *testing.T) {
 	require.Equal(t, `{"error":"invalid hex: encoding/hex: invalid byte: U+005A 'Z'","parsed":false}`+"\n", stdout)
 }
 
+// TestShowBGPDecodeUndecodedPayloadIsRefusedWithItsReason proves show bgp
+// decode refuses a typed payload that does not decode, with the decoder's
+// reason and the fix in the diagnostic, on the local and the daemon route
+// alike, while the root `ze bgp decode` route keeps its stdout answer (pinned
+// in TestShowBGPDecodeLocalOutputIsUnchanged).
+func TestShowBGPDecodeUndecodedPayloadIsRefusedWithItsReason(t *testing.T) {
+	const want = "error: show bgp decode could not decode the payload: invalid hex: encoding/hex: " +
+		"invalid byte: U+005A 'Z'; give one BGP message in hexadecimal, as 'ze bgp decode --help' describes\n"
+
+	answer := dataDecode(judged(t, pathDecode, "ZZ"))
+	require.Nil(t, answer.Payload)
+	require.Equal(t, 1, answer.Code)
+	require.Equal(t, want, answer.Diagnostic)
+
+	answer = command.AnswerRemote(dataDecode, judged(t, pathDecode, "ZZ"))
+	require.Nil(t, answer.Payload)
+	require.Equal(t, 1, answer.Code)
+	require.Equal(t, want, answer.Diagnostic)
+
+	// A payload that decodes is still the answer, with no diagnostic.
+	answer = dataDecode(judged(t, pathDecode, keepaliveHex))
+	require.Equal(t, 0, answer.Code)
+	require.Empty(t, answer.Diagnostic)
+	require.NotNil(t, answer.Payload)
+}
+
 // TestShowBGPDecodeBadFlagIsRefusedNotExited proves a word the flag parser
 // refuses comes back as the refusal, with the parser's own text, instead of
 // exiting the process from inside the handler: this test would not continue

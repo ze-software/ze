@@ -2,6 +2,7 @@ package hub
 
 import (
 	"encoding/json"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,6 +17,37 @@ import (
 // matchUndeclaredWord is a word no command declares as a keyword, so a call
 // carrying it is refused by the argument validator on both routes.
 const matchUndeclaredWord = "ze-match-no-such-word"
+
+// matchStringValue is the value a mandatory string leaf gets. The file
+// commands (show config graph, validation, plugin declarations config) read
+// it as a file name, so the test writes matchConfig under that name.
+const matchStringValue = "x"
+
+// matchConfig is a valid configuration, written under every word a file
+// command reads as its file, so both routes read a real file and the answers
+// compare rather than two refusals of a missing one.
+const matchConfig = `
+bgp {
+    router-id 1.1.1.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 10.0.0.1;
+            }
+        }
+        session {
+            asn {
+                remote 65001;
+            }
+        }
+    }
+}
+`
 
 // TestLocalCommandDaemonMatchesLocal runs every local-data command the daemon
 // serves through the local route and through the daemon dispatcher, and
@@ -33,13 +65,24 @@ const matchUndeclaredWord = "ze-match-no-such-word"
 // command carries a word no leaf declares, and both routes must refuse it in
 // the same bytes.
 // PREVENTS: the daemon route answering a command other than the local route
-// does, or refusing it in other words.
+// does, or refusing it in other words. A refusal may differ only where the
+// local route refuses too and the daemon route names the local command to
+// run instead (show bgp encode with no route reads standard input, which only
+// the local process has): that difference is by design, and it is logged.
 func TestLocalCommandDaemonMatchesLocal(t *testing.T) {
 	// The commands run for real, and some write state (delete debug profile
 	// name opens debug.zefs in the working directory); a directory of the
-	// test's own keeps that out of the checkout. It is also the directory the
-	// daemon route confines file arguments to.
+	// test's own keeps that out of the checkout. It is also a directory the
+	// daemon route confines file arguments to, and XDG_CONFIG_HOME points at
+	// another empty one, so the operator's own configuration directory is
+	// neither read nor named in a refusal.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Chdir(t.TempDir())
+	for _, name := range []string{matchStringValue, matchUndeclaredWord} {
+		if err := os.WriteFile(name, []byte(matchConfig), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
 
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	if err != nil {
@@ -97,6 +140,10 @@ func matchRoutes(t *testing.T, d *pluginserver.Dispatcher, input string) {
 		t.Errorf("%q: answers differ under | json, first at byte %d\nlocal:  %s\ndaemon: %s", input, matchFirstDifference(localAnswer, remoteAnswer), matchAround(localAnswer, remoteAnswer), matchAround(remoteAnswer, localAnswer))
 	}
 	if dispatchErr != nil && remoteRefusal != localWritten {
+		if strings.Contains(remoteRefusal, "'ze "+input) {
+			t.Logf("%q: the daemon route defers to the local command, by design\nlocal:  %q\ndaemon: %q", input, localWritten, remoteRefusal)
+			return
+		}
 		t.Errorf("%q: refusals differ\nlocal:  %q\ndaemon: %q", input, localWritten, remoteRefusal)
 	}
 }
@@ -158,9 +205,9 @@ func matchValue(def command.ArgDef) string {
 		}
 		return "0"
 	case command.ArgString:
-		return "x"
+		return matchStringValue
 	}
-	return "x"
+	return matchStringValue
 }
 
 // matchFirstDifference answers the offset of the first byte a and b differ at.

@@ -252,7 +252,14 @@ func dataValidate(validated command.ValidatedArgs) command.LocalAnswer {
 	if result.Valid {
 		return command.LocalAnswer{Payload: payload, Code: exitOK}
 	}
-	return command.LocalAnswer{Payload: payload, Code: exitInvalid}
+	// The exit code is invisible on the daemon route (SSH session, web, MCP),
+	// so the verdict also travels as one line beside the evidence: without it
+	// the daemon reported a failure "with no reason" while the reasons sat in
+	// the payload.
+	var verdict textbuf.Buffer
+	verdict.Str("error: ").Str(args[0]).Str(" is not a valid configuration: ").
+		Int(int64(len(result.Diagnostics))).Str(" diagnostic(s) in the answer say why\n")
+	return command.LocalAnswer{Payload: payload, Code: exitInvalid, Diagnostic: verdict.String()}
 }
 
 // dataDiff answers `show config diff <file1> <file2>` and

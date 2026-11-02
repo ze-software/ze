@@ -14,6 +14,7 @@ package debug
 
 import (
 	"errors"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -372,6 +373,15 @@ func runDeleteProfileName(validated command.ValidatedArgs) command.LocalAnswer {
 	name := args[0]
 	storePath := debugStorePath()
 	if err := deleteProfile(storePath, name); err != nil {
+		// A name the store does not hold is the operator's typo, not a store
+		// failure: answering "deleted" would claim a change that never happened,
+		// and the store-failure advice would send them to file permissions.
+		if errors.Is(err, fs.ErrNotExist) {
+			var tb textbuf.Buffer
+			tb.Str("error: no debug profile named ").Quoted(name).
+				Str("; run 'show debug profile' to list the stored profiles")
+			return refused(tb.String())
+		}
 		return storeRefusal(err)
 	}
 	return changed(debugChange{Subject: subjectProfile, Name: name, Result: "deleted"})

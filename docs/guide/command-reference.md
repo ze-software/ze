@@ -368,7 +368,10 @@ ze show bgp encode family ipv6/unicast part nlri <route-command>
 them (`ze cli -c "show bgp decode <hex> | json"`), and their text rendering is
 the output `ze bgp decode` and `ze bgp encode` print. A decode answers each
 message as its hexadecimal and its decoding in the Ze event format; an encode
-answers the family, the part of the UPDATE it carries and the hexadecimal. The
+answers the family, the part of the UPDATE it carries and the hexadecimal. A
+typed payload that does not decode is refused by `show bgp decode`, with the
+decoder's reason, on every surface; `ze bgp decode` prints that reason on
+stdout and exits 1, as it always has. The
 options keep working on both spellings, and each option that selects what is
 answered also has a keyword, which is the form a remote surface takes:
 

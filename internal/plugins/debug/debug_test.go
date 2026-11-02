@@ -289,6 +289,26 @@ func TestDebugProfileDelete(t *testing.T) {
 	}
 }
 
+// TestDebugProfileDeleteMissingRefused proves deleting a profile the store
+// does not hold is refused with the name and the command that lists the
+// stored ones, rather than answered "deleted" or blamed on the store file.
+func TestDebugProfileDeleteMissingRefused(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	answer := runDeleteProfileName(commandtest.Args("never-saved"))
+	if answer.Code != 1 {
+		t.Fatalf("delete of a missing profile exited %d, want 1", answer.Code)
+	}
+	if answer.Payload != nil {
+		t.Errorf("delete of a missing profile answered %v, want no answer", answer.Payload)
+	}
+	const want = "error: no debug profile named \"never-saved\"; run 'show debug profile' to list the stored profiles\n"
+	if answer.Diagnostic != want {
+		t.Errorf("diagnostic %q, want %q", answer.Diagnostic, want)
+	}
+}
+
 func TestDebugClear(t *testing.T) {
 	slogutil.ResetLevelRegistry()
 	_ = slogutil.Logger("test.debug.clear")

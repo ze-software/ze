@@ -123,7 +123,33 @@ func (r *decodeRequest) answer(input string, messages []decodedMessage, code int
 // dataDecode is the show bgp decode handler. It writes nothing: every word it
 // has for the operator is in the answer.
 func dataDecode(validated command.ValidatedArgs) command.LocalAnswer {
-	return answerDecode(validated, restWords(validated, leafDecodeMessage), validated.Route())
+	return refuseUndecoded(answerDecode(validated, restWords(validated, leafDecodeMessage), validated.Route()))
+}
+
+// refuseUndecoded turns the one payload typed on the line that did not decode
+// into a refusal that names the reason. The root `ze bgp decode` route keeps
+// printing that reason on stdout, which its scripts read. show bgp decode
+// answers on every surface, and a nonzero answer that carried its reason only
+// inside the payload reached the daemon route as an error with no reason.
+func refuseUndecoded(answer command.LocalAnswer) command.LocalAnswer {
+	if answer.Code == 0 {
+		return answer
+	}
+	decoded, ok := answer.Payload.(decodeAnswer)
+	if !ok {
+		return answer
+	}
+	if decoded.Decode.Input != inputFormMessage {
+		return answer
+	}
+	if len(decoded.Decode.Messages) != 1 {
+		return answer
+	}
+	var tb textbuf.Buffer
+	tb.Str("error: ").Str(pathDecode).Str(" could not decode the payload: ").
+		Str(decoded.Decode.Messages[0].Error).
+		Str("; give one BGP message in hexadecimal, as 'ze bgp decode --help' describes\n")
+	return command.LocalRefusal(answer.Code, tb.String())
 }
 
 // restWords answers the words a rest-of-line leaf took, split again: on the
