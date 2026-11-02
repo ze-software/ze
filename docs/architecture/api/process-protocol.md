@@ -2505,6 +2505,12 @@ These RPCs allow plugins to request full UPDATE or MP attribute decoding:
 | `ze-plugin-engine:decode-mp-unreach` | `{"hex":"...","add-path":false}` | `{"family":"...","nlri":[...]}` |
 | `ze-plugin-engine:decode-update` | `{"hex":"...","add-path":false}` | `{"json":"..."}` |
 
+`decode-update` answers the "Cannot decode" error below when an NLRI section
+does not parse (MP_REACH_NLRI, MP_UNREACH_NLRI, the NLRI field or the Withdrawn
+Routes field), naming the section. It never leaves the section out of the JSON,
+which would read as an UPDATE that carries no route.
+<!-- source: internal/component/bgp/format/codec.go -- FormatDecodeUpdateJSON -->
+
 ### Error Handling
 
 | Error Type | Response |

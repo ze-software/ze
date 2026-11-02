@@ -222,3 +222,54 @@ func TestHandleDecodeUpdate(t *testing.T) {
 	assert.Contains(t, out.JSON, "10.0.0.0/24")
 	assert.Contains(t, out.JSON, "igp")
 }
+
+// TestHandleDecodeUpdate_MalformedNLRISection verifies decode-update refuses
+// an UPDATE whose NLRI section does not parse.
+//
+// VALIDATES: a truncated prefix in MP_REACH_NLRI, MP_UNREACH_NLRI, the legacy
+// NLRI field or the Withdrawn Routes field answers an RPC error naming the
+// section ("Cannot decode" in process-protocol.md, Error Handling).
+// PREVENTS: the section being dropped from the JSON, so the plugin reads an
+// UPDATE that carries no route where the engine could not parse one.
+func TestHandleDecodeUpdate_MalformedNLRISection(t *testing.T) {
+	tests := []struct {
+		name string
+		hex  string
+		want string
+	}{
+		{
+			// MP_REACH_NLRI ipv6/unicast, next hop 2001:db8::1, NLRI /64 with 2 of 8 octets.
+			name: "mp-reach",
+			hex:  "0000001B800E18000201102001" + "0db8000000000000000000000001" + "00402001",
+			want: "MP_REACH_NLRI",
+		},
+		{
+			// MP_UNREACH_NLRI ipv6/unicast, withdrawn /64 with 2 of 8 octets.
+			name: "mp-unreach",
+			hex:  "00000009800F06000201402001",
+			want: "MP_UNREACH_NLRI",
+		},
+		{
+			// Legacy NLRI 10.0.0.0/32 with 1 of 4 octets.
+			name: "nlri",
+			hex:  "00000000200A",
+			want: "NLRI",
+		},
+		{
+			// Withdrawn Routes 10.0.0.0/32 with 1 of 4 octets.
+			name: "withdrawn",
+			hex:  "0002200A0000",
+			want: "withdrawn",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params, err := json.Marshal(&rpc.DecodeUpdateInput{Hex: tt.hex})
+			require.NoError(t, err)
+
+			result, err := handleDecodeUpdate(params)
+			require.Error(t, err, "decode-update answered %v for a malformed section", result)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
+}

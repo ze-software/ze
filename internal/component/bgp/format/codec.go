@@ -4,6 +4,7 @@ package format
 
 import (
 	"encoding/json"
+	"fmt"
 
 	bgpfilter "github.com/ze-software/ze/internal/component/bgp/filter"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -12,7 +13,11 @@ import (
 
 // FormatDecodeUpdateJSON formats a FilterResult as ze-bgp JSON for the decode-update RPC.
 // Produces {"update":{"attr":{...},"nlri":{...}}} without peer/message metadata.
-func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string {
+// An NLRI section that does not parse (MP_REACH_NLRI, MP_UNREACH_NLRI, the
+// legacy NLRI or Withdrawn Routes field) is an error naming the section, never
+// an absent section: a plugin reading the JSON would otherwise see an UPDATE
+// that carries no route where the engine could not parse one.
+func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) (string, error) {
 	var scratch [1024]byte
 	buf := scratch[:0]
 	buf = append(buf, `{"update":{`...)
@@ -30,7 +35,10 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 	// MP-BGP announced routes
 	for _, mp := range result.MPReach {
 		nlris, err := mp.NLRIs(addPath)
-		if err != nil || len(nlris) == 0 {
+		if err != nil {
+			return "", fmt.Errorf("MP_REACH_NLRI %s: %w", mp.Family(), err)
+		}
+		if len(nlris) == 0 {
 			continue
 		}
 		nhStr := mp.NextHop().String()
@@ -44,7 +52,10 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 	// MP-BGP withdrawn routes
 	for _, mp := range result.MPUnreach {
 		nlris, err := mp.NLRIs(addPath)
-		if err != nil || len(nlris) == 0 {
+		if err != nil {
+			return "", fmt.Errorf("MP_UNREACH_NLRI %s: %w", mp.Family(), err)
+		}
+		if len(nlris) == 0 {
 			continue
 		}
 		familyOps[mp.Family().String()] = append(familyOps[mp.Family().String()], familyOperation{
@@ -56,7 +67,10 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 	// Legacy IPv4 announced
 	if result.IPv4Announced != nil {
 		nlris, err := result.IPv4Announced.NLRIs(addPath)
-		if err == nil && len(nlris) > 0 {
+		if err != nil {
+			return "", fmt.Errorf("NLRI field: %w", err)
+		}
+		if len(nlris) > 0 {
 			familyOps["ipv4/unicast"] = append(familyOps["ipv4/unicast"], familyOperation{
 				Action:  actionAdd,
 				NextHop: result.IPv4Announced.NextHop().String(),
@@ -68,7 +82,10 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 	// Legacy IPv4 withdrawn
 	if result.IPv4Withdrawn != nil {
 		nlris, err := result.IPv4Withdrawn.NLRIs(addPath)
-		if err == nil && len(nlris) > 0 {
+		if err != nil {
+			return "", fmt.Errorf("withdrawn routes field: %w", err)
+		}
+		if len(nlris) > 0 {
 			familyOps["ipv4/unicast"] = append(familyOps["ipv4/unicast"], familyOperation{
 				Action: actionDel,
 				NLRIs:  nlris,
@@ -81,7 +98,7 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 	buf = appendFamilyOpsJSON(buf, familyOps)
 	buf = append(buf, `}}}`...)
 
-	return string(buf)
+	return string(buf), nil
 }
 
 // FormatNLRIsAsJSON formats a slice of NLRIs as a JSON array.

@@ -174,7 +174,10 @@ func handleDecodeUpdate(params json.RawMessage) (any, error) {
 		return nil, fmt.Errorf("parsing UPDATE: %w", err)
 	}
 
-	jsonStr := format.FormatDecodeUpdateJSON(result, input.AddPath)
+	jsonStr, err := format.FormatDecodeUpdateJSON(result, input.AddPath)
+	if err != nil {
+		return nil, fmt.Errorf("decoding UPDATE: %w", err)
+	}
 	return &rpc.DecodeUpdateOutput{JSON: jsonStr}, nil
 }
 
