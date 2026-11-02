@@ -114,7 +114,7 @@ func TestAdminTreeMergesVisiblePluginCommands(t *testing.T) {
 // hasAdminPath answers whether each word of path is a child of the one before.
 func hasAdminPath(tree *command.Node, path string) bool {
 	node := tree
-	for _, word := range strings.Fields(path) {
+	for word := range strings.FieldsSeq(path) {
 		if node == nil {
 			return false
 		}

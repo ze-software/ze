@@ -199,11 +199,11 @@ func matchRemoteRendering(t *testing.T, piped string, resp *plugin.Response, dis
 // compared on how they refuse it.
 func matchMandatoryArgs(defs []command.ArgDef) string {
 	var words []string
-	for _, def := range defs {
-		if !def.Mandatory() {
+	for i := range defs {
+		if !defs[i].Mandatory() {
 			continue
 		}
-		words = append(words, matchValue(def))
+		words = append(words, matchValue(defs[i]))
 	}
 	return strings.Join(words, " ")
 }
@@ -224,8 +224,12 @@ func matchValue(def command.ArgDef) string {
 		return "0"
 	case command.ArgString:
 		return matchStringValue
+	case command.ArgFlag:
+		// A flag is the keyword alone (command.ArgFlag), so naming the leaf
+		// is the whole argument.
+		return def.Name()
 	}
-	return matchStringValue
+	panic("BUG: matchValue: argument kind " + strconv.Itoa(int(def.Kind())) + " has no matching value")
 }
 
 // matchFirstDifference answers the offset of the first byte a and b differ at.
