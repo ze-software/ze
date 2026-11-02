@@ -57,9 +57,8 @@ type viewMsg interface {
 	isViewMsg()
 }
 
-// viewSpec is a live view's registration descriptor. One spec per view (3
-// total); the plain vs piped ("| ...") split is handled inside start, not by a
-// second spec.
+// viewSpec is a live view's registration descriptor. One spec per view; the
+// plain vs piped ("| ...") split is handled inside start, not by a second spec.
 type viewSpec struct {
 	// key indexes the view's factory in Model.viewFactories and is the stable
 	// identifier consumers use to inject the concrete factory.
@@ -73,6 +72,13 @@ type viewSpec struct {
 	// start builds the active view from input, storing it on Model.activeView,
 	// and returns the initial tea.Cmd (or nil after setting a status message).
 	start func(m *Model, input string) tea.Cmd
+	// tuiOnly declares that only the interactive CLI can render the command
+	// this view serves: it has no daemon RPC, so SSH and `ze cli` offer it and
+	// every one-shot surface does not (command.AnswerSurface). No view sets it
+	// today: each view's prefix also has a YANG node and an RPC. A view whose
+	// prefix has no other registration and does not set it fails the surface
+	// parity check, so a TUI-only command is always declared here.
+	tuiOnly bool
 }
 
 // ViewInfo is the exported, read-only view of a registered view. Consumers
@@ -81,6 +87,8 @@ type viewSpec struct {
 type ViewInfo struct {
 	Key    string
 	Prefix string
+	// TUIOnly is the view registration's TUI-only declaration (viewSpec.tuiOnly).
+	TUIOnly bool
 }
 
 var (
@@ -124,7 +132,7 @@ func RegisteredViews() []ViewInfo {
 	defer viewRegistryMu.RUnlock()
 	out := make([]ViewInfo, 0, len(viewRegistry))
 	for _, spec := range viewRegistry {
-		out = append(out, ViewInfo{Key: spec.key, Prefix: spec.prefix})
+		out = append(out, ViewInfo{Key: spec.key, Prefix: spec.prefix, TUIOnly: spec.tuiOnly})
 	}
 	return out
 }

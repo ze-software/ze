@@ -251,6 +251,59 @@ func MergeCommandPaths(root *Node, entries []CommandEntry) {
 	}
 }
 
+// OverlayCommandPaths answers base with each entry's command path merged in,
+// as MergeCommandPaths merges it, and leaves base untouched: every node on a
+// merged path is copied, and every other subtree is shared with base. A
+// surface that keeps one long-lived tree and must show the live plugin
+// registry on each request (the web admin console) reads the answer for that
+// request only, so it never races another reader of base and never goes stale.
+// A nil base answers a tree holding the entries alone.
+func OverlayCommandPaths(base *Node, entries []CommandEntry) *Node {
+	if base == nil {
+		base = &Node{}
+	}
+	root := copyNodeForOverlay(base)
+	copied := map[*Node]bool{root: true}
+	for _, e := range entries {
+		parts := splitFields(e.Name)
+		current := root
+		for i, part := range parts {
+			child, ok := current.Children[part]
+			if !ok {
+				child = &Node{Name: part, Children: make(map[string]*Node)}
+				copied[child] = true
+			}
+			if !copied[child] {
+				child = copyNodeForOverlay(child)
+				copied[child] = true
+			}
+			current.Children[part] = child
+			if i == len(parts)-1 {
+				if child.ShortHelp == "" {
+					child.ShortHelp = e.ShortHelp
+				}
+				if child.Description == "" {
+					child.Description = e.Description
+				}
+			}
+			current = child
+		}
+	}
+	return root
+}
+
+// copyNodeForOverlay copies n with a children map of its own, so the overlay
+// can add a child without writing to n's map. The children themselves stay
+// shared until the overlay walks through them.
+func copyNodeForOverlay(n *Node) *Node {
+	c := *n
+	c.Children = make(map[string]*Node, len(n.Children)+1)
+	for name, child := range n.Children {
+		c.Children[name] = child
+	}
+	return &c
+}
+
 // splitFields splits a string by whitespace, like strings.Fields but avoids the import.
 func splitFields(s string) []string {
 	var fields []string

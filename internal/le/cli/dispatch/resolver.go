@@ -26,6 +26,7 @@ import (
 	// matches the runtime one exactly.
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 
+	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -76,12 +77,15 @@ func newSurface(tree string) (Surface, error) {
 			register(path, pathToArgDefs[path])
 		}
 	}
-	// Streaming handlers ("monitor event") and the TUI-only dashboard
-	// ("monitor bgp") are dispatchable but are not builtin RPCs.
+	// Streaming handlers ("monitor event") and the CLI live views are
+	// dispatchable whether or not a builtin RPC also holds their path. Both
+	// come from their registries, so a new view needs no edit here.
 	for _, prefix := range pluginserver.StreamingPrefixes() {
 		register(prefix, pathToArgDefs[prefix])
 	}
-	register("monitor bgp", pathToArgDefs["monitor bgp"])
+	for _, view := range cli.RegisteredViews() {
+		register(view.Prefix, pathToArgDefs[view.Prefix])
+	}
 
 	// The SSH exec middleware intercepts these THREE before the dispatcher ever
 	// sees them and routes them to shutdownFunc/restartFunc/rebootFunc
