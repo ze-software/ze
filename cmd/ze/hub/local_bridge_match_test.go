@@ -3,16 +3,20 @@ package hub
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/statestore"
 )
 
 // matchUndeclaredWord is a word no command declares as a keyword, so a call
@@ -65,6 +69,11 @@ bgp {
 // stderr against the SSH rendering of the dispatch error. A second call per
 // command carries a word no leaf declares, and both routes must refuse it in
 // the same bytes.
+//
+// A command that produces a file (registry.Meta.Artifact) names it where each
+// route is designed to keep it: the local route is given a directory of the
+// test's own and the daemon a store of the test's own, and the two documents
+// must agree on every field but those the declaration names (matchArtifact).
 // PREVENTS: the daemon route answering a command other than the local route
 // does, or refusing it in other words. A refusal may differ only where the
 // local route refuses too and the daemon route names the local command to
@@ -125,6 +134,11 @@ func TestLocalCommandDaemonMatchesLocal(t *testing.T) {
 			input += " " + args
 		}
 		t.Run(entry.Path, func(t *testing.T) {
+			if artifact := entry.Meta.Artifact; artifact != nil {
+				matchArtifact(t, d, input, artifact)
+				matchArtifact(t, d, input+" "+matchUndeclaredWord, artifact)
+				return
+			}
 			matchRoutes(t, d, input)
 			matchRoutes(t, d, input+" "+matchUndeclaredWord)
 		})
@@ -163,6 +177,171 @@ func matchRoutes(t *testing.T, d *pluginserver.Dispatcher, input string) {
 			return
 		}
 		t.Errorf("%q: refusals differ\nlocal:  %q\ndaemon: %q", input, localWritten, remoteRefusal)
+	}
+}
+
+// matchArtifact runs a command that produces a file on both routes, the way
+// its registry.Artifact declares, and fails when either location is not the
+// kind its route is designed to answer (a file under the directory the local
+// route was given, a key `show data cat` reads on the daemon) or when the two
+// documents differ in any field the declaration does not name. A refusal
+// must read the same bytes on both routes.
+func matchArtifact(t *testing.T, d *pluginserver.Dispatcher, input string, artifact *registry.Artifact) {
+	t.Helper()
+	// The daemon keeps the file in the store `show data cat` reads, the one
+	// under ze.config.dir; a directory of this call's own holds it, so no
+	// other command's answer sees the store or the file.
+	configDir := t.TempDir()
+	previousConfigDir := env.Get("ze.config.dir")
+	if err := env.Set("ze.config.dir", configDir); err != nil {
+		t.Fatalf("%q: pin ze.config.dir: %v", input, err)
+	}
+	t.Cleanup(func() {
+		if err := env.Set("ze.config.dir", previousConfigDir); err != nil {
+			t.Errorf("%q: restore ze.config.dir: %v", input, err)
+		}
+	})
+	store, err := storage.Create(configDir)
+	if err != nil {
+		t.Fatalf("%q: daemon store: %v", input, err)
+	}
+	previous := statestore.Store()
+	statestore.SetStore(store)
+	t.Cleanup(func() {
+		statestore.SetStore(previous)
+		if err := store.Close(); err != nil {
+			t.Errorf("%q: close daemon store: %v", input, err)
+		}
+	})
+	destination := t.TempDir()
+
+	stdout, stderr := redirectProcessOutput(t)
+	localAnswer, localCode, localServed := command.ServeLocal(input+" "+artifact.LocalArgs+" "+destination+" | json", "")
+	localWritten := restoreProcessOutput(t, stdout, stderr)
+	if !localServed {
+		t.Fatalf("%q: the local route does not serve it", input)
+	}
+	resp, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, input)
+	remoteAnswer, remoteRefusal := matchRemoteRendering(t, input+" | json", resp, dispatchErr)
+	if (localCode == 0) != (dispatchErr == nil) {
+		t.Errorf("%q: local exit %d (stderr %q), daemon error %v: one route answered and the other refused", input, localCode, localWritten, dispatchErr)
+		return
+	}
+	if dispatchErr != nil {
+		if remoteRefusal != localWritten {
+			t.Errorf("%q: refusals differ\nlocal:  %q\ndaemon: %q", input, localWritten, remoteRefusal)
+		}
+		return
+	}
+
+	local := matchArtifactDocument(t, input, "local", localAnswer)
+	remote := matchArtifactDocument(t, input, "daemon", remoteAnswer)
+	matchArtifactFile(t, input, destination, local[artifact.LocalField])
+	matchArtifactKey(t, d, input, remote[artifact.DaemonField])
+	delete(local, artifact.LocalField)
+	delete(remote, artifact.DaemonField)
+	matchDropFields(local, artifact.Volatile)
+	matchDropFields(remote, artifact.Volatile)
+	localJSON, err := json.Marshal(local)
+	if err != nil {
+		t.Fatalf("%q: local document: %v", input, err)
+	}
+	remoteJSON, err := json.Marshal(remote)
+	if err != nil {
+		t.Fatalf("%q: daemon document: %v", input, err)
+	}
+	if string(localJSON) != string(remoteJSON) {
+		t.Errorf("%q: documents differ outside the declared fields\nlocal:  %s\ndaemon: %s", input, localJSON, remoteJSON)
+	}
+}
+
+// matchArtifactDocument decodes one route's `| json` answer as an object. A
+// command that answers its document as JSON text (a command.Blob, as the
+// local route does under the declared LocalArgs) reaches `| json` wrapped as
+// {"blob":{"content":...}}, and the document is that content.
+func matchArtifactDocument(t *testing.T, input, route, answer string) map[string]any {
+	t.Helper()
+	var document map[string]any
+	if err := json.Unmarshal([]byte(answer), &document); err != nil {
+		t.Fatalf("%q: the %s answer is no JSON object: %v\n%s", input, route, err, answer)
+	}
+	blob, isBlob := document["blob"].(map[string]any)
+	if !isBlob {
+		return document
+	}
+	content, isText := blob["content"].(string)
+	if !isText {
+		t.Fatalf("%q: the %s answer is a blob with no text content: %s", input, route, answer)
+	}
+	var inner map[string]any
+	if err := json.Unmarshal([]byte(content), &inner); err != nil {
+		t.Fatalf("%q: the %s answer's blob is no JSON object: %v\n%s", input, route, err, content)
+	}
+	return inner
+}
+
+// matchArtifactFile fails unless location is the path of a regular file in
+// destination, the directory the local route was given.
+func matchArtifactFile(t *testing.T, input, destination string, location any) {
+	t.Helper()
+	path, isString := location.(string)
+	if !isString {
+		t.Errorf("%q: the local answer names no file: %#v", input, location)
+		return
+	}
+	if filepath.Dir(path) != destination {
+		t.Errorf("%q: the local route wrote %s, outside the directory it was given (%s)", input, path, destination)
+		return
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Errorf("%q: the local answer names %s, which cannot be read: %v", input, path, err)
+		return
+	}
+	if !info.Mode().IsRegular() {
+		t.Errorf("%q: the local answer names %s, which is no regular file", input, path)
+	}
+}
+
+// matchArtifactKey fails unless location is a key the daemon's store holds,
+// read back the way a remote caller is told to: `show data cat <key>`.
+func matchArtifactKey(t *testing.T, d *pluginserver.Dispatcher, input string, location any) {
+	t.Helper()
+	key, isString := location.(string)
+	if !isString {
+		t.Errorf("%q: the daemon answer names no store key: %#v", input, location)
+		return
+	}
+	resp, err := d.Dispatch(&pluginserver.CommandContext{}, "show data cat "+key)
+	if err != nil {
+		t.Errorf("%q: the daemon answer names %s, which show data cat refuses: %v", input, key, err)
+		return
+	}
+	if resp == nil {
+		t.Errorf("%q: show data cat %s answered nothing", input, key)
+		return
+	}
+	if resp.Data == nil {
+		t.Errorf("%q: show data cat %s answered no bytes", input, key)
+	}
+}
+
+// matchDropFields removes every field named in names from value, at any
+// depth. The recursion is bounded by the nesting of one command's answer,
+// which the test itself just decoded.
+func matchDropFields(value any, names []string) {
+	switch node := value.(type) {
+	case map[string]any:
+		for _, name := range names {
+			delete(node, name)
+		}
+		for _, child := range node {
+			matchDropFields(child, names)
+		}
+	case []any:
+		for _, child := range node {
+			matchDropFields(child, names)
+		}
 	}
 }
 
