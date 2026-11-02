@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/grmarker"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
@@ -38,9 +39,11 @@ func init() {
 	// the carried set is the view's reader registry (policyview.Fields) and
 	// never a second list (spec-filter-wire-6-stage-filters D-9). metric is
 	// not carried: BGP names that fact med, one name per fact, and the synonym
-	// makes a chain reading metric here name med in its refusal.
+	// makes a chain reading metric here name med in its refusal. The settable
+	// set is the fields the chain's sets write (policychain.SettableFields),
+	// for the same reason.
 	carries := policyview.Fields()
-	settable := []policy.Field{policy.FieldASPath, policy.FieldLocalPreference, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldAIGP}
+	settable := policychain.SettableFields()
 	// Each attachment's chains sit at `bgp ... filter <direction> filters`,
 	// global, group and peer alike. The editor completes a chain, and commit
 	// judges it, with the check a peer's chain passes at load.

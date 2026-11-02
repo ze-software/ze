@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/ze-software/ze/internal/component/sysrib"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/policy"
 )
@@ -74,5 +75,46 @@ policy {
 	}
 	if err := policy.CheckChain("rib import", reg, []string{"LOW-METRIC"}); err != nil {
 		t.Errorf("rib import refused a match on metric: %v", err)
+	}
+}
+
+// settableProbePrefix names the filter types TestBGPAttachmentsSettableAreTheChainSets
+// declares, one per field it probes.
+const settableProbePrefix = "test-sets-"
+
+func init() {
+	for _, field := range policychain.SettableFields() {
+		policy.MustRegisterFilterType(settableProbePrefix+field.String(), nil, []policy.Field{field})
+	}
+	policy.MustRegisterFilterType(settableProbePrefix+policy.FieldPrefix.String(), nil, []policy.Field{policy.FieldPrefix})
+}
+
+// TestBGPAttachmentsSettableAreTheChainSets proves the settable half of D-9
+// at the attachment: a filter setting any field the policy chain writes
+// passes the field check at bgp import and bgp export, and a filter setting
+// prefix, a per-route intent the chain answers from a read and never a set,
+// is refused. Method: one declared filter type per field, each judged by the
+// check a peer's chain passes at load.
+func TestBGPAttachmentsSettableAreTheChainSets(t *testing.T) {
+	for _, field := range policychain.SettableFields() {
+		name := "SETS-" + field.String()
+		reg, err := policy.NewRegistry(policy.Instance{Name: name, Type: settableProbePrefix + field.String()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, attachment := range []string{"bgp import", "bgp export"} {
+			if err := policy.CheckChain(attachment, reg, []string{name}); err != nil {
+				t.Errorf("%s refused a filter setting %s, which the chain writes: %v", attachment, field, err)
+			}
+		}
+	}
+	reg, err := policy.NewRegistry(policy.Instance{Name: "SETS-prefix", Type: settableProbePrefix + policy.FieldPrefix.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, attachment := range []string{"bgp import", "bgp export"} {
+		if err := policy.CheckChain(attachment, reg, []string{"SETS-prefix"}); err == nil {
+			t.Errorf("%s accepted a filter setting prefix, which no chain set writes", attachment)
+		}
 	}
 }

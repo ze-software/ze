@@ -1590,7 +1590,11 @@ subject above.
   `policyview` registers how BGP reads each one, so the library learns no BGP
   type. The BGP import and export attachments carry exactly the fields the view
   reads: `bgpconfig`'s `init` takes the carried set from the view's reader
-  registry (`policyview.Fields`), so no second list exists to disagree.
+  registry (`policyview.Fields`), so no second list exists to disagree. A
+  filter there may set exactly the fields the chain's sets write: the
+  settable set is `policychain.SettableFields`, every field a set kind
+  writes except `prefix` and `family`, which a member narrows by reading
+  them and never sets.
 - **Session facts are fields of the same view.** `policyview` registers
   `peer-name`, `peer-group`, `peer-address`, `local-as`, `peer-as`,
   `route-server-as`, `ibgp`, `rs-client` and `llgr-advertised` for the

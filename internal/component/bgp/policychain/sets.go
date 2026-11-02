@@ -84,6 +84,24 @@ func intentsOfReads(reads []policy.Field) setMask {
 	return mask
 }
 
+// SettableFields answers the vocabulary fields a chain member may set: every
+// field a Sets kind writes, minus the per-route intents a member answers from
+// what it reads (intentsOfReads), which change no field. It is the settable
+// set of the BGP attachments (bgpconfig's init), so the attachment check and
+// the chain's apply judge one list (spec-filter-wire-6-stage-filters D-9).
+// Each call answers a new slice in kind order.
+func SettableFields() []policy.Field {
+	fields := make([]policy.Field, 0, setKindCount)
+	for kind := setKindLocalPreference; kind < setKindCount; kind++ {
+		field := setKindFields[kind]
+		if intentsOfReads([]policy.Field{field}) != 0 {
+			continue
+		}
+		fields = append(fields, field)
+	}
+	return fields
+}
+
 // setMask holds one bit per setKind.
 type setMask uint16
 
