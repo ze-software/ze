@@ -29,7 +29,7 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/platform-linux.md` | blocking | writing Linux-only code, finding Linux or a library cannot do what a feature needs, bumping the kernel or an appliance dependency, or changing the initrd |
 | `ai/rules/plugins.md` | blocking | creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate |
 | `ai/rules/pre-release.md` | blocking | when a test or a gate goes red, when you are about to re-run a check, or when you are deciding what a commit owes |
-| `ai/rules/precommit-verify.md` | blocking | before running the verification gate, or after running a commit script that carried Go |
+| `ai/rules/precommit-verify.md` | blocking | before running tests to judge a change, before any `./le verify` command, or after running a commit script that carried Go |
 | `ai/rules/principles.md` | blocking, always-on | before any decision about how to build, test, verify, or report work in this repository |
 | `ai/rules/protocol.md` | blocking | implementing or changing a protocol, an external API, a wire format, or a backend that applies operator config |
 | `ai/rules/quality.md` | blocking | before presenting any work as complete |
