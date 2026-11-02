@@ -29,13 +29,13 @@ type RuntimeChecks func() []diagnostic.Diagnostic
 // readinessAnswer is the answer of the readiness checks. It marshals as the
 // DoctorResult every surface already reads (`schema-version`, `ready`,
 // `diagnostics`). asJSON is the local `--json` rendering flag: it is never
-// marshalled, because on the daemon route the caller's pipe renders.
+// marshaled, because on the daemon route the caller's pipe renders.
 type readinessAnswer struct {
 	diagnostic.DoctorResult
 	asJSON bool
 }
 
-// kernelAnswer is the answer of the kernel-capabilities mode, marshalled as
+// kernelAnswer is the answer of the kernel-capabilities mode, marshaled as
 // kernelCapabilitiesAnswer. asJSON is the local `--json` rendering flag.
 type kernelAnswer struct {
 	kernelCapabilitiesAnswer
@@ -156,7 +156,7 @@ func doctorRefusal(route command.Route, reason string) command.LocalAnswer {
 	return command.LocalRefusal(1, msg.String()+doctorHelpText(route))
 }
 
-// doctorHelpText renders the usage page, coloured only for an operator's own
+// doctorHelpText renders the usage page, colored only for an operator's own
 // terminal: a daemon caller reads it as text on another surface.
 func doctorHelpText(route command.Route) string {
 	page := doctorHelpPage()
@@ -165,7 +165,7 @@ func doctorHelpText(route command.Route) string {
 	return out.String()
 }
 
-// helpColored answers whether the help page carries ANSI colour: only on the
+// helpColored answers whether the help page carries ANSI color: only on the
 // local route, and only when stderr, where the local route prints it, is a
 // terminal.
 func helpColored(route command.Route) bool {
