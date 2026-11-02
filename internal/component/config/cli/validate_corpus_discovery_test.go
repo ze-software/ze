@@ -93,12 +93,12 @@ func TestSweepSourceDiscovery(t *testing.T) {
 	write("internal/le/build/source.conf", "re-included")
 	write("bin/builds/.building/export.conf", "artifact")
 	write("bin/tracked.conf", "tracked exception")
-	write(filepath.Join(runner.SuiteDir("", "", true), "plugin/tracked.ci"), "draft demonstration")
+	write(filepath.Join(runner.SuiteDir("", "", true), "plugin", "tracked.ci"), "draft demonstration")
 	for _, name := range []string{"source/ordinary.conf", "bin/tracked.conf", "test/draft/plugin/tracked.ci"} {
 		blob := git("hash-object", "-w", name)
 		git("update-index", "--add", "--cacheinfo", "100644,"+blob+","+name)
 	}
-	if err := os.Symlink("missing-export", filepath.Join(root, "bin/builds/.building/broken.conf")); err != nil {
+	if err := os.Symlink("missing-export", filepath.Join(root, "bin", "builds", ".building", "broken.conf")); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"bin/tracked.conf", "internal/le/build/source.conf", "source/draft/source.conf", "source/ordinary.conf", "source/untracked.conf"}
@@ -113,7 +113,7 @@ func TestSweepSourceDiscovery(t *testing.T) {
 		t.Errorf("discovered %q, want %q", files, want)
 	}
 	t.Run("missing_tracked_source", func(t *testing.T) {
-		if err := os.Remove(filepath.Join(root, "source/ordinary.conf")); err != nil {
+		if err := os.Remove(filepath.Join(root, "source", "ordinary.conf")); err != nil {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { write("source/ordinary.conf", "ordinary") })
@@ -130,7 +130,7 @@ func TestSweepSourceDiscovery(t *testing.T) {
 			t.Skip("root can traverse mode-000 directories")
 		}
 		write("source/locked/hidden.conf", "unreadable")
-		locked := filepath.Join(root, "source/locked")
+		locked := filepath.Join(root, "source", "locked")
 		if err := os.Chmod(locked, 0); err != nil {
 			t.Fatal(err)
 		}
@@ -144,7 +144,7 @@ func TestSweepSourceDiscovery(t *testing.T) {
 		}
 	})
 	// A broken source is not an absent source, even for a narrowed sweep.
-	if err := os.Symlink("missing-target", filepath.Join(root, "source/broken.conf")); err != nil {
+	if err := os.Symlink("missing-target", filepath.Join(root, "source", "broken.conf")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := sweepSourceFiles(t.Context(), root, sweepKeep{"never-matches"}); err == nil {

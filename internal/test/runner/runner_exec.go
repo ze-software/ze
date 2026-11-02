@@ -77,7 +77,8 @@ func tmpfsForRecord(rec *Record) *tmpfs.Tmpfs {
 
 // stepKindExpect is the trace.StepResult kind for an assertion step.
 const (
-	stepKindExpect = "expect"
+	stepKindExpect           = "expect"
+	failTypeExitCodeMismatch = "exit_code_mismatch"
 )
 
 // runTest executes a single test.
@@ -1157,7 +1158,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				}
 				if actual != *cmd.ExitCode {
 					rec.Error = fmt.Errorf("cmd seq=%d (%s): expected exit code %d, got %d; inspect the helper output and correct the command or its exit= assertion", cmd.Seq, cmd.Exec, *cmd.ExitCode, actual)
-					rec.FailureType = "exit_code_mismatch"
+					rec.FailureType = failTypeExitCodeMismatch
 					return false
 				}
 				continue
@@ -1187,7 +1188,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				}
 				if actual != *cmd.ExitCode {
 					rec.Error = fmt.Errorf("cmd seq=%d (%s): expected exit code %d, got %d", cmd.Seq, cmd.Exec, *cmd.ExitCode, actual)
-					rec.FailureType = "exit_code_mismatch"
+					rec.FailureType = failTypeExitCodeMismatch
 					return false
 				}
 			}
@@ -1430,7 +1431,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 		if actualCode != expectedCode {
 			rec.Error = fmt.Errorf("expected exit code %d, got %d", expectedCode, actualCode)
-			rec.FailureType = "exit_code_mismatch"
+			rec.FailureType = failTypeExitCodeMismatch
 			rec.recordStep("exit-code", false, rec.Error.Error())
 			return false
 		}
