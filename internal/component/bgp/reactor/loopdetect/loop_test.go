@@ -346,11 +346,11 @@ func routeServerPeer() filterapi.PeerFilterInfo {
 // route server peer in AS 65010 whose AS_PATH is [65002, 65003]: the leftmost AS is not the AS
 // of the peer that sent the message.
 //
-// The wider fact behind the requirement is that no ingress step tests that equality at all, so
-// there is no check to allow to be disabled. LoopIngress is the whole ingress loop-detection
-// surface and tests three other conditions; the only other reader of the leading ASN is
-// firstASInPath (internal/component/bgp/plugins/rib/bestpath.go), which supplies the MED
-// neighbor-AS comparison and rejects nothing.
+// LoopIngress does not test that equality. The leftmost-AS check lives in the reactor session,
+// Session.firstASMismatch (reactor/session_validation.go), which treats a mismatching UPDATE as
+// withdrawn; Session.firstASPeer disables it for one peer when the local OPEN carries Role
+// RS-client. TestSessionASPAFirstASRoles (reactor/session_first_as_test.go) exercises that
+// check and its per-peer switch.
 func TestLoopIngressAcceptsNonAdjacentLeftmostAS(t *testing.T) {
 	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65003}, false))
 	assert.True(t, accept(routeServerPeer(), body),

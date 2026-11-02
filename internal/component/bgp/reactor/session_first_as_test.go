@@ -181,6 +181,16 @@ func TestSessionASPAFirstAS(t *testing.T) {
 // the local RS-client exception also applies when the server sends no Role.
 // A local route server still checks client paths; a remote RS Role alone does
 // not grant the local RS-client exception.
+//
+// RFC requirement: RFC7947-2.2.2.2-1 positive -- on a session whose own OPEN carries Role
+// RS-client (value 2), with the peer sending Role RS (1) or no Role, an UPDATE from peer AS 65002
+// whose AS_PATH is [65003] reaches the message callback with its payload unchanged: the
+// leftmost-AS check is disabled for that peer.
+//
+// RFC requirement: RFC7947-2.2.2.2-1 negative -- on a session whose own OPEN carries Role RS
+// (value 1) or no Role, even when the peer sends Role RS, the same UPDATE reaches the message
+// callback as a withdrawal of 203.0.113.0/24: the check stays on for every peer the RS-client
+// exemption does not name, so disabling it is per peer.
 func TestSessionASPAFirstASRoles(t *testing.T) {
 	cases := []struct {
 		name          string

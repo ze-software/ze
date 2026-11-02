@@ -324,6 +324,12 @@ func (s *Session) firstASMismatch(wu *wireu.WireUpdate) bool {
 
 // firstASPeer preserves the configured neighbor check and RS-client exemption.
 // RFC 7606 Section 7.2 applies only "if the local system is configured to do so".
+//
+// RFC 7947 Section 2.2.2.2: "If the route server client BGP system has
+// implemented a check for this, the BGP implementation MUST allow this check
+// to be disabled and SHOULD allow the check to be disabled on a per-peer
+// basis." A session whose own OPEN carries Role RS-client is that per-peer
+// switch: localRSClient turns the check off for this peer alone.
 func (s *Session) firstASPeer() (uint32, bool) {
 	peerAS := s.settings.PeerAS
 	if peerAS == 0 {

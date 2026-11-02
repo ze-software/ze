@@ -80,23 +80,23 @@
     "rid": "RFC2545-3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission",
-    "unit-sha": "7e0814f421e7e63b",
+    "unit-sha": "824702e9cfc37c11",
     "claim-sha": "dbdeb008729caf51",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build.go::ValidateMPNextHop",
     "producer-sha": "d1e1a9cded7c7fae",
-    "break": "body of ValidateMPNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of ValidateMPNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission",
-    "unit-sha": "7e0814f421e7e63b",
+    "unit-sha": "824702e9cfc37c11",
     "claim-sha": "3a71b2de3978b84d",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build.go::ValidateMPNextHop",
     "producer-sha": "d1e1a9cded7c7fae",
-    "break": "body of ValidateMPNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of ValidateMPNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-1",
@@ -106,8 +106,8 @@
     "claim-sha": "794f066b7e87d7ce",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
-    "producer-sha": "f8589cb7f51c1b6e",
-    "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "97f772a3cbf7501a",
+    "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-1",

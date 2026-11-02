@@ -20,5 +20,27 @@
     "producer": "internal/component/bgp/reactor/filter/loop.go::LoopIngress",
     "producer-sha": "7eaf23f9a5dc95c3",
     "break": "body of LoopIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7947-2.2.2.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/session_first_as_test.go::TestSessionASPAFirstASRoles",
+    "unit-sha": "ed0b2e76dabb680f",
+    "claim-sha": "a289605374f0ef9d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_validation.go::firstASPeer",
+    "producer-sha": "fb225b688ee87c0e",
+    "break": "line 340: \"!s.settings.isIBGPWith(peerAS) \u0026\u0026 !s.localRSClient\" -\u003e \"!s.settings.isIBGPWith(peerAS)\""
+  },
+  {
+    "rid": "RFC7947-2.2.2.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/session_first_as_test.go::TestSessionASPAFirstASRoles",
+    "unit-sha": "ed0b2e76dabb680f",
+    "claim-sha": "4128fb00479fa350",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_validation.go::firstASPeer",
+    "producer-sha": "fb225b688ee87c0e",
+    "break": "line 340: \"!s.settings.isIBGPWith(peerAS) \u0026\u0026 !s.localRSClient\" -\u003e \"false \u0026\u0026 !s.localRSClient\""
   }
 ]
