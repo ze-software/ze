@@ -230,6 +230,19 @@ func matchArtifact(t *testing.T, d *pluginserver.Dispatcher, input string, artif
 			t.Errorf("%q: close daemon store: %v", input, err)
 		}
 	})
+	// A file the input names is read relative to the working directory on
+	// both routes, and the daemon route reads it only inside the configuration
+	// directories, which no longer hold the caller's directory once
+	// ze.config.dir moved to this call's own (command.CallerPath). Working in
+	// configDir, with the same files the caller's directory holds, gives the
+	// daemon route the file the local route reads, as the caller's directory
+	// does for matchRoutes.
+	t.Chdir(configDir)
+	for _, name := range []string{matchStringValue, matchUndeclaredWord} {
+		if err := os.WriteFile(name, []byte(matchConfig), 0o600); err != nil {
+			t.Fatalf("%q: write %s: %v", input, name, err)
+		}
+	}
 	destination := t.TempDir()
 
 	stdout, stderr := redirectProcessOutput(t)
