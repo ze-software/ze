@@ -1235,8 +1235,20 @@ var scenarioOperations = map[string][]operation{
 	"ospf-multiaf-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
+	// Ze against a second Ze (ze-peer.conf): FRR ospf6d has no IPv4-unicast
+	// address family (assumption A-9). The second Ze must run the
+	// IPv4-unicast-over-OSPFv3 instance (RFC 5838, Instance ID 64), and its
+	// kernel must hold 10.99.0.0/24, a static prefix only Ze has, which Ze
+	// redistributes as an AS-External LSA carrying an IPv4 prefix (RFC 5838
+	// sec 2.7). The peer computes that route only after SPF reaches Ze through
+	// the two-way Router-LSA check, which needs a Full adjacency (RFC 2328
+	// sec 16.1), and installs it through Ze's address on the lab link. Ze
+	// installs every FIB route with rtm_protocol 250 (rtproto.FIBKernel), and
+	// the peer has no other source for the prefix, so proto 250 names the
+	// OSPF route; -N prints the number whatever rt_protos maps it to.
 	"ospf-multiaf-v4-frr": {
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}},
+		{kind: opWaitContains, peer: peerZePeer, command: zeCommand("show ospf ipv6 instance"), contains: []string{`"address-family": "ipv4-unicast"`, `"instance-id": 64`}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerZePeer, command: []string{"ip", "-N", "-4", ipObjectRoute, ipActionShow, "10.99.0.0/24"}, contains: []string{"10.99.0.0/24", "via " + zeLabAddress, "proto 250"}, timeout: 120 * time.Second},
 	},
 	"ospf-multiarea-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
