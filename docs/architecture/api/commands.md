@@ -919,7 +919,8 @@ it for a builtin. `StreamingPluginCommand(prefix)` answers it, so a reader of
 the registry knows which plugin must run for the stream and its sample to
 answer. `monitor interface rate` declares `show interface rate`, which the
 iface plugin serves from its own rate tracker. With that plugin absent the
-sample is refused, naming the command that is not registered.
+sample is refused, naming the command that is not registered, and the surface
+parity check starts the plugin that declares the command before it asks.
 
 The surface predicate (`command.AnswerSurface`) reads the declaration, so the
 MCP, REST and gRPC command list, the web admin tree and the web terminal
