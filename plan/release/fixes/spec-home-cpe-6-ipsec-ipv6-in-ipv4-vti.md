@@ -39,12 +39,25 @@ Deliver and prove, through the real entry points:
 
 Where any step fails at the source, the fix is in this spec.
 
+### Dependency and closure order (shared with child 20)
+
+| Item | Owner | Rule |
+|------|-------|------|
+| Interop scenario `vti-ipv6-inner-ipv4-outer` | this spec, sole owner | This spec creates, runs and red-walks it. Child 20 creates and edits no file of it, and cites this spec's recorded run at its own closure |
+| Implementation prerequisite | child 20 (`spec-home-cpe-20-xfrm-cross-family-tunnel-state.md`) | Child 20's `XFRM_STATE_AF_UNSPEC` fix must be COMMITTED in HEAD before Phase 2 here runs. Child 20 need not be closed: its fix and its namespace proof land before its closure |
+| Integrated proof | this spec | AC-5 green with child 20's fix; AC-6 red with that fix reverted and the Ze image rebuilt; the red run is recorded in this spec's commit body, which is the evidence child 20 cites |
+| Closure order | both | 1. child 20 implemented and committed; 2. this spec implemented, scenario green, red walk recorded, this spec closed; 3. child 20 closed |
+
+The metadata `Depends` names child 20 in the implementation sense only: this spec
+needs its code, never its closure, so neither spec waits on the other's closure
+before its own work.
+
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `ai/doors/system.md`, `ai/doors/access-security.md` - IKE door
   → Constraint: readers of IKE state use `ipsecinventory` and `ikeprobe`, never `ike/engine`.
-- [ ] `docs/guide/ipsec.md` - "Traffic selectors and narrowing" (about lines 1376-1395) and the VTI paragraph (about lines 1479-1486)
+- [ ] `docs/guide/ipsec.md` - section "Traffic selectors and narrowing", and the VTI binding paragraph quoted in the constraint below
   → Decision: a dual-stack peer writes one IPv4 entry and one IPv6 entry; the guide states that list "already names every combination" and `validateSelectorCombinations` accepts it.
   → Constraint: "The interface has to exist when the peer's first Child SA is created: a binding that names no xfrm interface, or one configured with `if-id 0`, fails the Child SA with an error naming the interface."
 - [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - Child SA install, policies per negotiated pair
@@ -69,12 +82,12 @@ Where any step fails at the source, the fix is in this spec.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ike/engine/config.go` `validateSelectorCombinations` (about line 247) - refuses a list missing a same-family combination; a list of one IPv4 entry and one IPv6 entry passes.
-- [ ] `internal/component/ike/engine/rekey.go` `proposeChildTSPayloads`, `anyChildTSPayloads` (about line 237) - a peer with a configured list proposes exactly that list in order; a peer with none proposes the wildcard of the family of `net.ParseIP(RemoteAddress)`, which is IPv4 for an IPv4 literal and also IPv4 for a hostname (ParseIP nil, `isV6` false).
-- [ ] `internal/component/ike/engine/ts_narrow.go` `recordInitiatorSelectorsIn` (about line 829) - checks the responder's answer against the recorded proposal (a subset is accepted, a widening refused) and records `sa.NegotiatedPairs`.
+- [ ] `internal/component/ike/engine/config.go` `validateSelectorCombinations` - refuses a list missing a same-family combination; a list of one IPv4 entry and one IPv6 entry passes.
+- [ ] `internal/component/ike/engine/rekey.go` `proposeChildTSPayloads`, `anyChildTSPayloads` - a peer with a configured list proposes exactly that list in order; a peer with none proposes the wildcard of the family of `net.ParseIP(RemoteAddress)`, which is IPv4 for an IPv4 literal and also IPv4 for a hostname (ParseIP nil, `isV6` false).
+- [ ] `internal/component/ike/engine/ts_narrow.go` `recordInitiatorSelectorsIn` - checks the responder's answer against the recorded proposal (a subset is accepted, a widening refused) and records `sa.NegotiatedPairs`.
 - [ ] `internal/component/ike/engine/ts_mixed_family_test.go` - a pair that mixes an IPv4 TSi with an IPv6 TSr is refused with TS_UNACCEPTABLE; the IPv6-only subset of a two-family proposal has no test of its own.
-- [ ] `internal/component/ike/engine/established.go` `resolveIfID` (about line 1051) - the bound interface's if_id, an error for a non-xfrm binding or if_id 0.
-- [ ] `internal/component/ike/engine/child.go` `childPolicies`, `childPairPolicy` (about lines 751-900) - one policy per negotiated pair and direction, carrying the Child SA's if_id.
+- [ ] `internal/component/ike/engine/established.go` `resolveIfID` - the bound interface's if_id, an error for a non-xfrm binding or if_id 0.
+- [ ] `internal/component/ike/engine/child.go` `childPolicies`, `childPairPolicy` - one policy per negotiated pair and direction, carrying the Child SA's if_id.
 - [ ] `internal/component/ike/dataplane/xfrm_linux.go` - tunnel state installed with no selector and no AF_UNSPEC flag (child 20).
 - [ ] `test/interop-ipsec/scenarios/` - no scenario carries IPv6 inner traffic; `mtu-tunnel-sizing-strongswan` and `ike-padded-probe-strongswan` use an xfrm interface with IPv4 inner.
 
@@ -91,10 +104,10 @@ Where any step fails at the source, the fix is in this spec.
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Selector-list validation | `internal/component/ike/engine/config.go` `validateSelectorCombinations` | Refuses a list missing a same-family combination; one IPv4 and one IPv6 entry pass | does not apply: already accepts the dual-family list; this spec proves it through `ze config validate` |
-| Child SA TS proposal | `internal/component/ike/engine/rekey.go` `proposeChildTSPayloads`, `anyChildTSPayloads` | Proposes the configured list in order, or the outer family's wildcard | does not apply: proven on the wire, changed only if A-1 breaks |
-| Initiator answer check | `internal/component/ike/engine/ts_narrow.go` `recordInitiatorSelectorsIn`; `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` "Decisions" | Accepts a subset of the proposal, refuses a widening, records `sa.NegotiatedPairs` | extends only if A-2 breaks: the IPv6-only subset gets its own test |
+| Child SA TS proposal | `internal/component/ike/engine/rekey.go` `proposeChildTSPayloads`, `anyChildTSPayloads` | Proposes the configured list in order, or the outer family's wildcard | does not apply: no assumption covers it; AC-1 checks it on the wire (`TestDualFamilyProposalNarrowedToIPv6InstallsVTIPolicy` asserts both entries, IPv4 then IPv6), and a missing or reordered entry is fixed in `proposeChildTSPayloads` in this spec |
+| Initiator answer check | `internal/component/ike/engine/ts_narrow.go` `recordInitiatorSelectorsIn`; `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` "Decisions" | Accepts a subset of the proposal, refuses a widening, records `sa.NegotiatedPairs` | A-1 is this check: the IPv6-only subset gets its own test (`TestInitiatorAcceptsNarrowingToOneFamily`); if A-1 breaks, `recordInitiatorSelectorsIn` is fixed here |
 | VTI if_id binding | `internal/component/ike/engine/established.go` `resolveIfID` | Returns the bound xfrm interface's if_id, refuses a non-xfrm binding or if_id 0 | does not apply: reused as is |
-| Child SA policy set | `internal/component/ike/engine/child.go` `childPolicies`, `childPairPolicy` | One policy per negotiated pair and direction carrying the if_id | does not apply: already emits IPv6 policies with an IPv4 template |
+| Child SA policy set | `internal/component/ike/engine/child.go` `childPolicies`, `childPairPolicy` | One policy per negotiated pair and direction carrying the if_id | A-2 is this check (`TestNarrowedChildInstallsOnlyTheNegotiatedFamily`): expected to already emit only the IPv6 policies with an IPv4 template; if A-2 breaks, `childPolicies` is fixed here |
 | Tunnel state AF_UNSPEC | `plan/release/fixes/spec-home-cpe-20-xfrm-cross-family-tunnel-state.md` | Child 20 sets `XFRM_STATE_AF_UNSPEC` on a selector-less tunnel state | does not apply here: child 20 owns the fix, this spec's scenario is its red-first proof |
 | strongSwan interop lab | `test/interop-ipsec/scenarios/`, `docs/architecture/testing/interop.md` | Scenarios such as `mtu-tunnel-sizing-strongswan` run Ze against strongSwan over an xfrm interface with IPv4 inner traffic | extends: adds `vti-ipv6-inner-ipv4-outer` in the same layout |
 
@@ -210,8 +223,10 @@ Where any step fails at the source, the fix is in this spec.
 | `vti-ipv6-inner-ipv4-outer` | `test/interop-ipsec/scenarios/` | strongSwan 6.1.0, responder narrowing to `::/0` | AC-1 to AC-8: dual proposal, narrowing, if_id policy, IPv6 ping, red with child 20 reverted | |
 
 ## Files to Modify
-- `internal/component/ike/engine/ts_narrow.go`, `child.go` - only if A-1 or A-2 breaks
-- `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` - declared by `ts_narrow.go`. Nothing in it becomes wrong while `ts_narrow.go` is untouched: its decision "The initiator checks the answer, it does not trust it" already covers a subset answer. If A-2 forces a change to `recordInitiatorSelectorsIn`, that decision gains the single-family subset of a two-family proposal
+- `internal/component/ike/engine/ts_narrow.go` `recordInitiatorSelectorsIn` - only if A-1 breaks
+- `internal/component/ike/engine/child.go` `childPolicies` - only if A-2 breaks
+- `internal/component/ike/engine/rekey.go` `proposeChildTSPayloads` - only if AC-1's wire check fails
+- `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` - declared by `ts_narrow.go`. Nothing in it becomes wrong while `ts_narrow.go` is untouched: its decision "The initiator checks the answer, it does not trust it" already covers a subset answer. If A-1 forces a change to `recordInitiatorSelectorsIn`, that decision gains the single-family subset of a two-family proposal
 - `docs/guide/ipsec.md` - a dual-family VTI example: IPv6 inside an IPv4 tunnel, narrowed by the peer
 - `plan/release/validation/spec-ipsec-0-umbrella.md` - list the scenario (main thread edits it; named here so it is not lost)
 
@@ -343,7 +358,7 @@ statement it touches.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
-- [ ] The targeted tests for what changed pass: the scoped package test for `internal/component/ike/engine` through `./le job run label unit-pkg command go test -tags ...`, `./le test functional parse` for `ipsec-dual-family-selectors-validate.ci`, `./le test integration interop-ipsec` for `vti-ipv6-inner-ipv4-outer`, and `./le verify changed` over the closing commits
+- [ ] The targeted tests for what changed pass: the scoped package test for `internal/component/ike/engine` through `./le job run label unit-pkg command go test -tags ...`, `./le test functional parse` for `ipsec-dual-family-selectors-validate.ci`, `IPSEC_INTEROP_SCENARIO=vti-ipv6-inner-ipv4-outer ./le test integration interop-ipsec` (green with child 20's fix, red once with it reverted and the Ze image rebuilt, the red recorded), and `./le verify changed` over the closing commits
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

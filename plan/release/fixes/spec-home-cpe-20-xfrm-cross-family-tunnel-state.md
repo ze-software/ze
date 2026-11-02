@@ -32,6 +32,25 @@ that sends IPv6 through an IPv4-outer tunnel SA installed by Ze's dataplane, and
 observes the drop. Then Ze sets `XFRM_STATE_AF_UNSPEC` on tunnel-mode states it
 installs with no selector, and the same test goes green.
 
+### Dependency and closure order (shared with child 6)
+
+Child 6 needs this fix to carry its scenario, and this spec needs child 6's
+scenario as its interop proof. The cycle is broken by separating three things
+that one "depends" line used to carry:
+
+| Item | Owner | Rule |
+|------|-------|------|
+| The `XFRM_STATE_AF_UNSPEC` fix and its red-first namespace proof (`TestXFRMTunnelCarriesTheOtherInnerFamily`) | this spec | Implemented and committed first. Needs nothing from child 6 |
+| Interop scenario `vti-ipv6-inner-ipv4-outer` | child 6 (`spec-home-cpe-6-ipsec-ipv6-in-ipv4-vti.md`), sole owner | Child 6 creates it, runs it, and records its red walk with this spec's fix reverted. This spec creates and edits no file of it |
+| Implementation prerequisite | child 6 | Child 6 needs this spec's fix COMMITTED in HEAD, not this spec closed |
+| Closure order | both | 1. this spec implemented and committed; 2. child 6 implemented, its scenario green, its red walk recorded, child 6 closed; 3. this spec closed, citing child 6's recorded run as its interop evidence |
+
+This spec cannot close before child 6: the fix puts inner traffic of the other
+family on the wire as ESP, so it is a protocol change that owes an interop test
+(`ai/rules/interop-and-goal-validation.md`), and the one scenario that carries it
+is child 6's. The metadata `Depends` stays `-` because nothing in this spec's
+implementation waits on another spec.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -75,13 +94,13 @@ installs with no selector, and the same test goes green.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ike/dataplane/xfrm_linux.go` (state build, about lines 150-215) - refuses a mixed outer pair (RFC 4301 Section 4.4.2.1), builds `netlink.XfrmState` with Src, Dst, Proto, Mode, SPI, Reqid, Ifid; sets `state.Selector` only when `p.Sel` is non-nil. Its comment says so: "A tunnel-mode IKE Child SA leaves p.Sel nil, so msg.Sel stays the zero value."
-- [ ] `vendor/github.com/vishvananda/netlink/xfrm_state_linux.go` - `xfrmUsersaInfoFromXfrmState` sets `msg.Family` from `state.Dst` and calls `selFromPolicy` only for a non-nil `Selector`; the only flag it ever sets is `XFRM_STATE_ESN` (about line 282). `nl/xfrm_state_linux.go` defines `XFRM_STATE_AF_UNSPEC = 32` and nothing uses it.
-- [ ] `vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go` - `selFromPolicy` defaults the selector family to IPv4 (about line 108), so passing an empty selector does not produce AF_UNSPEC either; the template family follows the template address length (about line 181), which already gives an IPv6 policy an IPv4 template correctly.
+- [ ] `internal/component/ike/dataplane/xfrm_linux.go` `xfrmStateFromParams` - refuses a mixed outer pair (RFC 4301 Section 4.4.2.1), builds `netlink.XfrmState` with Src, Dst, Proto, Mode, SPI, Reqid, Ifid; sets `state.Selector` only when `p.Sel` is non-nil. Its comment says so: "A tunnel-mode IKE Child SA leaves p.Sel nil, so msg.Sel stays the zero value."
+- [ ] `vendor/github.com/vishvananda/netlink/xfrm_state_linux.go` - `xfrmUsersaInfoFromXfrmState` sets `msg.Family` from `state.Dst` and calls `selFromPolicy` only for a non-nil `Selector`; the only flag it ever sets is `XFRM_STATE_ESN`. `nl/xfrm_state_linux.go` defines `XFRM_STATE_AF_UNSPEC = 32` and nothing uses it.
+- [ ] `vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go` - `selFromPolicy` defaults the selector family to IPv4, so passing an empty selector does not produce AF_UNSPEC either; in `xfrmPolicyAddOrUpdate` the template family follows the template address length, which already gives an IPv6 policy an IPv4 template correctly.
 - [ ] Linux 7.2.9 source as Ze builds it (`ze-kernel-build` docker volume, `linux-7.2.9-yes`), read through a read-only container on 2026-10-31:
-  - `net/xfrm/xfrm_user.c` `copy_from_user_state` (line 829): "if (!x->sel.family && !(p->flags & XFRM_STATE_AF_UNSPEC)) x->sel.family = p->family;" (line 842). With Ze's zero selector and no flag, the selector family becomes the outer family.
-  - `net/xfrm/xfrm_state.c` `__xfrm_init_state` (line 3215): when `x->sel.family != AF_UNSPEC` only `inner_mode` of that family is set; only the AF_UNSPEC branch also fills `inner_mode_iaf` with the other family's tunnel mode.
-  - `net/xfrm/xfrm_state.c` `xfrm_state_look_at` (line 1313): a VALID state is skipped when "x->sel.family && (x->sel.family != family || !xfrm_selector_match(...))". An IPv6 flow resolving a template to an IPv4-selector state finds none: the outbound half drops (expected counter `XfrmOutNoStates`).
+  - `net/xfrm/xfrm_user.c` `copy_from_user_state`: "if (!x->sel.family && !(p->flags & XFRM_STATE_AF_UNSPEC)) x->sel.family = p->family;". With Ze's zero selector and no flag, the selector family becomes the outer family.
+  - `net/xfrm/xfrm_state.c` `__xfrm_init_state`: when `x->sel.family != AF_UNSPEC` only `inner_mode` of that family is set; only the AF_UNSPEC branch also fills `inner_mode_iaf` with the other family's tunnel mode.
+  - `net/xfrm/xfrm_state.c` `xfrm_state_look_at`: a VALID state is skipped when "x->sel.family && (x->sel.family != family || !xfrm_selector_match(...))". An IPv6 flow resolving a template to an IPv4-selector state finds none: the outbound half drops (expected counter `XfrmOutNoStates`).
   - `include/net/xfrm.h` `xfrm_ip2inner_mode`: returns `inner_mode_iaf` only when the selector family is AF_UNSPEC; otherwise the state's single inner mode handles every decapsulated packet. The inbound effect on an IPv6 inner packet is not yet measured.
 - [ ] `internal/component/ike/engine/child.go` (`childPolicies`, `childPairPolicy`) - one policy per negotiated pair and direction, carrying the Child SA's if_id; an IPv6 pair over IPv4 endpoints already produces an IPv6 policy with an IPv4 template.
 
@@ -141,7 +160,7 @@ installs with no selector, and the same test goes green.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Without the flag, outbound IPv6 through an IPv4-outer SA finds no state | `xfrm_state_look_at` and `copy_from_user_state` in Linux 7.2.9, read 2026-10-31 | The defect lies elsewhere (policy, template, if_id); the red test shows where | `TestXFRMTunnelCarriesTheOtherInnerFamily` red before the fix, with the counter that moved | source-read, unmeasured |
 | A-2 | Inbound IPv6 inner over an IPv4 SA is also mishandled without the flag | `xfrm_ip2inner_mode` returns the single inner mode | Only the outbound half is broken; the fix is the same | Same test, inbound direction, counter `XfrmInStateModeError` or delivery | unvalidated |
-| A-3 | strongSwan sets AF_UNSPEC on tunnel SAs | Umbrella survey; strongSwan source not present locally | Interop still proves Ze's half | Read `kernel_netlink_ipsec.c` `add_sa` in the strongSwan 6.1.0 tarball the lab image builds from | unvalidated |
+| A-3 | strongSwan sets AF_UNSPEC on tunnel SAs | strongSwan 6.1.0 (the tag the lab image builds) `src/libcharon/plugins/kernel_netlink/kernel_netlink_ipsec.c` `add_sa`: for `MODE_TUNNEL` and `MODE_IPTFS` it ORs `XFRM_STATE_AF_UNSPEC` into the SA flags (read 2026-11-02) | Interop still proves Ze's half | Source read; child 6's scenario run shows the peer half carrying IPv6 | source-read |
 | A-4 | Upstream `vishvananda/netlink` has no field for the flag at the vendored version | `XfrmState` struct in the vendored file | If a newer release has one, bump instead of patching | Read upstream's latest `xfrm_state_linux.go` | unvalidated |
 
 ### Risks
@@ -207,7 +226,7 @@ installs with no selector, and the same test goes green.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `vti-ipv6-inner-ipv4-outer` (owned by child 6) | `test/interop-ipsec/scenarios/` | strongSwan 6.1.0 | IPv6 ping across an IPv4 SA; reverting this fix turns it red | |
+| `vti-ipv6-inner-ipv4-outer` (owned and created by child 6; this spec's closure cites its recorded run, see "Dependency and closure order") | `test/interop-ipsec/scenarios/` | strongSwan 6.1.0 | IPv6 ping across an IPv4 SA; reverting this fix turns it red (child 6 AC-6) | |
 
 ## Files to Modify
 - `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` - add an `XfrmState` field that sets `XFRM_STATE_AF_UNSPEC` in `xfrmUsersaInfoFromXfrmState`, and report it on readback
@@ -242,7 +261,7 @@ installs with no selector, and the same test goes green.
 | 3 | CLI command added/changed? | No | |
 | 4 | API/RPC added/changed? | No | |
 | 5 | Plugin added/changed? | No | |
-| 6 | Has a user guide page? | Yes | `docs/guide/ipsec.md`: state that a tunnel carries either inner family over either outer family |
+| 6 | Has a user guide page? | Yes | `docs/guide/ipsec.md`, as two separate statements. Dataplane: a tunnel-mode SA Ze installs carries either inner family over an outer pair of either family (RFC 4301 Section 5.1.2.1). Operator-facing IKE support is narrower: every IKE socket is `udp4` (`plan/journal/unwired-feature.md`, 2026-09-04 row, second finding), so a tunnel an operator can configure today has an IPv4 outer pair carrying IPv4 or IPv6 inner traffic (child 6). IPv4 inside an IPv6 outer pair is proven only by this spec's namespace test and no configuration reaches it until IKE runs over IPv6 |
 | 7 | Wire format changed? | No | |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4301.md` row for Section 5.1.2.1 if one exists |
@@ -314,7 +333,7 @@ The kernel's own name for "any family" is a flag, not a selector value.
 
 ## Known Limitations
 - The inbound half (A-2) is asserted by the same test but its exact kernel path is not traced here.
-- strongSwan's behaviour (A-3) is unverified locally.
+- IPv4 inside an IPv6 outer pair (AC-6) is a dataplane capability only: IKE has no IPv6 socket, so no configuration reaches it until IKE over IPv6 exists.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -339,14 +358,15 @@ header."` above the flag.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/ike/dataplane` and `internal/le/vendorpatch` through `./le job run label unit-pkg command go test -tags ...`, `./le test integration interop-ipsec` with the child 6 scenario `vti-ipv6-inner-ipv4-outer`, and `./le verify changed` over the closing commits
+- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/ike/dataplane` and `internal/le/vendorpatch` through `./le job run label unit-pkg command go test -tags ...`; the kernel tests through `./le job run label xfrm-cross-family command go test -tags integration -run 'TestXFRMTunnelCarriesTheOtherInnerFamily|TestXFRMTunnelStateIsInstalledAFUnspec|TestXFRMReadbackOfAFUnspecState' ./internal/component/ike/dataplane/` on Ze's kernel (each test enters its own user and network namespace through `userns.Enter`, as `xfrm_integration_linux_test.go` does); and `./le verify changed` over the closing commits
+- [ ] Interop evidence cited, not produced here: child 6's recorded run of `IPSEC_INTEROP_SCENARIO=vti-ipv6-inner-ipv4-outer ./le test integration interop-ipsec`, green with this fix and red with it reverted (closure order step 3)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] Interop tests for protocol features (child 6 scenario)
+- [ ] Interop tests for protocol features: child 6's scenario, cited at closure
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it

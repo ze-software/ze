@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | 0/2 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-02 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
@@ -29,6 +29,14 @@ IKE_SA_INIT from that SA's authenticated peer address; authenticate it with the
 same peer configuration; on success make it the peer's owner SA with its Child
 SA, then retire the old SA, make before break. With no established SA, an
 `initiate` peer still refuses unsolicited initiation.
+
+The same supersede path serves a `respond` peer's re-initiation today, and it
+supersedes on authentication alone: a parallel SA whose Child SA was refused
+still takes over and the working Child SA is removed (owned journal row
+`replacement-written-before-it-is-validated.md` 2026-11-02). The rule in
+"Reauthentication outcomes" (supersede only once the successor's Child SA is
+installed) is one rule for both connection types, so this spec fixes the
+`respond` case too (AC-15, AC-16).
 
 ### Placement decision
 
@@ -64,19 +72,22 @@ This stays a child of its own rather than moving into
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ike/engine/register.go` `matchResponderPeer` (line 722) - skips every peer whose `ConnectionType` is not `respond`; compares the configured remote string to the datagram source.
-- [ ] `register.go` `tryResponderSAInit` (about line 740) - cookie gate, one half-open handshake per peer (`responderBusy`), parallel acceptance while a tunnel is up, superseding only after the new SA authenticates.
-- [ ] `internal/component/ike/engine/established.go` (about line 323) - the `ps.supersede` arm: relinquish the old SA after the parallel SA authenticated, remove only the old Child SA (make before break), let `runResponder` promote the new one.
-- [ ] `internal/component/ike/ipsec/types.go` (line 263) - connection types `initiate` and `respond` only.
+- [ ] `internal/component/ike/engine/register.go` `matchResponderPeer` - skips every peer whose `ConnectionType` is not `respond`; compares the configured remote string to the datagram source.
+- [ ] `register.go` `tryResponderSAInit` - cookie gate, one half-open handshake per peer (`responderBusy`), parallel acceptance while a tunnel is up, superseding only after the new SA authenticates.
+- [ ] `internal/component/ike/engine/established.go` `maintainSA`, the `ps.supersede` arm - relinquish the old SA after the parallel SA authenticated, remove only the old Child SA (make before break), let `runResponder` promote the new one.
+- [ ] `internal/component/ike/engine/responder.go` `finishResponderEstablish` - signals supersede (`signalSupersede`, `reconcile.go`) for every parallel SA that reaches IKE_AUTH, INCLUDING one whose Child SA was refused: `buildChildlessAuthResponse` establishes it with a nil Child SA. For a `respond` peer this happens today: the `maintainSA` supersede arm runs `cleanupChild` on the old Child SA, and `fsm.go` `resolvePendingAfterOwnerLoop` promotes the parallel SA, moving its Child SA only when one exists, so a childless successor takes ownership from a working tunnel (read 2026-11-02). This spec changes that for both connection types (Reauthentication outcomes).
+- [ ] `internal/component/ike/engine/established.go` (the `sa.IsInitiator && sa.IKEAuthChildless` arm and `ps.childCreate`) - only the IKE SA initiator asks for a Child SA on a childless IKE SA later; a responder serves the peer's request (`respondNewChild`). Owner decision Q-5 (the reestablish exit in `maintainSA`): a session that loses its live Child SA reconnects rather than staying up childless.
+- [ ] `internal/component/ike/ipsec/types.go` `ConnectionInitiate`, `ConnectionRespond` - connection types `initiate` and `respond` only.
 - [ ] `test/interop-ipsec/scenarios/responder-accepts-reinit/` - strongSwan initiates against a Ze `respond` peer; nothing covers a reinit toward an `initiate` peer. `mobike-initiator/swanctl.conf` sets `reauth_time = 0s` on strongSwan.
 
 **Behavior to preserve:**
 - `initiate` peers refuse unsolicited initiation while no IKE SA is established.
 - The cookie gate and the one-half-open rule.
-- `respond` peers unchanged.
+- `respond` peers' matching, admission and supersede after a Child SA is installed unchanged.
 
 **Behavior to change:**
 - An `initiate` peer with an established SA accepts and adopts a reauthentication from that SA's peer address.
+- A re-initiated SA, on either connection type, supersedes only once its Child SA is installed.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -97,8 +108,47 @@ This stays a child of its own rather than moving into
 1. `tryResponderSAInit` asks the matcher; the matcher also returns an `initiate` session whose established SA's authenticated peer endpoint equals the source.
 2. Cookie gate and busy CAS as today.
 3. `newResponderSA` with the session's configuration; IKE_AUTH verifies the same identities and trust anchors.
-4. On authentication the session's owner loop receives the supersede signal, retires the old SA and adopts the new one; the new Child SA (no REKEY_SA) is installed before the old one is removed.
+4. On authentication the successor's Child SA (no REKEY_SA) is negotiated and installed into `pendingChild`. The supersede signal fires only once that Child SA is installed; the owner loop then retires the old SA and adopts the new one, so the new Child SA is installed before the old one is removed.
 5. The gateway deletes the old IKE SA; Ze's delete handling finds it already retired and does not reconnect.
+
+### Reauthentication outcomes
+
+| Case | Ze's behaviour | Basis |
+|------|----------------|-------|
+| Successor authenticates, Child SA negotiated and installed | Supersede: the old Child SA is removed after the new one is installed, the old IKE SA is retired (AC-2) | RFC 7296 Section 2.8.3 order: new IKE SA, new Child SAs, then delete the old |
+| Successor authenticates, Child SA refused in IKE_AUTH (any refusal `buildChildlessAuthResponse` answers, such as TS_UNACCEPTABLE or NO_PROPOSAL_CHOSEN) | The successor is kept as a childless IKE SA held beside the owner, NOT adopted. The old IKE SA and its Child SA keep ownership and carry the traffic. The log names the peer, the refusal notify and the fix (AC-9) | RFC 7296 Section 2.21.2: "This failure does not automatically cause the IKE SA to be deleted." Make before break: nothing exists to switch to |
+| Successor authenticates, Child SA negotiated but its install into the dataplane fails | As the row above, and Ze also deletes the peer's half of the pair it could not install (`sendDeleteESP`, as `initiatorFirstChildSA`'s refusals already do), so the peer holds no Child SA Ze does not (AC-10) | Same |
+| The gateway later creates a Child SA on the held successor (CREATE_CHILD_SA, `respondNewChild`) | Installed, then supersede as in the first row (AC-11) | Ze is responder of that IKE SA; only the IKE SA initiator asks for a Child SA later (`ps.childCreate`), so Ze waits for the gateway |
+| The gateway deletes the old IKE SA while the successor is still childless | Ze does not keep a childless session (owner decision Q-5): it removes the old Child SA as the Delete requires, sends a Delete for the held successor, and reconnects as initiator on the existing backoff (AC-12) | Q-5 |
+| The gateway deletes the held successor | The successor is dropped; the old SA is unchanged | |
+| Any row above on a `respond` peer's re-initiation | The same behaviour; where an `initiate` peer reconnects as initiator (AC-12), a `respond` session takes the same reestablish exit and then waits for the peer's next IKE_SA_INIT, as it does today after that exit (AC-15, AC-16) | One supersede path serves both connection types |
+| IKE_AUTH fails | The successor is discarded; the old SA is untouched (AC-4) | RFC 7296 Section 2.4 coexist, then supersede on authentication |
+
+### Simultaneous replacements
+
+Two replacements of one session's IKE SA can both complete: the gateway's
+reauthentication crossing Ze's own IKE SA rekey (CREATE_CHILD_SA), or crossing
+Ze's reconnect after Ze declared the old SA dead while the gateway's IKE_SA_INIT
+was already admitted. RFC 7296 Section 2.8.3 says "IKEv2 does not have any
+special support for reauthentication.", and Section 2.8.2's lowest-nonce rule
+covers two CREATE_CHILD_SA rekeys of one IKE SA, not a new IKE_SA_INIT crossing a
+replacement. The RFC does not settle the winner, so interop with strongSwan
+settles it (strongSwan 6.1.0 source, read 2026-11-02):
+
+- `src/libcharon/sa/ikev2/tasks/ike_reauth_complete.c` `build_i` queues
+  `delete_ike_sa_job` for the OLD IKE SA once its reauthentication completes,
+  whatever other IKE SA exists, so strongSwan always keeps the successor it
+  started.
+- `src/libcharon/sa/ike_sa_manager.c` `check_uniqueness` returns without
+  touching duplicates under `UNIQUE_NO` (swanctl's default `unique = no`), so
+  strongSwan never deletes a duplicate Ze created.
+
+| Rule | What Ze does |
+|------|--------------|
+| Winner | The successor the PEER started (its reauthentication) wins over any replacement Ze started for the same session. The winner is decided by who started each SA, never by completion order, so both orders converge |
+| Loser cleanup | Ze sends an INFORMATIONAL Delete for the replacement it started; that SA's Child SA states and policies are removed with the selector check that keeps the winner's policies (`removeChildSAExcept`, as the make-before-break path does); the SA leaves the SA table; the SPD ledger (`spd_left.go`) holds no entry of it |
+| Never | Ze never deletes the peer-started successor, and never leaves two IKE SAs owned by one session |
+| A rekey that loses the race | If the gateway deletes the old IKE SA before Ze's rekey completes, the rekey fails with its SA gone and nothing remains to clean |
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -124,14 +174,15 @@ This stays a child of its own rather than moving into
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | strongSwan, as responder of the original SA with `reauth_time` set, reauthenticates by initiating a new IKE SA toward the peer | strongSwan source not present locally; read `libcharon/sa/ike_sa.c` (reauth) in the 6.1.0 tarball the lab builds, or observe it | The defect never fires with strongSwan; spec drops to documentation of Ze's refusal | First scenario run | unvalidated |
+| A-1 | strongSwan, as responder of the original SA with `reauth_time` set, reauthenticates by initiating a new IKE SA toward the peer | strongSwan 6.1.0 `src/libcharon/sa/ike_sa.c` `reauth` (read 2026-11-02): as the original responder it refuses only when `ike_sa_can_reauthenticate` fails (EAP or a virtual IP, logging "initiator did not reauthenticate as requested"); otherwise it logs "reauthenticating IKE_SA" and queues the reauth task | The defect never fires with strongSwan; spec drops to documentation of Ze's refusal | Source read; confirmed by the first scenario run's strongSwan log | source-read |
 | A-2 | The initiator run loop can hand ownership to a responder-role SA | `respond` sessions do it | A larger change to the run loop | Phase 1 wiring test | unvalidated |
-| A-3 | Behind NAT the gateway's IKE_SA_INIT reaches Ze only through the NAT mapping the old SA keeps open | NAT keepalives | Reauth from the gateway cannot work behind NAT; documented | `real-nat` variant | unvalidated |
+| A-3 | Behind a port-translating NAT the gateway's IKE_SA_INIT reaches Ze only through the mapping the old SA's NAT-T traffic keeps open, on UDP 4500, and Ze's NAT-T listener accepts an IKE_SA_INIT there | NAT keepalives; the lab NAT box's three-column row translates the port and installs no DNAT, so only conntrack carries an unsolicited datagram back (`docs/architecture/testing/interop.md`, "The IPsec NAT box") | Reauth from the gateway cannot work behind a NAT; documented in Known Limitations and the guide, the scenario then asserts Ze's clean reconnect instead | `real-nat-port-translated-responder-reauths-ze-initiator` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Simultaneous reauth: Ze's own reconnect and the gateway's reinit cross | Two IKE SAs established | Keep the newest authenticated SA, delete the other (RFC 7296 Section 2.8.3 ends with the old SA deleted) |
+| R-1 | Simultaneous replacement: the gateway's reauthentication crosses Ze's IKE SA rekey or Ze's reconnect | Two IKE SAs established for one peer | The rule in "Simultaneous replacements": the peer-started successor wins, Ze deletes the replacement it started with its Child SA states and policies; proven by the two concurrent tests in both completion orders |
+| R-4 | A childless successor takes ownership from a working tunnel | Ping stops after a reauth whose Child SA was refused | "Reauthentication outcomes": supersede waits for the successor's Child SA install; fault-injection tests AC-9 to AC-12 |
 | R-2 | A spoofed IKE_SA_INIT from the peer address holds the half-open slot | Busy-drop log | Existing cookie gate applies unchanged |
 | R-3 | Role-dependent code reads the peer's connection type | Rekey collision or DPD misbehaves after adoption | Grep for `ConnectionType` reads in the established path; test rekey after adoption |
 
@@ -162,12 +213,21 @@ This stays a child of its own rather than moving into
 | AC-6 | Original SA used EAP or a Configuration payload | Dropped, with a log quoting the Section 2.8.3 reason |
 | AC-7 | Adopted SA later rekeyed, by either side | Rekey works with Ze as responder of the IKE SA |
 | AC-8 | Source differs from the SA's peer address | Dropped |
+| AC-9 | AC-1, IKE_AUTH authenticates, Child SA refused (TS_UNACCEPTABLE injected) | Successor held childless, not adopted; old IKE SA and Child SA still own the session and carry traffic; log names the peer, the notify and the fix |
+| AC-10 | AC-1, IKE_AUTH authenticates, the dataplane install of the successor's Child SA fails (injected) | As AC-9; Ze sends a Delete for the ESP pair it could not install; the fake dataplane holds no state or policy of it |
+| AC-11 | AC-9, the gateway then creates a Child SA on the successor | Installed, then the successor supersedes as in AC-2 |
+| AC-12 | AC-9, the gateway deletes the old IKE SA | Old Child SA removed; Ze sends a Delete for the successor and reconnects as initiator on the existing backoff (owner decision Q-5) |
+| AC-13 | The gateway's reauthentication and Ze's own IKE SA rekey both complete, in either order; likewise with Ze's reconnect | Exactly one IKE SA and one Child SA pair remain: the gateway-started successor. Ze sent one Delete, for the replacement it started; no state, policy or SPD-ledger entry of it remains |
+| AC-14 | Ze behind a port-translating NAT, gateway reauthenticates | The reauth IKE_SA_INIT arrives on Ze's UDP 4500 through the NAT mapping, is adopted as in AC-2, and the new Child SA encapsulates both ways |
+| AC-15 | `respond` peer established; the peer re-initiates, IKE_AUTH authenticates, Child SA refused (TS_UNACCEPTABLE injected) or its install fails (injected) | Successor held childless, not adopted; the old IKE SA and Child SA keep ownership and their state and policies stay installed in the fake dataplane; a failed install also sends the Delete of AC-10 |
+| AC-16 | AC-15, the peer then creates a Child SA on the successor | Installed, then the successor supersedes as in AC-2 |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Runs the CPE against a gateway that reauthenticates hourly | gateway IKE_SA_INIT → adopt → old deleted | `responder-reauths-ze-initiator` |
+| 2 | Runs the CPE behind a home NAT that translates ports | gateway IKE_SA_INIT through the NAT mapping → adopt | `real-nat-port-translated-responder-reauths-ze-initiator` |
 
 ## 🧪 TDD Test Plan
 
@@ -180,6 +240,14 @@ This stays a child of its own rather than moving into
 | `TestInitiatePeerRefusesUnsolicitedInit` | same | AC-5, AC-8 | |
 | `TestInitiatePeerRefusesReauthAfterEAPOrCP` | same | AC-6 | |
 | `TestAdoptedResponderRoleSARekeys` | same | AC-7 | |
+| `TestInitiatePeerReauthChildRefusedKeepsOldSA` | same | AC-9: successor's IKE_AUTH answered with TS_UNACCEPTABLE; old SA still owner, its Child SA still installed in the fake dataplane | |
+| `TestInitiatePeerReauthChildInstallFailureKeepsOldSA` | same | AC-10: fake dataplane fails the successor's state install; Delete for the ESP pair sent; nothing of it left installed | |
+| `TestInitiatePeerHeldSuccessorAdoptedOnPeerChildCreate` | same | AC-11 | |
+| `TestInitiatePeerOldDeletedWhileSuccessorChildlessReconnects` | same | AC-12: Delete sent for the successor, session back in the initiator loop | |
+| `TestSimultaneousReauthAndIKERekeyKeepsPeerStarted` | same | AC-13 with Ze's IKE SA rekey; runs both completion orders, under `-race` | |
+| `TestReconnectCrossingPeerReauthKeepsPeerStarted` | same | AC-13 with Ze's reconnect; runs both completion orders, under `-race` | |
+| `TestRespondPeerReinitChildRefusedKeepsOldSA` | same | AC-15, both injections: old SA still owner, its Child SA still installed; red today | |
+| `TestRespondPeerHeldSuccessorAdoptedOnPeerChildCreate` | same | AC-16 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -195,17 +263,29 @@ This stays a child of its own rather than moving into
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `responder-reauths-ze-initiator` | `test/interop-ipsec/scenarios/` | strongSwan 6.1.0 responder, `reauth_time` short, `make_before_break = yes` | AC-1 to AC-3 and AC-7: new SPIs, continuous ping, no reconnect log | |
+| `real-nat-port-translated-responder-reauths-ze-initiator` | `test/interop-ipsec/scenarios/` | strongSwan 6.1.0 responder outside the lab NAT box, `reauth_time` short, `make_before_break = yes`; `nat.conf` holds one three-column row for Ze (`172.28.0.2  172.28.0.6  14500`: Ze's UDP 4500 leaves the box from 172.28.0.6:14500, no DNAT) | AC-14 and A-3. Assertions: strongSwan logs "reauthenticating IKE_SA"; its reauth IKE_SA_INIT is sent to 172.28.0.6:14500 and Ze logs its adoption; the IKE SPIs on both sides change; Ze's new Child SA encapsulates to strongSwan's 4500 and strongSwan's to dport 14500; the ping across the tunnel loses at most one packet; Ze logs no reconnect. Red walk: the matcher change reverted and the image rebuilt, strongSwan's reauth fails and Ze's reconnect line appears | |
 
 ## Files to Modify
 - `internal/component/ike/engine/register.go` - matcher also returns an established `initiate` session for its SA's peer address
 - `internal/component/ike/engine/established.go`, `fsm.go`, `reconcile.go` - the initiator loop adopts a superseding SA
 - `internal/component/ike/engine/delete.go` - a delete for the retired SA does not trigger reconnect
+- `internal/component/ike/engine/responder.go` `finishResponderEstablish` - a parallel SA signals supersede only once its Child SA is installed; a childless one is held beside the owner (both connection types)
 - `docs/guide/ipsec.md` - reauthentication by the gateway
 - `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - declared by `established.go` and `delete.go`. "A rekey the peer refuses" says a peer Delete of the IKE SA ends the session with `errSADeletedByPeer` and reconnects; after this change a Delete of an SA retired by an adopted reauthentication does not, so that paragraph names the exception
 
 ## Files to Create
 - `internal/component/ike/engine/reauth_receive_test.go`
 - `test/interop-ipsec/scenarios/responder-reauths-ze-initiator/`
+- `test/interop-ipsec/scenarios/real-nat-port-translated-responder-reauths-ze-initiator/` (`ze.conf`, `swanctl.conf`, `nat.conf`)
+
+### Targeted invocations
+
+| Proof | Command |
+|-------|---------|
+| Unit tests | `./le job run label unit-pkg command go test -race -run 'TestInitiatePeer|TestRespondPeer|TestAdoptedResponderRoleSARekeys|TestSimultaneousReauthAndIKERekeyKeepsPeerStarted|TestReconnectCrossingPeerReauthKeepsPeerStarted' ./internal/component/ike/engine/` |
+| Interop, no NAT | `IPSEC_INTEROP_SCENARIO=responder-reauths-ze-initiator ./le test integration interop-ipsec` |
+| Interop, real NAT | `IPSEC_INTEROP_SCENARIO=real-nat-port-translated-responder-reauths-ze-initiator ./le test integration interop-ipsec` |
+| Regression | `IPSEC_INTEROP_SCENARIO=responder-accepts-reinit ./le test integration interop-ipsec` |
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -249,7 +329,7 @@ This stays a child of its own rather than moving into
 1. **Phase: Wiring and A-1 (MANDATORY FIRST)**
    - Tests: `TestInitiatePeerAdoptsPeerStartedReauth` (red); the interop scenario run once against today's Ze to observe strongSwan's reauth and Ze's drop
    - Verify: A-1 confirmed with strongSwan's log; if strongSwan never reinitiates, stop and report
-2. **Phase: Adoption** - AC-1 to AC-8; scenario green; the matcher change reverted once and recorded red
+2. **Phase: Adoption** - AC-1 to AC-16; scenarios green; the matcher change reverted once and recorded red; the supersede-waits-for-install change reverted once with `TestRespondPeerReinitChildRefusedKeepsOldSA` recorded red
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -285,7 +365,7 @@ question about which peers it serves.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| - | - | No row exists (grep of `plan/journal/` for reauth and `matchResponderPeer` on 2026-10-31 found none) |
+| `replacement-written-before-it-is-validated.md` | 2026-11-02 | `finishResponderEstablish` supersedes a working tunnel with a childless re-initiated SA (`respond` peers) |
 
 ## Key Design Decisions
 
@@ -322,7 +402,7 @@ the EAP/CP refusal carries the "same party" quote.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
-- [ ] The targeted tests for what changed pass: the scoped package test for `internal/component/ike/engine` through `./le job run label unit-pkg command go test -tags ...`, `./le test functional ipsec`, `./le test integration interop-ipsec` for `responder-reauths-ze-initiator` and `responder-accepts-reinit`, and `./le verify changed` over the closing commits
+- [ ] The targeted tests for what changed pass: every command in "Targeted invocations" (the unit tests, the no-NAT and real-NAT interop scenarios, and the `responder-accepts-reinit` regression), and `./le verify changed` over the closing commits
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

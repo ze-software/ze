@@ -46,7 +46,7 @@ behaviours are owed:
 - [ ] `ai/doors/system.md`, `ai/doors/access-security.md` - IKE door
   → Constraint: "A refusal added for reload also ran at startup, so the IPsec config apply ... skipped every IKE transport when the WAN came up late" (door, known traps). Startup applies a configuration whose interface has no address and warns; this spec keeps that and adds the bring-up.
   → Constraint: a component reaches interface state through the event bus, never by importing the iface plugin.
-- [ ] `docs/guide/ipsec.md` around line 183 - a reload whose interface has no IPv4 address is refused, startup warns
+- [ ] `docs/guide/ipsec.md` "Which edits restart a tunnel" - a reload whose interface has no IPv4 address is refused, startup warns
   → Decision: that reload refusal stays; an address that arrives later is not a reload and goes through the new event path.
 - [ ] `docs/architecture/ike/ipsec-7-ikev2-engine.md` - peer sessions, reconnect loop
 - [ ] `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` - NAT-T and NAT detection
@@ -74,27 +74,28 @@ behaviours are owed:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ike/engine/apply.go` `applyConfig` (line 217) - resolves `cfg.Interface` once through `resolveInterfaceAddrFn`; on a reload with no address returns the `unbindablePeers` refusal; at startup warns and continues; fills `LocalAddress` of peers that name none only when an address was found; then `rebindListeners(ikeListenHost(ifIP, peerLocal), ...)`.
-- [ ] `internal/component/ike/engine/apply.go` `rebindListeners` (about line 391) - when the host moves, stops every peer, closes the sockets, opens new ones; reached only from `applyConfig`.
+- [ ] `internal/component/ike/engine/apply.go` `applyConfig` - resolves `cfg.Interface` once through `resolveInterfaceAddrFn`; on a reload with no address returns the `unbindablePeers` refusal; at startup warns and continues; fills `LocalAddress` of peers that name none only when an address was found; then `rebindListeners(ikeListenHost(ifIP, peerLocal), ...)`.
+- [ ] `internal/component/ike/engine/apply.go` `rebindListeners`, `ikeListeners.open` - ONE socket pair (`listeners.ike`, `listeners.natt`) serves every peer. When the host moves, `rebindListeners` stops EVERY peer (`stopAllPeers`), closes both sockets and opens new ones, because `PeerSession.ike` and `PeerSession.natt` are immutable after `startPeerSession` and a surviving session would hold a closed descriptor (its doc comment). Reached only from `applyConfig`. A literal-`local-address` peer therefore shares, and loses, the interface-bound socket.
 - [ ] `internal/component/ike/engine/testport.go` `ikeListenHost` - interface address when known, otherwise `0.0.0.0`. A startup with an address-less interface therefore listens on the wildcard while its peers keep an empty `LocalAddress`.
-- [ ] `internal/component/ike/engine/register.go` `resolveInterfaceAddr` (about line 894) - first IPv4 address of the logical interface through the iface resolver; distinguishes lookup failure from "no IPv4 address".
-- [ ] `internal/component/ike/engine/fsm.go` `runOnce` (about line 182) - `net.ResolveUDPAddr("udp4", ikeAddr(peer.RemoteAddress))` per cycle; the resolved address is used for the send only.
-- [ ] `internal/component/ike/engine/fsm.go` (about line 615) - NAT_DETECTION_SOURCE_IP check runs only when `net.ParseIP(sa.PeerCfg.RemoteAddress)` is non-nil; DESTINATION_IP check (about line 637) only when `LocalAddress` parses.
-- [ ] `internal/component/ike/engine/initiator.go` (about line 93) - NAT_DETECTION payloads added only when both configured strings parse as IPs: a DNS name or an empty local sends none.
-- [ ] `internal/component/ike/engine/create_child.go` `newChildSA` (line 51) - endpoints from the configured strings, overridden by the MOBIKE path or `peerTunnelAddress(sa)` (the authenticated peer endpoint) for tunnel mode; refuses a nil local.
-- [ ] `internal/component/ike/engine/rekey.go` `anyChildTSPayloads` (line 237) - wildcard family from `ParseIP(RemoteAddress)`.
+- [ ] `internal/component/ike/engine/register.go` `resolveInterfaceAddr` - first IPv4 address of the logical interface through the iface resolver; distinguishes lookup failure from "no IPv4 address".
+- [ ] `internal/component/ike/engine/fsm.go` `runOnce` - `net.ResolveUDPAddr("udp4", ikeAddr(peer.RemoteAddress))` per cycle; the resolved address is used for the send only.
+- [ ] `internal/component/ike/engine/fsm.go` IKE_SA_INIT response handling - the NAT_DETECTION_SOURCE_IP check runs only when `net.ParseIP(sa.PeerCfg.RemoteAddress)` is non-nil, the DESTINATION_IP check only when `LocalAddress` parses.
+- [ ] `internal/component/ike/engine/initiator.go` IKE_SA_INIT request build - NAT_DETECTION payloads added only when both configured strings parse as IPs: a DNS name or an empty local sends none.
+- [ ] `internal/component/ike/engine/create_child.go` `newChildSA` - endpoints from the configured strings, overridden by the MOBIKE path or `peerTunnelAddress(sa)` (the authenticated peer endpoint) for tunnel mode; refuses a nil local.
+- [ ] `internal/component/ike/engine/rekey.go` `anyChildTSPayloads` - wildcard family from `ParseIP(RemoteAddress)`.
 - [ ] `internal/component/ike/engine/ts_nat_substitute.go`, `transport_mode.go`, `inner_selectors.go` `configuredHostPair` - read the configured strings; a DNS name yields nil.
-- [ ] `internal/component/ike/engine/register.go` `matchResponderPeer` (line 722) - compares the configured remote string to the datagram source, character for character.
-- [ ] `internal/component/ike/engine/fsm.go` `reconnectDelay` (line 94) - 1 s doubling to 60 s on `connectFailures`; `PeerSession.run` never gives up.
-- [ ] `internal/component/ike/engine/mobike.go` `mobikeRouteSource` (line 601), `serviceMobike` - a route-source lookup by connecting a UDP socket toward the peer; runs only for an established MOBIKE SA.
-- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - `interface` (line 72), `local-address` (line 862, a string read with `net.ParseIP`, no validation), `remote-address` (line 871, IPv4 or DNS name, `udp4`).
-- [ ] `internal/component/iface/iface.go` `AddrPayload` (line 50) and `internal/core/iface/events/events.go` - `interface/addr-added`, `interface/addr-removed` with name, unit, index, address, prefix length, family.
-- [ ] `internal/plugins/ospf/transport/transport.go` (about line 220) - subscribes to both events and feeds a bounded queue drained by one worker goroutine.
+- [ ] `internal/component/ike/engine/register.go` `matchResponderPeer` - compares the configured remote string to the datagram source, character for character.
+- [ ] `internal/component/ike/engine/fsm.go` `reconnectDelay` - 1 s doubling to 60 s on `connectFailures`; `PeerSession.run` never gives up.
+- [ ] `internal/component/ike/engine/mobike_route_linux.go` `routeSourceTo` - asks the routing table with RTM_GETROUTE (`netlink.RouteGet`) and returns the first non-unspecified `Src`; it never connects a socket. Its comment gives the reason: a UDP connect is an output route lookup the kernel runs through the XFRM SPD, the ephemeral port is named by no IKE bypass, so under Ze's catch-all DISCARD (the default, RFC 4301 Section 4.4.1) the connect fails with EPERM. `mobike_route_other.go` `routeSourceTo` (off Linux, no SPD) uses a connected UDP socket. Its one caller today is `mobike.go` `mobikeRouteSource`, which first keeps the SA's current MOBIKE local address while the host still holds it, and runs only for an established MOBIKE SA.
+- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - leaves `interface`, `local-address` (a string read with `net.ParseIP`, no validation), `remote-address` (IPv4 or DNS name, `udp4`).
+- [ ] `internal/component/iface/iface.go` `AddrPayload` and `internal/core/iface/events/events.go` - `interface/addr-added`, `interface/addr-removed` with name, unit, index, address, prefix length, family.
+- [ ] `internal/plugins/ospf/transport/transport.go` - subscribes to both events and feeds a bounded queue drained by one worker goroutine.
+- [ ] `internal/component/ike/engine/register.go` doctor checks (`ipsec-cookie-threshold`, `ipsec-virtual-ip-pool`, each with a code in `internal/core/diagnostic/codes.go`) and `doctor_virtual_ip.go` `checkIPsecVirtualIPPool` - the pattern a new IPsec doctor check follows: a check function reading engine runtime state, registered in the plugin's `Registration`, reporting nothing with no engine running.
 
 **Behavior to preserve:**
 - A reload whose interface has no IPv4 address is refused (`unbindablePeers`); startup warns and continues.
-- A peer with its own `local-address` literal is untouched by interface events.
-- Port 500 binds the interface address when `interface` is set; 4500 binds the wildcard when live XFRM migration is available (`apply.go` about line 75).
+- A peer with its own `local-address` literal is untouched by interface events (AC-5; today this holds only by accident of timing, see `rebindListeners` above, and the listener set below makes it true).
+- Port 500 binds the interface address when `interface` is set; 4500 binds the wildcard when live XFRM migration is available (`ikeListeners.open`).
 - The backoff schedule.
 - Remote IPv6 IKE stays unsupported (`udp4`).
 
@@ -109,9 +110,9 @@ behaviours are owed:
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Interface address at apply | `internal/component/ike/engine/apply.go` `applyConfig`, `register.go` `resolveInterfaceAddr` | Resolves the interface's first IPv4 address once per apply through the iface resolver; refuses an unbindable reload, warns at startup | extends: the address worker re-runs the same resolution on each interface address event |
-| Listener rebind | `apply.go` `rebindListeners`, `testport.go` `ikeListenHost` | Stops every peer, closes and reopens the sockets when the host moves; reached only from `applyConfig` | extends: the address worker calls it; no second rebind path |
+| Listener rebind | `apply.go` `rebindListeners`, `ikeListeners`, `testport.go` `ikeListenHost` | One socket pair for every peer; stops every peer, closes and reopens both sockets when the host moves; reached only from `applyConfig` | extends: the single pair becomes a listener set keyed by local origin (see "Listener set"); `rebindListeners` moves only the interface pair and stops only the sessions that hold it; the address worker calls it, no second rebind path |
 | Interface address events | `internal/component/iface/iface.go` `AddrPayload`, `internal/core/iface/events/events.go` (`interface/addr-added`, `interface/addr-removed`); `ai/doors/forwarding.md` "Boundaries" | Published on the EventBus with name, unit, index, address, prefix length, family | extends: the engine subscribes, the way OSPF's transport does (`internal/plugins/ospf/transport/transport.go`, one bounded queue drained by one worker) |
-| Route-source lookup | `internal/component/ike/engine/mobike.go` `mobikeRouteSource` | Finds the local source toward the peer by connecting a UDP socket; runs only for an established MOBIKE SA | extends: extracted so a peer with no local address and no `interface` resolves its source per cycle |
+| Route-source lookup | `internal/component/ike/engine/mobike_route_linux.go` `routeSourceTo` (RTM_GETROUTE through `netlink.RouteGet`, no socket connect, so it works under the SPD catch-all DISCARD); `mobike_route_other.go` off Linux; caller `mobike.go` `mobikeRouteSource` | Returns the routing table's source toward the peer; called only for an established MOBIKE SA | extends: called as is, with no extraction, at the start of each connect cycle of a peer with no local address and no `interface`; its error text and its "the one caller" comments stop naming MOBIKE alone |
 | Authenticated peer endpoint | `internal/component/ike/engine/create_child.go` `peerTunnelAddress`; `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` "Transport-mode NAT substitution changes the selectors, not the outer addresses" | Tunnel mode takes the outer remote from the authenticated endpoint; other readers take the configured strings | extends: the resolved pair replaces the configured strings for every other reader listed in Current Behavior |
 | Initiator reconnect backoff | `internal/component/ike/engine/fsm.go` `reconnectDelay`, `PeerSession.run` | 1 s doubling to 60 s, never gives up | does not apply: preserved as is |
 
@@ -124,21 +125,58 @@ behaviours are owed:
 ### Transformation Path
 1. The IKE engine subscribes to both events at start; a bounded queue feeds one long-lived worker (OSPF's pattern).
 2. On any IPv4 event the worker re-runs `resolveInterfaceAddrFn(cfg.Interface)` (the event is a trigger, the resolver is the truth, so logical names resolve as they do at apply).
-3. Address appeared or changed: the engine rebinds listeners to it, sets it as the local address of the peers that name none, and starts or restarts those peers. Address gone: those peers stop and remove their Child SAs, the listener closes.
-4. Each connect cycle resolves the remote name, then (route-chosen mode) the local source toward it, and stores both on the SA.
+3. Address appeared or changed: the engine moves the INTERFACE socket pair to it, sets it as the local address of the peers that name none, and starts or restarts only those peers. Address gone: those peers stop and remove their Child SAs, the interface pair closes. No other pair is touched (Listener set).
+4. Each connect cycle resolves the remote name, then (route-chosen mode) the local source toward it through `routeSourceTo`, and stores both on the SA.
 5. Every reader takes the SA's resolved pair: NAT_DETECTION build and checks, `newChildSA`, `anyChildTSPayloads`, transport host pairs, NAT substitution.
-6. `respond` peers configured by name: the engine keeps the name's last resolved addresses and `matchResponderPeer` compares against them.
+6. `respond` peers configured by name: `matchResponderPeer` compares the datagram source against the name's cached resolution, never resolving on the packet path (DNS responder cache).
+
+### Listener set
+
+AC-5 promises a literal-`local-address` peer is never restarted by interface
+events, while today's single socket pair makes every session hold the
+interface-bound socket. The design keeps AC-5 by giving each local origin its own
+socket pair, so a rebind moves only the sockets of the peers whose address moved:
+
+| Local origin of a peer | Socket pair it holds | On an interface address event |
+|------------------------|----------------------|-------------------------------|
+| `interface` set, peer names no `local-address` | the interface pair, bound to the interface's current address (absent while it has none) | moves, closes or opens; only these sessions stop or restart |
+| `interface` set, peer names a literal that differs from the interface's current address | a pair bound to that literal, opened when the first such peer starts and closed when the last one stops | untouched |
+| `interface` set, literal equal to the interface's current address | shares the interface pair (one address and port cannot be bound twice) | follows the interface rows: that peer's own address left the host, so it stops with the address and starts when it returns |
+| no `interface` (literal or route-chosen) | the wildcard pair, as today | no interface events apply |
+
+Port 4500 follows its pair: with live XFRM migration available it stays the
+wildcard as today (`ikeListeners.open`) and is never moved by an interface event;
+otherwise each pair carries its own 4500 socket bound like its 500 socket. Every
+pair feeds the same SA table through its own `dispatchInbound`. With `interface`
+set every socket is bound to a specific address, which is already today's choice
+for that case (`ikeListenHost`), so this does not take either route of
+`spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address.md` (OR-WP8-1) for the
+wildcard listener, which stays that spec's owner question.
+
+### DNS responder cache
+
+| Event | Effect on a `respond` peer's cached set |
+|-------|-----------------------------------------|
+| Apply that adds the peer or changes its `remote-address` | the set is emptied and a resolution is queued on the address worker; until it answers, no unsolicited IKE_SA_INIT matches the peer |
+| Successful resolution | the set is replaced by every address of the answer (never merged), with the time of the answer |
+| Refresh | every 60 s (the reconnect backoff ceiling; Go's resolver exposes no TTL) and after each apply, on the address worker, never on the packet path |
+| Failed resolution | the previous set is kept and the failure is logged with the peer, the name, the resolver error and the fix; the address match only selects which configuration a peer must then authenticate against, so a stale address admits no one IKE_AUTH would not |
+| Answer with no IPv4 address | the set becomes empty and the peer matches nothing until a later answer |
+| Peer removed, or its `remote-address` becomes a literal | the cache entry is deleted with the peer's session |
+
+strongSwan resolves a named remote per packet (`src/libcharon/config/ike_cfg.c`
+`match`, `host_create_from_dns`); Ze does not, by design (R-4).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | iface ↔ IKE engine | event bus, JSON `AddrPayload` | No |
-| IKE engine ↔ resolver | `net.Resolver` per cycle | No |
+| IKE engine ↔ resolver | `net.Resolver` per cycle, and per refresh for `respond` peers | No |
 | Ze ↔ strongSwan | NAT_DETECTION payloads, port float | No |
-| IKE engine ↔ kernel | route-source lookup (connected UDP socket, no packet sent) | No |
+| IKE engine ↔ kernel | route-source lookup, RTM_GETROUTE through `netlink.RouteGet`, no socket and no packet | No |
 
 ### Integration Points
-- `applyConfig` and `rebindListeners` (reused, not duplicated); `runOnce`; `matchResponderPeer`; `mobikeRouteSource` (its route-source lookup is extracted and shared).
+- `applyConfig`, `rebindListeners` and `ikeListeners` (extended, not duplicated); `reconcilePeers` hands each session the pair of its origin; `runOnce`; `matchResponderPeer`; `routeSourceTo` (called as is).
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -155,7 +193,7 @@ behaviours are owed:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The iface monitor emits `addr-added` for an address the PPPoE client installs on `ppp0` | Netlink monitor maps RTM_NEWADDR (`monitor_linux.go` about line 421) | Subscribe to the PPPoE client's own up event as well | Functional test with a PPPoE session | unvalidated |
+| A-1 | The iface monitor emits `addr-added` for an address the PPPoE client installs on `ppp0` | Netlink monitor maps RTM_NEWADDR (`internal/plugins/iface/netlink/monitor_linux.go` `handleAddrUpdate`, `addrUpdateToEventType`) | Subscribe to the PPPoE client's own up event as well | Functional test with a PPPoE session | unvalidated |
 | A-2 | `vpn ipsec interface` naming a PPPoE unit that has no kernel device yet is accepted at commit | YANG: "Commit refuses a name no interface on the host carries" | The boot case needs child 1's logical-name resolution, or the CPE uses route-chosen mode | Parse test with a pppoe-client unit | unvalidated |
 | A-3 | A resolve failure increments `connectFailures`, so the backoff grows | `reconnectDelay` reads `connectFailures` | Retry at 1 s forever; fix in this spec | `TestUnresolvableRemoteRetriesWithBackoff` | unvalidated |
 | A-4 | strongSwan, with no NAT on the path and Ze sending correct NAT_DETECTION, keeps port 500 until MOBIKE floats it | RFC 7296 Section 2.23 and RFC 4555 | Scenario expectation changes | mgmt-tunnel scenario | unvalidated |
@@ -166,8 +204,8 @@ behaviours are owed:
 |----|------|--------------|----------------------|
 | R-1 | Address flap restarts every peer repeatedly | Log shows rebinds in a burst | Compare the resolved address before acting; act only on a change |
 | R-2 | Events arrive before the engine finished `applyConfig` | Race in the startup test | The worker reads the applied configuration under the engine's lock; a missed event is covered by applying the current resolver answer after each apply |
-| R-3 | DNS answers vary per cycle (round robin) and the responder match flaps | `respond` peer misses a packet | Match against every address of the last resolution |
-| R-4 | Resolving a name on the unauthenticated packet path | CPU on a flood | Never resolve in `matchResponderPeer`; resolve on apply and on a timer, compare to the cached set |
+| R-3 | DNS answers vary per cycle (round robin) and the responder match flaps | `respond` peer misses a packet | Match against every address of the last resolution; expiry, refresh, failure and removal follow the "DNS responder cache" table (AC-19, AC-20) |
+| R-4 | Resolving a name on the unauthenticated packet path | CPU on a flood | Never resolve in `matchResponderPeer`; resolve on apply and on the refresh timer of "DNS responder cache", compare to the cached set |
 
 ## Blast Radius
 
@@ -184,7 +222,7 @@ behaviours are owed:
 | `interface/addr-added` on the bus for the configured interface | → | engine address worker → `rebindListeners` → peer start | `TestInterfaceAddressArrivalStartsPeers` |
 | Peer with no `interface` and no `local-address` | → | per-cycle route-source resolution in `runOnce` | `TestRouteChosenLocalAddressBuildsChildSA` |
 | `remote-address` is a DNS name | → | resolved pair on the SA → `encodeSAInitRequest` NAT_DETECTION | `TestDNSRemoteSendsNATDetection` |
-| End to end on PPPoE | → | all of the above | functional `ike-follows-wan-address`, interop `fqdn-remote-dynamic-local` |
+| End to end on a late, changing, vanishing WAN address | → | all of the above | functional `ipsec-follows-wan-address`, interop `fqdn-remote-dynamic-local` |
 
 ## Acceptance Criteria
 
@@ -205,15 +243,19 @@ behaviours are owed:
 | AC-13 | Name does not resolve | Cycle fails with a log naming the peer, the name and the resolver error; retries at 1, 2, 4 ... 60 s and keeps retrying |
 | AC-14 | AC-13, DNS starts answering | Next cycle establishes |
 | AC-15 | Name resolves to a new address on a later cycle | That cycle dials the new address |
-| AC-16 | `respond` peer with `remote-address` a name | Unsolicited IKE_SA_INIT from any address the name last resolved to is accepted; from another source refused |
+| AC-16 | `respond` peer with `remote-address` a name | Unsolicited IKE_SA_INIT from any address the name last resolved to is accepted; from another source refused; no DNS query is made on receipt |
 | AC-17 | Transport-mode peer with a DNS remote | Proposes the resolved host pair (RFC 7296 Section 2.23.1) |
 | AC-18 | Reload with an address-less interface | Refused as today |
+| AC-19 | AC-16, a refresh fails | Previous set kept; failure logged with peer, name, resolver error and fix |
+| AC-20 | AC-16, the name's answer changes, or the peer is removed | Next refresh replaces the set (old address now refused); a removed peer's entry is gone |
+| AC-21 | Startup with the default `unmatched` DISCARD catch-all, route-chosen peer | The route-source lookup answers and IKE_SA_INIT leaves from the route's source (no EPERM) |
+| AC-22 | A peer waits for its interface address | `ze doctor` check `ipsec-interface-address` warns, naming the peer, the interface and the fix (bring the interface up, or give the peer a `local-address`) |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Boots the CPE before the PPPoE session is up | startup warn → addr-added → bring-up | `ike-follows-wan-address` |
+| 1 | Boots the CPE before the PPPoE session is up | startup warn → addr-added → bring-up | `ipsec-follows-wan-address` |
 | 2 | The LNS drops and re-establishes the session with a new address | addr-removed → stop → addr-added → restart | child 11 `access-reconnect` |
 | 3 | DNS is down at boot, comes up later | per-cycle resolve, backoff, establish | `fqdn-remote-dynamic-local` |
 
@@ -233,18 +275,23 @@ behaviours are owed:
 | `TestUnresolvableRemoteRetriesWithBackoff` | `internal/component/ike/engine/fsm_test.go` | AC-13, AC-14, A-3 | |
 | `TestRespondPeerMatchesResolvedName` | `internal/component/ike/engine/register_test.go` | AC-16 | |
 | `TestTransportModeDNSRemoteProposesResolvedPair` | `internal/component/ike/engine/transport_mode_test.go` | AC-17 | |
+| `TestLiteralPeerKeepsItsSocketAcrossInterfaceRebind` | `internal/component/ike/engine/dynamic_wan_test.go` | AC-5 with a literal peer established beside interface-bound peers: the interface pair moves, the literal peer's session and socket survive | |
+| `TestRespondNameCacheLifecycle` | `internal/component/ike/engine/register_test.go` | AC-19, AC-20: refresh failure keeps the set, a changed answer replaces it, removal deletes it, nothing resolves on receipt | |
+| `TestRouteChosenSourceUnderCatchAllDiscard` | `internal/component/ike/engine/dynamic_wan_integration_linux_test.go` (`integration` tag, its own user and network namespace through `userns.Enter`) | AC-21: engine applied with the default DISCARD catch-all, `routeSourceTo` answers and the first IKE_SA_INIT leaves from the route's source | |
+| `TestDoctorIPsecInterfaceAddressWaiting` | `internal/component/ike/engine/doctor_interface_address_test.go` | AC-22 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
 | reconnect delay | 1 s to 60 s | 60 s | N/A | capped at 60 s |
 | address event queue depth | fixed | full queue drops oldest, next resolver read corrects | N/A | N/A |
+| `respond` name refresh interval | fixed 60 s | 60 s | N/A | N/A |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ike-follows-wan-address` | `test/plugin/` or the IKE functional suite | address added late, changed, removed on a dummy interface; `show vpn ipsec sa` follows | |
-| `ipsec-local-address-literal-only` | `test/parse/` | AC-9 message | |
+| `ipsec-follows-wan-address` | `test/ipsec/ipsec-follows-wan-address.ci`, run by `./le test ipsec --pattern ipsec-follows-wan-address` | address added late, changed, removed on a dummy interface under the default DISCARD catch-all; `show vpn ipsec sa` follows; a literal peer's SA keeps its SPIs throughout | |
+| `ipsec-local-address-literal-only` | `test/parse/ipsec-local-address-literal-only.ci`, run by `./le test bgp parse --pattern ipsec-local-address-literal-only` | AC-9 message | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -258,7 +305,10 @@ behaviours are owed:
 - `internal/component/ike/engine/fsm.go` - store the resolved remote and local on the SA; NAT checks read them
 - `internal/component/ike/engine/initiator.go`, `responder.go` - NAT_DETECTION from the resolved pair
 - `internal/component/ike/engine/create_child.go`, `rekey.go`, `ts_nat_substitute.go`, `transport_mode.go`, `inner_selectors.go` - resolved pair instead of configured strings
-- `internal/component/ike/engine/mobike.go` - route-source lookup extracted for reuse
+- `internal/component/ike/engine/mobike_route_linux.go`, `mobike_route_other.go` - `routeSourceTo` called by the connect cycle too: error text and the "one caller" comments generalised
+- `internal/component/ike/engine/doctor_interface_address.go` (create) and `register.go` - doctor check `ipsec-interface-address` registered beside `ipsec-virtual-ip-pool`; `internal/core/diagnostic/codes.go` gains `CodeDoctorIPsecInterfaceAddress`; `docs/architecture/ike/ipsec-10-cli-diag.md` documents it
+- `internal/component/ike/engine/dynamic_wan_integration_linux_test.go`, `doctor_interface_address_test.go` (create) - AC-21, AC-22
+- `test/ipsec/ipsec-follows-wan-address.ci` (create) - the functional test
 - `internal/component/ike/ipsec/config.go` - `local-address` literal validation
 - `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - `interface`, `local-address`, `remote-address` descriptions rewritten to the new behaviour
 - `docs/guide/ipsec.md` - dynamic WAN section; multi-homed caveat naming rfcgate-1b
@@ -283,7 +333,7 @@ behaviours are owed:
 | Functional test for new RPC/API | No | |
 | Pipe completeness | No | |
 | Env var registration | No | |
-| Doctor check for runtime dependencies | Yes | a peer waiting for its interface address is reported by `ze doctor` with the interface name and the fix |
+| Doctor check for runtime dependencies | Yes | check `ipsec-interface-address` (`internal/component/ike/engine/doctor_interface_address.go`, registered in `register.go`, code `CodeDoctorIPsecInterfaceAddress`): a peer waiting for its interface address is reported with the peer, the interface name and the fix; proven by `TestDoctorIPsecInterfaceAddressWaiting` (AC-22) |
 | Prometheus counters/metrics | No | |
 | BGP family surface | N-A | |
 
@@ -370,6 +420,7 @@ IPv6 half gets its own row and owner) and moves the first half's ownership here.
 | Absent `local-address` with no `interface` means route-chosen; `any` is refused with a message | Accept a literal `any` keyword | One spelling per fact; the mapping guide (child 10) writes the omission, as the umbrella already records |
 | The address event triggers a resolver read | Act on the event payload | The payload names the kernel device; the resolver already maps logical names (and will follow child 1) |
 | Restart peers on an interface-bound address change | MOBIKE update | The bound socket must move, which ends every session holding it (`rebindListeners`); MOBIKE helps only with a wildcard listener, and that case is left to spec-ipsec-11 |
+| One socket pair per local origin (interface, each distinct literal, wildcard), "Listener set" | Keep one shared pair and restart every peer on a rebind, as `rebindListeners` does today | `PeerSession.ike` and `natt` are fixed for a session's life, so a shared pair makes a literal-`local-address` peer lose its socket on every interface event; separate pairs keep AC-5 true and move only the sessions whose address moved (`TestLiteralPeerKeepsItsSocketAcrossInterfaceRebind`) |
 | rfcgate-1b stays separate | Absorb it | It is blocked on an owner question about listener design; this spec changes nothing it decides |
 | Cache `respond`-peer name resolutions | Resolve per packet | No DNS on the unauthenticated path |
 
@@ -402,7 +453,7 @@ statement; the address worker's call into the MOBIKE-eligible path carries
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
-- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/ike/engine` and `internal/component/ike/ipsec` through `./le job run label unit-pkg command go test -tags ...`, `./le test functional parse` for `ipsec-local-address-literal-only`, the functional suite that holds `ike-follows-wan-address` (`./le test functional ipsec` or `./le test functional plugin`), `./le test integration interop-ipsec` for `fqdn-remote-dynamic-local` and `fqdn-remote-real-nat`, and `./le verify changed` over the closing commits
+- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/ike/engine` and `internal/component/ike/ipsec` through `./le job run label unit-pkg command go test -tags ...`, `./le test bgp parse --pattern ipsec-local-address-literal-only`, `./le test ipsec --pattern ipsec-follows-wan-address` for `test/ipsec/ipsec-follows-wan-address.ci`, `TestRouteChosenSourceUnderCatchAllDiscard` through the same `./le job run` form with the `integration` tag added, `IPSEC_INTEROP_SCENARIO=fqdn-remote-dynamic-local ./le test integration interop-ipsec` and `IPSEC_INTEROP_SCENARIO=fqdn-remote-real-nat ./le test integration interop-ipsec`, and `./le verify changed` over the closing commits
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD
