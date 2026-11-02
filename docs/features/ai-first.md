@@ -49,11 +49,14 @@ it is generated from code, not written by hand.
 Markdown from the live registries.
 
 Both commands are served by the daemon too, so `ze cli -c`, SSH, REST, gRPC,
-MCP and the web reach them. `--json`, `--verbose` and `-v` are flags of the
-local `ze help` command only. On every other surface `help command` answers
-its catalog rows as data: it prints the table, and `help command bgp | json`
-gives the same rows as JSON. `help ai` answers its Markdown page as text, and
-the structured reference is the MCP `ze_reference` tool. A bare word means the
+MCP and the web reach them, under `show command catalog` (`help command`) and
+`show command reference` (`help ai`): `help` is an offline root, not a verb,
+so no daemon command path starts with it. `--json`, `--verbose` and `-v` are
+flags of the local `ze help` command only. On every other surface `show
+command catalog` answers its catalog rows as data: it prints the table, and
+`show command catalog bgp | json` gives the same rows as JSON. `show command
+reference` answers its Markdown page as text, and the structured reference is
+the MCP `ze_reference` tool. A bare word means the
 same on every surface: `help command json` filters on the word `json`, and
 `help ai json` prints the summary.
 <!-- source: internal/plugins/help/register.go -- render, renderTo -->

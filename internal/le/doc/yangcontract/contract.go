@@ -156,14 +156,24 @@ func Validate(root string) (ValidationResult, error) {
 	slices.Sort(handlers)
 	slices.Sort(skipped)
 
-	localHandlers, err := collectLocalHandlers(root)
+	localDaemonPaths, err := scanLocalHandlers(root)
 	if err != nil {
 		return ValidationResult{}, err
 	}
-	localSet := make(map[string]bool, len(localHandlers))
-	for _, path := range localHandlers {
-		localSet[path] = true
+	localHandlers := make([]string, 0, len(localDaemonPaths))
+	// servedAt is the YANG path that answers a local command on the daemon:
+	// its declared daemon path at an offline root, its own path otherwise.
+	servedAt := make(map[string]string, len(localDaemonPaths))
+	localSet := make(map[string]bool, len(localDaemonPaths))
+	for path, daemonPath := range localDaemonPaths {
+		localHandlers = append(localHandlers, path)
+		servedAt[path] = path
+		if daemonPath != "" {
+			servedAt[path] = daemonPath
+		}
+		localSet[servedAt[path]] = true
 	}
+	slices.Sort(localHandlers)
 
 	yangSet := make(map[string]bool, len(commands))
 	yangCLIPathSet := make(map[string]bool, len(commands))
@@ -188,7 +198,7 @@ func Validate(root string) (ValidationResult, error) {
 
 	var orphanLocalHandlers []string
 	for _, path := range localHandlers {
-		if !yangCLIPathSet[path] {
+		if !yangCLIPathSet[servedAt[path]] {
 			orphanLocalHandlers = append(orphanLocalHandlers, path)
 		}
 	}
@@ -431,15 +441,9 @@ func yangPathToCLIPath(path string) string {
 // collectLocalHandlers answers every command path registered from source under
 // root, sorted.
 func collectLocalHandlers(root string) ([]string, error) {
-	files, err := localCommandRegistryFiles(root)
+	paths, err := scanLocalHandlers(root)
 	if err != nil {
 		return nil, err
-	}
-	paths := map[string]bool{}
-	for _, path := range files {
-		if err := collectLocalHandlersFromFile(path, paths); err != nil {
-			return nil, err
-		}
 	}
 	out := make([]string, 0, len(paths))
 	for path := range paths {
@@ -505,8 +509,25 @@ func vanished(path string) bool {
 	return errors.Is(err, fs.ErrNotExist)
 }
 
+// scanLocalHandlers answers every command path registered from source under
+// root, each with the daemon path its registration declares
+// (registry.Meta.DaemonPath), empty when the path is its own daemon path.
+func scanLocalHandlers(root string) (map[string]string, error) {
+	files, err := localCommandRegistryFiles(root)
+	if err != nil {
+		return nil, err
+	}
+	paths := map[string]string{}
+	for _, path := range files {
+		if err := collectLocalHandlersFromFile(path, paths); err != nil {
+			return nil, err
+		}
+	}
+	return paths, nil
+}
+
 // collectLocalHandlersFromFile records every command path registered by the
-// file at path.
+// file at path, with the daemon path its registration declares.
 //
 // Every registration is a call under the `command` package name
 // (localRegistrar). A command that answers with DATA registers a local handler too:
@@ -514,7 +535,7 @@ func vanished(path string) bool {
 // and `ze cli -c` render through one path (localRegistrar). Omitting those names reported twelve
 // YANG commands as having no handler on the day they were converted, when
 // every one of them had gained one.
-func collectLocalHandlersFromFile(path string, paths map[string]bool) error {
+func collectLocalHandlersFromFile(path string, paths map[string]string) error {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
@@ -542,10 +563,54 @@ func collectLocalHandlersFromFile(path string, paths map[string]bool) error {
 			unquoteErr = err
 			return false
 		}
-		paths[cmdPath] = true
+		daemonPath, err := declaredDaemonPath(call.Args[1:])
+		if err != nil {
+			unquoteErr = err
+			return false
+		}
+		paths[cmdPath] = daemonPath
 		return true
 	})
 	return unquoteErr
+}
+
+// daemonPathField is the registry.Meta field naming a local command's daemon
+// path.
+const daemonPathField = "DaemonPath"
+
+// declaredDaemonPath answers the DaemonPath a registration's registry.Meta
+// literal sets, empty when it sets none. The value must be a string literal:
+// a scan reading source cannot resolve a name, and guessing would report the
+// command served where it is not, so a non-literal value is refused.
+func declaredDaemonPath(args []ast.Expr) (string, error) {
+	for _, arg := range args {
+		literal, ok := arg.(*ast.CompositeLit)
+		if !ok {
+			continue
+		}
+		for _, element := range literal.Elts {
+			field, ok := element.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			key, ok := field.Key.(*ast.Ident)
+			if !ok {
+				continue
+			}
+			if key.Name != daemonPathField {
+				continue
+			}
+			value, ok := field.Value.(*ast.BasicLit)
+			if !ok {
+				return "", errors.New("registry.Meta.DaemonPath must be a string literal, so the yang contract can read it from source")
+			}
+			if value.Kind != token.STRING {
+				return "", errors.New("registry.Meta.DaemonPath must be a string literal, so the yang contract can read it from source")
+			}
+			return strconv.Unquote(value.Value)
+		}
+	}
+	return "", nil
 }
 
 // walkEntry collects every ze:command node under entry.

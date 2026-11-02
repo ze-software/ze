@@ -3,7 +3,6 @@
 package hub
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"os"
@@ -275,8 +274,9 @@ func completionOffers(complete func(string) []cli.Completion, path string) bool 
 
 // shellWords asks `ze completion words run <prefix>` and keeps each answer.
 type shellWords struct {
-	t    *testing.T
-	seen map[string][]string
+	t     *testing.T
+	seen  map[string][]string
+	roots map[string]bool // the bash script's root names, read once
 }
 
 func newShellWords(t *testing.T) *shellWords {
@@ -297,17 +297,49 @@ func (w *shellWords) offers(path string) bool {
 		candidates = w.ask(prefix)
 		w.seen[key] = candidates
 	}
-	for _, c := range candidates {
-		if c == words[len(words)-1] {
-			return true
-		}
+	if slices.Contains(candidates, words[len(words)-1]) {
+		return true
 	}
-	return false
+	// A path at an offline root is a `ze <root>` command, never a `ze run`
+	// one, so the root's own completion is the shell's listing of it.
+	if command.IsVerb(words[0]) {
+		return false
+	}
+	return w.rootOffers(words)
 }
 
-// ask runs completion.Run, which writes its records to os.Stdout, with stdout
-// pointed at a file, and returns the first field of each record.
+// ask answers the first field of each record `ze completion words run
+// <prefix>` writes: the daemon command tree `ze run` completes.
 func (w *shellWords) ask(prefix []string) []string {
+	w.t.Helper()
+	return completionRecords(w.capture(append([]string{"words", "run"}, prefix...)))
+}
+
+// rootOffers answers whether shell completion offers path as a command at an
+// offline root (`ze doctor`): a root is not a verb, so `ze run` never
+// completes it. Its first word is one of the root names the generated bash
+// script lists (`local commands="..."`, the registry's visible roots), and
+// each later word is offered by `ze completion words <root> ...`, the root's
+// own completion.
+func (w *shellWords) rootOffers(words []string) bool {
+	w.t.Helper()
+	if w.roots == nil {
+		w.roots = bashRootNames(w.t, w.capture([]string{"bash"}))
+	}
+	if !w.roots[words[0]] {
+		return false
+	}
+	for i := 1; i < len(words); i++ {
+		if !slices.Contains(completionRecords(w.capture(append([]string{"words"}, words[:i]...))), words[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// capture runs completion.Run, which writes to os.Stdout, with stdout pointed
+// at a file, and returns what it wrote.
+func (w *shellWords) capture(args []string) string {
 	w.t.Helper()
 	out, err := os.CreateTemp(w.t.TempDir(), "words")
 	if err != nil {
@@ -317,27 +349,48 @@ func (w *shellWords) ask(prefix []string) []string {
 
 	saved := os.Stdout
 	os.Stdout = out
-	code := completion.Run(append([]string{"words", "run"}, prefix...))
+	code := completion.Run(args)
 	os.Stdout = saved
 	if code != 0 {
-		w.t.Errorf("ze completion words run %s: exit %d", strings.Join(prefix, " "), code)
-		return nil
+		w.t.Errorf("ze completion %s: exit %d", strings.Join(args, " "), code)
+		return ""
 	}
-	if _, err := out.Seek(0, 0); err != nil {
+	written, err := os.ReadFile(out.Name())
+	if err != nil {
 		w.t.Fatalf("shell completion capture: %v", err)
 	}
+	return string(written)
+}
+
+// completionRecords answers the first field of each completion record.
+func completionRecords(text string) []string {
 	var words []string
-	scan := bufio.NewScanner(out)
-	for scan.Scan() {
-		word, _, _ := strings.Cut(scan.Text(), "\t")
+	for line := range strings.SplitSeq(text, "\n") {
+		word, _, _ := strings.Cut(line, "\t")
 		if word != "" {
 			words = append(words, word)
 		}
 	}
-	if err := scan.Err(); err != nil {
-		w.t.Fatalf("shell completion capture: %v", err)
-	}
 	return words
+}
+
+// bashRootNames answers the root names the generated bash script completes.
+func bashRootNames(t *testing.T, script string) map[string]bool {
+	t.Helper()
+	const marker = `local commands="`
+	start := strings.Index(script, marker)
+	if start < 0 {
+		t.Fatalf("the generated bash completion script names no root commands (%s)", marker)
+	}
+	list, _, found := strings.Cut(script[start+len(marker):], `"`)
+	if !found {
+		t.Fatalf("the generated bash completion script's root list is not closed")
+	}
+	roots := make(map[string]bool)
+	for name := range strings.FieldsSeq(list) {
+		roots[name] = true
+	}
+	return roots
 }
 
 // registerStage1Commands registers every linked internal plugin's Stage 1
@@ -410,13 +463,21 @@ func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved, view
 			add(command.CommandRegistration{Path: p, Kind: command.KindBuiltin})
 		}
 	}
+	// A local command at an offline root carries the daemon path its
+	// registration declares (registry.Meta.DaemonPath): AnswerSurface offers
+	// that path on the daemon surfaces in its place, so the path must be a
+	// registration of its own, judged on every surface like any other.
+	var daemonPaths []command.LocalCommandEntry
 	for _, e := range command.ListLocal() {
 		if command.HasLocalData(e.Path) {
-			add(command.CommandRegistration{Path: e.Path, Kind: command.KindLocalData})
+			add(command.CommandRegistration{Path: e.Path, Kind: command.KindLocalData, DaemonPath: e.Meta.DaemonPath})
 		}
 	}
 	for _, e := range command.ListLocal() {
-		add(command.CommandRegistration{Path: e.Path, Kind: command.KindLocal})
+		add(command.CommandRegistration{Path: e.Path, Kind: command.KindLocal, DaemonPath: e.Meta.DaemonPath})
+		if e.Meta.DaemonPath != "" {
+			daemonPaths = append(daemonPaths, e)
+		}
 	}
 	for _, r := range pluginreg.All() {
 		for _, decl := range r.Commands {
@@ -435,6 +496,11 @@ func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved, view
 	}
 	for _, v := range views {
 		add(viewRegistration(v))
+	}
+	for _, e := range daemonPaths {
+		if !seen[strings.ToLower(e.Meta.DaemonPath)] {
+			t.Errorf("local command %q declares daemon path %q, which no registry holds, so no daemon surface serves it", e.Path, e.Meta.DaemonPath)
+		}
 	}
 	if len(regs) == 0 {
 		t.Fatal("no command was enumerated: the registries are empty")

@@ -1,4 +1,4 @@
-// Design: docs/architecture/doctor-and-health-checks.md -- one producer answers ze doctor, doctor and show doctor
+// Design: docs/architecture/doctor-and-health-checks.md -- one producer answers ze doctor and show doctor
 // Overview: doctor.go -- the readiness checks and the local drawing
 // Related: kernel_capabilities.go -- the kernel-capabilities answer
 // Related: register.go -- the local-data registration of doctor
@@ -57,9 +57,9 @@ func answerLocal(validated command.ValidatedArgs) command.LocalAnswer {
 }
 
 // Answer is the one producer of the doctor answer. `ze doctor` reaches it
-// through the local-data route, and the daemon's `doctor` and `show doctor`
-// reach it through internal/component/doctor/cmd with the plugin checks the
-// dispatcher holds. It writes nothing: refusals and the help page ride in the
+// through the local-data route, and the daemon's `show doctor` reaches it
+// through internal/component/doctor/cmd with the plugin checks the dispatcher
+// holds. It writes nothing: refusals and the help page ride in the
 // Diagnostic, and a not-ready result is a payload with code 0, so the daemon
 // route answers it as data, as `show doctor` always did. The local drawing
 // (renderDoctor) exits 1 for it.

@@ -15,14 +15,17 @@ func init() {
 		Section:   registry.SectionSystem,
 		Subs:      "config <file>, kernel-capabilities, --json",
 	})
-	// One producer (Answer) serves `ze doctor` here and the daemon's doctor
-	// and show doctor (internal/component/doctor/cmd), so the daemon route is
-	// the RPC that adds the plugin checks; the bridge leaves this path to it.
+	// One producer (Answer) serves `ze doctor` here and the daemon's show
+	// doctor (internal/component/doctor/cmd), the RPC that adds the plugin
+	// checks. doctor is an offline root, not a verb, so no YANG node sits at
+	// it: DaemonPath names show doctor as its daemon form, whose leaves judge
+	// the arguments here and which every daemon surface offers in its place.
 	command.MustRegisterLocalData("doctor", answerLocal, registry.Meta{
 		ShortHelp: "Check that this system is ready to run Ze.",
 		Description: "The checks cover kernel features, file descriptor limits, listening sockets and " +
 			"the dependencies Ze needs. Run it before the first start, and again after a change " +
 			"to the platform.",
+		DaemonPath: "show doctor",
 	}, renderDoctor)
 	registerDoctorOwnedChecks()
 	diagnostic.RegisterDoctorProvider(runChecks)

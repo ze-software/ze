@@ -5,8 +5,10 @@
 
 // Package help owns `help command` and `help ai`: the command catalog and the
 // agent reference this binary builds from its own registries. Both are
-// local-data commands, so the daemon serves the same handler under the YANG
-// paths ze-help-cmd.yang declares.
+// local-data commands at the offline root `help`, which is not a verb, so no
+// YANG node sits at their own paths: the daemon serves the same handlers as
+// `show command catalog` and `show command reference`, the paths
+// ze-help-cmd.yang declares and each registration names (registry.Meta.DaemonPath).
 package help
 
 import (
@@ -15,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	_ "github.com/ze-software/ze/internal/plugins/help/yang" // the daemon paths the registrations name
 )
 
 const (
@@ -39,16 +42,20 @@ func init() {
 		ShortHelp: "List every command this binary carries with its summary.",
 		Description: "A filter word keeps the commands whose path holds it, and the answer renders as " +
 			"JSON for a program to read.",
-		Mode: modeOffline,
+		Mode:       modeOffline,
+		DaemonPath: "show command catalog",
 	}, render)
 	command.MustRegisterLocalData("help ai", answerAIHelp, registry.Meta{
 		ShortHelp: "Print the agent reference this binary builds from its own registries.",
 		Description: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
 			"for a program to read.",
-		Mode: modeOffline,
+		Mode:       modeOffline,
+		DaemonPath: "show command reference",
 	}, render)
-	command.RegisterShape([]string{"help command"}, command.ShapeMap)
-	command.RegisterShape([]string{"help ai"}, command.ShapeBlob)
+	// The shape belongs to the answer, so it is declared on both paths that
+	// return it: the local root and the daemon path.
+	command.RegisterShape([]string{"help command", "show command catalog"}, command.ShapeMap)
+	command.RegisterShape([]string{"help ai", "show command reference"}, command.ShapeBlob)
 }
 
 // render prints a help answer on the local `ze help` route.

@@ -69,7 +69,14 @@ func RegisterLocal(path string, handler LocalHandler) error {
 
 // RegisterLocalMeta registers a handler AND its human-facing metadata.
 // Metadata is surfaced by `ze help ai`.
+//
+// A meta.DaemonPath equal to path is refused: the field names ANOTHER path
+// that answers on the daemon, and naming itself would hide a missing YANG
+// node behind a declaration that looks satisfied.
 func RegisterLocalMeta(path string, handler LocalHandler, meta registry.Meta) error {
+	if meta.DaemonPath == path {
+		return fmt.Errorf("command.RegisterLocalMeta: %q declares itself as its daemon path; leave DaemonPath empty when the local path is the YANG path", path)
+	}
 	if err := RegisterLocal(path, handler); err != nil {
 		return err
 	}
@@ -234,6 +241,21 @@ func ListLocal() []LocalCommandEntry {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out
+}
+
+// ModelPath answers the YANG path whose leaves judge the arguments of path:
+// the registration's DaemonPath for a local command at an offline root
+// (registry.Meta.DaemonPath), path itself for every other command. Every
+// route that validates a local command reads it, so `ze doctor` is judged by
+// the leaves of `show doctor`, the node that answers it on the daemon.
+func ModelPath(path string) string {
+	local.RLock()
+	meta, ok := local.meta[path]
+	local.RUnlock()
+	if ok && meta.DaemonPath != "" {
+		return meta.DaemonPath
+	}
+	return path
 }
 
 // HasLocal reports whether a handler is registered for the exact path.

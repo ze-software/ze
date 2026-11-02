@@ -3,7 +3,7 @@ module ze-doctor-cmd {
     prefix doctorcmd;
     import ze-extensions { prefix ze; }
     description "show doctor command tree. Owned by the doctor plugin because the handler calls diagnostic.RunDoctorChecks which is registered by this plugin. See ai/rules/plugin-self-containment.md.";
-    revision 2026-11-02 { description "Declare the doctor root beside show doctor, both answered by one producer, and the config and kernel-capabilities leaves that select what they answer."; }
+    revision 2026-11-02 { description "Declare the config and kernel-capabilities leaves that select what show doctor answers. show doctor is the daemon form of the offline root ze doctor, which carries no node of its own: doctor is not a verb, so no command path may start with it."; }
     revision 2026-06-06 { description "Relocated show doctor out of the central show schema (plugin self-containment)."; }
 
     container show {
@@ -13,9 +13,10 @@ module ze-doctor-cmd {
         container doctor {
             config false;
             ze:command "ze-doctor:show-doctor";
-            description "Verifies runtime dependencies: required files, sockets,
-ports, and kernel modules. Each check reports pass or fail with a reason. Run
-this before first start or after changing the platform setup.";
+            description "Verifies runtime dependencies: required files, sockets, ports, and kernel
+modules, and the checks the daemon's plugins declare. Each check reports pass
+or fail with a reason. ze doctor runs the same checks with no daemon, before
+first start or after changing the platform setup.";
             ze:help "Check if this box is ready to run Ze.";
             leaf config {
                 type string { length "1..4096"; }
@@ -29,28 +30,6 @@ daemon the file must lie in a config directory of the daemon's host.";
 answer is ready only when every feature is present.";
                 ze:help "Probe every kernel feature Ze enrolls.";
             }
-        }
-    }
-
-    container doctor {
-        config false;
-        ze:command "ze-doctor:doctor";
-        description "Verifies runtime dependencies: required files, sockets, ports, and kernel
-modules, and on the daemon the checks its plugins declare. Each check reports
-pass or fail with a reason. Run this before first start or after changing the
-platform setup.";
-        ze:help "Check if this box is ready to run Ze.";
-        leaf config {
-            type string { length "1..4096"; }
-            description "Check this config file instead of the active config in the store. On the
-daemon the file must lie in a config directory of the daemon's host.";
-            ze:help "Config file to check instead of the active config.";
-        }
-        leaf kernel-capabilities {
-            type empty;
-            description "Probe every kernel feature Ze enrolls, whatever the configuration uses. The
-answer is ready only when every feature is present.";
-            ze:help "Probe every kernel feature Ze enrolls.";
         }
     }
 }

@@ -367,13 +367,16 @@ Two constraints hold this together:
   doctor test that asserts a schema listener's probe runs with the full tag
   set.
 
-`ze doctor`, and the daemon's `doctor` and `show doctor`, run one producer,
-`doctor.Answer`. The local route runs it in the operator's own process with no
-plugin check, because no plugin runs there. The daemon registers one RPC for
-both paths (`HandleDoctor`), which runs the same producer and adds the doctor
-checks of every plugin the daemon runs, so an operator or an AI on SSH, MCP,
-REST, gRPC or the web reads the readiness of the daemon's host. Both paths
-declare the `config` and `kernel-capabilities` leaves; `--json` stays a local
+`ze doctor` and the daemon's `show doctor` run one producer, `doctor.Answer`.
+The local route runs it in the operator's own process with no plugin check,
+because no plugin runs there. `doctor` is an offline root, not a verb, so it
+has no daemon path of its own: its registration names `show doctor` as its
+daemon form (`registry.Meta.DaemonPath`), and every daemon surface offers
+`show doctor` in its place. The daemon registers one RPC (`HandleDoctor`),
+which runs the same producer and adds the doctor checks of every plugin the
+daemon runs, so an operator or an AI on SSH, MCP, REST, gRPC or the web reads
+the readiness of the daemon's host. `show doctor` declares the `config` and
+`kernel-capabilities` leaves, and `ze doctor` is judged by the same leaves; `--json` stays a local
 rendering flag, and on the daemon route the caller's `| json` renders. On the
 daemon route `config <file>` must lie in a config directory of the daemon's
 host, and `-` (stdin) is refused. The text report and its exit code (1 when

@@ -1,11 +1,12 @@
 # mcp-local-commands - an MCP client lists and runs local commands against a
-# running daemon: show env list, doctor and show config validation.
+# running daemon: show env list, show doctor and show config validation.
 #
 # VALIDATES: spec-command-surface-parity story 1 and the MCP reach of A-2: an
-# AI connected over MCP finds `doctor`, `show env list` and
-# `show config validation` in tools/list and runs each through the daemon
-# (serverDispatcher, authz, the LoadBuiltins local bridge or the doctor
-# builtin), and each answer carries its payload, not an error.
+# AI connected over MCP finds `show doctor` (the daemon form of `ze doctor`,
+# whose root is not a verb and so carries no daemon path of its own),
+# `show env list` and `show config validation` in tools/list and runs each
+# through the daemon (serverDispatcher, authz, the LoadBuiltins local bridge or
+# the show doctor builtin), and each answer carries its payload, not an error.
 #
 # PREVENTS: a local-only command missing from the daemon's dispatcher, so an AI
 # that cannot open a shell on the box cannot debug it.
@@ -21,10 +22,10 @@ plugin {
 EOF_VALID
 
 stdin=mcp:terminator=EOF_MCP
-wait-tool ze_doctor
+wait-tool ze_show_doctor
 probe tools/list
 probe tools/call {"name":"ze_show_env","arguments":{"action":"list"}}
-probe tools/call {"name":"ze_doctor","arguments":{}}
+probe tools/call {"name":"ze_show_doctor","arguments":{}}
 probe tools/call {"name":"ze_show_config","arguments":{"action":"validation","file":"valid.conf"}}
 EOF_MCP
 
@@ -37,15 +38,15 @@ cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-conf
 cmd=foreground:seq=2:exec=le test mcp --port $PORT:stdin=mcp:timeout=30s
 
 expect=exit:code=0
-# tools/list offers all three: doctor is its own tool, show env list and show
-# config validation are actions of the generated ze_show_env and ze_show_config
-# tools (internal/component/mcp groupCommands, toolName).
-expect=stdout:contains=ze_doctor
+# tools/list offers all three: show doctor is its own tool, show env list and
+# show config validation are actions of the generated ze_show_env and
+# ze_show_config tools (internal/component/mcp groupCommands, toolName).
+expect=stdout:contains="name":"ze_show_doctor"
 expect=stdout:contains="name":"ze_show_env"
 expect=stdout:contains="name":"ze_show_config"
 # show env list answers the env registry: ze.config.dir is a registered key.
 expect=stdout:contains=ze.config.dir
-# doctor answers the daemon's readiness report.
+# show doctor answers the daemon's readiness report.
 expect=stdout:pattern=schema-version
 expect=stdout:pattern=diagnostics
 # show config validation answers a valid verdict on the file it read, sent by

@@ -120,8 +120,15 @@ func TestLocalCommandDaemonMatchesLocal(t *testing.T) {
 
 	checked := 0
 	for _, entry := range command.ListLocal() {
-		served := d.Lookup(entry.Path)
-		if served == nil || served.Name != entry.Path {
+		// A local command at an offline root is served by the daemon under
+		// the path its registration declares (registry.Meta.DaemonPath), so
+		// that is the path the daemon route is asked.
+		daemonPath := entry.Path
+		if entry.Meta.DaemonPath != "" {
+			daemonPath = entry.Meta.DaemonPath
+		}
+		served := d.Lookup(daemonPath)
+		if served == nil || served.Name != daemonPath {
 			continue
 		}
 		handler, rest := command.LookupLocalData(strings.Fields(entry.Path))
@@ -129,18 +136,17 @@ func TestLocalCommandDaemonMatchesLocal(t *testing.T) {
 			continue
 		}
 		checked++
-		input := entry.Path
-		if args := matchMandatoryArgs(served.ArgDefs); args != "" {
-			input += " " + args
-		}
+		args := matchMandatoryArgs(served.ArgDefs)
+		local := matchInput(entry.Path, args)
+		daemon := matchInput(daemonPath, args)
 		t.Run(entry.Path, func(t *testing.T) {
 			if artifact := entry.Meta.Artifact; artifact != nil {
-				matchArtifact(t, d, input, artifact)
-				matchArtifact(t, d, input+" "+matchUndeclaredWord, artifact)
+				matchArtifact(t, d, local, artifact)
+				matchArtifact(t, d, local+" "+matchUndeclaredWord, artifact)
 				return
 			}
-			matchRoutes(t, d, input)
-			matchRoutes(t, d, input+" "+matchUndeclaredWord)
+			matchRoutes(t, d, local, daemon)
+			matchRoutes(t, d, local+" "+matchUndeclaredWord, daemon+" "+matchUndeclaredWord)
 		})
 	}
 	if checked == 0 {
@@ -148,9 +154,19 @@ func TestLocalCommandDaemonMatchesLocal(t *testing.T) {
 	}
 }
 
-// matchRoutes runs input on both routes and fails when an operator would read
-// a different answer or a different refusal.
-func matchRoutes(t *testing.T, d *pluginserver.Dispatcher, input string) {
+// matchInput is a command path followed by its mandatory arguments, if any.
+func matchInput(path, args string) string {
+	if args == "" {
+		return path
+	}
+	return path + " " + args
+}
+
+// matchRoutes runs input on the local route and daemonInput on the daemon
+// route, and fails when an operator would read a different answer or a
+// different refusal. The two inputs differ only for a local command at an
+// offline root, whose daemon path its registration declares.
+func matchRoutes(t *testing.T, d *pluginserver.Dispatcher, input, daemonInput string) {
 	t.Helper()
 	piped := input + " | json"
 
@@ -161,8 +177,8 @@ func matchRoutes(t *testing.T, d *pluginserver.Dispatcher, input string) {
 		t.Fatalf("%q: the local route does not serve it", input)
 	}
 
-	resp, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, input)
-	remoteAnswer, remoteRefusal := matchRemoteRendering(t, piped, resp, dispatchErr)
+	resp, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, daemonInput)
+	remoteAnswer, remoteRefusal := matchRemoteRendering(t, daemonInput+" | json", resp, dispatchErr)
 
 	if (localCode == 0) != (dispatchErr == nil) {
 		t.Errorf("%q: local exit %d (stderr %q), daemon error %v: one route answered and the other refused", input, localCode, localWritten, dispatchErr)

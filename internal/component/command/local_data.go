@@ -330,11 +330,15 @@ func validateLocalArgs(words, args []string) (ValidatedArgs, error) {
 // which passes its tokens through. A process with no source registered refuses
 // rather than skipping the check, because a skipped check and a passed one
 // look the same to the operator.
+//
+// A local command at an offline root is judged by the leaves of the YANG path
+// its registration declares as its daemon form (ModelPath), since no node can
+// sit at the root itself.
 func ValidateModelArgs(path string, args []string, preMatched map[string]string) (ValidatedArgs, error) {
 	if argDefSource == nil {
 		return ValidatedArgs{}, errNoArgDefSource
 	}
-	defs, err := argDefSource(path)
+	defs, err := argDefSource(ModelPath(path))
 	if err != nil {
 		return ValidatedArgs{}, fmt.Errorf("argument definitions of %q: %w", path, err)
 	}

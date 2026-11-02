@@ -279,6 +279,35 @@ local command (one that prints rather than answering a value) is not served
 this way. A path a builtin RPC already holds is refused (`ErrCommandHeld`), as
 two builtins on one path are.
 
+A local command at an offline root (`ze doctor`, `ze help command`, `ze help
+ai`) cannot have a node at its own path: the root is not a verb, and every
+command path in the model starts with one (`ai/rules/cli.md`, R1). Its
+registration names the path that answers it on the daemon instead,
+`registry.Meta.DaemonPath`, and four readers follow that one field. The local
+route validates its arguments against the leaves of the daemon path
+(`command.ModelPath`). `loadLocalData` serves the handler under the daemon
+path, or leaves it to the builtin that holds it, and refuses to start when no
+node declares the path. `command.AnswerSurface` offers the root on shell
+completion and `ze cli`, and the daemon path on every daemon surface. The
+`command-contract` gate counts the local handler as served by the daemon
+path, reading the field from the registration's source, so its value is a
+string literal.
+
+| Offline root | Daemon path | Daemon handler |
+|--------------|-------------|----------------|
+| `doctor` | `show doctor` | the builtin `HandleDoctor`, which adds the plugin checks |
+| `help command` | `show command catalog` | the same local-data handler, through the bridge |
+| `help ai` | `show command reference` | the same local-data handler, through the bridge |
+
+`show command list` is not the daemon form of `help command`: it answers the
+commands the running daemon's dispatcher serves, a name and a summary each,
+while the catalog walks the YANG tree, the local registry and the plugin
+declarations of this binary and gives each command its grammar, arguments,
+pipes and mode.
+<!-- source: internal/component/command/local.go -- ModelPath -->
+<!-- source: internal/plugins/meta/cmd/help.go -- handleBgpCommandList -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands -->
+
 A call passes authorization and accounting first, then the dispatcher's
 validator over the node's leaves, then the handler, exactly as a builtin
 does. A token that starts with `-` is refused before the handler, because a
@@ -442,7 +471,7 @@ registered itself. The two routes call one producer, so they cannot drift:
 
 | Command | Producer | Local route | Daemon route |
 |---------|----------|-------------|--------------|
-| `doctor`, `show doctor` | `doctor.Answer` | the local-data handler `ze doctor` runs, with no plugin check (no plugin runs in the caller's process) | `HandleDoctor`, one RPC for `ze-doctor:doctor` and `ze-doctor:show-doctor`, adding the doctor checks of the plugins the daemon runs |
+| `doctor` (daemon path `show doctor`) | `doctor.Answer` | the local-data handler `ze doctor` runs, with no plugin check (no plugin runs in the caller's process) | `HandleDoctor`, the RPC for `ze-doctor:show-doctor`, adding the doctor checks of the plugins the daemon runs |
 | `show ping` | `pingResults` | `showPingLocal` prints it | `handleShowPing` |
 | `show traceroute` | `tracerouteResults` | `showTracerouteLocal` prints it | `handleTraceroute` |
 | `show interface` | `iface.ListInterfaces`, `iface.GetInterface` | `cmdShow` renders the list or one interface (`--json` prints the payload) | `handleShowInterface`, `handleShowInterfaceDetail` answer it as data |
@@ -475,7 +504,7 @@ daemon route like every other caller path (`command.CallerPath`).
 One predicate, `command.AnswerSurface`, answers for a command and a surface
 whether the surface must offer it, must not, or offers it with a qualifier,
 and why. It reads only the registration: its kind, and the hidden, streaming,
-streaming-only and TUI-only declarations. Each surface producer asks it, and
+streaming-only, TUI-only and daemon-path declarations. Each surface producer asks it, and
 `TestEveryCommandOnEverySurface` (`cmd/ze/hub`) asks each producer and fails a
 gap or an offer the predicate refuses, naming the command, the surface, the
 kind and the expected answer.
@@ -484,6 +513,7 @@ kind and the expected answer.
 |--------------|---------------|--------------------------------|--------------------------------------------|
 | Hidden (a plugin command declared `Hidden`) | Not offered | Not offered | Not offered. It still runs when typed in full |
 | Builtin RPC, local, local-data | Offered | Offered | Offered: the daemon serves each through its handler |
+| Local or local-data at an offline root, with a declared daemon path | `ze cli` offers a local-data one, answered in its own process; SSH does not, and offers the daemon path | Offered | Not offered: the daemon path is, as its own registration |
 | Plugin command (Stage 1 declaration) | Offered | Not offered: no plugin runs in the shell's process | Offered |
 | Streaming (`RegisterStreamingHandler`) | Offered as a stream | Offered as a stream | By its one-shot declaration: `OneShotSample` offered, `OneShotStreamingOnly` not ("One-shot answer of a streaming command") |
 | A live view with no RPC | Offered as TUI-only, when `cli.RegisterView` declares it | Not offered | Not offered. An undeclared one fails the check. No view is TUI-only today |
@@ -491,7 +521,7 @@ kind and the expected answer.
 The producers that ask it: the SSH and web admin trees, the web terminal
 completer, `buildCommandMeta` (the MCP, REST and gRPC list) and the `ze cli`
 tree. `command-completion.md` names each one.
-<!-- source: internal/component/command/surface.go -- AnswerSurface, answerView, ListedOnDaemonSurfaces, OffersCommand -->
+<!-- source: internal/component/command/surface.go -- AnswerSurface, answerOfflineRoot, answerView, ListedOnDaemonSurfaces, OffersCommand -->
 <!-- source: cmd/ze/hub/surface_parity_test.go -- TestEveryCommandOnEverySurface -->
 
 ---

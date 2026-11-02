@@ -137,6 +137,13 @@ type Meta struct {
 	Subs        string
 	SubsFunc    func() string
 	NotReadOnly bool
+	// DaemonPath is set on a local command whose path is an offline root
+	// (`ze doctor`, `ze help command`): a root outside the verb-first command
+	// model, so no YANG node can sit at its own path. It names the YANG path
+	// that answers the same question on the daemon, whose leaves the local
+	// route validates against, and which every daemon surface offers in its
+	// place. Empty on every command whose own path is its daemon path.
+	DaemonPath string
 	// Artifact is set on a command whose answer names a file it produced;
 	// nil on every other command.
 	Artifact *Artifact

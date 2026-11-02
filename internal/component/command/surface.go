@@ -117,6 +117,11 @@ type CommandRegistration struct {
 	// TUIOnly says the command's view registration (cli.RegisterView) declares
 	// that only the interactive CLI can render it.
 	TUIOnly bool
+	// DaemonPath is the YANG path a local command at an offline root declares
+	// as its daemon form (registry.Meta.DaemonPath): the daemon surfaces offer
+	// that path in this one's place, and shell completion offers this one.
+	// Set only on a local or local-data registration.
+	DaemonPath string
 }
 
 // Offer is what one surface owes one command. The zero value is
@@ -177,6 +182,9 @@ const (
 	reasonStreamingOff = "declared streaming-only: its stream is a sequence of events, so a one-shot surface has no answer to give"
 	reasonTUIOnly      = "declared TUI-only on its view: only the interactive CLI renders it"
 	reasonTUIOnlyOff   = "declared TUI-only on its view: a one-shot surface cannot render it"
+	reasonOfflineRoot  = "a local command at an offline root, run by `ze <root>` with no daemon"
+	reasonOfflineCLI   = "a local-data command at an offline root: `ze cli` answers it in its own process"
+	reasonDaemonPath   = "a local command at an offline root: the daemon surfaces offer its declared daemon path instead"
 )
 
 // AnswerSurface answers what surface s owes reg, and why. It is the one place
@@ -193,6 +201,11 @@ const (
 //     (SSH, `ze cli`, shell); a one-shot surface does not offer one declared
 //     streaming-only, and answers any other by its kind (its one-shot RPC
 //     answers one sample);
+//   - a local or local-data command at an offline root declares the YANG path
+//     that answers it on the daemon (DaemonPath): shell completion offers the
+//     root, `ze cli` offers a local-data one (it answers local-data in its own
+//     process), and the daemon surfaces offer the declared path, judged as its
+//     own registration, rather than a path no YANG node can carry;
 //   - a builtin, local or local-data command is served by the daemon and by
 //     `ze <verb>`, so every surface offers it;
 //   - a plugin command with no YANG node exists only in a running daemon's
@@ -222,6 +235,9 @@ func AnswerSurface(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 	if reg.StreamingOnly {
 		return SurfaceAnswer{Offer: OfferMustNot, Reason: reasonStreamingOff}, nil
 	}
+	if reg.DaemonPath != "" {
+		return answerOfflineRoot(reg, s)
+	}
 	switch reg.Kind {
 	case KindBuiltin, KindLocal, KindLocalData:
 		return SurfaceAnswer{Offer: OfferMust, Reason: reasonServed}, nil
@@ -235,6 +251,24 @@ func AnswerSurface(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 		return SurfaceAnswer{}, fmt.Errorf("command %q: kind %s reached the kind switch", reg.Path, reg.Kind)
 	}
 	return SurfaceAnswer{}, fmt.Errorf("command %q: no answer for registration kind %s", reg.Path, reg.Kind)
+}
+
+// answerOfflineRoot answers a local command whose daemon form is another path:
+// listed on shell completion, which runs `ze <root>` locally, and on `ze cli`
+// when it is local-data, since `ze cli` answers local-data in its own process
+// (command.ServeLocal) before it asks the daemon. No daemon surface lists it:
+// each offers the declared daemon path instead.
+func answerOfflineRoot(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
+	if reg.Kind != KindLocal && reg.Kind != KindLocalData {
+		return SurfaceAnswer{}, fmt.Errorf("command %q: kind %s declares a daemon path; only a local command at an offline root may", reg.Path, reg.Kind)
+	}
+	if s == SurfaceShell {
+		return SurfaceAnswer{Offer: OfferMust, Reason: reasonOfflineRoot}, nil
+	}
+	if s == SurfaceCLI && reg.Kind == KindLocalData {
+		return SurfaceAnswer{Offer: OfferMust, Reason: reasonOfflineCLI}, nil
+	}
+	return SurfaceAnswer{Offer: OfferMustNot, Reason: reasonDaemonPath + " (" + reg.DaemonPath + ")"}, nil
 }
 
 // answerView answers a view with no other registration: TUI-only when its view

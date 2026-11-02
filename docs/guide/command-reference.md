@@ -3386,6 +3386,9 @@ active after enabling debug or applying a profile.
 | `help` | read-only | List available subcommands |
 | `show command list` | read-only | List all commands with descriptions |
 | `show command help <name>` | read-only | Detailed help for a command |
+| `show command catalog [filter <text>]` | read-only | Every command this binary carries, with its grammar and summary: the daemon form of `ze help command` |
+| `show command reference [cli] [api] [mcp] [dispatch] [all]` | read-only | The agent reference built from this binary's registries: the daemon form of `ze help ai` <!-- source: internal/plugins/help/yang/ze-help-cmd.yang -- module ze-help-cmd --> |
+| `show doctor [config <file>] [kernel-capabilities]` | read-only | The readiness checks, with the daemon's plugin checks: the daemon form of `ze doctor` <!-- source: internal/component/doctor/yang/ze-doctor-cmd.yang -- container doctor --> |
 | `show event list` | read-only | List available event types <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd --> |
 | `show event delivery` | read-only | Show which peers feed which attached processes <!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery --> |
 

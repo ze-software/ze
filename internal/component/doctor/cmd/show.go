@@ -1,4 +1,4 @@
-// Design: docs/architecture/api/commands.md -- doctor and show doctor RPC handler (plugin self-containment)
+// Design: docs/architecture/api/commands.md -- show doctor RPC handler, the daemon form of ze doctor (plugin self-containment)
 
 package cmd
 
@@ -20,8 +20,8 @@ const (
 	maxDiagnosticsPerCheck = 64
 )
 
-// HandleDoctor is the RPC handler for ze-doctor:doctor and
-// ze-doctor:show-doctor. It runs the one producer `ze doctor` runs locally
+// HandleDoctor is the RPC handler for ze-doctor:show-doctor, the daemon form
+// of `ze doctor`. It runs the one producer `ze doctor` runs locally
 // (doctor.Answer) on the daemon route, adding the doctor checks of the
 // plugins this daemon runs, and maps the answer as the local-data bridge maps
 // every local-data command (pluginserver.AnswerLocalData).

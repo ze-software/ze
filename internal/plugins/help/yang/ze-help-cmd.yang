@@ -2,65 +2,71 @@ module ze-help-cmd {
     namespace "urn:ze:help:cmd";
     prefix helpcmd;
     import ze-extensions { prefix ze; }
-    description "The help command and help ai commands, owned by the help plugin, which registers their handlers. See the plugin self-containment rule.";
-    revision 2026-11-02 { description "Initial: declare the help command and help ai commands the binary already answered locally, so the daemon serves them too."; }
+    description "show command catalog and show command reference, the daemon forms of ze help command and ze help ai, owned by the help plugin, which registers their handlers. help is an offline root, not a verb, so no command path starts with it. See the plugin self-containment rule.";
+    revision 2026-11-02 { description "Initial: declare show command catalog and show command reference, the daemon forms of ze help command and ze help ai, which the binary already answered locally, so the daemon serves them too."; }
 
-    container help {
+    container show {
         config false;
-        // Description is owned by ze-command-meta-cmd.yang's `help` container.
-        // This module only merges the two commands onto it, so it does not
-        // redeclare the description (a mismatch triggers a loader warning).
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container command {
             config false;
-            ze:command "ze-help:help-command";
-            description "Walks the YANG command tree and the local command registry, and prints one row
-per command with its summary.";
-            ze:help "List every command this binary carries with its summary.";
-            leaf filter {
-                type string { length "1..128"; }
-                description "Keep only the commands whose path or description holds this text. A bare
-first word is the filter too.";
-                ze:help "Text a command's path or description must hold.";
-            }
-            // The JSON and verbose renderings are local flags of `ze help`,
-            // never leaves: a bare word is the filter on every route, and
-            // the daemon route reaches the rows with `| json`.
-        }
+            // Description is owned by ze-command-meta-cmd.yang's `show command`
+            // container. This module only merges the two commands onto it, so it
+            // does not redeclare the description (a mismatch triggers a loader
+            // warning).
 
-        container ai {
-            config false;
-            ze:command "ze-help:help-ai";
-            description "The reference is generated from the registries of this binary, so it always
+            container catalog {
+                config false;
+                ze:command "ze-help:show-command-catalog";
+                description "Walks the YANG command tree and the local command registry, and prints one row
+per command with its summary.";
+                ze:help "List every command this binary carries with its summary.";
+                leaf filter {
+                    type string { length "1..128"; }
+                    description "Keep only the commands whose path or description holds this text. A bare
+first word is the filter too.";
+                    ze:help "Text a command's path or description must hold.";
+                }
+                // The JSON and verbose renderings are local flags of `ze help command`,
+                // never leaves: a bare word is the filter on every route, and
+                // the daemon route reaches the rows with `| json`.
+            }
+
+            container reference {
+                config false;
+                ze:command "ze-help:show-command-reference";
+                description "The reference is generated from the registries of this binary, so it always
 matches the running version. With no section it prints a summary with counts.";
-            ze:help "Print the agent reference this binary builds from its own registries.";
-            leaf cli {
-                type empty;
-                description "Print the cli section: CLI subcommands. Sections combine.";
-                ze:help "CLI subcommands.";
+                ze:help "Print the agent reference this binary builds from its own registries.";
+                leaf cli {
+                    type empty;
+                    description "Print the cli section: CLI subcommands. Sections combine.";
+                    ze:help "CLI subcommands.";
+                }
+                leaf api {
+                    type empty;
+                    description "Print the api section: Daemon API commands with parameters, update syntax, families and plugins. Sections combine.";
+                    ze:help "Daemon API commands with parameters, update syntax, families and plugins.";
+                }
+                leaf mcp {
+                    type empty;
+                    description "Print the mcp section: MCP tools with parameters and examples. Sections combine.";
+                    ze:help "MCP tools with parameters and examples.";
+                }
+                leaf dispatch {
+                    type empty;
+                    description "Print the dispatch section: Dispatch keys for daemon commands. Sections combine.";
+                    ze:help "Dispatch keys for daemon commands.";
+                }
+                leaf all {
+                    type empty;
+                    description "Print the all section: Every section combined. Sections combine.";
+                    ze:help "Every section combined.";
+                }
+                // The JSON rendering is a local flag of `ze help ai`, never a leaf:
+                // a bare `json` names no section, so it prints the summary.
             }
-            leaf api {
-                type empty;
-                description "Print the api section: Daemon API commands with parameters, update syntax, families and plugins. Sections combine.";
-                ze:help "Daemon API commands with parameters, update syntax, families and plugins.";
-            }
-            leaf mcp {
-                type empty;
-                description "Print the mcp section: MCP tools with parameters and examples. Sections combine.";
-                ze:help "MCP tools with parameters and examples.";
-            }
-            leaf dispatch {
-                type empty;
-                description "Print the dispatch section: Dispatch keys for daemon commands. Sections combine.";
-                ze:help "Dispatch keys for daemon commands.";
-            }
-            leaf all {
-                type empty;
-                description "Print the all section: Every section combined. Sections combine.";
-                ze:help "Every section combined.";
-            }
-            // The JSON rendering is a local flag of `ze help`, never a leaf:
-            // a bare `json` names no section, so it prints the summary.
         }
     }
 }

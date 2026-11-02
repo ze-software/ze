@@ -38,6 +38,12 @@ import (
 // daemon form of the same producer. A path some OTHER registration holds is
 // refused by RegisterWithOptions (ErrCommandHeld), as two builtins on one path
 // are, so neither owner wins in silence.
+//
+// A local command at an offline root (`help command`) cannot carry a YANG
+// node at its own path, so its registration names the path that answers it on
+// the daemon (registry.Meta.DaemonPath), and the handler is served there. A
+// declared daemon path no YANG node carries is refused: the command would
+// reach no remote surface while its declaration reads as served.
 func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef) error {
 	declared := make(map[string]string)
 	for wire, paths := range wireToPaths {
@@ -50,8 +56,17 @@ func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, p
 		builtinWires[reg.WireMethod] = true
 	}
 	for _, entry := range command.ListLocal() {
-		wire, hasNode := declared[entry.Path]
+		servedAt := entry.Path
+		if entry.Meta.DaemonPath != "" {
+			servedAt = entry.Meta.DaemonPath
+		}
+		wire, hasNode := declared[servedAt]
 		if !hasNode {
+			if entry.Meta.DaemonPath != "" {
+				var tb textbuf.Buffer
+				return errors.New(tb.Str("local command ").Str(entry.Path).Str(" declares daemon path ").Str(servedAt).
+					Str(", which no YANG ze:command node declares: add the node or correct registry.Meta.DaemonPath").String())
+			}
 			continue
 		}
 		if builtinWires[wire] {
@@ -68,10 +83,10 @@ func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, p
 		if len(rest) != 0 {
 			continue // A shorter data path covers it; that path is served on its own.
 		}
-		if err := d.RegisterWithOptions(entry.Path, localDataHandler(entry.Path, handler), pathToDesc[entry.Path], RegisterOptions{
-			ReadOnly:    IsReadOnlyPath(entry.Path) && !entry.Meta.NotReadOnly,
-			ArgDefs:     pathToArgDefs[entry.Path],
-			Description: pathToHelp[entry.Path],
+		if err := d.RegisterWithOptions(servedAt, localDataHandler(servedAt, handler), pathToDesc[servedAt], RegisterOptions{
+			ReadOnly:    IsReadOnlyPath(servedAt) && !entry.Meta.NotReadOnly,
+			ArgDefs:     pathToArgDefs[servedAt],
+			Description: pathToHelp[servedAt],
 			Owner:       wire,
 		}); err != nil {
 			return err
