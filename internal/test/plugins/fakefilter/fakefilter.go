@@ -49,6 +49,14 @@ const (
 	// fieldPrefix is the one route field the filter reads (the vocabulary of
 	// docs/plugin-development/protocol.md, "The Route Fields of filter-update").
 	fieldPrefix = "prefix"
+	// SessionFilterName is the filter a session condition inserts
+	// (FilterInsertions): it judges as judge does and also reads the
+	// session fact fieldPeerName, which it reports.
+	SessionFilterName = "session-judge"
+	// fieldPeerName is the session fact session-judge reads: the name of the
+	// peer the route arrived from (docs/plugin-development/protocol.md,
+	// "Session Facts").
+	fieldPeerName = "peer-name"
 
 	// The transports a judged route is reported to have arrived on: the
 	// engine's typed view through the DirectBridge slot, or the encoded
@@ -57,7 +65,8 @@ const (
 	transportBatch = "batch"
 )
 
-// FilterDecls is the plugin's one filter declaration. It has two readers and
+// FilterDecls is the plugin's filter declarations: judge, and session-judge,
+// which also reads a session fact. They have two readers and
 // MUST stay one function: compiledin puts it on registry.Registration.Filters,
 // which config load reads before any plugin runs, and Run sends it in the
 // Stage 1 registration, which the daemon judges the chain against. On-error is
@@ -68,16 +77,25 @@ func FilterDecls() []sdk.FilterDecl {
 		Direction: sdk.FilterImport,
 		Reads:     []string{fieldPrefix},
 		OnError:   sdk.OnErrorReject,
+	}, {
+		Name:      SessionFilterName,
+		Direction: sdk.FilterImport,
+		Reads:     []string{fieldPrefix, fieldPeerName},
+		OnError:   sdk.OnErrorReject,
 	}}
 }
 
 // judgement is what the evaluator reports for one prefix of a judged route.
 type judgement struct {
-	generation int // 1, or 2 for the run ze started again
+	generation int    // 1, or 2 for the run ze started again
+	filter     string // the filter judged: FilterName or SessionFilterName
 	peer       string
-	prefix     string
-	transport  string // transportSlot or transportBatch
-	verdict    string // "accept" or "reject"
+	// peerName is the peer-name session fact the route was sent with, or
+	// absentPeerName when the fields carried none.
+	peerName  string
+	prefix    string
+	transport string // transportSlot or transportBatch
+	verdict   string // "accept" or "reject"
 }
 
 // judge is the evaluator's state: the prefix it rejects, how many routes it
@@ -104,10 +122,17 @@ func newJudge(tr Trigger, stop func(), report func(judgement)) *judge {
 		stop: stop, report: report}
 }
 
+// absentPeerName is what a judgement reports for a route sent with no
+// peer-name: judge does not read it, and session-judge reports its absence.
+const absentPeerName = "absent"
+
 // routeFields is the part of the fields object the filter reads: family to
 // the announced NLRI.
 type routeFields struct {
 	Prefix map[string][]string `json:"prefix"`
+	// PeerName is the peer-name session fact, sent only to session-judge;
+	// nil when absent.
+	PeerName *string `json:"peer-name"`
 }
 
 // evaluate is the plugin's one evaluator. It rejects a route that carries
@@ -130,13 +155,18 @@ func (j *judge) evaluate(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error
 	}
 	// The engine's typed view reaches the evaluator only through the slot;
 	// a batched route carries its fields encoded and no view.
+	peerName := absentPeerName
+	if fields.PeerName != nil {
+		peerName = *fields.PeerName
+	}
 	transport := transportBatch
 	if route.Engine() != nil {
 		transport = transportSlot
 	}
 	for _, prefixes := range fields.Prefix {
 		for _, prefix := range prefixes {
-			j.report(judgement{generation: j.generation, peer: route.Peer(), prefix: prefix, transport: transport, verdict: verdict})
+			j.report(judgement{generation: j.generation, filter: route.Filter(), peer: route.Peer(), peerName: peerName,
+				prefix: prefix, transport: transport, verdict: verdict})
 		}
 	}
 	if j.judged.Add(1) == j.stopAfter {
@@ -261,11 +291,12 @@ var InsertCondition = []string{"fakefilter", "insert"}
 // would also carry fakefilter:judge, for a process that is not running.
 var InsertCopyCondition = []string{"fakefilter", "insert-copy"}
 
-// FilterInsertions is the one auto-insertion of the process ze runs under
-// the name process (spec-filter-wire-6-stage-filters AC-1, A-12): its judge,
-// first in the import list of every peer that asks for it. Run under Name it
-// conditions on InsertCondition true; a copy run under another name
-// conditions on InsertCopyCondition equal to that name. Like FilterDecls it
+// FilterInsertions is the auto-insertions of the process ze runs under the
+// name process (spec-filter-wire-6-stage-filters AC-1, A-12). The first is
+// its judge, first in the import list of every peer that asks for it: run
+// under Name it conditions on InsertCondition true, a copy run under another
+// name on InsertCopyCondition equal to that name. The second is its
+// session-judge, on a session condition (sessionInsertion). Like FilterDecls it
 // has two readers and MUST stay one function: compiledin's
 // registry.Registration, which config load reads, and the Stage 1
 // registration Run sends when the trigger asks for it.
@@ -281,7 +312,25 @@ func FilterInsertions(process string) []rpc.FilterInsertion {
 		insertion.Config = InsertCopyCondition
 		insertion.Values = []string{process}
 	}
-	return []rpc.FilterInsertion{insertion}
+	return []rpc.FilterInsertion{insertion, sessionInsertion(process)}
+}
+
+// SessionPeerName answers the peer name session-judge's insertion conditions
+// on, for the process ze runs under the name process: a peer of that name
+// carries <process>:session-judge in its import list, judged on its session
+// facts with no config leaf naming it.
+func SessionPeerName(process string) string { return process + "-peer" }
+
+// sessionInsertion is the session-conditioned insertion of process: its
+// session-judge, inserted in the import list of the peer whose peer-name
+// session fact is SessionPeerName(process).
+func sessionInsertion(process string) rpc.FilterInsertion {
+	return rpc.FilterInsertion{
+		Filter:    process + ":" + SessionFilterName,
+		Direction: rpc.FilterImport,
+		Priority:  110,
+		Session:   []rpc.FilterSessionFact{{Fact: fieldPeerName, Values: []string{SessionPeerName(process)}}},
+	}
 }
 
 // Registration is what the plugin declares at Stage 1: its filter, its
@@ -314,7 +363,8 @@ func Run(p *sdk.Plugin, tr Trigger, log *slog.Logger) int {
 	defer stop()
 
 	report := func(j judgement) {
-		log.Info("fakefilter judged a route", "filter", FilterName, "generation", j.generation, "peer", j.peer, "prefix", j.prefix,
+		log.Info("fakefilter judged a route", "filter", j.filter, "generation", j.generation, "peer", j.peer,
+			"peer-name", j.peerName, "prefix", j.prefix,
 			"transport", j.transport, "verdict", j.verdict)
 	}
 	p.OnFilter(newJudge(tr, stop, report).evaluate)

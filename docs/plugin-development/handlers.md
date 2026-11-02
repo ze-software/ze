@@ -464,8 +464,11 @@ serve. The fields and refusals are in
 `docs/architecture/api/process-protocol.md`, "Filter Insertion", and
 `internal/test/plugins/fakefilter` (`FilterInsertions`) is a worked example:
 run under another name, it inserts `<name>:judge` where a peer sets
-`fakefilter { insert-copy <name>; }`.
+`fakefilter { insert-copy <name>; }`, and `<name>:session-judge`, which reads
+the `peer-name` session fact, on the session condition `peer-name`
+`<name>-peer`.
 <!-- source: pkg/plugin/rpc/types.go -- FilterInsertion, FilterInsertionSchemaPath -->
+<!-- source: internal/test/plugins/fakefilter/fakefilter.go -- FilterInsertions, sessionInsertion -->
 <!-- source: internal/component/config/schema_origin.go -- CheckFilterInsertionPaths -->
 
 ### OnBye

@@ -52,7 +52,7 @@ func TestFakeFilterAcceptsAndNamesThePrefix(t *testing.T) {
 	if out == nil || out.Action != rpc.FilterAccept {
 		t.Fatalf("verdict = %+v, want accept", out)
 	}
-	want := judgement{peer: "127.0.0.1", prefix: "10.0.0.0/24", transport: transportBatch, verdict: "accept"}
+	want := judgement{filter: FilterName, peer: "127.0.0.1", peerName: absentPeerName, prefix: "10.0.0.0/24", transport: transportBatch, verdict: "accept"}
 	if len(judged) != 1 || judged[0] != want {
 		t.Fatalf("judged = %+v, want [%+v]", judged, want)
 	}
@@ -87,8 +87,8 @@ func TestFakeFilterRejectsTheNamedPrefix(t *testing.T) {
 		}
 	}
 	want := []judgement{
-		{peer: "127.0.0.2", prefix: "10.1.0.0/24", transport: transportBatch, verdict: "reject"},
-		{peer: "127.0.0.2", prefix: "10.1.0.0/24", transport: transportSlot, verdict: "reject"},
+		{filter: FilterName, peer: "127.0.0.2", peerName: absentPeerName, prefix: "10.1.0.0/24", transport: transportBatch, verdict: "reject"},
+		{filter: FilterName, peer: "127.0.0.2", peerName: absentPeerName, prefix: "10.1.0.0/24", transport: transportSlot, verdict: "reject"},
 	}
 	if !slices.Equal(judged, want) {
 		t.Fatalf("judged = %+v, want %+v", judged, want)
@@ -135,8 +135,8 @@ func TestFakeFilterStopTriggerFiresOnce(t *testing.T) {
 // prefix, and fails closed: the on-error AC-33 asserts.
 func TestFakeFilterDeclaration(t *testing.T) {
 	decls := FilterDecls()
-	if len(decls) != 1 {
-		t.Fatalf("declared %d filters, want 1", len(decls))
+	if len(decls) != 2 {
+		t.Fatalf("declared %d filters, want 2", len(decls))
 	}
 	decl := decls[0]
 	if decl.Name != FilterName || decl.Direction != sdk.FilterImport || decl.OnError != sdk.OnErrorReject {
@@ -144,6 +144,13 @@ func TestFakeFilterDeclaration(t *testing.T) {
 	}
 	if len(decl.Reads) != 1 || decl.Reads[0] != fieldPrefix {
 		t.Fatalf("reads = %q, want [%q]", decl.Reads, fieldPrefix)
+	}
+	session := decls[1]
+	if session.Name != SessionFilterName || session.Direction != sdk.FilterImport || session.OnError != sdk.OnErrorReject {
+		t.Fatalf("declaration = %+v, want %s import on-error reject", session, SessionFilterName)
+	}
+	if !slices.Equal(session.Reads, []string{fieldPrefix, fieldPeerName}) {
+		t.Fatalf("reads = %q, want [%q %q]", session.Reads, fieldPrefix, fieldPeerName)
 	}
 }
 
@@ -247,18 +254,58 @@ func TestFakeFilterTriggerFrom(t *testing.T) {
 // places a member for a process that is not running.
 func TestFilterInsertionsFollowProcessName(t *testing.T) {
 	own := FilterInsertions(Name)
-	if len(own) != 1 || own[0].Filter != "fakefilter:judge" || !slices.Equal(own[0].Config, InsertCondition) {
+	if len(own) != 2 || own[0].Filter != "fakefilter:judge" || !slices.Equal(own[0].Config, InsertCondition) {
 		t.Fatalf("fakefilter's own insertion: got %+v", own)
 	}
 	copied := FilterInsertions("fakefilter-copy")
-	if len(copied) != 1 || copied[0].Filter != "fakefilter-copy:judge" {
+	if len(copied) != 2 || copied[0].Filter != "fakefilter-copy:judge" {
 		t.Fatalf("a copy's insertion must name the filter it serves: got %+v", copied)
 	}
 	if !slices.Equal(copied[0].Config, InsertCopyCondition) || !slices.Equal(copied[0].Values, []string{"fakefilter-copy"}) {
 		t.Fatalf("a copy's insertion must condition on its own name in insert-copy: got %+v", copied)
 	}
+	for _, process := range []string{Name, "fakefilter-copy"} {
+		session := FilterInsertions(process)[1]
+		want := rpc.FilterInsertion{Filter: process + ":" + SessionFilterName, Direction: rpc.FilterImport, Priority: 110,
+			Session: []rpc.FilterSessionFact{{Fact: fieldPeerName, Values: []string{process + "-peer"}}}}
+		if session.Filter != want.Filter || session.Direction != want.Direction || session.Priority != want.Priority ||
+			len(session.Config) != 0 || !slices.EqualFunc(session.Session, want.Session, sameSessionFact) {
+			t.Fatalf("%s's session insertion: got %+v, want %+v", process, session, want)
+		}
+	}
 	reg := Registration(Trigger{Insert: true, Process: "fakefilter-copy"})
-	if len(reg.FilterInsertions) != 1 || reg.FilterInsertions[0].Filter != "fakefilter-copy:judge" {
+	if len(reg.FilterInsertions) != 2 || reg.FilterInsertions[0].Filter != "fakefilter-copy:judge" {
 		t.Fatalf("Registration must declare the process's own reference: got %+v", reg.FilterInsertions)
+	}
+}
+
+// sameSessionFact reports whether two session conditions are equal.
+func sameSessionFact(a, b rpc.FilterSessionFact) bool {
+	return a.Fact == b.Fact && slices.Equal(a.Values, b.Values)
+}
+
+// TestSessionJudgeReportsThePeerName proves the record the session .ci reads:
+// session-judge reports the peer-name session fact it was sent, and the
+// filter it judged as, and a route sent without it reports the absence.
+// Method: one route with peer-name and one without, through the batch.
+func TestSessionJudgeReportsThePeerName(t *testing.T) {
+	var judged []judgement
+	judge := newJudge(Trigger{}, func() {}, func(j judgement) { judged = append(judged, j) })
+	for _, fields := range []string{
+		`{"prefix":{"ipv4/unicast":["10.0.0.0/24"]},"peer-name":"fakefilter-peer"}`,
+		`{"prefix":{"ipv4/unicast":["10.0.0.0/24"]}}`,
+	} {
+		route := rpc.InputFilterRoute(&rpc.FilterUpdateInput{Filter: SessionFilterName, Direction: "import", Peer: "127.0.0.1",
+			Fields: json.RawMessage(fields)})
+		if _, err := judge.evaluate(&route); err != nil {
+			t.Fatalf("evaluate: %v", err)
+		}
+	}
+	want := []judgement{
+		{filter: SessionFilterName, peer: "127.0.0.1", peerName: "fakefilter-peer", prefix: "10.0.0.0/24", transport: transportBatch, verdict: "accept"},
+		{filter: SessionFilterName, peer: "127.0.0.1", peerName: absentPeerName, prefix: "10.0.0.0/24", transport: transportBatch, verdict: "accept"},
+	}
+	if !slices.Equal(judged, want) {
+		t.Fatalf("judged = %+v, want %+v", judged, want)
 	}
 }
