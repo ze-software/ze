@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/plugin"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -180,5 +182,88 @@ func TestPolicyDryRunLibraryReportsWireChanges(t *testing.T) {
 	}
 	if !slices.Equal(result.WireChanges, []string{"AS_PATH set"}) {
 		t.Fatalf("wire-changes = %v, want [AS_PATH set]", result.WireChanges)
+	}
+}
+
+// libraryTypeSessionFacts is a member that passes only when the session it
+// runs under answers the facts the live step gives it: peer-name is the
+// session peer's name, source-peer-name is absent (export: the pasted UPDATE
+// came from no peer), and on import a metadata set succeeds.
+const libraryTypeSessionFacts = "reactor-library-test-session-facts"
+
+// dryRunPeerName is the name the session-facts member requires.
+const dryRunPeerName = "dry-peer"
+
+func init() {
+	routepolicy.MustRegisterFilterType(libraryTypeSessionFacts, nil, nil)
+	policychain.MustRegisterEvaluator(libraryTypeSessionFacts, rpc.OnErrorReject, func(string, map[string]any, routepolicy.InstanceResolver) (policychain.Evaluator, error) {
+		return evaluateDryRunSessionFacts, nil
+	})
+}
+
+// evaluateDryRunSessionFacts is libraryTypeSessionFacts' evaluator.
+func evaluateDryRunSessionFacts(v *policyview.View, _ *policychain.Sets) (policychain.Decision, error) {
+	name, err := readSessionFact(v, policyview.FieldPeerName)
+	if err != nil {
+		return policychain.DecisionReject, err
+	}
+	if !name.Present() || name.Text() != dryRunPeerName {
+		return policychain.DecisionReject, nil
+	}
+	source, err := readSessionFact(v, policyview.FieldSourcePeerName)
+	if err != nil {
+		return policychain.DecisionReject, err
+	}
+	if source.Present() {
+		return policychain.DecisionReject, nil
+	}
+	if v.Session().SenderKnown {
+		rebuilt, ok := policyview.MetadataNamed(filterapi.MetaKeyRebuilt)
+		if !ok {
+			return policychain.DecisionReject, errors.New("rebuilt metadata not registered")
+		}
+		if err := v.SetMetadata(rebuilt, true); err != nil {
+			return policychain.DecisionReject, err
+		}
+	}
+	return policychain.DecisionPass, nil
+}
+
+// readSessionFact reads field through its registered reader.
+func readSessionFact(v *policyview.View, field routepolicy.Field) (policyview.Value, error) {
+	reader, err := policyview.ReaderFor(field)
+	if err != nil {
+		return policyview.Value{}, err
+	}
+	return v.Read(reader)
+}
+
+// TestPolicyDryRunAnswersTheSessionFacts proves show policy test runs a
+// library chain under the session the live step builds: the peer's session
+// facts (policyview.ImportSession on import, ExportSession toward the
+// destination on export, with no source peer for a pasted UPDATE) and, on
+// import, a writable metadata map.
+//
+// Method: the member passes only when peer-name answers the peer's name,
+// source-peer-name answers absent, and on import a metadata set succeeds;
+// otherwise it rejects (or fails, which on-error reject also answers reject).
+// The dry-run passed a session holding only the EBGP flag and the sender AS,
+// so peer-name answered absent and every direction rejected.
+func TestPolicyDryRunAnswersTheSessionFacts(t *testing.T) {
+	for _, direction := range []string{directionImport, directionExport} {
+		t.Run(direction, func(t *testing.T) {
+			r := New(&Config{})
+			settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+			settings.Name = dryRunPeerName
+			if direction == directionImport {
+				settings.ImportPolicy = libraryPolicy(t, libraryTestImport, libraryTypeSessionFacts, routepolicy.FinalAccept)
+			} else {
+				settings.ExportPolicy = libraryPolicy(t, libraryTestExport, libraryTypeSessionFacts, routepolicy.FinalAccept)
+			}
+			r.peers[settings.PeerKey()] = NewPeer(settings)
+			result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun("192.0.2.1", direction, "", libraryTestBody(100), true)
+			require.NoError(t, err)
+			require.Equal(t, dryRunActionAccept, result.Action, "trace %+v", result.Trace)
+		})
 	}
 }

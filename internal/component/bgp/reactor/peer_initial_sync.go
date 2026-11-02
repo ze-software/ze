@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -1149,6 +1150,11 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 	policy := p.settings.ExportPolicy
 	peerAS := p.settings.PeerAS
 	external := p.settings.IsEBGP()
+	// The destination's session facts, as the live export step answers
+	// them (ExportSession): a condition filter reading peer-name or
+	// peer-as judges this peer. The default route is originated here, so
+	// no source peer is known and the source fields answer absent.
+	destination := p.settings.SessionFacts(peerAS)
 	p.mu.RUnlock()
 	if peerAS == 0 {
 		return false
@@ -1170,7 +1176,7 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 		updateText,
 		// The raw body stays unsent: defaultOriginateRejectsRawFilter refused
 		// a raw filter above.
-		p.reactor.policyFilterFunc(wire, nil, policyview.Session{EBGP: external}),
+		p.reactor.policyFilterFunc(wire, nil, policyview.ExportSession(destination, filterapi.PeerFilterInfo{}, false)),
 	)
 	return res.Action != PolicyReject
 }

@@ -534,7 +534,11 @@ A chain that names a library filter instance runs in the dry-run exactly as on
 the session, without counting or logging a failure: a member's trace entry
 shows what it set in `delta` (for example `local-preference 200`), and why it
 failed in `error`. A single-filter override on such a chain runs that one
-filter the same way, followed by the policy's final.
+filter the same way, followed by the policy's final. A filter reading a
+session fact (`peer-name`, `peer-as`, `rs-client`, ...) sees the peer you
+named, on import as the sender and on export as the destination. The pasted
+UPDATE came from no peer, so on export the `source-*` facts are absent, and
+a metadata set on import lasts only for the test.
 
 The dry-run covers the per-peer external-policy stage, not the full ingress
 protocol pipeline. An active named in-process check appears in `trace` with

@@ -1861,12 +1861,18 @@ later member reads; a text delta and NLRI sets that both rewrite the NLRI are re
   `MemberTrace.Apply` writes the sets folded so far, and
   `libraryTraceText` rebuilds them through `rewriteLibrary`, the builder
   `runLibraryChain` takes for the route. A single-filter override runs the
-  one member through `Chain.Only` under the policy's final.
+  one member through `Chain.Only` under the policy's final. The run's session
+  is the one the live step builds (`dryRunSession`): on import the peer's
+  session facts with a fresh writable metadata map, on export the
+  destination's facts with no source peer, since a pasted UPDATE came from
+  none. A member reading `peer-name` or setting a metadata field answers in
+  the dry-run what it answers on the session.
 - **Allocation-free per route.** The compiled chain is immutable and shared;
   each goroutine brings one view and one `policychain.RunSets`, reused across
   runs, and neither escapes the synchronous run.
 
 <!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared, overlayNumeric, overlayCommunity -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- dryRunSession -->
 <!-- source: internal/component/bgp/policychain/match.go -- compileMatchEvaluator, MatchConditions, matchWalk -->
 <!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber, View.SetWire, View.SetNLRI, View.AddPath -->
 <!-- source: internal/component/bgp/policychain/prefix_overlay.go -- overlayPrefix, receivedDrops -->

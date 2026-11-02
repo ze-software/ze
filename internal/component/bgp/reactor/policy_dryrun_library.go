@@ -23,7 +23,7 @@ type libraryDryRun struct {
 	ctxID      bgpctx.ContextID
 	direction  string
 	peer       string
-	internal   bool
+	session    policyview.Session
 	intent     libraryIntentContext
 }
 
@@ -46,8 +46,7 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryD
 		}
 		trace = append(trace, entry)
 	}
-	res := r.runLibraryChain(library, dry.wireUpdate, dry.payload, policyview.Session{EBGP: !dry.internal,
-		Sender: dry.intent.peerAS, SenderKnown: dry.direction == directionImport}, dry.intent,
+	res := r.runLibraryChain(library, dry.wireUpdate, dry.payload, dry.session, dry.intent,
 		dry.direction, "", dry.peer, record)
 	outcome := res.outcome
 	if outcome.Action == policychain.OutcomeWithdraw {

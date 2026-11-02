@@ -155,6 +155,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	r := a.r
 	var policy filterapi.Policy
 	var peerAS, localAS uint32
+	var facts filterapi.PeerFilterInfo
 	internal := false
 	found := false
 	r.mu.RLock()
@@ -168,6 +169,17 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		peerAS = p.settings.PeerAS
 		localAS = p.settings.LocalAS
 		internal = p.settings.IsIBGP()
+		// The peer's session facts, as the live import and export steps
+		// answer them: a session fact field a chain member reads (peer-name,
+		// peer-as, rs-client, ...) then answers in the dry-run what it
+		// answers on the session.
+		facts = p.settings.SessionFacts(peerAS)
+		if direction == directionImport && p.session != nil {
+			// RFC 9494 Section 4.3: the received direction reads whether
+			// this speaker advertised LLGR on the session, as the live
+			// import does (reactor_notify.go).
+			facts.LLGRAdvertised = p.session.localLLGR.Load()
+		}
 		switch direction {
 		case directionImport:
 			policy = p.settings.ImportPolicy
@@ -273,12 +285,12 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	if library != nil {
 		// D-11: a library chain runs as it runs live, display only, its
 		// plugin members reached through the chain (traceLibraryChain).
-		dry := libraryDryRun{wireUpdate: wu, payload: updateBody, ctxID: ctxID, direction: direction, peer: peerAddr, internal: internal,
+		dry := libraryDryRun{wireUpdate: wu, payload: updateBody, ctxID: ctxID, direction: direction, peer: peerAddr, session: dryRunSession(direction, facts),
 			intent: libraryIntentContext{asn4: asn4, localAS: localAS, peerAS: peerAS, asPathEditable: direction == directionImport || !internal}}
 		result, trace, wireChanges = r.traceLibraryChain(library, dry, textBefore)
 	} else {
 		// Run the trace chain using the real filter function (calls plugins via IPC).
-		callFilter := r.policyFilterFunc(wu, updateBody, policyview.Session{EBGP: !internal})
+		callFilter := r.policyFilterFunc(wu, updateBody, dryRunSession(direction, facts))
 		result, trace = tracePolicyFilterChain(
 			policy, !internal, direction, peerAddr, peerAS, textBefore, callFilter,
 		)
@@ -344,6 +356,23 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		ChangedAttrs: changedAttrs,
 		WireChanges:  wireChanges,
 	}, nil
+}
+
+// dryRunSession answers the session show policy test runs a chain under,
+// built as the live step of direction builds it, so a session fact field or a
+// metadata field answers in the dry-run what it answers on the session.
+//
+// On import the session is the peer's (filter_ordered.go importSession) with a
+// fresh writable metadata map (WithImportMetadata): a member's metadata set
+// succeeds as it does live, and the map is discarded with the dry-run. On
+// export the peer is the destination (reactor_api_forward.go ExportSession). A
+// pasted UPDATE came from no peer, so the source facts are unknown and the
+// source fields answer absent, and it carries no received metadata.
+func dryRunSession(direction string, peer filterapi.PeerFilterInfo) policyview.Session {
+	if direction == directionImport {
+		return policyview.ImportSession(peer).WithImportMetadata(make(map[string]any, 2))
+	}
+	return policyview.ExportSession(peer, filterapi.PeerFilterInfo{}, false)
 }
 
 // computeWireChanges mirrors the runtime egress/ingress text-to-wire path

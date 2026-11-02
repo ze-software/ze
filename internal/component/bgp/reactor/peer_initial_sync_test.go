@@ -1027,6 +1027,42 @@ func TestDefaultOriginateFilterReadsDeclaredFields(t *testing.T) {
 	}
 }
 
+// TestDefaultOriginateFilterReadsTheDestinationFacts proves the
+// default-originate condition filter runs under the export session the live
+// step builds: a filter that declared peer-name is sent the destination
+// peer's name. The condition ran under a session holding only the EBGP flag,
+// so peer-name answered absent and the filter was sent no fields.
+func TestDefaultOriginateFilterReadsTheDestinationFacts(t *testing.T) {
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65000, 65001, 1)
+	settings.Name = "edge"
+	settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+	peer := NewPeer(settings)
+	transport := &fieldsTransport{reads: map[string][]string{"guard": {"peer-name", "source-peer-name"}}}
+	peer.reactor = &Reactor{api: liveFilterServer(t), filterTransportSeam: transport}
+
+	prefix, nextHop := netip.MustParsePrefix("0.0.0.0/0"), netip.MustParseAddr("192.0.2.254")
+	ub := message.GetUpdateBuilder(65000, false, true, false)
+	defer message.PutUpdateBuilder(ub)
+	update, err := ub.BuildUnicast(&message.UnicastParams{Prefix: prefix, NextHop: nextHop, Origin: attribute.OriginIGP})
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	sendCtxID, err := bgpctx.Registry.Register(bgpctx.NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001},
+		&capability.EncodingCaps{ASN4: true}, bgpctx.DirectionSend))
+	if err != nil {
+		t.Fatalf("register context: %v", err)
+	}
+	peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, prefix, nextHop, defaultRouteWire(update, sendCtxID))
+	if len(transport.sent) != 1 {
+		t.Fatalf("the filter was called %d times, want 1", len(transport.sent))
+	}
+	want := `{"peer-name":"edge"}`
+	if got := string(transport.sent[0].Fields); got != want {
+		t.Fatalf("fields = %s, want %s", got, want)
+	}
+}
+
 // stubLibraryChain stands for a compiled library chain the default-originate
 // condition must not inherit: the condition runs its one filter alone.
 type stubLibraryChain struct{}
