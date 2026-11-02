@@ -254,7 +254,9 @@ a peer created again under the same name validates its OPEN. The generation
 orders the two. Every OPEN carries the newest forward generation the engine had
 issued when it asked (`rpc.ValidateOpenInput.Generation`), and the stored role
 keeps it. The reactor issues the removal down's `session-generation` as it
-deletes the peer, under the reactor lock (`doRemovePeer`), so it is above the
+deletes the peer, under the reactor lock (`removalLocked`, which every removal
+path calls: `delete bgp peer`, a dynamic member the reactor drops, a reload's
+removal, and the undo of a reload's add), so it is above the
 stamp of every OPEN the removed peer validated before, and no peer of that name
 can validate an OPEN below it. `forgetRemovedPeer` frees a role only when the
 down names a generation above the role's stamp, and otherwise logs
@@ -262,25 +264,23 @@ down names a generation above the role's stamp, and otherwise logs
 generation frees the role with a warning.
 
 A configured peer a commit removes is also handled by `pruneLearnedRoles` at
-config-committed, in whichever process holds the plugin. Entries are left
+config-committed, in whichever process holds the plugin. One entry is left
 behind:
 
 | Case | What is left |
 |------|--------------|
 | An OPEN validated for a peer after its removal down was handled, or after the reactor deleted it (the removal stops the session without waiting for a validation already in flight, and that OPEN's stamp is at or above the removal's) | the role under that peer's key, until an OPEN for the same name replaces it |
-| A dynamic group's member the reactor removes (`removeDynamicPeer`) or a reload replaces with a configured peer at its address: neither emits a down with reason `removed`, and the prune keeps a member's key while its group stays dynamic | the role under the member's `dyn-<addr>` name, until a connection from that address validates an OPEN |
-| A peer a reload added, removed again by that reload's rollback: no down with reason `removed`, and the prune runs only at config-committed | the role under that peer's key, until an OPEN for the same name replaces it |
 
-Each costs one map entry. A peer created again under that name replaces it with
+It costs one map entry. A peer created again under that name replaces it with
 its own OPEN, which `bgp-role` validates before the session can carry a route.
 
 <!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordLearnedRole, remoteRoleRecorded, filterKeyLocked, learnedRolePeerConfiguredLocked, forgetRemovedPeer -->
 <!-- source: internal/component/bgp/plugins/role/removal.go -- handleRoleStructuredEvents, handleRoleEvent -->
-<!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer -->
+<!-- source: internal/component/bgp/reactor/peer_removal.go -- removalLocked, completeRemovals -->
 <!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent, deliverPeerState -->
 <!-- source: internal/component/bgp/config/filter_state_binding.go -- grantFilterOwnersState -->
 
-The `plugin.PeerInfo` `doRemovePeer` passes on carries the peer's AS as an `rpc.RemoteAS`, read through the guarded accessor; for a dynamic peer removed before its AS was negotiated it is the not-yet-known state, never AS 0.
+The `plugin.PeerInfo` `removalLocked` builds carries the peer's AS as an `rpc.RemoteAS`, read through the guarded accessor; for a dynamic peer removed before its AS was negotiated it is the not-yet-known state, never AS 0.
 <!-- source: internal/component/bgp/plugins/role/register.go -- RunEngine, CLIHandler -->
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- removeDynamicPeer -->
 <!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs -->

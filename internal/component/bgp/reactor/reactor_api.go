@@ -1298,12 +1298,13 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 		err := j.Record(
 			func() error {
 				// Deferred first so it runs AFTER the deferred unlock below: the
-				// Cease is written with r.mu released (peerStop, peer.go). It
-				// still runs before this closure returns, so before the add loop.
-				var stop peerStop
+				// Cease and the removal down are sent with r.mu released
+				// (completeRemovals). They still run before this closure
+				// returns, so before the add loop.
+				var removal peerRemoval
 				defer func() {
-					if stop.peer != nil {
-						stop.run()
+					if removal.removed != nil {
+						r.completeRemovals(removal)
 					}
 				}()
 				r.mu.Lock()
@@ -1316,7 +1317,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 					if restarted[peerKey] {
 						subcode = message.NotifyCeaseOtherConfigChange
 					}
-					stop = peerStop{peer: peer, subcode: subcode}
+					stop := peerStop{peer: peer, subcode: subcode}
 					// Stop only cancels the peer's context (Peer.Stop, peer.go);
 					// the peer's own goroutine gives up its AS-wide BGP Identifier
 					// claim later, from cleanup (peer_run.go). A reload that MOVES
@@ -1357,6 +1358,9 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 					// replaced by a configured peer at its address left its
 					// learned role under the member's name.
 					notifyFiltersPeerRemoved(oldSettings.Address, oldSettings.Name, oldSettings.GroupName)
+					// The removal down with a fresh generation, as every
+					// removal path emits it (removalLocked).
+					removal = r.removalLocked(peer, stop)
 					reactorLogger().Debug(label+": removed peer", "peer", peerKey)
 				}
 				return nil
@@ -1384,14 +1388,23 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 			},
 			func() error {
 				r.mu.Lock()
-				defer r.mu.Unlock()
-				if peer, ok := r.peers[addKey]; ok {
-					peer.Stop()
-					delete(r.peers, addKey)
-					// An OPEN this peer validated before the rollback left
-					// state in the filters; the peer is gone, so is that.
-					notifyFiltersPeerRemoved(addSettings.Address, addSettings.Name, addSettings.GroupName)
+				peer, ok := r.peers[addKey]
+				if !ok {
+					r.mu.Unlock()
+					return nil
 				}
+				peer.Stop()
+				delete(r.peers, addKey)
+				// An OPEN this peer validated before the rollback left
+				// state in the filters; the peer is gone, so is that.
+				notifyFiltersPeerRemoved(addSettings.Address, addSettings.Name, addSettings.GroupName)
+				// The removal down with a fresh generation, as every removal
+				// path emits it, so a plugin frees what that OPEN left
+				// (removalLocked). The peer stopped itself above, so the
+				// removal owes no Cease.
+				removal := r.removalLocked(peer, peerStop{})
+				r.mu.Unlock()
+				r.completeRemovals(removal)
 				return nil
 			},
 		)
@@ -1401,9 +1414,9 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 	}
 
 	// One publish for the whole apply (delivery_graph.go). AddPeer republishes
-	// per peer it adds, and that is not enough on its own: the remove loop above
-	// deletes from r.peers INLINE rather than through doRemovePeer, so a reload
-	// that only removes peers would leave their edges in the index.
+	// per peer it adds and completeRemovals per peer the remove loop drops;
+	// this one publish leaves the index matching the whole apply, whatever its
+	// steps published on their own.
 	r.mu.Lock()
 	if r.deliveryPublished {
 		r.publishDeliveryGraphLocked()

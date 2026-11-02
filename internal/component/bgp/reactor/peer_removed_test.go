@@ -69,7 +69,9 @@ func TestDoRemovePeerReturnsRemovedIdentity(t *testing.T) {
 // METHOD: give the peer a live forward generation, remove it, and read the
 // PeerInfo the removal answers.
 //
-// VALIDATES: removed.SessionGeneration is the peer's forwardGeneration.
+// VALIDATES: removed.SessionGeneration is above the generation of the session
+// the removal ends, so the departure covers every route that session wrote,
+// and is the peer's forwardGeneration after the removal.
 // PREVENTS: a removal down carrying generation 0, which made bgp-rs log
 // "recovery-generation 0 names no session", send no WITHDRAW, and keep the
 // deleted peer's routes on every other peer.
@@ -78,14 +80,16 @@ func TestDoRemovePeerNamesTheSessionGeneration(t *testing.T) {
 	addr := netip.MustParseAddr("192.0.2.9")
 	insertTestPeer(r, addr)
 	peer := r.peers[peerKeyFromAddrPort(addr, DefaultBGPPort)]
-	const generation = 7
-	peer.forwardGeneration.Store(generation)
+	peer.advanceForwardGeneration()
+	generation := peer.forwardGeneration.Load()
 
 	removed, _, err := r.doRemovePeer(addr, message.NotifyCeasePeerDeconfigured)
 	require.NoError(t, err)
 	require.NotNil(t, removed)
-	assert.Equal(t, uint64(generation), removed.SessionGeneration,
-		"the removal down names the session generation it ends, never 0")
+	assert.Greater(t, removed.SessionGeneration, generation,
+		"the removal down names a generation above the session it ends, never 0")
+	assert.Equal(t, peer.forwardGeneration.Load(), removed.SessionGeneration,
+		"the removal down names the generation the removal gave the peer")
 }
 
 // TestRemovePeerNilDispatcherNoPanic verifies RemovePeer removes the peer and

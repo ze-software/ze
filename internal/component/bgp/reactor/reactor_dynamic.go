@@ -190,10 +190,11 @@ func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr ne
 }
 
 // removeDynamicPeer removes a dynamic peer and decrements the group counter.
-// Must be called with r.mu held (Lock). It returns the stop that sends the
-// peer's live session, if any, Cease with subcode, and the caller MUST run it
-// after releasing r.mu (peerStop).
-func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) peerStop {
+// Must be called with r.mu held (Lock). It returns the removal that sends the
+// peer's live session, if any, Cease with subcode, then the down with reason
+// rpc.ReasonPeerRemoved, and the caller MUST pass it to completeRemovals after
+// releasing r.mu (peerRemoval).
+func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) peerRemoval {
 	settings := peer.Settings()
 	key := settings.PeerKey()
 	// Same synchronous release as removePeer and the reload-remove path: Stop
@@ -227,11 +228,9 @@ func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) peerStop {
 		}
 	}
 
-	// Republish without this peer's edges, for the reason doRemovePeer does.
-	if r.deliveryPublished {
-		r.publishDeliveryGraphLocked()
-	}
-	return peerStop{peer: peer, subcode: subcode}
+	// The index drops this peer's edges in completeRemovals, after the down
+	// has reached the processes it fed.
+	return r.removalLocked(peer, peerStop{peer: peer, subcode: subcode})
 }
 
 // dynamicGroupsLoad is what one configuration load says about the dynamic
@@ -276,8 +275,8 @@ type dynamicSwap struct {
 // instead.
 //
 // Under r.mu it only plans (planDynamicGroupsLocked) and installs the new group
-// set. The stops and the swaps run after r.mu is released: a stop writes a
-// NOTIFICATION, and a swap is applyHotSwappableSettings, which takes r.mu itself
+// set. The removals and the swaps run after r.mu is released: a removal writes
+// a NOTIFICATION and emits the removal down (completeRemovals), and a swap is applyHotSwappableSettings, which takes r.mu itself
 // and delivers to plugins, and sync.RWMutex is not reentrant. A swap goes
 // through the configured peer's copier and ordered delivery, so a dynamic peer
 // gains a receive-only binding, a BFD opt-in or a filter chain the way a
@@ -322,9 +321,7 @@ func (a *reactorAPIAdapter) reconcileDynamicGroupsJournaled(groups []*DynamicGro
 			r.installDynamicGroupsLocked(groups)
 			r.mu.Unlock()
 
-			for _, stop := range stops {
-				stop.run()
-			}
+			r.completeRemovals(stops...)
 			// An import decision that falls or rises takes the same
 			// transition a configured peer's does (swapPeerJournaled).
 			for _, swap := range swaps {
@@ -372,7 +369,7 @@ func (j *dynamicSwapJournal) SourcePolicyTransaction() (string, time.Time) { ret
 //
 // The caller MUST hold r.mu for writing, and the old groups MUST still be
 // installed: removeDynamicPeer decrements the counter of the group it finds.
-func (r *Reactor) planDynamicGroupsLocked(groups []*DynamicGroupConfig, label string, transactional bool) ([]peerStop, []dynamicSwap, error) {
+func (r *Reactor) planDynamicGroupsLocked(groups []*DynamicGroupConfig, label string, transactional bool) ([]peerRemoval, []dynamicSwap, error) {
 	nextByName := make(map[string]*DynamicGroupConfig, len(groups))
 	for _, g := range groups {
 		nextByName[g.GroupName] = g
@@ -426,7 +423,7 @@ func (r *Reactor) planDynamicGroupsLocked(groups []*DynamicGroupConfig, label st
 
 	// RFC 4486 Section 4: a peer the config no longer accepts is told "Peer
 	// De-configured", a restarted one "Other Configuration Change".
-	stops := make([]peerStop, 0, len(removed)+len(restarted))
+	stops := make([]peerRemoval, 0, len(removed)+len(restarted))
 	for _, peer := range removed {
 		stops = append(stops, r.removeDynamicPeer(peer, message.NotifyCeasePeerDeconfigured))
 	}
@@ -739,9 +736,9 @@ func (r *Reactor) scheduleDynamicPeerCleanup(peer *Peer) {
 			r.mu.Unlock()
 			return
 		}
-		stop := r.removeDynamicPeer(current, message.NotifyCeasePeerDeconfigured)
+		removal := r.removeDynamicPeer(current, message.NotifyCeasePeerDeconfigured)
 		r.mu.Unlock()
-		stop.run()
+		r.completeRemovals(removal)
 		reactorLogger().Info("dynamic peer removed after idle timeout", "addr", addr, "group", groupName)
 	})
 }

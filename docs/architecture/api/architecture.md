@@ -248,15 +248,19 @@ the seven peer-scoped delivery sites in bgp/server/events.go
 ```
 
 The reactor pushes a new index after every peer change: `AddPeer`,
-`doRemovePeer`, `createDynamicPeer`, `removeDynamicPeer`, the end of a
-journaled config apply, and once inside `StartWithContext` before any peer
-starts. A reader takes a pointer snapshot, so no reader sees a half-built index
+`createDynamicPeer`, `completeRemovals`, the end of a journaled config apply,
+and once inside `StartWithContext` before any peer starts. `completeRemovals`
+finishes every removal (`delete bgp peer`, a dynamic member the reactor drops,
+a reload's removal, the undo of a reload's add): it sends the Cease, then the
+state `down` with reason `removed`, and only then drops the peer's edges, so
+the down still reaches every process the peer fed. A reader takes a pointer snapshot, so no reader sees a half-built index
 and no surviving edge misses an event across a reload.
 
 The lookup is one index read and it allocates nothing per event. It replaced a
 scan of every process and every subscription on every delivered message.
 <!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, PeerScopedProcs -->
 <!-- source: internal/component/bgp/reactor/delivery_graph.go -- deliveryPeersFromSettings, publishDeliveryGraphLocked -->
+<!-- source: internal/component/bgp/reactor/peer_removal.go -- completeRemovals, removalLocked -->
 
 The outbound half is enforced at the command rather than in the index: each peer
 a command reached is asked whether it grants this process the message type that

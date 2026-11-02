@@ -292,6 +292,9 @@ type Reactor struct {
 	// bindEvents is eventDispatcher seen through the bind events alone
 	// (peerBindEvents, peer_derived_bindings.go). Set beside it.
 	bindEvents peerBindEvents
+	// removalEvents is eventDispatcher seen through the removal down alone
+	// (peerRemovalEvents, peer_removal.go). Set beside it.
+	removalEvents peerRemovalEvents
 
 	// modifyFailLog bounds the modify-failure warning to one line per reason
 	// per second. The failure is peer-influenceable and fires once per
@@ -1616,6 +1619,7 @@ func (r *Reactor) startAPIServer() error {
 	// Wire BGP-specific handlers regardless of server origin.
 	r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
 	r.bindEvents = r.eventDispatcher
+	r.removalEvents = r.eventDispatcher
 	if r.eventBus != nil {
 		r.eventDispatcher.SetEventBus(r.eventBus)
 	}

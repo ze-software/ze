@@ -18,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // envKeyTestPort names the BGP port every peer of this daemon dials, for the
@@ -276,26 +275,12 @@ func (r *Reactor) removePeer(addr netip.Addr, subcode uint8) error {
 	if err != nil {
 		return err
 	}
-	// The Cease is written after r.mu is released (peerStop). The filters were
-	// told inside doRemovePeer, before this can block.
-	stop.run()
-	// Notify plugins the peer was removed, AFTER releasing r.mu: plugin event
-	// delivery may block, so it must not run under the reactor lock. Emitted
-	// unconditionally here (not via the FSM teardown, which only fires for
-	// Established peers) so it also reaches peers that were mid-reconnect at
-	// removal time. GR uses reason rpc.ReasonPeerRemoved to delete its per-peer
-	// ze_gr_* series and skip route retention.
-	if removed != nil && r.eventDispatcher != nil {
-		r.eventDispatcher.OnPeerStateChange(removed, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
+	// The Cease, the removal down and the index without the peer, in that
+	// order, after releasing r.mu (completeRemovals). The filters were told
+	// inside doRemovePeer, before the Cease can block.
+	if removed != nil {
+		r.completeRemovals(peerRemoval{stop: stop, removed: removed})
 	}
-	// Only now the index drops the peer's edges, so a process it fed stops
-	// being fed for it after it was told the peer is down (delivery_graph.go).
-	// Guarded on the index being live for the same reason AddPeer is.
-	r.mu.Lock()
-	if r.deliveryPublished {
-		r.publishDeliveryGraphLocked()
-	}
-	r.mu.Unlock()
 	return nil
 }
 
@@ -480,46 +465,16 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 	}
 
 	// The peer-to-process index is republished without this peer by
-	// removePeer, AFTER the down event: that event finds its receivers through
+	// completeRemovals, AFTER the down event: that event finds its receivers through
 	// the index (PeerScopedProcs), so an index that no longer named the peer
 	// told no process it fed that it was gone, and the RIB and the route server
 	// kept its routes.
 
-	// Build the removed peer's identity for the post-unlock plugin notification.
-	// SessionGeneration names the session this removal ends, as the FSM
-	// teardown's down does (endNegotiatedSession): a forwarding plugin stamps
-	// its departure with it, and the engine refuses a departure that names
-	// generation 0. This down reaches the processes first and the index then
-	// drops the peer, so the teardown's own down finds no receiver: without
-	// the generation here the route server's withdrawals were refused and the
-	// peer's routes stayed on every other peer.
-	//
-	// The generation is issued here, under r.mu, rather than read: it is then
-	// above the generation every OPEN this peer validated was stamped with
-	// (Peer.validateOpen reads the clock), and no peer created again at this
-	// address or name can validate an OPEN until r.mu is released, so every
-	// OPEN of such a peer is stamped at or above it. A plugin that receives the
-	// down on its event loop and the new peer's OPEN on its callback loop orders
-	// the two by it (rpc.ValidateOpenInput.Generation). A read would leave a
-	// peer that never reached Established on its previous session's
-	// generation, which an OPEN of its own already passed. The departure still
-	// covers every route the peer wrote: each carries an older generation.
-	peer.advanceForwardGeneration()
-	removed := &plugin.PeerInfo{
-		Address:           settings.Address,
-		LocalAddress:      settings.LocalAddress,
-		AddressStr:        peer.addrString,
-		LocalAddressStr:   peer.localAddrString,
-		Name:              settings.Name,
-		GroupName:         settings.GroupName,
-		LocalAS:           settings.LocalAS,
-		PeerAS:            rpc.RemoteASOf(peer.PeerAS()), // guarded: a dynamic peer may still be resolving its ASN
-		RouterID:          settings.RouterID,
-		State:             peer.State().PluginState(),
-		SessionGeneration: peer.forwardGeneration.Load(),
-	}
+	// The identity and the generation the removal down carries, built in the
+	// critical section that deletes the peer (removalLocked).
+	removal := r.removalLocked(peer, stop)
 
-	return removed, stop, nil
+	return removal.removed, removal.stop, nil
 }
 
 // AddDynamicPeer adds a peer to the running reactor from a config tree the
