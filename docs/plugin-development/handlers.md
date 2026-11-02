@@ -635,12 +635,11 @@ for _, line := range result.Warnings {
 }
 ```
 
-The SDK declares the protocol version that carries those lines, so a Go plugin
-receives them with no code of its own. A plugin in another language receives
-them only once it declares `protocol-version` 2; one that declares 1 reads
-status `warning` with no lines (`protocol.md`, "The protocol version").
+Every plugin receives those lines, whatever protocol version it declared: the
+engine writes them in the `wrn` terminator to each plugin
+(`docs/architecture/api/ipc_protocol.md`, "Answer Protocol").
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommandResult, DispatchResult -->
-<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
+<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, answerWarnings -->
 
 ### EmitEvent
 

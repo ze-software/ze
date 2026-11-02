@@ -494,10 +494,8 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	// comparison now sits behind whichever verify handler was registered.
 	p.composeCapabilityVerify()
 
-	// Stage 1: declare-registration. The SDK declares rpc.ProtocolVersion, so
-	// every plugin built on it negotiates the warning lines with no code of its
-	// own (rpc.ProtocolVersionWarningLines). It speaks every version from 1 up,
-	// and an engine answering a version outside that range is refused here
+	// Stage 1: declare-registration. The SDK speaks rpc.ProtocolVersion and
+	// no other, so an engine answering any other version is refused here
 	// rather than spoken to in a contract neither side checked (D-2).
 	reg.ProtocolVersion = rpc.ProtocolVersion
 	answer, err := p.callEngineWithResult(ctx, rpc.MethodDeclareRegistration, &reg)

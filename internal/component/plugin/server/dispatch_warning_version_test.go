@@ -16,47 +16,32 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// TestDispatchWarningLinesFollowNegotiatedVersion checks that the socket path
-// writes a dispatch-command answer for the protocol version the process
-// negotiated at Stage 1. The method: one handler answers status warning with
-// two lines; a process that negotiated nothing, one that negotiated 1 and one
-// that negotiated rpc.ProtocolVersionWarningLines each dispatch it through the
-// runtime handler over a pipe, and the plugin end reads the answer.
+// TestDispatchWarningLinesReachEveryPlugin checks that the socket path writes
+// a dispatch-command answer's warning lines to the plugin that dispatched it.
+// The method: one handler answers status warning with two lines; a process
+// dispatches it through the runtime handler (handleSingleProcessCommandsRPC)
+// over a pipe, and the plugin end reads the answer to its terminator. The
+// process holds no protocol version state, so this one process stands for
+// every plugin, whichever version it declared at Stage 1.
 //
-// VALIDATES: the engine sends the warning lines only to a plugin that declared
-// the version carrying them, and every reader still reads status warning.
-// PREVENTS: an older plugin receiving text in the wrn message field, which its
-// SDK reads as the command's failure.
-func TestDispatchWarningLinesFollowNegotiatedVersion(t *testing.T) {
+// VALIDATES: the engine sends the warning lines to every plugin over the
+// socket, and the plugin reads status warning with no failure text.
+// PREVENTS: the socket path dropping the lines the in-process answer carries.
+func TestDispatchWarningLinesReachEveryPlugin(t *testing.T) {
 	t.Parallel()
 
 	lines := []string{`line 3: unknown leaf "x"`, "line 9: deprecated"}
-	cases := []struct {
-		name    string
-		version int
-		want    []string
-	}{
-		{name: "unnegotiated", version: 0, want: nil},
-		{name: "version 1", version: 1, want: nil},
-		{name: "warning lines", version: rpc.ProtocolVersionWarningLines, want: lines},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			answer := dispatchWarningOverSocket(t, tc.version, lines)
-			assert.Equal(t, rpc.VerdictWarning, answer.Verdict(), "the command completed with a warning")
-			assert.Empty(t, answer.Message(), "no failure text reaches the plugin")
-			assert.Equal(t, tc.want, answer.Warnings(), "the lines follow the negotiated version")
-		})
-	}
+	answer := dispatchWarningOverSocket(t, lines)
+	assert.Equal(t, rpc.VerdictWarning, answer.Verdict(), "the command completed with a warning")
+	assert.Empty(t, answer.Message(), "no failure text reaches the plugin")
+	assert.Equal(t, lines, answer.Warnings(), "the warning lines reach the plugin")
 }
 
 // dispatchWarningOverSocket runs one dispatch-command through
-// handleSingleProcessCommandsRPC for a process that negotiated version, whose
-// handler answers status warning with lines, and returns the answer the plugin
-// end read to its terminator.
-func dispatchWarningOverSocket(t *testing.T, version int, lines []string) *rpc.Answer {
+// handleSingleProcessCommandsRPC for a process whose handler answers status
+// warning with lines, and returns the answer the plugin end read to its
+// terminator.
+func dispatchWarningOverSocket(t *testing.T, lines []string) *rpc.Answer {
 	t.Helper()
 
 	d := NewDispatcher()
@@ -67,9 +52,6 @@ func dispatchWarningOverSocket(t *testing.T, version int, lines []string) *rpc.A
 	pluginSide, engineSide := net.Pipe()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "warning-lines"})
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
-	if version > 0 {
-		proc.SetProtocolVersion(version)
-	}
 
 	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
 	s.ctx, s.cancel = context.WithCancel(context.Background())

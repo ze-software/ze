@@ -73,7 +73,7 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	answer, records := result.(*recordAnswer)
 	require.True(t, records, "the socket path answers a record sequence, got %T", result)
 	var wire bytes.Buffer
-	require.NoError(t, answer.write(&wire, 5, rpc.ProtocolVersion))
+	require.NoError(t, answer.write(&wire, 5))
 
 	direct, err := s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodDispatchCommand, params)
 	require.NoError(t, err)
@@ -320,7 +320,7 @@ func TestDispatchCommandAlwaysAnswersRecords(t *testing.T) {
 			require.True(t, records, "want the record answer, got %T", result)
 
 			var wire bytes.Buffer
-			require.NoError(t, answer.write(&wire, 7, rpc.ProtocolVersion))
+			require.NoError(t, answer.write(&wire, 7))
 			assert.Equal(t, wantLines, strings.Split(strings.TrimSuffix(wire.String(), "\n"), "\n"))
 		})
 	}

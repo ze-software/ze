@@ -24,7 +24,6 @@ type recordingSink struct {
 	order       []string
 	transitions [][2]plugin.PluginStage
 	regErr      error // when non-nil, onRegistration returns it
-	version     int   // the negotiated version onRegistration was handed
 }
 
 func (r *recordingSink) conn() *ipc.PluginConn {
@@ -36,9 +35,8 @@ func (r *recordingSink) pluginName() string { return "widget" }
 
 func (r *recordingSink) registrationName() string { return "widget" }
 
-func (r *recordingSink) onRegistration(_ *rpc.DeclareRegistrationInput, version int) error {
+func (r *recordingSink) onRegistration(*rpc.DeclareRegistrationInput) error {
 	r.order = append(r.order, "OnRegistration")
-	r.version = version
 	return r.regErr
 }
 

@@ -229,22 +229,10 @@ the lower of the two (`rpc.NegotiateProtocolVersion`). One plugin-level version
 serves every contract change, filters included. A declaration with none is the
 text era, and the stage driver refuses it before any sink sees the
 declaration, with one error naming the plugin, the version to declare and
-`docs/plugin-development/protocol.md`. This engine speaks version 2
+`docs/plugin-development/protocol.md`. This engine speaks version 1
 (`rpc.ProtocolVersion`).
-
-The driver hands the negotiated version to the sink, which records it on the
-process (`Process.SetProtocolVersion`), and every answer the engine later
-writes to that plugin is written for it. Version 2 differs from version 1 only
-in the `wrn` terminator: from `rpc.ProtocolVersionWarningLines` on, its message
-field carries the command's warning lines. A plugin that negotiated 1, or a
-process that negotiated nothing, gets the empty field, the exact bytes version
-1 always carried, because a version 1 reader takes any text there as the
-command's failure. The Go SDK declares version 2 and accepts an engine that
-answers 1 or 2.
 <!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
 <!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
-<!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpJSON, recordAnswer -->
-<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 
 **A Stage 2 error response is a REFUSAL, and a dead transport is not.** A
 plugin that cannot take the configuration it was sent answers `#<id> error`
@@ -2706,11 +2694,9 @@ field: `{"status":"error","error":"message"}`. A command that completed and
 stated a warning answers `{"status":"warning","data":...,"warnings":["line"]}`:
 the `warnings` lines are the text the operator's own surface prints beside the
 same answer, such as the parse warnings of `show config dump`. On the socket
-they ride in the `wrn` terminator (ipc_protocol.md, "Answer Protocol"), and
-only to a plugin that negotiated protocol version 2 or later ("Protocol
-version" above): an older plugin reads status `warning` with no lines. The
-in-process `DirectBridge` carries that value directly, because it has no line
-to put a record on.
+they ride in the `wrn` terminator to every plugin (ipc_protocol.md, "Answer
+Protocol"). The in-process `DirectBridge` carries that value directly, because
+it has no line to put a record on.
 
 The Go SDK keeps `DispatchCommand` and `DispatchCommandArgs` answering
 `(status, data, err)`, so a plugin that reads only the status loses nothing it

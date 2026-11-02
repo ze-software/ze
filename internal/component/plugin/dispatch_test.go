@@ -222,7 +222,7 @@ func TestGeneratorAnswerReachesTheEncoder(t *testing.T) {
 	rowCount := rpc.AnswerBufferThreshold + 1
 
 	var answer bytes.Buffer
-	if err := WriteAnswer(&answer, 7, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)}), rpc.ProtocolVersion); err != nil {
+	if err := WriteAnswer(&answer, 7, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)})); err != nil {
 		t.Fatalf("WriteAnswer: %v", err)
 	}
 
@@ -425,7 +425,7 @@ func TestSingleRecordUsesTheSameReaderPath(t *testing.T) {
 		t.Run(fmt.Sprintf("%d rows", rowCount), func(t *testing.T) {
 			var answer bytes.Buffer
 			resp := NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)})
-			if err := WriteAnswer(&answer, 3, resp, rpc.ProtocolVersion); err != nil {
+			if err := WriteAnswer(&answer, 3, resp); err != nil {
 				t.Fatalf("WriteAnswer: %v", err)
 			}
 
@@ -445,7 +445,7 @@ func TestSingleRecordUsesTheSameReaderPath(t *testing.T) {
 
 	t.Run("a payload that is no generator", func(t *testing.T) {
 		var answer bytes.Buffer
-		if err := WriteAnswer(&answer, 3, NewResponse(StatusDone, Map{"version": "1.0"}), rpc.ProtocolVersion); err != nil {
+		if err := WriteAnswer(&answer, 3, NewResponse(StatusDone, Map{"version": "1.0"})); err != nil {
 			t.Fatalf("WriteAnswer: %v", err)
 		}
 		assertAnswerShape(t, readAnswer(t, answer.Bytes()), 3, 1, 0)
@@ -481,7 +481,7 @@ func TestFaultDoesNotEndTheWalk(t *testing.T) {
 
 	var answer bytes.Buffer
 	resp := NewResponse(StatusDone, Records{Key: "leaves", Rows: rows})
-	if err := WriteAnswer(&answer, 9, resp, rpc.ProtocolVersion); err != nil {
+	if err := WriteAnswer(&answer, 9, resp); err != nil {
 		t.Fatalf("WriteAnswer: %v", err)
 	}
 
@@ -548,7 +548,7 @@ func TestTransportErrorEndsTheWalk(t *testing.T) {
 	// head and write 2 is the first held record, so the transport dies while
 	// the second one is being written.
 	transport := &failingWriter{failAt: 3}
-	err := WriteAnswer(transport, 4, NewResponse(StatusDone, Records{Key: "rows", Rows: rows}), rpc.ProtocolVersion)
+	err := WriteAnswer(transport, 4, NewResponse(StatusDone, Records{Key: "rows", Rows: rows}))
 	if !errors.Is(err, errTransportGone) {
 		t.Fatalf("WriteAnswer returned %v, want the transport error", err)
 	}
@@ -706,7 +706,7 @@ func TestStreamedAndBufferedAnswersAreIdentical(t *testing.T) {
 			// same rows.
 			var answer bytes.Buffer
 			streamedResp := NewResponse(StatusDone, Records{Key: tc.key, Fields: tc.fields, Rows: tc.rows()})
-			if err := WriteAnswer(&answer, 11, streamedResp, rpc.ProtocolVersion); err != nil {
+			if err := WriteAnswer(&answer, 11, streamedResp); err != nil {
 				t.Fatalf("WriteAnswer: %v", err)
 			}
 			streamed := reassembleAnswer(t, answer.Bytes())
@@ -790,7 +790,7 @@ func TestBufferedAnswerCarriesRejectedRowsBesideTheRows(t *testing.T) {
 // PREVENTS: an answer's rows silently replacing its rejected rows, or the
 // reverse, in a map with one key.
 func TestReservedEnvelopeKeyIsRefusedOnBothPaths(t *testing.T) {
-	if err := WriteAnswer(&bytes.Buffer{}, 8, NewResponse(StatusDone, Records{Key: rpc.AnswerErrorsKey, Rows: peerRows(2)}), rpc.ProtocolVersion); !errors.Is(err, rpc.ErrReservedEnvelopeKey) {
+	if err := WriteAnswer(&bytes.Buffer{}, 8, NewResponse(StatusDone, Records{Key: rpc.AnswerErrorsKey, Rows: peerRows(2)})); !errors.Is(err, rpc.ErrReservedEnvelopeKey) {
 		t.Errorf("WriteAnswer returned %v, want %v", err, rpc.ErrReservedEnvelopeKey)
 	}
 	if _, err := ResponseJSON(NewResponse(StatusDone, Records{Key: rpc.AnswerErrorsKey, Rows: peerRows(2)}), nil); !errors.Is(err, rpc.ErrReservedEnvelopeKey) {
@@ -808,7 +808,7 @@ func TestReservedEnvelopeKeyIsRefusedOnBothPaths(t *testing.T) {
 func TestEmptyRecordIsRefusedOnBothPaths(t *testing.T) {
 	empty := func(yield func(rpc.RowRecord) bool) { yield(rpc.RowRecord{}) }
 
-	if err := WriteAnswer(&bytes.Buffer{}, 5, NewResponse(StatusDone, Records{Rows: empty}), rpc.ProtocolVersion); !errors.Is(err, rpc.ErrEmptyAnswerRecord) {
+	if err := WriteAnswer(&bytes.Buffer{}, 5, NewResponse(StatusDone, Records{Rows: empty})); !errors.Is(err, rpc.ErrEmptyAnswerRecord) {
 		t.Errorf("WriteAnswer returned %v, want %v", err, rpc.ErrEmptyAnswerRecord)
 	}
 	if _, err := ResponseJSON(NewResponse(StatusDone, Records{Rows: empty}), nil); !errors.Is(err, rpc.ErrEmptyAnswerRecord) {
@@ -824,7 +824,7 @@ func TestEmptyRecordIsRefusedOnBothPaths(t *testing.T) {
 // on a handler's omission rather than answering a terminator that counts zero.
 func TestRecordsWithNoGeneratorIsAnEmptyAnswer(t *testing.T) {
 	var answer bytes.Buffer
-	if err := WriteAnswer(&answer, 6, NewResponse(StatusDone, Records{Key: "peers"}), rpc.ProtocolVersion); err != nil {
+	if err := WriteAnswer(&answer, 6, NewResponse(StatusDone, Records{Key: "peers"})); err != nil {
 		t.Fatalf("WriteAnswer: %v", err)
 	}
 	assertAnswerShape(t, readAnswer(t, answer.Bytes()), 6, 0, 0)
@@ -858,7 +858,7 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 		rowCount := rpc.AnswerBufferThreshold - 1
 
 		var answer bytes.Buffer
-		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)}), rpc.ProtocolVersion); err != nil {
+		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)})); err != nil {
 			t.Fatalf("WriteAnswer: %v", err)
 		}
 
@@ -888,7 +888,7 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 		rowCount := rpc.AnswerBufferThreshold + 1
 
 		var answer bytes.Buffer
-		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)}), rpc.ProtocolVersion); err != nil {
+		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)})); err != nil {
 			t.Fatalf("WriteAnswer: %v", err)
 		}
 
@@ -919,7 +919,7 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 
 		var answer bytes.Buffer
 		records := Records{Key: "peers", Fields: peerColumns, Rows: columnRows(rowCount)}
-		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, records), rpc.ProtocolVersion); err != nil {
+		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, records)); err != nil {
 			t.Fatalf("WriteAnswer: %v", err)
 		}
 
@@ -939,7 +939,7 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 	t.Run("a declared schema within the threshold is still one document", func(t *testing.T) {
 		var answer bytes.Buffer
 		records := Records{Key: "peers", Fields: peerColumns, Rows: columnRows(2)}
-		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, records), rpc.ProtocolVersion); err != nil {
+		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, records)); err != nil {
 			t.Fatalf("WriteAnswer: %v", err)
 		}
 
@@ -983,7 +983,7 @@ func TestStreamAnswerDeclaresFields(t *testing.T) {
 		records := Records{Key: "peers", Fields: peerColumns, Rows: columnRows(rowCount)}
 
 		var wire bytes.Buffer
-		if err := WriteAnswer(&wire, 9, NewResponse(StatusDone, records), rpc.ProtocolVersion); err != nil {
+		if err := WriteAnswer(&wire, 9, NewResponse(StatusDone, records)); err != nil {
 			t.Fatalf("WriteAnswer: %v", err)
 		}
 		lines := readAnswer(t, wire.Bytes())
@@ -1028,7 +1028,7 @@ func TestStreamAnswerDeclaresFields(t *testing.T) {
 		records := Records{Key: "peers", Rows: objectRows(rowCount)}
 
 		var wire bytes.Buffer
-		if err := WriteAnswer(&wire, 9, NewResponse(StatusDone, records), rpc.ProtocolVersion); err != nil {
+		if err := WriteAnswer(&wire, 9, NewResponse(StatusDone, records)); err != nil {
 			t.Fatalf("WriteAnswer: %v", err)
 		}
 		lines := readAnswer(t, wire.Bytes())
@@ -1113,7 +1113,7 @@ func TestABoundedStageStopsTheWalkDuringBuffering(t *testing.T) {
 	}
 
 	var answer bytes.Buffer
-	if err := WriteAnswer(&answer, 12, NewResponse(StatusDone, Records{Key: "peers", Rows: firstTen}), rpc.ProtocolVersion); err != nil {
+	if err := WriteAnswer(&answer, 12, NewResponse(StatusDone, Records{Key: "peers", Rows: firstTen})); err != nil {
 		t.Fatalf("WriteAnswer: %v", err)
 	}
 
@@ -1177,7 +1177,7 @@ func TestRowArityIsRefusedOnBothPaths(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			records := Records{Key: "peers", Fields: peerColumns, Rows: tc.rows(tc.item)}
-			if err := WriteAnswer(&bytes.Buffer{}, 1, NewResponse(StatusDone, records), rpc.ProtocolVersion); !errors.Is(err, tc.want) {
+			if err := WriteAnswer(&bytes.Buffer{}, 1, NewResponse(StatusDone, records)); !errors.Is(err, tc.want) {
 				t.Errorf("WriteAnswer returned %v, want %v", err, tc.want)
 			}
 
@@ -1283,7 +1283,7 @@ func TestRecordOverMaxMessageSizeFaults(t *testing.T) {
 
 			var wire framedWriter
 			records := Records{Key: "peers", Rows: answer.rows()}
-			if err := WriteAnswer(&wire, id, NewResponse(StatusDone, records), rpc.ProtocolVersion); err != nil {
+			if err := WriteAnswer(&wire, id, NewResponse(StatusDone, records)); err != nil {
 				t.Fatalf("WriteAnswer returned %v, want the answer to reach its terminator", err)
 			}
 
@@ -1460,7 +1460,7 @@ func TestAnswerForAgreesWithTheWire(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var wire bytes.Buffer
-			if err := WriteAnswer(&wire, id, tc.resp(), rpc.ProtocolVersion); err != nil {
+			if err := WriteAnswer(&wire, id, tc.resp()); err != nil {
 				t.Fatalf("WriteAnswer: %v", err)
 			}
 			wireRows, head, wireVerdict := wireRecordsOf(t, wire.Bytes())
@@ -1549,7 +1549,7 @@ func TestFailedCommandStatesItsReasonOnTheTerminator(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var wire bytes.Buffer
-			if err := WriteAnswer(&wire, 5, tc.resp(), rpc.ProtocolVersion); err != nil {
+			if err := WriteAnswer(&wire, 5, tc.resp()); err != nil {
 				t.Fatalf("WriteAnswer: %v", err)
 			}
 
@@ -1673,7 +1673,7 @@ func answerAllocs(t *testing.T, w io.Writer, resp *Response) (float64, error) {
 	t.Helper()
 	var writeErr error
 	allocs := testing.AllocsPerRun(pooledAnswerRuns, func() {
-		writeErr = WriteAnswer(w, pooledAnswerID, resp, rpc.ProtocolVersion)
+		writeErr = WriteAnswer(w, pooledAnswerID, resp)
 	})
 	return allocs, writeErr
 }
@@ -1925,7 +1925,7 @@ func TestPooledLineCarriesNoResidue(t *testing.T) {
 	long.Error = strings.Repeat(marker, 8)
 
 	var first bytes.Buffer
-	if err := WriteAnswer(&first, id, long, rpc.ProtocolVersion); err != nil {
+	if err := WriteAnswer(&first, id, long); err != nil {
 		t.Fatalf("WriteAnswer for the long answer: %v", err)
 	}
 	if !bytes.Contains(first.Bytes(), []byte(marker)) {
@@ -1933,7 +1933,7 @@ func TestPooledLineCarriesNoResidue(t *testing.T) {
 	}
 
 	var second bytes.Buffer
-	if err := WriteAnswer(&second, id, NewResponse(StatusDone, sampleData{PeerCount: 1, Name: "core"}), rpc.ProtocolVersion); err != nil {
+	if err := WriteAnswer(&second, id, NewResponse(StatusDone, sampleData{PeerCount: 1, Name: "core"})); err != nil {
 		t.Fatalf("WriteAnswer for the short answer: %v", err)
 	}
 
@@ -2009,7 +2009,7 @@ func TestRecordRowAppendsInPlace(t *testing.T) {
 
 	row := &appendSiteRow{payload: `{"peer":"10.0.0.1"}`}
 	resp := NewResponse(StatusDone, Records{Key: "peers", Rows: appendSiteRows(row, rows)})
-	if err := WriteAnswer(io.Discard, 7, resp, rpc.ProtocolVersion); err != nil {
+	if err := WriteAnswer(io.Discard, 7, resp); err != nil {
 		t.Fatalf("WriteAnswer: %v", err)
 	}
 
@@ -2137,7 +2137,7 @@ func TestRejectedRowIsBuiltOnce(t *testing.T) {
 		}
 
 		var answer bytes.Buffer
-		if err := WriteAnswer(&answer, id, NewResponse(StatusDone, Records{Key: "peers", Rows: rows}), rpc.ProtocolVersion); err != nil {
+		if err := WriteAnswer(&answer, id, NewResponse(StatusDone, Records{Key: "peers", Rows: rows})); err != nil {
 			t.Fatalf("WriteAnswer: %v", err)
 		}
 		if wide.builds != 1 {
@@ -2158,7 +2158,7 @@ func TestRejectedRowIsBuiltOnce(t *testing.T) {
 		}
 
 		records := Records{Key: "peers", Fields: peerColumns, Rows: rows}
-		if err := WriteAnswer(&bytes.Buffer{}, id, NewResponse(StatusDone, records), rpc.ProtocolVersion); !errors.Is(err, rpc.ErrRowArity) {
+		if err := WriteAnswer(&bytes.Buffer{}, id, NewResponse(StatusDone, records)); !errors.Is(err, rpc.ErrRowArity) {
 			t.Fatalf("WriteAnswer returned %v, want %v", err, rpc.ErrRowArity)
 		}
 		if short.builds != 1 {
@@ -2197,7 +2197,7 @@ func BenchmarkRecordAnswerRows(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	if err := WriteAnswer(io.Discard, benchmarkAnswerID, resp, rpc.ProtocolVersion); err != nil {
+	if err := WriteAnswer(io.Discard, benchmarkAnswerID, resp); err != nil {
 		b.Fatalf("WriteAnswer: %v", err)
 	}
 }
@@ -2296,7 +2296,7 @@ func benchmarkPeerRows(rows int) iter.Seq[rpc.RowRecord] {
 // rib-graph functional tests hung 20 s on `show bgp rib ... graph`).
 func TestWriteAnswerRefusedPayloadStillAnswers(t *testing.T) {
 	var wire bytes.Buffer
-	err := WriteAnswer(&wire, 9, NewResponse(StatusDone, RawJSON(`"AS64501\n"`)), rpc.ProtocolVersion)
+	err := WriteAnswer(&wire, 9, NewResponse(StatusDone, RawJSON(`"AS64501\n"`)))
 	if err == nil {
 		t.Fatal("WriteAnswer returned no error for a payload RawJSON refuses")
 	}

@@ -94,11 +94,6 @@ type Process struct {
 	capabilities *plugin.PluginCapabilities // Stage 3 capability declarations
 	stageCh      chan struct{}              // Signals stage completion
 	stageMu      sync.Mutex                 // Protects stage transitions
-	// protocolVersion is the plugin protocol version negotiated at Stage 1
-	// (rpc.NegotiateProtocolVersion). Zero until the handshake negotiates
-	// one, which every writer gated on a version reads as "older than any
-	// feature", so an unnegotiated process is sent version 1 bytes.
-	protocolVersion atomic.Int32
 
 	// startupFail records WHY the 5-stage handshake stopped before
 	// StageRunning, so the engine can report the cause instead of only the
@@ -371,22 +366,6 @@ func (p *Process) SetFormat(format string) {
 // shape every pre-existing subscriber relies on.
 func (p *Process) Envelope() bool {
 	return p.envelope.Load()
-}
-
-// ProtocolVersion reports the plugin protocol version negotiated with this
-// process at Stage 1, or zero before the handshake negotiated one. A writer
-// that sends a later version's bytes only to a reader that negotiated it
-// (plugin.WriteAnswer) reads it. Safe for concurrent use.
-func (p *Process) ProtocolVersion() int {
-	return int(p.protocolVersion.Load())
-}
-
-// SetProtocolVersion records the version the Stage 1 answer told the plugin
-// both sides speak. MUST be called with the value rpc.NegotiateProtocolVersion
-// returned, never the plugin's declared one, which may exceed the engine's.
-// Safe for concurrent use.
-func (p *Process) SetProtocolVersion(version int) {
-	p.protocolVersion.Store(int32(version)) //nolint:gosec // a negotiated version is at most rpc.ProtocolVersion
 }
 
 // SetEnvelope records the process-wide enveloped-delivery preference. Like

@@ -544,18 +544,15 @@ field is never ambiguous. A reader that cannot decode the array refuses the
 line rather than read a completed command as failed. `Answer.Warnings` returns
 the lines after the range over the records has ended.
 
-The lines are negotiated, because a reader from before them parsed a `wrn` line
-with the `end` grammar and took any text in the third field as the command's
-failure. The engine writes them only to a plugin whose Stage 1 answer named
-protocol version 2 or later (`rpc.ProtocolVersionWarningLines`,
-process-protocol.md, "Protocol version"). Every other plugin is sent `0:`
-there, the bytes it always read, so it derives `warning` and never sees the
-text. An in-process answer (`AnswerFor`) carries the lines, because an
-in-process plugin runs the same build's SDK.
+The engine writes the lines to every plugin, with no version negotiation. A
+plugin built on an SDK from before them parsed a `wrn` line with the `end`
+grammar and reads the text as the command's failure; before the first release
+the plugin protocol owes no compatibility to such a plugin, which is rebuilt
+against the SDK of the same Ze release.
 <!-- source: pkg/plugin/rpc/answer_write.go -- appendAnswerTerminatorOf, warningLines -->
 <!-- source: pkg/plugin/rpc/message.go -- parseAnswerWarning -->
-<!-- source: pkg/plugin/rpc/types.go -- Answer.Warnings, ProtocolVersionWarningLines -->
-<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, answerWarnings -->
+<!-- source: pkg/plugin/rpc/types.go -- Answer.Warnings -->
+<!-- source: internal/component/plugin/dispatch.go -- answerWarnings -->
 
 | Terminator | Verdict |
 |------------|---------|

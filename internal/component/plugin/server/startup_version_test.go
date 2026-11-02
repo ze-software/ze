@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 	"testing"
 	"time"
 
@@ -35,8 +34,7 @@ func TestDeclareRegistrationRefusesTextContract(t *testing.T) {
 	sink := &recordingSink{pc: engineConn}
 	err := runStartupHandshake(ctx, sink)
 	require.Error(t, err)
-	declare := `"protocol-version": ` + strconv.Itoa(rpc.ProtocolVersion)
-	for _, want := range []string{"plugin widget", "declared no protocol version", declare, "docs/plugin-development/protocol.md"} {
+	for _, want := range []string{"plugin widget", "declared no protocol version", `"protocol-version": 1`, "docs/plugin-development/protocol.md"} {
 		assert.Contains(t, err.Error(), want)
 	}
 
@@ -55,13 +53,11 @@ func TestDeclareRegistrationRefusesTextContract(t *testing.T) {
 // it gets its own.
 //
 // VALIDATES: AC-18 (spec-filter-wire-0-umbrella, D-2), boundary rows 1 and 2.
-// PREVENTS: a newer plugin speaking a version Ze cannot read, an older one
-// being answered a version it does not speak, and the process recording any
-// version other than the one the answer named (plugin.WriteAnswer reads it).
+// PREVENTS: a newer plugin speaking a version Ze cannot read.
 func TestDeclareRegistrationVersionAnswer(t *testing.T) {
 	t.Parallel()
 
-	for _, declared := range []int{1, rpc.ProtocolVersion, rpc.ProtocolVersion + 1, 7} {
+	for _, declared := range []int{rpc.ProtocolVersion, rpc.ProtocolVersion + 1, 7} {
 		engineConn, pluginMux := newDriverPipe(t)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
@@ -79,9 +75,7 @@ func TestDeclareRegistrationVersionAnswer(t *testing.T) {
 
 		select {
 		case out := <-answer:
-			want := min(declared, rpc.ProtocolVersion)
-			assert.Equal(t, want, out.ProtocolVersion, "a plugin declaring %d is answered the lower of its version and Ze's", declared)
-			assert.Equal(t, want, sink.version, "the sink records the version the answer named, for a plugin declaring %d", declared)
+			assert.Equal(t, rpc.ProtocolVersion, out.ProtocolVersion, "a plugin declaring %d is answered the version Ze speaks", declared)
 		case <-time.After(2 * time.Second):
 			t.Fatalf("no Stage 1 answer for declared version %d", declared)
 		}
@@ -97,9 +91,8 @@ func runAbandonedHandshake(ctx context.Context, sink startupSink) {
 
 // TestNegotiateProtocolVersion pins the boundary rows of the contract version.
 //
-// VALIDATES: AC-9 and AC-18 boundary: absent or 0 refused, 1 answered 1, and
-// any higher declaration answered the lower of it and Ze's version (2 since
-// the warning lines, rpc.ProtocolVersionWarningLines).
+// VALIDATES: AC-9 and AC-18 boundary: absent or 0 refused, 1 answered 1, 2 or
+// more answered 1.
 func TestNegotiateProtocolVersion(t *testing.T) {
 	t.Parallel()
 
@@ -110,6 +103,6 @@ func TestNegotiateProtocolVersion(t *testing.T) {
 	for _, declared := range []int{1, 2, 1000} {
 		got, err := rpc.NegotiateProtocolVersion("p", declared)
 		require.NoError(t, err)
-		assert.Equal(t, min(declared, rpc.ProtocolVersion), got, "declared %d", declared)
+		assert.Equal(t, rpc.ProtocolVersion, got, "declared %d", declared)
 	}
 }
