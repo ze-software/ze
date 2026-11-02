@@ -4,10 +4,13 @@ package support
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -27,8 +30,10 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/resolve"
+	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	zeversion "github.com/ze-software/ze/internal/core/version"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // The collector payload keys shared by the modules in this package.
@@ -41,12 +46,18 @@ const (
 )
 
 // SupportManifest is the top-level metadata written to manifest.json.
+// A local archive names the file it was written to (ArchivePath). An archive
+// the daemon collected for a caller in another process names the store key it
+// was kept under (ArchiveKey) and, in the answer, its size (ArchiveOctets),
+// so the caller reads it back with `show data cat <key>`.
 type SupportManifest struct {
 	SchemaVersion int                     `json:"schema-version"`
 	Hostname      string                  `json:"hostname"`
 	Timestamp     string                  `json:"timestamp"`
 	Reason        string                  `json:"reason,omitempty"`
-	ArchivePath   string                  `json:"archive-path"`
+	ArchivePath   string                  `json:"archive-path,omitempty"`
+	ArchiveKey    string                  `json:"archive-key,omitempty"`
+	ArchiveOctets int                     `json:"archive-octets,omitempty"`
 	Modules       map[string]ModuleResult `json:"modules"`
 }
 
@@ -62,170 +73,299 @@ type moduleData struct {
 	data []byte
 }
 
-// Run executes the request support archive command.
+// archivePath is the command path the handler is registered under.
+const archivePath = "request support archive"
+
+// The leaves of the command's YANG node (ze-support-cmd.yang). Each makes the
+// choice its local flag makes, so a remote caller, whose `--flag` the daemon
+// refuses, can make it too.
+const (
+	leafModule  = "module"
+	leafExclude = "exclude"
+	leafSince   = "since"
+	leafReason  = "reason"
+)
+
+// archiveRequest is what one call asks for, from its leaves and, on the local
+// route, its flags.
+type archiveRequest struct {
+	jsonOutput  bool
+	sensitive   bool
+	listModules bool
+	help        bool
+	configPath  string
+	outputDir   string
+	reason      string
+	since       string
+	includeStr  string
+	excludeStr  string
+}
+
+// Run is the `ze request support archive` spelling: the handler on the local
+// route, its answer printed as that route prints it.
 func Run(validated command.ValidatedArgs) int {
-	args := validated.Tokens()
-	var (
-		jsonOutput  bool
-		sensitive   bool
-		listModules bool
-		configPath  string
-		outputDir   string
-		reason      string
-		since       string
-		includeStr  string
-		excludeStr  string
-	)
+	return command.PrintLocalAnswer(archivePath, command.AnswerLocal(Answer, validated))
+}
 
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--json":
-			jsonOutput = true
-		case "--sensitive":
-			sensitive = true
-		case "--list-modules":
-			listModules = true
-		case "help", "-h", "--help":
-			usage()
-			return 0
-		case "--module":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "error: --module requires a value")
-				return 1
-			}
-			i++
-			includeStr = args[i]
-		case "--exclude":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "error: --exclude requires a value")
-				return 1
-			}
-			i++
-			excludeStr = args[i]
-		case "--since":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "error: --since requires a value")
-				return 1
-			}
-			i++
-			since = args[i]
-		case "--reason":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "error: --reason requires a value")
-				return 1
-			}
-			i++
-			reason = args[i]
-		case "--output":
-			if i+1 >= len(args) {
-				fmt.Fprintln(os.Stderr, "error: --output requires a value")
-				return 1
-			}
-			i++
-			outputDir = args[i]
-		default:
-			if strings.HasPrefix(args[i], "-") {
-				fmt.Fprintf(os.Stderr, "error: unknown flag: %s\n", args[i])
-				usage()
-				return 1
-			}
-			if configPath != "" {
-				fmt.Fprintf(os.Stderr, "error: unexpected argument: %s\n", args[i])
-				usage()
-				return 1
-			}
-			configPath = args[i]
-		}
+// Answer is the handler of `request support archive`. It writes nothing
+// itself (command.LocalDataHandler).
+//
+// On the local route it collects into a file under --output (default the
+// working directory) and answers the archive's path, or its manifest under
+// --json, exactly as the command always printed. On the daemon route the
+// caller's host is not the daemon's, so no directory of the caller's can be
+// named: the daemon keeps the archive in its store under a registered key
+// (zefs.KeySupportArchive), answers the manifest naming that key, and the
+// caller reads the bytes with `show data cat <key>`. --output is refused
+// there by name.
+func Answer(validated command.ValidatedArgs) command.LocalAnswer {
+	route := validated.Route()
+	req, refusal, refused := parseArchiveRequest(validated)
+	if refused {
+		return refusal
 	}
-
-	if listModules {
-		names := ModuleNames()
-		for _, name := range names {
-			os.Stdout.WriteString(name + "\n") //nolint:errcheck // CLI output
-		}
-		return 0
+	if req.help {
+		return command.LocalAnswer{Diagnostic: usageText()}
 	}
-
-	if includeStr != "" && excludeStr != "" {
-		fmt.Fprintln(os.Stderr, "error: --module and --exclude are mutually exclusive")
-		return 1
+	if req.listModules {
+		return command.LocalAnswer{Payload: command.Blob(textbuf.Join(ModuleNames(), "\n") + "\n")}
+	}
+	if req.outputDir != "" && !route.CallerLocal() {
+		return command.LocalRefusal(1, "error: --output names a directory on the caller's host, which the daemon cannot write; "+
+			"the daemon keeps the archive in its store and answers the key 'show data cat <key>' reads, "+
+			"or run 'ze request support archive --output <dir>' on the host that should hold the file\n")
+	}
+	if req.includeStr != "" && req.excludeStr != "" {
+		return command.LocalRefusal(1, "error: --module and --exclude are mutually exclusive\n")
 	}
 
 	var include, exclude []string
-	if includeStr != "" {
-		include = strings.Split(includeStr, ",")
+	if req.includeStr != "" {
+		include = strings.Split(req.includeStr, ",")
 	}
-	if excludeStr != "" {
-		exclude = strings.Split(excludeStr, ",")
+	if req.excludeStr != "" {
+		exclude = strings.Split(req.excludeStr, ",")
 	}
-
 	modules, errMsg := filterModules(include, exclude)
 	if errMsg != "" {
-		fmt.Fprintln(os.Stderr, "error: "+errMsg)
-		return 1
+		return command.LocalRefusal(1, "error: "+errMsg+"\n")
 	}
 
-	if reason != "" && len(reason) > 256 {
+	reason := req.reason
+	if len(reason) > 256 {
 		reason = reason[:256]
 	}
 
 	var sinceTime time.Time
-	if since != "" {
+	if req.since != "" {
 		var parseErr error
-		sinceTime, parseErr = parseSince(since)
+		sinceTime, parseErr = parseSince(req.since)
 		if parseErr != nil {
-			fmt.Fprintln(os.Stderr, "error: --since: "+parseErr.Error())
-			return 1
+			return command.LocalRefusal(1, "error: --since: "+parseErr.Error()+"\n")
 		}
 	}
 
-	manifest, err := collect(modules, &collectOptions{
+	configPath := req.configPath
+	if configPath != "" {
+		confined, err := command.CallerPath(route, archivePath, validated.Tokens(), configPath)
+		if err != nil {
+			return command.LocalRefusal(1, command.LocalErrorLine(err))
+		}
+		configPath = confined
+	}
+	opts := &collectOptions{
 		ConfigPath: configPath,
-		Since:      since,
+		Since:      req.since,
 		SinceTime:  sinceTime,
-		Sensitive:  sensitive,
-	}, reason, outputDir)
+		Sensitive:  req.sensitive,
+	}
+
+	if !route.CallerLocal() {
+		return storeAnswer(validated.Context(), modules, opts, reason)
+	}
+	manifest, err := collect(modules, opts, reason, req.outputDir)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error: "+err.Error())
-		return 1
+		return command.LocalRefusal(1, "error: "+err.Error()+"\n")
 	}
-
-	if jsonOutput {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(manifest); err != nil {
-			fmt.Fprintln(os.Stderr, "error: "+err.Error())
-			return 1
-		}
-		return 0
+	if !req.jsonOutput {
+		return command.LocalAnswer{Payload: command.Blob(manifest.ArchivePath + "\n")}
 	}
-
-	os.Stdout.WriteString(manifest.ArchivePath + "\n") //nolint:errcheck // CLI output
-	return 0
+	encoded, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return command.LocalRefusal(1, "error: "+err.Error()+"\n")
+	}
+	return command.LocalAnswer{Payload: command.Blob(append(encoded, '\n'))}
 }
 
-func collect(modules map[string]moduleCollector, opts *collectOptions, reason, outputDir string) (*SupportManifest, error) {
-	hostname, _ := os.Hostname()
-	now := time.Now().UTC()
-	ts := now.Format("20060102-150405")
+// storeAnswer collects for a caller in another process and keeps the archive
+// in the daemon's store. The archive is bounded by what one remote answer
+// carries (command.BlobRemoteOctetsMax), because `show data cat` must hand it
+// back whole: a larger one is refused before it is stored, with its size and
+// the local command that writes it to a file instead.
+func storeAnswer(ctx context.Context, modules map[string]moduleCollector, opts *collectOptions, reason string) command.LocalAnswer {
+	manifest, archive, err := collectToMemory(ctx, modules, opts, reason)
+	if err != nil {
+		return command.LocalRefusal(1, "error: "+err.Error()+"\n")
+	}
+	if len(archive) > command.BlobRemoteOctetsMax {
+		var tb textbuf.Buffer
+		tb.Str("error: the support archive is ").Int(int64(len(archive))).Str(" bytes, more than the ").
+			Int(command.BlobRemoteOctetsMax).Str(" a remote answer carries; ").
+			Str("narrow it with module or exclude, or run 'ze request support archive --output <dir>' on the router\n")
+		return command.LocalRefusal(1, tb.String())
+	}
+	if err := statestore.Write(manifest.ArchiveKey, archive); err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: the support archive could not be stored under ").Str(manifest.ArchiveKey).Str(": ").Err(err).
+			Str("; run 'ze request support archive --output <dir>' on the router to write it to a file\n")
+		return command.LocalRefusal(1, tb.String())
+	}
+	manifest.ArchiveOctets = len(archive)
+	return command.LocalAnswer{Payload: manifest}
+}
 
+// parseArchiveRequest reads the leaves, then the flags among the tokens no
+// leaf keyword took. A flag making the choice a leaf already made is refused,
+// naming both, so the call cannot mean two things. It answers the request, or
+// the refusal and true.
+func parseArchiveRequest(validated command.ValidatedArgs) (archiveRequest, command.LocalAnswer, bool) {
+	var req archiveRequest
+	fromLeaf := map[string]*string{
+		leafModule:  &req.includeStr,
+		leafExclude: &req.excludeStr,
+		leafSince:   &req.since,
+		leafReason:  &req.reason,
+	}
+	for leaf, target := range fromLeaf {
+		if value, found := validated.Keyed(leaf); found {
+			*target = value
+		}
+	}
+	fromFlag := map[string]string{
+		"--module":  leafModule,
+		"--exclude": leafExclude,
+		"--since":   leafSince,
+		"--reason":  leafReason,
+		"--output":  "",
+	}
+
+	args := validated.PositionalTokens()
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--json":
+			req.jsonOutput = true
+			continue
+		case "--sensitive":
+			req.sensitive = true
+			continue
+		case "--list-modules":
+			req.listModules = true
+			continue
+		case "help", "-h", "--help":
+			req.help = true
+			return req, command.LocalAnswer{}, false
+		}
+		leaf, valued := fromFlag[args[i]]
+		if !valued {
+			if refusal, refused := positionalArgument(&req, args[i]); refused {
+				return req, refusal, true
+			}
+			continue
+		}
+		if i+1 >= len(args) {
+			return req, command.LocalRefusal(1, "error: "+args[i]+" requires a value\n"), true
+		}
+		i++
+		if leaf == "" {
+			req.outputDir = args[i]
+			continue
+		}
+		if _, found := validated.Keyed(leaf); found {
+			return req, command.LocalRefusal(1, "error: "+args[i-1]+" and the "+leaf+" leaf make the same choice; give one of them\n"), true
+		}
+		*fromLeaf[leaf] = args[i]
+	}
+	return req, command.LocalAnswer{}, false
+}
+
+// positionalArgument takes a token no flag or leaf claimed: the config file,
+// once. A second one, or an unknown flag, is refused with the usage.
+func positionalArgument(req *archiveRequest, token string) (command.LocalAnswer, bool) {
+	if strings.HasPrefix(token, "-") {
+		return command.LocalRefusal(1, "error: unknown flag: "+token+"\n"+usageText()), true
+	}
+	if req.configPath != "" {
+		return command.LocalRefusal(1, "error: unexpected argument: "+token+"\n"+usageText()), true
+	}
+	req.configPath = token
+	return command.LocalAnswer{}, false
+}
+
+// archiveName names an archive by host and time, so two archives of one host
+// never share a file name or a store key.
+func archiveName(hostname string, now time.Time) string {
 	var tb textbuf.Buffer
-	archiveName := tb.Str("ze-support-").Str(hostname).Byte('-').Str(ts).Str(".tar.gz").String()
+	return tb.Str("ze-support-").Str(hostname).Byte('-').Str(now.Format("20060102-150405")).Str(".tar.gz").String()
+}
+
+// collect writes an archive into outputDir (the working directory when empty)
+// and answers its manifest. It is the local route's collection, which lives as
+// long as the operator's process.
+func collect(modules map[string]moduleCollector, opts *collectOptions, reason, outputDir string) (*SupportManifest, error) {
 	if outputDir == "" {
 		outputDir = "."
 	}
-	archivePath := filepath.Join(outputDir, archiveName)
-
 	if info, err := os.Stat(outputDir); err != nil || !info.IsDir() {
-		return nil, errors.New(tb.Reset().Str("output directory does not exist: ").Str(outputDir).String())
+		var tb textbuf.Buffer
+		return nil, errors.New(tb.Str("output directory does not exist: ").Str(outputDir).String())
 	}
+	manifest, collected, err := gather(context.Background(), modules, opts, reason)
+	if err != nil {
+		return nil, err
+	}
+	now, _ := time.Parse(time.RFC3339, manifest.Timestamp)
+	manifest.ArchivePath = filepath.Join(outputDir, archiveName(manifest.Hostname, now))
+	if err := writeArchiveFile(manifest, collected); err != nil {
+		return nil, err
+	}
+	return manifest, nil
+}
+
+// collectToMemory builds an archive for the daemon's store and answers its
+// manifest, naming the key it is to be kept under, and its bytes. It stops
+// when ctx ends: the caller that asked for it has gone.
+func collectToMemory(ctx context.Context, modules map[string]moduleCollector, opts *collectOptions, reason string) (*SupportManifest, []byte, error) {
+	manifest, collected, err := gather(ctx, modules, opts, reason)
+	if err != nil {
+		return nil, nil, err
+	}
+	now, _ := time.Parse(time.RFC3339, manifest.Timestamp)
+	manifest.ArchiveKey = zefs.KeySupportArchive.Key(archiveName(manifest.Hostname, now))
+	manifestData, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		var tb textbuf.Buffer
+		return nil, nil, errors.New(tb.Str("marshal manifest: ").Err(err).String())
+	}
+	var archive bytes.Buffer
+	if err := writeArchive(&archive, manifestData, collected); err != nil {
+		return nil, nil, err
+	}
+	return manifest, archive.Bytes(), nil
+}
+
+// gather runs each selected module, in name order, and answers the manifest
+// and each module's data. It checks ctx before each module, so a request that
+// ended stops the collection between modules rather than after all of them.
+func gather(ctx context.Context, modules map[string]moduleCollector, opts *collectOptions, reason string) (*SupportManifest, []moduleData, error) {
+	hostname, _ := os.Hostname()
+	now := time.Now().UTC().Truncate(time.Second)
+	var tb textbuf.Buffer
 
 	manifest := &SupportManifest{
 		SchemaVersion: diagnostic.SchemaVersion,
 		Hostname:      hostname,
 		Timestamp:     now.Format(time.RFC3339),
 		Reason:        reason,
-		ArchivePath:   archivePath,
 		Modules:       make(map[string]ModuleResult, len(modules)),
 	}
 
@@ -238,6 +378,10 @@ func collect(modules map[string]moduleCollector, opts *collectOptions, reason, o
 	slices.Sort(names)
 
 	for _, name := range names {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, errors.New(tb.Reset().Str("the request ended before module ").Str(name).
+				Str(" was collected: ").Err(err).String())
+		}
 		fn := modules[name]
 		start := time.Now()
 		result, err := runCollector(fn, opts)
@@ -270,17 +414,7 @@ func collect(modules map[string]moduleCollector, opts *collectOptions, reason, o
 		}
 		collected = append(collected, moduleData{name: name, data: data})
 	}
-
-	manifestData, err := json.MarshalIndent(manifest, "", "  ")
-	if err != nil {
-		return nil, errors.New(tb.Reset().Str("marshal manifest: ").Err(err).String())
-	}
-
-	if err := writeArchive(archivePath, manifestData, collected); err != nil {
-		return nil, err
-	}
-
-	return manifest, nil
+	return manifest, collected, nil
 }
 
 func runCollector(fn moduleCollector, opts *collectOptions) (result any, err error) {
@@ -293,11 +427,18 @@ func runCollector(fn moduleCollector, opts *collectOptions) (result any, err err
 	return fn(opts)
 }
 
-func writeArchive(path string, manifestData []byte, modules []moduleData) (retErr error) {
+// writeArchiveFile writes the archive to manifest.ArchivePath, which it
+// creates and never replaces; a partial file is removed on failure.
+func writeArchiveFile(manifest *SupportManifest, modules []moduleData) (retErr error) {
 	var tb textbuf.Buffer
+	manifestData, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return errors.New(tb.Str("marshal manifest: ").Err(err).String())
+	}
+	path := manifest.ArchivePath
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o600) //nolint:gosec // path is constructed from hostname+timestamp, not user input
 	if err != nil {
-		return errors.New(tb.Str("create archive: ").Err(err).String())
+		return errors.New(tb.Reset().Str("create archive: ").Err(err).String())
 	}
 	defer func() {
 		if retErr != nil {
@@ -306,7 +447,20 @@ func writeArchive(path string, manifestData []byte, modules []moduleData) (retEr
 		}
 	}()
 
-	gw := gzip.NewWriter(f)
+	if err := writeArchive(f, manifestData, modules); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return errors.New(tb.Reset().Str("close file: ").Err(err).String())
+	}
+	return nil
+}
+
+// writeArchive writes the gzip-compressed tar of the manifest and each
+// module's data to w.
+func writeArchive(w io.Writer, manifestData []byte, modules []moduleData) error {
+	var tb textbuf.Buffer
+	gw := gzip.NewWriter(w)
 	tw := tar.NewWriter(gw)
 
 	if err := writeTarEntry(tw, "manifest.json", manifestData); err != nil {
@@ -324,9 +478,6 @@ func writeArchive(path string, manifestData []byte, modules []moduleData) (retEr
 	}
 	if err := gw.Close(); err != nil {
 		return errors.New(tb.Reset().Str("close gzip: ").Err(err).String())
-	}
-	if err := f.Close(); err != nil {
-		return errors.New(tb.Reset().Str("close file: ").Err(err).String())
 	}
 	return nil
 }
@@ -643,8 +794,10 @@ func parseSince(s string) (time.Time, error) {
 	return time.Time{}, errors.New("expected duration (e.g. 2h, 30m) or date (e.g. 2026-05-25, 2026-05-25T14:00:00Z)")
 }
 
-func usage() {
-	os.Stderr.WriteString("Usage: ze request support archive [options] [<config-file>]\n" + //nolint:errcheck // CLI help
+// usageText is the command's usage, printed on stderr by the local route.
+func usageText() string {
+	var tb textbuf.Buffer
+	return tb.Str("Usage: ze request support archive [options] [<config-file>]\n" +
 		"\nGenerate a tech-support archive for troubleshooting.\n" +
 		"\nOptions:\n" +
 		"  --module M       Collect only named modules (comma-separated)\n" +
@@ -654,7 +807,6 @@ func usage() {
 		"  --sensitive      Include passwords and secrets (default: redacted)\n" +
 		"  --output DIR     Output directory (default: current directory)\n" +
 		"  --json           Output manifest JSON to stdout\n" +
-		"  --list-modules   List available modules and exit\n")
-	var tb2 textbuf.Buffer
-	tb2.Str("\nModules: ").Str(ModuleList()).Byte('\n').StdErr() //nolint:errcheck // CLI help
+		"  --list-modules   List available modules and exit\n").
+		Str("\nModules: ").Str(ModuleList()).Byte('\n').String()
 }

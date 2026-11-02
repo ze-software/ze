@@ -4,6 +4,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -92,5 +94,45 @@ func TestShowDataCatAnswersTheStoredBytes(t *testing.T) {
 	if missing.Payload != nil || missing.Code != 2 || len(missing.Diagnostic) < len("error: ") ||
 		missing.Diagnostic[:len("error: ")] != "error: " {
 		t.Errorf("cat of a missing key = %+v; want an error line and code 2", missing)
+	}
+}
+
+// TestShowDataCatBoundedOnDaemonRoute reads a value larger than one remote
+// answer carries.
+//
+// VALIDATES: R-7. On the daemon route the read is refused, naming the key,
+// its size, the bound and the local `ze data cat <key>`; on the local route
+// the same value is answered whole.
+// PREVENTS: one `show data cat` response carrying an unbounded value, base64
+// inflated, to a remote caller.
+func TestShowDataCatBoundedOnDaemonRoute(t *testing.T) {
+	dir := t.TempDir()
+	owner, err := storage.Create(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	large := make([]byte, command.BlobRemoteOctetsMax+1)
+	if err := owner.WriteKey("meta/large", large); err != nil {
+		t.Fatal(err)
+	}
+	if err := owner.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "database")
+
+	remote := command.AnswerRemote(dataCat, commandtest.Args("--path", path, "meta/large"))
+	if remote.Payload != nil || remote.Code == 0 {
+		t.Fatalf("daemon route answered code %d with a payload %T, want a refusal", remote.Code, remote.Payload)
+	}
+	for _, want := range []string{"meta/large", strconv.Itoa(len(large)), strconv.Itoa(command.BlobRemoteOctetsMax), "'ze data cat meta/large'"} {
+		if !strings.Contains(remote.Diagnostic, want) {
+			t.Errorf("refusal %q does not name %q", remote.Diagnostic, want)
+		}
+	}
+
+	local := command.AnswerLocal(dataCat, commandtest.Args("--path", path, "meta/large"))
+	blob, isBlob := local.Payload.(command.Blob)
+	if !isBlob || len(blob) != len(large) || local.Code != 0 {
+		t.Errorf("local route answered code %d and %d bytes, want the whole value", local.Code, len(blob))
 	}
 }

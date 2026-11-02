@@ -15,6 +15,7 @@ package cli
 
 import (
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -91,7 +92,27 @@ func catAnswer(storePath string, args []string) command.LocalAnswer {
 
 // dataCat answers `show data cat`. The store path may be given as --path
 // anywhere among the words, as `ze data --path <store> cat <key>` takes it.
+//
+// On the daemon route the answer is bounded (command.BlobRemoteOctetsMax): a
+// value larger than one response carries is refused with its size and the
+// local command that reads it on the host holding the store.
 func dataCat(validated command.ValidatedArgs) command.LocalAnswer {
 	storePath, remaining := extractPathFlag(validated.Tokens())
-	return catAnswer(storePath, remaining)
+	answer := catAnswer(storePath, remaining)
+	if validated.Route().CallerLocal() {
+		return answer
+	}
+	blob, isBlob := answer.Payload.(command.Blob)
+	if !isBlob {
+		return answer
+	}
+	if len(blob) <= command.BlobRemoteOctetsMax {
+		return answer
+	}
+	var tb textbuf.Buffer
+	tb.Str("error: ").Str(remaining[0]).Str(" holds ").Int(int64(len(blob))).
+		Str(" bytes, more than the ").Int(command.BlobRemoteOctetsMax).
+		Str(" a remote answer carries; run 'ze data cat ").Str(remaining[0]).
+		Str("' on the host that holds the store\n")
+	return command.LocalRefusal(1, tb.String())
 }

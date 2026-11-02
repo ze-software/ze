@@ -68,3 +68,9 @@ var (
 	KeyCACert = MustRegister(KeyEntry{Pattern: "meta/ca/cert", Description: "Local CA root certificate (PEM)"})
 	KeyCAKey  = MustRegister(KeyEntry{Pattern: "meta/ca/key", Description: "Local CA root private key (PEM)", Private: true})
 )
+
+// A support archive the daemon collected for a caller in another process,
+// which `show data cat <key>` reads back (internal/component/support
+// storeAnswer). The archive redacts secrets, as every archive does, so the
+// pattern stays listable.
+var KeySupportArchive = MustRegister(KeyEntry{Pattern: "support/archive/{name}", Description: "Support archive the daemon collected for a remote caller (tar.gz)"})

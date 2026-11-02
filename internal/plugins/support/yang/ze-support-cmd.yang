@@ -3,6 +3,7 @@ module ze-support-cmd {
     prefix supportcmd;
     import ze-extensions { prefix ze; }
     description "The request support archive command, owned by the support plugin, which registers its handler. See the plugin self-containment rule.";
+    revision 2026-11-02 { description "Declare the module, exclude, since and reason leaves, so every surface can make the choices the daemon refuses as flags."; }
     revision 2026-10-12 { description "Rename support to request support archive: the first word of a command is its verb."; }
     revision 2026-10-08 { description "Initial: declare the support command the support plugin already served."; }
 
@@ -21,6 +22,30 @@ module ze-support-cmd {
 when you report an issue. Secrets are redacted unless asked for. Modules can be selected
 or excluded, and a time window narrows the logs the archive holds.";
                 ze:help "Collect logs, config, state and diagnostics into one archive.";
+
+                leaf module {
+                    type string;
+                    description "Only the named modules are collected, given as a comma-separated list of
+module names. Not given together with exclude.";
+                    ze:help "Collect only these modules (comma-separated).";
+                }
+                leaf exclude {
+                    type string;
+                    description "Every module except the named ones is collected, given as a comma-separated
+list of module names. Not given together with module.";
+                    ze:help "Collect every module except these (comma-separated).";
+                }
+                leaf since {
+                    type string;
+                    description "The logs the archive holds start at this time: a duration back from now
+(2h, 30m) or a date or time (2026-05-25, 2026-05-25T14:00:00Z).";
+                    ze:help "Start the logs at this time or this long ago.";
+                }
+                leaf reason {
+                    type string;
+                    description "Free text recorded in the archive's manifest, cut at 256 characters.";
+                    ze:help "Why the archive was collected, recorded in its manifest.";
+                }
             }
         }
     }

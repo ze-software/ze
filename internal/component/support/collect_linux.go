@@ -6,7 +6,6 @@ package support
 
 import (
 	"errors"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -18,12 +17,20 @@ import (
 	"github.com/ze-software/ze/internal/core/procfs"
 )
 
+// collectDmesgInfo reads the kernel ring buffer from /dev/kmsg up to its
+// current end, keeping the last maxEntries records.
+//
+// The descriptor is read with raw read(2), never through an *os.File: os
+// registers a non-blocking descriptor with the Go poller, and a poller Read
+// that meets EAGAIN parks until the kernel logs another line instead of
+// answering it. On a quiet host that is forever, and the archive with it.
+// EAGAIN is the end of the buffer (Documentation/ABI/testing/dev-kmsg).
 func collectDmesgInfo(since time.Time) (any, error) {
-	f, err := os.OpenFile("/dev/kmsg", os.O_RDONLY|syscall.O_NONBLOCK, 0) //nolint:gosec // fixed kernel path
+	fd, err := syscall.Open("/dev/kmsg", syscall.O_RDONLY|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
 	if err != nil {
-		return nil, err
+		return nil, &os.PathError{Op: "open", Path: "/dev/kmsg", Err: err}
 	}
-	defer f.Close() //nolint:errcheck // read-only fd
+	defer syscall.Close(fd) //nolint:errcheck // read-only fd
 
 	var sinceUs uint64
 	if !since.IsZero() {
@@ -34,8 +41,24 @@ func collectDmesgInfo(since time.Time) (any, error) {
 	entries := make([]map[string]any, 0, maxEntries)
 	buf := make([]byte, 8192)
 
+	// Bounded by the ring buffer: the loop ends at EAGAIN, which the kernel
+	// answers once the reader reaches the newest record.
 	for {
-		n, readErr := f.Read(buf)
+		n, readErr := syscall.Read(fd, buf)
+		if errors.Is(readErr, syscall.EINTR) {
+			continue
+		}
+		// EPIPE: records this reader had not reached were overwritten. The
+		// next read continues at the oldest record still held
+		// (Documentation/ABI/testing/dev-kmsg), so it is no failure.
+		if errors.Is(readErr, syscall.EPIPE) {
+			continue
+		}
+		// A zero read with no error is end of file, which /dev/kmsg does not
+		// answer; ending on it keeps the loop bounded if a kernel ever does.
+		if readErr == nil && n == 0 {
+			break
+		}
 		if n > 0 {
 			line := string(buf[:n])
 			if entry := parseDmesgLine(line); entry != nil {
@@ -51,7 +74,7 @@ func collectDmesgInfo(since time.Time) (any, error) {
 			}
 		}
 		if readErr != nil {
-			if errors.Is(readErr, syscall.EAGAIN) || errors.Is(readErr, io.EOF) {
+			if errors.Is(readErr, syscall.EAGAIN) {
 				break
 			}
 			return nil, readErr

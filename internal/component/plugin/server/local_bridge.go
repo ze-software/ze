@@ -85,8 +85,8 @@ func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, p
 // what only the operator's own process holds refuses instead, and maps the
 // answer onto the response.
 func localDataHandler(path string, handler command.LocalDataHandler) Handler {
-	return func(_ *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
-		return AnswerLocalData(path, handler, args)
+	return func(cc *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
+		return AnswerLocalData(path, handler, args.WithContext(cc.Context()))
 	}
 }
 

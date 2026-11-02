@@ -12,6 +12,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"slices"
@@ -56,6 +57,10 @@ type ValidatedArgs struct {
 	// value (route.go). ValidateArgs leaves it RouteUnspecified; only the
 	// local-data routes in this package mark it.
 	route Route
+	// request is the context of the caller's request on the daemon route
+	// (WithContext). It is nil on every other route, where the work
+	// lives as long as the operator's own process (route.go, Context).
+	request context.Context
 }
 
 // Tokens answers a copy of the judged tokens, in the order they were typed. A

@@ -768,7 +768,23 @@ ze request support archive --since 2h                  # Time scope for log coll
 ze request support archive --output /var/support/      # Output directory (default: cwd)
 ```
 
-<!-- source: internal/component/support/support.go -- Run, collect, SupportManifest -->
+Through the daemon (SSH, `ze cli -c`, MCP, REST, gRPC, the web), the caller's
+host is not the router, so no directory of the caller's can be named. The
+daemon keeps the archive in its store under `support/archive/<name>` and
+answers the manifest, whose `archive-key` names the key and `archive-octets`
+its size. Read the bytes back with `show data cat <key>`. The leaves `module`,
+`exclude`, `since` and `reason` make the choices their flags make; `--output`
+is refused there by name. An archive larger than one remote answer carries
+(8 MiB) is refused with its size: narrow it with `module` or `exclude`, or run
+the local command on the router.
+
+```
+ze cli -c "request support archive module version,doctor reason 'BGP flap'"
+ze cli -c "show data cat support/archive/ze-support-router1-20261102-101500.tar.gz"
+```
+
+<!-- source: internal/component/support/support.go -- Run, Answer, storeAnswer, collect, SupportManifest -->
+<!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
 <!-- source: internal/component/support/modules.go -- moduleRegistry, ModuleNames, ModuleList -->
 
 ### ze interface

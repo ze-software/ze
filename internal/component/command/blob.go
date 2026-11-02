@@ -36,6 +36,26 @@ const (
 	BlobEncodingBase64 = "base64"
 )
 
+// BlobRemoteOctetsMax bounds the bytes of a Blob a command answers to a caller
+// in another process: the daemon route carries the whole answer in one
+// response, base64 makes it a third larger, and a store key read back whole
+// has no other bound. A command that would answer more refuses instead, names
+// the size, and names the local command that reads the bytes on the host
+// that holds them.
+//
+// Why 8 MiB. Base64 makes 8 MiB about 10.7 MiB, which stays under the 16 MiB
+// one RPC message may carry (pkg/plugin/rpc MaxMessageSize) with room for the
+// envelope. A support archive is the largest Blob a command produces. Measured
+// on 2026-11-02 with `ze request support archive --output <dir> --json`, run
+// as a normal user with an empty ze.config.dir on a Linux development host:
+// 18 708 bytes, with 16 of the 20 modules collected (routes, interfaces and
+// neighbors need the iface backend the daemon loads, firewall needs
+// CAP_NET_ADMIN). The routes module, capped at 50 000 routes, is what can grow
+// an archive on a router, and its size there has not been measured. An archive
+// over the bound is refused with a narrowing hint, never truncated, so the
+// bound only decides which archives must be read on the router itself.
+const BlobRemoteOctetsMax = 8 << 20
+
 // blobEnvelopeKey is the one key of a Blob's JSON answer. The text renderer is
 // registered under it, so `| text` prints the content and not a table of it.
 const blobEnvelopeKey = "blob"

@@ -38,7 +38,7 @@ const envConfigDirDotted = "ze.config.dir"
 // this walk was never run against.
 const pluginNameRIB = "rib"
 
-const CompletionMarker = "OK: 41/41 local-data commands and local one-shot save"
+const CompletionMarker = "OK: 43/43 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -97,8 +97,10 @@ func Evidence() []Invocation {
 		{Command: "show skills | json compact", Evidence: "show skills"},
 		{Command: "show skill ze | json compact", Evidence: "show skill"},
 		{Command: "request wireguard keypair | json compact", Evidence: "request wireguard keypair"},
+		{Command: "request support archive module version --output %s | json compact", Evidence: "request support archive"},
 		{Command: "show bgp encode route 10.0.0.0/24 next-hop 192.168.1.1 | json compact", Evidence: "show bgp encode"},
 		{Command: "show bgp decode %s | json compact", Evidence: "show bgp decode"},
+		{Command: "doctor kernel-capabilities | json compact", Evidence: "doctor"},
 	}
 }
 
@@ -591,6 +593,9 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 	if err := runBGPToolCommands(output); err != nil {
+		return err
+	}
+	if err := runDoctorCommand(output); err != nil {
 		return err
 	}
 

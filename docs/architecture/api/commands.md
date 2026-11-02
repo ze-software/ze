@@ -319,6 +319,20 @@ caller-only forms the same way the remote route is. `show bgp decode` and
 path unless the route is local, and a help page is drawn with colors only on
 the local route.
 
+A handler whose work takes time reads `ValidatedArgs.Context()` and stops when
+it is done. The dispatcher hands each daemon-route call the request's context
+(`ValidatedArgs.WithContext`, set in `localDataHandler`), so a caller that goes
+away stops the work. A local route sets none, and `Context()` then answers
+`context.Background()`: the work lives as long as the operator's own process.
+`request support archive` checks it before each module.
+
+A `blob` answer to a caller in another process is bounded by
+`command.BlobRemoteOctetsMax` (8 MiB), because the daemon route carries the
+whole answer in one response. A command that would answer more refuses with
+the size and the local command that reads the bytes on the host holding them:
+`show data cat` does so for a large store value, and `request support archive`
+refuses to store an archive it could not hand back.
+
 A path argument on the daemon route names a file on the daemon's host, read
 with the daemon's identity, and the authorizer judges command text with no
 notion of a filesystem location. So every handler that reads a file its
@@ -370,7 +384,8 @@ include statement, so the confined file is the only file a parse reads.
 <!-- source: internal/component/cli/sshclient/answer.go -- ExecCommandStream -->
 <!-- source: internal/component/mcp/tools.go -- answerResult -->
 <!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, loadBuiltinsWithAliases, IsReadOnlyPath -->
-<!-- source: internal/component/command/route.go -- Route, CallerLocal, AnswerRemote -->
+<!-- source: internal/component/command/route.go -- Route, CallerLocal, AnswerRemote, WithContext, Context -->
+<!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
 <!-- source: internal/component/command/registry/registry.go -- Meta -->
 <!-- source: internal/component/plugin/register.go -- show plugin declarations config registration -->
 
@@ -397,7 +412,9 @@ registered itself. The two routes call one producer, so they cannot drift:
 | `doctor`, `show doctor` | `doctor.Answer` | the local-data handler `ze doctor` runs, with no plugin check (no plugin runs in the caller's process) | `HandleDoctor`, one RPC for `ze-doctor:doctor` and `ze-doctor:show-doctor`, adding the doctor checks of the plugins the daemon runs |
 | `show ping` | `pingResults` | `showPingLocal` prints it | `handleShowPing` |
 | `show traceroute` | `tracerouteResults` | `showTracerouteLocal` prints it | `handleTraceroute` |
-| `monitor ping`, `monitor traceroute` | `NewPingSession`, `NewTracerouteSession` | the local loop prints each result | the CLI view and the hub's session factory stream the same session; the RPC only acknowledges |
+| `show interface` | `iface.ListInterfaces`, `iface.GetInterface` | `cmdShow` renders the list or one interface (`--json` prints the payload) | `handleShowInterface`, `handleShowInterfaceDetail` answer it as data |
+| `show version` | `zeversion.Answer` | `printVersion` prints it (`ze show version`, `ze version`, `ze --version`) | `handleShowVersion`; `--extended` reaches both routes as a token, since the model declares no leaf |
+| `monitor ping`, `monitor traceroute` | `NewPingSession`, `NewTracerouteSession` | the local loop prints each result | the `ze cli` view and the hub's SSH session factory inject the producer itself as the view factory; the RPC only acknowledges |
 
 The bridge leaves such a path to its builtin: when the YANG node's own RPC is
 registered as a builtin, the local-data handler on that path is the command's
@@ -405,9 +422,14 @@ no-daemon route (`loadLocalData`). `doctor` is local-data because its answer
 is about the host it runs on, whichever host that is. `show ping` and `show
 traceroute` stay plain local commands, because `ze cli` answers a local-data
 command in its own process before it asks the daemon, and a ping asked through
-`ze cli` is sent from the router. `doctor config <file>` is confined on the
+`ze cli` is sent from the router; `show interface` and `show version` stay
+plain local for the same reason, since each describes the daemon's host or
+binary. `doctor config <file>` is confined on the
 daemon route like every other caller path (`command.CallerPath`).
 <!-- source: internal/component/doctor/answer.go -- Answer, answerLocal, renderDoctor -->
+<!-- source: internal/core/version/version.go -- Answer -->
+<!-- source: internal/component/iface/cli/show.go -- cmdShow -->
+<!-- source: internal/component/cli/client/main.go -- injectViewFactories -->
 <!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, collectPluginDoctorChecks -->
 <!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, AnswerLocalData -->
 <!-- source: internal/component/ping/cmd/ping.go -- pingResults, handleShowPing -->

@@ -10,6 +10,8 @@
 
 package command
 
+import "context"
+
 // Route says which process a local-data handler is answering for. The route
 // that calls the handler sets it on the ValidatedArgs it passes, and only
 // this package can set it.
@@ -54,6 +56,28 @@ func (v ValidatedArgs) onRoute(route Route) ValidatedArgs {
 // value for the route to hand to that caller; nothing is printed.
 func AnswerRemote(handler LocalDataHandler, validated ValidatedArgs) LocalAnswer {
 	return handler(validated.onRoute(RouteRemote))
+}
+
+// WithContext answers a copy of v that carries the context of the caller's
+// request. The daemon dispatcher sets it before it answers a local-data
+// command for a caller in another process, so a handler that collects for
+// long (the support archive) stops when that caller goes. A nil ctx leaves
+// the copy without one, which Context answers as the process lifetime.
+func (v ValidatedArgs) WithContext(ctx context.Context) ValidatedArgs {
+	v.request = ctx
+	return v
+}
+
+// Context answers the context of the request the handler answers. On the
+// daemon route it is the caller's request context (WithContext), so
+// a caller that disconnects or times out stops the work. Every other route
+// answers context.Background, deliberately: there the work runs in the
+// operator's own process, and it lives exactly as long as that process.
+func (v ValidatedArgs) Context() context.Context {
+	if v.request != nil {
+		return v.request
+	}
+	return context.Background()
 }
 
 // AnswerLocal runs a local-data handler for the operator's own process and

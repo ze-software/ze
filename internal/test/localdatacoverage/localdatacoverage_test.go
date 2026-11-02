@@ -357,13 +357,15 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 		{Command: "show skills | json compact", Evidence: "show skills"},
 		{Command: "show skill ze | json compact", Evidence: "show skill"},
 		{Command: "request wireguard keypair | json compact", Evidence: "request wireguard keypair"},
+		{Command: "request support archive module version --output %s | json compact", Evidence: "request support archive"},
 		{Command: "show bgp encode route 10.0.0.0/24 next-hop 192.168.1.1 | json compact", Evidence: "show bgp encode"},
 		{Command: "show bgp decode %s | json compact", Evidence: "show bgp decode"},
+		{Command: "doctor kernel-capabilities | json compact", Evidence: "doctor"},
 	}
 	if got := Evidence(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("Evidence() = %#v, want %#v", got, want)
 	}
-	if CompletionMarker != "OK: 41/41 local-data commands and local one-shot save" {
+	if CompletionMarker != "OK: 43/43 local-data commands and local one-shot save" {
 		t.Fatalf("CompletionMarker = %q", CompletionMarker)
 	}
 	for _, invocation := range want {
