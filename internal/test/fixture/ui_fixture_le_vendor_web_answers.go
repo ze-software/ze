@@ -151,7 +151,7 @@ func leVendorWebAnswers(parent context.Context) error {
 	if listing.stderr != "" {
 		return fmt.Errorf("FAIL: `le web vendor` wrote stderr: %q", listing.stderr)
 	}
-	for _, wanted := range []string{actionCheck, "update", "report", wordWrites, fieldChecks} {
+	for _, wanted := range []string{actionCheck, actionUpdate, "report", wordWrites, fieldChecks} {
 		if !strings.Contains(listing.stdout, wanted) {
 			return fmt.Errorf("FAIL: the listing does not name %q:\n%s", wanted, listing.stdout)
 		}
@@ -198,7 +198,7 @@ func leVendorWebAnswers(parent context.Context) error {
 
 	synced := make([]leVendorWebResult, 0, len(trees))
 	for _, tree := range trees {
-		result, err := leVendorWebRun(ctx, work, childEnvironment(os.Environ(), map[string]string{envRepoRoot: tree}), binary, "web", "vendor", "update")
+		result, err := leVendorWebRun(ctx, work, childEnvironment(os.Environ(), map[string]string{envRepoRoot: tree}), binary, "web", "vendor", actionUpdate)
 		if err != nil {
 			return err
 		}

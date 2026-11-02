@@ -16,6 +16,9 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+// linkTypeVeth is the netlink link type of a veth device, as Link.Type answers it.
+const linkTypeVeth = "veth"
+
 // jointSubnetLink declares both ends of one real veth. The owning namespaces
 // remain separate even when the speaker bridges its two ports in the positive.
 type jointSubnetLink struct {
@@ -284,10 +287,10 @@ func (p *jointSubnetTopology) assertOwnership() error {
 		if err != nil {
 			return err
 		}
-		if left.Type() != "veth" {
+		if left.Type() != linkTypeVeth {
 			return fmt.Errorf("%s is not a veth", pair.leftName)
 		}
-		if right.Type() != "veth" {
+		if right.Type() != linkTypeVeth {
 			return fmt.Errorf("%s is not a veth", pair.rightName)
 		}
 		if left.Attrs().ParentIndex != right.Attrs().Index {

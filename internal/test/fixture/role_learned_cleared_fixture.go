@@ -52,7 +52,7 @@ func roleLearnedClearedOnPeerDelete(ctx context.Context, args []string) error {
 	}
 	port := args[0]
 	return observe13(ctx, "role-cleared-driver", func(ctx context.Context, plugin *sdk.Plugin) error {
-		if !lifecycleWaitState(ctx, plugin, roleClearedPeer, "established") {
+		if !lifecycleWaitEstablished(ctx, plugin, roleClearedPeer) {
 			return fmt.Errorf("the configured peer %s never reached established", roleClearedPeer)
 		}
 		fmt.Fprintln(os.Stderr, "OK: the configured peer established with Role customer")
@@ -73,7 +73,7 @@ func roleLearnedClearedOnPeerDelete(ctx context.Context, args []string) error {
 		if err := liveStagesReload(ctx, plugin, roleClearedNextConfig); err != nil {
 			return fmt.Errorf("reload the peer back: %w", err)
 		}
-		if !lifecycleWaitState(ctx, plugin, roleClearedPeer, "established") {
+		if !lifecycleWaitEstablished(ctx, plugin, roleClearedPeer) {
 			return fmt.Errorf("the peer the reload brought back at %s never reached established", roleClearedPeer)
 		}
 		fmt.Fprintln(os.Stderr, "OK: the peer the reload brought back established with no Role")

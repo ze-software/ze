@@ -105,7 +105,7 @@ func commitPushScriptRechecksDriver(ctx context.Context, args []string) error {
 	if _, err := scratch.commit(ctx, "a commit after the script was prepared", "b.txt"); err != nil {
 		return err
 	}
-	if err := scratch.expect(ctx, 0, "the push-only script", "bash", scriptPath); err != nil {
+	if err := scratch.expect(ctx, "the push-only script", "bash", scriptPath); err != nil {
 		return err
 	}
 	if err := scratch.upstreamIs(ctx, prepared); err != nil {
@@ -166,7 +166,7 @@ func verifyRecordsAtAskingRootDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := scratch.expect(ctx, 0, "debt-status before any verify", scratch.leBinary, argCommit, "debt-status"); err != nil {
+	if err := scratch.expect(ctx, "debt-status before any verify", scratch.leBinary, argCommit, "debt-status"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stdout, "push-owes-no-verify") //nolint:errcheck // progress output
@@ -205,7 +205,7 @@ func verifyRecordsAtAskingRootDriver(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stdout, "scoped-record-at-asking-root") //nolint:errcheck // progress output
 
-	if err := scratch.expect(ctx, 0, "debt-status after both verify records", scratch.leBinary, argCommit, "debt-status"); err != nil {
+	if err := scratch.expect(ctx, "debt-status after both verify records", scratch.leBinary, argCommit, "debt-status"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stdout, "push-still-owes-no-verify") //nolint:errcheck // progress output
@@ -355,7 +355,7 @@ func commitAttestEmptyCommitDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := scratch.expect(ctx, 0, "the attestation script", "bash", scriptPath); err != nil {
+	if err := scratch.expect(ctx, "the attestation script", "bash", scriptPath); err != nil {
 		return err
 	}
 	tree, err := scratch.git(ctx, "rev-parse", "HEAD^{tree}")
@@ -415,7 +415,7 @@ func commitReviewOwedTrailerDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := scratch.expect(ctx, 0, "the closure script", "bash", scriptPath); err != nil {
+	if err := scratch.expect(ctx, "the closure script", "bash", scriptPath); err != nil {
 		return err
 	}
 	message, err := scratch.git(ctx, "log", "-1", "--format=%B")
@@ -517,10 +517,10 @@ func (s *derivedDebtScratch) run(ctx context.Context, name string, args ...strin
 }
 
 // expect runs one command in the scratch checkout and answers nil when it
-// exited want, naming what ran otherwise.
-func (s *derivedDebtScratch) expect(ctx context.Context, want int, what, name string, args ...string) error {
+// exited zero, naming what ran otherwise.
+func (s *derivedDebtScratch) expect(ctx context.Context, what, name string, args ...string) error {
 	out, code, err := rawCommand(ctx, s.repo, s.env, name, args...)
-	return commandAnswered(what, out, code, want, err)
+	return commandAnswered(what, out, code, 0, err)
 }
 
 // git runs one git command in the scratch checkout and answers its trimmed

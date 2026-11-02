@@ -237,7 +237,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 	if listing.code != 0 {
 		return fmt.Errorf("doc yang-contract listing exited %d: %s", listing.code, listing.stderr)
 	}
-	for _, wanted := range []string{"command-contract", "doc-drift", "update", wordWrites, fieldChecks} {
+	for _, wanted := range []string{"command-contract", "doc-drift", actionUpdate, wordWrites, fieldChecks} {
 		if !bytes.Contains(listing.stdout, []byte(wanted)) {
 			return fmt.Errorf("doc yang-contract listing does not contain %q:\n%s", wanted, listing.stdout)
 		}
@@ -276,7 +276,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 
 	writes := make([]uiLeDocvalidAnswersCommandResult, 0, len(trees))
 	for _, tree := range trees {
-		written, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{envRepoRoot: tree}, le, "doc", "yang-contract", "update")
+		written, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{envRepoRoot: tree}, le, "doc", "yang-contract", actionUpdate)
 		if err != nil {
 			return err
 		}

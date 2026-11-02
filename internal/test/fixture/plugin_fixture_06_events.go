@@ -160,7 +160,7 @@ func streamingOnlyRefused(ctx context.Context, p *sdk.Plugin, command string) er
 		return fmt.Errorf("%s: answered status=%q data=%s, want the streaming-only refusal", command, status, raw)
 	}
 	if !strings.Contains(err.Error(), "'ze "+command+"'") {
-		return fmt.Errorf("%s: refusal %q does not name 'ze %s'", command, err, command)
+		return fmt.Errorf("%s: refusal %q does not name 'ze %s'", command, err.Error(), command)
 	}
 	fmt.Fprintf(os.Stderr, "OK: %s refused on a one-shot route: %v\n", command, err)
 	return nil

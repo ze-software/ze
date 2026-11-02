@@ -68,7 +68,7 @@ func peerCreateDeleteRIB13(ctx context.Context, args []string) error {
 			}
 			return nil
 		})
-		if !lifecycleWaitState(ctx, plugin, lifecycleConfiguredPeer, "established") {
+		if !lifecycleWaitEstablished(ctx, plugin, lifecycleConfiguredPeer) {
 			return errors.New("the configured peer never reached established")
 		}
 		if _, ok := waitHTTP13(ctx, driver.base+"/commands", driver.headers, 50, 300*time.Millisecond); !ok {
@@ -116,7 +116,7 @@ func lifecycleCreate(ctx context.Context, plugin *sdk.Plugin) error {
 	if data["message"] != "peer created" {
 		return fmt.Errorf("create bgp peer answered outcome %v, want peer created: %v", data["message"], data)
 	}
-	if !lifecycleWaitState(ctx, plugin, lifecycleCreatedPeer, "established") {
+	if !lifecycleWaitEstablished(ctx, plugin, lifecycleCreatedPeer) {
 		return fmt.Errorf("the created peer %s never reached established", lifecycleCreatedPeer)
 	}
 	fmt.Fprintln(os.Stderr, "OK: the created peer is listed and established")
@@ -324,14 +324,15 @@ func lifecycleStartedOnTheFile(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
-// lifecycleWaitState polls the peer table until address reports state.
-func lifecycleWaitState(ctx context.Context, plugin *sdk.Plugin, address, want string) bool {
+// lifecycleWaitEstablished polls the peer table until address reports the
+// established state.
+func lifecycleWaitEstablished(ctx context.Context, plugin *sdk.Plugin, address string) bool {
 	return Poll(ctx, 80, plugin01PollDelay, func() bool {
 		state, present := peerState13(ctx, plugin, address)
 		if !present {
 			return false
 		}
-		return state == want
+		return state == stateEstablished
 	})
 }
 
