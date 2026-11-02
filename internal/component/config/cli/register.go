@@ -18,12 +18,15 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// callerPathDirs answers the directories `show config list` enumerates: the
-// search directories and the store's directory. They are the places the daemon
-// already reads configuration from, so they are the only places it reads a
-// file a caller on another surface names.
+// callerPathDirs answers the directories the daemon route reads a file a
+// caller on another surface names from: the XDG config directory and the
+// store's directory, the places the daemon already reads configuration from.
+// The working directory `show config list` also scans is left out: the
+// daemon's is wherever it was started from, a place no configuration rule
+// names, and a remote caller cannot know what it holds. The local route
+// reads any path its own operator names (command.CallerPath).
 func callerPathDirs() []string {
-	return append(configSearchDirs(), resolve.StoreDir(""))
+	return []string{xdgConfigDir(), resolve.StoreDir("")}
 }
 
 // subcommands returns the sorted, comma-separated list of user-facing

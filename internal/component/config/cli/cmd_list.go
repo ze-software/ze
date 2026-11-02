@@ -95,27 +95,32 @@ func listStored(store storage.Storage) bool {
 	return found
 }
 
-// configSearchDirs returns directories to scan for .conf files.
+// configSearchDirs returns directories to scan for .conf files: the XDG
+// config directory and the working directory.
 func configSearchDirs() []string {
 	var dirs []string
+	if dir := xdgConfigDir(); dir != "" {
+		dirs = append(dirs, dir)
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		dirs = append(dirs, cwd)
+	}
+	return dirs
+}
 
-	// XDG config home (~/.config/ze/)
+// xdgConfigDir answers ze's directory under the XDG config home
+// (~/.config/ze/), or empty when neither XDG_CONFIG_HOME nor HOME is set.
+func xdgConfigDir() string {
 	configHome := os.Getenv("XDG_CONFIG_HOME")
 	if configHome == "" {
 		if home := os.Getenv("HOME"); home != "" {
 			configHome = filepath.Join(home, ".config")
 		}
 	}
-	if configHome != "" {
-		dirs = append(dirs, filepath.Join(configHome, "ze"))
+	if configHome == "" {
+		return ""
 	}
-
-	// Current directory
-	if cwd, err := os.Getwd(); err == nil {
-		dirs = append(dirs, cwd)
-	}
-
-	return dirs
+	return filepath.Join(configHome, "ze")
 }
 
 // cmdCatWithStorage prints the content of a stored key.

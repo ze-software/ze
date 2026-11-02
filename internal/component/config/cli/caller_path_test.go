@@ -289,3 +289,46 @@ func TestConfigIncludeReadsNothingOutsideTheConfinedDir(t *testing.T) {
 		}
 	}
 }
+
+// TestDaemonWorkingDirectoryRefusedOnDaemonRoute proves the working directory
+// is no configuration directory on the daemon route, while the local route
+// still reads a file there.
+//
+// Goal: a file in the process's working directory, outside the XDG and store
+// directories, is refused remotely, by its relative and its absolute name, and
+// answered locally; the refusal does not list the working directory.
+// Method: the process enters a fresh directory holding router.conf, with the
+// XDG config home and the store directory pointed at two other fresh ones, and
+// `show config dump` runs on both routes through the model validator.
+func TestDaemonWorkingDirectoryRefusedOnDaemonRoute(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("ZE_CONFIG_DIR", t.TempDir())
+	cwd := t.TempDir()
+	t.Chdir(cwd)
+	if err := os.WriteFile(filepath.Join(cwd, "router.conf"), []byte(testConfigPlain), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resolvedCwd, err := filepath.EvalSymlinks(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{"router.conf", filepath.Join(cwd, "router.conf")} {
+		local := answerOn(t, "show config dump", []string{name}, false)
+		if local.Code != 0 || local.Payload == nil {
+			t.Errorf("local route refused %q in its own working directory: code %d, %q", name, local.Code, local.Diagnostic)
+		}
+		refusal := answerOn(t, "show config dump", []string{name}, true)
+		if refusal.Code == 0 || refusal.Payload != nil {
+			t.Errorf("daemon route read %q from its working directory: code %d payload %v", name, refusal.Code, refusal.Payload)
+			continue
+		}
+		want := "run 'ze show config dump " + name + "' on the host that holds the file"
+		if !strings.Contains(refusal.Diagnostic, want) {
+			t.Errorf("refusal of %q is %q, want it to name %q", name, refusal.Diagnostic, want)
+		}
+		if strings.Contains(refusal.Diagnostic, resolvedCwd+",") || strings.Contains(refusal.Diagnostic, resolvedCwd+")") {
+			t.Errorf("refusal of %q lists the working directory as one the daemon reads: %q", name, refusal.Diagnostic)
+		}
+	}
+}

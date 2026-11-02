@@ -52,8 +52,7 @@ func RegisterCallerPathDirs(source func() []string) {
 // confinedDirs answers the registered directories, each made absolute and
 // with its symbolic links resolved, so a resolved file path can be compared
 // with them. A directory that is the filesystem root is left out: confining a
-// read to `/` confines nothing, and a daemon started from `/` has it as its
-// working directory. A directory that does not exist is left out too, since no
+// read to `/` confines nothing. A directory that does not exist is left out too, since no
 // file is inside it. No registration answers no directory, so every path is
 // refused rather than every path allowed.
 func confinedDirs() []string {

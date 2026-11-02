@@ -398,14 +398,16 @@ caller names asks `command.CallerPath` for the path to read: on the local
 route the path comes back unchanged, `-` included, and on every other route
 `-` is refused, and a named path is read only when, made absolute and with
 every symbolic link resolved, it lies inside one of the directories the daemon
-already reads configuration from. Those are the directories `show config
-list` enumerates: the search directories (the user's `ze` directory under
-`XDG_CONFIG_HOME`, else `~/.config/ze`, and the working directory of the
-process) and the store's directory, which `internal/component/config/cli`
-registers with `command.RegisterCallerPathDirs`. On the daemon route the
-working directory is the daemon's, wherever it was started. The filesystem
-root never counts as one, since a daemon started from `/` has it as its
-working directory. A path
+already reads configuration from: the user's `ze` directory under
+`XDG_CONFIG_HOME`, else `~/.config/ze`, and the store's directory, which
+`internal/component/config/cli` registers with
+`command.RegisterCallerPathDirs`. The working directory, which `show config
+list` also scans, is not one of them on the daemon route: the daemon's is
+wherever it was started, a place no configuration rule names and a remote
+caller cannot see, so a file there is refused remotely and read locally,
+where the working directory is the operator's own. A relative path is still
+made absolute against the daemon's working directory before it is judged.
+The filesystem root never counts as one. A path
 outside them, a `..` that climbs out, a link that points out and a missing
 file are refused alike, so the refusal says nothing about files outside the
 directories, and it names the local `ze` command that reads any file. The
