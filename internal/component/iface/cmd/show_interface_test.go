@@ -145,6 +145,16 @@ func TestHandleShowInterfaceErrorsShape(t *testing.T) {
 func TestHandleShowInterfaceRateNamedFormUsesTheName(t *testing.T) {
 	const name = "zz-not-an-interface0"
 
+	// The rates live in the iface plugin's process (interface_rate.go), so the
+	// lookup is the plugin's: the stand-in refuses the name exactly as the
+	// plugin's rateAnswer does, and only when the name arrived intact.
+	standInPlugin(t, func(_ string, args []string) *plugin.Response {
+		if len(args) == 1 && args[0] == name {
+			return &plugin.Response{Status: plugin.StatusError, Error: "interface not found: " + name}
+		}
+		return &plugin.Response{Status: plugin.StatusError, Error: "rate tracker not running"}
+	})
+
 	resp, err := handleShowInterfaceRateCmd(nil, commandtest.Args(name))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
