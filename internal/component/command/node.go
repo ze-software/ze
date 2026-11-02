@@ -292,6 +292,50 @@ func OverlayCommandPaths(base *Node, entries []CommandEntry) *Node {
 	return root
 }
 
+// WithoutCommandPaths answers base with each path's node, and the subtree
+// under it, removed, and leaves base untouched: every node on a removed path
+// is copied, and every other subtree is shared with base, as
+// OverlayCommandPaths does. A path base does not hold removes nothing, and
+// when base holds none of the paths the answer is base itself. A
+// surface that must not offer a command the shared tree holds (a one-shot
+// surface and a streaming-only command) reads the answer.
+func WithoutCommandPaths(base *Node, paths []string) *Node {
+	if base == nil {
+		return nil
+	}
+	var held []string
+	for _, path := range paths {
+		if FindNode(base, splitFields(path)) != nil {
+			held = append(held, path)
+		}
+	}
+	if len(held) == 0 {
+		return base // nothing to remove: the caller keeps base itself
+	}
+	root := copyNodeForOverlay(base)
+	for _, path := range held {
+		parts := splitFields(path)
+		if len(parts) == 0 {
+			continue
+		}
+		current := root
+		for _, part := range parts[:len(parts)-1] {
+			child, ok := current.Children[part]
+			if !ok {
+				current = nil
+				break
+			}
+			child = copyNodeForOverlay(child)
+			current.Children[part] = child
+			current = child
+		}
+		if current != nil {
+			delete(current.Children, parts[len(parts)-1])
+		}
+	}
+	return root
+}
+
 // copyNodeForOverlay copies n with a children map of its own, so the overlay
 // can add a child without writing to n's map. The children themselves stay
 // shared until the overlay walks through them.

@@ -47,7 +47,7 @@ func netlinkGroupFromArgs(args []string) (string, error) {
 }
 
 func init() {
-	pluginserver.RegisterStreamingHandler("monitor system netlink", streamNetlinkMonitor)
+	pluginserver.RegisterStreamingHandler("monitor system netlink", pluginserver.OneShotStreamingOnly, streamNetlinkMonitor)
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-iface:monitor-system-netlink",

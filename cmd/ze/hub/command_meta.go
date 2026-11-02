@@ -146,7 +146,17 @@ func buildCommandMeta(
 	infos := make([]commandMeta, 0, len(dispatcherCmds)+len(pluginCmds))
 	byName := make(map[string]int, len(dispatcherCmds)+len(pluginCmds))
 
+	// MCP tools/list and the REST and gRPC command lists are one-shot
+	// surfaces, so a streaming command declared streaming-only is left out,
+	// as the surface predicate answers.
+	streamingOff := make(map[string]bool)
+	for _, path := range streamingPathsOff(command.SurfaceMCP) {
+		streamingOff[strings.ToLower(path)] = true
+	}
 	for _, cmd := range dispatcherCmds {
+		if streamingOff[strings.ToLower(cmd.Name)] {
+			continue
+		}
 		info := commandMeta{
 			Name:          cmd.Name,
 			ShortHelp:     cmd.ShortHelp,

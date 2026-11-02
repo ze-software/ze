@@ -31,6 +31,7 @@ type pluginAwareCommandCompleter struct {
 // newPluginAwareCommandCompleter wraps the YANG tree and a live plugin-command
 // source. entries must be non-nil.
 func newPluginAwareCommandCompleter(tree *command.Node, entries func() []command.CommandEntry) *pluginAwareCommandCompleter {
+	tree = command.WithoutCommandPaths(tree, streamingPathsOff(command.SurfaceWebCompletion))
 	return &pluginAwareCommandCompleter{base: cli.NewCommandCompleter(tree), entries: entries}
 }
 

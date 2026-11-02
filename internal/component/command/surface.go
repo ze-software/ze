@@ -110,6 +110,10 @@ type CommandRegistration struct {
 	// Streaming says a streaming handler (RegisterStreamingHandler) serves the
 	// path, so a terminal surface runs it as a live stream.
 	Streaming bool
+	// StreamingOnly says the streaming registration declares no one-shot
+	// answer (pluginserver.OneShotStreamingOnly): its stream is a sequence of
+	// events, so a one-shot surface does not offer it. Set only with Streaming.
+	StreamingOnly bool
 	// TUIOnly says the command's view registration (cli.RegisterView) declares
 	// that only the interactive CLI can render it.
 	TUIOnly bool
@@ -170,6 +174,7 @@ const (
 	reasonStreaming    = "a monitor command streams live on the local terminal, `ze cli` and SSH"
 	reasonPluginDaemon = "a plugin command exists in a running daemon's registry, and every daemon surface reads it"
 	reasonPluginShell  = "a plugin command exists only in a running daemon's registry, and shell completion answers with no daemon"
+	reasonStreamingOff = "declared streaming-only: its stream is a sequence of events, so a one-shot surface has no answer to give"
 	reasonTUIOnly      = "declared TUI-only on its view: only the interactive CLI renders it"
 	reasonTUIOnlyOff   = "declared TUI-only on its view: a one-shot surface cannot render it"
 )
@@ -185,7 +190,9 @@ const (
 //     and only when its view registration declares it TUI-only; an undeclared
 //     one is refused, because no surface could serve it as a command;
 //   - a streaming command is offered streaming on the three terminal surfaces
-//     (SSH, `ze cli`, shell); its one-shot surfaces answer by its kind;
+//     (SSH, `ze cli`, shell); a one-shot surface does not offer one declared
+//     streaming-only, and answers any other by its kind (its one-shot RPC
+//     answers one sample);
 //   - a builtin, local or local-data command is served by the daemon and by
 //     `ze <verb>`, so every surface offers it;
 //   - a plugin command with no YANG node exists only in a running daemon's
@@ -206,8 +213,14 @@ func AnswerSurface(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 	if reg.Kind == KindView {
 		return answerView(reg, s)
 	}
+	if reg.StreamingOnly && !reg.Streaming {
+		return SurfaceAnswer{}, fmt.Errorf("command %q: declared streaming-only with no streaming handler", reg.Path)
+	}
 	if reg.Streaming && s.terminal() {
 		return SurfaceAnswer{Offer: OfferStreaming, Reason: reasonStreaming}, nil
+	}
+	if reg.StreamingOnly {
+		return SurfaceAnswer{Offer: OfferMustNot, Reason: reasonStreamingOff}, nil
 	}
 	switch reg.Kind {
 	case KindBuiltin, KindLocal, KindLocalData:

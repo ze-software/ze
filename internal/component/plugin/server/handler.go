@@ -76,17 +76,43 @@ func matchesPrefix(input, prefix string) bool {
 	return input == prefix || (strings.HasPrefix(input, prefix) && len(input) > len(prefix) && input[len(prefix)] == ' ')
 }
 
-// streamingHandlers maps command prefix to handler. Multiple streaming commands
-// can coexist (e.g., "monitor event", "monitor bgp"). Protected by streamingHandlersMu.
-var (
-	streamingHandlersMu sync.RWMutex
-	streamingHandlers   = make(map[string]StreamingHandler)
+// OneShot is what a streaming command answers on a one-shot surface (MCP,
+// REST, gRPC, the web admin console), where no stream can be shown. Every
+// streaming registration declares one; the zero value is never an answer.
+type OneShot uint8
+
+// The one-shot answers a streaming command can declare.
+const (
+	OneShotUnspecified OneShot = iota
+	// OneShotSample: its one-shot RPC answers one sample of what the stream
+	// shows (the current rates, the current counters), from the same producer.
+	OneShotSample
+	// OneShotStreamingOnly: the stream is a sequence of events, so no single
+	// answer holds its data. One-shot surfaces do not offer the command, and
+	// its RPC refuses, naming the terminal surfaces that stream it.
+	OneShotStreamingOnly
 )
 
-// RegisterStreamingHandler registers a streaming command handler for a prefix.
-// The prefix is matched case-insensitively against command input.
-// Called from plugin init() functions.
-func RegisterStreamingHandler(prefix string, h StreamingHandler) {
+// streamingRegistration is one streaming command: its handler and its
+// declared one-shot answer.
+type streamingRegistration struct {
+	handler StreamingHandler
+	oneShot OneShot
+}
+
+// streamingHandlers maps command prefix to its registration. Multiple streaming
+// commands can coexist (e.g., "monitor event", "monitor interface rate").
+// Protected by streamingHandlersMu.
+var (
+	streamingHandlersMu sync.RWMutex
+	streamingHandlers   = make(map[string]streamingRegistration)
+)
+
+// RegisterStreamingHandler registers a streaming command handler for a prefix,
+// with the answer the command gives on a one-shot surface. The prefix is
+// matched case-insensitively against command input. Called from plugin init()
+// functions.
+func RegisterStreamingHandler(prefix string, oneShot OneShot, h StreamingHandler) {
 	if strings.TrimSpace(prefix) == "" {
 		logger().Error("RegisterStreamingHandler called with empty prefix, ignoring")
 		return
@@ -95,13 +121,42 @@ func RegisterStreamingHandler(prefix string, h StreamingHandler) {
 		logger().Error("RegisterStreamingHandler called with nil handler", "prefix", prefix)
 		return
 	}
+	if oneShot != OneShotSample && oneShot != OneShotStreamingOnly {
+		panic("BUG: RegisterStreamingHandler(" + prefix + "): the one-shot answer is not declared")
+	}
 	key := strings.ToLower(prefix)
 	streamingHandlersMu.Lock()
 	if _, exists := streamingHandlers[key]; exists {
 		logger().Warn("duplicate streaming handler prefix, overwriting", "prefix", prefix)
 	}
-	streamingHandlers[key] = h
+	streamingHandlers[key] = streamingRegistration{handler: h, oneShot: oneShot}
 	streamingHandlersMu.Unlock()
+}
+
+// StreamingOneShot answers the one-shot answer the streaming command
+// registered at exactly prefix declared, and false when none is registered.
+func StreamingOneShot(prefix string) (OneShot, bool) {
+	key := strings.ToLower(strings.TrimSpace(prefix))
+	streamingHandlersMu.RLock()
+	reg, ok := streamingHandlers[key]
+	streamingHandlersMu.RUnlock()
+	return reg.oneShot, ok
+}
+
+// StreamingOnlyPrefixes returns the prefixes of the streaming commands
+// declared OneShotStreamingOnly, sorted: the paths a one-shot surface leaves
+// out.
+func StreamingOnlyPrefixes() []string {
+	streamingHandlersMu.RLock()
+	defer streamingHandlersMu.RUnlock()
+	var prefixes []string
+	for p, reg := range streamingHandlers {
+		if reg.oneShot == OneShotStreamingOnly {
+			prefixes = append(prefixes, p)
+		}
+	}
+	slices.Sort(prefixes)
+	return prefixes
 }
 
 // UnregisterStreamingHandler removes a previously registered streaming handler.
@@ -141,11 +196,11 @@ func matchStreamingCommand(input string) (handler StreamingHandler, prefix strin
 	streamingHandlersMu.RLock()
 	defer streamingHandlersMu.RUnlock()
 
-	for candidate, h := range streamingHandlers {
+	for candidate, reg := range streamingHandlers {
 		if lower == candidate || strings.HasPrefix(lower, candidate+" ") {
 			if len(candidate) > len(prefix) {
 				prefix = candidate
-				handler = h
+				handler = reg.handler
 			}
 		}
 	}

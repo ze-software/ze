@@ -18,7 +18,7 @@ func TestStreamingHandlerRegistry(t *testing.T) {
 	// Reset registry state for test isolation.
 	streamingHandlersMu.Lock()
 	saved := streamingHandlers
-	streamingHandlers = make(map[string]StreamingHandler)
+	streamingHandlers = make(map[string]streamingRegistration)
 	streamingHandlersMu.Unlock()
 	defer func() {
 		streamingHandlersMu.Lock()
@@ -29,8 +29,8 @@ func TestStreamingHandlerRegistry(t *testing.T) {
 	handlerA := func(_ context.Context, _ *Server, _ io.Writer, _ string, _ command.ValidatedArgs) error { return nil }
 	handlerB := func(_ context.Context, _ *Server, _ io.Writer, _ string, _ command.ValidatedArgs) error { return nil }
 
-	RegisterStreamingHandler("monitor event", handlerA)
-	RegisterStreamingHandler("monitor bgp", handlerB)
+	RegisterStreamingHandler("monitor event", OneShotSample, handlerA)
+	RegisterStreamingHandler("monitor bgp", OneShotSample, handlerB)
 
 	h, args := streamingLookup(t, "monitor event peer 10.0.0.1")
 	require.NotNil(t, h, "should match 'monitor event' prefix")
@@ -49,7 +49,7 @@ func TestStreamingHandlerRegistry(t *testing.T) {
 func TestStreamingHandlerPrefixMatch(t *testing.T) {
 	streamingHandlersMu.Lock()
 	saved := streamingHandlers
-	streamingHandlers = make(map[string]StreamingHandler)
+	streamingHandlers = make(map[string]streamingRegistration)
 	streamingHandlersMu.Unlock()
 	defer func() {
 		streamingHandlersMu.Lock()
@@ -58,11 +58,11 @@ func TestStreamingHandlerPrefixMatch(t *testing.T) {
 	}()
 
 	var matched string
-	RegisterStreamingHandler("monitor", func(_ context.Context, _ *Server, _ io.Writer, _ string, _ command.ValidatedArgs) error {
+	RegisterStreamingHandler("monitor", OneShotSample, func(_ context.Context, _ *Server, _ io.Writer, _ string, _ command.ValidatedArgs) error {
 		matched = "monitor"
 		return nil
 	})
-	RegisterStreamingHandler("monitor event", func(_ context.Context, _ *Server, _ io.Writer, _ string, _ command.ValidatedArgs) error {
+	RegisterStreamingHandler("monitor event", OneShotSample, func(_ context.Context, _ *Server, _ io.Writer, _ string, _ command.ValidatedArgs) error {
 		matched = "monitor event"
 		return nil
 	})
@@ -87,7 +87,7 @@ func TestStreamingHandlerPrefixMatch(t *testing.T) {
 func TestIsStreamingCommand(t *testing.T) {
 	streamingHandlersMu.Lock()
 	saved := streamingHandlers
-	streamingHandlers = make(map[string]StreamingHandler)
+	streamingHandlers = make(map[string]streamingRegistration)
 	streamingHandlersMu.Unlock()
 	defer func() {
 		streamingHandlersMu.Lock()
@@ -96,7 +96,7 @@ func TestIsStreamingCommand(t *testing.T) {
 	}()
 
 	handler := func(_ context.Context, _ *Server, _ io.Writer, _ string, _ command.ValidatedArgs) error { return nil }
-	RegisterStreamingHandler("monitor event", handler)
+	RegisterStreamingHandler("monitor event", OneShotSample, handler)
 
 	require.True(t, IsStreamingCommand("monitor event"))
 	require.True(t, IsStreamingCommand("monitor event peer 10.0.0.1"))
@@ -127,7 +127,7 @@ func TestHandlerTypesTakeValidatedArguments(t *testing.T) {
 	t.Run("StreamingHandler", func(t *testing.T) {
 		streamingHandlersMu.Lock()
 		saved := streamingHandlers
-		streamingHandlers = make(map[string]StreamingHandler)
+		streamingHandlers = make(map[string]streamingRegistration)
 		streamingHandlersMu.Unlock()
 		t.Cleanup(func() {
 			streamingHandlersMu.Lock()
@@ -135,7 +135,7 @@ func TestHandlerTypesTakeValidatedArguments(t *testing.T) {
 			streamingHandlersMu.Unlock()
 		})
 		var received command.ValidatedArgs
-		RegisterStreamingHandler(modelPath, func(_ context.Context, _ *Server, _ io.Writer, _ string, args command.ValidatedArgs) error {
+		RegisterStreamingHandler(modelPath, OneShotSample, func(_ context.Context, _ *Server, _ io.Writer, _ string, args command.ValidatedArgs) error {
 			received = args
 			return nil
 		})

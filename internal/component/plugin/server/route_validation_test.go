@@ -149,14 +149,14 @@ func TestEnsureChainInvokesWithValidatedArguments(t *testing.T) {
 func TestStreamingLookupInvokesWithValidatedArguments(t *testing.T) {
 	streamingHandlersMu.Lock()
 	saved := streamingHandlers
-	streamingHandlers = make(map[string]StreamingHandler)
+	streamingHandlers = make(map[string]streamingRegistration)
 	streamingHandlersMu.Unlock()
 	t.Cleanup(func() {
 		streamingHandlersMu.Lock()
 		streamingHandlers = saved
 		streamingHandlersMu.Unlock()
 	})
-	RegisterStreamingHandler(modelPath, func(context.Context, *Server, io.Writer, string, command.ValidatedArgs) error { return nil })
+	RegisterStreamingHandler(modelPath, OneShotSample, func(context.Context, *Server, io.Writer, string, command.ValidatedArgs) error { return nil })
 
 	handler, _, err := GetStreamingHandlerForCommand(modelPath + " " + nameOverLong)
 	if err == nil {

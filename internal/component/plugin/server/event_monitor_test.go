@@ -329,7 +329,7 @@ func TestFormatEventMonitorHeaderCombined(t *testing.T) {
 func TestGetStreamingHandlerPreservesArgCase(t *testing.T) {
 	streamingHandlersMu.Lock()
 	saved := streamingHandlers
-	streamingHandlers = make(map[string]StreamingHandler)
+	streamingHandlers = make(map[string]streamingRegistration)
 	streamingHandlersMu.Unlock()
 	defer func() {
 		streamingHandlersMu.Lock()
@@ -338,7 +338,7 @@ func TestGetStreamingHandlerPreservesArgCase(t *testing.T) {
 	}()
 
 	handler := func(_ context.Context, _ *Server, _ io.Writer, _ string, _ command.ValidatedArgs) error { return nil }
-	RegisterStreamingHandler("monitor event", handler)
+	RegisterStreamingHandler("monitor event", OneShotSample, handler)
 
 	_, args := streamingLookup(t, "monitor event peer MyRouter-1")
 	require.Equal(t, []string{"peer", "MyRouter-1"}, args, "args should preserve original case")

@@ -22,7 +22,7 @@ import (
 )
 
 func init() {
-	pluginserver.RegisterStreamingHandler("monitor interface rate", streamInterfaceRate)
+	pluginserver.RegisterStreamingHandler("monitor interface rate", pluginserver.OneShotSample, streamInterfaceRate)
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-iface:monitor-interface-rate",
@@ -62,19 +62,12 @@ func sortedRates() []iface.InterfaceRate {
 	return result
 }
 
+// handleMonitorInterfaceRate is the one-shot answer of the streaming command
+// (pluginserver.OneShotSample): one sample of the rates the stream prints each
+// second, read from the same tracker, so MCP, REST, gRPC and the web admin
+// console get the rates rather than an echo of the request.
 func handleMonitorInterfaceRate(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	var filterName string
-	if len(args) > 0 {
-		filterName = args[0]
-	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"status": "monitor-configured",
-			"filter": filterName,
-		},
-	}, nil
+	return handleShowInterfaceRate(validated.Tokens())
 }
 
 func streamInterfaceRate(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args command.ValidatedArgs) error {

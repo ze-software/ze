@@ -384,6 +384,10 @@ func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved, view
 		}
 		seen[key] = true
 		reg.Streaming = streaming[key]
+		if reg.Streaming {
+			oneShot, _ := pluginserver.StreamingOneShot(key)
+			reg.StreamingOnly = oneShot == pluginserver.OneShotStreamingOnly
+		}
 		regs = append(regs, reg)
 	}
 
@@ -438,4 +442,71 @@ func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved, view
 // registry holds its prefix: a view, TUI-only when its registration says so.
 func viewRegistration(v cli.ViewInfo) command.CommandRegistration {
 	return command.CommandRegistration{Path: v.Prefix, Kind: command.KindView, TUIOnly: v.TUIOnly}
+}
+
+// TestStreamingOneShotAnswersCarryData proves AC-9: a streaming command a
+// one-shot surface offers (declared pluginserver.OneShotSample) answers one
+// sample there, never an echo of its request. Method: every streaming prefix
+// is read from the registry, its one-shot route is dispatched with no
+// argument through the dispatcher every one-shot surface uses, and the answer
+// must be data, or an error saying why it cannot answer. A payload that
+// carries its own "status" word restates the response status rather than
+// carrying data, which is the shape every monitor command answered before
+// (`{"status":"monitor-configured"}`). A streaming-only command is judged by
+// TestEveryCommandOnEverySurface instead: no one-shot surface may offer it.
+func TestStreamingOneShotAnswersCarryData(t *testing.T) {
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	if err != nil {
+		t.Fatalf("server: %v", err)
+	}
+	samples := 0
+	for _, prefix := range pluginserver.StreamingPrefixes() {
+		oneShot, ok := pluginserver.StreamingOneShot(prefix)
+		if !ok {
+			t.Fatalf("streaming prefix %q has no registration", prefix)
+		}
+		if oneShot == pluginserver.OneShotStreamingOnly {
+			continue
+		}
+		samples++
+		resp, err := serverDispatcher(server, "")(t.Context(), plugin.CallerIdentity{Username: "surface-check"}, prefix)
+		if err != nil {
+			t.Errorf("%q one-shot: %v", prefix, err)
+			continue
+		}
+		if failure := oneShotWithoutData(resp); failure != "" {
+			t.Errorf("%q declares a one-shot sample, but %s", prefix, failure)
+		}
+	}
+	if samples == 0 {
+		t.Fatal("no streaming command declares a one-shot sample: the check proved nothing")
+	}
+}
+
+// oneShotWithoutData answers why resp carries no sample, or "" when it does.
+func oneShotWithoutData(resp *plugin.Response) string {
+	if resp == nil {
+		return "the dispatcher answered nothing"
+	}
+	if resp.Status == plugin.StatusError {
+		if resp.Error == "" {
+			return "it refused with no reason"
+		}
+		return "" // it says why it cannot answer, which is an answer
+	}
+	if resp.Data == nil {
+		return "it answered no data"
+	}
+	text, err := json.Marshal(resp.Data)
+	if err != nil {
+		return "its data does not encode: " + err.Error()
+	}
+	var record map[string]any
+	if json.Unmarshal(text, &record) != nil {
+		return "" // a list or a scalar is data
+	}
+	if _, echo := record["status"]; echo {
+		return "it answered a status word, not data: " + string(text)
+	}
+	return ""
 }

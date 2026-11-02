@@ -17,7 +17,7 @@ import (
 )
 
 func init() {
-	pluginserver.RegisterStreamingHandler("monitor traffic stat", streamTraffic)
+	pluginserver.RegisterStreamingHandler("monitor traffic stat", pluginserver.OneShotSample, streamTraffic)
 	pluginserver.RegisterMonitorProvider(pluginserver.MonitorProvider{
 		Prefix:   "monitor traffic stat",
 		CreateFn: createTrafficMonitorSession,
@@ -57,19 +57,12 @@ func handleShowTraffic(_ *pluginserver.CommandContext, validated command.Validat
 	}, nil
 }
 
-func handleMonitorTraffic(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	var filterName string
-	if len(args) > 0 {
-		filterName = args[0]
-	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"status": "monitor-configured",
-			"filter": filterName,
-		},
-	}, nil
+// handleMonitorTraffic is the one-shot answer of the streaming command
+// (pluginserver.OneShotSample): one snapshot of the counters the stream
+// prints, from the same service, so a one-shot surface gets the traffic
+// rather than an echo of the request.
+func handleMonitorTraffic(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	return handleShowTraffic(ctx, validated)
 }
 
 func streamTraffic(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args command.ValidatedArgs) error {

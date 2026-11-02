@@ -824,6 +824,25 @@ Event types span all namespaces: BGP (update, open, notification, keepalive, ref
 Wire method: `ze-meta:event-monitor`. Supports pipe operators: `| json`, `| table`, `| match`.
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
 
+#### One-shot answer of a streaming command
+
+A streaming command registers with `RegisterStreamingHandler(prefix, oneShot,
+handler)`, and `oneShot` declares what the command answers where no stream can
+be shown: MCP, REST, gRPC and the web admin console run a command once.
+
+| Declaration | One-shot surfaces | Commands |
+|-------------|-------------------|----------|
+| `OneShotSample` | Offered. The one-shot RPC answers one sample from the producer the stream reads | `monitor interface rate` (the rate tracker, as `show interface rate`), `monitor traffic stat` (the trafficstat snapshot, as `show traffic stat`) |
+| `OneShotStreamingOnly` | Not offered: the stream is a sequence of events, so no single answer holds its data | `monitor event`, `monitor system netlink`, `monitor vpn ipsec` |
+
+The surface predicate (`command.AnswerSurface`) reads the declaration, so the
+MCP, REST and gRPC command list, the web admin tree and the web terminal
+completer leave a streaming-only command out, and the surface parity check
+fails a sample command whose one-shot answer carries no data.
+<!-- source: internal/component/plugin/server/handler.go -- OneShot, RegisterStreamingHandler, StreamingOneShot -->
+<!-- source: cmd/ze/hub/streaming_surface.go -- streamingPathsOff -->
+<!-- source: cmd/ze/hub/surface_parity_test.go -- TestStreamingOneShotAnswersCarryData -->
+
 **Note:** `monitor bgp` is the live peer dashboard (TUI only). `monitor event` streams live events (SSH exec or TUI). `monitor system netlink` streams kernel netlink events (SSH exec or TUI, Linux only).
 
 #### Netlink Monitor

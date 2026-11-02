@@ -695,8 +695,12 @@ func forceExitOnSignal(sigCh <-chan os.Signal) {
 // (command.ListedOnDaemonSurfaces), so a plugin command with no YANG node is
 // offered, a hidden one is not, and a plugin that registered or exited since
 // startup is reflected on the next request. base is shared and never written.
-// A nil entries (web-only mode, no plugin registry) answers base alone.
+// A nil entries (web-only mode, no plugin registry) answers base alone. Either
+// way a streaming command declared streaming-only is removed first
+// (streamingPathsOff): the console runs a command once, and such a command
+// has no one-shot answer.
 func adminCommandTrees(base *command.Node, entries func() []command.CommandEntry) zeweb.AdminCommandTree {
+	base = command.WithoutCommandPaths(base, streamingPathsOff(command.SurfaceWebAdmin))
 	if entries == nil {
 		return zeweb.StaticCommandTree(base)
 	}

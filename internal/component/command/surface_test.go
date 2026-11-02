@@ -31,6 +31,12 @@ func TestSurfacePredicateByKind(t *testing.T) {
 		SurfaceSSH: streaming, SurfaceWebAdmin: must, SurfaceWebCompletion: must, SurfaceMCP: must,
 		SurfaceREST: must, SurfaceGRPC: must, SurfaceCLI: streaming, SurfaceShell: streaming,
 	}
+	// A streaming-only command streams on the terminals and is offered on no
+	// one-shot surface.
+	streamsOnly := map[Surface]Offer{
+		SurfaceSSH: streaming, SurfaceWebAdmin: mustNot, SurfaceWebCompletion: mustNot, SurfaceMCP: mustNot,
+		SurfaceREST: mustNot, SurfaceGRPC: mustNot, SurfaceCLI: streaming, SurfaceShell: streaming,
+	}
 	tuiOnly := map[Surface]Offer{
 		SurfaceSSH: tui, SurfaceWebAdmin: mustNot, SurfaceWebCompletion: mustNot, SurfaceMCP: mustNot,
 		SurfaceREST: mustNot, SurfaceGRPC: mustNot, SurfaceCLI: tui, SurfaceShell: mustNot,
@@ -48,6 +54,7 @@ func TestSurfacePredicateByKind(t *testing.T) {
 		{"hidden plugin", CommandRegistration{Path: "a b", Kind: KindPlugin, Hidden: true}, none},
 		{"streaming builtin", CommandRegistration{Path: "a b", Kind: KindBuiltin, Streaming: true}, streams},
 		{"hidden streaming", CommandRegistration{Path: "a b", Kind: KindBuiltin, Streaming: true, Hidden: true}, none},
+		{"streaming-only builtin", CommandRegistration{Path: "a b", Kind: KindBuiltin, Streaming: true, StreamingOnly: true}, streamsOnly},
 		{"declared TUI-only view", CommandRegistration{Path: "a b", Kind: KindView, TUIOnly: true}, tuiOnly},
 	}
 	for _, tc := range cases {
