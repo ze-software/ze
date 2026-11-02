@@ -241,10 +241,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   packages, the functional tests), run directly. A rule, skill, hook or tool
   message that tells an agent to run `./le verify` is wrong and is corrected,
   never followed. `./le verify changed` stays Thomas's tool: when an agent
-  needs its report, it asks Thomas to run it and waits for the result, so
-  several agents never start verifications at once and overload the machine.
-  The tooling refuses `./le verify changed` started without an interactive
-  terminal.
+  needs its report, it asks Thomas, who runs it or tells that agent to run it,
+  so several agents never start verifications at once and overload the
+  machine. An agent runs it only on Thomas's explicit order for that run.
+  The tooling refuses `./le verify changed` without an interactive terminal
+  unless the caller passes Thomas's order as an authorisation, which the run
+  records.
 - No agent develops or tests code in a worktree, a `git archive` export or
   any other copy of the tree: features and code are tested in the main
   checkout. When another session's in-progress edit breaks the build there,
