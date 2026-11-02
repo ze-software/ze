@@ -1242,7 +1242,7 @@ those bytes from the stored or pending route, so a removal notes its change
 before it deletes, and a change for a route the store does not hold is not
 emitted, because its eligibility was false before and after. No
 `ValidationChange` is emitted before
-`enable-validation` registers the eligibility lookup. Without that lookup every
+`enable-validation` enables the eligibility gate. Without it every
 path is eligible, so a store change alters no verdict. An event would make the
 route server and the reflector replay a route the live forward already sent.
 The lookup stays registered after `disable-validation`, and so do the events. Stored replay excludes ineligible paths, and
@@ -1272,22 +1272,37 @@ retained path carries its original `MsgID`.
 The eligibility lookup is a Go function, registered only in the process the
 receive store runs in, and only when that is the daemon. Every
 `enable-validation` and `disable-validation` therefore also announces the
-gate's state as `bgp-rib/validation-gate` (`{"enabled": true}`), through
-`emit-event` on both transports. A process that receives it and holds no
-lookup of its own (the daemon while `bgp-adj-rib-in` runs forked, or a forked
-`bgp-rib`) fails closed while the gate is enabled: `ValidationEnabled` answers
-true and `RouteEligible` refuses every path, with one error logged naming the
-cause and the fix (run `bgp-adj-rib-in` internal). The daemon applies it from
-the reactor's subscription, taken before the plugins that depend on BGP start,
-and a forked `bgp-rib` from its SDK subscription. A registered lookup is never
-replaced or removed by an announcement. A failed announcement fails the
-command, so `bgp-rpki` reports that validation is not in force. Answering the
-lookup itself across the boundary, so a forked store's verdicts reach the
-forward path, is not built yet: until it is, a forked store with validation
-enabled advertises nothing.
-<!-- source: internal/core/bgp/ribevents/validation.go -- NoteValidationGate, DecodeValidationGate, ValidationGate -->
+gate's state as `bgp-rib/validation-gate`
+(`{"enabled": true, "command": "request bgp adj-rib-in eligibility"}`), through
+`emit-event` on both transports. The announcement names the command the store
+serves for eligibility queries, so no reader names the plugin that owns the
+gate. A process that receives it and holds no lookup of its own (the daemon
+while `bgp-adj-rib-in` runs forked, or a forked `bgp-rib`) asks the store
+through that command: one argument, the JSON `ribevents.EligibilityRequest`
+(`{"queries": [{"route": <route>, "msg-id": <id>, "present": <bool>}]}`),
+answered by `{"answers": [<bool>, ...]}` in query order, at most
+`ribevents.EligibilityBatchMax` (1024) queries per command and
+`ribevents.GateLookupTimeout` (5 s) per answer. The reactor's forward path
+batches its questions per NLRI section, at most 256 prefixes a command
+(`eligibilityBatch`), rather than asking per prefix. Each process reaches the
+command through the dispatch it registers (`ribevents.RegisterGateDispatch`):
+the reactor through the daemon's command dispatcher, `bgp-rib` through
+`dispatch-command-args`. A query the store cannot answer (no dispatch, an
+error, a timeout, a short answer) is refused, fail closed, with one error
+logged per minute. An announcement that names no command makes every route
+refused. The daemon applies the announcement from the reactor's subscription,
+taken before the plugins that depend on BGP start, and a forked `bgp-rib` from
+its SDK subscription. A registered lookup is never replaced or removed by an
+announcement. A failed announcement fails the command, so `bgp-rpki` reports
+that validation is not in force. A forked store stores each route's message ID
+from the JSON event, so the msgID match holds there too, and it emits
+`ValidationChange` once validation is enabled, as the daemon's store does.
+FlowSpec authorization (`bgp-rib`'s lookups) does not cross the boundary yet.
+<!-- source: internal/core/bgp/ribevents/validation.go -- NoteValidationGate, DecodeValidationGate, ValidationGate, RouteEligibleBatch -->
+<!-- source: internal/core/bgp/ribevents/gate_remote.go -- EligibilityRequest, AnswerEligibility, RegisterGateDispatch, askGateOwner -->
+<!-- source: internal/component/bgp/reactor/forward_validation.go -- eligibilityBatch -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- announcedGateCommand, emitValidationGateEvent -->
-<!-- source: internal/component/bgp/reactor/reactor_validation_gate.go -- subscribeValidationGate -->
+<!-- source: internal/component/bgp/reactor/reactor_validation_gate.go -- subscribeValidationGate, dispatchGateCommand -->
 
 ### Mandatory FlowSpec authorization
 

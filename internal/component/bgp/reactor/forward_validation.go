@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/netip"
 	"slices"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -235,7 +236,12 @@ func (s *validationSelection) section(data []byte, fam family.Family, announce b
 	}
 	buf := s.scratch[:len(data)]
 	s.scratch = s.scratch[len(data):]
-	front, back := 0, len(buf)
+	batch, ok := eligibilityBatchPool.Get().(*eligibilityBatch)
+	if !ok {
+		batch = new(eligibilityBatch)
+	}
+	defer eligibilityBatchPool.Put(batch)
+	batch.reset(buf, announce)
 	addPath := s.ctx != nil && s.ctx.AddPath(fam)
 	for off := 0; off < len(data); {
 		start := off
@@ -268,21 +274,101 @@ func (s *validationSelection) section(data []byte, fam family.Family, announce b
 		}
 		off += n
 		key := ribevents.ValidationRoute{Peer: s.peer, Family: fam, Prefix: netip.PrefixFrom(ip, bits).Masked(), PathID: pathID}
-		keep := !ribevents.RouteEligible(key, 0)
-		if announce {
-			keep = ribevents.RouteEligible(key, s.msgID)
-		}
-		if keep {
-			front += copy(buf[front:], data[start:off])
-			continue
-		}
-		s.changed = true
-		if announce && !ribevents.RouteEligible(key, 0) {
-			back -= off - start
-			copy(buf[back:], data[start:off])
+		if batch.add(key, s.msgID, data[start:off]) {
+			s.changed = batch.flush() || s.changed
 		}
 	}
-	return buf[:front], buf[back:], nil
+	s.changed = batch.flush() || s.changed
+	return buf[:batch.front], buf[batch.back:], nil
+}
+
+// eligibilityChunk bounds the prefixes one batched receive-gate query names,
+// so a forked gate owner is asked once per chunk rather than once per prefix.
+const eligibilityChunk = 256
+
+// eligibilityBatch collects one section's prefixes and their gate queries,
+// then sorts each prefix into the kept or the denied region of the section's
+// scratch once the gate answered (ribevents.RouteEligibleBatch). An announced
+// prefix asks two questions, a withdrawn one asks one.
+//
+// Kept prefixes grow from the front and denied prefixes from the back of buf,
+// so their combined size never exceeds the input. Not safe for concurrent use:
+// one section owns a batch from eligibilityBatchPool at a time.
+type eligibilityBatch struct {
+	queries  [2 * eligibilityChunk]ribevents.EligibilityQuery
+	answers  [2 * eligibilityChunk]bool
+	prefixes [eligibilityChunk][]byte
+	count    int
+	buf      []byte
+	front    int
+	back     int
+	announce bool
+}
+
+var eligibilityBatchPool = sync.Pool{New: func() any { return new(eligibilityBatch) }}
+
+func (b *eligibilityBatch) reset(buf []byte, announce bool) {
+	b.count = 0
+	b.buf = buf
+	b.front = 0
+	b.back = len(buf)
+	b.announce = announce
+}
+
+// add queues one prefix, framed as received, and reports that the batch is
+// full and MUST be flushed before the next add.
+//
+// An announcement is kept when the received generation (msgID) is eligible,
+// and denied (withdrawn downstream) when no generation of the path is. A
+// withdrawal is kept only when no generation of the path is still eligible.
+func (b *eligibilityBatch) add(key ribevents.ValidationRoute, msgID uint64, framed []byte) bool {
+	if b.announce {
+		b.queries[2*b.count] = ribevents.EligibilityQuery{Route: key, MsgID: msgID}
+		b.queries[2*b.count+1] = ribevents.EligibilityQuery{Route: key}
+	} else {
+		b.queries[b.count] = ribevents.EligibilityQuery{Route: key}
+	}
+	b.prefixes[b.count] = framed
+	b.count++
+	return b.count == eligibilityChunk
+}
+
+// flush asks the gate about every queued prefix, places each, and reports
+// whether any was not kept as received.
+func (b *eligibilityBatch) flush() bool {
+	if b.count == 0 {
+		return false
+	}
+	asked := b.count
+	if b.announce {
+		asked = 2 * b.count
+	}
+	ribevents.RouteEligibleBatch(b.queries[:asked], b.answers[:asked])
+	changed := false
+	for i := range b.count {
+		framed := b.prefixes[i]
+		b.prefixes[i] = nil
+		if !b.announce {
+			if !b.answers[i] {
+				b.front += copy(b.buf[b.front:], framed)
+				continue
+			}
+			changed = true
+			continue
+		}
+		if b.answers[2*i] {
+			b.front += copy(b.buf[b.front:], framed)
+			continue
+		}
+		changed = true
+		if !b.answers[2*i+1] {
+			b.back -= len(framed)
+			copy(b.buf[b.back:], framed)
+		}
+	}
+	clear(b.queries[:asked])
+	b.count = 0
+	return changed
 }
 
 // flowSpecUpdate keeps mandatory authorization active even without RPKI.

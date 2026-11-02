@@ -4,6 +4,11 @@
 package reactor
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 )
 
@@ -18,10 +23,41 @@ import (
 // because a subscription delivers future events only and bgp-rpki enables
 // validation while plugins start. The unsubscribe joins eventBusUnsubs
 // (releaseEventSubscriptions).
+//
+// It also registers dispatchGateCommand as this process's route to the
+// command the announcement names, so the forward path reads a forked owner's
+// verdicts (ribevents.RouteEligibleBatch) rather than refusing every route.
+// The release joins eventBusUnsubs too.
 func (r *Reactor) subscribeValidationGate() {
 	if r.eventBus == nil {
 		return
 	}
+	release := ribevents.RegisterGateDispatch(r.dispatchGateCommand)
 	unsubscribe := ribevents.ValidationGate.Subscribe(r.eventBus, ribevents.NoteValidationGate)
-	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubscribe)
+	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubscribe, release)
+}
+
+// dispatchGateCommand sends the gate owner's eligibility command through the
+// daemon's command dispatcher, to whichever plugin declared it. The engine is
+// the caller, so no operator authorization applies.
+func (r *Reactor) dispatchGateCommand(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
+	dispatcher := r.Dispatcher()
+	if dispatcher == nil {
+		return "", nil, errors.New("the API server has not started, so no plugin command can be dispatched")
+	}
+	resp, err := dispatcher.ForwardToPlugin(&pluginserver.CommandContext{RequestContext: ctx}, command, args, "")
+	if err != nil {
+		return "", nil, err
+	}
+	if resp == nil {
+		return "", nil, errors.New(command + " answered no response")
+	}
+	if resp.Error != "" {
+		return resp.Status, nil, errors.New(resp.Error)
+	}
+	data, err := json.Marshal(resp.Data)
+	if err != nil {
+		return "", nil, err
+	}
+	return resp.Status, data, nil
 }

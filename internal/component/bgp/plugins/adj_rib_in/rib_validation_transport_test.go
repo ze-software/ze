@@ -145,3 +145,60 @@ func applyGateAnnouncements(t *testing.T, engine *pluginengine.Engine) []bool {
 	}
 	return states
 }
+
+// TestForkedGateServesValidatedVerdicts proves a process that cannot read the
+// receive store's lookup in memory reads the store's verdicts through the
+// eligibility command its announcement names, on both transports: a forked
+// store with validation enabled advertises its validated routes, not nothing.
+//
+// VALIDATES: the validation-gate announcement names the store's eligibility
+// command; through it, ribevents.RouteEligible answers eligible for a route
+// the store accepted (its received generation too) and refuses a route still
+// pending and a generation the store does not hold; RoutePresent answers the
+// pending route present.
+// PREVENTS: a forked bgp-adj-rib-in refusing every route in the daemon (the
+// fail-closed stand-in for a lookup that did not cross the boundary).
+// Method: run the real entry point through the fake engine, apply the
+// announcements, route this process's gate dispatch to the plugin's own
+// command handler through the engine, receive two routes, accept one.
+func TestForkedGateServesValidatedVerdicts(t *testing.T) {
+	for _, transport := range pluginengine.Transports() {
+		t.Run(transport.String(), func(t *testing.T) {
+			t.Cleanup(func() { ribevents.RegisterValidationLookup(nil, nil) })
+			ribevents.RegisterValidationLookup(nil, nil)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			engine := pluginengine.Start(t, transport, runAdjRIBInPlugin)
+			release := ribevents.RegisterGateDispatch(func(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
+				data, err := engine.Execute(ctx, command, args)
+				if err != nil {
+					return "", nil, err
+				}
+				return "done", data, nil
+			})
+			t.Cleanup(release)
+			// The bridge transport registers the store's lookup in memory
+			// (the daemon case); drop it so this process reads the store only
+			// through the command, as the daemon does while the store is forked.
+			require.NoError(t, engine.Deliver(ctx, adjTransportStateUp(adjTransportSource)))
+			_, err := engine.Execute(ctx, "request bgp adj-rib-in enable-validation", nil)
+			require.NoError(t, err)
+			ribevents.RegisterValidationLookup(nil, nil)
+			require.Equal(t, []bool{true}, applyGateAnnouncements(t, engine))
+
+			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 100, "10.1.0.0/24", "180a0100")))
+			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 101, "10.2.0.0/24", "180a0200")))
+			_, err = engine.Execute(ctx, "request bgp adj-rib-in accept-routes", []string{adjTransportSource, "ipv4/unicast", "10.1.0.0/24", "0", "1"})
+			require.NoError(t, err)
+
+			peer := netip.MustParseAddr(adjTransportSource)
+			accepted := ribevents.ValidationRoute{Peer: peer, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.1.0.0/24")}
+			pending := ribevents.ValidationRoute{Peer: peer, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.2.0.0/24")}
+			require.True(t, ribevents.RouteEligible(accepted, 0), "an accepted route must be eligible through the command")
+			require.True(t, ribevents.RouteEligible(accepted, 100), "the accepted route's received generation must be eligible")
+			require.False(t, ribevents.RouteEligible(accepted, 99), "a generation the store does not hold must be refused")
+			require.False(t, ribevents.RouteEligible(pending, 0), "a route awaiting validation must be refused")
+			require.True(t, ribevents.RoutePresent(pending), "a pending route is still owned by the store")
+		})
+	}
+}

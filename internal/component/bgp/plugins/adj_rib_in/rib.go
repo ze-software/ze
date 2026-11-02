@@ -183,10 +183,13 @@ type AdjRIBInManager struct {
 	// answering every route eligible. Nil announces nothing: a test manager
 	// with no engine has no other process to tell.
 	announceGate func(ribevents.ValidationGateState) error
-	// validationGate is set, under mu, once this store's eligibility lookup is
-	// registered with ribevents. Only then does the forward path and selection
-	// consult this store, so only then can a store change alter a verdict
-	// anyone read. It stays set after disable-validation: the lookup does too.
+	// validationGate is set, under mu, once validation is enabled and this
+	// store's eligibility lookup is reachable: registered with ribevents in the
+	// daemon, or served through eligibilityCommand to every other process
+	// (announcedGateCommand names it). Only then does the forward path and
+	// selection consult this store, so only then can a store change alter a
+	// verdict anyone read. It stays set after disable-validation: the lookup
+	// does too.
 	validationGate bool
 
 	// sourcePolicy holds each source's source-policy transaction and its undo
@@ -261,9 +264,11 @@ type AdjRIBInManager struct {
 	// "nothing ingested yet", and it is exactly the losing case, so it must not
 	// double as "no signal".
 	//
-	// True only on the structured (in-process) path, the only one carrying a
-	// MessageID. Forked ingest stores MsgID 0, which replayCut.excludes never
-	// excludes, so that replay is already unbounded. Set before any event.
+	// True only on the structured (in-process) path, the only one that notes
+	// its ingest position (noteIngested). Forked ingest stores each route's
+	// message ID from the JSON event (handleReceived, event.GetMsgID), so the
+	// eligibility query's msgID match holds there too; it notes no position,
+	// so its replay is unbounded. Set before any event.
 	ingestTracked bool
 }
 
@@ -327,6 +332,15 @@ func commandDecls() []sdk.CommandDecl {
 		{
 			Name:      ribevents.ReplayPathCommand,
 			ShortHelp: "Answer one source path's current state for one target after validation changes.",
+			Hidden:    true,
+		},
+		// Plugin-to-plugin plumbing: a process that cannot read this
+		// store's eligibility lookup in memory (the daemon's forward path and
+		// a RIB, while this store runs forked) asks it here, the command the
+		// validation-gate announcement names (ribevents.EligibilityRequest).
+		{
+			Name:      eligibilityCommand,
+			ShortHelp: "Answer whether each named received path is eligible for selection and advertisement.",
 			Hidden:    true,
 		},
 		// Plugin-to-plugin plumbing, not an operator verb: bgp-rs claims

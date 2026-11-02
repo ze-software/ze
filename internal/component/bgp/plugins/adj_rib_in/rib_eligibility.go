@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"time"
@@ -114,11 +115,10 @@ func (r *AdjRIBInManager) routePresent(key ribevents.ValidationRoute) bool {
 // noteValidationChange MUST run under mu. The caller MUST finish with
 // unlockValidation, never mu.Unlock, so downstream selection sees the change.
 //
-// Nothing is noted until the eligibility gate is registered. Without it,
-// ribevents.RouteEligible answers true for every path while validation is
-// off, so the live forward already carried each route and no verdict changed;
-// and while validation is on in a forked store, every other process refuses
-// every path (announcedGateCommand), so again no verdict changed. A ValidationChange then
+// Nothing is noted until validation enables the eligibility gate (in memory
+// in the daemon, through eligibilityCommand when forked). Before that,
+// ribevents.RouteEligible answers true for every path, so the live forward
+// already carried each route and no verdict changed. A ValidationChange then
 // makes the route server and reflector replay the path to every target, which
 // sends each UPDATE a second time and re-announces a route the next UPDATE
 // withdraws.
@@ -216,6 +216,24 @@ func (r *AdjRIBInManager) emitValidationEvent(changes []ribevents.ValidationRout
 	return nil
 }
 
+// eligibilityCommand answers ribevents.EligibilityRequest from routeEligible
+// and routePresent, for a process this store's lookup cannot reach in memory.
+// The validation-gate announcement names it, so no reader names this plugin.
+const eligibilityCommand = "request bgp adj-rib-in eligibility"
+
+// eligibilityAnswerCommand serves eligibilityCommand: one argument, the
+// compact JSON EligibilityRequest, bounded by ribevents.EligibilityBatchMax.
+func (r *AdjRIBInManager) eligibilityAnswerCommand(args []string) (string, any, error) {
+	if len(args) != 1 {
+		return statusError, "", errors.New(eligibilityCommand + " requires one argument: the JSON eligibility request")
+	}
+	answer, err := ribevents.AnswerEligibility(args[0], r.routeEligible, r.routePresent)
+	if err != nil {
+		return statusError, "", fmt.Errorf("%s: %w", eligibilityCommand, err)
+	}
+	return statusDone, answer, nil
+}
+
 // emitValidationGateEvent hands the gate's state to the engine as
 // bgp-rib/validation-gate through the SDK, the path emitValidationEvent takes,
 // so it reaches the daemon and every forked subscriber alike.
@@ -247,7 +265,7 @@ func (r *AdjRIBInManager) announcedGateCommand(status string, data any, err erro
 		return status, data, nil
 	}
 	r.mu.RLock()
-	state := ribevents.ValidationGateState{Enabled: r.validationEnabled}
+	state := ribevents.ValidationGateState{Enabled: r.validationEnabled, Command: eligibilityCommand}
 	r.mu.RUnlock()
 	if announceErr := r.announceGate(state); announceErr != nil {
 		return statusError, "", announceErr

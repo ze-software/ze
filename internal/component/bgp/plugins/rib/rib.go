@@ -702,6 +702,13 @@ func runRIBPlugin(conn net.Conn) int {
 	defer ribevents.RegisterFlowSpecRedirectLookup(nil)
 	recovery := ribevents.PublishRecovery(r.recoveryRoutes)
 	defer recovery.Close() // SDK Run MUST drain event delivery before unpublishing.
+	// A forked bgp-rib reads the receive store's verdicts through the command
+	// its validation-gate announcement names (ribevents.RouteEligible asks it
+	// through this dispatch), rather than refusing every path.
+	releaseGateDispatch := ribevents.RegisterGateDispatch(func(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
+		return p.DispatchCommandArgs(ctx, command, args, "")
+	})
+	defer releaseGateDispatch()
 
 	// In-process consumers use the shared Loc-RIB; a subprocess mirrors selected
 	// routes and resolves next-hop distances over the registered engine RPC.
@@ -755,8 +762,9 @@ func runRIBPlugin(conn net.Conn) int {
 	// bgp-rib hears it too: the daemon's own bus never reaches a subprocess.
 	// Enveloped, so dispatchText tells it from the BGP events. The gate's
 	// state comes the same way: a forked bgp-rib cannot reach the receive
-	// store's lookup, so it must learn the gate exists to refuse selection
-	// (ribevents.NoteValidationGate) rather than select every path.
+	// store's lookup in memory, so it must learn the gate exists, and the
+	// command that answers it (ribevents.NoteValidationGate), rather than
+	// select every path.
 	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventValidationGate})
 	p.SetEnvelope(true)
 

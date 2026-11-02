@@ -72,6 +72,11 @@ type ValidationLookup func(route ValidationRoute, msgID uint64) bool
 type validationProvider struct {
 	eligible ValidationLookup
 	present  func(ValidationRoute) bool
+	// batch answers many queries at once. It MUST write every answer.
+	batch func(queries []EligibilityQuery, answers []bool)
+	// announced marks a provider NoteValidationGate installed from an
+	// announcement, as opposed to one the gate's owner registered here.
+	announced bool
 }
 
 var validationLookup atomic.Pointer[validationProvider]
@@ -83,7 +88,20 @@ func RegisterValidationLookup(fn ValidationLookup, present func(ValidationRoute)
 		validationLookup.Store(nil)
 		return
 	}
-	validationLookup.Store(&validationProvider{eligible: fn, present: present})
+	provider := &validationProvider{eligible: fn, present: present}
+	provider.batch = provider.answerEach
+	validationLookup.Store(provider)
+}
+
+// answerEach is the batch of a provider whose lookup runs in this process.
+func (p *validationProvider) answerEach(queries []EligibilityQuery, answers []bool) {
+	for i := range queries {
+		if queries[i].Present {
+			answers[i] = p.present != nil && p.present(queries[i].Route)
+			continue
+		}
+		answers[i] = p.eligible(queries[i].Route, queries[i].MsgID)
+	}
 }
 
 // gateLogger reports a receive gate this process cannot reach.
@@ -96,8 +114,21 @@ var gateLogger = slogutil.LazyLogger("bgp.ribevents")
 // never judged, with no error anywhere. The first refusal is logged, so an
 // operator learns why nothing is advertised.
 var unservedValidation = &validationProvider{
-	eligible: refuseUnservedRoute,
-	present:  func(ValidationRoute) bool { return false },
+	eligible:  refuseUnservedRoute,
+	present:   func(ValidationRoute) bool { return false },
+	batch:     refuseUnservedBatch,
+	announced: true,
+}
+
+// refuseUnservedBatch refuses every query, as refuseUnservedRoute does.
+func refuseUnservedBatch(queries []EligibilityQuery, answers []bool) {
+	for i := range queries {
+		if queries[i].Present {
+			answers[i] = false
+			continue
+		}
+		answers[i] = refuseUnservedRoute(queries[i].Route, queries[i].MsgID)
+	}
 }
 
 // unservedRefusalLogged makes refuseUnservedRoute log once per unserved period.
@@ -121,6 +152,11 @@ const EventValidationGate = "validation-gate"
 // ValidationGateState is the EventValidationGate payload.
 type ValidationGateState struct {
 	Enabled bool `json:"enabled"`
+	// Command is the command the gate's owner serves for eligibility queries
+	// (EligibilityRequest in, EligibilityAnswer out). The owner declares it, so
+	// no reader names the plugin that owns the gate. Empty means the owner
+	// serves none, and a process without the lookup then refuses every route.
+	Command string `json:"command,omitempty"`
 }
 
 // ValidationGate is the typed handle of EventValidationGate.
@@ -129,19 +165,28 @@ var ValidationGate = events.Register[ValidationGateState](Namespace, EventValida
 // NoteValidationGate applies an EventValidationGate announcement to this
 // process. A process that holds the owner's lookup (RegisterValidationLookup
 // ran here) keeps it: the announcement changes nothing. A process that holds
-// none fails closed while the gate is enabled, and returns to "no validation"
-// when it is disabled. It never replaces or removes a registered lookup.
-// Safe for concurrent use.
+// none asks the owner through the command the announcement names
+// (remoteValidation), or fails closed when it names none, while the gate is
+// enabled, and returns to "no validation" when it is disabled. It never
+// replaces or removes a registered lookup. Safe for concurrent use.
 func NoteValidationGate(state ValidationGateState) {
-	if !state.Enabled {
-		validationLookup.CompareAndSwap(unservedValidation, nil)
+	current := validationLookup.Load()
+	if current != nil && !current.announced {
 		return
 	}
-	if validationLookup.CompareAndSwap(nil, unservedValidation) {
+	if !state.Enabled {
+		validationLookup.CompareAndSwap(current, nil)
+		return
+	}
+	if state.Command != "" {
+		validationLookup.CompareAndSwap(current, remoteValidation(state.Command))
+		return
+	}
+	if validationLookup.CompareAndSwap(current, unservedValidation) && current != unservedValidation {
 		unservedRefusalLogged.Store(false)
 		gateLogger().Error("receive validation gate unreachable: every route is refused until it is",
-			"reason", "validation was enabled in another process, and its eligibility lookup does not cross the process boundary",
-			"fix", "run bgp-adj-rib-in internal (in the daemon)")
+			"reason", "validation was enabled in another process, and its owner serves no eligibility command",
+			"fix", "run the receive store internal (in the daemon), or one that declares an eligibility command")
 	}
 }
 
@@ -182,6 +227,35 @@ func RouteEligible(route ValidationRoute, msgID uint64) bool {
 		return true
 	}
 	return fn.eligible(route, msgID)
+}
+
+// RouteEligibleBatch answers RouteEligible, or RoutePresent where a query sets
+// Present, for every query, into answers (len(answers) MUST be len(queries)).
+// A provider in another process is asked once per EligibilityBatchMax
+// queries rather than once per route, which is why a per-UPDATE caller (the
+// reactor's forward path) uses it.
+func RouteEligibleBatch(queries []EligibilityQuery, answers []bool) {
+	provider := validationLookup.Load()
+	if provider == nil {
+		for i := range queries {
+			answers[i] = !queries[i].Present
+		}
+	} else {
+		provider.batch(queries, answers)
+	}
+	for i := range queries {
+		if !IsFlowSpec(queries[i].Route.Family) {
+			continue
+		}
+		flowSpec := flowSpecLookup.Load()
+		if queries[i].Present {
+			answers[i] = flowSpec != nil && flowSpec.present != nil && flowSpec.present(queries[i].Route)
+			continue
+		}
+		if flowSpec == nil || !flowSpec.eligible(queries[i].Route, queries[i].MsgID) {
+			answers[i] = false
+		}
+	}
 }
 
 // RoutePresent reports whether the receive store still owns a pending or

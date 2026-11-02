@@ -54,6 +54,8 @@ func (r *AdjRIBInManager) handleCommand(command string, args []string, peer stri
 		return r.replayRoutesCommand(args)
 	case ribevents.ReplayPathCommand:
 		return r.replayPathCommand(args)
+	case eligibilityCommand:
+		return r.eligibilityAnswerCommand(args)
 	case "request bgp adj-rib-in claim-replay":
 		return r.claimReplayCommand()
 	case "request bgp adj-rib-in enable-validation":
@@ -400,10 +402,13 @@ func (r *AdjRIBInManager) enableValidationCommand(args []string) (string, any, e
 		r.validationTimeout = timeout
 	}
 	r.validationEnabled = true
+	// In the daemon the lookup is registered in memory. Forked, every other
+	// process reaches it through eligibilityCommand, which the announcement
+	// names, so its verdict changes are worth noting either way.
 	if r.ingestTracked {
 		ribevents.RegisterValidationLookup(r.routeEligible, r.routePresent)
-		r.validationGate = true
 	}
+	r.validationGate = true
 	data := map[string]any{"validation-enabled": true}
 	if refresh {
 		data["routes"] = r.suspendForRevalidation()
