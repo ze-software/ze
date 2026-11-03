@@ -1,9 +1,7 @@
 // Design: docs/architecture/core-design.md -- policy filter chain
 // Spec: plan/spec-pol-4-explain.md -- policy dry-run trace
-// Related: filter_chain.go -- PolicyFilterChain (runtime execution)
-// Related: filter_format.go -- AppendUpdateForFilter (text rendering)
-// Related: filter_delta.go -- textDeltaToModOps (wire diff extraction)
 // Related: policy_dryrun_library.go -- traceLibraryChain (a library chain's dry-run)
+// Related: policy_dryrun_display.go -- routeDisplay (text-before, text-after, changed-attrs)
 // RFC: rfc/short/rfc4271.md -- Section 5.1.4, the direction the med-remove directive is honored on
 
 package reactor
@@ -23,8 +21,11 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
-// tracePolicyFilterChain records external filter decisions and applies the policy
-// final. Named in-process checks are marked not-evaluated, never called by RPC.
+// tracePolicyFilterChain records external filter decisions over the text chain
+// and applies the policy final. Named in-process checks are marked
+// not-evaluated, never called by RPC. PolicyDryRun no longer calls it (a policy
+// with no library chain fails closed, traceUncompiledChain): it remains only
+// for the text chain's tests beside PolicyFilterChain, and goes with them.
 func tracePolicyFilterChain(policy filterapi.Policy, external bool, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyChainResult, []plugin.PolicyTraceEntry) {
 	var trace []plugin.PolicyTraceEntry
 	if direction != directionImport {
@@ -118,6 +119,55 @@ func tracePolicyFilterChain(policy filterapi.Policy, external bool, direction, p
 		return PolicyChainResult{Action: PolicyReject}, trace
 	}
 	return PolicyChainResult{Action: PolicyAccept, Text: current}, trace
+}
+
+// errUncompiledChain is why a plugin filter on a policy that compiled no
+// library chain cannot run in the dry-run: the session fails the route closed
+// for the same reason.
+var errUncompiledChain = errors.New("the peer's filter chain is not compiled, so this filter cannot run and the route is rejected (fail-closed); repeat show policy test once the peer session is established")
+
+// traceUncompiledChain answers the dry-run of a policy that compiled no
+// library chain. Its plugin filters have no chain to reach them, so the first
+// active one fails closed: a reject with its trace entry naming why, as the
+// session rejects the route. A named in-process check is marked
+// not-evaluated, never called. A policy holding neither ends on its final,
+// RFC 8212 Section 3 deciding an absent one. On a direction other than import
+// a policy that requires the ingress stage is refused before any filter, its
+// first in-process check named as not evaluated. The caller shows the
+// resulting UPDATE: the pasted one on accept, none on reject.
+func traceUncompiledChain(policy filterapi.Policy, external bool, direction string) (PolicyChainResult, []plugin.PolicyTraceEntry) {
+	var trace []plugin.PolicyTraceEntry
+	refused := direction != directionImport && policy.RequiresIngress()
+	for i, ref := range policy.Filters() {
+		if ref.Inactive {
+			continue
+		}
+		_, filterName, _ := strings.Cut(ref.Name, ":")
+		entry := plugin.PolicyTraceEntry{Filter: filterName, Canonical: ref.Name}
+		if policy.InProcess(i) {
+			entry.Action = "not-evaluated"
+			trace = append(trace, entry)
+			if refused {
+				break
+			}
+			continue
+		}
+		if refused {
+			continue
+		}
+		entry.Action = dryRunActionReject
+		entry.Error = errUncompiledChain.Error()
+		trace = append(trace, entry)
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace
+	}
+	if refused {
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace
+	}
+	// RFC 8212 Section 3.
+	if !policy.AcceptsAtEnd(external) {
+		return PolicyChainResult{Action: PolicyReject}, trace
+	}
+	return PolicyChainResult{Action: PolicyAccept}, trace
 }
 
 const (
@@ -254,7 +304,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		}
 	}
 
-	// Build a temporary WireUpdate for text rendering.
+	// Build a temporary WireUpdate the chain judges and the display reads.
 	ctxID := bgpctx.APIContextID
 	if !asn4 {
 		// Register the ASN2 encoding context. The only failure is registry
@@ -268,44 +318,40 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	}
 	wu := wireu.NewWireUpdate(updateBody, ctxID)
 
-	// Parse attributes from the update body.
-	attrs, err := wu.Attrs()
+	// D-11: the pasted UPDATE as the operator is shown it, read from the wire.
+	before, err := displayUpdate(wu)
 	if err != nil {
 		return nil, errInvalidUpdateBody
 	}
-
-	var buf []byte
-	buf = AppendUpdateForFilter(buf, attrs, wu, nil)
-	textBefore := string(buf)
+	textBefore := before.text()
 
 	var result PolicyChainResult
+	var after *routeDisplay
 	var trace []plugin.PolicyTraceEntry
 	var wireChanges []string
-	library := policy.Library()
-	if library != nil {
+	if library := policy.Library(); library != nil {
 		// D-11: a library chain runs as it runs live, display only, its
 		// plugin members reached through the chain (traceLibraryChain).
 		dry := libraryDryRun{wireUpdate: wu, payload: updateBody, ctxID: ctxID, direction: direction, peer: peerAddr, session: dryRunSession(direction, facts),
 			intent: libraryIntentContext{asn4: asn4, localAS: localAS, peerAS: peerAS, asPathEditable: direction == directionImport || !internal}}
-		result, trace, wireChanges = r.traceLibraryChain(library, &dry, textBefore)
+		result, after, trace, wireChanges = r.traceLibraryChain(library, &dry, &before)
 	} else {
-		// Run the trace chain using the real filter function (calls plugins via IPC).
-		callFilter := r.policyFilterFunc(wu, updateBody, dryRunSession(direction, facts))
-		result, trace = tracePolicyFilterChain(
-			policy, !internal, direction, peerAddr, peerAS, textBefore, callFilter,
-		)
+		result, trace = traceUncompiledChain(policy, !internal, direction)
+		if result.Action == PolicyAccept {
+			result.Text = textBefore
+			after = &before
+		}
 	}
 	// A policy rejection removes announcements, not explicit withdrawals.
 	// Execution failures and teardown still drop the entire UPDATE.
 	if result.Action == PolicyReject && !policy.AcceptsAtEnd(!internal) && !result.Failed && !result.Teardown {
 		if withdrawals := policyWithdrawals(updateBody); withdrawals != nil {
-			withdrawalUpdate := wireu.NewWireUpdate(withdrawals, ctxID)
-			withdrawalAttrs, attrErr := withdrawalUpdate.Attrs()
-			if attrErr != nil {
+			withdrawn, displayErr := displayUpdate(wireu.NewWireUpdate(withdrawals, ctxID))
+			if displayErr != nil {
 				return nil, errInvalidUpdateBody
 			}
-			buf = AppendUpdateForFilter(buf[:0], withdrawalAttrs, withdrawalUpdate, nil)
-			result = PolicyChainResult{Action: PolicyAccept, Text: string(buf)}
+			result = PolicyChainResult{Action: PolicyAccept, Text: withdrawn.text()}
+			after = &withdrawn
 		}
 	}
 	textAfter := result.Text
@@ -331,18 +377,12 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		panic("BUG: invalid policy action")
 	}
 
-	// Compute changed attributes. Parse each filter text exactly once and
-	// share the maps read-only (spec filter-delta-parse-once).
-	// A library chain's wire changes are the operations its run built
-	// (traceLibraryChain); the text chain's are recomputed from its delta.
+	// The changed attributes compare the two displays, each read from a wire
+	// UPDATE; the wire changes are the operations the library chain's run
+	// built (traceLibraryChain).
 	var changedAttrs []string
-	if textBefore != textAfter && textAfter != "" {
-		beforeAttrs := parseFilterAttrs(textBefore)
-		afterAttrs := parseFilterAttrs(textAfter)
-		changedAttrs = computeChangedAttrs(beforeAttrs, afterAttrs)
-		if library == nil {
-			wireChanges = computeWireChanges(beforeAttrs, afterAttrs, attrs, direction, asn4, peerAS, localAS, internal)
-		}
+	if after != nil && textBefore != textAfter && textAfter != "" {
+		changedAttrs = before.changed(after)
 	}
 
 	return &plugin.PolicyDryRunResult{
@@ -373,50 +413,6 @@ func dryRunSession(direction string, peer filterapi.PeerFilterInfo) policyview.S
 		return policyview.ImportSession(peer).WithImportMetadata(make(map[string]any, 2))
 	}
 	return policyview.ExportSession(peer, filterapi.PeerFilterInfo{}, false)
-}
-
-// computeWireChanges mirrors the runtime egress/ingress text-to-wire path
-// (reactor_api_forward.go and reactor_notify.go) to surface wire-level
-// attribute modifications that the flat filter text cannot express. The
-// principal case is remove-private-as (RFC 6996) suppressing or rewriting
-// AS4_PATH (RFC 6793), which never appears in the text format because
-// AppendUpdateForFilter renders only the merged "as-path".
-//
-// It builds the same ModAccumulator the forward path builds but does not
-// construct a modified payload: this is a read-only explanation, so it only
-// reports the operations as "<ATTRIBUTE> <verb>" strings. beforeAttrs and
-// afterAttrs are the caller's single parseFilterAttrs results, shared
-// read-only with computeChangedAttrs.
-//
-// direction is here because one of those operations is direction-dependent:
-// RFC 4271 Section 5.1.4's med-remove directive is converted on the import
-// chain alone (ExtractMEDRemoveOps, filter_delta.go). Reporting it on an export
-// dry-run would promise a removal the runtime does not perform, and omitting it
-// on an import one tells the operator the metric survives. internal is the
-// session's own verdict (Peer.IsIBGP, migration-aware) for the same reason:
-// the export chain applies no AS_PATH edit toward an internal peer.
-func computeWireChanges(beforeAttrs, afterAttrs *filterAttrs, attrs *attribute.AttributesWire, direction string, asn4 bool, peerAS, localAS uint32, internal bool) []string {
-	var mods filterapi.ModAccumulator
-
-	values := acquireValueScratch()
-	defer releaseValueScratch(values)
-
-	textDeltaToModOps(values, beforeAttrs, afterAttrs, &mods)
-	// RFC 4271 Section 5.1.2: "When a given BGP speaker advertises the route
-	// to an internal peer, the advertising speaker SHALL NOT modify the
-	// AS_PATH attribute associated with the route." The export chain
-	// (runEgressPolicyChainASN4) therefore drops remove-private and
-	// as-path-prepend toward an internal peer, and the dry-run reports what
-	// the runtime does. The import chain applies both on every session.
-	if direction == directionImport || !internal {
-		ExtractRemovePrivateASOps(values, afterAttrs, attrs, asn4, peerAS, &mods)
-		ExtractASPathPrependOps(values, afterAttrs, attrs, asn4, localAS, &mods)
-	}
-	if direction == directionImport && medRemoveHasWork(afterAttrs) {
-		ExtractMEDRemoveOps(afterAttrs, &mods)
-	}
-
-	return describeWireOps(&mods)
 }
 
 // describeWireOps renders each attribute operation as "<ATTRIBUTE> <verb>"
@@ -477,20 +473,4 @@ func resolveFilterOverride(name string, chain []routepolicy.Ref) string {
 		}
 	}
 	return ""
-}
-
-// computeChangedAttrs compares the parsed before and after filter attribute
-// maps and returns the list of attribute names that differ. Both maps are
-// the caller's single parseFilterAttrs results, shared read-only with
-// computeWireChanges.
-func computeChangedAttrs(beforeAttrs, afterAttrs *filterAttrs) []string {
-	var changed []string
-	for _, id := range formatFilterAttrsOrder {
-		bv, bOK := beforeAttrs.get(id)
-		av, aOK := afterAttrs.get(id)
-		if bOK != aOK || bv != av {
-			changed = append(changed, filterAttrNames[id])
-		}
-	}
-	return changed
 }

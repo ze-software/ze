@@ -592,26 +592,37 @@ For `ze-bgp:show-policy-test`, `action` describes the external per-peer policy
 stage and its final, not the full protocol pipeline. A named in-process check
 has a trace entry with `action: "not-evaluated"` and empty `text-after`; no
 filter-update RPC was made for it. Selecting such a check as a single-filter
-override is refused with instructions to test it on the peer session.
-<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain, PolicyDryRun -->
+override is refused with instructions to test it on the peer session. A
+plugin filter on a policy that compiled no library chain is never called: its
+trace entry has `action: "reject"` and an `error` saying the chain is not
+compiled, and the route is rejected, as the session fails it closed.
+`text-before`, `text-after` and each entry's `text-after` are read from the
+wire UPDATE (the pasted one, or the one the chain built) by a display-only
+renderer that no filter is sent, and `changed-attrs` names the attributes
+whose shown value differs between the two.
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- traceUncompiledChain, PolicyDryRun -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun_display.go -- routeDisplay, displayUpdate, routeDisplay.changed -->
 
 A chain with a library member (an in-process filter instance) runs in the
 dry-run as it runs live, through the same chain, display only: no failure is
 counted or logged. Its plugin members are reached through the chain, and no
 filter-update is sent for a library member. Each member's trace entry has
-`action` accept, modify or reject, `delta` the sets a passing member asked as
+`action` accept, modify, reject or withdraw, `delta` the sets a passing member asked as
 text (`local-preference 200`), `error` why a failed member failed (its
 on-error decided the action), and `text-after` the UPDATE as the chain
 rewrote it up to that member (after a failed-open member, the earlier
-members' changes only), built the way the result's is; a rejecting member's
-entry carries none, as a rejecting text filter's. The result's `text-after`
+members' changes only), built the way the result's is; a rejecting or
+withdrawing member's entry carries none. A plugin member that rewrote the
+whole UPDATE body (a raw answer) is a modify with no `delta`, and its
+`text-after` is the body it answered, though the policy's final still
+decides whether the route keeps it. The result's `text-after`
 is the rewritten UPDATE. A single-filter override on such a chain runs that one
-member through the chain, display only, under the policy's final, as the
-text path's override keeps the final; a name the chain does not hold is
+member through the chain, display only, under the policy's final; a name
+the chain does not hold is
 refused as not in the peer's chain. The reported `policy` stays the whole
 chain the live session runs.
-<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceEntry, libraryTraceText, libraryMember -->
-<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Chain.Only, MemberTrace.Apply, Sets.AppendText -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceEntry, libraryTraceText, libraryRewriteText, libraryMember -->
+<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Chain.Only, MemberTrace.Apply, Sets.AppendText, TraceRewrite -->
 
 An unresolved remote AS returns `action: "undetermined"` with a `reason` telling
 the operator to wait for establishment and repeat `show policy test`. No filter

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -104,5 +105,76 @@ func TestExternalRawRewriteTerminal(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestExternalRawRewriteTraced proves the display-only run records a
+// whole-body rewrite as what it is: one TraceRewrite step naming the member
+// and carrying the body it answered, with no sets, under either final, so
+// show policy test reports the member as a modify and renders its body. It
+// also proves the trace reaches the live run's outcome and leaves the same
+// rewrite (or none) for the caller.
+//
+// Method: the chain [ext:raw, ext:later] under final accept and final reject,
+// traced, then run live on the same route; ext:later must not be judged.
+func TestExternalRawRewriteTraced(t *testing.T) {
+	later := 0
+	caller := &fakeCaller{filters: map[string]fakeFilter{
+		"ext:raw": {decl: ExternalDeclaration{Reads: []string{rpc.FilterFieldRaw}, OnError: rpc.OnErrorReject},
+			answer: func(*rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+				return &rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: rawBody}, nil
+			}},
+		"ext:later": {decl: ExternalDeclaration{Reads: []string{"local-preference"}, OnError: rpc.OnErrorReject},
+			answer: func(*rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+				later++
+				return &rpc.FilterUpdateOutput{Action: rpc.FilterReject}, nil
+			}},
+	}}
+	for name, final := range map[string]policy.Final{"accept": policy.FinalAccept, "reject": policy.FinalReject} {
+		t.Run(name, func(t *testing.T) {
+			later = 0
+			reg, err := policy.NewRegistry()
+			if err != nil {
+				t.Fatalf("registry: %v", err)
+			}
+			chain, err := Compile(testAttachment, reg, []Member{{Name: "raw", Plugin: "ext"}, {Name: "later", Plugin: "ext"}}, final, Bases{})
+			if err != nil {
+				t.Fatalf("compile: %v", err)
+			}
+			var view policyview.View
+			sets := new(RunSets)
+			sets.SetRoute(ExternalRoute{Caller: caller, Direction: "import", Peer: "192.0.2.1", PeerAS: 65001})
+			view.Reset(update(t, localPref(100)), policyview.Session{})
+			var steps []MemberTrace
+			outcome := chain.Trace(&view, sets, func(m MemberTrace) {
+				m.Raw = bytes.Clone(m.Raw)
+				steps = append(steps, m)
+			})
+			traced := sets.Raw()
+			view.Clear()
+			if len(steps) != 1 {
+				t.Fatalf("steps = %+v, want the one rewrite", steps)
+			}
+			step := steps[0]
+			if step.Name != "ext:raw" || step.Step != TraceRewrite || step.Sets != nil || step.Err != nil {
+				t.Fatalf("step = %+v, want ext:raw as a TraceRewrite with no sets and no error", step)
+			}
+			if !bytes.Equal(step.Raw, rawBody) {
+				t.Fatalf("step raw = %x, want the body the member answered %x", step.Raw, rawBody)
+			}
+			if later != 0 {
+				t.Fatalf("ext:later judged %d times after a terminal rewrite", later)
+			}
+			live, liveSets := runRoute(t, chain, caller, "import", localPref(100))
+			if live != outcome || !bytes.Equal(liveSets.Raw(), traced) {
+				t.Fatalf("live = %+v raw %x, trace = %+v raw %x: the trace must reach the live result", live, liveSets.Raw(), outcome, traced)
+			}
+			if final == policy.FinalAccept && !bytes.Equal(traced, rawBody) {
+				t.Fatalf("final accept left raw %x, want the rewrite", traced)
+			}
+			if final == policy.FinalReject && traced != nil {
+				t.Fatalf("final reject left raw %x, want none", traced)
+			}
+		})
 	}
 }

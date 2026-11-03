@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -166,17 +168,15 @@ func TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict(t *testi
 }
 
 // dryRunWireChanges runs `policy test peer` through PolicyDryRun for a peer
-// built from settings, with one filter whose answer is "as-path-prepend 2",
-// and answers the wire changes the operator is shown.
+// built from settings, whose import and export chains are one library member
+// asking as-path-prepend 2 (libraryTypeIntents), and answers the wire changes
+// the operator is shown.
 func dryRunWireChanges(t *testing.T, settings *PeerSettings, direction string) []string {
 	t.Helper()
+	libraryIntentEval = func(_ *policyview.View, sets *policychain.Sets) error { return sets.PrependASPath(2) }
 	r := New(&Config{})
-	r.api = &pluginserver.Server{}
-	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-		return PolicyResponse{Action: PolicyModify, Delta: "as-path-prepend 2"}
-	}
-	settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "aspath-edit"}}, routepolicy.FinalAccept)
-	settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "aspath-edit"}}, routepolicy.FinalAccept)
+	settings.ImportPolicy = aspathEditPolicy(t, libraryIntentImport)
+	settings.ExportPolicy = aspathEditPolicy(t, libraryIntentExport)
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	r.peers[settings.PeerKey()] = peer
@@ -185,6 +185,19 @@ func dryRunWireChanges(t *testing.T, settings *PeerSettings, direction string) [
 		settings.Address.String(), direction, "", dryRunUpdateBody(t), true)
 	require.NoError(t, err)
 	return result.WireChanges
+}
+
+// aspathEditPolicy answers a policy whose library chain, compiled at
+// attachment, is the one aspath-edit member of libraryTypeIntents, final
+// accept.
+func aspathEditPolicy(t *testing.T, attachment string) filterapi.Policy {
+	t.Helper()
+	reg, err := routepolicy.NewRegistry(routepolicy.Instance{Name: "aspath-edit", Type: libraryTypeIntents})
+	require.NoError(t, err)
+	chain, err := policychain.Compile(attachment, reg, []policychain.Member{{Name: "aspath-edit"}},
+		routepolicy.FinalAccept, policychain.Bases{LocalPreference: 100})
+	require.NoError(t, err)
+	return mustPolicy(t, []routepolicy.Ref{{Name: "aspath-edit"}}, routepolicy.FinalAccept).WithLibrary(chain)
 }
 
 // TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer asks the

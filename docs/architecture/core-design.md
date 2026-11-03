@@ -1869,7 +1869,11 @@ the library chain carries no text update, so such a member fails every route und
   `PolicyDryRun` runs a library chain through `runLibraryChain` in that mode
   (`traceLibraryChain`), so the dry-run's decision, final and rewritten
   UPDATE are the live path's, and `Sets.AppendText` renders a member's sets
-  for its trace entry: a display, never a transport (D-11). Each entry's
+  for its trace entry: a display, never a transport (D-11). The UPDATE
+  before and after the chain, and each entry's rewrite, are shown by
+  `routeDisplay` (`policy_dryrun_display.go`), read from the wire UPDATE and
+  never sent to a filter. A policy with plugin filters and no library chain
+  fails closed in the dry-run as on the session (`traceUncompiledChain`). Each entry's
   text-after is the UPDATE as rewritten up to that member:
   `MemberTrace.Apply` writes the sets folded so far, and
   `libraryTraceText` rebuilds them through `rewriteLibrary`, the builder

@@ -28,6 +28,10 @@ const (
 	// TraceFailOpen: the member failed, and its on-error passed the route on
 	// with none of its sets.
 	TraceFailOpen
+	// TraceRewrite: the member rewrote the whole UPDATE body (an external
+	// member's raw answer), which ends the run before the chain's final.
+	// Raw holds the body it answered.
+	TraceRewrite
 )
 
 // MemberTrace is one member's step of a display-only run.
@@ -40,6 +44,10 @@ type MemberTrace struct {
 	// Sets is what a passing member asked, resolved as it folded; nil for
 	// every other step. It is the run's scratch: valid only during the call.
 	Sets *Sets
+	// Raw is the whole UPDATE body a TraceRewrite member answered, as the
+	// plugin sent it (not yet checked by the reactor); nil for every other
+	// step. It is the member's reply: valid only during the call.
+	Raw []byte
 	// chain, view and run are the run this step belongs to, for Apply.
 	chain *Chain
 	view  *policyview.View
@@ -107,6 +115,15 @@ func traceStep(record func(MemberTrace), m *member, step TraceStep, err error, s
 		return
 	}
 	record(MemberTrace{Name: traceName(m), Step: step, Err: err, Sets: sets})
+}
+
+// traceRewrite hands record a member's whole-body rewrite, and does nothing
+// on a live run.
+func traceRewrite(record func(MemberTrace), m *member, raw []byte) {
+	if record == nil {
+		return
+	}
+	record(MemberTrace{Name: traceName(m), Step: TraceRewrite, Raw: raw})
 }
 
 // AppendText appends the sets as one line of text for an operator, in the

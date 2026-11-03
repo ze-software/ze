@@ -39,9 +39,9 @@
     "unit-sha": "4c6a6af37a23b867",
     "claim-sha": "550f1f8c9257b9b9",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/policy_dryrun.go::computeWireChanges",
-    "producer-sha": "8dc5d227ea8c0dbe",
-    "break": "body of computeWireChanges replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/filter_library.go::libraryASPathOps",
+    "producer-sha": "2c103f63c024f73d",
+    "break": "body of libraryASPathOps replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-5.1.2-2",

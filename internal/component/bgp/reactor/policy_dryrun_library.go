@@ -33,10 +33,13 @@ type libraryDryRun struct {
 // the live path's, while no failure is counted or logged. Each member's trace
 // entry is drawn from its step: a passing member's sets as text in delta, a
 // failure's error, and in text-after the UPDATE as the chain rewrote it up to
-// that member (libraryTraceText). It also answers the attribute operations
-// the run applied, as the dry-run's wire-changes.
-func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *libraryDryRun, textBefore string) (PolicyChainResult, []plugin.PolicyTraceEntry, []string) {
+// that member (libraryTraceText). It also answers the display of the UPDATE
+// the chain leaves (before itself when the chain changed nothing, nil when it
+// leaves none) and the attribute operations the run applied, as the dry-run's
+// wire-changes.
+func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *libraryDryRun, before *routeDisplay) (PolicyChainResult, *routeDisplay, []plugin.PolicyTraceEntry, []string) {
 	var trace []plugin.PolicyTraceEntry
+	textBefore := before.text()
 	record := func(step policychain.MemberTrace) {
 		entry := libraryTraceEntry(step)
 		text, err := r.libraryTraceText(step, dry, textBefore)
@@ -50,75 +53,74 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *library
 		dry.direction, "", dry.peer, record)
 	outcome := res.outcome
 	if outcome.Action == policychain.OutcomeWithdraw {
-		return dryRunWithdrawal(dry, trace)
+		result, after := dryRunWithdrawal(dry)
+		return result, after, trace, nil
 	}
 	if outcome.Teardown {
 		return PolicyChainResult{Action: PolicyReject, Teardown: true,
-			NotifyCode: outcome.NotifyCode, NotifySubcode: outcome.NotifySubcode}, trace, nil
+			NotifyCode: outcome.NotifyCode, NotifySubcode: outcome.NotifySubcode}, nil, trace, nil
 	}
 	if outcome.Action != policychain.OutcomeAccept {
-		return PolicyChainResult{Action: PolicyReject, Failed: outcome.Failed}, trace, nil
+		return PolicyChainResult{Action: PolicyReject, Failed: outcome.Failed}, nil, trace, nil
 	}
 	if res.failed {
-		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, nil, trace, nil
 	}
 	if res.modifiedPayload == nil {
-		return PolicyChainResult{Action: PolicyAccept, Text: textBefore}, trace, nil
+		return PolicyChainResult{Action: PolicyAccept, Text: textBefore}, before, trace, nil
 	}
-	modified := wireu.NewWireUpdate(res.modifiedPayload, dry.ctxID)
-	attrs, err := modified.Attrs()
+	after, err := displayUpdate(wireu.NewWireUpdate(res.modifiedPayload, dry.ctxID))
 	if err != nil {
-		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, nil, trace, nil
 	}
-	return PolicyChainResult{Action: PolicyAccept, Text: string(AppendUpdateForFilter(nil, attrs, modified, nil))}, trace, res.wireChanges
+	return PolicyChainResult{Action: PolicyAccept, Text: after.text()}, &after, trace, res.wireChanges
 }
 
-// dryRunWithdrawal renders a member's withdraw verdict as the live import and
+// dryRunWithdrawal shows a member's withdraw verdict as the live import and
 // export paths apply it (ingressChainWithdrawal, egressInjectedWithdrawal): the
 // route's announcements as withdrawals, under the dry run's context. An UPDATE
 // naming two MP families is withdrawn as two UPDATEs (buildWithdrawalPayloads),
-// rendered one per line in the order they are sent. Display only: it
-// allocates the rendered text. A body the conversion refuses is a failed
-// reject, as the live paths drop or suppress it.
-func dryRunWithdrawal(dry *libraryDryRun, trace []plugin.PolicyTraceEntry) (PolicyChainResult, []plugin.PolicyTraceEntry, []string) {
+// shown one per line in the order they are sent; the display it answers holds
+// both UPDATEs' NLRI blocks, for changed-attrs. Display only: it allocates the
+// rendered text. A body the conversion refuses, or a withdrawal whose
+// attributes do not parse, is a failed reject with no display, as the live
+// paths drop or suppress it.
+func dryRunWithdrawal(dry *libraryDryRun) (PolicyChainResult, *routeDisplay) {
 	buf := make([]byte, 2*(len(dry.payload)+4))
 	first, second := buf[:len(dry.payload)+4], buf[len(dry.payload)+4:]
 	firstN, secondN := buildWithdrawalPayloads(dry.payload, first, second, bgpctx.Registry.Get(dry.ctxID))
 	if firstN == 0 {
-		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, nil
 	}
-	text, ok := dryRunWithdrawalText(nil, first[:firstN], dry.ctxID)
-	if ok && secondN > 0 {
-		text = append(text, '\n')
-		text, ok = dryRunWithdrawalText(text, second[:secondN], dry.ctxID)
-	}
-	if !ok {
-		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
-	}
-	return PolicyChainResult{Action: PolicyAccept, Withdrawn: true, Text: string(text)}, trace, nil
-}
-
-// dryRunWithdrawalText appends the filter text of one withdrawal payload to
-// out, and reports false when its attributes do not parse.
-func dryRunWithdrawalText(out, payload []byte, ctxID bgpctx.ContextID) ([]byte, bool) {
-	withdrawal := wireu.NewWireUpdate(payload, ctxID)
-	attrs, err := withdrawal.Attrs()
+	shown, err := displayUpdate(wireu.NewWireUpdate(first[:firstN], dry.ctxID))
 	if err != nil {
-		return out, false
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, nil
 	}
-	return AppendUpdateForFilter(out, attrs, withdrawal, nil), true
+	text := shown.appendText(nil)
+	if secondN > 0 {
+		next, nextErr := displayUpdate(wireu.NewWireUpdate(second[:secondN], dry.ctxID))
+		if nextErr != nil {
+			return PolicyChainResult{Action: PolicyReject, Failed: true}, nil
+		}
+		text = next.appendText(append(text, '\n'))
+		shown.nlri = append(append(shown.nlri, ' '), next.nlri...)
+	}
+	return PolicyChainResult{Action: PolicyAccept, Withdrawn: true, Text: string(text)}, &shown
 }
 
 // libraryTraceText renders the UPDATE as the chain rewrote it up to step,
 // for the step's text-after: after a passing or failed-open member the folded sets so
 // far (a failed member's none), rebuilt through rewriteLibrary, the builder
-// the chain's result takes; after a member that rejected no text, as the text
+// the chain's result takes; after a member that rewrote the whole body that
+// body (libraryRewriteText); after a member that rejected no text, as the text
 // path's rejecting entry. Display only: it allocates the rendered text. An
 // error says why the sets so far cannot be rendered, and the text is empty.
 func (r *Reactor) libraryTraceText(step policychain.MemberTrace, dry *libraryDryRun, textBefore string) (string, error) {
 	switch step.Step {
 	case policychain.TraceReject, policychain.TraceWithdraw, policychain.TraceFailClosed:
 		return "", nil
+	case policychain.TraceRewrite:
+		return libraryRewriteText(step.Raw, dry, textBefore)
 	case policychain.TracePass, policychain.TraceFailOpen:
 	case policychain.TraceUnspecified:
 		panic("BUG: reactor: a library trace step is unspecified")
@@ -141,12 +143,30 @@ func (r *Reactor) libraryTraceText(step policychain.MemberTrace, dry *libraryDry
 	if rewrite.payload == nil {
 		return textBefore, nil
 	}
-	modified := wireu.NewWireUpdate(rewrite.payload, dry.ctxID)
-	attrs, err := modified.Attrs()
+	shown, err := displayUpdate(wireu.NewWireUpdate(rewrite.payload, dry.ctxID))
 	if err != nil {
 		return "", errors.Join(errTraceRender, err)
 	}
-	return string(AppendUpdateForFilter(nil, attrs, modified, nil)), nil
+	return shown.text(), nil
+}
+
+// libraryRewriteText renders a member's whole-body rewrite for its
+// text-after: the body checked by decodeFilterRawOverride, the check the
+// live run makes before it sends the body, then shown as the chain leaves
+// it. An empty answer changes nothing, as on the live run. Display only.
+func libraryRewriteText(raw []byte, dry *libraryDryRun, textBefore string) (string, error) {
+	override, err := decodeFilterRawOverride(raw)
+	if err != nil {
+		return "", errors.Join(errTraceRender, err)
+	}
+	if override == nil {
+		return textBefore, nil
+	}
+	shown, err := displayUpdate(wireu.NewWireUpdate(override, dry.ctxID))
+	if err != nil {
+		return "", errors.Join(errTraceRender, err)
+	}
+	return shown.text(), nil
 }
 
 // errTraceRender is joined to why a member's rewritten UPDATE cannot be shown.
@@ -183,6 +203,10 @@ func libraryTraceEntry(step policychain.MemberTrace) plugin.PolicyTraceEntry {
 		entry.Action = dryRunActionReject
 	case policychain.TraceWithdraw:
 		entry.Action = dryRunActionWithdraw
+	case policychain.TraceRewrite:
+		// The member rewrote the body: a modify with no sets to show, its
+		// text-after the body it answered (libraryRewriteText).
+		entry.Action = dryRunActionModify
 	case policychain.TraceFailOpen:
 		entry.Action = dryRunActionAccept
 	case policychain.TraceUnspecified:

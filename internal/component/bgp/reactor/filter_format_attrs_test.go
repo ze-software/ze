@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net"
@@ -208,8 +209,8 @@ func TestAppendSingleAttrWarnsOnUnnamedType(t *testing.T) {
 }
 
 // TestFilterSubjectReadsUnmodifiableAttributes drives native plugin dispatch
-// from live import, originated export, forwarded export and both dry-run
-// directions. The plugin may modify LOCAL_PREF but decides from MED. Matching,
+// from live import, originated export and forwarded export. The dry-run runs
+// no plugin filter outside a compiled chain (traceUncompiledChain). The plugin may modify LOCAL_PREF but decides from MED. Matching,
 // nonmatching and absent MED must therefore produce different route outcomes.
 // Text and raw rewrites exercise both export materialization paths.
 func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
@@ -305,55 +306,55 @@ func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
 				require.Equal(t, []byte{24, 203, 0, 113}, update.WithdrawnRoutes)
 				require.Empty(t, update.PathAttributes, "a policy withdrawal must not retain announcement attributes")
 			})
-			for _, direction := range []string{directionImport, directionExport} {
-				t.Run(mode+"/"+metric.name+"/dry-run-"+direction, func(t *testing.T) {
-					result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
-						source.Settings().Address.String(), direction, "", body, true)
-					require.NoError(t, err)
-					require.Len(t, result.Trace, 1)
-					if !accepted {
-						require.Equal(t, dryRunActionReject, result.Action)
-						require.Equal(t, dryRunActionReject, result.Trace[0].Action)
-						require.Empty(t, result.TextAfter)
-						return
-					}
-					require.Equal(t, dryRunActionModify, result.Action)
-					require.Equal(t, dryRunActionModify, result.Trace[0].Action)
-					require.Contains(t, result.TextBefore, "med 100")
-					if mode == "text" {
-						require.Contains(t, result.TextAfter, "local-preference 231")
-						require.Equal(t, []string{policyAttrLocalPreference}, result.ChangedAttrs)
-					}
-				})
-			}
 		}
 	}
 }
 
-// TestFilterSubjectDryRunWithdrawalFallback keeps the real native filter's MED
+// TestFilterSubjectDryRunWithdrawalFallback keeps a library chain member's MED
 // decision visible in the trace even when final reject replaces a mixed UPDATE
-// with its explicit withdrawal. A raw rewrite must not bypass that final.
+// with its explicit withdrawal, and proves a raw rewrite does not get past
+// that final.
+//
+// Method: a final-reject policy over the external member probe:f, answered by
+// the externalTransport stand-in, which reads MED but may set only
+// LOCAL_PREF. It answers a change only when it was sent med 100: a
+// local-preference 231 set in the sets mode, the received body rewritten to
+// LOCAL_PREF 231 in the raw mode, which its trace entry shows as a modify
+// whose text-after is the rewritten body; otherwise it rejects. The pasted UPDATE
+// withdraws 198.51.100.0/24 and announces 203.0.113.0/24 with med 100, run on
+// import and on export.
 func TestFilterSubjectDryRunWithdrawalFallback(t *testing.T) {
-	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65001, 0x01010101)
-	peer := NewPeer(settings)
-	r := &Reactor{peers: map[netip.AddrPort]*Peer{settings.PeerKey(): peer}}
-	filterSubjectPlugin(t, r)
 	withdrawal := []byte{24, 198, 51, 100}
-	for _, mode := range []string{"text", "raw"} {
-		policy := mustPolicy(t, frefs("subject-policy:"+mode), routepolicy.FinalReject)
-		peer.settings.ImportPolicy = policy
-		peer.settings.ExportPolicy = policy
+	announcement, err := message.UnpackUpdate(filterSubjectBody(100))
+	require.NoError(t, err)
+	body := makeUpdateBody(withdrawal, announcement.PathAttributes, announcement.NLRI)
+	for _, mode := range []string{"sets", "raw"} {
 		for _, direction := range []string{directionImport, directionExport} {
 			t.Run(mode+"/"+direction, func(t *testing.T) {
-				announcement, err := message.UnpackUpdate(filterSubjectBody(100))
-				require.NoError(t, err)
-				body := makeUpdateBody(withdrawal, announcement.PathAttributes, announcement.NLRI)
+				transport := filterSubjectMEDTransport(t, mode)
+				r := New(&Config{})
+				r.filterTransportSeam = transport
+				settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65001, 0x01010101)
+				policy := externalFinalPolicy(t, routepolicy.FinalReject)
+				settings.ImportPolicy = policy
+				settings.ExportPolicy = policy
+				r.peers[settings.PeerKey()] = NewPeer(settings)
 				result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
 					settings.Address.String(), direction, "", body, true)
 				require.NoError(t, err)
+				require.Len(t, transport.sent, 1, "probe:f is asked once")
 				require.Len(t, result.Trace, 1)
-				require.Equal(t, dryRunActionModify, result.Trace[0].Action,
-					"the filter must see MED despite declaring only LOCAL_PREF")
+				if mode == "sets" {
+					require.Equal(t, dryRunActionModify, result.Trace[0].Action,
+						"the filter must see MED despite setting only LOCAL_PREF")
+					require.Equal(t, "local-preference 231", result.Trace[0].Delta)
+				}
+				if mode == "raw" {
+					require.Equal(t, dryRunActionModify, result.Trace[0].Action,
+						"a member that rewrote the body modified the route")
+					require.Contains(t, result.Trace[0].TextAfter, "local-preference 231",
+						"the member's entry shows the body it rewrote")
+				}
 				require.Contains(t, result.TextBefore, "med 100")
 				require.Equal(t, dryRunActionModify, result.Action)
 				require.Equal(t, "nlri del 198.51.100.0/24", result.TextAfter,
@@ -361,6 +362,46 @@ func TestFilterSubjectDryRunWithdrawalFallback(t *testing.T) {
 			})
 		}
 	}
+}
+
+// filterSubjectMEDTransport answers probe:f for
+// TestFilterSubjectDryRunWithdrawalFallback: it reads MED and, only when sent
+// med 100, answers mode's LOCAL_PREF 231 change; any other route is rejected.
+func filterSubjectMEDTransport(t *testing.T, mode string) *externalTransport {
+	t.Helper()
+	transport := &externalTransport{reads: []string{"med"}, sets: []string{"local-preference"}}
+	if mode == "raw" {
+		transport.reads = []string{rpc.FilterFieldRaw, "med"}
+		transport.sets = nil
+	}
+	transport.answer = func(in rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(in.Fields, &fields); err != nil {
+			t.Errorf("the filter's fields do not decode: %v (%s)", err, in.Fields)
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
+		}
+		if string(fields["med"]) != "100" {
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
+		}
+		if mode != "raw" {
+			return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Sets: []rpc.FilterSet{
+				{Field: "local-preference", Action: rpc.FilterSetActionSet, Value: json.RawMessage("231")}}}
+		}
+		raw := bytes.Clone(in.Raw)
+		sections, err := wire.ParseUpdateSections(raw)
+		if err != nil {
+			t.Errorf("the raw UPDATE does not parse: %v", err)
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
+		}
+		_, _, localPref, found := attribute.AttrFind(sections.Attrs(raw), attribute.AttrLocalPref)
+		if !found || len(localPref) != 4 {
+			t.Error("the raw UPDATE carries no 4-octet LOCAL_PREF")
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
+		}
+		binary.BigEndian.PutUint32(localPref, 231)
+		return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: raw}
+	}
+	return transport
 }
 
 // filterSubjectPlugin starts a native SDK filter, including its real declaration

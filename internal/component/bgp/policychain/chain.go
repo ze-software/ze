@@ -556,8 +556,10 @@ func (s *RunSets) Raw() []byte { return s.raw }
 // rawOutcome ends the run on a member's whole-body rewrite: later members
 // are not judged, and the chain's final still decides the route, as on the
 // text chain (PolicyFilterChain).
+// A display-only run records the member's step as TraceRewrite, with the body
+// it answered, before the final decides.
 func (c *Chain) rawOutcome(m *member, raw []byte, view *policyview.View, sets *RunSets, record func(MemberTrace)) Outcome {
-	traceStep(record, m, TracePass, nil, nil)
+	traceRewrite(record, m, raw)
 	switch c.endFinal(view) {
 	case policy.FinalAccept:
 		sets.raw = raw
