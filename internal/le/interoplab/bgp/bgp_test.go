@@ -210,7 +210,7 @@ func TestEveryScenarioOperationUsesRecorder(t *testing.T) {
 	}
 	for _, branch := range []operationKind{
 		opFRRSession, opBIRDSession, opGoBGPSession, opFRRRoute, opFRRRouteAbsent,
-		opBIRDRoute, opGoBGPRoute, opFRRCommunity, opFRRNoAS,
+		opBIRDRoute, opGoBGPRoute, opFRRCommunity, opFRRNoAS, opFRREmptyASPath,
 		opWaitContains, opWaitContainsAny, opWaitAbsent, opRequireContains, opRequireAbsent,
 		opRequireJSONFields, opWaitJSONFields, opExec, opSignal, opStart, opStop,
 		opWaitLogFields, opWaitLogContains, opDelayRequireContains, opWaitRPKI,
@@ -1747,6 +1747,26 @@ const frrNoASRoute = `{
 }
 `
 
+// frrEmptyASPathAnswer is FRR 10.7.1's pretty answer for one path whose
+// AS_PATH is empty: aspath_make_str_count (bgpd/bgp_aspath.c), in its
+// `!as->segments` branch, prints "string":"Local", "segments":[] and
+// "length":0.
+const frrEmptyASPathAnswer = `{
+  "prefix":%q,
+  "paths":[
+    {
+      "aspath":{
+        "string":"Local",
+        "segments":[
+        ],
+        "length":0
+      },
+      "valid":true
+    }
+  ]
+}
+`
+
 func recorderFor(current *operation) *recordingLab {
 	recorder := &recordingLab{}
 	switch current.kind {
@@ -1772,6 +1792,8 @@ func recorderFor(current *operation) *recordingLab {
 		// A valid FRR 10.7.1 pretty route whose AS_SEQUENCE omits the absent
 		// ASN, so the accepting path runs through the structured decode.
 		recorder.output = fmt.Sprintf(frrNoASRoute, current.argument, "65000 65010", "65000,\n              65010")
+	case opFRREmptyASPath:
+		recorder.output = fmt.Sprintf(frrEmptyASPathAnswer, current.argument)
 	case opWaitContains, opWaitContainsAny, opDelayRequireContains, opRequireContains:
 		recorder.output = strings.Join(current.contains, " ")
 	case opRequireJSONFields, opWaitJSONFields:
@@ -1838,6 +1860,9 @@ func contradictoryRecorderFor(current *operation) *recordingLab {
 		// followed by a quote in the string and a newline in the list, the
 		// place a text match on separators does not see.
 		recorder.output = fmt.Sprintf(frrNoASRoute, current.argument, "65000 "+current.absent[0], "65000,\n              "+current.absent[0])
+	case opFRREmptyASPath:
+		// The external treatment: the route arrives with ze's AS prepended.
+		recorder.output = fmt.Sprintf(frrNoASRoute, current.argument, rfc7705GlobalAS, rfc7705GlobalAS)
 	case opWaitContains, opWaitContainsAny, opDelayRequireContains, opRequireContains:
 		recorder.output = "measured output without required values"
 	case opRequireAbsent, opWaitAbsent:

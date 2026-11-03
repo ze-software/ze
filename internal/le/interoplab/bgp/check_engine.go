@@ -32,6 +32,10 @@ const (
 	opGoBGPRoute
 	opFRRCommunity
 	opFRRNoAS
+	// opFRREmptyASPath requires FRR to hold the route with an empty AS_PATH on
+	// every path, the form a native iBGP route carries (RFC 4271 Section
+	// 5.1.2 b). opFRRNoAS cannot judge it: an empty path lists no ASN to read.
+	opFRREmptyASPath
 	opWaitContains
 	opRequireContains
 	opRequireAbsent
@@ -224,6 +228,24 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 			current.argument,
 			current.absent[0],
 		)
+	case opFRREmptyASPath:
+		output, err := lab.Query(
+			ctx,
+			peerFRR,
+			[]string{
+				cmdVtysh,
+				"-c",
+				command.Str("show bgp ipv4 unicast ").Str(current.argument).Str(" json").String(),
+			},
+			nil,
+		)
+		if err != nil {
+			return err
+		}
+		if err := emptyASPathVerdict(output, current.argument); err != nil {
+			return interoplab.WithSearchedOutput(err, output)
+		}
+		return nil
 	case opWaitContains:
 		return waitContains(ctx, lab, current.peer, current.command, current.timeout, current.contains...)
 	case opRequireContains:
@@ -702,6 +724,64 @@ func asAbsentVerdict(output, prefix, asn string) error {
 		}
 		if listed == 0 {
 			return fmt.Errorf("route %s path %d aspath segments list no ASN", prefix, index)
+		}
+	}
+	return nil
+}
+
+// frrEmptyASPathRoute is the part of FRR's `show bgp ipv4 unicast <prefix>
+// json` answer the empty-AS_PATH check reads. Every aspath field is a pointer
+// so the check can tell a missing field from an empty one.
+type frrEmptyASPathRoute struct {
+	Paths []struct {
+		ASPath *struct {
+			String   *string            `json:"string"`
+			Segments *[]json.RawMessage `json:"segments"`
+			Length   *int               `json:"length"`
+		} `json:"aspath"`
+	} `json:"paths"`
+}
+
+// frrEmptyASPathString is what FRR prints as the string of an AS_PATH with no
+// segment.
+const frrEmptyASPathString = "Local"
+
+// emptyASPathVerdict decodes the FRR route and requires every path's AS_PATH
+// to be empty, in the form FRR 10.7.1 prints for one: aspath_make_str_count
+// (bgpd/bgp_aspath.c), in its `!as->segments` branch, sets "string":"Local",
+// "segments":[] and "length":0. It fails closed: an answer it cannot decode,
+// a route with no path, or a path missing any of the three fields is an
+// error, because none of them shows the path is empty.
+//
+// RFC 4271 Section 5.1.2: "b) When a given BGP speaker originates a route
+// and the BGP speaker originates the route to internal peers, the
+// originating speaker includes an empty AS_PATH attribute in all UPDATE
+// messages sent to internal peers."
+func emptyASPathVerdict(output, prefix string) error {
+	var route frrEmptyASPathRoute
+	if err := json.Unmarshal([]byte(output), &route); err != nil {
+		return fmt.Errorf("route %s answer is not FRR route JSON: %w", prefix, err)
+	}
+	if len(route.Paths) == 0 {
+		return fmt.Errorf("route %s answer carries no paths to read the AS_PATH from", prefix)
+	}
+	for index, path := range route.Paths {
+		aspath := path.ASPath
+		switch {
+		case aspath == nil:
+			return fmt.Errorf("route %s path %d carries no aspath object", prefix, index)
+		case aspath.Segments == nil:
+			return fmt.Errorf("route %s path %d aspath carries no segments field", prefix, index)
+		case aspath.Length == nil:
+			return fmt.Errorf("route %s path %d aspath carries no length field", prefix, index)
+		case aspath.String == nil:
+			return fmt.Errorf("route %s path %d aspath carries no string field", prefix, index)
+		case len(*aspath.Segments) != 0:
+			return fmt.Errorf("route %s path %d AS_PATH is not empty: segment count %d", prefix, index, len(*aspath.Segments))
+		case *aspath.Length != 0:
+			return fmt.Errorf("route %s path %d AS_PATH is not empty: length %d", prefix, index, *aspath.Length)
+		case *aspath.String != frrEmptyASPathString:
+			return fmt.Errorf("route %s path %d AS_PATH is not empty: string %q, want %q", prefix, index, *aspath.String, frrEmptyASPathString)
 		}
 	}
 	return nil

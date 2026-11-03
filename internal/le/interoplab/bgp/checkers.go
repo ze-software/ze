@@ -532,8 +532,10 @@ var scenarioOperations = map[string][]operation{
 	//
 	// FRR: the session establishing at all is the Section 4.2 fallback, because
 	// FRR refuses ze's first OPEN (AS 65001) with Bad Peer AS and accepts only
-	// the migration AS 65002. The route arriving with no AS in its path is the
-	// "native iBGP" treatment: an external verdict would prepend 65001.
+	// the migration AS 65002. The route arriving with an empty AS_PATH is the
+	// "native iBGP" treatment (RFC 4271 Section 5.1.2 b): an external verdict
+	// would prepend 65001. opFRREmptyASPath requires FRR's empty form on every
+	// path, so it refuses 65001 and every other ASN.
 	//
 	// BIRD: the whole AS_PATH line is the Local AS alone, which is
 	// `replace-as`. Without it ze sends "65020 65001", which the exact line
@@ -548,7 +550,7 @@ var scenarioOperations = map[string][]operation{
 		{kind: opGoBGPRoute, argument: rfc7705Prefix, timeout: 60 * time.Second},
 		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, rfc7705Prefix, "-j"}, contains: []string{rfc7705GoBGPASNs}},
 		{kind: opFRRRoute, argument: rfc7705Prefix, timeout: 60 * time.Second},
-		{kind: opFRRNoAS, argument: rfc7705Prefix, absent: []string{rfc7705GlobalAS}},
+		{kind: opFRREmptyASPath, argument: rfc7705Prefix},
 		{kind: opBIRDRoute, argument: rfc7705Prefix, timeout: 60 * time.Second},
 		{kind: opRequireContains, peer: peerBIRD, command: []string{cmdBirdc, rfc7705BIRDShowAll}, contains: []string{rfc7705BIRDASPath}},
 		{kind: opRequireAbsent, peer: peerBIRD, command: []string{cmdBirdc, rfc7705BIRDShowAll}, absent: []string{rfc7705GlobalAS}, proof: []string{rfc7705BIRDASPath}},
