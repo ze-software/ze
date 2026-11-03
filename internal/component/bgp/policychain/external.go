@@ -105,8 +105,6 @@ var (
 	errExternalUndeclared = errors.New("the plugin declares no such filter: it has not started, or it stopped")
 	errExternalNoReads    = errors.New("the filter declares no field it reads, so Ze has nothing to send it; " +
 		"declare its reads (docs/plugin-development/protocol.md, \"The Route Fields of filter-update\")")
-	errExternalAnsweredText = errors.New("the filter answered a text update; a chain holding in-process members " +
-		"applies only sets")
 	errExternalRawUndeclared = errors.New("the filter answered a raw rewrite but does not declare it reads raw")
 	errExternalRawBesideSets = errors.New("the filter answered a raw rewrite beside sets; a rewrite replaces the " +
 		"whole body, so it carries no sets")
@@ -169,9 +167,6 @@ func (c *Chain) judgeExternal(m *member, view *policyview.View, run *RunSets) (e
 // externalAnswer maps one reply onto a decision and the member's sets.
 func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, settable setMask, member *externalMember, sets *Sets, target intentTarget) (externalVerdict, error) {
 	verdict := externalVerdict{teardown: out.Teardown, notifyCode: out.NotifyCode, notifySub: out.NotifySubcode}
-	if out.Update != "" {
-		return verdict, errExternalAnsweredText
-	}
 	switch out.Action {
 	case rpc.FilterAccept, rpc.FilterReject, rpc.FilterWithdraw:
 		if len(out.Sets) > 0 {

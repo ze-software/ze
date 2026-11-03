@@ -115,14 +115,10 @@ func frefs(names ...string) []routepolicy.Ref {
 // implementation is a concrete *pluginserver.Server whose filter answer arrives
 // off a live plugin socket.
 type fakeFilterTransport struct {
-	declared []string
-	raw      bool
-	onError  rpc.OnErrorPolicy
-	out      *rpc.FilterUpdateOutput
-	err      error
+	onError rpc.OnErrorPolicy
+	out     *rpc.FilterUpdateOutput
+	err     error
 }
-
-func (f *fakeFilterTransport) FilterInfo(_, _ string) ([]string, bool) { return f.declared, f.raw }
 
 // FilterReadvertise answers that the filter does not opt into the stale
 // readvertise rail.

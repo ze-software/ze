@@ -58,8 +58,7 @@ func runApplied(t *testing.T, chain *Chain, caller ExternalCaller, direction str
 
 // TestExternalAttributeSetsWriteTheirOps proves an external filter's origin,
 // next-hop, aigp, large-community and extended-community sets each become
-// the ModAccumulator operation the text delta wrote for the same directive
-// (textDeltaToModOps): a replacement of ORIGIN, NEXT_HOP and AIGP, and one
+// one ModAccumulator operation: a replacement of ORIGIN, NEXT_HOP and AIGP, and one
 // add or remove per community value. The AIGP increment resolves against the
 // route's metric. Method: one member answers every set; the folded ops are
 // compared with the expected list, value bytes included.

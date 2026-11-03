@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
@@ -21,10 +20,6 @@ import (
 type fieldsTransport struct {
 	reads map[string][]string
 	sent  []rpc.FilterUpdateInput
-}
-
-func (f *fieldsTransport) FilterInfo(_, filterName string) ([]string, bool) {
-	return nil, slices.Contains(f.reads[filterName], rpc.FilterFieldRaw)
 }
 
 // FilterReadvertise answers that the filter does not opt into the stale

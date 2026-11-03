@@ -105,7 +105,6 @@ type PolicyChainResult struct {
 // otherwise. A test's transport replaces what the chain TALKS TO, so a test
 // using it drives the real chain and the real member.
 type filterTransport interface {
-	FilterInfo(pluginName, filterName string) (declaredAttrs []string, raw bool)
 	// FilterReads answers what the filter's declaration reads: vocabulary
 	// field names, and rpc.FilterFieldRaw for the raw UPDATE body.
 	FilterReads(pluginName, filterName string) []string

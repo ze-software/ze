@@ -40,8 +40,6 @@ type externalTransport struct {
 	answer func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput
 }
 
-func (e *externalTransport) FilterInfo(_, _ string) ([]string, bool) { return nil, false }
-
 func (e *externalTransport) FilterReads(_, _ string) []string { return e.reads }
 
 func (e *externalTransport) FilterDeclaration(plugin, filter string) ([]string, []string, rpc.OnErrorPolicy, bool) {
@@ -147,9 +145,6 @@ func TestMixedChainExternalReadsInProcessSet(t *testing.T) {
 	sent := transport.sent[0]
 	if string(sent.Fields) != `{"local-preference":200}` || sent.Direction != "import" || sent.Peer != "10.0.0.4" || sent.PeerAS != 65001 {
 		t.Fatalf("filter-update = %+v fields %s, want local-preference 200 for import from 10.0.0.4 AS 65001", sent, sent.Fields)
-	}
-	if sent.Update != "" {
-		t.Fatalf("a mixed chain sent the text update %q", sent.Update)
 	}
 }
 

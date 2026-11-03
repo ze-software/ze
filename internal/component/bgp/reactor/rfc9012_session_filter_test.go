@@ -179,11 +179,6 @@ func teSessionFilterRoundTrip(t *testing.T, filtered int) {
 // It substitutes only the external IPC endpoint, not the reactor's policy chain.
 type teSessionFilterTransport struct{}
 
-func (teSessionFilterTransport) FilterInfo(_, _ string) ([]string, bool) {
-	return nil, true
-}
-
-// FilterReads answers the raw read FilterInfo reports.
 // FilterReadvertise answers that the filter does not opt into the stale
 // readvertise rail.
 func (teSessionFilterTransport) FilterReadvertise(_, _ string) (readvertise, ok bool) {

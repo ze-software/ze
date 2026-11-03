@@ -6,7 +6,6 @@ package reactor
 import (
 	"context"
 	"encoding/json"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -39,11 +38,6 @@ type answerTransport struct {
 
 	mu   sync.Mutex
 	sent []rpc.FilterUpdateInput
-}
-
-// FilterInfo answers no text attributes and whether the filter reads raw.
-func (a *answerTransport) FilterInfo(_, _ string) ([]string, bool) {
-	return nil, slices.Contains(a.reads, rpc.FilterFieldRaw)
 }
 
 func (a *answerTransport) FilterReads(_, _ string) []string { return a.reads }

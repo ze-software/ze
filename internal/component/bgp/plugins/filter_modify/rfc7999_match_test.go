@@ -207,7 +207,7 @@ func TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement(t *testing.T) {
 	if out.Action != sdk.FilterAccept {
 		t.Fatalf("action = %v, want accept", out.Action)
 	}
-	if len(out.Sets) != 0 || out.Update != "" {
+	if len(out.Sets) != 0 {
 		t.Fatalf("answer = %+v, want no change: an accept carries none", out)
 	}
 }

@@ -24,9 +24,6 @@ func wantRemoveIntent(t *testing.T, out *sdk.FilterUpdateOutput, value string) {
 	if out.Action != sdk.FilterModify {
 		t.Fatalf("action = %v, want modify", out.Action)
 	}
-	if out.Update != "" {
-		t.Fatalf("text update = %q, want none", out.Update)
-	}
 	if len(out.Sets) != 1 {
 		t.Fatalf("sets = %+v, want one as-path remove", out.Sets)
 	}

@@ -586,13 +586,16 @@ func (s *Server) FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy 
 	return rpc.OnErrorReject
 }
 
-// FilterInfo returns declaration info for a named filter: declared attributes and raw flag.
-// Returns nil attributes and false if the plugin or filter is not found.
-func (s *Server) FilterInfo(pluginName, filterName string) (declaredAttrs []string, raw bool) {
+// FilterReadsRaw answers whether the declaration serving filterName reads the
+// raw UPDATE body (the rpc.FilterFieldRaw read). It answers false when no
+// running plugin declares the filter; the caller that needs the declaration
+// itself asks FilterDeclaration, which says so.
+func (s *Server) FilterReadsRaw(pluginName, filterName string) bool {
 	if f := s.filterRegistration(pluginName, filterName); f != nil {
-		return f.Attributes, f.Raw
+		return f.Raw
 	}
-	return nil, false
+	// refuse-by-default: guards FilterDeclaration -- an undeclared filter fails its route there, so "not raw" lets that refusal run
+	return false
 }
 
 // FilterReads answers what the declaration serving filterName reads: route

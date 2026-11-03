@@ -500,9 +500,9 @@ type fakeFilterRawInfo struct {
 	gotFilter string
 }
 
-func (f *fakeFilterRawInfo) FilterInfo(pluginName, filterName string) ([]string, bool) {
+func (f *fakeFilterRawInfo) FilterReadsRaw(pluginName, filterName string) bool {
 	f.gotPlugin, f.gotFilter = pluginName, filterName
-	return nil, f.raw
+	return f.raw
 }
 
 // TestDefaultOriginateRejectsRawFilter verifies a filter declared raw=true is

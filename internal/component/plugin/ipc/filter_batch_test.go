@@ -179,7 +179,7 @@ func TestFilterBatchOrderAndVerdicts(t *testing.T) {
 		sent = append(sent, peersOf(batch)...)
 		out := rpc.FilterUpdateBatchOutput{Verdicts: make([]rpc.FilterUpdateOutput, len(batch.Routes))}
 		for i := range out.Verdicts {
-			out.Verdicts[i] = rpc.FilterUpdateOutput{Action: rpc.FilterModify, Update: batch.Routes[i].Peer}
+			out.Verdicts[i] = rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: []byte(batch.Routes[i].Peer)}
 		}
 		answers = append(answers, out.Verdicts...)
 		if err := plugin.SendResult(context.Background(), id, out); err != nil {
@@ -194,7 +194,7 @@ func TestFilterBatchOrderAndVerdicts(t *testing.T) {
 	}
 	for _, result := range results {
 		got := <-result
-		if got.err != nil || got.out.Update != got.peer {
+		if got.err != nil || string(got.out.Raw) != got.peer {
 			t.Fatalf("route %s got %+v, %v; want the verdict naming it", got.peer, got.out, got.err)
 		}
 	}

@@ -159,18 +159,14 @@ func TestFilterDeclarationParse(t *testing.T) {
 		Name: "rpki",
 		Filters: []FilterRegistration{
 			{
-				Name:       "validate",
-				Direction:  rpc.FilterImport,
-				Attributes: []string{"as-path", "origin"},
-				NLRI:       true,
-				OnError:    rpc.OnErrorReject,
+				Name:      "validate",
+				Direction: rpc.FilterImport,
+				OnError:   rpc.OnErrorReject,
 			},
 			{
-				Name:       "log",
-				Direction:  rpc.FilterBoth,
-				Attributes: []string{"as-path", "community"},
-				NLRI:       true,
-				OnError:    rpc.OnErrorAccept,
+				Name:      "log",
+				Direction: rpc.FilterBoth,
+				OnError:   rpc.OnErrorAccept,
 			},
 		},
 	}
@@ -181,8 +177,6 @@ func TestFilterDeclarationParse(t *testing.T) {
 	f0 := reg.Filters[0]
 	assert.Equal(t, "validate", f0.Name)
 	assert.Equal(t, rpc.FilterImport, f0.Direction)
-	assert.Equal(t, []string{"as-path", "origin"}, f0.Attributes)
-	assert.True(t, f0.NLRI)
 	assert.False(t, f0.Raw)
 	assert.Equal(t, rpc.OnErrorReject, f0.OnError)
 	assert.Empty(t, f0.Overrides)
@@ -191,7 +185,6 @@ func TestFilterDeclarationParse(t *testing.T) {
 	f1 := reg.Filters[1]
 	assert.Equal(t, "log", f1.Name)
 	assert.Equal(t, rpc.FilterBoth, f1.Direction)
-	assert.Equal(t, []string{"as-path", "community"}, f1.Attributes)
 	assert.Equal(t, rpc.OnErrorAccept, f1.OnError)
 }
 
@@ -204,11 +197,10 @@ func TestFilterDeclarationWithOverrides(t *testing.T) {
 		Name: "allow-own-as",
 		Filters: []FilterRegistration{
 			{
-				Name:       "relaxed",
-				Direction:  rpc.FilterImport,
-				Attributes: []string{"as-path"},
-				OnError:    rpc.OnErrorAccept,
-				Overrides:  []string{"rfc:no-self-as"},
+				Name:      "relaxed",
+				Direction: rpc.FilterImport,
+				OnError:   rpc.OnErrorAccept,
+				Overrides: []string{"rfc:no-self-as"},
 			},
 		},
 	}

@@ -115,13 +115,13 @@ func TestBridgeFilterSlotPanicFailsTheRoute(t *testing.T) {
 // fast-path route with its fields and raw body, and an encoded route as is.
 func TestFilterRouteInputEncodesTheView(t *testing.T) {
 	view := &slotView{fields: []byte(`{"med":5}`), raw: []byte{1, 2}}
-	header := FilterUpdateInput{Filter: "f", Peer: "p", Update: "ignored"}
+	header := FilterUpdateInput{Filter: "f", Peer: "p"}
 	route := ViewFilterRoute(&header, view)
 	in, err := route.Input()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(in.Fields) != `{"med":5}` || len(in.Raw) != 2 || in.Peer != "p" || in.Update != "" {
+	if string(in.Fields) != `{"med":5}` || len(in.Raw) != 2 || in.Peer != "p" {
 		t.Fatalf("input %+v", in)
 	}
 	encoded := InputFilterRoute(&FilterUpdateInput{Filter: "f", Fields: []byte(`{}`)})

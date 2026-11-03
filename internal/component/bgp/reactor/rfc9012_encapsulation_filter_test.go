@@ -130,11 +130,6 @@ func (c *teCommunityTransport) decl(pluginName, filterName string) (rpc.FilterDe
 	return rpc.FilterDecl{}, false
 }
 
-func (c *teCommunityTransport) FilterInfo(pluginName, filterName string) ([]string, bool) {
-	decl, _ := c.decl(pluginName, filterName)
-	return decl.Attributes, slices.Contains(decl.Reads, rpc.FilterFieldRaw)
-}
-
 func (c *teCommunityTransport) FilterReads(pluginName, filterName string) []string {
 	decl, _ := c.decl(pluginName, filterName)
 	return decl.Reads

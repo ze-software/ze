@@ -50,7 +50,7 @@ func (u *unavailableTransport) CallFilterUpdate(_ context.Context, plugin string
 // the marker from the peer's attached plugins. Method: a received marker,
 // IPv4 unicast and multiprotocol, goes through notifyMessageReceiver with an
 // import chain whose plugin member is unavailable under on-error reject,
-// which drops any route it judges (TestFilterUnavailableAppliesOnError); the
+// which drops any route it judges (unavailableTransport, below); the
 // consumer receives the marker unchanged and the plugin is never called.
 func TestIngressPassDeliversEndOfRIBUnjudged(t *testing.T) {
 	markers := []struct {

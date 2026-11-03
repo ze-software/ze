@@ -264,8 +264,8 @@ func routeSets(caller ExternalCaller) *RunSets {
 
 // TestExternalAnswersThatFail proves the replies the chain cannot apply fail
 // the route under on-error rather than passing it: a filter the plugin does
-// not declare, a filter that reads the text update, a text delta, a raw
-// rewrite, sets beside accept, an action outside the three, and a call error.
+// not declare, a filter that declares no read, a raw rewrite, sets beside
+// accept, an action outside the three, and a call error.
 func TestExternalAnswersThatFail(t *testing.T) {
 	reply := func(out *rpc.FilterUpdateOutput, err error) func(*rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
 		return func(*rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) { return out, err }
@@ -277,8 +277,7 @@ func TestExternalAnswersThatFail(t *testing.T) {
 		member string
 	}{
 		{"undeclared filter", fakeFilter{decl: declared}, "missing"},
-		{"text reader", fakeFilter{decl: ExternalDeclaration{OnError: rpc.OnErrorReject}, answer: reply(&rpc.FilterUpdateOutput{Action: rpc.FilterAccept}, nil)}, "f"},
-		{"text delta", fakeFilter{decl: declared, answer: reply(&rpc.FilterUpdateOutput{Action: rpc.FilterModify, Update: "local-preference 5"}, nil)}, "f"},
+		{"no reads", fakeFilter{decl: ExternalDeclaration{OnError: rpc.OnErrorReject}, answer: reply(&rpc.FilterUpdateOutput{Action: rpc.FilterAccept}, nil)}, "f"},
 		{"raw rewrite", fakeFilter{decl: declared, answer: reply(&rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: []byte{0}}, nil)}, "f"},
 		{"sets beside accept", fakeFilter{decl: declared, answer: reply(&rpc.FilterUpdateOutput{Action: rpc.FilterAccept,
 			Sets: []rpc.FilterSet{set("local-preference", rpc.FilterSetActionSet, "5")}}, nil)}, "f"},

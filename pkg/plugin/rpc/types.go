@@ -657,8 +657,6 @@ type FilterDecl struct {
 	Direction   FilterDirection `json:"direction"`              // import / export / both
 	Reads       []string        `json:"reads,omitempty"`        // Route fields the filter reads; "raw" for the UPDATE body
 	Sets        []string        `json:"sets,omitempty"`         // Route fields the filter may set
-	Attributes  []string        `json:"attributes,omitempty"`   // Attribute names of the text Update
-	NLRI        *bool           `json:"nlri,omitempty"`         // Include NLRI list (default true)
 	OnError     OnErrorPolicy   `json:"on-error,omitempty"`     // reject (fail-closed) or accept (fail-open)
 	Overrides   []string        `json:"overrides,omitempty"`    // Default filters this filter replaces
 	// Readvertise opts an export filter into the stale readvertise rail: when
@@ -688,7 +686,7 @@ const FilterUpdateTimeout = 5 * time.Second
 // engine sends a filter's plugin what is queued for that plugin when the
 // exchange starts, up to this many routes, so a lone route goes at once and a
 // burst shares one round trip. 64 keeps a batch of the largest routes (a
-// 65535-octet UPDATE base64 encoded as raw, beside its text and fields, about
+// 65535-octet UPDATE base64 encoded as raw, beside its fields, about
 // 200 KiB) under MaxMessageSize (16 MiB) on one line.
 const FilterUpdateBatchMax = 64
 
@@ -715,7 +713,6 @@ type FilterUpdateInput struct {
 	Direction string `json:"direction"` // "import" or "export"
 	Peer      string `json:"peer"`      // Peer IP address
 	PeerAS    uint32 `json:"peer-as"`   // Peer ASN
-	Update    string `json:"update"`    // Text-format attributes and NLRI
 	// Fields holds the route fields the filter declared it reads (the Reads
 	// of its FilterDecl, raw aside), as one JSON object keyed by vocabulary
 	// field name, each value in the shape the UPDATE event's attr map uses
@@ -733,8 +730,7 @@ type FilterUpdateInput struct {
 
 // FilterUpdateOutput is the verdict on one route of a filter-update exchange.
 type FilterUpdateOutput struct {
-	Action FilterAction `json:"action"`           // Typed decision; wire form is "accept"/"reject"/"modify"/"withdraw"
-	Update string       `json:"update,omitempty"` // Delta-only modified attributes (only for action=modify)
+	Action FilterAction `json:"action"` // Typed decision; wire form is "accept"/"reject"/"modify"/"withdraw"
 	// Raw is a full raw UPDATE-body replacement (only for action=modify with
 	// raw). []byte so encoding/json base64-encodes it on the wire (see the input
 	// field above).
@@ -744,9 +740,7 @@ type FilterUpdateOutput struct {
 	// answer"). Each names a field the filter declared in its Sets; a set of
 	// an undeclared or unsettable field, an action the field does not take, or
 	// a value of the wrong shape fails the route under the filter's on-error,
-	// and none of that route's sets apply. The engine reads Sets for a filter
-	// in a chain that also holds in-process members; the text Update serves
-	// the others until the text contract is removed.
+	// and none of that route's sets apply.
 	Sets []FilterSet `json:"sets,omitempty"`
 
 	// Teardown requests the engine terminate the BGP session after the import

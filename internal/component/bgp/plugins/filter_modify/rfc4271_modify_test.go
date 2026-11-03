@@ -220,8 +220,8 @@ func TestEvaluateModify(t *testing.T) {
 		map[string]any{"set": map[string]any{"local-preference": float64(200)}})}
 
 	out, err := evaluate(t, defs, modifyRoute("PREFER-LOCAL", directionImport, `{}`))
-	if err != nil || out.Action != sdk.FilterModify || out.Update != "" {
-		t.Fatalf("known = %+v, %v; want modify with no text", out, err)
+	if err != nil || out.Action != sdk.FilterModify {
+		t.Fatalf("known = %+v, %v; want modify", out, err)
 	}
 	wantSets(t, out.Sets, "local-preference set 200")
 

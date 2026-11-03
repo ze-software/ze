@@ -149,32 +149,15 @@ type PluginRegistration struct {
 
 // FilterRegistration holds a named filter declaration from stage 1.
 //
-// Non-unicast address family support: the engine's text-mode filter
-// protocol (`FilterUpdateInput.Update`) inlines prefixes only for families
-// whose NLRI wire format is a plain CIDR prefix (IPv4/IPv6 unicast,
-// multicast, mpls-label). For non-CIDR families (EVPN, Flowspec, VPN,
-// BGP-LS, MVPN, MUP, RTC) the engine emits a marker-only block
-// `nlri <family> <op>` with no prefixes. A filter plugin that needs
-// per-NLRI decisions on a non-CIDR family MUST declare Raw=true and parse
-// the wire payload itself from `FilterUpdateInput.Raw`. A Raw=false filter
-// attached to such a session is advisory for those families -- it cannot
-// distinguish individual destinations within the family. See
-// `docs/architecture/api/process-protocol.md` "Non-CIDR Families in the
-// Filter Text Protocol" and
-// `internal/core/family/cidr.go` (`Family.PlainCIDR`) for
-// the full contract.
-//
 // The embedded registry.DeclaredFilter carries the name or name pattern and
 // the declared reads and sets; Raw is derived from the reads (the
 // rpc.FilterFieldRaw read), never declared beside them.
 type FilterRegistration struct {
 	registry.DeclaredFilter
-	Direction  rpc.FilterDirection // import / export / both
-	Attributes []string            // Attribute names of the text Update
-	NLRI       bool                // Include NLRI list (default true)
-	Raw        bool                // The filter reads the raw UPDATE body; REQUIRED for non-CIDR families
-	OnError    rpc.OnErrorPolicy   // reject (fail-closed) or accept (fail-open)
-	Overrides  []string            // Default filters this filter replaces
+	Direction rpc.FilterDirection // import / export / both
+	Raw       bool                // The filter reads the raw UPDATE body (FilterUpdateInput.Raw)
+	OnError   rpc.OnErrorPolicy   // reject (fail-closed) or accept (fail-open)
+	Overrides []string            // Default filters this filter replaces
 	// Readvertise is set when the filter runs on the stale readvertise rail
 	// (rpc.FilterDecl.Readvertise).
 	Readvertise bool
