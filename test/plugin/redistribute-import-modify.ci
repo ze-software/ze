@@ -1,18 +1,51 @@
 # Test: import filter modifies attributes
 # VALIDATES: AC-7 -- Import filter returns modify with changed local-pref
 # PREVENTS: Modify response ignored, attributes not updated
+#
+# The import filter on peer1's route answers a Set of local-preference to 200.
+# Counting the filter calls proves only that it was consulted, so the proof is
+# the route ze then forwards: peer2 is an INTERNAL peer and receives
+# LOCAL_PREF, which RFC 4271 Section 5.1.5 keeps off the external peer1.
 
-# ze-peer sends a route to ze
+# peer1 (127.0.0.1) is the SOURCE: it sends the route ze imports through the
+# filter. It holds its route until peer2 is Established (await-file), because
+# ze forwards nothing to a peer it does not yet hold Established, and it stays
+# up (linger) so the route server never drops the forward for a source that
+# went down.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=linger:value=true
+option=await-file:path=import-modify-peer2.up
 option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# ze bgp configuration
+# peer2 (127.0.0.2) receives the imported route. 400504000000C8 is LOCAL_PREF
+# (flags 0x40, type 0x05, length 4) carrying 200. Without the import modify
+# the route reaches an internal peer with the default 0x64, so this needle
+# fails when the Set is lost. Its first UPDATE (ze's End-of-RIB) writes the
+# marker peer1 waits on.
+stdin=peer2:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=established-file:path=import-modify-peer2.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:contains=400504000000C8
+EOF_PEER2
+
+# ze bgp configuration: the import filter is bgp-wide, so it runs on the route
+# peer1 sends. The route server forwards it to peer2.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+    # Ze forwards a route between peers only when the route-server plugin is
+    # attached to both.
+    internal adj-rib-in {
+        use bgp-adj-rib-in;
+    }
+    internal rs {
+        use bgp-rs;
+    }
     external filter-modify-test {
         run "le test fixture plugin/redistribute-import-modify";
         encoder json;
@@ -27,18 +60,20 @@ bgp {
     }
     filter {
         import { filters [ filter-modify-test:set-localpref ]; final accept; }
+        export { final accept; }
     }
     peer peer1 {
-        filter {
-            export { final accept; }
-        }
         connection {
             remote {
                 ip 127.0.0.1
+                connect false
             }
+            # Ze's own address on this session. Deliberately not the peer's
+            # 127.0.0.1: RFC 4271 Section 5.1.3 forbids a peer's own address as
+            # NEXT_HOP.
             local {
-                ip auto
-                accept false
+                ip 127.0.0.4
+                accept true
             }
         }
         session {
@@ -50,10 +85,54 @@ bgp {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
         }
+        behavior {
+            group-updates disable
+        }
+        attach process rs {
+            receive [ update-received state open-received refresh ];
+            send [ update ];
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ];
+            send [ update ];
+        }
+    }
+    peer peer2 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.5
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65000
+            }
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+        attach process rs {
+            receive [ update-received state open-received refresh ];
+            send [ update ];
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ];
+            send [ update ];
+        }
     }
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+# ze dials peer2; peer1 dials ze and holds its route until peer2 is up.
+cmd=background:seq=1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=background:seq=2:exec=le test peer --dial 127.0.0.4:$PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
