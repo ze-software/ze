@@ -625,6 +625,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	// Active process selection is separate from the deferred lifetime owners.
 	var bgProcs []*ownedProcess
+	// foregroundDaemon is the last cmd=foreground ze daemon or le test peer
+	// (stepArmDaemon). A foreground peer is in peerProcs like a background
+	// one, and fgProc selection still counts it, because its exit is the
+	// file-level status expect=exit:code= asserts (ci-format.md, "exit= vs
+	// expect=exit:code=").
+	var foregroundDaemon *ownedProcess
 
 	// Name -> active background process, populated when a cmd=background line
 	// carries name=NAME. A later cmd=stop directive looks the process up here to
@@ -1216,6 +1222,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// Foreground daemon (ze) or foreground le test peer: start but don't
 			// wait - the runner synchronizes on it and tears it down at the end.
 			bgProcs = append(bgProcs, owned)
+			foregroundDaemon = owned
 
 			// Write daemon PID to tmpfs dir so background helpers can send signals.
 			// Guard on ze: a foreground helper never lands here (the arms above
@@ -1283,15 +1290,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
-	// Find foreground (daemon) process -- the last non-peer background process.
-	// Uses peerProcs map for reliable detection since ze-peer is executed as
-	// "le test peer ..." and p.Path/p.String() won't contain "ze-peer".
-	var fgProc *ownedProcess
-	for _, p := range bgProcs {
-		if !peerProcs[p] {
-			fgProc = p
-		}
-	}
+	fgProc := selectForegroundProcess(bgProcs, peerProcs, foregroundDaemon)
 
 	// Wait for the signaling process to finish.
 	// exec.CommandContext auto-kills on context cancellation (Go 1.20+).

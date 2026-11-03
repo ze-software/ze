@@ -118,3 +118,27 @@ func checkExitAssertable(rc *RunCommand) error {
 	}
 	return arm.exitNotCheckedError(cmdDirective(rc.Mode))
 }
+
+// selectForegroundProcess names the process the end-of-test arms synchronize
+// on: the last started process that is either a non-peer or the cmd=foreground
+// daemon arm (stepArmDaemon). It answers nil when the file started neither.
+//
+// peerProcs holds every le test peer, foreground or background, because the
+// peers are waited and drained on their own. A cmd=foreground le test peer
+// is still the process the file synchronizes on, and its exit is the one
+// expect=exit:code= asserts (ci-format.md, "exit= vs expect=exit:code=").
+// Skipping it as a peer made the exit-code arm wait on a background ze, which
+// never exits on its own, so the test ran to its timeout.
+func selectForegroundProcess(started []*ownedProcess, peerProcs map[*ownedProcess]bool, foregroundDaemon *ownedProcess) *ownedProcess {
+	var selected *ownedProcess
+	for _, p := range started {
+		if p == foregroundDaemon {
+			selected = p
+			continue
+		}
+		if !peerProcs[p] {
+			selected = p
+		}
+	}
+	return selected
+}

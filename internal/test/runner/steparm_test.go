@@ -114,3 +114,24 @@ func TestParseSuiteHonoursCommandExit(t *testing.T) {
 	require.Error(t, err, "contradicting exit assertions must be refused")
 	assert.Contains(t, err.Error(), "exit=2 but expect=exit:code=1")
 }
+
+// TestSelectForegroundProcessCountsAForegroundPeer proves the end-of-test arms
+// synchronize on a cmd=foreground le test peer that follows a background ze,
+// the shape of test/plugin/filter-wire-match-conditions-external.ci, while a
+// background peer is still never selected and a file with only a foreground
+// ze daemon keeps selecting it.
+// PREVENTS: the exit-code arm waiting on the background ze, which never exits
+// on its own, so the test ran to its timeout although its peer had passed.
+func TestSelectForegroundProcessCountsAForegroundPeer(t *testing.T) {
+	source, daemon, dest := &ownedProcess{}, &ownedProcess{}, &ownedProcess{}
+	peers := map[*ownedProcess]bool{source: true, dest: true}
+
+	got := selectForegroundProcess([]*ownedProcess{source, daemon, dest}, peers, dest)
+	assert.Same(t, dest, got, "a cmd=foreground peer after a background ze is the process the file waits on")
+
+	got = selectForegroundProcess([]*ownedProcess{source, dest, daemon}, peers, daemon)
+	assert.Same(t, daemon, got, "a cmd=foreground ze after the peers stays the selected process")
+
+	got = selectForegroundProcess([]*ownedProcess{source, dest}, peers, nil)
+	assert.Nil(t, got, "background peers alone select no process")
+}
