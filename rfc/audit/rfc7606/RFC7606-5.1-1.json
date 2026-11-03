@@ -10,7 +10,7 @@
   "tests": {
     "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "68f36ef303cb020d",
     "internal/component/bgp/message/rfc7606_mp_first_test.go::TestRFC7606Section51MPAttributeEncodedFirst": "641195b832137ca3",
-    "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideMovesTrailingMPAttributeFirst": "2f449643b23dc981",
+    "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideMovesTrailingMPAttributeFirst": "be513771b0994b84",
     "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardLeadingMPAttributeKeepsZeroCopy": "2c145c5e124e09e4",
     "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstAcrossContexts": "2c145c5e124e09e4",
     "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstSameContext": "2c145c5e124e09e4",

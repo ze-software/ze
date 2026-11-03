@@ -9,8 +9,8 @@
     "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
     "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
     "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "aeb6993b67f2a376",
-    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "00ea84393819df2b",
-    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "00ea84393819df2b"
+    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "d838494437546b83",
+    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "d838494437546b83"
   },
   "units": {
     "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedAddPathNotificationPreservesFamilyTuples": "1dde6d8ef56d31a9",

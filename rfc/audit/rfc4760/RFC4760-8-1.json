@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4760FamilyNotAdvertisedIsNotExchanged": "48d5a544cfcb8b61",
     "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4760OpenAdvertisesEveryConfiguredFamily": "48d5a544cfcb8b61",
-    "internal/core/bgp/capability/capability_test.go::TestParseCapabilities": "3b6ab22b8c99761b"
+    "internal/core/bgp/capability/capability_test.go::TestParseCapabilities": "a659594f16fb390a"
   },
   "units": {
     "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4760FamilyNotAdvertisedIsNotExchanged": "759afafee7d53850",

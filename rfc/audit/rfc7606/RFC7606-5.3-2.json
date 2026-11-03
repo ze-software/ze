@@ -5,7 +5,7 @@
     "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRILastPrefixExactlyFitsAccepted": "9c80e5afd66474f0",
     "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries": "72daee8a89edb6c5",
     "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries#2": "72daee8a89edb6c5",
-    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "00ea84393819df2b"
+    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "d838494437546b83"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRILastPrefixExactlyFitsAccepted": "23f0a8a82c45bc48",

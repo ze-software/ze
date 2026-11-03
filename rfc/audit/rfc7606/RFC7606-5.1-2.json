@@ -11,7 +11,7 @@
     "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination": "aa45d556639c54f3",
     "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantPassesThroughCompliantUpdate": "aa45d556639c54f3",
     "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantSplitsMixedUpdateThatFits": "aa45d556639c54f3",
-    "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideSplitsMixedShape": "2f449643b23dc981",
+    "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideSplitsMixedShape": "be513771b0994b84",
     "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardCompliantShapeKeepsZeroCopy": "9e24dda4092c3525",
     "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardSplitsMixedShapeAcrossContextsThatFits": "9e24dda4092c3525",
     "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardSplitsMixedShapeSameContextThatFits": "9e24dda4092c3525",

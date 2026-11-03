@@ -3,7 +3,7 @@
   "requirement_sha": "55678935f22b8a58",
   "tests": {
     "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestEnforceRFC7606_ValidWithdrawnNLRIAccepted": "9f97a0d56d362dc6",
-    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "00ea84393819df2b"
+    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "d838494437546b83"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestEnforceRFC7606_ValidWithdrawnNLRIAccepted": "36303b7929270759",

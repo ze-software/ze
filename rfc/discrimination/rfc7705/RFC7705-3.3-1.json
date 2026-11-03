@@ -18,7 +18,7 @@
     "claim-sha": "77d4d43e34b1e05f",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/config.go::parsePeerSettings",
-    "producer-sha": "dfb1744ef877b1df",
+    "producer-sha": "ecbae880a7c1b84b",
     "break": "body of parsePeerSettings replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -3,7 +3,7 @@
   "requirement_sha": "2ad7c926df955bc6",
   "tests": {
     "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "38d39a330e488737",
-    "internal/core/bgp/capability/capability_test.go::TestParseAcceptsMultipleIdenticalCapabilityInstances": "3b6ab22b8c99761b"
+    "internal/core/bgp/capability/capability_test.go::TestParseAcceptsMultipleIdenticalCapabilityInstances": "a659594f16fb390a"
   },
   "units": {
     "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "29fb443f05d0168c",

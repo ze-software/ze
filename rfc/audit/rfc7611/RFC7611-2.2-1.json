@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/reactor/rfc7611_reactor_b_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach": "e0442639e52779a5",
     "internal/component/bgp/reactor/rfc7611_reactor_b_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach#2": "e0442639e52779a5",
-    "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary": "d5d815e033ccfd90",
-    "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary#2": "d5d815e033ccfd90"
+    "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary": "0bb4aed95917f1ed",
+    "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary#2": "0bb4aed95917f1ed"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7611_reactor_b_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach": "184aa4bb3c891061",

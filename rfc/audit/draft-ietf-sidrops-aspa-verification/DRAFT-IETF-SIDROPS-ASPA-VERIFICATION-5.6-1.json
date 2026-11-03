@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery": "c2501ae8bfff913b",
     "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2": "c2501ae8bfff913b",
-    "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReceiveRecovery": "3616e13966599ae0",
-    "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReplacementWithdrawal": "3616e13966599ae0"
+    "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReceiveRecovery": "ccb747b166f43bc1",
+    "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReplacementWithdrawal": "ccb747b166f43bc1"
   },
   "units": {
     "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery": "4459e09f801977f6",

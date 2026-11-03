@@ -3,7 +3,7 @@
   "requirement_sha": "73033f2bf79d0b63",
   "tests": {
     "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestSessionRFC7606ValidUpdateSendsNoNotification": "9f97a0d56d362dc6",
-    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_ShortBody": "00ea84393819df2b",
+    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_ShortBody": "d838494437546b83",
     "test/plugin/rfc7606-reset.ci": "b0e1897488f23526"
   },
   "units": {

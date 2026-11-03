@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestRFC2918RouteRefreshCapabilityOctetsInSentOpen": "8cb84a3ecc21b2cc",
     "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "c387bdc6c423bd19",
-    "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "3b6ab22b8c99761b"
+    "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "a659594f16fb390a"
   },
   "units": {
     "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestRFC2918RouteRefreshCapabilityOctetsInSentOpen": "54f0c133096aefc1",

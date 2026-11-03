@@ -133,24 +133,24 @@
   },
   {
     "rid": "RFC9494-4.3-1",
-    "polarity": "negative",
-    "unit": "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR",
-    "unit-sha": "a4a518c8d14e899a",
-    "claim-sha": "5f758f28a2b79b30",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
-    "producer-sha": "26f7c275cde54f3c",
-    "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC9494-4.3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR",
     "unit-sha": "a4a518c8d14e899a",
     "claim-sha": "581e34552084ce37",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
-    "producer-sha": "26f7c275cde54f3c",
+    "producer-sha": "f9c919c39d5a3ae1",
+    "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR",
+    "unit-sha": "a4a518c8d14e899a",
+    "claim-sha": "5f758f28a2b79b30",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
+    "producer-sha": "f9c919c39d5a3ae1",
     "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

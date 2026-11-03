@@ -5,7 +5,7 @@
     "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
     "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
     "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "aeb6993b67f2a376",
-    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "00ea84393819df2b"
+    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "d838494437546b83"
   },
   "units": {
     "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",

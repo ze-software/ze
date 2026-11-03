@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7705): \": When the BGP router receives inbound BGP UPDATEs from its eBGP neighbor configured with this option, it MUST NOT append the\" be95c10053 replaced lowLiveSettings with acceptingLiveSettings for source and destination (FinalAccept import and export, no refs). An accepting policy neither refuses nor rewrites AS_PATH, so the absence of the prepended Local AS on installation and advertisement still comes from the No Prepend producer. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "435fb533d22e9143",
   "tests": {
-    "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised": "03cb6cd8cd130cd9",
-    "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised#2": "03cb6cd8cd130cd9"
+    "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised": "c2bf2fd54d1e4c45",
+    "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised#2": "c2bf2fd54d1e4c45"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised": "f3e7f3d732376c4b",

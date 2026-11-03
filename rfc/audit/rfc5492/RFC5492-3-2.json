@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "38d39a330e488737",
     "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown": "38d39a330e488737",
-    "internal/core/bgp/capability/capability_test.go::TestParseRejectsMalformedKnownCapabilityLength": "3b6ab22b8c99761b",
-    "internal/core/bgp/capability/capability_test.go::TestParseUnknownCapability": "3b6ab22b8c99761b"
+    "internal/core/bgp/capability/capability_test.go::TestParseRejectsMalformedKnownCapabilityLength": "a659594f16fb390a",
+    "internal/core/bgp/capability/capability_test.go::TestParseUnknownCapability": "a659594f16fb390a"
   },
   "units": {
     "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "11a18f6ff74ad27b",

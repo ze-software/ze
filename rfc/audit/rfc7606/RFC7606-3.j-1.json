@@ -9,7 +9,7 @@
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6": "bc2b72193ea95ce6",
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv4": "bc2b72193ea95ce6",
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv6": "bc2b72193ea95ce6",
-    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidTrailingNLRI": "00ea84393819df2b",
+    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidTrailingNLRI": "d838494437546b83",
     "test/plugin/rfc7606-reset.ci": "b0e1897488f23526"
   },
   "units": {
