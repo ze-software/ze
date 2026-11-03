@@ -27,6 +27,10 @@ var chainVariables = []struct{ name, value string }{
 	{"$remote_ip", `[0-9A-Fa-f.:]+`},
 }
 
+// attachmentExport is the export chain's attachment, the one a loop-detection
+// ref is refused at: loop detection is an ingress stage.
+const attachmentExport = "bgp export"
+
 // isTemplatedMember reports whether a chain member names its filter through a
 // config variable.
 func isTemplatedMember(name string) bool { return strings.ContainsRune(name, '$') }
@@ -164,13 +168,9 @@ func (c *templatedChain) CompileResolved(resolved filterapi.Policy, peer filtera
 }
 
 func (c *templatedChain) compile(resolved filterapi.Policy, peer filterapi.PeerFilterInfo) (filterapi.Policy, error) {
-	refs, bound, err := c.keepHolding(resolved, peer)
+	refs, bound, members, err := c.keepHolding(resolved, peer)
 	if err != nil {
 		return resolved, err
-	}
-	members := c.members
-	if len(c.conditional) > 0 {
-		members = templatedMembers(resolved.WithBoundFilters(refs, bound))
 	}
 	for _, i := range members {
 		if err := validateChainNames(c.reg, refs[i:i+1], false, c.attachment, c.context); err != nil {
@@ -178,6 +178,15 @@ func (c *templatedChain) compile(resolved filterapi.Policy, peer filterapi.PeerF
 		}
 		canonical, binding := canonicalizeFilterRefs(refs[i:i+1], c.reg)
 		refs[i] = canonical[0]
+		if len(binding) > 0 && binding[0] && !refs[i].Inactive && c.attachment == attachmentExport {
+			// The load refuses a written export loop ref
+			// (validateExportPolicyReferences); one a variable names is known
+			// only now. compileLibraryChain skips a bound ref as an ingress
+			// stage, so without this the export would run as if it had passed.
+			return resolved, fmt.Errorf("%s: export filter %s is only supported on import; its ingress check does not run on export, "+
+				"so this peer rejects every route it would send.\nRemove it from the dynamic group's export filters, "+
+				"or deactivate it there in the configuration editor", c.context, refs[i].Name)
+		}
 		if binding != nil {
 			if bound == nil {
 				bound = make([]bool, len(refs))
@@ -190,29 +199,36 @@ func (c *templatedChain) compile(resolved filterapi.Policy, peer filterapi.PeerF
 
 // keepHolding answers the refs and bindings of resolved, less each member a
 // plugin inserted under a session condition that does not hold for peer
-// (policyview.SessionConditionHolds), in chain order. The answer owns new
+// (policyview.SessionConditionHolds), in chain order, and where in the
+// answer each member that named its filter through a variable now sits
+// (c.members indexes the template). The variables are already resolved, so
+// the names no longer show which members those are. The answer owns new
 // slices; resolved's borrowed ones are never written.
-func (c *templatedChain) keepHolding(resolved filterapi.Policy, peer filterapi.PeerFilterInfo) ([]policy.Ref, []bool, error) {
+func (c *templatedChain) keepHolding(resolved filterapi.Policy, peer filterapi.PeerFilterInfo) ([]policy.Ref, []bool, []int, error) {
 	bindings := resolved.Bindings()
 	refs := make([]policy.Ref, 0, len(resolved.Filters()))
 	var bound []bool
 	if bindings != nil {
 		bound = make([]bool, 0, len(bindings))
 	}
+	var members []int
 	for i, ref := range resolved.Filters() {
 		holds, err := c.conditionHolds(ref.Name, peer)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		if !holds {
 			continue
+		}
+		if slices.Contains(c.members, i) {
+			members = append(members, len(refs))
 		}
 		refs = append(refs, ref)
 		if bindings != nil {
 			bound = append(bound, bindings[i])
 		}
 	}
-	return refs, bound, nil
+	return refs, bound, members, nil
 }
 
 // conditionHolds reports whether the member named name stays in the peer's

@@ -84,6 +84,10 @@ commit now
 Deactivation keeps that member as a deliberate no-check decision; it does not
 remove other filters or change the final. Removing the reference at its original
 location is also an option. Automatic import references never populate export.
+A dynamic group's export reference that names the instance through a config
+variable (`loop:AUTO-$remote_as`) is known only when a peer connects, so it is
+refused then: that peer rejects every route it would send, and the log names
+the peer and the reference to remove or deactivate.
 
 A reload compares the whole effective policy. Changing only the export `final`
 therefore reconciles advertisements on the existing session without a source

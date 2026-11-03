@@ -280,7 +280,7 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 			return nil, nil, err
 		}
 		tb.Reset()
-		if err := validateChainNames(filterReg, ps.ExportPolicy.Filters(), ps.IsDynamic, "bgp export", tb.Str("peer ").Str(ps.Name).Str(" export filters").String()); err != nil {
+		if err := validateChainNames(filterReg, ps.ExportPolicy.Filters(), ps.IsDynamic, attachmentExport, tb.Str("peer ").Str(ps.Name).Str(" export filters").String()); err != nil {
 			return nil, nil, err
 		}
 	}

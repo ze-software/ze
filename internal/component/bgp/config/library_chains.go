@@ -36,7 +36,7 @@ func compileLibraryChains(settings []*reactor.PeerSettings, conditional map[*rea
 		if err != nil {
 			return err
 		}
-		exported, err := compileConditionalChain(ps.ExportPolicy, members.exports, reg, bases, "bgp export", "peer "+ps.Name+" export filters")
+		exported, err := compileConditionalChain(ps.ExportPolicy, members.exports, reg, bases, attachmentExport, "peer "+ps.Name+" export filters")
 		if err != nil {
 			return err
 		}
