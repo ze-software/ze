@@ -281,13 +281,12 @@ For the full flag reference, see [le perf compare](command-reference.md#le-perf-
 ## Filter throughput
 
 `./le perf filter` is the throughput harness of the route filter paths. It
-covers three sets of Go benchmarks, and needs no Docker and no DUT:
+covers two sets of Go benchmarks, and needs no Docker and no DUT:
 
 | Path | Benchmarks | Package |
 |------|------------|---------|
 | In-process: the typed DirectBridge filter slot | `BenchmarkFilterFastPath` | `pkg/plugin/sdk` |
 | External: one `filter-update` batch of 1, 16 and 64 routes | `BenchmarkFilterForkedBatch` | `pkg/plugin/sdk` |
-| Text `filter-update`, the before figure | `BenchmarkFilterModifyEgress`, `BenchmarkAppendUpdateForFilter_Reused`, `BenchmarkAppendAttrsForFilter_Reused` | `internal/component/bgp/reactor` (`ze_bgp`) |
 
 ```bash
 # Check the harness builds: compile each package, list the benchmarks,

@@ -13,7 +13,7 @@
 package filter_community_match
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // action is the per-entry decision applied when a community matches.
@@ -34,12 +34,12 @@ func (a action) String() string {
 // communityType identifies which community attribute to check. It is an alias
 // on the shared definition, not a second one: filter_modify decides on the same
 // attribute of the same text, and one reading serves both.
-type communityType = filtertext.CommunityKind
+type communityType = attribute.CommunityKind
 
 const (
-	communityStandard = filtertext.CommunityStandard
-	communityLarge    = filtertext.CommunityLarge
-	communityExtended = filtertext.CommunityExtended
+	communityStandard = attribute.CommunityStandard
+	communityLarge    = attribute.CommunityLarge
+	communityExtended = attribute.CommunityExtended
 )
 
 // communityEntry is one ordered match entry inside a community-list.

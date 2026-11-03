@@ -16,7 +16,7 @@ package filter_community_match
 import (
 	"fmt"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/configorder"
 )
 
@@ -104,7 +104,7 @@ func parseOneCommunityEntry(listName, communityStr string, m map[string]any) (co
 	if err != nil {
 		return communityEntry{}, err
 	}
-	canonical, err := filtertext.CanonicalCommunity(communityStr, ctype)
+	canonical, err := attribute.CanonicalCommunity(communityStr, ctype)
 	if err != nil {
 		return communityEntry{}, fmt.Errorf("community-match %q entry %q: %w", listName, communityStr, err)
 	}

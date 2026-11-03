@@ -3,7 +3,7 @@
 //
 // The AS path as text, for a match condition that judges it as a string: an
 // as-path-list's regular expressions are written against the flat list of
-// decimal ASNs the filter text format carries.
+// decimal ASNs.
 
 package policyview
 
@@ -21,9 +21,8 @@ type sharedText struct {
 	err  error
 }
 
-// ASPathText answers the reconstructed AS path as the filter text format's
-// as-path value reads (filtertext.ASPath): every ASN in plain decimal, in
-// path order, one space between two, with no segment marker, so an AS_SET's
+// ASPathText answers the reconstructed AS path as text: every ASN in plain
+// decimal, in path order, one space between two, with no segment marker, so an AS_SET's
 // members read as sequence members do. An UPDATE with no AS path, or a path
 // with no ASN, answers an empty text. It is built once per run however many
 // conditions read it; the bytes are the view's own and MUST NOT be kept past

@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/family"
@@ -123,7 +122,7 @@ func (c *Chain) dropMPReach(view *policyview.View, sets *RunSets, mp wireu.MPRea
 		return nil, errors.New("prefix: drops from an MP_REACH_NLRI the UPDATE does not carry")
 	}
 	fam := mp.Family()
-	if !filtertext.CIDRFamily(fam) {
+	if !fam.PlainCIDR() {
 		return nil, fmt.Errorf("prefix: drops from %s, whose NLRI is not a CIDR prefix", fam)
 	}
 	addPath, err := view.AddPath(fam)

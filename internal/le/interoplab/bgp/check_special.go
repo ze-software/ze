@@ -1273,11 +1273,12 @@ func zeRIBBestRows(ctx context.Context, lab interoplab.CheckerLab) (int, error) 
 // checkMEDIncrementFromRouteValue proves `increment { med 50 }` computes from
 // the metric the route arrived with, judged at a foreign RIB.
 //
-// The engine builds one filter subject per UPDATE (AppendUpdateForFilter,
-// reactor/filter_format.go) and bgp-filter-modify reads the current metric out
-// of it (readUint32Attr, plugins/filter_modify/modify.go). A subject that does
-// not name `med` makes the arithmetic start from the RFC 4271 Section 9.1.2.2
-// absent base of 0, so the increment writes 50 where the route carried 100.
+// bgp-filter-modify answers a `med` set whose action is increment (built at
+// config time, plugins/filter_modify/config.go), and the policy chain resolves
+// it against the route's own metric (policychain/external.go,
+// numericActionOf). A resolution that misses that metric starts the arithmetic
+// from the RFC 4271 Section 9.1.2.2 absent base of 0, so the increment writes
+// 50 where the route carried 100.
 // The three outcomes are three different numbers, which is why the injected
 // metric is 100 rather than 0: 150 is the arithmetic on the route's value, 50
 // is the arithmetic on a substituted base, and 100 is no arithmetic at all.
@@ -1297,7 +1298,7 @@ func checkMEDIncrementFromRouteValue(ctx context.Context, check *interoplab.Chec
 		controlPrefix = "10.63.1.0/24"
 		// What the injector sends for both, and what the control keeps.
 		sourceMetric = "100"
-		// 100 + 50. The subject names `med`, so the arithmetic reads 100.
+		// 100 + 50. The resolution reads the route's metric, 100.
 		incrementedMetric = "150"
 		// The injector's AS, read back at GoBGP as proof that the route it holds
 		// is the relayed one rather than something ze rebuilt.

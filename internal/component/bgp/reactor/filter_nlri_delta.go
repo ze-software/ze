@@ -11,7 +11,6 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -374,7 +373,7 @@ func nlriSubsetRefusal(source nlriSource, name string) (nlriRefusal, bool) {
 	if !source.section.multiprotocol() {
 		return nlriRefusal{}, true // the legacy sections are IPv4 unicast, a CIDR family
 	}
-	if !filtertext.CIDRFamily(source.fam) {
+	if !source.fam.PlainCIDR() {
 		return nlriRefusal{family: name, reason: refuseNonCIDR}, false
 	}
 	return nlriRefusal{}, true
@@ -422,7 +421,7 @@ func (s nlriSection) withdraws() bool {
 // section does not carry at that position, a token is not a prefix of the
 // section's address family, or the section does not parse.
 func subsetNLRI(scratch *valueScratch, source nlriSource, keep string) ([]byte, bool) {
-	routeKey := nlrisplit.GetPrefixKey(source.fam) // filtertext.CIDRFamily: a CIDR key, never the opaque default
+	routeKey := nlrisplit.GetPrefixKey(source.fam) // family.Family.PlainCIDR: a CIDR key, never the opaque default
 	out := scratch.carveBytes(len(source.raw))[:0]
 	var want, have [nlrisplit.PrefixKeyScratchSize]byte
 	tokens := filterTokens{text: keep}

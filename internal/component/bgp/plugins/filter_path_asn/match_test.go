@@ -10,19 +10,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// updateFor renders the filter text of a route whose AS_PATH carries segments,
-// through the producer of that format so a test and the wire cannot drift.
-func updateFor(segments ...attribute.ASPathSegment) string {
-	path := &attribute.ASPath{Segments: segments}
-	buf := attribute.Origin(0).AppendText(nil)
-	buf = append(buf, ' ')
-	buf = path.AppendText(buf)
-	return string(buf)
+// updateFor names the AS_PATH segments of a test route. judgeUpdate and
+// subjectOf encode them into a wire UPDATE, so every reader the test reaches is
+// the one the plugin runs.
+func updateFor(segments ...attribute.ASPathSegment) []attribute.ASPathSegment {
+	return segments
 }
 
 // sequence is one AS_SEQUENCE, the segment nearly every path carries.
@@ -30,10 +27,32 @@ func sequence(asns ...uint32) attribute.ASPathSegment {
 	return attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: asns}
 }
 
-// asPathOf renders one AS_SEQUENCE and reads it back the way the plugin does,
-// so a matcher test sees exactly the string filtertext.ASPath produces.
-func asPathOf(asns ...uint32) string {
-	return filtertext.ASPath(updateFor(sequence(asns...)))
+// subjectOf answers the subject the reject-asn scan judges for a route whose
+// AS_PATH carries segments: the AS path text of a view over its wire UPDATE
+// (policyview.View.ASPathText), the producer the condition itself reads.
+func subjectOf(tb testing.TB, segments ...attribute.ASPathSegment) string {
+	tb.Helper()
+	var view policyview.View
+	view.Reset(segmentsUpdate(tb, segments...), policyview.Session{EBGP: true})
+	defer view.Clear()
+	text, err := view.ASPathText()
+	require.NoError(tb, err)
+	return string(text)
+}
+
+// asPathOf answers the subject of a path of AS_SEQUENCE segments carrying asns
+// in order, so a matcher test sees exactly the string the condition scans. A
+// segment holds at most 255 ASNs (RFC 4271 Section 4.3 gives its count one
+// octet), so a longer path is split across segments, which the subject does
+// not mark.
+func asPathOf(tb testing.TB, asns ...uint32) string {
+	tb.Helper()
+	const segmentMax = 255
+	var segments []attribute.ASPathSegment
+	for start := 0; start < len(asns); start += segmentMax {
+		segments = append(segments, sequence(asns[start:min(start+segmentMax, len(asns))]...))
+	}
+	return subjectOf(tb, segments...)
 }
 
 // listing maps one ASN to the primitive set the named position leaf expands to,
@@ -180,7 +199,7 @@ func TestPositionMatrixEveryKeyEveryIndex(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			found, ok := matchPositions(asPathOf(tc.path...), tc.sender, listing(tc.listed, tc.key), nil)
+			found, ok := matchPositions(asPathOf(t, tc.path...), tc.sender, listing(tc.listed, tc.key), nil)
 
 			require.Equal(t, tc.reject, ok)
 			if !tc.reject {
@@ -212,14 +231,14 @@ func TestDirectIsDefinedByTheSenderNotTheIndex(t *testing.T) {
 	update := updateFor(sequence(3356, 65001))
 
 	sent := judgeUpdate(t, &sdk.FilterUpdateInput{
-		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 3356, Update: update,
-	})
+		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 3356,
+	}, update)
 	assert.Equal(t, sdk.FilterAccept, sent.Action,
 		"AS3356 sent this path itself, so its leading run is the neighbor and via excludes it")
 
 	leaked := judgeUpdate(t, &sdk.FilterUpdateInput{
-		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.2", PeerAS: 65001, Update: update,
-	})
+		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.2", PeerAS: 65001,
+	}, update)
 	assert.Equal(t, sdk.FilterReject, leaked.Action,
 		"AS65001 reached us through AS3356, so 3356 is transit however early it sits in the path")
 }
@@ -233,10 +252,10 @@ func TestDirectIsDefinedByTheSenderNotTheIndex(t *testing.T) {
 func TestPrependRunCollapsesToOneNeighbor(t *testing.T) {
 	positions := listing(3356, "indirect")
 
-	_, ok := matchPositions(asPathOf(3356, 3356, 3356, 65001), from(3356), positions, nil)
+	_, ok := matchPositions(asPathOf(t, 3356, 3356, 3356, 65001), from(3356), positions, nil)
 	assert.False(t, ok, "three prepends by AS3356 are one direct position")
 
-	found, ok := matchPositions(asPathOf(3356, 3356, 65001, 3356, 65002), from(3356), positions, nil)
+	found, ok := matchPositions(asPathOf(t, 3356, 3356, 65001, 3356, 65002), from(3356), positions, nil)
 	require.True(t, ok, "the run ends at the first token that is not the sender's ASN")
 	assert.Equal(t, uint32(3356), found.asn)
 	assert.Equal(t, positionTransit, found.at)
@@ -261,53 +280,48 @@ func TestExportHasNoNeighborSoViaCoversTheWholePath(t *testing.T) {
 	// makes it direct, because nothing on export says who sent the route.
 	leaked := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "NO-TRANSIT", Direction: "export", Peer: "10.0.0.1", PeerAS: 3356,
-		Update: updateFor(sequence(3356, 65001)),
-	})
+	}, updateFor(sequence(3356, 65001)))
 	assert.Equal(t, sdk.FilterReject, leaked.Action,
 		"a path through AS3356 must not be advertised, whatever the destination's own ASN is")
 
 	// AC-14: the same destination, a path that carries no listed ASN.
 	clean := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "NO-TRANSIT", Direction: "export", Peer: "10.0.0.1", PeerAS: 3356,
-		Update: updateFor(sequence(65001, 65002)),
-	})
+	}, updateFor(sequence(65001, 65002)))
 	assert.Equal(t, sdk.FilterAccept, clean.Action,
 		"the destination's own ASN is never consulted, so a clean path is advertised")
 }
 
 // TestScanUnbracketedSingleASN covers AC-20.
 //
-// (*attribute.ASPath).AppendText writes one ASN bare and several in brackets, so
-// a reader that assumes brackets loses the single-ASN case, which is the
-// direct-peer case this filter most needs to read correctly.
+// A path of one ASN is the direct-peer case this filter most needs to read
+// correctly: its subject is one token, which is the sender or the origin.
 //
 // VALIDATES: AC-20, and AC-11 and AC-12 as the two decisions it resolves to.
 // PREVENTS: a single-ASN path scanning as no tokens, which accepts everything a
 // direct peer originates.
 func TestScanUnbracketedSingleASN(t *testing.T) {
 	update := updateFor(sequence(3356))
-	require.Contains(t, update, "as-path 3356", "the producer writes a lone ASN unbracketed")
-	require.Equal(t, "3356", filtertext.ASPath(update))
+	require.Equal(t, "3356", subjectOf(t, update...), "a lone ASN is one token of the subject")
 
 	configureFrom(t, `        reject-asn NO-TRANSIT {
             indirect [ 3356 ]
         }`)
 
 	stranger := judgeUpdate(t, &sdk.FilterUpdateInput{
-		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001, Update: update,
-	})
+		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
+	}, update)
 	assert.Equal(t, sdk.FilterReject, stranger.Action, "a lone ASN that is not the sender is the origin")
 
 	itself := judgeUpdate(t, &sdk.FilterUpdateInput{
-		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 3356, Update: update,
-	})
+		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 3356,
+	}, update)
 	assert.Equal(t, sdk.FilterAccept, itself.Action, "a lone ASN that is the sender is direct")
 }
 
 // TestScanAbsentASPath covers AC-19.
 //
-// A path with no ASNs emits no as-path token at all, so the subject is the empty
-// string. It carries no token, so no position can match it, and a locally
+// A route with no AS_PATH has the empty string as its subject. It carries no token, so no position can match it, and a locally
 // originated route is accepted in both directions with no case written for it.
 //
 // VALIDATES: AC-19.
@@ -315,8 +329,7 @@ func TestScanUnbracketedSingleASN(t *testing.T) {
 // every locally originated route the moment a list named AS0.
 func TestScanAbsentASPath(t *testing.T) {
 	update := updateFor()
-	require.NotContains(t, update, "as-path", "an empty path emits no keyword")
-	require.Empty(t, filtertext.ASPath(update))
+	require.Empty(t, subjectOf(t, update...))
 
 	configureFrom(t, `        reject-asn NO-TRANSIT {
             anywhere [ 0 3356 ]
@@ -324,27 +337,27 @@ func TestScanAbsentASPath(t *testing.T) {
 
 	for _, direction := range []string{"import", "export"} {
 		out := judgeUpdate(t, &sdk.FilterUpdateInput{
-			Filter: "NO-TRANSIT", Direction: direction, Peer: "10.0.0.1", PeerAS: 65001, Update: update,
-		})
+			Filter: "NO-TRANSIT", Direction: direction, Peer: "10.0.0.1", PeerAS: 65001,
+		}, update)
 		assert.Equal(t, sdk.FilterAccept, out.Action, "a route with no AS_PATH is accepted on %s", direction)
 	}
 }
 
 // TestScanFlattenedASSet covers AC-21.
 //
-// AppendText writes AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE and AS_CONFED_SET
-// into one space-separated list with no marker, so an ASN inside an AS_SET is
+// The view's AS path text flattens AS_SEQUENCE and AS_SET into one
+// space-separated list with no marker, so an ASN inside an AS_SET is
 // scanned like any other and its position is whatever its index in the
 // flattened list gives it.
 //
 // VALIDATES: AC-21.
 // PREVENTS: an AS_SET hiding a listed ASN, which passes a leak.
 func TestScanFlattenedASSet(t *testing.T) {
-	asPath := filtertext.ASPath(updateFor(
+	asPath := subjectOf(t,
 		sequence(65001),
 		attribute.ASPathSegment{Type: attribute.ASSet, ASNs: []uint32{174, 3356}},
 		sequence(65002),
-	))
+	)
 	require.Equal(t, "65001 174 3356 65002", asPath, "every segment type flattens into one list")
 
 	found, ok := matchPositions(asPath, from(65001), listing(3356, "indirect"), nil)
@@ -379,7 +392,7 @@ func TestPathLengthBoundaries(t *testing.T) {
 			for start := 0; start < tokens; start += segmentMax {
 				segments = append(segments, sequence(asns[start:min(start+segmentMax, tokens)]...))
 			}
-			asPath := filtertext.ASPath(updateFor(segments...))
+			asPath := subjectOf(t, segments...)
 
 			found, ok := matchPositions(asPath, from(65000), listing(3356, "origin"), nil)
 			require.True(t, ok, "the last token of a %d-token path is the origin", tokens)
@@ -403,7 +416,7 @@ func TestPathLengthBoundaries(t *testing.T) {
 // PREVENTS: a tokenizer that allocates one slice for each UPDATE, which is
 // invisible in every correctness test and is paid millions of times.
 func TestScanAllocatesNothing(t *testing.T) {
-	asPath := asPathOf(65001, 65001, 174, 65002, 3356, 65003)
+	asPath := asPathOf(t, 65001, 65001, 174, 65002, 3356, 65003)
 	sender := from(65001)
 	positions := map[uint32]positionSet{
 		3356:  positionsByKey["indirect"],
@@ -441,14 +454,12 @@ func TestRegexRejectsOnShape(t *testing.T) {
 
 	adjacent := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "SHAPES", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-		Update: updateFor(sequence(3356, 174, 65001)),
-	})
+	}, updateFor(sequence(3356, 174, 65001)))
 	assert.Equal(t, sdk.FilterReject, adjacent.Action, "the shape holds, so the route is rejected")
 
 	apart := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "SHAPES", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-		Update: updateFor(sequence(3356, 65001, 174)),
-	})
+	}, updateFor(sequence(3356, 65001, 174)))
 	assert.Equal(t, sdk.FilterAccept, apart.Action,
 		"both ASNs are present and the shape does not hold, so the route is accepted")
 }
@@ -483,8 +494,7 @@ func TestRegexAndPositionsUnion(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			out := judgeUpdate(t, &sdk.FilterUpdateInput{
 				Filter: "BOTH", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-				Update: updateFor(sequence(tc.path...)),
-			})
+			}, updateFor(sequence(tc.path...)))
 			assert.Equal(t, tc.want, out.Action)
 		})
 	}
@@ -505,12 +515,11 @@ func TestRegexSubjectIsTheFlattenedString(t *testing.T) {
 
 	out := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "SHAPES", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-		Update: updateFor(
-			sequence(65001),
-			attribute.ASPathSegment{Type: attribute.ASSet, ASNs: []uint32{174, 3356}},
-			sequence(65002),
-		),
-	})
+	}, updateFor(
+		sequence(65001),
+		attribute.ASPathSegment{Type: attribute.ASSet, ASNs: []uint32{174, 3356}},
+		sequence(65002),
+	))
 
 	assert.Equal(t, sdk.FilterReject, out.Action,
 		"the subject is the flattened path with no brackets, so an anchored pattern reaches an AS_SET member")
@@ -587,7 +596,7 @@ func TestNthCountsCollapsedPositionsFromUs(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			found, ok := matchPositions(asPathOf(tc.path...), tc.sender, nil, nthListing(tc.listed, tc.index))
+			found, ok := matchPositions(asPathOf(t, tc.path...), tc.sender, nil, nthListing(tc.listed, tc.index))
 
 			require.Equal(t, tc.reject, ok)
 			if !tc.reject {
@@ -610,7 +619,7 @@ func TestNthCountsCollapsedPositionsFromUs(t *testing.T) {
 // [65001 65001 3491], which hands your policy to the peer.
 func TestNthCollapsesARunAnywhereInThePath(t *testing.T) {
 	t.Run("a leading run is one position", func(t *testing.T) {
-		found, ok := matchPositions(asPathOf(3356, 3356, 3356, 3491, 65002), from(3356),
+		found, ok := matchPositions(asPathOf(t, 3356, 3356, 3356, 3491, 65002), from(3356),
 			nil, nthListing(3491, 2))
 
 		require.True(t, ok, "three prepends of AS3356 are one position, so AS3491 is at nth 2")
@@ -618,7 +627,7 @@ func TestNthCollapsesARunAnywhereInThePath(t *testing.T) {
 	})
 
 	t.Run("a run in the middle is one position", func(t *testing.T) {
-		found, ok := matchPositions(asPathOf(65001, 65002, 65002, 65002, 3491), from(65001),
+		found, ok := matchPositions(asPathOf(t, 65001, 65002, 65002, 65002, 3491), from(65001),
 			nil, nthListing(3491, 3))
 
 		require.True(t, ok, "three copies of AS65002 are one position, so AS3491 is at nth 3")
@@ -628,8 +637,8 @@ func TestNthCollapsesARunAnywhereInThePath(t *testing.T) {
 	t.Run("a peer cannot move a rule by prepending", func(t *testing.T) {
 		listed := nthListing(3491, 2)
 
-		_, plain := matchPositions(asPathOf(65001, 3491, 65002), from(65001), nil, listed)
-		_, padded := matchPositions(asPathOf(65001, 65001, 3491, 65002), from(65001), nil, listed)
+		_, plain := matchPositions(asPathOf(t, 65001, 3491, 65002), from(65001), nil, listed)
+		_, padded := matchPositions(asPathOf(t, 65001, 65001, 3491, 65002), from(65001), nil, listed)
 
 		assert.True(t, plain, "AS3491 is at nth 2 of the plain path")
 		assert.True(t, padded, "and the prepend must not move it")
@@ -645,7 +654,7 @@ func TestNthCollapsesARunAnywhereInThePath(t *testing.T) {
 // label, which would drop every nth rule whose token is not where the matcher
 // looked.
 func TestNthCutsAcrossThePartition(t *testing.T) {
-	path := asPathOf(65001, 3491, 65002)
+	path := asPathOf(t, 65001, 3491, 65002)
 
 	_, byPosition := matchPositions(path, from(65001), listing(3491, "transit"), nil)
 	assert.True(t, byPosition, "AS3491 sits at transit")
@@ -671,7 +680,7 @@ func TestNthBeyondTheIndexBoundDoesNotMatch(t *testing.T) {
 	path = append(path, 3491)
 
 	listed := nthListing(3491, 1)
-	_, ok := matchPositions(asPathOf(path...), from(65000), nil, listed)
+	_, ok := matchPositions(asPathOf(t, path...), from(65000), nil, listed)
 
 	assert.False(t, ok, "AS3491 sits at collapsed position 257, which no nth rule can name")
 }
@@ -683,7 +692,7 @@ func TestNthBeyondTheIndexBoundDoesNotMatch(t *testing.T) {
 // PREVENTS: a nested map, a slice built for each token, or a key that escapes to
 // the heap, each of which would put garbage on the wire path.
 func TestNthAllocatesNothing(t *testing.T) {
-	path := asPathOf(65001, 3491, 65002)
+	path := asPathOf(t, 65001, 3491, 65002)
 	listed := nthListing(3491, 2)
 
 	assert.Zero(t, testing.AllocsPerRun(100, func() {

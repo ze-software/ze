@@ -406,15 +406,15 @@ direction. The flag is explicit rather than a zero ASN, because AS0 is a value a
 peer can put in a path and a zero that behaved like "no sender" would be a guard
 nobody named.
 
-**The as-path text flattens every segment type.** `(*ASPath).AppendText`
-(`internal/core/bgp/attribute/text_append.go`) writes AS_SEQUENCE, AS_SET,
-AS_CONFED_SEQUENCE and AS_CONFED_SET into one space-separated list with no
+**The as-path subject flattens every segment type.** `View.ASPathText`
+(`internal/component/bgp/policyview/aspath_text.go`) writes the ASNs of every
+segment of the reconstructed AS path into one space-separated list with no
 marker. A listed ASN inside an AS_SET is caught by a flat scan, which is what
-this filter wants. A single-ASN path renders unbracketed (`as-path 65001`), and
-an empty path emits no `as-path` token at all.
+this filter wants. A single-ASN path is one token, and a route with no AS path
+has the empty subject.
 
 **The export filter runs BEFORE the local AS is prepended**
-(`internal/component/bgp/reactor/reactor_api_forward.go`), so the text carries
+(`internal/component/bgp/reactor/reactor_api_forward.go`), so the subject carries
 the path as stored.
 
 **Export rejection suppresses the advertisement, not the withdrawal.**

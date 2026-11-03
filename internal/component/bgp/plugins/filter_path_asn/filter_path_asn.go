@@ -1,7 +1,7 @@
 // Design: docs/architecture/bgp/filter-path-asn.md -- the reject-asn filter plugin
 // Detail: config.go -- the position vocabulary and the config parse
 // Detail: match.go -- the AS_PATH scan and the position judgement
-// Related: internal/component/bgp/filtertext -- the reader of the filter text format
+// Related: internal/component/bgp/policyview/aspath_text.go -- ASPathText, the subject the scan reads
 //
 // Package filter_path_asn implements the bgp-filter-path-asn plugin.
 //

@@ -23,7 +23,11 @@ func TestFilterMeasureRefusedOffMac(t *testing.T) {
 // measuring command runs every named benchmark ten times with allocations,
 // and both carry the package's tags.
 func TestFilterArgsListRunsNothing(t *testing.T) {
-	for _, bench := range filterBenches {
+	// The tagged set is not in filterBenches today, so it is named here: a
+	// set whose package builds under a tag must carry it in its listing.
+	tagged := filterBench{Path: "a tagged set", Package: "./internal/component/bgp/reactor/",
+		Tags: "ze_bgp", Names: []string{"BenchmarkX"}}
+	for _, bench := range append(slices.Clone(filterBenches), tagged) {
 		list := filterArgs(bench, false)
 		if !slices.Contains(list, "-list") || slices.Contains(list, "-bench") {
 			t.Fatalf("%s: the listing %q is not a list-only run", bench.Path, list)
@@ -42,10 +46,10 @@ func TestFilterArgsListRunsNothing(t *testing.T) {
 
 // TestFilterHarnessListsItsBenchmarks proves the harness builds: every
 // package compiles its benchmarks and holds every name the harness runs.
-// It compiles the reactor's test binary, so it is skipped under -short.
+// It compiles the sdk test binary, so it is skipped under -short.
 func TestFilterHarnessListsItsBenchmarks(t *testing.T) {
 	if testing.Short() {
-		t.Skip("compiles the sdk and reactor test binaries")
+		t.Skip("compiles the sdk test binary")
 	}
 	root, err := lepath.Root()
 	if err != nil {

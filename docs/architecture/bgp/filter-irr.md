@@ -34,7 +34,7 @@ judged.** The filter declares the `prefix` and `withdrawn` reads, so each call
 carries the NLRI the UPDATE announces and the NLRI it withdraws, each an
 object from family to NLRI list in the UPDATE event's shapes
 (`docs/plugin-development/protocol.md`, "The Route Fields of filter-update").
-`judgeNLRI` judges every announced NLRI of a family `filtertext.CIDRFamily`
+`judgeNLRI` judges every announced NLRI of a family `family.Family.PlainCIDR`
 declares: IPv4 and IPv6 unicast, multicast and mpls-label. The NLRI of every
 other family, a FlowSpec rule or an EVPN route, is not a prefix the list can
 authorize, and passes unjudged. A withdrawal is never judged, because
@@ -59,7 +59,7 @@ named by a remove yet: the event's labeled shape carries no `path-id`, so the
 engine refuses the remove and the filter's `on-error` rejects the UPDATE.
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- judgeListed, judgeUnlisted, keepWithdrawals -->
 <!-- source: internal/component/bgp/plugins/filter_irr/match.go -- judgeNLRI, judgedFamily, nlriPrefix, rejectedRemoves -->
-<!-- source: internal/component/bgp/filtertext/cidr.go -- CIDRFamily -->
+<!-- source: internal/core/family/cidr.go -- PlainCIDR -->
 
 **The operator writes
 `import { filters [ bgp-filter-irr:$remote_as ]; final accept; }`. Nothing is

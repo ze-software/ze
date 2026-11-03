@@ -1,4 +1,4 @@
-package filtertext
+package family_test
 
 import (
 	"testing"
@@ -8,12 +8,12 @@ import (
 
 // TestCIDRFamily covers every SAFI constant defined in
 // internal/core/family/family.go so a newly-added SAFI without an explicit
-// case in this table is a fail-loud reminder to re-check the filter text
-// protocol contract.
+// case in this table is a fail-loud reminder to re-check which families carry
+// a plain CIDR prefix.
 //
-// VALIDATES: dest-2 -- CIDRFamily identifies only families whose NLRI wire
+// VALIDATES: dest-2 -- PlainCIDR identifies only families whose NLRI wire
 // format is a plain CIDR prefix (IPv4/IPv6 unicast, multicast, mpls-label).
-// All other families are non-CIDR and must use raw=true.
+// All other families are non-CIDR.
 // PREVENTS: regression where a filter plugin attached to an EVPN/Flowspec
 // session is fed garbage CIDR "prefixes" parsed out of a family-specific NLRI
 // encoding, or drops a prefix by modify from a block the engine cannot rewrite.
@@ -55,8 +55,8 @@ func TestCIDRFamily(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CIDRFamily(tt.fam); got != tt.want {
-				t.Errorf("CIDRFamily(%v) = %v, want %v", tt.fam, got, tt.want)
+			if got := tt.fam.PlainCIDR(); got != tt.want {
+				t.Errorf("%v.PlainCIDR() = %v, want %v", tt.fam, got, tt.want)
 			}
 		})
 	}

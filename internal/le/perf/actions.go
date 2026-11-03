@@ -100,8 +100,8 @@ var actions = leaction.New(area,
 		Verb:    filterVerb,
 		Summary: "measure the route filter paths' throughput",
 		Why: "the throughput harness of the route filter paths: the in-process typed" +
-			" slot, the external filter-update batch at 1, 16 and 64 routes, and the" +
-			" text filter-update as the before figure. Bare, it compiles each benchmark" +
+			" slot and the external filter-update batch at 1, 16 and 64 routes." +
+			" Bare, it compiles each benchmark" +
 			" package, lists the benchmarks, measures nothing and prints the command;" +
 			" `measure` runs them, on macOS only",
 		Parameters: []leaction.Parameter{{

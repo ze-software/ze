@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -280,8 +279,8 @@ func parseMatchBlock(block map[string]any) (matchCond, error) {
 		}
 	}
 
-	for _, kind := range [...]filtertext.CommunityKind{
-		filtertext.CommunityStandard, filtertext.CommunityLarge, filtertext.CommunityExtended,
+	for _, kind := range [...]attribute.CommunityKind{
+		attribute.CommunityStandard, attribute.CommunityLarge, attribute.CommunityExtended,
 	} {
 		field := kind.FieldName()
 		for _, text := range readStringList(block[field]) {
@@ -301,11 +300,11 @@ func parseMatchBlock(block map[string]any) (matchCond, error) {
 // canonical text for a standard or a large community, and the decoded form
 // (AppendDecoded, "target:65000:100") for an extended one, whose canonical
 // text is hex.
-func matchValueText(text string, kind filtertext.CommunityKind) (string, error) {
-	if kind != filtertext.CommunityExtended {
-		return filtertext.CanonicalCommunity(text, kind)
+func matchValueText(text string, kind attribute.CommunityKind) (string, error) {
+	if kind != attribute.CommunityExtended {
+		return attribute.CanonicalCommunity(text, kind)
 	}
-	wire, _, err := filtertext.CommunityWire(text, kind)
+	wire, _, err := attribute.CommunityWire(text, kind)
 	if err != nil {
 		return "", err
 	}

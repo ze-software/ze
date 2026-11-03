@@ -2,9 +2,8 @@
 // Related: actions.go -- the filter action's row in the perf table
 //
 // filter.go is the throughput harness of the route filter paths (filter-wire
-// FR-7, AC-17): the in-process typed slot, the external filter-update batch
-// at several batch sizes, and the text filter-update the two replace (the
-// before figure). Bare, it compiles each benchmark package and lists the
+// FR-7, AC-17): the in-process typed slot and the external filter-update batch
+// at several batch sizes. Bare, it compiles each benchmark package and lists the
 // benchmarks it would run, measuring nothing, and prints the command that
 // measures them. `measure` runs them, and only on macOS: performance is
 // measured on the owner's Mac alone, whose hardware is known.
@@ -59,13 +58,6 @@ var filterBenches = []filterBench{
 		Path:    "external: one filter-update batch of 1, 16 and 64 routes",
 		Package: "./pkg/plugin/sdk/",
 		Names:   []string{"BenchmarkFilterForkedBatch"},
-	},
-	{
-		Path:    "text filter-update, the before figure",
-		Package: "./internal/component/bgp/reactor/",
-		Tags:    "ze_bgp",
-		Names: []string{"BenchmarkFilterModifyEgress", "BenchmarkAppendUpdateForFilter_Reused",
-			"BenchmarkAppendAttrsForFilter_Reused"},
 	},
 }
 

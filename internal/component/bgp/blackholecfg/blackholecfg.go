@@ -9,8 +9,8 @@
 // side of it: the honoring path installs a discard route, origin validation
 // keeps a route RFC 6811 would drop, and the origination path decides whether
 // BLACKHOLE may go on that peer's wire. A second copy of this walk is what would
-// let those three answers drift, which is the failure the filtertext package was
-// extracted to prevent for the COMMUNITIES-out-of-filter-text reading.
+// let those three answers drift, the failure one shared community parse
+// (attribute.CommunityKind) prevents for the community filter plugins.
 //
 // Delivery is the caller's problem and differs by caller: a plugin that declares
 // WantsConfig is handed the subtree, and a command handler pulls it from the

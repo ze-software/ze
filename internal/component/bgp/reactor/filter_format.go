@@ -9,7 +9,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -137,7 +136,7 @@ func appendLegacyBlock(buf []byte, op string, section []byte, addPath, withdraw,
 // raw=true. bufEmpty is true when buf has no content appended since the outer
 // call began; no leading space separator is emitted then.
 func appendMPBlock(buf []byte, fam family.Family, op string, section []byte, addPath, bufEmpty bool) []byte {
-	cidr := filtertext.CIDRFamily(fam)
+	cidr := fam.PlainCIDR()
 	if cidr && len(section) == 0 {
 		return buf
 	}

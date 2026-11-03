@@ -9,7 +9,6 @@ package filter_modify
 import (
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -129,8 +128,8 @@ func TestConfiguredMatchModifiesOnlyMatchingRoute(t *testing.T) {
 
 func TestMatchCondMatches(t *testing.T) {
 	cond := matchCond{communities: []matchCommunity{
-		newMatchCommunity(filtertext.CommunityStandard, "blackhole"),
-		newMatchCommunity(filtertext.CommunityLarge, "65001:1:2"),
+		newMatchCommunity(attribute.CommunityStandard, "blackhole"),
+		newMatchCommunity(attribute.CommunityLarge, "65001:1:2"),
 	}}
 
 	for _, tt := range []struct {

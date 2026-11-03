@@ -2023,7 +2023,7 @@ The marker tells a text-mode filter plugin that the family is present in
 the update without forcing the engine to generate a family-specific text
 format.
 <!-- source: internal/component/bgp/reactor/filter_format.go — AppendUpdateForFilter, appendMPBlock -->
-<!-- source: internal/component/bgp/filtertext/cidr.go — CIDRFamily -->
+<!-- source: internal/core/family/cidr.go — Family.PlainCIDR -->
 
 A filter plugin that needs per-NLRI decisions on a non-CIDR family MUST
 declare the `raw` read in its filter declaration and parse the wire payload

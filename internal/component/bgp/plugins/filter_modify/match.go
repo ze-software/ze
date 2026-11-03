@@ -14,7 +14,7 @@ package filter_modify
 import (
 	"bytes"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // matchCommunity is one community value the route may carry, in one of the
@@ -30,7 +30,7 @@ type matchCommunity struct {
 
 // newMatchCommunity builds the match of canonical, a value already in the
 // formatter's canonical text, in the field of kind.
-func newMatchCommunity(kind filtertext.CommunityKind, canonical string) matchCommunity {
+func newMatchCommunity(kind attribute.CommunityKind, canonical string) matchCommunity {
 	key := append(append([]byte{'"'}, kind.FieldName()...), '"', ':')
 	needle := append(append([]byte{'"'}, canonical...), '"')
 	return matchCommunity{key: key, needle: needle}

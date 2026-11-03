@@ -11,7 +11,6 @@ import (
 	"net/netip"
 	"slices"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -101,7 +100,7 @@ type familyNLRI struct {
 }
 
 // routeNLRI is the judged NLRI of one UPDATE. Only a CIDR family
-// (filtertext.CIDRFamily: unicast, multicast, labeled unicast) is judged and
+// (family.Family.PlainCIDR: unicast, multicast, labeled unicast) is judged and
 // listed in families; the NLRI of every other family passes as received.
 // accepted and rejected count the judged announced NLRI the list does and
 // does not authorize; they decide the verdict. withdraws is set when the
@@ -178,7 +177,7 @@ func judgeNLRI(fields []byte, list *irrPrefixList) (routeNLRI, error) {
 // not a prefix the list can authorize, and passes unjudged.
 func judgedFamily(name string) bool {
 	fam, known := family.LookupFamily(name)
-	return known && filtertext.CIDRFamily(fam)
+	return known && fam.PlainCIDR()
 }
 
 // nlriPrefix reads the prefix of one NLRI element in the event's NLRI shape:

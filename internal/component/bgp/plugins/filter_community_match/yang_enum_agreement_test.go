@@ -1,9 +1,9 @@
 // Design: docs/architecture/config/yang-config-design.md -- the model is the schema
 //
-// Related: community.go -- CommunityKind.String, the table held here
+// Related: internal/core/bgp/attribute/community_kind.go -- CommunityKind.String, the table held here
 //
-// yang_enum_agreement_test.go holds this package's Go name tables to the YANG enumerations they
-// spell.
+// yang_enum_agreement_test.go holds the community kind names this plugin reads
+// to the YANG enumeration they spell.
 //
 // `./le arch enumeration report` names each table: the Go side and the model each
 // declare the same set of words, and the gate cannot pick which one the other
@@ -13,7 +13,7 @@
 // two owe each other is AGREEMENT. That is what these tests read, from the
 // loaded model rather than from a copy of the values.
 
-package filtertext
+package filter_community_match
 
 import (
 	"slices"
@@ -21,6 +21,8 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 
 	matchyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_community_match/yang"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
@@ -83,7 +85,7 @@ func yangEnumValues(t *testing.T, module string, path ...string) []string {
 	return values
 }
 
-// TestCommunityKindNamesMatchTheYANGModel proves CommunityKind.String spells
+// TestCommunityKindNamesMatchTheYANGModel proves attribute.CommunityKind.String spells
 // the `community-match/entry/type` enumeration and nothing else.
 //
 // PREVENTS: a community type added to the model that no kind names, so
@@ -92,9 +94,9 @@ func TestCommunityKindNamesMatchTheYANGModel(t *testing.T) {
 	declared := yangEnumValues(t, "ze-policy-conf", "policy", "community-match", "entry", "type")
 
 	named := []string{
-		CommunityStandard.String(),
-		CommunityLarge.String(),
-		CommunityExtended.String(),
+		attribute.CommunityStandard.String(),
+		attribute.CommunityLarge.String(),
+		attribute.CommunityExtended.String(),
 	}
 	slices.Sort(named)
 

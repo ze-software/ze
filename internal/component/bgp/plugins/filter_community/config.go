@@ -18,29 +18,29 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/configvalue"
 )
 
-// Community type constants. They ARE filtertext.CommunityKind values.
+// Community type constants. They ARE attribute.CommunityKind values.
 //
-// The filter-text reader and this plugin name one set of three community
-// attributes, and the keyword each carries in configuration is that type's
-// String(). So this package never spells standard, large or extended: it asks
-// the kind. The three keywords are also the `community-match/entry/type`
-// enumeration of ze-bgp-conf.yang, and filtertext holds the one Go spelling
-// of them.
+// The community filter plugins name one set of three community attributes, and
+// the keyword each carries in configuration is that type's String(). So this
+// package never spells standard, large or extended: it asks the kind. The three
+// keywords are also the `community-match/entry/type` enumeration of
+// ze-policy-conf.yang, and the attribute package holds the one Go spelling of
+// them.
 const (
-	communityTypeStandard = filtertext.CommunityStandard
-	communityTypeLarge    = filtertext.CommunityLarge
-	communityTypeExtended = filtertext.CommunityExtended
+	communityTypeStandard = attribute.CommunityStandard
+	communityTypeLarge    = attribute.CommunityLarge
+	communityTypeExtended = attribute.CommunityExtended
 )
 
 // communityDef holds a named community definition with pre-parsed wire
 // bytes.
 type communityDef struct {
-	typ        filtertext.CommunityKind // communityTypeStandard/Large/Extended
-	wireValues [][]byte                 // Pre-built wire bytes per value (4/12/8 bytes each)
+	typ        attribute.CommunityKind // communityTypeStandard/Large/Extended
+	wireValues [][]byte                // Pre-built wire bytes per value (4/12/8 bytes each)
 }
 
 // communityDefs maps community names to their definitions.
@@ -154,9 +154,9 @@ func parseCommunityDefinitions(bgpCfg map[string]any) (communityDefs, error) {
 	}
 
 	// Parse each community type. The config keyword each one carries is the
-	// kind's own String(), so the three words are spelled in filtertext alone.
+	// kind's own String(), so the three words are spelled in the attribute package alone.
 	for _, entry := range []struct {
-		typ     filtertext.CommunityKind
+		typ     attribute.CommunityKind
 		parseFn func(string) ([]byte, error)
 	}{
 		{communityTypeStandard, parseStandardWire},

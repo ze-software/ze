@@ -8,6 +8,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -37,13 +38,30 @@ func conditionListConfig() map[string]any {
 // when path is empty), with one IPv4 prefix.
 func pathUpdate(t *testing.T, path ...uint32) *wireu.WireUpdate {
 	t.Helper()
-	var attrs []byte
-	if len(path) > 0 {
-		segment := []byte{2, byte(len(path))}
-		for _, a := range path {
-			segment = binary.BigEndian.AppendUint32(segment, a)
+	if len(path) == 0 {
+		return segmentsUpdate(t)
+	}
+	return segmentsUpdate(t, attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: path})
+}
+
+// segmentsUpdate builds an UPDATE whose AS_PATH carries segments as given (no
+// AS_PATH when segments is empty), with one IPv4 prefix.
+func segmentsUpdate(tb testing.TB, segments ...attribute.ASPathSegment) *wireu.WireUpdate {
+	tb.Helper()
+	var value []byte
+	for _, segment := range segments {
+		value = append(value, byte(segment.Type), byte(len(segment.ASNs))) //nolint:gosec // G115: a test segment holds at most 255 ASNs
+		for _, a := range segment.ASNs {
+			value = binary.BigEndian.AppendUint32(value, a)
 		}
-		attrs = append([]byte{0x40, 2, byte(len(segment))}, segment...)
+	}
+	var attrs []byte
+	if len(segments) > 0 {
+		// Extended Length (0x10) with Transitive (0x40): a path of two full
+		// segments outgrows a one-octet attribute length.
+		attrs = append([]byte{0x50, 2}, 0, 0)
+		binary.BigEndian.PutUint16(attrs[2:], uint16(len(value))) //nolint:gosec // G115: a test attribute value
+		attrs = append(attrs, value...)
 	}
 	payload := binary.BigEndian.AppendUint16(nil, 0)
 	payload = binary.BigEndian.AppendUint16(payload, uint16(len(attrs))) //nolint:gosec // G115: a test attribute block
@@ -53,7 +71,7 @@ func pathUpdate(t *testing.T, path ...uint32) *wireu.WireUpdate {
 		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001},
 		&capability.EncodingCaps{ASN4: true}, bgpctx.DirectionRecv))
 	if err != nil {
-		t.Fatalf("register context: %v", err)
+		tb.Fatalf("register context: %v", err)
 	}
 	return wireu.NewWireUpdate(payload, id)
 }

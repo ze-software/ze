@@ -6,7 +6,7 @@
 package wireu
 
 // CIDREntry frames the NLRI at off of a section of a CIDR family
-// (filtertext.CIDRFamily), returning the whole NLRI, its part after any path
+// (family.Family.PlainCIDR), returning the whole NLRI, its part after any path
 // identifier, and the offset past it. ok == false when the section is
 // truncated at off.
 //

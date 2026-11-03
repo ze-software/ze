@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // wireEntry is one community-match entry as the octets it matches.
@@ -108,7 +108,7 @@ func conditionEntries(value any, resolve policy.InstanceResolver) ([]wireEntry, 
 		if err != nil {
 			return nil, fmt.Errorf("BUG: filter-community-match: %w", err)
 		}
-		wire, octets, err := filtertext.CommunityWire(e.community, e.ctype)
+		wire, octets, err := attribute.CommunityWire(e.community, e.ctype)
 		if err != nil {
 			return nil, fmt.Errorf("community-match %q entry %q: %w", name, e.community, err)
 		}

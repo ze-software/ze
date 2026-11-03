@@ -1,15 +1,13 @@
 // Design: docs/architecture/bgp/filter-path-asn.md -- the reject-asn filter plugin
 // Detail: config.go -- the position vocabulary and the parse that expands it
 // Related: filter_path_asn.go -- SDK entry point and handleFilterUpdate
-// Related: internal/component/bgp/filtertext -- the reader of the filter text format
+// Related: internal/component/bgp/policyview/aspath_text.go -- ASPathText, the subject the scan reads
 //
 // The AS_PATH scan and the position judgement.
 //
-// The subject is the space-separated decimal string filtertext.ASPath reads out
-// of the update text. (*attribute.ASPath).AppendText
-// (internal/core/bgp/attribute/text_append.go) flattens AS_SEQUENCE, AS_SET,
-// AS_CONFED_SEQUENCE and AS_CONFED_SET into it with no marker, so one flat scan
-// sees a listed ASN wherever it sits.
+// The subject is the space-separated decimal string policyview.View.ASPathText
+// answers. It flattens every segment of the reconstructed AS path into it with
+// no marker, so one flat scan sees a listed ASN wherever it sits.
 //
 // A token holds a SET of properties, not one label, and a list rejects the route
 // when any property it lists holds.

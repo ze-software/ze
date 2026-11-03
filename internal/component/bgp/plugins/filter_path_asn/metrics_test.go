@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/metrics"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -87,22 +88,23 @@ func TestRejectIncrementsCounter(t *testing.T) {
 	cases := []struct {
 		name   string
 		in     sdk.FilterUpdateInput
+		path   []attribute.ASPathSegment
 		action sdk.FilterAction
 		series string
 	}{{
 		name: "transit_match_on_import",
 		in: sdk.FilterUpdateInput{
 			Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-			Update: updateFor(sequence(65001, 3356, 65002)),
 		},
+		path:   updateFor(sequence(65001, 3356, 65002)),
 		action: sdk.FilterReject,
 		series: `direction="import",position="transit",reason="listed-asn"`,
 	}, {
 		name: "origin_match_on_import",
 		in: sdk.FilterUpdateInput{
 			Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-			Update: updateFor(sequence(65001, 3356)),
 		},
+		path:   updateFor(sequence(65001, 3356)),
 		action: sdk.FilterReject,
 		series: `direction="import",position="origin",reason="listed-asn"`,
 	}, {
@@ -111,24 +113,24 @@ func TestRejectIncrementsCounter(t *testing.T) {
 		name: "transit_match_on_export",
 		in: sdk.FilterUpdateInput{
 			Filter: "NO-TRANSIT", Direction: "export", Peer: "10.0.0.2", PeerAS: 3356,
-			Update: updateFor(sequence(3356, 65002)),
 		},
+		path:   updateFor(sequence(3356, 65002)),
 		action: sdk.FilterReject,
 		series: `direction="export",position="transit",reason="listed-asn"`,
 	}, {
 		name: "pattern_match_on_import",
 		in: sdk.FilterUpdateInput{
 			Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-			Update: updateFor(sequence(65001, 174, 65002)),
 		},
+		path:   updateFor(sequence(65001, 174, 65002)),
 		action: sdk.FilterReject,
 		series: `direction="import",position="regex",reason="listed-asn"`,
 	}, {
 		name: "clean_path_counts_nothing",
 		in: sdk.FilterUpdateInput{
 			Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-			Update: updateFor(sequence(65001, 65002)),
 		},
+		path:   updateFor(sequence(65001, 65002)),
 		action: sdk.FilterAccept,
 	}}
 
@@ -136,7 +138,7 @@ func TestRejectIncrementsCounter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			before := scrapeRejects(t, reg)
 
-			out := judgeUpdate(t, &tc.in)
+			out := judgeUpdate(t, &tc.in, tc.path)
 			require.Equal(t, tc.action, out.Action, "the decision this case is counting")
 
 			if tc.series == "" {

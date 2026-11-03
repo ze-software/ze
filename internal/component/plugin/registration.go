@@ -161,7 +161,7 @@ type PluginRegistration struct {
 // distinguish individual destinations within the family. See
 // `docs/architecture/api/process-protocol.md` "Non-CIDR Families in the
 // Filter Text Protocol" and
-// `internal/component/bgp/filtertext/cidr.go` (`CIDRFamily`) for
+// `internal/core/family/cidr.go` (`Family.PlainCIDR`) for
 // the full contract.
 //
 // The embedded registry.DeclaredFilter carries the name or name pattern and
