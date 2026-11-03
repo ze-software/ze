@@ -108,14 +108,13 @@ func TestUnionTimeout(t *testing.T) {
 	var gotPrimary, gotSecondary string
 	var handlerCalled bool
 
-	u := NewUnion("update", "rpki", 100*time.Millisecond, func(primary, secondary string) {
+	u := newUnion("update", "rpki", 100*time.Millisecond, func(primary, secondary string) {
 		mu.Lock()
 		gotPrimary = primary
 		gotSecondary = secondary
 		handlerCalled = true
 		mu.Unlock()
-	})
-	u.sweepInterval = 100 * time.Millisecond // faster sweep for test
+	}, 100*time.Millisecond, defaultMaxPending)
 	defer u.Stop()
 
 	u.OnEvent("update", "10.0.0.1", 99, `timeout-test`)
@@ -166,12 +165,11 @@ func TestUnionMaxPending(t *testing.T) {
 	var mu sync.Mutex
 	var evictedPrimary string
 
-	u := NewUnion("update", "rpki", 5*time.Second, func(primary, secondary string) {
+	u := newUnion("update", "rpki", 5*time.Second, func(primary, secondary string) {
 		mu.Lock()
 		evictedPrimary = primary
 		mu.Unlock()
-	})
-	u.maxPending = 2 // override for test
+	}, time.Second, 2)
 	defer u.Stop()
 
 	u.OnEvent("update", "10.0.0.1", 1, `first`)
@@ -192,12 +190,11 @@ func TestUnionOrphanSecondary(t *testing.T) {
 	var mu sync.Mutex
 	var called int
 
-	u := NewUnion("update", "rpki", 100*time.Millisecond, func(_, _ string) {
+	u := newUnion("update", "rpki", 100*time.Millisecond, func(_, _ string) {
 		mu.Lock()
 		called++
 		mu.Unlock()
-	})
-	u.sweepInterval = 100 * time.Millisecond // faster sweep for test
+	}, 100*time.Millisecond, defaultMaxPending)
 	defer u.Stop()
 
 	// Send only secondary -- no primary ever arrives.

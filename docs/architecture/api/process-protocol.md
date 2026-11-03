@@ -37,6 +37,14 @@ flushed after replacement; dispatch does not consult the current migration flag.
 
 ---
 
+## SDK event correlation
+
+`sdk.NewUnion` correlates primary and secondary events by peer and message ID.
+Its sweep interval and pending-entry limit are fixed before its worker starts.
+Package tests supply these values through the private constructor rather than
+change a running worker. Callers MUST call `Stop` when the union is no longer needed.
+<!-- source: pkg/plugin/sdk/union.go -- NewUnion, newUnion, Union.Stop -->
+
 ## Wire Format
 
 Every message is a single newline-terminated line:

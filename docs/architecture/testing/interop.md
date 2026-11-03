@@ -998,6 +998,11 @@ The suite removes its tags after the scenarios, including after setup failure.
 Image cleanup errors appear in `cleanup-errors` and make the suite fail.
 <!-- source: internal/le/interoplab/docker.go -- Docker.Build, Docker.ReleaseImage -->
 
+Scenario cleanup errors also make the suite exit unsuccessfully. They appear in
+progress, terminal reports, and the scenario's `cleanup-errors` field. Cleanup
+does not change the checker verdict, passed/failed counts, or failed scenario names.
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, SuiteReport.Text, ScenarioResult -->
+
 One `./le test integration <action>` invocation returns that action's full report.
 Multiple action names return a combined summary.
 

@@ -141,10 +141,9 @@ func (r SuiteReport) Text() string {
 	}
 	for index := range r.Scenarios {
 		scenario := &r.Scenarios[index]
-		if scenario.Passed {
-			continue
+		if !scenario.Passed {
+			out.Str("interop: ").Str(scenario.Name).Str(": FAIL: ").Str(scenario.Error).Byte('\n')
 		}
-		out.Str("interop: ").Str(scenario.Name).Str(": FAIL: ").Str(scenario.Error).Byte('\n')
 		for _, cleanup := range scenario.CleanupErrors {
 			out.Str("interop: ").Str(scenario.Name).Str(": cleanup: ").Str(cleanup).Byte('\n')
 		}
@@ -292,6 +291,11 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		started := time.Now()
 		result := s.runScenario(ctx, plan, references, &report.Images)
 		report.Scenarios = append(report.Scenarios, result)
+		for _, cleanup := range result.CleanupErrors {
+			report.Code = 1
+			s.progress(scenarioLine(line.Reset(), index, len(s.Scenarios), result.Name).
+				Str(": cleanup: ").Str(cleanup))
+		}
 		line.Reset()
 		scenarioLine(&line, index, len(s.Scenarios), result.Name)
 		elapsed := time.Since(started).Round(time.Second).String()

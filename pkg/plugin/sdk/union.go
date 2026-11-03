@@ -46,8 +46,8 @@ type Union struct {
 	pending       map[string]*unionEntry
 	order         []string       // insertion order for eviction
 	orderIndex    map[string]int // key -> index in order for O(1) lookup
-	maxPending    int
-	sweepInterval time.Duration // configurable for tests
+	maxPending    int            // Immutable after construction.
+	sweepInterval time.Duration  // Immutable after construction.
 	stopCh        chan struct{}
 	stopped       bool
 }
@@ -58,6 +58,11 @@ type Union struct {
 //
 // Stop() MUST be called when the Union is no longer needed.
 func NewUnion(primaryType, secondaryType string, timeout time.Duration, handler func(primary, secondary string)) *Union {
+	return newUnion(primaryType, secondaryType, timeout, handler, time.Second, defaultMaxPending)
+}
+
+// newUnion fixes the sweep interval and capacity before the worker starts.
+func newUnion(primaryType, secondaryType string, timeout time.Duration, handler func(primary, secondary string), sweepInterval time.Duration, maxPending int) *Union {
 	if handler == nil {
 		slog.Error("union: nil handler, events will be dropped")
 		handler = func(string, string) {}
@@ -70,8 +75,8 @@ func NewUnion(primaryType, secondaryType string, timeout time.Duration, handler 
 		handler:       handler,
 		pending:       make(map[string]*unionEntry),
 		orderIndex:    make(map[string]int),
-		maxPending:    defaultMaxPending,
-		sweepInterval: time.Second,
+		maxPending:    maxPending,
+		sweepInterval: sweepInterval,
 		stopCh:        make(chan struct{}),
 	}
 
@@ -171,11 +176,7 @@ func (u *Union) FlushPeer(peer string) {
 // sweepLoop runs periodically to deliver timed-out entries.
 func (u *Union) sweepLoop() {
 	for {
-		u.mu.Lock()
-		interval := u.sweepInterval
-		u.mu.Unlock()
-
-		timer := time.NewTimer(interval)
+		timer := time.NewTimer(u.sweepInterval)
 		select {
 		case <-u.stopCh:
 			timer.Stop()
