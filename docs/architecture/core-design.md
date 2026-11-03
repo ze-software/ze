@@ -1858,7 +1858,11 @@ later member reads; a text delta and NLRI sets that both rewrite the NLRI are re
   member did not declare (`policy.InstanceSets`) each fail the route under the
   member's on-error, logged and counted (`Chain.Refused`). Fail-closed rejects
   the route as a failure rather than a policy decision; fail-open passes it on
-  with none of that member's sets.
+  with none of that member's sets. A member whose evaluation panics fails the
+  same way: `judgeMember` recovers the panic on the judging goroutine, logs it
+  with its stack, and answers it as the member's failure, so a defect in one
+  evaluator never takes a session or forward worker down. An external member
+  that panics (in the code that reads its reply) fails closed.
 - **A display-only run for show policy test.** `Chain.Trace` judges a route
   as `Chain.Run` does and hands a recorder each member's step (pass with the
   member's resolved sets, reject, fail-closed or fail-open with the error),

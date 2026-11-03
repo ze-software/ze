@@ -8,7 +8,8 @@
 // lazy BGP view. A member answers pass or reject and the set fields it
 // changes; the run folds the sets in chain order, applies a member's on-error
 // when its read fails (a malformed attribute, AC-28) or when it sets a field
-// it did not declare (D-9), and decides the rest with the chain's final.
+// it did not declare (D-9) or when its evaluation panics (judgeMember), and
+// decides the rest with the chain's final.
 //
 // A member may also be a filter a plugin runs (external.go): it is sent the
 // fields it declared over filter-update, read through the same view, and its
@@ -21,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -373,13 +375,8 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		sets.member.Reset()
 		sets.member.display = record != nil
 		sets.member.route = &sets.route
-		onError := m.onError
-		var decision Decision
-		var err error
+		decision, verdict, onError, err := c.judgeMember(m, view, sets, record)
 		if m.external != nil {
-			var verdict externalVerdict
-			verdict, onError, err = c.judgeExternal(m, view, sets)
-			decision = verdict.decision
 			if err == nil && verdict.teardown && sets.route.Direction == directionImport {
 				traceStep(record, m, TraceReject, nil, nil)
 				return Outcome{Action: OutcomeReject, Member: m.name, Teardown: true,
@@ -391,8 +388,6 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 				}
 				err = errExternalRawAfterSets
 			}
-		} else {
-			decision, err = m.evaluate(view, &sets.member)
 		}
 		// An external member's reply was judged set by set against its
 		// declaration, its reads' intents and the attachment
@@ -463,6 +458,47 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 	// Compile accepts only a verified final; anything else is a Ze defect,
 	// and the run fails closed on it.
 	return Outcome{Action: OutcomeReject, Failed: true}
+}
+
+// errMemberPanic is wrapped when a member's evaluation panicked.
+var errMemberPanic = errors.New("panicked")
+
+// judgeMember runs one member: its in-process evaluator, or its plugin's
+// filter through judgeExternal. It answers the member's decision, an external
+// member's verdict, the on-error that decides a failure, and the failure.
+//
+// A panic during the member's evaluation is a Ze defect (an evaluator, or the
+// code that reads a plugin's reply), never a verdict. The member runs on the
+// goroutine of the session or forward worker that judges the route, so the
+// panic is recovered here and answered as the member's failure: the run then
+// treats it as it treats a failed plugin call, under the member's on-error,
+// and none of the member's sets apply. An external member that panics fails
+// closed (on-error reject): its declared on-error is not known at that point.
+// A live run (record nil) logs the stack; a display-only run does not log.
+func (c *Chain) judgeMember(m *member, view *policyview.View, sets *RunSets, record func(MemberTrace)) (decision Decision, verdict externalVerdict, onError rpc.OnErrorPolicy, err error) {
+	onError = m.onError
+	if m.external != nil {
+		onError = rpc.OnErrorReject
+	}
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			return
+		}
+		if record == nil {
+			chainLogger().Error("policy filter panicked, failing it under its on-error",
+				"attachment", c.attachment, "filter", m.name, "type", m.filterType,
+				"panic", recovered, "stack", string(debug.Stack()))
+		}
+		decision, verdict = DecisionUnspecified, externalVerdict{}
+		err = fmt.Errorf("%w: %v", errMemberPanic, recovered)
+	}()
+	if m.external != nil {
+		verdict, onError, err = c.judgeExternal(m, view, sets)
+		return verdict.decision, verdict, onError, err
+	}
+	decision, err = m.evaluate(view, &sets.member)
+	return decision, externalVerdict{}, onError, err
 }
 
 // readvertiseRuns reports whether m runs on the stale readvertise rail: an

@@ -919,8 +919,8 @@ of rejecting every route at run time with "cannot extract ASN".
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-
-No open journal row names this spec at 544f8f930c.
+| plan/journal/comment-describes-superseded-behaviour.md | 2026-11-03 | toPolicyAction comment: text-mode withdraw on-error claim (closed by phase 5) |
+| plan/journal/guard-added-to-one-half-of-a-pair.md | 2026-11-03 | decodeFilterRawOverride: raw export answer skips the RFC 9012 Section 13 invalid-TLV removal |
 
 ## Key Design Decisions
 
