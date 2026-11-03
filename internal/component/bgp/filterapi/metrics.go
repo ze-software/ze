@@ -20,10 +20,9 @@ type attrModMetrics struct {
 // recorder below guards its use. A build with metrics disabled leaves it nil.
 var attrModMetricsPtr atomic.Pointer[attrModMetrics]
 
-// SetMetricsRegistry creates the attribute-modification metrics from the given
-// registry, then hands the registry to every registered filter that declares
-// Filter.ConfigureMetrics. A nil registry is a no-op, leaving the recorders
-// and the filters' metrics disabled.
+// SetAttrModMetricsRegistry creates the attribute-modification metrics from
+// the given registry. A nil registry is a no-op, leaving the recorders
+// disabled.
 //
 // Called from the reactor's metrics-enable block, NOT from a plugin's
 // ConfigureMetrics callback. The handlers these metrics describe are registered
@@ -31,11 +30,8 @@ var attrModMetricsPtr atomic.Pointer[attrModMetrics]
 // whether or not the owning plugin is running -- bgp-filter-community supplies
 // the COMMUNITY handler even for a config with no `community { }` block at all.
 // A ConfigureMetrics hook would therefore leave the counter dead in exactly the
-// configuration where the contract violation it counts was first found. The
-// same reasoning holds for the filters: the always-on protocol filters (loop
-// detection) register through Register, not as run plugins, so their metrics
-// arrive through Filter.ConfigureMetrics here and never through a plugin hook.
-func SetMetricsRegistry(reg metrics.Registry) {
+// configuration where the contract violation it counts was first found.
+func SetAttrModMetricsRegistry(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
@@ -51,30 +47,6 @@ func SetMetricsRegistry(reg metrics.Registry) {
 			[]string{"store"},
 		),
 	})
-
-	// The hooks are copied under the lock and called after it is released: a
-	// hook that called Register would wait on the write lock this goroutine
-	// holds, and one that only read would still deadlock behind a writer
-	// queued between the two read locks (sync.RWMutex forbids recursive read
-	// locking for that reason).
-	for _, hook := range metricsHooks() {
-		hook(reg)
-	}
-}
-
-// metricsHooks answers the ConfigureMetrics hook of every registered filter
-// that declares one, copied so the caller can run them without holding mu.
-func metricsHooks() []func(metrics.Registry) {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	hooks := make([]func(metrics.Registry), 0, len(filters))
-	for _, f := range filters {
-		if f.ConfigureMetrics != nil {
-			hooks = append(hooks, f.ConfigureMetrics)
-		}
-	}
-	return hooks
 }
 
 // RecordEditSpill counts one destination whose edit set outgrew an inline store.

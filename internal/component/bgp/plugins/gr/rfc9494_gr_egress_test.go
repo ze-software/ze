@@ -140,12 +140,10 @@ func TestLLGREgressFilter_StaleEBGPWithdrawsRegardlessOfRestartState(t *testing.
 // TestLLGREgressFilter_NilStateWithdrawsEBGP pins the answer for an unloaded
 // plugin state, which used to be a silent ACCEPT.
 //
-// The window is real and is not closed by ordering. filterapi.Register puts
-// LLGREgressFilter into the egress pipeline from init() (register.go), so it is
-// callable the moment the ze_bgp build group is linked, while the only store of
-// egressState is setEgressState from runGRPlugin's OnConfigure callback (gr.go).
-// If the GR plugin engine never runs in this process, the state is nil for its
-// whole lifetime and the filter is still registered and still called.
+// LLGREgressFilter is an exported function whose only state store is
+// setEgressState from runGRPlugin's OnConfigure callback (gr.go), so any caller
+// that reaches it before that callback, or in a process where the GR engine
+// never ran, meets a nil state. That answer must be the RFC's, not a pass.
 //
 // This test previously existed as TestLLGREgressFilter_NilState and asserted the
 // opposite: a stale route to an EBGP destination passing through with

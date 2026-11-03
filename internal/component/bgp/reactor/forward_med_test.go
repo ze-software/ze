@@ -88,7 +88,7 @@ func TestRFC4271IBGPReadvertisementRejectsRawMEDRemoval(t *testing.T) {
 	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 		return PolicyResponse{Action: PolicyModify, Raw: override}
 	}
-	r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+	r.orderedEgressSteps = buildOrderedEgressSteps()
 
 	dest := h.dests[0]
 	dest.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "someplugin:remove-med"}}, routepolicy.FinalAccept)

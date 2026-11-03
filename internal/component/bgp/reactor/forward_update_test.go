@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -411,16 +412,13 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	peer.sendCtxID = ctxID
 	peer.refreshForwardFacts()
 
-	// Marker attribute: code 250 (private), 2-byte value.
-	markerValue := []byte{0xDE, 0xAD}
+	// Marker attribute: code 250 (private), carrying the 4-byte value the
+	// destination's export filter answers as its MED (57005 = 0x0000DEAD).
+	markerValue := []byte{0x00, 0x00, 0xDE, 0xAD}
 
-	// Egress filter that writes an AttrOp mod.
-	egressFilter := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-		mods.Op(250, filterapi.AttrModSet, markerValue)
-		return true // accept
-	}
-
-	// AttrModHandler that adds a marker attribute (flags+code+len+value = 5 bytes).
+	// AttrModHandler that turns the MED operation into a marker attribute
+	// (flags+code+len+value = 7 bytes). It is installed under the MED code, so
+	// it runs only if the export chain's answer reaches the reactor's handlers.
 	markerHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
 		p.Op(0)
 		p.Emit(0xC0, 250) // flags: Optional + Transitive; private code
@@ -444,11 +442,12 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 			src.Settings().PeerKey(): src,
 			settings.PeerKey():       peer,
 		},
-		fwdPool:            testPool,
-		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
-		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
-		attrModHandlers:    fwdTestHandlersWith(250, markerHandler),
+		fwdPool:         testPool,
+		attrModHandlers: fwdTestHandlersWithMED(markerHandler),
 	}
+	// The destination's export filter answers a text modify; the chain step
+	// writes its MED operation and applies it with r.attrModHandlers.
+	exportAnswer(t, r, medAnswer(57005), peer)
 	adapter := &reactorAPIAdapter{r: r}
 
 	sel, err := selector.Parse("*")
@@ -531,11 +530,8 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	peer.sendCtxID = ctxID
 	peer.refreshForwardFacts()
 
-	egressFilter := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-		mods.Op(251, filterapi.AttrModSet, []byte{0x01})
-		return true
-	}
-
+	// The handler panics on the MED operation the destination's export filter
+	// answers (medAnswer below).
 	panicHandler := filterapi.AttrModHandler(func(_ *filterapi.AttrPlan) {
 		panic("deliberate test panic")
 	})
@@ -558,11 +554,13 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 			src.Settings().PeerKey(): src,
 			settings.PeerKey():       peer,
 		},
-		fwdPool:            testPool,
-		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
-		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
-		attrModHandlers:    map[uint8]filterapi.AttrModHandler{251: panicHandler},
+		fwdPool: testPool,
+		// The production set plus the panicking MED handler: a map without
+		// the rail's own handlers (LOCAL_PREF toward this internal peer)
+		// would suppress the route for want of those, whatever MED did.
+		attrModHandlers: fwdTestHandlersWithMED(panicHandler),
 	}
+	exportAnswer(t, r, medAnswer(1), peer)
 	adapter := &reactorAPIAdapter{r: r}
 
 	sel, err := selector.Parse("*")
@@ -629,12 +627,6 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	peer.sendCtxID = ctxID
 	peer.refreshForwardFacts()
 
-	// Egress filter writes an AttrOp for a code with NO registered handler.
-	egressFilter := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-		mods.Op(252, filterapi.AttrModSet, []byte{0x01})
-		return true
-	}
-
 	var dispatched []fwdItem
 	var mu sync.Mutex
 	done := make(chan struct{})
@@ -653,11 +645,15 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 			src.Settings().PeerKey(): src,
 			settings.PeerKey():       peer,
 		},
-		fwdPool:            testPool,
-		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
-		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
-		attrModHandlers:    map[uint8]filterapi.AttrModHandler{}, // empty: no handler for code 252
+		fwdPool: testPool,
+		// The production set without the MED handler: an empty map would
+		// suppress the route for want of the rail's own LOCAL_PREF handler
+		// (this peer is internal), whatever MED did.
+		attrModHandlers: fwdTestHandlersWithout(uint8(attribute.AttrMED)),
 	}
+	// The destination's export filter answers a MED operation, a code with NO
+	// registered handler.
+	exportAnswer(t, r, medAnswer(1), peer)
 	adapter := &reactorAPIAdapter{r: r}
 
 	sel, err := selector.Parse("*")
@@ -1140,13 +1136,14 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 	peerA := mkPeer("10.0.0.2", 0x01020301)
 	peerB := mkPeer("10.0.0.3", 0x01020302)
 
-	// Egress filter: mod applies only when destination == peerA.
-	marker := []byte{0xDE, 0xAD}
-	egressFilter := func(_, dst filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-		if dst.Address == peerA.Settings().Address {
-			mods.Op(250, filterapi.AttrModSet, marker)
+	// Export filter: the modification applies only when destination == peerA,
+	// as a MED operation the marker handler turns into attribute 250.
+	modifyA := medAnswer(57005)
+	answer := func(dest string) PolicyResponse {
+		if dest == peerA.Settings().Address.String() {
+			return modifyA(dest)
 		}
-		return true
+		return PolicyResponse{Action: PolicyAccept}
 	}
 	markerHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
 		p.Op(0)
@@ -1177,11 +1174,10 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 			peerA.Settings().PeerKey(): peerA,
 			peerB.Settings().PeerKey(): peerB,
 		},
-		fwdPool:            testPool,
-		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
-		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
-		attrModHandlers:    fwdTestHandlersWith(250, markerHandler),
+		fwdPool:         testPool,
+		attrModHandlers: fwdTestHandlersWithMED(markerHandler),
 	}
+	exportAnswer(t, r, answer, peerA, peerB)
 	adapter := &reactorAPIAdapter{r: r}
 
 	dests := []netip.AddrPort{
@@ -1749,11 +1745,14 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 		addrB = "10.0.0.3"
 		addrC = "10.0.0.4"
 	)
+	// Each value is the 4-byte MED the destination's export filter answers
+	// (medFor), which the marker handler writes as attribute 250.
 	markerFor := map[string][]byte{
-		addrA: {0xAA, 0xAA},
-		addrB: {0xBB, 0xBB},
+		addrA: {0x00, 0x00, 0xAA, 0xAA},
+		addrB: {0x00, 0x00, 0xBB, 0xBB},
 		// addrC absent on purpose: its policy modifies nothing.
 	}
+	medFor := map[string]uint32{addrA: 0xAAAA, addrB: 0xBBBB}
 
 	peers := map[netip.AddrPort]*Peer{src.Settings().PeerKey(): src}
 	for _, addr := range []string{addrA, addrB, addrC} {
@@ -1777,16 +1776,17 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 	}
 	cache.Activate(700, len(peers)-1)
 
-	egressFilter := func(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-		if marker, ok := markerFor[dest.Address.String()]; ok {
-			mods.Op(250, filterapi.AttrModSet, marker)
+	answer := func(dest string) PolicyResponse {
+		if med, ok := medFor[dest]; ok {
+			return medAnswer(med)(dest)
 		}
-		return true
+		return PolicyResponse{Action: PolicyAccept}
 	}
 
-	// Writes ONE marker attribute from the first op for code 250. If a previous
-	// destination's op survived the Reset it sits at index 0, so this peer is
-	// handed the other peer's bytes -- which is what the assertions catch.
+	// Writes ONE marker attribute from the first MED op. If a previous
+	// destination's op (or its value scratch) survived into this one it sits
+	// at index 0, so this peer is handed the other peer's bytes -- which is
+	// what the assertions catch.
 	markerHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
 		p.Op(0)
 		p.Emit(0xC0, 250)
@@ -1801,13 +1801,18 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates:      cache,
-		peers:              peers,
-		fwdPool:            testPool,
-		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
-		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
-		attrModHandlers:    fwdTestHandlersWith(250, markerHandler),
+		recentUpdates:   cache,
+		peers:           peers,
+		fwdPool:         testPool,
+		attrModHandlers: fwdTestHandlersWithMED(markerHandler),
 	}
+	var dests []*Peer
+	for key, peer := range peers {
+		if key != src.Settings().PeerKey() {
+			dests = append(dests, peer)
+		}
+	}
+	exportAnswer(t, r, answer, dests...)
 	adapter := &reactorAPIAdapter{r: r}
 
 	sel, err := selector.Parse("*")
@@ -1849,12 +1854,23 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 	assert.Equal(t, payload, bodyC, "an unmodified destination must receive the source payload byte for byte")
 }
 
-// fwdTestHandlersWith is the production handler set plus one test handler. The
-// forward rails record operations of their own (LOCAL_PREF toward an internal
-// peer, RFC 4271 Section 5.1.5), and a map holding only the test's handler
-// suppresses the route for want of theirs.
-func fwdTestHandlersWith(code uint8, handler filterapi.AttrModHandler) map[uint8]filterapi.AttrModHandler {
+// fwdTestHandlersWithMED is the production handler set with the MED handler
+// replaced by the test's: a destination's export filter answers `med N`, and
+// the chain step applies that operation through this map. The forward rails
+// record operations of their own (LOCAL_PREF toward an internal peer, RFC 4271
+// Section 5.1.5), and a map holding only the test's handler suppresses the
+// route for want of theirs.
+func fwdTestHandlersWithMED(handler filterapi.AttrModHandler) map[uint8]filterapi.AttrModHandler {
 	handlers := attrModHandlersWithDefaults()
-	handlers[code] = handler
+	handlers[uint8(attribute.AttrMED)] = handler
+	return handlers
+}
+
+// fwdTestHandlersWithout is the production handler set less the handler for
+// code, so an operation on code meets no handler while the rails' own
+// operations still meet theirs.
+func fwdTestHandlersWithout(code uint8) map[uint8]filterapi.AttrModHandler {
+	handlers := attrModHandlersWithDefaults()
+	delete(handlers, code)
 	return handlers
 }

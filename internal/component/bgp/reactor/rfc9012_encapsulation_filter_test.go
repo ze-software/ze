@@ -242,7 +242,7 @@ func teEncapsulationFilterRoundTrip(t *testing.T, transport *teCommunityTranspor
 	} else {
 		destination.Settings().Name = "egress-" + suffix
 		destination.settings.ExportPolicy = teCommunityChain(t, "bgp export", "egress")
-		egressSteps = []orderedEgressStep{{name: policyChainStepName, stage: filterapi.FilterStagePeerChain, policyChain: true}}
+		egressSteps = buildOrderedEgressSteps()
 	}
 	source.refreshForwardFacts()
 	destination.refreshForwardFacts()

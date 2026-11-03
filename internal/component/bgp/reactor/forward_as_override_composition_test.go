@@ -22,20 +22,18 @@ func TestForwardASOverrideComposition(t *testing.T) {
 	for _, fast := range []bool{false, true} {
 		for _, asn4 := range []bool{false, true} {
 			for _, tc := range []struct {
-				name      string
-				rs        bool
-				target    uint32
-				prepend   bool
-				generated bool
-				policy    []uint32
-				want      []uint32
+				name    string
+				rs      bool
+				target  uint32
+				prepend bool
+				policy  []uint32
+				want    []uint32
 			}{
 				{name: "ordinary", target: 65002, want: []uint32{65000, 65001, 65000}},
 				{name: "rs-client", rs: true, target: 65002, want: []uint32{65001, 65000}},
 				{name: "target-absent", target: 65003, want: []uint32{65000, 65001, 65002}},
 				{name: "policy-set", target: 65002, policy: []uint32{64496, 65002}, want: []uint32{65000, 64496, 65000}},
 				{name: "policy-prepend", target: 65002, policy: []uint32{64496, 65002}, prepend: true, want: []uint32{65000, 64496, 65000, 65001, 65000}},
-				{name: "policy-generator", target: 65002, policy: []uint32{64496, 65002}, generated: true, want: []uint32{65000, 64496, 65000}},
 			} {
 				t.Run(fmt.Sprintf("fast=%v/asn4=%v/%s", fast, asn4, tc.name), func(t *testing.T) {
 					f := newAIGPReplayFixture(t, nil)
@@ -58,27 +56,24 @@ func TestForwardASOverrideComposition(t *testing.T) {
 					peer.negotiated.Load().ASN4 = asn4
 					peer.session.negotiated.ASN4 = asn4
 					peer.refreshForwardFacts()
-					if tc.policy != nil {
-						value := asSequence4(tc.policy...)
-						edit := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-							switch {
-							case tc.prepend:
-								mods.Op(byte(attribute.AttrASPath), filterapi.AttrModPrepend, value)
-							case tc.generated:
-								mods.OpGen(byte(attribute.AttrASPath), overridePolicyGenerator(value))
-							default:
-								mods.Op(byte(attribute.AttrASPath), filterapi.AttrModSet, value)
-							}
-							return true
-						}
-						f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(edit)
-						f.r.egressFilters = []filterapi.EgressFilterFunc{edit}
-					}
 					attrs := makeAttr(0x40, byte(attribute.AttrOrigin), []byte{0})
 					attrs = append(attrs, makeAttr(0x40, byte(attribute.AttrASPath), asSequence4(65001, 65002))...)
 					attrs = append(attrs, makeAttr(0x40, byte(attribute.AttrNextHop), []byte{192, 0, 2, 254})...)
 					body := buildUpdatePayload(attrs, a2InlinePrefix)
 					original := slices.Clone(body)
+					if tc.policy != nil {
+						// The destination's export filter sets or prepends AS_PATH,
+						// answering the raw body that edit builds from the received one.
+						value := asSequence4(tc.policy...)
+						edit := rawEdit(t, f.r, body, func(mods *filterapi.ModAccumulator) {
+							if tc.prepend {
+								mods.Op(byte(attribute.AttrASPath), filterapi.AttrModPrepend, value)
+								return
+							}
+							mods.Op(byte(attribute.AttrASPath), filterapi.AttrModSet, value)
+						})
+						exportAnswer(t, f.r, func(string) PolicyResponse { return edit }, peer)
+					}
 					id := f.receive(t, body)
 					if fast {
 						update, ok := f.r.recentUpdates.Get(id)
@@ -123,14 +118,6 @@ func TestForwardASOverrideComposition(t *testing.T) {
 			}
 		}
 	}
-}
-
-type overridePolicyGenerator []byte
-
-func (g overridePolicyGenerator) GenLen() int { return len(g) }
-
-func (g overridePolicyGenerator) GenWrite(buf []byte, off int) int {
-	return copy(buf[off:], g)
 }
 
 // TestASOverrideComposesLegacyAS4Projection preserves the real ASN before
@@ -193,4 +180,14 @@ func TestASOverrideComposesLegacyAS4Projection(t *testing.T) {
 			})
 		}
 	}
+}
+
+// overridePolicyGenerator is an AS4_PATH generator op for
+// TestASOverrideComposesLegacyAS4Projection.
+type overridePolicyGenerator []byte
+
+func (g overridePolicyGenerator) GenLen() int { return len(g) }
+
+func (g overridePolicyGenerator) GenWrite(buf []byte, off int) int {
+	return copy(buf[off:], g)
 }

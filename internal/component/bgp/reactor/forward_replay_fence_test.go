@@ -13,7 +13,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -418,13 +417,73 @@ func TestRSFastPathHandsAFencedDestinationBack(t *testing.T) {
 // copy reaches the peer a second time, behind the replay (the defect
 // TestRSFastPathHandsAFencedDestinationBack covers for the first pass).
 //
-// Method: an egress step refuses the destination's announcement of an UPDATE
-// that names two families, which sends the destination to the redo, and
-// raises the destination's fence while it runs: the session coming up between
-// the two passes, with no timing involved. The redo's withdrawals run no
-// egress step, so the fence stays up for both sections.
+// Method: an UPDATE names an IPv4 route and an IPv6 route whose next hop is
+// link-local only. The destination is off the source's segment and runs no
+// export chain, so the link-local gate withholds the IPv6 field and sends it
+// to the redo (withdrawalBySection); a destination whose chain ran is handed
+// to the general rail instead and never reaches the redo. A second client's
+// export filter raises the destination's fence while the first pass builds:
+// the session coming up between the two passes, with no timing involved. The
+// fence stays up for both sections.
 func TestRSFastPathRedoHandsAFencedDestinationBack(t *testing.T) {
-	forwardRSFencedMidPass(t, false)
+	destAddr := netip.MustParseAddr(llnhOffSegmentAddr)
+	otherAddr := netip.MustParseAddr("2001:db8:1::6")
+	payload := buildUpdatePayload(mixedAttrs(
+		[]byte{0x40, 3, 4, 192, 0, 2, 1},
+		mixedReach(1, mixedLLNH, mixedV6Prefix),
+	), mixedV4Legacy)
+	dst := mixedDest(t, destAddr.String())
+	other := mixedDest(t, otherAddr.String())
+	source := llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, NextHopUnchanged)
+
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	require.NoError(t, err)
+	cache := newRecentUpdateCache(100)
+	update, id := newLeakTestUpdate(t, cache, payload, ctxID)
+	update.SourcePeerIP = source.Settings().Address
+
+	pool := newFwdPool(func(fwdKey, []fwdItem) {}, fwdPoolConfig{chanSize: 64, idleTimeout: time.Second})
+	t.Cleanup(pool.Stop)
+	key := fwdKey{peerAddr: dst.Settings().PeerKey()}
+	pool.registerOutgoingPool(key, 4096)
+	pool.registerOutgoingPool(fwdKey{peerAddr: other.Settings().PeerKey()}, 4096)
+
+	raised := false
+	r := &Reactor{
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
+		peers: map[netip.AddrPort]*Peer{
+			key.peerAddr:                dst,
+			other.Settings().PeerKey():  other,
+			source.Settings().PeerKey(): source,
+		},
+		fwdPool:             pool,
+		rsForwardingEnabled: true,
+	}
+	// Only the other client runs an export chain. Its filter accepts, and on
+	// its first call raises the destination's fence.
+	exportAnswer(t, r, func(string) PolicyResponse {
+		if !raised {
+			raised = true
+			dst.resetAPISync([]string{replayFenceOwner})
+			raiseTestReplayFence(dst, replayFenceOwner)
+		}
+		return PolicyResponse{Action: PolicyAccept}
+	}, other)
+
+	skipped, dispatched := reactorForwardRS(r, update, id, source.Settings().Address, source)
+	require.True(t, raised, "the first pass must have met the other client's export filter")
+	// The other client is only the fence's trigger: whatever rail it is left
+	// to, the claims below are about the fenced destination.
+	handedBack := 0
+	for _, peerKey := range skipped {
+		if peerKey == key.peerAddr {
+			handedBack++
+		}
+	}
+	require.Equal(t, 1, handedBack, "the fenced destination must be handed back, once: skipped=%v", skipped)
+	require.Equal(t, 0, dispatched, "nothing may be dispatched to a fenced destination")
+	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")
 }
 
 // TestRSFastPathDispatchHandsAFencedDestinationBack proves the same hand-back
@@ -436,17 +495,9 @@ func TestRSFastPathRedoHandsAFencedDestinationBack(t *testing.T) {
 // PREVENTS: the dispatch gate parking the item behind the fence, where the
 // route server's replay duplicates it.
 //
-// Method: an egress step that passes the destination raises its fence while
-// it runs, between selection and dispatch.
+// Method: the destination's export filter passes it and raises its fence
+// while it runs, between selection and dispatch.
 func TestRSFastPathDispatchHandsAFencedDestinationBack(t *testing.T) {
-	forwardRSFencedMidPass(t, true)
-}
-
-// forwardRSFencedMidPass forwards one UPDATE naming two families on the fast
-// path to one destination whose replay fence an egress step raises on its
-// first call, answering pass, and asserts the destination is handed back once.
-func forwardRSFencedMidPass(t *testing.T, pass bool) {
-	t.Helper()
 	destAddr := netip.MustParseAddr("2001:db8:1::5")
 	payload := buildUpdatePayload(mixedAttrs(
 		mixedAttr(15, mixedUnreachValue(1, 1, mixedV4MPPfx)),
@@ -467,17 +518,6 @@ func forwardRSFencedMidPass(t *testing.T, pass bool) {
 	pool.registerOutgoingPool(key, 4096)
 
 	raised := false
-	step := func(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-		if dest.Address != destAddr {
-			return true
-		}
-		if !raised {
-			raised = true
-			dst.resetAPISync([]string{replayFenceOwner})
-			raiseTestReplayFence(dst, replayFenceOwner)
-		}
-		return pass
-	}
 	r := &Reactor{
 		attrModHandlers: attrModHandlersWithDefaults(),
 		recentUpdates:   cache,
@@ -488,11 +528,19 @@ func forwardRSFencedMidPass(t *testing.T, pass bool) {
 		fwdPool:             pool,
 		rsForwardingEnabled: true,
 	}
-	r.orderedEgressSteps = orderedEgressStepsFromFuncs(step)
-	r.egressFilters = []filterapi.EgressFilterFunc{step}
+	// The destination's export filter raises its fence on its first call and
+	// accepts.
+	exportAnswer(t, r, func(string) PolicyResponse {
+		if !raised {
+			raised = true
+			dst.resetAPISync([]string{replayFenceOwner})
+			raiseTestReplayFence(dst, replayFenceOwner)
+		}
+		return PolicyResponse{Action: PolicyAccept}
+	}, dst)
 
 	skipped, dispatched := reactorForwardRS(r, update, id, source.Settings().Address, source)
-	require.True(t, raised, "the first pass must have met the egress step")
+	require.True(t, raised, "the first pass must have met the export filter")
 	require.Equal(t, []netip.AddrPort{key.peerAddr}, skipped, "the fenced destination must be handed back, once")
 	require.Equal(t, 0, dispatched, "nothing may be dispatched to a fenced destination")
 	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")

@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -245,16 +244,16 @@ func TestForwardAIGPMixedNextHopsReachSocket(t *testing.T) {
 		local:     mpSelf,
 		addresses: []netip.Prefix{netip.PrefixFrom(legacySelf, 24)},
 	})
-	legacyHop := legacySelf.As4()
-	f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(
-		func(_, _ filterapi.PeerFilterInfo, payload []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-			sections, err := wire.ParseUpdateSections(payload)
-			require.NoError(t, err)
-			if len(sections.NLRI(payload)) != 0 {
-				mods.Op(uint8(attribute.AttrNextHop), filterapi.AttrModSet, legacyHop[:])
-			}
-			return true
-		})
+	// The destination's export filter rewrites the NEXT_HOP of an UPDATE that
+	// announces legacy NLRI ("nlri add <prefix>" in the filter text), as a
+	// plugin export filter answers it: a text modify.
+	rewrite := PolicyResponse{Action: PolicyModify, Delta: policyAttrNextHop + " " + legacySelf.String()}
+	exportTextAnswer(t, f.r, func(_, updateText string) PolicyResponse {
+		if filterTextAnnouncesLegacyNLRI(updateText) {
+			return rewrite
+		}
+		return PolicyResponse{Action: PolicyAccept}
+	}, f.destination)
 	for _, peer := range []*Peer{f.source, f.destination} {
 		negotiateForwardTestFamilies(peer, family.IPv4Unicast, family.IPv6Unicast)
 		peer.refreshForwardFacts()

@@ -31,7 +31,7 @@ var llgrOpenParams = []byte{
 // llgrMetaStep stands in for the GR plugin's LLGRIngressFilter, which the reactor
 // may not import: it writes stale level 2 when the session advertised LLGR, and
 // records what it was told.
-func llgrMetaStep(seen *[]bool) filterapi.IngressFilterFunc {
+func llgrMetaStep(seen *[]bool) engineIngressFunc {
 	return func(src filterapi.PeerFilterInfo, _ []byte, meta map[string]any) (bool, []byte) {
 		*seen = append(*seen, src.LLGRAdvertised)
 		if src.LLGRAdvertised {

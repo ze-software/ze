@@ -35,6 +35,9 @@ type externalTransport struct {
 	// err, when set, is what the call answers in place of reply: the plugin
 	// could not be asked, as when its process has gone.
 	err error
+	// answer, when set, answers each input in place of reply, so a test
+	// can make the verdict depend on what the filter was sent.
+	answer func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput
 }
 
 func (e *externalTransport) FilterInfo(_, _ string) ([]string, bool) { return nil, false }
@@ -68,6 +71,10 @@ func (e *externalTransport) CallFilterUpdate(_ context.Context, _ string, route 
 	e.sent = append(e.sent, sent)
 	if e.err != nil {
 		return nil, e.err
+	}
+	if e.answer != nil {
+		reply := e.answer(sent)
+		return &reply, nil
 	}
 	reply := e.reply
 	return &reply, nil

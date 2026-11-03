@@ -2,7 +2,6 @@ package filterapi
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,15 +92,15 @@ func TestRecordRemoveBufferRefusedIsSilentWithoutARegistry(t *testing.T) {
 	assert.NotPanics(t, func() { RecordRemoveBufferRefused(8) })
 }
 
-// TestSetMetricsRegistryNilIsANoOp verifies a nil registry leaves the recorder
+// TestSetAttrModMetricsRegistryNilIsANoOp verifies a nil registry leaves the recorder
 // disabled rather than storing a nil-bearing struct.
 //
 // VALIDATES: the reactor calls this unconditionally from its metrics block; a
 // nil registry must degrade to "disabled", not to a panic on first use.
-func TestSetMetricsRegistryNilIsANoOp(t *testing.T) {
+func TestSetAttrModMetricsRegistryNilIsANoOp(t *testing.T) {
 	resetAttrModMetrics(t)
 
-	SetMetricsRegistry(nil)
+	SetAttrModMetricsRegistry(nil)
 
 	assert.Nil(t, attrModMetricsPtr.Load())
 	assert.NotPanics(t, func() { RecordRemoveBufferRefused(8) })
@@ -119,7 +118,7 @@ func TestRecordRemoveBufferRefusedCountsPerAttribute(t *testing.T) {
 	resetAttrModMetrics(t)
 	reg := &fakeRegistry{}
 
-	SetMetricsRegistry(reg)
+	SetAttrModMetricsRegistry(reg)
 	require.Contains(t, reg.names, "ze_bgp_attr_mod_remove_buffer_refused_total")
 
 	RecordRemoveBufferRefused(8)
@@ -153,93 +152,4 @@ func TestAttrLabelNamesTheListValuedAttributes(t *testing.T) {
 	} {
 		assert.Equal(t, tc.want, attrLabel(tc.code), "code %d", tc.code)
 	}
-}
-
-// TestSetMetricsRegistryWiresRegisteredFilterMetrics verifies a registered
-// filter's ConfigureMetrics hook receives the registry SetMetricsRegistry is
-// given, and that a nil registry stays a no-op that calls no hook.
-//
-// VALIDATES: route C: the loop filter's metrics arrive through filterapi, so
-// the reactor names no filter package.
-// PREVENTS: a filter's counters left dead because nothing hands it the
-// registry. Not parallel: it writes the package filter registry.
-func TestSetMetricsRegistryWiresRegisteredFilterMetrics(t *testing.T) {
-	const name = "test-metrics-hook"
-	var got metrics.Registry
-	calls := 0
-	require.NoError(t, Register(Filter{
-		Name:    name,
-		Ingress: func(PeerFilterInfo, []byte, map[string]any) (bool, []byte) { return true, nil },
-		ConfigureMetrics: func(reg metrics.Registry) {
-			calls++
-			got = reg
-		},
-	}))
-	t.Cleanup(func() {
-		mu.Lock()
-		delete(filters, name)
-		mu.Unlock()
-		attrModMetricsPtr.Store(nil)
-	})
-
-	SetMetricsRegistry(nil)
-	assert.Equal(t, 0, calls, "a nil registry must call no hook")
-
-	reg := metrics.NewPrometheusRegistry()
-	SetMetricsRegistry(reg)
-	assert.Equal(t, 1, calls)
-	assert.Same(t, reg, got)
-}
-
-// TestSetMetricsRegistryHookMayCallRegister proves a ConfigureMetrics hook runs
-// outside the filter registry lock.
-//
-// VALIDATES: a hook that registers another filter returns, and the filter it
-// registered is in the registry afterwards. Method: the call runs in a
-// goroutine and the test waits a bounded time, so a deadlock fails the test
-// rather than hanging it.
-// PREVENTS: SetMetricsRegistry calling the hooks under mu.RLock, where a hook
-// calling Register waits forever on the write lock. Not parallel: it writes
-// the package filter registry.
-func TestSetMetricsRegistryHookMayCallRegister(t *testing.T) {
-	const name = "test-metrics-hook-registers"
-	const inner = "test-metrics-hook-registered"
-	accept := func(PeerFilterInfo, []byte, map[string]any) (bool, []byte) { return true, nil }
-	var innerErr error
-	require.NoError(t, Register(Filter{
-		Name:    name,
-		Ingress: accept,
-		ConfigureMetrics: func(metrics.Registry) {
-			innerErr = Register(Filter{Name: inner, Ingress: accept})
-		},
-	}))
-	wedged := false
-	t.Cleanup(func() {
-		attrModMetricsPtr.Store(nil)
-		if wedged {
-			return // the stuck goroutine holds mu; taking it would hang the binary
-		}
-		mu.Lock()
-		delete(filters, name)
-		delete(filters, inner)
-		mu.Unlock()
-	})
-
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		SetMetricsRegistry(metrics.NewPrometheusRegistry())
-	}()
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		wedged = true
-		t.Fatal("SetMetricsRegistry did not return: the hook's Register deadlocked on the registry lock")
-	}
-
-	require.NoError(t, innerErr)
-	mu.RLock()
-	_, registered := filters[inner]
-	mu.RUnlock()
-	assert.True(t, registered, "the filter the hook registered is missing")
 }

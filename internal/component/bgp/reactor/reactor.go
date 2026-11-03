@@ -399,18 +399,14 @@ type Reactor struct {
 	// not started rather than as running.
 	neighborWatch atomic.Pointer[neighborWatchState]
 
-	// Peer filter chains: collected from plugin registry at startup.
-	// Egress: the in-process egress filter funcs, still consumed directly by the
-	// RS fast path (forward_rs.go) and the forwardFacts/build sites.
-	egressFilters []filterapi.EgressFilterFunc
 	// orderedIngressSteps is the unified, stage-ordered ingress pipeline: the
-	// registered in-process ingress filters plus the reactor-bound per-peer policy
-	// chain (FilterStagePeerChain), merge-sorted so the cross-system order is a
+	// engine's loop-detection step plus the reactor-bound per-peer policy
+	// chain (FilterStagePeerChain), sorted so the cross-system order is a
 	// declared property. Built once in startAPIServer; the per-UPDATE pass in
 	// notifyMessageReceiver iterates it (see filter_ordered.go).
 	orderedIngressSteps []orderedIngressStep
-	// orderedEgressSteps is the egress twin, used by forwardUpdateCore only: the
-	// in-process egress filters plus the export policy chain, in declared order.
+	// orderedEgressSteps is the egress twin, used by forwardUpdateCore only:
+	// the export policy chain, every plugin filter a member of it.
 	orderedEgressSteps []orderedEgressStep
 	// Attr mod handlers: per-attribute-code handlers for progressive build.
 	// Keyed by attribute type code (uint8). Collected from registry at startup.
@@ -1324,9 +1320,8 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// register at init() via filterapi.RegisterAttrModHandler and run during
 		// the progressive build whether or not the plugin that supplied them is
 		// running, so a plugin's ConfigureMetrics hook would leave these
-		// counters dead. filterapi hands the registry to each registered
-		// filter's Filter.ConfigureMetrics.
-		filterapi.SetMetricsRegistry(r.metricsRegistry)
+		// counters dead.
+		filterapi.SetAttrModMetricsRegistry(r.metricsRegistry)
 		// Loop detection's counters, for the same reason: it is the engine's
 		// own protocol step (buildOrderedIngressSteps), not a run plugin.
 		loopdetect.SetMetricsRegistry(r.metricsRegistry)
@@ -1628,10 +1623,9 @@ func (r *Reactor) startAPIServer() error {
 		r.eventDispatcher.SetEventBus(r.eventBus)
 	}
 	r.messageReceiver = r.eventDispatcher
-	r.egressFilters = filterapi.EgressFilters()
 	r.attrModHandlers = attrModHandlersWithDefaults()
-	// Unified, stage-ordered filter pipelines: the registered in-process filters
-	// merge-sorted with the reactor-bound per-peer policy chain (FilterStagePeerChain).
+	// Unified, stage-ordered filter pipelines: the engine's own steps sorted
+	// with the reactor-bound per-peer policy chain (FilterStagePeerChain).
 	// Built once here (r.api is set by now); the per-UPDATE passes only iterate them.
 	r.orderedIngressSteps = buildOrderedIngressSteps()
 	r.orderedEgressSteps = buildOrderedEgressSteps()

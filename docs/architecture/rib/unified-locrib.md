@@ -227,8 +227,8 @@ Three facts refute driving forwarding from locrib:
    next hop, AS override, eBGP prepend) is keyed off the per-received-UPDATE
    trigger, not off a best change.
 3. The receive-path trigger is also where the inbound filter pipeline runs, both
-   the in-process ingress filters with copy-on-modify and the external-plugin
-   import policy chain. Retiring it would re-home the filter pipeline for no
+   the engine's loop-detection step and the per-peer import policy chain, whose
+   members modify with copy-on-modify. Retiring it would re-home the filter pipeline for no
    gain.
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- oweAnnouncement -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoveryAdmission.admit -->

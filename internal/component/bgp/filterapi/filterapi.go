@@ -2,12 +2,15 @@
 // RFC: rfc/short/rfc4271.md -- path attribute flags, codes and the value length cap (Section 4.3)
 // RFC: rfc/short/rfc6793.md -- the four-octet AS number re-encoding an AttrGenerator exists for
 // Detail: editset.go -- the edit set: slots, fragments, the arena and the exact size query
-// Related: filterapi_test.go -- ordering and accumulator semantics moved from the generic registry tests
+// Related: filterapi_test.go -- ordering and accumulator semantics
 //
 // Package filterapi defines the BGP route filter pipeline contract: the
-// value types passed to ingress/egress filters, the modification
-// accumulator egress filters write to, and the registration of filter
-// chains and attribute-modification handlers. It also carries plugin-owned
+// value types the reactor's filter steps read (PeerFilterInfo), the
+// modification accumulator the egress pass writes to, the stage keys that
+// order the reactor's steps, and the registration of attribute-modification
+// handlers. A plugin filter is not registered here: it is a member of the
+// peer's policy chain, reached through filter-update on both transports.
+// It also carries plugin-owned
 // reactor capabilities that follow the same init()-time registration model,
 // such as route-server (RS) fast-path forwarding (EnableRSForwarding). It is
 // a near-leaf package (stdlib, core leaves, and the protocol-neutral policy
@@ -23,15 +26,11 @@
 package filterapi
 
 import (
-	"errors"
-	"fmt"
 	"maps"
 	"net/netip"
-	"sort"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/policy"
-	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -101,60 +100,6 @@ func FilterRefStrings(refs []policy.Ref) []string {
 	}
 	return out
 }
-
-// IngressFilterFunc is called for received UPDATEs before caching and dispatching.
-// payload is the UPDATE body (without BGP header).
-// meta is a shared metadata map; filters can read and write to it.
-// Caller MUST pass a non-nil meta map; writing to a nil meta panics.
-// Returns accept=false to drop the route. If modifiedPayload is non-nil,
-// it replaces the original payload for caching and event dispatch.
-type IngressFilterFunc func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)
-
-// EgressFilterFunc is called per destination peer during ForwardUpdate.
-// payload is the UPDATE body (without BGP header).
-// meta is route metadata set at ingress (read-only); may be nil.
-// mods accumulates per-peer modifications applied after all filters pass.
-// MUST NOT retain the mods pointer beyond the call -- it is reused per peer.
-//
-// Returns false to suppress the route for this destination peer.
-//
-// KNOWN GAP in the seam, not a design choice: a bare bool cannot say "I could
-// not decide". A filter that cannot evaluate its input can only answer accept or
-// reject, and a reject is read by every consumer as a POLICY decision. That
-// matters at the far end of the forward: forwardUpdateCore reports every
-// destination being suppressed as errAllDestinationsSuppressed, and the
-// stored-route relay counts that as a route it handled, so a filter that could
-// not decide could suppress a whole peer-up replay and have it reported
-// complete. safeEgressFilter (reactor/reactor_notify.go) can therefore report
-// only the one non-decision it causes itself, a recovered panic.
-//
-// NO REGISTERED FILTER IS IN THAT STATE TODAY, re-derived from all three on
-// 2026-08-03 and again on 2026-10-14. OTCEgressFilter (plugins/role/otc.go) was the live instance; it
-// stopped being one when Thomas ruled that an unrecorded destination role is
-// covered by the operator's `unknown` token, which makes its export-set
-// suppression a decision (R6-1 / Q-1,
-// plan/spec-fixit-stored-route-relay-hardening.md). LLGREgressFilter
-// (plugins/gr/gr_egress.go) was the second instance, on an unloaded plugin
-// state; it stopped being one on 2026-08-07, when that state became a DECISION
-// rather than a non-decision. RFC 9494 Section 4.3 keys the answer on whether
-// the LLGR Capability "has been received", and nothing recorded means it has
-// not, so the destination takes the treatment written for a peer known to lack
-// it (plan/spec-fixit-egress-filter-non-decision-channel.md).
-// filter_community's egress filter suppresses one route class: a
-// BLACKHOLE-tagged route towards a bilateral eBGP destination that did not
-// agree to the community (RFC 7999 Section 3.1). That suppression is a
-// decision too. Its agreement cache has no state in which it cannot answer: a
-// miss, the empty cache before the first config apply included, means "not
-// agreed", the answer cmd/announce's agreedSelector gives, so the refusal is
-// the treatment written for a peer known not to have agreed.
-//
-// So widening this signature is NOT currently owed. What the seam did owe was
-// smaller: two of the three call sites of safeEgressFilter DISCARDED the
-// panicked return this seam already produces, so on those rails a filter panic
-// was reported as policy. Reading the existing return fixed that (2026-08-03,
-// AC-7 of plan/spec-fixit-stored-route-relay-hardening.md); a new one would not
-// have. All three call sites now read both returns.
-type EgressFilterFunc func(source, dest PeerFilterInfo, payload []byte, meta map[string]any, mods *ModAccumulator) bool
 
 const modAccumulatorInlineBytes = 64
 
@@ -482,19 +427,18 @@ func LastSetOrSuppress(ops []AttrOp) (idx int, suppress bool) {
 }
 
 // Filter stage constants define coarse ordering classes for the filter pipeline.
-// Filters are sorted by stage first, then by priority within a stage, then by name.
-// Gaps between values allow inserting new stages without renumbering.
+// Steps are sorted by stage first, then by priority within a stage, then by
+// name (LessOrder). Gaps between values allow inserting new stages without
+// renumbering.
 const (
 	FilterStageProtocol   int = 0   // RFC-mandated checks (loop detection, RFC 4271/4456)
 	FilterStagePolicy     int = 100 // Operator-configured filtering (community, prefix, IRR)
 	FilterStageAnnotation int = 200 // Protocol modifications that stamp routes (OTC/RFC 9234)
-	// FilterStagePeerChain orders the external per-peer configured filter chain
-	// (the text/RPC PolicyFilterChain). It runs AFTER all in-process filters,
-	// including Annotation, because the reactor historically ran the whole
-	// in-process pass before the external chain. No in-process filter registers
-	// at this stage; the reactor binds the per-peer chain as a single ordered
-	// step here so the cross-system order is a declared property, not code
-	// position.
+	// FilterStagePeerChain orders the per-peer policy chain: the operator's
+	// filter list with the plugins' filter insertions, every member reached
+	// through filter-update. The reactor binds the whole chain as one ordered
+	// step here, after the engine's protocol step, so the cross-system order is
+	// a declared property, not code position.
 	FilterStagePeerChain int = 300
 )
 
@@ -601,42 +545,8 @@ func (a *ModAccumulator) GroupedOps() []AttrOp {
 	return a.ops
 }
 
-// Filter describes one plugin's contribution to the BGP route filter pipeline:
-// optional ingress/egress filters and the (stage, priority) pair ordering the
-// ingress/egress chains. Name is the registering plugin's name and breaks
-// ordering ties.
-type Filter struct {
-	Name     string
-	Stage    int               // Coarse ordering class (FilterStageProtocol/Policy/Annotation)
-	Priority int               // Fine ordering within a stage; equal priority sorted by name
-	Ingress  IngressFilterFunc // nil = no ingress filtering
-	Egress   EgressFilterFunc  // nil = no egress filtering
-	// ConfigureMetrics hands the filter the daemon's metrics registry, so a
-	// filter that counts what it does builds its metrics without the reactor
-	// naming its package. SetMetricsRegistry calls it once, from the reactor's
-	// metrics-enable block, with a non-nil registry; a build with metrics
-	// disabled never calls it. It is no pipeline contribution: a filter that
-	// declares only this is refused by Register. It runs without the
-	// registry lock held, so it may call back into this package. Nil = no
-	// metrics.
-	ConfigureMetrics func(metrics.Registry)
-}
-
-var (
-	// ErrEmptyFilterName is returned when registering a filter with an empty name.
-	ErrEmptyFilterName = errors.New("filterapi: filter name is empty")
-	// ErrNoFilterFunc is returned when a filter declares no pipeline contribution.
-	ErrNoFilterFunc = errors.New("filterapi: filter declares no pipeline contribution")
-	// ErrDuplicateFilterName is returned when a filter name is already registered.
-	ErrDuplicateFilterName = errors.New("filterapi: duplicate filter name")
-)
-
 var (
 	mu sync.RWMutex
-
-	// filters maps plugin name to its pipeline contribution.
-	// Populated at init() time by plugins, read at runtime by the reactor.
-	filters = make(map[string]Filter)
 
 	// attrModHandlers stores registered attr mod handlers keyed by attribute code.
 	// Populated at init() time by plugins, read at runtime by the reactor.
@@ -669,50 +579,15 @@ func RSForwardingEnabled() bool {
 	return rsForwarding
 }
 
-// Register adds a plugin's filter pipeline contribution.
-// MUST be called from init() functions only, before peers start.
-// Returns an error on empty name, missing functions, or duplicate name.
-func Register(f Filter) error {
-	if f.Name == "" {
-		return ErrEmptyFilterName
-	}
-	if f.Ingress == nil && f.Egress == nil {
-		return fmt.Errorf("%w: %q", ErrNoFilterFunc, f.Name)
-	}
-
-	mu.Lock()
-	defer mu.Unlock()
-	if _, exists := filters[f.Name]; exists {
-		return fmt.Errorf("%w: %q", ErrDuplicateFilterName, f.Name)
-	}
-	filters[f.Name] = f
-	return nil
-}
-
-// sortedFilters returns the filters selected by hasFunc, sorted by stage,
-// then priority, then name. Caller MUST hold mu (read or write).
-func sortedFilters(hasFunc func(Filter) bool) []Filter {
-	var entries []Filter
-	for _, f := range filters {
-		if hasFunc(f) {
-			entries = append(entries, f)
-		}
-	}
-	sort.Slice(entries, func(i, j int) bool {
-		return LessOrder(
-			entries[i].Name, entries[i].Stage, entries[i].Priority,
-			entries[j].Name, entries[j].Stage, entries[j].Priority,
-		)
-	})
-	return entries
-}
-
 // LessOrder reports whether a pipeline entry keyed (nameA, stageA, priorityA)
 // sorts before one keyed (nameB, stageB, priorityB): stage first, then priority,
-// then name. It is the single source of truth for filter-pipeline ordering,
-// exported so a consumer (the reactor) can merge-sort a non-registered step -- its
-// per-peer policy chain at FilterStagePeerChain -- into the same order as the
-// registered filters without duplicating the sort key.
+// then name. It is the single source of truth for filter-pipeline ordering:
+// the reactor sorts its engine steps with it (loop detection at
+// FilterStageProtocol, the per-peer policy chain at FilterStagePeerChain), so
+// the order is a declared property of the stage keys, not code position.
+// Every plugin filter, compiled in or forked, runs inside the per-peer chain
+// as a member, in the order the operator's list and the filter insertions
+// give it.
 func LessOrder(nameA string, stageA, priorityA int, nameB string, stageB, priorityB int) bool {
 	if stageA != stageB {
 		return stageA < stageB
@@ -721,82 +596,6 @@ func LessOrder(nameA string, stageA, priorityA int, nameB string, stageB, priori
 		return priorityA < priorityB
 	}
 	return nameA < nameB
-}
-
-// IngressOrdered returns all registered filters that declare an ingress function,
-// sorted by stage, then priority, then name -- the same order as IngressFilters,
-// but carrying each filter's ordering keys (Name/Stage/Priority) alongside the
-// func so a consumer can merge-sort additional externally-owned steps (the
-// reactor's per-peer policy chain at FilterStagePeerChain) into the same order.
-func IngressOrdered() []Filter {
-	mu.RLock()
-	defer mu.RUnlock()
-	return sortedFilters(func(f Filter) bool { return f.Ingress != nil })
-}
-
-// EgressOrdered is the egress twin of IngressOrdered.
-func EgressOrdered() []Filter {
-	mu.RLock()
-	defer mu.RUnlock()
-	return sortedFilters(func(f Filter) bool { return f.Egress != nil })
-}
-
-// IngressFilters returns all registered ingress filter functions,
-// sorted by stage, then priority, then by plugin name.
-// Called by the reactor to build the ingress filter chain.
-func IngressFilters() []IngressFilterFunc {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	entries := sortedFilters(func(f Filter) bool { return f.Ingress != nil })
-	chain := make([]IngressFilterFunc, 0, len(entries))
-	for _, e := range entries {
-		chain = append(chain, e.Ingress)
-	}
-	return chain
-}
-
-// ingressFilterNames returns the names of plugins with ingress filters,
-// in execution order (sorted by stage, then priority, then name).
-func ingressFilterNames() []string {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	entries := sortedFilters(func(f Filter) bool { return f.Ingress != nil })
-	names := make([]string, 0, len(entries))
-	for _, e := range entries {
-		names = append(names, e.Name)
-	}
-	return names
-}
-
-// EgressFilters returns all registered egress filter functions,
-// sorted by stage, then priority, then by plugin name.
-// Called by the reactor to build the egress filter chain.
-func EgressFilters() []EgressFilterFunc {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	entries := sortedFilters(func(f Filter) bool { return f.Egress != nil })
-	chain := make([]EgressFilterFunc, 0, len(entries))
-	for _, e := range entries {
-		chain = append(chain, e.Egress)
-	}
-	return chain
-}
-
-// egressFilterNames returns the names of plugins with egress filters,
-// in execution order (sorted by stage, then priority, then name).
-func egressFilterNames() []string {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	entries := sortedFilters(func(f Filter) bool { return f.Egress != nil })
-	names := make([]string, 0, len(entries))
-	for _, e := range entries {
-		names = append(names, e.Name)
-	}
-	return names
 }
 
 // RegisterAttrModHandler registers a handler for the given attribute code.
@@ -836,7 +635,6 @@ func AttrModHandlers() map[uint8]AttrModHandler {
 
 // PipelineSnapshot holds a copy of the filter pipeline state for test save/restore.
 type PipelineSnapshot struct {
-	filters         map[string]Filter
 	attrModHandlers map[uint8]AttrModHandler
 	rsForwarding    bool
 }
@@ -847,11 +645,9 @@ func Snapshot() PipelineSnapshot {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	fs := make(map[string]Filter, len(filters))
-	maps.Copy(fs, filters)
 	ah := make(map[uint8]AttrModHandler, len(attrModHandlers))
 	maps.Copy(ah, attrModHandlers)
-	return PipelineSnapshot{filters: fs, attrModHandlers: ah, rsForwarding: rsForwarding}
+	return PipelineSnapshot{attrModHandlers: ah, rsForwarding: rsForwarding}
 }
 
 // Restore replaces the pipeline state with a previously saved snapshot.
@@ -859,17 +655,15 @@ func Snapshot() PipelineSnapshot {
 func Restore(snap PipelineSnapshot) {
 	mu.Lock()
 	defer mu.Unlock()
-	filters = snap.filters
 	attrModHandlers = snap.attrModHandlers
 	rsForwarding = snap.rsForwarding
 }
 
-// ResetForTest clears all registered filters, attr mod handlers, and the
+// ResetForTest clears the registered attr mod handlers and the
 // RS-forwarding capability flag. Only for use in tests, paired with Snapshot/Restore.
 func ResetForTest() {
 	mu.Lock()
 	defer mu.Unlock()
-	filters = make(map[string]Filter)
 	attrModHandlers = make(map[uint8]AttrModHandler)
 	rsForwarding = false
 }

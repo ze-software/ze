@@ -25,7 +25,7 @@
     "rid": "RFC2545-3-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet",
-    "unit-sha": "b69576390758f9f1",
+    "unit-sha": "0a6784480059ed3c",
     "claim-sha": "72cd1515f377a51f",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",

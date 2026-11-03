@@ -6,11 +6,12 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -269,32 +270,58 @@ func TestFamilyNextHopForwardAdmission(t *testing.T) {
 						peer.sendCtx.Store(bgpctx.NewEncodingContext(neg.Identity, neg.Encoding, bgpctx.DirectionSend))
 					}
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
-					rewrite := func(_, _ filterapi.PeerFilterInfo, payload []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-						if payloadNextHop(payload).mpFamily == fc.fam {
-							if tc.earlier != nil {
-								mods.Op(14, filterapi.AttrModSet, tc.earlier)
-							}
-							mods.Op(14, filterapi.AttrModSet, tc.replacement)
-						}
-						return true
-					}
-					f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(rewrite)
-					f.r.egressFilters = []filterapi.EgressFilterFunc{rewrite}
 					raw := mustHex(t, fc.raw)
-					mp := append([]byte{0, byte(fc.fam.AFI), byte(fc.fam.SAFI), 16}, global...)
-					mp = append(mp, 0)
-					mp = append(mp, raw...)
-					attrs := mixedAttrs(append([]byte{0x80, 14, byte(len(mp))}, mp...))
-					if fc.fam.SAFI == 73 {
-						tunnel := teSRPolicyValue(0, false)
-						attrs = append(attrs, 0xd0, byte(attribute.AttrTunnelEncap), byte(len(tunnel)>>8), byte(len(tunnel)))
-						attrs = append(attrs, tunnel...)
-						attrs = append(attrs, 0xc0, byte(attribute.AttrExtCommunity), 8, 1, 2, 192, 0, 2, 2, 0, 0)
-					}
-					attrs = append(attrs, 0x40, 3, 4)
-					attrs = append(attrs, f.source.Settings().Address.AsSlice()...)
 					legacy := mustHex(t, "180a0900")
-					updates := rfc2545ReceiveForward(t, f, rail, buildUpdatePayload(attrs, legacy))
+					bodyFor := func(hop []byte) []byte {
+						mp := append([]byte{0, byte(fc.fam.AFI), byte(fc.fam.SAFI), byte(len(hop))}, hop...)
+						mp = append(mp, 0)
+						mp = append(mp, raw...)
+						attrs := mixedAttrs(append([]byte{0x80, 14, byte(len(mp))}, mp...))
+						if fc.fam.SAFI == 73 {
+							tunnel := teSRPolicyValue(0, false)
+							attrs = append(attrs, 0xd0, byte(attribute.AttrTunnelEncap), byte(len(tunnel)>>8), byte(len(tunnel)))
+							attrs = append(attrs, tunnel...)
+							attrs = append(attrs, 0xc0, byte(attribute.AttrExtCommunity), 8, 1, 2, 192, 0, 2, 2, 0, 0)
+						}
+						attrs = append(attrs, 0x40, 3, 4)
+						attrs = append(attrs, f.source.Settings().Address.AsSlice()...)
+						return buildUpdatePayload(attrs, legacy)
+					}
+					// The destination's export filter replaces the MP_REACH_NLRI next
+					// hop of the received fc.fam route: a plugin filter expresses an
+					// MP next-hop rewrite only as a raw body, so it answers the body
+					// carrying that field itself. A later repair is the destination's
+					// configured next hop, which the forward rail writes over the
+					// filter's raw base (applyFactsNextHop): the filter leaves the
+					// obsolete VPN-shaped field tc.earlier, and next-hop explicit
+					// 2001:db8:1::9 supersedes it before admission.
+					field := tc.replacement
+					if tc.earlier != nil {
+						field = tc.earlier
+						f.destination.settings.NextHopMode = NextHopExplicit
+						f.destination.settings.NextHopAddress = netip.AddrFrom16([16]byte(global))
+					}
+					override := bodyFor(field)
+					f.r.api = &pluginserver.Server{}
+					f.r.policyFilterSeam = func(_, _, direction, _ string, _ uint32, _ string) PolicyResponse {
+						if direction != directionExport {
+							t.Errorf("export filter asked a %s verdict", direction)
+							return PolicyResponse{Action: PolicyReject}
+						}
+						return PolicyResponse{Action: PolicyModify, Raw: override}
+					}
+					f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: exportAnswerFilter}}, routepolicy.FinalAccept)
+					// Publish the policy without replacing this fixture's explicit
+					// connected-prefix scope with host interfaces.
+					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+					f.r.orderedEgressSteps = buildOrderedEgressSteps()
+					dispatch := rail
+					if rail == "rs" {
+						// The fast path runs the destination's export chain itself
+						// and hands back a verdict withdrawn one field at a time.
+						dispatch = "rs-export"
+					}
+					updates := rfc2545ReceiveForward(t, f, dispatch, bodyFor(global))
 					nativeCount, legacyCount := 0, 0
 					for _, update := range updates {
 						if len(update.NLRI) != 0 {

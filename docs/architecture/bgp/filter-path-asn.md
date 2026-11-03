@@ -250,8 +250,9 @@ attaching a second filter type.
 so the registration declares the filter TYPE through `FilterTypes`, and
 `policy.BuildRegistry` (`internal/component/policy/registry.go`)
 discovers each instance from the `ze:filter` marker on the YANG list. This is
-the route `filter_aspath` takes, and it is not the `filterapi.Register` route,
-which is for a filter whose name is known at compile time.
+the route `filter_aspath` takes. A filter whose name is known at compile time
+is declared in `Registration.Filters` instead; both reach the plugin through
+`filter-update`.
 
 **A declared RFC 9234 role needs no `reject-asn` list.** The RFC 7454
 Section 9 check a role implies is `bgp-role:upstream-asn`, which `bgp-role`

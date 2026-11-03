@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestRFC7311SourceLinkCostReachesRecipient proves source-cost provenance through
@@ -261,10 +262,13 @@ func TestAIGPCostRecoveryDoesNotReviveWithdrawnRoutes(t *testing.T) {
 			f := newAIGPReplayFixture(t, nil)
 			f.advertiseFirst(t, f.body(t, 100))
 			if boundary == "export-withdrawal" {
-				f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-					mods.SetWithdraw()
-					return true
-				})
+				// The destination's export chain answers withdraw. The filter
+				// declares a read (prefix): a filter that reads nothing runs on
+				// the text route, which refuses a withdraw.
+				f.r.filterTransportSeam = &externalTransport{reads: []string{"prefix"}, reply: rpc.FilterUpdateOutput{Action: rpc.FilterWithdraw}}
+				f.r.orderedEgressSteps = buildOrderedEgressSteps()
+				f.destination.settings.ExportPolicy = probeExportChain(t)
+				f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 			}
 			f.forward(t, f.receive(t, f.body(t, 100)))
 			forwardSocketBarrier(t, f.r)
@@ -288,6 +292,12 @@ func TestAIGPCostRecoveryDoesNotReviveWithdrawnRoutes(t *testing.T) {
 			}
 			before := f.conn.written()
 			f.r.orderedEgressSteps = nil
+			if boundary == "export-withdrawal" {
+				// Remove the export filter itself, so a recovery that revived
+				// the refused route would reach the socket.
+				f.destination.settings.ExportPolicy = filterapi.Policy{}
+				f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+			}
 			f.metric(11)
 			f.r.readvertiseAIGP()
 			forwardSocketBarrier(t, f.r)

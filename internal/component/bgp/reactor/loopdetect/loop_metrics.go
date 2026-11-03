@@ -20,7 +20,7 @@ var loopMetricsPtr atomic.Pointer[loopMetrics]
 
 // SetMetricsRegistry creates the loop-filter metrics from the given registry.
 // The reactor calls it from its metrics-enable block, beside
-// filterapi.SetMetricsRegistry, because loop detection is engine code and
+// filterapi.SetAttrModMetricsRegistry, because loop detection is engine code and
 // not a run plugin. A nil registry is a no-op, so the increment in LoopIngress stays
 // disabled.
 func SetMetricsRegistry(reg metrics.Registry) {

@@ -63,7 +63,7 @@ func TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path(t *testing.T) {
 		reply: rpc.FilterUpdateOutput{Action: rpc.FilterModify,
 			Sets: []rpc.FilterSet{intentSet("as-path", rpc.FilterSetActionRemove, `"private"`)}}}
 	env.reactor.filterTransportSeam = transport
-	env.reactor.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+	env.reactor.orderedEgressSteps = buildOrderedEgressSteps()
 	var dest *Peer
 	for _, peer := range env.reactor.peers {
 		if peer.Settings().Address.String() == destAddr {

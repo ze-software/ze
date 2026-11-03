@@ -24,7 +24,7 @@ type announceMetrics struct {
 // neither drop site can reach one. logAnnounceTooLarge and logRIBRouteTooLarge
 // are free functions, and the queued rail's whole builder, buildRIBRouteUpdate,
 // takes no receiver either. This is the same shape, and the same reason, as
-// filterapi.SetMetricsRegistry.
+// filterapi.SetAttrModMetricsRegistry.
 var announceMetricsPtr atomic.Pointer[announceMetrics]
 
 // setAnnounceMetricsRegistry creates the announce counters from the given

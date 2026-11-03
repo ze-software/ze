@@ -59,18 +59,18 @@ with its page, and check the ExaBGP bridge in the same change.
 ## Boundaries
 
 - **The engine reaches plugin features only through what they register:**
-  - `filterapi.Register` for compiled-in ingress and egress filters
   - the `InProcess*` fields of `registry.Registration` for in-process codecs.
     An external plugin answers the same question over RPC (`registry.go`,
     `InProcessNLRIDecoder` comment).
   - the `filter-update` RPC for policy filters
 
   Never name a plugin package from the reactor.
-- **A `filterapi` filter is in-process only.** It is a Go function pointer,
-  so it exists only in a binary that links the plugin. A third-party filter is
-  a policy-chain filter and is reached through `filter-update`
+- **Every plugin filter is a policy-chain member, reached through
+  `filter-update` on both transports.** No compiled-in filter registry
+  exists: the reactor's own steps are loop detection and the per-peer chain
   (`docs/architecture/core-design.md`, "All ingress filtering runs in one
-  stage-ordered pass").
+  stage-ordered pass"), and a procedure a plugin's config implies is a
+  declared filter insertion.
 - **Received bytes are borrowed.** A received UPDATE points into a reusable
   read buffer, so `RawMessage.IsAsyncSafe()` is false and anything that hands
   it to another goroutine copies first (`plan/learned/DESIGN-HISTORY.md`,

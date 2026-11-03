@@ -8,7 +8,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -244,29 +243,22 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 		if tc.policyChanged {
 			policyHop = field(replacement)
 		}
-		if tc.rawPolicy {
-			if tc.rawNextHop != nil {
-				policyHop = tc.rawNextHop
-			}
-			override := bodyFor(policyHop)
-			f.r.api = &pluginserver.Server{}
-			f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-				policyCalls++
-				return PolicyResponse{Action: PolicyModify, Raw: override}
-			}
-			f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "srv6:effective-next-hop"}}, routepolicy.FinalAccept)
-			f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
-			if rail == "rs" {
-				dispatch = "rs-export"
-			}
-		} else {
-			rewrite := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-				policyCalls++
-				mods.Op(uint8(code), filterapi.AttrModSet, policyHop)
-				return true
-			}
-			f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(rewrite)
-			f.r.egressFilters = []filterapi.EgressFilterFunc{rewrite}
+		if tc.rawPolicy && tc.rawNextHop != nil {
+			policyHop = tc.rawNextHop
+		}
+		// The destination's export filter answers a raw body carrying the
+		// next-hop field itself: a plugin filter expresses a next-hop
+		// rewrite only that way.
+		override := bodyFor(policyHop)
+		f.r.api = &pluginserver.Server{}
+		f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+			policyCalls++
+			return PolicyResponse{Action: PolicyModify, Raw: override}
+		}
+		f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "srv6:effective-next-hop"}}, routepolicy.FinalAccept)
+		f.r.orderedEgressSteps = buildOrderedEgressSteps()
+		if rail == "rs" {
+			dispatch = "rs-export"
 		}
 	}
 	f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
@@ -352,9 +344,12 @@ func rfc9252MixedNextHopCase(t *testing.T, rail, change string, rawPolicy bool, 
 	}
 	calls := 0
 	dispatch := rail
-	if rawPolicy {
+	{
+		// The destination's export filter answers a raw body carrying both
+		// next-hop fields itself: a plugin filter expresses a next-hop
+		// rewrite only that way.
 		policyHop := mpHop
-		if rawNextHop != nil {
+		if rawPolicy && rawNextHop != nil {
 			// The raw policy leaves an existing MP carrier with no usable
 			// intermediate address. Configured rewriting repairs it before
 			// admission; the repaired MP entity must still govern its services.
@@ -369,19 +364,10 @@ func rfc9252MixedNextHopCase(t *testing.T, rail, change string, rawPolicy bool, 
 			return PolicyResponse{Action: PolicyModify, Raw: override}
 		}
 		f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "srv6:mixed-next-hop"}}, routepolicy.FinalAccept)
-		f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+		f.r.orderedEgressSteps = buildOrderedEgressSteps()
 		if rail == "rs" {
 			dispatch = "rs-export"
 		}
-	} else {
-		rewrite := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-			calls++
-			mods.Op(uint8(attribute.AttrNextHop), filterapi.AttrModSet, legacyHop)
-			mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, mpHop)
-			return true
-		}
-		f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(rewrite)
-		f.r.egressFilters = []filterapi.EgressFilterFunc{rewrite}
 	}
 	f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 	// RFC 9252 Section 2 and RFC 8669 Section 3: one policy decision,

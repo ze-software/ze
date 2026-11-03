@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -89,9 +88,7 @@ func teSessionFilterRoundTrip(t *testing.T, filtered int) {
 		recentUpdates:       cache,
 		attrModHandlers:     attrModHandlersWithDefaults(),
 		filterTransportSeam: teSessionFilterTransport{},
-		orderedEgressSteps: []orderedEgressStep{{
-			name: policyChainStepName, stage: filterapi.FilterStagePeerChain, policyChain: true,
-		}},
+		orderedEgressSteps:  buildOrderedEgressSteps(),
 	}
 	r.fwdPool = newFwdPool(fwdBatchHandler, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(r.fwdPool.Stop)

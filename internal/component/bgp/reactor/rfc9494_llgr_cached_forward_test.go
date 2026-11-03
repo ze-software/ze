@@ -7,6 +7,7 @@
 package reactor
 
 import (
+	"encoding/json"
 	"net/netip"
 	"sync"
 	"testing"
@@ -16,8 +17,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -31,22 +32,43 @@ import (
 // llgrForwardPrefix is the NLRI the received UPDATE announces: 192.0.2.0/24.
 var llgrForwardPrefix = []byte{24, 192, 0, 2}
 
-// llgrStaleEgressStep stands in for the GR plugin's LLGREgressFilter, which the
-// reactor may not import, toward a destination that never sent the LLGR
-// Capability: it records the stale level the forward rail handed it, and at level
-// 2 and above it asks for the route's withdrawal the way that filter does, by
-// accepting it with SetWithdraw rather than refusing it.
-func llgrStaleEgressStep(mu *sync.Mutex, seen *[]any) filterapi.EgressFilterFunc {
-	return func(_, _ filterapi.PeerFilterInfo, _ []byte, meta map[string]any, mods *filterapi.ModAccumulator) bool {
+// llgrFieldStale is the route metadata field the ingress step writes and the
+// export filter reads: the GR plugin's own "stale" field, which gr/register.go
+// registers in this test binary (llgr_down_writer_test.go links the plugin).
+const llgrFieldStale = "stale"
+
+// llgrStaleExportFilter stands in for the GR plugin's LLGR export filter,
+// which the reactor may not import, toward a destination that never sent the
+// LLGR Capability. It is the destination's export-chain member probe:f,
+// reading the stale field: it records the stale level the forward rail sent
+// it (nil when the route carries none), and at level 2 and above it answers
+// withdraw, the way that filter does.
+func llgrStaleExportFilter(t *testing.T, mu *sync.Mutex, seen *[]any) *externalTransport {
+	t.Helper()
+	return &externalTransport{reads: []string{llgrFieldStale}, answer: func(in rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 		mu.Lock()
 		defer mu.Unlock()
-		stale := meta["stale"]
-		*seen = append(*seen, stale)
-		if level, isLevel := stale.(uint8); isLevel && level >= 2 {
-			mods.SetWithdraw()
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(in.Fields, &fields); err != nil {
+			t.Errorf("the filter's fields do not decode: %v (%s)", err, in.Fields)
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
 		}
-		return true
-	}
+		raw, carried := fields[llgrFieldStale]
+		if !carried {
+			*seen = append(*seen, nil)
+			return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+		}
+		var level uint8
+		if err := json.Unmarshal(raw, &level); err != nil {
+			t.Errorf("the stale field %s is not a level: %v", raw, err)
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
+		}
+		*seen = append(*seen, level)
+		if level >= 2 {
+			return rpc.FilterUpdateOutput{Action: rpc.FilterWithdraw}
+		}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+	}}
 }
 
 // llgrForwardRun is what one received-then-forwarded UPDATE produced: the stale
@@ -135,7 +157,14 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 	t.Cleanup(pool.Stop)
 	pool.registerOutgoingPool(fwdKey{peerAddr: dest.Settings().PeerKey()}, 4096)
 
-	step := llgrStaleEgressStep(&mu, &run.stepSaw)
+	// The filter is the destination's export chain, compiled at bgp export
+	// as bgp/config compiles it, which both rails run.
+	chain, err := policychain.Compile("bgp export", nil, []policychain.Member{{Name: "f", Plugin: "probe"}},
+		routepolicy.FinalAccept, policychain.Bases{LocalPreference: 100})
+	require.NoError(t, err)
+	dest.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "probe:f"}}, routepolicy.FinalAccept).WithLibrary(chain)
+	dest.refreshForwardFacts()
+	transport := llgrStaleExportFilter(t, &mu, &run.stepSaw)
 	var dispatched []bgptypes.RawMessage
 	r := &Reactor{
 		clock:  source.clock,
@@ -151,8 +180,8 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 		}},
 		orderedIngressSteps: []orderedIngressStep{{name: "llgr-ingress", inproc: llgrMetaStep(new([]bool))}},
 		fwdPool:             pool,
-		egressFilters:       []filterapi.EgressFilterFunc{step},
-		orderedEgressSteps:  orderedEgressStepsFromFuncs(step),
+		orderedEgressSteps:  buildOrderedEgressSteps(),
+		filterTransportSeam: transport,
 		rsForwardingEnabled: rs,
 	}
 
@@ -219,8 +248,9 @@ func requireAnnounced(t *testing.T, written []mixedMsg) {
 // command reaches the general rail.
 //
 // Method: receive an LLGR_STALE UPDATE through notifyMessageReceiver, forward
-// it with ForwardUpdate, and read what the egress step was handed and what the
-// destination was asked to write. The egress step asks for the withdrawal of a
+// it with ForwardUpdate, and read the stale field the destination's export
+// filter (probe:f, reading stale) was sent and what the destination was asked
+// to write. The export filter answers withdraw for a
 // level-2 route, as LLGREgressFilter does toward a neighbor that never sent the
 // LLGR Capability.
 //
@@ -229,9 +259,9 @@ func requireAnnounced(t *testing.T, written []mixedMsg) {
 // PREVENTS: a received LLGR_STALE route forwarded from the cache with no stale
 // level, so the egress filter sees a fresh route and advertises it.
 //
-// RFC requirement: RFC9494-4.3-3 positive -- an LLGR_STALE UPDATE received on a session whose own OPEN carried the LLGR Capability, forwarded from the cache by ForwardUpdate, hands the egress step stale level uint8(2), and the destination that step withdraws it from is written only the withdrawal of the route.
+// RFC requirement: RFC9494-4.3-3 positive -- an LLGR_STALE UPDATE received on a session whose own OPEN carried the LLGR Capability, forwarded from the cache by ForwardUpdate, sends the destination's export filter stale level 2, and the destination that filter withdraws it from is written only the withdrawal of the route.
 //
-// RFC requirement: RFC9494-4.3-3 negative -- the same UPDATE on a session whose own OPEN carried no LLGR Capability hands the egress step no stale level, and the destination is written the announcement.
+// RFC requirement: RFC9494-4.3-3 negative -- the same UPDATE on a session whose own OPEN carried no LLGR Capability sends the export filter no stale level, and the destination is written the announcement.
 //
 // MUTATION: drop `Meta: routeMeta` from the cached ReceivedUpdate in
 // notifyMessageReceiver, and the advertised case goes red.

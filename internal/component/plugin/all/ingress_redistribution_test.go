@@ -3,8 +3,9 @@
 //
 // The method installs the destination-scoped evaluator the config loader
 // builds in a child process, so plugin startup cannot change other tests'
-// globals. It runs every remaining filterapi.IngressOrdered callback and the
-// four migrated callbacks through their registered engines and filter-update.
+// globals. It runs the four migrated callbacks through their registered
+// engines and filter-update; no other plugin ingress path exists, every
+// plugin filter being a peer-list member.
 // Each receives the original peer facts, UPDATE and fresh metadata, and must
 // accept. The migrated population is a historical regression fixture, not a
 // catalog of every configurable filter instance.
@@ -91,16 +92,8 @@ func TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig(t *testing.T) {
 	}}))
 	defer configredist.SetGlobal(nil)
 
-	filters := filterapi.IngressOrdered()
-
 	src := filterapi.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
 	executed := 0
-	for _, f := range filters {
-		accept, _ := f.Ingress(src, receivedUpdateBody, make(map[string]any))
-		require.Truef(t, accept,
-			"ingress filter %q dropped a peer's route while a redistribute rule was configured", f.Name)
-		executed++
-	}
 
 	// These are the four original ingress callbacks, after their migration
 	// to peer-list members. Keep every row even when no default peer list
@@ -165,7 +158,7 @@ func TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig(t *testing.T) {
 			executed++
 		})
 	}
-	require.Equal(t, len(filters)+len(migrated), executed, "every ingress regression case must execute")
+	require.Equal(t, len(migrated), executed, "every ingress regression case must execute")
 	require.NotZero(t, executed, "the composition root must execute real ingress filters")
 }
 

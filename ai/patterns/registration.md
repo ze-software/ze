@@ -277,25 +277,22 @@ Plugins that modify attributes during egress (forward path).
 **Query:** `filterapi.AttrModHandlerFor(code)`, `filterapi.AttrModHandlers()`
 **Registered:** role (OTC code 35), filter-community (codes 8, 16, 32)
 
-### Filter Chain (via filterapi)
+### Filter Chain
 
-Route filters ordered by stage + priority. Registered with
-`filterapi.Register(filterapi.Filter{...})` in the plugin's init(),
-separate from the generic `registry.Registration` (the generic registry
-carries no protocol filter knowledge).
+A plugin filter is a member of the peer's filter list, never a compiled-in
+registration: the plugin declares it at Stage 1 (`sdk.OnFilter`,
+`Registration.Filters`), and a procedure its config implies is a declared
+insertion (`Registration.FilterInsertions`). The reactor orders its own steps
+by `filterapi` stage, then priority, then name (`filterapi.LessOrder`):
 
 | Stage | Value | Purpose | Example |
 |-------|-------|---------|---------|
-| Protocol | 0 | RFC-mandated checks | Loop detection (RFC 4271/4456) |
-| Policy | 100 | Operator-configured | Community filtering |
-| Annotation | 200 | Protocol stamps | OTC stamping (RFC 9234) |
+| Protocol | 0 | RFC-mandated checks | Loop detection (RFC 4271/4456), engine code |
+| Peer chain | 300 | The per-peer filter list | Every plugin filter, community and OTC included |
 
-**Metrics:** `Filter.ConfigureMetrics func(metrics.Registry)` receives the
-daemon registry from `filterapi.SetMetricsRegistry`, called once by the reactor
-when metrics are enabled, so a counting filter (loop detection) builds its own
-metrics; `Register` refuses a filter that declares only this field.
-
-**Query:** `filterapi.IngressFilters()`, `filterapi.EgressFilters()` return ordered slices
+A filter's metrics arrive through `Registration.ConfigureMetrics`. The
+attribute-modification counters are engine code, wired by
+`filterapi.SetAttrModMetricsRegistry` from the reactor's metrics-enable block.
 
 ### Reactor Capability Flag (via filterapi)
 
@@ -402,9 +399,9 @@ Touch: attribute name registry, optionally attr mod handler registry.
 In plugin `register.go`: `attribute.RegisterName(code, "NAME")`.
 
 ### New filter
-Register with `filterapi.Register(filterapi.Filter{Name, Stage, Priority, Ingress, Egress})`
-(`internal/component/bgp/filterapi`) in the plugin's init(), alongside `registry.Register()`.
-See `ai/patterns/plugin.md`.
+Declare it with `sdk.OnFilter` and `Registration.Filters`; a procedure the
+plugin's config implies adds a `Registration.FilterInsertions` entry. See
+`ai/patterns/plugin.md`.
 
 ### New reactor capability flag (plugin-owned)
 When a reactor code path should exist only while a plugin does, add a bool +

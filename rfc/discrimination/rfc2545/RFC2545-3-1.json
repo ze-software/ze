@@ -58,23 +58,23 @@
     "rid": "RFC2545-3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopForwardAdmission",
-    "unit-sha": "4ab37bf170f1791d",
+    "unit-sha": "b2ca39b24423befe",
     "claim-sha": "2880aae9dc9a6e5a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
     "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopForwardAdmission",
-    "unit-sha": "4ab37bf170f1791d",
+    "unit-sha": "b2ca39b24423befe",
     "claim-sha": "c8593ec74657cf13",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
     "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-1",
@@ -267,7 +267,7 @@
     "rid": "RFC2545-3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
-    "unit-sha": "d0a4da86e35168d0",
+    "unit-sha": "8bf5be9e7c2f8865",
     "claim-sha": "f7d3e92a5c6c1a55",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
@@ -278,7 +278,7 @@
     "rid": "RFC2545-3-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
-    "unit-sha": "d0a4da86e35168d0",
+    "unit-sha": "8bf5be9e7c2f8865",
     "claim-sha": "d9eee1413aca677a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",

@@ -507,10 +507,9 @@ own-GA scrub removes (RFC 7454 Section 11), labelled `width` (`standard` or
 routes its RFC 7999 Section 3.2 guard adds a propagation community to, labelled
 `community` with the YANG keyword (`no-export` or `no-advertise`). Each is
 counted after the rebuild that applies it succeeded, never where the change is
-only computed. Its filters run in the daemon whatever process the plugin's
-engine runs in, so the registry arrives through `Filter.ConfigureMetrics`, which
-`filterapi.SetMetricsRegistry` calls from the reactor's metrics-enable block,
-and not through the plugin `ConfigureMetrics` hook.
+only computed. The registry arrives through the plugin's
+`Registration.ConfigureMetrics` hook (`filter_community/register.go`), before
+the plugin's engine runs.
 
 The route server counts the control-community edits it makes for its clients.
 `ze_bgp_rs_prepend_applied_total` counts the UPDATEs written to a client that
@@ -524,7 +523,7 @@ split into several sections counts once per section, because each section
 carries the edit.
 
 <!-- source: internal/component/bgp/plugins/filter_community/metrics.go -- recordScrub, recordRelationTag, recordBlackholeGuard -->
-<!-- source: internal/component/bgp/filterapi/metrics.go -- SetMetricsRegistry -->
+<!-- source: internal/component/bgp/plugins/filter_community/register.go -- ConfigureMetrics -->
 <!-- source: internal/component/bgp/reactor/forward_rs_community.go -- recordRSCommunityEdits -->
 
 ## Reference Implementation

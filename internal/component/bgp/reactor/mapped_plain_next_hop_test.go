@@ -6,7 +6,6 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
@@ -256,20 +255,24 @@ func TestMappedPlainNextHopForwarding(t *testing.T) {
 						input := tc.wire
 						if rewrite {
 							input = mappedPlainGlobal
-							replace := func(_, _ filterapi.PeerFilterInfo, payload []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-								if payloadNextHop(payload).mpFamily == fam {
-									mods.Op(14, filterapi.AttrModSet, mustHex(t, tc.wire))
-								}
-								return true
-							}
-							f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(replace)
-							f.r.egressFilters = []filterapi.EgressFilterFunc{replace}
 						}
 						reach := mappedPlainReach(t, fam, input, mappedPlainNLRI)
 						attrs := mixedAttrs(append([]byte{0x80, 14, byte(len(reach))}, reach...))
 						attrs = append(attrs, 0x40, 3, 4)
 						attrs = append(attrs, f.source.Settings().Address.AsSlice()...)
 						legacy := mustHex(t, "180a0900")
+						if rewrite {
+							// The destination's export filter replaces the MP_REACH_NLRI
+							// next hop of the received route with tc.wire: a plugin
+							// filter expresses an MP next-hop rewrite only as a raw
+							// body, so it answers the body carrying that field itself.
+							rewritten := mappedPlainReach(t, fam, tc.wire, mappedPlainNLRI)
+							editAttrs := mixedAttrs(append([]byte{0x80, 14, byte(len(rewritten))}, rewritten...))
+							editAttrs = append(editAttrs, 0x40, 3, 4)
+							editAttrs = append(editAttrs, f.source.Settings().Address.AsSlice()...)
+							edit := PolicyResponse{Action: PolicyModify, Raw: buildUpdatePayload(editAttrs, legacy)}
+							exportAnswer(t, f.r, func(string) PolicyResponse { return edit }, f.destination)
+						}
 						if !rewrite && tc.name == "native-four-octets" {
 							// The shared forwarding helper requires an intact announcement,
 							// but RFC 7606 Section 7.11 forbids publishing this UPDATE.
@@ -309,7 +312,13 @@ func TestMappedPlainNextHopForwarding(t *testing.T) {
 							}
 							return
 						}
-						updates := rfc2545ReceiveForward(t, f, rail, buildUpdatePayload(attrs, legacy))
+						dispatchRail := rail
+						if rewrite && rail == "rs" {
+							// The fast path runs the destination's export chain itself
+							// and hands back a verdict withdrawn one field at a time.
+							dispatchRail = "rs-export"
+						}
+						updates := rfc2545ReceiveForward(t, f, dispatchRail, buildUpdatePayload(attrs, legacy))
 						nativeCount, legacyCount := 0, 0
 						for _, update := range updates {
 							if len(update.NLRI) != 0 {

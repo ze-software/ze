@@ -128,16 +128,13 @@ transports; the body builder and caches consume only the resulting treatment.
 Removing that plugin, or naming its step `inactive:`, leaves ordinary
 treatment.
 
-A `filterapi.Filter` can also declare `ConfigureMetrics func(metrics.Registry)`.
-`filterapi.SetMetricsRegistry`, called once from the reactor's metrics-enable
-block with a non-nil registry, hands each declaring filter the daemon's
-registry, so a filter that counts what it does (loop detection) builds its own
-metrics without the reactor naming its package. A build with metrics disabled
-never calls it. It is no pipeline contribution: `filterapi.Register` refuses a
-filter that declares only this. The hooks run after the filter registry lock
-is released, so a hook may call back into `filterapi`.
-<!-- source: internal/component/bgp/filterapi/filterapi.go -- Filter.ConfigureMetrics -->
-<!-- source: internal/component/bgp/filterapi/metrics.go -- SetMetricsRegistry, metricsHooks -->
+A plugin filter's metrics arrive through `Registration.ConfigureMetrics`, like
+any plugin's. The engine's own counters (loop detection, the
+attribute-modification contract) are wired by the reactor's metrics-enable
+block: `filterapi.SetAttrModMetricsRegistry` builds the attribute-modification
+counters, because their handlers run whether or not the plugin that supplied
+them is running.
+<!-- source: internal/component/bgp/filterapi/metrics.go -- SetAttrModMetricsRegistry -->
 
 ## The setup record: a plugin's second declaration
 

@@ -282,7 +282,7 @@ func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
 			t.Run(mode+"/"+metric.name+"/forwarded-export", func(t *testing.T) {
 				f := newAIGPReplayFixture(t, nil)
 				f.r.api = r.api
-				f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+				f.r.orderedEgressSteps = buildOrderedEgressSteps()
 				f.destination.settings.ExportPolicy = policy
 				f.destination.settings.PeerAS = f.destination.settings.LocalAS
 				f.destination.settings.NextHopMode = NextHopUnchanged

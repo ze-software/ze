@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -151,7 +150,7 @@ func TestLinkLocalOnlyNextHopSelfWithdrawnWithoutTheCapability(t *testing.T) {
 	}
 }
 
-// TestEgressFilterRejectWithdrawsOnBothRails installs an egress filter that
+// TestEgressFilterRejectWithdrawsOnBothRails binds an export filter that
 // refuses one destination and passes another, and forwards one UPDATE that
 // withdraws 198.51.100.0/24 and announces 10.0.0.0/24 on each rail.
 //
@@ -171,14 +170,17 @@ func TestEgressFilterRejectWithdrawsOnBothRails(t *testing.T) {
 		refused := wkPeer(t, refusedAddr.String(), 65003, ctx, ctxID)
 		passed := wkPeer(t, passedAddr.String(), 65004, ctx, ctxID)
 
-		refuse := func(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-			return dest.Address != refusedAddr
-		}
-		// The general rail runs the stage-ordered pipeline, the route-server
-		// rail the in-process filters directly; each is given the same filter.
+		// Each destination's export chain holds one plugin filter that rejects
+		// the refused destination and accepts the passed one: both rails run
+		// that chain, the general one through forwardUpdateCore's chain step,
+		// the route-server one through runsExportChain.
 		got := a2ForwardWith(t, rs, func(r *Reactor, _ *forwardSourceInfo) {
-			r.orderedEgressSteps = orderedEgressStepsFromFuncs(refuse)
-			r.egressFilters = []filterapi.EgressFilterFunc{refuse}
+			exportAnswer(t, r, func(peer string) PolicyResponse {
+				if peer == refusedAddr.String() {
+					return PolicyResponse{Action: PolicyReject}
+				}
+				return PolicyResponse{Action: PolicyAccept}
+			}, refused, passed)
 		}, payload, refused, passed)
 
 		withheld, written := got[refusedAddr]

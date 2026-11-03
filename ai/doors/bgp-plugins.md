@@ -62,7 +62,6 @@ talks to the engine is in `ai/digests/plugin-transport.md`.
 |------|------------------|--------|
 | `PeerUpBarrier` | Yes. `registry.RequiresPeerUpBarrier` reads the compiled registry, and Stage 1 has no field for it | `internal/component/plugin/registry/registry.go`, `pkg/plugin/rpc/types.go` |
 | `SignalsSessionReady` | No. An external process declares it at Stage 1, answered through `registry.SetRuntimeSessionReady` | `registry.go` `SignalsSessionReady` |
-| `filterapi.Register` filters | Yes, Go function pointers. An external filter uses `filter-update` | `internal/component/bgp/filterapi/filterapi.go` `Register` |
 | `InProcessNLRIDecoder`, `InProcessNLRIEncoder` and the other `InProcess*` fields | Fast path. An external plugin answers through `OnDecodeNLRI`/`OnEncodeNLRI` | `registry.Registration` comments |
 
 - **A procedure a feature's config implies is a filter-list member its plugin

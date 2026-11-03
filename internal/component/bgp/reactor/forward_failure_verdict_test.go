@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
@@ -121,19 +122,21 @@ func TestForwardZeroDispatchFailureIsADropNotASuppression(t *testing.T) {
 	t.Run("the withdrawal conversion fails", func(t *testing.T) {
 		dst := makeNextHopSelfIBGPPeer(t, "10.0.0.3", srcCtx, srcCtxID)
 		f := newVerdictFixture(t, dst, truncatedAttrPayload(), srcCtxID)
-		// RFC 9494: the LLGR egress filter converts an announce to a withdrawal
-		// for a destination that cannot hold the stale route.
-		f.reactor.orderedEgressSteps = orderedEgressStepsFromFuncs(
-			func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-				mods.SetWithdraw()
-				return true
-			})
+		// The destination's export policy decides a withdrawal: configured,
+		// holding no filter, and rejecting at its end, so the export step
+		// answers without reading the UPDATE (runEgressPolicyChainASN4, no
+		// active filter). A filter member would have to parse this body first,
+		// fail, and drop the route before any withdrawal is built, which would
+		// leave the conversion below unreached.
+		f.dst.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
+		f.dst.refreshForwardFacts()
+		f.reactor.orderedEgressSteps = buildOrderedEgressSteps()
 
 		got := f.forward()
 		require.ErrorIs(t, got, errNoEstablishedPeersToForwardTo,
 			"a withdrawal that could not be built is a drop")
 		assert.NotErrorIs(t, got, errAllDestinationsSuppressed,
-			"the filter ACCEPTED this destination; only the conversion failed")
+			"the policy decided a withdrawal, not a suppression; only the conversion failed")
 	})
 
 	t.Run("the AS_PATH cannot be resolved", func(t *testing.T) {
@@ -167,10 +170,7 @@ func TestForwardZeroDispatchFailureIsADropNotASuppression(t *testing.T) {
 	t.Run("an egress filter reject is a withdrawal", func(t *testing.T) {
 		dst := makeNextHopSelfIBGPPeer(t, "10.0.0.6", srcCtx, srcCtxID)
 		f := newVerdictFixture(t, dst, modBufTestPayload(), srcCtxID)
-		f.reactor.orderedEgressSteps = orderedEgressStepsFromFuncs(
-			func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-				return false
-			})
+		exportAnswer(t, f.reactor, func(string) PolicyResponse { return PolicyResponse{Action: PolicyReject} }, f.dst)
 
 		assert.NoError(t, f.forward(), "the withdrawal was dispatched")
 	})

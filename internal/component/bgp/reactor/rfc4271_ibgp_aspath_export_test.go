@@ -253,7 +253,7 @@ func forwardWithExportEdit(t *testing.T, delta string) map[netip.Addr][]byte {
 		r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 			return PolicyResponse{Action: PolicyModify, Delta: delta}
 		}
-		r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+		r.orderedEgressSteps = buildOrderedEgressSteps()
 	}
 	got := a2ForwardWith(t, false, configure, buildUpdatePayload(attrs, a2InlinePrefix), internal, migration, external)
 

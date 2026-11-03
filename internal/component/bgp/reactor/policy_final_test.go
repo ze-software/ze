@@ -339,7 +339,7 @@ func TestPolicyFinalRecoveryWithdrawsAfterDeniedSurvivor(t *testing.T) {
 		recoveryOwnerStart(t, r, destination)
 		destination.settings.ExportPolicy = mustPolicy(t, refs, routepolicy.FinalReject)
 		destination.refreshForwardFacts()
-		r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+		r.orderedEgressSteps = buildOrderedEgressSteps()
 		stored := storedIPv4Route(source.Settings().Address.String())
 		stored.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 		original := mustHex(t, stored.AttrHex)

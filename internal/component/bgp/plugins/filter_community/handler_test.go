@@ -637,8 +637,8 @@ func (r *countingRegistry) HistogramVec(_, _ string, _ []float64, _ []string) me
 // from. Asserting the label too pins the counter to the right attribute.
 func TestGenericCommunityHandlerCountsRefusals(t *testing.T) {
 	reg := &countingRegistry{}
-	filterapi.SetMetricsRegistry(reg)
-	t.Cleanup(func() { filterapi.SetMetricsRegistry(nil) })
+	filterapi.SetAttrModMetricsRegistry(reg)
+	t.Cleanup(func() { filterapi.SetAttrModMetricsRegistry(nil) })
 
 	silenced := logger
 	logger = func() *slog.Logger {
@@ -748,8 +748,8 @@ func TestGenericCommunityHandlerRefusesMalformedSourceValue(t *testing.T) {
 // not there.
 func TestGenericCommunityHandlerEmptyRemoveIsSilentNoOp(t *testing.T) {
 	reg := &countingRegistry{}
-	filterapi.SetMetricsRegistry(reg)
-	t.Cleanup(func() { filterapi.SetMetricsRegistry(nil) })
+	filterapi.SetAttrModMetricsRegistry(reg)
+	t.Cleanup(func() { filterapi.SetAttrModMetricsRegistry(nil) })
 
 	var logged bytes.Buffer
 	saved := logger

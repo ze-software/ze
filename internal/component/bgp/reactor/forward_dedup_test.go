@@ -338,9 +338,8 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 	}
 
 	if opts.withdraw {
-		r.orderedEgressSteps = orderedEgressStepsFromFuncs(func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-			return false
-		})
+		// Every destination's export filter refuses the route.
+		exportAnswer(t, r, func(string) PolicyResponse { return PolicyResponse{Action: PolicyReject} }, dests...)
 	}
 
 	h.adapter = &reactorAPIAdapter{r: r}
@@ -635,7 +634,7 @@ func TestDifferentBaseSameEditSetNeverShares(t *testing.T) {
 	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 		return PolicyResponse{Action: PolicyModify, Raw: override}
 	}
-	r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+	r.orderedEgressSteps = buildOrderedEgressSteps()
 
 	// Only the FIRST destination has an export policy, so only it gets a wire
 	// override. The second runs the same chain step, finds no filters, and keeps

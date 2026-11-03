@@ -419,7 +419,7 @@ func TestRFC8212GeneralForwardOwnedRejection(t *testing.T) {
 	for _, owner := range []string{"same", "other", "none"} {
 		t.Run(owner, func(t *testing.T) {
 			f := ownershipRailNew(t, nil)
-			f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+			f.r.orderedEgressSteps = buildOrderedEgressSteps()
 			f.destination.mu.Lock()
 			f.destination.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 			f.destination.settings.PeerAS = 65002

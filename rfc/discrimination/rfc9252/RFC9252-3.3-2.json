@@ -19,7 +19,7 @@
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop",
     "producer-sha": "16586491bb65a11b",
-    "break": "body of applyEgressPrefixSIDNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of applyEgressPrefixSIDNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9252-3.3-2",
@@ -30,7 +30,7 @@
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop",
     "producer-sha": "16586491bb65a11b",
-    "break": "body of applyEgressPrefixSIDNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of applyEgressPrefixSIDNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9252-3.3-2",

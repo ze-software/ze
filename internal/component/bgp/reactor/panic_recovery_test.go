@@ -2,7 +2,6 @@ package reactor
 
 import (
 	"context"
-	"encoding/binary"
 	"net"
 	"net/netip"
 	"os"
@@ -207,26 +206,6 @@ func TestSafeIngressFilterPanicRejects(t *testing.T) {
 	assert.Nil(t, modified, "panicking ingress filter must not return modified payload")
 }
 
-// TestSafeEgressFilterPanicSuppresses verifies that a panicking egress filter
-// suppresses the route (fail-closed) and does not crash the caller.
-//
-// VALIDATES: fail-closed behavior -- panicking filter suppresses instead of accepting.
-// PREVENTS: Regression to fail-open where a buggy filter would forward unfiltered routes.
-func TestSafeEgressFilterPanicSuppresses(t *testing.T) {
-	panicFilter := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-		panic("simulated egress filter panic")
-	}
-	src := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
-	dest := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65002}
-	var mods filterapi.ModAccumulator
-
-	accept, panicked := safeEgressFilter(panicFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
-	assert.False(t, accept, "panicking egress filter must suppress (fail-closed)")
-	assert.True(t, panicked, "a panic must be reported as a failure, not as a policy decision: "+
-		"forwardUpdateCore counts policy suppressions and the relay's completeness check reads that count")
-	assert.Equal(t, 0, mods.Len(), "panicking egress filter must not leave mods")
-}
-
 // TestSafeIngressFilterNormalPassthrough verifies the happy path: a well-behaved
 // ingress filter's result passes through unchanged.
 func TestSafeIngressFilterNormalPassthrough(t *testing.T) {
@@ -241,31 +220,6 @@ func TestSafeIngressFilterNormalPassthrough(t *testing.T) {
 	assert.True(t, accept)
 	assert.Nil(t, modified)
 	assert.Equal(t, 42, meta["test"], "meta should carry filter's value")
-}
-
-// TestSafeEgressFilterNormalPassthrough verifies the happy path: a well-behaved
-// egress filter's result passes through and mods are accumulated.
-func TestSafeEgressFilterNormalPassthrough(t *testing.T) {
-	normalFilter := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-		lpBuf := make([]byte, 4)
-		binary.BigEndian.PutUint32(lpBuf, 100)
-		mods.Op(5, filterapi.AttrModSet, lpBuf)
-		return true
-	}
-	src := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
-	dest := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65002}
-	var mods filterapi.ModAccumulator
-
-	accept, panicked := safeEgressFilter(normalFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
-	assert.True(t, accept)
-	assert.False(t, panicked, "a filter that returns normally must not be reported as failed")
-	assert.Equal(t, 1, mods.Len(), "mods should carry filter's value")
-	ops := mods.Ops()
-	require.Len(t, ops, 1)
-	assert.Equal(t, uint8(5), ops[0].Code)
-	assert.Equal(t, filterapi.AttrModSet, ops[0].Action)
-	lp := binary.BigEndian.Uint32(ops[0].Buf)
-	assert.Equal(t, uint32(100), lp)
 }
 
 // TestSafeRunGapScanRecoversPanic verifies safeRunGapScan catches panics.

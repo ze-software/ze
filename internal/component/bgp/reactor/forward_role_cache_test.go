@@ -35,6 +35,56 @@ func init() {
 			return policychain.DecisionPass, nil
 		}, nil
 	})
+	lp := routepolicy.FieldLocalPreference
+	routepolicy.MustRegisterAttachment("bgp", libraryTestExportTreatmentsLP, []routepolicy.Field{lp},
+		[]routepolicy.Field{lp, policyview.FieldPreserveOpaqueAttributes})
+	routepolicy.MustRegisterFilterType(libraryTypeLP101, nil, []routepolicy.Field{lp})
+	policychain.MustRegisterEvaluator(libraryTypeLP101, rpc.OnErrorReject, func(string, map[string]any, routepolicy.InstanceResolver) (policychain.Evaluator, error) {
+		return func(_ *policyview.View, sets *policychain.Sets) (policychain.Decision, error) {
+			return policychain.DecisionPass, sets.LocalPreference(policychain.NumericActionSet, 101)
+		}, nil
+	})
+}
+
+// libraryTypeLP101 sets local-preference 101; libraryTestExportTreatmentsLP is
+// an export attachment whose filters may set it and the opaque treatment.
+const (
+	libraryTypeLP101              = "reactor-library-test-lp101"
+	libraryTestExportTreatmentsLP = "reactor-library-test export-treatments-lp"
+)
+
+// opaqueExportPolicy answers a destination's export chain for
+// testForwardOpaqueTreatment: a member setting local-preference 101 when
+// modify, then a member setting the preserve-opaque treatment when preserve,
+// compiled as bgp/config compiles a peer's chain. Neither: no chain.
+func opaqueExportPolicy(t *testing.T, preserve, modify bool) filterapi.Policy {
+	t.Helper()
+	var instances []routepolicy.Instance
+	if modify {
+		instances = append(instances, routepolicy.Instance{Name: "lp101", Type: libraryTypeLP101})
+	}
+	if preserve {
+		instances = append(instances, routepolicy.Instance{Name: "preserve", Type: libraryTypePreserveOpaque})
+	}
+	if len(instances) == 0 {
+		return filterapi.Policy{}
+	}
+	reg, err := routepolicy.NewRegistry(instances...)
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
+	members := make([]policychain.Member, len(instances))
+	refs := make([]routepolicy.Ref, len(instances))
+	for i, instance := range instances {
+		members[i] = policychain.Member{Name: instance.Name}
+		refs[i] = routepolicy.Ref{Name: instance.Name}
+	}
+	chain, err := policychain.Compile(libraryTestExportTreatmentsLP, reg, members, routepolicy.FinalAccept,
+		policychain.Bases{LocalPreference: 100})
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	return mustPolicy(t, refs, routepolicy.FinalAccept).WithLibrary(chain)
 }
 
 // Both destinations have the same encoding and no pre-body attribute edits.
@@ -98,9 +148,9 @@ func testForwardOpaqueTreatment(t *testing.T, preserve [2]bool, modify bool) {
 					peer.settings.PeerAS = 65000
 					peer.settings.RSClient = i == 0
 					peer.settings.NextHopMode = NextHopUnchanged
-					if preserve[i] {
-						peer.settings.ExportPolicy = libraryPolicy(t, libraryTestExportTreatments, libraryTypePreserveOpaque, routepolicy.FinalAccept)
-					}
+					// The LOCAL_PREF 101 edit, when modify, is the destination's
+					// own export chain's, as every egress edit is in production.
+					peer.settings.ExportPolicy = opaqueExportPolicy(t, preserve[i], modify)
 					peer.settings.ProcessBindings = f.source.settings.ProcessBindings
 					peer.sendCtx.Store(f.source.sendCtx.Load())
 					peer.sendCtxID, peer.recvCtxID = f.ctxID, f.ctxID
@@ -109,17 +159,9 @@ func testForwardOpaqueTreatment(t *testing.T, preserve [2]bool, modify bool) {
 					peer.session.negotiated = f.source.session.negotiated
 					peer.refreshForwardFacts()
 				}
-				if modify {
-					edit := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-						mods.Op(5, filterapi.AttrModSet, []byte{0, 0, 0, 101})
-						return true
-					}
-					f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(edit)
-					f.r.egressFilters = []filterapi.EgressFilterFunc{edit}
-				}
-				// The export chain runs as the general rail's last step, as
-				// buildOrderedEgressSteps places it.
-				f.r.orderedEgressSteps = append(f.r.orderedEgressSteps, orderedEgressStep{name: policyChainStepName, policyChain: true})
+				// The export chain is the general rail's one step, as
+				// startAPIServer builds it.
+				f.r.orderedEgressSteps = buildOrderedEgressSteps()
 				attrs := []byte{
 					0x40, 1, 1, 2,
 					0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xe9,

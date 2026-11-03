@@ -4,155 +4,29 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/route"
-	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
-	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// This file pins ONE property on the two egress rails that used to discard the
-// failure channel safeEgressFilter already produces: a recovered filter panic is
-// not a policy decision, and each rail's caller must be able to tell the two
-// apart. Every test here is a PAIR -- a panicking filter beside a filter that
-// cleanly returns false, or on the stale readvertise rail a chain member that
-// cannot answer beside one that rejects -- because a test that only drives the
+// This file pins ONE property on the stale readvertise rail: a chain member
+// that cannot answer is not a policy decision, and the rail's caller must be
+// able to tell the two apart. Every test here is a PAIR -- a member that cannot
+// answer beside one that rejects -- because a test that only drives the
 // failure passes against code that treats both the same way.
 //
-// The third rail, forwardUpdateCore (reactor_api_forward.go), already read both
-// returns and is covered by rfc7947_reactor_api_relay_test.go.
-
-// panicEgressFilter panics for one destination address and accepts every other.
-func panicEgressFilter(victim netip.Addr) filterapi.EgressFilterFunc {
-	return func(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-		if dest.Address == victim {
-			panic("egress filter under test")
-		}
-		return true
-	}
-}
-
-// rejectEgressFilter cleanly rejects one destination address and accepts every
-// other. This is the POLICY twin of the two failure filters: same withheld
-// route, but a decision rather than a failure.
-func rejectEgressFilter(victim netip.Addr) filterapi.EgressFilterFunc {
-	return func(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-		return dest.Address != victim
-	}
-}
-
-// TestReactorForwardRSFilterPanicIsNotPolicy drives the RS fast path twice over
-// one topology: once with an egress filter that PANICS for a destination, once
-// with a filter that cleanly REJECTS the same destination.
-//
-// VALIDATES: AC-7 -- a recovered panic leaves the destination undecided, so the
-// rail hands it to the plugin rail through FastPathSkipped, where
-// forwardUpdateCore classifies the outcome. A clean reject is a decision and
-// stays consumed here.
-// PREVENTS: the discard this test was written for. While the rail bound
-// `accept, _ :=`, a panicking filter and a rejecting filter produced the same
-// `continue`. With any other destination dispatched, reactor_notify.go then set
-// ReactorForwarded, bgp-rs took its `default: releaseCache` arm, and the
-// destination whose filter CRASHED lost the route with no second rail and no
-// accounting -- a failure reported as policy by construction.
-func TestReactorForwardRSFilterPanicIsNotPolicy(t *testing.T) {
-	victim := netip.MustParseAddr("10.0.0.3")
-
-	for _, tc := range []struct {
-		name        string
-		filter      filterapi.EgressFilterFunc
-		wantSkipped bool // the destination is handed to the plugin rail
-	}{
-		{
-			name:        "panicking filter defers the destination to the plugin rail",
-			filter:      panicEgressFilter(victim),
-			wantSkipped: true,
-		},
-		{
-			name:        "rejecting filter suppresses the destination here",
-			filter:      rejectEgressFilter(victim),
-			wantSkipped: false,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := bgpctx.EncodingContextForASN4(true)
-			ctxID, err := bgpctx.Registry.Register(ctx)
-			require.NoError(t, err)
-
-			payload := []byte{0, 0, 0, 0}
-			wu := wireu.NewWireUpdate(payload, ctxID)
-			wu.SetMessageID(120)
-
-			update := &ReceivedUpdate{
-				WireUpdate:   wu,
-				SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-				ReceivedAt:   time.Now(),
-			}
-
-			cache := newRecentUpdateCache(100)
-			cache.Add(update)
-			cache.Activate(120, 1)
-
-			src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
-			dst1 := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
-			dst2 := makeRSPeer(t, victim.String(), 65003, ctx, ctxID)
-
-			var dispatched []fwdItem
-			var mu sync.Mutex
-			done := make(chan struct{})
-			testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
-				mu.Lock()
-				dispatched = append(dispatched, items...)
-				mu.Unlock()
-				close(done)
-			}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
-			defer testPool.Stop()
-
-			r := &Reactor{
-				attrModHandlers: attrModHandlersWithDefaults(),
-				recentUpdates:   cache,
-				egressFilters:   []filterapi.EgressFilterFunc{tc.filter},
-				peers: map[netip.AddrPort]*Peer{
-					src.Settings().PeerKey():  src,
-					dst1.Settings().PeerKey(): dst1,
-					dst2.Settings().PeerKey(): dst2,
-				},
-				fwdPool: testPool,
-			}
-
-			skipped, nDispatched := reactorForwardRS(r, update, 120, netip.MustParseAddr("10.0.0.1"), src)
-
-			select {
-			case <-done:
-			case <-time.After(time.Second):
-				t.Fatal("timeout waiting for dispatch")
-			}
-
-			assert.Equal(t, 1, nDispatched, "this rail dispatches only the destination no filter touched")
-			if tc.wantSkipped {
-				require.Len(t, skipped, 1, "a filter that could not decide must not consume the destination")
-				assert.Equal(t, dst2.Settings().PeerKey(), skipped[0])
-			} else {
-				assert.Empty(t, skipped, "a policy reject is a decision: nothing is handed on")
-			}
-
-			mu.Lock()
-			require.Len(t, dispatched, 1)
-			assert.Equal(t, dst1, dispatched[0].peer)
-			mu.Unlock()
-		})
-	}
-}
+// forwardUpdateCore (reactor_api_forward.go) reads the same distinction from
+// the export chain step (egressStepResult.failed) and is covered by
+// rfc7947_reactor_api_relay_test.go. The RS fast path runs no engine egress
+// step: a plugin filter there is an export chain member, and a chain that
+// cannot run hands the destination back.
 
 // staleRailCase is one member answer on the stale readvertise rail: the
 // opted member probe:f either cannot be asked (err), or answers reply; noHandlers

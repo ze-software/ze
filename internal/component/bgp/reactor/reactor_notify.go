@@ -25,9 +25,9 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// safeIngressFilter calls an ingress filter with panic recovery.
-// Fail-closed: a panicking filter rejects the route (drops the UPDATE).
-func safeIngressFilter(filter filterapi.IngressFilterFunc, src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modified []byte) {
+// safeIngressFilter calls an engine ingress step with panic recovery.
+// Fail-closed: a panicking step rejects the route (drops the UPDATE).
+func safeIngressFilter(filter engineIngressFunc, src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modified []byte) {
 	defer func() {
 		if r := recover(); r != nil {
 			sessionLogger().Error("ingress filter panic, rejecting route", "peer", src.Address, "panic", r)
@@ -36,43 +36,6 @@ func safeIngressFilter(filter filterapi.IngressFilterFunc, src filterapi.PeerFil
 		}
 	}()
 	return filter(src, payload, meta)
-}
-
-// safeEgressFilter calls an egress filter with panic recovery.
-// Fail-closed: a panicking filter suppresses the route for this peer.
-//
-// panicked reports that the suppression came from the recover, not from the
-// filter returning false. Both drop the route; only the second is a policy
-// decision, and a caller that counts outcomes must tell them apart (see
-// egressStepResult.failed).
-//
-// The recover is the ONLY non-decision this function can report, and that is a
-// bound on the seam rather than on this code: filterapi.EgressFilterFunc returns
-// a bare bool, so a filter that could not decide has no way to say so and its
-// suppression arrives here indistinguishable from policy. See that type's KNOWN
-// GAP note; no registered filter is in that state today.
-//
-// Read BOTH returns. All three call sites do, and each does something DIFFERENT
-// with panicked, because the rails owe their callers different things:
-//
-//   - forwardUpdateCore (reactor_api_forward.go) keeps the suppression out of
-//     suppressedCount, so the relay's completeness check reads a drop.
-//   - reactorForwardRS (forward_rs.go) puts the destination on the skipped list,
-//     so the plugin rail decides what this rail could not.
-//   - decideStaleReadvertise (reactor_api_batch.go) returns staleFilterFailed,
-//     so the LLGR batch reports a crashed filter under its own cause instead of
-//     a family mismatch.
-//
-// All three still withhold the route. Only the report differs.
-func safeEgressFilter(filter filterapi.EgressFilterFunc, src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) (accept, panicked bool) {
-	defer func() {
-		if r := recover(); r != nil {
-			fwdLogger().Error("egress filter panic, suppressing route", "src", src.Address, "dest", dest.Address, "panic", r)
-			accept = false // fail-closed: suppress route on filter panic
-			panicked = true
-		}
-	}()
-	return filter(src, dest, payload, meta, mods), false
 }
 
 // addPeerObserver registers an observer for peer lifecycle events.
@@ -549,11 +512,10 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 		}
 	}
 
-	// Unified ingress filter pass: ONE stage-ordered pipeline over the in-process
-	// filters (loop, community, redistribute, OTC) and the reactor-bound per-peer
-	// policy chain (FilterStagePeerChain, which sorts LAST -- after OTC). This
-	// replaces the former two back-to-back blocks; the cross-system order is now a
-	// declared Stage, not code position. Only for received UPDATEs, and never
+	// Unified ingress filter pass: ONE stage-ordered pipeline over the engine's
+	// loop-detection step and the reactor-bound per-peer policy chain
+	// (FilterStagePeerChain, which sorts LAST and runs every plugin filter as a
+	// member). The cross-system order is a declared Stage, not code position. Only for received UPDATEs, and never
 	// for an End-of-RIB marker.
 	//
 	// RFC 4724 Section 2: "An UPDATE message with no reachable Network Layer
@@ -621,8 +583,8 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 			step := &r.orderedIngressSteps[i]
 			var res ingressStepResult
 			if step.policyChain {
-				// The external per-peer chain runs last, on the (possibly
-				// in-process-modified) payload. No-op accept when the peer has no
+				// The per-peer chain runs last, on the (possibly
+				// engine-step-modified) payload. No-op accept when the peer has no
 				// import filters or no API server (hot-path gate inside).
 				// It shares the pass's metadata map, so a member's metadata
 				// set reaches the received event (policyview.SetMetadata).

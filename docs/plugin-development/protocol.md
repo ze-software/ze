@@ -780,8 +780,8 @@ the value in the field's shape:
   left, not the received one.
 - An increment or decrement starts from the route's value, or from
   `bgp defaults attribute` when the route carries none, and stays within 0 and
-  4294967295. The changes fold in chain order with the in-process filters'
-  changes and produce the same UPDATE bytes.
+  4294967295. The changes fold in chain order and produce the same UPDATE
+  bytes.
 - The route fails under the filter's `on-error`, logged and counted, with none
   of its sets applied, when an entry names a field the filter did not declare,
   a field the chain's attachment does not let a filter set, or a field no BGP

@@ -463,8 +463,8 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				resolved:       true,
 				peer:           peer,
 			}
-			// Filled for every forwarded UPDATE, once per source: the in-process
-			// egress filters and the export chain's source-peer fields read it.
+			// Filled for every forwarded UPDATE, once per source: the egress
+			// engine steps and the export chain's source-peer fields read it.
 			srcInfo.filterInfo = filterapi.PeerFilterInfo{
 				Address: s.Address,
 				PeerAS:  peer.PeerAS(),
@@ -789,32 +789,23 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			mods.Op(32, filterapi.AttrModRemove, largeCommunityStripBytes)
 			rsEdits.largeStrippedValues = len(largeCommunityStripBytes) / largeCommunityOctets
 		}
-		// Unified egress filter pass: ONE stage-ordered pipeline over the in-process
-		// egress filters (community, gr, role) and the export policy chain
-		// (FilterStagePeerChain, which sorts LAST). In-process steps defer their
-		// mutations into the shared `mods`; the policy chain step reads the ORIGINAL
-		// payload and produces a full wire override. Replaces the former two
-		// back-to-back blocks; the cross-system order is now a declared Stage.
+		// Egress filter pass: the destination's export policy chain
+		// (FilterStagePeerChain), which runs every plugin filter, community,
+		// gr and role included, as a member. The engine owns no egress step
+		// (buildOrderedEgressSteps). The chain reads the ORIGINAL payload and
+		// may produce a full wire override.
 		var exportWireOverride *wireu.WireUpdate
 		// treatments collects the forwarding treatments the destination's
 		// export chain set (egressStepResult.treatments).
 		var treatments uint8
 		if len(a.r.orderedEgressSteps) > 0 && !mods.IsWithdraw() {
 			destFilter := facts.filterInfo
-			payload := sourceWire.Payload()
 			suppressed := false
 			stepFailed := false
 			withdrawn := false
-			for i := range a.r.orderedEgressSteps {
-				step := &a.r.orderedEgressSteps[i]
-				var res egressStepResult
-				if step.policyChain {
-					res = a.r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
-						policyview.ExportSession(destFilter, srcFilter, srcInfo.resolved).WithExportMetadata(update.Meta), sourceWire)
-				} else {
-					accept, panicked := safeEgressFilter(step.inproc, srcFilter, destFilter, payload, update.Meta, &mods)
-					res = egressStepResult{accept: accept, failed: panicked}
-				}
+			for range a.r.orderedEgressSteps {
+				res := a.r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
+					policyview.ExportSession(destFilter, srcFilter, srcInfo.resolved).WithExportMetadata(update.Meta), sourceWire)
 				if !res.accept {
 					suppressed = true
 					stepFailed = res.failed

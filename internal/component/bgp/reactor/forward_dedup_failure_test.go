@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
@@ -14,7 +13,8 @@ import (
 // encoding-context lookup fail, then reuses its free outgoing-pool slots before
 // forwarding to the next destination with identical edits. That destination
 // must receive its own UPDATE, never the unrelated bytes now occupying a slot
-// returned by the failed body. The egress hook schedules reuse deterministically;
+// returned by the failed body. The target's export filter answer (exportAnswer)
+// schedules reuse deterministically;
 // no goroutine or sleep is needed. The dedup-disabled control sends the same wire.
 func TestFailedBodyDoesNotPublishReleasedMaterialization(t *testing.T) {
 	for _, fast := range []bool{false, true} {
@@ -52,9 +52,13 @@ func TestFailedBodyDoesNotPublishReleasedMaterialization(t *testing.T) {
 						}
 					}
 				})
-				reuse := func(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-					if dest.Address != target.Settings().Address {
-						return true
+				// The destinations' export filter accepts; asked about the
+				// target, it first borrows every free slot of the failed peer's
+				// pool.
+				accept := PolicyResponse{Action: PolicyAccept}
+				reuse := func(dest string) PolicyResponse {
+					if dest != target.Settings().Address.String() {
+						return accept
 					}
 					// A concurrent forward to the failed peer can legally fill any
 					// free slot. Borrow all available slots without assuming their order.
@@ -66,10 +70,9 @@ func TestFailedBodyDoesNotPublishReleasedMaterialization(t *testing.T) {
 						borrowed[i] = idx
 						copy(buf, unrelated)
 					}
-					return true
+					return accept
 				}
-				r.orderedEgressSteps = orderedEgressStepsFromFuncs(reuse)
-				r.egressFilters = []filterapi.EgressFilterFunc{reuse}
+				exportAnswer(t, r, reuse, h.dests...)
 				if fast {
 					// The existing section entry point accepts an ordered destination
 					// subset; this exercises its real failure and dispatch paths.

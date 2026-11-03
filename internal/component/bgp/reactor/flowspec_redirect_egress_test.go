@@ -119,11 +119,14 @@ func TestFlowSpecRedirectEgressStripVoidsNextHop(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			remove := mustHex(t, tc.remove)
-			bodies := flowRedirectForward(t, flowRedirectIPv4, raw, flowRedirectPayloadWith(t, flowRedirectIPv4, raw, hop, tc.communities), func(f *aigpReplayFixture) {
-				f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
+			payload := flowRedirectPayloadWith(t, flowRedirectIPv4, raw, hop, tc.communities)
+			bodies := flowRedirectForward(t, flowRedirectIPv4, raw, payload, func(f *aigpReplayFixture) {
+				// The destination's export filter removes the extended
+				// community, answering the raw body that edit builds.
+				edit := rawEdit(t, f.r, payload, func(mods *filterapi.ModAccumulator) {
 					mods.Op(uint8(attribute.AttrExtCommunity), filterapi.AttrModRemove, remove)
-					return true
 				})
+				exportAnswer(t, f.r, func(string) PolicyResponse { return edit }, f.destination)
 			})
 			if got := flowRedirectNextHop(t, bodies); !bytes.Equal(got, tc.want) {
 				t.Fatalf("recipient next hop=%x, want %x", got, tc.want)

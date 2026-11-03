@@ -118,7 +118,7 @@ neither rail relays that source.
 <!-- test: internal/component/bgp/reactor/forward_rs_permission_test.go TestReactorForwardRSHonorsRelaySendPermission, TestReactorForwardRSRetryRechecksRelaySend, TestRSFastPathGateHonorsSourceRelayReceive -->
 
 A destination whose export chain is active stays on the fast path, which runs
-the chain itself, after the in-process egress filters, through
+the chain itself, through
 `runEgressPolicyChain`, the implementation the general rail runs. Who placed a
 member does not matter: an operator-named member and one a plugin's declared
 insertion placed (`rpc.FilterInsertion`, such as the RFC 9234 OTC stamp

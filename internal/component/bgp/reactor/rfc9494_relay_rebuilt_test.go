@@ -5,8 +5,8 @@
 package reactor
 
 import (
+	"encoding/json"
 	"net/netip"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,16 +17,13 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// relaySeen is what one egress step observed for one relayed route.
-type relaySeen struct {
-	src  filterapi.PeerFilterInfo
-	meta map[string]any
-}
-
 // relayObserveEgress relays one stored route from 10.0.0.1 to 10.0.0.2, whose
 // source session's own OPEN carried the LLGR Capability when advertised is
-// true, and returns what an in-process egress step saw.
-func relayObserveEgress(t *testing.T, advertised bool) relaySeen {
+// true, and returns the route fields the destination's export filter was
+// sent: an external member of a library chain (probeExportChain) that
+// declares it reads rebuilt, source-llgr-advertised and source-peer-address,
+// the inputs LLGREgressFilter recovers the LLGR_STALE fact from.
+func relayObserveEgress(t *testing.T, advertised bool) map[string]any {
 	t.Helper()
 	api, _, _, _, _ := relayFixture(t)
 	source, found := api.r.findPeerByAddr(netip.MustParseAddr("10.0.0.1"))
@@ -37,35 +34,35 @@ func relayObserveEgress(t *testing.T, advertised bool) relaySeen {
 	source.session = session
 	source.mu.Unlock()
 
-	var mu sync.Mutex
-	var seen []relaySeen
-	observe := func(src, _ filterapi.PeerFilterInfo, _ []byte, meta map[string]any, _ *filterapi.ModAccumulator) bool {
-		mu.Lock()
-		seen = append(seen, relaySeen{src: src, meta: meta})
-		mu.Unlock()
-		return true
+	destination, found := api.r.findPeerByAddr(netip.MustParseAddr("10.0.0.2"))
+	require.True(t, found)
+	transport := &externalTransport{
+		reads: []string{filterapi.MetaKeyRebuilt, "source-llgr-advertised", "source-peer-address"},
+		reply: rpc.FilterUpdateOutput{Action: rpc.FilterAccept},
 	}
-	// egressFilters is what makes resolveRelaySource fill the source's filter
-	// facts, as it is in a daemon with any in-process egress filter loaded.
-	api.r.egressFilters = []filterapi.EgressFilterFunc{observe}
-	api.r.orderedEgressSteps = []orderedEgressStep{{name: "observe", inproc: observe}}
+	api.r.filterTransportSeam = transport
+	api.r.orderedEgressSteps = buildOrderedEgressSteps()
+	destination.settings.ExportPolicy = probeExportChain(t)
+	destination.fwdFacts.Store(destination.buildForwardFacts())
 
 	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
 		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender()))
-	mu.Lock()
-	defer mu.Unlock()
-	require.Len(t, seen, 1, "the egress step ran once, for the one destination")
-	return seen[0]
+	require.Len(t, transport.sent, 1, "the export filter was asked once, for the one destination")
+	var fields map[string]any
+	require.NoError(t, json.Unmarshal(transport.sent[0].Fields, &fields), "fields=%s", transport.sent[0].Fields)
+	return fields
 }
 
-// TestBuildRelayUpdateMarksRebuilt verifies the relay rail hands the egress
+// TestBuildRelayUpdateMarksRebuilt verifies the relay rail hands the export
 // filters the two facts LLGREgressFilter needs to recover a received
 // LLGR_STALE route rebuilt from storage (AC-16 rail 3). Method: relay a stored
-// route through RelayStoredRoute and read what an egress step receives, for a
-// source session whose OPEN carried LLGR and one whose OPEN did not.
+// route through RelayStoredRoute and read the route fields the destination's
+// export filter, an external library-chain member, is sent, for a source
+// session whose OPEN carried LLGR and one whose OPEN did not.
 //
-// VALIDATES: every rebuilt route carries filterapi.MetaKeyRebuilt, and the
-// source's LLGRAdvertised follows that source session's own OPEN.
+// VALIDATES: every rebuilt route carries rebuilt (filterapi.MetaKeyRebuilt),
+// and the source's source-llgr-advertised follows that source session's own
+// OPEN.
 // PREVENTS: a bgp-adj-rib-in replay reaching the GR egress filter as a fresh
 // live route, which it then sends to a neighbor without LLGR.
 //
@@ -78,13 +75,11 @@ func relayObserveEgress(t *testing.T, advertised bool) relaySeen {
 // leaves the route fresh.
 func TestBuildRelayUpdateMarksRebuilt(t *testing.T) {
 	llgr := relayObserveEgress(t, true)
-	rebuilt, _ := llgr.meta[filterapi.MetaKeyRebuilt].(bool)
-	assert.True(t, rebuilt, "a relayed route says it was rebuilt from storage")
-	assert.True(t, llgr.src.LLGRAdvertised, "the source session's OPEN carried LLGR")
-	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), llgr.src.Address)
+	assert.Equal(t, true, llgr[filterapi.MetaKeyRebuilt], "a relayed route says it was rebuilt from storage")
+	assert.Equal(t, true, llgr["source-llgr-advertised"], "the source session's OPEN carried LLGR")
+	assert.Equal(t, "10.0.0.1", llgr["source-peer-address"])
 
 	plain := relayObserveEgress(t, false)
-	rebuilt, _ = plain.meta[filterapi.MetaKeyRebuilt].(bool)
-	assert.True(t, rebuilt, "the key does not depend on the source's capabilities")
-	assert.False(t, plain.src.LLGRAdvertised, "the source session's OPEN carried no LLGR")
+	assert.Equal(t, true, plain[filterapi.MetaKeyRebuilt], "the key does not depend on the source's capabilities")
+	assert.Equal(t, false, plain["source-llgr-advertised"], "the source session's OPEN carried no LLGR")
 }

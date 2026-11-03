@@ -26,25 +26,34 @@ import (
 )
 
 // policyChainStepName is the ordering name of the reactor-bound per-peer policy
-// chain step. It sits at filterapi.FilterStagePeerChain so it sorts after every
-// in-process filter; the name only matters for a same-stage tie, which cannot
-// occur because no in-process filter registers at that stage.
+// chain step. It sits at filterapi.FilterStagePeerChain so it sorts after the
+// engine's protocol step; the name only matters for a same-stage tie, which
+// cannot occur because no engine step sits at that stage.
 const policyChainStepName = "peer-policy-chain"
 
+// engineIngressFunc is an ingress step the engine itself owns: loop detection
+// (loopdetect.LoopIngress) is the one the reactor builds. payload is the
+// UPDATE body (without BGP header). meta is the pass's metadata map; the
+// caller MUST pass a non-nil map, since a step may write to it. Returns
+// accept=false to drop the route; a non-nil modifiedPayload replaces the
+// payload for caching and event dispatch. A plugin filter is never an engine
+// step: it is a member of the peer's policy chain (runIngressPolicyChainMeta).
+type engineIngressFunc func(source filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)
+
 // orderedIngressStep is one entry in the unified, stage-ordered ingress pipeline.
-// Exactly one executor is active: an in-process filterapi ingress func (inproc
-// != nil), or the reactor-bound per-peer policy chain (policyChain == true).
+// Exactly one executor is active: an engine ingress step (inproc != nil), or
+// the reactor-bound per-peer policy chain (policyChain == true).
 // Steps are built once at startAPIServer; the per-UPDATE pass only reads them.
 type orderedIngressStep struct {
 	name        string
 	stage       int
 	priority    int
-	inproc      filterapi.IngressFilterFunc
+	inproc      engineIngressFunc
 	policyChain bool
 }
 
 // ingressStepResult is the common outcome of one ordered ingress step -- a
-// superset of the in-process filter outcome (accept + optional modifiedPayload)
+// superset of the engine step outcome (accept + optional modifiedPayload)
 // and the external policy chain outcome (reject / modified payload / teardown).
 // The caller applies modifiedPayload (rebuild WireUpdate) or drops the route.
 type ingressStepResult struct {
@@ -61,22 +70,18 @@ type ingressStepResult struct {
 	followWithdrawal []byte
 }
 
-// orderedEgressStep is the egress twin of orderedIngressStep, used by
-// forwardUpdateCore only. In-process egress steps write into the shared
-// ModAccumulator; the policy chain step produces a full wire override.
+// orderedEgressStep is one entry of the egress pass forwardUpdateCore runs per
+// destination. Every entry is the destination's export policy chain: the
+// engine owns no egress step, and every egress procedure is an export-chain
+// member, so the step carries only its ordering name and stage.
 type orderedEgressStep struct {
-	name        string
-	stage       int
-	priority    int
-	inproc      filterapi.EgressFilterFunc
-	policyChain bool
+	name  string
+	stage int
 }
 
-// egressStepResult is the common outcome of one ordered egress step. Unlike
-// ingress, egress steps do not compose sequentially on the payload: in-process
-// steps defer their mutations into the shared ModAccumulator and set only
-// accept; the policy chain step reads the original payload and may set
-// wireOverride (a full UPDATE-body replacement). accept == false suppresses the
+// egressStepResult is the outcome of the export policy chain step for one
+// destination. The chain reads the original payload and may set wireOverride
+// (a full UPDATE-body replacement). accept == false suppresses the
 // route for this destination peer. Teardown does not apply on egress.
 type egressStepResult struct {
 	accept       bool
@@ -99,33 +104,17 @@ type egressStepResult struct {
 	treatments uint8
 }
 
-// buildOrderedIngressSteps merges the registered in-process ingress filters with
-// the engine's own steps into one stage-ordered pass: loop detection at
-// FilterStageProtocol (loopdetect.LoopIngress, an RFC 4271 Section 9.1.2 and
-// RFC 4456 Section 8 protocol check the engine owns) and the reactor-bound
-// per-peer policy chain at FilterStagePeerChain. Called once from
-// startAPIServer.
+// buildOrderedIngressSteps builds the stage-ordered ingress pass from the
+// engine's own steps: loop detection at FilterStageProtocol
+// (loopdetect.LoopIngress, an RFC 4271 Section 9.1.2 and RFC 4456 Section 8
+// protocol check the engine owns) and the reactor-bound per-peer policy chain
+// at FilterStagePeerChain, which runs every plugin filter as a member. Called
+// once from startAPIServer.
 func buildOrderedIngressSteps() []orderedIngressStep {
-	ordered := filterapi.IngressOrdered()
-	steps := make([]orderedIngressStep, 0, len(ordered)+2)
-	steps = append(steps, orderedIngressStep{
-		name:   loopdetect.LoopName,
-		stage:  filterapi.FilterStageProtocol,
-		inproc: loopdetect.LoopIngress,
-	})
-	for _, f := range ordered {
-		steps = append(steps, orderedIngressStep{
-			name:     f.Name,
-			stage:    f.Stage,
-			priority: f.Priority,
-			inproc:   f.Ingress,
-		})
+	steps := []orderedIngressStep{
+		{name: loopdetect.LoopName, stage: filterapi.FilterStageProtocol, inproc: loopdetect.LoopIngress},
+		{name: policyChainStepName, stage: filterapi.FilterStagePeerChain, policyChain: true},
 	}
-	steps = append(steps, orderedIngressStep{
-		name:        policyChainStepName,
-		stage:       filterapi.FilterStagePeerChain,
-		policyChain: true,
-	})
 	sort.SliceStable(steps, func(i, j int) bool {
 		return filterapi.LessOrder(
 			steps[i].name, steps[i].stage, steps[i].priority,
@@ -136,31 +125,11 @@ func buildOrderedIngressSteps() []orderedIngressStep {
 }
 
 // buildOrderedEgressSteps is the egress twin of buildOrderedIngressSteps, used
-// by forwardUpdateCore. The RS fast path and injected-route path keep consuming
-// r.egressFilters directly and are not built here.
+// by forwardUpdateCore: the export policy chain alone, since the engine owns
+// no egress step and every plugin filter is a member of that chain. The RS
+// fast path runs the same chain through runsExportChain (forward_rs.go).
 func buildOrderedEgressSteps() []orderedEgressStep {
-	ordered := filterapi.EgressOrdered()
-	steps := make([]orderedEgressStep, 0, len(ordered)+1)
-	for _, f := range ordered {
-		steps = append(steps, orderedEgressStep{
-			name:     f.Name,
-			stage:    f.Stage,
-			priority: f.Priority,
-			inproc:   f.Egress,
-		})
-	}
-	steps = append(steps, orderedEgressStep{
-		name:        policyChainStepName,
-		stage:       filterapi.FilterStagePeerChain,
-		policyChain: true,
-	})
-	sort.SliceStable(steps, func(i, j int) bool {
-		return filterapi.LessOrder(
-			steps[i].name, steps[i].stage, steps[i].priority,
-			steps[j].name, steps[j].stage, steps[j].priority,
-		)
-	})
-	return steps
+	return []orderedEgressStep{{name: policyChainStepName, stage: filterapi.FilterStagePeerChain}}
 }
 
 // runIngressPolicyChainMeta runs the external policy step before eligible publication.
@@ -334,7 +303,7 @@ func importSession(src *filterapi.PeerFilterInfo, external bool, peerAS uint32) 
 // filter and the API server is present, runs PolicyFilterChain, and maps the result to a full
 // wire override (raw or text-delta). Reject -> accept == false (suppress this peer).
 // Teardown is import-only and never fires on export. Unlike ingress, this reads the
-// original payload: egress in-process filters defer their edits into the shared
+// original payload: the forward rail's own edits go into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
 func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, session policyview.Session, wireUpdate *wireu.WireUpdate) egressStepResult {
 	if !hasActiveFilter(exportPolicy, directionExport) {

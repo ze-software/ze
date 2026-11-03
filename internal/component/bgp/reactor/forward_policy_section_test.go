@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -77,12 +76,12 @@ func testRawExportMixedSectionsPreservePolicy(t *testing.T, aigp bool) {
 		}
 		return PolicyResponse{Action: PolicyModify, Raw: override}
 	}
-	wantLocalPref := []byte{0, 0, 0, 177}
-	r.orderedEgressSteps = orderedEgressStepsFromFuncs(func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-		mods.Op(5, filterapi.AttrModSet, wantLocalPref)
-		return true
-	})
-	r.orderedEgressSteps = append(r.orderedEgressSteps, orderedEgressStep{name: policyChainStepName, policyChain: true})
+	// The edit the forward rail composes over the raw answer is its own: the
+	// destination is internal and the raw body carries no LOCAL_PREF, so the
+	// rail records LOCAL_PREF 100 (RFC 4271 Section 5.1.5, applyFactsLocalPref)
+	// and every section partitioned from the raw output must keep it.
+	wantLocalPref := localPrefDefault[:]
+	r.orderedEgressSteps = buildOrderedEgressSteps()
 	if err := h.forward(); err != nil {
 		t.Errorf("forward: %v", err)
 	}
@@ -114,7 +113,7 @@ func testRawExportMixedSectionsPreservePolicy(t *testing.T, aigp bool) {
 			}
 			_, _, localPref, found := attribute.AttrFind(u.PathAttributes, attribute.AttrLocalPref)
 			if !found || !bytes.Equal(localPref, wantLocalPref) {
-				t.Errorf("LOCAL_PREF = %x, want preceding in-process edit %x", localPref, wantLocalPref)
+				t.Errorf("LOCAL_PREF = %x, want the forward rail's own edit %x", localPref, wantLocalPref)
 			}
 			if aigp {
 				_, _, value, found := attribute.AttrFind(u.PathAttributes, attribute.AttrAIGP)
@@ -176,7 +175,7 @@ func TestRawExportMixedBadASPathStillWithdraws(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyModify, Raw: override}
 	}
-	r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+	r.orderedEgressSteps = buildOrderedEgressSteps()
 	if err := h.forward(); err != nil {
 		t.Errorf("forward: %v", err)
 	}

@@ -14,14 +14,6 @@ import (
 	"testing"
 )
 
-// noopIngress is a stub ingress filter for registration tests.
-func noopIngress(_ PeerFilterInfo, _ []byte, _ map[string]any) (bool, []byte) { return true, nil }
-
-// noopEgress is a stub egress filter for registration tests.
-func noopEgress(_, _ PeerFilterInfo, _ []byte, _ map[string]any, _ *ModAccumulator) bool {
-	return true
-}
-
 // --- RS forwarding capability tests ---
 
 // VALIDATES: P1 AC-2 -- the reactor RS fast-path forwarding capability is inert
@@ -323,113 +315,11 @@ func TestRegisterAttrModHandlerNil(t *testing.T) {
 	}
 }
 
-// --- Filter chain registration tests ---
-
-// registerNoop registers a noop ingress filter under name with the given
-// stage and priority, failing the test on error.
-func registerNoop(t *testing.T, name string, stage, priority int) {
-	t.Helper()
-	if err := Register(Filter{Name: name, Stage: stage, Priority: priority, Ingress: noopIngress}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// TestFilterPriorityOrdering verifies that IngressFilters and EgressFilters return
-// filters sorted by stage first, then priority, then by plugin name.
-//
-// VALIDATES: AC-12 -- filters execute in stage+priority order.
-// PREVENTS: Non-deterministic filter ordering from map iteration.
-func TestFilterPriorityOrdering(t *testing.T) {
-	snap := Snapshot()
-	t.Cleanup(func() { Restore(snap) })
-	ResetForTest()
-
-	// Register four plugins across stages and priorities.
-	// "community" stage Policy priority 0, "loop" stage Protocol priority 0,
-	// "otc" stage Annotation priority 0, "prefix" stage Policy priority 10.
-	// Expected order: loop (Protocol/0), community (Policy/0), prefix (Policy/10), otc (Annotation/0).
-	registerNoop(t, "community", FilterStagePolicy, 0)
-	registerNoop(t, "loop", FilterStageProtocol, 0)
-	registerNoop(t, "otc", FilterStageAnnotation, 0)
-	registerNoop(t, "prefix", FilterStagePolicy, 10)
-
-	names := ingressFilterNames()
-	if len(names) != 4 {
-		t.Fatalf("ingressFilterNames() len = %d, want 4", len(names))
-	}
-	want := []string{"loop", "community", "prefix", "otc"}
-	for i, w := range want {
-		if names[i] != w {
-			t.Errorf("names[%d] = %q, want %q (full order: %v)", i, names[i], w, names)
-		}
-	}
-	if got := len(IngressFilters()); got != 4 {
-		t.Fatalf("IngressFilters() len = %d, want 4", got)
-	}
-}
-
-// TestFilterSameStageNameBreaksTie verifies that name is the tiebreaker
-// when both stage and priority are equal.
-//
-// VALIDATES: Deterministic ordering within identical stage+priority.
-// PREVENTS: Random ordering from map iteration when priorities match.
-func TestFilterSameStageNameBreaksTie(t *testing.T) {
-	snap := Snapshot()
-	t.Cleanup(func() { Restore(snap) })
-	ResetForTest()
-
-	for _, name := range []string{"charlie", "alpha", "bravo"} {
-		registerNoop(t, name, FilterStagePolicy, 0)
-	}
-
-	names := ingressFilterNames()
-	want := []string{"alpha", "bravo", "charlie"}
-	for i, w := range want {
-		if names[i] != w {
-			t.Errorf("names[%d] = %q, want %q", i, names[i], w)
-		}
-	}
-}
-
-// TestEgressFilterOrdering verifies the egress chain uses the same
-// stage/priority/name ordering as the ingress chain.
-//
-// VALIDATES: Egress chain ordering matches ingress semantics.
-// PREVENTS: Divergent ordering between the two chains.
-func TestEgressFilterOrdering(t *testing.T) {
-	snap := Snapshot()
-	t.Cleanup(func() { Restore(snap) })
-	ResetForTest()
-
-	for _, f := range []Filter{
-		{Name: "annotate", Stage: FilterStageAnnotation, Egress: noopEgress},
-		{Name: "policy", Stage: FilterStagePolicy, Egress: noopEgress},
-	} {
-		if err := Register(f); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	names := egressFilterNames()
-	want := []string{"policy", "annotate"}
-	if len(names) != len(want) {
-		t.Fatalf("egressFilterNames() = %v, want %v", names, want)
-	}
-	for i, w := range want {
-		if names[i] != w {
-			t.Errorf("names[%d] = %q, want %q", i, names[i], w)
-		}
-	}
-	if got := len(EgressFilters()); got != 2 {
-		t.Fatalf("EgressFilters() len = %d, want 2", got)
-	}
-}
-
-// TestPeerChainStageSortsLast verifies that FilterStagePeerChain orders after
-// every in-process stage, so the reactor's per-peer policy chain (bound at that
-// stage) runs LAST -- after Protocol, Policy, and Annotation. This reproduces the
-// historical two-block order (whole in-process pass, THEN the external chain) and
-// is the ordering guard for the filter-unification refactor.
+// TestPeerChainStageSortsLast verifies that the stage constants strictly
+// increase, so FilterStagePeerChain orders after every other stage and the
+// reactor's per-peer policy chain (bound at that stage) runs LAST, after the
+// engine's protocol step. TestLessOrderMatchesSort proves the comparator reads
+// the stage first.
 //
 // VALIDATES: spec-unify-filters R-1 / AC-2 -- policy chain runs after OTC (Annotation).
 // PREVENTS: a regression that places the external chain before Annotation.
@@ -440,32 +330,10 @@ func TestPeerChainStageSortsLast(t *testing.T) {
 		t.Fatalf("stage constants not strictly increasing: protocol=%d policy=%d annotation=%d peerchain=%d",
 			FilterStageProtocol, FilterStagePolicy, FilterStageAnnotation, FilterStagePeerChain)
 	}
-
-	snap := Snapshot()
-	t.Cleanup(func() { Restore(snap) })
-	ResetForTest()
-
-	// Register one probe per in-process stage plus one at the peer-chain stage.
-	registerNoop(t, "annotation-otc", FilterStageAnnotation, 0)
-	registerNoop(t, "protocol-loop", FilterStageProtocol, 0)
-	registerNoop(t, "peerchain-probe", FilterStagePeerChain, 0)
-	registerNoop(t, "policy-community", FilterStagePolicy, 0)
-
-	got := IngressOrdered()
-	want := []string{"protocol-loop", "policy-community", "annotation-otc", "peerchain-probe"}
-	if len(got) != len(want) {
-		t.Fatalf("IngressOrdered() len = %d, want %d", len(got), len(want))
-	}
-	for i, w := range want {
-		if got[i].Name != w {
-			t.Errorf("IngressOrdered()[%d].Name = %q, want %q (full: %v)", i, got[i].Name, w, names(got))
-		}
-	}
 }
 
 // TestLessOrderMatchesSort verifies the exported comparator is stage, then
-// priority, then name -- the same key sortedFilters uses -- so the reactor can
-// merge-sort a non-registered step into the same order.
+// priority, then name, the key the reactor sorts its engine steps with.
 func TestLessOrderMatchesSort(t *testing.T) {
 	// Stage dominates.
 	if !LessOrder("z", FilterStagePolicy, 99, "a", FilterStageAnnotation, 0) {
@@ -482,37 +350,6 @@ func TestLessOrderMatchesSort(t *testing.T) {
 	// The peer-chain stage sorts after Annotation.
 	if !LessOrder("otc", FilterStageAnnotation, 0, "chain", FilterStagePeerChain, 0) {
 		t.Error("Annotation must sort before FilterStagePeerChain")
-	}
-}
-
-func names(fs []Filter) []string {
-	out := make([]string, len(fs))
-	for i, f := range fs {
-		out[i] = f.Name
-	}
-	return out
-}
-
-// TestRegisterValidation verifies Register rejects invalid filters.
-//
-// VALIDATES: Empty name, no funcs, and duplicate name all error.
-// PREVENTS: Silent acceptance of broken filter registrations.
-func TestRegisterValidation(t *testing.T) {
-	snap := Snapshot()
-	t.Cleanup(func() { Restore(snap) })
-	ResetForTest()
-
-	if err := Register(Filter{Name: "", Ingress: noopIngress}); err == nil {
-		t.Error("Register with empty name succeeded, want error")
-	}
-	if err := Register(Filter{Name: "no-funcs"}); err == nil {
-		t.Error("Register with nil Ingress and nil Egress succeeded, want error")
-	}
-	if err := Register(Filter{Name: "dup", Ingress: noopIngress}); err != nil {
-		t.Fatal(err)
-	}
-	if err := Register(Filter{Name: "dup", Ingress: noopIngress}); err == nil {
-		t.Error("duplicate Register succeeded, want error")
 	}
 }
 

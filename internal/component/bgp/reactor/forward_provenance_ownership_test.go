@@ -7,7 +7,6 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -211,16 +210,17 @@ func TestRSWithdrawalOwnershipMixedSynthesizedIntent(t *testing.T) {
 				t.Fatal(err)
 			}
 			mixed.WithdrawnRoutes = pathsLimitNLRI(1, syncOrderPrefix)
-			deny := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-				mods.SetWithdraw()
-				return true
-			}
-			// Reactor initialization installs registered filters on both rails.
-			f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(deny)
-			f.r.egressFilters = []filterapi.EgressFilterFunc{deny}
+			// For this one UPDATE the destination's export chain holds a
+			// filter that answers withdraw, which both rails run; the
+			// destination's own chain comes back after it.
+			ownExport, ownSteps := f.destination.settings.ExportPolicy, f.r.orderedEgressSteps
+			f.r.filterTransportSeam = &externalTransport{reads: []string{"prefix"}, reply: rpc.FilterUpdateOutput{Action: rpc.FilterWithdraw}}
+			f.r.orderedEgressSteps = buildOrderedEgressSteps()
+			f.destination.settings.ExportPolicy = probeExportChain(t)
+			f.destination.refreshForwardFacts()
 			f.send(t, rail, f.source, ctxID, fwdPackUpdateBody(mixed)) // RFC 4271 Section 4.3.
-			f.r.orderedEgressSteps = nil
-			f.r.egressFilters = nil
+			f.destination.settings.ExportPolicy, f.r.orderedEgressSteps, f.r.filterTransportSeam = ownExport, ownSteps, nil
+			f.destination.refreshForwardFacts()
 			f.marker(t, rail, 87)
 			f.assertHistory(t, []byte{51}, 0)
 			announcements, withdrawals := 0, 0

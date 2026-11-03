@@ -31,8 +31,7 @@ import (
 // on RawMessage.FastPathSkipped so bgp-rs can forward to them via ForwardCached.
 //
 // A peer is skipped when it carries a rejecting final, which this rail leaves
-// to the plugin rail, when an in-process egress filter panicked or its
-// export chain could not run, or when its chain ran and its verdict must be
+// to the plugin rail, when its export chain could not run, or when its chain ran and its verdict must be
 // withdrawn one NLRI-bearing field at a time (withdrawalBySection). An active export chain is run here, whoever
 // placed its members (exportChainActive), and genuine policy suppression by
 // either is decided here.
@@ -247,7 +246,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	// Build source PeerFilterInfo once for egress filter chain.
 	var srcFilter filterapi.PeerFilterInfo
 	var srcKnown bool
-	if len(r.egressFilters) > 0 || runsExportChain(matchingPeers) {
+	if runsExportChain(matchingPeers) {
 		srcFilter = filterapi.PeerFilterInfo{Address: sourcePeerAddr}
 		r.mu.RLock()
 		if srcPeer, ok := r.findPeerByAddr(sourcePeerAddr); ok {
@@ -457,51 +456,10 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			mods.Op(32, filterapi.AttrModRemove, largeCommunityStripBytes)
 			rsEdits.largeStrippedValues = len(largeCommunityStripBytes) / largeCommunityOctets
 		}
-		if len(r.egressFilters) > 0 && !mods.IsWithdraw() {
-			destFilter := facts.filterInfo
-			payload := wire.Payload()
-			suppressed := false
-			filterFailed := false
-			for _, filter := range r.egressFilters {
-				accept, panicked := safeEgressFilter(filter, srcFilter, destFilter, payload, update.Meta, &mods)
-				if !accept {
-					suppressed = true
-					filterFailed = panicked
-					break
-				}
-			}
-			if suppressed {
-				// Only a genuine policy decision is this rail's to keep. A step
-				// that could not run -- a recovered filter panic is the one such
-				// state safeEgressFilter can report -- decided nothing about this
-				// destination, so consuming it here would make the crash
-				// indistinguishable from a policy suppression: the caller sets
-				// ReactorForwarded as soon as any other destination is dispatched,
-				// and bgp-rs then takes `default: releaseCache` and forwards to
-				// nobody (rs/server_withdrawal.go).
-				//
-				// Hand it to the plugin rail instead, through the same skipped
-				// list an export-filtered peer uses. There it reaches
-				// forwardUpdateCore, which reads BOTH returns and classifies a
-				// failure as a drop rather than as suppression -- the same
-				// fallback the cache-eviction decline above takes, and the same
-				// fail-closed outcome if the filter panics again.
-				if filterFailed {
-					fwdLogger().Warn("rs fast path: egress filter panicked, deferring the destination to the plugin rail",
-						"id", updateID, "peer", facts.addr, "src", sourcePeerAddr)
-					skipped = append(skipped, facts.peerKey)
-					continue
-				}
-				// A genuine policy reject: the client may hold the previous
-				// generation of the route, so it is sent the withdrawal.
-				mods.SetWithdraw()
-			}
-		}
 
 		// The destination's export chain runs here, whoever placed its
-		// members, after the in-process egress filters as the general rail's
-		// stage order puts it last (forwardUpdateCore), and through the same
-		// implementation. The rail shares nothing a member's verdict could
+		// members, through the same implementation as the general rail
+		// (forwardUpdateCore). The rail shares nothing a member's verdict could
 		// leak between destinations: each destination owns its edit set, a
 		// rewrite becomes that destination's base for every edit below, and
 		// both the dedup and the withdrawal conversion key on the base. A
@@ -524,8 +482,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			} else {
 				if res.failed {
 					// A chain that could not run decided nothing: the plugin
-					// rail judges it again and drops it fail-closed, as for a
-					// panicked egress filter above.
+					// rail judges it again and drops it fail-closed.
 					fwdLogger().Warn("rs fast path: export chain failed, deferring the destination to the plugin rail",
 						"id", updateID, "peer", facts.addr, "src", sourcePeerAddr)
 					skipped = append(skipped, facts.peerKey)

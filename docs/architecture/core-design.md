@@ -1235,7 +1235,8 @@ Peer-down route inventory (withdrawal map) uses extract-then-forward: NLRI
 records are extracted as compact `netip.Prefix` values before forwarding,
 then string keys are produced off the forward critical path.
 
-<!-- source: internal/component/bgp/filterapi/filterapi.go -- ModAccumulator, EgressFilterFunc, IngressFilterFunc -->
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- ModAccumulator -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- buildOrderedEgressSteps, engineIngressFunc -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.ForwardCached, Plugin.ReleaseCached -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.ForwardCached, SetForwardCached -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward_batch.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
@@ -1266,15 +1267,14 @@ All ingress filtering runs in **one stage-ordered pass** over
 kinds of executor, ordered by declared Stage, then Priority, then name -- never by
 code position:
 
-1. **In-process ingress filters**: the engine's own loop detection
+1. **The engine ingress step**: the engine's own loop detection
    (`reactor/loopdetect` `LoopIngress`, an RFC 4271 Section 9.1.2 and RFC 4456
    Section 8 protocol check the reactor names as its Protocol-stage step in
-   `buildOrderedIngressSteps`, never a registered filter), and the filters
-   registered via `filterapi.Register`. Both sort by `filterapi` Stage.
-   No plugin registers an ingress filter there today: `bgp-filter-community`
+   `buildOrderedIngressSteps`). No plugin adds a step here: there is no
+   compiled-in filter registry, and every plugin filter, `bgp-filter-community`
    and `bgp-role` (RFC 9234 Section 5, `bgp-role:otc-ingress` and
-   `bgp-role:otc-egress`) run as members of the peer's filter list, the step
-   below. Signature
+   `bgp-role:otc-egress`) included, runs as a member of the peer's filter
+   list, the step below. Signature (`engineIngressFunc`)
    `func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)`.
    `accept=false` drops the route (no caching, no dispatch). A non-nil
    `modifiedPayload` REPLACES the original bytes; the reactor builds a fresh
@@ -1288,7 +1288,7 @@ code position:
 2. **The external-plugin per-peer policy** (`peer.settings.ImportPolicy`,
    resolved via `filter { import { filters [ name ]; final accept; } }`), which
    the reactor binds as ONE ordered step at `filterapi.FilterStagePeerChain`
-   (300), after every in-process filter. On the text chain,
+   (300), after the engine step. On the text chain,
    active external references need the API server and text serialization; an
    empty, inactive-only or in-process-only policy applies its final without
    either. A chain that also names a library member (`Policy.Library`, "The
@@ -1352,8 +1352,9 @@ filtering as well as egress.
 
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver unified ordered ingress pass -->
 <!-- source: internal/component/bgp/reactor/session_read.go -- collapseASPathFamily -->
-<!-- source: internal/component/bgp/reactor/filter_ordered.go -- orderedIngressStep, buildOrderedIngressSteps, runIngressPolicyChain -->
-<!-- source: internal/component/bgp/filterapi/filterapi.go -- FilterStagePeerChain, IngressFilterFunc contract -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- orderedIngressStep, buildOrderedIngressSteps, runIngressPolicyChainMeta -->
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- FilterStagePeerChain -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- engineIngressFunc contract -->
 
 ### Route Metadata and Modification Accumulator
 
@@ -1456,23 +1457,25 @@ nothing gains no attribute".
 
 ### Policy Filter Chain
 
-After in-process filters, a configurable policy filter chain runs for
-external plugin filters. Filters are referenced by `<plugin>:<filter>` in
+After the engine's own step, a configurable policy filter chain runs every
+plugin filter, compiled in or forked. Filters are referenced by `<plugin>:<filter>` in
 `filter { import { filters [ name ]; final accept; } export { final reject; } }`
 config at bgp/group/peer levels. Every present direction requires a final.
 
 ```
-Ingress:  Wire → In-process (mandatory) → Default filters → Policy chain (user) → Cache
-Egress:   Cache → In-process (mandatory) → Default filters → Policy chain (user) → Wire (per-peer)
+Ingress:  Wire → Loop detection (engine) → Default filters → Policy chain (user) → Cache
+Egress:   Cache → Default filters → Policy chain (user) → Wire (per-peer)
 ```
 
-Both the ingress pass and the egress pass in `forwardUpdateCore` run as a single
-stage-ordered pipeline: the in-process filters and the external user policy chain
-are merge-sorted by declared Stage, with the per-peer policy chain bound at the
-terminal `filterapi.FilterStagePeerChain`, so "Policy chain (user)" above is an
-ordering property rather than a separate hardcoded code block.
+The ingress pass runs as a single stage-ordered pipeline: the engine's loop
+step and the per-peer policy chain are sorted by declared Stage, with the
+policy chain bound at the terminal `filterapi.FilterStagePeerChain`, so
+"Policy chain (user)" above is an ordering property rather than a separate
+hardcoded code block. The egress pass in `forwardUpdateCore` holds the export
+policy chain alone: the engine owns no egress step, and every egress procedure
+is a member of that chain.
 
-<!-- source: internal/component/bgp/reactor/filter_ordered.go -- orderedIngressStep/orderedEgressStep merge-sort at FilterStagePeerChain -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- buildOrderedIngressSteps, buildOrderedEgressSteps -->
 
 Three categories of filters:
 

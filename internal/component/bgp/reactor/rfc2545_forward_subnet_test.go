@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -763,8 +762,6 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 					{name: "raw-policy-eight-octets", received: validPair, replacement: make([]byte, 8), rawPolicy: true},
 					{name: "raw-empty-repaired-global", received: validPair, replacement: []byte{}, rawPolicy: true, afterRaw: validPair[:16], valid: true},
 					{name: "raw-eight-repaired-pair", received: validPair, replacement: make([]byte, 8), rawPolicy: true, afterRaw: validPair, valid: true},
-					{name: "raw-eight-replaced-loopback", received: validPair, replacement: make([]byte, 8), rawPolicy: true, afterRaw: netip.IPv6Loopback().AsSlice()},
-					{name: "raw-eight-replaced-invalid-second", received: validPair, replacement: make([]byte, 8), rawPolicy: true, afterRaw: invalidSecond},
 					{name: "raw-empty-replaced-link-local-unnegotiated", received: validPair, replacement: []byte{}, rawPolicy: true,
 						afterRaw: netip.MustParseAddr("fe80::9").AsSlice(), withoutCap77: true},
 					{name: "raw-empty-replaced-link-local-cap77", received: validPair, replacement: []byte{}, rawPolicy: true,
@@ -778,7 +775,7 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 					}
 					t.Run(rail+"/"+scope+"/"+layout+"/"+tc.name, func(t *testing.T) {
 						f := rfc2545ReceiveFixtureCaps(t, tc.source77, !tc.withoutCap77, onLink, true)
-						policyCalls, afterRawCalls := 0, 0
+						policyCalls := 0
 						if tc.replacement != nil && !tc.rawPolicy {
 							original := bytes.Clone(tc.replacement)
 							t.Cleanup(func() {
@@ -786,18 +783,27 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 									t.Error("forwarding changed the policy replacement")
 								}
 							})
-							rewrite := func(_, _ filterapi.PeerFilterInfo, payload []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-								if len(payloadMPNextHopField(payload)) != 0 {
-									policyCalls++
-									if tc.earlier != nil {
-										mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, tc.earlier)
-									}
-									mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, tc.replacement)
-								}
-								return true
+						}
+						// repairWith arms the destination's configured next hop to
+						// write hop over the export chain's raw base
+						// (applyFactsNextHop): next-hop self over the speaker's own
+						// global and Link-Local for a pair, next-hop self over a
+						// link-local connected endpoint for a standalone
+						// link-local, next-hop explicit for a global.
+						repairWith := func(hop []byte) {
+							addr := netip.AddrFrom16([16]byte(hop[:16]))
+							switch {
+							case len(hop) == 32:
+								f.destination.settings.NextHopMode = NextHopSelf
+								f.destination.settings.LocalAddress = addr
+								f.destination.settings.LinkLocal = netip.AddrFrom16([16]byte(hop[16:]))
+							case addr.IsLinkLocalUnicast():
+								f.destination.settings.NextHopMode = NextHopSelf
+								f.destination.session.transport.Store(&sessionTransport{local: addr})
+							default:
+								f.destination.settings.NextHopMode = NextHopExplicit
+								f.destination.settings.NextHopAddress = addr
 							}
-							f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(rewrite)
-							f.r.egressFilters = []filterapi.EgressFilterFunc{rewrite}
 						}
 						raw := mustHex(t, "4020010db800070000")
 						attrs := mixedAttrs(mixedReach(1, tc.received, raw))
@@ -809,10 +815,24 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 						}
 						body := buildUpdatePayload(attrs, legacy)
 						dispatchRail := rail
-						if tc.rawPolicy {
-							// A raw export response replaces the whole offered
-							// body, so retain its independent legacy section.
-							overrideAttrs := mixedAttrs(mixedReach(1, tc.replacement, raw))
+						if tc.replacement != nil {
+							// The destination's export filter answers a raw body: a
+							// plugin filter expresses an MP next-hop rewrite only as
+							// a raw body carrying the field itself. A raw export
+							// response replaces the whole offered body, so retain its
+							// independent legacy section. A superseded field is the
+							// obsolete one the filter leaves; the destination's
+							// configured next hop writes the legal replacement over
+							// that raw base, as it writes tc.afterRaw.
+							field := tc.replacement
+							if tc.earlier != nil {
+								field = tc.earlier
+								repairWith(tc.replacement)
+							}
+							if tc.afterRaw != nil {
+								repairWith(tc.afterRaw)
+							}
+							overrideAttrs := mixedAttrs(mixedReach(1, field, raw))
 							if mixed {
 								overrideAttrs = append(overrideAttrs, 0x40, 3, 4)
 								overrideAttrs = append(overrideAttrs, f.source.Settings().Address.AsSlice()...)
@@ -830,21 +850,11 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 							// Publish the policy without replacing this fixture's
 							// explicit connected-prefix scope with host interfaces.
 							f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
-							f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
-							if tc.afterRaw != nil {
-								// Operations are applied to the final raw base, even
-								// though each in-process step observes received bytes.
-								rewrite := func(_, _ filterapi.PeerFilterInfo, payload []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-									if payloadNextHop(payload).mpFamily == family.IPv6Unicast {
-										afterRawCalls++
-										mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, tc.afterRaw)
-									}
-									return true
+							f.r.orderedEgressSteps = buildOrderedEgressSteps()
+							if tc.earlier != nil || tc.afterRaw != nil {
+								if facts := f.destination.fwdFacts.Load(); facts == nil || facts.nhMode == nhModeNone {
+									t.Fatal("configured next-hop repair over the raw export base is not armed")
 								}
-								f.r.orderedEgressSteps = append(f.r.orderedEgressSteps, orderedEgressStepsFromFuncs(rewrite)...)
-								// The route-server fast path runs the in-process
-								// egress filters from this list.
-								f.r.egressFilters = []filterapi.EgressFilterFunc{rewrite}
 							}
 							if rail == "rs" {
 								dispatchRail = "rs-export"
@@ -859,9 +869,6 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 						}
 						if tc.replacement != nil && policyCalls == 0 {
 							t.Fatal("effective next-hop policy never ran")
-						}
-						if tc.afterRaw != nil && afterRawCalls == 0 {
-							t.Fatal("replacement operation after raw export never ran")
 						}
 						wantCount := 1
 						if mixed {
@@ -1006,6 +1013,14 @@ func TestSRPolicyNextHopWireFamily(t *testing.T) {
 				hop := netip.MustParseAddr(tc.received).AsSlice()
 				wantHop := hop
 				policyCalls := 0
+				// RFC 9830 Sections 2.1 and 4.2.1: 192-bit policy key,
+				// IPv4-format Route Target, and SR Policy Tunnel Type 15.
+				raw := mustHex(t, "c0000000070000002a20010db8000000000000000000000001")
+				tunnel := teSRPolicyValue(0, false)
+				tunnelAttr := append([]byte{0xd0, byte(attribute.AttrTunnelEncap), byte(len(tunnel) >> 8), byte(len(tunnel))}, tunnel...)
+				rt := []byte{0xc0, byte(attribute.AttrExtCommunity), 8, 1, 2, 192, 0, 2, 2, 0, 0}
+				body := buildUpdatePayload(mixedAttrs(mixedReach(73, hop, raw), rt, tunnelAttr), nil)
+				dispatch := rail
 				if tc.replacement != "" {
 					wantHop = netip.MustParseAddr(tc.replacement).AsSlice()
 					original := bytes.Clone(wantHop)
@@ -1014,22 +1029,23 @@ func TestSRPolicyNextHopWireFamily(t *testing.T) {
 							t.Error("forwarding changed the replacement next hop")
 						}
 					})
-					rewrite := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
+					// The destination's export filter replaces the SR Policy next
+					// hop: a plugin filter expresses an MP next-hop rewrite only as
+					// a raw body, so it answers the body carrying that field itself.
+					override := buildUpdatePayload(mixedAttrs(mixedReach(73, wantHop, raw), rt, tunnelAttr), nil)
+					f.r.api = &pluginserver.Server{}
+					f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 						policyCalls++
-						mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, wantHop)
-						return true
+						return PolicyResponse{Action: PolicyModify, Raw: override}
 					}
-					f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(rewrite)
-					f.r.egressFilters = []filterapi.EgressFilterFunc{rewrite}
+					f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "srpolicy:next-hop"}}, routepolicy.FinalAccept)
+					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+					f.r.orderedEgressSteps = buildOrderedEgressSteps()
+					if rail == "rs" {
+						dispatch = "rs-export"
+					}
 				}
-				// RFC 9830 Sections 2.1 and 4.2.1: 192-bit policy key,
-				// IPv4-format Route Target, and SR Policy Tunnel Type 15.
-				raw := mustHex(t, "c0000000070000002a20010db8000000000000000000000001")
-				tunnel := teSRPolicyValue(0, false)
-				tunnelAttr := append([]byte{0xd0, byte(attribute.AttrTunnelEncap), byte(len(tunnel) >> 8), byte(len(tunnel))}, tunnel...)
-				rt := []byte{0xc0, byte(attribute.AttrExtCommunity), 8, 1, 2, 192, 0, 2, 2, 0, 0}
-				body := buildUpdatePayload(mixedAttrs(mixedReach(73, hop, raw), rt, tunnelAttr), nil)
-				updates := rfc2545ReceiveForward(t, f, rail, body)
+				updates := rfc2545ReceiveForward(t, f, dispatch, body)
 				if len(updates) != 1 {
 					t.Fatalf("recipient UPDATE count=%d, want one native SR Policy decision", len(updates))
 				}

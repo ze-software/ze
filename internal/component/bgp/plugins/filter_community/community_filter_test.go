@@ -10,31 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
-
-// TestCommunityIsNoEngineStep proves D-6 (spec-filter-wire-6-stage-filters):
-// no community step runs in the engine's stage list, so nothing of this
-// plugin runs before the per-peer chain. That ordering was the regression an
-// LLGR peer's route met: a community strip of LLGR_STALE ran at the Policy
-// stage, before bgp-gr's llgr-ingress member, so the route was never marked
-// stale (RFC 9494 Section 4.3: "Treat the route as the least preferred in
-// route selection"), and a tag of LLGR_STALE marked a route that stayed
-// fresh before. The members now run inside the chain, where the config
-// loader places every inserted member, llgr-ingress included, ahead of the
-// operator's. Method: read the stage lists this package's init fills.
-func TestCommunityIsNoEngineStep(t *testing.T) {
-	for _, f := range filterapi.IngressOrdered() {
-		assert.NotContains(t, f.Name, communityPluginName, "an ingress engine step of this plugin runs before the chain")
-	}
-	for _, f := range filterapi.EgressOrdered() {
-		assert.NotContains(t, f.Name, communityPluginName, "an egress engine step of this plugin runs before the chain")
-	}
-}
 
 // TestCommunityMembersAreDeclared proves the declaration half of AC-3, AC-9
 // and D-3: the operator's three members are declared and inserted nowhere,

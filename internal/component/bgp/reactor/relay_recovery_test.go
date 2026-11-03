@@ -17,7 +17,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -309,12 +308,11 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 				calls++
 				return PolicyResponse{Action: PolicyModify, Raw: override}
 			}
-			wantLocalPref := []byte{0, 0, 0, 177}
-			r.orderedEgressSteps = orderedEgressStepsFromFuncs(func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-				mods.Op(5, filterapi.AttrModSet, wantLocalPref)
-				return true
-			})
-			r.orderedEgressSteps = append(r.orderedEgressSteps, orderedEgressStep{name: policyChainStepName, policyChain: true})
+			// The edit composed over the raw answer is the forward rail's own:
+			// toward an internal destination a raw body with no LOCAL_PREF
+			// gains LOCAL_PREF 100 (RFC 4271 Section 5.1.5, applyFactsLocalPref).
+			wantLocalPref := localPrefDefault[:]
+			r.orderedEgressSteps = buildOrderedEgressSteps()
 			stored := storedIPv4Route(source.Settings().Address.String())
 			stored.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 			original, err := hex.DecodeString(stored.AttrHex)

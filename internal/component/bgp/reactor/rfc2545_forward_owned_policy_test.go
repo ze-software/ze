@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -39,87 +38,74 @@ func TestRFC2545ForwardPolicyOwnGlobalJointSubnet(t *testing.T) {
 				if !onLink {
 					subnet = "recipient-off-link"
 				}
-				for _, rawPolicy := range []bool{false, true} {
-					policy := "operation"
-					if rawPolicy {
-						policy = "raw"
+				// A plugin export filter expresses the MP next-hop rewrite
+				// only as a raw body carrying the field itself, so the one
+				// policy form is the raw answer.
+				t.Run(rail+"/"+mode.name+"/"+subnet+"/raw", func(t *testing.T) {
+					f := rfc2545ReceiveFixture(t, false, onLink, true)
+					f.destination.settings.NextHopMode = mode.mode
+					f.destination.settings.LocalAddress = ownGlobal
+					f.destination.settings.LinkLocal = ownLL
+					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+					raw := mustHex(t, "4020010db800070000")
+					legacy := mustHex(t, "180a0900")
+					bodyFor := func(hop []byte) []byte {
+						attrs := mixedAttrs(mixedReach(1, hop, raw))
+						attrs = append(attrs, 0x40, 3, 4)
+						attrs = append(attrs, f.source.Settings().Address.AsSlice()...)
+						return buildUpdatePayload(attrs, legacy)
 					}
-					t.Run(rail+"/"+mode.name+"/"+subnet+"/"+policy, func(t *testing.T) {
-						f := rfc2545ReceiveFixture(t, false, onLink, true)
-						f.destination.settings.NextHopMode = mode.mode
-						f.destination.settings.LocalAddress = ownGlobal
-						f.destination.settings.LinkLocal = ownLL
-						f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
-						raw := mustHex(t, "4020010db800070000")
-						legacy := mustHex(t, "180a0900")
-						bodyFor := func(hop []byte) []byte {
-							attrs := mixedAttrs(mixedReach(1, hop, raw))
-							attrs = append(attrs, 0x40, 3, 4)
-							attrs = append(attrs, f.source.Settings().Address.AsSlice()...)
-							return buildUpdatePayload(attrs, legacy)
+					policyCalls := 0
+					dispatch := rail
+					override := bodyFor(ownGlobal.AsSlice())
+					f.r.api = &pluginserver.Server{}
+					f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, text string) PolicyResponse {
+						if strings.Contains(text, "ipv6/unicast") {
+							policyCalls++
+							return PolicyResponse{Action: PolicyModify, Raw: override}
 						}
-						policyCalls := 0
-						dispatch := rail
-						if rawPolicy {
-							override := bodyFor(ownGlobal.AsSlice())
-							f.r.api = &pluginserver.Server{}
-							f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, text string) PolicyResponse {
-								if strings.Contains(text, "ipv6/unicast") {
-									policyCalls++
-									return PolicyResponse{Action: PolicyModify, Raw: override}
-								}
-								return PolicyResponse{Action: PolicyAccept}
-							}
-							f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "ipv6:own-global"}}, routepolicy.FinalAccept)
-							f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
-							f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
-							if rail == "rs" {
-								dispatch = "rs-export"
-							}
-						} else {
-							rewrite := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-								policyCalls++
-								mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, ownGlobal.AsSlice())
-								return true
-							}
-							f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(rewrite)
-							f.r.egressFilters = []filterapi.EgressFilterFunc{rewrite}
+						return PolicyResponse{Action: PolicyAccept}
+					}
+					f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "ipv6:own-global"}}, routepolicy.FinalAccept)
+					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+					f.r.orderedEgressSteps = buildOrderedEgressSteps()
+					if rail == "rs" {
+						dispatch = "rs-export"
+					}
+					updates := rfc2545ReceiveForward(t, f, dispatch, bodyFor(received))
+					if policyCalls != 1 {
+						t.Errorf("IPv6 policy calls=%d, want exactly one", policyCalls)
+					}
+					if len(updates) != 2 {
+						t.Fatalf("recipient UPDATEs=%d, want the native and legacy sections", len(updates))
+					}
+					wantHop := ownGlobal.AsSlice()
+					if onLink {
+						wantHop = append(wantHop, ownLL.AsSlice()...)
+					}
+					nativeCount, legacyCount := 0, 0
+					for _, update := range updates {
+						if len(update.NLRI) == 0 {
+							nativeCount++
+							// RFC 2545 Section 3: inspect the complete emitted field.
+							rfc2545AssertNative(t, update, wantHop, raw, true)
+							continue
 						}
-						updates := rfc2545ReceiveForward(t, f, dispatch, bodyFor(received))
-						if policyCalls != 1 {
-							t.Errorf("IPv6 policy calls=%d, want exactly one", policyCalls)
+						legacyCount++
+						_, _, hop, found := attribute.AttrFind(update.PathAttributes, attribute.AttrNextHop)
+						if !bytes.Equal(update.NLRI, legacy) || len(update.WithdrawnRoutes) != 0 || !found || !bytes.Equal(hop, f.source.Settings().Address.AsSlice()) {
+							t.Errorf("legacy sibling changed: NLRI=%x withdrawn=%x next-hop=%x present=%v", update.NLRI, update.WithdrawnRoutes, hop, found)
 						}
-						if len(updates) != 2 {
-							t.Fatalf("recipient UPDATEs=%d, want the native and legacy sections", len(updates))
-						}
-						wantHop := ownGlobal.AsSlice()
-						if onLink {
-							wantHop = append(wantHop, ownLL.AsSlice()...)
-						}
-						nativeCount, legacyCount := 0, 0
-						for _, update := range updates {
-							if len(update.NLRI) == 0 {
-								nativeCount++
-								// RFC 2545 Section 3: inspect the complete emitted field.
-								rfc2545AssertNative(t, update, wantHop, raw, true)
-								continue
-							}
-							legacyCount++
-							_, _, hop, found := attribute.AttrFind(update.PathAttributes, attribute.AttrNextHop)
-							if !bytes.Equal(update.NLRI, legacy) || len(update.WithdrawnRoutes) != 0 || !found || !bytes.Equal(hop, f.source.Settings().Address.AsSlice()) {
-								t.Errorf("legacy sibling changed: NLRI=%x withdrawn=%x next-hop=%x present=%v", update.NLRI, update.WithdrawnRoutes, hop, found)
-							}
-							for _, code := range []attribute.AttributeCode{attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI} {
-								if _, _, _, found := attribute.AttrFind(update.PathAttributes, code); found {
-									t.Error("native reachability leaked into the legacy sibling")
-								}
+						for _, code := range []attribute.AttributeCode{attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI} {
+							if _, _, _, found := attribute.AttrFind(update.PathAttributes, code); found {
+								t.Error("native reachability leaked into the legacy sibling")
 							}
 						}
-						if nativeCount != 1 || legacyCount != 1 {
-							t.Errorf("native sections=%d legacy sections=%d, want one of each", nativeCount, legacyCount)
-						}
-					})
-				}
+					}
+					if nativeCount != 1 || legacyCount != 1 {
+						t.Errorf("native sections=%d legacy sections=%d, want one of each", nativeCount, legacyCount)
+					}
+				})
 			}
 		}
 	}

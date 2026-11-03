@@ -281,26 +281,12 @@ checks each clause on both transports
 route as one `filter-update` input (its text `Update` form) calls
 `route.Input()`, and still meets the fast-path contract.
 
-**A filter whose name is fixed at COMPILE time registers with `filterapi`.** It
-lives in the BGP-owned seam package `internal/component/bgp/filterapi`, not in
-the generic plugin registry, and it goes in the same init() as
-`registry.Register()`:
-
-```go
-filterapi.Register(filterapi.Filter{
-    Name:     "bgp-myfilter", // plugin name; breaks ordering ties
-    Stage:    filterapi.FilterStagePolicy,
-    Priority: 0,
-    Ingress: func(info filterapi.PeerFilterInfo, raw []byte, m map[string]any) (bool, []byte) {
-        // Return (accept, possibly-modified-bytes)
-        return true, nil
-    },
-    Egress: func(src, dst filterapi.PeerFilterInfo, raw []byte, m map[string]any, acc *filterapi.ModAccumulator) bool {
-        // Return accept/reject
-        return true
-    },
-})
-```
+**Every plugin filter, whatever fixes its name, is an `OnFilter` evaluator.**
+No compiled-in filter registry exists: a procedure the plugin's config implies
+is a declared filter insertion (`Registration.FilterInsertions`), placed in the
+peer's filter list by the config loader, and the operator's filters are named
+in that list. Both reach the plugin through `filter-update`, internal and
+forked alike.
 
 ### NLRI Codec
 

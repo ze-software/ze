@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -352,10 +351,9 @@ func TestRelayStoredRouteTreatsEgressSuppressionAsHandled(t *testing.T) {
 //
 // VALIDATES: `accept == false` out of the ordered egress pass is overloaded --
 // a filter-plugin IPC error under the default fail-closed on-error policy
-// (filter_chain.go policyFilterFunc), an unparseable filter response, a missing
-// API server (filter_ordered.go), and a filter panic (safeEgressFilter) all
-// produce it alongside a genuine policy reject. Only the genuine reject may
-// count as suppression.
+// (filter_chain.go policyFilterFunc), an unparseable filter response and a
+// missing API server (filter_ordered.go) all produce it alongside a genuine
+// policy reject. Only the genuine reject may count as suppression.
 // PREVENTS: the exact fail-open this spec exists to close, re-entered through a
 // different door -- a forked export-filter plugin timing out under load would
 // drop every route of a peer-up replay while RelayStoredRoute reported the
@@ -363,15 +361,13 @@ func TestRelayStoredRouteTreatsEgressSuppressionAsHandled(t *testing.T) {
 func TestRelayStoredRouteCountsFailedEgressStepAsIncomplete(t *testing.T) {
 	api, cache, dispatched, mu, _ := relayFixture(t)
 
-	// One in-process egress step that panics. safeEgressFilter recovers it and
-	// suppresses fail-closed, reporting panicked=true: a step that COULD NOT RUN,
-	// not a step that decided.
-	api.r.orderedEgressSteps = []orderedEgressStep{{
-		name: "panicking-test-filter",
-		inproc: func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-			panic("simulated egress filter failure")
-		},
-	}}
+	// The destination's export filter could not answer: the chain's Failed
+	// verdict, a step that COULD NOT RUN, not a step that decided.
+	dst := api.r.peers[netip.MustParseAddrPort("10.0.0.2:179")]
+	require.NotNil(t, dst, "fixture must expose the destination peer")
+	exportAnswer(t, api.r, func(string) PolicyResponse {
+		return PolicyResponse{Action: PolicyReject, Failed: true}
+	}, dst)
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
 		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
@@ -389,8 +385,8 @@ func TestRelayStoredRouteCountsFailedEgressStepAsIncomplete(t *testing.T) {
 // TestRelayStoredRouteCountsFailedPolicyChainAsIncomplete verifies the OTHER
 // half of the failed-step distinction: the export policy chain.
 //
-// The panic test above drives the in-process branch. This one drives the policy
-// chain, whose "could not run" state is an export policy configured while the
+// The test above drives a filter that answered Failed. This one drives the
+// policy chain, whose "could not run" state is an export policy configured while the
 // filter engine (the API server) is absent -- runEgressPolicyChainASN4 calls that
 // a guard MISS, not an accept. Without it, three of the four producers the fix
 // names had no test that would fail if their half were reverted.
@@ -411,7 +407,7 @@ func TestRelayStoredRouteCountsFailedPolicyChainAsIncomplete(t *testing.T) {
 	dst.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "someplugin:scrub"}}, routepolicy.FinalAccept)
 	dst.refreshForwardFacts()
 
-	api.r.orderedEgressSteps = []orderedEgressStep{{name: "peer-chain", policyChain: true}}
+	api.r.orderedEgressSteps = buildOrderedEgressSteps()
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
 		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())

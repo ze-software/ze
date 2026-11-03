@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -185,7 +184,18 @@ func mixedForward(t *testing.T, run mixedRun, payload []byte, dests ...*Peer) ma
 	if run.rs {
 		require.NotNil(t, run.source, "the route-server rail needs the advertiser")
 		peerMap[run.source.Settings().PeerKey()] = run.source
-		reactorForwardRS(r, update, id, run.source.Settings().Address, run.source)
+		skipped, _ := reactorForwardRS(r, update, id, run.source.Settings().Address, run.source)
+		// A destination the fast path hands back continues on the general
+		// rail, as bgp-rs forwards it: a verdict its export chain must
+		// withdraw one NLRI-bearing field at a time is judged there.
+		var handedBack []*Peer
+		for _, key := range skipped {
+			handedBack = append(handedBack, peerMap[key])
+		}
+		if len(handedBack) != 0 {
+			adapter := &reactorAPIAdapter{r: r}
+			_ = adapter.forwardUpdateCore(update, id, handedBack, adapter.resolveSourceInfo(run.source.Settings().Address))
+		}
 	} else {
 		adapter := &reactorAPIAdapter{r: r}
 		_ = adapter.forwardUpdateCore(update, id, dests, run.info)
@@ -273,15 +283,24 @@ var (
 	mixedLLNH      = netip.MustParseAddr("fe80::1").AsSlice()
 )
 
-// mixedRefuse is an egress step that refuses one destination and passes the
-// others, installed on both rails' filter surfaces.
-func mixedRefuse(refused netip.Addr) func(*Reactor) {
-	refuse := func(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-		return dest.Address != refused
-	}
+// mixedRefuse gives every destination an export chain whose plugin filter
+// rejects one destination and accepts the others: both rails run that chain,
+// the general one through forwardUpdateCore's chain step, the route-server
+// one through runsExportChain. It runs before the route-server rail adds the
+// advertiser to the peer table, so only destinations are bound.
+func mixedRefuse(t *testing.T, refused netip.Addr) func(*Reactor) {
+	t.Helper()
 	return func(r *Reactor) {
-		r.orderedEgressSteps = orderedEgressStepsFromFuncs(refuse)
-		r.egressFilters = []filterapi.EgressFilterFunc{refuse}
+		dests := make([]*Peer, 0, len(r.peers))
+		for _, peer := range r.peers {
+			dests = append(dests, peer)
+		}
+		exportAnswer(t, r, func(peer string) PolicyResponse {
+			if peer == refused.String() {
+				return PolicyResponse{Action: PolicyReject}
+			}
+			return PolicyResponse{Action: PolicyAccept}
+		}, dests...)
 	}
 }
 
@@ -324,7 +343,7 @@ func TestMixedFamilyUpdateRefusedIsWithdrawnPerFamily(t *testing.T) {
 	wantV4 := mixedUnreachValue(1, 1, mixedV4MPPfx)
 	wantV6 := mixedUnreachValue(2, 1, mixedV6Prefix)
 
-	for _, run := range mixedRails(t, mixedRefuse(refusedAddr)) {
+	for _, run := range mixedRails(t, mixedRefuse(t, refusedAddr)) {
 		rail := railName(run)
 		got := mixedForward(t, run, payload,
 			mixedDest(t, refusedAddr.String()), mixedDest(t, passedAddr.String()))
@@ -368,7 +387,7 @@ func TestWithdrawnRoutesAndUnreachRefusedAreSentApart(t *testing.T) {
 	refusedAddr := netip.MustParseAddr("2001:db8:1::5")
 	payload := withdrawMergePayload(mixedV4Withdrn, mixedAttr(15, mixedUnreachValue(2, 1, mixedV6Prefix)), nil)
 
-	for _, run := range mixedRails(t, mixedRefuse(refusedAddr)) {
+	for _, run := range mixedRails(t, mixedRefuse(t, refusedAddr)) {
 		rail := railName(run)
 		got := mixedForward(t, run, payload, mixedDest(t, refusedAddr.String()))
 
