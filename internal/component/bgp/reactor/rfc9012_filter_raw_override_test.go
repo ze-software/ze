@@ -1,11 +1,13 @@
 // Design: docs/architecture/wire/attributes.md -- carrier-aware tunnel validation.
 // Related: filter_chain.go -- decodeFilterRawOverride, the raw answer under test.
 // Related: session_tunnel_encap.go -- applyTunnelEncap, the guard the raw answer reuses.
+// Related: filter_library.go -- runLibraryChain, the library chain's raw answer under test.
 // RFC 9012 Section 13 -- see rfc/short/rfc9012.md.
 
 package reactor
 
 import (
+	"log/slog"
 	"net/netip"
 	"testing"
 
@@ -13,9 +15,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // rawTunnelFilter answers every route with a raw replacement body.
@@ -98,5 +102,64 @@ func TestRFC9012FilterRawOverrideRemovesInvalidTLVs(t *testing.T) {
 		require.True(t, res.accept)
 		require.NotNil(t, res.wireOverride)
 		require.Equal(t, cleaned, res.wireOverride.Payload())
+	})
+}
+
+// TestRFC9012LibraryRawAnswerRemovesInvalidTLVs drives a raw answer through a
+// compiled library chain. Its goal: a whole-body rewrite an external member of
+// the chain hands back passes the same Section 13 removal as a raw answer of
+// the text chain (decodeFilterRawOverride, reached from runLibraryChain).
+// Method: the external member declares raw and answers a body whose malformed
+// Tunnel Egress Endpoint TLVs sit around a valid sibling; the test reads the
+// body the import step accepts. An answer with no valid TLV left is refused
+// and logged at Warn. The chain itself checks only the 4-octet floor, so both
+// refusals are the reactor's own.
+func TestRFC9012LibraryRawAnswerRemovesInvalidTLVs(t *testing.T) {
+	endpoint := teSub(6, 0xFF, 0xFF, 0xFF, 0xFF, 0, 1, 10, 0, 0, 77)
+	valid := teTLV(2, endpoint, teSub(9, 1))
+	bad := teTLV(2, teSub(6, 0, 0, 0, 0, 0, 1, 10, 0, 0))
+	received := libraryTestBody(100)
+
+	run := func(t *testing.T, peerAddr string, raw []byte) ingressStepResult {
+		t.Helper()
+		addr := netip.MustParseAddr(peerAddr)
+		transport := &externalTransport{reads: []string{rpc.FilterFieldRaw},
+			reply: rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: raw}}
+		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults(), filterTransportSeam: transport}
+		peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
+			ImportPolicy: mixedPolicy(t, "", policychain.Member{Name: "f", Plugin: "probe"})})
+		res := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received)
+		require.Len(t, transport.sent, 1, "the external member is asked once")
+		return res
+	}
+
+	t.Run("import removes the malformed TLVs", func(t *testing.T) {
+		answer := teCarryBody(append(append(append([]byte{}, bad...), valid...), bad...))
+		original := append([]byte{}, answer...)
+		res := run(t, "10.0.0.31", answer)
+		require.True(t, res.accept, "a raw answer with a valid TLV left is still installed")
+		require.Equal(t, teCarryBody(valid), res.modifiedPayload,
+			"the malformed-endpoint TLVs are removed before the route is cached")
+		require.Equal(t, original, answer, "the filter's answer bytes stay unchanged")
+	})
+
+	t.Run("no valid TLV refuses the route", func(t *testing.T) {
+		// The refusal is written through fwdLogger, which this subtest points
+		// at the recorder.
+		rec := &warnRecorder{}
+		prev := fwdLogger
+		fwdLogger = func() *slog.Logger { return slog.New(rec) }
+		t.Cleanup(func() { fwdLogger = prev })
+
+		res := run(t, "10.0.0.32", teCarryBody(bad))
+		require.False(t, res.accept, "a raw answer whose every TLV is malformed is not installed")
+		assert.Nil(t, res.modifiedPayload)
+		require.Contains(t, rec.warnedPeers(), "10.0.0.32", "the refusal is logged at Warn")
+	})
+
+	t.Run("a valid answer is installed unchanged", func(t *testing.T) {
+		res := run(t, "10.0.0.33", teCarryBody(valid))
+		require.True(t, res.accept)
+		require.Equal(t, teCarryBody(valid), res.modifiedPayload)
 	})
 }
