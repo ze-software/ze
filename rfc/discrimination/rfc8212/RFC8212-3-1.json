@@ -17,9 +17,9 @@
     "unit-sha": "b5a2847af14f4227",
     "claim-sha": "0d1f93a73474014c",
     "route": "mutant",
-    "producer": "internal/component/bgp/filterapi/policy.go::AcceptsAtEnd",
-    "producer-sha": "2c2cda1ee27f4bf4",
-    "break": "line 140: \"return !external\" -\u003e \"return true\"",
+    "producer": "internal/component/bgp/filterapi/policy.go::UnconfiguredAccepts",
+    "producer-sha": "1ea02f031981b57e",
+    "break": "line 240: \"return !external\" -\u003e \"return true\"",
     "citation": "7"
   },
   {
