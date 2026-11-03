@@ -1,0 +1,227 @@
+# Test: a Python 3 plugin filters routes over the declared-field protocol
+#
+# VALIDATES: spec-filter-wire-0-umbrella AC-11 (D-1, D-2, D-12, A-7): a filter
+# plugin written in Python 3 against docs/plugin-development/protocol.md alone,
+# with no Go SDK, declares an import filter that reads `prefix` and sets `med`.
+# It is sent each route's declared fields as JSON in filter-update, answers a
+# reject for 10.0.0.0/24 and a modify setting MED 50 for every other route, and
+# the receiving peer gets only the accepted route, carrying MULTI_EXIT_DISC 50.
+# This is the slow path end to end with no SDK in the plugin.
+# PREVENTS: a non-Go plugin that follows the protocol page being unable to
+# filter: its verdicts ignored, its sets not applied, or the fields it declared
+# not delivered in the documented shape.
+#
+# Method: source sends 10.0.0.0/24 then 10.0.1.0/24, one UPDATE each, once
+# destination is up; source's import chain names the Python filter, which
+# judges each UPDATE on its own and prints its verdict (the fence). bgp-rs
+# forwards what the chain accepted to destination, an internal peer, so the
+# MED is kept (RFC 4271 Section 5.1.4 forbids relaying it only to another AS)
+# and LOCAL_PREF 100 is added (Section 5.1.5). Destination expects as its
+# FIRST update 10.0.1.0/24 with MED 50, so a forwarded 10.0.0.0/24 or a route
+# without the MED fails the test.
+
+tmpfs=pyfilter.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env -S python3 -I
+# A filter plugin in Python 3 speaking the documented process protocol with no
+# Go SDK: TLS connect-back, #0 auth, the five startup stages, then
+# filter-update batches (docs/plugin-development/protocol.md).
+import json, os, socket, ssl, sys
+
+def log(msg):
+    print("PYFILTER " + msg, file=sys.stderr, flush=True)
+
+DECL = {"protocol-version": 1, "filters": [
+    {"name": "med50", "direction": "import", "reads": ["prefix"], "sets": ["med"]}]}
+REJECT = "10.0.0.0/24"
+
+host = os.environ["ZE_PLUGIN_HUB_HOST"]
+ctx = ssl.create_default_context(cadata=os.environ["ZE_PLUGIN_CA_PEM"])
+ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+raw = socket.create_connection((host, int(os.environ["ZE_PLUGIN_HUB_PORT"])), timeout=30)
+conn = ctx.wrap_socket(raw, server_hostname=host)
+conn.settimeout(None)
+reader = conn.makefile("rb")
+
+def send(line):
+    conn.sendall(line.encode() + b"\n")
+
+def recv():
+    line = reader.readline()
+    if not line:
+        return None
+    return line.decode().rstrip("\n")
+
+def split(line):
+    ident, _, rest = line.partition(" ")
+    verb, _, payload = rest.partition(" ")
+    return ident, verb, payload
+
+def verdict(route):
+    # "prefix" is an object: family to the list of announced NLRI.
+    prefixes = []
+    for nlri in route.get("fields", {}).get("prefix", {}).values():
+        prefixes.extend(nlri)
+    shown = ",".join(p if isinstance(p, str) else json.dumps(p) for p in prefixes)
+    if REJECT in prefixes:
+        log("verdict filter=%s prefix=%s reject;" % (route["filter"], shown))
+        return {"action": "reject"}
+    log("verdict filter=%s prefix=%s modify med=50;" % (route["filter"], shown))
+    return {"action": "modify", "sets": [{"field": "med", "action": "set", "value": 50}]}
+
+def answer(line):
+    # An engine request carries a method (it holds a colon); answer it OK.
+    ident, verb, payload = split(line)
+    if ":" not in verb:
+        return
+    if verb == "ze-plugin-callback:filter-update":
+        # One verdict per route of the batch, in request order.
+        routes = json.loads(payload)["routes"]
+        out = {"verdicts": [verdict(r) for r in routes]}
+        send(ident + " ok " + json.dumps(out, separators=(",", ":")))
+        return
+    send(ident + " ok")
+    if verb == "ze-plugin-callback:bye":
+        sys.exit(0)
+
+def await_request(method):
+    # The engine drives Stages 2 and 4: wait for its request and answer it.
+    while True:
+        line = recv()
+        if line is None:
+            log("eof awaiting " + method)
+            sys.exit(1)
+        answer(line)
+        if split(line)[1] == method:
+            return
+
+def call(n, method, params):
+    send("#%d %s %s" % (n, method, json.dumps(params, separators=(",", ":"))))
+    while True:
+        line = recv()
+        if line is None:
+            log("eof awaiting #%d %s" % (n, method))
+            sys.exit(1)
+        ident, verb, payload = split(line)
+        if ident == "#%d" % n and verb in ("ok", "error"):
+            return verb, payload
+        answer(line)
+
+verb, _ = call(0, "auth", {"token": os.environ["ZE_PLUGIN_HUB_TOKEN"], "name": os.environ["ZE_PLUGIN_NAME"]})
+if verb != "ok":
+    log("auth refused")
+    sys.exit(1)
+verb, _ = call(1, "ze-plugin-engine:declare-registration", DECL)
+if verb != "ok":
+    log("stage1 refused")
+    sys.exit(1)
+await_request("ze-plugin-callback:configure")
+call(2, "ze-plugin-engine:declare-capabilities", {"capabilities": []})
+await_request("ze-plugin-callback:share-registry")
+verb, _ = call(3, "ze-plugin-engine:ready", {})
+log("stage5 " + verb)
+while True:
+    line = recv()
+    if line is None:
+        sys.exit(0)
+    answer(line)
+EOF_RUN
+
+option=env:var=ze.log.bgp.filter:value=info
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65001
+option=linger:value=true
+option=await-file:path=destination.up
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65001], NEXT_HOP=1.1.1.2, NLRI=10.0.0.0/24.
+# Its NEXT_HOP differs from the next UPDATE's so the reactor's IPv4 unicast
+# coalescing (ze.bgp.reactor.coalesce) keeps the two apart: each reaches the
+# filter as its own route.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010102180A0000
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.1.0/24
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
+EOF_SOURCE
+
+stdin=destination:terminator=EOF_DESTINATION
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65000
+option=bind:value=127.0.0.2
+option=linger:value=true
+option=established-file:path=destination.up
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65001], NEXT_HOP=1.1.1.1,
+# MULTI_EXIT_DISC=50, LOCAL_PREF=100, NLRI=10.0.1.0/24. 10.0.0.0/24 never
+# arrives first.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304010101018004040000003240050400000064180A0001
+EOF_DESTINATION
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external pyfilter {
+		run "./pyfilter.run"
+	}
+}
+
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		filter {
+			import { filters [ pyfilter:med50 ]; final accept; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
+	peer destination {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=destination
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
+# The fence holds once the plugin judged both routes; the runner then waits for
+# destination to print successful (its expectation met) and stops ze.
+await=stderr:contains=PYFILTER verdict filter=med50 prefix=10.0.0.0/24 reject;:then=stop
+await=stderr:contains=PYFILTER verdict filter=med50 prefix=10.0.1.0/24 modify med=50;
+expect=exit:code=0
+expect=stderr:pattern=PYFILTER stage5 ok
+reject=stderr:pattern=plugin pyfilter failed during startup
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
