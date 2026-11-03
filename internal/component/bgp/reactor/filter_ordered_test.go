@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -183,12 +184,11 @@ func TestRunIngressPolicyChainNoImportFiltersAccepts(t *testing.T) {
 // failure from accept-unmodified into a DROP on the receive path, so an
 // unexercised guard here is silent route loss rather than a leak.
 //
-// Reaching the branch needs the policy chain to return a text delta, which needs
-// a filter answer. r.api is a concrete *pluginserver.Server and its answer comes
-// off a live plugin socket, so these tests set r.policyFilterSeam (nil in
-// production, see filter_chain.go policyFilterFunc) and leave EVERYTHING else on
-// the real path: the real chain runs, the real delta-to-ops extraction runs, and
-// the real buildModifiedPayload refuses.
+// Reaching the branch needs the policy chain to return a set, which needs a
+// filter answer. A plugin's answer comes off a live plugin socket, so these
+// tests set r.filterTransportSeam to an answerTransport and leave EVERYTHING
+// else on the real path: the real library chain runs, the real Chain.Apply
+// writes the operation, and the real buildModifiedPayload refuses.
 //
 // The refusal is induced the way a deployment would meet it: attrModHandlers has
 // no entry for the code the filter asked to change, so the operation is never
@@ -196,7 +196,7 @@ func TestRunIngressPolicyChainNoImportFiltersAccepts(t *testing.T) {
 // send a route the policy had not changed.
 
 // policyChainAdvertisingBody is the minimal ADVERTISING UPDATE body the
-// text-delta chain tests drive: withdrawn-len 0, attr-len 0, one NLRI prefix
+// modifying chain tests drive: withdrawn-len 0, attr-len 0, one NLRI prefix
 // 10.0.0.0/24.
 //
 // It was `{0, 0, 0, 0}` before 2026-08-04, which is a legacy RFC 4724 Section 2
@@ -207,13 +207,12 @@ func TestRunIngressPolicyChainNoImportFiltersAccepts(t *testing.T) {
 // body on purpose: it is the decode boundary they pin.
 func policyChainAdvertisingBody() []byte { return []byte{0, 0, 0, 0, 24, 10, 0, 0} }
 
-// modifyingFilter returns a seam that answers every filter call with a text
-// delta setting LOCAL_PREF, which textDeltaToModOps turns into one AttrModSet
-// operation on code 5.
-func modifyingFilter() PolicyFilterFunc {
-	return func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-		return PolicyResponse{Action: PolicyModify, Delta: "local-preference 200"}
-	}
+// setLocalPrefPolicy is a policy of the one plugin filter set-local-pref,
+// which localPref200Transport answers with a typed set of local-preference
+// 200; Chain.Apply turns it into one AttrModSet operation on code 5.
+func setLocalPrefPolicy(t *testing.T) filterapi.Policy {
+	t.Helper()
+	return answerPolicy(t, routepolicy.FinalAccept, "set-local-pref")
 }
 
 // VALIDATES: AC-12. runIngressPolicyChain drops the route (accept == false) when
@@ -227,12 +226,11 @@ func TestRunIngressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 		Address:      addr,
 		LocalAS:      65000,
 		PeerAS:       65001,
-		ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept),
+		ImportPolicy: setLocalPrefPolicy(t),
 	})
 
 	r := &Reactor{
-		api:              &pluginserver.Server{}, // non-nil: past the r.api guard
-		policyFilterSeam: modifyingFilter(),
+		filterTransportSeam: localPref200Transport(),
 		// No handler for LOCAL_PREF, so the operation the filter asked for is
 		// never applied and the build reports it.
 		attrModHandlers: map[uint8]filterapi.AttrModHandler{},
@@ -256,14 +254,12 @@ func TestRunIngressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 // that could not run as "policy said no".
 func TestRunEgressPolicyChainASN4ModifyFailureFailsClosed(t *testing.T) {
 	r := &Reactor{
-		api:              &pluginserver.Server{},
-		policyFilterSeam: modifyingFilter(),
-		attrModHandlers:  map[uint8]filterapi.AttrModHandler{},
+		filterTransportSeam: localPref200Transport(),
+		attrModHandlers:     map[uint8]filterapi.AttrModHandler{},
 	}
-	filters := []routepolicy.Ref{{Name: "set-local-pref"}}
 
 	body := policyChainAdvertisingBody()
-	res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.7", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
+	res := r.runEgressPolicyChainASN4(setLocalPrefPolicy(t), "10.0.0.7", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 	require.False(t, res.accept,
 		"an export modification that could not be applied must suppress the route, never send it unmodified")
@@ -278,14 +274,12 @@ func TestRunEgressPolicyChainASN4ModifyFailureFailsClosed(t *testing.T) {
 // the shared body. This is the same split the nil-api tests above pin.
 func TestRunEgressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 	r := &Reactor{
-		api:              &pluginserver.Server{},
-		policyFilterSeam: modifyingFilter(),
-		attrModHandlers:  map[uint8]filterapi.AttrModHandler{},
+		filterTransportSeam: localPref200Transport(),
+		attrModHandlers:     map[uint8]filterapi.AttrModHandler{},
 	}
-	filters := []routepolicy.Ref{{Name: "set-local-pref"}}
 
 	body := policyChainAdvertisingBody()
-	res := r.runEgressPolicyChain(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.8", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
+	res := r.runEgressPolicyChain(setLocalPrefPolicy(t), "10.0.0.8", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
 
 	require.False(t, res.accept, "forwarded egress path must suppress on a modify failure")
 	require.True(t, res.failed, "a step that could not run is not a policy decision")
@@ -293,29 +287,24 @@ func TestRunEgressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 
 // The raw-override guard, driven from its own entry points.
 //
-// A raw=true filter answers with a full UPDATE-body replacement rather than a
-// text delta, for surgery the delta cannot express. decodeFilterRawOverride
-// (filter_chain.go) returns nil for anything shorter than four bytes, which is
-// the shortest possible body (withdrawn-len(2) + attr-len(2)). Nil had ONE
+// A filter that reads raw answers with a full UPDATE-body replacement rather
+// than a set, for surgery a set cannot express. decodeFilterRawOverride
+// (filter_chain.go) refuses anything shorter than four bytes, which is the
+// shortest possible body (withdrawn-len(2) + attr-len(2)). Nil once had ONE
 // meaning at both call sites: "no raw override", so a filter that asked for a
 // replacement it could not encode was indistinguishable from a filter that never
 // asked, and the route went out UNMODIFIED carrying exactly what the raw filter
 // was rewriting.
 //
-// PolicyFilterChain makes a raw response terminal and returns Text: current, so
-// the text-delta branch below the raw check does not run either: there is no
-// second chance to notice.
+// The library chain makes a raw answer terminal (runLibraryChain), so no set
+// below the raw check runs either: there is no second chance to notice.
 //
 // Spec: plan/spec-fixit-stored-route-relay-hardening.md (AC-9).
 
-// shortRawFilter returns a seam answering with a modify whose raw override is
-// too short to be an UPDATE body. Three bytes: one below the four-byte minimum,
-// which is the boundary the guard turns on.
-func shortRawFilter() PolicyFilterFunc {
-	return func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-		return PolicyResponse{Action: PolicyModify, Raw: []byte{0x00, 0x00, 0x00}}
-	}
-}
+// shortRawTransport answers every raw-reading filter with a modify whose raw
+// override is too short to be an UPDATE body. Three bytes: one below the
+// four-byte minimum, which is the boundary the guard turns on.
+func shortRawTransport() *answerTransport { return rawAnswerTransport([]byte{0x00, 0x00, 0x00}) }
 
 // VALIDATES: AC-9. runEgressPolicyChainASN4 suppresses (accept == false) AND
 // marks failed when a raw filter's override cannot be decoded.
@@ -323,17 +312,15 @@ func shortRawFilter() PolicyFilterFunc {
 // replaced -- the RFC 6996 private-ASN leak class this file exists to stop, and
 // silently, because the discarded nil looked exactly like "no override".
 func TestRunEgressPolicyChainASN4ShortRawOverrideFailsClosed(t *testing.T) {
-	rec := captureWarnPeers(t)
+	rec := captureFwdWarnPeers(t)
 
 	r := &Reactor{
-		api:              &pluginserver.Server{},
-		policyFilterSeam: shortRawFilter(),
-		attrModHandlers:  map[uint8]filterapi.AttrModHandler{},
+		filterTransportSeam: shortRawTransport(),
+		attrModHandlers:     map[uint8]filterapi.AttrModHandler{},
 	}
-	filters := []routepolicy.Ref{{Name: "mp-reach-surgery"}}
 
 	body := []byte{0, 0, 0, 0}
-	res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.11", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
+	res := r.runEgressPolicyChainASN4(answerPolicy(t, routepolicy.FinalAccept, "mp-reach-surgery"), "10.0.0.11", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 	require.False(t, res.accept,
 		"a raw override that cannot be decoded must suppress the route, never send the original unmodified")
@@ -349,19 +336,18 @@ func TestRunEgressPolicyChainASN4ShortRawOverrideFailsClosed(t *testing.T) {
 // PREVENTS: caching and dispatching the unmodified route on the RECEIVE path,
 // which is route content the import policy had rewritten reaching the RIB.
 func TestRunIngressPolicyChainShortRawOverrideFailsClosed(t *testing.T) {
-	rec := captureWarnPeers(t)
+	rec := captureFwdWarnPeers(t)
 
 	addr := netip.MustParseAddr("10.0.0.12")
 	peer := NewPeer(&PeerSettings{
 		Address:      addr,
 		LocalAS:      65000,
 		PeerAS:       65001,
-		ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "mp-reach-surgery"}}, routepolicy.FinalAccept),
+		ImportPolicy: answerPolicy(t, routepolicy.FinalAccept, "mp-reach-surgery"),
 	})
 	r := &Reactor{
-		api:              &pluginserver.Server{},
-		policyFilterSeam: shortRawFilter(),
-		attrModHandlers:  map[uint8]filterapi.AttrModHandler{},
+		filterTransportSeam: shortRawTransport(),
+		attrModHandlers:     map[uint8]filterapi.AttrModHandler{},
 	}
 
 	body := []byte{0, 0, 0, 0}
@@ -385,17 +371,19 @@ func TestPolicyChainRawOverrideBoundary(t *testing.T) {
 	body := []byte{0, 0, 0, 0}
 
 	t.Run("empty raw is not an override", func(t *testing.T) {
-		rec := captureWarnPeers(t)
+		rec := captureFwdWarnPeers(t)
+		accepting := &answerTransport{reads: []string{rpc.FilterFieldRaw},
+			answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+				return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+			}}
 		r := &Reactor{
-			api: &pluginserver.Server{},
-			policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-				return PolicyResponse{Action: PolicyAccept}
-			},
-			attrModHandlers: map[uint8]filterapi.AttrModHandler{},
+			filterTransportSeam: accepting,
+			attrModHandlers:     map[uint8]filterapi.AttrModHandler{},
 		}
 
-		res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "plain"}}, routepolicy.FinalAccept), "10.0.0.13", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
+		res := r.runEgressPolicyChainASN4(answerPolicy(t, routepolicy.FinalAccept, "plain"), "10.0.0.13", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
+		require.Equal(t, 1, accepting.calls(), "the raw-reading filter was asked")
 		require.True(t, res.accept, "a filter that asked for no raw override must still accept")
 		assert.False(t, res.failed, "no override requested is not a failure")
 		assert.NotContains(t, rec.warnedPeers(), "10.0.0.13",
@@ -404,14 +392,11 @@ func TestPolicyChainRawOverrideBoundary(t *testing.T) {
 
 	t.Run("four-byte raw is applied", func(t *testing.T) {
 		r := &Reactor{
-			api: &pluginserver.Server{},
-			policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-				return PolicyResponse{Action: PolicyModify, Raw: []byte{0, 0, 0, 0}}
-			},
-			attrModHandlers: map[uint8]filterapi.AttrModHandler{},
+			filterTransportSeam: rawAnswerTransport([]byte{0, 0, 0, 0}),
+			attrModHandlers:     map[uint8]filterapi.AttrModHandler{},
 		}
 
-		res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "mp-reach-surgery"}}, routepolicy.FinalAccept), "10.0.0.14", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
+		res := r.runEgressPolicyChainASN4(answerPolicy(t, routepolicy.FinalAccept, "mp-reach-surgery"), "10.0.0.14", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 		require.True(t, res.accept, "a decodable raw override must be accepted, not refused")
 		assert.False(t, res.failed, "an applied override is not a failure")
@@ -434,12 +419,11 @@ func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
 			Address:      addr,
 			LocalAS:      65000,
 			PeerAS:       65001,
-			ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept),
+			ImportPolicy: setLocalPrefPolicy(t),
 		})
 		r := &Reactor{
-			api:              &pluginserver.Server{},
-			policyFilterSeam: modifyingFilter(),
-			attrModHandlers:  handlers,
+			filterTransportSeam: localPref200Transport(),
+			attrModHandlers:     handlers,
 		}
 
 		res := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(body), body)
@@ -451,12 +435,11 @@ func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
 
 	t.Run("egress", func(t *testing.T) {
 		r := &Reactor{
-			api:              &pluginserver.Server{},
-			policyFilterSeam: modifyingFilter(),
-			attrModHandlers:  handlers,
+			filterTransportSeam: localPref200Transport(),
+			attrModHandlers:     handlers,
 		}
 
-		res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept), "10.0.0.10", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
+		res := r.runEgressPolicyChainASN4(setLocalPrefPolicy(t), "10.0.0.10", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 		require.True(t, res.accept, "an applicable modification must not be refused")
 		assert.False(t, res.failed, "an applied modification is not a failure")
@@ -483,11 +466,18 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 	// withdrawn-len 4, prefix 10.0.0.0/24, attr-len 0. No attributes at all.
 	withdrawal := []byte{0, 4, 24, 10, 0, 0, 0, 0}
 
-	newReactor := func() *Reactor {
+	// The filter is asked on every rail below, so the advertise gate, not a
+	// chain that skipped the member, is what leaves the withdrawal alone.
+	newReactor := func(t *testing.T) *Reactor {
+		transport := localPref200Transport()
+		t.Cleanup(func() {
+			if transport.calls() == 0 {
+				t.Error("the set-local-pref filter was never asked, so the advertise gate was not reached")
+			}
+		})
 		return &Reactor{
-			api:              &pluginserver.Server{},
-			policyFilterSeam: modifyingFilter(),
-			attrModHandlers:  attrModHandlersWithDefaults(),
+			filterTransportSeam: transport,
+			attrModHandlers:     attrModHandlersWithDefaults(),
 		}
 	}
 
@@ -497,10 +487,10 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 			Address:      addr,
 			LocalAS:      65000,
 			PeerAS:       65001,
-			ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept),
+			ImportPolicy: setLocalPrefPolicy(t),
 		})
 
-		res := newReactor().runIngressPolicyChain(peer, addr, nil, testWireUpdate(withdrawal), withdrawal)
+		res := newReactor(t).runIngressPolicyChain(peer, addr, nil, testWireUpdate(withdrawal), withdrawal)
 
 		require.True(t, res.accept, "a withdrawal the chain cannot decorate is still accepted")
 		assert.Nil(t, res.modifiedPayload,
@@ -508,7 +498,7 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 	})
 
 	t.Run("egress", func(t *testing.T) {
-		res := newReactor().runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept), "10.0.0.21", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(withdrawal), false)
+		res := newReactor(t).runEgressPolicyChainASN4(setLocalPrefPolicy(t), "10.0.0.21", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(withdrawal), false)
 
 		require.True(t, res.accept, "a withdrawal the chain cannot decorate is still forwarded")
 		assert.False(t, res.failed, "refusing to create is not a step that could not run")
@@ -520,7 +510,7 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 	// a gate stuck closed reddens here rather than passing both halves above.
 	t.Run("advertising-body-still-modified", func(t *testing.T) {
 		body := policyChainAdvertisingBody()
-		res := newReactor().runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept), "10.0.0.22", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
+		res := newReactor(t).runEgressPolicyChainASN4(setLocalPrefPolicy(t), "10.0.0.22", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body), false)
 
 		require.True(t, res.accept)
 		require.NotNil(t, res.wireOverride, "an advertisement is still decorated")
@@ -529,13 +519,15 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 	})
 }
 
-// prependingFilter returns a seam that answers every filter call with a text
-// delta carrying the as-path-prepend directive, which is what reaches
-// ExtractASPathPrependOps through the chain's own parse of the modified text.
-func prependingFilter(count string) PolicyFilterFunc {
-	return func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-		return PolicyResponse{Action: PolicyModify, Delta: "as-path-prepend " + count}
-	}
+// prependTwicePolicy is a library policy at attachment whose one member asks
+// the chain to prepend the local AS twice (Sets.PrependASPath), which reaches
+// libraryASPathOps with the width the entry point hands the chain. It sets
+// libraryIntentEval for the test and clears it after.
+func prependTwicePolicy(t *testing.T, attachment string) filterapi.Policy {
+	t.Helper()
+	libraryIntentEval = func(_ *policyview.View, s *policychain.Sets) error { return s.PrependASPath(2) }
+	t.Cleanup(func() { libraryIntentEval = nil })
+	return libraryPolicy(t, attachment, libraryTypeIntents, routepolicy.FinalAccept)
 }
 
 // asPathBodyAtWidth answers an UPDATE body whose AS_PATH is encoded at the given
@@ -578,13 +570,9 @@ func TestImportChainPassesTheSourceContextWidthToThePrepend(t *testing.T) {
 				Address:      addr,
 				LocalAS:      65000,
 				PeerAS:       65001,
-				ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "prepend-twice"}}, routepolicy.FinalAccept),
+				ImportPolicy: prependTwicePolicy(t, libraryIntentImport),
 			})
-			r := &Reactor{
-				api:              &pluginserver.Server{},
-				policyFilterSeam: prependingFilter("2"),
-				attrModHandlers:  attrModHandlersWithDefaults(),
-			}
+			r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
 
 			body := asPathBodyAtWidth(asn4)
 			res := r.runIngressPolicyChain(peer, addr, nil, wireu.NewWireUpdate(body, ctxID), body)
@@ -614,15 +602,10 @@ func TestExportChainPassesItsWidthToThePrepend(t *testing.T) {
 			ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(asn4))
 			require.NoError(t, err, "the destination session negotiated a width")
 
-			r := &Reactor{
-				api:              &pluginserver.Server{},
-				policyFilterSeam: prependingFilter("2"),
-				attrModHandlers:  attrModHandlersWithDefaults(),
-			}
-			filters := []routepolicy.Ref{{Name: "prepend-twice"}}
+			r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
 
 			body := asPathBodyAtWidth(asn4)
-			res := r.runEgressPolicyChainASN4(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.21", 65001, 65000, false, policyview.Session{EBGP: true},
+			res := r.runEgressPolicyChainASN4(prependTwicePolicy(t, libraryIntentExport), "10.0.0.21", 65001, 65000, false, policyview.Session{EBGP: true},
 				wireu.NewWireUpdate(body, ctxID), asn4)
 
 			require.True(t, res.accept, "the export chain accepted the modified route")
@@ -656,15 +639,10 @@ func TestForwardedExportChainPassesTheSourceContextWidthToThePrepend(t *testing.
 			ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(asn4))
 			require.NoError(t, err, "the source session negotiated a width")
 
-			r := &Reactor{
-				api:              &pluginserver.Server{},
-				policyFilterSeam: prependingFilter("2"),
-				attrModHandlers:  attrModHandlersWithDefaults(),
-			}
-			filters := []routepolicy.Ref{{Name: "prepend-twice"}}
+			r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
 
 			body := asPathBodyAtWidth(asn4)
-			res := r.runEgressPolicyChain(mustPolicy(t, filters, routepolicy.FinalAccept), "10.0.0.22", 65001, 65000, false, policyview.Session{EBGP: true},
+			res := r.runEgressPolicyChain(prependTwicePolicy(t, libraryIntentExport), "10.0.0.22", 65001, 65000, false, policyview.Session{EBGP: true},
 				wireu.NewWireUpdate(body, ctxID))
 
 			require.True(t, res.accept, "the forwarded export chain accepted the modified route")

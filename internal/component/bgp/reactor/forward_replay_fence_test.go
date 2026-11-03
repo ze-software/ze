@@ -19,6 +19,7 @@ import (
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // replayFenceOwner is the process the fenced destination waits for.
@@ -462,13 +463,13 @@ func TestRSFastPathRedoHandsAFencedDestinationBack(t *testing.T) {
 	}
 	// Only the other client runs an export chain. Its filter accepts, and on
 	// its first call raises the destination's fence.
-	exportAnswer(t, r, func(string) PolicyResponse {
+	exportLibraryAnswer(t, r, func(string) rpc.FilterUpdateOutput {
 		if !raised {
 			raised = true
 			dst.resetAPISync([]string{replayFenceOwner})
 			raiseTestReplayFence(dst, replayFenceOwner)
 		}
-		return PolicyResponse{Action: PolicyAccept}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 	}, other)
 
 	skipped, dispatched := reactorForwardRS(r, update, id, source.Settings().Address, source)
@@ -530,13 +531,13 @@ func TestRSFastPathDispatchHandsAFencedDestinationBack(t *testing.T) {
 	}
 	// The destination's export filter raises its fence on its first call and
 	// accepts.
-	exportAnswer(t, r, func(string) PolicyResponse {
+	exportLibraryAnswer(t, r, func(string) rpc.FilterUpdateOutput {
 		if !raised {
 			raised = true
 			dst.resetAPISync([]string{replayFenceOwner})
 			raiseTestReplayFence(dst, replayFenceOwner)
 		}
-		return PolicyResponse{Action: PolicyAccept}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 	}, dst)
 
 	skipped, dispatched := reactorForwardRS(r, update, id, source.Settings().Address, source)

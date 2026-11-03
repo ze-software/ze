@@ -16,6 +16,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -445,9 +446,9 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 		fwdPool:         testPool,
 		attrModHandlers: fwdTestHandlersWithMED(markerHandler),
 	}
-	// The destination's export filter answers a text modify; the chain step
-	// writes its MED operation and applies it with r.attrModHandlers.
-	exportAnswer(t, r, medAnswer(57005), peer)
+	// The destination's export filter answers a typed MED set; the library
+	// chain writes its MED operation and applies it with r.attrModHandlers.
+	exportLibraryAnswer(t, r, medLibraryAnswer(57005), peer)
 	adapter := &reactorAPIAdapter{r: r}
 
 	sel, err := selector.Parse("*")
@@ -531,7 +532,7 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	peer.refreshForwardFacts()
 
 	// The handler panics on the MED operation the destination's export filter
-	// answers (medAnswer below).
+	// answers (medLibraryAnswer below).
 	panicHandler := filterapi.AttrModHandler(func(_ *filterapi.AttrPlan) {
 		panic("deliberate test panic")
 	})
@@ -560,7 +561,7 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 		// would suppress the route for want of those, whatever MED did.
 		attrModHandlers: fwdTestHandlersWithMED(panicHandler),
 	}
-	exportAnswer(t, r, medAnswer(1), peer)
+	exportLibraryAnswer(t, r, medLibraryAnswer(1), peer)
 	adapter := &reactorAPIAdapter{r: r}
 
 	sel, err := selector.Parse("*")
@@ -653,7 +654,7 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	}
 	// The destination's export filter answers a MED operation, a code with NO
 	// registered handler.
-	exportAnswer(t, r, medAnswer(1), peer)
+	exportLibraryAnswer(t, r, medLibraryAnswer(1), peer)
 	adapter := &reactorAPIAdapter{r: r}
 
 	sel, err := selector.Parse("*")
@@ -1138,12 +1139,12 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 
 	// Export filter: the modification applies only when destination == peerA,
 	// as a MED operation the marker handler turns into attribute 250.
-	modifyA := medAnswer(57005)
-	answer := func(dest string) PolicyResponse {
+	modifyA := medLibraryAnswer(57005)
+	answer := func(dest string) rpc.FilterUpdateOutput {
 		if dest == peerA.Settings().Address.String() {
 			return modifyA(dest)
 		}
-		return PolicyResponse{Action: PolicyAccept}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 	}
 	markerHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
 		p.Op(0)
@@ -1177,7 +1178,7 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 		fwdPool:         testPool,
 		attrModHandlers: fwdTestHandlersWithMED(markerHandler),
 	}
-	exportAnswer(t, r, answer, peerA, peerB)
+	exportLibraryAnswer(t, r, answer, peerA, peerB)
 	adapter := &reactorAPIAdapter{r: r}
 
 	dests := []netip.AddrPort{
@@ -1776,11 +1777,11 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 	}
 	cache.Activate(700, len(peers)-1)
 
-	answer := func(dest string) PolicyResponse {
+	answer := func(dest string) rpc.FilterUpdateOutput {
 		if med, ok := medFor[dest]; ok {
-			return medAnswer(med)(dest)
+			return medLibraryAnswer(med)(dest)
 		}
-		return PolicyResponse{Action: PolicyAccept}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 	}
 
 	// Writes ONE marker attribute from the first MED op. If a previous
@@ -1812,7 +1813,7 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 			dests = append(dests, peer)
 		}
 	}
-	exportAnswer(t, r, answer, dests...)
+	exportLibraryAnswer(t, r, answer, dests...)
 	adapter := &reactorAPIAdapter{r: r}
 
 	sel, err := selector.Parse("*")

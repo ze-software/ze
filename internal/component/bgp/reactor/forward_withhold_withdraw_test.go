@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // llnhReflectedWithdrawal is the MP_UNREACH_NLRI value that withdraws the prefix
@@ -175,11 +176,11 @@ func TestEgressFilterRejectWithdrawsOnBothRails(t *testing.T) {
 		// that chain, the general one through forwardUpdateCore's chain step,
 		// the route-server one through runsExportChain.
 		got := a2ForwardWith(t, rs, func(r *Reactor, _ *forwardSourceInfo) {
-			exportAnswer(t, r, func(peer string) PolicyResponse {
+			exportLibraryAnswer(t, r, func(peer string) rpc.FilterUpdateOutput {
 				if peer == refusedAddr.String() {
-					return PolicyResponse{Action: PolicyReject}
+					return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
 				}
-				return PolicyResponse{Action: PolicyAccept}
+				return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 			}, refused, passed)
 		}, payload, refused, passed)
 

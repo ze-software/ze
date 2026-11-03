@@ -270,8 +270,8 @@ func TestMappedPlainNextHopForwarding(t *testing.T) {
 							editAttrs := mixedAttrs(append([]byte{0x80, 14, byte(len(rewritten))}, rewritten...))
 							editAttrs = append(editAttrs, 0x40, 3, 4)
 							editAttrs = append(editAttrs, f.source.Settings().Address.AsSlice()...)
-							edit := PolicyResponse{Action: PolicyModify, Raw: buildUpdatePayload(editAttrs, legacy)}
-							exportAnswer(t, f.r, func(string) PolicyResponse { return edit }, f.destination)
+							edit := rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: buildUpdatePayload(editAttrs, legacy)}
+							exportLibraryAnswer(t, f.r, func(string) rpc.FilterUpdateOutput { return edit }, f.destination)
 						}
 						if !rewrite && tc.name == "native-four-octets" {
 							// The shared forwarding helper requires an intact announcement,

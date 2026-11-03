@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -245,14 +246,22 @@ func TestForwardAIGPMixedNextHopsReachSocket(t *testing.T) {
 		addresses: []netip.Prefix{netip.PrefixFrom(legacySelf, 24)},
 	})
 	// The destination's export filter rewrites the NEXT_HOP of an UPDATE that
-	// announces legacy NLRI ("nlri add <prefix>" in the filter text), as a
-	// plugin export filter answers it: a text modify.
-	rewrite := PolicyResponse{Action: PolicyModify, Delta: policyAttrNextHop + " " + legacySelf.String()}
-	exportTextAnswer(t, f.r, func(_, updateText string) PolicyResponse {
-		if filterTextAnnouncesLegacyNLRI(updateText) {
-			return rewrite
+	// announces legacy NLRI (a non-empty RFC 4271 NLRI field in the raw body
+	// it is sent), as a plugin export filter answers it: a raw body whose
+	// NEXT_HOP is the speaker's IPv4 interface. NEXT_HOP governs the legacy
+	// NLRI only, so the MP announcement keeps its own next-hop self.
+	exportLibraryInputAnswer(t, f.r, func(input rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+		sections, err := wire.ParseUpdateSections(input.Raw)
+		if err != nil {
+			t.Errorf("the export filter was sent an unparsable body: %v", err)
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
 		}
-		return PolicyResponse{Action: PolicyAccept}
+		if sections.NLRILen(input.Raw) == 0 {
+			return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+		}
+		return rawLibraryEdit(t, f.r, input.Raw, func(acc *filterapi.ModAccumulator) {
+			acc.OpCopy(uint8(attribute.AttrNextHop), filterapi.AttrModSet, legacySelf.AsSlice())
+		})
 	}, f.destination)
 	for _, peer := range []*Peer{f.source, f.destination} {
 		negotiateForwardTestFamilies(peer, family.IPv4Unicast, family.IPv6Unicast)

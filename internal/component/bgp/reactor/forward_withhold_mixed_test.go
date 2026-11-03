@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // fwdAccumulator gives a pool callback the cumulative view of every item one
@@ -295,11 +296,11 @@ func mixedRefuse(t *testing.T, refused netip.Addr) func(*Reactor) {
 		for _, peer := range r.peers {
 			dests = append(dests, peer)
 		}
-		exportAnswer(t, r, func(peer string) PolicyResponse {
+		exportLibraryAnswer(t, r, func(peer string) rpc.FilterUpdateOutput {
 			if peer == refused.String() {
-				return PolicyResponse{Action: PolicyReject}
+				return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
 			}
-			return PolicyResponse{Action: PolicyAccept}
+			return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 		}, dests...)
 	}
 }
