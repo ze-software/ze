@@ -847,7 +847,27 @@ const (
 	// srv6IneligiblePrefix is the network frr.conf's default instance leaks
 	// into IPv6 VPN (export vpn), which needs no Linux VRF device.
 	srv6IneligiblePrefix = "2001:db8:9252:1::/64"
+
+	// srv6IneligibleBGPState is the FRR command that shows whether bgpd
+	// holds the LOC1 locator and the default instance's IPv6 VPN export SID.
+	// srv6IneligibleLocatorHeld is the locator prefix it prints once zebra
+	// has sent the locator, and srv6IneligibleSIDHeld the SID line once
+	// zebra has allocated a SID from it.
+	srv6IneligibleBGPState    = "show bgp segment-routing srv6"
+	srv6IneligibleLocatorHeld = "prefix: fc00:0:1::/48"
+	srv6IneligibleSIDHeld     = "vpn_policy[AFI_IP6].tovpn_sid: fc00:0:1:"
 )
+
+// srv6IneligibleReexport re-runs FRR's VRF-to-VPN export of the default
+// instance's IPv6 unicast table. FRR 10.7.1 reruns that export, when the
+// locator arrives and when zebra allocates the SID, only for VRF instances:
+// vpn_leak_postchange_all (bgpd/bgp_mplsvpn.c) skips every instance whose
+// inst_type is not BGP_INSTANCE_TYPE_VRF. At config read the locator has not
+// arrived, so ensure_vrf_tovpn_sid_per_af requests no SID, and
+// vpn_leak_to_vpn_active then refuses the export ("SID could not be
+// allocated"). The first re-export requests the SID; the second, once the
+// SID is held, exports the route.
+var srv6IneligibleReexport = []string{cmdVtysh, "-c", frrConfigureTerminal, "-c", "router bgp 65001", "-c", "address-family ipv6 unicast", "-c", "no export vpn", "-c", "export vpn"}
 
 // flowspecMatchSCTP and flowspecMatchSCTPJSON are the SCTP match the flowspec
 // scenario lowers, as nft(8) prints it in text and in JSON (`nft -j`). The lab

@@ -18,8 +18,8 @@ import (
 // TestSRv6IdentityWireOracle checks both positive populations and the precise
 // old-code mistakes. The separate control and FIFO fence cannot be omitted.
 func TestSRv6IdentityWireOracle(t *testing.T) {
-	retained := srv6IdentityLabel + srv6IdentityServices + srv6IdentityOther
-	stripped := srv6IdentityLabel + srv6IdentityOther
+	retained := srv6IdentityDirtyLabel + srv6IdentityServices + srv6IdentityOther
+	stripped := srv6IdentityDirtyLabel + srv6IdentityOther
 	cases := []struct {
 		name      string
 		changed   bool
@@ -40,7 +40,7 @@ func TestSRv6IdentityWireOracle(t *testing.T) {
 		{"duplicate-subject", true, srv6IdentityB, stripped, []int{1, 1, 2, 3}, true},
 		{"unknown-top-level-loss", true, srv6IdentityB, srv6IdentityLabel, []int{1, 2, 3}, true},
 		{"service-reserved-zeroed", false, srv6IdentityA, strings.Replace(retained, "05002da5", "05002d00", 1), []int{1, 2, 3}, true},
-		{"dirty-label-output", false, srv6IdentityA, srv6IdentityDirtyLabel + srv6IdentityServices + srv6IdentityOther, []int{1, 2, 3}, true},
+		{"cleared-label-output", false, srv6IdentityA, srv6IdentityLabel + srv6IdentityServices + srv6IdentityOther, []int{1, 2, 3}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -396,6 +396,14 @@ var scenarioOperations = map[string][]operation{
 	// VRF device type and exported nothing.
 	"bgp-srv6-invalid-sid-ineligible-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
+		// FRR 10.7.1 never exports the default instance's route on its own:
+		// the export runs before zebra has sent the locator, and neither the
+		// locator nor the SID arriving reruns it (srv6IneligibleReexport). The
+		// first re-export requests the SID, the second exports the route.
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", srv6IneligibleBGPState}, contains: []string{srv6IneligibleLocatorHeld}, timeout: 60 * time.Second},
+		{kind: opExec, peer: peerFRR, command: srv6IneligibleReexport},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", srv6IneligibleBGPState}, contains: []string{srv6IneligibleSIDHeld}, timeout: 60 * time.Second},
+		{kind: opExec, peer: peerFRR, command: srv6IneligibleReexport},
 		// The FRR-side wait proves the route was exported before ze is asked
 		// about it, so an empty best table is never judged.
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv6 vpn"}, contains: []string{srv6IneligiblePrefix}, timeout: 60 * time.Second},

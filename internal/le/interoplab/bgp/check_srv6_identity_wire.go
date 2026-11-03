@@ -18,7 +18,9 @@ import (
 const (
 	srv6IdentityA = "2001:db8:9252::9"
 	srv6IdentityB = "2001:db8:9252::77"
-	// Label-Index Reserved/Flags normalize on transmission, unlike Service Reserved.
+	// Label-Index Reserved/Flags pass unchanged on IPv6 unicast: RFC 8669
+	// Section 3.1 has the TLV ignored outside labeled unicast, and Ze clears
+	// its fields only there (clearLabelIndexTLVs), so the dirty form is wanted.
 	srv6IdentityLabel      = "01000700000000000064"
 	srv6IdentityDirtyLabel = "010007a1b2c300000064"
 	// L3 End.DT46 carries three nonzero Reserved fields, unknown sub-TLV
@@ -128,10 +130,10 @@ func (err srv6IdentitySemanticError) Error() string { return string(err) }
 // passes. OPEN-only relays preserve every UPDATE exactly as Ze emitted it.
 func requireSRv6IdentityWire(capture string, changed bool) error {
 	hop := srv6IdentityA
-	wantSID := srv6IdentityLabel + srv6IdentityServices + srv6IdentityOther
+	wantSID := srv6IdentityDirtyLabel + srv6IdentityServices + srv6IdentityOther
 	if changed {
 		hop = srv6IdentityB
-		wantSID = srv6IdentityLabel + srv6IdentityOther
+		wantSID = srv6IdentityDirtyLabel + srv6IdentityOther
 	}
 	var seen [4]int
 	var semanticErr error
