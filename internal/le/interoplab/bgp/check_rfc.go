@@ -990,6 +990,9 @@ func checkOTCWithdrawal(ctx context.Context, check *interoplab.CheckContext) err
 		name   = "bgp-role-otc-withdraw-frr"
 		prefix = injectPrefixFirst
 	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
 	positive := []operation{
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: prefix, timeout: 60 * time.Second},
@@ -1001,14 +1004,14 @@ func checkOTCWithdrawal(ctx context.Context, check *interoplab.CheckContext) err
 	}
 	output, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + prefix}, nil)
 	if err != nil {
-		return checkerFailure(ctx, check.Lab, name, 3, err)
+		return fail(3, err)
 	}
 	value, err := parseOTCValue(output)
 	if err != nil {
-		return checkerFailure(ctx, check.Lab, name, 3, err)
+		return fail(3, err)
 	}
 	if value != 65001 {
-		return checkerFailure(ctx, check.Lab, name, 3, fmt.Errorf("FRR reports OTC %d, want local AS 65001", value))
+		return fail(3, fmt.Errorf("FRR reports OTC %d, want local AS 65001", value))
 	}
 	extras := relayWithdrawalExtras(prefix)
 	negative := make([]operation, 0, len(extras)+3)

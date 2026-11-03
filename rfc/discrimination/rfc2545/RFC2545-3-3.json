@@ -190,25 +190,46 @@
     "rid": "RFC2545-3-3",
     "polarity": "positive",
     "unit": "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops",
-    "unit-sha": "ea4bf7290198b295",
+    "unit-sha": "d6abf3dd5cdf7538",
     "claim-sha": "d0ade615a2ccb576",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/link_scope.go::sharesNextHopSubnet",
-    "producer-sha": "ba97f961c58ff969",
-    "break": "body of sharesNextHopSubnet replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-    "citation": "5"
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
+    "producer-sha": "602df978457d6505",
+    "break": "line 226: \"return configured\" -\u003e \"return netip.Addr{}\"",
+    "citation": "4"
   },
   {
     "rid": "RFC2545-3-3",
     "polarity": "negative",
     "unit": "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops",
-    "unit-sha": "ea4bf7290198b295",
+    "unit-sha": "d6abf3dd5cdf7538",
     "claim-sha": "1974c4a4eb4e8906",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/link_scope.go::sharesNextHopSubnet",
     "producer-sha": "ba97f961c58ff969",
-    "break": "body of sharesNextHopSubnet replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-    "citation": "6"
+    "break": "line 119: \"prefix.Contains(ls.peer) \u0026\u0026 prefix.Contains(global)\" -\u003e \"prefix.Contains(ls.peer)\"",
+    "citation": "6",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
+        "producer-sha": "602df978457d6505",
+        "break": "line 239: \"ls.thirdPartyLinkLocal(global)\" -\u003e \"configured\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/reactor/link_scope.go::sharesNextHopSubnet",
+        "break": "line 119: \"prefix.Contains(ls.peer) \u0026\u0026 prefix.Contains(global)\" -\u003e \"prefix.Contains(ls.peer)\"",
+        "seconds": 126,
+        "green": "interop: bgp-rfc2545-linklocal-nexthop-frr: pass (1m18s)"
+      },
+      {
+        "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
+        "break": "line 239: \"ls.thirdPartyLinkLocal(global)\" -\u003e \"configured\"",
+        "seconds": 129,
+        "green": "interop: bgp-rfc2545-linklocal-nexthop-frr: pass (1m19s)"
+      }
+    ]
   },
   {
     "rid": "RFC2545-3-3",

@@ -31,5 +31,17 @@
     "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
     "producer-sha": "8dffc1871d61f213",
     "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9234-5-4",
+    "polarity": "positive",
+    "unit": "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal",
+    "unit-sha": "c10c7c9e3f83ef63",
+    "claim-sha": "2bdd6259e716a628",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc_filter.go::evaluateOTCEgress",
+    "producer-sha": "ff2d3edd3fe5fe24",
+    "break": "line 204: \"op.Code != otcAttrCode\" -\u003e \"true\"",
+    "citation": "3"
   }
 ]
