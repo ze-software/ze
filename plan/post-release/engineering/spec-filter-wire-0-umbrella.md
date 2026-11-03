@@ -621,7 +621,7 @@ test proves at least what the old one did.
 |------|----------|-------------------|--------|
 | `filter-wire-inprocess-import` | `test/plugin/` | AC-1, AC-4 through the daemon | |
 | `filter-wire-external-declared` | `test/plugin/` | AC-2, AC-3 | |
-| `filter-wire-python-plugin` | `test/plugin/` | AC-11 | |
+| `filter-wire-python-plugin` | `test/plugin/` | AC-11 | b0e0f613f1 (`test/plugin/filter-wire-python-plugin.ci`, Python 3 plugin over the declared-field protocol, no Go SDK) |
 | `filter-wire-text-contract-refused` | `test/plugin/` | AC-9 | |
 | `filter-wire-dryrun` | `test/plugin/` | AC-16 | |
 | `filter-wire-version-negotiated` | `test/plugin/` | AC-18 | |
@@ -647,13 +647,19 @@ test proves at least what the old one did.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-policy-final-frr`, `bgp-policy-import-export-frr`, `bgp-policy-modify-mp-frr` | `test/interop/scenarios/` | FRR | AC-10: chain decisions and modified attributes, MP included, accepted by a real peer | exist; run owed after migration |
-| `bgp-remove-private-as-frr`, `bgp-remove-private-as-as4path-frr`, `as-path-prepend-two-octet-peer` | `test/interop/scenarios/` | FRR | AC-7 intents on the wire | exist; run owed after migration |
-| `bgp-path-asn-leak-frr`, `bgp-med-increment-gobgp`, `bgp-med-remove-configured-gobgp`, `bgp-attribute-default-localpref-gobgp` | `test/interop/scenarios/` | FRR, GoBGP | AC-10 for `filter_path_asn` and `filter_modify` | exist; run owed after migration |
-| the remaining scenarios whose config names a filter chain (`grep -rlE "filters \[" test/interop/scenarios`) | `test/interop/scenarios/` | as each names | AC-10 | exist; run owed after migration |
+| `bgp-policy-final-frr`, `bgp-policy-import-export-frr`, `bgp-policy-modify-mp-frr` | `test/interop/scenarios/` | FRR | AC-10: chain decisions and modified attributes, MP included, accepted by a real peer | All three GREEN after phase 5 at 8c7196ea9e (`fwi-green-<name>.log`). Break `sets` (`reactor/filter_library.go` `runLibraryChain` never calls `chain.Apply`): `bgp-policy-final-frr` RED at assertion 3 ("FRR 10.73.1.0/24: valid=true MED=0 ... want true, 77"), `bgp-policy-import-export-frr` RED at assertion 5 (BIRD wait timed out). Break `prefix` (`filter_prefix/condition.go` `compileBGPCondition` always true): `bgp-policy-import-export-frr` RED at assertion 6 ("peer output unexpectedly contains 10.39.2.0/24"). Logs `fwi-red-sets-*.log`, `fwi-red-prefix2-*.log`, summary `fwi-red-summary.txt`. `bgp-policy-modify-mp-frr`: green only, no red recorded for it |
+| `bgp-remove-private-as-frr`, `bgp-remove-private-as-as4path-frr`, `as-path-prepend-two-octet-peer` | `test/interop/scenarios/` | FRR | AC-7 intents on the wire | All three GREEN. Break `intents` (`filter_library.go` line 208, the `libraryASPathOps` call skipped): `as-path-prepend-two-octet-peer` RED at assertion 3 (FRR output wait timed out, `fwi-red-intents-as-path-prepend-two-octet-peer.log`). `bgp-remove-private-as-frr` stayed green under the break with the old regex checker (vacuous); after d7bfd9841a (`requireASAbsent` decodes FRR's segment list) it is RED at assertion 5 ("route 10.99.0.0/24 AS_PATH contains AS 64512", `asabs-brk-intents-bgp-remove-private-as-frr.log`) and GREEN clean (`asabs-clean2-bgp-remove-private-as-frr.log`). `bgp-remove-private-as-as4path-frr`: red on assertion 2 at 8c7196ea9e (OPEN Bad Peer AS, a Ze OPEN defect, not the filter wire), fixed by 2c7cbdc16a and 47647de784 with the asn4 OPEN work; then GREEN clean (`p5f-as4-clean1.log`), RED under `intents` at assertion 5 ("route 10.99.1.0/24 AS_PATH contains AS 4200000000", `p5f-as4-brk.log`), GREEN clean again (`p5f-as4-clean2.log`) |
+| `bgp-path-asn-leak-frr`, `bgp-med-increment-gobgp`, `bgp-med-remove-configured-gobgp`, `bgp-attribute-default-localpref-gobgp` | `test/interop/scenarios/` | FRR, GoBGP | AC-10 for `filter_path_asn` and `filter_modify` | All four GREEN at 8c7196ea9e (`fwi-green-<name>.log`). `bgp-med-remove-configured-gobgp`: RFC4271-5.1.4-4 positive recorded on the carrier `check_rfc.go::checkMEDRemovalConfiguration` by `./le rfc record` (route mutant `removeMED`: `sets.RemoveMED()` replaced by `_ = sets`), cc6089ccae, report `fwi-rfc4271-5.1.4-4-handwritten.json`; the hand-written mutant still owes a ze-test-judge reading. The other three: green only, no red recorded |
+| the remaining scenarios whose config names a filter chain (`grep -rlE "filters \[" test/interop/scenarios`) | `test/interop/scenarios/` | as each names | AC-10 | List `fw-interop-list.txt` (24 with the rows above). GREEN at 8c7196ea9e: `bgp-med-ibgp-post-selection-removal-gobgp`, `bgp-redist-late-join-dynamic-frr`, `bgp-role-rs-client-learned-not-upward-frr`, `isis-export-policy-frr`, `isis-import-policy-frr`, `ospf-export-policy-frr`, `ospf-import-policy-bird`, `ospf-redist-static-tag-frr`, `ospfv3-nssa-redist-frr`, `ospfv3-redist-frr`. `bgp-as-migration-local-as`: red at assertion 7 under the strict d7bfd9841a checker (FRR holds the native-iBGP route with an empty AS_PATH), GREEN after dd435d4832 (exact empty-AS_PATH op, judge-approved; `asmig.log`). `as112-origin-as-frr`: red at assertion 5 (bird-internal lacked the `attach process` send permission), GREEN after 6ea6a314da and 09792c6ca5 (`p5f-as112.log`). SRv6, after b8e7f293ae (judge-approved `wantSID`, FRR 10.7.1 default-instance export re-run): `bgp-srv6-invalid-sid-ineligible-frr`, `bgp-srv6-next-hop-identity-frr`, `bgp-srv6-next-hop-identity-unchanged-frr` GREEN (`fwi3-clean-*.log`); break `raw` (`runLibraryChain` ignores the raw override): `bgp-srv6-next-hop-identity-unchanged-frr` RED at assertion 0 (wire to the changed peer carries hop ::9 where policy answered ::77, `fwi3-raw-bgp-srv6-next-hop-identity-unchanged-frr.log`), GREEN clean again (`fwi3-clean2-*.log`); `bgp-srv6-next-hop-identity-frr` stays green under `raw` (its expected output is the unchanged hop), so it does not discriminate the raw answer |
 
 Each changed behavior owes a recorded red: revert, rebuild the image, see the
 scenario fail, restore (`ai/rules/interop-and-goal-validation.md`).
+
+Every break above is a Go overlay (`GOFLAGS=-overlay`, the broken copy under
+`fwi-brk/<break>/`), and the lab builds Ze from the tree it runs in, so the
+overlay is the revert and the rebuild together; no repository file was
+touched (`producers-sha256-{before,after}.txt` equal). Logs live in
+`tmp/session/2026-11-01-384a3761-c376-4523-a82d-0c61fcd10814/scratch/`.
 
 ## Files to Modify
 
@@ -1095,3 +1101,15 @@ in-code fast path as proposed above.
 - The redesign must define what an external plugin sees as protocol version
   or capability negotiation, so a plugin can tell which contract it is
   speaking.
+
+## Goal Validation (BLOCKING)
+
+Phase 5 rows, recorded before closure; `/ze-close` completes the rest of the
+closure template around them.
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| No text round-trip on the BGP filter path (AC-8) | source grep | At 6747aa6fa9, no definition of `AppendUpdateForFilter`, `AppendAttrsForFilter`, `parseFilterAttrs`, `applyFilterDelta`, `formatFilterAttrs`, `textDeltaToModOps`, `validateModifyDelta` or `sectionNLRIDelta` exists in Go (`grep -rnE 'func (\([^)]*\) )?(<names>)\b' --include=*.go`), `FilterUpdateInput` and `FilterUpdateOutput` in `pkg/plugin/rpc/types.go` carry no `Update` field, and `internal/component/bgp/filtertext` does not exist. One stale name remains: `TestAppendUpdateForFilterMalformedMPRendersInvalid` (`reactor/filter_format_test.go`) is named for the deleted function |
+| A forked plugin in any language filters routes over the documented contract (AC-11) | functional | `test/plugin/filter-wire-python-plugin.ci`, b0e0f613f1: a Python 3 plugin with no Go SDK rejects one prefix and sets MED on the rest |
+| A forked plugin keeps its own metrics (D-14) | functional | `test/plugin/plugin-metrics-forked.ci`, cad1dcdc65 (code 15979b0b53): a forked plugin's counter reaches `show metrics` |
+| Real peers accept the chains' decisions and modified attributes (AC-7, AC-10) | interop | The `### Interop Tests` Status cells: every listed scenario green after phase 5, with recorded reds under the `sets`, `prefix`, `intents` and `raw` breaks; `bgp-policy-modify-mp-frr`, `bgp-path-asn-leak-frr`, `bgp-med-increment-gobgp` and `bgp-attribute-default-localpref-gobgp` carry no recorded red |

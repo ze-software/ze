@@ -270,6 +270,8 @@ reach green (`ai/rules/completion.md`).
 | `test-against-broken-path.md` | 2026-10-30 | `bgp-4byte-asn-frr` checker greps for 4200000000, never configured |
 | `parallel-copies-collide-on-a-deterministic-port.md` | 2026-11-03 | `announcementPlan` (interoplab/bgp/helper.go) hard-codes `nhop 172.30.0.2` off the base subnet |
 | `test-against-broken-path.md` | 2026-10-30 | `as112-redistribute-origin-custom-frr` assertion 7 requires 112 with origin 65001 |
+| `test-against-broken-path.md` | 2026-11-03 | `as112-redistribute-origin-frr` BIRD and FRR rows are unanchored substrings, not the exact paths check.py required |
+| `interop-check-expects-what-the-peer-cannot-do.md` | 2026-11-03 | FRR 10.7.1 default-instance SRv6 export runs before the locator, worked around in b8e7f293ae |
 | `session-never-establishes-with-the-peer.md` | 2026-10-30 | `bgp-md5-auth-frr` assertion 1, no messages exchanged |
 | `session-never-establishes-with-the-peer.md` | 2026-10-30 | `bgp-exabgp-bridge-vpnv4-frr` assertion 2, peer never ready |
 
