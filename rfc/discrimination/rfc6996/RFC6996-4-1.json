@@ -47,7 +47,7 @@
     "rid": "RFC6996-4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go::TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path",
-    "unit-sha": "4c2ea5a53fd07e6b",
+    "unit-sha": "4d97ad0a2e96c342",
     "claim-sha": "f06212020d7924fc",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/filter_delta.go::removePrivateASOps",

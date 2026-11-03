@@ -128,7 +128,7 @@
     "claim-sha": "1244ebc65913cb73",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-    "producer-sha": "509ce2295fd21661",
+    "producer-sha": "676af174b0193bd5",
     "break": "body of reactorForwardRSSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -139,7 +139,7 @@
     "claim-sha": "6a23105db4110833",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-    "producer-sha": "509ce2295fd21661",
+    "producer-sha": "676af174b0193bd5",
     "break": "body of reactorForwardRSSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -147,7 +147,7 @@
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt",
     "unit-sha": "98d8b2845b5c9100",
-    "claim-sha": "bcc7ad159853a2fa",
+    "claim-sha": "3e708eb28b80405a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_relay.go::buildRelayUpdate",
     "producer-sha": "24f3585f9b9147c0",
@@ -158,7 +158,7 @@
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt",
     "unit-sha": "98d8b2845b5c9100",
-    "claim-sha": "8ff2a655c58439c6",
+    "claim-sha": "0b57e74d58ded670",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_relay.go::resolveRelaySource",
     "producer-sha": "d94c646d8ceeda27",

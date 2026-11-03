@@ -3,7 +3,7 @@
     "rid": "RFC6793-4.2.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go::TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path",
-    "unit-sha": "4c2ea5a53fd07e6b",
+    "unit-sha": "4d97ad0a2e96c342",
     "claim-sha": "0ae0bfe1e5aea875",
     "route": "mutant",
     "producer": "internal/core/bgp/attribute/aspath.go::writeSegmentWithSplit",

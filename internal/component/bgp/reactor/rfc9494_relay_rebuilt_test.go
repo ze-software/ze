@@ -67,12 +67,12 @@ func relayObserveEgress(t *testing.T, advertised bool) map[string]any {
 // live route, which it then sends to a neighbor without LLGR.
 //
 // RFC requirement: RFC9494-4.3-3 positive -- a stored route relayed through RelayStoredRoute
-// reaches the egress filters with meta "rebuilt" true and, when the source session's own OPEN carried
-// the LLGR Capability, src.LLGRAdvertised true, the two inputs LLGREgressFilter recovers the
-// LLGR_STALE fact from.
+// reaches the destination's external export filter with field "rebuilt" true and, when the source
+// session's own OPEN carried the LLGR Capability, field source-llgr-advertised true, the two inputs
+// LLGREgressFilter recovers the LLGR_STALE fact from.
 // RFC requirement: RFC9494-4.3-3 negative -- the same relay from a source session whose OPEN carried
-// no LLGR Capability reaches the egress filters with src.LLGRAdvertised false, so the recovery
-// leaves the route fresh.
+// no LLGR Capability reaches the destination's external export filter with field
+// source-llgr-advertised false, so the recovery leaves the route fresh.
 func TestBuildRelayUpdateMarksRebuilt(t *testing.T) {
 	llgr := relayObserveEgress(t, true)
 	assert.Equal(t, true, llgr[filterapi.MetaKeyRebuilt], "a relayed route says it was rebuilt from storage")
