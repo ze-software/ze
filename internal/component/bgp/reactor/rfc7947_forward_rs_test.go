@@ -452,7 +452,7 @@ func rsTransparencyBody() []byte {
 // RFC requirement: RFC7947-x-1 positive -- the route server SHOULD NOT prepend its own AS to
 // AS_PATH for an RS client (RFC 7947 Section 2.2.2.1 states it as a recommendation, and the
 // forward rail's automatic eBGP prepend never fires toward an RS client; an operator's own
-// as-path-prepend policy still inserts the local AS upstream, via ExtractASPathPrependOps);
+// as-path-prepend policy still inserts the local AS upstream, via prependASPathOps);
 // the forwarded AS_PATH equals the received AS_PATH.
 // RFC requirement: RFC7947-x-2 positive -- the route server MUST NOT rewrite NEXT_HOP for an RS
 // client under the default (transparent) next-hop mode; the forwarded NEXT_HOP is unchanged.

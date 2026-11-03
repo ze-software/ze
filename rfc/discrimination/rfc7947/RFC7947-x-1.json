@@ -9,5 +9,37 @@
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
     "producer-sha": "676af174b0193bd5",
     "break": "line 582: \"!facts.rsClient\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7947-x-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent",
+    "unit-sha": "4ea9372b813e31d5",
+    "claim-sha": "9b39e1d37eae1219",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
+    "producer-sha": "676af174b0193bd5",
+    "break": "line 582: \"!facts.rsClient\" -\u003e \"true\"",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
+        "producer-sha": "676af174b0193bd5",
+        "break": "line 594: \"facts.rsClient \u0026\u0026 communityPolicy != nil\" -\u003e \"false\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
+        "break": "line 582: \"!facts.rsClient\" -\u003e \"true\"",
+        "seconds": 4,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.039s"
+      },
+      {
+        "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
+        "break": "line 594: \"facts.rsClient \u0026\u0026 communityPolicy != nil\" -\u003e \"false\"",
+        "seconds": 26,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.040s"
+      }
+    ]
   }
 ]

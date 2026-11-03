@@ -22,9 +22,16 @@
 # ONE PEER. `le test peer` delivers `action=send:conn=2` to the first session under
 # `option=conn_map:value=remote-ip` (plan/journal/test-against-broken-path.md, 2026-08-15), so a
 # second live source would assert against whichever session actually received the bytes. The
-# confining negative is carried by the surviving attributes instead, and the unfiltered half is
-# proven where no second session is needed: TestMEDRemovalMechanismIsConfigurable
-# (reactor/forward_med_test.go) runs the same converter over the same delta with no directive.
+# confining negative is carried by the surviving attributes instead, and the rest of the removal's
+# reach is proven where no second session is needed:
+#   filter_modify TestHandleFilterUpdateMEDRemoveIsImportOnly: a `del { med; }` filter answers
+#     `med remove` on an import chain and withholds it on an export chain.
+#   policychain TestExternalMEDRemove: a filter's med remove answer suppresses attribute 4 on
+#     import, leaves a route without MULTI_EXIT_DISC with no op, and fails the route on export.
+#   reactor TestLibraryMEDRemovalFollowsTheChainOrder: through the reactor's import chain, the
+#     later of two members decides, so a later set keeps a metric and a later removal drops it.
+#   reactor TestLibraryMEDRemovalLeavesNoZeroLengthAttribute: the rebuilt body carries no
+#     MULTI_EXIT_DISC, no zero-length attribute, and the untouched ORIGIN.
 
 option=env:var=ze.log.bgp.filter.modify:value=info
 
