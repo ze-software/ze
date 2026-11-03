@@ -44,6 +44,20 @@ func specialChecker(name string, checker interoplab.Checker) interoplab.Checker 
 	}
 }
 
+// bgpRoleFRROperations returns the steps of bgp-role-frr and its forked twin:
+// FRR (local-role customer) reaches Established with Ze (import provider) and
+// holds a route Ze advertised. FRR 10.7.1 bgp_role_violation (bgpd/bgp_open.c)
+// sends a Role Mismatch NOTIFICATION for a Role that does not pair with its
+// own, so a wrong Role from Ze keeps the session down. Each call returns a
+// fresh slice, so the two scenarios never share an operation.
+func bgpRoleFRROperations() []operation {
+	return []operation{
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opFRRRoute, argument: peerPrefixFirst, timeout: 30 * time.Second},
+		{kind: opFRRSession, argument: zeLabAddress},
+	}
+}
+
 var scenarioOperations = map[string][]operation{
 	"as112-community-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
@@ -877,11 +891,9 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opBIRDSession, argument: birdZeProtocol},
 	},
-	"bgp-role-frr": {
-		{kind: opFRRSession, argument: zeLabAddress},
-		{kind: opFRRRoute, argument: peerPrefixFirst, timeout: 30 * time.Second},
-		{kind: opFRRSession, argument: zeLabAddress},
-	},
+	"bgp-role-frr": bgpRoleFRROperations(),
+	// The same FRR steps with bgp-role forked: only ze.conf's plugin block differs.
+	"bgp-role-frr-forked": bgpRoleFRROperations(),
 	"bgp-role-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		// GoBGP has no RFC 9234 support, so the scenario proves the non-strict

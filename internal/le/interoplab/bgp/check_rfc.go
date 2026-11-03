@@ -983,7 +983,7 @@ func checkRFC7999Blackhole(ctx context.Context, check *interoplab.CheckContext) 
 	return nil
 }
 
-// RFC requirement: RFC9234-5-4 positive -- an independent conforming receiver (FRR 10.3.1) reports the OTC Attribute carrying ze's local AS on a route ze advertises to it as a Customer.
+// RFC requirement: RFC9234-5-4 positive -- an independent conforming receiver (FRR 10.7.1) reports the OTC Attribute carrying ze's local AS on a route ze advertises to it as a Customer.
 // RFC requirement: RFC9234-5-4 negative -- the same receiver raises no attribute error over ze's withdrawal of that route and keeps the session up. RFC 7606 Section 5.2 makes the opposite a session-reset hazard, so this is the polarity a peer can actually punish. Stamping a withdrawal produces the error (measured, see the docstring); the emitted bytes themselves are pinned by test/plugin/role-otc-fwd-withdraw.ci.
 func checkOTCWithdrawal(ctx context.Context, check *interoplab.CheckContext) error {
 	const (
