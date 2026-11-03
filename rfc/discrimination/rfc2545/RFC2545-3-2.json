@@ -73,7 +73,7 @@
     "claim-sha": "ca618164cec5e612",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
-    "producer-sha": "97f772a3cbf7501a",
+    "producer-sha": "c8de1516569d9967",
     "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

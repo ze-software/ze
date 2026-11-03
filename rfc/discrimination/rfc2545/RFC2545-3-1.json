@@ -106,7 +106,7 @@
     "claim-sha": "794f066b7e87d7ce",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
-    "producer-sha": "97f772a3cbf7501a",
+    "producer-sha": "c8de1516569d9967",
     "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -117,7 +117,7 @@
     "claim-sha": "3f62c375d51d3d4c",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
-    "producer-sha": "97f772a3cbf7501a",
+    "producer-sha": "c8de1516569d9967",
     "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -128,7 +128,7 @@
     "claim-sha": "a87e87ad4edd7156",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
-    "producer-sha": "97f772a3cbf7501a",
+    "producer-sha": "c8de1516569d9967",
     "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
