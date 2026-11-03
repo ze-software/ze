@@ -649,10 +649,11 @@ func requireASAbsent(ctx context.Context, lab interoplab.CheckerLab, peer string
 }
 
 // frrASPathRoute is the part of FRR's `show bgp ipv4 unicast <prefix> json`
-// answer the AS-absence check reads. FRR 10.7.1 bgpd/bgp_route.c writes
-// paths[i].aspath from aspath_make_str_count, whose segments[].list holds one
-// element per ASN: a JSON number, or for AS dot notation an "X.Y" string for
-// an ASN above 65535 (lib/asn.c asn_asn2json_array).
+// answer the AS-absence check reads. FRR's paths[i].aspath object is built
+// by aspath_make_str_count (bgpd/bgp_aspath.c), whose segments[].list holds
+// one element per ASN: a JSON number, or an "X.Y" string under asdot+
+// notation, or under asdot notation for an ASN from 65535 up
+// (lib/asn.c asn_asn2json_array).
 type frrASPathRoute struct {
 	Paths []struct {
 		ASPath *struct {
