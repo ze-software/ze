@@ -170,7 +170,7 @@ func TestForwardZeroDispatchFailureIsADropNotASuppression(t *testing.T) {
 	t.Run("an egress filter reject is a withdrawal", func(t *testing.T) {
 		dst := makeNextHopSelfIBGPPeer(t, "10.0.0.6", srcCtx, srcCtxID)
 		f := newVerdictFixture(t, dst, modBufTestPayload(), srcCtxID)
-		exportAnswer(t, f.reactor, func(string) PolicyResponse { return PolicyResponse{Action: PolicyReject} }, f.dst)
+		exportLibraryAnswer(t, f.reactor, libraryReject, f.dst)
 
 		assert.NoError(t, f.forward(), "the withdrawal was dispatched")
 	})

@@ -17,24 +17,15 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// rawTunnelFilter answers every route with a raw replacement body.
-func rawTunnelFilter(raw []byte) PolicyFilterFunc {
-	return func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-		return PolicyResponse{Action: PolicyModify, Raw: raw}
-	}
-}
-
 // rawTunnelReactor is a reactor whose only filter answers with raw.
 func rawTunnelReactor(raw []byte) *Reactor {
 	return &Reactor{
-		api:              &pluginserver.Server{},
-		policyFilterSeam: rawTunnelFilter(raw),
-		attrModHandlers:  map[uint8]filterapi.AttrModHandler{},
+		filterTransportSeam: rawAnswerTransport(raw),
+		attrModHandlers:     map[uint8]filterapi.AttrModHandler{},
 	}
 }
 
@@ -60,7 +51,7 @@ func TestRFC9012FilterRawOverrideRemovesInvalidTLVs(t *testing.T) {
 	original := append([]byte{}, answer...)
 	cleaned := teCarryBody(valid)
 	input := []byte{0, 0, 0, 0}
-	policy := mustPolicy(t, []routepolicy.Ref{{Name: "tunnel-surgery"}}, routepolicy.FinalAccept)
+	policy := answerPolicy(t, routepolicy.FinalAccept, "tunnel-surgery")
 
 	t.Run("export removes the malformed TLVs", func(t *testing.T) {
 		r := rawTunnelReactor(answer)
@@ -85,7 +76,12 @@ func TestRFC9012FilterRawOverrideRemovesInvalidTLVs(t *testing.T) {
 	})
 
 	t.Run("no valid TLV refuses the route", func(t *testing.T) {
-		rec := captureWarnPeers(t)
+		// The library chain writes the refusal through fwdLogger, which this
+		// subtest points at the recorder.
+		rec := &warnRecorder{}
+		prev := fwdLogger
+		fwdLogger = func() *slog.Logger { return slog.New(rec) }
+		t.Cleanup(func() { fwdLogger = prev })
 		r := rawTunnelReactor(teCarryBody(bad))
 		res := r.runEgressPolicyChainASN4(policy, "10.0.0.23", 65001, 65000, false,
 			policyview.Session{EBGP: true}, testWireUpdate(input), false)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestFailedBodyDoesNotPublishReleasedMaterialization makes the first body's
@@ -55,8 +56,8 @@ func TestFailedBodyDoesNotPublishReleasedMaterialization(t *testing.T) {
 				// The destinations' export filter accepts; asked about the
 				// target, it first borrows every free slot of the failed peer's
 				// pool.
-				accept := PolicyResponse{Action: PolicyAccept}
-				reuse := func(dest string) PolicyResponse {
+				accept := rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+				reuse := func(dest string) rpc.FilterUpdateOutput {
 					if dest != target.Settings().Address.String() {
 						return accept
 					}
@@ -72,7 +73,7 @@ func TestFailedBodyDoesNotPublishReleasedMaterialization(t *testing.T) {
 					}
 					return accept
 				}
-				exportAnswer(t, r, reuse, h.dests...)
+				exportLibraryAnswer(t, r, reuse, h.dests...)
 				if fast {
 					// The existing section entry point accepts an ordered destination
 					// subset; this exercises its real failure and dispatch paths.

@@ -11,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
 
@@ -19,7 +18,7 @@ import (
 // peer 203.0.113.9 (AS 65001), through that peer's import policy chain, the
 // ingress step whose modified payload replaces the cached UPDATE before the RIB
 // and the forward rails see it (reactor_notify.go). With policy, the chain's
-// one filter answers "local-preference 200" (modifyingFilter); without, the
+// one filter sets local-preference 200 (localPref200Transport); without, the
 // peer has no import filter and the received payload is returned as it came.
 func rfc4271ImportPolicyPayload(t *testing.T, policy bool) []byte {
 	t.Helper()
@@ -29,12 +28,11 @@ func rfc4271ImportPolicyPayload(t *testing.T, policy bool) []byte {
 	// ineligible, so the case without the modifying filter states an accepting one.
 	settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	if policy {
-		settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept)
+		settings.ImportPolicy = answerPolicy(t, routepolicy.FinalAccept, "set-local-pref")
 	}
 	r := &Reactor{
-		api:              &pluginserver.Server{}, // non-nil: past the fail-closed r.api guard
-		policyFilterSeam: modifyingFilter(),
-		attrModHandlers:  attrModHandlersWithDefaults(),
+		filterTransportSeam: localPref200Transport(),
+		attrModHandlers:     attrModHandlersWithDefaults(),
 	}
 
 	body := a2InlinePayload()

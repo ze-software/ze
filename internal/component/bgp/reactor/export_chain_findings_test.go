@@ -50,8 +50,8 @@ func TestExportRawNextHopRefused(t *testing.T) {
 						return append(attrs, f.source.Settings().Address.AsSlice()...)
 					}
 					raw := buildUpdatePayload(attrsWith(tc.wire), legacy)
-					exportAnswer(t, f.r, func(string) PolicyResponse {
-						return PolicyResponse{Action: PolicyModify, Raw: raw}
+					exportLibraryAnswer(t, f.r, func(string) rpc.FilterUpdateOutput {
+						return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: raw}
 					}, f.destination)
 
 					updates := rfc2545ReceiveForward(t, f, rail, buildUpdatePayload(attrsWith(mappedPlainGlobal), legacy))

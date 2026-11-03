@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -84,14 +83,11 @@ func TestRFC4271IBGPReadvertisementRejectsRawMEDRemoval(t *testing.T) {
 	changedCommunity := []byte{0xD0, 0x08, 0x00, 0x04, 0x00, 0x64, 0x00, 0x02}
 	override := payloadWithoutMEDWithCommunity(t, fanoutPayload(), []byte{0x00, 0x64, 0x00, 0x02})
 	r := h.adapter.r
-	r.api = &pluginserver.Server{} // non-nil: past the fail-closed r.api guard
-	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-		return PolicyResponse{Action: PolicyModify, Raw: override}
-	}
+	r.filterTransportSeam = rawAnswerTransport(override)
 	r.orderedEgressSteps = buildOrderedEgressSteps()
 
 	dest := h.dests[0]
-	dest.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "someplugin:remove-med"}}, routepolicy.FinalAccept)
+	dest.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "remove-med")
 	dest.refreshForwardFacts()
 
 	require.NoError(t, h.forward())

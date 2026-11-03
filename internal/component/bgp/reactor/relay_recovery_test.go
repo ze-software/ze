@@ -279,7 +279,7 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			destination.session.setSendCtxID(ctxID)
 			destination.session.onMessageReceived = r.notifyMessageReceiver
 			destination.settings.NextHopMode = NextHopUnchanged
-			destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:mixed-raw"}}, routepolicy.FinalAccept)
+			destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "mixed-raw")
 			destination.negotiated.Load().families[family.IPv6Unicast] = true
 			destination.refreshForwardFacts()
 			mpBody, wantMPWithdrawal := llnhLinkLocalOnlyPayload(t)
@@ -303,11 +303,8 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			setup := conn.written()
 			require.Len(t, recoveryWrittenUpdates(t, setup), len(seed))
 			recoveryOwnerStart(t, r, destination)
-			calls := 0
-			r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-				calls++
-				return PolicyResponse{Action: PolicyModify, Raw: override}
-			}
+			raw := rawAnswerTransport(override)
+			r.filterTransportSeam = raw
 			// The edit composed over the raw answer is the forward rail's own:
 			// toward an internal destination a raw body with no LOCAL_PREF
 			// gains LOCAL_PREF 100 (RFC 4271 Section 5.1.5, applyFactsLocalPref).
@@ -323,7 +320,7 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			})
 			t.Cleanup(owner.Close)
 			require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
-			require.Equal(t, 1, calls, "own sections must not invalidate their lookup receipt")
+			require.Equal(t, 1, raw.calls(), "own sections must not invalidate their lookup receipt")
 			var announced, withdrawn, mpWithdrawn int
 			for _, written := range recoveryWrittenUpdates(t, conn.written()[len(setup):]) {
 				if len(written.NLRI) != 0 {

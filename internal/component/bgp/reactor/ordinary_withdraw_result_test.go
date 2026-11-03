@@ -15,11 +15,12 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestOrdinaryWithdrawalFinalResult drives actual withdrawal commits through an
@@ -42,8 +43,9 @@ func TestOrdinaryWithdrawalFinalResult(t *testing.T) {
 			session.sendCtxID = ctxID
 			session.adjOut = &peer.adjOut
 			peer.sendCtxID = ctxID
+			// The export filter the joint-peer fixture names, as a library chain.
+			peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "replace-next-hop")
 			peer.fwdFacts.Store(peer.buildForwardFacts())
-			r.api = &pluginserver.Server{}
 			replacement, wantNLRI := ordinaryGrowthUpdate(t, 237)
 			if partial {
 				replacement = ordinaryWithdrawalPartialBody(t)
@@ -53,13 +55,13 @@ func TestOrdinaryWithdrawalFinalResult(t *testing.T) {
 				t.Fatalf("replacement length = %d, want %d", n, len(encoded))
 			}
 			policyCalls := 0
-			r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+			r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 				policyCalls++
 				if policyCalls == 1 {
-					return PolicyResponse{Action: PolicyModify, Raw: encoded[19:]}
+					return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: encoded[19:]}
 				}
-				return PolicyResponse{Action: PolicyAccept}
-			}
+				return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+			}}
 			api := &reactorAPIAdapter{r: r}
 			withdrawals := []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:ffff::/48"), 0, false)}
 			result, err := api.SendRoutes(selector.All(), nil, withdrawals, false, plugin.OperatorSender())
@@ -117,20 +119,22 @@ func TestOrdinaryWithdrawalFinalResult(t *testing.T) {
 func TestOrdinaryBatchRetainsFinalSplitRefusal(t *testing.T) {
 	r, peer, conn := newOrdinaryJointPeer(t, netip.MustParseAddr("2001:db8:a::2"), ordinaryJointPolicyPair)
 	t.Cleanup(peer.session.timers.StopAll)
-	r.api = &pluginserver.Server{}
+	// The export filter the joint-peer fixture names, as a library chain.
+	peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "replace-next-hop")
+	peer.fwdFacts.Store(peer.buildForwardFacts())
 	replacement := ordinaryWithdrawalPartialBody(t)
 	encoded := make([]byte, replacement.Len(nil))
 	if n := replacement.WriteTo(encoded, 0, nil); n != len(encoded) {
 		t.Fatalf("replacement length = %d, want %d", n, len(encoded))
 	}
 	calls := 0
-	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+	r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 		calls++
 		if calls == 1 {
-			return PolicyResponse{Action: PolicyModify, Raw: encoded[19:]}
+			return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: encoded[19:]}
 		}
-		return PolicyResponse{Action: PolicyAccept}
-	}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+	}}
 	api := &reactorAPIAdapter{r: r}
 	batch := bgptypes.NLRIBatch{Family: family.IPv6Unicast, NLRIs: manyIPv6Host(1), NextHop: bgptypes.NewNextHopExplicit(peer.settings.LocalAddress)}
 	err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender())
@@ -158,20 +162,22 @@ func TestOrdinaryBatchRetainsFinalSplitRefusal(t *testing.T) {
 func TestOrdinaryWithdrawalOutputCannotMaskAnnouncementDrop(t *testing.T) {
 	r, peer, conn := newOrdinaryJointPeer(t, netip.MustParseAddr("2001:db8:a::2"), ordinaryJointPolicyPair)
 	t.Cleanup(peer.session.timers.StopAll)
-	r.api = &pluginserver.Server{}
+	// The export filter the joint-peer fixture names, as a library chain.
+	peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "replace-next-hop")
+	peer.fwdFacts.Store(peer.buildForwardFacts())
 	replacement, wantNLRI := ordinaryGrowthUpdate(t, 1)
 	encoded := make([]byte, replacement.Len(nil))
 	if n := replacement.WriteTo(encoded, 0, nil); n != len(encoded) {
 		t.Fatalf("replacement length = %d, want %d", n, len(encoded))
 	}
 	calls := 0
-	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+	r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 		calls++
 		if calls == 1 {
-			return PolicyResponse{Action: PolicyModify, Raw: encoded[19:]}
+			return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: encoded[19:]}
 		}
-		return PolicyResponse{Action: PolicyReject}
-	}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
+	}}
 	api := &reactorAPIAdapter{r: r}
 	routes := []*rib.Route{rib.NewRouteWithASPath(manyIPv6Host(1)[0], peer.settings.LocalAddress, nil, nil)}
 	result, err := api.SendRoutes(selector.All(), routes, manyIPv6Host(1), false, plugin.OperatorSender())

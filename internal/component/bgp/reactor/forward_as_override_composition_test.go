@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestForwardASOverrideComposition checks the bytes emitted by the real Session
@@ -65,14 +66,14 @@ func TestForwardASOverrideComposition(t *testing.T) {
 						// The destination's export filter sets or prepends AS_PATH,
 						// answering the raw body that edit builds from the received one.
 						value := asSequence4(tc.policy...)
-						edit := rawEdit(t, f.r, body, func(mods *filterapi.ModAccumulator) {
+						edit := rawLibraryEdit(t, f.r, body, func(mods *filterapi.ModAccumulator) {
 							if tc.prepend {
 								mods.Op(byte(attribute.AttrASPath), filterapi.AttrModPrepend, value)
 								return
 							}
 							mods.Op(byte(attribute.AttrASPath), filterapi.AttrModSet, value)
 						})
-						exportAnswer(t, f.r, func(string) PolicyResponse { return edit }, peer)
+						exportLibraryAnswer(t, f.r, func(string) rpc.FilterUpdateOutput { return edit }, peer)
 					}
 					id := f.receive(t, body)
 					if fast {

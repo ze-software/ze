@@ -15,13 +15,14 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestOrdinaryIPv6GrowthBoundary sends one legal original chunk with less than
@@ -53,7 +54,8 @@ func TestOrdinaryIPv6GrowthBoundary(t *testing.T) {
 				session.negotiated = capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 				session.writeBuf.Resize(session.negotiated.ExtendedMessageSend)
 			}
-			r.api = &pluginserver.Server{}
+			// The export filter the joint-peer fixture names, as a library chain.
+			peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "replace-next-hop")
 			ctxID, err := bgpctx.Registry.Register(peer.sendCtx.Load())
 			if err != nil {
 				t.Fatal(err)
@@ -65,10 +67,10 @@ func TestOrdinaryIPv6GrowthBoundary(t *testing.T) {
 			// before any API build or ordinary export callback observes it.
 			peer.fwdFacts.Store(peer.buildForwardFacts())
 			policyCalls := 0
-			r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+			r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 				policyCalls++
-				return PolicyResponse{Action: PolicyAccept}
-			}
+				return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+			}}
 
 			update, wantNLRI := ordinaryGrowthUpdate(t, tc.routes)
 			// Header 19 + section lengths 4 + ORIGIN 4 + AS_PATH 9 +
@@ -227,6 +229,8 @@ func TestOrdinaryIPv6GrowthPartialCommit(t *testing.T) {
 	session.sendCtxID = ctxID
 	session.adjOut = &peer.adjOut
 	peer.sendCtxID = ctxID
+	// The export filter the joint-peer fixture names, as a library chain.
+	peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "replace-next-hop")
 	peer.fwdFacts.Store(peer.buildForwardFacts())
 
 	// 1001 ordinary communities are valid, unique 65000:value pairs. Their
@@ -258,15 +262,14 @@ func TestOrdinaryIPv6GrowthPartialCommit(t *testing.T) {
 	if got := replacement.WriteTo(encoded, 0, nil); got != len(encoded) {
 		t.Fatalf("replacement encoded length = %d, want %d", got, len(encoded))
 	}
-	r.api = &pluginserver.Server{}
 	policyCalls := 0
-	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+	r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 		policyCalls++
 		if policyCalls == 1 {
-			return PolicyResponse{Action: PolicyModify, Raw: encoded[19:]}
+			return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: encoded[19:]}
 		}
-		return PolicyResponse{Action: PolicyAccept}
-	}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+	}}
 	api := &reactorAPIAdapter{r: r}
 	routes := []*rib.Route{
 		rib.NewRouteWithASPath(manyIPv6Host(1)[0], peer.settings.LocalAddress, nil, nil),

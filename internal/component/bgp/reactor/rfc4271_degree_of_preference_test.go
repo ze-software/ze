@@ -24,7 +24,6 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -33,8 +32,8 @@ import (
 // receiveExternalRoute receives a2InlinePayload (no LOCAL_PREF, as an external
 // route arrives) from the external peer 203.0.113.9 (AS 65001) through
 // notifyMessageReceiver and answers the one UPDATE body dispatched to the RIB
-// plugin. With policy, the peer's import policy answers "local-preference 200"
-// (modifyingFilter); without, the peer's import policy has no filter and an
+// plugin. With policy, the peer's import policy sets local-preference 200
+// (localPref200Transport); without, the peer's import policy has no filter and an
 // accepting final. RFC 8212 Section 3 makes an EBGP route with no explicit
 // import policy ineligible, so both cases carry one: "Routes contained in an
 // Adj-RIB-In associated with an EBGP peer SHALL NOT be considered eligible in
@@ -52,7 +51,7 @@ func receiveExternalRoute(t *testing.T, policy bool) []byte {
 	}
 	settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	if policy {
-		settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept)
+		settings.ImportPolicy = answerPolicy(t, routepolicy.FinalAccept, "set-local-pref")
 	}
 	source := NewPeer(settings)
 	source.state.Store(int32(PeerStateEstablished))
@@ -67,8 +66,7 @@ func receiveExternalRoute(t *testing.T, policy bool) []byte {
 		messageReceiver: &testDeliveryReceiver{consumerCount: 1, onReceived: func(_ plugin.PeerInfo, msg bgptypes.RawMessage) {
 			dispatched = append(dispatched, append([]byte(nil), msg.RawBytes...))
 		}},
-		api:                 &pluginserver.Server{}, // non-nil: past the fail-closed r.api guard
-		policyFilterSeam:    modifyingFilter(),
+		filterTransportSeam: localPref200Transport(),
 		orderedIngressSteps: []orderedIngressStep{{name: policyChainStepName, policyChain: true}},
 	}
 

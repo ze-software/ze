@@ -9,7 +9,6 @@ import (
 	"errors"
 	"net/netip"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -22,6 +21,7 @@ import (
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // replacementRail names which route-server rail carries the owner's withdrawal.
@@ -457,22 +457,24 @@ func departureWritesOnlyWhereSourceOwns(t *testing.T, sourceOwns, withE bool) {
 	ownershipLiveEstablished(t, []*lowLivePeer{b, c})
 }
 
-// policyDenyASNs installs a policy seam that rejects, at destination's export
-// chain "test:deny", every UPDATE whose text names one of asns, and accepts
-// every other UPDATE. The seam is set before any route is sent; the reactor
-// reads it on goroutines that each first read a later socket write.
+// policyDenyASNs installs the plugin server for destination's export chain
+// "test:deny": the filter reads the as-path and rejects every UPDATE whose
+// as-path field names one of asns (its JSON spelling, as in "[65003,65003]"),
+// and accepts every other UPDATE. The transport is set before any route is
+// sent; the reactor reads it on goroutines that each first read a later socket
+// write.
 func policyDenyASNs(r *Reactor, destination netip.Addr, asns ...string) {
-	r.policyFilterSeam = func(_, filterName, _, peer string, _ uint32, updateText string) PolicyResponse {
-		if filterName != "deny" || peer != destination.String() {
-			return PolicyResponse{Action: PolicyAccept}
+	r.filterTransportSeam = &answerTransport{reads: []string{"as-path"}, answer: func(input rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+		if input.Filter != "deny" || input.Peer != destination.String() {
+			return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 		}
 		for _, asn := range asns {
-			if strings.Contains(updateText, asn) {
-				return PolicyResponse{Action: PolicyReject}
+			if answerFieldsContain(input, asn) {
+				return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
 			}
 		}
-		return PolicyResponse{Action: PolicyAccept}
-	}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+	}}
 }
 
 // TestRSOwnerWithdrawalPolicyDeniedReplacement proves AC-5's no-survivor half.
@@ -528,7 +530,7 @@ func policyDeniedSurvivors(t *testing.T, withE, denyE bool) {
 	for _, setting := range acceptingPolicies(t, settings...) {
 		setting.RSClient = true
 	}
-	settings[2].ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "test:deny"}}, routepolicy.FinalAccept)
+	settings[2].ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "deny")
 	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]
 	denied := []string{"65003"}
@@ -623,10 +625,10 @@ func TestRSOwnerWithdrawalDeniedCandidateReannounces(t *testing.T) {
 	for _, setting := range acceptingPolicies(t, settings...) {
 		setting.RSClient = true
 	}
-	settings[2].ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "test:deny"}}, routepolicy.FinalAccept)
+	settings[2].ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "deny")
 	peers := rsLiveRouter(t, settings...)
 	a, b, c, e := peers[0], peers[1], peers[2], peers[3]
-	policyDenyASNs(a.peer.reactor, c.peer.Settings().Address, "[65003 65003]")
+	policyDenyASNs(a.peer.reactor, c.peer.Settings().Address, "[65003,65003]")
 	prefix := netip.MustParsePrefix("10.9.0.0/24")
 	// RFC 4271 Section 9.1.2.2, step a: A, then B's two-AS and three-AS
 	// routes, then E.
@@ -716,7 +718,7 @@ func synthesizedWithdrawalRecovers(t *testing.T, fastPath, nextHop bool) {
 		setting.RSFastPath = fastPath
 	}
 	if !nextHop {
-		settings[2].ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "test:deny"}}, routepolicy.FinalAccept)
+		settings[2].ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "deny")
 	}
 	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]

@@ -8,10 +8,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestRawExportMixedSectionsPreservePolicy forwards a single-field source through
@@ -37,7 +37,7 @@ func testRawExportMixedSectionsPreservePolicy(t *testing.T, aigp bool) {
 	h := newFanoutHarnessWith(t, 1, 1, fanoutOpts{groups: true})
 	peer := h.dests[0]
 	peer.settings.NextHopMode = NextHopUnchanged
-	peer.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:mixed-raw"}}, routepolicy.FinalAccept)
+	peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "mixed-raw")
 	peer.negotiated.Load().families[family.IPv6Unicast] = true
 	peer.settings.AIGPSession = &aigp
 	peer.refreshForwardFacts()
@@ -66,16 +66,15 @@ func testRawExportMixedSectionsPreservePolicy(t *testing.T, aigp bool) {
 	wantLegacy := []byte{24, 203, 0, 113}
 	override := buildModTestPayload(attrs, wantLegacy)
 	r := h.adapter.r
-	r.api = &pluginserver.Server{}
 	calls := 0
-	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+	r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 		calls++
 		if calls > 1 {
 			t.Error("raw policy was rerun while partitioning its own output")
-			return PolicyResponse{Action: PolicyReject}
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
 		}
-		return PolicyResponse{Action: PolicyModify, Raw: override}
-	}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: override}
+	}}
 	// The edit the forward rail composes over the raw answer is its own: the
 	// destination is internal and the raw body carries no LOCAL_PREF, so the
 	// rail records LOCAL_PREF 100 (RFC 4271 Section 5.1.5, applyFactsLocalPref)
@@ -144,7 +143,7 @@ func TestRawExportMixedBadASPathStillWithdraws(t *testing.T) {
 	peer := h.dests[0]
 	peer.settings.PeerAS = 65002
 	peer.settings.NextHopMode = NextHopUnchanged
-	peer.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:bad-path"}}, routepolicy.FinalAccept)
+	peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "bad-path")
 	peer.negotiated.Load().families[family.IPv6Unicast] = true
 	peer.refreshForwardFacts()
 	mpBody, wantMPWithdrawal := llnhLinkLocalOnlyPayload(t)
@@ -165,16 +164,15 @@ func TestRawExportMixedBadASPathStillWithdraws(t *testing.T) {
 	wantLegacyWithdrawal := []byte{24, 198, 51, 100}
 	override := makeUpdateBody(wantLegacyWithdrawal, attrs, []byte{24, 203, 0, 113})
 	r := h.adapter.r
-	r.api = &pluginserver.Server{}
 	calls := 0
-	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+	r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 		calls++
 		if calls > 1 {
 			t.Error("raw policy was rerun")
-			return PolicyResponse{Action: PolicyReject}
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
 		}
-		return PolicyResponse{Action: PolicyModify, Raw: override}
-	}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: override}
+	}}
 	r.orderedEgressSteps = buildOrderedEgressSteps()
 	if err := h.forward(); err != nil {
 		t.Errorf("forward: %v", err)

@@ -17,13 +17,13 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestRSWithdrawalOwnershipRails distinguishes destination ownership from a
@@ -445,15 +445,18 @@ func (f *ownershipRailFixture) send(t *testing.T, rail string, source *Peer, ctx
 		// An active export chain runs on the fast path itself, through the
 		// policy seam that accepts its input, and the fast path is the writer:
 		// the destination is not handed back to the cached rail.
-		f.r.api = &pluginserver.Server{}
-		f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-			return PolicyResponse{Action: PolicyAccept}
-		}
-		f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:ownership-rail"}}, routepolicy.FinalAccept)
+		accepting := &answerTransport{reads: []string{"prefix"}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+			return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+		}}
+		f.r.filterTransportSeam = accepting
+		f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "ownership-rail")
 		f.destination.refreshForwardFacts()
 		skipped, _ := reactorForwardRS(f.r, update, f.id, source.Settings().Address, source)
 		if len(skipped) != 0 {
 			t.Fatalf("fast rail with an accepting export chain: skipped %v; want the destination written here", skipped)
+		}
+		if accepting.calls() == 0 {
+			t.Fatal("the export chain never ran on the fast rail")
 		}
 		f.flush(t)
 		return

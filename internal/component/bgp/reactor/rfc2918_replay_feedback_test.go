@@ -8,7 +8,6 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -71,18 +70,17 @@ func TestRefreshSentFeedbackRetainsReplayOrigin(t *testing.T) {
 func TestRFC2918RefreshRunsCurrentExportPolicy(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	peer.sendInitialRoutes()
-	peer.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "refresh-policy"}}, routepolicy.FinalAccept)
+	peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "refresh-policy")
 	peer.refreshForwardFacts()
 	api := newSendPermissionReactor(peer)
-	api.r.api = &pluginserver.Server{}
 	accept, calls := true, 0
-	api.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+	api.r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 		calls++
 		if accept {
-			return PolicyResponse{Action: PolicyAccept}
+			return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 		}
-		return PolicyResponse{Action: PolicyReject}
-	}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
+	}}
 	peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) { return api.r.exportFilterForBody(peer, body) }
 	batch := refreshFeedbackBatch()
 	before := len(conn.written())

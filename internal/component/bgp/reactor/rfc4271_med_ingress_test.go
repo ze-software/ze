@@ -13,7 +13,6 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -50,7 +49,7 @@ func TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess(t *testing.T) {
 		GlobalLocalAS: 65000,
 		PeerAS:        65001,
 		RouterID:      0xcb007109,
-		ImportPolicy:  mustPolicy(t, []routepolicy.Ref{{Name: "alter-med"}}, routepolicy.FinalAccept),
+		ImportPolicy:  answerPolicy(t, routepolicy.FinalAccept, "alter-med"),
 	})
 	source.state.Store(int32(PeerStateEstablished))
 
@@ -64,10 +63,8 @@ func TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess(t *testing.T) {
 		messageReceiver: &testDeliveryReceiver{consumerCount: 1, onReceived: func(_ plugin.PeerInfo, msg bgptypes.RawMessage) {
 			dispatched = append(dispatched, msg)
 		}},
-		api: &pluginserver.Server{}, // non-nil: past the fail-closed r.api guard
-		policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-			return PolicyResponse{Action: PolicyModify, Delta: "med 10"}
-		},
+		filterTransportSeam: &answerTransport{reads: []string{"med"}, sets: []string{"med"},
+			answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput { return answerSet("med", "10") }},
 		orderedIngressSteps: []orderedIngressStep{{name: policyChainStepName, policyChain: true}},
 	}
 

@@ -15,7 +15,6 @@ package reactor
 
 import (
 	"net/netip"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,8 +23,8 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -38,9 +37,9 @@ var (
 
 // receiveOverlappingRoutes receives the /8 and then the /24 from the external
 // peer 203.0.113.9 through notifyMessageReceiver, with an import policy that
-// answers decide(updateText) for each UPDATE, and returns the NLRI of every
+// answers decide(input) for each UPDATE (its filter reads the prefix), and returns the NLRI of every
 // UPDATE the reactor dispatched to the RIB plugin, in order.
-func receiveOverlappingRoutes(t *testing.T, decide func(updateText string) PolicyResponse) [][]byte {
+func receiveOverlappingRoutes(t *testing.T, decide func(input rpc.FilterUpdateInput) rpc.FilterUpdateOutput) [][]byte {
 	t.Helper()
 	addr := netip.MustParseAddr("203.0.113.9")
 	source := NewPeer(&PeerSettings{
@@ -50,7 +49,7 @@ func receiveOverlappingRoutes(t *testing.T, decide func(updateText string) Polic
 		GlobalLocalAS: 65000,
 		PeerAS:        65001,
 		RouterID:      0xcb007109,
-		ImportPolicy:  mustPolicy(t, []routepolicy.Ref{{Name: "acceptance"}}, routepolicy.FinalAccept),
+		ImportPolicy:  answerPolicy(t, routepolicy.FinalAccept, "acceptance"),
 	})
 	source.state.Store(int32(PeerStateEstablished))
 
@@ -67,10 +66,7 @@ func receiveOverlappingRoutes(t *testing.T, decide func(updateText string) Polic
 			require.NoError(t, err)
 			dispatched = append(dispatched, append([]byte(nil), nlriBytes...))
 		}},
-		api: &pluginserver.Server{}, // non-nil: past the fail-closed r.api guard
-		policyFilterSeam: func(_, _, _, _ string, _ uint32, updateText string) PolicyResponse {
-			return decide(updateText)
-		},
+		filterTransportSeam: &answerTransport{reads: []string{"prefix"}, answer: decide},
 		orderedIngressSteps: []orderedIngressStep{{name: policyChainStepName, policyChain: true}},
 	}
 
@@ -79,9 +75,13 @@ func receiveOverlappingRoutes(t *testing.T, decide func(updateText string) Polic
 		0x40, 0x02, 0x06, 0x02, 0x01, 0, 0, 0xFD, 0xE9, // AS_PATH [65001]
 		0x40, 0x03, 0x04, 203, 0, 113, 9, // NEXT_HOP
 	}
+	// The session's receive context: the filter's prefix read decodes the
+	// NLRI under it, as every received UPDATE carries one.
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	require.NoError(t, err)
 	for _, prefix := range [][]byte{overlapLessSpecific, overlapMoreSpecific} {
 		body := buildUpdatePayload(attrs, prefix)
-		wu := wireu.NewWireUpdate(body, 0)
+		wu := wireu.NewWireUpdate(body, ctxID)
 		wu.SetSourceID(source.SourceID())
 		r.notifyMessageReceiver(addr, msgtype.TypeUPDATE, body, wu, 0, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0)
 	}
@@ -98,10 +98,10 @@ func receiveOverlappingRoutes(t *testing.T, decide func(updateText string) Polic
 //
 // RFC requirement: RFC4271-9.2-4 positive -- two overlapping routes (10.0.0.0/8 and 10.1.0.0/24) received from one peer and both accepted by its configured import policy are each dispatched to the RIB plugin that runs the Decision Process, in arrival order.
 func TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess(t *testing.T) {
-	var seen []string
-	dispatched := receiveOverlappingRoutes(t, func(updateText string) PolicyResponse {
-		seen = append(seen, updateText)
-		return PolicyResponse{Action: PolicyAccept}
+	var seen []rpc.FilterUpdateInput
+	dispatched := receiveOverlappingRoutes(t, func(input rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+		seen = append(seen, input)
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 	})
 
 	require.Len(t, seen, 2, "the acceptance policy is asked about each overlapping route")
@@ -121,11 +121,11 @@ func TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess(t *
 //
 // RFC requirement: RFC4271-9.2-4 negative -- when the configured import policy rejects the more specific of two overlapping routes (10.1.0.0/24) and accepts the less specific (10.0.0.0/8), only 10.0.0.0/8 is dispatched to the RIB plugin: the rejected route is not considered by the Decision Process.
 func TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered(t *testing.T) {
-	dispatched := receiveOverlappingRoutes(t, func(updateText string) PolicyResponse {
-		if strings.Contains(updateText, "10.1.0.0/24") {
-			return PolicyResponse{Action: PolicyReject}
+	dispatched := receiveOverlappingRoutes(t, func(input rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+		if answerFieldsContain(input, "10.1.0.0/24") {
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
 		}
-		return PolicyResponse{Action: PolicyAccept}
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 	})
 
 	assert.Equal(t, [][]byte{overlapLessSpecific}, dispatched,

@@ -15,10 +15,10 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // newReflectorHarness builds an IBGP route reflector fanning one route out to n
@@ -628,19 +628,18 @@ func TestDifferentBaseSameEditSetNeverShares(t *testing.T) {
 
 	override := fanoutOverridePayload()
 	r := h.adapter.r
-	r.api = &pluginserver.Server{} // non-nil: past the fail-closed r.api guard
-	// A raw=true filter returning a full UPDATE-body replacement. Terminal for the
-	// chain, and the production producer of a non-nil res.wireOverride.
-	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-		return PolicyResponse{Action: PolicyModify, Raw: override}
-	}
+	// A raw-reading filter returning a full UPDATE-body replacement. Terminal
+	// for the chain, and the production producer of a non-nil res.wireOverride.
+	r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+		return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: override}
+	}}
 	r.orderedEgressSteps = buildOrderedEgressSteps()
 
 	// Only the FIRST destination has an export policy, so only it gets a wire
 	// override. The second runs the same chain step, finds no filters, and keeps
 	// the original payload as its base.
 	overridden := h.dests[0]
-	overridden.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "someplugin:rewrite"}}, routepolicy.FinalAccept)
+	overridden.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "rewrite")
 	overridden.refreshForwardFacts()
 	require.Empty(t, h.dests[1].forwardFacts().exportPolicy.Filters(),
 		"the second destination must reach the chain with no filters, so its base stays the original")

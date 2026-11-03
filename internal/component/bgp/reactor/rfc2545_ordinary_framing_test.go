@@ -13,12 +13,13 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestOrdinaryIPv6GrowthAsymmetricFraming drives a raw export replacement through
@@ -109,15 +110,17 @@ func TestOrdinaryIPv6GrowthAsymmetricFraming(t *testing.T) {
 			if tc.refuse && len(replacement) != 4093 {
 				t.Fatalf("refusal boundary length = %d, want 4093", len(replacement))
 			}
-			r.api = &pluginserver.Server{}
 			policyCalls := 0
-			r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+			r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 				policyCalls++
 				if policyCalls == 1 {
-					return PolicyResponse{Action: PolicyModify, Raw: replacement[message.HeaderLen:]}
+					return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: replacement[message.HeaderLen:]}
 				}
-				return PolicyResponse{Action: PolicyAccept}
-			}
+				return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+			}}
+			// The export filter the joint-peer fixture names, as a library chain.
+			peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "replace-next-hop")
+			peer.fwdFacts.Store(peer.buildForwardFacts())
 			api := &reactorAPIAdapter{r: r}
 			routes := []*rib.Route{rib.NewRouteWithASPath(
 				nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/128"), 7, true),
