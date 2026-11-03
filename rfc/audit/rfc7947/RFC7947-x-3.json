@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): \"Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.\" The only edit to test/plugin/med-not-propagated-across-as.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Re-judged 2026-11-03 by an independent auditor who authored none of ee1025b381. RFC 7947 Section 2.2.3: \"Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.\" The only changed unit is TestReactorForwardRSTransparent, and only in the x-1 claim comment (ExtractASPathPrependOps -> prependASPathOps); its body still forwards MULTI_EXIT_DISC 100 to an RS client and requires the forwarded body byte-identical, so a stripped or altered MED fails; its x-3 claim (automatic Section 5.1.4 strip never fires toward an RS client, operator del { med; } still removes upstream) is unchanged and states no more than the test checks. TestForwardKeepsMEDForRouteServerClient and med-not-propagated-across-as.ci are unchanged. Verdict unchanged: enforced.",
   "requirement_sha": "91cb65f9bb46cfd0",
   "tests": {
     "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient": "72988ce9a45946bd",
-    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "7130ce3331e59279",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "ca1e393037a1b768",
     "test/plugin/med-not-propagated-across-as.ci": "645c67f92099c212",
     "test/plugin/med-not-propagated-across-as.ci#2": "645c67f92099c212"
   },
   "units": {
     "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient": "35e5ce69bc0a0fa6",
-    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b6c7cccf999cf20e",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "5db9c0d60e46ade8",
     "test/plugin/med-not-propagated-across-as.ci": "645c67f92099c212",
     "test/plugin/med-not-propagated-across-as.ci#2": "645c67f92099c212"
   },
