@@ -1855,7 +1855,9 @@ the library chain carries no text update, so such a member fails every route und
 - **A failed member applies its on-error.** A read that answers an error (a
   malformed attribute, `policyview.ErrMalformed`) and a write to a field the
   member did not declare (`policy.InstanceSets`) each fail the route under the
-  member's on-error, logged and counted (`Chain.Refused`). Fail-closed rejects
+  member's on-error, counted (`Chain.Refused`) and handed to the caller
+  (`RunSets.Failures`), which logs it once at Warn naming the peer whose route
+  failed: the chain does not know the session. Fail-closed rejects
   the route as a failure rather than a policy decision; fail-open passes it on
   with none of that member's sets. A member whose evaluation panics fails the
   same way: `judgeMember` recovers the panic on the judging goroutine, logs it

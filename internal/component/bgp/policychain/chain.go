@@ -338,6 +338,9 @@ type RunSets struct {
 	// call is the view an external member's call carries (memberView),
 	// valid during that call only.
 	call memberView
+	// failures holds the member failures of the last live run (Failures),
+	// at most one per member; its storage is kept across runs.
+	failures []MemberFailure
 }
 
 // SetRoute records what external members are sent for the next runs. The
@@ -367,6 +370,8 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 	sets.folded.Reset()
 	sets.prefix.receivedSet = false
 	sets.raw = nil
+	clear(sets.failures) // drop the last run's errors before reusing the storage
+	sets.failures = sets.failures[:0]
 	for i := range c.members {
 		m := &c.members[i]
 		if sets.route.Readvertise && !c.readvertiseRuns(m, &sets.route) {
@@ -400,7 +405,7 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 			err = decisionError(decision)
 		}
 		if err != nil {
-			if c.failure(m, onError, err, record) {
+			if c.failure(m, onError, err, sets, record) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
 			continue // fail-open: the member passes, and none of its sets apply
@@ -431,13 +436,13 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 			err = metadataWritable(view, &sets.member)
 		}
 		if err != nil {
-			if c.failure(m, onError, err, record) {
+			if c.failure(m, onError, err, sets, record) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
 			continue // fail-open: none of the member's sets apply
 		}
 		if err := sets.folded.merge(&sets.member); err != nil {
-			if c.failure(m, onError, err, record) {
+			if c.failure(m, onError, err, sets, record) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
 			continue
@@ -699,9 +704,10 @@ func decisionError(decision Decision) error {
 }
 
 // failure answers whether a member failure rejects the route (fail-closed)
-// rather than passing it on (fail-open). A live run (record nil) logs and
-// counts it; a display-only run hands it to record instead.
-func (c *Chain) failure(m *member, onError rpc.OnErrorPolicy, err error, record func(MemberTrace)) bool {
+// rather than passing it on (fail-open). A live run (record nil) counts it
+// and records it in sets for the caller to log; a display-only run hands it
+// to record instead.
+func (c *Chain) failure(m *member, onError rpc.OnErrorPolicy, err error, sets *RunSets, record func(MemberTrace)) bool {
 	closed := onError != rpc.OnErrorAccept
 	if record != nil {
 		step := TraceFailOpen
@@ -713,10 +719,29 @@ func (c *Chain) failure(m *member, onError rpc.OnErrorPolicy, err error, record 
 	}
 	c.refused.Add(1)
 	countSetRefusal(m.name, err)
-	chainLogger().Warn("policy filter failed, its on-error decides the route",
-		"attachment", c.attachment, "filter", m.name, "type", m.filterType, "on-error", onError.String(), "error", err)
-	return onError != rpc.OnErrorAccept
+	// The caller logs it (RunSets.Failures): only the caller knows which
+	// session's route failed, and a line without it names no session.
+	sets.failures = append(sets.failures, MemberFailure{Attachment: c.attachment, Filter: m.name,
+		Type: m.filterType, OnError: onError, Err: err})
+	return closed
 }
+
+// MemberFailure is one member failure a live run met: the member, the
+// on-error that decided the route, and why it failed. A run that rejects on
+// it (on-error reject) ends with it; a fail-open run may hold several.
+type MemberFailure struct {
+	Attachment string
+	Filter     string
+	Type       string
+	OnError    rpc.OnErrorPolicy
+	Err        error
+}
+
+// Failures answers the member failures the last live Run met, in chain
+// order, valid until the next Run. The chain counts each one (Chain.Refused)
+// and logs none, so the caller MUST log each with the session it judged the
+// route for. A display-only run (Trace) records none.
+func (r *RunSets) Failures() []MemberFailure { return r.failures }
 
 // directionImport is the direction an ExternalRoute names for a received
 // route, the only one on which a teardown is honored.

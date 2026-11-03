@@ -108,6 +108,7 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 		outcome = chain.Trace(&run.view, &run.sets, record)
 	} else {
 		outcome = chain.Run(&run.view, &run.sets)
+		logMemberFailures(run.sets.Failures(), peer, site)
 	}
 	if outcome.Action != policychain.OutcomeAccept {
 		return libraryResult{outcome: outcome}
@@ -157,6 +158,24 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 		return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, wireChanges: describeWireOps(&mods), treatments: treatments}
 	}
 	return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, treatments: treatments}
+}
+
+// logMemberFailures logs, at Warn and naming the peer, each member failure a
+// live chain run met. The chain counts them and logs none, because it does
+// not know whose route it judged (policychain.RunSets.Failures), so this is
+// the one line each failure gets.
+func logMemberFailures(failures []policychain.MemberFailure, peer, site string) {
+	for i := range failures {
+		failure := &failures[i]
+		route := "route dropped"
+		if failure.OnError == rpc.OnErrorAccept {
+			route = "route passed without this filter's changes"
+		}
+		fwdLogger().Warn("policy filter failed on a route for this peer, and its on-error setting decided the route ("+route+"); "+
+			"fix the filter or the plugin that serves it, then check with: show policy test",
+			"peer", peer, "site", site, "attachment", failure.Attachment, "filter", failure.Filter,
+			"type", failure.Type, "on-error", failure.OnError.String(), "error", failure.Err)
+	}
 }
 
 // libraryRewrite is the body a chain's folded sets rewrite a route to.
