@@ -68,7 +68,7 @@ func TestIngressPassDeliversEndOfRIBUnjudged(t *testing.T) {
 	for _, marker := range markers {
 		t.Run(marker.name, func(t *testing.T) {
 			transport := &unavailableTransport{onError: rpc.OnErrorReject,
-				externalTransport: externalTransport{reads: []string{"local-preference"}}}
+				reads: []string{"local-preference"}}
 			addr := netip.MustParseAddr("203.0.113.9")
 			source := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 				ImportPolicy: mixedPolicy(t, libraryTypeLP200,

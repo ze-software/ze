@@ -110,10 +110,8 @@ func (d *routeDisplay) changed(after *routeDisplay) []string {
 // (atomic-aggregate). The pair's own renderer is the one place the name is
 // spelled.
 func displayPairName(pair []byte) string {
-	if i := bytes.IndexByte(pair, ' '); i >= 0 {
-		return string(pair[:i])
-	}
-	return string(pair)
+	name, _, _ := bytes.Cut(pair, []byte{' '})
+	return string(name)
 }
 
 // The tokens of an NLRI block. A block is "nlri add|del [<prefix>...]" for the

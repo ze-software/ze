@@ -323,7 +323,7 @@ func TestRFC8212DefaultOriginateGuard(t *testing.T) {
 				settings.ExportPolicy = mustPolicy(t, nil, final)
 			}
 			peer := NewPeer(settings)
-			transport := &guardTransport{fieldsTransport: fieldsTransport{reads: map[string][]string{"guard": {"prefix"}}}, action: action}
+			transport := &guardTransport{reads: map[string][]string{"guard": {"prefix"}}, action: action}
 			peer.reactor = &Reactor{api: liveFilterServer(t), filterTransportSeam: transport}
 			got := peer.defaultOriginateFilterAccepts("test:guard", defaultRouteTestWire(t))
 			if got != (final == routepolicy.FinalAccept && action == rpc.FilterAccept) || transport.calls != 1 {
@@ -342,7 +342,7 @@ func TestRFC8212DefaultOriginateGuard(t *testing.T) {
 		settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65000, 65001, 1)
 		settings.ExportPolicy = bindRefs(mustPolicy(t, []routepolicy.Ref{ref}, routepolicy.FinalAccept), ref)
 		peer := NewPeer(settings)
-		transport := &guardTransport{fieldsTransport: fieldsTransport{reads: map[string][]string{"guard": {"prefix"}}}, action: rpc.FilterAccept}
+		transport := &guardTransport{reads: map[string][]string{"guard": {"prefix"}}, action: rpc.FilterAccept}
 		peer.reactor = &Reactor{api: liveFilterServer(t), filterTransportSeam: transport}
 		if peer.defaultOriginateFilterAccepts("test:guard", defaultRouteTestWire(t)) {
 			t.Fatal("synthetic condition bypassed unsupported export ownership")

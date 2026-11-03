@@ -162,12 +162,6 @@ func recordNLRIRewrite(section nlriSection, kept []byte, override *[]byte, mods 
 	}
 }
 
-// withdraws reports whether the section lists withdrawn routes, whose key
-// nlrisplit frames without a label stack (RFC 8277 Section 2.4).
-func (s nlriSection) withdraws() bool {
-	return s == sectionWithdrawn || s == sectionMPUnreach
-}
-
 // dropNLRI returns the NLRI of the source section, in source order, less the
 // entries that start at an offset in drops, which MUST be ascending and each
 // once (policychain.Sets.NLRIDrops answers them so). Each kept NLRI is copied

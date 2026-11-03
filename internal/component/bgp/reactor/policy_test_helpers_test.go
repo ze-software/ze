@@ -33,11 +33,13 @@ func mustPolicy(t testing.TB, refs []routepolicy.Ref, final routepolicy.Final) f
 
 // compiledPolicy is the policy bgp/config builds for refs that name plugin
 // filters: each "<plugin>:<filter>" ref becomes an external member of a
-// library chain compiled at attachment under final (bgpconfig
-// compileLibraryChain). mustPolicy alone builds a policy no chain runs, which
-// the reactor fails closed on, so a test whose filters must run uses this.
-func compiledPolicy(t testing.TB, attachment string, final routepolicy.Final, refs ...routepolicy.Ref) filterapi.Policy {
+// library chain compiled at libraryTestMixed under an accepting final
+// (bgpconfig compileLibraryChain). mustPolicy alone builds a policy no chain
+// runs, which the reactor fails closed on, so a test whose filters must run
+// uses this.
+func compiledPolicy(t testing.TB, refs ...routepolicy.Ref) filterapi.Policy {
 	t.Helper()
+	const final = routepolicy.FinalAccept
 	reg, err := routepolicy.NewRegistry()
 	require.NoError(t, err)
 	members := make([]policychain.Member, len(refs))
@@ -46,7 +48,7 @@ func compiledPolicy(t testing.TB, attachment string, final routepolicy.Final, re
 		require.True(t, ok, "ref %q names no plugin", ref.Name)
 		members[i] = policychain.Member{Name: filter, Plugin: plugin}
 	}
-	chain, err := policychain.Compile(attachment, reg, members, final, policychain.Bases{LocalPreference: 100})
+	chain, err := policychain.Compile(libraryTestMixed, reg, members, final, policychain.Bases{LocalPreference: 100})
 	require.NoError(t, err)
 	return mustPolicy(t, refs, final).WithLibrary(chain)
 }

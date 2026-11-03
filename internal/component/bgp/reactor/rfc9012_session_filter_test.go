@@ -97,7 +97,7 @@ func teSessionFilterRoundTrip(t *testing.T, filtered int) {
 		if i == filtered {
 			filter = teSessionFilterRemove
 		}
-		destination.settings.ExportPolicy = compiledPolicy(t, libraryTestMixed, routepolicy.FinalAccept,
+		destination.settings.ExportPolicy = compiledPolicy(t,
 			routepolicy.Ref{Name: teSessionFilterPlugin + ":" + filter})
 		destination.refreshForwardFacts()
 		r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: destination.Settings().PeerKey()}, 4096)

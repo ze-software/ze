@@ -81,7 +81,7 @@ func TestEgressChainCarriesTheFailedFlagToTheStep(t *testing.T) {
 	require.NoError(t, err)
 	wire := wireu.NewWireUpdate(modBufTestPayload(), ctxID)
 	refs := []routepolicy.Ref{{Name: "policy-plugin:export-policy"}}
-	policy := compiledPolicy(t, libraryTestMixed, routepolicy.FinalAccept, refs...)
+	policy := compiledPolicy(t, refs...)
 
 	t.Run("a filter that could not run", func(t *testing.T) {
 		r := &Reactor{api: liveFilterServer(t)}

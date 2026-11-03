@@ -200,7 +200,7 @@ func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
 	filterSubjectPlugin(t, r)
 
 	for _, mode := range []string{"sets", "raw"} {
-		policy := compiledPolicy(t, libraryTestMixed, routepolicy.FinalAccept, frefs("subject-policy:"+mode)...)
+		policy := compiledPolicy(t, frefs("subject-policy:"+mode)...)
 		source.settings.ImportPolicy = policy
 		source.settings.ExportPolicy = policy
 		for _, metric := range []struct {
