@@ -37,6 +37,7 @@ func p12RegisterFilterFixtures() {
 		[]string{fieldASPath, pipeOrigin},
 		sdk.FilterAccept,
 		"filter called %d time(s)",
+		false,
 	))
 	Register("plugin/redistribute-import-modify", p12FilterImportDriver(
 		"filter-modify-test",
@@ -44,6 +45,7 @@ func p12RegisterFilterFixtures() {
 		[]string{fieldLocalPreference},
 		sdk.FilterModify,
 		"filter modified %d route(s)",
+		true,
 	))
 	Register("plugin/redistribute-import-reject", p12FilterImportDriver(
 		"filter-reject-test",
@@ -51,6 +53,7 @@ func p12RegisterFilterFixtures() {
 		[]string{fieldASPath, pipeOrigin},
 		sdk.FilterReject,
 		"filter rejected %d route(s)",
+		false,
 	))
 }
 
@@ -307,7 +310,15 @@ func p12FilterSaid(lead string, fields []byte) {
 
 // p12FilterImportDriver runs one import filter that declares reads and, for a
 // modify filter, the local-preference Set its answer carries.
-func p12FilterImportDriver(name, filterName string, reads []string, action sdk.FilterAction, success string) Driver {
+//
+// forwardsToPeerTwo is true when the .ci scripts an internal peer2 at
+// 127.0.0.2 that must receive the imported route through the route server.
+// The scenario then waits for two UPDATEs sent to peer2 (the route and its
+// end-of-rib) before it returns: the quiesce below drains the forward pool
+// and peer sync only, so without this wait the shutdown can land between
+// the route server receiving the route and forwarding it, and peer2 never
+// sees it on a loaded machine.
+func p12FilterImportDriver(name, filterName string, reads []string, action sdk.FilterAction, success string, forwardsToPeerTwo bool) Driver {
 	state := new(p12FilterState)
 	declaration := sdk.FilterDecl{
 		Name:      filterName,
@@ -344,6 +355,9 @@ func p12FilterImportDriver(name, filterName string, reads []string, action sdk.F
 		Poll(ctx, 100, 100*time.Millisecond, func() bool { return state.calls.Load() > 0 })
 		if !p12WaitPeerCounter(ctx, plugin, "*", "eor-sent", 1) {
 			return fmt.Errorf("ze sent no end-of-rib to peer1 before shutdown")
+		}
+		if forwardsToPeerTwo && !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "updates-sent", 2) {
+			return fmt.Errorf("ze never forwarded the imported route to peer2")
 		}
 		if err := p12Quiesce(ctx, plugin); err != nil {
 			return err
