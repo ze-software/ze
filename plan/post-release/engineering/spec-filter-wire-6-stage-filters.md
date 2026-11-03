@@ -2,17 +2,44 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | Child of `spec-filter-wire-0-umbrella` (post-release engineering). It also fixes shipped misbehaviour: `bgp-role` (RFC 9234 Section 5) and `bgp-filter-community` (RFC 7999 Section 3.1, RFC 8195) run forked accept every route with no error, which a release owes fixed whatever bucket the mechanism sits in |
 | RFC gaps | - |
 | Depends | `spec-filter-wire-0-umbrella` phases 1 and 3 (landed: 1a179d341e Stage 1 reads/sets, 29fc996ece batched `filter-update`, 4ee9ba017c typed bridge slot); the umbrella's D-13 `loop` row (engine step, committed before this spec starts) |
-| Phase | 1/8 |
+| Phase | 8/8 |
 | Handoff | - |
-| Updated | 2026-11-01 |
+| Updated | 2026-11-03 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+Handed back by the independent closer on 2026-11-03 (`/ze-close`, deliverables
+step). All eight implementation phases are in the tree, and the AC-19 grep is
+empty: no `filterapi.Register(`, `IngressOrdered`, `EgressOrdered`,
+`ReadvertiseEgressFuncs`, `NotifyPeerRemoved`, `PreserveOpaqueAttributesFor`,
+`retention.Family`, `retention.Publish`, `retention.Owner`, `r.egressFilters`
+or `readvertiseEgressFilters` under `internal/`, `pkg/` or `cmd/`. The closure
+stops on three owed deliverables, none of which a closer writes.
+
+| # | What blocks | Producer / evidence | What clears it |
+|---|-------------|---------------------|----------------|
+| 1 | AC-21 asks `bgp-role-otc-withdraw-frr` to pass with `bgp-role` internal and forked. The forked run does not exist | `test/interop/scenarios/bgp-role-otc-withdraw-frr/ze.conf` loads `internal role { use bgp-role; }` only, and no forked variant exists under `test/interop/scenarios/` | `/ze-implement` writes the forked variant (`external` `bgp-role`, the same FRR assertions), runs both through `./le test integration interop`, and records the red with the forked evaluator broken. The run is Docker and long, so the main thread or a fresh agent runs it. AC-21 is not met until then |
+| 2 | AC-9 names a forked twin of `rfc7999-blackhole-readvertise-agreement.ci`, and it was never promoted | `test/draft/plugin/rfc7999-blackhole-readvertise-agreement-forked.ci` is a gitignored draft. The phase 4 load proof reproduced `start le test peer: context deadline exceeded` on invocation 33, the harness load class of `plan/journal/gate-verdict-depends-on-the-machine.md`, so it stayed a draft | A clean load proof and promotion under `/ze-test`. This closure was briefed to run no stress run, so the main thread decides how the twin is proven. Until it is promoted AC-9 is half met: `community-blackhole-noexport-forked.ci` is tracked |
+| 3 | RFC proof records in a stem this spec moved are not fresh: the RFC2545-3-3 audit verdict is STALE, and the RFC2545-3-2 and RFC2545-3-3 revert records at `checkRFC2545NextHops` (interoplab) do not verify | `./le rfc check`, and the body of fd0dc0afff: the interop lab could not build ze while another session's `internal/test/runner` edit did not compile. `go vet ./internal/test/runner/` is clean on 2026-11-03, so the lab may build now | Re-take the `checkRFC2545NextHops` records with `./le rfc record` (an interop run, long), then an independent `/ze-rfc-audit` re-stamps RFC2545-3-3 |
+
+Not blockers, recorded for the next closer. The closure sections of
+`plan/templates/TEMPLATE-CLOSURE.md` are not appended yet. A-1 to A-10 still
+read `unvalidated` in Risks & Assumptions, and each needs its evidence. The TDD
+plan names `TestBoundStepsSortLikeTheRegistry`,
+`TestEveryEgressRailRunsBoundSteps` and `TestBoundStepsRepublishOnRespawn`,
+which predate D-4 (bound steps withdrawn); they map to the insertion tests that
+replaced them (`internal/component/bgp/config/filter_insertion_test.go`,
+`TestRestartWithAChangedDeclarationRebuildsThePeers`). The journal rows on the
+raw export answer against RFC 9012 Section 13 and on the `toPolicyAction`
+on-error comment are owned by `spec-filter-wire-0-umbrella`, not this spec.
 
 ## Task
 
