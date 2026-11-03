@@ -7,6 +7,7 @@
 # unprivileged developer host skips it. The env opt-in is what the fixture
 # demands before it touches the clock; the caps gate is what keeps it off a host
 # that must keep its time.
+option=storage:value=disk
 option=needs-linux:caps=sys-time
 option=env:var=ZE_STORAGE_CLOCK_TEST:value=1
 option=timeout:value=70s

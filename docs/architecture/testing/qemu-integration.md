@@ -156,6 +156,20 @@ cross-building a broken ze, or by an overlay, never reaches the test, and the
 green it reports proves nothing. `test qemu all` sets both for every suite
 (`environment`, `internal/le/test/qemu/alltests.go`).
 
+Keep the host session identity on the host invocation. Do not export
+`CLAUDE_CODE_SESSION_ID` or `ze.session.id` into the guest command. Without a
+session identity, the functional runner creates fresh work directories in the
+guest's `TMPDIR`, which QEMU sets to `/tmp`.
+
+Exporting the host identity selects
+the host session directory through `/workspace` instead. Files created through
+that share can have the host UID, so the guest-root daemon correctly refuses
+their stores. The host admission slot still reaches the guest through
+`ZE_RUN_JOB`. Test ownership does not require a shared store directory.
+<!-- source: internal/test/sessionpath/sessionpath.go -- ID, Root, DefaultScratchRoot -->
+<!-- source: internal/test/runner/runner_exec.go -- runTest -->
+<!-- source: internal/le/test/qemu/run.go -- setupCommand -->
+
 `./le test qemu run` holds the host's admission slot itself, under the label
 `qemu-run`, and its guest setup writes a stand-in entry in the guest's own
 `/tmp` and exports it as `ZE_RUN_JOB`, so the guest runner runs inside that slot

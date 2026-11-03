@@ -33,6 +33,7 @@
 # (internal/component/traffic/register.go) as
 # `traffic-control backend "vpp": interface "eth0": ...`.
 
+option=storage:value=disk
 option=env:var=ze.log.traffic:value=info
 
 stdin=peer:terminator=EOF_PEER
