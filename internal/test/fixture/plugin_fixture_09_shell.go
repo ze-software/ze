@@ -3,7 +3,9 @@ package fixture
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -15,6 +17,11 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/selfcert"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func availablePort09() (int, error) {
@@ -87,8 +94,9 @@ func waitForLog09(ctx context.Context, path, needle string) (string, error) {
 	return string(content), nil
 }
 
-func lgTLSStatusBody09(ctx context.Context, port int) (string, error) {
+func lgTLSStatusBody09(ctx context.Context, port int, fingerprint [sha256.Size]byte) (string, error) {
 	transport := &http.Transport{Proxy: nil, TLSClientConfig: &tls.Config{InsecureSkipVerify: true}} //nolint:gosec // fixture proves the generated self-signed certificate is served
+	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, Timeout: 10 * time.Second}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://127.0.0.1:"+strconv.Itoa(port)+"/api/looking-glass/status", http.NoBody)
 	if err != nil {
@@ -106,7 +114,56 @@ func lgTLSStatusBody09(ctx context.Context, port int) (string, error) {
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return string(body), fmt.Errorf("TLS request returned HTTP %d", response.StatusCode)
 	}
+	if response.TLS == nil {
+		return "", errors.New("looking glass response has no TLS connection state")
+	}
+	if len(response.TLS.PeerCertificates) == 0 {
+		return "", errors.New("looking glass response has no peer certificate")
+	}
+	served := sha256.Sum256(response.TLS.PeerCertificates[0].Raw)
+	if served != fingerprint {
+		return "", fmt.Errorf("looking glass served certificate SHA-256 %x, want seeded %x", served, fingerprint)
+	}
 	return string(body), nil
+}
+
+// lgTLSSeed09 writes a fresh, known pair through the live store API. Its owner
+// lock MUST be released before the daemon starts.
+func lgTLSSeed09(dir string, cert, key []byte) (err error) {
+	store, err := storage.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, store.Close()) }()
+	if err := store.WriteFile(zefs.KeyWebCert.Pattern, cert, 0o600); err != nil {
+		return err
+	}
+	return store.WriteFile(zefs.KeyWebKey.Pattern, key, 0o600)
+}
+
+// lgTLSPersisted09 opens the store only after shutdown and compares both PEM
+// values exactly. Certificate existence alone cannot prove reuse.
+func lgTLSPersisted09(dir string, cert, key []byte) (err error) {
+	store, err := storage.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, store.Close()) }()
+	gotCert, err := store.ReadFile(zefs.KeyWebCert.Pattern)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(gotCert, cert) {
+		return errors.New("looking glass persisted certificate differs from seed")
+	}
+	gotKey, err := store.ReadFile(zefs.KeyWebKey.Pattern)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(gotKey, key) {
+		return errors.New("looking glass persisted private key differs from seed")
+	}
+	return nil
 }
 
 func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
@@ -148,15 +205,15 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 	}
 }
 `, lgPort)
-	defaultPath := filepath.Join(root, "lg-default.conf")
-	plaintextPath := filepath.Join(root, "lg-plaintext.conf")
+	defaultPath := filepath.Join(adminDir, "lg-default.conf")
+	plaintextPath := filepath.Join(adminDir, "lg-plaintext.conf")
 	if err := os.WriteFile(defaultPath, []byte(defaultConfig), 0o600); err != nil {
 		return err
 	}
 	if err := os.WriteFile(plaintextPath, []byte(plaintextConfig), 0o600); err != nil {
 		return err
 	}
-	environment := append(os.Environ(), "ZE_CONFIG_DIR="+adminDir)
+	environment := append(env.Without(os.Environ(), "ze.config.dir"), "ze.config.dir="+adminDir)
 	initCommand := exec.CommandContext(ctx, "ze", "init")
 	initCommand.Env = environment
 	initCommand.Stdin = strings.NewReader(fmt.Sprintf("admin\ntestpass\n127.0.0.1\n%d\n", sshPort))
@@ -165,6 +222,17 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 	initCommand.Stderr = &initError
 	if err := initCommand.Run(); err != nil {
 		return fmt.Errorf("ze init: %w: %s", err, initError.String())
+	}
+	cert, key, err := selfcert.GenerateWebCertWithAddr("127.0.0.1")
+	if err != nil {
+		return err
+	}
+	pair, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		return err
+	}
+	if err := lgTLSSeed09(adminDir, cert, key); err != nil {
+		return fmt.Errorf("seed looking glass certificate: %w", err)
 	}
 
 	var daemon *exec.Cmd
@@ -183,7 +251,7 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 		return fmt.Errorf("default looking glass did not announce https: %s", logText)
 	}
 	fmt.Fprintln(os.Stderr, "OK: looking glass defaults to TLS")
-	body, err := lgTLSStatusBody09(ctx, lgPort)
+	body, err := lgTLSStatusBody09(ctx, lgPort, sha256.Sum256(pair.Certificate[0]))
 	if err != nil {
 		return err
 	}
@@ -191,8 +259,13 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 		return fmt.Errorf("https status response did not carry router_id: %s", body)
 	}
 	fmt.Fprintln(os.Stderr, "OK: TLS handshake completed and the API answered")
+	fmt.Fprintln(os.Stderr, "OK: looking glass served the seeded certificate")
 	stopProcess09(daemon)
 	daemon = nil
+	if err := lgTLSPersisted09(adminDir, cert, key); err != nil {
+		return fmt.Errorf("reopen looking glass store after shutdown: %w", err)
+	}
+	fmt.Fprintln(os.Stderr, "OK: looking glass certificate and key persisted unchanged")
 
 	plaintextLog := filepath.Join(root, "plaintext.log")
 	daemon, err = startProcess09(ctx, []string{actionStart, plaintextPath}, nil, environment, plaintextLog)

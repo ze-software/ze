@@ -375,6 +375,24 @@ option line in each file since.
 <!-- source: internal/test/runner/record_dut_store.go -- dutStore, parseOptionStorage, env -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest, runOrchestrated -->
 
+### Looking-glass certificate persistence
+
+The LG TLS fixture seeds a known certificate and key through `storage.Open`
+after `ze init`, then closes the store before startup. Its HTTPS request checks
+the actual peer certificate's DER SHA-256 fingerprint against that seed.
+After shutdown, it reopens the store and requires both PEM values to match
+exactly. These checks supplement the HTTPS banner, API `router_id`, handshake,
+and plaintext opt-out checks. A root mismatch fails the fingerprint check even
+when a memory store generates a usable certificate.
+<!-- source: internal/test/fixture/plugin_fixture_09_shell.go -- lgTLSDefaultOn09, lgTLSStatusBody09, lgTLSSeed09, lgTLSPersisted09 -->
+
+Initialization and both explicit config files use the fixture's owned `admin`
+directory. The child environment removes every case/dot/underscore spelling of
+`ze.config.dir` through `env.Without`, then sets that one root. The inherited
+storage selector remains intact, so this checks reuse of a seeded disk store
+even under the ordinary memory default.
+<!-- source: internal/test/fixture/plugin_fixture_09_shell.go -- lgTLSDefaultOn09 -->
+
 ### Readiness markers between fixture processes
 
 `le test fixture plugin/wait-file <path>` waits for the named regular file.

@@ -307,6 +307,15 @@ All source files in `internal/component/lg/` reference this document via `// Des
 
 ### LG TLS
 
+For self-signed TLS, the hub reads existing certificate and key material from
+the daemon's store through `LoadOrGenerateCert`. For `ze start <file>`, that
+store belongs beside the explicit config file. A `ze init` store in another
+directory does not supply that listener's certificate.
+<!-- source: cmd/ze/hub/service_lg.go -- buildLGService -->
+<!-- source: cmd/ze/hub/cert_store.go -- blobCertStore -->
+<!-- source: internal/core/resolve/resolve.go -- StoreDir, StorageFor -->
+<!-- source: internal/core/selfcert/selfcert.go -- LoadOrGenerateCert -->
+
 `NewLGServer` takes the PEM material from its caller: a self-signed certificate,
 or a leaf-then-intermediates chain from the PKI store. It puts the parsed pair
 behind `tls.Config.GetCertificate` and clears `Certificates`, so `crypto/tls`
