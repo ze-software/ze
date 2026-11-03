@@ -1,7 +1,8 @@
 {
-  "note": "The current tagged set proves structural and registry-semantic malformed-endpoint removal, original-input receive dispatch, exact raw/rebuilt downstream output and real received-route storage across all seven Section 6 carriers. Marked valid siblings and independent routes survive; all-invalid replacements withdraw only the target and permit same-session recovery. applyRFC7606 consumes the rewritten body and attributes, and processValidatedMessage dispatches synthesized withdrawals. Optional origin-AS validation is neither provided nor claimed.",
+  "note": "The tagged set proves structural and registry-semantic malformed-endpoint removal, original-input receive dispatch, exact raw/rebuilt downstream output and real received-route storage across all seven Section 6 carriers. Marked valid siblings and independent routes survive; all-invalid replacements withdraw only the target and permit same-session recovery. applyRFC7606 consumes the rewritten body and attributes, and processValidatedMessage dispatches synthesized withdrawals. TestRFC9012FilterRawOverrideRemovesInvalidTLVs extends the removal to a raw filter answer: on both runEgressPolicyChainASN4 and runIngressPolicyChain, an IPv4 unicast body whose valid TLV sits between two TLVs with a short (3-octet) IPv4 endpoint is handed on as the exact body holding the valid TLV alone, the filter's bytes stay untouched, an all-malformed raw answer is suppressed as failed with a Warn, and a clean answer passes unchanged. Skipping filterRawTunnelEncap in decodeFilterRawOverride would hand on the mixed body and fail the exact-bytes assertions, beyond the recorded panic break. The library chain's raw answer (filter_library.go) is not driven by this unit and is not claimed by it. Optional origin-AS validation is neither provided nor claimed.",
   "requirement_sha": "241a0ccb366340fb",
   "tests": {
+    "internal/component/bgp/reactor/rfc9012_filter_raw_override_test.go::TestRFC9012FilterRawOverrideRemovesInvalidTLVs": "57e26b75a6e11468",
     "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage": "a6036fce01122dce",
     "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage#2": "a6036fce01122dce",
     "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation": "61fee3e427e7f115",
@@ -10,6 +11,7 @@
     "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "cd227ea5764f94be"
   },
   "units": {
+    "internal/component/bgp/reactor/rfc9012_filter_raw_override_test.go::TestRFC9012FilterRawOverrideRemovesInvalidTLVs": "b3745f35cce65e3b",
     "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage": "45ab3b1c39f5d7c7",
     "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage#2": "45ab3b1c39f5d7c7",
     "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation": "61d7016fcba8872e",
