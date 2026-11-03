@@ -1722,6 +1722,31 @@ type recordingLab struct {
 	afterQuery func()
 }
 
+// frrNoASRoute is FRR 10.7.1's pretty `show bgp ipv4 unicast <prefix> json`
+// answer for one path, in vty_json's two-space indentation: the prefix, the
+// aspath string, then the AS_SEQUENCE list body.
+const frrNoASRoute = `{
+  "prefix":%q,
+  "paths":[
+    {
+      "aspath":{
+        "string":%q,
+        "segments":[
+          {
+            "type":"as-sequence",
+            "list":[
+              %s
+            ]
+          }
+        ],
+        "length":2
+      },
+      "valid":true
+    }
+  ]
+}
+`
+
 func recorderFor(current *operation) *recordingLab {
 	recorder := &recordingLab{}
 	switch current.kind {
@@ -1744,7 +1769,9 @@ func recorderFor(current *operation) *recordingLab {
 	case opFRRCommunity:
 		recorder.output = current.argument + " " + strings.Join(current.contains, " ")
 	case opFRRNoAS:
-		recorder.output = current.argument + ` "aspath":{"string":"65000"}`
+		// A valid FRR 10.7.1 pretty route whose AS_SEQUENCE omits the absent
+		// ASN, so the accepting path runs through the structured decode.
+		recorder.output = fmt.Sprintf(frrNoASRoute, current.argument, "65000 65010", "65000,\n              65010")
 	case opWaitContains, opWaitContainsAny, opDelayRequireContains, opRequireContains:
 		recorder.output = strings.Join(current.contains, " ")
 	case opRequireJSONFields, opWaitJSONFields:
@@ -1806,7 +1833,11 @@ func contradictoryRecorderFor(current *operation) *recordingLab {
 	case opFRRCommunity:
 		recorder.output = current.argument + " without requested community"
 	case opFRRNoAS:
-		recorder.output = current.argument + " " + current.absent[0]
+		// FRR 10.7.1 vty_json pretty output, where the absent ASN is the last
+		// element of both aspath.string and segments[0].list. The last ASN is
+		// followed by a quote in the string and a newline in the list, the
+		// place a text match on separators does not see.
+		recorder.output = fmt.Sprintf(frrNoASRoute, current.argument, "65000 "+current.absent[0], "65000,\n              "+current.absent[0])
 	case opWaitContains, opWaitContainsAny, opDelayRequireContains, opRequireContains:
 		recorder.output = "measured output without required values"
 	case opRequireAbsent, opWaitAbsent:
