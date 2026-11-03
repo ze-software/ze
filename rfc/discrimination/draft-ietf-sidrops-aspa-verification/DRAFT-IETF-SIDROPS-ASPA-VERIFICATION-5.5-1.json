@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/aspa_as_trans_neighbor_test.go::TestASPAASTransNeighborFirstASIsASTrans",
+    "unit-sha": "5a0d8b15f76d45d1",
+    "claim-sha": "658d896856f66aa8",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::aspaNeighbor.confirms",
+    "producer-sha": "840e0c062648cb15",
+    "break": "body of aspaNeighbor.confirms replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/aspa_as_trans_neighbor_test.go::TestASPAASTransNeighborRSClientExempt",
+    "unit-sha": "c3e401603f46ca34",
+    "claim-sha": "8c29c707b3a90c1b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::newASPANeighbor",
+    "producer-sha": "1281ca37c5bc641a",
+    "break": "body of newASPANeighbor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/aspa_as_trans_neighbor_test.go::TestASPAASTransNeighborUnconfirmed",
+    "unit-sha": "d84be0bd4714e32d",
+    "claim-sha": "2788c62fe9f16c7f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::aspaNeighbor.confirms",
+    "producer-sha": "840e0c062648cb15",
+    "break": "body of aspaNeighbor.confirms replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

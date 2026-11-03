@@ -82,14 +82,18 @@
       "reason": "The role obligation retaining 5.4-1 reads: \"The upstream verification algorithm described here is applied when a route is received from a Customer or Peer, or is received by an RS from an RS-client, or is received by an RS-client from an RS.\" Step 3 retains 5.4-2: \"If the AS_PATH has an AS_SET, then the procedure halts with the outcome \"Invalid\".\" Both are indicative algorithm rules. Empty path, neighbor mismatch with the RS-client exception, ramp denial, missing attestation and the Valid fallback are retained in the summary's upstream algorithm.",
       "unsourced-ids": [
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1",
-        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2"
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2",
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.5-1"
       ]
     },
     {
       "id": "5.6",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Downstream applies to a route from a Provider and uses both ramps. Step 3 repeats the AS_SET Invalid obligation already recorded as DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2 under section 5.5; no duplicate requirement is allocated. The summary retains all downstream steps. This is not the source of the old mitigation IDs."
+      "reason": "Downstream applies to a route from a Provider and uses both ramps. Step 3 repeats the AS_SET Invalid obligation already recorded as DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2 under section 5.5; no duplicate requirement is allocated. Step 2, the neighbor-AS mismatch with no RS-client exception, is the indicative algorithm rule DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5; the upstream step 2 with its RS-client exception is 5.5-1. The summary retains all downstream steps. This is not the source of the old mitigation IDs 5.6-1 to 5.6-4.",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5"
+      ]
     },
     {
       "id": "5.7",

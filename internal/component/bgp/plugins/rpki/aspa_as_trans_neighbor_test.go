@@ -112,6 +112,8 @@ func captureASPAWarnings(t *testing.T) *bytes.Buffer {
 // receive session compared AS_TRANS with the AS_PATH as received.
 // PREVENTS: ASPA verifying [64496 65010] with 64496 as the neighbor, a hop the
 // peer chose in its own AS4_PATH and the session never confirmed.
+//
+// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.5-1 positive -- under the upstream procedure (local role provider), a route from an AS_TRANS peer whose path's most recently added AS is 64496 halts with Invalid although the cache authorizes the path, on first verification and on re-validation.
 func TestASPAASTransNeighborUnconfirmed(t *testing.T) {
 	// The cache authorizes the path: 65010 names 64496 as its provider.
 	rp, _ := aspaRolePlugin(t, "provider")
@@ -194,6 +196,8 @@ func TestASPAASTransNeighborCompliantFourOctetPeer(t *testing.T) {
 // VALIDATES: verifyASPANeighbor confirms a path whose first AS is the AS_TRANS
 // neighbor, so the step forces Invalid only on a mismatch.
 // PREVENTS: the neighbor-AS step rejecting every route of an AS_TRANS peer.
+//
+// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.5-1 negative -- under the upstream procedure (local role provider), an authorized path whose most recently added AS is the AS_TRANS neighbor stays Valid and logs no neighbor-step warning.
 func TestASPAASTransNeighborFirstASIsASTrans(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -234,6 +238,8 @@ func TestASPAASTransNeighborFirstASIsASTrans(t *testing.T) {
 // TestASPAASTransNeighborRSClientExempt proves the RS-client exception of
 // Section 5.5 step 2 holds for an AS_TRANS route server: the receiving
 // RS-client verifies the path without comparing its first AS.
+//
+// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.5-1 negative -- a receiving RS-client verifies the path [64496 65010] from an AS_TRANS route server as Valid, so the mismatched first AS does not halt it.
 func TestASPAASTransNeighborRSClientExempt(t *testing.T) {
 	rp, _ := aspaRolePlugin(t, "rs-client")
 	rp.aspaCache.Set(65010, []uint32{64496})
@@ -241,4 +247,48 @@ func TestASPAASTransNeighborRSClientExempt(t *testing.T) {
 	require.Len(t, reqs, 1)
 	assert.Equal(t, ASPAValid, reqs[0].aspaState,
 		"an RS-client applied the neighbor-AS step Section 5.5 exempts it from")
+}
+
+// TestASPAASTransNeighborDownstreamUnconfirmed proves the downstream procedure
+// halts with Invalid when the most recently added AS is not the neighbor AS.
+// With local role customer the route comes from a Provider, so Section 5.6
+// applies, and it has no RS-client exception.
+//
+// VALIDATES: handleStructuredUpdate applies Section 5.6 step 2 to the
+// reconstructed path of a route from an AS_TRANS provider.
+// PREVENTS: the neighbor-AS step running for the upstream procedure only.
+//
+// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5 positive -- under the downstream procedure (local role customer), a route from an AS_TRANS peer whose path's most recently added AS is 64496 halts with Invalid, while the same path from a peer whose AS is 64496 is Valid.
+func TestASPAASTransNeighborDownstreamUnconfirmed(t *testing.T) {
+	// Control: from a provider whose AS is 64496 the path is Valid, so an
+	// Invalid below comes from the neighbor step and from nothing else.
+	rp, _ := aspaRolePlugin(t, "customer")
+	rp.aspaCache.Set(65010, []uint32{64496})
+	reqs := feedASPAUpdateFrom(t, rp, 64496, asTransReconstructedBody)
+	require.Len(t, reqs, 1)
+	require.Equal(t, ASPAValid, reqs[0].aspaState, "the cache must authorize the path")
+
+	rp, _ = aspaRolePlugin(t, "customer")
+	rp.aspaCache.Set(65010, []uint32{64496})
+	reqs = feedASPAUpdateFrom(t, rp, attribute.ASTrans, asTransReconstructedBody)
+	require.Len(t, reqs, 1)
+	assert.Equal(t, ASPAInvalid, reqs[0].aspaState,
+		"the downstream procedure took the reconstructed path's first AS as the AS_TRANS provider")
+}
+
+// TestASPAASTransNeighborDownstreamConfirmed proves the downstream procedure
+// keeps an authorized path Valid when its most recently added AS is the
+// AS_TRANS neighbor.
+//
+// VALIDATES: Section 5.6 step 2 halts only on a mismatch.
+// PREVENTS: the downstream neighbor-AS step refusing every AS_TRANS provider.
+//
+// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5 negative -- under the downstream procedure (local role customer), an authorized path [23456 65010] from the AS_TRANS peer stays Valid.
+func TestASPAASTransNeighborDownstreamConfirmed(t *testing.T) {
+	rp, _ := aspaRolePlugin(t, "customer")
+	rp.aspaCache.Set(65010, []uint32{attribute.ASTrans})
+	reqs := feedASPAUpdateFrom(t, rp, attribute.ASTrans, reconstructedBody(t, attribute.ASTrans, 65010))
+	require.Len(t, reqs, 1)
+	assert.Equal(t, ASPAValid, reqs[0].aspaState,
+		"the downstream neighbor-AS step refused a path whose first AS is the AS_TRANS neighbor")
 }
