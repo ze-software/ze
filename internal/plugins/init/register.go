@@ -4,9 +4,11 @@ package init
 
 import (
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/seedinit"
 )
 
 func init() {
+	seedinit.Register(runSeedChild)
 	registry.MustRegisterRootHandler("init", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{

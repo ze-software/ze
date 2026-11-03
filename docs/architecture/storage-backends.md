@@ -290,6 +290,20 @@ there is not a secure-storage port or evidence of runtime support.
 
 ## Import and artifacts
 
+The session init child uses `CreateSeedIn` and `ImportSeedIn` with its admitted
+root and folder. These fixed-purpose entry points operate only on the canonical
+seed and live tree. They compare both acquired directory identities and never resolve
+the durable folder label for I/O.
+<!-- source: internal/component/config/storage/seed.go -- CreateSeedIn, ImportSeedIn -->
+
+`ImportSeedIn` uses the same import/replay
+protocol and keeps the original absolute Source/Archive labels after a directory
+move. An intent naming another source refuses before any source access. Callers
+retain the borrowed handles through the call and close the returned store.
+Ordinary init keeps its path-based entry points and credential population.
+<!-- source: internal/component/config/storage/seed.go -- CreateSeedIn, ImportSeedIn -->
+<!-- source: internal/plugins/init/seed.go -- runSeedChild -->
+
 `ImportBlob` (`ze init --from`) and `RestoreBlob` (`ze data restore <file> full`)
 are the two blob-to-live-tree operations, and they share one protocol. They
 differ only in the source policy the intent records: `retire-source` archives
@@ -346,6 +360,36 @@ tree path, including repair output; the canonical `database` name uses the live
 opener and the same owner lock.
 <!-- source: internal/component/config/storage/blob.go -- OpenBlob, CreateBlob, CreateBlobPopulated -->
 <!-- source: internal/component/config/storage/open.go -- OpenTree -->
+
+Blob creation and opening pair the no-follow folder with an `os.Root`, checking
+both opened directory identities before use. Staging, blob writes and reopening
+after publication retain that root. A replaced directory pathname cannot redirect
+those operations.
+<!-- source: internal/component/config/storage/blob.go -- blobRoot, populateBlob, OpenBlob -->
+
+Import opens its source directory once and retains both its
+no-follow folder and its ZeFS root through validation, hashing, replay and source
+retirement. Intent Source and Archive remain ordinary durable pathnames. Operations
+within that import use their leaf names under the retained directory. A later
+recovery invocation opens the directory anew and validates the recorded state.
+<!-- source: internal/component/config/storage/import_source.go -- importSource, openImportSource -->
+
+Artifact open and import validate owner and mode on the descriptor passed to
+`zefs.OpenFileIn`. Import's bounded `CheckFile` consumes that same descriptor.
+`OpenBlob` checks the entry before it creates a sibling lock, so an unsafe
+entry leaves no lock file behind. It closes that observation and takes the lock.
+It then opens and validates the descriptor it consumes.
+<!-- source: internal/component/config/storage/blob.go -- OpenBlob -->
+<!-- source: internal/component/config/storage/import_source.go -- openImportSource -->
+
+A cooperative writer can publish a replacement between the early check and lock acquisition.
+The opener must load that latest publication rather than the earlier observation.
+Loading consumes the descriptor validated under the lock, without another
+pathname open between that validation and consumption.
+This binds admission to the consumed inode. It does not freeze its bytes against
+a same-user writer. Source locks, digest checks and replay rules still apply.
+<!-- source: internal/component/config/storage/blob.go -- blobRoot, populateBlob, OpenBlob -->
+<!-- source: internal/component/config/storage/import_source.go -- importSource, openImportSource -->
 
 ### Restoring a config from an artifact
 

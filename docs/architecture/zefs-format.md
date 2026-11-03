@@ -1,5 +1,14 @@
 # ZeFS File Format
 
+Rooted blob constructors (`CreateIn`, `OpenIn`) reject an in-place mutation when
+the descriptor actually opened for that write has more than one hard link.
+This check precedes every pwrite region batch, including the container checksum,
+and a refusal does not enter recovery publication. Ordinary path constructors
+retain their existing hardlink behavior. This is an admission check, not a promise
+against a same-user writer adding links after the check. Full rewrites publish a
+new inode through the retained root.
+<!-- source: pkg/zefs/pwrite_unix.go -- pwriteRegions -->
+
 ZeFS is the blob artifact format used for seeds, backups and explicit imports. A single `.zefs` file holds named entries with hierarchical keys, zero-copy reads via mmap, and capacity-aware framing. The live store is a directory of framed values, described in [Storage backends](storage-backends.md); opening that store never converts or falls back to a blob.
 <!-- source: pkg/zefs/store.go -- Store implementation -->
 
@@ -86,6 +95,20 @@ file written with any policy opens with every reader. A reopen without a
 
 `Check` reports each entry's key and data slot capacity beside its size, so
 the spare of a file is visible without opening it for writing.
+`CheckIn` applies the same artifact checks through a retained `os.Root` and one
+filename. It uses the rooted no-follow opener and bounds its read to the import
+limit plus one byte. It does not resolve the directory's former pathname.
+<!-- source: pkg/zefs/check.go -- CheckIn -->
+
+`CheckFile` applies that bounded check to an acquired file and preserves its
+offset. `OpenFileIn` consumes an acquired descriptor on success or failure and
+loads that inode, with the import-size bound. The caller validates its own
+ownership/mode policy before transfer and keeps the containing root. Later
+mutations follow the rooted constructor policy above. Neither API promises an
+immutable snapshot against a writer of the same inode.
+<!-- source: pkg/zefs/check.go -- CheckFile -->
+<!-- source: pkg/zefs/store.go -- OpenFileIn -->
+<!-- source: pkg/zefs/check.go -- CheckIn, checkBlobData -->
 <!-- source: pkg/zefs/spare.go -- Spare, writePolicy.capacity -->
 <!-- source: pkg/zefs/store.go -- writeFileNoFlush, encode -->
 <!-- source: pkg/zefs/check.go -- EntryStatus, Repair -->
@@ -161,6 +184,25 @@ Keys are hierarchical paths using `/` as separator. They must be valid `fs.Valid
 | Anything else | Not a ZeFS file |
 
 ## Memory mapping
+
+Blob handles retain their containing directory through `os.Root`. Reads, staging,
+publication and in-place writes use that handle after the directory moves.
+`CreateIn` and `OpenIn` accept an opened root and one filename, and retain their
+own root until `Close`. They do not accept descriptor names as paths. On Unix,
+rooted artifact opens refuse symbolic links and non-regular files. The path
+constructors retain the directory they open, but do not validate its provenance
+for callers.
+<!-- source: pkg/zefs/store.go -- CreateIn, OpenIn, newBlobIn, atomicWrite, readBacking -->
+<!-- source: pkg/zefs/pwrite_unix.go -- openBlobFile, pwriteRegions -->
+
+Ordinary path constructors still accept final symbolic links. They compare
+the observed target identities, close the observation descriptors and
+retain the resolved target's directory and leaf name for later opens. This
+does not pin the target inode or freeze its contents.
+A full rewrite replaces the link itself and then reads that published artifact,
+as before. Rooted constructors never use this path-alias admission.
+<!-- source: pkg/zefs/store_path.go -- newBlobPath, bindAlias, backingName, closeAlias -->
+<!-- source: pkg/zefs/store.go -- atomicWrite -->
 
 On unix, the backing file is memory-mapped (`PROT_READ`, `MAP_PRIVATE`). Tree nodes hold sub-slices of the mapped region for zero-copy reads. The `ReadLock` and `WriteLock` guards scope zero-copy slice validity: callers hold the lock while processing raw bytes, and the in-process `sync.RWMutex` prevents `flush()` (which remaps the backing) from running while slices are in use.
 <!-- source: pkg/zefs/mmap_unix.go -- mmap implementation -->

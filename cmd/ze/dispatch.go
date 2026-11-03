@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/seedinit"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	zeversion "github.com/ze-software/ze/internal/core/version"
 )
@@ -133,6 +134,9 @@ func binaryName() string {
 
 // dispatchMain is the unified entry point called by main(). Returns exit code.
 func dispatchMain(args []string) int {
+	if handled, code := seedinit.Dispatch(args); handled {
+		return code
+	}
 	crashlog.Init()
 	zeversion.Stamp(version, buildDate)
 

@@ -6,6 +6,7 @@ package zefs
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -72,12 +73,45 @@ func MoveAside(path string) (string, error) {
 // It reads the file, validates the magic, container framing, and every
 // entry's CRC32c. Returns a structured report.
 func Check(path string) (*CheckReport, error) {
-	report := &CheckReport{Path: path}
-
 	data, err := os.ReadFile(path) //nolint:gosec // caller-provided path for integrity check
 	if err != nil {
 		return nil, fmt.Errorf("zefs: check: %w", err)
 	}
+	return checkBlobData(path, data)
+}
+
+// CheckIn checks one artifact under an already retained directory, using the
+// same report as Check. The caller owns folder; no pathname is reopened.
+func CheckIn(folder *os.Root, name string) (*CheckReport, error) {
+	store, err := newBlobIn(folder, name, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer store.Close() //nolint:errcheck // Read-only directory handle.
+	file, err := store.openBacking()
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close() //nolint:errcheck // Read-only artifact.
+	return CheckFile(file)
+}
+
+// CheckFile checks the already acquired artifact from offset zero, bounded by
+// the import limit. The caller retains file and MUST keep it open until return.
+// It neither changes the file offset nor reopens its name.
+func CheckFile(file *os.File) (*CheckReport, error) {
+	if file == nil {
+		return nil, fmt.Errorf("zefs: no artifact descriptor: open the artifact before checking it")
+	}
+	data, err := io.ReadAll(io.NewSectionReader(file, 0, maxImportSize+1))
+	if err != nil {
+		return nil, err
+	}
+	return checkBlobData(file.Name(), data)
+}
+
+func checkBlobData(path string, data []byte) (*CheckReport, error) {
+	report := &CheckReport{Path: path}
 	if len(data) == 0 {
 		return nil, fmt.Errorf("zefs: check: empty file")
 	}

@@ -11,10 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/sessiondir"
 	"github.com/ze-software/ze/internal/le/job"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 const (
@@ -40,23 +42,95 @@ type seedReport struct {
 }
 
 type seedOps struct {
-	environ []string
-	random  io.Reader
-	sleep   func(time.Duration)
-	run     func([]string, job.ProcessIO) (int, error)
-	waits   int
+	configRoot *os.Root
+	executable *os.File
+	environ    []string
+	random     io.Reader
+	sleep      func(time.Duration)
+	run        func([]string, job.ProcessIO) (int, error)
+	waits      int
 }
 
 // seedStore seeds the store used by one session-local ze binary. The binary
 // path MUST be relative to root and have the session bin-directory shape.
 func seedStore(root, binary string, streams streams) (seedReport, int, error) {
+	return seedStoreAfterEntry(root, binary, streams, nil)
+}
+
+// seedStoreAfterEntry exposes the acquisition/use boundary to deterministic
+// replacement tests. The callback belongs to this call, never to process state.
+func seedStoreAfterEntry(root, binary string, streams streams, afterEntry func()) (seedReport, int, error) {
+	if err := validateSeedEntry(root, binary, os.Environ()); err != nil {
+		return seedReport{}, 1, err
+	}
+	resources, err := openSeedResources(root, binary)
+	if err != nil {
+		return seedReport{}, 1, err
+	}
+	defer resources.config.Close()     //nolint:errcheck // No directory writes remain at return.
+	defer resources.executable.Close() //nolint:errcheck // Children have returned before close.
+	if afterEntry != nil {
+		afterEntry()
+	}
 	return seedStoreWithOps(root, binary, streams, seedOps{
-		environ: os.Environ(),
-		random:  rand.Reader,
-		sleep:   time.Sleep,
-		run:     job.RunProcess,
-		waits:   seedWaitLimit,
+		configRoot: resources.config,
+		executable: resources.executable,
+		environ:    os.Environ(),
+		random:     rand.Reader,
+		sleep:      time.Sleep,
+		run:        job.RunProcess,
+		waits:      seedWaitLimit,
 	})
+}
+
+// validateSeedEntry checks the native entry before even an existing store can
+// be reused. The binary-derived config root MUST belong to this session.
+// The shared tmp/session prefix can be a managed scratch mount; beneath it,
+// symlinks would let init or password handling reach a different store.
+func validateSeedEntry(root, binary string, environ []string) error {
+	dir, err := validateSessionBinary(binary)
+	if err != nil {
+		return err
+	}
+	if name, found := configOverride(environ); found {
+		return fmt.Errorf("%s overrides the config directory; unset it to seed %s", name, dir)
+	}
+	base := filepath.Join(root, dir)
+	for _, relative := range []string{".", sessiondir.IDFile, "bin", filepath.Join("bin", filepath.Base(binary)), "etc", filepath.Join("etc", "ze"), filepath.Join("etc", "ze", "database"), filepath.Join("etc", "ze", "database.zefs"), filepath.Join("etc", "ze", ".dev-password"), filepath.Join("etc", "ze", ".seed-lock")} {
+		path := filepath.Join(base, relative)
+		info, err := os.Lstat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("inspect session seed path %s: %w", path, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing symlink in session seed path %s; use this session's own binary and config directory", path)
+		}
+	}
+	id, err := lepath.ResolveSessionID(root)
+	if err != nil {
+		return err
+	}
+	owner, err := sessiondir.Owner(base)
+	if err != nil {
+		return fmt.Errorf("read seed session owner %s: %w", base, err)
+	}
+	if owner != id {
+		return fmt.Errorf("refusing to seed session %s owned by %s, caller %s; use the caller's session binary", dir, owner, id)
+	}
+	info, err := os.Stat(filepath.Join(root, binary))
+	if err != nil {
+		return fmt.Errorf("open session binary %s: %w", binary, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("session binary %s is not a regular file", binary)
+	}
+	if info.Mode()&0o111 == 0 {
+		return fmt.Errorf("session binary %s is not executable", binary)
+	}
+	return nil
 }
 
 // seedStoreWithOps seeds the session store in two ze runs. `ze init --seed`
@@ -72,8 +146,21 @@ func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedRe
 		return seedReport{}, 1, err
 	}
 	etcRel := filepath.Join(sessionDir, "etc", "ze")
+	configRoot := ops.configRoot
+	if configRoot == nil {
+		// Injected workflow callers own their fixture directory. Native callers
+		// supply the root acquired with session ownership before the swap seam.
+		if err := os.MkdirAll(filepath.Join(root, etcRel), 0o700); err != nil {
+			return seedReport{}, 1, err
+		}
+		configRoot, err = os.OpenRoot(filepath.Join(root, etcRel))
+		if err != nil {
+			return seedReport{}, 1, err
+		}
+		defer configRoot.Close() //nolint:errcheck // No directory writes remain at return.
+	}
 	store := sessionStore{
-		root:    root,
+		config:  configRoot,
 		binary:  binary,
 		treeRel: filepath.Join(etcRel, "database"),
 		blobRel: filepath.Join(etcRel, "database.zefs"),
@@ -89,32 +176,42 @@ func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedRe
 		return report, 0, nil
 	}
 
-	binaryPath := filepath.Join(root, filepath.FromSlash(binary))
-	info, err := os.Stat(binaryPath)
-	if err != nil {
-		return report, 1, fmt.Errorf("no binary at %s", binary)
-	}
-	if !info.Mode().IsRegular() || info.Mode()&0o111 == 0 {
-		return report, 1, fmt.Errorf("no binary at %s", binary)
+	if ops.executable == nil {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(binary)))
+		if err != nil {
+			return report, 1, fmt.Errorf("no binary at %s", binary)
+		}
+		if !info.Mode().IsRegular() {
+			return report, 1, fmt.Errorf("no binary at %s", binary)
+		}
+		if info.Mode()&0o111 == 0 {
+			return report, 1, fmt.Errorf("no binary at %s", binary)
+		}
 	}
 	if name, found := configOverride(ops.environ); found {
 		return report, 1, fmt.Errorf("%s overrides the config directory; unset it to seed %s", name, filepath.ToSlash(etcRel))
 	}
-	if err := os.MkdirAll(filepath.Join(root, etcRel), 0o700); err != nil {
-		return report, 1, fmt.Errorf("cannot create %s: %w", filepath.ToSlash(etcRel), err)
-	}
-
 	lockRel := filepath.Join(etcRel, ".seed-lock")
-	lock := filepath.Join(root, lockRel)
-	if err := os.Mkdir(lock, 0o700); err != nil {
+	if err := configRoot.Mkdir(".seed-lock", 0o700); err != nil {
 		if !errors.Is(err, os.ErrExist) {
 			return report, 1, fmt.Errorf("cannot create seed lock %s: %w", filepath.ToSlash(lockRel), err)
+		}
+		lock, err := openSeedDirectory(configRoot, ".seed-lock", false)
+		if err != nil {
+			return report, 1, err
+		}
+		if err := lock.Close(); err != nil {
+			return report, 1, err
 		}
 		report.Waited = true
 		// The holder's own blob sits in the directory between its two ze
 		// runs, so only the published tree with no blob ends the wait.
 		for range ops.waits {
-			if store.published() {
+			published, err := store.published()
+			if err != nil {
+				return report, 1, err
+			}
+			if published {
 				report.Existing = true
 				return report, 0, nil
 			}
@@ -131,7 +228,7 @@ func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedRe
 		return report, 1, fmt.Errorf("another build holds %s and %s never appeared; remove the lock if no build is running", filepath.ToSlash(lockRel), report.Database)
 	}
 	defer func() {
-		_ = os.Remove(lock) //nolint:errcheck // a stale empty lock is reported by the next bounded waiter
+		_ = configRoot.Remove(".seed-lock") //nolint:errcheck // A stale empty lock is reported by the next bounded waiter.
 	}()
 	exists, err = store.exists()
 	if err != nil {
@@ -142,8 +239,7 @@ func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedRe
 		return report, 0, nil
 	}
 
-	passwordPath := filepath.Join(root, passwordRel)
-	password, err := ensurePassword(passwordPath, ops.random)
+	password, err := ensurePassword(configRoot, ops.random)
 	if err != nil {
 		return report, 1, err
 	}
@@ -160,9 +256,16 @@ func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedRe
 	}
 	for _, step := range steps {
 		command := strings.Join(step.argv[1:], " ")
+		folder, err := configRoot.Open(".")
+		if err != nil {
+			return report, 1, err
+		}
 		code, startErr := ops.run(step.argv, job.ProcessIO{
-			Dir: root, Environ: ops.environ, Stdin: step.stdin, Stdout: streams.Out, Stderr: streams.Err,
+			Executable:    ops.executable,
+			SeedDirectory: folder,
+			Dir:           root, Environ: ops.environ, Stdin: step.stdin, Stdout: streams.Out, Stderr: streams.Err,
 		})
+		startErr = errors.Join(startErr, folder.Close())
 		report.ChildCode = code
 		if startErr != nil {
 			return report, 1, fmt.Errorf("ze %s failed for %s: %w", command, report.Database, startErr)
@@ -170,7 +273,11 @@ func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedRe
 		if code != 0 {
 			return report, 1, fmt.Errorf("ze %s failed for %s", command, report.Database)
 		}
-		if !pathExists(filepath.Join(root, step.madeRel)) {
+		present, err := store.present(filepath.Base(step.madeRel))
+		if err != nil {
+			return report, 1, err
+		}
+		if !present {
 			return report, 1, fmt.Errorf("ze %s reported success and %s does not exist", command, filepath.ToSlash(step.madeRel))
 		}
 	}
@@ -186,9 +293,9 @@ func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedRe
 }
 
 // sessionStore names the live tree and the blob artifact of one session's
-// config directory, both relative to the checkout root.
+// config directory. The names are for reporting; I/O uses the retained root.
 type sessionStore struct {
-	root    string
+	config  *os.Root
 	binary  string
 	treeRel string
 	blobRel string
@@ -199,16 +306,50 @@ type sessionStore struct {
 // the store while it sits there, so neither state is a store a session daemon
 // can start from.
 func (s sessionStore) exists() (bool, error) {
-	if pathExists(filepath.Join(s.root, s.blobRel)) {
+	blobPresent, err := s.present("database.zefs")
+	if err != nil {
+		return false, err
+	}
+	if blobPresent {
 		blob := filepath.ToSlash(s.blobRel)
 		return false, fmt.Errorf("blob artifact %s is not a live store and ze refuses to open %s beside it; run %s init --from %s", blob, filepath.ToSlash(s.treeRel), s.binary, blob)
 	}
-	return pathExists(filepath.Join(s.root, s.treeRel)), nil
+	return s.present("database")
 }
 
 // published reports whether the live tree is present with no blob beside it.
-func (s sessionStore) published() bool {
-	return pathExists(filepath.Join(s.root, s.treeRel)) && !pathExists(filepath.Join(s.root, s.blobRel))
+func (s sessionStore) published() (bool, error) {
+	blob, err := s.present("database.zefs")
+	if err != nil {
+		return false, err
+	}
+	if blob {
+		return false, nil
+	}
+	return s.present("database")
+}
+
+// present observes one entry without following a link or reading its contents.
+// This is the observation itself, not validation for a later pathname open.
+func (s sessionStore) present(name string) (bool, error) {
+	info, err := s.config.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return false, fmt.Errorf("session seed entry %s is a symlink; use this session's own config directory", name)
+	}
+	if name == "database" {
+		if !info.IsDir() {
+			return false, fmt.Errorf("session database is not a directory; use this session's own config directory")
+		}
+	} else if !info.Mode().IsRegular() {
+		return false, fmt.Errorf("session seed artifact %s is not a regular file; use this session's own config directory", name)
+	}
+	return true, nil
 }
 
 func validateSessionBinary(binary string) (string, error) {
@@ -248,27 +389,81 @@ func configOverride(environ []string) (string, bool) {
 	return "", false
 }
 
-func ensurePassword(path string, random io.Reader) (string, error) {
-	content, err := os.ReadFile(path) //nolint:gosec // the path is a session state file under the checkout root
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("cannot read %s: %w", filepath.ToSlash(path), err)
+// ensurePassword reads and changes permissions through the same descriptor.
+// The caller MUST keep root open until this function returns.
+func ensurePassword(root *os.Root, random io.Reader) (string, error) {
+	const name = ".dev-password"
+	file, err := root.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if errors.Is(err, os.ErrNotExist) {
+		return createSeedPassword(root, random)
+	}
+	if err != nil {
+		return "", fmt.Errorf("cannot open session password: %w; use this session's own config directory", err)
+	}
+	defer file.Close() //nolint:errcheck // Writes are synced explicitly below.
+	info, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("session password is not a regular file; use this session's own config directory")
+	}
+	var stat syscall.Stat_t
+	if err := syscall.Fstat(int(file.Fd()), &stat); err != nil {
+		return "", fmt.Errorf("cannot inspect session password ownership: %w", err)
+	}
+	if int(stat.Uid) != os.Geteuid() {
+		return "", fmt.Errorf("session password belongs to user %d; run le session seed-store as that owner", stat.Uid)
+	}
+	if stat.Nlink != 1 {
+		return "", fmt.Errorf("session password has %d links; remove the session .dev-password alias before running le session seed-store", stat.Nlink)
+	}
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return "", fmt.Errorf("cannot read session password: %w", err)
 	}
 	if len(content) == 0 {
-		bytes := make([]byte, 24)
-		if _, err := io.ReadFull(random, bytes); err != nil {
-			return "", fmt.Errorf("cannot read 24 random bytes: %w", err)
-		}
-		content = []byte(hex.EncodeToString(bytes) + "\n")
-		if err := writeAtomic(path, content, 0o600, ".dev-password-*"); err != nil {
-			return "", fmt.Errorf("cannot write %s: %w", filepath.ToSlash(path), err)
-		}
+		return createSeedPassword(root, random)
 	}
-	if err := os.Chmod(path, 0o600); err != nil {
-		return "", fmt.Errorf("cannot restrict %s: %w", filepath.ToSlash(path), err)
+	if err := file.Chmod(0o600); err != nil {
+		return "", fmt.Errorf("cannot restrict session password: %w", err)
+	}
+	if err := file.Sync(); err != nil {
+		return "", err
 	}
 	password, _, _ := strings.Cut(string(content), "\n")
 	if password == "" {
-		return "", fmt.Errorf("%s holds no password", filepath.ToSlash(path))
+		return "", fmt.Errorf("session .dev-password holds no password")
+	}
+	return password, nil
+}
+
+// createSeedPassword publishes a complete password through the retained root.
+// The caller MUST keep root open until publication and cleanup finish.
+func createSeedPassword(root *os.Root, random io.Reader) (string, error) {
+	bytes := make([]byte, 24)
+	if _, err := io.ReadFull(random, bytes); err != nil {
+		return "", fmt.Errorf("cannot read 24 random bytes: %w", err)
+	}
+	password := hex.EncodeToString(bytes)
+	stage := ".dev-password-" + rand.Text()
+	file, err := root.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return "", fmt.Errorf("cannot stage session password: %w", err)
+	}
+	defer root.Remove(stage) //nolint:errcheck // Publication removes the private staging name.
+	defer file.Close()       //nolint:errcheck // Publication checks file sync below.
+	if _, err := io.WriteString(file, password+"\n"); err != nil {
+		return "", err
+	}
+	if err := file.Chmod(0o600); err != nil {
+		return "", err
+	}
+	if err := file.Sync(); err != nil {
+		return "", err
+	}
+	if err := root.Rename(stage, ".dev-password"); err != nil {
+		return "", fmt.Errorf("cannot publish session password: %w", err)
 	}
 	return password, nil
 }

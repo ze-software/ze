@@ -291,9 +291,9 @@ type importProgress struct {
 
 // classifyImport matches every recorded location against the table of
 // permitted states and refuses any other combination before anything moves.
-func classifyImport(folder *os.File, intent importIntent) (importProgress, error) {
+func classifyImport(source *importSource, folder *os.File, intent importIntent) (importProgress, error) {
 	var progress importProgress
-	retired, err := locateSource(intent)
+	retired, err := locateSource(source, intent)
 	if err != nil {
 		return progress, err
 	}
@@ -361,8 +361,8 @@ func classifyImport(folder *os.File, intent importIntent) (importProgress, error
 
 // locateSource answers whether the source is at its archive. Policy alone
 // never sets it: the names on disk do, and both or neither refuse.
-func locateSource(intent importIntent) (bool, error) {
-	original, err := present(intent.Source)
+func locateSource(source *importSource, intent importIntent) (bool, error) {
+	original, err := presentIn(source.folder, filepath.Base(intent.Source))
 	if err != nil {
 		return false, err
 	}
@@ -370,17 +370,17 @@ func locateSource(intent importIntent) (bool, error) {
 		if !original {
 			return false, fmt.Errorf("the source %s is missing; a restore has no archive to fall back to", intent.Source)
 		}
-		return false, sourceUnchanged(intent.Source, intent)
+		return false, sourceUnchanged(source.folder, intent.Source, intent)
 	}
-	archived, err := present(intent.Archive)
+	archived, err := presentIn(source.folder, filepath.Base(intent.Archive))
 	if err != nil {
 		return false, err
 	}
 	switch {
 	case original && !archived:
-		return false, sourceUnchanged(intent.Source, intent)
+		return false, sourceUnchanged(source.folder, intent.Source, intent)
 	case !original && archived:
-		return true, sourceUnchanged(intent.Archive, intent)
+		return true, sourceUnchanged(source.folder, intent.Archive, intent)
 	case original:
 		return false, fmt.Errorf("both %s and its archive %s exist", intent.Source, intent.Archive)
 	}
@@ -398,8 +398,19 @@ func present(path string) (bool, error) {
 	return false, err
 }
 
-func sourceUnchanged(path string, intent importIntent) error {
-	digest, err := blobDigest(path)
+func presentIn(folder *os.File, name string) (bool, error) {
+	err := nodeStat(folder, name)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
+}
+
+func sourceUnchanged(folder *os.File, path string, intent importIntent) error {
+	digest, err := blobDigestIn(folder, filepath.Base(path))
 	if err != nil {
 		return err
 	}
@@ -437,17 +448,14 @@ func locatePrevious(folder *os.File, prior priorNode, directory, atOriginal bool
 // verifies the source and the stage or new tree, moves each previous
 // destination still at its original name, publishes, and completes by policy.
 // Every refusal keeps the intent, the stage and every recorded node.
-func replayImport(folder, owner *os.File, intent importIntent) (*store, error) {
-	progress, err := classifyImport(folder, intent)
+func replayImport(held *importSource, folder, owner *os.File, intent importIntent) (*store, error) {
+	progress, err := classifyImport(held, folder, intent)
 	if err != nil {
 		return nil, intent.refusal(folder, err)
 	}
 	var source *zefs.BlobStore
 	if !progress.retired {
-		if err := checkArtifact(intent.Source); err != nil {
-			return nil, err
-		}
-		source, err = zefs.Open(intent.Source)
+		source, err = held.open()
 		if err != nil {
 			return nil, err
 		}
@@ -468,7 +476,7 @@ func replayImport(folder, owner *os.File, intent importIntent) (*store, error) {
 			return nil, errors.Join(intent.refusal(folder, fmt.Errorf("the published tree differs from its source: %w", err)), result.Close())
 		}
 	}
-	if err := finishImport(folder, intent, progress.retired); err != nil {
+	if err := finishImport(held.folder, folder, intent, progress.retired); err != nil {
 		return nil, errors.Join(err, result.Close())
 	}
 	result.owner = owner
@@ -551,15 +559,9 @@ func openImported(folder *os.File, intent importIntent) (*store, error) {
 // comes first so a crash between the two leaves the completed-init state: the
 // source at its archive and the tree with the intent's identity. A restore
 // keeps its source, so only the intent goes.
-func finishImport(folder *os.File, intent importIntent, retired bool) error {
+func finishImport(parent, folder *os.File, intent importIntent, retired bool) error {
 	if intent.Policy == policyRetireSource {
-		parent, err := openFolder(filepath.Dir(intent.Source))
-		if err != nil {
-			return err
-		}
-		err = retireSource(parent, intent, retired)
-		err = errors.Join(err, parent.Close())
-		if err != nil {
+		if err := retireSource(parent, intent, retired); err != nil {
 			return err
 		}
 	}
@@ -618,14 +620,19 @@ func completedInit(folder *os.File, intent importIntent) (bool, error) {
 	if intent.Policy != policyRetireSource {
 		return false, nil
 	}
-	original, err := present(intent.Source)
+	source, err := openImportSource(intent.Source)
+	if err != nil {
+		return false, err
+	}
+	defer source.close() //nolint:errcheck // Read-only source directories.
+	original, err := presentIn(source.folder, filepath.Base(intent.Source))
 	if err != nil {
 		return false, err
 	}
 	if original {
 		return false, nil
 	}
-	progress, err := classifyImport(folder, intent)
+	progress, err := classifyImport(source, folder, intent)
 	if err != nil {
 		return false, err
 	}

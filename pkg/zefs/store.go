@@ -12,6 +12,8 @@
 package zefs
 
 import (
+	"crypto/rand"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -39,13 +41,17 @@ type slotInfo struct {
 // returned by the guard's ReadFile are valid for the lock duration.
 // Do not retain lock-scoped slices past Release().
 type BlobStore struct {
-	mu      sync.RWMutex
-	path    string
-	root    *node
-	keys    []string            // ordered keys for deterministic serialization
-	slots   map[string]slotInfo // per-key slot capacities
-	backing []byte              // mmap'd region or heap buffer; tree nodes reference this
-	fd      *os.File            // non-nil when backing is mmap'd (must stay open)
+	mu       sync.RWMutex
+	path     string
+	folder   *os.Root
+	name     string
+	alias    *blobAlias // Non-nil until a path constructor replaces an accepted symlink.
+	confined bool       // Rooted constructors require an unaliased inode before in-place writes.
+	root     *node
+	keys     []string            // ordered keys for deterministic serialization
+	slots    map[string]slotInfo // per-key slot capacities
+	backing  []byte              // mmap'd region or heap buffer; tree nodes reference this
+	fd       *os.File            // non-nil when backing is mmap'd (must stay open)
 
 	dirty         map[string]bool // entries modified since last flush
 	added         []string        // new entries since last flush (ordered)
@@ -56,50 +62,151 @@ type BlobStore struct {
 // Create creates a new empty store at the given path. Without a Spare option
 // the store pads new and grown slots by SpareDefault percent.
 func Create(path string, opts ...Option) (*BlobStore, error) {
+	folder, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
+		return nil, err
+	}
+	defer folder.Close() //nolint:errcheck // The store retains its own handle.
+	s, err := newBlobIn(folder, filepath.Base(path), opts)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.flush(); err != nil {
+		return nil, errors.Join(fmt.Errorf("zefs: create %s: %w", path, err), s.Close())
+	}
+	return s, nil
+}
+
+// CreateIn creates an artifact in an already opened directory. name MUST be one
+// filename. The caller retains folder and MUST Close the returned store.
+// The store retains its own directory handle, including across directory moves.
+func CreateIn(folder *os.Root, name string, opts ...Option) (*BlobStore, error) {
+	s, err := newBlobIn(folder, name, opts)
+	if err != nil {
+		return nil, err
+	}
+	s.confined = true
+	previous, err := s.openBacking()
+	if err == nil {
+		if err := previous.Close(); err != nil {
+			return nil, errors.Join(err, s.Close())
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, errors.Join(err, s.Close())
+	}
+	if err := s.flush(); err != nil {
+		return nil, errors.Join(fmt.Errorf("zefs: create %s: %w", s.path, err), s.Close())
+	}
+	return s, nil
+}
+
+func newBlobIn(folder *os.Root, name string, opts []Option) (*BlobStore, error) {
+	if folder == nil {
+		return nil, fmt.Errorf("zefs: no artifact directory: open the directory before opening a blob")
+	}
+	if !fs.ValidPath(name) {
+		return nil, fmt.Errorf("zefs: invalid artifact name %q: use one filename", name)
+	}
+	if name == "." {
+		return nil, fmt.Errorf("zefs: artifact name is a directory: use one filename")
+	}
+	if filepath.Base(name) != name {
+		return nil, fmt.Errorf("zefs: artifact name %q contains a directory: use one filename", name)
+	}
 	policy, err := newWritePolicy(opts)
 	if err != nil {
 		return nil, err
 	}
-	s := &BlobStore{
-		path:   path,
+	held, err := folder.OpenRoot(".")
+	if err != nil {
+		return nil, err
+	}
+	return &BlobStore{
+		path:   filepath.Join(folder.Name(), name),
+		folder: held,
+		name:   name,
 		root:   newDirNode(),
 		slots:  make(map[string]slotInfo),
 		dirty:  make(map[string]bool),
 		policy: policy,
-	}
-	if err := s.flush(); err != nil {
-		return nil, fmt.Errorf("zefs: create %s: %w", path, err)
-	}
-	return s, nil
+	}, nil
 }
 
 // Open opens an existing store, memory-mapping the file for zero-copy reads.
 // The policy is not read from the file: without a Spare option the store pads
 // the slots it writes by SpareDefault percent, whatever the file was written with.
 func Open(path string, opts ...Option) (*BlobStore, error) {
-	policy, err := newWritePolicy(opts)
+	folder, err := os.OpenRoot(filepath.Dir(path))
 	if err != nil {
 		return nil, err
 	}
-	s := &BlobStore{
-		path:   path,
-		root:   newDirNode(),
-		slots:  make(map[string]slotInfo),
-		dirty:  make(map[string]bool),
-		policy: policy,
+	defer folder.Close() //nolint:errcheck // The store retains its own handle.
+	s, err := newBlobPath(folder, filepath.Base(path), opts)
+	if err != nil {
+		return nil, err
 	}
 	if err := s.load(); err != nil {
-		return nil, fmt.Errorf("zefs: open %s: %w", path, err)
+		return nil, errors.Join(fmt.Errorf("zefs: open %s: %w", path, err), s.Close())
 	}
 	return s, nil
 }
 
-// Close releases the memory mapping and any associated resources.
-// After Close, slices returned by ReadFile or Open are no longer valid.
+// OpenIn opens an artifact in an already opened directory. name MUST be one
+// filename. The caller retains folder and MUST Close the returned store.
+func OpenIn(folder *os.Root, name string, opts ...Option) (*BlobStore, error) {
+	s, err := newBlobIn(folder, name, opts)
+	if err != nil {
+		return nil, err
+	}
+	s.confined = true
+	if err := s.load(); err != nil {
+		return nil, errors.Join(fmt.Errorf("zefs: open %s: %w", s.path, err), s.Close())
+	}
+	return s, nil
+}
+
+// OpenFileIn loads an acquired artifact without reopening its name. The caller
+// MUST validate any ownership/mode contract on file before calling. This method
+// takes ownership of file on success AND error; the caller retains folder.
+// name is the publication leaf for later writes, which use rooted confinement.
+// Loading is bounded by the import limit, not an immutable-content snapshot.
+func OpenFileIn(folder *os.Root, name string, file *os.File, opts ...Option) (*BlobStore, error) {
+	if file == nil {
+		return nil, fmt.Errorf("zefs: no artifact descriptor: open the artifact before loading it")
+	}
+	s, err := newBlobIn(folder, name, opts)
+	if err != nil {
+		return nil, errors.Join(err, file.Close())
+	}
+	s.confined = true
+	info, err := file.Stat()
+	if err != nil {
+		return nil, errors.Join(err, file.Close(), s.Close())
+	}
+	if !info.Mode().IsRegular() {
+		return nil, errors.Join(fmt.Errorf("zefs: artifact is not regular: use a regular file"), file.Close(), s.Close())
+	}
+	if info.Size() > maxImportSize {
+		return nil, errors.Join(fmt.Errorf("zefs: artifact exceeds maximum size %d bytes", maxImportSize), file.Close(), s.Close())
+	}
+	if err := s.loadWritten(file); err != nil {
+		return nil, errors.Join(err, s.Close())
+	}
+	return s, nil
+}
+
+// Close releases the memory mapping and retained directory. Callers of Create,
+// CreateIn, Open and OpenIn MUST call Close. Repeated Close calls are safe.
 func (s *BlobStore) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.unload()
+	err := s.unload()
+	err = errors.Join(err, s.closeAlias())
+	if s.folder != nil {
+		err = errors.Join(err, s.folder.Close())
+		s.folder = nil
+	}
+	return err
 }
 
 // ReadFile returns a copy of the named file's contents.
@@ -336,11 +443,28 @@ func (s *BlobStore) slot(name string) (slotInfo, bool) {
 
 // load memory-maps the file and decodes the tree with zero-copy references.
 func (s *BlobStore) load() error {
-	data, fd, err := loadBacking(s.path)
+	file, err := s.openBacking()
 	if err != nil {
 		return err
 	}
-	return s.install(data, fd)
+	return s.loadWritten(file)
+}
+
+func (s *BlobStore) openBacking() (*os.File, error) {
+	if s.folder == nil {
+		return nil, fs.ErrClosed
+	}
+	folder, name := s.backingName()
+	return openBlobFile(folder, name, os.O_RDONLY)
+}
+
+func (s *BlobStore) readBacking() ([]byte, error) {
+	file, err := s.openBacking()
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close() //nolint:errcheck // Read-only snapshot.
+	return io.ReadAll(file)
 }
 
 // loadWritten memory-maps the descriptor atomicWrite returned, and decodes the
@@ -523,10 +647,15 @@ func (s *BlobStore) decode(data []byte) error {
 func (s *BlobStore) flush() error {
 	if !s.layoutChanged && len(s.added) == 0 && len(s.dirty) > 0 && s.backing != nil {
 		// Snapshot before pwrite so flushFull fallback has clean recovery data
-		preSnapshot, _ := os.ReadFile(s.path) //nolint:gosec // s.path is not user input
+		preSnapshot, snapshotErr := s.readBacking()
+		if snapshotErr != nil {
+			return snapshotErr
+		}
 		if err := s.flushInPlace(); err == nil {
 			s.resetDirty()
 			return nil
+		} else if errors.Is(err, fs.ErrPermission) {
+			return err // A refused write target must not enter recovery publication.
 		}
 		// In-place failed (may have partially written). Restore clean file before fallback.
 		//
@@ -550,7 +679,15 @@ func (s *BlobStore) flush() error {
 }
 
 func (s *BlobStore) flushFull() error {
-	oldEncoded, _ := os.ReadFile(s.path) //nolint:gosec // s.path is not user input
+	var oldEncoded []byte
+	// An initial Create has no loaded state to recover after a failed write.
+	if s.backing != nil {
+		var snapshotErr error
+		oldEncoded, snapshotErr = s.readBacking()
+		if snapshotErr != nil && !errors.Is(snapshotErr, fs.ErrNotExist) {
+			return snapshotErr
+		}
+	}
 
 	encoded := s.encode()
 
@@ -592,12 +729,13 @@ func (s *BlobStore) flushInPlace() error {
 		regions = append(regions, writeRegion{offset: sl.data.offset, data: buf})
 	}
 
-	if err := pwriteRegions(s.path, regions); err != nil {
+	folder, name := s.backingName()
+	if err := pwriteRegions(folder, name, regions, s.confined); err != nil {
 		return err
 	}
 
 	// Re-read the file to compute container CRC, then patch the container header
-	fileData, err := os.ReadFile(s.path) //nolint:gosec // s.path is the store's own file
+	fileData, err := s.readBacking()
 	if err != nil {
 		return fmt.Errorf("zefs: flush in-place re-read: %w", err)
 	}
@@ -624,7 +762,7 @@ func (s *BlobStore) flushInPlace() error {
 	hdrBuf := make([]byte, containerHdrLen)
 	writeNetcapstringHeader(hdrBuf, 0, containerCap, containerCap, containerCRC)
 
-	if err := pwriteRegions(s.path, []writeRegion{{offset: containerHdrOff, data: hdrBuf}}); err != nil {
+	if err := pwriteRegions(folder, name, []writeRegion{{offset: containerHdrOff, data: hdrBuf}}, s.confined); err != nil {
 		return err
 	}
 
@@ -660,29 +798,22 @@ func (s *BlobStore) resetDirty() {
 	s.layoutChanged = false
 }
 
-// atomicWrite writes data to s.path via a temp file and rename.
-// os.Rename is atomic on POSIX when source and target share a filesystem.
-// Fsync the temp file and parent directory to ensure durability on power loss.
-// atomicWrite installs data at s.path through a temp file and a rename, and
-// returns a read handle on the inode it wrote. The caller closes that handle,
-// or hands it to loadBackingFile which takes ownership.
-//
-// The handle is opened BEFORE the rename, and that is what makes the reload
-// safe. A reload that reopens s.path by name races anything that unlinks or
-// replaces the name. It then reports the file it just wrote as missing:
-// `zefs: flush reload: mmap open: ... no such file or directory`.
-// A descriptor names the inode, so it survives that.
+// atomicWrite publishes through the retained directory and returns the staged
+// inode's handle. The caller MUST close it or pass it to loadBackingFile.
+// Neither publication nor reload resolves the directory's former pathname.
 func (s *BlobStore) atomicWrite(data []byte) (handle *os.File, retErr error) {
-	dir := filepath.Dir(s.path)
-	tmp, err := os.CreateTemp(dir, ".zefs-*.tmp")
+	if s.folder == nil {
+		return nil, fs.ErrClosed
+	}
+	tmpName := ".zefs-" + rand.Text() + ".tmp"
+	tmp, err := s.folder.OpenFile(tmpName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("zefs: flush create temp: %w", err)
 	}
-	tmpName := tmp.Name()
 	committed := false
 	defer func() {
 		if !committed {
-			os.Remove(tmpName) //nolint:errcheck // best-effort cleanup of temp file
+			s.folder.Remove(tmpName) //nolint:errcheck // Best-effort cleanup of unpublished data.
 		}
 	}()
 	if _, err := tmp.Write(data); err != nil {
@@ -695,25 +826,28 @@ func (s *BlobStore) atomicWrite(data []byte) (handle *os.File, retErr error) {
 		tmp.Close() //nolint:errcheck // already failing on sync path
 		return nil, fmt.Errorf("zefs: flush fsync temp: %w", err)
 	}
-	if err := tmp.Close(); err != nil {
-		return nil, fmt.Errorf("zefs: flush close temp: %w", err)
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		return nil, errors.Join(err, tmp.Close())
 	}
-	handle, err = os.Open(tmpName) // #nosec G304 -- the temp file this call created
-	if err != nil {
-		return nil, fmt.Errorf("zefs: flush reopen temp: %w", err)
-	}
+	handle = tmp
 	defer func() {
 		if retErr != nil {
-			handle.Close() //nolint:errcheck // cleanup on a failed commit
+			tmp.Close() //nolint:errcheck // Cleanup on a failed commit.
 		}
 	}()
-	if err := os.Rename(tmpName, s.path); err != nil {
+	if err := s.folder.Rename(tmpName, s.name); err != nil {
 		return nil, fmt.Errorf("zefs: flush rename: %w", err)
 	}
 	committed = true
-	if dirFd, err := os.Open(dir); err == nil { //nolint:gosec // dir is derived from s.path, not user input
-		dirFd.Sync()  //nolint:errcheck // best-effort directory fsync for rename durability
-		dirFd.Close() //nolint:errcheck // best-effort close after fsync
+	if err := s.closeAlias(); err != nil {
+		return nil, err
+	}
+	dirFd, err := s.folder.Open(".")
+	if err != nil {
+		return nil, err
+	}
+	if err := errors.Join(dirFd.Sync(), dirFd.Close()); err != nil {
+		return nil, err
 	}
 	return handle, nil
 }

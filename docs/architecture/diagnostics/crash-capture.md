@@ -116,6 +116,22 @@ file.
 
 ## Constraints
 
+Session seeding admits its inherited config directory before ordinary `Init`.
+`InitSeed` compares its acquired crash root with the preceding nonsymlink entry
+using `os.SameFile`. It refuses a replacement before it creates a capture, then
+arms one exclusively created `crash-*-seed-*.log` under a retained
+`crash` root, with the same runtime header and stderr/syslog relay. It probes no
+candidate or fallback pathname. Caught panics and relay-detected panics use that
+held file too.
+<!-- source: internal/core/crashlog/seed.go -- InitSeed -->
+
+Normal completion drains the relay, disarms runtime output and
+removes only a header-only file through the root. Abnormal termination leaves its
+record directly in `crash`. This short-lived path performs no pending harvest or
+rotation. The caller must not close it during panic unwinding, because main's
+recovery still needs it. Ordinary startup retains its existing behavior.
+<!-- source: internal/core/crashlog/seed.go -- InitSeed, SeedCapture.Close -->
+
 **The runtime's fatal output does not reach syslog.** It goes to the real
 stderr and to the crash output file, because nothing in the process runs while it
 is written. A crash file from the runtime carries no log ring for the same

@@ -126,8 +126,12 @@ func stderrReader(r io.Reader, out io.Writer, syslogW *syslog.Writer, crashDirPa
 		var tb textbuf.Buffer
 		writeMsg(out, tb.Str("crashlog: stderr relay stopped: ").Err(err).Byte('\n').String())
 	}
-	if inPanic && crashDirPath != "" {
-		writeCrashFile(crashDirPath, crashKeep, string(panicBuf))
+	if inPanic {
+		if seedCrash != nil {
+			writeMsg(seedCrash, string(panicBuf))
+		} else if crashDirPath != "" {
+			writeCrashFile(crashDirPath, crashKeep, string(panicBuf))
+		}
 	}
 }
 

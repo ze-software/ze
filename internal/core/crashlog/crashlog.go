@@ -76,7 +76,9 @@ func HandlePanic(r any) {
 	stack := debug.Stack()
 	report := buildCrashReport(r, stack)
 
-	if crashDir != "" {
+	if seedCrash != nil {
+		writeMsg(seedCrash, report)
+	} else if crashDir != "" {
 		writeCrashFile(crashDir, crashKeep, report)
 	}
 
@@ -97,6 +99,9 @@ func HandlePanic(r any) {
 // writes to syslog. When stderr is not redirected, this function
 // writes the crash file directly.
 func HandleCaughtPanic(err error) {
+	if seedCrash != nil && pipeW == nil {
+		writeMsg(seedCrash, buildCrashReport(err, nil))
+	}
 	if crashDir != "" && pipeW == nil {
 		writeCrashFile(crashDir, crashKeep, buildCrashReport(err, nil))
 	}

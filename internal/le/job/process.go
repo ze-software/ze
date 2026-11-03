@@ -4,6 +4,7 @@ package job
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,23 +14,36 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/seedinit"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 // ProcessIO specifies the streams and environment for one child process.
 type ProcessIO struct {
-	Dir     string
-	Environ []string
-	Stdin   io.Reader
-	Stdout  io.Writer
-	Stderr  io.Writer
+	// Executable pins the program independently of argv[0]. The caller MUST
+	// keep it open until RunProcess returns. Nil selects ordinary path execution.
+	Executable *os.File
+	// SeedDirectory is borrowed until RunProcess returns. It is inherited at
+	// fd 4 only beside a held executable at fd 3, for the two init children.
+	SeedDirectory *os.File
+	Dir           string
+	Environ       []string
+	Stdin         io.Reader
+	Stdout        io.Writer
+	Stderr        io.Writer
 }
 
 // RunProcess starts one child, forwards SIGINT and SIGTERM, waits, and returns
 // the shell-compatible child status. A start error returns CannotStart and the
 // error. A child failure is a verdict, not a start error.
 func RunProcess(argv []string, processIO ProcessIO) (int, error) {
+	return runProcess(argv, processIO, processExecutable)
+}
+
+// runProcess owns preparation through reap and cleanup. Tests exercise the
+// portable preparation path here even when the host is Linux.
+func runProcess(argv []string, processIO ProcessIO, prepare func(*exec.Cmd, *os.File) (func() error, error)) (code int, retErr error) {
 	if len(argv) == 0 {
 		return gaterun.CannotStart, ErrNoCommand
 	}
@@ -45,6 +59,23 @@ func RunProcess(argv []string, processIO ProcessIO) (int, error) {
 	cmd.Stdin = processIO.Stdin
 	cmd.Stdout = processIO.Stdout
 	cmd.Stderr = processIO.Stderr
+	cleanup, err := prepare(cmd, processIO.Executable)
+	if err != nil {
+		return gaterun.CannotStart, err
+	}
+	if cleanup != nil {
+		defer func() { retErr = errors.Join(retErr, cleanup()) }()
+	}
+	if processIO.SeedDirectory != nil {
+		if len(cmd.ExtraFiles) != 1 {
+			return gaterun.CannotStart, fmt.Errorf("session directory requires the held executable in fd 3")
+		}
+		cmd.Env, err = seedinit.Environment(cmd.Env, filepath.Clean(processIO.SeedDirectory.Name()))
+		if err != nil {
+			return gaterun.CannotStart, err
+		}
+		cmd.ExtraFiles = append(cmd.ExtraFiles, processIO.SeedDirectory)
+	}
 	if err := cmd.Start(); err != nil {
 		return gaterun.CannotStart, err
 	}

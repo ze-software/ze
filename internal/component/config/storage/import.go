@@ -59,18 +59,11 @@ func RestoreBlob(path, dir string) (Storage, error) {
 }
 
 func importBlob(path, dir string, policy importPolicy, replace bool) (Storage, error) {
-	sourceDir, name, err := splitStorePath(path)
+	source, err := openImportSource(path)
 	if err != nil {
 		return nil, err
 	}
-	sourceFolder, err := openFolder(sourceDir)
-	if err != nil {
-		return nil, err
-	}
-	absolute := filepath.Join(sourceFolder.Name(), name)
-	if err := sourceFolder.Close(); err != nil {
-		return nil, err
-	}
+	defer source.close() //nolint:errcheck // Source directory sync is explicit.
 	folder, err := ensureFolder(dir)
 	if err != nil {
 		return nil, err
@@ -79,7 +72,7 @@ func importBlob(path, dir string, policy importPolicy, replace bool) (Storage, e
 	if err != nil {
 		return nil, errors.Join(err, folder.Close())
 	}
-	result, err := importOwned(absolute, folder, owner, policy, replace)
+	result, err := importOwnedSource(source, folder, owner, policy, replace)
 	if err != nil {
 		return nil, errors.Join(err, owner.Close(), folder.Close())
 	}
@@ -94,12 +87,17 @@ func importBlob(path, dir string, policy importPolicy, replace bool) (Storage, e
 // already on disk is replayed and never rebuilt: it names the stage and every
 // retirement name, so a second stage or a second stamp is never chosen.
 func importOwned(path string, folder, owner *os.File, policy importPolicy, replace bool) (*store, error) {
-	sourceFolder, err := openFolder(filepath.Dir(path))
+	source, err := openImportSource(path)
 	if err != nil {
 		return nil, err
 	}
-	defer sourceFolder.Close() //nolint:errcheck // directory sync is explicit.
-	sourceOwner, err := lockOwner(sourceFolder, filepath.Base(path)+".lock")
+	defer source.close() //nolint:errcheck // Source directory sync is explicit.
+	return importOwnedSource(source, folder, owner, policy, replace)
+}
+
+func importOwnedSource(source *importSource, folder, owner *os.File, policy importPolicy, replace bool) (*store, error) {
+	path := source.path
+	sourceOwner, err := lockOwner(source.folder, filepath.Base(path)+".lock")
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +109,7 @@ func importOwned(path string, folder, owner *os.File, policy importPolicy, repla
 		return nil, fmt.Errorf("%s cannot be read: %w; remove that intent file once %s holds the wanted tree", intentPath, err, treePath)
 	}
 	if !exists {
-		return startImport(path, folder, owner, policy, replace)
+		return startImport(source, folder, owner, policy, replace)
 	}
 	if intent.Source != path {
 		return nil, fmt.Errorf("%s records an unfinished %s of %s, not %s: finish it with %s, or remove that intent file once %s holds the wanted tree", intentPath, intent.Policy, intent.Source, path, intent.recovery(), treePath)
@@ -119,7 +117,7 @@ func importOwned(path string, folder, owner *os.File, policy importPolicy, repla
 	if intent.Policy != policy {
 		return nil, fmt.Errorf("%s records an unfinished %s of %s, not a %s: finish it with %s, or remove that intent file once %s holds the wanted tree", intentPath, intent.Policy, intent.Source, policy, intent.recovery(), treePath)
 	}
-	return replayImport(folder, owner, intent)
+	return replayImport(source, folder, owner, intent)
 }
 
 // startImport verifies the source, records every destination the import will
@@ -127,15 +125,13 @@ func importOwned(path string, folder, owner *os.File, policy importPolicy, repla
 // replayImport, which is the only code that moves a recorded node. Until the
 // intent write is attempted a failure removes the stage; from then on the
 // intent can name it, so the stage stays for the recovery command.
-func startImport(path string, folder, owner *os.File, policy importPolicy, replace bool) (_ *store, retErr error) {
-	digest, err := blobDigest(path)
+func startImport(held *importSource, folder, owner *os.File, policy importPolicy, replace bool) (_ *store, retErr error) {
+	path := held.path
+	digest, err := blobDigestIn(held.folder, filepath.Base(path))
 	if err != nil {
 		return nil, err
 	}
-	if err := checkArtifact(path); err != nil {
-		return nil, err
-	}
-	source, err := zefs.Open(path)
+	source, err := held.open()
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +192,7 @@ func startImport(path string, folder, owner *os.File, policy importPolicy, repla
 	if err := installBytes(folder, folder, treeName, importIntentName, encoded, func(f *os.File) error { return f.Sync() }); err != nil {
 		return nil, err
 	}
-	return replayImport(folder, owner, intent)
+	return replayImport(held, folder, owner, intent)
 }
 
 // recordPrevious describes the node at name before an import moves it: absent,
@@ -265,7 +261,11 @@ func blobDigest(path string) (string, error) {
 		return "", err
 	}
 	defer folder.Close() //nolint:errcheck // read handle.
-	file, err := openNode(folder, filepath.Base(path), false)
+	return blobDigestIn(folder, filepath.Base(path))
+}
+
+func blobDigestIn(folder *os.File, name string) (string, error) {
+	file, err := openNode(folder, name, false)
 	if err != nil {
 		return "", err
 	}
@@ -276,7 +276,7 @@ func blobDigest(path string) (string, error) {
 		return "", err
 	}
 	if n > blobImportMax {
-		return "", fmt.Errorf("blob exceeds import limit: %s", path)
+		return "", fmt.Errorf("blob exceeds import limit: %s", filepath.Join(folder.Name(), name))
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
@@ -348,7 +348,7 @@ func retireSource(parent *os.File, intent importIntent, retired bool) error {
 	source := filepath.Base(intent.Source)
 	archive := filepath.Base(intent.Archive)
 	if !retired {
-		digest, err := blobDigest(intent.Source)
+		digest, err := blobDigestIn(parent, source)
 		if err != nil {
 			return err
 		}
@@ -377,6 +377,10 @@ func checkArtifact(path string) error {
 	if err != nil {
 		return err
 	}
+	return checkArtifactReport(path, report)
+}
+
+func checkArtifactReport(path string, report *zefs.CheckReport) error {
 	if !report.MagicOK {
 		return fmt.Errorf("%w: %s: invalid magic", ErrCorrupt, path)
 	}

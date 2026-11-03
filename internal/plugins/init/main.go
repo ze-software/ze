@@ -298,6 +298,25 @@ func importSource(path, shown, dir string, force bool) int {
 }
 
 func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAddr, webCertName string, seed, force bool) int {
+	path := filepath.Join(dir, "database")
+	if seed {
+		path = filepath.Join(dir, "database.zefs")
+	}
+	publish := func(populate func(storage.Storage) error) (storage.Storage, error) {
+		if seed {
+			return storage.CreateBlobPopulated(path, populate, force)
+		}
+		if force {
+			return storage.ReplacePopulated(dir, populate)
+		}
+		return storage.CreatePopulated(dir, populate)
+	}
+	return runInitPublished(r, promptW, path, managed, webCertAddr, webCertName, seed, publish)
+}
+
+// runInitPublished shares credential population between ordinary init and the
+// descriptor-bound session entry. Only the publication operation differs.
+func runInitPublished(r io.Reader, promptW io.Writer, path string, managed bool, webCertAddr, webCertName string, seed bool, publish func(func(storage.Storage) error) (storage.Storage, error)) int {
 	// Read credentials (with optional prompts)
 	scanner := bufio.NewScanner(r)
 
@@ -463,17 +482,7 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 		return nil
 	}
 
-	var store storage.Storage
-	path := filepath.Join(dir, "database")
-	switch {
-	case seed:
-		path = filepath.Join(dir, "database.zefs")
-		store, err = storage.CreateBlobPopulated(path, populate, force)
-	case force:
-		store, err = storage.ReplacePopulated(dir, populate)
-	default:
-		store, err = storage.CreatePopulated(dir, populate)
-	}
+	store, err := publish(populate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: initialize %s: %v\n", path, err)
 		return 1

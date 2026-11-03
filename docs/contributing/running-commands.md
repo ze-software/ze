@@ -1,5 +1,41 @@
 # Running Development Commands
 
+### Session init descriptors
+
+Session seeding inherits the held executable at fd 3 and its accepted private
+config directory at fd 4. `ze.session.seed.directory` carries only the durable
+directory label. Before ordinary crash initialization, `seedinit.Dispatch`
+requires the directory descriptor and checks its type, owner and private mode.
+It accepts only `init --seed` or `init --from` naming that directory's canonical
+seed. The durable label must match the launched binary's lexical config label.
+That comparison does not reopen either path.
+<!-- source: internal/core/seedinit/register.go -- Dispatch -->
+
+An environment label alone cannot
+authorize a pathname open. Conflicting
+config, blob and crash overrides are refused rather than stripped.
+<!-- source: internal/core/seedinit/register.go -- Dispatch -->
+
+The init owner registers this bounded startup entry. Its storage operations
+borrow the admitted handles, and its crash capture writes under their retained
+root. The parent closes each borrowed launch descriptor after the child returns.
+the child closes its inherited descriptor and roots after init. Durable import
+Source/Archive names never contain descriptor paths. Ordinary invocations without
+the internal marker keep ordinary startup.
+<!-- source: internal/core/seedinit/register.go -- Dispatch, Register -->
+<!-- source: internal/le/job/process.go -- RunProcess -->
+
+Linux converts fd 4 through `/proc/self/fd/4`.
+Darwin, FreeBSD, OpenBSD and NetBSD use `/dev/fd/4`.
+Both routes validate the actual descriptor's type, owner and private mode.
+The acquired root must also match the inherited descriptor's identity.
+The descriptor filesystem must be available. Native Darwin/BSD execution is
+not verified on the Linux development host. Source checks and cross-platform
+typechecking are separate evidence, not runtime proof.
+<!-- source: internal/core/seedinit/register.go -- Dispatch, Register, Environment -->
+<!-- source: internal/core/seedinit/directory_unix.go -- inheritedDirectory -->
+<!-- source: internal/le/job/process.go -- RunProcess -->
+
 <!-- source: internal/le/go/toolchain, internal/le/repo/changed, internal/le/test/functional, internal/le/session, internal/le/job, internal/le/hookruntime, internal/le/verify, internal/le/scratch -->
 
 How the `./le` action surface, the session scratch tree, and the Bash guard
@@ -1306,8 +1342,51 @@ directory at midnight and orphan the binaries it is running.
 
 The session-local `etc/ze` is seeded once by
 `./le session seed-store binary <session-bin>/ze`. `seedStore`
-(`internal/le/session/seed.go`) validates that the binary belongs to the current
-session directory. Credentials are generated per session: user `admin`, and a
+(`internal/le/session/seed.go`) checks the owner marker against the current
+session identity before it reuses or creates a store. The entry refuses config-root
+overrides under every case/dot/underscore spelling, including empty values.
+It also refuses symlinks in the session directory, owner marker, binary path,
+config path, seed artifact, password and seed lock. The shared `tmp/session`
+prefix can still use the managed scratch location. The binary must be a regular
+executable even when the store already exists.
+<!-- source: internal/le/session/seed.go -- validateSeedEntry, seedStore -->
+
+The seeder retains the owned session's config directory for password operations,
+store observations, seed-lock operations and artifact checks. Password reads and
+permission changes use one no-follow file handle. Before either operation, the
+seeder checks that descriptor's owner and requires exactly one hard link. This
+rejects a pre-existing outside alias. It does not prevent a same-user writer
+from adding a link after the check.
+<!-- source: internal/le/session/seed.go -- ensurePassword -->
+
+On Linux, child launch inherits
+the acquired executable descriptor and executes that descriptor, retaining the
+original argv. Non-Linux launches instead copy the held descriptor from offset
+zero into an exclusively created managed-scratch executable, mode 0700.
+The copy preserves the original argv and borrowed offset. The job removes only that file
+after child reap or launch refusal and returns any cleanup error. No Mach-O
+execution through `/dev/fd` is assumed.
+<!-- source: internal/le/job/process.go -- RunProcess -->
+<!-- source: internal/le/job/process_executable_stage.go -- stageProcessExecutable -->
+
+Ordinary launches without a held
+descriptor create no stage.
+<!-- source: internal/le/job/process_executable_linux.go -- processExecutable -->
+<!-- source: internal/le/job/process_executable_other.go -- processExecutable -->
+
+Both init/import children inherit the accepted config directory at fd 4 beside
+the executable at fd 3. Startup admits that directory before crash capture, and
+the bound init entry uses retained-root storage APIs. Directory pathname
+replacement therefore does not redirect those children into the replacement.
+AC-33 remains open for native Darwin/BSD runtime proof and remaining gates in
+`plan/post-release/engineering/spec-tooling-one-off-defects.md`.
+<!-- source: internal/le/session/seed.go -- validateSeedEntry, seedStore -->
+<!-- source: internal/le/session/seed_root.go -- openSeedResources, openSeedDirectory -->
+<!-- source: internal/le/job/process.go -- ProcessIO, RunProcess -->
+<!-- source: internal/le/job/process_executable_linux.go -- processExecutable -->
+<!-- source: internal/le/job/process_executable_other.go -- processExecutable -->
+
+Credentials are generated per session: user `admin`, and a
 random password at `<session-dir>/etc/ze/.dev-password`, mode 0600. A later seed
 preserves the existing store and does not rotate the credentials.
 The seeder runs `ze init --seed`, which writes a `database.zefs` artifact and
