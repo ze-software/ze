@@ -8,7 +8,7 @@
     "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "130297db967addd6",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "33a499fb23a13b0e",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "33a499fb23a13b0e",
-    "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "07ffe0ba5c7e0809",
+    "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "31aab6842e23cf15",
     "test/plugin/local-pref-strip-ebgp.ci": "a883dea4cd288662",
     "test/plugin/local-pref-strip-ebgp.ci#2": "a883dea4cd288662"
   },
