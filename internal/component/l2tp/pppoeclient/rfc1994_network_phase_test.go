@@ -30,7 +30,9 @@ func runNetworkPhase(t *testing.T, stop chan struct{}, feed ...readFrame) (*reco
 	done := make(chan struct{})
 	chap := networkPhaseCHAPFor(ppp.ProtoCHAP, sessionConfig{username: "user", password: "pass"})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	go keepaliveLoop(w, &sessionResult{frames: frames, magic: 1, chap: chap}, done, stop, logger)
+	session := newTestConnectedSession(t, w,
+		sessionResult{reader: testFrameReader(t, frames, nil), magic: 1, chap: chap}, chap.cfg)
+	go keepaliveLoop(session, done, stop, logger)
 	for _, f := range feed {
 		frames <- f
 	}
@@ -158,7 +160,8 @@ func runIPCPWindow(t *testing.T, stop chan struct{}, feed ...readFrame) (*record
 	done := make(chan error, 1)
 	chap := networkPhaseCHAPFor(ppp.ProtoCHAP, sessionConfig{username: "user", password: "pass"})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	go ipcpWindowWorker(w, frames, chap, stop, logger, done)
+	reader := testFrameReader(t, frames, nil)
+	go ipcpWindowWorker(w, reader, chap, stop, logger, done)
 	for _, f := range feed {
 		frames <- f
 	}
@@ -167,9 +170,9 @@ func runIPCPWindow(t *testing.T, stop chan struct{}, feed ...readFrame) (*record
 }
 
 // ipcpWindowWorker runs negotiateIPCP once and reports its error on done.
-func ipcpWindowWorker(w io.Writer, frames <-chan readFrame, chap *networkPhaseCHAP, stop <-chan struct{}, logger *slog.Logger, done chan<- error) {
+func ipcpWindowWorker(w io.Writer, reader *frameReader, chap *networkPhaseCHAP, stop <-chan struct{}, logger *slog.Logger, done chan<- error) {
 	var buf [ppp.MaxFrameBufLen]byte
-	_, err := negotiateIPCP(w, frames, buf[:], 1, 0, chap, stop, logger)
+	_, err := negotiateIPCP(w, reader, buf[:], 1, 0, chap, new(uint8), stop, logger, new(uint8))
 	done <- err
 }
 

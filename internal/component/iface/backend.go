@@ -159,6 +159,10 @@ type Backend interface {
 	// links typically work. Returns an error if the interface does not
 	// exist or the kernel rejects the add.
 	AddAddressP2P(ifaceName, localCIDR, peerCIDR string) error
+	// RemoveAddressP2P removes only the named local/peer pair. Other pairs,
+	// including a new local address sharing the old peer, MUST survive.
+	// The caller MUST retain the old pair until its replacement was added.
+	RemoveAddressP2P(ifaceName, localCIDR, peerCIDR string) error
 
 	// Route management. Used by DHCP to install/remove default gateway.
 	// destCIDR is the destination (e.g., "0.0.0.0/0"), gateway is the

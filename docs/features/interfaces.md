@@ -496,12 +496,15 @@ one `dhcp-expired` for each, and solicits again.
   untouched, as is the VPP backend, which deletes exactly the requested address.
 <!-- source: internal/plugins/iface/netlink/addr_primary.go -- ensureDeleteIsolated, flushedByDelete -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go -- RemoveAddress delegates to removeAddressGuarded -->
-- **Point-to-point address removal.** A local CIDR identifies the address to remove.
-  The netlink backend reads the installed address and retains its peer metadata for deletion.
-  Linux matches both `IFA_LOCAL` and `IFA_ADDRESS`, so rebuilding the request from the local
-  CIDR alone cannot remove an address whose peer differs. The primary/secondary guard
-  still runs before deletion. Removing the address also removes its kernel connected route.
-<!-- source: internal/plugins/iface/netlink/addr_primary_linux.go -- netlinkAddrRemover.List, netlinkAddrRemover.Delete -->
+- **Point-to-point address removal.** `RemoveAddress` selects by local CIDR and retains the installed peer metadata for deletion.
+  `RemoveAddressP2P` requires the exact installed local/peer pair before deletion.
+  A successful dump proving that pair absent completes removal without a delete call.
+  A failed dump or lookup remains an error. IPv4 deletion also accepts the kernel's
+  `EADDRNOTAVAIL` when the pair disappeared after the dump.
+  Requests and installed addresses use the same normalization, including equal IPv4 endpoints.
+  The primary/secondary guard uses the selected pair and its peer subnet to protect other addresses before deletion.
+<!-- source: internal/plugins/iface/netlink/addr_primary_linux.go -- resolveAddressRemoval, netlinkAddrRemover.resolve, toDeviceAddress -->
+<!-- source: internal/plugins/iface/netlink/addr_primary.go -- selectDeleteTarget, addressSubnet, ensureDeleteIsolated -->
 - **Virtual interface state.** Dummy/bridge/veth report `OperUnknown` not `OperUp`;
   monitor checks `IFF_UP` flag as fallback.
 - **Tunnel encapsulation as YANG choice/case.** The `tunnel` list at the iface level
@@ -1254,6 +1257,7 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `RemoveAddress` | real | real (SwInterfaceAddDelAddress) | err |
 | | `ReplaceAddressWithLifetime` | real | partial [2] | err |
 | | `AddAddressP2P` | real | err (PPP NCP not supported yet) | err |
+| | `RemoveAddressP2P` | exact installed pair | err (PPP NCP not supported yet) | err |
 | **Route** | `AddRoute` | real | err (use fib-vpp plugin) | err |
 | | `RemoveRoute` | real | err (use fib-vpp plugin) | err |
 | | `ListRoutes` | real | err (use fib-vpp plugin) | err |

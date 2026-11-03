@@ -1,7 +1,7 @@
 //go:build integration && linux
 
 // Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- network phase: IPCP on the PPP unit descriptor.
-// Related: unit_reservation_integration_linux_test.go -- the wire peer this test drives.
+// Related: internal/test/pppoeac/peer_linux.go -- the wire peer this test drives.
 
 package pppoeclient
 
@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
+	"github.com/ze-software/ze/internal/test/pppoeac"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -84,12 +85,12 @@ func TestClientAnswersIPCPOnTheUnitDescriptor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(unitPeerNetworkOrder(unix.ETH_P_ALL)))
+	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(pppoeac.NetworkOrder(unix.ETH_P_ALL)))
 	if err != nil {
 		t.Fatalf("open the wire peer's AF_PACKET socket: %v", err)
 	}
 	t.Cleanup(func() { _ = unix.Close(fd) })
-	if err := unix.Bind(fd, &unix.SockaddrLinklayer{Ifindex: peerLink.Attrs().Index, Protocol: unitPeerNetworkOrder(unix.ETH_P_ALL)}); err != nil {
+	if err := unix.Bind(fd, &unix.SockaddrLinklayer{Ifindex: peerLink.Attrs().Index, Protocol: pppoeac.NetworkOrder(unix.ETH_P_ALL)}); err != nil {
 		t.Fatal(err)
 	}
 	if err := pppoe.SetRecvTimeout(fd, 100*time.Millisecond); err != nil {
@@ -97,12 +98,16 @@ func TestClientAnswersIPCPOnTheUnitDescriptor(t *testing.T) {
 	}
 	// The client's own IPCP Configure-Ack during Dial lands here too.
 	observed := make(chan ppp.LCPPacket, 16)
-	peer := unitReservationPeer{fd: fd, ifindex: peerLink.Attrs().Index, sid: 43, observed: observed}
-	copy(peer.mac[:], peerLink.Attrs().HardwareAddr)
+	var peerMAC [pppoe.EthALen]byte
+	copy(peerMAC[:], peerLink.Attrs().HardwareAddr)
+	peer, err := pppoeac.New(fd, peerLink.Attrs().Index, peerMAC, 43)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	peerDone := make(chan error, 1)
 	go func() {
-		peerDone <- peer.serve(ctx)
+		peerDone <- peer.ServeNoAuth(ctx, observed)
 		cancel()
 	}()
 	t.Cleanup(func() {
@@ -140,7 +145,7 @@ func TestClientAnswersIPCPOnTheUnitDescriptor(t *testing.T) {
 
 	// RFC 1332 Section 2: "Other Codes should be treated as unrecognized and
 	// should result in Code-Rejects."
-	if err := peer.sendPPP(client, ppp.ProtoIPCP, 12, 0x42, []byte{1, 2, 3, 4}); err != nil {
+	if err := peer.SendControl(client, ppp.ProtoIPCP, 12, 0x42, []byte{1, 2, 3, 4}); err != nil {
 		t.Fatal(err)
 	}
 	reject := await(ppp.LCPCodeReject, "IPCP Code-Reject")
@@ -150,7 +155,7 @@ func TestClientAnswersIPCPOnTheUnitDescriptor(t *testing.T) {
 
 	// RFC 1661 Section 5.5: "Upon reception of a Terminate-Request, a
 	// Terminate-Ack MUST be transmitted."
-	if err := peer.sendPPP(client, ppp.ProtoIPCP, ppp.LCPTerminateRequest, 0x5a, nil); err != nil {
+	if err := peer.SendControl(client, ppp.ProtoIPCP, ppp.LCPTerminateRequest, 0x5a, nil); err != nil {
 		t.Fatal(err)
 	}
 	ack := await(ppp.LCPTerminateAck, "IPCP Terminate-Ack")

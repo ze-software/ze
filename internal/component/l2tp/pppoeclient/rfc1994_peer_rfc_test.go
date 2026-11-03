@@ -43,7 +43,8 @@ func chapPacketsWritten(t *testing.T, w *recordingRWC) []ppp.LCPPacket {
 // runCHAPClient runs runClientAuth over the queued frames with CHAP
 // negotiated. The frames channel is closed after the queue, so a run the
 // frames do not end returns the channel-closed error.
-func runCHAPClient(queued ...readFrame) (*recordingRWC, error) {
+func runCHAPClient(t *testing.T, queued ...readFrame) (*recordingRWC, error) {
+	t.Helper()
 	frames := make(chan readFrame, len(queued))
 	for _, f := range queued {
 		frames <- f
@@ -52,8 +53,7 @@ func runCHAPClient(queued ...readFrame) (*recordingRWC, error) {
 	w := &recordingRWC{}
 	buf := make([]byte, ppp.MaxFrameLen)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	err := runClientAuth(w, frames, buf, lcpResult{authProto: ppp.ProtoCHAP},
-		sessionConfig{username: "user", password: "pass"}, 0, make(chan struct{}), logger)
+	err := runClientAuth(w, testFrameReader(t, frames, nil), buf, lcpResult{authProto: ppp.ProtoCHAP}, sessionConfig{username: "user", password: "pass"}, 0, make(chan struct{}), logger, new(uint8))
 	return w, err
 }
 
@@ -65,7 +65,7 @@ func runCHAPClient(queued ...readFrame) (*recordingRWC, error) {
 //
 // RFC requirement: RFC1994-4.1-4 positive -- for each of two received Challenges (Identifier 0x42, then 0x43), runClientAuth transmits one CHAP packet with Code 2 (Response) carrying that Identifier.
 func TestRFC1994PeerTransmitsResponseForEveryChallenge(t *testing.T) {
-	w, err := runCHAPClient(
+	w, err := runCHAPClient(t,
 		chapChallengeFrame(0x42, []byte{4, 1, 2, 3, 4}),
 		chapChallengeFrame(0x43, []byte{4, 5, 6, 7, 8}),
 		readFrame{data: chapReplyFrame(t, 3, 0x43, "")},
@@ -100,7 +100,7 @@ func TestRFC1994PeerSendsNoResponseWithoutChallenge(t *testing.T) {
 		off += ppp.WriteLCPPacket(buf[:], off, code, id, []byte{4, 1, 2, 3, 4})
 		return readFrame{data: buf[:off]}
 	}
-	w, err := runCHAPClient(notChallenge(2, 0x42), notChallenge(5, 0x43))
+	w, err := runCHAPClient(t, notChallenge(2, 0x42), notChallenge(5, 0x43))
 	if err == nil {
 		t.Fatal("runClientAuth succeeded with no Challenge and no Success")
 	}
@@ -119,7 +119,7 @@ func TestRFC1994PeerSendsNoResponseWithoutChallenge(t *testing.T) {
 func TestRFC1994FailureMessageDoesNotAffectOutcome(t *testing.T) {
 	for _, message := range []string{"", "authentication succeeded", "\x00\x03 \xfe\xff"} {
 		t.Run(message, func(t *testing.T) {
-			_, err := runCHAPClient(
+			_, err := runCHAPClient(t,
 				chapChallengeFrame(0x42, []byte{4, 1, 2, 3, 4}),
 				readFrame{data: chapReplyFrame(t, 4, 0x42, message)},
 			)
@@ -128,7 +128,7 @@ func TestRFC1994FailureMessageDoesNotAffectOutcome(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "CHAP auth failed") {
 				t.Fatalf("CHAP Failure with Message %q = %v, want the CHAP auth failure", message, err)
 			}
-			_, err = runCHAPClient(
+			_, err = runCHAPClient(t,
 				chapChallengeFrame(0x42, []byte{4, 1, 2, 3, 4}),
 				readFrame{data: chapReplyFrame(t, 3, 0x42, message)},
 			)

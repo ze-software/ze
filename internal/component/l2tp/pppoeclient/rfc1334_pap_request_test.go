@@ -62,7 +62,7 @@ func TestClientOpensAuthPhaseWithPAPRequest(t *testing.T) {
 		close(stopCh)
 		buf := make([]byte, ppp.MaxFrameLen)
 		cfg := sessionConfig{username: "alice", password: "secret"}
-		err := runClientAuth(w, frames, buf, lcpResult{authProto: authProto}, cfg, 0x01020304, stopCh, slog.Default())
+		err := runClientAuth(w, testFrameReader(t, frames, nil), buf, lcpResult{authProto: authProto}, cfg, 0x01020304, stopCh, slog.Default(), new(uint8))
 		if err == nil {
 			t.Fatal("runClientAuth returned nil after stop")
 		}
@@ -108,10 +108,9 @@ func TestClientPAPWriteFailure(t *testing.T) {
 			close(stopCh)
 			w := &failingAuthWriter{err: tc.writeErr}
 			var buf [ppp.MaxFrameBufLen]byte
-			err := runClientAuth(w, make(chan readFrame), buf[:],
-				lcpResult{authProto: ppp.ProtoPAP}, sessionConfig{
-					username: "alice", password: "secret",
-				}, 0x01020304, stopCh, slog.Default())
+			err := runClientAuth(w, testFrameReader(t, make(chan readFrame), nil), buf[:], lcpResult{authProto: ppp.ProtoPAP}, sessionConfig{
+				username: "alice", password: "secret",
+			}, 0x01020304, stopCh, slog.Default(), new(uint8))
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("runClientAuth = %v, want %v", err, tc.want)
 			}
@@ -136,8 +135,7 @@ func TestClientPAPRetriesUntilMatchingReply(t *testing.T) {
 		done := make(chan error, 1)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			done <- runClientAuth(w, frames, buf[:], lcpResult{authProto: ppp.ProtoPAP},
-				sessionConfig{username: "alice", password: "secret"}, 1, stop, slog.Default())
+			done <- runClientAuth(w, testFrameReader(t, frames, nil), buf[:], lcpResult{authProto: ppp.ProtoPAP}, sessionConfig{username: "alice", password: "secret"}, 1, stop, slog.Default(), new(uint8))
 		}()
 		synctest.Wait()
 		first := w.papPackets(t)
@@ -186,8 +184,7 @@ func TestClientPAPDiscardsInvalidReplies(t *testing.T) {
 		done := make(chan error, 1)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			done <- runClientAuth(w, frames, buf[:], lcpResult{authProto: ppp.ProtoPAP},
-				sessionConfig{username: "alice", password: "secret"}, 1, stop, slog.Default())
+			done <- runClientAuth(w, testFrameReader(t, frames, nil), buf[:], lcpResult{authProto: ppp.ProtoPAP}, sessionConfig{username: "alice", password: "secret"}, 1, stop, slog.Default(), new(uint8))
 		}()
 		synctest.Wait()
 		assertWaiting := func(frame []byte) {
@@ -233,8 +230,7 @@ func TestClientPAPRetryLimit(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w := &recordingRWC{}
 		var buf [ppp.MaxFrameBufLen]byte
-		err := runClientAuth(w, make(chan readFrame), buf[:], lcpResult{authProto: ppp.ProtoPAP},
-			sessionConfig{username: "alice", password: "secret"}, 1, make(chan struct{}), slog.Default())
+		err := runClientAuth(w, testFrameReader(t, make(chan readFrame), nil), buf[:], lcpResult{authProto: ppp.ProtoPAP}, sessionConfig{username: "alice", password: "secret"}, 1, make(chan struct{}), slog.Default(), new(uint8))
 		if err == nil {
 			t.Fatal("silent peer authenticated")
 		}
@@ -272,8 +268,7 @@ func TestClientPAPRetryWriteFailure(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				w := &retryFailingAuthWriter{err: tc.writeErr}
 				var buf [ppp.MaxFrameBufLen]byte
-				err := runClientAuth(w, make(chan readFrame), buf[:], lcpResult{authProto: ppp.ProtoPAP},
-					sessionConfig{username: "alice", password: "secret"}, 1, make(chan struct{}), slog.Default())
+				err := runClientAuth(w, testFrameReader(t, make(chan readFrame), nil), buf[:], lcpResult{authProto: ppp.ProtoPAP}, sessionConfig{username: "alice", password: "secret"}, 1, make(chan struct{}), slog.Default(), new(uint8))
 				if !errors.Is(err, tc.want) {
 					t.Fatalf("retry error = %v, want %v", err, tc.want)
 				}
@@ -289,8 +284,7 @@ func TestClientPAPStopsOnLCPTermination(t *testing.T) {
 	frames := make(chan readFrame, 1)
 	frames <- serverFrame(ppp.LCPTerminateRequest, 0x37, nil)
 	var buf [ppp.MaxFrameBufLen]byte
-	err := runClientAuth(w, frames, buf[:], lcpResult{authProto: ppp.ProtoPAP},
-		sessionConfig{username: "alice", password: "secret"}, 1, make(chan struct{}), slog.Default())
+	err := runClientAuth(w, testFrameReader(t, frames, nil), buf[:], lcpResult{authProto: ppp.ProtoPAP}, sessionConfig{username: "alice", password: "secret"}, 1, make(chan struct{}), slog.Default(), new(uint8))
 	if err == nil {
 		t.Fatal("terminated peer authenticated")
 	}

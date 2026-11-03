@@ -163,19 +163,34 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 
 	chanFile := ppp.NewFDFile(chanFD, "pppoe-client.chan")
 	link := &sessionLink{
-		channel: chanFile,
-		stopped: make(chan struct{}),
+		channel:   chanFile,
+		channelFD: chanFD,
+		unitFD:    unitFD,
+		stopped:   make(chan struct{}),
 		closeTransport: func() {
 			pppoe.ClosePPPoxFD(pppoxFD)
 		},
 	}
-	frames := startReader(link, link.stopped)
+	// NewFDFile sets blocking mode. Prepare raw nonblocking reads only after
+	// creating that wrapper, and never wrap either descriptor again afterward.
+	if err := prepareClientDescriptors(chanFD, unitFD); err != nil {
+		_ = link.Close() //nolint:errcheck // preparation failed; release the transport once
+		pppoe.ClosePPPoxFD(unitFD)
+		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, link)
+		pppoe.CloseDiscoveryFD(discFD)
+		return iface.PPPoESession{}, err
+	}
+	reader, err := newFrameReader(link.readPacket, link.stopped)
+	if err != nil {
+		_ = link.Close() //nolint:errcheck // receive startup failed; release the transport once
+		pppoe.ClosePPPoxFD(unitFD)
+		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, link)
+		pppoe.CloseDiscoveryFD(discFD)
+		return iface.PPPoESession{}, err
+	}
 	discoveryDone := make(chan struct{})
 	go watchPADT(discFD, ifindex, hwaddr, acMAC, sessID, link, stopCh, discoveryDone, logger)
 	var cleanupOnce sync.Once
-	// result holds the unit's reader once negotiation connected the channel;
-	// until then the unit is the bare descriptor.
-	var result sessionResult
 	cleanup := func() {
 		cleanupOnce.Do(func() {
 			_ = link.Close() //nolint:errcheck // shutdown; descriptors are released once
@@ -183,52 +198,52 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 			<-discoveryDone
 			sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, link)
 			pppoe.CloseDiscoveryFD(discFD)
-			// Closing the PPP transport MUST precede joining its reader:
-			// /dev/ppp can retain a blocking read until the channel detaches.
-			for range frames {
-			}
+			// Close cancels both read requests and result delivery. The raw
+			// read observes closure under the descriptor lifecycle lock.
+			<-reader.done
 			// The caller may still be configuring ppp<unitNum> after Done
 			// closes. Reserve its identity until that owner invokes Cleanup.
-			// A connected unit's reader ends on the EOF the detached channel
-			// gives it, and MUST be joined before its descriptor closes.
-			if result.unit == nil {
-				pppoe.ClosePPPoxFD(unitFD)
-				return
-			}
-			for range result.unitFrames {
-			}
-			_ = result.unit.Close() //nolint:errcheck // shutdown; the reader has exited
+			pppoe.ClosePPPoxFD(unitFD)
 		})
 	}
 
 	sessCfg := sessionConfig{
+		name:     cfg.Name,
 		mtu:      mtu,
 		username: cfg.Username,
 		password: cfg.AuthSecret,
 		chanFD:   chanFD,
 	}
-	var negErr error
-	result, negErr = negotiateSession(link, frames, unitFD, unitNum, sessCfg, link.stopped, logger)
+	result, negErr := negotiateSession(link, reader, unitFD, unitNum, sessCfg, link.stopped, logger)
 	if negErr != nil {
 		cleanup()
 		return iface.PPPoESession{}, negErr
 	}
 
+	connected, err := newConnectedSession(link, result, sessCfg, func(mode ppp.NPMode) error {
+		// RFC 1661 Section 3.6: the unit retains ownership while mode changes.
+		return link.setIPv4Mode(unitFD, mode)
+	})
+	if err != nil {
+		cleanup()
+		return iface.PPPoESession{}, err
+	}
 	keepaliveDone := make(chan struct{})
-	go superviseNetworkPhase(link, &result, keepaliveDone, logger)
-
-	return iface.PPPoESession{
+	// Snapshot every initial value before the connected worker can run.
+	session := iface.PPPoESession{
 		SessionID: sessID,
 		UnitNum:   unitNum,
 		LocalIP:   result.localIP,
 		PeerIP:    result.peerIP,
 		NegMTU:    result.negMTU,
+		Changes:   connected.changes,
 		Done:      link.stopped,
 		Cleanup: func() {
-			cleanup()
-			<-keepaliveDone
+			link.cleanupConnected(keepaliveDone, cleanup)
 		},
-	}, nil
+	}
+	go superviseNetworkPhase(link, connected, keepaliveDone, logger)
+	return session, nil
 }
 
 // sessionLink owns a client's PPP channel and kernel transport. Safe for
@@ -236,6 +251,9 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 // then wait for watchPADT before closing the discovery descriptor.
 type sessionLink struct {
 	channel        io.ReadWriteCloser
+	channelFD      int
+	unitFD         int
+	unitConnected  bool // Protected by mu; an unconnected unit reads EOF.
 	closeTransport func()
 	stopped        chan struct{}
 	mu             sync.Mutex
@@ -247,6 +265,15 @@ func (s *sessionLink) Read(buf []byte) (int, error) {
 	return s.channel.Read(buf)
 }
 
+// cleanupConnected joins the phase worker before receive and unit cleanup.
+// The caller MUST supply the phase worker's done signal and the reader/unit cleanup.
+// Cleanup MUST NOT release the unit before this join.
+func (s *sessionLink) cleanupConnected(done <-chan struct{}, cleanup func()) {
+	_ = s.Close() //nolint:errcheck // shutdown; cleanup retains descriptor release ownership
+	<-done
+	cleanup()
+}
+
 func (s *sessionLink) Write(buf []byte) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -256,9 +283,24 @@ func (s *sessionLink) Write(buf []byte) (int, error) {
 	return s.channel.Write(buf)
 }
 
+// setIPv4Mode serializes the unit ioctl with transport closure. Cleanup MUST
+// call Close before releasing unitFD, so a late call refuses a reused fd.
+// RFC 1661 Section 3.6: "Any supported network-layer protocol packets received
+// when the corresponding NCP is not in the Opened state MUST be silently discarded."
+func (s *sessionLink) setIPv4Mode(unitFD int, mode ppp.NPMode) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return io.ErrClosedPipe
+	}
+	// RFC 1661 Section 3.6: apply the network-layer forwarding gate.
+	return ppp.SetIPv4Mode(unitFD, mode)
+}
+
 // Close MUST precede outbound PADT and discovery-reader shutdown. It releases
 // the transport and blocks subsequent PPP writes before publishing Done.
 // Dial retains the PPP unit reservation until the owner invokes Cleanup.
+// Cleanup MUST call Close before releasing the unit used by setIPv4Mode.
 func (s *sessionLink) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -282,8 +324,8 @@ func (s *sessionLink) Close() error {
 //
 // RFC 2516 Section 7: "When LCP terminates, the Host and Access concentrator
 // MUST stop using that PPPoE session." The close is how the Host stops.
-func superviseNetworkPhase(link *sessionLink, result *sessionResult, done chan<- struct{}, logger *slog.Logger) {
-	keepaliveLoop(link, result, done, link.stopped, logger)
+func superviseNetworkPhase(link *sessionLink, session *connectedSession, done chan<- struct{}, logger *slog.Logger) {
+	keepaliveLoop(session, done, link.stopped, logger)
 	_ = link.Close() //nolint:errcheck // shutdown after PPP termination or read failure
 }
 

@@ -82,19 +82,24 @@ func (c *networkPhaseCHAP) handle(w io.Writer, buf []byte, pkt ppp.LCPPacket, lo
 	return nil
 }
 
-// keepaliveLoop handles LCP echo on the frames channel created during
-// negotiation, and IPCP on the unit's unitFrames. Closes done when the
-// session ends (echo timeout, terminate, read error, IPCP leaving Opened).
-// Uses the existing reader goroutines to avoid a second concurrent Read on
-// either fd.
+// keepaliveLoop owns the constructed connected session until it closes done.
+// It MUST stop echo timing before restart and end the session on restart error.
+// The supervisor MUST close the transport after it returns. Existing readers
+// serve every phase, so restart never creates another reader on either fd.
 //
-// result.chap is nil when LCP did not negotiate CHAP. That nil is a guard: a
+// current.chap is nil when LCP did not negotiate CHAP. That nil is a guard: a
 // CHAP frame is then dropped like any other non-LCP frame, because no
 // Challenge is expected on a link that authenticated with PAP or not at all.
-func keepaliveLoop(chanFile io.Writer, result *sessionResult, done chan<- struct{}, stopCh <-chan struct{}, logger *slog.Logger) {
+func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-chan struct{}, logger *slog.Logger) {
 	defer close(done)
-	frames, magic, chap := result.frames, result.magic, result.chap
-	ipcpCodeRejectID := result.ipcpCodeRejectID
+	if session == nil {
+		logger.Error("pppoe-client: missing connected session; restart the PPPoE client")
+		return
+	}
+	if session.transport == nil {
+		logger.Error("pppoe-client: uninitialized connected session; restart the PPPoE client")
+		return
+	}
 
 	echoTicker := time.NewTicker(echoInterval)
 	defer echoTicker.Stop()
@@ -112,8 +117,8 @@ func keepaliveLoop(chanFile io.Writer, result *sessionResult, done chan<- struct
 		case <-echoTicker.C:
 			echoID++
 			off := ppp.WriteFrame(frameBuf[:], 0, ppp.ProtoLCP, nil)
-			off += ppp.WriteLCPEcho(frameBuf[:], off, ppp.LCPEchoRequest, echoID, magic, nil)
-			if _, err := chanFile.Write(frameBuf[:off]); err != nil {
+			off += ppp.WriteLCPEcho(frameBuf[:], off, ppp.LCPEchoRequest, echoID, session.current.magic, nil)
+			if err := writeClientPacket(session.transport, frameBuf[:off]); err != nil {
 				logger.Warn("pppoe-client: echo write failed", "error", err)
 				return
 			}
@@ -122,60 +127,73 @@ func keepaliveLoop(chanFile io.Writer, result *sessionResult, done chan<- struct
 				logger.Warn("pppoe-client: echo timeout", "failures", echoFails)
 				return
 			}
-		case frame, ok := <-result.unitFrames:
-			if !ok || frame.err != nil {
-				// The unit's read ends when the transport closes, at Cleanup or
-				// on loss, which ends the channel's read in the same moment, so
-				// it ends the loop as quietly as the channel's does.
+		case frame, ok := <-session.reader.next():
+			session.reader.received()
+			if !ok {
+				return
+			}
+			if frame.err != nil {
+				session.warnReceiveFailure(frame.err, stopCh, logger)
 				return
 			}
 			proto, payload, _, parseErr := ppp.ParseFrame(frame.data)
 			if parseErr != nil {
 				continue
 			}
-			if proto != ppp.ProtoIPCP {
-				continue
+			if proto != ppp.ProtoLCP {
+				if proto != ppp.ProtoCHAP {
+					if proto != ppp.ProtoIPCP {
+						continue
+					}
+				}
 			}
 			pkt, pktErr := ppp.ParseLCPPacket(payload)
 			if pktErr != nil {
 				continue
 			}
-			if !answerOpenedIPCP(chanFile, frameBuf[:], pkt, &ipcpCodeRejectID, result.peerMRU, logger) {
-				return
-			}
-		case frame, ok := <-frames:
-			if !ok || frame.err != nil {
-				return
-			}
-			proto, payload, _, parseErr := ppp.ParseFrame(frame.data)
-			if parseErr != nil {
-				continue
-			}
-			if proto != ppp.ProtoLCP && proto != ppp.ProtoCHAP {
-				continue
-			}
-			pkt, pktErr := ppp.ParseLCPPacket(payload)
-			if pktErr != nil {
+			if proto == ppp.ProtoIPCP {
+				// RFC 1332 Section 2: connected IPCP uses the same ordered source.
+				if !answerOpenedIPCP(session.transport, frameBuf[:], pkt, &session.ipcpCodeRejectID, session.current.peerMRU, logger) {
+					return
+				}
 				continue
 			}
 			if proto == ppp.ProtoCHAP {
-				if chap == nil {
+				if session.current.chap == nil {
 					continue
 				}
 				// RFC 1994 Section 4.1 (re-challenge) and Section 4.2 (result).
-				if err := chap.handle(chanFile, frameBuf[:], pkt, logger); err != nil {
+				if err := session.current.chap.handle(session.transport, frameBuf[:], pkt, logger); err != nil {
 					logger.Warn("pppoe-client: network-phase CHAP ended the session", "error", err)
 					return
 				}
 				continue
 			}
 			switch pkt.Code {
+			case ppp.LCPConfigureRequest:
+				// RFC 1661 Sections 3.4 and 6: discard before phase reentry.
+				reentry, admitted := requestLCPReentry(pkt)
+				if !admitted {
+					continue
+				}
+				echoTicker.Stop()
+				// RFC 1661 Sections 3.4-3.6: DROP precedes scr and sca/scn.
+				if err := session.restart(reentry, stopCh, logger); err != nil {
+					logger.Warn("pppoe-client: LCP restart failed; the client will reconnect", "error", err)
+					return
+				}
+				// RFC 1661 Section 5.8: "On transmission, the Identifier field MUST
+				// be changed whenever the content of the Data field changes, and
+				// whenever a valid reply has been received for a previous request."
+				// Retain the sequence across restart, including an acknowledged Echo.
+				echoFails = 0
+				echoTicker.Reset(echoInterval)
 			case ppp.LCPEchoReply:
 				echoFails = 0
 			case ppp.LCPEchoRequest:
-				sendEchoReply(chanFile, frameBuf[:], pkt, magic)
+				sendEchoReply(session.transport, frameBuf[:], pkt, session.current.magic)
 			case ppp.LCPTerminateRequest:
-				sendTerminateAck(chanFile, frameBuf[:], pkt)
+				sendTerminateAck(session.transport, frameBuf[:], pkt)
 				logger.Info("pppoe-client: server sent LCP Terminate-Request")
 				return
 			}
@@ -183,10 +201,23 @@ func keepaliveLoop(chanFile io.Writer, result *sessionResult, done chan<- struct
 	}
 }
 
+// warnReceiveFailure records active-session failures, including EOF from a zero
+// read. Close publishes stop before a shutdown read can return. The separate
+// boundary also lets tests check stop after delivery without a scheduler race.
+func (session *connectedSession) warnReceiveFailure(err error, stopCh <-chan struct{}, logger *slog.Logger) {
+	select {
+	case <-stopCh:
+		return
+	default:
+		logger.Warn("pppoe-client: cannot receive session packets; the client will reconnect",
+			"name", session.cfg.name, "error", err)
+	}
+}
+
 // answerOpenedIPCP answers one IPCP packet received once IPCP is Opened, and
-// reports whether the session goes on. The client negotiates IPCP once, before
-// PPPIOCCONNECT, and has no address to offer a renegotiation, so every packet
-// that takes IPCP out of Opened (RFC 1661 Section 4.1: RCR, RCA, RCN, RTR,
+// reports whether the session goes on. Only an LCP request restarts the phase
+// owner. An independent IPCP packet that takes IPCP out of Opened
+// (RFC 1661 Section 4.1: RCR, RCA, RCN, RTR,
 // RTA and RXJ- all leave Opened through tld) ends the session, and the dialer
 // brings up a new one.
 func answerOpenedIPCP(w io.Writer, buf []byte, pkt ppp.LCPPacket, codeRejectID *uint8, peerMRU uint16,

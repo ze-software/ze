@@ -646,6 +646,11 @@ func (b *vppBackendImpl) AddAddressP2P(_, _, _ string) error {
 	return errNotSupported("AddAddressP2P (PPP NCP not supported on VPP backend yet)")
 }
 
+// RemoveAddressP2P refuses the same unsupported PPP operation as AddAddressP2P.
+func (b *vppBackendImpl) RemoveAddressP2P(_, _, _ string) error {
+	return errNotSupported("RemoveAddressP2P (PPP NCP not supported on VPP backend yet)")
+}
+
 // --- Route management ---
 
 func (b *vppBackendImpl) AddRoute(_, _, _ string, _ int, _ rtproto.Proto) error {

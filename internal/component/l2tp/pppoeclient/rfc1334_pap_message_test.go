@@ -79,7 +79,7 @@ func TestPAPReplyMessageDoesNotAffectOutcome(t *testing.T) {
 			stopCh := make(chan struct{})
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-			err := runClientAuth(discardRWC{}, frames, buf, lcp, cfg, 0, stopCh, logger)
+			err := runClientAuth(discardRWC{}, testFrameReader(t, frames, nil), buf, lcp, cfg, 0, stopCh, logger, new(uint8))
 
 			if tc.wantErr && (err == nil || !strings.Contains(err.Error(), "PAP auth rejected")) {
 				t.Fatalf("runClientAuth returned %v, want the PAP rejection for a Nak bearing message %q", err, tc.message)

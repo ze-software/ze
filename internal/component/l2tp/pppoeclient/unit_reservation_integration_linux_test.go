@@ -5,9 +5,7 @@
 package pppoeclient
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -20,9 +18,9 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
+	"github.com/ze-software/ze/internal/test/pppoeac"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -86,23 +84,27 @@ func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(unitPeerNetworkOrder(unix.ETH_P_ALL)))
+	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(pppoeac.NetworkOrder(unix.ETH_P_ALL)))
 	if err != nil {
 		t.Fatalf("open the wire peer's AF_PACKET socket: %v", err)
 	}
 	t.Cleanup(func() { _ = unix.Close(fd) })
-	if err := unix.Bind(fd, &unix.SockaddrLinklayer{Ifindex: peerLink.Attrs().Index, Protocol: unitPeerNetworkOrder(unix.ETH_P_ALL)}); err != nil {
+	if err := unix.Bind(fd, &unix.SockaddrLinklayer{Ifindex: peerLink.Attrs().Index, Protocol: pppoeac.NetworkOrder(unix.ETH_P_ALL)}); err != nil {
 		t.Fatal(err)
 	}
 	if err := pppoe.SetRecvTimeout(fd, 100*time.Millisecond); err != nil {
 		t.Fatal(err)
 	}
-	peer := unitReservationPeer{fd: fd, ifindex: peerLink.Attrs().Index, sid: 42}
-	copy(peer.mac[:], peerLink.Attrs().HardwareAddr)
+	var peerMAC [pppoe.EthALen]byte
+	copy(peerMAC[:], peerLink.Attrs().HardwareAddr)
+	peer, err := pppoeac.New(fd, peerLink.Attrs().Index, peerMAC, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	peerDone := make(chan error, 1)
 	go func() {
-		peerDone <- peer.serve(ctx)
+		peerDone <- peer.ServeNoAuth(ctx, nil)
 		cancel()
 	}()
 	t.Cleanup(func() {
@@ -123,8 +125,8 @@ func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
 	var clientMAC [pppoe.EthALen]byte
 	copy(clientMAC[:], clientLink.Attrs().HardwareAddr)
 	var buf [pppoe.EthMaxLen]byte
-	padt := pppoe.NewBuilder(buf[:], peer.mac, clientMAC, pppoe.CodePADT, peer.sid)
-	if err := peer.send(padt.Finish()); err != nil {
+	padt := pppoe.NewBuilder(buf[:], peerMAC, clientMAC, pppoe.CodePADT, 42)
+	if err := peer.SendFrame(padt.Finish()); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -169,131 +171,5 @@ func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
 	reused, err = netlink.LinkByName(name)
 	if err != nil || reused.Attrs().MTU != 1400 {
 		t.Fatalf("repeated old Cleanup damaged replacement: link=%v error=%v", reused, err)
-	}
-}
-
-// unitReservationPeer is a wire peer, not a substitute for the client's kernel
-// setup. It negotiates no-auth IPv4 and leaves PADT timing to the consumer test.
-type unitReservationPeer struct {
-	fd, ifindex int
-	mac         [pppoe.EthALen]byte
-	sid         uint16
-	// observed, when set, receives every IPCP packet the client sends that is
-	// not a Configure-Request, for a test that reads the client's answers.
-	observed chan<- ppp.LCPPacket
-}
-
-func unitPeerNetworkOrder(v uint16) uint16 { return v<<8 | v>>8 }
-
-func (p *unitReservationPeer) send(frame []byte) error {
-	var destination [8]byte
-	copy(destination[:], frame[:pppoe.EthALen])
-	return unix.Sendto(p.fd, frame, 0, &unix.SockaddrLinklayer{
-		Ifindex: p.ifindex, Halen: pppoe.EthALen, Addr: destination,
-		Protocol: unitPeerNetworkOrder(binary.BigEndian.Uint16(frame[12:14])),
-	})
-}
-
-func (p *unitReservationPeer) sendPPP(remote []byte, proto uint16, code, id uint8, data []byte) error {
-	var buf [pppoe.EthMaxLen]byte
-	copy(buf[:6], remote)
-	copy(buf[6:12], p.mac[:])
-	binary.BigEndian.PutUint16(buf[12:14], unix.ETH_P_PPP_SES)
-	buf[14] = 0x11
-	binary.BigEndian.PutUint16(buf[16:18], p.sid)
-	off := 20 + ppp.WriteFrame(buf[:], 20, proto, nil)
-	off += ppp.WriteLCPPacket(buf[:], off, code, id, data)
-	binary.BigEndian.PutUint16(buf[18:20], uint16(off-20))
-	return p.send(buf[:off])
-}
-
-func (p *unitReservationPeer) serve(ctx context.Context) error {
-	var incoming, outgoing [pppoe.EthMaxLen]byte
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-		}
-		n, from, err := unix.Recvfrom(p.fd, incoming[:], 0)
-		if errors.Is(err, unix.EAGAIN) || errors.Is(err, unix.EINTR) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		link, ok := from.(*unix.SockaddrLinklayer)
-		if !ok || link.Ifindex != p.ifindex || link.Pkttype == unix.PACKET_OUTGOING || n < 20 {
-			continue
-		}
-		switch binary.BigEndian.Uint16(incoming[12:14]) {
-		case unix.ETH_P_PPP_DISC:
-			pkt, err := pppoe.ParseDiscovery(incoming[:n])
-			if err != nil {
-				return err
-			}
-			var reply []byte
-			switch pkt.Code {
-			case pppoe.CodePADI:
-				reply = pppoe.BuildPADO(outgoing[:], p.mac, &pkt, "unit-owner-peer", nil, nil)
-			case pppoe.CodePADR:
-				reply = pppoe.BuildPADS(outgoing[:], p.mac, &pkt, "unit-owner-peer", p.sid)
-			default:
-				continue
-			}
-			if err := p.send(reply); err != nil {
-				return err
-			}
-		case unix.ETH_P_PPP_SES:
-			if !bytes.Equal(incoming[:6], p.mac[:]) || binary.BigEndian.Uint16(incoming[16:18]) != p.sid {
-				continue
-			}
-			end := 20 + int(binary.BigEndian.Uint16(incoming[18:20]))
-			if end > n {
-				return errors.New("truncated PPPoE session frame")
-			}
-			proto, payload, _, err := ppp.ParseFrame(incoming[20:end])
-			if err != nil {
-				return err
-			}
-			pkt, err := ppp.ParseLCPPacket(payload)
-			if err != nil {
-				return err
-			}
-			if p.observed != nil && proto == ppp.ProtoIPCP && pkt.Code != ppp.LCPConfigureRequest {
-				pkt.Data = bytes.Clone(pkt.Data)
-				select {
-				case p.observed <- pkt:
-				case <-ctx.Done():
-					return nil
-				}
-			}
-			if pkt.Code != ppp.LCPConfigureRequest {
-				continue
-			}
-			switch proto {
-			case ppp.ProtoLCP:
-				if err := p.sendPPP(incoming[6:12], proto, ppp.LCPConfigureAck, pkt.Identifier, pkt.Data); err != nil {
-					return err
-				}
-				if err := p.sendPPP(incoming[6:12], proto, ppp.LCPConfigureRequest, 77, nil); err != nil {
-					return err
-				}
-			case ppp.ProtoIPCP:
-				address := []byte{3, 6, 192, 0, 2, 2}
-				if !bytes.Equal(pkt.Data, address) {
-					if err := p.sendPPP(incoming[6:12], proto, ppp.LCPConfigureNak, pkt.Identifier, address); err != nil {
-						return err
-					}
-					continue
-				}
-				if err := p.sendPPP(incoming[6:12], proto, ppp.LCPConfigureAck, pkt.Identifier, pkt.Data); err != nil {
-					return err
-				}
-				if err := p.sendPPP(incoming[6:12], proto, ppp.LCPConfigureRequest, 78, []byte{3, 6, 192, 0, 2, 1}); err != nil {
-					return err
-				}
-			}
-		}
 	}
 }

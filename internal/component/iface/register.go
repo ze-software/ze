@@ -579,7 +579,9 @@ func runEngine(conn net.Conn) int {
 
 		// Reconcile PPPoE clients.
 		pppoeMu.Lock()
+		parsedPPPoE := len(cfg.PPPoEClient)
 		reconcilePPPoEClients(cfg, activePPPoE, b, log)
+		observePPPoEStartup(parsedPPPoE, len(activePPPoE))
 		pppoeMu.Unlock()
 
 		// Start DHCP clients for units that have DHCP enabled, and suppress

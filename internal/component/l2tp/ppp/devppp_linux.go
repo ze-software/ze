@@ -16,7 +16,29 @@ const (
 	pppiocGChan   = 0x80047437 // PPPIOCGCHAN: _IOR('t', 55, int)
 	pppiocAttChan = 0x40047438 // PPPIOCATTCHAN: _IOW('t', 56, int)
 	pppiocNewUnit = 0xc004743e // PPPIOCNEWUNIT: allocate PPP unit (creates pppN)
+	pppiocSNPMODE = 0x4008744b // PPPIOCSNPMODE: _IOW('t', 75, struct npioctl)
 )
+
+// SetIPv4Mode controls IPv4 in both directions without detaching the PPP unit.
+// The caller MUST serialize this call with descriptor closure and MUST keep the
+// unit descriptor reserved for the duration of the call.
+// Linux API: https://github.com/torvalds/linux/blob/v6.18/include/uapi/linux/ppp-ioctl.h
+// npioctl native-endian layout: 0..3 int protocol | 4..7 enum NPmode mode.
+// RFC 1661 Section 3.6: "Any supported network-layer protocol packets received
+// when the corresponding NCP is not in the Opened state MUST be silently discarded."
+func SetIPv4Mode(unitFD int, mode NPMode) error {
+	value, err := mode.kernelValue()
+	if err != nil {
+		return err
+	}
+	request := [2]int32{0x21, value}
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(unitFD), pppiocSNPMODE,
+		uintptr(unsafe.Pointer(&request))) //nolint:gosec // ioctl requires a native npioctl pointer.
+	if errno != 0 {
+		return fmt.Errorf("ppp: cannot change IPv4 forwarding on the PPP unit; check PPP support with ze doctor: %w", errno)
+	}
+	return nil
+}
 
 // DevPPPSetup opens /dev/ppp, attaches the PPP channel from the PPPoX
 // socket (L2TP or PPPoE), allocates a PPP unit (creating the pppN

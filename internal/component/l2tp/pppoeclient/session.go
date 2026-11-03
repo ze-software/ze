@@ -28,30 +28,29 @@ const (
 
 // sessionConfig carries parameters for negotiateSession.
 type sessionConfig struct {
+	name     string
 	mtu      uint16
 	username string
 	password string
 	chanFD   int
 }
 
-// sessionResult holds the outcome of a successful PPP negotiation.
+// sessionResult is Dial's stable initial outcome and receive owner.
+// newConnectedSession copies negotiated values for the worker; it MUST NOT mutate
+// this record, because Dial snapshots it before starting that worker.
 type sessionResult struct {
 	localIP netip.Addr
 	peerIP  netip.Addr
 	negMTU  uint16
 	magic   uint32
-	frames  <-chan readFrame // reused by keepaliveLoop to avoid double-reader
-	// unit is the PPP unit descriptor, read by the reader behind unitFrames
-	// from PPPIOCCONNECT on: Linux then queues every IPCP frame there, not on
-	// the channel (ppp_input and ppp_receive_nonmp_frame,
-	// drivers/net/ppp/ppp_generic.c). Both are nil in a session that never
-	// connected. Dial's cleanup MUST drain unitFrames before it closes unit.
-	unit       io.Closer
-	unitFrames <-chan readFrame
+	reader  *frameReader // Shared by initial negotiation and the connected owner.
 	// peerMRU bounds the Rejected-Packet of a network-phase Code-Reject, and
 	// ipcpCodeRejectID is the Identifier of the last IPCP Code-Reject sent.
 	peerMRU          uint16
 	ipcpCodeRejectID uint8
+	ipcpIdentifier   uint8
+	lcpIdentifier    uint8
+	papIdentifier    uint8
 	// chap is non-nil when LCP negotiated CHAP, so keepaliveLoop answers a
 	// Challenge the authenticator sends in the network phase.
 	chap *networkPhaseCHAP
@@ -63,115 +62,92 @@ type readFrame struct {
 	err  error
 }
 
-// startReader owns a bounded frame-delivery queue until stopCh closes or Read
-// fails. The caller MUST close stopCh and r to release both delivery and Read.
-// The returned channel closes when the reader exits.
-func startReader(r io.Reader, stopCh <-chan struct{}) <-chan readFrame {
-	ch := make(chan readFrame, 4)
-	go func() {
-		defer close(ch)
-		for {
-			select {
-			case <-stopCh:
-				return
-			default:
-			}
-			buf := make([]byte, ppp.MaxFrameBufLen)
-			n, err := r.Read(buf)
-			if err != nil {
-				select {
-				case ch <- readFrame{err: err}:
-				case <-stopCh:
-				}
-				return
-			}
-			if n < 2 {
-				continue
-			}
-			select {
-			case ch <- readFrame{data: buf[:n]}:
-			case <-stopCh:
-				return
-			}
-		}
-	}()
-	return ch
+// lcpReentry is an admitted Configure-Request, constructed by requestLCPReentry.
+// Its packet borrows the reader-owned frame, which frameReader never reuses.
+// The caller MUST transfer the frame without further mutation and consume this
+// handoff before resuming authentication or IPCP. Nil means no pending request.
+// The zero value is uninitialized and negotiateLCP rejects it before any write.
+// Callers MUST NOT return a typed nil as an error.
+type lcpReentry struct {
+	request ppp.LCPPacket
+}
+
+func (*lcpReentry) Error() string {
+	return "pppoe-client: LCP renegotiation requested"
+}
+
+// requestLCPReentry admits a parsed request before the current phase can end.
+// RFC 1661 Section 3.4: "The receipt of the LCP Configure-Request causes a return
+// to the Link Establishment phase from the Network-Layer Protocol phase or
+// Authentication phase."
+// The caller MUST retain its phase on false. On true it MUST transfer the
+// immutable frame to the phase owner through the returned handoff.
+// RFC 1661 Section 6 option offsets within pkt.Data:
+//
+//	0 Type | 1 Length (including header) | 2..Length-1 Data
+func requestLCPReentry(pkt ppp.LCPPacket) (*lcpReentry, bool) {
+	if pkt.Code != ppp.LCPConfigureRequest {
+		return nil, false
+	}
+	// RFC 1661 Section 6: "When the Data field is indicated by the Length to
+	// extend beyond the end of the Information field, the entire packet is
+	// silently discarded without affecting the automaton."
+	if ppp.WalkLCPOptions(pkt.Data).Fault.Discards() {
+		return nil, false
+	}
+	return &lcpReentry{request: pkt}, true
 }
 
 // negotiateSession drives LCP, authentication, and IPCP on the PPP
 // channel fd. Returns the negotiated addresses and MTU.
-func negotiateSession(chanFile io.ReadWriteCloser, frames <-chan readFrame, unitFD, unitNum int, cfg sessionConfig, stopCh <-chan struct{}, logger *slog.Logger) (sessionResult, error) {
-	magic, err := generateMagic()
+func negotiateSession(chanFile io.ReadWriteCloser, reader *frameReader, unitFD, unitNum int, cfg sessionConfig, stopCh <-chan struct{}, logger *slog.Logger) (sessionResult, error) {
+	// Admission precedes the first LCP write, including for a typed-nil link.
+	link, ok := chanFile.(*sessionLink)
+	if !ok {
+		return sessionResult{}, errors.New("pppoe-client: PPPIOCCONNECT requires sessionLink lifecycle ownership")
+	}
+	if link == nil {
+		return sessionResult{}, errors.New("pppoe-client: PPPIOCCONNECT requires a non-nil sessionLink")
+	}
+	var ipcpIdentifier, lcpIdentifier, papIdentifier, ipcpCodeRejectID uint8
+	// RFC 1661 Sections 3.4-3.6: the same owner drives initial and connected negotiation.
+	state, err := negotiatePhases(chanFile, reader, cfg, 0, nil, &ipcpIdentifier, stopCh, logger, &lcpIdentifier, &papIdentifier, &ipcpCodeRejectID)
 	if err != nil {
 		return sessionResult{}, err
 	}
-
-	var frameBuf [ppp.MaxFrameBufLen]byte
-
-	// Phase 1: LCP (AC-3).
-	lcpResult, err := negotiateLCP(chanFile, frames, frameBuf[:], cfg, magic, stopCh, logger)
-	if err != nil {
-		return sessionResult{}, err
-	}
-	magic = lcpResult.localMagic
-	logger.Info("pppoe-client: LCP opened", "peer-mru", lcpResult.peerMRU, "auth-proto", lcpResult.authProto)
-
-	// Phase 2: Authentication (AC-4).
-	if lcpResult.authProto != 0 {
-		if err := runClientAuth(chanFile, frames, frameBuf[:], lcpResult, cfg, magic, stopCh, logger); err != nil {
-			return sessionResult{}, err
-		}
-	}
-
-	// Phase 3: IPCP (AC-5). IPCP negotiation is the Network-Layer Protocol
-	// phase, so a CHAP re-challenge is answered from here on, and the same
-	// state carries the pending Response into keepaliveLoop.
-	chap := networkPhaseCHAPFor(lcpResult.authProto, cfg)
-	ipcpResult, err := negotiateIPCP(chanFile, frames, frameBuf[:], magic, lcpResult.peerMRU, chap, stopCh, logger)
-	if err != nil {
-		return sessionResult{}, err
-	}
-	logger.Info("pppoe-client: IPCP opened", "local-ip", ipcpResult.localIP, "peer-ip", ipcpResult.peerIP)
 
 	// Phase 4: PPPIOCCONNECT + PPPIOCSMRU.
 	// The PADT watcher and Dial cleanup MUST close descriptors under this
 	// same lock, so these ioctls cannot target a reused descriptor.
-	if link, ok := chanFile.(*sessionLink); ok {
-		link.mu.Lock()
-		defer link.mu.Unlock()
-		if link.closed {
-			return sessionResult{}, io.ErrClosedPipe
-		}
+	link.mu.Lock()
+	defer link.mu.Unlock()
+	if link.closed {
+		return sessionResult{}, io.ErrClosedPipe
 	}
 	if err := ppp.Connect(cfg.chanFD, unitNum); err != nil {
 		return sessionResult{}, errors.New("pppoe-client: PPPIOCCONNECT: " + err.Error())
 	}
-	negMTU := lcpResult.peerMRU
-	if negMTU == 0 {
-		negMTU = ppp.MaxFrameLen
-	}
-	negMTU = min(negMTU, cfg.mtu)
 	// RFC 1661 Section 6.1 requires reception of the full 1500-octet
 	// Information field even after requesting a smaller MRU.
 	if err := ppp.SetMRU(unitFD, ppp.MaxFrameLen); err != nil {
 		return sessionResult{}, errors.New("pppoe-client: PPPIOCSMRU: " + err.Error())
 	}
 
-	// The unit now receives IPCP, so its reader starts here, for the rest of
-	// the session. It ends when the unit reads EOF, which Linux answers once
-	// the channel is unregistered, so closing the transport ends it.
-	unit := ppp.NewFDFile(unitFD, "pppoe-client.unit")
+	// The unit now receives IPCP. Enable it under the same lifecycle lock
+	// before authorizing another read through the session's existing reader.
+	link.unitConnected = true
 	return sessionResult{
-		localIP:          ipcpResult.localIP,
-		peerIP:           ipcpResult.peerIP,
-		negMTU:           negMTU,
-		magic:            magic,
-		frames:           frames,
-		unit:             unit,
-		unitFrames:       startReader(unit, stopCh),
-		peerMRU:          lcpResult.peerMRU,
-		ipcpCodeRejectID: ipcpResult.codeRejectID,
-		chap:             chap,
+		localIP:          state.localIP,
+		peerIP:           state.peerIP,
+		negMTU:           state.negMTU,
+		magic:            state.magic,
+		reader:           reader,
+		peerMRU:          state.peerMRU,
+		ipcpCodeRejectID: ipcpCodeRejectID,
+		ipcpIdentifier:   ipcpIdentifier,
+		lcpIdentifier:    lcpIdentifier,
+		papIdentifier:    papIdentifier,
+		chap:             state.chap,
 	}, nil
 }
 
@@ -182,19 +158,30 @@ type lcpResult struct {
 	localMagic uint32
 }
 
-func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionConfig, magic uint32, stopCh <-chan struct{}, logger *slog.Logger) (lcpResult, error) {
+// The caller MUST supply the existing reader so non-LCP traffic consumed in
+// this phase is discarded before another descriptor read is authorized.
+// The caller MUST retain identifier for the session lifetime, including restarts.
+func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfig, magic uint32, pending *lcpReentry, stopCh <-chan struct{}, logger *slog.Logger, identifier *uint8) (lcpResult, error) {
+	if pending != nil {
+		if pending.request.Code != ppp.LCPConfigureRequest {
+			return lcpResult{}, errors.New("pppoe-client: uninitialized LCP reentry")
+		}
+	}
 	var (
 		result lcpResult
-		lcpID  uint8 = 1
-		state        = ppp.LCPStateReqSent
+		state  = ppp.LCPStateReqSent
 	)
+	// RFC 1661 Section 5.1: "The Identifier field MUST be changed whenever the
+	// contents of the Options field changes, and whenever a valid reply has been
+	// received for a previous request."
+	*identifier++
 
 	// Retain the sent packet separately: replies and Echo responses reuse buf.
 	// RFC 1661 Section 5.2: "Additionally, the Configuration Options in a
 	// Configure-Ack MUST exactly match those of the last transmitted
 	// Configure-Request."
 	var request [ppp.MaxFrameBufLen]byte
-	requestLen, err := sendLCPConfigRequest(w, request[:], lcpID, cfg.mtu, magic, logger)
+	requestLen, err := sendLCPConfigRequest(w, request[:], *identifier, cfg.mtu, magic, logger)
 	if err != nil {
 		return lcpResult{}, err
 	}
@@ -208,251 +195,279 @@ func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionC
 	defer restart.Stop()
 
 	for state != ppp.LCPStateOpened {
-		select {
-		case <-stopCh:
-			return lcpResult{}, errors.New("pppoe-client: stopped during LCP")
-		case <-deadline.C:
-			return lcpResult{}, errors.New("pppoe-client: LCP timeout")
-		case <-restart.C:
-			// RFC 1661 Section 5.1: "The Identifier field MUST be changed
-			// whenever the contents of the Options field changes, and whenever
-			// a valid reply has been received for a previous request."
-			if state == ppp.LCPStateAckRcvd {
-				lcpID++
-				request[3] = lcpID
-				state = ppp.LCPStateReqSent
-			}
-			if err := writeClientLCPRequest(w, request[:requestLen]); err != nil {
-				return lcpResult{}, err
-			}
-		case frame, ok := <-frames:
-			if !ok || frame.err != nil {
-				return lcpResult{}, errors.New("pppoe-client: channel closed during LCP")
-			}
-			proto, payload, _, parseErr := ppp.ParseFrame(frame.data)
-			if parseErr != nil || proto != ppp.ProtoLCP {
+		var pkt ppp.LCPPacket
+		if pending != nil {
+			// RFC 1661 Section 4.1, Opened/RCR: scr precedes sca/scn.
+			// The initial request above is on the wire before this first event.
+			pkt = pending.request
+			pending = nil
+		} else {
+			select {
+			case <-stopCh:
+				return lcpResult{}, errors.New("pppoe-client: stopped during LCP")
+			case <-deadline.C:
+				return lcpResult{}, errors.New("pppoe-client: LCP timeout")
+			case <-restart.C:
+				// RFC 1661 Section 5.1: "The Identifier field MUST be changed
+				// whenever the contents of the Options field changes, and whenever
+				// a valid reply has been received for a previous request."
+				if state == ppp.LCPStateAckRcvd {
+					*identifier++
+					request[3] = *identifier
+					state = ppp.LCPStateReqSent
+				}
+				if err := writeClientLCPRequest(w, request[:requestLen]); err != nil {
+					return lcpResult{}, err
+				}
 				continue
-			}
-			pkt, pktErr := ppp.ParseLCPPacket(payload)
-			if pktErr != nil {
-				continue
-			}
-			switch pkt.Code {
-			case ppp.LCPConfigureAck, ppp.LCPConfigureNak, ppp.LCPConfigureReject:
-				if !ppp.ValidateLCPReply(pkt, lcpID, request[6:requestLen]) {
+			case frame, ok := <-reader.next():
+				reader.received()
+				if !ok {
+					return lcpResult{}, io.EOF
+				}
+				if frame.err != nil {
+					return lcpResult{}, frame.err
+				}
+				proto, payload, _, parseErr := ppp.ParseFrame(frame.data)
+				if parseErr != nil {
 					continue
 				}
+				if proto != ppp.ProtoLCP {
+					// RFC 1661 Section 3.4: "Any non-LCP packets received during this phase MUST be silently discarded."
+					continue
+				}
+				parsed, pktErr := ppp.ParseLCPPacket(payload)
+				if pktErr != nil {
+					continue
+				}
+				pkt = parsed
 			}
+		}
+		switch pkt.Code {
+		case ppp.LCPConfigureAck, ppp.LCPConfigureNak, ppp.LCPConfigureReject:
+			if !ppp.ValidateLCPReply(pkt, *identifier, request[6:requestLen]) {
+				continue
+			}
+		}
 
-			switch pkt.Code {
-			case ppp.LCPConfigureRequest:
-				walk := ppp.WalkLCPOptions(pkt.Data)
-				if walk.Fault.Discards() {
-					// RFC 1661 Section 6: "When the Data field is
-					// indicated by the Length to extend beyond the end
-					// of the Information field, the entire packet is
-					// silently discarded without affecting the
-					// automaton."
-					//
-					// The silence is owed twice. Any reply to a packet
-					// an off-path sender can forge makes ze a
-					// reflector, and echoing the sender's own octets
-					// back is the reflection it would perform.
-					logger.Debug("pppoe-client: LCP Configure-Request silently discarded",
+		switch pkt.Code {
+		case ppp.LCPConfigureRequest:
+			walk := ppp.WalkLCPOptions(pkt.Data)
+			if walk.Fault.Discards() {
+				// RFC 1661 Section 6: "When the Data field is
+				// indicated by the Length to extend beyond the end
+				// of the Information field, the entire packet is
+				// silently discarded without affecting the
+				// automaton."
+				//
+				// The silence is owed twice. Any reply to a packet
+				// an off-path sender can forge makes ze a
+				// reflector, and echoing the sender's own octets
+				// back is the reflection it would perform.
+				logger.Debug("pppoe-client: LCP Configure-Request silently discarded",
+					"id", pkt.Identifier,
+					"len", len(pkt.Data))
+				continue
+			}
+			// RFC 1661 Section 4.1: RCR- in Ack-Sent returns to
+			// Req-Sent. A newer peer proposal invalidates its prior Ack.
+			if state == ppp.LCPStateAckSent {
+				state = ppp.LCPStateReqSent
+			}
+			if walk.Fault == ppp.LCPOptionsBadLength {
+				// The options are contained in the packet, so the
+				// fault is one option's own Length. RFC 1661
+				// Section 6 answers that with a Configure-Nak
+				// carrying the desired option, and Section 5.4 with
+				// a Configure-Reject for a Type ze holds no value
+				// for. ppp.LCPNakOrReject picks between them, so
+				// the client and the LNS answer alike.
+				code, opts, reply := ppp.LCPNakOrReject(walk, clientLCPPolicy(cfg, magic))
+				if !reply {
+					// Nothing to name in the answer. RFC 1661
+					// Section 5.3 fills the Options field with
+					// "only the unacceptable Configuration
+					// Options from the Configure-Request", so an
+					// empty Configure-Nak is a packet the section
+					// does not describe. The client sends nothing
+					// and says so, and the server's own
+					// retransmission drives the negotiation.
+					logger.Warn("pppoe-client: LCP reply suppressed, no option to carry in it",
 						"id", pkt.Identifier,
 						"len", len(pkt.Data))
 					continue
 				}
-				// RFC 1661 Section 4.1: RCR- in Ack-Sent returns to
-				// Req-Sent. A newer peer proposal invalidates its prior Ack.
-				if state == ppp.LCPStateAckSent {
-					state = ppp.LCPStateReqSent
-				}
-				if walk.Fault == ppp.LCPOptionsBadLength {
-					// The options are contained in the packet, so the
-					// fault is one option's own Length. RFC 1661
-					// Section 6 answers that with a Configure-Nak
-					// carrying the desired option, and Section 5.4 with
-					// a Configure-Reject for a Type ze holds no value
-					// for. ppp.LCPNakOrReject picks between them, so
-					// the client and the LNS answer alike.
-					code, opts, reply := ppp.LCPNakOrReject(walk, clientLCPPolicy(cfg, magic))
-					if !reply {
-						// Nothing to name in the answer. RFC 1661
-						// Section 5.3 fills the Options field with
-						// "only the unacceptable Configuration
-						// Options from the Configure-Request", so an
-						// empty Configure-Nak is a packet the section
-						// does not describe. The client sends nothing
-						// and says so, and the server's own
-						// retransmission drives the negotiation.
-						logger.Warn("pppoe-client: LCP reply suppressed, no option to carry in it",
-							"id", pkt.Identifier,
-							"len", len(pkt.Data))
-						continue
-					}
-					sendLCPOptionReply(w, buf, code, pkt.Identifier, opts, logger)
-					continue
-				}
-				// The options are contained in the packet and each
-				// one's own Length is valid, so the remaining question
-				// is whether their VALUES are acceptable. RFC 1661
-				// Section 5.3: "If every instance of the received
-				// Configuration Options is recognizable, but some
-				// values are not acceptable, then the implementation
-				// MUST transmit a Configure-Nak." Section 5.4 does the
-				// same for an option that is "not recognizable or
-				// not acceptable for negotiation", and takes
-				// precedence: a reply is a Configure-Reject or a
-				// Configure-Nak, never both.
-				//
-				// The client runs the SAME negotiator the LNS side runs
-				// (ppp.NegotiatePeerOptions), so one peer gets one
-				// answer from ze whichever role ze is in. Until this
-				// branch existed the client Acked every parseable
-				// Configure-Request unread, which acknowledged a
-				// Magic-Number of zero that RFC 1661 Section 6.4 says
-				// "MUST always be Nak'd, if it is not Rejected
-				// outright", and the LNS side Nak'd it.
-				_, naks, rejects := ppp.NegotiatePeerOptions(walk.Options, clientLCPPolicy(cfg, magic))
-				if len(rejects) > 0 {
-					sendLCPOptionReply(w, buf, ppp.LCPConfigureReject, pkt.Identifier, rejects, logger)
-					continue
-				}
-				if len(naks) > 0 {
-					sendLCPOptionReply(w, buf, ppp.LCPConfigureNak, pkt.Identifier, naks, logger)
-					continue
-				}
+				sendLCPOptionReply(w, buf, code, pkt.Identifier, opts, logger)
+				continue
+			}
+			// The options are contained in the packet and each
+			// one's own Length is valid, so the remaining question
+			// is whether their VALUES are acceptable. RFC 1661
+			// Section 5.3: "If every instance of the received
+			// Configuration Options is recognizable, but some
+			// values are not acceptable, then the implementation
+			// MUST transmit a Configure-Nak." Section 5.4 does the
+			// same for an option that is "not recognizable or
+			// not acceptable for negotiation", and takes
+			// precedence: a reply is a Configure-Reject or a
+			// Configure-Nak, never both.
+			//
+			// The client runs the SAME negotiator the LNS side runs
+			// (ppp.NegotiatePeerOptions), so one peer gets one
+			// answer from ze whichever role ze is in. Until this
+			// branch existed the client Acked every parseable
+			// Configure-Request unread, which acknowledged a
+			// Magic-Number of zero that RFC 1661 Section 6.4 says
+			// "MUST always be Nak'd, if it is not Rejected
+			// outright", and the LNS side Nak'd it.
+			_, naks, rejects := ppp.NegotiatePeerOptions(walk.Options, clientLCPPolicy(cfg, magic))
+			if len(rejects) > 0 {
+				sendLCPOptionReply(w, buf, ppp.LCPConfigureReject, pkt.Identifier, rejects, logger)
+				continue
+			}
+			if len(naks) > 0 {
+				sendLCPOptionReply(w, buf, ppp.LCPConfigureNak, pkt.Identifier, naks, logger)
+				continue
+			}
 
-				authProto, authData, mru := extractServerOptions(walk.Options)
-				// The shared negotiator checks the option shape. This client
-				// implements PAP and CHAP-MD5; other methods need a new offer,
-				// never an Ack followed by a different authentication algorithm.
-				authSupported := true
-				for _, opt := range walk.Options {
-					if opt.Type != ppp.LCPOptAuthProto {
-						continue
-					}
-					authSupported = false
-					if authProto == ppp.ProtoPAP {
-						authSupported = len(opt.Data) == 2
-					}
-					if authProto == ppp.ProtoCHAP {
-						if len(authData) == 1 {
-							authSupported = authData[0] == 5
-						}
-					}
-				}
-				if !authSupported {
-					// RFC 1661 Section 6.2 permits a Nak containing a
-					// supported Authentication-Protocol as an alternative.
-					sendLCPOptionReply(w, buf, ppp.LCPConfigureNak, pkt.Identifier,
-						[]ppp.LCPOption{{Type: ppp.LCPOptAuthProto, Data: []byte{0xc2, 0x23, 5}}}, logger)
+			authProto, authData, mru := extractServerOptions(walk.Options)
+			// The shared negotiator checks the option shape. This client
+			// implements PAP and CHAP-MD5; other methods need a new offer,
+			// never an Ack followed by a different authentication algorithm.
+			authSupported := true
+			for _, opt := range walk.Options {
+				if opt.Type != ppp.LCPOptAuthProto {
 					continue
 				}
-				result.peerMRU = mru
-				result.authProto = authProto
-				result.authData = authData
-				if err := sendLCPAck(w, buf, pkt); err != nil {
+				authSupported = false
+				if authProto == ppp.ProtoPAP {
+					authSupported = len(opt.Data) == 2
+				}
+				if authProto == ppp.ProtoCHAP {
+					if len(authData) == 1 {
+						authSupported = authData[0] == 5
+					}
+				}
+			}
+			if !authSupported {
+				// RFC 1661 Section 6.2 permits a Nak containing a
+				// supported Authentication-Protocol as an alternative.
+				sendLCPOptionReply(w, buf, ppp.LCPConfigureNak, pkt.Identifier,
+					[]ppp.LCPOption{{Type: ppp.LCPOptAuthProto, Data: []byte{0xc2, 0x23, 5}}}, logger)
+				continue
+			}
+			result.peerMRU = mru
+			result.authProto = authProto
+			result.authData = authData
+			if err := sendLCPAck(w, buf, pkt); err != nil {
+				return lcpResult{}, err
+			}
+			if state == ppp.LCPStateAckRcvd {
+				state = ppp.LCPStateOpened
+			} else {
+				state = ppp.LCPStateAckSent
+			}
+
+		case ppp.LCPConfigureAck:
+			switch state {
+			case ppp.LCPStateReqSent:
+				state = ppp.LCPStateAckRcvd
+			case ppp.LCPStateAckSent:
+				state = ppp.LCPStateOpened
+			case ppp.LCPStateAckRcvd:
+				// RFC 1661 Section 4.1: a duplicate RCA in Ack-Rcvd
+				// sends a fresh Configure-Request and returns to Req-Sent.
+				*identifier++
+				request[3] = *identifier
+				if err := writeClientLCPRequest(w, request[:requestLen]); err != nil {
 					return lcpResult{}, err
 				}
-				if state == ppp.LCPStateAckRcvd {
-					state = ppp.LCPStateOpened
-				} else {
-					state = ppp.LCPStateAckSent
-				}
+				state = ppp.LCPStateReqSent
+			case ppp.LCPStateInitial, ppp.LCPStateStarting, ppp.LCPStateClosed,
+				ppp.LCPStateStopped, ppp.LCPStateClosing, ppp.LCPStateStopping, ppp.LCPStateOpened:
+				// The other named states do not participate in this negotiation.
+			default:
+				panic("BUG: invalid LCP negotiation state")
+			}
 
-			case ppp.LCPConfigureAck:
-				switch state {
-				case ppp.LCPStateReqSent:
-					state = ppp.LCPStateAckRcvd
-				case ppp.LCPStateAckSent:
-					state = ppp.LCPStateOpened
-				case ppp.LCPStateAckRcvd:
-					// RFC 1661 Section 4.1: a duplicate RCA in Ack-Rcvd
-					// sends a fresh Configure-Request and returns to Req-Sent.
-					lcpID++
-					request[3] = lcpID
-					if err := writeClientLCPRequest(w, request[:requestLen]); err != nil {
-						return lcpResult{}, err
+		case ppp.LCPConfigureNak, ppp.LCPConfigureReject:
+			if pkt.Code == ppp.LCPConfigureReject {
+				// RFC 1661 Section 5.4: "Reception of a valid
+				// Configure-Reject indicates that when a new
+				// Configure-Request is sent, it MUST NOT include any of the
+				// Configuration Options listed in the Configure-Reject."
+				for _, opt := range ppp.WalkLCPOptions(pkt.Data).Options {
+					switch opt.Type {
+					case ppp.LCPOptMRU:
+						localMRU = 0
+						mruRejected = true
+					case ppp.LCPOptMagic:
+						localMagic = 0
+						magicRejected = true
 					}
-					state = ppp.LCPStateReqSent
-				case ppp.LCPStateInitial, ppp.LCPStateStarting, ppp.LCPStateClosed,
-					ppp.LCPStateStopped, ppp.LCPStateClosing, ppp.LCPStateStopping, ppp.LCPStateOpened:
-					// The other named states do not participate in this negotiation.
-				default:
-					panic("BUG: invalid LCP negotiation state")
 				}
-
-			case ppp.LCPConfigureNak, ppp.LCPConfigureReject:
-				if pkt.Code == ppp.LCPConfigureReject {
-					// RFC 1661 Section 5.4: "Reception of a valid
-					// Configure-Reject indicates that when a new
-					// Configure-Request is sent, it MUST NOT include any of the
-					// Configuration Options listed in the Configure-Reject."
-					for _, opt := range ppp.WalkLCPOptions(pkt.Data).Options {
-						switch opt.Type {
-						case ppp.LCPOptMRU:
-							localMRU = 0
-							mruRejected = true
-						case ppp.LCPOptMagic:
-							localMagic = 0
-							magicRejected = true
+			}
+			if pkt.Code == ppp.LCPConfigureNak {
+				for _, opt := range ppp.WalkLCPOptions(pkt.Data).Options {
+					switch opt.Type {
+					case ppp.LCPOptMRU:
+						if mruRejected {
+							continue
 						}
-					}
-				}
-				if pkt.Code == ppp.LCPConfigureNak {
-					for _, opt := range ppp.WalkLCPOptions(pkt.Data).Options {
-						switch opt.Type {
-						case ppp.LCPOptMRU:
-							if mruRejected || len(opt.Data) != 2 {
-								continue
-							}
-							mru := binary.BigEndian.Uint16(opt.Data)
-							if mru >= ppp.MinFrameLen && mru <= cfg.mtu {
+						if len(opt.Data) != 2 {
+							continue
+						}
+						mru := binary.BigEndian.Uint16(opt.Data)
+						if mru >= ppp.MinFrameLen {
+							if mru <= cfg.mtu {
 								localMRU = mru
 							}
-						case ppp.LCPOptMagic:
-							if magicRejected || len(opt.Data) != 4 {
-								continue
-							}
-							// RFC 1661 Section 6.4: "If the Magic-Number is
-							// equal to the one sent in the last Configure-Nak,
-							// the possibility of a looped-back link is
-							// increased, and a new Magic-Number MUST be chosen."
-							localMagic, err = generateDifferentMagic(localMagic)
-							if err != nil {
-								return lcpResult{}, err
-							}
+						}
+					case ppp.LCPOptMagic:
+						if magicRejected {
+							continue
+						}
+						if len(opt.Data) != 4 {
+							continue
+						}
+						// RFC 1661 Section 6.4: "If the Magic-Number is
+						// equal to the one sent in the last Configure-Nak,
+						// the possibility of a looped-back link is
+						// increased, and a new Magic-Number MUST be chosen."
+						localMagic, err = generateDifferentMagic(localMagic)
+						if err != nil {
+							return lcpResult{}, err
 						}
 					}
 				}
-				magic = localMagic
-				lcpID++
-				requestLen, err = sendLCPConfigRequest(w, request[:], lcpID, localMRU, localMagic, logger)
-				if err != nil {
-					return lcpResult{}, err
-				}
-				if state != ppp.LCPStateAckSent {
-					state = ppp.LCPStateReqSent
-				}
-
-			case ppp.LCPEchoRequest:
-				// RFC 1661 Section 5.8: "Echo-Request and Echo-Reply
-				// packets MUST only be sent in the LCP Opened state."
-				continue
-
-			case ppp.LCPTerminateRequest:
-				sendTerminateAck(w, buf, pkt)
-				return lcpResult{}, errors.New("pppoe-client: server terminated LCP")
 			}
+			magic = localMagic
+			*identifier++
+			requestLen, err = sendLCPConfigRequest(w, request[:], *identifier, localMRU, localMagic, logger)
+			if err != nil {
+				return lcpResult{}, err
+			}
+			if state != ppp.LCPStateAckSent {
+				state = ppp.LCPStateReqSent
+			}
+
+		case ppp.LCPEchoRequest:
+			// RFC 1661 Section 5.8: "Echo-Request and Echo-Reply
+			// packets MUST only be sent in the LCP Opened state."
+			continue
+
+		case ppp.LCPTerminateRequest:
+			sendTerminateAck(w, buf, pkt)
+			return lcpResult{}, errors.New("pppoe-client: server terminated LCP")
 		}
 	}
 	result.localMagic = localMagic
 	return result, nil
 }
 
-func runClientAuth(w io.ReadWriteCloser, frames <-chan readFrame, buf []byte, lcp lcpResult, cfg sessionConfig, magic uint32, stopCh <-chan struct{}, logger *slog.Logger) error {
+// The reader has the same exclusive-consumer contract as negotiateLCP.
+// The caller MUST retain identifier for every PAP request in the session.
+func runClientAuth(w io.ReadWriteCloser, reader *frameReader, buf []byte, lcp lcpResult, cfg sessionConfig, magic uint32, stopCh <-chan struct{}, logger *slog.Logger, identifier *uint8) error {
 	deadline := time.NewTimer(authTimeout)
 	defer deadline.Stop()
 
@@ -465,7 +480,10 @@ func runClientAuth(w io.ReadWriteCloser, frames <-chan readFrame, buf []byte, lc
 		// RFC 1334 Section 2.2.1: "The link peer MUST transmit a PAP packet
 		// with the Code field set to 1 (Authenticate-Request) during the
 		// Authentication phase."
-		papRequest = buildPAPAuthRequest(1, cfg.username, cfg.password)
+		// RFC 1334 Section 2.2.1: "The Identifier field MUST be changed each
+		// time an Authenticate-Request packet is issued."
+		*identifier++
+		papRequest = buildPAPAuthRequest(*identifier, cfg.username, cfg.password)
 		if err := writeClientPAPRequest(w, buf, papRequest); err != nil {
 			return err
 		}
@@ -491,14 +509,19 @@ func runClientAuth(w io.ReadWriteCloser, frames <-chan readFrame, buf []byte, lc
 			}
 			// RFC 1334 Section 2.2.1: "The Identifier field MUST be changed
 			// each time an Authenticate-Request packet is issued."
-			papRequest[1]++
+			*identifier++
+			papRequest[1] = *identifier
 			if err := writeClientPAPRequest(w, buf, papRequest); err != nil {
 				return err
 			}
 			papRequests++
-		case frame, ok := <-frames:
-			if !ok || frame.err != nil {
-				return errors.New("pppoe-client: channel closed during auth")
+		case frame, ok := <-reader.next():
+			reader.received()
+			if !ok {
+				return io.EOF
+			}
+			if frame.err != nil {
+				return frame.err
 			}
 			proto, payload, _, parseErr := ppp.ParseFrame(frame.data)
 			if parseErr != nil {
@@ -510,6 +533,13 @@ func runClientAuth(w io.ReadWriteCloser, frames <-chan readFrame, buf []byte, lc
 					continue
 				}
 				switch pkt.Code {
+				case ppp.LCPConfigureRequest:
+					// RFC 1661 Sections 3.4 and 6: discard before phase reentry.
+					reentry, admitted := requestLCPReentry(pkt)
+					if !admitted {
+						continue
+					}
+					return reentry
 				case ppp.LCPEchoRequest:
 					sendEchoReply(w, buf, pkt, magic)
 				case ppp.LCPTerminateRequest:
@@ -610,9 +640,6 @@ func writeClientPAPRequest(w io.Writer, buf, request []byte) error {
 type ipcpResult struct {
 	localIP netip.Addr
 	peerIP  netip.Addr
-	// codeRejectID is the Identifier of the last IPCP Code-Reject sent, so
-	// the network phase goes on from it rather than reuse one.
-	codeRejectID uint8
 }
 
 // negotiateIPCP opens IPCP. chap is nil when LCP did not negotiate CHAP, and
@@ -620,15 +647,22 @@ type ipcpResult struct {
 // IPCP negotiation is already the Network-Layer Protocol phase.
 // peerMRU is the MRU the server negotiated in LCP, zero when it sent none,
 // and bounds the Rejected-Packet of a Code-Reject.
-func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint32, peerMRU uint16, chap *networkPhaseCHAP, stopCh <-chan struct{}, logger *slog.Logger) (ipcpResult, error) {
+// identifier MUST point to the session-owned last Configure-Request Identifier.
+// The caller MUST retain it across interrupted negotiations; zero starts at 1.
+// codeRejectID MUST point to the session-owned last Code-Reject Identifier.
+// The caller MUST retain it across interrupted negotiations and network handling.
+// The caller MUST supply the existing ordered reader, which enables the unit
+// only after PPPIOCCONNECT and dispatches channel control before unit input.
+func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU uint16, chap *networkPhaseCHAP, identifier *uint8, stopCh <-chan struct{}, logger *slog.Logger, codeRejectID *uint8) (ipcpResult, error) {
 	var result ipcpResult
 	requestedIP := netip.IPv4Unspecified()
-	ipcpID := uint8(1)
-	// codeRejectID is the Identifier of the last IPCP Code-Reject sent.
-	var codeRejectID uint8
+	// RFC 1332 Section 2 uses the LCP exchange mechanism. A new exchange
+	// advances the session sequence so an interrupted exchange cannot supply
+	// the reply to this request (RFC 1661 Section 5.1).
+	*identifier++
 	state := ppp.LCPStateReqSent
 	var request [12]byte
-	requestLen, err := sendIPCPRequest(w, request[:], ipcpID, requestedIP)
+	requestLen, err := sendIPCPRequest(w, request[:], *identifier, requestedIP)
 	if err != nil {
 		return ipcpResult{}, err
 	}
@@ -641,6 +675,8 @@ func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint3
 	// RFC 1332 Section 2 uses the LCP exchange mechanism. Keep the exact
 	// outstanding request until a valid reply changes it (RFC 1661 Section 5).
 	for state != ppp.LCPStateOpened {
+		var frame readFrame
+		var ok bool
 		select {
 		case <-stopCh:
 			return ipcpResult{}, errors.New("pppoe-client: stopped during IPCP")
@@ -648,158 +684,169 @@ func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint3
 			return ipcpResult{}, errors.New("pppoe-client: IPCP timeout")
 		case <-restart.C:
 			if state == ppp.LCPStateAckRcvd {
-				ipcpID++
-				request[3] = ipcpID
+				*identifier++
+				request[3] = *identifier
 				state = ppp.LCPStateReqSent
 			}
 			if err := writeClientPacket(w, request[:requestLen]); err != nil {
 				return ipcpResult{}, err
 			}
-		case frame, ok := <-frames:
-			if !ok {
-				return ipcpResult{}, errors.New("pppoe-client: channel closed during IPCP")
-			}
-			if frame.err != nil {
-				return ipcpResult{}, frame.err
-			}
-			proto, payload, _, parseErr := ppp.ParseFrame(frame.data)
-			if parseErr != nil {
-				continue
-			}
-			pkt, pktErr := ppp.ParseLCPPacket(payload)
-			if pktErr != nil {
-				continue
-			}
-			if proto == ppp.ProtoLCP {
-				switch pkt.Code {
-				case ppp.LCPEchoRequest:
-					sendEchoReply(w, buf, pkt, magic)
-				case ppp.LCPTerminateRequest:
-					sendTerminateAck(w, buf, pkt)
-					return ipcpResult{}, errors.New("pppoe-client: server terminated during IPCP")
-				}
-				continue
-			}
-			if proto == ppp.ProtoCHAP {
-				if chap == nil {
-					continue
-				}
-				// RFC 1994 Section 4.1 (re-challenge) and Section 4.2 (result).
-				if err := chap.handle(w, buf, pkt, logger); err != nil {
-					return ipcpResult{}, err
-				}
-				continue
-			}
-			if proto != ppp.ProtoIPCP {
-				continue
-			}
-			// RFC 1332 Section 2: "Other Codes should be treated as
-			// unrecognized and should result in Code-Rejects."
-			if ipcpCodeUnrecognized(pkt.Code) {
-				codeRejectID++
-				if err := sendIPCPCodeReject(w, buf, pkt, codeRejectID, peerMRU); err != nil {
-					return ipcpResult{}, err
-				}
-				continue
-			}
-			switch pkt.Code {
-			case ppp.LCPConfigureAck, ppp.LCPConfigureReject:
-				if !ppp.ValidateLCPReply(pkt, ipcpID, request[6:requestLen]) {
-					continue
-				}
-			case ppp.LCPConfigureNak:
-				// Nak value widths are IPCP-specific, unlike Ack/Reject.
-				if pkt.Identifier != ipcpID {
-					continue
-				}
-			}
-
+			continue
+		case frame, ok = <-reader.next():
+			reader.received()
+		}
+		if !ok {
+			return ipcpResult{}, fmt.Errorf("pppoe-client: PPP input closed during IPCP: %w", io.EOF)
+		}
+		if frame.err != nil {
+			return ipcpResult{}, frame.err
+		}
+		proto, payload, _, parseErr := ppp.ParseFrame(frame.data)
+		if parseErr != nil {
+			continue
+		}
+		pkt, pktErr := ppp.ParseLCPPacket(payload)
+		if pktErr != nil {
+			continue
+		}
+		if proto == ppp.ProtoLCP {
 			switch pkt.Code {
 			case ppp.LCPConfigureRequest:
-				options, err := ppp.ParseIPCPOptions(pkt.Data)
-				if err != nil {
+				// RFC 1661 Sections 3.4 and 6: discard before phase reentry.
+				reentry, admitted := requestLCPReentry(pkt)
+				if !admitted {
 					continue
 				}
-				// This client negotiates IP-Address only. Preserve unsupported
-				// options byte-for-byte in a Reject (RFC 1661 Section 5.4).
-				rejected := 0
-				for data := pkt.Data; len(data) != 0; {
-					length := int(data[1]) // ParseIPCPOptions checked each boundary.
-					if data[0] != ppp.IPCPOptIPAddress {
-						rejected += copy(buf[6+rejected:], data[:length])
-					}
-					data = data[length:]
-				}
-				if rejected != 0 {
-					off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
-					off += ppp.WriteLCPPacket(buf, off, ppp.LCPConfigureReject, pkt.Identifier, buf[6:6+rejected])
-					if err := writeClientPacket(w, buf[:off]); err != nil {
-						return ipcpResult{}, err
-					}
-					if state == ppp.LCPStateAckSent {
-						state = ppp.LCPStateReqSent
-					}
-					continue
-				}
-				result.peerIP = options.IPAddress
-				off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
-				off += ppp.WriteLCPPacket(buf, off, ppp.LCPConfigureAck, pkt.Identifier, pkt.Data)
-				if err := writeClientPacket(w, buf[:off]); err != nil {
-					return ipcpResult{}, err
-				}
-				if state == ppp.LCPStateAckRcvd {
-					state = ppp.LCPStateOpened
-				} else {
-					state = ppp.LCPStateAckSent
-				}
-			case ppp.LCPConfigureAck:
-				result.localIP = requestedIP
-				switch state {
-				case ppp.LCPStateReqSent:
-					state = ppp.LCPStateAckRcvd
-				case ppp.LCPStateAckSent:
-					state = ppp.LCPStateOpened
-				case ppp.LCPStateAckRcvd:
-					ipcpID++
-					request[3] = ipcpID
-					if err := writeClientPacket(w, request[:requestLen]); err != nil {
-						return ipcpResult{}, err
-					}
-					state = ppp.LCPStateReqSent
-				case ppp.LCPStateInitial, ppp.LCPStateStarting, ppp.LCPStateClosed,
-					ppp.LCPStateStopped, ppp.LCPStateClosing, ppp.LCPStateStopping, ppp.LCPStateOpened:
-					// The other named states do not participate in this negotiation.
-				default:
-					panic("BUG: invalid IPCP negotiation state")
-				}
-			case ppp.LCPConfigureNak:
-				options, err := ppp.ParseIPCPOptions(pkt.Data)
-				if err != nil {
-					continue
-				}
-				if options.HasIPAddress {
-					requestedIP = options.IPAddress
-				}
-				ipcpID++
-				requestLen, err = sendIPCPRequest(w, request[:], ipcpID, requestedIP)
-				if err != nil {
-					return ipcpResult{}, err
-				}
-				if state != ppp.LCPStateAckSent {
-					state = ppp.LCPStateReqSent
-				}
-			case ppp.LCPConfigureReject:
-				if len(pkt.Data) != 0 {
-					return ipcpResult{}, errors.New("pppoe-client: server rejected IPCP IP-Address option")
-				}
+				return ipcpResult{}, reentry
+			case ppp.LCPEchoRequest:
+				sendEchoReply(w, buf, pkt, magic)
 			case ppp.LCPTerminateRequest:
+				sendTerminateAck(w, buf, pkt)
+				return ipcpResult{}, errors.New("pppoe-client: server terminated during IPCP")
+			}
+			continue
+		}
+		if proto == ppp.ProtoCHAP {
+			if chap == nil {
+				continue
+			}
+			// RFC 1994 Section 4.1 (re-challenge) and Section 4.2 (result).
+			if err := chap.handle(w, buf, pkt, logger); err != nil {
+				return ipcpResult{}, err
+			}
+			continue
+		}
+		if proto != ppp.ProtoIPCP {
+			continue
+		}
+		// RFC 1332 Section 2: "Other Codes should be treated as
+		// unrecognized and should result in Code-Rejects."
+		if ipcpCodeUnrecognized(pkt.Code) {
+			// RFC 1661 Section 5.6: "The Identifier field MUST be changed for
+			// each Code-Reject sent."
+			*codeRejectID++
+			if err := sendIPCPCodeReject(w, buf, pkt, *codeRejectID, peerMRU); err != nil {
+				return ipcpResult{}, err
+			}
+			continue
+		}
+		switch pkt.Code {
+		case ppp.LCPConfigureAck, ppp.LCPConfigureReject:
+			if !ppp.ValidateLCPReply(pkt, *identifier, request[6:requestLen]) {
+				continue
+			}
+		case ppp.LCPConfigureNak:
+			// Nak value widths are IPCP-specific, unlike Ack/Reject.
+			if pkt.Identifier != *identifier {
+				continue
+			}
+		}
+
+		switch pkt.Code {
+		case ppp.LCPConfigureRequest:
+			options, err := ppp.ParseIPCPOptions(pkt.Data)
+			if err != nil {
+				continue
+			}
+			// This client negotiates IP-Address only. Preserve unsupported
+			// options byte-for-byte in a Reject (RFC 1661 Section 5.4).
+			rejected := 0
+			for data := pkt.Data; len(data) != 0; {
+				length := int(data[1]) // ParseIPCPOptions checked each boundary.
+				if data[0] != ppp.IPCPOptIPAddress {
+					rejected += copy(buf[6+rejected:], data[:length])
+				}
+				data = data[length:]
+			}
+			if rejected != 0 {
 				off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
-				off += ppp.WriteLCPPacket(buf, off, ppp.LCPTerminateAck, pkt.Identifier, nil)
+				off += ppp.WriteLCPPacket(buf, off, ppp.LCPConfigureReject, pkt.Identifier, buf[6:6+rejected])
 				if err := writeClientPacket(w, buf[:off]); err != nil {
 					return ipcpResult{}, err
 				}
-				return ipcpResult{}, errors.New("pppoe-client: server terminated IPCP")
+				if state == ppp.LCPStateAckSent {
+					state = ppp.LCPStateReqSent
+				}
+				continue
 			}
+			result.peerIP = options.IPAddress
+			off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
+			off += ppp.WriteLCPPacket(buf, off, ppp.LCPConfigureAck, pkt.Identifier, pkt.Data)
+			if err := writeClientPacket(w, buf[:off]); err != nil {
+				return ipcpResult{}, err
+			}
+			if state == ppp.LCPStateAckRcvd {
+				state = ppp.LCPStateOpened
+			} else {
+				state = ppp.LCPStateAckSent
+			}
+		case ppp.LCPConfigureAck:
+			result.localIP = requestedIP
+			switch state {
+			case ppp.LCPStateReqSent:
+				state = ppp.LCPStateAckRcvd
+			case ppp.LCPStateAckSent:
+				state = ppp.LCPStateOpened
+			case ppp.LCPStateAckRcvd:
+				*identifier++
+				request[3] = *identifier
+				if err := writeClientPacket(w, request[:requestLen]); err != nil {
+					return ipcpResult{}, err
+				}
+				state = ppp.LCPStateReqSent
+			case ppp.LCPStateInitial, ppp.LCPStateStarting, ppp.LCPStateClosed,
+				ppp.LCPStateStopped, ppp.LCPStateClosing, ppp.LCPStateStopping, ppp.LCPStateOpened:
+				// The other named states do not participate in this negotiation.
+			default:
+				panic("BUG: invalid IPCP negotiation state")
+			}
+		case ppp.LCPConfigureNak:
+			options, err := ppp.ParseIPCPOptions(pkt.Data)
+			if err != nil {
+				continue
+			}
+			if options.HasIPAddress {
+				requestedIP = options.IPAddress
+			}
+			*identifier++
+			requestLen, err = sendIPCPRequest(w, request[:], *identifier, requestedIP)
+			if err != nil {
+				return ipcpResult{}, err
+			}
+			if state != ppp.LCPStateAckSent {
+				state = ppp.LCPStateReqSent
+			}
+		case ppp.LCPConfigureReject:
+			if len(pkt.Data) != 0 {
+				return ipcpResult{}, errors.New("pppoe-client: server rejected IPCP IP-Address option")
+			}
+		case ppp.LCPTerminateRequest:
+			off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
+			off += ppp.WriteLCPPacket(buf, off, ppp.LCPTerminateAck, pkt.Identifier, nil)
+			if err := writeClientPacket(w, buf[:off]); err != nil {
+				return ipcpResult{}, err
+			}
+			return ipcpResult{}, errors.New("pppoe-client: server terminated IPCP")
 		}
 	}
 	if !result.localIP.IsGlobalUnicast() {
@@ -808,7 +855,6 @@ func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint3
 	if !result.peerIP.IsGlobalUnicast() {
 		return ipcpResult{}, errors.New("pppoe-client: IPCP did not supply a usable peer address")
 	}
-	result.codeRejectID = codeRejectID
 	return result, nil
 }
 
@@ -917,6 +963,7 @@ func sendLCPAck(w io.Writer, buf []byte, req ppp.LCPPacket) error {
 // receive offer to the PPPoE transport MTU.
 func clientLCPPolicy(cfg sessionConfig, magic uint32) ppp.LCPNegPolicy {
 	return ppp.LCPNegPolicy{
+		MinMRU:          sessionMTUMin,
 		MaxMRU:          cfg.mtu,
 		AcceptAuthProto: true,
 		LocalMagic:      magic,

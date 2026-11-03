@@ -14,3 +14,12 @@ var errPppDevPppNotAvailableOn = errors.New("ppp: /dev/ppp not available on this
 func DevPPPSetup(_ int) (int, int, int, error) {
 	return -1, -1, -1, errPppDevPppNotAvailableOn
 }
+
+// SetIPv4Mode is unavailable on non-Linux platforms. The caller MUST retain
+// descriptor ownership for the call, as required by the Linux implementation.
+func SetIPv4Mode(_ int, mode NPMode) error {
+	if _, err := mode.kernelValue(); err != nil {
+		return err
+	}
+	return errPppDevPppNotAvailableOn
+}

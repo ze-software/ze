@@ -30,8 +30,7 @@ func TestClientCHAPReplyCorrelation(t *testing.T) {
 			done := make(chan error, 1)
 			go func() {
 				var buf [ppp.MaxFrameBufLen]byte
-				done <- runClientAuth(w, frames, buf[:], lcpResult{authProto: ppp.ProtoCHAP},
-					sessionConfig{username: "alice", password: "secret"}, 1, stop, slog.Default())
+				done <- runClientAuth(w, testFrameReader(t, frames, nil), buf[:], lcpResult{authProto: ppp.ProtoCHAP}, sessionConfig{username: "alice", password: "secret"}, 1, stop, slog.Default(), new(uint8))
 			}()
 			assertWaiting := func(frame readFrame) {
 				t.Helper()
@@ -73,8 +72,7 @@ func TestClientCHAPWriteFailure(t *testing.T) {
 		frames <- chapChallengeFrame(42, []byte{4, 1, 2, 3, 4})
 		w := &failingAuthWriter{err: tc.writeErr}
 		var buf [ppp.MaxFrameBufLen]byte
-		err := runClientAuth(w, frames, buf[:], lcpResult{authProto: ppp.ProtoCHAP},
-			sessionConfig{username: "alice", password: "secret"}, 1, make(chan struct{}), slog.Default())
+		err := runClientAuth(w, testFrameReader(t, frames, nil), buf[:], lcpResult{authProto: ppp.ProtoCHAP}, sessionConfig{username: "alice", password: "secret"}, 1, make(chan struct{}), slog.Default(), new(uint8))
 		if !errors.Is(err, tc.want) {
 			t.Fatalf("response write error = %v, want %v", err, tc.want)
 		}

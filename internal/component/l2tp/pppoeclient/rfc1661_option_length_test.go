@@ -113,8 +113,7 @@ func runClientLCPWithMagic(t *testing.T, magic uint32, script ...readFrame) *fra
 
 	log := &frameLog{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	if _, err := negotiateLCP(log, frames, make([]byte, ppp.MaxFrameLen),
-		sessionConfig{mtu: clientMTU}, magic, make(chan struct{}), logger); err != nil {
+	if _, err := negotiateLCP(log, testFrameReader(t, frames, nil), make([]byte, ppp.MaxFrameLen), sessionConfig{mtu: clientMTU}, magic, nil, make(chan struct{}), logger, new(uint8)); err != nil {
 		t.Fatalf("negotiateLCP: %v", err)
 	}
 	return log

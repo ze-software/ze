@@ -60,7 +60,7 @@ func TestCHAPSuccessMessageDoesNotAffectOutcome(t *testing.T) {
 			stopCh := make(chan struct{})
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-			err := runClientAuth(discardRWC{}, frames, buf, lcp, cfg, 0, stopCh, logger)
+			err := runClientAuth(discardRWC{}, testFrameReader(t, frames, nil), buf, lcp, cfg, 0, stopCh, logger, new(uint8))
 			if err != nil {
 				t.Fatalf("runClientAuth returned %v, want success for a CHAP Success bearing message %q (Message must not affect operation)", err, tc.message)
 			}

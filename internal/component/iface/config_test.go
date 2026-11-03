@@ -2553,6 +2553,12 @@ func (b *fakeBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { 
 
 func (b *fakeBackend) AddAddressP2P(_, _, _ string) error { return nil }
 
+// RemoveAddressP2P refuses a call this fixture cannot model. Session-change
+// tests override it with a pair-aware recorder rather than losing the peer.
+func (b *fakeBackend) RemoveAddressP2P(_, _, _ string) error {
+	return fmt.Errorf("fake backend: exact P2P removal is not modeled")
+}
+
 // AddRoute records the call and then returns addRouteErr. The call is recorded
 // either way: a test that injects a failure is asking what the caller did after
 // the kernel refused it, and that starts with the attempt itself.

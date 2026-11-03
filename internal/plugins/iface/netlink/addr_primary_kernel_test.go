@@ -57,9 +57,15 @@ func (k *kernelAddrTable) add(t *testing.T, cidr string) {
 	k.addrs = append(k.addrs, deviceAddress{Prefix: prefix, Secondary: secondary})
 }
 
-func (k *kernelAddrTable) List(_ string) ([]deviceAddress, error) {
+func (k *kernelAddrTable) List(_ string, target *deviceAddress) ([]deviceAddress, error) {
 	out := make([]deviceAddress, len(k.addrs))
 	copy(out, k.addrs)
+	for _, addr := range out {
+		if addr.Prefix == target.Prefix {
+			*target = addr
+			break
+		}
+	}
 	return out, nil
 }
 

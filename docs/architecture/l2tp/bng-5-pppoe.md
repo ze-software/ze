@@ -286,6 +286,12 @@ request union at known offsets.
 <!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup -->
 <!-- source: internal/component/l2tp/ppp/devppp_other.go -- non-Linux stub -->
 
+The shared `SetIPv4Mode` operation changes a unit's IPv4 mode to PASS or DROP.
+The caller serializes the operation against descriptor closure. The PPPoE client
+uses DROP during LCP restart, then PASS after IPCP reaches Opened.
+<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- SetIPv4Mode -->
+<!-- source: internal/component/l2tp/pppoeclient/connected_session.go -- restart -->
+
 The shared setup came out of an exact duplicate: L2TP and PPPoE carried
 character-for-character identical ioctl sequences that differed only in the
 error message prefix. Extracting it removed 148 lines with no behavior change.

@@ -333,6 +333,37 @@ func (b *netlinkBackend) AddAddressP2P(ifaceName, localCIDR, peerCIDR string) er
 	return nil
 }
 
+// RemoveAddressP2P MUST preserve every other pair, including a replacement
+// the caller added before this removal. The primary guard protects that pair.
+// A successful dump proving the exact pair absent satisfies removal without Delete.
+func (b *netlinkBackend) RemoveAddressP2P(ifaceName, localCIDR, peerCIDR string) error {
+	if err := iface.ValidateIfaceName(ifaceName); err != nil {
+		return fmt.Errorf("iface: remove p2p address on %q: %w", ifaceName, err)
+	}
+	local, err := netlink.ParseAddr(localCIDR)
+	if err != nil {
+		return fmt.Errorf("iface: remove p2p local %q on %q: %w", localCIDR, ifaceName, err)
+	}
+	peer, err := netlink.ParseAddr(peerCIDR)
+	if err != nil {
+		return fmt.Errorf("iface: remove p2p peer %q on %q: %w", peerCIDR, ifaceName, err)
+	}
+	local.Peer = peer.IPNet
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("iface: remove p2p address on %q: %w", ifaceName, err)
+	}
+	target, ok := toDeviceAddress(local)
+	if !ok {
+		return fmt.Errorf("iface: remove p2p address %q peer %q on %q: address is not representable", localCIDR, peerCIDR, ifaceName)
+	}
+	err = removeAddressGuarded(&netlinkAddrRemover{link: link, addr: local, exactPair: true}, ifaceName, target)
+	if errors.Is(err, errP2PPairAbsent) {
+		return nil
+	}
+	return err
+}
+
 func (b *netlinkBackend) ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error {
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return fmt.Errorf("iface: replace address on %q: %w", ifaceName, err)

@@ -2843,6 +2843,23 @@ first-apply at startup, so the daemon cannot boot into an unworkable state.
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ze:backend annotations on bridge/tunnel/wireguard/veth/mirror -->
 
+### PPPoE Client
+
+An `interface pppoe-client` uses `source-interface` for Ethernet discovery and
+`authentication` for the subscriber credentials. The client answers an LCP
+renegotiation from the access network on the existing PPP session. It repeats
+authentication and IPCP before it resumes IPv4 forwarding. The interface worker
+applies changed addresses, MTU and default gateway on the same device.
+Target-kernel and wholesale interoperability proof remain outstanding.
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client -->
+<!-- source: internal/component/l2tp/pppoeclient/connected_session.go -- restart -->
+<!-- source: internal/component/iface/pppoe_client.go -- runSession -->
+
+The counter `ze_pppoe_client_renegotiations_total` uses the configured client
+`name` as its label. It counts network-phase restart attempts, including failures,
+so repeated access-network renegotiation remains visible when IPCP cannot finish.
+<!-- source: internal/component/l2tp/pppoeclient/metrics.go -- bindClientMetrics, countRenegotiation -->
+
 ### Route Priority
 
 The `route-priority` leaf on a unit sets the Linux route metric for default routes

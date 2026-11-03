@@ -283,6 +283,10 @@ const (
 // Configure-Request. The local Configure-Request is built separately
 // from this struct (see BuildLocalConfigRequest).
 type LCPNegPolicy struct {
+	// MinMRU raises the existing 64-octet local policy floor for a caller
+	// whose network protocol needs larger packets. Zero keeps that floor.
+	MinMRU uint16
+
 	// MaxMRU is the largest MRU ze accepts. Peer requests above this
 	// are NAKd with MaxMRU as the suggested value. Zero defaults to
 	// MaxFrameLen (1500).
@@ -408,11 +412,12 @@ func negotiatePeerOption(opt LCPOption, policy LCPNegPolicy) (out negOutcome, su
 			binary.BigEndian.PutUint16(suggest, maxMRU)
 			return negNak, suggest
 		}
-		// Floor per RFC 1661 §6.1 is 64 bytes; peers below that are
-		// NAKd up to the floor.
-		if mru < 64 {
+		// RFC 1661 Section 5.3: "Each Configuration Option which is allowed only a single instance MUST be modified to a value acceptable to the Configure-Nak sender."
+		// The 64-octet floor is existing local policy, not an RFC 1661 minimum.
+		minMRU := max(uint16(64), policy.MinMRU)
+		if mru < minMRU {
 			suggest := make([]byte, 2)
-			binary.BigEndian.PutUint16(suggest, 64)
+			binary.BigEndian.PutUint16(suggest, minMRU)
 			return negNak, suggest
 		}
 		return negAck, opt.Data

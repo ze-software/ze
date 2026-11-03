@@ -210,7 +210,9 @@ func networkPhase(t *testing.T) (*sessionLink, chan<- readFrame, *hostChannel, <
 	link := &sessionLink{channel: channel, stopped: make(chan struct{}), closeTransport: func() {}}
 	frames := make(chan readFrame)
 	done := make(chan struct{})
-	go superviseNetworkPhase(link, &sessionResult{frames: frames, magic: 0x0badcafe}, done, slog.Default())
+	session := newTestConnectedSession(t, link,
+		sessionResult{reader: testFrameReader(t, frames, nil), magic: 0x0badcafe}, sessionConfig{mtu: 1492})
+	go superviseNetworkPhase(link, session, done, slog.Default())
 	t.Cleanup(func() { _ = link.Close() }) //nolint:errcheck // test cleanup
 	return link, frames, channel, done
 }

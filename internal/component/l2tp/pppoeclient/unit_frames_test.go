@@ -7,7 +7,7 @@
 // 2472), so the network phase reads IPCP from the unit's reader.
 //
 // Method: keepaliveLoop runs in a synctest bubble with its channel frames
-// silent and IPCP fed on unitFrames, against a recording writer.
+// silent and IPCP fed on the unit input of the production reader, against a recording writer.
 
 package pppoeclient
 
@@ -29,13 +29,13 @@ func runUnitNetworkPhase(t *testing.T, stop chan struct{}, lastCodeRejectID uint
 	unit := make(chan readFrame)
 	done := make(chan struct{})
 	result := &sessionResult{
-		frames:           make(chan readFrame),
-		unitFrames:       unit,
+		reader:           testFrameReader(t, make(chan readFrame), unit),
 		magic:            1,
 		peerMRU:          1492,
 		ipcpCodeRejectID: lastCodeRejectID,
 	}
-	go keepaliveLoop(w, result, done, stop, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	session := newTestConnectedSession(t, w, *result, sessionConfig{mtu: 1492})
+	go keepaliveLoop(session, done, stop, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return w, unit, done
 }
 
@@ -111,7 +111,7 @@ func TestClientIPCPCodeZeroCodeRejected(t *testing.T) {
 		defer close(stop)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			_, _ = negotiateIPCP(w, frames, buf[:], 1, 0, nil, stop, slog.Default()) // Stopped before IPCP opens.
+			_, _ = negotiateIPCP(w, testFrameReader(t, frames, nil), buf[:], 1, 0, nil, new(uint8), stop, slog.Default(), new(uint8)) // Stopped before IPCP opens.
 		}()
 		synctest.Wait()
 		frames <- ipcpFrame(0, 0x30, []byte{1, 2})

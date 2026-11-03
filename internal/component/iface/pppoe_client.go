@@ -71,6 +71,14 @@ type PPPoEDialer interface {
 	Dial(cfg PPPoEClientConfig, stopCh <-chan struct{}, logger *slog.Logger) (PPPoESession, error)
 }
 
+// PPPoEResult carries every negotiated interface setting as an immutable value.
+// It contains no transport ownership or mutable authentication state.
+type PPPoEResult struct {
+	LocalIP netip.Addr
+	PeerIP  netip.Addr
+	NegMTU  uint16
+}
+
 // PPPoESession represents a fully negotiated PPPoE+PPP session.
 type PPPoESession struct {
 	SessionID uint16
@@ -80,6 +88,10 @@ type PPPoESession struct {
 	LocalIP netip.Addr
 	PeerIP  netip.Addr
 	NegMTU  uint16
+	// Changes carries a complete result after every successful renegotiation,
+	// including unchanged results. The sole producer replaces the oldest pending
+	// value in a one-slot channel. It never closes Changes; Done ends consumption.
+	Changes <-chan PPPoEResult
 	// Done is closed when the session ends (echo timeout, LCP terminate).
 	// The PPPoEClient selects on this to detect session loss.
 	Done <-chan struct{}
@@ -252,31 +264,45 @@ func (c *PPPoEClient) runSession() error {
 	defer sess.Cleanup()
 
 	ifname := textbuf.StrInt("ppp", int64(sess.UnitNum))
+	mtuApplied := int(sess.NegMTU)
+	if c.cfg.MTU > 0 {
+		mtuApplied = min(mtuApplied, c.cfg.MTU)
+	}
+	pairApplied := [2]netip.Addr{sess.LocalIP, sess.PeerIP}
+	// An invalid routeApplied explicitly means no successful route install.
+	// It guards removal and keeps an initial failed install retryable.
+	var routeApplied netip.Addr
+	// An invalid routeRetired means no old cleanup awaits confirmation.
+	// AddRoute replaces the fixed prefix/metric slot, so successful installs
+	// cannot accumulate routes while this one cleanup remains pending.
+	var routeRetired netip.Addr
 
 	// AC-7: Set MTU on the ppp interface.
 	if c.backend != nil {
-		mtu := int(sess.NegMTU)
-		if c.cfg.MTU > 0 && c.cfg.MTU < mtu {
-			mtu = c.cfg.MTU
-		}
-		if err := c.backend.SetMTU(ifname, mtu); err != nil {
+		if err := c.backend.SetMTU(ifname, mtuApplied); err != nil {
 			return err
 		}
 		if err := c.backend.SetAdminUp(ifname); err != nil {
 			return err
 		}
 		// AC-5: Apply server-assigned address as P2P link.
-		if sess.LocalIP.IsValid() && sess.PeerIP.IsValid() {
-			localCIDR := sess.LocalIP.String() + "/32"
-			peerCIDR := sess.PeerIP.String() + "/32"
-			if err := c.backend.AddAddressP2P(ifname, localCIDR, peerCIDR); err != nil {
-				return err
+		if sess.LocalIP.IsValid() {
+			if sess.PeerIP.IsValid() {
+				localCIDR := netip.PrefixFrom(sess.LocalIP, 32).String()
+				peerCIDR := netip.PrefixFrom(sess.PeerIP, 32).String()
+				if err := c.backend.AddAddressP2P(ifname, localCIDR, peerCIDR); err != nil {
+					return err
+				}
 			}
 		}
 		// AC-8: Install default route unless no-default-route is set.
-		if !c.cfg.NoDefaultRoute && sess.PeerIP.IsValid() {
-			if err := c.backend.AddRoute(ifname, "0.0.0.0/0", sess.PeerIP.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
-				c.logger.Warn("pppoe-client: failed to add default route", "error", err)
+		if !c.cfg.NoDefaultRoute {
+			if sess.PeerIP.IsValid() {
+				if err := c.backend.AddRoute(ifname, "0.0.0.0/0", sess.PeerIP.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+					c.warnRouteApply(ifname, sess.PeerIP, err)
+				} else {
+					routeApplied = sess.PeerIP
+				}
 			}
 		}
 	}
@@ -295,13 +321,89 @@ func (c *PPPoEClient) runSession() error {
 		"session-id", sess.SessionID, "iface", ifname,
 		"local-ip", sess.LocalIP, "peer-ip", sess.PeerIP)
 
-	// AC-10: Wait for stop signal or session loss (echo timeout, LCP terminate).
-	select {
-	case <-c.stopCh:
-	case <-sess.Done:
-		return errors.New("pppoe-client: session lost")
+	// This worker owns all interface writes until stop, session loss or a fatal
+	// apply error. Changes holds at most one complete pending result.
+	for {
+		select {
+		case <-c.stopCh:
+			return nil
+		case <-sess.Done:
+			return errors.New("pppoe-client: session lost")
+		case next, ok := <-sess.Changes:
+			if !ok {
+				return errors.New("pppoe-client: session change source closed")
+			}
+			pair := [2]netip.Addr{next.LocalIP, next.PeerIP}
+			if c.backend != nil {
+				mtu := int(next.NegMTU)
+				if c.cfg.MTU > 0 {
+					mtu = min(mtu, c.cfg.MTU)
+				}
+				if mtu != mtuApplied {
+					if err := c.backend.SetMTU(ifname, mtu); err != nil {
+						return err
+					}
+					mtuApplied = mtu
+				}
+				if pair != pairApplied {
+					if err := c.backend.AddAddressP2P(ifname,
+						netip.PrefixFrom(next.LocalIP, 32).String(),
+						netip.PrefixFrom(next.PeerIP, 32).String()); err != nil {
+						return err
+					}
+				}
+				if !c.cfg.NoDefaultRoute {
+					if next.PeerIP != routeApplied {
+						if err := c.backend.AddRoute(ifname, "0.0.0.0/0", next.PeerIP.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+							c.warnRouteApply(ifname, next.PeerIP, err)
+						} else {
+							// Linux fib_table_insert replaces the prefix/metric slot.
+							// Keep one failed cleanup, not a backlog of replaced gateways.
+							if !routeRetired.IsValid() {
+								routeRetired = routeApplied
+							}
+							routeApplied = next.PeerIP
+							if routeRetired == routeApplied {
+								// This gateway is desired again. Never remove it later.
+								routeRetired = netip.Addr{}
+							}
+						}
+					}
+					if routeRetired.IsValid() {
+						if err := c.backend.RemoveRoute(ifname, "0.0.0.0/0", routeRetired.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+							c.warnRouteRemoval(ifname, routeRetired, err)
+						} else {
+							routeRetired = netip.Addr{}
+						}
+					}
+				}
+				if pair != pairApplied {
+					if err := c.backend.RemoveAddressP2P(ifname,
+						netip.PrefixFrom(pairApplied[0], 32).String(),
+						netip.PrefixFrom(pairApplied[1], 32).String()); err != nil {
+						return err
+					}
+					pairApplied = pair
+				}
+			}
+			c.mu.Lock()
+			c.localIP = next.LocalIP
+			c.peerIP = next.PeerIP
+			c.mu.Unlock()
+		}
 	}
-	return nil
+}
+
+// warnRouteApply keeps a failed route install visible without ending PPP.
+func (c *PPPoEClient) warnRouteApply(device string, gateway netip.Addr, err error) {
+	c.logger.Warn("pppoe-client: failed to add default route; traffic may fail until a later session result retries it; inspect with ze show interface",
+		"route", "0.0.0.0/0", "gateway", gateway, "device", device, "error", err)
+}
+
+// warnRouteRemoval reports retained ownership so a later record can retry it.
+func (c *PPPoEClient) warnRouteRemoval(device string, gateway netip.Addr, err error) {
+	c.logger.Warn("pppoe-client: failed to remove old default route; cleanup will retry without delaying the desired gateway; inspect with ze show interface",
+		"route", "0.0.0.0/0", "gateway", gateway, "device", device, "error", err)
 }
 
 // pppoeDialerVar holds the production PPPoEDialer, set by the pppoeclient

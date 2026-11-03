@@ -100,7 +100,9 @@ func trimAddrSysctl(s string) string {
 // deviceAddress is one address configured on a device, carrying the kernel's
 // IFA_F_SECONDARY classification.
 type deviceAddress struct {
-	Prefix    netip.Prefix
+	Prefix netip.Prefix
+	// Peer is IFA_ADDRESS on a P2P pair. Invalid means the local prefix is used.
+	Peer      netip.Prefix
 	Secondary bool
 }
 
@@ -133,24 +135,35 @@ func flushedByDelete(target deviceAddress, existing []deviceAddress) []netip.Pre
 	if target.Secondary || !target.Prefix.IsValid() || !target.Prefix.Addr().Is4() {
 		return nil
 	}
-	network := target.Prefix.Masked()
+	network := addressSubnet(target)
 	var doomed []netip.Prefix
 	for _, addr := range existing {
 		if !addr.Prefix.IsValid() || !addr.Prefix.Addr().Is4() {
 			continue
 		}
 		if addr.Prefix == target.Prefix {
-			continue
+			if addr.Peer == target.Peer {
+				continue
+			}
 		}
 		// Prefix equality covers both address and bits, and Masked preserves
 		// bits, so this single test is the kernel's ifa_mask comparison and
 		// inet_ifa_match together.
-		if addr.Prefix.Masked() != network {
+		if addressSubnet(addr) != network {
 			continue
 		}
 		doomed = append(doomed, addr.Prefix)
 	}
 	return doomed
+}
+
+// addressSubnet follows Linux inet_ifa_match: a P2P subnet is based on
+// ifa_address (the peer), not ifa_local. Different locals on one peer share it.
+func addressSubnet(addr deviceAddress) netip.Prefix {
+	if addr.Peer.IsValid() {
+		return addr.Peer.Masked()
+	}
+	return addr.Prefix.Masked()
 }
 
 // addrRemover is the seam the guarded removal uses to reach the kernel (the
@@ -159,8 +172,10 @@ func flushedByDelete(target deviceAddress, existing []deviceAddress) []netip.Pre
 // helpers -- be driven by a fake on any host, so the coverage runs under
 // `./le verify current`, not only under the QEMU integration suite.
 type addrRemover interface {
-	// List returns the addresses currently configured on dev.
-	List(dev string) ([]deviceAddress, error)
+	// List returns the addresses currently configured on dev. On success it
+	// MUST replace target with the exact identity selected for Delete, including
+	// an absent Peer. The guard MUST NOT reinterpret that identity as a wildcard.
+	List(dev string, target *deviceAddress) ([]deviceAddress, error)
 	// Delete removes exactly one address from dev.
 	Delete(dev string, target deviceAddress) error
 }
@@ -172,7 +187,7 @@ type addrRemover interface {
 // reach the delete without passing the guard, so the wiring cannot rot into a
 // silently-unguarded AddrDel the way a separate pre-call could.
 func removeAddressGuarded(ops addrRemover, dev string, target deviceAddress) error {
-	existing, err := ops.List(dev)
+	existing, err := ops.List(dev, &target)
 	if err != nil {
 		return err
 	}
@@ -197,10 +212,13 @@ func removeAddressGuarded(ops addrRemover, dev string, target deviceAddress) err
 // cascade because it cannot happen.
 func selectDeleteTarget(target deviceAddress, existing []deviceAddress) (deviceAddress, bool) {
 	for _, addr := range existing {
-		if addr.Prefix == target.Prefix {
-			target.Secondary = addr.Secondary
-			return target, true
+		if addr.Prefix != target.Prefix {
+			continue
 		}
+		if addr.Peer != target.Peer {
+			continue
+		}
+		return addr, true
 	}
 	return target, false
 }
