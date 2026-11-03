@@ -6,8 +6,10 @@ import "github.com/ze-software/ze/internal/test/trace"
 
 // EditorTest holds a single editor test case.
 type EditorTest struct {
-	BaseTest // Embeds Name, Nick, Active, Error
-	Path     string
+	BaseTest  // Embeds Name, Nick, Active, Error
+	Path      string
+	Content   string // Discovery snapshot; execution MUST NOT reread Path.
+	Admission Record // Resource declarations and discovery errors.
 
 	// Results (filled during execution)
 	ErrMsg  string

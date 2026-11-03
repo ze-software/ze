@@ -68,6 +68,19 @@ scheduler in `runExaBGPSelected`.
 
 ### How a suite's child processes end
 
+Editor discovery validates the complete `.et` snapshot and its timeout with
+parallel headroom before execution. Resource options use `recordOptionArms` and
+the same capability registry as `.ci`. The scheduler receives the declared
+Linux requirement, capabilities, exclusive group, skip reason, and parse error.
+Execution uses that snapshot, so editing the file after discovery cannot bypass
+its admission decision. No editor family privilege or exclusive group is implicit.
+Failures while waiting for a group report the scheduler's error even though the
+editor child has not started.
+An unreadable or invalid capability source fails admission with its cause;
+it does not become a capability skip or permission to start the editor.
+<!-- source: internal/test/cli/cmd_editor.go -- discoverEditorTests, runEditorTests -->
+<!-- source: internal/test/runner/record_parse_option.go -- ParseResourceOption -->
+
 The editor child executes authored content with `RunETContentIn` on its owning
 goroutine. Caller cancellation reaches authored waits and validation waits;
 model timers are joined and the store is closed before it returns, and close
@@ -297,7 +310,8 @@ other write permission.
 <!-- source: internal/test/runner/exclusive.go -- leaseExclusiveGroupIn, checkExclusiveGroupFile -->
 <!-- source: internal/test/runner/ports.go -- portLockDirectory, checkPortLockDir -->
 
-The scheduler MUST acquire the group before its concurrency semaphore; otherwise
+The scheduler rejects parse failures before skips, and handles both before any
+group or semaphore wait. The scheduler MUST acquire the group before its concurrency semaphore; otherwise
 waiting members could occupy every slot and starve unrelated tests. Both waits
 honor the runner context. The group wait polls nonblocking `flock` every 20 ms,
 without introducing a test deadline. Acquisition and release errors fail the

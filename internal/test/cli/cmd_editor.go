@@ -160,9 +160,36 @@ func discoverEditorTests(tests *runner.EditorTests, testDir, baseDir string) err
 			rel = path
 		}
 		nick := runner.GenerateNick(rel)
-		tests.Add(rel, nick, path)
+		test := tests.Add(rel, nick, path)
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			setEditorParseError(test, readErr)
+			return nil
+		}
+		test.Content = string(content)
+		options, parseErr := editortesting.ContentOptions(test.Content, runner.ParallelTimeoutHeadroom)
+		if parseErr != nil {
+			setEditorParseError(test, parseErr)
+			return nil
+		}
+		for _, option := range options {
+			if _, err := runner.ParseResourceOption(&test.Admission, option.Declaration); err != nil {
+				setEditorParseError(test, err)
+				return nil
+			}
+		}
 		return nil
 	})
+}
+
+// setEditorParseError keeps malformed files selectable and reports them as
+// failures, even when a previously parsed capability would skip execution.
+func setEditorParseError(test *runner.EditorTest, err error) {
+	err = fmt.Errorf("parse %s: %w", test.Path, err)
+	test.Admission.ParseFailed = true
+	test.Admission.Error = err
+	test.ErrMsg = err.Error()
+	test.SetError(err)
 }
 
 func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bool) error {
@@ -182,16 +209,10 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 	pr.SetBaseDir(baseDir)
 
 	for _, test := range tests.Selected() {
-		pr.AddTestWithNick(test.Name, test.Nick, test, func(ctx context.Context, t *runner.EditorTest) (bool, error) {
+		record := pr.AddTestWithNick(test.Name, test.Nick, test, func(ctx context.Context, t *runner.EditorTest) (bool, error) {
 			// The runner keeps its default concurrency, which is above one,
 			// so each authored timeout gets the parallel headroom.
-			content, err := os.ReadFile(t.Path)
-			var testResult *editortesting.TestResult
-			if err != nil {
-				testResult = &editortesting.TestResult{Error: "read authored editor case: " + err.Error()}
-			} else {
-				testResult = editorcase.Run(ctx, executable, string(content), scratch, runner.ParallelTimeoutHeadroom)
-			}
+			testResult := editorcase.Run(ctx, executable, t.Content, scratch, runner.ParallelTimeoutHeadroom)
 
 			t.ErrMsg = testResult.Error
 			t.TempDir = testResult.TempDir
@@ -203,9 +224,20 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 			}
 			return true, nil
 		})
+		record.NeedsLinux = test.Admission.NeedsLinux
+		record.RequiredCaps = test.Admission.RequiredCaps
+		record.ExclusiveGroup = test.Admission.ExclusiveGroup
+		record.SkipReason = test.Admission.SkipReason
+		record.ParseFailed = test.Admission.ParseFailed
+		record.Error = test.Admission.Error
 	}
 
-	pr.SetOnFail(func(t *runner.EditorTest, _ error) {
+	pr.SetOnFail(func(t *runner.EditorTest, err error) {
+		// Admission can fail before the editor callback fills its result.
+		if err != nil {
+			t.SetError(err)
+			t.ErrMsg = err.Error()
+		}
 		fmt.Fprintf(os.Stdout, "✗ %s\n", t.Name)   //nolint:errcheck // terminal output
 		fmt.Fprintf(os.Stdout, "  %s\n", t.ErrMsg) //nolint:errcheck // terminal output
 		if t.TempDir != "" {

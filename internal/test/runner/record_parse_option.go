@@ -31,6 +31,29 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 	return arm.parse(r, ciFile, kv)
 }
 
+// ParseResourceOption applies a shared resource declaration to its scheduling
+// record. False means the option belongs to the suite, not resource admission.
+// Callers MUST retain parse errors even when an earlier option set SkipReason.
+func ParseResourceOption(r *Record, declaration string) (bool, error) {
+	parts := strings.Split(declaration, ":")
+	arm, found := recordOptionArms[parts[0]]
+	if !found {
+		return false, nil
+	}
+	if !arm.resource {
+		return false, nil
+	}
+	name := "option=" + parts[0]
+	kv, err := parseDirectiveKV(name, parts[1:], arm.keys)
+	if err != nil {
+		return true, err
+	}
+	if err := checkKeys(name, kv, arm.keys...); err != nil {
+		return true, err
+	}
+	return true, arm.parse(r, "", kv)
+}
+
 // parseOptionFile reads option=file.
 func parseOptionFile(r *Record, ciFile string, kv map[string]string) error {
 	configName := kv["path"]
@@ -204,16 +227,22 @@ func parseOptionNeedsLinux(r *Record, _ string, kv map[string]string) error {
 			caps = append(caps, c)
 		}
 	}
+	r.RequiredCaps = append(r.RequiredCaps, caps...)
 	if runtime.GOOS != goosLinux {
 		var tb textbuf.Buffer
 		r.SkipReason = tb.Str("needs-linux (run via ./le test qemu all; current GOOS=").Str(runtime.GOOS).Byte(')').String()
 		return nil
 	}
-	if len(caps) > 0 && !hasCaps(caps) {
-		var tb textbuf.Buffer
-		r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
-			Str(" (capability absent; run via ./le test qemu all)").String()
-		return nil
+	if len(caps) > 0 {
+		present, err := hasCaps(caps)
+		if err != nil {
+			return fmt.Errorf("option=needs-linux caps=%s: admission failed: %w", strings.Join(caps, ","), err)
+		}
+		if !present {
+			var tb textbuf.Buffer
+			r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
+				Str(" (capability absent; run via ./le test qemu all)").String()
+		}
 	}
 	return nil
 }

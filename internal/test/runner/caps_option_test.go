@@ -43,7 +43,7 @@ func parseNeedsLinux(t *testing.T, line string) *Record {
 func withCaps(t *testing.T, present bool) {
 	t.Helper()
 	original := hasCaps
-	hasCaps = func(_ []string) bool { return present }
+	hasCaps = func(_ []string) (bool, error) { return present, nil }
 	t.Cleanup(func() { hasCaps = original })
 }
 
@@ -53,7 +53,7 @@ func withCaps(t *testing.T, present bool) {
 func withCapsRecording(t *testing.T, present bool, seen *[]string) {
 	t.Helper()
 	original := hasCaps
-	hasCaps = func(tokens []string) bool { *seen = append(*seen, tokens...); return present }
+	hasCaps = func(tokens []string) (bool, error) { *seen = append(*seen, tokens...); return present, nil }
 	t.Cleanup(func() { hasCaps = original })
 }
 

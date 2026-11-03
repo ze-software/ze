@@ -602,6 +602,16 @@ never open. The gate reads `CapEff` from `/proc/self/status`, not uid 0: a
 setcap'd binary holds the capability without being root, and a restricted
 container can be root without it.
 
+An unreadable status file, malformed `CapEff`, or missing `CapEff` is an admission
+failure naming the probe cause, not evidence that capabilities are present or
+absent. Both `.ci` and `.et` discovery retain that failure before execution.
+`NeedsGuest` propagates it to feature and RFC placement callers instead of
+selecting a guest from an unknown host capability set. A valid capability set
+that lacks a declared bit still produces the documented capability skip.
+<!-- source: internal/test/runner/caps_linux.go -- probeCaps, probeCapsFile -->
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux -->
+<!-- source: internal/test/runner/caps.go -- NeedsGuest -->
+
 A `caps=` test does not run in the merge gate. `./le verify worktree` runs
 unprivileged, so the marker turns an opaque hang into an honest skip there, and
 the coverage relocates to `.github/workflows/qemu-nightly.yml`.
@@ -2438,6 +2448,15 @@ Key changes:
 - `json=` prefix for JSON data
 
 ## Editor Test Format (.et)
+
+Editor resource declarations use the shared `.ci` grammar for
+`option=needs-linux[:caps=<tokens>]` and `option=exclusive:group=<name>`.
+Discovery rejects unknown resource keys, duplicate keys, invalid capabilities,
+missing groups, and invalid or overflowing effective timeouts. A parse failure
+outranks a capability skip. The native editor runner retains the discovered
+snapshot and holds its group lease through child reaping and cleanup.
+<!-- source: internal/test/runner/record_parse_option.go -- ParseResourceOption -->
+<!-- source: internal/test/cli/cmd_editor.go -- discoverEditorTests, runEditorTests -->
 
 The `.et` format extends `.ci` for interactive editor testing. Tests are located in `test/editor/`.
 <!-- source: internal/component/cli/testing/parser.go -- editor test parsing -->

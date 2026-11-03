@@ -30,7 +30,11 @@ func TestNeedsGuestAnswersTheRunnersOwnSkip(t *testing.T) {
 	}
 	// The host decides the expected answer the way the parser does: a non-Linux
 	// host, or a Linux host without CAP_NET_ADMIN, skips the gated test.
-	want := runtime.GOOS != goosLinux || !hasCaps([]string{capsNetAdmin})
+	present, probeErr := hasCaps([]string{capsNetAdmin})
+	if probeErr != nil {
+		t.Fatal(probeErr)
+	}
+	want := runtime.GOOS != goosLinux || !present
 	if got != want {
 		t.Fatalf("NeedsGuest(gated) = %v, want %v on this host", got, want)
 	}

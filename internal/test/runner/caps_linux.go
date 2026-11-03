@@ -6,14 +6,14 @@
 package runner
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // probeCaps reports whether this process holds EVERY capability in bits.
+// An error means the capability set is unknown, never present or absent.
 // The bit positions themselves live in caps.go so every platform can parse the
 // caps= vocabulary.
 //
@@ -27,17 +27,16 @@ import (
 // the daemon never reaches the state the test asserts. Before this probe existed
 // those tests did not fail cleanly -- they HUNG until the suite timeout, because
 // the assertion was waiting on a message from a daemon whose plugin had died.
-func probeCaps(bits ...int) bool {
-	data, err := os.ReadFile("/proc/self/status")
+func probeCaps(bits ...int) (bool, error) {
+	return probeCapsFile("/proc/self/status", bits...)
+}
+
+// probeCapsFile reads the capability source at path, so tests can exercise read
+// and format failures without changing the host's procfs.
+func probeCapsFile(path string, bits ...int) (bool, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		// Unreadable procfs: assume the capabilities are present rather than
-		// skip. Over-skipping silently removes coverage, which is the worse
-		// failure (ai/rules/testing.md). But a guard that cannot
-		// evaluate must SAY so (ai/rules/evidence.md): without this
-		// line a broken probe is indistinguishable from a genuine failure, and
-		// the next agent re-derives the root cause from a hang.
-		capsWarn("cannot read /proc/self/status", err)
-		return true
+		return false, fmt.Errorf("capability probe: cannot read %s: %w", path, err)
 	}
 	for line := range strings.Lines(string(data)) {
 		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "CapEff:")
@@ -46,27 +45,14 @@ func probeCaps(bits ...int) bool {
 		}
 		mask, perr := strconv.ParseUint(strings.TrimSpace(rest), 16, 64)
 		if perr != nil {
-			capsWarn("cannot parse CapEff", perr)
-			return true
+			return false, fmt.Errorf("capability probe: cannot parse CapEff in %s: %w", path, perr)
 		}
 		for _, bit := range bits {
 			if mask&(1<<uint(bit)) == 0 { //nolint:gosec // bit is a package const, 0..63
-				return false
+				return false, nil
 			}
 		}
-		return true
+		return true, nil
 	}
-	capsWarn("no CapEff line in /proc/self/status", nil)
-	return true
-}
-
-// capsWarn reports that the capability probe could not evaluate, so a test that
-// then runs and fails is not mistaken for a genuine product failure.
-func capsWarn(what string, err error) {
-	var tb textbuf.Buffer
-	tb.Str("runner: capability probe: ").Str(what).Str("; assuming the capabilities ARE present")
-	if err != nil {
-		tb.Str(": ").Err(err)
-	}
-	tb.Byte('\n').StdErr() //nolint:errcheck // CLI output
+	return false, fmt.Errorf("capability probe: no CapEff line in %s", path)
 }

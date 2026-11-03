@@ -74,8 +74,9 @@ type TmpfsBlock struct {
 
 // Option represents a test configuration option.
 type Option struct {
-	Type   string            // Option type: "file", "timeout", "width", "height"
-	Values map[string]string // Key-value pairs
+	Declaration string            // Original option tail, retained for strict shared admission parsing.
+	Type        string            // Option type: "file", "timeout", "width", "height"
+	Values      map[string]string // Key-value pairs
 }
 
 // InputAction represents a user input action.
@@ -291,7 +292,8 @@ func (tc *testCase) parseTmpfs(rest string, scanner *bufio.Scanner, lineNum *int
 // parseOption parses an option line.
 func (tc *testCase) parseOption(rest string) error {
 	opt := Option{
-		Values: make(map[string]string),
+		Declaration: rest,
+		Values:      make(map[string]string),
 	}
 
 	// First segment is the type

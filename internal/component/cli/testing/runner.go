@@ -97,6 +97,19 @@ func ContentBudget(content string, headroom int) (time.Duration, error) {
 	return testBudget(tc, headroom)
 }
 
+// ContentOptions validates the whole snapshot and its effective timeout before
+// discovery admits it. Embedded file contents are not option declarations.
+func ContentOptions(content string, headroom int) ([]Option, error) {
+	tc, err := parseETFile(content)
+	if err != nil {
+		return nil, fmt.Errorf("parse error: %w", err)
+	}
+	if _, err := testBudget(tc, headroom); err != nil {
+		return nil, err
+	}
+	return tc.Options, nil
+}
+
 // testBudget answers how long tc may run: its declared option=timeout, or
 // defaultTestTimeout when it declares none, multiplied by headroom. A timeout
 // that does not parse is an error, never the default, so a typo cannot hand

@@ -80,3 +80,17 @@ func TestRepoRunnerPreflightChecksOnlyAHostCI(t *testing.T) {
 		})
 	}
 }
+
+// TestRepoRunnerPreflightPropagatesProbeFailure refuses before any host check
+// when the shared parser cannot decide whether a declared capability is held.
+func TestRepoRunnerPreflightPropagatesProbeFailure(t *testing.T) {
+	uncertain := errors.New("capability probe: cannot read /proc/self/status")
+	runner := &repoRunner{
+		tree:       t.TempDir(),
+		needsGuest: func(string) (bool, error) { return false, uncertain },
+		hostReady:  func() error { t.Error("unknown capability reached host preflight"); return nil },
+	}
+	if err := runner.preflight([]string{"test/plugin/uncertain.ci"}); !errors.Is(err, uncertain) {
+		t.Fatalf("probe failure lost: %v", err)
+	}
+}

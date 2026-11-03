@@ -885,6 +885,17 @@ the Docker DUT matrix uses the native Go runner: `./le perf run`.
 
 ### Privileged kernel-state tests under QEMU (`option=needs-linux`)
 
+Editor `.et` tests also accept `option=needs-linux[:caps=<tokens>]` and
+`option=exclusive:group=<name>` through the shared resource parser. An unavailable
+capability skips the case before editor startup. Malformed declarations and
+invalid or overflowing timeouts fail discovery. If capability probing fails,
+admission reports the probe cause as a failure rather than guessing presence or
+absence. The editor runner does not
+select a guest or grant capabilities automatically. Its exclusive lease remains
+held until the owned child is reaped and case cleanup finishes.
+<!-- source: internal/test/cli/cmd_editor.go -- discoverEditorTests, runEditorTests -->
+<!-- source: internal/test/runner/record_parse_option.go -- ParseResourceOption -->
+
 `.ci` tests tagged `option=needs-linux` skip on non-Linux hosts and unprivileged
 Linux, then run as root inside `./le test qemu all`. CAP_NET_ADMIN and real
 interfaces are available in that guest. `TestCapabilityGatedTestsHaveANativeVMHome`

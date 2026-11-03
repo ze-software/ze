@@ -357,6 +357,20 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 			outcome := result{test: t}
 			defer func() { results <- outcome }()
 
+			// A malformed file's skip marker is not trustworthy. Both verdicts
+			// precede resource acquisition: a skipped or broken case must not
+			// wait for a group it will never use.
+			if t.Record.ParseFailed {
+				t.Record.SetState(StateFail)
+				outcome.err = t.Record.Error
+				return
+			}
+			if t.Record.SkipReason != "" {
+				t.Record.SetState(StateSkip)
+				outcome.passed = true
+				return
+			}
+
 			// Take the group lock BEFORE the concurrency semaphore. Reversing these
 			// would let members of one group occupy every semaphore slot while
 			// blocked on each other, starving unrelated tests -- with a group of 8
@@ -397,43 +411,6 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 				t.Record.Error = err
 				t.Record.SetState(StateFail)
 				outcome.err = err
-				return
-			}
-
-			// UNPARSEABLE OUTRANKS SKIPPED, and the reason is not that failing is
-			// more important -- it is that a broken file's skip marker is not
-			// trustworthy evidence.
-			//
-			// SkipReason is produced by parsing the very file that failed to
-			// parse: `option=needs-linux` may have been read from line 2 while
-			// line 7 was garbage. We cannot know the marker set is complete or
-			// correct -- a contradicting directive may sit after the break, or the
-			// marker itself may be what was mis-parsed. Honoring it means
-			// trusting the broken file's own claim that it need not run, which is
-			// the fail-open shape (ai/rules/evidence.md).
-			//
-			// The consequences are asymmetric too. A wrongly-SKIPPED malformed
-			// file is invisible forever -- that is exactly how the test/ui suite
-			// rotted, and 158 .ci files carry needs-linux/skip-os (12 of them in
-			// test/ui), so they never run on a darwin host and nothing would ever
-			// say so. A wrongly-FAILED skip-marked file is loud and costs one
-			// commit to fix. Fail toward the loud outcome.
-			//
-			// This is the guard's real entry point: Runner.runTest and
-			// parsingRunner.runTest are reached through t.Run below, so a
-			// short-circuit here bypasses their own ParseFailed checks entirely.
-			if t.Record.ParseFailed {
-				t.Record.SetState(StateFail)
-				outcome.err = t.Record.Error
-				return
-			}
-
-			// option=skip-os matches the current GOOS: mark skip without
-			// running. Keeps the signal meaningful (feature is stubbed on
-			// this OS, not "it regressed") -- see rules/os-specific-tests.md.
-			if t.Record.SkipReason != "" {
-				t.Record.SetState(StateSkip)
-				outcome.passed = true
 				return
 			}
 

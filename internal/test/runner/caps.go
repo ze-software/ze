@@ -5,6 +5,7 @@ package runner
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -168,7 +169,8 @@ func capsAccepted() string {
 }
 
 // hasCaps reports whether this process holds every capability the named tokens
-// require. It is a package var, not a direct call, so a test can drive BOTH
+// require. An error reports an unknown set and MUST fail admission.
+// It is a package var, not a direct call, so a test can drive BOTH
 // polarities of the gate on any host: asserting only the host's real answer
 // makes the test vacuous in exactly the environment where the suite runs for
 // real (the QEMU VM, where the capabilities are present and the "skips without
@@ -180,13 +182,17 @@ func capsAccepted() string {
 // production (only probeCaps's result is read), and it mirrors interfaceByName
 // in internal/component/ike/engine/doctor.go and in
 // internal/component/doctor/checks_listener.go.
-var hasCaps = func(tokens []string) bool {
+var hasCaps = func(tokens []string) (bool, error) {
 	n := 0
 	for _, t := range tokens {
-		n += len(capsRequired[t])
+		required, ok := capsRequired[t]
+		if !ok {
+			return false, fmt.Errorf("unknown capability token %q (supported: %s)", t, capsAccepted())
+		}
+		n += len(required)
 	}
 	if n == 0 {
-		return true
+		return true, nil
 	}
 	bits := make([]int, 0, n)
 	for _, t := range tokens {
@@ -242,6 +248,7 @@ func applyNetnsLinkGate(r *Record) {
 // capability. Such a test's home is the QEMU guest (`le test qemu all`),
 // and the answer is this parser's own skip decision, so a caller routing the
 // test there never restates the gate.
+// A probe failure returns an error, not a placement decision.
 func NeedsGuest(path string) (bool, error) {
 	record, err := NewEncodingTests(filepath.Dir(path)).parseAndAdd(path)
 	if err != nil {

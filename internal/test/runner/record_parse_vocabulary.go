@@ -116,10 +116,10 @@ var (
 		"asn":             {keys: []string{keyValue}, parse: parseOptionAsn},
 		"bind":            {keys: []string{keyValue}, parse: parseOptionBind},
 		"env":             {keys: []string{keyVar, keyValue}, parse: parseOptionEnv},
-		"exclusive":       {keys: []string{keyGroup}, parse: parseOptionExclusive},
+		"exclusive":       {keys: []string{keyGroup}, parse: parseOptionExclusive, resource: true},
 		directiveTypeFile: {keys: []string{"path"}, parse: parseOptionFile},
 		"needs-arch":      {keys: []string{keyValue}, parse: parseOptionNeedsArch},
-		"needs-linux":     {keys: []string{"caps"}, parse: parseOptionNeedsLinux},
+		"needs-linux":     {keys: []string{"caps"}, parse: parseOptionNeedsLinux, resource: true},
 		"needs-path":      {keys: []string{keyValue, "hint"}, parse: parseOptionNeedsPath},
 		"netns-link":      {keys: []string{"name", keyPeer, "address", "vlan"}, parse: parseOptionNetnsLink},
 		directiveTypeOpen: {keys: []string{keyValue}, parse: parseOptionOpen},
@@ -152,8 +152,9 @@ var (
 // The parser takes the .ci path because option=file and option=needs-path
 // resolve a path against it.
 type optionArm struct {
-	keys  []string
-	parse func(r *Record, ciFile string, kv map[string]string) error
+	resource bool // Shared resource admission, also consumed by non-.ci adapters.
+	keys     []string
+	parse    func(r *Record, ciFile string, kv map[string]string) error
 }
 
 // kvArm is one type of a key=value directive family that needs no path.
