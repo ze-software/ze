@@ -20,5 +20,17 @@
     "producer": "internal/component/bgp/plugins/filter_modify/config.go::parseModifyDef",
     "producer-sha": "f391c1649a04ab54",
     "break": "body of parseModifyDef replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.4-4",
+    "polarity": "positive",
+    "unit": "internal/le/interoplab/bgp/check_rfc.go::checkMEDRemovalConfiguration",
+    "unit-sha": "cc842f9cdee4d6b8",
+    "claim-sha": "5edcb268cfbfba51",
+    "route": "mutant",
+    "producer": "internal/component/bgp/policychain/external_attributes.go::removeMED",
+    "producer-sha": "08945e07d34aba52",
+    "break": "line 51: \"sets.RemoveMED()\" -\u003e \"_ = sets\"",
+    "citation": "6"
   }
 ]
