@@ -40,11 +40,12 @@ func flowFramingChain(t *testing.T) *policychain.Chain {
 // FlowSpec rule's destination through the framing the session negotiated:
 // the ADD-PATH path identifier ahead of each rule, the two-octet rule length,
 // the route distinguisher of flow-vpn, the IPv6 offset octet, and a
-// destination cut short by its rule length.
+// destination cut short by its rule length, and a rule whose length runs past
+// the end of the attribute.
 //
-// Method: each case is one UPDATE whose MP_REACH_NLRI carries one rule behind
-// path identifier 0xf0ffffff, received on a context that negotiated ADD-PATH
-// for the rule's family, run through a compiled chain. An accepted rule drops
+// Method: each case is one UPDATE whose MP_REACH_NLRI carries one rule, behind
+// path identifier 0xf0ffffff when the case negotiated ADD-PATH for the rule's
+// family and bare otherwise, run through a compiled chain. An accepted rule drops
 // nothing from MP_REACH_NLRI; a destination that is refused, or that does not
 // read as a prefix (an IPv6 offset other than zero, a truncated pattern),
 // rejects the whole UPDATE.
@@ -55,27 +56,35 @@ func TestPrefixPolicyFlowSpecFraming(t *testing.T) {
 	ipv6Flow := family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}
 	chain := flowFramingChain(t)
 	for _, tc := range []struct {
-		name string
-		fam  family.Family
-		rule []byte
-		want policychain.OutcomeAction
+		name    string
+		fam     family.Family
+		addPath bool
+		rule    []byte
+		want    policychain.OutcomeAction
 	}{
-		{"ipv4 10.1.0.0/24", ipv4Flow, []byte{5, 1, 24, 10, 1, 0}, policychain.OutcomeAccept},
-		{"ipv4 192.0.2.0/24", ipv4Flow, []byte{5, 1, 24, 192, 0, 2}, policychain.OutcomeReject},
+		{"ipv4 10.1.0.0/24", ipv4Flow, true, []byte{5, 1, 24, 10, 1, 0}, policychain.OutcomeAccept},
+		{"ipv4 192.0.2.0/24", ipv4Flow, true, []byte{5, 1, 24, 192, 0, 2}, policychain.OutcomeReject},
 		// RFC 8955 Section 4.1: a length of 240 or more takes two octets, 0xfnnn.
-		{"ipv4 two-octet length", ipv4Flow, []byte{0xf0, 5, 1, 24, 10, 1, 0}, policychain.OutcomeAccept},
-		{"vpn4 10.1.0.0/24", vpn4Flow, []byte{13, 0, 0, 0xfd, 0xe9, 0, 0, 0, 1, 1, 24, 10, 1, 0}, policychain.OutcomeAccept},
-		{"ipv6 2001:db8::/32", ipv6Flow, []byte{7, 1, 32, 0, 0x20, 1, 0x0d, 0xb8}, policychain.OutcomeAccept},
+		{"ipv4 two-octet length", ipv4Flow, true, []byte{0xf0, 5, 1, 24, 10, 1, 0}, policychain.OutcomeAccept},
+		{"vpn4 10.1.0.0/24", vpn4Flow, true, []byte{13, 0, 0, 0xfd, 0xe9, 0, 0, 0, 1, 1, 24, 10, 1, 0}, policychain.OutcomeAccept},
+		{"ipv6 2001:db8::/32", ipv6Flow, true, []byte{7, 1, 32, 0, 0x20, 1, 0x0d, 0xb8}, policychain.OutcomeAccept},
 		// An offset of 16 then four pattern octets: read past the offset as a
 		// /32, these would be an IPv6 prefix the list accepts.
-		{"ipv6 offset", ipv6Flow, []byte{7, 1, 32, 16, 0x20, 1, 0x0d, 0xb8}, policychain.OutcomeReject},
-		{"ipv4 truncated destination", ipv4Flow, []byte{4, 1, 24, 10, 1}, policychain.OutcomeReject},
+		{"ipv6 offset", ipv6Flow, true, []byte{7, 1, 32, 16, 0x20, 1, 0x0d, 0xb8}, policychain.OutcomeReject},
+		{"ipv4 truncated destination", ipv4Flow, true, []byte{4, 1, 24, 10, 1}, policychain.OutcomeReject},
+		// A rule length of 5 with three octets behind it, and no ADD-PATH: the
+		// rule runs past the end of MP_REACH_NLRI, so it never frames and its
+		// octets are never read as a destination prefix.
+		{"ipv4 rule past the attribute end", ipv4Flow, false, []byte{5, 1, 24, 10}, policychain.OutcomeReject},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{tc.fam: true})
+			ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{tc.fam: tc.addPath})
 			ctxID, err := bgpctx.Registry.Register(ctx)
 			require.NoError(t, err)
-			framed := binary.BigEndian.AppendUint32(nil, 0xf0ffffff)
+			var framed []byte
+			if tc.addPath {
+				framed = binary.BigEndian.AppendUint32(framed, 0xf0ffffff)
+			}
 			framed = append(framed, tc.rule...)
 			attrs := mpReach(uint16(tc.fam.AFI), uint8(tc.fam.SAFI), nil, framed)
 			payload := binary.BigEndian.AppendUint16(nil, 0)
