@@ -49,12 +49,7 @@ func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capabilit
 		if err != nil {
 			return nil, s.rejectOpenCapabilityError(err)
 		}
-		for _, entry := range caps {
-			if asn4, ok := entry.(*capability.ASN4); ok {
-				advertised = asn4.ASN
-				break
-			}
-		}
+		advertised = openPeerAS(open.MyAS, caps, !s.settings.DisableASN4)
 	}
 	if advertised == 0 {
 		s.rejectOpenPeerAS()
@@ -88,6 +83,38 @@ func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capabilit
 		"effect", "the connection is aborted with NOTIFICATION 2/2 Bad Peer AS")
 
 	return nil, fmt.Errorf("%w: advertised %d", ErrPeerASMismatch, advertised)
+}
+
+// openPeerAS returns the AS a received OPEN names for this session.
+//
+// RFC 6793 Section 4.1: "When a NEW BGP speaker processes an OPEN message from another
+// NEW BGP speaker, it MUST use the AS number encoded in the Capability Value field of the
+// "support for four-octet AS number capability" in lieu of the "My Autonomous System"
+// field of the OPEN message."
+//
+// The obligation binds only when BOTH ends are NEW toward each other, and the same
+// section says how a speaker is NEW toward a peer: "A BGP speaker that supports
+// four-octet AS numbers SHALL advertise this to its peers using BGP Capabilities
+// Advertisements." localASN4 is that advertisement. A session configured with
+// `capability { asn4 disable; }` (or refuse) never offers the capability, so toward
+// that peer ze is an OLD BGP speaker (Section 3): the session is two-octet, and the peer
+// AS is the "My Autonomous System" field, AS_TRANS for a peer with no two-octet AS
+// (Section 4.2.1). Reading the capability there judged the peer by a value the session
+// never negotiated, and refused a peer configured as remote 23456 with Bad Peer AS.
+// ExaBGP reads the capability under the same condition (Negotiated.received,
+// `if self.asn4:`, where asn4 is sent AND received).
+//
+// A capability AS of zero is returned as zero, so the RFC 7607 zero check above sees it.
+func openPeerAS(myAS uint16, caps []capability.Capability, localASN4 bool) uint32 {
+	if !localASN4 {
+		return uint32(myAS)
+	}
+	for _, entry := range caps {
+		if asn4, ok := entry.(*capability.ASN4); ok {
+			return asn4.ASN
+		}
+	}
+	return uint32(myAS)
 }
 
 // rejectOpenPeerAS reports OPEN Message Error / Bad Peer AS to the peer and tears the

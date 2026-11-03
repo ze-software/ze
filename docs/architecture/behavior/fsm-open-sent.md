@@ -95,8 +95,12 @@ In order:
    Section 6.2. Failure sends the NOTIFICATION embedded in the error and
    fires `EventBGPOpenMsgErr`.
 4. `validateOpenPeerAS` (`session_open_as.go`) parses the capabilities and
-   judges the advertised AS, the ASN4 capability's value when present.
-   AS 0 (RFC 7607 Section 2) and an AS `PeerSettings.peerASAccepted`
+   judges the advertised AS. `openPeerAS` picks the field: the ASN4
+   capability's value when present AND the session advertises the capability
+   itself, else My Autonomous System. RFC 6793 Section 4.1 puts the capability
+   "in lieu of" My AS only between two NEW speakers, so a session with
+   `capability { asn4 disable; }` (or `refuse`) is an OLD speaker toward its
+   peer and judges a four-octet peer by AS_TRANS (23456). AS 0 (RFC 7607 Section 2) and an AS `PeerSettings.peerASAccepted`
    (`session_as_migration.go`) refuses both send NOTIFICATION 2/2 Bad Peer AS,
    fire `EventBGPOpenMsgErr`, close the connection and count the refusal in
    `ze_bgp_open_rejected_bad_peer_as_total`. `peerASAccepted` accepts the

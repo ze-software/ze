@@ -77,7 +77,7 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	// that field, so the identity carried PeerASN 0 on every established session, and every
 	// reader of the encoding context's IsIBGP -- the commit rail's LOCAL_PREF and AS_PATH
 	// decisions among them (rib/commit.go) -- took the eBGP arm for a genuine iBGP peer.
-	peerAS := sessionPeerAS(s.settings.PeerAS, s.peerOpen)
+	peerAS := sessionPeerAS(s.settings.PeerAS, !s.settings.DisableASN4, s.peerOpen)
 	negotiated := capability.Negotiate(localCaps, peerCaps, capability.PeerIdentity{
 		LocalASN: s.settings.LocalAS,
 		PeerASN:  peerAS,

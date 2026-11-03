@@ -1592,7 +1592,11 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 // Reads PeerAS through the p.mu-guarded accessor because resolveDynamicPeerSettings writes it
 // from the establishment goroutine.
 func (p *Peer) claimPeerAS(remote *message.Open) uint32 {
-	return sessionPeerAS(p.PeerAS(), remote)
+	p.mu.RLock()
+	configured, localASN4 := p.settings.PeerAS, !p.settings.DisableASN4
+	p.mu.RUnlock()
+
+	return sessionPeerAS(configured, localASN4, remote)
 }
 
 // sessionPeerAS returns the AS a session's peer is judged by: the CONFIGURED remote AS when
@@ -1611,18 +1615,24 @@ func (p *Peer) claimPeerAS(remote *message.Open) uint32 {
 // establishment, strictly after every caller above, so the OPEN is the only source there.
 // validateOpenPeerAS has already refused an OPEN whose advertised AS is not one this session
 // accepts (session_open_as.go), so the fallback widens nothing the peer can claim.
-func sessionPeerAS(configured uint32, remote *message.Open) uint32 {
+//
+// localASN4 says whether this session advertises the Four-octet AS capability. It decides
+// which OPEN field names the peer (openPeerAS, session_open_as.go), so the fallback reads
+// the same AS validateOpenPeerAS judged.
+func sessionPeerAS(configured uint32, localASN4 bool, remote *message.Open) uint32 {
 	if configured != 0 {
 		return configured
 	}
 	if remote == nil {
 		return 0
 	}
-	return openAdvertisedAS(remote)
+	return openAdvertisedAS(remote, localASN4)
 }
 
 // openAdvertisedAS returns the AS a peer advertises in its OPEN, per RFC 6793:
-// the 4-byte ASN from the AS4 capability when present, else the two-octet My AS.
+// the 4-byte ASN from the AS4 capability when present and this session advertises
+// the capability too (localASN4, openPeerAS in session_open_as.go), else the
+// two-octet My AS.
 //
 // It parses the capability out of OptionalParams rather than reading
 // message.Open.ASN4, which is NEVER set on a received OPEN -- UnpackOpen does not
@@ -1639,14 +1649,16 @@ func sessionPeerAS(configured uint32, remote *message.Open) uint32 {
 // negotiation, where a malformed capability gets its own OPEN error with the
 // right subcode (rejectOpenCapabilityError). Falling back to My AS here keeps
 // that the single place a capability problem is reported.
-func openAdvertisedAS(remote *message.Open) uint32 {
+//
+// A capability AS of zero falls back to My AS: validateOpenPeerAS refuses that OPEN on
+// both rails (RFC 7607 Section 2), and this answer must not be the zero sentinel.
+func openAdvertisedAS(remote *message.Open, localASN4 bool) uint32 {
 	caps, err := capability.ParseFromOptionalParams(remote.OptionalParams, remote.ExtendedParams)
-	if err == nil {
-		for _, c := range caps {
-			if as4, ok := c.(*capability.ASN4); ok && as4.ASN > 0 {
-				return as4.ASN
-			}
-		}
+	if err != nil {
+		return uint32(remote.MyAS)
+	}
+	if advertised := openPeerAS(remote.MyAS, caps, localASN4); advertised != 0 {
+		return advertised
 	}
 	return uint32(remote.MyAS)
 }

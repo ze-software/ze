@@ -688,18 +688,18 @@ func TestOpenAdvertisedASReadsAS4Capability(t *testing.T) {
 	withAS4 := &message.Open{Version: 4, MyAS: message.AS_TRANS, HoldTime: 90, BGPIdentifier: 0x01020304}
 	withAS4.OptionalParams, withAS4.ExtendedParams = packPeerOptionalParams(t, []capability.Capability{&capability.ASN4{ASN: as4}})
 
-	assert.Equal(t, as4, openAdvertisedAS(withAS4),
+	assert.Equal(t, as4, openAdvertisedAS(withAS4, true),
 		"a 4-byte-AS peer must be identified by its AS4 capability, not AS_TRANS")
 
 	// A two-octet speaker advertises no AS4 capability; My AS is the answer.
 	plain := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020304}
-	assert.Equal(t, uint32(65001), openAdvertisedAS(plain),
+	assert.Equal(t, uint32(65001), openAdvertisedAS(plain, true),
 		"a two-octet peer is identified by My AS")
 
 	// Malformed optional params must not panic or fabricate an AS: fall back to
 	// My AS and let capability negotiation report the error with its own subcode.
 	malformed := &message.Open{Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020304}
 	malformed.OptionalParams = []byte{0xff, 0xff, 0xff}
-	assert.Equal(t, uint32(65002), openAdvertisedAS(malformed),
+	assert.Equal(t, uint32(65002), openAdvertisedAS(malformed, true),
 		"a capability parse error must fall back to My AS, not fabricate one")
 }

@@ -1138,7 +1138,7 @@ func (s *Session) collisionPeerAS() uint32 {
 	open := s.peerOpen
 	s.mu.RUnlock()
 
-	return sessionPeerAS(s.settings.PeerAS, open)
+	return sessionPeerAS(s.settings.PeerAS, !s.settings.DisableASN4, open)
 }
 
 // Start triggers the ManualStart event to begin the connection process.

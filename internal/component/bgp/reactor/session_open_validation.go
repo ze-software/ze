@@ -41,7 +41,7 @@ import (
 // Both OPEN rails (handleOpen and processOpen) call this; on rejection it sends the NOTIFICATION,
 // logs the FSM error event, and closes the connection, so no caller can skip the mandated report.
 func (s *Session) validateOpenIdentifier(open *message.Open) error {
-	peerAS := sessionPeerAS(s.settings.PeerAS, open)
+	peerAS := sessionPeerAS(s.settings.PeerAS, !s.settings.DisableASN4, open)
 	internal := s.settings.isIBGPWith(peerAS)
 	err := open.ValidateBGPIdentifier(s.settings.RouterID, internal)
 	if err == nil {

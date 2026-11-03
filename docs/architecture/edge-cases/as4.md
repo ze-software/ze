@@ -49,6 +49,16 @@ else:
     open_asn = local_as
 ```
 
+On receipt, the peer's AS is the ASN4 capability's value only when Ze advertises
+the capability on that session too. RFC 6793 Section 4.1 uses the capability "in
+lieu of" My AS when "a NEW BGP speaker processes an OPEN message from another NEW
+BGP speaker". A peer with `capability { asn4 disable; }` makes Ze an OLD speaker
+toward it, so a four-octet peer is judged by its My AS, AS_TRANS, and the peer is
+configured `remote 23456`. ExaBGP reads the capability under the same condition.
+BIRD and FRR read it whenever the peer sends it, so a BIRD peer with
+`enable as4 off` must name the peer's four-octet AS instead.
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS, openPeerAS -->
+
 ---
 
 ## AS_PATH Encoding
