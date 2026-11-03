@@ -187,6 +187,50 @@ func TestRoleFilterUnknownNameFails(t *testing.T) {
 	require.ErrorIs(t, err, errNoSuchRoleFilter)
 }
 
+// TestRoleFiltersPassConformance proves bgp-role's one evaluator honors the
+// fast-path contract (sdk.CheckFilterConformance) for every filter it serves:
+// the OTC ingress and egress procedures and the upstream-asn check each answer
+// the same twice, the same after the views they read are poisoned, the same
+// through the forked transport as through the fast path, and the same
+// concurrently as sequentially, which -race judges. Method: routes covering
+// each verdict of each filter (withdraw, modify, reject, accept), with the
+// role and upstream state the evaluator snapshots installed first.
+func TestRoleFiltersPassConformance(t *testing.T) {
+	clearFilterState(t)
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleProvider}, // the peer is our customer
+		"10.0.0.2": {role: roleCustomer}, // the peer is our provider
+		"10.0.0.3": {role: rolePeer},
+	}, map[string]string{"cust": "10.0.0.1", "prov": "10.0.0.2", "peer": "10.0.0.3"})
+	t.Cleanup(func() { upstreamASNs.Store(nil) })
+	installUpstreamSet(upstreamSet{64500})
+
+	nlri := []byte{24, 10, 1, 0}
+	plain := buildTestPayload(buildTestAttrs(0), nlri)
+	marked := buildTestPayload(buildTestAttrs(65009), nlri)
+	malformed := buildTestPayload(append(buildTestAttrs(0), 0xC0, otcAttrCode, 3, 0, 0, 1), nlri)
+	route := func(filter string, payload []byte, fields string) sdk.ConformanceRoute {
+		return sdk.ConformanceRoute{Input: rpc.FilterUpdateInput{Filter: filter, Raw: payload, Fields: []byte(fields)}}
+	}
+	upstream := func(peerAS uint32, fields string) sdk.ConformanceRoute {
+		return sdk.ConformanceRoute{Input: rpc.FilterUpdateInput{Filter: upstreamFilterName, PeerAS: peerAS, Fields: []byte(fields)}}
+	}
+	routes := []sdk.ConformanceRoute{
+		route(otcIngressFilterName, marked, `{"peer-name":"cust","peer-address":"10.0.0.1","peer-as":65001}`),
+		route(otcIngressFilterName, malformed, `{"peer-name":"prov","peer-address":"10.0.0.2","peer-as":65002}`),
+		route(otcIngressFilterName, plain, `{"peer-name":"prov","peer-address":"10.0.0.2","peer-as":65002}`),
+		route(otcEgressFilterName, plain, `{"peer-name":"cust","peer-address":"10.0.0.1","local-as":64512}`),
+		route(otcEgressFilterName, marked, `{"peer-name":"prov","peer-address":"10.0.0.2","local-as":64512}`),
+		route(otcEgressFilterName, plain, `{"src-role":"customer","peer-name":"peer","peer-address":"10.0.0.3",`+
+			`"local-as":64512,"source-peer-name":"prov","source-peer-address":"10.0.0.2"}`),
+		upstream(64600, `{"as-path":[64600,64500,65000]}`),
+		upstream(64600, `{"as-path":[64600,65000]}`),
+	}
+	if !sdk.CheckFilterConformance(t, rolePluginName, evaluateRoleFilter, routes) {
+		t.Fatal("the role evaluator breaks the fast-path contract")
+	}
+}
+
 func itoa(n uint32) string {
 	var b [10]byte
 	i := len(b)
