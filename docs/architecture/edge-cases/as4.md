@@ -209,6 +209,15 @@ describes the wire, so it is carried by a `WireUpdate` relabeled with
 `fwdContextIDWithASN4(recvCtxID, true)`
 (`docs/architecture/encoding-context.md`).
 
+An UPDATE that RFC 7606 treats as withdrawn never reaches the collapse: ingest
+synthesizes its withdrawals instead. A withdrawal holds no AS number, so it is
+already in the four-octet form, and it carries the same relabeled context. An
+export member that reads `as-path` refuses a two-octet context, so without the
+relabel every treat-as-withdraw from a two-octet peer left the route-server fast
+path for the plugin rail.
+<!-- source: internal/component/bgp/reactor/session_read.go -- processValidatedMessage -->
+<!-- source: internal/component/bgp/policyview/readers.go -- requireFourOctet -->
+
 The bytes an observer records are NOT the reconciled ones. `processMessage`
 hands `onMessageReceived` the socket's own body beside the reconciled
 `WireUpdate`, so an MRT archive and a pcap keep recording what the peer sent.
