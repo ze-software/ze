@@ -44,7 +44,6 @@ const (
 	policyAttrExtendedCommunityRemove = "extended-community-remove"
 	policyAttrMEDRemove               = "med-remove"
 	policyAttrASPathPrepend           = "as-path-prepend"
-	policyAttrRemovePrivate           = "remove-private"
 	policyAttrNLRI                    = "nlri"
 	// policyAttrMP opens an NLRI block rendered from MP_REACH_NLRI or
 	// MP_UNREACH_NLRI ("mp <family> add|del"). It is a second name of the one
