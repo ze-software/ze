@@ -109,10 +109,16 @@ func forkedMetricSeries(ctx context.Context, p *sdk.Plugin) ([]string, error) {
 		return nil, fmt.Errorf("show metrics name %s: series is %T, want a list", forkedMetricName, data["series"])
 	}
 	series := make([]string, 0, len(raw))
+	// Each item is one exposition line, {"line": "<name>{labels} <value>"}
+	// (filterMetricLines, internal/component/cmd/show/show.go).
 	for _, item := range raw {
-		line, isText := item.(string)
+		entry, isObject := item.(map[string]any)
+		if !isObject {
+			return nil, fmt.Errorf("show metrics name %s: series item is %T, want an object", forkedMetricName, item)
+		}
+		line, isText := entry["line"].(string)
 		if !isText {
-			return nil, fmt.Errorf("show metrics name %s: series item is %T, want text", forkedMetricName, item)
+			return nil, fmt.Errorf("show metrics name %s: series item %v has no line", forkedMetricName, entry)
 		}
 		series = append(series, line)
 	}
