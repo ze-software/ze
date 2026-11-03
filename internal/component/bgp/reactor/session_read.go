@@ -336,6 +336,12 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			// session-reset: error propagated, no dispatch
 			return err, false
 		}
+		// A withdrawal holds no AS number, so a withdraw-only body is already in the
+		// four-octet form the AS4 collapse gives every other UPDATE leaving ingest, and
+		// it carries that form's context, which keeps the NLRI framing for ADD-PATH: an
+		// export member reading as-path refuses a two-octet one
+		// (docs/architecture/edge-cases/as4.md, "Where it runs").
+		withdrawCtxID := fwdContextIDWithASN4(wireUpdate.SourceCtxID(), true)
 		for _, extra := range validation.typedWithdrawBodies {
 			if s.onMessageReceived == nil {
 				break
@@ -349,7 +355,7 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			if len(s.pathsLimitRecv) != 0 {
 				s.receiveCeilingWithdrawals(extra)
 			}
-			extraWU := wireu.NewWireUpdate(extra, wireUpdate.SourceCtxID())
+			extraWU := wireu.NewWireUpdate(extra, withdrawCtxID)
 			extraWU.SetSourceID(wireUpdate.SourceID())
 			s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, extra, extraWU, ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "", 0)
 		}
@@ -422,11 +428,8 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			}
 			// The primary body rides the unchanged normal dispatch path below (sourceID and
 			// the context's NLRI framing preserved so ADD-PATH decoding in the RIB is
-			// unaffected, D-6). A withdrawal holds no AS number, so it is already in the
-			// four-octet form the AS4 collapse gives every other UPDATE leaving ingest, and
-			// it carries that form's context: an export member reading as-path refuses a
-			// two-octet one (docs/architecture/edge-cases/as4.md, "Where it runs").
-			withdrawCtxID := fwdContextIDWithASN4(wireUpdate.SourceCtxID(), true)
+			// unaffected, D-6). Like the typed NLRI withdrawals above, it carries the
+			// four-octet context withdrawCtxID: a withdrawal holds no AS number.
 			primary := wireu.NewWireUpdate(bodies[0], withdrawCtxID)
 			primary.SetSourceID(wireUpdate.SourceID())
 			// Each further MP family rides its own withdraw-only UPDATE. It carries a
