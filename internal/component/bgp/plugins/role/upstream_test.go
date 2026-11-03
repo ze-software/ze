@@ -63,6 +63,34 @@ func TestUpstreamSetDerivedFromRoles(t *testing.T) {
 	}
 }
 
+// TestUpstreamSetReadsEveryASNotation proves the set reads a remote ASN and
+// an asn-set member in the RFC 5396 asdot form the config accepts, as
+// asn.Parse reads it everywhere else: 1.10 is 65546, 0.64700 is 64700.
+func TestUpstreamSetReadsEveryASNotation(t *testing.T) {
+	bgp := map[string]any{
+		"peer": map[string]any{
+			"transit-a": map[string]any{
+				"role":    map[string]any{"import": "customer"},
+				"session": map[string]any{"asn": map[string]any{"remote": "1.10"}},
+			},
+			"cust": map[string]any{
+				"role":    map[string]any{"import": "provider", "transit-asns": "far"},
+				"session": map[string]any{"asn": map[string]any{"remote": "64600"}},
+			},
+		},
+	}
+	policyRoot := map[string]any{"asn-set": map[string]any{"far": map[string]any{"asn": []any{"0.64700"}}}}
+
+	set, err := deriveUpstreamSet(bgp, policyRoot)
+	if err != nil {
+		t.Fatalf("derive: %v", err)
+	}
+	want := upstreamSet{64700, 65546}
+	if !slices.Equal(set, want) {
+		t.Fatalf("set = %v, want %v", set, want)
+	}
+}
+
 // TestUpstreamSetEmptyWithoutProviders proves a config with no provider
 // session and no transit-asns derives an empty set, which compares nothing.
 func TestUpstreamSetEmptyWithoutProviders(t *testing.T) {

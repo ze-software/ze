@@ -9,7 +9,7 @@
 | Scope | complete |
 | Level | experimental |
 | Components | internal/component/bgp/plugins/rib, internal/component/bgp/plugins/filter_community |
-| Real-path tests | test/plugin/bgp-blackhole-honor.ci, test/plugin/community-blackhole-noexport.ci, test/plugin/fib-blackhole.ci, test/plugin/rfc7999-blackhole-readvertise-agreement.ci, test/reload/rfc7999-blackhole-agreement-removed-by-reload.ci |
+| Real-path tests | test/plugin/bgp-blackhole-honor.ci, test/plugin/community-blackhole-noexport.ci, test/plugin/fib-blackhole.ci, test/plugin/rfc7999-blackhole-readvertise-agreement.ci, test/plugin/community-blackhole-noexport-forked.ci, test/plugin/rfc7999-blackhole-readvertise-agreement-forked.ci, test/reload/rfc7999-blackhole-agreement-removed-by-reload.ci |
 | Interop | bgp/bgp-rfc7999-blackhole-frr, bgp/bgp-rfc7999-blackhole-readvertise-frr |
 | RFCs | rfc7999 |
 | Docs | docs/guide/configuration.md |

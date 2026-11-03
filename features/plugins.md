@@ -11,7 +11,7 @@
 | Scope gaps | BMP Loc-RIB, redistribution claims scoped by readiness review |
 | Level | experimental |
 | Components | internal/component/plugin, internal/component/bgp/plugins |
-| Real-path tests | test/plugin/plugin-registration.ci, test/plugin/plugin-declarations-external.ci, test/plugin/plugin-reconnect.ci, test/plugin/plugin-watchdog.ci, test/plugin/plugin-rs-features.ci, test/plugin/plugin-rib-features.ci, test/plugin/plugin-gr-features.ci |
+| Real-path tests | test/plugin/plugin-registration.ci, test/plugin/plugin-declarations-external.ci, test/plugin/plugin-reconnect.ci, test/plugin/plugin-watchdog.ci, test/plugin/plugin-rs-features.ci, test/plugin/plugin-rib-features.ci, test/plugin/plugin-gr-features.ci, test/plugin/role-otc-ingress-reject-forked.ci, test/plugin/community-tag-forked.ci, test/plugin/llgr-stale-received-depreferenced-forked.ci, test/plugin/addpath-departure-rr-gr-retained-forked.ci, test/plugin/bgp-rs-withdrawal-replacement-gr-forked.ci, test/plugin/bgp-rs-opaque-transparency-forked.ci, test/plugin/stage-filter-forked.ci |
 | Docs | docs/features/plugins.md |
 | Doc review | 2026-10-08: features/plugins.md 2026-10-08 edit removes bgp-persist and makes bgp-rib mandatory; auto-loaded RIB still gated by attach grants (PeerScopedProcs in delivery_graph.go returns nobody for an ungranted peer), so a peer that attaches nothing feeds nothing; persist was never named here |
 | Defect review | 2026-10-07: open: plan/release/fixes/spec-plugin-alias-reaches-the-client.md, spec-plugin-declaration-names-a-path-it-serves.md, spec-plugin-runner-inertness.md |

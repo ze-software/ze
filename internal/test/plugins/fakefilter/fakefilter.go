@@ -315,21 +315,21 @@ func FilterInsertions(process string) []rpc.FilterInsertion {
 	return []rpc.FilterInsertion{insertion, sessionInsertion(process)}
 }
 
-// SessionPeerName answers the peer name session-judge's insertion conditions
+// sessionPeerName answers the peer name session-judge's insertion conditions
 // on, for the process ze runs under the name process: a peer of that name
 // carries <process>:session-judge in its import list, judged on its session
 // facts with no config leaf naming it.
-func SessionPeerName(process string) string { return process + "-peer" }
+func sessionPeerName(process string) string { return process + "-peer" }
 
 // sessionInsertion is the session-conditioned insertion of process: its
 // session-judge, inserted in the import list of the peer whose peer-name
-// session fact is SessionPeerName(process).
+// session fact is sessionPeerName(process).
 func sessionInsertion(process string) rpc.FilterInsertion {
 	return rpc.FilterInsertion{
 		Filter:    process + ":" + SessionFilterName,
 		Direction: rpc.FilterImport,
 		Priority:  110,
-		Session:   []rpc.FilterSessionFact{{Fact: fieldPeerName, Values: []string{SessionPeerName(process)}}},
+		Session:   []rpc.FilterSessionFact{{Fact: fieldPeerName, Values: []string{sessionPeerName(process)}}},
 	}
 }
 
@@ -357,9 +357,9 @@ func Registration(tr Trigger) *sdk.Registration {
 func Run(p *sdk.Plugin, tr Trigger, log *slog.Logger) int {
 	tr = startGeneration(tr)
 
-	signalled, cancelSignals := sdk.SignalContext()
+	signaled, cancelSignals := sdk.SignalContext()
 	defer cancelSignals()
-	ctx, stop := context.WithCancel(signalled)
+	ctx, stop := context.WithCancel(signaled)
 	defer stop()
 
 	report := func(j judgement) {

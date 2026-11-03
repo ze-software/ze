@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -185,13 +186,13 @@ func transitSetASNs(m, policyRoot map[string]any) ([]uint32, error) {
 
 // remoteASN reads session asn remote from the peer, else its group;
 // configured is false when neither sets it.
-func remoteASN(peerMap, groupMap map[string]any) (asn uint32, configured bool, err error) {
+func remoteASN(peerMap, groupMap map[string]any) (number uint32, configured bool, err error) {
 	for _, m := range []map[string]any{peerMap, groupMap} {
 		session, _ := m["session"].(map[string]any)
 		asnMap, _ := session["asn"].(map[string]any)
 		if v, present := asnMap["remote"]; present {
-			asn, err = parseASN(v)
-			return asn, err == nil, err
+			number, err = parseASN(v)
+			return number, err == nil, err
 		}
 	}
 	return 0, false, nil
@@ -205,17 +206,18 @@ func parseASNList(v any) ([]uint32, error) {
 	}
 	asns := make([]uint32, 0, len(values))
 	for _, value := range values {
-		asn, err := parseASN(value)
+		number, err := parseASN(value)
 		if err != nil {
 			return nil, err
 		}
-		asns = append(asns, asn)
+		asns = append(asns, number)
 	}
 	return asns, nil
 }
 
 // parseASN reads one ASN delivered as a string (ai/rules/config.md) or a
-// JSON number. 0 is reserved (RFC 7607) and refused.
+// JSON number, in any RFC 5396 notation the config accepts (asn.Parse).
+// 0 is reserved (RFC 7607) and refused.
 func parseASN(v any) (uint32, error) {
 	var text string
 	switch value := v.(type) {
@@ -226,14 +228,14 @@ func parseASN(v any) (uint32, error) {
 	default:
 		return 0, fmt.Errorf("ASN %v is not a number", v)
 	}
-	asn, err := strconv.ParseUint(text, 10, 32)
+	number, err := asn.Parse(text)
 	if err != nil {
-		return 0, fmt.Errorf("ASN %q is not a 32-bit number: %w", text, err)
+		return 0, fmt.Errorf("ASN %q: %w", text, err)
 	}
-	if asn == 0 {
+	if number == 0 {
 		return 0, errors.New("ASN 0 is reserved (RFC 7607)")
 	}
-	return uint32(asn), nil
+	return number, nil
 }
 
 // asnSetReference answers the asn-set names the candidate's policy root

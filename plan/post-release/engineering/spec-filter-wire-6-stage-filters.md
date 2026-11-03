@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | done |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | Child of `spec-filter-wire-0-umbrella` (post-release engineering). It also fixes shipped misbehaviour: `bgp-role` (RFC 9234 Section 5) and `bgp-filter-community` (RFC 7999 Section 3.1, RFC 8195) run forked accept every route with no error, which a release owes fixed whatever bucket the mechanism sits in |
@@ -14,7 +14,10 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker
+## Blocker (cleared)
+
+Every row below is cleared, and the third closer found no blocker left
+(2026-11-03). The section stays as the record of the two hand-backs.
 
 Handed back a second time by an independent closer on 2026-11-03 (`/ze-close`,
 deliverables step and the RFC proof check of step 6). All eight implementation
@@ -331,7 +334,7 @@ Read at HEAD 357b33c57c plus the parent session's `loop` row; the owner-decision
 | A-1 | Forked role and community accept every route unchanged today | umbrella D-13 inventory; globals read in `filter_community.go`, `role.go` | the forked twins are not red at HEAD | each forked twin observed red at HEAD before the move | confirmed: with the evaluator answering accept, as the forked daemon-side copy did, the role twins `role-otc-egress-filter-forked`, `-egress-stamp-forked` and `-rs-client-dest-stamp-forked` went red (phase 3, landed 3459b6e390) and all six community twins went red with `evaluateCommunityFilter` answering accept (phase 4, fe7d73d580 for the last) |
 | A-2 | Every state the moved evaluators read lives in the plugin process or is a reactor fact a declared read can carry | role learns roles in `OnValidateOpen`; community config from its apply; gr caps from OPEN events in the plugin | a filter needs daemon-only state | the Current Behavior table, re-read per row | confirmed: every moved evaluator runs in its plugin (`evaluateRoleFilter`, `evaluateCommunityFilter`, `evaluateGRFilter`, `evaluateRSFilter`, each installed by `p.OnFilter`) and its forked twin passes; the reactor facts cross as registered view fields (`policyview/register.go`, `llgr-advertised`, `source-llgr-advertised`) |
 | A-3 | `llgr-advertised` must stay a synchronous reactor fact | `gr_ingress.go` `llgrStaleFromSource` comment | first UPDATEs judged before the record | the declared field is read from the session on the read goroutine | confirmed: `llgr-advertised` and `source-llgr-advertised` are view fields registered in `policyview/register.go` and read by `evaluateGRFilter` (`gr/gr_filter.go`); `llgr-stale-received-depreferenced-forked.ci` and `llgr-readvertise-multipeer-forked.ci` pass forked, and the RFC9494-4.3-3 records re-taken in e33567fb2d name the external filter's `source-llgr-advertised` field |
-| A-4 | The external member answers everything once `withdraw`, metadata sets and `preserve-opaque-attributes` exist | `judgeExternal`, `applyExternalSets`; the Writes column | a filter needs a rewrite the sets cannot express | each evaluator's tests through `CheckFilterConformance` | confirmed for the shape (`withdraw`, `TestWithdrawVerdict`; metadata sets, `TestInsertedMemberMetadataSets`; the `preserve-opaque-attributes` treatment, `TestInsertedMemberTreatmentSets`); the conformance evidence is missing for `evaluateRoleFilter` (Blocker row 3) |
+| A-4 | The external member answers everything once `withdraw`, metadata sets and `preserve-opaque-attributes` exist | `judgeExternal`, `applyExternalSets`; the Writes column | a filter needs a rewrite the sets cannot express | each evaluator's tests through `CheckFilterConformance` | confirmed for the shape (`withdraw`, `TestWithdrawVerdict`; metadata sets, `TestInsertedMemberMetadataSets`; the `preserve-opaque-attributes` treatment, `TestInsertedMemberTreatmentSets`); the conformance evidence for `evaluateRoleFilter` is `TestRoleFiltersPassConformance` (35f30d85a4, Blocker row 3) |
 | A-5 | Forked plugins have no metrics export path | `metrics.md`: `ConfigureMetrics` is injected in process | forked counters already reach the registry | read `registry.InjectPluginMetrics` for the forked branch | confirmed: `registry.InjectPluginMetrics` has no forked branch, and its only caller for a plugin's `ConfigureMetrics` is the in-process spawn (`plugin/inprocess.go`), so a forked `bgp-filter-community` registers no counters (Known Limitations) |
 | A-6 | `FilterDecl.Overrides` is dead | `startup.go` copies it, no reader found | it is live and interacts with bindings | grep `Overrides` under `internal/` and `pkg/` | confirmed: no `Overrides` field or reader remains in `pkg/plugin/rpc`, `plugin/server` or `plugin/registry` (2026-11-03 grep; the only hits are `internal/le` toolchain code) |
 | A-7 | Rebuilding the step lists on plugin lifecycle and peer settings change is safe against a concurrent pass | atomic-pointer publish | a pass sees a torn list | `-race` test with a respawn and a reload during traffic | confirmed in the shape D-4 gave it: no step list is published beside the chain; a changed declaration on respawn and a reload that stops an inserting plugin rebuild the peers, serialized with transactions (`TestRestartWithAChangedDeclarationRebuildsThePeers`, `TestInsertionChangeIsSerializedWithTransactions`, `plugin/server/filter_insertion_change_test.go`) |
@@ -646,7 +649,7 @@ Q-5 is answered (main thread, 2026-11-01): reading (a) stands on the RFC 7999 Se
 
 ## Known Limitations
 
-- Forked metrics (A-5): if a forked plugin's counters reach no registry today, that is a plugin-infrastructure limit for every plugin, owed by a spec of its own if A-5 holds; this spec does not hide it.
+- Forked metrics (A-5, confirmed): a forked plugin's counters reach no registry, because only the in-process spawn (`internal/component/plugin/inprocess.go`) hands `Registration.ConfigureMetrics` to `registry.InjectPluginMetrics`. It is a plugin-infrastructure limit for every plugin, recorded as an open row in `plan/journal/process-global-read-across-the-plugin-boundary.md` (2026-11-03) and owned by `plan/post-release/engineering/spec-filter-wire-0-umbrella.md` (Work Not Done).
 - A third-party plugin can bind only by a schema path the daemon has compiled (A-10), because an external plugin's own YANG is not compiled yet (`docs/plugin-development/schema.md`).
 
 ## RFC Documentation (Scope: protocol)
@@ -694,3 +697,200 @@ The moved evaluators keep their RFC 9234 Section 5, RFC 9494 Sections 4.3 and 4.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/engineering/spec-filter-wire-6-stage-filters.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- Filter insertion (D-4, D-5, D-5a): `rpc.FilterInsertion` on the Stage 1 registration, judged by `registry.CheckFilterInsertions` and `config.CheckFilterInsertionPaths` (`internal/component/plugin/registry/filter_insertion.go`); the config loader places the member on the peers whose config or registered session facts meet the condition (`internal/component/bgp/config/filter_insertion.go`), a third party's insertions included (`registry.RuntimeFilterInsertions`); a required member refuses an operator reference, move or `inactive:` at verify and at boot.
+- `bgp-role` (`evaluateRoleFilter`), `bgp-filter-community` and its relation tag (`evaluateCommunityFilter`), `bgp-gr` LLGR ingress and egress (`evaluateGRFilter`) and `bgp-rs` transparency (`evaluateRSFilter`) run in their plugins through `p.OnFilter`, over the typed slot internal and the batched `filter-update` forked. The role OTC procedures, the RFC 7454 Section 9 transit-leak check (`bgp-role:upstream-asn`, D-19), gr's LLGR steps and rs transparency are inserted members; community and relation are operator chain members.
+- Graceful-restart retention moved onto the bus (`bgp-gr/retention`, ahead of the DOWN), so `bgp-gr`, `bgp-rr` and `bgp-rs` run forked; rr and rs take `bgp-rib/validation-change` and the FlowSpec and validation gates through the SDK.
+- Deleted (AC-19, AC-22): `filterapi.Register` and the in-process filter registry, `retention.Owner`, `Publish` and `Family`, the engine egress step lists, the gr, rr and rs forked refusals and `doctor-bgp-gr-out-of-process` (6b105ebc58 and the per-plugin commits before it).
+- 28 forked `.ci` files under `test/plugin/`, `test/parse/graceful-restart-llgr-forked.ci`, and the interop scenarios `bgp-role-otc-withdraw-frr-forked` and `bgp-role-frr-forked`.
+
+### Bugs Found/Fixed
+- A forked adj-rib-in left the receive eligibility gate open (A-11): fixed by `bgp-rib/validation-gate` and `ribevents.NoteValidationGate`, covered by `TestValidationGateAnnouncedOverTransport` and `TestForkedGateServesValidatedVerdicts`.
+- Third-party insertions never applied, because peers were built before Stage 1 (A-12): fixed by `Reactor.RebuildRunningPeers`, covered by `TestThirdPartyInsertionAppliesFromStageOne` and `test/plugin/stage-filter-third-party.ci`.
+- The dependency edge to a forked bgp-rr or bgp-rs did not hold (A-9): fixed in 629bdf0c30 (`sortByReverseDependencyTier`), covered by `TestRetentionEventPrecedesDown`.
+- The `checkOTCWithdrawal` RFC9234-5-4 positive was vacuous because FRR stamped OTC itself: fixed in 3a8eef5825 (`plan/journal/green-that-could-not-have-been-red.md`, 2026-11-03).
+- A panicking chain member escaped its on-error: fixed in e068f1c0a6.
+- At closure: `bgp-role`'s `parseASN` refused an asdot AS number; it now reads through `asn.Parse`, covered by `TestUpstreamSetReadsEveryASNotation` (Review Gate finding 4).
+
+### Documentation Updates
+- Pages updated in the commits of the code they describe (AC-23), and repaired at the second closure in 09a623444a: `docs/plugin-development/handlers.md` (required insertion and refusal), `docs/architecture/plugin/plugin-relationships.md` (`bgp-gr/retention` bus row).
+- This closure: `features/rfc-7999-blackhole.md` and `features/plugins.md` Real-path tests gain the forked files (Documentation Update Checklist row 1, not done until now).
+- `./le doc check all`: rc 1, only on wiki catalog drift (a `clear debug` row) that is not this spec's (scratch/close6-doccheck.txt).
+
+### Deviations from Plan
+- D-4 replaced the bound steps beside the chain with inserted chain members: `reactor/filter_bound.go` and its test were never created, and the bound-step tests of the TDD plan became the insertion tests named in the Implementation Audit.
+- A-8 broken: the twins run each plugin as `plugin { external <name> { run "ze plugin <name>"; } }` behind the hub, not through `le mock plugin-external`.
+- A-11 broken: the validation and FlowSpec gates crossed the boundary too, and were moved in this spec.
+- A-12 broken, then fixed: third-party insertions are stored at Stage 1 and the peers rebuilt.
+- Row 3 of the first hand-back (RFC2545 interop records) moved to `plan/release/fixes/spec-rfc-proof-debt-outside-filter-wire.md` AC-4, because c782411791, not this spec, staled them.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Everything is a filter | Done | `role/role.go`, `filter_community/community_filter.go`, `gr/gr_filter.go`, `rs/transparency.go`, each through `p.OnFilter` | AC-19 grep empty |
+| 2. Procedures are inserted members, operator policy is named | Done | `bgp/config/filter_insertion.go`, `plugin/registry/filter_insertion.go` | AC-1, AC-7, AC-11, AC-22 |
+| 3. gr and rs real filters, forked; retention on the bus | Done | `bgp/retention/retention.go`, `gr/retention_event_test.go` | AC-13 to AC-17 |
+| Goal: no BGP plugin must run in the daemon process | Done | forked files under `test/plugin/` | the forked metrics limit is Work Not Done |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestInsertionFollowsPeerConfig`, `TestSessionConditionInsertion`, `test/plugin/stage-filter-forked.ci`, `stage-filter-internal.ci` | fakefilter, no engine edit |
+| AC-2 | Done | `TestFilterInsertionDeclarationJudged`, `TestCompiledInsertionMustConditionOnOwnConfig` | |
+| AC-3 | Done | `TestInsertionsSortByPriority`, `TestInsertedProcedureRunsBeforeOperatorMembers` | |
+| AC-4 | Done | `TestWithdrawVerdict`, `TestInsertedMemberTreatmentSets` | |
+| AC-5 | Done | `TestInsertedMemberMetadataSets`, `TestMetadataFieldRegistration` | |
+| AC-6 | Done | five `role-otc-*-forked.ci`, each red with the evaluator answering accept (3459b6e390) | |
+| AC-7 | Done | `TestRequiredInsertionRefusesOperatorReference` | |
+| AC-8 | Done | `community-tag-forked.ci`, `community-strip-forked.ci`, `community-scrub-own-ga-forked.ci` | |
+| AC-9 | Done | `community-blackhole-noexport-forked.ci`, `rfc7999-blackhole-readvertise-agreement-forked.ci` (fe7d73d580) | Q-5 reading (a) |
+| AC-10 | Done | `community-relation-tag-forked.ci` | |
+| AC-11 | Done | `TestCommunitySettingsNeedChainMember`, `test/reload/community-settings-without-member-refused.ci` | |
+| AC-12 | Done | `role-learned-cleared-on-peer-delete-forked.ci` | |
+| AC-13 | Done | `test/parse/graceful-restart-llgr-forked.ci`, five `llgr-*-forked.ci` | |
+| AC-14 | Done | `addpath-departure-rr-gr-retained-forked.ci`, `-expiry-forked.ci`, `-notification-forked.ci`, `bgp-rs-withdrawal-replacement-gr-forked.ci` | |
+| AC-15 | Done | no gr, rr or rs `external-refuses.ci`, no `gr-out-of-process` under `internal/` | |
+| AC-16 | Done | `bgp-rs-opaque-transparency-forked.ci`, `bgp-rs-relay-aspath-transparency-forked.ci`; the test changes judged in ce79316b65 (`Weakening-approved`, `RFC-approved` lines) | |
+| AC-17 | Done | `bgp-rs-rpki-revalidate-relay-forked.ci` | |
+| AC-18 | Done | `sdk.CheckFilterConformance` in the role, filter_community, gr and rs tests | role in 35f30d85a4 |
+| AC-19 | Done | grep in AC Verified, empty | |
+| AC-20 | Done | `TestRestartWithAChangedDeclarationRebuildsThePeers`, `TestInsertionChangeIsSerializedWithTransactions` | |
+| AC-21 | Done | `bgp-role-otc-withdraw-frr` and its `-forked` twin (Blocker row 1) | |
+| AC-22 | Done | grep in AC Verified, empty; D-19 `bgp-role:upstream-asn` | |
+| AC-23 | Done | pages in Documentation Verified | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestBoundFilterDeclarationJudged` | Changed | `plugin/registry/filter_insertion_test.go` `TestFilterInsertionDeclarationJudged` | D-4 |
+| `TestBoundStepsSortLikeTheRegistry`, `TestBindingFollowsPeerConfig`, `TestEveryEgressRailRunsBoundSteps`, `TestBoundStepsRepublishOnRespawn`, `TestBoundStepVerdicts`, `TestBoundStepMetadataSets` | Changed | `bgp/config/filter_insertion_test.go`, `plugin/server/filter_insertion_change_test.go`, `policychain/withdraw_test.go`, `policychain/metadata_sets_test.go` | D-4: no step list beside the chain |
+| `TestChainReferenceToBoundFilterRefused` | Changed | `TestRequiredInsertionRefusesOperatorReference` | D-4 |
+| `TestCommunitySettingsNeedChainMember` | Done | `filter_community/community_filter_test.go` | |
+| `TestWithdrawVerdict` | Done | `policychain/withdraw_test.go` | |
+| `TestMetadataFieldRegistration`, `TestSessionFieldReaders` | Done, Changed | `policyview/metadata_test.go`; the session readers as `TestSessionFactsReadAndWritten`, `TestSessionFactAbsentIsNotZero` | |
+| `TestRetentionEventPrecedesDown` | Done | `bgp/server/retention_order_test.go` | |
+| `TestRetentionVerdictConsumedPerDown` | Done | `rr/peer_down_recovery_test.go` | |
+| conformance per evaluator | Done | role, filter_community, gr, rs test files | |
+| functional twins | Done | 28 `test/plugin/*forked*.ci`, `test/parse/graceful-restart-llgr-forked.ci` | |
+| interop `bgp-role-otc-withdraw-frr` | Done | `test/interop/scenarios/bgp-role-otc-withdraw-frr-forked` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `pkg/plugin/rpc/types.go`, `ze-plugin-engine.yang`, `ze-plugin-callback.yang` | Done | `FilterInsertion`, `withdraw` |
+| `plugin/registry`, `plugin/server/startup.go` | Done | `filter_insertion.go`, `filter_insertion_change.go` |
+| `filterapi/filterapi.go` | Done | registry deleted |
+| reactor files | Done | engine egress step lists deleted (6b105ebc58) |
+| `bgp/config` | Done | `filter_insertion.go` in place of `bound-by` |
+| `policychain`, `policyview` | Done | sets, withdraw, session facts |
+| `retention/retention.go` | Done | event name and payload only |
+| plugin packages (role, filter_community, gr, rr, rs) | Done | |
+| `internal/core/diagnostic` | Done | `doctor-bgp-gr-out-of-process` gone |
+| `internal/test/plugins/fakefilter` | Done | declares an insertion |
+| `reactor/filter_bound.go` | Changed | never created (D-4) |
+| `gr-`, `rr-`, `rs-external-refuses.ci` | Done | deleted |
+
+### Audit Summary
+- **Total items:** 4 requirements, 23 ACs, 11 test rows, 12 file rows
+- **Done:** every requirement and AC
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** the bound-step tests and `filter_bound.go`, by D-4 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One filter mechanism: the in-process registry is gone | grep | AC-19 and AC-22 greps empty under `internal/`, `pkg/`, `cmd/` (AC Verified) |
+| Forked role, community and relation hold their RFC procedures (RFC 9234 Section 5, RFC 7999 Section 3.1, RFC 8195) | functional, red at HEAD | `role-otc-*-forked.ci`, `community-*-forked.ci`, `rfc7999-blackhole-readvertise-agreement-forked.ci`, each red with its evaluator answering accept (A-1) |
+| OTC on the wire with a real peer, plugin forked | interop | `bgp-role-otc-withdraw-frr-forked` against FRR 10.7.1, red at assertion 2 with `evaluateOTCEgress` answering reject; `bgp-role-frr-forked` red at assertion 1 (Blocker row 1) |
+| gr, rr and rs run forked with retention intact | functional | `addpath-departure-rr-gr-*-forked.ci`, `bgp-rs-withdrawal-replacement-gr-forked.ci`, `TestRetentionEventPrecedesDown` over both transports |
+| The evaluator contract holds on both transports | unit, `-race` | `sdk.CheckFilterConformance` in role (red under the accept-every-second-call overlay), filter_community, gr, rs |
+
+## Security Review
+
+| Check | Result |
+|-------|--------|
+| Input validation | insertions judged at Stage 1 (`registry.CheckFilterInsertions`, `config.CheckFilterInsertionPaths`): reference, direction, priority 0-9999, one condition, compiled schema path, registered session fact, required reason, duplicates; metadata sets are typed by the registered field |
+| Fail-open | role, gr and rs declare `on-error reject` (R-2); a process with no validation lookup refuses every path and logs (`ribevents.NoteValidationGate`) |
+| Resource exhaustion | one insertion per declared (reference, direction), judged at Stage 1 |
+| Operator override | a required member refuses an operator reference, move or `inactive:` (AC-7) |
+| Closure diff | prose (this spec, the umbrella, two journal rows, two feature declarations) plus three code fixes: `parseASN` takes `asn.Parse`, which bounds every field and refuses what it cannot read; an allowlist line; an unexported test-plugin helper |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A forked plugin's `ConfigureMetrics` counters reach no registry (A-5), forked `bgp-filter-community` included | a plugin-infrastructure limit for every plugin, outside D-13's rows; recorded as the open 2026-11-03 row of `plan/journal/process-global-read-across-the-plugin-boundary.md` | `plan/post-release/engineering/spec-filter-wire-0-umbrella.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/filter-wire-6-stage-filters-384a3761-c376-4523-a82d-0c61fcd10814.md` (9 files, verdict clean) |
+| `./le spec review check` | clean over the same 9 files |
+| Rounds | 2: round 1 found findings 1 to 6, round 2 over the fixes found 0 BLOCKER, 0 ISSUE (one NOTE: `parseASN`'s wrap repeats the ASN text that `asn.Parse`'s message already quotes) |
+| Reviewer lenses used | the closure diff (this spec, the umbrella, the journal rows, the feature declarations) read against source: claim accuracy, journal row ownership after commit B, citers of the spec, deliverable completeness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The 2026-11-01 journal row on the `filterapi.Register` filters of bgp-role and bgp-filter-community stayed `open:` though this spec fixed it, and no surviving spec lists it once commit B removes this one | `plan/journal/process-global-read-across-the-plugin-boundary.md` | marked `fixed:`, naming the evaluators, 6b105ebc58 and the red twins |
+| 2 | ISSUE | Documentation Update Checklist row 1 (feature entries gain forked evidence) was never done | `features/rfc-7999-blackhole.md`, `features/plugins.md` | the forked files added to Real-path tests |
+| 3 | ISSUE | The new journal row said `registry.InjectPluginMetrics` is called only by the in-process spawn; crashes, l2tp, radius and tacacs call it for their own hooks | the 2026-11-03 journal row, Known Limitations | reworded: only the in-process spawn hands `Registration.ConfigureMetrics` to it |
+| 4 | ISSUE | `./le repo check`: `parseASN` (`role/upstream.go`, D-19) read an AS number with `strconv.ParseUint`, so a remote ASN or an asn-set member written in the RFC 5396 asdot form the config accepts refused the role peer's upstream set. Root cause at the producer: a private parser beside `asn.Parse` | `internal/component/bgp/plugins/role/upstream.go` `parseASN` | `[source]` `asn.Parse`; `TestUpstreamSetReadsEveryASNotation` green, red under an overlay restoring `strconv.ParseUint` (`ASN "0.64700": ... invalid syntax`). Workaround refused: an allowlist line, which would record a hand-read AS number as justified |
+| 5 | ISSUE | `./le repo check`: `applyExternalAttributeNumber` (`policychain/sets_attribute_numbers.go`) holds a 32-bit parse the allowlist did not name | `internal/le/repo/numberparse-allowlist.txt` | line added: the value is a filter-protocol set value, a decimal integer from 0 to 4294967295 by the protocol contract, not operator AS text |
+| 6 | ISSUE | `./le repo check`: fakefilter exported `SessionPeerName`, which no other package calls | `internal/test/plugins/fakefilter/fakefilter.go` | unexported to `sessionPeerName` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/stage-filter-forked.ci`, `stage-filter-unbound-peer.ci`, `stage-filter-third-party.ci`, `role-learned-cleared-on-peer-delete-forked.ci`, `addpath-departure-rr-gr-retained-forked.ci`, `bgp-rs-opaque-transparency-forked.ci` | Yes | `ls`, 2026-11-03, each listed |
+| `test/reload/community-settings-without-member-refused.ci`, `test/parse/graceful-restart-llgr-forked.ci` | Yes | `ls`; `find test -name 'graceful-restart-llgr*'` |
+| 28 `test/plugin/*forked*.ci` | Yes | `ls test/plugin/*forked*.ci \| wc -l` printed 28 |
+| `test/interop/scenarios/bgp-role-otc-withdraw-frr-forked`, `bgp-role-frr-forked` | Yes | `find test -name '*forked*'` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-19 | the registry symbols do not exist | `grep -rnE` over `internal pkg cmd` for `filterapi.Register(`, `IngressOrdered`, `EgressOrdered`, `ReadvertiseEgressFuncs`, `NotifyPeerRemoved`, `PreserveOpaqueAttributesFor`, `retention.Family`, `Publish`, `Owner`, `filterapi.SetMetricsRegistry`, `readvertiseEgressFilters`, `r.egressFilters`, `IngressFilterFunc`, `EgressFilterFunc`: no hit |
+| AC-22 | the leak obligation code does not exist | `grep -rnE` for `validateLeakFilterObligations`, `chainDischarges`, `leakFilterRefusal`, `leakFilterByRole`, `MustDeclareMatchConditionObligation`, `ObligationTransitLeak`: no hit |
+| AC-15 | the refusals are gone | no `gr-out-of-process` under `internal`, `cmd`, `docs`, `test`; `test/plugin/*external-refuses.ci` lists only as112, flowexport, iface-dhcp, trafficusage |
+| AC-18 | conformance per evaluator | `grep -rln 'CheckFilterConformance('` lists `role/otc_filter_test.go`, `gr/gr_filter_test.go`, `filter_community/community_filter_test.go`, `rs/transparency_test.go` |
+| AC-1 to AC-5, AC-7, AC-20 | the named tests exist | `grep "func <name>("` finds each in the file the AC table names |
+| RFC records | this spec's records verify | `./le rfc check` (scratch/close6-rfccheck2.txt): no finding left on this spec's units; no record under `rfc/discrimination/` names `upstream.go` or `parseASN` |
+| closure fixes | the fixed packages pass | `./le job run ... go test -race -tags ze_bgp ./internal/component/bgp/plugins/role/ ./internal/test/plugins/fakefilter/`: both `ok`; `./le repo check` after the fixes lists none of findings 4 to 6 (the 7 left are `ze-go-style.md` vendor anchors, `iface/pppoe_client.go`, `policy/chain.go` `RefsFromMembers` and `goextract.go` `PlanMove`, none from this spec's diff) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Stage 1 insertion, plugin forked | `test/plugin/stage-filter-forked.ci` | exists; fakefilter forked declares the insertion |
+| Peer outside the condition | `test/plugin/stage-filter-unbound-peer.ci` | exists |
+| Peer removal, role forked | `test/plugin/role-learned-cleared-on-peer-delete-forked.ci` | exists |
+| DOWN of a GR peer, gr and rr forked | `test/plugin/addpath-departure-rr-gr-retained-forked.ci` | exists |
+| Community settings without a member | `test/reload/community-settings-without-member-refused.ci` | exists |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-2, A-3, A-4, A-5, A-6, A-7, A-9, A-10 | confirmed | Risks & Assumptions, Status column |
+| A-8, A-11 | broken | Mistake Log rows, Deviations |
+| A-12 | broken, then fixed | Mistake Log, `TestThirdPartyInsertionAppliesFromStageOne` |
+| A-13 | validated | 06b26570b6, `TestRSFastPathRunsTheExportChain` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `process-protocol.md` "Filter Insertion", `withdraw`, `bgp-gr/retention` | grep counts 1, 22 and 3 | Yes |
+| `docs/guide/graceful-restart.md`: gr runs forked, the retention event | grep `forked` 7, `bgp-gr/retention` 2 | Yes |
+| `docs/plugin-development/handlers.md` required insertion; `plugin-relationships.md` retention bus row | 09a623444a | Yes |
+| `meta/filter-community.md`, `meta/role.md`, `docs/guide/bgp-role.md`, `route-policy.md`, `ai/patterns/plugin.md` | grep `member` 7, `src-peer-role` 2, `required` 3, `insert` 10, `FilterInsertions` 2 | Yes |
+| feature entries (row 1) | `features/rfc-7999-blackhole.md` and `features/plugins.md` Real-path tests carry forked files. `./le feature check` refuses both on Doc review age, as it already did before this edit (`docs/guide/configuration.md` changed 2026-11-03, `docs/features/plugins.md` 2026-11-02) | Yes, that red named |
+| `ai/rules/plugins.md` (row 8) | the rule points at `process-protocol.md` for the protocol and states no filter mechanism | No edit owed |
