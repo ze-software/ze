@@ -1,5 +1,4 @@
 // Design: docs/architecture/api/process-protocol.md -- NLRI blocks in the filter text protocol
-// Related: filter_format.go -- AppendUpdateForFilter, the producer of the blocks read here
 // Related: filter_delta_handlers.go -- the MP_REACH_NLRI / MP_UNREACH_NLRI handlers applying AttrModReplaceNLRI
 // Related: forward_build.go -- buildModifiedPayload, which writes the legacy NLRI override
 // RFC: rfc/short/rfc4760.md -- MP_REACH_NLRI and MP_UNREACH_NLRI
@@ -7,14 +6,10 @@
 package reactor
 
 import (
-	"bytes"
-	"net/netip"
-
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -48,243 +43,6 @@ const (
 	sectionCount
 )
 
-// nlriBlock is one block of the NLRI value: its section, its family token (an
-// mp block only), its whole text and its prefix tokens. Every string is a
-// window of the filter text the table was parsed from.
-type nlriBlock struct {
-	family  string
-	text    string
-	body    string
-	section nlriSection
-}
-
-// maxNLRIBlocks bounds the table. An UPDATE renders at most one block per
-// section (four); the slack lets an answer with too many blocks be refused for
-// what it is rather than read in part.
-const maxNLRIBlocks = 8
-
-// nlriBlockTable is the NLRI value of one filter text, tokenized once into its
-// blocks. It lives on the caller's stack: parsing it allocates nothing.
-type nlriBlockTable struct {
-	blk [maxNLRIBlocks]nlriBlock
-	n   int
-	bad bool // a block head is malformed, or the value has more than maxNLRIBlocks blocks
-}
-
-// parse reads the NLRI value of text: every block from the first "nlri" or
-// "mp" keyword up to the next attribute name, which is where the value ends
-// for parseFilterAttrsInto too.
-func (t *nlriBlockTable) parse(text string) {
-	t.n, t.bad = 0, false
-	scan := filterTokens{text: text}
-	more := scan.next()
-	for more && !isNLRIKeyword(text[scan.start:scan.end]) {
-		more = scan.next()
-	}
-	for more && isNLRIKeyword(text[scan.start:scan.end]) {
-		if t.n == len(t.blk) {
-			t.bad = true
-			return
-		}
-		blk := &t.blk[t.n]
-		*blk = nlriBlock{}
-		start := scan.start
-		mp := text[scan.start:scan.end] == policyAttrMP
-		if mp {
-			if more = scan.next(); !more {
-				t.bad = true
-				return
-			}
-			blk.family = text[scan.start:scan.end]
-		}
-		if more = scan.next(); !more {
-			t.bad = true
-			return
-		}
-		switch text[scan.start:scan.end] {
-		case nlriOpAdd:
-			blk.section = sectionAnnounce
-			if mp {
-				blk.section = sectionMPReach
-			}
-		case nlriOpDel:
-			blk.section = sectionWithdrawn
-			if mp {
-				blk.section = sectionMPUnreach
-			}
-		default:
-			t.bad = true
-			return
-		}
-		end, bodyStart := scan.end, -1
-		for more = scan.next(); more && !isPolicyAttrName(text[scan.start:scan.end]); more = scan.next() {
-			if bodyStart < 0 {
-				bodyStart = scan.start
-			}
-			end = scan.end
-		}
-		blk.text = text[start:end]
-		if bodyStart >= 0 {
-			blk.body = text[bodyStart:end]
-		}
-		t.n++
-	}
-}
-
-// find returns the index of the block of section (and, for an mp block, of
-// family), or -1.
-func (t *nlriBlockTable) find(section nlriSection, fam string) int {
-	for i := range t.n {
-		if t.blk[i].section == section && t.blk[i].family == fam {
-			return i
-		}
-	}
-	return -1
-}
-
-// text returns the text of block i, or "" for -1.
-func (t *nlriBlockTable) text(i int) string {
-	if i < 0 {
-		return ""
-	}
-	return t.blk[i].text
-}
-
-// body returns the prefix tokens of block i, or "" for -1: an absent block
-// keeps no prefix.
-func (t *nlriBlockTable) body(i int) string {
-	if i < 0 {
-		return ""
-	}
-	return t.blk[i].body
-}
-
-// isNLRIKeyword reports whether token opens an NLRI block.
-func isNLRIKeyword(token string) bool {
-	return token == policyAttrNLRI || token == policyAttrMP
-}
-
-// sectionNLRIDelta applies a filter's modify answer to every NLRI section of the
-// UPDATE. It is the per-section half of the filter text protocol: the subject
-// renders the legacy NLRI as "nlri add", the legacy Withdrawn Routes as
-// "nlri del", each MP_REACH_NLRI as "mp <family> add" and each MP_UNREACH_NLRI
-// as "mp <family> del" (filter_format.go), and an answer that changes one of
-// those blocks changes that section and no other.
-//
-// A changed block becomes:
-//   - legacy NLRI: the returned override, which buildModifiedPayload writes in
-//     place of the source NLRI (an empty, non-nil override drops them all; nil
-//     keeps the source);
-//   - legacy Withdrawn Routes: a withdrawn rewrite on mods (SetWithdrawnRewrite);
-//   - MP_REACH_NLRI / MP_UNREACH_NLRI: an AttrModReplaceNLRI op on code 14 / 15,
-//     which keeps AFI, SAFI and the next hop, and drops the attribute when the
-//     answer kept no prefix.
-//
-// The rewritten section is the subset of the source section's own NLRI whose
-// prefix the answer kept, so a path identifier (RFC 7911) or a label stack
-// (RFC 8277) rides along with its prefix. The answer MUST keep the order of the
-// subject and MUST NOT add a prefix: either is refused, as is a block the
-// UPDATE has no section for, two blocks for one section, a block that does not
-// parse, and any change to a family whose NLRI is not a CIDR prefix. ok ==
-// false means the modify MUST NOT be applied and the caller MUST drop the route.
-func sectionNLRIDelta(scratch *valueScratch, original, modified string, wireUpdate *wireu.WireUpdate, mods *filterapi.ModAccumulator) ([]byte, nlriRefusal, bool) {
-	if original == modified {
-		return nil, nlriRefusal{}, true
-	}
-	var orig, mod nlriBlockTable
-	orig.parse(original)
-	if orig.bad {
-		return nil, nlriRefusal{reason: refuseSyntax}, false
-	}
-	mod.parse(modified)
-	if mod.bad {
-		return nil, nlriRefusal{reason: refuseSyntax}, false
-	}
-
-	ctx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
-	var override []byte
-	var names [sectionCount]string
-	for section := range sectionCount {
-		source, err := nlriSectionOf(wireUpdate, ctx, section)
-		if err != nil {
-			// Only a changed block reads the section, so a malformed one the
-			// answer left alone is not refused. An MP section that does not
-			// parse names no family, so every block of the section counts.
-			if sectionChanged(&orig, &mod, section) {
-				return nil, nlriRefusal{family: source.familyName(), reason: refuseMalformed}, false
-			}
-			continue
-		}
-		if !source.present {
-			continue
-		}
-		name := ""
-		if section.multiprotocol() {
-			name = source.fam.String()
-			names[section] = name
-		}
-		o, m := orig.find(section, name), mod.find(section, name)
-		if orig.text(o) == mod.text(m) {
-			continue
-		}
-		if refusal, ok := nlriSubsetRefusal(source, name); !ok {
-			return nil, refusal, false
-		}
-		kept, ok := subsetNLRI(scratch, source, mod.body(m))
-		if !ok {
-			return nil, nlriRefusal{family: source.fam.String(), reason: refuseNotSubset}, false
-		}
-		recordNLRIRewrite(section, kept, &override, mods)
-	}
-
-	// Every block of the answer names a section the UPDATE carries, once. An
-	// mp block the subject never carried has no section to rewrite, and the
-	// engine cannot invent an MP_REACH_NLRI next hop for it.
-	var seen [sectionCount]bool
-	for i := range mod.n {
-		blk := &mod.blk[i]
-		switch blk.section {
-		case sectionMPReach, sectionMPUnreach:
-			if blk.family != names[blk.section] {
-				return nil, nlriRefusal{family: blk.family, reason: refuseNoSection}, false
-			}
-		case sectionAnnounce, sectionWithdrawn, sectionCount:
-			// A legacy section always exists, empty or not: subsetNLRI judged it.
-		}
-		if seen[blk.section] {
-			return nil, nlriRefusal{family: blk.family, reason: refuseDuplicate}, false
-		}
-		seen[blk.section] = true
-	}
-	return override, nlriRefusal{}, true
-}
-
-// sectionChanged reports whether the answer changed any block of section:
-// a block of the subject the answer dropped or rewrote, or a block the answer
-// added. It matches blocks by family, so it serves a section whose family the
-// wire could not name.
-func sectionChanged(orig, mod *nlriBlockTable, section nlriSection) bool {
-	for i := range orig.n {
-		blk := &orig.blk[i]
-		if blk.section != section {
-			continue
-		}
-		if mod.text(mod.find(section, blk.family)) != blk.text {
-			return true
-		}
-	}
-	for i := range mod.n {
-		blk := &mod.blk[i]
-		if blk.section != section {
-			continue
-		}
-		if orig.find(section, blk.family) < 0 {
-			return true
-		}
-	}
-	return false
-}
-
 // multiprotocol reports whether the section is the NLRI of an MP attribute.
 func (s nlriSection) multiprotocol() bool {
 	return s == sectionMPReach || s == sectionMPUnreach
@@ -311,9 +69,9 @@ func (s nlriSource) familyName() string {
 	return s.fam.String()
 }
 
-// nlriSectionOf reads one section from the wire. It is the single place both
-// the text delta (sectionNLRIDelta) and the library chain's NLRI intents
-// (libraryNLRIOps) find a section, so the two rewrite the same four sections:
+// nlriSectionOf reads one section from the wire. It is the single place the
+// library chain's NLRI intents (libraryNLRIOps) find a section, so every
+// intent rewrites the same four sections:
 // a rewrite that skipped MP_REACH_NLRI leaked the IPv6 prefixes a filter
 // dropped (plan/journal/guard-added-to-one-half-of-a-pair.md, 2026-10-17).
 // A section that does not parse is the error, never an absent section: a
@@ -410,52 +168,6 @@ func (s nlriSection) withdraws() bool {
 	return s == sectionWithdrawn || s == sectionMPUnreach
 }
 
-// subsetNLRI returns the NLRI of the source section, in source order, whose
-// prefix appears in keep, the space-separated prefix tokens of the answer's
-// block, which MUST list the kept prefixes in the same order. Each source NLRI
-// is copied whole, path identifier and label stack included. The result is
-// carved from scratch; an empty result means "keep none".
-//
-// The walk is one merge of the two ordered lists, bounded by the section
-// length, and allocates nothing. ok == false when keep names a prefix the
-// section does not carry at that position, a token is not a prefix of the
-// section's address family, or the section does not parse.
-func subsetNLRI(scratch *valueScratch, source nlriSource, keep string) ([]byte, bool) {
-	routeKey := nlrisplit.GetPrefixKey(source.fam) // family.Family.PlainCIDR: a CIDR key, never the opaque default
-	out := scratch.carveBytes(len(source.raw))[:0]
-	var want, have [nlrisplit.PrefixKeyScratchSize]byte
-	tokens := filterTokens{text: keep}
-	wantKey, ok := nextPrefixKey(&tokens, source.fam, want[:0])
-	if !ok {
-		return nil, false
-	}
-	cursor := wireu.NewCIDRCursor(source.raw, source.addPath)
-	for wantKey != nil {
-		entry, cidr, _, more := cursor.Next()
-		if !more {
-			break
-		}
-		key, err := routeKey(cidr, have[:], source.section.withdraws())
-		if err != nil {
-			return nil, false
-		}
-		if !bytes.Equal(key, wantKey) {
-			continue // dropped by the filter
-		}
-		out = append(out, entry...)
-		if wantKey, ok = nextPrefixKey(&tokens, source.fam, want[:0]); !ok {
-			return nil, false
-		}
-	}
-	if cursor.Bad() {
-		return nil, false
-	}
-	if wantKey != nil {
-		return nil, false // a kept prefix the section never reached
-	}
-	return out, true
-}
-
 // dropNLRI returns the NLRI of the source section, in source order, less the
 // entries that start at an offset in drops, which MUST be ascending and each
 // once (policychain.Sets.NLRIDrops answers them so). Each kept NLRI is copied
@@ -464,74 +176,4 @@ func subsetNLRI(scratch *valueScratch, source nlriSource, keep string) ([]byte, 
 // parse. The walk is bounded by the section length and allocates nothing.
 func dropNLRI(scratch *valueScratch, source nlriSource, drops []uint16) ([]byte, bool) {
 	return wireu.DropCIDREntries(scratch.carveBytes(len(source.raw))[:0], source.raw, source.addPath, drops)
-}
-
-// nextPrefixKey encodes the next token of tokens as the CIDR key
-// nlrisplit.GetPrefixKey answers: the prefix length octet, then the masked
-// prefix octets. A nil key with ok means the tokens are exhausted; ok == false
-// means the token is not a prefix of fam's address family.
-func nextPrefixKey(tokens *filterTokens, fam family.Family, buf []byte) ([]byte, bool) {
-	if !tokens.next() {
-		return nil, true
-	}
-	p, err := netip.ParsePrefix(tokens.text[tokens.start:tokens.end])
-	if err != nil {
-		return nil, false
-	}
-	if p.Addr().Is4() != (fam.AFI == family.AFIIPv4) {
-		return nil, false
-	}
-	p = p.Masked()
-	bits := p.Bits()
-	buf = append(buf, byte(bits))
-	if p.Addr().Is4() {
-		a := p.Addr().As4()
-		return append(buf, a[:(bits+7)/8]...), true
-	}
-	a := p.Addr().As16()
-	return append(buf, a[:(bits+7)/8]...), true
-}
-
-// appendCIDRPrefixes appends " <prefix>" for every NLRI of a CIDR-family
-// section, framed by wireu.CIDREntry and named by the family's route key, so the
-// subject shows exactly the prefixes subsetNLRI matches an answer against: a
-// path identifier or a label stack is never read as prefix bits. A section that
-// does not frame or key ends with the token "invalid", which no prefix filter
-// accepts and no answer can keep.
-func appendCIDRPrefixes(buf []byte, fam family.Family, section []byte, addPath, withdraw bool) []byte {
-	routeKey := nlrisplit.GetPrefixKey(fam)
-	var scratch [nlrisplit.PrefixKeyScratchSize]byte
-	for off := 0; off < len(section); {
-		_, cidr, next, ok := wireu.CIDREntry(section, off, addPath)
-		if !ok {
-			return append(buf, " invalid"...)
-		}
-		off = next
-		key, err := routeKey(cidr, scratch[:], withdraw)
-		if err != nil {
-			return append(buf, " invalid"...)
-		}
-		p := cidrKeyPrefix(fam, key)
-		if !p.IsValid() {
-			return append(buf, " invalid"...)
-		}
-		buf = append(buf, ' ')
-		buf = p.AppendTo(buf)
-	}
-	return buf
-}
-
-// cidrKeyPrefix reads a CIDR route key (length octet, then the prefix octets)
-// back as the prefix it names. The zero Prefix, which IsValid refuses, answers
-// a key that names none.
-func cidrKeyPrefix(fam family.Family, key []byte) netip.Prefix {
-	if len(key) == 0 {
-		return netip.Prefix{}
-	}
-	var a [16]byte
-	copy(a[:], key[1:])
-	if fam.AFI == family.AFIIPv4 {
-		return netip.PrefixFrom(netip.AddrFrom4([4]byte(a[:4])), int(key[0]))
-	}
-	return netip.PrefixFrom(netip.AddrFrom16(a), int(key[0]))
 }

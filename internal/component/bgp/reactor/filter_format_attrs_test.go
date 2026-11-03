@@ -1,5 +1,6 @@
-// Design: docs/architecture/api/process-protocol.md -- the filter text protocol
-// Related: filter_format.go -- appendSingleAttr, appendAllAttrs, the producers under test
+// Design: docs/architecture/api/commands.md -- show policy test, its text-before and text-after
+// Related: filter_format.go -- appendSingleAttr, the producer under test
+// Related: policy_dryrun_display.go -- displayUpdate and displayAttrOrder
 // Related: filter_chain.go -- policyAttr* names, the vocabulary asserted here
 
 package reactor
@@ -33,11 +34,11 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// attrsFixtureSubject is the subject every advertised attribute renders into,
-// in the order appendAllAttrs fixes. Each pair is written as the AppendText of
+// attrsFixtureSubject is the display every shown attribute renders into, in
+// the order displayAttrOrder fixes. Each pair is written as the AppendText of
 // its own type produces it (internal/core/bgp/attribute/text_append.go), so a
-// value-shape change is a red here rather than a silent contract change for
-// every text-mode filter.
+// value-shape change is a red here rather than a silent change to what show
+// policy test prints.
 const attrsFixtureSubject = "origin incomplete " +
 	"as-path [65001 65002] " +
 	"next-hop 10.0.0.1 " +
@@ -52,12 +53,12 @@ const attrsFixtureSubject = "origin incomplete " +
 	"aigp 42 " +
 	"large-community 65000:1:2"
 
-// attrsFixtureWire builds one AttributesWire carrying every attribute
-// attrNameToCode advertises, on a session that negotiated four-octet AS
-// numbers. It is the UPDATE a filter chain is handed, not a hand-written
-// subject: the defect this file exists to catch survived for the life of the
-// function precisely because every test read a string a human typed.
-func attrsFixtureWire(t *testing.T) *attribute.AttributesWire {
+// attrsFixtureWire builds one UPDATE carrying every attribute displayAttrOrder
+// shows, on a session that negotiated four-octet AS numbers. It is the UPDATE
+// the dry run is handed, not a hand-written display: the defect this file
+// exists to catch survived for the life of the function precisely because
+// every test read a string a human typed.
+func attrsFixtureWire(t *testing.T) *wireu.WireUpdate {
 	t.Helper()
 
 	aggregator := make([]byte, 8)
@@ -71,7 +72,7 @@ func attrsFixtureWire(t *testing.T) *attribute.AttributesWire {
 	binary.BigEndian.PutUint32(largeCommunity[4:], 1)
 	binary.BigEndian.PutUint32(largeCommunity[8:], 2)
 
-	return as4FilterWire(t, true,
+	return as4FilterUpdate(t, true,
 		as4FilterAttr(attribute.FlagTransitive, attribute.AttrOrigin, []byte{2}),
 		as4FilterAttr(attribute.FlagTransitive, attribute.AttrASPath, as4FilterPath4(65001, 65002)),
 		as4FilterAttr(attribute.FlagTransitive, attribute.AttrNextHop, []byte{10, 0, 0, 1}),
@@ -92,71 +93,43 @@ func attrsFixtureWire(t *testing.T) *attribute.AttributesWire {
 	)
 }
 
-// TestFilterSubjectNamesEveryAdvertisedAttribute renders an UPDATE carrying all
-// thirteen attributes attrNameToCode advertises, through the arm every runtime
-// caller reaches (an empty declared list).
+// TestFilterSubjectNamesEveryAdvertisedAttribute displays an UPDATE carrying
+// all thirteen attributes displayAttrOrder shows.
 //
-// VALIDATES: AC-1 -- an attribute name Ze advertises appears in the subject
-// whenever the UPDATE carries that attribute, with the value shape its own
-// AppendText produces and in the order appendAllAttrs fixes.
-// PREVENTS: an advertised name that reaches no filter. appendSingleAttr type-
+// VALIDATES: AC-1 -- every attribute the display shows appears whenever the
+// UPDATE carries that attribute, with the value shape its own AppendText
+// produces and in the order displayAttrOrder fixes.
+// PREVENTS: an attribute the display silently omits. appendSingleAttr type-
 // switches on the boxed attribute, so an arm naming a type no parser builds can
-// never match and drops the attribute in silence. The loop over attrNameToCode
-// is what makes a fourteenth name visible here rather than silently absent.
+// never match and drops the attribute in silence. The loop over
+// displayAttrOrder is what makes a fourteenth entry visible here rather than
+// silently absent.
 func TestFilterSubjectNamesEveryAdvertisedAttribute(t *testing.T) {
-	subject := string(AppendAttrsForFilter(nil, attrsFixtureWire(t), nil))
+	display, err := displayUpdate(attrsFixtureWire(t))
+	require.NoError(t, err)
 
-	for name := range attrNameToCode {
-		assert.Contains(t, subject, name+" ",
-			"the subject must name every attribute attrNameToCode advertises")
+	for i, code := range displayAttrOrder {
+		assert.NotEmpty(t, display.attrs[i],
+			"the display must show every attribute displayAttrOrder names, missing code %d", code)
 	}
-	assert.Equal(t, attrsFixtureSubject, subject)
+	assert.Equal(t, attrsFixtureSubject, display.text())
 }
 
-// TestFilterSubjectDeclaredArmNamesTheSameFive renders the same UPDATE through
-// the declared-attribute arm of AppendAttrsForFilter, naming the five the
-// pointer arms dropped.
-//
-// VALIDATES: AC-2 -- both arms share one renderer, so a filter that declares
-// its attributes reads the same values as a filter that takes them all.
-// PREVENTS: a fix applied to appendAllAttrs alone. The two arms differ only in
-// which codes they walk; the rendering is one function and must stay one.
-func TestFilterSubjectDeclaredArmNamesTheSameFive(t *testing.T) {
-	declared := []string{
-		policyAttrOrigin,
-		policyAttrMED,
-		policyAttrLocalPreference,
-		policyAttrAtomicAggregate,
-		policyAttrClusterList,
-	}
-
-	subject := string(AppendAttrsForFilter(nil, attrsFixtureWire(t), declared))
-
-	assert.Equal(t, "origin incomplete med 100 local-preference 150 "+
-		"atomic-aggregate cluster-list 1.1.1.1 2.2.2.2", subject)
-	for _, absent := range []string{policyAttrASPath, policyAttrNextHop, policyAttrCommunity} {
-		assert.NotContains(t, subject, absent,
-			"the declared arm must render the declared names and nothing else")
-	}
-}
-
-// TestFilterSubjectNamesClusterList renders an UPDATE whose CLUSTER_LIST holds
+// TestFilterSubjectNamesClusterList displays an UPDATE whose CLUSTER_LIST holds
 // two identifiers that are not in ascending order.
 //
-// VALIDATES: AC-12 -- the subject names cluster-list followed by dotted decimal
-// identifiers in WIRE order, with no brackets, which is the shape RFC 4456
-// Section 8 puts on the wire and the shape parseFilterAttrs reads back.
-// PREVENTS: a route reflector policy reasoning about the clusters a route
-// already traversed being handed nothing at all, and a renderer that sorts or
-// brackets the list changing which cluster the filter believes came first.
+// VALIDATES: AC-12 -- the display names cluster-list followed by dotted
+// decimal identifiers in WIRE order, with no brackets, which is the shape
+// RFC 4456 Section 8 puts on the wire.
+// PREVENTS: a route reflector operator reasoning about the clusters a route
+// already traversed being shown nothing at all, and a renderer that sorts or
+// brackets the list changing which cluster the operator believes came first.
 func TestFilterSubjectNamesClusterList(t *testing.T) {
-	attrs := as4FilterWire(t, true,
+	subject := as4FilterDisplay(t, as4FilterUpdate(t, true,
 		as4FilterNextHop(),
 		as4FilterAttr(attribute.FlagOptional, attribute.AttrClusterList,
 			[]byte{9, 9, 9, 9, 1, 1, 1, 1}),
-	)
-
-	subject := string(AppendAttrsForFilter(nil, attrs, nil))
+	))
 
 	assert.Equal(t, "next-hop 10.0.0.1 cluster-list 9.9.9.9 1.1.1.1", subject)
 }
@@ -212,7 +185,7 @@ func TestAppendSingleAttrWarnsOnUnnamedType(t *testing.T) {
 // from live import, originated export and forwarded export. The dry-run runs
 // no plugin filter outside a compiled chain (traceUncompiledChain). The plugin may modify LOCAL_PREF but decides from MED. Matching,
 // nonmatching and absent MED must therefore produce different route outcomes.
-// Text and raw rewrites exercise both export materialization paths.
+// Typed-set and raw rewrites exercise both export materialization paths.
 func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
 	source, _ := tePropagationPeer(t, "192.0.2.1", 65001, family.IPv4Unicast)
 	r := &Reactor{
@@ -226,8 +199,8 @@ func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
 	t.Cleanup(r.recentUpdates.Stop)
 	filterSubjectPlugin(t, r)
 
-	for _, mode := range []string{"text", "raw"} {
-		policy := mustPolicy(t, frefs("subject-policy:"+mode), routepolicy.FinalAccept)
+	for _, mode := range []string{"sets", "raw"} {
+		policy := compiledPolicy(t, libraryTestMixed, routepolicy.FinalAccept, frefs("subject-policy:"+mode)...)
 		source.settings.ImportPolicy = policy
 		source.settings.ExportPolicy = policy
 		for _, metric := range []struct {
@@ -422,15 +395,20 @@ func filterSubjectPlugin(t *testing.T, r *Reactor) {
 				if err != nil {
 					return nil, err
 				}
-				metric, present := parseFilterAttrs(input.Update).get(faMED)
+				var fields map[string]json.RawMessage
+				if err := json.Unmarshal(input.Fields, &fields); err != nil {
+					return nil, err
+				}
+				metric, present := fields[policyAttrMED]
 				if !present {
 					return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}, nil
 				}
-				if metric != "100" {
+				if string(metric) != "100" {
 					return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}, nil
 				}
-				if input.Filter == "text" {
-					return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: "local-preference 231"}, nil
+				if input.Filter == "sets" {
+					return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{
+						{Field: policyAttrLocalPreference, Action: rpc.FilterSetActionSet, Value: json.RawMessage("231")}}}, nil
 				}
 				body := bytes.Clone(input.Raw)
 				sections, err := wire.ParseUpdateSections(body)
@@ -448,8 +426,8 @@ func filterSubjectPlugin(t *testing.T, r *Reactor) {
 				return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Raw: body}, nil
 			})
 			if err := p.Run(context.Background(), &sdk.Registration{Filters: []sdk.FilterDecl{
-				{Name: "text", Direction: sdk.FilterBoth, Attributes: []string{policyAttrLocalPreference}, OnError: sdk.OnErrorReject},
-				{Name: "raw", Direction: sdk.FilterBoth, Attributes: []string{policyAttrLocalPreference}, Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject},
+				{Name: "sets", Direction: sdk.FilterBoth, Reads: []string{policyAttrMED}, Sets: []string{policyAttrLocalPreference}, OnError: sdk.OnErrorReject},
+				{Name: "raw", Direction: sdk.FilterBoth, Reads: []string{sdk.FilterFieldRaw, policyAttrMED}, OnError: sdk.OnErrorReject},
 			}}); err != nil {
 				return 1
 			}

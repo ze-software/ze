@@ -7,9 +7,8 @@
 // The named intents of D-5 are the changes a member asks that need state only
 // the reactor holds: the local AS for a prepend, the peer AS and the AS
 // number width for remove-private, the encoding context for an NLRI subset.
-// A member names the intent; the reactor resolves it through the same wire
-// cores the text delta reaches (reactor/filter_delta.go,
-// reactor/filter_nlri_delta.go).
+// A member names the intent; the reactor resolves it through its wire cores
+// (reactor/aspath_edit.go, reactor/filter_nlri_delta.go).
 
 package policychain
 

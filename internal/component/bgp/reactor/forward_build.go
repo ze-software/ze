@@ -109,9 +109,8 @@ func (g *advertiseGate) mpReachWritten() bool {
 // NLRI.
 //
 // The legacy NLRI section it asks about is the one being written, which is the
-// override when the caller supplies one. sectionNLRIDelta (filter_nlri_delta.go)
-// proves a filter's `nlri add` override a subset of the source, but this
-// function takes an override from any caller, so BOTH directions matter: an
+// override when the caller supplies one. This function takes an override
+// from any caller, so BOTH directions matter: an
 // override can empty a body that advertised, and it can fill one that did not.
 func (g *advertiseGate) advertises() bool {
 	if g.known {
@@ -187,7 +186,7 @@ func (g *advertiseGate) advertises() bool {
 // copy. nlriOverride affects ONLY the legacy IPv4 NLRI section. The NLRI of
 // MP_REACH_NLRI and MP_UNREACH_NLRI is rewritten by an AttrModReplaceNLRI op on
 // mods, applied by the registered handler of code 14 or 15 like any other
-// attribute edit (sectionNLRIDelta, filter_nlri_delta.go).
+// attribute edit (libraryNLRIOps, recordNLRIRewrite in filter_nlri_delta.go).
 //
 // Returns (modified payload, peerBufIdx, failure). peerBufIdx > 0 means the
 // returned slice is backed by pp and MUST be returned via pp.Return(peerBufIdx).

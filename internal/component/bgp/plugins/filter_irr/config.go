@@ -17,7 +17,7 @@ import (
 // pluginName is the registered plugin name (register.go). It is also the
 // left-hand side of a filter chain reference: the engine routes a chain entry to
 // a plugin by cutting the ref at the first ':' and dispatching on that prefix
-// (internal/component/bgp/reactor/filter_chain.go PolicyFilterChain), so
+// (internal/component/bgp/config/library_chains.go compileLibraryChain), so
 // "bgp-filter-irr:65001" is the only spelling that can reach this plugin.
 const pluginName = "bgp-filter-irr"
 
@@ -239,7 +239,7 @@ func peersMissingRefreshGrant(cfg *irrConfig) []string {
 // chainReferencesIRR reports whether the import or export filter chain at one
 // config level (bgp / group / peer) names this plugin. A chain entry is
 // "<plugin>:<filter>"; the engine cuts at the first ':' and dispatches on the
-// prefix (reactor/filter_chain.go PolicyFilterChain), so only that spelling can
+// prefix (bgp/config compileLibraryChain), so only that spelling can
 // invoke us -- a bare name would dispatch to a plugin of that name instead.
 // Refs arrive clean via ToMap; per-member deactivation is out-of-band, so there
 // is no "inactive:" prefix to strip (same as filter_family's chain reader).

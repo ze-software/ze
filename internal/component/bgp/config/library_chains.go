@@ -62,14 +62,14 @@ func compileConditionalChain(p filterapi.Policy, conditional []sessionMember, re
 // compileLibraryChain answers p with its library chain, p itself when the
 // chain holds no member the chain runs (none, or only inactive refs and
 // compiled-in stage filters). Every BGP import and export chain runs as the
-// library chain (spec filter-wire-0 Data Flow step 2): the text chain
-// ignores sets, so a plugin filter answering sets or intents there would be
-// silently ignored. A plugin filter becomes an external member of the
+// library chain (spec filter-wire-0 Data Flow step 2), the only chain the
+// reactor runs: a policy naming a plugin filter with no library chain fails
+// closed there. A plugin filter becomes an external member of the
 // library chain, in chain order: it is sent the fields it declared through
 // the chain's view, so it reads what an earlier member set, and its sets fold
 // beside theirs (policychain external.go); one that declared no reads
-// fails every route it is asked to judge. The reference splits at its colon into plugin and filter, as the
-// text chain splits it (PolicyFilterChain).
+// fails every route it is asked to judge. The reference splits at its first
+// colon into plugin and filter.
 //
 // A dynamic group's chain naming a member through a config variable compiles
 // no library here: the instance is known only once a peer resolves the

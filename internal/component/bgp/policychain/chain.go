@@ -559,8 +559,7 @@ func (c *Chain) endFinal(view *policyview.View) policy.Final {
 func (s *RunSets) Raw() []byte { return s.raw }
 
 // rawOutcome ends the run on a member's whole-body rewrite: later members
-// are not judged, and the chain's final still decides the route, as on the
-// text chain (PolicyFilterChain).
+// are not judged, and the chain's final still decides the route.
 // A display-only run records the member's step as TraceRewrite, with the body
 // it answered, before the final decides.
 func (c *Chain) rawOutcome(m *member, raw []byte, view *policyview.View, sets *RunSets, record func(MemberTrace)) Outcome {
@@ -611,8 +610,7 @@ func (c *Chain) overlayNumeric(view *policyview.View, member *Sets) error {
 // overlayMEDRemove overlays the view with the member's MULTI_EXIT_DISC
 // removal. A route with no MULTI_EXIT_DISC at this point, neither received
 // nor set by an earlier member, has nothing to remove, and the removal is
-// forgotten so the route is not rebuilt for an octet that is not there
-// (medRemoveHasWork, reactor/filter_delta.go).
+// forgotten so the route is not rebuilt for an octet that is not there.
 func (c *Chain) overlayMEDRemove(view *policyview.View, member *Sets) error {
 	_, present, err := numberOf(view, c.med)
 	if err != nil {

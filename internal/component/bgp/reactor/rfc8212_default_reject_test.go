@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"reflect"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -119,83 +118,6 @@ func TestRFC8212PolicyDryRunWiring(t *testing.T) {
 					t.Errorf("policy source = %q, want %q", response.Policy.Source, tc.wantSource)
 				}
 			})
-		}
-	}
-}
-
-// TestRFC8212ChainBoundaries compares real and traced chain execution on both
-// session types. Neither an automatic reference nor a terminal raw rewrite can
-// grant an absent EBGP policy acceptance, and failure/teardown remain terminal.
-func TestRFC8212ChainBoundaries(t *testing.T) {
-	automatic, bound := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
-	if !bound {
-		t.Fatal("loop registration did not bind the automatic reference")
-	}
-	for _, external := range []bool{false, true} {
-		for _, final := range []routepolicy.Final{0, routepolicy.FinalAccept, routepolicy.FinalReject} {
-			for _, tc := range []struct {
-				name     string
-				refs     []routepolicy.Ref
-				response PolicyResponse
-				calls    int
-				text     string
-			}{
-				{name: "empty", text: "origin igp"},
-				{name: "inactive", refs: frefs("inactive:plug:SKIP"), text: "origin igp"},
-				{name: "automatic", refs: []routepolicy.Ref{automatic}, text: "origin igp"},
-				{name: "accept", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyAccept}, calls: 2, text: "origin igp"},
-				{name: "modify", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyModify, Delta: "med 200"}, calls: 2, text: "origin igp med 200"},
-				{name: "inactive-external", refs: frefs("inactive:plug:SKIP", "plug:KEEP"), response: PolicyResponse{Action: PolicyAccept}, calls: 1, text: "origin igp"},
-				{name: "raw", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyModify, Raw: policyChainAdvertisingBody()}, calls: 1, text: "origin igp"},
-				{name: "reject", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyReject}, calls: 1},
-				{name: "failure", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyReject, Failed: true}, calls: 1},
-				{name: "teardown", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyAccept, Teardown: true, NotifyCode: 6, NotifySubcode: 2}, calls: 1},
-			} {
-				t.Run(tc.name, func(t *testing.T) {
-					policy := bindRefs(filterapi.InternalPolicy(tc.refs), automatic)
-					if final != 0 {
-						policy = bindRefs(mustPolicy(t, tc.refs, final), automatic)
-					}
-					calls := 0
-					call := func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-						calls++
-						return tc.response
-					}
-					got := PolicyFilterChain(policy, external, directionImport, "192.0.2.1", 65001, "origin igp", call)
-					if calls != tc.calls {
-						t.Fatalf("runtime calls=%d want=%d", calls, tc.calls)
-					}
-					calls = 0
-					traced, trace := tracePolicyFilterChain(policy, external, directionImport, "192.0.2.1", 65001, "origin igp", call)
-					if calls != tc.calls || !reflect.DeepEqual(got, traced) {
-						t.Fatalf("trace differs: runtime=%+v traced=%+v calls=%d want=%d", got, traced, calls, tc.calls)
-					}
-					wantTrace := tc.calls
-					if tc.name == "automatic" {
-						wantTrace = 1
-						if len(trace) != 1 || trace[0].Action != "not-evaluated" || trace[0].TextAfter != "" {
-							t.Fatalf("automatic check claimed execution: %+v", trace)
-						}
-					}
-					if len(trace) != wantTrace {
-						t.Fatalf("trace=%+v want %d entries", trace, wantTrace)
-					}
-					accept := final == routepolicy.FinalAccept || final == 0 && !external
-					reject := !accept || tc.response.Action == PolicyReject || tc.response.Teardown
-					if (got.Action == PolicyReject) != reject || got.Failed != tc.response.Failed || got.Teardown != tc.response.Teardown {
-						t.Fatalf("external=%v final=%d result=%+v", external, final, got)
-					}
-					if reject {
-						if got.Text != "" || len(got.Raw) != 0 {
-							t.Fatalf("rejection retained a route: %+v", got)
-						}
-					} else {
-						if got.Text != tc.text || !bytes.Equal(got.Raw, tc.response.Raw) {
-							t.Fatalf("acceptance changed result: %+v want text=%q", got, tc.text)
-						}
-					}
-				})
-			}
 		}
 	}
 }

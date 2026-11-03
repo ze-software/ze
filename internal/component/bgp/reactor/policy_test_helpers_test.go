@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -28,6 +29,26 @@ func mustPolicy(t testing.TB, refs []routepolicy.Ref, final routepolicy.Final) f
 	policy, err := filterapi.NewPolicy(refs, final)
 	require.NoError(t, err)
 	return policy
+}
+
+// compiledPolicy is the policy bgp/config builds for refs that name plugin
+// filters: each "<plugin>:<filter>" ref becomes an external member of a
+// library chain compiled at attachment under final (bgpconfig
+// compileLibraryChain). mustPolicy alone builds a policy no chain runs, which
+// the reactor fails closed on, so a test whose filters must run uses this.
+func compiledPolicy(t testing.TB, attachment string, final routepolicy.Final, refs ...routepolicy.Ref) filterapi.Policy {
+	t.Helper()
+	reg, err := routepolicy.NewRegistry()
+	require.NoError(t, err)
+	members := make([]policychain.Member, len(refs))
+	for i, ref := range refs {
+		plugin, filter, ok := strings.Cut(ref.Name, ":")
+		require.True(t, ok, "ref %q names no plugin", ref.Name)
+		members[i] = policychain.Member{Name: filter, Plugin: plugin}
+	}
+	chain, err := policychain.Compile(attachment, reg, members, final, policychain.Bases{LocalPreference: 100})
+	require.NoError(t, err)
+	return mustPolicy(t, refs, final).WithLibrary(chain)
 }
 
 // acceptingPolicies gives each of settings an explicit import and export policy
@@ -103,16 +124,17 @@ type fakeFilterTransport struct {
 
 func (f *fakeFilterTransport) FilterInfo(_, _ string) ([]string, bool) { return f.declared, f.raw }
 
-// FilterReads answers no route field: these tests drive the text and raw
-// branches, and the fields object is TestFilterMessageFieldShapes's.
 // FilterReadvertise answers that the filter does not opt into the stale
 // readvertise rail.
 func (f *fakeFilterTransport) FilterReadvertise(_, _ string) (readvertise, ok bool) {
 	return false, true
 }
 
+// FilterDeclaration answers every filter as declared, reading the prefix and
+// setting nothing, under onError: a library chain member with no declaration
+// or no reads fails every route before its answer is read.
 func (f *fakeFilterTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {
-	return nil, nil, rpc.OnErrorReject, false
+	return []string{"prefix"}, nil, f.onError, true
 }
 
 func (f *fakeFilterTransport) FilterReads(_, _ string) []string { return nil }

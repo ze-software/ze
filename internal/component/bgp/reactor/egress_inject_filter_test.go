@@ -21,8 +21,8 @@ import (
 // The first two are legitimate accepts (no session / no export policy); the
 // third -- a nil API server while the peer HAS export filters -- is a guard
 // MISS, and returning (false, nil) sent the route to the wire UNFILTERED and
-// silently, the exact fail-open siblings policyFilterFunc (filter_chain.go) and
-// default-originate (peer_initial_sync.go) already reject loudly. These tests
+// silently, the exact fail-open its sibling default-originate
+// (peer_initial_sync.go) already rejects loudly. These tests
 // drive exportFilterForBody directly (the entry point that triggers the guard,
 // per evidence.md) and pin each of the three split cases.
 //

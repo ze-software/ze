@@ -1,6 +1,5 @@
 // Design: docs/architecture/core-design.md -- policy filter wire-level dirty tracking
 // Related: filter_library.go -- rewriteLibrary reaches the prepend and remove-private intents here
-// Related: filter_delta.go -- the text delta's ExtractASPathPrependOps and ExtractRemovePrivateASOps
 // Related: forward_build.go -- buildModifiedPayload consumes ModAccumulator ops
 // RFC: rfc/short/rfc6996.md -- Private Use ASN ranges (remove-private rewriting)
 // RFC: rfc/short/rfc6793.md -- AS4_PATH handling (four-octet AS number space)
@@ -16,11 +15,10 @@ import (
 
 // prependASPathOps records the AS_PATH prepend of count copies of localAS,
 // and the AS4_PATH RFC 6793 Section 4.2.2 owes beside it, on mods. count is
-// 1..policychain.ASPathPrependMax, which both callers check. It is the wire
-// half of the prepend intent: the text delta (ExtractASPathPrependOps) and the
-// library chain (libraryIntentOps) both reach it, so the two paths write
-// identical bytes. asn4 is the width of the payload the segment joins (see
-// ExtractASPathPrependOps).
+// 1..policychain.ASPathPrependMax, which the caller checks. It is the wire
+// half of the prepend intent the library chain (libraryASPathOps) resolves.
+// asn4 is the width of the payload the segment joins, which each call site
+// derives from the session the payload was encoded for.
 //
 // RFC 4271 Section 5.1.2: "Whenever the modification of the AS_PATH attribute calls for
 // including or prepending the AS number of the local system, the local
@@ -54,7 +52,7 @@ func prependASPathOps(scratch *valueScratch, attrs *attribute.AttributesWire, as
 	//
 	// That substitution is NOT written here: ASPath.WriteToWithASN4 is where Ze
 	// declares it (writeSegmentWithSplit, internal/core/bgp/attribute/aspath.go),
-	// and ExtractRemovePrivateASOps reaches it the same way.
+	// and removePrivateASOps reaches it the same way.
 	segs := scratch.carveSegments(1)
 	segs = append(segs, attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: asns})
 	segment := &attribute.ASPath{Segments: segs}
@@ -122,9 +120,9 @@ func prependAS4PathValue(scratch *valueScratch, attrs *attribute.AttributesWire,
 	}
 
 	// What the outgoing AS_PATH will hold once the prepend applies. Read from
-	// the accumulator when an earlier extractor already Set it, because
-	// ExtractRemovePrivateASOps runs first at all three call sites and deriving
-	// from the wire instead would restore the private AS numbers it stripped.
+	// the accumulator when an earlier rewrite already Set it, because
+	// libraryASPathOps runs removePrivateASOps first and deriving from the wire
+	// instead would restore the private AS numbers it stripped.
 	path := &attribute.ASPath{}
 	if value, dropped, found := pendingAttrValue(mods, attribute.AttrASPath); !dropped {
 		if !found {
@@ -200,8 +198,7 @@ func pendingAttrValue(mods *filterapi.ModAccumulator, code attribute.AttributeCo
 // removePrivateASOps records the AS_PATH and AS4_PATH rewrite that removes,
 // or with RemovePrivatePeerAS replaces by peerAS, every private-use AS
 // number, segment by segment. It is the wire half of the remove-private
-// intent, reached by the text delta (ExtractRemovePrivateASOps) and the
-// library chain (libraryIntentOps) alike.
+// intent the library chain (libraryASPathOps) resolves.
 //
 // RFC 6996 Section 4: "Private Use ASNs MUST be removed from AS path attributes (including
 // AS4_PATH if utilizing a four-octet AS number space) before being

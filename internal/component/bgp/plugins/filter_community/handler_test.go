@@ -413,9 +413,8 @@ func TestRemoveValuesMultiValueBuffer(t *testing.T) {
 // TestRemoveValuesSingleUnchanged pins the single-value case byte-for-byte.
 //
 // VALIDATES: spec-fixit-rs-community-strip-arity A-2 -- widening the contract
-// must not disturb the producers that already split, namely the text-delta path
-// (the per-value split in reactor/filter_delta.go `textDeltaToModOps`) and the
-// plugin's own egress filter (`applyEgressFilter` in egress.go).
+// must not disturb the producer that already splits, the plugin's own egress
+// filter (`applyEgressFilter` in egress.go).
 // PREVENTS: a regression in configured `community { egress strip NAME }`, which
 // is the only community stripping with existing functional coverage.
 func TestRemoveValuesSingleUnchanged(t *testing.T) {
@@ -739,8 +738,8 @@ func TestGenericCommunityHandlerRefusesMalformedSourceValue(t *testing.T) {
 // VALIDATES: spec-fixit-rs-community-strip-arity, the carried-forward finding
 // "empty toRemove is untested". Zero is a whole number of values
 // (`len(nil) % 4 == 0`), so wholeValues admits it and the attribute is
-// forwarded unchanged. No producer emits one today -- reactor/filter_delta.go,
-// egress.go and wireu.StripControlCommunities all gate on a non-empty set --
+// forwarded unchanged. No producer emits one today -- egress.go and
+// wireu.StripControlCommunities both gate on a non-empty set --
 // which is exactly why the behavior needs pinning rather than assuming.
 // PREVENTS: a future arity guard that reclassifies an empty buffer as
 // malformed, which would fire the warning and the refusal counter at any

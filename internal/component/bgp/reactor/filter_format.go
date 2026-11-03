@@ -1,67 +1,18 @@
-// Design: docs/architecture/core-design.md — policy filter chain
-// Related: filter_chain.go — policy filter chain execution
-// Related: filter_delta.go — text delta to wire-mod-ops consumer of the same format
+// Design: docs/architecture/core-design.md — policy dry run (show policy test)
+// Related: policy_dryrun_display.go — the dry-run display these renderers write
+// Related: filter_flowspec.go — the FlowSpec destination block of the same display
 
 package reactor
 
 import (
+	"net/netip"
 	"reflect"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 )
-
-// AppendUpdateForFilter appends the filter-text rendering of an UPDATE
-// (attributes + NLRI) into buf and returns the extended slice. The format is:
-//
-//	"<attr> <val> ... [nlri add <prefix>...] [nlri del <prefix>...] [mp <family> add|del [<prefix>...]]..."
-//
-// The legacy NLRI section is emitted as "nlri add <prefix>..." and the legacy
-// Withdrawn Routes as "nlri del <prefix>...". MP_REACH_NLRI and MP_UNREACH_NLRI
-// attributes (RFC 4760) are emitted as "mp <family> add|del ...", so IPv4
-// unicast carried in MP_REACH_NLRI is told apart from the legacy NLRI field.
-// Each section is a block of its own.
-//
-// For families whose NLRI is a plain CIDR prefix (unicast, multicast,
-// mpls-label in AFI IPv4/IPv6), the prefix list is emitted inline so text-
-// mode filters can match directly. FlowSpec renders its destination prefix
-// component for every NLRI, without converting the NLRI to unicast. Prefix-list
-// policy makes a whole-update decision for this projection; it never rewrites
-// away the other flow components. Other non-CIDR families remain marker-only.
-// Filters inspecting their payload must declare raw=true.
-//
-// The "as-path" token carries the AS path information the route traversed, not
-// the AS_PATH attribute as encoded: on a session that did not negotiate the
-// four-octet AS capability the two are different (RFC 6793 Section 4.2.3, and
-// asPathForFilter below).
-//
-// Returns buf unchanged if attrs is nil and wireUpdate has no NLRI sections.
-// Attrs-only output (no nlri tokens) is valid when wireUpdate is nil or
-// carries no reachability / withdrawal information.
-//
-// Zero-alloc: the caller owns buf; AppendUpdateForFilter appends via the
-// stdlib builtin `append` and returns the extended slice. No fmt.Sprintf,
-// no strings.Join, no intermediate []string.
-func AppendUpdateForFilter(buf []byte, attrs *attribute.AttributesWire, wireUpdate *wireu.WireUpdate, declared []string) []byte {
-	start := len(buf)
-	buf = AppendAttrsForFilter(buf, attrs, declared)
-
-	if wireUpdate == nil {
-		return buf
-	}
-	if len(buf) == start {
-		return appendNLRIBlocks(buf, wireUpdate)
-	}
-	// The NLRI blocks (policy_dryrun_display.go) follow the attributes after
-	// one space, dropped again when the UPDATE carries no block.
-	mark := len(buf)
-	buf = appendNLRIBlocks(append(buf, ' '), wireUpdate)
-	if len(buf) == mark+1 {
-		return buf[:mark]
-	}
-	return buf
-}
 
 // appendLegacyBlock appends the "nlri add|del <prefix>..." block of the legacy
 // NLRI (op add) or Withdrawn Routes (op del) section. bufEmpty is true when buf
@@ -112,8 +63,7 @@ func appendMPBlock(buf []byte, fam family.Family, op string, section []byte, add
 // that does not parse names no family, so its block names the zero family
 // (AFI 0 and SAFI 0 are reserved, so no real family reads as it), as
 // nlriSectionOf names none. The "invalid" token is the one a section that does
-// not frame ends with (appendCIDRPrefixes): no prefix filter accepts it, and
-// an answer that drops or rewrites the block is refused (sectionNLRIDelta).
+// not frame ends with (appendCIDRPrefixes): no prefix filter accepts it.
 // bufEmpty is true when buf has no content appended since the outer call
 // began; no leading space separator is emitted then.
 func appendMalformedBlock(buf []byte, keyword, op string, bufEmpty bool) []byte {
@@ -130,56 +80,10 @@ func appendMalformedBlock(buf []byte, keyword, op string, bufEmpty bool) []byte 
 	return append(buf, " invalid"...)
 }
 
-// attrNameToCode maps filter text attribute names to wire codes.
-var attrNameToCode = map[string]attribute.AttributeCode{
-	policyAttrOrigin:            attribute.AttrOrigin,
-	policyAttrASPath:            attribute.AttrASPath,
-	policyAttrNextHop:           attribute.AttrNextHop,
-	policyAttrMED:               attribute.AttrMED,
-	policyAttrLocalPreference:   attribute.AttrLocalPref,
-	policyAttrAtomicAggregate:   attribute.AttrAtomicAggregate,
-	policyAttrAggregator:        attribute.AttrAggregator,
-	policyAttrCommunity:         attribute.AttrCommunity,
-	policyAttrOriginatorID:      attribute.AttrOriginatorID,
-	policyAttrClusterList:       attribute.AttrClusterList,
-	policyAttrExtendedCommunity: attribute.AttrExtCommunity,
-	policyAttrAIGP:              attribute.AttrAIGP,
-	policyAttrLargeCommunity:    attribute.AttrLargeCommunity,
-}
-
-// AppendAttrsForFilter appends selected attributes from wire into buf as
-// space-separated "<name> <value>" pairs. Only attributes named in declared
-// are included. If declared is empty, all parseable attributes are included.
-// Returns buf unchanged when attrs is nil.
-//
-// The "as-path" pair carries the AS path information rather than the AS_PATH
-// attribute: see asPathForFilter.
-func AppendAttrsForFilter(buf []byte, attrs *attribute.AttributesWire, declared []string) []byte {
-	if attrs == nil {
-		return buf
-	}
-	if len(declared) == 0 {
-		return appendAllAttrs(buf, attrs)
-	}
-	first := true
-	for _, name := range declared {
-		code, ok := attrNameToCode[name]
-		if !ok {
-			continue
-		}
-		parsed := attrForFilter(attrs, code)
-		if parsed == nil {
-			continue
-		}
-		buf, first = appendSingleAttr(buf, parsed, first)
-	}
-	return buf
-}
-
-// attrForFilter returns the attribute to RENDER for one filter-text attribute
+// attrForFilter returns the attribute to RENDER for one attribute code of the
 // code, and nil when the UPDATE does not carry it or its wire bytes do not
-// parse. Both arms of AppendAttrsForFilter go through here, so a filter that
-// declares its attributes and a filter that takes them all read one subject.
+// parse. Every attribute the dry run shows goes through here, so the AS path it
+// shows is the path the route traversed (asPathForFilter).
 func attrForFilter(attrs *attribute.AttributesWire, code attribute.AttributeCode) attribute.Attribute {
 	parsed, err := attrs.Get(code)
 	if err != nil || parsed == nil {
@@ -191,14 +95,14 @@ func attrForFilter(attrs *attribute.AttributesWire, code attribute.AttributeCode
 	return asPathForFilter(attrs, parsed)
 }
 
-// asPathForFilter returns the AS path a filter must judge: the AS numbers the
+// asPathForFilter returns the AS path the dry run shows: the AS numbers the
 // route really traversed, whatever ASN width the session negotiated.
 //
 // A peer that did not negotiate the four-octet AS capability sends a two-octet
 // AS_PATH holding AS_TRANS (23456) wherever a four-octet AS number belongs, and
 // sends the real numbers in AS4_PATH. Rendering AS_PATH alone therefore shows
-// every text-mode filter the ENCODING instead of the path, so a rule naming a
-// four-octet ASN accepts the route it exists to reject.
+// the operator the ENCODING instead of the path, so a route a rule naming a
+// four-octet ASN rejects reads as if it should pass.
 //
 // RFC 6793 Section 4.2.3: "If the AS4_PATH attribute is also received, both of
 // the attributes will be used to construct the exact AS path information, and
@@ -226,18 +130,18 @@ func attrForFilter(attrs *attribute.AttributesWire, code attribute.AttributeCode
 //     AttrAS4Path with *attribute.AS4Path by construction (knownAttrParsers,
 //     internal/core/bgp/attribute/wire.go), and the index verdict Has reads is
 //     the immutable one Get already passed in attrForFilter. Reaching one is a
-//     Ze defect, so each one speaks. Silence would put the AS_TRANS subject
+//     Ze defect, so each one speaks. Silence would put the AS_TRANS path
 //     this function exists to remove back on the branch nobody looks at, and
 //     nothing else would ever report it.
 //
-// A miss degrades to the encoded path and MUST NOT drop the route: the filter
-// chain still runs, and the log line is what tells an operator that its verdict
-// was taken on the wrong subject. Every line goes through fwdLogger, so
+// A miss degrades to the encoded path and MUST NOT drop the route: the dry run
+// still answers, and the log line is what tells an operator that the display
+// shows the encoded path. Every line goes through fwdLogger, so
 // ze.log.bgp.reactor.forward damps a peer that repeats a malformed AS4_PATH.
 func asPathForFilter(attrs *attribute.AttributesWire, parsed attribute.Attribute) attribute.Attribute {
 	present, err := attrs.Has(attribute.AttrAS4Path)
 	if err != nil {
-		fwdLogger().Warn("filter text: AS path reconstruction skipped, attribute index unreadable",
+		fwdLogger().Warn("policy dry run: AS path reconstruction skipped, attribute index unreadable",
 			"error", err)
 		return parsed
 	}
@@ -247,7 +151,7 @@ func asPathForFilter(attrs *attribute.AttributesWire, parsed attribute.Attribute
 
 	asPath, ok := parsed.(*attribute.ASPath)
 	if !ok {
-		fwdLogger().Warn("filter text: AS path reconstruction skipped, AS_PATH parsed to an unexpected type",
+		fwdLogger().Warn("policy dry run: AS path reconstruction skipped, AS_PATH parsed to an unexpected type",
 			"type", reflect.TypeOf(parsed))
 		return parsed
 	}
@@ -258,14 +162,14 @@ func asPathForFilter(attrs *attribute.AttributesWire, parsed attribute.Attribute
 		// AS4_PATH attribute in an UPDATE message from an OLD BGP speaker MUST
 		// discard the attribute and continue processing the UPDATE message.
 		// The error SHOULD be logged locally for analysis."
-		fwdLogger().Warn("filter text: malformed AS4_PATH discarded, filters judge the encoded AS_PATH",
+		fwdLogger().Warn("policy dry run: malformed AS4_PATH discarded, the encoded AS_PATH is shown",
 			"error", err)
 		return parsed
 	}
 
 	as4Path, ok := as4Parsed.(*attribute.AS4Path)
 	if !ok {
-		fwdLogger().Warn("filter text: AS path reconstruction skipped, AS4_PATH parsed to an unexpected type",
+		fwdLogger().Warn("policy dry run: AS path reconstruction skipped, AS4_PATH parsed to an unexpected type",
 			"type", reflect.TypeOf(as4Parsed))
 		return parsed
 	}
@@ -273,25 +177,11 @@ func asPathForFilter(attrs *attribute.AttributesWire, parsed attribute.Attribute
 	return attribute.MergeAS4Path(asPath, as4Path)
 }
 
-// appendAllAttrs appends all known attributes from wire in the order the
-// dry-run shows them (displayAttrOrder, policy_dryrun_display.go).
-func appendAllAttrs(buf []byte, attrs *attribute.AttributesWire) []byte {
-	first := true
-	for _, code := range displayAttrOrder {
-		parsed := attrForFilter(attrs, code)
-		if parsed == nil {
-			continue
-		}
-		buf, first = appendSingleAttr(buf, parsed, first)
-	}
-	return buf
-}
-
 // filterUnnamedAttrPhrase is the one leading phrase the unnamed-type warning
 // carries, so an operator's log scanner matches one string (ai/rules/cli.md).
 // It names the consequence rather than the cause: the attribute is absent from
-// the subject, so every filter on the chain judges the route without it.
-const filterUnnamedAttrPhrase = "filter text: attribute dropped, no renderer names its type"
+// what the dry run shows.
+const filterUnnamedAttrPhrase = "policy dry run: attribute not shown, no renderer names its type"
 
 // appendSingleAttr appends one attribute as "<name> <value>" text into buf,
 // with a leading space separator when first is false. Returns the updated
@@ -348,10 +238,10 @@ func appendSingleAttr(buf []byte, attr attribute.Attribute, first bool) ([]byte,
 		// defect. Five arms named a pointer form no parser builds, and this
 		// branch is what would have said so on the first UPDATE.
 		//
-		// The subject is built once for the whole chain, so a dropped attribute
-		// is dropped for every filter on that peer at once, and the chain still
+		// The display is built once for the whole UPDATE, so a dropped attribute
+		// is missing from the whole answer, and the dry run still
 		// runs to a verdict. Degrade and SPEAK, for the reason asPathForFilter
-		// states above: silence puts the wrong subject on the branch nobody
+		// states above: silence puts the wrong display on the branch nobody
 		// looks at, and nothing else would ever report it. Every line goes
 		// through fwdLogger, so ze.log.bgp.reactor.forward damps it.
 		//
@@ -365,4 +255,47 @@ func appendSingleAttr(buf []byte, attr attribute.Attribute, first bool) ([]byte,
 		return buf[:start], first
 	}
 	return buf, false
+}
+
+// appendCIDRPrefixes appends " <prefix>" for every NLRI of a CIDR-family
+// section, framed by wireu.CIDREntry and named by the family's route key, so a
+// dry run shows exactly the prefixes a prefix match judges (policychain): a
+// path identifier or a label stack is never read as prefix bits. A section that
+// does not frame or key ends with the token "invalid", which names no prefix.
+func appendCIDRPrefixes(buf []byte, fam family.Family, section []byte, addPath, withdraw bool) []byte {
+	routeKey := nlrisplit.GetPrefixKey(fam)
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	for off := 0; off < len(section); {
+		_, cidr, next, ok := wireu.CIDREntry(section, off, addPath)
+		if !ok {
+			return append(buf, " invalid"...)
+		}
+		off = next
+		key, err := routeKey(cidr, scratch[:], withdraw)
+		if err != nil {
+			return append(buf, " invalid"...)
+		}
+		p := cidrKeyPrefix(fam, key)
+		if !p.IsValid() {
+			return append(buf, " invalid"...)
+		}
+		buf = append(buf, ' ')
+		buf = p.AppendTo(buf)
+	}
+	return buf
+}
+
+// cidrKeyPrefix reads a CIDR route key (length octet, then the prefix octets)
+// back as the prefix it names. The zero Prefix, which IsValid refuses, answers
+// a key that names none.
+func cidrKeyPrefix(fam family.Family, key []byte) netip.Prefix {
+	if len(key) == 0 {
+		return netip.Prefix{}
+	}
+	var a [16]byte
+	copy(a[:], key[1:])
+	if fam.AFI == family.AFIIPv4 {
+		return netip.PrefixFrom(netip.AddrFrom4([4]byte(a[:4])), int(key[0]))
+	}
+	return netip.PrefixFrom(netip.AddrFrom16(a), int(key[0]))
 }

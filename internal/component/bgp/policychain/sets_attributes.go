@@ -6,9 +6,7 @@
 // COMMUNITY: ORIGIN and NEXT_HOP replaced, AIGP set, incremented or
 // decremented, LARGE_COMMUNITY and EXTENDED_COMMUNITIES values added or
 // removed, and MULTI_EXIT_DISC removed on import. Each is written as the same
-// ModAccumulator operation the text delta produced for it
-// (textDeltaToModOps, reactor/filter_delta.go), so one apply engine writes
-// every change.
+// ModAccumulator operation, so one apply engine writes every change.
 
 package policychain
 
@@ -208,7 +206,7 @@ func resolveAIGP(set numericSet, current uint64, present bool) (uint64, bool) {
 }
 
 // applyAttributesTo writes the attribute sets as ModAccumulator operations,
-// the operations textDeltaToModOps writes for the same text directives.
+// which the reactor's registered attribute handlers apply to the wire.
 func (s *Sets) applyAttributesTo(acc *filterapi.ModAccumulator, current Current) {
 	if s.written&setKindOrigin.bit() != 0 {
 		// RFC 4271 Section 4.3: "ORIGIN is a well-known mandatory attribute that defines the origin of the path information."

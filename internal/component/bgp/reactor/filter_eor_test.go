@@ -2,6 +2,8 @@ package reactor
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"net/netip"
 	"testing"
 
@@ -12,6 +14,35 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+// unavailableError is what the plugin server answers for a filter whose
+// plugin's slot answers rpc.ErrBridgeClosed (server.CallFilterUpdate, proven
+// by TestCallFilterUpdateUnavailable in plugin/server).
+func unavailableError(plugin, filter string) error {
+	return fmt.Errorf("filter %s: plugin %q is unavailable (stopped, crashed or respawning): %w",
+		filter, plugin, rpc.ErrBridgeClosed)
+}
+
+// unavailableTransport is a plugin server whose one filter, "probe:f", has
+// a stopped plugin: every call answers the server's "unavailable" error, and
+// the member's on-error is onError.
+type unavailableTransport struct {
+	externalTransport
+	onError rpc.OnErrorPolicy
+	calls   int
+}
+
+func (u *unavailableTransport) FilterDeclaration(plugin, filter string) ([]string, []string, rpc.OnErrorPolicy, bool) {
+	reads, sets, _, ok := u.externalTransport.FilterDeclaration(plugin, filter)
+	return reads, sets, u.onError, ok
+}
+
+func (u *unavailableTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return u.onError }
+
+func (u *unavailableTransport) CallFilterUpdate(_ context.Context, plugin string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
+	u.calls++
+	return nil, unavailableError(plugin, route.Filter())
+}
 
 // TestIngressPassDeliversEndOfRIBUnjudged proves that the ingress filter pass
 // never judges an End-of-RIB marker: the marker carries no route, so no
@@ -36,7 +67,8 @@ func TestIngressPassDeliversEndOfRIBUnjudged(t *testing.T) {
 	}
 	for _, marker := range markers {
 		t.Run(marker.name, func(t *testing.T) {
-			transport := &unavailableTransport{onError: rpc.OnErrorReject, reads: []string{"local-preference"}}
+			transport := &unavailableTransport{onError: rpc.OnErrorReject,
+				externalTransport: externalTransport{reads: []string{"local-preference"}}}
 			addr := netip.MustParseAddr("203.0.113.9")
 			source := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
 				ImportPolicy: mixedPolicy(t, libraryTypeLP200,

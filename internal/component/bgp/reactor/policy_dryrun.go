@@ -21,106 +21,6 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
-// tracePolicyFilterChain records external filter decisions over the text chain
-// and applies the policy final. Named in-process checks are marked
-// not-evaluated, never called by RPC. PolicyDryRun no longer calls it (a policy
-// with no library chain fails closed, traceUncompiledChain): it remains only
-// for the text chain's tests beside PolicyFilterChain, and goes with them.
-func tracePolicyFilterChain(policy filterapi.Policy, external bool, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyChainResult, []plugin.PolicyTraceEntry) {
-	var trace []plugin.PolicyTraceEntry
-	if direction != directionImport {
-		if policy.RequiresIngress() {
-			// Only the refused dry-run scans for its diagnostic reference.
-			// No external filter has executed, regardless of reference order.
-			for i, ref := range policy.Filters() {
-				if ref.Inactive {
-					continue
-				}
-				if policy.InProcess(i) {
-					_, filterName, _ := strings.Cut(ref.Name, ":")
-					trace = append(trace, plugin.PolicyTraceEntry{
-						Filter:    filterName,
-						Canonical: ref.Name,
-						Action:    "not-evaluated",
-					})
-					break
-				}
-			}
-			return PolicyChainResult{Action: PolicyReject, Failed: true}, trace
-		}
-	}
-	current := updateText
-
-	for i, ref := range policy.Filters() {
-		if ref.Inactive {
-			continue
-		}
-		if policy.InProcess(i) {
-			_, filterName, _ := strings.Cut(ref.Name, ":")
-			trace = append(trace, plugin.PolicyTraceEntry{
-				Filter:    filterName,
-				Canonical: ref.Name,
-				Action:    "not-evaluated",
-			})
-			continue
-		}
-		pluginName, filterName, _ := strings.Cut(ref.Name, ":")
-		result := callFilter(pluginName, filterName, direction, peer, peerAS, current)
-
-		entry := plugin.PolicyTraceEntry{
-			Filter:    filterName,
-			Canonical: ref.Name,
-		}
-
-		if result.Teardown {
-			entry.Action = dryRunActionReject
-			trace = append(trace, entry)
-			return PolicyChainResult{
-				Action:        PolicyReject,
-				Failed:        result.Failed,
-				Teardown:      true,
-				NotifyCode:    result.NotifyCode,
-				NotifySubcode: result.NotifySubcode,
-			}, trace
-		}
-
-		switch result.Action {
-		case PolicyReject:
-			entry.Action = dryRunActionReject
-			entry.TextAfter = ""
-			trace = append(trace, entry)
-			return PolicyChainResult{Action: PolicyReject, Failed: result.Failed}, trace
-		case PolicyModify:
-			entry.Action = dryRunActionModify
-			if len(result.Raw) > 0 {
-				entry.TextAfter = current
-				trace = append(trace, entry)
-				// RFC 8212 Section 3.
-				if !policy.AcceptsAtEnd(external) {
-					return PolicyChainResult{Action: PolicyReject}, trace
-				}
-				return PolicyChainResult{Action: PolicyModify, Text: current, Raw: result.Raw}, trace
-			}
-			entry.Delta = result.Delta
-			current = applyFilterDelta(current, result.Delta)
-			entry.TextAfter = current
-		case PolicyAccept:
-			entry.Action = dryRunActionAccept
-			entry.TextAfter = current
-		default:
-			panic("BUG: invalid policy action")
-		}
-
-		trace = append(trace, entry)
-	}
-
-	// RFC 8212 Section 3.
-	if !policy.AcceptsAtEnd(external) {
-		return PolicyChainResult{Action: PolicyReject}, trace
-	}
-	return PolicyChainResult{Action: PolicyAccept, Text: current}, trace
-}
-
 // errUncompiledChain is why a plugin filter on a policy that compiled no
 // library chain cannot run in the dry-run: the session fails the route closed
 // for the same reason.
@@ -452,8 +352,7 @@ func wireModVerb(action uint8) string {
 // resolveFilterOverride finds the canonical ref for a filter override name.
 // Accepts plain names, type-prefixed, and plugin-prefixed forms.
 //
-// Inactive refs (prefixed "inactive:") are skipped: TracePolicyFilterChain
-// never runs them, so matching one would silently yield an "accept" result
+// Inactive refs (prefixed "inactive:") are skipped: no chain runs them, so matching one would silently yield an "accept" result
 // with an empty trace, misleading the operator into thinking the filter is
 // permissive. Returning "" makes the handler report "filter not found"
 // instead.

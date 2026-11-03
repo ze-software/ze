@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the in-process BGP chain
 // Related: filter_ordered.go -- runIngressPolicyChain, runEgressPolicyChainASN4
 // Related: forward_build.go -- buildModifiedPayload
-// Related: filter_delta.go -- prependASPathOps, removePrivateASOps (the AS-path intents)
+// Related: aspath_edit.go -- prependASPathOps, removePrivateASOps (the AS-path intents)
 // Related: filter_nlri_delta.go -- nlriSectionOf, dropNLRI, recordNLRIRewrite (the NLRI intents)
 // RFC: rfc/short/rfc4271.md -- AS_PATH toward an internal peer (Section 5.1.2)
 
@@ -34,8 +34,8 @@ var libraryRuns = sync.Pool{New: func() any { return new(libraryRun) }}
 // libraryIntentContext is the reactor-side state the named intents resolve
 // against, which no chain member can know (D-5).
 type libraryIntentContext struct {
-	// asn4 is the AS number width of the payload's AS_PATH (see
-	// ExtractASPathPrependOps for why each call site derives it).
+	// asn4 is the AS number width of the payload's AS_PATH, which each call
+	// site derives from the session the payload was encoded for.
 	asn4 bool
 	// localAS is the AS a prepend writes; peerAS the AS remove-private's
 	// peer-as mode writes.
@@ -68,8 +68,8 @@ type libraryResult struct {
 }
 
 // runLibraryChain runs a policy's library chain over one route and turns the
-// folded sets into the modified body through buildModifiedPayload, the
-// builder the text delta reaches. The view never leaves this call: it is
+// folded sets into the modified body through buildModifiedPayload. The view
+// never leaves this call: it is
 // Cleared before its scratch returns to the pool. site and peer name the
 // modify-failure counter's labels.
 //
@@ -218,10 +218,9 @@ func (r *Reactor) rewriteLibrary(mods *filterapi.ModAccumulator, folded *policyc
 	return libraryRewrite{payload: modPayload, modFail: modFail}
 }
 
-// libraryCaller reaches an external member's plugin through the transport
-// the text chain talks to. A nil transport leaves the route's Caller nil, and
-// the member then fails under its on-error (fail-closed by default), as the
-// text chain does with no API server.
+// libraryCaller reaches an external member's plugin through the plugin
+// server's filter transport. A nil transport leaves the route's Caller nil,
+// and the member then fails under its on-error (fail-closed by default).
 type libraryCaller struct{ api filterTransport }
 
 func (c libraryCaller) FilterDeclaration(plugin, filter string) (policychain.ExternalDeclaration, bool) {
@@ -236,7 +235,7 @@ func (c libraryCaller) FilterDeclaration(plugin, filter string) (policychain.Ext
 // CallFilter judges the route through the plugin's typed filter slot when the
 // plugin runs internal, and in its next filter-update batch when it runs
 // forked (the transport's CallFilterUpdate, D-12). The context bounds the batched
-// exchange as the text chain's is (rpc.FilterUpdateTimeout); the slot runs on
+// exchange (rpc.FilterUpdateTimeout); the slot runs on
 // this goroutine under the fast-path contract instead. A closed slot answers
 // an "unavailable" error, and the member applies its on-error (FR-11).
 func (c libraryCaller) CallFilter(plugin string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
@@ -245,8 +244,8 @@ func (c libraryCaller) CallFilter(plugin string, route *rpc.FilterRoute) (*rpc.F
 	return c.api.CallFilterUpdate(ctx, plugin, route)
 }
 
-// libraryASPathOps resolves the AS-path intents through the cores the text
-// delta reaches, in the text delta's order: remove-private first, because the
+// libraryASPathOps resolves the AS-path intents through the wire cores in
+// aspath_edit.go, remove-private first, because the
 // prepend's AS4_PATH derivation reads the AS_PATH remove-private recorded.
 func libraryASPathOps(scratch *valueScratch, folded *policychain.Sets, attrs *attribute.AttributesWire, intent libraryIntentContext, mods *filterapi.ModAccumulator) {
 	if !intent.asPathEditable {
@@ -270,7 +269,7 @@ var noNLRI = []byte{}
 
 // libraryNLRIOps resolves the family-strip and NLRI-drop intents over the four
 // NLRI sections nlriSectionOf reads, recording each rewrite through
-// recordNLRIRewrite, as the text delta does. It answers the legacy NLRI
+// recordNLRIRewrite. It answers the legacy NLRI
 // override. ok == false when a drop names a section the UPDATE does not carry,
 // an offset that starts no entry, or a family whose NLRI is not a CIDR prefix:
 // the route is then dropped, because sending it would advertise what the

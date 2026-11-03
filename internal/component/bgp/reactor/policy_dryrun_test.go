@@ -19,214 +19,6 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// VALIDATES: TracePolicyFilterChain records per-filter trace entries.
-// PREVENTS: Trace helper diverging from PolicyFilterChain semantics.
-func TestTracePolicyFilterChain(t *testing.T) {
-	for _, external := range []bool{false, true} {
-		t.Run(map[bool]string{false: "ibgp", true: "ebgp"}[external], func(t *testing.T) {
-			wantAction := PolicyAccept
-			if external {
-				wantAction = PolicyReject
-			}
-			wantText := func(text string) string {
-				if external {
-					return ""
-				}
-				return text
-			}
-			t.Run("empty_chain_accepts", func(t *testing.T) {
-				result, trace := tracePolicyFilterChain(filterapi.Policy{}, external, "export", "10.0.0.1", 65001, "origin igp", nil)
-				if result.Action != wantAction {
-					t.Errorf("action = %v, want %v", result.Action, wantAction)
-				}
-				if result.Text != wantText("origin igp") {
-					t.Errorf("text = %q, want %q", result.Text, wantText("origin igp"))
-				}
-				if len(trace) != 0 {
-					t.Errorf("trace len = %d, want 0", len(trace))
-				}
-			})
-
-			t.Run("accept_passthrough", func(t *testing.T) {
-				call := func(_, _, _, _ string, _ uint32, text string) PolicyResponse {
-					return PolicyResponse{Action: PolicyAccept}
-				}
-				result, trace := tracePolicyFilterChain(
-					filterapi.InternalPolicy(frefs("plug:FILTER1")), external, "export", "10.0.0.1", 65001, "origin igp", call,
-				)
-				if result.Action != wantAction {
-					t.Errorf("action = %v, want %v", result.Action, wantAction)
-				}
-				if result.Text != wantText("origin igp") {
-					t.Errorf("text = %q, want %q", result.Text, wantText("origin igp"))
-				}
-				if len(trace) != 1 {
-					t.Fatalf("trace len = %d, want 1", len(trace))
-				}
-				if trace[0].Action != dryRunActionAccept {
-					t.Errorf("trace[0].Action = %q, want %q", trace[0].Action, dryRunActionAccept)
-				}
-				if trace[0].Filter != "FILTER1" {
-					t.Errorf("trace[0].Filter = %q, want %q", trace[0].Filter, "FILTER1")
-				}
-				if trace[0].Canonical != "plug:FILTER1" {
-					t.Errorf("trace[0].Canonical = %q, want %q", trace[0].Canonical, "plug:FILTER1")
-				}
-			})
-
-			t.Run("reject_short_circuits", func(t *testing.T) {
-				callCount := 0
-				call := func(_, filterName, _, _ string, _ uint32, _ string) PolicyResponse {
-					callCount++
-					if filterName == "DENY" {
-						return PolicyResponse{Action: PolicyReject}
-					}
-					return PolicyResponse{Action: PolicyAccept}
-				}
-				result, trace := tracePolicyFilterChain(
-					filterapi.InternalPolicy(frefs("plug:DENY", "plug:AFTER")), external, "import", "10.0.0.1", 65001, "origin igp", call,
-				)
-				if result.Action != PolicyReject {
-					t.Errorf("action = %v, want PolicyReject", result.Action)
-				}
-				if result.Text != "" {
-					t.Errorf("text = %q, want empty", result.Text)
-				}
-				if callCount != 1 {
-					t.Errorf("callCount = %d, want 1 (short-circuit)", callCount)
-				}
-				if len(trace) != 1 {
-					t.Fatalf("trace len = %d, want 1", len(trace))
-				}
-				if trace[0].Action != dryRunActionReject {
-					t.Errorf("trace[0].Action = %q, want %q", trace[0].Action, dryRunActionReject)
-				}
-			})
-
-			t.Run("modify_applies_delta", func(t *testing.T) {
-				call := func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-					return PolicyResponse{Action: PolicyModify, Delta: "med 200"}
-				}
-				result, trace := tracePolicyFilterChain(
-					filterapi.InternalPolicy(frefs("plug:SET_MED")), external, "export", "10.0.0.1", 65001, "origin igp med 100", call,
-				)
-				if result.Action != wantAction {
-					t.Errorf("action = %v, want %v", result.Action, wantAction)
-				}
-				if result.Text != wantText("origin igp med 200") {
-					t.Errorf("text = %q, want %q", result.Text, wantText("origin igp med 200"))
-				}
-				if len(trace) != 1 {
-					t.Fatalf("trace len = %d, want 1", len(trace))
-				}
-				if trace[0].Action != dryRunActionModify {
-					t.Errorf("trace[0].Action = %q, want %q", trace[0].Action, dryRunActionModify)
-				}
-				if trace[0].Delta != "med 200" {
-					t.Errorf("trace[0].Delta = %q, want %q", trace[0].Delta, "med 200")
-				}
-				if trace[0].TextAfter != "origin igp med 200" {
-					t.Errorf("trace modified text = %q", trace[0].TextAfter)
-				}
-			})
-
-			t.Run("inactive_skipped", func(t *testing.T) {
-				callCount := 0
-				call := func(_, _, _, _ string, _ uint32, text string) PolicyResponse {
-					callCount++
-					return PolicyResponse{Action: PolicyAccept}
-				}
-				result, trace := tracePolicyFilterChain(
-					filterapi.InternalPolicy(frefs("inactive:plug:SKIP", "plug:KEEP")), external, "export", "10.0.0.1", 65001, "origin igp", call,
-				)
-				if result.Action != wantAction {
-					t.Errorf("action = %v, want %v", result.Action, wantAction)
-				}
-				if callCount != 1 {
-					t.Errorf("callCount = %d, want 1 (inactive skipped)", callCount)
-				}
-				if len(trace) != 1 {
-					t.Fatalf("trace len = %d, want 1", len(trace))
-				}
-				if trace[0].Filter != "KEEP" {
-					t.Errorf("trace[0].Filter = %q, want %q", trace[0].Filter, "KEEP")
-				}
-			})
-
-			t.Run("multi_filter_chain", func(t *testing.T) {
-				call := func(_, filterName, _, _ string, _ uint32, text string) PolicyResponse {
-					if filterName == "SET_MED" {
-						return PolicyResponse{Action: PolicyModify, Delta: "med 200"}
-					}
-					return PolicyResponse{Action: PolicyAccept}
-				}
-				result, trace := tracePolicyFilterChain(
-					filterapi.InternalPolicy(frefs("plug:PASS", "plug:SET_MED")), external, "export", "10.0.0.1", 65001, "origin igp med 100", call,
-				)
-				if result.Action != wantAction {
-					t.Errorf("action = %v, want %v", result.Action, wantAction)
-				}
-				if result.Text != wantText("origin igp med 200") {
-					t.Errorf("text = %q, want %q", result.Text, wantText("origin igp med 200"))
-				}
-				if len(trace) != 2 {
-					t.Fatalf("trace len = %d, want 2", len(trace))
-				}
-				if trace[0].Action != dryRunActionAccept {
-					t.Errorf("trace[0].Action = %q, want %q", trace[0].Action, dryRunActionAccept)
-				}
-				if trace[1].Action != dryRunActionModify {
-					t.Errorf("trace[1].Action = %q, want %q", trace[1].Action, dryRunActionModify)
-				}
-				if trace[0].TextAfter != "origin igp med 100" || trace[1].TextAfter != "origin igp med 200" {
-					t.Errorf("piped trace changed: %+v", trace)
-				}
-			})
-		})
-	}
-}
-
-// TestTracePolicyFinal compares dry-run and runtime results for exhaustion,
-// terminal raw rewrites, and failures that must short-circuit either final.
-func TestTracePolicyFinal(t *testing.T) {
-	for _, final := range []routepolicy.Final{routepolicy.FinalAccept, routepolicy.FinalReject} {
-		for _, tc := range []struct {
-			name     string
-			refs     []routepolicy.Ref
-			response PolicyResponse
-			calls    int
-		}{
-			{name: "empty"},
-			{name: "inactive", refs: frefs("inactive:plug:SKIP")},
-			{name: "accept", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyAccept}, calls: 2},
-			{name: "modify", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyModify, Delta: "med 200"}, calls: 2},
-			{name: "raw", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyModify, Raw: []byte{0, 0, 0, 0}}, calls: 1},
-			{name: "reject", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyReject}, calls: 1},
-			{name: "error", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyReject, Failed: true}, calls: 1},
-			{name: "teardown", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyAccept, Teardown: true}, calls: 1},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				policy, err := filterapi.NewPolicy(tc.refs, final)
-				require.NoError(t, err)
-				calls := 0
-				call := func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-					calls++
-					return tc.response
-				}
-				result, trace := tracePolicyFilterChain(policy, true, directionExport, "192.0.2.1", 65001, "origin igp", call)
-				require.Equal(t, tc.calls, calls)
-				require.Len(t, trace, tc.calls)
-				runtime := PolicyFilterChain(policy, true, directionExport, "192.0.2.1", 65001, "origin igp", call)
-				require.Equal(t, runtime, result)
-				if final == routepolicy.FinalReject {
-					require.Equal(t, PolicyReject, result.Action)
-					require.Empty(t, result.Text)
-				}
-			})
-		}
-	}
-}
-
 // VALIDATES: resolveFilterOverride finds canonical ref by plain name.
 // PREVENTS: Single-filter override failing to match.
 func TestResolveFilterOverride(t *testing.T) {
@@ -464,8 +256,9 @@ func TestPolicyDryRunOverrideKeepsFinal(t *testing.T) {
 // closed, as the session does, with its trace entry saying why.
 //
 // Method: an export policy naming plug:FIRST, final accept, with no library;
-// the filter seam counts calls. Against a dry-run that still reached the
-// plugin, or accepted on the final, the run is not a reject with no call.
+// the filter transport seam is a guard that counts calls. Against a dry-run
+// that still reached the plugin, or accepted on the final, the run is not a
+// reject with no call.
 func TestPolicyDryRunUncompiledChainFailsClosed(t *testing.T) {
 	r := New(&Config{})
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
@@ -473,15 +266,14 @@ func TestPolicyDryRunUncompiledChainFailsClosed(t *testing.T) {
 	require.NoError(t, err)
 	settings.ExportPolicy = policy
 	r.peers[settings.PeerKey()] = NewPeer(settings)
-	calls := 0
-	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-		calls++
-		return PolicyResponse{Action: PolicyAccept}
-	}
+	guard := &answerTransport{answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+		return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+	}}
+	r.filterTransportSeam = guard
 	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
 		"192.0.2.1", directionExport, "", dryRunUpdateBody(t), true)
 	require.NoError(t, err)
-	require.Zero(t, calls, "no plugin filter runs outside a compiled chain")
+	require.Zero(t, guard.calls(), "no plugin filter runs outside a compiled chain")
 	require.Equal(t, dryRunActionReject, result.Action)
 	require.Empty(t, result.TextAfter)
 	require.Equal(t, []plugin.PolicyTraceEntry{{Filter: "FIRST", Canonical: "plug:FIRST",

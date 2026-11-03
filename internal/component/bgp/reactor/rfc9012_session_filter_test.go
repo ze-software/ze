@@ -60,9 +60,9 @@ const (
 )
 
 // teSessionFilterRoundTrip keeps receive dispatch, cache ownership, destination
-// facts, PolicyFilterChain, forward workers and socket writes on production paths.
+// facts, the policy chain, forward workers and socket writes on production paths.
 // Only the external plugin transport is replaced: it transforms the raw request
-// supplied by policyFilterFunc, never a precomputed output or a callback echo.
+// the chain sends it, never a precomputed output or a callback echo.
 // RFC 9012 Section 11: "In addition, any BGP speaker that understands the attribute
 // MUST be able to filter the attribute from outgoing BGP UPDATE messages".
 func teSessionFilterRoundTrip(t *testing.T, filtered int) {
@@ -97,7 +97,8 @@ func teSessionFilterRoundTrip(t *testing.T, filtered int) {
 		if i == filtered {
 			filter = teSessionFilterRemove
 		}
-		destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: teSessionFilterPlugin + ":" + filter}}, routepolicy.FinalAccept)
+		destination.settings.ExportPolicy = compiledPolicy(t, libraryTestMixed, routepolicy.FinalAccept,
+			routepolicy.Ref{Name: teSessionFilterPlugin + ":" + filter})
 		destination.refreshForwardFacts()
 		r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: destination.Settings().PeerKey()}, 4096)
 	}
@@ -189,8 +190,10 @@ func (teSessionFilterTransport) FilterReadvertise(_, _ string) (readvertise, ok 
 	return false, true
 }
 
+// FilterDeclaration answers every filter as declared, reading the raw body and
+// setting no field, as the library chain's external member asks.
 func (teSessionFilterTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {
-	return nil, nil, rpc.OnErrorReject, false
+	return []string{rpc.FilterFieldRaw}, nil, rpc.OnErrorReject, true
 }
 
 func (teSessionFilterTransport) FilterReads(_, _ string) []string {

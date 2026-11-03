@@ -1,3 +1,7 @@
+// Design: docs/architecture/api/commands.md -- show policy test, its text-before and text-after
+// Related: filter_flowspec.go -- appendFlowSpecFilterBlock, the producer under test
+// Related: policy_dryrun_display.go -- displayUpdate, which renders the NLRI blocks
+
 package reactor
 
 import (
@@ -12,6 +16,19 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
+// flowSpecDisplayNLRI answers the NLRI blocks show policy test prints for
+// update, as displayUpdate renders them.
+func flowSpecDisplayNLRI(t *testing.T, update *wireu.WireUpdate) string {
+	t.Helper()
+	display, err := displayUpdate(update)
+	require.NoError(t, err)
+	return string(display.nlri)
+}
+
+// TestFlowSpecUpdateExposesDestinationToPrefixPolicy proves the dry-run
+// display shows a FlowSpec rule by its destination prefix, and a rule whose
+// destination cannot be read as invalid. Method: three FlowSpec UPDATEs built
+// by the UPDATE builder, displayed through displayUpdate.
 func TestFlowSpecUpdateExposesDestinationToPrefixPolicy(t *testing.T) {
 	family.RegisterTestFamilies()
 	builder := message.NewUpdateBuilder(65001, false, true, false)
@@ -28,12 +45,15 @@ func TestFlowSpecUpdateExposesDestinationToPrefixPolicy(t *testing.T) {
 			update := builder.BuildFlowSpec(message.FlowSpecParams{NLRI: tc.nlri})
 			wire := make([]byte, update.Len(nil))
 			update.WriteTo(wire, 0, nil)
-			subject := AppendUpdateForFilter(nil, nil, wireu.NewWireUpdate(wire[19:], 0), nil)
-			require.Equal(t, tc.want, string(subject))
+			require.Equal(t, tc.want, flowSpecDisplayNLRI(t, wireu.NewWireUpdate(wire[19:], 0)))
 		})
 	}
 }
 
+// TestFlowSpecPrefixPolicyUsesNativeAddPathFraming proves the display reads a
+// FlowSpec rule on a session that negotiated ADD-PATH for its family with the
+// path identifier framing in front of the rule. Method: MP_REACH_NLRI
+// carrying a path identifier then the rule, on an ADD-PATH context.
 func TestFlowSpecPrefixPolicyUsesNativeAddPathFraming(t *testing.T) {
 	family.RegisterTestFamilies()
 	for _, tc := range []struct {
@@ -57,8 +77,7 @@ func TestFlowSpecPrefixPolicyUsesNativeAddPathFraming(t *testing.T) {
 			var attrs [128]byte
 			n := writeMPReach(attrs[:], 0, tc.family, nil, framed)
 			body := buildUpdatePayload(attrs[:n], nil)
-			subject := AppendUpdateForFilter(nil, nil, wireu.NewWireUpdate(body, ctxID), nil)
-			require.Equal(t, tc.want, string(subject))
+			require.Equal(t, tc.want, flowSpecDisplayNLRI(t, wireu.NewWireUpdate(body, ctxID)))
 		})
 	}
 }

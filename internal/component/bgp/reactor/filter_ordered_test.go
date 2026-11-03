@@ -25,9 +25,8 @@ import (
 // len == 0 is a legitimate accept (no export/import policy configured); r.api ==
 // nil while filters ARE configured is a guard MISS -- the filter engine that
 // enforces the policy is absent. Returning accept: true silently sent the route
-// UNFILTERED, the exact fail-open the siblings policyFilterFunc
-// (filter_chain.go:368-371: Warn + PolicyReject) and default-originate
-// (peer_initial_sync.go:718-722) already reject loudly. These tests drive the
+// UNFILTERED, the exact fail-open its sibling default-originate
+// (peer_initial_sync.go) already rejects loudly. These tests drive the
 // reactor's own chain methods (the guard's entry points -- forwardUpdateCore
 // calls runEgressPolicyChain at reactor_api_forward.go:500; reactor_notify.go:424
 // calls runIngressPolicyChain) and pin each split case.

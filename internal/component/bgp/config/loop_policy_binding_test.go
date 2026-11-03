@@ -82,13 +82,6 @@ func TestLoopPolicyBinding(t *testing.T) {
 							t.Fatalf("loop settings lost: allow=%d loop-cluster=%x session-cluster=%x", settings.LoopAllowOwnAS, settings.LoopClusterID, settings.ClusterID)
 						}
 					}
-					result := reactor.PolicyFilterChain(policy, settings.IsEBGP(), "import", "192.0.2.2", 65001, "origin igp", func(string, string, string, string, uint32, string) reactor.PolicyResponse {
-						t.Fatal("configured internal reference reached external filter-update")
-						return reactor.PolicyResponse{Action: reactor.PolicyReject, Failed: true}
-					})
-					if (result.Action == reactor.PolicyAccept) != (final == "accept") {
-						t.Fatalf("final %q produced %+v", final, result)
-					}
 				})
 			}
 		}
@@ -104,14 +97,6 @@ func TestLoopPolicyExternalCollision(t *testing.T) {
 		compiled := filterapi.InternalPolicy(nil).WithBoundFilters(refs, bound)
 		if compiled.InProcess(0) || !compiled.ActiveExternal(0) {
 			t.Fatalf("unresolved reference bypassed external dispatch: %+v", refs[0])
-		}
-		calls := 0
-		result := reactor.PolicyFilterChain(filterapi.InternalPolicy(refs), true, "import", "192.0.2.2", 65001, "origin igp", func(string, string, string, string, uint32, string) reactor.PolicyResponse {
-			calls++
-			return reactor.PolicyResponse{Action: reactor.PolicyReject, Failed: true}
-		})
-		if calls != 1 || result.Action != reactor.PolicyReject || !result.Failed {
-			t.Fatalf("external guard calls=%d result=%+v", calls, result)
 		}
 	}
 }

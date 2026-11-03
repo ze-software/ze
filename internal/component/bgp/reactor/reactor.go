@@ -309,25 +309,16 @@ type Reactor struct {
 	// ready; see forward_wellknown.go.
 	wellKnownScanLog wellKnownScanLog
 
-	// policyFilterSeam replaces the plugin-IPC body of policyFilterFunc. It is
-	// nil in production and set only by a test, exactly as pluginServerMaker
-	// below. Without it the policy chain's post-chain branches (a filter that
-	// returns a text delta, and a modification that then cannot be applied) are
-	// unreachable, because api is a concrete *pluginserver.Server whose answer
-	// comes off a live plugin socket. See filter_chain.go policyFilterFunc.
-	policyFilterSeam PolicyFilterFunc
-
 	// pluginCapabilitySeam replaces api as the source of the capabilities plugins
 	// declared for a peer. It is nil in production and set only by a test, exactly
-	// as policyFilterSeam above. api's injector is filled only by a plugin's
+	// as pluginServerMaker below. api's injector is filled only by a plugin's
 	// startup declaration, so without it no test reaches the Restart State bit
 	// gate that getPluginCapabilities (peer.go) applies to the OPEN.
 	pluginCapabilitySeam func(selectors ...string) []plugin.InjectedCapability
 
-	// filterTransportSeam replaces what the policy filter's IPC body TALKS TO,
-	// where policyFilterSeam above replaces the body itself. Nil in production.
-	// See filterTransport (filter_chain.go) for which branches need it and why
-	// the seam above cannot reach them.
+	// filterTransportSeam replaces what a library chain's external member TALKS
+	// TO. Nil in production. See filterTransport (filter_chain.go) for which
+	// branches need it.
 	filterTransportSeam filterTransport
 
 	// Recent UPDATE cache for efficient forwarding via update-id

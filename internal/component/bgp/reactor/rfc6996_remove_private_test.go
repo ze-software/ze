@@ -25,14 +25,16 @@ func rfc6996AS4Path(asns ...uint32) []byte {
 	return buf
 }
 
-// rfc6996Strip runs the remove-private strip directive over an UPDATE whose
+// rfc6996Strip runs the remove-private strip intent over an UPDATE whose
 // only attribute is the given AS4_PATH, and returns the ops the reactor applies
-// before the route is advertised.
+// before the route is advertised. removePrivateASOps is the producer the
+// library chain's remove-private set reaches (filter_library.go
+// libraryASPathOps).
 func rfc6996Strip(t *testing.T, as4Path []byte) *filterapi.ModAccumulator {
 	t.Helper()
 	attrsWire := attribute.NewAttributesWire(makeAttr(0xC0, byte(attribute.AttrAS4Path), as4Path), 0)
 	var mods filterapi.ModAccumulator
-	ExtractRemovePrivateASOps(newTestScratch(t), parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
+	removePrivateASOps(newTestScratch(t), attrsWire, true, policychain.RemovePrivateStrip, 65001, &mods)
 	return &mods
 }
 

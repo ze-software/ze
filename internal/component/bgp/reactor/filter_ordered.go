@@ -4,7 +4,7 @@
 // Related: forward_modify_failure.go -- why a modification could not be applied
 // Related: reactor_notify.go -- ingress pass invocation
 // Related: reactor_api_forward.go -- egress pass invocation (forwardUpdateCore)
-// Related: filter_chain.go -- PolicyFilterChain executor (the per-peer chain body)
+// Related: filter_library.go -- runLibraryChain (the per-peer chain body)
 
 package reactor
 
@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"net/netip"
 	"sort"
-	"unsafe"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
@@ -133,8 +132,8 @@ func buildOrderedEgressSteps() []orderedEgressStep {
 }
 
 // runIngressPolicyChainMeta runs the external policy step before eligible publication.
-// It renders text only for active external filters, then applies the final using
-// the same resolved peer generation. Rejection retains explicit withdrawals.
+// It runs the library chain only for a policy with an active filter, then
+// applies the final using the same resolved peer generation. Rejection retains explicit withdrawals.
 // peer may be nil (peer disconnected) -- then the step is a no-op accept.
 // src holds the session facts the received path built for this UPDATE; the
 // chain's session fact fields read them (policyview.ImportSession). meta is
@@ -172,7 +171,7 @@ func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src
 			return ingressChainWithdrawal(payload, srcCtx, peerAddr, res.outcome.Member)
 		}
 		if res.outcome.Action != policychain.OutcomeAccept {
-			// RFC 8212 Section 3: the same withdrawals rule as the text chain.
+			// RFC 8212 Section 3: a denied UPDATE keeps its withdrawals.
 			if !res.outcome.Failed && !policy.AcceptsAtEnd(external) {
 				return ingressPolicyWithdrawals(payload)
 			}
@@ -190,101 +189,15 @@ func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src
 		}
 		return ingressPolicyWithdrawals(payload)
 	}
-	// An ACTIVE external import filter but the API server (the filter engine that
-	// enforces it) is absent: a guard MISS, not an accept. An import filter is
-	// a guard whose purpose is to reject (it can be security/ACL policy), so
-	// silently accepting unfiltered inbound routes is the fail-open. Deny AND
-	// speak, matching policyFilterFunc (filter_chain.go:368-371: Warn +
-	// PolicyReject) and the export side (egress_inject_filter.go). See
-	// plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md (AC-4).
-	// The guard asks filterAPI, the one transport the chain's calls go
-	// through, as the export side does: a test's transport stands in for the
-	// plugin server on both directions or on neither.
-	if r.filterAPI() == nil {
-		slog.Warn("import filter: no API server -- fail-closed", "peer", peerAddr.String())
-		return ingressStepResult{} // accept == false: drop the route
-	}
-
-	attrsWire, _ := wireUpdate.Attrs()
-	var scratchArr [65536]byte
-	scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, wireUpdate, nil)
-	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-	// RFC 8212 Section 3.
-	res := PolicyFilterChain(policy, external, "import", peerAddr.String(), peerAS,
-		updateText, r.policyFilterFunc(wireUpdate, payload, policyview.Session{EBGP: external}),
-	)
-
-	// Honor a policy teardown request (e.g. filter_family tear-down): the caller
-	// queues NOTIFICATION + session close and drops the route.
-	if res.Teardown {
-		return ingressStepResult{teardown: true, notifyCode: res.NotifyCode, notifySubcode: res.NotifySubcode}
-	}
-	if res.Action == PolicyReject {
-		if !res.Failed && !policy.AcceptsAtEnd(external) {
-			return ingressPolicyWithdrawals(payload)
-		}
-		return ingressStepResult{} // accept == false: drop the route
-	}
-	// A raw=true filter may return a full UPDATE-body replacement (e.g.
-	// MP_REACH/MP_UNREACH surgery the text delta cannot express). It is terminal.
-	// RFC 9012 Section 13
-	raw, rawErr := decodeFilterRawOverride(res.Raw)
-	if rawErr != nil {
-		// A guard MISS, not an accept. The filter asked for the body to be
-		// replaced and handed over bytes ze must not install, so accepting
-		// caches and dispatches exactly the content the import policy was
-		// rewriting (ai/rules/evidence.md).
-		slog.Warn("import filter: raw override cannot be installed -- fail-closed",
-			"peer", peerAddr.String(), "raw-len", len(res.Raw), "error", rawErr)
-		return ingressStepResult{} // accept == false: drop the route
-	}
-	if raw != nil {
-		return ingressStepResult{accept: true, modifiedPayload: raw}
-	}
-	if res.Text != updateText {
-		// Wire-level dirty tracking: convert text delta to wire attribute
-		// modifications. Parse each filter text exactly once; the extractors
-		// share the parsed attributes read-only (spec filter-delta-parse-once).
-		var importMods filterapi.ModAccumulator
-
-		// One arena backs every value the extractors below encode, and it is
-		// released once buildModifiedPayload has copied them into the payload
-		// it returns (filter_scratch.go).
-		values := acquireValueScratch()
-		defer releaseValueScratch(values)
-
-		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
-		intent := libraryIntentContext{asn4: srcCtx != nil && srcCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: true}
-		nlriOverride, refusal, ok := textDeltaOps(values, updateText, res.Text, wireUpdate, intent, true, &importMods)
-		if !ok {
-			// A guard MISS, not an accept: the answer drops NLRI the engine
-			// cannot drop for it, so accepting would install the very
-			// prefixes the import policy refused.
-			fwdLogger().Warn("import filter: modify answer cannot be applied to the NLRI -- route dropped",
-				"peer", peerAddr.String(), "family", refusal.family, "reason", refusal.reason)
-			return ingressStepResult{} // accept == false: drop the route
-		}
-		if importMods.Len() > 0 || nlriOverride != nil || importMods.WithdrawnRewrite() != nil {
-			modPayload, _, modFail := buildModifiedPayload(payload, &importMods, r.attrModHandlers, nil, nlriOverride)
-			// recordModifyFailure counts AND says it: one rate-limited line
-			// through the bgp.reactor.forward subsystem logger, so this site
-			// adds no second line of its own and the message can be damped with
-			// ze.log.bgp.reactor.forward.
-			r.recordModifyFailure(modFail, modifySiteImportChain, peerAddr.String())
-			if modFail.failed() {
-				// A guard MISS, not an accept. The import chain asked for a
-				// change we could not apply, so accepting the route installs
-				// exactly what the policy exists to reject -- the same
-				// fail-closed shape as the r.api == nil branch above
-				// (ai/rules/evidence.md).
-				return ingressStepResult{} // accept == false: drop the route
-			}
-			if modPayload != nil {
-				return ingressStepResult{accept: true, modifiedPayload: modPayload}
-			}
-		}
-	}
-	return ingressStepResult{accept: true}
+	// Every active plugin filter is a member of the library chain the config
+	// loader compiles (bgpconfig compileLibraryChain; a dynamic peer's
+	// template compiles once its AS is known, resolveDynamicPolicy), so this
+	// policy holds an active plugin filter that no chain runs. A guard MISS,
+	// not an accept: an import filter can be security policy, so accepting
+	// the route unfiltered is the fail-open. Deny AND speak.
+	slog.Warn("import filter: a plugin filter is configured but no filter chain was compiled for it -- fail-closed",
+		"peer", peerAddr.String())
+	return ingressStepResult{} // accept == false: drop the route
 }
 
 // importSession answers the import chain's session. src is nil only on a
@@ -298,11 +211,9 @@ func importSession(src *filterapi.PeerFilterInfo, external bool, peerAS uint32) 
 }
 
 // runEgressPolicyChain runs the destination peer's configured export policy chain
-// (external text/RPC filters) as one ordered egress step. It is the former export
-// PolicyFilterChain block from forwardUpdateCore, unchanged in semantics: it
-// serializes the ORIGINAL update to text only when the peer has an ACTIVE export
-// filter and the API server is present, runs PolicyFilterChain, and maps the result to a full
-// wire override (raw or text-delta). Reject -> accept == false (suppress this peer).
+// (its library chain) as one ordered egress step, for forwardUpdateCore: it
+// runs the chain only when the peer has an ACTIVE export filter, and maps the
+// result to a full wire override (raw or the chain's sets). Reject -> accept == false (suppress this peer).
 // Teardown is import-only and never fires on export. Unlike ingress, this reads the
 // original payload: the forward rail's own edits go into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
@@ -333,7 +244,7 @@ func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrSt
 // asn4 describes the encoding of the AS_PATH raw bytes in wireUpdate, and is the
 // only thing that differs between the two callers. Keeping one body is
 // load-bearing: the two paths previously had independent copies and the
-// originated one silently dropped every FilterModify text delta, leaking
+// originated one silently dropped every filter modification, leaking
 // RFC 6996 private ASNs to EBGP peers (spec-fixit-private-asn-leak).
 //
 // destInternal is the destination session's internal verdict, which both
@@ -349,8 +260,8 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
 	}
 	if library := exportPolicy.Library(); library != nil {
-		// A ref only the ingress pass can run fails the export chain, as
-		// PolicyFilterChain refuses it.
+		// A ref only the ingress pass can run fails the export chain: no
+		// export step can run it.
 		if exportPolicy.RequiresIngress() {
 			return egressStepResult{failed: true} // accept == false: suppress for this peer
 		}
@@ -373,107 +284,18 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		}
 		return egressStepResult{accept: true, treatments: res.treatments}
 	}
-	// The text-chain path below answers no treatments, and loses none: only a
-	// library member sets one (policychain applyExternalTreatment), and the
-	// config loader turns every active ref that is not an in-process stage
-	// filter into a library member (bgpconfig compileLibraryChain; a dynamic
-	// peer's template compiles per peer in resolveDynamicPolicy). A policy
-	// reaches here only with no such member, so with nothing that sets one.
-	// An ACTIVE export filter but the API server (the filter engine that
-	// enforces it) is absent: a guard MISS, not an accept. An export chain is a
-	// guard whose purpose is to reject; silently accepting sends the route
-	// UNFILTERED and leaks whatever the policy exists to strip (e.g. RFC 6996
-	// private ASNs). Deny AND speak, matching policyFilterFunc's failure.
-	// Both egress callers use this single transport guard.
-	if r.filterAPI() == nil {
-		slog.Warn("export filter: no API server -- fail-closed", "peer", destAddrStr)
-		// A guard MISS, not a policy decision: the chain never ran.
-		return egressStepResult{failed: true} // accept == false: suppress route for this peer
-	}
-	attrsWire, attrErr := wireUpdate.Attrs()
-	if attrErr != nil {
-		fwdLogger().Debug("attrs extraction for export filter", "peer", destAddrStr, "error", attrErr)
-	}
-	var scratchArr [65536]byte
-	scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, wireUpdate, nil)
-	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-	// RFC 8212 Section 3.
-	res := PolicyFilterChain(exportPolicy, !destInternal, "export", destAddrStr, destPeerAS,
-		updateText, r.policyFilterFunc(wireUpdate, wireUpdate.Payload(), policyview.Session{EBGP: !destInternal}),
-	)
-	if res.Action == PolicyReject {
-		// res.Failed is set when the reject came from an IPC error or an
-		// unparseable filter response rather than from the filter's decision.
-		return egressStepResult{failed: res.Failed} // accept == false: suppress route for this peer
-	}
-	// A raw=true filter may return a full UPDATE-body replacement (e.g.
-	// MP_REACH/MP_UNREACH surgery the text delta cannot express). It is terminal.
-	// RFC 9012 Section 13
-	raw, rawErr := decodeFilterRawOverride(res.Raw)
-	if rawErr != nil {
-		// A guard MISS, not a policy decision. The filter asked for the body to
-		// be replaced and handed over bytes ze must not distribute, so sending
-		// the route leaks exactly what the raw surgery was removing -- the
-		// same fail-closed shape as the modify-failure branch below
-		// (ai/rules/evidence.md). failed:true keeps the stored-route
-		// relay's completeness check from reading this as "policy said no".
-		slog.Warn("export filter: raw override cannot be sent -- fail-closed",
-			"peer", destAddrStr, "raw-len", len(res.Raw), "error", rawErr)
-		return egressStepResult{failed: true} // accept == false: suppress for this peer
-	}
-	if raw != nil {
-		return egressStepResult{accept: true, wireOverride: wireu.NewWireUpdate(raw, wireUpdate.SourceCtxID())}
-	}
-	if res.Text != updateText {
-		var exportMods filterapi.ModAccumulator
-
-		// One arena per destination, released once buildModifiedPayload has
-		// copied the values into this peer's payload (filter_scratch.go).
-		values := acquireValueScratch()
-		defer releaseValueScratch(values)
-
-		// RFC 4271 Section 5.1.2: "When a given BGP speaker advertises the
-		// route to an internal peer, the advertising speaker SHALL NOT modify
-		// the AS_PATH attribute associated with the route." The two export
-		// directives that rewrite the AS_PATH, remove-private and
-		// as-path-prepend, are therefore not applied toward an internal peer;
-		// the rest of the filter's answer still is. destInternal is the
-		// session's own verdict (isIBGPWith, session_as_migration.go), not a
-		// peer AS = local AS equality: RFC 7705 Section 4.2 makes a session
-		// whose peer AS is the configured migration AS internal too.
-		intent := libraryIntentContext{asn4: asn4, localAS: destLocalAS, peerAS: destPeerAS, asPathEditable: !destInternal}
-		nlriOverride, refusal, ok := textDeltaOps(values, updateText, res.Text, wireUpdate, intent, false, &exportMods)
-		if !ok {
-			// A guard MISS, not a policy decision: sending the route would
-			// advertise the prefixes the export policy refused.
-			fwdLogger().Warn("export filter: modify answer cannot be applied to the NLRI -- route suppressed",
-				"peer", destAddrStr, "family", refusal.family, "reason", refusal.reason)
-			return egressStepResult{failed: true} // accept == false: suppress for this peer
-		}
-		if exportMods.Len() > 0 || nlriOverride != nil || exportMods.WithdrawnRewrite() != nil {
-			modPayload, _, modFail := buildModifiedPayload(wireUpdate.Payload(), &exportMods, r.attrModHandlers, nil, nlriOverride)
-			// One rate-limited line, through the subsystem logger; see the
-			// matching call on the ingress chain above.
-			r.recordModifyFailure(modFail, modifySiteExportChain, destAddrStr)
-			if modFail.failed() {
-				// A guard MISS, not a policy decision: the chain produced a
-				// delta we could not apply, so sending the route leaks whatever
-				// the export policy was stripping (e.g. RFC 6996 private ASNs,
-				// the exact leak spec-fixit-private-asn-leak closed on the
-				// neighboring path). failed:true keeps the relay's
-				// completeness check from reading this as "policy said no".
-				return egressStepResult{failed: true} // accept == false: suppress for this peer
-			}
-			if modPayload != nil {
-				return egressStepResult{accept: true, wireOverride: wireu.NewWireUpdate(modPayload, wireUpdate.SourceCtxID())}
-			}
-		}
-	}
-	return egressStepResult{accept: true}
+	// Every active plugin filter is a member of the library chain the config
+	// loader compiles (bgpconfig compileLibraryChain; a dynamic peer's
+	// template compiles once its AS is known, resolveDynamicPolicy), so this
+	// policy holds an active filter that no chain runs: a plugin filter, or
+	// a ref only the ingress pass owns. A guard MISS, not a policy decision:
+	// sending the route unfiltered leaks whatever the policy exists to strip
+	// (e.g. RFC 6996 private ASNs). Deny AND speak.
+	slog.Warn("export filter: a filter is configured but no filter chain was compiled for it -- fail-closed",
+		"peer", destAddrStr)
+	return egressStepResult{failed: true} // accept == false: suppress route for this peer
 }
 
-// ingressPolicyWithdrawals keeps the withdrawal half of a denied UPDATE. The
-// returned replacement owns its bytes when announcements had to be removed.
 // ingressChainWithdrawal answers a chain member's withdraw verdict on import:
 // every route the UPDATE carries becomes a withdrawal, so a version the peer
 // sent earlier leaves the RIB, where a reject only drops this UPDATE. It is
@@ -503,6 +325,8 @@ func ingressChainWithdrawal(payload []byte, source *bgpctx.EncodingContext, peer
 	return res
 }
 
+// ingressPolicyWithdrawals keeps the withdrawal half of a denied UPDATE. The
+// returned replacement owns its bytes when announcements had to be removed.
 func ingressPolicyWithdrawals(payload []byte) ingressStepResult {
 	withdrawals := policyWithdrawals(payload)
 	if withdrawals == nil {
@@ -558,37 +382,4 @@ func policyWithdrawals(payload []byte) []byte {
 	binary.BigEndian.PutUint16(out[at:], uint16(len(unreach))) //nolint:gosec // The attribute is bounded by the parsed uint16 section length.
 	copy(out[at+2:], unreach)
 	return out
-}
-
-// textDeltaOps writes into mods the operations that turn the original
-// filter text into modified, through the text delta extractors, and answers
-// the NLRI override sectionNLRIDelta computes (false with the refusal when the
-// answer drops NLRI the engine cannot drop). The AS-path directives apply only
-// where intent allows an AS_PATH edit, and the MED removal only on import.
-// values MUST stay held until buildModifiedPayload has copied the operations'
-// values. Its callers are the text chain steps of a policy that compiled no
-// library chain (runIngressPolicyChainMeta, runEgressPolicyChainASN4).
-func textDeltaOps(values *valueScratch, original, modified string, wireUpdate *wireu.WireUpdate, intent libraryIntentContext, medRemove bool, mods *filterapi.ModAccumulator) ([]byte, nlriRefusal, bool) {
-	// The two parses write into storage this call owns, so the structs live
-	// on its stack rather than on the heap; each text is parsed once and the
-	// extractors share the parse read-only (spec filter-delta-parse-once).
-	var origAttrs, modAttrs filterAttrs
-	parseFilterAttrsInto(&origAttrs, original)
-	parseFilterAttrsInto(&modAttrs, modified)
-	textDeltaToModOps(values, &origAttrs, &modAttrs, mods)
-	attrsWire, _ := wireUpdate.Attrs() //nolint:errcheck // a nil section is what both AS-path cores refuse to edit
-	if intent.asPathEditable {
-		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, intent.asn4, intent.peerAS, mods)
-		ExtractASPathPrependOps(values, &modAttrs, attrsWire, intent.asn4, intent.localAS, mods)
-	} else {
-		fwdLogger().Debug("export AS_PATH edits not applied toward an internal peer (RFC 4271 Section 5.1.2)")
-	}
-	// RFC 4271 Section 5.1.4's configured removal, and the ONLY site that
-	// converts the directive. The rewritten payload replaces the WireUpdate
-	// before the RIB plugin runs Decision Process phases 1 and 2, which is the
-	// ordering that section requires of a removal.
-	if medRemove && medRemoveHasWork(&modAttrs) {
-		ExtractMEDRemoveOps(&modAttrs, mods)
-	}
-	return sectionNLRIDelta(values, original, modified, wireUpdate, mods)
 }
