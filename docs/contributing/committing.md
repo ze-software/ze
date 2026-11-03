@@ -78,8 +78,17 @@ weakened"). A weakening no approval names refuses the commit, and no keyword
 admits it.
 <!-- source: internal/le/commit/prepare.go -- checkSourceGates, mergeRFCApprovals -->
 
-A live weakening approval also enters the message when its existing selected test unit
-changed without a structural finding, such as a corrected expected value.
+A live weakening or RFC approval also enters the message when its existing
+selected test unit changed without a structural finding, including a comment-only
+edit. This selection tries weakening approvals first, then RFC approvals. An RFC
+row selected here and by the RFC behavior gate produces one trailer and is
+removed once. An edit to `//` comments in Go, or to whole-line `#` comments in
+`.ci`, `.et` and `.py` files, that keeps every requirement tag ID leaves the RFC
+behavior fingerprints unchanged, so only this selection carries its row. An
+edit to a Go `/* */` comment or a trailing `#` comment, or one that drops or
+renames a tag ID, is an RFC change. Either way the row is spent: a later change
+to the same unit carries a verdict only through a fresh judge row, and needs
+one when it weakens the unit or changes its RFC behavior.
 An unchanged unit, an excluded hunk or another session's approval contributes
 nothing. Preparation keeps the row. The successful script removes it, and a
 verdict already carried by a commit cannot be used again. A new test function

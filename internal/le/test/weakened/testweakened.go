@@ -88,11 +88,10 @@ type Result struct {
 	Comparison  bool      `json:"comparison"`
 	// Approvals is what the commit carries from the weakening approval file.
 	Approvals Approvals `json:"approvals"`
-	// RFCApprovals is each RFC approval row that admitted a weakening: an
-	// owner who approved a change to a tagged unit approved its weakening too,
-	// so the commit carries that row's `RFC-approved:` trailer.
+	// RFCApprovals holds RFC rows that admitted a weakening or matched a
+	// changed existing unit, carrying each row's `RFC-approved:` trailer.
 	RFCApprovals Approvals `json:"rfc-approvals"`
-	// ApprovalSites includes changed units whose live weakening approval is
+	// ApprovalSites includes changed units whose live approval is
 	// carried even when the structural detector reports no finding.
 	ApprovalSites []UnitSite `json:"approval-sites,omitempty"`
 }
@@ -102,7 +101,7 @@ type Result struct {
 // weakening approval file or its RFC approval file. A request that names no
 // path compares nothing. The selftest, the fixtures and the commit gate use
 // this function; the edit hook reads the same files through Proposed.
-// A live weakening approval of a changed selected unit is carried even when
+// A live weakening or RFC approval of a changed selected unit is carried even when
 // the structural detector finds nothing, so a semantic verdict is not lost.
 func Check(request Request) Result {
 	var result Result
@@ -188,7 +187,11 @@ func Check(request Request) Result {
 	// still belongs in the commit, but an unchanged or unselected unit cannot
 	// spend it. The same row matcher preserves single-use and session scope.
 	for _, unit := range changed {
-		if claimed, _ := claimFinding(&result.Approvals, &weakening, unit); claimed {
+		claimed, _ := claimFinding(&result.Approvals, &weakening, unit)
+		if !claimed {
+			claimed, _ = claimFinding(&result.RFCApprovals, &owner, unit)
+		}
+		if claimed {
 			result.ApprovalSites = append(result.ApprovalSites, UnitSite{Unit: unit.Unit(), Path: unit.Path})
 		}
 	}

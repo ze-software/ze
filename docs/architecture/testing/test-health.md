@@ -195,8 +195,14 @@ there.
 
 A semantic test change can keep or add assertions, so the structural detector
 can report no finding. `Check` also compares the selected unit text with HEAD
-and carries any live weakening approval for that changed existing unit. It uses the
-detector's unit inventory and the same selected blobs and rename pairs.
+and carries a live approval for that changed existing unit, trying weakening
+rows first and RFC rows second, as it does for structural findings. This includes
+comment-only edits (`//` in Go, whole-line `#` in `.ci`, `.et` and `.py`
+files) that keep every requirement tag ID, which leave the RFC behavior
+fingerprints unchanged. It uses the
+detector's unit inventory and the same selected blobs and rename pairs. Shared
+row tracking and the commit gate's RFC merge prevent duplicate trailers and
+duplicate pruning when the selectors overlap.
 Unchanged units, excluded hunks and foreign-session approvals contribute no
 verdict. New functions and entirely new test files spend no semantic approval.
 The commit gate checks these approved units for ambiguous directory

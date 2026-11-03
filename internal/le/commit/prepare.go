@@ -375,8 +375,8 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 		return errors.New(strings.Join(weakening.Problems, "\n\n"))
 	}
 	result.WeakeningApprovals = weakening.Approvals
-	// An RFC approval row that admitted a weakening is carried as its
-	// RFC-approved: trailer too, once, whichever gate used it.
+	// An RFC approval row that admitted a weakening or matched a changed
+	// existing unit is carried once, whichever gate used it.
 	result.RFCApprovals = mergeRFCApprovals(rfcApprovals, weakening.RFCApprovals)
 	if len(rfcProblems) != 0 && strings.TrimSpace(options.RFCChangeOK) == "" {
 		return errors.New(strings.Join(rfcProblems, "\n\n"))
