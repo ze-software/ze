@@ -2,12 +2,34 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Priority | P3 |
 | Release reason | Release-independent filter wire 0 umbrella work; historical findings do not establish a current product defect. |
 | Depends | Route-policy phases 1-3, landed (490618ef43). This builds on their library in `internal/component/policy/`: `policy.CompileRouteChain`, `policy.RouteChain` and `policy.CheckChain`; the field registry, `policy.MustRegisterField` with a `policy.RouteView` (`Read`, `Written`); `policy.MustRegisterRouteAttachment`; and `ribpolicy.Route` and `ribpolicy.Sets` (`internal/core/rib/policy`) |
-| Phase | 3/5 |
-| Updated | 2026-11-01 |
+| Phase | 5/5 |
+| Updated | 2026-11-03 |
+
+## Blocker
+
+`/ze-close` (2026-11-03) stopped at step 1, the deliverables review, before
+the Review Gate. The goal holds: AC-8's greps find no text-machinery symbol in
+`internal` or `pkg`, and no `matchConditions` or `prefixListFilterType` in
+`internal/component/policy`. What blocks is proof this spec promises and the
+tree does not hold. Each item below was checked with `git ls-files` or
+`git grep` at c08a8e7f81.
+
+| # | What is owed | Evidence it is absent | What clears it |
+|---|--------------|-----------------------|----------------|
+| 1 | Wiring Test rows (MANDATORY, not deferrable) `test/plugin/filter-wire-inprocess-import.ci`, `test/plugin/filter-wire-dryrun.ci`, `test/plugin/filter-wire-irr-two-transports.ci` | none of the three is tracked | write each `.ci` (`/ze-test`), or name in the row the tracked `.ci` that already proves its path |
+| 2 | AC-22: `family-filter` judged with `bgp-filter-family` forked through the daemon, verdict and UPDATE bytes equal to the internal run, both counted | no config under `test/` names `external bgp-filter-family`; the evidence is unit-level only (`TestFamilyFilterConformance` in `filter_family/evaluator_test.go`, `TestBridgeFilterSlotNoEncoding` in `pkg/plugin/rpc/filter_slot_test.go`) | a forked-and-internal pair of `.ci` runs |
+| 3 | AC-31: the same IRR config internal and forked, fed in-list, out-of-list, mixed, withdrawals and an MP family, with identical verdicts and UPDATE bytes | the only forked IRR `.ci` is `clear-irr-cache-external.ci`, which judges no route; `TestIRRPassesConformance` (`filter_irr/conformance_test.go`) compares the two transports' verdicts but carries no MP-family route and no UPDATE bytes | the `filter-wire-irr-two-transports.ci` of row 1, with an MP-family route |
+| 4 | Functional Tests rows with an empty Status and no tracked file: `filter-wire-batch`, `filter-wire-undeclared-set`, `filter-wire-intree-forked`, `filter-wire-new-fields`, `filter-wire-metric-at-bgp-refused`, `filter-wire-set-actions`, `filter-wire-inprocess-family-forked` (`filter-wire-name-pattern` exists under `test/plugin/`, while its row says `test/parse/`) | `git ls-files 'test/*/<name>.ci'` finds none | write each, or record in its row the tracked test that proves the same end-user scenario |
+| 5 | The Unit Tests table names twelve tests that do not exist: `TestUnsettableOrUnknownSetFailsRoute`, `TestInTreeTypeInProcessWhenForked`, `TestSetActionsToModOps`, `TestBGPMatchConditions`, `TestPrefixListOneCondition`, `TestMatchConditionRegistry`, `TestTransitLeakDischargedByCondition`, `TestSetFieldToModOps`, `TestUndeclaredSetFailsRoute`, `TestTypedIntentsMatchTextEra`, `TestMixedChainSetsVisible`, `TestFilterUnavailableAppliesOnError`. The session state names tracked substitutes for several (`TestExternalRefusedSetsFailTheRoute` and `TestExternalMemberReadsEarlierSets` in `policychain/external_test.go`, `TestMixedChainExternalReadsInProcessSet` in `reactor/filter_library_external_test.go`, `TestMatchConditionRegisteredOutside` in `policy/match_registry_test.go`, `TestCallFilterUpdateUnavailable` in `plugin/server/filter_unavailable_test.go`) | `git grep 'func <name>('` finds none of the twelve | fill every row's Status with the test that exists, and write those no substitute covers: AC-7's text-era comparison, AC-25 per field and action, AC-30 per package, and AC-40's transit-leak discharge are not yet mapped to any test |
+| 6 | Assumptions still `unvalidated`: A-2 (wire bytes per settable field; the state file records local-preference only), A-6 (the throughput harness on Thomas's Mac), A-8 (each non-CIDR family reachable through `raw`) | the Risks & Assumptions table | A-2 and A-8 by test; A-6 by Thomas's `./le perf filter measure` run, which no agent makes |
+
+The owned journal rows in `second-logger-detaches-runtime-level.md`
+(2026-11-02) and `full-disk-false-red.md` (2026-11-02) are still `open:`. They
+stay owned by this spec while it is open, and its closure rehomes them.
 
 ## Read this first
 
@@ -1109,7 +1131,7 @@ closure template around them.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| No text round-trip on the BGP filter path (AC-8) | source grep | At 6747aa6fa9, no definition of `AppendUpdateForFilter`, `AppendAttrsForFilter`, `parseFilterAttrs`, `applyFilterDelta`, `formatFilterAttrs`, `textDeltaToModOps`, `validateModifyDelta` or `sectionNLRIDelta` exists in Go (`grep -rnE 'func (\([^)]*\) )?(<names>)\b' --include=*.go`), `FilterUpdateInput` and `FilterUpdateOutput` in `pkg/plugin/rpc/types.go` carry no `Update` field, and `internal/component/bgp/filtertext` does not exist. One stale name remains: `TestAppendUpdateForFilterMalformedMPRendersInvalid` (`reactor/filter_format_test.go`) is named for the deleted function; its rename to `TestDryRunNLRIBlocksRenderMalformedSectionInvalid` is in the working tree, refused by the commit gate as a weakening (key `reactor.TestAppendUpdateForFilterMalformedMPRendersInvalid`) until a ze-test-judge approval is recorded |
+| No text round-trip on the BGP filter path (AC-8) | source grep | At 6747aa6fa9, no definition of `AppendUpdateForFilter`, `AppendAttrsForFilter`, `parseFilterAttrs`, `applyFilterDelta`, `formatFilterAttrs`, `textDeltaToModOps`, `validateModifyDelta` or `sectionNLRIDelta` exists in Go (`grep -rnE 'func (\([^)]*\) )?(<names>)\b' --include=*.go`), `FilterUpdateInput` and `FilterUpdateOutput` in `pkg/plugin/rpc/types.go` carry no `Update` field, and `internal/component/bgp/filtertext` does not exist. The last stale name, `TestAppendUpdateForFilterMalformedMPRendersInvalid` (`reactor/filter_format_test.go`), was renamed `TestDryRunNLRIBlocksRenderMalformedSectionInvalid` in a92a577814, judged by an independent ze-test-judge |
 | A forked plugin in any language filters routes over the documented contract (AC-11) | functional | `test/plugin/filter-wire-python-plugin.ci`, b0e0f613f1: a Python 3 plugin with no Go SDK rejects one prefix and sets MED on the rest |
 | A forked plugin keeps its own metrics (D-14) | functional | `test/plugin/plugin-metrics-forked.ci`, cad1dcdc65 (code 15979b0b53): a forked plugin's counter reaches `show metrics` |
 | Real peers accept the chains' decisions and modified attributes (AC-7, AC-10) | interop | The `### Interop Tests` Status cells: every listed scenario green after phase 5, with recorded reds under the `sets`, `prefix`, `intents` and `raw` breaks, and `bgp-policy-modify-mp-frr`, `bgp-path-asn-leak-frr`, `bgp-med-increment-gobgp` and `bgp-attribute-default-localpref-gobgp` under the `mpreach`, `pathasn`, `medinc` and `lpbase` breaks |
