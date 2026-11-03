@@ -143,7 +143,7 @@ func (rp *rPKIPlugin) revalidateConfigSnapshot(ctx context.Context, data json.Ra
 			if path != nil {
 				aspa, normalized = aspaStateForPath(rp.aspaCache, path.Segments, mode)
 				// draft-ietf-sidrops-aspa-verification Sections 5.5 and 5.6 step 2.
-				aspa = neighbor.verify(aspa, normalized)
+				aspa = rp.verifyASPANeighbor(neighbor, aspa, normalized, route.Peer)
 			}
 		}
 		blackhole := rp.carriesAgreedBlackhole(route.Peer, route.PeerGroup, attrs)

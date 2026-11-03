@@ -158,6 +158,11 @@ type rPKIPlugin struct {
 	// Read lock-free from the validation worker; published during config apply.
 	perPeerActions atomic.Pointer[map[configjson.PeerConfigKey]peerActionSet]
 	mu             sync.RWMutex
+	// asTransWarned records, by peer address, the AS_TRANS peers whose routes
+	// the ASPA neighbor-AS step has already reported Invalid, so the warning is
+	// logged once per peer and not once per route. Its size is bounded by the
+	// configured peers. Safe for concurrent use.
+	asTransWarned sync.Map
 
 	// Serialize route registration with cache-change callbacks: a notification
 	// must not run between the initial verdict and registration of its route.
@@ -624,7 +629,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 			aspaState, normalizedPath = aspaStateForPath(rp.aspaCache, asp.Segments,
 				rp.aspaModeForPeer(peerAddr, peerName, peerGroup))
 			// draft-ietf-sidrops-aspa-verification Sections 5.5 and 5.6 step 2.
-			aspaState = neighbor.verify(aspaState, normalizedPath)
+			aspaState = rp.verifyASPANeighbor(neighbor, aspaState, normalizedPath, peerAddr)
 		}
 	}
 
@@ -851,7 +856,7 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 			aspaState = verifyASPAPath(rp.aspaCache, normalizedPath, mode)
 		}
 		// draft-ietf-sidrops-aspa-verification Sections 5.5 and 5.6 step 2.
-		aspaState = neighbor.verify(aspaState, normalizedPath)
+		aspaState = rp.verifyASPANeighbor(neighbor, aspaState, normalizedPath, peerAddr)
 	}
 
 	// Validate each NLRI prefix against the ROA cache.

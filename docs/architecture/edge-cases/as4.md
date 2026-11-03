@@ -100,7 +100,18 @@ with a mismatched neighbor ASN, and re-validation keeps it Invalid. A local
 `role import rs-client` is exempt, as step 2 of Section 5.5 says. Every other
 eBGP peer passed the session's check on the reconstructed path, so ASPA does not
 repeat it.
-<!-- source: internal/component/bgp/plugins/rpki/aspa_verify.go -- aspaNeighbor, newASPANeighbor -->
+
+The consequence for an operator: with ASPA verification enabled, every route
+from a peer configured `capability { asn4 disable; }` with `remote 23456` whose
+real AS is four-octet is Invalid. That includes a compliant peer: following RFC
+6793 Section 4.2.2 it sends AS_PATH [23456 65010] and AS4_PATH
+[4200000000 65010], the path reconstructs to [4200000000 65010], and Ze cannot
+confirm that the peer is AS 4200000000. A path whose first AS stays 23456 (no
+AS4_PATH, or one shorter than the AS_PATH) passes the step. The rpki plugin
+logs one warning per such peer, not per route, naming the fix: set the peer's
+real AS as `session asn remote` and `capability { asn4 enable; }` toward it, so
+the session confirms the neighbor on the reconstructed path.
+<!-- source: internal/component/bgp/plugins/rpki/aspa_verify.go -- aspaNeighbor, newASPANeighbor, verifyASPANeighbor -->
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleStructuredUpdate, aspaNeighborForPeer -->
 
 ---
