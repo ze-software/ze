@@ -286,31 +286,35 @@ func TestPolicyFilterChainRawTerminal(t *testing.T) {
 func TestDecodeFilterRawOverride(t *testing.T) {
 	override, malformed := decodeFilterRawOverride(nil)
 	assert.Nil(t, override, "nil")
-	assert.False(t, malformed, "nil asks for no override; it is not a malformed one")
+	assert.NoError(t, malformed, "nil asks for no override; it is not a malformed one")
 
 	override, malformed = decodeFilterRawOverride([]byte{})
 	assert.Nil(t, override, "empty")
-	assert.False(t, malformed, "empty asks for no override; it is not a malformed one")
+	assert.NoError(t, malformed, "empty asks for no override; it is not a malformed one")
 
 	override, malformed = decodeFilterRawOverride([]byte{0})
 	assert.Nil(t, override, "1 byte < 4-byte minimum")
-	assert.True(t, malformed, "one byte asked for a replacement that cannot be an UPDATE body")
+	assert.Error(t, malformed, "one byte asked for a replacement that cannot be an UPDATE body")
 
 	override, malformed = decodeFilterRawOverride([]byte{0, 0})
 	assert.Nil(t, override, "2 bytes < 4-byte minimum")
-	assert.True(t, malformed, "two bytes asked for a replacement that cannot be an UPDATE body")
+	assert.Error(t, malformed, "two bytes asked for a replacement that cannot be an UPDATE body")
 
 	override, malformed = decodeFilterRawOverride([]byte{0, 0, 0})
 	assert.Nil(t, override, "3 bytes: one below the boundary")
-	assert.True(t, malformed, "one below the minimum is still an undecodable override")
+	assert.Error(t, malformed, "one below the minimum is still an undecodable override")
 
 	override, malformed = decodeFilterRawOverride([]byte{0, 0, 0, 0})
 	assert.Equal(t, []byte{0, 0, 0, 0}, override, "4 bytes: the minimum body")
-	assert.False(t, malformed, "the shortest legal body is not malformed")
+	assert.NoError(t, malformed, "the shortest legal body is not malformed")
 
 	override, malformed = decodeFilterRawOverride([]byte{0, 0, 0, 0, 1})
 	assert.Equal(t, []byte{0, 0, 0, 0, 1}, override, "5 bytes: one above the boundary")
-	assert.False(t, malformed, "above the minimum is not malformed")
+	assert.NoError(t, malformed, "above the minimum is not malformed")
+
+	override, malformed = decodeFilterRawOverride([]byte{0, 1, 0, 0})
+	assert.Nil(t, override, "a withdrawn length past the end")
+	assert.Error(t, malformed, "section lengths that overrun the body cannot be an UPDATE body")
 }
 
 // TestApplyFilterDelta verifies delta application.

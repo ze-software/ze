@@ -6,6 +6,7 @@ package reactor
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -15,8 +16,11 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -846,13 +850,13 @@ func declaresRouteField(reads []string) bool {
 
 // decodeFilterRawOverride validates a full UPDATE-body replacement from a raw
 // policy filter. A valid UPDATE body is at least 4 bytes: withdrawn-routes
-// length(2) + path-attribute length(2).
+// length(2) + path-attribute length(2), and its section lengths stay inside it.
 //
 // It answers TWO questions, and a single nil could only answer one of them
 // (ai/rules/evidence.md). An EMPTY raw means the filter asked for no
-// replacement, which is the ordinary case for every text-delta filter. A raw of
-// 1..3 bytes means the filter DID ask for a replacement and handed over
-// something that cannot be an UPDATE body.
+// replacement (nil, nil), which is the ordinary case for every text-delta
+// filter. A non-nil error means the filter DID ask for a replacement and handed
+// over something ze must not send or install, and the error says why.
 //
 // Folding those together made the second silently indistinguishable from the
 // first: both call sites read nil as "no override", skipped the branch, and --
@@ -862,16 +866,65 @@ func declaresRouteField(reads []string) bool {
 // be replaced, and got the body it was replacing. On export that leaks whatever
 // the raw surgery was removing; on import it installs it.
 //
-// malformed is therefore a guard MISS, not a policy decision: the caller
+// The error is therefore a guard MISS, not a policy decision: the caller
 // suppresses (export) or drops (import) the route and says so.
-func decodeFilterRawOverride(raw []byte) (override []byte, malformed bool) {
+//
+// Every raw answer, import or export, text chain or library chain, comes
+// through here, so the RFC 9012 Section 13 checks the receive path applies to
+// the peer's bytes apply to the filter's bytes too: a filter's body is a route
+// ze distributes, and no later step on either path runs them again.
+func decodeFilterRawOverride(raw []byte) (override []byte, err error) {
 	if len(raw) == 0 {
-		return nil, false
+		return nil, nil
 	}
 	if len(raw) < 4 {
-		return nil, true
+		return nil, errFilterRawTooShort
 	}
-	return raw, false
+	sections, err := wire.ParseUpdateSections(raw)
+	if err != nil {
+		return nil, errFilterRawSections
+	}
+	// RFC 9012 Section 13
+	return filterRawTunnelEncap(raw, sections)
+}
+
+// errFilterRawTooShort and errFilterRawSections name the framing refusals of a
+// raw answer; filterRawTunnelEncap names the tunnel ones.
+var (
+	errFilterRawTooShort = errors.New("raw override is shorter than the 4 octets of an UPDATE body")
+	errFilterRawSections = errors.New("raw override section lengths run past the end of the body")
+)
+
+// filterRawTunnelEncap runs applyTunnelEncap, the receive path's RFC 9012
+// Section 13 guard, over a raw filter answer whose sections parse. The guard
+// reads only the facts built here: whether attribute 23 is present, where
+// MP_REACH_NLRI is and for which family, and whether the body announces a
+// route. A raw answer carries no RFC 7606 verdict of its own, so the guard
+// starts from no action. The answer bytes are never edited: a removal returns
+// a rebuilt copy, and a body with nothing to remove returns raw itself.
+// RFC 9012 Section 13: "There is one exception to this rule: if a TLV contains
+// a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the
+// entire TLV MUST be ignored and MUST be removed from the Tunnel Encapsulation
+// attribute before the route carrying that attribute is distributed."
+func filterRawTunnelEncap(raw []byte, sections wire.UpdateSections) ([]byte, error) {
+	attrs := sections.Attrs(raw)
+	hasNLRI := len(sections.NLRI(raw)) > 0
+	result := message.RFC7606ValidationResult{HasReachableNLRI: hasNLRI}
+	_, _, _, result.TunnelEncapPresent = attribute.AttrFind(attrs, attribute.AttrTunnelEncap)
+	if _, _, mp, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI); found {
+		if start, ok := message.MPNLRIStart(uint8(attribute.AttrMPReachNLRI), mp); ok {
+			result.MPReachNLRI = message.MPNLRILocation{Present: true, AFI: binary.BigEndian.Uint16(mp[0:2]), SAFI: mp[2]}
+			if start < len(mp) {
+				result.HasReachableNLRI = true
+			}
+		}
+	}
+	// RFC 9012 Section 13
+	out, _ := applyTunnelEncap(wireu.NewWireUpdate(raw, 0), attrs, hasNLRI, &result)
+	if result.Action >= message.RFC7606ActionTreatAsWithdraw {
+		return nil, errors.New("raw override refused: " + result.Description)
+	}
+	return out.Payload(), nil
 }
 
 // validateModifyDelta checks that a modify delta only contains attributes

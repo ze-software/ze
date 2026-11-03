@@ -139,6 +139,14 @@ reset; an empty MP_REACH attribute does not satisfy that reachability condition.
 Private, shared, ULA and benchmarking addresses remain valid when both fields
 permit them; this is not a global reachability or address-ownership test.
 
+A raw policy filter's answer, a whole UPDATE body handed back on the import or
+the export chain, passes the same check before ze installs or sends it:
+`decodeFilterRawOverride` runs `applyTunnelEncap` over the answer, so its
+invalid TLVs are removed too. An answer whose tunnel framing is invalid, or
+that keeps no TLV, is refused as a filter failure: the import chain drops the
+route and the export chain suppresses it toward that peer.
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- decodeFilterRawOverride, filterRawTunnelEncap -->
+
 Actual SR Policy carriers (AFI 1 or 2, SAFI 73) require exactly one type-15 TLV
 and ignore endpoint, color, UDP, and protocol sub-TLVs under RFC 9830 Sections
 2.2 and 2.3. IPv4 unicast with tunnel type 15 is not an SR Policy carrier.
