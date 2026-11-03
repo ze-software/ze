@@ -66,7 +66,10 @@ var ospfAdjacencyContinuity = operation{
 var scenarioExtras = map[string][]operation{
 	scenarioAS112OriginASFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowAS112PrefixJSON}, contains: []string{as112DirectDelegationPrefix, "112"}},
-		{kind: opRequireContains, peer: peerBIRD, command: []string{cmdBirdc, "show route for 192.175.48.0/24 all"}, contains: []string{as112DirectDelegationPrefix, "65001", "112"}},
+		// BIRD's peer bird-internal sees Ze's global local AS (no asn local
+		// override), so the path is exactly 65001. The whole line is matched,
+		// so "65001 64512" or "650012" cannot pass.
+		{kind: opRequireContains, peer: peerBIRD, command: []string{cmdBirdc, "show route for 192.175.48.0/24 all"}, contains: []string{as112DirectDelegationPrefix, "\tbgp_path: 65001\n"}},
 	},
 	"as112-redistribute-lab": {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowAS112PrefixJSON}, contains: []string{as112DirectDelegationPrefix, "65001", "112"}},
