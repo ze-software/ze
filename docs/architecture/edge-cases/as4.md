@@ -71,6 +71,20 @@ FRR compares the reconstructed path (`bgp_attr_aspath_check`), with its
 <!-- source: internal/component/bgp/reactor/session_validation.go -- firstASMismatch, firstASOnWire -->
 <!-- source: internal/component/bgp/reactor/session_validation_receive.go -- prepareRFC7606FirstAS -->
 
+That wire comparison confirms AS_TRANS and nothing about the reconstructed path,
+whose first AS the peer chose in its own AS4_PATH. ASPA verifies the
+reconstructed path, so for a route from an AS_TRANS peer the rpki plugin
+performs the neighbor-AS step itself (the ASPA draft's Sections 5.5 and 5.6,
+step 2), against the peer AS the UPDATE event carries. AS_PATH [23456 65010]
+with AS4_PATH [64496 65010] reconstructs to [64496 65010]; 64496 is not the
+neighbor AS 23456, so the route is ASPA Invalid, as Section 5.1 says of a route
+with a mismatched neighbor ASN, and re-validation keeps it Invalid. A local
+`role import rs-client` is exempt, as step 2 of Section 5.5 says. Every other
+eBGP peer passed the session's check on the reconstructed path, so ASPA does not
+repeat it.
+<!-- source: internal/component/bgp/plugins/rpki/aspa_verify.go -- aspaNeighbor, newASPANeighbor -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleStructuredUpdate, aspaNeighborForPeer -->
+
 ---
 
 ## AS_PATH Encoding

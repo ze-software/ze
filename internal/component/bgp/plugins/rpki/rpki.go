@@ -554,6 +554,18 @@ func (rp *rPKIPlugin) aspaModeForPeer(address, name, group string) aspaMode {
 	return aspaModeUnspecified
 }
 
+// aspaNeighborForPeer names the neighbor-AS step a route from peerAS owes, with
+// the RS-client exemption read from the same role leaf as aspaModeForPeer.
+func (rp *rPKIPlugin) aspaNeighborForPeer(address, name, group string, peerAS uint32) aspaNeighbor {
+	localRSClient := false
+	if configured := rp.perPeerActions.Load(); configured != nil {
+		if peer, ok := configjson.LookupPeerConfig(*configured, address, name, group); ok {
+			localRSClient = peer.LocalRSClient
+		}
+	}
+	return newASPANeighbor(peerAS, localRSClient)
+}
+
 // handleStructuredUpdate processes a structured UPDATE event from DirectBridge.
 // Extracts AS_PATH from AttrsWire and NLRIs from WireUpdate, then validates
 // each prefix against the ROA cache. No JSON parsing needed.
@@ -605,11 +617,14 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	// ASPA verification (once per UPDATE, not per-prefix).
 	aspaState := aspaStateNone
 	var normalizedPath []uint32
+	neighbor := rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peerASN)
 	if rp.aspaEnabled.Load() && peerASN != se.LocalAS {
 		aspaState = ASPAInvalid
 		if asp != nil {
 			aspaState, normalizedPath = aspaStateForPath(rp.aspaCache, asp.Segments,
 				rp.aspaModeForPeer(peerAddr, peerName, peerGroup))
+			// draft-ietf-sidrops-aspa-verification Sections 5.5 and 5.6 step 2.
+			aspaState = neighbor.verify(aspaState, normalizedPath)
 		}
 	}
 
@@ -824,6 +839,7 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 	var normalizedPath []uint32
 	if rp.aspaEnabled.Load() && (peer.Local == nil || peer.Remote.AS != peer.Local.AS) {
 		mode := rp.aspaModeForPeer(peerAddr, peerName, peerGroup)
+		neighbor := rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peer.Remote.AS)
 		if len(raw) > 0 || event.RawAttributes != "" {
 			if asp != nil {
 				aspaState, normalizedPath = aspaStateForPath(rp.aspaCache, asp.Segments, mode)
@@ -834,6 +850,8 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 			normalizedPath = deduplicateASPath(event.ASPath)
 			aspaState = verifyASPAPath(rp.aspaCache, normalizedPath, mode)
 		}
+		// draft-ietf-sidrops-aspa-verification Sections 5.5 and 5.6 step 2.
+		aspaState = neighbor.verify(aspaState, normalizedPath)
 	}
 
 	// Validate each NLRI prefix against the ROA cache.
@@ -898,7 +916,8 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 						rp.aspaTracker.Track(trackedRoute{
 							key: key, peerName: peerName, peerGroup: peerGroup, peerASN: peer.Remote.AS,
 							msgID: event.GetMsgID(), path: normalizedPath, aspaState: familyASPA,
-							mode: rp.aspaModeForPeer(peerAddr, peerName, peerGroup),
+							mode:     rp.aspaModeForPeer(peerAddr, peerName, peerGroup),
+							neighbor: rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peer.Remote.AS),
 						})
 					}
 				}
@@ -1204,6 +1223,7 @@ func (rp *rPKIPlugin) trackNLRIs(peerAddr, peerName, peerGroup string, peerASN u
 			path:      normalizedPath,
 			aspaState: aspaState,
 			mode:      rp.aspaModeForPeer(peerAddr, peerName, peerGroup),
+			neighbor:  rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peerASN),
 		})
 	}
 }

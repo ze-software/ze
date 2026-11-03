@@ -31,6 +31,9 @@ type trackedRoute struct {
 	path      []uint32 // owned copy of normalized AS_PATH
 	aspaState uint8
 	mode      aspaMode
+	// neighbor re-applies the neighbor-AS step on every re-validation: a
+	// route that failed it stays Invalid whatever the cache later holds.
+	neighbor aspaNeighbor
 }
 
 // maxTrackedRoutes bounds tracker memory.
@@ -127,7 +130,7 @@ func (t *aSPATracker) revalidate(cache *aSPACache, changedCustomers []uint32) []
 		if !ok {
 			continue
 		}
-		newState := verifyASPAPath(cache, rt.path, rt.mode)
+		newState := rt.neighbor.verify(verifyASPAPath(cache, rt.path, rt.mode), rt.path)
 		if newState != rt.aspaState {
 			rt.aspaState = newState
 			changed = append(changed, *rt)

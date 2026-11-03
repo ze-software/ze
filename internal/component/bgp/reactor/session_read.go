@@ -370,6 +370,10 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			// Draft ASPA verification -28 Section 5 requires the reconstructed
 			// AS_PATH. First finish raw-wire error handling, including AS 0 and
 			// AS4 attribute discards, then compare the canonical neighbor AS.
+			// An AS_TRANS peer on a two-octet session is compared on the AS_PATH
+			// as received instead (firstASOnWire), which leaves the reconstructed
+			// path's first AS unconfirmed: ASPA verification performs that
+			// neighbor-AS step itself for an AS_TRANS peer.
 			collapsed, collapseErr := s.collapseASPathFamily(wireUpdate, validation)
 			if collapseErr != nil {
 				sessionLogger().Error("cannot reconcile received AS path",

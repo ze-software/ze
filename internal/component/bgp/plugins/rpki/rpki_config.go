@@ -101,6 +101,9 @@ type peerActionSet struct {
 	ASPAInvalid    resolvedAction
 	ASPAUnknown    resolvedAction
 	ASPAMode       aspaMode
+	// LocalRSClient is a local `role import rs-client`: Section 5.5 step 2
+	// exempts the receiving RS-client from the neighbor-AS step.
+	LocalRSClient bool
 	// BlackholeExempt keeps a BLACKHOLE-tagged route whose ONLY origin-validation
 	// fault is that its prefix is longer than a covering VRP allows. RFC 7999
 	// Section 3.3 puts that obligation on the operator and names no mechanism;
@@ -416,6 +419,7 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[configjso
 			ASPAUnknown:     resolveLeaf(global.ASPAUnknownAction, groupOv.aspaUnknown, peerOv.aspaUnknown),
 			BlackholeExempt: resolveBoolLeaf(groupOv.blackholeExempt, peerOv.blackholeExempt),
 			ASPAMode:        configuredASPAMode(peerMap, groupMap),
+			LocalRSClient:   configuredLocalRole(peerMap, groupMap) == "rs-client",
 		}
 
 		// All-global: no override, so the global path already covers this peer.
@@ -480,6 +484,21 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[configjso
 // configuredASPAMode reads the local RFC 9234 role, using the same peer-over-group
 // precedence as the role plugin. A local Customer receives downstream paths.
 func configuredASPAMode(peer, group map[string]any) aspaMode {
+	switch configuredLocalRole(peer, group) {
+	case "customer":
+		return aspaDownstream
+	case "provider", "peer", "rs", "rs-client":
+		return aspaUpstream
+	default:
+		// The role set is open config input: no role, or one ASPA cannot
+		// classify, supplies no basis for choosing a ramp.
+		return aspaModeUnspecified
+	}
+}
+
+// configuredLocalRole reads the local RFC 9234 role leaf, peer over group, and
+// answers the empty string when neither sets it.
+func configuredLocalRole(peer, group map[string]any) string {
 	for _, values := range []map[string]any{peer, group} {
 		role, ok := values["role"].(map[string]any)
 		if !ok {
@@ -489,16 +508,9 @@ func configuredASPAMode(peer, group map[string]any) aspaMode {
 		if !ok {
 			continue
 		}
-		switch local {
-		case "customer":
-			return aspaDownstream
-		case "provider", "peer", "rs", "rs-client":
-			return aspaUpstream
-		default:
-			return aspaModeUnspecified
-		}
+		return local
 	}
-	return aspaModeUnspecified
+	return ""
 }
 
 // parseBoolLeaf reads a YANG boolean that may be absent. The config framework

@@ -27,7 +27,8 @@ func sameRPKIPolicy(a, b *rpkiConfig) bool {
 		maps.EqualFunc(a.PeerActions, b.PeerActions, func(a, b peerActionSet) bool {
 			return a.OriginInvalid == b.OriginInvalid && a.OriginNotFound == b.OriginNotFound &&
 				a.ASPAInvalid == b.ASPAInvalid && a.ASPAUnknown == b.ASPAUnknown &&
-				a.ASPAMode == b.ASPAMode && a.BlackholeExempt == b.BlackholeExempt &&
+				a.ASPAMode == b.ASPAMode && a.LocalRSClient == b.LocalRSClient &&
+				a.BlackholeExempt == b.BlackholeExempt &&
 				slices.Equal(a.BlackholeCommunities, b.BlackholeCommunities)
 		})
 }
@@ -136,10 +137,13 @@ func (rp *rPKIPlugin) revalidateConfigSnapshot(ctx context.Context, data json.Ra
 		aspa := aspaStateNone
 		var normalized []uint32
 		mode := rp.aspaModeForPeer(route.Peer, route.PeerName, route.PeerGroup)
+		neighbor := rp.aspaNeighborForPeer(route.Peer, route.PeerName, route.PeerGroup, route.PeerAS)
 		if rp.aspaEnabled.Load() && aspaAppliesTo(fam) && route.PeerAS != route.LocalAS {
 			aspa = ASPAInvalid
 			if path != nil {
 				aspa, normalized = aspaStateForPath(rp.aspaCache, path.Segments, mode)
+				// draft-ietf-sidrops-aspa-verification Sections 5.5 and 5.6 step 2.
+				aspa = neighbor.verify(aspa, normalized)
 			}
 		}
 		blackhole := rp.carriesAgreedBlackhole(route.Peer, route.PeerGroup, attrs)
@@ -155,6 +159,7 @@ func (rp *rPKIPlugin) revalidateConfigSnapshot(ctx context.Context, data json.Ra
 			rp.aspaTracker.Track(trackedRoute{
 				key: key, peerName: route.PeerName, peerGroup: route.PeerGroup, peerASN: route.PeerAS,
 				msgID: route.MsgID, path: normalized, aspaState: aspa, mode: mode,
+				neighbor: neighbor,
 			})
 		}
 		batch = append(batch, validationRequest{

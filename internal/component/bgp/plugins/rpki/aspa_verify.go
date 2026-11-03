@@ -137,8 +137,62 @@ const (
 	aspaDownstream
 )
 
+// aspaNeighbor carries the neighbor-AS step of Sections 5.5 and 5.6 into a
+// verification. The receive session performs that step for every other eBGP
+// peer, on the reconstructed path (RFC 4271 Section 6.3 with RFC 7606
+// handling), so a route that reaches ASPA from one has passed it. A peer whose
+// AS is AS_TRANS is the exception: on a two-octet session the session compares
+// AS_TRANS with the AS_PATH as received (RFC 6793 Section 4.2.2), which says
+// nothing about the reconstructed path ASPA verifies, because the peer chose
+// that path's first AS in its own AS4_PATH. Section 5.1: "If a BGP speaker
+// applies ASPA procedures to an AS_PATH without first enforcing these checks,
+// any route that fails either condition (i.e., it contains an AS_SET or has a
+// mismatched neighbor ASN) is evaluated as Invalid by the ASPA verification
+// procedures (Section 5.5 and Section 5.6)." So for that peer ASPA performs the
+// step itself.
+type aspaNeighbor struct {
+	as uint32
+	// check is false where the receive session already confirmed the
+	// neighbor, and for a local RS-client, which Section 5.5 step 2 exempts.
+	check bool
+}
+
+// newASPANeighbor names the neighbor AS a route was received from and whether
+// ASPA owes the neighbor-AS step for it. localRSClient is the configured local
+// role; the receive session exempts the same role.
+func newASPANeighbor(peerAS uint32, localRSClient bool) aspaNeighbor {
+	if localRSClient {
+		// Section 5.5 step 2: "If the receiving AS is not an RS-client and the
+		// most recently added AS in the AS_PATH does not match the neighbor AS,
+		// then the procedure halts with the outcome "Invalid"."
+		return aspaNeighbor{as: peerAS}
+	}
+	return aspaNeighbor{as: peerAS, check: peerAS == attribute.ASTrans}
+}
+
+// verify applies the neighbor-AS step to state, the outcome of the remaining
+// steps over the compressed path. Every step that fails halts with Invalid, so
+// the order of the steps does not change the outcome.
+func (n aspaNeighbor) verify(state uint8, path []uint32) uint8 {
+	if !n.check {
+		return state
+	}
+	// Sections 5.5 and 5.6 step 1: "If the AS_PATH is empty, then the
+	// procedure halts with the outcome "Invalid"."
+	if len(path) == 0 {
+		return ASPAInvalid
+	}
+	// Section 5.6 step 2: "If the most recently added AS in the AS_PATH does
+	// not match the neighbor AS, then the procedure halts with the outcome
+	// "Invalid"."
+	if path[0] != n.as {
+		return ASPAInvalid
+	}
+	return state
+}
+
 // aspaStateForPath applies Section 5's structural checks before measuring ramps.
-// The receive session checks the neighbor ASN, including the transparent RS exception.
+// The neighbor-AS step is the caller's, through aspaNeighbor.verify.
 func aspaStateForPath(cache *aSPACache, segments []attribute.ASPathSegment, mode aspaMode) (uint8, []uint32) {
 	normalizedPath, hasASSet := normalizeASPath(segments)
 	// Sections 5.5 and 5.6 step 3: "If the AS_PATH has an AS_SET, then the
