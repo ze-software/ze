@@ -103,8 +103,8 @@ func TestRFC9012FilterRawOverrideRemovesInvalidTLVs(t *testing.T) {
 
 // TestRFC9012LibraryRawAnswerRemovesInvalidTLVs drives a raw answer through a
 // compiled library chain. Its goal: a whole-body rewrite an external member of
-// the chain hands back passes the same Section 13 removal as a raw answer of
-// the text chain (decodeFilterRawOverride, reached from runLibraryChain).
+// the chain hands back passes the Section 13 removal
+// (decodeFilterRawOverride, reached from runLibraryChain).
 // Method: the external member declares raw and answers a body whose malformed
 // Tunnel Egress Endpoint TLVs sit around a valid sibling; the test reads the
 // body the import step accepts. An answer with no valid TLV left is refused

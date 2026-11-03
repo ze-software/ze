@@ -192,7 +192,7 @@ used to add it whatever the UPDATE carried:
 | next-hop rewrite (`next-hop self`, `next-hop <addr>`) | `applyFactsNextHop` | 4271 Section 5.1.3 |
 | reflection attributes to an internal peer | `forwardUpdateCore`, `reactorForwardRS`, landing on `originatorIDHandler` and `clusterListHandler` | 4456 Section 8 |
 | egress community tag | `filter_community`'s egress step, landing on `genericCommunityHandler` | 7947 Section 2.3.2.2 |
-| a policy chain's text delta on any code | `runIngressPolicyChain` / `runEgressPolicyChain`, landing on `genericAttrSetHandler` | operator policy |
+| a policy chain's sets on any code | `runIngressPolicyChainMeta` / `runEgressPolicyChain`, landing on `genericAttrSetHandler` | operator policy |
 
 The first is gated in `ASPathEdit.Record`, the only frame that holds the whole
 payload. The other four are gated in ONE place, `planAttr`

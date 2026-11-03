@@ -39,7 +39,7 @@ func as4PathForPath(path *attribute.ASPath, dstASN4 bool) *attribute.AS4Path {
 // context, so every rail passes srcASN4 true and every rail takes the first
 // branch. The branch stays because ONE caller still reaches it, and that caller
 // is not a rail: the reactor's policy prepend, prependAS4PathValue through
-// ExtractASPathPrependOps (filter_delta.go), which edits ONE payload rather
+// prependASPathOps (aspath_edit.go), which edits ONE payload rather
 // than transcoding between two and so passes the same width for srcASN4 and
 // dstASN4. At two octets with an AS4_PATH on the body it holds, srcASN4 is
 // false and recvAS4 is not nil, which is the merge.

@@ -392,9 +392,7 @@ from the forked transport's, and concurrent calls that answer otherwise,
 each report naming the filter and the clause.
 
 **Building the answer.** `eval` answers one `*sdk.FilterUpdateOutput` per
-route, in one of three shapes. The shapes below are what a filter answers in
-a chain that also holds an in-process filter; a chain of plugin filters only
-still reads the text `Update` delta. The wire form of each change, and every
+route, in one of three shapes. The wire form of each change, and every
 reason a route fails, is `protocol.md`, "The Sets of a filter-update answer".
 
 | Answer | `Action` | Carries | The filter declares |

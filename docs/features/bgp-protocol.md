@@ -179,7 +179,7 @@ contract rather than a display:
 
 - the AS path of the plugin event stream
 - the `update text` command Ze replays to itself
-- the filter text a filter plugin matches
+- the `as-path` field a filter plugin reads
 - the text form of the plugin process protocol
 - the `as_path` of the birdwatcher-compatible looking glass API
 

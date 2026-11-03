@@ -2952,9 +2952,7 @@ ones the operator named: on a peer with an RFC 9234 role, the upstream check
 `text-before` and `text-after` name every attribute the UPDATE carries. Five of
 those names first appeared on 2026-09-04: `origin`, `med`, `local-preference`,
 `atomic-aggregate` and `cluster-list`. The renderer named a Go type no parser
-built for each of them, so the dry-run output was silent about all five. See
-[The Attribute Names in the Filter Text Protocol](../architecture/api/process-protocol.md)
-for the full set.
+built for each of them, so the dry-run output was silent about all five.
 
 This command does not forward routes, update the RIB, populate cache, or mutate peer state.
 <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyTest -->

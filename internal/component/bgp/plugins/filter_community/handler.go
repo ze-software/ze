@@ -191,8 +191,8 @@ func emitCommunity(p *filterapi.AttrPlan, code attribute.AttributeCode) {
 //
 // toRemove is a SET: a whole number of valueSize-byte wire values, concatenated.
 // One value is the common case and is a whole number, so every producer that
-// emits one operation per value (reactor/filter_delta.go splits on valueSize;
-// egress.go is per value) is unaffected.
+// emits one operation per value (policychain Sets.ApplyTo writes one per
+// community; egress.go is per value) is unaffected.
 //
 // The multi-value form is what made the original single-value rule a live defect
 // rather than a style point. wireu.StripControlCommunities accumulates EVERY

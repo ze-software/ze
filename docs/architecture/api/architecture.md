@@ -1540,12 +1540,10 @@ to be rendered differently from another's.
 <!-- source: internal/component/bgp/types/contentconfig.go -- ContentConfig -->
 <!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding -->
 
-This selection is not the policy filter chain's attribute set. The chain builds
-one text subject for every filter on the peer, and it renders every attribute
-the UPDATE carries. The names in that subject, and the value shape of each one,
-are "The Attribute Names in the Filter Text Protocol" in
-`docs/architecture/api/process-protocol.md`.
-<!-- source: internal/component/bgp/reactor/filter_ordered.go -- orderedIngressStep, orderedEgressStep -->
+This selection is not what a policy filter reads. A plugin filter is sent the
+route fields it declared in `reads`, whatever the process binding selects
+("The Route Fields of filter-update" in `docs/plugin-development/protocol.md`).
+<!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields -->
 
 ### RFC 9234 Role Tagging (Planned)
 

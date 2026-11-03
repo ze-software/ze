@@ -70,14 +70,15 @@ SECTION rather than the payload bytes, so a prefix holding the byte 0x04 or
 RFC 4271 Section 5.1.4 asks for one more thing: "A BGP speaker MUST implement a
 mechanism (based on local configuration) that allows the MULTI_EXIT_DISC
 attribute to be removed from a route." Public `del { med; }` in a modify policy
-(`docs/guide/plugins.md`) requests this removal. The plugin converts it to the
-private `med-remove` runtime delta token. The reactor converts that token to the
-same `filterapi.AttrModSuppress` on attribute 4 that `applyFactsMED` emits. One
+(`docs/guide/plugins.md`) requests this removal. The plugin answers it as a
+`med` remove in its sets, and `Sets.ApplyTo`
+(`internal/component/bgp/policychain/sets.go`) writes the same
+`filterapi.AttrModSuppress` on attribute 4 that `applyFactsMED` emits. One
 suppression has two triggers: a rule ze derives, and a removal an operator requests.
 
-It does not run on this rail. `ExtractMEDRemoveOps`
-(`internal/component/bgp/reactor/filter_delta.go`) is called from the INGRESS
-site alone (`filter_ordered.go`), because the same section requires the removal
+It does not run on this rail. `removeMED`
+(`internal/component/bgp/policychain/external_attributes.go`) honors it on an
+import chain alone, because the same section requires the removal
 to happen "prior to determining the degree of preference of the route and prior
 to performing route selection (Decision Process phases 1 and 2)". The import
 chain's rewritten payload replaces the WireUpdate before the UPDATE is cached
@@ -105,8 +106,7 @@ in its Sets on an import chain, and `removeMED`
 On an export chain `medRemoveFor`
 (`internal/component/bgp/plugins/filter_modify/filter_modify.go`) withholds the
 removal and logs a warning, and `removeMED` fails an export route whose filter
-answers one. A text filter's `med-remove` directive is converted at ingress by
-`ExtractMEDRemoveOps`. `medPropagationAllowedTo`
+answers one. `medPropagationAllowedTo`
 (`internal/component/bgp/reactor/forward_med.go`) returns true for every non-eBGP
 destination. That path keeps the value used for comparison aligned with the value
 advertised to an IBGP peer.
@@ -160,7 +160,7 @@ path is removed, guarded, or proven unreachable.
 |------|------|-----------|---------|
 | LOCAL_PREF | `rfc4271_forward_local_pref_test.go` | `test/plugin/local-pref-strip-ebgp.ci` | `test/interop/scenarios/bgp-local-pref-strip-gobgp/` |
 | MULTI_EXIT_DISC, the propagation rule | `forward_med_test.go` | `test/plugin/med-not-propagated-across-as.ci`, `test/plugin/med-locally-set-reaches-peer.ci` | `test/interop/scenarios/bgp-med-across-as-gobgp/` |
-| MULTI_EXIT_DISC, the configured removal | `forward_med_test.go`, `filter_delta_test.go`, `filter_modify/rfc4271_modify_test.go` | `test/plugin/med-removal-configured.ci`, `test/plugin/med-removal-before-decision.ci`, `test/plugin/med-removal-export-refused.ci` | `test/interop/scenarios/bgp-med-remove-configured-gobgp/` |
+| MULTI_EXIT_DISC, the configured removal | `forward_med_test.go`, `filter_modify/rfc4271_modify_test.go` | `test/plugin/med-removal-configured.ci`, `test/plugin/med-removal-before-decision.ci`, `test/plugin/med-removal-export-refused.ci` | `test/interop/scenarios/bgp-med-remove-configured-gobgp/` |
 | MULTI_EXIT_DISC, IBGP post-selection preservation | `forward_med_test.go` | `test/plugin/med-ibgp-post-selection-removal.ci` | `test/interop/scenarios/bgp-med-ibgp-post-selection-removal-gobgp/` |
 
 Each functional test carries its confining negative in the same run: one
@@ -173,21 +173,13 @@ with no metric while the one it does not keeps 100. Scenario 62: a raw export
 filter removes MED from the destination base on the route-server egress rail,
 and GoBGP still receives MED.
 
-The configured removal's gate reads the filter text alone. `medRemoveHasWork`
-(`internal/component/bgp/reactor/filter_delta.go`) asks whether the subject names
-`med`, which covers both ways a metric can be there: the peer sent it, and
-`appendSingleAttr` (`internal/component/bgp/reactor/filter_format.go`) renders it;
-or an earlier filter in the chain set it, and `applyFilterDelta`
-(`filter_chain.go`) merged that into the same subject.
+The configured removal has work only when the route carries a metric, from the
+peer or from an earlier member of the chain: `Chain.overlayMEDRemove` forgets a
+removal from a route with no MULTI_EXIT_DISC, so `Sets.ApplyTo` writes the
+suppression only where there is one to remove.
 
-Until 2026-09-04 the gate read the WIRE as well, because `appendSingleAttr`
-matched `*attribute.MED` while the parser builds the value form `attribute.MED`,
-so `med` reached no filter and a text-only gate refused every removal. Scenario
-61 is what measured that. The renderer now names the attribute, so the wire
-reading was a second declaration of one fact and it is gone.
-
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- medRemoveHasWork, ExtractMEDRemoveOps -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterAttrs.merge, the chain order between med and med-remove -->
+<!-- source: internal/component/bgp/policychain/chain.go -- overlayMEDRemove -->
+<!-- source: internal/component/bgp/policychain/sets.go -- Sets.ApplyTo, the med suppression -->
 <!-- source: internal/component/bgp/reactor/forward_med.go -- medPropagationAllowedTo, the internal-destination exemption Section 9.1.2.2 rests on -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- medRemoveFor, the export-chain warning -->
 <!-- source: internal/component/bgp/policychain/external_attributes.go -- removeMED, the export-chain refusal -->

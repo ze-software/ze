@@ -1,5 +1,6 @@
 // Design: docs/architecture/perf-round-3.md -- filter-delta allocation reduction
-// Related: filter_delta.go -- every encoder carves its wire value bytes here
+// Related: aspath_edit.go -- the AS-path encoders carve their wire value bytes here
+// Related: filter_nlri_delta.go -- the NLRI rewrite carves its wire value bytes here
 // Related: forward_build.go -- modBufPool, the pool this one mirrors
 // Related: filterapi/editset.go -- EditSet.write reads every operation's Buf at rebuild time
 

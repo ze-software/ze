@@ -128,11 +128,8 @@ func nlriViewsChain(t *testing.T, types ...string) *Chain {
 
 // TestChainFamilyAndNextHopFollowPrefix proves a later member's family and
 // next-hop agree with the prefix an earlier member's drops or family strip
-// left, as a later text filter's do: applyFilterDelta replaces the nlri slot
-// (reactor/filter_chain.go), so the next text filter sees no block of a
-// family whose NLRI are gone, while the next-hop token renders the NEXT_HOP
-// attribute alone (AppendAttrsForFilter, reactor/filter_format.go), which no
-// NLRI change removes. An MP_REACH_NLRI left with no NLRI leaves the UPDATE
+// left: a family whose NLRI are gone is not read, while next-hop keeps the
+// NEXT_HOP attribute, which no NLRI change removes. An MP_REACH_NLRI left with no NLRI leaves the UPDATE
 // (libraryNLRIOps), so its family and its next hop leave both reads.
 //
 // Method: a recorder member reads family and next-hop before the change (so

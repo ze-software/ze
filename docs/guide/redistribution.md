@@ -89,7 +89,7 @@ Example: `rpki:validate`, `community:scrub`.
 3. Default filters (e.g., loop-detection) auto-populate in every peer's import chain.
 4. On each received UPDATE, the engine runs the import filter chain.
 5. On each forwarded UPDATE, the engine runs the export chain per destination peer.
-6. Each filter responds accept, reject, or modify (delta-only).
+6. Each filter responds accept, reject, or modify (the fields it changes).
 
 <!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
@@ -132,7 +132,7 @@ activate bgp peer special filter import filters no-self-as
 
 <!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
 <!-- source: internal/component/policy/chain.go -- RefsFromMembers retains Inactive -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips policy.Ref.Inactive -->
+<!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChain skips policy.Ref.Inactive -->
 
 ### Chain Order
 
@@ -168,12 +168,12 @@ insert filter import filters new-filter last
 | accept | Continue to the next filter with the current update |
 | reject | Drop the update immediately and stop the chain |
 | modify | Apply attribute changes and continue to the next filter |
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, rawOutcome, endFinal -->
 
 Neither `accept` nor `modify` grants final acceptance. After the chain completes,
 `final accept;` permits the route and `final reject;` drops it. A raw payload
 rewrite stops later filters, but the final decision still applies.
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, rawOutcome, endFinal -->
 
 ### Conditioning a modifier without dropping the rest
 
@@ -241,7 +241,7 @@ Each filter declares its own failure mode at startup:
 |------|-------------------------------|
 | `reject` | Fail-closed: drop the update |
 | `accept` | Fail-open: continue to the next filter, then apply the policy's final decision |
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- policyFilterFunc, PolicyFilterChain -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.failure -->
 
 ### Writing a Filter Plugin
 

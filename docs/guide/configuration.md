@@ -750,7 +750,7 @@ numbers, because `1.10` is not one.
 
 Five surfaces stay asplain whatever the leaf says:
 
-- the filter text a filter plugin matches
+- the `as-path` field a filter plugin reads
 - the `update text` command Ze replays to itself
 - the AS path of the plugin event stream
 - the text form of the plugin process protocol

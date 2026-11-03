@@ -178,10 +178,10 @@ references under `filters` and requires `final accept;` or `final reject;`.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 An `accept` response continues the chain, and a `reject` response drops the route
-immediately. A `modify` response supplies attribute changes for the next filter.
+immediately. A `modify` response supplies field changes the next filter reads.
 After the filters pass, the configured final decides whether the route proceeds.
 A raw payload rewrite stops later filters but does not bypass that final decision.
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, rawOutcome, endFinal -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 
 Built-in filter plugins (shipped with ze) include `bgp-filter-prefix` for

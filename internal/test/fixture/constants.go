@@ -126,11 +126,11 @@ const (
 	fieldKind               = "kind"
 	fieldLeaf               = "leaf"
 	fieldLocalAS            = "local-as"
-	fieldLocalPreference    = "local-preference" // The LOCAL_PREF name in the filter text protocol.
+	fieldLocalPreference    = "local-preference" // The LOCAL_PREF field name in the filter protocol.
 	fieldMED                = "med"              // The MED attribute name in the filter and catalog protocols.
 	fieldMessage            = "message"
 	fieldMode               = "mode"
-	fieldOrigin             = "origin" // The ORIGIN attribute name in the filter text protocol.
+	fieldOrigin             = "origin" // The ORIGIN field name in the filter protocol.
 	fieldName               = "name"   // The field in a payload.
 	fieldPackages           = "packages"
 	fieldPassed             = "passed"

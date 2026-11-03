@@ -76,8 +76,8 @@ func boundaryPolicy(t *testing.T, final routepolicy.Final, refs ...boundaryRef) 
 	return policy.WithLibrary(chain)
 }
 
-// TestLibraryRFC8212ChainBoundaries is the library form of the text chain's
-// RFC 8212 boundary test. It runs the import step over every session type and
+// TestLibraryRFC8212ChainBoundaries proves the RFC 8212 boundaries of the
+// library chain. It runs the import step over every session type and
 // final: an absent final on EBGP rejects whatever the members answer, and
 // neither an inactive member nor a raw rewrite grants it acceptance (RFC 8212
 // Section 3: "Routes SHALL NOT be added to an Adj-RIB-In associated with an

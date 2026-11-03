@@ -664,13 +664,15 @@ equal, so an AS4_PATH shorter than the AS_PATH would have the receiver read the
 AS_TRANS placeholders ze just wrote in place of the real local AS.
 
 `AS4PathForRewrite` still holds a merging branch for the case where the payload
-it is handed already carries an AS4_PATH ze itself wrote. `exportFilterForBody`
-is that caller: it hands the extractor a body already encoded in a two-octet
-destination's send context, so the AS4_PATH beside it is ze's own derivation
-rather than a peer's attribute. `attribute.MergeAS4Path` is ze's declaration of
+it is handed already carries an AS4_PATH ze itself wrote. The policy prepend
+(`prependASPathOps`, which a library chain's AS-path intent reaches through
+`libraryASPathOps`) is that caller: it edits one payload in place, so it passes
+the same width for both sides, and on a two-octet payload the AS4_PATH beside
+it is ze's own derivation rather than a peer's attribute. `attribute.MergeAS4Path` is ze's declaration of
 the receiver's rule, and running the path through it there emits what the
 receiver must arrive at.
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps -->
+<!-- source: internal/component/bgp/reactor/aspath_edit.go -- prependASPathOps, prependAS4PathValue -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- libraryASPathOps -->
 <!-- source: internal/component/bgp/wireu/aspath_as4.go -- AS4PathForRewrite -->
 
 ---

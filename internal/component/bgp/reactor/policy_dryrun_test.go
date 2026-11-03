@@ -37,7 +37,7 @@ func TestResolveFilterOverride(t *testing.T) {
 		{"plain_name_rpa", "STRIP", "bgp-filter-remove-private-as:STRIP"},
 		{"canonical_exact", "bgp-filter-prefix:CUSTOMERS", "bgp-filter-prefix:CUSTOMERS"},
 		{"not_found", "UNKNOWN", ""},
-		// Inactive refs must not resolve: TracePolicyFilterChain skips them, so
+		// Inactive refs must not resolve: no chain runs them, so
 		// matching one would yield a misleading silent "accept" (security #4).
 		{"inactive_plain_skipped", "DENY", ""},
 		{"inactive_canonical_skipped", "inactive:bgp-filter-prefix:DENY", ""},

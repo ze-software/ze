@@ -58,11 +58,8 @@ func init() {
 
 // TestChainASPathReadsReceivedAfterPrepend pins what a later member reads for
 // as-path once an earlier member prepended: the RECEIVED path, with no
-// prepended AS. That is the text chain's answer too: a text filter's
-// "as-path-prepend N" delta is a directive merged beside the as-path field
-// (applyFilterDelta, reactor/filter_chain.go), and the field itself keeps the
-// received value until the wire rebuild applies the prepend. The library
-// chain answers the same, so a policy reads alike on both paths.
+// prepended AS. A prepend is an intent, and the field keeps the received
+// value until the wire rebuild applies the prepend.
 //
 // Method: the gate passes only on the received path; a chain that overlaid
 // the prepend would make it reject.

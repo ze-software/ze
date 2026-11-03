@@ -120,9 +120,7 @@ func prefixChain(t *testing.T, types ...string) *Chain {
 func joined(parts ...[]byte) []byte { return bytes.Join(parts, nil) }
 
 // TestChainPrefixReadsSubsetAfterDrop proves a later member reads the NLRI an
-// earlier member's drop left, as a later text filter reads the subset an
-// earlier text filter's NLRI delta wrote (applyFilterDelta replaces the nlri
-// slot, reactor/filter_chain.go). It also proves a later member's drop, given
+// earlier member's drop left. It also proves a later member's drop, given
 // at an offset of the section as the view answers it, folds at the entry's
 // offset in the received section, which is where the reactor applies it.
 //

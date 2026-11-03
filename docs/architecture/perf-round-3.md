@@ -1,7 +1,6 @@
 # Performance Round 3: Hot-Path Allocation and Lock Reduction
 
 <!-- source: internal/component/bgp/plugins/rib/rib_attr_format.go -- communityList, communityByteList -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterAttrs, parseFilterAttrs -->
 
 Third optimization round. The first campaign took the convergence benchmark from
 91ms to 71ms, and the second took it from 71ms to 62ms.
@@ -105,6 +104,12 @@ Files: `text_append.go`, `rib_attr_format.go`.
 
 ## 3. Struct-Based Filter Attribute Parsing
 
+The text filter protocol this section measured no longer exists:
+a plugin filter now reads declared route fields and answers sets
+(`docs/plugin-development/protocol.md`, "The Route Fields of filter-update"),
+and `filterAttrs`, `parseFilterAttrs` and `filter_delta.go` were deleted with
+it. The figures stay as the history of that path.
+
 When an external policy filter modifies an UPDATE, the reactor parses the
 filter's text output into a `map[string]string` via `parseFilterAttrs`.
 This fires twice per modified UPDATE (original and modified text), and on
@@ -196,7 +201,6 @@ Files: `filter_scratch.go`, `filter_delta.go`, `filter_chain.go`,
 `filter_ordered.go`, `policy_dryrun.go`.
 
 <!-- source: internal/component/bgp/reactor/filter_scratch.go -- valueScratch, carveBytes -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- parseFilterAttrsInto, filterTokens -->
 
 ## What Was Not Done
 

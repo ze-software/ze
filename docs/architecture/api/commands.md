@@ -645,7 +645,7 @@ and no automatic filters.
 | `ze-static:show-static` | `forwardShowStatic` in `internal/plugins/static/cmd_show.go` | JSON array of configured static routes (proxy to static plugin) |
 | `ze-policyroute:show-policy-routes` | `forwardShowPolicyRoutes` in `internal/plugins/policyroute/cmd_show.go` | JSON array of PBR policy routes (proxy to policyroute plugin) |
 | `ze-bgp:show-policy-chain` | `handleShowPolicyChain` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"chains": [{"peer": "...", "name": "...", "import": {"filters": [{"name": "...", "canonical": "..."}], "final": "accept"}, "export": {"filters": null, "final": "reject"}}]}` — effective policies with the direction's effective `final`: the configured final; `reject` with `"final-source": "rfc8212"` for an EBGP direction with no policy (RFC 8212 Section 3); `undetermined` for an absent direction on a dynamic peer not yet established. An IBGP direction with no policy has no `final`, and is omitted when it has no automatic filters. <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- policyChain, handleShowPolicyChain --> <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo --> |
-| `ze-bgp:show-policy-test` | `handleShowPolicyTest` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify\|undetermined", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS_PATH set", ...], "policy": {"filters": [...], "final": "reject", "final-source": "rfc8212"}}` — read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. `reason` is present for an unresolved remote AS. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun, tracePolicyFilterChain --> |
+| `ze-bgp:show-policy-test` | `handleShowPolicyTest` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify\|undetermined", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS_PATH set", ...], "policy": {"filters": [...], "final": "reject", "final-source": "rfc8212"}}` — read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. `reason` is present for an unresolved remote AS. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun, traceUncompiledChain --> |
 | `ze-bgp:show-bmp-sessions` | `forwardShowBMPSessions` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP receiver sessions (proxy to BMP plugin) |
 | `ze-bgp:show-bmp-peers` | `forwardShowBMPPeers` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP monitored peers (proxy to BMP plugin) |
 | `ze-bgp:show-bmp-collectors` | `forwardShowBMPCollectors` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP sender collectors (proxy to BMP plugin) |
@@ -1274,8 +1274,8 @@ send bgp <selector> update text mp l2vpn/evpn add ip-prefix rd <rd> prefix <pref
 send bgp <selector> update text mp l2vpn/evpn add multicast rd <rd> ip <ip>
 ```
 
-The section keyword names the UPDATE section the routes travel in, the same two
-keywords the filter text protocol uses. `nlri` takes no family: it is IPv4
+The section keyword names the UPDATE section the routes travel in. `nlri`
+takes no family: it is IPv4
 unicast in the NLRI and Withdrawn Routes fields (RFC 4271 Section 4.3). `mp
 <family>` is MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760). IPv4 unicast takes
 `mp ipv4/unicast add` only with an explicit IPv6 next hop (RFC 8950 Section 3);
@@ -1752,7 +1752,6 @@ Each route of `routes`:
 | `direction` | string | `import` or `export` |
 | `peer` | string | The peer that SENT the route on import, the DESTINATION peer on export |
 | `peer-as` | uint32 | That peer's ASN, with the same meaning as `peer` |
-| `update` | string | Text-format attributes and NLRI (only declared attributes). Empty in a chain that also holds in-process members, which sends `fields` only |
 | `fields` | object | The route fields the filter declared in `reads`, keyed by vocabulary field name, in the UPDATE event's attr-map shape. A field the route does not carry is left out, and the key is absent when the filter declared no route field |
 | `raw` | bytes (base64) | The UPDATE body after the 19-byte header, sent when the filter declared the `raw` read |
 
@@ -1761,8 +1760,7 @@ Each verdict of `verdicts`:
 | Field | Type | Description |
 |-------|------|-------------|
 | `action` | string | `accept`, `reject` or `modify` |
-| `update` | string | A text delta of the changed attributes, on `modify`. Refused in a chain that holds in-process members |
-| `sets` | list | The route fields the filter changes, on `modify`: each a `field`, an `action` and a `value`. Read in a chain that holds in-process members |
+| `sets` | list | The route fields the filter changes, on `modify`: each a `field`, an `action` and a `value` |
 | `raw` | bytes (base64) | A whole-body replacement, on `modify`, from a filter that declared the `raw` read. It ends the chain |
 | `teardown`, `notify-code`, `notify-subcode` | bool, uint8 | Close the session after the import chain. Honored on import only |
 | `error` | string | The filter could not judge this route: the engine applies its on-error to this route alone and reads nothing else of the verdict |

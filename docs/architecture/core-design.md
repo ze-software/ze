@@ -1288,13 +1288,12 @@ code position:
 2. **The external-plugin per-peer policy** (`peer.settings.ImportPolicy`,
    resolved via `filter { import { filters [ name ]; final accept; } }`), which
    the reactor binds as ONE ordered step at `filterapi.FilterStagePeerChain`
-   (300), after the engine step. On the text chain,
-   active external references need the API server and text serialization; an
-   empty, inactive-only or in-process-only policy applies its final without
-   either. A chain that also names a library member (`Policy.Library`, "The
-   in-process BGP chain" below) runs through `runLibraryChain` instead: its
-   plugin members are sent their declared `fields` and no update text, and
-   still reach the plugin through the API server (`libraryCaller`).
+   (300), after the engine step. The step runs the peer's library chain
+   (`Policy.Library`, "The in-process BGP chain" below) through
+   `runLibraryChain`: its plugin members are sent their declared `fields` and
+   reach the plugin through the API server (`libraryCaller`); an empty,
+   inactive-only or in-process-only policy needs no API server. A policy that
+   names a plugin filter and carries no compiled library chain fails closed.
    A named `loop-detection` instance (`loop:<name>`) is bound to the engine's
    loop step by `reactor/loopdetect` `BindLoopDetection` during configuration. It
    remains in `Policy.Filters` but executes only at the loop step, never again
@@ -1311,10 +1310,9 @@ code position:
    received UPDATE of its own after the first (`notifyMessageReceiver`), on
    the originated rail the session writes it after the first (the
    `egressRouteFilter` follow body), and the forward rail splits by section
-   (`withdrawalBySection`). A
-   text-mode filter answering `withdraw` fails under its `on-error`. A raw override stops later filters but
-   still receives the final decision. An accepted raw override or `Modify`
-   text delta rebuilds the cached `WireUpdate` through the same progressive
+   (`withdrawalBySection`). A raw override stops later filters but
+   still receives the final decision. An accepted raw override or set
+   rebuilds the cached `WireUpdate` through the same progressive
    build used on egress.
    With `final reject`, a policy denial preserves explicit withdrawals in a mixed
    UPDATE; execution failure and teardown still reject the whole operation.
@@ -1534,7 +1532,7 @@ compiled with no final and the session decides the end
 <!-- source: internal/component/bgp/reactor/loopdetect/binding.go -- BindLoopDetection, OwnsChainMembers -->
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- buildOrderedIngressSteps -->
 
-Filters respond accept/reject/modify with delta-only output. Accept continues;
+Filters respond accept/reject/modify, a modify carrying sets or a raw rewrite. Accept continues;
 reject, fail-closed error and teardown short-circuit. Exhaustion, including
 empty or inactive-only chains, applies the effective final. A raw rewrite stops
 later filters and also receives that final. Dirty tracking ensures only
@@ -1562,11 +1560,9 @@ definition reload is separate from this final-transition reconciliation.
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- policyWithdrawals -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
 
-The chain reads one text subject, built once per UPDATE and shared by every
-filter on the peer. Which attribute names that subject carries, and the value
-shape of each one, is "The Attribute Names in the Filter Text Protocol" in
-`docs/architecture/api/process-protocol.md`. A filter's declared attribute list
-records what it reads and does not narrow the subject.
+A plugin filter reads the route fields it declared, and the raw body when it
+declares the `raw` read; the field shapes are "The Route Fields of
+filter-update" in `docs/plugin-development/protocol.md`.
 
 FlowSpec UPDATEs expose each destination prefix component to the same
 prefix-list condition a `match` instance applies to unicast (`prefix`, `ge`,
@@ -1602,15 +1598,10 @@ peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-sel
 #### The BGP route view
 
 `internal/component/bgp/policyview` is the lazy view a BGP chain member reads
-in place of the text subject. `policychain` runs over it (`runLibraryChain`,
-below), and the text chain reads it too: a plugin filter there is sent the
-`fields` its declared reads name, written from the view (`filterFields`,
-`policyview.AppendFields`). A chain runs on the view in place of the text
-subject only when it names a member whose filter type registered an in-process
-BGP evaluator. `match` is the shipped type that has one
-(`policychain/register.go`), so a chain naming a `match` instance runs on the
-view; every other chain an operator configures today still runs the text
-subject above.
+to answer its fields. `policychain` runs over it (`runLibraryChain`, below),
+and a plugin filter is sent the `fields` its declared reads name, written from
+the view (`policyview.AppendFields`). `match` is the shipped filter type with
+an in-process BGP evaluator (`policychain/register.go`).
 
 - **One reader per field, registered from the BGP side.** The field names stay
   declared in the policy library (`internal/component/policy/register.go`);
@@ -1676,15 +1667,14 @@ subject above.
   `bgp export`, and the refusal names `med` as the BGP field for that fact
   (`policy.MustRegisterFieldSynonym`). The same instance still loads at a
   Loc-RIB, redistribute or IGP attachment. `atomic-aggregate`, `aggregator`,
-  `originator-id` and `cluster-list` are carried, so every value the text
-  subject exposed stays readable.
+  `originator-id` and `cluster-list` are carried as well.
 
 <!-- source: internal/component/bgp/policyview/view.go -- View, Reset, Clear, Read, Value -->
 <!-- source: internal/component/bgp/policyview/readers.go -- readPrefix, readOriginAS, requireFourOctet, reconstructedPath -->
 <!-- source: internal/component/bgp/policyview/register.go -- init -->
 <!-- source: internal/component/bgp/config/register.go -- init, the attachment carries and the reader check -->
 <!-- source: internal/component/policy/fields.go -- MustRegisterFieldSynonym, synonymHint, MustRegisterDerivedAttachment, attachmentUse -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
+<!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields -->
 
 #### The in-process BGP chain
 
@@ -1714,10 +1704,9 @@ member decision after the walk, never in a display-only `Chain.Trace` run. A
 live run asks each report's `Enabled` first and collects the judged prefixes
 only when some line is on, so with every line off the walk allocates nothing. `compileLibraryChain` compiles
 every BGP import and export chain that holds a member to the library chain, plugin
-filters alone included: the text chain ignores sets, so a plugin filter answering sets
-or intents there would be silently ignored. Each plugin filter is an external member of
+filters alone included. Each plugin filter is an external member of
 that chain (below). A plugin filter that declares no reads is never sent the route:
-the library chain carries no text update, so such a member fails every route under
+Ze has no field to send it, so such a member fails every route under
 `reject`, whatever on-error it declared (`judgeExternal`, `errExternalNoReads`).
 
 - **Wired at peer load and on both policy steps.** `bgpServesFilterType`
@@ -1735,7 +1724,7 @@ the library chain carries no text update, so such a member fails every route und
   `runIngressPolicyChain` and `runEgressPolicyChainASN4` then run it in
   process, with no API server, through `runLibraryChain`, which takes its view
   and sets from a pool and Clears the view before it returns. A reject keeps
-  the text chain's RFC 8212 withdrawals rule, and a failed member drops the
+  the RFC 8212 withdrawals rule, and a failed member drops the
   route.
 - **Plugin filters join the chain.** A chain that names a library member
   and a plugin filter compiles both into one chain, in chain order
@@ -1744,16 +1733,16 @@ the library chain carries no text update, so such a member fails every route und
   reads what earlier members set; its answer's `sets` fold through the same
   `Sets` methods an in-process member calls, so both produce the same bytes.
   A set it did not declare, a field the attachment does not let a filter set,
-  a wrong action or value shape, a text delta, and no plugin server each
+  a wrong action or value shape, and no plugin server each
   fail the route under its on-error (`policychain/external.go`). A plugin
   member that declared `raw` may answer a whole-body rewrite (D-4): it is
-  terminal, as on the text chain, so `rawOutcome` ends the run, the chain's
+  terminal, so `rawOutcome` ends the run, the chain's
   final still decides, and `runLibraryChain` sends `RunSets.Raw` in place of
   the body, checked again by `decodeFilterRawOverride`. A rewrite after an
   earlier member's set fails under on-error, because it was made from the
   received body and would discard that set (`rawAnswer`).
   The reactor reaches the plugin through `libraryCaller` over the same
-  transport as the text chain: the route joins the `filter-update` batch the
+  transport every plugin filter uses: the route joins the `filter-update` batch the
   plugin connection forms (`filterBatcher`), bounded by one
   `rpc.FilterUpdateTimeout`.
 
@@ -1803,12 +1792,12 @@ the library chain carries no text update, so such a member fails every route und
   the event's NLRI shape, to the offset of each entry carrying it in the body
   NLRI and MP_REACH_NLRI the view answered, walked with `wireu.CIDRCursor`,
   and calls `DropNLRI`, so both kinds of member produce the same bytes.
-  `runLibraryChain` resolves them through the cores the text delta reaches,
-  never a copy: `prependASPathOps` and `removePrivateASOps`
-  (`filter_delta.go`), not applied toward an internal peer on export (RFC 4271
+  `runLibraryChain` resolves them through one core each, never a copy:
+  `prependASPathOps` and `removePrivateASOps`
+  (`aspath_edit.go`), not applied toward an internal peer on export (RFC 4271
   Section 5.1.2); `nlriSectionOf`, `dropNLRI` and `recordNLRIRewrite`
-  (`filter_nlri_delta.go`) over all four NLRI sections, the walk the text
-  path's `subsetNLRI` shares through `wireu.CIDRCursor`. An offset that starts no
+  (`filter_nlri_delta.go`) over all four NLRI sections, walked with
+  `wireu.CIDRCursor`. An offset that starts no
   entry, a drop from a section the UPDATE lacks, and a drop from a family
   whose NLRI is not a CIDR prefix drop the route, as do a drop from a
   section that does not parse and a strip over an MP_REACH_NLRI or
@@ -1823,12 +1812,9 @@ the library chain carries no text update, so such a member fails every route und
   leading AS_SEQUENCE while it has room for 255 AS numbers, and opens a new
   AS_SEQUENCE in front of an AS_SET, an empty path or a full sequence
   (`aspathHandler`, RFC 4271 Section 5.1.2), on both paths. A later member
-  that reads `as-path` reads the received path, not the prepended one, which
-  is what a later text filter reads too: the text delta carries
-  `as-path-prepend N` as a directive beside the `as-path` field, and the wire
-  rebuild applies it. A later member that reads `prefix` after a `DropNLRI`
-  reads the subset the drop left, as a later text filter reads the subset an
-  earlier one returned (the text NLRI delta replaces the `nlri` slot):
+  that reads `as-path` reads the received path, not the prepended one: the
+  prepend is an intent the wire rebuild applies. A later member that reads
+  `prefix` after a `DropNLRI` reads the subset the drop left:
   `overlayPrefix` rebuilds the body NLRI and the MP_REACH_NLRI value less the
   drops into two alternating `RunSets` buffers per section, with the same
   `wireu.DropCIDREntries` walk the reactor applies, and an MP_REACH_NLRI left
@@ -1840,16 +1826,13 @@ the library chain carries no text update, so such a member fails every route und
   on-error. A later member that reads `prefix` after a `StripFamily` reads
   none of that family: the overlay empties the body NLRI for IPv4 unicast and
   reads the MP_REACH_NLRI of the stripped family as absent, as the reactor
-  removes the family's sections whatever the drops name, and as a later text
-  filter reads none of the NLRI an earlier delta removed. A later drop from a
+  removes the family's sections whatever the drops name. A later drop from a
   stripped section names no entry, so it fails the member. The overlay sets
   the view's NLRI sections (`View.SetNLRI`), from which `family` and
   `next-hop` are answered too, so a later member that reads `family` after a
   drop or a strip reads no family whose NLRI are gone, and reads `next-hop`
-  without the next hop of an MP_REACH_NLRI that left, as a later text filter
-  sees no `nlri` or `mp` block of it. `next-hop` keeps the NEXT_HOP
-  attribute, which no NLRI change removes and which the text keeps as its
-  `next-hop` token. A field a member read earlier in the run is answered again
+  without the next hop of an MP_REACH_NLRI that left. `next-hop` keeps the
+  NEXT_HOP attribute, which no NLRI change removes. A field a member read earlier in the run is answered again
   from the overlay without decoding NEXT_HOP a second time. A chain that drops
   and strips nothing reads the wire and allocates nothing.
 - **A failed member applies its on-error.** A read that answers an error (a
@@ -1900,9 +1883,9 @@ the library chain carries no text update, so such a member fails every route und
 <!-- source: internal/component/bgp/reactor/filter_library.go -- rewriteLibrary -->
 <!-- source: internal/component/bgp/wireu/nlri_cidr.go -- CIDRCursor, DropCIDREntries -->
 <!-- source: internal/component/bgp/policychain/intents.go -- PrependASPath, RemovePrivateAS, DropNLRI, StripFamily -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- prependASPathOps, removePrivateASOps -->
+<!-- source: internal/component/bgp/reactor/aspath_edit.go -- prependASPathOps, removePrivateASOps -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- aspathHandler -->
-<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- nlriSectionOf, recordNLRIRewrite, dropNLRI, subsetNLRI -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- nlriSectionOf, recordNLRIRewrite, dropNLRI -->
 <!-- source: internal/component/bgp/policychain/sets.go -- Sets, numericSet.resolve, Sets.ApplyTo -->
 <!-- source: internal/component/bgp/policychain/apply.go -- Bases, Chain.Apply -->
 <!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, libraryASPathOps, libraryNLRIOps -->

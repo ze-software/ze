@@ -48,7 +48,7 @@ func InputFilterRoute(input *FilterUpdateInput) FilterRoute {
 
 // ViewFilterRoute answers the route of a fast-path call: header names the
 // filter, direction, peer and peer AS, and view answers the fields. header's
-// Update, Fields and Raw are not read.
+// Fields and Raw are not read.
 func ViewFilterRoute(header *FilterUpdateInput, view FilterView) FilterRoute {
 	return FilterRoute{input: header, view: view}
 }

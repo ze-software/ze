@@ -395,7 +395,7 @@ func checkAS112RedistributeNotImported(tree *config.Tree) []diagnostic.Diagnosti
 
 // isPrivateUseASN reports whether asn falls in an RFC 6996 Section 4
 // Private Use range. Duplicated from filter_remove_private_as/private_as.go
-// and reactor/filter_delta.go's identical checks rather than imported: a
+// and reactor/aspath_edit.go's identical checks rather than imported: a
 // doctor check importing a BGP plugin package would violate the same
 // layering this file's package doc explains.
 func isPrivateUseASN(asn uint32) bool {

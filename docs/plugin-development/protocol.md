@@ -635,12 +635,12 @@ session's routes (`docs/architecture/plugin/rib-storage-design.md`,
 
 One `filter-update` exchange carries a batch of routes. The request is
 `{"routes":[...]}`, each entry one route as `FilterUpdateInput` describes it
-(`filter`, `direction`, `peer`, `peer-as`, `update`, `fields`, `raw`). The
+(`filter`, `direction`, `peer`, `peer-as`, `fields`, `raw`). The
 answer is `{"verdicts":[...]}`, one `FilterUpdateOutput` per route, at the
 position of its route.
 
 ```
-#7 ze-plugin-callback:filter-update {"routes":[{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"update":"","fields":{"prefix":["10.0.0.0/24"]}},{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"update":"","fields":{"prefix":["10.0.1.0/24"]}}]}
+#7 ze-plugin-callback:filter-update {"routes":[{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"fields":{"prefix":{"ipv4/unicast":["10.0.0.0/24"]}}},{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"fields":{"prefix":{"ipv4/unicast":["10.0.1.0/24"]}}}]}
 #7 ok {"verdicts":[{"action":"reject"},{"action":"modify","sets":[{"field":"med","action":"set","value":50}]}]}
 ```
 
@@ -735,13 +735,9 @@ For example, a filter that declared `community`, `as-path` and
 - Stage 1 refuses a declared BGP field this binary cannot write: the
   community fields need `bgp-filter-community`, `originator-id` and
   `cluster-list` need `bgp-rr`, and `aigp` needs `bgp-aigp`.
-- In a chain that holds only plugin filters, the values are the route as the
-  chain received it: a modify an earlier filter answered reaches this filter
-  in the text `update` only, as it does for `raw`.
-- In a chain that also holds an in-process filter, the values are the route
-  as the earlier members left it: a local-preference, med or community an
-  earlier member set, in process or in a plugin, is what this filter reads.
-  `raw` is still the received body. Such a chain sends no text `update`, so a
+- The values are the route as the earlier members of the chain left it: a
+  local-preference, med or community an earlier member set, in process or in
+  a plugin, is what this filter reads. `raw` is still the received body. A
   filter that declared no `reads` fails the route under its `on-error`.
 <!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
 <!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
@@ -750,13 +746,11 @@ For example, a filter that declared `community`, `as-path` and
 <!-- source: internal/component/bgp/policychain/sets_metadata.go -- applyExternalMetadata, metadataValue -->
 <!-- source: internal/component/bgp/policyview/register.go -- sessionFacts -->
 <!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON, AppendWithdrawnNLRIJSON -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 <!-- source: internal/component/bgp/policychain/external.go -- judgeExternal -->
 
 ### The Sets of a filter-update answer
 
-A filter in a chain that also holds an in-process filter answers its changes
-in `FilterUpdateOutput.Sets` (`sets` on the wire), with `"action":"modify"`.
+A filter answers its changes in `FilterUpdateOutput.Sets` (`sets` on the wire), with `"action":"modify"`.
 Each entry names one field the filter declared in `sets`, how it changes, and
 the value in the field's shape:
 
@@ -815,7 +809,7 @@ the value in the field's shape:
   the failure as `on-error` `reject` whatever the filter declared. Declare at
   least one field the filter reads, or `raw`.
 - The route fails the same way when the answer carries `sets` beside `accept`,
-  `reject` or `withdraw`, or a text `update`.
+  `reject` or `withdraw`.
 - A filter that declares `raw` among its reads may answer `"action":"modify"`
   with a whole-body `raw` rewrite and no `sets`. The rewrite is terminal: the
   later filters of the chain are not called, the chain's final still decides
@@ -824,11 +818,11 @@ the value in the field's shape:
   when the rewrite is shorter than the 4 octets of an UPDATE body's two length
   fields, and when an earlier filter of the chain already set a field: the
   rewrite was made from the received body, so it would discard that change.
-- `teardown` on an import route closes the session, as in a chain of plugin
-  filters only; on export it is ignored and the action stands.
+- `teardown` on an import route closes the session; on export it is ignored
+  and the action stands.
 <!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets, rawAnswer -->
 <!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, errExternalNoReads -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- toPolicyAction -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, the import-only teardown -->
 <!-- source: internal/component/bgp/policychain/chain.go -- rawOutcome -->
 <!-- source: internal/component/bgp/policychain/external_intents.go -- applyASPathIntent, applyPrefixIntent, applyFamilyIntent -->
 <!-- source: internal/component/bgp/policychain/external.go -- externalIntentsOfReads -->
@@ -836,32 +830,6 @@ the value in the field's shape:
 <!-- source: internal/component/bgp/policychain/chain_overlay_attributes.go -- overlayAttributes -->
 <!-- source: internal/component/bgp/policyview/fields_json.go -- appendOverlaid -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
-
-### The Filter Text a Filter Reads
-
-`FilterUpdateInput.Update` is the UPDATE as text: `<name> <value>` attribute
-pairs, then one NLRI block for each section the UPDATE carries.
-
-| Block | UPDATE section |
-|-------|----------------|
-| `nlri add <prefix>...` | The legacy NLRI field, always IPv4 unicast |
-| `nlri del <prefix>...` | The legacy Withdrawn Routes, always IPv4 unicast |
-| `mp <family> add <prefix>...` | An MP_REACH_NLRI attribute, any family, IPv4 unicast included |
-| `mp <family> del <prefix>...` | An MP_UNREACH_NLRI attribute |
-
-For example: `origin igp as-path [65001] nlri add 10.0.0.0/24 mp ipv6/unicast add 2001:db8::/32`.
-Split the NLRI value at every `nlri` and `mp` token, and read the family only
-from an `mp` block. A family whose NLRI is not a CIDR prefix renders a marker
-block with no prefix (`mp l2vpn/evpn add`).
-
-A `FilterModify` answer that changes NLRI returns the whole NLRI value, in the
-same keywords, with prefixes removed and the rest in the order given. The
-engine refuses, and drops the route, an answer that adds or reorders a prefix,
-names a section the UPDATE does not carry, or changes a non-CIDR block. The
-full contract is in `docs/architecture/api/process-protocol.md`, "NLRI Blocks
-and the Modify Answer".
-<!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter -->
-<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta -->
 
 ## Runtime RPCs (Plugin to Engine)
 

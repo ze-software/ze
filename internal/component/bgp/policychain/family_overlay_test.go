@@ -57,10 +57,7 @@ func stripChain(t *testing.T, types ...string) *Chain {
 }
 
 // TestChainPrefixReadsNoStrippedFamily proves a later member's prefix no
-// longer carries a family an earlier member stripped, as a later text filter
-// reads no NLRI of a family an earlier text filter's delta removed
-// (applyFilterDelta replaces the nlri slot, reactor/filter_chain.go). The
-// strip of one family leaves the other family's section as received.
+// longer carries a family an earlier member stripped. The strip of one family leaves the other family's section as received.
 //
 // Method: the gate passes only on the expected sections; a chain that
 // answered the received NLRI after the strip makes it reject.

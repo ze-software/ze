@@ -708,12 +708,11 @@ Bus topics in the sysctl pipeline:
 ### Route Filters
 
 Plugins can declare named filters at stage 1 for import and/or export filtering.
-A filter declares which attributes it reads. That declaration does not narrow
-what it receives. The engine builds one subject for the whole chain, and the
-subject names every attribute the UPDATE carries. See
-[The Attribute Names in the Filter Text Protocol](../architecture/api/process-protocol.md)
+A filter declares the route fields it reads, and the engine sends it exactly
+those fields. See
+[The Route Fields of filter-update](../plugin-development/protocol.md)
 for the names and their value shapes. Filters respond accept, reject, or modify
-(delta-only). See [Route Filters and Redistribution](redistribution.md) for configuration.
+(the fields they change). See [Route Filters and Redistribution](redistribution.md) for configuration.
 
 A single plugin can offer multiple named filters. Config references them as
 `<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`). `<plugin>` is
@@ -1138,8 +1137,10 @@ Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- evaluateModify, medRemoveFor -->
 <!-- source: internal/component/bgp/plugins/filter_modify/config.go -- buildSets, buildCommunitySets -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps, communityDirectives -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractMEDRemoveOps -->
+<!-- source: internal/component/bgp/policychain/sets.go -- AddCommunity, RemoveCommunity -->
+<!-- source: internal/component/bgp/policychain/intents.go -- PrependASPath -->
+<!-- source: internal/component/bgp/policychain/external_attributes.go -- removeMED -->
+<!-- source: internal/component/bgp/reactor/aspath_edit.go -- prependASPathOps -->
 
 ### AS-Path Length Filter (`bgp-filter-aspath-length`)
 

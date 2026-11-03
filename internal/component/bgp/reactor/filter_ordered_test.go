@@ -403,9 +403,9 @@ func TestPolicyChainRawOverrideBoundary(t *testing.T) {
 	})
 }
 
-// VALIDATES: AC-12 (the no-over-fire half). A filter delta that CAN be applied
-// still modifies the route on both chains, so the guard has not been turned into
-// a blanket refusal of every text delta.
+// VALIDATES: AC-12 (the no-over-fire half). A filter modification that CAN be
+// applied still modifies the route on both chains, so the guard has not been
+// turned into a blanket refusal of every modification.
 // PREVENTS: the fail-closed branch swallowing the working path. A guard that
 // denies everything passes every negative test above and is useless.
 func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
@@ -447,13 +447,13 @@ func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
 }
 
 // VALIDATES: the advertise gate is driven from the POLICY-CHAIN entry point, not
-// only from buildModifiedPayload. A filter delta that would CREATE LOCAL_PREF on
+// only from buildModifiedPayload. A filter set that would CREATE LOCAL_PREF on
 // a relayed withdrawal creates nothing, and the route is still forwarded.
 //
 // PREVENTS: a coverage hole an independent review found on 2026-08-04. Producer 4
-// of the spec's Follow-On 2 table -- a policy chain's text delta landing on
+// of the spec's Follow-On 2 table -- a policy chain's sets landing on
 // genericAttrSetHandler -- reaches buildModifiedPayload through
-// runIngressPolicyChain / runEgressPolicyChain, and every other test in this file
+// runIngressPolicyChainMeta / runEgressPolicyChain, and every other test in this file
 // now passes an ADVERTISING body, so no test sent a withdraw-only body down this
 // rail (ai/rules/evidence.md: drive the guard from its entry point, never the
 // helper alone).

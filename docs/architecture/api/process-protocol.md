@@ -389,8 +389,6 @@ optional overrides of default filters.
 | `filters[].direction` | enum | `import`, `export`, or `both` |
 | `filters[].reads` | list | Route fields of the policy vocabulary the filter reads (`prefix`, `as-path`, `community`, ...), sent in `filter-update`'s `fields`; `raw` asks for the raw UPDATE body in `filter-update`'s `raw`. Stage 1 refuses a BGP field whose value formatter this binary does not link (a community field without `bgp-filter-community`), naming the field and the plugin |
 | `filters[].sets` | list | Route fields of the policy vocabulary the filter may set |
-| `filters[].attributes` | list | Attribute names of the text `update` (the text era's subject) |
-| `filters[].nlri` | bool | Include parsed NLRI text; defaults to true |
 | `filters[].on-error` | enum | `reject` (fail-closed) or `accept` (fail-open) |
 | `filters[].overrides` | list | Default filters this filter replaces (e.g., `rfc:no-self-as`) |
 | `filters[].readvertise` | bool | The export filter runs on the stale readvertise rail (default false): when a graceful-restart retention re-advertises its stale routes, the destination's export chain runs only the members whose filter declares it, with the route's `stale` metadata set, and a route reaching the end of those members is sent. A member whose plugin no longer declares its filter runs there and fails the route closed. Stage 1 refuses it on an import-only filter |
@@ -619,11 +617,11 @@ direction's final stay distinct.
 <!-- source: internal/component/plugin/types_bgp.go -- PolicyInfo, PeerInfo -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo -->
 <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyChain, toPolicyChain -->
-<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun, tracePolicyFilterChain -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 
 <!-- source: pkg/plugin/rpc/types.go -- FilterDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC filters -->
-<!-- source: internal/component/plugin/server/server.go -- FilterInfo and FilterOnError -->
+<!-- source: internal/component/plugin/server/server.go -- FilterReadsRaw and FilterOnError -->
 
 **Doctor Check Declaration (Stage 1):**
 
@@ -1439,14 +1437,12 @@ handler calls `show.Enrich()` (mode "detail") or `show.EnrichBrief()` (mode "bri
 
 **filter-update:** Engine sends a batch of routes to a plugin's filters, and
 the plugin answers one verdict per route, in request order: accept, reject,
-modify (delta-only changed attributes, or sets), or withdraw. A reject only
+modify (sets, or a raw rewrite), or withdraw. A reject only
 stops the route, so a version the peer already holds stays; a withdraw removes
 it: on import the route is treated as withdrawn by the peer that sent it, on
 export it is withdrawn toward the destination. Every route of the UPDATE is
 withdrawn, as two UPDATEs when its MP_REACH_NLRI and MP_UNREACH_NLRI name two
-families. Withdraw is answered by a filter
-the policy chain runs as a member, and carries no sets; a text-mode filter
-answering it fails under its `on-error`. Each route names its filter so
+families. A withdraw carries no sets. Each route names its filter so
 the plugin can dispatch to the correct handler. A batch holds the routes queued
 for the plugin when the exchange starts, at most `rpc.FilterUpdateBatchMax`
 (64), under one `rpc.FilterUpdateTimeout`; a failed batch (timeout, error, a
@@ -1456,7 +1452,7 @@ plugin connection owns the exchanges, and each caller waits for its own
 verdict, so the borrowed route bytes stay valid until the batch is sent
 (protocol.md, "The filter-update batch").
 <!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
-Beside the text `update`, the request carries `fields`: one JSON object holding
+The request carries `fields`: one JSON object holding
 exactly the route fields the filter declared in `reads`, keyed by vocabulary
 field name, each value in the UPDATE event's `attr` shape. A declared field the
 route does not carry is left out, `fields` is absent for a filter that declared
@@ -1472,14 +1468,12 @@ declared one may answer a `set` of it, which lands in the route's metadata map
 A field Ze cannot read (a malformed attribute) applies the filter's `on-error`
 instead of sending the message. The value shapes are in
 `docs/plugin-development/protocol.md`, "The Route Fields of filter-update".
-A filter in a chain that also holds an in-process filter is a member of the
-in-process chain (`policychain`): it is sent the fields as the earlier members
-left them and no text `update`, and answers its changes in `sets`, which fold
-with the in-process members' changes (protocol.md, "The Sets of a
+Every plugin filter is a member of the policy chain (`policychain`): it is
+sent the fields as the earlier members left them, and answers its changes in
+`sets`, which fold with the other members' changes (protocol.md, "The Sets of a
 filter-update answer").
 <!-- source: internal/component/bgp/policychain/external.go -- judgeExternal -->
 <!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate -->
@@ -1942,159 +1936,19 @@ are loaded, so the dispatcher may not yet know about the target command.
 registry after every phase completes, so the dispatch is guaranteed to resolve.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go — OnStarted vs OnAllPluginsReady -->
 
-### The Attribute Names in the Filter Text Protocol
+### The Raw Body in filter-update
 
-`FilterUpdateInput.Update` is a space-separated list of `<name> <value>` pairs,
-followed by the NLRI blocks (`nlri ...` and `mp ...`). The engine renders one subject for the whole
-chain, so every filter on a peer reads the same text.
-
-Thirteen attribute names can appear. An attribute the UPDATE does not carry
-produces no pair at all, so a plugin reads absence and never a default value.
-The order below is the order the engine emits.
-
-| Name | Attribute | Value shape | Example |
-|------|-----------|-------------|---------|
-| `origin` | ORIGIN (RFC 4271 Section 5.1.1) | One token: `igp`, `egp` or `incomplete` | `origin igp` |
-| `as-path` | AS_PATH with AS4_PATH merged in (RFC 6793 Section 4.2.3) | One AS number, or a bracketed list | `as-path [65001 65002]` |
-| `next-hop` | NEXT_HOP (RFC 4271 Section 5.1.3) | One address | `next-hop 10.0.0.1` |
-| `med` | MULTI_EXIT_DISC (RFC 4271 Section 5.1.4) | One unsigned decimal | `med 100` |
-| `local-preference` | LOCAL_PREF (RFC 4271 Section 5.1.5) | One unsigned decimal | `local-preference 150` |
-| `atomic-aggregate` | ATOMIC_AGGREGATE (RFC 4271 Section 5.1.6) | The bare token, with no value | `atomic-aggregate` |
-| `aggregator` | AGGREGATOR (RFC 4271 Section 5.1.7) | `<asn>:<address>` | `aggregator 65000:4.4.4.4` |
-| `community` | COMMUNITIES (RFC 1997) | One community, or a bracketed list. A well-known value renders as its name | `community [65000:100 no-export]` |
-| `originator-id` | ORIGINATOR_ID (RFC 4456 Section 8) | One address | `originator-id 3.3.3.3` |
-| `cluster-list` | CLUSTER_LIST (RFC 4456 Section 8) | Dotted decimal identifiers in wire order, separated by spaces, with no brackets | `cluster-list 1.1.1.1 2.2.2.2` |
-| `extended-community` | EXTENDED COMMUNITIES (RFC 4360) | Sixteen lowercase hexadecimal characters for each, or a bracketed list | `extended-community 0002fde800000064` |
-| `aigp` | AIGP (RFC 7311) | One unsigned decimal metric | `aigp 42` |
-| `large-community` | LARGE COMMUNITIES (RFC 8092) | `<global>:<local1>:<local2>`, or a bracketed list | `large-community 65000:1:2` |
-
-<!-- source: internal/component/bgp/reactor/filter_format.go -- attrNameToCode, appendAllAttrs, appendSingleAttr -->
-<!-- source: internal/core/bgp/attribute/text_append.go -- the AppendText method of each type -->
-
-`FilterDecl.Attributes` limits the attributes a text delta may modify, not the
-attributes a filter may inspect. The subject carries every rendered attribute
-the UPDATE holds, even when the filter declares a different modifiable attribute.
-Live import, originated and forwarded export, and both dry-run directions use
-this same contract. Raw filters receive the full text subject too. A dry-run
-whose rejecting final retains explicit withdrawals reports only those withdrawals
-in its resulting text, while its trace retains the filter's actual decision.
-<!-- test: internal/component/bgp/reactor/filter_format_attrs_test.go TestFilterSubjectReadsUnmodifiableAttributes -->
-<!-- test: internal/component/bgp/reactor/filter_format_attrs_test.go TestFilterSubjectDryRunWithdrawalFallback -->
-
-The engine writes one warning and no pair when it holds an attribute no renderer
-names. The chain then runs on the subject it has. An operator sees the line
-under the `ze.log.bgp.reactor.forward` subsystem.
-
-**A plugin MUST look up a keyword and MUST NOT count tokens from the start of
-the string.** Ze added `origin`, `med`, `local-preference`, `atomic-aggregate`
-and `cluster-list` to the subject on 2026-09-04. A plugin that reads a name is
-unaffected. A plugin that reads a position is not.
-
-### The AS Path in the Filter Text Protocol
-
-The `as-path` pair of `FilterUpdateInput.Update` carries the AS path
-information, not the AS_PATH attribute as it arrived on the wire.
-
-A peer that did not negotiate the four-octet AS capability sends an AS_PATH that
-holds AS_TRANS (23456) wherever a four-octet AS number belongs, and sends the
-real numbers in the AS4_PATH attribute (RFC 6793 Section 4.2.2). The engine
-reconstructs one path from the two before it renders the text (RFC 6793
-Section 4.2.3), so every text-mode filter reads the AS numbers the route
-traversed on every session. There is no `as4-path` token: one attribute name
-carries one fact.
-
-A filter that must see the AS_PATH and AS4_PATH attributes as encoded MUST
-declare the `raw` read and read the wire payload from `FilterUpdateInput.Raw`.
-<!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter, attrForFilter -->
-<!-- source: internal/core/bgp/attribute/as4.go -- MergeAS4Path -->
-
-### Non-CIDR Families in the Filter Text Protocol
-
-The engine's filter text protocol (`FilterUpdateInput.Update`) inlines NLRI
-prefixes only for address families whose wire encoding is a plain CIDR
-prefix. These are the "CIDR-family" set: IPv4 and IPv6 for the SAFIs
-`unicast`, `multicast`, and `mpls-label`. Every other family -- EVPN,
-Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, and any future family with a
-specialised NLRI encoding -- is classified non-CIDR.
-
-For non-CIDR families the engine emits a marker block of the form
-`mp <family> <op>` (for example `mp l2vpn/evpn add`) with NO prefixes.
-The marker tells a text-mode filter plugin that the family is present in
-the update without forcing the engine to generate a family-specific text
-format.
-<!-- source: internal/component/bgp/reactor/filter_format.go — AppendUpdateForFilter, appendMPBlock -->
-<!-- source: internal/core/family/cidr.go — Family.PlainCIDR -->
-
-A filter plugin that needs per-NLRI decisions on a non-CIDR family MUST
-declare the `raw` read in its filter declaration and parse the wire payload
-itself from `FilterUpdateInput.Raw`. A `raw=false` filter attached to a
-session carrying non-CIDR families sees only the marker block and is
-advisory for those families -- it cannot distinguish individual
-destinations within the family.
-<!-- source: internal/component/plugin/registration.go — FilterRegistration.Raw -->
-
-| Family set | Filter text protocol emits | Filter requirement |
-|------------|----------------------------|---------------------|
-| CIDR (ipv4/ipv6 unicast / multicast / mpls-label) | `mp <family> <op> <prefix>...` (prefixes inline) | `raw=false` works for text-mode per-prefix decisions |
-| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, ...) | `mp <family> <op>` (marker only; FlowSpec inlines its destination prefix) | the `raw` read required for per-NLRI decisions; text-only is advisory |
-
-### NLRI Blocks and the Modify Answer
-
-The subject renders one block for each NLRI section of the UPDATE, after every
-attribute pair:
-
-| UPDATE section | Block |
-|----------------|-------|
-| NLRI field (RFC 4271 Section 4.3) | `nlri add <prefix>...` |
-| Withdrawn Routes field (RFC 4271 Section 4.3) | `nlri del <prefix>...` |
-| MP_REACH_NLRI (RFC 4760 Section 3) | `mp <family> add ...` |
-| MP_UNREACH_NLRI (RFC 4760 Section 4) | `mp <family> del ...` |
-
-The keyword names the section a block came from. The legacy fields of RFC 4271
-carry only IPv4 unicast, so an `nlri` block has no family token. An `mp` block
-always names its family, IPv4 unicast included: IPv4 unicast can arrive in the
-NLRI field or in an MP_REACH_NLRI, and the keyword tells the two apart. A
-plugin MUST split the value at each `nlri` and `mp` token. An example subject:
-`origin igp nlri add 10.0.0.0/24 nlri del 10.9.0.0/24 mp ipv6/unicast add 2001:db8::/32`.
-
-Each CIDR prefix is the prefix alone. An ADD-PATH path identifier and an
-RFC 8277 label stack are not rendered, and the engine keeps them when it
-rewrites the section. A section that does not parse ends its block with the
-token `invalid`, which no prefix filter accepts. That holds for a section the
-engine cannot read at all, so it never reads as absent: a legacy field that
-does not frame renders `nlri add invalid` or `nlri del invalid`, and an
-MP_REACH_NLRI or MP_UNREACH_NLRI attribute that does not parse renders
-`mp afi-0/safi-0 add invalid` or `mp afi-0/safi-0 del invalid`. The attribute
-did not parse far enough to name a family, and AFI 0 and SAFI 0 are reserved,
-so no real family reads as that one.
-<!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter, appendLegacyBlock, appendMPBlock, appendMalformedBlock -->
-<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- appendCIDRPrefixes -->
-<!-- source: internal/component/bgp/wireu/nlri_cidr.go -- CIDREntry -->
-
-A `modify` answer that carries an NLRI block replaces the whole NLRI value, so
-it carries every block it keeps, with the same keywords. The engine rewrites
-each section from its own block:
-
-- A block may only remove prefixes, keeping the order the subject gave them.
-  An added or reordered prefix makes the engine drop the route.
-- A block left out of the answer keeps no prefix. An MP_REACH_NLRI or
-  MP_UNREACH_NLRI with no prefix left is removed, never written empty.
-- A marker block of a non-CIDR family (`mp <family> add` with no prefixes)
-  MUST be echoed unchanged. Left out, it reads as a changed block of a
-  non-CIDR family, and the engine drops the route.
-- An MP block keeps its AFI, SAFI and next hop, and each NLRI kept is copied
-  whole, with its path identifier and label stack.
-- A changed block of a non-CIDR family, a changed block of a section that
-  does not parse (an MP attribute that does not parse renders as
-  `mp afi-0/safi-0 <op> invalid`, and any `mp` block of its section the answer
-  drops, rewrites or adds counts as changed), an `mp` block for a section the
-  UPDATE does not carry, two blocks for one section, or a block that is neither
-  `nlri add|del` nor `mp <family> add|del`, makes the engine drop the route and
-  log the family and the reason under `ze.log.bgp.reactor.forward`. Such a
-  filter declares
-  the `raw` read and returns the rewritten body, or rejects the whole UPDATE.
-<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta, nlriSectionOf, subsetNLRI -->
-<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler, mpUnreachNLRIHandler -->
+A filter reads the route through the fields it declared (protocol.md, "The
+Route Fields of filter-update"). A filter that must see the UPDATE as encoded,
+such as the AS_PATH and AS4_PATH attributes as they arrived or the NLRI of a
+family the vocabulary does not split, declares the `raw` read and parses the
+UPDATE body (RFC 4271 Section 4.3, without the 19-byte header) from
+`FilterUpdateInput.Raw`. Such a filter may answer a whole-body rewrite in
+`FilterUpdateOutput.Raw`, which ends the chain's members for that route
+(protocol.md, "The Sets of a filter-update answer").
+<!-- source: pkg/plugin/rpc/types.go -- FilterFieldRaw, FilterUpdateInput, FilterUpdateOutput -->
+<!-- source: internal/component/plugin/registration.go -- FilterRegistration.Raw -->
+<!-- source: internal/component/bgp/policychain/external.go -- rawAnswer -->
 
 **Subscription fields:**
 <!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput -->

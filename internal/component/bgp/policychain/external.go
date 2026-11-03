@@ -117,8 +117,7 @@ var (
 )
 
 // externalVerdict is what an external member's answer asks beside its sets.
-// A teardown is honored on import only (Run), as the text chain does: on
-// export the decision stands.
+// A teardown is honored on import only (Run): on export the decision stands.
 type externalVerdict struct {
 	decision              Decision
 	teardown              bool

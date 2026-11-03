@@ -32,10 +32,10 @@ References name filter instances or use the explicit `<plugin>:<filter>` form.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 Each filter sees the previous filter's output. An `accept` response continues,
-a `reject` response stops the chain, and a `modify` response supplies attribute
+a `reject` response stops the chain, and a `modify` response supplies field
 changes. The final decision applies after the filters pass. A raw payload rewrite
 stops later filters but still receives the final decision.
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, rawOutcome, endFinal -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 
 Three filter categories:
