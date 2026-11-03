@@ -62,6 +62,7 @@ var engineOps = []engineOp{
 	{method: rpc.MethodStateRemove, handle: (*Server).opStateRemove},
 	{method: rpc.MethodStateList, handle: (*Server).opStateList},
 	{method: rpc.MethodStateIncrement, handle: (*Server).opStateIncrement},
+	{method: rpc.MethodMetricsPublish, handle: (*Server).opMetricsPublish},
 	{
 		method: rpc.MethodUpdateRoute,
 		handle: (*Server).opUpdateRoute,

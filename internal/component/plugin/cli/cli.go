@@ -24,7 +24,9 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var errZePluginHubTokenMustBe = errors.New("ze.plugin.hub.token must be set")
@@ -39,6 +41,8 @@ func BaseConfig(reg *registry.Registration) PluginConfig {
 		SupportsNLRI: reg.SupportsNLRI,
 		SupportsCapa: reg.SupportsCapa,
 		RunEngine:    reg.RunEngine,
+
+		ConfigureMetrics: reg.ConfigureMetrics,
 	}
 }
 
@@ -59,6 +63,11 @@ type PluginConfig struct {
 	RunEngine     func(conn net.Conn) int                                                // Engine mode handler (single-conn RPC).
 	ExtraFlags    func(fs *flag.FlagSet)                                                 // Register extra flags (optional).
 	RunCLIWithCtx func(hex string, text bool, out, errW io.Writer, fs *flag.FlagSet) int // CLI decode with flag context (optional).
+
+	// ConfigureMetrics is the registration's hook. In engine mode the plugin
+	// runs in its own process, so the hook receives an SDK registry that
+	// publishes each metric to the engine under the same name and shape.
+	ConfigureMetrics func(reg metrics.Registry)
 }
 
 // RunPlugin runs a plugin with the standard CLI interface.
@@ -156,7 +165,20 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 		writeError(os.Stderr, "error: %v", err)
 		return 1
 	}
-	return cfg.RunEngine(conn)
+	return cfg.RunEngine(withForkedMetrics(cfg, conn))
+}
+
+// withForkedMetrics runs the plugin's ConfigureMetrics with a registry that
+// publishes to the engine, and returns conn carrying it to the SDK plugin
+// RunEngine builds. In-process, InjectPluginMetrics hands the hook the
+// engine's own registry instead (internal/component/plugin/inprocess.go).
+func withForkedMetrics(cfg PluginConfig, conn net.Conn) net.Conn {
+	if cfg.ConfigureMetrics == nil {
+		return conn
+	}
+	publisher := sdk.NewMetricsPublisher()
+	cfg.ConfigureMetrics(publisher)
+	return sdk.ConnWithMetrics(conn, publisher)
 }
 
 // errNoHexInput reports an empty stdin, as distinct from a failed read.

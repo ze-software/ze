@@ -29,6 +29,7 @@ type PrometheusRegistry struct {
 	gaugeVecs     map[string]GaugeVec
 	histograms    map[string]Histogram
 	histogramVecs map[string]HistogramVec
+	shapes        map[string]Shape // every name above, with what it was created with
 	mu            sync.RWMutex
 	runtimeOnce   sync.Once
 }
@@ -44,6 +45,7 @@ func NewPrometheusRegistry() *PrometheusRegistry {
 		gaugeVecs:     make(map[string]GaugeVec),
 		histograms:    make(map[string]Histogram),
 		histogramVecs: make(map[string]HistogramVec),
+		shapes:        make(map[string]Shape),
 	}
 }
 
@@ -72,6 +74,7 @@ func (r *PrometheusRegistry) Counter(name, help string) Counter {
 	})
 	r.registry.MustRegister(c)
 	r.counters[name] = c
+	r.shapes[name] = Shape{Kind: KindCounter}
 
 	return c
 }
@@ -101,6 +104,7 @@ func (r *PrometheusRegistry) Gauge(name, help string) Gauge {
 	})
 	r.registry.MustRegister(g)
 	r.gauges[name] = g
+	r.shapes[name] = Shape{Kind: KindGauge}
 
 	return g
 }
@@ -130,6 +134,7 @@ func (r *PrometheusRegistry) CounterVec(name, help string, labelNames []string) 
 	r.registry.MustRegister(cv)
 	wrapped := &promCounterVec{cv: cv}
 	r.counterVecs[name] = wrapped
+	r.shapes[name] = Shape{Kind: KindCounterVec, LabelNames: slices.Clone(labelNames)}
 
 	return wrapped
 }
@@ -159,6 +164,7 @@ func (r *PrometheusRegistry) GaugeVec(name, help string, labelNames []string) Ga
 	r.registry.MustRegister(gv)
 	wrapped := &promGaugeVec{gv: gv}
 	r.gaugeVecs[name] = wrapped
+	r.shapes[name] = Shape{Kind: KindGaugeVec, LabelNames: slices.Clone(labelNames)}
 
 	return wrapped
 }
@@ -189,6 +195,7 @@ func (r *PrometheusRegistry) Histogram(name, help string, buckets []float64) His
 	})
 	r.registry.MustRegister(h)
 	r.histograms[name] = h
+	r.shapes[name] = Shape{Kind: KindHistogram, Buckets: ResolveBuckets(buckets)}
 
 	return h
 }
@@ -219,6 +226,7 @@ func (r *PrometheusRegistry) HistogramVec(name, help string, buckets []float64, 
 	r.registry.MustRegister(hv)
 	wrapped := &promHistogramVec{hv: hv}
 	r.histogramVecs[name] = wrapped
+	r.shapes[name] = Shape{Kind: KindHistogramVec, LabelNames: slices.Clone(labelNames), Buckets: ResolveBuckets(buckets)}
 
 	return wrapped
 }

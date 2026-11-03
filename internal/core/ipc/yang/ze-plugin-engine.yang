@@ -86,6 +86,53 @@ module ze-plugin-engine {
             }
         }
     }
+    rpc metrics-publish {
+        ze:method "ze-plugin-engine:metrics-publish";
+        ze:help "Publish the plugin's metric declarations and the changes since its last publish.";
+        description "The plugin chooses when to send it. The engine applies declarations, then deletions, then updates, each in its own metrics registry under the declared name and shape; it answers what it refused, or unavailable when it has no registry yet and applied nothing.";
+        input {
+            list declare {
+                max-elements 512;
+                ze:help "A metric to create, or to share when the name exists with the same shape";
+                leaf name { type string { length "4..128"; pattern 'ze_[a-zA-Z0-9_:]*'; } ze:help "Metric name"; }
+                leaf help { type string { length "1..1024"; } ze:help "Help text"; }
+                leaf kind {
+                    type enumeration {
+                        enum counter; enum gauge; enum histogram;
+                        enum counter-vec; enum gauge-vec; enum histogram-vec;
+                    }
+                    ze:help "The registry method the metric stands for";
+                }
+                leaf-list labels { type string; max-elements 16; ze:help "Label names of a vector"; }
+                leaf-list buckets { type decimal64 { fraction-digits 6; } max-elements 64; ze:help "Resolved upper bounds of a histogram"; }
+            }
+            list delete {
+                max-elements 4096;
+                ze:help "A labeled series to remove";
+                leaf name { type string { length "4..128"; } ze:help "Metric name"; }
+                leaf-list values { type string { length "0..256"; } max-elements 16; ze:help "Label values in declared order"; }
+            }
+            list update {
+                max-elements 4608;
+                ze:help "The change of one series since the last publish";
+                leaf name { type string { length "4..128"; } ze:help "Metric name"; }
+                leaf-list values { type string { length "0..256"; } max-elements 16; ze:help "Label values in declared order"; }
+                leaf value { type decimal64 { fraction-digits 6; } ze:help "Counter: amount added. Gauge: current value"; }
+                leaf-list counts { type uint64 { range "0..1048576"; } max-elements 65; ze:help "Histogram: observations gained per bucket, +Inf last"; }
+                leaf-list sums { type decimal64 { fraction-digits 6; } max-elements 65; ze:help "Histogram: sum of those observations per bucket"; }
+            }
+        }
+        output {
+            leaf unavailable { type boolean; ze:help "The engine has no metrics registry yet; nothing was applied"; }
+            list refused {
+                ze:help "An item the engine did not apply";
+                leaf item { type enumeration { enum declare; enum delete; enum update; } ze:help "The list the item came from"; }
+                leaf name { type string; ze:help "Metric name"; }
+                leaf-list values { type string; ze:help "Label values"; }
+                leaf reason { type string; ze:help "Why it was refused"; }
+            }
+        }
+    }
     rpc state-increment {
         ze:method "ze-plugin-engine:state-increment";
         ze:help "Atomically advance a durable uint32 counter.";

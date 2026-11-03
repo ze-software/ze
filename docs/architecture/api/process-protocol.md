@@ -1501,6 +1501,7 @@ filter-update answer").
 | `state-remove` | `StateInput` | `StateOutput` | Remove an owned key |
 | `state-list` | `StateInput` | `StateOutput` | Enumerate owned keys beneath a prefix |
 | `state-increment` | `StateInput` | `StateOutput` | Atomically advance a durable big-endian uint32 counter |
+| `metrics-publish` | `MetricsPublishInput` | `MetricsPublishOutput` | Declare metrics and publish their changes since the last publish (see "Plugin metrics" below) |
 | `dispatch-command` | `DispatchCommandInput` | `DispatchCommandOutput` | Inter-plugin command |
 | `dispatch-command-args` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Exact inter-plugin command with pre-tokenized args |
 | `emit-event` | `EmitEventInput` | `EmitEventOutput` | Push event to subscribers |
@@ -1525,6 +1526,37 @@ turn a local injection into a received-source route.
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRouteRequest -->
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- opUpdateRoute -->
 
+#### Plugin metrics
+
+A plugin that runs in its own process cannot reach the engine's metrics
+registry, so it publishes its metrics with `metrics-publish`, and the plugin
+decides when. Each `declare` entry creates the metric in the engine's
+registry under the declared name and shape (`counter`, `gauge`, `histogram`,
+`counter-vec`, `gauge-vec`, `histogram-vec`, with label names and resolved
+buckets): the metric an in-process plugin would create. A name declared
+again with the same shape shares the metric, so a restarted plugin carries on
+from the engine's values; a different shape, or a name the engine already
+holds with another shape, is refused rather than registered. A plugin updates
+only names it declared.
+
+Each `update` is the change of one series since the plugin's last publish: a
+counter's `value` is the amount added, a gauge's is its current value, and a
+histogram carries per bucket (`+Inf` last) the observations gained (`counts`)
+and their sum (`sums`). The engine replays each bucket's observations at
+their mean, which lies inside the bucket, so its bucket counts and sum match
+the plugin's. The engine applies `declare`, then `delete`, then `update`.
+
+The answer lists `refused` items with a reason. `unavailable` means the
+engine has no metrics registry yet and applied nothing; the plugin keeps the
+changes and sends them again. Per plugin the engine holds at most
+`rpc.MetricsDeclaredMax` names and `rpc.MetricsSeriesMax` labeled series,
+every name starts with `ze_`, and one update adds at most
+`rpc.MetricBucketCountMax` observations to a bucket. The metrics outlive the
+process that declared them, as an in-process plugin's do.
+
+<!-- source: pkg/plugin/rpc/metrics.go -- MetricsPublishInput, ValidateMetricsPublish -->
+<!-- source: internal/component/plugin/server/dispatch_metrics.go -- opMetricsPublish, pluginMetricSet, replayBuckets -->
+<!-- source: internal/core/metrics/shape.go -- Shape, ShapeReader -->
 
 #### Panic containment
 

@@ -74,6 +74,7 @@ type rpcParams struct {
 // Server manages API connections and command dispatch.
 type Server struct {
 	config            *ServerConfig
+	pluginMetrics     pluginMetricSet // metrics plugins publish over the protocol (dispatch_metrics.go)
 	reactor           plugin.ReactorLifecycle
 	dispatcher        *Dispatcher
 	rpcDispatcher     *ipc.RPCDispatcher                            // Wire method dispatch for socket clients
@@ -481,6 +482,7 @@ func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
 	if s.config != nil {
 		s.config.MetricsRegistry = reg
 	}
+	s.pluginMetrics.setRegistry(reg)
 	if reg != nil {
 		setPluginPanicMetrics(reg)
 		pluginipc.SetFilterMetrics(reg)

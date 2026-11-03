@@ -438,12 +438,51 @@ Two consequences for a plugin author:
 - Declaring a `Dependency` on `bgp` does not order the injection. Dependencies
   order the 5-stage handshake, not the spawn the hook used to be bound to.
 
+### A plugin run in its own process
+
+A plugin the daemon forks (`plugin { external <name> { run ...; } }`) cannot
+reach the daemon's registry. Its runner, `cli.RunPlugin`, calls the same
+`ConfigureMetrics` before `RunEngine`, with an `sdk.MetricsPublisher`: a
+`metrics.Registry` that creates each metric in the daemon under the same name
+and shape, over the `metrics-publish` RPC. The plugin's code does not change,
+and a scrape of the daemon shows the same names and values as in-process.
+
+The plugin decides how often the daemon learns of changes:
+
+- a declaration is published at once, as soon as the plugin is running, so
+  every name exists in the daemon from the start;
+- updates accumulate in the plugin and are published every interval:
+  `MetricsIntervalDefault` (5 seconds), or what the plugin sets with
+  `Plugin.SetMetricsInterval` before `Run` (100 ms to one hour);
+- `Plugin.FlushMetrics` publishes at once, and the last updates are published
+  before the plugin acknowledges its removal (`bye`). A daemon stop closes the
+  connection with no `bye`, so the changes of its last interval are not sent;
+  the daemon is stopping, and nothing scrapes it.
+
+What the plugin holds is bounded whatever the update rate: a counter's sum
+since the last publish, a gauge's value, and one count and one sum per
+histogram bucket. A publish the daemon did not take (an error, or no registry
+yet) keeps its changes for the next one, so an increment made during startup
+is not lost. Per plugin the daemon holds at most `rpc.MetricsDeclaredMax`
+names and `rpc.MetricsSeriesMax` labeled series; a series past the limit, a
+name without the `ze_` prefix, a name the daemon holds with another shape, and
+a value that is not finite are not forwarded, each with one WARN line. A
+restarted plugin declares its metrics again and carries on from the daemon's
+values. A Go plugin outside this repository gets the same registry from
+`Plugin.MetricsRegistry`.
+
+<!-- source: internal/component/plugin/cli/cli.go -- withForkedMetrics -->
+<!-- source: pkg/plugin/sdk/metrics.go -- MetricsPublisher, SetMetricsInterval, FlushMetrics, flushMetricsAtBye -->
+<!-- source: internal/component/plugin/server/dispatch_metrics.go -- pluginMetricSet -->
+
 ## NopRegistry Fallback
 
 When telemetry is disabled in config, plugins receive a `NopRegistry` that returns
 no-op metric implementations. The nil-check on the atomic pointer handles the case
 where `ConfigureMetrics` is never called at all (plugin loaded without a metrics
-registry).
+registry). A forked plugin always receives its publisher; with telemetry
+disabled the daemon creates the published metrics in the `NopRegistry`, so
+they vanish there exactly as an in-process plugin's do.
 
 <!-- source: internal/core/metrics/nop.go -- NopRegistry -->
 

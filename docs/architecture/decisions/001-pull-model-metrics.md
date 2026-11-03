@@ -59,9 +59,10 @@ The metrics surface is now larger than when this decision was first written. Ze 
 <!-- source: internal/component/telemetry/collector/collector.go - Collector interface -->
 <!-- source: internal/component/plugin/process/manager.go - pluginMetrics -->
 
-External subprocess plugins still cannot publish their own arbitrary metrics through the public SDK or RPC protocol. Ze does publish process-health metrics for them from the parent process: `ze_plugin_status`, `ze_plugin_restarts_total`, and `ze_plugin_events_delivered_total`.
+External subprocess plugins publish their own metrics through the plugin protocol (decided by the owner on 2026-11-03: "the plugin decides how often to inform ze of changes"). The forked runner hands `ConfigureMetrics` an `sdk.MetricsPublisher`, a `metrics.Registry` that accumulates updates in the plugin and sends declarations at once and updates at the plugin's chosen interval over `ze-plugin-engine:metrics-publish`; the daemon creates each metric in its registry under the in-process name and shape. This is the push model carried across the process boundary, so it keeps this decision as it is. Ze also publishes process-health metrics for them from the parent process: `ze_plugin_status`, `ze_plugin_restarts_total`, and `ze_plugin_events_delivered_total`.
 
-<!-- source: pkg/plugin/sdk/sdk.go - Plugin public SDK fields and startup path -->
+<!-- source: pkg/plugin/sdk/metrics.go - MetricsPublisher -->
+<!-- source: internal/component/plugin/server/dispatch_metrics.go - pluginMetricSet -->
 <!-- source: internal/component/plugin/process/manager.go - pluginMetrics and SetMetricsRegistry -->
 
 ## What The Pull Model Would Buy
@@ -106,7 +107,7 @@ If the pull model is adopted later, external-plugin metrics need one of these ch
 | Streaming metrics | Plugins periodically push snapshots to the parent, parent caches them | No scrape fan-out, but exported values are stale by up to the push interval |
 | In-process only | Pull model for internal components only | Simple, but external plugin-authored metrics remain absent |
 
-None of these is clearly right today. The answer should be decided by the plugin protocol, not by a Prometheus refactor.
+The plugin protocol has now decided it, for the push model: a cached push, where the plugin accumulates and publishes at its own cadence (`metrics-publish`, `docs/architecture/api/process-protocol.md`, "Plugin metrics"). A pull-model refactor would start from that cache rather than add a snapshot RPC beside it.
 
 ## Flow Export Relationship
 

@@ -166,6 +166,10 @@ func (p *Plugin) handleBridgeCallback(cb rpc.BridgeCallback) (stop bool, err err
 		cb.Result <- rpc.BridgeCallbackResult{Err: fmt.Errorf("unknown method: %s", cb.Method)}
 		return false, nil
 	}
+	// The last metric updates go before the removal is acknowledged.
+	if cb.Method == callbackBye {
+		p.flushMetricsAtBye(context.Background())
+	}
 	result, callErr := handler(cb.Params)
 	cb.Result <- rpc.BridgeCallbackResult{Data: result, Err: callErr}
 	return cb.Method == callbackBye && callErr == nil, nil
@@ -326,6 +330,10 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 			continue
 		}
 
+		// The last metric updates go before the removal is acknowledged.
+		if req.Method == callbackBye {
+			p.flushMetricsAtBye(ctx)
+		}
 		result, err := handler(req.Params)
 		if err != nil {
 			if sendErr := p.sendCallbackError(ctx, req.ID, err.Error()); sendErr != nil {

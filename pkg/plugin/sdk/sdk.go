@@ -62,6 +62,10 @@ type Plugin struct {
 	// dispatches through bridge.DispatchRPC instead of engineMux.CallRPC.
 	bridge *rpc.DirectBridge
 
+	// metrics publishes the plugin's metrics to the engine; nil until the
+	// runner hands one over (ConnWithMetrics) or MetricsRegistry creates it.
+	metrics *MetricsPublisher
+
 	// Runtime callback registry: method name -> handler.
 	// On* methods register typed wrappers here. Both event loops dispatch
 	// through this map -- no switch statements, no transport-specific handlers.
@@ -173,6 +177,10 @@ func NewWithConn(name string, conn net.Conn) *Plugin {
 	// Discover bridge via type assertion (internal plugins only).
 	if bridger, ok := conn.(rpc.Bridger); ok {
 		p.bridge = bridger.Bridge()
+	}
+	// A forked plugin's runner hands over the registry ConfigureMetrics used.
+	if carrier, ok := conn.(metricsConn); ok {
+		p.metrics = carrier.publisher
 	}
 	return p
 }
@@ -560,6 +568,12 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	if p.bridge != nil {
 		p.activateBridge()
 	}
+
+	// Engine calls are accepted from here on, so the metrics worker starts:
+	// it publishes the declarations at once and the updates at the plugin's
+	// interval, and stops before Run returns.
+	stopMetrics := p.startMetrics(ctx)
+	defer stopMetrics()
 
 	// Post-startup: safe to make engine calls.
 	// The engine's runtime handler starts reading after all plugins
