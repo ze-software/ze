@@ -3260,44 +3260,44 @@ is not packet-forwarding evidence.
 
 | # | Scenario | Daemons | What It Tests |
 |---|----------|---------|---------------|
-| 01 | ebgp-ipv4-frr | Ze, FRR | Basic eBGP session establishment |
-| 02 | ebgp-ipv4-bird | Ze, BIRD | Basic eBGP session with BIRD |
-| 03 | ibgp-frr | Ze, FRR | iBGP session (same AS) |
-| 04 | 4byte-asn-frr | Ze, FRR | 4-byte ASN negotiation (RFC 6793) |
-| 05 | routes-from-frr | Ze, FRR | Ze receives routes originated by FRR |
-| 06 | routes-from-bird | Ze, BIRD | Ze receives routes originated by BIRD |
-| 07 | routes-to-frr | Ze, FRR | FRR receives routes originated by Ze |
-| 08 | triangle | Ze, FRR, BIRD | Three-way topology, multi-peer stability |
-| 09 | route-withdrawal-frr | Ze, FRR | Route withdrawal propagation |
-| 10 | ipv6-ebgp-frr | Ze, FRR | IPv6 eBGP session and route exchange |
-| 11 | addpath-frr | Ze, FRR | ADD-PATH capability (RFC 7911) |
-| 12 | route-refresh-frr | Ze, FRR | Route Refresh (RFC 2918) |
-| 13 | graceful-restart-frr | Ze, FRR | Graceful Restart negotiation (RFC 4724) |
-| 14 | route-server-frr | Ze, FRR, BIRD | Route server: forwards without inserting own ASN |
-| 15 | community-frr | Ze, FRR | Standard community propagation |
-| 16 | extended-community-frr | Ze, FRR | Extended community propagation |
-| 17 | md5-auth-frr | Ze, FRR | TCP MD5 authentication (RFC 2385) |
-| 18 | ebgp-gobgp | Ze, GoBGP | eBGP session with GoBGP |
-| 19 | routes-gobgp | Ze, GoBGP | Route exchange with GoBGP |
-| 20 | role-frr | Ze, FRR | RFC 9234 Role capability negotiation |
-| 21 | role-gobgp | Ze, GoBGP | RFC 9234 Role capability negotiation |
-| 22 | evpn-frr | Ze, FRR | EVPN Type-2 route exchange; FRR accepts an IP Prefix route (Type 5) whose Overlay Index is the ESI. FRR 10.3.1 prints no Type 5 ESI in any view, so evpn-gobgp asserts its octets |
-| 23 | vpn-frr | Ze, FRR, BIRD | VPN-IPv4 route exchange with FRR; RFC 4659 Section 3.2.1.1 VPN-IPv6 next hops, read at BIRD (the 48-octet field's link-local, which FRR 10.3.1 does not display) and at FRR (the off-link route's sole global) |
-| 24 | flowspec-frr | Ze, FRR | FlowSpec rule exchange |
-| 25 | ipv6-ebgp-bird | Ze, BIRD | IPv6 eBGP route exchange |
-| 26 | ipv6-ebgp-gobgp | Ze, GoBGP | IPv6 eBGP route exchange |
-| 27 | multihop-ebgp-frr | Ze, FRR | Multi-hop eBGP with outgoing-ttl |
-| 28 | evpn-gobgp | Ze, GoBGP | EVPN Type-2 route exchange, Ethernet A-D ESI Labels, and the IP Prefix route (Type 5) sent with overlay-index esi: GoBGP reads the non-zero ESI and a zero GW IP from the NLRI (RFC 9136 Section 3.1) |
-| 29 | vpn-gobgp | Ze, GoBGP | VPN (L3VPN) route exchange |
-| 30 | flowspec-gobgp | Ze, GoBGP | FlowSpec rule exchange |
-| 31 | multihop-ebgp-bird | Ze, BIRD | Multi-hop eBGP with outgoing-ttl |
-| 32 | multihop-ebgp-gobgp | Ze, GoBGP | Multi-hop eBGP with outgoing-ttl |
+| 01 | bgp-ebgp-ipv4-frr | Ze, FRR | Basic eBGP session establishment |
+| 02 | bgp-ebgp-ipv4-bird | Ze, BIRD | Basic eBGP session with BIRD |
+| 03 | bgp-ibgp-frr | Ze, FRR | iBGP session (same AS) |
+| 04 | bgp-4byte-asn-frr | Ze, FRR | 4-byte ASN negotiation (RFC 6793) |
+| 05 | bgp-routes-from-frr | Ze, FRR | Ze receives routes originated by FRR |
+| 06 | bgp-routes-from-bird | Ze, BIRD | Ze receives routes originated by BIRD |
+| 07 | bgp-routes-to-frr | Ze, FRR | FRR receives routes originated by Ze |
+| 08 | bgp-triangle | Ze, FRR, BIRD | Three-way topology, multi-peer stability |
+| 09 | bgp-route-withdrawal-frr | Ze, FRR | Route withdrawal propagation |
+| 10 | bgp-ipv6-ebgp-frr | Ze, FRR | IPv6 eBGP session and route exchange |
+| 11 | bgp-addpath-frr | Ze, FRR | ADD-PATH capability (RFC 7911) |
+| 12 | bgp-route-refresh-frr | Ze, FRR | Route Refresh (RFC 2918) |
+| 13 | bgp-graceful-restart-frr | Ze, FRR | Graceful Restart negotiation (RFC 4724) |
+| 14 | bgp-route-server-frr | Ze, FRR, BIRD | Route server: forwards without inserting own ASN |
+| 15 | bgp-community-frr | Ze, FRR | Standard community propagation |
+| 16 | bgp-extended-community-frr | Ze, FRR | Extended community propagation |
+| 17 | bgp-md5-auth-frr | Ze, FRR | TCP MD5 authentication (RFC 2385) |
+| 18 | bgp-ebgp-gobgp | Ze, GoBGP | eBGP session with GoBGP |
+| 19 | bgp-routes-gobgp | Ze, GoBGP | Route exchange with GoBGP |
+| 20 | bgp-role-frr | Ze, FRR | RFC 9234 Role capability negotiation |
+| 21 | bgp-role-gobgp | Ze, GoBGP | RFC 9234 Role capability negotiation |
+| 22 | bgp-evpn-frr | Ze, FRR | EVPN Type-2 route exchange; FRR accepts an IP Prefix route (Type 5) whose Overlay Index is the ESI. FRR 10.3.1 prints no Type 5 ESI in any view, so bgp-evpn-gobgp asserts its octets |
+| 23 | bgp-vpn-frr | Ze, FRR, BIRD | VPN-IPv4 route exchange with FRR; RFC 4659 Section 3.2.1.1 VPN-IPv6 next hops, read at BIRD (the 48-octet field's link-local, which FRR 10.3.1 does not display) and at FRR (the off-link route's sole global) |
+| 24 | bgp-flowspec-frr | Ze, FRR | FlowSpec rule exchange |
+| 25 | bgp-ipv6-ebgp-bird | Ze, BIRD | IPv6 eBGP route exchange |
+| 26 | bgp-ipv6-ebgp-gobgp | Ze, GoBGP | IPv6 eBGP route exchange |
+| 27 | bgp-multihop-ebgp-frr | Ze, FRR | Multi-hop eBGP with outgoing-ttl |
+| 28 | bgp-evpn-gobgp | Ze, GoBGP | EVPN Type-2 route exchange, Ethernet A-D ESI Labels, and the IP Prefix route (Type 5) sent with overlay-index esi: GoBGP reads the non-zero ESI and a zero GW IP from the NLRI (RFC 9136 Section 3.1) |
+| 29 | bgp-vpn-gobgp | Ze, GoBGP | VPN (L3VPN) route exchange |
+| 30 | bgp-flowspec-gobgp | Ze, GoBGP | FlowSpec rule exchange |
+| 31 | bgp-multihop-ebgp-bird | Ze, BIRD | Multi-hop eBGP with outgoing-ttl |
+| 32 | bgp-multihop-ebgp-gobgp | Ze, GoBGP | Multi-hop eBGP with outgoing-ttl |
 | 33 | bfd-frr | Ze, FRR | BFD opt-in and BFD-triggered BGP teardown |
-| 34 | ecmp-frr | Ze, FRR, GoBGP | FRR ECMP selection for the same prefix from Ze and GoBGP |
-| 35 | srv6-frr | Ze, FRR | SRv6 VPNv6 route exchange and Prefix-SID handling |
-| 36 | remove-private-as-frr | Ze, FRR, GoBGP | remove-private-as export policy to FRR |
-| 37 | remove-private-as-as4path-frr | Ze, FRR, BIRD | remove-private-as handling for AS4_PATH private ASNs |
-| 38 | vpn-addpath-frr | Ze, FRR | ipv4/mpls-vpn over ADD-PATH with no path-information: FRR holds the exact RD, prefix and label, so ze wrote Path Identifier 0 (RFC 7911 Section 3) |
+| 34 | bgp-ecmp-frr | Ze, FRR, GoBGP | FRR ECMP selection for the same prefix from Ze and GoBGP |
+| 35 | bgp-srv6-frr | Ze, FRR | SRv6 VPNv6 route exchange and Prefix-SID handling |
+| 36 | bgp-remove-private-as-frr | Ze, FRR, GoBGP | remove-private-as export policy to FRR |
+| 37 | bgp-remove-private-as-as4path-frr | Ze, FRR, BIRD | remove-private-as handling for AS4_PATH private ASNs |
+| 38 | bgp-vpn-addpath-frr | Ze, FRR | ipv4/mpls-vpn over ADD-PATH with no path-information: FRR holds the exact RD, prefix and label, so ze wrote Path Identifier 0 (RFC 7911 Section 3) |
 | 39 | ldp-keepalive-expiry-frr | Ze, FRR ldpd | ze's LDP KeepAlive Timer expires after an `ldplab` nft table in ze's container rewrites the TCP window ze advertises on the session to zero, so FRR can send ze no PDU while its kernel still acknowledges ze's segments (a drop of FRR's segments would also drop the ACKs they carry and stall ze's own stream); FRR logs `msg[in]: notification: ... status KeepAlive Timer Expired (fatal error)` (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Red with the send reverted: FRR logs only `connection closed by remote end`. Ships its own `daemons` (`ldpd=yes`) and gives ze transport address 172.30.0.250 so ze is the active LSR |
 | 53 | ldp-init-unknown-tlv-frr | Ze, FRR ldpd | RFC 5036 Section 3.3 on ze's receive side: "if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored". FRR cannot send an unknown TLV, so an `ldplab` nft rule in ze's container rewrites the type of the first Capability TLV in FRR's real Initialization (0x8506, the Dynamic Capability Announcement ldpd's `send_init` writes at LDP offset 36) to 0x3f00, U and F clear, and counts each match. FRR, the originator, logs `msg[in]: notification: ... status Unknown TLV`, and stays short of OPERATIONAL for 10 s because ze never answers the ignored Initialization with a KeepAlive. With the rule removed the same peers reach OPERATIONAL, the positive control. FRR proves the Notification reached the originator and decodes as Unknown TLV; the rule's counter proves ze was shown the TLV. Red with `skipTLV` returning nil for every TLV: FRR logs no received `status Unknown TLV` Notification. Shares the `daemons` and the 172.30.0.250 transport address of `ldp-keepalive-expiry-frr` |
 | 40 | bgp-attr-flags-low-nibble-gobgp | Ze, GoBGP, raw injector | RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF |
