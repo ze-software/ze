@@ -12,8 +12,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
 // medSource is one relayed UPDATE as a neighboring AS sends it: ORIGIN, MED and
@@ -36,23 +34,6 @@ func newMEDSource(metric []byte) medSource {
 	}
 	s.payload = buildModTestPayload(slices.Concat(s.origin, s.med, s.community), s.nlri)
 	return s
-}
-
-// medAttrsWire is the attribute section of an UPDATE body, in the form a
-// chain step reads it from WireUpdate.Attrs.
-// The context is REGISTERED rather than ContextID(0). parseKnownAttribute
-// (core/bgp/attribute/wire.go) refuses a nil encoding context, so a wire built
-// on the zero id answers an error for EVERY attribute and renders an empty
-// subject. Nothing said so: AttributesWire.Get returns the error to a caller
-// that drops it, and the tests above read a subject that named nothing and
-// passed. ai/rules/principles.md, a value that is silently wrong.
-func medAttrsWire(t *testing.T, payload []byte) *attribute.AttributesWire {
-	t.Helper()
-	sections, err := wire.ParseUpdateSections(payload)
-	require.NoError(t, err)
-	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
-	require.NoError(t, err)
-	return attribute.NewAttributesWire(sections.Attrs(payload), ctxID)
 }
 
 func payloadWithoutMEDWithCommunity(t *testing.T, payload, community []byte) []byte {
