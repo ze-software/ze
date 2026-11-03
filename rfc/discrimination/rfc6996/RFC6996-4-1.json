@@ -50,9 +50,9 @@
     "unit-sha": "4d97ad0a2e96c342",
     "claim-sha": "f06212020d7924fc",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/filter_delta.go::removePrivateASOps",
+    "producer": "internal/component/bgp/reactor/aspath_edit.go::removePrivateASOps",
     "producer-sha": "a5d79ccb9153abcd",
-    "break": "line 747: \"mods.Op(byte(attribute.AttrASPath), filterapi.AttrModSet, rewritten)\" -\u003e \"_ = rewritten\""
+    "break": "line 214: \"mods.Op(byte(attribute.AttrASPath), filterapi.AttrModSet, rewritten)\" -\u003e \"_ = rewritten\""
   },
   {
     "rid": "RFC6996-4-1",
@@ -61,7 +61,7 @@
     "unit-sha": "24f5ca7290efc6d2",
     "claim-sha": "61e0a12744a1ee4f",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/filter_delta.go::rewriteASPathRemovePrivate",
+    "producer": "internal/component/bgp/reactor/aspath_edit.go::rewriteASPathRemovePrivate",
     "producer-sha": "12efc48c05f5f896",
     "break": "body of rewriteASPathRemovePrivate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
@@ -72,9 +72,9 @@
     "unit-sha": "d09eeb18e5f8abee",
     "claim-sha": "640c735de491cf82",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/filter_delta.go::isRFC6996PrivateASN",
+    "producer": "internal/component/bgp/reactor/aspath_edit.go::isRFC6996PrivateASN",
     "producer-sha": "ade798ba138ec36c",
-    "break": "body of isRFC6996PrivateASN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of isRFC6996PrivateASN replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC6996-4-1",
@@ -83,8 +83,8 @@
     "unit-sha": "4aee5574cafd08d0",
     "claim-sha": "44657fda87e3615c",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/filter_delta.go::isRFC6996PrivateASN",
+    "producer": "internal/component/bgp/reactor/aspath_edit.go::isRFC6996PrivateASN",
     "producer-sha": "ade798ba138ec36c",
-    "break": "body of isRFC6996PrivateASN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of isRFC6996PrivateASN replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

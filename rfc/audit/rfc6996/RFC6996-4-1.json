@@ -7,9 +7,9 @@
     "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996KeepsPublicASN": "2068da0f3a6a9e3f",
     "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996StripsPrivateUseASN": "2068da0f3a6a9e3f",
     "internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go::TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path": "1a0ebc92282e3989",
-    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996ExportRemovesPrivateUseASNsFromASPath": "53bd056c32ad7aff",
-    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges": "53bd056c32ad7aff",
-    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripRemovesPrivateUseASNsFromAS4Path": "53bd056c32ad7aff"
+    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996ExportRemovesPrivateUseASNsFromASPath": "ada013f171d3f8d5",
+    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges": "ada013f171d3f8d5",
+    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripRemovesPrivateUseASNsFromAS4Path": "ada013f171d3f8d5"
   },
   "units": {
     "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges": "9c9df0cf4a8fa55d",

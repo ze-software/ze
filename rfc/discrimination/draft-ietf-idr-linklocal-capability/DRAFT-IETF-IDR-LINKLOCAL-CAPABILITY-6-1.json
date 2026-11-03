@@ -25,12 +25,12 @@
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
-    "unit-sha": "8bf5be9e7c2f8865",
+    "unit-sha": "fef109445fd618b1",
     "claim-sha": "7c0c7e5d69776934",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606Attrs",
+    "producer": "internal/component/bgp/reactor/session_validation_receive.go::Session.validateRFC7606Attrs",
     "producer-sha": "4592cce8941de4f0",
-    "break": "body of validateRFC7606Attrs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "body of Session.validateRFC7606Attrs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",

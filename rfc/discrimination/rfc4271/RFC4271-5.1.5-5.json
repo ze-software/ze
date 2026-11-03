@@ -7,7 +7,7 @@
     "claim-sha": "44f895ca5a61a13c",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::Reactor.runIngressPolicyChainMeta",
-    "producer-sha": "7c08dfbf4dc8d268",
+    "producer-sha": "94b327ece704681e",
     "break": "body of Reactor.runIngressPolicyChainMeta replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

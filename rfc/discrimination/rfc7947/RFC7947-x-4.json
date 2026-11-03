@@ -3,22 +3,22 @@
     "rid": "RFC7947-x-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire",
-    "unit-sha": "cfbad7e8f5978ba0",
+    "unit-sha": "afb9e7bd7c90dc32",
     "claim-sha": "a2f0584ab3f30de5",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-    "producer-sha": "e2c68e94d7479506",
-    "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4",
+    "producer-sha": "63619e94feecbb25",
+    "break": "body of Reactor.runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7947-x-4",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire",
-    "unit-sha": "cfbad7e8f5978ba0",
+    "unit-sha": "afb9e7bd7c90dc32",
     "claim-sha": "a6369bfec651bd06",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-    "producer-sha": "e2c68e94d7479506",
-    "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4",
+    "producer-sha": "63619e94feecbb25",
+    "break": "body of Reactor.runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

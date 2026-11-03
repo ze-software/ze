@@ -3,11 +3,11 @@
     "rid": "RFC4271-5.1.4-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess",
-    "unit-sha": "56a6dc47569e4b84",
+    "unit-sha": "1ce4399ce693147e",
     "claim-sha": "0ae35a67018f4c06",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
+    "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
     "producer-sha": "e90bdff7762b5144",
-    "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

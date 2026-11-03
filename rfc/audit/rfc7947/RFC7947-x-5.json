@@ -5,7 +5,7 @@
     "internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go::TestRSAnnouncementAddPathClientGetsEveryPath": "d72ef299e8370422",
     "internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace": "e9c1ed12909a1346",
     "internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute": "e9c1ed12909a1346",
-    "internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go::TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor": "f5f415861505078f"
+    "internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go::TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor": "100eccdf18b32b62"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go::TestRSAnnouncementAddPathClientGetsEveryPath": "f6159932f23dd6f3",

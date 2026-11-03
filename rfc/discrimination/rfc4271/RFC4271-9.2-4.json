@@ -25,22 +25,22 @@
     "rid": "RFC4271-9.2-4",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered",
-    "unit-sha": "5fd0071d908438d2",
+    "unit-sha": "423ccac38ab2f9da",
     "claim-sha": "232c798089a555b4",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::Reactor.runIngressPolicyChainMeta",
-    "producer-sha": "7c08dfbf4dc8d268",
+    "producer-sha": "94b327ece704681e",
     "break": "body of Reactor.runIngressPolicyChainMeta replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-9.2-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess",
-    "unit-sha": "ebfded10a66499ad",
+    "unit-sha": "59502c8654532e84",
     "claim-sha": "603abba3fd4b331d",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
+    "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
     "producer-sha": "e90bdff7762b5144",
-    "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
