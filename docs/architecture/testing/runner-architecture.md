@@ -68,6 +68,44 @@ scheduler in `runExaBGPSelected`.
 
 ### How a suite's child processes end
 
+The editor child executes authored content with `RunETContentIn` on its owning
+goroutine. Caller cancellation reaches authored waits and validation waits;
+model timers are joined and the store is closed before it returns, and close
+errors fail the result. This cooperative API cannot interrupt a blocked file
+read or storage lock: its process owner must enforce the hard deadline.
+Process-wait failures include the owned child's PID in the reported error, so
+the diagnostic identifies the process whose cleanup completed.
+<!-- source: internal/component/cli/testing/runner.go -- RunETContentIn, runTestCaseInContext -->
+<!-- source: internal/component/cli/testing/headless_wait.go -- waitEvent -->
+<!-- source: internal/test/editorcase/parent.go -- Run -->
+
+`le mock editor-case` is a hidden helper with no arguments. Its parent supplies
+regular files at descriptor 3 (one JSON request), 4 (result), and 5 (goroutine
+diagnostics), plus a control pipe at 6. The request contains `content`, an
+absolute `deadline`, and an absolute parent-owned `directory`. Content is the
+authored snapshot, not a path to reread. Request input is limited to 64 MiB;
+missing fields, unknown fields and trailing JSON are refused. A byte or EOF on
+the control pipe requests cancellation. The helper joins its diagnostic reader
+after model/store closure and before writing its single result. A result alone
+does not establish process reaping or directory cleanup. Native suite adoption
+of the parent process owner is wired through `editorcase.Run`: one Wait worker
+owns the process, cooperative EOF gets two seconds before the independent hard
+group cancellation, and the two-second pipe wait is a separate limit. If reaping
+still cannot finish, the foreground owner reports cleanup-incomplete and remains
+attached, retaining resources and its scheduler slot. It never returns a false
+reap. The parent rejects incomplete, contradictory or trailing results and failed
+process exits, removes work and closes descriptors before publication, and
+retains failure logs/diagnostics outside work.
+Cleanup errors fail the overall verdict and preserve the failed-cleanup path;
+they do not erase the child's assertion trace.
+Result keys and step keys use their declared kebab-case JSON tags. Missing,
+null-required, duplicate, unknown and contradictory fields are failures; a
+successful exit alone cannot make an absent result pass.
+<!-- source: internal/test/editorcase/worker.go -- Main, readRequest, run, watchControl -->
+<!-- source: internal/le/mock/editor-case/register.go -- init -->
+<!-- source: internal/test/editorcase/parent.go -- Run, wait, finish -->
+<!-- source: internal/test/editorcase/result.go -- readResult -->
+
 A suite starts a daemon and a peer, and each of those starts more: ze forks its
 plugins, the ExaBGP mock forks the bridge's scripts. So a stop aimed at the pid
 the runner holds reaps a fraction of the tree. Every fork therefore takes its

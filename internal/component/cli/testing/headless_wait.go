@@ -45,6 +45,8 @@ func (hm *headlessModel) wait(action WaitAction) error {
 	select {
 	case <-hm.stopped:
 		return errors.New("editor wait canceled")
+	case <-hm.canceled:
+		return errors.New("editor wait canceled")
 	default:
 	}
 	switch kind {
@@ -96,6 +98,8 @@ func (hm *headlessModel) waitEvent(deadline <-chan time.Time) (bool, error) {
 			return true, nil
 		case <-hm.stopped:
 			return false, errors.New("editor wait canceled")
+		case <-hm.canceled:
+			return false, errors.New("editor wait canceled")
 		default:
 		}
 		for i, tick := range hm.pending {
@@ -114,6 +118,8 @@ func (hm *headlessModel) waitEvent(deadline <-chan time.Time) (bool, error) {
 		case <-deadline:
 			return true, nil
 		case <-hm.stopped:
+			return false, errors.New("editor wait canceled")
+		case <-hm.canceled:
 			return false, errors.New("editor wait canceled")
 		case <-hm.ready:
 		}

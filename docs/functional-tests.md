@@ -563,15 +563,29 @@ and name, plus periodic progress while tests are still running.
 An editor `.et` test's `option=timeout:value=<duration>` is its wall-clock
 budget, 30s when the file declares none. `le test editor` and
 `TestFunctionalETFiles` run the tests concurrently, so both multiply the budget
-by `ParallelTimeoutHeadroom` (x3). A run past its budget fails with
-`timed out after <budget>` and writes the goroutine stacks to a
-`ze-editor-hang-stacks-*.txt` file in the system temp directory, whose path the
-error names, so a hung command fails its test instead of holding the suite. The
-file sits outside the test's temp directory because the run still removes that
-directory when a late run ends, and nothing removes it. A timeout the runner
-cannot parse fails the test rather than falling back to the default.
+by `ParallelTimeoutHeadroom` (x3). The native suite owns one child process per
+case. Cancellation first asks it to stop and capture diagnostics, then kills its
+process group after the cooperative grace. The parent waits for actual reaping
+and work-directory cleanup before publishing a result. Failure artifacts survive
+outside the work directory. A kernel-stuck child is reported as cleanup-incomplete
+while the foreground owner remains attached; it does not release its slot or
+claim reaping. An invalid authored timeout fails instead of using a default.
 <!-- source: internal/component/cli/testing/runner.go -- testBudget, runTestCase, timedOutError -->
 <!-- source: internal/test/cli/cmd_editor.go -- runner.ParallelTimeoutHeadroom -->
+<!-- source: internal/test/editorcase/parent.go -- Run, wait, finish -->
+
+The internal `le mock editor-case` helper accepts an authored snapshot, an
+absolute deadline and parent-owned resources through inherited descriptors.
+It closes its models and store before writing its result. Its cooperative
+cancellation cannot interrupt a blocked command. In-process `RunETFile` callers
+retain synchronous ownership instead: their cooperative deadline cannot stop a
+blocked command, and they never return while an abandoned worker keeps running.
+Their timeout stacks are captured after model/store closure in a separate
+`ze-editor-hang-stacks-*.txt` file, which survives working-directory removal.
+The [runner architecture](architecture/testing/runner-architecture.md) describes
+the descriptor protocol.
+<!-- source: internal/test/editorcase/worker.go -- Main, run -->
+<!-- source: internal/test/cli/cmd_editor.go -- runEditorTests -->
 
 The checks, RFC, inventory, spec-status, consistency, discovery and doc-validity
 UI fixtures execute the suite's native `le` binary over owned inputs instead of

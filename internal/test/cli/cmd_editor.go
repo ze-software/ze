@@ -7,12 +7,16 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	editortesting "github.com/ze-software/ze/internal/component/cli/testing"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
+	"github.com/ze-software/ze/internal/test/editorcase"
 	"github.com/ze-software/ze/internal/test/runner"
+	"github.com/ze-software/ze/internal/test/sessionpath"
 	"github.com/ze-software/ze/internal/test/trace"
 )
 
@@ -162,6 +166,13 @@ func discoverEditorTests(tests *runner.EditorTests, testDir, baseDir string) err
 }
 
 func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bool) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locate the editor runner executable: %w", err)
+	}
+	scratch := sessionpath.EnsureScratchRoot(baseDir)
 	colors := runner.NewColors()
 
 	pr := runner.NewParallelRunner[*runner.EditorTest](colors)
@@ -171,10 +182,16 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 	pr.SetBaseDir(baseDir)
 
 	for _, test := range tests.Selected() {
-		pr.AddTestWithNick(test.Name, test.Nick, test, func(_ context.Context, t *runner.EditorTest) (bool, error) {
+		pr.AddTestWithNick(test.Name, test.Nick, test, func(ctx context.Context, t *runner.EditorTest) (bool, error) {
 			// The runner keeps its default concurrency, which is above one,
 			// so each authored timeout gets the parallel headroom.
-			testResult := editortesting.RunETFile(t.Path, runner.ParallelTimeoutHeadroom)
+			content, err := os.ReadFile(t.Path)
+			var testResult *editortesting.TestResult
+			if err != nil {
+				testResult = &editortesting.TestResult{Error: "read authored editor case: " + err.Error()}
+			} else {
+				testResult = editorcase.Run(ctx, executable, string(content), scratch, runner.ParallelTimeoutHeadroom)
+			}
 
 			t.ErrMsg = testResult.Error
 			t.TempDir = testResult.TempDir
@@ -203,7 +220,7 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 		trace.PrintFailedSteps(os.Stdout, t.Name, t.Steps, colors.Enabled())
 	})
 
-	success := pr.Run(context.Background())
+	success := pr.Run(ctx)
 
 	if verbose {
 		for _, t := range tests.Selected() {

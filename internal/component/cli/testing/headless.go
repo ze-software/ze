@@ -57,6 +57,7 @@ type headlessModel struct {
 	store        storage.Storage
 	pending      []pendingTick
 	stopped      chan struct{}
+	canceled     <-chan struct{} // Optional caller cancellation; only the driver closes the model.
 	stopOnce     sync.Once
 	ready        chan struct{}
 	timerWorkers sync.WaitGroup
@@ -292,6 +293,9 @@ func (hm *headlessModel) waitValidation() error {
 				hm.processMsg(msg)
 			case <-hm.stopped:
 				// Keep the join obligation if shutdown won the receive.
+				hm.pending = append(hm.pending, tick)
+				return errors.New("validation wait canceled")
+			case <-hm.canceled:
 				hm.pending = append(hm.pending, tick)
 				return errors.New("validation wait canceled")
 			}

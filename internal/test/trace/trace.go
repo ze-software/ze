@@ -12,12 +12,12 @@ import (
 
 // StepResult records the outcome of a single test step.
 type StepResult struct {
-	Step   int
-	Line   int
-	Kind   string
-	Assert string
-	Passed bool
-	Detail string
+	Step   int    `json:"step"`
+	Line   int    `json:"line"`
+	Kind   string `json:"kind"`
+	Assert string `json:"assert"`
+	Passed bool   `json:"passed"`
+	Detail string `json:"detail"`
 }
 
 type stepJSON struct {

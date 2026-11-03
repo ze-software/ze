@@ -79,6 +79,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/mock"
 	_ "github.com/ze-software/ze/internal/le/mock/cymru"
 	_ "github.com/ze-software/ze/internal/le/mock/dns"
+	_ "github.com/ze-software/ze/internal/le/mock/editor-case"
 	_ "github.com/ze-software/ze/internal/le/mock/enginesteps"
 	_ "github.com/ze-software/ze/internal/le/mock/httpd"
 	_ "github.com/ze-software/ze/internal/le/mock/irr"

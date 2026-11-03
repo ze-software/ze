@@ -4,6 +4,7 @@
 package testing
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -29,11 +30,11 @@ var (
 
 // TestResult represents the outcome of running an .et test.
 type TestResult struct {
-	Passed   bool   // Whether all expectations passed
-	Error    string // Error message if failed
-	TempDir  string // Temp directory used (empty if cleaned up)
-	Duration time.Duration
-	Steps    []trace.StepResult
+	Passed   bool               `json:"passed"`   // Whether all expectations passed.
+	Error    string             `json:"error"`    // Error message if failed.
+	TempDir  string             `json:"temp-dir"` // Temp directory used (empty if cleaned up).
+	Duration time.Duration      `json:"duration"`
+	Steps    []trace.StepResult `json:"steps"`
 }
 
 // runETTest parses and executes an .et test from content string, with its
@@ -60,6 +61,7 @@ func runETContent(content string, headroom int) *TestResult {
 	runResult := runTestCase(tc, headroom)
 	result.Passed = runResult.Passed
 	result.Error = runResult.Error
+	result.TempDir = runResult.TempDir
 	result.Steps = runResult.Steps
 	result.Duration = time.Since(start)
 
@@ -70,7 +72,9 @@ func runETContent(content string, headroom int) *TestResult {
 // is its declared option=timeout (defaultTestTimeout when it declares none)
 // multiplied by headroom, which MUST be at least 1: a caller running tests
 // concurrently passes runner.ParallelTimeoutHeadroom, because authored
-// timeouts are measured against an uncontended run.
+// timeouts are measured against an uncontended run. Execution is synchronous:
+// only cooperative waits can be interrupted, and blocked commands retain their
+// owner until return. The native suite uses a subprocess for hard deadlines.
 func RunETFile(path string, headroom int) *TestResult {
 	content, err := os.ReadFile(path) //nolint:gosec // Test file path
 	if err != nil {
@@ -81,6 +85,17 @@ func RunETFile(path string, headroom int) *TestResult {
 
 // defaultTestTimeout is the budget of a test that declares no option=timeout.
 const defaultTestTimeout = 30 * time.Second
+
+// ContentBudget parses the authored snapshot and applies the same budget policy
+// as the in-process runner. Process owners MUST start their deadline before
+// allocating or starting the child, and MUST NOT multiply this answer again.
+func ContentBudget(content string, headroom int) (time.Duration, error) {
+	tc, err := parseETFile(content)
+	if err != nil {
+		return 0, fmt.Errorf("parse error: %w", err)
+	}
+	return testBudget(tc, headroom)
+}
 
 // testBudget answers how long tc may run: its declared option=timeout, or
 // defaultTestTimeout when it declares none, multiplied by headroom. A timeout
@@ -114,59 +129,47 @@ func testBudget(tc *testCase, headroom int) (time.Duration, error) {
 	return timeout * time.Duration(headroom), nil
 }
 
-// runTestCase executes a parsed test case in a temporary directory and fails
-// it when it outlasts testBudget.
-//
-// The run happens on a worker goroutine that owns the directory and removes
-// it when the run ends. A run past its budget is reported failed and left
-// running: a goroutine cannot be stopped from outside, and a hung run is a
-// command blocked forever (a deadlock on the write-through lock, for one), so
-// its worker lives until the process exits. The runner process runs one suite
-// and exits, so the leak is bounded by the number of hung tests. Without this
-// deadline, settleWait, which blocks by design, held the whole suite.
-func runTestCase(tc *testCase, headroom int) *TestResult {
+// runTestCase owns synchronous in-process test execution and cleanup. Its
+// context interrupts cooperative waits, not blocked commands. A blocked command
+// keeps this call attached until it returns; the native suite uses an owned
+// process for hard deadlines. No timeout publishes a still-running goroutine.
+func runTestCase(tc *testCase, headroom int) (result *TestResult) {
 	budget, err := testBudget(tc, headroom)
 	if err != nil {
 		return &TestResult{Error: err.Error()}
 	}
 
-	// Create temp directory for test files
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
+	defer cancel()
+
 	tmpDir, err := os.MkdirTemp("", "ze-editor-test-*")
 	if err != nil {
 		var tb textbuf.Buffer
 		return &TestResult{Error: tb.Str("creating temp dir: ").Err(err).String()}
 	}
 
-	done := make(chan *TestResult, 1)
-	go runTestCaseWorker(tc, tmpDir, done)
-
-	deadline := time.NewTimer(budget)
-	defer deadline.Stop()
-
-	select {
-	case result := <-done:
-		return result
-	case <-deadline.C:
-		return &TestResult{Error: timedOutError(budget), TempDir: tmpDir}
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			result.Passed = false
+			result.TempDir = tmpDir
+			result.Error = errors.Join(errors.New(result.Error), err).Error()
+		}
+	}()
+	result = runTestCaseInContext(ctx, tc, tmpDir)
+	if ctx.Err() != nil {
+		result.Passed = false
+		result.Error = errors.Join(errors.New(result.Error), errors.New(timedOutError(budget))).Error()
 	}
-}
-
-// runTestCaseWorker runs tc in tmpDir, sends its one result on done and
-// removes tmpDir. done MUST have capacity 1, so the send never blocks once
-// runTestCase has stopped waiting.
-func runTestCaseWorker(tc *testCase, tmpDir string, done chan<- *TestResult) {
-	defer os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
-	done <- runTestCaseIn(tc, tmpDir)
+	return result
 }
 
 // timedOutError names the budget and writes every goroutine's stack to a
 // ze-editor-hang-stacks-*.txt file in the system temp directory, so the
-// blocked call survives the run rather than being lost with it.
+// diagnostic survives the run rather than being lost with it.
 //
-// The file is NOT written inside the test's temp dir: the worker removes that
-// directory when a slow run finally ends, which deleted the stacks of every
-// run that was late rather than hung, in a process that outlives the run.
-// Nothing removes the file: it is left for post-mortem.
+// The synchronous helper writes this after model/store closure, outside the
+// working directory removed before return. The native process owner separately
+// captures the child while it is blocked. Both retain diagnostics for post-mortem.
 func timedOutError(budget time.Duration) string {
 	var tb textbuf.Buffer
 	tb.Str("timed out after ").Str(budget.String())
@@ -189,7 +192,35 @@ func timedOutError(budget time.Duration) string {
 // closes with the run (createRunnerStore), so a caller asserts on stored keys
 // through the .et (expect=key) rather than by reopening the directory.
 func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
+	return runTestCaseInContext(context.Background(), tc, tmpDir)
+}
+
+// RunETContentIn runs immutable authored content on the calling goroutine.
+// The caller MUST own and remove directory after return. Cancellation interrupts
+// cooperative waits; a blocked command requires the process owner to kill and
+// reap the child. This function never promises a hard in-process timeout.
+func RunETContentIn(ctx context.Context, content, directory string) *TestResult {
+	start := time.Now()
+	tc, err := parseETFile(content)
+	if err != nil {
+		return &TestResult{Error: "parse error: " + err.Error(), TempDir: directory, Duration: time.Since(start)}
+	}
+	result := runTestCaseInContext(ctx, tc, directory)
+	result.TempDir = directory
+	if err := ctx.Err(); err != nil {
+		result.Passed = false
+		result.Error = errors.Join(errors.New(result.Error), err).Error()
+	}
+	result.Duration = time.Since(start)
+	return result
+}
+
+func runTestCaseInContext(ctx context.Context, tc *testCase, tmpDir string) *TestResult {
 	result := &TestResult{}
+	if err := ctx.Err(); err != nil {
+		result.Error = err.Error()
+		return result
+	}
 
 	// Write tmpfs files to temp directory
 	for _, tf := range tc.Tmpfs {
@@ -296,7 +327,12 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 		result.Error = storeErr.Error()
 		return result
 	}
-	defer configStore.Close() //nolint:errcheck // test cleanup
+	defer func() {
+		if err := configStore.Close(); err != nil {
+			result.Passed = false
+			result.Error = errors.Join(errors.New(result.Error), err).Error()
+		}
+	}()
 	var models []*headlessModel
 	defer func() {
 		for _, model := range models {
@@ -318,6 +354,7 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 			return nil, err
 		}
 		models = append(models, hm)
+		hm.canceled = ctx.Done()
 		if err := hm.sendMsg(tea.WindowSizeMsg{Width: width, Height: height}); err != nil {
 			return nil, err
 		}
@@ -394,6 +431,10 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 
 	// Process steps in order (inputs, expectations, waits, sessions interleaved)
 	for stepIdx, step := range tc.Steps {
+		if err := ctx.Err(); err != nil {
+			result.Error = err.Error()
+			return result
+		}
 		stepNum := stepIdx + 1
 		switch step.Type {
 		case StepSession:

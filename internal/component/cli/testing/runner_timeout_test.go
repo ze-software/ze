@@ -60,15 +60,17 @@ func removeHangStacks(t *testing.T, runError string) string {
 // TestRunnerHangStacksLieOutsideTempDir proves the goroutine stacks a
 // timed-out run names are written outside the run's temp dir.
 //
-// VALIDATES: the stacks file the error names exists, holds the worker's
-// stack, and lies directly in the system temp dir, outside the run's temp
-// dir, which the worker removes when the late run ends.
+// VALIDATES: the stacks file the error names exists, holds the synchronous
+// owner's stack, and lies directly in the system temp dir, outside the run's
+// temp dir, which the owner removes before returning.
 // PREVENTS: the stacks of a run that was late rather than hung being deleted
 // with its temp dir, so the path a red test prints points at nothing.
 // Method: a 1ns budget, which every real run exceeds.
 func TestRunnerHangStacksLieOutsideTempDir(t *testing.T) {
 	result := runETTest(timeoutCase("option=timeout:value=1ns"))
 	require.NotNil(t, result)
+	assert.False(t, result.Passed)
+	assert.Contains(t, result.Error, "timed out after 1ns")
 	stacks := removeHangStacks(t, result.Error)
 
 	// The run's temp dir is a child of the system temp dir, so a stacks file
@@ -76,12 +78,11 @@ func TestRunnerHangStacksLieOutsideTempDir(t *testing.T) {
 	assert.Equal(t, filepath.Clean(os.TempDir()), filepath.Dir(stacks), "stacks %s must lie outside the run's temp dir", stacks)
 	content, err := os.ReadFile(stacks) //nolint:gosec // path the runner just named
 	require.NoError(t, err)
-	// The worker is the one goroutine runTestCase starts, so its "created by"
-	// line identifies it in every state. Its frame name does not: a 1ns
-	// budget can expire before the scheduler first runs the worker, and the
-	// runtime then prints it under the go statement's wrapper
-	// (runTestCase.gowrap1), with no runTestCaseWorker frame yet.
-	assert.Contains(t, string(content), "created by github.com/ze-software/ze/internal/component/cli/testing.runTestCase in goroutine")
+	// The synchronous owner captures this diagnostic after cooperative
+	// execution and model/store closure. Native blocked-child stacks and
+	// their reported path after cleanup are proved through le test editor by
+	// TestEditorSuiteNativeBlockedRead in internal/test/editorcase.
+	assert.Contains(t, string(content), "github.com/ze-software/ze/internal/component/cli/testing.runTestCase(")
 }
 
 // TestRunnerRefusesInvalidTimeout proves a timeout the runner cannot parse
