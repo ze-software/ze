@@ -570,11 +570,13 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 		return
 	}
 
-	// RFC 6793: use 4-byte ASN if available, else 2-byte MyAS.
-	remoteAS := uint32(open.MyAS)
-	if open.ASN4 > 0 {
-		remoteAS = open.ASN4
-	}
+	// RFC 6793 Section 4.1: the peer's AS is the Four-octet AS capability value when both
+	// ends advertise the capability, else the two-octet My AS (openAdvertisedAS, peer.go).
+	// The session's own settings decide which: they are the ones validateOpenPeerAS and
+	// negotiateWith judged this OPEN by, so $remote_as names the AS the session accepted.
+	// open.ASN4 is never set on a received OPEN (UnpackOpen leaves it zero), which is why
+	// this reads the capability out of the optional parameters instead.
+	remoteAS := openAdvertisedAS(open, !session.settings.DisableASN4)
 
 	// Address and LocalAS are set at construction and never mutated, which is the contract
 	// on Peer.Settings (peer.go), so they are read without the lock.

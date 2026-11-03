@@ -57,7 +57,25 @@ toward it, so a four-octet peer is judged by its My AS, AS_TRANS, and the peer i
 configured `remote 23456`. ExaBGP reads the capability under the same condition.
 BIRD and FRR read it whenever the peer sends it, so a BIRD peer with
 `enable as4 off` must name the peer's four-octet AS instead.
-<!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS, openPeerAS -->
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS -->
+<!-- source: internal/core/bgp/capability/identity.go -- OpenPeerAS -->
+
+Every other reader of the peer's AS follows the same rule: the collision
+tie-break, the RFC 6286 identifier scope, the negotiated identity, the reload
+comparison (all through `judgedPeerAS`) and the AS a dynamic peer publishes at
+establishment, which is what `$remote_as` resolves to in its filter chains. An
+OPEN-validator plugin is told the same AS for the peer (`remoteOpenAS`).
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- judgedPeerAS -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- resolveDynamicPeerSettings -->
+<!-- source: internal/component/bgp/server/validate.go -- remoteOpenAS -->
+
+A peer configured with `capability { asn4 disable; }` and a four-octet remote AS
+can never establish, because My AS cannot carry that AS. Ze refuses the config at
+load ("set session asn remote 23456 (AS_TRANS), or set capability { asn4 enable; }").
+A dynamic group, which accepts any AS, and an RFC 7705 migration pair with a
+two-octet member are accepted. When an OPEN is refused with Bad Peer AS, the
+warning's `fix` field names the change for the case at hand.
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- checkASN4DisabledReachable, peerASMismatchFix -->
 
 The first-AS check follows the same judgement. It normally compares the
 reconstructed path's leftmost AS with the peer AS, as the ASPA draft's Section 5

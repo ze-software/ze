@@ -402,6 +402,10 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 	if err := applyNegotiationConfig(name, sessionMap, ps); err != nil {
 		return nil, err
 	}
+	// RFC 6793 Section 4.1: without the capability the peer AS is My AS, two octets.
+	if err := checkASN4DisabledReachable(ps); err != nil {
+		return nil, fmt.Errorf("peer %s: %w", name, err)
+	}
 
 	// Parse process bindings.
 	if err := parseProcessBindingsFromTree(tree, ps); err != nil {

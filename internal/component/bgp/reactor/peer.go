@@ -1617,7 +1617,7 @@ func (p *Peer) claimPeerAS(remote *message.Open) uint32 {
 // accepts (session_open_as.go), so the fallback widens nothing the peer can claim.
 //
 // localASN4 says whether this session advertises the Four-octet AS capability. It decides
-// which OPEN field names the peer (openPeerAS, session_open_as.go), so the fallback reads
+// which OPEN field names the peer (capability.OpenPeerAS), so the fallback reads
 // the same AS validateOpenPeerAS judged.
 func sessionPeerAS(configured uint32, localASN4 bool, remote *message.Open) uint32 {
 	if configured != 0 {
@@ -1631,7 +1631,7 @@ func sessionPeerAS(configured uint32, localASN4 bool, remote *message.Open) uint
 
 // openAdvertisedAS returns the AS a peer advertises in its OPEN, per RFC 6793:
 // the 4-byte ASN from the AS4 capability when present and this session advertises
-// the capability too (localASN4, openPeerAS in session_open_as.go), else the
+// the capability too (localASN4, capability.OpenPeerAS), else the
 // two-octet My AS.
 //
 // It parses the capability out of OptionalParams rather than reading
@@ -1657,7 +1657,8 @@ func openAdvertisedAS(remote *message.Open, localASN4 bool) uint32 {
 	if err != nil {
 		return uint32(remote.MyAS)
 	}
-	if advertised := openPeerAS(remote.MyAS, caps, localASN4); advertised != 0 {
+	// RFC 6793 Section 4.1
+	if advertised := capability.OpenPeerAS(remote.MyAS, caps, localASN4); advertised != 0 {
 		return advertised
 	}
 	return uint32(remote.MyAS)

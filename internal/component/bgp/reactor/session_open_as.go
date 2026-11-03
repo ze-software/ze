@@ -11,7 +11,9 @@
 package reactor
 
 import (
+	"errors"
 	"fmt"
+	"math"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -49,7 +51,8 @@ func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capabilit
 		if err != nil {
 			return nil, s.rejectOpenCapabilityError(err)
 		}
-		advertised = openPeerAS(open.MyAS, caps, !s.settings.DisableASN4)
+		// RFC 6793 Section 4.1
+		advertised = capability.OpenPeerAS(open.MyAS, caps, !s.settings.DisableASN4)
 	}
 	if advertised == 0 {
 		s.rejectOpenPeerAS()
@@ -80,41 +83,76 @@ func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capabilit
 		"configured-as", s.settings.PeerAS,
 		"local-as", s.settings.LocalAS,
 		"migration-as", s.settings.MigrationAS,
-		"effect", "the connection is aborted with NOTIFICATION 2/2 Bad Peer AS")
+		"effect", "the connection is aborted with NOTIFICATION 2/2 Bad Peer AS",
+		"fix", s.peerASMismatchFix(advertised))
 
 	return nil, fmt.Errorf("%w: advertised %d", ErrPeerASMismatch, advertised)
 }
 
-// openPeerAS returns the AS a received OPEN names for this session.
+// peerASMismatchFix names the config change that makes a refused peer AS acceptable, for
+// the Bad Peer AS warning above (ai/rules/user-facing-errors.md).
 //
-// RFC 6793 Section 4.1: "When a NEW BGP speaker processes an OPEN message from another
-// NEW BGP speaker, it MUST use the AS number encoded in the Capability Value field of the
-// "support for four-octet AS number capability" in lieu of the "My Autonomous System"
-// field of the OPEN message."
-//
-// The obligation binds only when BOTH ends are NEW toward each other, and the same
-// section says how a speaker is NEW toward a peer: "A BGP speaker that supports
-// four-octet AS numbers SHALL advertise this to its peers using BGP Capabilities
-// Advertisements." localASN4 is that advertisement. A session configured with
-// `capability { asn4 disable; }` (or refuse) never offers the capability, so toward
-// that peer ze is an OLD BGP speaker (Section 3): the session is two-octet, and the peer
-// AS is the "My Autonomous System" field, AS_TRANS for a peer with no two-octet AS
-// (Section 4.2.1). Reading the capability there judged the peer by a value the session
-// never negotiated, and refused a peer configured as remote 23456 with Bad Peer AS.
-// ExaBGP reads the capability under the same condition (Negotiated.received,
-// `if self.asn4:`, where asn4 is sent AND received).
-//
-// A capability AS of zero is returned as zero, so the RFC 7607 zero check above sees it.
-func openPeerAS(myAS uint16, caps []capability.Capability, localASN4 bool) uint32 {
-	if !localASN4 {
-		return uint32(myAS)
+// A session configured `asn4 disable` is the case an operator does not expect: it judges
+// the peer by My AS (capability.OpenPeerAS), which a peer with a four-octet AS sends as AS_TRANS
+// (RFC 6793 Section 4.2.1), so the four-octet AS the operator configured can never match.
+func (s *Session) peerASMismatchFix(advertised uint32) string {
+	if s.settings.DisableASN4 {
+		return "this peer has capability { asn4 disable; }, so its AS is read from the two-octet My AS field" +
+			" (AS_TRANS 23456 for a four-octet AS): set session asn remote to the AS the peer sends," +
+			" or set capability { asn4 enable; }"
 	}
-	for _, entry := range caps {
-		if asn4, ok := entry.(*capability.ASN4); ok {
-			return asn4.ASN
+	if advertised == uint32(message.AS_TRANS) {
+		return "the peer sends AS_TRANS 23456 without a four-octet AS capability:" +
+			" set session asn remote 23456, or have the peer advertise its four-octet AS"
+	}
+	return "check session asn remote on this peer against the peer's own local AS, and correct whichever is wrong"
+}
+
+// ErrASN4DisabledFourOctetRemote is the config refusal checkASN4DisabledReachable returns.
+var ErrASN4DisabledFourOctetRemote = errors.New("capability asn4 disable reads the peer AS from the two-octet My AS field," +
+	" which can never carry a four-octet AS: set session asn remote 23456 (AS_TRANS), or set capability { asn4 enable; }")
+
+// checkASN4DisabledReachable refuses, at config load, a peer configured `asn4 disable`
+// whose every acceptable peer AS is four-octet.
+//
+// Without the capability the session judges the peer by My AS (capability.OpenPeerAS, RFC 6793
+// Section 4.1), and My AS is two octets, so a peer whose AS does not fit sends AS_TRANS
+// there (Section 4.2.1). If no AS peerASAccepted takes fits two octets, every OPEN the
+// peer can send is refused with Bad Peer AS and the session never establishes: a config
+// ze cannot apply as written, refused rather than run (exact-or-reject).
+//
+// The candidates are the values peerASAccepted can accept, each asked of the rule itself
+// so the two never disagree: the configured remote AS, the RFC 7705 pair, and AS_TRANS,
+// which answers for a dynamic group (no configured remote AS, every AS accepted).
+func checkASN4DisabledReachable(n *PeerSettings) error {
+	if !n.DisableASN4 {
+		return nil
+	}
+	for _, candidate := range [...]uint32{n.PeerAS, n.LocalAS, n.MigrationAS, uint32(message.AS_TRANS)} {
+		if candidate == 0 {
+			continue
+		}
+		if candidate > math.MaxUint16 {
+			continue
+		}
+		if n.peerASAccepted(candidate) {
+			return nil
 		}
 	}
-	return uint32(myAS)
+	return fmt.Errorf("%w: remote %d", ErrASN4DisabledFourOctetRemote, n.PeerAS)
+}
+
+// judgedPeerAS returns the AS this session judges its peer by: the configured remote AS,
+// or for a dynamic peer the AS open names under RFC 6793 Section 4.1 (sessionPeerAS,
+// peer.go). It is the one place a Session states whether it advertises the Four-octet AS
+// capability, so the collision tie-break, the RFC 6286 identifier scope, the negotiated
+// identity and the reload comparison all read the AS validateOpenPeerAS accepted.
+//
+// Reads s.settings without s.mu: PeerAS and DisableASN4 are written before the session
+// starts and, for a dynamic peer, by resolveDynamicPeerSettings after the last of these
+// callers ran (reactor_dynamic.go).
+func (s *Session) judgedPeerAS(open *message.Open) uint32 {
+	return sessionPeerAS(s.settings.PeerAS, !s.settings.DisableASN4, open)
 }
 
 // rejectOpenPeerAS reports OPEN Message Error / Bad Peer AS to the peer and tears the

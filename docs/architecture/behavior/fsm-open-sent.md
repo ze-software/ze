@@ -95,7 +95,8 @@ In order:
    Section 6.2. Failure sends the NOTIFICATION embedded in the error and
    fires `EventBGPOpenMsgErr`.
 4. `validateOpenPeerAS` (`session_open_as.go`) parses the capabilities and
-   judges the advertised AS. `openPeerAS` picks the field: the ASN4
+   judges the advertised AS. `capability.OpenPeerAS`
+   (`internal/core/bgp/capability/identity.go`) picks the field: the ASN4
    capability's value when present AND the session advertises the capability
    itself, else My Autonomous System. RFC 6793 Section 4.1 puts the capability
    "in lieu of" My AS only between two NEW speakers, so a session with

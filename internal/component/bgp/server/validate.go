@@ -93,6 +93,26 @@ func (e *OpenValidationUnavailableError) NotifyCodes() (uint8, uint8) {
 	return uint8(message.NotifyOpenMessage), message.NotifyOpenRoleMismatch
 }
 
+// remoteOpenAS returns the AS a plugin is told the peer's OPEN names: the AS the session
+// judged it by, under the one rule (capability.OpenPeerAS), with localASN4 read from the
+// OPEN ze sent.
+//
+// openMessageToRPC's own ASN read is right only for ze's OPEN, whose ASN4 field buildOpen
+// sets. UnpackOpen never sets it on a received OPEN, so for the remote that read answered
+// My AS, and a four-octet peer reached every OPEN validator as AS 23456 (AS_TRANS).
+func remoteOpenAS(localOpen, remoteOpen *message.Open) (uint32, error) {
+	localCaps, err := capability.ParseFromOptionalParams(localOpen.OptionalParams, localOpen.ExtendedParams)
+	if err != nil {
+		return 0, fmt.Errorf("local OPEN capabilities: %w", err)
+	}
+	remoteCaps, err := capability.ParseFromOptionalParams(remoteOpen.OptionalParams, remoteOpen.ExtendedParams)
+	if err != nil {
+		return 0, fmt.Errorf("OPEN capabilities: %w", err)
+	}
+	// RFC 6793 Section 4.1
+	return capability.OpenPeerAS(remoteOpen.MyAS, remoteCaps, capability.AdvertisesASN4(localCaps)), nil
+}
+
 // openMessageToRPC converts a message.Open to rpc.ValidateOpenMessage for plugin IPC.
 // Extracts capabilities as raw {code, hex} pairs from the OptionalParams TLV structure.
 // An OPEN whose Optional Parameters do not frame is an error, never an empty
@@ -217,6 +237,11 @@ func broadcastStampedValidateOpen(s *pluginserver.Server, peerAddr, group string
 			return fmt.Errorf("broadcastStampedValidateOpen: local %w", err)
 		}
 		remoteMsg, err := openMessageToRPC(remoteOpen)
+		if err != nil {
+			return fmt.Errorf("broadcastStampedValidateOpen: remote %w", err)
+		}
+		// RFC 6793 Section 4.1
+		remoteMsg.ASN, err = remoteOpenAS(localOpen, remoteOpen)
 		if err != nil {
 			return fmt.Errorf("broadcastStampedValidateOpen: remote %w", err)
 		}

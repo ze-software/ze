@@ -35,13 +35,15 @@ import (
 // second MUST of Section 2.2 -- reject this speaker's OWN identifier from an internal peer -- was
 // never enforced on that rail: a genuine iBGP dynamic peer presenting our identifier was ACCEPTED.
 // The zero value silently selected the permissive branch (ai/rules/evidence.md). So when
-// the configured AS is absent, fall back to the AS the peer advertises, read through the AS4
-// capability rather than My AS so a 4-byte-AS peer is judged on its real ASN and not on AS_TRANS.
+// the configured AS is absent, fall back to the AS the peer advertises (judgedPeerAS,
+// session_open_as.go). On a session that advertises the Four-octet AS capability that is the
+// capability value, so a 4-byte-AS peer is judged on its real ASN and not on AS_TRANS; on one
+// configured `asn4 disable` it is My AS, the AS validateOpenPeerAS accepted (RFC 6793 Section 4.1).
 //
 // Both OPEN rails (handleOpen and processOpen) call this; on rejection it sends the NOTIFICATION,
 // logs the FSM error event, and closes the connection, so no caller can skip the mandated report.
 func (s *Session) validateOpenIdentifier(open *message.Open) error {
-	peerAS := sessionPeerAS(s.settings.PeerAS, !s.settings.DisableASN4, open)
+	peerAS := s.judgedPeerAS(open)
 	internal := s.settings.isIBGPWith(peerAS)
 	err := open.ValidateBGPIdentifier(s.settings.RouterID, internal)
 	if err == nil {

@@ -1117,9 +1117,12 @@ func (s *Session) detectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 //
 // Both colliding connections belong to the SAME peer, so the OPEN already
 // received on this connection carries the AS that the pending connection would
-// advertise too. openAdvertisedAS reads it through the AS4 capability rather
-// than My AS, so a 4-byte-AS peer is judged on its real ASN and not on AS_TRANS
-// (RFC 6793). peerOpen is guarded by s.mu (see the lock hierarchy above).
+// advertise too. judgedPeerAS (session_open_as.go) reads it the way
+// validateOpenPeerAS judged it: through the AS4 capability when this session
+// advertises the capability, so a 4-byte-AS peer is judged on its real ASN and
+// not on AS_TRANS, and through My AS on a session configured `asn4 disable`
+// (RFC 6793 Section 4.1). peerOpen is guarded by s.mu (see the lock hierarchy
+// above).
 //
 // LOCK ORDER: this takes s.mu while the caller holds p.mu -- the sole production
 // caller is Peer.resolvePendingCollision (peer_connection.go), which holds
@@ -1138,7 +1141,7 @@ func (s *Session) collisionPeerAS() uint32 {
 	open := s.peerOpen
 	s.mu.RUnlock()
 
-	return sessionPeerAS(s.settings.PeerAS, !s.settings.DisableASN4, open)
+	return s.judgedPeerAS(open)
 }
 
 // Start triggers the ManualStart event to begin the connection process.

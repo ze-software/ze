@@ -104,8 +104,8 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 
 	// One identity for both sides: a reload changes the capabilities ze offers, never who
 	// the two speakers are, so the identity is a constant of this comparison rather than
-	// something either negotiation derives (sessionPeerAS, peer.go).
-	peerAS := sessionPeerAS(s.settings.PeerAS, !s.settings.DisableASN4, peerOpen)
+	// something either negotiation derives (judgedPeerAS, session_open_as.go).
+	peerAS := s.judgedPeerAS(peerOpen)
 	identity := capability.PeerIdentity{
 		LocalASN: s.settings.LocalAS,
 		PeerASN:  peerAS,
