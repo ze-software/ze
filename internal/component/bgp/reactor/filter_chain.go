@@ -962,8 +962,9 @@ func toPolicyAction(a rpc.FilterAction) (PolicyAction, bool) {
 		return PolicyModify, true
 	case rpc.FilterWithdraw:
 		// A withdraw is a structured member's verdict (policychain); the
-		// text chain carries no withdrawal, so a text-mode filter answering
-		// it fails under its on-error rather than reading as a reject.
+		// text answer carries no withdrawal, so it answers false and the
+		// caller (policyFilterFunc) fails the route closed whatever the
+		// filter's on-error, as for an unspecified action.
 		return PolicyReject, false
 	case rpc.FilterUnspecified:
 		return PolicyReject, false

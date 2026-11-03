@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -27,6 +28,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -346,27 +349,66 @@ func TestRFC8212NativeRSSkipsAbsentExport(t *testing.T) {
 	}
 }
 
+// guardTransport is a filter transport whose one filter, declaring the
+// prefix it reads, answers action and records the destination AS it was
+// sent.
+type guardTransport struct {
+	fieldsTransport
+	action rpc.FilterAction
+	calls  int
+	peerAS []uint32
+}
+
+func (g *guardTransport) CallFilterUpdate(_ context.Context, _ string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
+	input, err := route.Input()
+	if err != nil {
+		return nil, err
+	}
+	g.calls++
+	g.peerAS = append(g.peerAS, input.PeerAS)
+	return &rpc.FilterUpdateOutput{Action: g.action}, nil
+}
+
+// defaultRouteTestWire answers the IPv4 default route with next hop
+// 192.0.2.254 as defaultRouteWire hands it to the condition filter.
+func defaultRouteTestWire(t *testing.T) *wireu.WireUpdate {
+	t.Helper()
+	ub := message.GetUpdateBuilder(65000, false, true, false)
+	defer message.PutUpdateBuilder(ub)
+	update, err := ub.BuildUnicast(&message.UnicastParams{Prefix: netip.MustParsePrefix("0.0.0.0/0"),
+		NextHop: netip.MustParseAddr("192.0.2.254"), Origin: attribute.OriginIGP})
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	sendCtxID, err := bgpctx.Registry.Register(bgpctx.NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001},
+		&capability.EncodingCaps{ASN4: true}, bgpctx.DirectionSend))
+	if err != nil {
+		t.Fatalf("register context: %v", err)
+	}
+	return defaultRouteWire(update, sendCtxID)
+}
+
 // TestRFC8212DefaultOriginateGuard keeps the synthetic condition separate from
-// operator presence, using a real external destination and filter callback.
+// operator presence, using a real external destination and filter callback:
+// the condition's accept still meets the export policy's end, so only a
+// configured final accept lets the default go.
 func TestRFC8212DefaultOriginateGuard(t *testing.T) {
 	for _, final := range []routepolicy.Final{0, routepolicy.FinalAccept, routepolicy.FinalReject} {
-		for _, action := range []PolicyAction{PolicyAccept, PolicyReject} {
+		for _, action := range []rpc.FilterAction{rpc.FilterAccept, rpc.FilterReject} {
 			settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65000, 65001, 1)
 			if final != 0 {
 				settings.ExportPolicy = mustPolicy(t, nil, final)
 			}
 			peer := NewPeer(settings)
-			calls := 0
-			peer.reactor = &Reactor{api: liveFilterServer(t), policyFilterSeam: func(_, _, _, _ string, asn uint32, _ string) PolicyResponse {
-				calls++
-				if asn != 65001 {
-					t.Errorf("guard changed destination AS: %d", asn)
-				}
-				return PolicyResponse{Action: action}
-			}}
-			got := peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), netip.MustParseAddr("192.0.2.254"), nil)
-			if got != (final == routepolicy.FinalAccept && action == PolicyAccept) || calls != 1 {
-				t.Fatalf("final=%d action=%d accepts=%v calls=%d", final, action, got, calls)
+			transport := &guardTransport{fieldsTransport: fieldsTransport{reads: map[string][]string{"guard": {"prefix"}}}, action: action}
+			peer.reactor = &Reactor{api: liveFilterServer(t), filterTransportSeam: transport}
+			got := peer.defaultOriginateFilterAccepts("test:guard", defaultRouteTestWire(t))
+			if got != (final == routepolicy.FinalAccept && action == rpc.FilterAccept) || transport.calls != 1 {
+				t.Fatalf("final=%d action=%d accepts=%v calls=%d", final, action, got, transport.calls)
+			}
+			if transport.peerAS[0] != 65001 {
+				t.Errorf("guard changed destination AS: %d", transport.peerAS[0])
 			}
 		}
 	}
@@ -378,12 +420,13 @@ func TestRFC8212DefaultOriginateGuard(t *testing.T) {
 		settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65000, 65001, 1)
 		settings.ExportPolicy = bindRefs(mustPolicy(t, []routepolicy.Ref{ref}, routepolicy.FinalAccept), ref)
 		peer := NewPeer(settings)
-		peer.reactor = &Reactor{api: liveFilterServer(t), policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-			t.Fatal("synthetic guard hid unsupported export ownership before its callback")
-			return PolicyResponse{Action: PolicyAccept}
-		}}
-		if peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), netip.MustParseAddr("192.0.2.254"), nil) {
+		transport := &guardTransport{fieldsTransport: fieldsTransport{reads: map[string][]string{"guard": {"prefix"}}}, action: rpc.FilterAccept}
+		peer.reactor = &Reactor{api: liveFilterServer(t), filterTransportSeam: transport}
+		if peer.defaultOriginateFilterAccepts("test:guard", defaultRouteTestWire(t)) {
 			t.Fatal("synthetic condition bypassed unsupported export ownership")
+		}
+		if transport.calls != 0 {
+			t.Fatal("synthetic guard hid unsupported export ownership before its callback")
 		}
 	})
 }

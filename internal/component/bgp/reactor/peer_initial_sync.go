@@ -10,16 +10,15 @@ import (
 	"runtime"
 	"slices"
 	"strings"
-	"unsafe"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
@@ -1083,7 +1082,7 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			p.mu.RLock()
 			sendCtxID := p.sendCtxID
 			p.mu.RUnlock()
-			if !p.defaultOriginateFilterAccepts(filterName, fam, defaultPrefix, nextHop, defaultRouteWire(update, sendCtxID)) {
+			if !p.defaultOriginateFilterAccepts(filterName, defaultRouteWire(update, sendCtxID)) {
 				message.PutUpdateBuilder(ub)
 				routesLogger().Debug("default-originate: filter rejected",
 					"peer", addr, "family", familyKey, "filter", filterName)
@@ -1115,19 +1114,25 @@ func (p *Peer) warnDefaultOriginateRefused(familyKey string, prefix netip.Prefix
 		"next-hop", nextHop, "error", err, "suppressed-since-last", suppressed)
 }
 
-// defaultOriginateFilterAccepts runs the named filter as a dry-run against a
-// synthetic default-route update and returns true if the filter accepts.
-// Fail-closed: missing reactor, missing API server, or a malformed filter
-// reference all return false. This matches the existing policy filter chain
-// behavior (filter_chain.go policyFilterFunc) and the principle that an
-// unreachable filter must not silently emit unfiltered routes.
+// defaultOriginateFilterAccepts runs the named filter as the condition of the
+// default route and returns true if the filter accepts it. The filter runs as
+// a one-member library chain over the default route's UPDATE, the chain every
+// export step runs (runLibraryChain), compiled here under the export policy's
+// final, so a filter that accepts still meets the end of the chain the export
+// policy would meet (RFC 8212 Section 3). Fail-closed: missing reactor,
+// missing API server, a malformed filter reference, a chain that does not
+// compile, a member that fails under its on-error, or sets the chain cannot
+// apply all return false, on the principle that an unreachable filter must
+// not silently emit unfiltered routes. The filter's sets gate nothing and
+// change nothing: the emitted default still runs the full export policy.
 //
 // wire is the default route's UPDATE as this peer is sent it
 // (defaultRouteWire), the route the filter's declared fields are read from.
-func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Family, prefix netip.Prefix, nextHop netip.Addr, wire *wireu.WireUpdate) bool {
+func (p *Peer) defaultOriginateFilterAccepts(filterName string, wire *wireu.WireUpdate) bool {
 	// Reject malformed filter ref -- expect "<plugin>:<filter>".
 	// Checked first so operators learn about typos before any transport lookup.
-	if !strings.Contains(filterName, ":") {
+	pluginName, memberName, ok := strings.Cut(filterName, ":")
+	if !ok {
 		routesLogger().Warn("default-originate: invalid filter ref (expected plugin:filter) -- fail-closed",
 			"peer", p.settings.Address.String(), "filter", filterName)
 		return false
@@ -1137,10 +1142,10 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 			"peer", p.settings.Address.String(), "filter", filterName)
 		return false
 	}
-	// A raw filter operates on the received UPDATE's wire bytes, but the
-	// default-originate route is synthetic and has none: the filter would
-	// evaluate empty hex and decide on nothing. Fail-closed so the operator
-	// switches to a text filter rather than shipping a default gated on nothing.
+	// A raw filter operates on the received UPDATE's wire bytes, and the chain
+	// below sends a member none (a nil payload): the filter would evaluate
+	// empty hex and decide on nothing. Fail-closed so the operator binds a
+	// filter that declares the fields it reads.
 	if defaultOriginateRejectsRawFilter(p.reactor.api, filterName, p.settings.Address.String()) {
 		return false
 	}
@@ -1149,6 +1154,7 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 	p.mu.RLock()
 	policy := p.settings.ExportPolicy
 	peerAS := p.settings.PeerAS
+	localAS := p.settings.LocalAS
 	external := p.settings.IsEBGP()
 	// The destination's session facts, as the live export step answers
 	// them (ExportSession): a condition filter reading peer-name or
@@ -1162,23 +1168,43 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 	if policy.RequiresIngress() {
 		return false
 	}
-	var scratchArr [256]byte
-	scratch := appendDefaultOriginateFilterText(scratchArr[:0], fam, prefix, nextHop)
-	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-
+	if wire == nil {
+		routesLogger().Warn("default-originate: no default route UPDATE to judge -- fail-closed",
+			"peer", p.settings.Address.String(), "filter", filterName)
+		return false
+	}
 	// RFC 8212 Section 3.
-	res := PolicyFilterChain(
-		policy.WithFilters([]routepolicy.Ref{{Name: filterName}}),
-		external,
-		"export",
-		p.settings.Address.String(),
-		peerAS,
-		updateText,
-		// The raw body stays unsent: defaultOriginateRejectsRawFilter refused
-		// a raw filter above.
-		p.reactor.policyFilterFunc(wire, nil, policyview.ExportSession(destination, filterapi.PeerFilterInfo{}, false)),
-	)
-	return res.Action != PolicyReject
+	chain, err := defaultOriginateChain(policy, policychain.Member{Name: memberName, Plugin: pluginName})
+	if err != nil {
+		routesLogger().Warn("default-originate: filter chain does not compile -- fail-closed",
+			"peer", p.settings.Address.String(), "filter", filterName, "error", err)
+		return false
+	}
+	// The default route is encoded in this peer's send context (defaultRouteWire).
+	sendCtx := bgpctx.Registry.Get(wire.SourceCtxID())
+	intent := libraryIntentContext{asn4: sendCtx != nil && sendCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: external}
+	// The raw body stays unsent: defaultOriginateRejectsRawFilter refused a
+	// raw filter above.
+	res := p.reactor.runLibraryChain(chain, wire, nil, policyview.ExportSession(destination, filterapi.PeerFilterInfo{}, false),
+		intent, directionExport, modifySiteExportChain, p.settings.Address.String(), nil)
+	if res.outcome.Action != policychain.OutcomeAccept {
+		return false
+	}
+	return !res.failed
+}
+
+// defaultOriginateChain compiles the default route's condition as a chain of
+// the one member under policy's end: its final when the operator configured
+// the export policy, the session's end disposition when not (RFC 8212
+// Section 3, policychain.CompileUnconfigured). The member is a plugin
+// filter, so the chain names no policy instance and needs no registry; it
+// is checked as the export attachment it gates.
+func defaultOriginateChain(policy filterapi.Policy, member policychain.Member) (*policychain.Chain, error) {
+	members := []policychain.Member{member}
+	if !policy.Configured() {
+		return policychain.CompileUnconfigured("bgp export", nil, members, policychain.Bases{})
+	}
+	return policychain.Compile("bgp export", nil, members, policy.Final(), policychain.Bases{})
 }
 
 // defaultRouteWire answers the default route's UPDATE body as a WireUpdate
@@ -1189,28 +1215,6 @@ func defaultRouteWire(update *message.Update, sendCtxID bgpctx.ContextID) *wireu
 	msg := make([]byte, update.Len(nil))
 	n := update.WriteTo(msg, 0, nil)
 	return wireu.NewWireUpdate(msg[message.HeaderLen:n], sendCtxID)
-}
-
-// appendDefaultOriginateFilterText appends the update text a filter sees for a
-// synthetic default route. Its format matches the ingress/egress policy text
-// contract, whose keyword names the UPDATE section
-// (docs/architecture/api/process-protocol.md):
-//
-//	"origin igp next-hop <ip> nlri add <prefix>"         IPv4 unicast, IPv4 next hop
-//	"origin igp next-hop <ip> mp <family> add <prefix>"  every other route
-func appendDefaultOriginateFilterText(dst []byte, fam family.Family, prefix netip.Prefix, nextHop netip.Addr) []byte {
-	dst = append(dst, "origin igp next-hop "...)
-	dst = nextHop.AppendTo(dst)
-	// RFC 4271 Section 4.3 and RFC 8950 Section 3: IPv4 unicast travels in the
-	// NLRI field unless its next hop is IPv6 (inlineIPv4Unicast).
-	if inlineIPv4Unicast(fam, nextHop) {
-		dst = append(dst, " nlri add "...)
-	} else {
-		dst = append(dst, " mp "...)
-		dst = append(dst, fam.String()...)
-		dst = append(dst, " add "...)
-	}
-	return prefix.AppendTo(dst)
 }
 
 // sendEORFamilies answers the families the initial sync sends an End-of-RIB

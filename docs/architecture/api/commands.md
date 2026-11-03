@@ -1763,7 +1763,8 @@ Each verdict of `verdicts`:
 **`peer` and `peer-as` change meaning with the direction, and the callback says
 so only through `direction`.** The import chain passes the sending peer
 (`runIngressPolicyChain`) and the export chain passes the destination
-(`runEgressPolicyChainASN4`), both through `PolicyFilterChain`. A filter that
+(`runEgressPolicyChainASN4`), both through the library chain's external
+member (`runLibraryChain`). A filter that
 reads the ASN as "who sent me this" is wrong on export, where nothing in the
 callback names the sender at all.
 
@@ -1773,6 +1774,7 @@ engine, so a filter is called on whichever chain the operator's config names it
 in. Direction lives on the config attachment point, and a filter that must act on
 one direction only tests `direction` itself.
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChain, runEgressPolicyChainASN4 -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
 <!-- source: internal/component/plugin/server/startup.go -- the one writer of FilterRegistration.Direction -->
 
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate builds the filter-update request -->

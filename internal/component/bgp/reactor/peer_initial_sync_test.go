@@ -469,11 +469,7 @@ func TestDefaultOriginateFilterFailsClosedWithoutReactor(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// No reactor attached -- fail-closed branch.
-	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}
-	prefix := netip.MustParsePrefix("0.0.0.0/0")
-	nh := netip.MustParseAddr("10.0.0.1")
-
-	ok := peer.defaultOriginateFilterAccepts("policy:drop-all", fam, prefix, nh, nil)
+	ok := peer.defaultOriginateFilterAccepts("policy:drop-all", nil)
 	assert.False(t, ok, "missing reactor must fail closed to prevent unfiltered origination")
 }
 
@@ -492,11 +488,7 @@ func TestDefaultOriginateFilterFailsClosedOnMalformedRef(t *testing.T) {
 	r := &Reactor{}
 	peer.SetReactor(r)
 
-	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}
-	prefix := netip.MustParsePrefix("0.0.0.0/0")
-	nh := netip.MustParseAddr("10.0.0.1")
-
-	ok := peer.defaultOriginateFilterAccepts("missing-colon", fam, prefix, nh, nil)
+	ok := peer.defaultOriginateFilterAccepts("missing-colon", nil)
 	assert.False(t, ok, "malformed filter ref must fail closed")
 }
 
@@ -958,37 +950,6 @@ func TestQuiesceWaitsForAPeerStillInItsHandshake(t *testing.T) {
 			"setState publishes are what answer from here on")
 }
 
-// TestDefaultOriginateFilterTextNamesTheSection pins the update text a
-// default-originate filter is handed.
-//
-// VALIDATES: the synthetic default route reaches the filter in the policy text
-// contract: "nlri add <prefix>" for IPv4 unicast with an IPv4 next hop, and
-// "mp <family> add <prefix>" for every other route.
-// PREVENTS: the old "nlri <family> add <prefix>" text, which the filter
-// parsers read as a block whose operation is the family, so a prefix filter
-// failed closed on "add" and an accepted default was never originated.
-func TestDefaultOriginateFilterTextNamesTheSection(t *testing.T) {
-	ipv4 := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}
-	ipv6 := family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}
-	cases := []struct {
-		name    string
-		fam     family.Family
-		prefix  string
-		nextHop string
-		want    string
-	}{
-		{"ipv4 unicast", ipv4, "0.0.0.0/0", "10.0.0.1", "origin igp next-hop 10.0.0.1 nlri add 0.0.0.0/0"},
-		{"ipv6 unicast", ipv6, "::/0", "2001:db8::1", "origin igp next-hop 2001:db8::1 mp ipv6/unicast add ::/0"},
-		{"ipv4 unicast, ipv6 next hop", ipv4, "0.0.0.0/0", "2001:db8::1", "origin igp next-hop 2001:db8::1 mp ipv4/unicast add 0.0.0.0/0"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := appendDefaultOriginateFilterText(nil, tc.fam, netip.MustParsePrefix(tc.prefix), netip.MustParseAddr(tc.nextHop))
-			assert.Equal(t, tc.want, string(got))
-		})
-	}
-}
-
 // TestDefaultOriginateFilterReadsDeclaredFields proves a default-originate
 // filter that declared route fields judges the default route like any other
 // route: it is sent the prefix and next hop of the UPDATE the peer would be
@@ -1015,7 +976,7 @@ func TestDefaultOriginateFilterReadsDeclaredFields(t *testing.T) {
 		t.Fatalf("register context: %v", err)
 	}
 	wire := defaultRouteWire(update, sendCtxID)
-	if !peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, prefix, nextHop, wire) {
+	if !peer.defaultOriginateFilterAccepts("test:guard", wire) {
 		t.Fatalf("the default route was refused; the filter was sent %+v", transport.sent)
 	}
 	if len(transport.sent) != 1 {
@@ -1053,7 +1014,7 @@ func TestDefaultOriginateFilterReadsTheDestinationFacts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register context: %v", err)
 	}
-	peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, prefix, nextHop, defaultRouteWire(update, sendCtxID))
+	peer.defaultOriginateFilterAccepts("test:guard", defaultRouteWire(update, sendCtxID))
 	if len(transport.sent) != 1 {
 		t.Fatalf("the filter was called %d times, want 1", len(transport.sent))
 	}
@@ -1071,11 +1032,9 @@ func (stubLibraryChain) Refused() uint64 { return 0 }
 
 // TestDefaultOriginateConditionRunsBesideALibraryChain proves the named
 // condition filter is called when the peer's export chain carries a library
-// chain. The condition policy is derived from the export policy for its
-// final (Policy.WithFilters keeps the library chain), and PolicyFilterChain
-// runs every active ref it holds without asking ActiveExternal, which a
-// library chain turns false: reading it there would skip the condition and
-// send the default route ungated.
+// chain. The condition borrows only the export policy's end and compiles its
+// own one-member chain (defaultOriginateChain): running the export library in
+// its place would skip the condition and send the default route ungated.
 func TestDefaultOriginateConditionRunsBesideALibraryChain(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65000, 65001, 1)
 	settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept).WithLibrary(stubLibraryChain{})
@@ -1096,7 +1055,7 @@ func TestDefaultOriginateConditionRunsBesideALibraryChain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register context: %v", err)
 	}
-	peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, prefix, nextHop, defaultRouteWire(update, sendCtxID))
+	peer.defaultOriginateFilterAccepts("test:guard", defaultRouteWire(update, sendCtxID))
 	if len(transport.sent) != 1 {
 		t.Fatalf("the condition filter was called %d times, want 1", len(transport.sent))
 	}

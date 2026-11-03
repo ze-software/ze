@@ -31,8 +31,12 @@ func (f *fieldsTransport) FilterInfo(_, filterName string) ([]string, bool) {
 // readvertise rail.
 func (f *fieldsTransport) FilterReadvertise(_, _ string) (readvertise, ok bool) { return false, true }
 
-func (f *fieldsTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {
-	return nil, nil, rpc.OnErrorReject, false
+// FilterDeclaration answers a filter named in reads as declared, reading
+// those fields and setting none, as the library chain's external member
+// asks before it calls the filter.
+func (f *fieldsTransport) FilterDeclaration(_, filterName string) ([]string, []string, rpc.OnErrorPolicy, bool) {
+	reads, ok := f.reads[filterName]
+	return reads, nil, rpc.OnErrorReject, ok
 }
 
 func (f *fieldsTransport) FilterReads(_, filterName string) []string { return f.reads[filterName] }

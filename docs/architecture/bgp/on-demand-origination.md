@@ -25,8 +25,13 @@ error; `InjectRoute` logs that at Warn under `bgp.redistribute`, naming the
 prefix and `ze show bgp peer`, because the route is then not announced.
 An absent EBGP export policy rejects originated routes under RFC 8212 Section 3,
 including before the forwarding snapshot exists. IBGP retains its accepting
-default. A conditional default's named filter uses the destination's policy
-final, and emission still passes through the full export gate.
+default. A conditional default's named filter runs as a one-member library
+chain over the default route's UPDATE, compiled under the destination's policy
+final (or, with no export policy configured, the session's RFC 8212 end), so
+the filter accepting is not enough toward an EBGP peer with no policy; a
+filter that fails under its on-error refuses the default. The filter only
+gates: its sets change nothing, and emission still passes through the full
+export gate.
 <!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- defaultOriginateFilterAccepts -->
 
