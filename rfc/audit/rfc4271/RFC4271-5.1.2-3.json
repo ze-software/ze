@@ -14,8 +14,8 @@
     "internal/component/bgp/wireu/rfc4271_advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "6da7ca3641c9fc13",
     "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "426c0ce0c5265cc6",
     "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "426c0ce0c5265cc6",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "31aab6842e23cf15",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "31aab6842e23cf15"
+    "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "e946324e6211f974",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "e946324e6211f974"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_aspath_empty_test.go::TestForwardPresentEmptyASPath": "3c3e7fbce15f43c3",
