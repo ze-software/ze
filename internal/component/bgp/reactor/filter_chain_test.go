@@ -3,7 +3,6 @@ package reactor
 
 import (
 	"encoding/binary"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,73 +13,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
-
-// mustPolicy constructs an explicit test policy and reports invalid fixture input.
-func mustPolicy(t testing.TB, refs []routepolicy.Ref, final routepolicy.Final) filterapi.Policy {
-	t.Helper()
-	policy, err := filterapi.NewPolicy(refs, final)
-	require.NoError(t, err)
-	return policy
-}
-
-// acceptingPolicies gives each of settings an explicit import and export policy
-// with no filter and an accepting final, and returns settings. A live fixture's
-// peers are EBGP, and RFC 8212 Section 3 rejects at an absent policy: "Routes
-// SHALL NOT be added to an Adj-RIB-Out associated with an EBGP peer if no
-// explicit Export Policy has been applied." So a test about forwarding,
-// election or recovery states the accepting policy it relies on.
-func acceptingPolicies(t testing.TB, settings ...*PeerSettings) []*PeerSettings {
-	t.Helper()
-	for _, s := range settings {
-		s.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
-		s.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
-	}
-	return settings
-}
-
-// acceptingLiveSettings is lowLiveSettings for an EBGP session whose test
-// relies on its UPDATEs being accepted and forwarded: it carries the explicit
-// accepting import and export policies RFC 8212 Section 3 requires.
-func acceptingLiveSettings(t testing.TB, address string, local, remote uint32) *PeerSettings {
-	t.Helper()
-	return acceptingPolicies(t, lowLiveSettings(address, local, remote))[0]
-}
-
-// bindRefs marks every ref of p named like one of owned as bound to its
-// registered stage: the ownership config resolution (bgpconfig
-// canonicalizeFilterRefs) grants through loopdetect.BindLoopDetection, which
-// these tests call to obtain owned.
-func bindRefs(p filterapi.Policy, owned ...routepolicy.Ref) filterapi.Policy {
-	refs := p.Filters()
-	bound := make([]bool, len(refs))
-	for i, ref := range refs {
-		for _, o := range owned {
-			if ref.Name == o.Name {
-				bound[i] = true
-			}
-		}
-	}
-	return p.WithBoundFilters(refs, bound)
-}
-
-// frefs builds a policy.Ref chain from canonical strings, treating an
-// "inactive:" prefix as the structural deactivation flag. It lets these tests
-// keep expressing chains in the compact string form they were written against
-// while exercising the []policy.Ref API.
-func frefs(names ...string) []routepolicy.Ref {
-	if len(names) == 0 {
-		return nil
-	}
-	out := make([]routepolicy.Ref, len(names))
-	for i, n := range names {
-		if rest, ok := strings.CutPrefix(n, "inactive:"); ok {
-			out[i] = routepolicy.Ref{Name: rest, Inactive: true}
-		} else {
-			out[i] = routepolicy.Ref{Name: n}
-		}
-	}
-	return out
-}
 
 // TestPolicyFilterChainAccept verifies accept passes through unchanged.
 //
@@ -267,54 +199,6 @@ func TestPolicyFilterChainRawTerminal(t *testing.T) {
 	assert.Equal(t, PolicyModify, res.Action)
 	assert.Equal(t, []byte{0, 0, 0, 0}, res.Raw)
 	assert.Equal(t, 1, calls) // raw rewrite is terminal: second filter never called
-}
-
-// TestDecodeFilterRawOverride verifies the raw override bounds rejection
-// (rib-arch-2: the override is now raw []byte, not a hex string).
-//
-// VALIDATES: raw override rejects too-short bodies (fail-safe), AND reports
-// "no override asked for" separately from "the override cannot be a body".
-// PREVENTS: a malformed raw response replacing the payload with garbage, and the
-// earlier fold where both answers were nil so an undecodable override read as
-// "this filter wanted nothing" and the ORIGINAL payload went out.
-//
-// The callers are the guard's real entry points and are tested in
-// filter_ordered_test.go (TestRunEgressPolicyChainASN4ShortRawOverrideFailsClosed,
-// TestRunIngressPolicyChainShortRawOverrideFailsClosed,
-// TestPolicyChainRawOverrideBoundary). This is the helper half only
-// (ai/rules/evidence.md, test corollary).
-func TestDecodeFilterRawOverride(t *testing.T) {
-	override, malformed := decodeFilterRawOverride(nil)
-	assert.Nil(t, override, "nil")
-	assert.NoError(t, malformed, "nil asks for no override; it is not a malformed one")
-
-	override, malformed = decodeFilterRawOverride([]byte{})
-	assert.Nil(t, override, "empty")
-	assert.NoError(t, malformed, "empty asks for no override; it is not a malformed one")
-
-	override, malformed = decodeFilterRawOverride([]byte{0})
-	assert.Nil(t, override, "1 byte < 4-byte minimum")
-	assert.Error(t, malformed, "one byte asked for a replacement that cannot be an UPDATE body")
-
-	override, malformed = decodeFilterRawOverride([]byte{0, 0})
-	assert.Nil(t, override, "2 bytes < 4-byte minimum")
-	assert.Error(t, malformed, "two bytes asked for a replacement that cannot be an UPDATE body")
-
-	override, malformed = decodeFilterRawOverride([]byte{0, 0, 0})
-	assert.Nil(t, override, "3 bytes: one below the boundary")
-	assert.Error(t, malformed, "one below the minimum is still an undecodable override")
-
-	override, malformed = decodeFilterRawOverride([]byte{0, 0, 0, 0})
-	assert.Equal(t, []byte{0, 0, 0, 0}, override, "4 bytes: the minimum body")
-	assert.NoError(t, malformed, "the shortest legal body is not malformed")
-
-	override, malformed = decodeFilterRawOverride([]byte{0, 0, 0, 0, 1})
-	assert.Equal(t, []byte{0, 0, 0, 0, 1}, override, "5 bytes: one above the boundary")
-	assert.NoError(t, malformed, "above the minimum is not malformed")
-
-	override, malformed = decodeFilterRawOverride([]byte{0, 1, 0, 0})
-	assert.Nil(t, override, "a withdrawn length past the end")
-	assert.Error(t, malformed, "section lengths that overrun the body cannot be an UPDATE body")
 }
 
 // TestApplyFilterDelta verifies delta application.

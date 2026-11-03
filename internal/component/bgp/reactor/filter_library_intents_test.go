@@ -102,8 +102,12 @@ func runLibraryImport(t *testing.T, body []byte) ingressStepResult {
 
 // TestLibraryNLRIDropMatchesTextSubset proves the NLRI subset intent at UPDATE
 // bytes: a library member dropping one IPv4 and one IPv6 prefix by offset
-// makes the import step answer the same body the text path's prefix-list
-// answer builds, MP_REACH_NLRI included, and the body each case states.
+// makes the import step answer the body each case states, MP_REACH_NLRI
+// included. Each want is the body the text path's prefix-list answer built
+// before the text format was removed (both paths were asserted equal to it),
+// checked by hand against RFC 4271 Section 4.3 and RFC 4760 Section 3: the
+// attribute length and the MP_REACH_NLRI length shrink by the dropped entries,
+// and an MP_REACH_NLRI left with no NLRI is removed whole.
 //
 // PREVENTS: the library path rewriting only the body NLRI and copying
 // MP_REACH_NLRI verbatim (plan/journal/guard-added-to-one-half-of-a-pair.md).
@@ -111,8 +115,7 @@ func TestLibraryNLRIDropMatchesTextSubset(t *testing.T) {
 	tests := []struct {
 		name     string
 		body     string
-		drop     []string // prefixes, for the text path
-		dropCIDR []string // the same prefixes as CIDR bytes, for the member
+		dropCIDR []string // the dropped prefixes as CIDR bytes, for the member
 		want     string
 	}{
 		{
@@ -120,8 +123,7 @@ func TestLibraryNLRIDropMatchesTextSubset(t *testing.T) {
 			body: "0000 003a 40010100 40020602010000FDE9 40030401010101" +
 				" 800E23 0002 01 10 20010db8000000000000000000000001 00 3020010db80001 3020010db80002" +
 				" 180a0001 180a0009",
-			drop:     []string{"2001:db8:1::/48", "10.0.9.0/24"},
-			dropCIDR: []string{"3020010db80001", "180a0009"},
+			dropCIDR: []string{"3020010db80001", "180a0009"}, // 2001:db8:1::/48, 10.0.9.0/24
 			want: "0000 0033 800E1c 0002 01 10 20010db8000000000000000000000001 00 3020010db80002" +
 				" 40010100 40020602010000FDE9 40030401010101 180a0001",
 		},
@@ -129,8 +131,7 @@ func TestLibraryNLRIDropMatchesTextSubset(t *testing.T) {
 			name: "mp-emptied-drops-attribute",
 			body: "0000 0033 40010100 40020602010000FDE9 40030401010101" +
 				" 800E1c 0002 01 10 20010db8000000000000000000000001 00 3020010db80001 180a0001",
-			drop:     []string{"2001:db8:1::/48"},
-			dropCIDR: []string{"3020010db80001"},
+			dropCIDR: []string{"3020010db80001"}, // 2001:db8:1::/48
 			want:     "0000 0014 40010100 40020602010000FDE9 40030401010101 180a0001",
 		},
 	}
@@ -138,10 +139,6 @@ func TestLibraryNLRIDropMatchesTextSubset(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			body := nlriHex(t, tt.body)
 			want := nlriHex(t, tt.want)
-			text := runImportDrop(t, body, tt.drop...)
-			if !text.accept || !bytes.Equal(text.modifiedPayload, want) {
-				t.Fatalf("text path = accept %v body %x, want %x", text.accept, text.modifiedPayload, want)
-			}
 			libraryIntentEval = dropCIDRs(t, tt.dropCIDR...)
 			got := runLibraryImport(t, body)
 			if !got.accept || !bytes.Equal(got.modifiedPayload, want) {
@@ -215,9 +212,13 @@ func TestFamilyStripIntent(t *testing.T) {
 
 // TestLibraryASPathIntentsMatchText proves the AS-path intents at UPDATE
 // bytes on both steps: remove-private strip and a prepend of 2 give the body
-// the text delta's directives give through the same builder, with the path
 // each case states; toward an internal peer on export the AS_PATH is left
-// alone (RFC 4271 Section 5.1.2).
+// alone (RFC 4271 Section 5.1.2). Each want is the body the text delta's
+// "remove-private strip as-path-prepend 2" built through the same builder
+// before the text format was removed (both paths were asserted equal to it),
+// checked by hand: the private ASN leaves the segment, two copies of the
+// local AS join the leading AS_SEQUENCE at the session's ASN width, and the
+// AS_PATH and total attribute lengths grow by the octets that changed.
 func TestLibraryASPathIntentsMatchText(t *testing.T) {
 	r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
 	libraryIntentEval = func(_ *policyview.View, s *policychain.Sets) error {
@@ -226,19 +227,6 @@ func TestLibraryASPathIntentsMatchText(t *testing.T) {
 		}
 		return s.PrependASPath(2)
 	}
-	textBody := func(t *testing.T, received []byte, asn4 bool, localAS, peerAS uint32) []byte {
-		t.Helper()
-		attrs, _ := testWireUpdate(received).Attrs()
-		var mods filterapi.ModAccumulator
-		modAttrs := parseFilterAttrs("remove-private strip as-path-prepend 2")
-		ExtractRemovePrivateASOps(newTestScratch(t), modAttrs, attrs, asn4, peerAS, &mods)
-		ExtractASPathPrependOps(newTestScratch(t), modAttrs, attrs, asn4, localAS, &mods)
-		body, _, fail := buildModifiedPayload(received, &mods, r.attrModHandlers, nil, nil)
-		if fail.failed() {
-			t.Fatalf("text-path build failed")
-		}
-		return body
-	}
 
 	t.Run("import-two-octet", func(t *testing.T) {
 		// AS_PATH AS_SEQUENCE 3 64512 174 at two octets; 64512 is private.
@@ -246,9 +234,6 @@ func TestLibraryASPathIntentsMatchText(t *testing.T) {
 		// AS_SEQUENCE 65000 65000 3 174: the prepend joins the leading
 		// AS_SEQUENCE (RFC 4271 Section 5.1.2 b 1).
 		want := nlriHex(t, "0000 0018 40010100 40020a 0204 fde8 fde8 0003 00ae 40030401010101 180a0001")
-		if text := textBody(t, received, false, 65000, 65001); !bytes.Equal(text, want) {
-			t.Fatalf("text path = %x, want %x", text, want)
-		}
 		got := runLibraryImport(t, received)
 		if !got.accept || !bytes.Equal(got.modifiedPayload, want) {
 			t.Fatalf("library = accept %v body %x, want %x", got.accept, got.modifiedPayload, want)
@@ -264,9 +249,6 @@ func TestLibraryASPathIntentsMatchText(t *testing.T) {
 	t.Run("export-external-four-octet", func(t *testing.T) {
 		// AS_SEQUENCE 65000 65000 3356, one segment.
 		want := nlriHex(t, "0000 001c 40010100 40020e 0203 0000fde8 0000fde8 00000d1c 40030401010101 180a0001")
-		if text := textBody(t, received, true, 65000, 65002); !bytes.Equal(text, want) {
-			t.Fatalf("text path = %x, want %x", text, want)
-		}
 		out := r.runEgressPolicyChainASN4(exportPolicy(t), "10.0.0.5", 65002, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(received), true)
 		if !out.accept || out.wireOverride == nil || !bytes.Equal(out.wireOverride.Payload(), want) {
 			t.Fatalf("export = %+v, want accept with %x", out, want)

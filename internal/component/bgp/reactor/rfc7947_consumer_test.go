@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // lowRSAttributes includes every transparency category, with nonzero ORIGIN
@@ -108,25 +108,26 @@ func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 	for _, p := range []*Peer{f.destination, other} {
 		p.settings.RSClient = true
 		p.settings.NextHopMode = NextHopUnchanged
-		p.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "client-policy"}}, routepolicy.FinalAccept)
+		p.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "client-policy")
 		p.refreshForwardFacts()
 	}
-	// The policy filter call goes through the plugin server; its seam
-	// replaces only the IPC body.
-	f.r.api = &pluginserver.Server{}
 	for round := range 2 {
-		calls := make(map[string]int)
 		acceptedAddr := f.destination.settings.Address.String()
 		if round == 1 {
 			acceptedAddr = other.settings.Address.String()
 		}
-		f.r.policyFilterSeam = func(_, _, _, address string, _ uint32, text string) PolicyResponse {
-			calls[address]++
-			if address == acceptedAddr {
-				return PolicyResponse{Action: PolicyAccept}
-			}
-			return PolicyResponse{Action: PolicyReject}
+		// The client-policy plugin filter answers each client's export chain
+		// run; input.Peer is the destination client the run is for.
+		transport := &answerTransport{
+			reads: []string{rpc.FilterFieldRaw},
+			answer: func(input rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+				if input.Peer == acceptedAddr {
+					return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+				}
+				return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
+			},
 		}
+		f.r.filterTransportSeam = transport
 		prefix := []byte{24, 203, 0, byte(113 + round)}
 		// RFC 4271 Section 3.1: only a previously advertised route is
 		// withdrawn, so both clients first hold the source's route and the
@@ -155,8 +156,8 @@ func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 			if i == 1 {
 				p = other
 			}
-			if calls[p.settings.Address.String()] != 1 {
-				t.Fatalf("policy calls by client = %v", calls)
+			if calls := transport.callsFor(p.settings.Address.String()); calls != 1 {
+				t.Fatalf("policy calls for client %s = %d, want 1", p.settings.Address, calls)
 			}
 			bodies := aigpSocketBodies(t, conn)
 			if i != round {

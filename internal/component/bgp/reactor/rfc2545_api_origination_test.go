@@ -13,13 +13,13 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestAPIBatchRefusesUnusableIPv6NextHop checks the established API batch entry
@@ -186,16 +186,18 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 				attrs := append([]byte{0x80, 0x0e, byte(len(mp))}, mp...)
 				attrs = append(attrs, mustHex(t, "4001010040020602010000fde8")...)
 				body := append([]byte{0, 0, byte(len(attrs) >> 8), byte(len(attrs))}, attrs...)
-				peer.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "origination:replace-next-hop"}}, routepolicy.FinalAccept)
+				peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "replace-next-hop")
 				peer.refreshForwardFacts()
-				r.api = &pluginserver.Server{}
 				var ipv6Policy bool
-				r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-					policyCalls++
-					if !ipv6Policy {
-						return PolicyResponse{Action: PolicyAccept}
-					}
-					return PolicyResponse{Action: PolicyModify, Raw: body}
+				r.filterTransportSeam = &answerTransport{
+					reads: []string{rpc.FilterFieldRaw},
+					answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+						policyCalls++
+						if !ipv6Policy {
+							return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+						}
+						return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: body}
+					},
 				}
 				peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
 					ipv6Policy = payloadNextHop(body).mp == batch.NextHop.Addr
@@ -405,15 +407,17 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 				hop = "00000000000000000000000000000001"
 			}
 			override := mustHex(t, "0000002e800e1e00020110"+hop+"004020010db8000700004001010040020602010000fde8")
-			peer.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "queued:replace-first-next-hop"}}, routepolicy.FinalAccept)
+			peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "replace-first-next-hop")
 			peer.refreshForwardFacts()
-			r.api = &pluginserver.Server{}
 			var ipv6Policy bool
-			r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-				if ipv6Policy {
-					return PolicyResponse{Action: PolicyModify, Raw: override}
-				}
-				return PolicyResponse{Action: PolicyAccept}
+			r.filterTransportSeam = &answerTransport{
+				reads: []string{rpc.FilterFieldRaw},
+				answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+					if ipv6Policy {
+						return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: override}
+					}
+					return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+				},
 			}
 			peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
 				ipv6Policy = payloadNextHop(body).mpFamily == family.IPv6Unicast

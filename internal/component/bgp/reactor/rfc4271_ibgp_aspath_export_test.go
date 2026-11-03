@@ -5,6 +5,7 @@ package reactor
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"net/netip"
 	"testing"
 
@@ -12,32 +13,50 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// aspathEditTransport is the plugin server for the aspath-edit export filter
+// whose answer is delta, as a plugin filter sets the AS_PATH: "as-path-prepend
+// 2" answers the as-path prepend of two local AS copies, and "remove-private
+// strip" the removal of the private AS numbers.
+func aspathEditTransport(t *testing.T, delta string) *answerTransport {
+	t.Helper()
+	var set rpc.FilterSet
+	switch delta {
+	case "as-path-prepend 2":
+		set = rpc.FilterSet{Field: "as-path", Action: rpc.FilterSetActionPrepend, Value: json.RawMessage("2")}
+	case "remove-private strip":
+		set = rpc.FilterSet{Field: "as-path", Action: rpc.FilterSetActionRemove, Value: json.RawMessage(`"private"`)}
+	default:
+		t.Fatalf("the aspath-edit filter has no answer for %q", delta)
+	}
+	return &answerTransport{reads: []string{rpc.FilterFieldRaw}, sets: []string{"as-path"},
+		answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+			return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Sets: []rpc.FilterSet{set}}
+		}}
+}
+
 // exportFilterTo runs the export chain with an operator filter whose answer
-// is the given text delta, toward a destination of the given AS with local AS
-// 65000, and answers the AS_PATH that leaves (the body's own path when the
-// chain produced no override).
+// is the given delta (aspathEditTransport), toward a destination of the given
+// AS with local AS 65000, and answers the AS_PATH that leaves (the body's own
+// path when the chain produced no override).
 func exportFilterTo(t *testing.T, delta string, body []byte, destPeerAS uint32) []uint32 {
 	t.Helper()
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	require.NoError(t, err)
 
 	r := &Reactor{
-		api: &pluginserver.Server{},
-		policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-			return PolicyResponse{Action: PolicyModify, Delta: delta}
-		},
-		attrModHandlers: attrModHandlersWithDefaults(),
+		filterTransportSeam: aspathEditTransport(t, delta),
+		attrModHandlers:     attrModHandlersWithDefaults(),
 	}
-	res := r.runEgressPolicyChainASN4(mustPolicy(t, []routepolicy.Ref{{Name: "aspath-edit"}}, routepolicy.FinalAccept), "10.0.0.30", destPeerAS, 65000, destPeerAS == 65000, policyview.Session{EBGP: destPeerAS != 65000}, wireu.NewWireUpdate(body, ctxID), true)
+	res := r.runEgressPolicyChainASN4(answerPolicyAt(t, libraryIntentExport, routepolicy.FinalAccept, "aspath-edit"), "10.0.0.30", destPeerAS, 65000, destPeerAS == 65000, policyview.Session{EBGP: destPeerAS != 65000}, wireu.NewWireUpdate(body, ctxID), true)
 	require.True(t, res.accept, "the export chain accepts the route")
 
 	payload := body
@@ -105,7 +124,7 @@ func exportThroughSession(t *testing.T, settings *PeerSettings, delta string, bo
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	require.NoError(t, err)
 
-	settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "aspath-edit"}}, routepolicy.FinalAccept)
+	settings.ExportPolicy = answerPolicyAt(t, libraryIntentExport, routepolicy.FinalAccept, "aspath-edit")
 	peer := NewPeer(settings)
 	facts := peer.buildForwardFacts()
 	facts.sendCtxID = ctxID
@@ -113,11 +132,8 @@ func exportThroughSession(t *testing.T, settings *PeerSettings, delta string, bo
 	peer.fwdFacts.Store(facts)
 
 	r := &Reactor{
-		api: &pluginserver.Server{},
-		policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-			return PolicyResponse{Action: PolicyModify, Delta: delta}
-		},
-		attrModHandlers: attrModHandlersWithDefaults(),
+		filterTransportSeam: aspathEditTransport(t, delta),
+		attrModHandlers:     attrModHandlersWithDefaults(),
 	}
 	suppress, override, _ := r.exportFilterForBody(peer, body)
 	require.False(t, suppress, "the export chain accepts the route")
@@ -252,7 +268,7 @@ func forwardWithExportEdit(t *testing.T, delta string) map[netip.Addr][]byte {
 	migration.settings.MigrationAS = 64999
 	external := a2Dest(t, "192.0.2.53", 65053, netip.Addr{}, false)
 	for _, dest := range []*Peer{internal, migration, external} {
-		dest.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "aspath-edit"}}, routepolicy.FinalAccept)
+		dest.settings.ExportPolicy = answerPolicyAt(t, libraryIntentExport, routepolicy.FinalAccept, "aspath-edit")
 		dest.refreshForwardFacts()
 	}
 
@@ -262,10 +278,7 @@ func forwardWithExportEdit(t *testing.T, delta string) map[netip.Addr][]byte {
 	attrs = append(attrs, 0x40, 0x03, 0x04, 192, 0, 2, 254)
 
 	configure := func(r *Reactor, _ *forwardSourceInfo) {
-		r.api = &pluginserver.Server{} // non-nil: past the fail-closed r.api guard
-		r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-			return PolicyResponse{Action: PolicyModify, Delta: delta}
-		}
+		r.filterTransportSeam = aspathEditTransport(t, delta)
 		r.orderedEgressSteps = buildOrderedEgressSteps()
 	}
 	got := a2ForwardWith(t, false, configure, buildUpdatePayload(attrs, a2InlinePrefix), internal, migration, external)

@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestStaticOriginateIPv6NextHopAdmission checks actual static-route delivery and
@@ -192,7 +192,7 @@ func TestStaticOriginateContinuesAfterUnusablePolicyNextHop(t *testing.T) {
 				}
 				routes = append(routes, good)
 				initial.settings.StaticRoutes = routes
-				initial.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "static:replace-first-next-hop"}}, routepolicy.FinalAccept)
+				initial.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "replace-first-next-hop")
 				r := New(&Config{ListenAddr: "127.0.0.1:0", LocalAS: 65000})
 				if err := r.AddPeer(initial.settings); err != nil {
 					t.Fatal(err)
@@ -211,24 +211,26 @@ func TestStaticOriginateContinuesAfterUnusablePolicyNextHop(t *testing.T) {
 				peer.initialSyncEOROwed.Store(true)
 				peer.refreshLinkScopeFrom(nil)
 				peer.refreshForwardFacts()
-				r.api = &pluginserver.Server{}
 				invalid := mustHex(t, "0000002e4001010040020602010000fde8800e1e0002011000000000000000000000000000000001004020010db800070000")
 				var policyHop netip.Addr
 				var policyHops []netip.Addr
 				withdrawing, withdrawalCalls := false, 0
-				r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-					if withdrawing {
-						withdrawalCalls++
-						if phase == "refused-first-withdrawal" && withdrawalCalls == 1 {
-							return PolicyResponse{Action: PolicyModify, Raw: invalid}
+				r.filterTransportSeam = &answerTransport{
+					reads: []string{rpc.FilterFieldRaw},
+					answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+						if withdrawing {
+							withdrawalCalls++
+							if phase == "refused-first-withdrawal" && withdrawalCalls == 1 {
+								return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: invalid}
+							}
+							return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 						}
-						return PolicyResponse{Action: PolicyAccept}
-					}
-					policyHops = append(policyHops, policyHop)
-					if refuse && policyHop == firstHop {
-						return PolicyResponse{Action: PolicyModify, Raw: invalid}
-					}
-					return PolicyResponse{Action: PolicyAccept}
+						policyHops = append(policyHops, policyHop)
+						if refuse && policyHop == firstHop {
+							return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: invalid}
+						}
+						return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+					},
 				}
 				peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
 					hop := payloadNextHop(body)

@@ -13,7 +13,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -106,12 +105,8 @@ func TestOrdinaryIPv6NormalizationPreservesAdmission(t *testing.T) {
 					attrs := append([]byte{0x80, 0x0e, byte(len(mp))}, mp...)
 					attrs = append(attrs, mustHex(t, "4001010040020602010000fde8")...)
 					body := append([]byte{0, 0, byte(len(attrs) >> 8), byte(len(attrs))}, attrs...)
-					r.api = &pluginserver.Server{}
-					policyCalls := 0
-					r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-						policyCalls++
-						return PolicyResponse{Action: PolicyModify, Raw: body}
-					}
+					transport := rawAnswerTransport(body)
+					r.filterTransportSeam = transport
 					batch := bgptypes.NLRIBatch{
 						Family:  family.IPv6Unicast,
 						NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0, false)},
@@ -127,8 +122,8 @@ func TestOrdinaryIPv6NormalizationPreservesAdmission(t *testing.T) {
 					if stats := peer.Stats(); stats.UpdatesSent != 0 || stats.EORSent != 0 || peer.hasAdvertised() {
 						t.Errorf("refused pair earned accounting: updates/EOR=%d/%d advertised=%v", stats.UpdatesSent, stats.EORSent, peer.hasAdvertised())
 					}
-					if policyCalls != 1 {
-						t.Errorf("export policy calls = %d, want 1", policyCalls)
+					if calls := transport.calls(); calls != 1 {
+						t.Errorf("export policy calls = %d, want 1", calls)
 					}
 				})
 			}
@@ -163,7 +158,9 @@ func testOrdinaryIPv6JointSubnet(t *testing.T, source ordinaryJointSource) {
 					r, peer, conn := newOrdinaryJointPeer(t, tc.recipient, source)
 					api := &reactorAPIAdapter{r: r}
 					nextHop := peer.settings.LocalAddress
-					policyCalls := 0
+					// The transport is installed only when the policy pair supplies
+					// the next hop; with no member nothing asks it, so it answers 0.
+					transport := rawAnswerTransport(bytes.Clone(pairWire[19:]))
 					switch source {
 					case ordinaryJointOwnGlobal:
 						// No policy is configured, but the real ordinary egress callback
@@ -172,11 +169,7 @@ func testOrdinaryIPv6JointSubnet(t *testing.T, source ordinaryJointSource) {
 						// The input global is deliberately outside the common subnet.
 						// Only the policy's effective global (S) establishes the pair.
 						nextHop = netip.MustParseAddr("2001:db8:c::1")
-						r.api = &pluginserver.Server{}
-						r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-							policyCalls++
-							return PolicyResponse{Action: PolicyModify, Raw: bytes.Clone(pairWire[19:])}
-						}
+						r.filterTransportSeam = transport
 					case ordinaryJointSourceUnspecified:
 						t.Fatal("ordinary joint source must be specified")
 					default:
@@ -205,9 +198,9 @@ func testOrdinaryIPv6JointSubnet(t *testing.T, source ordinaryJointSource) {
 						if len(conn.written()) != 0 {
 							t.Fatal("announcement or EOR escaped before initial synchronization")
 						}
-						if stats := peer.Stats(); stats.UpdatesSent != 0 || stats.EORSent != 0 || peer.hasAdvertised() || policyCalls != 0 {
+						if stats := peer.Stats(); stats.UpdatesSent != 0 || stats.EORSent != 0 || peer.hasAdvertised() || transport.calls() != 0 {
 							t.Fatalf("queued route ran early: updates/EOR=%d/%d advertised=%v policy=%d",
-								stats.UpdatesSent, stats.EORSent, peer.hasAdvertised(), policyCalls)
+								stats.UpdatesSent, stats.EORSent, peer.hasAdvertised(), transport.calls())
 						}
 						peer.sendInitialRoutes()
 						if len(peer.opQueue) != 0 || peer.sendingInitialRoutes.Load() != 0 || peer.initialSyncEOROwed.Load() {
@@ -254,8 +247,8 @@ func testOrdinaryIPv6JointSubnet(t *testing.T, source ordinaryJointSource) {
 					if source == ordinaryJointPolicyPair {
 						wantPolicyCalls = 1
 					}
-					if policyCalls != wantPolicyCalls {
-						t.Errorf("export policy calls = %d, want %d", policyCalls, wantPolicyCalls)
+					if calls := transport.calls(); calls != wantPolicyCalls {
+						t.Errorf("export policy calls = %d, want %d", calls, wantPolicyCalls)
 					}
 				})
 			}
@@ -283,7 +276,7 @@ func newOrdinaryJointPeer(t *testing.T, recipient netip.Addr, source ordinaryJoi
 	// recipient, so the source without a filter states an accepting one.
 	settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	if source == ordinaryJointPolicyPair {
-		settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "ordinary-joint:replace-next-hop"}}, routepolicy.FinalAccept)
+		settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "replace-next-hop")
 	}
 	r := New(&Config{ListenAddr: "127.0.0.1:0", LocalAS: 65000})
 	if err := r.AddPeer(settings); err != nil {

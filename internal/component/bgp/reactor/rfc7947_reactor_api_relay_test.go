@@ -3,6 +3,7 @@ package reactor
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"net/netip"
 	"sync"
 	"testing"
@@ -351,7 +352,7 @@ func TestRelayStoredRouteTreatsEgressSuppressionAsHandled(t *testing.T) {
 //
 // VALIDATES: `accept == false` out of the ordered egress pass is overloaded --
 // a filter-plugin IPC error under the default fail-closed on-error policy
-// (filter_chain.go policyFilterFunc), an unparseable filter response and a
+// (policychain Chain.failure), an unparseable filter response and a
 // missing API server (filter_ordered.go) all produce it alongside a genuine
 // policy reject. Only the genuine reject may count as suppression.
 // PREVENTS: the exact fail-open this spec exists to close, re-entered through a
@@ -365,9 +366,16 @@ func TestRelayStoredRouteCountsFailedEgressStepAsIncomplete(t *testing.T) {
 	// verdict, a step that COULD NOT RUN, not a step that decided.
 	dst := api.r.peers[netip.MustParseAddrPort("10.0.0.2:179")]
 	require.NotNil(t, dst, "fixture must expose the destination peer")
-	exportAnswer(t, api.r, func(string) PolicyResponse {
-		return PolicyResponse{Action: PolicyReject, Failed: true}
-	}, dst)
+	failing := failingAnswerTransport(errors.New("the export filter timed out"))
+	api.r.filterTransportSeam = failing
+	api.r.orderedEgressSteps = buildOrderedEgressSteps()
+	dst.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "scrub")
+	dst.refreshForwardFacts()
+	t.Cleanup(func() {
+		if failing.calls() == 0 {
+			t.Error("the export filter was never asked, so its failure was not reached")
+		}
+	})
 
 	err := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
 		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
@@ -385,7 +393,7 @@ func TestRelayStoredRouteCountsFailedEgressStepAsIncomplete(t *testing.T) {
 // TestRelayStoredRouteCountsFailedPolicyChainAsIncomplete verifies the OTHER
 // half of the failed-step distinction: the export policy chain.
 //
-// The test above drives a filter that answered Failed. This one drives the
+// The test above drives a filter whose call failed. This one drives the
 // policy chain, whose "could not run" state is an export policy configured while the
 // filter engine (the API server) is absent -- runEgressPolicyChainASN4 calls that
 // a guard MISS, not an accept. Without it, three of the four producers the fix
@@ -404,7 +412,7 @@ func TestRelayStoredRouteCountsFailedPolicyChainAsIncomplete(t *testing.T) {
 	require.Nil(t, api.r.api, "fixture must have no API server for this case")
 	dst := api.r.peers[netip.MustParseAddrPort("10.0.0.2:179")]
 	require.NotNil(t, dst, "fixture must expose the destination peer")
-	dst.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "someplugin:scrub"}}, routepolicy.FinalAccept)
+	dst.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "scrub")
 	dst.refreshForwardFacts()
 
 	api.r.orderedEgressSteps = buildOrderedEgressSteps()

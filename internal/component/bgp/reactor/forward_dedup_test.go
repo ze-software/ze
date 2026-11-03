@@ -339,7 +339,7 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 
 	if opts.withdraw {
 		// Every destination's export filter refuses the route.
-		exportAnswer(t, r, func(string) PolicyResponse { return PolicyResponse{Action: PolicyReject} }, dests...)
+		exportLibraryAnswer(t, r, libraryReject, dests...)
 	}
 
 	h.adapter = &reactorAPIAdapter{r: r}

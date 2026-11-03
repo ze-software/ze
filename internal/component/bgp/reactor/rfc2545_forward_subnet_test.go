@@ -4,12 +4,10 @@ package reactor
 import (
 	"bytes"
 	"net/netip"
-	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -838,15 +836,16 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 								overrideAttrs = append(overrideAttrs, f.source.Settings().Address.AsSlice()...)
 							}
 							override := buildUpdatePayload(overrideAttrs, legacy)
-							f.r.api = &pluginserver.Server{}
-							f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, text string) PolicyResponse {
-								if strings.Contains(text, "ipv6/unicast") {
-									policyCalls++
-									return PolicyResponse{Action: PolicyModify, Raw: override}
+							// The library chain calls the filter once for the whole
+							// UPDATE; it rewrites only when the IPv6 route is there.
+							f.r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw, "prefix"}, answer: func(input rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+								policyCalls++
+								if answerFieldsContain(input, "2001:db8:7::/64") {
+									return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: override}
 								}
-								return PolicyResponse{Action: PolicyAccept}
-							}
-							f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "ipv6:raw-next-hop"}}, routepolicy.FinalAccept)
+								return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+							}}
+							f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "raw-next-hop")
 							// Publish the policy without replacing this fixture's
 							// explicit connected-prefix scope with host interfaces.
 							f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
@@ -1012,7 +1011,7 @@ func TestSRPolicyNextHopWireFamily(t *testing.T) {
 				f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 				hop := netip.MustParseAddr(tc.received).AsSlice()
 				wantHop := hop
-				policyCalls := 0
+				var nextHopFilter *answerTransport
 				// RFC 9830 Sections 2.1 and 4.2.1: 192-bit policy key,
 				// IPv4-format Route Target, and SR Policy Tunnel Type 15.
 				raw := mustHex(t, "c0000000070000002a20010db8000000000000000000000001")
@@ -1033,12 +1032,9 @@ func TestSRPolicyNextHopWireFamily(t *testing.T) {
 					// hop: a plugin filter expresses an MP next-hop rewrite only as
 					// a raw body, so it answers the body carrying that field itself.
 					override := buildUpdatePayload(mixedAttrs(mixedReach(73, wantHop, raw), rt, tunnelAttr), nil)
-					f.r.api = &pluginserver.Server{}
-					f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-						policyCalls++
-						return PolicyResponse{Action: PolicyModify, Raw: override}
-					}
-					f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "srpolicy:next-hop"}}, routepolicy.FinalAccept)
+					nextHopFilter = rawAnswerTransport(override)
+					f.r.filterTransportSeam = nextHopFilter
+					f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "next-hop")
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 					f.r.orderedEgressSteps = buildOrderedEgressSteps()
 					if rail == "rs" {
@@ -1049,7 +1045,7 @@ func TestSRPolicyNextHopWireFamily(t *testing.T) {
 				if len(updates) != 1 {
 					t.Fatalf("recipient UPDATE count=%d, want one native SR Policy decision", len(updates))
 				}
-				if tc.replacement != "" && policyCalls == 0 {
+				if tc.replacement != "" && nextHopFilter.calls() == 0 {
 					t.Fatal("next-hop replacement policy never ran")
 				}
 				update := updates[0]

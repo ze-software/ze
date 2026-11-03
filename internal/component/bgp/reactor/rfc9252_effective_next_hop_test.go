@@ -8,7 +8,6 @@ import (
 	"slices"
 	"testing"
 
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -236,7 +235,8 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 		attrs = append(attrs, sid...)
 		return buildUpdatePayload(attrs, legacy)
 	}
-	policyCalls := 0
+	// Without a policy no transport is installed, so nothing asks it.
+	transport := &answerTransport{}
 	dispatch := rail
 	if tc.policy {
 		policyHop := field(original)
@@ -250,12 +250,9 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 		// next-hop field itself: a plugin filter expresses a next-hop
 		// rewrite only that way.
 		override := bodyFor(policyHop)
-		f.r.api = &pluginserver.Server{}
-		f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-			policyCalls++
-			return PolicyResponse{Action: PolicyModify, Raw: override}
-		}
-		f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "srv6:effective-next-hop"}}, routepolicy.FinalAccept)
+		transport = rawAnswerTransport(override)
+		f.r.filterTransportSeam = transport
+		f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "effective-next-hop")
 		f.r.orderedEgressSteps = buildOrderedEgressSteps()
 		if rail == "rs" {
 			dispatch = "rs-export"
@@ -273,7 +270,7 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 	if tc.policy {
 		wantCalls = 1
 	}
-	if policyCalls != wantCalls {
+	if policyCalls := transport.calls(); policyCalls != wantCalls {
 		t.Errorf("policy calls=%d, want %d", policyCalls, wantCalls)
 	}
 	if len(updates) != 1 {
@@ -342,7 +339,7 @@ func rfc9252MixedNextHopCase(t *testing.T, rail, change string, rawPolicy bool, 
 	if mpChanged {
 		mpHop = netip.MustParseAddr("2001:db8:1::10").AsSlice()
 	}
-	calls := 0
+	var transport *answerTransport
 	dispatch := rail
 	{
 		// The destination's export filter answers a raw body carrying both
@@ -358,12 +355,9 @@ func rfc9252MixedNextHopCase(t *testing.T, rail, change string, rawPolicy bool, 
 			f.destination.settings.NextHopAddress = netip.AddrFrom16([16]byte(mpHop))
 		}
 		override := bodyFor(legacyHop, policyHop)
-		f.r.api = &pluginserver.Server{}
-		f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-			calls++
-			return PolicyResponse{Action: PolicyModify, Raw: override}
-		}
-		f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "srv6:mixed-next-hop"}}, routepolicy.FinalAccept)
+		transport = rawAnswerTransport(override)
+		f.r.filterTransportSeam = transport
+		f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "mixed-next-hop")
 		f.r.orderedEgressSteps = buildOrderedEgressSteps()
 		if rail == "rs" {
 			dispatch = "rs-export"
@@ -373,7 +367,7 @@ func rfc9252MixedNextHopCase(t *testing.T, rail, change string, rawPolicy bool, 
 	// RFC 9252 Section 2 and RFC 8669 Section 3: one policy decision,
 	// actual Session output, one native and one legacy announcement.
 	updates := rfc2545ReceiveForward(t, f, dispatch, received)
-	if calls != 1 {
+	if calls := transport.calls(); calls != 1 {
 		t.Errorf("policy calls=%d, want one for the mixed received UPDATE", calls)
 	}
 	if len(updates) != 2 {

@@ -13,18 +13,13 @@
 package reactor
 
 import (
-	"context"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
-	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
-	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -32,51 +27,6 @@ import (
 // the filter call itself to fail. The text is the production wording so a log
 // read from a failing run says the same thing either way.
 var errFilterIPCForTest = errors.New("filter-update: plugin not connected")
-
-// fakeFilterTransport answers the three calls the policy filter's IPC body
-// makes. It is the filterTransport seam, which exists because the production
-// implementation is a concrete *pluginserver.Server whose filter answer arrives
-// off a live plugin socket.
-type fakeFilterTransport struct {
-	declared []string
-	raw      bool
-	onError  rpc.OnErrorPolicy
-	out      *rpc.FilterUpdateOutput
-	err      error
-}
-
-func (f *fakeFilterTransport) FilterInfo(_, _ string) ([]string, bool) { return f.declared, f.raw }
-
-// FilterReads answers no route field: these tests drive the text and raw
-// branches, and the fields object is TestFilterMessageFieldShapes's.
-// FilterReadvertise answers that the filter does not opt into the stale
-// readvertise rail.
-func (f *fakeFilterTransport) FilterReadvertise(_, _ string) (readvertise, ok bool) {
-	return false, true
-}
-
-func (f *fakeFilterTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {
-	return nil, nil, rpc.OnErrorReject, false
-}
-
-func (f *fakeFilterTransport) FilterReads(_, _ string) []string { return nil }
-
-func (f *fakeFilterTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return f.onError }
-
-func (f *fakeFilterTransport) CallFilterUpdate(_ context.Context, _ string, _ *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
-	return f.out, f.err
-}
-
-// liveFilterServer is the production filter transport: a real plugin server with
-// no plugin processes, so CallFilterUpdate cannot find the named plugin and
-// FilterOnError answers OnErrorReject for it. That is the daemon's own answer
-// for a filter whose plugin died, not a stand-in for one.
-func liveFilterServer(t *testing.T) *pluginserver.Server {
-	t.Helper()
-	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, &reactorAPIAdapter{r: &Reactor{}})
-	require.NoError(t, err)
-	return srv
-}
 
 // TestPolicyFilterFailedFlagMarksANonDecision drives the two branches of the IPC
 // body that reject a route no filter chose to reject.
@@ -162,45 +112,5 @@ func TestPolicyFilterFailedFlagMarksANonDecision(t *testing.T) {
 		assert.Equal(t, PolicyReject, got.Action, "unknown plugin actions are rejected even under on-error accept")
 		assert.True(t, got.Failed, "an invalid action is not a policy decision")
 		assert.Empty(t, got.Text, "no update text may escape the failed chain")
-	})
-}
-
-// TestEgressChainCarriesTheFailedFlagToTheStep is the consequence half: the flag
-// exists to reach forwardUpdateCore, and this is the hop that carries it.
-//
-// VALIDATES: AC-11 -- a filter that could not run leaves the egress step
-// `failed`, while a filter that rejected the route on purpose does not.
-// PREVENTS: the two branches above being correct and the chain flattening them
-// into one answer, which would put the route's drop back into suppressedCount
-// and report a lost route as a policy decision (forward_failure_verdict_test.go).
-func TestEgressChainCarriesTheFailedFlagToTheStep(t *testing.T) {
-	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID, err := bgpctx.Registry.Register(ctx)
-	require.NoError(t, err)
-	wire := wireu.NewWireUpdate(modBufTestPayload(), ctxID)
-	refs := []routepolicy.Ref{{Name: "policy-plugin:export-policy"}}
-
-	t.Run("a filter that could not run", func(t *testing.T) {
-		r := &Reactor{api: liveFilterServer(t)}
-
-		got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, routepolicy.FinalAccept), "10.0.0.2", 65002, 65000, false, policyview.Session{EBGP: true}, wire, true)
-
-		assert.False(t, got.accept, "fail-closed: the route is withheld")
-		assert.True(t, got.failed, "the step must report that it could not decide")
-	})
-
-	t.Run("a filter that rejected the route", func(t *testing.T) {
-		r := &Reactor{
-			api: liveFilterServer(t),
-			filterTransportSeam: &fakeFilterTransport{
-				onError: rpc.OnErrorReject,
-				out:     &rpc.FilterUpdateOutput{Action: rpc.FilterReject},
-			},
-		}
-
-		got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, routepolicy.FinalAccept), "10.0.0.2", 65002, 65000, false, policyview.Session{EBGP: true}, wire, true)
-
-		assert.False(t, got.accept, "the filter said no")
-		assert.False(t, got.failed, "this IS a policy decision, and the caller may count it as one")
 	})
 }

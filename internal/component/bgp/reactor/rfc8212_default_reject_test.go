@@ -435,12 +435,16 @@ func TestRFC8212DefaultOriginateGuard(t *testing.T) {
 // even with explicit policy or a single-filter override.
 func TestRFC8212UnknownDryRunNeverExecutes(t *testing.T) {
 	addr := netip.MustParseAddr("192.0.2.2")
-	policy := mustPolicy(t, frefs("test:guard"), routepolicy.FinalAccept)
+	policy := answerPolicy(t, routepolicy.FinalAccept, "guard")
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, IsDynamic: true, ImportPolicy: policy, ExportPolicy: policy})
-	r := &Reactor{peers: map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer}, policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
-		t.Fatal("unresolved session called a filter")
-		return PolicyResponse{Action: PolicyReject, Failed: true}
-	}}
+	guardTransport := &answerTransport{
+		reads: []string{rpc.FilterFieldRaw},
+		answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+			t.Error("unresolved session called a filter")
+			return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
+		},
+	}
+	r := &Reactor{peers: map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer}, filterTransportSeam: guardTransport}
 	api := &reactorAPIAdapter{r: r}
 	for _, direction := range []string{directionImport, directionExport} {
 		for _, override := range []string{"", "guard"} {
@@ -452,6 +456,9 @@ func TestRFC8212UnknownDryRunNeverExecutes(t *testing.T) {
 				t.Fatalf("unknown session fabricated a result: %+v", got)
 			}
 		}
+	}
+	if calls := guardTransport.calls(); calls != 0 {
+		t.Fatalf("unresolved session made %d filter calls, want 0", calls)
 	}
 }
 

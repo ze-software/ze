@@ -4,12 +4,11 @@ package reactor
 import (
 	"bytes"
 	"net/netip"
-	"strings"
 	"testing"
 
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestRFC2545ForwardPolicyOwnGlobalJointSubnet reads actual recipient UPDATEs
@@ -58,15 +57,17 @@ func TestRFC2545ForwardPolicyOwnGlobalJointSubnet(t *testing.T) {
 					policyCalls := 0
 					dispatch := rail
 					override := bodyFor(ownGlobal.AsSlice())
-					f.r.api = &pluginserver.Server{}
-					f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, text string) PolicyResponse {
-						if strings.Contains(text, "ipv6/unicast") {
-							policyCalls++
-							return PolicyResponse{Action: PolicyModify, Raw: override}
+					// The library chain calls the filter once for the whole
+					// UPDATE, so every call is counted: exactly one still
+					// catches a writer that runs export policy again.
+					f.r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw, "prefix"}, answer: func(input rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+						policyCalls++
+						if answerFieldsContain(input, "2001:db8:7::/64") {
+							return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: override}
 						}
-						return PolicyResponse{Action: PolicyAccept}
-					}
-					f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "ipv6:own-global"}}, routepolicy.FinalAccept)
+						return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+					}}
+					f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "own-global")
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 					f.r.orderedEgressSteps = buildOrderedEgressSteps()
 					if rail == "rs" {

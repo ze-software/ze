@@ -197,14 +197,14 @@ func teForwardedAttrs(t *testing.T, body []byte, rebuild bool, expectedTunnel ..
 		recentUpdates:   cache,
 		attrModHandlers: attrModHandlersWithDefaults(),
 	}
-	var edit PolicyResponse
+	var edit rpc.FilterUpdateOutput
 	if rebuild {
 		// The destination's export filter sets MED 50 on the body it is
 		// offered: the cached, receive-sanitized UPDATE (RFC 9012 Section 13).
 		// edit is written below, after receive and before ForwardUpdate hands
 		// the route to the forward worker, so the write is ordered before the
 		// seam reads it.
-		exportAnswer(t, r, func(string) PolicyResponse { return edit }, destination)
+		exportLibraryAnswer(t, r, func(string) rpc.FilterUpdateOutput { return edit }, destination)
 	}
 	r.fwdPool = newFwdPool(fwdBatchHandler, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: destination.Settings().PeerKey()}, 4096)
@@ -224,7 +224,7 @@ func teForwardedAttrs(t *testing.T, body []byte, rebuild bool, expectedTunnel ..
 	if rebuild {
 		cached, ok := r.recentUpdates.Get(id)
 		require.True(t, ok, "the received route must be cached before export")
-		edit = rawEdit(t, r, cached.WireUpdate.Payload(), func(mods *filterapi.ModAccumulator) {
+		edit = rawLibraryEdit(t, r, cached.WireUpdate.Payload(), func(mods *filterapi.ModAccumulator) {
 			mods.Op(uint8(attribute.AttrMED), filterapi.AttrModSet, []byte{0, 0, 0, 50})
 		})
 	}

@@ -5,13 +5,17 @@ package reactor
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // planOutcome records what one handler's plan resolved to.
@@ -514,4 +518,403 @@ func TestApplyNextHopModIPv6LinkLocalNoAlloc(t *testing.T) {
 		applyNextHopMod(dest, &mods)
 	})
 	assert.Equal(t, 0.0, allocs, "next-hop value construction should not allocate")
+}
+
+// The tests below moved here from filter_delta_test.go, which is deleted with
+// the text format: the handlers they drive outlive it, because the library
+// chain's folded sets reach the wire through the same ModAccumulator.
+
+// TestGenericAttrSetHandler verifies the generic handler writes correct wire bytes.
+//
+// VALIDATES: Generic handler produces valid attribute (header + value) from AttrModSet op.
+// PREVENTS: Handler producing malformed wire bytes.
+func TestGenericAttrSetHandler(t *testing.T) {
+	handler := genericAttrSetHandler(0x40, byte(attribute.AttrLocalPref))
+	code := byte(attribute.AttrLocalPref)
+
+	// Set op: new value = 300.
+	newVal := make([]byte, 4)
+	binary.BigEndian.PutUint32(newVal, 300)
+	ops := []filterapi.AttrOp{{
+		Code:   byte(attribute.AttrLocalPref),
+		Action: filterapi.AttrModSet,
+		Buf:    newVal,
+	}}
+
+	t.Run("replace existing attribute", func(t *testing.T) {
+		// Source: LOCAL_PREF=100.
+		oldVal := make([]byte, 4)
+		binary.BigEndian.PutUint32(oldVal, 100)
+		src := makeAttr(0x40, byte(attribute.AttrLocalPref), oldVal)
+
+		out, ok := planHandlerBytes(handler, code, src, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7, "header(3) + value(4)")
+		assert.Equal(t, byte(0x40), out[0], "flags")
+		assert.Equal(t, byte(attribute.AttrLocalPref), out[1], "code")
+		assert.Equal(t, byte(4), out[2], "length")
+		assert.Equal(t, uint32(300), binary.BigEndian.Uint32(out[3:7]))
+	})
+
+	t.Run("add new attribute (no source)", func(t *testing.T) {
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7)
+		assert.Equal(t, byte(0x40), out[0])
+		assert.Equal(t, byte(attribute.AttrLocalPref), out[1])
+		assert.Equal(t, uint32(300), binary.BigEndian.Uint32(out[3:7]))
+	})
+
+	t.Run("no set op copies source", func(t *testing.T) {
+		oldVal := make([]byte, 4)
+		binary.BigEndian.PutUint32(oldVal, 100)
+		src := makeAttr(0x40, byte(attribute.AttrLocalPref), oldVal)
+
+		noOps := []filterapi.AttrOp{{
+			Code:   byte(attribute.AttrLocalPref),
+			Action: filterapi.AttrModAdd, // Not Set.
+			Buf:    newVal,
+		}}
+		out, ok := planHandlerBytes(handler, code, src, noOps)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, len(src))
+		assert.Equal(t, src, out, "should copy source unchanged")
+	})
+}
+
+// TestOriginatorIDHandler verifies ORIGINATOR_ID set-if-absent semantics (RFC 4456).
+//
+// VALIDATES: AC-1 (ORIGINATOR_ID added on reflection), AC-5 (existing ORIGINATOR_ID preserved).
+// PREVENTS: Overwriting existing ORIGINATOR_ID or failing to set when absent.
+func TestOriginatorIDHandler(t *testing.T) {
+	handler := originatorIDHandler()
+	code := byte(attribute.AttrOriginatorID)
+
+	t.Run("set when absent", func(t *testing.T) {
+		ops := []filterapi.AttrOp{{
+			Code:   byte(attribute.AttrOriginatorID),
+			Action: filterapi.AttrModSet,
+			Buf:    []byte{10, 0, 0, 1}, // 10.0.0.1
+		}}
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7) // flags(1) + code(1) + len(1) + value(4)
+		assert.Equal(t, byte(0x80), out[0], "flags: optional non-transitive")
+		assert.Equal(t, byte(attribute.AttrOriginatorID), out[1])
+		assert.Equal(t, byte(4), out[2])
+		assert.Equal(t, []byte{10, 0, 0, 1}, out[3:7])
+	})
+
+	t.Run("preserve existing", func(t *testing.T) {
+		// Source has ORIGINATOR_ID = 192.168.1.1
+		src := []byte{0x80, byte(attribute.AttrOriginatorID), 4, 192, 168, 1, 1}
+		ops := []filterapi.AttrOp{{
+			Code:   byte(attribute.AttrOriginatorID),
+			Action: filterapi.AttrModSet,
+			Buf:    []byte{10, 0, 0, 1}, // Would set to 10.0.0.1, but should be ignored
+		}}
+		out, ok := planHandlerBytes(handler, code, src, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7)
+		assert.Equal(t, src, out, "existing ORIGINATOR_ID preserved")
+	})
+
+	t.Run("no ops copies source", func(t *testing.T) {
+		src := []byte{0x80, byte(attribute.AttrOriginatorID), 4, 1, 2, 3, 4}
+		out, ok := planHandlerBytes(handler, code, src, nil)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7)
+		assert.Equal(t, src, out)
+	})
+}
+
+// TestClusterListHandler verifies CLUSTER_LIST prepend semantics (RFC 4456).
+//
+// VALIDATES: AC-1 (CLUSTER_LIST prepended on reflection).
+// PREVENTS: Cluster-id appended instead of prepended, or existing list lost.
+func TestClusterListHandler(t *testing.T) {
+	handler := clusterListHandler()
+	code := byte(attribute.AttrClusterList)
+
+	t.Run("prepend to empty", func(t *testing.T) {
+		ops := []filterapi.AttrOp{{
+			Code:   byte(attribute.AttrClusterList),
+			Action: filterapi.AttrModPrepend,
+			Buf:    []byte{1, 1, 1, 1}, // cluster-id 1.1.1.1
+		}}
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7) // flags(1) + code(1) + len(1) + value(4)
+		assert.Equal(t, byte(0x80), out[0])
+		assert.Equal(t, byte(attribute.AttrClusterList), out[1])
+		assert.Equal(t, byte(4), out[2])
+		assert.Equal(t, []byte{1, 1, 1, 1}, out[3:7])
+	})
+
+	t.Run("prepend to existing", func(t *testing.T) {
+		// Source: CLUSTER_LIST = [2.2.2.2]
+		src := []byte{0x80, byte(attribute.AttrClusterList), 4, 2, 2, 2, 2}
+		ops := []filterapi.AttrOp{{
+			Code:   byte(attribute.AttrClusterList),
+			Action: filterapi.AttrModPrepend,
+			Buf:    []byte{1, 1, 1, 1}, // prepend 1.1.1.1
+		}}
+		out, ok := planHandlerBytes(handler, code, src, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 11) // flags(1) + code(1) + len(1) + 4 + 4
+		assert.Equal(t, byte(0x80), out[0])
+		assert.Equal(t, byte(attribute.AttrClusterList), out[1])
+		assert.Equal(t, byte(8), out[2])               // 4 + 4 = 8 bytes
+		assert.Equal(t, []byte{1, 1, 1, 1}, out[3:7])  // prepended first
+		assert.Equal(t, []byte{2, 2, 2, 2}, out[7:11]) // existing second
+	})
+
+	t.Run("no ops copies source", func(t *testing.T) {
+		src := []byte{0x80, byte(attribute.AttrClusterList), 4, 3, 3, 3, 3}
+		out, ok := planHandlerBytes(handler, code, src, nil)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7)
+		assert.Equal(t, src, out)
+	})
+}
+
+// TestGenericAttrSetHandler_Suppress verifies AttrModSuppress removes the attribute.
+//
+// VALIDATES: Send-community control (suppress community types from outbound UPDATEs).
+// PREVENTS: Suppressed attributes still present in wire output.
+func TestGenericAttrSetHandler_Suppress(t *testing.T) {
+	handler := genericAttrSetHandler(0xC0, 8) // COMMUNITIES
+
+	// A suppressed attribute is a DROP, never a refusal: the attribute leaves the
+	// UPDATE while the route is still forwarded. A refusal would suppress the whole
+	// route, so the outcome kind is asserted here rather than only "no bytes".
+	t.Run("suppress removes attribute", func(t *testing.T) {
+		src := []byte{0xC0, 8, 4, 0xFF, 0xFE, 0x00, 0x64} // community 65534:100
+		ops := []filterapi.AttrOp{{
+			Code:   8,
+			Action: filterapi.AttrModSuppress,
+		}}
+		res := planHandler(handler, 8, src, ops)
+		assert.Empty(t, res.out, "suppress should write nothing")
+		assert.True(t, res.dropped, "suppress drops the attribute, it does not refuse the route")
+	})
+
+	t.Run("suppress wins over set", func(t *testing.T) {
+		src := []byte{0xC0, 8, 4, 0xFF, 0xFE, 0x00, 0x64}
+		ops := []filterapi.AttrOp{
+			{Code: 8, Action: filterapi.AttrModSet, Buf: []byte{0x00, 0x01, 0x00, 0x02}},
+			{Code: 8, Action: filterapi.AttrModSuppress}, // last wins
+		}
+		res := planHandler(handler, 8, src, ops)
+		assert.Empty(t, res.out, "suppress after set should suppress")
+		assert.True(t, res.dropped, "suppress drops the attribute, it does not refuse the route")
+	})
+
+	t.Run("set wins over suppress when last", func(t *testing.T) {
+		src := []byte{0xC0, 8, 4, 0xFF, 0xFE, 0x00, 0x64}
+		ops := []filterapi.AttrOp{
+			{Code: 8, Action: filterapi.AttrModSuppress},
+			{Code: 8, Action: filterapi.AttrModSet, Buf: []byte{0x00, 0x01, 0x00, 0x02}}, // last wins
+		}
+		out, ok := planHandlerBytes(handler, 8, src, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		assert.Len(t, out, 7, "set after suppress should write attribute")
+	})
+}
+
+// TestApplySendCommunityFilter verifies send-community control logic.
+//
+// VALIDATES: AC-1 (standard only), AC-2 (none), AC-3 (all default), AC-4 (standard+large).
+// PREVENTS: Wrong community types suppressed or kept.
+func TestApplySendCommunityFilter(t *testing.T) {
+	tests := []struct {
+		name           string
+		send           []string
+		wantSuppress8  bool // standard communities
+		wantSuppress16 bool // extended communities
+		wantSuppress32 bool // large communities
+	}{
+		{"nil (default all)", nil, false, false, false},
+		{"empty (default all)", []string{}, false, false, false},
+		{"all", []string{"all"}, false, false, false},
+		{"none", []string{"none"}, true, true, true},
+		{"standard only", []string{"standard"}, false, true, true},
+		{"large only", []string{"large"}, true, true, false},
+		{"standard+large", []string{"standard", "large"}, false, true, false},
+		{"standard+extended+large", []string{"standard", "extended", "large"}, false, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var mods filterapi.ModAccumulator
+			ps := &PeerSettings{SendCommunity: tt.send}
+			applySendCommunityFilter(ps, &mods)
+
+			hasSuppressFor := func(code uint8) bool {
+				for _, op := range mods.Ops() {
+					if op.Code == code && op.Action == filterapi.AttrModSuppress {
+						return true
+					}
+				}
+				return false
+			}
+
+			assert.Equal(t, tt.wantSuppress8, hasSuppressFor(8), "standard community suppress")
+			assert.Equal(t, tt.wantSuppress16, hasSuppressFor(16), "extended community suppress")
+			assert.Equal(t, tt.wantSuppress32, hasSuppressFor(32), "large community suppress")
+		})
+	}
+}
+
+// TestAspathHandler verifies AS_PATH handler supports both Set and Prepend.
+//
+// VALIDATES: Prepend joins the leading AS_SEQUENCE of the existing AS_PATH
+// (RFC 4271 Section 5.1.2 b 1); TestAspathHandlerPrependJoinsLeadingSequence
+// covers AS_SET, empty, overflow and two prepends.
+// PREVENTS: Prepend clobbering existing path or wrong segment format.
+func TestAspathHandler(t *testing.T) {
+	handler := aspathHandler()
+	code := byte(attribute.AttrASPath)
+
+	t.Run("prepend_to_existing", func(t *testing.T) {
+		// Source: AS_PATH = AS_SEQUENCE [65002]
+		srcVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xEA} // 65002
+		src := makeAttr(0x40, byte(attribute.AttrASPath), srcVal)
+
+		// Prepend: AS_SEQUENCE [65000]
+		prependVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE8} // 65000
+		ops := []filterapi.AttrOp{{
+			Code:   byte(attribute.AttrASPath),
+			Action: filterapi.AttrModPrepend,
+			Buf:    prependVal,
+		}}
+
+		out, ok := planHandlerBytes(handler, code, src, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		// Header(3) + one AS_SEQUENCE header(2) + two AS numbers(8) = 13
+		require.Len(t, out, 13)
+		assert.Equal(t, byte(0x40), out[0])
+		assert.Equal(t, byte(attribute.AttrASPath), out[1])
+		assert.Equal(t, byte(10), out[2]) // value length
+		// One AS_SEQUENCE: the prepended AS first, then the existing one.
+		assert.Equal(t, []byte{byte(attribute.ASSequence), 2, 0, 0, 0xFD, 0xE8, 0, 0, 0xFD, 0xEA}, out[3:13])
+	})
+
+	t.Run("prepend_to_empty", func(t *testing.T) {
+		prependVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE8}
+		ops := []filterapi.AttrOp{{
+			Code:   byte(attribute.AttrASPath),
+			Action: filterapi.AttrModPrepend,
+			Buf:    prependVal,
+		}}
+
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 9) // Header(3) + prepend(6)
+		assert.Equal(t, byte(6), out[2])
+		assert.Equal(t, prependVal, out[3:9])
+	})
+
+	t.Run("set_delegates_to_generic", func(t *testing.T) {
+		newVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE9}
+		ops := []filterapi.AttrOp{{
+			Code:   byte(attribute.AttrASPath),
+			Action: filterapi.AttrModSet,
+			Buf:    newVal,
+		}}
+
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 9)
+		assert.Equal(t, newVal, out[3:9])
+	})
+
+	t.Run("set_and_prepend", func(t *testing.T) {
+		setVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xEA}     // 65002
+		prependVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE8} // 65000
+		ops := []filterapi.AttrOp{
+			{Code: byte(attribute.AttrASPath), Action: filterapi.AttrModSet, Buf: setVal},
+			{Code: byte(attribute.AttrASPath), Action: filterapi.AttrModPrepend, Buf: prependVal},
+		}
+
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 13)
+		assert.Equal(t, byte(10), out[2])
+		// The prepend joins the Set value's leading AS_SEQUENCE.
+		assert.Equal(t, []byte{byte(attribute.ASSequence), 2, 0, 0, 0xFD, 0xE8, 0, 0, 0xFD, 0xEA}, out[3:13])
+	})
+}
+
+// TestASOverrideUsesAttributeValue crosses the attribute-span boundary. Both TLV
+// header forms preserve every segment; the writer changes neither matching nor
+// absent-target source bytes.
+func TestASOverrideUsesAttributeValue(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		asn4  bool
+		value []byte
+		want  []byte
+	}{
+		{
+			name:  "asn2",
+			value: []byte{2, 2, 0xfd, 0xea, 0xfd, 0xe9},
+			want:  []byte{2, 2, 0xfd, 0xe8, 0xfd, 0xe9},
+		},
+		{
+			name:  "asn4",
+			asn4:  true,
+			value: []byte{2, 2, 0, 0, 0xfd, 0xea, 0, 0, 0xfd, 0xe9},
+			want:  []byte{2, 2, 0, 0, 0xfd, 0xe8, 0, 0, 0xfd, 0xe9},
+		},
+		{
+			name:  "repeated-target",
+			asn4:  true,
+			value: []byte{2, 3, 0, 0, 0xfd, 0xea, 0, 0, 0xfd, 0xe9, 0, 0, 0xfd, 0xea},
+			want:  []byte{2, 3, 0, 0, 0xfd, 0xe8, 0, 0, 0xfd, 0xe9, 0, 0, 0xfd, 0xe8},
+		},
+		{name: "empty"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, extended := range []bool{false, true} {
+				t.Run(fmt.Sprint("extended=", extended), func(t *testing.T) {
+					attrs := makeAttr(0x40, byte(attribute.AttrASPath), tc.value)
+					if extended {
+						// RFC 4271 Section 4.3: Extended Length uses two length octets.
+						attrs = append([]byte{0x50, byte(attribute.AttrASPath), 0, byte(len(tc.value))}, tc.value...)
+					}
+					payload := buildUpdatePayload(attrs, modTestNLRI)
+					original := slices.Clone(payload)
+					var edit wireu.ASPathEdit
+					var mods filterapi.ModAccumulator
+					changed, err := edit.Record(&mods, payload, wireu.ASPathIntent{
+						SrcASN4: tc.asn4, DstASN4: tc.asn4, OverridePeerAS: 65002, OverrideLocalAS: 65000,
+					})
+					require.NoError(t, err)
+					if len(tc.value) == 0 {
+						require.False(t, changed)
+						require.Zero(t, mods.Len())
+					} else {
+						require.True(t, changed)
+						result, _, failed := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+						require.False(t, failed.failed())
+						require.Equal(t, tc.want, payloadASPathValue(t, result))
+					}
+					if !slices.Equal(payload, original) {
+						t.Fatal("override changed shared source bytes")
+					}
+					mods.Reset()
+					_, err = edit.Record(&mods, payload, wireu.ASPathIntent{
+						SrcASN4: tc.asn4, DstASN4: tc.asn4, OverridePeerAS: 65003, OverrideLocalAS: 65000,
+					})
+					require.NoError(t, err)
+					if mods.Len() != 0 {
+						t.Errorf("absent target produced %d operations", mods.Len())
+					}
+					if !slices.Equal(payload, original) {
+						t.Fatal("absent-target control changed shared source bytes")
+					}
+				})
+			}
+		})
+	}
 }

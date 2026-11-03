@@ -10,7 +10,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -18,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestFamilyNextHopOriginationAdmission drives actual API, queued and commit
@@ -302,15 +302,17 @@ func TestFamilyNextHopForwardAdmission(t *testing.T) {
 						f.destination.settings.NextHopAddress = netip.AddrFrom16([16]byte(global))
 					}
 					override := bodyFor(field)
-					f.r.api = &pluginserver.Server{}
-					f.r.policyFilterSeam = func(_, _, direction, _ string, _ uint32, _ string) PolicyResponse {
-						if direction != directionExport {
-							t.Errorf("export filter asked a %s verdict", direction)
-							return PolicyResponse{Action: PolicyReject}
-						}
-						return PolicyResponse{Action: PolicyModify, Raw: override}
+					f.r.filterTransportSeam = &answerTransport{
+						reads: []string{rpc.FilterFieldRaw},
+						answer: func(input rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+							if input.Direction != directionExport {
+								t.Errorf("export filter asked a %s verdict", input.Direction)
+								return rpc.FilterUpdateOutput{Action: rpc.FilterReject}
+							}
+							return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: override}
+						},
 					}
-					f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: exportAnswerFilter}}, routepolicy.FinalAccept)
+					f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, exportLibraryFilter)
 					// Publish the policy without replacing this fixture's explicit
 					// connected-prefix scope with host interfaces.
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())

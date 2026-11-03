@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
-	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -88,21 +87,7 @@ func (a *answerTransport) calls() int {
 // chain that names plugin filters.
 func answerPolicy(t testing.TB, final routepolicy.Final, names ...string) filterapi.Policy {
 	t.Helper()
-	reg, err := routepolicy.NewRegistry()
-	if err != nil {
-		t.Fatalf("registry: %v", err)
-	}
-	members := make([]policychain.Member, len(names))
-	refs := make([]routepolicy.Ref, len(names))
-	for i, name := range names {
-		members[i] = policychain.Member{Name: name, Plugin: answerPlugin}
-		refs[i] = routepolicy.Ref{Name: answerPlugin + ":" + name}
-	}
-	chain, err := policychain.Compile(answerAttachment, reg, members, final, policychain.Bases{LocalPreference: 100})
-	if err != nil {
-		t.Fatalf("compile: %v", err)
-	}
-	return mustPolicy(t, refs, final).WithLibrary(chain)
+	return answerPolicyAt(t, answerAttachment, final, names...)
 }
 
 // answerSet is a modify verdict that sets field to the JSON value.
