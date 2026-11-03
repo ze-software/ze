@@ -1,6 +1,7 @@
 // Design: docs/architecture/edge-cases/as4.md — the first-AS check on a two-octet session
 // Related: session_validation.go — firstASMismatch, firstASOnWire
 // Related: session_validation_receive.go — prepareRFC7606FirstAS
+// RFC naming: untagged -- a regression test of the AS_TRANS-peer branch of the RFC 4271 Section 6.3 check (row RFC4271-6.3-13, carried by its own tagged test); RFC 6793 names the AS_TRANS encoding it sends
 
 package reactor
 
