@@ -16,7 +16,7 @@ import (
 // idle predicate is true both before a request begins and after it ends).
 func TestRetryPositiveSucceedsAfterTransientFailure(t *testing.T) {
 	calls := 0
-	err := retryPositive(func() error {
+	err := newBrowser("").retryPositive(func() error {
 		calls++
 		if calls < 3 {
 			return errors.New("not yet")
@@ -41,7 +41,7 @@ func TestRetryPositiveReturnsLastError(t *testing.T) {
 	want := errors.New("still absent")
 	calls := 0
 	start := time.Now()
-	err := retryPositive(func() error {
+	err := newBrowser("").retryPositive(func() error {
 		calls++
 		return want
 	})
@@ -53,8 +53,8 @@ func TestRetryPositiveReturnsLastError(t *testing.T) {
 	if calls < 2 {
 		t.Fatalf("check called %d times, want it retried at least once", calls)
 	}
-	if elapsed < contended(expectDeadline) {
-		t.Fatalf("gave up after %s, want it to poll for the full %s", elapsed, contended(expectDeadline))
+	if elapsed < expectDeadline {
+		t.Fatalf("gave up after %s, want it to poll for the full %s", elapsed, expectDeadline)
 	}
 }
 
@@ -69,7 +69,7 @@ func TestRetryPositiveReturnsLastError(t *testing.T) {
 // judged on a single answer.
 func TestRetryFetchRetriesOnErrorOnly(t *testing.T) {
 	calls := 0
-	out, err := retryFetch(func() (string, error) {
+	out, err := newBrowser("").retryFetch(func() (string, error) {
 		calls++
 		if calls < 3 {
 			return "", errors.New("exit status 1")
@@ -95,7 +95,7 @@ func TestRetryFetchRetriesOnErrorOnly(t *testing.T) {
 // PREVENTS: retryFetch drifting into an assertion retry.
 func TestRetryFetchDoesNotRetryASuccessfulFetch(t *testing.T) {
 	calls := 0
-	if _, err := retryFetch(func() (string, error) { calls++; return "", nil }); err != nil {
+	if _, err := newBrowser("").retryFetch(func() (string, error) { calls++; return "", nil }); err != nil {
 		t.Fatalf("retryFetch returned %v, want nil", err)
 	}
 	if calls != 1 {
@@ -111,7 +111,7 @@ func TestRetryFetchDoesNotRetryASuccessfulFetch(t *testing.T) {
 // PREVENTS: adding a fixed delay to the ~85 passing web expectations.
 func TestRetryPositiveDoesNotRetryOnFirstSuccess(t *testing.T) {
 	calls := 0
-	if err := retryPositive(func() error { calls++; return nil }); err != nil {
+	if err := newBrowser("").retryPositive(func() error { calls++; return nil }); err != nil {
 		t.Fatalf("retryPositive returned %v, want nil", err)
 	}
 	if calls != 1 {

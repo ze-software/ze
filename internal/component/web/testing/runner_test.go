@@ -1,6 +1,7 @@
 package webtesting
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -69,7 +70,9 @@ func TestBrowserCloseResetsDaemonStart(t *testing.T) {
 	if err := browser.Open("/first"); err != nil {
 		t.Fatalf("first open: %v", err)
 	}
-	browser.Close()
+	if err := browser.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if err := browser.Open("/second"); err != nil {
 		t.Fatalf("second open: %v", err)
 	}
@@ -79,7 +82,7 @@ func TestBrowserCloseResetsDaemonStart(t *testing.T) {
 		"eval " + inflightIdleExpr,
 		// The close reaches the daemon this browser started, so it carries no
 		// launch option: the option would only draw the "ignored" warning.
-		"close --all",
+		"close",
 		"--ignore-https-errors open https://127.0.0.1:1234/second",
 		"eval " + inflightIdleExpr,
 	})
@@ -116,7 +119,9 @@ func TestBrowserCloseOwnSession(t *testing.T) {
 	if err := browser.Open("/page"); err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	browser.Close()
+	if err := browser.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	cmds := readAgentLog(t, logPath)
 	lastClose := ""
@@ -133,14 +138,16 @@ func TestBrowserCloseOwnSession(t *testing.T) {
 	}
 }
 
-func TestBrowserNoSessionClosesAll(t *testing.T) {
+func TestBrowserStandaloneClosesOwnSession(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
 	browser := newBrowser("https://127.0.0.1:5678")
 
 	if err := browser.Open("/page"); err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	browser.Close()
+	if err := browser.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	cmds := readAgentLog(t, logPath)
 	lastClose := ""
@@ -152,8 +159,8 @@ func TestBrowserNoSessionClosesAll(t *testing.T) {
 	if lastClose == "" {
 		t.Fatal("no close command logged")
 	}
-	if !strings.Contains(lastClose, "--all") {
-		t.Errorf("sessionless browser should use close --all; got: %q", lastClose)
+	if strings.Contains(lastClose, "--all") {
+		t.Errorf("standalone browser closed foreign sessions: %q", lastClose)
 	}
 }
 
@@ -380,9 +387,9 @@ func TestWBTimeoutBoundsTheRun(t *testing.T) {
 	}
 }
 
-// TestWBTimeoutTakesTheVerifyHeadroom
+// TestWBTimeoutTakesTheSchedulerHeadroom
 //
-// VALIDATES: inside a verify run the enforced budget is the declared one times
+// VALIDATES: a concurrent scheduler's enforced budget is the declared one times
 // runner.ParallelTimeoutHeadroom, and the failure names that widened figure.
 // PREVENTS: the headroom being invisible to every test, which is how it came to
 // decide a verdict. Until 2026-09-13 nothing here named ZE_VERIFY_MODE, so the
@@ -392,7 +399,7 @@ func TestWBTimeoutBoundsTheRun(t *testing.T) {
 // Fifteen 40ms waits is 600ms of work, which is over the 180ms the headroom
 // allows as surely as it is over the declared 60ms, so the run stops either
 // way and only the figure in the message separates the two.
-func TestWBTimeoutTakesTheVerifyHeadroom(t *testing.T) {
+func TestWBTimeoutTakesTheSchedulerHeadroom(t *testing.T) {
 	verifyMode(t, true)
 	installFakeAgentBrowser(t)
 	wait := WBAction{Kind: "wait", Values: map[string]string{"ms": "40"}, Line: 1}
@@ -402,14 +409,19 @@ func TestWBTimeoutTakesTheVerifyHeadroom(t *testing.T) {
 		tc.Steps = append(tc.Steps, WBStep{Type: WBStepAction, ActionIndex: i})
 	}
 
-	res := runWBTestCase(tc, "https://127.0.0.1:1234", "sess-headroom")
+	ctx, cancel, err := CaseContext(context.Background(), tc.Timeout, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cancel()
+	res := RunWBCase(ctx, tc, "https://127.0.0.1:1234", "sess-headroom")
 
 	if res.Passed {
 		t.Fatalf("a test over its widened budget must fail; it passed after %d step(s)", len(res.Steps))
 	}
 	widened := 60 * time.Millisecond * runner.ParallelTimeoutHeadroom
 	if !strings.Contains(res.Error, widened.String()) {
-		t.Errorf("the failure names %q, and the budget a verify run enforces is %s", res.Error, widened)
+		t.Errorf("the failure names %q, and the budget a concurrent scheduler enforces is %s", res.Error, widened)
 	}
 	if len(res.Steps) == 0 || len(res.Steps) >= len(tc.Steps) {
 		t.Errorf("%d of %d step(s) ran, and a widened budget must still stop the run part way through",

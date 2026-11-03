@@ -119,24 +119,7 @@ func cmdWebMain(args []string) error {
 	testDir := runner.SuiteDir(baseDir, "web", *draft)
 	runner.ResetNickCounter()
 	tests := runner.NewTestSet[*zeTestWebTest]()
-	if walkErr := filepath.WalkDir(testDir, func(path string, d os.DirEntry, werr error) error {
-		if werr != nil {
-			return werr
-		}
-		if d.IsDir() || !strings.HasSuffix(path, ".wb") {
-			return nil
-		}
-		rel, _ := filepath.Rel(baseDir, path)
-		if rel == "" {
-			rel = path
-		}
-		tests.Add(&zeTestWebTest{
-			Name: rel,
-			Nick: runner.GenerateNick(rel),
-			Path: path,
-		})
-		return nil
-	}); walkErr != nil {
+	if walkErr := discoverWebTests(tests, testDir, baseDir, webConcurrency); walkErr != nil {
 		return walkErr
 	}
 
@@ -165,25 +148,24 @@ func cmdWebMain(args []string) error {
 		tests.List()
 		return nil
 	}
-
-	if _, lookErr := exec.LookPath("agent-browser"); lookErr != nil {
-		if err := webBrowserMissing(runner.VerifyModeEnabled()); err != nil {
-			return err
-		}
-		fmt.Fprintf(os.Stdout, "agent-browser not found in PATH, skipping web tests\n") //nolint:errcheck // terminal output
-		return nil
+	if err := webDiscoveryErrors(tests.Selected()); err != nil {
+		return err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	runnable := webRunnableTests(tests.Selected())
+	if len(runnable) > 0 {
+		// refuse-by-default: guards CmdWeb -- outside verification mode, a reported missing-browser skip exits successfully; webBrowserMissing refuses it in verification mode.
+		if _, lookErr := exec.LookPath("agent-browser"); lookErr != nil {
+			if err := webBrowserMissing(runner.VerifyModeEnabled()); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stdout, "agent-browser not found in PATH, skipping web tests\n") //nolint:errcheck // terminal output
+			return nil
+		}
+	}
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sigCh)
-	go func() {
-		<-sigCh
-		cancel()
-	}()
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
 
 	// Resolve (and, off LE_TEST_NO_BUILD, build) the DUT through the same helper
 	// every other suite uses, so ZE_BIN is honored. Hardcoding <baseDir>/bin/ze
@@ -193,30 +175,45 @@ func cmdWebMain(args []string) error {
 	// "fork/exec bin/ze: no such file or directory" (every CI run), while on a
 	// developer host a leftover bin/ze made the suite silently test a stale
 	// binary that was not the one under test.
-	bins, err := zeTestResolveWebBinaries(ctx, baseDir, tests.Selected())
-	if err != nil {
-		return err
+	var bins zeTestWebBinaries
+	if len(runnable) > 0 {
+		bins, err = zeTestResolveWebBinaries(ctx, baseDir, runnable)
+		if err != nil {
+			return err
+		}
 	}
 
+	return runWebTests(ctx, tests.Selected(), bins, baseDir, *verbose, *quiet)
+}
+
+// runWebTests owns scheduler admission through the callback's completed cleanup.
+// Its caller MUST discover every selected case before resolving dependencies.
+func runWebTests(ctx context.Context, selected []*zeTestWebTest, bins zeTestWebBinaries, baseDir string, verbose, quiet bool) error {
 	colors := runner.NewColors()
 	pr := runner.NewParallelRunner[*zeTestWebTest](colors)
 	pr.SetLabel("web")
 	pr.SetConcurrency(webConcurrency)
-	pr.SetQuiet(*quiet)
-	pr.SetVerbose(*verbose)
+	pr.SetQuiet(quiet)
+	pr.SetVerbose(verbose)
 	pr.SetBaseDir(baseDir)
 
-	for _, t := range tests.Selected() {
-		pr.AddTestWithNick(t.Name, t.Nick, t, func(runCtx context.Context, test *zeTestWebTest) (bool, error) {
-			return zeTestRunWebTest(runCtx, test, bins)
+	records := make([]*runner.Record, len(selected))
+	for i, t := range selected {
+		record := pr.AddTestWithNick(t.Name, t.Nick, t, func(runCtx context.Context, test *zeTestWebTest) (bool, error) {
+			return zeTestRunWebTest(runCtx, test, bins, webConcurrency)
 		})
+		webAdmissionRecord(record, t)
+		records[i] = record
 	}
 
-	pr.SetOnFail(func(t *zeTestWebTest, _ error) {
+	pr.SetOnFail(func(t *zeTestWebTest, err error) {
+		if err != nil {
+			t.SetError(err)
+		}
 		fmt.Fprintf(os.Stdout, "  %s\n", t.GetError()) //nolint:errcheck // terminal output
 		// Under -v the whole step trace shows what ran; otherwise only the
 		// failed step, so a normal run stays concise.
-		if *verbose {
+		if verbose {
 			trace.PrintTrace(os.Stdout, t.Name, t.Steps, colors.Enabled())
 			return
 		}
@@ -224,9 +221,16 @@ func cmdWebMain(args []string) error {
 	})
 
 	success := pr.Run(ctx)
+	// Quiet output suppresses onFail. Scheduler admission errors must still
+	// reach the case result when its execution callback never ran.
+	for i, record := range records {
+		if record.Error != nil {
+			selected[i].SetError(record.Error)
+		}
+	}
 
-	if *verbose {
-		for _, t := range tests.Selected() {
+	if verbose {
+		for _, t := range selected {
 			if t.GetError() == nil && len(t.Steps) > 0 {
 				trace.PrintTrace(os.Stdout, t.Name, t.Steps, colors.Enabled())
 			}
@@ -239,12 +243,26 @@ func cmdWebMain(args []string) error {
 	return nil
 }
 
-func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBinaries) (bool, error) {
-	// A test that declares option=auth needs real authentication (not the fast
-	// single-implicit-admin --insecure-web path), and one that declares
-	// option=server drives a different program altogether. Pre-parse the .wb
-	// file for both decisions before anything is started.
-	tc := zeTestWebCase(test.Path)
+func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBinaries, concurrency int) (passed bool, runErr error) {
+	if test.admission.ParseFailed {
+		test.SetError(test.admission.Error)
+		return false, test.GetError()
+	}
+	if test.admission.SkipReason != "" {
+		return true, nil
+	}
+	tc := test.parsed
+	if tc == nil {
+		err := fmt.Errorf("web case %s was not discovered; parse it before execution", test.Path)
+		test.SetError(err)
+		return false, err
+	}
+	ctx, cancel, err := webtesting.CaseContext(ctx, tc.Timeout, concurrency)
+	if err != nil {
+		test.SetError(err)
+		return false, err
+	}
+	defer cancel()
 	kind := tc.ServerKind()
 
 	// The looking glass needs a second port: its pages read `show bgp`,
@@ -301,10 +319,16 @@ func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBi
 		test.SetError(fmt.Errorf("start %s server: %w", kind, err))
 		return false, test.GetError()
 	}
-	defer srv.stop()
+	defer func() {
+		if err := srv.stop(); err != nil {
+			passed = false
+			runErr = errors.Join(runErr, err)
+			test.SetError(runErr)
+		}
+	}()
 
 	baseURL := tb.Reset().Str(scheme).Str(listenAddr).String()
-	result := webtesting.RunWBFileWithSession(test.Path, baseURL, zeTestBrowserSession(test.Nick))
+	result := webtesting.RunWBCase(ctx, tc, baseURL, zeTestBrowserSession(test.Nick))
 	test.Steps = result.Steps
 
 	if result.Skipped {
@@ -321,11 +345,14 @@ type zeTestWebTest struct {
 	runner.BaseTest
 	Path  string
 	Steps []trace.StepResult
+	// Discovery owns this snapshot; execution MUST NOT mutate it or reread Path.
+	parsed    *webtesting.WBTestCase
+	admission runner.Record
 }
 
 type zeTestWebServer struct {
-	cmd     *exec.Cmd
-	aux     *exec.Cmd // a second process the server needs, e.g. the BGP peer the looking glass reports on
+	cmd     *runner.ServerProcess
+	aux     *runner.ServerProcess // the BGP peer the looking glass reports on
 	tempDir string
 }
 
@@ -383,34 +410,12 @@ func zeTestResolveWebBinaries(ctx context.Context, baseDir string, tests []*zeTe
 // zeTestWantsChaos reports whether any selected test drives the chaos dashboard.
 func zeTestWantsChaos(tests []*zeTestWebTest) bool {
 	for _, t := range tests {
-		if zeTestWebCase(t.Path).ServerKind() == webtesting.WBServerChaos {
+		if t.parsed.ServerKind() == webtesting.WBServerChaos {
 			return true
 		}
 	}
 
 	return false
-}
-
-// zeTestWebCase reads a .wb file for the decisions the harness makes BEFORE the
-// browser runs: which server to start (option=server), which users to seed
-// (option=auth), and what environment the server process gets (option=env).
-//
-// A read or parse error yields the zero case, which is the default web server
-// with no auth and no environment: the file's own error surfaces a moment later
-// when the runner parses it again to execute it, and reporting it here as well
-// would hide that message behind a start failure.
-func zeTestWebCase(path string) *webtesting.WBTestCase {
-	content, err := os.ReadFile(path) //nolint:gosec // controlled test discovery path
-	if err != nil {
-		return &webtesting.WBTestCase{}
-	}
-
-	tc, err := webtesting.ParseWBFile(string(content))
-	if err != nil {
-		return &webtesting.WBTestCase{}
-	}
-
-	return tc
 }
 
 // zeTestEnv returns the server process environment: this process's, plus the
@@ -498,10 +503,9 @@ func zeTestStartLGServer(ctx context.Context, bins zeTestWebBinaries, listenAddr
 	peer := exec.CommandContext(ctx, bins.zeTest, "test", "peer", "--mode", "sink", "--port", bgpPortText) //nolint:gosec // test binary path
 	peer.Env = zeTestEnv(envVars)
 
-	if err := peer.Start(); err != nil {
-		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on start failure
-
-		return nil, fmt.Errorf("start bgp sink peer: %w", err)
+	peerProcess, err := runner.StartServerProcess(peer)
+	if err != nil {
+		return nil, errors.Join(fmt.Errorf("start bgp sink peer: %w", err), os.RemoveAll(tempDir))
 	}
 
 	config := strings.NewReplacer("$LG_PORT", lgPort, "$BGP_PORT", bgpPortText).Replace(lgConfigTemplate)
@@ -512,21 +516,17 @@ func zeTestStartLGServer(ctx context.Context, bins zeTestWebBinaries, listenAddr
 	cmd.Stdin = strings.NewReader(config)
 	cmd.Env = zeTestEnv(envVars, tb.Str("ze.config.dir=").Str(tempDir).String())
 
-	if err := cmd.Start(); err != nil {
-		zeTestKillCmd(peer)
-		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on start failure
-
-		return nil, err
+	process, err := runner.StartServerProcess(cmd)
+	if err != nil {
+		return nil, errors.Join(err, peerProcess.Close(), os.RemoveAll(tempDir))
 	}
 
-	srv := &zeTestWebServer{cmd: cmd, aux: peer, tempDir: tempDir}
+	srv := &zeTestWebServer{cmd: process, aux: peerProcess, tempDir: tempDir}
 
 	// Probe the peers PAGE, not the root: /lg/ redirects, and a redirect proves
 	// the mux is mounted without proving the page renders.
-	if err := zeTestProbeReady(ctx, schemeHTTP, listenAddr, "/lg/peers", zeTestReadyTimeout()); err != nil {
-		srv.stop()
-
-		return nil, fmt.Errorf("looking glass not ready: %w", err)
+	if err := zeTestProbeReady(ctx, schemeHTTP, listenAddr, "/lg/peers", zeTestReadyTimeout(ctx)); err != nil {
+		return nil, errors.Join(fmt.Errorf("looking glass not ready: %w", err), srv.stop())
 	}
 
 	return srv, nil
@@ -542,16 +542,15 @@ func zeTestStartLGNoEngineServer(ctx context.Context, bins zeTestWebBinaries, li
 	cmd := exec.CommandContext(ctx, bins.zeTest, "mock", "lg", "--listen", listenAddr) //nolint:gosec // test binary path
 	cmd.Env = zeTestEnv(envVars)
 
-	if err := cmd.Start(); err != nil {
+	process, err := runner.StartServerProcess(cmd)
+	if err != nil {
 		return nil, err
 	}
 
-	srv := &zeTestWebServer{cmd: cmd}
+	srv := &zeTestWebServer{cmd: process}
 
-	if err := zeTestProbeReady(ctx, schemeHTTP, listenAddr, "/lg/peers", zeTestReadyTimeout()); err != nil {
-		srv.stop()
-
-		return nil, fmt.Errorf("looking glass not ready: %w", err)
+	if err := zeTestProbeReady(ctx, schemeHTTP, listenAddr, "/lg/peers", zeTestReadyTimeout(ctx)); err != nil {
+		return nil, errors.Join(fmt.Errorf("looking glass not ready: %w", err), srv.stop())
 	}
 
 	return srv, nil
@@ -580,33 +579,24 @@ func zeTestStartChaosServer(ctx context.Context, bins zeTestWebBinaries, listenA
 		"--duration", "10m", "--peers", "6", "--seed", "42", "--routes", "20", "--quiet")
 	cmd.Env = zeTestEnv(envVars)
 
-	if err := cmd.Start(); err != nil {
+	process, err := runner.StartServerProcess(cmd)
+	if err != nil {
 		return nil, err
 	}
 
-	srv := &zeTestWebServer{cmd: cmd}
+	srv := &zeTestWebServer{cmd: process}
 
-	if err := zeTestProbeReady(ctx, schemeHTTP, listenAddr, "/", zeTestReadyTimeout()); err != nil {
-		srv.stop()
-
-		return nil, fmt.Errorf("chaos dashboard not ready: %w", err)
+	if err := zeTestProbeReady(ctx, schemeHTTP, listenAddr, "/", zeTestReadyTimeout(ctx)); err != nil {
+		return nil, errors.Join(fmt.Errorf("chaos dashboard not ready: %w", err), srv.stop())
 	}
 
 	return srv, nil
 }
 
-// zeTestReadyTimeout bounds a server start. Under
-// `./le verify current`, the web suite overlaps the -race unit stage,
-// and a forked daemon can take well over 30s just to bind under CPU starvation,
-// so the budget scales by the contention headroom applied to per-test budgets. A standalone run
-// keeps the tight 30s so a genuine "server never starts" still surfaces fast.
-func zeTestReadyTimeout() time.Duration {
-	ready := 30 * time.Second
-	if runner.VerifyModeEnabled() {
-		ready *= runner.ParallelTimeoutHeadroom
-	}
-
-	return ready
+// zeTestReadyTimeout uses the scheduler's concurrency policy. ProbeReady also
+// inherits the absolute case deadline, so startup cannot get a fresh case budget.
+func zeTestReadyTimeout(ctx context.Context) time.Duration {
+	return webtesting.Bound(ctx, 30*time.Second)
 }
 
 // daemonWebConfigTemplate is the config the daemon kind runs: one BGP peer
@@ -656,47 +646,49 @@ func daemonWebConfig(plugins []string) []byte {
 // <config> --web <port> --insecure-web`. Unlike --web-only, the daemon owns
 // the confirmed-commit window, so a web `commit confirmed` opens one.
 func zeTestStartDaemonWebServer(ctx context.Context, zeBin, listenAddr string, envVars []webtesting.WBEnvVar, plugins []string) (*zeTestWebServer, error) {
+	if err := context.Cause(ctx); err != nil {
+		return nil, err
+	}
 	_, portStr, _ := net.SplitHostPort(listenAddr)
 	tempDir, tempErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-web-daemon-test-*")
 	if tempErr != nil {
 		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
 	}
-	if err := zeTestSeedWebUsers(tempDir, true, nil); err != nil {
-		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on seed failure
-		return nil, fmt.Errorf("seed web users: %w", err)
+	if err := zeTestSeedWebUsers(ctx, tempDir, true, nil); err != nil {
+		return nil, errors.Join(fmt.Errorf("seed web users: %w", err), os.RemoveAll(tempDir))
 	}
 	configPath := filepath.Join(tempDir, "web-daemon.conf")
 	if err := os.WriteFile(configPath, daemonWebConfig(plugins), 0o600); err != nil {
-		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on write failure
-		return nil, fmt.Errorf("write daemon config: %w", err)
+		return nil, errors.Join(fmt.Errorf("write daemon config: %w", err), os.RemoveAll(tempDir))
 	}
 	cmd := exec.CommandContext(ctx, zeBin, "start", configPath, "--web", portStr, "--insecure-web") //nolint:gosec // test binary path
 	var tb textbuf.Buffer
 	cmd.Env = zeTestEnv(envVars, tb.Str("ze.config.dir=").Str(tempDir).String())
 
-	if err := cmd.Start(); err != nil {
-		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on start failure
-		return nil, err
+	process, err := runner.StartServerProcess(cmd)
+	if err != nil {
+		return nil, errors.Join(err, os.RemoveAll(tempDir))
 	}
 
-	if err := zeTestProbeReady(ctx, schemeHTTPS, listenAddr, "/", zeTestReadyTimeout()); err != nil {
-		zeTestKillCmd(cmd)
-		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on probe failure
-		return nil, fmt.Errorf("daemon not ready: %w", err)
+	srv := &zeTestWebServer{cmd: process, tempDir: tempDir}
+	if err := zeTestProbeReady(ctx, schemeHTTPS, listenAddr, "/", zeTestReadyTimeout(ctx)); err != nil {
+		return nil, errors.Join(fmt.Errorf("daemon not ready: %w", err), srv.stop())
 	}
 
-	return &zeTestWebServer{cmd: cmd, tempDir: tempDir}, nil
+	return srv, nil
 }
 
 func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecure bool, authUsers []webtesting.WBAuthUser, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
+	if err := context.Cause(ctx); err != nil {
+		return nil, err
+	}
 	_, portStr, _ := net.SplitHostPort(listenAddr)
 	tempDir, tempErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-web-test-*")
 	if tempErr != nil {
 		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
 	}
-	if err := zeTestSeedWebUsers(tempDir, insecure, authUsers); err != nil {
-		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on seed failure
-		return nil, fmt.Errorf("seed web users: %w", err)
+	if err := zeTestSeedWebUsers(ctx, tempDir, insecure, authUsers); err != nil {
+		return nil, errors.Join(fmt.Errorf("seed web users: %w", err), os.RemoveAll(tempDir))
 	}
 	// --web-only starts the standalone web UI (no BGP engine, no config
 	// required). The .wb suite exercises the UI surface -- config editor,
@@ -715,18 +707,17 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecur
 	var tb textbuf.Buffer
 	cmd.Env = zeTestEnv(envVars, tb.Str("ze.config.dir=").Str(tempDir).String())
 
-	if err := cmd.Start(); err != nil {
-		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on start failure
-		return nil, err
+	process, err := runner.StartServerProcess(cmd)
+	if err != nil {
+		return nil, errors.Join(err, os.RemoveAll(tempDir))
 	}
 
-	if err := zeTestProbeReady(ctx, schemeHTTPS, listenAddr, "/", zeTestReadyTimeout()); err != nil {
-		zeTestKillCmd(cmd)
-		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on probe failure
-		return nil, fmt.Errorf("daemon not ready: %w", err)
+	srv := &zeTestWebServer{cmd: process, tempDir: tempDir}
+	if err := zeTestProbeReady(ctx, schemeHTTPS, listenAddr, "/", zeTestReadyTimeout(ctx)); err != nil {
+		return nil, errors.Join(fmt.Errorf("daemon not ready: %w", err), srv.stop())
 	}
 
-	return &zeTestWebServer{cmd: cmd, tempDir: tempDir}, nil
+	return srv, nil
 }
 
 // zeTestSeedWebUsers writes a zefs local-admin credential into the temp config
@@ -742,7 +733,12 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecur
 // test that also needs a distinct read-only login requires config-file authz
 // users; the admin credential seeded here covers admin-login and single-user
 // tests (see the AC-6/7 runbook in the spec).
-func zeTestSeedWebUsers(configDir string, insecure bool, authUsers []webtesting.WBAuthUser) error {
+// Cancellation checks surround synchronous bcrypt and store calls. They cannot
+// interrupt a blocked file operation or lock; this is not a hard elapsed bound.
+func zeTestSeedWebUsers(ctx context.Context, configDir string, insecure bool, authUsers []webtesting.WBAuthUser) error {
+	if err := context.Cause(ctx); err != nil {
+		return err
+	}
 	username := "admin"
 	passwordHash := "$2y$10$ze.web.test.placeholder.admin.hash.value.unused" //nolint:gosec // G101: placeholder test hash, replaced with a real bcrypt hash for auth tests
 	if !insecure && len(authUsers) > 0 {
@@ -754,9 +750,15 @@ func zeTestSeedWebUsers(configDir string, insecure bool, authUsers []webtesting.
 		}
 		passwordHash = string(hash)
 	}
+	if err := context.Cause(ctx); err != nil {
+		return err
+	}
 	// The daemon opens the tree store under configDir; a blob seeded here would
 	// be refused by storage.Open and no web daemon would start.
 	store, err := storage.CreatePopulated(configDir, func(seed storage.Storage) error {
+		if err := context.Cause(ctx); err != nil {
+			return err
+		}
 		if err := seed.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte(username), 0); err != nil {
 			return err
 		}
@@ -765,7 +767,7 @@ func zeTestSeedWebUsers(configDir string, insecure bool, authUsers []webtesting.
 	if err != nil {
 		return err
 	}
-	return store.Close()
+	return errors.Join(store.Close(), context.Cause(ctx))
 }
 
 // zeTestPickAdmin returns the declared user that should back the seeded local
@@ -785,19 +787,21 @@ func zeTestProbeReady(ctx context.Context, scheme, addr, path string, timeout ti
 	// window gets an empty page. Require a real HTTP response (any status proves
 	// the mux is serving) so the readiness signal matches what the browser needs.
 	// This closes the flaky "(empty page)" failures seen under parallel load.
-	deadline := time.Now().Add(timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	client := &http.Client{
 		Timeout: 500 * time.Millisecond,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // local self-signed cert under --insecure-web
 		},
 	}
+	defer client.CloseIdleConnections()
 	var tb textbuf.Buffer
 	url := tb.Str(scheme).Str(addr).Str(path).String()
 	var lastErr error
-	for time.Now().Before(deadline) {
+	for {
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return errors.Join(context.Cause(ctx), lastErr)
 		}
 		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 		if reqErr != nil {
@@ -806,30 +810,35 @@ func zeTestProbeReady(ctx context.Context, scheme, addr, path string, timeout ti
 		resp, doErr := client.Do(req)
 		if doErr == nil {
 			resp.Body.Close() //nolint:errcheck // readiness probe, body unused
-			return nil
+			return context.Cause(ctx)
 		}
 		lastErr = doErr
-		time.Sleep(100 * time.Millisecond)
-	}
-	if lastErr != nil {
-		return fmt.Errorf("web server %s not ready after %s: %w", addr, timeout, lastErr)
-	}
-	return fmt.Errorf("web server %s not ready after %s", addr, timeout)
-}
-
-func zeTestKillCmd(cmd *exec.Cmd) {
-	if cmd != nil && cmd.Process != nil {
-		cmd.Process.Kill() //nolint:errcheck // best-effort process cleanup
-		cmd.Wait()         //nolint:errcheck // reap zombie
+		timer := time.NewTimer(100 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return errors.Join(context.Cause(ctx), lastErr)
+		case <-timer.C:
+		}
 	}
 }
 
-func (s *zeTestWebServer) stop() {
-	zeTestKillCmd(s.cmd)
-	zeTestKillCmd(s.aux)
+// stop MUST finish before the callback releases ports or returns its scheduler
+// lease. Each child has one Wait owner; all cleanup errors affect the verdict.
+func (s *zeTestWebServer) stop() error {
+	var err error
+	if s.cmd != nil {
+		err = errors.Join(err, s.cmd.Close())
+	}
+	if s.aux != nil {
+		err = errors.Join(err, s.aux.Close())
+	}
 	if s.tempDir != "" {
-		os.RemoveAll(s.tempDir) //nolint:errcheck // best-effort temp dir cleanup
+		if removeErr := os.RemoveAll(s.tempDir); removeErr != nil {
+			err = errors.Join(err, fmt.Errorf("remove server directory %s: %w", s.tempDir, removeErr))
+		}
 	}
+	return err
 }
 
 // zeTestBrowserSession names the agent-browser session one test drives. The

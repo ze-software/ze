@@ -11,7 +11,7 @@ import (
 // TestZeTestWebAuth verifies the harness decides the web-server auth mode from a
 // .wb file's option=auth directives: a plain test runs insecure, an auth test
 // drops insecure and surfaces the users to seed, and a missing/unparseable file
-// defaults safely to insecure.
+// fails discovery before any server can start.
 //
 // VALIDATES: the login/multi-user harness directive controls server startup.
 // PREVENTS: an auth .wb test silently running under --insecure-web (where role
@@ -23,7 +23,11 @@ func TestZeTestWebAuth(t *testing.T) {
 	if err := os.WriteFile(plain, []byte("action=open:path=/\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if tc := zeTestWebCase(plain); tc.RequiresAuth() || len(tc.Auth) != 0 {
+	plainTest := discoverWebCase(plain, 1)
+	if plainTest.admission.ParseFailed {
+		t.Fatal(plainTest.admission.Error)
+	}
+	if tc := plainTest.parsed; tc.RequiresAuth() || len(tc.Auth) != 0 {
 		t.Errorf("plain: requiresAuth=%v users=%v, want insecure with no users", tc.RequiresAuth(), tc.Auth)
 	}
 
@@ -34,7 +38,11 @@ func TestZeTestWebAuth(t *testing.T) {
 	if err := os.WriteFile(authed, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	tc := zeTestWebCase(authed)
+	authTest := discoverWebCase(authed, 1)
+	if authTest.admission.ParseFailed {
+		t.Fatal(authTest.admission.Error)
+	}
+	tc := authTest.parsed
 	if !tc.RequiresAuth() {
 		t.Error("auth test must not run with --insecure-web")
 	}
@@ -42,8 +50,17 @@ func TestZeTestWebAuth(t *testing.T) {
 		t.Fatalf("want 2 seeded users, got %d", len(tc.Auth))
 	}
 
-	if missing := zeTestWebCase(filepath.Join(dir, "missing.wb")); missing.RequiresAuth() {
-		t.Error("missing file must default to insecure")
+	missing := discoverWebCase(filepath.Join(dir, "missing.wb"), 1)
+	if !missing.admission.ParseFailed || missing.admission.Error == nil || missing.parsed != nil {
+		t.Error("missing file must fail discovery without an executable case")
+	}
+	malformed := filepath.Join(dir, "malformed.wb")
+	if err := os.WriteFile(malformed, []byte("option=auth:user=root:password=root-pw:role=admin\noption=timeout:value=broken\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	invalid := discoverWebCase(malformed, 1)
+	if !invalid.admission.ParseFailed || invalid.admission.Error == nil || invalid.parsed != nil {
+		t.Error("malformed auth file must fail discovery without an executable case")
 	}
 }
 

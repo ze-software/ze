@@ -78,11 +78,13 @@ exit result. Each retained owner's deferred `finish` joins cleanup and fails the
 case on a lifecycle error, preserving any earlier diagnostic. Expected exit
 codes, intentional named stops and self-validation cannot waive that failure.
 <!-- source: internal/test/runner/process_owner.go -- reap, Wait, lifecycleError, finish -->
-On Linux and Darwin, the owner observes exit with `waitid(WNOWAIT)`, kills remaining
-group members while the leader still reserves its PID, and retires numeric
-signaling before the sole `Cmd.Wait` reaps it. Deadline cancellation, lifetime
-expiry and deferred cleanup share the retirement lock. A late cleanup cannot
-signal a recycled group number. Darwin uses a local binding because x/sys/unix
+On Linux and Darwin, the owner observes exit with `waitid(WNOWAIT)`, attempts to
+kill remaining group members while the leader still reserves its PID, and retires
+numeric signaling before the sole `Cmd.Wait` reaps it. A final group-signal error
+other than `ESRCH` is cached as a lifecycle failure; numeric signaling is still
+retired and the child is still reaped. Deadline cancellation, lifetime expiry and
+deferred cleanup share the retirement lock. A late cleanup cannot signal a
+recycled group number. Darwin uses a local binding because x/sys/unix
 does not wrap its waitid syscall. FreeBSD uses `wait4(WNOWAIT)`. OpenBSD uses
 kqueue `NOTE_EXIT`; a process-table lookup distinguishes an already-exiting child
 from a lost child when registration returns `ESRCH`. Neither adapter reaps the
@@ -94,6 +96,22 @@ this package. No build context is removed by the ownership repair.
 <!-- source: internal/test/runner/process_exit_freebsd.go -- beforeReap -->
 <!-- source: internal/test/runner/process_exit_openbsd.go -- beforeReap, waitOpenBSDExit, openBSDChild -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest, runOrchestrated -->
+
+Web servers use that same sole-reaper ownership through `StartServerProcess`.
+They start on `plugin.StartChild`'s persistent spawner thread. Server stop joins
+the owner before removing its directory, releasing ports, or returning the
+scheduler lease. Cleanup failures fail the case while retaining browser steps
+and earlier errors. The owner remains attached if the kernel cannot finish
+reaping; a timeout alone never establishes cleanup.
+<!-- source: internal/test/runner/server_process.go -- StartServerProcess, ServerProcess.Close -->
+<!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest, zeTestWebServer.stop -->
+
+Web credential seeding checks the case context before and after synchronous
+bcrypt and store operations. These checks refuse later startup after expiration;
+they cannot interrupt a blocked storage lock or filesystem call. The case owner
+stays attached during that work. A hard elapsed startup guarantee across those
+calls is not yet established.
+<!-- source: internal/test/cli/cmd_web.go -- zeTestSeedWebUsers -->
 
 Editor discovery validates the complete `.et` snapshot and its timeout with
 parallel headroom before execution. Resource options use `recordOptionArms` and
@@ -107,6 +125,20 @@ An unreadable or invalid capability source fails admission with its cause;
 it does not become a capability skip or permission to start the editor.
 <!-- source: internal/test/cli/cmd_editor.go -- discoverEditorTests, runEditorTests -->
 <!-- source: internal/test/runner/record_parse_option.go -- ParseResourceOption -->
+
+The web parser also accepts shared resource declarations through
+`ParseResourceOption`. It retains admission metadata in the parsed case and
+continues parsing after a skip, so a later malformed declaration is an error.
+Web discovery reads each file once, before dependency checks or builds, and
+execution uses that parsed snapshot. Selected parse failures take precedence over
+a missing browser dependency; skipped cases need no browser or server build.
+The scheduler receives the resource, skip and parse-failure fields. Its exclusive
+lease remains held until the callback returns, including callback cleanup.
+Admission failures are retained from the scheduler records even in quiet mode,
+where the display's failure callback does not run.
+<!-- source: internal/component/web/testing/parser.go -- WBTestCase, parseWBOption -->
+<!-- source: internal/test/cli/cmd_web_discovery.go -- discoverWebCase, webDiscoveryErrors, webAdmissionRecord -->
+<!-- source: internal/test/cli/cmd_web.go -- cmdWebMain, zeTestRunWebTest -->
 
 The editor child executes authored content with `RunETContentIn` on its owning
 goroutine. Caller cancellation reaches authored waits and validation waits;
@@ -388,7 +420,7 @@ Unknown directives or kinds fail parsing immediately.
 
 | Option | Effect |
 |--------|--------|
-| `option=timeout:value=<dur>` | The test's wall-clock budget, default 30s. `runWBTestCase` checks it before each step, so a test is bounded at its budget plus one step. Each step is bounded by `agentTimeout` (30s per `agent-browser` command) or `expectDeadline` (15s per retried assertion or `wait-until`). Under `ZE_VERIFY_MODE=1` the budget and every inner bound (`agentTimeout`, `expectDeadline`, the 5s `waitLoad` cap, the 5s expectation retry) take `ParallelTimeoutHeadroom` (x3) through one function, `contended`, so no inner bound expires before the budget that holds it <!-- source: internal/component/web/testing/runner.go -- contended -->. A value the runner cannot read is a parse error, never a fall back to the default. A budget nothing can enforce must not leave the file looking bounded |
+| `option=timeout:value=<dur>` | The authored budget, default 30s. `CaseContext` applies headroom once from scheduler concurrency: x3 for concurrent cases, x1 for serial cases. Verify-mode environment does not change this policy. Browser commands, waits, and retries inherit the absolute deadline. Invalid authored durations fail parsing; scaling overflow is refused before execution |
 | `option=skip:reason=<text>` | Skip the test; `reason` is surfaced in runner output |
 | `option=viewport:width=<n>:height=<n>` | Resize the viewport before the first navigation |
 | `option=locale:lang=<tag>` | Set `Accept-Language` for the session |
@@ -398,8 +430,14 @@ Unknown directives or kinds fail parsing immediately.
 | `option=plugin:name=<internal plugin>` | Repeatable. Adds `plugin { internal <name> { use <name> } }` to the daemon kind's config, so a test drives a command only that plugin serves. Any other kind loads no config, so the harness refuses the test rather than run it without the plugin |
 
 <!-- source: internal/component/web/testing/parser.go -- parseWBOption: timeout, skip, viewport, locale, auth, server, env, plugin -->
+<!-- source: internal/component/web/testing/deadline.go -- CaseContext, Bound -->
 <!-- source: internal/test/cli/cmd_web.go -- daemonWebConfig -->
-<!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest runs RunWBFileWithSession with no per-test deadline -->
+The scheduler starts the case deadline before server startup. It passes the
+parsed case and that context to `RunWBCase`; browser execution does not re-read
+the authored file or restart its budget. Parse errors refuse execution before
+server startup, including when the malformed file also declares a skip.
+<!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest -->
+<!-- source: internal/component/web/testing/runner.go -- RunWBCase -->
 
 Ze serves three htmx interfaces from three programs, and a browser proof of one
 of them has to start that one.
@@ -482,12 +520,28 @@ the readback, not the page the test was driving. That is what makes
 the page discard redirects to never held the pending change anyway. When you want
 the previous page back, `action=open` there yourself.
 
-**`expectDeadline` stops the POLLING, and is not a wall-clock cap.** The deadline is
-checked between rounds, so the round in flight when it expires runs to completion,
-and each round issues browser commands capped only by `agentTimeout`. What bounds a
-`.wb` test above that is its own `option=timeout`, checked between steps (see
-Options). It was inert until 2026-08-23, and a web test that stopped making progress
-hung the suite rather than failing one test.
+**The case deadline also bounds the command in progress.** Inner retry limits
+cannot extend that deadline. A `waitLoad` that does not settle fails with the
+last observed cause. Cleanup has a separate context. A failed owned browser
+close makes the case fail and preserves its completed steps. Server cleanup
+also propagates errors and joins its sole process owner. Native subprocess tests
+exercise the production scheduler and callback with owned server/browser fixtures:
+same-group admission stays blocked during browser cleanup, different groups finish,
+and the group is reusable after success, failure or cancellation. A lock-only port
+probe verifies retention independently of the server listener; a non-reaping wait
+observation verifies that the server owner has joined before callback return.
+These tests compile current Go source. `TestWebNativeCommand` separately drives
+a rebuilt named `le test web` through malformed, skipped, successful,
+browser-failure and startup-deadline cases. Its server and browser executables
+are owned fixtures; neither proof establishes detached-browser descendant cleanup.
+<!-- source: internal/test/cli/cmd_web_resource_integration_linux_test.go -- TestWebNativeExclusiveCleanup, TestWebAdmissionWorker -->
+<!-- source: internal/test/cli/cmd_web_command_integration_linux_test.go -- TestWebNativeCommand -->
+
+Immediate browser commands use a separate two-second `WaitDelay` to bound output
+drain after exit or cancellation. A retained pipe becomes a cleanup error rather
+than an unbounded wait. This does not establish that detached Chrome or browser
+daemon descendants have exited.
+<!-- source: internal/component/web/testing/runner.go -- agentPipeWaitDelay, runAgentCore, runAgentOutput -->
 <!-- source: internal/component/web/testing/runner.go -- waitUntil, waitLoad, inflightIdleExpr -->
 <!-- source: internal/component/web/testing/expect.go -- retryPositive, retryCommand, expectDeadline -->
 
@@ -503,12 +557,18 @@ hung the suite rather than failing one test.
 | `url` | `contains` / `not-contains` | the ADDRESS BAR contains / does not contain the substring. It read the accessibility snapshot until 2026-08-15, which never carries the address, so the assertion could only ever fail |
 | `title` | `contains` | the page text contains the substring (case-insensitive) |
 
-A POSITIVE expectation polls until it holds or `expectDeadline` expires, so it is a
-state wait as well as an assertion. A NEGATIVE one judges absence on one answer,
-because retrying an absence can only ever turn a real failure into a pass. So an
-absence proves something only when the step before it made the state current.
+Each positive retry and transient-query retry has its own `expectDeadline`:
+15 seconds serially, or 45 seconds with concurrent scheduler headroom. Sequential
+fetch and positive stages retain separate allowances. The outer expectation
+poller starts further attempts only within five seconds (15 concurrently); this
+elapsed-time cutoff does not cancel an already-running check or become an
+ancestor deadline. Checks without an internal retry still receive outer polling.
+All work inherits the earlier absolute case deadline, so no retry resets or
+extends the case budget. A negative check judges absence on one successful query,
+although the outer poller also rechecks failed expectations. An absence therefore
+proves something only when the preceding step made the state current.
 <!-- source: internal/component/web/testing/expect.go -- checkExpectation: element/breadcrumb/html/head/url/title; retryPositive vs retryFetch -->
-<!-- source: internal/component/web/testing/runner.go -- getHTML reads body, getHeadHTML reads head -->
+<!-- source: internal/component/web/testing/runner.go -- checkExpectationRetry, getHTML reads body, getHeadHTML reads head -->
 
 ### Browser integration (agent-browser)
 
@@ -519,7 +579,7 @@ operation; if it is not on `PATH`, the suite skips.
 
 The web suite runs each `.wb` test in parallel (capped at 4). Each test gets
 its own `ze` daemon (own port via `ReservePorts` + own tmpdir config store).
-When `AGENT_BROWSER_SESSION` is unset, it also gets its own browser session,
+It also gets its own browser session,
 so scenarios that mutate and `commit` config cannot corrupt each other.
 The session name carries the runner's process id and the test nick
 (`le-web-<pid>-<nick>`). The `agent-browser` daemon is shared by every run
@@ -528,9 +588,10 @@ browser for the same test number. Each test closes only its own session, and
 the daemon's idle timeout reaps a session whose run died. No run closes all
 sessions, because that kills the pages of every other run on the host.
 
-An inherited `AGENT_BROWSER_SESSION` currently overrides that generated identity
-in `Browser.agentEnv`, so those browsers are not isolated. Leave this variable
-unset for suite runs.
+The owned session overrides inherited `AGENT_BROWSER_SESSION` settings,
+including case and dot/underscore aliases. Standalone browser instances also
+allocate a process-scoped identity. Close refuses a browser without an owned
+identity and never sends `close --all`.
 <!-- source: internal/component/web/testing/runner.go -- agentEnv -->
 <!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest, per-test ReservePorts + MkdirTemp + session -->
 <!-- source: internal/test/cli/cmd_web.go -- zeTestBrowserSession -->

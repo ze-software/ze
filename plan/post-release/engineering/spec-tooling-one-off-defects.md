@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Each row is a defect in `le`, the hooks, the commit and verify tooling, or the functional and editor test harness; none changes the shipped binary, so it does not block release correctness |
 | Depends | - |
-| Phase | 3/13 |
+| Phase | 4/13 |
 | Handoff | - |
 | Updated | 2026-11-03 |
 

@@ -42,7 +42,7 @@ func (p *ownedProcess) reap() {
 	}
 	p.lifecycleErr = observe(p)
 	p.err = p.cmd.Wait()
-	p.retire(false)
+	_ = p.retire(false) //nolint:errcheck // Retirement without group cleanup cannot fail.
 	close(p.done)
 }
 
@@ -59,26 +59,34 @@ func (p *ownedProcess) observeExit(wait func() error) error {
 			if !errors.Is(err, syscall.ECHILD) {
 				p.kill()
 			}
-			p.retire(false)
+			_ = p.retire(false) //nolint:errcheck // Retirement without group cleanup cannot fail.
 			return fmt.Errorf("observe child exit before reap: %w", err)
 		}
-		p.retire(true)
+		if err := p.retire(true); err != nil {
+			return fmt.Errorf("clean child process group before reap: %w", err)
+		}
 		return nil
 	}
 }
 
-// retire revokes every alias's permission to signal. clean is permitted only
-// while an unreaped leader pins the group identity (beforeReap).
-func (p *ownedProcess) retire(clean bool) {
+// retire revokes every alias's permission to signal, even if final cleanup fails.
+// clean is permitted only while an unreaped leader pins the group identity
+// (beforeReap). An absent group is benign; other signal errors reach the owner.
+func (p *ownedProcess) retire(clean bool) error {
 	p.signalMu.Lock()
 	defer p.signalMu.Unlock()
 	if p.retired {
-		return
+		return nil
 	}
+	var err error
 	if clean {
-		_ = p.groupSignal(-p.cmd.Process.Pid, syscall.SIGKILL) //nolint:errcheck // the group may already be empty
+		err = p.groupSignal(-p.cmd.Process.Pid, syscall.SIGKILL)
 	}
 	p.retired = true
+	if errors.Is(err, syscall.ESRCH) {
+		return nil
+	}
+	return err
 }
 
 // Wait joins the sole reaper and returns only Cmd.Wait's result for exit-status
@@ -89,8 +97,8 @@ func (p *ownedProcess) Wait() error {
 	return p.err
 }
 
-// lifecycleError joins the owner before reading its observation failure. It is
-// independent of the child's exit status and cannot satisfy an exit assertion.
+// lifecycleError joins the owner before reading observation or retirement failure.
+// It is independent of the child's exit status and cannot satisfy an exit assertion.
 func (p *ownedProcess) lifecycleError() error {
 	<-p.done
 	return p.lifecycleErr

@@ -13,10 +13,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/trace"
 )
 
@@ -36,19 +37,24 @@ type WBTestResult struct {
 
 // Browser wraps agent-browser CLI commands.
 type Browser struct {
+	ctx           context.Context
 	baseURL       string
 	session       string
 	daemonStarted bool
 }
 
-// newBrowser creates a browser instance targeting the given base URL.
+var browserSequence atomic.Uint64
+
+// newBrowser creates a browser instance with its own process-local identity.
 func newBrowser(baseURL string) *Browser {
-	return &Browser{baseURL: baseURL}
+	var tb textbuf.Buffer
+	session := tb.Str("ze-browser-").Int(int64(os.Getpid())).Byte('-').Uint(browserSequence.Add(1)).String()
+	return newBrowserWithSession(baseURL, session)
 }
 
 // newBrowserWithSession creates a browser bound to an isolated agent-browser session.
 func newBrowserWithSession(baseURL, session string) *Browser {
-	return &Browser{baseURL: baseURL, session: session}
+	return &Browser{ctx: context.Background(), baseURL: baseURL, session: session}
 }
 
 // Open navigates to baseURL + path.
@@ -86,24 +92,30 @@ func (b *Browser) runAgentEnsureDaemon(args ...string) error {
 // never settles and burns a fixed ~1.44s on every call. Instead we poll an
 // in-flight counter installed via AGENT_BROWSER_INIT_SCRIPTS (inflightInitJS)
 // with `eval`, which returns instantly, under a hard wall-clock deadline.
-// Polling from here (never a blocking `wait --fn`) means a request that never
-// settles degrades to "proceed after the deadline" instead of hanging until
-// the process is killed mid-command, which wedges the agent-browser daemon.
+// A request that never settles fails with the last observed cause.
 // Falls back to networkidle when the init script could not be written.
 func (b *Browser) waitLoad() error {
+	restore := b.bounded(waitLoadDeadline)
+	defer restore()
 	if ensureInitScript() == "" {
 		return b.runAgent("wait", "--load", "networkidle")
 	}
-	deadline := time.Now().Add(contended(waitLoadDeadline))
+	var lastErr error
 	for {
 		out, err := b.runAgentOutput("eval", inflightIdleExpr)
+		if b.ctx.Err() != nil {
+			return errors.Join(lastErr, err, context.Cause(b.ctx))
+		}
 		if err == nil && strings.TrimSpace(out) == "true" {
-			return nil
+			return context.Cause(b.ctx)
 		}
-		if !time.Now().Before(deadline) {
-			return nil
+		if err == nil {
+			err = fmt.Errorf("browser requests did not settle: %q", strings.TrimSpace(out))
 		}
-		time.Sleep(waitLoadPoll)
+		lastErr = err
+		if waitErr := waitContext(b.ctx, waitLoadPoll); waitErr != nil {
+			return errors.Join(err, waitErr)
+		}
 	}
 }
 
@@ -135,7 +147,9 @@ func (b *Browser) waitMs(ms string) error {
 
 	for remaining := d; remaining > 0; {
 		slice := min(remaining, browserIdleWindow/2)
-		time.Sleep(slice)
+		if err := waitContext(b.ctx, slice); err != nil {
+			return err
+		}
 
 		remaining -= slice
 		if remaining <= 0 {
@@ -170,19 +184,12 @@ func (b *Browser) waitMs(ms string) error {
 // vacuity the wait exists to remove. It is still a trap for the next author, so
 // either assert on the readback here or `action=open` back to where you were.
 //
-// It stops polling at the same expectDeadline every other browser retry uses
-// (expect.go), and fails naming the path and the wanted text. That deadline is
-// NOT a wall-clock cap on the step: retryCommand checks it between rounds, never
-// inside one, so the round in flight when it expires still runs to completion. A
-// round issues an `open`, one or more `eval` polls (waitLoad) and a `get html`,
-// each capped only by agentTimeout, so a stalled round overshoots. The file's own
-// option=timeout is what bounds the test above this, checked between steps by
-// runWBTestCase.
+// The retry deadline and every command inside it inherit the case deadline.
 func (b *Browser) waitUntil(path, want string) error {
 	if path == "" || want == "" {
 		return errWaitUntilRequiresPathAndContains
 	}
-	return retryCommand(func() error {
+	return b.retryCommand(func() error {
 		if err := b.Open(path); err != nil {
 			return err
 		}
@@ -242,7 +249,7 @@ const loginReadyExpr = `document.readyState === 'complete' && document.getElemen
 // waitLogin observes the submitted navigation without re-opening or submitting
 // anything. The normal positive-expectation deadline bounds a rejected login.
 func (b *Browser) waitLogin() error {
-	err := retryPositive(func() error {
+	err := b.retryPositive(func() error {
 		out, err := b.runAgentOutput("eval", loginReadyExpr)
 		if err != nil {
 			return fmt.Errorf("read login completion: %w", err)
@@ -329,7 +336,7 @@ func (b *Browser) pressOnID(id, key string) error {
 func (b *Browser) Click(text string) error {
 	// Retried as a whole: the element may not be in the snapshot yet, which is
 	// the same wait an expectation needs. See retryCommand (expect.go).
-	if err := retryCommand(func() error {
+	if err := b.retryCommand(func() error {
 		snap, snapErr := b.Snapshot()
 		if snapErr != nil {
 			return fmt.Errorf("snapshot before click: %w", snapErr)
@@ -367,7 +374,7 @@ func (b *Browser) clickID(id string) error {
 	// next step's click arrives inside that window: test/web/error-panel-toggle.wb
 	// line 65 clicked the tab, the drawer never opened, and line 66 failed.
 	stable := clickStableExpr(id)
-	if err := retryCommand(func() error {
+	if err := b.retryCommand(func() error {
 		state, evalErr := b.runAgentOutput("eval", stable)
 		if evalErr != nil {
 			return fmt.Errorf("eval before click: %w", evalErr)
@@ -538,13 +545,21 @@ func (b *Browser) getHeadHTML() (string, error) {
 // "--ignore-https-errors ignored: daemon already running" once per test. That
 // warning is about this browser's own daemon, and it read as a shared daemon
 // that had lost the option.
-func (b *Browser) Close() {
+// Close MUST be called before releasing the case's resources. Its separate
+// command context bounds cleanup even when execution expired. The caller MUST
+// report an error as incomplete cleanup, never as a passing case.
+func (b *Browser) Close() error {
 	if b.session == "" {
-		_ = b.runAgentEnsureDaemon("close", "--all")
-	} else {
-		_ = b.runAgentEnsureDaemon("close")
+		return errors.New("browser cleanup incomplete: no owned session")
+	}
+	parent := b.ctx
+	b.ctx = context.Background()
+	defer func() { b.ctx = parent }()
+	if err := b.runAgentEnsureDaemon("close"); err != nil {
+		return fmt.Errorf("browser session %q cleanup incomplete: %w", b.session, err)
 	}
 	b.daemonStarted = false
+	return nil
 }
 
 // findRefByText searches the snapshot output for a line containing the text
@@ -571,24 +586,6 @@ const agentBrowserBin = "agent-browser"
 // agentTimeout is the default timeout for agent-browser commands.
 var agentTimeout = 30 * time.Second
 
-// contended widens one browser-side bound by the verification headroom.
-//
-// The full verification run starts every gating suite at once, and the web
-// suite shares the CPU with them. The first browser launch of a run then
-// measured past 30s: three tests of one run were killed on their first `open`
-// at the same instant, and a form save outlasted waitLoad's 5s, so the next
-// navigation read a half-applied change. The file budget and the server
-// readiness wait (zeTestReadyTimeout) already take this headroom. Every inner
-// bound takes it through here, so no bound expires before the budget that
-// holds it. A standalone run keeps the tight values and reports a real hang
-// quickly.
-func contended(bound time.Duration) time.Duration {
-	if runner.VerifyModeEnabled() {
-		return bound * runner.ParallelTimeoutHeadroom
-	}
-	return bound
-}
-
 func (b *Browser) runAgent(args ...string) error {
 	return b.runAgentCore(nil, args...)
 }
@@ -597,27 +594,35 @@ func (b *Browser) runAgentWithHTTPSIgnore(args ...string) error {
 	return b.runAgentCore([]string{"--ignore-https-errors"}, args...)
 }
 
+// agentPipeWaitDelay is a cleanup bound, separate from the execution deadline.
+// It closes inherited output pipes after exit/cancellation; it does not prove
+// that a detached browser daemon or Chrome process has exited.
+const agentPipeWaitDelay = 2 * time.Second
+
 func (b *Browser) runAgentCore(globalArgs []string, args ...string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), contended(agentTimeout))
+	ctx, cancel := context.WithTimeout(b.ctx, Bound(b.ctx, agentTimeout))
 	defer cancel()
 
 	if len(globalArgs) > 0 {
 		args = append(append([]string{}, globalArgs...), args...)
 	}
 	cmd := exec.CommandContext(ctx, agentBrowserBin, args...) //nolint:gosec // args are test-controlled, not user input
+	cmd.WaitDelay = agentPipeWaitDelay
 	cmd.Env = b.agentEnv()
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return errors.Join(cmd.Run(), context.Cause(ctx))
 }
 
 func (b *Browser) runAgentOutput(args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), contended(agentTimeout))
+	ctx, cancel := context.WithTimeout(b.ctx, Bound(b.ctx, agentTimeout))
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, agentBrowserBin, args...) //nolint:gosec // args are test-controlled, not user input
+	cmd.WaitDelay = agentPipeWaitDelay
 	cmd.Env = b.agentEnv()
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
+	err = errors.Join(err, context.Cause(ctx))
 	if err != nil {
 		return "", err
 	}
@@ -684,6 +689,9 @@ func ensureInitScript() string {
 
 func (b *Browser) agentEnv() []string {
 	inherited := os.Environ()
+	if b.session != "" {
+		inherited = env.Without(inherited, "agent.browser.session")
+	}
 	env := make([]string, 0, len(inherited)+3)
 	hasIdle, hasInit, hasSession := false, false, false
 	for _, e := range inherited {
@@ -742,12 +750,27 @@ func RunWBFileWithSession(path, baseURL, session string) *WBTestResult {
 }
 
 func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
+	ctx, cancel, err := CaseContext(context.Background(), tc.Timeout, 1)
+	if err != nil {
+		return &WBTestResult{Error: err.Error()}
+	}
+	defer cancel()
+	return RunWBCase(ctx, tc, baseURL, session)
+}
+
+// RunWBCase executes a parsed case under the deadline the scheduler started
+// before server startup. The caller MUST supply that context, without resetting it.
+func RunWBCase(ctx context.Context, tc *WBTestCase, baseURL, session string) (result *WBTestResult) {
+	if _, ok := ctx.Deadline(); !ok {
+		return &WBTestResult{Error: "browser case requires a deadline before server startup"}
+	}
 	var browser *Browser
 	if session == "" {
 		browser = newBrowser(baseURL)
 	} else {
 		browser = newBrowserWithSession(baseURL, session)
 	}
+	browser.ctx = ctx
 	// Free this test's browser session when it finishes. Sessions are keyed per
 	// test. Without this close, more than 80 live pages accumulate and starve the
 	// later tests. A daemon whose run died is reaped by its idle timeout
@@ -759,7 +782,17 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	// can then stay on about:blank. The caller names a session unique to its
 	// run and test (zeTestBrowserSession in internal/test/cli), so its first
 	// Open already starts with a clean context.
-	defer browser.Close()
+	defer func() {
+		if err := browser.Close(); err != nil {
+			if result != nil {
+				result.Passed = false
+				if result.Error != "" {
+					result.Error += "; "
+				}
+				result.Error += err.Error()
+			}
+		}
+	}()
 
 	var (
 		steps []trace.StepResult
@@ -779,43 +812,10 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 		}
 	}
 
-	// The file's declared budget. Checked BETWEEN steps, which bounds the test at
-	// its timeout plus one step. Every step is itself bounded. A browser command is
-	// bounded by agentTimeout, a retrying step by expectDeadline or
-	// expectRetryDeadline, and `action=wait` by the millisecond count the file
-	// asked for. Checking inside a step would mean threading the deadline through
-	// every retry loop for a bound the caller already has.
-	//
-	// Nothing read the Timeout field until 2026-08-23, so every .wb that declared a
-	// timeout declared nothing. `pr.Run` (internal/test/runner/parallel.go) gives
-	// each test the suite's context and no per-test deadline. A web test that
-	// stopped making progress therefore hung the suite instead of failing it.
-	//
-	// A zero Timeout means UNSPECIFIED, never "no time at all". ParseWBFile always
-	// seeds the field and refuses a non-positive declared value. Zero therefore
-	// reaches here only from a WBTestCase built in code, where the caller declared
-	// nothing. Reading it literally would expire the deadline before step one and
-	// fail every such run. That is a zero value that looks like a valid answer
-	// (docs/contributing/ze-go-style.md, "Types that cannot lie").
-	// The declared value uses the same verification headroom as the other suite
-	// budgets. The full verification run can overlap this suite with the race
-	// unit stage. CPU starvation can make a 2s standalone step take much longer.
-	// The files declared their timeouts before this field was enforced. Headroom
-	// keeps those existing values usable, while a standalone run keeps the
-	// declared value and reports a real hang quickly.
-	budget := tc.Timeout
-	if budget <= 0 {
-		budget = defaultWBTimeout
-	}
-	budget = contended(budget)
-	deadline := time.Now().Add(budget)
-
 	for i, step := range tc.Steps {
-		if !time.Now().Before(deadline) {
+		if err := context.Cause(ctx); err != nil {
 			return &WBTestResult{
-				Error: tb.Reset().Str("timed out after ").Str(budget.String()).
-					Str(" (option=timeout) with ").Int(int64(len(tc.Steps) - i)).
-					Str(" step(s) left; raise the declared timeout or find what stopped making progress").String(),
+				Error: err.Error(),
 				Steps: steps,
 			}
 		}
@@ -853,6 +853,9 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 		}
 	}
 
+	if err := context.Cause(ctx); err != nil {
+		return &WBTestResult{Error: err.Error(), Steps: steps}
+	}
 	return &WBTestResult{Passed: true, Steps: steps}
 }
 
@@ -861,29 +864,39 @@ const (
 	// none. ParseWBFile seeds WBTestCase.Timeout with it and
 	// `option=timeout:value=` replaces it.
 	defaultWBTimeout = 30 * time.Second
-	// Generous: under CPU load an HTMX/JS render can land seconds after waitLoad
-	// reports network idle. The assertion must out-wait the render without
-	// out-waiting the test timeout.
+	// This window limits starting another attempt, not the work inside one.
 	expectRetryDeadline = 5 * time.Second
 	// Poll gently because each retry starts an agent-browser subprocess.
 	expectRetryPoll = 250 * time.Millisecond
 )
 
-// checkExpectationRetry polls an expectation until a short deadline expires.
-// A browser snapshot is a point-in-time read. Under CPU load, an HTMX or
-// JavaScript render can land after waitLoad reports network idle. Retrying turns
-// that race into a bounded wait. A wrong page still fails after the deadline.
+// checkExpectationRetry starts further attempts only within its polling window.
+// Each attempt keeps the case context, so sequential nested positive and fetch
+// retries receive their own allowances without extending the absolute deadline.
+// Checks without an internal retry still poll for asynchronous page updates.
 func checkExpectationRetry(b *Browser, e *WBExpectation) error {
-	deadline := time.Now().Add(contended(expectRetryDeadline))
+	deadline := time.Now().Add(Bound(b.ctx, expectRetryDeadline))
+	var lastErr error
 	for {
-		err := checkExpectation(b, e)
-		if err == nil {
-			return nil
+		if err := context.Cause(b.ctx); err != nil {
+			return errors.Join(lastErr, err)
 		}
-		if !time.Now().Before(deadline) {
-			return err
+		if lastErr != nil {
+			if !time.Now().Before(deadline) {
+				return lastErr
+			}
 		}
-		time.Sleep(expectRetryPoll)
+		lastErr = checkExpectation(b, e)
+		if lastErr == nil {
+			return context.Cause(b.ctx)
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return errors.Join(lastErr, context.Cause(b.ctx))
+		}
+		if waitErr := waitContext(b.ctx, min(expectRetryPoll, remaining)); waitErr != nil {
+			return errors.Join(lastErr, waitErr)
+		}
 	}
 }
 

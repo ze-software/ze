@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // WBStepType identifies the kind of step in a web browser test case.
@@ -99,9 +101,12 @@ type WBEnvVar struct {
 
 // WBTestCase holds a parsed .wb test file.
 type WBTestCase struct {
-	Actions []WBAction
-	Expects []WBExpectation
-	Steps   []WBStep
+	// Admission holds shared resource declarations. The scheduler MUST copy
+	// these fields before execution; parsing continues even after a skip.
+	Admission runner.Record
+	Actions   []WBAction
+	Expects   []WBExpectation
+	Steps     []WBStep
 	// Timeout is the wall-clock budget the file declares with
 	// option=timeout:value=. `runWBTestCase` (runner.go) enforces it. Until
 	// 2026-08-23 it was a string that nothing read. Every .wb that declared a
@@ -175,6 +180,12 @@ func ParseWBFile(content string) (*WBTestCase, error) {
 }
 
 func parseWBOption(tc *WBTestCase, rest string, line int) error {
+	if handled, err := runner.ParseResourceOption(&tc.Admission, rest); handled {
+		if err != nil {
+			return fmt.Errorf("line %d: %w", line, err)
+		}
+		return nil
+	}
 	kv := parseWBKV(rest)
 	kind := extractWBKind(rest)
 	switch kind {

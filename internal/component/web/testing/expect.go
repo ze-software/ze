@@ -4,6 +4,8 @@
 package webtesting
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -38,8 +40,8 @@ const (
 // the first sample, so retrying could only ever convert a real failure into a
 // pass by sampling earlier; the preceding wait is what makes the absence
 // meaningful.
-func retryPositive(check func() error) error {
-	return retryCommand(check)
+func (b *Browser) retryPositive(check func() error) error {
+	return b.retryCommand(check)
 }
 
 // retryCommand re-runs anything that reports failure as an error until it
@@ -56,17 +58,20 @@ func retryPositive(check func() error) error {
 // Retrying a click cannot double-submit the failure mode this exists for: an
 // element that is not there was not clicked. A command that acted and THEN
 // reported an error would be re-run, which is the accepted residual.
-func retryCommand(run func() error) error {
-	deadline := time.Now().Add(contended(expectDeadline))
+func (b *Browser) retryCommand(run func() error) error {
+	restore := b.bounded(expectDeadline)
+	defer restore()
 	for {
-		err := run()
-		if err == nil {
-			return nil
-		}
-		if !time.Now().Before(deadline) {
+		if err := context.Cause(b.ctx); err != nil {
 			return err
 		}
-		time.Sleep(expectPoll)
+		err := run()
+		if err == nil {
+			return context.Cause(b.ctx)
+		}
+		if waitErr := waitContext(b.ctx, expectPoll); waitErr != nil {
+			return errors.Join(err, waitErr)
+		}
 	}
 }
 
@@ -77,17 +82,20 @@ func retryCommand(run func() error) error {
 // expectation then fails on `html: exit status 1`, which says nothing about the
 // page. Negatives cannot use retryPositive because that can hide a real failure.
 // They can require a usable answer before they judge it.
-func retryFetch(fetch func() (string, error)) (string, error) {
-	deadline := time.Now().Add(contended(expectDeadline))
+func (b *Browser) retryFetch(fetch func() (string, error)) (string, error) {
+	restore := b.bounded(expectDeadline)
+	defer restore()
 	for {
-		out, err := fetch()
-		if err == nil {
-			return out, nil
-		}
-		if !time.Now().Before(deadline) {
+		if err := context.Cause(b.ctx); err != nil {
 			return "", err
 		}
-		time.Sleep(expectPoll)
+		out, err := fetch()
+		if err == nil {
+			return out, context.Cause(b.ctx)
+		}
+		if waitErr := waitContext(b.ctx, expectPoll); waitErr != nil {
+			return "", errors.Join(err, waitErr)
+		}
 	}
 }
 
@@ -111,7 +119,7 @@ func checkExpectation(b *Browser, e *WBExpectation) error {
 }
 
 func checkElement(b *Browser, e *WBExpectation) error {
-	snap, err := retryFetch(b.Snapshot)
+	snap, err := b.retryFetch(b.Snapshot)
 	if err != nil {
 		return fmt.Errorf("snapshot: %w", err)
 	}
@@ -120,7 +128,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 		var tb textbuf.Buffer
 		attrDouble := tb.Str("id=\"").Str(id).Byte('"').String()
 		attrSingle := tb.Reset().Str("id='").Str(id).Byte('\'').String()
-		if err := retryPositive(func() error {
+		if err := b.retryPositive(func() error {
 			html, htmlErr := b.getHTML()
 			if htmlErr != nil {
 				return fmt.Errorf("html: %w", htmlErr)
@@ -139,7 +147,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 	}
 
 	if id, ok := e.Values["not-id"]; ok {
-		html, htmlErr := retryFetch(b.getHTML)
+		html, htmlErr := b.retryFetch(b.getHTML)
 		if htmlErr != nil {
 			return fmt.Errorf("html: %w", htmlErr)
 		}
@@ -150,7 +158,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 
 	if text, ok := e.Values["text"]; ok {
 		want := strings.ToLower(text)
-		if err := retryPositive(func() error {
+		if err := b.retryPositive(func() error {
 			fullSnap, textErr := b.fullSnapshot()
 			if textErr != nil {
 				return fmt.Errorf("full snapshot: %w", textErr)
@@ -165,7 +173,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 	}
 
 	if text, ok := e.Values["not-text"]; ok {
-		fullSnap, textErr := retryFetch(b.fullSnapshot)
+		fullSnap, textErr := b.retryFetch(b.fullSnapshot)
 		if textErr != nil {
 			return fmt.Errorf("full snapshot: %w", textErr)
 		}
@@ -178,12 +186,12 @@ func checkElement(b *Browser, e *WBExpectation) error {
 }
 
 func checkHTML(b *Browser, e *WBExpectation) error {
-	html, err := retryFetch(b.getHTML)
+	html, err := b.retryFetch(b.getHTML)
 	if err != nil {
 		return fmt.Errorf("html: %w", err)
 	}
 	if sub, ok := e.Values["contains"]; ok {
-		if err := retryPositive(func() error {
+		if err := b.retryPositive(func() error {
 			current, htmlErr := b.getHTML()
 			if htmlErr != nil {
 				return fmt.Errorf("html: %w", htmlErr)
@@ -248,13 +256,13 @@ func htmlEvidence(html string) string {
 // positive form still polls: the wait is for the NAVIGATION to land, not for
 // the head to change.
 func checkHead(b *Browser, e *WBExpectation) error {
-	head, err := retryFetch(b.getHeadHTML)
+	head, err := b.retryFetch(b.getHeadHTML)
 	if err != nil {
 		return fmt.Errorf("head: %w", err)
 	}
 
 	if sub, ok := e.Values["contains"]; ok {
-		if err := retryPositive(func() error {
+		if err := b.retryPositive(func() error {
 			current, headErr := b.getHeadHTML()
 			if headErr != nil {
 				return fmt.Errorf("head: %w", headErr)
@@ -327,7 +335,7 @@ func checkBreadcrumb(b *Browser, e *WBExpectation) error {
 // The positive form polls, because a push lands with the swap it belongs to.
 func checkURL(b *Browser, e *WBExpectation) error {
 	if sub, ok := e.Values["contains"]; ok {
-		if err := retryPositive(func() error {
+		if err := b.retryPositive(func() error {
 			current, urlErr := b.getURL()
 			if urlErr != nil {
 				return fmt.Errorf("url: %w", urlErr)
@@ -343,7 +351,7 @@ func checkURL(b *Browser, e *WBExpectation) error {
 	}
 
 	if sub, ok := e.Values["not-contains"]; ok {
-		current, urlErr := retryFetch(b.getURL)
+		current, urlErr := b.retryFetch(b.getURL)
 		if urlErr != nil {
 			return fmt.Errorf("url: %w", urlErr)
 		}
