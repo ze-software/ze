@@ -2,7 +2,7 @@
   {
     "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5",
     "polarity": "negative",
-    "unit": "internal/component/bgp/plugins/rpki/aspa_as_trans_neighbor_test.go::TestASPAASTransNeighborDownstreamConfirmed",
+    "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go::TestASPAASTransNeighborDownstreamConfirmed",
     "unit-sha": "28e29b27196d12d1",
     "claim-sha": "f370ef441bed8385",
     "route": "revert",
@@ -13,7 +13,7 @@
   {
     "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5",
     "polarity": "positive",
-    "unit": "internal/component/bgp/plugins/rpki/aspa_as_trans_neighbor_test.go::TestASPAASTransNeighborDownstreamUnconfirmed",
+    "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go::TestASPAASTransNeighborDownstreamUnconfirmed",
     "unit-sha": "9550a54104d87ffd",
     "claim-sha": "d850d3b6c8fc58b0",
     "route": "revert",
