@@ -460,7 +460,11 @@ pass to `p.Run`: that Stage 1 declaration is all ze knows of a third-party
 plugin, and ze places the members before any peer starts. Name your filter by
 the process name ze runs you under (`<name>:<filter>`, the name your
 `plugin external <name>` entry gives), because that is the reference you
-serve. The fields and refusals are in
+serve. An insertion marked `required` carries a `reason`: the operator cannot
+name, move or deactivate that member, and a config that does is refused at
+verify with your reason, naming the peer, the chain and the reference (this is
+how `bgp-role` keeps the RFC 9234 Section 5 procedures out of operator reach).
+The fields and refusals are in
 `docs/architecture/api/process-protocol.md`, "Filter Insertion", and
 `internal/test/plugins/fakefilter` (`FilterInsertions`) is a worked example:
 run under another name, it inserts `<name>:judge` where a peer sets
@@ -468,6 +472,7 @@ run under another name, it inserts `<name>:judge` where a peer sets
 the `peer-name` session fact, on the session condition `peer-name`
 `<name>-peer`.
 <!-- source: pkg/plugin/rpc/types.go -- FilterInsertion, FilterInsertionSchemaPath -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- requiredInsertionRefusal -->
 <!-- source: internal/test/plugins/fakefilter/fakefilter.go -- FilterInsertions, sessionInsertion -->
 <!-- source: internal/component/config/schema_origin.go -- CheckFilterInsertionPaths -->
 
