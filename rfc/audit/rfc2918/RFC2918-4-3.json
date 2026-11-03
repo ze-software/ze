@@ -1,14 +1,14 @@
 {
-  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 2918 Section 4: \"Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy.\" ff89fc8110 (a withdraw verdict withdraws both families) changed only the egressRouteFilter closure in the tagged unit to the new three-value signature (suppress, override, follow); session_write.go writeUpdateGated and the raw-forward path read the first two exactly as before and the follow body is nil in this unit, so every input and every assertion is unchanged. TestRFC2918RefreshRunsCurrentExportPolicy still requires one policy call and grown wire output on an accepting replay, and identical wire bytes with a second call once only the policy answer flips to reject, so the outbound policy decides the re-advertisement in both polarities. Other carriers byte-identical. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). RFC 2918 Section 4 read: \"Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy.\" The moved unit TestRFC2918RefreshRunsCurrentExportPolicy changed only the filter plumbing: The test filter is now an answerTransport behind filterTransportSeam, compiled by answerPolicy into a policychain library chain, so the verdict travels the real filter-update path (route.Input, rpc.FilterUpdateOutput decoded by the library chain) instead of the deleted policyFilterSeam that handed a PolicyResponse straight to the text chain; that is the production path every plugin filter now takes. It still answers accept, then reject once only the answer flips, and still requires one policy call with grown wire output on the accepting replay and identical wire bytes with a second call on the rejecting one, through exportFilterForBody on the session egress filter. The outbound policy decides the re-advertisement in both polarities; assertions unchanged. Other carriers byte-identical. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced.",
   "requirement_sha": "b02d09aa24b01702",
   "tests": {
     "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh": "68bcded138b8992f",
     "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer": "68bcded138b8992f",
     "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "c73bf5b0b1e12d0f",
     "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "c73bf5b0b1e12d0f",
-    "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy": "2b265b5fd2f4e872",
-    "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy#2": "2b265b5fd2f4e872",
-    "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin": "2b265b5fd2f4e872",
+    "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy": "258d08aade0f6fa8",
+    "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy#2": "258d08aade0f6fa8",
+    "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin": "258d08aade0f6fa8",
     "test/plugin/refresh-config-static.ci": "a2b5d76bb0117d75"
   },
   "units": {
@@ -16,8 +16,8 @@
     "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer": "5a750a8e400fa6c6",
     "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "01df5e87fd409338",
     "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "4c887e880b608592",
-    "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy": "619f53b93d5981f1",
-    "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy#2": "619f53b93d5981f1",
+    "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy": "0f554b9e7195456b",
+    "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy#2": "0f554b9e7195456b",
     "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin": "017544fdcd4a6279",
     "test/plugin/refresh-config-static.ci": "a2b5d76bb0117d75"
   },
