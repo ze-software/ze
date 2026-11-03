@@ -1,4 +1,4 @@
-// Design: docs/architecture/api/process-protocol.md -- the filter text protocol
+// Design: docs/plugin-development/protocol.md -- The Route Fields of filter-update
 // Related: plugin_fixture_filter_subject.go -- the same observer shape over the whole attribute set
 // Related: register_filter_origin.go -- the registration
 
@@ -6,6 +6,7 @@ package fixture
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"strings"
@@ -27,11 +28,25 @@ const (
 	filterOriginRejectedPrefix = "10.0.0.0/24"
 	filterOriginAcceptedPrefix = "10.1.0.0/24"
 
-	// filterOriginUnnamed is what the fixture records when the subject names
-	// no origin at all. That is the defect state: the policy then has nothing
-	// to judge, and every route takes the same verdict.
+	// filterOriginUnnamed is what the fixture records when the declared fields
+	// carry no origin (or no prefix) at all. That is the defect state: the
+	// policy then has nothing to judge, and every route takes the same verdict.
 	filterOriginUnnamed = "<unnamed>"
+
+	// filterOriginFieldPrefix is the route field naming the announced NLRI
+	// (docs/plugin-development/protocol.md, "The Route Fields of
+	// filter-update").
+	filterOriginFieldPrefix = "prefix"
 )
+
+// filterOriginFields is the part of the fields object the policy declared it
+// reads: the announced NLRI by family, and the ORIGIN in the UPDATE event's
+// attr shape. A field the route does not carry is left out, so it decodes
+// to its zero, which the handler reports as filterOriginUnnamed.
+type filterOriginFields struct {
+	Prefix map[string][]string `json:"prefix"`
+	Origin string              `json:"origin"`
+}
 
 // filterOriginVerdict is what the policy answered for one route, beside the
 // ORIGIN it read to answer it.
@@ -48,13 +63,13 @@ type filterOriginState struct {
 	verdicts map[string]filterOriginVerdict
 }
 
-// filterMatchOnOrigin registers one import filter that decides on the ORIGIN
-// the subject names, then checks that each route got the verdict the policy
-// wrote.
+// filterMatchOnOrigin registers one import filter that declares the prefix
+// and origin fields and decides on the ORIGIN it is handed, then checks that
+// each route got the verdict the policy wrote.
 //
-// The check runs in compiled code because the subject reaches the plugin over
-// the RPC and never appears in the daemon's stderr. The plugin prints what it
-// read, so a failure carries the text that produced it.
+// The check runs in compiled code because the fields reach the plugin over
+// the RPC and never appear in the daemon's stderr. The plugin prints what it
+// read, so a failure carries the fields that produced it.
 func filterMatchOnOrigin(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return fmt.Errorf("filter-match-on-origin takes no arguments")
@@ -64,21 +79,23 @@ func filterMatchOnOrigin(ctx context.Context, args []string) error {
 	registration := sdk.Registration{Filters: []sdk.FilterDecl{{
 		Name:      "reject-incomplete",
 		Direction: sdk.FilterImport,
+		Reads:     []string{filterOriginFieldPrefix, fieldOrigin},
 		OnError:   sdk.OnErrorReject,
 	}}}
 
 	setup := func(plugin *sdk.Plugin) error {
 		plugin.OnFilter(func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
-			input, err := route.Input()
+			raw, err := route.Fields()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("origin-policy: read the declared fields: %w", err)
 			}
-			prefix, announced := filterOriginField(input.Update, "add")
-			if !announced {
-				prefix = filterOriginUnnamed
+			var fields filterOriginFields
+			if err := json.Unmarshal(raw, &fields); err != nil {
+				return nil, fmt.Errorf("origin-policy: decode the declared fields %s: %w", raw, err)
 			}
-			origin, named := filterOriginField(input.Update, "origin")
-			if !named {
+			prefix := filterOriginPrefix(&fields)
+			origin := fields.Origin
+			if origin == "" {
 				origin = filterOriginUnnamed
 			}
 
@@ -91,7 +108,7 @@ func filterMatchOnOrigin(ctx context.Context, args []string) error {
 			state.verdicts[prefix] = filterOriginVerdict{origin: origin, action: action}
 			state.mu.Unlock()
 
-			filterOriginSaid(prefix, origin, action, input.Update)
+			filterOriginSaid(prefix, origin, action, string(raw))
 			return &sdk.FilterUpdateOutput{Action: action}, nil
 		})
 		return nil
@@ -103,32 +120,31 @@ func filterMatchOnOrigin(ctx context.Context, args []string) error {
 		})
 }
 
-// filterOriginSaid prints one verdict with the subject it was taken on, so a
-// failure carries the text the daemon really handed the policy.
-func filterOriginSaid(prefix, origin string, action sdk.FilterAction, subject string) {
+// filterOriginSaid prints one verdict with the fields it was taken on, so a
+// failure carries the fields the daemon really handed the policy.
+func filterOriginSaid(prefix, origin string, action sdk.FilterAction, fields string) {
 	var line textbuf.Buffer
 	line.Str("origin-policy: prefix=").Str(prefix)
 	line.Str(" origin=").Str(origin)
 	line.Str(" action=").Str(action.String())
-	line.Str(" subject=").Quoted(subject)
+	line.Str(" fields=").Quoted(fields)
 	line.Byte('\n')
 	_ = line.StdErr() //nolint:errcheck // a failed write to stderr has nowhere left to report itself
 }
 
-// filterOriginField returns the value the subject gives one attribute name, and
-// whether the subject names it at all.
-//
-// It compares whole tokens. "originator-id" starts with the letters of
-// "origin" and is a different attribute, and one subject can carry both.
-func filterOriginField(subject, name string) (string, bool) {
-	fields := strings.Fields(subject)
-	for i, field := range fields {
-		if field != name || i+1 >= len(fields) {
-			continue
-		}
-		return fields[i+1], true
+// filterOriginPrefix returns the one announced prefix the route carries, or
+// filterOriginUnnamed when it carries none or more than one: each route of
+// the scenario announces exactly one, so any other count is the defect the
+// check reports.
+func filterOriginPrefix(fields *filterOriginFields) string {
+	var prefixes []string
+	for _, announced := range fields.Prefix {
+		prefixes = append(prefixes, announced...)
 	}
-	return "", false
+	if len(prefixes) != 1 {
+		return filterOriginUnnamed
+	}
+	return prefixes[0]
 }
 
 // filterOriginCheck waits for both routes to be judged, compares each verdict

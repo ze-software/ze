@@ -559,3 +559,36 @@ func policyWithdrawals(payload []byte) []byte {
 	copy(out[at+2:], unreach)
 	return out
 }
+
+// textDeltaOps writes into mods the operations that turn the original
+// filter text into modified, through the text delta extractors, and answers
+// the NLRI override sectionNLRIDelta computes (false with the refusal when the
+// answer drops NLRI the engine cannot drop). The AS-path directives apply only
+// where intent allows an AS_PATH edit, and the MED removal only on import.
+// values MUST stay held until buildModifiedPayload has copied the operations'
+// values. Its callers are the text chain steps of a policy that compiled no
+// library chain (runIngressPolicyChainMeta, runEgressPolicyChainASN4).
+func textDeltaOps(values *valueScratch, original, modified string, wireUpdate *wireu.WireUpdate, intent libraryIntentContext, medRemove bool, mods *filterapi.ModAccumulator) ([]byte, nlriRefusal, bool) {
+	// The two parses write into storage this call owns, so the structs live
+	// on its stack rather than on the heap; each text is parsed once and the
+	// extractors share the parse read-only (spec filter-delta-parse-once).
+	var origAttrs, modAttrs filterAttrs
+	parseFilterAttrsInto(&origAttrs, original)
+	parseFilterAttrsInto(&modAttrs, modified)
+	textDeltaToModOps(values, &origAttrs, &modAttrs, mods)
+	attrsWire, _ := wireUpdate.Attrs() //nolint:errcheck // a nil section is what both AS-path cores refuse to edit
+	if intent.asPathEditable {
+		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, intent.asn4, intent.peerAS, mods)
+		ExtractASPathPrependOps(values, &modAttrs, attrsWire, intent.asn4, intent.localAS, mods)
+	} else {
+		fwdLogger().Debug("export AS_PATH edits not applied toward an internal peer (RFC 4271 Section 5.1.2)")
+	}
+	// RFC 4271 Section 5.1.4's configured removal, and the ONLY site that
+	// converts the directive. The rewritten payload replaces the WireUpdate
+	// before the RIB plugin runs Decision Process phases 1 and 2, which is the
+	// ordering that section requires of a removal.
+	if medRemove && medRemoveHasWork(&modAttrs) {
+		ExtractMEDRemoveOps(&modAttrs, mods)
+	}
+	return sectionNLRIDelta(values, original, modified, wireUpdate, mods)
+}

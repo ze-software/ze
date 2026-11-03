@@ -67,9 +67,8 @@ func compileConditionalChain(p filterapi.Policy, conditional []sessionMember, re
 // silently ignored. A plugin filter becomes an external member of the
 // library chain, in chain order: it is sent the fields it declared through
 // the chain's view, so it reads what an earlier member set, and its sets fold
-// beside theirs (policychain external.go); one that declared no reads is
-// served the text update (policychain external_text.go, transitional until
-// phase 5). The reference splits at its colon into plugin and filter, as the
+// beside theirs (policychain external.go); one that declared no reads
+// fails every route it is asked to judge. The reference splits at its colon into plugin and filter, as the
 // text chain splits it (PolicyFilterChain).
 //
 // A dynamic group's chain naming a member through a config variable compiles

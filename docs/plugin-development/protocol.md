@@ -809,10 +809,11 @@ the value in the field's shape:
   route is withdrawn toward that destination. Every route of the UPDATE is
   withdrawn: one whose MP_REACH_NLRI and MP_UNREACH_NLRI name two families is
   withdrawn as two UPDATEs, one per family, because one UPDATE carries one
-  MP_UNREACH_NLRI. The later filters of the chain are not called. A filter
-  that declares no `reads` is sent the text `update` and answers it with
-  `accept`, `reject` or `modify` only: a `withdraw` from it fails the route,
-  so a filter that withdraws declares at least one field it reads.
+  MP_UNREACH_NLRI. The later filters of the chain are not called.
+- A filter that declares no `reads` is never called: Ze has no field to send
+  it, so every route the chain asks it to judge fails, and the chain treats
+  the failure as `on-error` `reject` whatever the filter declared. Declare at
+  least one field the filter reads, or `raw`.
 - The route fails the same way when the answer carries `sets` beside `accept`,
   `reject` or `withdraw`, or a text `update`.
 - A filter that declares `raw` among its reads may answer `"action":"modify"`
@@ -826,7 +827,7 @@ the value in the field's shape:
 - `teardown` on an import route closes the session, as in a chain of plugin
   filters only; on export it is ignored and the action stands.
 <!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets, rawAnswer -->
-<!-- source: internal/component/bgp/policychain/external_text.go -- judgeText -->
+<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, errExternalNoReads -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- toPolicyAction -->
 <!-- source: internal/component/bgp/policychain/chain.go -- rawOutcome -->
 <!-- source: internal/component/bgp/policychain/external_intents.go -- applyASPathIntent, applyPrefixIntent, applyFamilyIntent -->

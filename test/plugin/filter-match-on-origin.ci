@@ -1,10 +1,10 @@
 # filter-match-on-origin -- an operator writes a policy that decides on ORIGIN, and each
 # route gets the verdict the operator wrote.
 #
-# VALIDATES: AC-11 -- a filter matching on `origin incomplete` rejects a route carrying
+# VALIDATES: AC-11 -- a filter matching on origin incomplete rejects a route carrying
 #            ORIGIN incomplete, and the same filter accepts a route carrying ORIGIN igp.
-#            The verdict is reached on a subject that names origin, and it reaches the
-#            route: the rejected prefix is not stored and the accepted one is.
+#            The verdict is reached on the origin field the filter declared, and it
+#            reaches the route: the rejected prefix is not stored and the accepted one is.
 # PREVENTS:  a policy deciding on an attribute it was never shown. appendSingleAttr named
 #            *attribute.Origin while knownAttrParsers boxes attribute.Origin, so no arm
 #            matched, nothing was logged, and every route reached the filter with no
@@ -14,8 +14,9 @@
 # Flow:
 # 1. ze-peer announces 10.0.0.0/24 with ORIGIN incomplete and 10.1.0.0/24 with ORIGIN igp.
 # 2. The import chain calls origin-policy:reject-incomplete for each route.
-# 3. The fixture reads the origin token out of FilterUpdateInput.Update, answers reject
-#    for incomplete and accept for igp, and then reads what the daemon stored.
+# 3. The fixture declares the prefix and origin reads, takes both out of
+#    FilterUpdateInput.Fields, answers reject for incomplete and accept for igp, and
+#    then reads what the daemon stored.
 #
 # The session is EXTERNAL (65000 -> 65001), which is where a policy about how a neighbor
 # learned its routes belongs. ORIGIN is a well-known mandatory attribute on either kind of

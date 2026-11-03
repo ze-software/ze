@@ -1,4 +1,4 @@
-// Design: docs/architecture/api/process-protocol.md -- the filter text protocol
+// Design: docs/plugin-development/protocol.md -- The Route Fields of filter-update
 
 package fixture
 

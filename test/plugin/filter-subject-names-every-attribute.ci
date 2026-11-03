@@ -1,7 +1,8 @@
-# Test: the filter subject names every attribute Ze advertises
+# Test: a filter that declares the five attributes is handed every one of them
 # VALIDATES: AC-1 -- a route carrying ORIGIN, MULTI_EXIT_DISC, LOCAL_PREF,
-#            ATOMIC_AGGREGATE and CLUSTER_LIST reaches an import filter with all
-#            five named in FilterUpdateInput.Update.
+#            ATOMIC_AGGREGATE and CLUSTER_LIST reaches an import filter that
+#            declared the five as reads with all five in FilterUpdateInput.Fields,
+#            each carrying the value the route announced.
 # PREVENTS:  the five silent drops appendSingleAttr made for the life of the
 #            function. Its type switch named a pointer form for each of the five,
 #            and knownAttrParsers boxes the value form, so a Go type switch arm
@@ -12,8 +13,8 @@
 # 1. ze-peer sends one UPDATE over an IBGP session carrying all five attributes,
 #    plus AS_PATH and NEXT_HOP, for 10.0.0.0/24.
 # 2. The import chain calls filter-subject-test:record-subject.
-# 3. The fixture plugin records FilterUpdateInput.Update and fails when any of
-#    the five names is absent from it.
+# 3. The fixture plugin records FilterUpdateInput.Fields and fails when any of
+#    the five fields is absent from it or carries another value.
 #
 # The session is IBGP because LOCAL_PREF and CLUSTER_LIST belong on an internal
 # session (RFC 4271 Section 5.1.5, RFC 4456 Section 8); an EBGP peer sending
@@ -84,11 +85,12 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
-# The subject the daemon handed the filter, printed by the fixture. Each name is
-# asserted separately so a red says WHICH attribute is missing.
-expect=stderr:pattern=OK: the subject names all five attributes
-expect=stderr:pattern=origin incomplete
-expect=stderr:pattern=med 100
-expect=stderr:pattern=local-preference 150
-expect=stderr:pattern=atomic-aggregate
-expect=stderr:pattern=cluster-list 1.1.1.1 2.2.2.2
+# The fields the daemon handed the filter, printed by the fixture once each
+# matched the announced value. Each field is asserted separately so a red says
+# WHICH attribute is missing.
+expect=stderr:pattern=OK: the fields name all five attributes
+expect=stderr:contains=OK: field origin is incomplete
+expect=stderr:contains=OK: field med is 100
+expect=stderr:contains=OK: field local-preference is 150
+expect=stderr:contains=OK: field atomic-aggregate is true
+expect=stderr:contains=OK: field cluster-list is [1.1.1.1,2.2.2.2]

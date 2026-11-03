@@ -37,9 +37,9 @@ type libraryDryRun struct {
 // the run applied, as the dry-run's wire-changes.
 func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *libraryDryRun, textBefore string) (PolicyChainResult, []plugin.PolicyTraceEntry, []string) {
 	var trace []plugin.PolicyTraceEntry
-	record := func(step policychain.MemberTrace, running *libraryText) {
+	record := func(step policychain.MemberTrace) {
 		entry := libraryTraceEntry(step)
-		text, err := r.libraryTraceText(step, running, dry, textBefore)
+		text, err := r.libraryTraceText(step, dry, textBefore)
 		entry.TextAfter = text
 		if err != nil && entry.Error == "" {
 			entry.Error = err.Error()
@@ -110,15 +110,12 @@ func dryRunWithdrawalText(out, payload []byte, ctxID bgpctx.ContextID) ([]byte, 
 }
 
 // libraryTraceText renders the UPDATE as the chain rewrote it up to step,
-// for the step's text-after, the way a text filter's entry carries the text
-// after its delta: after a passing or failed-open member the folded sets so
+// for the step's text-after: after a passing or failed-open member the folded sets so
 // far (a failed member's none), rebuilt through rewriteLibrary, the builder
 // the chain's result takes; after a member that rejected no text, as the text
 // path's rejecting entry. Display only: it allocates the rendered text. An
 // error says why the sets so far cannot be rendered, and the text is empty.
-//
-// running is the run's text as the text members up to step left it.
-func (r *Reactor) libraryTraceText(step policychain.MemberTrace, running *libraryText, dry *libraryDryRun, textBefore string) (string, error) {
+func (r *Reactor) libraryTraceText(step policychain.MemberTrace, dry *libraryDryRun, textBefore string) (string, error) {
 	switch step.Step {
 	case policychain.TraceReject, policychain.TraceWithdraw, policychain.TraceFailClosed:
 		return "", nil
@@ -131,10 +128,10 @@ func (r *Reactor) libraryTraceText(step policychain.MemberTrace, running *librar
 	if err != nil {
 		return "", errors.Join(errTraceRender, err)
 	}
-	if folded.Empty() && !running.changed() {
+	if folded.Empty() {
 		return textBefore, nil
 	}
-	rewrite := r.rewriteLibrary(&mods, folded, running, dry.wireUpdate, dry.payload, dry.intent)
+	rewrite := r.rewriteLibrary(&mods, folded, dry.wireUpdate, dry.payload, dry.intent)
 	if rewrite.nlriRefused {
 		return "", errors.New("the NLRI changes up to this filter cannot be applied: " + rewrite.refusal.reason)
 	}

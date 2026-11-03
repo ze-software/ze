@@ -2,13 +2,16 @@ package fixture
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -115,8 +118,8 @@ func p12FilterDriver(name string, registration *sdk.Registration, handler sdk.Fi
 func p12FilterChainDriver() Driver {
 	state := new(p12FilterState)
 	registration := sdk.Registration{Filters: []sdk.FilterDecl{
-		{Name: filterNameFirst, Direction: sdk.FilterImport, Attributes: []string{fieldASPath}, OnError: sdk.OnErrorReject},
-		{Name: "second", Direction: sdk.FilterImport, Attributes: []string{fieldCommunity}, OnError: sdk.OnErrorReject},
+		{Name: filterNameFirst, Direction: sdk.FilterImport, Reads: []string{fieldASPath}, OnError: sdk.OnErrorReject},
+		{Name: "second", Direction: sdk.FilterImport, Reads: []string{fieldCommunity}, OnError: sdk.OnErrorReject},
 	}}
 	handler := func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
 		state.mu.Lock()
@@ -155,10 +158,10 @@ func p12FilterChainDriver() Driver {
 
 func p12FilterDeclareDriver() Driver {
 	registration := sdk.Registration{Filters: []sdk.FilterDecl{{
-		Name:       "accept-all",
-		Direction:  sdk.FilterImport,
-		Attributes: []string{fieldASPath, fieldCommunity},
-		OnError:    sdk.OnErrorReject,
+		Name:      "accept-all",
+		Direction: sdk.FilterImport,
+		Reads:     []string{fieldASPath, fieldCommunity},
+		OnError:   sdk.OnErrorReject,
 	}}}
 	return p12FilterDriver("filter-declare-test", &registration, nil, func(ctx context.Context, plugin *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: filter declaration accepted, startup complete")
@@ -172,20 +175,21 @@ func p12FilterDeclareDriver() Driver {
 func p12FilterExportModifyDriver() Driver {
 	state := new(p12FilterState)
 	registration := sdk.Registration{Filters: []sdk.FilterDecl{{
-		Name:       "set-export-localpref",
-		Direction:  sdk.FilterExport,
-		Attributes: []string{fieldLocalPreference},
-		OnError:    sdk.OnErrorReject,
+		Name:      "set-export-localpref",
+		Direction: sdk.FilterExport,
+		Reads:     []string{fieldLocalPreference},
+		Sets:      []string{fieldLocalPreference},
+		OnError:   sdk.OnErrorReject,
 	}}}
 	handler := func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
-		input, err := route.Input()
-		if err != nil {
-			return nil, err
-		}
-		if input.Direction == directionExport {
+		if route.Direction() == directionExport {
+			fields, err := route.Fields()
+			if err != nil {
+				return nil, fmt.Errorf("set-export-localpref: read the declared fields: %w", err)
+			}
 			state.exportModified.Add(1)
-			fmt.Fprintf(os.Stderr, "filter-update EXPORT MODIFY: peer=%s update=%q\n", input.Peer, input.Update)
-			return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: "local-preference 200"}, nil
+			p12FilterSaid("filter-update EXPORT MODIFY: peer="+route.Peer()+" fields=", fields)
+			return p12SetLocalPreference(), nil
 		}
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 	}
@@ -210,26 +214,30 @@ func p12FilterExportModifyDriver() Driver {
 func p12FilterExportRejectDriver() Driver {
 	state := new(p12FilterState)
 	registration := sdk.Registration{Filters: []sdk.FilterDecl{{
-		Name:       "block-export",
-		Direction:  sdk.FilterExport,
-		Attributes: []string{fieldASPath},
-		OnError:    sdk.OnErrorReject,
+		Name:      "block-export",
+		Direction: sdk.FilterExport,
+		Reads:     []string{fieldASPath, p12FieldPrefix},
+		OnError:   sdk.OnErrorReject,
 	}}}
 	handler := func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
-		input, err := route.Input()
+		if route.Direction() != directionExport {
+			return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
+		}
+		fields, err := route.Fields()
+		if err != nil {
+			return nil, fmt.Errorf("block-export: read the declared fields: %w", err)
+		}
+		announced, err := p12Announces(fields, "10.0.0.0/24")
 		if err != nil {
 			return nil, err
 		}
-		if input.Direction != directionExport {
-			return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
-		}
-		if strings.Contains(input.Update, "10.0.0.0/24") {
+		if announced {
 			state.exportRejected.Add(1)
-			fmt.Fprintf(os.Stderr, "filter-update EXPORT REJECT: peer=%s update=%q\n", input.Peer, input.Update)
+			p12FilterSaid("filter-update EXPORT REJECT: peer="+route.Peer()+" fields=", fields)
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}, nil
 		}
 		state.exportPassed.Add(1)
-		fmt.Fprintf(os.Stderr, "filter-update EXPORT PASS (fence): peer=%s update=%q\n", input.Peer, input.Update)
+		p12FilterSaid("filter-update EXPORT PASS (fence): peer="+route.Peer()+" fields=", fields)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 	}
 	scenario := func(ctx context.Context, plugin *sdk.Plugin) error {
@@ -255,14 +263,62 @@ func p12FilterExportRejectDriver() Driver {
 	return p12FilterDriver("filter-export-reject-test", &registration, handler, scenario)
 }
 
-func p12FilterImportDriver(name, filterName string, attributes []string, action sdk.FilterAction, success string) Driver {
-	state := new(p12FilterState)
-	registration := sdk.Registration{Filters: []sdk.FilterDecl{{
-		Name:       filterName,
-		Direction:  sdk.FilterImport,
-		Attributes: attributes,
-		OnError:    sdk.OnErrorReject,
+// p12FieldPrefix is the route field naming the announced NLRI
+// (docs/plugin-development/protocol.md, "The Route Fields of filter-update").
+const p12FieldPrefix = "prefix"
+
+// p12SetLocalPreference is the modify answer of the local-preference filters:
+// one Set of local-preference to 200, which the redistribute-*-modify tests
+// find on the wire as LOCAL_PREF 0xC8.
+func p12SetLocalPreference() *sdk.FilterUpdateOutput {
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{{
+		Field:  fieldLocalPreference,
+		Action: rpc.FilterSetActionSet,
+		Value:  json.RawMessage(`200`),
 	}}}
+}
+
+// p12Announces answers whether the fields object announces prefix in any
+// family. An object that does not decode is an error, so the filter's
+// on-error decides the route rather than a verdict the fixture made up.
+func p12Announces(fields []byte, prefix string) (bool, error) {
+	var route struct {
+		Prefix map[string][]string `json:"prefix"`
+	}
+	if err := json.Unmarshal(fields, &route); err != nil {
+		return false, fmt.Errorf("decode the declared fields %s: %w", fields, err)
+	}
+	for _, announced := range route.Prefix {
+		if slices.Contains(announced, prefix) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// p12FilterSaid prints one line, a lead then the fields object the filter was
+// handed, so a failure carries what the daemon sent.
+func p12FilterSaid(lead string, fields []byte) {
+	var line textbuf.Buffer
+	line.Str(lead).Str(string(fields))
+	line.Byte('\n')
+	_ = line.StdErr() //nolint:errcheck // a failed write to stderr has nowhere left to report itself
+}
+
+// p12FilterImportDriver runs one import filter that declares reads and, for a
+// modify filter, the local-preference Set its answer carries.
+func p12FilterImportDriver(name, filterName string, reads []string, action sdk.FilterAction, success string) Driver {
+	state := new(p12FilterState)
+	declaration := sdk.FilterDecl{
+		Name:      filterName,
+		Direction: sdk.FilterImport,
+		Reads:     reads,
+		OnError:   sdk.OnErrorReject,
+	}
+	if action == sdk.FilterModify {
+		declaration.Sets = []string{fieldLocalPreference}
+	}
+	registration := sdk.Registration{Filters: []sdk.FilterDecl{declaration}}
 	handler := func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
 		state.calls.Add(1)
 		var verb string
@@ -279,11 +335,10 @@ func p12FilterImportDriver(name, filterName string, attributes []string, action 
 			panic("BUG: unknown import-filter fixture action")
 		}
 		fmt.Fprintf(os.Stderr, "filter-update %s: filter=%s peer=%s\n", verb, route.Filter(), route.Peer())
-		output := &sdk.FilterUpdateOutput{Action: action}
 		if action == sdk.FilterModify {
-			output.Update = "local-preference 200"
+			return p12SetLocalPreference(), nil
 		}
-		return output, nil
+		return &sdk.FilterUpdateOutput{Action: action}, nil
 	}
 	scenario := func(ctx context.Context, plugin *sdk.Plugin) error {
 		Poll(ctx, 100, 100*time.Millisecond, func() bool { return state.calls.Load() > 0 })

@@ -27,9 +27,6 @@ import (
 type libraryRun struct {
 	view policyview.View
 	sets policychain.RunSets
-	// text serves the chain's members that declared no reads
-	// (filter_library_text.go, transitional).
-	text libraryText
 }
 
 var libraryRuns = sync.Pool{New: func() any { return new(libraryRun) }}
@@ -81,10 +78,10 @@ type libraryResult struct {
 // sent, borrowed for the run only.
 //
 // record, when not nil, makes the run display only (show policy test): the
-// chain hands it each member's step (policychain.Chain.Trace) with the run's
-// text as the text members left it, and neither the chain nor this function
-// counts or logs a failure, because no route is refused. A live run passes nil.
-func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session policyview.Session, intent libraryIntentContext, direction, site, peer string, record func(policychain.MemberTrace, *libraryText)) libraryResult {
+// chain hands it each member's step (policychain.Chain.Trace), and neither the
+// chain nor this function counts or logs a failure, because no route is
+// refused. A live run passes nil.
+func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session policyview.Session, intent libraryIntentContext, direction, site, peer string, record func(policychain.MemberTrace)) libraryResult {
 	chain, ok := library.(*policychain.Chain)
 	if !ok {
 		panic("BUG: reactor: a policy's library chain is not a *policychain.Chain")
@@ -103,15 +100,12 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	if api := r.filterAPI(); api != nil {
 		route.Caller = libraryCaller{api: api}
 	}
-	run.text.begin(r, wireUpdate, payload, session, direction, peer, intent.peerAS)
-	defer run.text.clear()
-	route.Text = &run.text
 	run.sets.SetRoute(route)
 	defer run.sets.SetRoute(policychain.ExternalRoute{})
 
 	var outcome policychain.Outcome
 	if record != nil {
-		outcome = chain.Trace(&run.view, &run.sets, func(step policychain.MemberTrace) { record(step, &run.text) })
+		outcome = chain.Trace(&run.view, &run.sets, record)
 	} else {
 		outcome = chain.Run(&run.view, &run.sets)
 	}
@@ -122,7 +116,7 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	if raw := run.sets.Raw(); raw != nil {
 		// A member's whole-body rewrite is terminal (D-4): it replaces the
 		// body and carries no sets. The chain checked it under the member's
-		// on-error; this pairs the check with the text chain's.
+		// on-error; this pairs the check with the reactor's own.
 		override, rawErr := decodeFilterRawOverride(raw)
 		if rawErr != nil {
 			if record == nil {
@@ -142,7 +136,7 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 			"peer", peer, "site", site, "error", err)
 		return libraryResult{outcome: outcome, failed: true}
 	}
-	rewrite := r.rewriteLibrary(&mods, run.sets.Folded(), &run.text, wireUpdate, payload, intent)
+	rewrite := r.rewriteLibrary(&mods, run.sets.Folded(), wireUpdate, payload, intent)
 	if rewrite.nlriRefused {
 		if record != nil {
 			return libraryResult{outcome: outcome, failed: true}
@@ -179,13 +173,12 @@ type libraryRewrite struct {
 
 // rewriteLibrary turns folded sets, whose attribute operations Chain.Apply
 // already wrote into mods, into the rewritten body through
-// buildModifiedPayload, the builder the text delta reaches: the AS-path
-// intents, then the text members' delta (text, nil or unchanged when the
-// chain has none, transitional), then the NLRI intents. runLibraryChain calls it once per route;
+// buildModifiedPayload: the AS-path intents, then the NLRI intents.
+// runLibraryChain calls it once per route;
 // show policy test once per member, for the entry's text-after
 // (libraryTraceEntryText). The payload it answers is buildModifiedPayload's
 // own copy.
-func (r *Reactor) rewriteLibrary(mods *filterapi.ModAccumulator, folded *policychain.Sets, text *libraryText, wireUpdate *wireu.WireUpdate, payload []byte, intent libraryIntentContext) libraryRewrite {
+func (r *Reactor) rewriteLibrary(mods *filterapi.ModAccumulator, folded *policychain.Sets, wireUpdate *wireu.WireUpdate, payload []byte, intent libraryIntentContext) libraryRewrite {
 	// The intents' values are carved from one arena, released once
 	// buildModifiedPayload has copied them into the payload it returns.
 	values := acquireValueScratch()
@@ -195,26 +188,9 @@ func (r *Reactor) rewriteLibrary(mods *filterapi.ModAccumulator, folded *policyc
 		attrs, _ := wireUpdate.Attrs() //nolint:errcheck // a nil section is what both AS-path cores refuse to edit
 		libraryASPathOps(values, folded, attrs, intent, mods)
 	}
-	var textOverride []byte
-	if text.changed() {
-		var refusal nlriRefusal
-		var ok bool
-		textOverride, refusal, ok = textDeltaOps(values, text.original, text.current, wireUpdate, intent, text.direction == directionImport, mods)
-		if !ok {
-			return libraryRewrite{nlriRefused: true, refusal: refusal}
-		}
-	}
 	override, refusal, ok := libraryNLRIOps(values, folded, wireUpdate, mods)
 	if !ok {
 		return libraryRewrite{nlriRefused: true, refusal: refusal}
-	}
-	if textOverride != nil {
-		if override != nil {
-			// Two rewrites of one NLRI section, neither of which saw the
-			// other: refused rather than one silently winning.
-			return libraryRewrite{nlriRefused: true, refusal: nlriRefusal{reason: reasonTextBesideNLRISets}}
-		}
-		override = textOverride
 	}
 	if mods.Len() == 0 && override == nil && mods.WithdrawnRewrite() == nil {
 		return libraryRewrite{}
