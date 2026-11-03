@@ -114,7 +114,7 @@ expect=stderr:pattern=fakefilter judged a route.*prefix=10\.0\.0\.0/24.*verdict=
 expect=stderr:contains=fakefilter stopped
 # The second route met the closed slot: unavailable, naming the plugin and the
 # member's on-error, and the stopped plugin never judged it.
-expect=stderr:pattern=policy filter failed, its on-error decides the route.*attachment=.bgp import. filter=fakefilter:judge.*on-error=reject.*plugin .{0,2}fakefilter.{0,2} is unavailable
+expect=stderr:pattern=policy filter failed on a route for this peer, and its on-error setting decided the route \(route dropped\).*peer=127\.0\.0\.2.*attachment=.bgp import. filter=fakefilter:judge.*on-error=reject.*plugin .{0,2}fakefilter.{0,2} is unavailable
 # The daemon kept running without the plugin rather than stopping.
 expect=stderr:contains=plugin exited and is not to be started again, so ze continues without it
 reject=stderr:pattern=fakefilter judged a route.*prefix=10\.1\.0\.0/24
