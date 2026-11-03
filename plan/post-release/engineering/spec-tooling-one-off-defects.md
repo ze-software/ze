@@ -232,6 +232,7 @@ before execution. The responsible component remains unestablished.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `claim-outlives-the-evidence-it-cites` | 2026-11-03 | weakening approval keyed by unit name is reused for a later change |
 | `helper-bypassed-by-an-open-coded-copy` | 2026-11-02 | weakening and RFC gates scan Go test units twice |
 | `concurrent-session-corruption` | 2026-10-30 | site build's linux le cross-compiles the live checkout |
 | `review-pin-hashes-uncommitted-content` | 2026-10-30 | closure review pin hashes the working tree, not the landed blob |
