@@ -284,6 +284,7 @@ func TestRFCInteropCheckerBindings(t *testing.T) {
 		"bgp-rfc7606-typed-nlri-discard",
 		"bgp-rfc7999-blackhole-frr",
 		"bgp-role-otc-withdraw-frr",
+		"bgp-role-otc-withdraw-frr-forked",
 		"bgp-route-server-frr",
 		"bgp-route-server-replacement-frr",
 		"bgp-self-nexthop-withheld-frr",
