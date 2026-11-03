@@ -284,7 +284,7 @@ func (rs *routeServer) awaitDeparture(ctx context.Context, source string) error 
 	rs.departureMu.Lock()
 	departures := rs.departures
 	rs.departureMu.Unlock()
-	// refuse-by-default: guards awaitDeparture -- the workers start with the first departure ever queued, so with none there is no departure to wait for
+	// refuse-by-default: guards routeServer.settleSource -- the workers start with the first departure ever queued, so with none there is no departure to wait for and settleSource goes straight to its worker barrier
 	if departures == nil {
 		return nil
 	}

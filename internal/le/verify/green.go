@@ -231,7 +231,7 @@ type cutParts struct {
 func recordGreen(ctx context.Context, root string, part verifyengine.Part, report *Report, deps dependencies) string {
 	verification := report.Verify
 	// A run attached at admission carries no verification: it judged nothing.
-	// refuse-by-default: guards recordGreen -- a run that judged nothing writes no record, and the empty line adds no diagnostic
+	// refuse-by-default: guards run -- a run that judged nothing writes no record, and run appends a diagnostic only for a non-empty line
 	if verification == nil {
 		return ""
 	}
@@ -390,7 +390,7 @@ func recordPart(root, commit string, part verifyengine.Part, at time.Time) ([]in
 // record, which a sweep reads as "run every piece".
 func provenParts(root, commit string, of int) []int {
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(partsPath))) //nolint:gosec // the path is this checkout's verification artifact
-	// refuse-by-default: guards provenParts -- no proven piece makes the sweep run every piece, which costs a rerun and never skips one
+	// refuse-by-default: guards Sweep -- no proven piece makes Sweep run every piece, which costs a rerun and never skips one
 	if err != nil {
 		return nil
 	}

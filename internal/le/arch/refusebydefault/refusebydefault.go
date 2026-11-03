@@ -107,7 +107,11 @@ func ScanFile(fset *token.FileSet, path string) ([]Hit, []Annotation, error) {
 		scan.checkConstantCheck(funcDecl, name)
 		scan.function(name, funcDecl.Type, funcDecl.Body, false)
 	}
-	return scan.hits, annotations(fset, file), nil
+	found, err := annotations(fset, file, path)
+	if err != nil {
+		return nil, nil, err
+	}
+	return scan.hits, found, nil
 }
 
 // fileScan carries one file's state through the walk.

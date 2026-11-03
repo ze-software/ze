@@ -16,7 +16,7 @@ import (
 // missing one would owe a newer session's route graceful restart retains.
 func recoveryFromMeta(meta map[string]any) (netip.Addr, uint64, error) {
 	value, present := meta["recovery-source"]
-	// refuse-by-default: guards recoveryFromMeta -- no recovery-source is an ordinary withdrawal, not a departure; the invalid address is that answer, which the caller branches on
+	// refuse-by-default: guards netip.Addr.IsValid -- no recovery-source is an ordinary withdrawal, not a departure; reactorAPIAdapter.WithdrawNLRIBatch branches on RecoverySource.IsValid() and sends this invalid address down the ordinary rail
 	if !present {
 		return netip.Addr{}, 0, nil
 	}

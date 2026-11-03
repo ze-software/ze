@@ -88,6 +88,7 @@ func judgeFile(fset *token.FileSet, tree, path string, keep func(Hit) bool) (jud
 		}
 		answer.refused = append(answer.refused, Finding{File: path, Line: annotation.Line, Fn: "-", Rule: RuleAnnotationNoGuard, Detail: annotation.Problem})
 	}
+	selfNamed := map[int]bool{}
 	for _, hit := range hits {
 		if !keep(hit) {
 			continue
@@ -96,6 +97,14 @@ func judgeFile(fset *token.FileSet, tree, path string, keep func(Hit) bool) (jud
 		annotation, annotated := annotationFor(hit, byLine)
 		if annotated {
 			if annotation.Named() {
+				// The enclosing function is known only here, at the hit, so
+				// an annotation naming it is refused here rather than in
+				// parseGuard: the name is always visible and would pass.
+				if namesEnclosing(annotation.Guard, hit.Fn) {
+					answer.refused = append(answer.refused, refuseSelfNamed(path, annotation, keep, selfNamed)...)
+					answer.refused = append(answer.refused, finding)
+					continue
+				}
 				finding.Guard = annotation.Guard
 				answer.accepted = append(answer.accepted, finding)
 				continue
@@ -104,6 +113,21 @@ func judgeFile(fset *token.FileSet, tree, path string, keep func(Hit) bool) (jud
 		answer.refused = append(answer.refused, finding)
 	}
 	return answer, nil
+}
+
+// refuseSelfNamed answers the finding for an annotation whose guard names the
+// function enclosing its shape, once per annotation line however many shapes
+// it covers, and only when keep counts that line.
+func refuseSelfNamed(path string, annotation Annotation, keep func(Hit) bool, seen map[int]bool) Findings {
+	if seen[annotation.Line] {
+		return nil
+	}
+	seen[annotation.Line] = true
+	hit := Hit{Rule: RuleAnnotationNoGuard, Line: annotation.Line, Anchors: []span{{first: annotation.Line, last: annotation.Line}}}
+	if !keep(hit) {
+		return nil
+	}
+	return Findings{{File: path, Line: annotation.Line, Fn: "-", Rule: RuleAnnotationNoGuard, Detail: enclosingProblem(annotation.Guard)}}
 }
 
 // Check answers the shapes whose anchor lines the change set touches, over

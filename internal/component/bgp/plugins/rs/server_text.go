@@ -438,7 +438,7 @@ func parseTextState(text string) *Event {
 			event.InitialReplay = token
 		case "session-generation":
 			value, ok := s.Next()
-			// refuse-by-default: guards parseTextState -- nil is the parser's refusal of a down whose generation it cannot read, never a departure with a guessed one
+			// refuse-by-default: guards routeServer.dispatchText -- nil is the parser's refusal of a down whose generation it cannot read, and dispatchText hands handleState no event for it, never a departure with a guessed one
 			if !ok {
 				return nil
 			}

@@ -58,3 +58,48 @@ func drain(log *slog.Logger) {
 		log.Debug("drain after stop", "error", err)
 	}
 }
+
+// selfNamed names itself as the guard, which records nothing: the guard is the
+// code that relies on the zero, never the function the shape sits in.
+func selfNamed(kind int) (string, error) {
+	switch kind {
+	case 1:
+		return "one", nil
+	// refuse-by-default: guards selfNamed -- the function names itself // want: annotation-names-no-guard
+	default: // want: switch-unmatched-nil-error
+		return "", nil
+	}
+}
+
+type server struct{ handler func() error }
+
+// close names its own method in the `Type.Method` spelling.
+func (s *server) close() error {
+	fn := s.handler
+	// refuse-by-default: guards server.close -- the method names itself // want: annotation-names-no-guard
+	if fn == nil { // want: miss-answered-as-value
+		return nil
+	}
+	return fn()
+}
+
+// open names its own method in the bare spelling.
+func (s *server) open() error {
+	fn := s.handler
+	// refuse-by-default: guards open -- the method names itself // want: annotation-names-no-guard
+	if fn == nil { // want: miss-answered-as-value
+		return nil
+	}
+	return fn()
+}
+
+// serve names another method of the same type, the caller that relies on the
+// nil answer, so the annotation is accepted.
+func (s *server) serve() error {
+	fn := s.handler
+	// refuse-by-default: guards server.open -- open reads a nil answer as nothing to start
+	if fn == nil { // accepted: miss-answered-as-value
+		return nil
+	}
+	return fn()
+}

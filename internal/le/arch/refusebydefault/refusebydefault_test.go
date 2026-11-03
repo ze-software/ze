@@ -170,8 +170,9 @@ func TestRefuseByDefaultJudgesOnlyChangedLines(t *testing.T) {
 // TestRefuseByDefaultAnnotationNeedsGuard proves the escape (AC-5, AC-6): an
 // annotation naming a guard the file holds is accepted, listed with that
 // guard, and does not count toward the exit code; an annotation naming no
-// guard, or a name the file cannot see, is refused on its own line and leaves
-// the shape below it refused too.
+// guard, a name the file cannot see, or the name of the function enclosing
+// the shape, is refused on its own line and leaves the shape below it refused
+// too.
 func TestRefuseByDefaultAnnotationNeedsGuard(t *testing.T) {
 	source := fixture(t, "annotated.go")
 	tree := t.TempDir()
@@ -190,6 +191,24 @@ func TestRefuseByDefaultAnnotationNeedsGuard(t *testing.T) {
 	}
 	if report.Annotated[0].Guard != "Stop" {
 		t.Errorf("guard = %q, want Stop", report.Annotated[0].Guard)
+	}
+	// An annotation naming the function, or the method in either spelling,
+	// that encloses its shape is refused with a detail that says so and names
+	// what to write instead; one naming another method of the type is not.
+	selfNamed := 0
+	for _, finding := range report.Findings {
+		if strings.Contains(finding.Detail, "names the function this shape sits in") {
+			selfNamed++
+			if !strings.Contains(finding.Detail, "name the caller or branch that relies on the zero") {
+				t.Errorf("line %d: detail names no fix: %s", finding.Line, finding.Detail)
+			}
+		}
+	}
+	if selfNamed != 3 {
+		t.Errorf("self-named annotations refused = %d, want 3 (selfNamed, server.close, open)", selfNamed)
+	}
+	if got := report.Annotated[len(report.Annotated)-1].Guard; got != "server.open" {
+		t.Errorf("last accepted guard = %q, want server.open", got)
 	}
 	text := report.Text()
 	if !strings.Contains(text, "guard: Stop") {
@@ -263,5 +282,68 @@ func TestRefuseByDefaultReportRefusesATreeWithNoSourceRoot(t *testing.T) {
 	writeSource(t, tree, "docs/switch.go", fixture(t, "switch.go"))
 	if _, err := Report(tree); !errors.Is(err, ErrNoSourceRoot) {
 		t.Fatalf("Report over a tree with no source root: err = %v, want ErrNoSourceRoot", err)
+	}
+}
+
+// TestRefuseByDefaultGuardInSiblingFile proves the dependent may live in
+// another file of the same package, where a guard is most often declared: a
+// name a sibling file declares is visible, while a name only a test file or a
+// file of another package declares is not, so the annotation naming it is
+// refused.
+func TestRefuseByDefaultGuardInSiblingFile(t *testing.T) {
+	tree := t.TempDir()
+	rel := "internal/fixture/answer.go"
+	writeSource(t, tree, rel, `package fixture
+
+var handler func() error
+
+func answer() error {
+	fn := handler
+	// refuse-by-default: guards server.Dispatch -- Dispatch reads nil as nothing to run
+	if fn == nil {
+		return nil
+	}
+	return fn()
+}
+
+func onlyInTest() error {
+	fn := handler
+	// refuse-by-default: guards testOnly -- declared only in a test file
+	if fn == nil {
+		return nil
+	}
+	return fn()
+}
+
+func otherPackage() error {
+	fn := handler
+	// refuse-by-default: guards elsewhere -- declared only in another package
+	if fn == nil {
+		return nil
+	}
+	return fn()
+}
+`)
+	writeSource(t, tree, "internal/fixture/server.go", "package fixture\n\ntype server struct{}\n\nfunc (server) Dispatch() {}\n")
+	writeSource(t, tree, "internal/fixture/server_test.go", "package fixture\n\nfunc testOnly() {}\n")
+	writeSource(t, tree, "internal/fixture/other.go", "package main\n\nfunc elsewhere() {}\n")
+
+	report, err := Check(tree, repochanged.ChangedLines{rel: every})
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if len(report.Annotated) != 1 || report.Annotated[0].Guard != "server.Dispatch" {
+		t.Fatalf("annotated = %v, want the one shape guarded by server.Dispatch", report.Annotated)
+	}
+	refused := map[string]bool{}
+	for _, finding := range report.Findings {
+		if finding.Rule == RuleAnnotationNoGuard {
+			refused[strings.Fields(finding.Detail)[0]] = true
+		}
+	}
+	for _, guard := range []string{`"testOnly"`, `"elsewhere"`} {
+		if !refused[guard] {
+			t.Errorf("annotation guarding %s was not refused: %v", guard, report.Findings)
+		}
 	}
 }

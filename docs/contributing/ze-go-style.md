@@ -112,14 +112,17 @@ if fn == nil {
 ```
 
 The annotation opens with `guards` and a Go name the file holds or imports,
-then the reason. One that names no guard, or a name the file cannot see, is
-refused on its own line. The check lists every accepted shape with its guard,
-so a reviewer reads each one. `./le arch refuse-by-default report` lists every
+or that another file of its package declares, then the reason. The guard is
+the dependent, the caller or branch that relies on the zero, and never the
+function the shape sits in: that name is always visible and records nothing,
+so the check refuses it. One that names no guard, or a name the file cannot
+see, is refused on its own line. The check lists every accepted shape with its
+guard, so a reviewer reads each one. `./le arch refuse-by-default report` lists every
 instance in the tree, refused and annotated.
 <!-- source: internal/le/arch/refusebydefault/refusebydefault.go -- ScanFile, missOf, recordsMiss, answersPlausibly -->
 <!-- source: internal/le/arch/refusebydefault/dropped.go -- droppedError, belowWarn, drops -->
-<!-- source: internal/le/arch/refusebydefault/annotation.go -- parseGuard -->
-<!-- source: internal/le/arch/refusebydefault/report.go -- Check, Report -->
+<!-- source: internal/le/arch/refusebydefault/annotation.go -- parseGuard, namesEnclosing, addPackageNames -->
+<!-- source: internal/le/arch/refusebydefault/report.go -- Check, Report, judgeFile -->
 
 A probe that cannot look answers Unknown, with the reason it could not look,
 and never "absent". Its caller does not read Unknown, or its own failure to
@@ -609,7 +612,7 @@ A finding from these tools names the rule, so the rule is not restated above.
 |------|------|-----------------|
 | Guard, handle, return | revive `early-return`, `indent-error-flow`, `superfluous-else` | An `else` that a guard makes unnecessary |
 | One fact per guard | `./le arch compound-guard check` | A terminating `if a \|\| b` on a changed line |
-| Refuse, never default | `./le arch refuse-by-default check` | On a changed line: an unmatched switch value or a miss answered as a value, an ADD-PATH identifier compared with zero, a state answered from a literal, an error dropped with only a log line below WARN, or a `refuse-by-default:` annotation that names no guard (see "A zero value is never an answer") |
+| Refuse, never default | `./le arch refuse-by-default check` | On a changed line: an unmatched switch value or a miss answered as a value, an ADD-PATH identifier compared with zero, a state answered from a literal, an error dropped with only a log line below WARN, or a `refuse-by-default:` annotation that names no guard or names the function it sits in (see "A zero value is never an answer") |
 | State an invariant positively | ruleguard `negatedElse` | `if !c` or `if a != b` with an `else`. `err != nil` and the failure form of a bound stay allowed |
 | Only a named panic | `writeGoPatterns` | A `panic(` in content that holds no panic with a `BUG`, `unreachable`, `not implemented`, `unimplemented`, `TODO` or `impossible` prefix. One allowed panic admits every other panic in the same content, so a peer-reachable panic stays a reader check (see "Assertions, in a language that has none") |
 | No unchecked error | `errcheck` (type assertions too, `check-blank: false`), `forcetypeassert`, `nilerr`, `errorlint` | A call whose error result is ignored, an unchecked assertion, `return nil` beside a live `err`, an error compared with `==` or wrapped without `%w`. A blank discard `f, _ := open()` passes: see "Every error is handled" |
