@@ -23,7 +23,7 @@
     "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling": "8de8836c53b6fe6c",
     "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling#2": "8de8836c53b6fe6c",
     "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "aee9e1900e952b80",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "31aab6842e23cf15",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "e946324e6211f974",
     "test/encode/new-v6.ci": "4ffdf2e413e62f0c",
     "test/exabgp-compat/encoding/conf-llnh-update.ci": "7f4eea9ed22f6382",
     "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci": "dcba781a296b74e1"
