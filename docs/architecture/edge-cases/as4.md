@@ -59,6 +59,18 @@ BIRD and FRR read it whenever the peer sends it, so a BIRD peer with
 `enable as4 off` must name the peer's four-octet AS instead.
 <!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS, openPeerAS -->
 
+The first-AS check follows the same judgement. It normally compares the
+reconstructed path's leftmost AS with the peer AS, as the ASPA draft's Section 5
+asks. That path starts with the peer's real four-octet AS, which a `remote 23456`
+peer's config cannot name, so on a two-octet session whose peer is AS_TRANS the
+check reads the AS_PATH attribute as received, whose leftmost AS RFC 4271
+Section 6.3 names and RFC 6793 Section 4.2.2 makes AS_TRANS. BIRD compares the
+received AS_PATH too (`bgp_decode_as_path`, before `bgp_process_as4_attrs`).
+FRR compares the reconstructed path (`bgp_attr_aspath_check`), with its
+`remote-as` naming the real AS.
+<!-- source: internal/component/bgp/reactor/session_validation.go -- firstASMismatch, firstASOnWire -->
+<!-- source: internal/component/bgp/reactor/session_validation_receive.go -- prepareRFC7606FirstAS -->
+
 ---
 
 ## AS_PATH Encoding

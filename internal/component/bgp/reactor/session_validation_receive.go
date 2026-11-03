@@ -110,6 +110,7 @@ func (s *Session) prepareRFC7606FirstAS(body []byte, v *rfc7606Validation) {
 	asn4 := ctx.ASN4()
 	r := v.result
 	path := body[v.attrsOffset+r.ASPath.Start : v.attrsOffset+r.ASPath.End]
+	wirePath := path
 	if !ctx.ASN4() || r.AS4Present {
 		// RFC 6793 Section 4.2.3 supplies the paired AGGREGATOR gate and
 		// reconstructed path; Section 4.1 discards AS4 attributes from NEW
@@ -123,6 +124,11 @@ func (s *Session) prepareRFC7606FirstAS(body []byte, v *rfc7606Validation) {
 		}
 		v.as4Plan, v.as4Prepared = plan, true
 		path, asn4 = v.as4Plan.ASPath(body), true
+	}
+	if firstASOnWire(ctx.ASN4(), peerAS) {
+		// RFC 4271 Section 6.3: "the leftmost (with respect to the position
+		// of octets in the protocol message) AS in the AS_PATH attribute".
+		path, asn4 = wirePath, false
 	}
 	v.firstASChecked = true
 	if firstASPathMismatch(path, asn4, peerAS) {

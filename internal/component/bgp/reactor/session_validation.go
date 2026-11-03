@@ -272,17 +272,26 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 }
 
 // firstASMismatch checks a validated, reconstructed path, not the peer's AS_TRANS
-// placeholders. The caller MUST finish RFC 7606 validation and AS4 reconstruction
-// first and MUST synthesize withdrawals on a mismatch.
+// placeholders, unless firstASOnWire says the configured peer AS can only be
+// compared with the AS_PATH the two-octet session carries. wire is the UPDATE
+// after RFC 7606 enforcement and before the AS4 collapse, canonical the same
+// UPDATE after it. The caller MUST finish RFC 7606 validation and AS4
+// reconstruction first and MUST synthesize withdrawals on a mismatch.
 //
 // Draft-ietf-sidrops-aspa-verification-28 Section 5.1 describes the neighbor-AS
 // prerequisite and refers its error handling to RFC 4271 and RFC 7606.
 // Section 5.5 exempts the receiving RS-client; the route server itself still
 // checks paths received from its clients.
-func (s *Session) firstASMismatch(wu *wireu.WireUpdate) bool {
+func (s *Session) firstASMismatch(wire, canonical *wireu.WireUpdate) bool {
 	peerAS, check := s.firstASPeer()
 	if !check {
 		return false
+	}
+	wu := canonical
+	if firstASOnWire(updateASN4(wire, s), peerAS) {
+		// RFC 4271 Section 6.3: "the leftmost (with respect to the position
+		// of octets in the protocol message) AS in the AS_PATH attribute".
+		wu = wire
 	}
 
 	attrs, err := wu.Attrs()
@@ -313,13 +322,37 @@ func (s *Session) firstASMismatch(wu *wireu.WireUpdate) bool {
 	// RFC 4271 Section 4.3 / RFC 6793 Section 3:
 	// AS_PATH value: type[0], count[1], first ASN[2:4] or [2:6], ...
 	// An empty path or a leading set supplies no most-recent AS_SEQUENCE hop.
-	asn4 := false
+	return firstASPathMismatch(path, updateASN4(wu, s), peerAS)
+}
+
+// updateASN4 answers the AS number width of wu's payload: its source context
+// when registered, the session's negotiation otherwise.
+func updateASN4(wu *wireu.WireUpdate, s *Session) bool {
 	if ctx := bgpctx.Registry.Get(wu.SourceCtxID()); ctx != nil {
-		asn4 = ctx.ASN4()
-	} else if neg := s.Negotiated(); neg != nil {
-		asn4 = neg.ASN4
+		return ctx.ASN4()
 	}
-	return firstASPathMismatch(path, asn4, peerAS)
+	if neg := s.Negotiated(); neg != nil {
+		return neg.ASN4
+	}
+	return false
+}
+
+// firstASOnWire reports whether the first-AS check reads the AS_PATH attribute
+// as a two-octet session carries it, rather than the reconstructed path.
+//
+// A peer configured as AS_TRANS on a two-octet session is a four-octet AS that
+// Ze speaks to as an OLD speaker. RFC 6793 Section 4.2.2: "In the AS_PATH
+// attribute encoded with two-octet AS numbers, non-mappable four-octet AS
+// numbers are represented by the well-known two-octet AS number, AS_TRANS."
+// The reconstructed path starts with the peer's real AS, which the config
+// cannot name, so only the AS_PATH attribute RFC 4271 Section 6.3 names can
+// be compared with AS_TRANS. Every other peer AS is one the reconstructed path
+// can carry, and the ASPA draft Section 5 reads that path.
+func firstASOnWire(sessionASN4 bool, peerAS uint32) bool {
+	if sessionASN4 {
+		return false
+	}
+	return peerAS == attribute.ASTrans
 }
 
 // firstASPeer preserves the configured neighbor check and RS-client exemption.

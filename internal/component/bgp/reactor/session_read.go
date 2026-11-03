@@ -376,8 +376,9 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 					"peer", s.settings.Address, "error", collapseErr)
 				lateAttributeError = "AS_PATH cannot be reconciled: " + collapseErr.Error()
 			} else {
+				wire := wireUpdate
 				wireUpdate = collapsed
-				if !validation.firstASChecked && s.firstASMismatch(wireUpdate) {
+				if !validation.firstASChecked && s.firstASMismatch(wire, wireUpdate) {
 					lateAttributeError = "AS_PATH first AS does not match the neighbor AS"
 				}
 			}
