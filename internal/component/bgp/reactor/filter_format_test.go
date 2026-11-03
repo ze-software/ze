@@ -45,7 +45,7 @@ func TestAppendMPBlockNonCIDRMarker(t *testing.T) {
 	assert.Equal(t, "", got)
 }
 
-// TestAppendUpdateForFilterMalformedMPRendersInvalid proves the dry-run
+// TestDryRunNLRIBlocksRenderMalformedSectionInvalid proves the dry-run
 // display tells a malformed NLRI section apart from an absent one.
 //
 // VALIDATES: an MP_REACH_NLRI or MP_UNREACH_NLRI whose accessor errors renders
@@ -55,7 +55,7 @@ func TestAppendMPBlockNonCIDRMarker(t *testing.T) {
 // not frame renders "nlri add|del invalid".
 // PREVENTS: the display rendering no block, so an operator read a malformed
 // section as an UPDATE that carries none.
-func TestAppendUpdateForFilterMalformedMPRendersInvalid(t *testing.T) {
+func TestDryRunNLRIBlocksRenderMalformedSectionInvalid(t *testing.T) {
 	tests := []struct {
 		name string
 		body string
