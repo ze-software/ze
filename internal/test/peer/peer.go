@@ -732,6 +732,11 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 			return Result{Success: false, Error: ErrOpenMismatch}
 		}
 		if p.checker.Completed() {
+			// An inspected refusal is terminal, not a live session to
+			// hold. A matched OPEN uses the same completion policy as UPDATEs.
+			if header[18] == MsgOPEN {
+				return p.completed(ctx, conn)
+			}
 			return Result{Success: true}
 		}
 	}

@@ -1,0 +1,4 @@
+# Real BGP peer file/pipe input, named stop, reaping and port release.
+cmd=foreground:seq=1:exec=le test fixture runner/owned-peer-linger:timeout=60s
+expect=stdout:pattern=file-and-pipe: BGP live until stop; children reaped; lease released
+expect=exit:code=0

@@ -23,13 +23,14 @@ func TestStartedProcessDeadlineEndsTheTree(t *testing.T) {
 	var out bytes.Buffer
 	proc.Stdout = &out
 	proc.Stderr = &out
-	proc, err := startWithETXTBSYRetry(ctx, "sh", args, proc)
+	owned, err := startWithETXTBSYRetry(ctx, "sh", args, proc, nil)
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
+	defer owned.cleanup()
 
 	start := time.Now()
-	_ = proc.Wait() //nolint:errcheck // the process is killed by design; only the return time matters
+	_ = owned.Wait() //nolint:errcheck // the process is killed by design; only the return time matters
 	elapsed := time.Since(start)
 
 	// Well under processWaitDelay: the group kill closed the pipe, not the

@@ -18,13 +18,15 @@ import (
 
 // startSleeper starts a real long-lived child process for the stop tests. It is
 // registered exactly as the runner registers a named cmd=background process.
-func startSleeper(t *testing.T) *exec.Cmd {
+func startSleeper(t *testing.T) *ownedProcess {
 	t.Helper()
 	proc := exec.CommandContext(t.Context(), "sleep", "60")
-	if err := proc.Start(); err != nil {
+	owned, err := startWithETXTBSYRetry(t.Context(), "sleep", []string{"60"}, proc, nil)
+	if err != nil {
 		t.Fatalf("start sleeper: %v", err)
 	}
-	return proc
+	t.Cleanup(owned.cleanup)
+	return owned
 }
 
 // teardownTestDeadline bounds every stop/teardown call these tests make. The
@@ -56,12 +58,12 @@ func withinDeadline(t *testing.T, what string, fn func()) {
 // name map.
 func TestStopBackgroundKillsNamedProcess(t *testing.T) {
 	proc := startSleeper(t)
-	bgProcs := []*exec.Cmd{proc}
-	namedBg := map[string]*exec.Cmd{"responder": proc}
+	bgProcs := []*ownedProcess{proc}
+	namedBg := map[string]*ownedProcess{"responder": proc}
 
 	cmd := RunCommand{Mode: modeStop, Seq: 2, Name: "responder", Signal: signalKill}
 	var err error
-	var stopped *exec.Cmd
+	var stopped *ownedProcess
 	withinDeadline(t, "stopNamedBackground(kill)", func() {
 		stopped, bgProcs, err = stopNamedBackground(&cmd, bgProcs, namedBg)
 	})
@@ -71,11 +73,11 @@ func TestStopBackgroundKillsNamedProcess(t *testing.T) {
 	if stopped != proc {
 		t.Fatal("stopNamedBackground must return the stopped process for further pruning")
 	}
-	if proc.ProcessState == nil {
+	if proc.cmd.ProcessState == nil {
 		t.Fatal("process was not reaped: ProcessState is nil after stop")
 	}
-	if proc.ProcessState.ExitCode() != -1 {
-		t.Fatalf("expected signaled exit (ExitCode -1), got %d", proc.ProcessState.ExitCode())
+	if proc.cmd.ProcessState.ExitCode() != -1 {
+		t.Fatalf("expected signaled exit (ExitCode -1), got %d", proc.cmd.ProcessState.ExitCode())
 	}
 	if _, ok := namedBg["responder"]; ok {
 		t.Fatal("stopped process still registered in namedBg")
@@ -92,8 +94,8 @@ func TestStopBackgroundKillsNamedProcess(t *testing.T) {
 // gets one without the runner hanging.
 func TestStopBackgroundTermSignal(t *testing.T) {
 	proc := startSleeper(t)
-	bgProcs := []*exec.Cmd{proc}
-	namedBg := map[string]*exec.Cmd{"daemon": proc}
+	bgProcs := []*ownedProcess{proc}
+	namedBg := map[string]*ownedProcess{"daemon": proc}
 
 	cmd := RunCommand{Mode: modeStop, Seq: 3, Name: "daemon", Signal: signalTerm}
 	var err error
@@ -103,7 +105,7 @@ func TestStopBackgroundTermSignal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stopNamedBackground returned error: %v", err)
 	}
-	if proc.ProcessState == nil {
+	if proc.cmd.ProcessState == nil {
 		t.Fatal("process was not reaped after SIGTERM")
 	}
 	if len(bgProcs) != 0 {
@@ -116,9 +118,9 @@ func TestStopBackgroundTermSignal(t *testing.T) {
 // slice is returned unchanged (nothing was signaled).
 func TestStopBackgroundUnknownNameFails(t *testing.T) {
 	proc := startSleeper(t)
-	defer func() { _ = proc.Process.Kill() }()
-	bgProcs := []*exec.Cmd{proc}
-	namedBg := map[string]*exec.Cmd{"responder": proc}
+	defer func() { _ = proc.cmd.Process.Kill() }()
+	bgProcs := []*ownedProcess{proc}
+	namedBg := map[string]*ownedProcess{"responder": proc}
 
 	cmd := RunCommand{Mode: modeStop, Seq: 2, Name: "ghost", Signal: signalKill}
 	stopped, got, err := stopNamedBackground(&cmd, bgProcs, namedBg)
@@ -132,30 +134,30 @@ func TestStopBackgroundUnknownNameFails(t *testing.T) {
 		t.Fatal("bgProcs must be unchanged when the stop name is unknown")
 	}
 	// The real, correctly-named process must be untouched (still running).
-	if proc.ProcessState != nil {
+	select {
+	case <-proc.done:
 		t.Fatal("an unknown-name stop must not reap any process")
+	default:
 	}
 }
 
 // TestTeardownToleratesStoppedProcess proves AC-3: after a stop step reaps a
-// process, the two teardown paths the runner runs over every background process --
-// the deferred Process.Kill() and terminateGracefully -- must not error out, panic,
-// or hang on the already-dead process.
+// process, another kill and the owner's graceful stop must not panic or hang.
+// Deferred owner cleanup retains its cached exit after active-list removal.
 func TestTeardownToleratesStoppedProcess(t *testing.T) {
 	proc := startSleeper(t)
-	bgProcs := []*exec.Cmd{proc}
-	namedBg := map[string]*exec.Cmd{"responder": proc}
+	bgProcs := []*ownedProcess{proc}
+	namedBg := map[string]*ownedProcess{"responder": proc}
 
 	cmd := RunCommand{Mode: modeStop, Seq: 2, Name: "responder", Signal: signalKill}
 	if _, _, err := stopNamedBackground(&cmd, bgProcs, namedBg); err != nil {
 		t.Fatalf("stopNamedBackground returned error: %v", err)
 	}
 
-	// Mirror the deferred teardown at runner_exec.go: Process.Kill() over every
-	// tracked process. The stopped proc was pruned from bgProcs, but exercise the
-	// idempotency directly to prove a double-kill is harmless.
-	if proc.Process != nil {
-		_ = proc.Process.Kill() // already reaped; returns an ignored error, must not panic
+	// Keep the direct double-kill check even though deferred owner cleanup now
+	// stops the process group and joins the cached result.
+	if proc.cmd.Process != nil {
+		_ = proc.cmd.Process.Kill() // already reaped; returns an ignored error, must not panic
 	}
 
 	// terminateGracefully is what the end-of-test teardown calls on daemons; it
@@ -193,17 +195,20 @@ func TestBackgroundLifetimeStopsTheProcess(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- stopped.Wait() }()
 	select {
-	case <-done:
+	case err := <-done:
+		t.Logf("background lifetime reaped the deliberately killed process: %v", err)
 	case <-time.After(teardownTestDeadline):
 		t.Fatal("a background command that declared timeout=150ms was never stopped")
 	}
 
 	// The two controls are still running, so their declared silence was honored.
-	for name, proc := range map[string]*exec.Cmd{"no timeout": survivor, "unparseable timeout": unparseable} {
-		if proc.ProcessState != nil {
+	for name, proc := range map[string]*ownedProcess{"no timeout": survivor, "unparseable timeout": unparseable} {
+		select {
+		case <-proc.done:
 			t.Errorf("the %q control was stopped, so the lifetime applies where none was declared", name)
+		default:
 		}
-		_ = proc.Process.Kill()
+		_ = proc.cmd.Process.Kill()
 		_ = proc.Wait()
 	}
 }
@@ -224,9 +229,11 @@ func TestBackgroundLifetimeEndsWithTheTest(t *testing.T) {
 	// The process must outlive the canceled timer: cancellation stops the
 	// timer, it does not fire it.
 	time.Sleep(50 * time.Millisecond)
-	if proc.ProcessState != nil {
+	select {
+	case <-proc.done:
 		t.Error("a canceled lifetime killed the process instead of standing down")
+	default:
 	}
-	_ = proc.Process.Kill()
+	_ = proc.cmd.Process.Kill()
 	_ = proc.Wait()
 }

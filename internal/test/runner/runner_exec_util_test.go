@@ -735,10 +735,8 @@ func TestTerminateAfterSelfExitLetsTheProcessFinish(t *testing.T) {
 		// Exits 7 on its own. A SIGTERM would make the status 143 instead, so
 		// the exit code IS the evidence that no signal was sent.
 		cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "sleep 0.2; exit 7") //nolint:gosec // fixed argv
-		if err := cmd.Start(); err != nil {
-			t.Fatalf("start: %v", err)
-		}
-		terminateAfterSelfExit(cmd, 10*time.Second)
+		owned := startOwnedTestProcess(t, cmd)
+		terminateAfterSelfExit(owned, 10*time.Second)
 		if code := cmd.ProcessState.ExitCode(); code != 7 {
 			t.Errorf("exit code = %d, want 7 (the child's own status, unsignaled)", code)
 		}
@@ -746,11 +744,9 @@ func TestTerminateAfterSelfExitLetsTheProcessFinish(t *testing.T) {
 
 	t.Run("a daemon that never stops is still torn down", func(t *testing.T) {
 		cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "sleep 300") //nolint:gosec // fixed argv
-		if err := cmd.Start(); err != nil {
-			t.Fatalf("start: %v", err)
-		}
+		owned := startOwnedTestProcess(t, cmd)
 		start := time.Now()
-		terminateAfterSelfExit(cmd, 50*time.Millisecond)
+		terminateAfterSelfExit(owned, 50*time.Millisecond)
 		if elapsed := time.Since(start); elapsed > 30*time.Second {
 			t.Errorf("teardown took %v; the grace is not bounding anything", elapsed)
 		}

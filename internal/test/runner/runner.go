@@ -152,6 +152,10 @@ type Runner struct {
 	colors  *Colors
 	timings Timings // rolling timing baseline
 
+	// observeProcessExit replaces the kernel observation in lifecycle fault tests.
+	// Nil uses beforeReap. Set before running tests; never changed during a run.
+	observeProcessExit func(*ownedProcess) error
+
 	// concurrency is the resolved number of tests run in parallel for the
 	// current Run. Set at the top of Run; read by runTest to decide whether to
 	// apply ParallelTimeoutHeadroom. Zero outside a Run.

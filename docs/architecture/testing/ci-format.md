@@ -887,6 +887,13 @@ test open either: the runner stops reading its output pipes 10s after the kill.
 <!-- source: internal/test/runner/runner_exec_util.go -- boundProcessDeadline, processWaitDelay -->
 <!-- test: internal/test/runner/process_deadline_test.go TestStartedProcessDeadlineEndsTheTree -->
 
+Every successful start has one Wait owner. Normal completion, named stop,
+timeout, and early failure join that owner before the runner removes input
+files or releases ports. A peer drain whose grace expires stops and reaps the
+peer before reading its final output.
+<!-- source: internal/test/runner/process_owner.go -- ownedProcess, cleanup -->
+<!-- source: internal/test/runner/runner_exec_util.go -- drainPeers -->
+
 **Background:** Starts and keeps running until its timeout, an explicit stop, or test completion.
 **Foreground:** Setup commands finish before the next step. A `ze` daemon starts
 without blocking later steps. Its peers or observer determine when teardown starts.

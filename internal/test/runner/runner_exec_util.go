@@ -560,21 +560,20 @@ type peerOutput struct {
 	// peer is STILL RUNNING and its os/exec copy goroutine is still appending --
 	// only the readiness WaitFor timed out, nothing has Wait()ed the process.
 	stderr *lockedBuilder
-	proc   *exec.Cmd
+	proc   *ownedProcess
 	// checkMode records whether this peer validates what it receives. Only a
 	// check-mode peer reports "successful", so only a check-mode peer may be
 	// required to (peer_contract.go failedCheckPeers).
 	checkMode bool
 	// linger records that a check-mode peer holds its last session open until
-	// the daemon closes it (option=linger), so it never ends by itself. Only
-	// the await=stderr:then=stop fence reads it (awaitThenStop).
+	// the daemon closes it (option=linger), so it never ends by itself.
 	linger bool
 	// label identifies this peer in a failure message. Per-peer attribution is
 	// the point of evaluating peers individually, so it has to survive to the
 	// verdict rather than be reconstructed from the joined output.
 	label string
-	// waited records that proc.Wait() has already run, so the drain barrier below
-	// does not Wait twice (the second call returns an error and tells us nothing).
+	// waited records that a verdict consumer has joined this peer. Repeated
+	// owner waits are safe, but the drain barrier need not grant another grace.
 	waited bool
 }
 
@@ -611,34 +610,31 @@ func collectPeerOutput(peers []peerOutput) string {
 // peer must report for itself, an undrained capture is a spurious red -- exactly
 // the flakiness the per-peer verdict exists to remove.
 //
-// Bounded: a peer that never exits must not hang the run. On expiry the capture
-// is read as-is, which is the pre-existing behavior, and the peer's own failure
-// (or the test timeout) reports it.
+// On grace expiry the remaining peers are stopped and joined before capture is
+// read. A grace deadline never transfers ownership to a detached waiter.
 func drainPeers(peers []peerOutput, grace time.Duration) {
-	done := make(chan int, len(peers))
-	pending := 0
-	for i := range peers {
-		if peers[i].proc == nil || peers[i].waited {
-			continue
-		}
-		pending++
-		go func(idx int) {
-			_ = peers[idx].proc.Wait() //nolint:errcheck // the verdict reads output, not this status
-			done <- idx
-		}(i)
-	}
-	if pending == 0 {
-		return
-	}
 	timer := time.NewTimer(grace)
 	defer timer.Stop()
-	for range pending {
-		select {
-		case idx := <-done:
-			peers[idx].waited = true
-		case <-timer.C:
-			return
+	expired := false
+	for i := range peers {
+		if peers[i].proc == nil {
+			continue
 		}
+		if peers[i].waited {
+			continue
+		}
+		if !expired {
+			select {
+			case <-peers[i].proc.done:
+			case <-timer.C:
+				expired = true
+			}
+		}
+		if expired {
+			terminateGracefully(peers[i].proc)
+		}
+		_ = peers[i].proc.Wait() //nolint:errcheck // the peer verdict reads its output
+		peers[i].waited = true
 	}
 }
 
@@ -657,11 +653,8 @@ func drainPeers(peers []peerOutput, grace time.Duration) {
 // daemon alone, so nothing else ever waits or signals a scaffolding peer. That
 // cost every --mode sink or --mode echo test in test/plugin/ a flat peerDrainGrace.
 //
-// It ONLY signals. Reaping stays with drainPeers, whose select on a timer is the
-// only BOUNDED wait on a peer; waiting here (terminateGracefully ends in a bare
-// cmd.Wait()) would put an unbounded wait on the runner's own goroutine for
-// exactly the peers this function signals, which is the bound the change exists
-// to keep. A peer the default arm already waited needs no exclusion either:
+// It only signals, so all scaffold peers receive SIGTERM before drainPeers
+// joins their owners. A peer the default arm already waited needs no exclusion:
 // Signal on a reaped os.Process returns ErrProcessDone and does nothing.
 //
 // A check-mode peer is left alone. It exits by itself once its expectations are
@@ -676,7 +669,7 @@ func terminateScaffoldPeers(peers []peerOutput) {
 		if peers[i].checkMode || peers[i].proc == nil {
 			continue
 		}
-		_ = peers[i].proc.Process.Signal(syscall.SIGTERM)
+		_ = peers[i].proc.cmd.Process.Signal(syscall.SIGTERM)
 	}
 }
 
@@ -954,13 +947,14 @@ func zeCLICommandValue(args []string) (string, bool) {
 // concurrent fork+exec in another test goroutine holds a write-open fd to the
 // binary between fork and execve (https://go.dev/issue/22315). Go 1.25+ marks a
 // Cmd as started even on failure (https://go.dev/issue/77075), so a fresh Cmd is
-// created for each retry; the (possibly recreated) proc is returned along with
-// the final start error.
+// created for each retry. Only success returns an owned process. The caller
+// MUST immediately defer its cleanup before any later operation can fail.
 //
 // Every attempt is bounded by boundProcessDeadline, so the test's deadline ends
 // the whole process tree and Wait returns when it does.
-func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, proc *exec.Cmd) (*exec.Cmd, error) {
+func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, proc *exec.Cmd, observe func(*ownedProcess) error) (*ownedProcess, error) {
 	var startErr error
+	var owned *ownedProcess
 	for attempt := range 3 {
 		if attempt > 0 {
 			time.Sleep(10 * time.Millisecond)
@@ -975,13 +969,18 @@ func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, p
 			// would silently re-run ze as root and break the readiness handshake.
 			proc.SysProcAttr = old.SysProcAttr
 		}
-		boundProcessDeadline(proc)
+		owned = boundProcessDeadline(proc)
+		owned.observe = observe
 		startErr = proc.Start()
 		if startErr == nil || !errors.Is(startErr, syscall.ETXTBSY) {
 			break
 		}
 	}
-	return proc, startErr
+	if startErr != nil {
+		return nil, startErr
+	}
+	go owned.reap()
+	return owned, nil
 }
 
 // processWaitDelay bounds how long Wait keeps reading a process's output pipes
@@ -1001,16 +1000,15 @@ const processWaitDelay = teardownGraceTimeout
 //
 // Normal teardown (terminateGracefully) still signals the process alone, so a
 // daemon keeps its chance to stop its children itself.
-func boundProcessDeadline(proc *exec.Cmd) {
+func boundProcessDeadline(proc *exec.Cmd) *ownedProcess {
+	owned := &ownedProcess{cmd: proc, done: make(chan struct{}), groupSignal: syscall.Kill}
 	if proc.SysProcAttr == nil {
 		proc.SysProcAttr = &syscall.SysProcAttr{}
 	}
 	proc.SysProcAttr.Setpgid = true
-	proc.Cancel = func() error {
-		// A negative pid names the process group the child leads.
-		return syscall.Kill(-proc.Process.Pid, syscall.SIGKILL)
-	}
+	proc.Cancel = owned.cancel
 	proc.WaitDelay = processWaitDelay
+	return owned
 }
 
 // awaitQuickZe waits for a foreground quick-exit ze command to finish, then
@@ -1026,7 +1024,7 @@ func boundProcessDeadline(proc *exec.Cmd) {
 // is what makes a quick command's span exact: its bytes arrive as one
 // contiguous block, so a background daemon writing throughout is charged to its
 // own span and not to this one.
-func awaitQuickZe(cmd *RunCommand, proc *exec.Cmd, quickStdout, quickStderr *strings.Builder, clientStdout, clientStderr *lockedBuilder) error {
+func awaitQuickZe(cmd *RunCommand, proc *ownedProcess, quickStdout, quickStderr *strings.Builder, clientStdout, clientStderr *lockedBuilder) error {
 	waitErr := proc.Wait()
 	cmd.stdoutFrom, cmd.stderrFrom = clientStdout.mark(), clientStderr.mark()
 	//nolint:errcheck // lockedBuilder.WriteString never returns a non-nil error
@@ -1061,17 +1059,8 @@ const teardownGraceTimeout = 10 * time.Second
 
 // terminateGracefully sends SIGTERM to a process and waits for it to exit.
 // If it doesn't exit within teardownGraceTimeout, it is forcefully killed.
-func terminateGracefully(cmd *exec.Cmd) {
-	if cmd.Process == nil {
-		_ = cmd.Wait()
-		return
-	}
-	_ = cmd.Process.Signal(syscall.SIGTERM)
-	timer := time.AfterFunc(teardownGraceTimeout, func() {
-		_ = cmd.Process.Kill()
-	})
-	_ = cmd.Wait()
-	timer.Stop()
+func terminateGracefully(cmd *ownedProcess) {
+	_ = cmd.stop() //nolint:errcheck // teardown preserves the caller's assertion result
 }
 
 // selfStopShare is the fraction of the daemon's own wall-clock budget that
@@ -1120,44 +1109,26 @@ func tmpfsRequestsDaemonShutdown(files map[string]tmpfs.File) bool {
 //
 // The wait is bounded, so a daemon that does not stop itself still gets the old
 // teardown and the test still ends inside its deadline.
-func terminateAfterSelfExit(cmd *exec.Cmd, grace time.Duration) {
-	if cmd.Process == nil {
-		_ = cmd.Wait() //nolint:errcheck // teardown: the exit status is read elsewhere
-		return
-	}
-	// Lifecycle goroutine (one-time Process.Wait bridge): Wait must be called
-	// exactly once, so it runs here and every path below reads the same channel.
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		_ = cmd.Wait() //nolint:errcheck // teardown: the exit status is read elsewhere
-	}()
-
+func terminateAfterSelfExit(cmd *ownedProcess, grace time.Duration) {
 	timer := time.NewTimer(grace)
 	defer timer.Stop()
 	select {
-	case <-done:
+	case <-cmd.done:
 		return
 	case <-timer.C:
 	}
 
-	_ = cmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck // best-effort teardown
-	killTimer := time.AfterFunc(teardownGraceTimeout, func() {
-		_ = cmd.Process.Kill() //nolint:errcheck // best-effort teardown
-	})
-	<-done
-	killTimer.Stop()
+	terminateGracefully(cmd)
 }
 
 // stopNamedBackground executes a cmd=stop step: it looks the named process up in
 // namedBg, terminates and reaps it, then removes it from both namedBg and the
-// bgProcs tracking slice so teardown never double-handles it and fgProc selection
-// skips it. It returns the stopped *exec.Cmd (so the caller can also drop it from
-// any other tracking, e.g. peerOutputs, and never Wait() a reaped process twice)
-// and the pruned bgProcs slice. A name that matches no tracked background process
+// active bgProcs slice so fgProc selection skips it. Its deferred lifetime owner
+// remains registered. It returns that owner and the pruned active slice.
+// A name that matches no tracked background process
 // is a hard error (AC-2, fail-closed): the directive can only ever signal a
 // process the runner itself started, never an arbitrary PID.
-func stopNamedBackground(cmd *RunCommand, bgProcs []*exec.Cmd, namedBg map[string]*exec.Cmd) (*exec.Cmd, []*exec.Cmd, error) {
+func stopNamedBackground(cmd *RunCommand, bgProcs []*ownedProcess, namedBg map[string]*ownedProcess) (*ownedProcess, []*ownedProcess, error) {
 	proc, ok := namedBg[cmd.Name]
 	if !ok {
 		return nil, bgProcs, fmt.Errorf("cmd seq=%d: stop names unknown background process %q "+
@@ -1181,13 +1152,9 @@ func stopNamedBackground(cmd *RunCommand, bgProcs []*exec.Cmd, namedBg map[strin
 // (dead-peer detection) observes. With signalTerm it delegates to
 // terminateGracefully (SIGTERM, then SIGKILL after teardownGraceTimeout) so a test
 // wanting a clean stop gets one and the runner never hangs. Errors are ignored
-// throughout: the whole point is that the process is gone, and a double reap in
-// teardown is harmless (AC-3).
-func stopBackgroundProcess(cmd *exec.Cmd, signal string) {
-	if cmd.Process == nil {
-		_ = cmd.Wait()
-		return
-	}
+// throughout: the exit status is intentional and the owner caches it for later
+// consumers. No second reap occurs during teardown.
+func stopBackgroundProcess(cmd *ownedProcess, signal string) {
 	if signal == signalTerm {
 		terminateGracefully(cmd)
 		return
@@ -1196,8 +1163,8 @@ func stopBackgroundProcess(cmd *exec.Cmd, signal string) {
 	// which is exactly what the DPD proof requires (a clean DELETE would defeat
 	// AC-4). Wait reaps the killed process; it returns fast because the kill has
 	// already fired.
-	_ = cmd.Process.Kill()
-	_ = cmd.Wait()
+	cmd.kill()
+	_ = cmd.Wait() //nolint:errcheck // a forced stop intentionally produces a signal exit
 }
 
 // resolveOrchestratedTimeout picks the timeout for an orchestrated (cmd=) test.

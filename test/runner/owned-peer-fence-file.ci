@@ -1,0 +1,4 @@
+# An incomplete real peer must hold then=stop even when its script is file-routed.
+cmd=foreground:seq=1:exec=le test fixture runner/owned-peer-fence file:timeout=30s
+expect=stdout:pattern=file: pending BGP peer held the stop fence; children reaped; lease released
+expect=exit:code=0

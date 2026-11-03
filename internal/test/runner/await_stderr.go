@@ -8,10 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os/exec"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -152,7 +150,7 @@ func teeDaemonStderr(acc io.Writer, sw *syncWriter, isDaemon bool) io.Writer {
 // await=stderr needle, returning true. On timeout it records a precise failure
 // on rec, gracefully stops the daemon processes (bgProcs that are not ze-peer),
 // and returns false. Called only when rec.AwaitStderr != "".
-func (r *Runner) awaitDaemonStderr(ctx context.Context, rec *Record, sw *syncWriter, bgProcs []*exec.Cmd, peerProcs map[*exec.Cmd]bool, testBudget time.Duration) bool {
+func (r *Runner) awaitDaemonStderr(ctx context.Context, rec *Record, sw *syncWriter, bgProcs []*ownedProcess, peerProcs map[*ownedProcess]bool, testBudget time.Duration) bool {
 	// Scale the fence by the parallel headroom (identity for serial runs): the
 	// authored budget (default awaitStderrDefaultTimeout, or the test's :timeout=)
 	// is measured unloaded, but a daemon slow to emit the awaited stderr line under
@@ -167,7 +165,7 @@ func (r *Runner) awaitDaemonStderr(ctx context.Context, rec *Record, sw *syncWri
 	rec.Error = fmt.Errorf("await=stderr: daemon stderr never contained %q within %s", sw.missing(), timeout)
 	rec.FailureType = stateTimeout
 	for _, p := range bgProcs {
-		if !peerProcs[p] && p.Process != nil {
+		if !peerProcs[p] {
 			terminateGracefully(p)
 		}
 	}
@@ -198,8 +196,8 @@ func (r *Runner) awaitDaemonStderr(ctx context.Context, rec *Record, sw *syncWri
 // Without this form a lingering peer made a test stop its daemon with a
 // fixed-delay SIGTERM, which under load landed while the reload under test was
 // still verifying, so shutdown canceled it.
-func (r *Runner) awaitThenStop(ctx context.Context, rec *Record, sw *syncWriter, fgProc *exec.Cmd, peers []peerOutput, testBudget time.Duration) (daemonErr, peerErr error, ok bool) {
-	if fgProc == nil || fgProc.Process == nil {
+func (r *Runner) awaitThenStop(ctx context.Context, rec *Record, sw *syncWriter, fgProc *ownedProcess, peers []peerOutput, testBudget time.Duration) (daemonErr, peerErr error, ok bool) {
+	if fgProc == nil {
 		rec.Error = errors.New("await=stderr:then=stop: the test starts no daemon for the runner to stop")
 		return nil, nil, false
 	}
@@ -230,30 +228,15 @@ func (r *Runner) awaitThenStop(ctx context.Context, rec *Record, sw *syncWriter,
 	return daemonErr, collectReapedPeers(peers, reaped, peerDrainGrace), true
 }
 
-// peerReap is one check peer's exit, published by the goroutine that waits it.
-// err is written before done is closed, so a reader that saw done closed reads
-// the final err.
-type peerReap struct {
-	done chan struct{}
-	err  error
-}
-
-// reapCheckPeers starts one waiter per running check peer and returns them by
-// peer index (nil for a peer it does not wait). One goroutine per process
-// lifecycle: it ends when the process does, and collectReapedPeers bounds that
-// by signaling. Scaffolding peers are left to terminateScaffoldPeers.
-func reapCheckPeers(peers []peerOutput) []*peerReap {
-	reaped := make([]*peerReap, len(peers))
+// reapCheckPeers selects the existing owners by peer index. Scaffolding peers
+// are left to terminateScaffoldPeers. No consumer starts another Wait worker.
+func reapCheckPeers(peers []peerOutput) []*ownedProcess {
+	reaped := make([]*ownedProcess, len(peers))
 	for i := range peers {
 		if !peers[i].checkMode || peers[i].proc == nil || peers[i].waited {
 			continue
 		}
-		pr := &peerReap{done: make(chan struct{})}
-		reaped[i] = pr
-		go func(proc *exec.Cmd) {
-			pr.err = proc.Wait()
-			close(pr.done)
-		}(peers[i].proc)
+		reaped[i] = peers[i].proc
 	}
 	return reaped
 }
@@ -262,7 +245,7 @@ func reapCheckPeers(peers []peerOutput) []*peerReap {
 // completion or exited, and returns the labels of those that did neither
 // before ctx ended. A lingering peer prints peerSuccessToken the moment its
 // last expectation is met (peer.completed, internal/test/peer/reject.go).
-func waitLingerPeers(ctx context.Context, peers []peerOutput, reaped []*peerReap) []string {
+func waitLingerPeers(ctx context.Context, peers []peerOutput, reaped []*ownedProcess) []string {
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 	for {
@@ -289,7 +272,7 @@ func waitLingerPeers(ctx context.Context, peers []peerOutput, reaped []*peerReap
 
 // lingerPeerSettled reports whether a lingering check peer has exited or has
 // printed its success token.
-func lingerPeerSettled(po *peerOutput, pr *peerReap) bool {
+func lingerPeerSettled(po *peerOutput, pr *ownedProcess) bool {
 	select {
 	case <-pr.done:
 		return true
@@ -300,20 +283,15 @@ func lingerPeerSettled(po *peerOutput, pr *peerReap) bool {
 
 // stopAndReap sends the daemon SIGTERM, kills it after teardownGraceTimeout,
 // and returns its exit error, which an expect=exit:code= assertion reads.
-func stopAndReap(cmd *exec.Cmd) error {
-	_ = cmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck // a process that already exited is reaped below
-	timer := time.AfterFunc(teardownGraceTimeout, func() {
-		_ = cmd.Process.Kill() //nolint:errcheck // the SIGTERM may already have ended it
-	})
-	defer timer.Stop()
-	return cmd.Wait()
+func stopAndReap(cmd *ownedProcess) error {
+	return cmd.stop()
 }
 
 // collectReapedPeers waits every reaped check peer, bounded: a peer still
 // running after grace is sent SIGTERM, and killed after teardownGraceTimeout.
 // Each peer is marked waited so drainPeers does not Wait it a second time.
 // Returns the peers' exit errors joined.
-func collectReapedPeers(peers []peerOutput, reaped []*peerReap, grace time.Duration) error {
+func collectReapedPeers(peers []peerOutput, reaped []*ownedProcess, grace time.Duration) error {
 	deadline := time.NewTimer(grace)
 	defer deadline.Stop()
 	var errs []error
@@ -332,7 +310,7 @@ func collectReapedPeers(peers []peerOutput, reaped []*peerReap, grace time.Durat
 		if expired {
 			// The daemon is gone, so a peer still running holds a session
 			// nobody serves. The grace is shared, so every later peer is past it too.
-			endPeer(peers[i].proc, pr)
+			terminateGracefully(pr)
 		}
 		peers[i].waited = true
 		if pr.err != nil {
@@ -340,20 +318,4 @@ func collectReapedPeers(peers []peerOutput, reaped []*peerReap, grace time.Durat
 		}
 	}
 	return errors.Join(errs...)
-}
-
-// endPeer sends a still-running peer SIGTERM, kills it after
-// teardownGraceTimeout, and returns once its waiter has reaped it.
-func endPeer(proc *exec.Cmd, pr *peerReap) {
-	select {
-	case <-pr.done:
-		return
-	default:
-	}
-	_ = proc.Process.Signal(syscall.SIGTERM) //nolint:errcheck // it may have exited meanwhile; the waiter reaps it either way
-	kill := time.AfterFunc(teardownGraceTimeout, func() {
-		_ = proc.Process.Kill() //nolint:errcheck // SIGTERM may already have ended it
-	})
-	<-pr.done
-	kill.Stop()
 }

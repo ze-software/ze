@@ -36,21 +36,24 @@ import (
 // reaped. Kill rather than a signal: the point is a peer that STOPS ANSWERING,
 // which is what a liveness check exists to detect, and a graceful stop would
 // let the daemon say goodbye on the wire and prove nothing.
-func startBackgroundLifetime(ctx context.Context, cmd *RunCommand, proc *exec.Cmd) {
-	if cmd.Timeout == "" || proc == nil || proc.Process == nil {
+func startBackgroundLifetime(ctx context.Context, cmd *RunCommand, proc *ownedProcess) {
+	if cmd.Timeout == "" {
 		return
 	}
 	lifetime, err := time.ParseDuration(cmd.Timeout)
 	if err != nil || lifetime <= 0 {
 		return
 	}
+	proc.lifetimeDone = make(chan struct{})
 	go func() {
+		defer close(proc.lifetimeDone)
 		timer := time.NewTimer(lifetime)
 		defer timer.Stop()
 		select {
 		case <-ctx.Done():
+		case <-proc.done:
 		case <-timer.C:
-			_ = proc.Process.Kill()
+			proc.kill()
 		}
 	}()
 }
@@ -86,7 +89,7 @@ const (
 )
 
 // runTest executes a single test.
-func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) bool {
+func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) (passed bool) {
 	// A .ci file that failed to parse at discovery (see EncodingTests.Discover)
 	// has no runnable commands. Report the parse error as a hard failure without
 	// attempting execution, so one bad file fails the suite loudly rather than
@@ -247,14 +250,16 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	// Use syncWriter to wait for "listening on" before starting client
 	peerStdout := newSyncWriter()
-	peerStderr := &strings.Builder{}
+	peerStderr := &lockedBuilder{}
 	peerCmd.Stdout = peerStdout
 	peerCmd.Stderr = peerStderr
 
-	if err := peerCmd.Start(); err != nil {
+	peerProc, err := startWithETXTBSYRetry(testCtx, r.lePath, peerArgs, peerCmd, r.observeProcessExit)
+	if err != nil {
 		rec.Error = fmt.Errorf("start peer: %w", err)
 		return false
 	}
+	defer peerProc.finish(rec, &passed)
 
 	// Wait for peer to be ready (listening) instead of fixed sleep. Use a short
 	// timeout context to avoid hanging forever if peer fails to start; scale it by
@@ -266,7 +271,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	waitCtx, waitCancel := context.WithTimeout(testCtx, peerBindTimeout)
 	if !peerStdout.waitFor(waitCtx) {
 		waitCancel()
-		_ = peerCmd.Process.Kill()
+		peerProc.cleanup()
 		rec.Error = fmt.Errorf("peer did not start listening within %s (stderr=%q, stdout=%q)", peerBindTimeout, peerStderr.String(), peerStdout.String())
 		return false
 	}
@@ -281,7 +286,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	if len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 {
 		syslogSrv = syslog.New(0)
 		if err := syslogSrv.Start(testCtx); err != nil {
-			_ = peerCmd.Process.Kill()
+			peerProc.cleanup()
 			rec.Error = fmt.Errorf("start syslog server: %w", err)
 			return false
 		}
@@ -383,18 +388,19 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	clientCmd.Stdout = clientStdout
 	clientCmd.Stderr = clientStderr
 
-	if err := clientCmd.Start(); err != nil {
-		_ = peerCmd.Process.Kill()
+	clientProc, err := startWithETXTBSYRetry(testCtx, r.zePath, clientArgs, clientCmd, r.observeProcessExit)
+	if err != nil {
 		rec.Error = fmt.Errorf("start client: %w", err)
 		return false
 	}
+	defer clientProc.finish(rec, &passed)
 
 	// Wait for peer to finish.
 	// exec.CommandContext auto-kills on context cancellation (Go 1.20+).
-	err = peerCmd.Wait()
+	err = peerProc.Wait()
 
 	// Gracefully stop client - SIGTERM first, force kill after timeout
-	terminateGracefully(clientCmd)
+	terminateGracefully(clientProc)
 
 	rec.PeerOutput = peerStdout.String() + peerStderr.String()
 	setClientOutput(rec, clientStdout.String(), clientStderr.String())
@@ -500,7 +506,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 }
 
 // runOrchestrated executes a test using the new stdin/cmd orchestration format.
-func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOptions) bool {
+func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOptions) (passed bool) {
 	// Sort RunCommands by seq.
 	//
 	// Pointers INTO rec.RunCommands rather than a copy of it: each command
@@ -617,22 +623,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		defer func() { _ = syslogSrv.Close() }()
 	}
 
-	// Track background processes for cleanup
-	var bgProcs []*exec.Cmd
-	defer func() {
-		for _, p := range bgProcs {
-			if p.Process != nil {
-				_ = p.Process.Kill()
-			}
-		}
-	}()
+	// Active process selection is separate from the deferred lifetime owners.
+	var bgProcs []*ownedProcess
 
-	// Name -> tracked background process, populated when a cmd=background line
+	// Name -> active background process, populated when a cmd=background line
 	// carries name=NAME. A later cmd=stop directive looks the process up here to
 	// terminate it mid-test. A stopped process is removed from both bgProcs and
-	// this map after it is reaped, so teardown never touches an already-dead
-	// process and fgProc selection skips it (see the modeStop case below).
-	namedBg := make(map[string]*exec.Cmd)
+	// this map after it is reaped, so fgProc selection skips it. Its deferred
+	// lifetime cleanup remains registered (see the modeStop case below).
+	namedBg := make(map[string]*ownedProcess)
 
 	// Per-process output tracking for ze-peer instances.
 	// Each ze-peer gets its own syncWriter/stderr so WaitFor works independently.
@@ -694,10 +693,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				return false
 			}
 			bgProcs = newBgProcs
-			// If the stopped process is also tracked as a ze-peer, drop its proc
-			// handle so the end-of-test peer Wait loop does not Wait() an already
-			// reaped process (which returns "Wait was already called" and would
-			// surface as a spurious peer failure). Its captured output is kept.
+			// A named stop intentionally ends this peer. Exclude that intentional
+			// signal exit from the final peer verdict, keeping its captured output.
 			for i := range peerOutputs {
 				if peerOutputs[i].proc == stopped {
 					peerOutputs[i].proc = nil
@@ -1026,21 +1023,25 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		proc.Stderr = stderrSeen
 
 		// Start the process, retrying on ETXTBSY (see startWithETXTBSYRetry).
-		var startErr error
-		if proc, startErr = startWithETXTBSYRetry(testCtx, binPath, args, proc); startErr != nil {
+		owned, startErr := startWithETXTBSYRetry(testCtx, binPath, args, proc, r.observeProcessExit)
+		if startErr != nil {
 			rec.Error = fmt.Errorf("start %s: %w", binName, startErr)
 			return false
 		}
-		clock.mark(execStep, proc.Process.Pid, stderrSeen)
+		defer owned.finish(rec, &passed)
+		clock.mark(execStep, owned.cmd.Process.Pid, stderrSeen)
+		if isPeerExec(execStr) {
+			peerOutputs[len(peerOutputs)-1].proc = owned
+		}
 
 		switch arm {
 		case stepArmBackground:
-			bgProcs = append(bgProcs, proc)
+			bgProcs = append(bgProcs, owned)
 			// Register the name a cmd=stop directive can target (Phase 2 naming
 			// grammar). Only background processes are nameable; the binding lives
 			// alongside the tracked *exec.Cmd, not a second registry.
 			if cmd.Name != "" {
-				namedBg[cmd.Name] = proc
+				namedBg[cmd.Name] = owned
 			}
 			// A background command's timeout= is its LIFETIME: the process is
 			// stopped that long after it starts. cmd=background documents
@@ -1055,7 +1056,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// foreground daemon is still running its own step; a declared
 			// lifetime can, and the assertions stay on the foreground process
 			// where expect=stderr: reads them.
-			startBackgroundLifetime(testCtx, cmd, proc)
+			startBackgroundLifetime(testCtx, cmd, owned)
 			if readySW != nil && !awaitBackgroundReady(testCtx, rec, cmd, readySW) {
 				return false
 			}
@@ -1081,7 +1082,6 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// output": the run had started both processes and then waited for
 				// neither.
 				po := &peerOutputs[len(peerOutputs)-1]
-				po.proc = proc
 
 				// Only the BIND barrier is skipped for a dialing peer: it takes the
 				// active role and never listens, so it prints no readiness token.
@@ -1110,7 +1110,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// BGP-level synchronization, wait for the readiness file, then
 				// publish daemon.pid. Without this the poller times out by
 				// construction (the runner never wrote either file).
-				if proc.Process != nil {
+				if owned.cmd.Process != nil {
 					// A plain await=stderr fence provides its own synchronization
 					// (and a plugin that aborts startup may never write
 					// daemon.ready), so skip this 5s wait then; a then=stop fence
@@ -1123,7 +1123,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 						waitReady(testCtx, readyPath, r.withParallelHeadroom(5*time.Second))
 					}
 					pidPath := filepath.Join(rec.WorkDir, "daemon.pid")
-					_ = publishDaemonPID(pidPath, proc.Process.Pid, netnsMode && netnsHasUID, netnsUID, netnsGID)
+					_ = publishDaemonPID(pidPath, owned.cmd.Process.Pid, netnsMode && netnsHasUID, netnsUID, netnsGID)
 				}
 			case readySW != nil:
 				// awaitBackgroundReady above already saw the process say it can
@@ -1139,7 +1139,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// Every helper finishes before the next step. Only the final helper
 			// supplies the file-level exit status and closes its expect span.
 			// Keep its rejects open through teardown, as before.
-			helperErr := proc.Wait()
+			helperErr := owned.Wait()
 			finalHelper := cmdIdx == len(cmds)-1
 			if finalHelper {
 				lastHelperErr = helperErr
@@ -1188,7 +1188,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		case stepArmQuickZe:
 			// Foreground quick-exit ze: await completion so the next command does
 			// not start (and race on the client buffers) before this one finishes.
-			lastQuickZeErr = awaitQuickZe(cmd, proc, &quickStdout, &quickStderr, &clientStdout, &clientStderr)
+			lastQuickZeErr = awaitQuickZe(cmd, owned, &quickStdout, &quickStderr, &clientStdout, &clientStderr)
 			quickZeRan = true
 			// Assert this command's own exit code when the test declared one.
 			// The file-level expect=exit:code= below compares one exit only
@@ -1215,14 +1215,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		case stepArmDaemon:
 			// Foreground daemon (ze) or foreground le test peer: start but don't
 			// wait - the runner synchronizes on it and tears it down at the end.
-			bgProcs = append(bgProcs, proc) // Track for cleanup
+			bgProcs = append(bgProcs, owned)
 
 			// Write daemon PID to tmpfs dir so background helpers can send signals.
 			// Guard on ze: a foreground helper never lands here (the arms above
 			// wait for it), and only a ze daemon's pid belongs in daemon.pid. A
 			// helper that reads daemon.pid to signal the daemon would otherwise
 			// signal itself.
-			if zeReadyFileEnabled(cmd.Mode, binName, rec.WorkDir) && proc.Process != nil {
+			if zeReadyFileEnabled(cmd.Mode, binName, rec.WorkDir) {
 				// When no ze-peer provides BGP-level synchronization, wait for
 				// the process readiness file before writing daemon.pid. This
 				// prevents a race where signal.sh sends SIGHUP before the
@@ -1239,7 +1239,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					waitReady(testCtx, readyPath, r.withParallelHeadroom(5*time.Second))
 				}
 				pidPath := filepath.Join(rec.WorkDir, "daemon.pid")
-				_ = publishDaemonPID(pidPath, proc.Process.Pid, netnsMode && netnsHasUID, netnsUID, netnsGID)
+				_ = publishDaemonPID(pidPath, owned.cmd.Process.Pid, netnsMode && netnsHasUID, netnsUID, netnsGID)
 			}
 		}
 	}
@@ -1276,7 +1276,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	}
 
 	// Build set of peer processes for exclusion from graceful stop and fgProc detection.
-	peerProcs := make(map[*exec.Cmd]bool, len(peerOutputs))
+	peerProcs := make(map[*ownedProcess]bool, len(peerOutputs))
 	for i := range peerOutputs {
 		if peerOutputs[i].proc != nil {
 			peerProcs[peerOutputs[i].proc] = true
@@ -1286,7 +1286,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// Find foreground (daemon) process -- the last non-peer background process.
 	// Uses peerProcs map for reliable detection since ze-peer is executed as
 	// "le test peer ..." and p.Path/p.String() won't contain "ze-peer".
-	var fgProc *exec.Cmd
+	var fgProc *ownedProcess
 	for _, p := range bgProcs {
 		if !peerProcs[p] {
 			fgProc = p
@@ -1366,7 +1366,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		terminateAfterSelfExit(fgProc, selfStopGrace(r.withParallelHeadroom(testBudget)))
 	}
 	for _, p := range bgProcs {
-		if peerProcs[p] || p.Process == nil || (selfStop && p == fgProc) || (daemonStopped && p == fgProc) {
+		if peerProcs[p] || (selfStop && p == fgProc) || (daemonStopped && p == fgProc) {
 			continue
 		}
 		terminateGracefully(p)

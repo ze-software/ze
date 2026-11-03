@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// captureStdout drains while fn writes and joins the reader before returning.
+// It changes os.Stdout, so callers MUST NOT run it concurrently.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 
@@ -18,15 +20,31 @@ func captureStdout(t *testing.T, fn func()) string {
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	os.Stdout = w
-	defer func() {
-		os.Stdout = old
+	var out []byte
+	var readErr error
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		out, readErr = io.ReadAll(r)
 	}()
-
-	fn()
-	require.NoError(t, w.Close())
-	out, err := io.ReadAll(r)
-	require.NoError(t, err)
-	require.NoError(t, r.Close())
+	func() {
+		defer func() {
+			os.Stdout = old
+			closeErr := w.Close()
+			<-done
+			readCloseErr := r.Close()
+			if closeErr != nil {
+				t.Errorf("close capture writer: %v", closeErr)
+			}
+			if readErr != nil {
+				t.Errorf("read captured stdout: %v", readErr)
+			}
+			if readCloseErr != nil {
+				t.Errorf("close capture reader: %v", readCloseErr)
+			}
+		}()
+		fn()
+	}()
 	return string(out)
 }
 

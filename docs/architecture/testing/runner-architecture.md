@@ -68,6 +68,33 @@ scheduler in `runExaBGPSelected`.
 
 ### How a suite's child processes end
 
+The `.ci` runner gives each successfully started child one owner and one Wait
+worker. Every exit consumer reads the owner's cached result. Deferred cleanup
+stops the process group and joins the worker before temporary files and port
+leases are released, including early errors and panic unwinding. Named stop
+removes an active handle, but retains that lifetime owner until cleanup.
+The owner caches lifecycle observation errors separately from the process's
+exit result. Each retained owner's deferred `finish` joins cleanup and fails the
+case on a lifecycle error, preserving any earlier diagnostic. Expected exit
+codes, intentional named stops and self-validation cannot waive that failure.
+<!-- source: internal/test/runner/process_owner.go -- reap, Wait, lifecycleError, finish -->
+On Linux and Darwin, the owner observes exit with `waitid(WNOWAIT)`, kills remaining
+group members while the leader still reserves its PID, and retires numeric
+signaling before the sole `Cmd.Wait` reaps it. Deadline cancellation, lifetime
+expiry and deferred cleanup share the retirement lock. A late cleanup cannot
+signal a recycled group number. Darwin uses a local binding because x/sys/unix
+does not wrap its waitid syscall. FreeBSD uses `wait4(WNOWAIT)`. OpenBSD uses
+kqueue `NOTE_EXIT`; a process-table lookup distinguishes an already-exiting child
+from a lost child when registration returns `ESRCH`. Neither adapter reaps the
+child before final group cleanup. These cover the runner's existing Linux,
+Darwin, FreeBSD and OpenBSD build contexts. The fallback for other operating
+systems remains unsafe; those contexts also lack a loopback implementation in
+this package. No build context is removed by the ownership repair.
+<!-- source: internal/test/runner/process_owner.go -- ownedProcess, Wait, cleanup -->
+<!-- source: internal/test/runner/process_exit_freebsd.go -- beforeReap -->
+<!-- source: internal/test/runner/process_exit_openbsd.go -- beforeReap, waitOpenBSDExit, openBSDChild -->
+<!-- source: internal/test/runner/runner_exec.go -- runTest, runOrchestrated -->
+
 Editor discovery validates the complete `.et` snapshot and its timeout with
 parallel headroom before execution. Resource options use `recordOptionArms` and
 the same capability registry as `.ci`. The scheduler receives the declared
@@ -122,7 +149,8 @@ successful exit alone cannot make an absent result pass.
 A suite starts a daemon and a peer, and each of those starts more: ze forks its
 plugins, the ExaBGP mock forks the bridge's scripts. So a stop aimed at the pid
 the runner holds reaps a fraction of the tree. Every fork therefore takes its
-attributes and its cancellation from one place, `plugin.KillGroupOnCancel`: the
+attributes and its cancellation from its process owner (the `.ci` owner above,
+or `plugin.KillGroupOnCancel` for the other runners): the
 child heads a process group, and a canceled context signals that whole group.
 
 Three things end a process, and the suite owes all three:

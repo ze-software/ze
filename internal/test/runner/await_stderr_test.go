@@ -187,20 +187,20 @@ func TestPeerLingers(t *testing.T) {
 // thenStopFixture starts a stand-in daemon, which runs until SIGTERM and then
 // exits 0, and one lingering check peer running peerScript, in which DAEMON is
 // replaced by the daemon's pid.
-func thenStopFixture(t *testing.T, peerScript string) (*exec.Cmd, []peerOutput) {
+func thenStopFixture(t *testing.T, peerScript string) (*ownedProcess, []peerOutput) {
 	t.Helper()
 	daemon := exec.CommandContext(t.Context(), "sh", "-c", "trap 'exit 0' TERM; echo ready; while :; do sleep 0.05; done")
 	daemonOut := newSyncWriterPattern("ready")
 	daemon.Stdout = daemonOut
-	require.NoError(t, daemon.Start())
+	ownedDaemon := startOwnedTestProcess(t, daemon)
 	// A SIGTERM sent before the trap is installed kills the shell instead of
 	// ending it with 0, so the fixture waits for the line printed after it.
 	require.True(t, daemonOut.waitFor(t.Context()))
 	po := peerOutput{stdout: newSyncWriterPattern(peerSuccessToken), stderr: &lockedBuilder{}, checkMode: true, linger: true, label: "stdin=peer"}
-	po.proc = exec.CommandContext(t.Context(), "sh", "-c", strings.ReplaceAll(peerScript, "DAEMON", strconv.Itoa(daemon.Process.Pid)))
-	po.proc.Stdout = po.stdout
-	require.NoError(t, po.proc.Start())
-	return daemon, []peerOutput{po}
+	peerCmd := exec.CommandContext(t.Context(), "sh", "-c", strings.ReplaceAll(peerScript, "DAEMON", strconv.Itoa(daemon.Process.Pid)))
+	peerCmd.Stdout = po.stdout
+	po.proc = startOwnedTestProcess(t, peerCmd)
+	return ownedDaemon, []peerOutput{po}
 }
 
 // peerEndsWithDaemon announces success, then holds until the daemon is gone,
@@ -235,7 +235,7 @@ func TestAwaitThenStop(t *testing.T) {
 		require.True(t, ok, "fence failed: %v", rec.Error)
 		require.NoError(t, daemonErr, "the daemon traps SIGTERM and exits 0")
 		require.NoError(t, peerErr)
-		require.NotNil(t, daemon.ProcessState, "the fence must reap the daemon it stopped")
+		require.NotNil(t, daemon.cmd.ProcessState, "the fence must reap the daemon it stopped")
 		assert.True(t, peers[0].waited, "a reaped peer is marked so drainPeers does not Wait it again")
 	})
 
@@ -246,7 +246,7 @@ func TestAwaitThenStop(t *testing.T) {
 		_, _, ok := r.awaitThenStop(t.Context(), rec, fence(t, "sighup reload complete\n"), daemon, peers, 10*time.Second)
 		require.False(t, ok)
 		require.ErrorContains(t, rec.Error, "stdin=peer never completed")
-		require.NotNil(t, daemon.ProcessState, "a failed fence still stops the daemon")
+		require.NotNil(t, daemon.cmd.ProcessState, "a failed fence still stops the daemon")
 		assert.True(t, peers[0].waited, "failed linger fences must settle their existing waiters")
 	})
 
@@ -257,7 +257,7 @@ func TestAwaitThenStop(t *testing.T) {
 		_, _, ok := r.awaitThenStop(t.Context(), rec, fence(t, "reloading config\n"), daemon, peers, 10*time.Second)
 		require.False(t, ok)
 		require.ErrorContains(t, rec.Error, `never contained ["sighup reload complete"]`)
-		require.NotNil(t, daemon.ProcessState, "a failed fence still stops the daemon")
+		require.NotNil(t, daemon.cmd.ProcessState, "a failed fence still stops the daemon")
 		_ = peers[0].proc.Wait() //nolint:errcheck // the daemon is gone, so the peer script ends
 	})
 

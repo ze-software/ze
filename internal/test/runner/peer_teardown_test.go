@@ -60,7 +60,7 @@ func TestTerminateScaffoldPeersReapsSinkPeer(t *testing.T) {
 	if !peers[0].waited {
 		t.Fatal("sink peer was not reaped by the drain barrier: waited is still false")
 	}
-	if peers[0].proc.ProcessState == nil {
+	if peers[0].proc.cmd.ProcessState == nil {
 		t.Fatal("sink peer was not reaped: ProcessState is nil after teardown")
 	}
 }
