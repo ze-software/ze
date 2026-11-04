@@ -107,6 +107,25 @@ func waitFor(ctx, p any, peer string) error { return waitPeersEOR08(ctx, p, peer
 `},
 		},
 		{
+			name: "a gated count with replay disabled",
+			files: map[string]string{"plugin_fixture_04_case.go": `package fixture
+func init() { Register("plugin/x", rsObserver04(1, "", false)) }
+func rsObserver04(expected int, prefix string, requireReplay bool) func(ctx any, args []string) error {
+	return func(ctx any, args []string) error { return nil }
+}
+`},
+			finding: true,
+		},
+		{
+			name: "control a gated count with replay enabled",
+			files: map[string]string{"plugin_fixture_04_case.go": `package fixture
+func init() { Register("plugin/x", rsObserver04(1, "", true)) }
+func rsObserver04(expected int, prefix string, requireReplay bool) func(ctx any, args []string) error {
+	return func(ctx any, args []string) error { return nil }
+}
+`},
+		},
+		{
 			name: "control an inline driver hands its scenario to Observe",
 			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
 func init() {

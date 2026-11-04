@@ -2555,7 +2555,8 @@ refresh, then quiesces before shutdown. An IRR status reply alone must not end a
 still-opening scripted peer.
 <!-- source: internal/test/fixture/plugin_fixture_07_irr.go -- filterIRRUpdate07 -->
 
-The package-wide observer lifecycle guard follows invoked scenario callbacks
+The package-wide observer lifecycle guard,
+`TestPluginObserversWaitForTheScriptedPeer`, follows invoked scenario callbacks
 from both named driver functions and inline drivers. A callback passed to
 `Observe` reaches its scenario's peer waits; a wait merely named or passed to a
 helper that ignores it does not count.
@@ -2570,6 +2571,13 @@ package constant or stable bound argument; an unknown operand or an unsent
 command supplies no peer wait.
 <!-- source: internal/test/fixture/plugin_fixture_peer_wait_test.go -- observerWalk.invoke, observerWalk.handedOn, observerPackage.packageFunction, observerPackage.paramUseBody, observerPackage.stringValue -->
 <!-- test: internal/test/fixture/plugin_fixture_peer_wait_guard_test.go -- TestPluginObserverPeerWaitGuardRefusesFalsePasses -->
+<!-- test: internal/test/fixture/plugin_fixture_peer_wait_test.go -- TestPluginObserversWaitForTheScriptedPeer -->
+
+A count wait covers every scripted peer only when it counts distinct peers and
+requires at least as many peers as the `.ci` scripts. The guard credits
+`rsObserver04` as a count wait only when `requireReplay` is the literal `true`.
+<!-- source: internal/test/fixture/plugin_fixture_peer_wait_test.go -- observerWalk.readWait, scriptedPeer.waitedOnBy -->
+<!-- source: internal/test/fixture/plugin_fixture_04_route_server.go -- rsObserver04 -->
 
 `plugin/filter-irr-readmit` sends an End-of-RIB after its initial announcement
 and waits for `eor-received` before refreshing the missing IRR list. The session
