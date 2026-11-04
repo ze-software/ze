@@ -111,6 +111,13 @@ the same typed snapshot, including its input digest and diagnostics.
 `./le spec status` continues to describe the filesystem inventory.
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
 
+Revision resolution and length-framed blob batches use
+`internal/le/repo/objects`. Each reader retains the resolved commit while
+selecting its object IDs; neither revision resolution nor blob reads open
+working-tree source files. Missing objects, a non-blob source object, or malformed
+batch framing refuse the read rather than producing a partial inventory.
+<!-- source: internal/le/repo/objects/objects.go -- Resolve, Read -->
+
 `./le spec roadmap update [revision <ref>]` writes the derived, untracked
 `plan/release/roadmap.md` with relative source links. Historical updates are labeled.
 The derived-artifact freshness check compares the recorded revision with `HEAD`;

@@ -13,10 +13,10 @@ import (
 	"net/url"
 	"os/exec"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
+	repoobjects "github.com/ze-software/ze/internal/le/repo/objects"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
@@ -243,17 +243,11 @@ func itemDiagnostics(item *Item) {
 }
 
 func resolve(ctx context.Context, root, revision string) (string, error) {
-	if revision == "" {
-		revision = "HEAD"
-	}
-	if strings.HasPrefix(revision, "-") {
-		return "", fmt.Errorf("%w: invalid reference %q", ErrRevision, revision)
-	}
-	output, err := git(ctx, root, nil, "rev-parse", "--verify", "--end-of-options", revision+"^{commit}")
+	resolved, err := repoobjects.Resolve(ctx, root, revision)
 	if err != nil {
-		return "", fmt.Errorf("%w: %q; fetch the requested history: %w", ErrRevision, revision, err)
+		return "", fmt.Errorf("%w: %w", ErrRevision, err)
 	}
-	return strings.TrimSpace(string(output)), nil
+	return resolved, nil
 }
 
 type treeEntry struct {
@@ -311,52 +305,13 @@ func tree(ctx context.Context, root, revision string) ([]treeEntry, error) {
 }
 
 func readBlobs(ctx context.Context, root string, entries []treeEntry) ([][]byte, error) {
-	blobs := make([][]byte, 0, len(entries))
-	if len(entries) == 0 {
-		return blobs, nil
+	ids := make([]string, len(entries))
+	for index, entry := range entries {
+		ids[index] = entry.object
 	}
-	var request strings.Builder
-	for _, entry := range entries {
-		request.WriteString(entry.object)
-		request.WriteByte('\n')
-	}
-	output, err := git(ctx, root, strings.NewReader(request.String()), "cat-file", "--batch")
+	blobs, err := repoobjects.Read(ctx, root, ids)
 	if err != nil {
 		return nil, fmt.Errorf("%w: blobs: %w", ErrRead, err)
-	}
-	for _, entry := range entries {
-		header, rest, found := bytes.Cut(output, []byte{'\n'})
-		if !found {
-			return nil, fmt.Errorf("%w: missing blob header for %s", ErrRead, entry.path)
-		}
-		fields := strings.Fields(string(header))
-		if len(fields) != 3 {
-			return nil, fmt.Errorf("%w: unavailable blob for %s", ErrRead, entry.path)
-		}
-		if fields[0] != entry.object {
-			return nil, fmt.Errorf("%w: wrong blob for %s", ErrRead, entry.path)
-		}
-		if fields[1] != objectBlob {
-			return nil, fmt.Errorf("%w: wrong object type for %s", ErrRead, entry.path)
-		}
-		size, err := strconv.Atoi(fields[2])
-		if err != nil {
-			return nil, fmt.Errorf("%w: invalid blob length for %s: %w", ErrRead, entry.path, err)
-		}
-		if size < 0 {
-			return nil, fmt.Errorf("%w: negative blob length for %s", ErrRead, entry.path)
-		}
-		if size >= len(rest) {
-			return nil, fmt.Errorf("%w: truncated blob for %s", ErrRead, entry.path)
-		}
-		if rest[size] != '\n' {
-			return nil, fmt.Errorf("%w: invalid blob terminator for %s", ErrRead, entry.path)
-		}
-		blobs = append(blobs, rest[:size])
-		output = rest[size+1:]
-	}
-	if len(output) != 0 {
-		return nil, fmt.Errorf("%w: unexpected trailing blob output", ErrRead)
 	}
 	return blobs, nil
 }
