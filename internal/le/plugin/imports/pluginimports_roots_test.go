@@ -237,14 +237,15 @@ var notACommandRegistrar = map[string]string{
 	// a command path some other registrar declared: aliases, answer shapes and
 	// address fields, column orders, pipe filters, and the source of argument
 	// definitions. None creates a path to dispatch to.
-	"RegisterAliases":       "names another spelling of a command another registrar declared",
-	"RegisterPluginAliases": "names another spelling of a plugin command another registrar declared",
-	"RegisterShape":         "records the answer shape of a command another registrar declared",
-	"RegisterAddressFields": "records the address fields of a command another registrar declared",
-	"RegisterPluginShapes":  "records the answer shapes of a plugin's commands, declared elsewhere",
-	"RegisterColumns":       "records the column order of a command another registrar declared",
-	"RegisterPipeFilters":   "records the pipe filters of a command another registrar declared",
-	"RegisterArgDefSource":  "installs the source the argument judgment reads, for every command",
+	"RegisterAliases":        "names another spelling of a command another registrar declared",
+	"RegisterPluginAliases":  "names another spelling of a plugin command another registrar declared",
+	"RegisterShape":          "records the answer shape of a command another registrar declared",
+	"RegisterAddressFields":  "records the address fields of a command another registrar declared",
+	"RegisterPluginShapes":   "records the answer shapes of a plugin's commands, declared elsewhere",
+	"RegisterColumns":        "records the column order of a command another registrar declared",
+	"RegisterPipeFilters":    "records the pipe filters of a command another registrar declared",
+	"RegisterArgDefSource":   "installs the source the argument judgment reads, for every command",
+	"RegisterCallerPathDirs": "installs caller-file confinement callbacks without declaring a command",
 	// The text renderers draw an ANSWER by its one envelope key
 	// (internal/component/command/text_renderer.go, textRenderers.byKey); the
 	// key names a payload, never a command path, and dispatch never reads it.
