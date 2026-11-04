@@ -664,6 +664,9 @@ position of its route.
   evaluator fails: `answerFilterBatch` calls the evaluator `OnFilter`
   installed once per route, in request order, and an error it returns or a
   nil verdict fails that route alone, so a Go filter is written for one route.
+  The same evaluator run internal, through the typed slot, gets the same
+  answer: an error or a nil verdict fails that route alone.
+<!-- source: pkg/plugin/rpc/filter_slot.go -- CallFilterSlot -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchMax, FilterUpdateBatchInput, FilterUpdateBatchOutput -->
 <!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->

@@ -111,6 +111,25 @@ func TestBridgeFilterSlotPanicFailsTheRoute(t *testing.T) {
 	}
 }
 
+// TestBridgeFilterSlotNoVerdictFailsTheRoute proves an evaluator answering
+// neither a verdict nor an error gets an error for its route, as the batched
+// transport answers it (sdk answerFilterBatch), so no nil verdict reaches the
+// engine's chain.
+func TestBridgeFilterSlotNoVerdictFailsTheRoute(t *testing.T) {
+	b := NewDirectBridge()
+	b.SetFilterSlot(func(*FilterRoute) (*FilterUpdateOutput, error) { return nil, nil }) //nolint:nilnil // the defect under test
+	b.SetReady()
+	header := FilterUpdateInput{Filter: "f"}
+	route := ViewFilterRoute(&header, &slotView{})
+	out, err := b.CallFilterSlot(&route)
+	if err == nil {
+		t.Fatalf("an evaluator with no verdict answered no error (out %+v)", out)
+	}
+	if out != nil {
+		t.Fatalf("an evaluator with no verdict answered a verdict %+v", out)
+	}
+}
+
 // TestFilterRouteInputEncodesTheView proves the batched transport sends a
 // fast-path route with its fields and raw body, and an encoded route as is.
 func TestFilterRouteInputEncodesTheView(t *testing.T) {

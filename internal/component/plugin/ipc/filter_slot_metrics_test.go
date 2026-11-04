@@ -55,7 +55,12 @@ func TestFilterSlotCountsOnlyCompletedJudgments(t *testing.T) {
 				}
 				return
 			}
-			if !errors.Is(err, test.err) {
+			if test.out == nil && test.err == nil {
+				// No verdict fails the route, as the batched transport does.
+				if err == nil || !strings.Contains(err.Error(), "answered no verdict") {
+					t.Fatalf("nil verdict error=%v, want the no-verdict refusal", err)
+				}
+			} else if !errors.Is(err, test.err) {
 				t.Fatalf("error=%v, want %v", err, test.err)
 			}
 			if out != test.out {
