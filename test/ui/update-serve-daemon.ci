@@ -67,9 +67,8 @@ expect=stdout:contains="paused":true
 
 cmd=foreground:seq=8:exec=ze cli -c "update serve stop":exit=0
 expect=stdout:contains=stopped
-# A helper before the last step must exit 0 (the runner fails it otherwise and
-# reads no exit= for it), so sh inverts the refused fetch; stderr pins the cause.
-cmd=foreground:seq=9:exec=sh -c "! le test http-get http://127.0.0.1:$PORT2/version.json":exit=0
+# Each helper's exit= is checked before the next step; stderr pins the refusal.
+cmd=foreground:seq=9:exec=le test http-get http://127.0.0.1:$PORT2/version.json:exit=1
 expect=stderr:contains=connection refused
 
 cmd=foreground:seq=10:exec=ze cli -c "update serve pause"

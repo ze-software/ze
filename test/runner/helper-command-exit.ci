@@ -1,9 +1,9 @@
 # Each helper owns its exit status, including an expected refusal before another step.
 option=timeout:value=10s
-cmd=foreground:seq=1:exec=sh -c 'echo first-helper; exit 3':exit=3
+cmd=foreground:seq=1:exec=le test fixture runner/helper-command-exit first-helper 3:exit=3
 expect=stdout:contains=first-helper
-cmd=foreground:seq=2:exec=sh -c 'echo zero-helper':exit=0
+cmd=foreground:seq=2:exec=le test fixture runner/helper-command-exit zero-helper 0:exit=0
 expect=stdout:contains=zero-helper
-cmd=foreground:seq=3:exec=sh -c 'echo final-helper; exit 7':exit=7
+cmd=foreground:seq=3:exec=le test fixture runner/helper-command-exit final-helper 7:exit=7
 expect=stdout:contains=final-helper
 expect=exit:code=7
