@@ -254,7 +254,7 @@ func TestNamedReadBuildsEveryStartupArtifact(t *testing.T) {
 
 	for _, artifact := range artifacts {
 		code, _, message := runHook(t, root, "pretool-bash", map[string]any{
-			"tool_name": "Bash",
+			"tool_name":  "Bash",
 			"tool_input": map[string]any{"command": "cat " + artifact.Path},
 		})
 		if code != 0 {
@@ -505,7 +505,7 @@ func TestSessionStartPrintsAReadyReportPastTheDeadline(t *testing.T) {
 func TestSessionStartReportsDerivedDebt(t *testing.T) {
 	t.Run("a commit carrying a malformed trailer", func(t *testing.T) {
 		root := derivedDebtCheckout(t, true)
-		derivedDebtCommit(t, root, "a change", "Review-owed: malformed")
+		derivedDebtCommit(t, root, "Review-owed: malformed")
 
 		started := time.Now()
 		printed, noted := runSessionStartStreams(t, root)
@@ -524,7 +524,7 @@ func TestSessionStartReportsDerivedDebt(t *testing.T) {
 	})
 	t.Run("a plain commit with no verify record", func(t *testing.T) {
 		root := derivedDebtCheckout(t, true)
-		derivedDebtCommit(t, root, "a change")
+		derivedDebtCommit(t, root)
 		printed, noted := runSessionStartStreams(t, root)
 		if strings.Contains(printed, "push debt") || strings.Contains(noted, "push debt") {
 			t.Fatalf("the hook warned over a HEAD owing nothing: stdout %q stderr %q", printed, noted)
@@ -532,7 +532,7 @@ func TestSessionStartReportsDerivedDebt(t *testing.T) {
 	})
 	t.Run("the main checkout has no upstream", func(t *testing.T) {
 		root := derivedDebtCheckout(t, false)
-		derivedDebtCommit(t, root, "a change")
+		derivedDebtCommit(t, root)
 		printed, noted := runSessionStartStreams(t, root)
 		if strings.Contains(printed, "push debt") {
 			t.Fatalf("the hook printed %q, want nothing on stdout when it cannot derive", printed)
@@ -580,11 +580,12 @@ func derivedDebtCheckout(t *testing.T, upstream bool) string {
 	return root
 }
 
-// derivedDebtCommit commits one new file named after the subject, with each
-// trailer as a line of the message's last paragraph, and answers the commit's
-// full SHA.
-func derivedDebtCommit(t *testing.T, root, subject string, trailers ...string) string {
+// derivedDebtCommit commits one fixture file with the fixed subject "a change",
+// with each trailer as a line of the message's last paragraph, then verifies
+// that HEAD resolves to the commit.
+func derivedDebtCommit(t *testing.T, root string, trailers ...string) {
 	t.Helper()
+	const subject = "a change"
 	path := "change-" + strings.ReplaceAll(subject, " ", "-") + ".txt"
 	writeHookFixture(t, root, path, subject+"\n")
 	derivedDebtGit(t, root, "add", "--", path)
@@ -594,7 +595,7 @@ func derivedDebtCommit(t *testing.T, root, subject string, trailers ...string) s
 	}
 	derivedDebtGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
 		"commit", "-q", "-m", message)
-	return strings.TrimSpace(derivedDebtGit(t, root, "rev-parse", "HEAD"))
+	derivedDebtGit(t, root, "rev-parse", "HEAD")
 }
 
 // TestSessionStartDebtLineNeverNamesVerify drives the session-start hook over
@@ -603,7 +604,7 @@ func derivedDebtCommit(t *testing.T, root, subject string, trailers ...string) s
 // PREVENTS: an agent told at session start to run a verify it may not run.
 func TestSessionStartDebtLineNeverNamesVerify(t *testing.T) {
 	root := derivedDebtCheckout(t, true)
-	derivedDebtCommit(t, root, "a change", "Review-owed: malformed")
+	derivedDebtCommit(t, root, "Review-owed: malformed")
 	printed, _ := runSessionStartStreams(t, root)
 	at := strings.Index(printed, "push debt: ")
 	if at < 0 {
@@ -614,7 +615,7 @@ func TestSessionStartDebtLineNeverNamesVerify(t *testing.T) {
 	}
 }
 
-func derivedDebtGit(t *testing.T, root string, args ...string) string {
+func derivedDebtGit(t *testing.T, root string, args ...string) {
 	t.Helper()
 	command := exec.CommandContext(t.Context(), "git", args...)
 	command.Dir = root
@@ -622,5 +623,4 @@ func derivedDebtGit(t *testing.T, root string, args ...string) string {
 	if err != nil {
 		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, output)
 	}
-	return string(output)
 }
