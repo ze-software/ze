@@ -307,6 +307,18 @@ rather than "not reproduced": nothing passed, so nothing was tested. Pass
 `any-failure` when that failure is the reproduction.
 <!-- source: internal/le/test/stressrepro/run.go -- run, buildDaemon -->
 
+Each run creates a new capture file under `tmp/stress-repro/`, even when the
+selection and timestamp match an earlier run. Its filename has a bounded
+readable prefix, a SHA-256 of the complete suite and selector input, and an
+exclusive-creation suffix. Long selector lists and names that sanitize to the
+same prefix therefore neither exceed the filesystem component limit nor
+overwrite earlier evidence. The capture's `argv=` line is a JSON array of the
+exact child arguments after the executable, including registered suite options
+and quoted selectors containing spaces. Quote a selector inside the `test`
+value to keep it one child argument, for example `test "'a selector with spaces'"`.
+<!-- source: internal/le/test/stressrepro/run.go -- run, runSlug -->
+<!-- source: internal/le/test/stressrepro/process.go -- invocation.argv, realProcessRunner.Invoke -->
+
 **Type the runner's own verb, and read the log rather than the exit code.** Not
 every suite sits under `bgp`: `plugin`, `encode`, `decode`, `parse` and `reload`
 do, and `ui`, `editor`, `web` and the protocol suites are typed bare, as

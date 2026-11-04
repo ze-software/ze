@@ -5,6 +5,9 @@ package teststressrepro
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -273,7 +276,6 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 		return setupFailure(report, err)
 	}
 	stamp := deps.now().Format("20060102-150405")
-	report.Log = filepath.Join(outDir, slug+"-"+stamp+".log")
 
 	testBin, err := os.Executable()
 	if err != nil {
@@ -295,10 +297,24 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 		return setupFailure(report, err)
 	}
 
-	captureFile, err := os.Create(report.Log)
+	spec := invocation{
+		root: root, harness: harness, test: opts.Test, zeBin: zeBin, testBin: testBin,
+		timeout: time.Duration(opts.Timeout) * time.Second, extraTags: opts.Tags,
+	}
+	argv, err := spec.argv()
+	if err != nil {
+		return setupFailure(report, err)
+	}
+	// The digest keeps the full selection's identity after sanitizing and
+	// bounding its readable prefix. Exclusive creation keeps fresh samples
+	// separate even when their selection and timestamp are identical.
+	identity := sha256.Sum256([]byte(opts.Suite + "\x00" + opts.Test))
+	pattern := slug + "-" + hex.EncodeToString(identity[:]) + "-" + stamp + "-*.log"
+	captureFile, err := os.CreateTemp(outDir, pattern)
 	if err != nil {
 		return setupFailure(report, fmt.Errorf("create capture log: %w", err))
 	}
+	report.Log = captureFile.Name()
 	defer func() { _ = captureFile.Close() }()
 	var log io.Writer = captureFile
 	if deps.progress != nil {
@@ -306,6 +322,12 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	}
 	_, _ = fmt.Fprintf(log, "stress-repro %s %s\nburners=%d parallel=%d race=%t ncpu=%d\n",
 		opts.Suite, stamp, burnerCount, parallel, opts.Race, deps.cpuCount)
+	if _, err := io.WriteString(log, "argv="); err != nil {
+		return setupFailure(report, fmt.Errorf("record capture argv: %w", err))
+	}
+	if err := json.NewEncoder(log).Encode(argv); err != nil {
+		return setupFailure(report, fmt.Errorf("record capture argv: %w", err))
+	}
 
 	deadline := deps.now().Add(time.Duration(opts.Minutes * float64(time.Minute)))
 	runCtx, cancelRun := context.WithDeadline(ctx, deadline)
@@ -313,10 +335,6 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	stopBurners := deps.burners(runCtx, burnerCount)
 	defer stopBurners()
 
-	spec := invocation{
-		root: root, harness: harness, test: opts.Test, zeBin: zeBin, testBin: testBin,
-		timeout: time.Duration(opts.Timeout) * time.Second, extraTags: opts.Tags,
-	}
 	// ran counts the invocations that finished on their own, and failed the
 	// ones among them that exited non-zero without counting as a hit. When
 	// every finished invocation failed, nothing passed, so "not reproduced"
@@ -502,22 +520,34 @@ func daemonTags(root, extra string) (string, error) {
 	return tb.Str(tags).Byte(' ').Str(extra).String(), nil
 }
 
+// runSlugMax leaves room below NAME_MAX=255 for the full SHA-256, timestamp,
+// exclusive-creation suffix and extension in run's capture filename.
+const runSlugMax = 96
+
 func runSlug(suite, test string) (string, error) {
 	words, err := shellWords(suite, test)
 	if err != nil {
 		return "", fmt.Errorf("split suite or test: %w", err)
 	}
-	parts := make([]string, 0, len(words))
+	var slug textbuf.Buffer
 	for _, word := range words {
 		clean := slugPart(word)
-		if clean != "" {
-			parts = append(parts, clean)
+		if clean == "" {
+			continue
+		}
+		if slug.Len() > 0 {
+			slug.Byte('-')
+		}
+		remaining := runSlugMax - slug.Len()
+		slug.Str(clean[:min(len(clean), remaining)])
+		if slug.Len() == runSlugMax {
+			break
 		}
 	}
-	if len(parts) == 0 {
+	if slug.Len() == 0 {
 		return "run", nil
 	}
-	return strings.Trim(strings.Join(parts, "-"), "-"), nil
+	return slug.String(), nil
 }
 
 func slugPart(word string) string {

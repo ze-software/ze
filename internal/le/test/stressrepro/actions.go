@@ -78,9 +78,9 @@ func table(line []string) leaction.Area {
 			" and stop at the first failure it captures",
 		Parameters: []leaction.Parameter{
 			{Keyword: suiteKeyword, Kind: leaction.KindString, Value: "suite", Requirement: leaction.Required,
-				Help: "the le test suite to run, split on whitespace into its words"},
+				Help: "registered suite plus shell-quoted runner arguments"},
 			{Keyword: testKeyword, Kind: leaction.KindString, Value: "selector", Requirement: leaction.Optional,
-				Help: "the test selector in the suite, split on whitespace"},
+				Help: "shell-quoted selectors; exact argv is kept in the capture"},
 			{Keyword: iterationsKeyword, Kind: leaction.KindUint, Value: valueCount, Requirement: leaction.Optional,
 				Help: "how many invocations to run; 80 when not given"},
 			{Keyword: parallelKeyword, Kind: leaction.KindUint, Value: valueCount, Requirement: leaction.Optional,

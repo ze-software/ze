@@ -20,21 +20,10 @@ import (
 type realProcessRunner struct{}
 
 func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processResult {
-	testWords, err := shellWords(spec.test)
+	argv, err := spec.argv()
 	if err != nil {
-		return processResult{code: 2, err: fmt.Errorf("split test: %w", err)}
+		return processResult{code: 2, err: err}
 	}
-	// The harness is `le test <suite's registered argv>`, run by this le (D-8).
-	argv := make([]string, 0, len(spec.harness)+2+max(1, len(testWords)))
-	argv = append(argv, "test")
-	argv = append(argv, spec.harness...)
-	argv = append(argv, "-v")
-	if len(testWords) == 0 {
-		argv = append(argv, "--all")
-	} else {
-		argv = append(argv, testWords...)
-	}
-
 	invokeCtx, cancel := context.WithTimeout(ctx, spec.timeout)
 	defer cancel()
 	env := append([]string(nil), os.Environ()...)
@@ -50,6 +39,25 @@ func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processRes
 			"\n[stress-repro: invocation timed out after %.0fs]\n", spec.timeout.Seconds())
 	}
 	return result
+}
+
+// argv is shared by execution and capture so evidence retains the exact child
+// argument boundaries, including quoted selectors and registered suite options.
+func (spec invocation) argv() ([]string, error) {
+	testWords, err := shellWords(spec.test)
+	if err != nil {
+		return nil, fmt.Errorf("split test: %w", err)
+	}
+	argv := make([]string, 0, len(spec.harness)+2+max(1, len(testWords)))
+	argv = append(argv, "test")
+	argv = append(argv, spec.harness...)
+	argv = append(argv, "-v")
+	if len(testWords) == 0 {
+		argv = append(argv, "--all")
+	} else {
+		argv = append(argv, testWords...)
+	}
+	return argv, nil
 }
 
 // build compiles the daemon under test from the working tree in root.
