@@ -2555,6 +2555,22 @@ refresh, then quiesces before shutdown. An IRR status reply alone must not end a
 still-opening scripted peer.
 <!-- source: internal/test/fixture/plugin_fixture_07_irr.go -- filterIRRUpdate07 -->
 
+The package-wide observer lifecycle guard follows invoked scenario callbacks
+from both named driver functions and inline drivers. A callback passed to
+`Observe` reaches its scenario's peer waits; a wait merely named or passed to a
+helper that ignores it does not count.
+Package callback and invoker names are resolved against their lexical
+declarations: a same-named local or parameter never credits an unused package
+function. An unrelated inner shadow that has left scope hides nothing.
+It follows a callable type-switch alias only while both the original callback
+and that case's alias remain stable. Ignored or discarded callbacks and aliases
+that are reassigned, shadowed or address-taken do not count. Peer-command string
+concatenation is recognized only when every operand resolves to a literal,
+package constant or stable bound argument; an unknown operand or an unsent
+command supplies no peer wait.
+<!-- source: internal/test/fixture/plugin_fixture_peer_wait_test.go -- observerWalk.invoke, observerWalk.handedOn, observerPackage.packageFunction, observerPackage.paramUseBody, observerPackage.stringValue -->
+<!-- test: internal/test/fixture/plugin_fixture_peer_wait_guard_test.go -- TestPluginObserverPeerWaitGuardRefusesFalsePasses -->
+
 `plugin/filter-irr-readmit` sends an End-of-RIB after its initial announcement
 and waits for `eor-received` before refreshing the missing IRR list. The session
 finishes the preceding UPDATE's synchronous filter decision and held-route

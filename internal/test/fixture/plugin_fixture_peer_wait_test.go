@@ -373,6 +373,7 @@ func parseObserverPackage(dir, testRoot string) (*observerPackage, error) {
 		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
+		// Keep object resolution: callback names must retain their lexical declaration.
 		file, err := parser.ParseFile(fset, filepath.Join(dir, name), nil, 0)
 		if err != nil {
 			return nil, err
@@ -962,8 +963,8 @@ func (source *observerPackage) fixtureName(expr ast.Expr) (string, bool) {
 	return name, true
 }
 
-// stringValue answers a string literal's text, a package constant's, or a
-// parameter bound to a constant.
+// stringValue answers a string literal's text, a package constant's, a
+// parameter bound to a constant, or a concatenation of known strings.
 func (source *observerPackage) stringValue(expr ast.Expr, bound map[string]string) (string, bool) {
 	switch typed := ast.Unparen(expr).(type) {
 	case *ast.BasicLit:
@@ -978,6 +979,19 @@ func (source *observerPackage) stringValue(expr ast.Expr, bound map[string]strin
 		}
 		text, ok := source.constants[typed.Name]
 		return text, ok
+	case *ast.BinaryExpr:
+		if typed.Op != token.ADD {
+			return "", false
+		}
+		left, ok := source.stringValue(typed.X, bound)
+		if !ok {
+			return "", false
+		}
+		right, ok := source.stringValue(typed.Y, bound)
+		if !ok {
+			return "", false
+		}
+		return left + right, true
 	}
 	return "", false
 }
@@ -1093,14 +1107,26 @@ const paramUseDepth = 8
 // driver a builder returns, and a discarded result runs nothing.
 func (source *observerPackage) paramUse(name string, index, depth int) (runs, returns bool) {
 	decl := source.functions[name]
-	if decl == nil || decl.Body == nil || depth > paramUseDepth {
+	if decl == nil || decl.Body == nil {
 		return false, false
 	}
 	params := parameterNames(decl.Type)
 	if index >= len(params) || params[index] == "_" {
 		return false, false
 	}
-	param := params[index]
+	return source.paramUseBody(decl.Body, params[index], depth)
+}
+
+// paramUseBody follows a stable callback parameter, including a callable alias
+// introduced by a type switch. Each alias is judged only in its own case.
+func (source *observerPackage) paramUseBody(body *ast.BlockStmt, param string, depth int) (runs, returns bool) {
+	if depth > paramUseDepth {
+		return false, false
+	}
+	stable := stableBinding(&ast.FuncDecl{Body: body}, map[string]string{param: param})
+	if _, ok := stable[param]; !ok {
+		return false, false
+	}
 	// handedReturn reports whether a call hands the parameter to a package
 	// function that returns it, so the call's result is the parameter.
 	handedReturn := func(expr ast.Expr) bool {
@@ -1122,8 +1148,54 @@ func (source *observerPackage) paramUse(name string, index, depth int) (runs, re
 		}
 		return false
 	}
-	ast.Inspect(decl.Body, func(node ast.Node) bool {
+	ast.Inspect(body, func(node ast.Node) bool {
 		switch typed := node.(type) {
+		case *ast.TypeSwitchStmt:
+			assignment, ok := typed.Assign.(*ast.AssignStmt)
+			if !ok {
+				return true
+			}
+			if assignment.Tok != token.DEFINE {
+				return true
+			}
+			if len(assignment.Lhs) != 1 {
+				return true
+			}
+			if len(assignment.Rhs) != 1 {
+				return true
+			}
+			alias, ok := assignment.Lhs[0].(*ast.Ident)
+			if !ok {
+				return true
+			}
+			if alias.Name == "_" {
+				return true
+			}
+			assertion, ok := assignment.Rhs[0].(*ast.TypeAssertExpr)
+			if !ok {
+				return true
+			}
+			if assertion.Type != nil {
+				return true
+			}
+			if !isIdentNamed(assertion.X, param) {
+				return true
+			}
+			for _, statement := range typed.Body.List {
+				clause, ok := statement.(*ast.CaseClause)
+				if !ok {
+					continue
+				}
+				if len(clause.List) != 1 {
+					continue
+				}
+				if _, ok := clause.List[0].(*ast.FuncType); !ok {
+					continue
+				}
+				called, returned := source.paramUseBody(&ast.BlockStmt{List: clause.Body}, alias.Name, depth+1)
+				runs = runs || called
+				returns = returns || returned
+			}
 		case *ast.ReturnStmt:
 			for _, result := range typed.Results {
 				if isIdentNamed(result, param) || handedReturn(result) {
@@ -1216,11 +1288,25 @@ func isIdentNamed(expr ast.Expr, name string) bool {
 	return ok && ident.Name == name
 }
 
-// handedOn follows each package function a driver literal hands to a call
-// of a package function in its own body that runs it, as
-// `Observe(ctx, name, registration, scenario)` does: the literal is the
-// driver, so that call is the driver call. A function named anywhere else in
-// the literal, or handed to a conversion or a library call, is not followed.
+// packageFunction resolves a genuine package function, never a local binding
+// that shadows its name. A cross-file reference has no parser object.
+func (source *observerPackage) packageFunction(ident *ast.Ident) *ast.FuncDecl {
+	decl := source.functions[ident.Name]
+	if decl == nil {
+		return nil
+	}
+	if ident.Obj != nil {
+		if ident.Obj.Decl != decl {
+			return nil
+		}
+	}
+	return decl
+}
+
+// handedOn follows each package function a body hands to a package function
+// proven to run it, as Observe(ctx, name, registration, scenario) does.
+// A function merely named in the body, converted, or handed to a library call
+// is not followed.
 func (walk *observerWalk) handedOn(body *ast.BlockStmt) {
 	ast.Inspect(body, func(node ast.Node) bool {
 		if _, ok := node.(*ast.FuncLit); ok {
@@ -1231,12 +1317,12 @@ func (walk *observerWalk) handedOn(body *ast.BlockStmt) {
 			return true
 		}
 		callee, ok := call.Fun.(*ast.Ident)
-		if !ok || walk.source.functions[callee.Name] == nil {
+		if !ok || walk.source.packageFunction(callee) == nil {
 			return true
 		}
 		for index, arg := range call.Args {
 			ident, ok := walk.source.unconvert(arg).(*ast.Ident)
-			if !ok || walk.source.functions[ident.Name] == nil {
+			if !ok || walk.source.packageFunction(ident) == nil {
 				continue
 			}
 			if walk.source.runsWith(callee.Name, index) {
@@ -1304,6 +1390,7 @@ func (walk *observerWalk) invoke(name string, binding map[string]string) {
 	}
 	walk.visited[key] = true
 	walk.body(decl.Body, binding)
+	walk.handedOn(decl.Body)
 }
 
 // stableBinding drops each bound parameter the function assigns, or shadows

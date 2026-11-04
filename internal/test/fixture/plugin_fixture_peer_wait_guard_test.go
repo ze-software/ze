@@ -116,6 +116,356 @@ func scenarioX(ctx, p any) error { return waitPeerEOR08(ctx, p) }
 `},
 		},
 		{
+			name: "control a named driver hands its scenario to Observe",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", namedDriver) }
+func namedDriver(ctx any, args []string) error { return Observe(ctx, "x-test", nil, scenarioX) }
+func scenarioX(ctx, p any) error { return waitPeerEOR08(ctx, p) }
+`},
+		},
+		{
+			name: "a named driver hands its wait to a function that ignores it",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", namedDriver) }
+func namedDriver(ctx any, args []string) error { return ignores(waitPeerEOR08) }
+func ignores(_ func(ctx, p any) error) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a named driver shadows a waiting package callback with a local",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", namedDriver) }
+func namedDriver(ctx any, args []string) error {
+	scenarioX := noWait
+	return Observe(ctx, "x-test", nil, scenarioX)
+}
+func scenarioX(ctx, p any) error { return waitPeerEOR08(ctx, p) }
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a callback parameter shadows a waiting package function",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", namedDriver) }
+func namedDriver(ctx any, args []string) error { return invokeLocal(ctx, noWait) }
+func invokeLocal(ctx any, scenarioX func(ctx, p any) error) error {
+	return Observe(ctx, "x-test", nil, scenarioX)
+}
+func scenarioX(ctx, p any) error { return waitPeerEOR08(ctx, p) }
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a named driver shadows the package callback invoker",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", namedDriver) }
+func namedDriver(ctx any, args []string) error {
+	Observe := ignoredObserve
+	return Observe(ctx, "x-test", nil, scenarioX)
+}
+func ignoredObserve(ctx any, name string, registration any, scenario func(ctx, p any) error) error { return nil }
+func scenarioX(ctx, p any) error { return waitPeerEOR08(ctx, p) }
+`},
+			finding: true,
+		},
+		{
+			name: "control an ended inner shadow does not hide the package callback",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", namedDriver) }
+func namedDriver(ctx any, args []string) error {
+	if true {
+		scenarioX := noWait
+		_ = scenarioX
+	}
+	return Observe(ctx, "x-test", nil, scenarioX)
+}
+func scenarioX(ctx, p any) error { return waitPeerEOR08(ctx, p) }
+func noWait(ctx, p any) error { return nil }
+`},
+		},
+		{
+			name: "control a named driver invokes a package callback from another file",
+			files: map[string]string{
+				"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", namedDriver) }
+func namedDriver(ctx any, args []string) error { return Observe(ctx, "x-test", nil, scenarioX) }
+`,
+				"scenario.go": `package fixture
+func scenarioX(ctx, p any) error { return waitPeerEOR08(ctx, p) }
+`,
+			},
+		},
+		{
+			name: "control a concatenated command names the bound peer",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+const showPeer = "show bgp peer "
+func init() { registerPlugin08("plugin/x", "x-test", scenarioX) }
+func scenarioX(ctx, p any) error { return pollFor(ctx, p, "peer1") }
+func pollFor(ctx, p any, name string) error {
+	Poll(ctx, 40, nil, func() bool { return command(ctx, p, showPeer+name+" detail") })
+	return nil
+}
+`},
+		},
+		{
+			name: "a concatenated command has an unknown peer operand",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { registerPlugin08("plugin/x", "x-test", scenarioX) }
+func scenarioX(ctx, p any) error {
+	name := unknownPeer()
+	Poll(ctx, 40, nil, func() bool { return command(ctx, p, "show bgp peer "+name+" detail") })
+	return nil
+}
+func unknownPeer() string { return "peer1" }
+`},
+			finding: true,
+		},
+		{
+			name: "a concatenated command reassigns its bound peer",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { registerPlugin08("plugin/x", "x-test", scenarioX) }
+func scenarioX(ctx, p any) error { return pollFor(ctx, p, "peer1") }
+func pollFor(ctx, p any, name string) error {
+	name = "peer9"
+	Poll(ctx, 40, nil, func() bool { return command(ctx, p, "show bgp peer "+name+" detail") })
+	return nil
+}
+`},
+			finding: true,
+		},
+		{
+			name: "a concatenated command shadows its bound peer",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { registerPlugin08("plugin/x", "x-test", scenarioX) }
+func scenarioX(ctx, p any) error { return pollFor(ctx, p, "peer1") }
+func pollFor(ctx, p any, name string) error {
+	for _, name := range []string{"peer9"} {
+		Poll(ctx, 40, nil, func() bool { return command(ctx, p, "show bgp peer "+name+" detail") })
+	}
+	return nil
+}
+`},
+			finding: true,
+		},
+		{
+			name: "a concatenated command takes its bound peer's address",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { registerPlugin08("plugin/x", "x-test", scenarioX) }
+func scenarioX(ctx, p any) error { return pollFor(ctx, p, "peer1") }
+func pollFor(ctx, p any, name string) error {
+	alias := &name
+	*alias = "peer9"
+	Poll(ctx, 40, nil, func() bool { return command(ctx, p, "show bgp peer "+name+" detail") })
+	return nil
+}
+`},
+			finding: true,
+		},
+		{
+			name: "a concatenated peer command is held but never dispatched",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { registerPlugin08("plugin/x", "x-test", scenarioX) }
+func scenarioX(ctx, p any) error { return pollFor(ctx, p, "peer1") }
+func pollFor(ctx, p any, name string) error {
+	Poll(ctx, 40, nil, func() bool {
+		_ = "show bgp peer "+name+" detail"
+		return true
+	})
+	return nil
+}
+`},
+			finding: true,
+		},
+		{
+			name: "control a callable type-switch alias is invoked",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	switch run := driver.(type) {
+	case func(ctx, p any) error:
+		run(nil, nil)
+	}
+	return noWait
+}
+func noWait(ctx, p any) error { return nil }
+`},
+		},
+		{
+			name: "control a callable type-switch alias is returned in a driver closure",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	switch run := driver.(type) {
+	case func(ctx, p any) error:
+		return func(ctx, p any) error { return run(ctx, p) }
+	}
+	return nil
+}
+`},
+		},
+		{
+			name: "control a callable type-switch alias is returned as the driver",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	switch run := driver.(type) {
+	case func(ctx, p any) error:
+		return run
+	}
+	return nil
+}
+`},
+		},
+		{
+			name: "a callable type-switch alias is ignored",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	switch run := driver.(type) {
+	case func(ctx, p any) error:
+		_ = run
+	}
+	return noWait
+}
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a callable type-switch source is replaced",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	driver = noWait
+	switch run := driver.(type) {
+	case func(ctx, p any) error:
+		return run
+	}
+	return nil
+}
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a callable type-switch source is shadowed",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	for _, driver := range []any{noWait} {
+		switch run := driver.(type) {
+		case func(ctx, p any) error:
+			return run
+		}
+	}
+	return nil
+}
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a callable type-switch source has its address taken",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	alias := &driver
+	*alias = noWait
+	switch run := driver.(type) {
+	case func(ctx, p any) error:
+		return run
+	}
+	return nil
+}
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a callable type-switch alias is replaced",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	switch run := driver.(type) {
+	case func(ctx, p any) error:
+		run = noWait
+		return run
+	}
+	return nil
+}
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a callable type-switch alias is shadowed",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	switch run := driver.(type) {
+	case func(ctx, p any) error:
+		for _, run := range []func(ctx, p any) error{noWait} {
+			run(nil, nil)
+		}
+	}
+	return noWait
+}
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a callable type-switch alias has its address taken",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	switch run := driver.(type) {
+	case func(ctx, p any) error:
+		alias := &run
+		*alias = noWait
+		return run
+	}
+	return nil
+}
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a callable type-switch alias is returned by a discarded call",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	switch run := driver.(type) {
+	case func(ctx, p any) error:
+		keep(run)
+	}
+	return noWait
+}
+func keep(run func(ctx, p any) error) func(ctx, p any) error { return run }
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
+			name: "a noncallable type-switch alias is not a driver",
+			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
+func init() { Register("plugin/x", adapt(waitPeerEOR08)) }
+func adapt(driver any) any {
+	switch run := driver.(type) {
+	case string:
+		return run
+	}
+	return noWait
+}
+func noWait(ctx, p any) error { return nil }
+`},
+			finding: true,
+		},
+		{
 			name: "M2b inside an inline driver",
 			files: map[string]string{"plugin_fixture_08_case.go": `package fixture
 func init() {
