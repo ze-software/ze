@@ -20,12 +20,21 @@ import (
 // pipe. The existing observation seam reduces only WaitDelay, not ownership or
 // kernel observation. The test owns the escaped fixture's separate control socket.
 func TestQuickZeUnreadableExit(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	var listen net.ListenConfig
+	listener, err := listen.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
-	if err := listener.(*net.TCPListener).SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	t.Cleanup(func() {
+		if err := listener.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	tcpListener, ok := listener.(*net.TCPListener)
+	if !ok {
+		t.Fatalf("TCP listener has unexpected type %T", listener)
+	}
+	if err := tcpListener.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	r, rec := helperExitRecord(t, "cmd=foreground:seq=1:exec=ze version:exit=0\ncmd=foreground:seq=2:exec=sh -c 'echo must-not-run'\n")
@@ -98,7 +107,7 @@ func TestQuickZeHeldPipeProcess(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		child := exec.Command(os.Args[0], "-test.run=^TestQuickZeHeldPipeProcess$")
+		child := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestQuickZeHeldPipeProcess$")
 		child.Env = append(os.Environ(), "QUICK_ZE_PIPE_ROLE=descendant")
 		child.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 		child.Stdout, child.Stderr = os.Stdout, os.Stderr
@@ -118,11 +127,16 @@ func TestQuickZeHeldPipeProcess(t *testing.T) {
 		}
 		os.Exit(0)
 	case "descendant":
-		control, err := net.DialTimeout("tcp", os.Getenv("QUICK_ZE_PIPE_ADDRESS"), 5*time.Second)
+		dialer := net.Dialer{Timeout: 5 * time.Second}
+		control, err := dialer.DialContext(t.Context(), "tcp", os.Getenv("QUICK_ZE_PIPE_ADDRESS"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer control.Close()
+		t.Cleanup(func() {
+			if err := control.Close(); err != nil {
+				t.Error(err)
+			}
+		})
 		if err := control.SetDeadline(time.Now().Add(15 * time.Second)); err != nil {
 			t.Fatal(err)
 		}
@@ -148,6 +162,9 @@ func TestQuickZeHeldPipeProcess(t *testing.T) {
 			if _, err := control.Write([]byte{1}); err != nil {
 				t.Fatal(err)
 			}
+		}
+		if err := control.Close(); err != nil {
+			t.Fatal(err)
 		}
 		os.Exit(0)
 	}
