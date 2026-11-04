@@ -102,7 +102,10 @@ func TestETWaitObservesRealDaemonExpiry(t *testing.T) {
 	})
 	var window *confirm.Window
 	validExpectationTypes[observer] = func(exp Expectation, state State) error {
-		hm := state.(*headlessModel)
+		hm, ok := state.(*headlessModel)
+		if !ok {
+			return fmt.Errorf("daemon-expiry observer received %T, expected headless editor model", state)
+		}
 		path := hm.editor.OriginalPath()
 		switch exp.Values["stage"] {
 		case "wire":
@@ -121,8 +124,11 @@ func TestETWaitObservesRealDaemonExpiry(t *testing.T) {
 			}
 		case "expired":
 			count, err := window.Timeouts()
-			if err != nil || count != 1 {
-				return fmt.Errorf("daemon timeout count=%d, err=%v", count, err)
+			if err != nil {
+				return fmt.Errorf("reading daemon timeout count: %w", err)
+			}
+			if count != 1 {
+				return fmt.Errorf("daemon timeout count=%d, want 1", count)
 			}
 			active, err := storage.ReadActiveConfig(hm.store, path)
 			if err != nil {
@@ -154,7 +160,10 @@ func TestETWaitReportsRealDaemonRevertFailure(t *testing.T) {
 	wired := make(chan *headlessModel, 1)
 	var window *confirm.Window
 	validExpectationTypes[observer] = func(_ Expectation, state State) error {
-		hm := state.(*headlessModel)
+		hm, ok := state.(*headlessModel)
+		if !ok {
+			return fmt.Errorf("revert-failure observer received %T, expected headless editor model", state)
+		}
 		window = confirm.NewWindow(func([]byte) error { return cause }, &waitWindowRecorder{})
 		t.Cleanup(window.Stop)
 		hm.editor.SetConfirmWindow(func() *confirm.Window { return window })
@@ -198,7 +207,10 @@ func TestETWaitValidationPrecedesNextStateCommand(t *testing.T) {
 	})
 	called, validated := false, false
 	validExpectationTypes[observer] = func(_ Expectation, state State) error {
-		hm := state.(*headlessModel)
+		hm, ok := state.(*headlessModel)
+		if !ok {
+			return fmt.Errorf("validation observer received %T, expected headless editor model", state)
+		}
 		if err := hm.editor.SetValue([]string{"bgp"}, "router-id", "invalid"); err != nil {
 			return err
 		}
@@ -230,7 +242,10 @@ func TestETWaitDroppedConfirmationTickFails(t *testing.T) {
 		}
 	})
 	validExpectationTypes[observer] = func(_ Expectation, state State) error {
-		hm := state.(*headlessModel)
+		hm, ok := state.(*headlessModel)
+		if !ok {
+			return fmt.Errorf("countdown observer received %T, expected headless editor model", state)
+		}
 		kept := hm.pending[:0]
 		for _, tick := range hm.pending {
 			if tick.request.IsConfirmation() {

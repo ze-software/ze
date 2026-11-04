@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
@@ -281,27 +282,27 @@ func (hm *headlessModel) settleWait() error {
 }
 
 func (hm *headlessModel) waitValidation() error {
-	for i := len(hm.pending) - 1; i >= 0; i-- {
-		if hm.pending[i].request.IsValidation() {
-			tick := hm.pending[i]
-			hm.pending = append(hm.pending[:i], hm.pending[i+1:]...)
-			select {
-			case msg := <-tick.result:
-				if msg == nil {
-					return errors.New("validation wait canceled")
-				}
-				hm.processMsg(msg)
-			case <-hm.stopped:
-				// Keep the join obligation if shutdown won the receive.
-				hm.pending = append(hm.pending, tick)
-				return errors.New("validation wait canceled")
-			case <-hm.canceled:
-				hm.pending = append(hm.pending, tick)
+	for i, tick := range slices.Backward(hm.pending) {
+		if !tick.request.IsValidation() {
+			continue
+		}
+		hm.pending = append(hm.pending[:i], hm.pending[i+1:]...)
+		select {
+		case msg := <-tick.result:
+			if msg == nil {
 				return errors.New("validation wait canceled")
 			}
-			hm.settle()
-			return nil
+			hm.processMsg(msg)
+		case <-hm.stopped:
+			// Keep the join obligation if shutdown won the receive.
+			hm.pending = append(hm.pending, tick)
+			return errors.New("validation wait canceled")
+		case <-hm.canceled:
+			hm.pending = append(hm.pending, tick)
+			return errors.New("validation wait canceled")
 		}
+		hm.settle()
+		return nil
 	}
 	return nil
 }
@@ -322,15 +323,13 @@ func (hm *headlessModel) processMsg(msg tea.Msg) {
 		ready := hm.ready
 		done := make(chan tea.Msg, 1)
 		hm.pending = append(hm.pending, pendingTick{request: tick, result: done})
-		hm.timerWorkers.Add(1)
-		go func() {
-			defer hm.timerWorkers.Done()
+		hm.timerWorkers.Go(func() {
 			done <- wait()
 			select {
 			case ready <- struct{}{}:
 			default:
 			}
-		}()
+		})
 		return
 	}
 	// Handle batch commands
@@ -343,7 +342,7 @@ func (hm *headlessModel) processMsg(msg tea.Msg) {
 	// Bubble Tea keeps sequenceMsg private. Match only its exact runtime type,
 	// obtained through the public constructor, then convert its []tea.Cmd shape.
 	if reflect.TypeOf(msg) == sequenceMessageType {
-		commands := reflect.ValueOf(msg).Convert(reflect.TypeFor[[]tea.Cmd]()).Interface().([]tea.Cmd)
+		commands := reflect.ValueOf(msg).Convert(reflect.TypeFor[[]tea.Cmd]()).Interface().([]tea.Cmd) //nolint:errcheck,forcetypeassert // Convert returns exactly the requested []tea.Cmd type.
 		for _, command := range commands {
 			hm.processCmd(command)
 		}

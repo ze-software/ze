@@ -27,7 +27,10 @@ func TestEditorModelBeforeStoreClose(t *testing.T) {
 	joined := make(chan error, 1)
 	observed := false
 	installCloseObserver(t, observer, func(_ Expectation, state State) error {
-		model := state.(*headlessModel)
+		model, ok := state.(*headlessModel)
+		if !ok {
+			return fmt.Errorf("close-order observer received %T, expected headless editor model", state)
+		}
 		guard, err := model.store.AcquireLock("test.conf")
 		if err != nil {
 			return err
@@ -74,7 +77,10 @@ func TestEditorBackendCloseError(t *testing.T) {
 			directory := t.TempDir()
 			observed := false
 			installCloseObserver(t, observer, func(_ Expectation, state State) error {
-				model := state.(*headlessModel)
+				model, ok := state.(*headlessModel)
+				if !ok {
+					return fmt.Errorf("backend-close observer received %T, expected headless editor model", state)
+				}
 				if _, err := model.store.ReadFile("test.conf"); err != nil {
 					return err
 				}
@@ -122,7 +128,10 @@ func TestEditorTranscriptCloseError(t *testing.T) {
 		t.Fatal(err)
 	}
 	installCloseObserver(t, observer, func(_ Expectation, state State) error {
-		model := state.(*headlessModel)
+		model, ok := state.(*headlessModel)
+		if !ok {
+			return fmt.Errorf("transcript-close observer received %T, expected headless editor model", state)
+		}
 		model.model.SetTranscript(cli.NewTranscriptWriter(file, "fixture", "local"))
 		return file.Close()
 	})
@@ -180,7 +189,7 @@ func invalidateOwnedBacking(path string) error {
 		return err
 	}
 	for _, entry := range entries {
-		target, err := os.Readlink(filepath.Join("/proc/self/fd", entry.Name()))
+		target, err := os.Readlink(filepath.Join(string(filepath.Separator), "proc", "self", "fd", entry.Name()))
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
