@@ -6,11 +6,38 @@
 | Scope | protocol, config, cli, tooling, docs |
 | Priority | P1 |
 | Release reason | An accepted 1492 MRU policy still permits oversized transmissions on implemented subscriber transports. |
-| RFC gaps | Existing PPP, PPPoE, IPv4 and IPv6 size requirements; verify exact requirement ownership during research. |
+| RFC gaps | - |
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
 | Updated | 2026-11-04 |
+
+## Issue Split and Current Ownership (2026-11-04)
+
+The owner requested: "create a spec per issue". This record is now a
+coordination umbrella and the source of the original review and owner direction.
+Each finding has one child spec in the routing table below. That table
+supersedes the combined implementation scope and next action in the original
+sections retained here. No issue is fixed by this split.
+
+### Work Not Done
+
+| Finding | Owning spec | Coordination |
+|---------|-------------|--------------|
+| F-1 | `plan/release/fixes/spec-home-cpe-16a-omitted-mru-transmit-cap.md` | Owns the shared transmit-cap implementation and omitted-MRU proof. |
+| F-2 | `plan/release/fixes/spec-home-cpe-16b-proxy-mru-transmit-cap.md` | Reuses F-1's shared cap; owns accepted-proxy proof and independent test judgment. |
+| F-3 | `plan/release/fixes/spec-home-cpe-16c-auth-policy-repair-commands.md` | Owns editor-executable, transport-specific repair messages. |
+| F-4 | `plan/release/fixes/spec-home-cpe-16d-mru-protocol-floors.md` | Owns IPv4/IPv6 MRU floors and config/runtime consistency. |
+| F-5 | `plan/release/validation/spec-home-cpe-16e-live-mru-nak.md` | Owns live oversized-request Nak and convergence proof. |
+| F-6 | `plan/release/validation/spec-home-cpe-16f-negotiated-mru-output-proof.md` | Owns unequal configured/negotiated output proof. |
+| F-7 | `plan/release/validation/spec-home-cpe-16g-auth-refusal-order-proof.md` | Owns the live refusal checker's ConfAck exclusion. |
+| F-8 | `plan/release/validation/spec-home-cpe-16h-subscriber-radius-pppd.md` | Owns paired peer-image release alignment and rebuild evidence. |
+
+All children start at `skeleton`. Complete each child's research and design
+before implementation. The umbrella closes only after all eight children
+meet their outcomes and their retained evidence supports the original goals.
+RFC requirement mapping belongs in the relevant child's research, not this
+umbrella's metadata.
 
 ## Task
 

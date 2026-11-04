@@ -121,6 +121,12 @@ evidence defects. All eight remain open under
 The auth allow-list behavior is to be preserved. The follow-up owns the
 fixes and live proof before the MRU goal can be treated as complete.
 
+Issue split (2026-11-04): the follow-up is now a coordination umbrella.
+Its "Issue Split and Current Ownership" table routes the eight open findings
+to separate specs: `16a` through `16d` under `plan/release/fixes/`, and
+`16e` through `16h` under `plan/release/validation/`. Closing one child does
+not close the other findings or complete the original child 16 MRU goal.
+
 Existing specs the children reuse rather than duplicate:
 `release/validation/spec-wireguard-runtime-proof.md` (the road-warrior
 scenario is its acceptance criteria), `release/validation/spec-ipsec-0-umbrella.md`
