@@ -31,9 +31,9 @@ var errFilterConnClosed = errors.New("filter-update: the plugin connection close
 // before it exits. Safe for concurrent use.
 type filterBatcher struct {
 	start sync.Once
-	// mu orders admission against close: a route enters the queue under the
-	// read lock and close takes the write lock, so no route enters after the
-	// worker's final drain.
+	// mu orders initialization and admission against close: initialization takes
+	// the write lock so a closed connection never starts a worker. Admission
+	// takes the read lock, so no route enters after the worker's final drain.
 	mu     sync.RWMutex
 	closed bool
 	queue  chan *filterRequest
@@ -69,6 +69,11 @@ var filterRequests = sync.Pool{New: func() any {
 func (pc *PluginConn) SendFilterUpdate(ctx context.Context, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
 	b := &pc.filters
 	b.start.Do(func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		if b.closed {
+			return
+		}
 		b.queue = make(chan *filterRequest, filterQueueDepth)
 		b.done = make(chan struct{})
 		b.routes = make([]rpc.FilterUpdateInput, 0, rpc.FilterUpdateBatchMax)

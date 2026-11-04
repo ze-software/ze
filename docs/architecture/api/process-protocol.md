@@ -1451,6 +1451,11 @@ reply with the wrong number of verdicts) applies each route's filter
 plugin connection owns the exchanges, and each caller waits for its own
 verdict, so the borrowed route bytes stay valid until the batch is sent
 (protocol.md, "The filter-update batch").
+The first route starts the worker under the same lifecycle lock that closes
+the connection. A connection closed before its first route refuses it without
+allocating the batch queue or scratch or starting a worker. Close prevents
+further admission; an initialized worker settles every admitted route before
+it exits, and later calls refuse with a connection-closed error.
 <!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
 The request carries `fields`: one JSON object holding
 exactly the route fields the filter declared in `reads`, keyed by vocabulary
