@@ -359,7 +359,7 @@ func TestRuntimeFloorRequiresBuiltInPWMFan(t *testing.T) {
 // PREVENTS: A new floor requirement without a matching request in any fragment.
 func TestRuntimeProfileRequestsFloorSymbols(t *testing.T) {
 	t.Chdir(filepath.Join("..", ".."))
-	profile, err := resolveKernelProfile(filepath.Join("gokrazy", "kernel"), "runtime")
+	profile, err := resolveKernelProfile(".", filepath.Join("gokrazy", "kernel"), "runtime")
 	if err != nil {
 		t.Fatal(err)
 	}

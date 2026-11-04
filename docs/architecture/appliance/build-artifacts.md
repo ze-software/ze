@@ -93,8 +93,32 @@ host, for example with no network for the kernel.org tarball, fails with the
 cache path and the command that fills it here.
 <!-- source: internal/appliance/cmd_iso.go -- resolveISOInput -->
 <!-- source: internal/appliance/cmd_init.go -- runInit -->
-<!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel, runtimeKernelReachable --> The image's kernel package is assembled from the cache entry,
-never from `tmp/kernel/build`, which every resolver call rewrites.
+<!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel, runtimeKernelReachable, runKernel -->
+The image's kernel package is assembled from the keyed cache entry, never from
+the operator's `tmp/kernel/build` stage. Library resolution takes an explicit
+source root: profiles, shared includes, manifests, patches and builder sources
+are read there, while cache hashes retain repository-relative labels so the
+checkout's absolute path does not change the key. Requirement enforcement keeps
+selected-root absolute manifest paths; it cannot read a decoy in the caller's
+working directory.
+
+A warm library lookup does not materialize a shared output. A cold lookup builds
+in a run-owned directory under the selected root's `tmp/kernel`, validates the
+emitted artifact and requirements, then publishes to the existing cache namespace.
+After successful builder completion its output is removed, including on later
+validation or publication failure. A builder error does not prove every Docker
+writer stopped: the resolver retains that run's output and names its exact path.
+It does not remove it or repair permissions while teardown is unknown.
+
+Only explicit `ze appliance kernel --target runtime` materializes the documented
+`tmp/kernel/build` stage after resolution. Cache-print and cache-eviction actions
+do not materialize it. There is no public output-path option. Existing cache
+publication still stages a sibling tree, removes the destination and renames the
+staging tree; this repair adds no lock or guarantee of uninterrupted availability.
+<!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree, ImageRuntimeKernelTree -->
+<!-- source: internal/appliance/cache.go -- kernelCacheVariantFor, cacheFileHashPaths, copyTree -->
+<!-- test: internal/appliance/runtimekernel_ownership_test.go TestRuntimeKernelLibraryWarmPreservesRequestedKernel, TestRuntimeKernelLibraryColdOwnsOutput -->
+<!-- test: internal/appliance/runtimekernel_root_test.go TestRuntimeKernelExplicitRootOwnsManifestEnforcement, TestRuntimeKernelCacheIdentityIgnoresCheckoutPrefix, TestRuntimeKernelCLIAloneMaterializesStage -->
 
 `ze doctor` reports a host that cannot produce this kernel, as the warning
 `doctor-appliance-runtime-kernel`. The kernel builds only on a host of its own

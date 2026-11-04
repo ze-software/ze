@@ -55,7 +55,7 @@ func runVPNKernelHere(args leaction.Arguments) (any, int) {
 // vpnKernelConfig checks the emitted config of the same native cache resolver
 // EnsureImage uses, not the requested fragment or another staged kernel.
 func vpnKernelConfig(root string) error {
-	tree, err := appliance.ImageRuntimeKernelTree(GuestArch(), func(arch string) string {
+	tree, err := appliance.ImageRuntimeKernelTree(root, GuestArch(), func(arch string) string {
 		return "./le setup docker host build arch " + arch
 	})
 	if err != nil {

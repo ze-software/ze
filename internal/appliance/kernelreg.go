@@ -55,8 +55,43 @@ func RuntimeKernelLayers(tree string) (fragments, manifests []string, err error)
 	return resolved.Fragments, resolved.Manifests, nil
 }
 
-func resolveKernelProfile(srcDir, profile string) (kernelProfileResolution, error) {
-	return resolveKernelProfileFrom(srcDir, kernelCommonDir, profile)
+func kernelSourcePath(root, name string) string {
+	if filepath.IsAbs(name) {
+		return name
+	}
+	return filepath.Join(root, name)
+}
+
+func kernelRelativePath(root, name string) (string, error) {
+	absolute := kernelSourcePath(root, name)
+	relative, err := filepath.Rel(root, absolute)
+	if err != nil {
+		return "", err
+	}
+	if relative == ".." {
+		return "", fmt.Errorf("kernel input %s escapes selected source root %s", name, root)
+	}
+	if strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("kernel input %s escapes selected source root %s", name, root)
+	}
+	return relative, nil
+}
+
+func kernelRelativePaths(root string, names []string) ([]string, error) {
+	labels := make([]string, len(names))
+	for index, name := range names {
+		label, err := kernelRelativePath(root, name)
+		if err != nil {
+			return nil, err
+		}
+		labels[index] = label
+	}
+	return labels, nil
+}
+
+func resolveKernelProfile(root, srcDir, profile string) (kernelProfileResolution, error) {
+	return resolveKernelProfileFrom(kernelSourcePath(root, srcDir),
+		filepath.Join(root, kernelCommonDir), profile)
 }
 
 // resolveKernelProfileFrom is resolveKernelProfile with the shared include

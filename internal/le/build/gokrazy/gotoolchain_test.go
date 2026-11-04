@@ -56,7 +56,7 @@ func TestRunRefusesAnOldGoBeforeTheKernel(t *testing.T) {
 	t.Setenv("GOTOOLCHAIN", "local")
 
 	old := runtimeKernelTreeFn
-	runtimeKernelTreeFn = func(string) (string, error) {
+	runtimeKernelTreeFn = func(string, string) (string, error) {
 		t.Fatal("the runtime kernel resolved before the host go was checked")
 		return "", nil
 	}
@@ -68,7 +68,7 @@ func TestRunRefusesAnOldGoBeforeTheKernel(t *testing.T) {
 	}
 	oldStderr := os.Stderr
 	os.Stderr = write
-	code := Run([]string{"--parent_dir", filepath.Join(root, "gokrazy"), "-i", "ze", "overwrite", "--full", "x.img"})
+	code := Run(root, []string{"--parent_dir", filepath.Join(root, "gokrazy"), "-i", "ze", "overwrite", "--full", "x.img"})
 	os.Stderr = oldStderr
 	write.Close() //nolint:errcheck,gosec // test pipe
 	stderr, err := io.ReadAll(read)

@@ -17,6 +17,13 @@ enforces two things: the profile's own manifest, and a hardcoded universal floor
 of `IP_PNP_DHCP`, `EXT4_FS`, `BLK_DEV_INITRD`, and `DEVTMPFS_MOUNT`. The
 guarantee is read back from the artifact, not assumed from the inputs.
 
+Library callers supply the source root. The resolver reads profiles, their
+base/shared includes and requirement manifests under that root. It preserves
+absolute manifest operands through post-build enforcement, while cache hashing
+and the native builder receive repository-relative labels for the same inputs.
+The native request also carries the root explicitly, rather than deriving it
+from whichever directory the caller happens to occupy.
+
 `internal/appliance/kernelbuilder` owns backend selection, downloads, verified
 Alpine ISO caching, Docker and QEMU lifecycle, and the low-level kernel build.
 The low-level Go worker invokes the kernel's `merge_config.sh`, `patch`, and

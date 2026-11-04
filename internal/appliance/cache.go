@@ -127,8 +127,8 @@ func kernelTreeCachePath(version, variant string) string {
 // thirty minutes per arch. A change to what the build produces belongs in a
 // BuildSources file, and TestKernelCacheKeyCoversEveryBuildInput refuses a
 // BuildSources file that reaches a declaration outside them.
-func kernelBuilderSources() (paths []string, ok bool) {
-	err := filepath.WalkDir(kernelBuilderDir, func(path string, entry os.DirEntry, walkErr error) error {
+func kernelBuilderSources(root string) (paths []string, ok bool) {
+	err := filepath.WalkDir(filepath.Join(root, kernelBuilderDir), func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -140,11 +140,11 @@ func kernelBuilderSources() (paths []string, ok bool) {
 	if err != nil {
 		return nil, false
 	}
-	builderPkg := filepath.Join("internal", "appliance", "kernelbuilder")
+	builderPkg := filepath.Join(root, "internal", "appliance", "kernelbuilder")
 	for _, name := range kernelbuilder.BuildSources {
 		paths = append(paths, filepath.Join(builderPkg, name))
 	}
-	imported, ok := zeImportClosure(paths, builderPkg)
+	imported, ok := zeImportClosure(root, paths, builderPkg)
 	if !ok {
 		return nil, false
 	}
@@ -156,17 +156,17 @@ func kernelBuilderSources() (paths []string, ok bool) {
 // zeImportClosure answers every non-test Go file of each Ze package the Go
 // files in seeds import, transitively. skipPkg is the kernelbuilder package,
 // whose build files are named by BuildSources rather than taken whole.
-func zeImportClosure(seeds []string, skipPkg string) ([]string, bool) {
-	module, ok := zeModulePath()
+func zeImportClosure(root string, seeds []string, skipPkg string) ([]string, bool) {
+	module, ok := zeModulePath(root)
 	if !ok {
 		return nil, false
 	}
 	var files []string
-	seen := map[string]bool{skipPkg: true}
+	seen := map[string]bool{kernelSourcePath(root, skipPkg): true}
 	queue := slices.Clone(seeds)
 	fset := token.NewFileSet()
 	for len(queue) > 0 {
-		path := queue[0]
+		path := kernelSourcePath(root, queue[0])
 		queue = queue[1:]
 		if !strings.HasSuffix(path, ".go") {
 			continue
@@ -178,7 +178,7 @@ func zeImportClosure(seeds []string, skipPkg string) ([]string, bool) {
 		for _, spec := range file.Imports {
 			importPath := strings.Trim(spec.Path.Value, `"`)
 			rel, inModule := strings.CutPrefix(importPath, module+"/")
-			dir := filepath.FromSlash(rel)
+			dir := filepath.Join(root, filepath.FromSlash(rel))
 			if !inModule || seen[dir] {
 				continue
 			}
@@ -201,8 +201,8 @@ func zeImportClosure(seeds []string, skipPkg string) ([]string, bool) {
 }
 
 // zeModulePath answers the module path go.mod declares.
-func zeModulePath() (string, bool) {
-	data, err := os.ReadFile("go.mod")
+func zeModulePath(root string) (string, bool) {
+	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	if err != nil {
 		return "", false
 	}
@@ -214,14 +214,23 @@ func zeModulePath() (string, bool) {
 	return "", false
 }
 
-func cacheFileHashPaths(paths []string) (string, bool) {
+func cacheFileHashPaths(root string, paths []string) (string, bool) {
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return "", false
+	}
 	h := sha256.New()
 	for _, path := range paths {
-		data, err := os.ReadFile(path) //nolint:gosec // paths come from validated kernel profile registry
+		full := kernelSourcePath(absolute, path)
+		label, err := kernelRelativePath(absolute, full)
 		if err != nil {
 			return "", false
 		}
-		h.Write([]byte(filepath.ToSlash(path)))
+		data, err := os.ReadFile(full) //nolint:gosec // paths come from validated kernel profile registry
+		if err != nil {
+			return "", false
+		}
+		h.Write([]byte(filepath.ToSlash(label)))
 		h.Write([]byte{0})
 		h.Write(data)
 		h.Write([]byte{0})
@@ -231,18 +240,18 @@ func cacheFileHashPaths(paths []string) (string, bool) {
 
 // kernelCacheVariant answers the installer kernel's cache variant for a build
 // that names no backend.
-func kernelCacheVariant(arch, profile string) (string, error) {
-	resolved, err := resolveKernelProfile(kernelInstallerConfigDir, profile)
+func kernelCacheVariant(root, arch, profile string) (string, error) {
+	resolved, err := resolveKernelProfile(root, kernelInstallerConfigDir, profile)
 	if err != nil {
 		return "", err
 	}
-	return kernelCacheVariantFor(kernelTargetInstaller, arch, "", resolved)
+	return kernelCacheVariantFor(root, kernelTargetInstaller, arch, "", resolved)
 }
 
 // kernelPatchSources lists every file under the target's patch directory.
 // Patch names are part of cacheFileHashPaths, so adding, removing, renaming, or
 // editing a patch invalidates a runtime kernel built from the old tree.
-func kernelPatchSources(target string) (paths []string, ok bool) {
+func kernelPatchSources(root, target string) (paths []string, ok bool) {
 	description, err := kernelTargetFor(target)
 	if err != nil {
 		return nil, false
@@ -250,7 +259,7 @@ func kernelPatchSources(target string) (paths []string, ok bool) {
 	if description.patchesDir == "" {
 		return nil, true
 	}
-	err = filepath.WalkDir(description.patchesDir, func(path string, entry os.DirEntry, walkErr error) error {
+	err = filepath.WalkDir(filepath.Join(root, description.patchesDir), func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -279,25 +288,25 @@ func kernelPatchSources(target string) (paths []string, ok bool) {
 // ISO), which float upstream under one Dockerfile or one Alpine release, and the
 // i915 firmware blobs (plan/journal/stale-artifact-reused.md). A key that
 // cannot be computed is an error, never a shorter key every input shares.
-func kernelCacheVariantFor(target, arch, builder string, profile kernelProfileResolution) (string, error) {
+func kernelCacheVariantFor(root, target, arch, builder string, profile kernelProfileResolution) (string, error) {
 	configInputs := append([]string{}, profile.Fragments...)
 	configInputs = append(configInputs, profile.Manifests...)
-	patches, patchesOK := kernelPatchSources(target)
+	patches, patchesOK := kernelPatchSources(root, target)
 	if !patchesOK {
-		return "", fmt.Errorf("cannot key the %s kernel cache: the patch directory for target %s cannot be read, or holds no patch; run ze appliance from the top of the Ze source tree", target, target)
+		return "", fmt.Errorf("cannot key the %s kernel cache: the patch directory for target %s cannot be read, or holds no patch; restore the missing or unreadable inputs under selected source root %s", target, target, root)
 	}
 	configInputs = append(configInputs, patches...)
-	configHash, err := cacheFileHash(configInputs)
+	configHash, err := cacheFileHash(root, configInputs)
 	if err != nil {
-		return "", fmt.Errorf("cannot key the %s kernel cache from its config: %w; run ze appliance from the top of the Ze source tree", target, err)
+		return "", fmt.Errorf("cannot key the %s kernel cache from its config: %w; restore the missing or unreadable inputs under selected source root %s", target, err, root)
 	}
-	sources, found := kernelBuilderSources()
+	sources, found := kernelBuilderSources(root)
 	if !found {
-		return "", fmt.Errorf("cannot key the %s kernel cache: the builder sources under %s and %s cannot be listed; run ze appliance from the top of the Ze source tree", target, kernelBuilderDir, filepath.Join("internal", "appliance", "kernelbuilder"))
+		return "", fmt.Errorf("cannot key the %s kernel cache: the builder sources under %s and %s cannot be listed; restore the missing or unreadable inputs under selected source root %s", target, filepath.Join(root, kernelBuilderDir), filepath.Join(root, "internal", "appliance", "kernelbuilder"), root)
 	}
-	builderHash, err := cacheFileHash(sources)
+	builderHash, err := cacheFileHash(root, sources)
 	if err != nil {
-		return "", fmt.Errorf("cannot key the %s kernel cache from its builder: %w; run ze appliance from the top of the Ze source tree", target, err)
+		return "", fmt.Errorf("cannot key the %s kernel cache from its builder: %w; restore the missing or unreadable inputs under selected source root %s", target, err, root)
 	}
 	var tb textbuf.Buffer
 	return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).
@@ -306,15 +315,15 @@ func kernelCacheVariantFor(target, arch, builder string, profile kernelProfileRe
 }
 
 // cacheFileHash is cacheFileHashPaths, naming the input it could not read.
-func cacheFileHash(paths []string) (string, error) {
+func cacheFileHash(root string, paths []string) (string, error) {
 	for _, path := range paths {
-		if _, err := os.Stat(path); err != nil {
+		if _, err := os.Stat(kernelSourcePath(root, path)); err != nil {
 			return "", err
 		}
 	}
-	hash, ok := cacheFileHashPaths(paths)
+	hash, ok := cacheFileHashPaths(root, paths)
 	if !ok {
-		return "", fmt.Errorf("a kernel cache input in %v could not be read", paths)
+		return "", fmt.Errorf("a kernel cache input in %v could not be read under selected source root %s", paths, root)
 	}
 	return hash, nil
 }
@@ -356,7 +365,7 @@ func initrdSourceFiles() (paths []string, ok bool) {
 
 func initrdCacheVariant(version, arch string) string {
 	if paths, ok := initrdSourceFiles(); ok {
-		if hash, hok := cacheFileHashPaths(paths); hok {
+		if hash, hok := cacheFileHashPaths(".", paths); hok {
 			var tb textbuf.Buffer
 			return tb.Str(version).Byte('-').Str(arch).Byte('-').Str(hash).String()
 		}

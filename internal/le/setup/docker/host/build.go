@@ -64,13 +64,13 @@ type builder struct {
 	// cacheDir is the docker-host cache root, ~/.cache/ze/docker-host.
 	cacheDir string
 	// kernelTree resolves the runtime kernel cache entry for an arch.
-	kernelTree func(arch string) (string, error)
+	kernelTree func(repo, arch string) (string, error)
 	// fetch answers the cached, sum-checked file for a pin.
 	fetch func(ctx context.Context, pins *Pins, pin Pin) (string, error)
 	// runContainer runs the source builds in the builder container.
 	runContainer func(ctx context.Context, run containerRun) error
 	// gok builds the raw image with gok's own arguments.
-	gok func(arch string, args []string) error
+	gok func(repo, arch string, args []string) error
 	// formatPerm gives the image's /perm partition an ext4 file system.
 	formatPerm func(image string) error
 	// progress receives one line per step.
@@ -83,7 +83,7 @@ type builder struct {
 // binaries, writes the extra files tar, runs gok into a partial file, formats
 // /perm and moves the image into place.
 func (b *builder) build(ctx context.Context, req buildRequest) (builtImage, error) {
-	tree, err := b.kernelTree(req.arch)
+	tree, err := b.kernelTree(req.repo, req.arch)
 	if err != nil {
 		return builtImage{}, fmt.Errorf("resolve the %s runtime kernel: %w", req.arch, err)
 	}
@@ -126,7 +126,7 @@ func (b *builder) build(ctx context.Context, req buildRequest) (builtImage, erro
 	defer os.Remove(partial) //nolint:errcheck // gone already once renamed into place
 
 	b.say("gok image " + partial)
-	if err := b.gok(req.arch, gokArgs(req.repo, partial, req.sizeGiB)); err != nil {
+	if err := b.gok(req.repo, req.arch, gokArgs(req.repo, partial, req.sizeGiB)); err != nil {
 		return builtImage{}, err
 	}
 	b.say("format /perm in " + partial)
@@ -187,8 +187,8 @@ func gokArgs(repo, image string, sizeGiB int) []string {
 
 // runGok builds through `le build gokrazy`'s Run, which prepares the instance
 // with the arch's runtime kernel and the checked-in module cache.
-func runGok(arch string, args []string) error {
-	return runGokWith(buildgokrazy.Run, arch, args)
+func runGok(repo, arch string, args []string) error {
+	return runGokWith(buildgokrazy.Run, repo, arch, args)
 }
 
 // runGokWith is runGok with the gok entry point as a parameter, so a test
@@ -203,7 +203,7 @@ func runGok(arch string, args []string) error {
 // a linux binary. So the environment is restored to the snapshot taken here
 // before runGokWith returns, whether Run answered success or failure. A failed
 // image pack exits the process from inside gok (packer.Main), so that path never returns.
-func runGokWith(run func(args []string) int, arch string, args []string) (err error) {
+func runGokWith(run func(string, []string) int, repo, arch string, args []string) (err error) {
 	saved := os.Environ()
 	defer func() {
 		if restoreErr := restoreEnviron(saved); restoreErr != nil && err == nil {
@@ -214,7 +214,7 @@ func runGokWith(run func(args []string) int, arch string, args []string) (err er
 	if err := os.Setenv("GOARCH", arch); err != nil {
 		return fmt.Errorf("set GOARCH for gok: %w", err)
 	}
-	if code := run(args); code != 0 {
+	if code := run(repo, args); code != 0 {
 		return fmt.Errorf("gok exited %d building the docker-host image (its output is above). "+
 			"Fix: correct what gok names, then run `./le setup docker host build` again", code)
 	}
@@ -318,8 +318,8 @@ func sourceDigest(repo, arch string, sizeGiB int) (string, error) {
 // Its refusal on a host that cannot build that arch names this image build,
 // on an arch host or for this host's arch, never a bare kernel build, which
 // would fill another host's cache.
-func dockerHostRuntimeKernel(arch string) (string, error) {
-	return appliance.ImageRuntimeKernelTree(arch, func(arch string) string {
+func dockerHostRuntimeKernel(repo, arch string) (string, error) {
+	return appliance.ImageRuntimeKernelTree(repo, arch, func(arch string) string {
 		return "./le setup docker host build arch " + arch
 	})
 }

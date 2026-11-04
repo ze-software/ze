@@ -6,16 +6,24 @@
 
 package appliance
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"path/filepath"
+)
 
 // RuntimeKernelTree resolves ze's runtime kernel for arch and answers its
 // arch-keyed cache directory: the cache entry when one is present, else a native
 // build (Docker or QEMU, on a host of that arch) whose output is checked against
-// the kernel requirements and then cached. The answer is the cache entry, never
-// tmp/kernel/build, so two concurrent image builds never read a tree a third
-// resolver call is rewriting.
-func RuntimeKernelTree(arch string) (string, error) {
-	return resolveKernel(defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime, "")
+// the kernel requirements and then cached. root names the selected source tree;
+// the caller's working directory does not select its inputs. Library resolution
+// never materializes the shared tmp/kernel/build stage.
+func RuntimeKernelTree(root, arch string) (string, error) {
+	absolute, err := kernelSourceRoot(root)
+	if err != nil {
+		return "", err
+	}
+	return resolveKernel(absolute, defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime, "")
 }
 
 // ImageRuntimeKernelTree is RuntimeKernelTree for a caller that builds an
@@ -24,8 +32,8 @@ func RuntimeKernelTree(arch string) (string, error) {
 // kernel build: a kernel built on another host fills that host's cache, so the
 // image build here would stay refused. imageBuild MUST answer the exact
 // command that builds the image for the arch it is given.
-func ImageRuntimeKernelTree(arch string, imageBuild func(arch string) string) (string, error) {
-	tree, err := RuntimeKernelTree(arch)
+func ImageRuntimeKernelTree(root, arch string, imageBuild func(arch string) string) (string, error) {
+	tree, err := RuntimeKernelTree(root, arch)
 	if foreign, ok := errors.AsType[*foreignArchKernelError](err); ok {
 		return "", foreign.forImage(imageBuild)
 	}
@@ -37,8 +45,12 @@ func ImageRuntimeKernelTree(arch string, imageBuild func(arch string) string) (s
 // when this host can build arch or the cache holds its kernel, else a refusal
 // whose fix is a `./le build gokrazy` command, not a kernel build for another
 // host's cache.
-func GokrazyRuntimeKernelReachable(arch string, args []string) error {
-	err := runtimeKernelReachable(arch)
+func GokrazyRuntimeKernelReachable(root, arch string, args []string) error {
+	absolute, err := kernelSourceRoot(root)
+	if err != nil {
+		return err
+	}
+	err = runtimeKernelReachable(absolute, arch)
 	if foreign, ok := errors.AsType[*foreignArchKernelError](err); ok {
 		return foreign.forGokrazy(args)
 	}
@@ -48,3 +60,16 @@ func GokrazyRuntimeKernelReachable(arch string, args []string) error {
 // runtimeKernelTreeFn is RuntimeKernelTree, as a package var so unit tests of
 // the image build resolve a fixture tree instead of building a kernel.
 var runtimeKernelTreeFn = RuntimeKernelTree
+
+// kernelSourceRoot normalizes an explicitly selected source tree without
+// rediscovering another checkout or changing this process's working directory.
+func kernelSourceRoot(root string) (string, error) {
+	if root == "" {
+		return "", errors.New("kernel source root is empty")
+	}
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return "", fmt.Errorf("resolve kernel source root %s: %w", root, err)
+	}
+	return absolute, nil
+}

@@ -1,6 +1,7 @@
 package appliance
 
 import (
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -23,7 +24,7 @@ const kernelBuilderPkg = "internal/appliance/kernelbuilder"
 // the repository root.
 func hashedBuilderSources(t *testing.T) map[string]bool {
 	t.Helper()
-	paths, ok := kernelBuilderSources()
+	paths, ok := kernelBuilderSources(".")
 	if !ok {
 		t.Fatal("kernelBuilderSources found no build inputs from the repository root")
 	}
@@ -272,13 +273,13 @@ func TestHostSideNeverWritesTheRequest(t *testing.T) {
 // PREVENTS: a kernel one backend built served for a build the other would run.
 func TestKernelCacheKeyCarriesTheBackend(t *testing.T) {
 	t.Chdir(filepath.Join("..", ".."))
-	resolved, err := resolveKernelProfile(runtimeKernelConfigDir, runtimeKernelProfile)
+	resolved, err := resolveKernelProfile(".", runtimeKernelConfigDir, runtimeKernelProfile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	keys := map[string]string{}
 	for _, builder := range []string{builderDocker, builderQEMU, ""} {
-		key, err := kernelCacheVariantFor(kernelTargetRuntime, archAMD64, builder, resolved)
+		key, err := kernelCacheVariantFor(".", kernelTargetRuntime, archAMD64, builder, resolved)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -293,15 +294,19 @@ func TestKernelCacheKeyCarriesTheBackend(t *testing.T) {
 }
 
 // TestKernelCacheKeyRefusesWhatItCannotHash proves a key that cannot be
-// computed is refused with its fix, never replaced by a shorter key every
+// computed is refused with its selected input, never replaced by a shorter key every
 // input would share.
 //
 // VALIDATES: round-3 NOTE 2.
 // PREVENTS: one kernel served for every config when the hash inputs are absent.
 func TestKernelCacheKeyRefusesWhatItCannotHash(t *testing.T) {
-	t.Chdir(t.TempDir())
+	root := t.TempDir()
+	t.Chdir(root)
 	resolved := kernelProfileResolution{Name: runtimeKernelProfile, Fragments: []string{"fixture.config"}}
 	patch := filepath.Join(runtimeKernelPatchesDir, "0001.patch")
+	if _, err := os.Stat(filepath.Join(root, runtimeKernelPatchesDir)); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("patch-directory refusal fixture must start without the selected directory: %v", err)
+	}
 	// Each step supplies the input the previous one lacked, so every refusal
 	// is reached in turn: the patches, the config, then the builder sources.
 	steps := []struct {
@@ -312,13 +317,36 @@ func TestKernelCacheKeyRefusesWhatItCannotHash(t *testing.T) {
 		{"its config", "fixture.config"},
 		{"the builder sources", ""},
 	}
-	for _, step := range steps {
-		key, err := kernelCacheVariantFor(kernelTargetRuntime, archAMD64, "", resolved)
-		if err == nil {
-			t.Fatalf("kernelCacheVariantFor without %s = %q, want a refusal", step.missing, key)
+	for i, step := range steps {
+		key, err := kernelCacheVariantFor(root, kernelTargetRuntime, archAMD64, "", resolved)
+		if err == nil || key != "" {
+			t.Fatalf("kernelCacheVariantFor without %s = (%q, %v), want an empty key and refusal", step.missing, key, err)
 		}
-		if !strings.Contains(err.Error(), "cannot key the runtime kernel cache") || !strings.Contains(err.Error(), "run ze appliance from the top of the Ze source tree") {
-			t.Errorf("refusal without %s = %v, want the cause and the fix", step.missing, err)
+		if !strings.Contains(err.Error(), root) {
+			t.Errorf("refusal without %s lost selected root %q: %v", step.missing, root, err)
+		}
+		switch i {
+		case 0:
+			if !strings.Contains(err.Error(), kernelTargetRuntime) {
+				t.Errorf("patch refusal lost selected target %q: %v", kernelTargetRuntime, err)
+			}
+		case 1:
+			if !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("missing config refusal lost its missing-file cause: %v", err)
+			}
+			var pathErr *fs.PathError
+			if !errors.As(err, &pathErr) {
+				t.Errorf("missing config refusal lost its path error: %v", err)
+			} else if want := filepath.Join(root, "fixture.config"); filepath.Clean(pathErr.Path) != want {
+				t.Errorf("missing config refusal names %q, want selected input %q", pathErr.Path, want)
+			}
+		case 2:
+			for _, missing := range []string{kernelBuilderDir, kernelBuilderPkg} {
+				want := filepath.Join(root, missing)
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("builder refusal lost selected input %q: %v", want, err)
+				}
+			}
 		}
 		if step.supply == "" {
 			continue
@@ -377,11 +405,11 @@ func TestKernelCacheKeyIgnoresHostSideEdits(t *testing.T) {
 	}
 	t.Chdir(mirror)
 	key := func() string {
-		paths, ok := kernelBuilderSources()
+		paths, ok := kernelBuilderSources(".")
 		if !ok {
 			t.Fatal("kernelBuilderSources found no build inputs in the mirror")
 		}
-		hash, ok := cacheFileHashPaths(paths)
+		hash, ok := cacheFileHashPaths(".", paths)
 		if !ok {
 			t.Fatal("cacheFileHashPaths could not read a build input in the mirror")
 		}
@@ -443,7 +471,7 @@ func nonTestGoFiles(t *testing.T, dir string) []string {
 // mustKernelCacheVariant is kernelCacheVariant for a test, which has the tree.
 func mustKernelCacheVariant(t *testing.T, arch, profile string) string {
 	t.Helper()
-	variant, err := kernelCacheVariant(arch, profile)
+	variant, err := kernelCacheVariant(".", arch, profile)
 	if err != nil {
 		t.Fatalf("kernelCacheVariant(%s, %s): %v", arch, profile, err)
 	}
@@ -455,7 +483,7 @@ func mustKernelCacheVariant(t *testing.T, arch, profile string) string {
 func mustKernelCacheVariantFor(t *testing.T, target string, profile kernelProfileResolution) string {
 	arch := archAMD64
 	t.Helper()
-	variant, err := kernelCacheVariantFor(target, arch, "", profile)
+	variant, err := kernelCacheVariantFor(".", target, arch, "", profile)
 	if err != nil {
 		t.Fatalf("kernelCacheVariantFor(%s, %s): %v", target, arch, err)
 	}

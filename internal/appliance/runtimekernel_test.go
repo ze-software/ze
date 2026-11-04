@@ -56,7 +56,7 @@ func setTestRuntimeKernelTree(t *testing.T) *[]string {
 	t.Helper()
 	asked := &[]string{}
 	old := runtimeKernelTreeFn
-	runtimeKernelTreeFn = func(arch string) (string, error) {
+	runtimeKernelTreeFn = func(_ string, arch string) (string, error) {
 		*asked = append(*asked, arch)
 		tree := filepath.Join(t.TempDir(), "runtime-"+arch)
 		writeRuntimeKernelTree(t, tree, arch)
@@ -108,7 +108,7 @@ func TestResolveBuildParentDirUsesRuntimeKernel(t *testing.T) {
 func TestResolveBuildParentDirRefusesUnresolvedKernel(t *testing.T) {
 	root := writeGokrazyFixture(t)
 	old := runtimeKernelTreeFn
-	runtimeKernelTreeFn = func(string) (string, error) { return "", errors.New("no builder") }
+	runtimeKernelTreeFn = func(string, string) (string, error) { return "", errors.New("no builder") }
 	t.Cleanup(func() { runtimeKernelTreeFn = old })
 
 	_, cleanup, err := resolveBuildParentDir(&applianceConfig{Image: ImageConfig{Arch: archAMD64}})
@@ -134,13 +134,13 @@ func TestRuntimeKernelTreeServesCacheWithoutBuilding(t *testing.T) {
 		t.Fatal("a cached runtime kernel started a build")
 		return nil
 	})
-	cached, err := kernelCachePathFor(defaultKernelVersion, archARM64, runtimeKernelProfile, "", kernelTargetRuntime)
+	cached, err := kernelCachePathFor(".", defaultKernelVersion, archARM64, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		t.Fatal(err)
 	}
 	writeRuntimeKernelTree(t, cached, archARM64)
 
-	tree, err := RuntimeKernelTree(archARM64)
+	tree, err := RuntimeKernelTree(".", archARM64)
 	if err != nil {
 		t.Fatalf("RuntimeKernelTree: %v", err)
 	}
@@ -161,12 +161,12 @@ func TestColdOfflineCacheNamesRemedy(t *testing.T) {
 	setTestKernelBuild(t, func(kernelBuildSpec) error {
 		return errors.New("download linux-" + defaultKernelVersion + ".tar.xz: dial tcp: lookup cdn.kernel.org: no such host")
 	})
-	cached, err := kernelCachePathFor(defaultKernelVersion, runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime)
+	cached, err := kernelCachePathFor(".", defaultKernelVersion, runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = RuntimeKernelTree(runtime.GOARCH)
+	_, err = RuntimeKernelTree(".", runtime.GOARCH)
 	if err == nil {
 		t.Fatal("a cold cache with no network resolved a kernel")
 	}
@@ -197,12 +197,12 @@ func TestColdForeignArchCacheRefusesBeforeBuilding(t *testing.T) {
 		t.Fatalf("a %s kernel build started on a %s host", foreign, runtime.GOARCH)
 		return nil
 	})
-	cached, err := kernelCachePathFor(defaultKernelVersion, foreign, runtimeKernelProfile, "", kernelTargetRuntime)
+	cached, err := kernelCachePathFor(".", defaultKernelVersion, foreign, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = RuntimeKernelTree(foreign)
+	_, err = RuntimeKernelTree(".", foreign)
 	if err == nil {
 		t.Fatal("a cold cache for a foreign arch resolved a kernel")
 	}
@@ -220,7 +220,7 @@ func TestColdForeignArchCacheRefusesBeforeBuilding(t *testing.T) {
 	// The image build is refused before it starts, and its fix names this
 	// appliance's file and the build command, never a kernel build for the
 	// foreign arch, which would fill another host's cache.
-	reachErr := runtimeKernelReachable(foreign)
+	reachErr := runtimeKernelReachable(".", foreign)
 	foreignErr, ok := errors.AsType[*foreignArchKernelError](reachErr)
 	if !ok {
 		t.Fatalf("runtimeKernelReachable(%s) = %v, want the foreign-arch refusal", foreign, reachErr)
@@ -243,7 +243,7 @@ func TestColdForeignArchCacheRefusesBeforeBuilding(t *testing.T) {
 	if strings.Contains(refusal, "--arch "+foreign) {
 		t.Errorf("image-build refusal offers a kernel build for %s, which fills another host's cache:\n%s", foreign, refusal)
 	}
-	if err := runtimeKernelReachable(runtime.GOARCH); err != nil {
+	if err := runtimeKernelReachable(".", runtime.GOARCH); err != nil {
 		t.Errorf("runtimeKernelReachable refused the host's own arch: %v", err)
 	}
 }
@@ -267,7 +267,7 @@ func TestForeignArchBuildFetchesNoFirmware(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = buildKernelArtifact(defaultKernelVersion, foreign, hardwareKMSProfile, "", td, "")
+	err = buildKernelArtifact(".", defaultKernelVersion, foreign, hardwareKMSProfile, "", td, "")
 	if err == nil || !strings.Contains(err.Error(), "cannot be built here") {
 		t.Fatalf("buildKernelArtifact(%s) = %v, want the arch refusal", foreign, err)
 	}
@@ -300,7 +300,7 @@ func TestImageRuntimeKernelTreeNamesTheImageBuild(t *testing.T) {
 	})
 	imageBuild := func(arch string) string { return "./le setup docker host build arch " + arch }
 
-	_, err := ImageRuntimeKernelTree(foreign, imageBuild)
+	_, err := ImageRuntimeKernelTree(".", foreign, imageBuild)
 	if err == nil {
 		t.Fatal("a cold cache for a foreign arch resolved a kernel")
 	}

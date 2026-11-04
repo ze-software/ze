@@ -75,7 +75,7 @@ func TestResolveProfileFragments(t *testing.T) {
 	writeKernelProfileFile(t, dir, "hardware", "CONFIG_HW=y\n", "CONFIG_HW\n")
 	writeKernelProfileFile(t, dir, "hardware-kms", "# ze-base: hardware\nCONFIG_KMS=y\n", "CONFIG_KMS\n")
 
-	got, err := resolveKernelProfile(dir, "hardware-kms")
+	got, err := resolveKernelProfile(".", dir, "hardware-kms")
 	if err != nil {
 		t.Fatalf("resolveKernelProfile: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestResolveProfileFragments(t *testing.T) {
 	}
 
 	writeKernelProfileFile(t, dir, "nested-base", "# ze-base: hardware-kms\nCONFIG_NESTED=y\n", "CONFIG_NESTED\n")
-	_, err = resolveKernelProfile(dir, "nested-base")
+	_, err = resolveKernelProfile(".", dir, "nested-base")
 	if err == nil || !strings.Contains(err.Error(), "only one level") {
 		t.Fatalf("nested base error = %v, want only one level", err)
 	}
@@ -125,7 +125,7 @@ func TestResolveSharedInclude(t *testing.T) {
 	writeKernelProfileFile(t, regAbs, "qemu", "CONFIG_Q=y\n", "CONFIG_Q\n")
 	writeKernelProfileFile(t, commonAbs, "efi-console", "CONFIG_SHARED=y\n", "# no required symbols\n")
 
-	got, err := resolveKernelProfile("reg", "runtime")
+	got, err := resolveKernelProfile(".", "reg", "runtime")
 	if err != nil {
 		t.Fatalf("resolveKernelProfile(runtime): %v", err)
 	}
@@ -139,7 +139,7 @@ func TestResolveSharedInclude(t *testing.T) {
 	}
 
 	// AC-5: a profile without the directive must NOT get the shared fragment.
-	qemu, err := resolveKernelProfile("reg", "qemu")
+	qemu, err := resolveKernelProfile(".", "reg", "qemu")
 	if err != nil {
 		t.Fatalf("resolveKernelProfile(qemu): %v", err)
 	}
@@ -151,7 +151,7 @@ func TestResolveSharedInclude(t *testing.T) {
 
 	// Deduplication: an include in both base and profile is added once.
 	writeKernelProfileFile(t, regAbs, "kernel", "# ze-include: efi-console\nCONFIG_BASE=y\n", "CONFIG_BASE\n")
-	dedup, err := resolveKernelProfile("reg", "runtime")
+	dedup, err := resolveKernelProfile(".", "reg", "runtime")
 	if err != nil {
 		t.Fatalf("resolveKernelProfile(runtime) after dup include: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestResolveSharedInclude(t *testing.T) {
 	if err := os.Remove(incConfig); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := resolveKernelProfile("reg", "runtime"); err == nil {
+	if _, err := resolveKernelProfile(".", "reg", "runtime"); err == nil {
 		t.Fatal("expected resolution to fail when shared fragment is missing")
 	}
 }
@@ -193,7 +193,7 @@ func TestResolveNestedIncludeRejected(t *testing.T) {
 	writeKernelProfileFile(t, commonAbs, "efi-console", "# ze-include: more\nCONFIG_SHARED=y\n", "# none\n")
 	writeKernelProfileFile(t, commonAbs, "more", "CONFIG_MORE=y\n", "# none\n")
 
-	_, err := resolveKernelProfile("reg", "runtime")
+	_, err := resolveKernelProfile(".", "reg", "runtime")
 	if err == nil || !strings.Contains(err.Error(), "nested includes are not supported") {
 		t.Fatalf("nested include error = %v, want 'nested includes are not supported'", err)
 	}
@@ -213,7 +213,7 @@ func TestResolveProfileRequiresManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := resolveKernelProfile(dir, "foo")
+	_, err := resolveKernelProfile(".", dir, "foo")
 	if err == nil || !strings.Contains(err.Error(), "no require manifest") {
 		t.Fatalf("resolveKernelProfile missing require error = %v, want no require manifest", err)
 	}

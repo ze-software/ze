@@ -200,8 +200,12 @@ func checkE2fsprogs(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 // build. It mirrors resolveRuntimeKernel, which serves the entry when its
 // vmlinuz is present and otherwise builds.
 func checkRuntimeKernel(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	root, err := os.Getwd()
+	if err != nil {
+		return runtimeKernelDiagnostic("cannot resolve the runtime kernel source directory: " + err.Error())
+	}
 	arch := kernelbuilder.HostArch()
-	cached, err := kernelCachePathFor(defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
+	cached, err := kernelCachePathFor(root, defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		return runtimeKernelDiagnostic("cannot check the runtime kernel: " + err.Error() + "\n" +
 			"ze appliance build reads the kernel config from " + runtimeKernelConfigDir + " in the Ze source tree.\n" +

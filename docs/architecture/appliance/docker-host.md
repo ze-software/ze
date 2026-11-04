@@ -214,6 +214,11 @@ cache and leave this one refused. Otherwise, in this order:
 <!-- source: internal/le/setup/docker/host/build.go -- dockerHostRuntimeKernel -->
 <!-- source: internal/appliance/runtimekernel.go -- ImageRuntimeKernelTree -->
 
+The selected repository is passed through both the initial kernel-key lookup
+and the nested gok build. `buildgokrazy.Run` uses that same root for runtime
+kernel resolution, the default module cache and the Go toolchain requirement;
+it does not rediscover a different checkout from the invocation directory.
+
 1. every pinned input is fetched and checked against its sha256, so a
    mismatch refuses before anything is written;
 2. OpenSSH, sudo and legacy iptables are built as static musl binaries in the

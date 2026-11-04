@@ -294,9 +294,14 @@ func runKernel(args []string) int {
 		cliErrorf("%v", err)
 		return exitError
 	}
+	root, err := os.Getwd()
+	if err != nil {
+		cliErrorf("resolve kernel source root: %v", err)
+		return exitError
+	}
 
 	if *printCacheDirFlag {
-		dir, err := kernelCachePathFor(*versionFlag, arch, profile, builder, target)
+		dir, err := kernelCachePathFor(root, *versionFlag, arch, profile, builder, target)
 		if err != nil {
 			cliErrorf("%v", err)
 			return exitError
@@ -310,7 +315,7 @@ func runKernel(args []string) int {
 		if td.isTree {
 			ns = runtimeKernelCacheDir
 		}
-		current, err := kernelCachePathFor(*versionFlag, arch, profile, builder, target)
+		current, err := kernelCachePathFor(root, *versionFlag, arch, profile, builder, target)
 		if err != nil {
 			cliErrorf("%v", err)
 			return exitError
@@ -319,33 +324,48 @@ func runKernel(args []string) int {
 		return exitOK
 	}
 
-	path, err := resolveKernel(*versionFlag, arch, profile, builder, target, jobs)
+	path, err := resolveKernel(root, *versionFlag, arch, profile, builder, target, jobs)
 	if err != nil {
 		cliErrorf("%v", err)
 		return exitError
+	}
+	if td.isTree {
+		output, err := kernelOutputPath(root, td.outputDir)
+		if err != nil {
+			cliErrorf("resolve runtime kernel CLI output: %v", err)
+			return exitError
+		}
+		if err := copyTree(path, output); err != nil {
+			cliErrorf("materialize runtime kernel at %s: %v", output, err)
+			return exitError
+		}
 	}
 
 	fmt.Fprintf(os.Stdout, "kernel ready: %s (target=%s, profile=%s, version=%s)\n", path, target, profile, *versionFlag) //nolint:errcheck // CLI output
 	return exitOK
 }
 
-func resolveKernel(version, arch, profile, builder, target, jobs string) (string, error) {
+func resolveKernel(root, version, arch, profile, builder, target, jobs string) (string, error) {
 	td, err := kernelTargetFor(target)
 	if err != nil {
 		return "", err
 	}
-	resolved, err := resolveKernelProfile(td.configDir, profile)
+	resolved, err := resolveKernelProfile(root, td.configDir, profile)
 	if err != nil {
 		return "", err
 	}
-	variant, err := kernelCacheVariantFor(target, arch, builder, resolved)
+	variant, err := kernelCacheVariantFor(root, target, arch, builder, resolved)
 	if err != nil {
 		return "", err
 	}
 	if td.isTree {
-		return resolveRuntimeKernel(version, arch, profile, builder, td, resolved, variant, jobs)
+		return resolveRuntimeKernel(root, version, arch, profile, builder, td, resolved, variant, jobs)
 	}
-	return resolveInstallerKernel(version, arch, profile, builder, td, resolved, variant, jobs)
+	td.outputDir, err = kernelOutputPath(root, td.outputDir)
+	if err != nil {
+		return "", err
+	}
+	return resolveInstallerKernel(root, version, arch, profile, builder, td, resolved, variant, jobs)
 }
 
 // kernelCachePathFor returns the durable cache directory for the same identity
@@ -353,23 +373,35 @@ func resolveKernel(version, arch, profile, builder, target, jobs string) (string
 // building. Runtime targets return the tree directory; installer targets return
 // the directory containing Image. builder is the --builder value, empty for the
 // backend a build here would choose (kernelbuilder.PreferredBackend).
-func kernelCachePathFor(version, arch, profile, builder, target string) (string, error) {
+func kernelCachePathFor(root, version, arch, profile, builder, target string) (string, error) {
 	td, err := kernelTargetFor(target)
 	if err != nil {
 		return "", err
 	}
-	resolved, err := resolveKernelProfile(td.configDir, profile)
+	resolved, err := resolveKernelProfile(root, td.configDir, profile)
 	if err != nil {
 		return "", err
 	}
-	variant, err := kernelCacheVariantFor(target, arch, builder, resolved)
+	variant, err := kernelCacheVariantFor(root, target, arch, builder, resolved)
 	if err != nil {
 		return "", err
 	}
 	if td.isTree {
-		return kernelTreeCachePath(version, variant), nil
+		return filepath.Abs(kernelTreeCachePath(version, variant))
 	}
-	return filepath.Dir(kernelCachePath(version, variant)), nil
+	return filepath.Abs(filepath.Dir(kernelCachePath(version, variant)))
+}
+
+// kernelOutputPath keeps implicit outputs source-root-relative and the existing
+// internal test override invocation-relative. It declares no new CLI option.
+func kernelOutputPath(root, output string) (string, error) {
+	if filepath.IsAbs(output) {
+		return output, nil
+	}
+	if os.Getenv(kernelTestOutputDirEnv) != "" {
+		return filepath.Abs(output)
+	}
+	return filepath.Join(root, output), nil
 }
 
 // installerKernelVariantFile records the installer arch, profile, version, and
@@ -385,7 +417,7 @@ func invalidateInstallerKernelVariant(outputDir string) error {
 	return nil
 }
 
-func resolveInstallerKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant, jobs string) (string, error) {
+func resolveInstallerKernel(root, version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant, jobs string) (string, error) {
 	cached := kernelCachePath(version, variant)
 	toolsDst := filepath.Join(td.outputDir, td.artifact)
 	// Before any path below replaces the image, so no branch can leave an old
@@ -417,7 +449,7 @@ func resolveInstallerKernel(version, arch, profile, builder string, td kernelTar
 		}
 	}
 
-	if err := buildKernelArtifact(version, arch, profile, builder, td, jobs); err != nil {
+	if err := buildKernelArtifact(root, version, arch, profile, builder, td, jobs); err != nil {
 		return "", err
 	}
 
@@ -438,51 +470,57 @@ func resolveInstallerKernel(version, arch, profile, builder string, td kernelTar
 	return cached, nil
 }
 
-func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant, jobs string) (string, error) {
-	// The version floor is checked before the cache, so a kernel.version bump
-	// below the reserve_mem floor fails the build rather than being served from
-	// a tree built when the floor still held.
+func resolveRuntimeKernel(root, version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant, jobs string) (path string, resultErr error) {
 	if err := enforceReserveMemKernelFloor(version); err != nil {
 		return "", err
 	}
-	cachedDir := kernelTreeCachePath(version, variant)
+	cachedDir, err := filepath.Abs(kernelTreeCachePath(version, variant))
+	if err != nil {
+		return "", fmt.Errorf("resolve runtime kernel cache entry: %w", err)
+	}
 	cachedKernel := filepath.Join(cachedDir, td.artifact)
-
 	if _, err := os.Stat(cachedKernel); err == nil {
-		if cpErr := copyTree(cachedDir, td.outputDir); cpErr != nil {
-			fmt.Fprintf(os.Stdout, "warning: copy tree to %s: %v\n", td.outputDir, cpErr) //nolint:errcheck // CLI warning
-		}
 		return cachedDir, nil
 	}
-
-	// Ze builds every kernel on a host of its own arch (AC-13), so a cold cache
-	// for another arch cannot be filled here. Refused before the build starts,
-	// with the two moves that work: a kernel built on a host of that arch fills
-	// that host's cache, never this one, so the remedy is where the image is
-	// built, or which arch it is built for.
+	// A cold foreign-arch entry cannot be built here, before any output exists.
 	if arch != kernelbuilder.HostArch() {
 		return "", &foreignArchKernelError{version: version, arch: arch, cachedDir: cachedDir}
 	}
-	if err := buildKernelArtifact(version, arch, profile, builder, td, jobs); err != nil {
-		// A cold cache with no network fails here, at the source download, so the
-		// error names the entry that was missing and the command that fills it.
-		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and building it failed: %w\n"+
+	parent := filepath.Join(root, "tmp", "kernel")
+	if err := os.MkdirAll(parent, 0o750); err != nil {
+		return "", fmt.Errorf("create runtime build-output parent %s: %w", parent, err)
+	}
+	output, err := os.MkdirTemp(parent, "runtime-build-")
+	if err != nil {
+		return "", fmt.Errorf("create owned runtime build output under %s: %w", parent, err)
+	}
+	td.outputDir = output
+	if err := buildKernelArtifact(root, version, arch, profile, builder, td, jobs); err != nil {
+		// An error does not prove Docker removed every writer. Retain this run's
+		// output rather than racing a worker or an ownership-repair container.
+		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and building it failed: %w; retained run-owned output at %s because builder teardown was not established; confirm the builder's reported workers stopped before removing that directory\n"+
 			"build it once, with network access, on this host:\nze appliance kernel --target runtime --arch %s",
-			version, arch, cachedDir, err, arch)
+			version, arch, cachedDir, err, output, arch)
 	}
-
-	builtKernel := filepath.Join(td.outputDir, td.artifact)
+	// Successful build completion joins the writers. Only then is cleanup safe,
+	// including when later artifact validation or cache publication fails.
+	defer func() {
+		if err := os.RemoveAll(output); err != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("remove joined runtime build output %s: %w", output, err))
+		}
+	}()
+	builtKernel := filepath.Join(output, td.artifact)
 	if _, err := os.Stat(builtKernel); err != nil {
-		return "", fmt.Errorf("runtime kernel not produced at %s", builtKernel)
+		return "", fmt.Errorf("runtime kernel not produced at %s: %w", builtKernel, err)
 	}
-	modulesDir := filepath.Join(td.outputDir, "lib", "modules")
+	modulesDir := filepath.Join(output, "lib", "modules")
 	if _, err := os.Stat(modulesDir); err != nil {
-		return "", fmt.Errorf("runtime kernel modules not produced at %s", modulesDir)
+		return "", fmt.Errorf("runtime kernel modules not produced at %s: %w", modulesDir, err)
 	}
-	if err := enforceKernelRequirements(resolved, filepath.Join(td.outputDir, "config"), td.floor); err != nil {
+	if err := enforceKernelRequirements(resolved, filepath.Join(output, "config"), td.floor); err != nil {
 		return "", err
 	}
-	if err := copyTree(td.outputDir, cachedDir); err != nil {
+	if err := copyTree(output, cachedDir); err != nil {
 		return "", fmt.Errorf("cache runtime kernel tree: %w", err)
 	}
 	evictKeepN(filepath.Join(resolveCacheDir(), runtimeKernelCacheDir), cachedDir)
@@ -586,7 +624,7 @@ func unsupportedArch(what, arch, fix string) string {
 // The cache is asked under builder "", the backend a build here would choose,
 // so a kernel built with the other --builder is not seen
 // (docs/architecture/appliance/build-artifacts.md).
-func runtimeKernelReachable(arch string) error {
+func runtimeKernelReachable(root, arch string) error {
 	if !kernelbuilder.ArchSupported(arch) {
 		return &foreignArchKernelError{version: defaultKernelVersion, arch: arch, unsupported: true}
 	}
@@ -597,7 +635,7 @@ func runtimeKernelReachable(arch string) error {
 	if err != nil {
 		return err
 	}
-	cachedDir, err := kernelCachePathFor(defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
+	cachedDir, err := kernelCachePathFor(root, defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		return err
 	}
@@ -608,7 +646,7 @@ func runtimeKernelReachable(arch string) error {
 }
 
 // buildKernelArtifact resolves the firmware directory then invokes the native driver.
-func buildKernelArtifact(version, arch, profile, builder string, td kernelTargetDesc, jobs string) error {
+func buildKernelArtifact(root, version, arch, profile, builder string, td kernelTargetDesc, jobs string) error {
 	// The arch is refused before the firmware download, which a build this
 	// host cannot run would only waste.
 	if err := kernelbuilder.CheckArch(arch); err != nil {
@@ -627,6 +665,7 @@ func buildKernelArtifact(version, arch, profile, builder string, td kernelTarget
 	}
 	fmt.Fprintf(os.Stdout, "building %s kernel via Go...\n", td.name) //nolint:errcheck // CLI output
 	return kernelBuildFn(kernelBuildSpec{
+		root:     root,
 		version:  version,
 		arch:     arch,
 		profile:  profile,
@@ -642,6 +681,7 @@ func buildKernelArtifact(version, arch, profile, builder string, td kernelTarget
 
 // kernelBuildSpec is the request handed to the native kernel builder.
 type kernelBuildSpec struct {
+	root     string
 	version  string
 	arch     string
 	profile  string
@@ -658,7 +698,11 @@ func defaultKernelBuild(spec kernelBuildSpec) error {
 	if err := os.MkdirAll(spec.outDir, cacheDirPerm); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
-	resolved, err := resolveKernelProfile(spec.srcDir, spec.profile)
+	resolved, err := resolveKernelProfile(spec.root, spec.srcDir, spec.profile)
+	if err != nil {
+		return err
+	}
+	fragments, err := kernelRelativePaths(spec.root, resolved.Fragments)
 	if err != nil {
 		return err
 	}
@@ -672,6 +716,7 @@ func defaultKernelBuild(spec kernelBuildSpec) error {
 	// left to the builder (kernelbuilder.normalizeRequest): they decide the
 	// kernel's bytes, so they are declared where the cache key hashes them.
 	return nativeKernelBuildFn(buildCtx, kernelbuilder.Request{
+		Root:        spec.root,
 		Version:     spec.version,
 		Arch:        spec.arch,
 		Profile:     spec.profile,
@@ -682,7 +727,7 @@ func defaultKernelBuild(spec kernelBuildSpec) error {
 		PatchesDir:  spec.patches,
 		FirmwareDir: spec.firmware,
 		Jobs:        spec.jobs,
-		Fragments:   resolved.Fragments,
+		Fragments:   fragments,
 		Stdout:      os.Stdout,
 		Stderr:      os.Stdout,
 	})

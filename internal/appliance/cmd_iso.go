@@ -318,7 +318,11 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 			return isoBuildInput{}, err
 		}
 		if p == "" {
-			if _, err := resolveKernelProfile(kernelInstallerConfigDir, profile); err != nil {
+			root, err := os.Getwd()
+			if err != nil {
+				return isoBuildInput{}, fmt.Errorf("resolve installer kernel source root: %w", err)
+			}
+			if _, err := resolveKernelProfile(root, kernelInstallerConfigDir, profile); err != nil {
 				return isoBuildInput{}, err
 			}
 			if !installerKernelBuildMatches(cfg.Image.Arch, profile) {
@@ -404,7 +408,11 @@ func resolveISOArtifact(path, label, hint string) (string, error) {
 // or "" when the cache holds none. An error means the cache key could not be
 // computed, so whether a kernel is cached is unknown.
 func isoKernelCachePath(arch, profile string) (string, error) {
-	variant, err := kernelCacheVariant(arch, profile)
+	root, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("resolve installer kernel cache source root: %w", err)
+	}
+	variant, err := kernelCacheVariant(root, arch, profile)
 	if err != nil {
 		return "", err
 	}

@@ -119,7 +119,7 @@ func instanceOf(args []string) (string, error) {
 //
 // With no --parent_dir there is no repo-local instance to prepare and gok uses
 // its own default instance directory, so the arguments pass through unchanged.
-func prepareArgs(args []string) ([]string, func(), error) {
+func prepareArgs(root string, args []string) ([]string, func(), error) {
 	noop := func() {}
 
 	if !buildingSubcommands[subcommandOf(args)] {
@@ -146,10 +146,10 @@ func prepareArgs(args []string) ([]string, func(), error) {
 		arch := imageArch()
 		// A GOARCH this host cannot build a kernel for, with a cold cache, is
 		// refused here with a fix for this command, before the kernel resolver.
-		if err := runtimeKernelReachableFn(arch, args); err != nil {
+		if err := runtimeKernelReachableFn(root, arch, args); err != nil {
 			return nil, noop, err
 		}
-		tree, err := runtimeKernelTreeFn(arch)
+		tree, err := runtimeKernelTreeFn(root, arch)
 		if err != nil {
 			return nil, noop, fmt.Errorf("resolve the %s runtime kernel: %w", arch, err)
 		}
@@ -189,20 +189,27 @@ func imageArch() string {
 // name is the command as a developer types it after `le`.
 const name = "build gokrazy"
 
-// Run runs gok with args and answers the exit code. It sets GOMODCACHE,
-// CGO_ENABLED, GOFLAGS and GOPROXY in this process's environment for the Go
-// subprocesses gok spawns, and gok applies the instance's Environment there
-// too, so the caller MUST either exit after one gok command, as `le build
+// Run runs gok with args using the supplied source root and answers the exit code.
+// It sets GOMODCACHE, CGO_ENABLED, GOFLAGS and GOPROXY in this process's
+// environment for the Go subprocesses gok spawns, and gok applies the instance's
+// Environment there too, so the caller MUST either exit after one gok command, as `le build
 // gokrazy` does, or restore the environment afterwards, as
 // dockerhost.runGokWith does.
-func Run(args []string) int {
+func Run(root string, args []string) int {
+	if root == "" {
+		return fail(errors.New("gok source root is empty"))
+	}
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return fail(fmt.Errorf("resolve gok source root: %w", err))
+	}
 	modcache := os.Getenv("GOMODCACHE")
 	if modcache == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return fail(err)
-		}
-		modcache = filepath.Join(wd, "gokrazy", "modcache")
+		modcache = filepath.Join(root, "gokrazy", "modcache")
+	}
+	modcache, err = filepath.Abs(modcache)
+	if err != nil {
+		return fail(fmt.Errorf("resolve GOMODCACHE: %w", err))
 	}
 	if err := os.MkdirAll(modcache, 0o750); err != nil {
 		return fail(err)
@@ -225,11 +232,7 @@ func Run(args []string) int {
 
 	// The host go is checked before prepareArgs resolves the runtime kernel,
 	// which builds for about 30 minutes on a cold cache before gok runs go.
-	wd, err := os.Getwd()
-	if err != nil {
-		return fail(err)
-	}
-	if err := appliance.CheckGoToolchain(filepath.Join(wd, "go.mod")); err != nil {
+	if err := appliance.CheckGoToolchain(filepath.Join(root, "go.mod")); err != nil {
 		return fail(err)
 	}
 
@@ -242,7 +245,7 @@ func Run(args []string) int {
 	// failed build control never returns here and the prepared dir is left
 	// behind. instance.Prepare reaps such stale dirs on the next run, which
 	// bounds the leak; there is no way to run a cleanup across a callee's os.Exit.
-	prepared, cleanup, err := prepareArgs(args)
+	prepared, cleanup, err := prepareArgs(root, args)
 	if err != nil {
 		return fail(err)
 	}

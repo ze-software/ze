@@ -125,6 +125,15 @@ before anything long starts (the runtime kernel resolves first, and a cold
 cache builds for about 30 minutes), naming both versions and where to install
 a newer go. `ze appliance build` also refuses, at the same point, a run from
 outside the ze source tree root, where `gokrazy/modcache` is absent.
+
+The registered `./le build gokrazy` boundary discovers the checkout once and
+passes it to `buildgokrazy.Run(root, args)`. Library callers supply their selected
+source root: its `go.mod`, default `gokrazy/modcache/` and runtime-kernel inputs
+stay together even when the invocation directory belongs to another checkout.
+An explicit relative `GOMODCACHE` still belongs to the invocation directory and
+is made absolute before gok runs. Image preparation resolves `--parent_dir`
+from that directory before preparing its copy. Mutating commands pass their
+arguments through to gok, which interprets their parent directory itself.
 <!-- source: internal/appliance/gokpreflight.go -- checkGokHost, CheckGoToolchain -->
 
 With the proxy off, every module an image needs must already be downloaded
@@ -284,6 +293,17 @@ cache written before the flag existed needs a one-time
 | `test/appliance/serial-login.ci` | Boots nothing. Its header says the QEMU plan applies "when appliance serial test infrastructure is ready"; it asserts the argv[0] shell-invocation gate offline | Never a boot proof |
 
 An image build alone is not a boot proof.
+
+The hugepages proof roots cancellation before its native-host compiler starts.
+Its host build, appliance init and image build keep their existing phase limits
+under that root, and their shared process owner joins each command group before
+scratch cleanup. Each command consumes its cached exit and distinct cleanup
+failures once, so a build error retains its original exit-status diagnostic.
+A canceled build cannot advance to boot or publish a reservation
+verdict. This process-lifetime contract does not replace the image-and-boot proof
+above; no admission-wait or hardware result follows from a process fixture.
+<!-- source: internal/le/test/qemu/actions.go -- runHugepagesHere -->
+<!-- source: internal/le/test/qemu/hugepages.go -- Hugepages.Run, buildHostZe, buildImage, appliance -->
 
 The first two proofs boot amd64 with an `e1000` NIC and arm64 with
 `virtio-net-pci` on the `virt` machine. The arm64 runtime kernel builds the

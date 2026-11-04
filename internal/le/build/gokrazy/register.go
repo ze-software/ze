@@ -9,6 +9,7 @@ package buildgokrazy
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -37,5 +38,9 @@ func init() {
 // because gok writes its own progress and image: a build is a program, not a
 // value for a pipe operator to render.
 func Answer(args []string) (any, int) {
-	return nil, Run(args)
+	root, err := lepath.Root()
+	if err != nil {
+		return nil, fail(err)
+	}
+	return nil, Run(root, args)
 }

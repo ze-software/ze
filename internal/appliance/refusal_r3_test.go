@@ -23,7 +23,7 @@ func TestGokrazyForeignArchNamesTheGokrazyCommand(t *testing.T) {
 	if runtime.GOARCH == archARM64 {
 		foreign = archAMD64
 	}
-	err := GokrazyRuntimeKernelReachable(foreign, []string{"--parent_dir", "my dir", "overwrite"})
+	err := GokrazyRuntimeKernelReachable(".", foreign, []string{"--parent_dir", "my dir", "overwrite"})
 	if err == nil {
 		t.Fatalf("a cold %s cache on a %s host was reachable", foreign, runtime.GOARCH)
 	}
@@ -34,7 +34,7 @@ func TestGokrazyForeignArchNamesTheGokrazyCommand(t *testing.T) {
 	if !strings.Contains(err.Error(), "build it on an "+foreign+" host") || strings.Contains(err.Error(), "--arch "+foreign) {
 		t.Errorf("refusal does not offer the two moves that work:\n%v", err)
 	}
-	if err := GokrazyRuntimeKernelReachable(runtime.GOARCH, nil); err != nil {
+	if err := GokrazyRuntimeKernelReachable(".", runtime.GOARCH, nil); err != nil {
 		t.Errorf("the host's own arch was refused: %v", err)
 	}
 }

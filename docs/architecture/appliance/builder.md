@@ -29,6 +29,17 @@ docker host start` runs Colima next) never hands its children a removed working
 directory.
 <!-- source: internal/appliance/gok_execute.go -- ExecuteGok, keepWorkingDir -->
 
+The runtime-kernel and `le build gokrazy` library entry points take the selected
+source root explicitly. Docker-host image construction carries that same root
+through its initial kernel/cache-key lookup and its nested gok preparation,
+including default module-cache and toolchain inputs. A library call does not
+rediscover another checkout from the caller's current directory. The registered
+le command discovers the root before entering that chain. Explicit relative
+`--parent_dir` and `GOMODCACHE` operands still refer to the invocation directory.
+<!-- source: internal/le/build/gokrazy/register.go -- Answer -->
+<!-- source: internal/le/build/gokrazy/gokrazy.go -- Run, prepareArgs -->
+<!-- source: internal/le/setup/docker/host/build.go -- builder.build, runGok, runGokWith -->
+
 The appliance CLI resolves its base directory to an absolute path once, before
 dispatch. This pins relative `--dir`, `ZE_APPLIANCE_DIR` and XDG-default paths to
 the invocation's working directory even while gok temporarily changes it.

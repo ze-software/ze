@@ -106,7 +106,7 @@ func newRecordingBuilder(t *testing.T) *recordingBuilder {
 	recorder := &recordingBuilder{}
 	recorder.builder = builder{
 		cacheDir: cache,
-		kernelTree: func(string) (string, error) {
+		kernelTree: func(string, string) (string, error) {
 			return "/cache/7.2.9-runtime-arm64-runtime-docker-387d6b76-34cba457", nil
 		},
 		fetch: func(_ context.Context, _ *Pins, pin Pin) (string, error) {
@@ -125,7 +125,7 @@ func newRecordingBuilder(t *testing.T) *recordingBuilder {
 			}
 			return nil
 		},
-		gok: func(_ string, args []string) error {
+		gok: func(_, _ string, args []string) error {
 			recorder.gokRuns = append(recorder.gokRuns, args)
 			image := args[slices.Index(args, "--full")+1]
 			writeFile(t, image, []byte("raw image"))

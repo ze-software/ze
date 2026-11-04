@@ -192,7 +192,7 @@ func TestKernelResolvesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel(version, arch, defaultKernelProfile, "", kernelTargetInstaller, "")
+	got, err := resolveKernel(".", version, arch, defaultKernelProfile, "", kernelTargetInstaller, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -217,7 +217,7 @@ func TestKernelCacheHitCopiesToToolsPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := resolveKernel(version, archAMD64, "hardware", "", kernelTargetInstaller, ""); err != nil {
+	if _, err := resolveKernel(".", version, archAMD64, "hardware", "", kernelTargetInstaller, ""); err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
 
@@ -246,7 +246,7 @@ func TestKernelDownloadsAndCaches(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL)
 	env.ResetCache()
 
-	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller, "")
+	got, err := resolveKernel(".", "7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -277,7 +277,7 @@ func TestKernelDownloadChecksumMismatch(t *testing.T) {
 
 	setTestKernelBuild(t, func(kernelBuildSpec) error { return errors.New("no builder available") })
 
-	_, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller, "")
+	_, err := resolveKernel(".", "7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller, "")
 	if err == nil {
 		t.Fatal("expected error from checksum mismatch + failed build fallback")
 	}
@@ -416,7 +416,7 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("no network") })
 	setTestKernelBuild(t, fakeInstallerBuild("built-kernel"))
 
-	got, err := resolveKernel("7.1.1", kernelbuilder.HostArch(), defaultKernelProfile, "", kernelTargetInstaller, "")
+	got, err := resolveKernel(".", "7.1.1", kernelbuilder.HostArch(), defaultKernelProfile, "", kernelTargetInstaller, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -468,7 +468,7 @@ func TestKernelInvalidatesInstallerVariant(t *testing.T) {
 			setTestHTTP(t, func(string) (*http.Response, error) { return nil, errors.New("no network") })
 			setTestKernelBuild(t, fakeInstallerBuild("hardware-kernel"))
 
-			if _, err := resolveKernel(version, kernelbuilder.HostArch(), "hardware", "", kernelTargetInstaller, ""); err != nil {
+			if _, err := resolveKernel(".", version, kernelbuilder.HostArch(), "hardware", "", kernelTargetInstaller, ""); err != nil {
 				t.Fatalf("resolveKernel: %v", err)
 			}
 
@@ -504,7 +504,7 @@ func TestKernelUndeletableVariantStopsResolve(t *testing.T) {
 	setTestHTTP(t, func(string) (*http.Response, error) { return nil, errors.New("no network") })
 	setTestKernelBuild(t, fakeInstallerBuild("hardware-kernel"))
 
-	_, err := resolveKernel("7.1.1", archAMD64, "hardware", "", kernelTargetInstaller, "")
+	_, err := resolveKernel(".", "7.1.1", archAMD64, "hardware", "", kernelTargetInstaller, "")
 	if err == nil {
 		t.Fatal("resolveKernel succeeded with an undeletable variant record")
 	}
@@ -662,7 +662,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel("7.1.1", kernelbuilder.HostArch(), defaultKernelProfile, "", kernelTargetInstaller, "")
+	got, err := resolveKernel(dir, "7.1.1", kernelbuilder.HostArch(), defaultKernelProfile, "", kernelTargetInstaller, "")
 	if err != nil {
 		t.Fatalf("resolveKernel before config change: %v", err)
 	}
@@ -682,7 +682,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("no network") })
 	setTestKernelBuild(t, fakeInstallerBuild("kernel-v2"))
 
-	got2, err := resolveKernel("7.1.1", kernelbuilder.HostArch(), defaultKernelProfile, "", kernelTargetInstaller, "")
+	got2, err := resolveKernel(dir, "7.1.1", kernelbuilder.HostArch(), defaultKernelProfile, "", kernelTargetInstaller, "")
 	if err != nil {
 		t.Fatalf("resolveKernel after config change: %v", err)
 	}
@@ -779,7 +779,7 @@ func TestKernelEnvURL(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL+"/custom-base")
 	env.ResetCache()
 
-	_, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller, "")
+	_, err := resolveKernel(".", "7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -909,6 +909,7 @@ func TestDefaultKernelBuildDockerRequest(t *testing.T) {
 	t.Cleanup(func() { nativeKernelBuildFn = old })
 
 	err := defaultKernelBuild(kernelBuildSpec{
+		root:    ".",
 		version: "7.1.1", arch: archAMD64, profile: defaultKernelProfile, builder: builderDocker,
 		target: kernelTargetInstaller, srcDir: kernelInstallerConfigDir, outDir: kernelInstallerOutputDir,
 	})
@@ -952,6 +953,7 @@ func TestDefaultKernelBuildNamesZesLimit(t *testing.T) {
 	t.Cleanup(func() { nativeKernelBuildFn = old })
 
 	err := defaultKernelBuild(kernelBuildSpec{
+		root:    ".",
 		version: "7.1.1", arch: archAMD64, profile: defaultKernelProfile, builder: builderDocker,
 		target: kernelTargetInstaller, srcDir: kernelInstallerConfigDir, outDir: kernelInstallerOutputDir,
 	})
@@ -974,6 +976,7 @@ func TestDefaultKernelBuildQEMURuntimeRequest(t *testing.T) {
 	t.Cleanup(func() { nativeKernelBuildFn = old })
 
 	err := defaultKernelBuild(kernelBuildSpec{
+		root:    ".",
 		version: "7.1.1", arch: archAMD64, profile: runtimeKernelProfile, builder: builderQEMU,
 		target: kernelTargetRuntime, srcDir: runtimeKernelConfigDir, outDir: runtimeKernelOutputDir,
 		patches: runtimeKernelPatchesDir,
@@ -999,7 +1002,7 @@ func TestRuntimeKernelBuildsTree(t *testing.T) {
 
 	setTestKernelBuild(t, fakeRuntimeBuild)
 
-	got, err := resolveKernel("7.1.1", runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime, "")
+	got, err := resolveKernel(dir, "7.1.1", runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime, "")
 	if err != nil {
 		t.Fatalf("resolveKernel runtime: %v", err)
 	}
@@ -1088,7 +1091,7 @@ func TestRuntimeKernelFloorRejectsMissing(t *testing.T) {
 		return os.WriteFile(filepath.Join(spec.outDir, "config"), []byte(cfg), 0o644)
 	})
 
-	_, err := resolveKernel("7.1.1", runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime, "")
+	_, err := resolveKernel(dir, "7.1.1", runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime, "")
 	if err == nil || !strings.Contains(err.Error(), "CONFIG_PPPOE") {
 		t.Fatalf("runtime floor error = %v, want CONFIG_PPPOE", err)
 	}

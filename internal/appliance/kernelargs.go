@@ -136,7 +136,7 @@ func resolveBuildParentDir(cfg *applianceConfig) (string, func(), error) {
 	extraArgs = append(extraArgs, crashArgs...)
 	// The image boots ze's runtime kernel and no other: the cache entry for the
 	// image's arch, else a native build on this host.
-	tree, err := runtimeKernelTreeFn(cfg.Image.Arch)
+	tree, err := runtimeKernelTreeFn(filepath.Dir(parentDir), cfg.Image.Arch)
 	if err != nil {
 		return "", noop, fmt.Errorf("resolve the %s runtime kernel: %w", cfg.Image.Arch, err)
 	}

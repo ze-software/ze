@@ -84,11 +84,11 @@ func TestUnsupportedArchRefusedBeforeAnyHost(t *testing.T) {
 	}
 
 	// GOARCH=riscv64 ./le build gokrazy reaches runtimeKernelReachable unchecked.
-	reach := runtimeKernelReachable(unsupported)
+	reach := runtimeKernelReachable(".", unsupported)
 	if foreign, ok := errors.AsType[*foreignArchKernelError](reach); !ok || !foreign.unsupported {
 		t.Fatalf("runtimeKernelReachable(%s) = %v, want the unsupported-arch refusal", unsupported, reach)
 	}
-	gokrazy := GokrazyRuntimeKernelReachable(unsupported, []string{"overwrite"}).Error()
+	gokrazy := GokrazyRuntimeKernelReachable(".", unsupported, []string{"overwrite"}).Error()
 
 	refusals := map[string]string{
 		"kernel": kernel, "named": named, "image": image, "iso": iso, "init": initRefusal, "gokrazy": gokrazy,

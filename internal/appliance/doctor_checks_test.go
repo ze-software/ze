@@ -191,7 +191,7 @@ func TestDoctorRuntimeKernelCached(t *testing.T) {
 	writeRuntimeKernelRegistry(t)
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	setTestRuntimeBuilder(t, errors.New("no builder available"))
-	cached, err := kernelCachePathFor(defaultKernelVersion, runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime)
+	cached, err := kernelCachePathFor(".", defaultKernelVersion, runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestDoctorRuntimeKernelMissing(t *testing.T) {
 	writeRuntimeKernelRegistry(t)
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	setTestRuntimeBuilder(t, errors.New("no builder available"))
-	cached, err := kernelCachePathFor(defaultKernelVersion, runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime)
+	cached, err := kernelCachePathFor(".", defaultKernelVersion, runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		t.Fatal(err)
 	}

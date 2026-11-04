@@ -38,7 +38,7 @@ func TestDockerHostGokLeavesTheEnvironmentAsFound(t *testing.T) {
 		}
 		before := environMap()
 
-		run := func([]string) int {
+		run := func(string, []string) int {
 			for name, value := range map[string]string{
 				"GOOS":              "linux",
 				"CGO_ENABLED":       "0",
@@ -54,7 +54,7 @@ func TestDockerHostGokLeavesTheEnvironmentAsFound(t *testing.T) {
 			}
 			return exit
 		}
-		err := runGokWith(run, "amd64", nil)
+		err := runGokWith(run, ".", "amd64", nil)
 		if (err != nil) != (exit != 0) {
 			t.Fatalf("gok exit %d: runGokWith answered %v", exit, err)
 		}

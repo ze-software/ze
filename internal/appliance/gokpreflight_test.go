@@ -125,7 +125,7 @@ func TestBuildRefusesAnOldGoBeforeTheKernel(t *testing.T) {
 	writeFakeGo(t, "go1.26.3")
 
 	oldTree := runtimeKernelTreeFn
-	runtimeKernelTreeFn = func(string) (string, error) {
+	runtimeKernelTreeFn = func(string, string) (string, error) {
 		t.Fatal("the runtime kernel resolved before the host go was checked")
 		return "", nil
 	}

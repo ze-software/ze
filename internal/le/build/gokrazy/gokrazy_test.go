@@ -23,7 +23,7 @@ func fakeRuntimeKernel(t *testing.T) *[]string {
 	t.Helper()
 	asked := &[]string{}
 	old := runtimeKernelTreeFn
-	runtimeKernelTreeFn = func(arch string) (string, error) {
+	runtimeKernelTreeFn = func(_ string, arch string) (string, error) {
 		*asked = append(*asked, arch)
 		tree := filepath.Join(t.TempDir(), "runtime-"+arch)
 		if err := os.MkdirAll(filepath.Join(tree, "lib", "modules", "7.2.9-ze"), 0o755); err != nil {
@@ -50,7 +50,7 @@ func fakeRuntimeKernel(t *testing.T) *[]string {
 	}
 	t.Cleanup(func() { runtimeKernelTreeFn = old })
 	oldReachable := runtimeKernelReachableFn
-	runtimeKernelReachableFn = func(string, []string) error { return nil }
+	runtimeKernelReachableFn = func(string, string, []string) error { return nil }
 	t.Cleanup(func() { runtimeKernelReachableFn = oldReachable })
 	return asked
 }
@@ -113,7 +113,7 @@ func TestBuildGokrazyPreparesTheInstance(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root, parent := writeInstanceFixture(t)
 
-			got, cleanup, err := prepareArgs(tc.args(parent))
+			got, cleanup, err := prepareArgs(root, tc.args(parent))
 			if err != nil {
 				t.Fatalf("prepareArgs: %v", err)
 			}
@@ -163,7 +163,7 @@ func TestBuildGokrazyLeavesMutatingSubcommandsAlone(t *testing.T) {
 			_, parent := writeInstanceFixture(t)
 			args := []string{"--parent_dir", parent, "-i", "ze", verb}
 
-			got, cleanup, err := prepareArgs(args)
+			got, cleanup, err := prepareArgs(".", args)
 			if err != nil {
 				t.Fatalf("prepareArgs: %v", err)
 			}
@@ -210,7 +210,7 @@ func TestBuildGokrazyIdentifiesTheSubcommandNotAnyToken(t *testing.T) {
 
 	t.Run("instance named like a build verb is not prepared", func(t *testing.T) {
 		_, parent := writeInstanceFixture(t)
-		got, cleanup, err := prepareArgs([]string{"--parent_dir", parent, "-i", "overwrite", "edit"})
+		got, cleanup, err := prepareArgs(".", []string{"--parent_dir", parent, "-i", "overwrite", "edit"})
 		if err != nil {
 			t.Fatalf("prepareArgs: %v", err)
 		}
@@ -232,7 +232,7 @@ func TestBuildGokrazyFailsClosedOnUnpreparableParentDir(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "nonexistent")
 	args := []string{"--parent_dir", missing, "-i", "ze", "overwrite"}
 
-	_, _, err := prepareArgs(args)
+	_, _, err := prepareArgs(".", args)
 	if err == nil {
 		t.Fatal("prepareArgs accepted a parent dir it could not prepare")
 	}
@@ -253,7 +253,7 @@ func TestRunResolvesRuntimeKernelByDefault(t *testing.T) {
 	asked := fakeRuntimeKernel(t)
 	t.Setenv("GOARCH", "arm64")
 
-	got, cleanup, err := prepareArgs([]string{"--parent_dir", parent, "-i", "ze", "overwrite"})
+	got, cleanup, err := prepareArgs(".", []string{"--parent_dir", parent, "-i", "ze", "overwrite"})
 	if err != nil {
 		t.Fatalf("prepareArgs: %v", err)
 	}
@@ -295,7 +295,7 @@ func TestRunHasNoKernelOverride(t *testing.T) {
 	t.Setenv(knob, t.TempDir())
 	t.Setenv("GOARCH", "amd64")
 
-	_, cleanup, err := prepareArgs([]string{"--parent_dir", parent, "-i", "ze", "overwrite"})
+	_, cleanup, err := prepareArgs(".", []string{"--parent_dir", parent, "-i", "ze", "overwrite"})
 	if err != nil {
 		t.Fatalf("prepareArgs: %v", err)
 	}
@@ -381,7 +381,7 @@ func TestBuildGokrazyLeavesTrackedTreeClean(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			before := snapshotTracked(t, tracked)
 
-			got, cleanup, err := prepareArgs([]string{"--parent_dir", parent, "-i", "ze", "overwrite"})
+			got, cleanup, err := prepareArgs(".", []string{"--parent_dir", parent, "-i", "ze", "overwrite"})
 			if err != nil {
 				t.Fatalf("prepareArgs: %v", err)
 			}
@@ -416,7 +416,7 @@ func TestBuildGokrazyLeavesTrackedTreeClean(t *testing.T) {
 func TestBuildGokrazyWithoutParentDirIsUntouched(t *testing.T) {
 	args := []string{"-i", "ze", "overwrite", "--full", "x.img"}
 
-	got, cleanup, err := prepareArgs(args)
+	got, cleanup, err := prepareArgs(".", args)
 	if err != nil {
 		t.Fatalf("prepareArgs: %v", err)
 	}
@@ -440,19 +440,19 @@ func TestBuildGokrazyWithoutParentDirIsUntouched(t *testing.T) {
 func TestForeignArchRefusedBeforeTheKernel(t *testing.T) {
 	fakeRuntimeKernel(t)
 	oldTree := runtimeKernelTreeFn
-	runtimeKernelTreeFn = func(arch string) (string, error) {
+	runtimeKernelTreeFn = func(_ string, arch string) (string, error) {
 		t.Fatalf("the %s kernel was resolved after the reachability refusal", arch)
 		return "", nil
 	}
 	t.Cleanup(func() { runtimeKernelTreeFn = oldTree })
 	refusal := errors.New("refused with its fix")
 	var askedArgs []string
-	runtimeKernelReachableFn = func(_ string, args []string) error {
+	runtimeKernelReachableFn = func(_, _ string, args []string) error {
 		askedArgs = args
 		return refusal
 	}
 	args := []string{"--parent_dir", t.TempDir(), "-i", "ze", "overwrite"}
-	_, _, err := prepareArgs(args)
+	_, _, err := prepareArgs(".", args)
 	if !errors.Is(err, refusal) {
 		t.Fatalf("prepareArgs = %v, want the reachability refusal", err)
 	}

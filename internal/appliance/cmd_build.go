@@ -178,7 +178,7 @@ func buildOne(name string) int {
 
 	// A runtime kernel this host cannot build, and the cache does not hold,
 	// is refused before anything is written, naming this appliance's file.
-	if err := runtimeKernelReachable(cfg.Image.Arch); err != nil {
+	if err := runtimeKernelReachable(root, cfg.Image.Arch); err != nil {
 		if foreign, ok := errors.AsType[*foreignArchKernelError](err); ok {
 			err = foreign.forInstance(dir, name)
 		}
