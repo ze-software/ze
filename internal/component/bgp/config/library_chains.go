@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 )
 
@@ -80,6 +81,7 @@ func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policyc
 		return p.WithTemplated(&templatedChain{reg: reg, bases: bases, attachment: attachment, context: context, members: templated}), nil
 	}
 	var members []policychain.Member
+	typesMap := registry.FilterTypesMap()
 	for i, ref := range p.Filters() {
 		if ref.Inactive {
 			continue
@@ -87,7 +89,7 @@ func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policyc
 		if p.InProcess(i) {
 			continue // a compiled-in stage filter runs in the ingress pass
 		}
-		entry, ok := reg.Lookup(filterInstanceName(ref.Name))
+		entry, ok := policyChainInstance(reg, ref, typesMap)
 		if ok && policychain.HasEvaluator(entry.Type) {
 			members = append(members, policychain.Member{Name: entry.Name})
 			continue

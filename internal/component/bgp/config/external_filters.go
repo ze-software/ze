@@ -99,24 +99,84 @@ func refuseFilterlessPlugin(pluginName string, ref externalChainRef) error {
 	return errors.New(tb.String())
 }
 
-// judgeExternalChainRef refuses a reference no declared name or pattern
-// covers, and one whose declared reads or sets the attachment does not fit.
+// judgeExternalChainRef judges a concrete reference by its selected declaration.
+// A dynamic template retains the declaration guards but defers its concrete
+// name to CompileResolved, after the peer's variables are known.
 func judgeExternalChainRef(pluginName string, declared []registry.DeclaredFilter, ref externalChainRef) error {
+	if isTemplatedMember(ref.filter) {
+		return judgeExternalChainTemplate(pluginName, declared, ref)
+	}
 	d, ok := registry.FindDeclaredFilter(declared, ref.filter)
 	if !ok {
-		offers := registry.LabelDeclaredFilters(declared)
-		if offers == "" {
-			offers = "no filter"
+		return refuseExternalChainName(pluginName, declared, ref)
+	}
+	return judgeExternalChainDeclaration(d, ref)
+}
+
+// judgeExternalChainTemplate requires a declaration whose fields and direction
+// fit the attachment. Exact names must fit the existing template pattern;
+// declared patterns are judged by FindDeclaredFilter once the peer resolves
+// the name, not by comparing a variable token with an ASN or guessing one.
+func judgeExternalChainTemplate(pluginName string, declared []registry.DeclaredFilter, ref externalChainRef) error {
+	pattern, err := templatedPattern(ref.filter)
+	if err != nil {
+		return errors.New(ref.context + ": " + err.Error())
+	}
+	var refusal error
+	for i := range declared {
+		d := &declared[i]
+		if d.Pattern == nil {
+			if !pattern.MatchString(d.Name) {
+				continue
+			}
 		}
-		var tb textbuf.Buffer
-		tb.Str(ref.context).Str(": chain names ").Quoted(ref.reference).Str(", and plugin ").Quoted(pluginName).
-			Str(" declares no filter of that name; it declares ").Str(offers)
-		return errors.New(tb.String())
+		if err := judgeExternalChainDeclaration(d, ref); err != nil {
+			if refusal == nil {
+				refusal = err
+			}
+			continue
+		}
+		return nil
+	}
+	if refusal != nil {
+		return refusal
+	}
+	return refuseExternalChainName(pluginName, declared, ref)
+}
+
+func refuseExternalChainName(pluginName string, declared []registry.DeclaredFilter, ref externalChainRef) error {
+	offers := registry.LabelDeclaredFilters(declared)
+	if offers == "" {
+		offers = "no filter"
+	}
+	var tb textbuf.Buffer
+	tb.Str(ref.context).Str(": chain names ").Quoted(ref.reference).Str(", and plugin ").Quoted(pluginName).
+		Str(" declares no filter of that name; it declares ").Str(offers)
+	return errors.New(tb.String())
+}
+
+func judgeExternalChainDeclaration(d *registry.DeclaredFilter, ref externalChainRef) error {
+	if ref.attachment == "bgp import" {
+		if !d.AllowsDirection(rpc.FilterImport) {
+			return refuseExternalChainDirection(d, ref)
+		}
+	}
+	if ref.attachment == attachmentExport {
+		if !d.AllowsDirection(rpc.FilterExport) {
+			return refuseExternalChainDirection(d, ref)
+		}
 	}
 	if err := policy.CheckDeclaredFilter(ref.attachment, ref.reference, fieldReads(d.Reads), d.Sets); err != nil {
 		return errors.New(ref.context + ": " + err.Error())
 	}
 	return nil
+}
+
+func refuseExternalChainDirection(d *registry.DeclaredFilter, ref externalChainRef) error {
+	var tb textbuf.Buffer
+	return errors.New(tb.Str(ref.context).Str(": ").Str(ref.attachment).Str(" filter ").Quoted(ref.reference).
+		Str(" declares direction ").Str(d.Direction.String()).Str(", so it cannot run at this attachment; ").
+		Str("remove it from this chain, use its declared direction, or declare the filter for both").String())
 }
 
 // checkFilterDeclarations is the Stage 1 judge BGP installs

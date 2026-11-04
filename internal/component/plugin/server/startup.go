@@ -1322,7 +1322,6 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		}
 		reg.Filters = append(reg.Filters, plugin.FilterRegistration{
 			DeclaredFilter: declared[i],
-			Direction:      f.Direction,
 			Raw:            declared[i].ReadsRaw(),
 			OnError:        onError,
 			Overrides:      f.Overrides,

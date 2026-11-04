@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -99,10 +100,10 @@ func isTokenByte(c byte) bool {
 // Ze resolves, and some instance under the policy root must match the
 // pattern: an unqualified name no instance can match is refused, as an
 // unknown plain name is (policy.Registry.ValidateName). A qualified name no
-// instance matches is an external plugin's filter, judged as one
-// (checkExternalChainRef). Which instance a peer names, and whether the
-// attachment admits it, is judged when the peer resolves the chain
-// (templatedChain.CompileResolved).
+// instance of that qualifier's type matches is an external plugin's filter,
+// judged as one (checkExternalChainRef). Which concrete filter a peer names,
+// and whether the attachment admits it, is judged when the peer resolves the
+// chain (templatedChain.CompileResolved).
 func checkTemplatedMember(reg *policy.Registry, name string, dynamic bool, attachment, context string) error {
 	if !dynamic {
 		return fmt.Errorf("%s: %q names a filter through a config variable, which only a dynamic group resolves (from the peer's OPEN); "+
@@ -112,7 +113,18 @@ func checkTemplatedMember(reg *policy.Registry, name string, dynamic bool, attac
 	if err != nil {
 		return fmt.Errorf("%s: %w", context, err)
 	}
-	if slices.ContainsFunc(reg.Names(), pattern.MatchString) {
+	prefix, _, qualified := strings.Cut(name, ":")
+	typesMap := registry.FilterTypesMap()
+	for _, candidate := range reg.Names() {
+		if !pattern.MatchString(candidate) {
+			continue
+		}
+		if qualified {
+			entry, _ := reg.Lookup(candidate)
+			if !namesFilterType(prefix, entry.Type, typesMap) {
+				continue
+			}
+		}
 		return nil
 	}
 	if strings.Contains(name, ":") {

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -159,14 +160,12 @@ func TestFilterDeclarationParse(t *testing.T) {
 		Name: "rpki",
 		Filters: []FilterRegistration{
 			{
-				Name:      "validate",
-				Direction: rpc.FilterImport,
-				OnError:   rpc.OnErrorReject,
+				DeclaredFilter: registry.DeclaredFilter{Name: "validate", Direction: rpc.FilterImport},
+				OnError:        rpc.OnErrorReject,
 			},
 			{
-				Name:      "log",
-				Direction: rpc.FilterBoth,
-				OnError:   rpc.OnErrorAccept,
+				DeclaredFilter: registry.DeclaredFilter{Name: "log", Direction: rpc.FilterBoth},
+				OnError:        rpc.OnErrorAccept,
 			},
 		},
 	}
@@ -197,10 +196,9 @@ func TestFilterDeclarationWithOverrides(t *testing.T) {
 		Name: "allow-own-as",
 		Filters: []FilterRegistration{
 			{
-				Name:      "relaxed",
-				Direction: rpc.FilterImport,
-				OnError:   rpc.OnErrorAccept,
-				Overrides: []string{"rfc:no-self-as"},
+				DeclaredFilter: registry.DeclaredFilter{Name: "relaxed", Direction: rpc.FilterImport},
+				OnError:        rpc.OnErrorAccept,
+				Overrides:      []string{"rfc:no-self-as"},
 			},
 		},
 	}

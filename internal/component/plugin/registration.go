@@ -149,15 +149,14 @@ type PluginRegistration struct {
 
 // FilterRegistration holds a named filter declaration from stage 1.
 //
-// The embedded registry.DeclaredFilter carries the name or name pattern and
-// the declared reads and sets; Raw is derived from the reads (the
+// The embedded registry.DeclaredFilter carries the name or name pattern,
+// direction and declared reads and sets; Raw is derived from the reads (the
 // rpc.FilterFieldRaw read), never declared beside them.
 type FilterRegistration struct {
 	registry.DeclaredFilter
-	Direction rpc.FilterDirection // import / export / both
-	Raw       bool                // The filter reads the raw UPDATE body (FilterUpdateInput.Raw)
-	OnError   rpc.OnErrorPolicy   // reject (fail-closed) or accept (fail-open)
-	Overrides []string            // Default filters this filter replaces
+	Raw       bool              // The filter reads the raw UPDATE body (FilterUpdateInput.Raw)
+	OnError   rpc.OnErrorPolicy // reject (fail-closed) or accept (fail-open)
+	Overrides []string          // Default filters this filter replaces
 	// Readvertise is set when the filter runs on the stale readvertise rail
 	// (rpc.FilterDecl.Readvertise).
 	Readvertise bool

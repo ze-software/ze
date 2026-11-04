@@ -115,11 +115,15 @@ Reloading a filter definition without changing the final is a separate operation
 ## A chain that names a plugin filter
 
 A chain member written `<plugin>:<filter>` names a filter that plugin declares
-when it starts. Ze checks the reference against that declaration: the plugin
-must declare a filter of that name (or a name pattern it matches), and the
-fields the filter declares it reads and sets must be ones the attachment
-carries and lets a filter set. When the check fails, the config is not
-applied:
+when it starts. The qualifier also controls execution: a local policy instance
+with the same filter name cannot replace a reference qualified by another
+plugin. Ze checks the reference against that declaration: the plugin must
+declare a filter of that name (or a name pattern it matches). Its declared
+direction must allow the attachment: an import-only filter cannot run on
+export, an export-only filter cannot run on import, and `both` allows either.
+The fields the filter declares it reads and sets must be ones the attachment
+carries and lets a filter set. Ze checks the direction of a plugin's declared
+auto-insertions too. When the check fails, the config is not applied:
 
 - **At startup, ze does not start.** The plugin is refused at its first stage,
   whatever its failure policy, and ze exits with the reason and the fix.
@@ -151,6 +155,22 @@ plugin's declaration, and start or reload again.
 <!-- source: internal/component/plugin/server/startup.go -- refuseStartupOnLoadedChain -->
 <!-- source: internal/component/plugin/server/startup_autoload.go -- reloadChainRefusal -->
 <!-- source: internal/component/plugin/registry/filter_declaration.go -- ErrLoadedChainRefused -->
+<!-- source: internal/component/plugin/registry/filter_insertion.go -- CheckFilterInsertions -->
+<!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChain -->
+
+A dynamic group may name an external filter through `$remote_as`, `$local_as`
+or `$remote_ip`, for example `bgp-filter-irr:$remote_as`. At config load and
+Stage 1, Ze requires a declaration whose direction, reads and sets fit the
+attachment. An exactly declared name must match the template; a declared name
+pattern is checked against the concrete name after the peer's variables are
+resolved. Ze does not compare the literal `$remote_as` token with an ASN pattern.
+Each peer's resolved name is checked again against the actual declaration,
+with an exact name taking precedence over a pattern. Its direction, reads
+and sets must still fit. A resolved name the plugin does not serve fails
+closed: that peer's chain rejects every route in that direction. Static peers
+cannot use these variables, and an unknown variable is refused at load.
+<!-- source: internal/component/bgp/config/templated_chain.go -- checkTemplatedMember, templatedChain.CompileResolved -->
+<!-- source: internal/component/bgp/config/external_filters.go -- judgeExternalChainTemplate, judgeExternalChainDeclaration -->
 
 ## Filter outcomes
 

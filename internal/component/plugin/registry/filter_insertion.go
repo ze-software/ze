@@ -43,7 +43,8 @@ func CheckFilterInsertions(pluginName string, filters []rpc.FilterDecl, filterTy
 }
 
 func checkFilterInsertion(pluginName string, declared []DeclaredFilter, filterTypes []string, ins *rpc.FilterInsertion) error {
-	if !servesReference(pluginName, declared, filterTypes, ins.Filter) {
+	filter, served := insertionDeclaration(pluginName, declared, filterTypes, ins.Filter)
+	if !served {
 		return insertionError(pluginName, ins, "which the plugin does not serve; insert <plugin>:<filter> of a "+
 			"filter it declares, or <type>:<instance> of a filter type it owns")
 	}
@@ -51,6 +52,13 @@ func checkFilterInsertion(pluginName string, declared []DeclaredFilter, filterTy
 		if ins.Direction != rpc.FilterExport {
 			return insertionError(pluginName, ins, "with a direction other than import or export; declare one "+
 				"insertion per list")
+		}
+	}
+	if filter != nil {
+		if !filter.AllowsDirection(ins.Direction) {
+			return insertionError(pluginName, ins, "for direction "+ins.Direction.String()+
+				", but its filter declares direction "+filter.Direction.String()+
+				"; insert it in that direction or declare the filter for both")
 		}
 	}
 	if ins.Priority < 0 {
@@ -166,26 +174,21 @@ func OwnedYANG(pluginName string) string {
 // priorityRange is the refusal of a priority outside 0 to FilterInsertionPriorityMax.
 var priorityRange = "with a priority outside 0-" + strconv.Itoa(rpc.FilterInsertionPriorityMax)
 
-// servesReference reports whether ref is a chain reference the plugin serves:
-// <plugin>:<filter> of its own declarations, or <type>:<instance> of a type it
-// owns.
-func servesReference(pluginName string, declared []DeclaredFilter, filterTypes []string, ref string) bool {
+// insertionDeclaration answers the declaration an insertion names, with exact
+// names taking precedence over patterns. A served filter-type reference has no
+// Stage 1 declaration, so it answers nil, true and is judged by its type.
+func insertionDeclaration(pluginName string, declared []DeclaredFilter, filterTypes []string, ref string) (*DeclaredFilter, bool) {
 	prefix, name, found := strings.Cut(ref, ":")
 	if !found {
-		return false
+		return nil, false
 	}
 	if name == "" {
-		return false
+		return nil, false
 	}
 	if prefix == pluginName {
-		for i := range declared {
-			if declared[i].Covers(name) {
-				return true
-			}
-		}
-		return false
+		return FindDeclaredFilter(declared, name)
 	}
-	return slices.Contains(filterTypes, prefix)
+	return nil, slices.Contains(filterTypes, prefix)
 }
 
 func insertionError(pluginName string, ins *rpc.FilterInsertion, rule string) error {

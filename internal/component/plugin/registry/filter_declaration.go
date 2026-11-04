@@ -15,15 +15,16 @@ import (
 )
 
 // DeclaredFilter is one Stage 1 filter declaration in the form the subsystem
-// that runs filters judges: the name it answers for, exactly or by pattern, and
-// the route fields it reads and sets. It is a value: nothing in it points into
-// the plugin's declaration.
+// that runs filters judges: the name it answers for, exactly or by pattern,
+// its direction, and the route fields it reads and sets. It is a value:
+// nothing in it points into the plugin's declaration.
 type DeclaredFilter struct {
-	Name        string         // exact filter name; empty when Pattern is set
-	Pattern     *regexp.Regexp // anchored to the whole name; nil when Name is set
-	PatternText string         // the expression as the plugin declared it
-	Reads       []string       // route fields read, rpc.FilterFieldRaw included
-	Sets        []string       // route fields the filter may set
+	Name        string              // exact filter name; empty when Pattern is set
+	Pattern     *regexp.Regexp      // anchored to the whole name; nil when Name is set
+	PatternText string              // the expression as the plugin declared it
+	Direction   rpc.FilterDirection // explicit import/export restriction, or both
+	Reads       []string            // route fields read, rpc.FilterFieldRaw included
+	Sets        []string            // route fields the filter may set
 }
 
 // Covers reports whether the declaration answers for filter name.
@@ -32,6 +33,19 @@ func (d *DeclaredFilter) Covers(name string) bool {
 		return d.Pattern.MatchString(name)
 	}
 	return d.Name == name
+}
+
+// AllowsDirection reports whether an attachment can run the filter. Only an
+// explicit import or export declaration restricts it; unspecified retains the
+// compiler's existing behavior, without adding a default or wire validation.
+func (d *DeclaredFilter) AllowsDirection(direction rpc.FilterDirection) bool {
+	if d.Direction == rpc.FilterImport {
+		return direction == rpc.FilterImport
+	}
+	if d.Direction == rpc.FilterExport {
+		return direction == rpc.FilterExport
+	}
+	return true
 }
 
 // Label names the declaration in an operator message: its name, or its
@@ -110,7 +124,10 @@ func compileFilterDeclaration(pluginName string, f *rpc.FilterDecl) (DeclaredFil
 			"readvertise rail runs export chains, so declare direction export or both, or drop readvertise " +
 			"(docs/architecture/api/process-protocol.md)").String())
 	}
-	d := DeclaredFilter{Name: f.Name, Reads: append([]string(nil), f.Reads...), Sets: append([]string(nil), f.Sets...)}
+	d := DeclaredFilter{
+		Name: f.Name, Direction: f.Direction,
+		Reads: append([]string(nil), f.Reads...), Sets: append([]string(nil), f.Sets...),
+	}
 	if f.NamePattern == "" {
 		return d, nil
 	}
