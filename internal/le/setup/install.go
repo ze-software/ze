@@ -208,16 +208,34 @@ func (i *Installer) aptUpdate() {
 	}
 }
 
-// vendorGoDeps synchronizes vendor/ with go.mod and populates the offline
-// gokrazy module cache. A failed command makes setup fail.
-func (s *Setup) vendorGoDeps(report *Report) bool {
+// vendorGoDeps validates a replacement vendor tree before publishing it, then
+// populates the offline gokrazy module cache. A refusal preserves live vendor/.
+func (s *Setup) vendorGoDeps(report *Report) (succeeded bool) {
 	if !s.Shell.Present(toolGo) {
 		report.Note("  SKIP vendoring: go not available")
 		return false
 	}
-	report.Note("  go mod tidy && go mod vendor")
-
-	for _, argv := range [][]string{{toolGo, goModSubcommand, "tidy"}, {toolGo, goModSubcommand, "vendor"}} {
+	stage, err := os.MkdirTemp(s.Root, ".le-vendor-")
+	if err != nil {
+		report.Note("  FAIL create vendor staging directory: " + err.Error())
+		return false
+	}
+	keepStage := false
+	defer func() {
+		if keepStage {
+			report.Note("  Preserved vendor publication evidence: " + stage)
+			return
+		}
+		if err := os.RemoveAll(stage); err != nil {
+			report.Note("  FAIL remove owned vendor staging directory: " + err.Error())
+			succeeded = false
+		}
+	}()
+	report.Note("  go mod tidy && go mod vendor -o " + filepath.Join(stage, "vendor"))
+	for _, argv := range [][]string{
+		{toolGo, goModSubcommand, "tidy"},
+		{toolGo, goModSubcommand, "vendor", "-o", filepath.Join(stage, "vendor")},
+	} {
 		result := s.Shell.Run(Cmd{Argv: argv, Dir: s.Root})
 		if !result.OK() {
 			var tb textbuf.Buffer
@@ -225,7 +243,15 @@ func (s *Setup) vendorGoDeps(report *Report) bool {
 			return false
 		}
 	}
-	if !s.applyVendorPatches(report) {
+	if !s.applyVendorPatches(report, stage) {
+		return false
+	}
+	replacement := patchedVendor{root: s.Root, stage: stage}
+	// This caller MUST retain stage on a publication error: it may contain
+	// the original tree if restoring it also failed.
+	if err := publishVendor(replacement); err != nil {
+		keepStage = true
+		report.Note("  FAIL publish patched vendor tree: " + err.Error())
 		return false
 	}
 	return s.downloadApplianceDeps(report)
@@ -235,15 +261,21 @@ func (s *Setup) vendorGoDeps(report *Report) bool {
 // patches/ directory read once. Each patch's review stamp is checked first,
 // before the already-applied probe: an applied patch with a stale stamp is
 // still a patch nobody reviewed against the vendored version.
-func (s *Setup) applyVendorPatches(report *Report) bool {
+func (s *Setup) applyVendorPatches(report *Report, vendorRoot string) bool {
 	paths, err := vendorpatch.Patches(s.Root)
 	if err != nil {
 		report.Note("  FAIL " + err.Error())
 		return false
 	}
-	vendored, err := vendorpatch.Vendored(s.Root)
+	vendored, err := vendorpatch.Vendored(vendorRoot)
 	if err != nil {
-		report.Note("  FAIL read the vendored module versions: " + err.Error())
+		var tb textbuf.Buffer
+		report.Note(tb.Str("  FAIL read vendored module versions for patches ").Join(paths, ", ").Str(": ").Err(err).String())
+		return false
+	}
+	directory, err := filepath.Rel(s.Root, vendorRoot)
+	if err != nil {
+		report.Note("  FAIL locate staged vendor tree: " + err.Error())
 		return false
 	}
 	for _, relative := range paths {
@@ -255,17 +287,17 @@ func (s *Setup) applyVendorPatches(report *Report) bool {
 			report.Note("  FAIL apply vendor patch " + relative + ": git not available")
 			return false
 		}
-		reverse := s.Shell.Run(Cmd{Argv: []string{toolGit, gitApply, "--reverse", "--check", relative}, Dir: s.Root})
+		reverse := s.Shell.Run(Cmd{Argv: vendorPatchArgv(directory, "--reverse", "--check", relative), Dir: s.Root})
 		if reverse.OK() {
 			report.Note("  vendor patch already applied: " + relative)
 			continue
 		}
-		check := s.Shell.Run(Cmd{Argv: []string{toolGit, gitApply, "--check", relative}, Dir: s.Root})
+		check := s.Shell.Run(Cmd{Argv: vendorPatchArgv(directory, "--check", relative), Dir: s.Root})
 		if !check.OK() {
 			report.Note("  FAIL check vendor patch " + relative + ": " + check.complaint())
 			return false
 		}
-		apply := s.Shell.Run(Cmd{Argv: []string{toolGit, gitApply, relative}, Dir: s.Root})
+		apply := s.Shell.Run(Cmd{Argv: vendorPatchArgv(directory, relative), Dir: s.Root})
 		if !apply.OK() {
 			report.Note("  FAIL apply vendor patch " + relative + ": " + apply.complaint())
 			return false

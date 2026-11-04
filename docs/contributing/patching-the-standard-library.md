@@ -344,9 +344,9 @@ any other version refuses whether or not the diff applies:
 A patch with no stamp, or a vendor stamp naming a module the vendor directory
 does not hold, refuses the same way: nobody can say it was reviewed. Three places
 refuse. The generator refuses a standard-library stamp before it builds a tree
-(step 2 above). `./le setup install`, which re-vendors and then applies the
-vendor patches, refuses a vendor stamp before it applies the patch,
-so a re-vendor at a new module version stops before patching. It reads the
+(step 2 above). `./le setup install` re-vendors into an owned staging directory,
+then checks each vendor stamp and applies every patch there. A new module
+version stops before patching or replacing the current `vendor/`. It reads the
 stamp before it asks git whether the patch is already applied, because an
 applied patch with a stale stamp is still unreviewed, and it refuses a patch
 file that is missing rather than skipping it. Each refusal ends with the
@@ -437,13 +437,22 @@ file is not in the tree, so that patch is applied at build time.
 | Part | Location | Role |
 |------|----------|------|
 | The patches | `internal/le/vendorpatch/patches/*.patch` | The set is the files present: adding a patch needs no edit anywhere else (`vendorpatch.Patches`) |
-| The re-vendor | `./le setup install` (`internal/le/setup`, `vendorGoDeps`) | Runs `go mod tidy` and `go mod vendor`, which return every vendored file to upstream, then checks each stamp and applies every patch (`applyVendorPatches`) |
+| The re-vendor | `./le setup install` (`internal/le/setup`, `vendorGoDeps`) | Runs `go mod tidy`, then `go mod vendor -o <owned-stage>/vendor`. It checks every stamp against the staged module versions and applies every patch there before publishing the replacement. A command or patch refusal leaves the current `vendor/` untouched |
 | The upstream check | `TestPatchedVendorModulesMatchUpstream` (`internal/le/vendorpatch`) | For each module a patch names, reverts its patches in a copy of `vendor/<module>` and requires every file to equal the module at the vendored version, as `go mod download` fetches it. A hand edit no patch records, a dropped patch and a half-applied one all turn it red. It reads the module from the Go module cache, which `./le setup install` fills; on a cold cache it needs network access to download the module |
 | The guard tests | `TestNetlinkXFRMPatchApplied`, `TestBubblesCursorPatchApplied` | Older per-patch guards (`assertVendorPatchApplied`), which check that each hunk is present with `git apply --reverse --check` and need no module cache |
 
-A plain `go mod vendor` drops every patch. Run `./le setup install` instead, or
-apply each patch with `git apply <patch>` afterwards; the upstream check names
-the module whose patches are missing either way.
+A plain `go mod vendor` drops every patch. Run `./le setup install` instead.
+Its owned dot-prefixed stage sits beside `vendor/`, on the same filesystem.
+Only after all patches pass does publication retain the original tree and
+rename the patched replacement into place. If that rename fails, it attempts
+to restore the original. A publication error retains the stage and names its
+path, including the original tree if restoration also failed; setup reports
+failure rather than discarding those recovery bytes. Ordinary refusals remove
+only the owned stage. `go mod tidy` may still update `go.mod` and `go.sum`
+before a refusal: this guarantee protects the existing vendor tree, not every
+dependency manifest.
+<!-- source: internal/le/setup/install.go -- vendorGoDeps, applyVendorPatches -->
+<!-- source: internal/le/setup/vendor_stage.go -- publishVendor, vendorPatchArgv -->
 
 Dependabot runs that plain `go mod vendor` for every Go update it opens, so its
 branch loses every patch, whatever module it moved, and le no longer builds from

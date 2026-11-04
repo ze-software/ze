@@ -665,9 +665,10 @@ func TestAGoInstallThatGoCannotPlaceIsPending(t *testing.T) {
 // TestAFailedVendorFailsTheRun proves a failed `go mod vendor` makes setup fail.
 func TestAFailedVendorFailsTheRun(t *testing.T) {
 	rec := rootShell("go")
+	root := t.TempDir()
 	rec.answers["go mod vendor"] = Result{Code: 1, Err: "inconsistent vendoring\n"}
 	report := &Report{}
-	setup := &Setup{Root: t.TempDir(), Shell: rec.shell()}
+	setup := &Setup{Root: root, Shell: vendorFixtureShell(t, root, rec)}
 
 	if setup.vendorGoDeps(report) {
 		t.Fatal("a failed `go mod vendor` reported success")
@@ -700,7 +701,7 @@ func TestVendoringDownloadsEveryApplianceModule(t *testing.T) {
 	}
 	writeVendorPatchSet(t, root, nil)
 	rec := rootShell("go")
-	if !(&Setup{Root: root, Shell: rec.shell()}).vendorGoDeps(&Report{}) {
+	if !(&Setup{Root: root, Shell: vendorFixtureShell(t, root, rec)}).vendorGoDeps(&Report{}) {
 		t.Fatal("native dependency setup failed")
 	}
 	got := rec.ran()
@@ -722,7 +723,7 @@ func TestVendoringReappliesOwnedVendorPatches(t *testing.T) {
 	for _, relative := range vendorPatchPaths {
 		rec.answers["git apply --reverse --check "+relative] = Result{Code: 1, Err: "not applied"}
 	}
-	if !(&Setup{Root: root, Shell: rec.shell()}).vendorGoDeps(&Report{}) {
+	if !(&Setup{Root: root, Shell: vendorFixtureShell(t, root, rec)}).vendorGoDeps(&Report{}) {
 		t.Fatal("vendoring with applicable owned patches failed")
 	}
 	want := []string{"go mod tidy", "go mod vendor"}
@@ -745,7 +746,7 @@ func TestVendoringFailsWhenAnOwnedPatchCannotApply(t *testing.T) {
 	rec.answers["git apply --reverse --check "+relative] = Result{Code: 1, Err: "not applied"}
 	rec.answers["git apply --check "+relative] = Result{Code: 1, Err: "does not apply"}
 	report := &Report{}
-	if (&Setup{Root: root, Shell: rec.shell()}).vendorGoDeps(report) {
+	if (&Setup{Root: root, Shell: vendorFixtureShell(t, root, rec)}).vendorGoDeps(report) {
 		t.Fatal("vendoring accepted an owned patch that could not apply")
 	}
 	if !strings.Contains(report.Text(), "does not apply") {

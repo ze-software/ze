@@ -204,7 +204,7 @@ func (s *Setup) Run() (*Report, int) {
 	// (le.application.setup.action). It then ends with "Setup complete" and exit
 	// 0 (plan/journal/validated-value-discarded-by-its-caller.md, 2026-08-26).
 	if !vendored {
-		report.Note("Vendoring failed: the tree will not build until `go mod vendor` succeeds.")
+		report.Note("Vendoring failed: resolve the reported cause, then rerun `./le setup install`; a bare `go mod vendor` drops owned patches.")
 		return report, 1
 	}
 	if code == 0 {

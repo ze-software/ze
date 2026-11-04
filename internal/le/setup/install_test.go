@@ -83,7 +83,7 @@ func TestVendorPatchRefusesAStaleReviewStamp(t *testing.T) {
 				rec.answers["git apply --reverse --check "+relative] = Result{}
 			}
 			report := &Report{}
-			if (&Setup{Root: root, Shell: rec.shell()}).applyVendorPatches(report) {
+			if (&Setup{Root: root, Shell: rec.shell()}).applyVendorPatches(report, root) {
 				t.Fatalf("the patch was accepted:\n%s", report.Text())
 			}
 			if ran := rec.ran(); slices.ContainsFunc(ran, func(c string) bool { return strings.HasPrefix(c, "git ") }) {
@@ -107,7 +107,7 @@ func TestVendorPatchRefusesAStaleReviewStamp(t *testing.T) {
 		rec := rootShell("go", "git")
 		rec.answers["git apply --reverse --check "+relative] = Result{}
 		report := &Report{}
-		if !(&Setup{Root: root, Shell: rec.shell()}).applyVendorPatches(report) {
+		if !(&Setup{Root: root, Shell: rec.shell()}).applyVendorPatches(report, root) {
 			t.Fatalf("an equal stamp refused:\n%s", report.Text())
 		}
 	})
