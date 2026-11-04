@@ -44,7 +44,7 @@ independent auditor, and both tooling tests pass.
   → Decision: a record says a named tagged unit was OBSERVED to fail under a named break; `./le rfc check` replays nothing and compares fingerprints, so a moved unit or producer fingerprint means the red must be observed again ("The discrimination record")
   → Constraint: `./le rfc reseal stem <stem>` re-stamps only a verdict whose unit is byte-identical and shifted; it cannot re-judge changed scope, and it re-stamps only the stems named ("The artifacts", the `rfc/audit` row)
   → Constraint: a STALE verdict is re-made by a judge and stored with `./le rfc audit-stamp stem <stem> from <path> mode rejudge`; an upgrade from `weak`, `wrong` or `partial` to `enforced` over unchanged units needs an `upgrade_reason`
-  → Constraint: a unit test file named for a stem carries a tag for it or the `// RFC naming: untagged -- <reason>` marker, else it is renamed with `./le rfc move` ("Test file names")
+  → Constraint: a unit test file named for a stem carries a tag for it or the `// RFC naming: untagged -- <reason>` marker. A tracked rename uses the commit-owned `file`/`remove` route, not `./le rfc move`, which removes its source immediately ("Moving a tagged test file", "Test file names")
 - [ ] `docs/architecture/testing/interop.md` - the interop records run a scenario against FRR
   → Constraint: an interop record rebuilds the artifact the scenario drives so the break takes effect, and a Docker start under load times out rather than proving anything
 - [ ] `ai/skills/ze-rfc-audit.md` - the audit a STALE row owes
@@ -52,6 +52,8 @@ independent auditor, and both tooling tests pass.
 - [ ] `ai/doors/le-tooling.md`, `ai/doors/routing-protocols.md`, `ai/doors/access-security.md`, `ai/doors/bgp-engine.md`, `ai/doors/bgp-plugins.md`, `ai/doors/hub-engine.md` - the subsystems whose tagged units this spec re-proves
   → Constraint: a bare `go test` omits feature tags; run a package through `./le job run label <label> command go test -tags <tags> <package>` (le-tooling, "Boundaries")
   → Constraint: the public conformance ledger is an outside party of every protocol subsystem (routing-protocols, "Who depends on it from outside")
+- [ ] `internal/plugins/ospf/instance_enable_test.go` - the descriptive destination for AC-3
+  → Constraint: preserve `TestOSPFv3InterfaceEnabledWithConfiguredInstanceID` byte-for-byte on the rename route; a descriptive filename makes no RFC proof claim
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc1661.md`, `rfc2328.md`, `rfc2516.md`, `rfc2545.md`, `rfc4271.md`, `rfc4659.md`, `rfc8907.md`, `rfc1997.md`, `rfc5340.md` - the rows re-judged
@@ -69,7 +71,7 @@ independent auditor, and both tooling tests pass.
 - [ ] `rfc/discrimination/rfc2328/RFC2328-4.4-3.json`, `RFC2328-D.3-1.json` - positive revert records on `transport.go::HandleLinkUp` and `transport.go::SendPacket`, unit-changed by b5fdf9a87f (which edited both test files and `transport.go`)
 - [ ] `rfc/discrimination/rfc2545/RFC2545-3-2.json`, `RFC2545-3-3.json` - revert records of `internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops` against `internal/component/bgp/reactor/link_scope.go::sharesNextHopSubnet`: 3-2 positive, 3-3 positive and negative. c782411791 changed the check function, so all three are unit-changed and RFC2545-3-3's partial scope lacks a current verified break
 - [ ] `internal/le/interoplab/bgp/check_special.go` - `checkRFC2545NextHops` runs for scenario `bgp-rfc2545-linklocal-nexthop-frr`
-- [ ] `internal/plugins/ospf/rfc5340_instance_enable_test.go` - added in b5fdf9a87f, named for rfc5340, carries no RFC 5340 tag
+- [ ] `internal/plugins/ospf/instance_enable_test.go` - the prepared descriptive destination for AC-3. Historical source: `internal/plugins/ospf/rfc5340_instance_enable_test.go`, added in b5fdf9a87f, named for rfc5340 but carrying no RFC 5340 tag. The historical source stays in place until the generated commit script removes it
 - [ ] `internal/le/rfc/check_evidence_test.go::TestPriorEvidenceReadsTheNewestCommitHoldingTheBacklog` - FAILS deterministically in 0.2 s on 2026-11-02: when HEAD^ deleted `rfc/exclusion-evidence-backlog.txt` the prior-evidence reader answers no counts instead of the count read at the newest commit holding the file, and a malformed HEAD^ over a valid ancestor is not walked past (lines 459, 462, 467, 498, 508)
 - [ ] `internal/le/rfc/selftest_test.go::TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` - hit its 10-minute limit on a loaded host; no failing assertion was observed, so whether it is a timeout or a real failure is unknown
 
@@ -89,7 +91,7 @@ independent auditor, and both tooling tests pass.
 | `./le rfc check` | `internal/le/rfc`, gates page "The gate's own answer" | Compares record and verdict fingerprints with the tree and names every one that moved | Uses it as the settling command of every AC |
 | `./le rfc audit-stamp ... mode rejudge` | gates page "The artifacts", `rfc/audit` row | Replaces a re-made verdict in place with fresh fingerprints | Stores every STALE re-judge |
 | `./le rfc reseal stem <stem>` | gates page "The artifacts" | Re-stamps a byte-identical, shifted unit's verdict for the named stems | Clears RFC1997-Well-1 |
-| `./le rfc move` | gates page "Moving a tagged test file", "Test file names" | Renames a tagged test file and its references together | One route for the rfc5340 file name |
+| Commit-owned tracked rename | `docs/contributing/committing.md` "The keywords", gates page "Moving a tagged test file" | Selects the byte-identical destination with `file` and retains the source until the generated script removes it through `remove` | The rename route for AC-3; `./le rfc move` removes its source immediately and is not this route |
 | `/ze-rfc-audit` skill | `ai/skills/ze-rfc-audit.md` | An independent judge re-reads the RFC and the tests and writes a verdict | Every STALE row is re-judged through it by an agent that did not change the unit |
 | `/ze-test-judge` skill | `.claude/skills/ze-test-judge/` | An independent agent judges a test change that could lower what a test proves | Required only if a tooling test or a re-proved test is changed rather than the producer |
 | Interop harness | `internal/le/interoplab`, `docs/architecture/testing/interop.md` | Runs one scenario against FRR in Docker | Drives the three RFC 2545 records; run only on a quiet host |
@@ -98,7 +100,7 @@ independent auditor, and both tooling tests pass.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le rfc record`, `./le rfc audit-stamp`, `./le rfc reseal`, `./le rfc move`, each reading `rfc/short/<stem>.md` and the tagged units
+- `./le rfc record`, `./le rfc audit-stamp`, `./le rfc reseal`, each reading `rfc/short/<stem>.md` and the tagged units; the AC-3 tracked rename uses `./le commit create` with `file` and `remove`
 - Output: JSON under `rfc/discrimination/<stem>/` and `rfc/audit/<stem>/`
 
 ### Transformation Path
@@ -169,7 +171,7 @@ are re-made by an independent `/ze-rfc-audit` agent and stamped with
 |-------|-------------------|-------------------|
 | AC-1 | Record RFC2328-4.4-3 positive, cause b5fdf9a87f (OSPF) | `./le rfc record id RFC2328-4.4-3 polarity positive unit internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF route revert producer internal/plugins/ospf/transport/transport.go::HandleLinkUp` observes the red; `./le rfc check` no longer names `RFC2328-4.4-3.json` |
 | AC-2 | Record RFC2328-D.3-1 positive, cause b5fdf9a87f | `./le rfc record id RFC2328-D.3-1 polarity positive unit internal/plugins/ospf/transport/rfc2328_digest_ip_length_test.go::TestRFC2328DigestCountedInIPLengthNotPacketLength route revert producer internal/plugins/ospf/transport/transport.go::SendPacket` observes the red; `./le rfc check` no longer names `RFC2328-D.3-1.json` |
-| AC-3 | File name `internal/plugins/ospf/rfc5340_instance_enable_test.go`, cause b5fdf9a87f | Either the file is tagged for the RFC 5340 row it proves (the Instance ID enable behaviour) with a record taken by `./le rfc record`, or it is renamed by `./le rfc move from internal/plugins/ospf/rfc5340_instance_enable_test.go to internal/plugins/ospf/instance_enable_test.go`; `./le rfc check` no longer names the file |
+| AC-3 | Historical misnamed source `internal/plugins/ospf/rfc5340_instance_enable_test.go`, cause b5fdf9a87f; descriptive destination `internal/plugins/ospf/instance_enable_test.go` | Either the file is tagged for the RFC 5340 row it proves (the Instance ID enable behaviour) with a record taken by `./le rfc record`, or the byte-identical descriptive destination is selected by `./le commit create` with `file internal/plugins/ospf/instance_enable_test.go` and `remove internal/plugins/ospf/rfc5340_instance_enable_test.go`, leaving the source in place until the generated script removes it; `./le rfc check` no longer names the file |
 | AC-4 | Interop record RFC2545-3-2 positive, cause c782411791, on a quiet host | `./le rfc record id RFC2545-3-2 polarity positive unit internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops route revert producer internal/component/bgp/reactor/link_scope.go::sharesNextHopSubnet` observes scenario `bgp-rfc2545-linklocal-nexthop-frr` red; the RFC2545-3-2 record line leaves `./le rfc check`. Note (2026-11-03, from the stage-filters work): that revert route now fails at assertion 2 (the halt drops the route before FRR sees it), so the recorder refuses it as not naming citation 4; a hand-written mutant that keeps the route is owed. Three encoder breaks stayed green under this checker: `update_build.go` `buildMPReach`, `reactor_wire.go` `announceNextHopOctets`, and `buildMPReach` paired with the `!ll.IsValid()` egress raise in `forward_next_hop.go` `applyEgressNextHopScope`, so the config `update` route builds the next-hop pair elsewhere (candidates: rib `commit.go` `buildMPReachNLRI`, `reactor_api_batch.go` `buildBatchAnnounceUpdate`, `peer_rib_routes.go` `buildRIBRouteUpdate`, `peer_forward_facts.go` `applyFactsNextHop`). FRR 10.7.1 `bgp_path_info_to_ipv6_nexthop` (`bgpd/bgp_zebra.c`) always installs via the link-local once the 32-octet pair arrives, so citation 5 is unreachable by a Ze break |
 | AC-5 | Interop record RFC2545-3-3 positive, cause c782411791, quiet host | The same command with `id RFC2545-3-3 polarity positive` observes the red; that record line leaves `./le rfc check` |
 | AC-6 | Interop record RFC2545-3-3 negative, cause c782411791, quiet host | The same command with `id RFC2545-3-3 polarity negative` observes the red; that record line and both "partial scope needs a current verified mutant/revert" lines for RFC2545-3-3 leave `./le rfc check` |
@@ -222,11 +224,11 @@ are re-made by an independent `/ze-rfc-audit` agent and stamped with
 - `internal/le/rfc/` - the prior-evidence reader behind AC-26, and the selftest cost if AC-25 finds one
 - `rfc/discrimination/rfc2328/RFC2328-4.4-3.json`, `RFC2328-D.3-1.json`, `rfc/discrimination/rfc2545/RFC2545-3-2.json`, `RFC2545-3-3.json` - written by `./le rfc record`
 - `rfc/audit/rfc1661/`, `rfc2328/`, `rfc2516/`, `rfc2545/`, `rfc4271/`, `rfc4659/`, `rfc8907/`, `rfc1997/` - the verdict files of AC-7 to AC-24, written by the tools
-- `internal/plugins/ospf/rfc5340_instance_enable_test.go` - tag or rename (AC-3)
+- `internal/plugins/ospf/instance_enable_test.go` - the descriptive destination for AC-3; preserve the tag-or-rename choice and retire the historical misnamed source only through the rename commit's `remove`
 - Any producer an audit or record shows defective, named in the commit that fixes it
 
 ## Files to Create
-- None, unless AC-3 takes the rename route (`internal/plugins/ospf/instance_enable_test.go`)
+- None. The AC-3 descriptive destination is already prepared and listed above
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
