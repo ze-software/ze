@@ -1272,3 +1272,9 @@ Plugins can register custom commands:
 - `commands.md` - Command syntax details
 - `cli.md` - JSON output format details
 - `capability-contract.md` - GR/RR capability handling
+If the peer sends a response and then closes, `MuxConn.CallRPC` consumes that
+queued response before returning the reader's terminal error. A peer that
+closes without responding still fails the call. Waiting calls remain cancelable
+through their context.
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallRPC, MuxConn.queuedResponse -->
+

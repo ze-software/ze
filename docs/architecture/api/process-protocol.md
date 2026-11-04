@@ -3017,3 +3017,9 @@ Plugin reads decode requests from stdin, writes responses to stdout, exits on EO
 ---
 
 **Last Updated:** 2026-03-22
+A response already routed to a `CallRPC` caller is consumed before the reader's
+terminal error, even when the peer closes immediately after sending it. A close
+with no queued response remains an error. Waiting calls remain cancelable
+through their context.
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallRPC, MuxConn.queuedResponse -->
+

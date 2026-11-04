@@ -244,7 +244,7 @@ func (m *MuxConn) AnswerWriter(ctx context.Context) io.Writer {
 }
 
 // Close stops the background reader and closes the underlying connection.
-// All pending CallRPC callers will unblock with an error.
+// Pending CallRPC callers receive a queued response or the reader's terminal error.
 // Safe to call multiple times.
 func (m *MuxConn) Close() error {
 	var err error
@@ -301,6 +301,18 @@ func (m *MuxConn) CallRPC(ctx context.Context, method string, params any) (json.
 		return nil, ctx.Err()
 	case <-m.done:
 		m.pending.Delete(idStr)
+		return m.queuedResponse(respCh)
+	}
+}
+
+// queuedResponse returns the response routed before the reader stopped, or the
+// terminal error when none was delivered. readLoop queues its response before
+// closing done, so reader completion cannot discard a peer's last response.
+func (m *MuxConn) queuedResponse(respCh <-chan []byte) (json.RawMessage, error) {
+	select {
+	case body := <-respCh:
+		return interpretResponse(body)
+	default:
 		return nil, m.closedErr()
 	}
 }
