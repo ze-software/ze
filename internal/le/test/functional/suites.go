@@ -103,6 +103,7 @@ const (
 	suiteTraffic    = "traffic"
 	suiteFlowExport = "flow-export"
 	suiteVpp        = "vpp"
+	suitePppoe      = "pppoe"
 	suiteVrrp       = "vrrp"
 	suiteBfd        = "bfd"
 	suiteDhcp       = "dhcp"
@@ -161,9 +162,9 @@ var Gating = []string{
 
 // Suites defines what each name runs. Gating decides which of them gate, and
 // this table is ordered to agree with it: the gating suites first, then the
-// four that need platform tooling or a fixture ze-precommit-verify does not
-// provide. Those four supply release evidence, not merge gates, so their .ci
-// files have no verify tier.
+// suites that need platform tooling or a fixture ze-precommit-verify does not
+// provide. Those supply release evidence, not merge gates, so their .ci files
+// have no verify tier.
 // enumeration: exempt (these are functional test suite names, not plugin names; the list being hand-written is its own defect, recorded in plan/journal/plugin-list-hardcoded.md)
 var Suites = []Suite{
 	{
@@ -271,6 +272,12 @@ var Suites = []Suite{
 		Summary: "run the VPP stub suite",
 		Why: "the VPP stub; it carries no -p because its serial default lives in the" +
 			" command itself (release evidence only)",
+	},
+	{
+		Name: suitePppoe, Args: []string{"pppoe", allTests},
+		Summary: "run the PPPoE access-concentrator suite",
+		Why: "PPPoE; discovery and data-plane scenarios need network namespaces and" +
+			" ze's runtime kernel (release evidence only)",
 	},
 }
 

@@ -2144,10 +2144,13 @@ fixture, such as `./le test ui ze-help-ai-unchanged`. It reads every
 runner walks a directory (`testfunctional.CIRunnerWords`): the functional suite
 table, then the `le test bgp` directories, then a registered `le test <dir>`
 command. A suite's name is not always its directory (suite `installer` runs
-`test/install/` through `./le test install`), and `test/pppoe/` has a runner
-but no suite row, so the suite table alone misses both. Each command is that
-runner's words before `--all`, then the file's stem. When no `.ci` test starts
-the fixture, it prints the `exec=` step to add instead. A driver that needs the checkout reads `$ZE_REPO_ROOT`, which the
+`test/install/` through `./le test install`), and registered runners need not
+have a suite row, so the suite table alone cannot resolve every harness.
+PPPoE has a non-gating suite row and uses its existing `le test pppoe` runner,
+including for `suite "pppoe --draft"` stress reproduction; its platform and
+namespace requirements remain unchanged. Each fixture command is its runner's
+words before `--all`, then the file's stem. When no `.ci` test starts the
+fixture, it prints the `exec=` step to add instead. A driver that needs the checkout reads `$ZE_REPO_ROOT`, which the
 runner exports; it never reads the working directory for one.
 <!-- source: internal/test/fixture/fixture.go -- Run, refuseRepoRoot, fixtureTestCommands, startsFixture -->
 <!-- source: internal/le/test/functional/cirunner.go -- CIRunnerWords, Suite.OneTestWords -->

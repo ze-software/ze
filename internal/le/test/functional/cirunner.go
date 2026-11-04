@@ -7,8 +7,8 @@
 // `le test bgp` runner's directories, and the `le test <dir>` commands the
 // harness packages register. A suite name is not always its directory (suite
 // `installer` runs test/install/ through `le test install`), and a directory can
-// have a runner and no suite row (test/pppoe/), so walking the suite table alone
-// misses both.
+// have a registered runner without a functional suite row, so walking the
+// suite table alone does not cover every harness.
 
 package testfunctional
 

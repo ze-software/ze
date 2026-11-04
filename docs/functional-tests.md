@@ -150,6 +150,7 @@ must be run manually:
 | Traffic control | `./le test functional traffic` | Requires traffic-control platform support |
 | Flow export | `./le test functional flow-export` | Requires Linux packet-sampling support for release evidence |
 | VPP | `./le test functional vpp` | Uses the Go VPP stub in `internal/test/cli/cmd_vpp_stub.go` |
+| PPPoE | `./le test functional pppoe` | Discovery/data-plane tests retain the PPPoE runner's netns/runtime-kernel requirements; use `./le test qemu pppoe` for that evidence |
 | L2TP wire | `./le test functional l2tp-wire` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
 | OSPFv2 wire | `./le test functional ospf-wire` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
 | IS-IS wire | `./le test functional isis-wire` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
@@ -315,6 +316,10 @@ takes the suite's NAME from that table (`suite plugin`, `suite ui`) and runs the
 argv the table gives it, so `suite plugin` launches `le test bgp plugin`; words
 after the name, such as `--draft`, follow that argv, and a name the table does
 not hold is refused with the list of valid ones before any load starts.
+PPPoE is registered there as a non-gating suite too:
+`suite "pppoe --draft"` launches `le test pppoe --draft`. This does not
+override a test's platform or namespace requirements; kernel-dependent PPPoE
+tests still need the runtime-kernel QEMU path.
 A runner given a verb it does not know prints its usage and **exits 0**, so
 `le test bgp ui --draft` reads as a pass and runs nothing (`ai/rules/commands.md`; the defect is recorded in
 `plan/journal/silent-fall-through.md`). The check is a `--- PASS` or

@@ -86,3 +86,19 @@ func TestUnknownSuiteIsRefusedBeforeLaunchNamingTheValidOnes(t *testing.T) {
 		}
 	}
 }
+
+// TestPPPoEDraftLaunchesItsHarness proves PPPoE drafts reach the existing
+// PPPoE runner while an unknown suite is still refused before invocation.
+func TestPPPoEDraftLaunchesItsHarness(t *testing.T) {
+	t.Parallel()
+	got, err := harnessArgs("pppoe --draft")
+	if err != nil {
+		t.Fatalf("PPPoE draft refused: %v", err)
+	}
+	if want := []string{"pppoe", "--draft"}; !slices.Equal(got, want) {
+		t.Fatalf("PPPoE draft launches le test %v, want %v", got, want)
+	}
+	if got, err := harnessArgs("not-a-functional-suite --draft"); err == nil {
+		t.Fatalf("unknown suite accepted with argv %v", got)
+	}
+}
