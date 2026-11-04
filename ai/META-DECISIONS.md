@@ -306,6 +306,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - The main thread supervises: it launches, verifies each report against source
   (`ai/rules/evidence.md`), decides, and gates the next phase. Only questions the
   user must answer stay in the main thread.
+- All testing and code execution runs in the main thread, serialized to avoid
+  overloading the shared machine. Subagents read, review and edit sources, then
+  hand the required commands to the main thread; they do not run tests, builds,
+  lint, formatters or other code themselves.
 
 ## Reports and messages
 
