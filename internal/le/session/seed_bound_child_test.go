@@ -254,7 +254,7 @@ func TestSeedNativeAdmissionRefusals(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			cmd := exec.Command(program, args...) //nolint:gosec // Test-owned native artifact.
+			cmd := exec.CommandContext(t.Context(), program, args...) //nolint:gosec // Test-owned native artifact.
 			cmd.Dir, cmd.Env = root, environ
 			cmd.ExtraFiles = []*os.File{executable, directory}
 			output, err := cmd.CombinedOutput()

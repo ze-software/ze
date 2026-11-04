@@ -39,7 +39,7 @@ func TestPortableHeldExecutable(t *testing.T) {
 		t.Fatal(err)
 	}
 	argv := []string{path, "one two", "three"}
-	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd := exec.CommandContext(t.Context(), argv[0], argv[1:]...)
 	cleanup, err := stageProcessExecutable(cmd, file)
 	if err != nil {
 		t.Fatal(err)
@@ -194,7 +194,7 @@ func TestPortableExecutableCopyFailure(t *testing.T) {
 	if _, err := file.WriteString("unreadable"); err != nil {
 		t.Fatal(err)
 	}
-	if cleanup, err := stageProcessExecutable(exec.Command(file.Name()), file); err == nil || cleanup != nil {
+	if cleanup, err := stageProcessExecutable(exec.CommandContext(t.Context(), file.Name()), file); err == nil || cleanup != nil {
 		t.Fatalf("copy accepted: cleanup=%v err=%v", cleanup != nil, err)
 	}
 	entries, err := os.ReadDir(scratch)
@@ -205,7 +205,7 @@ func TestPortableExecutableCopyFailure(t *testing.T) {
 
 func TestPortableExecutableNoDescriptor(t *testing.T) {
 	scratch := portableScratch(t)
-	cmd := exec.Command("/bin/sh", "-c", "exit 0")
+	cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "exit 0")
 	before := cmd.Path
 	cleanup, err := stageProcessExecutable(cmd, nil)
 	if err != nil || cleanup != nil || cmd.Path != before || len(cmd.ExtraFiles) != 0 {
@@ -249,7 +249,7 @@ func TestPortableExecutableCleanupOwnFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer file.Close() //nolint:errcheck // Borrowed executable.
-	cmd := exec.Command("/bin/sh", "-c", "exit 0")
+	cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "exit 0")
 	cleanup, err := stageProcessExecutable(cmd, file)
 	if err != nil {
 		t.Fatal(err)

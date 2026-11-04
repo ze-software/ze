@@ -13,11 +13,11 @@ import (
 )
 
 // stageProcessExecutable borrows executable and reads from offset zero. The
-// caller MUST remove the exclusive scratch artifact after child reap or any
-// launch refusal. It never reopens executable.Name().
+// caller MUST remove any returned exclusive scratch artifact after child reap or
+// launch refusal. A nil cleanup means no artifact was needed. It never reopens executable.Name().
 func stageProcessExecutable(cmd *exec.Cmd, executable *os.File) (_ func() error, retErr error) {
 	if executable == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil // runProcess accepts successful preparation with no cleanup obligation.
 	}
 	info, err := executable.Stat()
 	if err != nil {

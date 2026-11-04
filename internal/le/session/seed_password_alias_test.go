@@ -2,6 +2,7 @@
 package session
 
 import (
+	"bytes"
 	"crypto/rand"
 	"os"
 	"path/filepath"
@@ -31,13 +32,13 @@ func TestSeedPasswordRejectsHardlink(t *testing.T) {
 	defer root.Close() //nolint:errcheck // Test directory.
 	password, err := ensurePassword(root, rand.Reader)
 	if err == nil {
-		t.Errorf("accepted hardlinked password %q", password)
+		t.Errorf("accepted hard-linked password %q", password)
 	}
 	got, err := os.ReadFile(outside)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != string(content) {
+	if !bytes.Equal(got, content) {
 		t.Errorf("outside bytes changed: %q", got)
 	}
 	info, err := os.Stat(outside)

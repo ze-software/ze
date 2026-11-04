@@ -453,7 +453,7 @@ func createSeedPassword(root *os.Root, random io.Reader) (string, error) {
 	}
 	defer root.Remove(stage) //nolint:errcheck // Publication removes the private staging name.
 	defer file.Close()       //nolint:errcheck // Publication checks file sync below.
-	if _, err := io.WriteString(file, password+"\n"); err != nil {
+	if _, err := file.WriteString(password + "\n"); err != nil {
 		return "", err
 	}
 	if err := file.Chmod(0o600); err != nil {
@@ -466,9 +466,4 @@ func createSeedPassword(root *os.Root, random io.Reader) (string, error) {
 		return "", fmt.Errorf("cannot publish session password: %w", err)
 	}
 	return password, nil
-}
-
-func pathExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }
