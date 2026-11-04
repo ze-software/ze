@@ -304,6 +304,10 @@ commands the running daemon's dispatcher serves, a name and a summary each,
 while the catalog walks the YANG tree, the local registry and the plugin
 declarations of this binary and gives each command its grammar, arguments,
 pipes and mode.
+
+The catalog's `mode` retains a live command's `daemon` or `read-only`
+classification and appends `offline` when an exact-path local handler also
+serves it. Each command path has one row, even when both routes serve it.
 <!-- source: internal/component/command/local.go -- ModelPath -->
 <!-- source: internal/plugins/meta/cmd/help.go -- handleBgpCommandList -->
 <!-- source: internal/plugins/help/help_command.go -- collectCommands -->
@@ -336,7 +340,7 @@ answer:
 |---------|---------------------------|
 | SSH exec, and `ze cli -c` reading it | On the session's stderr before the answer frame (`writeExecWarnings`); `sshclient.ExecCommandStream` returns it as `Answer.Warnings`, which `ze cli` prints on stderr |
 | SSH interactive session | Above the rendered answer (`cli.CommandOutput.Warning`) |
-| MCP `tools/call` | A second text item, `Warning: <lines>`, after the answer item |
+| MCP `tools/call` | A second text item, `Warning: <lines>`, after the answer item | <!-- doc-links: ignore (tools/call is an MCP protocol method, not a repository path) -->
 | REST | The `warnings` array of the JSON body |
 | gRPC | `CommandResponse.warnings` |
 | Web admin | The `warnings` key of a JSON result; above the output in the result card |
@@ -1771,7 +1775,7 @@ Each verdict of `verdicts`:
 
 **`peer` and `peer-as` change meaning with the direction, and the callback says
 so only through `direction`.** The import chain passes the sending peer
-(`runIngressPolicyChain`) and the export chain passes the destination
+(`runIngressPolicyChainMeta`) and the export chain passes the destination
 (`runEgressPolicyChainASN4`), both through the library chain's external
 member (`runLibraryChain`). A filter that
 reads the ASN as "who sent me this" is wrong on export, where nothing in the
@@ -1782,7 +1786,7 @@ is carried to `plugin.FilterRegistration.Direction` and read by nothing in the
 engine, so a filter is called on whichever chain the operator's config names it
 in. Direction lives on the config attachment point, and a filter that must act on
 one direction only tests `direction` itself.
-<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChain, runEgressPolicyChainASN4 -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChainMeta, runEgressPolicyChainASN4 -->
 <!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
 <!-- source: internal/component/plugin/server/startup.go -- the one writer of FilterRegistration.Direction -->
 

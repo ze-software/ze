@@ -393,6 +393,11 @@ func collectCommands() ([]commandEntry, error) {
 			if pluginserver.IsReadOnlyPath(cliPath) {
 				mode = "read-only"
 			}
+			// A local handler is a second route even when the daemon serves
+			// the same path; the later local pass skips this entry.
+			if command.HasLocal(cliPath) {
+				mode += ", " + modeOffline
+			}
 			node := findNode(tree, cliPath)
 			desc, explanation := "", ""
 			if node != nil {

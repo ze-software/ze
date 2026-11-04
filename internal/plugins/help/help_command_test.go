@@ -36,6 +36,48 @@ func TestCollectCommands(t *testing.T) {
 	}
 }
 
+// TestCollectCommandsIncludesBothRoutes checks the live catalog for a local-data
+// command and a plain local shortcut whose path the daemon also serves.
+func TestCollectCommandsIncludesBothRoutes(t *testing.T) {
+	// The executable owns this shortcut, so reproduce its registration as the
+	// existing operator test does without linking cmd/ze into this package.
+	if !command.HasLocal("show version") {
+		command.MustRegisterLocal("show version", func(command.ValidatedArgs) int { return 0 })
+	}
+	cases := []struct {
+		path      string
+		localData bool
+		mode      string
+	}{
+		{path: "clear debug", localData: true, mode: "daemon, offline"},
+		{path: "show version", mode: "read-only, offline"},
+	}
+	entries := collectCommandsForTest(t)
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			if !command.HasLocal(tc.path) {
+				t.Fatalf("%s has no local route", tc.path)
+			}
+			if command.HasLocalData(tc.path) != tc.localData {
+				t.Fatalf("%s no longer covers the intended local handler kind", tc.path)
+			}
+			for _, entry := range entries {
+				if entry.Path != tc.path {
+					continue
+				}
+				if entry.WireMethod == "" {
+					t.Fatalf("%s has no daemon route", tc.path)
+				}
+				if entry.Mode != tc.mode {
+					t.Errorf("%s mode = %q, want %q", tc.path, entry.Mode, tc.mode)
+				}
+				return
+			}
+			t.Fatalf("%s is absent from the catalog", tc.path)
+		})
+	}
+}
+
 func TestFilterCommands(t *testing.T) {
 	entries := []help.CommandEntry{
 		{Path: "show bgp peers", ShortHelp: "List all BGP peer sessions", Mode: "read-only"},
