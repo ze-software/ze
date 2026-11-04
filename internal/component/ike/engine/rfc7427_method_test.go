@@ -30,6 +30,8 @@ import (
 //
 // RFC requirement: RFC7427-3-5 positive — with SIGNATURE_HASH_ALGORITHMS received and certificate authentication configured, computeX509Auth emits an AUTH payload whose Auth Method is 14 (Digital Signature).
 // RFC requirement: RFC7427-3-5 negative — with the notify received computeX509Auth never emits a legacy signature method: for an RSA key and for ECDSA keys on P-256, P-384 and P-521 the method is not RSA Digital Signature (1), DSS Digital Signature (3) or ECDSA (9, 10, 11).
+// RFC requirement: RFC8247-3.1-4 positive -- for the tested RSA and ECDSA keys with received SIGNATURE_HASH_ALGORITHMS, computeX509Auth returns method 14 and nonempty AUTH data.
+// RFC requirement: RFC8247-3.1-4 negative -- for those tested keys with the notify received, emitted Auth Method is none of 1, 3, 9, 10, 11.
 func TestRFC7427DigitalSignatureMethodIsUsed(t *testing.T) {
 	rsaKey, err := rsa.GenerateKey(crand.Reader, 2048)
 	if err != nil {

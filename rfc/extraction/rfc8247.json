@@ -4,8 +4,8 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc8247.txt",
   "source-sha": "1faf9eb5ca639556",
-  "signed-off": "2026-10-26",
-  "reviewer": "claude (ze-rfc phase-1 agent, session 45f03892)",
+  "signed-off": "2026-11-04",
+  "reviewer": "RFCContinuation (session ses_e640edc6effeAAkQ560zO43PMs)",
   "sections": [
     {
       "id": "front",
@@ -77,7 +77,11 @@
     {
       "id": "3.1",
       "sites": 3,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "RFC8247-3.1-4 is read from the Digital Signature paragraph of Section 3.1: \"Digital Signature [RFC7427] is expected to be promoted as it provides hash function, signature format, and algorithm agility.  Its current status is SHOULD.\" The rfc2119 inventory derives MUST-level sites, so this SHOULD-only paragraph has no derived site locator; the existing section-level unsourced-ids mechanism preserves the optional row's source association without inventing one.",
+      "unsourced-ids": [
+        "RFC8247-3.1-4"
+      ]
     },
     {
       "id": "3.1.1",
