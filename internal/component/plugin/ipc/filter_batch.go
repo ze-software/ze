@@ -61,9 +61,10 @@ var filterRequests = sync.Pool{New: func() any {
 
 // SendFilterUpdate sends input to the plugin in its next filter-update
 // exchange and answers the route's verdict. ctx bounds only the wait for a
-// place in the queue: once queued, the route is answered within the exchange
-// in flight plus its own, each bounded by rpc.FilterUpdateTimeout, and input
-// is not read after the return. A failed exchange (timeout, transport error,
+// place in the queue: once queued, the route waits behind the bounded queue's
+// predecessors and any exchange in flight, then its own exchange. Each
+// exchange is bounded by rpc.FilterUpdateTimeout; input is not read after the
+// return. A failed exchange (timeout, transport error,
 // malformed reply) answers its error for every route of the batch; a verdict
 // carrying Error answers that error for its route alone.
 func (pc *PluginConn) SendFilterUpdate(ctx context.Context, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
@@ -173,11 +174,13 @@ func (b *filterBatcher) answerQueued() {
 	}
 }
 
-// exchange sends the taken routes as one filter-update under one
-// rpc.FilterUpdateTimeout and answers each request.
-func (b *filterBatcher) exchange(pc *PluginConn) {
+// exchangeOne sends requests as one filter-update under one
+// rpc.FilterUpdateTimeout and answers each request. exchange proves fit for
+// grouped routes; a singleton beyond the conservative maximum-ID budget
+// leaves the final size decision to the ordinary writer with its actual ID.
+func (b *filterBatcher) exchangeOne(pc *PluginConn, requests []*filterRequest) {
 	b.routes = b.routes[:0]
-	for _, req := range b.requests {
+	for _, req := range requests {
 		b.routes = append(b.routes, *req.input)
 	}
 	observeFilterBatch(len(b.routes))
@@ -187,21 +190,21 @@ func (b *filterBatcher) exchange(pc *PluginConn) {
 	// The routes borrow the callers' bytes: drop them before any caller returns.
 	clear(b.routes)
 	if err != nil {
-		b.answerAll(fmt.Errorf("filter-update: the batch of %d routes failed: %w", len(b.requests), err))
+		answerFilterRequests(requests, fmt.Errorf("filter-update: the batch of %d routes failed: %w", len(requests), err))
 		return
 	}
 	var out rpc.FilterUpdateBatchOutput
 	if err := json.Unmarshal(result, &out); err != nil {
-		b.answerAll(fmt.Errorf("filter-update: the reply to a batch of %d routes is not valid: %w", len(b.requests), err))
+		answerFilterRequests(requests, fmt.Errorf("filter-update: the reply to a batch of %d routes is not valid: %w", len(requests), err))
 		return
 	}
-	if len(out.Verdicts) != len(b.requests) {
-		b.answerAll(errors.New("filter-update: the reply carried " + strconv.Itoa(len(out.Verdicts)) +
-			" verdicts for a batch of " + strconv.Itoa(len(b.requests)) +
+	if len(out.Verdicts) != len(requests) {
+		answerFilterRequests(requests, errors.New("filter-update: the reply carried "+strconv.Itoa(len(out.Verdicts))+
+			" verdicts for a batch of "+strconv.Itoa(len(requests))+
 			" routes, so none is applied; the plugin must answer one verdict per route, in request order"))
 		return
 	}
-	for i, req := range b.requests {
+	for i, req := range requests {
 		verdict := &out.Verdicts[i]
 		if verdict.Error != "" {
 			req.reply <- filterReply{err: errors.New("filter-update: the filter could not judge the route: " + verdict.Error)}
@@ -209,13 +212,13 @@ func (b *filterBatcher) exchange(pc *PluginConn) {
 		}
 		req.reply <- filterReply{out: verdict}
 	}
-	clear(b.requests)
+	clear(requests)
 }
 
-// answerAll answers err for every route of the failed exchange.
-func (b *filterBatcher) answerAll(err error) {
-	for _, req := range b.requests {
+// answerFilterRequests answers err for every route of the failed exchange.
+func answerFilterRequests(requests []*filterRequest, err error) {
+	for _, req := range requests {
 		req.reply <- filterReply{err: err}
 	}
-	clear(b.requests)
+	clear(requests)
 }

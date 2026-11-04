@@ -117,18 +117,10 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	}
 	treatments := run.sets.Folded().Treatments()
 	if raw := run.sets.Raw(); raw != nil {
-		// A member's whole-body rewrite is terminal (D-4): it replaces the
-		// body and carries no sets. The chain checked it under the member's
-		// on-error; this pairs the check with the reactor's own.
-		override, rawErr := decodeFilterRawOverride(raw)
-		if rawErr != nil {
-			if record == nil {
-				fwdLogger().Warn("policy filter: the chain's raw answer cannot be used -- route dropped",
-					"peer", peer, "site", site, "error", rawErr)
-			}
-			return libraryResult{outcome: outcome, failed: true}
-		}
-		return libraryResult{outcome: outcome, modifiedPayload: override, treatments: treatments}
+		// libraryCaller checked and normalized this body before the member
+		// could end the chain. A refusal therefore used that member's
+		// on-error, rather than becoming a late unconditional route drop.
+		return libraryResult{outcome: outcome, modifiedPayload: raw, treatments: treatments}
 	}
 	if err := chain.Apply(&run.view, &run.sets, &run.mods); err != nil {
 		if record != nil {
@@ -235,14 +227,39 @@ func (c libraryCaller) FilterDeclaration(plugin, filter string) (policychain.Ext
 
 // CallFilter judges the route through the plugin's typed filter slot when the
 // plugin runs internal, and in its next filter-update batch when it runs
-// forked (the transport's CallFilterUpdate, D-12). The context bounds the batched
-// exchange (rpc.FilterUpdateTimeout); the slot runs on
-// this goroutine under the fast-path contract instead. A closed slot answers
-// an "unavailable" error, and the member applies its on-error (FR-11).
+// forked (the transport's CallFilterUpdate, D-12). The transport creates the
+// queue-admission deadline only on the encoded path; its batch worker bounds
+// each exchange. The typed slot runs on this goroutine under the fast-path
+// contract, without an unused route timer. A closed slot answers an
+// "unavailable" error, and the member applies its on-error (FR-11).
+// Raw replies pass the canonical decoder here, before judgeExternal can make
+// them terminal: a framing or mandatory tunnel failure is that member's
+// failure, and normalization reaches the live body and the display trace.
 func (c libraryCaller) CallFilter(plugin string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), rpc.FilterUpdateTimeout)
-	defer cancel()
-	return c.api.CallFilterUpdate(ctx, plugin, route)
+	out, err := c.api.CallFilterUpdate(context.Background(), plugin, route)
+	if err != nil {
+		return out, err
+	}
+	if out != nil {
+		if out.Action == rpc.FilterModify {
+			if len(out.Raw) > 0 {
+				override, rawErr := decodeFilterRawOverride(out.Raw)
+				if rawErr != nil {
+					return nil, rawErr
+				}
+				// Canonical decoding of a nonempty body succeeds only with
+				// at least four octets. Unchanged bytes retain the verdict;
+				// normalization owns its replacement and copies only the
+				// header, preserving the plugin's answer shape.
+				if &override[0] != &out.Raw[0] {
+					normalized := *out
+					normalized.Raw = override
+					return &normalized, nil
+				}
+			}
+		}
+	}
+	return out, nil
 }
 
 // libraryASPathOps resolves the AS-path intents through the wire cores in

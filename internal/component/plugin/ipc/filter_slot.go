@@ -15,7 +15,9 @@ import (
 // slot existed the route never falls back to the queue, so a stopped plugin
 // answers rpc.ErrBridgeClosed ("unavailable"). Any other plugin is sent the
 // route, its fields encoded, in its next filter-update batch (SendFilterUpdate),
-// which ctx bounds as it bounds SendFilterUpdate. Safe for concurrent use.
+// bounded by rpc.FilterUpdateTimeout for queue admission, or ctx's earlier
+// deadline or cancellation. Each exchange has its own timeout; no route timer
+// is allocated for the synchronous typed slot. Safe for concurrent use.
 func (pc *PluginConn) CallFilter(ctx context.Context, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
 	if bridge := pc.bridge.Load(); bridge != nil && bridge.HasFilterSlot() {
 		out, err := bridge.CallFilterSlot(route)
@@ -24,6 +26,9 @@ func (pc *PluginConn) CallFilter(ctx context.Context, route *rpc.FilterRoute) (*
 		}
 		return out, err
 	}
+	ctx, cancel := context.WithTimeout(ctx, rpc.FilterUpdateTimeout)
+	defer cancel()
+
 	input, err := route.Input()
 	if err != nil {
 		return nil, err

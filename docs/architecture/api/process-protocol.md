@@ -1453,20 +1453,26 @@ it: on import the route is treated as withdrawn by the peer that sent it, on
 export it is withdrawn toward the destination. Every route of the UPDATE is
 withdrawn, as two UPDATEs when its MP_REACH_NLRI and MP_UNREACH_NLRI name two
 families. A withdraw carries no sets. Each route names its filter so
-the plugin can dispatch to the correct handler. A batch holds the routes queued
-for the plugin when the exchange starts, at most `rpc.FilterUpdateBatchMax`
-(64), under one `rpc.FilterUpdateTimeout`; a failed batch (timeout, error, a
-reply with the wrong number of verdicts) applies each route's filter
-`on-error`, and a verdict carrying `error` fails its route alone. One worker per
-plugin connection owns the exchanges, and each caller waits for its own
-verdict, so the borrowed route bytes stay valid until the batch is sent
-(protocol.md, "The filter-update batch").
+the plugin can dispatch to the correct handler. The worker takes the routes
+queued when an exchange starts, at most `rpc.FilterUpdateBatchMax` (64), and
+splits that FIFO group into contiguous batches whose serialized request frames
+fit `rpc.MaxMessageSize` (16 MiB), including the JSON envelope, method and
+request ID. A route too large to fit even alone fails only itself under its
+filter's `on-error`; its queued neighbors still run. Each emitted batch has one
+`rpc.FilterUpdateTimeout`; a failed batch (timeout, error, a reply with the
+wrong number of verdicts) applies each route's filter `on-error`, and a verdict
+carrying `error` fails its route alone. One worker per plugin connection owns
+the exchanges, and each caller waits for its own verdict, so borrowed route
+bytes stay valid until its exchange completes (protocol.md, "The filter-update
+batch").
 The first route starts the worker under the same lifecycle lock that closes
 the connection. A connection closed before its first route refuses it without
 allocating the batch queue or scratch or starting a worker. Close prevents
 further admission; an initialized worker settles every admitted route before
 it exits, and later calls refuse with a connection-closed error.
 <!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
+<!-- source: internal/component/plugin/ipc/filter_batch_bytes.go -- exchange, frameFits, filterBatchWireFixedSize -->
+<!-- source: pkg/plugin/rpc/filter_batch_size.go -- FilterUpdateInput.JSONSizeBound -->
 The request carries `fields`: one JSON object holding
 exactly the route fields the filter declared in `reads`, keyed by vocabulary
 field name, each value in the UPDATE event's `attr` shape. A declared field the

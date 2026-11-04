@@ -156,8 +156,11 @@ func (r *Reactor) filterAPI() filterTransport {
 // it was replacing. On export that leaks whatever the raw surgery was removing;
 // on import it installs it.
 //
-// The error is therefore a guard MISS, not a policy decision: the caller
-// suppresses (export) or drops (import) the route and says so.
+// The error is therefore a guard MISS, not a policy decision or an absent
+// override. libraryCaller returns it before the member can end the chain:
+// that member's on-error rejects the route, or explicitly passes it to later
+// members without the failed rewrite, with failure identity, counting and
+// logging intact. Display-only rendering returns the error to its trace.
 //
 // Every raw answer, import or export, live or dry run, comes through here, so the RFC 9012 Section 13 checks the receive path applies to
 // the peer's bytes apply to the filter's bytes too: a filter's body is a route

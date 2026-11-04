@@ -1753,12 +1753,17 @@ Ze has no field to send it, so such a member fails every route under
   A set it did not declare, a field the attachment does not let a filter set,
   a wrong action or value shape, and no plugin server each
   fail the route under its on-error (`policychain/external.go`). A plugin
-  member that declared `raw` may answer a whole-body rewrite (D-4): it is
-  terminal, so `rawOutcome` ends the run, the chain's
-  final still decides, and `runLibraryChain` sends `RunSets.Raw` in place of
-  the body, checked again by `decodeFilterRawOverride`. A rewrite after an
-  earlier member's set fails under on-error, because it was made from the
-  received body and would discard that set (`rawAnswer`).
+  member that declared `raw` may answer a whole-body rewrite (D-4).
+  Before it can end the run, `libraryCaller.CallFilter` validates and
+  normalizes it through `decodeFilterRawOverride`, including the receive
+  path's mandatory tunnel checks; `rawAnswer` pairs the UPDATE framing check
+  through the shared wire parser. A failure belongs to that member, so its
+  on-error decides, with the same failure identity, count and log as other
+  member failures. A valid rewrite is terminal: `rawOutcome` ends the run,
+  the chain's final still decides, and `runLibraryChain` sends `RunSets.Raw`
+  in place of the body. A rewrite after an earlier member's set fails under
+  on-error, because it was made from the received body and would discard that
+  set (`rawAnswer`).
   The reactor reaches the plugin through `libraryCaller` over the same
   transport every plugin filter uses: the route joins the `filter-update` batch the
   plugin connection forms (`filterBatcher`), bounded by one

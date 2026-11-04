@@ -685,16 +685,17 @@ const FilterUpdateTimeout = 5 * time.Second
 // FilterUpdateBatchMax bounds the routes of one filter-update exchange. The
 // engine sends a filter's plugin what is queued for that plugin when the
 // exchange starts, up to this many routes, so a lone route goes at once and a
-// burst shares one round trip. 64 keeps a batch of the largest routes (a
-// 65535-octet UPDATE base64 encoded as raw, beside its fields, about
-// 200 KiB) under MaxMessageSize (16 MiB) on one line.
+// burst shares one round trip. This is a route-count bound, not a proof that
+// the serialized request fits MaxMessageSize: fields can expand beyond the
+// raw UPDATE's size. The engine also splits at the encoded frame budget,
+// using FilterUpdateInput.JSONSizeBound for the ordinary-path fit proof.
 const FilterUpdateBatchMax = 64
 
 // FilterUpdateBatchInput is the input of ze-plugin-callback:filter-update: the
 // routes of one exchange, between 1 and FilterUpdateBatchMax, in the order the
 // engine queued them. Routes from one source are queued in the order that
-// source produced them, and a later batch holds only routes queued after the
-// earlier one was sent, so per-source order holds within and across batches.
+// source produced them. Frame-size splitting keeps each queued group in
+// contiguous batches, so per-source order holds within and across exchanges.
 type FilterUpdateBatchInput struct {
 	Routes []FilterUpdateInput `json:"routes"`
 }

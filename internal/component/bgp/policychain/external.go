@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -110,6 +111,7 @@ var (
 		"whole body, so it carries no sets")
 	errExternalRawMalformed = errors.New("the filter answered a raw rewrite shorter than the 4 octets of an " +
 		"UPDATE body's two length fields")
+	errExternalRawSections  = errors.New("the filter answered a raw rewrite whose section lengths run past the body")
 	errExternalRawAfterSets = errors.New("the filter answered a raw rewrite of the received body after an " +
 		"earlier filter of the chain set fields, which the rewrite would discard")
 	errExternalAction = errors.New("the filter answered an action that is neither accept, reject nor modify")
@@ -194,11 +196,13 @@ func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, sett
 }
 
 // rawAnswer checks a whole-body rewrite (D-4): the filter declared raw, the
-// answer carries no sets, and the body holds at least its two length fields.
+// answer carries no sets, and both UPDATE sections stay inside the body.
 //
 // RFC 4271 Section 4.3: "Withdrawn Routes Length:" and "Total Path Attribute
 // Length:" are each a 2-octet unsigned integer, so an UPDATE body is at least
-// 4 octets. The reactor pairs the check (decodeFilterRawOverride).
+// 4 octets. The engine caller pairs the framing check and applies its
+// mandatory wire normalization before the answer reaches this member
+// (reactor libraryCaller, decodeFilterRawOverride).
 func rawAnswer(verdict externalVerdict, out *rpc.FilterUpdateOutput, decl *ExternalDeclaration) (externalVerdict, error) {
 	if !slices.Contains(decl.Reads, rpc.FilterFieldRaw) {
 		return verdict, errExternalRawUndeclared
@@ -208,6 +212,9 @@ func rawAnswer(verdict externalVerdict, out *rpc.FilterUpdateOutput, decl *Exter
 	}
 	if len(out.Raw) < 4 {
 		return verdict, errExternalRawMalformed
+	}
+	if _, err := wire.ParseUpdateSections(out.Raw); err != nil {
+		return verdict, errExternalRawSections
 	}
 	verdict.decision = DecisionPass
 	verdict.raw = out.Raw

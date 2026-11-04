@@ -645,15 +645,26 @@ position of its route.
 ```
 
 - **What a batch holds.** Ze sends the routes queued for the plugin when the
-  exchange starts, at most `rpc.FilterUpdateBatchMax` (64). A lone route goes
+  exchange starts, at most `rpc.FilterUpdateBatchMax` (64), and splits that
+  FIFO group into contiguous exchanges that each fit the 16 MiB RPC request
+  frame, including its JSON envelope, method and request ID. A lone route goes
   at once in a batch of one; routes that queue while an exchange is in flight
-  go together in the next one. Routes from one source are queued in the order
-  that source produced them, and a later batch holds only routes queued after
-  the earlier one was sent, so per-source order holds within and across
-  batches.
+  go in the next group. Routes from one source stay in order within and across
+  exchanges, and each verdict stays paired with its original route. A route
+  whose serialized input cannot fit a frame even alone fails only itself
+  under its filter's `on-error`, not its queued neighbors.
 - **One timeout per batch.** `rpc.FilterUpdateTimeout` (5 s) bounds the whole
   exchange. When it expires, or the plugin answers an error, each route of the
   batch takes its filter's `on-error`, one outcome per route.
+- **Queue admission and the typed slot.** Only the encoded transport creates a
+  per-route `rpc.FilterUpdateTimeout` (5 s) deadline, before encoding the route
+  and waiting for room in the bounded batch queue. An earlier caller deadline
+  or cancellation still wins. Once admitted, the route waits behind the
+  bounded queue's predecessors and any exchange in flight, then its own
+  exchange, each bounded separately by the batch timeout. An activated typed
+  slot calls the evaluator synchronously under the
+  fast-path contract, with no unused route context or timer. A closed slot
+  fails the route; it never falls back to the queue.
 - **One verdict per route.** A reply with more or fewer verdicts than the
   request held routes is malformed: no verdict of it is applied, and each
   route of the batch takes its filter's `on-error`. The next batch is judged
@@ -667,8 +678,12 @@ position of its route.
   The same evaluator run internal, through the typed slot, gets the same
   answer: an error or a nil verdict fails that route alone.
 <!-- source: pkg/plugin/rpc/filter_slot.go -- CallFilterSlot -->
+<!-- source: internal/component/plugin/ipc/filter_slot.go -- CallFilter -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- libraryCaller.CallFilter -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchMax, FilterUpdateBatchInput, FilterUpdateBatchOutput -->
 <!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
+<!-- source: internal/component/plugin/ipc/filter_batch_bytes.go -- exchange, frameFits, filterBatchWireFixedSize -->
+<!-- source: pkg/plugin/rpc/filter_batch_size.go -- FilterUpdateInput.JSONSizeBound -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->
 
 ### The Route Fields of filter-update
@@ -814,16 +829,25 @@ the value in the field's shape:
 - The route fails the same way when the answer carries `sets` beside `accept`,
   `reject` or `withdraw`.
 - A filter that declares `raw` among its reads may answer `"action":"modify"`
-  with a whole-body `raw` rewrite and no `sets`. The rewrite is terminal: the
-  later filters of the chain are not called, the chain's final still decides
-  the route, and the rewrite is sent in place of the received body. The route
-  fails under the filter's `on-error` when the filter did not declare `raw`,
-  when the rewrite is shorter than the 4 octets of an UPDATE body's two length
-  fields, and when an earlier filter of the chain already set a field: the
-  rewrite was made from the received body, so it would discard that change.
+  with a whole-body `raw` rewrite and no `sets`. A valid rewrite is terminal:
+  the later filters of the chain are not called, the chain's final still
+  decides the route, and the rewrite is sent in place of the received body.
+  Before it can end the chain, Ze checks the UPDATE section framing and
+  applies the receive path's mandatory RFC 9012 Section 13 tunnel checks and
+  normalization. A malformed rewrite is a named member failure, logged and
+  counted on a live run, under that filter's `on-error`: `reject` drops the
+  route; `accept` discards the failed rewrite and continues to later members
+  with the route unchanged. A dry run follows the same decisions and records
+  the member failure without logging or counting it. The same failure rule
+  applies when the filter did not declare `raw`, when the body is shorter than
+  its two 2-octet length fields or a section extends beyond it, and when an
+  earlier member already set a field: a rewrite made from the received body
+  would discard that change.
 - `teardown` on an import route closes the session; on export it is ignored
   and the action stands.
 <!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets, rawAnswer -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- libraryCaller.CallFilter, runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- decodeFilterRawOverride, filterRawTunnelEncap -->
 <!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, errExternalNoReads -->
 <!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, the import-only teardown -->
 <!-- source: internal/component/bgp/policychain/chain.go -- rawOutcome -->

@@ -44,9 +44,10 @@ type MemberTrace struct {
 	// Sets is what a passing member asked, resolved as it folded; nil for
 	// every other step. It is the run's scratch: valid only during the call.
 	Sets *Sets
-	// Raw is the whole UPDATE body a TraceRewrite member answered, as the
-	// plugin sent it (not yet checked by the reactor); nil for every other
-	// step. It is the member's reply: valid only during the call.
+	// Raw is the whole UPDATE body a TraceRewrite member answered, after
+	// the member's framing check; nil for every other step. The reactor's
+	// caller also validates and normalizes it before the member returns.
+	// It is valid only during the call.
 	Raw []byte
 	// chain, view and run are the run this step belongs to, for Apply.
 	chain *Chain
