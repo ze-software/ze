@@ -2090,6 +2090,13 @@ failed, so the daemon's exit code does not prove the observer's assertion. A
 failing observer returns an error, which `fixture.Run` hands to
 `fixture.ReportFailure`.
 
+For process-status assertions, `le test fixture runner/helper-command-exit
+<stdout-line> <exit-code>` writes the line and exits with the requested status
+from 0 through 255. A requested nonzero status is test input, not an observer
+failure, so it emits no `ZE-OBSERVER-FAIL`. Invalid arguments and output errors
+still follow the normal fixture failure path.
+<!-- source: internal/test/fixture/register.go -- helperCommandExit -->
+
 **A fixture-driven `.ci` needs no `bgp` block and no `le test peer` to get a daemon
 that stops.** `request shutdown` reaches a reactorless daemon through the
 shutdown callback the daemon wires beside its plugin server, before any plugin
