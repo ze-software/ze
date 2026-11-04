@@ -1,3 +1,6 @@
+// Design: docs/functional-tests.md -- the native loopback L2TP scale registry.
+// Related: docs/architecture/testing/runner-architecture.md -- child process ownership.
+
 package testdeployment
 
 import (
@@ -13,22 +16,19 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 const L2TPScaleAction = "l2tp-scale"
 
 const (
 	l2tpScaleStartupWait = 500 * time.Millisecond
-	l2tpScaleStopWait    = 10 * time.Second
-	l2tpScaleKillWait    = 5 * time.Second
 	l2tpScaleTimeout     = 120 * time.Second
 )
 
@@ -277,7 +277,7 @@ func runL2TPScaleScenario(
 		return report
 	}
 	defer func() {
-		if stopErr := ze.Stop(l2tpScaleStopWait, l2tpScaleKillWait); stopErr != nil && report.Failure == "" {
+		if stopErr := ze.Stop(); stopErr != nil && report.Failure == "" {
 			report.Failure = "stop ze: " + stopErr.Error()
 		}
 		report.Passed = report.Failure == ""
@@ -472,11 +472,11 @@ type l2tpScaleCommandResult struct {
 	code   int
 }
 
-// l2tpScaleProcess owns one Ze child. The caller MUST call Stop after Start,
-// and Stop MUST terminate and reap the child within its two supplied bounds.
+// l2tpScaleProcess owns one Ze child. The caller MUST defer Stop after Start.
+// Stop MUST terminate the owned group and join its sole reaper before returning.
 type l2tpScaleProcess interface {
 	Exited() (exited bool, code int, stderr []byte, err error)
-	Stop(termWait, killWait time.Duration) error
+	Stop() error
 }
 
 type l2tpScaleSystem interface {
@@ -534,20 +534,17 @@ func (realL2TPScaleSystem) Start(
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	if err := cmd.Start(); err != nil {
+	owner, err := runner.StartServerProcess(cmd)
+	if err != nil {
 		return nil, err
 	}
-	process := &realL2TPScaleProcess{
-		cmd: cmd, stdout: &stdout, stderr: &stderr, done: make(chan struct{}),
-	}
-	go process.collect()
-	return process, nil
+	return &realL2TPScaleProcess{owner: owner, stderr: &stderr}, nil
 }
 
 func (realL2TPScaleSystem) Run(
 	ctx context.Context,
 	command l2tpScaleCommand,
-) (l2tpScaleCommandResult, error) {
+) (result l2tpScaleCommandResult, err error) {
 	commandCtx, cancel := context.WithTimeout(ctx, command.timeout)
 	defer cancel()
 	cmd := exec.CommandContext(commandCtx, command.argv[0], command.argv[1:]...) //nolint:gosec // fixed native scenario grammar owns argv
@@ -555,17 +552,17 @@ func (realL2TPScaleSystem) Run(
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	err := cmd.Run()
-	result := l2tpScaleCommandResult{
-		stdout: stdout.Bytes(), stderr: stderr.Bytes(), code: gaterun.ExitCode(err),
+	owner, err := runner.StartServerProcess(cmd)
+	if err != nil {
+		return l2tpScaleCommandResult{code: gaterun.ExitCode(err)}, err
+	}
+	defer func() { err = errors.Join(err, ignoreL2TPScaleExit(owner.Close())) }()
+	waitErr := owner.Wait()
+	result = l2tpScaleCommandResult{
+		stdout: stdout.Bytes(), stderr: stderr.Bytes(), code: gaterun.ExitCode(waitErr),
 	}
 	if commandCtx.Err() != nil {
 		return result, commandCtx.Err()
-	}
-	if err != nil {
-		if _, ok := errors.AsType[*exec.ExitError](err); !ok {
-			return result, err
-		}
 	}
 	return result, nil
 }
@@ -581,77 +578,49 @@ func (realL2TPScaleSystem) Sleep(ctx context.Context, duration time.Duration) er
 	}
 }
 
+// realL2TPScaleProcess is published only after StartServerProcess succeeds.
+// Its zero and nil values are invalid. The caller MUST defer Stop before any
+// further operation; the shared owner alone waits and retires process identity.
 type realL2TPScaleProcess struct {
-	cmd    *exec.Cmd
-	stdout *bytes.Buffer
+	owner  *runner.ServerProcess
 	stderr *bytes.Buffer
-	done   chan struct{}
-	mu     sync.Mutex
-	err    error
-}
-
-func (p *realL2TPScaleProcess) collect() {
-	err := p.cmd.Wait()
-	p.mu.Lock()
-	p.err = err
-	p.mu.Unlock()
-	close(p.done)
 }
 
 func (p *realL2TPScaleProcess) Exited() (bool, int, []byte, error) {
 	select {
-	case <-p.done:
-		code, err := p.result()
-		return true, code, p.stderr.Bytes(), ignoreL2TPScaleExit(err)
+	case <-p.owner.Done():
+		err := p.owner.Wait()
+		return true, gaterun.ExitCode(err), p.stderr.Bytes(), ignoreL2TPScaleExit(err)
 	default:
 		return false, 0, nil, nil
 	}
 }
 
-func (p *realL2TPScaleProcess) Stop(termWait, killWait time.Duration) error {
-	select {
-	case <-p.done:
-		_, err := p.result()
-		return ignoreL2TPScaleExit(err)
-	default:
-	}
-	if err := p.cmd.Process.Signal(syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		return err
-	}
-	if waitL2TPScaleProcess(p.done, termWait) {
-		_, err := p.result()
-		return ignoreL2TPScaleExit(err)
-	}
-	if err := p.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		return err
-	}
-	if !waitL2TPScaleProcess(p.done, killWait) {
-		return errors.New("ze did not exit after kill")
-	}
-	_, err := p.result()
-	return ignoreL2TPScaleExit(err)
-}
-
-func (p *realL2TPScaleProcess) result() (int, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return gaterun.ExitCode(p.err), p.err
-}
-
-func waitL2TPScaleProcess(done <-chan struct{}, timeout time.Duration) bool {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case <-done:
-		return true
-	case <-timer.C:
-		return false
-	}
+// Stop MUST be deferred after Start. Scale cleanup is an immediate group close,
+// not a graceful server stop: cancellation and verdicts cannot wait out the
+// shared server grace before joining the owned child and its output readers.
+func (p *realL2TPScaleProcess) Stop() error {
+	return p.owner.Close()
 }
 
 func ignoreL2TPScaleExit(err error) error {
-	if _, ok := errors.AsType[*exec.ExitError](err); ok {
+	// A command's nonzero status is a verdict, not an infrastructure error.
+	// Strip only that leaf: an exit joined with a lifecycle failure must not
+	// conceal the owner's inability to clean or observe its process group.
+	if _, ok := err.(*exec.ExitError); ok {
 		return nil
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		var remaining error
+		for _, child := range joined.Unwrap() {
+			remaining = errors.Join(remaining, ignoreL2TPScaleExit(child))
+		}
+		return remaining
+	}
+	if cause := errors.Unwrap(err); cause != nil {
+		if ignoreL2TPScaleExit(cause) == nil {
+			return nil
+		}
 	}
 	return err
 }

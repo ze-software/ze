@@ -4140,6 +4140,14 @@ The test tooling lives in `le test scale l2tp`, which bundles a Go LAC
 simulator (speaking the L2TP wire protocol) and an embedded mock RADIUS
 server. The native deployment action starts Ze, runs the four-scenario
 registry, checks each result, and retains the simulator's exact result bytes.
+SIGINT and SIGTERM cancel the invocation's daemon, simulator and startup waits.
+Both commands use the runner's shared process-group owner. Deferred daemon
+cleanup closes the group immediately rather than waiting through the shared
+server's graceful-stop budget; it joins the sole reaper and output readers
+before reporting a verdict. Simulator cancellation likewise joins its owned
+group before returning. Nonzero simulator exit codes and exact output bytes
+remain part of the scenario report; unexpected startup and lifecycle errors fail
+the run.
 
 ```bash
 ./le test deployment l2tp-scale

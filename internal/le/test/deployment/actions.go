@@ -173,7 +173,9 @@ func l2tpExitCode(report L2TPReport) int {
 }
 
 func runL2TPScaleHere() (any, int) {
-	report, code := runL2TPScale(context.Background(), l2tpScaleOptions())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	report, code := runL2TPScale(ctx, l2tpScaleOptions())
 	return report, code
 }
 

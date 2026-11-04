@@ -240,7 +240,7 @@ func (*l2tpScaleRecordedProcess) Exited() (bool, int, []byte, error) {
 	return false, 0, nil, nil
 }
 
-func (p *l2tpScaleRecordedProcess) Stop(time.Duration, time.Duration) error {
+func (p *l2tpScaleRecordedProcess) Stop() error {
 	p.recorder.stops++
 	return nil
 }

@@ -55,3 +55,16 @@ func (s *ServerProcess) Close() error {
 	}
 	return nil
 }
+
+// Wait joins the sole reaper and returns its exit and lifecycle errors. It is
+// safe for concurrent observers. The caller MUST still defer Close: waiting
+// alone cannot stop a child that has not exited.
+func (s *ServerProcess) Wait() error {
+	return errors.Join(s.process.Wait(), s.process.lifecycleError())
+}
+
+// Done closes only after the sole reaper finishes. Observers MUST still defer
+// Close and check Wait or Close; readiness alone cannot establish a clean exit.
+func (s *ServerProcess) Done() <-chan struct{} {
+	return s.process.done
+}
