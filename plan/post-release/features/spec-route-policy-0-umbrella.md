@@ -7,8 +7,8 @@
 | Priority | P3 |
 | Release reason | New capability: a protocol-neutral route policy and a gate on every source entering the Loc-RIB. No shipped behavior is defective without it; the two defects it owns (journal rows below) are post-release quality, not release blockers. |
 | RFC gaps | - |
-| Depends | `spec-fixit-redistribution-chain-drops-silently` (closed 2026-10-31; phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequences with `plan/post-release/engineering/spec-filter-wire-0-umbrella.md` |
-| Phase | 4/4 (phases 1-3 landed and reviewed clean after three rounds; phase 4 waits on the filter-wire redesign, plan/post-release/engineering/spec-filter-wire-0-umbrella.md, which owes its /ze-spec design gates with the owner's two-path, parse-on-demand requirements) |
+| Depends | `spec-fixit-redistribution-chain-drops-silently` (closed 2026-10-31; phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequenced with `spec-filter-wire-0-umbrella`, which implemented it and is closing |
+| Phase | 4/4 (phases 1-3 landed and reviewed clean after three rounds; phase 4 is the filter-wire redesign, which `spec-filter-wire-0-umbrella` implemented to the owner's two-path, parse-on-demand requirements, A-6 confirmed, and is closing) |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
@@ -123,6 +123,24 @@ that: an IGP import filter decides local installation only, never flooding.
 - `bgp policy { <type> <name> ... }` moves to `policy { <type> <name> ... }`; the old path is refused at load with a message naming the new one, and `ze config migrate` rewrites it.
 - New import attachments on `isis`, `ospf`, `static`, `connected`, `rib`; new export attachments on `isis`, `ospf`.
 - `redistribute` `family` and `tag` leaves are replaced by `filters`/`final`; `ospf redistribute` metric/metric-type/tag become set actions of the OSPF export chain.
+
+## Existing Mechanisms (MANDATORY)
+
+Verified at HEAD on 2026-11-04. Phases 1-3 built several of these rows; they are
+listed so phase 4 and every later attachment extends them rather than building beside them.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Loc-RIB import gate | `internal/core/rib/locrib/manager.go` `(*RIB).insert`, `internal/core/rib/locrib/policy.go` `admit`; snapshot in `internal/core/rib/policy` `Snapshot`, `Set`, `Current` | Every source's insert (forked plugins through `InsertForward` included) is judged against the published snapshot before the shard lock, and judged again under the lock if a newer snapshot was published; with no chain the gate is a snapshot load and a nil check | Extends: this is the one gate the owner chose; no attachment adds a second one |
+| Loc-RIB re-ranking walk | `internal/core/rib/locrib/distance.go` `(*RIB).Reselect` (`docs/architecture/rib/unified-locrib.md`) | Re-ranks stored paths under each shard lock, reads the current policy snapshot there, and dispatches only where best or ECMP moved | Extends: a filter change re-admits or hides stored paths through this walk, with no producer replay |
+| Distance seam | `internal/core/rib/distance` `fnPtr` (`atomic.Pointer[Func]`), `Set`; `internal/core/rib/locrib/entry.go` `upsert` writes `AdminDistance` from `resolvedDistance` | Process-global lookup sysrib publishes once per configure, read on every ranking without a lock | Extends: the policy snapshot is published the same way, and `set distance` writes the `DistanceOverride` pair, never `AdminDistance` |
+| Route policy library | `internal/component/policy` `Registry`, `RootName`, `NewChain`, `ConcatChains`, `MustRegisterFilterType`, `MustRegisterAttachment`, `CheckChain` | Owns the top-level `policy` root, discovers filter types from the `ze:filter` marker, holds the named-instance namespace, and checks a chain against the fields its attachment carries | Extends: built by phases 1-3; every attachment registers with it, and no protocol keeps a registry of its own |
+| BGP per-peer policy | `internal/component/bgp/filterapi/policy.go` `Policy`, `NewPolicy`, `CompilePolicy`, `AcceptsAtEnd`, `Prepend` (`docs/guide/bgp-policy.md`) | The cumulative per-peer import and export chain with its `final` and the RFC 8212 EBGP default, over the library's `policy.Ref` and `policy.Final` | Extends: BGP import stays this per-peer ingress chain (owner decision); `rib filter import` sees BGP's best after it |
+| Two-transport filter call | `pkg/plugin/sdk/sdk_callbacks.go` `OnFilter`, `pkg/plugin/rpc/filter_slot.go` `(*DirectBridge).SetFilterSlot`, `internal/component/bgp/reactor/filter_chain.go` `filterTransport.CallFilterUpdate` (`docs/plugin-development/handlers.md`, "Route filters") | One evaluator per filter, called through a typed bridge slot when its plugin runs internal and through the batched `filter-update` message when forked; no text form of the route | Extends: phase 4's BGP chains call their filters through this path (`spec-filter-wire-0-umbrella`, D-12); the library adds no third representation |
+| Declared and default filter members | `internal/component/plugin/registry/registry.go` `Registration.FilterInsertions`, `internal/component/plugin/registry/filter_insertion.go` `CheckFilterInsertions`; `internal/component/bgp/config/peers.go` `insertDeclaredFilters`, `prependDefaultFilters` | A plugin's declared member is inserted into the chains whose config needs it; loop-detection is prepended to every import chain unless already referenced | Extends: an automatic member of a new attachment is a declared insertion of its own plugin, visible in the chain |
+| Redistribution rules and loop guard | `internal/component/config/redistribute/route.go` `ImportRule` (`Filters`, `Final`, `Chain`), `evaluator.go` `Evaluator`, `Global`; `internal/core/redistevents/registry.go` `WouldLoop` (`docs/guide/redistribution.md`) | Each import rule carries a compiled `ribpolicy.Chain` against the attachment "redistribute import"; `WouldLoop` refuses self-import | Extends: phase 3 replaced the `family` and `tag` leaves with these chains; the loop guard and withdrawal-to-holder rule stay unchanged |
+| Policy routing root | `internal/plugins/policyroute/yang/ze-policyroute-conf.yang` `list route` (`docs/guide/policy-routing.md`) | `policy { route <name> { rule ... } }` and `show policy routes` | Does not apply: it shares the `policy` root but carries no `ze:filter` marker, so it is never taken for a filter type; its config, tests and output stay unchanged |
+| FIB withhold | `internal/component/sysrib/fibimport.go`, `rib { fib-withhold }` (`internal/component/sysrib/yang/ze-rib-conf.yang`) | Keeps a protocol's selected routes out of the FIB without changing selection | Does not apply: it acts downstream of selection, where a hidden path never arrives; both stages stay |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -455,7 +473,7 @@ import, and is refused on connected import because connected carries no tag.
    - Tests: AC-17, every existing BGP policy `.ci` and `bgp-policy-*` interop scenario
    - Files: BGP filter chain compile through the library's registry; lazy route view over the wire UPDATE; sequenced with `spec-filter-wire-0-umbrella`
    - Verify: BGP throughput benchmark prepared for Thomas; no new text representation
-   - Note: BGP filters follow the two-transport plugin filter pattern (owner, 2026-10-31). A filter is owned by its plugin: running internal, it is called through a typed `DirectBridge` filter slot of the `DeliverStructured` shape (`pkg/plugin/rpc/bridge.go`) with the lazy wire view and no encoding; running forked, it answers the batched `filter-update` protocol; `filterapi.Register` merges into it. Design: `plan/post-release/engineering/spec-filter-wire-0-umbrella.md`, D-12 and D-13
+   - Note: BGP filters follow the two-transport plugin filter pattern (owner, 2026-10-31). A filter is owned by its plugin: running internal, it is called through a typed `DirectBridge` filter slot of the `DeliverStructured` shape (`pkg/plugin/rpc/bridge.go`) with the lazy wire view and no encoding; running forked, it answers the batched `filter-update` protocol; `filterapi.Register` merges into it. Design: `spec-filter-wire-0-umbrella`, D-12 and D-13
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

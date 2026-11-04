@@ -57,6 +57,24 @@ underscores, keeping hyphens. Both rows are present.
 - [ ] `internal/plugins/diag/cmd/capture_raw.go` - `captureRawStart`
 - [ ] `internal/appliance/cache.go` - `defaultHTTPGet`
 
+## Existing Mechanisms (MANDATORY)
+
+Verified at HEAD on 2026-11-04. Each row is a mechanism one or more owned rows
+are a defect of: the fix repairs it in place, and none builds a second one beside it.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Subsystem logger and level registry | `internal/core/slogutil/slogutil.go` `Logger`, `levelRegistry`, `SetLevel`, `getLogEnv` | Each `Logger` call builds a fresh `LevelVar` and stores it over the last one in `levelRegistry`; `getLogEnv` walks the dotted `ze.log.<a>.<b>` hierarchy | Extends: the 2026-10-28 row makes a second call reuse and update the stored `LevelVar`, so `SetLevel` still reaches the first logger |
+| Forked plugin logger | `internal/core/slogutil/slogutil.go` `PluginLogger`; `internal/component/plugin/cli/cli.go` `ConfigLogger`; `internal/component/plugin/inprocess.go` `CanonicalSubsystemName` | A forked plugin's logger takes `--log-level`, else the env hierarchy under the name it is given; `CanonicalSubsystemName` turns a registry name (`bgp-role`) into the dotted subsystem (`bgp.role`) | Extends: the 2026-11-02 row names every CLIHandler logger through `CanonicalSubsystemName`, so the dotted key reaches it forked as it does internal |
+| Plugin command dispatch | `internal/component/plugin/server/dispatch.go` `responseToDispatchOutput`, `(*Server).dispatchCommandResponse`; `internal/component/plugin/server/command.go` `pluginAnswerRows`; `pkg/plugin/sdk/sdk_engine.go` `answerValue` | Collapses a plugin's answer into the one dispatcher every interface (CLI, SSH, web, REST, gRPC, MCP) calls | Extends: AC-3 and AC-25 keep records, status and error together in this one path; no interface gets its own repair |
+| Config transaction orchestrator | `internal/component/config/transaction/orchestrator.go` `(*TxCoordinator).collectRollbackAcks` (`docs/architecture/config/transaction-protocol.md`) | Fans verify, apply and rollback out to each plugin and collects their acknowledgements | Extends: AC-4 reads every queued ack in place |
+| One reload path | `cmd/ze/hub/main_reload.go` `handleSIGHUPReload`, `doReload`, `doReloadContext` (`ai/doors/hub-engine.md`, "One reload path") | SIGHUP and a managed push both reach `doReload` | Extends: AC-18 and AC-23 queue and log inside this path; no second reload trigger is built |
+| Env key registry | `internal/core/env/registry.go` `MustRegister`; `internal/core/env/env.go` `normalize` | Keys are registered once; `normalize` maps dots to underscores and keeps hyphens | Extends: AC-24 fixes `normalize`; no second lookup is added |
+| Crash log | `internal/core/crashlog/crashlog.go` `Init`, `internal/core/crashlog/stderr.go` `Flush` | `Init` sets up the crash directory and relays stderr; `Flush` drains that relay so queued output reaches the terminal | Extends: AC-14 and AC-23 route the lost output and the early signal through it |
+| Doctor check registry | `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck` | The package owning a dependency registers its readiness check | Extends: AC-30 fixes the namespace test of this registry; AC-19 is covered elsewhere (see its row) |
+| Blob store | `pkg/zefs/store.go` `BlobStore`, `pkg/zefs/lock.go` `Lock`, `RLock` (`docs/architecture/zefs-format.md`) | Serializes readers and writers with an in-process lock | Extends: AC-26 adds the cross-process exclusion to this public type, on purpose and with its page |
+| PKI root | `internal/component/pki/ca.go` `(*Root).IssueLeaf` (fixed `leafValidity`), `IssueLeafFor` | Issues a leaf a component reissues at each start; the 2026-09-03 row claims nothing reissues one while the daemon runs | Extends: AC-12 renews through these issuers |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -160,6 +178,7 @@ The plugin RPC answer format, the transaction orchestrator, the storage registry
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `second-logger-detaches-runtime-level` | 2026-10-28 | panic guards calling `slogutil.Logger` twice |
+| `second-logger-detaches-runtime-level` | 2026-11-02 | forked BGP plugin logger ignores the dotted `ze.log.<subsystem>` key |
 | `zero-value-as-valid-answer` | 2026-10-30 | `TreeFromPluginMap` unordered multi-entry list loads zero peers |
 | `unwired-feature` | 2026-10-30 | `locrib.SetMetricsRegistry` never called |
 | `deferral-sized-from-the-visible-half` | 2026-09-04 | `spec-pki-full-chain` looking glass TLS |
