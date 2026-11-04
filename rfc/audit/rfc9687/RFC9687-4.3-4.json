@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden behaviour: ConnectRetryTimer left running after Event 29. The positive unit arms it as a precondition and asserts IsConnectRetryTimerRunning false after the expiry; the negative asserts it still runs inside the SendHoldTime.",
+  "note": "RFC 9687 Section 4.3 Event 29 sets ConnectRetryTimer to zero. Re-read both tagged action-list functions and their shared fixture: rfc9687Established explicitly arms and checks ConnectRetryTimer, so the positive cannot pass merely because no production retry timer was armed. SendHoldExpiryRunsTheEvent29ActionList advances exactly SendHoldTime, now requires exact ErrSendHoldTimerExpired and then asserts the retry timer stopped; NoSendHoldExpiryLeavesTheSessionIntact stops one nanosecond short and requires it still running with Established state and no terminal Run result. The isolated 10-second SendHold deadline precedes the other timer deadlines. Run's retireSessionTimers and fsm.Timers retirement/StopAll clear the retry timer. The exact error assertion adds cause isolation without replacing timer state proof. No native execution claimed.",
   "requirement_sha": "3ac305a15007b4c0",
   "tests": {
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f"
   },
   "units": {
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6"
   },
   "verdict": "enforced"
 }

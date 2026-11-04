@@ -1,16 +1,16 @@
 {
-  "note": "Forbidden: a SendHoldTimer left armed after a transition out of Established. Tagged units drive four transitions over the real Run loop and assert armed() false after: Event 29 expiry, local Cease (TestRFC9687TeardownStopsTheSendHoldTimer), a NOTIFICATION received from the peer and a peer TCP close (TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer), each with armed() true as precondition. The stop lives in closeConn and in Run's deferred stopSendHoldTimer, which every exit path shares; HoldTimer expiry and a ze-sent error NOTIFICATION are not driven but reach the same two stop sites.",
+  "note": "RFC 9687 Section 4.3 stops SendHoldTimer following any transition out of Established as part of resource release. Re-read all four tagged functions: SendHoldExpiryRunsTheEvent29ActionList now joins exact ErrSendHoldTimerExpired and requires timer disarmed after expiry; TeardownStopsTheSendHoldTimer starts armed, sends local Cease and requires disarmed; PeerDrivenTeardownStopsTheSendHoldTimer starts armed and drives received NOTIFICATION and peer TCP close, joins Run, then requires not Established and disarmed; NoSendHoldExpiryLeavesTheSessionIntact advances one nanosecond short of expiry and requires armed, Established and no close. The completion-only Run receive in the peer-driven cases is appropriate because the release predicates are state and timer, not a common error identity across two different terminal causes. Session.closeConn stops SendHoldTimer at the shared close boundary, and Run retires session timers on every exit. Thus the unenumerated hold/error exits share the judged stop boundary rather than independent untested stop implementations. No state or timer assertion was removed by the join comments or exact-sentinel edit. Source audit only; no native observation claimed.",
   "requirement_sha": "0354590c6557e9a7",
   "tests": {
-    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "0d228841740c950c",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "5ca1572bb1671a6d",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "0fca7abc77e5f43f"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "ae87532b2b40a28d",
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "6cb9057d4a6c8904",
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6",
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "5be88dd1ee980e68"
   },
   "verdict": "enforced"

@@ -3,21 +3,21 @@
     "internal/component/bgp/reactor/session_negotiate.go::negotiateWith": "5070178a7256098c",
     "internal/core/bgp/capability/negotiated.go::Negotiate": "c6c2778e1e3777cb"
   },
-  "note": "Re-judged 2026-11-03 by an independent auditor who authored none of the change, after 2eebb4ac72. RFC 8654 Section 5: \"A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message.\" STALE because negotiateWith now computes the peer AS through s.judgedPeerAS(s.peerOpen), which calls the same sessionPeerAS(s.settings.PeerAS, !s.settings.DisableASN4, open) as before, plus comment edits. No message-length state moved: s.extendedMessage = s.negotiated.ExtendedMessageRecv and the writeBuf resize are unchanged, and capability.Negotiate is unchanged. TestRFC8654ReceiveLimitFollowsLocalOPEN drives a real OPEN exchange across local/peer advertisement, single and coalesced readers, and lengths 4096, 4097 and 65535, asserting acceptance only when the local side advertised (or length is 4096) and otherwise a Message Header Error / Bad Message Length NOTIFICATION carrying the erroneous Length with nothing dispatched; TestValidateLengthWithMax pins the header limit and the FRR interop checks cover both unadvertised directions. Verdict unchanged: enforced.",
+  "note": "RFC 8654 Section 5 forbids accepting Extended Messages when the receiver has not advertised capability 6; the peer's advertisement is not permission to receive. Re-read every tagged unit: TestValidateLengthWithMax checks exact 4097 rejection without extension and 65535 acceptance with extension, identifying failures as NOTIFICATION 1/2; TestRFC8654ReceiveLimitFollowsLocalOPEN drives actual OPENs for all four advertisement combinations and both readers at 4096, 4097 and 65535, requiring exact intact consumer payload and Established/no response for accepted input, or exact 1/2 with erroneous Length and no consumer dispatch for rejection. Its positive tag covers forbidden receive admission being refused and its negative tag covers the permitted local-only case; header tags use the complementary polarity convention but exercise distinct inputs and exact outcomes. The completion-only sender receive is correctly not an assertion about rejection: read-ahead can finish the write, while the independently asserted wire notification and zero dispatch prove rejection. checkExtendedRemoteOnlyRejectFRR and checkExtendedNeitherRejectFRR delegate to checkExtendedMessages/checkExtendedReceiveRejection, which verify original local OPEN advertisement separately from relay-delivered copies, observe an actual FRR over-4096 UPDATE, demand exact rejection with offending Length, and wait for the original FRR session to close. Producers capability.Negotiate and Session.negotiateWith set receive permission from local advertisement; both readers pass it to Header.ValidateLengthWithMax before payload admission. No semantic assertion was lost to the join comment. Source audit only; no interop or native execution claimed.",
   "requirement_sha": "2f0a7ba066004af5",
   "tests": {
     "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
     "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "2dc714d2cb055c17",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "2dc714d2cb055c17",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "b5c0e637b6312d80",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "b5c0e637b6312d80",
     "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedNeitherRejectFRR": "e385d68f3d8d0839",
     "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedRemoteOnlyRejectFRR": "e385d68f3d8d0839"
   },
   "units": {
     "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
     "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "6d34dfe53245e5aa",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "67bfabb5fa86205a",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "67bfabb5fa86205a",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "ab3b52786c444c8e",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "ab3b52786c444c8e",
     "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedNeitherRejectFRR": "e1e5fe0498917f8a",
     "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedRemoteOnlyRejectFRR": "657d68f1b6172280"
   },

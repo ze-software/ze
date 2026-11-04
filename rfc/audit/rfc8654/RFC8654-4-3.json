@@ -8,7 +8,7 @@
   "tests": {
     "internal/component/bgp/message/header_test.go::TestMaxMessageLength": "4eb31663a97bb3a8",
     "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AdvertisementDoesNotExtendControlBounds": "2dc714d2cb055c17"
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AdvertisementDoesNotExtendControlBounds": "b5c0e637b6312d80"
   },
   "units": {
     "internal/component/bgp/message/header_test.go::TestMaxMessageLength": "d7845b90aa377929",

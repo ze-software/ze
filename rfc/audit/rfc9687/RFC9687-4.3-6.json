@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden behaviour: ConnectRetryCounter not incremented by exactly 1 on Event 29. Positive asserts crc == 1 after the expiry, negative asserts crc == 0 before it; an increment of 2 or 0 goes red.",
+  "note": "RFC 9687 Section 4.3 Event 29 increments ConnectRetryCounter by 1. Re-read the two tagged action-list functions and the shared fixture, which hands the session a real zero-valued fsm.ConnectRetryCounter rather than relying on the nil receiver. The expired case now requires exact ErrSendHoldTimerExpired and counter exactly 1; the one-nanosecond-short control requires exactly 0 and Established. Wrong increments, no increment and premature counting therefore contradict explicit assertions. sendHoldTimerExpired delivers EventHoldTimerExpires to the shared Established FSM branch, which calls crc.Increment and changes to Idle. No timer other than SendHold expires in the positive interval. The sentinel assertion loses no counter proof. Native execution was not performed.",
   "requirement_sha": "5ff282c953c7bad1",
   "tests": {
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f"
   },
   "units": {
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6"
   },
   "verdict": "enforced"
 }

@@ -1,12 +1,12 @@
 {
-  "note": "Forbidden behaviour: a SendHoldTimer armed when the negotiated HoldTime is zero, or stopped when it is not. TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer asserts armed() false and the session still Established after 10x the SendHoldTime; TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer asserts armed() true and the expiry at a negotiated 90 s. The SendHoldTime-zero half has no violating input: sendHoldDuration never returns zero.",
+  "note": "RFC 9687 Section 4.3 stops SendHoldTimer when SendHoldTime or negotiated HoldTime is zero. Re-read both tagged functions and the actual duration/start producers. ZeroNegotiatedHoldTimeStopsTheSendHoldTimer negotiates peer HoldTime zero through a real OPEN, asserts effective HoldTime zero and SendHold disarmed, then advances ten SendHoldTime periods with no send and requires the session still Established. NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer negotiates exactly 90 seconds, requires armed, advances SendHoldTime and now joins exact ErrSendHoldTimerExpired. startSendHoldTimer explicitly stops on zero effective duration or negotiated hold. The effective SendHoldTime-zero antecedent has no reachable case in the present capability: sendHoldDuration returns an explicitly positive configured duration or max(positive sendHoldTimerMin, 2*ReceiveHoldTime); a configured zero selects auto rather than representing effective zero. This is a producer-derived reachability boundary, not a claim that an unexercised zero-duration branch has mutant proof. The reachable zero-HoldTime exception and nonzero control have direct discriminating assertions. No native test was run.",
   "requirement_sha": "2a000ddf5a1a5f33",
   "tests": {
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer": "0fca7abc77e5f43f"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer": "d57d3f91e97fd943",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer": "49f20c3116d016e5",
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer": "b1405671d0b992fc"
   },
   "verdict": "enforced"

@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden behaviour: the TCP connection left open after Event 29, or dropped before it. Positive: requireConnClosed(t, p.drainErr) after Run returned; negative: the drainErr select fails the test if the connection closed inside the SendHoldTime.",
+  "note": "RFC 9687 Section 4.3 Event 29 drops TCP. Both tagged action-list functions were re-read. SendHoldExpiryRunsTheEvent29ActionList advances the isolated SendHold deadline, now requires exact ErrSendHoldTimerExpired, and calls requireConnClosed after Run joins; that helper requires EOF or closed pipe and explicitly refuses deadline expiry. NoSendHoldExpiryLeavesTheSessionIntact advances one nanosecond less, retains Established and the armed timer, and fails if the transport drain reports a close. sendHoldTimerExpired invokes closeConn, backed by Run's common deferred close; a mere Run return is not the transport predicate. The new sentinel check strengthens rather than removes the existing close observation. No native test was run.",
   "requirement_sha": "bbda20c2fb6b5685",
   "tests": {
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f"
   },
   "units": {
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6"
   },
   "verdict": "enforced"
 }

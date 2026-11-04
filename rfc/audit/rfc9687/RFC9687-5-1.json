@@ -1,13 +1,13 @@
 {
-  "note": "The MAY clause obliges nothing. Forbidden behaviour: the connection left open when no message was sent for SendHoldTime, or closed before. Positive: requireConnClosed after advancing exactly rfc9687SendHold; negative: no close one nanosecond short of it.",
+  "note": "RFC 9687 Section 5 permits a Send Hold Timer Expired NOTIFICATION but requires the connection closed when no BGP message is sent within SendHoldTime. Both tagged functions were re-read. SendHoldExpiryRunsTheEvent29ActionList advances exactly the isolated SendHold deadline without sending, now requires exact ErrSendHoldTimerExpired and uses requireConnClosed to demand EOF/closed pipe, never a timeout; NoSendHoldExpiryLeavesTheSessionIntact advances one nanosecond short and requires no close and Established state. sendHoldTimerExpired closes through closeConn and Run has a common deferred close. The optional NOTIFICATION assertion in the positive unit is additional implementation behavior on a writable pipe, not a mandatory interpretation of MAY. Its sentinel addition removes no transport assertion. No native observation claimed.",
   "requirement_sha": "fac7b73512f069ff",
   "tests": {
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f"
   },
   "units": {
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6"
   },
   "verdict": "enforced"
 }

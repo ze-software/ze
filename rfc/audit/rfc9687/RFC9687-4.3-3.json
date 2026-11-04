@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc9687): \"releases all BGP resources\" be95c10053 adds acceptingPolicies(t, settings) so the EBGP session's routes reach the RIB under RFC 8212. Without it the RIB would hold neither route and the test's precondition (both wire routes present before the timer, routes == 2) would fail; with it the test still shows both routes held, then the peer and its RIB storage released, the session Idle and the Send Hold Timer Expired NOTIFICATION on the wire. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "RFC 9687 Section 4.3 Event 29 'releases all BGP resources'. All four distinct tagged functions, including both polarities in Event29ReleasesHoldTimerAndConnection, were re-read. SendHoldExpiryRunsTheEvent29ActionList now pins exact ErrSendHoldTimerExpired and asserts stopped Keepalive/ConnectRetry/SendHold resources, Idle and closed transport; NoSendHoldExpiryLeavesTheSessionIntact keeps the resources, counter and connection before expiry. Event29ReleasesHoldTimerAndConnection independently asserts live HoldTimer, KeepaliveTimer and connection one nanosecond before expiry, then exact expiry sentinel and absence of all three on the expired fixture. Event29ReleasesTheLivePeersRIB drives the actual Peer, reactor dispatcher and registered RIB plugin, first requires both wire-originated routes present, then requires their peer storage and routes gone, the session released, Idle and nil connection, with the Event 29 NOTIFICATION on the wire. Run retires timers, closeConn releases transport, and the leave/down dispatch reaches RIBManager.handleStructuredState's peerRIB.Release/delete boundary. The existing producer-panic discrimination entry for the combined resource unit proves producer dependency only: its negative polarity is not an independently isolated mutant of the earlier live assertions. This note does not promote that record into such a proof. The source assertions remain discriminating for premature resource release versus missing release, and the exact-sentinel edits remove none. No native execution claimed.",
   "requirement_sha": "83340d1ef8b36846",
   "tests": {
-    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "0d228841740c950c",
-    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "0d228841740c950c",
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "5ca1572bb1671a6d",
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "5ca1572bb1671a6d",
     "internal/component/bgp/reactor/rfc9687_rib_release_test.go::TestRFC9687Event29ReleasesTheLivePeersRIB": "66e5166544294431",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "fc3f1c5978108b49",
-    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "fc3f1c5978108b49",
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "4eb39d61441955a8",
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "4eb39d61441955a8",
     "internal/component/bgp/reactor/rfc9687_rib_release_test.go::TestRFC9687Event29ReleasesTheLivePeersRIB": "8010faad0d85daee",
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6"
   },
   "verdict": "enforced"
 }

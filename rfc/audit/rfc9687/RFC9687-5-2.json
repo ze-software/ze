@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden behaviour: no local error naming Send Hold Timer Expired on the expiry, or one without it. Positive asserts the log contains 'send hold timer expired', negative asserts NotContains before the expiry.",
+  "note": "RFC 9687 Section 5 additionally requires a local error indicating Send Hold Timer Expired. Both tagged functions and the shared capture fixture were re-read: the exact-deadline positive now requires ErrSendHoldTimerExpired and asserts the real slog sink contains 'send hold timer expired'; the one-nanosecond-short control requires that indication absent, no Run completion, live resources and Established. sendHoldTimerExpired produces the indication before notification/close, and the fake-clock interval isolates this expiry from Hold/Keepalive/ConnectRetry events. RFC wording does not prescribe a logger API severity or require numeric code 8 when its exact error name is indicated. The exact-sentinel edit strengthens cause identification and drops no logging predicate. Source audit only; no native red or green claimed.",
   "requirement_sha": "acdf8d324d2a642d",
   "tests": {
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f"
   },
   "units": {
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6"
   },
   "verdict": "enforced"
 }

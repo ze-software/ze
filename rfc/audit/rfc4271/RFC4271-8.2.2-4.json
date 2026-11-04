@@ -1,16 +1,16 @@
 {
-  "note": "Peer level: the far end reads 4/0 then EOF after Event 10 in Established; the fed-KEEPALIVE negative keeps the connection open for three hold times. fireHold / ResetHoldTimer breaks observed red. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
+  "note": "RFC 4271 Section 8.2.2 Event 10 cumulatively requires code-4 NOTIFICATION, ConnectRetryTimer zero, resource release and dropped TCP. Re-read HoldExpiryRunsTheEvent10ActionList, NoHoldExpiryLeavesTheSessionIntact, EstablishedHoldTimerExpiryRunsTheEvent10List and EstablishedHoldTimerFedByKeepalivesNeverExpires. The Session positive now pins ErrHoldTimerExpired, checks all three timer stops and Idle, requires EOF/closed-pipe rather than timeout via requireConnClosed, and reads code 4 from that same connection before closure. The running-Peer positive strengthens notification identity to exactly one 4/0, checks session release and all timers, and observes EOF; the fed negative keeps the socket/session/timers alive with no NOTIFICATION, while the Session negative rejects a premature close and retains the explicitly armed ConnectRetryTimer. NewSession's expiry callback sends the notification; Run's closeConn/retireSessionTimers and the common connection-close path produce retirement. No proof was replaced by joining the error: the exact expiry sentinel is additional isolation. Native commands were not run.",
   "requirement_sha": "7d60524420d74165",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
     "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "33a499fb23a13b0e",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "33a499fb23a13b0e"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "cf56fd5b02c69045",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "cf56fd5b02c69045"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
     "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "db606972eff20c1c",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "47fab825725cad28",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "13db54147e665521",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "5d0e00e5828e7c3b"
   },
   "verdict": "enforced"

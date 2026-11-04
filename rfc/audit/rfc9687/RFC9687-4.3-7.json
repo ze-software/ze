@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden behaviour: a state other than Idle after Event 29. Positive asserts State == StateIdle, negative asserts StateEstablished before the expiry.",
+  "note": "RFC 9687 Section 4.3 Event 29 changes state to Idle. Re-read SendHoldExpiryRunsTheEvent29ActionList and NoSendHoldExpiryLeavesTheSessionIntact: the positive advances exactly SendHoldTime, now joins exact ErrSendHoldTimerExpired and asserts StateIdle; the negative stops one nanosecond short, rejects terminal Run completion and requires StateEstablished. The fixture establishes through real OPEN/KEEPALIVE processing and chooses a deadline preceding every other session timer. sendHoldTimerExpired delivers the event to fsm's Established HoldTimerExpires handler, whose exact transition is Idle. A missing, wrong or premature transition violates a distinct state assertion; Run completion alone does not stand in for that transition. No native execution claimed.",
   "requirement_sha": "c70f245f9bce1316",
   "tests": {
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f"
   },
   "units": {
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6"
   },
   "verdict": "enforced"
 }

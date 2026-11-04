@@ -1,16 +1,16 @@
 {
-  "note": "Peer level: after Event 10 in Established the session's HoldTimer and KeepaliveTimer stop and the Peer drops the session object (the per-connection BGP resources); the fed-KEEPALIVE negative keeps session and both timers. Route deletion is not in this Event 10 list (it is in the Event 18/24/25 rows). fireHold / ResetHoldTimer breaks observed red. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
+  "note": "Read the complete Established Event 10 list in RFC 4271 Section 8.2.2 and all four tagged units. HoldExpiryRunsTheEvent10ActionList requires exact ErrHoldTimerExpired, the HoldTimer and KeepaliveTimer stopped, ConnectRetryTimer stopped and the closing connection's code-4 NOTIFICATION; its no-expiry counterpart retains all armed timers and Established state. EstablishedHoldTimerExpiryRunsTheEvent10List and its KEEPALIVE-fed counterpart exercise the running Peer: requireReleased checks exactly one 4/0, release of the session object and all three session timers, with the healthy control retaining the same session, timers and connection over three hold times. These cover release of the per-connection resources held by these sessions, not merely successful Run completion. The RFC separately names route deletion in neighboring Event 18/24/25 lists; no new claim about a populated RIB is inferred from these empty-route fixtures. Run retires timers and closeConn retires transport, while the FSM transition releases the Peer session. The exact-sentinel edit removes no resource assertion. Source judgment only; no native red or green claimed.",
   "requirement_sha": "869f66e65e92a514",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
     "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "33a499fb23a13b0e",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "33a499fb23a13b0e"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "cf56fd5b02c69045",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "cf56fd5b02c69045"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
     "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "db606972eff20c1c",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "47fab825725cad28",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "13db54147e665521",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "5d0e00e5828e7c3b"
   },
   "verdict": "enforced"

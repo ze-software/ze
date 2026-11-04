@@ -1,13 +1,13 @@
 {
-  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 9687 Section 4.3: \"Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.\" ff89fc8110 (a withdraw verdict withdraws both families) changed only the egressRouteFilter closure in the tagged unit to the new three-value signature (suppress, override, follow); session_write.go writeUpdateGated and the raw-forward path read the first two exactly as before and the policy cases answer suppress with a nil override and nil follow, so every input and every assertion is unchanged. TestRFC9687SuppressedAttemptsDoNotRestartSendHold still requires a suppressed, held, batched or duplicate attempt to leave the exact SendHold deadline unmoved, which fails if a write that emitted nothing restarted the timer; the positives (emission, every writer, remaining writers) are byte-identical. Zero-time exception stays with RFC9687-4.3-9. Verdict unchanged: enforced.",
+  "note": "Read RFC 9687 Section 4.3's whole restart sentence, including its zero-value exceptions, and every tagged function: SendRestartsTheSendHoldTimer, SilenceDoesNotRestartTheSendHoldTimer, EveryWriterRestartsTheSendHoldTimer, RemainingWritersRestartSendHold, EmissionRestartsExactSendHoldDeadline and SuppressedAttemptsDoNotRestartSendHold. Real RawMessage, generic KEEPALIVE, UPDATE/withdraw/raw-body, SendAnnounce, held writes, raw/parsed forward batches and dirty flush rails are exercised with nonzero negotiated hold; sending at 0.6 SendHoldTime retains Established and an armed timer past the old deadline. Exact-emission tests additionally compare wire frames and exact restarted deadline, including bufio direct writes, refresh/BoRR/EoRR, buffering without emission, and empty flush not reusing old emission. Policy suppression, duplicates, stale batches, empty operations and PATHS-LIMIT write no extra bytes, leave the exact deadline fixed and reach actual expiry. The silence unit now requires the exact ErrSendHoldTimerExpired sentinel, not just any completed Run. flushWrites consumes writePending and resets only after successful emission/flush; resetSendHoldTimer and sendHoldTimerCheck move/recheck the deadline. The zero negotiated HoldTime case is separately proven by the tagged -9 pair; effective zero SendHoldTime is unreachable because sendHoldDuration supplies a positive auto minimum. No proof loss from the sentinel addition. Source audit only; no native mutation result claimed.",
   "requirement_sha": "e84a6c54182b7346",
   "tests": {
     "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687EmissionRestartsExactSendHoldDeadline": "8e27fec46f11b673",
     "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687SuppressedAttemptsDoNotRestartSendHold": "8e27fec46f11b673",
-    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "0d228841740c950c",
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "5ca1572bb1671a6d",
     "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "f5a0141e77bfa081",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "0fca7abc77e5f43f"
   },
   "units": {
     "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687EmissionRestartsExactSendHoldDeadline": "2a0f7572c9964fdb",
@@ -15,7 +15,7 @@
     "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "e82cfcf39bfc5c7d",
     "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "4d7bdf9987a93c70",
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "ef727ea44a115c14",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "7581328442f256ff"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "1542eb93fd01009c"
   },
   "verdict": "enforced"
 }

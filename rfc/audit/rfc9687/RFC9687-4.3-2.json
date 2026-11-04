@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden behaviour: Event 29 without a local log naming Send Hold Timer Expired, or that log without the expiry. TestRFC9687SendHoldExpiryRunsTheEvent29ActionList asserts the log contains 'send hold timer expired' after the expiry; TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact asserts NotContains one nanosecond short of it.",
+  "note": "RFC 9687 Section 4.3 Event 29 requires a local error message indicating Send Hold Timer Expired. Re-read both tagged functions and the slog capture fixture: SendHoldExpiryRunsTheEvent29ActionList advances exactly SendHoldTime, now requires exact ErrSendHoldTimerExpired, and asserts the actual captured logger contains 'send hold timer expired'; NoSendHoldExpiryLeavesTheSessionIntact advances one nanosecond less and asserts that text absent while retaining Established state and resources. The fake-clock advance crosses no Hold/Keepalive/ConnectRetry deadline. sendHoldTimerExpired produces the named warning-level log; RFC text requires the error indication, not a specific logging API severity level or numeric rendering. The exact-sentinel addition excludes an unrelated Run failure and retains the log assertion. No native red/green was observed by this audit.",
   "requirement_sha": "223c4c2478c6c214",
   "tests": {
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f"
   },
   "units": {
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6"
   },
   "verdict": "enforced"
 }

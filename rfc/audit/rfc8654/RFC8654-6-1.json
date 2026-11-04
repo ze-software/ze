@@ -1,15 +1,15 @@
 {
-  "note": "Both Section 6 paragraphs are retained: common header minimum, the raised maximum only after local capability advertisement, and OPEN/KEEPALIVE exceptions; header controls assert per-type limits, invalid lengths, OPEN refusal above 4096 and KEEPALIVE refusal at 20, while capability tests distinguish receive and send permission for all four advertisement combinations; ReceiveLimitFollowsLocalOPEN exchanges actual OPENs and drives both readers at 4096, 4097 and 65535, requiring exact complete dispatched payloads or NOTIFICATION 1/2 with erroneous Length and no dispatch; AnnouncementAccumulation uses individually standard-sized inputs to isolate batching capacity and asserts exact consumer batches beyond 4096 through 65535, overflow/KEEPALIVE flushing and standard-sized batching without local advertisement; current source uses the directional receive permission for buffers and header admission, and existing TestValidateLengthWithMax binding omissions are standing metadata debt rather than a new source or semantic gap",
+  "note": "Read both RFC 8654 Section 6 paragraphs with Sections 3-5: the common minimum remains, the 65535 maximum applies only after receiver advertisement, and OPEN/KEEPALIVE are excluded. All five tagged functions were re-read. TestValidateLengthWithMax and TestRFC8654LengthBoundsPerTypeAndCapability accept per-type minima and 4096 boundaries, accept 65535 for extended UPDATE/NOTIFICATION/ROUTE-REFRESH, reject 0/18 and standard 4097, reject OPEN 4097/65535 even with extension and KEEPALIVE 20, and identify Bad Message Length, including erroneous Length in the boundary helper. TestRFC8654ExtendedMessageDirections tests all four advertisement combinations and independently pins receive/send permission in negotiated and encoding views. TestRFC8654ReceiveLimitFollowsLocalOPEN drives actual OPENs and both session readers at 4096/4097/65535 with complete-payload equality or exact 1/2 plus offending Length and no dispatch. Its rejected sender receive only joins completion; the wire and dispatch predicates remain the proof. TestRFC8654AnnouncementAccumulation uses individually standard-sized announcements to isolate batching rather than header admission, requiring exact consumer batches through 65535, overflow splitting, KEEPALIVE flush, empty-flush nonduplication and continued Established state. The producers are directional capability.Negotiate, Session.negotiateWith, Header.ValidateLengthWithMax and the single/coalesced readers. The comment-only receive change loses no proof or boundary. No native tests were executed in this audit.",
   "requirement_sha": "e3cfe43c3eb21f36",
   "tests": {
     "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
     "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8",
     "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability": "d650224808e8093a",
     "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability#2": "d650224808e8093a",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation": "2dc714d2cb055c17",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation#2": "2dc714d2cb055c17",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "2dc714d2cb055c17",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "2dc714d2cb055c17",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation": "b5c0e637b6312d80",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation#2": "b5c0e637b6312d80",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "b5c0e637b6312d80",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "b5c0e637b6312d80",
     "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageDirections": "fc329d90dcc84324",
     "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageDirections#2": "fc329d90dcc84324"
   },
@@ -20,8 +20,8 @@
     "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability#2": "9488e67e26c6b5cf",
     "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation": "0f2cc0bc870eee92",
     "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation#2": "0f2cc0bc870eee92",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "67bfabb5fa86205a",
-    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "67bfabb5fa86205a",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "ab3b52786c444c8e",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "ab3b52786c444c8e",
     "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageDirections": "02cc9cc4d8d15a81",
     "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageDirections#2": "02cc9cc4d8d15a81"
   },
