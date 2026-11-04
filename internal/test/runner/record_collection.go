@@ -94,7 +94,8 @@ func (ts *Tests) Summary() (passed, failed, timedOut, skipped int) {
 	defer ts.mu.RUnlock()
 
 	for _, r := range ts.byNick {
-		//exhaustive:ignore // Count terminal outcomes only; pending and running records contribute nothing.
+		// Count terminal outcomes only; pending and running records contribute nothing.
+		//exhaustive:ignore
 		switch r.State {
 		case StateSuccess:
 			passed++

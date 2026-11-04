@@ -2385,11 +2385,17 @@ Common run options:
 <!-- source: internal/test/cli/cmd_editor.go -- cmdEditorMain -->
 <!-- source: internal/test/cli/cmd_web.go -- cmdWebMain -->
 
-`--save` also preserves a failed `await=stderr` fence, with or without
-`then=stop`. After stopping the daemon and draining the peers, the runner saves
-both stdout and stderr streams for peers and clients, plus the received wire
-messages. The fence's original failure remains the verdict; teardown output is
-diagnostic evidence, not a substitute for the missing assertion.
+`--save` also preserves failures before the normal assertion checks, including a
+foreground helper's failure or timeout and a failed `await=stderr` fence with or
+without `then=stop`. After the child owners stop and join every output writer,
+the orchestrated runner saves both stdout and stderr streams for peers and
+clients, plus the expected and received wire messages, once. The original
+failure remains the verdict; teardown output is diagnostic evidence, not a
+substitute for the missing assertion. A save failure is reported as a warning
+without replacing the test's original result.
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- source: internal/test/runner/runner_output.go -- saveTestOutput -->
+<!-- test: internal/test/runner/last_helper_test.go TestFailedOrchestratedRunSavesLateOutput, TestEarlySaveWaitsForOwnedWriterJoin -->
 
 ### Replaying a captured BGP session
 

@@ -1161,6 +1161,24 @@ from its start to the end of the run, so the daemon teardown that follows is
 still forbidden. A command the run never reached has an EMPTY span, never the
 whole buffer.
 
+Output snapshots taken between commands do not finish an open span. The runner
+closes it only after the output writers have joined, including deferred child
+cleanup on an early error. Until 2026-11-03, saving a foreground helper's output
+also closed background and daemon spans, so later output reached the report but
+not the assertions under those commands.
+<!-- source: internal/test/runner/runner_output_assert.go -- setClientOutput, finalizeClientOutput -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- test: internal/test/runner/last_helper_test.go TestBackgroundSpanSurvivesIntermediateHelper, TestEarlyErrorFinalizesOutputSpans -->
+
+With `--save`, the orchestrated runner writes the final client and peer stdout
+and stderr, expected messages, and received wire messages once after the child
+owners finish. This includes a helper failure or timeout that returns before
+normal teardown. Saving preserves the original verdict; a write failure is
+reported as a warning rather than replacing the test's failure.
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- source: internal/test/runner/runner_output.go -- saveTestOutput -->
+<!-- test: internal/test/runner/last_helper_test.go TestFailedOrchestratedRunSavesLateOutput, TestEarlySaveWaitsForOwnedWriterJoin -->
+
 **This replaced a file-level check over one combined buffer.** Every expect
 used to read `Record.ClientOutput`, the concatenated stdout AND stderr of every
 command in the file, so an assertion could be satisfied by a command its author

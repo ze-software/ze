@@ -549,6 +549,44 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	clock := newExecClock(time.Now())
 	defer clock.stamp(rec)
 
+	// Per-process output tracking for ze-peer instances.
+	// Each ze-peer gets its own syncWriter/stderr so WaitFor works independently.
+	var peerOutputs []peerOutput
+	// Every non-peer client process (the ze daemon plus each cmd=background
+	// helper, mock server, or observer) shares these two accumulators, and
+	// os/exec runs one copy goroutine per stream per process.
+	// They MUST be concurrency-safe: a plain strings.Builder loses whole lines
+	// when two processes write at once, which silently turns an
+	// expect=stderr:pattern= into a spurious failure under load.
+	var clientStdout, clientStderr lockedBuilder
+	var allPeerStdout, allPeerStderr string
+
+	// Every subsequently registered child owner finishes before this defer.
+	// The normal path finalizes before assertions; early errors finalize here
+	// after writer shutdown. Saving belongs to this lifetime boundary so every
+	// return saves the complete streams exactly once without changing its verdict.
+	outputFinalized := false
+	defer func() {
+		if !outputFinalized {
+			allPeerStdout, allPeerStderr = collectPeerStreams(peerOutputs)
+			rec.PeerOutput = allPeerStdout + allPeerStderr
+			finalizeClientOutput(rec, clientStdout.String(), clientStderr.String())
+			rec.ReceivedRaw = extractReceivedMessages(rec.PeerOutput)
+			rec.Duration = time.Since(rec.StartTime)
+		}
+		if opts.SaveDir != "" {
+			out := &testOutput{
+				peerStdout:   allPeerStdout,
+				peerStderr:   allPeerStderr,
+				clientStdout: rec.ClientStdout,
+				clientStderr: rec.ClientStderr,
+			}
+			if saveErr := r.saveTestOutput(rec, out, opts.SaveDir); saveErr != nil {
+				logger().Warn("save test output failed", "nick", rec.Nick, "error", saveErr)
+			}
+		}
+	}()
+
 	rec.SetState(StateRunning)
 
 	// Fix B: opt-in per-test network-namespace isolation. When ZE_TEST_NETNS is
@@ -638,17 +676,6 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// this map after it is reaped, so fgProc selection skips it. Its deferred
 	// lifetime cleanup remains registered (see the modeStop case below).
 	namedBg := make(map[string]*ownedProcess)
-
-	// Per-process output tracking for ze-peer instances.
-	// Each ze-peer gets its own syncWriter/stderr so WaitFor works independently.
-	var peerOutputs []peerOutput
-	// Every non-peer client process (the ze daemon plus each cmd=background
-	// helper, mock server, or observer) shares these two accumulators, and
-	// os/exec runs one copy goroutine per stream per process.
-	// They MUST be concurrency-safe: a plain strings.Builder loses whole lines
-	// when two processes write at once, which silently turns an
-	// expect=stderr:pattern= into a spurious failure under load.
-	var clientStdout, clientStderr lockedBuilder
 
 	// await=stderr fence: when set, the daemon's relayed stderr is teed through
 	// this syncWriter so the runner can block until it carries the needle before
@@ -1019,11 +1046,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			}
 		}
 
-		// Open this command's output span. A quick-exit ze re-marks both ends
-		// around its own fold in awaitQuickZe, which is exact; everything else
-		// writes to the shared accumulators as it runs, so its span opens here
-		// and closes with closeOpenSpans at the end of the run.
-		cmd.stdoutFrom, cmd.stderrFrom = clientStdout.mark(), clientStderr.mark()
+		// Preserve the pre-launch offsets, but publish the open span only after
+		// Start succeeds. An unlaunched command must keep an empty span even
+		// when another writer appends bytes during the failed launch.
+		stdoutFrom, stderrFrom := clientStdout.mark(), clientStderr.mark()
 
 		stderrSeen := clock.watch(proc.Stderr)
 		proc.Stderr = stderrSeen
@@ -1034,7 +1060,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.Error = fmt.Errorf("start %s: %w", binName, startErr)
 			return false
 		}
-		defer owned.finish(rec, &passed)
+		// Every started process MUST remain owned until the run ends, because
+		// later commands may use it and early returns must join its writers.
+		defer owned.finish(rec, &passed) //nolint:gocritic // deferInLoop: ownership lasts for the whole run.
+		cmd.stdoutFrom, cmd.stderrFrom = stdoutFrom, stderrFrom
 		clock.mark(execStep, owned.cmd.Process.Pid, stderrSeen)
 		if isPeerExec(execStr) {
 			peerOutputs[len(peerOutputs)-1].proc = owned
@@ -1392,27 +1421,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// the daemon alone, and ~290 .ci files pair a check peer with expect=exit.
 	drainPeers(peerOutputs, peerDrainGrace)
 
-	allPeerStdout, allPeerStderr := collectPeerStreams(peerOutputs)
+	allPeerStdout, allPeerStderr = collectPeerStreams(peerOutputs)
 	rec.PeerOutput = allPeerStdout + allPeerStderr
-	setClientOutput(rec, clientStdout.String(), clientStderr.String())
+	finalizeClientOutput(rec, clientStdout.String(), clientStderr.String())
+	outputFinalized = true
 	rec.Duration = time.Since(rec.StartTime)
 	logger().Debug("collected output", "peerOutput", rec.PeerOutput, "clientOutput", rec.ClientOutput)
 
 	// Parse received messages
 	rec.ReceivedRaw = extractReceivedMessages(rec.PeerOutput)
 
-	// Save outputs if requested
-	if opts.SaveDir != "" {
-		out := &testOutput{
-			peerStdout:   allPeerStdout,
-			peerStderr:   allPeerStderr,
-			clientStdout: clientStdout.String(),
-			clientStderr: clientStderr.String(),
-		}
-		if saveErr := r.saveTestOutput(rec, out, opts.SaveDir); saveErr != nil {
-			logger().Warn("save test output failed", "nick", rec.Nick, "error", saveErr)
-		}
-	}
 	if fenceFailed {
 		return false
 	}

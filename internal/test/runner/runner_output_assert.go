@@ -23,8 +23,8 @@ func (r *Record) recordStep(assert string, passed bool, detail string) {
 	})
 }
 
-// setClientOutput stores the run's two accumulators and their concatenation
-// together.
+// setClientOutput snapshots the run's two accumulators and their concatenation
+// together without closing spans whose writers are still running.
 //
 // One writer for all three, because a command's span indexes into ClientStdout
 // and ClientStderr while every report reads ClientOutput: setting one without
@@ -34,10 +34,13 @@ func setClientOutput(rec *Record, stdout, stderr string) {
 	rec.ClientStdout = stdout
 	rec.ClientStderr = stderr
 	rec.ClientOutput = stdout + stderr
-	// Closing the spans HERE rather than at the end of the run is what makes
-	// the early-return paths safe: a test that gives up mid-file still reaches
-	// this setter, and a command whose span was left open then ends at the
-	// output that exists rather than at an offset past it.
+}
+
+// finalizeClientOutput MUST be called after every output writer has joined.
+// Snapshot publication alone cannot end a background command's span: a
+// foreground helper can publish a snapshot while that command is still writing.
+func finalizeClientOutput(rec *Record, stdout, stderr string) {
+	setClientOutput(rec, stdout, stderr)
 	closeOpenSpans(rec, len(stdout), len(stderr))
 }
 
