@@ -21,6 +21,8 @@ option=monitor:ping=fake
 # | resolve enriches the legend with the fake PTR name
 input=type:text=monitor ping 192.0.2.1 | resolve | log
 input=enter
+# Apply the pending real 50ms ping drain delivery before asserting its output.
+wait=timer:drain
 expect=viewport:contains=--- 192.0.2.1 ping-target.test ---
 expect=viewport:contains=seq=0
 expect=viewport:contains=seq=2
@@ -28,11 +30,15 @@ expect=viewport:contains=seq=2
 # | origin enriches the legend with the fake AS name (output accumulates)
 input=type:text=monitor ping 192.0.2.1 | origin | log
 input=enter
+# Apply the pending real 50ms ping drain delivery before asserting its output.
+wait=timer:drain
 expect=viewport:contains=--- 192.0.2.1 TEST-NET-AS ---
 
 # without enrichment pipes the legend stays the plain target
 input=type:text=monitor ping 198.51.100.9 | log
 input=enter
+# Apply the pending real 50ms ping drain delivery before asserting its output.
+wait=timer:drain
 expect=viewport:contains=--- 198.51.100.9 ---
 EOF_ET
 

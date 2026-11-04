@@ -92,7 +92,7 @@ var validExpectationTypes = map[string]func(Expectation, State) error{
 	"dropdown":    checkDropdown,
 	"prompt":      checkPrompt,
 	"viewport":    checkViewport,
-	"timer":       checkTimer,
+	etTimer:       checkTimer,
 	etMode:        checkMode,
 	etInput:       checkInput,
 	etFile:        checkFile,

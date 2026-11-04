@@ -500,6 +500,12 @@ func TestParseWait(t *testing.T) {
 			wantVal: "",
 		},
 		{
+			name:    "wait timer drain",
+			line:    "wait=timer:drain",
+			wantKey: "timer",
+			wantVal: "drain",
+		},
+		{
 			name:    "wait timer expire",
 			line:    "wait=timer:expire",
 			wantKey: "timer",

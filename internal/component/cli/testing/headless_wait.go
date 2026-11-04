@@ -12,6 +12,8 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/contract"
 )
 
+const waitTimerDrain = "drain"
+
 func (w WaitAction) parameters() (string, time.Duration, error) {
 	if len(w.Values) != 1 {
 		return "", 0, errors.New("wait requires exactly one action")
@@ -20,7 +22,9 @@ func (w WaitAction) parameters() (string, time.Duration, error) {
 		switch {
 		case kind == "validation" && value == "":
 			return kind, 0, nil
-		case kind == "timer" && value == "expire":
+		case kind == etTimer && value == "expire":
+			return kind, 0, nil
+		case kind == etTimer && value == waitTimerDrain:
 			return kind, 0, nil
 		case kind == "ms":
 			ms, err := strconv.ParseInt(value, 10, 64)
@@ -29,7 +33,7 @@ func (w WaitAction) parameters() (string, time.Duration, error) {
 			}
 			return kind, time.Duration(ms) * time.Millisecond, nil
 		default:
-			return "", 0, fmt.Errorf("invalid wait action %s:%s: use ms:<N>, validation or timer:expire", kind, value)
+			return "", 0, fmt.Errorf("invalid wait action %s:%s: use ms:<N>, validation, timer:drain or timer:expire", kind, value)
 		}
 	}
 	return "", 0, errors.New("wait requires an action")
@@ -61,7 +65,10 @@ func (hm *headlessModel) wait(action WaitAction) error {
 				return err
 			}
 		}
-	case "timer":
+	case etTimer:
+		if action.Values[etTimer] == waitTimerDrain {
+			return hm.waitPendingTimers()
+		}
 		if !hm.ConfirmTimerActive() {
 			return errors.New("timer expiry wait requires an active confirmation timer at entry")
 		}
@@ -86,6 +93,40 @@ func (hm *headlessModel) wait(action WaitAction) error {
 		return nil
 	}
 	return errors.New("unrecognized editor wait")
+}
+
+// waitPendingTimers applies each timer pending at entry exactly once. A timer
+// rearmed by a delivery belongs to the next wait, not this finite barrier.
+func (hm *headlessModel) waitPendingTimers() error {
+	if len(hm.pending) == 0 {
+		return errors.New("timer drain wait requires a pending timer at entry")
+	}
+	entry := hm.pending
+	hm.pending = nil
+	for i, tick := range entry {
+		select {
+		case msg := <-tick.result:
+			if msg == nil {
+				hm.pending = append(hm.pending, entry[i+1:]...)
+				return errors.New("editor timer canceled during drain")
+			}
+			hm.processMsg(msg)
+		case <-hm.stopped:
+			hm.pending = append(hm.pending, entry[i:]...)
+			return errors.New("editor timer drain canceled")
+		case <-hm.canceled:
+			hm.pending = append(hm.pending, entry[i:]...)
+			return errors.New("editor timer drain canceled")
+		}
+	}
+	select {
+	case <-hm.stopped:
+		return errors.New("editor timer drain canceled")
+	case <-hm.canceled:
+		return errors.New("editor timer drain canceled")
+	default:
+		return nil
+	}
 }
 
 // waitEvent waits on the finite set of declared timers, a duration deadline

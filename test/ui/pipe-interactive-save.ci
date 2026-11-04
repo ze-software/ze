@@ -21,6 +21,8 @@ option=monitor:ping=fake
 
 input=type:text=monitor ping 192.0.2.1 | ndjson | log | save interactive-save.ndjson
 input=enter
+# Apply the pending real 50ms ping drain delivery before asserting its output.
+wait=timer:drain
 expect=error:none
 expect=viewport:contains=rtt-ms
 expect=viewport:contains=1.234

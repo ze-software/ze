@@ -126,6 +126,7 @@ const (
 	etSession    = "session"
 	etStatus     = "status"
 	etTimeout    = "timeout"
+	etTimer      = "timer"
 	etWait       = "wait"
 	keyNameSpace = "space"
 )

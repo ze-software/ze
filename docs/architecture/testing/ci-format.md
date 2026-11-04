@@ -2638,12 +2638,19 @@ timers before releasing the editor.
 |--------|---------|---------|
 | `wait=ms:<N>` | Wait N milliseconds | `wait=ms:200` |
 | `wait=validation` | Wait for validation | `wait=validation` |
+| `wait=timer:drain` | Apply timers pending at entry once | `wait=timer:drain` |
 | `wait=timer:expire` | Wait for timer expiry | `wait=timer:expire` |
 
 `wait=ms:<N>` pumps timer deliveries for at least N real milliseconds (zero is
 allowed). Negative, noninteger and overflowing durations are parse errors.
 `wait=validation` applies the current generation before the next state command;
 older debounce ticks cannot satisfy it. A settled editor returns immediately.
+`wait=timer:drain` waits for and applies every declared timer pending at entry,
+including its complete state-command chain. Timers rearmed by those deliveries
+remain pending for later steps. No elapsed-time threshold establishes readiness;
+an empty entry set or cancellation fails the wait. For a fake ping monitor,
+place it immediately after Enter so the real 50ms first poll drains the prepared
+replies before viewport or saved-file assertions.
 `wait=timer:expire` requires an active confirmation timer on entry and waits for
 observed timeout rollback. An inactive timer, accept/abort, cancellation, missing
 countdown/poll or rollback error fails the wait. Session editors observe the
