@@ -206,6 +206,25 @@ bgp { peer p1 { filter { import { filters [ customers-only ]; final accept; } } 
 
 Each plugin declares whether an internal error fails open or closed. Security filters should normally reject on failure. Operational policy should make that choice explicit rather than depending on an unavailable external service.
 
+### Conditional defaults and stale readvertisement
+
+`default-originate-filter` is a condition, not an attribute policy for the
+default route. It judges the encoded default route through the named filter
+and the export policy's final. Valid attribute sets participate in that
+evaluation but do not change the emitted default. An eligible default then
+runs the full export policy separately. A rejected condition, a fail-closed
+evaluation error or an unsupported raw condition withholds the default; use
+a filter that reads declared route fields rather than raw bytes.
+
+A stale readvertisement runs only export members whose declarations opt into
+`readvertise`. Its result goes to the already-filtered writer: ordinary export
+members do not run again, and a non-idempotent set such as AS-path prepend is
+not doubled. A withdrawal decision remains a withdrawal. Writer ownership,
+message-size limits and origination admission still apply.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- defaultOriginateFilterAccepts, sendDefaultOriginateRoutes -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertiseUnit -->
+
+
 ## Common policy building blocks
 
 Ze ships filters for:

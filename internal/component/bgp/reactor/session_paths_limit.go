@@ -617,7 +617,7 @@ func (c *commitUpdateSender) SendUpdate(update *message.Update) error {
 		return ErrNotConnected
 	}
 	var counts updateSendCounts
-	err := session.sendUpdateCounted(context.Background(), update, &counts, false, nil)
+	err := session.sendUpdateCounted(context.Background(), update, &counts, false, nil, (*Session).writeUpdate)
 	c.counts.announcedRoutes += counts.announcedRoutes
 	c.counts.withdrawnRoutes += counts.withdrawnRoutes
 	c.counts.updates += counts.updates

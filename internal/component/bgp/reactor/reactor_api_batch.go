@@ -270,7 +270,18 @@ func (target announceTarget) sendBatchUpdate(ctx context.Context, update *messag
 		// carries the request's epoch to the same final writer.
 		return target.queueBehindForwards(batch.SentOwnerMessage, batch.SourcePolicyEpoch, batch.Replay)(ctx, update, maxSize, addPath)
 	}
-	owner := fwdItem{peer: target.peer, session: target.session, originated: true}
+	var owner fwdItem
+	if err := target.initBatchOwner(&owner, &batch); err != nil {
+		return err
+	}
+	return target.session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, batch.Replay, &owner, (*Session).writeUpdate)
+}
+
+// initBatchOwner preserves the same local or captured receipt authority for
+// ordinary and already-filtered batches. Policy completion does not change
+// originated ownership or waive initial-replay admission.
+func (target announceTarget) initBatchOwner(owner *fwdItem, batch *bgptypes.NLRIBatch) error {
+	*owner = fwdItem{peer: target.peer, session: target.session, originated: true}
 	if batch.SentOwnerMessage != 0 {
 		owner.authority = adjOutExpected
 		owner.expectedMessage = batch.SentOwnerMessage
@@ -301,7 +312,59 @@ func (target announceTarget) sendBatchUpdate(ctx context.Context, update *messag
 			owner.sourceMessageID = batch.InitialSourceMessage
 		}
 	}
-	return target.session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, batch.Replay, &owner)
+	return nil
+}
+
+// sendBatchUpdatePreFiltered borrows the UPDATE and any already encoded body
+// until return. A synthesized withdrawal has no body yet; only its queued path
+// materializes one. The caller MUST keep the borrowed storage alive, and
+// dispatchOverflow MUST own queued bytes before returning.
+func (target announceTarget) sendBatchUpdatePreFiltered(ctx context.Context, update *message.Update, body []byte, maxSize int, addPath bool, batch *bgptypes.NLRIBatch) error {
+	var owner fwdItem
+	if err := target.initBatchOwner(&owner, batch); err != nil {
+		return err
+	}
+	if batch.InitialReplay == 0 && batch.SentOwnerMessage != 0 && target.peer.withdrawBehindForwards() {
+		if batch.Replay {
+			owner.meta = map[string]any{"replay": true}
+		}
+		return target.queueBatchBodyPreFiltered(ctx, update, body, maxSize, addPath, &owner)
+	}
+	return target.session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, batch.Replay, &owner, (*Session).writeUpdatePreFiltered)
+}
+
+// queueBatchBodyPreFiltered uses the existing rawBodies queue contract. A
+// fitting encoded body is borrowed without another encoding. The splitter
+// materializes synthesized withdrawals and oversized chunks only after queue
+// admission; dispatchOverflow MUST own each borrow before scratch is reused.
+func (target announceTarget) queueBatchBodyPreFiltered(ctx context.Context, update *message.Update, body []byte, maxSize int, addPath bool, owner *fwdItem) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	key := fwdKey{peerAddr: target.peer.settings.PeerKey()}
+	dispatch := func(payload []byte) error {
+		item := *owner
+		item.rawBodies = [][]byte{payload}
+		if !target.peer.reactor.fwdPool.dispatchOverflow(key, &item) {
+			return errForwardPoolStopped
+		}
+		return nil
+	}
+	if body != nil && len(body)+message.HeaderLen <= maxSize {
+		return dispatch(body)
+	}
+
+	packed := getReadBuf(maxSize > message.MaxMsgLen)
+	defer returnReadBuffer(packed)
+	if len(packed.Buf) < maxSize {
+		return errBuildRejected
+	}
+	splitter := message.GetSplitter()
+	defer message.PutSplitter(splitter)
+	return splitter.Split(update, maxSize, func(family.Family) bool { return addPath }, func(chunk *message.Update) error {
+		n := chunk.WriteTo(packed.Buf, 0, nil)
+		return dispatch(packed.Buf[message.HeaderLen:n])
+	})
 }
 
 // AnnounceNLRIBatch announces a batch of NLRIs with shared attributes.
@@ -2234,25 +2297,37 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 			// rail's own cause (already logged); nothing was sent.
 			return false, errWithdrawTooLarge
 		}
-		err := target.sendBatchUpdate(ctx, wd, maxMsgSize, facts.addPath, batch)
+		err := target.sendBatchUpdatePreFiltered(ctx, wd, nil, maxMsgSize, facts.addPath, &batch)
 		return err == nil, err
-	case staleModify:
-		// Non-LLGR iBGP peer: apply the depreference mods (NO_EXPORT + LOCAL_PREF=0).
-		if modified == nil {
-			err := target.sendBatchUpdate(ctx, update, maxMsgSize, facts.addPath, batch)
-			return err == nil, err
+	case staleModify, staleKeep:
+		if modified != nil {
+			body = modified
 		}
-		sections, parseErr := wire.ParseUpdateSections(modified)
+		// Policy has decided. Retain the ordinary export gate's non-policy
+		// next-hop normalization without calling any export member again.
+		exportFacts := peer.forwardFacts()
+		var pending peerForwardFacts
+		if exportFacts == nil {
+			peer.captureOriginatedFacts(&pending)
+			exportFacts = &pending
+		}
+		normalized, fail := a.r.normalizeOrdinaryNextHop(peer, exportFacts, body)
+		a.r.recordModifyFailureAddr(fail, modifySiteExportChain, exportFacts.addr)
+		if fail.failed() {
+			return false, errStaleReadvertiseBuildFailed
+		}
+		if normalized != nil {
+			body = normalized
+		}
+		sections, parseErr := wire.ParseUpdateSections(body)
 		if parseErr != nil {
 			return false, parseErr
 		}
-		changed := &message.Update{WithdrawnRoutes: sections.Withdrawn(modified),
-			PathAttributes: sections.Attrs(modified), NLRI: sections.NLRI(modified)}
-		err := target.sendBatchUpdate(ctx, changed, maxMsgSize, facts.addPath, batch)
-		return err == nil, err
-	case staleKeep:
-		// LLGR-capable peer: send the stale route unchanged.
-		err := target.sendBatchUpdate(ctx, update, maxMsgSize, facts.addPath, batch)
+		// Reuse the builder's UPDATE object; every section borrows the final
+		// body through the synchronous writer or overflow ownership transfer.
+		*update = message.Update{WithdrawnRoutes: sections.Withdrawn(body),
+			PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)}
+		err := target.sendBatchUpdatePreFiltered(ctx, update, body, maxMsgSize, facts.addPath, &batch)
 		return err == nil, err
 	default:
 		panic("BUG: invalid stale readvertise outcome")

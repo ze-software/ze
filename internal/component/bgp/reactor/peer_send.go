@@ -201,12 +201,12 @@ func (p *Peer) sendUpdateWithSplit(ctx context.Context, update *message.Update, 
 // sendUpdateWithSplit keeps every chunk on the session used to resolve and
 // encode it, even if the peer installs a replacement connection meanwhile.
 func (session *Session) sendUpdateWithSplit(ctx context.Context, update *message.Update, maxSize int, addPath, replay bool) error {
-	return session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, replay, nil)
+	return session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, replay, nil, (*Session).writeUpdate)
 }
 
 // sendUpdateOwnedWithSplit borrows the producer through every synchronous chunk.
 // The caller MUST keep owner alive; sendUpdateCounted MUST clear it under writeMu.
-func (session *Session) sendUpdateOwnedWithSplit(ctx context.Context, update *message.Update, maxSize int, addPath, replay bool, owner *fwdItem) error {
+func (session *Session) sendUpdateOwnedWithSplit(ctx context.Context, update *message.Update, maxSize int, addPath, replay bool, owner *fwdItem, writeUpdate func(*Session, *message.Update) error) error {
 	if update == nil {
 		return errBuildRejected
 	}
@@ -216,7 +216,7 @@ func (session *Session) sendUpdateOwnedWithSplit(ctx context.Context, update *me
 	s := message.GetSplitter()
 	defer message.PutSplitter(s)
 	if err := s.Split(update, maxSize, func(family.Family) bool { return addPath }, func(chunk *message.Update) error {
-		return session.sendUpdateCounted(ctx, chunk, nil, replay, owner)
+		return session.sendUpdateCounted(ctx, chunk, nil, replay, owner, writeUpdate)
 	}); err != nil {
 		return fmt.Errorf("splitting update: %w", err)
 	}

@@ -61,26 +61,7 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 	facts := peer.forwardFacts()
 	if facts == nil {
 		var pending peerForwardFacts
-		// Before publication, capture only the facts this gate consumes. Policy
-		// and dynamic AS resolution share this lock. No callback runs under it.
-		peer.mu.RLock()
-		pending.exportPolicy = peer.settings.ExportPolicy
-		pending.peerAS = peer.settings.PeerAS
-		pending.localAS = peer.settings.LocalAS
-		pending.isEBGP = peer.settings.IsEBGP()
-		pending.addr = peer.settings.Address
-		pending.addrStr = peer.addrString
-		pending.sendCtxID = peer.sendCtxID
-		pending.localAddr = peer.settings.LocalAddress.Unmap()
-		pending.connectedLocal = connectedLocalAddress(peer.session)
-		if peer.session != nil {
-			pending.localScope = &peer.session.nextHopScope
-		}
-		peer.mu.RUnlock()
-		pending.sendASN4 = true
-		if ctx := peer.sendCtx.Load(); ctx != nil {
-			pending.sendASN4 = ctx.ASN4()
-		}
+		peer.captureOriginatedFacts(&pending)
 		facts = &pending
 		if facts.exportPolicy.RequiresIngress() {
 			return true, nil, nil
@@ -139,6 +120,30 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 	out := make([]byte, len(override))
 	copy(out, override)
 	return false, out, nil
+}
+
+// captureOriginatedFacts fills the pre-publication facts shared by the ordinary
+// export gate and already-filtered stale normalization. No callback runs under
+// mu; the caller MUST supply its own zero-initialized snapshot.
+func (peer *Peer) captureOriginatedFacts(pending *peerForwardFacts) {
+	peer.mu.RLock()
+	pending.exportPolicy = peer.settings.ExportPolicy
+	pending.peerAS = peer.settings.PeerAS
+	pending.localAS = peer.settings.LocalAS
+	pending.isEBGP = peer.settings.IsEBGP()
+	pending.addr = peer.settings.Address
+	pending.addrStr = peer.addrString
+	pending.sendCtxID = peer.sendCtxID
+	pending.localAddr = peer.settings.LocalAddress.Unmap()
+	pending.connectedLocal = connectedLocalAddress(peer.session)
+	if peer.session != nil {
+		pending.localScope = &peer.session.nextHopScope
+	}
+	peer.mu.RUnlock()
+	pending.sendASN4 = true
+	if ctx := peer.sendCtx.Load(); ctx != nil {
+		pending.sendASN4 = ctx.ASN4()
+	}
 }
 
 // normalizeOrdinaryNextHop applies RFC 2545 Section 3 to a valid effective plain

@@ -451,8 +451,9 @@ func (s *Session) writeUpdate(update *message.Update) error {
 	return s.writeUpdateGated(update, true)
 }
 
-// writeUpdatePreFiltered writes an UPDATE that has ALREADY been through the peer's
-// export filter chain, skipping the egress gate. Caller must hold writeMu.
+// writeUpdatePreFiltered writes an UPDATE whose required export evaluation has
+// already run: the full forward chain or the stale readvertise subset. Caller
+// MUST hold writeMu. Originated owners still receive non-policy admission.
 //
 // forwardUpdateCore runs the export chain on the ORIGINAL received wire and only
 // then applies the RFC 4271 Section 9.1.2 EBGP local-AS prepend, so the wire the
@@ -467,15 +468,26 @@ func (s *Session) writeUpdatePreFiltered(update *message.Update) error {
 	return s.writeUpdateGated(update, false)
 }
 
+// writeOriginatedBodyPreFiltered borrows queued stale bytes through the existing
+// prefiltered writer. The caller MUST hold writeMu and install an originated
+// sentForward owner; fwdBatchHandler MUST retain that owner through this call.
+func (s *Session) writeOriginatedBodyPreFiltered(body []byte) error {
+	sections, err := wire.ParseUpdateSections(body)
+	if err != nil {
+		return err
+	}
+	update := message.Update{WithdrawnRoutes: sections.Withdrawn(body),
+		PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)}
+	return s.writeUpdatePreFiltered(&update)
+}
+
 // writeUpdateGated is the shared body of writeUpdate / writeUpdatePreFiltered.
 // Caller must hold writeMu.
 //
-// gate == true means the UPDATE carries a route Ze ORIGINATES, which is also the
-// subject of the RFC 4271 Section 5.1.3 refusal below. The flag already separated
-// the two populations for the export chain, so the refusal needs no second
-// discriminator: a relayed route arrives here with gate == false, or bypasses this
-// function entirely through writeRawUpdateBody, and is answered on the forward
-// rails by egressNextHopIsPeerOwn (forward_next_hop.go).
+// gate selects the full export chain, not ownership. A stale readvertisement
+// already ran its opted-in members but remains originated for final next-hop,
+// AIGP and message-size admission. Its existing sentForward owner carries that
+// fact; forwarded owners keep their separate admission on the forward rails.
 func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	if s.writeFailed != nil {
 		return s.writeFailed
@@ -498,10 +510,13 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	// so every question about what goes on the wire is asked AFTER that.
 	body := s.writeBuf.Buffer()[message.HeaderLen:n]
 
-	// overridden marks a body an export filter replaced. Ze composes the UPDATEs
-	// it originates in RFC 7606 Section 5.1 shape, but a raw policy override is
-	// whatever the filter returned, so only it owes the shape checks below.
-	overridden := false
+	originated := gate
+	if s.sentForward != nil && s.sentForward.originated {
+		originated = true
+	}
+	// Already-filtered originated output may be a raw rewrite. It still owes
+	// the existing RFC 7606 Section 5.1 shaping without rerunning its policy.
+	overridden := originated && !gate
 
 	// Egress gate: originated and injected routes, and the bgp-rs `update text`
 	// re-advertisement, honor the peer's export filter chain here. Forwarded routes
@@ -528,7 +543,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	}
 
 	var nextHop nextHopValue
-	if gate {
+	if originated {
 		nextHop = payloadNextHop(body)
 		profile := attribute.MPNextHopProfile(attribute.AFI(nextHop.mpFamily.AFI), attribute.SAFI(nextHop.mpFamily.SAFI))
 		// RFC 2545 Section 3; RFC 8950 Sections 3 and 4; RFC 9830 Section 2.1.
@@ -573,7 +588,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	// abandon the route queue, and one unusable route is neither. The refusal is
 	// LOUD instead -- an operator who configured this next hop needs to hear that
 	// the route is not being advertised.
-	if gate && nextHop.has(s.settings.Address) {
+	if originated && nextHop.has(s.settings.Address) {
 		sessionLogger().Warn("withholding originated route: its next hop is this peer's own address",
 			"peer", s.settings.Address,
 			"rfc", "RFC 4271 Section 5.1.3",
@@ -581,8 +596,8 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		return nil
 	}
 
-	stripAIGP := aigpPresent(body) && (!s.settings.AIGPEnabled() || gate && !s.aigpOriginAllowed(body))
-	if gate {
+	stripAIGP := aigpPresent(body) && (!s.settings.AIGPEnabled() || originated && !s.aigpOriginAllowed(body))
+	if originated {
 		// writeMu MUST remain held through final sizing and ownership admission.
 		// RFC 4271 Section 4.3; RFC 8654 Section 4; RFC 7311 Section 3.3.
 		return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)
@@ -1090,12 +1105,14 @@ func (s *Session) flushFwdDirty() {
 // Uses zero-allocation path via Update.WriteTo and session write buffer.
 // Concurrent calls are serialized by writeMu.
 func (s *Session) SendUpdate(update *message.Update) error {
-	return s.sendUpdateCounted(context.Background(), update, nil, false, nil)
+	return s.sendUpdateCounted(context.Background(), update, nil, false, nil, (*Session).writeUpdate)
 }
 
 // sendUpdateCounted captures this write's admission result while writeMu is
 // held. Named commits must not count paths withheld by the session as sent.
-func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update, counts *updateSendCounts, replay bool, owner *fwdItem) error {
+// writeUpdate MUST consume the borrowed UPDATE synchronously under writeMu;
+// sendUpdateOwnedWithSplit MUST keep owner alive through every such call.
+func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update, counts *updateSendCounts, replay bool, owner *fwdItem, writeUpdate func(*Session, *message.Update) error) error {
 	if err := s.writeMu.LockContext(ctx); err != nil {
 		return err
 	}
@@ -1140,7 +1157,7 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 	}
 	before := s.updateSendTotals
 
-	err := s.writeUpdate(update)
+	err := writeUpdate(s, update)
 	if err == nil {
 		err = s.flushWrites()
 	}

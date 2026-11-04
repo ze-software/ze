@@ -1118,13 +1118,11 @@ func (p *Peer) warnDefaultOriginateRefused(familyKey string, prefix netip.Prefix
 // default route and returns true if the filter accepts it. The filter runs as
 // a one-member library chain over the default route's UPDATE, the chain every
 // export step runs (runLibraryChain), compiled here under the export policy's
-// final, so a filter that accepts still meets the end of the chain the export
-// policy would meet (RFC 8212 Section 3). Fail-closed: missing reactor,
-// missing API server, a malformed filter reference, a chain that does not
-// compile, a member that fails under its on-error, or sets the chain cannot
-// apply all return false, on the principle that an unreachable filter must
-// not silently emit unfiltered routes. The filter's sets gate nothing and
-// change nothing: the emitted default still runs the full export policy.
+// final, as the condition's operator contract requires. Fail-closed: missing
+// reactor, missing API server, a malformed filter reference, a chain that does
+// not compile, a member that fails under its on-error, or sets the chain cannot
+// apply all return false. The condition's sets are realized but discarded:
+// the emitted default still runs the full export policy separately.
 //
 // wire is the default route's UPDATE as this peer is sent it
 // (defaultRouteWire), the route the filter's declared fields are read from.
@@ -1142,10 +1140,9 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, wire *wireu.Wire
 			"peer", p.settings.Address.String(), "filter", filterName)
 		return false
 	}
-	// A raw filter operates on the received UPDATE's wire bytes, and the chain
-	// below sends a member none (a nil payload): the filter would evaluate
-	// empty hex and decide on nothing. Fail-closed so the operator binds a
-	// filter that declares the fields it reads.
+	// Raw condition filters remain unsupported for a locally originated
+	// default. The encoded body below realizes ordinary sets; it does not
+	// turn the synthetic route into a received UPDATE for a raw condition.
 	if defaultOriginateRejectsRawFilter(p.reactor.api, filterName, p.settings.Address.String()) {
 		return false
 	}
@@ -1173,7 +1170,7 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, wire *wireu.Wire
 			"peer", p.settings.Address.String(), "filter", filterName)
 		return false
 	}
-	// RFC 8212 Section 3.
+	// The condition borrows the destination's effective export final.
 	chain, err := defaultOriginateChain(policy, policychain.Member{Name: memberName, Plugin: pluginName})
 	if err != nil {
 		routesLogger().Warn("default-originate: filter chain does not compile -- fail-closed",
@@ -1183,9 +1180,9 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, wire *wireu.Wire
 	// The default route is encoded in this peer's send context (defaultRouteWire).
 	sendCtx := bgpctx.Registry.Get(wire.SourceCtxID())
 	intent := libraryIntentContext{asn4: sendCtx != nil && sendCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: external}
-	// The raw body stays unsent: defaultOriginateRejectsRawFilter refused a
-	// raw filter above.
-	res := p.reactor.runLibraryChain(chain, wire, nil, policyview.ExportSession(destination, filterapi.PeerFilterInfo{}, false),
+	// Ordinary attribute sets need the actual body even though the condition
+	// discards their result. A nil body would make a valid modify fail closed.
+	res := p.reactor.runLibraryChain(chain, wire, wire.Payload(), policyview.ExportSession(destination, filterapi.PeerFilterInfo{}, false),
 		intent, directionExport, modifySiteExportChain, p.settings.Address.String(), nil)
 	if res.outcome.Action != policychain.OutcomeAccept {
 		return false

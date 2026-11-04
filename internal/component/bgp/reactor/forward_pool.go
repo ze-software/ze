@@ -392,8 +392,19 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 			session.sentForward = item
 			item.writeBody = 0
 			for _, body := range item.rawBodies {
-				if err := session.writeRawUpdateBody(body); err != nil {
+				var err error
+				if item.originated {
+					// writeOriginatedBodyPreFiltered MUST keep this installed
+					// owner through final non-policy origination admission.
+					err = session.writeOriginatedBodyPreFiltered(body)
+				} else {
+					err = session.writeRawUpdateBody(body)
+				}
+				if err != nil {
 					fwdLogger().Warn("forward batch write failed", "peer", peer.Settings().Address, "err", err)
+					if item.originated && isRouteScopedSendError(err) {
+						break
+					}
 					failRecoveryWrites(items, session, err)
 					return
 				}

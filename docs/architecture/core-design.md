@@ -1557,6 +1557,23 @@ modified attributes are re-encoded. Dry-run follows the external chain's
 decisions and marks named in-process checks `not-evaluated`; it does not
 simulate the protocol stages or claim that their guards accepted.
 
+The default-originate condition is a separate one-member export evaluation
+under the destination policy's final. It reads the encoded synthetic default,
+and the same body is available to realize ordinary attribute sets. These sets
+are gate-only: they do not mutate the default, which still runs the full export
+chain when sent. Raw condition filters remain unsupported and fail closed.
+This is the condition's operator contract, not an additional protocol rule.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- defaultOriginateFilterAccepts, defaultRouteWire -->
+
+Stale readvertisement runs only the destination's `readvertise` members, then
+uses the existing prefiltered writer for the resulting announce or withdrawal.
+The session does not rerun the full export chain. Direct and queued writes
+retain their existing ownership authority; skipping an already-run policy
+does not skip final origination admission or message sizing.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertiseUnit -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdatePreFiltered, writeUpdateGated -->
+
+
 Reload compares and replaces whole policies. An export-final change publishes
 the new forwarding snapshot before reconciling advertisements on the existing
 session. Rejection drains queued forwards and withdraws the session's recorded
