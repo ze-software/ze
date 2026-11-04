@@ -268,14 +268,17 @@ func forkedCall(eval FilterEvaluator, route *ConformanceRoute) string {
 	return answerText(&verdict, nil)
 }
 
-// answerText renders a verdict for comparison: the forked transport's JSON
-// form, so both transports compare on what the engine reads.
+// answerText compares what the engine consumes: the failure alone for an
+// error-bearing verdict, otherwise the forked transport's successful JSON.
 func answerText(out *rpc.FilterUpdateOutput, err error) string {
 	if err != nil {
 		return "error: " + err.Error()
 	}
 	if out == nil {
 		return "error: the filter handler answered no verdict"
+	}
+	if out.Error != "" {
+		return "error: " + out.Error
 	}
 	text, err := json.Marshal(out)
 	if err != nil {

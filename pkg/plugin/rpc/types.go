@@ -756,6 +756,7 @@ type FilterUpdateOutput struct {
 	// Error, when set, says the filter could not judge this route: the engine
 	// applies the filter's on-error to this route alone and reads nothing else
 	// of the verdict. The other routes of the batch keep their own verdicts.
+	// Both transports honor Error before action, sets, raw ownership or teardown.
 	Error string `json:"error,omitempty"`
 }
 

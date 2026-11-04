@@ -671,12 +671,17 @@ position of its route.
   normally.
 - **A route the filter cannot judge.** A verdict carrying `error` (a string)
   fails that route alone under its filter's `on-error`; the other routes of
-  the batch keep their verdicts. The Go SDK answers this way when the
-  evaluator fails: `answerFilterBatch` calls the evaluator `OnFilter`
-  installed once per route, in request order, and an error it returns or a
-  nil verdict fails that route alone, so a Go filter is written for one route.
-  The same evaluator run internal, through the typed slot, gets the same
-  answer: an error or a nil verdict fails that route alone.
+  the batch keep their verdicts. A nonempty `error` takes precedence over
+  every other verdict field: no action, sets, raw rewrite or teardown is
+  applied. The Go SDK answers this way when the evaluator fails:
+  `answerFilterBatch` calls the evaluator `OnFilter` installed once per route,
+  in request order, and an error it returns or a nil verdict fails that route
+  alone, so a Go filter is written for one route. The same evaluator run
+  internal, through the typed slot, gets the same answer: a returned error,
+  nil verdict or nonempty verdict `error` fails that route alone, before raw
+  ownership processing, and counts no completed typed judgment. The
+  conformance harness compares these consumer-visible failures rather than
+  the ignored fields of a failed verdict.
 <!-- source: pkg/plugin/rpc/filter_slot.go -- CallFilterSlot -->
 <!-- source: internal/component/plugin/ipc/filter_slot.go -- CallFilter -->
 <!-- source: internal/component/bgp/reactor/filter_library.go -- libraryCaller.CallFilter -->
@@ -685,6 +690,7 @@ position of its route.
 <!-- source: internal/component/plugin/ipc/filter_batch_bytes.go -- exchange, frameFits, filterBatchWireFixedSize -->
 <!-- source: pkg/plugin/rpc/filter_batch_size.go -- FilterUpdateInput.JSONSizeBound -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->
+<!-- source: pkg/plugin/sdk/filter_conformance.go -- answerText -->
 
 ### The Route Fields of filter-update
 

@@ -155,10 +155,11 @@ func (b *DirectBridge) HasFilterSlot() bool {
 // Before Stage 5 (the bridge not ready), after CloseCallbacks, and after the
 // callback loop failed it answers ErrBridgeClosed and calls nothing: the
 // plugin is unavailable, and the caller applies the filter's on-error. A
-// panic in the evaluator, or an answer with neither a verdict nor an error,
-// answers an error for this route alone, so a plugin
-// defect never ends the engine goroutine that called it. Safe for concurrent
-// use.
+// panic in the evaluator, an answer with neither a verdict nor an error, or
+// a nonempty FilterUpdateOutput.Error answers an error for this route alone.
+// Error takes precedence over every other verdict field, before raw ownership
+// processing, as on the batched transport. A plugin defect never ends the
+// engine goroutine that called it. Safe for concurrent use.
 func (b *DirectBridge) CallFilterSlot(route *FilterRoute) (out *FilterUpdateOutput, err error) {
 	if !b.beginDelivery() {
 		return nil, ErrBridgeClosed
@@ -183,6 +184,9 @@ func (b *DirectBridge) CallFilterSlot(route *FilterRoute) (out *FilterUpdateOutp
 		// One verdict per route, as the batched transport demands of a
 		// forked plugin: no verdict fails this route, never the engine.
 		return nil, fmt.Errorf("filter %s answered no verdict", route.Filter())
+	}
+	if out.Error != "" {
+		return nil, fmt.Errorf("filter %s could not judge the route: %s", route.Filter(), out.Error)
 	}
 	return out, ownRawRewrite(route.Filter(), out)
 }
