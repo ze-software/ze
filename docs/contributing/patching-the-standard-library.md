@@ -148,9 +148,12 @@ The generator does this, each time:
 4. Otherwise build the tree in a new directory under `cache/stdpatch/`, run
    `git apply` in it with `GIT_CEILING_DIRECTORIES` set so that git does not find
    the Ze repository, and check that `go list std cmd` under the new tree answers
-   the same packages as under the real GOROOT. Then rename the directory to the
-   key. The rename makes two sessions that race produce one result: the session
-   that loses deletes its own directory and answers the winner's. The generator
+   the same packages as under the real GOROOT. Either listing returning no
+   packages is an error even when its subprocess exits zero: two empty answers
+   cannot certify a standard library. The error names the toolchain and the
+   command to rerun after repairing it. Only a valid comparison permits renaming
+   the directory to the key. The rename makes two sessions that race produce one
+   result: the session that loses deletes its own directory and answers the winner's. The generator
    needs `git` wherever it runs. Every directory of the tree, the key directory
    included, is mode 0755, because a process of another user must reach the tree
    the builder wrote: under `./le test qemu netns` the root-built guest tree is
@@ -163,6 +166,7 @@ The generator does this, each time:
    that ends with the command to run after the repair. No
    caller builds without the tree after that error.
 <!-- source: internal/le/go/stdpatch/gen/tree.go -- dropDeadTree -->
+<!-- source: internal/le/go/stdpatch/gen/tree.go -- listStdlib, sameStdlib -->
 <!-- source: internal/le/doc/index/docstocode.go -- skipPaths -->
 
 `./le scratch clean` reports the size of each tree and keeps every live

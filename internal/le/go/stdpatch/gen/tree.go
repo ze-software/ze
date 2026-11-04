@@ -369,6 +369,9 @@ func listStdlib(goroot, dir string, extra ...string) (map[string]listedPackage, 
 		}
 		listed[pkg.ImportPath] = pkg
 	}
+	if len(listed) == 0 {
+		return nil, fmt.Errorf("stdpatch: `go list std cmd` under %s %v returned no packages, so the standard library cannot be checked; repair that toolchain's go executable and rerun ./le go stdpatch goroot", goroot, extra)
+	}
 	return listed, nil
 }
 
