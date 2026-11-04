@@ -1,0 +1,45 @@
+# Test: malformed reply sets fail just their route, atomically, logged and counted.
+# VALIDATES: spec-filter-wire-0-umbrella AC-6/20: undeclared LP, unknown field,
+# unsettable prefix set and object-shaped MED follow a valid MED999 set.
+# on-error accept exposes the unchanged MED7/LP100 to a second filter; the
+# valid fifth route instead exposes MED9. This detects partial application,
+# dropping every input, and poisoning the next route. EOR fences all verdicts.
+
+stdin=peer:terminator=PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304010101018004040000000740050400000064180A0001
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304010101028004040000000740050400000064180A0002
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304010101038004040000000740050400000064180A0003
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304010101048004040000000740050400000064180A0004
+action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304010101058004040000000740050400000064180A0005
+action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+PEER
+stdin=config:terminator=CONFIG
+plugin {
+ internal checker { use filter-wire-cases; }
+ external outside { run "ze plugin filter-wire-cases-forked"; }
+ external observer { run "le test fixture plugin/filter-wire-cases-invalid-fence"; encoder json; }
+}
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+bgp {
+ peer source {
+  connection { remote { ip 127.0.0.1; port $PORT; } local { ip 127.0.0.1; accept false; } }
+  session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  filter { import { filters [ filter-wire-cases-forked:invalid filter-wire-cases:check-invalid ]; final accept; } export { final accept; } }
+ }
+}
+CONFIG
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=OK: isolated set verdict 10.0.1.0/24 numeric fields checked
+expect=stderr:contains=OK: isolated set verdict 10.0.2.0/24 numeric fields checked
+expect=stderr:contains=OK: isolated set verdict 10.0.3.0/24 numeric fields checked
+expect=stderr:contains=OK: isolated set verdict 10.0.4.0/24 numeric fields checked
+expect=stderr:contains=OK: isolated set verdict 10.0.5.0/24 numeric fields checked
+expect=stderr:contains=OK: refused sets counted exactly 4
+expect=stderr:pattern=policy filter failed.*filter=filter-wire-cases-forked:invalid.*on-error=accept
+reject=stderr:pattern=policy filter failed.*filter=filter-wire-cases:check-invalid
+reject=stderr:contains=ZE-OBSERVER-FAIL

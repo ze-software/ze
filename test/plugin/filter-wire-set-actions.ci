@@ -1,0 +1,106 @@
+# Test: identical evaluator sets yield identical receiver bytes on both transports.
+# VALIDATES: spec-filter-wire-0-umbrella AC-25: community add/remove and MED/LP
+# set/increment/decrement fold to community 65000:99, MED46, LP215. The
+# source carries community 65001:1 and neither numeric attribute. Each run
+# asserts the whole receiver frame, using the same expected bytes.
+# PREVENTS: lost sets, action-as-set shortcuts, wrong chain order, incomplete
+# community removal, and a transport which bypasses application.
+# The existing cache-consumer fixture releases input only after both initial
+# EORs; the receiver acknowledges its exact golden before shutdown.
+
+stdin=source-slot:terminator=SOURCE_SLOT
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+option=await-file:path=input-ready-internal
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE90001180A0000
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+SOURCE_SLOT
+
+stdin=source-batch:terminator=SOURCE_BATCH
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+# The second daemon's plugin writes beside its distinct config/store.
+option=await-file:path=daemon-2/input-ready-external
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE90001180A0000
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+SOURCE_BATCH
+
+stdin=receiver:terminator=RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002A4001010040020602010000FDE9400304010101018004040000002E400504000000D7D0080004FDE80063180A0000
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+RECEIVER
+
+stdin=slot:terminator=CONF_SLOT
+plugin {
+ internal actions { use filter-wire-cases; }
+ external observer { run "le test fixture plugin/filter-wire-transports actions internal 1 1 0"; encoder json; }
+}
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+bgp {
+ filter { import { final accept; } export { final accept; } }
+ peer source {
+  connection { remote { ip 127.0.0.1; port $PORT; } local { ip 127.0.0.1; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { filters [ filter-wire-cases:actions ]; final accept; } }
+  attach process observer { receive [ update state ]; send [ update ]; }
+ }
+ peer destination {
+  connection { remote { ip 127.0.0.2; port $PORT; } local { ip 127.0.0.2; accept false; } }
+  session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  attach process observer { receive [ update state ]; send [ update ]; }
+ }
+}
+CONF_SLOT
+
+stdin=batch:terminator=CONF_BATCH
+plugin {
+ external actions { run "ze plugin filter-wire-cases-forked"; }
+ external observer { run "le test fixture plugin/filter-wire-transports actions external 1 0 1"; encoder json; }
+}
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+bgp {
+ filter { import { final accept; } export { final accept; } }
+ peer source {
+  connection { remote { ip 127.0.0.1; port $PORT; } local { ip 127.0.0.1; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { filters [ filter-wire-cases-forked:actions ]; final accept; } }
+  attach process observer { receive [ update state ]; send [ update ]; }
+ }
+ peer destination {
+  connection { remote { ip 127.0.0.2; port $PORT; } local { ip 127.0.0.2; accept false; } }
+  session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  attach process observer { receive [ update state ]; send [ update ]; }
+ }
+}
+CONF_BATCH
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source-slot:name=slot-source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver:name=slot-receiver
+cmd=foreground:seq=3:exec=ze -:stdin=slot:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=OK: cached receiver bytes and exact transport counts actions internal
+reject=stderr:contains=policy filter failed
+reject=stderr:contains=ZE-OBSERVER-FAIL
+cmd=foreground:seq=4:exec=le test fixture daemon/await-exit:timeout=30s
+cmd=stop:seq=5:name=slot-source
+cmd=stop:seq=6:name=slot-receiver
+
+cmd=background:seq=7:exec=le test peer --port $PORT:stdin=source-batch:name=batch-source
+cmd=background:seq=8:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver:name=batch-receiver
+cmd=foreground:seq=9:exec=ze -:stdin=batch:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=OK: cached receiver bytes and exact transport counts actions external
+reject=stderr:contains=policy filter failed
+reject=stderr:contains=ZE-OBSERVER-FAIL

@@ -218,6 +218,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
 | `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
 | `ze_plugin_filter_batch_routes` | Histogram | | plugin (ipc): the routes one filter-update exchange with a forked plugin carried, buckets 1 to 64 (`rpc.FilterUpdateBatchMax`); a plugin running internal is called through its filter slot and observes nothing |
+| `ze_plugin_filter_slot_routes_total` | Counter | | plugin (ipc): routes for which the typed in-process filter slot returned a non-nil verdict without an error; closed slots and evaluator errors do not count. The batch histogram's `_sum` counts routes sent through the encoded transport instead |
+| `ze_plugin_filter_route_enqueues_total` | Counter | | plugin (ipc): routes successfully sent to the encoded filter-update queue, including routes whose later exchange fails. Closed connections and canceled waits that enqueue nothing do not count. Unlike the batch histogram, this advances while an earlier exchange is still in flight |
 | `ze_policy_route_set_refusals_total` | CounterVec | filter | bgp library chains (policychain): one per route a plugin filter failed by answering a set Ze refused (undeclared, not settable at the attachment, unknown, or of the wrong shape), whichever `on-error` then decided the route. `filter` is the chain reference, `<plugin>:<filter>` |
 | `ze_iface_owned_devices` | GaugeVec | owner | iface (owned-device registry) |
 | `ze_iface_link_events_coalesced_total` | CounterVec | name | iface (link event queue) |

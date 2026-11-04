@@ -1,0 +1,116 @@
+# Test: family live import, canonical cached UPDATE bytes and counted transports.
+# VALIDATES: spec-filter-wire-0-umbrella AC-22; receivers compare exact frames, including permitted survivors.
+# PREVENTS: bypassed typed dispatch, accidental encoded internal callbacks, and discarded/unchanged set or NLRI intents.
+option=timeout:value=60s
+
+stdin=source-internal:terminator=SOURCE_internal
+option=tcp_connections:value=1
+option=linger:value=true
+option=await-file:path=input-ready-internal
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0041020000002A4001010040020602010000FDE9800E1A0002011020010DB8000000000000000000000002002020010DB8
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004C02000000314001010040020602010000FDE940030401010103800E1A0002011020010DB8000000000000000000000003002020010DB8180A0001
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+SOURCE_internal
+
+stdin=dest-internal:terminator=DEST_internal
+option=tcp_connections:value=1
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A0000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010340050400000064180A0001
+# Acknowledge only after all exact frames matched; the observer waits for this.
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+DEST_internal
+
+stdin=config-internal:terminator=CONFIG_internal
+plugin {
+ internal bgp-filter-family { use bgp-filter-family; }
+ external observer { run "le test fixture plugin/filter-wire-transports family internal 2 3 0"; encoder json; }
+}
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+policy { family-filter NoV6 { family ipv6/unicast; action remove; } }
+bgp {
+peer source {
+ connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+ session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; }  }
+ behavior { group-updates disable; }
+ filter { import { filters [ bgp-filter-family:NoV6 ]; final accept; } export { final accept; } }
+ attach process observer { receive [ update state ]; send [ update ]; }
+}
+peer destination {
+ connection { remote { ip 127.0.0.2; } local { ip 127.0.0.2; accept false; } }
+ session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; }  }
+ behavior { group-updates disable; }
+ filter { import {  final accept; } export { final accept; } }
+ attach process observer { receive [ update state ]; send [ update ]; }
+}
+}
+CONFIG_internal
+
+cmd=background:seq=2:name=source-internal:exec=le test peer --port $PORT:stdin=source-internal
+cmd=background:seq=3:name=dest-internal:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest-internal
+cmd=foreground:seq=4:exec=ze -:stdin=config-internal:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=OK: cached receiver bytes and exact transport counts family internal
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=policy filter failed
+# A foreground daemon is asynchronous; keep its peers until the observer exits it.
+cmd=foreground:seq=5:exec=le test fixture daemon/await-exit:timeout=25s
+expect=stderr:contains=OK: the first daemon exited
+cmd=stop:seq=6:name=source-internal
+cmd=stop:seq=7:name=dest-internal
+
+stdin=source-forked:terminator=SOURCE_forked
+option=tcp_connections:value=1
+option=linger:value=true
+# The second daemon's plugins run beside its config in daemon-2/.
+option=await-file:path=daemon-2/input-ready-forked
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0041020000002A4001010040020602010000FDE9800E1A0002011020010DB8000000000000000000000002002020010DB8
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004C02000000314001010040020602010000FDE940030401010103800E1A0002011020010DB8000000000000000000000003002020010DB8180A0001
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+SOURCE_forked
+
+stdin=dest-forked:terminator=DEST_forked
+option=tcp_connections:value=1
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A0000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010340050400000064180A0001
+# Acknowledge only after all exact frames matched; the observer waits for this.
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+DEST_forked
+
+stdin=config-forked:terminator=CONFIG_forked
+plugin {
+ external bgp-filter-family { run "ze plugin bgp-filter-family"; }
+ external observer { run "le test fixture plugin/filter-wire-transports family forked 2 0 3"; encoder json; }
+}
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+policy { family-filter NoV6 { family ipv6/unicast; action remove; } }
+bgp {
+peer source {
+ connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+ session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; }  }
+ behavior { group-updates disable; }
+ filter { import { filters [ bgp-filter-family:NoV6 ]; final accept; } export { final accept; } }
+ attach process observer { receive [ update state ]; send [ update ]; }
+}
+peer destination {
+ connection { remote { ip 127.0.0.2; } local { ip 127.0.0.2; accept false; } }
+ session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; }  }
+ behavior { group-updates disable; }
+ filter { import {  final accept; } export { final accept; } }
+ attach process observer { receive [ update state ]; send [ update ]; }
+}
+}
+CONFIG_forked
+
+cmd=background:seq=8:name=source-forked:exec=le test peer --port $PORT:stdin=source-forked
+cmd=background:seq=9:name=dest-forked:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest-forked
+cmd=foreground:seq=10:exec=ze -:stdin=config-forked:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=OK: cached receiver bytes and exact transport counts family forked
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=policy filter failed

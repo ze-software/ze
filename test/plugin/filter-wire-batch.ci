@@ -1,0 +1,896 @@
+# Test: a plugin-connection batch crosses sources, preserves route positions,
+# and recovers after a malformed batch without installing partial verdicts.
+# VALIDATES: spec-filter-wire-0-umbrella AC-12/19 (D-3). Seventy independent
+# sources synchronize at Established. The held first exchange fences on all
+# successful queue admissions, forcing the next exchange to hit the 64-route
+# ceiling. Its short verdict array fails all 64 routes. Later exchanges remain
+# normal. The downstream compiled checker reads every survivor's unique MED;
+# a final accepted sentinel per source fences RIB application before the
+# complete accept/reject/on-error prefix census is checked.
+# PREVENTS: per-source batching fiction, reordered verdicts, shared sets,
+# partial malformed-batch application, and a permanently poisoned connection.
+# AC-6/20 additionally refuses one undeclared set under the default reject
+# policy, while valid routes in that very batch retain their own verdicts.
+# Linux routes all of 127/8 to lo; no loopback aliases or extra ports are used.
+option=needs-linux
+
+tmpfs=batch.run:mode=755:terminator=PYTHON
+#!/usr/bin/env -S python3 -I
+# A protocol-only filter, with 70 independent BGP source lifecycles. The first
+# exchange waits for all sources' queue admissions, not a scheduling delay.
+import json, os, socket, ssl, struct, sys, threading, time
+declaration = {"protocol-version": 1, "filters": [{
+    "name": "judge", "direction": "import", "reads": ["prefix", "med"], "sets": ["med"]}]}
+# Querying the declaration MUST create no listeners, threads or hub connection.
+if os.environ.get("ZE_PLUGIN_MODE") == "declare":
+    print("#1 ze-plugin-engine:declare-registration " + json.dumps(declaration, separators=(",", ":")))
+    sys.exit(0)
+N = 70
+port = int(sys.argv[1])
+barrier = threading.Barrier(N, timeout=20)
+release = threading.Event()
+expected_shutdown = threading.Event()
+failures = []
+expected = {}
+batches = []
+last = {}
+invalid_prefix = None
+invalid_batch = []
+serial = 10
+seen_methods = set()
+
+def log(text):
+    print("WIRE " + text, file=sys.stderr, flush=True)
+
+def frame(kind, body):
+    return b"\xff" * 16 + struct.pack("!HB", 19 + len(body), kind) + body
+
+def exact(conn, count):
+    result = b""
+    while len(result) < count:
+        part = conn.recv(count - len(result))
+        if not part:
+            raise EOFError("BGP source closed")
+        result += part
+    return result
+
+def bgp_read(conn):
+    header = exact(conn, 19)
+    length, kind = struct.unpack("!HB", header[16:])
+    if not 19 <= length <= 4096:
+        raise AssertionError("invalid BGP frame length")
+    return kind, exact(conn, length - 19)
+
+def source(listener, index):
+    try:
+        conn, _ = listener.accept()
+        conn.settimeout(25)
+        kind, _ = bgp_read(conn)
+        assert kind == 1, "Ze did not send OPEN"
+        caps = bytes.fromhex("020641040000FDE9")
+        body = struct.pack("!BHH4sB", 4, 65001, 180,
+                           socket.inet_aton("127.0.1.%d" % index), len(caps)) + caps
+        conn.sendall(frame(1, body) + frame(4, b""))
+        while True:
+            kind, payload = bgp_read(conn)
+            if kind == 4:
+                break
+            assert kind != 3, "Ze refused source OPEN: " + payload.hex()
+        barrier.wait()
+        for generation in (0, 1, 2):
+            if index != 1 or generation != 0:
+                assert release.wait(20), "first callback never released the source gate"
+            attrs = bytes.fromhex("4001010040020602010000FDE9400304010101")
+            attrs += bytes([generation + 1]) + bytes.fromhex("80040400000007")
+            body = b"\0\0" + struct.pack("!H", len(attrs)) + attrs
+            body += bytes([24, 10, index, generation])
+            conn.sendall(frame(2, body))
+        conn.sendall(frame(2, b"\0\0\0\0"))
+        # A source lives until daemon shutdown, not until its sends finish.
+        while True:
+            kind, payload = bgp_read(conn)
+            if kind == 4:
+                conn.sendall(frame(4, b""))
+            if kind == 3:
+                # Only the completed proof may authorize administrative shutdown.
+                if expected_shutdown.is_set() and payload[:2] == bytes.fromhex("0602"):
+                    return
+                raise AssertionError("source NOTIFICATION " + payload.hex())
+    except EOFError:
+        return
+    except Exception as error:
+        failures.append(str(error))
+        log("FAIL source %d: %s" % (index, error))
+
+listeners = []
+for index in range(1, N + 1):
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.1.%d" % index, port))
+    listener.listen(1)
+    listeners.append(listener)
+    threading.Thread(target=source, args=(listener, index), daemon=True).start()
+
+host = os.environ["ZE_PLUGIN_HUB_HOST"]
+ctx = ssl.create_default_context(cadata=os.environ["ZE_PLUGIN_CA_PEM"])
+ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+conn = ctx.wrap_socket(socket.create_connection((host, int(os.environ["ZE_PLUGIN_HUB_PORT"])), timeout=25), server_hostname=host)
+conn.settimeout(25)
+reader = conn.makefile("rb")
+
+def send(text):
+    conn.sendall(text.encode() + b"\n")
+
+def token():
+    value = bytearray()
+    for _ in range(16 * 1024 * 1024):
+        byte = reader.read(1)
+        if not byte:
+            raise EOFError("plugin connection closed")
+        if byte in (b" ", b"\n"):
+            return bytes(value), byte
+        value.extend(byte)
+    raise AssertionError("plugin token exceeds frame bound")
+
+def counted():
+    digits = bytearray()
+    for _ in range(21):
+        byte = reader.read(1)
+        if byte == b":":
+            assert digits.isdigit(), digits
+            size = int(digits)
+            assert size <= 16 * 1024 * 1024, size
+            value = reader.read(size)
+            assert len(value) == size, "truncated counted field"
+            return value
+        assert byte and byte.isdigit(), byte
+        digits.extend(byte)
+    raise AssertionError("counted field width exceeds uint64")
+
+def separator(want):
+    got = reader.read(1)
+    assert got == want, (got, want)
+
+def recv():
+    ident, delimiter = token()
+    assert delimiter == b" ", (ident, delimiter)
+    verb, delimiter = token()
+    ident, verb = ident.decode(), verb.decode()
+    if delimiter == b"\n":
+        return ident, verb, ""
+    if verb in ("row", "bad"):
+        payload = counted()
+        separator(b"\n")
+        return ident, verb, json.loads(payload)
+    if verb == "top":
+        shape, delimiter = token()
+        assert delimiter == b" "
+        key = counted().decode()
+        separator(b" ")
+        columns = counted()
+        separator(b"\n")
+        return ident, verb, (shape.decode(), key, json.loads(columns) if columns else [])
+    if verb in ("end", "wrn"):
+        count, delimiter = token()
+        assert delimiter == b" "
+        faults, delimiter = token()
+        assert delimiter == b" "
+        message = counted().decode()
+        separator(b"\n")
+        return ident, verb, (int(count), int(faults), message)
+    if verb == "nay":
+        code = counted().decode()
+        separator(b" ")
+        message = counted().decode()
+        separator(b"\n")
+        return ident, verb, (code, message)
+    payload = reader.readline(16 * 1024 * 1024)
+    assert payload.endswith(b"\n"), "unterminated plugin message"
+    return ident, verb, payload[:-1].decode()
+
+# A callback can itself issue commands while another command is in flight.
+# Retain only those outstanding replies; never mistake one for a callback.
+pending = {}
+
+def response(ident):
+    while True:
+        queued = pending.get(ident)
+        if queued:
+            result = queued.pop(0)
+            if not queued:
+                del pending[ident]
+            return result
+        request = recv()
+        if ":" in request[1]:
+            answer(request)
+        elif request[0] == ident:
+            return request
+        else:
+            pending.setdefault(request[0], []).append(request)
+
+def call(method, params):
+    global serial
+    serial += 1
+    ident = "#%d" % serial
+    send(ident + " " + method + " " + json.dumps(params, separators=(",", ":")))
+    request = response(ident)
+    assert request[1] == "ok", request
+    return json.loads(request[2]) if request[2] else {}
+
+def command(text):
+    global serial
+    serial += 1
+    ident = "#%d" % serial
+    send(ident + " ze-plugin-engine:dispatch-command " + json.dumps({"command": text}, separators=(",", ":")))
+    head = None
+    rows = []
+    while True:
+        request = response(ident)
+        _, kind, payload = request
+        if kind == "top":
+            assert head is None, request
+            head = payload
+        elif kind == "row":
+            assert head is not None, request
+            rows.append(payload)
+        elif kind == "end":
+            assert head is not None, request
+            count, faults, message = payload
+            assert faults == 0 and not message, (text, request)
+            shape, key, columns = head
+            if shape == "doc":
+                assert len(rows) <= 1, request
+                return rows[0] if rows else {}
+            assert shape in ("map", "tab"), head
+            assert count == len(rows), (text, count, len(rows))
+            if shape == "tab":
+                assert all(len(row) == len(columns) for row in rows), rows
+                rows = [dict(zip(columns, row)) for row in rows]
+            return {key: rows} if key else rows
+        else:
+            raise AssertionError("command %s refused: %r" % (text, request))
+
+def enqueues():
+    lines = command("show metrics values")["metrics"].splitlines()
+    values = [line.split()[1] for line in lines if line.startswith("ze_plugin_filter_route_enqueues_total ")]
+    assert len(values) == 1, lines
+    return int(values[0])
+
+def answer(request):
+    global invalid_prefix, invalid_batch
+    ident, verb, payload = request
+    if verb == "ze-plugin-callback:filter-update":
+        routes = json.loads(payload)["routes"]
+        assert 1 <= len(routes) <= 64, "batch bound: %d" % len(routes)
+        batches.append(len(routes))
+        if len(batches) == 1:
+            assert len(routes) == 1, "the gated source was not sent alone"
+            # The sender increments only after its queue send succeeds. It
+            # may resume after this callback, so fence that first admission.
+            deadline = time.monotonic() + 4
+            for attempt in range(1000):
+                if enqueues() == 1:
+                    break
+                assert time.monotonic() < deadline, "first route admission was not counted"
+            else:
+                raise AssertionError("first admission poll exhausted")
+            release.set()
+            for attempt in range(1000):
+                if enqueues() == N:
+                    break
+                assert time.monotonic() < deadline, "not all sources entered the held batch queue"
+            else:
+                raise AssertionError("source admission poll exhausted")
+        verdicts = []
+        malformed = len(batches) == 2
+        if malformed:
+            assert len(routes) == 64, "queued work did not exercise the 64-route bound"
+        companions = sum(
+            not (int(r["fields"]["prefix"]["ipv4/unicast"][0].split(".")[2]) == 1 and
+                 int(r["fields"]["prefix"]["ipv4/unicast"][0].split(".")[1]) % 7 == 0)
+            for r in routes)
+        for route in routes:
+            prefixes = route["fields"]["prefix"]["ipv4/unicast"]
+            assert len(prefixes) == 1, prefixes
+            prefix = prefixes[0]
+            _, source_id, generation, _ = prefix.split("/")[0].split(".")
+            source_id, generation = int(source_id), int(generation)
+            assert last.get(source_id, -1) + 1 == generation, "source order changed: " + prefix
+            last[source_id] = generation
+            reject = generation == 1 and source_id % 7 == 0
+            invalid = generation < 2 and not malformed and len(batches) > 2 and invalid_prefix is None and not reject and companions >= 2
+            expected[prefix] = not (malformed or reject or invalid)
+            verdict = {"action": "reject"} if reject else {
+                "action": "modify", "sets": [{"field": "med", "action": "set", "value": source_id * 100 + generation}]}
+            if invalid:
+                invalid_prefix = prefix
+                invalid_batch = [r["fields"]["prefix"]["ipv4/unicast"][0] for r in routes]
+                verdict["sets"].append({"field": "local-preference", "action": "set", "value": 999})
+            verdicts.append(verdict)
+        if malformed:
+            verdicts.pop()  # Fail the WHOLE batch; no plausible partial verdict may survive.
+            log("malformed 64-route batch")
+        send(ident + " ok " + json.dumps({"verdicts": verdicts}, separators=(",", ":")))
+        return
+    if verb in ("ze-plugin-callback:configure", "ze-plugin-callback:share-registry",
+                "ze-plugin-callback:post-startup", "ze-plugin-callback:bye"):
+        seen_methods.add(verb)
+        send(ident + " ok")
+        return
+    raise AssertionError("unexpected callback: %r" % (request,))
+
+def await_method(method):
+    while method not in seen_methods:
+        answer(recv())
+
+try:
+    # Auth is request #0, as required by the protocol.
+    serial = -1
+    call("auth", {"token": os.environ["ZE_PLUGIN_HUB_TOKEN"], "name": os.environ["ZE_PLUGIN_NAME"]})
+    call("ze-plugin-engine:declare-registration", declaration)
+    await_method("ze-plugin-callback:configure")
+    call("ze-plugin-engine:declare-capabilities", {"capabilities": []})
+    await_method("ze-plugin-callback:share-registry")
+    call("ze-plugin-engine:ready", {})
+    await_method("ze-plugin-callback:post-startup")
+    deadline = time.monotonic() + 20
+    for attempt in range(2000):
+        peers = command("show bgp peer * detail")["peers"]
+        if len(peers) == N and all(row.get("eor-received", 0) >= 1 for row in peers.values()):
+            break
+        assert time.monotonic() < deadline, "post-filter EOR fences incomplete"
+    else:
+        raise AssertionError("EOR poll exhausted")
+    assert not failures, failures
+    assert len(expected) == N * 3, "not all trial routes and sentinels were judged"
+    assert batches[0] == 1 and batches[1] == 64 and len(batches) > 2, batches
+    wanted = {prefix for prefix, accepted in expected.items() if accepted}
+    sentinels = {"10.%d.2.0/24" % index for index in range(1, N + 1)}
+    assert sentinels <= wanted, "a consumer sentinel was not accepted"
+    # RIB delivery is FIFO per source. Seeing each source's final positive
+    # sentinel proves that source's earlier positive AND negative trials are
+    # consumed, so absence assertions below cannot pass on in-flight events.
+    deadline = time.monotonic() + 10
+    for attempt in range(1000):
+        rib = command("show bgp rib received")["routes"]
+        actual = [row["prefix"] for row in rib]
+        if sentinels <= set(actual):
+            break
+        assert time.monotonic() < deadline, "not every source sentinel reached the RIB"
+    else:
+        raise AssertionError("RIB sentinel poll exhausted")
+    assert set(actual) == wanted and len(actual) == len(wanted), ("wrong complete RIB census", actual, sorted(wanted))
+    assert invalid_prefix is not None, "no refused-set route was exercised"
+    assert any(expected[prefix] for prefix in invalid_batch), "no same-batch valid route survived"
+    metrics = command("show metrics values")["metrics"].splitlines()
+    assert 'ze_policy_route_set_refusals_total{filter="batch:judge"} 1' in metrics, metrics
+    log("OK default reject isolated undeclared set in " + invalid_prefix + "; same-batch survivors intact; refusal count=1")
+    count = command("show bgp rib received count")
+    assert count["count"] == len(wanted), count
+    # The independent RIB count agrees with the complete typed prefix census.
+    log("OK bounded batches=%s ordered per-route sets checked; failed batch absent; next batch intact; accepted=%d count=%s" %
+        (batches, sum(expected.values()), json.dumps(count)))
+    assert not failures, failures
+    expected_shutdown.set()
+    command("request shutdown")
+except Exception as error:
+    log("FAIL " + str(error))
+    try:
+        command("request shutdown")
+    except Exception:
+        pass
+    sys.exit(1)
+PYTHON
+
+stdin=config:terminator=CONFIG
+plugin {
+ external batch { run "./batch.run $PORT"; }
+ internal checker { use filter-wire-cases; }
+ internal bgp-rib { use bgp-rib; }
+}
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+bgp {
+ peer source-1 {
+  connection { remote { ip 127.0.1.1; } local { ip 127.0.1.1; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-2 {
+  connection { remote { ip 127.0.1.2; } local { ip 127.0.1.2; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-3 {
+  connection { remote { ip 127.0.1.3; } local { ip 127.0.1.3; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-4 {
+  connection { remote { ip 127.0.1.4; } local { ip 127.0.1.4; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-5 {
+  connection { remote { ip 127.0.1.5; } local { ip 127.0.1.5; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-6 {
+  connection { remote { ip 127.0.1.6; } local { ip 127.0.1.6; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-7 {
+  connection { remote { ip 127.0.1.7; } local { ip 127.0.1.7; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-8 {
+  connection { remote { ip 127.0.1.8; } local { ip 127.0.1.8; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-9 {
+  connection { remote { ip 127.0.1.9; } local { ip 127.0.1.9; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-10 {
+  connection { remote { ip 127.0.1.10; } local { ip 127.0.1.10; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-11 {
+  connection { remote { ip 127.0.1.11; } local { ip 127.0.1.11; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-12 {
+  connection { remote { ip 127.0.1.12; } local { ip 127.0.1.12; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-13 {
+  connection { remote { ip 127.0.1.13; } local { ip 127.0.1.13; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-14 {
+  connection { remote { ip 127.0.1.14; } local { ip 127.0.1.14; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-15 {
+  connection { remote { ip 127.0.1.15; } local { ip 127.0.1.15; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-16 {
+  connection { remote { ip 127.0.1.16; } local { ip 127.0.1.16; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-17 {
+  connection { remote { ip 127.0.1.17; } local { ip 127.0.1.17; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-18 {
+  connection { remote { ip 127.0.1.18; } local { ip 127.0.1.18; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-19 {
+  connection { remote { ip 127.0.1.19; } local { ip 127.0.1.19; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-20 {
+  connection { remote { ip 127.0.1.20; } local { ip 127.0.1.20; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-21 {
+  connection { remote { ip 127.0.1.21; } local { ip 127.0.1.21; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-22 {
+  connection { remote { ip 127.0.1.22; } local { ip 127.0.1.22; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-23 {
+  connection { remote { ip 127.0.1.23; } local { ip 127.0.1.23; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-24 {
+  connection { remote { ip 127.0.1.24; } local { ip 127.0.1.24; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-25 {
+  connection { remote { ip 127.0.1.25; } local { ip 127.0.1.25; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-26 {
+  connection { remote { ip 127.0.1.26; } local { ip 127.0.1.26; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-27 {
+  connection { remote { ip 127.0.1.27; } local { ip 127.0.1.27; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-28 {
+  connection { remote { ip 127.0.1.28; } local { ip 127.0.1.28; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-29 {
+  connection { remote { ip 127.0.1.29; } local { ip 127.0.1.29; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-30 {
+  connection { remote { ip 127.0.1.30; } local { ip 127.0.1.30; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-31 {
+  connection { remote { ip 127.0.1.31; } local { ip 127.0.1.31; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-32 {
+  connection { remote { ip 127.0.1.32; } local { ip 127.0.1.32; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-33 {
+  connection { remote { ip 127.0.1.33; } local { ip 127.0.1.33; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-34 {
+  connection { remote { ip 127.0.1.34; } local { ip 127.0.1.34; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-35 {
+  connection { remote { ip 127.0.1.35; } local { ip 127.0.1.35; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-36 {
+  connection { remote { ip 127.0.1.36; } local { ip 127.0.1.36; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-37 {
+  connection { remote { ip 127.0.1.37; } local { ip 127.0.1.37; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-38 {
+  connection { remote { ip 127.0.1.38; } local { ip 127.0.1.38; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-39 {
+  connection { remote { ip 127.0.1.39; } local { ip 127.0.1.39; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-40 {
+  connection { remote { ip 127.0.1.40; } local { ip 127.0.1.40; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-41 {
+  connection { remote { ip 127.0.1.41; } local { ip 127.0.1.41; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-42 {
+  connection { remote { ip 127.0.1.42; } local { ip 127.0.1.42; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-43 {
+  connection { remote { ip 127.0.1.43; } local { ip 127.0.1.43; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-44 {
+  connection { remote { ip 127.0.1.44; } local { ip 127.0.1.44; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-45 {
+  connection { remote { ip 127.0.1.45; } local { ip 127.0.1.45; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-46 {
+  connection { remote { ip 127.0.1.46; } local { ip 127.0.1.46; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-47 {
+  connection { remote { ip 127.0.1.47; } local { ip 127.0.1.47; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-48 {
+  connection { remote { ip 127.0.1.48; } local { ip 127.0.1.48; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-49 {
+  connection { remote { ip 127.0.1.49; } local { ip 127.0.1.49; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-50 {
+  connection { remote { ip 127.0.1.50; } local { ip 127.0.1.50; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-51 {
+  connection { remote { ip 127.0.1.51; } local { ip 127.0.1.51; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-52 {
+  connection { remote { ip 127.0.1.52; } local { ip 127.0.1.52; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-53 {
+  connection { remote { ip 127.0.1.53; } local { ip 127.0.1.53; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-54 {
+  connection { remote { ip 127.0.1.54; } local { ip 127.0.1.54; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-55 {
+  connection { remote { ip 127.0.1.55; } local { ip 127.0.1.55; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-56 {
+  connection { remote { ip 127.0.1.56; } local { ip 127.0.1.56; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-57 {
+  connection { remote { ip 127.0.1.57; } local { ip 127.0.1.57; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-58 {
+  connection { remote { ip 127.0.1.58; } local { ip 127.0.1.58; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-59 {
+  connection { remote { ip 127.0.1.59; } local { ip 127.0.1.59; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-60 {
+  connection { remote { ip 127.0.1.60; } local { ip 127.0.1.60; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-61 {
+  connection { remote { ip 127.0.1.61; } local { ip 127.0.1.61; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-62 {
+  connection { remote { ip 127.0.1.62; } local { ip 127.0.1.62; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-63 {
+  connection { remote { ip 127.0.1.63; } local { ip 127.0.1.63; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-64 {
+  connection { remote { ip 127.0.1.64; } local { ip 127.0.1.64; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-65 {
+  connection { remote { ip 127.0.1.65; } local { ip 127.0.1.65; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-66 {
+  connection { remote { ip 127.0.1.66; } local { ip 127.0.1.66; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-67 {
+  connection { remote { ip 127.0.1.67; } local { ip 127.0.1.67; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-68 {
+  connection { remote { ip 127.0.1.68; } local { ip 127.0.1.68; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-69 {
+  connection { remote { ip 127.0.1.69; } local { ip 127.0.1.69; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer source-70 {
+  connection { remote { ip 127.0.1.70; } local { ip 127.0.1.70; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  timer { connect-retry 1; }
+  filter { import { filters [ batch:judge filter-wire-cases:check-batch ]; final accept; } export { final accept; } }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+}
+CONFIG
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=35s
+expect=exit:code=0
+expect=stderr:contains=WIRE malformed 64-route batch
+expect=stderr:contains=WIRE OK bounded batches=
+expect=stderr:contains=failed batch absent; next batch intact
+expect=stderr:contains=OK: batch ordered sets
+expect=stderr:pattern=policy filter failed.*filter=batch:judge.*on-error=reject
+expect=stderr:contains=WIRE OK default reject isolated undeclared set
+expect=stderr:contains=same-batch survivors intact; refusal count=1
+reject=stderr:pattern=policy filter failed.*filter=filter-wire-cases:check-batch
+reject=stderr:contains=WIRE FAIL
+reject=stderr:contains=ZE-OBSERVER-FAIL

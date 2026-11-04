@@ -18,7 +18,11 @@ import (
 // which ctx bounds as it bounds SendFilterUpdate. Safe for concurrent use.
 func (pc *PluginConn) CallFilter(ctx context.Context, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
 	if bridge := pc.bridge.Load(); bridge != nil && bridge.HasFilterSlot() {
-		return bridge.CallFilterSlot(route)
+		out, err := bridge.CallFilterSlot(route)
+		if err == nil && out != nil {
+			observeFilterSlot()
+		}
+		return out, err
 	}
 	input, err := route.Input()
 	if err != nil {

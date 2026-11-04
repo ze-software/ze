@@ -1,0 +1,47 @@
+# Test: metric belongs to non-BGP policy, while BGP names that fact med.
+# VALIDATES: spec-filter-wire-0-umbrella AC-24: both BGP attachments refuse
+# LOW-METRIC with an actionable instance/field/attachment/med diagnostic;
+# the identical condition remains valid on a redistribution import.
+# PREVENTS: a global metric ban, a silently ignored BGP condition, and a
+# generic diagnostic which gives the operator no replacement field.
+
+stdin=import:terminator=IMPORT
+policy { match LOW-METRIC { metric { maximum 10; } } }
+bgp {
+ peer source {
+  connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } }
+  filter { import { filters [ LOW-METRIC ]; final accept; } }
+ }
+}
+IMPORT
+cmd=foreground:seq=1:exec=ze config validate -:stdin=import:exit=1
+expect=stdout:contains=LOW-METRIC
+expect=stdout:contains=reads metric
+expect=stdout:contains=bgp import
+expect=stdout:contains=names the metric fact med
+
+stdin=export:terminator=EXPORT
+policy { match LOW-METRIC { metric { maximum 10; } } }
+bgp {
+ peer source {
+  connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } }
+  filter { export { filters [ LOW-METRIC ]; final accept; } }
+ }
+}
+EXPORT
+cmd=foreground:seq=2:exec=ze config validate -:stdin=export:exit=1
+expect=stdout:contains=LOW-METRIC
+expect=stdout:contains=reads metric
+expect=stdout:contains=bgp export
+expect=stdout:contains=names the metric fact med
+
+stdin=non-bgp:terminator=NONBGP
+policy { match LOW-METRIC { metric { maximum 10; } } }
+ospf { router-id 10.0.0.1; areas { area 0.0.0.0 { } } }
+redistribute { destination ospf { import static { filters [ LOW-METRIC ]; final accept; } } }
+NONBGP
+cmd=foreground:seq=3:exec=ze config validate -:stdin=non-bgp
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -102,6 +102,7 @@ func (b *filterBatcher) admit(ctx context.Context, req *filterRequest) error {
 	}
 	select {
 	case b.queue <- req:
+		observeFilterEnqueue()
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("filter-update: waiting for room in the plugin's queue: %w", ctx.Err())

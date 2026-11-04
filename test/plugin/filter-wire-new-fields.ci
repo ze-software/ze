@@ -1,0 +1,56 @@
+# Test: the four D-8 attributes have identical declared-only values on both transports.
+# VALIDATES: spec-filter-wire-0-umbrella AC-23. The compiled evaluator checks
+# all four JSON values and then a second filter checks only atomic-aggregate
+# was projected. Each chain is fenced by the source End-of-RIB.
+# PREVENTS: a missing field, wrong ASN width, wrong attribute shape, and
+# union-of-chain field leakage. A valid UPDATE must traverse both chains.
+
+stdin=peer1:terminator=PEER1
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004F02000000344001010040020602010000FDE940030401010101400600C007080000FDF2C0000209800904C0000208800A08C0000206C0000207180A0000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+PEER1
+
+stdin=peer2:terminator=PEER2
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+# Both sessions use AS65000, so their speakers need distinct BGP Identifiers.
+option=open:value=router-id:id=1.2.3.6
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004F02000000344001010040020602010000FDE940030401010101400600C007080000FDF2C0000209800904C0000208800A08C0000206C0000207180A0000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+PEER2
+
+stdin=config:terminator=CONFIG
+plugin {
+ internal inside { use filter-wire-cases; }
+ external outside { run "ze plugin filter-wire-cases-forked"; }
+ external observer { run "le test fixture plugin/filter-wire-cases-fence"; encoder json; }
+}
+bgp {
+ peer peer1 {
+  connection { remote { ip 127.0.0.1; port $PORT; } local { ip 127.0.0.1; accept false; } }
+  session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  filter { import { filters [ filter-wire-cases:fields-all filter-wire-cases:fields-only ]; final accept; } export { final accept; } }
+ }
+ peer peer2 {
+  connection { remote { ip 127.0.0.2; port $PORT; } local { ip 127.0.0.2; accept false; } }
+  session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+  filter { import { filters [ filter-wire-cases-forked:fields-all filter-wire-cases-forked:fields-only ]; final accept; } export { final accept; } }
+ }
+}
+CONFIG
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer1
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=foreground:seq=3:exec=ze -:stdin=config:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=OK: new fields fields-all slot values=
+expect=stderr:contains=OK: new fields fields-all batch values=
+expect=stderr:contains=OK: new fields fields-only slot values=
+expect=stderr:contains=OK: new fields fields-only batch values=
+expect=stderr:contains=OK: both field chains reached End-of-RIB
+reject=stderr:contains=policy filter failed
+reject=stderr:contains=filter-wire-cases failed
+reject=stderr:contains=ZE-OBSERVER-FAIL

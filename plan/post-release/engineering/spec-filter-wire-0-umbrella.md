@@ -4,28 +4,95 @@
 |-------|-------|
 | Status | blocked |
 | Priority | P3 |
-| Release reason | Release-independent filter wire 0 umbrella work; historical findings do not establish a current product defect. |
+| Release reason | Complete the promised filter-wire proofs and fix the current defect they exposed: a forked bgp-filter-irr program did not request the policy root, lost the configured IRR server/settings, and rejected authorized announcements. |
 | Depends | Route-policy phases 1-3, landed (490618ef43). This builds on their library in `internal/component/policy/`: `policy.CompileRouteChain`, `policy.RouteChain` and `policy.CheckChain`; the field registry, `policy.MustRegisterField` with a `policy.RouteView` (`Read`, `Written`); `policy.MustRegisterRouteAttachment`; and `ribpolicy.Route` and `ribpolicy.Sets` (`internal/core/rib/policy`) |
 | Phase | 5/5 |
-| Updated | 2026-11-03 |
+| Updated | 2026-11-04 |
 
 ## Blocker
 
-`/ze-close` (2026-11-03) stopped at step 1, the deliverables review, before
-the Review Gate. The goal holds: AC-8's greps find no text-machinery symbol in
-`internal` or `pkg`, and no `matchConditions` or `prefixListFilterType` in
-`internal/component/policy`. What blocks is proof this spec promises and the
-tree does not hold. Each item below was checked with `git ls-files` or
-`git grep` at c08a8e7f81.
+`/ze-close` (2026-11-03) stopped at the deliverables review, before the
+Review Gate. Implementation resumed on 2026-11-04 to finish the promised
+proofs. The already-established no-text-round-trip goal is not being re-run
+as a substitute for the missing behavioural evidence.
 
-| # | What is owed | Evidence it is absent | What clears it |
-|---|--------------|-----------------------|----------------|
-| 1 | Wiring Test rows (MANDATORY, not deferrable) `test/plugin/filter-wire-inprocess-import.ci`, `test/plugin/filter-wire-dryrun.ci`, `test/plugin/filter-wire-irr-two-transports.ci` | none of the three is tracked | write each `.ci` (`/ze-test`), or name in the row the tracked `.ci` that already proves its path |
-| 2 | AC-22: `family-filter` judged with `bgp-filter-family` forked through the daemon, verdict and UPDATE bytes equal to the internal run, both counted | no config under `test/` names `external bgp-filter-family`; the evidence is unit-level only (`TestFamilyFilterConformance` in `filter_family/evaluator_test.go`, `TestBridgeFilterSlotNoEncoding` in `pkg/plugin/rpc/filter_slot_test.go`) | a forked-and-internal pair of `.ci` runs |
-| 3 | AC-31: the same IRR config internal and forked, fed in-list, out-of-list, mixed, withdrawals and an MP family, with identical verdicts and UPDATE bytes | the only forked IRR `.ci` is `clear-irr-cache-external.ci`, which judges no route; `TestIRRPassesConformance` (`filter_irr/conformance_test.go`) compares the two transports' verdicts but carries no MP-family route and no UPDATE bytes | the `filter-wire-irr-two-transports.ci` of row 1, with an MP-family route |
-| 4 | Functional Tests rows with an empty Status and no tracked file: `filter-wire-batch`, `filter-wire-undeclared-set`, `filter-wire-intree-forked`, `filter-wire-new-fields`, `filter-wire-metric-at-bgp-refused`, `filter-wire-set-actions`, `filter-wire-inprocess-family-forked` (`filter-wire-name-pattern` exists under `test/plugin/`, while its row says `test/parse/`) | `git ls-files 'test/*/<name>.ci'` finds none | write each, or record in its row the tracked test that proves the same end-user scenario |
-| 5 | The Unit Tests table names twelve tests that do not exist: `TestUnsettableOrUnknownSetFailsRoute`, `TestInTreeTypeInProcessWhenForked`, `TestSetActionsToModOps`, `TestBGPMatchConditions`, `TestPrefixListOneCondition`, `TestMatchConditionRegistry`, `TestTransitLeakDischargedByCondition`, `TestSetFieldToModOps`, `TestUndeclaredSetFailsRoute`, `TestTypedIntentsMatchTextEra`, `TestMixedChainSetsVisible`, `TestFilterUnavailableAppliesOnError`. The session state names tracked substitutes for several (`TestExternalRefusedSetsFailTheRoute` and `TestExternalMemberReadsEarlierSets` in `policychain/external_test.go`, `TestMixedChainExternalReadsInProcessSet` in `reactor/filter_library_external_test.go`, `TestMatchConditionRegisteredOutside` in `policy/match_registry_test.go`, `TestCallFilterUpdateUnavailable` in `plugin/server/filter_unavailable_test.go`) | `git grep 'func <name>('` finds none of the twelve | fill every row's Status with the test that exists, and write those no substitute covers: AC-7's text-era comparison, AC-25 per field and action, AC-30 per package, and AC-40's transit-leak discharge are not yet mapped to any test |
-| 6 | Assumptions still `unvalidated`: A-2 (wire bytes per settable field; the state file records local-preference only), A-6 (the throughput harness on Thomas's Mac), A-8 (each non-CIDR family reachable through `raw`) | the Risks & Assumptions table | A-2 and A-8 by test; A-6 by Thomas's `./le perf filter measure` run, which no agent makes |
+| # | Remaining proof | Prepared evidence / exact prerequisite | What clears it |
+|---|-----------------|----------------------------------------|----------------|
+| 1 | A-6: relative slow-path performance, the only remaining external blocker | All reachable unit, daemon, load, discrimination and promotion proofs below are recorded. Thomas must run `./le perf filter measure` on his Mac and compare with a compatible same-Mac text-era before result; neither measurement result is supplied here | Owner measurement and before/after comparison; harness compilation and functional/load success do not confirm A-6. No closure Review Gate or closure completion is claimed |
+
+AC-22's former in-daemon-when-forked unit framing was superseded by the
+owner's revised D-12, not waived. AC-40's former transit-leak load refusal was
+superseded by the owner's D-16 in `spec-filter-wire-6-stage-filters`
+(655d07b59b); the replacement upstream check retains its own proof below.
+
+The AC-31 daemon proof exposed a current config-delivery defect, now fixed at
+its producer: `filter_irr/filter_irr.go` `runFilterIRR` declares
+`WantsConfig: [bgp, policy]`. The compiled-in registration's
+`ConfigReads: [policy]` is not available to an external program:
+`plugin/server/startup.go` `registryRow` returns no row for
+`RunsExternalProgram`, and `registryConfigReads` therefore supplies no
+additional root. Without the Stage 1 request the forked plugin missed
+`policy irr` settings, including the configured server, and rejected
+announcements the internal run admitted. `docs/architecture/bgp/filter-irr.md`
+documents the two roots and the external-program boundary. The fix is committed
+in d4539a9be2d3. Its regression is now the promoted
+`test/plugin/filter-wire-irr-two-transports.ci`; it retains the same five exact
+receiver-frame expectations on the internal and forked paths. The fixture
+ordering failures and their eventual load proof remain recorded below.
+
+**Completed load evidence (2026-11-04).** Before promotion, the parse test's
+`job-fw-stress-parse-7b438323.log` reported “not reproduced in 80 invocation(s)
+under load”; its capture ends with invocation 80 and the named test PASS:
+`tmp/stress-repro/parse-draft-pattern-filter-wire-metric-at-bgp-refused-p-1-a8b8c6f4be165baf30245d7281000a3613cbddd17a5993c2926acf1a9e77e2f1-20261104-102022-940363179.log`.
+The final eight-plugin load run likewise completed all 80 invocations:
+`job-fw-stress-plugin-final-a0c0ae67.log`, full capture
+`tmp/stress-repro/plugin-draft-pattern-filter-wire-p-2-161b42949d133f2ff6b75a5855d86d9000dba76ff34e8d9e1868ad6c5a23f9df-20261104-110120-4126909445.log`.
+The stress-repro wrapper's non-reproduction exit status is not a failed
+functional test; the actual named results and completed invocations are the
+evidence (`docs/functional-tests.md`, “Type the runner's own verb”). All nine
+tests have since been promoted to their normal plugin/parse paths.
+
+The first eight-plugin load attempt did **not** complete 80 invocations:
+`job-fw-stress-plugin-selected-a0c0ae67.log` reproduced failure on invocation 9.
+Its full capture
+`tmp/stress-repro/plugin-draft-pattern-filter-wire-p-2-161b42949d133f2ff6b75a5855d86d9000dba76ff34e8d9e1868ad6c5a23f9df-20261104-101443-2915104921.log`
+shows `filter-wire-irr-two-transports` failing its receiver acknowledgment
+after MP_REACH arrived where the unphased script expected an IPv4 withdrawal.
+`internal/test/fixture/plugin_fixture_filter_wire_transports.go` `filterWireTransports`
+now waits for acknowledgment of every IPv4 golden before releasing MP input
+with a source EOR marker, then waits for the final receiver acknowledgment.
+The same five byte expectations remain. Its existing `quiesce` barrier now
+runs before baselines/input-ready, so initial sync cannot suppress that
+one-shot release marker. The scoped static fix review
+`fw-proof-review-round4-fix-report.md` resolves that readiness finding; it is
+not the closure Review Gate or runtime proof. A second attempt was canceled
+before completion and supplies no load result. A later batch attempt exposed
+intentional Cease/Administrative Shutdown being misjudged after all proof
+checks. The batch test now authorizes only that notification after its
+sentinels, complete RIB census, exact counts and final failure check; other
+notifications and early shutdown still fail. The narrow semantic correction
+was independently approved (b) in `tmp/commit-weakening-approved-5112be1d.md`.
+The successful final 80-invocation run above, not any failed/canceled attempt,
+is the load evidence for the promoted files.
+
+After promotion, the eight plugin proofs and the existing
+`clear-irr-cache-external` regression passed together, 9/9, in
+`tmp/session/2026-11-04-111704/scratch/job-fw-promoted-plugin-17a8d3b2.log`;
+the normal-path parse proof passed 1/1 in
+`tmp/session/2026-11-04-111704/scratch/job-fw-promoted-parse-379b61c3.log`.
+These are actual named test results, not zero-exit/no-selection outcomes.
+
+The independent scoped static reports
+`fw-proof-review-report.md`, `fw-proof-review-round2-report.md`,
+`fw-proof-review-round3-report.md` and `fw-proof-review-round4-fix-report.md`
+remain under `tmp/session/2026-11-01-174538/scratch/`. Their findings and
+subsequent scoped fixes, and the separately recorded test judgments, do not
+constitute a CLEAN closure Review Gate. This spec remains open for A-6;
+neither owned journal row is rehomed before closure.
+
+
+
+
 
 The owned journal rows in `second-logger-detaches-runtime-level.md`
 (2026-11-02) and `full-disk-false-red.md` (2026-11-02) are still `open:`. They
@@ -33,9 +100,11 @@ stay owned by this spec while it is open, and its closure rehomes them.
 
 ## Read this first
 
-Status: **ready**, body current at c032f72335 (2026-10-31). Every phase is
-unblocked: the owner answered R-12 on 2026-10-31 (R-12, revised), recorded in
-the revised D-6.
+The design was **ready** at c032f72335 (2026-10-31). The implementation and
+reachable proof work are now recorded; the spec remains **blocked** only on
+A-6's owner-run Mac comparison, not on absent tests or unpromoted files.
+Historical design approval and the scoped proof reviews are not the closure
+Review Gate. The owner answered R-12 on 2026-10-31, recorded in revised D-6.
 
 **D-6 was revised by the owner on 2026-10-31 (R-12, revised).** The policy
 library holds mechanism only: chains, the field vocabulary, the `match` and
@@ -355,7 +424,7 @@ build the chain from config; BGP wraps it in `filterapi.Policy`
 - Dry-run decisions and trace (`show policy test`), and `show policy chain`.
 - The 5 s per-call bound and the on-error policy on expiry.
 - What the five simple filters decide, at every attachment that accepts them today (BGP chains, and `prefix-list` at the Loc-RIB, redistribute and IGP attachments through `filter_prefix`'s `rib_evaluator.go`), and the named list definitions under `policy` with their names.
-- Each of the five packages' own code, YANG, docs and BGP build tag (`ze_bgp`), and `bgp-filter-path-asn`'s operator surface: the `show ... reject-asn` commands, its metrics, and its discharge of the RFC 9234 transit-leak obligation (`validateLeakFilterObligations`).
+- Each of the five packages' own code, YANG, docs and BGP build tag (`ze_bgp`), and `bgp-filter-path-asn`'s operator surface: the `show ... reject-asn` commands and metrics. The former transit-leak load-time obligation is superseded by D-16 of `spec-filter-wire-6-stage-filters` (owner, 2026-11-01; 655d07b59b): `bgp-role` inserts its upstream-ASN check, rather than requiring a reject-asn condition to discharge an obligation.
 
 **Behavior to change:**
 - The `filter-update` message: text `Update` in and out is replaced by declared decoded fields, optional raw, and set fields from the vocabulary, under a negotiated contract version. Third-party text-format plugins stop working (owner-accepted).
@@ -382,7 +451,7 @@ spec's job.
 | The `match` condition table | `internal/component/policy/match.go` (`matchCondition`, `matchConditions`, `RouteMatch`, `(*RouteMatch).Matches`, `CompileRouteMatch`, `MatchFields`, `IsSourceConditionKey`), registered as `policy.MatchFilterType` in `policy/register.go` | Compiles a `match` instance's conditions into one `RouteMatch` and judges a `ribpolicy.Route` against them, allocation-free. Not a registry: the slice literal, the per-condition fields of `RouteMatch` and the fixed sequence in `Matches` each name all nine conditions, and nothing outside the file can add one | Extended into a registry: each condition registers its key, the fields it reads, whether it is a source condition, and its own compiled pure check; the library keeps the registry and the `match` framework and names no condition. Every built-in condition moves to registration, and the five D-6 packages register theirs from their own `init()` (phase 4a, 4b) |
 | The prefix-list | `filter_prefix` (`config.go` `parsePrefixListEntries`, `match.go` `evaluatePrefix`, `rib_evaluator.go` `compileRouteEvaluator`, its YANG augment of `policy`); the library's reference to it (`parseMatchPrefixList`, `prefixListFilterType`, `prefix_list_reference.go`) | The one prefix-list implementation: a BGP filter type, a Loc-RIB evaluator, and the target the `match` `prefix-list` condition resolves by name | Reused: `filter_prefix` registers the one `prefix-list` condition, merging the library's resolver row into it; no second prefix check exists (AC-30) |
 | Config migration transformations | `internal/component/config/migration` (`Transformation`, `MustRegisterTransformation`, `Migrate`, `NeedsMigration`), registered from `internal/plugins/ospf/register_migration.go` and `internal/plugins/redistribute/register_migration.go` | `ze config migrate` runs every registered transformation over the parsed tree | Not used: Ze's own pre-release forms get no transformation (owner decision, 2026-11-01); the repository's configs are converted directly (AC-10) |
-| Filter obligations | `registry.Registration.FilterObligations`, `registry.FilterTypesDischarging`, `filterapi.ObligationTransitLeak`, `validateLeakFilterObligations` (`bgp/config/peers.go`) | Lets a filter type declare that it discharges the RFC 9234 transit-leak obligation; `bgp-filter-path-asn` is the only declarer | Extended: a `match` condition can declare the obligation, and the `reject-asn` condition does, so the config rule still names no filter type (R-16) |
+| Filter obligations (historical, superseded) | Formerly `validateLeakFilterObligations` and a reject-asn condition declaration | Child D-16 replaces the load-time obligation with `bgp-role:upstream-asn`, inserted by `role/upstream.go` `upstreamInsertions`; `evaluateUpstream` judges the provider-ASN snapshot | Deleted by the owner in 655d07b59b, including independently approved deletion of `TestTransitLeakDischargedByCondition`; replacement proof is `role/upstream_test.go` and `test/reload/role-upstream-check.ci` |
 | Re-judging a route after its policy input changes | Import side: `bgp-filter-irr`'s `readmitter` (`filter_irr/readmit.go`, `readmit`) sending `request peer <peer> refresh <family>` (RFC 2918); export side: the Adj-RIB-In replay of `policyReplayOwner` and `ribevents.ReplayRoutesCommand` (`reactor/policy_reload.go`) | Import: asks the peer to send again the prefixes a not-yet-resolved list rejected, because `bgp-adj-rib-in` stores only accepted routes and holds nothing to replay. Export: replays stored accepted routes through the export chain | Reused: FR-10's re-judge is the ROUTE-REFRESH route on import (AC-32); no new replay mechanism |
 | The plugin lifecycle | `startInternal`/`startExternal` and respawn (`internal/component/plugin/process/process.go`, `manager.go`, `RespawnLimit`); the five-stage startup (`process-protocol.md`, "5-Stage Startup Protocol") | Starts a plugin internal or forked, runs Stage 1 to 5, activates the bridge after Stage 5, respawns a failed process within its limits, and closes the bridge on stop | Reused: the typed slot becomes callable at bridge activation, is swapped with the connection a respawn creates, and answers `ErrBridgeClosed` after stop (FR-11, AC-33) |
 
@@ -423,7 +492,7 @@ spec's job.
 - The re-judge route: a plugin whose data resolves late asks the peer to send the routes again with `request peer <peer> refresh <family>` (RFC 2918), as `bgp-filter-irr`'s `readmitter` does at HEAD (AC-32).
 - `policy.CheckChain` at the `bgp import`/`bgp export` attachments: judges an external filter's declared reads and sets like a named instance's, and resolves a dynamic name through its declared pattern; `validateChainNames` loses its "validated by that plugin at runtime" skip (D-10).
 - The `match` condition registry, which replaces the `matchConditions` literal (D-6): every built-in condition registers its key, read fields, source flag and compiled pure check, and the five packages register theirs from their own `init()`. `RouteMatch` holds the compiled checks of the registered conditions an instance names, never one field per condition. A condition compiles from the instance config the library hands it at chain compile, so it holds no state of any plugin process.
-- `registry.FilterTypesDischarging` and `validateLeakFilterObligations`: the transit-leak obligation is discharged by the `reject-asn` `match` condition's declaration (R-16).
+- The upstream-ASN check of D-16 (`spec-filter-wire-6-stage-filters`): `bgp-role` declares `upstreamInsertions`, the generic config insertion mechanism places the member, and `evaluateUpstream` judges it. The former transit-leak obligation machinery was deleted in 655d07b59b, not retained as a parallel mechanism.
 - `buildModifiedPayload`, `attrModHandlersWithDefaults`, `filterapi.RegisterAttrModHandler`: unchanged apply engine.
 - `ExtractASPathPrependOps`, `ExtractRemovePrivateASOps`, `subsetNLRI`, `mpSectionDelta`: kept as the wire-side halves of the named intents, driven without text (D-5).
 - `attribute.RegisterJSONFormatter` and its registered encoders: the slow-path encoder's value writers (D-1).
@@ -474,14 +543,37 @@ design question is open.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every BGP field in the vocabulary can be decoded from `AttributesWire` on demand without copying the wire bytes | `AttributesWire.Get`, `GetRaw`, `ForEach` (`internal/core/bgp/attribute/wire.go`); `WireUpdate` lazy fields under `sync.Once` (`wireu/wire_update.go`) | the view allocates per read and the fast path regresses | a unit test per field reader with `testing.AllocsPerRun` | confirmed by `TestWireViewEveryReaderAllocationFree` (each of the 17 readers allocates nothing) |
-| A-2 | Every plain set field maps onto existing `AttrModHandler`s (`genericAttrSetHandler`, `aspathHandler`, the community handlers, `mpReachNextHopHandler`) | `attrModHandlersWithDefaults`; `textDeltaToModOps` already emits ops per attribute | a field needs a new handler, registered per code | a test per settable field asserting the wire bytes | unvalidated |
+| A-2 | Every plain set field maps onto existing `AttrModHandler`s (`genericAttrSetHandler` and the registered community handlers) | `policychain.SettableFields`, `Sets.ApplyTo`, `attrModHandlersWithDefaults`; `buildModifiedPayload` is the sole apply engine | a field needs a new handler, registered per code | `reactor/filter_plain_sets_wire_test.go` `TestPlainSetActionsProduceExactUpdate`: all eight plain fields and 18 supported-action cases, literal whole-UPDATE expectations through registered handlers; AS-path intents retain captured-byte tests | confirmed by main-thread race run, `job-fw-proof-plain-sets-dfcb7879.log` (all 18 cases PASS); six community-header oracle corrections independently approved (b), `tmp/commit-weakening-approved-5112be1d.md` |
 | A-3 | Prepend and remove-private need reactor-side state (local AS, peer AS, ASN4 width) a plugin cannot know | `ExtractASPathPrependOps` takes `localAS`; `ExtractRemovePrivateASOps` takes `asn4` and `peerAS` | the plugin could compute them and the intents collapse to set fields | reading both signatures and their callers in `filter_ordered.go` | validated by reading at 544f8f930c |
 | A-4 | BGP chains already run `policy.CheckChain` for named instances, so the fast path inherits a working load-time check | `validateChainNames` in `internal/component/bgp/config/peers.go`; attachments registered in `bgp/config/register.go` | the check must be wired first | reading at 544f8f930c | validated by reading |
 | A-5 | `ribpolicy.Route` cannot carry BGP fields, so the lazy view is a new view kind | BGP fields registered with `RouteView{}` (`internal/component/policy/register.go`); route-policy decision that the Loc-RIB best carries no communities or AS path | BGP fields would be added to a core leaf type the Loc-RIB hot path copies by value | reading at 544f8f930c | validated by reading |
-| A-6 | A JSON message with only the declared fields, batched, is no slower per route than today's text subject | FR-6; today a modified UPDATE pays render, two parses and a diff | the slow path regresses for small filters | the throughput harness on Thomas's Mac (FR-7) | unvalidated |
+| A-6 | A JSON message with only the declared fields, batched, is no slower per route than the text subject it replaced | FR-6; a modified text-era UPDATE paid render, two parses and a diff | the slow path regresses for small filters | Thomas's Mac: `./le perf filter measure`, plus a comparable archived text-era before result (see owner-run prerequisites below) | unvalidated: owner measurement and before comparison unavailable here; a compiling harness is not performance evidence |
 | A-7 | The functional runner and the QEMU guest can fork a Python 3 plugin | no `.py` plugin exists under `test/plugin` or `test/reload` today; Python scripts exist only under `test/exabgp-compat` | the non-Go AC needs another language the runner already has | a runner probe `.ci` forking `python3 -I` | confirmed by `test/plugin/filter-wire-python-probe.ci`: the daemon under the runner forks a `#!/usr/bin/env -S python3 -I` plugin, which reports `isolated=1` and holds all five connect-back variables; red when the shebang drops `-I`; 20 stress iterations under load clean. The QEMU guest is not needed: the test carries no `needs-linux` |
-| A-8 | Non-CIDR families (EVPN, VPN, FlowSpec beyond its destination prefix, BGP-LS, ...) can keep today's rule: per-NLRI decisions need raw | `CIDRFamily` (`filtertext/cidr.go`); "Non-CIDR Families in the Filter Text Protocol" | the decoded NLRI field must cover family-specific encodings | `spec-filter-wire-1-contract`: under D-1 the `prefix` field takes the event's NLRI shapes (json-format.md "NLRI Formats") for CIDR families, and under D-4 a filter that decides on another family declares `raw`; the child confirms each registered non-CIDR family is reachable that way | unvalidated |
+| A-8 | Non-CIDR families (EVPN, VPN, FlowSpec beyond its destination prefix, BGP-LS, SR-Policy, ...) remain reachable by a filter declaring raw, without decoding a prefix it did not declare | `family.Family.PlainCIDR`; `policychain.memberView.Raw` and `Fields` independently honor the reads declaration | the engine implicitly parses undecodable NLRI before a raw filter can judge it | `reactor/filter_raw_families_test.go` `TestDeclaredRawReachesEveryNonCIDRFamily`: all 17 standard non-CIDR registrations, both MP sections and verdicts, exact raw bytes and no implicit fields; includes SR-Policy owners | confirmed by main-thread race run, `job-fw-proof-reactor-292513d4.log`: named test and all 68 cases PASS; that run's unrelated A-2 oracle failure was corrected and passed in its isolated run |
 | A-9 | The BGP fields the view reads can register their readers from the BGP side while their names stay declared in `internal/component/policy/register.go` | D-7; the BGP fields there carry an empty `RouteView{}` today | the library would learn a BGP type, which D-7 forbids | `spec-filter-wire-2-view` reading `MustRegisterField` and registering one reader from `internal/component/bgp/` | confirmed by `policyview.MustRegisterReader` (keyed by `policy.Field`; the library holds no reader seam) |
+
+### A-6 owner-run prerequisites (not a compile-only confirmation)
+
+Run **`./le perf filter measure`** on Thomas's Mac, from the checkout whose
+revision is recorded with the result, with the repository's Go toolchain and
+`CGO_ENABLED=0` in the environment. No agent runs it; this Linux session has
+no configured SSH host for that Mac. `internal/le/perf/filter.go`
+`measureFilters` refuses a host other than Darwin. `filterArgs` selects
+`BenchmarkFilterFastPath` and `BenchmarkFilterForkedBatch` in `pkg/plugin/sdk`,
+with `-benchmem -count=10`; the latter covers batches of 1, 16 and 64 routes.
+
+`pkg/plugin/sdk/filter_bench_test.go` measures a typed-slot call and the batch
+marshal/SDK answer/unmarshal operation over already supplied fields; it does
+not itself launch a subprocess or reproduce the deleted text-subject work.
+Consequently its output alone cannot establish A-6's relative-performance
+claim. Preserve a comparable text-era before result from the same Mac,
+toolchain and workload, identify both revisions, and normalize batch cost per
+route before deciding the assumption. The historical handoff gives command
+leads, not a recorded Mac before result. The removed rendering benchmarks
+existed before 2e5c2d012a (`filter_format_bench_test.go`); the similarly named
+current `BenchmarkFilterModifyEgress` is no longer a text-era baseline.
+Neither harness compilation nor this session supplies the missing comparison.
+
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -498,7 +590,7 @@ design question is open.
 | R-10 | D-1 reuses the event encoders, but `communities`, `large-communities` and `extended-communities` are registered by `bgp-filter-community` and `originator-id`, `cluster-list` by `bgp-rr`. A binary without them has no encoder, and a silently absent field would read as "attribute not present" | a build without either plugin; `attribute.GetJSONFormatter` answering nothing | a declared field with no registered encoder refuses the filter at Stage 1, naming the field and the missing plugin, never sends it empty (`ai/rules/principles.md`, AC-29) |
 | R-11 | D-8 keeps one name per fact, so `metric` leaves the `bgp import` and `bgp export` carries list. The `match` type's `metric` condition (`policy/match.go`) then refuses at a BGP attachment | `TestCheckChainMetricRefusedAtBGP` | intended: the load error names `med` as the BGP field (AC-24). No `.ci`, reload or interop config at 5d9b21066b uses `match` with `metric` in a BGP chain (grep of `test/`), so AC-10 is unaffected |
 | R-12 | The revised D-12 says a filter is owned by its plugin, whatever process it runs in. D-6 folds the types of `filter_aspath`, `filter_aspath_length`, `filter_community_match`, `filter_path_asn` and `filter_prefix` into `match` conditions, and `match` is the library's type (`policy.MatchFilterType`, registered in `internal/component/policy/register.go`, owned by `policy.PluginName`), evaluated by the library over `matchConditions` (`policy/match.go`). A condition evaluated inside a library `match` instance has no plugin transport: with `bgp-filter-prefix` forked, nothing in it would run over the bus | AC-31 and AC-22 for `prefix-list`; `TestBGPMatchConditions` | Closed by the owner on 2026-10-31 (R-12, revised), recorded in the revised D-6: the library holds the condition registry and no protocol knowledge; each of the five packages stays and registers its `match` conditions from `init()`; a condition is a pure function that only ever runs in process, so it follows no plugin transport and has no forked variant. Any-language matching outside the daemon is an external filter over the bus. AC-22 moves to a type that stays a filter plugin; AC-30 and AC-38 to AC-41 prove the conditions, the registry, the migration, the dropped filter role and the refusal. `spec-filter-wire-4-plugins` runs its D-6 half with the rest of phase 4 |
-| R-16 | `bgp-filter-path-asn` is more than a check: its package also carries the `show ... reject-asn` commands (`register_command.go`, `command.go`, with shapes, columns and completion), its metrics (`metrics.go`, `ConfigureMetrics`), and the only `FilterObligations` declaration (`filterapi.ObligationTransitLeak`), which `validateLeakFilterObligations` reads through `registry.FilterTypesDischarging` to make a reject-asn check mandatory for a peer with an RFC 9234 role. `FilterObligations` is declared per filter type, and `reject-asn` stops being a filter type, so the rule would find no discharger | the transit-leak config refusals; `test/plugin/path-asn-show.ci`; `TestFilterTypeMappings` | The package keeps its commands, metrics and plugin registration for them, unchanged. The `reject-asn` condition declares the transit-leak obligation through the condition registry, and the config rule reads it there, still naming no filter type (AC-40) |
+| R-16 | The reject-asn package must keep its commands, metrics and condition while the filter role disappears; the original plan also moved a transit-leak obligation onto the condition | `test/plugin/path-asn-show.ci`, `test/ui/completion-words-reject-asn-show.ci`; role insertion and upstream-ASN tests | Commands and metrics stay. The obligation clause was superseded by owner-approved child D-16 (655d07b59b): `bgp-role` inserts `upstream-asn`; `upstream_test.go` plus `test/reload/role-upstream-check.ci` prove the replacement. Do not restore the deleted load-time refusal |
 | R-17 | A condition only ever runs in process, while each package's plugin can run forked. If a condition read its list from its plugin's runtime state, a forked package would leave the in-process condition with nothing to read | `filter-wire-match-conditions.ci` with the package's plugin configured external | The condition compiles from the instance config the library hands it at chain compile (as `CompileRouteMatch` does with its `InstanceResolver` today), never from the plugin's process; the list YANG and parser stay in the package. `spec-filter-wire-4-plugins` proves each condition with its package's plugin internal and forked |
 | R-13 | AC-35 asks that a third-party Go filter compiled into a build gets the fast path. At HEAD a compiled-in plugin registers through `registry.Register` (`internal/component/plugin/registry`), which a module outside this repository cannot import, and no `pkg/` registration of a compiled-in plugin exists (`grep '^func Register' pkg/` finds only `RegisterRouteInjector`, `RegisterBatchValidator`, `RegisterDNSResolver`). D-7 also places the view inside `internal/component/bgp/`, and the `StructuredEvent` precedent carries the message as `RawMessage any` that the consumer asserts to an internal type | building an out-of-tree module that links into ze | AC-35 is met by Go code compiled into the tree (a fork's own plugin directory, discovered by `./le repo update`), which is what "compiled in" means at HEAD; reaching ze from a separate module needs a public registration and a public view type, which is a `pkg/` contract change the owner decides. Reported, not designed here |
 | R-14 | D-13 merges `filterapi.Register` into the plugin filter, but three of its rows read state only the reactor holds: `loop` reads `LocalAS`, `RouterID`, `ClusterID`, `AllowOwnAS` from `PeerFilterInfo` and is engine code, not a plugin; `bgp-gr`'s LLGR filters read `PeerFilterInfo.LLGRAdvertised`, which the reactor fills from the session's OPEN or the relay rail; `bgp-role` and `bgp-filter-community-relation` order themselves by stage and priority inside one ingress pass, ahead of the chain at `FilterStagePeerChain`, through `meta["src-role"]` | the D-13 table; `TestFilterTypeMappings`; the ingress stage order in `core-design.md` | D-13 names each row's outcome. A row needing reactor-only state receives it as declared fields of the view (as `PeerFilterInfo` already passes it) or stays engine code; the child proves each against its own `.ci` with the plugin forked |
@@ -515,15 +607,17 @@ design question is open.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
-Test names are planned; their files are created by the child that owns them.
+The concrete registered paths below are implemented; the three newly supplied
+wiring proofs were load-tested, promoted and passed again at their normal
+paths, as recorded in Functional Tests.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `filter { import { filters [ <instance of a plugin running internal> ]; final accept; } }` on a peer, UPDATE received | → | typed `DirectBridge` filter slot, the plugin's evaluator over the lazy view, set fields to `ModAccumulator`, `buildModifiedPayload` | `test/plugin/filter-wire-inprocess-import.ci` |
+| `filter { import { filters [ <instance of a plugin running internal> ]; final accept; } }` on a peer, UPDATE received | → | typed `DirectBridge` filter slot, plugin evaluator, sets through `buildModifiedPayload` | `test/plugin/filter-wire-inprocess-import.ci`; 80-invocation load proof and post-promotion PASS |
 | `filter { export { filters [ <plugin>:<filter> ]; final accept; } }` with an external plugin declaring one field | → | slow-path encoder sends that field only, reply sets applied | `test/plugin/filter-wire-external-declared.ci` |
 | The same with a Python 3 plugin speaking the documented contract | → | slow path end to end, no Go SDK | `test/plugin/filter-wire-python-plugin.ci` |
-| `show policy test` against a chain mixing both paths | → | dry-run over the view, trace per member | `test/plugin/filter-wire-dryrun.ci` |
-| `filter { import { filters [ bgp-filter-irr:65001 ]; final accept; } }`, plugin internal, then forked | → | typed bridge slot, then batched message, same evaluator | `test/plugin/filter-wire-irr-two-transports.ci` |
+| `show policy test` against a chain mixing both paths | → | dry-run over the view, trace per member, live UPDATE-byte agreement | `test/plugin/filter-wire-dryrun.ci`; 80-invocation load proof and post-promotion PASS |
+| `filter { import { filters [ bgp-filter-irr:65001 ]; final accept; } }`, plugin internal, then forked | → | typed slot then batched message; same evaluator, bytes and actual dispatch counts | `test/plugin/filter-wire-irr-two-transports.ci`; config-root regression, 80-invocation load proof and post-promotion PASS |
 | An IRR-filtered UPDATE before the first resolution | → | on-error verdict, `readmitter`, `request peer <peer> refresh <family>` | `test/plugin/filter-wire-irr-unresolved.ci` |
 | An internal filter plugin stopped mid-flow | → | slot answers `ErrBridgeClosed`, on-error applies | `test/plugin/filter-wire-plugin-unavailable.ci` |
 | `filter { import { filters [ <match instance with as-path, as-path-length, community, reject-asn and prefix-list conditions> ]; final accept; } }` on a peer, UPDATE received | → | condition registry, each condition's compiled check, registered by its own package, over the BGP view, in the daemon | `test/plugin/filter-wire-match-conditions.ci` |
@@ -574,7 +668,7 @@ requirement each row proves.
 | AC-37 | Each `filterapi.Register` row of `## Current Behavior` | is a plugin filter on the bridge path whose existing `.ci` passes with its plugin internal and with it forked, or is named in D-13 with the reactor state it needs and the test proving its behaviour unchanged; `filterapi.Register` and `BindInProcess` no longer exist as a second family | D-13 |
 | AC-38 | A `match` condition registered from a package outside `internal/component/policy/match.go`, in a test | a `match` instance naming it compiles, `CheckChain` judges it by the fields it registered, `MatchFields` and `IsSourceConditionKey` answer for it, and it is evaluated with no edit to `match.go`; `matchConditions`, `RouteMatch`'s per-condition fields and the fixed sequence in `Matches` no longer exist, and no condition key is spelled in the library (`./le arch enumeration check`); every built-in condition is registered and passes its existing tests through the registry; `internal/component/policy` imports no BGP package and holds no AS-path or community logic; a second registration of one key panics at `init()`; evaluation still allocates nothing (`testing.AllocsPerRun` = 0) | D-6 (revised), `ai/rules/principles.md` |
 | AC-39 | Dropped (owner decision, 2026-11-01) | Ze has no release, so the only configs naming the five old filter types as chain members are in this repository: they are converted directly (AC-10), and no `ze config migrate` transformation is written | D-6 (revised) |
-| AC-40 | The five packages after phase 4 | each still exists under `internal/component/bgp/plugins/` with its own code, YANG, docs and `ze_bgp` gate, and registers its `match` conditions from `init()`; none declares `FilterTypes` for its old type, registers a `filter-update` handler, or holds the text callback; no wrapper, alias or fallback keeps the old filter type answering (`ai/rules/no-layering.md`); the `show ... reject-asn` commands answer with unchanged paths and output (`test/plugin/path-asn-show.ci`, `test/ui/completion-words-reject-asn-show.ci`), the reject-asn metrics keep their names, and a peer with an RFC 9234 role is still refused without a reject-asn check, discharged by the `reject-asn` condition (R-16) | D-6 (revised) |
+| AC-40 | The five packages after phase 4 | each still exists under `internal/component/bgp/plugins/` with its own code, YANG, docs and `ze_bgp` gate, and registers its `match` conditions from `init()`; none declares `FilterTypes` for its old type, registers a `filter-update` handler, or holds the text callback; no wrapper, alias or fallback keeps the old filter type answering (`ai/rules/no-layering.md`); the `show ... reject-asn` commands answer with unchanged paths and output (`test/plugin/path-asn-show.ci`, `test/ui/completion-words-reject-asn-show.ci`), and the reject-asn metrics keep their names. The former role-to-reject-asn obligation is replaced by D-16 of `spec-filter-wire-6-stage-filters` (owner, 2026-11-01; 655d07b59b): `bgp-role` inserts `upstream-asn`, proven by `role/upstream_test.go` and `test/reload/role-upstream-check.ci` | D-6 (revised), child D-16 |
 | AC-41 | Dropped (owner decision, 2026-11-01) | once a package drops its filter role (4f), a chain member naming its old type is refused by the existing unknown-filter refusal, with no migrate hint | D-6 (revised) |
 
 ## End-to-End User Stories
@@ -590,40 +684,88 @@ requirement each row proves.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestWireViewDecodesOnDemand` | the BGP view package (`## Files to Create`) | AC-1 decode counter and zero allocations; AC-23 one decode per new field | |
-| `TestWireViewMalformedAttributeErrors` | same | AC-28, R-4 | |
-| `TestWireViewASPathBuiltOnce` | same | D-7: the reconstructed AS path is built once per run however many members read it | |
-| `TestFilterMessageFieldShapes` | `internal/component/bgp/reactor/` | AC-29: keys are field names, values the `attr` shapes; a declared field with no encoder refused | |
-| `TestDeclareRegistrationVersionAnswer` | `internal/component/plugin/server/` | AC-18 | |
-| `TestFilterBatchFailureAppliesOnError` | `internal/component/bgp/reactor/` | AC-19 | |
-| `TestUnsettableOrUnknownSetFailsRoute` | `internal/component/bgp/reactor/` | AC-20 | |
-| `TestCheckChainExternalNamePattern` | `internal/component/bgp/config/` | AC-21 | |
-| `TestInTreeTypeInProcessWhenForked` | `internal/component/bgp/reactor/` | AC-22 | |
-| `TestCheckChainMetricRefusedAtBGP` | `internal/component/bgp/config/` | AC-24 | |
-| `TestSetActionsToModOps` | `internal/component/bgp/reactor/` | AC-25, one case per field and action | |
-| `TestFamilyStripIntent` | `internal/component/bgp/reactor/` | AC-26, compared against today's raw rewrite captured before deletion | |
-| `TestRawRewriteTerminal` | `internal/component/bgp/reactor/` | AC-27 | |
-| `TestBGPMatchConditions` | each of the five packages (one test per condition) | AC-30: every case of the package's `match_test.go`, `aspath_length_test.go`, `filter_path_asn_test.go`, `rfc8955_flowspec_test.go` and `mp_blocks_test.go` gives the same verdict through the condition over the BGP view | |
-| `TestPrefixListOneCondition` | `internal/component/bgp/plugins/filter_prefix/` | AC-30: the registry holds one `prefix-list` condition, registered by `filter_prefix`, and the Loc-RIB evaluator and the `match` condition give the same verdict per prefix | |
-| `TestMatchConditionRegistry` | `internal/component/policy/` | AC-38: a test-registered condition compiles, is field-checked and evaluated with no edit to `match.go`; duplicate key panics; zero allocations; registry snapshot restored in `t.Cleanup` | |
-| `TestTransitLeakDischargedByCondition` | `internal/component/bgp/config/` | AC-40, R-16: a peer with an RFC 9234 role and a `match` instance with the `reject-asn` condition loads; without one it is refused as today | |
-| `TestFilterMessageDeclaredFieldsOnly` | `internal/component/bgp/reactor/` | AC-2, AC-3 | |
-| `TestSetFieldToModOps` | `internal/component/bgp/reactor/` | AC-4, one case per settable field | |
-| `TestUndeclaredSetFailsRoute` | `internal/component/bgp/reactor/` | AC-6 | |
-| `TestTypedIntentsMatchTextEra` | `internal/component/bgp/reactor/` | AC-7, compared against today's outputs captured before deletion | |
-| `TestCheckChainExternalDeclaration` | `internal/component/bgp/config/` | AC-5 | |
-| `TestDeclareRegistrationRefusesTextContract` | `internal/component/plugin/server/` | AC-9 | |
-| `TestFilterBatchOrderAndVerdicts` | `internal/component/bgp/reactor/` | AC-12 | |
-| `TestMixedChainSetsVisible` | `internal/component/bgp/reactor/` | AC-13 | |
-| `TestBridgeFilterSlotNoEncoding` | `pkg/plugin/rpc/` | AC-22: the typed slot is called on the caller's goroutine, marshals nothing, queues nothing on `callbackCh` | |
-| `TestBridgeFilterSlotClosed` | `pkg/plugin/rpc/` | AC-33: before activation and after `CloseCallbacks` the slot answers `ErrBridgeClosed` | |
-| `TestFilterUnavailableAppliesOnError` | `internal/component/bgp/reactor/` | AC-33: `ErrBridgeClosed` from the slot takes the member's on-error | |
-| `TestSDKInstallsEvaluatorPerTransport` | `pkg/plugin/sdk/` | FR-8: one evaluator registration becomes the typed slot under `IsInternal()` and the `filter-update` handler otherwise | |
-| `TestFastPathConformance` | the SDK's conformance harness package, named by `spec-filter-wire-3-chain` | AC-36: blocking, view-retaining and unsnapshotted evaluators refused; deadline in debug and test builds | |
-| `TestIRRUnresolvedTakesOnError` | `internal/component/bgp/plugins/filter_irr/` | AC-32: no wait, announced prefixes take on-error, withdrawals kept, prefixes held | |
-| `TestIRRSnapshotSwap` | `internal/component/bgp/plugins/filter_irr/` | AC-34: concurrent evaluation across a snapshot swap under `-race` | |
-| `TestIRRPassesConformance` | `internal/component/bgp/plugins/filter_irr/` | AC-36 for IRR | |
-| per-plugin evaluator and handler tests | `filter_modify`, `filter_remove_private_as`, `filter_family`, `filter_irr` | AC-14 | |
+| `TestWireViewDecodesOnDemand`, `TestWireViewMalformedAttributeErrors`, `TestWireViewASPathBuiltOnce` | `internal/component/bgp/policyview/view_test.go` | AC-1, AC-23, AC-28; one reconstructed AS path per run | All three PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestFilterMessageFieldShapes` | `internal/component/bgp/reactor/filter_message_test.go` | AC-29: field names and event value shapes; missing encoder refused | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestDeclareRegistrationVersionAnswer` | `internal/component/plugin/server/startup_version_test.go` | AC-18 | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestFilterBatchFailureAppliesOnError` | `internal/component/plugin/ipc/filter_batch_test.go` | AC-19: failed/malformed batch returns each caller an error, per-route error isolation and next batch unaffected; reactor on-error proof below completes the composition | PASS: main-thread `job-fw-proof-transport-cc04e2da.log` |
+| `TestExternalRefusedSetsFailTheRoute` | `internal/component/bgp/policychain/external_test.go` | AC-6, AC-20: undeclared, attachment-refused, unknown, wrong-action and wrong-shape sets; both on-error policies, counted once, no partial sets | PASS: main-thread `job-fw-proof-unit-a4173714.log` |
+| `TestCheckChainExternalNamePattern` | `internal/component/bgp/config/external_filters_test.go` | AC-21 | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestFamilyFilterConformance`, `TestBridgeFilterSlotNoEncoding` | `internal/component/bgp/plugins/filter_family/evaluator_test.go`, `pkg/plugin/rpc/filter_slot_test.go` | AC-22: evaluator transport parity plus typed caller-goroutine/no-encoding/no-queue contract, completed by the counted daemon pair | Units PASS: `job-fw-proof-contracts-a793e314.log`, `job-fw-proof-transport-cc04e2da.log`; promoted daemon pair PASS: `job-fw-promoted-plugin-17a8d3b2.log`; final 80-invocation load proof recorded above |
+| `TestFilterEnqueuesCountOnlyAdmissions`, `TestFilterBatchSizeObserved` | `internal/component/plugin/ipc/filter_batch_metrics_test.go` | Queue-admission counter excludes failed admissions; encoded-batch accounting stays distinct from completed typed-slot judgments | Both PASS: main-thread `job-fw-proof-admission-88d62c28.log` |
+| `TestCheckChainMetricRefusedAtBGP` | `internal/component/bgp/config/chain_fields_view_test.go` | AC-24 | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestPlainSetActionsProduceExactUpdate`, `TestExternalSetsFoldLikeInProcess` | `internal/component/bgp/reactor/filter_plain_sets_wire_test.go`, `internal/component/bgp/policychain/external_test.go` | A-2, AC-4, AC-25: every plain field/action through registered handlers to exact UPDATE bytes; LP/MED arithmetic and community operations equal the in-process operations | PASS: `job-fw-proof-plain-sets-dfcb7879.log` and `job-fw-proof-contracts-a793e314.log`; oracle corrections independently approved (b), `tmp/commit-weakening-approved-5112be1d.md` |
+| `TestFamilyStripIntent` | `internal/component/bgp/reactor/filter_library_intents_test.go` | AC-26: whole UPDATE bytes equal the captured raw-rewrite result | PASS: main-thread `job-fw-proof-reactor-292513d4.log` |
+| `TestRawRewriteTerminal`, `TestExternalRawRewriteTerminal` | `internal/component/bgp/reactor/filter_library_external_intents_test.go`, `internal/component/bgp/policychain/external_raw_test.go` | AC-27: import rewrite/malformed body; terminal traversal and final | Both PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestBGPMatchASPathParity`, `TestBGPMatchASPathLengthParity`, `TestBGPMatchCommunityParity`, `TestBGPMatchRejectASNParity`, `TestBGPMatchPrefixListParity` | `internal/component/bgp/plugins/{filter_aspath,filter_aspath_length,filter_community_match,filter_path_asn,filter_prefix}/bgp_condition_test.go` respectively | AC-30: each package's captured condition verdicts; prefix MP/withdrawal cases retained; `filter_prefix/rfc8955_flowspec_test.go` retains its RFC-tagged destination cases unchanged | All five parity tests PASS: main-thread `job-fw-proof-contracts-a793e314.log`; RFC-tagged assertions untouched |
+| `TestPrefixListConditionMatchesLocRIB` | `internal/component/bgp/plugins/filter_prefix/condition_locrib_parity_test.go` | AC-30: prefix-list condition and Loc-RIB evaluator share exact decisions across seven family/subnet/ge/le boundaries, checked against independent expectations | PASS: main-thread `job-fw-proof-unit-a4173714.log` |
+| `TestMatchConditionRegisteredOutside`, `TestMatchConditionRegistrationRefusals`, `TestMatchEvaluationAllocatesNothing` | `internal/component/policy/match_registry_test.go` | AC-38: external-package registration, compile, field/source check, execution, duplicate registration refusal and zero allocations; registration at package init, never per-test mutation needing restoration | All three PASS: main-thread `job-fw-proof-unit-a4173714.log` |
+| `TestUpstreamSetDerivedFromRoles`, `TestUpstreamCheckRejectsPathThroughProvider`, `TestUpstreamConfigReloadSwapsSet` | `internal/component/bgp/plugins/role/upstream_test.go` | AC-40/R-16 replacement under owner-approved child D-16: provider set, path decisions and atomic reload; insertion exercised by `internal/component/bgp/config/filter_insertion_test.go` `TestInsertionFollowsPeerConfig` and `test/reload/role-upstream-check.ci` | Upstream three and config insertion PASS: `job-fw-proof-unit-a4173714.log`. Inherited reload proof PASS on 2026-11-03 at CI checkout 1a2ccaeef8c0da4dc9f3747ce70f4aeecb84ddfa: `tmp/session/2026-11-01-174538/scratch/ci-41685742426-shard1.log:7169` (checkout SHA at line 200). The test and `role/upstream.go` are unchanged against that revision; its dynamic-peer/show-policy-test/reload stages are inherited coverage, not one of this session's nine promoted proofs |
+| `TestFilterMessageDeclaredFieldsOnly` | `internal/component/bgp/reactor/filter_message_test.go` | AC-2, AC-3 | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestDeclaredRawReachesEveryNonCIDRFamily` | `internal/component/bgp/reactor/filter_raw_families_test.go` | A-8: every registered standard non-CIDR family reaches a declared raw filter without implicit prefix decoding; both MP sections, both verdicts | Named test and all cases PASS: `job-fw-proof-reactor-292513d4.log` |
+| `TestExternalIntentsBytesEqualInProcess`, `TestLibraryNLRIDropMatchesTextSubset`, `TestLibraryASPathIntentsMatchText` | `internal/component/bgp/reactor/filter_library_external_intents_test.go`, `filter_library_intents_test.go` (last two) | AC-7: external/in-process equivalence composed with independent text-era whole-body goldens for AS-path intents and mixed IPv4/IPv6 NLRI subsets | All three PASS: main-thread `job-fw-proof-reactor-292513d4.log` |
+| `TestCheckChainExternalDeclaration` | `internal/component/bgp/config/external_filters_test.go` | AC-5 | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestDeclareRegistrationRefusesTextContract` | `internal/component/plugin/server/startup_version_test.go` | AC-9 | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestFilterBatchOrderAndVerdicts` | `internal/component/plugin/ipc/filter_batch_test.go` | AC-12: lone, ten queued, bound-plus-six routes; FIFO across batches and per-route verdicts | PASS: main-thread `job-fw-proof-transport-cc04e2da.log` |
+| `TestMixedChainExternalReadsInProcessSet`, `TestExternalMemberReadsEarlierSets` | `internal/component/bgp/reactor/filter_library_external_test.go`, `internal/component/bgp/policychain/external_test.go` | AC-13: later external reads see earlier in-process/external sets, with whole-body LP+MED result at the reactor | PASS: main-thread `job-fw-proof-reactor-292513d4.log` and `job-fw-proof-unit-a4173714.log`, respectively |
+| `TestBridgeFilterSlotClosed` | `pkg/plugin/rpc/filter_slot_test.go` | AC-33: slot answers `ErrBridgeClosed` before activation and after close | PASS: main-thread `job-fw-proof-transport-cc04e2da.log` |
+| `TestFilterSlotCountsOnlyCompletedJudgments` | `internal/component/plugin/ipc/filter_slot_metrics_test.go` | AC-22, AC-31 counter integrity: accept/reject count once; error, nil verdict and closed slot count nothing | PASS: main-thread `job-fw-proof-transport-cc04e2da.log` |
+| `TestCallFilterUpdateUnavailable`, `TestClosedFilterSlotAppliesDeclaredOnError` | `internal/component/plugin/server/filter_unavailable_test.go`, `internal/component/bgp/reactor/filter_unavailable_policy_test.go` | AC-33: actual closed/replaced slot names unavailable, wraps `ErrBridgeClosed`, never calls stale evaluator; consumer applies reject/accept on-error without changing the UPDATE | PASS: main-thread `job-fw-proof-contracts-a793e314.log` and `job-fw-proof-reactor-292513d4.log` |
+| `TestSDKInstallsEvaluatorPerTransport` | `pkg/plugin/sdk/filter_evaluator_test.go` | FR-8: one evaluator registration installs the appropriate transport | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestFastPathConformance` | `pkg/plugin/sdk/filter_conformance_test.go` | AC-36: blocking, retained-view and unsnapshotted evaluators refused; conforming concurrent calls accepted | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestIRRUnresolvedTakesOnError`, `TestIRRSnapshotSwap` | `internal/component/bgp/plugins/filter_irr/irr_snapshot_test.go` | AC-32 unresolved handling; AC-34 concurrent snapshot replacement | Both PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| `TestIRRPassesConformance` | `internal/component/bgp/plugins/filter_irr/conformance_test.go` | AC-36 for IRR; not a substitute for AC-31's daemon UPDATE-byte comparison | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
+| per-plugin evaluator and handler tests | `internal/component/bgp/plugins/{filter_modify,filter_remove_private_as,filter_family,filter_irr}/` | AC-14 | Retained unchanged; inherited implementation coverage, with the newly supplied typed/forked daemon proofs recorded below |
+
+### Planned-name reconciliation (2026-11-04)
+
+These are requirement-to-proof mappings, not aliases added to make an absent
+name appear. Existing assertions and RFC-tagged tests are unchanged.
+
+| Original planned name | Actual proof / disposition |
+|-----------------------|----------------------------|
+| `TestUnsettableOrUnknownSetFailsRoute` | `TestExternalRefusedSetsFailTheRoute`: unknown, attachment-refused and malformed sets, both on-error policies, refusal counter and no partial changes |
+| `TestInTreeTypeInProcessWhenForked` | Obsolete framing explicitly superseded by revised D-12/AC-22: `TestFamilyFilterConformance` + `TestBridgeFilterSlotNoEncoding`, completed by the counted internal/forked daemon pair in the Functional Tests table; no in-daemon execution is claimed for a forked plugin |
+| `TestSetActionsToModOps` | `TestExternalSetsFoldLikeInProcess` + new `TestPlainSetActionsProduceExactUpdate`; operation parity and exact wire results, not an operation-only assertion |
+| `TestBGPMatchConditions` | The five `TestBGPMatch*Parity` tests named above, plus unchanged RFC FlowSpec/MP cases; no duplicate wrapper test |
+| `TestPrefixListOneCondition` | New `TestPrefixListConditionMatchesLocRIB` supplies the missing per-prefix BGP/Loc-RIB behavioural comparison; `TestMatchConditionRegistrationRefusals` proves duplicate keys cannot coexist |
+| `TestMatchConditionRegistry` | `TestMatchConditionRegisteredOutside`, `TestMatchConditionRegistrationRefusals`, `TestMatchEvaluationAllocatesNothing`; init registration is stable across runs, so no test-local registry snapshot is left behind |
+| `TestTransitLeakDischargedByCondition` | Deleted with explicit independent approval in owner commit 655d07b59b, child D-16; replaced by the upstream-ASN tests and `test/reload/role-upstream-check.ci` named above, not silently renamed |
+| `TestSetFieldToModOps` | New `TestPlainSetActionsProduceExactUpdate` closes the former local-preference-only wire gap across every plain settable field; named AS-path intents retain their captured-byte proof |
+| `TestUndeclaredSetFailsRoute` | `TestExternalRefusedSetsFailTheRoute/undeclared field` retains earlier valid sets before the refused set and asserts the whole reply discarded; daemon route isolation remains in the functional proof |
+| `TestTypedIntentsMatchTextEra` | `TestLibraryNLRIDropMatchesTextSubset`, `TestLibraryASPathIntentsMatchText` and `TestFamilyStripIntent` keep independent captured UPDATEs; `TestExternalIntentsBytesEqualInProcess` proves the external composition |
+| `TestMixedChainSetsVisible` | `TestMixedChainExternalReadsInProcessSet` + `TestExternalMemberReadsEarlierSets`: reactor bytes and captured fields, plus external-to-external read-after-set |
+| `TestFilterUnavailableAppliesOnError` | `TestCallFilterUpdateUnavailable` proves the actual lifecycle/error producer; new `TestClosedFilterSlotAppliesDeclaredOnError` closes the consumer gap for both declared policies |
+
+Unit-result logs above live under
+`tmp/session/2026-11-01-174538/scratch/`. These are main-thread scoped race
+runs, not author-run tests or a whole-tree green claim. The first multi-package
+run failed reactor compilation because the new consumer test duplicated an
+existing unavailable carrier; the test now reuses `filter_eor_test.go`'s
+carrier. The next reactor run passed A-8, closed-slot on-error and all five
+selected reactor substitutes, but failed A-2's community-header expectations.
+Those six independent goldens were corrected to the documented
+`filter_community/handler.go` `emitCommunity` convention (extended length,
+legal under RFC 4271 Section 4.3), preserving whole-body equality assertions;
+the isolated A-2 rerun passed every case. Neither failure is hidden by the
+successful test-level evidence. Independent PlainSetJudge approved the six
+oracle corrections (b), recorded by the main thread in
+`tmp/commit-weakening-approved-5112be1d.md` for
+`reactor.TestPlainSetActionsProduceExactUpdate`; no whole-body assertion was
+removed. This is a test judgment, not the closure Review Gate.
+
+The four new unit-proof files are committed in 8869b196d201; their
+post-commit five-flavor compile result is
+`job-fw-proof-committed-63ed8ad7.log`. The standalone IRR config-root fix and
+documentation are committed in d4539a9be2d3; its current committed tree passed
+distro, appliance, setup, host and installer builds in
+`job-fw-irr-committed-e6594260.log`. Neither result is a build claim about
+later uncommitted fixture edits. The earlier isolated-smoke log names in
+Functional Tests share the same scratch directory; the failed/canceled load
+attempts and subsequent fixture changes are recorded above rather than hidden
+by those earlier PASS lines.
+
+
+
 
 The five packages keep their unit tests. A test that drove a check through
 the `filter-update` handler is rewritten to drive the registered condition;
@@ -641,30 +783,88 @@ test proves at least what the old one did.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `filter-wire-inprocess-import` | `test/plugin/` | AC-1, AC-4 through the daemon | |
+| `filter-wire-inprocess-import` | `test/plugin/filter-wire-inprocess-import.ci` | AC-1 decode proof remains unit-level; AC-4 live import sets cached LP200 and compares receiver bytes, actual slot/batch counts | Promoted after final 80-invocation plugin load proof; normal-path PASS: `job-fw-promoted-plugin-17a8d3b2.log` |
 | `filter-wire-external-declared` | `test/plugin/` | AC-2, AC-3 | |
 | `filter-wire-python-plugin` | `test/plugin/` | AC-11 | b0e0f613f1 (`test/plugin/filter-wire-python-plugin.ci`, Python 3 plugin over the declared-field protocol, no Go SDK) |
 | `filter-wire-text-contract-refused` | `test/plugin/` | AC-9 | |
-| `filter-wire-dryrun` | `test/plugin/` | AC-16 | |
+| `filter-wire-dryrun` | `test/plugin/filter-wire-dryrun.ci` | AC-16: mixed typed/external chain; trace, final and live receiver bytes; transport deltas exclude the dry-run baseline | Promoted after final 80-invocation plugin load proof; normal-path PASS: `job-fw-promoted-plugin-17a8d3b2.log` |
 | `filter-wire-version-negotiated` | `test/plugin/` | AC-18 | |
-| `filter-wire-batch` | `test/plugin/` | AC-12, AC-19 through the daemon | |
-| `filter-wire-undeclared-set` | `test/plugin/` | AC-6, AC-20 | |
-| `filter-wire-name-pattern` | `test/parse/` | AC-21 | |
-| `filter-wire-intree-forked` | `test/plugin/` | AC-22 | |
-| `filter-wire-new-fields` | `test/plugin/` | AC-23 | |
-| `filter-wire-metric-at-bgp-refused` | `test/parse/` | AC-24 | |
-| `filter-wire-set-actions` | `test/plugin/` | AC-25 | |
+| `filter-wire-batch` | `test/plugin/filter-wire-batch.ci` | AC-12, AC-19: bounded real daemon batches, route-position-specific verdicts/sets, malformed-batch isolation and recovery; AC-6: undeclared LP after valid MED rejects only that route, keeps same-batch companions, increments refusal once | Promoted after final 80-invocation plugin load proof; normal-path PASS: `job-fw-promoted-plugin-17a8d3b2.log`; shutdown-test correction independently approved (b) |
+| `filter-wire-undeclared-set` | `test/plugin/filter-wire-undeclared-set.ci` | AC-6, AC-20: valid set before refused set; four refusal classes preserve unchanged fields under on-error accept; next valid route succeeds; logs and refusal count | Promoted after final 80-invocation plugin load proof; normal-path PASS: `job-fw-promoted-plugin-17a8d3b2.log` |
+| `filter-wire-name-pattern` | `test/plugin/filter-wire-name-pattern.ci` | AC-21 | Existing; corrected former `test/parse/` location |
+| `filter-wire-intree-forked` | `test/plugin/filter-wire-intree-forked.ci` | AC-22: same family-filter config internal/forked; accept IPv4, suppress IPv6-only, strip IPv6 from mixed; identical receiver UPDATEs; exact slot-versus-batch counts | Promoted after final 80-invocation plugin load proof; normal-path PASS: `job-fw-promoted-plugin-17a8d3b2.log` |
+| `filter-wire-new-fields` | `test/plugin/filter-wire-new-fields.ci` | AC-23: all four D-8 values on both transports, followed by an atomic-aggregate-only projection with no leaked other fields | Promoted after final 80-invocation plugin load proof; normal-path PASS: `job-fw-promoted-plugin-17a8d3b2.log` |
+| `filter-wire-metric-at-bgp-refused` | `test/parse/filter-wire-metric-at-bgp-refused.ci` | AC-24: both BGP directions refuse metric with instance/field/attachment/med diagnostic; same match accepted at redistribution | Promoted after 80 parse invocations under load without reproduction (`job-fw-stress-parse-7b438323.log`); normal-path PASS: `job-fw-promoted-parse-379b61c3.log` |
+| `filter-wire-set-actions` | `test/plugin/filter-wire-set-actions.ci` | AC-25: same evaluator internal/forked; community add/remove and LP/MED set/increment/decrement from configured bases, identical full receiver frames | Promoted after final 80-invocation plugin load proof; normal-path PASS: `job-fw-promoted-plugin-17a8d3b2.log` |
 | `filter-wire-intents` | `test/plugin/` | AC-7, AC-26 | |
-| `filter-wire-irr-two-transports` | `test/plugin/` | AC-31 | |
+| `filter-wire-irr-two-transports` | `test/plugin/filter-wire-irr-two-transports.ci` | AC-31: identical config internal/forked; in/out/mixed IPv4, IPv4 withdrawal, mixed IPv6 MP_REACH and MP_UNREACH; identical five receiver frames and six counted judgments per transport | Promoted after repaired-fixture final 80-invocation plugin load proof; normal-path PASS: `job-fw-promoted-plugin-17a8d3b2.log`; prior failures retained above |
 | `filter-wire-irr-unresolved` | `test/plugin/` | AC-32 | |
 | `filter-wire-plugin-unavailable` | `test/plugin/` | AC-33 | |
 | `filter-wire-plugin-respawn` | `test/plugin/` | AC-33: after an internal filter plugin is respawned, its new slot judges the routes that follow | |
 | `filter-wire-thirdparty-compiled-in` | `test/plugin/` | AC-35, an SDK-only test filter plugin run internal through its slot, and forked through the batch as its own binary, `ze-fakefilter`, built beside ze | |
-| `filter-wire-inprocess-family-forked` | `test/plugin/` | AC-37, each merged `filterapi` filter with its plugin forked | |
+| Stage-filter internal/forked pairs (replacing planned `filter-wire-inprocess-family-forked`) | `test/plugin/`: each basename in the paragraph below has `.ci` and `-forked.ci` | AC-37: every merged plugin filter retains its existing end-user tests on both transports; engine-owned loop retains D-13's explicit exception | Inherited child-spec coverage retained unchanged and mapped explicitly; no duplicate wrapper |
 | `filter-wire-match-conditions` | `test/plugin/` | AC-30: the five conditions in one `match` instance and singly, import and export, no `filter-update` sent, each package's plugin internal then external | |
 | `path-asn-show`, `completion-words-reject-asn-show` | `test/plugin/`, `test/ui/` | AC-40: the `show ... reject-asn` commands unchanged after the filter role goes | exist |
-| `clear-irr-cache-external`, `filter-irr-fail`, `filter-irr-readmit` and the other forked IRR tests | `test/plugin/` | kept unchanged as slow-path coverage (R-9) | exist |
+| `clear-irr-cache-external`, `filter-irr-fail`, `filter-irr-readmit` and the other forked IRR tests | `test/plugin/` | Kept unchanged as slow-path coverage (R-9) | `clear-irr-cache-external` normal-path PASS in `job-fw-promoted-plugin-17a8d3b2.log`; other inherited coverage retained unchanged |
 | every existing BGP policy `.ci` | `test/plugin/`, `test/reload/`, `test/parse/` | AC-10, unchanged | |
+
+Normal-path promotion logs above live in
+`tmp/session/2026-11-04-111704/scratch/`. The earlier scoped unit, smoke, load,
+restoration and discrimination artifacts remain valid owned outputs in
+`tmp/session/2026-11-01-174538/scratch/`; their historical directory does not
+name the current session's spec claim.
+
+### Observed source discrimination and restoration
+
+The six experiments in
+`tmp/session/2026-11-01-174538/scratch/fw-discrimination/observed-discrimination.json`
+used single-source Go build overlays in the main checkout. Each compiled and
+failed at its actual consumer assertion, not at a build error; the record
+contains exact arguments, source hashes, overlay details and
+`unchanged_after: true` for every source. No canonical source or test
+assertion was mutated for these experiments.
+
+| Source break | Producer | Observed discrimination |
+|--------------|----------|--------------------------|
+| `fields-aggregator-asn` | `internal/core/bgp/attribute/json.go` `appendAggregatorJSON` | `filter-wire-new-fields` rejected the wrong aggregating ASN on both transports |
+| `parse-accept-metric` | `internal/component/bgp/config/peers.go` `validateChainNames` and `peersAndDynamicGroups` | `filter-wire-metric-at-bgp-refused` observed exit 0 where refusal exit 1 was required; the non-BGP control remained valid |
+| `batch-one-route` | `internal/component/plugin/ipc/filter_batch.go` `filterBatcher.run` | `filter-wire-batch` failed the explicit 64-route exchange assertion after the admission fence completed |
+| `sets-permit-undeclared-lp` | `internal/component/bgp/policychain/external.go` `externalMaySet` | `filter-wire-undeclared-set` observed partially applied MED999 rather than preserved MED7, and the refusal count was wrong |
+| `irr-config` | `internal/component/bgp/plugins/filter_irr/filter_irr.go` `runFilterIRR` | Internal five-frame/six-judgment phase passed; forked announcements disappeared when policy settings were omitted |
+| `typed-slot` | `internal/component/plugin/ipc/filter_slot.go` `PluginConn.CallFilter` | Erasing the slot's verdict/edits while retaining evaluator execution and its counter failed import, dry-run, family, IRR and action byte/verdict assertions; three unaffected controls passed |
+
+With canonical sources restored, all eight plugin proofs passed in
+`job-fw-restored-plugin-db0fbfc6.log` and the parse proof passed in
+`job-fw-restored-parse-c6c946fd.log` (9/9 combined). Subsequent normal-path
+post-promotion results are recorded above. These records establish behavioral
+discrimination and restoration, not A-6 performance or a closure Review Gate.
+
+
+AC-22/AC-31 count the real dispatch branches: `ze_plugin_filter_slot_routes_total`
+counts completed typed-slot judgments; `ze_plugin_filter_batch_routes_sum`
+counts routes sent in encoded batches. The daemon tests require the expected
+positive count for one transport and zero for the other, not a fixture's
+declaration of which mode it believes it is using.
+
+The batch fixture's in-flight readiness fence uses
+`ze_plugin_filter_route_enqueues_total`, which advances at
+`ipc/filter_batch.go` `filterBatcher.admit` only after a successful queue send.
+It is not a completed-verdict count. `docs/plugin-development/metrics.md`
+documents this admission/encoded-batch/completed-slot distinction;
+`TestFilterEnqueuesCountOnlyAdmissions` checks canceled and closed admission
+paths separately from a successful enqueue.
+
+
+AC-37 paired basenames: `community-tag`, `community-strip`,
+`community-scrub-own-ga`, `community-blackhole-noexport`,
+`community-relation-tag`, `rfc7999-blackhole-readvertise-agreement`,
+`role-otc-ingress-reject`, `role-otc-egress-filter`, `role-otc-unicast-scope`,
+`role-otc-rs-client-dest-stamp`, `role-otc-egress-stamp`,
+`llgr-stale-received-depreferenced`, `llgr-readvertise-multipeer`, and
+`bgp-rs-opaque-transparency`. The engine-owned loop is not a plugin to fork:
+its unchanged exception is covered by `loop-as.ci`, `loop-cluster-list.ci`
+and `loop-originator-id.ci` under `test/plugin/`.
+
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -697,9 +897,9 @@ touched (`producers-sha256-{before,after}.txt` equal). Logs live in
 - `internal/component/bgp/config/register.go`, `peers.go` - the attachments carry `atomic-aggregate`, `aggregator`, `originator-id` and `cluster-list` and drop `metric` (D-8); `validateChainNames` checks external declarations and name patterns (D-10)
 - `internal/component/policy/fields.go`, `register.go` - a reader seam the BGP side fills for its fields, which keep their names here (D-7, A-9)
 - `internal/component/policy/match.go`, `prefix_list_reference.go` - the condition set becomes a registry: `matchConditions`, `RouteMatch`'s per-condition fields and the fixed sequence in `Matches` are deleted, every built-in condition registers through the registry, and the library spells no condition key; the `prefix-list` row and `prefixListFilterType` leave the library for `filter_prefix`'s one `prefix-list` condition (D-6, AC-38)
-- `internal/component/bgp/plugins/filter_aspath/`, `filter_aspath_length/`, `filter_community_match/`, `filter_path_asn/`, `filter_prefix/` - kept, with their code, YANG, docs and `ze_bgp` gate. Each registers its `match` conditions from `init()`, and drops `FilterTypes` for its old type, its `filter-update` handler and the text callback (D-6, AC-30, AC-40). `filter_prefix` registers the one `prefix-list` condition; `filter_path_asn` keeps its commands and metrics and declares the transit-leak obligation on its `reject-asn` condition (R-16)
-- `internal/component/bgp/config/peers.go` - `validateLeakFilterObligations` reads the obligation the `reject-asn` condition declares (R-16)
-- `internal/component/plugin/registry/registry.go` - `FilterObligations` and `FilterTypesDischarging` also answer for a `match` condition's declaration, or move to the condition registry (R-16)
+- `internal/component/bgp/plugins/filter_aspath/`, `filter_aspath_length/`, `filter_community_match/`, `filter_path_asn/`, `filter_prefix/` - retained condition providers with their code, YANG, docs and `ze_bgp` gate; their old filter roles/text callbacks are removed (D-6, AC-30, AC-40). `filter_prefix` registers the one prefix-list condition; `filter_path_asn` keeps commands and metrics. Its former obligation clause is superseded by child D-16.
+- `internal/component/bgp/config/peers.go` - the former transit-leak load-time obligation is deleted by child D-16 (655d07b59b); the generic declared-insertion mechanism places the replacement role-owned upstream check.
+- `internal/component/plugin/registry/registry.go`, `internal/component/policy/match.go` - the obsolete filter/condition obligation APIs are deleted, not moved or retained (child D-16, R-16).
 - every `test/` `.ci` and interop config naming the five old filter types - converted by hand into `match` instances, expectations unchanged, each judged by `ze-test-judge` (AC-10)
 - `internal/component/bgp/plugins/filter_modify/` - its `modify` type evaluates in process over the view, with set actions and the prepend intent (D-5, D-6)
 - `internal/component/bgp/plugins/filter_remove_private_as/`, `filter_family/` - dedicated types with one evaluator for both transports (D-6, D-12)
@@ -746,7 +946,7 @@ touched (`producers-sha256-{before,after}.txt` equal). Logs live in
 | 3 | CLI command added/changed? | No | `show policy test` output is kept (D-11); `docs/guide/command-reference.md` changes only if the trace gains a line |
 | 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` if it lists the callback |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` (the five packages provide `match` conditions, no longer filter types; the four filter plugins kept), `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/architecture/plugin/plugin-relationships.md` |
-| 6 | Has a user guide page? | Yes | `docs/guide/route-policy.md` (the library as mechanism only, the condition registry, the conditions each package provides, one `prefix-list` condition, and external filters as the any-language route), `docs/guide/bgp-policy.md`, and the filter guides that name the five types: `docs/guide/bgp-peering.md`, `docs/guide/bgp-role.md` (the transit-leak obligation, R-16), `docs/guide/route-reflection.md`, `docs/guide/config-editor.md`; `docs/architecture/bgp/filter-path-asn.md` (the package provides the `reject-asn` condition, commands unchanged) |
+| 6 | Has a user guide page? | Yes | `docs/guide/route-policy.md` (mechanism-only library, condition registry and owning packages, one prefix-list condition, external filters), `docs/guide/bgp-policy.md`, `docs/guide/bgp-peering.md`, `docs/guide/bgp-role.md` (D-16 upstream check replacing the transit-leak obligation), `docs/guide/route-reflection.md`, `docs/guide/config-editor.md`, `docs/architecture/bgp/filter-path-asn.md` (reject-asn condition, commands and metrics unchanged) |
 | 7 | Wire format changed? | No | BGP wire unchanged |
 | 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `ai/rules/plugins.md` |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | behavior preserved (AC-10) |
@@ -773,7 +973,7 @@ review. Order is by dependency. Wiring comes first.
    | Step | Task | ACs |
    |------|------|-----|
    | 4a | Turn the `match` condition set into a registry (`ai/rules/principles.md`, registration over enumeration): delete `matchConditions`, `RouteMatch`'s per-condition fields and the fixed sequence in `Matches`; every built-in condition moves to registration, so the library spells no condition key and holds no protocol knowledge; evaluation stays allocation-free; a condition is a pure function, run in process only | AC-38 |
-   | 4b | Each of the five packages registers its `match` conditions from its own `init()`, over the BGP view for BGP fields (D-7), compiled from instance config and never from its plugin's runtime state (R-17); `filter_path_asn`'s `reject-asn` condition declares the transit-leak obligation (R-16). The first 4b package also registers the `match` evaluator at `bgp import`/`bgp export`. Each package commits its 4b with its old filter role still in place (owner decision, 2026-11-01): the temporary overlap of a filter type and a condition for one check is owner-approved, and ends at 4e+4f | AC-30, AC-40 |
+   | 4b | Each of the five packages registers its `match` conditions from `init()`, over the BGP view (D-7), compiled from instance config rather than plugin state (R-17). The first also registers the BGP match evaluator. Each 4b initially retained its old filter role until the approved 4e+4f cutover (owner, 2026-11-01). The former reject-asn condition obligation was subsequently removed by owner-approved child D-16 (655d07b59b), whose inserted role-owned upstream check replaces it (R-16) | AC-30, AC-40 |
    | 4c | Merge `prefix-list`: `filter_prefix` registers the one `prefix-list` condition, the library's resolver row and `prefixListFilterType` go, and no second prefix check is registered; the Loc-RIB evaluator and the condition share `evaluatePrefix` | AC-30 |
    | 4d | configs in the repository are converted directly; no migration code, owner decision (2026-11-01) | - |
    | 4e | Convert every `test/` `.ci`, interop config, docs example and example config naming the old types as chain members to the equivalent `match` instance directly, expectations unchanged, each conversion judged by `ze-test-judge`. It waits until all five packages have their `match` condition (owner decision, 2026-11-01), then lands in one step together with 4f | AC-10, AC-30 |
@@ -955,6 +1155,14 @@ of rejecting every route at run time with "cannot extract ASN".
 
 ## Key Design Decisions
 
+The transit-leak obligation clause in the historical D-6 wording below is
+superseded by **D-16 of `spec-filter-wire-6-stage-filters`**, owner decision
+of 2026-11-01, implemented in 655d07b59b with explicit independent approval of
+the obsolete refusal tests' deletion. The role plugin now inserts
+`bgp-role:upstream-asn`. This supersession is reflected in AC-40, R-16 and
+the actual-proof mappings; it changes no other D-6 condition requirement.
+
+
 Decided only. D-1 to D-11 answer Q-1 to Q-11; the owner approved each
 recommendation on 2026-10-31. D-12 is the owner's revision of the same day,
 which supersedes his answer to Q-12; D-13 is its no-layering consequence. D-6
@@ -1003,7 +1211,7 @@ was revised by the owner the same day, answering R-12 (R-12, revised).
 | Spec | Relationship |
 |------|--------------|
 | `plan/post-release/features/spec-route-policy-0-umbrella.md` | This spec is its phase 4 BGP half. Its AC-17 is this spec's AC-10; its R-6 is resolved by this spec adding no text representation. Both stay open until AC-10 is green |
-| `spec-perf-next-2-filter-delta-alloc` (closed 2026-09-05) | It cut allocations in `textDeltaToModOps`. That path is deleted here (AC-8); its benchmark `BenchmarkFilterModifyEgress` (`reactor/filter_delta_test.go`), with `BenchmarkAppendUpdateForFilter_Reused` and `BenchmarkAppendAttrsForFilter_Reused` (`reactor/filter_format_bench_test.go`), measure the text path and give Thomas the before figure for FR-7 before deletion |
+| `spec-perf-next-2-filter-delta-alloc` (closed 2026-09-05) | Historical text-path benchmark leads: `BenchmarkFilterModifyEgress` in the former `reactor/filter_delta_test.go`, and `BenchmarkAppendUpdateForFilter_Reused` / `BenchmarkAppendAttrsForFilter_Reused` in the former `filter_format_bench_test.go`. These are source leads before deletion, not recorded Mac before results. Current similarly named wire benchmarks must not be mislabeled a text baseline; A-6's owner-run prerequisites above retain the comparison blocker |
 
 ## Checklist
 
@@ -1024,7 +1232,7 @@ was revised by the owner the same day, answering R-12 (R-12, revised).
 - [ ] AC-1..AC-40 all demonstrated (across children), AC-39 and AC-41 dropped
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass: the scoped package tests, the functional suites `./le repo changed scope print both` reaches, and `./le verify changed` over the closing commits. The full verification is Thomas's release check
+- [ ] The targeted tests for what changed pass: main-checkout scoped package tests, component groups and functional suites selected by `./le repo changed scope print both`. No agent runs `./le verify` (including `changed`); GitHub CI verifies the pushed commit, and the full local verification is Thomas's release check
 - [ ] Feature code integrated (`internal/*`, `pkg/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

@@ -1,0 +1,56 @@
+# Test: dryrun live import, canonical cached UPDATE bytes and counted transports.
+# VALIDATES: spec-filter-wire-0-umbrella AC-16; receivers compare exact frames, including permitted survivors.
+# PREVENTS: bypassed typed dispatch, accidental encoded internal callbacks, and discarded/unchanged set or NLRI intents.
+option=timeout:value=30s
+
+stdin=source-internal:terminator=SOURCE_internal
+option=tcp_connections:value=1
+option=linger:value=true
+option=await-file:path=input-ready-internal
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+SOURCE_internal
+
+stdin=dest-internal:terminator=DEST_internal
+option=tcp_connections:value=1
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE94003040101010180040400000032400504000000C8180A0000
+# Acknowledge only after both exact frames matched; the observer waits for this.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+DEST_internal
+
+stdin=config-internal:terminator=CONFIG_internal
+plugin {
+ internal bgp-filter-family { use bgp-filter-family; }
+ internal bgp-filter-modify { use bgp-filter-modify; }
+ external observer { run "le test fixture plugin/filter-wire-transports dryrun internal 1 2 1"; encoder json; }
+}
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+policy { modify SETLP { set { local-preference 200; } }
+ family-filter NoV6 { family ipv6/unicast; action remove; } }
+bgp {
+peer source {
+ connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+ session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; }  }
+ behavior { group-updates disable; }
+ filter { import { filters [ SETLP observer:check bgp-filter-family:NoV6 ]; final accept; } export { final accept; } }
+ attach process observer { receive [ update state ]; send [ update ]; }
+}
+peer destination {
+ connection { remote { ip 127.0.0.2; } local { ip 127.0.0.2; accept false; } }
+ session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; }  }
+ behavior { group-updates disable; }
+ filter { import {  final accept; } export { final accept; } }
+ attach process observer { receive [ update state ]; send [ update ]; }
+}
+}
+CONFIG_internal
+
+cmd=background:seq=2:name=source-internal:exec=le test peer --port $PORT:stdin=source-internal
+cmd=background:seq=3:name=dest-internal:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest-internal
+cmd=foreground:seq=4:exec=ze -:stdin=config-internal:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=OK: cached receiver bytes and exact transport counts dryrun internal
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=policy filter failed

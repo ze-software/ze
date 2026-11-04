@@ -54,3 +54,36 @@ func TestFilterBatchSizeObserved(t *testing.T) {
 		}
 	}
 }
+
+// TestFilterEnqueuesCountOnlyAdmissions proves the admission fence advances
+// only after a successful queue send. Method: fill a queue with one request,
+// cancel a second wait, then close and refuse a third; the scrape stays at one.
+// Not parallel: the registry is package state.
+func TestFilterEnqueuesCountOnlyAdmissions(t *testing.T) {
+	reg := metrics.NewPrometheusRegistry()
+	SetFilterMetrics(reg)
+	t.Cleanup(func() { filterBatchMetricsPtr.Store(nil) })
+
+	b := filterBatcher{queue: make(chan *filterRequest, 1)}
+	if err := b.admit(t.Context(), &filterRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(b.queue) != 1 {
+		t.Fatal("successful admission did not enqueue its request")
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := b.admit(ctx, &filterRequest{}); err == nil {
+		t.Fatal("full queue accepted a canceled waiter")
+	}
+	b.close()
+	if err := b.admit(t.Context(), &filterRequest{}); err == nil {
+		t.Fatal("closed batcher accepted a request")
+	}
+
+	rec := httptest.NewRecorder()
+	reg.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), "GET", "/metrics", nil))
+	if text := rec.Body.String(); !strings.Contains(text, "ze_plugin_filter_route_enqueues_total 1\n") {
+		t.Errorf("only the successful enqueue must count:\n%s", text)
+	}
+}
