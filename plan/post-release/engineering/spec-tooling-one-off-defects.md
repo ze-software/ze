@@ -232,6 +232,7 @@ before execution. The responsible component remains unestablished.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `gate-red-where-nothing-blocks-on-it` | 2026-11-04 | tracked historical filter-a6 shell recipe is the new native-helper census red |
 | `claim-outlives-the-evidence-it-cites` | 2026-11-03 | weakening approval keyed by unit name is reused for a later change |
 | `earlier-guard-hides-the-better-error.md` | 2026-11-03 | `commit create hunks` with a zero-context patch reports an unowned row, not the patch failure |
 | `gate-fires-outside-its-population.md` | 2026-11-03 | weakening detector `ignoreTagPattern` (`internal/le/test/weakened/detector.go`), a `//go:build ignore` inside a fixture string |
