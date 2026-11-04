@@ -46,15 +46,14 @@ type ConformanceRoute struct {
 // The clauses, in order: each call returns within FilterCallDeadline; a
 // repeat call answers what the first did; no call reads a view after its
 // return, and poisoning the bytes of the views it read before changes no
-// answer; the
-// forked transport answers what the fast path did; and concurrent calls
+// answer; the forked transport answers what the fast path did; and concurrent calls
 // answer what sequential ones did. A slice kept and never read again changes
 // no answer, so no harness sees it.
 func CheckFilterConformance(r ConformanceReporter, name string, eval FilterEvaluator, routes []ConformanceRoute) bool {
 	r.Helper()
 	reference := make([]string, len(routes))
 	for i := range routes {
-		answer, ok := timedFastCall(eval, &routes[i])
+		answer, ok := timedFastCall(eval, &routes[i], nil)
 		if !ok {
 			r.Errorf("filter %s breaks the non-blocking clause: route %d ran past the %v per-call deadline",
 				name, i, FilterCallDeadline)
@@ -63,7 +62,13 @@ func CheckFilterConformance(r ConformanceReporter, name string, eval FilterEvalu
 		reference[i] = answer
 	}
 	for i := range routes {
-		if again := fastCall(eval, &routes[i], nil); again != reference[i] {
+		again, ok := timedFastCall(eval, &routes[i], nil)
+		if !ok {
+			r.Errorf("filter %s breaks the non-blocking clause: route %d ran past the %v per-call deadline",
+				name, i, FilterCallDeadline)
+			return false
+		}
+		if again != reference[i] {
 			r.Errorf("filter %s breaks the snapshot clause: a repeat call on route %d answered %s after %s",
 				name, i, again, reference[i])
 			return false
@@ -72,7 +77,13 @@ func CheckFilterConformance(r ConformanceReporter, name string, eval FilterEvalu
 	var kept atomic.Bool
 	held := true
 	for i := range routes {
-		if answer := fastCall(eval, &routes[i], &kept); answer != reference[i] {
+		answer, ok := timedFastCall(eval, &routes[i], &kept)
+		if !ok {
+			r.Errorf("filter %s breaks the non-blocking clause: route %d ran past the %v per-call deadline",
+				name, i, FilterCallDeadline)
+			return false
+		}
+		if answer != reference[i] {
 			r.Errorf("filter %s breaks the borrowed-view clause: route %d answered %s once the views it read before were poisoned, %s before",
 				name, i, answer, reference[i])
 			held = false
@@ -86,7 +97,13 @@ func CheckFilterConformance(r ConformanceReporter, name string, eval FilterEvalu
 		return false
 	}
 	for i := range routes {
-		if forked := forkedCall(eval, &routes[i]); forked != reference[i] {
+		forked, ok := timedForkedCall(eval, &routes[i])
+		if !ok {
+			r.Errorf("filter %s breaks the non-blocking clause: route %d ran past the %v per-call deadline",
+				name, i, FilterCallDeadline)
+			return false
+		}
+		if forked != reference[i] {
 			r.Errorf("filter %s answers route %d differently by transport: fast path %s, forked %s",
 				name, i, reference[i], forked)
 			held = false
@@ -99,21 +116,38 @@ func CheckFilterConformance(r ConformanceReporter, name string, eval FilterEvalu
 }
 
 // concurrentCalls judges every route from filterConcurrency goroutines at once.
+// A worker stops after a timeout, as do its peers before their next call, so at
+// most filterConcurrency evaluator calls can remain running after refusal.
 func concurrentCalls(r ConformanceReporter, name string, eval FilterEvaluator, routes []ConformanceRoute, reference []string) bool {
 	r.Helper()
 	var wg sync.WaitGroup
 	var mismatch atomic.Int64
 	mismatch.Store(-1)
+	var timedOut atomic.Int64
+	timedOut.Store(-1)
 	for range filterConcurrency {
 		wg.Go(func() {
 			for i := range routes {
-				if fastCall(eval, &routes[i], nil) != reference[i] {
+				if timedOut.Load() >= 0 {
+					return
+				}
+				answer, ok := timedFastCall(eval, &routes[i], nil)
+				if !ok {
+					timedOut.Store(int64(i))
+					return
+				}
+				if answer != reference[i] {
 					mismatch.Store(int64(i))
 				}
 			}
 		})
 	}
 	wg.Wait()
+	if i := timedOut.Load(); i >= 0 {
+		r.Errorf("filter %s breaks the non-blocking clause: route %d ran past the %v per-call deadline",
+			name, i, FilterCallDeadline)
+		return false
+	}
 	if i := mismatch.Load(); i >= 0 {
 		r.Errorf("filter %s breaks the concurrent-call clause: route %d answered otherwise under concurrent calls", name, i)
 		return false
@@ -171,11 +205,34 @@ func fastCall(eval FilterEvaluator, route *ConformanceRoute, kept *atomic.Bool) 
 	return answerText(out, err)
 }
 
-// timedFastCall is fastCall bounded by FilterCallDeadline. A call past it is
-// left running: the harness reports it and does not wait.
-func timedFastCall(eval FilterEvaluator, route *ConformanceRoute) (string, bool) {
+// timedFastCall is fastCall bounded by FilterCallDeadline. The buffered answer
+// lets the evaluator finish even when waitConformanceCall has timed out.
+func timedFastCall(eval FilterEvaluator, route *ConformanceRoute, kept *atomic.Bool) (string, bool) {
 	done := make(chan string, 1)
-	go runFastCall(eval, route, done)
+	go runFastCall(eval, route, kept, done)
+	return waitConformanceCall(done)
+}
+
+func runFastCall(eval FilterEvaluator, route *ConformanceRoute, kept *atomic.Bool, done chan<- string) {
+	done <- fastCall(eval, route, kept)
+}
+
+// timedForkedCall bounds the same batch handler the forked transport uses.
+// Its buffered answer also lets a timed-out evaluator finish without a reader.
+func timedForkedCall(eval FilterEvaluator, route *ConformanceRoute) (string, bool) {
+	done := make(chan string, 1)
+	go runForkedCall(eval, route, done)
+	return waitConformanceCall(done)
+}
+
+func runForkedCall(eval FilterEvaluator, route *ConformanceRoute, done chan<- string) {
+	done <- forkedCall(eval, route)
+}
+
+// waitConformanceCall bounds one call, never waiting for a timed-out evaluator:
+// Go cannot stop it. Callers MUST buffer done for its single answer, and MUST
+// stop scheduling calls after a timeout so blocked evaluators cannot accumulate.
+func waitConformanceCall(done <-chan string) (string, bool) {
 	timer := time.NewTimer(FilterCallDeadline)
 	defer timer.Stop()
 	select {
@@ -184,10 +241,6 @@ func timedFastCall(eval FilterEvaluator, route *ConformanceRoute) (string, bool)
 	case <-timer.C:
 		return "", false
 	}
-}
-
-func runFastCall(eval FilterEvaluator, route *ConformanceRoute, done chan<- string) {
-	done <- fastCall(eval, route, nil)
 }
 
 // forkedCall judges route the way a forked plugin does: one filter-update

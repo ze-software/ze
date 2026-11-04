@@ -390,11 +390,15 @@ separate storage; concurrent batch invocations do not share the wrapper.
 
 **The conformance harness.** Every fast-path filter's test MUST pass
 `sdk.CheckFilterConformance(t, name, eval, routes)` under `-race`. It refuses
-a call past `sdk.FilterCallDeadline`, a repeat call that answers differently
+a call past `sdk.FilterCallDeadline` in any clause, a repeat call that answers differently
 (state written without a snapshot), a view read after its call returned or a
 kept slice whose reuse changes an answer, a fast-path verdict that differs
 from the forked transport's, and concurrent calls that answer otherwise,
 each report naming the filter and the clause.
+The deadline covers every initial, repeat, borrowed-view, forked and concurrent
+invocation. A timeout refuses the filter without waiting for that evaluator to
+return. Go cannot stop the timed-out call; tests with deliberately blocked
+evaluators MUST release them in cleanup.
 
 **Building the answer.** `eval` answers one `*sdk.FilterUpdateOutput` per
 route, in one of three shapes. The wire form of each change, and every
