@@ -177,25 +177,23 @@ func RunAttached(dispatch CommandFunc, ed *unicli.Editor) int {
 // The error is the YANG loader's refusal of the schema: with no command tree
 // there is nothing to complete against, and the caller reports it.
 func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed *unicli.Editor) (unicli.Model, error) {
-	m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
-	if ed != nil {
-		editorModel, err := unicli.NewModel(ed, unicli.FilesystemAuthorityOperatorLocal)
-		if err != nil {
-			slogutil.Logger("cli.attach").Warn("config editor unavailable", "error", err)
-		} else {
-			m = editorModel
-		}
-	}
-
-	m.SetCommandExecutor(executor)
-	m.SetStartMode(unicli.ModeOperational)
-
 	cmdTree, err := BuildRuntimeTreeFromDispatch(dispatch)
 	if err != nil {
 		return unicli.Model{}, err
 	}
+	var m unicli.Model
+	if ed == nil {
+		m = unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
+	} else {
+		m, err = unicli.NewModel(ed, unicli.FilesystemAuthorityOperatorLocal)
+		if err != nil {
+			slogutil.Logger("cli.attach").Warn("config editor unavailable", "error", err)
+			m = unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
+		}
+	}
+	m.SetCommandExecutor(executor)
+	m.SetStartMode(unicli.ModeOperational)
 	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
-
 	injectViewFactories(&m, func() (func() (string, error), error) {
 		return func() (string, error) {
 			output, err := dispatch("show bgp")
@@ -205,20 +203,18 @@ func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed 
 			return output.Text, err
 		}, nil
 	})
-
 	return m, nil
 }
 
 func runInteractiveWithDispatch(dispatch CommandFunc, ed *unicli.Editor) int {
-	history := unicli.NewHistory(statestore.Store(), os.Getenv("USER"))
+	return runInteractiveWithProgram(dispatch, ed, runAttachedProgram)
+}
 
+// runInteractiveWithProgram owns every successfully constructed attached model.
+// The terminal runner borrows it; this owner MUST close it before returning to
+// the caller that releases the editor/store, including terminal startup refusal.
+func runInteractiveWithProgram(dispatch CommandFunc, ed *unicli.Editor, run func(*unicli.Model) error) int {
 	executor := unicli.CommandExecutor(dispatch)
-
-	if tf := unicli.OpenTranscriptFile(strconv.Itoa(os.Getpid())); tf != nil {
-		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), "local")
-		defer tw.Close() //nolint:errcheck // best-effort transcript
-		executor = unicli.WrapExecutorWithTranscript(executor, tw)
-	}
 
 	m, err := newAttachedModel(dispatch, executor, ed)
 	if err != nil {
@@ -226,14 +222,30 @@ func runInteractiveWithDispatch(dispatch CommandFunc, ed *unicli.Editor) int {
 		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
 		return 1
 	}
-	if history != nil {
-		m.SetHistory(history)
+	defer func() {
+		m.Close() //nolint:errcheck // Best-effort terminal cleanup of the latest model.
+	}()
+	m.SetHistory(unicli.NewHistory(statestore.Store(), os.Getenv("USER")))
+	if tf := unicli.OpenTranscriptFile(strconv.Itoa(os.Getpid())); tf != nil {
+		m.SetTranscript(unicli.NewTranscriptWriter(tf, os.Getenv("USER"), "local"))
 	}
 
+	if err := run(&m); err != nil {
+		if errors.Is(err, tea.ErrProgramPanic) {
+			crashlog.HandleCaughtPanic(err)
+		}
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // Terminal error report.
+		return 1
+	}
+	return 0
+}
+
+// runAttachedProgram borrows the owner's model for the terminal program.
+func runAttachedProgram(m *unicli.Model) error {
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: open /dev/tty: %v\n", err)
-		return 1
+		return fmt.Errorf("open /dev/tty: %w", err)
 	}
 	defer tty.Close() //nolint:errcheck // best-effort cleanup
 
@@ -241,21 +253,10 @@ func runInteractiveWithDispatch(dispatch CommandFunc, ed *unicli.Editor) int {
 	// Without this, slog and fmt.Println writes hit the same terminal
 	// as Bubble Tea, injecting bytes mid-frame and corrupting the display.
 	restoreOutput := silenceDaemonOutput()
+	defer restoreOutput()
 
-	p := tea.NewProgram(m, tea.WithInput(tty), tea.WithOutput(tty))
-	_, runErr := p.Run()
-
-	restoreOutput()
-
-	if runErr != nil {
-		if errors.Is(runErr, tea.ErrProgramPanic) {
-			crashlog.HandleCaughtPanic(runErr)
-		}
-		fmt.Fprintf(os.Stderr, "error: %v\n", runErr)
-		return 1
-	}
-
-	return 0
+	_, runErr := tea.NewProgram(*m, tea.WithInput(tty), tea.WithOutput(tty)).Run()
+	return runErr
 }
 
 // silenceDaemonOutput redirects fd 1 (stdout) and fd 2 (stderr) to /dev/null.

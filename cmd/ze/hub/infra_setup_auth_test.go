@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -30,6 +31,10 @@ func (*authWiringReactor) StopForRestart()                        {}
 type authWiringSSHServer struct{}
 
 func (authWiringSSHServer) Address() string { return "test" }
+
+func (authWiringSSHServer) Stop(context.Context) error {
+	panic("BUG: auth wiring fixture unexpectedly acquired daemon-owned SSH lifetime")
+}
 
 func authWiringBcryptUser(t *testing.T, name, password string, profiles ...string) aaa.UserCredential {
 	t.Helper()

@@ -828,7 +828,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		resolveCandidateUsers,
 		apiCfg.Token,
 	))
-	setupInfraHook(auditLog, sessionReload, liveAcceptedLocalUsers)
 	coordinator := zePlugin.NewCoordinator(configTree)
 
 	// Store config state for the BGP plugin's reactor factory as a typed
@@ -924,6 +923,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		logStartupFailure("create plugin server", serverErr)
 		return 1
 	}
+	// Every exit owns the server's stop hooks, including infrastructure built
+	// during a startup that later fails. OnceFunc also joins concurrent stops;
+	// stopHooks.run alone can return while another caller is still draining.
+	stopAPI := sync.OnceFunc(apiServer.Stop)
+	defer stopAPI()
+	setupInfraHook(apiServer, auditLog, sessionReload, liveAcceptedLocalUsers)
 	apiServer.SetProcessSpawner(pm)
 	apiServer.Dispatcher().SetAuditRecorder(auditLog)
 	registry.SetPluginServer(apiServer)
@@ -1036,7 +1041,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if pidErr != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", pidErr)
 		logStartupFailure("write pid file", pidErr)
-		apiServer.Stop()
+		stopAPI()
 		_ = eng.Stop(startCtx)
 		return 1
 	}
@@ -1045,7 +1050,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if err := dropPrivileges(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
 		logStartupFailure("drop privileges", err)
-		apiServer.Stop()
+		stopAPI()
 		_ = eng.Stop(startCtx)
 		return 1
 	}
@@ -1380,7 +1385,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				if apiErr != nil {
 					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
 					logStartupFailure("start rest api", apiErr)
-					apiServer.Stop()
+					stopAPI()
 					_ = eng.Stop(startCtx)
 					return 1
 				}
@@ -1394,7 +1399,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				if apiErr != nil {
 					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
 					logStartupFailure("start grpc api", apiErr)
-					apiServer.Stop()
+					stopAPI()
 					_ = eng.Stop(startCtx)
 					return 1
 				}
@@ -1451,7 +1456,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		if gnmiSrv != nil {
 			gnmiSrv.Stop()
 		}
-		apiServer.Stop()
+		stopAPI()
 		_ = eng.Stop(startCtx)
 		return 1
 	}
@@ -1645,7 +1650,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		apiCancel()
 	}
 
-	apiServer.Stop()
+	stopAPI()
 
 	// The engine's grace starts after apiServer.Stop returns: created before
 	// it, the context lost up to the server's own two grace periods and

@@ -16,6 +16,7 @@ func newTestHistory(t *testing.T) (*History, storage.Storage) {
 	require.NoError(t, err)
 	t.Cleanup(func() { store.Close() }) //nolint:errcheck // test cleanup
 	h := NewHistory(store, "testuser")
+	t.Cleanup(h.Close)
 	return h, store
 }
 
@@ -27,7 +28,8 @@ func TestHistoryLoadSave(t *testing.T) {
 	for _, cmd := range []string{"show", "set bgp local-as 65000", "commit"} {
 		h.Append(cmd)
 	}
-	h.Save("config")
+	h.Save(ModeConfig)
+	h.Close()
 
 	// Reload from store.
 	h2 := NewHistory(store, "testuser")
@@ -43,7 +45,8 @@ func TestHistoryRolling(t *testing.T) {
 	for i := range 150 {
 		h.Append("command-" + string(rune('A'+i%26)) + string(rune('0'+i/26)))
 	}
-	h.Save("config")
+	h.Save(ModeConfig)
+	h.Close()
 
 	h2 := NewHistory(store, "testuser")
 	loaded := h2.Load("config")
@@ -69,13 +72,15 @@ func TestHistoryCustomMax(t *testing.T) {
 
 	// Reload to pick up the new max.
 	h2 := NewHistory(store, "testuser")
+	t.Cleanup(h2.Close)
 	assert.Equal(t, 50, h2.Max())
 
 	// Append 80 entries, save should trim to 50.
 	for i := range 80 {
 		h2.Append("cmd-" + string(rune('A'+i%26)) + string(rune('0'+i/26)))
 	}
-	h2.Save("config")
+	h2.Save(ModeConfig)
+	h2.Close()
 
 	h3 := NewHistory(store, "testuser")
 	loaded := h3.Load("config")
@@ -97,13 +102,14 @@ func TestHistoryPerMode(t *testing.T) {
 
 	h.Append("set bgp local-as 65000")
 	h.Append("commit")
-	h.Save("config")
+	h.Save(ModeConfig)
 
 	// Reset entries for command mode.
 	h.restore(historySnapshot{idx: -1})
 	h.Append("peer list")
 	h.Append("daemon status")
-	h.Save("operational")
+	h.Save(ModeOperational)
+	h.Close()
 
 	h2 := NewHistory(store, "testuser")
 	assert.Equal(t, []string{"set bgp local-as 65000", "commit"}, h2.Load("config"))
@@ -117,7 +123,7 @@ func TestHistoryNilGraceful(t *testing.T) {
 
 	assert.Nil(t, h.Load("config"))
 	h.Append("show")
-	h.Save("config")
+	h.Save(ModeConfig)
 	// Entries exist in memory but nothing persisted.
 	assert.Equal(t, []string{"show"}, h.Entries())
 }
@@ -276,7 +282,8 @@ func TestHistoryAppendEmpty(t *testing.T) {
 func TestHistoryAppendNewlineReplaced(t *testing.T) {
 	h, store := newTestHistory(t)
 	h.Append("foo\nbar")
-	h.Save("config")
+	h.Save(ModeConfig)
+	h.Close()
 
 	h2 := NewHistory(store, "testuser")
 	loaded := h2.Load("config")

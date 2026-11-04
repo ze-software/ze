@@ -134,6 +134,47 @@ to in-process registry handlers.
 - **State flows through `commandResult`, not direct mutation.** Handlers run inside a `tea.Cmd`
   closure over a value copy of `Model`; they must return changes in `commandResult`
   (`model.go`) for `handleCommandResult` to apply, or the change is lost.
+- **History is independent of config turns.** `handleEnter` appends on the serial
+  UI owner and calls typed `History.Save(m.mode)` at all three existing sites.
+  Save trims only persistent history, clones the bounded string slice and keys
+  the existing `syncutil.Coalescer` by `EditorMode.String()`'s two storage names.
+  The lazy single worker encodes only snapshots it takes and calls the unchanged
+  borrowed `historyRW.WriteFile`; it never reads live entries or mode state.
+  There are at most two waiting snapshots plus one active write. Nil-store
+  history keeps its existing no-trim memory behavior and starts no worker.
+  `Model.Close` ends dispatch/timers, drains/joins the shared *History even through
+  an earlier model copy, then closes the transcript, before editor/store release.
+  `SetHistory` is setup-only and drains the previous history before replacing it.
+  SSH's initial-copy closer and headless close-before-restart order are retained;
+  attached/local terminal owners discharge the same obligation on every exit.
+  Abrupt process death may lose queued history; draft/config/commit durability
+  and independent same-user whole-snapshot overwrite behavior are unchanged.
+- **SSH network completion is not model cleanup.** Vendored SSH joins connections
+  but not channel handlers. `Server.Start` creates a fresh `modelSessions` barrier
+  (`ssh/model_lifetime.go`); `sessionCloseMiddleware` captures that generation,
+  reserves before the factory, and finishes only after its actual model closer.
+  Each `modelSession` delegates Session/context/authz/PTY methods unchanged and
+  holds its own closer; connection Context is shared and holds no model closer.
+  `Server.Stop` serializes with Start, seals admission, shuts down the network
+  (force-closing on its error), then joins model cleanup unconditionally before
+  its caller may release the store. It holds no `s.mu` across the join, so factories
+  call existing getters. Old-generation middleware stays sealed after restart.
+  Exec bypasses this barrier: synchronous lifecycle callbacks must not self-join.
+  `Start` also waits for actual listener admission (`ssh/listener_start.go`):
+  first Accept occurs after vendored trackListener's Add. Each primary/extra
+  Serve reports that boundary or its pre-Accept error exactly once, preventing
+  a fast Stop from waiting before Add or missing a not-yet-registered listener.
+- **Hook-built SSH has an actual daemon owner.** After constructing the plugin
+  server, `runYANGConfig` immediately defers `sync.OnceFunc(apiServer.Stop)` and
+  uses that owner at each explicit stop site. `setupInfraHook` captures that
+  server, not params.APIServer (still nil during BGP reactor construction),
+  registers actual SSH Stop callbacks with existing OnStop, and registers a
+  local constructor-admission seal before publishing the hook. The gate joins
+  an in-flight builder; refused late registration synchronously closes the
+  built server before releasing that gate. Unordered callbacks are safe.
+  Startup errors and normal shutdown therefore cannot release the borrowed
+  store merely because the old hook discarded its server handle. Standalone
+  no-BGP SSH retains its existing deferred Stop closure.
 
 ## See also
 - `docs/architecture/cli/plugin-modes.md`, plugin CLI/decode/engine modes (`ze plugin ...`)

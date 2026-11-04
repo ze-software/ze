@@ -25,6 +25,44 @@ from any of the three reloads the daemon.
 <!-- source: cmd/ze/hub/session_editor.go -- newSessionEditor, attachedConsoleEditor -->
 <!-- source: internal/component/cli/model_keys.go -- handleEnter, the configure arm -->
 
+Command history is immediately available to Up/Down after Enter. A session-owned
+worker publishes detached whole snapshots without holding up input, timers or
+delivered command results. It keeps only the newest waiting snapshot for each
+of the two modes, plus the active write. The model owner MUST close the model
+before releasing its editor or borrowed store: graceful close cancels dispatch,
+drains and joins history, then closes the transcript. SSH (including no-PTY
+refusal), attached consoles, local loose-file/backup programs and headless
+restarts use that lifetime. Construction alone starts no history worker.
+Each SSH channel holds its own model closer, even when channels share one
+authenticated connection. The SSH model owner's `Server.Stop` seals new model
+admission and joins all admitted factories/model cleanup before its caller may
+close the borrowed store. Its network deadline does not cancel this history
+drain: a network error closes remaining connections, then Stop still waits for
+accepted history. A permanently blocked storage call can keep Stop waiting.
+`Server.Start` waits for every bound listener's actual Serve registration, so
+an immediate Stop cannot miss a primary/extra listener still starting.
+Hook-built daemon SSH is retained by the actual plugin server's `OnStop`
+callbacks. `runYANGConfig` immediately defers one `sync.OnceFunc` stop owner and
+uses that same owner at explicit shutdown sites. Normal shutdown and startup
+failure therefore both join SSH cleanup before the outer caller releases its
+store. A private hook-admission seal also joins a constructor already running;
+a just-built server refused by the stopping owner is closed synchronously.
+This does not depend on stop-callback ordering or a live editor Update loop.
+Abrupt process death can lose queued command history; draft, configuration and
+commit durability are unchanged. Slow draft I/O can still delay a command's own
+result. Separate sessions keep independent whole snapshots, not merged history.
+<!-- source: internal/component/cli/history.go -- Save, publish, Close -->
+<!-- source: internal/component/cli/model.go -- Close, SetHistory -->
+<!-- source: internal/component/cli/client/main.go -- runInteractiveWithDispatch, runInteractiveWithProgram -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- runEditorProgram, runEditorProgramWith, runBackupModel, runEditor -->
+<!-- source: internal/component/ssh/ssh.go -- Start, Stop, teaHandler, sessionCloseMiddleware -->
+<!-- source: internal/component/ssh/model_lifetime.go -- modelSessions, modelSession -->
+<!-- source: internal/component/ssh/listener_start.go -- registeredListener, serveListener -->
+<!-- source: internal/component/cli/testing/headless.go -- close -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
+<!-- source: cmd/ze/hub/ssh_infra.go -- sshServer -->
+
 ## Editor Commands
 
 | Command | Description |

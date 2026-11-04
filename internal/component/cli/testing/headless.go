@@ -80,7 +80,7 @@ func newHeadlessModel(store storage.Storage, configPath string) (*headlessModel,
 
 	model, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
 	if err != nil {
-		return nil, fmt.Errorf("creating model: %w", err)
+		return nil, errors.Join(fmt.Errorf("creating model: %w", err), ed.Close())
 	}
 
 	// Initialize sizing before starting the model's declared timer work.
@@ -115,7 +115,7 @@ func newHeadlessModelWithSession(store storage.Storage, configPath, user, origin
 
 	model, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
 	if err != nil {
-		return nil, fmt.Errorf("creating model: %w", err)
+		return nil, errors.Join(fmt.Errorf("creating model: %w", err), ed.Close())
 	}
 
 	newModel, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -149,7 +149,7 @@ func newHeadlessBackupModel(store storage.Storage, configPath, user string) (*he
 	}
 	model, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
 	if err != nil {
-		return nil, fmt.Errorf("creating model: %w", err)
+		return nil, errors.Join(fmt.Errorf("creating model: %w", err), ed.Close())
 	}
 	newModel, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	if m, ok := newModel.(cli.Model); ok {
@@ -365,8 +365,8 @@ func (hm *headlessModel) processMsg(msg tea.Msg) {
 
 var sequenceMessageType = reflect.TypeOf(tea.Sequence(func() tea.Msg { return nil }, func() tea.Msg { return nil })())
 
-// close cancels and joins every declared timer before releasing the editor.
-// The runner MUST close every model it creates, including replaced sessions.
+// close ends the model, drains its history and joins declared timers before
+// releasing the editor. The runner MUST close every model, including replacements.
 func (hm *headlessModel) close() error {
 	hm.stopOnce.Do(func() {
 		if hm.stopped != nil {

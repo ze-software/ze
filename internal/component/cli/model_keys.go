@@ -454,7 +454,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		args := strings.TrimSpace(strings.TrimPrefix(input, cmdRun))
 		m.textInput.SetValue("")
 		if m.history.Append(input) {
-			m.history.Save(m.mode.String())
+			m.history.Save(m.mode)
 		}
 		m.showDropdown = false
 		m.dismissReveal()
@@ -514,7 +514,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	}
 	if m.mode == ModeOperational && handleSetCLIFormat(input, &m) {
 		if m.history.Append(input) {
-			m.history.Save(m.mode.String())
+			m.history.Save(m.mode)
 		}
 		return m, nil
 	}
@@ -584,7 +584,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 
 	// Save to history
 	if m.history.Append(input) {
-		m.history.Save(m.mode.String())
+		m.history.Save(m.mode)
 	}
 
 	// Clear input

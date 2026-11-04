@@ -10,6 +10,7 @@
 package hub
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -118,6 +119,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 					return m, nil
 				}
 
+				modelErr = errors.Join(modelErr, ed.Close())
 				log.Warn("session model creation failed", "user", username, "error", modelErr)
 				if request.Mode == sshclient.CLIModeEdit {
 					return nil, modelErr

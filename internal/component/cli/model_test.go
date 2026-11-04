@@ -966,6 +966,7 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, model.Close()) })
 	model.width = 80
 	model.height = 24
 	model.SetHistory(NewHistory(store, "testuser"))
@@ -975,6 +976,7 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 	newModel, _ := model.handleEnter()
 	_, ok := newModel.(Model)
 	require.True(t, ok)
+	require.NoError(t, model.Close(), "owner shutdown must drain accepted history before reload")
 
 	// Reload history from the same store.
 	h2 := NewHistory(store, "testuser")
@@ -991,8 +993,10 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 func TestCommandModelHistoryPersistOnEnter(t *testing.T) {
 	store, err := storage.Create(t.TempDir())
 	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
 
 	model := NewCommandModel(FilesystemAuthorityOperatorLocal)
+	t.Cleanup(func() { require.NoError(t, model.Close()) })
 	model.width = 80
 	model.height = 24
 	model.SetHistory(NewHistory(store, "testuser"))
@@ -1003,6 +1007,7 @@ func TestCommandModelHistoryPersistOnEnter(t *testing.T) {
 	newModel, _ := model.handleEnter()
 	_, ok := newModel.(Model)
 	require.True(t, ok)
+	require.NoError(t, model.Close(), "owner shutdown must drain accepted history before reload")
 
 	// Reload from store and verify saved under "operational" key.
 	h2 := NewHistory(store, "testuser")

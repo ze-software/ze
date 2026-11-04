@@ -396,6 +396,8 @@ type (
 )
 
 // NewModel creates a new editor model with the stated filesystem authority.
+// The caller MUST call Close before releasing the editor or borrowed store.
+// Construction starts no history worker; persistence starts on the first Save.
 func NewModel(ed *Editor, filesystemAuthority FilesystemAuthority) (Model, error) {
 	ti := textinput.New()
 	ti.Prompt = ""
@@ -458,6 +460,8 @@ func NewModel(ed *Editor, filesystemAuthority FilesystemAuthority) (Model, error
 // filesystem authority.
 // Used by ze cli and plugin CLI where no config file is loaded.
 // The model starts in ModeOperational with config commands unavailable.
+// The caller MUST call Close when the session ends, before releasing any borrowed
+// store. A command-only model starts no history worker until a persistent Save.
 func NewCommandModel(filesystemAuthority FilesystemAuthority) Model {
 	ti := textinput.New()
 	ti.Prompt = ""
@@ -1099,13 +1103,14 @@ func (m *Model) SetTranscript(tw *TranscriptWriter) {
 	m.commandExecutor = WrapExecutorWithTranscript(m.commandExecutor, tw)
 }
 
-// Close releases what the session held: pending timers, poller contexts, every
-// command still queued for its turn, and the transcript file. The owner MUST
-// call Close when the session ends. The SSH server calls
-// it once the session's program returns (internal/component/ssh/ssh.go,
-// sessionCloseMiddleware). A model without a transcript closes no file.
+// Close ends dispatch/timers, drains accepted history publications, then closes
+// the transcript. The owner MUST call Close when the session ends, before
+// releasing the editor or store. Model copies share the *History, so the initial
+// SSH model drains publications admitted by later Update copies. Draining does
+// not require command results to be delivered to a stopped program.
 func (m Model) Close() error {
 	m.dispatch.end()
+	m.history.Close()
 	return m.transcript.Close()
 }
 
@@ -1184,10 +1189,14 @@ func (m *Model) SetRestartFunc(fn func()) {
 	m.restartFunc = fn
 }
 
-// SetHistory replaces the model's history with a persistent History.
-// Loads saved entries for the current mode and pre-loads the other mode
-// into modeStates so history is available on mode switch.
+// SetHistory transfers ownership of h to the model and drains the old history.
+// The caller MUST use it only during setup, before copying/running the model,
+// and MUST call Model.Close before releasing h's borrowed store. It loads the
+// current and other mode so switching modes remains memory-only.
 func (m *Model) SetHistory(h *History) {
+	if m.history != h {
+		m.history.Close()
+	}
 	m.history = h
 	// Load history for the current mode.
 	if loaded := h.Load(m.mode.String()); len(loaded) > 0 {

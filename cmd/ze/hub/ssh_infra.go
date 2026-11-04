@@ -12,6 +12,7 @@
 package hub
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
@@ -22,11 +23,12 @@ import (
 	"github.com/ze-software/ze/internal/core/audit"
 )
 
-// sshServer is the always-on view of a built ssh server: enough to log its
-// address and hand it back to the wire step. The real (gated) *zessh.Server
-// satisfies it. Always-on code never names the concrete type.
+// sshServer is the always-on view of a built SSH server: its address and the
+// cleanup the daemon's stop owner must join before releasing borrowed storage.
+// The gated *zessh.Server satisfies it without always-on code naming that type.
 type sshServer interface {
 	Address() string
+	Stop(context.Context) error
 }
 
 // sshBuildInputs carries everything the gated ssh builder needs to construct

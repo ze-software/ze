@@ -6,11 +6,14 @@ package hub
 import (
 	"context"
 	"log/slog"
+	"sync"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
 	coreenv "github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -74,15 +77,45 @@ func registerAAAAccountingProvider(bundle *aaa.Bundle) {
 	})
 }
 
-// setupInfraHook creates and registers the infrastructure setup hook.
+// setupInfraHook registers infrastructure with the daemon's actual stop owner.
 // reloadFn is the daemon-reaching config reload threaded into every SSH
 // session editor (commit = apply + propagate); the hub passes a late-bound
 // wrapper because the hook is registered before reloadAfterCommit exists.
 // liveUsers reads the accepted local identity generation used by the AAA chain
 // and optional SSH. It never reads the candidate ConfigProvider.
-func setupInfraHook(recorder audit.Recorder, reloadFn func() error, liveUsers func() ([]aaa.UserCredential, error)) {
+// owner MUST be the fresh hub server, before engine/plugin startup. Its seal
+// callback joins a constructor racing Stop; resource hooks need no ordering.
+func setupInfraHook(owner *pluginserver.Server, recorder audit.Recorder, reloadFn func() error, liveUsers func() ([]aaa.UserCredential, error)) {
+	var builders sync.Mutex
+	var stopped bool
+	if _, err := owner.OnStop(func() {
+		builders.Lock()
+		stopped = true
+		builders.Unlock()
+	}); err != nil {
+		panic("BUG: infrastructure hook registered after daemon stop")
+	}
 	infra.SetHook(func(params infra.HookParams) {
-		_ = infraSetup(params, recorder, reloadFn, liveUsers)
+		builders.Lock()
+		defer builders.Unlock()
+		if stopped {
+			return
+		}
+		sshSrv := infraSetup(params, recorder, reloadFn, liveUsers)
+		if sshSrv == nil {
+			return
+		}
+		stop := func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			_ = sshSrv.Stop(shutdownCtx)
+		}
+		if _, err := owner.OnStop(stop); err != nil {
+			// Stop snapshots unordered hooks before invoking them. A builder
+			// already admitted must close its refused resource before releasing
+			// the gate, so the seal callback joins it in either callback order.
+			stop()
+		}
 	})
 }
 

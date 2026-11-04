@@ -183,20 +183,13 @@ func sshCommandExecutor(creds sshclient.Credentials) cli.CommandExecutor {
 	}
 }
 
-// wireSSHCommandExecutor sets up a command executor that dispatches via SSH exec,
-// optionally wrapping with transcript recording if enabled. Returns the
-// TranscriptWriter (nil if disabled) so the caller can defer Close.
-func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials, username, remoteHost string) *cli.TranscriptWriter {
-	executor := sshCommandExecutor(creds)
-
-	var tw *cli.TranscriptWriter
+// wireSSHCommandExecutor installs the SSH executor and transfers any transcript
+// to the model. The caller MUST close the model before releasing the editor.
+func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials, username, remoteHost string) {
+	m.SetCommandExecutor(sshCommandExecutor(creds))
 	if tf := cli.OpenTranscriptFile(strconv.Itoa(os.Getpid())); tf != nil {
-		tw = cli.NewTranscriptWriter(tf, username, remoteHost)
-		executor = cli.WrapExecutorWithTranscript(executor, tw)
+		m.SetTranscript(cli.NewTranscriptWriter(tf, username, remoteHost))
 	}
-
-	m.SetCommandExecutor(executor)
-	return tw
 }
 
 const createPromptTimeout = 10 * time.Second
@@ -576,28 +569,44 @@ var runBackupSession = runBackupModel
 // no daemon to reach, so no command executor is wired.
 func runBackupModel(ed *cli.Editor) int {
 	defer ed.Close() //nolint:errcheck // Best effort cleanup.
-	m, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return exitError
-	}
 	cmdTree, err := buildEditorCommandTree()
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output, the editor is not starting
 		return exitError
 	}
+	m, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // Terminal error report.
+		return exitError
+	}
 	m.SetCommandCompleter(cli.NewCommandCompleter(cmdTree))
 	return runEditorProgram(&m)
 }
 
-// runEditorProgram runs the terminal program of an editor model to its end.
+// runEditorProgram owns the terminal model and MUST close it before returning,
+// including failed startup, so the caller can then release the editor/store.
 func runEditorProgram(m *cli.Model) int {
-	if _, err := tea.NewProgram(*m).Run(); err != nil {
+	return runEditorProgramWith(m, func(model *cli.Model) error {
+		_, err := tea.NewProgram(*model).Run()
+		return err
+	})
+}
+
+// runEditorProgramWith owns the model across normal completion and terminal
+// refusal. Its runner borrows the model; this owner MUST close it before the
+// caller releases the editor/store, even if no Update/result is delivered.
+func runEditorProgramWith(m *cli.Model, run func(*cli.Model) error) int {
+	defer func() {
+		m.Close() //nolint:errcheck // Best-effort terminal cleanup of the latest model.
+	}()
+	if err := run(m); err != nil {
 		if errors.Is(err, tea.ErrProgramPanic) {
 			crashlog.HandleCaughtPanic(err)
 		}
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // Terminal error report.
 		return exitError
 	}
 	return exitOK
@@ -662,22 +671,21 @@ func runEditor(ed *cli.Editor, configPath, user string) int {
 			ed.SetArchiveNotifier(archive.NewNotifier(configPath, configs, &sys, nil))
 		}
 	}
-	m, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return exitError
-	}
 	cmdTree, err := buildEditorCommandTree()
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output, the editor is not starting
 		return exitError
 	}
+	m, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // Terminal error report.
+		return exitError
+	}
 	m.SetCommandCompleter(cli.NewCommandCompleter(cmdTree))
 	if credsErr == nil {
-		if tw := wireSSHCommandExecutor(&m, creds, os.Getenv("USER"), net.JoinHostPort(creds.Host, creds.Port)); tw != nil {
-			defer tw.Close() //nolint:errcheck // Best effort transcript.
-		}
+		wireSSHCommandExecutor(&m, creds, os.Getenv("USER"), net.JoinHostPort(creds.Host, creds.Port))
 	}
 	return runEditorProgram(&m)
 }

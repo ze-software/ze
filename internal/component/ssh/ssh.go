@@ -1,5 +1,6 @@
 // Design: docs/architecture/system-architecture.md -- SSH server subsystem
 // Detail: session.go -- per-session unified CLI model creation
+// Detail: model_lifetime.go -- sealed per-run model join and per-channel closer ownership
 
 package ssh
 
@@ -48,6 +49,7 @@ var (
 	errHostKeyPathCannotBeResolved       = errors.New("host-key path cannot be resolved: set host-key in config or run from a standard install location")
 	errSshServerAlreadyStarted           = errors.New("SSH server already started")
 	errHostCertificateFileDoesNotContain = errors.New("host-certificate file does not contain an SSH certificate")
+	errSessionModelOwnerMissing          = errors.New("interactive SSH session owner missing: reconnect to the daemon")
 )
 
 type sessionAuthorizerKey struct{}
@@ -156,10 +158,14 @@ type RebootFunc func()
 // Server is the SSH server subsystem.
 // It serves the config editor over SSH with password authentication.
 // Exec commands (non-interactive) are dispatched through the executor.
+// The owner MUST call Stop before releasing the models' borrowed store. Start
+// and Stop serialize generations; Stop joins model cleanup even on network error.
 type Server struct {
 	config                   Config
-	mu                       sync.Mutex // protects wish field, executorFactory, shutdownFunc, and loginWarningsFunc
+	lifecycle                sync.Mutex // Serializes Start/Stop through the model drain.
+	mu                       sync.Mutex // Protects wish/models, factories and lifecycle callbacks.
 	wish                     *ssh.Server
+	models                   *modelSessions
 	listener                 net.Listener   // bound listener (for address resolution)
 	extraListeners           []net.Listener // additional listeners for multi-address binding
 	logger                   *slog.Logger
@@ -442,13 +448,19 @@ func (s *Server) LoginWarningsFunc() LoginWarningsFunc {
 
 // Start launches the SSH server. It implements ze.Subsystem.
 // The listener is created synchronously so bind failures are reported immediately.
+// Every bound listener is registered by Serve before Start returns, so an
+// immediate Stop cannot race a listener WaitGroup Add or miss that listener.
+// The caller MUST call Stop before releasing any model's borrowed store.
 func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) error {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.wish != nil {
 		return errSshServerAlreadyStarted
 	}
+	s.models = &modelSessions{}
 
 	// Resolve host key: from storage (blob mode) or filesystem path.
 	hostKeyOpt, err := s.resolveHostKeyOption()
@@ -485,8 +497,8 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 		// OUTSIDE bubbletea: the bubbletea middleware builds the model (which
 		// registers the closer) and then returns without calling the next
 		// handler when the session has no PTY, so an inner middleware would
-		// never run and the model's transcript would leak. Outside, it closes
-		// on every return, including a panic out of the program.
+		// never run and the model's transcript/history owner would leak.
+		// Outside, it closes on every return, including program panic.
 		wish.WithMiddleware(
 			activeterm.Middleware(),
 			bubbletea.Middleware(s.teaHandler),
@@ -536,15 +548,11 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 	s.wish = srv
 	s.listener = ln
 
-	// Serve in a goroutine (lifecycle goroutine, not per-event).
-	go func() {
-		s.logger.Info("SSH server listening", "address", ln.Addr().String())
-		if err := srv.Serve(ln); err != nil {
-			if !errors.Is(err, ssh.ErrServerClosed) {
-				s.logger.Error("SSH server error", "error", err)
-			}
-		}
-	}()
+	if err := s.serveListener(srv, ln); err != nil {
+		s.wish = nil
+		s.listener = nil
+		return fmt.Errorf("serve SSH server: %w", err)
+	}
 
 	// Bind additional listen addresses (if configured).
 	// The first address is already bound above via config.Listen.
@@ -555,36 +563,45 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 				s.logger.Error("SSH extra listener failed to bind", "address", addr, "error", listenErr)
 				continue
 			}
+			if err := s.serveListener(srv, extraLn); err != nil {
+				// Serve closes a listener it refuses before registration.
+				// Extra listeners remain best-effort, as bind failures are.
+				continue
+			}
 			s.extraListeners = append(s.extraListeners, extraLn)
-
-			// Serve each extra listener in its own lifecycle goroutine.
-			go func() {
-				s.logger.Info("SSH server listening", "address", extraLn.Addr().String())
-				if err := srv.Serve(extraLn); err != nil {
-					if !errors.Is(err, ssh.ErrServerClosed) {
-						s.logger.Error("SSH server error", "address", extraLn.Addr().String(), "error", err)
-					}
-				}
-			}()
 		}
 	}
 
 	return nil
 }
 
-// Stop gracefully shuts down the SSH server. It implements ze.Subsystem.
+// Stop seals model admission, shuts down the network, and joins all admitted
+// model cleanup before returning. The owner MUST call it before store release.
+// ctx bounds network shutdown only: an error forces network closure but cannot
+// drop accepted history. Start cannot open a new generation until this returns.
 func (s *Server) Stop(ctx context.Context) error {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.wish == nil {
+	network, models := s.wish, s.models
+	s.mu.Unlock()
+	if network == nil {
 		return nil
 	}
+	models.seal()
 	s.logger.Info("SSH server stopping")
-	err := s.wish.Shutdown(ctx)
+	err := network.Shutdown(ctx)
+	if err != nil {
+		err = errors.Join(err, network.Close())
+	}
+	// Factories use Server getters. Never hold s.mu while joining them, and
+	// never confuse the vendor's connection join with model cleanup.
+	models.wait()
+	s.mu.Lock()
 	s.wish = nil
 	s.listener = nil
 	s.extraListeners = nil
+	s.mu.Unlock()
 	return err
 }
 
@@ -993,6 +1010,12 @@ func (s *Server) execMiddleware() wish.Middleware {
 // If an executor factory is set, it creates a per-session executor with the
 // authenticated username (for authorization context). Falls back to config.Executor.
 func (s *Server) teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
+	owner, ok := sess.(*modelSession)
+	if !ok {
+		writeExecError(sess, errSessionModelOwnerMissing)
+		sess.Exit(1) //nolint:errcheck // The missing owner already refuses this session.
+		return nil, nil
+	}
 	username := sess.User()
 	remoteAddr := sess.RemoteAddr().String()
 	request, err := parseSessionRequest(sess.Environ())
@@ -1008,31 +1031,35 @@ func (s *Server) teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 		return nil, nil
 	}
 	if closer, ok := model.(io.Closer); ok {
-		sess.Context().SetValue(sessionCloserKey{}, closer)
+		owner.closer = closer
 	}
 	s.logger.Info("SSH session started", "user", username, "remote", remoteAddr)
 	return model, []tea.ProgramOption{}
 }
 
-// sessionCloserKey carries what the session's model holds open, its
-// transcript, from teaHandler to sessionCloseMiddleware.
-type sessionCloserKey struct{}
-
-// sessionCloseMiddleware closes what the session's model holds open once the
-// inner handlers return, whether the program ran, the session had no PTY, or
-// the program panicked. The closer is looked up after next returns because
-// teaHandler, which registers it, runs inside next.
+// sessionCloseMiddleware captures the stable generation assembled by Start
+// under s.mu. It reserves before factory invocation and closes this channel's
+// actual model after the inner handler, including no-PTY refusal and panic.
+// The channel-local cell avoids the connection Context's shared closer slot.
 func (s *Server) sessionCloseMiddleware() wish.Middleware {
+	models := s.models
 	return func(next ssh.Handler) ssh.Handler {
 		return func(sess ssh.Session) {
+			if !models.admit() {
+				io.WriteString(sess.Stderr(), "error: SSH server is stopping; reconnect when the daemon is ready\n") //nolint:errcheck // Best-effort refusal.
+				sess.Exit(1)                                                                                         //nolint:errcheck // No model or worker was admitted.
+				return
+			}
+			defer models.finish()
+			owner := &modelSession{Session: sess}
 			defer func() {
-				if closer, ok := sess.Context().Value(sessionCloserKey{}).(io.Closer); ok {
-					if err := closer.Close(); err != nil {
+				if owner.closer != nil {
+					if err := owner.closer.Close(); err != nil {
 						s.logger.Warn("SSH session close", "user", sess.User(), "error", err)
 					}
 				}
 			}()
-			next(sess)
+			next(owner)
 		}
 	}
 }

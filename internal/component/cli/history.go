@@ -5,9 +5,12 @@ package cli
 
 import (
 	"io/fs"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -31,8 +34,13 @@ type historyRW interface {
 }
 
 // History manages command history entries with browsing and optional persistence.
-// It owns the entries list, the Up/Down browsing state, and the save/load logic.
-// A nil rw means no persistence (in-memory only, graceful degradation).
+// Entries and browsing belong to the serial UI owner; they are not concurrent.
+// Save starts one worker lazily and transfers detached whole snapshots to it.
+// The owner MUST call Close after its last Save, before releasing the borrowed
+// store. Close drains and joins independently of the UI and never closes rw.
+// Close is safe concurrently with Save and other Close calls; copies of Model
+// share this *History. A nil rw remains memory-only and starts no worker.
+// A History MUST NOT be copied; share its pointer instead.
 type History struct {
 	rw      historyRW
 	max     int
@@ -40,12 +48,17 @@ type History struct {
 	entries []string // Previous commands (oldest first)
 	idx     int      // Current browsing position (-1 = not browsing)
 	tmp     string   // Saved input when browsing history
+
+	mu     sync.Mutex // Protects the publication lifetime, not UI entries.
+	writer *syncutil.Coalescer[string, []string]
+	closed bool
 }
 
 // NewHistory creates a History backed by the given reader/writer.
 // Pass nil for no persistence (in-memory only).
 // The username scopes history storage per user (meta/history/<user>/<mode>).
 // The max entry count is read from meta/history/max (default 100).
+// Construction starts no worker. The caller MUST call Close after its last Save.
 func NewHistory(rw historyRW, username string) *History {
 	prefix := historyKeyPrefix
 	if username != "" {
@@ -219,10 +232,13 @@ func (h *History) Load(mode string) []string {
 	return result
 }
 
-// Save writes the history for the given mode to the store.
-// Trims to the configured max, keeping the newest entries.
-// No-op if the store is nil.
-func (h *History) Save(mode string) {
+// Save queues the newest whole history for mode without waiting for storage.
+// It trims persistent entries to max before detaching their slice; strings are
+// immutable. EditorMode.String resolves to exactly the two existing storage mode
+// names, bounding work to two waiting snapshots plus one active publication.
+// Nil-store Save returns before trimming, preserving memory-only behavior.
+// The owner MUST stop calling Save before Close and release the store afterward.
+func (h *History) Save(mode EditorMode) {
 	if h.rw == nil {
 		return
 	}
@@ -234,6 +250,41 @@ func (h *History) Save(mode string) {
 		h.entries = entries
 	}
 
-	data := []byte(textbuf.Join(entries, "\n"))
-	_ = h.rw.WriteFile(h.prefix+mode, data, 0) //nolint:errcheck // best-effort persist
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.closed {
+		return
+	}
+	if h.writer == nil {
+		h.writer = syncutil.NewCoalescer(1,
+			func(_, next []string) []string { return next },
+			h.publish,
+		)
+	}
+	h.writer.Enqueue(mode.String(), slices.Clone(entries))
+}
+
+// publish encodes only snapshots the worker takes, not superseded admissions.
+// Its detached entries MUST NOT be mutated after Save transfers them.
+func (h *History) publish(mode string, entries []string) {
+	buf := textbuf.Get()
+	defer buf.Release()
+	_ = h.rw.WriteFile(h.prefix+mode, buf.Join(entries, "\n").Bytes(), 0) //nolint:errcheck // History remains best-effort.
+}
+
+// Close drains every accepted publication and joins the worker, if one started.
+// The owner MUST call Close before closing the borrowed store. It is idempotent
+// and needs neither command-result application nor a live dispatch context.
+// Nil and an unused History have nothing to drain.
+func (h *History) Close() {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	h.closed = true
+	writer := h.writer
+	h.mu.Unlock()
+	if writer != nil {
+		writer.Stop()
+	}
 }
