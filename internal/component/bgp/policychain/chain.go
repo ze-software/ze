@@ -1,4 +1,4 @@
-// Design: plan/post-release/engineering/spec-filter-wire-0-umbrella.md -- D-5, D-7, D-9, the in-process chain over the BGP view
+// Design: docs/architecture/core-design.md -- The in-process BGP chain, over the BGP route view
 // Detail: sets.go -- the set fields a member answers
 // Related: ../policyview/view.go -- the lazy view a member reads
 //

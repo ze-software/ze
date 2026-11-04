@@ -1,4 +1,4 @@
-// Design: plan/post-release/engineering/spec-filter-wire-0-umbrella.md -- D-5, set fields with an action
+// Design: docs/architecture/core-design.md -- The in-process BGP chain, set fields with an action
 // Related: sets.go -- the Sets type these fields extend
 // Related: chain_overlay_attributes.go -- the read-after-set overlays of these fields
 //

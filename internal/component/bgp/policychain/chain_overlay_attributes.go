@@ -1,4 +1,4 @@
-// Design: plan/post-release/engineering/spec-filter-wire-0-umbrella.md -- D-5, read-after-set
+// Design: docs/architecture/core-design.md -- The in-process BGP chain, a later member reads an earlier set
 // Related: sets_attributes.go -- the attribute sets these overlays show a later member
 // Related: chain.go -- overlayNumeric and overlayCommunity, the same overlays for the first fields
 

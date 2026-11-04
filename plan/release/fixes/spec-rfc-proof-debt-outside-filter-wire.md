@@ -21,7 +21,7 @@ left out. A product defect an audit exposes is fixed under
 ## Task
 
 The final `./le rfc check` run of the filter-wire umbrella
-(`plan/post-release/engineering/spec-filter-wire-0-umbrella.md`) printed 98
+(`spec-filter-wire-0-umbrella`) printed 98
 violations. The umbrella's RFC records agent classified each against the
 commit that caused it. The filter-wire work owns and repays the rows its own
 commits caused. This spec owns the rest: proof debt that commits outside the

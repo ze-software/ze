@@ -1,4 +1,4 @@
-// Design: plan/post-release/engineering/spec-filter-wire-0-umbrella.md -- D-5, the named intents over filter-update
+// Design: docs/architecture/core-design.md -- The in-process BGP chain, named intents answered as filter-update sets
 // Related: external.go -- applyExternalSet, which hands the as-path, prefix and family sets here
 // Related: intents.go -- the Sets methods each intent calls, as an in-process member does
 //

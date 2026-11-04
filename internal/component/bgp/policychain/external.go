@@ -1,4 +1,4 @@
-// Design: plan/post-release/engineering/spec-filter-wire-0-umbrella.md -- D-1, D-5, D-9, D-12, a plugin's filter as a chain member
+// Design: docs/architecture/core-design.md -- The in-process BGP chain, a plugin's filter as a chain member
 // Related: chain.go -- Run, which judges an external member through judgeExternal
 // Related: external_intents.go -- the named intents of a reply's sets
 // Related: ../policyview/fields_json.go -- AppendFields, the fields an external member is sent

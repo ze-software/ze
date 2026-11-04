@@ -1,4 +1,4 @@
-// Design: plan/post-release/engineering/spec-filter-wire-0-umbrella.md -- D-5, set fields with an action
+// Design: docs/architecture/core-design.md -- The in-process BGP chain, set fields with an action
 // Related: chain.go -- the chain run that merges each member's sets
 //
 // A chain member answers what it changes as set fields of the route-policy
