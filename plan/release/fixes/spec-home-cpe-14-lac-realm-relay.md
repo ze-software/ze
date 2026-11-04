@@ -7,10 +7,10 @@
 | Priority | P3 |
 | Release reason | A new LAC mode, the way wholesale broadband LACs work: LCP and authentication with the subscriber at the LAC, the LNS chosen by the realm of the username, proxy LCP and proxy authentication AVPs in the ICCN. It also corrects a false test claim in the L2TP guide. |
 | RFC gaps | RFC2661-4.4.5-1, RFC2661-4.4.5-2, RFC2661-4.4.5-3, RFC2661-4.4.5-4, RFC2661-4.4.5-5, RFC2661-4.4.5-6, RFC2661-4.3-1, RFC2661-4.3-3 |
-| Depends | Implementation: `spec-home-cpe-16-lns-mru-and-auth-allow-list.md` (the PPPoE AC allow-list decides which method the LAC's own authentication starts with and refuses a fallback outside it). Closure: the two interop scenarios this spec owns need `spec-home-cpe-18-interoplab-multi-link-topology.md`. No dependency on `plan/post-release/features/spec-l2tp-proxy-authentication.md`: this spec writes every LAC-side proxy AVP itself, including hidden AVP 33 (Key Design Decisions, "AVP writer ownership") |
+| Depends | Implementation: none; the PPPoE AC allow-list is implemented (`docs/guide/pppoe.md`, "Subscriber authentication") and decides which method the LAC's own authentication starts with and refuses a fallback outside it. Closure: the two interop scenarios this spec owns need `spec-home-cpe-18-interoplab-multi-link-topology.md`. No dependency on `plan/post-release/features/spec-l2tp-proxy-authentication.md`: this spec writes every LAC-side proxy AVP itself, including hidden AVP 33 (Key Design Decisions, "AVP writer ownership") |
 | Phase | 0/5 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-04 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 

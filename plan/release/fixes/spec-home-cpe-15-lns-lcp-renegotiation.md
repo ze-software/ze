@@ -7,10 +7,10 @@
 | Priority | P3 |
 | Release reason | Adds an LNS policy RFC 2661 permits but does not require (renegotiating LCP instead of accepting the LAC's proxy LCP). It corrects a guide sentence that claims the option already exists. |
 | RFC gaps | - |
-| Depends | Implementation: none. Closure: this spec owns two scenarios. `l2tp-lns-lcp-renegotiate-pppd` needs `spec-home-cpe-14-lac-realm-relay.md` (a LAC that sends proxy LCP) and `spec-home-cpe-18-interoplab-multi-link-topology.md`; `access-wholesale` needs those two, `spec-home-cpe-19-access-chain-scenario.md` (the access-chain nodes it reuses), `spec-home-cpe-16-lns-mru-and-auth-allow-list.md` (the LNS's CHAP-only allow-list and MRU 1492) and `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (a Ze CPE that survives the renegotiation) |
+| Depends | Implementation: none. Closure: this spec owns two scenarios. `l2tp-lns-lcp-renegotiate-pppd` needs `spec-home-cpe-14-lac-realm-relay.md` (a LAC that sends proxy LCP) and `spec-home-cpe-18-interoplab-multi-link-topology.md`; `access-wholesale` needs those two, `spec-home-cpe-19-access-chain-scenario.md` (the access-chain nodes it reuses) and `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (a Ze CPE that survives the renegotiation). The LNS's CHAP-only allow-list and MRU 1492 are implemented and documented in `docs/guide/l2tp.md` |
 | Phase | 0/3 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-04 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
@@ -154,7 +154,7 @@ Also owed:
 | Proxy LCP evaluation and short-circuit | `internal/component/l2tp/ppp/proxy.go` `EvaluateProxyLCP`; `internal/component/l2tp/ppp/session_run.go` proxy branch, `afterLCPOpen` | on valid proxy data sets MRU, Auth-Protocol and both magics, goes to Opened and runs authentication | extends: the branch is gated by the flag; with `renegotiate` it is skipped |
 | Normal LCP path | `internal/component/l2tp/ppp/session_run.go` synthetic Up and Open | the path taken when `EvaluateProxyLCP` fails or no proxy data came | extends: reused as the renegotiate path, no new negotiation code |
 | Config extraction and hot reload | `internal/component/l2tp/config.go` `ExtractParameters`; `reactor_setters.go`; `subsystem_reload.go` | turns the `l2tp` tree into `Parameters` and applies reloadable values to new sessions | extends: carries `proxy-lcp` the same way |
-| Per-session forced renegotiation | `plan/release/fixes/spec-home-cpe-16-lns-mru-and-auth-allow-list.md` | forces the same path when the proxied method or MRU violates config | does not apply here: child 16 owns it; this spec adds only the global choice |
+| Per-session forced renegotiation | `docs/guide/l2tp.md`, "Authentication"; `internal/component/l2tp/ppp/auth.go` `acceptProxyPolicy` | forces the same path when the proxied method or local receive MRU violates policy | does not apply here: already implemented; this spec adds only the global choice |
 | Proxy authentication off switch | `plan/post-release/features/spec-l2tp-proxy-authentication.md` | owns the `proxy-authentication` leaf and row RFC2661-9.5-2 | does not apply here: this spec only states how the two leaves combine |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -184,7 +184,7 @@ Also owed:
 
 ### Integration Points
 - `session_run.go` proxy branch - gated by the new flag.
-- `spec-home-cpe-16-lns-mru-and-auth-allow-list.md` - its proxy checks
+- `docs/guide/l2tp.md`, "Authentication" - the implemented proxy checks
   (method outside the allow-list, MRU above `mru`) force the same
   renegotiation path per session; this spec adds the operator's global
   choice.
@@ -222,7 +222,7 @@ Also owed:
 |----------|--------|
 | What breaks if this is wrong? | New L2TP sessions from proxying LACs fail LCP when `renegotiate` is set; the default path is unchanged |
 | How is it reverted? | Single commit revert; the leaf is new and optional |
-| Who else touches this path? | `spec-home-cpe-16-lns-mru-and-auth-allow-list.md` (same proxy branch), `plan/post-release/features/spec-l2tp-proxy-authentication.md` (LNS proxy auth), `spec-home-cpe-14-lac-realm-relay.md` (the sender) |
+| Who else touches this path? | `docs/guide/l2tp.md`, "Authentication" (implemented per-session policy in the same proxy branch), `plan/post-release/features/spec-l2tp-proxy-authentication.md` (LNS proxy auth), `spec-home-cpe-14-lac-realm-relay.md` (the sender) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

@@ -7,10 +7,10 @@
 | Priority | P2 |
 | Release reason | Validation of shipped behaviour: the PPPoE-to-L2TP relay (LAC, `l2tp relay`) ships, and its data path has no end-to-end proof. The only LAC scenario (`03-ze-lac-xl2tpd-lns`) proves the control connection alone, and `./le test deployment l2tp-ppp` runs a Ze LNS against xl2tpd and pppd with no PPPoE and no relay. |
 | RFC gaps | - |
-| Depends | Implementation: `spec-home-cpe-18-interoplab-multi-link-topology.md` (topology suite); `spec-home-cpe-16-lns-mru-and-auth-allow-list.md` (the LNS's `mru 1492` and CHAP-only `authentication allow [ chap-md5 ]` leaves, and the `show l2tp session id` keys AC-11 reads); `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (in-progress). Closure: none beyond those. The DNS clause of `access-up` (AC-6) is owned by `spec-home-cpe-13-pppoe-client-ipcp-dns.md` and holds that spec's closure, not this one's |
+| Depends | Implementation: `spec-home-cpe-18-interoplab-multi-link-topology.md` (topology suite); `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (in-progress). The LNS's `mru 1492`, CHAP-only `authentication allow [ chap-md5 ]` and negotiated `show l2tp session id` keys AC-11 reads are implemented (`docs/guide/l2tp.md`, "PPP negotiation", "Authentication" and "Read commands"). Closure: none beyond those. The DNS clause of `access-up` (AC-6) is owned by `spec-home-cpe-13-pppoe-client-ipcp-dns.md` and holds that spec's closure, not this one's |
 | Phase | 0/3 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-04 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 19).
 

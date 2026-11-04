@@ -431,16 +431,21 @@ package rerun is claimed.
 | L2TP checker/scenario-shape and native tooling race tests | `internal/le/interoplab/l2tp`, `test/interop-l2tp`, `internal/le/test/stressrepro`, `internal/le/test/functional` PASS | `job-home-cpe16-lab-tooling-34b839af.log` |
 | PPPoE checker race tests | `internal/le/interoplab/pppoe` PASS; not a live pppd scenario | `job-home-cpe16-pppoe-checker-920f6bc0.log` |
 | Config functional drafts | Both actual drafts PASS1/1; each stress run80 invocations, parallel2, burners1, no failures; outer exit1 means failure not reproduced. Promoted unchanged to the functional paths above | `tmp/stress-repro/l2tp-draft-lns-mru-auth-allow-config-20261103-233707.log`; `tmp/stress-repro/pppoe-draft-pppoe-auth-allow-config-20261103-234034.log` |
-| Native RFC current bindings and audit stamps | Main reports all16 CURRENT bindings complete after bg29 receive +/− rebinding;18 native observations include two old-carrier historical observations, not18 credited bindings. bg30 fresh rejudge stamps SUCCEEDED for RFC1334 one RID and RFC1661 two RIDs, then38 mechanical SHIFT reseals | Thirteen foreign stale-unit judgments were correctly refused and remain unchanged; this is not a global RFC-gate-clean claim |
-| Independent code/document reviews | Implementation/complete-AC11-unit, cleanup, original seven-page wiki and final latest-peer documentation/comment deltas CLEAN. Current policy scenarios all completed semantic red/restored green; current PAP/CHAP compatibility PASS | Final native closure Review Gate and core/wiki/closure commits remain separate active work, not inferred from implementation reviews |
+| New policy bindings and audit stamps | All16 new-policy CURRENT bindings complete after bg29 receive +/− rebinding;18 historical native observations include two old-carrier observations, not18 credited bindings. Bg30 fresh RFC1334/RFC1661 judgments and38 mechanical SHIFT reseals succeeded; later maintenance below supersedes earlier freshness snapshots | Foreign judgments refused without rewrite. The31 inherited dependency proofs below are a separate population, not additional new-policy semantic claims |
+| Independent code/document reviews | Implementation/complete-AC11-unit, cleanup, seven wiki source pages/latest-peer delta, generated mirror and final18-file native legacy-record delta CLEAN. Current live policy scenarios completed semantic red/restored green; PAP/CHAP compatibility PASS | Core/wiki landed below. Final machine Review Gate and closure remain separate from these independent source/evidence reviews |
 | Historical pppd2.5.4 native discrimination | MRU baseline→wrong-wire1500 red→fresh unmodified restored PASS. Auth broad-default overlay bg31/artifact180 allowed CHAP→MSCHAPv2→PAP Naks, PAP Request/Ack/success and IPCP up with required TermReq absent: ACTUAL semantic RED. bg32 unmodified L2TP CHAP-only restored PASS1/1 | Historical2.5.4 proof remains separate. Current2.5.5 MRU and L2TP auth independently GREEN→semantic RED→RESTOREDGREEN complete |
-| Tooling prerequisite commit | Main reports actual commit `b79832ab78` containing five prerequisite files with only owned documentation hunks; correctly attributed to the selected home spec | Earlier misbound prepared script was caught before execution; no protocol-core/closure commit or unrelated spec-marker change claimed here |
+| Original tooling prerequisite | `b79832ab784fcd5e0234888c6a37dfe95202589e` contains five prerequisite files with only owned documentation hunks; correct selected-spec attribution | Earlier misbound script was caught before execution and remains quarantined; later prerequisite/core/wiki landings are separately recorded below |
 | Actual promoted functional suites | Main reports bg34 L2TP27 PASS/2 SKIP (radius-acct-wire and session-stopccn-cascade lacked net-admin); PPPoE1 PASS/8 SKIP (netns-link cases). Both new promoted config cases PASS | AC-3/9/config half AC-15 promoted execution fulfilled; skipped cases did not run |
 | Latest-peer MRU discrimination and refusal baselines | Source-built2.5.5 MRU baseline bg35 PASS; bg40 only reactor MaxMRU1500 overlay produced actual wire1500 while CHAP Success/IPCP/session-up/RADIUS still worked; checker RED expected1492 absent. Fresh normal bg41 restored PASS1/1, including config/session output. Current L2TP refusal bg41/bg43 and PPPoE refusal bg43/bg45 PASS | All three current policy GREEN→semantic RED→RESTOREDGREEN sequences complete. No cleanup-warning cause inferred. |
 | Current2.5.5 L2TP auth producer discrimination | bg42 broad-default overlay [chap,mschap,pap] built/ran; peer Naks CHAP/MS-v2 toward PAP, Ze offers PAP, PAP AuthReq/AuthAck/auth-success, IPCP10.100.0.2, backend AccessRequest/AccountingStart and PPP session-up; expected TermReq times out because actual downgrade happened | ACTUAL semantic RED, not setup failure. Fresh normal L2TP restoration bg43 PASS1/1; current GREEN bg41→RED bg42→RESTOREDGREEN bg43 complete |
 | Current2.5.5 PPPoE semantic red/restoration and compatibility | bg43 refusal baseline PASS. bg44 broad-policy overlay actually negotiated PAP/Ack, PAP AuthReq/AuthAck/success, local backend acceptance and IPCP10.20.0.2; checker reported non-CHAP offer. Final pcap probe additionally timed out30s, not sole red basis. Fresh normal bg45 restored refusal PASS1/1, then existing PAP/replay and02 CHAP good/bad-credential cases each PASS1/1 | Current PPPoE discrimination and both requested compatibility scenarios complete; no source/assertion weakening used for those passes. |
 | Earlier MRU red-attempt setup incident | bg37 Docker-info15s timeout before protocol,0 passed/0 failed, remains NOT semantic red. Targeted info recovered bg39; bg40 subsequently completed protocol and produced the distinct semantic wire-value red | BuildKit journal transport messages are not a proven cause of the earlier timeout; no shared Docker stop/restart/prune |
-| Final native RFC maintenance/check bg59 | Fresh independent RFC1661-6.1-1 audit stamp SUCCEEDED; native RFC update SUCCEEDED. Final check exit1 reports93 violations, all foreign BGP/IKE/PPPoE-client inputs; owned bindings/audits have no reported finding | `artifact://301` personally read all violation entries. The intermediate187 snapshot is historical; neither count is conformance credit or a global PASS. |
+| Pre-core native RFC maintenance/check bg59 | Fresh independent RFC1661-6.1-1 audit stamp and native RFC update SUCCEEDED. Pre-core check exit1 reported93 foreign BGP/IKE/PPPoE-client violation entries | `artifact://301` violation entries read. Historical result, not a post-core freshness discharge: uncommitted producer drift was not yet a committed gate violation |
+| Actual prerequisite/core/wiki landings | Weakening prerequisite `22bccf6d2d67f58d3fde3a18e0b323c6e3c76257`; core `dbbd2c3a32206de3d386f201be943393bed9a040` (132 changed paths); wiki `6d60db4bcec19d5dd1c7578774fe3dd56390fd4c` (seven targeted pages plus generated `llms-full.txt`) | Native printed scripts executed; both Ze commits carry correct Spec-work. Wiki correctly has no Ze Spec-work trailer. No push or wiki-source commit bump |
+| Historical post-core RFC check bg71 | Reported124 violations:93 foreign plus31 owned inherited producer-changed records; no error against the new16 bindings/owned audits | The changed-HEAD result, not pre-core93, established the exact renewal population. Repairs and the final changed-input check are recorded next |
+| Inherited native renewal |31/31 commands exit0 across18 JSON files/seven producers/23 units: clean baseline, native-accepted unit-attributed red under producer-body halt overlay, record written. Existing revert/ID/polarity/unit/producer retained; no source/test/tag/audit edit and no post-restoration green run | `home-cpe16-legacy-proof-repair-receipts.json`; first three actual tool receipts read, all04–31 reports matched, `artifact://370` has all28 baseline PASS and successful chain completion. Independent delta review: only31 producer hashes and23 old-tool panic labels changed; all34 non-target covers preserved |
+| Final changed-input RFC update/check bg76 | Native update SUCCESS; check exit1 has75 foreign findings and ZERO owned binding/audit findings. All75 full violation entries read/classified from `artifact://373`:14 BGP,60 PPPoE-client,1 IKE | No global PASS or conformance percentage.124→75 is not solely this spec:31 owned repairs completed while18 foreign findings also changed. Record-only landing does not change committed producer/cover inputs already checked |
+| Inherited proof-record landing | `3902dc1ada14e8bd0799e9fb47ce7cd97345d994` landed all18 reviewed JSON files (62 additions/62 deletions), with correct selected-spec attribution | Native exact script executed; no source/test/tag/audit change or additional observation. Committed record data is the same reviewed/checked population |
 
 ### Acceptance Evidence
 
@@ -475,17 +480,31 @@ package rerun is claimed.
   claim. Fresh native bg58 VERIFIED all three current RFC1661-6.1-1 bindings
   with no unproven unit and re-stamped five owned SHIFT audits. Bg59 stamped
   the fresh independent6.1-1 verdict and regenerated native RFC outputs.
-  Its final check reported93 foreign findings, none against the owned
-  bindings/audits; every violation entry was read in `artifact://301`.
+  Its pre-core check reported93 foreign violation entries, read in
+  `artifact://301`; this did not discharge inherited producer drift after HEAD.
+- Post-core bg71 exposed31 owned inherited producer-changed records, in
+  addition to those93 foreign findings. `checkDiscriminationRatchet` only
+  refuses that drift when `driftIsCommitted` sees the record's key match
+  current HEAD; `HeadCovers`/`PriorCovers` also govern the owed population.
+  Main's implementation-phase writer completed all31 native observations
+  across18 JSON paths; independent exact-cover/receipt/delta review CLEAN.
+  Each ran a clean baseline and accepted unit-attributed red under a
+  producer-body halt overlay, then wrote its record. No post-restoration
+  green ran or is claimed; unchanged source was never overlaid in place.
+  These renew dependency/reachability proofs, not semantic-mutant claims.
+  Bg76 updated derived RFC output and checked the current record data
+  against committed core:75 foreign findings, zero owned. All18 reviewed
+  JSON files landed as `3902dc1ada14e8bd0799e9fb47ce7cd97345d994`.
 - Thirteen foreign stale-unit audit judgments were refused unchanged. Other
   shared-checkout RFC findings remain foreign. No global RFC-clean claim is
   made, and a count is not a conformance percentage.
 - A real unrelated inventory compile failure stopped bg53. Actual later
   source inspection found all three required producers present, including
   `Snapshot.assemblyPredefines`; fresh native bg58 built successfully.
-  Main owns core/wiki commits and explicit
-  closure clearance. No foreign source edit, retained-binary bypass,
-  worktree/export or unapproved process action was used.
+  Core, wiki and inherited proof records are committed. Main explicitly
+  cleared native closure under the retained parent identity/claim.
+  No foreign source edit, retained-binary bypass, worktree/export or
+  unapproved process action was used.
 - Native core preparation bg60 found a direct tooling prerequisite:
   `weakened.detect` suppressed assertion-loss classification for an empty
   replacement. `weakenedUnits` therefore accounted for a complete deletion
@@ -761,9 +780,10 @@ the CHAP-first ordering, RFC 1661 Section 6.1 above the MRU request.
 | New-session reload and measured output | `reactor_setters.go` `setPPPPolicy`, `pppoe/subsystem_reload.go` `applyInterfaceConfig`, `reactor_kernel.go` `handleLCPUp`/`handleLCPDown`, `snapshot.go` `sessionSnapshot`, `cmd/l2tp.go` `handleConfig`/`sessionJSON` | Reload publishes a new immutable generation. Config output reports effective policy; session output reports actual negotiated values, with explicit null while unknown/down. |
 
 Paths in this table are under `internal/component/l2tp/`. The independent
-closure assessment covers the prerequisite commit, the complete core census,
-selected shared-document hunks and the citation edits; final native Review Gate
-and landing records remain active closure work, not an implementation claim.
+closure assessment covers both prerequisite commits, complete core census,
+committed shared-document sources, eight wiki paths, eighteen renewed legacy
+record files and citation edits. Source/evidence review is CLEAN; the final
+native hash-pinned gate and closure landings remain explicitly unexecuted.
 
 ### Bugs Found/Fixed
 
@@ -786,10 +806,10 @@ and landing records remain active closure work, not an implementation claim.
 | `docs/architecture/l2tp/bng-1-radius-attributes.md` | Ordinary Closed/Stopped remains User Request; authentication-policy refusal reports NAS Request. The source anchor names `applyTransition`; no pre-auth Accounting-Stop is implied. |
 | `docs/research/l2tpv2-ze-integration.md` | Historical schema sketch distinguished from shipped `mru` and authentication policy; source anchors name `validateAuthPolicy`, `providerAuthAllow` and `ResolveAuthAllow`. |
 | `features/l2tpv2-bng.md`, `features/pppoe-access.md`, selected `ai/INDEX.md` hunks | Feature scope and discovery name the controls without claiming complete RFC support or raising the existing experimental level. |
-| RFC summaries and native records | RFC1334 ordering and RFC1661 selection/termination/receive notes, verified discrimination records and independently judged audit metadata; RFC2661 configurable-retransmit audit rejudged after its cited config producer changed. |
+| RFC summaries and native records | RFC1334/RFC1661 policy notes and targeted discrimination, independently judged audit metadata, RFC2661 config-audit maintenance and31 natively renewed inherited revert records across18 files. Legacy renewal proves producer dependency, not a semantic upgrade or post-restoration run. |
 | Test-infrastructure pages | Original prerequisite `docs/architecture/testing/ci-format.md` and `docs/functional-tests.md` document registry-based PPPoE stress admission. `docs/architecture/testing/test-health.md` documents exact deletion attribution, per-unit blocking and existing advisory/commit distinction, anchored to `weakenedUnits` and `Proposed`/`proposedFindings`. |
-| Wiki | Seven targeted pages updated; independent original reviews and the final three-page latest-peer delta were clean. Native LLMS generation reported 184 pages. Main owns the wiki commit. |
-| Derived outputs/check scope | Main ran native RFC and documentation-index updates. Outputs are ignored generated artifacts, not hand-edited or staged. Whole-tree docs/repo/build checks are excluded by this assignment's scoped rule. |
+| Wiki | Seven targeted source pages and generated `llms-full.txt` landed as `6d60db4bcec19d5dd1c7578774fe3dd56390fd4c`. Original/latest-peer source reviews and generated mirror review CLEAN. Native generation reported184 pages; mirror catch-up from already committed BGP/loop source is not new BGP implementation proof. |
+| Derived outputs/check scope | Main ran native RFC/documentation-index updates; main-repository generated outputs are ignored and not staged. The wiki's tracked native-generated mirror was committed. Whole-tree docs/repo/build checks remain excluded by this assignment's scoped rule. |
 
 ### Deviations from Plan
 
@@ -819,11 +839,12 @@ and landing records remain active closure work, not an implementation claim.
 |------|---------------|----------------------|----------------|--------|
 | assumption | A-1 claimed no existing test relied on implicit PAP fallback | Legacy fixtures and the old default-helper contract did rely on it | P's actual four failures and source review of `TestDefaultAuthFallbackOrder` | Independent JudgeTransportFixtures approval; precise fixture corrections/replacement; focused F PASS. Later PAP interop does not make A-1 true. |
 | approach | An MRU negative attempt failed during Docker-info setup, and an old peer download failed before protocol | Neither was a semantic red | Native setup results reported no exercised protocol | Kept both as non-proof; the later current-peer rebuilt wrong-wire/broad-policy runs supplied actual semantic reds. |
-| approach | A plain1501 product note immediately followed the retained RFC positive tag | `internal/le/rfc/tags.go` `extendClaim` treats contiguous comment prose as one claim | Intermediate RFC check reported the legacy positive claim changed | Independent approval moved only the plain note beside its unchanged assertion, restoring the original positive paragraph. Fresh bg58 VERIFIED all three current6.1-1 bindings, unproven empty; bg59 stamped the fresh independent audit and final check reports no owned finding. |
+| approach | A plain1501 product note immediately followed the retained RFC positive tag | `internal/le/rfc/tags.go` `extendClaim` treats contiguous comment prose as one claim | Intermediate RFC check reported the legacy positive claim changed | Independently approved move preserved assertions/restored the positive paragraph. Bg58 VERIFIED current6.1-1 bindings and bg59 stamped its audit; the final bg76 check has no owned finding after separate inherited renewal. |
 | approach | Final review found stale current-peer and termination-cause prose | Current pppd2.5.5 proof had completed; policy refusal uses NAS Request, not generic User Request | Independent source/doc review of Dockerfiles, checkers and `applyTransition` | Main corrected the existing lab/wiki pages, source comments and accounting architecture table; independent delta reviews clean. No new product defect or lesson-only journal row invented. |
 | approach | Main treated LSP NoDefinition and no watcher event as proof that the inventory field remained absent after a real compile failure | Negative navigation/event results do not establish source absence; `internal/le/repo/inventory/source.go` contains `Snapshot.assemblyPredefines` | Direct source inspection, followed by successful fresh native bg58 build | Corrected the blocker account and owner chat; reported the navigation mismatch. No foreign edit, retained binary, new product bug or extra review round. |
 | approach | Native core preparation attributed already-accounted complete-function assertion deletions to file-stem keys | `internal/le/test/weakened/detector.go` `detect` suppressed assertion-loss kind when replacement was empty; `scope.go` `weakenedUnits` then lacked that named kind despite exact residual stripping | bg60 refusal and independent source/diff review; blanket approvals refused | Direct five-file prerequisite landed `22bccf6d2d` after CLEAN independent review, twelve scoped race controls, actual CLI refusal/survivor and bg64 preparation passing that barrier. Separate journal-owner design metadata repaired without changing its Task/AC/Status. |
 | approach | New approved-deletion regression expected approved findings to disappear from `Check.Result` | `Check` retains every finding; matching approval affects Problems/trailers, not the audit population | Bg62's two approved-deletion subcases failed while11 other top-level controls passed; source `Check` assignment and approval loop confirmed the contract | Independent judgment approved Exit0/Problems0 plus exactly one retained `TestRetired` finding, preserving sole trailer and all Proposed checks. Actual correction read; no production change to hide approved findings. |
+| approach | The pre-core gate's93 foreign violations and16 new bindings were treated too broadly as final owned freshness | Changed producers also have inherited proof consumers; `checkDiscriminationRatchet`/`driftIsCommitted` and `HeadCovers`/`PriorCovers` depend on the committed boundary | Post-core bg71 exposed31 owned producer-changed records across18 files; manifest and gate producer read | Implementation phase natively renewed all31 exact legacy covers, with baseline green/body-halt red and no post-restoration run. Independent18-file delta/receipt review CLEAN; bg76 reports75 foreign findings/zero owned. No manual hashes or foreign-attribution escape. |
 
 ## Implementation Audit
 
@@ -911,18 +932,20 @@ carry the exact individual paths, including the RFC audit/discrimination files.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| None of the agreed implementation scope was omitted or deferred | All15 ACs and three task goals are implemented with their named proof. Existing Known Limitations remain outside this spec's agreed scope, not newly invented follow-up work. Final native Review Gate/landing work is still active until recorded below. | None |
+| None | All15 ACs, three task goals and inherited native proof renewal are complete; no agreed behavior/proof work is deferred. Existing Known Limitations are outside the agreed scope, not new follow-up work. The final machine gate and coupled closure commits are performed below with the claim retained until both land. | None |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Scope declared for the independent closure pass | Current156-path population:133 core paths, five original prerequisite paths from `b79832ab78`, five direct weakening-prerequisite paths from `22bccf6d2d`, four citer paths and two shared-document paths, plus seven wiki pages. Selected spec is already among133. Shared-document pins will use actual committed blobs, not foreign working hunks. Later deltas are read against producers; product AC scope is unchanged. |
-| Artifact | Not recorded yet; Main has not cleared native closure commands or completed core/wiki landing. |
-| `./le spec review check` | Not run yet. No CLEAN machine artifact is claimed. |
+| Scope declared for the independent closure pass |172 unique reviewed paths:164 main + eight wiki. Core census133 entries has130 unique paths; add two five-file prerequisites, four citers, two shared docs and eighteen legacy-record paths. No overlaps among those additions. Shared docs use committed source blobs; wiki includes its native-generated mirror. Exact source list/hash pins, not raw input counts, govern the final artifact. |
+| Artifact | `tmp/review/home-cpe-16-lns-mru-and-auth-allow-list-010c656c-7d73-4e34-9923-47e8f6a7475d.md`; native CLEAN record,172 hash/mode-pinned files. |
+| `./le spec review check` | OK:67 review-code files, CLEAN, hashes match the native artifact. The67 is native `IsReviewCode`'s required subset, not a substituted scope. |
 | Direct tooling prerequisite | Landed `22bccf6d2d67f58d3fde3a18e0b323c6e3c76257`: independent source/caller review CLEAN, exact fixture correction and direct documentation anchor read. Twelve scoped controls PASS across bg62/bg63; actual CLI refusal/survivor exit2/0; bg64 preparation passed the former weakening barrier before a separate owner-design metadata refusal. No full-package/whole-tree pass claimed. |
-| Rounds | One independent inline closure pass, with logic/wiring, security/edge-cases and protocol/evidence/style lenses; final current-hash recording still owed. |
+| Rounds |1 independent inline closure pass with logic/wiring, security/edges and protocol/evidence/style lenses; later prerequisite/record deltas independently read in that pass. No extra round for record-only corrections. |
+| Final independent source/evidence result |0 open BLOCKER,0 open ISSUE. Both direct tooling findings below are fixed in `22bccf6d2d`; final evidence/metadata deltas were independently reviewed without another product-change round. |
 | Source/style review | Read the full Go style. New registration panics are reachable only from invalid/duplicate constant init registration, before listeners. Peer-driven enums decode to known methods or refuse; loops are bounded by three permitted methods, packet length, fixed retry counts or checker deadlines. No new product goroutine or runtime dependency. Immutable generation ownership is explicit. |
+| Pin sources |159 immutable committed blobs from `b79832ab78`, `22bccf6d2d`, `dbbd2c3a32` and `3902dc1ada`, plus five current closure/citer files and eight wiki files. Shared main docs pin their actual owning committed blobs, not foreign working hunks. |
 
 ### Findings fixed
 
@@ -936,8 +959,8 @@ carry the exact individual paths, including the RFC audit/discrimination files.
 | Note | Disposition |
 |------|-------------|
 | Current-peer pending prose and pre-Opened termination-cause table became stale | Main corrected existing pages; independently reviewed clean against Dockerfiles/checkers and `applyTransition`. |
-| Intermediate RFC check exposed owned metadata maintenance | RFC2661 config-producer verdict independently rejudged/stamped; approved plain-comment locality restored the legacy RFC1661 positive claim. Fresh bg58 VERIFIED all three current6.1-1 bindings and re-stamped five owned SHIFTs; bg59 stamped the fresh6.1-1 judgment and regenerated outputs. Final check reports no owned finding. |
-| Unrelated shared-checkout reds | Final bg59 check exit1 reported93 foreign BGP/IKE/PPPoE-client findings, all entries read in `artifact://301`. Intermediate187 snapshot is historical. No global-clean claim, conformance percentage or foreign judgment rewrite. |
+| Intermediate audit/claim maintenance | RFC2661 config audit and RFC1661 positive claim/audit independently repaired; current new-policy bindings remain distinct from the31 inherited revert renewals. Bg76 reports no owned binding/audit finding. |
+| HEAD-sensitive gate and foreign findings | Pre-core93 and post-core124 are historical. All31 owned inherited covers natively renewed and independently reviewed; final changed-input bg76 check reports75 foreign findings/zero owned. Foreign work also changed18 findings, so no simplistic count-reduction credit, global-clean claim or percentage. |
 | Separately owned native help defect | `actions.go` describes `rfc discriminate report` as output, but `discriminationStatusOf` passes it to `proposeBreaks`/`loadGomuReport` as an existing input. The observed new-path read refusal matches source. One journal row is owned by the existing targeted-mutant-ratchet spec Task4; no new home-CPE scope, duplicate row or in-scope Work Not Done. |
 
 ## Security Review
@@ -1003,12 +1026,12 @@ carry the exact individual paths, including the RFC audit/discrimination files.
 | CLI/API output | Existing `handleConfig` and `sessionJSON` gain fields; no new command, flag, RPC or completion branch | Yes; L2TP guide Read commands and measured-state paragraphs match current handlers. |
 | Plugin SDK/inventory | No plugin, command registration, send type or SDK change; existing EventLCPUp gains actual method payload and both producers supply it | No new inventory entry owed; guide explains the event-backed output. |
 | Wire format | Existing MRU/Auth-Protocol codecs are reused; policy/order/termination changed, not encoding layout | No new wire-layout page required; guide/labs/RFC notes document changed behavior. |
-| RFC evidence | Read RFC1661 Sections3.5/5.4/6.1/6.2 and RFC1334 Section2 against producers; current records and fresh audit notes read | Final fresh bg59 stamp/update succeeded; personally read all93 foreign check findings in `artifact://301`, none against owned bindings/audits. No global-clean claim. |
+| RFC evidence | Primary RFC1661/RFC1334 text, policy producers, HEAD-sensitive gate,31 exact legacy covers/receipts and18-file delta read | Native renewal31/31 exit0; final bg76 update succeeded and all75 foreign violation entries in `artifact://373` read/classified, zero owned. Revert reachability is not semantic-upgrade/post-restoration proof; no global-clean claim. |
 | Test infrastructure | Existing registry now admits PPPoE drafts; native checkers, source-pinned images and obsolete special-route deletion are documented | Prerequisite pages, lab guides and final scoped tooling PASS support the claims; legacy Alpine/QEMU routes are not own-system proof here. |
 | Architecture / source anchors | Searched `docs/`, `features/`, `ai/` for changed-source anchors; read subscriber lifecycle, PPPoE architecture, receive/kernel and accounting-cause claims | Existing layer boundaries remain; accounting table corrected at its existing page. Generic config grammar/comparison/routing metadata are unchanged. |
 | Metrics | `initPPPMetrics` registers one reason label; `refuseAuthMethod` counts only the actual required policy close | Guide lists `ze_ppp_auth_failures_total{reason="auth-method-refused"}`; actual exporter test P. |
-| Wiki and discovery | Seven targeted wiki pages and selected `ai/INDEX.md` task/keyword rows | Original independent reviews plus final latest-peer delta clean; native LLMS generated184 pages. Commit evidence not yet assumed. |
-| Citations | Whole tracked-root fullpath/basename search; four live sibling specs repointed to existing guides; no Go Design header hit | Citation edits are prepared, not yet landed. The ignored generated roadmap is neither hand-edited nor committed. |
+| Wiki and discovery | Seven targeted wiki pages, tracked generated mirror and selected `ai/INDEX.md` rows | Source/mirror reviews CLEAN; native generation184 pages. Wiki `6d60db4bcec19d5dd1c7578774fe3dd56390fd4c` and core `dbbd2c3a32` landed. No push or new BGP implementation proof inferred from generated catch-up. |
+| Citations | Final fullpath AND basename search across36,949 tracked files: all tracked roots plus exact remaining116 root/gokrazy/tmp paths; no external tracked hit or Go Design citer remains | Four live siblings repoint to durable guides and ride closure A. Only selected-spec self-references remain until B; matching ignored generated roadmap is untracked, neither hand-edited nor committed. |
 
 ## Risks & Observations at Closure
 
@@ -1018,5 +1041,6 @@ carry the exact individual paths, including the RFC audit/discrimination files.
 | R-2: previously accepted proxy PAP may renegotiate | Intended policy boundary; guide documents normal LCP fallback. Complete real-Driver CHAP authentication after refusal passed C. |
 | R-3: pre-auth refusal has no Accounting-Stop | Refusal warning, retained down cause and bounded-reason counter carry it; architecture page does not claim a pre-auth accounting record. |
 | Scoped verification limits | P overall PPP red/focused F correction, functional skips, unit-only proxy/full1500/reload controls, source-only accel semantics and historical peer results are kept distinct from current live evidence. |
+| Proof boundary | Three current native policy scenarios have actual rebuilt semantic RED and fresh normal RESTOREDGREEN. Separately,31 inherited revert records have clean baseline→producer-body-halt red→record written, with source untouched by overlays and NO post-restoration green run. Their dependency evidence is not relabeled semantic discrimination. |
 | Ancillary setup/probe failures | Old download and Docker-info setup failures are non-proof. PPPoE semantic red independently contains PAP/backend/IPCP despite a later30s pcap-probe timeout. No causal diagnosis or new journal bug is invented from cleanup warnings. |
-| Remaining closure machinery | Main owns core/wiki commits and command clearance. Closure commits and claim release are not yet executed; final owned RFC freshness is complete. |
+| Closure mechanics | Source/evidence review complete; final native hash-pinned gate and coupled A+B script follow under parent UUID010c656c-7d73-4e34-9923-47e8f6a7475d and namespace5112be1d. Claim release occurs only after both commits land. No push. |
