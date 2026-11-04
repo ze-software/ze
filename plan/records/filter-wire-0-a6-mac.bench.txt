@@ -1,0 +1,96 @@
+Provenance: output of `bash test/perf/filter-a6/measure.sh` supplied by Thomas
+from his Mac, 2026-11-04. Measured revision 2496442cb3 contains 11e37bd142,
+which added both benchmarks; neither benchmark file differs between the two.
+Scope: spec-filter-wire-0-umbrella, A-6 matched slow-path benchmarks.
+The three files below were also copied from the Mac by scp; they match this
+text line for line and value for value, differing only in tab versus space
+column padding introduced by pasting.
+
+--- provenance.txt ---
+date: 2026-11-04T15:01:16Z
+head: 2496442cb396208cd89ae0182bd2c27835433ab4
+head-dirty-files-under-internal-pkg: 0
+textera: ec9f715546a2bbc7be9bc95b9bb84e8f717d3595
+textera-bench-sha256: 5d8b77adb0a6207649e47b7c8506b14e5985e3af337ce21e14964f273e79aad9
+go: go version go1.27.3 darwin/arm64
+goroot: /Users/thomas/Unix/cache/ze/stdpatch/7c1cde647799b08f6d85bee7e5b5bd16cc287c07de52e025f5db12172e3acf68/goroot
+uname: Darwin thomasmangin-J44N2XRXNR-770.local 27.2.0 Darwin Kernel Version 27.2.0: Wed Oct 14 23:44:56 PDT 2026; root:xnu-13432.41.4~25/RELEASE_ARM64_T6041 arm64
+cpu: Apple M4 Max
+power: Now drawing from 'AC Power'
+bench-flags: -count 10 -benchmem
+
+--- head.txt ---
+goos: darwin
+goarch: arm64
+pkg: github.com/ze-software/ze/internal/component/bgp/reactor
+cpu: Apple M4 Max
+BenchmarkFilterSlowPathModify/routes=1-16                57337         19062 ns/op          5910 B/route            58.30 allocs/route         19062 ns/route        5909 B/op          58 allocs/op
+BenchmarkFilterSlowPathModify/routes=1-16                92736         12644 ns/op          5912 B/route            58.30 allocs/route         12644 ns/route        5912 B/op          58 allocs/op
+BenchmarkFilterSlowPathModify/routes=1-16                96204         12460 ns/op          5902 B/route            58.28 allocs/route         12460 ns/route        5902 B/op          58 allocs/op
+BenchmarkFilterSlowPathModify/routes=1-16                90594         12685 ns/op          5918 B/route            58.30 allocs/route         12685 ns/route        5917 B/op          58 allocs/op
+BenchmarkFilterSlowPathModify/routes=1-16                93454         13070 ns/op          5925 B/route            58.32 allocs/route         13070 ns/route        5924 B/op          58 allocs/op
+BenchmarkFilterSlowPathModify/routes=1-16                86725         13332 ns/op          5922 B/route            58.31 allocs/route         13332 ns/route        5922 B/op          58 allocs/op
+BenchmarkFilterSlowPathModify/routes=1-16                97222         12581 ns/op          5907 B/route            58.29 allocs/route         12581 ns/route        5906 B/op          58 allocs/op
+BenchmarkFilterSlowPathModify/routes=1-16                97812         12613 ns/op          5900 B/route            58.29 allocs/route         12613 ns/route        5899 B/op          58 allocs/op
+BenchmarkFilterSlowPathModify/routes=1-16                93132         13182 ns/op          5902 B/route            58.28 allocs/route         13182 ns/route        5901 B/op          58 allocs/op
+BenchmarkFilterSlowPathModify/routes=1-16                81861         13573 ns/op          5927 B/route            58.31 allocs/route         13573 ns/route        5927 B/op          58 allocs/op
+BenchmarkFilterSlowPathModify/routes=16-16               10000        127827 ns/op          4909 B/route            22.31 allocs/route          7989 ns/route       78547 B/op         356 allocs/op
+BenchmarkFilterSlowPathModify/routes=16-16               13854         86193 ns/op          4916 B/route            22.31 allocs/route          5387 ns/route       78652 B/op         357 allocs/op
+BenchmarkFilterSlowPathModify/routes=16-16               14188         84722 ns/op          4894 B/route            22.29 allocs/route          5295 ns/route       78302 B/op         356 allocs/op
+BenchmarkFilterSlowPathModify/routes=16-16               14211         85046 ns/op          4902 B/route            22.30 allocs/route          5315 ns/route       78437 B/op         356 allocs/op
+BenchmarkFilterSlowPathModify/routes=16-16               14146         85042 ns/op          4898 B/route            22.29 allocs/route          5315 ns/route       78374 B/op         356 allocs/op
+BenchmarkFilterSlowPathModify/routes=16-16               14256         84249 ns/op          4890 B/route            22.29 allocs/route          5266 ns/route       78235 B/op         356 allocs/op
+BenchmarkFilterSlowPathModify/routes=16-16               14104         84921 ns/op          4894 B/route            22.29 allocs/route          5308 ns/route       78298 B/op         356 allocs/op
+BenchmarkFilterSlowPathModify/routes=16-16               14037         86406 ns/op          4905 B/route            22.30 allocs/route          5400 ns/route       78473 B/op         356 allocs/op
+BenchmarkFilterSlowPathModify/routes=16-16               14107         85149 ns/op          4900 B/route            22.29 allocs/route          5322 ns/route       78401 B/op         356 allocs/op
+BenchmarkFilterSlowPathModify/routes=16-16               14096         85565 ns/op          4898 B/route            22.29 allocs/route          5348 ns/route       78365 B/op         356 allocs/op
+BenchmarkFilterSlowPathModify/routes=64-16                4272        274247 ns/op          5262 B/route            20.21 allocs/route          4285 ns/route      336778 B/op        1293 allocs/op
+BenchmarkFilterSlowPathModify/routes=64-16                4298        274470 ns/op          5253 B/route            20.20 allocs/route          4289 ns/route      336165 B/op        1292 allocs/op
+BenchmarkFilterSlowPathModify/routes=64-16                4424        273750 ns/op          5264 B/route            20.21 allocs/route          4277 ns/route      336893 B/op        1293 allocs/op
+BenchmarkFilterSlowPathModify/routes=64-16                4089        278118 ns/op          5263 B/route            20.20 allocs/route          4346 ns/route      336822 B/op        1293 allocs/op
+BenchmarkFilterSlowPathModify/routes=64-16                4627        273240 ns/op          5259 B/route            20.21 allocs/route          4269 ns/route      336550 B/op        1293 allocs/op
+BenchmarkFilterSlowPathModify/routes=64-16                4209        290667 ns/op          5248 B/route            20.20 allocs/route          4542 ns/route      335887 B/op        1292 allocs/op
+BenchmarkFilterSlowPathModify/routes=64-16                4308        417716 ns/op          5216 B/route            20.17 allocs/route          6527 ns/route      333793 B/op        1290 allocs/op
+BenchmarkFilterSlowPathModify/routes=64-16                4359        272525 ns/op          5238 B/route            20.19 allocs/route          4258 ns/route      335211 B/op        1292 allocs/op
+BenchmarkFilterSlowPathModify/routes=64-16                4384        281462 ns/op          5241 B/route            20.19 allocs/route          4398 ns/route      335426 B/op        1292 allocs/op
+BenchmarkFilterSlowPathModify/routes=64-16                4266        331084 ns/op          5252 B/route            20.20 allocs/route          5173 ns/route      336158 B/op        1292 allocs/op
+PASS
+ok      github.com/ze-software/ze/internal/component/bgp/reactor    37.580s
+
+--- textera.txt ---
+goos: darwin
+goarch: arm64
+pkg: github.com/ze-software/ze/internal/component/bgp/reactor
+cpu: Apple M4 Max
+BenchmarkFilterSlowPathModifyTextEra/routes=1-16                61304         17028 ns/op         71466 B/route            58.63 allocs/route       71466 B/op          58 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=1-16                61806         17124 ns/op         71448 B/route            58.60 allocs/route       71447 B/op          58 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=1-16                61990         17072 ns/op         71468 B/route            58.62 allocs/route       71467 B/op          58 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=1-16                61987         17162 ns/op         71438 B/route            58.59 allocs/route       71437 B/op          58 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=1-16                61873         17077 ns/op         71453 B/route            58.60 allocs/route       71452 B/op          58 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=1-16                62036         16989 ns/op         71470 B/route            58.62 allocs/route       71470 B/op          58 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=1-16                62143         17062 ns/op         71430 B/route            58.58 allocs/route       71430 B/op          58 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=1-16                62109         17037 ns/op         71426 B/route            58.58 allocs/route       71426 B/op          58 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=1-16                61788         17002 ns/op         71477 B/route            58.63 allocs/route       71477 B/op          58 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=1-16                62583         17163 ns/op         71454 B/route            58.59 allocs/route       71453 B/op          58 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=16-16                4365        273426 ns/op         71431 B/route            58.68 allocs/route     1142896 B/op         938 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=16-16                4381        272215 ns/op         71425 B/route            58.68 allocs/route     1142805 B/op         938 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=16-16                4341        464383 ns/op         71372 B/route            58.53 allocs/route     1141949 B/op         936 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=16-16                1640        685439 ns/op         71522 B/route            58.75 allocs/route     1144358 B/op         940 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=16-16                1966        679343 ns/op         71396 B/route            58.53 allocs/route     1142328 B/op         936 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=16-16                1822        611179 ns/op         71556 B/route            58.82 allocs/route     1144891 B/op         941 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=16-16                2614        460991 ns/op         71567 B/route            58.87 allocs/route     1145079 B/op         941 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=16-16                2595        549349 ns/op         71548 B/route            58.81 allocs/route     1144772 B/op         941 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=16-16                2896        429418 ns/op         71565 B/route            58.89 allocs/route     1145044 B/op         942 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=16-16                4356        311973 ns/op         71482 B/route            58.74 allocs/route     1143719 B/op         939 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=64-16                 790       2030126 ns/op         71509 B/route            59.07 allocs/route     4576567 B/op        3780 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=64-16                 510       2193388 ns/op         71616 B/route            59.26 allocs/route     4583427 B/op        3792 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=64-16                 739       1528587 ns/op         71596 B/route            59.23 allocs/route     4582118 B/op        3790 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=64-16                 933       1448552 ns/op         71543 B/route            59.11 allocs/route     4578745 B/op        3783 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=64-16                 878       1227645 ns/op         71600 B/route            59.25 allocs/route     4582376 B/op        3791 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=64-16                 955       1059171 ns/op         71564 B/route            59.17 allocs/route     4580125 B/op        3787 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=64-16                 902       1211109 ns/op         71560 B/route            59.16 allocs/route     4579819 B/op        3786 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=64-16                 519       2382526 ns/op         71518 B/route            59.07 allocs/route     4577144 B/op        3780 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=64-16                 768       2463326 ns/op         71386 B/route            58.81 allocs/route     4568720 B/op        3764 allocs/op
+BenchmarkFilterSlowPathModifyTextEra/routes=64-16                 529       1971092 ns/op         71679 B/route            59.38 allocs/route     4587442 B/op        3800 allocs/op
+PASS
+ok      github.com/ze-software/ze/internal/component/bgp/reactor    55.604s

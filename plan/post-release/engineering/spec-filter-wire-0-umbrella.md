@@ -18,7 +18,7 @@ as a substitute for the missing behavioural evidence.
 
 | # | Remaining proof | Prepared evidence / exact prerequisite | What clears it |
 |---|-----------------|----------------------------------------|----------------|
-| 1 | A-6: relative slow-path performance, the only remaining performance-proof blocker | All reachable unit, daemon, load, discrimination and promotion proofs below are recorded. Thomas supplied current Mac output, preserved in [the owner run record](../../records/filter-wire-0-owner-mac.bench.txt). A historical Mac summary also exists, but its workload is not matched to the current SDK benchmarks. Matched text-era/new workload measurements and both runs' provenance remain required; the current measured checkout revision and Go version are not supplied | Establish a compatible, provenance-backed before/after comparison before deciding A-6, not another run of the unmatched current harness. No closure Review Gate or closure completion is claimed. Update 2026-11-04: the matched pair exists ("A-6 matched slow-path benchmarks"), its allocation half is measured and favours HEAD, and the time half waits on Thomas running `bash test/perf/filter-a6/measure.sh` on the Mac |
+| 1 | A-6: relative slow-path performance, the only remaining performance-proof blocker | All reachable unit, daemon, load, discrimination and promotion proofs below are recorded. Thomas supplied current Mac output, preserved in [the owner run record](../../records/filter-wire-0-owner-mac.bench.txt). A historical Mac summary also exists, but its workload is not matched to the current SDK benchmarks. Matched text-era/new workload measurements and both runs' provenance remain required; the current measured checkout revision and Go version are not supplied | Establish a compatible, provenance-backed before/after comparison before deciding A-6, not another run of the unmatched current harness. No closure Review Gate or closure completion is claimed. Cleared 2026-11-04: the matched pair ("A-6 matched slow-path benchmarks") ran on the owner's Mac with full provenance and confirms A-6; what remains is `/ze-close` in a fresh session |
 
 AC-22's former in-daemon-when-forked unit framing was superseded by the
 owner's revised D-12, not waived. AC-40's former transit-leak load refusal was
@@ -548,7 +548,7 @@ design question is open.
 | A-3 | Prepend and remove-private need reactor-side state (local AS, peer AS, ASN4 width) a plugin cannot know | `ExtractASPathPrependOps` takes `localAS`; `ExtractRemovePrivateASOps` takes `asn4` and `peerAS` | the plugin could compute them and the intents collapse to set fields | reading both signatures and their callers in `filter_ordered.go` | validated by reading at 544f8f930c |
 | A-4 | BGP chains already run `policy.CheckChain` for named instances, so the fast path inherits a working load-time check | `validateChainNames` in `internal/component/bgp/config/peers.go`; attachments registered in `bgp/config/register.go` | the check must be wired first | reading at 544f8f930c | validated by reading |
 | A-5 | `ribpolicy.Route` cannot carry BGP fields, so the lazy view is a new view kind | BGP fields registered with `RouteView{}` (`internal/component/policy/register.go`); route-policy decision that the Loc-RIB best carries no communities or AS path | BGP fields would be added to a core leaf type the Loc-RIB hot path copies by value | reading at 544f8f930c | validated by reading |
-| A-6 | A JSON message with only the declared fields, batched, is no slower per route than the text subject it replaced | FR-6; a modified text-era UPDATE paid render, two parses and a diff | the slow path regresses for small filters | [Thomas's current Mac output](../../records/filter-wire-0-owner-mac.bench.txt) from `CGO_ENABLED=0 ./le perf filter measure` and the archived Mac summary below are context; deciding A-6 requires matched text-era/new workload measurements and both runs' provenance | allocations confirmed, time unvalidated: the matched benchmarks in "A-6 matched slow-path benchmarks" show HEAD allocating fewer bytes and objects per route than the text era at batch sizes 1, 16 and 64; the time comparison waits on `bash test/perf/filter-a6/measure.sh` run on the Mac |
+| A-6 | A JSON message with only the declared fields, batched, is no slower per route than the text subject it replaced | FR-6; a modified text-era UPDATE paid render, two parses and a diff | the slow path regresses for small filters | [Thomas's current Mac output](../../records/filter-wire-0-owner-mac.bench.txt) from `CGO_ENABLED=0 ./le perf filter measure` and the archived Mac summary below are context; deciding A-6 requires matched text-era/new workload measurements and both runs' provenance | confirmed: the matched benchmarks in "A-6 matched slow-path benchmarks", run on the owner's Mac ([record](../../records/filter-wire-0-a6-mac.bench.txt)), put HEAD faster per route than the text era at batch sizes 1, 16 and 64 (median 12.9 against 17.1 µs at 1 route, 5.3 against 28.9 at 16, 4.3 against 27.3 at 64), with about a tenth of the bytes allocated |
 | A-7 | The functional runner and the QEMU guest can fork a Python 3 plugin | no `.py` plugin exists under `test/plugin` or `test/reload` today; Python scripts exist only under `test/exabgp-compat` | the non-Go AC needs another language the runner already has | a runner probe `.ci` forking `python3 -I` | confirmed by `test/plugin/filter-wire-python-probe.ci`: the daemon under the runner forks a `#!/usr/bin/env -S python3 -I` plugin, which reports `isolated=1` and holds all five connect-back variables; red when the shebang drops `-I`; 20 stress iterations under load clean. The QEMU guest is not needed: the test carries no `needs-linux` |
 | A-8 | Non-CIDR families (EVPN, VPN, FlowSpec beyond its destination prefix, BGP-LS, SR-Policy, ...) remain reachable by a filter declaring raw, without decoding a prefix it did not declare | `family.Family.PlainCIDR`; `policychain.memberView.Raw` and `Fields` independently honor the reads declaration | the engine implicitly parses undecodable NLRI before a raw filter can judge it | `reactor/filter_raw_families_test.go` `TestDeclaredRawReachesEveryNonCIDRFamily`: all 17 standard non-CIDR registrations, both MP sections and verdicts, exact raw bytes and no implicit fields; includes SR-Policy owners | confirmed by main-thread race run, `job-fw-proof-reactor-292513d4.log`: named test and all 68 cases PASS; that run's unrelated A-2 oracle failure was corrected and passed in its isolated run |
 | A-9 | The BGP fields the view reads can register their readers from the BGP side while their names stay declared in `internal/component/policy/register.go` | D-7; the BGP fields there carry an empty `RouteView{}` today | the library would learn a BGP type, which D-7 forbids | `spec-filter-wire-2-view` reading `MustRegisterField` and registering one reader from `internal/component/bgp/` | confirmed by `policyview.MustRegisterReader` (keyed by `policy.Field`; the library holds no reader seam) |
@@ -640,13 +640,31 @@ the allocations. Most of the text era's 72 KB per route is unverified as to
 cause (the 64 KiB scratch buffer of `runIngressPolicyChain` escaping is the
 leading suspect, not confirmed with `-gcflags=-m`).
 
-**A-6's time half is still unvalidated.** "No slower per route" is a time
-claim, and time figures come only from the owner's Mac.
-`bash test/perf/filter-a6/measure.sh` on the Mac measures both benchmarks
-under one toolchain, ten samples each, and writes `provenance.txt` (HEAD,
-text-era revision, the text-era benchmark source hash, Go version, CPU,
-power), `head.txt` and `textera.txt`. Its `A6_CHECK=1` pass ran here to prove
-the script works; its times are not figures and are not recorded.
+**Time, measured on the owner's Mac.** Thomas ran
+`bash test/perf/filter-a6/measure.sh` at `2496442cb3` (which contains
+`11e37bd142`, the commit adding both benchmarks, with neither file changed
+since), go1.27.3 darwin/arm64, Apple M4 Max on AC power, a clean tree under
+`internal/` and `pkg/`, ten samples each. The output and provenance are kept
+verbatim in [the A-6 Mac record](../../records/filter-wire-0-a6-mac.bench.txt).
+Per-route figures, the median of ten samples, with the fastest sample beside
+it:
+
+| Routes per exchange | Text era ns/route, median (fastest) | HEAD ns/route, median (fastest) | Text era B/route | HEAD B/route | Text era allocs/route | HEAD allocs/route |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 17067 (16989) | 12878 (12460) | 71454 | 5910 | 58.60 | 58.30 |
+| 16 | 28918 (17013) | 5319 (5266) | 71487 | 4899 | 58.74 | 22.29 |
+| 64 | 27341 (16549) | 4318 (4258) | 71562 | 5252 | 59.17 | 20.20 |
+
+The text era's samples at 16 and 64 routes spread from about 17 to 43 µs per
+route, while its single-route samples hold within 1%. No run here explains
+that spread, and it does not change the verdict: HEAD's slowest per-route
+sample at every batch size is faster than the text era's fastest at the same
+batch size. A single route costs about a quarter less, and a batch of 16 or
+64 costs between a third and a quarter of the text era's best case.
+
+**A-6 is confirmed.** The batched declared-field JSON is not slower per route
+than the text subject it replaced. It is faster at every batch size measured,
+and it allocates about a tenth of the bytes.
 
 
 ### Risks
