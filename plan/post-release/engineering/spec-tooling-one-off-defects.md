@@ -233,7 +233,7 @@ before execution. The responsible component remains unestablished.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `container-build-leaves-root-owned-scratch` | 2026-11-04 | poster proof default entrypoint rewrites shared SSH config and chowns shared scratch |
-| `gate-excludes-part-of-its-population` | 2026-11-04 | three remaining unclassified clock, site and PPPoE AC integration populations |
+| `gate-excludes-part-of-its-population` | 2026-11-04 | remaining site and PPPoE AC integration declarations after host-clock routing |
 | `container-build-leaves-root-owned-scratch` | 2026-11-04 | web-config child cwd writes root-owned audit output into checkout |
 | `error-path-discards-data-already-received` | 2026-11-04 | web-config startup failure removes its daemon diagnostic |
 | `gate-red-where-nothing-blocks-on-it` | 2026-11-04 | tracked historical filter-a6 shell recipe is the new native-helper census red |

@@ -51,7 +51,7 @@ func (d *Dashboard) handleVizEvents(w http.ResponseWriter, r *http.Request) {
 	typeFilter := r.URL.Query().Get("type")
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writeEventStream(w, d.state, peerFilter, typeFilter)
+	writeEventStream(w, d.state, peerFilter, typeFilter, d.state.clock.Now())
 }
 
 // handleVizConvergence serves the convergence histogram tab content.
@@ -78,13 +78,13 @@ func (d *Dashboard) handleVizChaosTimeline(w http.ResponseWriter, _ *http.Reques
 	defer d.state.RUnlock()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writeChaosTimeline(w, d.state, d.state.WarmupDuration)
+	writeChaosTimeline(w, d.state, d.state.WarmupDuration, d.state.clock.Now())
 }
 
 // writeEventStream renders the event stream feed with optional filtering.
-func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter string) {
+func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter string, now time.Time) {
 	h := &htmlWriter{w: w}
-	h.write(`<div class="viz-panel" hx-get="/viz/events" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerHTML"
+	h.write(`<div class="viz-panel" hx-get="/viz/events" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerMorph"
      hx-include="[name='peer'],[name='type']">
 <div class="viz-header">
   <h3>Event Stream</h3>
@@ -135,7 +135,7 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
 		}
 
 		evClass := eventTypeClass(ev.Type)
-		elapsed := formatElapsed(time.Since(ev.Time))
+		elapsed := formatElapsed(now.Sub(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		detail := eventDetail(ev)
 		detailStyle := chaosDetailStyle(ev)
@@ -226,7 +226,7 @@ func writeChaosEvents(w io.Writer, s *DashboardState) {
 	h := &htmlWriter{w: w}
 	const maxRows = 200
 
-	h.write(`<div class="viz-panel" hx-get="/viz/chaos-events" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerHTML">
+	h.write(`<div class="viz-panel" hx-get="/viz/chaos-events" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerMorph">
 <h3>Chaos Events</h3>`)
 
 	if len(s.ChaosHistory) == 0 {
@@ -357,15 +357,14 @@ func writeChaosTrack(w io.Writer, s *DashboardState, windowStart, now time.Time,
 
 // writeChaosTimeline renders two horizontal timelines with chaos event markers:
 // an overall timeline spanning the full run, and a rolling last-60s window.
-func writeChaosTimeline(w io.Writer, s *DashboardState, warmup time.Duration) {
+func writeChaosTimeline(w io.Writer, s *DashboardState, warmup time.Duration, now time.Time) {
 	h := &htmlWriter{w: w}
-	now := time.Now()
 	elapsed := now.Sub(s.StartTime)
 	if elapsed == 0 {
 		elapsed = time.Second
 	}
 
-	h.write(`<div class="viz-panel" hx-get="/viz/chaos-timeline" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerHTML">
+	h.write(`<div class="viz-panel" hx-get="/viz/chaos-timeline" hx-trigger="every 500ms"` + freezePoll + ` hx-target="#viz-content" hx-swap="innerMorph">
 <h3>Chaos Timeline</h3>`)
 
 	if len(s.ChaosHistory) == 0 {

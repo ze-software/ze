@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 )
 
 //go:embed assets
@@ -318,7 +317,7 @@ func (d *Dashboard) handlePeerDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writePeerDetail(w, ps, d.state.Active.isPinned(idx), d.state.sortedFamilies())
+	writePeerDetail(w, ps, d.state.Active.isPinned(idx), d.state.sortedFamilies(), d.state.clock.Now())
 }
 
 // handlePeerPin toggles the pin state for a peer.
@@ -334,7 +333,7 @@ func (d *Dashboard) handlePeerPin(w http.ResponseWriter, r *http.Request) {
 	if d.state.Active.isPinned(idx) {
 		d.state.Active.Unpin(idx)
 	} else {
-		d.state.Active.Pin(idx, time.Now())
+		d.state.Active.Pin(idx, d.state.clock.Now())
 	}
 	d.state.mu.Unlock()
 
@@ -359,7 +358,7 @@ func (d *Dashboard) handlePeerPromote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d.state.mu.Lock()
-	d.state.Active.Promote(idx, PriorityManual, time.Now())
+	d.state.Active.Promote(idx, PriorityManual, d.state.clock.Now())
 	d.state.mu.Unlock()
 
 	// Return updated peer table.
@@ -394,7 +393,7 @@ func (d *Dashboard) handleSidebarActiveSet(w http.ResponseWriter, _ *http.Reques
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	h := &htmlWriter{w: w}
-	h.writef(`<div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerHTML">
+	h.writef(`<div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerMorph">
   <span class="stat" title="Peers currently shown in the table / maximum visible"><span class="stat-label">Visible </span><span class="stat-value">%d/%d</span></span>
   <span class="stat" title="Time before an inactive peer is removed from the table"><span class="stat-label">TTL </span><span class="stat-value">%s</span></span>
 </div>`, d.state.Active.Len(), d.state.Active.MaxVisible, FormatDuration(d.state.Active.AdaptiveTTL()))
@@ -422,7 +421,7 @@ func (d *Dashboard) handleActiveSetMaxVisible(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	h := &htmlWriter{w: w}
-	h.writef(`<div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerHTML">
+	h.writef(`<div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerMorph">
   <span class="stat" title="Peers currently shown in the table / maximum visible"><span class="stat-label">Visible </span><span class="stat-value">%d/%d</span></span>
   <span class="stat" title="Time before an inactive peer is removed from the table"><span class="stat-label">TTL </span><span class="stat-value">%s</span></span>
 </div>`, d.state.Active.Len(), d.state.Active.MaxVisible, FormatDuration(d.state.Active.AdaptiveTTL()))
@@ -435,8 +434,8 @@ func (d *Dashboard) handleSidebarEvents(w http.ResponseWriter, _ *http.Request) 
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	h := &htmlWriter{w: w}
-	h.write(`<div id="events" class="event-list" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
-	writeRecentEvents(w, d.state)
+	h.write(`<div id="events" class="event-list" hx-swap="outerMorph" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
+	writeRecentEvents(w, d.state, d.state.clock.Now())
 	h.write(`</div>`)
 }
 

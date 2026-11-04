@@ -400,6 +400,9 @@ var excludedIntegrationPackages = map[string]string{
 		" Run the named host test as documented in docs/contributing/terminal-demos.md",
 	"internal/component/web/testing": "native observer and capture integration proofs require host agent-browser" +
 		" and Chromium; run the host package as documented in docs/architecture/testing/runner-architecture.md",
+	"internal/chaos/web": "live producer-clock capture proofs require host agent-browser, Chromium and an owned session root;" +
+		" the QEMU guest has no browser. Run the documented host clock package in" +
+		" docs/architecture/testing/runner-architecture.md",
 	"internal/test/cli": "native web integration proofs require an explicit current-source named le through" +
 		" -web-command-binary; QEMU's package pass supplies no such input. Run the documented host command in" +
 		" docs/architecture/testing/runner-architecture.md",

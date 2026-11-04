@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ze-software/ze/internal/chaos/engine"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -70,7 +69,7 @@ func (d *Dashboard) handleControlPause(w http.ResponseWriter, _ *http.Request) {
 // logControl writes a control event to the NDJSON log if a ControlLogger is configured.
 func (d *Dashboard) logControl(command, value string) {
 	if d.controlLogger != nil {
-		d.controlLogger.LogControl(command, value, time.Now())
+		d.controlLogger.LogControl(command, value, d.state.clock.Now())
 	}
 }
 

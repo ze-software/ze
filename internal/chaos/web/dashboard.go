@@ -6,14 +6,17 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -33,6 +36,9 @@ type Config struct {
 
 	// DebounceInterval is the SSE debounce interval (default 200ms).
 	DebounceInterval time.Duration
+
+	// Clock supplies the run's time domain. Nil uses the real clock.
+	Clock clock.Clock
 
 	// Logger for dashboard messages. Nil means discard.
 	Logger *slog.Logger
@@ -91,6 +97,9 @@ type Config struct {
 }
 
 func (c *Config) defaults() {
+	if c.Clock == nil {
+		c.Clock = clock.RealClock{}
+	}
 	if c.MaxVisible <= 0 {
 		c.MaxVisible = 40
 	}
@@ -188,7 +197,7 @@ func (d *Dashboard) setSpeedFactor(factor int) bool {
 func New(cfg Config) (*Dashboard, error) {
 	cfg.defaults()
 
-	state := NewDashboardState(cfg.PeerCount, cfg.MaxVisible, cfg.EventBufSize)
+	state := newDashboardState(cfg.PeerCount, cfg.MaxVisible, cfg.EventBufSize, cfg.Clock)
 	for idx, targets := range cfg.PeerFamilyTargets {
 		if ps := state.Peers[idx]; ps != nil {
 			ps.FamilySentTarget = targets
@@ -242,9 +251,8 @@ func New(cfg Config) (*Dashboard, error) {
 	// Auto-promote all peers when the total fits in the active set.
 	// This ensures small deployments show all peers immediately.
 	if cfg.PeerCount <= state.Active.MaxVisible {
-		now := time.Now()
 		for i := range cfg.PeerCount {
-			state.Active.Promote(i, PriorityLow, now)
+			state.Active.Promote(i, PriorityLow, state.StartTime)
 		}
 	}
 
@@ -414,7 +422,7 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			d.state.EORSeen[ev.PeerIndex] = true
 			d.state.EORCount++
 			if d.state.EORCount == d.state.PeerCount {
-				d.state.SyncDuration = time.Since(d.state.StartTime).Truncate(time.Millisecond)
+				d.state.SyncDuration = d.state.clock.Now().Sub(d.state.StartTime).Truncate(time.Millisecond)
 			}
 		}
 	case peer.EventError:
@@ -507,7 +515,7 @@ func (d *Dashboard) Broker() *sSEBroker {
 // runBroadcastLoop runs in a goroutine, periodically checking dirty flags
 // and broadcasting SSE events with rendered HTML fragments.
 func (d *Dashboard) runBroadcastLoop(ctx context.Context) {
-	ticker := time.NewTicker(d.broker.Interval())
+	ticker := d.state.clock.NewTicker(d.broker.Interval())
 	defer ticker.Stop()
 
 	// Convergence broadcasts at a lower frequency (~every 2s).
@@ -518,7 +526,7 @@ func (d *Dashboard) runBroadcastLoop(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case <-ticker.C():
 			convergenceTick++
 			d.broadcastDirty(convergenceTick%convergenceInterval == 0)
 		}
@@ -528,9 +536,12 @@ func (d *Dashboard) runBroadcastLoop(ctx context.Context) {
 // broadcastDirty reads dirty flags and sends SSE events for changed state.
 // When broadcastConvergence is true, also pushes convergence histogram updates.
 func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
-	now := time.Now()
-
+	// Keep the sampled time, rendered state, and transient clearing in one
+	// snapshot. Broadcast only enqueues nonblocking client sends, not HTTP I/O.
 	d.state.mu.Lock()
+	defer d.state.mu.Unlock()
+
+	now := d.state.clock.Now()
 	dirtyPeers, promotedPeers, dirtyGlobal := d.state.consumeDirty()
 	pendingToasts := d.state.consumePendingToasts()
 
@@ -542,7 +553,6 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 	if d.state.PeerCount > d.state.Active.MaxVisible {
 		removed = d.state.Active.Decay(now)
 	}
-	d.state.mu.Unlock()
 
 	if !dirtyGlobal && len(removed) == 0 && len(promotedPeers) == 0 && len(pendingToasts) == 0 && !broadcastConvergence {
 		return
@@ -555,35 +565,38 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 
 	// Broadcast stats and events updates.
 	if dirtyGlobal {
-		d.state.mu.RLock()
-		stats := d.renderStats(streamPanel)
-		events := d.renderRecentEvents(streamPanel)
-		d.state.mu.RUnlock()
+		stats := d.statsAt(streamPanel, now)
+		events := d.recentEventsAt(streamPanel, now)
 		d.broker.Broadcast(SSEEvent{Data: stats})
 		d.broker.Broadcast(SSEEvent{Data: events})
 	}
 
 	// Broadcast convergence histogram and trend (~every 2s).
 	if broadcastConvergence {
-		d.state.mu.RLock()
 		convergence := d.renderConvergence()
 		trend := d.renderConvergenceTrend()
-		d.state.mu.RUnlock()
 		d.broker.Broadcast(SSEEvent{Data: convergence})
 		d.broker.Broadcast(SSEEvent{Data: trend})
 	}
 
+	// Broadcast removals for decayed peers.
+	for _, idx := range removed {
+		d.broker.Broadcast(SSEEvent{Data: renderPeerRemoval(idx)})
+	}
+
 	// Broadcast new rows for newly promoted peers.
 	// Remove-then-add pattern: delete any stale row, then insert fresh.
-	d.state.mu.RLock()
-	for idx := range promotedPeers {
+	for _, idx := range slices.Sorted(maps.Keys(promotedPeers)) {
+		if !d.state.Active.Contains(idx) {
+			continue
+		}
 		d.broker.Broadcast(SSEEvent{Data: renderPeerRemoval(idx)})
 		row := d.renderPeerRowInsert(idx)
 		d.broker.Broadcast(SSEEvent{Data: row})
 	}
 
 	// Broadcast updates for dirty peers already in the active set.
-	for idx := range dirtyPeers {
+	for _, idx := range slices.Sorted(maps.Keys(dirtyPeers)) {
 		if promotedPeers[idx] {
 			continue // Already sent as peer-add above.
 		}
@@ -593,20 +606,12 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 		row := d.renderPeerRow(idx)
 		d.broker.Broadcast(SSEEvent{Data: row})
 	}
-	d.state.mu.RUnlock()
 
 	// Clear transient ChaosActive flags for rendered peers.
-	d.state.mu.Lock()
 	for idx := range dirtyPeers {
 		if ps := d.state.Peers[idx]; ps != nil {
 			ps.ChaosActive = false
 		}
-	}
-	d.state.mu.Unlock()
-
-	// Broadcast removals for decayed peers.
-	for _, idx := range removed {
-		d.broker.Broadcast(SSEEvent{Data: renderPeerRemoval(idx)})
 	}
 }
 
@@ -618,10 +623,15 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 // precede the div, so every outerHTML swap left the old donut behind as a
 // sibling and added a new one.
 func (d *Dashboard) renderStats(oob string) string {
+	return d.statsAt(oob, d.state.clock.Now())
+}
+
+// statsAt carries the same producer time to the card and the header label.
+func (d *Dashboard) statsAt(oob string, now time.Time) string {
 	var b textbuf.Buffer
 	counts := d.state.statusCounts()
 
-	b.Str(`<div id="stats"`).Str(oob).Str(` hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
+	b.Str(`<div id="stats"`).Str(oob).Str(` hx-swap="outerMorph" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
 	writeDonut(&b, counts, d.state.PeerCount)
 	writeDonutLegend(&b, counts)
 	writeDonutEnd(&b)
@@ -640,6 +650,7 @@ func (d *Dashboard) renderStats(oob string) string {
 	b.Str(syncStat(d.state.EORCount, d.state.PeerCount, d.state.SyncDuration))
 	b.Str(speedStat(d.state.Control.SpeedAvailable, d.state.Control.SpeedFactor))
 	b.Str(`</div>`)
+	writeUptime(&b, d.state.StartTime, now, streamPanel)
 	return b.String()
 }
 
@@ -655,9 +666,14 @@ func (d *Dashboard) renderConvergence() string {
 // renderRecentEvents returns the recent events card content. Pass streamPanel
 // to broadcast it and pagePanel to answer the poll.
 func (d *Dashboard) renderRecentEvents(oob string) string {
+	return d.recentEventsAt(oob, d.state.clock.Now())
+}
+
+// recentEventsAt shares its caller's sample with the event list.
+func (d *Dashboard) recentEventsAt(oob string, now time.Time) string {
 	var b textbuf.Buffer
-	b.Str(`<div id="events" class="event-list"`).Str(oob).Str(` hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
-	writeRecentEvents(&b, d.state)
+	b.Str(`<div id="events" class="event-list"`).Str(oob).Str(` hx-swap="outerMorph" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
+	writeRecentEvents(&b, d.state, now)
 	b.Str(`</div>`)
 	return b.String()
 }

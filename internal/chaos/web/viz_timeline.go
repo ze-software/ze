@@ -27,7 +27,7 @@ func (d *Dashboard) handleVizPeerTimeline(w http.ResponseWriter, r *http.Request
 	window := r.URL.Query().Get("window")
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writePeerTimeline(w, d.state, page, window)
+	writePeerTimeline(w, d.state, page, window, d.state.clock.Now())
 }
 
 // parseWindowDuration returns the duration for a window string, or 0 for "all".
@@ -54,8 +54,7 @@ type timelineWindow struct {
 }
 
 // timelineWindowFromState computes the visible window for the given window string.
-func timelineWindowFromState(s *DashboardState, window string) timelineWindow {
-	now := time.Now()
+func timelineWindowFromState(s *DashboardState, window string, now time.Time) timelineWindow {
 	winDur := parseWindowDuration(window)
 	tw := timelineWindow{windowEnd: now}
 	if winDur > 0 {
@@ -94,12 +93,12 @@ func writePeerTimelineTrack(w io.Writer, s *DashboardState, pagePeers []int, tw 
 
 // writePeerTimeline renders two peer state timelines: overall and last 60s.
 // Paginated at 30 peers per page.
-func writePeerTimeline(w io.Writer, s *DashboardState, page int, _ string) {
+func writePeerTimeline(w io.Writer, s *DashboardState, page int, _ string, now time.Time) {
 	h := &htmlWriter{w: w}
 	const peersPerPage = 30
 
-	twAll := timelineWindowFromState(s, "all")
-	twRecent := timelineWindowFromState(s, "1m")
+	twAll := timelineWindowFromState(s, "all", now)
+	twRecent := timelineWindowFromState(s, "1m", now)
 
 	// Build list of peers with transitions (sorted by peer index).
 	var peerIndices []int
@@ -128,7 +127,7 @@ func writePeerTimeline(w io.Writer, s *DashboardState, page int, _ string) {
 	endIdx := min(startIdx+peersPerPage, totalPeers)
 	pagePeers := peerIndices[startIdx:endIdx]
 
-	h.writef(`<div class="viz-panel" hx-get="/viz/peer-timeline?page=%d" hx-trigger="every 500ms"`+freezePoll+` hx-target="#viz-content" hx-swap="innerHTML">
+	h.writef(`<div class="viz-panel" hx-get="/viz/peer-timeline?page=%d" hx-trigger="every 500ms"`+freezePoll+` hx-target="#viz-content" hx-swap="innerMorph">
 <div class="viz-header">
   <h3>Peer State Timeline</h3>
   <div class="filters">`, page)

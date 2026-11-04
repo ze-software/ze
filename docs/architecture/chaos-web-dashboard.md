@@ -55,6 +55,72 @@ generation or daemon selection; an unknown CLI name still returns an error.
 <!-- source: internal/chaos/route/action.go -- ActionType.String -->
 <!-- source: internal/chaos/scenario/target.go -- ParseTarget, Target.DefaultBinary -->
 
+## Run Clock and Ordering
+
+`Config.Clock` supplies the dashboard's time domain; nil selects the core
+`clock.RealClock`. Construction samples it once for both the run start and
+initial peer promotion. Completion of initial EOR synchronization, manual peer
+promotion and pinning, throughput sampling, and active-set decay use that same
+clock. Logged control actions also receive a timestamp from the run clock.
+Peer events retain their supplied timestamps for histories, activity, route
+latency, and toasts; rendering does not rewrite event time.
+<!-- source: internal/chaos/web/dashboard.go -- Config.Clock, New, ProcessEvent, broadcastDirty -->
+<!-- source: internal/chaos/web/state.go -- newDashboardState -->
+<!-- source: internal/chaos/web/handlers.go -- handlePeerPin, handlePeerPromote -->
+<!-- source: internal/chaos/web/control.go -- logControl -->
+
+Each time-dependent HTTP render and each broadcast samples once. Nested recent
+events, panel slots, and both overall/recent timeline windows receive that
+sample rather than reading the clock again. The broadcast loop also creates its
+ticker through the retained clock. This controls dashboard production, not
+editor, authentication, or browser execution deadlines.
+<!-- source: internal/chaos/web/render.go -- writeLayout, writePeerDetail, writeRecentEvents -->
+<!-- source: internal/chaos/web/viz_panels.go -- writePanelGrid, writePanelSlotAt, renderVizToBuffer -->
+<!-- source: internal/chaos/web/viz.go -- writeEventStream, writeChaosTimeline -->
+<!-- source: internal/chaos/web/viz_timeline.go -- writePeerTimeline, timelineWindowFromState -->
+
+Broadcasts sample the clock while holding the state write lock, then retain
+that lock through dirty-state consumption, rendering, nonblocking SSE enqueue,
+and transient-flag clearing. A later `ProcessEvent` cannot enter between the
+sample and its rendered payloads or have a new transient flag cleared by an
+older batch. The broker only enqueues buffered client messages here; HTTP
+writes and flushes happen separately in the stream handler. No state clone or
+additional frame buffer is needed.
+<!-- source: internal/chaos/web/dashboard.go -- broadcastDirty, ProcessEvent -->
+<!-- source: internal/chaos/web/sse.go -- Broadcast, ServeHTTP -->
+
+The visible uptime label has no browser wall-time increment. Its initial value
+and replacements use the producer clock: the existing stats poll and dirty
+stats SSE fragment include an out-of-band uptime span. A broadcast passes its
+single sample to both stats/uptime and event ages; an idle open page still
+refreshes through the existing 500 ms stats poll. No additional route or timer
+transport is involved.
+<!-- source: internal/chaos/web/dashboard.go -- renderStats, statsAt, broadcastDirty -->
+<!-- source: internal/chaos/web/render.go -- writeUptime, writeLayout -->
+
+Periodic polls use HTMX's native `outerMorph` for self-refreshing fragments and
+`innerMorph` for visualization contents. Repeated responses retain matching DOM
+nodes and unchanged text and attributes instead of destroying and recreating
+the same view. Changed values still update, while retained form controls keep
+their focus, selection, and local input state. Initial and returned markup use
+the same polling swap mode. Click/navigation swaps and SSE insertion and
+replacement modes are unchanged.
+<!-- source: internal/chaos/web/render.go -- writeLayout, writeActiveSetInfo, writePeerGridFiltered -->
+<!-- source: internal/chaos/web/dashboard.go -- statsAt, recentEventsAt -->
+<!-- source: internal/chaos/web/handlers.go -- handleActiveSetMaxVisible, handleSidebarActiveSet, handleSidebarEvents -->
+<!-- source: internal/chaos/web/viz.go -- writeEventStream, writeChaosEvents, writeChaosTimeline -->
+<!-- source: internal/chaos/web/viz_matrix.go -- writeRouteMatrix, writeFamilyMatrix, writeAllPeers -->
+<!-- source: internal/chaos/web/viz_panels.go -- writePanelSlotAt -->
+<!-- source: internal/chaos/web/viz_timeline.go -- writePeerTimeline -->
+
+At capacity, eviction chooses the oldest non-pinned `LastActive`; equal times
+choose the lowest peer index. Decayed removals and promoted/updated row batches
+are ordered by ascending peer index. A broadcast sends decayed removals before
+insertions, removes each promoted row's stale DOM entry before inserting its
+replacement, and omits promotions that are no longer active.
+<!-- source: internal/chaos/web/state_activeset.go -- findEvictionCandidate, Decay -->
+<!-- source: internal/chaos/web/dashboard.go -- broadcastDirty -->
+
 ## Layout Architecture
 
 Three-panel layout designed for desktop monitors. Peer table shows an active set (default 40 peers) with auto-promotion on events and adaptive decay — not all 200+ peers at once.
@@ -113,8 +179,10 @@ Three-panel layout designed for desktop monitors. Peer table shows an active set
 | Peer gauge | "N/M established" with progress bar |
 | Route gauge | "R announced / S received" with delta indicators |
 
-Updated every second via SSE `tick` event.
-<!-- source: internal/chaos/web/dashboard.go -- Config.Seed, Config.PeerCount -->
+Uptime refreshes with dirty stats SSE messages and the existing 500 ms stats
+poll, using the producer clock rather than an independent browser timer.
+<!-- source: internal/chaos/web/dashboard.go -- statsAt, broadcastDirty -->
+<!-- source: internal/chaos/web/handlers.go -- handleSidebarStats -->
 
 ## Left Sidebar
 
@@ -410,8 +478,8 @@ skips the main swap when a response carries an out-of-band element.
 | Fragment | Producer | Frequency | Lands |
 |----------|----------|-----------|-------|
 | toast | `renderToast` | per queued toast | appended to `#toast-container`, inside a wrapper the swap discards |
-| stats card | `renderStats(streamPanel)` | per dirty batch (debounced 200ms) | replaces `#stats` |
-| recent events | `renderRecentEvents(streamPanel)` | per dirty batch | replaces `#events` |
+| stats card and uptime | `statsAt(streamPanel, now)` | per dirty batch (debounced 200ms), sharing its clock sample | replaces `#stats` and `#uptime` |
+| recent events | `recentEventsAt(streamPanel, now)` | per dirty batch, sharing its clock sample | replaces `#events` |
 | convergence histogram | `renderConvergence` | every 2s | replaces `#viz-convergence` |
 | convergence trend | `renderConvergenceTrend` | every 2s | replaces `#viz-convergence-trend` |
 | peer row | `renderPeerRow` | per dirty peer in the active set | replaces `#peer-{idx}` |
@@ -484,7 +552,7 @@ Every response this package writes is pinned by a golden fixture under `internal
 
 Two lists are machine-derived rather than hand-maintained, so a route or a renderer cannot be added without a fixture: `golden.RoutePatterns` reads the registrations in `handlers.go`, and the renderer list is read from the `render*` declarations in `dashboard.go` and `render.go`. A route or renderer that no case reaches fails the test by name.
 
-Two spans are normalized because they are clock-derived: the uptime in `writeLayout` and the Duration stat in `writeChaosTimeline`. Everything else is pinned by seeding the dashboard state. Recapture after a deliberate markup change with `go test ./internal/chaos/web -run TestChaosGoldenOutput -update-golden`, then read the diff.
+The golden dashboard uses a fixed producer clock with the existing three-hour run and relative event inputs. Initial uptime and stats/SSE uptime updates are asserted exactly, without an uptime rewrite or a browser timer. Only the existing Duration-stat normalization in `writeChaosTimeline` remains. Recapture after a deliberate markup change with `go test ./internal/chaos/web -run TestChaosGoldenOutput -update-golden`, then read the diff.
 <!-- source: internal/chaos/web/golden_test.go -- TestChaosGoldenOutput, chaosLiveRoutes, chaosSSERenderers -->
 
 ## WebDashboard Internal State

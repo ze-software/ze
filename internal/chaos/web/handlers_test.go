@@ -938,16 +938,34 @@ func TestProcessEventIntegration(t *testing.T) {
 	}
 	// A broadcast panel names its own target: the stream swaps into the layout
 	// element that opened it, so a panel without this lands nowhere.
-	if !strings.Contains(stats, `hx-swap-oob="outerHTML"`) {
+	if statsRoot, _, _ := strings.Cut(stats, ">"); !strings.Contains(statsRoot, `hx-swap-oob="outerHTML"`) {
 		t.Error("renderStats(streamPanel) must name itself out of band")
 	}
 	if strings.Contains(stats, "sse-swap") {
 		t.Error("renderStats must not carry sse-swap: htmx 4 reads it nowhere")
 	}
-	if strings.Contains(d.renderStats(pagePanel), "hx-swap-oob") {
-		t.Error("renderStats(pagePanel) answers the poll and must swap in place")
+	pageStats := d.renderStats(pagePanel)
+	for _, response := range []struct {
+		name    string
+		html    string
+		markers int
+	}{
+		{"streamPanel", stats, 2},
+		{"pagePanel", pageStats, 1},
+	} {
+		_, uptime, hasUptime := strings.Cut(response.html, `<span id="uptime" data-start="`)
+		elapsed, content, hasMarker := strings.Cut(uptime, `" hx-swap-oob="outerHTML">`)
+		value, _, hasClose := strings.Cut(content, `</span>`)
+		_, elapsedErr := strconv.Atoi(elapsed)
+		if !hasUptime || !hasMarker || !hasClose || elapsedErr != nil ||
+			strings.TrimSpace(value) == "" || strings.ContainsAny(value, "<>") {
+			t.Errorf("renderStats(%s) must carry a complete, nonempty producer-clock uptime OOB span", response.name)
+		}
+		if got := strings.Count(response.html, "hx-swap-oob"); got != response.markers {
+			t.Errorf("renderStats(%s) has %d OOB markers, want only %d on its declared targets", response.name, got, response.markers)
+		}
 	}
-	if !strings.Contains(stats, `hx-swap="outerHTML"`) {
+	if !strings.Contains(stats, `hx-swap="outerMorph"`) {
 		t.Error("renderStats must preserve hx-swap attribute")
 	}
 

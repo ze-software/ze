@@ -231,7 +231,7 @@ func TestWritePeerGridPolling(t *testing.T) {
 	if !strings.Contains(html, "hx-trigger=") {
 		t.Error("grid missing hx-trigger polling attribute")
 	}
-	if !strings.Contains(html, `hx-swap="outerHTML"`) {
+	if !strings.Contains(html, `hx-swap="outerMorph"`) {
 		t.Error("grid missing hx-swap attribute")
 	}
 }

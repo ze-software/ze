@@ -651,6 +651,12 @@ than the default QEMU package pass:
 
 - `internal/component/web/testing` requires host `agent-browser` and Chromium:
   `./le job run label browser-capture command env CGO_ENABLED=0 go test -tags integration ./internal/component/web/testing`.
+- `internal/chaos/web` requires the same native browser dependencies and an
+  active owned development-session root for retained capture evidence:
+  `./le job run label browser-clock command env CGO_ENABLED=0 go test -tags integration ./internal/chaos/web`.
+  Keep that session identity and checkout root when the compiled test is run
+  inside the pinned private renderer; bind only the invocation’s owned scratch
+  directory and the read-only real ownership marker, not shared session data.
 - The Linux integration proofs in `internal/test/cli` require a current-source
   named `le` for their actual command child, not a package run that skips the
   required `-web-command-binary` input:

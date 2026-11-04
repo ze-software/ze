@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/golden"
 )
@@ -33,42 +34,31 @@ const chaosGoldenFixtures = "golden"
 const chaosGoldenPeers = 6
 
 // chaosGoldenRun is how long the captured run has been going when a case
-// renders. Every seeded time is an offset from now minus this, so a fixture
-// holds elapsed times rather than wall-clock ones.
+// renders. StartTime is the fixed fixture clock minus this duration, and every
+// seeded event time is a fixed offset from StartTime.
 //
-// Three hours is chosen, not decorative. formatElapsed prints hours and minutes
-// above an hour and minutes and SECONDS below one, so a shorter run would put a
-// second-resolution age in the markup. Such a fixture goes red when the render
-// stalls across a second boundary. At three hours the age only changes on the
-// minute, which no unit test reaches.
+// Keep the three-hour run and its existing hour/minute age formatting while
+// asserting initial and stats/SSE uptime exactly against the fixture clock.
 const chaosGoldenRun = 3 * time.Hour
 
 // chaosGoldenSyncDuration is the sync time the stats card shows. ProcessEvent
-// computes SyncDuration from time.Since when the last peer sends its EOR, so
-// the capture pins it afterwards.
+// computes SyncDuration from the injected clock when the last peer sends its
+// EOR; the capture retains its explicit pin afterwards.
 const chaosGoldenSyncDuration = 4500 * time.Millisecond
 
-// chaosUptimeRewrite drops the uptime writeLayout renders.
-//
-// The producer is writeLayout (render.go), which computes
-// FormatDuration(time.Since(s.StartTime)) on every request. FormatDuration
-// keeps milliseconds, so the value moves between two renders of the same state.
-//
-// The data-start attribute beside it is NOT dropped: it is a whole number of
-// seconds, which the seeded StartTime pins. Only the text node is replaced, and
-// the pattern requires the id and the attribute around it, so a layout that
-// stops rendering the span leaves the raw value in the fixture instead of a
-// normalized one.
-var chaosUptimeRewrite = golden.Rewrite{
-	Pattern:     regexp.MustCompile(`(<span id="uptime" data-start="\d+">)[^<]*(</span>)`),
-	Replacement: "${1}<UPTIME>${2}",
+// chaosGoldenClock fixes producer time without starting a broadcast worker.
+type chaosGoldenClock struct {
+	clock.RealClock
+	now time.Time
 }
+
+func (c chaosGoldenClock) Now() time.Time { return c.now }
 
 // chaosRunDurationRewrite drops the run duration the chaos timeline shows.
 //
 // The producer is writeChaosTimeline (viz.go), which computes
-// FormatDuration(now.Sub(s.StartTime)) for its Duration stat. Same reason as
-// the uptime above: millisecond resolution against a clock that moves.
+// FormatDuration(now.Sub(s.StartTime)) for its Duration stat. This existing
+// timeline-only rewrite remains; initial and stats/SSE uptime are exact.
 //
 // The marker positions in the same panel are NOT dropped. They are percentages
 // of a three-hour window, which the seeded times pin.
@@ -127,11 +117,8 @@ var chaosGoldenCases = []chaosGoldenCase{
 	{Name: "assets-ze-svg", Method: http.MethodGet, Target: "/assets/ze.svg"},
 	{Name: "events-stream", Method: http.MethodGet, Target: "/events", Stream: true},
 
-	{Name: "index", Method: http.MethodGet, Target: "/",
-		Rewrites: []golden.Rewrite{chaosUptimeRewrite}},
-	{Name: "index-no-control", Method: http.MethodGet, Target: "/",
-		Setup:    chaosGoldenNoControl,
-		Rewrites: []golden.Rewrite{chaosUptimeRewrite}},
+	{Name: "index", Method: http.MethodGet, Target: "/"},
+	{Name: "index-no-control", Method: http.MethodGet, Target: "/", Setup: chaosGoldenNoControl},
 
 	{Name: "peers", Method: http.MethodGet, Target: "/peers"},
 	{Name: "peers-search", Method: http.MethodGet, Target: "/peers?search=1&status=up"},
@@ -311,14 +298,15 @@ func chaosSSERender(t *testing.T, c chaosSSECase) []byte {
 // the timeline transitions hold what the production code puts there rather than
 // what a test wrote into the fields.
 //
-// Every seeded time is StartTime plus a fixed offset, and StartTime is now
-// minus chaosGoldenRun. Nothing here reads the wall clock directly, so two
-// captures a week apart render the same bytes.
+// Every seeded time is StartTime plus a fixed offset. StartTime is the fixed
+// fixture clock minus chaosGoldenRun, so captures a week apart render the same
+// bytes without moving wall-clock input.
 func chaosGoldenDashboard() *Dashboard {
 	d := newTestDashboard(chaosGoldenPeers)
 	s := d.state
 
-	start := time.Now().Add(-chaosGoldenRun)
+	s.clock = chaosGoldenClock{now: time.Date(2026, time.January, 2, 3, 4, 5, 0, time.UTC)}
+	start := s.clock.Now().Add(-chaosGoldenRun)
 	s.StartTime = start
 	s.Seed = 4242
 	s.WarmupDuration = 5 * time.Minute
@@ -350,8 +338,7 @@ func chaosGoldenDashboard() *Dashboard {
 	chaosGoldenFaults(d, at)
 
 	// EORCount reaching PeerCount makes ProcessEvent stamp SyncDuration from
-	// time.Since. The capture pins it: a fixture must not hold the time the
-	// test itself took to seed.
+	// the injected clock's elapsed time. Retain the capture's explicit pin.
 	s.SyncDuration = chaosGoldenSyncDuration
 
 	return d
@@ -759,31 +746,44 @@ const chaosFreezeReason = "the poll carries data-freeze-poll where its trigger c
 const chaosFreezeListenerReason = ", and the inline script cancels a marked poll's " +
 	"htmx:before:request while the operator holds the dashboard frozen"
 
+// chaosPollMorphReason records the later producer repair, not the htmx 4 cutover.
+const chaosPollMorphReason = ", and periodic refreshes use native HTMX Morph to retain unchanged DOM nodes " +
+	"while changed producer values still update; click/navigation and SSE swap modes are unchanged"
+
+// These reasons record subsequent producer-clock repairs, not htmx 4 migration.
+const chaosRunClockReason = ", and the controlled producer clock pins exact initial uptime instead of a normalized placeholder, with no independent browser uptime timer"
+const chaosUptimeOOBReason = ", and the existing stats fragment also replaces #uptime out of band using the same producer-clock sample"
+const chaosTimelineClockReason = ", and the fixture samples the producer clock at exactly three hours, so timeline tick percentages and inclusive window-boundary ticks are exact"
+
 // chaosPortCutover explains every capture the cutover moves. A fixture that
 // differs and is not named here is a finding, and so is a name that matches no
 // difference.
 var chaosPortCutover = map[string]string{
-	"index.txt":                    chaosPortCutoverReason + chaosStreamCutoverReason + chaosErrorSurfaceReason + chaosFreezeListenerReason,
-	"index-no-control.txt":         chaosPortCutoverReason + chaosStreamCutoverReason + chaosErrorSurfaceReason + chaosFreezeListenerReason,
-	"viz-events.txt":               chaosFreezeReason,
-	"viz-events-filtered.txt":      chaosFreezeReason,
-	"viz-chaos-events.txt":         chaosFreezeReason,
-	"viz-chaos-timeline.txt":       chaosFreezeReason,
-	"viz-route-matrix.txt":         chaosFreezeReason,
-	"viz-route-matrix-latency.txt": chaosFreezeReason,
-	"viz-families.txt":             chaosFreezeReason,
-	"viz-all-peers.txt":            chaosFreezeReason,
-	"viz-all-peers-sort-chaos.txt": chaosFreezeReason,
-	"viz-peer-timeline.txt":        chaosFreezeReason,
-	"viz-panels.txt":               chaosFreezeReason,
-	"sidebar-stats.txt":            chaosNoSSESwapReason + chaosDonutReason,
-	"sidebar-events.txt":           chaosNoSSESwapReason,
+	"index.txt":                    chaosPortCutoverReason + chaosStreamCutoverReason + chaosErrorSurfaceReason + chaosFreezeListenerReason + chaosPollMorphReason + chaosRunClockReason,
+	"index-no-control.txt":         chaosPortCutoverReason + chaosStreamCutoverReason + chaosErrorSurfaceReason + chaosFreezeListenerReason + chaosPollMorphReason + chaosRunClockReason,
+	"viz-events.txt":               chaosFreezeReason + chaosPollMorphReason,
+	"viz-events-filtered.txt":      chaosFreezeReason + chaosPollMorphReason,
+	"viz-chaos-events.txt":         chaosFreezeReason + chaosPollMorphReason,
+	"viz-chaos-timeline.txt":       chaosFreezeReason + chaosPollMorphReason,
+	"viz-route-matrix.txt":         chaosFreezeReason + chaosPollMorphReason,
+	"viz-route-matrix-latency.txt": chaosFreezeReason + chaosPollMorphReason,
+	"viz-families.txt":             chaosFreezeReason + chaosPollMorphReason,
+	"viz-all-peers.txt":            chaosFreezeReason + chaosPollMorphReason,
+	"viz-all-peers-sort-chaos.txt": chaosFreezeReason + chaosPollMorphReason,
+	"viz-peer-timeline.txt":        chaosFreezeReason + chaosPollMorphReason + chaosTimelineClockReason,
+	"viz-panels.txt":               chaosFreezeReason + chaosPollMorphReason + chaosTimelineClockReason,
+	"sidebar-stats.txt":            chaosNoSSESwapReason + chaosDonutReason + chaosPollMorphReason + chaosUptimeOOBReason,
+	"sidebar-events.txt":           chaosNoSSESwapReason + chaosPollMorphReason,
 	"viz-convergence.txt":          chaosNoSSESwapReason,
 	"viz-convergence-trend.txt":    chaosNoSSESwapReason,
-	"sse-stats.html":               chaosOOBReason + chaosDonutReason,
-	"sse-events.html":              chaosOOBReason,
+	"sse-stats.html":               chaosOOBReason + chaosDonutReason + chaosPollMorphReason + chaosUptimeOOBReason,
+	"sse-events.html":              chaosOOBReason + chaosPollMorphReason,
 	"sse-convergence.html":         chaosOOBReason,
 	"sse-toast.html":               chaosOOBReason + ", inside a wrapper the swap discards, so the toast keeps its own class and handlers",
+	"active-set-max-visible.txt":   chaosPollMorphReason,
+	"sidebar-active-set.txt":       chaosPollMorphReason,
+	"peers-grid.txt":               chaosPollMorphReason,
+	"peers-grid-filtered.txt":      chaosPollMorphReason,
 }
 
 // TestChaosPortFidelity compares every captured unit against the bytes it held

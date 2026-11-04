@@ -4,6 +4,7 @@
 package web
 
 import (
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/chaos/peer"
@@ -62,7 +63,7 @@ func (a *ActiveSet) Promote(peerIndex int, priority PromotionPriority, now time.
 
 	// Evict oldest non-pinned peer if at capacity.
 	if len(a.entries) >= a.MaxVisible {
-		evicted := a.findEvictionCandidate(now)
+		evicted := a.findEvictionCandidate()
 		if evicted < 0 {
 			return false // All pinned, can't evict.
 		}
@@ -79,8 +80,8 @@ func (a *ActiveSet) Promote(peerIndex int, priority PromotionPriority, now time.
 }
 
 // findEvictionCandidate returns the peer index of the best eviction target,
-// or -1 if all peers are pinned.
-func (a *ActiveSet) findEvictionCandidate(_ time.Time) int {
+// or -1 if all peers are pinned. Equal activity times evict the lowest index.
+func (a *ActiveSet) findEvictionCandidate() int {
 	var (
 		candidate = -1
 		oldest    time.Time
@@ -89,7 +90,7 @@ func (a *ActiveSet) findEvictionCandidate(_ time.Time) int {
 		if e.Pinned {
 			continue
 		}
-		if candidate < 0 || e.LastActive.Before(oldest) {
+		if candidate < 0 || e.LastActive.Before(oldest) || e.LastActive.Equal(oldest) && idx < candidate {
 			candidate = idx
 			oldest = e.LastActive
 		}
@@ -141,6 +142,7 @@ func (a *ActiveSet) Decay(now time.Time) []int {
 			removed = append(removed, idx)
 		}
 	}
+	slices.Sort(removed)
 	for _, idx := range removed {
 		delete(a.entries, idx)
 	}

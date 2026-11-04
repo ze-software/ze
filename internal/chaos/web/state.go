@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/chaos/peer"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -388,6 +389,7 @@ const maxPendingToasts = 5
 // DashboardState holds all mutable state for the web dashboard, protected by a RWMutex.
 type DashboardState struct {
 	mu sync.RWMutex
+	clock clock.Clock
 
 	// Per-peer state, indexed by peer index.
 	Peers map[int]*PeerState
@@ -480,14 +482,20 @@ type DashboardState struct {
 
 // NewDashboardState creates a new dashboard state.
 func NewDashboardState(peerCount, maxVisible, eventBufSize int) *DashboardState {
+	return newDashboardState(peerCount, maxVisible, eventBufSize, clock.RealClock{})
+}
+
+// newDashboardState retains the run clock and samples its initial time once.
+func newDashboardState(peerCount, maxVisible, eventBufSize int, runClock clock.Clock) *DashboardState {
 	peers := make(map[int]*PeerState, peerCount)
 	for i := range peerCount {
 		peers[i] = newPeerState(i, 100) // 100 events per peer ring buffer
 	}
 	return &DashboardState{
+		clock:            runClock,
 		Peers:            peers,
 		Active:           newActiveSet(maxVisible),
-		StartTime:        time.Now(),
+		StartTime:        runClock.Now(),
 		PeerCount:        peerCount,
 		EORSeen:          make([]bool, peerCount),
 		GlobalEvents:     NewRingBuffer[peer.Event](eventBufSize),

@@ -96,7 +96,7 @@ func (h *htmlWriter) writef(format string, args ...any) {
 func writeLayout(w io.Writer, d *Dashboard) {
 	h := &htmlWriter{w: w}
 	s := d.state
-	uptime := FormatDuration(time.Since(s.StartTime))
+	now := s.clock.Now()
 
 	h.write(`<!DOCTYPE html>
 <html lang="en">
@@ -196,7 +196,9 @@ function tpSync(){
 
 <div class="header">
   <h1><img class="ze-logo" src="/assets/ze.svg" alt="Ze" width="24" height="24"> Ze Chaos</h1>
-  <span class="run-info">peers: ` + itoa(s.PeerCount) + ` | uptime: <span id="uptime" data-start="` + itoa(int(time.Since(s.StartTime).Seconds())) + `">` + uptime + `</span></span>
+  <span class="run-info">peers: ` + itoa(s.PeerCount) + ` | uptime: `)
+	writeUptime(w, s.StartTime, now, pagePanel)
+	h.write(`</span>
 </div>`)
 
 	// Control strip (between header and content).
@@ -208,7 +210,7 @@ function tpSync(){
 <div class="sidebar">
   <div class="card">
     <h3>Stats</h3>
-    <div id="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
+    <div id="stats" hx-swap="outerMorph" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
 
 	// Donut chart showing peer status distribution.
 	counts := s.statusCounts()
@@ -256,9 +258,9 @@ function tpSync(){
 	h.write(`
   <div class="card">
     <h3>Recent Events</h3>
-    <div id="events" class="event-list" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
+    <div id="events" class="event-list" hx-swap="outerMorph" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
 
-	writeRecentEvents(w, s)
+	writeRecentEvents(w, s, now)
 
 	h.write(`
     </div>
@@ -357,10 +359,18 @@ document.body.addEventListener('htmx:sse:error',function(){conn().display='block
 document.body.addEventListener('htmx:after:request',function(e){var c=e.detail&&e.detail.ctx;if(c&&c.response&&c.response.status<400)conn().display='none'});
 document.body.addEventListener('htmx:sse:after:connection',function(){conn().display='none'});})();
 document.body.addEventListener('htmx:before:request',function(e){var c=e.detail&&e.detail.ctx;if(!window._frozen||!c)return;if(c.sourceEvent&&c.sourceEvent.type==='every'&&c.sourceElement&&c.sourceElement.hasAttribute('data-freeze-poll'))e.preventDefault()});
-(function(){var el=document.getElementById('uptime');if(!el)return;var s=parseInt(el.dataset.start,10)||0;function fmt(t){var h=Math.floor(t/3600),m=Math.floor((t%3600)/60),sec=t%60;if(h>0)return h+'h'+m+'m'+sec+'s';if(m>0)return m+'m'+sec+'s';return sec+'s';}setInterval(function(){s++;el.textContent=fmt(s)},1000)})();
 </script>
 </body>
 </html>`)
+}
+
+// writeUptime keeps the initial label and polled/streamed replacements on the
+// caller's producer-clock sample. Poll responses replace it out of band too.
+func writeUptime(w io.Writer, start, now time.Time, oob string) {
+	h := &htmlWriter{w: w}
+	elapsed := now.Sub(start)
+	h.writef(`<span id="uptime" data-start="%d"%s>%s</span>`,
+		int(elapsed.Seconds()), oob, FormatDuration(elapsed))
 }
 
 // writeTrackPeerControl renders the "Track" input to promote a peer into the table.
@@ -376,7 +386,7 @@ func writeTrackPeerControl(h *htmlWriter, s *DashboardState) {
 func writeActiveSetInfo(h *htmlWriter, s *DashboardState) {
 	h.write(`<span class="strip-sep"></span>`)
 	h.writef(
-		`<div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerHTML">`+
+		`<div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerMorph">`+
 			`<span class="stat" title="Number of peers currently tracked in the table vs maximum allowed"><span class="stat-label">Visible </span><span class="stat-value">%d/%d</span></span>`+
 			`<span class="stat" title="Adaptive time-to-live: inactive peers are removed from the table after this duration"><span class="stat-label">TTL </span><span class="stat-value">%s</span></span>`+
 			`</div>`, s.Active.Len(), s.Active.MaxVisible, FormatDuration(s.Active.AdaptiveTTL()))
@@ -465,7 +475,7 @@ func writePeerGrid(w io.Writer, state *DashboardState) {
 // The "fault" status filter matches down, reconnecting, and idle peers.
 func writePeerGridFiltered(w io.Writer, state *DashboardState, statusFilter, search string) {
 	h := &htmlWriter{w: w}
-	h.write(`<div id="peer-grid" class="peer-grid" hx-get="/peers/grid" hx-trigger="every 2s" hx-swap="outerHTML" hx-include="[name='search'],[name='status']">`)
+	h.write(`<div id="peer-grid" class="peer-grid" hx-get="/peers/grid" hx-trigger="every 2s" hx-swap="outerMorph" hx-include="[name='search'],[name='status']">`)
 	// [+] cell: always first, always visible, opens input for adding a peer by number.
 	h.write(`<div class="peer-cell peer-cell-add" onclick="gridAddPeer()" title="Add peer by number"><span class="pc-id">+</span></div>`)
 	for idx := range state.PeerCount {
@@ -630,7 +640,7 @@ func writeDonutEnd(w io.Writer) {
 
 // writePeerDetail renders the detail pane for a single peer.
 // allFamilies is the sorted list of all families seen across all peers.
-func writePeerDetail(w io.Writer, ps *PeerState, pinned bool, allFamilies []string) {
+func writePeerDetail(w io.Writer, ps *PeerState, pinned bool, allFamilies []string, now time.Time) {
 	h := &htmlWriter{w: w}
 	pinLabel := "Pin"
 	if pinned {
@@ -707,7 +717,7 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool, allFamilies []stri
 	for i := range slices.Backward(events) {
 		ev := &events[i]
 		evClass := eventTypeClass(ev.Type)
-		elapsed := formatElapsed(time.Since(ev.Time))
+		elapsed := formatElapsed(now.Sub(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		detail := eventDetail(ev)
 		h.writef(`<div class="event-row"><span class="event-time">%s ago</span><span class="event-type %s">%s</span><span>%s</span></div>`,
@@ -721,7 +731,7 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool, allFamilies []stri
 }
 
 // writeRecentEvents renders the global recent events list.
-func writeRecentEvents(w io.Writer, s *DashboardState) {
+func writeRecentEvents(w io.Writer, s *DashboardState, now time.Time) {
 	h := &htmlWriter{w: w}
 	events := s.GlobalEvents.All()
 	// Show most recent first, limit to last 30.
@@ -732,7 +742,7 @@ func writeRecentEvents(w io.Writer, s *DashboardState) {
 	for i := len(events) - 1; i >= start; i-- {
 		ev := events[i]
 		evClass := eventTypeClass(ev.Type)
-		elapsed := formatElapsed(time.Since(ev.Time))
+		elapsed := formatElapsed(now.Sub(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		h.writef(`<div class="event-row"><span class="event-time">%s</span><span class="event-type %s">p%d %s</span></div>`,
 			elapsed, evClass, ev.PeerIndex, label)

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -72,7 +73,7 @@ func (d *Dashboard) handleVizPanelContent(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	var buf bytes.Buffer
-	renderVizToBuffer(&buf, d, vizName)
+	renderVizToBuffer(&buf, d, vizName, d.state.clock.Now())
 	content := stripOuterVizAttrs(buf.String())
 	h := &htmlWriter{w: w}
 	h.write(content)
@@ -112,16 +113,22 @@ func vizInterval(name string) string {
 
 // writePanelGrid renders the CSS Grid container holding all panel slots.
 func writePanelGrid(w io.Writer, d *Dashboard, selections [maxPanels]string) {
+	now := d.state.clock.Now()
 	h := &htmlWriter{w: w}
 	h.write(`<div class="panel-grid">`)
 	for i := range maxPanels {
-		writePanelSlot(w, d, i, selections)
+		writePanelSlotAt(w, d, i, selections, now)
 	}
 	h.write(`</div>`)
 }
 
 // writePanelSlot renders one panel: dropdown selector + viz content area with independent polling.
 func writePanelSlot(w io.Writer, d *Dashboard, slot int, selections [maxPanels]string) {
+	writePanelSlotAt(w, d, slot, selections, d.state.clock.Now())
+}
+
+// writePanelSlotAt renders a slot using the enclosing operation's time sample.
+func writePanelSlotAt(w io.Writer, d *Dashboard, slot int, selections [maxPanels]string, now time.Time) {
 	h := &htmlWriter{w: w}
 	selected := selections[slot]
 	interval := vizInterval(selected)
@@ -143,34 +150,34 @@ func writePanelSlot(w io.Writer, d *Dashboard, slot int, selections [maxPanels]s
 	h.write(`</select></div>`)
 
 	// Content area with independent HTMX polling.
-	h.writef(`<div class="panel-content" id="viz-panel-content-%s" hx-get="/viz/panel-content?panel=%s&viz=%s" hx-trigger="every %s"`+freezePoll+` hx-swap="innerHTML">`,
+	h.writef(`<div class="panel-content" id="viz-panel-content-%s" hx-get="/viz/panel-content?panel=%s&viz=%s" hx-trigger="every %s"`+freezePoll+` hx-swap="innerMorph">`,
 		slotStr, slotStr, selected, interval)
 
 	// Render initial content inline.
 	var buf bytes.Buffer
-	renderVizToBuffer(&buf, d, selected)
+	renderVizToBuffer(&buf, d, selected, now)
 	h.write(stripOuterVizAttrs(buf.String()))
 	h.write(`</div></div>`)
 }
 
 // renderVizToBuffer dispatches to the appropriate viz write function,
 // capturing the output in the provided writer.
-func renderVizToBuffer(w io.Writer, d *Dashboard, vizName string) {
+func renderVizToBuffer(w io.Writer, d *Dashboard, vizName string, now time.Time) {
 	switch vizName {
 	case vizFamilies:
 		writeFamilyMatrix(w, d.state)
 	case vizConvergence:
 		writeConvergenceHistogram(w, d.state.Convergence, d.state.ConvergenceDeadline, pagePanel)
 	case vizPeerTimeline:
-		writePeerTimeline(w, d.state, 1, "all")
+		writePeerTimeline(w, d.state, 1, "all", now)
 	case vizEvents:
-		writeEventStream(w, d.state, "", "")
+		writeEventStream(w, d.state, "", "", now)
 	case "all-peers":
 		writeAllPeers(w, d.state, "id", "asc")
 	case "route-matrix":
 		writeRouteMatrix(w, d.state.RouteMatrix, routeMatrixOpts{})
 	case "chaos-timeline":
-		writeChaosTimeline(w, d.state, d.state.WarmupDuration)
+		writeChaosTimeline(w, d.state, d.state.WarmupDuration, now)
 	case "chaos-events":
 		writeChaosEvents(w, d.state)
 	case "convergence-trend":
