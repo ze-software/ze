@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
@@ -214,8 +215,10 @@ func runFilterIRR(conn net.Conn) int {
 	p.OnResolverCacheClear(store.ResolverCaches(), plug.clearResolverCache)
 
 	if err := p.Run(ctx, &sdk.Registration{
-		Commands:    commandDecls(),
-		WantsConfig: []string{configRootBGP},
+		Commands: commandDecls(),
+		// A forked program has no registry row to supply ConfigReads, so its
+		// Stage 1 declaration must request the policy settings as well as peers.
+		WantsConfig: []string{configRootBGP, policy.RootName},
 		Filters:     filterDecls(),
 	}); err != nil {
 		logger().Error("filter-irr plugin failed", "error", err)

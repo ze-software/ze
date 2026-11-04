@@ -80,8 +80,13 @@ verified candidate is an error. With `OnConfigure` alone the SDK answered every
 apply OK and called nothing, so a changed as-set was accepted and ignored.
 `test/reload/bgp-filter-irr-added-live.ci` proves the edit is enforced. The
 transaction is the SDK's `ConfigTx`, which keeps the verified candidate and
-the replaced config; the filter supplies only the parse of the bgp subtree and
-`handleConfigure` as the install.
+the replaced config; the filter parses both the `bgp` and `policy` roots and
+uses `handleConfigure` as the install. Its Stage 1 `WantsConfig` requests both:
+`bgp` supplies peers and AS-SETs, while `policy` supplies the IRR server and
+refresh settings. An external program has no compiled-in registry row, so it
+cannot rely on that row's `ConfigReads` to receive `policy`. The same settings
+therefore reach the internal and forked evaluator.
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR -->
 <!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- newIRRConfigTx -->
 <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx -->
 
