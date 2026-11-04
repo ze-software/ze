@@ -550,7 +550,7 @@ against the peer address has two values to compare.
 | `login` | `user` + `password` | Submit the real login form once and wait for a loaded authenticated page before continuing |
 | `back` | none | The browser's own back button. The only way to prove what a pushed URL does when the operator returns to it: htmx 2 restores its own history cache, htmx 4 keeps none and the browser navigates for real |
 | `forward` | none | The browser's own forward button. htmx 4 traverses the Navigation API, which holds entries on both sides of the current one, and the entry AHEAD is reached by a second traversal that `back` cannot make |
-| `screenshot` | `file` | Save a screenshot |
+| `screenshot` | `file` | Save a screenshot only after two render frames, loaded fonts, finite animations and fetch/XHR work settle under the case deadline |
 
 <!-- source: internal/component/web/testing/runner.go -- executeAction: open/click/fill/hover/press/wait/wait-until/login/back/forward/screenshot -->
 
@@ -577,6 +577,50 @@ the absence of the login form under `expectDeadline`; it neither re-submits nor
 re-opens the page. Failure retains the final snapshot.
 <!-- source: internal/component/web/testing/runner.go -- Login, waitLogin, loginReadyExpr -->
 
+The browser configuration demonstration and its validator parse the same
+`test/web/recorded-config-save.wb` journey with `ParseWBFile`, then execute its
+ordered steps with the same runner. It submits the real login form, edits and
+saves the hostname, reviews the diff, confirms the commit, re-fetches the clean
+pending diff and navigates to read the committed value. Its paced waits are
+presentation holds, not evidence of readiness. `RunWBCaseWithCapture` adds only
+an optional final capture: the same deadline bounds render/font/finite-animation
+and request settling, plus the capture callback. Installed request observation
+and finite counter/timestamp values are required: absent observation is not idle,
+and capture refuses within its deadline before taking a screenshot. The
+callback borrows the owned browser's CDP endpoint before normal owned cleanup,
+including capture failure.
+Failure diagnostics preserve the original command/deadline cause alongside the
+last completed structured readiness observation: request instrumentation and
+types/finite values, quiet time, document/font/visibility state, finite animation
+targets/timing, and frame progress. Samples are labeled before or after the frame
+wait; a stale sample cannot establish what a later timed-out eval was doing.
+Diagnostic queries consume the existing capture retry/case budget.
+<!-- source: internal/component/web/testing/runner.go -- RunWBCase, RunWBCaseWithCapture, runWBCase -->
+<!-- source: internal/component/web/testing/capture.go -- WBCapture, settleCapture, capture -->
+<!-- source: internal/le/site/terminaldemo/web_config.go -- runWebConfigJourney -->
+
+Request observation is registered on the owned native daemon before the first
+application navigation. The pinned agent-browser 0.26.0 does not consume
+`AGENT_BROWSER_INIT_SCRIPTS`; the runner uses its newline-JSON `addinitscript`
+action, backed by `Page.addScriptToEvaluateOnNewDocument` on the persistent
+active-page CDP session. Before registration, it evaluates that same source with
+an explicit `about:blank` guard and requires a positive installation result,
+preserving browser exception details. Registration or evaluation failure prevents
+application navigation and retains normal checked browser cleanup. It never
+injects observation after an application page has already started its requests.
+The endpoint follows the pinned native directory priority: explicit
+`AGENT_BROWSER_SOCKET_DIR`, `XDG_RUNTIME_DIR/agent-browser`, the home directory's
+`.agent-browser`, then platform temp. Unix uses the owned session's `.sock`;
+Windows reads its actual `.port` sidecar. Dial/read/write share the case budget;
+the cancellation callback is joined and each connection closed before return.
+Responses must be complete newline-JSON, at most 1 MiB, and match the request ID
+with an explicit success verdict. There is no version fallback or guessed idle.
+<!-- source: internal/component/web/testing/render_observer.go -- Browser.renderObserverScript, renderObserver.command, renderObserverSocketDir -->
+The pinned native contract is implemented by its
+[script actions](https://github.com/vercel-labs/agent-browser/blob/v0.26.0/cli/src/native/actions.rs),
+[CDP registration and evaluation](https://github.com/vercel-labs/agent-browser/blob/v0.26.0/cli/src/native/browser.rs),
+and [session transport](https://github.com/vercel-labs/agent-browser/blob/v0.26.0/cli/src/connection.rs).
+
 Two properties of `wait-until` bite if you assume otherwise.
 
 **It leaves the browser on the path it polled.** Every expectation after it judges
@@ -601,6 +645,21 @@ browser-failure and startup-deadline cases. Its server and browser executables
 are owned fixtures; neither proof establishes detached-browser descendant cleanup.
 <!-- source: internal/test/cli/cmd_web_resource_integration_linux_test.go -- TestWebNativeExclusiveCleanup, TestWebAdmissionWorker -->
 <!-- source: internal/test/cli/cmd_web_command_integration_linux_test.go -- TestWebNativeCommand -->
+
+The browser integration packages have explicit development-host routes rather
+than the default QEMU package pass:
+
+- `internal/component/web/testing` requires host `agent-browser` and Chromium:
+  `./le job run label browser-capture command env CGO_ENABLED=0 go test -tags integration ./internal/component/web/testing`.
+- The Linux integration proofs in `internal/test/cli` require a current-source
+  named `le` for their actual command child, not a package run that skips the
+  required `-web-command-binary` input:
+  `./le job run label browser-command command sh -c 'CGO_ENABLED=0 go test -tags integration ./internal/test/cli -web-command-binary="$LE_BIN"'`.
+
+The QEMU coverage declarations name these host routes explicitly. A missing
+browser dependency or omitted native-binary argument is not execution evidence.
+<!-- source: internal/le/test/qemu/alltests.go -- excludedIntegrationPackages -->
+
 
 Immediate browser commands use a separate two-second `WaitDelay` to bound output
 drain after exit or cancellation. A retained pipe becomes a cleanup error rather

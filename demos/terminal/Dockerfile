@@ -1,8 +1,8 @@
 # The image every demo is rendered in.
 #
-# It carries what the demos need and nothing more: Chromium with Playwright for
-# the browser screenshot, the network tools the scenarios drive, and the three
-# font families below.
+# It carries what the demos need and nothing more: Chromium, the shared
+# agent-browser runner and Playwright's CDP WebP capture, the network tools the
+# scenarios drive, and the three font families below.
 #
 # The vendored fonts are load-bearing, and they are the ONLY fonts the image
 # holds: the copy below removes every font a Debian package installed, so what
@@ -39,10 +39,13 @@ FROM debian
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates chromium curl fontconfig iproute2 iputils-ping libnl-3-200 libnl-genl-3-200 libssl3t64 netcat-openbsd nftables nodejs npm openssh-client procps sshpass \
-    && npm install --global playwright-core@1.55.0 \
+    && npm install --global playwright-core@1.55.0 agent-browser@0.26.0 \
     && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
 ENV NODE_PATH=/usr/local/lib/node_modules
+ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium \
+    AGENT_BROWSER_ARGS=--no-sandbox,--disable-dev-shm-usage \
+    AGENT_BROWSER_COLOR_SCHEME=dark
 
 COPY fonts/fira-code /usr/share/fonts/fira-code
 COPY fonts/liberation /usr/share/fonts/liberation

@@ -368,13 +368,21 @@ WebP changes its image encoding, not the captured session. It does not constitut
 a new recording or new runtime proof.
 
 Browser demonstrations publish a WebP screenshot and their authored transcript.
-The browser driver still performs the configuration workflow and observes its
-result, but it does not record video. Terminal demonstrations retain their
-`.cast` and transcript files. Recordings remain an explicit manual action, not
-a site-build step.
+Validation and recording both execute `test/web/recorded-config-save.wb` through
+the native browser runner: real form login, edit, Save, diff review, confirmation
+and a fresh readback. Recording alone adds a capture after actual font, finite
+animation, render-frame and request settling. The existing Playwright helper
+borrows that owned browser's CDP endpoint to write WebP directly; it has no second
+configuration workflow and records no video. Rebuild the renderer image after
+this runner dependency changes (`agent-browser` is pinned in its Dockerfile).
+Terminal demonstrations retain their `.cast` and transcript files. Recordings
+remain an explicit manual action, not a site-build step. The authored journey
+and browser executor sources participate in the recording's freshness digest.
 <!-- source: demos/terminal/web-config/demo.cjs -- captured committed configuration -->
 <!-- source: internal/le/site/terminaldemo/manifest.go -- assetExtensions, assetNames -->
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.renderDemo -->
+<!-- source: internal/le/site/terminaldemo/web_config.go -- runWebConfigJourney, captureWebConfig -->
+<!-- source: internal/component/web/testing/runner.go -- RunWBCaseWithCapture -->
 
 Older tape `Output` directives can still name `.webm`. The native PTY recorder
 always replaces that suffix with `.cast` and writes terminal events, not video.

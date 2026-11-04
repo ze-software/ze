@@ -325,11 +325,13 @@ func runWebConfig(action string) error {
 			return err
 		}
 		fmt.Println("web demo ready")
+	case "record":
+		return runWebConfigJourney(true)
 	case commandStop:
 		stopScenario(id, "pids")
 		fmt.Println("web demo stopped")
 	default:
-		return fmt.Errorf("web-config action must be start or stop")
+		return fmt.Errorf("web-config action must be start, stop or record")
 	}
 	return nil
 }

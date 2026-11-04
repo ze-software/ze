@@ -1,0 +1,52 @@
+# Test: The recorded browser configuration journey logs in, saves and commits a hostname
+# VALIDATES: real form login, singleton Save, reviewed diff, confirmation and fresh semantic readback
+# PREVENTS: validating a Basic-auth shortcut or an unsaved input instead of the recorded workflow
+# This file is also parsed by both web-config demo consumers. Millisecond waits
+# preserve the presentation's reading pace only; every transition has a state
+# assertion, and recording separately waits for actual render/network settling.
+
+option=timeout:value=90s
+option=viewport:width=1680:height=1008
+option=auth:user=admin:password=secret123:role=admin
+
+# Submit the actual login form, including the original presentation pacing.
+action=open:path=/
+expect=element:id=username
+expect=element:id=password
+action=fill:id=username:value=admin
+action=wait:ms=1000
+action=fill:id=password:value=secret123
+action=wait:ms=1400
+action=press:id=password:key=Enter
+expect=url:contains=/show/
+expect=element:id=notification-bar
+expect=html:not-contains=action="/login"
+action=wait:ms=3500
+
+action=open:path=/show/system/identity/
+expect=element:id=field-hostname
+expect=element:text=System Identity
+expect=html:not-contains=value="edge-demo"
+action=wait:ms=3500
+action=fill:id=field-hostname:value=edge-demo
+action=wait:ms=2400
+action=click:id=workbench-form-save
+expect=html:contains=commit-bar visible
+action=wait:ms=3500
+
+action=click:id=commit-review-btn
+expect=html:contains=diff-modal open
+expect=html:contains=Review changes (1)
+expect=html:contains=system host edge-demo
+action=wait:ms=6000
+action=click:text=Confirm Commit
+# Re-fetch the server's pending diff, not the filled DOM or a cached page.
+action=wait-until:path=/config/diff:contains=Review changes (0)
+expect=html:not-contains=system host edge-demo
+action=wait:ms=3500
+# A new navigation plus the clean server-side diff distinguishes committed
+# configuration from an unsaved field or a still-pending candidate.
+action=open:path=/show/system/identity/
+expect=element:text=System Identity
+expect=html:contains=value="edge-demo"
+expect=html:not-contains=commit-bar visible

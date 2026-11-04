@@ -395,6 +395,14 @@ var excludedIntegrationPackages = map[string]string{
 		" Docker client and skips on every other system, so the Linux guest cannot run it; run it on the Mac" +
 		" through ./le job run as its file header documents" +
 		" (internal/le/setup/docker/kernel/dockerkernel_apparmor_colima_integration_test.go)",
+	"internal/le/site/terminaldemo": "TestWebConfigPosterUsesAuthoredInputs routes its compiled test binary" +
+		" through the pinned Docker renderer with private networking; the QEMU guest lacks agent-browser." +
+		" Run the named host test as documented in docs/contributing/terminal-demos.md",
+	"internal/component/web/testing": "native observer and capture integration proofs require host agent-browser" +
+		" and Chromium; run the host package as documented in docs/architecture/testing/runner-architecture.md",
+	"internal/test/cli": "native web integration proofs require an explicit current-source named le through" +
+		" -web-command-binary; QEMU's package pass supplies no such input. Run the documented host command in" +
+		" docs/architecture/testing/runner-architecture.md",
 	"internal/le/test/deployment": "requires the host Docker daemon and privileged VPP containers;" +
 		" run TestVPPSRv6ServiceRoute through ./le job run as documented in docs/architecture/testing/interop.md",
 	"internal/le/test/qemu": "boots its own QEMU guest on the host (TestDockerLabGuestBootsZeKernel), so it" +

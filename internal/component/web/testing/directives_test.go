@@ -111,7 +111,10 @@ func TestLoginActionDrivesLoginForm(t *testing.T) {
 		t.Fatalf("open admin page: %v", err)
 	}
 	assertAgentCommands(t, logPath, []string{
-		"--ignore-https-errors open https://127.0.0.1:1234/",
+		"--ignore-https-errors open about:blank",
+		"sdk evaluate",
+		"sdk addinitscript",
+		"open https://127.0.0.1:1234/",
 		"eval " + inflightIdleExpr,
 		"fill #username noc",
 		"get value #username",
@@ -278,10 +281,12 @@ func installFlippingAgentBrowser(t *testing.T, flip int) string {
 
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "agent-browser.log")
+	bootstrap := installFakeObserver(t, logPath)
 	opensPath := filepath.Join(dir, "opens")
 	scriptPath := filepath.Join(dir, "agent-browser")
 	script := "#!/bin/sh\n" +
 		"printf '%s\\n' \"$*\" >> \"$AGENT_BROWSER_TEST_LOG\"\n" +
+		bootstrap +
 		"case \"$1\" in\n" +
 		"  eval) echo true ;;\n" +
 		"  open) echo x >> \"" + opensPath + "\" ;;\n" +

@@ -2,14 +2,10 @@ package siteterminaldemo
 
 import (
 	"bytes"
-	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -228,68 +224,7 @@ func validateLauncher() error {
 }
 
 func validateWebConfig() error {
-	defer func() { _ = runWebConfig(commandStop) }()
-	if err := runWebConfig(commandStart); err != nil {
-		return err
-	}
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}} // #nosec G402 -- fixed loopback demo server uses a self-signed certificate.
-	ctx := context.Background()
-	request := func(method, path string, form url.Values) (string, error) {
-		var body io.Reader
-		if form != nil {
-			body = strings.NewReader(form.Encode())
-		}
-		req, err := http.NewRequestWithContext(ctx, method, "https://127.0.0.1:8443"+path, body)
-		if err != nil {
-			return "", err
-		}
-		req.SetBasicAuth("admin", demoPassword)
-		if form != nil {
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			req.Header.Set("Origin", "https://127.0.0.1:8443")
-		}
-		resp, err := client.Do(req)
-		if err != nil {
-			return "", err
-		}
-		data, readErr := io.ReadAll(resp.Body)
-		closeErr := resp.Body.Close()
-		if readErr != nil {
-			return "", readErr
-		}
-		if closeErr != nil {
-			return "", closeErr
-		}
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return string(data), fmt.Errorf("web demo returned %s", resp.Status)
-		}
-		return string(data), nil
-	}
-	editor, err := request(http.MethodGet, "/show/system/identity/", nil)
-	if err != nil {
-		return err
-	}
-	if err := contains(editor, "System Identity"); err != nil {
-		return err
-	}
-	if _, err := request(http.MethodPost, "/config/form/", url.Values{"field:system/host": {"edge-demo"}}); err != nil {
-		return err
-	}
-	diff, err := request(http.MethodGet, "/config/diff", nil)
-	if err != nil {
-		return err
-	}
-	if err := contains(diff, "host edge-demo"); err != nil {
-		return err
-	}
-	if _, err := request(http.MethodPost, "/config/commit", url.Values{}); err != nil {
-		return err
-	}
-	active, err := request(http.MethodGet, "/show/system/identity/", nil)
-	if err != nil {
-		return err
-	}
-	return contains(active, `value="edge-demo"`)
+	return runWebConfigJourney(false)
 }
 
 func validateRIBFIB() error {

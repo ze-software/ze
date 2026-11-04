@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -41,6 +40,7 @@ type Browser struct {
 	baseURL       string
 	session       string
 	daemonStarted bool
+	observer      *renderObserver
 }
 
 var browserSequence atomic.Uint64
@@ -61,6 +61,9 @@ func newBrowserWithSession(baseURL, session string) *Browser {
 func (b *Browser) Open(path string) error {
 	var tb textbuf.Buffer
 	url := tb.Str(b.baseURL).Str(path).String()
+	if err := b.renderObserverScript(inflightInitJS); err != nil {
+		return fmt.Errorf("install request observation before open %s: %w", url, err)
+	}
 	if err := b.runAgentEnsureDaemon("open", url); err != nil {
 		return fmt.Errorf("open %s: %w", url, err)
 	}
@@ -90,16 +93,12 @@ func (b *Browser) runAgentEnsureDaemon(args ...string) error {
 // waitLoad waits for in-flight fetch/XHR requests to drain. The finder UI
 // keeps a persistent EventSource(/events) open, so `wait --load networkidle`
 // never settles and burns a fixed ~1.44s on every call. Instead we poll an
-// in-flight counter installed via AGENT_BROWSER_INIT_SCRIPTS (inflightInitJS)
-// with `eval`, which returns instantly, under a hard wall-clock deadline.
-// A request that never settles fails with the last observed cause.
-// Falls back to networkidle when the init script could not be written.
+// in-flight counter registered through the native SDK before navigation, with
+// `eval` polling under a hard wall-clock deadline. Missing observation and a
+// request that never settles fail rather than looking idle.
 func (b *Browser) waitLoad() error {
 	restore := b.bounded(waitLoadDeadline)
 	defer restore()
-	if ensureInitScript() == "" {
-		return b.runAgent("wait", "--load", "networkidle")
-	}
 	var lastErr error
 	for {
 		out, err := b.runAgentOutput("eval", inflightIdleExpr)
@@ -493,8 +492,11 @@ func (b *Browser) hoverID(id string) error {
 	return b.runAgent("hover", sel)
 }
 
-// Screenshot saves a screenshot to the given path.
+// Screenshot saves the rendered page only after its actual work settles.
 func (b *Browser) Screenshot(path string) error {
+	if err := b.settleCapture(); err != nil {
+		return err
+	}
 	return b.runAgent("screenshot", path)
 }
 
@@ -559,6 +561,7 @@ func (b *Browser) Close() error {
 		return fmt.Errorf("browser session %q cleanup incomplete: %w", b.session, err)
 	}
 	b.daemonStarted = false
+	b.observer = nil
 	return nil
 }
 
@@ -629,11 +632,10 @@ func (b *Browser) runAgentOutput(args ...string) (string, error) {
 	return string(out), nil
 }
 
-// inflightInitJS instruments fetch and XHR with an in-flight counter,
-// registered as an agent-browser init script so it re-runs on every
-// navigation. It deliberately leaves EventSource alone: the finder UI's
-// persistent /events connection is what stops networkidle from ever
-// settling, and it must not count toward "requests in flight".
+// inflightInitJS instruments fetch and XHR with an in-flight counter, registered
+// through the native daemon's addinitscript action before navigation. EventSource
+// is deliberately left alone. Fetch settles when Response headers arrive, so a
+// streamed response body does not keep the finite-request counter occupied.
 const inflightInitJS = `(function () {
   if (window.__zeWaitInstalled) return;
   window.__zeWaitInstalled = true;
@@ -660,40 +662,15 @@ const inflightInitJS = `(function () {
 // and quiet for a short debounce. The debounce bridges chained requests --
 // cli.js issues fetch(/cli) -> htmx refresh -> fetch(/config/changes) in
 // sequence, so the counter dips to zero for a microtask between them.
-const inflightIdleExpr = `(window.__zeInflight||0)===0 && (performance.now()-(window.__zeLastChange||0))>=120`
-
-var (
-	initScriptOnce sync.Once
-	initScriptPath string
-)
-
-// ensureInitScript writes the in-flight instrumentation to a temp file once
-// and returns its path, or "" if it could not be written (waitLoad then
-// falls back to networkidle). agent-browser loads it via the
-// AGENT_BROWSER_INIT_SCRIPTS env set in agentEnv.
-func ensureInitScript() string {
-	initScriptOnce.Do(func() {
-		f, err := os.CreateTemp("", "ze-inflight-*.js")
-		if err != nil {
-			return
-		}
-		_, werr := f.WriteString(inflightInitJS)
-		cerr := f.Close()
-		if werr != nil || cerr != nil {
-			return
-		}
-		initScriptPath = f.Name()
-	})
-	return initScriptPath
-}
+const inflightIdleExpr = `window.__zeWaitInstalled===true && Number.isFinite(window.__zeInflight) && Number.isFinite(window.__zeLastChange) && window.__zeInflight===0 && (performance.now()-window.__zeLastChange)>=120`
 
 func (b *Browser) agentEnv() []string {
 	inherited := os.Environ()
 	if b.session != "" {
 		inherited = env.Without(inherited, "agent.browser.session")
 	}
-	env := make([]string, 0, len(inherited)+3)
-	hasIdle, hasInit, hasSession := false, false, false
+	env := make([]string, 0, len(inherited)+2)
+	hasIdle, hasSession := false, false
 	for _, e := range inherited {
 		// Chrome launches crash before DevTools starts when TMPDIR points at the
 		// functional suite's noexec scratch filesystem. Let Chrome use the
@@ -705,9 +682,6 @@ func (b *Browser) agentEnv() []string {
 		if strings.HasPrefix(e, "AGENT_BROWSER_IDLE_TIMEOUT_MS=") {
 			hasIdle = true
 		}
-		if strings.HasPrefix(e, "AGENT_BROWSER_INIT_SCRIPTS=") {
-			hasInit = true
-		}
 		if strings.HasPrefix(e, "AGENT_BROWSER_SESSION=") {
 			hasSession = true
 		}
@@ -715,11 +689,6 @@ func (b *Browser) agentEnv() []string {
 	var tb textbuf.Buffer
 	if !hasIdle {
 		env = append(env, tb.Str("AGENT_BROWSER_IDLE_TIMEOUT_MS=").Int(browserIdleWindow.Milliseconds()).String())
-	}
-	if !hasInit {
-		if p := ensureInitScript(); p != "" {
-			env = append(env, tb.Str("AGENT_BROWSER_INIT_SCRIPTS=").Str(p).String())
-		}
 	}
 	if b.session != "" && !hasSession {
 		env = append(env, tb.Reset().Str("AGENT_BROWSER_SESSION=").Str(b.session).String())
@@ -760,7 +729,18 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 
 // RunWBCase executes a parsed case under the deadline the scheduler started
 // before server startup. The caller MUST supply that context, without resetting it.
-func RunWBCase(ctx context.Context, tc *WBTestCase, baseURL, session string) (result *WBTestResult) {
+func RunWBCase(ctx context.Context, tc *WBTestCase, baseURL, session string) *WBTestResult {
+	return runWBCase(ctx, tc, baseURL, session, nil)
+}
+
+// RunWBCaseWithCapture runs the same parsed journey as RunWBCase, then captures
+// its settled final page before owned cleanup. The caller MUST supply the case
+// deadline started before server startup; capture MUST obey that same context.
+func RunWBCaseWithCapture(ctx context.Context, tc *WBTestCase, baseURL, session string, capture WBCapture) *WBTestResult {
+	return runWBCase(ctx, tc, baseURL, session, capture)
+}
+
+func runWBCase(ctx context.Context, tc *WBTestCase, baseURL, session string, capture WBCapture) (result *WBTestResult) {
 	if _, ok := ctx.Deadline(); !ok {
 		return &WBTestResult{Error: "browser case requires a deadline before server startup"}
 	}
@@ -850,6 +830,11 @@ func RunWBCase(ctx context.Context, tc *WBTestCase, baseURL, session string) (re
 			}
 		default:
 			panic("BUG: unknown web browser test step type")
+		}
+	}
+	if capture != nil {
+		if err := browser.capture(capture); err != nil {
+			return &WBTestResult{Error: "capture: " + err.Error(), Steps: steps}
 		}
 	}
 

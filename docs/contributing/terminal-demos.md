@@ -108,6 +108,53 @@ acceptable: a pre-built lab, hidden setup, pre-seeded peers. What the screen
 shows MUST be real Ze behavior. Validators exist only so that a recording cannot
 ship with wrong output on screen.
 
+The browser configuration demo has one authored journey,
+`test/web/recorded-config-save.wb`. Both its validator and recorder parse it with
+the web test parser and execute it with the browser runner: submit the real login
+form, edit the hostname, click Save, review the generated diff, confirm the
+commit, re-fetch the clean pending diff and navigate to read back the value.
+There is no separate Basic-auth HTTP validator. The authored millisecond waits
+retain reading pace; assertions, not those waits, establish each transition.
+The case deadline also bounds the real init and import children and daemon
+readiness. Each journey has a private store; inherited case/separator spellings
+of the config-root override are removed before assigning that private root.
+It retains the daemon's sole-reaper owner, not a numeric PID file. Cleanup sends
+the daemon TERM, escalates after the runner's existing ten-second grace, and
+joins it before removing the store.
+Cleanup failures remain errors alongside any earlier browser failure.
+After a started daemon fails readiness, its final log accompanies the error
+after the owned process is joined and before its private store is removed.
+Setup and daemon children use that workspace as their working directory, so
+relative audit-log output stays private instead of rewriting checkout files.
+<!-- source: internal/le/site/terminaldemo/web_config_startup.go -- webConfigWorkspace.start, webConfigWorkspace.run, webConfigWorkspace.waitReady -->
+<!-- source: internal/test/runner/server_process.go -- ServerProcess.Stop, ServerProcess.Wait -->
+
+Only the recorder adds a capture, after fonts, finite animations, render frames
+and finite requests settle within the case deadline. Capture requires installed
+request observation with finite counters; missing observation cannot mean idle.
+Its presentation wrapper keeps the introductory card and captures WebP through
+the owned browser's CDP endpoint; it carries no second configuration workflow.
+<!-- source: test/web/recorded-config-save.wb -- shared authored journey -->
+<!-- source: internal/le/site/terminaldemo/web_config.go -- runWebConfigJourney, captureWebConfig -->
+<!-- source: internal/component/web/testing/capture.go -- settleCapture, captureReadyExpr -->
+
+On a Linux development host, run the actual three-capture poster proof with
+`./le job run label web-config-poster command env CGO_ENABLED=0 go test -tags integration -run '^TestWebConfigPosterUsesAuthoredInputs$' ./internal/le/site/terminaldemo`.
+Build the demo binaries and renderer image first with
+`./le site terminal-demo build binaries` and
+`./le site terminal-demo build image`.
+The test uses the existing renderer preflight, lock and owned container runner;
+it does not start the network-configuring daemon on the host. Its compiled test
+binary runs inside the pinned image with a private network and artifact mount.
+The proof gives the existing entrypoint a private demo root inside that mount,
+including its home, runtime and ownership-return directories. Checkout and
+shared runtime inputs are read-only. It never rewrites shared SSH configuration
+or walks shared scratch to change its ownership.
+The QEMU integration runner excludes this package because that guest lacks the
+browser dependencies and cannot substitute for this Docker execution route.
+<!-- source: internal/le/site/terminaldemo/web_config_poster_integration_test.go -- TestWebConfigPosterUsesAuthoredInputs, runWebConfigPosterInRenderer -->
+<!-- source: internal/le/test/qemu/alltests.go -- excludedIntegrationPackages -->
+
 ### 5. The tone of a sales engineer
 
 > "like you would join a VC to be presented a software by a technico-commercial"

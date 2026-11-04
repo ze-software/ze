@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -126,7 +125,7 @@ func TestBrowserWaitLoadCommandFailure(t *testing.T) {
 	if err := browser.waitLoad(); !errors.Is(err, context.Canceled) {
 		t.Fatalf("waitLoad hid canceled command: %v", err)
 	}
-	if !filepath.IsAbs(ensureInitScript()) {
-		t.Fatal("waitLoad did not exercise the installed-script route")
+	if browser.observer != nil {
+		t.Fatal("a canceled wait installed request observation")
 	}
 }

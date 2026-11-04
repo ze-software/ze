@@ -325,12 +325,29 @@ func (e *Engine) sourceDigest(demo Demo) (string, error) {
 // after the fragment changed. The demo root's own files are not swept, because
 // that directory holds every demo; common.tape is named there directly.
 //
-// A browser demo's source is a driver script, not a tape, so it sources
-// nothing and adds only itself.
+// The web-config driver's workflow is the shared authored .wb journey, and its
+// execution/capture contract lives in the browser runner. Both affect freshness.
 func (e *Engine) addSourceClosure(demo Demo, files map[string]bool) error {
 	tape := filepath.Join(e.demoRoot, demo.Source)
 	if demo.Kind != terminalLabel {
 		files[tape] = true
+		if demo.ID == "web-config" {
+			files[filepath.Join(e.root, recordedWebConfigJourney)] = true
+			browserDir := filepath.Join(e.root, "internal", "component", "web", "testing")
+			entries, err := os.ReadDir(browserDir)
+			if err != nil {
+				return fmt.Errorf("read shared browser runner sources: %w", err)
+			}
+			for _, entry := range entries {
+				if !strings.HasSuffix(entry.Name(), ".go") {
+					continue
+				}
+				if strings.HasSuffix(entry.Name(), "_test.go") {
+					continue
+				}
+				files[filepath.Join(browserDir, entry.Name())] = true
+			}
+		}
 		return nil
 	}
 	seen := make(map[string]bool)

@@ -25,7 +25,10 @@ func TestBrowserOpenUsesHTTPSIgnoreOnlyForDaemonStart(t *testing.T) {
 	}
 
 	assertAgentCommands(t, logPath, []string{
-		"--ignore-https-errors open https://127.0.0.1:1234/first",
+		"--ignore-https-errors open about:blank",
+		"sdk evaluate",
+		"sdk addinitscript",
+		"open https://127.0.0.1:1234/first",
 		"eval " + inflightIdleExpr,
 		"open https://127.0.0.1:1234/second",
 		"eval " + inflightIdleExpr,
@@ -58,6 +61,8 @@ func TestBrowserViewportBeforeOpenStartsDaemonWithHTTPSIgnore(t *testing.T) {
 	assertAgentCommands(t, logPath, []string{
 		"--ignore-https-errors set viewport 390 844",
 		`set headers {"Accept-Language":"fr"}`,
+		"sdk evaluate",
+		"sdk addinitscript",
 		"open https://127.0.0.1:1234/",
 		"eval " + inflightIdleExpr,
 	})
@@ -78,12 +83,18 @@ func TestBrowserCloseResetsDaemonStart(t *testing.T) {
 	}
 
 	assertAgentCommands(t, logPath, []string{
-		"--ignore-https-errors open https://127.0.0.1:1234/first",
+		"--ignore-https-errors open about:blank",
+		"sdk evaluate",
+		"sdk addinitscript",
+		"open https://127.0.0.1:1234/first",
 		"eval " + inflightIdleExpr,
 		// The close reaches the daemon this browser started, so it carries no
 		// launch option: the option would only draw the "ignored" warning.
 		"close",
-		"--ignore-https-errors open https://127.0.0.1:1234/second",
+		"--ignore-https-errors open about:blank",
+		"sdk evaluate",
+		"sdk addinitscript",
+		"open https://127.0.0.1:1234/second",
 		"eval " + inflightIdleExpr,
 	})
 }
@@ -172,6 +183,7 @@ func installFakeAgentBrowser(t *testing.T) string {
 	envLogPath := filepath.Join(dir, "agent-browser-env.log")
 	fillPath := filepath.Join(dir, "agent-browser-fills.tsv")
 	loginPollsPath := filepath.Join(dir, "agent-browser-login-polls")
+	bootstrap := installFakeObserver(t, logPath)
 	scriptPath := filepath.Join(dir, "agent-browser")
 	// The fake REMEMBERS a fill and answers `get value` from it, because that is
 	// the round trip Browser.fill performs: the real agent-browser fills a div
@@ -186,6 +198,7 @@ func installFakeAgentBrowser(t *testing.T) string {
 	script := "#!/bin/sh\n" +
 		"printf '%s\\n' \"$*\" >> \"$AGENT_BROWSER_TEST_LOG\"\n" +
 		"env | grep ^AGENT_BROWSER_ | sort >> \"" + envLogPath + "\"\n" +
+		bootstrap +
 		"case \"$1\" in\n" +
 		"  eval)\n" +
 		"    case \"$2\" in\n" +
@@ -245,15 +258,10 @@ func assertAgentCommands(t *testing.T, logPath string, want []string) {
 }
 
 // VALIDATES: every entry agentEnv adds is one NAME=VALUE pair.
-// PREVENTS: two settings in one entry. agentEnv builds three entries from ONE
-// textbuf.Buffer and resets it before the third alone, so the first two rely on
-// String() detaching the buffer it returns. It does (measured here, 2026-08-16:
-// each entry carries one setting), and nothing at the call site says so. A
-// Buffer that kept its bytes would hand the browser
-// AGENT_BROWSER_IDLE_TIMEOUT_MS=<ms>AGENT_BROWSER_INIT_SCRIPTS=<path>, one
-// entry setting neither: the init script would never load, waitLoad would fall
-// back to networkidle, and waitMs would work around an idle window the browser
-// never received. Nothing else reads these entries back.
+// PREVENTS: a concatenated idle-window/session setting being delivered to the
+// executable. Native request observation uses the SDK, not an init-script env
+// variable unsupported by the pinned daemon. The Open command tests separately
+// require registration and evaluation before navigation.
 func TestAgentEnvEntriesCarryOneSettingEach(t *testing.T) {
 	for _, name := range []string{
 		"AGENT_BROWSER_IDLE_TIMEOUT_MS",
@@ -277,16 +285,17 @@ func TestAgentEnvEntriesCarryOneSettingEach(t *testing.T) {
 		}
 	}
 
-	// The init-script entry is the one a concatenation corrupts, so its absence
-	// would make the loop below vacuous.
+	// Both supported settings must be present; an empty loop proves nothing.
 	for _, name := range []string{
 		"AGENT_BROWSER_IDLE_TIMEOUT_MS=",
-		"AGENT_BROWSER_INIT_SCRIPTS=",
 		"AGENT_BROWSER_SESSION=",
 	} {
 		if !slices.ContainsFunc(added, func(e string) bool { return strings.HasPrefix(e, name) }) {
 			t.Fatalf("agentEnv set no %s entry; it added %q", name, added)
 		}
+	}
+	if slices.ContainsFunc(added, func(entry string) bool { return strings.HasPrefix(entry, "AGENT_BROWSER_INIT_SCRIPTS=") }) {
+		t.Fatalf("agentEnv added an unsupported init-script setting: %q", added)
 	}
 
 	for _, entry := range added {

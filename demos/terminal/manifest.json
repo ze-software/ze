@@ -82,7 +82,7 @@
       "platform": "portable",
       "duration": "58 seconds",
       "kind": "browser",
-      "engine": "Playwright 1.55.0",
+      "engine": "agent-browser 0.26.0 / Playwright 1.55.0 CDP",
       "source": "web-config/demo.cjs",
       "validate": "web-config"
     },
