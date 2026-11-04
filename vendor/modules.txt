@@ -282,7 +282,7 @@ github.com/charmbracelet/x/windows
 # github.com/charmbracelet/x/xpty v0.1.4
 ## explicit; go 1.25.0
 github.com/charmbracelet/x/xpty
-# github.com/chromedp/cdproto v0.158.6
+# github.com/chromedp/cdproto v0.159.0
 ## explicit; go 1.25
 github.com/chromedp/cdproto
 github.com/chromedp/cdproto/accessibility
@@ -1017,7 +1017,7 @@ github.com/nakabonne/nestif
 # github.com/natefinch/atomic v1.0.1
 ## explicit; go 1.12
 github.com/natefinch/atomic
-# github.com/nishanths/exhaustive v0.17.0
+# github.com/nishanths/exhaustive v0.17.1
 ## explicit; go 1.26.0
 github.com/nishanths/exhaustive/internal/passes/finder
 github.com/nishanths/exhaustive/passes/enumerated
@@ -1056,7 +1056,7 @@ github.com/openconfig/goyang/pkg/yang
 # github.com/packetcap/go-pcap v0.0.0-20260731105150-c86974bbfbcd
 ## explicit; go 1.25.0
 github.com/packetcap/go-pcap/filter
-# github.com/pandatix/go-abnf v0.5.4
+# github.com/pandatix/go-abnf v0.5.5
 ## explicit; go 1.26.0
 github.com/pandatix/go-abnf
 # github.com/pelletier/go-toml/v2 v2.4.3
