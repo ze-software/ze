@@ -97,7 +97,7 @@ func checkPathsLimitPeerOutput(ctx context.Context, session *cliWireSession) err
 	wantSend := map[string]uint16{familyIPv4Unicast: 1, familyIPv6Unicast: 2}
 	wantReceive := map[string]uint16{familyIPv4Unicast: 9, familyIPv6Unicast: 9}
 	for _, surface := range []string{"capabilities", "detail"} {
-		args := []string{"show", namespaceBGP, "peer", addrLoopback, surface, "|", "json"}
+		args := []string{"show", namespaceBGP, fieldPeer, addrLoopback, surface, "|", "json"}
 		result := session.run(ctx, args...)
 		if result.code != 0 {
 			return fmt.Errorf("peer %s JSON exit=%d: %s", surface, result.code, result.out)
@@ -217,7 +217,7 @@ func startPathsLimitSession(ctx context.Context, args []string) (*cliWireSession
 	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return nil, err
 	}
-	session.peer, err = startFixtureProcess(ctx, os.Environ(), "", "le", "test", "peer",
+	session.peer, err = startFixtureProcess(ctx, os.Environ(), "", "le", "test", fieldPeer,
 		"--port", args[0], "--asn", strconv.Itoa(cliWirePeerAS), filepath.Join(cwd, "peer-script"))
 	if err != nil {
 		return nil, err

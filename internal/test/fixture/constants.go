@@ -35,6 +35,7 @@ const (
 	envGitCommitName   = "GIT_COMMITTER_NAME"
 	envGitConfigGlobal = "GIT_CONFIG_GLOBAL"
 	envGitConfigSystem = "GIT_CONFIG_NOSYSTEM"
+	envLEBuildName     = "ZE_LE_BUILD_NAME"
 	envLogBFD          = "ze.log.bfd"
 	envLogBGP          = "ze.log.bgp"
 	envLogVPP          = "ze.log.vpp"
@@ -147,6 +148,7 @@ const (
 	fieldStage              = "stage"
 	fieldState              = "state" // The peer or interface field in a payload.
 	fieldStatus             = "status"
+	fieldTimeout            = "timeout"
 	fieldTop                = "top" // The field in a payload.
 	fieldTotals             = "totals"
 	fieldTunnelID           = "tunnel-id"
@@ -196,6 +198,7 @@ const (
 	columnUptime             = "uptime"
 	headerContentType        = "Content-Type"
 	mediaTypeJSON            = "application/json"
+	pipeCommand              = "pipe"  // The standalone pipe command.
 	pipeCount                = "count" // The pipe operator.
 	pipeFirst                = "first" // The pipe operator.
 	pipeOrigin               = "origin"
@@ -274,6 +277,7 @@ const (
 const (
 	actionAccept                  = "accept" // The policy decision recorded for a route.
 	actionCheck                   = "check"
+	actionCreate                  = "create"
 	actionL2TPTest                = "l2tp"
 	actionPayloadReport           = "report payload"
 	actionReject                  = "reject"
@@ -294,6 +298,7 @@ const (
 	areaEvidence                  = "verify evidence"
 	areaQEMU                      = "test qemu" // The le area.
 	areaRepository                = "repo"
+	areaRFC                       = "rfc" // The le RFC command area.
 	areaRules                     = "rules"
 	areaTier                      = "arch tier"
 	checkCIDispatch               = "cli dispatch"

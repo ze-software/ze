@@ -70,7 +70,7 @@ func execQuotedArgumentDriver(_ context.Context, args []string) error {
 // The wrong answer to any of the three points a real `le` at the real
 // repository, where `le verify worktree` starts a native verification over the
 // shared tree and writes the real green record.
-var inheritedDropped = [...]string{envRepoRoot, "CLAUDE_PROJECT_DIR", "ZE_LE_BUILD_NAME"}
+var inheritedDropped = [...]string{envRepoRoot, "CLAUDE_PROJECT_DIR", envLEBuildName}
 
 // envRootedAt answers this process's environment with every variable in
 // inheritedDropped removed, and ZE_REPO_ROOT set to root.
@@ -250,7 +250,7 @@ func commitNotRefusedForARedDriver(ctx context.Context, args []string) error {
 	env := envRootedAt(repo)
 	fmt.Fprintln(os.Stdout, "scratch-repo-ready") //nolint:errcheck // progress output
 	runCreate := func(session string, extra ...string) (string, int, error) {
-		line := append([]string{argCommit, "create", "session", session, "subject", "fixture change", "file", "mine.go",
+		line := append([]string{argCommit, actionCreate, "session", session, "subject", "fixture change", fieldFile, "mine.go",
 			"no-test", "mine.go is a scratch-repo fixture for the commit gate, not product code"}, extra...)
 		return rawCommand(ctx, repo, env, leBinary, line...)
 	}

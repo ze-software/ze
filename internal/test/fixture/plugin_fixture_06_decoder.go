@@ -154,7 +154,7 @@ func fixture06DiagCapture(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if stop["action"] != "stop" {
+	if stop["action"] != ownedRunnerStop {
 		return fmt.Errorf("capture raw stop: action=%v", stop["action"])
 	}
 	if _, ok := stop["stopped"].([]any); !ok {

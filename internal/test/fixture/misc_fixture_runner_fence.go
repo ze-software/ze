@@ -28,7 +28,7 @@ func ownedPeerFence(ctx context.Context, args []string) error {
 	if len(args) != 1 {
 		return errors.New("owned-peer-fence needs file or pipe")
 	}
-	if args[0] != "file" && args[0] != "pipe" {
+	if args[0] != fieldFile && args[0] != pipeCommand {
 		return fmt.Errorf("unknown fence route %q", args[0])
 	}
 	ze, err := uiZEBinary()
@@ -52,17 +52,17 @@ func ownedPeerFence(ctx context.Context, args []string) error {
 	tests := runner.NewEncodingTests(base)
 	rec := tests.Add("owned-peer-fence-" + args[0])
 	rec.Activate()
-	rec.Extra = map[string]string{"timeout": "20s"}
+	rec.Extra = map[string]string{fieldTimeout: "20s"}
 	rec.Conf = map[string]any{}
 	rec.EnvVars = []string{"ze.log.bgp.reactor.peer=info"}
 	rec.AwaitStderr = []string{"session established"}
 	rec.AwaitThenStop = true
 	rec.AwaitStderrTimeout = "3s"
 	rec.StdinBlocks = map[string][]byte{
-		"peer": []byte("option=linger:value=true\n" +
+		fieldPeer: []byte("option=linger:value=true\n" +
 			"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000\n" +
 			"expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020000000018C63364\n"),
-		"config": []byte(`plugin { internal bgp-rib { use bgp-rib; } }
+		sourceConfig: []byte(`plugin { internal bgp-rib { use bgp-rib; } }
 bgp {
  peer fence {
   connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
@@ -78,12 +78,12 @@ bgp {
 `),
 	}
 	peerExec := "le test peer --port $PORT"
-	if args[0] == "pipe" {
+	if args[0] == pipeCommand {
 		peerExec += " -"
 	}
 	rec.RunCommands = []runner.RunCommand{
-		{Mode: "background", Seq: 1, Exec: peerExec, Stdin: "peer"},
-		{Mode: "foreground", Seq: 2, Exec: "ze -", Stdin: "config"},
+		{Mode: "background", Seq: 1, Exec: peerExec, Stdin: fieldPeer},
+		{Mode: "foreground", Seq: 2, Exec: "ze -", Stdin: sourceConfig},
 	}
 	r, err := runner.NewRunner(tests, base)
 	if err != nil {

@@ -64,7 +64,7 @@ var sessionEditorVerbs = map[string]sessionEditorVerb{
 	"lacks":                sessionEditorLacks,
 	"key":                  sessionEditorKey,
 	"kill":                 sessionEditorKill,
-	"stop":                 sessionEditorStop,
+	ownedRunnerStop:        sessionEditorStop,
 	sessionEditorWordInput: sessionEditorInput,
 }
 
@@ -348,7 +348,7 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 			transcript.WriteString(tail)
 			killed = true
 		case sessionEditorStop:
-			_, err = runCommandProcess04(ctx, env, nil, "signal", "stop")
+			_, err = runCommandProcess04(ctx, env, nil, "signal", ownedRunnerStop)
 		case sessionEditorUnspecified:
 			panic("BUG: parseSessionEditorScript produced an unspecified step")
 		}

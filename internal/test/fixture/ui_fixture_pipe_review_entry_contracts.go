@@ -34,7 +34,7 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 	// Standalone stdin is an explicit all-fields surface. This exact
 	// non-address document must pass through resolve unchanged.
 	standaloneInput := "{\"label\":\"edge\",\"metric\":7}\n"
-	standalone := uiPipeReviewEntryContractsRunCommand(ctx, []string{"ze", "pipe", pipeResolve}, &standaloneInput)
+	standalone := uiPipeReviewEntryContractsRunCommand(ctx, []string{"ze", pipeCommand, pipeResolve}, &standaloneInput)
 	if err := uiPipeReviewEntryContractsRequire(standalone.code == 0,
 		"standalone resolve exit=%d: %s%s",
 		standalone.code, standalone.stdout, standalone.stderr); err != nil {

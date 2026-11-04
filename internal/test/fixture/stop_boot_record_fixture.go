@@ -28,7 +28,8 @@ const (
 	// signal during the stop's fence only skips the drain.
 	stopBootRecordWaiting = "Stopping: the store is still recording the boot configuration"
 	// stopBootRecordTag opens every line the driver writes on stderr.
-	stopBootRecordTag = "stop-boot-record: "
+	stopBootRecordTag  = "stop-boot-record: "
+	stopBootRecordTerm = "term"
 )
 
 // stopDuringBootRecord runs `ze start <config>`, relays its stdout line by line,
@@ -91,7 +92,7 @@ func parseStopBootRecordSignals(list string) ([]syscall.Signal, error) {
 	signals := make([]syscall.Signal, 0, len(names))
 	for _, name := range names {
 		switch name {
-		case "term":
+		case stopBootRecordTerm:
 			signals = append(signals, syscall.SIGTERM)
 		case "int":
 			signals = append(signals, syscall.SIGINT)

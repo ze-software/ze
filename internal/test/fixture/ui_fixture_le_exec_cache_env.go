@@ -83,7 +83,7 @@ func leExecCacheEnv(ctx context.Context) error {
 	perUser := filepath.Join(work, "xdg")
 	base := childEnvironment(withoutEnv(envRootedAt(checkout), "GOROOT", "GOTOOLCHAIN"), map[string]string{
 		leCacheLinkXDGKey:    perUser,
-		"PATH":               leExecPathWithoutTrees(os.Getenv("PATH")),
+		envPath:              leExecPathWithoutTrees(os.Getenv(envPath)),
 		scratch.StoreTrimKey: "off",
 	})
 	withCaller := childEnvironment(base, map[string]string{"GOROOT": callerGOROOT})
@@ -129,7 +129,7 @@ func leExecCacheEnv(ctx context.Context) error {
 		if _, set := got["GOTOOLCHAIN"]; set {
 			return leExecFailf("%s: GOTOOLCHAIN = %q, the caller set none", step.name, got["GOTOOLCHAIN"])
 		}
-		for _, entry := range filepath.SplitList(got["PATH"]) {
+		for _, entry := range filepath.SplitList(got[envPath]) {
 			if leExecIsTree(filepath.Dir(entry), work) {
 				return leExecFailf("%s: PATH still carries the patched tree's bin %s", step.name, entry)
 			}

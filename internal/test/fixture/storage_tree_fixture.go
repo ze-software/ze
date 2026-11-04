@@ -499,7 +499,7 @@ func storageDoctorLooseModeScenario(ctx context.Context) error {
 	if err := os.Chmod(storageTreeName, 0o755); err != nil { //nolint:gosec // the fixture weakens the mode so doctor reports it
 		return err
 	}
-	output, err := storageCommand(ctx, "", "doctor", "--json", "config", "router.conf")
+	output, err := storageCommand(ctx, "", "doctor", "--json", sourceConfig, "router.conf")
 	if err == nil {
 		return fmt.Errorf("doctor accepted a loose-mode tree:\n%s", output)
 	}
@@ -863,7 +863,7 @@ func storageOfflineScenario(ctx context.Context) error {
 	if err := os.WriteFile("router.conf", []byte("bgp { session { asn { local 65000; } } router-id 1.2.3.4; }\n"), 0o600); err != nil {
 		return err
 	}
-	if _, err := storageRequireCommand(ctx, "", "config", "set", "router.conf", "bgp", "router-id", "5.6.7.8"); err != nil {
+	if _, err := storageRequireCommand(ctx, "", sourceConfig, "set", "router.conf", "bgp", "router-id", "5.6.7.8"); err != nil {
 		return err
 	}
 	content, err := os.ReadFile("router.conf")
@@ -873,7 +873,7 @@ func storageOfflineScenario(ctx context.Context) error {
 	if !bytes.Contains(content, []byte("5.6.7.8")) {
 		return fmt.Errorf("offline set did not write source: %s", content)
 	}
-	for _, args := range [][]string{{"config", "history", "router.conf"}, {"config", "rollback", "1", "router.conf"}} {
+	for _, args := range [][]string{{sourceConfig, "history", "router.conf"}, {sourceConfig, "rollback", "1", "router.conf"}} {
 		output, err := storageCommand(ctx, "", args...)
 		if err == nil || !bytes.Contains(output, []byte("ze init")) {
 			return errors.Join(fmt.Errorf("%v did not refuse unavailable history\n%s", args, output), err)

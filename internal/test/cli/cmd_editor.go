@@ -161,7 +161,7 @@ func discoverEditorTests(tests *runner.EditorTests, testDir, baseDir string) err
 		}
 		nick := runner.GenerateNick(rel)
 		test := tests.Add(rel, nick, path)
-		content, readErr := os.ReadFile(path)
+		content, readErr := os.ReadFile(path) //nolint:gosec // WalkDir supplies this selected test directory's .et fixture paths; reading their contents is the editor harness's purpose.
 		if readErr != nil {
 			setEditorParseError(test, readErr)
 			return nil

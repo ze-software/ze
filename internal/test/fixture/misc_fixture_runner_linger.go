@@ -25,6 +25,8 @@ import (
 
 const ownedPeerOpen = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001D01040001005A0A141E2800"
 const ownedPeerKeepalive = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304"
+const ownedRunnerStop = "stop"
+const ownedPeerWireName = "wire"
 
 // ownedPeerLinger drives the real runner in this process so wait4 can distinguish
 // a reaped child from an exited zombie. Each route completes an OPEN expectation,
@@ -42,7 +44,7 @@ func ownedPeerLinger(ctx context.Context, args []string) error {
 		return err
 	}
 	defer os.RemoveAll(base) //nolint:errcheck // fixture-owned scratch only
-	for _, route := range []string{"file", "pipe"} {
+	for _, route := range []string{fieldFile, pipeCommand} {
 		if err := ownedPeerRoute(ctx, base, route); err != nil {
 			return fmt.Errorf("%s route: %w", route, err)
 		}
@@ -55,22 +57,22 @@ func ownedPeerRoute(ctx context.Context, base, route string) error {
 	tests := runner.NewEncodingTests(base)
 	rec := tests.Add("owned-peer-" + route)
 	rec.Activate()
-	rec.Extra = map[string]string{"timeout": "20s"}
+	rec.Extra = map[string]string{fieldTimeout: "20s"}
 	rec.Conf = map[string]any{}
-	rec.StdinBlocks = map[string][]byte{"peer": []byte("option=open:value=inspect-open-message\noption=linger:value=true\nexpect=bgp:conn=1:seq=1:hex=" + ownedPeerOpen + "\n")}
+	rec.StdinBlocks = map[string][]byte{fieldPeer: []byte("option=open:value=inspect-open-message\noption=linger:value=true\nexpect=bgp:conn=1:seq=1:hex=" + ownedPeerOpen + "\n")}
 	peerExec := "le test peer --port $PORT"
-	if route == "pipe" {
+	if route == pipeCommand {
 		peerExec += " -"
 	}
 	marker := filepath.Join(base, route+"-closed")
 	zero := 0
 	rec.ExpectExitCode = &zero
 	rec.RunCommands = []runner.RunCommand{
-		{Mode: "background", Seq: 1, Name: "peer", Ready: "listening on", Exec: peerExec, Stdin: "peer"},
-		{Mode: "background", Seq: 2, Name: "wire", Ready: "wire-live", Exec: "le test fixture runner/owned-peer-wire $PORT " + marker},
-		{Mode: "stop", Seq: 3, Name: "peer", Signal: "term"},
+		{Mode: "background", Seq: 1, Name: fieldPeer, Ready: "listening on", Exec: peerExec, Stdin: fieldPeer},
+		{Mode: "background", Seq: 2, Name: ownedPeerWireName, Ready: "wire-live", Exec: "le test fixture runner/owned-peer-wire $PORT " + marker},
+		{Mode: "stop", Seq: 3, Name: fieldPeer, Signal: "term"},
 		{Mode: "foreground", Seq: 4, Exec: "le test fixture runner/owned-peer-closed " + marker, ExitCode: &zero},
-		{Mode: "stop", Seq: 5, Name: "wire", Signal: "term"},
+		{Mode: "stop", Seq: 5, Name: ownedPeerWireName, Signal: "term"},
 	}
 	r, err := runner.NewRunner(tests, base)
 	if err != nil {

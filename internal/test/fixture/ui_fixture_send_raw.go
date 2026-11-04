@@ -73,7 +73,7 @@ func sendRawReachesOnePeer(ctx context.Context, args []string) error {
 		// many are configured.
 		{[]string{argSend, argBGP, "!peer1", sendRawForm, sendRawHexEncoding, sendRawPacketHex}, "exclusion selector"},
 		// The path this grammar left. It matches nothing, so no alias survives.
-		{[]string{"peer", sendRawPeer, sendRawForm, sendRawHexEncoding, sendRawPacketHex}, ""},
+		{[]string{fieldPeer, sendRawPeer, sendRawForm, sendRawHexEncoding, sendRawPacketHex}, ""},
 	}
 	for _, refusal := range refusals {
 		line := strings.Join(refusal.argv, " ")
