@@ -1,11 +1,11 @@
 {
-  "note": "(a) forbidden: an entered command with no accounting START, including a command authorization denied or that is unknown or malformed. (b) TestDispatcherAccountsRefusedCommands asserts starts == [input] for a denied, an unknown and a malformed command; TestRFC8907TypedDispatchAccountsDeniedCommand asserts START and STOP for a denied typed dispatch; api_test.go denied-stream and TACACS wire tests (rfc8907_dispatch_wire_test.go) assert real START packets; TestRFC8907AccountingRequiresDestination refuses accounting with no destination at Build. Rejudged 2026-10-10 after the validated-construction spec (9cbd3485ca, eaff5d644b, 7c25971594): the changed units only retype the registered handler from []string to command.ValidatedArgs (args read back through Tokens(), a clone of the dispatched tokens) and rename a local const command to commandName; every assertion, input and expected accounting/wire value is byte-identical, so the judgement above stands.",
+  "note": "Independent source rejudgment against RFC 8907 Section 8.3's Device Administration command-accounting requirement: clients must send a START for every command entered, irrespective of authorization. Read all tagged units and apiStreamSource. The moved API success test registers a real streaming handler, drains exact lines and asserts caller/arguments plus exactly one START and STOP; the denied-stream test proves handler nonexecution and the same accounting pair despite authorization refusal. The registry's current OneShotSample argument does not remove accounting assertions or convert execution to a mock result. apiStreamSource begins accounting before handler resolution/authorization and stops it on error or deferred handler exit. Remaining tags require denied/unknown/malformed and typed/plugin dispatch accounting, anonymous identity handling, retained STARTs under queue saturation/shutdown, backend lifetime across reload, actual TACACS START/STOP wire records including oversized displays, and refusal of accounting configured with no destination. Valid commands and refusals are distinct controls. Verdict enforced. The API tests assert the accounting-hook boundary, while TACACS wire tests establish transmitted records; no live API-to-TACACS integration run is claimed. No checks ran.",
   "requirement_sha": "5e9fcd6fd4e4bfe8",
   "tests": {
     "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap": "af960882ad802d74",
     "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestRFC8907BundleRetirementWaitsForAccountingPair": "af960882ad802d74",
-    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly": "701721baef3762f4",
-    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler": "701721baef3762f4",
+    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly": "3c96abf3b1ec42de",
+    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler": "3c96abf3b1ec42de",
     "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907PluginDispatchAccountsCommand": "f62ea1085043df7d",
     "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907TypedDispatchAccountsDeniedCommand": "f62ea1085043df7d",
     "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername": "1516433181451f0e",
@@ -19,8 +19,8 @@
   "units": {
     "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap": "0f4b0b55ef2721ac",
     "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestRFC8907BundleRetirementWaitsForAccountingPair": "af0c567ada7e8a9f",
-    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly": "315998fc965be3b3",
-    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler": "a1819be788a5719c",
+    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly": "5831994ffd49855d",
+    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler": "fa7dcadf31df14b6",
     "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907PluginDispatchAccountsCommand": "5e1a1d0565f79e8e",
     "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907TypedDispatchAccountsDeniedCommand": "791338f39514dfc7",
     "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername": "4ccb60497348a557",

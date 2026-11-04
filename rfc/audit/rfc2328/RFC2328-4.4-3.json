@@ -1,14 +1,14 @@
 {
-  "note": "c21 judge (independent). New positive TestRFC2328LinkIndicationsReachTheOSPFEngine builds the engine over the real transport.New(fakeBackend): an up neighbor on p2p eth0, then Transport.HandleLinkDown puts the OSPF interface in Down and the neighbor in down, and HandleLinkUp brings a running eth0 back to Point-to-point. Judge diffed the overlay that drops only instance.go OnInterfaceDown registration: red \"state point-to-point, want Down\"; dropping both registrations reds at setup while the transport-level TestOSPFTransportPassesLinkIndicationsToOSPF stays green, which was the old gap. Record on onInterfaceDown observed red. Transport-level positive kept. Negative TestOSPFTransportPassesNoIndicationForNonOSPFInterface: a non-OSPF interface link-up/down passes no indication, recorded.",
+  "note": "Independent source rejudgment against RFC 2328 Section 4.4 lower-level protocol support: \"Indications must be passed from these protocols to OSPF as the network interface goes up and down.\" Read all three tagged units and registration/dispatch producers. The moved transport positive requires opening eth0, matching up callback ifindex/name, no premature down, matching down callback and closed handle. The negative uses a non-enabled interface and requires no socket and zero callbacks. The separate engine positive builds the real transport over a fake backend, establishes a non-down neighbor on a point-to-point OSPF interface, then requires actual interface Down and neighbor down after HandleLinkDown and Point-to-point after HandleLinkUp. Thus transport callbacks alone cannot masquerade as delivery to OSPF. instance.go registers both engine callbacks; onInterfaceDown marks the running interface down and onInterfaceUp restarts it. The current transport unit still asserts these outcomes after its comment/directive drift. Verdict enforced. These are injected link indications, not a kernel carrier-event test. Existing records were read, not replayed or independently freshness-verified. No checks ran.",
   "requirement_sha": "f510a36de096f7f0",
   "tests": {
     "internal/plugins/ospf/rfc2328_link_indication_test.go::TestRFC2328LinkIndicationsReachTheOSPFEngine": "f7916aad840139ac",
-    "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF": "efe755c93a105af7",
-    "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesNoIndicationForNonOSPFInterface": "efe755c93a105af7"
+    "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF": "4b6cdaf1b45a18e4",
+    "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesNoIndicationForNonOSPFInterface": "4b6cdaf1b45a18e4"
   },
   "units": {
     "internal/plugins/ospf/rfc2328_link_indication_test.go::TestRFC2328LinkIndicationsReachTheOSPFEngine": "fd63e4c7c2b5d13d",
-    "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF": "aa5761fb3233d05a",
+    "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF": "ab7d0ebeece3539b",
     "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesNoIndicationForNonOSPFInterface": "a0d3410e7725cfc8"
   },
   "verdict": "enforced"
