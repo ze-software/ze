@@ -561,6 +561,16 @@ func (m *Model) cmdDiscard() (commandResult, error) {
 // cmdErrors displays validation issues in the viewport.
 // Called by the show | errors pipe filter.
 func (m *Model) cmdErrors(_ []string) (commandResult, error) { //nolint:unparam // signature matches pipe filter pattern
+	// Commands can be queued before an earlier result updates this Model's
+	// cached hints. Read the current candidate through the commit gate instead;
+	// hierarchical content keeps issue lines aligned with the config viewport.
+	if m.editor != nil {
+		if m.validator != nil {
+			result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.ContentAtPath(nil))
+			m.validationErrors = result.Errors
+			m.validationWarnings = result.Warnings
+		}
+	}
 	issues := make([]ConfigValidationError, 0, len(m.validationErrors)+len(m.validationWarnings))
 	issues = append(issues, m.validationErrors...)
 	issues = append(issues, m.validationWarnings...)

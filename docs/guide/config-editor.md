@@ -79,6 +79,14 @@ refused commit leaves your changes pending there too.
 <!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
 <!-- source: internal/component/web/cli.go -- handleCLICommit -->
 
+`show | errors` validates the current candidate with the same checks as commit,
+including errors that `force` cannot override. It lists those errors and any
+warnings in the viewport, with line numbers referring to the hierarchical
+configuration view. After a repair, run it again: the list reflects the candidate
+now, not the validation hints cached before your edit. It applies nothing and
+keeps pending changes.
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdErrors, formatIssueList -->
+
 Inline validation hints follow the highlighted configuration line; they never
 replace it. An invalid intermediate edit, such as copying a peer before changing
 its duplicate remote IP, therefore keeps the peer's configuration visible.

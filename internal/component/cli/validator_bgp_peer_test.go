@@ -5,6 +5,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -157,4 +159,81 @@ func TestEditorCommitConfirmedForcedStillBlocksOnAnError(t *testing.T) {
 	_, err := model.cmdCommitConfirmed(60, true)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "peer1")
+}
+
+// TestEditorErrorsRefreshesPeerPipelineRefusal drives a forced refusal, the
+// errors pipe and a repair through command dispatch in file and session modes.
+// The errors view must read the current candidate, preserve warning line
+// mapping and leave the pending edit and committed configuration untouched.
+func TestEditorErrorsRefreshesPeerPipelineRefusal(t *testing.T) {
+	for _, user := range []string{"", "alice"} {
+		name := "file"
+		if user != "" {
+			name = "session"
+		}
+		t.Run(name, func(t *testing.T) {
+			const refusal = "peer peer1: refused by the peer pipeline"
+			withPeerValidator(t, func(tree *config.Tree) error {
+				peer := tree.GetContainer("bgp").GetList("peer")["peer1"]
+				require.NotNil(t, peer)
+				description, _ := peer.Get("description")
+				if description == "invalid" {
+					return errors.New(refusal)
+				}
+				return nil
+			})
+			model, store, path := newCommitGrammarModel(t, user)
+			run := func(input string) commandResult {
+				t.Helper()
+				result, err := model.dispatchCommand(input)
+				require.NoError(t, err)
+				model.applyResult(result)
+				return result
+			}
+			run(peerWithoutRemoteASN)
+			require.Len(t, model.validationWarnings, 1)
+			warning := model.validationWarnings[0]
+			require.Positive(t, warning.Line)
+			lines := strings.Split(model.editor.ContentAtPath(nil), "\n")
+			require.Contains(t, lines[warning.Line-1], "peer peer1 {",
+				"a missing session field is anchored to the hierarchical peer declaration")
+			run("set bgp peer peer1 description invalid")
+			candidate := model.editor.WorkingContent()
+			committed, err := store.ReadFile(path)
+			require.NoError(t, err)
+			reloaded := false
+			model.editor.SetReloadNotifier(func() error {
+				reloaded = true
+				return nil
+			})
+
+			refused := run("commit now force")
+			assert.Contains(t, refused.statusMessage, "commit blocked: 1 error(s)")
+			assert.Contains(t, refused.statusMessage, "never errors")
+			assert.Contains(t, refused.statusMessage, refusal)
+			assert.False(t, reloaded)
+			assert.True(t, model.editor.Dirty())
+			run("show | errors")
+			assert.Contains(t, model.ViewportContent(), refusal)
+			assert.Contains(t, model.ViewportContent(), warning.Message)
+			assert.Contains(t, model.ViewportContent(), "line "+strconv.Itoa(warning.Line)+": "+warning.Message)
+			assert.Equal(t, candidate, model.editor.WorkingContent())
+
+			// Change the candidate without applying its result or refreshing
+			// debounce hints, as a queued errors command can observe it.
+			_, err = model.dispatchCommand("set bgp peer peer1 description repaired")
+			require.NoError(t, err)
+			repaired := model.editor.WorkingContent()
+			run("show | errors")
+			assert.NotContains(t, model.ViewportContent(), refusal)
+			assert.Contains(t, model.ViewportContent(), warning.Message)
+			assert.Contains(t, model.ViewportContent(), "line "+strconv.Itoa(warning.Line)+": "+warning.Message)
+			assert.Equal(t, repaired, model.editor.WorkingContent())
+			assert.True(t, model.editor.Dirty())
+			assert.False(t, reloaded)
+			stillCommitted, err := store.ReadFile(path)
+			require.NoError(t, err)
+			assert.Equal(t, committed, stillCommitted, "refusal and errors inspection never apply the candidate")
+		})
+	}
 }
