@@ -342,10 +342,10 @@ func TestAuthenticateUserDuplicateEntries(t *testing.T) {
 	assert.True(t, authenticateUser(users, "admin", "pass", true), "plaintext should match via bcrypt")
 }
 
-// VALIDATES: Bug 5 — timing-safe auth prevents username enumeration.
-// PREVENTS: attackers distinguishing known from unknown usernames via response timing.
+// TestAuthenticateUserTimingSafe smoke-checks that known and unknown users
+// both perform costly bcrypt work on rejected plaintext credentials.
 func TestAuthenticateUserTimingSafe(t *testing.T) {
-	hash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.MinCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
 	if err != nil {
 		t.Fatalf("generate hash: %v", err)
 	}
@@ -354,7 +354,7 @@ func TestAuthenticateUserTimingSafe(t *testing.T) {
 		{Name: "admin", Hash: string(hash)},
 	}
 
-	// Time an unknown user auth attempt — should still invoke bcrypt (>10ms).
+	// An unknown user must still perform the default-cost bcrypt comparison.
 	start := time.Now()
 	authenticateUser(users, "nonexistent", "anypassword", false)
 	unknownDuration := time.Since(start)
@@ -364,9 +364,8 @@ func TestAuthenticateUserTimingSafe(t *testing.T) {
 	authenticateUser(users, "admin", "wrongpassword", false)
 	knownDuration := time.Since(start)
 
-	// Both should take a meaningful amount of time (bcrypt was invoked).
-	// We use a generous threshold to avoid flaky tests, but bcrypt even at MinCost
-	// takes >1ms, while a skip would be <1us.
+	// Both attempts use the default work factor, including the dummy hash.
+	// This is a timing smoke check, not a proof of equal response times.
 	const minBcryptTime = 1 * time.Millisecond
 	assert.Greater(t, unknownDuration, minBcryptTime,
 		"unknown user should still invoke bcrypt (took %v)", unknownDuration)
