@@ -113,6 +113,14 @@ Child spec files, all in `plan/release/fixes/`:
 | 21 | `spec-home-cpe-21-mss-clamp-not-raise.md` |
 | 22 | `spec-home-cpe-22-ike-responder-reauth.md` |
 
+Review correction (2026-11-04): child 16's closure above is historical, not
+proof that its MRU goal is complete. The owner's review found that omitted
+and proxied peer MRUs can bypass the transmit cap, plus six configuration and
+evidence defects. All eight remain open under
+`plan/release/fixes/spec-home-cpe-16-mru-enforcement-and-review-fixes.md`.
+The auth allow-list behavior is to be preserved. The follow-up owns the
+fixes and live proof before the MRU goal can be treated as complete.
+
 Existing specs the children reuse rather than duplicate:
 `release/validation/spec-wireguard-runtime-proof.md` (the road-warrior
 scenario is its acceptance criteria), `release/validation/spec-ipsec-0-umbrella.md`
