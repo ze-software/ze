@@ -125,16 +125,53 @@ to one of its inputs. Run the writer yourself after a bulk rewrite:
 `./le repo package-map update`, `./le doc index update`,
 `./le doc index update`.
 <!-- source: internal/le/hookruntime/runtime.go -- nativeHookActions -->
-<!-- source: internal/le/hookruntime/lifecycle.go -- buildDerivedArtifacts -->
+<!-- source: internal/le/hookruntime/bash.go -- preMaterializeDerived -->
 
 **What a session start prints, and what it cuts.** `./le ai hooks
-session-start` prints the BLOCKING LSP notice and the rules pointer first,
+session-start` prints the source-reading notice and the rules pointer first,
 before any report that reads the tree. `.claude/settings.json` gives the hook
 5 s, and the harness drops everything a hook printed when it kills it. So the
 reports that follow run under the hook's own 3.5 s budget. A report still
 running at that point is cut, and one stderr line names it with every report
 after it. The notice is already out, and nothing after the cut prints.
 <!-- source: internal/le/hookruntime/lifecycle.go -- hookSessionStart, runSessionStartSteps -->
+
+Session startup does not render derived artifacts, even when absent. Name an
+artifact in the command that needs it, so its on-demand hook rebuilds it before
+the read. Required startup context is not held behind generator work.
+<!-- source: internal/le/hookruntime/lifecycle.go -- sessionStartSteps, hookSessionStart -->
+
+The hook source seal is in `internal/le/ai/hooks/fixtures.go`.
+`hookSourcePackages` declares bounded, direct package scopes for the runtime,
+the fixture producers and their named policy authorities. Discovery includes
+every non-test `.go` file directly in each package, across all platforms. This
+is a conservative source-change boundary, not a recursive import closure or a
+claim about the current host's build-selected files. A new helper in an existing
+scope is discovered automatically; crossing into a new authority package needs
+an explicit disposition of that boundary.
+
+The digest reads only the supplied checkout root. It length-frames scope and
+checkout-relative file identities, canonical regular-file modes and content,
+in sorted order. Missing, empty or unreadable package scopes and unreadable,
+nonregular or symlinked sources refuse the read. Symlinked scopes, their
+ancestors and an ambiguous root refuse too. A removed member, truncated file
+or executable-mode change can instead produce a different digest; comparison
+with the unchanged proof must then refuse it. This fingerprint does not parse
+Go or require every individual source body to be nonempty.
+
+`TestHookSourcesCoverNativeProducers` compares the discovered identities with
+package membership selected independently from producer locations and fixture
+mappings. The source-authority regressions compute an unchanged positive
+baseline, mutate an isolated root and exercise the actual comparison consumer,
+without treating a stale stored seal as proof of discrimination. These checks
+establish bounded source coverage and digest sensitivity, not whether the hook
+behavior is right; the producer-bound category probes answer that separate
+question. Reading a mutable root is not an atomic snapshot of concurrent writes.
+<!-- source: internal/le/ai/hooks/fixtures.go -- hookSourcePackages, hookSourceFiles, hookSourceContentDigest, checkHookSourcesAgainst -->
+<!-- source: internal/le/ai/hooks/hook_population_test.go -- TestHookSourcesCoverNativeProducers, TestEveryWatchedHookSourceDiscriminates -->
+<!-- source: internal/le/ai/hooks/hook_source_authority_regression_test.go -- hookAuthorityPackages, TestHookAuthorityContentInvalidatesComputedProof, TestHookAuthorityPopulationInvalidatesComputedProof, TestHookAuthorityUnavailableFailsClosed, TestHookAuthorityOrderAndExclusions, TestHookAuthorityContentFraming -->
+<!-- source: internal/le/ai/hooks/fixture_grounding_test.go -- TestEveryProbeSeparatesItsAllowFromItsRefusal -->
+
 
 Only Bash is intercepted. The `Read` and the `Grep` TOOL reach no hook. One of
 them opens an index the last edit removed, and reports a missing file.
@@ -143,7 +180,7 @@ Ask the question from Bash, or write the index yourself. The writers are
 `./le repo package-map update` for `ai/PACKAGE-MAP.md`, and
 `./le doc index update` and `./le doc index update` for the other
 two.
-<!-- source: internal/le/hookruntime/lifecycle.go -- buildDerivedArtifacts -->
+<!-- source: internal/le/hookruntime/bash.go -- preMaterializeDerived -->
 
 Every non-test `.go` file carries its own answer in a `// Design: <doc> -- topic`
 header. The scan stops after 25 lines (`HeaderLines`, `internal/le/doc/index/docstocode.go`),

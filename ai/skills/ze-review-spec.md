@@ -38,7 +38,7 @@ phase itself.
 
 1. **Read the spec:** Run `./le spec current`, resolve its actual path through `./le spec status`, then read that path.
 2. **Check git history:** Run `git log --oneline -20` -- avoid proposing work that's already done
-3. **Validate requirements:** For every AC in the spec, find the implementation (file + symbol). Is it correct? Complete?
+3. **Validate requirements:** For every AC in the spec, find the implementation (file + symbol). Is it correct? Complete? Apply `ai/skills/ze-spec.md`, "Design admission judgment", as well: require positive observable behavior, an explicit permitted-survivor rationale, and a changed-wire census derived from actual producer/consumer source searches across languages. Compare each known writer and reader independently, including unchanged shell/Python carriers; Files to Modify is not the population. Missing behavior, rationale or a known site is a BLOCKER requiring REWORK. Unsupported source evidence or an unavailable model judgment is UNJUDGEABLE and refuses acceptance; recording a review artifact does not perform this semantic judgment.
 4. **Check test existence:** For every test in the TDD Plan, verify it exists with the exact name listed. If renamed, note the actual name.
 5. **Check file lists:** For every file in "Files to Modify" and "Files to Create", verify it was modified/created.
 6. **Check wiring tests:** For every row in the Wiring Test table, verify the .ci file exists and tests the claimed path.

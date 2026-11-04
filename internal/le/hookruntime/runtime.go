@@ -45,16 +45,18 @@ const (
 // Payload is the stable subset of the Claude hook envelope used by repository
 // hooks. ToolInput deliberately remains a map because each tool owns its schema.
 type Payload struct {
-	SessionID      any            `json:"session_id"`
-	ToolName       string         `json:"tool_name"`
-	ToolInput      map[string]any `json:"tool_input"`
-	TranscriptPath string         `json:"transcript_path"`
-	AgentID        string         `json:"agent_id"`
-	AgentType      string         `json:"agent_type"`
-	StopHookActive bool           `json:"stop_hook_active"`
-	Prompt         string         `json:"prompt"`
-	LastMessage    string         `json:"last_assistant_message"`
-	Reason         string         `json:"reason"`
+	SessionID      any             `json:"session_id"`
+	ToolName       string          `json:"tool_name"`
+	ToolInput      map[string]any  `json:"tool_input"`
+	ToolResponse   json.RawMessage `json:"tool_response"`
+	ToolUseID      string          `json:"tool_use_id"`
+	TranscriptPath string          `json:"transcript_path"`
+	AgentID        string          `json:"agent_id"`
+	AgentType      string          `json:"agent_type"`
+	StopHookActive bool            `json:"stop_hook_active"`
+	Prompt         string          `json:"prompt"`
+	LastMessage    string          `json:"last_assistant_message"`
+	Reason         string          `json:"reason"`
 }
 
 type verdict struct {
@@ -97,7 +99,7 @@ var nativeHookActions = map[string]hookAction{
 		tools: []string{toolWrite, "Edit", "MultiEdit", "NotebookEdit"},
 		checks: []hookCheck{
 			writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite,
-			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeStyleGuideRead, writeDesignDoorsRead, writeSpecDoorsRead, writeSpecMechanisms,
+			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeStyleGuideRead, writeDesignDoorsRead, writeSpecDoorsRead, writeSpecMechanisms, writeSpecWIP,
 			writeGoPatterns,
 			writeFilePatterns, writeWeakening, writeCISleep, writeYangDescription,
 			writeCallBudget,

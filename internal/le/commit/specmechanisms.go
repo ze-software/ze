@@ -12,12 +12,13 @@ import (
 	"github.com/ze-software/ze/internal/le/commit/hunks"
 	specmechanisms "github.com/ze-software/ze/internal/le/spec/mechanisms"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
+	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 
-// specMechanismsRefusal refuses a commit that edits a spec claiming a design
-// with no Existing Mechanisms table row (specmechanisms.Problem). Only the
-// specs in paths are judged, read as the commit carries them, so a spec the
-// commit does not carry never refuses it. A carried spec whose text is not an
+// specMechanismsRefusal refuses edited carried specs with invalid Status
+// metadata or missing required Existing Mechanisms rows (specmechanisms.Problem).
+// Only specs in paths are judged, read as the commit carries them.
+// A carried spec whose text is not an
 // edit is not judged either: the text HEAD holds at the same path, or the text
 // of a spec the commit removes with its stem replaced (a rename or a move
 // between buckets, as renamedSpecs reads one). A spec that predates the rule
@@ -42,6 +43,10 @@ func specMechanismsRefusal(root string, paths, removed []string, selection hunks
 			return couldNotRun(errors.New("judge the Existing Mechanisms section of " + path + ": " + problem))
 		}
 		if unedited {
+			continue
+		}
+		if _, err := specstatus.MetadataStatus(text); err != nil {
+			problems = append(problems, path+": "+err.Error())
 			continue
 		}
 		if refusal := specmechanisms.Problem(path, text); refusal != "" {

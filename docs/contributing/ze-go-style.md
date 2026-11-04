@@ -613,8 +613,9 @@ the subject.
 
 A finding from these tools names the rule, so the rule is not restated above.
 `golangci-lint` runs in `./le go lint run` and in CI. The edit-time check is
-`writeGoPatterns`, which refuses a `Write` or `Edit` of shipped Go (not
-`_test.go`) that matches a pattern.
+`writeGoPatterns`, which refuses a `Write`, `Edit` or `MultiEdit` of shipped Go
+(not `_test.go`) that matches a pattern. Panic calls are judged in the complete
+proposed content, not in a replacement fragment that may be inside a quote.
 <!-- source: .golangci.yml -- revive rules -->
 <!-- source: internal/le/hookruntime/writeedit.go -- writeGoPatterns -->
 
@@ -624,7 +625,7 @@ A finding from these tools names the rule, so the rule is not restated above.
 | One fact per guard | `./le arch compound-guard check` | A terminating `if a \|\| b` on a changed line |
 | Refuse, never default | `./le arch refuse-by-default check` | On a changed line: an unmatched switch value or a miss answered as a value, an ADD-PATH identifier compared with zero, a state answered from a literal, an error dropped with only a log line below WARN, or a `refuse-by-default:` annotation that names no guard or names the function it sits in (see "A zero value is never an answer") |
 | State an invariant positively | ruleguard `negatedElse` | `if !c` or `if a != b` with an `else`. `err != nil` and the failure form of a bound stay allowed |
-| Only a named panic | `writeGoPatterns` | A `panic(` in content that holds no panic with a `BUG`, `unreachable`, `not implemented`, `unimplemented`, `TODO` or `impossible` prefix. One allowed panic admits every other panic in the same content, so a peer-reachable panic stays a reader check (see "Assertions, in a language that has none") |
+| Only a named panic | `writeGoPatterns` | Each `panic(` without its own literal `BUG`, `unreachable`, `not implemented`, `unimplemented`, `TODO` or `impossible` prefix, and a malformed actual call even with a permitted prefix. Comments and quoted examples are not calls; one allowed call never exempts another. Peer reachability remains a reader check (see "Assertions, in a language that has none") |
 | No unchecked error | `errcheck` (type assertions too, `check-blank: false`), `forcetypeassert`, `nilerr`, `errorlint` | A call whose error result is ignored, an unchecked assertion, `return nil` beside a live `err`, an error compared with `==` or wrapped without `%w`. A blank discard `f, _ := open()` passes: see "Every error is handled" |
 | No `nil, nil` answer | `nilnil` | A `(pointer, error)` function that returns neither |
 | Every enum value handled | `exhaustive`, globally, including aliases; `default` does not satisfy named-member coverage | Missing enum members in any unignored value switch, with or without a `default`; not sealed-interface type-switch omissions. C/O/P provenance and fallback policy remain reader checks |

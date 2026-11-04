@@ -161,8 +161,12 @@ func TestNativeWeakeningProducerBindings(t *testing.T) {
 	if len(fixtureProducerBoundaries) != 3 {
 		t.Fatalf("native producer boundaries = %d, want 3", len(fixtureProducerBoundaries))
 	}
-	sourcePaths := make(map[string]struct{}, len(hookSourcePaths))
-	for _, path := range hookSourcePaths {
+	paths, err := hookSourceFiles(hookCheckout(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourcePaths := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
 		sourcePaths[path] = struct{}{}
 	}
 	for _, boundary := range fixtureProducerBoundaries {
@@ -455,21 +459,7 @@ func TestEveryConfiguredHookUsesRegisteredNativeAction(t *testing.T) {
 
 func copyHookSources(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
-	checkout := hookCheckout(t)
-	for _, relative := range hookSourcePaths {
-		body, err := os.ReadFile(filepath.Join(checkout, filepath.FromSlash(relative)))
-		if err != nil {
-			t.Fatalf("read %s: %v", relative, err)
-		}
-		target := filepath.Join(root, filepath.FromSlash(relative))
-		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
-			t.Fatalf("create %s parent: %v", relative, err)
-		}
-		if err := os.WriteFile(target, body, 0o600); err != nil {
-			t.Fatalf("write %s: %v", relative, err)
-		}
-	}
+	root, _, _ := hookAuthorityFixture(t)
 	return root
 }
 

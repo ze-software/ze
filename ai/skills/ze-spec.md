@@ -230,12 +230,45 @@ recommendation.
 5. Discuss data flow impact:
    - Entry point, transformation path, boundaries crossed
    - Integration points with existing code
-6. Draft acceptance criteria (AC-1, AC-2, ...) -- each must be testable
+6. Draft acceptance criteria (AC-1, AC-2, ...) -- each states a positive observable outcome and identifies the permitted survivors with the reason they remain permitted. An absence-only assertion that also passes when every input is dropped does not cover a Task that promises useful output. If no survivor is permitted, state why.
 7. Draft wiring test table -- how is feature reachable from entry point?
 8. Draft TDD test plan -- unit tests, boundary tests, functional tests
 9. Identify files to modify/create
    - For each code file: check its `// Design:` annotation -- if the change affects
      behavior described in that architecture doc, add the doc to the file list
+
+#### Design admission judgment
+
+Before accepting the design, the harness model MUST compare its ACs and
+changed-wire census with the Task, preservation list, Data Flow and current
+producer/consumer source evidence:
+
+- **Positive behavior:** require the useful outcome the user can still reach,
+  not only the absence of the defect or the implementation mechanism.
+- **Permitted survivors:** each affected AC explicitly identifies what remains
+  permitted and why under the requested change. A positive example alone does
+  not supply this rationale. If none remain permitted, require the reason.
+- **Changed-wire census:** derive every writer and reader site from source
+  searches for the format, old and new fields, encoding/writing and
+  decoding/reading entry points, then follow the actual carriers. Search Go and
+  non-Go sources, including shell, Python and embedded scripts. Record the
+  search scope and a known producer/consumer control. Files to Modify, files
+  opened first and source-read markers do not define this population.
+- **Independent coverage:** compare the derived sites with the census one by
+  one. A missing known Go writer, shell reader or Python reader independently
+  requires REWORK, even when other languages or roles are covered. Unchanged
+  speakers still need a preservation or migration disposition. If no changed
+  wire applies, judge the source-supported reason instead.
+
+Return REWORK naming the missing outcome, survivor rationale or source site.
+Accept only after the corrected record accounts for each finding. Unsupported
+or unavailable producer/consumer evidence requires UNJUDGEABLE and refusal,
+never invented completeness. This is a harness-model judgment, not native CLI
+automation: the source-read hook proves freshness, not understanding or census
+completeness, and `le spec review` records/checks artifacts rather than running
+this judgment. An unavailable model or unusable model answer is UNJUDGEABLE,
+never acceptance. No wording heuristic, fixed corpus count or source-text test
+substitutes for this comparison.
 
 #### Failure Mode Analysis (MANDATORY)
 

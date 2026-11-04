@@ -43,6 +43,12 @@ before putting it in front of the user (`ai/rules/evidence.md`).
 2. Read the plan/design being discussed
 3. Read the pages that already cover the topic, BEFORE any exploration or agent (`ai/rules/documentation.md`). `ai/INDEX.md` names the page. `ai/DOCS-TO-CODE.md` names the files behind it. `ai/CODE-TO-DOCS.md` names a file's pages. A design that contradicts a page it never read is a design nobody can review.
 4. Explore relevant codebase context through the lens of those rules
+5. Before a design verdict, apply `ai/skills/ze-spec.md`, "Design admission
+   judgment": compare positive outcomes, explicit permitted-survivor reasons and
+   every source-derived changed-wire writer/reader site, including non-Go
+   carriers. A missing known site independently requires REWORK; the edit set
+   and source-read markers do not establish the population. Missing evidence or
+   an unavailable harness-model judgment is UNJUDGEABLE, never acceptance.
 
 #### Step 2: Map the Decision Space
 

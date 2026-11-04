@@ -418,6 +418,14 @@ line, and the whole report stays under about 15 lines.
 
 ## The session handoff
 
+The automatic recovery snapshot is not an ownership ledger. Its Uncommitted and
+Staged paths come from the whole checkout, so it labels them
+`Shared-checkout changes (session attribution unavailable)`. That label is part
+of the snapshot grammar: rotating recovery snapshots keeps the latest three
+with their labels and preserves separately authored handoff blocks.
+<!-- source: internal/le/session/summary.go -- endSummary, snapshotText, snapshotGrammar, preserveState -->
+
+
 A handoff leads with its rationale so the owner can catch a misaligned handoff
 BEFORE the next session applies the edits. Each rationale bullet names a
 DECISION, not a fact, and ties to one or more edits below it.
@@ -475,6 +483,16 @@ Placeholders belong to `skeleton` alone. From `design` onward the placeholder
 guards in `internal/le/hookruntime/lifecycle.go` block the write, because the
 status is a claim that those sections are written.
 
+An `in-progress` claim admits source edits through `writeSpecStatus`; it does
+not prove that a test ran or that an observed red preceded the implementation.
+Those remain the test-first workflow's evidence obligations. Likewise,
+`postDeferral` reports deferral wording after a write but cannot refuse a
+commit. `hookStop` warns about missing delegation and blocks an
+implemented-but-unclosed claim; it does not judge the last message's prose.
+<!-- source: internal/le/hookruntime/writeedit.go -- writeSpecStatus -->
+<!-- source: internal/le/hookruntime/postwrite.go -- postDeferral -->
+<!-- source: internal/le/hookruntime/lifecycle.go -- hookStop -->
+
 A design starts from the mechanisms Ze already has, so a spec whose Status is
 `design`, `ready`, `in-progress` or `verification` carries a
 `## Existing Mechanisms` section between `## Current Behavior` and
@@ -488,17 +506,122 @@ only a spec whose text changes: a spec nobody edits is never judged, and one
 carried unchanged, renamed or moved between buckets passes, so a spec written
 before the rule owes the section the next time it is edited. A `skeleton`,
 `blocked`, `deferred` or `done` spec owes none.
+Both consumers obtain the declared Status through `MetadataStatus`, so compact
+rows such as `|Status|ready|` have the same mechanisms obligation as spaced
+rows. They share the existing gated-status population and section/data-row
+judgment. Before the commit consumer asks that narrow section predicate, it
+validates the edited carried text with `MetadataStatus`: a missing metadata
+header or ambiguous Status refuses with the canonical metadata error, even
+when an Existing Mechanisms row is present. Unchanged carried text remains
+outside this admission check.
 <!-- source: internal/le/spec/mechanisms/specmechanisms.go -- Problem -->
 <!-- source: internal/le/hookruntime/specmechanisms.go -- writeSpecMechanisms -->
 <!-- source: internal/le/commit/specmechanisms.go -- specMechanismsRefusal -->
+
+New WIP is admitted only by `./le spec claim <spec-file>`. Its claim lock covers
+the inventory check and publication of the `ready` to `in-progress` transition.
+Before a Write, Edit or MultiEdit adds an `in-progress` spec, `writeSpecWIP`
+replays the proposal and `CheckWIPTransition` refuses it with the exact native
+claim command. A preflight cannot reserve capacity for an external tool's later
+write. Edits to an already active spec and edits that admit no new WIP remain
+allowed; a refused native claim names the cap and the work to close first.
+<!-- source: internal/le/hookruntime/specwip.go -- writeSpecWIP -->
+<!-- source: internal/le/spec/session.go -- CheckWIPTransition -->
+
+Lifecycle permission comes from one declared Status in a metadata table with
+the `Field`/`Value` header. `MetadataStatus` shares the inventory's
+whitespace-flexible table grammar; a missing header, duplicate Status or unknown
+value is an error, not a non-transition. Direct admission, post-write validation,
+claimed-source editing and skeleton exemptions use this same reader. A malformed
+old spec cannot establish an already-active exemption; it may be repaired to a
+valid non-active status before the native claim command starts its work.
+<!-- source: internal/le/spec/status/specstatus.go -- MetadataStatus, metaRows -->
+
+A design's source-read backstop retains the union of existing producer subjects
+in the selected file and the proposed edit, from Current Behavior, Files to
+Modify and Files to Create. Replacement prose cannot erase the selected
+producer's obligation before that edit lands. Missing or unreadable Current
+Behavior/Files to Modify source refuses; only genuinely absent Files to Create
+paths are new. Source identities are normalized checkout-relative paths with
+symlinks resolved; a source outside this checkout cannot supply evidence.
+
+Source-kind and test-only exemptions use that resolved identity, not the
+reference's spelling. A test-named or unsupported-extension link to production
+still owes its target's current read. Genuine canonical test/non-source
+subjects remain exempt; a lookup or confinement failure establishes no
+exemption.
+
+The native Read PostToolUse result supplies the observed text and its returned
+line range. The existing per-context marker records that range's digest,
+1-based source bounds, total line count and tool identity, never a digest of a
+later filesystem read. Native offset 0 labels the first source line and is
+normalized to source line 1. At the design gate, the same canonical checkout
+path must still contain matching normalized UTF-8 text in those bounds with the
+same total line count. A changed observed range or line count invalidates it.
+Ranged or token-capped reads establish only complete returned lines, never an
+unreturned whole-file version; changes outside that range are not proved or
+judged. Missing or unusable result metadata, a partial last line that cannot be
+matched, and location-only LSP results grant no source freshness. Read the
+producer through a native Read that returns its source text and bounds.
+Subjectless drafts still owe one usable current source read. The backstop does
+not prove understanding or population completeness.
+<!-- source: internal/le/hookruntime/designevidence.go -- recordSourceRead, designSubjects, currentSourceReads, designEvidenceProblem -->
+
+The design admission judgment runs in the harness model through `/ze-spec`
+DESIGN, `/ze-design` and `/ze-review-spec`. It requires positive observable
+behavior and an explicit reason for what remains permitted. An absence-only AC
+does not cover useful output if dropping every input would satisfy it. For
+each changed wire, the model compares the census with actual writer/reader
+source searches across Go, shell, Python and other carriers, including unchanged
+sites and embedded scripts. Each missing known writer or reader requires
+REWORK independently; Files to Modify and the first files opened are not the
+population. The template records search scope, terms, a known source control
+and each site's migration or preservation disposition.
+<!-- source: ai/skills/ze-spec.md -- Design admission judgment -->
+<!-- source: ai/skills/ze-design.md -- Step 1: Load Context -->
+<!-- source: ai/skills/ze-review-spec.md -- Validate requirements -->
+<!-- source: plan/templates/TEMPLATE.md -- Changed-Wire Census and Acceptance Criteria -->
+
+This semantic judgment is not native CLI automation. Unsupported source
+evidence, an unavailable model or an unusable verdict is UNJUDGEABLE and refuses
+acceptance, not proof of coverage. The source-read hook binds current source
+bytes but does not prove understanding or census completeness; `le spec review`
+records and checks review artifacts rather than running the model judgment.
+<!-- source: ai/skills/ze-spec.md -- Design admission judgment -->
+<!-- source: internal/le/hookruntime/designevidence.go -- designEvidenceProblem -->
+<!-- source: internal/le/spec/actions.go -- ReviewArea -->
+
+The manual harness-model regression inputs live in
+`internal/le/spec/testdata/design-admission.json`. For each frozen model input,
+add the current canonical design instructions and send the fixture's reviewer
+instruction to a fresh independent model context. Keep expected verdicts,
+previous results and case transformation descriptions out of that payload.
+Compare each returned verdict and source-supported finding with the separate
+assertions only after the result arrives. The cases omit the Go writer, shell
+reader, Python reader or survivor rationale independently, and retain corrected
+and unavailable-source controls. Keep prompt bytes, payloads, model identities
+and actual decisions in the spec's evidence record. If the model cannot answer,
+record UNJUDGEABLE and refuse acceptance. This is a probabilistic manual
+regression, not a deterministic CI check or a native model command.
+<!-- source: internal/le/spec/testdata/design-admission.json -- protocol and frozen-model-inputs -->
+
+A non-skeleton spec changing runtime source under `internal/component/`,
+`internal/core/`, `internal/plugins/`, `pkg/` or `cmd/ze/` names a native
+functional proof under `test/`: `.ci`, `.et` or `.wb`. The validator derives
+that demand from Files to Modify and Files to Create, not from a helper's
+test name. A test-only or tooling-only change does not create a daemon-path
+obligation; a helper-only unit test does not discharge one.
+<!-- source: internal/le/hookruntime/specproof.go -- daemonProofProblem -->
+
+
 
 The Goal Gates name the targeted tests for what changed: the scoped package
 tests, the component groups and functional suites the change reaches, run in
 the main checkout. No agent runs any `./le verify` command, `./le verify
 changed` included: GitHub CI verifies the pushed commit. The full verification
 (`./le verify current`) is Thomas's release check, and the terminal gate
-refuses it from an agent. The spec
-validator asks only that a spec name how its work is tested: it refuses a spec
+refuses it from an agent. The general checklist check asks that a spec name
+how its work is tested: it refuses a spec
 that holds no `./le test` or `./le verify` command, and any one of them answers.
 <!-- source: internal/le/hookruntime/lifecycle.go -- validateSpecText -->
 
@@ -601,6 +724,23 @@ implementation step: the spec's `## Wiring Test` table names every entry point
 before implementation starts, `/ze-implement` step 4 creates the entry-point
 skeleton and a failing wiring test, and `/ze-review` step 1 checks wiring before
 any other analysis.
+
+For a non-skeleton spec, a source change outside the explicit tooling and test
+population must name a functional proof file under `test/` (`.ci`, `.et` or
+`.wb`). New source roots owe proof too: `internal/exabgp/` is runtime just as
+`internal/component/` is. The nonproduction roots come from the architecture
+gate's `DisableableNonProdPrefixes`; `internal/le/`, the `test/` tree,
+`_test.go` files and exact `testdata` path segments are also exempt.
+These classifications use canonical checkout-relative identities, resolving
+symlinks through the nearest existing ancestor even for planned files. A raw
+tooling or test prefix cannot exempt a runtime target or turn an aliased
+non-test file into functional proof. An unresolvable or outside identity refuses.
+`daemonProofProblem` is shared by the proposed-content pre-write check and
+post-write validation for Write, Edit and MultiEdit. A named test is a proof
+plan, not evidence that the entry point was exercised.
+<!-- source: internal/le/hookruntime/specproof.go -- daemonProofProblem, daemonProofExempt -->
+<!-- source: internal/le/arch/tier/gates.go -- DisableableNonProdPrefixes -->
+<!-- source: internal/le/hookruntime/readgate.go -- checkoutRelative, resolveEvidencePath -->
 
 | New code in | Must be called from |
 |-------------|---------------------|

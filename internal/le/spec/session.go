@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
+	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 
 const (
@@ -248,6 +249,31 @@ func LatestStateForSpec(root, stem string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// CheckWIPTransition leaves new WIP admission to Claim, which holds the claim
+// lock through publication. A preflight cannot reserve capacity for a tool
+// that publishes after it returns. The caller MUST check before publishing;
+// already active and non-transition edits do not consume a new slot.
+func CheckWIPTransition(file, current, proposed string) error {
+	status, err := specstatus.MetadataStatus(proposed)
+	if err != nil {
+		return fmt.Errorf("proposed spec metadata cannot admit this edit: %w", err)
+	}
+	if status != "in-progress" {
+		return nil
+	}
+	before := ""
+	if current != "" {
+		before, err = specstatus.MetadataStatus(current)
+		if err != nil {
+			return fmt.Errorf("current spec metadata cannot establish an active state: %w; repair the metadata before claiming new WIP", err)
+		}
+	}
+	if before == "in-progress" {
+		return nil
+	}
+	return fmt.Errorf("WIP admission must use ./le spec claim %s, which checks the cap and publishes under the claim lock; mark the spec ready first if needed. A direct edit cannot reserve a WIP slot", filepath.Base(file))
 }
 
 // wip returns every in-progress spec sorted by Updated date and path. The

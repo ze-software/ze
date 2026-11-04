@@ -15,6 +15,7 @@ package specstatus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -93,6 +94,46 @@ var Vocabulary = []string{
 
 // Declared reports whether status is in Vocabulary.
 func Declared(status string) bool { return slices.Contains(Vocabulary, status) }
+
+// MetadataStatus reads one declared, unambiguous Status from the inventory's
+// metadata table grammar. Callers MUST check the error before using the status
+// to grant a lifecycle permission; missing or malformed metadata grants none.
+func MetadataStatus(content string) (string, error) {
+	rows, found := metaRows(content)
+	if !found {
+		return "", errors.New("Missing metadata table: add a '| Field | Value |' header and one Status row")
+	}
+	status := ""
+	count := 0
+	for _, row := range rows {
+		field, rest, separated := strings.Cut(strings.TrimPrefix(strings.TrimSpace(row), "|"), "|")
+		if !separated {
+			continue
+		}
+		if strings.TrimSpace(field) != "Status" {
+			continue
+		}
+		count++
+		value, trailing, closed := strings.Cut(rest, "|")
+		if !closed {
+			return "", errors.New("metadata Status row must have exactly one value cell and a closing '|'")
+		}
+		if strings.TrimSpace(trailing) != "" {
+			return "", errors.New("metadata Status row must have exactly one value cell")
+		}
+		status = strings.TrimSpace(value)
+	}
+	if count == 0 {
+		return "", errors.New("metadata table has no Status row; add one declared status")
+	}
+	if count != 1 {
+		return "", fmt.Errorf("metadata table has %d Status rows; keep exactly one", count)
+	}
+	if !Declared(status) {
+		return "", fmt.Errorf("Invalid Status '%s' in metadata. Must be: %s", status, strings.Join(Vocabulary, ", "))
+	}
+	return status, nil
+}
 
 // Category maps a spec status to its inventory category. A status named nowhere
 // here lands in Other, which is correct for a terminal state such as `done` and

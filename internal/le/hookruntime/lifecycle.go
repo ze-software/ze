@@ -18,7 +18,6 @@ import (
 	airules "github.com/ze-software/ze/internal/le/ai/rules"
 	aisync "github.com/ze-software/ze/internal/le/ai/sync"
 	lecommit "github.com/ze-software/ze/internal/le/commit"
-	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/gitenv"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
@@ -58,7 +57,7 @@ func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) (int, boo
 	case "subagent-context":
 		return hookSubagentContext(ctx, out), true
 	case "mark-lsp-invoked":
-		return writeSessionMarker(ctx, ".lsp-invoked-", ""), true
+		return hookSourceRead(ctx), true
 	case "mark-source-read":
 		return hookSourceRead(ctx), true
 	case "mark-agent-spawned":
@@ -114,7 +113,6 @@ var sessionStartSteps = []sessionStartStep{
 	{name: "push debt", run: reportDerivedDebt},
 	{name: "session state", run: reportSessionState},
 	{name: "journal", run: reportDueJournal},
-	{name: "derived artifacts", run: buildDerivedArtifacts},
 	{name: "agent files", run: reportAgentFiles},
 }
 
@@ -356,54 +354,6 @@ func reportDueJournal(_ stdcontext.Context, state *sessionStart, report *session
 	}
 }
 
-// buildDerivedArtifacts builds every derived artifact the tree does not hold
-// and the registry declares for this hook.
-//
-// The registry is what says which they are. Two hardcoded os.Stat blocks named
-// ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md until 2026-09-11, which made this
-// hook a central enumeration a third artifact had to be added to.
-//
-// ABSENT-ONLY is a budget decision, not an oversight. Rendering all three
-// artifacts is about a second, which does not fit beside the hook's other
-// reports inside sessionStartBudget on a loaded machine. Measure before
-// changing this, and put a number here only when you have:
-//
-//	dir=$(./le session scratch ensure)
-//	echo '{}' | time ./le ai hooks session-start > "$dir/session-start.log" 2>&1
-//
-// Each artifact is written to a temporary file and renamed, so a render the
-// budget cuts leaves the old file or none, never a partial one.
-//
-// What the bound costs is a STATED limitation rather than a hidden one: a
-// write no Write or Edit hook sees (`sed -i`, a heredoc, `git rebase`, `git
-// stash pop`, a generator) leaves the artifact present and stale until the
-// next hooked write to one of its inputs.
-// docs/contributing/navigating-the-code.md tells the reader so.
-func buildDerivedArtifacts(deadline stdcontext.Context, state *sessionStart, report *sessionStartReport) {
-	for _, artifact := range derived.All() {
-		// The artifact declares whether this hook may render it, because the
-		// budget above is fixed and the renders are not the same size. An
-		// artifact a search reads WITHOUT naming its path has to exist before
-		// that search runs; one every reader NAMES is built by
-		// preMaterializeDerived on the command that names it, and rendering it
-		// here buys nothing for what it spends (derived.SessionStartPolicy).
-		if artifact.SessionStart != derived.SessionStartBuild {
-			continue
-		}
-		if deadline.Err() != nil {
-			return
-		}
-		if _, err := os.Stat(filepath.Join(state.ctx.root, filepath.FromSlash(artifact.Path))); !os.IsNotExist(err) {
-			continue
-		}
-		if err := artifact.Rebuild(state.ctx.root); err != nil {
-			fmt.Fprintf(&report.out, "Warning: %s is absent and could not be built: %v\n", artifact.Path, err) //nolint:errcheck // hook protocol
-			continue
-		}
-		fmt.Fprintf(&report.out, "Built %s (derived, not tracked)\n", artifact.Path) //nolint:errcheck // hook protocol
-	}
-}
-
 // reportAgentFiles warns when the generated agent files are stale.
 func reportAgentFiles(_ stdcontext.Context, state *sessionStart, report *sessionStartReport) {
 	if mirror, err := (aisync.Mirror{Root: state.ctx.root}).Check(); err != nil || len(mirror.Stale) != 0 {
@@ -638,22 +588,7 @@ func hookSourceRead(ctx context) int {
 		}
 		return writeMarkerFile(documentReadMarker(ctx, document), "")
 	}
-	path := filepath.ToSlash(ctx.path)
-	kind := ""
-	switch {
-	case strings.HasSuffix(path, ".go"):
-		kind = "go"
-	case strings.HasSuffix(path, ".sh"):
-		kind = "sh"
-	case strings.HasSuffix(path, ".yang"):
-		kind = "yang"
-	case strings.HasSuffix(path, ".mk") || filepath.Base(path) == "Makefile":
-		kind = "make"
-	}
-	if kind == "" {
-		return 0
-	}
-	return writeSessionMarker(ctx, ".source-read-"+kind+"-", "")
+	return recordSourceRead(ctx)
 }
 
 // readClaimedSpec reads the spec a session marker claims. The marker holds the
@@ -671,7 +606,7 @@ func hookValidateSpec(ctx context, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "❌ validate-spec: no tool name in the hook payload -- NOTHING WAS CHECKED.\n  This is a PostToolUse hook: it reads a JSON payload on stdin and takes no arguments.") //nolint:errcheck // hook protocol
 		return 2
 	}
-	if !oneOf(ctx.tool, toolWrite, "Edit") {
+	if !oneOf(ctx.tool, toolWrite, toolEdit, toolMultiEdit) {
 		return 0
 	}
 	// Current discovery never falls back to the obsolete layout. A write there
@@ -694,11 +629,13 @@ func hookValidateSpec(ctx context, errOut io.Writer) int {
 		return 2
 	}
 	errors, warnings := validateSpecText(ctx.root, string(body))
-	status := ""
-	if match := regexp.MustCompile(`(?m)^\| Status \| *([a-z-]+)`).FindStringSubmatch(string(body)); len(match) > 1 {
-		status = match[1]
+	// validateSpecText already records metadata errors. Only a successfully
+	// parsed skeleton may omit the owner audit; malformed metadata may not.
+	auditOwners := true
+	if status, metadataErr := specstatus.MetadataStatus(string(body)); metadataErr == nil {
+		auditOwners = status != "skeleton"
 	}
-	if status != "skeleton" {
+	if auditOwners {
 		report, auditErr := speccitation.AuditAnchors(ctx.root, ctx.path)
 		if auditErr != nil {
 			errors = append(errors, "Design document owner check could not run: "+auditErr.Error())
@@ -735,20 +672,12 @@ func validateSpecText(root, text string) ([]string, []string) {
 	// carry template placeholders. From design onward the native validation
 	// hook blocks them, because the author is then claiming those sections are
 	// written."
-	status := ""
-	if strings.Contains(text, "| Status |") {
-		statusMatch := regexp.MustCompile(`(?m)^\| Status \| *([a-z-]+)`).FindStringSubmatch(text)
-		if len(statusMatch) > 1 {
-			status = statusMatch[1]
-		}
-		if !specstatus.Declared(status) {
-			errors = append(errors, "Invalid Status '"+status+"'. Must be: "+strings.Join(specstatus.Vocabulary, ", "))
-		}
-		if !regexp.MustCompile(`(?m)^\| Updated \| *\d{4}-\d{2}-\d{2}`).MatchString(text) {
-			warnings = append(warnings, "Metadata: Updated field should have a date (YYYY-MM-DD)")
-		}
-	} else {
-		errors = append(errors, "Missing metadata table. Add Status, Depends, Phase, Updated rows")
+	status, metadataErr := specstatus.MetadataStatus(text)
+	if metadataErr != nil {
+		errors = append(errors, "Spec metadata: "+metadataErr.Error())
+	}
+	if !regexp.MustCompile(`(?m)^\| Updated \| *\d{4}-\d{2}-\d{2}`).MatchString(text) {
+		warnings = append(warnings, "Metadata: Updated field should have a date (YYYY-MM-DD)")
 	}
 	for _, section := range []string{"## Task", "## Required Reading", "## Current Behavior", "## Data Flow", "## Wiring Test", "## 🧪 TDD Test Plan", "### Unit Tests", "## Files to Modify", "## Implementation Steps", "## Checklist"} {
 		if !regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(section)).MatchString(text) {
@@ -811,6 +740,11 @@ func validateSpecText(root, text string) ([]string, []string) {
 	wiring := markdownSection(text, "## Wiring Test")
 	if wiring != "" && !regexp.MustCompile(`\|.*(→|->).*\|`).MatchString(wiring) {
 		errors = append(errors, "Wiring Test section must have table with Entry Point -> Feature Code -> Test columns")
+	}
+	if metadataErr == nil {
+		if problem := daemonProofProblem(root, text); problem != "" {
+			errors = append(errors, problem)
+		}
 	}
 	if !strings.Contains(text, "## Acceptance Criteria") {
 		warnings = append(warnings, "Missing '## Acceptance Criteria' section. Define testable AC-N assertions before implementation")

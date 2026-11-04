@@ -20,14 +20,14 @@ const (
 )
 
 // ze point: planning/spec-metadata-blocking/start-a-design-from-the-mechanisms-ze-already-has
+// ze point: testing/directives/write-the-test-first-and-never-weaken-it
 // writeSpecMechanisms refuses a Write, Edit or MultiEdit of a spec under plan/
 // (specpath.IsSpec) whose content after the edit claims a design (Status
 // design, ready, in-progress or verification) and carries no Existing
-// Mechanisms table row (specmechanisms.Problem). It judges the content the edit
-// produces, so an untouched spec is never judged, and a spec that predates the
-// rule owes the section the first time it is edited. An Edit whose old_string
-// the file does not hold changes nothing and is the Edit tool's own failure, so
-// it passes unjudged.
+// Mechanisms table row (specmechanisms.Problem). The same proposed content
+// also owes functional entry-point proof when daemonProofProblem identifies a
+// runtime change. An untouched spec is never judged; an Edit whose old_string
+// the file does not hold changes nothing and passes to the tool's own failure.
 func writeSpecMechanisms(ctx context) *verdict {
 	if !oneOf(ctx.tool, toolWrite, toolEdit, toolMultiEdit) {
 		return nil
@@ -50,11 +50,13 @@ func writeSpecMechanisms(ctx context) *verdict {
 	if !applied {
 		return nil
 	}
-	problem := specmechanisms.Problem(file, proposed)
-	if problem == "" {
-		return nil
+	if problem := specmechanisms.Problem(file, proposed); problem != "" {
+		return &verdict{2, "❌ BLOCKED: " + problem + "\n  ai/rules/planning.md"}
 	}
-	return &verdict{2, "❌ BLOCKED: " + problem + "\n  ai/rules/planning.md"}
+	if problem := daemonProofProblem(ctx.root, proposed); problem != "" {
+		return &verdict{2, "❌ BLOCKED: " + problem + "\n  ai/rules/testing.md"}
+	}
+	return nil
 }
 
 // proposedSpec answers the file content the edit leaves, and false when an

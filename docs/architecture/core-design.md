@@ -402,19 +402,22 @@ edit anywhere else.
 
 The registry gives the artifact its lifecycle. A `Write` or an `Edit` to a file
 the predicate accepts REMOVES the artifact. A Bash command that names its path
-REBUILDS it before that command runs, and a session start builds the artifacts
-that DECLARE it should. That declaration is `SessionStartPolicy`, and it exists
-because the two kinds of artifact are read differently. An artifact a grep reads
-is named by nobody, so an unnamed search over an absent one reads nothing and
-reports nothing: the session start must build it, and the three documentation
-indexes declare `SessionStartBuild`. An artifact a COMMAND reads is always named
-on the command line, so the Bash hook already covers it and the session start
-must not pay for it: the six RFC artifacts declare `SessionStartDefer`, because
-rendering 194 requirement shards took the hook from 2.2 seconds to 5.32 against
-its 5 second budget. The zero value is invalid, so a new registration cannot
-default into either class. Both hooks build only what the tree does not hold
-WHOLE, so a write that reaches an input with no hook in its path leaves the
-artifact present and stale until the next hooked write removes it. A native
+REBUILDS it before that command runs. Session startup renders no derived
+artifact: required context has a five-second harness budget, and generation
+belongs to the consumer that needs the artifact. The registry retains its
+historical `SessionStartBuild`/`SessionStartDefer` discovery classification;
+neither value authorizes eager work in the startup hook. Searches that name
+neither an artifact nor its owning directory cannot trigger on-demand
+generation, so name the artifact when its presence matters.
+
+The `runner/le-derived-artifact-lifecycle` fixture accepts startup only when the
+real hook exits successfully within that budget, emits both required context
+notices, and leaves the artifact absent. It then proves that named reads own
+rendering before and after an input edit.
+
+The Bash hook builds only what the tree does not hold WHOLE, so a write that
+reaches an input with no hook in its path leaves the artifact present and stale
+until the next hooked write removes it. A native
 action writing from Go is such a write: `./le rfc reseal`,
 `./le rfc audit-stamp` and `./le rfc move` edit an input of the five RFC
 outputs and no hook sees it, so `./le rfc update` follows each one.

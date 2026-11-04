@@ -197,6 +197,32 @@ func checkoutPath(ctx context) (string, bool) {
 	return relative, insideRoot(relative)
 }
 
+// checkoutRelative is the source-evidence identity: always canonical, even for
+// lexical in-root paths. Lookup failures are errors, never known-outside paths.
+func checkoutRelative(ctx context) (string, error) {
+	root, err := filepath.Abs(ctx.root)
+	if err != nil {
+		return "", fmt.Errorf("resolve checkout root: %w", err)
+	}
+	root, err = filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", fmt.Errorf("resolve checkout root: %w", err)
+	}
+	file, err := resolveEvidencePath(absolutePath(ctx))
+	if err != nil {
+		return "", err
+	}
+	relative, err := filepath.Rel(root, file)
+	if err != nil {
+		return "", fmt.Errorf("resolve checkout-relative path: %w", err)
+	}
+	relative = filepath.ToSlash(relative)
+	if !insideRoot(relative) {
+		return "", fmt.Errorf("%s resolves outside this checkout", ctx.path)
+	}
+	return relative, nil
+}
+
 // insideRoot reports whether a checkout-relative path stays under the root.
 func insideRoot(relative string) bool {
 	if filepath.IsAbs(relative) {
@@ -212,6 +238,7 @@ func insideRoot(relative string) bool {
 // create does not exist yet, so the nearest existing ancestor is resolved and
 // the rest joined back. The loop ends at the filesystem root, where
 // filepath.Dir returns its own input.
+// This is planned-write membership, not the strict source-evidence identity.
 func resolveExisting(path string) string {
 	rest := ""
 	for {
@@ -221,6 +248,31 @@ func resolveExisting(path string) string {
 		parent := filepath.Dir(path)
 		if parent == path {
 			return filepath.Join(path, rest)
+		}
+		rest = filepath.Join(filepath.Base(path), rest)
+		path = parent
+	}
+}
+
+// resolveEvidencePath resolves symlinks in path or, for a genuinely new path,
+// in its nearest existing ancestor. Unlike planned-write membership, an
+// existing but unresolvable symlink or any lookup error other than absence
+// refuses the source identity.
+func resolveEvidencePath(path string) (string, error) {
+	rest := ""
+	for {
+		if _, err := os.Lstat(path); err == nil {
+			resolved, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				return "", fmt.Errorf("resolve %s: %w", path, err)
+			}
+			return filepath.Join(resolved, rest), nil
+		} else if !os.IsNotExist(err) {
+			return "", fmt.Errorf("inspect %s: %w", path, err)
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return "", fmt.Errorf("cannot resolve existing ancestor of %s", path)
 		}
 		rest = filepath.Join(filepath.Base(path), rest)
 		path = parent

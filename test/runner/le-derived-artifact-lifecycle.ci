@@ -1,9 +1,9 @@
 # One session's loop over a derived artifact: render it, edit an input, read it.
 #
 # The fixture drives the REAL `le ai hooks` binary against a scratch checkout
-# and judges the file the hooks leave behind. Three facts are owed, and each has
-# its own marker: a session start renders an artifact the tree does not hold, a
-# write to one of its inputs REMOVES it, and a command naming it rebuilds it
+# and judges the file the hooks leave behind. Each lifecycle fact has its own
+# marker: session startup leaves the artifact absent, its first named read
+# renders it, a write to one of its inputs REMOVES it, and a later named read rebuilds it
 # before that command runs.
 #
 # The last marker is the one a tracked artifact could never earn. A committed
@@ -21,7 +21,8 @@ option=timeout:value=120s
 cmd=foreground:seq=1:exec=le test fixture runner/le-derived-artifact-lifecycle
 expect=exit:code=0
 expect=stdout:contains=derived-fixture-ready
-expect=stdout:contains=session-start-rendered-the-artifact
+expect=stdout:contains=session-start-left-the-artifact-absent
+expect=stdout:contains=initial-read-rendered-the-artifact
 expect=stdout:contains=input-write-removed-the-artifact
 expect=stdout:contains=read-materialized-the-artifact
 expect=stdout:contains=grep-read-the-edited-tree

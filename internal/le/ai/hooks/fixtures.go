@@ -8,11 +8,15 @@ package aihooks
 import (
 	stdcontext "context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -98,10 +102,10 @@ var (
 	// Re-sealed 2026-10-23: the validate-spec allow probe names
 	// `./le verify current fast` instead of `./le verify worktree`.
 	fixtureCategoryDigest = [sha256.Size]byte{
-		0xa0, 0xf5, 0xb2, 0xe4, 0x21, 0xa5, 0x2a, 0x9f,
-		0x72, 0xa3, 0xbf, 0x09, 0xcb, 0x3c, 0x64, 0x48,
-		0x7d, 0xe8, 0xf2, 0x98, 0x4f, 0xa6, 0xe5, 0xf1,
-		0x42, 0x7b, 0xd6, 0x84, 0xa0, 0xc8, 0x49, 0x67,
+		0xdf, 0xb7, 0xb2, 0xda, 0x52, 0xa2, 0x1f, 0xbc,
+		0x41, 0xd4, 0x44, 0x37, 0x76, 0x11, 0xb8, 0x71,
+		0xc8, 0xe2, 0x8d, 0x6f, 0xba, 0x8f, 0xfd, 0x5f,
+		0xb3, 0xe0, 0x6b, 0xba, 0x18, 0x68, 0xc9, 0x3a,
 	}
 	// Re-sealed 2026-09-25 for spec-le-subject-first-command-tree:
 	// the weakened-test action and proposed-edit owners moved from
@@ -271,7 +275,7 @@ var (
 	// Does word on proposed. The proposed hook's answer is unchanged.
 	// Re-sealed 2026-10-26: postFormatGo says a lint run that did not complete
 	// as not run instead of passing it, and posttool-bash (postbash.go, now in
-	// hookSourcePaths) names Go files a shell command left unformatted. Neither
+	// the runtime source scope) names Go files a shell command left unformatted. Neither
 	// refuses an edit this population describes: both report after the tool
 	// ran, and their polarities are driven through Probe and postLintVerdict in
 	// internal/le/hookruntime (postbash_test.go, postwrite_test.go).
@@ -316,10 +320,10 @@ var (
 	// (lifecycle.go validateSpecText) no longer names a verify. It still never
 	// blocks; no existing verdict changed.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x95, 0x41, 0x02, 0xe7, 0xc5, 0x6c, 0x8a, 0xfd,
-		0xaa, 0x01, 0x08, 0xc6, 0x84, 0x50, 0x41, 0x93,
-		0xc1, 0x0c, 0x0b, 0xd1, 0x0e, 0xeb, 0xc1, 0x18,
-		0xf9, 0x43, 0xa0, 0xdb, 0xd6, 0x91, 0xdc, 0x2e,
+		0x1b, 0x44, 0xe4, 0xe2, 0x55, 0xfe, 0x9c, 0xde,
+		0xe6, 0x32, 0x7d, 0x0b, 0x39, 0x65, 0xa1, 0x5c,
+		0x5a, 0x94, 0x98, 0xa7, 0xe5, 0xb6, 0x34, 0x96,
+		0x44, 0x36, 0x04, 0x68, 0x5c, 0xfa, 0xc7, 0x6b,
 	}
 )
 
@@ -419,20 +423,25 @@ var fixtureProducerBoundaries = [...]fixtureProducerBoundary{
 	},
 }
 
-var hookSourcePaths = [...]string{
-	"internal/le/hookruntime/runtime.go",
-	"internal/le/hookruntime/session.go",
-	hookBashFile,
-	hookWriteEditFile,
-	hookPostWriteFile,
-	"internal/le/hookruntime/postbash.go",
-	hookLifecycleFile,
-	"internal/le/hookruntime/timestamp.go",
-	"internal/le/hookruntime/readgate.go",
-	"internal/le/hookruntime/specdoors.go",
-	"internal/le/hookruntime/specmechanisms.go",
-	weakenedActionsFile,
-	weakenedProposedFile,
+// hookSourcePackages bounds the source proof to direct producer and policy
+// authority packages, not their recursive import closure. Discovery includes
+// all platforms' non-test Go files; a new authority package needs a disposition.
+var hookSourcePackages = [...]string{
+	"internal/le/arch/tier",
+	"internal/le/doc/consistency",
+	"internal/le/doc/index",
+	"internal/le/doc/ste",
+	"internal/le/hookruntime",
+	"internal/le/le/path",
+	"internal/le/rfc",
+	"internal/le/session",
+	"internal/le/spec",
+	"internal/le/spec/citation",
+	"internal/le/spec/journal",
+	"internal/le/spec/mechanisms",
+	"internal/le/spec/path",
+	"internal/le/spec/status",
+	"internal/le/test/weakened",
 }
 
 func runFixtures(root string) ([]Result, int) {
@@ -527,21 +536,222 @@ func checkFixturePopulation(
 	return result
 }
 
-// hookSourceContentDigest reads every hook and native producer file under root
-// and answers one digest over their paths and their bodies.
-func hookSourceContentDigest(root string) ([sha256.Size]byte, error) {
-	var tb textbuf.Buffer
-	for _, path := range &hookSourcePaths {
-		body, err := readCheckoutFile(root, path)
-		if err != nil {
-			return [sha256.Size]byte{}, err
-		}
-		tb.Str(path).Byte(0).Str(string(body)).Byte(0)
+// hookSourceFiles discovers direct package members under the supplied root.
+// Files in child packages and test files are outside this bounded source claim.
+func hookSourceFiles(root string) ([]string, error) {
+	checkout, err := openHookSourceRoot(root)
+	if err != nil {
+		return nil, err
 	}
-	return sha256.Sum256([]byte(tb.String())), nil
+	paths, readErr := hookSourceFilesIn(checkout)
+	return paths, errors.Join(readErr, checkout.Close())
+}
+
+// openHookSourceRoot refuses ambiguous filesystem identities before opening the
+// supplied root. The ancestor loop ends at the filesystem root.
+func openHookSourceRoot(root string) (*os.Root, error) {
+	if root == "" {
+		return nil, errors.New("hook source proof requires an explicit checkout root")
+	}
+	// Cleaning a parent traversal first could hide a symlinked ancestor.
+	for component := range strings.SplitSeq(filepath.ToSlash(root), "/") {
+		if component == ".." {
+			return nil, errors.New("hook source root must not contain parent traversal")
+		}
+	}
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return nil, fmt.Errorf("resolve hook source root: %w", err)
+	}
+	for directory := absolute; ; directory = filepath.Dir(directory) {
+		info, err := os.Lstat(directory)
+		if err != nil {
+			return nil, fmt.Errorf("read hook source root ancestor %s: %w", directory, err)
+		}
+		if err := hookSourceDirectoryInfo(directory, info); err != nil {
+			return nil, err
+		}
+		if parent := filepath.Dir(directory); parent == directory {
+			break
+		}
+	}
+	checkout, err := os.OpenRoot(absolute)
+	if err != nil {
+		return nil, fmt.Errorf("open hook source root %s: %w", absolute, err)
+	}
+	return checkout, nil
+}
+
+func hookSourceDirectoryInfo(path string, info os.FileInfo) error {
+	if !info.IsDir() {
+		return fmt.Errorf("hook source scope or ancestor %s is not a regular directory", path)
+	}
+	if info.Mode().Perm()&0o444 == 0 {
+		return fmt.Errorf("hook source scope or ancestor %s has no read permission", path)
+	}
+	if info.Mode().Perm()&0o111 == 0 {
+		return fmt.Errorf("hook source scope or ancestor %s has no search permission", path)
+	}
+	return nil
+}
+
+// hookSourceFilesIn visits only the declared packages and their finite direct
+// directory entries. Every scope must contain at least one usable source.
+func hookSourceFilesIn(checkout *os.Root) ([]string, error) {
+	var paths []string
+	for _, scope := range hookSourcePackages {
+		relative := filepath.FromSlash(scope)
+		for directory := relative; directory != "."; directory = filepath.Dir(directory) {
+			info, err := checkout.Lstat(directory)
+			if err != nil {
+				return nil, fmt.Errorf("read hook source scope %s: %w", directory, err)
+			}
+			if err := hookSourceDirectoryInfo(directory, info); err != nil {
+				return nil, err
+			}
+		}
+		directory, err := checkout.Open(relative)
+		if err != nil {
+			return nil, fmt.Errorf("open hook source scope %s: %w", scope, err)
+		}
+		entries, readErr := directory.ReadDir(-1)
+		if err := errors.Join(readErr, directory.Close()); err != nil {
+			return nil, fmt.Errorf("discover hook source scope %s: %w", scope, err)
+		}
+		found := false
+		for _, entry := range entries {
+			if !strings.HasSuffix(entry.Name(), ".go") {
+				continue
+			}
+			if strings.HasSuffix(entry.Name(), "_test.go") {
+				continue
+			}
+			path := scope + "/" + entry.Name()
+			info, err := checkout.Lstat(filepath.FromSlash(path))
+			if err != nil {
+				return nil, fmt.Errorf("read hook source %s: %w", path, err)
+			}
+			if err := hookSourceRegularInfo(path, info); err != nil {
+				return nil, err
+			}
+			paths = append(paths, path)
+			found = true
+		}
+		if !found {
+			return nil, fmt.Errorf("hook source scope %s contains no production Go sources", scope)
+		}
+	}
+	slices.Sort(paths)
+	return paths, nil
+}
+
+func hookSourceRegularInfo(path string, info os.FileInfo) error {
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("hook source %s is not a regular file", path)
+	}
+	if info.Mode().Perm()&0o444 == 0 {
+		return fmt.Errorf("hook source %s has no read permission", path)
+	}
+	return nil
+}
+
+// hookSourceContentDigest length-frames sorted relative identities, canonical
+// regular-file modes and content. It reads only root, never committed or host
+// fallback sources. Source bodies stream through one reusable bounded buffer.
+func hookSourceContentDigest(root string) (digest [sha256.Size]byte, err error) {
+	checkout, err := openHookSourceRoot(root)
+	if err != nil {
+		return digest, err
+	}
+	defer func() { err = errors.Join(err, checkout.Close()) }()
+	paths, err := hookSourceFilesIn(checkout)
+	if err != nil {
+		return digest, err
+	}
+	sum := sha256.New()
+	var frame textbuf.Buffer
+	for _, scope := range hookSourcePackages {
+		frame.Reset().Str("scope:").Int(int64(len(scope))).Byte(':').Str(scope)
+		sum.Write(frame.Bytes()) //nolint:errcheck // hash.Hash.Write never returns an error.
+	}
+	var buffer [32 * 1024]byte
+	for _, path := range paths {
+		if err := hashHookSourceFile(checkout, sum, &frame, buffer[:], path); err != nil {
+			return digest, err
+		}
+	}
+	sum.Sum(digest[:0])
+	return digest, nil
+}
+
+func hashHookSourceFile(
+	checkout *os.Root, sum hash.Hash, frame *textbuf.Buffer, buffer []byte, path string,
+) (err error) {
+	relative := filepath.FromSlash(path)
+	identity, err := checkout.Lstat(relative)
+	if err != nil {
+		return fmt.Errorf("identify hook source %s: %w", path, err)
+	}
+	if err := hookSourceRegularInfo(path, identity); err != nil {
+		return err
+	}
+	source, err := checkout.Open(relative)
+	if err != nil {
+		return fmt.Errorf("open hook source %s: %w", path, err)
+	}
+	defer func() { err = errors.Join(err, source.Close()) }()
+	info, err := source.Stat()
+	if err != nil {
+		return fmt.Errorf("inspect hook source %s: %w", path, err)
+	}
+	if !os.SameFile(identity, info) {
+		return fmt.Errorf("hook source %s changed identity while opening", path)
+	}
+	mode := "100644"
+	if info.Mode().Perm()&0o111 != 0 {
+		mode = "100755"
+	}
+	frame.Reset().Str("file:").Int(int64(len(path))).Byte(':').Str(path).
+		Byte(':').Str(mode).Byte(':').Int(info.Size()).Byte(':')
+	sum.Write(frame.Bytes()) //nolint:errcheck // hash.Hash.Write never returns an error.
+	// LimitReader bounds the read by the observed size and uses the shared buffer
+	// instead of os.File.WriteTo's independently allocated copying buffer.
+	length, err := io.CopyBuffer(sum, io.LimitReader(source, info.Size()), buffer)
+	if err != nil {
+		return fmt.Errorf("read hook source %s: %w", path, err)
+	}
+	// A size bound alone is not evidence that the source reached EOF.
+	extra, readErr := source.Read(buffer[:1])
+	if extra != 0 {
+		return fmt.Errorf("hook source %s exceeded its observed length", path)
+	}
+	if readErr != io.EOF {
+		if readErr != nil {
+			return fmt.Errorf("finish reading hook source %s: %w", path, readErr)
+		}
+		return fmt.Errorf("hook source %s did not establish EOF", path)
+	}
+	current, err := source.Stat()
+	if err != nil {
+		return fmt.Errorf("reinspect hook source %s: %w", path, err)
+	}
+	if length != info.Size() {
+		return fmt.Errorf("hook source %s changed length while reading", path)
+	}
+	if current.Size() != info.Size() {
+		return fmt.Errorf("hook source %s changed length while reading", path)
+	}
+	if current.Mode() != info.Mode() {
+		return fmt.Errorf("hook source %s changed mode while reading", path)
+	}
+	return nil
 }
 
 func checkHookSources(root string) Result {
+	return checkHookSourcesAgainst(root, hookSourcesDigest)
+}
+
+func checkHookSourcesAgainst(root string, expected [sha256.Size]byte) Result {
 	result := Result{Name: "hook-source-drift", Passed: true}
 	current, err := hookSourceContentDigest(root)
 	if err != nil {
@@ -550,10 +760,10 @@ func checkHookSources(root string) Result {
 		result.Message = err.Error()
 		return result
 	}
-	if current != hookSourcesDigest {
+	if current != expected {
 		result.Passed = false
 		result.Code = 2
-		result.Message = fmt.Sprintf("actual hook or native producer changed: got %x, want %x", current, hookSourcesDigest)
+		result.Message = fmt.Sprintf("actual hook or native producer changed: got %x, want %x", current, expected)
 	}
 	return result
 }
@@ -785,17 +995,34 @@ func blankProbeTree(string) (string, error) {
 	return probeTree("blank", nil)
 }
 
-// designGateTree builds a checkout whose session recorded a Go source read, or
-// recorded nothing. That is the whole of what writeDesignEvidence judges, and
-// judging it needs a tree because the evidence is a marker file rather than
-// anything in the payload.
+// sourceReadTree provides the real readable path the read probe names. A marker
+// for a nonexistent file is not evidence that any source could be read.
+func sourceReadTree(value string) (string, error) {
+	return probeTree("source-read", map[string]string{value: "package probe\n"})
+}
+
+// designGateTree records evidence through the actual lifecycle producer. It
+// never manufactures a timestamp, content digest or private marker format.
 func designGateTree(value string) (string, error) {
 	if value != "source-read" {
 		return probeTree("design-gate", nil)
 	}
-	return probeTree("design-gate", map[string]string{
-		"tmp/session/.source-read-go-" + probeSession: "probe\n",
+	root, err := probeTree("design-gate", map[string]string{
+		"internal/probe/probe.go": "package probe\n",
 	})
+	if err != nil {
+		return root, err
+	}
+	code, output, found := hookruntime.ProbeLifecycle("mark-source-read", hookruntime.Payload{
+		SessionID: probeSession, ToolName: "Read",
+		ToolInput:    map[string]any{"file_path": filepath.Join(root, "internal/probe/probe.go")},
+		ToolUseID:    "fixture-design-read",
+		ToolResponse: json.RawMessage(fmt.Sprintf(`{"type":"text","file":{"filePath":%q,"content":"package probe\n","startLine":1,"numLines":2,"totalLines":2}}`, filepath.Join(root, "internal/probe/probe.go"))),
+	}, root)
+	if !found || code != 0 {
+		return root, fmt.Errorf("record design probe source: code %d, found %v: %s", code, found, output)
+	}
+	return root, nil
 }
 
 // specStatusTree builds a checkout whose session claims one spec, carrying the
@@ -804,7 +1031,7 @@ func designGateTree(value string) (string, error) {
 func specStatusTree(value string) (string, error) {
 	return probeTree("spec-status", map[string]string{
 		"tmp/session/.session-" + probeSession:           probeSpecName + "\n",
-		"plan/post-release/engineering/" + probeSpecName: "| Status | " + value + " |\n",
+		"plan/post-release/engineering/" + probeSpecName: "| Field | Value |\n|---|---|\n| Status | " + value + " |\n",
 	})
 }
 
@@ -1042,6 +1269,8 @@ func journalTree(value string) (string, error) {
 // document anchors, which no throwaway tree carries.
 const probeCompleteSpec = `# Spec: probe
 
+| Field | Value |
+|---|---|
 | Status | skeleton |
 | Updated | 2026-01-01 |
 
@@ -1301,7 +1530,7 @@ var categoryProbes = map[string]categoryProbe{
 	categoryDraftIncubator:       {check: weakeningCheckName, tool: toolWriteName, slot: slotPath, tree: draftIncubatorTree},
 	categoryValidateSpec:         {lifecycle: "validate-spec", tool: toolWriteName, file: "plan/post-release/engineering/" + probeSpecName, slot: slotOffPayload, tree: validateSpecTree},
 	categorySessionID:            {lifecycle: "session-id", slot: slotSessionID},
-	categoryMarkSourceRead:       {lifecycle: "mark-source-read", slot: slotPath, session: probeSession, tree: blankProbeTree, answer: wroteASourceMarker},
+	categoryMarkSourceRead:       {lifecycle: "mark-source-read", tool: "Read", slot: slotPath, session: probeSession, tree: sourceReadTree, answer: wroteASourceMarker},
 	categoryDelegation:           {lifecycle: "block-premature-stop", slot: slotOffPayload, session: probeSession, tree: claimedSpecTree},
 	categorySubagentContext:      {lifecycle: "subagent-context", slot: slotOffPayload, session: probeSession, tree: claimedSpecTree, answer: namedTheClaimedSpec},
 	categorySessionStateLocation: {lifecycle: "pre-compact-save", slot: slotOffPayload, tree: blankProbeTree, answer: saidTheValue},
@@ -1405,6 +1634,10 @@ func probePayload(probe categoryProbe, value string) hookruntime.Payload {
 		input["command"] = value
 	case slotSessionID:
 		payload.SessionID = value
+	}
+	if probe.lifecycle == "mark-source-read" {
+		payload.ToolUseID = "fixture-source-read"
+		payload.ToolResponse = json.RawMessage(fmt.Sprintf(`{"type":"text","file":{"filePath":%q,"content":"package probe\n","startLine":1,"numLines":2,"totalLines":2}}`, value))
 	}
 	return payload
 }

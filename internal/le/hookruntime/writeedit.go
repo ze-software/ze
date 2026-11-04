@@ -18,6 +18,7 @@ import (
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
+	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 
@@ -232,14 +233,7 @@ func writeDesignEvidence(ctx context) *verdict {
 	if id == "" {
 		return &verdict{2, "❌ BLOCKED: cannot resolve this session id; design evidence is fail-closed"}
 	}
-	if _, err := os.Stat(filepath.Join(ctx.root, "tmp", "session", ".lsp-invoked-"+id)); err == nil {
-		return nil
-	}
-	entries, _ := filepath.Glob(filepath.Join(ctx.root, "tmp", "session", ".source-read-*-"+id))
-	if len(entries) != 0 {
-		return nil
-	}
-	return &verdict{2, "❌ BLOCKED: read the producing source before writing a design/spec\n  Use Read or LSP on the implementation this session, then retry.\n  ai/rules/evidence.md"}
+	return designEvidenceProblem(ctx)
 }
 
 // ze point: planning/spec-metadata-blocking/update-spec-status-at-each-transition
@@ -258,11 +252,16 @@ func writeSpecStatus(ctx context) *verdict {
 	}
 	specBody, err := readClaimedSpec(ctx.root, spec)
 	if err != nil {
-		return nil
+		return &verdict{2, "❌ BLOCKED: cannot read the selected spec's metadata: " + err.Error() +
+			"\n  Make " + spec + " readable before editing source."}
 	}
-	text := string(specBody)
-	if !strings.Contains(text, "| Status | in-progress |") && !strings.Contains(text, "| Status | verification |") {
-		return &verdict{2, "❌ BLOCKED: source edit while selected spec is not in-progress\n  Update the spec status before implementation."}
+	status, err := specstatus.MetadataStatus(string(specBody))
+	if err != nil {
+		return &verdict{2, "❌ BLOCKED: selected spec metadata is invalid: " + err.Error() +
+			"\n  Repair " + spec + " before editing source."}
+	}
+	if !oneOf(status, "in-progress", "verification") {
+		return &verdict{2, "❌ BLOCKED: source edit while selected spec is not in-progress\n  Start implementation with ./le spec claim " + filepath.Base(spec) + " after the spec is ready."}
 	}
 	return nil
 }
@@ -384,7 +383,7 @@ func doorRefusal(file string, unread []string, reason string) string {
 }
 
 func goEdit(ctx context) bool {
-	return oneOf(ctx.tool, toolWrite, "Edit") && strings.HasSuffix(ctx.path, ".go")
+	return oneOf(ctx.tool, toolWrite, toolEdit, toolMultiEdit) && strings.HasSuffix(ctx.path, ".go")
 }
 
 // ze point: architecture/design-principles/apply-these-design-principles-to-every-decision
@@ -415,12 +414,33 @@ func writeGoPatterns(ctx context) *verdict {
 	if strings.HasSuffix(path, "/internal/le/hookruntime/writeedit.go") {
 		return nil
 	}
+	// An Edit's replacement may begin inside a string or comment. Only the
+	// complete proposed file tells the scanner whether panic is a call.
+	content := ctx.content
+	if ctx.tool != toolWrite {
+		current, err := os.ReadFile(absolutePath(ctx))
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return &verdict{2, "❌ BLOCKED: cannot reconstruct the proposed Go file " + path + ": " + err.Error() +
+					"\n  Make the file readable, then retry so panic calls can be judged."}
+			}
+		}
+		proposed, applied := proposedSpec(ctx, string(current))
+		// refuse-by-default: guards replaceEdit -- a failed tool replacement publishes no proposed content
+		if !applied {
+			return nil
+		}
+		content = proposed
+	}
+	if forbiddenPanic(content) {
+		return &verdict{2, red + "❌ Return error, don't panic()" + reset +
+			"\n  Each panic call must name its own programmer invariant. Return operating errors instead."}
+	}
 	patterns := []editPattern{
 		{regexp.MustCompile(`(?m)^func[ \t]+(?:\([^)]+\)[ \t]+)?[A-Z][A-Za-z]*And[A-Z]`), 1, red + bold + "❌ BLOCKED: Single responsibility violation" + reset + " (function with 'And' in name)", nil},
 		{regexp.MustCompile(`os\.Exit\(`), 2, red + bold + "❌ BLOCKED: os.Exit() in handler" + reset + "\n  Return an error instead.", func(c context) bool {
 			return strings.HasSuffix(c.path, "/main.go") || strings.HasSuffix(c.path, "/register.go")
 		}},
-		{regexp.MustCompile(`(^|[^A-Za-z0-9_])panic[ \t]*\(`), 2, red + "❌ Return error, don't panic()" + reset, nil},
 		{regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_])log\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)`), 2, red + "❌ Use slog, not log package" + reset, nil},
 		{regexp.MustCompile(`fmt\.(Sprintf|Fprintf|Printf)\(|strconv\.Format(Uint|Int)\(`), 2, red + bold + "✘ BLOCKED: allocation-heavy string formatting" + reset + "\n  Build the text with textbuf.Buffer, then print it with .StdOut() or .StdErr().\n  Neither .String() nor .Slice() is needed: the write consumes the buffer.", nil},
 		// Two bad shapes, matched positively because RE2 has no negative lookahead.
@@ -441,9 +461,6 @@ func writeGoPatterns(ctx context) *verdict {
 			continue
 		}
 		if candidate.pattern.MatchString(ctx.content) {
-			if strings.Contains(candidate.message, "panic") && regexp.MustCompile(`panic\([ \t]*"(unreachable|not implemented|unimplemented|TODO|BUG|impossible)`).MatchString(ctx.content) {
-				continue
-			}
 			return &verdict{candidate.code, candidate.message}
 		}
 	}

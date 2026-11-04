@@ -1,0 +1,532 @@
+{
+  "proof-kind": "HARNESSMODEL",
+  "contract": "Independent harness-model judgments over frozen canonical design instructions and authored executable source fixtures. This is not native CLI automation. An unavailable model or unsupported source evidence is UNJUDGEABLE and refuses acceptance.",
+  "baseline-canonical-sources": [
+    "ai/skills/ze-spec.md:208-272",
+    "ai/skills/ze-design.md:38-76",
+    "ai/skills/ze-review-spec.md:37-53",
+    "plan/templates/TEMPLATE.md:54-111,151-157"
+  ],
+  "baseline-instruction": "You are the independent design reviewer. Apply the supplied canonical design instructions to this proposed design and the supplied source files. Read actual producers and consumers in the source, not the proposed Files to Modify list. Return a verdict ACCEPT, REWORK, or UNJUDGEABLE, and findings with the requirement and file/symbol evidence. Do not invent source, missing evidence, or prior verdicts. Judge this design now, not whether an implementation exists. If the supplied canonical instructions do not establish a proposed new requirement, do not invent that requirement. A missing or unusable model result is UNJUDGEABLE, never ACCEPT.",
+  "source-fixture": {
+    "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
+    "reader.sh": "#!/bin/sh\nset -eu\n# This reader prints the installed routes from the published JSON snapshot.\njq -r '.routes[] | select(.installed == true) | .prefix' \"$1\"\n",
+    "reader.py": "import json\nimport sys\n\ndef installed_prefixes(path):\n    with open(path, encoding=\"utf-8\") as source:\n        snapshot = json.load(source)\n    return [route[\"prefix\"] for route in snapshot[\"routes\"] if route[\"installed\"]]\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(installed_prefixes(sys.argv[1])))\n"
+  },
+  "source-search-evidence": {
+    "scope": "All three authored fixture files above; this is the complete fixture source tree, not the edit set.",
+    "wire": "JSON route snapshot: routes array with prefix and installed fields",
+    "search-terms": [
+      "routes",
+      "prefix",
+      "installed",
+      "json.Marshal",
+      "json.load",
+      "jq"
+    ],
+    "writer-evidence": "writer.go PublishRoutes serializes routes with encoding/json and writes the snapshot to its caller-supplied path.",
+    "reader-evidence": [
+      "reader.sh jq filter reads routes[].installed and routes[].prefix from that snapshot.",
+      "reader.py installed_prefixes loads the snapshot with json.load and reads routes[].installed and routes[].prefix."
+    ]
+  },
+  "base-design": {
+    "status": "design",
+    "task": "Change publication so an installed route snapshot excludes routes that have not been installed. Installed routes must still reach both existing reader entry points. No other behavior changes.",
+    "current-behavior": "writer.go PublishRoutes serializes all input routes. reader.sh and reader.py installed_prefixes both select installed routes from the JSON snapshot.",
+    "existing-mechanisms": "Extend PublishRoutes and retain its JSON encoder and existing file publication route. Retain the shell jq and Python json.load consumers and the existing routes/prefix/installed schema.",
+    "data-flow": "Caller gives PublishRoutes installed and uninstalled Route values; PublishRoutes writes the JSON snapshot; shell and Python entry points consume that same snapshot.",
+    "files-to-modify": [
+      "writer.go"
+    ],
+    "wire-census": [
+      {
+        "role": "writer",
+        "site": "writer.go PublishRoutes",
+        "evidence": "json.Marshal followed by os.WriteFile",
+        "disposition": "Extend publication filtering; preserve the JSON field schema."
+      },
+      {
+        "role": "reader",
+        "site": "reader.sh jq",
+        "evidence": "jq reads routes[].installed and routes[].prefix",
+        "disposition": "Unchanged; revalidate against the changed snapshot."
+      },
+      {
+        "role": "reader",
+        "site": "reader.py installed_prefixes",
+        "evidence": "json.load followed by routes/installed/prefix reads",
+        "disposition": "Unchanged; revalidate against the changed snapshot."
+      }
+    ],
+    "acceptance-criteria": [
+      {
+        "id": "AC-1",
+        "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
+        "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
+        "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+      }
+    ],
+    "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+  },
+  "cases": [
+    {
+      "id": "absence-only",
+      "change": "Replace acceptance-criteria with one row: condition is the same two routes; expected-behavior is 'The published snapshot does not contain 198.51.100.0/24.' Remove permitted-survivors from that row.",
+      "new-required-verdict": "REWORK",
+      "new-required-finding": "Missing positive behavior: dropping every route would satisfy this AC, but the Task requires installed routes to remain visible through both readers."
+    },
+    {
+      "id": "missing-survivor-rationale",
+      "change": "Keep the positive expected-behavior in base-design but remove permitted-survivors from its AC row; supply no preservation rationale elsewhere.",
+      "new-required-verdict": "REWORK",
+      "new-required-finding": "Missing explicit permitted-survivor rationale: identify what remains permitted and why under the requested change."
+    },
+    {
+      "id": "missing-go-writer",
+      "change": "Remove only writer.go PublishRoutes from wire-census. Keep all source files, source-search-evidence, Current Behavior, and Files to Modify unchanged.",
+      "new-required-verdict": "REWORK",
+      "new-required-finding": "Missing writer.go PublishRoutes writer in the wire census; being in Files to Modify does not discharge census membership."
+    },
+    {
+      "id": "missing-shell-reader",
+      "change": "Remove only reader.sh jq from wire-census. Keep all source files and source-search-evidence unchanged.",
+      "new-required-verdict": "REWORK",
+      "new-required-finding": "Missing reader.sh jq reader in the wire census, independently of Python reader coverage."
+    },
+    {
+      "id": "missing-python-reader",
+      "change": "Remove only reader.py installed_prefixes from wire-census. Keep all source files and source-search-evidence unchanged.",
+      "new-required-verdict": "REWORK",
+      "new-required-finding": "Missing reader.py installed_prefixes reader in the wire census, independently of shell reader coverage."
+    },
+    {
+      "id": "corrected-record",
+      "change": "Use base-design unchanged.",
+      "new-required-verdict": "ACCEPT",
+      "new-required-finding": "Positive installed-route behavior, exclusion, permitted-survivor rationale, and every evidence-derived writer/reader are accounted for."
+    },
+    {
+      "id": "unsupported-source",
+      "change": "Use base-design but replace source-fixture and source-search-evidence with an unavailable-source error. Do not use a previous judgment as source evidence.",
+      "new-required-verdict": "UNJUDGEABLE",
+      "new-required-finding": "Cannot establish complete source-derived wire population from unavailable producer/reader evidence; refuse acceptance rather than infer completeness."
+    }
+  ],
+  "execution-note": "Main owns every judgment execution. Freeze these fixture source bytes and case transformations before baseline. For baseline, do not pass new-required-verdict/new-required-finding to the reviewer; they are assertions for Main after independent verdicts arrive. Use the old canonical prompt bytes for old behavior, then the edited canonical instructions for corrected judgment. Capture each independent verdict and source-supported reason. An unexecuted proposed proof is not green evidence.",
+  "frozen-model-inputs": {
+    "absence-only": {
+      "proposed-design": {
+        "status": "design",
+        "task": "Change publication so an installed route snapshot excludes routes that have not been installed. Installed routes must still reach both existing reader entry points. No other behavior changes.",
+        "current-behavior": "writer.go PublishRoutes serializes all input routes. reader.sh and reader.py installed_prefixes both select installed routes from the JSON snapshot.",
+        "existing-mechanisms": "Extend PublishRoutes and retain its JSON encoder and existing file publication route. Retain the shell jq and Python json.load consumers and the existing routes/prefix/installed schema.",
+        "data-flow": "Caller gives PublishRoutes installed and uninstalled Route values; PublishRoutes writes the JSON snapshot; shell and Python entry points consume that same snapshot.",
+        "files-to-modify": [
+          "writer.go"
+        ],
+        "wire-census": [
+          {
+            "role": "writer",
+            "site": "writer.go PublishRoutes",
+            "evidence": "json.Marshal followed by os.WriteFile",
+            "disposition": "Extend publication filtering; preserve the JSON field schema."
+          },
+          {
+            "role": "reader",
+            "site": "reader.sh jq",
+            "evidence": "jq reads routes[].installed and routes[].prefix",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          },
+          {
+            "role": "reader",
+            "site": "reader.py installed_prefixes",
+            "evidence": "json.load followed by routes/installed/prefix reads",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          }
+        ],
+        "acceptance-criteria": [
+          {
+            "id": "AC-1",
+            "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
+            "expected-behavior": "The published snapshot does not contain 198.51.100.0/24."
+          }
+        ],
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+      },
+      "source-files": {
+        "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
+        "reader.sh": "#!/bin/sh\nset -eu\n# This reader prints the installed routes from the published JSON snapshot.\njq -r '.routes[] | select(.installed == true) | .prefix' \"$1\"\n",
+        "reader.py": "import json\nimport sys\n\ndef installed_prefixes(path):\n    with open(path, encoding=\"utf-8\") as source:\n        snapshot = json.load(source)\n    return [route[\"prefix\"] for route in snapshot[\"routes\"] if route[\"installed\"]]\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(installed_prefixes(sys.argv[1])))\n"
+      },
+      "source-search-evidence": {
+        "scope": "All three authored fixture files above; this is the complete fixture source tree, not the edit set.",
+        "wire": "JSON route snapshot: routes array with prefix and installed fields",
+        "search-terms": [
+          "routes",
+          "prefix",
+          "installed",
+          "json.Marshal",
+          "json.load",
+          "jq"
+        ],
+        "writer-evidence": "writer.go PublishRoutes serializes routes with encoding/json and writes the snapshot to its caller-supplied path.",
+        "reader-evidence": [
+          "reader.sh jq filter reads routes[].installed and routes[].prefix from that snapshot.",
+          "reader.py installed_prefixes loads the snapshot with json.load and reads routes[].installed and routes[].prefix."
+        ]
+      }
+    },
+    "missing-survivor-rationale": {
+      "proposed-design": {
+        "status": "design",
+        "task": "Change publication so an installed route snapshot excludes routes that have not been installed. Installed routes must still reach both existing reader entry points. No other behavior changes.",
+        "current-behavior": "writer.go PublishRoutes serializes all input routes. reader.sh and reader.py installed_prefixes both select installed routes from the JSON snapshot.",
+        "existing-mechanisms": "Extend PublishRoutes and retain its JSON encoder and existing file publication route. Retain the shell jq and Python json.load consumers and the existing routes/prefix/installed schema.",
+        "data-flow": "Caller gives PublishRoutes installed and uninstalled Route values; PublishRoutes writes the JSON snapshot; shell and Python entry points consume that same snapshot.",
+        "files-to-modify": [
+          "writer.go"
+        ],
+        "wire-census": [
+          {
+            "role": "writer",
+            "site": "writer.go PublishRoutes",
+            "evidence": "json.Marshal followed by os.WriteFile",
+            "disposition": "Extend publication filtering; preserve the JSON field schema."
+          },
+          {
+            "role": "reader",
+            "site": "reader.sh jq",
+            "evidence": "jq reads routes[].installed and routes[].prefix",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          },
+          {
+            "role": "reader",
+            "site": "reader.py installed_prefixes",
+            "evidence": "json.load followed by routes/installed/prefix reads",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          }
+        ],
+        "acceptance-criteria": [
+          {
+            "id": "AC-1",
+            "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
+            "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24."
+          }
+        ],
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+      },
+      "source-files": {
+        "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
+        "reader.sh": "#!/bin/sh\nset -eu\n# This reader prints the installed routes from the published JSON snapshot.\njq -r '.routes[] | select(.installed == true) | .prefix' \"$1\"\n",
+        "reader.py": "import json\nimport sys\n\ndef installed_prefixes(path):\n    with open(path, encoding=\"utf-8\") as source:\n        snapshot = json.load(source)\n    return [route[\"prefix\"] for route in snapshot[\"routes\"] if route[\"installed\"]]\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(installed_prefixes(sys.argv[1])))\n"
+      },
+      "source-search-evidence": {
+        "scope": "All three authored fixture files above; this is the complete fixture source tree, not the edit set.",
+        "wire": "JSON route snapshot: routes array with prefix and installed fields",
+        "search-terms": [
+          "routes",
+          "prefix",
+          "installed",
+          "json.Marshal",
+          "json.load",
+          "jq"
+        ],
+        "writer-evidence": "writer.go PublishRoutes serializes routes with encoding/json and writes the snapshot to its caller-supplied path.",
+        "reader-evidence": [
+          "reader.sh jq filter reads routes[].installed and routes[].prefix from that snapshot.",
+          "reader.py installed_prefixes loads the snapshot with json.load and reads routes[].installed and routes[].prefix."
+        ]
+      }
+    },
+    "missing-go-writer": {
+      "proposed-design": {
+        "status": "design",
+        "task": "Change publication so an installed route snapshot excludes routes that have not been installed. Installed routes must still reach both existing reader entry points. No other behavior changes.",
+        "current-behavior": "writer.go PublishRoutes serializes all input routes. reader.sh and reader.py installed_prefixes both select installed routes from the JSON snapshot.",
+        "existing-mechanisms": "Extend PublishRoutes and retain its JSON encoder and existing file publication route. Retain the shell jq and Python json.load consumers and the existing routes/prefix/installed schema.",
+        "data-flow": "Caller gives PublishRoutes installed and uninstalled Route values; PublishRoutes writes the JSON snapshot; shell and Python entry points consume that same snapshot.",
+        "files-to-modify": [
+          "writer.go"
+        ],
+        "wire-census": [
+          {
+            "role": "reader",
+            "site": "reader.sh jq",
+            "evidence": "jq reads routes[].installed and routes[].prefix",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          },
+          {
+            "role": "reader",
+            "site": "reader.py installed_prefixes",
+            "evidence": "json.load followed by routes/installed/prefix reads",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          }
+        ],
+        "acceptance-criteria": [
+          {
+            "id": "AC-1",
+            "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
+            "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
+            "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+          }
+        ],
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+      },
+      "source-files": {
+        "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
+        "reader.sh": "#!/bin/sh\nset -eu\n# This reader prints the installed routes from the published JSON snapshot.\njq -r '.routes[] | select(.installed == true) | .prefix' \"$1\"\n",
+        "reader.py": "import json\nimport sys\n\ndef installed_prefixes(path):\n    with open(path, encoding=\"utf-8\") as source:\n        snapshot = json.load(source)\n    return [route[\"prefix\"] for route in snapshot[\"routes\"] if route[\"installed\"]]\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(installed_prefixes(sys.argv[1])))\n"
+      },
+      "source-search-evidence": {
+        "scope": "All three authored fixture files above; this is the complete fixture source tree, not the edit set.",
+        "wire": "JSON route snapshot: routes array with prefix and installed fields",
+        "search-terms": [
+          "routes",
+          "prefix",
+          "installed",
+          "json.Marshal",
+          "json.load",
+          "jq"
+        ],
+        "writer-evidence": "writer.go PublishRoutes serializes routes with encoding/json and writes the snapshot to its caller-supplied path.",
+        "reader-evidence": [
+          "reader.sh jq filter reads routes[].installed and routes[].prefix from that snapshot.",
+          "reader.py installed_prefixes loads the snapshot with json.load and reads routes[].installed and routes[].prefix."
+        ]
+      }
+    },
+    "missing-shell-reader": {
+      "proposed-design": {
+        "status": "design",
+        "task": "Change publication so an installed route snapshot excludes routes that have not been installed. Installed routes must still reach both existing reader entry points. No other behavior changes.",
+        "current-behavior": "writer.go PublishRoutes serializes all input routes. reader.sh and reader.py installed_prefixes both select installed routes from the JSON snapshot.",
+        "existing-mechanisms": "Extend PublishRoutes and retain its JSON encoder and existing file publication route. Retain the shell jq and Python json.load consumers and the existing routes/prefix/installed schema.",
+        "data-flow": "Caller gives PublishRoutes installed and uninstalled Route values; PublishRoutes writes the JSON snapshot; shell and Python entry points consume that same snapshot.",
+        "files-to-modify": [
+          "writer.go"
+        ],
+        "wire-census": [
+          {
+            "role": "writer",
+            "site": "writer.go PublishRoutes",
+            "evidence": "json.Marshal followed by os.WriteFile",
+            "disposition": "Extend publication filtering; preserve the JSON field schema."
+          },
+          {
+            "role": "reader",
+            "site": "reader.py installed_prefixes",
+            "evidence": "json.load followed by routes/installed/prefix reads",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          }
+        ],
+        "acceptance-criteria": [
+          {
+            "id": "AC-1",
+            "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
+            "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
+            "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+          }
+        ],
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+      },
+      "source-files": {
+        "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
+        "reader.sh": "#!/bin/sh\nset -eu\n# This reader prints the installed routes from the published JSON snapshot.\njq -r '.routes[] | select(.installed == true) | .prefix' \"$1\"\n",
+        "reader.py": "import json\nimport sys\n\ndef installed_prefixes(path):\n    with open(path, encoding=\"utf-8\") as source:\n        snapshot = json.load(source)\n    return [route[\"prefix\"] for route in snapshot[\"routes\"] if route[\"installed\"]]\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(installed_prefixes(sys.argv[1])))\n"
+      },
+      "source-search-evidence": {
+        "scope": "All three authored fixture files above; this is the complete fixture source tree, not the edit set.",
+        "wire": "JSON route snapshot: routes array with prefix and installed fields",
+        "search-terms": [
+          "routes",
+          "prefix",
+          "installed",
+          "json.Marshal",
+          "json.load",
+          "jq"
+        ],
+        "writer-evidence": "writer.go PublishRoutes serializes routes with encoding/json and writes the snapshot to its caller-supplied path.",
+        "reader-evidence": [
+          "reader.sh jq filter reads routes[].installed and routes[].prefix from that snapshot.",
+          "reader.py installed_prefixes loads the snapshot with json.load and reads routes[].installed and routes[].prefix."
+        ]
+      }
+    },
+    "missing-python-reader": {
+      "proposed-design": {
+        "status": "design",
+        "task": "Change publication so an installed route snapshot excludes routes that have not been installed. Installed routes must still reach both existing reader entry points. No other behavior changes.",
+        "current-behavior": "writer.go PublishRoutes serializes all input routes. reader.sh and reader.py installed_prefixes both select installed routes from the JSON snapshot.",
+        "existing-mechanisms": "Extend PublishRoutes and retain its JSON encoder and existing file publication route. Retain the shell jq and Python json.load consumers and the existing routes/prefix/installed schema.",
+        "data-flow": "Caller gives PublishRoutes installed and uninstalled Route values; PublishRoutes writes the JSON snapshot; shell and Python entry points consume that same snapshot.",
+        "files-to-modify": [
+          "writer.go"
+        ],
+        "wire-census": [
+          {
+            "role": "writer",
+            "site": "writer.go PublishRoutes",
+            "evidence": "json.Marshal followed by os.WriteFile",
+            "disposition": "Extend publication filtering; preserve the JSON field schema."
+          },
+          {
+            "role": "reader",
+            "site": "reader.sh jq",
+            "evidence": "jq reads routes[].installed and routes[].prefix",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          }
+        ],
+        "acceptance-criteria": [
+          {
+            "id": "AC-1",
+            "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
+            "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
+            "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+          }
+        ],
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+      },
+      "source-files": {
+        "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
+        "reader.sh": "#!/bin/sh\nset -eu\n# This reader prints the installed routes from the published JSON snapshot.\njq -r '.routes[] | select(.installed == true) | .prefix' \"$1\"\n",
+        "reader.py": "import json\nimport sys\n\ndef installed_prefixes(path):\n    with open(path, encoding=\"utf-8\") as source:\n        snapshot = json.load(source)\n    return [route[\"prefix\"] for route in snapshot[\"routes\"] if route[\"installed\"]]\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(installed_prefixes(sys.argv[1])))\n"
+      },
+      "source-search-evidence": {
+        "scope": "All three authored fixture files above; this is the complete fixture source tree, not the edit set.",
+        "wire": "JSON route snapshot: routes array with prefix and installed fields",
+        "search-terms": [
+          "routes",
+          "prefix",
+          "installed",
+          "json.Marshal",
+          "json.load",
+          "jq"
+        ],
+        "writer-evidence": "writer.go PublishRoutes serializes routes with encoding/json and writes the snapshot to its caller-supplied path.",
+        "reader-evidence": [
+          "reader.sh jq filter reads routes[].installed and routes[].prefix from that snapshot.",
+          "reader.py installed_prefixes loads the snapshot with json.load and reads routes[].installed and routes[].prefix."
+        ]
+      }
+    },
+    "corrected-record": {
+      "proposed-design": {
+        "status": "design",
+        "task": "Change publication so an installed route snapshot excludes routes that have not been installed. Installed routes must still reach both existing reader entry points. No other behavior changes.",
+        "current-behavior": "writer.go PublishRoutes serializes all input routes. reader.sh and reader.py installed_prefixes both select installed routes from the JSON snapshot.",
+        "existing-mechanisms": "Extend PublishRoutes and retain its JSON encoder and existing file publication route. Retain the shell jq and Python json.load consumers and the existing routes/prefix/installed schema.",
+        "data-flow": "Caller gives PublishRoutes installed and uninstalled Route values; PublishRoutes writes the JSON snapshot; shell and Python entry points consume that same snapshot.",
+        "files-to-modify": [
+          "writer.go"
+        ],
+        "wire-census": [
+          {
+            "role": "writer",
+            "site": "writer.go PublishRoutes",
+            "evidence": "json.Marshal followed by os.WriteFile",
+            "disposition": "Extend publication filtering; preserve the JSON field schema."
+          },
+          {
+            "role": "reader",
+            "site": "reader.sh jq",
+            "evidence": "jq reads routes[].installed and routes[].prefix",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          },
+          {
+            "role": "reader",
+            "site": "reader.py installed_prefixes",
+            "evidence": "json.load followed by routes/installed/prefix reads",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          }
+        ],
+        "acceptance-criteria": [
+          {
+            "id": "AC-1",
+            "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
+            "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
+            "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+          }
+        ],
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+      },
+      "source-files": {
+        "writer.go": "package censusfixture\n\nimport (\n    \"encoding/json\"\n    \"os\"\n)\n\ntype Route struct {\n    Prefix string `json:\"prefix\"`\n    Installed bool `json:\"installed\"`\n}\n\nfunc PublishRoutes(path string, routes []Route) error {\n    body, err := json.Marshal(struct { Routes []Route `json:\"routes\"` }{Routes: routes})\n    if err != nil { return err }\n    return os.WriteFile(path, body, 0600)\n}\n",
+        "reader.sh": "#!/bin/sh\nset -eu\n# This reader prints the installed routes from the published JSON snapshot.\njq -r '.routes[] | select(.installed == true) | .prefix' \"$1\"\n",
+        "reader.py": "import json\nimport sys\n\ndef installed_prefixes(path):\n    with open(path, encoding=\"utf-8\") as source:\n        snapshot = json.load(source)\n    return [route[\"prefix\"] for route in snapshot[\"routes\"] if route[\"installed\"]]\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(installed_prefixes(sys.argv[1])))\n"
+      },
+      "source-search-evidence": {
+        "scope": "All three authored fixture files above; this is the complete fixture source tree, not the edit set.",
+        "wire": "JSON route snapshot: routes array with prefix and installed fields",
+        "search-terms": [
+          "routes",
+          "prefix",
+          "installed",
+          "json.Marshal",
+          "json.load",
+          "jq"
+        ],
+        "writer-evidence": "writer.go PublishRoutes serializes routes with encoding/json and writes the snapshot to its caller-supplied path.",
+        "reader-evidence": [
+          "reader.sh jq filter reads routes[].installed and routes[].prefix from that snapshot.",
+          "reader.py installed_prefixes loads the snapshot with json.load and reads routes[].installed and routes[].prefix."
+        ]
+      }
+    },
+    "unsupported-source": {
+      "proposed-design": {
+        "status": "design",
+        "task": "Change publication so an installed route snapshot excludes routes that have not been installed. Installed routes must still reach both existing reader entry points. No other behavior changes.",
+        "current-behavior": "writer.go PublishRoutes serializes all input routes. reader.sh and reader.py installed_prefixes both select installed routes from the JSON snapshot.",
+        "existing-mechanisms": "Extend PublishRoutes and retain its JSON encoder and existing file publication route. Retain the shell jq and Python json.load consumers and the existing routes/prefix/installed schema.",
+        "data-flow": "Caller gives PublishRoutes installed and uninstalled Route values; PublishRoutes writes the JSON snapshot; shell and Python entry points consume that same snapshot.",
+        "files-to-modify": [
+          "writer.go"
+        ],
+        "wire-census": [
+          {
+            "role": "writer",
+            "site": "writer.go PublishRoutes",
+            "evidence": "json.Marshal followed by os.WriteFile",
+            "disposition": "Extend publication filtering; preserve the JSON field schema."
+          },
+          {
+            "role": "reader",
+            "site": "reader.sh jq",
+            "evidence": "jq reads routes[].installed and routes[].prefix",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          },
+          {
+            "role": "reader",
+            "site": "reader.py installed_prefixes",
+            "evidence": "json.load followed by routes/installed/prefix reads",
+            "disposition": "Unchanged; revalidate against the changed snapshot."
+          }
+        ],
+        "acceptance-criteria": [
+          {
+            "id": "AC-1",
+            "condition": "Input contains installed 192.0.2.0/24 and uninstalled 198.51.100.0/24.",
+            "expected-behavior": "The published snapshot contains installed 192.0.2.0/24 and both reader entry points print exactly 192.0.2.0/24. It excludes uninstalled 198.51.100.0/24.",
+            "permitted-survivors": "Installed 192.0.2.0/24 remains in the snapshot and visible to both readers because the requested change excludes only routes that have not been installed. Other installed routes follow the same rule; unchanged JSON field names and the two reader entry points remain permitted."
+          }
+        ],
+        "proof-plan": "Call PublishRoutes with the two route values; parse the snapshot; run each existing reader entry point against it and assert the exact installed prefix. Revert the filtering to demonstrate that the snapshot assertion fails. This is a plan, not an executed proof."
+      },
+      "source-files": {
+        "error": "SOURCE UNAVAILABLE: authored producer and reader files cannot be read"
+      },
+      "source-search-evidence": {
+        "error": "SOURCE UNAVAILABLE: no independent source census can be established"
+      }
+    }
+  },
+  "protocol": {
+    "kind": "Manual independent harness-model regression, not deterministic CI or native CLI automation",
+    "inputs": "For each case, use frozen-model-inputs[case] unchanged. Add the current canonical-instructions extracted from the named ze-spec DESIGN, ze-design Load Context, ze-review-spec Validate requirements, and template sections. For historical comparison, use the separately retained old canonical snapshot. Do not put expected assertions, new-required-verdict/new-required-finding, case transformation descriptions, previous results, or evidence-companion verdicts into the model payload.",
+    "reviewer": "Use a fresh independent harness model context for each case. Send baseline-instruction as the reviewer instructions. Judge the supplied current source bytes and proposed design under the supplied canonical instructions; require verdict ACCEPT, REWORK, or UNJUDGEABLE plus source-supported findings. No tools or invented source are needed for this complete authored source tree.",
+    "comparison": "Compare returned verdict and source-supported findings with the separate cases assertions only after results return. Missing Go writer, shell reader, Python reader, and permitted-survivor rationale are independent cases. Preserve identical source/design states between old and corrected canonical runs.",
+    "unavailable": "If a model is unavailable, errors, or returns no usable verdict, record UNJUDGEABLE and refuse acceptance; do not substitute an expected value, a source-text search result, or a prior verdict.",
+    "record": "Retain the canonical prompt bytes, exact model payloads, independent model identities, actual outputs and limitations in the spec evidence companion. A proposed run or expected verdict is not exercised evidence. Model judgments are probabilistic and are not a deterministic CI guarantee."
+  }
+}

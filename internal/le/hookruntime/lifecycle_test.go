@@ -234,17 +234,16 @@ func artifactsWithPolicy(t *testing.T, policy derived.SessionStartPolicy) []deri
 	return held
 }
 
-// TestSessionStartBuildsEveryArtifactDeclaredForIt proves the session hook reads
-// the registry rather than a list of names.
+// TestNamedReadBuildsEveryStartupArtifact proves the on-demand hook builds the
+// registry population previously rendered during session startup.
 //
-// Two hardcoded os.Stat blocks named ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md
-// until 2026-09-11, so a third artifact was absent at every session start until
-// somebody edited this hook. The assertion is over derived.All(), which is why
-// a fourth artifact moves this test with it and needs no line here.
+// VALIDATES: every formerly eager artifact can be rendered from a capable tree
+// through the real pretool-bash entry when a command names it; no private list
+// can omit a newly registered member. Startup leaves the same artifacts absent
+// (TestSessionStartWithinHarnessBudget).
 //
-// It reads SessionStartBuild alone, because an artifact's policy is now part of
-// its registration and the deferred ones are the sibling test's subject.
-func TestSessionStartBuildsEveryArtifactDeclaredForIt(t *testing.T) {
+// PREVENTS: removing eager startup work also removing artifact availability.
+func TestNamedReadBuildsEveryStartupArtifact(t *testing.T) {
 	root := derivedFixture(t)
 	artifacts := artifactsWithPolicy(t, derived.SessionStartBuild)
 	for _, artifact := range artifacts {
@@ -253,14 +252,16 @@ func TestSessionStartBuildsEveryArtifactDeclaredForIt(t *testing.T) {
 		}
 	}
 
-	printed := runSessionStart(t, root)
-
 	for _, artifact := range artifacts {
-		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(artifact.Path))); err != nil {
-			t.Errorf("%s is still absent after a session start: %v", artifact.Path, err)
+		code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+			"tool_name": "Bash",
+			"tool_input": map[string]any{"command": "cat " + artifact.Path},
+		})
+		if code != 0 {
+			t.Fatalf("named read of %s refused: %s", artifact.Path, message)
 		}
-		if !strings.Contains(printed, "Built "+artifact.Path) {
-			t.Errorf("the hook printed no line for %s:\n%s", artifact.Path, printed)
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(artifact.Path))); err != nil {
+			t.Errorf("%s is still absent after its named read: %v", artifact.Path, err)
 		}
 	}
 }

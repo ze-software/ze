@@ -97,6 +97,24 @@ leave the placeholder row.
 |----------|-----|----------|
 | Engine ↔ Plugin | [JSON format, command syntax] | No |
 
+### Changed-Wire Census
+
+For each changed wire, search its format, old and new fields, encode/write and
+decode/read entry points, then follow the actual carriers. Include every writer
+and reader site, even when unchanged or written in shell, Python or another
+language; include embedded scripts and repository-carried outside-language
+consumers. Files to Modify is the edit set, not this population.
+Record the search scope, terms and a known producer/consumer control. If no
+wire changes, give the source-supported reason instead of a fictitious census.
+The harness-model design judgment compares these rows with current source
+evidence; the source-read hook alone does not establish completeness.
+
+**Search evidence:** [scope, terms, positive control and source findings]
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| [format] | [role] | [source site] | [search finding and actual encode/write or decode/read path] | [change or preserve, with reason and proof] |
+
 ### Integration Points
 - [Existing function/type this connects to] - [how it integrates]
 
@@ -150,11 +168,14 @@ leave the placeholder row.
 
 ## Acceptance Criteria
 
-<!-- Define BEFORE implementation. Each row is a testable assertion, stated as
-     observable behavior, never as the mechanism used to reach it. -->
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
+<!-- Define BEFORE implementation. Each row states positive observable behavior,
+     never only the mechanism or the absence of the defect. Name what remains
+     permitted and why; if there are no permitted survivors, state the reason.
+     Dropping or rejecting every input must not satisfy an AC for useful output.
+     The harness-model design judgment checks meaning, not acceptance words. -->
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | [what triggers the behavior] | [positive observable outcome] | [what remains permitted and why, or why none] |
 
 ## End-to-End User Stories
 

@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // derivedArtifactRel is the artifact this scenario follows, relative to the
@@ -68,15 +69,57 @@ func leDerivedArtifactLifecycleDriver(ctx context.Context, args []string) error 
 	}
 	fmt.Fprintln(os.Stdout, "derived-fixture-ready") //nolint:errcheck // progress output
 
-	// A session start renders every registered artifact the tree does not hold,
-	// which is what puts the first copy there.
-	if _, _, err := derivedHook(ctx, repo, le, "session-start", "", nil); err != nil {
+	// Startup MUST finish its required context within the harness's five-second
+	// deadline (.claude/settings.json), without building a derived artifact.
+	started := time.Now()
+	startupCtx, cancelStartup := context.WithTimeout(ctx, 5*time.Second)
+	code, said, err := derivedHook(startupCtx, repo, le, "session-start", "", nil)
+	startupErr := startupCtx.Err()
+	cancelStartup() // MUST release the startup timer after the owned command joins.
+	if err != nil {
 		return err
 	}
+	if startupErr != nil {
+		return fmt.Errorf("session startup did not complete before cancellation: %w\n%s", startupErr, said)
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		return fmt.Errorf("session startup took %s, beyond the five-second harness deadline:\n%s", elapsed, said)
+	}
+	if code != 0 {
+		return fmt.Errorf("session startup refused with %d:\n%s", code, said)
+	}
+	for _, notice := range []string{
+		"Warning: RULE: Read spec + source files BEFORE writing any code",
+		"Rules: ai/rules/TRIGGERS.md names every rule with the situation it covers -- when one matches, read that rule's file in full before acting",
+	} {
+		found := false
+		for line := range strings.SplitSeq(said, "\n") {
+			if line == notice {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("session startup omitted required context %q:\n%s", notice, said)
+		}
+	}
 	artifact := filepath.Join(repo, filepath.FromSlash(derivedArtifactRel))
+	if _, err := os.Stat(artifact); !os.IsNotExist(err) {
+		return errors.New("session startup rendered " + derivedArtifactRel + " instead of leaving it to its reader")
+	}
+	fmt.Fprintln(os.Stdout, "session-start-left-the-artifact-absent") //nolint:errcheck // progress output
+	// The first named read owns initial rendering, through the same hook that
+	// refreshes the artifact after the edit below.
+	code, said, err = derivedReadHook(ctx, repo, le, "cat "+derivedArtifactRel)
+	if err != nil {
+		return err
+	}
+	if code != 0 {
+		return fmt.Errorf("the initial named read refused with %d:\n%s", code, said)
+	}
 	rendered, err := os.ReadFile(artifact) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
-		return fmt.Errorf("the session hook built no %s: %w", derivedArtifactRel, err)
+		return fmt.Errorf("the named read built no %s: %w", derivedArtifactRel, err)
 	}
 	// The index maps a code path to the documents that cite it, so what the
 	// edit below has to move is WHICH path an anchor names. Asserting on the
@@ -88,7 +131,7 @@ func leDerivedArtifactLifecycleDriver(ctx context.Context, args []string) error 
 	if strings.Contains(string(rendered), "other.go") {
 		return fmt.Errorf("the rendered artifact names a path no anchor cites yet:\n%s", rendered)
 	}
-	fmt.Fprintln(os.Stdout, "session-start-rendered-the-artifact") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "initial-read-rendered-the-artifact") //nolint:errcheck // progress output
 
 	// The edit a session makes, then the write hook that sees it.
 	page := filepath.Join(repo, filepath.FromSlash(derivedPageRel))
@@ -97,7 +140,7 @@ func leDerivedArtifactLifecycleDriver(ctx context.Context, args []string) error 
 	if err := os.WriteFile(page, []byte(edited), 0o600); err != nil {
 		return err
 	}
-	code, said, err := derivedWriteHook(ctx, repo, le, page)
+	code, said, err = derivedWriteHook(ctx, repo, le, page)
 	if err != nil {
 		return err
 	}

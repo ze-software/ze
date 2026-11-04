@@ -163,10 +163,17 @@ must be run manually:
 
 Every suite action routes through `internal/le/job`, which runs it now,
 queues it behind a heavy job already in flight, or attaches it to an equivalent
-run. Queue a runner selection with
-`./le job run label <label> command bin/le test <suite> <selection>`.
-<!-- source: internal/le/test/functional/actions.go -- Actions -->
-<!-- source: internal/le/test/integration/actions.go -- Actions -->
+run. `./le test functional <suite>` runs that suite's declared full population;
+extra words select more suite actions, not individual tests. For one test,
+queue the native runner instead:
+`./le job run label <label> command bin/le test runner <exact-test-name>`.
+For a BGP suite the native form is
+`./le job run label <label> command bin/le test bgp <suite> <exact-test-name>`.
+Use the command in the suite inventory below, not the functional action name,
+before adding a runner selector.
+<!-- source: internal/le/test/functional/actions.go -- suiteRunner, Answer -->
+<!-- source: internal/le/test/functional/suites.go -- Suite.Command, Suites -->
+<!-- source: internal/test/runner/selection.go -- Select -->
 
 Thomas runs clean release-candidate evidence with `./le verify evidence release-candidate`.
 The action refuses a dirty worktree, clones the repository into an ephemeral
@@ -547,12 +554,16 @@ below.
 ---
 ## Functional Suite Inventory
 
-Every `le test` functional suite uses the same selection contract after the suite
-name: `--list`, `--all`, `--start ID`, `--pattern TEXT`, or positional
-`ID_OR_NAME...`. `--list` prints each test as `N/TOTAL ID NAME`; `ID` is
-one-based, so the full-suite progress number and runnable id match. Each run
-prints one completion line per test with elapsed time, `N/TOTAL`, result, id,
-and name, plus periodic progress while tests are still running.
+Native `le test <suite>` and `le test bgp <suite>` runners use the same
+selection contract after the suite name: `--list`, `--all`, `--start ID`,
+`--pattern TEXT`, or positional `ID_OR_NAME...`. This is not the
+`le test functional <suite>` action surface. A positional name selects that
+exact test; `--pattern` selects every matching id, name or path substring.
+`--start` selects the named test and every later test in suite order.
+`--list` prints each test as `N/TOTAL ID NAME`; ids are one-based positions,
+so use the test name in saved commands. Each run prints one completion line
+per test with elapsed time, `N/TOTAL`, result, id and name, plus periodic
+progress while tests are still running.
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- Status, TestFinished -->
 <!-- source: internal/test/cli/cmd_web.go -- webMain parallel via ParallelRunner -->
@@ -587,7 +598,7 @@ and name, plus periodic progress while tests are still running.
 | Chaos | `le test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. Each test execs `le chaos run`; the run compiles the le personality (`ze_le` and every gate `feature-gates.txt` declares) into its temp directory. The daemon `le chaos run` forks is the runner's own `ze`, found as `ze` on the child PATH. |
 | Chaos web | `le test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. Each test execs `le chaos run --in-process --web`, against the same le build as the chaos suite. |
 | ExaBGP compatibility | `le test exabgp` | `test/exabgp-compat/{encoding,api,old-4.2,old-5.0}/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `le test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
-| Runner | `le test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, a commit never refused for a red (`commit-not-refused-for-a-red`), the derived push debt (`commit-push-needs-no-verify-record` and `commit-push-script-rechecks` drive `./le commit push` and its push-only script with no verify record, `verify-worktree-cut-sweep` writes the green record a full or cut verification earns, `verify-records-at-asking-root` shows the green and scoped records land at the asking root and change nothing a push owes, `commit-attest-empty-commit` and `commit-review-owed-trailer` answer a person act from the commit trailers), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le ai hooks` over a scratch checkout: a session start renders an artifact the tree does not hold, a write to one of its inputs removes it, and a command naming it rebuilds it before that command runs; `le-rfc-ledger-is-derived` walks the same loop for the five RFC outputs, and runs `./le rfc check` over a tree holding none of them to prove the gate judges the summaries rather than a page). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
+| Runner | `le test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, a commit never refused for a red (`commit-not-refused-for-a-red`), the derived push debt (`commit-push-needs-no-verify-record` and `commit-push-script-rechecks` drive `./le commit push` and its push-only script with no verify record, `verify-worktree-cut-sweep` writes the green record a full or cut verification earns, `verify-records-at-asking-root` shows the green and scoped records land at the asking root and change nothing a push owes, `commit-attest-empty-commit` and `commit-review-owed-trailer` answer a person act from the commit trailers), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le ai hooks` over a scratch checkout: session startup leaves the artifact absent, its first named read renders it, a write to one of its inputs removes it, and a later named read rebuilds it before that command runs; `le-rfc-ledger-is-derived` walks the same loop for the five RFC outputs, and runs `./le rfc check` over a tree holding none of them to prove the gate judges the summaries rather than a page). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
 <!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->
@@ -3042,6 +3053,15 @@ stage log.
 <!-- source: internal/test/runner/failure_group.go -- native functional groups -->
 <!-- source: internal/test/runner/report.go -- detailed failure reports -->
 <!-- source: internal/test/runner/display.go -- summary and debug hints -->
+
+Verify mode has one Boolean meaning: the registered `ze.verify.mode`
+setting, read through `env.IsEnabled` by `runner.VerifyModeEnabled`.
+`ZE_VERIFY_MODE=1` enables it; unset, empty and unrecognized values disable it.
+The reader also accepts `true`, `yes`, `on`, `enable` and `enabled`,
+case-insensitively. This mode changes verification reporting and the
+mode-dependent failure policy; it is not a test selector.
+<!-- source: internal/test/runner/parallel.go -- verifyModeEnabled, VerifyModeEnabled -->
+<!-- source: internal/core/env/env.go -- IsEnabled -->
 
 ### Stress Test Mode
 

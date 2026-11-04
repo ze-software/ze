@@ -50,7 +50,8 @@ in-process rather than launching a second implementation.
 | PostToolUse | `LSP` | `mark-lsp-invoked` |
 | PostToolUse | `Read` | `mark-source-read` |
 | PostToolUse | `Task\|Agent` | `mark-agent-spawned` |
-| PostToolUse | `Write\|Edit` | `validate-spec`, `posttool-writeedit` |
+| PostToolUse | `Write\|Edit\|MultiEdit` | `validate-spec` |
+| PostToolUse | `Write\|Edit` | `posttool-writeedit` |
 | PostToolUse | `Bash` | `posttool-bash` |
 | PreCompact | every | `pre-compact-save` |
 | Stop | every | `block-premature-stop`, `rule-coverage-report`, `session-end-summary`, `session-end-deferrals` |
@@ -96,8 +97,8 @@ check's row cannot survive it.
 | `writeRenderedRule` | `repo-maintenance.md` | An edit to a rendered rule, which `ai/rules/points/` owns. |
 | `writePointOverwrite` | `never-destroy-work.md` | A Write that replaces an existing rule point. |
 | `writePointLanguage` | `rule-format.md` | A rule directive that states no RFC 2119 level. |
-| `writeDesignEvidence` | `evidence.md` | A spec or design written before its source was read. |
-| `writeSpecStatus` | `planning.md` | A source edit while the claimed spec is not `in-progress`. |
+| `writeDesignEvidence` | `evidence.md` | A spec or design with no current read of its existing producer subjects. Records bind checkout path, content digest and harness context; a generic marker, unrelated source or changed content is not subject evidence. |
+| `writeSpecStatus` | `planning.md` | A source edit while the claimed spec is not `in-progress` or `verification`, or its metadata cannot be read and parsed unambiguously. It shares the inventory's metadata-table grammar with direct admission and validation rather than granting from a literal Status substring. |
 | `writeStyleGuideRead` | `go-standards.md` | A Go Write, Edit or MultiEdit from a session, or a subagent, with no record of reading `docs/contributing/ze-go-style.md`. A subagent's payload carries the parent's `session_id` and its own `agent_id`, so each subagent needs its own read: the marker is `tmp/session/.doc-read-<escaped document path>-<session>`, with `+<agent_id>` appended for a subagent (`documentReadMarker`, `internal/le/hookruntime/readgate.go`). An id that cannot name a marker is refused. Go written through a Bash heredoc never reaches this check. |
 | `writeDesignDoorsRead` | `architecture.md` | A Go (tests included), YANG or templ Write, Edit or MultiEdit from a session, or a subagent, with no record of a whole read of `ai/doors/system.md` and of every door covering the file. The covering doors are those whose `<!-- door-base: ... -->` header names the longest whole-component prefix of the file's path, all of them on a tie; the headers are parsed at call time, so a new door joins by its header. The refusal lists each unread door. Records and fail-closed identity are shared with `writeStyleGuideRead`; a missing `ai/doors/` or a header that does not close is refused, never read as "no door". |
 | `writeGoPatterns` | `architecture.md`, `cli.md`, `go-standards.md`, `performance.md`, `quality.md`, `plugins.md`, `goroutine-lifecycle.md` | The Go patterns the rules ban, file by file: handlers, panic, legacy logging, allocating formatting, nolint, init registration, switch dispatch, anonymous goroutines, and fake buffer handles. |
@@ -110,6 +111,15 @@ check's row cannot survive it.
 `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Printf`, and `strconv.FormatInt` or
 `strconv.FormatUint` in production Go. The broader allocation audit stays with
 its native verification action.
+`writeGoPatterns` reconstructs the whole proposed Go file for Write, Edit and
+MultiEdit before judging panic calls individually. A replacement inside a
+quoted string or comment is not a call. Each actual call needs its own
+permitted invariant prefix and must parse; an allowed call never exempts
+another. This syntax check does not prove that a peer cannot reach a permitted
+panic.
+
+<!-- source: internal/le/hookruntime/panic.go -- forbiddenPanic -->
+
 
 ### Spec door gate (`internal/le/hookruntime/specdoors.go`)
 
@@ -121,7 +131,22 @@ its native verification action.
 
 | Check | Enforces | What it refuses |
 |---|---|---|
-| `writeSpecMechanisms` | `planning.md` | A Write, Edit or MultiEdit of a spec (`specpath.IsSpec`) whose content after the edit has Status `design`, `ready`, `in-progress` or `verification` and no `## Existing Mechanisms` section, or a section whose table holds no data row (the template's bracketed placeholder row does not count). It replays the edit over the file on disk, so a spec nobody edits is never judged; an Edit whose `old_string` the file lacks passes to the Edit tool's own failure. The judgement is `specmechanisms.Problem` (`internal/le/spec/mechanisms`), which `./le commit create` applies to the specs a commit edits. |
+| `writeSpecMechanisms` | `planning.md`, `testing.md` | A Write, Edit or MultiEdit of a spec (`specpath.IsSpec`) whose proposed design lacks an Existing Mechanisms data row, or whose non-skeleton runtime change names no functional proof under `test/`. It replays the edit over the file on disk; an Edit whose `old_string` is absent passes to the tool's own failure. `specmechanisms.Problem` is shared with the commit check. `daemonProofProblem` is shared with post-write validation: changed-source exemptions and functional-test permission use canonical identities, including planned paths, and reject unknown/outside resolution. New source roots owe proof; explicit nonproduction roots come from the architecture gate. |
+
+The shared `specmechanisms.Problem` reads Status with `MetadataStatus`; compact
+and spaced metadata rows have the same mechanisms obligation at the write hook
+and commit consumer. Its existing gated-status population and section/data-row
+judgment are unchanged.
+
+### Direct-edit WIP gate (`internal/le/hookruntime/specwip.go`)
+
+| Check | Enforces | What it refuses |
+|---|---|---|
+| `writeSpecWIP` | `planning.md` | A Write, Edit or MultiEdit that adds a new `in-progress` spec, whether claimed or not. It names the exact `./le spec claim <spec-file>` command: only that path holds the claim lock through the cap check and publication. Parsed, unambiguous metadata is required before granting an already-active or non-transition exemption; missing headers, duplicate Status rows and unknown values do not grant permission. Valid existing-active and non-transition edits remain allowed. |
+
+<!-- source: internal/le/hookruntime/specwip.go -- writeSpecWIP -->
+<!-- source: internal/le/spec/session.go -- CheckWIPTransition -->
+
 
 ## PreToolUse: Bash and Write/Edit, the editing agent's budget (`internal/le/hookruntime/budget.go`)
 
@@ -170,23 +195,62 @@ These return hook protocol output directly rather than a check verdict, so
 
 | Action | Event | What it does |
 |---|---|---|
-| `session-start` | SessionStart | Validates the raw session ID, publishes the accepted ID, and prints status. It deletes nothing; `./le session clean` owns proof-based cleanup. |
+| `session-start` | SessionStart | Validates the raw session ID, publishes the accepted ID, and prints required context before bounded status reports. It neither deletes files nor renders derived artifacts; `./le session clean` owns proof-based cleanup, and named artifact reads own derivation. |
 | `compaction-reminder` | UserPromptSubmit | Detects compaction and reminds the session to read the post-compaction rule. |
 | `pre-compact-save` | PreCompact | Saves session state before compaction. |
 | `block-premature-stop` | Stop | Refuses the stop while the claimed spec is implemented but not closed. Warns in one line when the claim is `in-progress` or no subagent was spawned. It never reads the last message. |
 | `rule-coverage-report` | Stop | Reports which rule points this session's transcript exercised. |
-| `session-end-summary` | Stop | Calls `./le session end-summary`. It preserves handoffs and never releases a spec claim. |
+| `session-end-summary` | Stop | Calls `./le session end-summary`. Whole-checkout paths are labeled as shared changes with session attribution unavailable. It preserves handoffs and never releases a spec claim. |
 | `session-end-deferrals` | Stop | Prints the open deferral count. Advisory. |
 | `subagent-context` | SubagentStart | Validates the parent session ID and emits the parent context. Resolves the claimed filename to its current category path; an unresolved or ambiguous claim emits an explicit warning and repair instruction instead of an invented path. |
-| `mark-lsp-invoked` | PostToolUse `LSP` | Writes the session-scoped LSP marker. |
-| `mark-source-read` | PostToolUse `Read` | A Read of a gated document in this checkout (`docs/contributing/ze-go-style.md`, or a page under `ai/doors/`) that returns every line (no offset past line 1, and a limit, or the tool's 2000-line cap, that reaches the last line) writes that document's read marker, which `writeStyleGuideRead`, `writeDesignDoorsRead` and `writeSpecDoorsRead` read. A Read of a `.go`, `.sh`, `.yang`, `.mk` or `Makefile` path writes a source-read evidence marker for its kind. Neither inspects what the Read returned. |
+| `mark-lsp-invoked` | PostToolUse `LSP` | Native LSP responses supply formatted navigation results, not observed source bytes and bounds, so they grant no source freshness. Use Read for source evidence; LSP remains available for navigation. |
+| `mark-source-read` | PostToolUse `Read` | A whole Read of a gated document records the document-read marker. For source, the native structured result must name the same canonical checkout file and carry its observed text, returned range and total line count. The existing context marker stores only that range's digest and tool identity; current matching returned lines establish no unreturned whole-file version. Missing or unsupported results, changed observed text, unreadable paths and outside-checkout symlinks grant no source evidence. |
 | `mark-agent-spawned` | PostToolUse `Task\|Agent` | Writes the session-scoped agent marker. |
-| `validate-spec` | PostToolUse `Write\|Edit` | `hookValidateSpec` validates the spec's Wiring Test table. |
+| `validate-spec` | PostToolUse `Write\|Edit` | `hookValidateSpec` validates the spec structure and Wiring Test table. A non-skeleton spec changing daemon-runtime paths must name a native functional proof; a helper-only unit test does not satisfy that demand. |
 | `bash-timestamp` | PreToolUse `Bash` | `hookBashTimestamp` (`timestamp.go`) prints a `▶ HH:MM:SS` system message before a Bash call, at most once a minute per session (`CLAUDE_BASH_STAMP_QUIET` sets the gap in seconds). It never judges a command and never blocks. |
 
-`writeDesignEvidence` in `writeedit.go` consumes the LSP and source-read markers
-before a design or spec write, and `hookStop` reads the agent marker. Reads never
-block.
+`writeDesignEvidence` consumes observed source records before a design or spec
+write. Existing producer paths come from Current Behavior, Files to Modify and
+Files to Create in both the selected file and the proposed edit, not from
+test-plan citations. Missing or unknown existing producers refuse; only genuinely
+new Files to Create paths may be absent. Reads and subjects share normalized,
+symlink-resolved checkout identities. Matching returned ranges prove only their
+observed text, not unseen source or understanding. A subjectless draft still
+owes a usable current source read. `hookStop` reads the agent marker. Read hooks
+never block.
+
+Exemptions follow canonical subjects, not alias names: test-named or
+unsupported-extension links to production still owe their target's current
+read. Genuine canonical test/non-source subjects stay exempt; lookup or
+confinement failures establish no exemption.
+
+Strict source-identity resolution is separate from shared planned-write checkout
+membership: it does not exempt a planned write through a checkout alias from
+the door, mechanisms, WIP or weakening gate.
+
+<!-- source: internal/le/hookruntime/designevidence.go -- recordSourceRead, designSubjects, currentSourceReads, designEvidenceProblem -->
+
+<!-- source: internal/le/hookruntime/specproof.go -- daemonProofProblem -->
+<!-- source: internal/le/session/summary.go -- snapshotText, snapshotGrammar -->
+
+
+### Historical categories and current consumers
+
+The old category names are not authority to restore a retired prose-sensitive
+gate. These are the current dispositions; a status check is not evidence that
+tests ran, and an advisory is not a refusal.
+
+| Historical intent | Current rule and consumer | Required boundary and permitted behavior |
+|---|---|---|
+| Commit deferral (`commit-gate`) | `ai/rules/completion.md`; fixture producer `postDeferral` | Deferral wording in a document can produce an advisory, never a commit refusal. Separately, `hookStop` blocks Stop for a claimed, implemented-but-unclosed spec. An unclaimed session is permitted to stop regardless of its last message; no phrase classifier decides whether a commit is owed. |
+| Test-first (`test-first`) | `ai/rules/testing.md`; fixture producer `writeSpecStatus` and the independent test judgment workflow | The rule requires an observed red before implementation. The edit-time status check refuses implementation under a non-active claim, but does not establish test-first compliance. A source edit under an active claim is permitted by this check; it does not certify a test run. |
+| Delegation reminder (`delegation`) | `ai/rules/planning.md`; fixture producer `hookStop` and the `mark-agent-spawned` action | A claimed session with no spawned-agent marker gets a one-line warning, not a block. A recorded spawn removes that reason; with no claim, Stop is permitted. The main thread still owes the rule's phase delegation. |
+| Subagent context (`subagent-context`) | `ai/rules/planning.md`; fixture producer `hookSubagentContext` | SubagentStart emits the parent's identity and context, resolves its claim to the current category, and names an unresolved claim explicitly. The hook does not judge the prose of a Task brief; the author still owes the canonical briefing rule. |
+
+<!-- source: internal/le/hookruntime/lifecycle.go -- hookStop, hookSubagentContext, runLifecycleHook -->
+<!-- source: internal/le/hookruntime/postwrite.go -- postDeferral -->
+<!-- source: internal/le/hookruntime/writeedit.go -- writeSpecStatus -->
+<!-- source: internal/le/ai/hooks/fixtures.go -- fixtureCategories, categoryProbes -->
 
 `UserPromptSubmit` stdout reaches the model and its stderr does not.
 
@@ -205,7 +269,10 @@ the shared staging area. A refused gate writes no script.
 | test-coverage | `testCoverageProblems` (`prepare.go`) | `no-test` |
 | verify-status | `verificationState` (`verification.go`) | none: it never refuses a commit, because a missing verification is owed before a push |
 | independent review | `closureStem`, `CheckReview` (`review.go`) | `review-override` |
-| existing-mechanisms | `specMechanismsRefusal` (`specmechanisms.go`): a carried spec whose text changed (not HEAD's, and not a removed spec's under a new stem) and whose Status claims a design with no `## Existing Mechanisms` row | none: add the section's row |
+| existing-mechanisms | `specMechanismsRefusal` (`specmechanisms.go`): an edited carried spec whose metadata is missing, invalid or ambiguous, or whose valid Status claims a design with no `## Existing Mechanisms` row; unchanged HEAD text and unchanged rename/move content are not judged | none: fix the metadata identified by the canonical error or add the required section row |
+
+<!-- source: internal/le/commit/specmechanisms.go -- specMechanismsRefusal -->
+<!-- source: internal/le/spec/status/specstatus.go -- MetadataStatus -->
 
 <!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
 <!-- source: internal/le/commit/owed.go -- deriveDebt -->
@@ -280,6 +347,27 @@ Run the focused hook proof with:
 ```text
 ./le ai hooks unit
 ```
+
+The behavioral category probes call their named producers; registered-name and
+allow/refusal separation tests detect a renamed producer or a non-discriminating
+probe. The source watch manifest also covers the runtime's non-test helper
+files and the session-summary implementation reached by the lifecycle hook.
+`TestHookSourcesCoverNativeProducers` discovers that population from source
+locations and package files, without a fixed file count.
+<!-- source: internal/le/ai/hooks/fixture_grounding_test.go -- TestEveryProbeNamesARegisteredCheck, TestEveryProbeSeparatesItsAllowFromItsRefusal -->
+<!-- source: internal/le/ai/hooks/hook_population_test.go -- TestHookSourcesCoverNativeProducers -->
+
+A source seal is not a behavioral proof. Before replacing `hookSourcesDigest`,
+run the producer-bound category separation and every watched-file
+discrimination check, then get an independent review of the changed behavior
+and source population. Only then get the expected digest from
+`TestEveryStoredDigestMatchesTheTreeItRatchets` over the reviewed source.
+Its printed literal is a candidate, not permission to refresh a seal.
+`TestEveryWatchedHookSourceDiscriminates` uses an intact computed baseline,
+so an already stale expected digest cannot make its mutation checks pass.
+<!-- source: internal/le/ai/hooks/fixtures.go -- hookSourceContentDigest, checkHookSources -->
+<!-- source: internal/le/ai/hooks/hook_population_test.go -- TestEveryWatchedHookSourceDiscriminates -->
+<!-- source: internal/le/ai/hooks/parity_test.go -- TestEveryStoredDigestMatchesTheTreeItRatchets -->
 
 RFC ownership and weakening probes use isolated Git repositories with the
 original test committed at HEAD before proposing a whole-file Write. `git init`

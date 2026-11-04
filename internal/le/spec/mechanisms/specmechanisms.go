@@ -16,9 +16,10 @@
 package specmechanisms
 
 import (
-	"regexp"
 	"slices"
 	"strings"
+
+	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 
 // Heading is the section's heading prefix. The template spells it
@@ -31,20 +32,17 @@ const Heading = "## Existing Mechanisms"
 // closed, so none of those owes the analysis.
 var gatedStatuses = []string{"design", "ready", "in-progress", "verification"}
 
-var statusRow = regexp.MustCompile(`(?m)^\| Status \| *([a-z-]+)`)
-
 // Problem answers the refusal for a spec whose status claims a design and whose
 // Existing Mechanisms section is absent or holds no data row, and "" when the
 // spec satisfies the rule or its status does not owe it. name is the path the
 // refusal names.
 func Problem(name, text string) string {
-	match := statusRow.FindStringSubmatch(text)
-	if match == nil {
-		// The status validator refuses a spec with no Status row; this check
-		// judges only a declared design status.
+	status, err := specstatus.MetadataStatus(text)
+	if err != nil {
+		// Metadata validation owns missing or malformed declarations; this
+		// predicate judges only a successfully declared design status.
 		return ""
 	}
-	status := match[1]
 	if !slices.Contains(gatedStatuses, status) {
 		return ""
 	}

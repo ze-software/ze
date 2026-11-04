@@ -31,16 +31,11 @@ import (
 // killed; a younger one may be a concurrent writer's file still in flight.
 const staleTemporaryAge = 10 * time.Minute
 
-// SessionStartPolicy says whether the session-start hook renders an artifact
-// the tree does not hold.
-//
-// The hook runs under a FIXED 5 second timeout (`.claude/settings.json`), and a
-// hook killed at that timeout loses every artifact after the kill point AND the
-// whole session-start message, the BLOCKING LSP notice and the
-// push-gate warning included. So the budget is the property each
-// artifact declares against, and there is no Unspecified answer: a generator
-// that says nothing would inherit a render nobody measured, which is exactly
-// how the 5.32s measurement below happened.
+// SessionStartPolicy records the artifact's historical discovery class.
+// Startup no longer renders either class: required context has a fixed
+// five-second harness budget, and named reads materialize artifacts on demand.
+// The classification retains the formerly eager population for lifecycle proof;
+// it is not permission to do generator work in the startup hook.
 type SessionStartPolicy uint8
 
 const (
@@ -48,24 +43,11 @@ const (
 	// refuses it.
 	SessionStartUnspecified SessionStartPolicy = iota
 
-	// SessionStartBuild renders the artifact at session start when the tree
-	// does not hold it. It is for an artifact a search reads WITHOUT naming
-	// its path: `grep -rn ResolveBGPTree` reaches no hook, so an absent index
-	// answers "no match" for a tree the author cannot see. The three
-	// documentation indexes are that class, and they render in about a second
-	// between them.
+	// SessionStartBuild identifies the formerly eager documentation indexes.
+	// They are now built by the named reader, like every other artifact.
 	SessionStartBuild
 
-	// SessionStartDefer leaves the artifact absent for preMaterializeDerived
-	// to build. It is for an artifact every reader NAMES: a `./le rfc ...`
-	// command and a site build each name their path, so the read hook covers
-	// them and nothing reads an absent file as an empty answer.
-	//
-	// Measured on this checkout on 2026-09-12, with a le built from the tree:
-	// the hook takes 2.68s and 2.03s with all eight artifacts present, and
-	// 5.32s with the five RFC artifacts absent, against a 5 second timeout.
-	// The family is absent often rather than rarely, because its predicate
-	// covers every `*.go` write in every session.
+	// SessionStartDefer identifies artifacts always left to the named reader.
 	SessionStartDefer
 )
 

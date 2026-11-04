@@ -133,6 +133,8 @@ func stateFile(paths lepath.SessionPaths, spec string) string {
 	return filepath.Join(paths.Dir, "state", name)
 }
 
+const sharedCheckoutHeading = "Shared-checkout changes (session attribution unavailable):"
+
 func snapshotText(report SummaryReport, at time.Time) string {
 	var text textbuf.Buffer
 	text.Reset().Str("## Session: ").Str(at.Format(time.RFC3339)).Str("\n\n")
@@ -143,6 +145,7 @@ func snapshotText(report SummaryReport, at time.Time) string {
 	if report.Spec != "" {
 		text.Str("Spec: `").Str(report.Spec).Str("`\n")
 	}
+	text.Byte('\n').Str(sharedCheckoutHeading).Byte('\n')
 	appendPaths := func(heading string, paths []string) {
 		if len(paths) == 0 {
 			return
@@ -233,6 +236,9 @@ func snapshotGrammar(line string) bool {
 		return true
 	}
 	trimmedRight := strings.TrimRight(line, " \t")
+	if trimmedRight == sharedCheckoutHeading {
+		return true
+	}
 	if trimmedRight == "Uncommitted:" || trimmedRight == "Staged:" {
 		return true
 	}

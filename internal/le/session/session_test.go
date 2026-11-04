@@ -429,6 +429,7 @@ func TestEndSummaryMatchesTheStateFileFixtureBytes(t *testing.T) {
 		"Branch: `main`\n" +
 		"Last commit: abcdef fixture\n" +
 		"Spec: `spec-native-session.md`\n\n" +
+		"Shared-checkout changes (session attribution unavailable):\n\n" +
 		"Uncommitted:\n- `a.go`\n- `b.go`\n\n" +
 		"Staged:\n- `staged.go`\n\n---\n" +
 		"## Session: prior\n\nBranch: `old`\n\n---\n" +

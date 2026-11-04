@@ -1298,6 +1298,13 @@ need their existing proof checked, not a second implementation.
 | 12. Remaining tool inputs/reports — 4 launcher/watchdog/stress, 14, 20, 21, 37 | Launcher/helper selection and `internal/le/test/stressrepro/run.go`; existing toolchain/vendor/schema registration and lint input guard; `internal/perf/report`, `internal/perf/cli/cmd_report.go`, reached site convergence readers | P-4 exact argv/fresh entry, P-14 owned patches/schema/l2tp census, P-20 pass identity/empty refusal/loss before dedup across renderers, P-21 filename collisions and P-37 actual lint-input distinction. Update running-commands, performance/benchmarking and exact schema/vendor pages; finish consumer census before declaring publication proof complete |
 | 13. Incident proof closure — 16 census, 26 aggregate, 27, 35 | Recovered evidence companion and original incident producers; no speculative generic integrity repair | Recover named originals or attributable recurrence for AC-27; reconcile every remaining June/lint/load member. Execute only the identified affected cases once cause is known. Keep unresolved obligations open; historical greens or current gate passes are not substitutes |
 
+**Phase 7 current work is complete:** implementation, scoped independent review
+and real-entry proof are complete, as recorded in the
+[current hook evidence](tooling-one-off-evidence.md#contemporary-review-follow-up-not-recovered-historical-evidence).
+Missing June technique/fuzz inventories and authentic October originals remain
+Phase 13 obligations. This records Phase 7 completion only, not whole-spec or
+journal closure.
+
 Phases 1–12 contain implementable contracts and named proof debt; their exact
 external dependencies stay explicit rather than blocking all useful work or being
 silently omitted. Phase 13 cannot close without the missing evidence. A newly
