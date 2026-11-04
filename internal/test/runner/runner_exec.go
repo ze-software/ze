@@ -1231,7 +1231,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// needs exit= per command to assert the earlier ones at all.
 			if cmd.ExitCode != nil {
 				actual := 0
-				if exitErr, ok := errors.AsType[*exec.ExitError](lastQuickZeErr); ok {
+				if lastQuickZeErr != nil {
+					exitErr, ok := errors.AsType[*exec.ExitError](lastQuickZeErr)
+					if !ok {
+						rec.Error = fmt.Errorf("cmd seq=%d (%s): cannot read ze's exit status to compare with exit=%d, "+
+							"because waiting for it failed: %w; check that the command starts and runs to completion "+
+							"on this host (its output is saved with this failure), then run the test again", cmd.Seq, cmd.Exec, *cmd.ExitCode, lastQuickZeErr)
+						rec.FailureType = failTypeExitUnreadable
+						return false
+					}
 					actual = exitErr.ExitCode()
 				}
 				if actual != *cmd.ExitCode {

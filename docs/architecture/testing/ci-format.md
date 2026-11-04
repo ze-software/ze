@@ -1076,6 +1076,16 @@ Prefer `exit=` whenever a file runs more than one quick-exit `ze` command. A
 (`hub`, `start`, `cli`, `monitor`) and which has no config-file argument or
 `--web` flag.
 
+For helpers and quick-exit `ze`, `exit=0` requires a successful wait. A nonzero
+exit compares the child's reported status. A wait error with no readable exit
+status, including an output pipe that exceeds its drain bound, fails the command
+instead of being treated as zero. The failure retains output and names the
+command and wait error. Check that the command runs to completion on this host,
+then run the test again.
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- test: internal/test/runner/quick_exit_test.go TestQuickZeCommandExit -->
+<!-- test: internal/test/runner/quick_exit_linux_test.go TestQuickZeUnreadableExit -->
+
 **`exit=` is accepted only where it is checked.** Only the two foreground arms
 that await their process compare it: a foreground helper and a foreground
 quick-exit `ze`. Every other command refuses `exit=` when the file is read,
