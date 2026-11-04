@@ -473,9 +473,6 @@ func (d *Driver) spawnSession(start *StartSession) {
 	}
 
 	fallback := start.AuthFallbackOrder
-	if len(fallback) == 0 {
-		fallback = defaultAuthFallbackOrder()
-	}
 
 	s := &pppSession{
 		tunnelID:             start.TunnelID,

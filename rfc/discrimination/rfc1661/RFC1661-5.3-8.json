@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-5.3-8",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakHandlesDifferentOptionLength",
+    "unit-sha": "5e51e042c4e95498",
+    "claim-sha": "548877068122d27f",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/lcp_options.go::WalkLCPOptions",
+    "producer-sha": "874249458080fa50",
+    "break": "line 157: \"if optLen \u003c lcpOptHeaderLen {\" -\u003e \"if optLen \u003c 5 {\""
+  },
+  {
+    "rid": "RFC1661-5.3-8",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakTooShortOptionNotDecoded",
+    "unit-sha": "09f6427b9aa4bf05",
+    "claim-sha": "41e657096cdc7bee",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/auth.go::adjustAuthOnNakOrReject",
+    "producer-sha": "bfb28527395f91e9",
+    "break": "line 42: \"if len(data) \u003e= 2 {\" -\u003e \"if len(data) \u003e= 1 {\""
+  }
+]

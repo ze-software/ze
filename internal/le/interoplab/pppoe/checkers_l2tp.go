@@ -27,4 +27,5 @@ func init() {
 	wireCheckers["ipv6cp-zero-identifier"] = checkZeAccessConcentratorIPv6CPZeroIdentifier
 	wireCheckers["ipv6cp-missing-option"] = checkZeAccessConcentratorIPv6CPMissingOption
 	wireCheckers["pppoe-pap-ze-ac"] = checkZeAccessConcentratorPAP
+	wireCheckers["pppoe-chap-only-pap-client"] = checkCHAPOnlyPAPClient
 }

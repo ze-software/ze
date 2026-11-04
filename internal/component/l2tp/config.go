@@ -97,6 +97,7 @@ const (
 	DefaultMaxTunnels   uint16 = 1024
 	DefaultMaxSessions  uint16 = 1024
 	DefaultAuthMethod          = ppp.AuthMethodCHAPMD5
+	DefaultMRU          uint16 = 1500
 
 	DefaultAuthTimeoutSecs    = 30
 	DefaultReauthIntervalSecs = 0
@@ -120,6 +121,8 @@ type Parameters struct {
 	MaxTunnels    uint16
 	MaxSessions   uint16
 	AuthMethod    ppp.AuthMethod
+	MRU           uint16
+	AuthAllow     []ppp.AuthMethod
 	AllowNoAuth   bool
 	HelloInterval time.Duration
 	// HelloRetries is the number of consecutive unanswered HELLO keepalive
@@ -211,6 +214,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 		MaxTunnels:     DefaultMaxTunnels,
 		MaxSessions:    DefaultMaxSessions,
 		AuthMethod:     DefaultAuthMethod,
+		MRU:            DefaultMRU,
 		AuthTimeout:    DefaultAuthTimeoutSecs * time.Second,
 		ReauthInterval: DefaultReauthIntervalSecs * time.Second,
 		EnableIPCP:     true,
@@ -245,6 +249,23 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 		}
 		p.AuthMethod = m
 	}
+
+	if v, ok := l2tpRoot.Get("mru"); ok {
+		mru, err := parseMRU(v)
+		if err != nil {
+			return Parameters{}, err
+		}
+		p.MRU = mru
+	}
+	var allow []string
+	if auth := l2tpRoot.GetContainer("authentication"); auth != nil {
+		allow = auth.GetSlice("allow")
+	}
+	policy, err := ppp.ResolveAuthAllow(p.AuthMethod, allow)
+	if err != nil {
+		return Parameters{}, fmt.Errorf("l2tp authentication allow %v: %w; run 'delete l2tp authentication allow' to restore the method-dependent default", allow, err)
+	}
+	p.AuthAllow = policy
 
 	if v, ok := l2tpRoot.Get("allow-no-auth"); ok {
 		p.AllowNoAuth = v == configTrue

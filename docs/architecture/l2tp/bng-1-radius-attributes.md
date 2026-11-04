@@ -161,7 +161,7 @@ site names the cause that is TRUE of its own path.
 
 | Teardown path | Cause | RFC 2866 Section 5.10 value |
 |---------------|-------|------------------------------|
-| LCP reaching Closed or Stopped, including the Stopped a peer's Terminate-Request leads to | User Request | 1 |
+| LCP reaching Closed or Stopped without an authentication-policy refusal, including the Stopped a peer's Terminate-Request leads to | User Request | 1 |
 | LCP echo probes unanswered past the limit | Lost Carrier | 2 |
 | A CDN whose Result Code is 1, "Call disconnected due to loss of carrier" | Lost Carrier | 2 |
 | The dead-peer keepalive timeout and the exhausted retransmit budget, which are both the peer no longer answering | Lost Carrier | 2 |
@@ -173,7 +173,11 @@ site names the cause that is TRUE of its own path.
 | The accounting plugin stopping, which ends service on the NAS | Admin Reboot | 7 |
 | Any failure the NAS detected: negotiation timeout, auth rejection, NCP refusal, an ioctl error, a channel fd that closed or failed to read, a refused StartSession, a message ze refused during tunnel or session setup, a kernel setup failure | NAS Error | 9 |
 | A CDN carrying any other Result Code, and a CDN ze could not parse | NAS Error | 9 |
-| The PPP driver stopping a running session on purpose | NAS Request | 10 |
+| The PPP driver stopping a running session on purpose, including an authentication-policy refusal before LCP Opened | NAS Request | 10 |
+
+These are session-down event causes. The pre-Opened policy-refusal row does
+not imply an Accounting-Stop record before authentication.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition -->
 
 **A peer's LCP Terminate-Request reaches that row since 2026-09-20.** RFC 1661
 puts Opened plus RTR into Stopping with the Restart counter zeroed, and ze's

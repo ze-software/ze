@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-3.5-6",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/auth_policy_driver_test.go::TestAuthRefusalTerminationCleanup",
+    "unit-sha": "fda2c52ad7b04f97",
+    "claim-sha": "9a3e17c0d0975799",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "60cbc1941f5121ea",
+    "break": "line 1359: \"if s.authRequired \u0026\u0026 s.configuredAuthMethod == AuthMethodNone {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC1661-3.5-6",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/auth_policy_driver_test.go::TestAuthRefusalTerminationCleanup",
+    "unit-sha": "fda2c52ad7b04f97",
+    "claim-sha": "0884c5dd0a8cd1b5",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "60cbc1941f5121ea",
+    "break": "line 1359: \"if s.authRequired \u0026\u0026 s.configuredAuthMethod == AuthMethodNone {\" -\u003e \"if s.authRequired {\""
+  }
+]

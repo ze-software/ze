@@ -8,11 +8,11 @@
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength": "2325ea607f732027",
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength": "2325ea607f732027",
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength#2": "2325ea607f732027",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "9afaf002f0fd81ec",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoConfigureRejectWhenAllOptionsRecognized": "9afaf002f0fd81ec",
-    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientAcceptsServerAuthProtocol": "0d3244b2c125eaa3",
-    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength": "0d3244b2c125eaa3",
-    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2": "0d3244b2c125eaa3"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "a38269fa86eda1cf",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoConfigureRejectWhenAllOptionsRecognized": "a38269fa86eda1cf",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientAcceptsServerAuthProtocol": "4dbb87a949959706",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength": "4dbb87a949959706",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2": "4dbb87a949959706"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration": "294a5ed66c64fe52",

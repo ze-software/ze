@@ -1,13 +1,15 @@
 {
-  "note": "Forbidden: refusing a 1500-octet Information field. TestFullInformationFieldReceived goes red if ParseFrame refuses 1502 octets, returns fewer than 1500, if getFrameBuf (the readFrames buffer, MRU-independent) is shorter than the frame, or ParseLCPPacket refuses Length 1500.",
+  "note": "RFC 1661 Section 6.1: \"If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost.\" Independent final rejudgment after moving the non-normative 1501-octet comment into TestFullInformationFieldReceived above its over-sized fixture; existing enforced verdict retained. Q1 yes: TestFullInformationFieldReceived keeps its sole positive RFC claim and exact 1500-octet payload, read-buffer-capacity and LCP-Length assertions; the in-body comment explicitly excludes the unchanged 1501-octet rejection assertion from normative credit. TestReceiveFullFrameBelowConfiguredMRU in rfc1661_proxy_policy_driver_test.go requests MRU1492 while the peer requests1500, receives and answers a complete1500-octet Information field with matching identifier and unchanged post-Magic payload, and independently asserts kernel receive MRU1500. Q2 yes: smaller parser/read buffers or rejection of Length1500 fail the positive assertions; reader truncation to the requested1492 fails the full-content Driver assertion; shrinking the kernel receive MRU to1492 fails the independent negative assertion. The current native evidence reported verified by the parent covers the parser positive and renamed Driver positive/negative; the parser producer revert establishes reachability only, whereas the two Driver mutants semantically discriminate truncation and kernel-MRU shrink. Obsolete filename records and the removed parser negative are not credited. Q3 yes: correct Protocol and LCP Length, admitted proxy LCP, completed session startup, matching peer Magic-Number and peer receive MRU1500 isolate receive capacity from malformed framing, negotiation, authentication and transmit-MRU restrictions. Q4 yes: getFrameBuf/readFrames retain Protocol-plus1500 capacity, ParseFrame and ParseLCPPacket accept the full Information field, handleFrame dispatches LCP through to the echo reply, and afterLCPOpen keeps the kernel receive setting1500 despite the smaller request. The plain-comment relocation changes no input, assertion or normative obligation. No product fix identified; no builds, tests or native commands run for this rejudgment.",
   "requirement_sha": "bf8de5e1aac53efe",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "034fb31a9e383e0e",
-    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived#2": "034fb31a9e383e0e"
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "9702a8b651d08d9e",
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU": "6366d85226b93701",
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2": "6366d85226b93701"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "7891357135ea0ffe",
-    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived#2": "7891357135ea0ffe"
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "e079b4cb6eaed385",
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU": "0e0bf1dcead93441",
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2": "0e0bf1dcead93441"
   },
   "verdict": "enforced"
 }

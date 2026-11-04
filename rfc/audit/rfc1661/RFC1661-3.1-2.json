@@ -3,8 +3,8 @@
   "requirement_sha": "7c1ac94517cc8d86",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens": "d6b4e2cbd1b095e9",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately": "9afaf002f0fd81ec",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol": "9afaf002f0fd81ec"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately": "a38269fa86eda1cf",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol": "a38269fa86eda1cf"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens": "f0831d810966633d",

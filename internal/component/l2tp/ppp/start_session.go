@@ -60,30 +60,23 @@ type StartSession struct {
 	// Protocol option and runs the no-wire-auth phase (existing
 	// handler still fires one EventAuthRequest for accounting).
 	//
-	// When proxy LCP AVPs are present the Auth-Protocol value from
-	// the LAC's Last-Sent CONFREQ overrides this field, because the
-	// LAC's negotiation with the peer is what the peer already
-	// accepted; ze inherits that choice rather than forcing a new
-	// one mid-session.
+	// Proxy LCP may override this choice only when its actual method is in
+	// AuthFallbackOrder and its Last-Sent MRU meets MaxMRU; otherwise Ze
+	// negotiates LCP itself.
 	AuthMethod AuthMethod
 
-	// AuthRequired fails the session if LCP reaches Opened without a
-	// negotiated Auth-Protocol method. This lets transports make PPP
-	// authentication mandatory while preserving AuthMethodNone for tests
-	// and explicitly configured lab deployments.
+	// AuthRequired closes LCP before Opened if the peer refuses every
+	// permitted method or rejects the Auth-Protocol option. False explicitly
+	// permits the no-wire-auth path.
 	AuthRequired bool
 
-	// AuthFallbackOrder lists the AuthMethod values ze will accept
-	// when the peer replies to ze's CONFREQ with a Configure-Nak
-	// naming a different Auth-Protocol (RFC 1661 §5.3). The peer's
-	// suggestion is looked up in this list; a match becomes ze's new
-	// configured method for the next CONFREQ, a non-match falls back
-	// to AuthMethodNone. An empty slice means "use the package
-	// default": [CHAPMD5, MSCHAPv2, PAP].
-	//
-	// Configure-Reject of the Auth-Protocol option always clears the
-	// method regardless of this list, because Reject means "I do not
-	// recognize this option at all" (RFC 1661 §5.4).
+	// AuthFallbackOrder is the immutable, explicit set of permitted methods.
+	// The caller MUST resolve transport defaults before enqueueing and MUST
+	// NOT mutate this slice afterwards. Empty means no permitted fallback,
+	// never a package-wide default. Configured CHAP is offered first; remaining
+	// untried CHAP methods follow written order, and PAP is offered last.
+	// A valid Configure-Reject removes Auth-Protocol for this negotiation,
+	// irrespective of unused methods in this list (RFC 1661 Section 5.4).
 	AuthFallbackOrder []AuthMethod
 
 	// ReauthInterval enables periodic re-authentication after the

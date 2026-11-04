@@ -66,15 +66,17 @@ type reactorParams struct {
 	MaxTunnels       uint16         // 0 = unbounded (by this knob; uint16 still caps at 65535)
 	MaxSessions      uint16         // 0 = unbounded per-tunnel session limit
 	AuthMethod       ppp.AuthMethod // PPP Auth-Protocol first advertised to new sessions
-	AuthRequired     bool           // fail if LCP opens with AuthMethodNone
-	AuthTimeout      time.Duration  // PPP auth-phase timeout
-	ReauthInterval   time.Duration  // periodic re-auth; 0 = disabled
-	HelloInterval    time.Duration  // peer silence before HELLO; 0 = no keepalive
-	HelloRetries     uint8          // dead-peer detection: unanswered HELLO intervals before teardown; 0 = disabled
-	EnableIPCP       bool           // IPCP NCP enabled
-	EnableIPv6CP     bool           // IPv6CP NCP enabled
-	NCPTimeout       time.Duration  // NCP negotiation timeout
-	CQMEchoInterval  time.Duration  // when >0, overrides PPP echo interval for CQM sampling
+	MRU              uint16
+	AuthAllow        []ppp.AuthMethod
+	AuthRequired     bool          // fail if LCP opens with AuthMethodNone
+	AuthTimeout      time.Duration // PPP auth-phase timeout
+	ReauthInterval   time.Duration // periodic re-auth; 0 = disabled
+	HelloInterval    time.Duration // peer silence before HELLO; 0 = no keepalive
+	HelloRetries     uint8         // dead-peer detection: unanswered HELLO intervals before teardown; 0 = disabled
+	EnableIPCP       bool          // IPCP NCP enabled
+	EnableIPv6CP     bool          // IPv6CP NCP enabled
+	NCPTimeout       time.Duration // NCP negotiation timeout
+	CQMEchoInterval  time.Duration // when >0, overrides PPP echo interval for CQM sampling
 	Defaults         TunnelDefaults
 	Clock            func() time.Time // injected for tests; time.Now if nil
 }

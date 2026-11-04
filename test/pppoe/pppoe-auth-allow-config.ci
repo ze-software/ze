@@ -1,0 +1,86 @@
+# Test: PPPoE's flat authentication-allow is validated through the operator
+# command and preserved in parsed config readback, without a privileged NIC.
+# VALIDATES: home-cpe-16 AC-9 for PPPoE, explicit ordered policies, absent-list
+# contracts for each auth-method, and deliberate no-auth opt-in. Driver and
+# interop fixtures prove effective policy selection and wire enforcement;
+# PPPoE has no effective-config RPC and this test does not invent one.
+# PREVENTS: unknown/none members or a list omitting auth-method being accepted,
+# a misplaced nested authentication container, and ignored list values.
+option=timeout:value=45s
+
+stdin=explicit:terminator=EOF_EXPLICIT
+pppoe {
+    auth-method pap;
+    authentication-allow [ pap ms-chap-v2 chap-md5 ];
+}
+EOF_EXPLICIT
+stdin=chap-default:terminator=EOF_CHAP
+pppoe { auth-method chap-md5; }
+EOF_CHAP
+stdin=mschap-default:terminator=EOF_MSCHAP
+pppoe { auth-method ms-chap-v2; }
+EOF_MSCHAP
+stdin=pap-default:terminator=EOF_PAP
+pppoe { auth-method pap; }
+EOF_PAP
+stdin=none:terminator=EOF_NONE
+pppoe { auth-method none; allow-no-auth true; }
+EOF_NONE
+stdin=omitted-method:refused=config-validator-unavailable:terminator=EOF_OMITTED
+pppoe { auth-method chap-md5; authentication-allow [ pap ]; }
+EOF_OMITTED
+stdin=none-member:refused=config-parse:terminator=EOF_NONE_MEMBER
+pppoe { authentication-allow [ chap-md5 none ]; }
+EOF_NONE_MEMBER
+stdin=unknown-member:refused=config-parse:terminator=EOF_UNKNOWN
+pppoe { authentication-allow [ chap-md5 bogus ]; }
+EOF_UNKNOWN
+stdin=none-with-list:refused=config-validator-unavailable:terminator=EOF_NONE_LIST
+pppoe {
+    auth-method none;
+    allow-no-auth true;
+    authentication-allow [ chap-md5 ];
+}
+EOF_NONE_LIST
+stdin=none-without-opt-in:refused=config-validator-unavailable:terminator=EOF_NONE_OPT_IN
+pppoe { auth-method none; }
+EOF_NONE_OPT_IN
+
+# Per-command exits are required: expect=exit alone covers only the final
+# foreground process and cannot prove these independent refusals.
+cmd=foreground:seq=1:exec=ze config validate -:stdin=explicit:exit=0
+cmd=foreground:seq=2:exec=ze config validate -:stdin=chap-default:exit=0
+cmd=foreground:seq=3:exec=ze config validate -:stdin=mschap-default:exit=0
+cmd=foreground:seq=4:exec=ze config validate -:stdin=pap-default:exit=0
+cmd=foreground:seq=5:exec=ze config validate -:stdin=none:exit=0
+cmd=foreground:seq=6:exec=ze config validate -:stdin=omitted-method:exit=1
+expect=stdout:contains=authentication-allow
+expect=stdout:contains=must include auth-method chap-md5
+expect=stdout:contains=delete pppoe authentication-allow
+cmd=foreground:seq=7:exec=ze config validate -:stdin=none-member:exit=1
+expect=stdout:contains=authentication-allow
+expect=stdout:contains=none
+expect=stdout:contains=chap-md5
+cmd=foreground:seq=8:exec=ze config validate -:stdin=unknown-member:exit=1
+expect=stdout:contains=authentication-allow
+expect=stdout:contains=bogus
+expect=stdout:contains=chap-md5
+cmd=foreground:seq=9:exec=ze config validate -:stdin=none-with-list:exit=1
+expect=stdout:contains=cannot accompany auth-method none
+expect=stdout:contains=delete pppoe authentication-allow
+cmd=foreground:seq=10:exec=ze config validate -:stdin=none-without-opt-in:exit=1
+expect=stdout:contains=allow-no-auth
+expect=stdout:contains=true
+
+# Dump readback requires BGP but the subsystem-only validations above do not.
+stdin=readback:terminator=EOF_READBACK
+bgp { router-id 192.0.2.1; }
+pppoe {
+    auth-method pap;
+    authentication-allow [ pap ms-chap-v2 chap-md5 ];
+}
+EOF_READBACK
+cmd=foreground:seq=11:exec=ze cli -c "show config dump - | json":stdin=readback:exit=0
+expect=stdout:pattern="auth-method":\s*"pap"
+expect=stdout:pattern="authentication-allow":\s*\[\s*"pap",\s*"ms-chap-v2",\s*"chap-md5"\s*\]
+expect=exit:code=0

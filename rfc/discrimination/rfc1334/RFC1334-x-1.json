@@ -2,6 +2,28 @@
   {
     "rid": "RFC1334-x-1",
     "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/auth_policy_driver_test.go::TestAuthAllowSelectionMatrix",
+    "unit-sha": "0a6fcd277bcf3ab3",
+    "claim-sha": "cde4dc60417304c0",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/auth.go::initialAuthMethod",
+    "producer-sha": "d604d07b23e9b61c",
+    "break": "line 100: \"if configured != AuthMethodPAP {\" -\u003e \"if configured != AuthMethodNone {\""
+  },
+  {
+    "rid": "RFC1334-x-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/auth_policy_driver_test.go::TestAuthAllowSelectionMatrix",
+    "unit-sha": "0a6fcd277bcf3ab3",
+    "claim-sha": "c25447e1dad74eef",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/auth.go::selectAuthFallback",
+    "producer-sha": "2c3b8f9d7fa600bc",
+    "break": "line 140: \"continue\" -\u003e \"break\""
+  },
+  {
+    "rid": "RFC1334-x-1",
+    "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestDefaultAuthFallbackOrder",
     "unit-sha": "600deb5f31c6ef9f",
     "claim-sha": "bd0143b671f3e46b",
@@ -12,57 +34,68 @@
   },
   {
     "rid": "RFC1334-x-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestInitialAuthMethodCHAPBeforePAPWhateverOrder",
+    "unit-sha": "09b41fadd00415e0",
+    "claim-sha": "14814ebc12f25462",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/auth.go::initialAuthMethod",
+    "producer-sha": "d604d07b23e9b61c",
+    "break": "line 100: \"if configured != AuthMethodPAP {\" -\u003e \"if configured != AuthMethodNone {\""
+  },
+  {
+    "rid": "RFC1334-x-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback",
-    "unit-sha": "21b2d79b73ba6a8d",
-    "claim-sha": "069bed77622756a8",
-    "route": "revert",
+    "unit-sha": "c41a899683865fd7",
+    "claim-sha": "41759a12dfe328ed",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/auth.go::selectAuthFallback",
-    "producer-sha": "b48d3452a1ecaf6c",
-    "break": "body of selectAuthFallback replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2c3b8f9d7fa600bc",
+    "break": "line 157: \"return nextPAP\" -\u003e \"if nextPAP == AuthMethodNone { return suggestion }; return nextPAP\""
   },
   {
     "rid": "RFC1334-x-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP",
-    "unit-sha": "af1e03db7228d047",
+    "unit-sha": "b171e54664a97dcf",
     "claim-sha": "fe15ce83f2d74d5f",
-    "route": "revert",
-    "producer": "internal/component/l2tp/ppp/auth.go::adjustAuthOnNakOrReject",
-    "producer-sha": "d4e0833095c99a9d",
-    "break": "body of adjustAuthOnNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/auth.go::selectAuthFallback",
+    "producer-sha": "2c3b8f9d7fa600bc",
+    "break": "line 151: \"return suggestion\" -\u003e \"return AuthMethodNone\""
   },
   {
     "rid": "RFC1334-x-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP",
-    "unit-sha": "af1e03db7228d047",
+    "unit-sha": "b171e54664a97dcf",
     "claim-sha": "8d87d034ecea39f0",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/auth.go::selectAuthFallback",
-    "producer-sha": "b48d3452a1ecaf6c",
-    "break": "body of selectAuthFallback replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2c3b8f9d7fa600bc",
+    "break": "line 155: \"return nextCHAP\" -\u003e \"return AuthMethodPAP\""
   },
   {
     "rid": "RFC1334-x-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst",
-    "unit-sha": "446fedaa7cbf0f83",
+    "unit-sha": "d56237ff6bf43ec4",
     "claim-sha": "ebe5324b8e02bc77",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/auth.go::initialAuthMethod",
     "producer-sha": "d604d07b23e9b61c",
-    "break": "body of initialAuthMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 100: \"if configured != AuthMethodPAP {\" -\u003e \"if configured != AuthMethodNone {\""
   },
   {
     "rid": "RFC1334-x-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst",
-    "unit-sha": "446fedaa7cbf0f83",
+    "unit-sha": "d56237ff6bf43ec4",
     "claim-sha": "47a6098f5b82c16f",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/auth.go::initialAuthMethod",
     "producer-sha": "d604d07b23e9b61c",
-    "break": "body of initialAuthMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 100: \"if configured != AuthMethodPAP {\" -\u003e \"if configured != AuthMethodNone {\""
   }
 ]

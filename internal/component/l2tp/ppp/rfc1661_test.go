@@ -138,7 +138,7 @@ func newRFC1661Session(state LCPState) (*pppSession, *frameRecorder, chan Event)
 		magicNegotiated:      true,
 		negotiatedMRU:        MaxFrameLen,
 		configuredAuthMethod: AuthMethodNone,
-		authFallbackOrder:    defaultAuthFallbackOrder(),
+		authFallbackOrder:    []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2, AuthMethodPAP},
 		disableIPCP:          true,
 		disableIPv6CP:        true,
 	}
@@ -1103,6 +1103,8 @@ func TestRFC1661NakOrderFollowsRequestNotAFixedOrder(t *testing.T) {
 func TestRFC1661NakHandlesDifferentOptionLength(t *testing.T) {
 	s, _, _ := newRFC1661Session(LCPStateReqSent)
 	s.configuredAuthMethod = AuthMethodCHAPMD5
+	s.authFallbackOrder = []AuthMethod{AuthMethodCHAPMD5, AuthMethodPAP}
+	s.authMethodsTried = 1 << AuthMethodCHAPMD5
 	// ze's own option is 5 octets; the Nak's is 4.
 	nak := optStream(authOption(authProtoPAP))
 	if len(nak) != 4 {
@@ -1125,6 +1127,8 @@ func TestRFC1661NakHandlesDifferentOptionLength(t *testing.T) {
 func TestRFC1661NakTooShortOptionNotDecoded(t *testing.T) {
 	s, _, _ := newRFC1661Session(LCPStateReqSent)
 	s.configuredAuthMethod = AuthMethodCHAPMD5
+	s.authFallbackOrder = []AuthMethod{AuthMethodCHAPMD5}
+	s.authMethodsTried = 1 << AuthMethodCHAPMD5
 	nak := optStream(LCPOption{Type: LCPOptAuthProto, Data: []byte{0xC0}})
 	s.adjustAuthOnNakOrReject(LCPPacket{Code: LCPConfigureNak, Identifier: 1, Data: nak})
 	if s.configuredAuthMethod != AuthMethodNone {

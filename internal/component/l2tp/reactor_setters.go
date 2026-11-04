@@ -91,18 +91,13 @@ func (r *l2tpReactor) setMaxSessions(n uint16) {
 	r.tunnelsMu.Unlock()
 }
 
-// setPPPAuthMethod updates the Auth-Protocol advertised to new PPP
-// sessions. Live sessions keep their already-negotiated method.
-func (r *l2tpReactor) setPPPAuthMethod(m ppp.AuthMethod) {
+// setPPPPolicy publishes an immutable policy for new sessions. Callers MUST NOT
+// mutate allow after publication; existing sessions retain the previous slice.
+func (r *l2tpReactor) setPPPPolicy(mru uint16, allow []ppp.AuthMethod, method ppp.AuthMethod, required bool) {
 	r.tunnelsMu.Lock()
-	r.params.AuthMethod = m
-	r.tunnelsMu.Unlock()
-}
-
-// setPPPAuthRequired updates whether new PPP sessions may proceed after
-// LCP opens with no negotiated Auth-Protocol.
-func (r *l2tpReactor) setPPPAuthRequired(required bool) {
-	r.tunnelsMu.Lock()
+	r.params.MRU = mru
+	r.params.AuthAllow = allow
+	r.params.AuthMethod = method
 	r.params.AuthRequired = required
 	r.tunnelsMu.Unlock()
 }

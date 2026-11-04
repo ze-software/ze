@@ -261,6 +261,16 @@ With env var `ze.log.l2tp` for level control.
 Follow existing ze config patterns. Mirror `bgp peer connection { local { ip } }`
 for endpoint shapes.
 
+The sketch below is historical, not the current schema. The implemented
+`ze-l2tp-conf.yang` uses root `l2tp mru` (64..1500 Information-field octets,
+default 1500) and `l2tp authentication allow` (user-ordered permitted methods).
+An absent allow-list derives the configured method's policy: CHAP-MD5 only,
+MS-CHAPv2 only, CHAP-MD5 then PAP for PAP, and empty for none. Original-tree
+validation checks the allow-list against `auth-method`; both startup extraction
+and strict provider reload parsing resolve it before new-session dispatch.
+<!-- source: internal/component/l2tp/config_policy.go -- validateAuthPolicy, providerAuthAllow -->
+<!-- source: internal/component/l2tp/ppp/auth_policy.go -- ResolveAuthAllow -->
+
 ```yang
 module ze-l2tp-conf {
     namespace "urn:ze:l2tp:conf";

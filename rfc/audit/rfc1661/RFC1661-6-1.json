@@ -11,8 +11,8 @@
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected#2": "2325ea607f732027",
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce": "2325ea607f732027",
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce#2": "2325ea607f732027",
-    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak": "0d3244b2c125eaa3",
-    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2": "0d3244b2c125eaa3"
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak": "4dbb87a949959706",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2": "4dbb87a949959706"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak": "3a4f39019c412d8c",

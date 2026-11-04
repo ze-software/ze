@@ -47,6 +47,14 @@ module ze-l2tp-conf {
             ze:help "Maximum concurrent sessions per tunnel.";
         }
 
+        leaf mru {
+            type uint16 { range "64..1500"; }
+            default 1500;
+            description "Requested PPP receive Information-field size in octets. Receive capacity remains 1500.
+                Changes apply to new sessions only.";
+            ze:help "Requested PPP MRU in octets, 64 to 1500, default 1500.";
+        }
+
         leaf auth-method {
             type enumeration {
                 enum none { ze:help "Advertise no Auth-Protocol, so the session opens with no PPP authentication phase."; }
@@ -162,12 +170,22 @@ module ze-l2tp-conf {
         }
 
         container authentication {
-            description "The container holds the timing of the PPP authentication phase, and nothing
-                else. The backend that answers a credential sits under the auth container, which the
-                l2tp-auth-local plugin and the l2tp-auth-radius plugin fill. Both leaves here
-                hot-apply: a new value reaches the next session, and a session that is already up
-                keeps the value it started with.";
+            description "PPP authentication negotiation policy and phase timing. The credential backend
+                sits under auth. Changes apply to new sessions; existing sessions retain their policy.";
             ze:help "PPP authentication phase settings for L2TP sessions.";
+
+            leaf-list allow {
+                type enumeration {
+                    enum chap-md5 { ze:help "Permit CHAP-MD5."; }
+                    enum ms-chap-v2 { ze:help "Permit MS-CHAPv2."; }
+                    enum pap { ze:help "Permit cleartext PAP."; }
+                }
+                ordered-by user;
+                description "Ordered permitted authentication methods. An explicit list must include auth-method
+                    and cannot accompany auth-method none. When absent, CHAP methods permit only themselves,
+                    PAP permits CHAP-MD5 then PAP, and none permits no method. CHAP is offered before PAP.";
+                ze:help "Permitted PPP authentication methods in preference order.";
+            }
 
             leaf timeout {
                 type uint16 {

@@ -107,11 +107,13 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	// A delayed setup may arrive after CDN or tunnel removal. Only the
 	// still-live session may claim the worker's descriptors.
 	var peerAddr netip.AddrPort
+	var policy reactorParams
 	r.tunnelsMu.Lock()
 	tunnel := r.tunnelsByLocalID[ksucc.localTID]
 	live := tunnel != nil && ksucc.session != nil && tunnel.lookupSession(ksucc.localSID) == ksucc.session
 	if live {
 		peerAddr = tunnel.peerAddr
+		policy = r.params
 	}
 	r.tunnelsMu.Unlock()
 	if !live || r.kernelWorker == nil {
@@ -130,17 +132,19 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		UnitNum:             ksucc.fds.unitNum,
 		LNSMode:             ksucc.lnsMode,
 		PeerAddr:            peerAddr,
-		AuthMethod:          r.params.AuthMethod,
-		AuthRequired:        r.params.AuthRequired,
-		AuthTimeout:         r.params.AuthTimeout,
-		ReauthInterval:      r.params.ReauthInterval,
-		DisableIPCP:         !r.params.EnableIPCP,
-		DisableIPv6CP:       !r.params.EnableIPv6CP,
-		IPTimeout:           r.params.NCPTimeout,
+		AuthMethod:          policy.AuthMethod,
+		MaxMRU:              policy.MRU,
+		AuthFallbackOrder:   policy.AuthAllow,
+		AuthRequired:        policy.AuthRequired,
+		AuthTimeout:         policy.AuthTimeout,
+		ReauthInterval:      policy.ReauthInterval,
+		DisableIPCP:         !policy.EnableIPCP,
+		DisableIPv6CP:       !policy.EnableIPv6CP,
+		IPTimeout:           policy.NCPTimeout,
 		ProxyLCPInitialRecv: ksucc.proxyInitialRecvLCPConfReq,
 		ProxyLCPLastSent:    ksucc.proxyLastSentLCPConfReq,
 		ProxyLCPLastRecv:    ksucc.proxyLastRecvLCPConfReq,
-		EchoInterval:        r.params.CQMEchoInterval,
+		EchoInterval:        policy.CQMEchoInterval,
 	}
 
 	ifaceName := textbuf.StrInt("ppp", int64(ksucc.fds.unitNum))
@@ -163,8 +167,8 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 // handlePPPEvent reacts to a PPP lifecycle event. EventSessionDown and
 // EventSessionRejected mean the L2TP session is no longer carrying PPP
 // traffic; emit a CDN to the peer so the L2TP-side state matches.
-// EventLCPUp / EventLCPDown / EventSessionUp are informational in 6a;
-// subsystem-level metrics consume them in later phases.
+// LCP events publish and withdraw the negotiated session values;
+// EventSessionUp publishes the authenticated network lifetime.
 //
 // EXHAUSTIVENESS: every ppp.Event concrete type MUST appear in this
 // switch. Adding a new event type (e.g., spec-6b's auth events) without
@@ -203,6 +207,7 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 		r.handleLCPDown(e)
 		return
 	case ppp.EventLCPUp:
+		r.handleLCPUp(e)
 		return
 	case ppp.EventSessionUp:
 		r.handleSessionUp(e)
@@ -252,13 +257,27 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	r.enqueueKernelEvents(nil, teardowns)
 }
 
-// handleLCPDown withdraws the network lifetime while keeping the L2TP
-// transport available for the resumed LCP exchange.
-func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
-	defer ev.Acknowledge()
-	if !ev.NetworkPhase {
+// handleLCPUp retains the actual peer receive MRU and selected method from the
+// driver. Normal and accepted proxy negotiation use the same event contract.
+func (r *l2tpReactor) handleLCPUp(ev ppp.EventLCPUp) {
+	r.tunnelsMu.Lock()
+	defer r.tunnelsMu.Unlock()
+	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
+	if !ok {
 		return
 	}
+	sess := tunnel.lookupSession(ev.SessionID)
+	if sess == nil {
+		return
+	}
+	sess.negotiatedMRU = ev.NegotiatedMRU
+	sess.negotiatedAuthMethod = ev.NegotiatedAuthMethod
+}
+
+// handleLCPDown clears negotiated values and withdraws any network lifetime
+// while keeping the L2TP transport available for the resumed LCP exchange.
+func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
+	defer ev.Acknowledge()
 	r.tunnelsMu.Lock()
 	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
 	if !ok {
@@ -267,6 +286,12 @@ func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	}
 	sess := tunnel.lookupSession(ev.SessionID)
 	if sess == nil {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	sess.negotiatedMRU = 0
+	sess.negotiatedAuthMethod = ppp.AuthMethodNone
+	if !ev.NetworkPhase {
 		r.tunnelsMu.Unlock()
 		return
 	}

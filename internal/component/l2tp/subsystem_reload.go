@@ -182,22 +182,16 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 	}
 
 	// Hot-apply: PPP auth policy for new sessions.
-	if prev.AuthMethod != next.AuthMethod {
+	if prev.AuthMethod != next.AuthMethod || prev.AllowNoAuth != next.AllowNoAuth ||
+		prev.MRU != next.MRU || !slices.Equal(prev.AuthAllow, next.AuthAllow) {
 		s.params.AuthMethod = next.AuthMethod
-		for _, r := range s.reactors {
-			r.setPPPAuthMethod(next.AuthMethod)
-		}
-		s.logger.Info("l2tp reload: auth-method updated",
-			"previous", prev.AuthMethod.String(), "new", next.AuthMethod.String())
-		applied++
-	}
-	if prev.AllowNoAuth != next.AllowNoAuth {
 		s.params.AllowNoAuth = next.AllowNoAuth
+		s.params.MRU = next.MRU
+		s.params.AuthAllow = next.AuthAllow
 		for _, r := range s.reactors {
-			r.setPPPAuthRequired(!next.AllowNoAuth)
+			r.setPPPPolicy(next.MRU, next.AuthAllow, next.AuthMethod, !next.AllowNoAuth)
 		}
-		s.logger.Info("l2tp reload: allow-no-auth updated",
-			"previous", prev.AllowNoAuth, "new", next.AllowNoAuth)
+		s.logger.Info("l2tp reload: PPP policy updated (applies to new sessions only)")
 		applied++
 	}
 
@@ -294,6 +288,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 		MaxTunnels:     DefaultMaxTunnels,
 		MaxSessions:    DefaultMaxSessions,
 		AuthMethod:     DefaultAuthMethod,
+		MRU:            DefaultMRU,
 		AuthTimeout:    DefaultAuthTimeoutSecs * time.Second,
 		ReauthInterval: DefaultReauthIntervalSecs * time.Second,
 		EnableIPCP:     true,
@@ -344,13 +339,37 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 		}
 		p.MaxSessions = uint16(n)
 	}
-	if v, ok := l2tpRoot["auth-method"].(string); ok {
+	if raw, present := l2tpRoot["auth-method"]; present {
+		v, ok := raw.(string)
+		if !ok {
+			return Parameters{}, fmt.Errorf("l2tp auth-method value %#v is not a method name; run 'set l2tp auth-method chap-md5'", raw)
+		}
 		m, perr := ppp.ParseAuthMethod(v)
 		if perr != nil {
 			return Parameters{}, fmt.Errorf("auth-method: %w", perr)
 		}
 		p.AuthMethod = m
 	}
+	if raw, present := l2tpRoot["mru"]; present {
+		value, ok := raw.(string)
+		if !ok {
+			return Parameters{}, fmt.Errorf("l2tp mru value %#v is not an integer string from 64 to 1500; run 'set l2tp mru 1500'", raw)
+		}
+		mru, err := parseMRU(value)
+		if err != nil {
+			return Parameters{}, err
+		}
+		p.MRU = mru
+	}
+	names, err := providerAuthAllow(l2tpRoot)
+	if err != nil {
+		return Parameters{}, err
+	}
+	policy, err := ppp.ResolveAuthAllow(p.AuthMethod, names)
+	if err != nil {
+		return Parameters{}, fmt.Errorf("l2tp authentication allow %v: %w; run 'delete l2tp authentication allow' to restore the method-dependent default", names, err)
+	}
+	p.AuthAllow = policy
 	if v, ok := l2tpRoot["allow-no-auth"].(string); ok {
 		p.AllowNoAuth = v == configTrue
 	}

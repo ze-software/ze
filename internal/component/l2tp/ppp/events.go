@@ -23,12 +23,13 @@ type Event interface {
 }
 
 // EventLCPUp is emitted when the LCP FSM reaches the Opened state.
-// Carries the negotiated MRU so the transport can compute MTU or log
-// it. Authentication and NCPs run after this point.
+// Carries the peer's receive MRU and the actual acknowledged authentication
+// method. Authentication and NCPs run after this point.
 type EventLCPUp struct {
-	TunnelID      uint16
-	SessionID     uint16
-	NegotiatedMRU uint16
+	TunnelID             uint16
+	SessionID            uint16
+	NegotiatedMRU        uint16
+	NegotiatedAuthMethod AuthMethod
 }
 
 func (EventLCPUp) isPPPEvent() {}

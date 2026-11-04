@@ -473,8 +473,8 @@ func TestStartSessionAuthMethodThreaded(t *testing.T) {
 
 // VALIDATES: proxy LCP with Auth-Protocol = PAP selects runPAPAuthPhase
 //
-//	even when StartSession.AuthMethod is AuthMethodNone. The
-//	LAC's already-negotiated choice is authoritative.
+//	even when StartSession.AuthMethod is AuthMethodNone, provided the
+//	explicit session policy permits the LAC's negotiated method.
 //
 // PREVENTS: regression where StartSession.AuthMethod=None bypasses the
 //
@@ -511,6 +511,7 @@ func TestProxyLCPAuthMethodOverrides(t *testing.T) {
 		LNSMode:             true,
 		MaxMRU:              1500,
 		AuthMethod:          AuthMethodNone, // overridden by proxy
+		AuthFallbackOrder:   []AuthMethod{AuthMethodPAP},
 		ProxyLCPInitialRecv: plain,
 		ProxyLCPLastSent:    lastSent,
 		ProxyLCPLastRecv:    plain,
@@ -579,6 +580,7 @@ func TestProxyLCPDispatchesCHAPMD5(t *testing.T) {
 		UnitNum:             3,
 		LNSMode:             true,
 		MaxMRU:              1500,
+		AuthFallbackOrder:   []AuthMethod{AuthMethodCHAPMD5},
 		ProxyLCPInitialRecv: plain,
 		ProxyLCPLastSent:    lastSent,
 		ProxyLCPLastRecv:    plain,
@@ -636,6 +638,7 @@ func TestProxyLCPDispatchesMSCHAPv2(t *testing.T) {
 		UnitNum:             4,
 		LNSMode:             true,
 		MaxMRU:              1500,
+		AuthFallbackOrder:   []AuthMethod{AuthMethodMSCHAPv2},
 		ProxyLCPInitialRecv: plain,
 		ProxyLCPLastSent:    lastSent,
 		ProxyLCPLastRecv:    plain,

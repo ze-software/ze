@@ -78,13 +78,8 @@ func netnsGuestBinaries() netnsBinaries {
 func validateNetnsSelection(suites []string) error {
 	var tb textbuf.Buffer
 	for _, suiteName := range suites {
-		// PPPoE is release evidence rather than a functional gate, so it is not
-		// in testfunctional.Suites. Every other selected suite MUST resolve through
-		// that exported registry rather than a duplicate table here.
-		if suiteName != netnsPPPoE {
-			if _, ok := testfunctional.SuiteNamed(suiteName); !ok {
-				return fmt.Errorf("functional suite %q is not declared", suiteName)
-			}
+		if _, ok := testfunctional.SuiteNamed(suiteName); !ok {
+			return fmt.Errorf("functional suite %q is not declared", suiteName)
 		}
 		ids, ok := netnsSelections[suiteName]
 		if !ok {
@@ -211,10 +206,9 @@ func runNetnsSuite(ctx context.Context, binaries netnsBinaries, suiteName string
 		netnsGIDKey:    netnsUID,
 		netnsConfigKey: netnsStateDir,
 	})
-	suiteArgs := []string{suiteName} // PPPoE is not in the functional registry.
-	if suite, ok := testfunctional.SuiteNamed(suiteName); ok {
-		suiteArgs = suite.Args
-	}
+	// runNetnsGuest validates registry membership before invoking a suite.
+	suite, _ := testfunctional.SuiteNamed(suiteName)
+	suiteArgs := suite.Args
 	harness, err := guestLeLink(netnsCapDir)
 	if err != nil {
 		gaterun.Note("link the guest le into " + netnsCapDir + ": " + err.Error())

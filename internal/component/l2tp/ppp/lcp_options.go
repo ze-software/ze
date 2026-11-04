@@ -414,7 +414,7 @@ func negotiatePeerOption(opt LCPOption, policy LCPNegPolicy) (out negOutcome, su
 		}
 		// RFC 1661 Section 5.3: "Each Configuration Option which is allowed only a single instance MUST be modified to a value acceptable to the Configure-Nak sender."
 		// The 64-octet floor is existing local policy, not an RFC 1661 minimum.
-		minMRU := max(uint16(64), policy.MinMRU)
+		minMRU := max(uint16(MinMRU), policy.MinMRU)
 		if mru < minMRU {
 			suggest := make([]byte, 2)
 			binary.BigEndian.PutUint16(suggest, minMRU)

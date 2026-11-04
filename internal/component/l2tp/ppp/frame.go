@@ -38,7 +38,8 @@ const (
 // of Protocol field are counted on top of it, never inside it.
 const (
 	ProtoFieldLen  = 2
-	MinFrameLen    = 64 + ProtoFieldLen // MRU floor + protocol field
+	MinMRU         = 64 // Local policy, in Information-field octets.
+	MinFrameLen    = MinMRU + ProtoFieldLen
 	MaxFrameLen    = 1500
 	MaxFrameBufLen = ProtoFieldLen + MaxFrameLen
 )

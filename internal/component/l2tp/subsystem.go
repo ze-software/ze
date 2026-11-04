@@ -274,6 +274,8 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			MaxTunnels:       s.params.MaxTunnels,
 			MaxSessions:      s.params.MaxSessions,
 			AuthMethod:       s.params.AuthMethod,
+			MRU:              s.params.MRU,
+			AuthAllow:        s.params.AuthAllow,
 			AuthRequired:     !s.params.AllowNoAuth,
 			AuthTimeout:      s.params.AuthTimeout,
 			ReauthInterval:   s.params.ReauthInterval,

@@ -118,45 +118,32 @@ func TestAuthMethodRoundTrip(t *testing.T) {
 	}
 }
 
-// VALIDATES: selectAuthFallback picks the peer's suggested method when
-//
-//	it is present in ze's fallback order, and returns
-//	AuthMethodNone otherwise. The order list is consulted
-//	for membership only -- position does not downgrade a
-//	matched method to an earlier one.
-//
-// PREVENTS: regression where an empty order or an order that omits the
-//
-//	peer's choice silently permits the rejected method, and
-//	regression where a matched suggestion is rewritten to the
-//	first list entry instead of returned verbatim.
-//
-// RFC requirement: RFC1334-x-1 negative -- a CHAP-capable authenticator refuses
-// to downgrade to PAP: with order [CHAP-MD5] a peer suggesting PAP yields
-// AuthMethodNone, never PAP (producer selectAuthFallback
-// internal/component/l2tp/ppp/auth.go:148; the "peer suggests PAP, CHAP-only
-// order" case below returns None).
+// TestSelectAuthFallback checks selection among untried permitted methods.
+// RFC requirement: RFC1334-x-1 negative -- with CHAP-MD5 already offered and a CHAP-only policy, a PAP suggestion yields None, never PAP.
 func TestSelectAuthFallback(t *testing.T) {
 	full := []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2, AuthMethodPAP}
 	cases := []struct {
 		name       string
 		suggestion AuthMethod
 		order      []AuthMethod
+		tried      uint8
 		want       AuthMethod
 	}{
-		{"peer suggests CHAP-MD5, in full order", AuthMethodCHAPMD5, full, AuthMethodCHAPMD5},
-		{"peer suggests MS-CHAPv2, in full order", AuthMethodMSCHAPv2, full, AuthMethodMSCHAPv2},
-		{"peer suggests PAP, in full order", AuthMethodPAP, full, AuthMethodPAP},
-		{"peer suggests PAP, CHAP-only order", AuthMethodPAP, []AuthMethod{AuthMethodCHAPMD5}, AuthMethodNone},
-		{"peer suggests None (degenerate)", AuthMethodNone, full, AuthMethodNone},
-		{"nil order", AuthMethodPAP, nil, AuthMethodNone},
-		{"empty order", AuthMethodCHAPMD5, []AuthMethod{}, AuthMethodNone},
+		{"untried suggested CHAP", AuthMethodCHAPMD5, full, 1 << AuthMethodMSCHAPv2, AuthMethodCHAPMD5},
+		{"untried suggested MSCHAP", AuthMethodMSCHAPv2, full, 1 << AuthMethodCHAPMD5, AuthMethodMSCHAPv2},
+		{"PAP waits for untried CHAP", AuthMethodPAP, full, 1 << AuthMethodCHAPMD5, AuthMethodMSCHAPv2},
+		{"PAP after both CHAP offers", AuthMethodPAP, full, 1<<AuthMethodCHAPMD5 | 1<<AuthMethodMSCHAPv2, AuthMethodPAP},
+		{"peer suggests PAP CHAP-only exhausted", AuthMethodPAP, []AuthMethod{AuthMethodCHAPMD5}, 1 << AuthMethodCHAPMD5, AuthMethodNone},
+		{"unknown suggestion advances", AuthMethodNone, full, 1 << AuthMethodCHAPMD5, AuthMethodMSCHAPv2},
+		{"already tried suggestion advances", AuthMethodCHAPMD5, full, 1 << AuthMethodCHAPMD5, AuthMethodMSCHAPv2},
+		{"outside suggestion advances", AuthMethodMSCHAPv2, []AuthMethod{AuthMethodCHAPMD5, AuthMethodPAP}, 1 << AuthMethodCHAPMD5, AuthMethodPAP},
+		{"nil order", AuthMethodPAP, nil, 0, AuthMethodNone},
+		{"empty order", AuthMethodCHAPMD5, []AuthMethod{}, 0, AuthMethodNone},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := selectAuthFallback(tc.suggestion, tc.order)
-			if got != tc.want {
-				t.Errorf("got %v, want %v", got, tc.want)
+			if got := selectAuthFallback(tc.suggestion, tc.order, tc.tried); got != tc.want {
+				t.Fatalf("got %v, want %v", got, tc.want)
 			}
 		})
 	}
@@ -265,6 +252,7 @@ func TestAdjustAuthOnNakOrReject(t *testing.T) {
 			s := &pppSession{
 				configuredAuthMethod: tc.start,
 				authFallbackOrder:    tc.order,
+				authMethodsTried:     1 << tc.start,
 				logger:               discardLogger(),
 			}
 			pkt := LCPPacket{
@@ -280,36 +268,34 @@ func TestAdjustAuthOnNakOrReject(t *testing.T) {
 	}
 }
 
-// VALIDATES: defaultAuthFallbackOrder matches the spec AC-13 guidance
-//
-//	"prefer CHAP > MS-CHAPv2 > PAP" and returns a fresh
-//	slice on every call (no shared mutation hazard).
-//
-// PREVENTS: regression where the default order is silently reshuffled
-//
-//	to put PAP (cleartext on wire) before CHAP.
-//
-// RFC requirement: RFC1334-x-1 positive -- ze's default auth preference offers
-// CHAP before PAP: defaultAuthFallbackOrder returns [CHAP-MD5, MS-CHAPv2, PAP]
-// with PAP last (producer internal/component/l2tp/ppp/auth.go:120), so a
-// stronger method is always advertised ahead of PAP.
-func TestDefaultAuthFallbackOrder(t *testing.T) {
-	a := defaultAuthFallbackOrder()
-	want := []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2, AuthMethodPAP}
-	if len(a) != len(want) {
-		t.Fatalf("length = %d, want %d", len(a), len(want))
-	}
-	for i, m := range want {
-		if a[i] != m {
-			t.Errorf("index %d = %v, want %v", i, a[i], m)
-		}
-	}
-
-	// Mutate one copy and verify the next call is unaffected.
-	a[0] = AuthMethodPAP
-	b := defaultAuthFallbackOrder()
-	if b[0] != AuthMethodCHAPMD5 {
-		t.Errorf("mutation of first call leaked into second: b[0] = %v", b[0])
+// TestInitialAuthMethodCHAPBeforePAPWhateverOrder checks effective defaults
+// and explicit order through the production initial-offer selector.
+// RFC requirement: RFC1334-x-1 positive -- configured PAP offers the first allowed CHAP variant before PAP; the safe PAP default offers CHAP-MD5.
+func TestInitialAuthMethodCHAPBeforePAPWhateverOrder(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		configured AuthMethod
+		names      []string
+		want       AuthMethod
+	}{
+		{"PAP default", AuthMethodPAP, nil, AuthMethodCHAPMD5},
+		{"CHAP default", AuthMethodCHAPMD5, nil, AuthMethodCHAPMD5},
+		{"MSCHAP default", AuthMethodMSCHAPv2, nil, AuthMethodMSCHAPv2},
+		{"none default", AuthMethodNone, nil, AuthMethodNone},
+		{"PAP written first", AuthMethodPAP, []string{"pap", "chap-md5"}, AuthMethodCHAPMD5},
+		{"MSCHAP first CHAP", AuthMethodPAP, []string{"pap", "ms-chap-v2", "chap-md5"}, AuthMethodMSCHAPv2},
+		{"configured CHAP precedes order", AuthMethodMSCHAPv2, []string{"chap-md5", "ms-chap-v2"}, AuthMethodMSCHAPv2},
+		{"PAP only", AuthMethodPAP, []string{"pap"}, AuthMethodPAP},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			order, err := ResolveAuthAllow(tc.configured, tc.names)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := initialAuthMethod(tc.configured, order); got != tc.want {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 

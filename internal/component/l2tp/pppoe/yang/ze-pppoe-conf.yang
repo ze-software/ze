@@ -6,6 +6,10 @@ module ze-pppoe-conf {
 
     description "PPPoE access concentrator configuration for Ze (RFC 2516).";
 
+    revision 2026-11-03 {
+        description "Add ordered authentication-allow policy for subscriber PPP.";
+    }
+
     revision 2026-09-09 {
         description "Add max-sessions-per-mac, global and per interface: a
                      replayed PADR must not let one MAC allocate sessions
@@ -70,6 +74,24 @@ module ze-pppoe-conf {
                  with allow-no-auth true.";
             ze:help
                 "PPP Auth-Protocol method the access concentrator advertises in LCP.";
+        }
+
+        leaf-list authentication-allow {
+            type enumeration {
+                enum pap { ze:help "Permit PAP (RFC 1334)."; }
+                enum chap-md5 { ze:help "Permit CHAP-MD5 (RFC 1994)."; }
+                enum ms-chap-v2 { ze:help "Permit MS-CHAP-V2 (RFC 2759)."; }
+            }
+            ordered-by user;
+            description
+                "Allowed PPP authentication methods. The list must contain
+                 auth-method and cannot be used with auth-method none.
+                 Absent or empty derives chap-md5 only for chap-md5,
+                 ms-chap-v2 only for ms-chap-v2, CHAP-MD5 then PAP for pap,
+                 and no methods for none. CHAP variants precede PAP; the
+                 configured CHAP method is first, then written CHAP order.
+                 Changes apply only to new sessions.";
+            ze:help "Ordered set of permitted subscriber PPP authentication methods.";
         }
 
         leaf allow-no-auth {

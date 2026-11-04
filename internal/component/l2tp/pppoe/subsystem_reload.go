@@ -244,6 +244,9 @@ func applyInterfaceConfig(srv *InterfaceServer, ic *InterfaceConfig, p *Paramete
 	srv.serviceNames = serviceNames
 	srv.authMethod = p.AuthMethod
 	srv.authRequired = !p.AllowNoAuth
+	// Each server generation owns its policy; reload never mutates the slice
+	// held by a session already handed to the driver.
+	srv.authAllow = slices.Clone(p.AuthAllow)
 }
 
 // closeInterface ends every session on an access interface the reload took

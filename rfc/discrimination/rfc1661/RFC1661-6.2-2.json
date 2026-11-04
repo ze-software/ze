@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-6.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/auth_policy_driver_test.go::TestAuthAllowSelectionMatrix",
+    "unit-sha": "0a6fcd277bcf3ab3",
+    "claim-sha": "a8e27232a778351e",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/auth.go::selectAuthFallback",
+    "producer-sha": "2c3b8f9d7fa600bc",
+    "break": "line 132: \"if tried\u0026(1\u003c\u003cmethod) != 0 {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC1661-6.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/auth_policy_driver_test.go::TestAuthAllowSelectionMatrix",
+    "unit-sha": "0a6fcd277bcf3ab3",
+    "claim-sha": "44feb6766f4ff907",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/auth.go::selectAuthFallback",
+    "producer-sha": "2c3b8f9d7fa600bc",
+    "break": "line 155: \"return nextCHAP\" -\u003e \"return AuthMethodPAP\""
+  }
+]

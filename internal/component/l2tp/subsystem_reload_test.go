@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -238,6 +239,8 @@ func TestReloadNoOpOnIdentical(t *testing.T) {
 		MaxTunnels:    10,
 		MaxSessions:   20,
 		AuthMethod:    DefaultAuthMethod,
+		MRU:           ppp.MaxFrameLen,
+		AuthAllow:     []ppp.AuthMethod{DefaultAuthMethod},
 		AuthTimeout:   DefaultAuthTimeoutSecs * time.Second,
 		EnableIPCP:    true,
 		EnableIPv6CP:  true,

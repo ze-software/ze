@@ -26,6 +26,10 @@ l2tp {
     shared-secret <secret>;     // CHAP-MD5 tunnel auth (RFC 2661 S4.2)
     auth-method chap-md5;        // PPP Auth-Protocol first advertised
     allow-no-auth false;         // explicit opt-in required for no-auth
+    mru 1500;                   // Information-field octets, range 64..1500
+    authentication {
+        allow [ chap-md5 ];     // ordered permitted methods; optional
+    }
     hello-interval 60;           // seconds of peer silence before HELLO
     hello-retries 2;             // unanswered HELLO intervals before dead-peer teardown (0 disables)
     max-retransmit 5;            // retransmissions of an unacknowledged message before the tunnel is cleared
@@ -155,12 +159,28 @@ datagram whose message type is not SCCRQ keeps its silent drop.
 | `show l2tp tunnels` | Array of tunnel summaries |
 | `show l2tp tunnel <id>` | One tunnel detail (AVPs, capabilities, session list) |
 | `show l2tp sessions` | Array of session summaries (flattened across tunnels) |
-| `show l2tp session <id>` | One session detail (PPP state, assigned IP, speeds) |
+| `show l2tp session id <id>` | One session detail (PPP state, negotiated MRU/auth method, assigned IP, speeds) |
 | `show l2tp statistics` | Protocol counters (tunnel/session counts, per-message stats) |
 | `show l2tp listeners` | Bound UDP endpoints |
-| `show l2tp config` | Effective runtime config; `shared-secret` redacted to `<set>`/`<unset>` |
+| `show l2tp config` | Effective runtime config, including `mru` and `authentication-allow`; `shared-secret` redacted to `<set>`/`<unset>` |
 
 <!-- source: internal/component/l2tp/cmd/l2tp.go -->
+
+`show l2tp config` reports the local requested `mru` (1500 when absent) and
+the effective `authentication-allow` list, including the method-dependent
+default when no list was written. It describes the policy for new sessions,
+not what an established peer negotiated.
+
+Session summaries and details report `mru` as the peer's negotiated receive
+MRU (Ze's transmit MTU), and `auth-method` as the method agreed by LCP.
+These are the actual values from normal or accepted proxy negotiation, not
+copies of the configured MRU or preferred method. Both keys are `null`
+before LCP opens and after LCP goes down; negotiated no-auth is the distinct
+value `"none"`. LCP-up precedes authentication, so a reported method does not
+by itself mean the subscriber has authenticated.
+
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPUp, handleLCPDown -->
+<!-- source: internal/component/l2tp/snapshot.go -- sessionSnapshot -->
 
 ### Destructive commands
 
@@ -233,6 +253,10 @@ The PPP MRU counts the Information field, not the two-octet Protocol field.
 Ze's userspace buffers hold 1502 octets, and the kernel receive MRU stays at
 1500 even when a smaller MRU was requested. The outgoing IP interface MTU
 comes from the peer's negotiated MRU without subtracting PPP framing.
+Set `l2tp mru` to the requested receive MRU (64..1500, default 1500), for
+example 1492 behind a PPPoE LAC. It does not cap receive buffers or describe
+the peer's receive MRU. `show l2tp config` reports the effective `mru` and
+`authentication-allow` policy, not negotiated session values.
 <!-- source: internal/component/l2tp/ppp/frame.go -- MaxFrameLen, MaxFrameBufLen -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
 
@@ -362,17 +386,41 @@ then dispatches an `EventAuthRequest` to the registered auth handler.
 The handler responds with accept/reject via a channel.
 
 By default, new sessions advertise `auth-method chap-md5` and
-`allow-no-auth false`. If a peer rejects every acceptable Auth-Protocol,
-the PPP session is disconnected after LCP instead of falling through to
-the no-auth accounting path. Set `allow-no-auth true` only for lab peers
-or explicit no-auth deployments; `auth-method none` is rejected unless
-that opt-in is present.
+`allow-no-auth false`. A peer's Configure-Nak can select only an untried
+permitted method. Ze offers every available CHAP variant before PAP, even if
+the peer keeps suggesting PAP; an unknown, unlisted or already-tried
+suggestion advances to the next untried permitted method.
 
-With `auth-method pap`, the first Configure-Request still offers CHAP-MD5.
-Ze offers PAP only after the peer sends a Configure-Nak that suggests PAP,
-because RFC 1334 Section 2 requires an implementation that includes CHAP to
-offer it before PAP.
+If none remains, required authentication closes LCP with Terminate-Request
+before Opened: no authentication request or network-phase work runs. A valid
+Configure-Reject removes the entire Auth-Protocol option for that negotiation,
+even when unused methods remain; required authentication closes LCP in that
+case too. With `allow-no-auth true`, either refusal instead continues without
+the option and uses the no-wire-auth handler. Set that opt-in only for lab
+peers or explicit no-auth deployments; `auth-method none` requires it.
+
+With `auth-method pap` and no explicit allow-list, the first Configure-Request
+offers CHAP-MD5 and a Nak toward PAP selects PAP next. An explicit PAP-only
+policy offers PAP directly. RFC 1334 Section 2 requires an implementation that
+includes CHAP to offer it before PAP.
 <!-- source: internal/component/l2tp/ppp/auth.go -- initialAuthMethod -->
+
+`authentication { allow [ chap-md5 ms-chap-v2 ]; }` declares an ordered set
+of permitted methods. It must include `auth-method`, cannot contain `none`,
+and cannot accompany `auth-method none`. With no list, `chap-md5` permits
+only CHAP-MD5, `ms-chap-v2` only MS-CHAPv2, `pap` permits CHAP-MD5 then PAP,
+and `none` has an empty policy. Explicit ordering never makes PAP precede
+an available CHAP method. Configuration validation and reload refuse invalid
+lists rather than replacing malformed explicit input with a broader default.
+<!-- source: internal/component/l2tp/ppp/auth_policy.go -- ResolveAuthAllow -->
+
+Proxy LCP is subject to the same policy. A proxied method outside the permitted
+list, an unknown Auth-Protocol, or absent authentication when authentication is
+required causes Ze to run normal LCP instead. Ze also renegotiates if the LAC's
+Last-Sent receive MRU exceeds `l2tp mru`; an absent Last-Sent MRU means 1500.
+The peer's Last-Received receive MRU remains the transmit MTU, not that local
+policy value.
+<!-- source: internal/component/l2tp/ppp/auth.go -- selectAuthFallback, refuseAuthMethod, acceptProxyPolicy -->
 
 Two auth handlers ship with ze. The slot holds one handler, and configuration
 decides its owner: `l2tp-auth-radius` claims it when a RADIUS server is
@@ -1017,8 +1065,9 @@ L2TP exposes metrics under the `ze_l2tp_*` and `ze_radius_*` namespaces.
 | Metric | Type | Description |
 |--------|------|-------------|
 | `ze_ppp_ipv6cp_identifier_refusals_total` | counter | IPv6CP negotiations refused for want of a usable interface identifier |
+| `ze_ppp_auth_failures_total` | counter | Authentication policy refusals before LCP Opened, with `reason="auth-method-refused"` |
 
-The label set is closed and holds three values. A session or tunnel ID is
+The IPv6CP counter's label set is closed and holds three values. A session or tunnel ID is
 deliberately not a label: a subscriber daemon carries thousands of sessions.
 
 | Reason | Meaning |
@@ -1028,6 +1077,14 @@ deliberately not a label: a subscriber daemon carries thousands of sessions.
 | `suggestion-draw-failed` | Ze could not draw a valid identifier to suggest, and answered with a Configure-Reject rather than a Configure-Nak carrying a value it would refuse on receive |
 
 This counter is shared with PPPoE subscribers, which run the same PPP driver.
+
+The authentication counter also covers L2TP and PPPoE. It increments once when
+a required-auth session exhausts its permitted methods or the peer rejects
+Auth-Protocol. The warning and final session-down reason name the peer's
+suggestion, the permitted methods, and the operator configuration to change.
+No Accounting-Stop exists before authentication; use this counter and the log
+to diagnose those refusals.
+<!-- source: internal/component/l2tp/ppp/metrics.go -- initPPPMetrics, countAuthMethodRefusal -->
 
 ### Reader-loop error counters
 
@@ -1187,6 +1244,8 @@ each knob according to this policy:
 | `max-sessions` | Hot-apply at next admission decision. |
 | `auth-method` | Hot-apply to new PPP sessions. |
 | `allow-no-auth` | Hot-apply to new PPP sessions. |
+| `mru` | Hot-apply to new PPP sessions; established sessions retain their requested MRU. |
+| `authentication/allow` | Hot-apply to new PPP sessions; existing sessions retain their policy. |
 | `authentication/timeout` | Hot-apply to new PPP sessions. |
 | `authentication/reauth-interval` | Hot-apply to new PPP sessions. |
 | `auth/local/user` | Apply replaces the local credential table, including removing users. Subsequent local authentication requests use it. |

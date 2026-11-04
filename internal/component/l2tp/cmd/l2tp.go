@@ -231,15 +231,17 @@ func handleConfig(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plu
 		listenAddrs = append(listenAddrs, a.String())
 	}
 	payload := map[string]any{
-		"enabled":        cs.Enabled,
-		"max-tunnels":    int(cs.MaxTunnels),
-		"max-sessions":   int(cs.MaxSessions),
-		"auth-method":    cs.AuthMethod,
-		"allow-no-auth":  cs.AllowNoAuth,
-		"hello-interval": int(cs.HelloInterval.Seconds()),
-		"hello-retries":  int(cs.HelloRetries),
-		"shared-secret":  cs.SharedSecret,
-		"listeners":      listenAddrs,
+		"enabled":              cs.Enabled,
+		"max-tunnels":          int(cs.MaxTunnels),
+		"max-sessions":         int(cs.MaxSessions),
+		"auth-method":          cs.AuthMethod,
+		"mru":                  int(cs.MRU),
+		"authentication-allow": cs.AuthAllow,
+		"allow-no-auth":        cs.AllowNoAuth,
+		"hello-interval":       int(cs.HelloInterval.Seconds()),
+		"hello-retries":        int(cs.HelloRetries),
+		"shared-secret":        cs.SharedSecret,
+		"listeners":            listenAddrs,
 	}
 	return jsonResponse("l2tp config", payload)
 }
@@ -618,6 +620,14 @@ func sessionJSON(s *l2tp.SessionSnapshot, detail bool) map[string]any {
 		"assigned-addr":    assigned,
 		"family":           s.Family,
 		"created-at":       s.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+	}
+	// A session may exist before LCP opens or while it renegotiates. Keep
+	// unknown distinct from an agreed no-auth method and from local config.
+	m["mru"] = nil
+	m["auth-method"] = nil
+	if s.MRU != 0 {
+		m["mru"] = int(s.MRU)
+		m["auth-method"] = s.AuthMethod
 	}
 	if detail {
 		m["tx-connect-speed"] = int64(s.TxConnectSpeed)

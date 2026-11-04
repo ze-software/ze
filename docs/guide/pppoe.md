@@ -71,7 +71,7 @@ concentrator at once, with no restart:
 
 | Change | Effect |
 |--------|--------|
-| `ac-name`, `service-name`, `cookie-timeout`, `padi-rate-limit`, `max-sessions`, `max-sessions-per-mac`, `auth-method`, `allow-no-auth` | Apply to the next PADI and the next admitted session. A session already up keeps the terms it was admitted under. A lowered `max-sessions` refuses new sessions and ends none. AC-Cookies already handed out stay valid |
+| `ac-name`, `service-name`, `cookie-timeout`, `padi-rate-limit`, `max-sessions`, `max-sessions-per-mac`, `auth-method`, `authentication-allow`, `allow-no-auth` | Apply to the next PADI and the next admitted session. A session already up keeps the terms it was admitted under. A lowered `max-sessions` refuses new sessions and ends none. AC-Cookies already handed out stay valid |
 | An added `interface` | Served at once. An interface that does not exist refuses the commit, naming it and the `delete pppoe interface <name>` that undoes it |
 | A removed `interface` | Stops answering PADI. Each of its sessions gets a PADT and its PPP session is stopped |
 | `enabled true`, or a first `interface` | Starts discovery, even when the daemon booted with PPPoE disabled |
@@ -81,10 +81,10 @@ concentrator at once, with no restart:
 
 `auth-method` is the PPP Auth-Protocol the access concentrator puts in its own
 LCP Configure-Request: `chap-md5` (the default), `pap`, `ms-chap-v2`, or `none`.
-With `pap`, the first Configure-Request still offers CHAP-MD5, and PAP is
-offered only after the subscriber sends a Configure-Nak that suggests PAP
-(RFC 1334 Section 2: an implementation that includes CHAP MUST offer it before
-PAP).
+With `pap` and its derived default policy, the first Configure-Request offers
+CHAP-MD5, and PAP is offered only after the subscriber sends a Configure-Nak
+that suggests PAP (RFC 1334 Section 2: an implementation that includes CHAP
+MUST offer it before PAP). An explicit `[pap]` policy offers PAP directly.
 <!-- source: internal/component/l2tp/ppp/auth.go -- initialAuthMethod -->
 `none` requires `allow-no-auth true`. The daemon rejects `none` without that
 opt-in, and rejects an unknown authentication method, with
@@ -93,11 +93,46 @@ opt-in, and rejects an unknown authentication method, with
 | Leaf | Default | Values | Description |
 |------|---------|--------|-------------|
 | `auth-method` | `chap-md5` | `none`, `pap`, `chap-md5`, `ms-chap-v2` | Auth-Protocol advertised in the AC's LCP Configure-Request (RFC 1661 Section 6.2) |
+| `authentication-allow` | Derived from `auth-method` | ordered set of `pap`, `chap-md5`, `ms-chap-v2` | Permitted methods; must include `auth-method`, cannot include `none` or accompany `auth-method none` |
 | `allow-no-auth` | `false` | boolean | Admit a subscriber whose LCP ends with no Auth-Protocol negotiated |
 
 The default matches the L2TP LNS default, so an operator who configures a
 credential for one transport gets the same treatment on the other.
 Explicit no-auth sessions need no local user entry.
+
+The flat `authentication-allow` leaf sits beside `auth-method`:
+
+```
+pppoe {
+    auth-method chap-md5
+    authentication-allow [chap-md5 ms-chap-v2 pap]
+}
+```
+
+Absent or empty lists derive `[chap-md5]` for `chap-md5`,
+`[ms-chap-v2]` for `ms-chap-v2`, `[chap-md5 pap]` for `pap`, and no
+methods for `none`. Lists are ordered sets: duplicate entries do not add a
+second attempt. The configured CHAP variant is offered first; remaining CHAP
+variants follow written order, before PAP regardless of its written position.
+Changes affect newly admitted sessions only, not an existing session's policy.
+
+A Configure-Nak selects an untried permitted method; an unlisted, unknown or
+already-tried suggestion advances through the remaining methods without
+repeating an offer. A PAP suggestion cannot skip an untried CHAP variant.
+A valid Configure-Reject removes Auth-Protocol for the whole negotiation,
+rather than trying a different method. Required authentication ends LCP with
+Terminate-Request before Opened when no acceptable method remains or the
+option is rejected, followed by PADT when termination completes. No PAP
+exchange or auth-handler request occurs on that refusal. Explicit
+`allow-no-auth true` instead permits the no-wire-auth handler after the option
+is dropped.
+<!-- source: internal/component/l2tp/ppp/auth.go -- selectAuthFallback, refuseAuthMethod -->
+
+**Migration:** CHAP-MD5 and MS-CHAPv2 no longer implicitly permit other
+methods. If subscribers previously relied on PAP fallback, explicitly include
+both the configured method and `pap`. Do not enable `allow-no-auth` as a
+substitute for permitting the authentication method those subscribers need.
+PPPoE's MRU ceiling remains fixed at 1492; there is no PPPoE MRU setting.
 
 The credential comes from the same auth plugins the L2TP LNS uses. Configure a
 local user, or a RADIUS server:

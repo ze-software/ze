@@ -36,8 +36,8 @@ func authProtoOffered(t *testing.T, rec *frameRecorder) (uint16, bool) {
 	return 0, false
 }
 
-// TestAuthOffersCHAPBeforePAP opens negotiation with CHAP-MD5 and the default
-// fallback order, reads the first Configure-Request, answers it with a
+// TestAuthOffersCHAPBeforePAP opens negotiation with CHAP-MD5 and an explicit
+// CHAP/PAP policy, reads the first Configure-Request, answers it with a
 // Configure-Nak that suggests PAP, and reads the next one. The control keeps
 // PAP out of the fallback order and answers with the same Nak, after which
 // selectAuthFallback omits the option rather than offer PAP.
@@ -57,7 +57,7 @@ func TestAuthOffersCHAPBeforePAP(t *testing.T) {
 		order    []AuthMethod
 		papAfter bool
 	}{
-		{"default order", defaultAuthFallbackOrder(), true},
+		{"explicit CHAP and PAP", []AuthMethod{AuthMethodCHAPMD5, AuthMethodPAP}, true},
 		{"order without PAP", []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2}, false},
 	} {
 		s, rec, _ := newRFC1661Session(LCPStateReqSent)
@@ -88,6 +88,7 @@ func TestAuthOffersCHAPBeforePAP(t *testing.T) {
 // that suggests PAP, and reads the next one, which then offers PAP. The
 // control configures a fallback order holding PAP alone, so the session
 // includes no stronger method and its first Configure-Request offers PAP.
+// With authentication required, a PAP Nak then closes rather than repeating PAP.
 //
 // VALIDATES: RFC 1334 Section 2, a configured PAP preference does not make ze
 // offer PAP before CHAP.
@@ -102,9 +103,10 @@ func TestConfiguredPAPStillOffersCHAPFirst(t *testing.T) {
 		fd        int
 		order     []AuthMethod
 		firstWant uint16
+		wantCode  uint8
 	}{
-		{"CHAP in order", 16301, defaultAuthFallbackOrder(), authProtoCHAP},
-		{"PAP alone", 16302, []AuthMethod{AuthMethodPAP}, authProtoPAP},
+		{"CHAP in order", 16301, []AuthMethod{AuthMethodCHAPMD5, AuthMethodPAP}, authProtoCHAP, LCPConfigureRequest},
+		{"PAP alone", 16302, []AuthMethod{AuthMethodPAP}, authProtoPAP, LCPTerminateRequest},
 	} {
 		reg := newPipeRegistry()
 		installPipeRegistry(t, reg)
@@ -130,16 +132,34 @@ func TestConfiguredPAPStillOffersCHAPFirst(t *testing.T) {
 			MaxMRU:            1500,
 			AuthMethod:        AuthMethodPAP,
 			AuthFallbackOrder: tc.order,
+			AuthRequired:      true,
 		}
 
 		select {
 		case pkt := <-secondCR:
+			if pkt.Code != tc.wantCode {
+				t.Fatalf("%s: after PAP Nak code=%d, want %d", tc.name, pkt.Code, tc.wantCode)
+			}
 			opts, err := ParseLCPOptions(pkt.Data)
 			if err != nil {
 				t.Fatalf("%s: second Configure-Request options: %v", tc.name, err)
 			}
 			data, ok := lookupOption(opts, LCPOptAuthProto)
-			if !ok || len(data) < 2 || binary.BigEndian.Uint16(data[:2]) != authProtoPAP {
+			if tc.wantCode == LCPTerminateRequest {
+				if ok {
+					t.Fatalf("%s: refusal carries Auth-Protocol %x", tc.name, data)
+				}
+				select {
+				case ev := <-d.AuthEventsOut():
+					t.Fatalf("%s: refusal emitted auth event %+v", tc.name, ev)
+				default:
+				}
+				select {
+				case ev := <-d.EventsOut():
+					t.Fatalf("%s: refusal published lifecycle event before termination completed: %+v", tc.name, ev)
+				default:
+				}
+			} else if !ok || len(data) < 2 || binary.BigEndian.Uint16(data[:2]) != authProtoPAP {
 				t.Fatalf("%s: Configure-Request after the PAP Nak carries Auth-Protocol %x (present %v), want PAP",
 					tc.name, data, ok)
 			}

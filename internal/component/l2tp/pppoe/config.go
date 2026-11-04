@@ -64,6 +64,8 @@ type Parameters struct {
 	// no method negotiated. Both travel to ppp.StartSession (server.go).
 	AuthMethod  ppp.AuthMethod
 	AllowNoAuth bool
+	// AuthAllow is the effective immutable policy passed to new PPP sessions.
+	AuthAllow []ppp.AuthMethod
 }
 
 // ExtractParameters parses PPPoE configuration from the YANG config tree, in
@@ -80,7 +82,7 @@ type Parameters struct {
 //
 // The error is returned for a configuration that cannot be honored, so the hub
 // refuses to start rather than running an access concentrator that admits
-// everybody. Today that is auth-method none without allow-no-auth.
+// everybody. Invalid authentication policy is refused rather than defaulted.
 func ExtractParameters(tree map[string]any) (Parameters, error) {
 	p := Parameters{
 		ACName:            DefaultACName,
@@ -89,6 +91,7 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 		MaxSessionsPerMAC: DefaultMaxSessionsPerMAC,
 		PADIRateLimit:     DefaultPADIRateLimit,
 		AuthMethod:        DefaultAuthMethod,
+		AuthAllow:         []ppp.AuthMethod{DefaultAuthMethod},
 	}
 
 	pppoe, ok := tree["pppoe"].(map[string]any)
@@ -115,7 +118,11 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 	if rateLimit, ok := cfgFloat(pppoe["padi-rate-limit"]); ok && rateLimit > 0 {
 		p.PADIRateLimit = int(rateLimit)
 	}
-	if method, ok := pppoe["auth-method"].(string); ok && method != "" {
+	if value, present := pppoe["auth-method"]; present {
+		method, ok := value.(string)
+		if !ok {
+			return Parameters{}, fmt.Errorf("pppoe auth-method must be a method name; set pppoe auth-method chap-md5")
+		}
 		m, err := ppp.ParseAuthMethod(method)
 		if err != nil {
 			return Parameters{}, fmt.Errorf("pppoe auth-method: %w", err)
@@ -127,6 +134,19 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 	}
 	if p.AuthMethod == ppp.AuthMethodNone && !p.AllowNoAuth {
 		return Parameters{}, ErrAuthMethodNoneRequiresAllow
+	}
+	var authNames []string
+	if value, present := pppoe["authentication-allow"]; present {
+		var err error
+		authNames, err = extractAuthAllow(value)
+		if err != nil {
+			return Parameters{}, err
+		}
+	}
+	var err error
+	p.AuthAllow, err = ppp.ResolveAuthAllow(p.AuthMethod, authNames)
+	if err != nil {
+		return Parameters{}, fmt.Errorf("pppoe authentication-allow: %w; delete pppoe authentication-allow to restore the auth-method default, or set pppoe auth-method chap-md5 and set pppoe authentication-allow [chap-md5]", err)
 	}
 
 	entries, ok := pppoe["interface"].(map[string]any)
@@ -166,6 +186,29 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 	}
 
 	return p, nil
+}
+
+// extractAuthAllow accepts every provider leaf-list representation, but never
+// silently discards a malformed member of a security policy.
+func extractAuthAllow(value any) ([]string, error) {
+	switch names := value.(type) {
+	case string:
+		return []string{names}, nil
+	case []string:
+		return names, nil
+	case []any:
+		result := make([]string, len(names))
+		for i, member := range names {
+			name, ok := member.(string)
+			if !ok {
+				return nil, fmt.Errorf("pppoe authentication-allow member %d must be a method name; delete pppoe authentication-allow to restore the auth-method default", i+1)
+			}
+			result[i] = name
+		}
+		return result, nil
+	default:
+		return nil, fmt.Errorf("pppoe authentication-allow must be a method name or ordered list; delete pppoe authentication-allow to restore the auth-method default")
+	}
 }
 
 // cfgBool coerces a config value (native JSON bool or the string form "true"/

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/component/config"
 	l2tppkg "github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -235,6 +236,120 @@ func TestHandleConfigRedactsSecret(t *testing.T) {
 	require.Equal(t, "chap-md5", got["auth-method"])
 	require.Equal(t, false, got["allow-no-auth"])
 	require.Equal(t, float64(60), got["hello-interval"])
+}
+
+// TestConfigJSONMRUAndAllowList reads the real subsystem's effective parameters
+// through the command handler, including absent-leaf defaults and written order.
+func TestConfigJSONMRUAndAllowList(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		body   string
+		mru    float64
+		method string
+		allow  []any
+	}{
+		{"default CHAP", "", 1500, "chap-md5", []any{"chap-md5"}},
+		{"default MSCHAP", "auth-method ms-chap-v2;", 1500, "ms-chap-v2", []any{"ms-chap-v2"}},
+		{"default PAP", "auth-method pap;", 1500, "pap", []any{"chap-md5", "pap"}},
+		{"no auth", "auth-method none; allow-no-auth true;", 1500, "none", []any{}},
+		{"explicit ordered policy", "mru 1492; auth-method pap; authentication { allow [ pap ms-chap-v2 chap-md5 ]; }",
+			1492, "pap", []any{"pap", "ms-chap-v2", "chap-md5"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			loaded, err := config.LoadConfig("l2tp { enabled true; "+tc.body+" }", "policy.conf", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			params, err := l2tppkg.ExtractParameters(loaded.Tree)
+			if err != nil {
+				t.Fatal(err)
+			}
+			publishFake(t, l2tppkg.NewSubsystem(params))
+			resp, err := handleConfig(nil, commandtest.Args())
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got map[string]any
+			if err := json.Unmarshal([]byte(responseString(t, resp)), &got); err != nil {
+				t.Fatal(err)
+			}
+			if got["mru"] != tc.mru || got["auth-method"] != tc.method {
+				t.Fatalf("effective config = %v, want MRU %v method %s", got, tc.mru, tc.method)
+			}
+			allow, ok := got["authentication-allow"].([]any)
+			if !ok {
+				t.Fatalf("effective allow list = %#v, want JSON array", got["authentication-allow"])
+			}
+			if len(allow) != len(tc.allow) {
+				t.Fatalf("allow = %v, want %v", allow, tc.allow)
+			}
+			for i := range allow {
+				if allow[i] != tc.allow[i] {
+					t.Fatalf("allow = %v, want %v", allow, tc.allow)
+				}
+			}
+		})
+	}
+}
+
+// TestSessionJSONMRUAndAuthMethod checks detail and list command publication of
+// measured values different from the configured policy, including unknown LCP.
+func TestSessionJSONMRUAndAuthMethod(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mru    uint16
+		method string
+	}{
+		{"negotiated PAP fallback", 1400, "pap"},
+		{"negotiated CHAP", 1492, "chap-md5"},
+		{"negotiated no-auth", 1500, "none"},
+		{"not negotiated or LCP down", 0, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ss := l2tppkg.SessionSnapshot{LocalSID: 42, MRU: tc.mru, AuthMethod: tc.method}
+			publishFake(t, &fakeService{
+				config:        l2tppkg.ConfigSnapshot{MRU: 1492, AuthMethod: "chap-md5", AuthAllow: []string{"chap-md5", "pap"}},
+				snapshot:      l2tppkg.Snapshot{Tunnels: []l2tppkg.TunnelSnapshot{{Sessions: []l2tppkg.SessionSnapshot{ss}}}},
+				lookupSession: func(id uint16) (l2tppkg.SessionSnapshot, bool) { return ss, id == ss.LocalSID },
+			})
+			detail, err := handleSession(nil, commandtest.Args("42"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			list, err := handleSessions(nil, commandtest.Args())
+			if err != nil {
+				t.Fatal(err)
+			}
+			var detailData map[string]any
+			var listData []map[string]any
+			if err := json.Unmarshal([]byte(responseString(t, detail)), &detailData); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(responseString(t, list)), &listData); err != nil {
+				t.Fatal(err)
+			}
+			if len(listData) != 1 {
+				t.Fatalf("session list = %v, want one session", listData)
+			}
+			for _, got := range []map[string]any{detailData, listData[0]} {
+				if _, ok := got["mru"]; !ok {
+					t.Fatal("session output omits mru")
+				}
+				if _, ok := got["auth-method"]; !ok {
+					t.Fatal("session output omits auth-method")
+				}
+				if tc.mru == 0 {
+					if got["mru"] != nil || got["auth-method"] != nil {
+						t.Fatalf("unknown negotiation = %v, want null MRU/method", got)
+					}
+					continue
+				}
+				if got["mru"] != float64(tc.mru) || got["auth-method"] != tc.method {
+					t.Fatalf("session output = %v, want measured MRU %d method %s", got, tc.mru, tc.method)
+				}
+			}
+		})
+	}
 }
 
 func TestParseKeywordArgs_ReasonAndCause(t *testing.T) {

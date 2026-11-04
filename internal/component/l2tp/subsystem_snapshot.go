@@ -100,12 +100,18 @@ func (s *Subsystem) Listeners() []ListenerSnapshot {
 func (s *Subsystem) EffectiveConfig() ConfigSnapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	allow := make([]string, len(s.params.AuthAllow))
+	for i, method := range s.params.AuthAllow {
+		allow[i] = method.String()
+	}
 	cs := ConfigSnapshot{
 		Enabled:       s.params.Enabled,
 		MaxTunnels:    s.params.MaxTunnels,
 		MaxSessions:   s.params.MaxSessions,
 		AuthMethod:    s.params.AuthMethod.String(),
+		MRU:           s.params.MRU,
 		AllowNoAuth:   s.params.AllowNoAuth,
+		AuthAllow:     allow,
 		HelloInterval: s.params.HelloInterval,
 		HelloRetries:  s.params.HelloRetries,
 		SharedSecret:  redactSecret(s.params.SharedSecret),

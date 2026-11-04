@@ -10,8 +10,8 @@
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded#2": "2325ea607f732027",
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded": "2325ea607f732027",
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded#2": "2325ea607f732027",
-    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded": "0d3244b2c125eaa3",
-    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2": "0d3244b2c125eaa3"
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded": "4dbb87a949959706",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2": "4dbb87a949959706"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPReplyWithOptionsPastEndDiscarded": "2a9aad41c5045293",

@@ -118,6 +118,45 @@ func deliverOwnedKernelSuccess(r *l2tpReactor, event kernelSetupSucceeded) {
 	r.handleKernelSuccess(event)
 }
 
+// TestReactorPPPPolicyReloadIsolation observes the real kernel-success dispatch
+// consumer, proving new sessions change policy without mutating an earlier one.
+func TestReactorPPPPolicyReloadIsolation(t *testing.T) {
+	_, r, stop := newUnstartedReactor(t)
+	defer stop()
+	fake := newFakePPPDriver()
+	r.setPPPDriver(fake)
+	mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
+	r.setPPPPolicy(1492, []ppp.AuthMethod{ppp.AuthMethodCHAPMD5}, ppp.AuthMethodCHAPMD5, true)
+	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+		localTID: 100, localSID: 1001,
+		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
+	})
+	first := <-fake.sessionsIn
+	s := newStartedSubsystem(t, Parameters{
+		Enabled: true, MRU: 1492, AuthMethod: ppp.AuthMethodCHAPMD5,
+		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5},
+	})
+	s.reactors = []*l2tpReactor{r}
+	cfg := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {
+		"mru": "64", "authentication": map[string]any{"allow": []string{"chap-md5", "pap"}},
+	}}}
+	if err := s.Reload(context.Background(), cfg); err != nil {
+		t.Fatal(err)
+	}
+	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+		localTID: 100, localSID: 1002,
+		fds: pppSessionFDs{pppoxFD: 40, chanFD: 41, unitFD: 42, unitNum: 8},
+	})
+	second := <-fake.sessionsIn
+	if first.MaxMRU != 1492 || len(first.AuthFallbackOrder) != 1 {
+		t.Fatalf("earlier session policy changed: %+v", first)
+	}
+	if second.MaxMRU != 64 || len(second.AuthFallbackOrder) != 2 ||
+		second.AuthFallbackOrder[1] != ppp.AuthMethodPAP {
+		t.Fatalf("new session did not receive policy: %+v", second)
+	}
+}
+
 func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 	// VALIDATES: AC-2 -- reactor receives kernelSetupSucceeded and writes
 	// a ppp.StartSession onto the driver's SessionsIn channel, carrying

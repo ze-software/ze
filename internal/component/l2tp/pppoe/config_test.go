@@ -267,3 +267,28 @@ func TestExtractParametersAuthMethodNoneNeedsAllowNoAuth(t *testing.T) {
 		t.Errorf("auth-method none + allow-no-auth true = %v/%v, want none/true", ok.AuthMethod, ok.AllowNoAuth)
 	}
 }
+
+// TestExtractParametersRefusesMalformedAuthAllow proves malformed explicit
+// policy never silently widens to the default, through the existing map API.
+func TestExtractParametersRefusesMalformedAuthAllow(t *testing.T) {
+	for _, value := range []any{nil, 42, []any{"chap-md5", 42}, []string{"none"}, []string{"pap"}} {
+		_, err := ExtractParameters(map[string]any{"pppoe": map[string]any{
+			"authentication-allow": value,
+		}})
+		if err == nil {
+			t.Errorf("authentication-allow %#v accepted", value)
+		}
+	}
+}
+
+// TestExtractParametersRefusesAuthAllowWithNone proves explicit policy cannot
+// coexist with disabling authentication, even with the no-auth opt-in.
+func TestExtractParametersRefusesAuthAllowWithNone(t *testing.T) {
+	_, err := ExtractParameters(map[string]any{"pppoe": map[string]any{
+		"auth-method": "none", "allow-no-auth": true,
+		"authentication-allow": "chap-md5",
+	}})
+	if err == nil {
+		t.Fatal("auth-method none accepted an explicit authentication-allow")
+	}
+}

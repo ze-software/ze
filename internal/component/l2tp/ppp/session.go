@@ -87,6 +87,15 @@ type pppSession struct {
 	// is the sole accessor after spawn.
 	configuredAuthMethod AuthMethod
 
+	// Initial offer and bounded retry state belong to one LCP lifetime.
+	// sendConfigureRequest MUST record actual offers; resetAuthNegotiation
+	// MUST clear them only when a new lifetime starts, never on a timeout.
+	initialAuthMethod      AuthMethod
+	authNegotiationStarted bool
+	authMethodsTried       uint8
+	lcpRejectedAuth        bool
+	authRefusalReason      string
+
 	// Magic-Number for THIS session. Generated via crypto/rand by
 	// the goroutine on entry; non-zero per RFC 1661 §6.4. Redrawn when a
 	// Configure-Nak names it (RFC 1661 Section 6.4).

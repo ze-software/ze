@@ -40,6 +40,7 @@ type InterfaceServer struct {
 	serviceNames  []string
 	authMethod    ppp.AuthMethod
 	authRequired  bool
+	authAllow     []ppp.AuthMethod
 
 	discFD    int
 	pppDriver *ppp.Driver
@@ -336,20 +337,21 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	// refuses. AuthRequired disconnects a client that rejects the method
 	// rather than admitting it unauthenticated.
 	start := ppp.StartSession{
-		TunnelID:        uint16(s.ifIndex),
-		SessionID:       sid,
-		ChanFD:          chanFD,
-		UnitFD:          unitFD,
-		UnitNum:         unitNum,
-		LNSMode:         true,
-		PPPoE:           true,
-		AuthMethod:      s.authMethod,
-		AuthRequired:    s.authRequired,
-		MaxMRU:          PPPoEMaxMTU,
-		AccessInterface: s.ifName,
-		SubscriberMAC:   net.HardwareAddr(append([]byte(nil), pkt.SrcMAC[:]...)),
-		ServiceName:     pkt.ServiceNameString(),
-		VendorTags:      vendorTagsFromPacket(pkt),
+		TunnelID:          uint16(s.ifIndex),
+		SessionID:         sid,
+		ChanFD:            chanFD,
+		UnitFD:            unitFD,
+		UnitNum:           unitNum,
+		LNSMode:           true,
+		PPPoE:             true,
+		AuthMethod:        s.authMethod,
+		AuthRequired:      s.authRequired,
+		AuthFallbackOrder: s.authAllow,
+		MaxMRU:            PPPoEMaxMTU,
+		AccessInterface:   s.ifName,
+		SubscriberMAC:     net.HardwareAddr(append([]byte(nil), pkt.SrcMAC[:]...)),
+		ServiceName:       pkt.ServiceNameString(),
+		VendorTags:        vendorTagsFromPacket(pkt),
 	}
 
 	// From here the PPP driver owns the channel and unit descriptors.

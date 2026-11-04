@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // newReactorForSnapshot builds a reactor with no listener, suitable for
@@ -161,4 +162,56 @@ func TestFormatFraming(t *testing.T) {
 	require.Equal(t, "sync", FormatFraming(0x00000002))
 	require.Equal(t, "async+sync", FormatFraming(0x00000003))
 	require.Equal(t, "0x00000080", FormatFraming(0x00000080))
+}
+
+// TestSessionSnapshotNegotiatedPPP drives the production event consumer rather
+// than setting session fields, proving publication is measured and withdrawn.
+func TestSessionSnapshotNegotiatedPPP(t *testing.T) {
+	for _, networkPhase := range []bool{false, true} {
+		t.Run(map[bool]string{false: "before NCP", true: "network phase"}[networkPhase], func(t *testing.T) {
+			r := newReactorForSnapshot(t)
+			r.params.MRU = 1492
+			r.params.AuthMethod = ppp.AuthMethodCHAPMD5
+			sess := &L2TPSession{localSID: 42, state: L2TPSessionEstablished}
+			insertEstablishedTunnel(t, r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"), sess)
+			assertNegotiated := func(mru uint16, method string) {
+				t.Helper()
+				ss, ok := r.LookupSession(42)
+				if !ok {
+					t.Fatal("LCP event removed the transport session")
+				}
+				if ss.MRU != mru || ss.AuthMethod != method {
+					t.Fatalf("negotiated snapshot = MRU %d method %q, want %d/%q", ss.MRU, ss.AuthMethod, mru, method)
+				}
+				snap := r.Snapshot()
+				if got := snap.Tunnels[0].Sessions[0]; got.MRU != mru || got.AuthMethod != method {
+					t.Fatalf("aggregate snapshot = MRU %d method %q, want %d/%q", got.MRU, got.AuthMethod, mru, method)
+				}
+			}
+			assertNegotiated(0, "")
+			r.handlePPPEvent(ppp.EventLCPUp{
+				TunnelID: 100, SessionID: 42, NegotiatedMRU: 1400, NegotiatedAuthMethod: ppp.AuthMethodPAP,
+			})
+			assertNegotiated(1400, "pap")
+			old, ok := r.LookupSession(42)
+			if !ok {
+				t.Fatal("missing session after LCP up")
+			}
+			r.handlePPPEvent(ppp.EventLCPDown{TunnelID: 100, SessionID: 42, NetworkPhase: networkPhase})
+			assertNegotiated(0, "")
+			if old.MRU != 1400 || old.AuthMethod != "pap" {
+				t.Fatalf("earlier snapshot mutated: %+v", old)
+			}
+			r.handlePPPEvent(ppp.EventLCPUp{
+				TunnelID: 100, SessionID: 42, NegotiatedMRU: 1500, NegotiatedAuthMethod: ppp.AuthMethodNone,
+			})
+			assertNegotiated(1500, "none")
+			// Late events for removed sessions cannot overwrite another session.
+			r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 999, SessionID: 42, NegotiatedMRU: 64})
+			r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 100, SessionID: 999, NegotiatedMRU: 64})
+			r.handlePPPEvent(ppp.EventLCPDown{TunnelID: 999, SessionID: 42})
+			r.handlePPPEvent(ppp.EventLCPDown{TunnelID: 100, SessionID: 999})
+			assertNegotiated(1500, "none")
+		})
+	}
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // L2TPSessionState enumerates the session FSM states from RFC 2661 S10.
@@ -81,6 +82,13 @@ type L2TPSession struct {
 	//
 	// Caller MUST hold the owning reactor's tunnelsMu.
 	username string
+
+	// negotiatedMRU is the peer's receive MRU (our transmit MTU), not the
+	// configured local request. Zero guards sessionSnapshot: LCP has not
+	// opened, or has since gone down, so neither negotiated value is known.
+	// Both fields are written together from EventLCPUp under tunnelsMu.
+	negotiatedMRU        uint16
+	negotiatedAuthMethod ppp.AuthMethod
 
 	// Connection parameters captured from ICCN/OCCN.
 	txConnectSpeed     uint32

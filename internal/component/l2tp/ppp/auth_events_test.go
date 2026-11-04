@@ -420,43 +420,25 @@ func TestRunAuthPhaseAccept(t *testing.T) {
 	}
 }
 
-// VALIDATES: mandatory PPP authentication fails closed when LCP reaches
-// Opened without a negotiated Auth-Protocol method.
-// PREVENTS: a peer Configure-Reject or unsupported Configure-Nak from
-// downgrading a required-auth session into AuthMethodNone and being
-// accepted by the no-auth accounting path.
+// VALIDATES: the defensive auth-phase guard refuses required authentication
+// with no negotiated method. The normal driver refuses missing required proxy
+// auth or LCP policy exhaustion before Opened; TestProxyLCPPolicy and
+// TestAuthRefusalTerminationCleanup cover those wire paths.
+// PREVENTS: a direct auth-phase caller accepting AuthMethodNone when
+// authentication is mandatory.
 func TestRunAuthPhaseRequiredAuthRejectsNoMethod(t *testing.T) {
-	reg := newPipeRegistry()
-	installPipeRegistry(t, reg)
-	pair := newPipePair(reg, 7451)
-	defer closeConn(pair.peerEnd)
-
-	ops, _, _ := newFakeOps()
-	d := newTestDriverNoResponder(&fakeBackend{}, ops)
-	if err := d.Start(); err != nil {
-		t.Fatalf("Start: %v", err)
+	s, _, events := newRFC1661Session(LCPStateOpened)
+	s.tunnelID = 71
+	s.sessionID = 81
+	s.authRequired = true
+	s.negotiatedAuthMethod = AuthMethodNone
+	auth := make(chan AuthEvent, 4)
+	s.authEventsOut = auth
+	if s.runAuthPhase() {
+		t.Fatal("required authentication accepted no negotiated method")
 	}
-	defer d.Stop()
-
-	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- StartSession{
-		TunnelID:            71,
-		SessionID:           81,
-		ChanFD:              7451,
-		UnitFD:              4002,
-		UnitNum:             6,
-		LNSMode:             true,
-		MaxMRU:              1500,
-		AuthRequired:        true,
-		DisableIPCP:         true,
-		DisableIPv6CP:       true,
-		ProxyLCPInitialRecv: stream,
-		ProxyLCPLastSent:    stream,
-		ProxyLCPLastRecv:    stream,
-	}
-
 	select {
-	case ev := <-d.AuthEventsOut():
+	case ev := <-auth:
 		fail, ok := ev.(eventAuthFailure)
 		if !ok {
 			t.Fatalf("auth event %T, want EventAuthFailure", ev)
@@ -467,8 +449,7 @@ func TestRunAuthPhaseRequiredAuthRejectsNoMethod(t *testing.T) {
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("timed out waiting for EventAuthFailure")
 	}
-
-	if !waitForSessionDown(t, d.EventsOut(), 500*time.Millisecond) {
+	if !waitForSessionDown(t, events, 500*time.Millisecond) {
 		t.Fatal("timed out waiting for EventSessionDown after required auth failed")
 	}
 }

@@ -1,0 +1,110 @@
+# Test: LNS MRU and authentication policy reach validation, parsed readback,
+# and the running subsystem's effective-config command.
+# VALIDATES: home-cpe-16 AC-3, AC-9 and config half of AC-15. The live
+# command reads MRU 1492 and the derived PAP policy [chap-md5 pap], although
+# the daemon's source contains no allow-list. Explicit written order is read
+# back separately. Wire/session negotiation is covered by driver and interop.
+# PREVENTS: accepted-but-ignored MRU/policy, a configured echo masquerading as
+# effective defaults, and refusal assertions checking only the final command.
+option=needs-linux
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=timeout:value=60s
+
+stdin=daemon:terminator=EOF_DAEMON
+l2tp {
+    enabled true;
+    mru 1492;
+    auth-method pap;
+}
+environment {
+    l2tp { server main { ip 127.0.0.1; port $PORT; } }
+}
+plugin {
+    external engine-steps {
+        run "le mock engine-steps ./engine-steps.json";
+        encoder json;
+    }
+}
+EOF_DAEMON
+
+stdin=explicit:terminator=EOF_EXPLICIT
+l2tp {
+    mru 64;
+    auth-method pap;
+    authentication { allow [ pap ms-chap-v2 chap-md5 ]; }
+}
+EOF_EXPLICIT
+stdin=upper:terminator=EOF_UPPER
+l2tp { mru 1500; }
+EOF_UPPER
+stdin=none:terminator=EOF_NONE
+l2tp { auth-method none; allow-no-auth true; }
+EOF_NONE
+stdin=low:refused=config-parse:terminator=EOF_LOW
+l2tp { mru 63; }
+EOF_LOW
+stdin=high:refused=config-parse:terminator=EOF_HIGH
+l2tp { mru 1501; }
+EOF_HIGH
+stdin=omitted-method:refused=config-validator-unavailable:terminator=EOF_OMITTED
+l2tp { auth-method chap-md5; authentication { allow [ pap ]; } }
+EOF_OMITTED
+stdin=none-member:refused=config-parse:terminator=EOF_NONE_MEMBER
+l2tp { authentication { allow [ chap-md5 none ]; } }
+EOF_NONE_MEMBER
+stdin=none-with-list:refused=config-validator-unavailable:terminator=EOF_NONE_LIST
+l2tp {
+    auth-method none;
+    allow-no-auth true;
+    authentication { allow [ chap-md5 ]; }
+}
+EOF_NONE_LIST
+
+# Each validation owns its exit expectation; a later success cannot hide a
+# refusal that silently became accepted.
+cmd=foreground:seq=1:exec=ze config validate -:stdin=explicit:exit=0
+cmd=foreground:seq=2:exec=ze config validate -:stdin=upper:exit=0
+cmd=foreground:seq=3:exec=ze config validate -:stdin=none:exit=0
+cmd=foreground:seq=4:exec=ze config validate -:stdin=low:exit=1
+expect=stdout:contains=mru
+expect=stdout:contains=63
+expect=stdout:contains=64..1500
+cmd=foreground:seq=5:exec=ze config validate -:stdin=high:exit=1
+expect=stdout:contains=mru
+expect=stdout:contains=1501
+expect=stdout:contains=64..1500
+cmd=foreground:seq=6:exec=ze config validate -:stdin=omitted-method:exit=1
+expect=stdout:contains=must include auth-method chap-md5
+expect=stdout:contains=delete l2tp authentication allow
+cmd=foreground:seq=7:exec=ze config validate -:stdin=none-member:exit=1
+expect=stdout:contains=allow
+expect=stdout:contains=none
+expect=stdout:contains=chap-md5
+cmd=foreground:seq=8:exec=ze config validate -:stdin=none-with-list:exit=1
+expect=stdout:contains=cannot accompany auth-method none
+expect=stdout:contains=delete l2tp authentication allow
+
+# The dump requires a minimal BGP root but the validation inputs above do not.
+stdin=readback:terminator=EOF_READBACK
+bgp { router-id 192.0.2.1; }
+l2tp {
+    mru 64;
+    auth-method pap;
+    authentication { allow [ pap ms-chap-v2 chap-md5 ]; }
+}
+EOF_READBACK
+cmd=foreground:seq=9:exec=ze cli -c "show config dump - | json":stdin=readback:exit=0
+expect=stdout:pattern="mru":\s*"64"
+expect=stdout:pattern="allow":\s*\[\s*"pap",\s*"ms-chap-v2",\s*"chap-md5"\s*\]
+
+cmd=foreground:seq=10:exec=ze -:stdin=daemon:timeout=25s
+command=show l2tp config
+expect=output:json=mru=1492:timeout=10s
+expect=output:json=auth-method=pap:timeout=10s
+expect=output:json=authentication-allow.0=chap-md5:timeout=10s
+expect=output:json=authentication-allow.1=pap:timeout=10s
+expect=output:matches="authentication-allow":\["chap-md5","pap"\]:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

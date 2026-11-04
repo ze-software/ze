@@ -9,7 +9,7 @@
 | Depends | `plan/release/validation/spec-rfc-evidence-strength-0-umbrella.md` (decisions D-2, D-3, D-4); the committed `killedByTheBreak` package-init fix in `internal/le/rfc/discriminate_observe.go` (concurrent session, 2026-09-24) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-24 |
+| Updated | 2026-11-04 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -87,6 +87,28 @@ The burn-down of the other revert records is child 2
 - a HEAD `mutant` record replaced by a `revert` record is refused
 - `proofRouteFor` names only `mutant` for a mutatable unit carrier
 - the summary line and the per-stem report print the route mix and the upgrade backlog
+
+## Existing Mechanisms (MANDATORY)
+
+These are the existing RFC-tooling paths this design reuses. The proposed route
+ratchet and upgrade population remain this spec's work, not claims of shipped
+behavior or new home-CPE scope.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Status/proposer dispatch | `internal/le/rfc/discriminate.go` `discriminationStatusOf` | Returns proof status without `report`; with `report`, passes that existing mutant-report input and the unproven tags to `proposeBreaks`. A new nonexistent report path fails reading, not writing. | Extends the existing `discriminate` action for Task4's upgrade population and correct input help; no second command or output-report writer. |
+| Mutant candidate pipeline | `internal/le/rfc/discriminate_propose.go` `loadGomuReport`, `proposeBreaks`, `candidatesFor` | Reads the supplied report, resolves applicable mutant producers, measures each unit tag's coverage and ranks covered candidates by claim-symbol overlap. | Extends the population to units with revert records; reuses report decoding, coverage, producer resolution and ranking rather than building a parallel proposer. |
+| Native proof observation and write | `internal/le/rfc/discriminate_action.go` `recordDiscrimination`, `sealAndStore`, `mergeDiscrimination`; `internal/le/rfc/discriminate.go` `sealDiscrimination` | Observes the requested break before sealing unit/claim/producer fingerprints, validates the sealed result and writes the requirement's record, replacing the same cover. | Extends the existing mutant route/target checks and pilot records. Keeps this writer and its observed-red prerequisite; manually authored proof fingerprints or audit stamps are not substitutes. |
+| Proof freshness/refusal gate | `internal/le/rfc/discriminate.go` `verifyOneDiscrimination`; `internal/le/rfc/check_ratchets.go` `checkDiscriminationRatchet` | Rechecks stored unit, claim and producer identities/fingerprints; applies the existing change-scoped proof obligation without executing the recorded test at gate time. | Extends route/targeting refusals on that same gate path, preserving the existing refusals and grandfathering rules rather than rewriting records to appear fresh. |
+| Mutatable-producer eligibility | `internal/le/rfc/discriminate_escape.go` `escapeCheck.gomuCanBreak` | Uses unit carrier, producer-file and gomu-ignore eligibility to refuse the no-break escape when a generated break is available. | Extends use of this predicate to the route ratchet, keeping one definition of which producer can take a generated break. |
+| Native audit fingerprint writer | `internal/le/rfc/audit_stamp.go` `auditStamp`, `stampFingerprints` | Stamps independently supplied audit judgments with requirement, tagged-unit and cited-code fingerprints; audit freshness is separate from an observed discrimination red. | Does not replace or repurpose it for targeted proof creation: this design's proof upgrades use `recordDiscrimination`; any necessary audit judgment still uses the existing native audit path. |
+
+<!-- source: internal/le/rfc/discriminate.go -- discriminationStatusOf, verifyOneDiscrimination, sealDiscrimination -->
+<!-- source: internal/le/rfc/discriminate_propose.go -- loadGomuReport, proposeBreaks, candidatesFor -->
+<!-- source: internal/le/rfc/discriminate_action.go -- recordDiscrimination, sealAndStore, mergeDiscrimination -->
+<!-- source: internal/le/rfc/check_ratchets.go -- checkDiscriminationRatchet -->
+<!-- source: internal/le/rfc/discriminate_escape.go -- escapeCheck.gomuCanBreak -->
+<!-- source: internal/le/rfc/audit_stamp.go -- auditStamp, stampFingerprints -->
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -342,6 +364,7 @@ The burn-down of the other revert records is child 2
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `reference-checked-claim-unchecked.md` | 2026-10-26 | `./le rfc record` has no statement-level break route; `revert` proves only function dependence |
+| `help-text-describes-superseded-behaviour.md` | 2026-11-04 | `rfc discriminate report` help calls its existing mutant-report input an output path |
 
 ## Checklist
 

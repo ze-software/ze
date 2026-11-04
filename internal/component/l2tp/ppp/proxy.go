@@ -26,9 +26,13 @@ var errProxyLCPInvalid = errors.New("ppp: proxy LCP option stream malformed")
 // loopback detection still works for the LNS<->peer link, even
 // though LCP itself was never run on this end).
 type proxyLCPResult struct {
-	// MRU negotiated between LAC and peer. Zero if neither side
-	// proposed an MRU (the PPP default of 1500 then applies).
+	// MRU is the peer's receive MRU from Last-Received (our transmit MTU).
+	// Zero denotes the absent option, whose default is 1500.
 	MRU uint16
+
+	// LocalMRU is the receive MRU in Last-Sent. Absence means 1500.
+	LocalMRU uint16
+	HasAuth  bool
 
 	// AuthProto is the LCP Authentication-Protocol value the LAC and
 	// peer agreed on. Zero if no authentication was negotiated.
@@ -58,9 +62,8 @@ type proxyLCPResult struct {
 //   - Initial-Received and Last-Received represent successive states
 //     of the peer-toward-LAC negotiation; for short-circuit purposes
 //     we only consume Last-Received (the converged state).
-//   - Last-Sent represents the LAC-toward-peer state; we read MRU
-//     and AuthProto from the intersection of Last-Sent and
-//     Last-Received.
+//   - Last-Sent carries the LAC's receive MRU and requested Auth-Protocol;
+//     Last-Received carries the peer's receive MRU.
 //
 // On success returns the parameters the caller should use to drive
 // the FSM directly to Opened. On any parse failure or missing AVP,
@@ -92,7 +95,10 @@ func EvaluateProxyLCP(initialRecv, lastSent, lastRecv []byte) (proxyLCPResult, e
 		return proxyLCPResult{}, errProxyLCPInvalid
 	}
 
-	var out proxyLCPResult
+	out := proxyLCPResult{LocalMRU: MaxFrameLen}
+	if v, ok := lookupMRUOption(sentOpts); ok {
+		out.LocalMRU = v
+	}
 
 	// MRU: the negotiated MRU is what the peer asked the LAC to use
 	// (Last-Received). RFC 1661 §6.1: a peer's MRU option in its own
@@ -106,6 +112,7 @@ func EvaluateProxyLCP(initialRecv, lastSent, lastRecv []byte) (proxyLCPResult, e
 	// protocol the LAC picked. The peer accepted (or LAC would not
 	// have proceeded), so this is the authoritative method.
 	if data, ok := lookupOption(sentOpts, LCPOptAuthProto); ok {
+		out.HasAuth = true
 		if len(data) >= 2 {
 			out.AuthProto = binary.BigEndian.Uint16(data[:2])
 			if len(data) > 2 {

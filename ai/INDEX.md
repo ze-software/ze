@@ -43,6 +43,7 @@ Ask the question from Bash instead
 | Call another package's function directly from a plugin (not through RPC) | `ai/rules/plugins.md` | Check `p.IsInternal()`; guard with refuse-or-warn depending on how much value survives running external. Gated by `./le plugin boundary check` |
 | Choose internal/core vs internal/component vs internal/plugins for a new package | `ai/rules/architecture.md` | Tier = dependency direction; engine placement gated by `./le arch tier check` |
 | Test linux-only code (QEMU) | `ai/rules/platform-linux.md` | `ai/rules/testing.md` (Linux-Only Tests section) |
+| Configure PPP authentication policy or LNS MRU | `docs/guide/l2tp.md`, `docs/guide/pppoe.md` | Transport config, derived defaults, negotiation, proxy admission, reload, and negotiated session output |
 | Prove built-in VPN facilities on Ze's native kernel | `docs/architecture/testing/qemu-integration.md` (“VPN facilities without module loading”) | `./le test qemu vpn-kernel`; kernel proof, not product WireGuard configuration-commit proof |
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/completion.md` | Implement the missing behavior at the source, never route around it |
 | Decide how much machinery a fix or feature needs (KISS, MVP, over-engineering) | `ai/rules/simplicity.md` | The simplest FULLY CORRECT answer, nothing beyond it. Cuts machinery, never correctness. A second problem gets its own spec, never an extra branch in this fix |
@@ -621,6 +622,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | sysctl, kernel tuning, profile | `internal/component/sysctl/` (plugin), `ze-sysctl-conf.yang` |
 | firewall, nftables, NAT, masquerade | `internal/component/firewall/` (component), `ze-firewall-conf.yang` |
 | PPPoE, pppoe-client, access concentrator | `internal/component/l2tp/pppoe/` (AC), `internal/component/iface/` (client), `ze-pppoe-conf.yang` |
+| PPP MRU, authentication-allow, authentication allow-list, CHAP-only, PAP fallback | `docs/guide/l2tp.md`, `docs/guide/pppoe.md`, `internal/component/l2tp/ppp/auth_policy.go` |
 | wireguard, WireGuard, wg | `internal/component/iface/wireguard.go`, `ze-iface-conf.yang` |
 | VRRP, first-hop redundancy, virtual router, keepalived, gateway redundancy, virtual MAC | `internal/plugins/vrrp/` (plugin), `internal/component/iface/macvlan.go` (per-group virtual-MAC macvlan), `ze-vrrp-conf.yang`, `docs/guide/vrrp.md`, `docs/features/rfc-status.md` (First-hop redundancy) |
 | static route, default route | `internal/plugins/static/` (plugin), `ze-static-conf.yang` |

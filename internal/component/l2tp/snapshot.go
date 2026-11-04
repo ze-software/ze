@@ -57,6 +57,8 @@ type ConfigSnapshot struct {
 	MaxTunnels    uint16
 	MaxSessions   uint16
 	AuthMethod    string
+	MRU           uint16
+	AuthAllow     []string
 	AllowNoAuth   bool
 	HelloInterval time.Duration
 	HelloRetries  uint8
@@ -74,6 +76,8 @@ type SessionSnapshot struct {
 	CreatedAt          time.Time
 	Username           string
 	AssignedAddr       netip.Addr
+	MRU                uint16 // Zero means no current LCP negotiation.
+	AuthMethod         string // Empty until LCP opens; "none" is negotiated no-auth.
 	Family             string // "ipv4" / "ipv6" / "" when no NCP assignment yet
 	TxConnectSpeed     uint32
 	RxConnectSpeed     uint32
@@ -156,6 +160,10 @@ func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
 			family = "ipv6"
 		}
 	}
+	authMethod := ""
+	if s.negotiatedMRU != 0 {
+		authMethod = s.negotiatedAuthMethod.String()
+	}
 	return SessionSnapshot{
 		LocalSID:           s.localSID,
 		RemoteSID:          s.remoteSID,
@@ -165,6 +173,8 @@ func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
 		CreatedAt:          s.createdAt,
 		Username:           s.username,
 		AssignedAddr:       s.assignedAddr,
+		MRU:                s.negotiatedMRU,
+		AuthMethod:         authMethod,
 		Family:             family,
 		TxConnectSpeed:     s.txConnectSpeed,
 		RxConnectSpeed:     s.rxConnectSpeed,

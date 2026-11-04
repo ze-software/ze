@@ -15,27 +15,11 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// adjustAuthOnNakOrReject inspects a received LCP Configure-Nak or
-// Configure-Reject packet for the Auth-Protocol option and, if present,
-// updates s.configuredAuthMethod so the FSM's next Send-Configure-
-// Request carries the adjusted value.
-//
-//   - Configure-Reject (RFC 1661 §5.4): the peer does not recognize
-//     the option at all. Drop Auth-Protocol from future CONFREQs by
-//     setting configuredAuthMethod to AuthMethodNone.
-//   - Configure-Nak (RFC 1661 §5.3): the peer recognizes the option
-//     but wants a different value. Decode the peer's suggested
-//     Auth-Protocol, look it up in s.authFallbackOrder via
-//     selectAuthFallback, and use the result (AuthMethodNone when the
-//     peer's choice is not on our list).
-//
-// Goroutine-owned mutation: caller (handleLCPPacket) runs on the
-// per-session goroutine, which is the sole writer to
-// configuredAuthMethod outside the initial manager.spawnSession set.
-// No lock is needed.
-//
-// Called before LCPDoTransition so the subsequent LCPActSCR sees the
-// updated field when it rebuilds the CONFREQ option list.
+// adjustAuthOnNakOrReject applies a validated reply before the FSM sends its
+// next request. The caller MUST validate correlation and option contents first.
+// RFC 1661 Section 5.4: "Reception of a valid Configure-Reject indicates that
+// when a new Configure-Request is sent, it MUST NOT include any of the
+// Configuration Options listed in the Configure-Reject."
 func (s *pppSession) adjustAuthOnNakOrReject(pkt LCPPacket) {
 	opts, err := ParseLCPOptions(pkt.Data)
 	if err != nil {
@@ -47,26 +31,18 @@ func (s *pppSession) adjustAuthOnNakOrReject(pkt LCPPacket) {
 	}
 
 	if pkt.Code == LCPConfigureReject {
-		s.configuredAuthMethod = AuthMethodNone
-		s.logger.Debug("ppp: peer Configure-Rejected Auth-Protocol; clearing method")
-		return
-	}
-
-	// Configure-Nak: decode the peer's proposed Auth-Protocol.
-	if len(data) < 2 {
-		// Malformed suggestion; treat as "unacceptable" and drop auth.
+		s.lcpRejectedAuth = true
 		s.configuredAuthMethod = AuthMethodNone
 		return
 	}
-	proto := binary.BigEndian.Uint16(data[:2])
-	suggestion := authMethodFromAuthProto(proto, data[2:])
-	next := selectAuthFallback(suggestion, s.authFallbackOrder)
-	s.logger.Debug("ppp: peer Configure-Naked Auth-Protocol",
-		"peer-proto", proto,
-		"peer-method", suggestion.String(),
-		"selected", next.String(),
-	)
-	s.configuredAuthMethod = next
+	if s.lcpRejectedAuth {
+		return
+	}
+	suggestion := AuthMethodNone
+	if len(data) >= 2 {
+		suggestion = authMethodFromAuthProto(binary.BigEndian.Uint16(data[:2]), data[2:])
+	}
+	s.configuredAuthMethod = selectAuthFallback(suggestion, s.authFallbackOrder, s.authMethodsTried)
 }
 
 // PPP Auth-Protocol values (RFC 1661 §6.2 table 3) and CHAP Algorithm
@@ -85,8 +61,9 @@ const (
 // still match the intended method). For CHAP algorithm[0] selects
 // the variant (0x05 MD5, 0x81 MS-CHAPv2); additional bytes are
 // ignored. Unknown Auth-Protocol values or unknown CHAP Algorithm
-// identifiers return AuthMethodNone so the caller falls back to the
-// no-wire-auth phase.
+// identifiers return AuthMethodNone. Callers MUST distinguish absent auth
+// from an unknown wire value: a Nak advances policy, and proxy admission
+// refuses an unknown method rather than treating it as no authentication.
 //
 // Caller splits an LCP Auth-Protocol option Data field as:
 //
@@ -113,25 +90,12 @@ func authMethodFromAuthProto(proto uint16, algorithm []byte) AuthMethod {
 	return AuthMethodNone
 }
 
-// defaultAuthFallbackOrder returns the package-default preference list
-// for Configure-Nak fallback. Matches the spec l2tp-6b-auth AC-13
-// guidance: "prefer CHAP > MS-CHAPv2 > PAP". PAP is last because it
-// sends cleartext passwords on the wire. A fresh slice is returned so
-// callers can retain or mutate it without aliasing.
-func defaultAuthFallbackOrder() []AuthMethod {
-	return []AuthMethod{
-		AuthMethodCHAPMD5,
-		AuthMethodMSCHAPv2,
-		AuthMethodPAP,
-	}
-}
-
 // initialAuthMethod returns the AuthMethod ze offers in its first LCP
 // Configure-Request, given the configured method and the session's fallback
 // order. A configured PAP is replaced by the first CHAP variant the order
-// accepts, so PAP is offered only after the peer Naks toward it
-// (adjustAuthOnNakOrReject). An order without a CHAP variant leaves PAP as
-// configured: the session then holds no stronger method to offer.
+// accepts, so the Nak sequence offers every permitted CHAP variant before
+// PAP. An order without a CHAP variant leaves PAP as configured: the session
+// then holds no stronger method to offer.
 func initialAuthMethod(configured AuthMethod, order []AuthMethod) AuthMethod {
 	if configured != AuthMethodPAP {
 		return configured
@@ -150,36 +114,137 @@ func initialAuthMethod(configured AuthMethod, order []AuthMethod) AuthMethod {
 	return configured
 }
 
-// selectAuthFallback chooses the AuthMethod ze will advertise in its
-// next LCP Configure-Request after the peer Naks the prior one.
-//
-// RFC 1661 §5.3: "The options field is filled with the unacceptable
-// Configuration Options from the Configure-Request. All Configuration
-// Options are Configure-Naked at once, although each option is Naked
-// individually." The peer's Nak of the Auth-Protocol option carries
-// the value the peer is willing to accept.
-//
-// peerSuggestion is the AuthMethod decoded from the peer's Nak (via
-// authMethodFromAuthProto). order is ze's configured preference list;
-// an empty list means "no fallback is acceptable" and the caller falls
-// back to AuthMethodNone. The first method in order that equals
-// peerSuggestion is returned; if no match, AuthMethodNone is returned
-// and the next CONFREQ omits the Auth-Protocol option.
-//
-// The function is order-respecting: if the peer suggests PAP and order
-// is [CHAPMD5, PAP], the result is PAP (matches on the second entry).
-// If order is [CHAPMD5] only, the result is AuthMethodNone because the
-// peer's choice is not on ze's list.
-func selectAuthFallback(peerSuggestion AuthMethod, order []AuthMethod) AuthMethod {
-	if peerSuggestion == AuthMethodNone {
-		return AuthMethodNone
-	}
-	for _, m := range order {
-		if m == peerSuggestion {
-			return m
+// selectAuthFallback chooses an untried permitted method. tried is a fixed
+// bitset of the three wire methods, so retries allocate no per-session storage.
+// RFC 1661 Section 6.2: "If that protocol is Configure-Nak'd, then the
+// implementation SHOULD attempt the next most desirable protocol in the next
+// Configure-Request."
+// RFC 1334 Section 2: "Any implementations which include a stronger
+// authentication method (such as CHAP, described below) MUST offer to
+// negotiate that method prior to PAP."
+func selectAuthFallback(suggestion AuthMethod, order []AuthMethod, tried uint8) AuthMethod {
+	var nextCHAP, nextPAP AuthMethod
+	suggestionAllowed := false
+	for _, method := range order {
+		if method == AuthMethodNone {
+			continue
+		}
+		if tried&(1<<method) != 0 {
+			continue
+		}
+		if method == suggestion {
+			suggestionAllowed = true
+		}
+		if method == AuthMethodPAP {
+			nextPAP = method
+			continue
+		}
+		if nextCHAP == AuthMethodNone {
+			nextCHAP = method
 		}
 	}
-	return AuthMethodNone
+	if suggestionAllowed {
+		if suggestion != AuthMethodPAP {
+			return suggestion
+		}
+		if nextCHAP == AuthMethodNone {
+			return suggestion
+		}
+	}
+	if nextCHAP != AuthMethodNone {
+		return nextCHAP
+	}
+	return nextPAP
+}
+
+// resetAuthNegotiation starts a new LCP lifetime, not a retransmission or Nak
+// round. The packet dispatcher MUST call it only after validating the packet
+// that leaves Opened, or when Stopped begins negotiation again.
+// RFC 1661 Section 4.3: "The implementation MUST be prepared to immediately
+// renegotiate the Configuration Options."
+func (s *pppSession) resetAuthNegotiation() {
+	s.authMethodsTried = 0
+	s.lcpRejectedAuth = false
+	s.configuredAuthMethod = s.initialAuthMethod
+	s.lastLCPRequestSent = false
+	s.lastLCPReplyReceived = false
+}
+
+// refuseAuthMethod preserves the normal Close/Restart/Terminate-Ack lifecycle.
+// RFC 1661 Section 3.5: "If authentication fails, the authenticator SHOULD
+// proceed instead to the Link Termination phase."
+func (s *pppSession) refuseAuthMethod(cur LCPState, pkt LCPPacket) bool {
+	var reason textbuf.Buffer
+	suggestion := AuthMethodNone
+	reason.Str("auth-method-refused: peer ")
+	if pkt.Code == LCPConfigureReject {
+		reason.Str("rejected Auth-Protocol")
+	} else {
+		reason.Str("suggested ")
+		opts, err := ParseLCPOptions(pkt.Data)
+		if err == nil {
+			data, found := lookupOption(opts, LCPOptAuthProto)
+			if found {
+				reason.Str("Auth-Protocol 0x").Hex(data)
+				if len(data) >= 2 {
+					suggestion = authMethodFromAuthProto(binary.BigEndian.Uint16(data[:2]), data[2:])
+					if suggestion != AuthMethodNone {
+						reason.Str(" (").Str(suggestion.String()).Str(")")
+					}
+				}
+			}
+		}
+	}
+	reason.Str("; allowed [")
+	for i, method := range s.authFallbackOrder {
+		if i != 0 {
+			reason.Str(" ")
+		}
+		reason.Str(method.String())
+	}
+	reason.Str("]; configure the peer to accept an allowed method.")
+	if suggestion != AuthMethodNone {
+		var values textbuf.Buffer
+		for _, allowed := range s.authFallbackOrder {
+			if allowed != suggestion {
+				values.Str(allowed.String()).Str(" ")
+			}
+		}
+		values.Str(suggestion.String())
+		commands := values.String()
+		reason.Str(" Only if this method is intentionally permitted, change the policy with `set l2tp authentication allow [ ")
+		reason.Str(commands).Str(" ]` or `set pppoe authentication-allow [ ").Str(commands).Str(" ]`.")
+	}
+	s.authRefusalReason = reason.String()
+	s.logger.Warn("ppp: authentication policy refused peer", "reason", s.authRefusalReason)
+	countAuthMethodRefusal()
+	// RFC 1661 Section 4.1: drive Close through the shared FSM actions.
+	return s.applyTransition(cur, LCPDoTransition(cur, LCPEventClose), pkt)
+}
+
+// acceptProxyPolicy admits only a known permitted method and the configured
+// local receive MRU. Unknown Auth-Protocol is never equivalent to absent auth.
+// RFC 2661 Section 4.4.5: "Note that the LNS policy may be to enter an additional round of LCP negotiation and/or authentication if the LAC is not trusted."
+func (s *pppSession) acceptProxyPolicy(proxy proxyLCPResult) bool {
+	if proxy.LocalMRU < MinMRU {
+		return false
+	}
+	if proxy.LocalMRU > s.maxMRU {
+		return false
+	}
+	if !proxy.HasAuth {
+		return !s.authRequired
+	}
+	method := authMethodFromAuthProto(proxy.AuthProto, proxy.AuthData)
+	if method == AuthMethodNone {
+		return false
+	}
+	for _, allowed := range s.authFallbackOrder {
+		if method == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 // authMethodToLCPOptions returns the AuthProto value and AuthData

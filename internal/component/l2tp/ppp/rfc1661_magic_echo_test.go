@@ -280,7 +280,6 @@ func TestReceivedMagicNumberMustBePeers(t *testing.T) {
 // and an LCP packet whose Length is 1500.
 //
 // RFC requirement: RFC1661-6.1-1 positive — ParseFrame accepts a 1502-octet frame and returns its 1500-octet Information field, the read buffer holds that frame, and ParseLCPPacket accepts a Length of 1500.
-// RFC requirement: RFC1661-6.1-1 negative — ParseFrame refuses a frame whose Information field is 1501 octets with errFrameTooLong.
 func TestFullInformationFieldReceived(t *testing.T) {
 	t.Parallel()
 
@@ -309,6 +308,7 @@ func TestFullInformationFieldReceived(t *testing.T) {
 		t.Fatalf("LCP Data = %d octets, want %d", len(pkt.Data), 1500-lcpHeaderLen)
 	}
 
+	// The 1501-octet rejection below is a product boundary, not an RFC 1661 Section 6.1 requirement.
 	over := make([]byte, ProtoFieldLen+1501)
 	if _, _, _, err := ParseFrame(over); !errors.Is(err, errFrameTooLong) {
 		t.Fatalf("ParseFrame(1501-octet Information field) err = %v, want errFrameTooLong", err)

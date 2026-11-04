@@ -32,6 +32,8 @@ const (
 	scenarioUnknownMandatoryAVP = "l2tp-unknown-mandatory-avp-xl2tpd"
 	scenarioDNSResolver         = "dns-resolver-l2tp-subscriber"
 	scenarioPPPCodeReject       = "ppp-code-reject-xl2tpd"
+	scenarioLNSMRU              = "l2tp-lns-mru-xl2tpd"
+	scenarioLNSCHAPOnly         = "l2tp-lns-chap-only-xl2tpd"
 
 	commandShow  = "show"
 	commandLink  = "link"
@@ -58,6 +60,8 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioUnknownMandatoryAVP: checker(checkUnknownMandatoryAVP, timeout, peerZe, peerLAC, peerAVPRelay),
 		scenarioDNSResolver:         checker(checkDNSResolverSubscriber, timeout, peerZe, peerLAC, peerKnot),
 		scenarioPPPCodeReject:       checker(checkPPPCodeReject, timeout, peerZe, peerLAC, peerAVPRelay),
+		scenarioLNSMRU:              checker(checkLNSMRU, timeout, peerZe, peerLAC, peerRadius),
+		scenarioLNSCHAPOnly:         checker(checkLNSCHAPOnly, timeout, peerZe, peerLAC, peerRadius),
 	}
 }
 
@@ -203,7 +207,7 @@ func prepareScenario(_ context.Context, root string, source interoplab.ScenarioS
 		peers = append(peers, frrPeer(root, environment.Suffix, directory), lac)
 	case scenarioInitiator:
 		peers = []interoplab.PeerConfig{lac, ze}
-	case scenarioRadiusAttrs:
+	case scenarioRadiusAttrs, scenarioLNSMRU, scenarioLNSCHAPOnly:
 		peers = []interoplab.PeerConfig{radiusPeer(environment.Suffix), ze, lac}
 	case scenarioUnknownMandatoryAVP, scenarioPPPCodeReject:
 		// Both put the relay between the LAC and Ze: the AVP scenario for
@@ -382,7 +386,8 @@ func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) 
 	needKnot := false
 	for _, plan := range plans {
 		needFRR = needFRR || plan.Source.Name == scenarioBGPRedistribute
-		needRadius = needRadius || plan.Source.Name == scenarioRadiusAttrs
+		needRadius = needRadius || plan.Source.Name == scenarioRadiusAttrs ||
+			plan.Source.Name == scenarioLNSMRU || plan.Source.Name == scenarioLNSCHAPOnly
 		needAVPRelay = needAVPRelay || plan.Source.Name == scenarioUnknownMandatoryAVP ||
 			plan.Source.Name == scenarioPPPCodeReject
 		needKnot = needKnot || plan.Source.Name == scenarioDNSResolver

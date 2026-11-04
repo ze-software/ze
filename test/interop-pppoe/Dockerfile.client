@@ -3,10 +3,10 @@
 # pppd with the rp-pppoe plugin is the reference CPE stack: it is what nearly
 # every consumer router and every Linux PPPoE dialer runs, and it is a second
 # implementation family from accel-ppp (which the Ze-as-client scenario already
-# faces). pppd is built from the upstream ppp 2.5.4 release, because owner
+# faces). pppd is built from the upstream ppp 2.5.5 release, because owner
 # decision (ai/META-DECISIONS.md) has every lab peer run its latest stable
 # release and Alpine 3.24 packages 2.5.3. The rp-pppoe plugin is part of that
-# build (/usr/lib/pppd/2.5.4/pppoe.so).
+# build (/usr/lib/pppd/2.5.5/pppoe.so).
 #
 # The container stays alive while the native checker drives pppd with
 # `docker exec`, once per credential. The good and rejected credential are two
@@ -14,17 +14,17 @@
 
 FROM alpine:3.24.3 AS build
 
-# sha256 of the upstream release tarball, taken 2026-10-22.
-ARG PPP_VERSION=2.5.4
-ARG PPP_SHA256=379a630a40d858a1347f6592d671791dde12101697a743ef9900012f3765be31
+# sha256 of the official ppp tag archive, taken 2026-11-04.
+ARG PPP_VERSION=2.5.5
+ARG PPP_SHA256=5d27c1c048480139de3ba7cdca89cf455da312930473b25205a994e5fa20ef4f
 
-RUN apk add --no-cache build-base curl libpcap-dev linux-headers openssl-dev scanelf
+RUN apk add --no-cache autoconf automake build-base curl libpcap-dev libtool linux-headers openssl-dev pkgconf scanelf
 
 WORKDIR /src/ppp
-RUN curl -fsSL -o /src/ppp.tar.gz "https://download.samba.org/pub/ppp/ppp-${PPP_VERSION}.tar.gz" \
+RUN curl -fsSL -o /src/ppp.tar.gz "https://api.github.com/repos/ppp-project/ppp/tarball/v${PPP_VERSION}" \
     && echo "${PPP_SHA256}  /src/ppp.tar.gz" | sha256sum -c - \
     && tar -xzf /src/ppp.tar.gz --strip-components=1 \
-    && ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+    && ./autogen.sh --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
     && make -j"$(nproc)" \
     && make install DESTDIR=/out \
     && rm -rf /out/usr/include /out/usr/share \

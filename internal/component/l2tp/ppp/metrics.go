@@ -46,6 +46,7 @@ const metricsHookName = "l2tp-ppp"
 // count by session or by tunnel.
 type pppMetrics struct {
 	ipv6cpIdentifierRefusalsTotal metrics.CounterVec // labels: reason
+	authFailuresTotal             metrics.CounterVec // labels: reason
 	readerErrorsTotal             metrics.CounterVec // labels: loop (ra, dhcpv6): swallowed socket read errors
 }
 
@@ -65,6 +66,9 @@ func initPPPMetrics(reg metrics.Registry) *pppMetrics {
 		readerErrorsTotal: reg.CounterVec("ze_ppp_reader_errors_total",
 			"Socket read errors a PPP reader loop swallowed and retried, by loop.",
 			[]string{"loop"}),
+		authFailuresTotal: reg.CounterVec("ze_ppp_auth_failures_total",
+			"PPP authentication policy failures, by reason.",
+			[]string{"reason"}),
 	}
 }
 
@@ -106,4 +110,13 @@ func countIdentifierRefusal(reason string) {
 		return
 	}
 	m.ipv6cpIdentifierRefusalsTotal.With(reason).Inc()
+}
+
+// countAuthMethodRefusal records one LCP policy refusal, without subscriber labels.
+func countAuthMethodRefusal() {
+	m := pppMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	m.authFailuresTotal.With("auth-method-refused").Inc()
 }

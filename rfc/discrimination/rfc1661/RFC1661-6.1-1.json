@@ -2,6 +2,28 @@
   {
     "rid": "RFC1661-6.1-1",
     "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU",
+    "unit-sha": "aea472955fab4711",
+    "claim-sha": "11a25d08bb5f89e6",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::readFrames",
+    "producer-sha": "0a4dc308a2be8a0c",
+    "break": "line 925: \"n, err := s.chanFile.Read(buf)\" -\u003e \"n, err := s.chanFile.Read(buf[:ProtoFieldLen+int(s.maxMRU)])\""
+  },
+  {
+    "rid": "RFC1661-6.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU",
+    "unit-sha": "aea472955fab4711",
+    "claim-sha": "fa1ea2f86fa75478",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
+    "producer-sha": "26dcb22afbde02b8",
+    "break": "line 695: \"s.ops.setMRU(s.unitFD, MaxFrameLen)\" -\u003e \"s.ops.setMRU(s.unitFD, s.maxMRU)\""
+  },
+  {
+    "rid": "RFC1661-6.1-1",
+    "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived",
     "unit-sha": "cd2d7d5ef993c67c",
     "claim-sha": "e10d7a02006f5066",
@@ -20,5 +42,27 @@
     "producer": "internal/component/l2tp/ppp/frame.go::ParseFrame",
     "producer-sha": "5e8d2bab9ea18a24",
     "break": "body of ParseFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-6.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU",
+    "unit-sha": "aea472955fab4711",
+    "claim-sha": "11a25d08bb5f89e6",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::readFrames",
+    "producer-sha": "0a4dc308a2be8a0c",
+    "break": "line 925: \"n, err := s.chanFile.Read(buf)\" -\u003e \"n, err := s.chanFile.Read(buf[:ProtoFieldLen+int(s.maxMRU)])\""
+  },
+  {
+    "rid": "RFC1661-6.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU",
+    "unit-sha": "aea472955fab4711",
+    "claim-sha": "fa1ea2f86fa75478",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
+    "producer-sha": "26dcb22afbde02b8",
+    "break": "line 695: \"s.ops.setMRU(s.unitFD, MaxFrameLen)\" -\u003e \"s.ops.setMRU(s.unitFD, s.maxMRU)\""
   }
 ]

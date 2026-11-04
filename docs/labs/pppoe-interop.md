@@ -36,6 +36,7 @@ test/interop-pppoe/
     02-ze-ac-pppd-client/       Ze concentrator, pppd client
     pppoe-chap-rechallenge-ze-client/  Ze client, native accel-ppp reauthentication
     pppoe-peer-terminate-ze-ac/        Ze concentrator, pppd LCP termination without incoming PADT
+    pppoe-chap-only-pap-client/       Ze concentrator, CHAP-only default, PAP-only pppd client
     pppoe-empty-service-name/  Ze concentrator, pppd client, no service-name configured
     pppoe-padr-replay/         Ze concentrator, pppd client, max-sessions-per-mac 1
     ipv6cp-zero-identifier/    Ze concentrator, pppd session, zero IPv6CP identifier replayed
@@ -46,6 +47,7 @@ internal/le/interoplab/pppoe/
   check_client.go      Ze client assertions
   check_ac.go          Ze access-concentrator assertions
   check_service_name.go  pppoe-empty-service-name: wire-level Service-Name proof
+  check_auth_allow.go    pppoe-chap-only-pap-client: session-correlated policy refusal and resource cleanup
   check_padr_replay.go   pppoe-padr-replay: wire-level replay and per-MAC cap proof
   check_ipv6cp.go        ipv6cp-zero-identifier, ipv6cp-missing-option: wire-level
                          IPv6CP proof, BLOCKED until plan/post-release/features/spec-l2tp-ipv6-subscriber.md
@@ -76,6 +78,17 @@ machine. The QEMU action remains available for a host where the probe refuses.
 
 <!-- source: internal/le/interoplab/pppoe/pppoe.go -- preflight -->
 
+The client image pins pppd **2.5.5** from the official GitHub tag archive with
+a SHA256 checksum. The archive contains autotools inputs, not `configure`.
+Upstream `autogen.sh` generates the build system and runs `configure` with
+the image's existing installation paths. Build-only autotools dependencies
+do not enter the runtime image. Native runs against pppd 2.5.5 passed
+`pppoe-chap-only-pap-client`, `pppoe-pap-ze-ac` and
+`02-ze-ac-pppd-client` on 2026-11-04. The CHAP-only scenario also failed
+against a rebuilt producer with the old broad authentication default and
+passed again after restoration.
+<!-- source: test/interop-pppoe/Dockerfile.client -- PPP_VERSION, PPP_SHA256, build stage -->
+
 ## Running
 
 ```
@@ -90,6 +103,7 @@ ZE_PPPOE_INTEROP_SCENARIO=pppoe-pap-ze-ac ./le test deployment docker-pppoe-acce
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-pap-ze-client ./le test deployment docker-pppoe-accel
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-chap-rechallenge-ze-client ./le test deployment docker-pppoe-accel
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-peer-terminate-ze-ac ./le test deployment docker-pppoe-accel
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-chap-only-pap-client ./le --name session test deployment docker-pppoe-accel
 ```
 
 `01-pppoe-chap-ipv4` and `02-ze-ac-pppd-client` predate the naming rule and keep
@@ -189,6 +203,40 @@ and [`dummy_xmit`](https://github.com/torvalds/linux/blob/master/drivers/net/dum
 <!-- source: internal/le/interoplab/pppoe/check_lifecycle.go -- checkPeerTerminate -->
 <!-- source: internal/le/interoplab/pppoe/check_lifecycle_wire.go -- terminateEvidence -->
 
+### pppoe-chap-only-pap-client
+
+Ze's AC has neither `auth-method` nor `authentication-allow` configured, so
+its effective policy is CHAP-MD5 only. The real pppd client refuses CHAP,
+EAP and both MS-CHAP variants, leaving PAP as its only acceptable method.
+The fixture supplies valid credentials and an address pool: an accidental
+PAP downgrade cannot hide behind a credential or address-allocation failure.
+
+Before dialing, the checker waits for tcpdump's capture-activation marker at
+Ze. It requires Ze's successful PADS, its CHAP-MD5 Configure-Request, the
+client's matching-Identifier PAP Configure-Nak, Ze's LCP Terminate-Request,
+and exactly one **Ze-originated** PADT, all on the PADS session ID and the
+same Ethernet endpoints. A client PADT cannot substitute for Ze's PADT.
+No PAP or other authentication/NCP traffic may appear, and a client
+Configure-Ack that could let Ze's LCP reach Opened is refused. The checker
+also reads pppd's own Configure-Nak and Terminate-Request trace, and requires
+Ze's refusal record to name the PAP suggestion and the CHAP-only allow-list.
+
+The checker does not kill pppd or sleep for a guessed teardown interval.
+It waits for the dial to exit, Ze's REST session table to empty, both peers'
+PPP interfaces to disappear, and Ze's `/proc/net/pppoe` to retain only its
+header. Capture remains active through those observations; the final flushed
+capture is judged again so duplicate Ze PADTs count.
+
+The independent peer behavior comes from pppd 2.5.5's
+[`lcp_reqci`](https://github.com/ppp-project/ppp/blob/v2.5.5/pppd/lcp.c),
+which Naks refused CHAP with PAP when EAP is refused, and
+[`fsm_rtermreq`](https://github.com/ppp-project/ppp/blob/v2.5.5/pppd/fsm.c),
+which acknowledges termination before Opened but keeps negotiating until
+Ze's lower-layer teardown. This negative scenario complements, rather than
+changes, the explicit `auth-method pap` success proof below.
+
+<!-- source: internal/le/interoplab/pppoe/check_auth_allow.go -- checkCHAPOnlyPAPClient, chapOnlyRefusalEvidence -->
+
 ### pppoe-empty-service-name
 
 Ze's AC carries no `service-name` leaf. The independent pppd client dials with
@@ -266,7 +314,7 @@ interoperates. `spec-pppoe-client-pap-retry`.
 ### ipv6cp-zero-identifier and ipv6cp-missing-option
 
 Written and registered against RFC 5072 Section 4.1's zero-identifier Nak
-and its missing-option one-shot Nak, driven by a real pppd 2.5.4 client and
+and its missing-option one-shot Nak, driven by a real pppd client and
 read off the wire (`check_ipv6cp.go`), the same shape `pppoe-padr-replay`
 established. pppd cannot be made to send either request: its `ipv6`
 option refuses the zero identifier ("Illegal interface identifier (local)",
@@ -279,7 +327,7 @@ Configure-Ack from Ze's MAC. **Neither can pass today.** `poolPlugin.handle`
 `EventIPRequest` whose family is not IPv4 with `Accept: false`, and
 `runNCPPhase` (`internal/component/l2tp/ppp/ncp.go`) reads that decline
 before the session reads a single client frame, so Ze's IPv6CP FSM never
-starts, on any configuration. Both scenarios run against pppd 2.5.4 only: this
+starts, on any configuration. Both scenarios use the pinned pppd peer: this
 lab's client image carries pppd and rp-pppoe, and accel-ppp-as-client is not a
 role its images support. Both checkers return a citing error at the first
 missing wire evidence rather than passing vacuously.

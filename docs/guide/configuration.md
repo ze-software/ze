@@ -4336,6 +4336,8 @@ Protocol settings (root `l2tp {}`):
 | `shared-secret` | string | (unset) | CHAP-MD5 challenge/response secret (RFC 2661 S4.2). If unset and a peer sends a Challenge AVP, the tunnel is rejected with StopCCN Result Code 4. |
 | `auth-method` | enum | `chap-md5` | PPP Auth-Protocol first advertised in LCP. Values: `chap-md5`, `ms-chap-v2`, `pap`, `none`. `none` requires `allow-no-auth true`. |
 | `allow-no-auth` | boolean | `false` | Allows PPP LCP to proceed without an Auth-Protocol after explicit operator opt-in. Default false disconnects peers that reject all configured authentication methods. |
+| `mru` | uint16 | 1500 | Requested PPP Information-field octets, 64..1500. Does not lower receive capacity. Hot-applies to new sessions. |
+| `authentication/allow` | ordered enum set | method-dependent | Permitted methods, including `auth-method`, never `none`. Defaults: CHAP-MD5 only, MS-CHAPv2 only, CHAP-MD5 then PAP for `pap`, empty for `none`. Cannot accompany `auth-method none`. Hot-applies to new sessions. |
 | `hello-interval` | uint16 | (unset) | Seconds of peer silence before sending HELLO (1-3600). RFC 2661 recommends 60. |
 | `max-tunnels` | uint16 | 1024 | Maximum concurrent tunnels. `0` explicitly requests unbounded admission by this knob. New SCCRQs beyond a positive limit receive StopCCN Result Code 2. |
 | `max-sessions` | uint16 | 1024 | Maximum concurrent sessions per tunnel. `0` explicitly requests unbounded admission on each tunnel. New ICRQs/OCRQs beyond a positive limit receive CDN Result Code 4 (no resources). |
@@ -4346,11 +4348,12 @@ Listener endpoints (`environment { l2tp { } }`):
 |---------|------|---------|-------------|
 | `server <name>` | list | `0.0.0.0:1701` | Named UDP listen endpoints, same pattern as other services. |
 
-PPP authentication (env var, YANG pending in spec-l2tp-7-subsystem):
+PPP authentication phase timing is configured under `l2tp authentication`:
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.l2tp.auth.timeout` | duration | `30s` | Upper bound on the PPP authentication phase per session. If no auth handler responds within this window, the session fails closed (LCP Terminate + session down). Malformed values fall back to 30s with a WARN log. |
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `timeout` | uint16 | 30 | Authentication timeout in seconds (1..3600). Hot-applies to new sessions. |
+| `reauth-interval` | uint32 | 0 | Reauthentication interval in seconds, 0 or 5..86400. Hot-applies to new sessions. |
 
 <!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
 <!-- source: internal/component/l2tp/subsystem.go -- L2TPSubsystem lifecycle -->
@@ -4389,6 +4392,7 @@ pppoe {
 | `ac-name` | string | `ze` | Access Concentrator Name advertised in PADO (RFC 2516 S5.2). |
 | `service-name` | leaf-list | (empty) | Accepted Service-Name values. Empty list means accept any Service-Name. |
 | `auth-method` | enumeration | `chap-md5` | PPP Auth-Protocol the AC advertises in its own LCP Configure-Request: `none`, `pap`, `chap-md5`, `ms-chap-v2`. The credential is verified by `l2tp-auth-local` or `l2tp-auth-radius`. |
+| `authentication-allow` | ordered leaf-list | derived | Flat ordered set of `chap-md5`, `ms-chap-v2`, `pap`; must contain `auth-method`. Cannot contain `none` or accompany `auth-method none`. |
 | `allow-no-auth` | boolean | `false` | Accept a subscriber whose LCP ends with no Auth-Protocol. Required beside `auth-method none`, which is otherwise refused at startup. |
 | `cookie-timeout` | uint16 | 5 | AC-Cookie validity in seconds (1-300). Older cookies rejected in PADR. |
 | `max-sessions` | uint16 | 65535 | Maximum concurrent PPPoE sessions per interface. |
@@ -4398,6 +4402,17 @@ pppoe {
 | `interface / service-name` | leaf-list | (global) | Per-interface Service-Name filter, overrides global list. |
 | `interface / max-sessions` | uint16 | (global) | Per-interface session limit, defaults to global max-sessions. |
 | `interface / max-sessions-per-mac` | uint16 | (global) | Per-interface override for max-sessions-per-mac. |
+
+Without `authentication-allow`, the effective policy is `[chap-md5]` for
+`chap-md5`, `[ms-chap-v2]` for `ms-chap-v2`, `[chap-md5 pap]` for `pap`,
+and empty for `none`. Write, for example,
+`authentication-allow [chap-md5 pap];` beside `auth-method chap-md5;` to
+explicitly permit PAP fallback. CHAP variants are offered before PAP, with
+the configured CHAP variant first and remaining CHAP variants in written
+order. Reload applies the policy to new sessions only; existing sessions keep
+their original policy. Migrating configurations that relied on implicit
+fallback must explicitly name every permitted method. PPPoE retains its fixed
+1492-octet MRU ceiling.
 
 <!-- source: internal/component/l2tp/pppoe/config.go -- ExtractParameters -->
 <!-- source: internal/component/l2tp/pppoe/subsystem.go -- PPPoE subsystem lifecycle -->

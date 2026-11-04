@@ -54,7 +54,7 @@ const (
 	defaultMaxConfigure = 10
 
 	// minIPMTU keeps SetMTU above the IPv4 minimum of 68 octets.
-	// The LCP option parser permits MRUs down to MinFrameLen, but
+	// The LCP option parser permits MRUs down to MinMRU, but
 	// accepting a smaller Information field does not lower this IP floor.
 	//
 	// IPv6-on-PPP (spec-l2tp-6c-ncp's IPv6CP) requires MTU >= 1280
@@ -204,6 +204,9 @@ func (s *pppSession) run(start *StartSession) {
 		start.ProxyLCPInitialRecv, start.ProxyLCPLastSent, start.ProxyLCPLastRecv,
 	)
 	isProxy := perr == nil
+	if isProxy {
+		isProxy = s.acceptProxyPolicy(proxy)
+	}
 
 	// RFC 1661 Section 4.6: the Restart timer times transmissions of
 	// Configure-Request and Terminate-Request, and "Expiration of the
@@ -220,11 +223,9 @@ func (s *pppSession) run(start *StartSession) {
 	defer s.restartTimer.Stop()
 
 	if isProxy {
-		// proxy.AuthProto is zero when no Auth-Protocol option was
-		// carried in the LAC's Last-Sent CONFREQ; authMethodFromAuthProto
-		// maps that to AuthMethodNone just like every other unknown
-		// value, so no explicit zero check is needed.
 		negotiatedMethod := authMethodFromAuthProto(proxy.AuthProto, proxy.AuthData)
+		s.initialAuthMethod = s.configuredAuthMethod
+		s.authNegotiationStarted = true
 		s.logger.Info("ppp: proxy LCP short-circuit",
 			"mru", proxy.MRU,
 			"auth-proto", strconv.Itoa(int(proxy.AuthProto)),
@@ -248,9 +249,10 @@ func (s *pppSession) run(start *StartSession) {
 			s.magicNegotiated = true
 		}
 		s.sendEvent(EventLCPUp{
-			TunnelID:      s.tunnelID,
-			SessionID:     s.sessionID,
-			NegotiatedMRU: mru,
+			TunnelID:             s.tunnelID,
+			SessionID:            s.sessionID,
+			NegotiatedMRU:        mru,
+			NegotiatedAuthMethod: negotiatedMethod,
 		})
 		if !s.afterLCPOpen() {
 			state := s.currentState()
@@ -1327,6 +1329,15 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		optsBad = verdict == lcpRequestUnacceptable
 	}
 
+	// A validated configuration packet leaving Opened starts a fresh LCP
+	// lifetime. Reset before applying its Nak/Reject, never after that mutation.
+	if cur == LCPStateOpened {
+		switch pkt.Code {
+		case LCPConfigureRequest, LCPConfigureAck, LCPConfigureNak, LCPConfigureReject:
+			s.resetAuthNegotiation()
+		}
+	}
+
 	// RFC 1661 §5.3 (Configure-Nak) / §5.4 (Configure-Reject): when
 	// the peer rejects or suggests an alternative to the Auth-
 	// Protocol ze advertised, adjust configuredAuthMethod BEFORE the
@@ -1345,6 +1356,9 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		switch cur {
 		case LCPStateReqSent, LCPStateAckSent, LCPStateAckRcvd, LCPStateOpened:
 			s.adjustAuthOnNakOrReject(pkt)
+			if s.authRequired && s.configuredAuthMethod == AuthMethodNone {
+				return s.refuseAuthMethod(cur, pkt)
+			}
 			opts, _ := ParseLCPOptions(pkt.Data)
 			for _, opt := range opts {
 				if pkt.Code == LCPConfigureReject {
@@ -1356,7 +1370,7 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 					}
 				} else if opt.Type == LCPOptMRU && len(opt.Data) == 2 {
 					mru := binary.BigEndian.Uint16(opt.Data)
-					if mru >= MinFrameLen && mru <= s.maxMRU {
+					if mru >= MinMRU && mru <= s.maxMRU {
 						s.localMRU = mru
 					}
 				}
@@ -1391,12 +1405,14 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 	// It runs before the transition rather than after it because the Opened
 	// branch inside applyTransition reads negotiatedMRU, and no FSM action
 	// does.
-	if ev == LCPEventRCRPlus && len(peerOpts) > 0 {
-		if v, ok := lookupMRUOption(peerOpts); ok {
-			s.mu.Lock()
-			s.negotiatedMRU = v
-			s.mu.Unlock()
+	if ev == LCPEventRCRPlus {
+		mru, present := lookupMRUOption(peerOpts)
+		if !present {
+			mru = MaxFrameLen
 		}
+		s.mu.Lock()
+		s.negotiatedMRU = mru
+		s.mu.Unlock()
 	}
 	// The peer's Magic-Number is the one ze acknowledges here, and it is
 	// zero while the peer requests none: RFC 1661 Section 6.4 holds every
@@ -1474,6 +1490,18 @@ func (s *pppSession) transmitMagic() uint32 {
 // zero value, which those actions never see because RFC 1661 Section 4.1
 // pairs TO+ and TO- with scr, str and tlf alone.
 func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPacket) bool {
+	if cur == LCPStateStopped {
+		if tr.NewState == LCPStateReqSent || tr.NewState == LCPStateAckSent {
+			s.resetAuthNegotiation()
+		}
+	}
+	// Required authentication must never publish Opened without an option,
+	// even if a direct StartSession caller supplied no initial method.
+	if tr.NewState == LCPStateOpened {
+		if s.authRequired && s.configuredAuthMethod == AuthMethodNone {
+			return s.refuseAuthMethod(cur, pkt)
+		}
+	}
 	// RFC 1661 Section 4.4, Initialize-Restart-Count: "This action sets the
 	// Restart counter to the appropriate value (Max-Terminate or
 	// Max-Configure)." The Section 4.1 table pairs irc with either str or
@@ -1546,9 +1574,10 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 		s.mu.Unlock()
 		s.stopRestartTimer()
 		s.sendEvent(EventLCPUp{
-			TunnelID:      s.tunnelID,
-			SessionID:     s.sessionID,
-			NegotiatedMRU: mru,
+			TunnelID:             s.tunnelID,
+			SessionID:            s.sessionID,
+			NegotiatedMRU:        mru,
+			NegotiatedAuthMethod: s.configuredAuthMethod,
 		})
 		if !s.afterLCPOpen() {
 			state := s.currentState()
@@ -1585,13 +1614,17 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 
 	if s.sessionEndedAt(tr.NewState) {
 		var tb textbuf.Buffer
-		// RFC 2866 Section 5.10 value 1: "User requested termination of
-		// service, for example with LCP Terminate or by logging out."
+		reason := tb.Str("LCP terminated: state=").Str(tr.NewState.String()).String()
+		cause := l2tpevents.TerminateCauseUserRequest
+		if s.authRefusalReason != "" {
+			reason = s.authRefusalReason
+			cause = l2tpevents.TerminateCauseNASRequest
+		}
 		s.sendEvent(EventSessionDown{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
-			Reason:    tb.Str("LCP terminated: state=").Str(tr.NewState.String()).String(),
-			Cause:     l2tpevents.TerminateCauseUserRequest,
+			Reason:    reason,
+			Cause:     cause,
 		})
 		return true
 	}
@@ -1846,6 +1879,10 @@ func (s *pppSession) handleRestartTimeout() bool {
 }
 
 func (s *pppSession) sendConfigureRequest() bool {
+	if !s.authNegotiationStarted {
+		s.initialAuthMethod = s.configuredAuthMethod
+		s.authNegotiationStarted = true
+	}
 	s.spendRestartCount()
 	// A Configure-Request opens a negotiation the peer has not yet
 	// acknowledged, so the Magic-Number is unnegotiated until its Ack
@@ -1901,7 +1938,13 @@ func (s *pppSession) sendConfigureRequest() bool {
 	s.lastLCPRequestSent = true
 	s.lastLCPReplyReceived = false
 	off += WriteLCPPacket(buf, off, LCPConfigureRequest, s.lastLCPRequestID, buf[dataOff:dataOff+dataLen])
-	return s.writeFrame(buf[:off])
+	if !s.writeFrame(buf[:off]) {
+		return false
+	}
+	if s.configuredAuthMethod != AuthMethodNone {
+		s.authMethodsTried |= 1 << s.configuredAuthMethod
+	}
+	return true
 }
 
 func (s *pppSession) sendConfigureAck(req LCPPacket) bool {
