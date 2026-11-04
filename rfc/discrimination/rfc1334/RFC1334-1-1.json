@@ -7,8 +7,8 @@
     "claim-sha": "d7978f1bf8106e81",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/auth.go::adjustAuthOnNakOrReject",
-    "producer-sha": "d4e0833095c99a9d",
-    "break": "body of adjustAuthOnNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "bfb28527395f91e9",
+    "break": "body of adjustAuthOnNakOrReject replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1334-1-1",

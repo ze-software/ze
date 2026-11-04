@@ -40,7 +40,7 @@
     "claim-sha": "b701a9775b495a5a",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "7107e02b6fa04b82",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "60cbc1941f5121ea",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

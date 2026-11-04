@@ -7,8 +7,8 @@
     "claim-sha": "2dca1c9950a84e70",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "7107e02b6fa04b82",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "60cbc1941f5121ea",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1661-6.4-8",
@@ -18,8 +18,8 @@
     "claim-sha": "41ed18abf8f2e898",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "7107e02b6fa04b82",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "60cbc1941f5121ea",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1661-6.4-8",
@@ -29,8 +29,8 @@
     "claim-sha": "6870a8ce592f03ee",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "7107e02b6fa04b82",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "60cbc1941f5121ea",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1661-6.4-8",
@@ -40,7 +40,7 @@
     "claim-sha": "d12fe68a0aa8320b",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "7107e02b6fa04b82",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "60cbc1941f5121ea",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -7,7 +7,7 @@
     "claim-sha": "3a2c88b2fff43020",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::sendConfigureRequest",
-    "producer-sha": "49940fc52beffdcb",
-    "break": "body of sendConfigureRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b664efb5e0b088bf",
+    "break": "body of sendConfigureRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
