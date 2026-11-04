@@ -1,6 +1,8 @@
 // Design: docs/architecture/testing/ci-format.md -- test runner framework
 // Related: rlimit.go -- the same limits through the unsigned Rlimit elsewhere
 
+//go:build freebsd || dragonfly
+
 package runner
 
 import (
@@ -9,9 +11,9 @@ import (
 	"syscall"
 )
 
-// rlimitNofile answers the soft and hard RLIMIT_NOFILE limits. FreeBSD's
-// Rlimit fields are int64 (RLIM_INFINITY is math.MaxInt64), so a negative value
-// is a kernel answer this code does not understand and is refused.
+// rlimitNofile answers the soft and hard RLIMIT_NOFILE limits. FreeBSD and
+// DragonFly use signed fields (RLIM_INFINITY is math.MaxInt64), so a negative
+// value is a kernel answer this code does not understand and is refused.
 func rlimitNofile() (soft, hard uint64, err error) {
 	var limit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {
@@ -27,13 +29,13 @@ func rlimitNofile() (soft, hard uint64, err error) {
 }
 
 // setRlimitNofile sets the soft and hard RLIMIT_NOFILE limits, refusing a value
-// FreeBSD's signed Rlimit cannot hold.
+// the platform's signed Rlimit cannot hold.
 func setRlimitNofile(soft, hard uint64) error {
 	if soft > math.MaxInt64 {
-		return fmt.Errorf("setrlimit: soft limit %d exceeds the FreeBSD maximum", soft)
+		return fmt.Errorf("setrlimit: soft limit %d exceeds the signed maximum", soft)
 	}
 	if hard > math.MaxInt64 {
-		return fmt.Errorf("setrlimit: hard limit %d exceeds the FreeBSD maximum", hard)
+		return fmt.Errorf("setrlimit: hard limit %d exceeds the signed maximum", hard)
 	}
 	limit := syscall.Rlimit{Cur: int64(soft), Max: int64(hard)}
 	return syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limit)

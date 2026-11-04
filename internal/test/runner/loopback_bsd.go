@@ -1,12 +1,12 @@
 // Design: docs/architecture/testing/ci-format.md -- multi-peer loopback alias setup
 //
-// macOS and FreeBSD only bind 127.0.0.1 to the loopback interface by default.
+// macOS, FreeBSD and DragonFly only bind 127.0.0.1 to the loopback interface by default.
 // Multi-peer tests need additional addresses (127.0.0.2, etc.), so we add them
 // as aliases on lo0 using the SIOCAIFADDR ioctl.
 //
 // Reference: https://cgit.freebsd.org/src/tree/sbin/ifconfig/af_inet.c -- canonical SIOCAIFADDR usage.
 
-//go:build darwin || freebsd
+//go:build darwin || freebsd || dragonfly
 
 package runner
 
@@ -83,7 +83,7 @@ func ensureLoopbackAlias(ip net.IP) error {
 	req.Mask.Addr = [4]byte{255, 255, 255, 255}
 
 	// SIOCAIFADDR is idempotent -- adding an existing alias is not an error.
-	// unix.SIOCAIFADDR = 0x8040691a = _IOW('i', 26, 64) on darwin/freebsd.
+	// unix.SIOCAIFADDR = 0x8040691a = _IOW('i', 26, 64) on these BSD platforms.
 	// SYS_IOCTL is deprecated (SA1019) but x/sys/unix has no exported ioctlPtr
 	// for custom struct arguments -- only typed wrappers (Winsize, Termios, etc.).
 	if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), //nolint:staticcheck,gosec // no generic ioctl-with-pointer in x/sys/unix; unsafe required for ioctl struct

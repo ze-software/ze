@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/ci-format.md -- test runner framework
-// Related: rlimit_freebsd.go -- the same limits through FreeBSD's signed Rlimit
+// Related: rlimit_signed.go -- the same limits through BSD's signed Rlimit
 
-//go:build !freebsd
+//go:build !freebsd && !dragonfly
 
 package runner
 
