@@ -106,6 +106,9 @@ func p05ShowMap(ctx context.Context, plugin *sdk.Plugin, command string) (map[st
 
 func p05DDoSBPSAmplification(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "ddos-bps-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		for range 12 {
 			if err := p05Wait(ctx, time.Second); err != nil {
 				return err
@@ -255,6 +258,9 @@ func p05IncidentRows(ctx context.Context, plugin *sdk.Plugin) []any {
 
 func p05DDoSDirection(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "ddos-direction-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		sockets, err := p05OpenFlood("", "127.0.0.3", 64)
 		if err != nil {
 			return err
@@ -507,6 +513,9 @@ func p05DDoSState(ctx context.Context, plugin *sdk.Plugin, victim string) string
 
 func p05DDoSIncidentConfidence(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "ddos-conf-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		sockets, err := p05OpenFlood("127.0.1.6", "127.0.0.6", 64)
 		if err != nil {
 			return err
@@ -542,6 +551,9 @@ func p05DDoSIncidentConfidence(ctx context.Context, args []string) error {
 
 func p05DDoSPolicy(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "ddos-policy-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		sockets, err := p05OpenFlood("", "127.0.0.7", 64)
 		if err != nil {
 			return err

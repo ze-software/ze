@@ -42,26 +42,26 @@ func init() {
 	Register("plugin/route-modify-localpref", plugin14Observer("test-modify-lp", plugin14ModifyLocalpref))
 	Register("plugin/rpf-multicast", plugin14Observer("rpf-multicast-test", plugin14RPFMulticast))
 	Register("plugin/rpki-as-set", plugin14Observer("rpki-asset-test", plugin14RPKIAsSet))
-	Register("plugin/rpki-aspa-disabled", plugin14EventObserver("rpki-aspa-disabled-test", []string{textRPKIDirectionReceived}, plugin14ASPADisabled))
+	Register("plugin/rpki-aspa-disabled", plugin14EventObserver("rpki-aspa-disabled-test", "peer1", []string{textRPKIDirectionReceived}, plugin14ASPADisabled))
 	Register("plugin/rpki-aspa-invalid", plugin14ASPAStateObserver("rpki-aspa-invalid-test", "invalid"))
-	Register("plugin/rpki-aspa-policy-logonly", plugin14EventObserver("rpki-aspa-policy-logonly-test", []string{textRPKIDirectionReceived}, plugin14ASPAPolicyLogOnly))
-	Register("plugin/rpki-aspa-policy-reject", plugin14EventObserver("rpki-aspa-policy-reject-test", []string{textRPKIDirectionReceived}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
+	Register("plugin/rpki-aspa-policy-logonly", plugin14EventObserver("rpki-aspa-policy-logonly-test", "peer1", []string{textRPKIDirectionReceived}, plugin14ASPAPolicyLogOnly))
+	Register("plugin/rpki-aspa-policy-reject", plugin14EventObserver("rpki-aspa-policy-reject-test", "peer1", []string{textRPKIDirectionReceived}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
 		return plugin14ASPAPolicyReject(ctx, p, events, "invalid", "ASPA policy", " policy")
 	}))
-	Register("plugin/rpki-aspa-policy-unknown-reject", plugin14EventObserver("rpki-aspa-policy-unknown-reject-test", []string{textRPKIDirectionReceived}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
+	Register("plugin/rpki-aspa-policy-unknown-reject", plugin14EventObserver("rpki-aspa-policy-unknown-reject-test", "peer1", []string{textRPKIDirectionReceived}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
 		return plugin14ASPAPolicyReject(ctx, p, events, "unknown", "ASPA unknown policy", " unknown-action=reject")
 	}))
 	Register("plugin/rpki-aspa-unknown", plugin14ASPAStateObserver("rpki-aspa-unknown-test", "unknown"))
 	Register("plugin/rpki-aspa-valid", plugin14ASPAStateObserver("rpki-aspa-valid-test", "valid"))
 	Register("plugin/rpki-cache-connect", plugin14Observer("rpki-cache-test", plugin14RPKICacheConnect))
 	Register("plugin/rpki-cache-update", plugin14Observer("rpki-update-test", plugin14RPKICacheUpdate))
-	Register("plugin/rpki-decorator-autoload", plugin14EventObserver("rpki-auto-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorAutoload))
-	Register("plugin/rpki-decorator-merge", plugin14EventObserver("rpki-dec-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorMerge))
-	Register("plugin/rpki-decorator-register", plugin14EventObserver("rpki-reg-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorRegister))
-	Register("plugin/rpki-decorator-timeout", plugin14EventObserver("rpki-to-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorTimeout))
-	Register("plugin/rpki-event-multi", plugin14EventObserver("rpki-event-multi-test", []string{textRPKIDirectionReceived}, plugin14RPKIEventMulti))
-	Register("plugin/rpki-event-unavailable", plugin14EventObserver("rpki-unavail-test", []string{textRPKIDirectionReceived}, plugin14RPKIEventUnavailable))
-	Register("plugin/rpki-event-valid", plugin14EventObserver("rpki-event-test", []string{textRPKIDirectionReceived}, plugin14RPKIEventValid))
+	Register("plugin/rpki-decorator-autoload", plugin14EventObserver("rpki-auto-test", "peer1", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorAutoload))
+	Register("plugin/rpki-decorator-merge", plugin14EventObserver("rpki-dec-test", "peer1", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorMerge))
+	Register("plugin/rpki-decorator-register", plugin14EventObserver("rpki-reg-test", "peer1", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorRegister))
+	Register("plugin/rpki-decorator-timeout", plugin14EventObserver("rpki-to-test", "peer1", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorTimeout))
+	Register("plugin/rpki-event-multi", plugin14EventObserver("rpki-event-multi-test", "peer1", []string{textRPKIDirectionReceived}, plugin14RPKIEventMulti))
+	Register("plugin/rpki-event-unavailable", plugin14EventObserver("rpki-unavail-test", "peer1", []string{textRPKIDirectionReceived}, plugin14RPKIEventUnavailable))
+	Register("plugin/rpki-event-valid", plugin14EventObserver("rpki-event-test", "peer1", []string{textRPKIDirectionReceived}, plugin14RPKIEventValid))
 	Register("plugin/rpki-group-action", plugin14Observer("rpki-group-test", plugin14RPKIGroupAction))
 	Register("plugin/rpki-maxlength", plugin14Observer("rpki-maxlen-test", plugin14RPKIMaxlength))
 	Register("plugin/rpki-multi-prefix", plugin14Observer("rpki-multi-test", plugin14RPKIMultiPrefix))
@@ -80,6 +80,15 @@ func plugin14RunUntilShutdown(ctx context.Context, name string, updates []plugin
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	result := make(chan error, 1)
+	// Both .ci scripts reconnect once; their second initial sync completes the
+	// replay assertion. Wait outside the readiness callback so peers can start.
+	waitReplay := func() {
+		if !p12WaitPeerCounter(ctx, plugin, "peer1", "eor-sent", 2) {
+			result <- errors.New("peer1 never completed its reconnect initial sync")
+			return
+		}
+		result <- nil
+	}
 	plugin.OnAllPluginsReady(func() error {
 		for _, update := range updates {
 			if _, _, err := plugin.UpdateRoute(ctx, update.peer, update.command); err != nil {
@@ -93,7 +102,7 @@ func plugin14RunUntilShutdown(ctx context.Context, name string, updates []plugin
 				return barrierErr
 			}
 		}
-		result <- nil
+		go waitReplay()
 		return nil
 	})
 
@@ -112,7 +121,7 @@ func plugin14Observer(name string, scenario ObserverScenario) Driver {
 	}
 }
 
-func plugin14EventObserver(name string, subscriptions []string, scenario plugin14EventScenario) Driver {
+func plugin14EventObserver(name, peer string, subscriptions []string, scenario plugin14EventScenario) Driver {
 	return func(ctx context.Context, _ []string) error {
 		events := make(chan plugin14Event, 256)
 		setup := func(plugin *sdk.Plugin) error {
@@ -134,13 +143,16 @@ func plugin14EventObserver(name string, subscriptions []string, scenario plugin1
 			return nil
 		}
 		return observeConfigured(ctx, name, &sdk.Registration{}, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
-			return scenario(ctx, plugin, events)
+			if err := scenario(ctx, plugin, events); err != nil {
+				return err
+			}
+			return p12WaitPeersEOR(ctx, plugin, peer)
 		})
 	}
 }
 
 func plugin14ASPAStateObserver(name, want string) Driver {
-	return plugin14EventObserver(name, []string{textRPKIDirectionReceived}, func(ctx context.Context, plugin *sdk.Plugin, events <-chan plugin14Event) error {
+	return plugin14EventObserver(name, "peer1", []string{textRPKIDirectionReceived}, func(ctx context.Context, plugin *sdk.Plugin, events <-chan plugin14Event) error {
 		if ok := plugin14WaitEvent(ctx, events, 15*time.Second, func(event plugin14Event) bool {
 			return plugin14RPKISection(event, false)["aspa-state"] == want
 		}); !ok {
@@ -339,6 +351,9 @@ func plugin14DestGotRoute(status string, value any) bool {
 }
 
 func plugin14OTCEgressFilter(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := p12WaitPeersEOR(ctx, plugin, "peer1", "dest-peer"); err != nil {
+		return err
+	}
 	_, _, err := plugin14PollCommand(ctx, plugin, 100, "show bgp peer * detail", func(status string, value any) bool {
 		if status != rpc.StatusDone {
 			return false
@@ -388,6 +403,9 @@ func plugin14OTCEgressFilter(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin14OTCEgressStamp(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := waitEORSent13(ctx, plugin, "source-peer"); err != nil {
+		return err
+	}
 	if err := plugin14Quiesce(ctx, plugin); err != nil {
 		return err
 	}
@@ -410,6 +428,9 @@ func plugin14OTCEgressStamp(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin14OTCExportUnknown(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
+		return err
+	}
 	_, _, err := plugin14PollCommand(ctx, plugin, 100, "show bgp adj-rib-in status", func(_ string, value any) bool {
 		return plugin14Number(plugin14Map(value)["total-routes"]) >= 1
 	})
@@ -440,7 +461,7 @@ func plugin14OTCExportUnknown(ctx context.Context, plugin *sdk.Plugin) error {
 
 func plugin14WaitDestUpdates(ctx context.Context, plugin *sdk.Plugin, count int, what string) error {
 	if !Poll(ctx, 40, plugin14PollDelay, func() bool {
-		_, data, err := plugin14DispatchMap(ctx, plugin, "show bgp peer * detail")
+		_, data, err := plugin14DispatchMap(ctx, plugin, "show bgp peer dest-peer detail")
 		if err != nil {
 			return false
 		}
@@ -454,6 +475,9 @@ func plugin14WaitDestUpdates(ctx context.Context, plugin *sdk.Plugin, count int,
 }
 
 func plugin14OTCForwardWithdrawal(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := waitEORSent13(ctx, plugin, "source-peer"); err != nil {
+		return err
+	}
 	if err := plugin14Quiesce(ctx, plugin); err != nil {
 		return err
 	}
@@ -473,6 +497,9 @@ func plugin14OTCForwardWithdrawal(ctx context.Context, plugin *sdk.Plugin) error
 // observer only decides when shutdown is safe, and a dest that never gets the
 // second UPDATE is an error rather than a timeout.
 func plugin14OTCMalformedWithdraw(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := waitEORSent13(ctx, plugin, "source-peer"); err != nil {
+		return err
+	}
 	if err := plugin14WaitDestUpdates(ctx, plugin, 1, "the length-4 OTC announcement"); err != nil {
 		return err
 	}
@@ -480,6 +507,9 @@ func plugin14OTCMalformedWithdraw(ctx context.Context, plugin *sdk.Plugin) error
 }
 
 func plugin14OTCIngressReject(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := p12WaitPeersEOR(ctx, plugin, "peer1", "dest-peer"); err != nil {
+		return err
+	}
 	// An empty adj-rib-in proves the ingress verdict only once the leaked
 	// UPDATE has arrived: before it, the RIB is empty whatever the filter does.
 	if !Poll(ctx, 100, plugin14PollDelay, func() bool {
@@ -506,6 +536,9 @@ func plugin14OTCIngressReject(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin14OTCRSClientStamp(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := waitEORSent13(ctx, plugin, "source-peer"); err != nil {
+		return err
+	}
 	if err := plugin14Quiesce(ctx, plugin); err != nil {
 		return err
 	}
@@ -513,6 +546,9 @@ func plugin14OTCRSClientStamp(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin14OTCRSWithdrawEOR(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := waitEORSent13(ctx, plugin, "source-peer"); err != nil {
+		return err
+	}
 	if err := plugin14Quiesce(ctx, plugin); err != nil {
 		return err
 	}
@@ -539,6 +575,9 @@ func plugin14OTCRSWithdrawEOR(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin14OTCUnicastScope(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
+		return err
+	}
 	if err := plugin14Quiesce(ctx, plugin); err != nil {
 		return err
 	}
@@ -601,6 +640,9 @@ func plugin14RPFMulticast(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin14WaitRPKIReady(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
+		return err
+	}
 	if !Poll(ctx, 150, plugin14PollDelay, func() bool {
 		_, data, err := plugin14DispatchMap(ctx, plugin, "show bgp rpki status")
 		return err == nil && plugin14Number(data["vrp-count-ipv4"]) >= 1
@@ -765,6 +807,9 @@ func plugin14RPKICacheConnect(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin14RPKICacheUpdate(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
+		return err
+	}
 	status, value, err := plugin14PollCommand(ctx, plugin, 100, "show bgp rpki roa", func(_ string, value any) bool {
 		return plugin14Number(plugin14Map(value)["total-vrps"]) >= 1
 	})

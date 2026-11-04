@@ -89,6 +89,9 @@ func bfdJSONShow03(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func bfdMetrics03(ctx context.Context, p *sdk.Plugin) error {
+	if !waitPeersEOR03(ctx, p, 1) {
+		return fmt.Errorf("initial-sync EOR never reached the BGP peer")
+	}
 	if _, err := donePoll03(ctx, p, "show bfd sessions"); err != nil {
 		return fmt.Errorf("prime metrics: %w", err)
 	}
@@ -414,6 +417,9 @@ func runZeUntilLogsRejecting03(ctx context.Context, config string, required, for
 }
 
 func bfdEchoHandshake03(ctx context.Context, p *sdk.Plugin, port string) error {
+	if !waitPeersEOR03(ctx, p, 1) {
+		return fmt.Errorf("initial-sync EOR never reached the BGP peer")
+	}
 	if _, err := done03(ctx, p, "show bfd sessions"); err != nil {
 		return err
 	}

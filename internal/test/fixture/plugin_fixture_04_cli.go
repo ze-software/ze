@@ -83,6 +83,9 @@ func clearDNS04(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func grammarActionFirst04(ctx context.Context, p *sdk.Plugin) error {
+	if err := waitPeerEOR04(ctx, p); err != nil {
+		return err
+	}
 	canonical, err := requireDone04(ctx, p, "request commit start canonical-test")
 	if err != nil {
 		return err
@@ -345,6 +348,9 @@ func runCommandPeer04(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func runCommand04(ctx context.Context, p *sdk.Plugin) error {
+	if err := waitPeerEOR04(ctx, p); err != nil {
+		return err
+	}
 	status, value, err := command04(ctx, p, "help")
 	if err != nil {
 		return err

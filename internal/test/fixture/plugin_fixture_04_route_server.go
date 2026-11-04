@@ -13,6 +13,9 @@ import (
 )
 
 func summaryFlat04(ctx context.Context, p *sdk.Plugin) error {
+	if err := waitPeerEOR04(ctx, p); err != nil {
+		return err
+	}
 	_, value, err := pollCommand04(ctx, p, 40, "show bgp", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
 		peer := findPeer04(data)
@@ -62,6 +65,9 @@ func summaryFlat04(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func summaryCounts04(ctx context.Context, p *sdk.Plugin) error {
+	if err := waitPeerEOR04(ctx, p); err != nil {
+		return err
+	}
 	_, value, err := pollCommand04(ctx, p, 100, "show bgp", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
 		peer := findPeer04(data)
@@ -243,6 +249,9 @@ func rsObserver04(expected int, prefix string, requireReplay bool, requiredSerie
 					}
 				}
 				var scenarioErr error
+				if !requireReplay {
+					scenarioErr = p12WaitPeersEOR(ctx, p, "source-peer")
+				}
 				if requireReplay && (len(eorPeers) < needEOR || !forwardSeen) {
 					scenarioErr = fmt.Errorf("route server did not replay (EOR peers=%d/%d, forward peers=%d/%d)", len(eorPeers), needEOR, len(forwardPeers), needForward)
 				}

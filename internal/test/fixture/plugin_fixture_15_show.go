@@ -173,20 +173,33 @@ func plugin15PeerGotRoute(r plugin15Result) bool {
 }
 
 func plugin15SendCommunity(ctx context.Context, p *sdk.Plugin) error {
+	if err := plugin15WaitEOR(ctx, p, "source-peer"); err != nil {
+		return err
+	}
 	if r := plugin15Dispatch(ctx, p, "request quiesce"); !plugin15Done(r) {
 		return fmt.Errorf("quiesce failed: %s", r.text())
 	}
-	for _, name := range []string{"dest-none-peer", "dest-standard-peer"} {
-		r := plugin15PollCommand(ctx, p, "show bgp peer "+name+" detail", 24, 250*time.Millisecond, plugin15PeerGotRoute)
-		if !plugin15PeerGotRoute(r) {
-			return fmt.Errorf("%s was never sent the forwarded route: %s", name, r.text())
-		}
-		fmt.Fprintf(os.Stderr, "OK: %s was sent the forwarded route\n", name)
+	if err := plugin15SendCommunityPeer(ctx, p, "dest-none-peer"); err != nil {
+		return err
 	}
+	return plugin15SendCommunityPeer(ctx, p, "dest-standard-peer")
+}
+
+// plugin15SendCommunityPeer names the destination whose forwarded route the
+// scenario needs on the wire, without requiring an EOR sent to a closing peer.
+func plugin15SendCommunityPeer(ctx context.Context, p *sdk.Plugin, name string) error {
+	r := plugin15PollCommand(ctx, p, "show bgp peer "+name+" detail", 24, 250*time.Millisecond, plugin15PeerGotRoute)
+	if !plugin15PeerGotRoute(r) {
+		return fmt.Errorf("%s was never sent the forwarded route: %s", name, r.text())
+	}
+	fmt.Fprintf(os.Stderr, "OK: %s was sent the forwarded route\n", name)
 	return nil
 }
 
 func plugin15ShowBGPBare(ctx context.Context, p *sdk.Plugin) error {
+	if err := plugin15WaitEOR(ctx, p, "peer1"); err != nil {
+		return err
+	}
 	bare := plugin15Dispatch(ctx, p, "show bgp")
 	if !plugin15Done(bare) {
 		return fmt.Errorf("show bgp status=%s data=%s", bare.status, bare.text())
@@ -213,6 +226,9 @@ func plugin15ShowBGPBare(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func plugin15ShowBGPChildren(ctx context.Context, p *sdk.Plugin) error {
+	if err := plugin15WaitEOR(ctx, p, "peer1"); err != nil {
+		return err
+	}
 	var failures []string
 	for _, command := range []string{
 		"show bgp rpki status",
@@ -506,7 +522,7 @@ func plugin15RIBUnderLoad(ctx context.Context, p *sdk.Plugin) error {
 	if len(failures) != 0 {
 		return fmt.Errorf("%d rib-under-load assertions failed: %s", len(failures), strings.Join(failures, "; "))
 	}
-	return nil
+	return plugin15WaitEOR(ctx, p, "peer1")
 }
 
 func plugin15SmartShow(ctx context.Context, p *sdk.Plugin) error {

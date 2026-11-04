@@ -226,6 +226,9 @@ func passivePlugin13(name string) Driver {
 
 func reloadListenerRejected13(ctx context.Context, args []string) error {
 	return observe13(ctx, "reload-listener-rejected-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		readPort := func() (int, error) {
 			result := pollCommand13(ctx, plugin, "show l2tp listeners", 40, 100*time.Millisecond, done13)
 			if err := requireDone13("show l2tp listeners", result); err != nil {
@@ -284,6 +287,9 @@ func reloadListenerRejected13(ctx context.Context, args []string) error {
 
 func reloadSharedSecret13(ctx context.Context, args []string) error {
 	return observe13(ctx, "reload-shared-secret-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		readSecret := func() string {
 			result := command13(ctx, plugin, "show l2tp config")
 			if !done13(result) {
@@ -318,6 +324,9 @@ func originatedPrivateAS13(name string) Driver {
 			if _, _, err := plugin.UpdateRoute(ctx, "*", "update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri add 10.0.0.0/24"); err != nil {
 				return err
 			}
+			if !p12WaitPeerCounter(ctx, plugin, "receiver-peer", "updates-sent", 1) {
+				return errors.New("receiver-peer was never sent an UPDATE")
+			}
 			if err := requireDone13("wait for update acknowledgement", command13(ctx, plugin, "request quiesce")); err != nil {
 				return err
 			}
@@ -332,6 +341,9 @@ func originatedPrivateAS13(name string) Driver {
 func forwardedPrivateAS13(name, peer, adjective string) Driver {
 	return func(ctx context.Context, args []string) error {
 		return observe13(ctx, name, func(ctx context.Context, plugin *sdk.Plugin) error {
+			if err := waitEORSent13(ctx, plugin, "source-peer"); err != nil {
+				return err
+			}
 			result := pollCommand13(ctx, plugin, "show bgp peer "+peer+" detail", 150, 100*time.Millisecond, func(result commandResult13) bool {
 				return peerCounter13(result, "updates-sent")-peerCounter13(result, "eor-sent") >= 1
 			})
@@ -530,6 +542,9 @@ func opaqueWithdraw13(ctx context.Context, args []string) error {
 		Poll(ctx, 100, 250*time.Millisecond, func() bool { up := rsPeersUp(); both = up[source] && up[receiver]; return both })
 		if !both {
 			return errors.New("route server never reported both clients up")
+		}
+		if err := p12WaitPeersEOR(ctx, plugin, "source-peer", "receiver-peer"); err != nil {
+			return err
 		}
 		if _, _, err := plugin.UpdateRoute(ctx, source, "update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24"); err != nil {
 			return err

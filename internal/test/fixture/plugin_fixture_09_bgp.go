@@ -108,7 +108,12 @@ func llgrReadvertise09(_ string) Driver {
 
 func localPrefStrip09(ctx context.Context, _ []string) error {
 	return observe09(ctx, "test-localpref", func(ctx context.Context, p *sdk.Plugin) error {
-		got := func() bool {
+		if err := p12WaitPeersEOR(ctx, p, "source-peer"); err != nil {
+			return err
+		}
+		// The destination closes after the forwarded UPDATE, so its delivery,
+		// not a later initial-sync EOR, is the shutdown barrier.
+		if !Poll(ctx, 24, 250*time.Millisecond, func() bool {
 			r := dispatch09(ctx, p, "show bgp peer dest-ebgp-peer detail")
 			for _, row := range peerRows09(r) {
 				if number09(row["updates-sent"])-number09(row["eor-sent"]) >= 1 {
@@ -116,8 +121,7 @@ func localPrefStrip09(ctx context.Context, _ []string) error {
 				}
 			}
 			return false
-		}
-		if !Poll(ctx, 24, 250*time.Millisecond, got) {
+		}) {
 			return fmt.Errorf("dest-ebgp-peer was never sent the forwarded route")
 		}
 		fmt.Fprintln(os.Stderr, "OK: dest-ebgp-peer was sent the forwarded route")
@@ -234,7 +238,9 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 	plugin.OnAllPluginsReady(func() error {
 		go func() {
 			var scenarioErr error
-			if !Poll(ctx, 100, 100*time.Millisecond, func() bool { mu.Lock(); defer mu.Unlock(); return removed > 0 }) {
+			if err := p12WaitPeersEOR(ctx, plugin, "source", "dest"); err != nil {
+				scenarioErr = err
+			} else if !Poll(ctx, 100, 100*time.Millisecond, func() bool { mu.Lock(); defer mu.Unlock(); return removed > 0 }) {
 				scenarioErr = fmt.Errorf("RAW-MED-DROP: export filter never saw the forwarded route")
 			} else if !Poll(ctx, 40, 250*time.Millisecond, func() bool { return peerCounter09(ctx, plugin, "127.0.0.2", "updates-sent") >= 2 }) {
 				scenarioErr = fmt.Errorf("RAW-MED-DROP: ze never wrote the restored UPDATE to dest")
@@ -315,6 +321,9 @@ func rsObserver09(_ string, expectedPeers int) Driver {
 
 func medRemovalBeforeDecision09(ctx context.Context, _ []string) error {
 	return observe09(ctx, "med-store-check", func(ctx context.Context, p *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, p, "filtered-peer"); err != nil {
+			return err
+		}
 		status := pollCommand09(ctx, p, "show bgp adj-rib-in status", 80, func(r commandResult09) bool { return done09(r) && strings.Contains(r.text, `"total-routes":1`) })
 		if !strings.Contains(status.text, `"total-routes":1`) {
 			return fmt.Errorf("adj-rib-in never stored the route: %s", status.text)
@@ -392,6 +401,9 @@ func metricValue09(text, selector string) (float64, bool) {
 
 func metricsFlap09(ctx context.Context, _ []string) error {
 	return observe09(ctx, "flap-notif-test", func(ctx context.Context, p *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, p, "peer1"); err != nil {
+			return err
+		}
 		const durationMetric = `ze_peer_session_duration_seconds{peer="127.0.0.1"}`
 		Poll(ctx, 40, 250*time.Millisecond, func() bool { value, ok := metricValue09(metricText09(ctx, p), durationMetric); return ok && value > 0 })
 		before := metricText09(ctx, p)
@@ -477,6 +489,9 @@ func metricsNameShow09(ctx context.Context, _ []string) error {
 
 func metricsLifecycle09(ctx context.Context, _ []string) error {
 	return observe09(ctx, "session-lifecycle-test", func(ctx context.Context, p *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, p, "peer1"); err != nil {
+			return err
+		}
 		var metrics string
 		if !Poll(ctx, 20, 250*time.Millisecond, func() bool {
 			metrics = metricText09(ctx, p)
@@ -544,7 +559,9 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 				}
 				return true
 			}
-			if Poll(ctx, 960, 250*time.Millisecond, served) {
+			if err := p12WaitPeersEOR(ctx, plugin, "source-peer"); err != nil {
+				result <- err
+			} else if Poll(ctx, 960, 250*time.Millisecond, served) {
 				result <- nil
 			} else {
 				mu.Lock()

@@ -369,7 +369,7 @@ func plugin16TeardownTunnel(ctx context.Context, p *sdk.Plugin) error {
 	if err := plugin16L2TPWriteExit(); err != nil {
 		return err
 	}
-	if !plugin16WaitEOR(ctx, p, "show bgp", 60) {
+	if !plugin16WaitEOR(ctx, p, "show bgp peer peer1 detail", 60) {
 		return fmt.Errorf("ze did not send its initial-sync end-of-rib before shutdown")
 	}
 	return nil

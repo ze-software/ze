@@ -63,6 +63,9 @@ func plugin15RPKIReady(ctx context.Context, p *sdk.Plugin, requireVRP bool) erro
 		}
 		return fmt.Errorf("ze never received the peer UPDATE")
 	}
+	if err := plugin15WaitEOR(ctx, p, "peer1"); err != nil {
+		return err
+	}
 	if r := plugin15Dispatch(ctx, p, "request quiesce"); !plugin15Done(r) {
 		return fmt.Errorf("quiesce failed: status=%s data=%s", r.status, r.text())
 	}
@@ -70,6 +73,9 @@ func plugin15RPKIReady(ctx context.Context, p *sdk.Plugin, requireVRP bool) erro
 }
 
 func plugin15RPKIPerPeer(ctx context.Context, p *sdk.Plugin) error {
+	if err := plugin15WaitEOR(ctx, p, "peer1"); err != nil {
+		return err
+	}
 	if !Poll(ctx, 150, 200*time.Millisecond, func() bool { return plugin15RPKICount(ctx, p) >= 1 }) {
 		return fmt.Errorf("RTR never synced a VRP")
 	}
@@ -155,7 +161,7 @@ func plugin15RPKILateSync(ctx context.Context, p *sdk.Plugin) error {
 		}
 	}
 	fmt.Fprintln(os.Stderr, "OK re-validation retained 10.0.1.0/24 as ineligible once the cache synced")
-	return nil
+	return plugin15WaitEOR(ctx, p, "peer1")
 }
 
 // plugin15RPKIRevalidateRelay proves that a relay plugin (bgp-rr or bgp-rs)
@@ -492,6 +498,9 @@ func plugin15RPKIBatch(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func plugin15RPKIReject(ctx context.Context, p *sdk.Plugin) error {
+	if err := plugin15WaitEOR(ctx, p, "peer1"); err != nil {
+		return err
+	}
 	if !Poll(ctx, 150, 200*time.Millisecond, func() bool { return plugin15RPKICount(ctx, p) >= 1 }) {
 		return fmt.Errorf("RTR never synced a VRP")
 	}

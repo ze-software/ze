@@ -330,6 +330,9 @@ func plugin01APIPeerPrefixUpdate(ctx context.Context, plugin *sdk.Plugin) error 
 	if result["status"] != statusUpdated || plugin01Number(changes["ipv4/unicast"]) != 71501 {
 		return fmt.Errorf("unexpected peer prefix changes: %v", result)
 	}
+	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
+		return err
+	}
 	fmt.Fprintln(os.Stderr, "OK: prefix update succeeded, ipv4=71501")
 	return nil
 }

@@ -353,7 +353,7 @@ func p12FilterImportDriver(name, filterName string, reads []string, action sdk.F
 	}
 	scenario := func(ctx context.Context, plugin *sdk.Plugin) error {
 		Poll(ctx, 100, 100*time.Millisecond, func() bool { return state.calls.Load() > 0 })
-		if !p12WaitPeerCounter(ctx, plugin, "*", "eor-sent", 1) {
+		if !p12WaitPeerCounter(ctx, plugin, "peer1", "eor-sent", 1) {
 			return fmt.Errorf("ze sent no end-of-rib to peer1 before shutdown")
 		}
 		if forwardsToPeerTwo && !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "updates-sent", 2) {

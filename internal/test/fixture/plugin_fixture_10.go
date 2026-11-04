@@ -257,6 +257,9 @@ func fixture10WaitAdjRIBIn(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func fixture10OversizeSuppress(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := p12WaitPeersEOR(ctx, plugin, "source-peer", "dest-peer"); err != nil {
+		return err
+	}
 	if !Poll(ctx, 100, fixture10PollDelay, func() bool {
 		rows, ok := fixture10PeerRows(ctx, plugin, "*")
 		if !ok || len(rows) != 2 {
@@ -599,6 +602,9 @@ func fixture10NextHopUnchanged(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func fixture10OriginatedNextHop(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := fixture10WaitEOR(ctx, plugin, "under-test", 60); err != nil {
+		return err
+	}
 	peerUpdates := func() (int, bool) {
 		rows, ok := fixture10PeerRows(ctx, plugin, "127.0.0.1")
 		if !ok {
@@ -660,11 +666,17 @@ func fixture10OpenInEstablished(ctx context.Context, plugin *sdk.Plugin) error {
 	}) {
 		return fmt.Errorf("the refused OPEN did not increment %s: %s", metric, observed)
 	}
+	if !plugin01WaitCounter(ctx, plugin, "peer1", "connections-dropped", 1, 60) {
+		return fmt.Errorf("peer1 never finished dropping the refused OPEN session")
+	}
 	fmt.Fprintln(os.Stderr, "OK: session dropped after the second OPEN was refused")
 	fmt.Fprintln(os.Stderr, "OK: peer went down after the second OPEN was refused")
 	return nil
 }
 func fixture10PeerSelectorASN(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
+		return err
+	}
 	if err := fixture10Update(ctx, plugin, "as1", "update text nhop 101.1.101.1 nlri add 1.1.0.0/24"); err != nil {
 		return err
 	}
@@ -672,6 +684,9 @@ func fixture10PeerSelectorASN(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func fixture10PeerSelectorNameIP(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
+		return err
+	}
 	if err := fixture10Update(ctx, plugin, "peer1", "update text nhop 101.1.101.1 nlri add 1.1.0.0/24"); err != nil {
 		return err
 	}
@@ -695,6 +710,9 @@ func fixture10PingCAPError(reply fixture10Reply, label string) error {
 }
 
 func fixture10PingShow(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
+		return err
+	}
 	plain := fixture10Call(ctx, plugin, "show ping 127.0.0.1 count 1 timeout 2s")
 	if plain.status == statusDone && plain.err == nil {
 		data, err := fixture10Object(plain, "ping")
@@ -864,6 +882,9 @@ func fixture10PluginAnnounce(ctx context.Context, plugin *sdk.Plugin, initialRep
 	if err := fixture10SessionReady(ctx, plugin, initialReplay); err != nil {
 		return err
 	}
+	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
+		return err
+	}
 	return fixture10Quiesce(ctx, plugin)
 }
 
@@ -890,6 +911,9 @@ func fixture10PluginAttributes(ctx context.Context, plugin *sdk.Plugin, initialR
 		}
 	}
 	if err := fixture10SessionReady(ctx, plugin, initialReplay); err != nil {
+		return err
+	}
+	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
 		return err
 	}
 	return fixture10Quiesce(ctx, plugin)
@@ -1079,6 +1103,9 @@ func fixture10PluginCheck(ctx context.Context, _ []string) error {
 	plugin.OnAllPluginsReady(func() error {
 		go func() {
 			scenarioErr := func() error {
+				if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
+					return err
+				}
 				select {
 				case <-matched:
 					if updateErr := fixture10Update(ctx, plugin, "127.0.0.1", "update text origin igp local-preference 100 nhop 5.6.7.8 nlri add 1.2.3.4/32"); updateErr != nil {

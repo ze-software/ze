@@ -206,6 +206,9 @@ func fixture06WaitEOR(ctx context.Context, p *sdk.Plugin, minimum float64) error
 }
 
 func fixture06DDOSShow(ctx context.Context, p *sdk.Plugin) error {
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
+	}
 	check := func(command string, keys ...string) (map[string]any, error) {
 		data, err := fixture06DispatchObject(ctx, p, command)
 		if err != nil {
@@ -337,6 +340,9 @@ func fixture06DNSCacheShow(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func fixture06DNSLookupShow(ctx context.Context, p *sdk.Plugin) error {
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
+	}
 	data, err := fixture06DispatchObject(ctx, p, "show dns lookup localhost type A")
 	if err != nil {
 		return err
@@ -355,6 +361,9 @@ func fixture06DNSLookupShow(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func fixture06DoctorOwnerCheck(ctx context.Context, p *sdk.Plugin) error {
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
+	}
 	data, err := fixture06PollObject(ctx, p, "show doctor doctor-missing-plugin.conf", 60, func(map[string]any) bool { return true })
 	if err != nil {
 		return err
@@ -424,6 +433,13 @@ func fixture06ExplicitPluginConfig(ctx context.Context, p *sdk.Plugin) error {
 	}
 	if announced != 1 {
 		return fmt.Errorf("marker update announced %d NLRIs, want 1", announced)
+	}
+	if !Poll(ctx, 40, plugin01PollDelay, func() bool {
+		sent, sentOK := fixture10PeerCounter(ctx, p, "peer1", "updates-sent")
+		eor, eorOK := fixture10PeerCounter(ctx, p, "peer1", "eor-sent")
+		return sentOK && eorOK && sent-eor >= 1
+	}) {
+		return errors.New("peer1 never received the explicit-plugin marker")
 	}
 	return fixture06DispatchDone(ctx, p, "request quiesce")
 }

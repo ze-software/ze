@@ -446,6 +446,9 @@ func as112Health02(ctx context.Context, plugin *sdk.Plugin) error {
 // Loading it and attaching it to no peer stores no route, so the poll would
 // time out on a route the chain accepted.
 func adjRIBRouteObserver02(ctx context.Context, plugin *sdk.Plugin) error {
+	if !eorSent02(ctx, plugin, "peer1", 1, 40) {
+		return errors.New("peer1 initial-sync EOR never reached the wire")
+	}
 	if Poll(ctx, 20, 250*time.Millisecond, func() bool {
 		raw, err := requireDone02(ctx, plugin, "show bgp adj-rib-in status")
 		if err != nil {
@@ -481,6 +484,9 @@ func peerFields02(ctx context.Context, plugin *sdk.Plugin, selector string) (map
 // and the file's remaining assertions would then be judged against a daemon
 // that read nothing.
 func updateReceivedObserver02(ctx context.Context, plugin *sdk.Plugin) error {
+	if !eorSent02(ctx, plugin, "peer1", 1, 40) {
+		return errors.New("peer1 initial-sync EOR never reached the wire")
+	}
 	if !Poll(ctx, 100, 200*time.Millisecond, func() bool {
 		peers, err := peerFields02(ctx, plugin, "peer1")
 		if err != nil {
@@ -527,6 +533,9 @@ func pathASNExportDriver02() Driver {
 				return fmt.Errorf("write readiness marker %s: %w", marker, err)
 			}
 			defer os.Remove(marker) //nolint:errcheck // scratch cleanup, so a removal failure changes no assertion
+			if !eorSent02(ctx, plugin, "peer1", 1, 40) {
+				return errors.New("peer1 initial-sync EOR never reached the wire")
+			}
 
 			if err := waitForMarker02(ctx, "path-asn-export.received"); err != nil {
 				return fmt.Errorf("peer2 never confirmed receipt of the permitted fence: %w", err)

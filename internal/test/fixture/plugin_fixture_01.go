@@ -200,6 +200,9 @@ func plugin01RouteUpdates(ctx context.Context, plugin *sdk.Plugin, peer string) 
 }
 
 func plugin01AddRemove(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
+		return err
+	}
 	commands := []string{
 		cmdAnnounceFirstPrefix,
 		"update text nhop 101.1.101.1 nlri add 1.1.0.0/25",

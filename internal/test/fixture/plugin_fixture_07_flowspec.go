@@ -291,6 +291,9 @@ const flowSpecTransitionMarker07 = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000
 
 // Use the attached process's authenticated SDK rail, not the operator SSH CLI.
 func releaseFlowSpecPeer07(ctx context.Context, plugin *sdk.Plugin) error {
+	if !plugin01WaitCounter(ctx, plugin, "peer1", "connections-established", 1, 40) {
+		return errors.New("FlowSpec peer did not establish before its transition marker")
+	}
 	_, err := plugin01RequireDone(ctx, plugin, "send bgp 127.0.0.1 raw hex "+flowSpecTransitionMarker07)
 	return err
 }

@@ -17,7 +17,7 @@ func plugin01AdjRIBInQuery(ctx context.Context, plugin *sdk.Plugin) error {
 		}
 		return fmt.Errorf("adj-rib-in stored no inbound route: status=%q data=%v error=<nil>", status, data)
 	}
-	if err := plugin01Quiesce(ctx, plugin); err != nil {
+	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
 		return err
 	}
 	if _, err := plugin01RequireDone(ctx, plugin, "show bgp rib received"); err != nil {
@@ -60,11 +60,16 @@ func plugin01ReplayOne(ctx context.Context, plugin *sdk.Plugin, peer string) err
 }
 
 func plugin01ReplayAddPath(ctx context.Context, plugin *sdk.Plugin) error {
-	const source = "127.0.0.1"
+	if !plugin01WaitCounter(ctx, plugin, "dest-addpath", "connections-established", 1, 40) {
+		return errors.New("ADD-PATH destination did not establish")
+	}
+	if !plugin01WaitCounter(ctx, plugin, "dest-plain", "connections-established", 1, 40) {
+		return errors.New("plain destination did not establish")
+	}
 	destinations := []string{addrLoopbackSecond, addrLoopbackThird}
 	// The API marker retains its ID too. Reserve 1 so the live/replayed
 	// source path can use 0, distinct from the source's announced ID 1.
-	if err := plugin01ReplaySetup(ctx, plugin, 3, source,
+	if err := plugin01ReplaySetup(ctx, plugin, 3, "source-peer",
 		"update text origin igp nhop 1.1.1.1 nlri path-information 1 add 192.0.2.0/24", 40); err != nil {
 		return err
 	}
@@ -89,8 +94,11 @@ func plugin01ReplayAddPath(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin01ReplayOnPeerUp(ctx context.Context, plugin *sdk.Plugin) error {
-	const source, destination = "127.0.0.1", "127.0.0.2"
-	if err := plugin01ReplaySetup(ctx, plugin, 2, source,
+	const destination = "127.0.0.2"
+	if !plugin01WaitCounter(ctx, plugin, "dest-peer", "connections-established", 1, 32) {
+		return errors.New("destination did not establish")
+	}
+	if err := plugin01ReplaySetup(ctx, plugin, 2, "source-peer",
 		"update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24", 32); err != nil {
 		return err
 	}
@@ -136,8 +144,11 @@ func plugin01ReplayUnownedPeer(ctx context.Context, plugin *sdk.Plugin) error {
 	if !plugin01WaitPeers(ctx, plugin, 2, 32) {
 		return errors.New("both peers did not establish")
 	}
-	if !plugin01WaitCounter(ctx, plugin, "*", "eor-sent", 2, 20) {
-		return errors.New("ze never sent its initial-sync EOR to both peers")
+	if !plugin01WaitCounter(ctx, plugin, "source-peer", "eor-sent", 1, 20) {
+		return errors.New("ze never sent its initial-sync EOR to the source peer")
+	}
+	if !plugin01WaitCounter(ctx, plugin, "dest-peer", "eor-sent", 1, 20) {
+		return errors.New("ze never sent its initial-sync EOR to the destination peer")
 	}
 	if _, _, err := plugin.UpdateRoute(ctx, source, "update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24"); err != nil {
 		return err

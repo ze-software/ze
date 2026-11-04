@@ -639,7 +639,7 @@ func plugin16PipeFirstLast(ctx context.Context, p *sdk.Plugin) error {
 		fmt.Fprintf(os.Stderr, "OK: %s = %d\n", check.label, count)
 	}
 	fmt.Fprintln(os.Stderr, "OK: all pipe first/last tests passed")
-	if !plugin16WaitEOR(ctx, p, "show bgp", 40) {
+	if !plugin16WaitEOR(ctx, p, "show bgp peer peer1 detail", 40) {
 		return fmt.Errorf("ze never sent EOR to the peer")
 	}
 	fmt.Fprintln(os.Stderr, "OK: ze sent its EOR")
@@ -703,6 +703,9 @@ func plugin16WellknownCounts(ctx context.Context, p *sdk.Plugin, internalWant, e
 }
 
 func plugin16WellknownNoAdvertise(ctx context.Context, p *sdk.Plugin) error {
+	if err := p12WaitPeersEOR(ctx, p, "source-peer", "internal-peer", "external-peer"); err != nil {
+		return err
+	}
 	// A refused route was never advertised to either session, so it produces
 	// no UPDATE at all (RFC 4271 Section 3.1): internal receives the subconfed
 	// route and the fence, external the fence alone. The peer fixture checks
@@ -716,6 +719,9 @@ func plugin16WellknownNoAdvertise(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func plugin16WellknownNoExport(ctx context.Context, p *sdk.Plugin) error {
+	if err := p12WaitPeersEOR(ctx, p, "source-peer", "internal-peer", "external-peer"); err != nil {
+		return err
+	}
 	// RFC 1997 forbids advertising the route. The external session was never
 	// advertised it, so it is owed no withdrawal either (RFC 4271 Section 3.1):
 	// it receives the fence alone, the internal session both routes. The peer's
@@ -763,10 +769,14 @@ func plugin16WellknownWithdrawReceipts(ctx context.Context) error {
 	return nil
 }
 
-// plugin16UpdateAndQuiesce sends command to every peer, then waits for quiesce.
+// plugin16UpdateAndQuiesce sends command to every peer, then waits for the
+// scripted peer1's UPDATE exchange and the quiesce barrier before teardown.
 func plugin16UpdateAndQuiesce(ctx context.Context, p *sdk.Plugin, command string) error {
 	if _, _, err := p.UpdateRoute(ctx, "*", command); err != nil {
 		return err
+	}
+	if !p12WaitPeerCounter(ctx, p, "peer1", "updates-sent", 1) {
+		return fmt.Errorf("peer1 never reached its UPDATE exchange")
 	}
 	q := plugin16Dispatch(ctx, p, "request quiesce")
 	if q.err != nil || q.status != statusDone {

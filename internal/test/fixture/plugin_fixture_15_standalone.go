@@ -606,6 +606,14 @@ func plugin15SummaryFormat(ctx context.Context, _ []string) error {
 			updateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
 			_, _, updateErr = p.UpdateRoute(updateCtx, "127.0.0.1", "update text origin igp local-preference 100 nhop 5.6.7.8 nlri add 1.2.3.4/32")
+			if updateErr != nil {
+				return
+			}
+			// The configured route, EOR and summary success signal are the
+			// three UPDATEs this peer's script consumes.
+			if !p12WaitPeerCounter(ctx, p, "peer1", "updates-sent", 3) {
+				updateErr = fmt.Errorf("peer1 was never sent the summary success signal")
+			}
 		})
 		return updateErr
 	})

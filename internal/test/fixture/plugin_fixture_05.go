@@ -337,6 +337,9 @@ func p05DestGotRoute(status string, value any) bool {
 
 func p05CommunityStrip(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "test-strip", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, plugin, "source-peer"); err != nil {
+			return err
+		}
 		if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != statusDone {
 			return fmt.Errorf("quiesce barrier did not settle: status=%q: %w", status, err)
 		}
@@ -398,9 +401,7 @@ func p05ConfigAddpathMode(ctx context.Context, args []string) error {
 
 func p05ConfigAdjRIB(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "adj-rib-test", func(ctx context.Context, plugin *sdk.Plugin) error {
-		if !Poll(ctx, 40, 200*time.Millisecond, func() bool {
-			return p05PeerCounter(ctx, plugin, "peer1", "eor-sent") >= 1
-		}) {
+		if !plugin01WaitCounter(ctx, plugin, "peer1", "eor-sent", 1, 40) {
 			return errors.New("peer1 initial-sync EOR never reached the wire")
 		}
 		if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != statusDone {
@@ -506,9 +507,7 @@ func p05ConfigExtNexthop(ctx context.Context, args []string) error {
 
 func p05ConfigGroupUpdates(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "group-test", func(ctx context.Context, plugin *sdk.Plugin) error {
-		if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
-			return p05PeerCounter(ctx, plugin, "peer1", "eor-sent") >= 1
-		}) {
+		if !plugin01WaitCounter(ctx, plugin, "peer1", "eor-sent", 1, 50) {
 			return errors.New("peer1 initial-sync EOR never reached the wire")
 		}
 		if _, err := p05RequireStatus(ctx, plugin, "show bgp peer peer1 detail", "done"); err != nil {
@@ -566,6 +565,9 @@ func p05PollDone(ctx context.Context, plugin *sdk.Plugin, command string) (any, 
 
 func p05CoSDynamicCoA(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "cos-dynamic-coa-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		value, err := p05PollDone(ctx, plugin, "show class-of-service")
 		if err != nil {
 			return err
@@ -580,6 +582,9 @@ func p05CoSDynamicCoA(ctx context.Context, args []string) error {
 
 func p05CoSDynamicSession(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "cos-dynamic-session-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		value, err := p05PollDone(ctx, plugin, "show class-of-service")
 		if err != nil {
 			return err
@@ -614,9 +619,7 @@ func p05CoSDynamicSession(ctx context.Context, args []string) error {
 
 func p05CursorReplay(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "cursor-test", func(ctx context.Context, plugin *sdk.Plugin) error {
-		if !Poll(ctx, 60, 200*time.Millisecond, func() bool {
-			return p05PeerCounter(ctx, plugin, "peer1", "eor-sent") >= 1
-		}) {
+		if !plugin01WaitCounter(ctx, plugin, "peer1", "eor-sent", 1, 60) {
 			return errors.New("peer1 never sent its initial-sync End-of-RIB")
 		}
 		commands := []string{
@@ -675,6 +678,13 @@ func p05CustomFlowspecPlugin(ctx context.Context, args []string) error {
 		if _, _, err := plugin.UpdateRoute(ctx, "*", "update text origin igp local-preference 100 nhop 1.2.3.4 nlri add 77.77.77.0/24"); err != nil {
 			return err
 		}
+		if !Poll(ctx, 40, plugin01PollDelay, func() bool {
+			sent, sentOK := fixture10PeerCounter(ctx, plugin, "peer1", "updates-sent")
+			eor, eorOK := fixture10PeerCounter(ctx, plugin, "peer1", "eor-sent")
+			return sentOK && eorOK && sent-eor >= 1
+		}) {
+			return errors.New("peer1 never received the custom-plugin marker")
+		}
 		_, _, err := plugin.DispatchCommand(ctx, "request quiesce")
 		return err
 	})
@@ -682,6 +692,9 @@ func p05CustomFlowspecPlugin(ctx context.Context, args []string) error {
 
 func p05DDoSFlowRecent(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "flow-recent-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		for _, command := range []string{"show flow recent", "show flow recent dst 203.0.113.0/24"} {
 			value, err := p05RequireStatus(ctx, plugin, command, "done")
 			if err != nil {
@@ -713,6 +726,13 @@ func p05DDoSFlowspecAnnounce(ctx context.Context, args []string) error {
 			if _, _, err := plugin.UpdateRoute(ctx, "*", command); err != nil {
 				return err
 			}
+		}
+		if !Poll(ctx, 40, plugin01PollDelay, func() bool {
+			sent, sentOK := fixture10PeerCounter(ctx, plugin, "peer1", "updates-sent")
+			eor, eorOK := fixture10PeerCounter(ctx, plugin, "peer1", "eor-sent")
+			return sentOK && eorOK && sent-eor >= 2
+		}) {
+			return errors.New("peer1 never received both DDoS announcements")
 		}
 		// The former wait-for-ack contract was deliberately best effort.
 		_, _, _ = plugin.DispatchCommand(ctx, "request quiesce")
@@ -770,7 +790,10 @@ func p05ConcurrentConfigCommit(ctx context.Context, args []string) error {
 	driverDone := make(chan error, 1)
 	plugin.OnAllPluginsReady(func() error {
 		go func() {
-			driverErr := p05DriveRESTCommits(ctx, port)
+			driverErr := p12WaitPeersEOR(ctx, plugin, "peer1")
+			if driverErr == nil {
+				driverErr = p05DriveRESTCommits(ctx, port)
+			}
 			_, _, shutdownErr := plugin.DispatchCommand(ctx, "request shutdown")
 			driverDone <- errors.Join(driverErr, shutdownErr)
 		}()

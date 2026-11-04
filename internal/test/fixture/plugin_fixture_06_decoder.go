@@ -39,6 +39,13 @@ func fixture06DecodeMPReach(ctx context.Context, p *sdk.Plugin) error {
 	if announced != 1 {
 		return fmt.Errorf("decoded MP_REACH route announced %d NLRIs, want 1", announced)
 	}
+	if !Poll(ctx, 40, plugin01PollDelay, func() bool {
+		sent, sentOK := fixture10PeerCounter(ctx, p, "peer1", "updates-sent")
+		eor, eorOK := fixture10PeerCounter(ctx, p, "peer1", "eor-sent")
+		return sentOK && eorOK && sent-eor >= 1
+	}) {
+		return errors.New("peer1 never received the decoded MP_REACH route")
+	}
 	return nil
 }
 
@@ -63,6 +70,13 @@ func fixture06DecodeMPUnreach(ctx context.Context, p *sdk.Plugin) error {
 	}
 	if announced != 1 {
 		return fmt.Errorf("decoded MP_UNREACH route announced %d NLRIs, want 1", announced)
+	}
+	if !Poll(ctx, 40, plugin01PollDelay, func() bool {
+		sent, sentOK := fixture10PeerCounter(ctx, p, "peer1", "updates-sent")
+		eor, eorOK := fixture10PeerCounter(ctx, p, "peer1", "eor-sent")
+		return sentOK && eorOK && sent-eor >= 1
+	}) {
+		return errors.New("peer1 never received the decoded MP_UNREACH route")
 	}
 	return nil
 }
@@ -122,10 +136,20 @@ func fixture06DecodeUpdate(ctx context.Context, p *sdk.Plugin) error {
 	if announced != 1 {
 		return fmt.Errorf("decoded UPDATE announced %d NLRIs, want 1", announced)
 	}
+	if !Poll(ctx, 40, plugin01PollDelay, func() bool {
+		sent, sentOK := fixture10PeerCounter(ctx, p, "peer1", "updates-sent")
+		eor, eorOK := fixture10PeerCounter(ctx, p, "peer1", "eor-sent")
+		return sentOK && eorOK && sent-eor >= 1
+	}) {
+		return errors.New("peer1 never received the decoded UPDATE route")
+	}
 	return nil
 }
 
 func fixture06DiagCapture(ctx context.Context, p *sdk.Plugin) error {
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
+	}
 	show, err := fixture06DispatchObject(ctx, p, "show capture l2tp")
 	if err != nil {
 		return err

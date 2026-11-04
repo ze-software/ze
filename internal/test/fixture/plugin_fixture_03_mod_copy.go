@@ -51,5 +51,8 @@ func bgpRSModCopy03(ctx context.Context, p *sdk.Plugin) error {
 	if _, _, err := p.UpdateRoute(ctx, addrLoopback, "update text origin igp nhop 1.1.1.1 nlri add 192.0.3.0/24"); err != nil {
 		return fmt.Errorf("mod-copy: complete source after recipient delivery: %w", err)
 	}
+	if !plugin01WaitCounter(ctx, p, "source-peer", "updates-sent", 3, 40) {
+		return fmt.Errorf("mod-copy: source never received both fences after its EOR")
+	}
 	return nil
 }

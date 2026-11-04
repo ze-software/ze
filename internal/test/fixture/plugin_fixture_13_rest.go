@@ -79,6 +79,9 @@ func decodeObject13(raw []byte) (map[string]any, error) {
 
 func restAPICommands13(ctx context.Context, args []string) error {
 	return observe13(ctx, "rest-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		const base = "http://127.0.0.1:18081/api/v1"
 		commandsResult, ok := waitHTTP13(ctx, base+"/commands", nil, 20, 500*time.Millisecond)
 		if !ok {
@@ -148,6 +151,9 @@ func requireBGPPeerSummary13(value any, address string) error {
 
 func restExecute13(ctx context.Context, args []string) error {
 	return observe13(ctx, "rest-exec-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		const base = "http://127.0.0.1:18082/api/v1"
 		if _, ok := waitHTTP13(ctx, base+"/commands", nil, 20, 500*time.Millisecond); !ok {
 			return errors.New("REST API did not respond within timeout")

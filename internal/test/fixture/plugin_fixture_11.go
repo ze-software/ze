@@ -446,6 +446,9 @@ func routeCountAtLeastOne(name, output string) Driver {
 func prefixCountExact(expected int, control bool, label string) Driver {
 	return func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "prefix-count-"+label, &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+			if err := p12WaitPeersEOR(ctx, p, "peer1"); err != nil {
+				return err
+			}
 			if control {
 				var count int
 				if !Poll(ctx, 60, 250*time.Millisecond, func() bool { count, _ = routeCount(ctx, p, "show bgp rib received count"); return count >= 1 }) {
@@ -475,6 +478,9 @@ func prefixCountExact(expected int, control bool, label string) Driver {
 func prefixCountBounded(maximum int, label string) Driver {
 	return func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "prefix-count-"+label, &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+			if err := p12WaitPeersEOR(ctx, p, "peer1"); err != nil {
+				return err
+			}
 			var count int
 			if !Poll(ctx, 60, 250*time.Millisecond, func() bool { count, _ = routeCount(ctx, p, "show bgp rib received count"); return count >= 1 }) {
 				return errors.New("the control route never reached the RIB")

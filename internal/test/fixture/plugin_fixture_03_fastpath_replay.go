@@ -44,5 +44,5 @@ func bgpRSFastpathReplay03(ctx context.Context, p *sdk.Plugin) error {
 	if number03(status["replayed"]) != 1 {
 		return fmt.Errorf("enable replayed %v routes from the Loc-RIB, want 1: %v", status["replayed"], value)
 	}
-	return nil
+	return p12WaitPeersEOR(ctx, p, "test-peer")
 }

@@ -295,6 +295,9 @@ func l2tpConfigShow09(ctx context.Context, _ []string) error {
 
 func l2tpEmptyShow09(ctx context.Context, _ []string) error {
 	return observe09(ctx, "l2tp-empty-show-test", func(ctx context.Context, p *sdk.Plugin) error {
+		if err := waitL2TPBGPEOR09(ctx, p); err != nil {
+			return err
+		}
 		r := dispatch09(ctx, p, "show l2tp")
 		summary := map09(r.data)
 		if !done09(r) || number09(summary["tunnel-count"]) != 0 || number09(summary["session-count"]) != 0 || number09(summary["listener-count"]) != 1 {
@@ -392,8 +395,8 @@ func l2tpTunnelDetailShow09(ctx context.Context, _ []string) error {
 		if err := l2tpWriteExit09(); err != nil {
 			return fmt.Errorf("signal L2TP peer exit: %w", err)
 		}
-		if !Poll(ctx, 20, 250*time.Millisecond, func() bool { return bgpEORSent09(dispatch09(ctx, p, "show bgp"), 1) }) {
-			return fmt.Errorf("ze never sent its BGP End-of-Rib before shutdown")
+		if err := waitL2TPBGPEOR09(ctx, p); err != nil {
+			return err
 		}
 		return nil
 	})

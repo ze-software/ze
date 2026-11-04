@@ -176,6 +176,9 @@ func announceWithdraw09(family, add, del string) Driver {
 
 func interfaceTypeShow09(ctx context.Context, _ []string) error {
 	return observe09(ctx, "interface-type-show-test", func(ctx context.Context, p *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, p, "peer1"); err != nil {
+			return err
+		}
 		all := dispatch09(ctx, p, "show interface")
 		rows := list09(all.data)
 		if !done09(all) || len(rows) == 0 {
@@ -260,6 +263,9 @@ func lgInjectRoutes09(name string) Driver {
 
 func lgCSVDownload09(ctx context.Context, _ []string) error {
 	return observe09(ctx, "lg-csv", func(ctx context.Context, p *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, p, "peer1"); err != nil {
+			return err
+		}
 		const peer = "10.0.1.1"
 		if err := injectRoute09(ctx, p, peer, "10.20.0.0/24"); err != nil {
 			return err

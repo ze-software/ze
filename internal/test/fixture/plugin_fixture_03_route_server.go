@@ -145,7 +145,7 @@ func bgpRSFastpath03(ctx context.Context, p *sdk.Plugin) error {
 	}) {
 		return fmt.Errorf("fast path read no forward-handle bytes, last status: %v", last)
 	}
-	return nil
+	return p12WaitPeersEOR(ctx, p, "test-peer")
 }
 
 func bgpRSPprof03(ctx context.Context, p *sdk.Plugin, port string) error {

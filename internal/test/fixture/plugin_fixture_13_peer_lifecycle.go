@@ -71,6 +71,9 @@ func peerCreateDeleteRIB13(ctx context.Context, args []string) error {
 		if !lifecycleWaitEstablished(ctx, plugin, lifecycleConfiguredPeer) {
 			return errors.New("the configured peer never reached established")
 		}
+		if err := waitEORSent13(ctx, plugin, "dest-peer"); err != nil {
+			return err
+		}
 		if _, ok := waitHTTP13(ctx, driver.base+"/commands", driver.headers, 50, 300*time.Millisecond); !ok {
 			return errors.New("REST API did not respond")
 		}
@@ -120,7 +123,7 @@ func lifecycleCreate(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("the created peer %s never reached established", lifecycleCreatedPeer)
 	}
 	fmt.Fprintln(os.Stderr, "OK: the created peer is listed and established")
-	return nil
+	return waitEORSent13(ctx, plugin, lifecycleCreatedPeer)
 }
 
 // lifecycleRoutesReachTheRIB holds AC-2: the route the created peer announces

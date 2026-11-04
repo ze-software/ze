@@ -102,6 +102,9 @@ func plugin01SaveCreatesAPeer(ctx context.Context, plugin *sdk.Plugin) error {
 // plugin01SaveDeletesAPeer holds AC-11: a peer the file declares that was
 // deleted at runtime leaves the file, and the saved peer stays in it.
 func plugin01SaveDeletesAPeer(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
+		return err
+	}
 	if _, err := plugin01RequireDone(ctx, plugin, "delete bgp peer 127.0.0.1"); err != nil {
 		return err
 	}

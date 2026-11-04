@@ -46,6 +46,9 @@ func fixture06MatchingErrors(entries []any, match func(map[string]any) bool) []m
 
 func fixture06ErrorsConfigAbort(ctx context.Context, p *sdk.Plugin) error {
 	p.OnConfigVerify(func([]sdk.ConfigSection) error { return errors.New("test plugin rejects reload") })
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
+	}
 	match := func(entry map[string]any) bool {
 		return entry["source"] == sourceConfig && entry["code"] == "commit-aborted"
 	}
