@@ -54,6 +54,7 @@ func buildGuestLe(ctx context.Context, root, goarch string) error {
 		return err
 	}
 	admission.Out = os.Stderr
+	admission.OwnProcessGroup = true
 
 	output := filepath.Join(root, GuestLeRel(goarch))
 	environment := append(toolchain.EnvironmentContext(ctx, gotoolchain.EnvOptions{GOOS: guestOS, GOARCH: goarch}),
@@ -93,7 +94,7 @@ const guestJobParentName = "host-job"
 
 // guestJobParentEntry is the body of every stand-in parent entry a guest
 // names: the label job.insideParent reports as the slot it runs inside.
-const guestJobParentEntry = "LABEL=qemu (held by the host)\n"
+const guestJobParentEntry = "LABEL=qemu-held-by-host\n"
 
 // guestRunJobParent is the stand-in the `test qemu run` setup writes in the
 // guest's own /tmp, never in the shared checkout, and names as the guest

@@ -6,6 +6,7 @@
 package testqemu
 
 import (
+	"context"
 	"os"
 	"strings"
 
@@ -48,8 +49,8 @@ var runSelf = os.Executable
 //   - KindClaimed: the slot is ours. The run re-executes this command as a
 //     child, because the slot's log MUST grow while it is held and the harness
 //     writes to this process's stdout and stderr. The child finds the entry
-//     job.RunClaimed names and answers KindInside.
-func admitQEMURun(root string, argv []string, run func() (any, int)) (any, int) {
+//     job.RunClaimedContext names and answers KindInside.
+func admitQEMURun(ctx context.Context, root string, argv []string, run func() (any, int)) (any, int) {
 	admission, err := job.NewIn(root)
 	if err != nil {
 		leaction.ReportError(err)
@@ -58,7 +59,7 @@ func admitQEMURun(root string, argv []string, run func() (any, int)) (any, int) 
 	admission.Out = os.Stderr
 	admission.MayAttach = false
 
-	ticket, err := admission.Admit(runJobLabel, argv)
+	ticket, err := admission.AdmitContext(ctx, runJobLabel, argv)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, gaterun.CannotStart
@@ -67,7 +68,7 @@ func admitQEMURun(root string, argv []string, run func() (any, int)) (any, int) 
 	case job.KindInside:
 		return run()
 	case job.KindClaimed:
-		return nil, runQEMUClaimed(admission, ticket, argv)
+		return nil, runQEMUClaimed(ctx, admission, ticket, argv)
 	case job.KindUnspecified, job.KindAttached, job.KindUnadmitted:
 	}
 	panic("BUG: a qemu run that may not attach was answered a ticket of kind " + ticket.Kind.String())
@@ -75,7 +76,7 @@ func admitQEMURun(root string, argv []string, run func() (any, int)) (any, int) 
 
 // runQEMUClaimed re-executes the run whose words follow argv[0] as a child in
 // the slot the ticket holds. The ticket is released on every path.
-func runQEMUClaimed(admission *job.Admission, ticket *job.Ticket, argv []string) int {
+func runQEMUClaimed(ctx context.Context, admission *job.Admission, ticket *job.Ticket, argv []string) int {
 	self, err := runSelf()
 	if err != nil {
 		ticket.Release(gaterun.CannotStart)
@@ -91,7 +92,7 @@ func runQEMUClaimed(admission *job.Admission, ticket *job.Ticket, argv []string)
 	child := make([]string, 0, len(argv))
 	child = append(child, self)
 	child = append(child, argv[1:]...)
-	return admission.RunClaimed(ticket, child, dir, nil)
+	return admission.RunClaimedContext(ctx, ticket, child, dir, nil)
 }
 
 // runArgv spells a parsed `test qemu run` line back as the words that typed

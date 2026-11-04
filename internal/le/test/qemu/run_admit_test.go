@@ -77,7 +77,7 @@ func TestAdmitQEMURunRunsInsideAParent(t *testing.T) {
 	}
 	nameParent(t, entry)
 	ran := false
-	_, code := admitQEMURun(t.TempDir(), []string{"le", "test", "qemu", "run", "command", "true"},
+	_, code := admitQEMURun(t.Context(), t.TempDir(), []string{"le", "test", "qemu", "run", "command", "true"},
 		func() (any, int) { ran = true; return nil, 3 })
 	if !ran {
 		t.Fatal("the run did not run inside its parent's slot")

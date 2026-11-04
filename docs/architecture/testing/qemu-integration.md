@@ -190,6 +190,25 @@ first test. The run never attaches to another run's verdict: its kernel image
 and cross-built binaries are untracked, so equal words over an equal tree can
 still judge different code.
 
+The host invocation establishes one signal root before admission or the guest-le
+build. SIGINT, SIGTERM and SIGHUP cancel its own admission wait, active build or
+VM lifecycle. A claimed slot's reexecuted child runs through
+`Admission.RunClaimedContext`: the host joins it before releasing that ticket,
+and retains the originating signal's exit status. An inherited parent slot
+remains owned by its parent; canceling a waiter never releases another holder.
+The guest-le compiler explicitly runs in an owned noninteractive process group
+with no terminal input. Cancellation sends its leader TERM and grants the
+runner's existing ten-second grace; group cleanup also stops compiler tools
+before the Go leader is reaped. Admission joins that cleanup before releasing
+its ticket. This compiler-only policy does not change generic job stdin,
+terminal-attached commands, or the QEMU action's self-reexecution.
+This is a cancellation contract for the legacy Alpine route, not evidence that
+Ze's own system booted or that a guest test executed.
+<!-- source: internal/le/test/qemu/actions.go -- runQEMUHere, runQEMUInSlot -->
+<!-- source: internal/le/job/job.go -- Admission.RunClaimedContext -->
+<!-- source: internal/le/job/nonterminal.go -- Admission.streamNonterminal -->
+<!-- source: internal/le/test/qemu/guestle.go -- buildGuestLe -->
+
 <!-- source: internal/le/test/qemu/run_admit.go -- admitQEMURun, runArgv -->
 <!-- source: internal/le/test/qemu/guestle.go -- guestRunParentSetup, guestRunJobParent -->
 

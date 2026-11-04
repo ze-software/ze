@@ -355,27 +355,21 @@ func runQEMUHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return admitQEMURun(root, runArgv(args), func() (any, int) { return runQEMUInSlot(root, options) })
-}
-
-// runQEMUInSlot runs the host harness over this checkout. The caller holds the
-// job slot the run uses, or runs inside its parent's.
-func runQEMUInSlot(root string, options RunOptions) (any, int) {
-	// The guest runs every harness command as `le test <name>` from this
-	// build, so the harness it runs is the harness of this checkout.
-	if err := buildGuestLe(context.Background(), root, GuestArch()); err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-
+	// One root owns admission, the guest build and the VM. Establish it before
+	// any of those phases, including a wait behind another host job.
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	signals := make(chan os.Signal, 1)
 	received := make(chan os.Signal, 1)
+	done := make(chan struct{})
 	// SIGHUP too: a closed terminal stops the run the same way (guestContext).
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
-	defer signal.Stop(signals)
+	defer func() {
+		signal.Stop(signals)
+		cancel()
+		<-done
+	}()
 	go func() {
+		defer close(done)
 		select {
 		case caught := <-signals:
 			received <- caught
@@ -384,17 +378,28 @@ func runQEMUInSlot(root string, options RunOptions) (any, int) {
 		}
 	}()
 
-	report, runErr := NewRun(root, options).Execute(ctx)
+	report, code := admitQEMURun(ctx, root, runArgv(args), func() (any, int) {
+		return runQEMUInSlot(ctx, root, options)
+	})
 	select {
 	case caught := <-received:
-		// The error says how the guest command ended, which the exit code
-		// alone does not (stopGuestCommand).
-		if runErr != nil {
-			leaction.ReportError(runErr)
-		}
 		return nil, signalExitCode(caught)
 	default:
+		return report, code
 	}
+}
+
+// runQEMUInSlot runs the host harness over this checkout under the caller's
+// invocation root. The caller holds the job slot or runs inside its parent's.
+func runQEMUInSlot(ctx context.Context, root string, options RunOptions) (any, int) {
+	// The guest runs every harness command as `le test <name>` from this
+	// build, so the harness it runs is the harness of this checkout.
+	if err := buildGuestLe(ctx, root, GuestArch()); err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+
+	report, runErr := NewRun(root, options).Execute(ctx)
 	if runErr != nil {
 		leaction.ReportError(runErr)
 		return nil, 1

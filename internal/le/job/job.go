@@ -243,6 +243,11 @@ type Admission struct {
 	// that requires an independent answer sets it to false. This setting causes
 	// a duplicate run and does not use a shared verdict.
 	MayAttach bool
+	// OwnProcessGroup opts a noninteractive command into owned group cleanup.
+	// The caller MUST supply its cancellation root and MUST NOT require terminal
+	// stdin. Admission MUST join the group owner before releasing its ticket.
+	// The default preserves the command's inherited terminal and stdin.
+	OwnProcessGroup bool
 	// Out is where the job's output goes, a followed job's replayed log
 	// included.
 	Out io.Writer
@@ -486,6 +491,12 @@ func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
 	return a.admit(context.Background(), label, argv)
 }
 
+// AdmitContext is Admit under the caller's cancellation root. A caller holding
+// a claimed ticket MUST release it exactly once, after its owned work is joined.
+func (a *Admission) AdmitContext(ctx context.Context, label string, argv []string) (*Ticket, error) {
+	return a.admit(ctx, label, argv)
+}
+
 // admit is Admit under ctx: a done ctx ends the wait for a slot with ctx's
 // error, so a verb's signal root is not held up by a queue it cannot see.
 func (a *Admission) admit(ctx context.Context, label string, argv []string) (*Ticket, error) {
@@ -704,6 +715,15 @@ func (a *Admission) RunClaimed(ticket *Ticket, argv []string, dir string, enviro
 	return a.runClaimed(context.Background(), ticket, argv, dir, environ)
 }
 
+// RunClaimedContext is RunClaimed under the caller's cancellation root. A done
+// context stops admission's child and joins it before releasing the slot.
+//
+// The caller MUST supply a KindClaimed ticket and MUST NOT release it: this
+// function MUST release it after joining the child, including cancellation.
+func (a *Admission) RunClaimedContext(ctx context.Context, ticket *Ticket, argv []string, dir string, environ []string) int {
+	return a.runClaimed(ctx, ticket, argv, dir, environ)
+}
+
 // runClaimed is RunClaimed with the child under ctx (stream).
 func (a *Admission) runClaimed(ctx context.Context, ticket *Ticket, argv []string, dir string, environ []string) int {
 	if ticket == nil || ticket.Kind != KindClaimed {
@@ -773,10 +793,9 @@ const ParentVariable = "ZE_RUN_JOB"
 // forwards a signal to the child, so the job releases its slot. The exit-code
 // rule comes from gaterun.
 //
-// A done ctx starts no child, and sends a running one SIGTERM (cmd.Cancel)
-// rather than the default SIGKILL: the same signal forwardSignals relays, so
-// the child ends as it would on a Ctrl-C, its grandchildren close the log
-// pipe as they finish, and Wait answers its code.
+// A done ctx starts no child. The default terminal-safe path sends a running
+// child TERM and waits for that child. Noninteractive compilers explicitly opt
+// into OwnProcessGroup so descendants cannot outlive that wait.
 func (a *Admission) stream(ctx context.Context, argv []string, dir string, environ []string, logFile io.Writer) int {
 	if len(argv) == 0 {
 		a.note("error: a job declared no command to run")
@@ -799,14 +818,27 @@ func (a *Admission) stream(ctx context.Context, argv []string, dir string, envir
 	// stop the child but leave its grandchildren holding the log pipe open.
 	// internal/le/test/functional runs every suite under `timeout` to prevent
 	// that failure.
+	runContext := ctx
+	if a.OwnProcessGroup {
+		if ctx.Err() != nil {
+			return gaterun.CannotStart
+		}
+		// streamNonterminal observes the original root and grants the existing
+		// TERM grace, rather than racing exec's immediate context cancellation.
+		runContext = context.WithoutCancel(ctx)
+	}
 	//nolint:gosec // argv is what the caller asked to run; le is a build-host tool driven by a developer's argv
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd := exec.CommandContext(runContext, argv[0], argv[1:]...)
 	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
 	cmd.Dir = dir
 	cmd.Env = environ
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = out
 	cmd.Stderr = out
+	if a.OwnProcessGroup {
+		cmd.Stdin = nil
+		return a.streamNonterminal(ctx, cmd)
+	}
 
 	if err := cmd.Start(); err != nil {
 		if ctx.Err() != nil {
