@@ -178,16 +178,28 @@ func (s *Sets) StripsAnyFamily() bool {
 	return s.intents.familiesN > 0
 }
 
+// canMerge checks every intent capacity before Sets.merge changes any field.
+func (i *intents) canMerge(later *intents) error {
+	if int(i.prepend)+int(later.prepend) > ASPathPrependMax {
+		return fmt.Errorf("as-path prepend of %d copies exceeds %d", int(i.prepend)+int(later.prepend), ASPathPrependMax)
+	}
+	families := int(i.familiesN)
+	for _, fam := range later.families[:later.familiesN] {
+		if !slices.Contains(i.families[:i.familiesN], fam) {
+			families++
+		}
+	}
+	if families > familiesStripMax {
+		return ErrTooManyFamilies
+	}
+	return nil
+}
+
 // merge folds a later member's intents onto i: prepends add up, a later
 // remove-private mode replaces an earlier one, drops and stripped families
-// accumulate.
-func (i *intents) merge(later *intents) error {
-	if later.prepend > 0 {
-		if int(i.prepend)+int(later.prepend) > ASPathPrependMax {
-			return fmt.Errorf("as-path prepend of %d copies exceeds %d", int(i.prepend)+int(later.prepend), ASPathPrependMax)
-		}
-		i.prepend += later.prepend
-	}
+// accumulate. Sets.merge MUST have called canMerge before any field changes.
+func (i *intents) merge(later *intents) {
+	i.prepend += later.prepend
 	if later.removePrivate != RemovePrivateUnspecified {
 		i.removePrivate = later.removePrivate
 	}
@@ -198,11 +210,7 @@ func (i *intents) merge(later *intents) error {
 		if slices.Contains(i.families[:i.familiesN], fam) {
 			continue
 		}
-		if int(i.familiesN) == familiesStripMax {
-			return ErrTooManyFamilies
-		}
 		i.families[i.familiesN] = fam
 		i.familiesN++
 	}
-	return nil
 }

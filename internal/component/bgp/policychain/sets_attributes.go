@@ -64,7 +64,8 @@ func (l *valueList[T]) removes(value T) bool {
 
 // merge folds a later member's list onto l as Sets.merge folds COMMUNITY: a
 // later remove cancels an earlier add, and the later adds come after.
-func (l *valueList[T]) merge(later *valueList[T]) error {
+// Sets.merge MUST have checked both lists' combined capacity first.
+func (l *valueList[T]) merge(later *valueList[T]) {
 	for _, value := range later.remove[:later.removeN] {
 		kept := uint8(0)
 		for _, added := range l.add[:l.addN] {
@@ -74,16 +75,13 @@ func (l *valueList[T]) merge(later *valueList[T]) error {
 			}
 		}
 		l.addN = kept
-		if err := l.removeValue(value); err != nil {
-			return err
-		}
+		l.remove[l.removeN] = value
+		l.removeN++
 	}
 	for _, value := range later.add[:later.addN] {
-		if err := l.addValue(value); err != nil {
-			return err
-		}
+		l.add[l.addN] = value
+		l.addN++
 	}
-	return nil
 }
 
 // Origin records an ORIGIN replacement (RFC 4271 Section 5.1.1).
@@ -164,8 +162,8 @@ func (s *Sets) RemoveExtendedCommunity(community attribute.ExtendedCommunity) er
 
 // mergeAttributes folds a later member's attribute sets onto s: a later
 // replacement wins, AIGP folds as the numeric fields do, and the two lists
-// fold as COMMUNITY does.
-func (s *Sets) mergeAttributes(later *Sets) error {
+// fold as COMMUNITY does. Sets.merge MUST have checked list capacity first.
+func (s *Sets) mergeAttributes(later *Sets) {
 	if later.written&setKindOrigin.bit() != 0 {
 		s.origin = later.origin
 	}
@@ -175,10 +173,8 @@ func (s *Sets) mergeAttributes(later *Sets) error {
 	if later.written&setKindAIGP.bit() != 0 {
 		s.aigp = foldNumeric(s.aigp, later.aigp)
 	}
-	if err := s.large.merge(&later.large); err != nil {
-		return err
-	}
-	return s.extended.merge(&later.extended)
+	s.large.merge(&later.large)
+	s.extended.merge(&later.extended)
 }
 
 // resolveAIGP answers the AIGP metric set gives a route whose metric is
@@ -258,7 +254,7 @@ func (s *Sets) appendAttributesText(buf []byte) []byte {
 		buf = netip.AddrFrom4(s.nextHop).AppendTo(appendWord(buf, "next-hop "))
 	}
 	if s.written&setKindAIGP.bit() != 0 {
-		buf = appendNumericText(buf, "aigp", s.aigp)
+		buf = appendNumericText(buf, "aigp", s.aigp.replace, s.aigp.metric, s.aigp.delta)
 	}
 	for _, community := range s.large.remove[:s.large.removeN] {
 		buf = appendLargeText(appendWord(buf, "large-community remove"), community)

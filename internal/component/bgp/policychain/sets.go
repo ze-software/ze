@@ -293,8 +293,12 @@ func (s *Sets) RemoveCommunity(community uint32) error {
 
 // merge folds a later member's sets onto s: numeric sets fold in order, and
 // community additions and removals accumulate, a later remove canceling an
-// earlier add.
+// earlier add. It MUST check every bounded list and intent before changing
+// any field, so an error leaves all earlier members' sets intact.
 func (s *Sets) merge(later *Sets) error {
+	if err := s.canMerge(later); err != nil {
+		return err
+	}
 	if later.written&setKindLocalPreference.bit() != 0 {
 		s.localPreference = foldNumeric(s.localPreference, later.localPreference)
 	}
@@ -305,26 +309,61 @@ func (s *Sets) merge(later *Sets) error {
 		// A later remove cancels an earlier add: the handler removes from the
 		// source alone and appends every add, so the add would survive it.
 		s.cancelCommunityAdd(community)
-		if err := s.RemoveCommunity(community); err != nil {
-			return err
-		}
+		s.communityRemove[s.communityRemN] = community
+		s.communityRemN++
 	}
 	// The later member's own adds come after its removes, as the handler
 	// applies one member's operations: a value it both removes and adds stays.
 	for _, community := range later.communityAdd[:later.communityAddN] {
-		if err := s.AddCommunity(community); err != nil {
-			return err
-		}
+		s.communityAdd[s.communityAddN] = community
+		s.communityAddN++
 	}
-	if err := s.intents.merge(&later.intents); err != nil {
-		return err
-	}
-	if err := s.mergeAttributes(later); err != nil {
-		return err
-	}
+	s.intents.merge(&later.intents)
+	s.mergeAttributes(later)
 	s.mergeAttributeNumbers(later)
 	s.mergeTreatments(later)
 	s.written |= later.written
+	return nil
+}
+
+// canMerge checks the three community lists and the named intents without
+// touching the folded arrays or drop slices a later member still depends on.
+func (s *Sets) canMerge(later *Sets) error {
+	if err := canMergeList(s.communityAdd[:s.communityAddN], later.communityAdd[:later.communityAddN],
+		later.communityRemove[:later.communityRemN], int(s.communityRemN)); err != nil {
+		return err
+	}
+	if err := canMergeList(s.large.add[:s.large.addN], later.large.add[:later.large.addN],
+		later.large.remove[:later.large.removeN], int(s.large.removeN)); err != nil {
+		return err
+	}
+	if err := canMergeList(s.extended.add[:s.extended.addN], later.extended.add[:later.extended.addN],
+		later.extended.remove[:later.extended.removeN], int(s.extended.removeN)); err != nil {
+		return err
+	}
+	return s.intents.canMerge(&later.intents)
+}
+
+// canMergeList counts additions after later removes cancel earlier adds.
+// Lists have at most communitiesMax entries on either side.
+func canMergeList[T comparable](earlierAdd, laterAdd, laterRemove []T, earlierRemN int) error {
+	if len(laterAdd) == 0 {
+		if len(laterRemove) == 0 {
+			return nil
+		}
+	}
+	if earlierRemN+len(laterRemove) > communitiesMax {
+		return ErrTooManyCommunities
+	}
+	adds := len(laterAdd)
+	for _, value := range earlierAdd {
+		if !slices.Contains(laterRemove, value) {
+			adds++
+		}
+	}
+	if adds > communitiesMax {
+		return ErrTooManyCommunities
+	}
 	return nil
 }
 

@@ -154,7 +154,7 @@ func readMetadata(m Metadata) readFunc {
 			}
 		case MetadataOctet:
 			if octet, ok := raw.(uint8); ok {
-				return Value{present: true, number: uint64(octet)}, nil
+				return Value{present: true, number: uint64(octet), numbered: true}, nil
 			}
 		case MetadataFlag:
 			if flag, ok := raw.(bool); ok {

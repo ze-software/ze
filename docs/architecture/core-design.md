@@ -1790,6 +1790,9 @@ Ze has no field to send it, so such a member fails every route under
   the base in `bgp { defaults { attribute { } } }` (`parseAttributeBases`, each
   absent leaf at its YANG default). A decrement clamps at zero, and an
   increment clamps at 4294967295.
+  ORIGIN and AIGP overlays keep their typed number beside their wire bytes
+  (`View.SetWireNumber`), so later numeric reads and AIGP arithmetic use the
+  preceding member's value without decoding the overlay again.
 - **Named intents, resolved by the reactor.** A change that needs state no
   member holds is a named intent on `Sets` (`intents.go`):
   `PrependASPath` (the local AS, 1 to 32 copies over the whole chain),
@@ -1865,7 +1868,14 @@ Ze has no field to send it, so such a member fails every route under
   (`RunSets.Failures`), which logs it once at Warn naming the peer whose route
   failed: the chain does not know the session. Fail-closed rejects
   the route as a failure rather than a policy decision; fail-open passes it on
-  with none of that member's sets. A member whose evaluation panics fails the
+  with none of that member's sets. This includes a failure after an earlier
+  overlay succeeded or while the sets fold: the view journals only replaced
+  cache slots and shared NLRI state, and the run restores its scalar attribute
+  bytes, alternating-buffer positions and received-prefix state on refusal.
+  Failed candidates use the inactive buffers again, never the bytes an accepted
+  member still exposes. Folding checks every bounded community list and named
+  intent before changing the accumulated sets; metadata is written only after
+  the whole member succeeds. A member whose evaluation panics fails the
   same way: `judgeMember` recovers the panic on the judging goroutine, logs it
   with its stack, and answers it as the member's failure, so a defect in one
   evaluator never takes a session or forward worker down. An external member
@@ -1877,7 +1887,9 @@ Ze has no field to send it, so such a member fails every route under
   `PolicyDryRun` runs a library chain through `runLibraryChain` in that mode
   (`traceLibraryChain`), so the dry-run's decision, final and rewritten
   UPDATE are the live path's, and `Sets.AppendText` renders a member's sets
-  for its trace entry: a display, never a transport (D-11). The UPDATE
+  for its trace entry: a display, never a transport (D-11). AIGP's resolved
+  text uses its full eight-octet metric, while an unresolved increment or
+  decrement keeps its action text. The UPDATE
   before and after the chain, and each entry's rewrite, are shown by
   `routeDisplay` (`policy_dryrun_display.go`), read from the wire UPDATE and
   never sent to a filter. A policy with plugin filters and no library chain
@@ -1886,7 +1898,8 @@ Ze has no field to send it, so such a member fails every route under
   `MemberTrace.Apply` writes the sets folded so far, and
   `libraryTraceText` rebuilds them through `rewriteLibrary`, the builder
   `runLibraryChain` takes for the route. A single-filter override runs the
-  one member through `Chain.Only` under the policy's final. The run's session
+  one member through `Chain.Only` under the policy's final, with all of the
+  compiled attribute readers and a fresh refusal counter. The run's session
   is the one the live step builds (`dryRunSession`): on import the peer's
   session facts with a fresh writable metadata map, on export the
   destination's facts with no source peer, since a pasted UPDATE came from

@@ -328,6 +328,8 @@ type RunSets struct {
 	attributes attributeWire
 	// prefix holds the NLRI the prefix overlay answers a later member.
 	prefix prefixOverlay
+	// overlay journals a member until every overlay and the fold succeed.
+	overlay overlayState
 	// raw is the whole UPDATE body an external member's terminal rewrite
 	// answered (D-4), set only when the run accepts with it (Raw).
 	raw []byte
@@ -419,6 +421,7 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 			traceStep(record, m, TraceWithdraw, nil, nil)
 			return Outcome{Action: OutcomeWithdraw, Member: m.name}
 		}
+		sets.overlay.begin(view, sets)
 		err = c.overlayNumeric(view, &sets.member)
 		if err == nil {
 			err = c.overlayCommunity(view, sets)
@@ -435,17 +438,15 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		if err == nil {
 			err = metadataWritable(view, &sets.member)
 		}
+		if err == nil {
+			err = sets.folded.merge(&sets.member)
+		}
+		sets.overlay.end(view, sets, err == nil)
 		if err != nil {
 			if c.failure(m, onError, err, sets, record) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
 			continue // fail-open: none of the member's sets apply
-		}
-		if err := sets.folded.merge(&sets.member); err != nil {
-			if c.failure(m, onError, err, sets, record) {
-				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
-			}
-			continue
 		}
 		writeMetadata(view, &sets.member)
 		traceStep(record, m, TracePass, nil, &sets.member)

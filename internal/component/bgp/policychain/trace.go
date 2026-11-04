@@ -95,7 +95,8 @@ func (c *Chain) Only(name string) (*Chain, bool) {
 			continue
 		}
 		return &Chain{attachment: c.attachment, members: c.members[i : i+1 : i+1], final: c.final, unconfigured: c.unconfigured, bases: c.bases,
-			localPreference: c.localPreference, med: c.med, community: c.community, prefix: c.prefix}, true
+			localPreference: c.localPreference, med: c.med, community: c.community, prefix: c.prefix,
+			origin: c.origin, nextHop: c.nextHop, aigp: c.aigp, large: c.large, extended: c.extended}, true
 	}
 	return nil, false
 }
@@ -133,12 +134,12 @@ func traceRewrite(record func(MemberTrace), m *member, raw []byte) {
 // member's sets), else as its action. It is display only, never parsed back.
 func (s *Sets) AppendText(buf []byte) []byte {
 	if s.written&setKindLocalPreference.bit() != 0 {
-		buf = appendNumericText(buf, "local-preference", s.localPreference)
+		buf = appendNumericText(buf, "local-preference", s.localPreference.replace, uint64(s.localPreference.base), s.localPreference.delta)
 	}
 	if s.written&setKindMED.bit() != 0 && s.med.remove {
 		buf = appendWord(buf, "med remove")
 	} else if s.written&setKindMED.bit() != 0 {
-		buf = appendNumericText(buf, "med", s.med)
+		buf = appendNumericText(buf, "med", s.med.replace, uint64(s.med.base), s.med.delta)
 	}
 	for _, community := range s.communityRemove[:s.communityRemN] {
 		buf = appendCommunityText(appendWord(buf, "community remove"), community)
@@ -186,18 +187,20 @@ func appendWord(buf []byte, word string) []byte {
 	return append(buf, word...)
 }
 
-func appendNumericText(buf []byte, name string, n numericSet) []byte {
+// appendNumericText renders the field's own replacement width: LOCAL_PREF and
+// MED supply their base, and AIGP supplies its eight-octet metric.
+func appendNumericText(buf []byte, name string, replace bool, base uint64, delta int64) []byte {
 	buf = appendWord(buf, name)
-	if n.replace && n.delta == 0 {
-		return strconv.AppendUint(append(buf, ' '), uint64(n.base), 10)
+	if replace {
+		if delta == 0 {
+			return strconv.AppendUint(append(buf, ' '), base, 10)
+		}
+		buf = strconv.AppendUint(append(buf, " set "...), base, 10)
 	}
-	if n.replace {
-		buf = strconv.AppendUint(append(buf, " set "...), uint64(n.base), 10)
+	if delta >= 0 {
+		return strconv.AppendInt(append(buf, " increment "...), delta, 10)
 	}
-	if n.delta >= 0 {
-		return strconv.AppendInt(append(buf, " increment "...), n.delta, 10)
-	}
-	return strconv.AppendInt(append(buf, " decrement "...), -n.delta, 10)
+	return strconv.AppendInt(append(buf, " decrement "...), -delta, 10)
 }
 
 // appendCommunityText appends " ASN:value", RFC 1997's display form.

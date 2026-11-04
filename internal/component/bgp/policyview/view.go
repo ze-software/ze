@@ -93,6 +93,8 @@ type View struct {
 	// asPathText is the AS path as text, for ASPathText (aspath_text.go).
 	asPathText sharedText
 	decodes    Decodes
+	// overlay journals only the slots a tentative member's setters replace.
+	overlay *Overlay
 }
 
 // slot caches one registered reader's answer for one run.
@@ -166,6 +168,7 @@ func (v *View) SetNumber(r Reader, number uint64) error {
 	if r.slot == 0 {
 		return errZeroReader
 	}
+	v.saveOverlay(r.slot - 1)
 	s := &v.slots[r.slot-1]
 	s.run, s.value, s.err = v.run, Value{present: true, number: number, numbered: true}, nil
 	return nil
@@ -182,8 +185,22 @@ func (v *View) SetWire(r Reader, wire []byte) error {
 	if r.slot == 0 {
 		return errZeroReader
 	}
+	v.saveOverlay(r.slot - 1)
 	s := &v.slots[r.slot-1]
 	s.run, s.value, s.err = v.run, Value{present: len(wire) > 0, wire: wire, overlaid: true}, nil
+	return nil
+}
+
+// SetWireNumber overlays both representations of a numeric wire attribute.
+// wire MUST encode number and remain unchanged until the run ends, as for
+// SetWire. Keeping the already-resolved number avoids decoding that wire again
+// and preserves Number's typed-presence contract for a later member.
+func (v *View) SetWireNumber(r Reader, wire []byte, number uint64) error {
+	if err := v.SetWire(r, wire); err != nil {
+		return err
+	}
+	s := &v.slots[r.slot-1]
+	s.value.number, s.value.numbered = number, true
 	return nil
 }
 
@@ -200,6 +217,9 @@ func (v *View) SetWire(r Reader, wire []byte) error {
 func (v *View) SetNLRI(body []byte, mpReach wireu.MPReachWire) error {
 	if v.update == nil {
 		return ErrNoUpdate
+	}
+	if overlay := v.overlay; overlay != nil && !overlay.nlriSaved {
+		overlay.nlri, overlay.nlriSaved = v.nlri, true
 	}
 	v.nlri = shared{run: v.run, body: body, mpReach: mpReach}
 	if s := v.current(policy.FieldPrefix); s != nil {
@@ -226,6 +246,7 @@ func (v *View) current(field policy.Field) *slot {
 	if s.run != v.run {
 		return nil
 	}
+	v.saveOverlay(index)
 	return s
 }
 

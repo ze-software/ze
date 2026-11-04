@@ -53,7 +53,7 @@ func (c *Chain) overlayAttributes(view *policyview.View, sets *RunSets) error {
 	wire := &sets.attributes
 	if member.written&setKindOrigin.bit() != 0 {
 		wire.origin[0] = byte(member.origin)
-		if err := view.SetWire(c.origin, wire.origin[:]); err != nil {
+		if err := view.SetWireNumber(c.origin, wire.origin[:], uint64(member.origin)); err != nil {
 			return fmt.Errorf("origin: %w", err)
 		}
 	}
@@ -109,7 +109,7 @@ func (c *Chain) overlayAIGP(view *policyview.View, member *Sets, wire *attribute
 	}
 	attribute.WriteAIGPMetric(wire.aigp[:], 0, metric)
 	member.aigp = numericSet{replace: true, metric: metric}
-	return view.SetWire(c.aigp, wire.aigp[:])
+	return view.SetWireNumber(c.aigp, wire.aigp[:], metric)
 }
 
 // overlayList answers a list attribute's value after a member's adds and
