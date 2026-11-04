@@ -39,6 +39,10 @@ const htmlFooter = `</body>
 // HTML writes a self-contained HTML comparison report with inline SVG bar charts.
 // No external CSS or JS dependencies.
 func HTML(results []perf.Result, w io.Writer) error {
+	if err := ValidateResults(results); err != nil {
+		return err
+	}
+
 	if _, err := fmt.Fprint(w, htmlHeader); err != nil {
 		return fmt.Errorf("writing HTML header: %w", err)
 	}

@@ -22,7 +22,7 @@ func cmdReport(args []string) int {
 	doc := fs.Bool("doc", false, "Full performance.md document with disclaimers and methodology")
 
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, "Usage: le perf compare [flags] <file> [file...]\n\nGenerate a comparison report from one or more result JSON files.\n\nExamples:\n  le perf compare result-ze.json result-gobgp.json\n  le perf compare --html result-ze.json result-gobgp.json > report.html\n  le perf compare --doc result-*.json > docs/performance.md\n\nFlags:\n")
+		fmt.Fprint(os.Stderr, "Usage: le perf compare [flags] <file> [file...]\n\nGenerate a comparison report from one or more result JSON files.\nEvery raw row must have zero routes-lost and recorded convergence-ms before\nlatest selection or output. Missing/null convergence is not explicit zero.\nRaw JSON remains diagnostic evidence; there is no JSON comparison format.\nStdout write errors fail; already-written bytes cannot be rolled back.\n\nExamples:\n  le perf compare result-ze.json result-gobgp.json\n  le perf compare --html result-ze.json result-gobgp.json > report.html\n  le perf compare --doc result-*.json > docs/performance.md\n\nFlags:\n")
 		fs.PrintDefaults()
 	}
 
@@ -53,6 +53,11 @@ func cmdReport(args []string) int {
 		var res perf.Result
 		if err := json.Unmarshal(data, &res); err != nil {
 			fmt.Fprintf(os.Stderr, "error: parsing %s: %v\n", path, err)
+			return 1
+		}
+
+		if err := res.ComparisonError(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: comparing %s: %v\n", path, err)
 			return 1
 		}
 

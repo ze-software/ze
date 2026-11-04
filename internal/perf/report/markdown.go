@@ -113,6 +113,10 @@ func sortByConvergence(results []perf.Result) {
 // Markdown writes a markdown comparison report of performance results.
 // Results are grouped by Family + ForceMP and sorted by convergence time.
 func Markdown(results []perf.Result, w io.Writer) error {
+	if err := ValidateResults(results); err != nil {
+		return err
+	}
+
 	groups := groupResults(results)
 	keys := sortedGroupKeys(groups)
 

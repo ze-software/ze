@@ -178,7 +178,6 @@ func RunBenchmark(ctx context.Context, cfg BenchmarkConfig, progress io.Writer) 
 		IterDelayMs:         int(cfg.IterDelay / time.Millisecond),
 		SessionSetupMs:      SessionSetup{Sender: agg.SessionSenderMs, Receiver: agg.SessionReceiverMs},
 		FirstRouteMs:        agg.FirstRouteMs,
-		ConvergenceMs:       agg.ConvergenceMs,
 		ConvergenceStddevMs: agg.ConvergenceStddevMs,
 		RoutesSent:          cfg.Routes,
 		RoutesReceived:      agg.RoutesReceived,
@@ -194,6 +193,7 @@ func RunBenchmark(ctx context.Context, cfg BenchmarkConfig, progress io.Writer) 
 		WithdrawalMs:        agg.WithdrawalMs,
 		WithdrawalStddevMs:  agg.WithdrawalStddevMs,
 	}
+	result.RecordConvergence(agg.ConvergenceMs)
 
 	return result, nil
 }

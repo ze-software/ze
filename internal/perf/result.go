@@ -147,6 +147,9 @@ func acceptedPasses() string {
 }
 
 // Result holds the outcome of a single performance test run.
+// ConvergenceMs is raw data: a nonzero value carries its own presence, while a
+// measured zero MUST be recorded with RecordConvergence. JSON decoding records
+// that fact automatically. The zero Result has no convergence measurement.
 type Result struct {
 	DUTName             string       `json:"dut-name"`
 	Pass                Pass         `json:"pass,omitempty"`
@@ -180,6 +183,60 @@ type Result struct {
 	LatencyMaxMs        int          `json:"latency-max-ms"`
 	WithdrawalMs        int          `json:"withdrawal-ms"`
 	WithdrawalStddevMs  int          `json:"withdrawal-stddev-ms"`
+
+	convergenceZeroMeasured bool
+}
+
+// RecordConvergence records a measured duration, including a legitimate zero.
+// Direct measurement producers MUST use it when setting convergence.
+func (r *Result) RecordConvergence(milliseconds int) {
+	r.ConvergenceMs = milliseconds
+	r.convergenceZeroMeasured = milliseconds == 0
+}
+
+// HasConvergence distinguishes an explicitly measured zero from missing data.
+// Existing nonzero raw values already carry evidence that the field was set.
+func (r *Result) HasConvergence() bool {
+	if r.ConvergenceMs != 0 {
+		return true
+	}
+	return r.convergenceZeroMeasured
+}
+
+// UnmarshalJSON retains convergence presence without rejecting diagnostic loss.
+// A failed decode leaves the previous result unchanged.
+func (r *Result) UnmarshalJSON(data []byte) error {
+	type resultJSON Result
+	var decoded Result
+	wire := struct {
+		*resultJSON
+		Convergence *int `json:"convergence-ms"`
+	}{resultJSON: (*resultJSON)(&decoded)}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	if wire.Convergence != nil {
+		decoded.RecordConvergence(*wire.Convergence)
+	}
+	*r = decoded
+	return nil
+}
+
+// MarshalJSON preserves missing convergence and diagnostic loss for every JSON
+// value form, including non-addressable map values. A value receiver is required
+// by encoding/json's method set; embedding the alias avoids a second Result copy.
+//
+//nolint:gocritic // hugeParam: JSON must also preserve presence for Result values and map entries.
+func (r Result) MarshalJSON() ([]byte, error) {
+	type resultJSON Result
+	wire := struct {
+		*resultJSON
+		Convergence *int `json:"convergence-ms,omitempty"`
+	}{resultJSON: (*resultJSON)(&r)}
+	if r.HasConvergence() {
+		wire.Convergence = &r.ConvergenceMs
+	}
+	return json.Marshal(&wire)
 }
 
 // Shortfall answers nil when every route the sender announced reached the
@@ -194,6 +251,18 @@ func (r *Result) Shortfall() error {
 	}
 	if r.RoutesReceived < r.RoutesSent {
 		return fmt.Errorf("%d of %d routes reached the receiver", r.RoutesReceived, r.RoutesSent)
+	}
+	return nil
+}
+
+// ComparisonError refuses raw measurements that cannot be ranked. Diagnostic
+// writers deliberately do not call it: lost routes must remain in the evidence.
+func (r *Result) ComparisonError() error {
+	if r.RoutesLost != 0 {
+		return fmt.Errorf("DUT %q family %q force-mp %t pass %q timestamp %q lost %d routes: convergence cannot be compared; measure this DUT again with le perf send before comparing", r.DUTName, r.Family, r.ForceMP, r.Pass, r.Timestamp, r.RoutesLost)
+	}
+	if !r.HasConvergence() {
+		return fmt.Errorf("DUT %q family %q force-mp %t pass %q timestamp %q has no convergence measurement: missing convergence is not zero; measure this DUT again with le perf send before comparing", r.DUTName, r.Family, r.ForceMP, r.Pass, r.Timestamp)
 	}
 	return nil
 }

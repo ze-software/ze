@@ -69,6 +69,7 @@ func TestJSONResult(t *testing.T) {
 			Family:         "ipv4/unicast",
 			SessionSetupMs: SessionSetup{Sender: 10, Receiver: 20},
 		}
+		r.RecordConvergence(0)
 
 		data, err := json.Marshal(r)
 		if err != nil {

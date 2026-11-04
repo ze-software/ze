@@ -14,6 +14,10 @@ const regressionMarker = " **!!**"
 // Trend writes a time-series trend table for tracking performance over time.
 // Format must be "md" (markdown) or "html".
 func Trend(results []perf.Result, w io.Writer, format string) error {
+	if err := ValidateResults(results); err != nil {
+		return err
+	}
+
 	if format == "md" {
 		return trendMarkdown(results, w)
 	}

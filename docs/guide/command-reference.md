@@ -2793,6 +2793,14 @@ field reads `not recorded` in that column and displaces neither pass. A file
 whose `pass` names no known pass is refused with the file name, the value and
 the accepted values, and the command exits 1.
 
+All raw rows are validated before latest-sample selection and before any report
+byte is written. Nonzero `routes-lost`, or missing/null `convergence-ms`, refuses
+the whole comparison with the source file and measurement identity. A measured
+explicit zero is valid. Older lossy duplicates are not silently discarded.
+There is no JSON comparison format: raw result JSON remains diagnostic evidence,
+including loss. Stdout write errors fail the command without rolling back bytes
+already written; shell redirection itself may truncate a destination first.
+
 <!-- source: internal/perf/report/markdown.go -- latestComparisonResults -->
 
 #### le perf track
@@ -2821,6 +2829,11 @@ Track performance history and detect regressions from an NDJSON file.
 <!-- source: internal/perf/regression.go -- regression detection thresholds -->
 
 Exit codes: 0 = no regression (or report mode), 1 = regression detected or error.
+
+Every history row is validated before `--last` filters the window, including in
+`--check` mode. Nonzero loss or missing/null convergence anywhere in the input
+refuses with the history file and row identity before report output; explicit
+zero convergence remains valid.
 
 ---
 

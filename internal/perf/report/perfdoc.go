@@ -14,6 +14,10 @@ import (
 // PerformanceDoc writes a full docs/performance.md document with disclaimers,
 // environment details, and comparison tables from benchmark results.
 func PerformanceDoc(results []perf.Result, w io.Writer) error {
+	if err := ValidateResults(results); err != nil {
+		return err
+	}
+
 	results = latestComparisonResults(results)
 
 	if _, err := fmt.Fprint(w, `# Performance Comparison
@@ -40,6 +44,11 @@ Propagation latency = time received minus time sent, matched by prefix.
 Each benchmark runs multiple iterations. Results show the **median** across
 iterations with standard deviation. Outlier iterations (beyond 2 stddev from
 median convergence time) are automatically discarded.
+
+Comparisons require every raw input row to have zero routes lost and a recorded
+convergence measurement before selecting the latest sample or writing output.
+Missing or null convergence is not zero; an explicitly measured zero is valid.
+An older lossy sample cannot be hidden by a newer clean one.
 
 `); err != nil {
 		return fmt.Errorf("writing header: %w", err)
@@ -173,8 +182,9 @@ consistent performance; large stddev means the measurement is noisy.
 going idle. Lower is better. Measures how fast the DUT propagates route
 removals.
 
-**Lost** should always be zero. Any lost routes indicate the DUT failed to
-forward some prefixes.
+**Lost** must be zero for a comparison. Any lost routes mean the DUT failed to
+forward some prefixes, so its convergence cannot be ranked. Raw result JSON and
+NDJSON retain the loss for diagnosis; comparison and trend renderers refuse it.
 
 ## Reproducing
 

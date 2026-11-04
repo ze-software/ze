@@ -19,13 +19,13 @@ func cmdTrack(args []string) int {
 	md := fs.Bool("md", true, "Markdown output (default)")
 	html := fs.Bool("html", false, "HTML output")
 	check := fs.Bool("check", false, "Check for regressions (exit non-zero on regression)")
-	last := fs.Int("last", 0, "Only consider last N entries (0 = all)")
+	last := fs.Int("last", 0, "Display/check last N entries (0 = all); validate every raw entry first")
 	thresholdConvergence := fs.Int("threshold-convergence", 20, "Convergence regression threshold (%)")
 	thresholdThroughput := fs.Int("threshold-throughput", 20, "Throughput regression threshold (%)")
 	thresholdP99 := fs.Int("threshold-p99", 30, "P99 latency regression threshold (%)")
 
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, "Usage: le perf track [flags] <history.ndjson>\n\nTrack performance history and detect regressions from an NDJSON file.\n\nExamples:\n  le perf track history.ndjson\n  le perf track --check history.ndjson\n  le perf track --html history.ndjson > trend.html\n  le perf track --check --threshold-convergence 15 history.ndjson\n\nFlags:\n")
+		fmt.Fprint(os.Stderr, "Usage: le perf track [flags] <history.ndjson>\n\nTrack performance history and detect regressions from an NDJSON file.\nEvery raw row must have zero routes-lost and recorded convergence-ms before\n--last or output, including --check. Explicit zero convergence is valid.\nStdout write errors fail; already-written bytes cannot be rolled back.\n\nExamples:\n  le perf track history.ndjson\n  le perf track --check history.ndjson\n  le perf track --html history.ndjson > trend.html\n  le perf track --check --threshold-convergence 15 history.ndjson\n\nFlags:\n")
 		fs.PrintDefaults()
 	}
 
@@ -68,6 +68,11 @@ func cmdTrack(args []string) int {
 
 	if len(results) == 0 {
 		fmt.Fprintf(os.Stderr, "error: no results found in %s\n", files[0])
+		return 1
+	}
+
+	if err := report.ValidateResults(results); err != nil {
+		fmt.Fprintf(os.Stderr, "error: comparing %s: %v\n", files[0], err)
 		return 1
 	}
 
