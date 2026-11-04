@@ -230,3 +230,87 @@ func TestLibraryRemovePrivateRunsBeforePrepend(t *testing.T) {
 		}
 	})
 }
+
+// TestRemovePrivateWireRewriteBoundaries preserves the wire parser's refusal
+// boundary and every segment kind while the rewrite avoids a parsed path.
+func TestRemovePrivateWireRewriteBoundaries(t *testing.T) {
+	encode := func(asn4 bool, segments ...attribute.ASPathSegment) []byte {
+		path := attribute.ASPath{Segments: segments}
+		buf := make([]byte, path.LenWithASN4(asn4))
+		path.WriteToWithASN4(buf, 0, asn4)
+		return buf
+	}
+	atLimit := make([]uint32, attribute.MaxASPathTotalLength)
+	for i := range atLimit {
+		atLimit[i] = 64512
+	}
+	atLimit[0] = 64496
+	overLimit := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xfc, 0}
+	overLimit = append(encode(true, attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: atLimit}), overLimit...)
+	cases := []struct {
+		name    string
+		value   []byte
+		asn4    bool
+		mode    policychain.RemovePrivateMode
+		peerAS  uint32
+		want    []byte
+		changed bool
+	}{
+		{
+			name: "segment-kinds", asn4: true, mode: policychain.RemovePrivateStrip, changed: true,
+			value: encode(true,
+				attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{64496, 64512}},
+				attribute.ASPathSegment{Type: attribute.ASSet, ASNs: []uint32{64513}},
+				attribute.ASPathSegment{Type: attribute.ASConfedSequence, ASNs: []uint32{64497, 4200000000}},
+				attribute.ASPathSegment{Type: attribute.ASConfedSet, ASNs: []uint32{65535, 4294967294}}),
+			want: encode(true,
+				attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{64496}},
+				attribute.ASPathSegment{Type: attribute.ASConfedSequence, ASNs: []uint32{64497}},
+				attribute.ASPathSegment{Type: attribute.ASConfedSet, ASNs: []uint32{65535}}),
+		},
+		{
+			name: "two-octet-peer-as", mode: policychain.RemovePrivatePeerAS, peerAS: 65536, changed: true,
+			value: encode(false, attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{64512, 64496}}),
+			want:  encode(false, attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{attribute.ASTrans, 64496}}),
+		},
+		{
+			name: "all-private", mode: policychain.RemovePrivateStrip, changed: true,
+			value: encode(false, attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{64512, 65534}}),
+		},
+		{
+			name: "unchanged-empty-segment", asn4: true, mode: policychain.RemovePrivateStrip,
+			value: append([]byte{byte(attribute.ASSequence), 0}, encode(true,
+				attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{64511, 65535, 4199999999, 4294967295}})...),
+		},
+		{
+			name: "truncated-tail", asn4: true, mode: policychain.RemovePrivateStrip,
+			value: append(encode(true, attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{64512}}), byte(attribute.ASSequence)),
+		},
+		{
+			name: "invalid-kind", asn4: true, mode: policychain.RemovePrivateStrip,
+			value: []byte{5, 1, 0, 0, 0xfc, 0},
+		},
+		{
+			name: "short-asn", asn4: true, mode: policychain.RemovePrivateStrip,
+			value: []byte{byte(attribute.ASSequence), 1, 0xfc, 0},
+		},
+		{
+			name: "maximum-count", asn4: true, mode: policychain.RemovePrivateStrip, changed: true,
+			value: encode(true, attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: atLimit}),
+			want:  encode(true, attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{64496}}),
+		},
+		{name: "over-maximum-count", value: overLimit, asn4: true, mode: policychain.RemovePrivateStrip},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			original := bytes.Clone(tc.value)
+			got, changed := rewriteASPathRemovePrivate(newTestScratch(t), tc.value, tc.asn4, tc.mode, tc.peerAS)
+			if changed != tc.changed || !bytes.Equal(got, tc.want) {
+				t.Fatalf("rewrite = %x, changed %v; want %x, changed %v", got, changed, tc.want, tc.changed)
+			}
+			if !bytes.Equal(tc.value, original) {
+				t.Fatalf("rewrite modified the received AS_PATH: %x, want %x", tc.value, original)
+			}
+		})
+	}
+}

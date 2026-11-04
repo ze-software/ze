@@ -20,13 +20,14 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// libraryRun is the scratch one library chain run owns: the route view and
-// the sets. Both policy steps run on many goroutines (session readers,
-// forward workers), so runs take their scratch from a pool rather than
-// allocating a view per run, which would escape to the heap.
+// libraryRun is the scratch one library chain run owns: the route view, folded
+// sets and modification accumulator. Both policy steps run on many goroutines
+// (session readers, forward workers), so each run borrows its own scratch.
+// The view MUST be Cleared and the accumulator Reset before returning it.
 type libraryRun struct {
 	view policyview.View
 	sets policychain.RunSets
+	mods filterapi.ModAccumulator
 }
 
 var libraryRuns = sync.Pool{New: func() any { return new(libraryRun) }}
@@ -91,6 +92,7 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 		panic("BUG: reactor: the library run pool holds a foreign value")
 	}
 	defer libraryRuns.Put(run)
+	defer run.mods.Reset()
 
 	run.view.Reset(wireUpdate, session)
 	defer run.view.Clear()
@@ -128,8 +130,7 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 		}
 		return libraryResult{outcome: outcome, modifiedPayload: override, treatments: treatments}
 	}
-	var mods filterapi.ModAccumulator
-	if err := chain.Apply(&run.view, &run.sets, &mods); err != nil {
+	if err := chain.Apply(&run.view, &run.sets, &run.mods); err != nil {
 		if record != nil {
 			return libraryResult{outcome: outcome, failed: true}
 		}
@@ -137,7 +138,7 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 			"peer", peer, "site", site, "error", err)
 		return libraryResult{outcome: outcome, failed: true}
 	}
-	rewrite := r.rewriteLibrary(&mods, run.sets.Folded(), wireUpdate, payload, intent)
+	rewrite := r.rewriteLibrary(&run.mods, run.sets.Folded(), wireUpdate, payload, intent)
 	if rewrite.nlriRefused {
 		if record != nil {
 			return libraryResult{outcome: outcome, failed: true}
@@ -155,7 +156,7 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 		return libraryResult{outcome: outcome, failed: true}
 	}
 	if record != nil {
-		return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, wireChanges: describeWireOps(&mods), treatments: treatments}
+		return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, wireChanges: describeWireOps(&run.mods), treatments: treatments}
 	}
 	return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, treatments: treatments}
 }

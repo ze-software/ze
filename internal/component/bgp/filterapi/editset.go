@@ -213,8 +213,7 @@ func (e *EditSet) reset() {
 }
 
 // ensure lazily establishes the inline aliases for an accumulator that was never
-// Reset. The forward rails Reset at the top of every destination, but the policy
-// chains declare a fresh accumulator and plan straight away; without this they
+// Reset. A zero-valued accumulator can plan straight away; without this it
 // would heap-allocate on first append instead of using the inline arrays.
 func (e *EditSet) ensure() {
 	if e.slots == nil {

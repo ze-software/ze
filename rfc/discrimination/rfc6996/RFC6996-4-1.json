@@ -62,7 +62,7 @@
     "claim-sha": "61e0a12744a1ee4f",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/aspath_edit.go::rewriteASPathRemovePrivate",
-    "producer-sha": "12efc48c05f5f896",
+    "producer-sha": "74772b49c30c698d",
     "break": "body of rewriteASPathRemovePrivate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

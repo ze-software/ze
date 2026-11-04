@@ -7,6 +7,8 @@
 package reactor
 
 import (
+	"encoding/binary"
+
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -230,19 +232,114 @@ func removePrivateASOps(scratch *valueScratch, attrs *attribute.AttributesWire, 
 		fwdLogger().Warn("remove-private-as: AS4_PATH raw lookup failed", "error", err)
 	}
 }
+
+// rewriteASPathRemovePrivate filters the wire value into caller-owned scratch.
+// The first walk validates the complete input and sizes the result; the second
+// copies retained numbers without staging a parsed path or normalizing segments.
+//
+// RFC 4271 Section 4.3 and RFC 6793 Sections 4.1–4.2:
+//
+//	Offset 0       1       2
+//	       +-------+-------+------------------------------+
+//	       | Type  | Count | Count ASNs, 2 or 4 octets each |
+//	       +-------+-------+------------------------------+
+//
+// RFC 6996 Section 4: "If Private Use ASNs are used and prefixes originate from these ASNs,
+// Private Use ASNs MUST be removed from AS path attributes (including
+// AS4_PATH if utilizing a four-octet AS number space) before being
+// advertised to the global Internet."
 func rewriteASPathRemovePrivate(scratch *valueScratch, value []byte, asn4 bool, mode policychain.RemovePrivateMode, peerAS uint32) ([]byte, bool) {
-	path, err := attribute.ParseASPath(value, asn4)
-	if err != nil {
+	refuse := func(err error) ([]byte, bool) {
 		fwdLogger().Warn("remove-private-as: parse AS_PATH failed", "error", err)
 		return nil, false
 	}
-	segments, changed := rewritePrivateASSegments(scratch, path.Segments, mode, peerAS)
+	width := 2
+	if asn4 {
+		width = 4
+	}
+	consumed, total, size := 0, 0, 0
+	changed := false
+	for consumed < len(value) {
+		if len(value)-consumed < 2 {
+			return refuse(attribute.ErrShortData)
+		}
+		kind := attribute.ASPathSegmentType(value[consumed])
+		count := int(value[consumed+1])
+		if kind < attribute.ASSet || kind > attribute.ASConfedSet {
+			return refuse(attribute.ErrMalformedASPath)
+		}
+		total += count
+		if total > attribute.MaxASPathTotalLength {
+			return refuse(attribute.ErrMalformedASPath)
+		}
+		consumed += 2
+		needed := count * width
+		if needed > len(value)-consumed {
+			return refuse(attribute.ErrShortData)
+		}
+		segment := value[consumed : consumed+needed]
+		consumed += needed
+		retained := 0
+		numbers := attribute.NewASNIterator(segment, asn4)
+		for asn, present := numbers.Next(); present; asn, present = numbers.Next() {
+			if isRFC6996PrivateASN(asn) {
+				changed = true
+				if mode != policychain.RemovePrivatePeerAS {
+					continue
+				}
+			}
+			retained++
+		}
+		if retained > 0 {
+			size += 2 + retained*width
+		}
+	}
 	if !changed {
 		return nil, false
 	}
-	rewritten := &attribute.ASPath{Segments: segments}
-	buf := scratch.carveBytes(rewritten.LenWithASN4(asn4))
-	rewritten.WriteToWithASN4(buf, 0, asn4)
+
+	var replacement [4]byte
+	if mode == policychain.RemovePrivatePeerAS {
+		if asn4 {
+			binary.BigEndian.PutUint32(replacement[:], peerAS)
+		} else {
+			// RFC 6793 Section 4.2.2: "In the AS_PATH attribute encoded with two-octet AS numbers,
+			// non-mappable four-octet AS numbers are represented by the well-known
+			// two-octet AS number, AS_TRANS."
+			if peerAS > 65535 {
+				peerAS = attribute.ASTrans
+			}
+			binary.BigEndian.PutUint16(replacement[:2], uint16(peerAS)) //nolint:gosec // values above 65535 became AS_TRANS
+		}
+	}
+	buf := scratch.carveBytes(size)
+	offset := 0
+	path := attribute.NewASPathIterator(value, asn4)
+	for kind, segment, ok := path.Next(); ok; kind, segment, ok = path.Next() {
+		start := offset
+		offset += 2
+		retained, source := 0, 0
+		numbers := attribute.NewASNIterator(segment, asn4)
+		for asn, present := numbers.Next(); present; asn, present = numbers.Next() {
+			current := segment[source : source+width]
+			source += width
+			if isRFC6996PrivateASN(asn) {
+				if mode != policychain.RemovePrivatePeerAS {
+					continue
+				}
+				current = replacement[:width]
+			}
+			copy(buf[offset:offset+width], current)
+			offset += width
+			retained++
+		}
+		if retained == 0 {
+			offset = start
+			continue
+		}
+		buf[start] = byte(kind)
+		buf[start+1] = byte(retained) //nolint:gosec // retained cannot exceed the original one-byte segment count
+	}
 	return buf, true
 }
 

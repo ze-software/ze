@@ -1735,11 +1735,12 @@ Ze has no field to send it, so such a member fails every route under
   template (`reactor` `resolveDynamicPolicy`, `filterapi.Policy.CompileResolved`).
   A resolved name the config does not define fails closed: the member's library
   rejects every route in that direction.
-  `runIngressPolicyChain` and `runEgressPolicyChainASN4` then run it in
-  process, with no API server, through `runLibraryChain`, which takes its view
-  and sets from a pool and Clears the view before it returns. A reject keeps
-  the RFC 8212 withdrawals rule, and a failed member drops the
-  route.
+  `runIngressPolicyChainMeta` and `runEgressPolicyChainASN4` then run it in
+  process, with no API server, through `runLibraryChain`. Its view, sets and
+  modification accumulator belong to one pooled run. Before that run returns
+  to the pool, the view is cleared and the accumulator reset, so neither
+  retains the previous route's buffers or changes. A reject keeps the
+  RFC 8212 withdrawals rule, and a failed member drops the route.
 - **Plugin filters join the chain.** A chain that names a library member
   and a plugin filter compiles both into one chain, in chain order
   (`policychain.Member`, `Plugin` set). The plugin member is sent, over
@@ -1849,6 +1850,11 @@ Ze has no field to send it, so such a member fails every route under
   NEXT_HOP attribute, which no NLRI change removes. A field a member read earlier in the run is answered again
   from the overlay without decoding NEXT_HOP a second time. A chain that drops
   and strips nothing reads the wire and allocates nothing.
+  AS_PATH private-AS removal validates and sizes the wire result before
+  writing retained ASNs or replacements into the existing value scratch.
+  It preserves segment boundaries and the negotiated ASN width without
+  constructing a parsed AS_PATH object; an unchanged path records no edit.
+  <!-- source: internal/component/bgp/reactor/aspath_edit.go -- rewriteASPathRemovePrivate -->
 - **A failed member applies its on-error.** A read that answers an error (a
   malformed attribute, `policyview.ErrMalformed`) and a write to a field the
   member did not declare (`policy.InstanceSets`) each fail the route under the

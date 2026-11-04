@@ -911,6 +911,18 @@ Opting in takes two entries, not one. The ceiling names the benchmark, and
 benchmark lives outside those packages is reported MISSING, so the gate goes red
 until the package is added beside it.
 
+The filter entries run the compiled export chain in
+`internal/component/bgp/reactor/filter_library_test.go`, not the removed text filter.
+`BenchmarkFilterDispatch_ZeroAlloc` reads LOCAL_PREF and requires acceptance
+without a wire override; a negative control also proves that its member rejects
+a nonmatching value. `BenchmarkFilterModifyEgress` sets LOCAL_PREF, strips
+private ASNs and prepends the local AS twice, then requires the complete expected
+UPDATE bytes, including the retained AS_SET, communities and NLRI. Both check
+that the received bytes remain unchanged. Compilation and fixture construction
+stay outside their measured loops. Their retained allocation ceilings are zero
+and six; historical text-path timings are not measurements of these producers.
+<!-- source: internal/component/bgp/reactor/filter_library_test.go -- BenchmarkFilterDispatch_ZeroAlloc, BenchmarkFilterModifyEgress, libraryModifyBody -->
+
 Timing regressions run separately through `./le perf track --check`, while
 the Docker DUT matrix uses the native Go runner: `./le perf run`.
 <!-- source: internal/perf/allocgate.go -- AllocCeilings, checkAllocCeilings -->

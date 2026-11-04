@@ -61,28 +61,22 @@ var AllocCeilings = map[string]int{
 	// count does not grow with the walk: the same answer measured 17 for 300
 	// rows and 17 for 1300 (TestWriteAnswerZeroAllocPerRow).
 	"BenchmarkRecordAnswerRows": 0,
-	// The filter-delta modify path, per DESTINATION PEER per modified UPDATE
-	// (BenchmarkFilterModifyEgress, internal/component/bgp/reactor/filter_delta_test.go).
-	// A fan-out multiplies this count, which is why the allocation figure
-	// matters here more than the wall time.
+	// The compiled export-chain modify path, per DESTINATION PEER per UPDATE
+	// (BenchmarkFilterModifyEgress,
+	// internal/component/bgp/reactor/filter_library_test.go): LOCAL_PREF set,
+	// private-AS strip and two local-AS prepends, including the wire rebuild.
+	// A fan-out multiplies this count, which is why allocations matter here.
 	//
-	// AC-3 of spec-perf-next-2-filter-delta-alloc asked for 12 or fewer against
-	// a re-measured baseline of 20. It measured 6 once every encoder carved its
-	// value from one pooled arena (valueScratch, filter_scratch.go) and the
-	// parse stopped rebuilding multi-token values (filterTokens,
-	// filter_chain.go). The ceiling is the measurement with no headroom,
-	// because the count is deterministic: nothing on the path sizes an
-	// allocation from the delta, so a seventh allocation is a new one.
-	//
-	// The seventh is the pool's own first Get, and the 300x benchtime the
-	// native verifier pins is what amortizes it away. A shorter benchtime reads
-	// 7 and turns this red, which is the direction that fails closed.
+	// The ceiling is retained from spec-perf-next-2-filter-delta-alloc AC-3:
+	// the former text-delta extractor benchmark measured 6 after the value-arena
+	// and parser work (docs/architecture/perf-round-3.md). The current benchmark
+	// exercises the compiled chain, not that removed parser; that historical
+	// measurement is provenance for the ceiling, not a current result.
 	"BenchmarkFilterModifyEgress": 6,
-	// The same chain over an UPDATE no filter modifies
+	// The compiled export chain's read-only dispatch over an accepted UPDATE
 	// (BenchmarkFilterDispatch_ZeroAlloc,
-	// internal/component/bgp/reactor/filter_dispatch_alloc_test.go). AC-4 of
-	// the same spec: the unmodified path was already zero-alloc and the arena
-	// work must not disturb it. Measured 0 before and after.
+	// internal/component/bgp/reactor/filter_library_test.go).
+	// AC-4 of the same spec keeps this ceiling at zero across the cutover.
 	"BenchmarkFilterDispatch_ZeroAlloc": 0,
 	// The RFC 6793 ingest collapse on the four-octet fast path, per RECEIVED
 	// UPDATE from every peer (BenchmarkCollapseAS4FastPath,

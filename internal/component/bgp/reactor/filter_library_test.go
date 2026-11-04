@@ -1,3 +1,6 @@
+// Design: docs/architecture/core-design.md -- the compiled per-peer policy chain.
+// Related: docs/functional-tests.md -- allocation-ceiling benchmark contracts.
+
 package reactor
 
 import (
@@ -13,21 +16,26 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// The library-chain test attachment and filter types: a member that sets
-// local-preference 200 and a member that rejects every route.
+// The library-chain test attachments and filter types exercise field sets,
+// read-only decisions and the AS-path rewrite intents without a plugin transport.
 const (
-	libraryTestImport = "reactor-library-test import"
-	libraryTestExport = "reactor-library-test export"
-	libraryTypeLP200  = "reactor-library-test-lp200"
-	libraryTypeReject = "reactor-library-test-reject"
+	libraryTestImport       = "reactor-library-test import"
+	libraryTestExport       = "reactor-library-test export"
+	libraryTypeLP200        = "reactor-library-test-lp200"
+	libraryTypeReject       = "reactor-library-test-reject"
+	libraryTypeLP100        = "reactor-library-test-lp100"
+	libraryTypeModifyEgress = "reactor-library-test-modify-egress"
 )
 
 func init() {
 	lp := routepolicy.FieldLocalPreference
 	routepolicy.MustRegisterAttachment("bgp", libraryTestImport, []routepolicy.Field{lp}, []routepolicy.Field{lp})
-	routepolicy.MustRegisterAttachment("bgp", libraryTestExport, []routepolicy.Field{lp}, []routepolicy.Field{lp})
+	routepolicy.MustRegisterAttachment("bgp", libraryTestExport, []routepolicy.Field{lp},
+		[]routepolicy.Field{lp, routepolicy.FieldASPath})
 	routepolicy.MustRegisterFilterType(libraryTypeLP200, nil, []routepolicy.Field{lp})
 	routepolicy.MustRegisterFilterType(libraryTypeReject, nil, nil)
+	routepolicy.MustRegisterFilterType(libraryTypeLP100, []routepolicy.Field{lp}, nil)
+	routepolicy.MustRegisterFilterType(libraryTypeModifyEgress, nil, []routepolicy.Field{lp, routepolicy.FieldASPath})
 	policychain.MustRegisterEvaluator(libraryTypeLP200, rpc.OnErrorReject, func(string, map[string]any, routepolicy.InstanceResolver) (policychain.Evaluator, error) {
 		return func(_ *policyview.View, sets *policychain.Sets) (policychain.Decision, error) {
 			return policychain.DecisionPass, sets.LocalPreference(policychain.NumericActionSet, 200)
@@ -38,11 +46,39 @@ func init() {
 			return policychain.DecisionReject, nil
 		}, nil
 	})
+	policychain.MustRegisterEvaluator(libraryTypeLP100, rpc.OnErrorReject, func(string, map[string]any, routepolicy.InstanceResolver) (policychain.Evaluator, error) {
+		reader, err := policyview.ReaderFor(lp)
+		if err != nil {
+			return nil, err
+		}
+		return func(view *policyview.View, _ *policychain.Sets) (policychain.Decision, error) {
+			value, err := view.Read(reader)
+			if err != nil {
+				return policychain.DecisionUnspecified, err
+			}
+			number, numbered := value.Number()
+			if value.Present() && numbered && number == 100 {
+				return policychain.DecisionPass, nil
+			}
+			return policychain.DecisionReject, nil
+		}, nil
+	})
+	policychain.MustRegisterEvaluator(libraryTypeModifyEgress, rpc.OnErrorReject, func(string, map[string]any, routepolicy.InstanceResolver) (policychain.Evaluator, error) {
+		return func(_ *policyview.View, sets *policychain.Sets) (policychain.Decision, error) {
+			if err := sets.LocalPreference(policychain.NumericActionSet, 200); err != nil {
+				return policychain.DecisionUnspecified, err
+			}
+			if err := sets.RemovePrivateAS(policychain.RemovePrivateStrip); err != nil {
+				return policychain.DecisionUnspecified, err
+			}
+			return policychain.DecisionPass, sets.PrependASPath(2)
+		}, nil
+	})
 }
 
 // libraryPolicy answers a policy over one library member of filterType,
 // compiled at attachment, as bgp/config builds it at peer load.
-func libraryPolicy(t *testing.T, attachment, filterType string, final routepolicy.Final) filterapi.Policy {
+func libraryPolicy(t testing.TB, attachment, filterType string, final routepolicy.Final) filterapi.Policy {
 	t.Helper()
 	reg, err := routepolicy.NewRegistry(routepolicy.Instance{Name: "member", Type: filterType})
 	if err != nil {
@@ -118,4 +154,80 @@ func TestLibraryChainRejects(t *testing.T) {
 	if in := r.runIngressPolicyChain(peer, addr, nil, testWireUpdate(received), received); in.accept {
 		t.Fatalf("import = %+v, want the route dropped", in)
 	}
+}
+
+// BenchmarkFilterDispatch_ZeroAlloc exercises the compiled export chain's
+// read-only dispatch: a member reads LOCAL_PREF and passes the received UPDATE
+// unchanged. A negative control proves the member runs, and every measured
+// operation must accept the original bytes, so a fast rejection cannot win.
+// Registration, compilation and wire construction are outside the timed loop.
+func BenchmarkFilterDispatch_ZeroAlloc(b *testing.B) {
+	r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
+	policy := libraryPolicy(b, libraryTestExport, libraryTypeLP100, routepolicy.FinalAccept)
+	received := libraryTestBody(100)
+	original := bytes.Clone(received)
+	update := testWireUpdate(received)
+	session := policyview.Session{EBGP: true}
+	rejected := r.runEgressPolicyChainASN4(policy, "10.0.0.5", 65002, 65000, false,
+		session, testWireUpdate(libraryTestBody(99)), true)
+	if rejected.accept || rejected.failed || rejected.withdraw {
+		b.Fatalf("negative control = %+v, want a policy rejection", rejected)
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		out := r.runEgressPolicyChainASN4(policy, "10.0.0.5", 65002, 65000, false, session, update, true)
+		if !out.accept || out.failed || out.withdraw || out.wireOverride != nil {
+			b.Fatalf("dispatch = %+v, want an accepted unmodified UPDATE", out)
+		}
+		if !bytes.Equal(update.Payload(), original) {
+			b.Fatalf("dispatch changed the received UPDATE: %x, want %x", update.Payload(), original)
+		}
+	}
+}
+
+// BenchmarkFilterModifyEgress runs the historical modify workload's LOCAL_PREF
+// set, private-AS strip and two prepends through the compiled export chain and
+// wire rebuild, once per destination. Every operation must accept the complete
+// expected body and preserve the received bytes. Rejection, skipped intents,
+// flattened AS_SET segments and in-place edits therefore fail the benchmark.
+func BenchmarkFilterModifyEgress(b *testing.B) {
+	r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
+	policy := libraryPolicy(b, libraryTestExport, libraryTypeModifyEgress, routepolicy.FinalAccept)
+	received := libraryModifyBody(100, []byte{
+		byte(attribute.ASSequence), 2, 0, 0, 0xfb, 0xf0, 0, 0, 0xfc, 0,
+		byte(attribute.ASSet), 2, 0, 0, 0xfb, 0xf1, 0, 0, 0xff, 0xfe,
+	})
+	original := bytes.Clone(received)
+	want := libraryModifyBody(200, []byte{
+		byte(attribute.ASSequence), 3, 0, 0, 0xfd, 0xe8, 0, 0, 0xfd, 0xe8, 0, 0, 0xfb, 0xf0,
+		byte(attribute.ASSet), 1, 0, 0, 0xfb, 0xf1,
+	})
+	update := testWireUpdate(received)
+	session := policyview.Session{EBGP: true}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		out := r.runEgressPolicyChainASN4(policy, "10.0.0.5", 65002, 65000, false, session, update, true)
+		if !out.accept || out.failed || out.withdraw || out.wireOverride == nil {
+			b.Fatalf("modify = %+v, want an accepted modified UPDATE", out)
+		}
+		if !bytes.Equal(out.wireOverride.Payload(), want) {
+			b.Fatalf("modified UPDATE = %x, want %x", out.wireOverride.Payload(), want)
+		}
+		if !bytes.Equal(received, original) {
+			b.Fatalf("modify changed the received UPDATE: %x, want %x", received, original)
+		}
+	}
+}
+
+// libraryModifyBody builds the modify workload with the given LOCAL_PREF and
+// AS_PATH; both communities and the advertised prefix must survive the rewrite.
+func libraryModifyBody(localPref byte, path []byte) []byte {
+	attrs := makeAttr(0x40, byte(attribute.AttrOrigin), []byte{0})
+	attrs = append(attrs, makeAttr(0x40, byte(attribute.AttrASPath), path)...)
+	attrs = append(attrs, makeAttr(0x40, byte(attribute.AttrNextHop), []byte{192, 0, 2, 1})...)
+	attrs = append(attrs, makeAttr(0x40, byte(attribute.AttrLocalPref), []byte{0, 0, 0, localPref})...)
+	attrs = append(attrs, makeAttr(0xc0, byte(attribute.AttrCommunity), []byte{0xfd, 0xe9, 0, 100, 0xfd, 0xe9, 0, 200})...)
+	return buildModTestPayload(attrs, modTestNLRI)
 }
