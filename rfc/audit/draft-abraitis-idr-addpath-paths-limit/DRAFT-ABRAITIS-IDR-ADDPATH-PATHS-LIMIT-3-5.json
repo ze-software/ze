@@ -5,8 +5,8 @@
     "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero": "a659594f16fb390a",
     "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero#2": "a659594f16fb390a",
     "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitZeroFirst": "a659594f16fb390a",
-    "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitDuplicateEntries": "327003dc982a5f22",
-    "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitDuplicateEntries#2": "327003dc982a5f22"
+    "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitDuplicateEntries": "c0335073e2f63144",
+    "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitDuplicateEntries#2": "c0335073e2f63144"
   },
   "units": {
     "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero": "3a745b154248bd62",

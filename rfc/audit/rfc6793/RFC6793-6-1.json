@@ -4,7 +4,7 @@
   "tests": {
     "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathMalformedRejected": "fdd3980327455f38",
     "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWellFormedAccepted": "fdd3980327455f38",
-    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793MalformedAS4PathIsDiscarded": "4e9759edcd069569"
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793MalformedAS4PathIsDiscarded": "1d96492063880896"
   },
   "units": {
     "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathMalformedRejected": "6de46a78a99b3e36",

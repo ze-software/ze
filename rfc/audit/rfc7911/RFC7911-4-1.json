@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC7911OpenCarriesOneAddPathInstance": "48d5a544cfcb8b61",
     "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC7911PerFamilyAddPathStaysOneInstance": "48d5a544cfcb8b61",
-    "internal/core/bgp/capability/capability_test.go::TestAddPathCapability": "3b6ab22b8c99761b",
-    "internal/core/bgp/capability/capability_test.go::TestAddPathMultipleFamilies": "3b6ab22b8c99761b"
+    "internal/core/bgp/capability/capability_test.go::TestAddPathCapability": "a659594f16fb390a",
+    "internal/core/bgp/capability/capability_test.go::TestAddPathMultipleFamilies": "a659594f16fb390a"
   },
   "units": {
     "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC7911OpenCarriesOneAddPathInstance": "ee1c012430da30ec",

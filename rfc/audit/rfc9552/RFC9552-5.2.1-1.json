@@ -4,7 +4,7 @@
   "tests": {
     "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "07e1ba0c24d70214",
     "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeRouterID": "07e1ba0c24d70214",
-    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "4354b106e8d6116b"
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "2a9f4725beb727f3"
   },
   "units": {
     "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "d94341e3d0458eff",

@@ -36,8 +36,8 @@
     "internal/component/bgp/server/rfc8277_labeled_consumer_test.go::TestLabeledWithdrawalCodecConsumersIgnoreCompatibility#2": "e01b89d8a37c843b",
     "internal/component/bgp/server/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalCodecConsumersIgnoreCompatibility": "81f1f7f03f165039",
     "internal/component/bgp/server/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalCodecConsumersIgnoreCompatibility#2": "81f1f7f03f165039",
-    "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers": "03c2d8d22836f917",
-    "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2": "03c2d8d22836f917"
+    "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers": "f8e599c634f3538e",
+    "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2": "f8e599c634f3538e"
   },
   "units": {
     "internal/component/bgp/format/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalJSONConsumersIgnoreCompatibility": "bb6f1f9117fd6ac0",

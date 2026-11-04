@@ -2,7 +2,7 @@
   "note": "malformed values are rejected with an error (not only no panic) by every v3 SR decoder and by v6PrefixSIDFromPrefixTLV; well-formed range TLVs still decode",
   "requirement_sha": "47397c9a8d9a2f91",
   "tests": {
-    "internal/plugins/ospf/rfc8666_sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "af7cd9b37f615a28",
+    "internal/plugins/ospf/rfc8666_sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "1e290dcd3f8e5353",
     "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3ExtPrefixRangeTLVRoundTrip": "b898637e07666ee9",
     "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SRTLVMalformed": "b898637e07666ee9"
   },

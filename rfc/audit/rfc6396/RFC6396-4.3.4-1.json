@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396FourByteSessionRouteDumpsASPathUnchanged": "0ecb81c80cd0b439",
     "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396TwoByteSessionRouteDumpsFourByteASPath": "0ecb81c80cd0b439",
-    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathFourByteSessionUnchanged": "4e9759edcd069569",
-    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte": "4e9759edcd069569",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathFourByteSessionUnchanged": "1d96492063880896",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte": "1d96492063880896",
     "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "1aea1dbe6eeaa629"
   },
   "units": {

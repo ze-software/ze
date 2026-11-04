@@ -6,9 +6,9 @@
     "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "07e1ba0c24d70214",
     "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs": "07e1ba0c24d70214",
     "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs#2": "07e1ba0c24d70214",
-    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFInterASRouterIDsReachExporter": "4354b106e8d6116b",
-    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDAbsenceReachExporter": "4354b106e8d6116b",
-    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "4354b106e8d6116b"
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFInterASRouterIDsReachExporter": "2a9f4725beb727f3",
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDAbsenceReachExporter": "2a9f4725beb727f3",
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "2a9f4725beb727f3"
   },
   "units": {
     "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "fedfb153729e9d34",

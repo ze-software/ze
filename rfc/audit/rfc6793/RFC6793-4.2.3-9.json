@@ -2,10 +2,10 @@
   "note": "TestRFC6793LongerASPathPrependsLeadingHops, EqualCountsPrependNothing, LeadingASSetIsTakenWhole assert exact reconstructed bytes; negative: no prepend when AS4_PATH is longer.",
   "requirement_sha": "c829176eeb670fa9",
   "tests": {
-    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793EqualCountsPrependNothing": "4e9759edcd069569",
-    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingASSetIsTakenWhole": "4e9759edcd069569",
-    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "4e9759edcd069569",
-    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "4e9759edcd069569"
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793EqualCountsPrependNothing": "1d96492063880896",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingASSetIsTakenWhole": "1d96492063880896",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "1d96492063880896",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "1d96492063880896"
   },
   "units": {
     "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793EqualCountsPrependNothing": "0e5e2e712d063d75",

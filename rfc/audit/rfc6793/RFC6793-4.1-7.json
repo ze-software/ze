@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc6793): \"A NEW BGP speaker that receives the AS4_PATH attribute or the AS4_AGGREGATOR attribute in an UPDATE message from another NEW BGP speaker MUST discard the path attribute and continue processing the UPDATE message.\" The only edit to test/plugin/rfc6793-no-as4path-from-new-speaker.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "bb8b86c835097e4e",
   "tests": {
-    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793NewSpeakerAS4AttributesAreDiscarded": "4e9759edcd069569",
-    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "4e9759edcd069569",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793NewSpeakerAS4AttributesAreDiscarded": "1d96492063880896",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "1d96492063880896",
     "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "26e7498ef9b23dd0"
   },
   "units": {

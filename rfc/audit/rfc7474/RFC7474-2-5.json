@@ -3,8 +3,8 @@
   "requirement_sha": "f272c44f4bf140f5",
   "tests": {
     "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "daf32645cbe50ccd",
-    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474GreaterExtendedSequenceAccepted": "1ec0e3d98b6b2c33",
-    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474NotGreaterExtendedSequenceDropped": "1ec0e3d98b6b2c33"
+    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474GreaterExtendedSequenceAccepted": "3f8dbcd5a4494380",
+    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474NotGreaterExtendedSequenceDropped": "3f8dbcd5a4494380"
   },
   "units": {
     "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "e3dec75102f7b783",

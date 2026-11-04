@@ -6,8 +6,8 @@
     "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2": "16ef7f3c99da2ebe",
     "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISPrefixPlacement": "a91e66326c29a1a9",
     "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISPrefixPlacement#2": "a91e66326c29a1a9",
-    "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFPrefixPlacement": "6840f10ea9e875b5",
-    "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFPrefixPlacement#2": "6840f10ea9e875b5"
+    "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFPrefixPlacement": "a7baa388e5e185e7",
+    "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFPrefixPlacement#2": "a7baa388e5e185e7"
   },
   "units": {
     "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement": "9a9abae9215589d9",
