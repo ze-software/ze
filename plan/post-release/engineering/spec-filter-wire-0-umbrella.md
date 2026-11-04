@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Priority | P3 |
 | Release reason | Complete the promised filter-wire proofs and fix the current defect they exposed: a forked bgp-filter-irr program did not request the policy root, lost the configured IRR server/settings, and rejected authorized announcements. |
 | Depends | Route-policy phases 1-3, landed (490618ef43). This builds on their library in `internal/component/policy/`: `policy.CompileRouteChain`, `policy.RouteChain` and `policy.CheckChain`; the field registry, `policy.MustRegisterField` with a `policy.RouteView` (`Read`, `Written`); `policy.MustRegisterRouteAttachment`; and `ribpolicy.Route` and `ribpolicy.Sets` (`internal/core/rib/policy`) |
@@ -10,6 +10,22 @@
 | Updated | 2026-11-04 |
 
 ## Blocker
+
+`/ze-close` resumed on 2026-11-04 (second attempt) and handed back before the
+Review Gate. Every row of the earlier table below is cleared (A-6 confirmed on
+the owner's Mac). What blocks closure now:
+
+| # | Blocks | Producer | What clears it |
+|---|--------|----------|----------------|
+| 1 | Commit B leaves a dangling citation: `plan/post-release/features/spec-route-policy-0-umbrella.md` cites this spec's full path on lines 10, 11 and 458 | The pre-write hook (`./le ai hooks pretool-writeedit`, `internal/le/hookruntime/writeedit.go`) refuses any edit of that spec: it is `in-progress` with no `## Existing Mechanisms` section, and its paths need ten doors read | The main thread decides between (a) adding that spec's Existing Mechanisms section, then rewriting the three citations to the bare stem `spec-filter-wire-0-umbrella`, or (b) one `plan/.citation-baseline` entry for this path as a historical record (the skill both allows the move and bans baseline edits at closure) |
+| 2 | The open 2026-11-02 row of `plan/journal/second-logger-detaches-runtime-level.md` (forked BGP plugin logger ignores the dotted `ze.log.<subsystem>` key) needs a living owner | The fitting owner, `plan/release/fixes/spec-daemon-runtime-one-off-defects.md` (already owns the class's 2026-10-28 row), is `design` with no `## Existing Mechanisms` section, so the same hook refuses its owned-rows edit | Add that spec's Existing Mechanisms section (or name another owner), then add the row to its Owned journal rows table |
+| 3 | Review Gate not yet run over the whole spec work | 365 commits carry `Spec-work: filter-wire-0-umbrella`; this attempt reviewed only the post-handback commits (8869b196d2, d4539a9be2, f0b04c1428, 11e37bd142) and its own fixes, with no BLOCKER or ISSUE found | A closing agent runs `/ze-review` over the agreed population and records it with `./le spec review record` |
+
+The full-disk 2026-11-02 row needs no rehoming:
+`plan/post-release/engineering/spec-le-cache-trim-spares-running-builds.md`
+already lists it in its Owned journal rows table.
+
+### Earlier blocker (cleared)
 
 `/ze-close` (2026-11-03) stopped at the deliverables review, before the
 Review Gate. Implementation resumed on 2026-11-04 to finish the promised
