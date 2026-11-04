@@ -1,0 +1,70 @@
+Provenance: benchmark output supplied by Thomas in this conversation.
+Reported command: CGO_ENABLED=0 ./le perf filter measure
+Measured checkout revision: not included in the supplied output.
+Go toolchain version: not included in the supplied output.
+Text-era baseline: not included in the supplied output.
+Scope: current SDK typed slot and in-memory marshal/evaluate/unmarshal batches;
+not a subprocess/transport measurement or a text-era comparison.
+Operation accounting: pkg/plugin/sdk/filter_bench_test.go,
+BenchmarkFilterFastPath and BenchmarkFilterForkedBatch.
+
+--- BEGIN OWNER-SUPPLIED OUTPUT ---
+goos: darwin
+goarch: arm64
+pkg: github.com/ze-software/ze/pkg/plugin/sdk
+cpu: Apple M4 Max
+BenchmarkFilterFastPath-16      27930603                40.68 ns/op          104 B/op          2 allocs/op
+BenchmarkFilterFastPath-16      29144074                47.22 ns/op          104 B/op          2 allocs/op
+BenchmarkFilterFastPath-16      27694053                42.52 ns/op          104 B/op          2 allocs/op
+BenchmarkFilterFastPath-16      29366119                40.55 ns/op          104 B/op          2 allocs/op
+BenchmarkFilterFastPath-16      29492542                40.94 ns/op          104 B/op          2 allocs/op
+BenchmarkFilterFastPath-16      29081420                40.94 ns/op          104 B/op          2 allocs/op
+BenchmarkFilterFastPath-16      28609005                40.96 ns/op          104 B/op          2 allocs/op
+BenchmarkFilterFastPath-16      29167806                42.41 ns/op          104 B/op          2 allocs/op
+BenchmarkFilterFastPath-16      28318416                55.37 ns/op          104 B/op          2 allocs/op
+BenchmarkFilterFastPath-16      28679716                55.61 ns/op          104 B/op          2 allocs/op
+PASS
+ok      github.com/ze-software/ze/pkg/plugin/sdk        13.176s
+goos: darwin
+goarch: arm64
+pkg: github.com/ze-software/ze/pkg/plugin/sdk
+cpu: Apple M4 Max
+BenchmarkFilterForkedBatch/routes=1-16            584319              2087 ns/op             738 B/op         15 allocs/op
+BenchmarkFilterForkedBatch/routes=1-16            618102              1937 ns/op             738 B/op         15 allocs/op
+BenchmarkFilterForkedBatch/routes=1-16            620089              1934 ns/op             738 B/op         15 allocs/op
+BenchmarkFilterForkedBatch/routes=1-16            627380              1936 ns/op             738 B/op         15 allocs/op
+BenchmarkFilterForkedBatch/routes=1-16            617565              1934 ns/op             738 B/op         15 allocs/op
+BenchmarkFilterForkedBatch/routes=1-16            618406              1944 ns/op             738 B/op         15 allocs/op
+BenchmarkFilterForkedBatch/routes=1-16            611670              1933 ns/op             738 B/op         15 allocs/op
+BenchmarkFilterForkedBatch/routes=1-16            620680              1922 ns/op             738 B/op         15 allocs/op
+BenchmarkFilterForkedBatch/routes=1-16            631560              1947 ns/op             738 B/op         15 allocs/op
+BenchmarkFilterForkedBatch/routes=1-16            628664              1931 ns/op             738 B/op         15 allocs/op
+BenchmarkFilterForkedBatch/routes=16-16            59989             20050 ns/op           12429 B/op         83 allocs/op
+BenchmarkFilterForkedBatch/routes=16-16            59862             20191 ns/op           12430 B/op         83 allocs/op
+BenchmarkFilterForkedBatch/routes=16-16            59517             20077 ns/op           12433 B/op         83 allocs/op
+BenchmarkFilterForkedBatch/routes=16-16            59826             20031 ns/op           12427 B/op         83 allocs/op
+BenchmarkFilterForkedBatch/routes=16-16            59949             19986 ns/op           12426 B/op         83 allocs/op
+BenchmarkFilterForkedBatch/routes=16-16            60031             19977 ns/op           12430 B/op         83 allocs/op
+BenchmarkFilterForkedBatch/routes=16-16            60354             19862 ns/op           12426 B/op         83 allocs/op
+BenchmarkFilterForkedBatch/routes=16-16            60495             20041 ns/op           12431 B/op         83 allocs/op
+BenchmarkFilterForkedBatch/routes=16-16            59505             20224 ns/op           12430 B/op         83 allocs/op
+BenchmarkFilterForkedBatch/routes=16-16            59852             20078 ns/op           12427 B/op         83 allocs/op
+BenchmarkFilterForkedBatch/routes=64-16            15838             75732 ns/op           52885 B/op        279 allocs/op
+BenchmarkFilterForkedBatch/routes=64-16            15808             75981 ns/op           52942 B/op        279 allocs/op
+BenchmarkFilterForkedBatch/routes=64-16            15789             75776 ns/op           52907 B/op        279 allocs/op
+BenchmarkFilterForkedBatch/routes=64-16            15882             75569 ns/op           52944 B/op        279 allocs/op
+BenchmarkFilterForkedBatch/routes=64-16            15828             75934 ns/op           52882 B/op        279 allocs/op
+BenchmarkFilterForkedBatch/routes=64-16            15699             76300 ns/op           52896 B/op        279 allocs/op
+BenchmarkFilterForkedBatch/routes=64-16            14830             97697 ns/op           52911 B/op        279 allocs/op
+BenchmarkFilterForkedBatch/routes=64-16            15573             76843 ns/op           52914 B/op        279 allocs/op
+BenchmarkFilterForkedBatch/routes=64-16            15776             75969 ns/op           52879 B/op        279 allocs/op
+BenchmarkFilterForkedBatch/routes=64-16            15778             75964 ns/op           52875 B/op        279 allocs/op
+PASS
+ok      github.com/ze-software/ze/pkg/plugin/sdk        36.567s
+action      filter
+benchmarks  command                                                                                          names                         package            path
+            go test -run '^$' -bench '^(BenchmarkFilterFastPath)$' -benchmem -count=10 ./pkg/plugin/sdk/     [BenchmarkFilterFastPath]     ./pkg/plugin/sdk/  in-process: the typed DirectBridge filter slot
+            go test -run '^$' -bench '^(BenchmarkFilterForkedBatch)$' -benchmem -count=10 ./pkg/plugin/sdk/  [BenchmarkFilterForkedBatch]  ./pkg/plugin/sdk/  external: one filter-update batch of 1, 16 and 64 routes
+measured    true
+run         ./le perf filter measure
+--- END OWNER-SUPPLIED OUTPUT ---

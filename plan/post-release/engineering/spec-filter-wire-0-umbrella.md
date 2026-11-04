@@ -18,7 +18,7 @@ as a substitute for the missing behavioural evidence.
 
 | # | Remaining proof | Prepared evidence / exact prerequisite | What clears it |
 |---|-----------------|----------------------------------------|----------------|
-| 1 | A-6: relative slow-path performance, the only remaining external blocker | All reachable unit, daemon, load, discrimination and promotion proofs below are recorded. Thomas must run `./le perf filter measure` on his Mac and compare with a compatible same-Mac text-era before result; neither measurement result is supplied here | Owner measurement and before/after comparison; harness compilation and functional/load success do not confirm A-6. No closure Review Gate or closure completion is claimed |
+| 1 | A-6: relative slow-path performance, the only remaining performance-proof blocker | All reachable unit, daemon, load, discrimination and promotion proofs below are recorded. Thomas supplied current Mac output, preserved in [the owner run record](../../records/filter-wire-0-owner-mac.bench.txt). A historical Mac summary also exists, but its workload is not matched to the current SDK benchmarks. Matched text-era/new workload measurements and both runs' provenance remain required; the current measured checkout revision and Go version are not supplied | Establish a compatible, provenance-backed before/after comparison before deciding A-6, not another run of the unmatched current harness. No closure Review Gate or closure completion is claimed |
 
 AC-22's former in-daemon-when-forked unit framing was superseded by the
 owner's revised D-12, not waived. AC-40's former transit-leak load refusal was
@@ -102,7 +102,8 @@ stay owned by this spec while it is open, and its closure rehomes them.
 
 The design was **ready** at c032f72335 (2026-10-31). The implementation and
 reachable proof work are now recorded; the spec remains **blocked** only on
-A-6's owner-run Mac comparison, not on absent tests or unpromoted files.
+A-6's text-era comparison and missing current-run provenance, not on absent
+tests or unpromoted files.
 Historical design approval and the scoped proof reviews are not the closure
 Review Gate. The owner answered R-12 on 2026-10-31, recorded in revised D-6.
 
@@ -547,32 +548,71 @@ design question is open.
 | A-3 | Prepend and remove-private need reactor-side state (local AS, peer AS, ASN4 width) a plugin cannot know | `ExtractASPathPrependOps` takes `localAS`; `ExtractRemovePrivateASOps` takes `asn4` and `peerAS` | the plugin could compute them and the intents collapse to set fields | reading both signatures and their callers in `filter_ordered.go` | validated by reading at 544f8f930c |
 | A-4 | BGP chains already run `policy.CheckChain` for named instances, so the fast path inherits a working load-time check | `validateChainNames` in `internal/component/bgp/config/peers.go`; attachments registered in `bgp/config/register.go` | the check must be wired first | reading at 544f8f930c | validated by reading |
 | A-5 | `ribpolicy.Route` cannot carry BGP fields, so the lazy view is a new view kind | BGP fields registered with `RouteView{}` (`internal/component/policy/register.go`); route-policy decision that the Loc-RIB best carries no communities or AS path | BGP fields would be added to a core leaf type the Loc-RIB hot path copies by value | reading at 544f8f930c | validated by reading |
-| A-6 | A JSON message with only the declared fields, batched, is no slower per route than the text subject it replaced | FR-6; a modified text-era UPDATE paid render, two parses and a diff | the slow path regresses for small filters | Thomas's Mac: `./le perf filter measure`, plus a comparable archived text-era before result (see owner-run prerequisites below) | unvalidated: owner measurement and before comparison unavailable here; a compiling harness is not performance evidence |
+| A-6 | A JSON message with only the declared fields, batched, is no slower per route than the text subject it replaced | FR-6; a modified text-era UPDATE paid render, two parses and a diff | the slow path regresses for small filters | [Thomas's current Mac output](../../records/filter-wire-0-owner-mac.bench.txt) from `CGO_ENABLED=0 ./le perf filter measure` and the archived Mac summary below are context; deciding A-6 requires matched text-era/new workload measurements and both runs' provenance | unvalidated: the recorded old/new benchmark workloads are not comparable, and the current measured revision/Go version are missing; no relative-performance conclusion follows |
 | A-7 | The functional runner and the QEMU guest can fork a Python 3 plugin | no `.py` plugin exists under `test/plugin` or `test/reload` today; Python scripts exist only under `test/exabgp-compat` | the non-Go AC needs another language the runner already has | a runner probe `.ci` forking `python3 -I` | confirmed by `test/plugin/filter-wire-python-probe.ci`: the daemon under the runner forks a `#!/usr/bin/env -S python3 -I` plugin, which reports `isolated=1` and holds all five connect-back variables; red when the shebang drops `-I`; 20 stress iterations under load clean. The QEMU guest is not needed: the test carries no `needs-linux` |
 | A-8 | Non-CIDR families (EVPN, VPN, FlowSpec beyond its destination prefix, BGP-LS, SR-Policy, ...) remain reachable by a filter declaring raw, without decoding a prefix it did not declare | `family.Family.PlainCIDR`; `policychain.memberView.Raw` and `Fields` independently honor the reads declaration | the engine implicitly parses undecodable NLRI before a raw filter can judge it | `reactor/filter_raw_families_test.go` `TestDeclaredRawReachesEveryNonCIDRFamily`: all 17 standard non-CIDR registrations, both MP sections and verdicts, exact raw bytes and no implicit fields; includes SR-Policy owners | confirmed by main-thread race run, `job-fw-proof-reactor-292513d4.log`: named test and all 68 cases PASS; that run's unrelated A-2 oracle failure was corrected and passed in its isolated run |
 | A-9 | The BGP fields the view reads can register their readers from the BGP side while their names stay declared in `internal/component/policy/register.go` | D-7; the BGP fields there carry an empty `RouteView{}` today | the library would learn a BGP type, which D-7 forbids | `spec-filter-wire-2-view` reading `MustRegisterField` and registering one reader from `internal/component/bgp/` | confirmed by `policyview.MustRegisterReader` (keyed by `policy.Field`; the library holds no reader seam) |
 
-### A-6 owner-run prerequisites (not a compile-only confirmation)
+### A-6 owner Mac results and remaining prerequisites
 
-Run **`./le perf filter measure`** on Thomas's Mac, from the checkout whose
-revision is recorded with the result, with the repository's Go toolchain and
-`CGO_ENABLED=0` in the environment. No agent runs it; this Linux session has
-no configured SSH host for that Mac. `internal/le/perf/filter.go`
-`measureFilters` refuses a host other than Darwin. `filterArgs` selects
-`BenchmarkFilterFastPath` and `BenchmarkFilterForkedBatch` in `pkg/plugin/sdk`,
-with `-benchmem -count=10`; the latter covers batches of 1, 16 and 64 routes.
+Thomas supplied the output of **`CGO_ENABLED=0 ./le perf filter measure`**,
+preserved verbatim after its provenance header in
+[the owner run record](../../records/filter-wire-0-owner-mac.bench.txt).
+The output reports Darwin/arm64 on an Apple M4 Max, ten samples per case, and
+both benchmark invocations passing. It does **not** identify the measured
+checkout revision or Go toolchain version. No local HEAD, pull tip or proof
+commit is attributed to this measurement.
 
-`pkg/plugin/sdk/filter_bench_test.go` measures a typed-slot call and the batch
-marshal/SDK answer/unmarshal operation over already supplied fields; it does
-not itself launch a subprocess or reproduce the deleted text-subject work.
-Consequently its output alone cannot establish A-6's relative-performance
-claim. Preserve a comparable text-era before result from the same Mac,
-toolchain and workload, identify both revisions, and normalize batch cost per
-route before deciding the assumption. The historical handoff gives command
-leads, not a recorded Mac before result. The removed rendering benchmarks
-existed before 2e5c2d012a (`filter_format_bench_test.go`); the similarly named
-current `BenchmarkFilterModifyEgress` is no longer a text-era baseline.
-Neither harness compilation nor this session supplies the missing comparison.
+Derived medians of the ten samples, normalized per route:
+
+| Measured operation | Routes/op | Median ns/route | Median B/route | Median allocs/route |
+|---|---:|---:|---:|---:|
+| SDK typed slot (`BenchmarkFilterFastPath`) | 1 | 41.685 | 104 | 2 |
+| SDK in-memory batch (`BenchmarkFilterForkedBatch/routes=1`) | 1 | 1935 | 738 | 15 |
+| SDK in-memory batch (`BenchmarkFilterForkedBatch/routes=16`) | 16 | 1252.844 | 776.844 | 5.1875 |
+| SDK in-memory batch (`BenchmarkFilterForkedBatch/routes=64`) | 64 | 1186.977 | 826.586 | 4.359375 |
+
+Each column takes its own median of the reported per-operation samples, then
+divides by routes/op; nanoseconds and bytes are rounded to three decimal
+places where needed. Fractional bytes/allocations per route are amortized
+batch costs, not fractional allocations by an individual route.
+
+`internal/le/perf/filter.go` `measureFilters` restricts measurement to Darwin;
+`filterArgs` selects these SDK benchmarks with `-benchmem -count=10`.
+`pkg/plugin/sdk/filter_bench_test.go` supplies pre-encoded
+`{"med":7,"local-preference":100}` fields. Its fast case calls the typed
+bridge slot; its batch case marshals the input,
+calls `answerFilterBatch` to decode/evaluate/answer it, and unmarshals the
+answer, all in memory. Neither case launches a subprocess, uses a socket,
+decodes a received wire UPDATE, or reproduces the deleted text-subject work.
+These results establish neither live forked throughput nor a text-era
+improvement, zero-allocation behavior, or full-BGP throughput.
+
+**Historical Mac evidence exists, but is not a comparable baseline.**
+`spec-perf-next-2-filter-delta-alloc` at immutable commit
+`35b331331d2437f684f8dab6783ec61b1d4db1ac`, lines 28–41, records Mac summary
+ranges for Darwin/arm64 on an Apple M4 Max; it does not record Go/CGO metadata.
+The historical `BenchmarkFilterModifyEgress` producer is
+`7d4fedbc6c528c7bf540bef547a3cbfa3c057617:internal/component/bgp/reactor/filter_delta_test.go`,
+lines 1302–1323. It starts with two pre-supplied text strings, parses both,
+diffs them into modification ops, and applies private-AS stripping/prepend.
+It does not include JSON codec work, a filter evaluator, text rendering, or
+payload rebuilding. The current SDK batch instead starts with pre-encoded
+MED/LOCAL_PREF fields and measures JSON marshal, an accept evaluator through
+`answerFilterBatch`, and answer unmarshal. These are different operations;
+the archived summary is historical context, not A-6 comparison evidence.
+The removed rendering benchmarks are not a matched baseline either.
+
+**A-6 remains unvalidated.** What is missing is a matched text-era/new workload
+measurement on the same Mac/toolchain, with both runs' revisions, toolchain,
+environment and measurement scope—not another current-harness run. The
+supplied current result also lacks its measured checkout revision and Go
+version. No current-HEAD command has been identified that can produce the
+old text-era before workload; the historical benchmark name is not a command
+to run at HEAD, and this evidence bookkeeping restores no legacy machinery.
+No agent ran a performance measurement; there is no configured SSH host for
+that Mac. Harness compilation and the behavioral proofs cannot substitute
+for the missing matched comparison.
 
 
 ### Risks
@@ -1095,7 +1135,7 @@ of rejecting every route at run time with "cannot extract ASN".
 | `rpc.FilterUpdateTimeout` comment | `pkg/plugin/rpc/types.go` | the sentence "a plugin that waits inside its handler MUST bound that wait below this value" loses its one in-tree user; rewritten for the batch bound (D-3) |
 | registration | `register.go`, `runFilterIRR` | the name-pattern declaration (D-10) in both `registry.Registration` and `sdk.Registration`, which must agree |
 5. **Phase 5: Delete the text machinery** (`spec-filter-wire-5-delete`) - AC-8; the protocol pages rewritten in the same commit; every interop scenario in the table run with recorded reds. It deletes the transitional text member of the library chain with it: `internal/component/bgp/policychain/external_text.go` (`TextCaller`, `judgeText`), `internal/component/bgp/reactor/filter_library_text.go` (`libraryText`, `textDeltaOps`), `ExternalRoute.Text`, and the text branch of `rewriteLibrary`.
-6. **Throughput harness** (inside `spec-filter-wire-3-chain`, which introduces the batch bound it measures) - FR-7 and AC-17; the text-path benchmarks named in `## Relationship to Other Specs` give Thomas the before figure, and he runs it on his Mac.
+6. **Throughput harness** (inside `spec-filter-wire-3-chain`, which introduces the batch bound it measures) - FR-7 and AC-17; Thomas supplied the current SDK measurements. The historical text-path summary named in `## Relationship to Other Specs` is not a matched before figure; A-6 still requires comparable text-era/new workload measurements and both runs' provenance.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -1211,7 +1251,7 @@ was revised by the owner the same day, answering R-12 (R-12, revised).
 | Spec | Relationship |
 |------|--------------|
 | `plan/post-release/features/spec-route-policy-0-umbrella.md` | This spec is its phase 4 BGP half. Its AC-17 is this spec's AC-10; its R-6 is resolved by this spec adding no text representation. Both stay open until AC-10 is green |
-| `spec-perf-next-2-filter-delta-alloc` (closed 2026-09-05) | Historical text-path benchmark leads: `BenchmarkFilterModifyEgress` in the former `reactor/filter_delta_test.go`, and `BenchmarkAppendUpdateForFilter_Reused` / `BenchmarkAppendAttrsForFilter_Reused` in the former `filter_format_bench_test.go`. These are source leads before deletion, not recorded Mac before results. Current similarly named wire benchmarks must not be mislabeled a text baseline; A-6's owner-run prerequisites above retain the comparison blocker |
+| `spec-perf-next-2-filter-delta-alloc` (closed 2026-09-05) | An archived Mac summary exists at immutable commit `35b331331d2437f684f8dab6783ec61b1d4db1ac`, lines 28–41, but supplies no comparable A-6 result. Its historical `BenchmarkFilterModifyEgress` producer at `7d4fedbc6c528c7bf540bef547a3cbfa3c057617:internal/component/bgp/reactor/filter_delta_test.go:1302–1323` parses two pre-supplied text strings, diffs to ops and strips/prepends ASNs; it does not match the current SDK's JSON/accept-evaluator workload. Former rendering benchmarks are not matched either. The A-6 section records the scope mismatch and missing matched measurements/provenance; current similarly named wire benchmarks are not a text baseline |
 
 ## Checklist
 
