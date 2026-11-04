@@ -101,6 +101,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/plugin/declarations"
 	_ "github.com/ze-software/ze/internal/le/plugin/gatedtable"
 	_ "github.com/ze-software/ze/internal/le/plugin/imports"
+	_ "github.com/ze-software/ze/internal/le/reclaim"
 	_ "github.com/ze-software/ze/internal/le/repo"
 	_ "github.com/ze-software/ze/internal/le/repo/archmap"
 	_ "github.com/ze-software/ze/internal/le/repo/bootstraps"

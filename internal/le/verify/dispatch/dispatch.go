@@ -15,7 +15,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -26,14 +25,14 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
-// outputDrainMax bounds how long a stage's log waits, once the stage process
-// has exited, for a process it started and left running to close the output
-// it inherited, and how long a canceled stage has between SIGTERM and SIGKILL.
-// A test daemon that outlives its stage would otherwise hold the verify run
-// forever. It is a variable only so a test can shorten the wait.
-var outputDrainMax = 10 * time.Second
+// outputDrainMax bounds inherited-pipe waits independently of process exit.
+// Group cancellation stops owned descendants immediately; an escaped pipe
+// holder still cannot keep the stage log open indefinitely.
+// It is a variable only so a test can shorten the wait.
+var outputDrainMax = 2 * time.Second
 
 // spawnFunc builds the process that runs the le command line words. It MUST
 // NOT start it.
@@ -139,16 +138,8 @@ func dispatch(
 	// before anything else, and the working directory agrees with it.
 	cmd.Dir = absoluteRoot
 	cmd.Env = append(env.Without(os.Environ(), lepath.RootKey), lepath.RootKey+"="+absoluteRoot)
-	// A canceled stage is asked to stop, so it can release the job slot, port
-	// lock, temporary directory or namespace it holds and stop its own
-	// children; WaitDelay kills it when it has not exited by then. It stays in
-	// this process group on purpose: the job registry's stall breaker kills
-	// verify's whole group and Ctrl-C reaches the whole foreground group, and a
-	// group of its own would let a stage outlive both.
-	// cutShort records that the cancel's signal, not the stage, ended the
-	// process (cancelStage); Wait returns only after Cancel has.
-	var cutShort atomic.Bool
-	cmd.Cancel = cancelStage(cmd, &cutShort)
+	// StartServerProcess MUST own cancellation and the sole Wait; runStage
+	// MUST defer its checked Close before releasing the stage's resources.
 	cmd.WaitDelay = outputDrainMax
 	// The Go runtime in the stage writes a crash to this file and to nothing
 	// else (armStageCrashOutput), so a crash is told from a stage that only
@@ -169,20 +160,19 @@ func dispatch(
 			Str(outputDrainMax.String()).Str(" after the stage exited; what it wrote later is not in this log\n")
 	}
 	result.Output = output.String()
-	// Only a stage the cancel cut short is interrupted. One that exited on its
-	// own before the context was done answered, and its exit is a verdict even
-	// when the interrupt has landed by now (the run loop stops after it).
-	if cutShort.Load() {
+	if cmd.ProcessState == nil && ctx.Err() != nil {
 		return refused(result, "interrupted", verifyengine.Interrupted,
-			"the run was interrupted while the stage process ran: "+context.Cause(ctx).Error())
+			"the run was interrupted before the stage process started: "+context.Cause(ctx).Error())
 	}
-	var exitErr *exec.ExitError
-	if runErr != nil && !errors.As(runErr, &exitErr) && !errors.Is(runErr, exec.ErrWaitDelay) {
-		return refused(result, "spawn", 2, messageWithError("run stage process: ", runErr))
+	if processErr := stageProcessError(runErr); processErr != nil {
+		return refused(result, "spawn", 2, messageWithError("run stage process: ", processErr))
 	}
 	state := cmd.ProcessState
+	if state == nil {
+		return refused(result, "spawn", 2, "stage process returned no process state")
+	}
 	if !state.Exited() {
-		if stoppedByInterrupt(state) {
+		if stoppedByInterrupt(state, ctx.Err() != nil) {
 			return refused(result, "interrupted", verifyengine.Interrupted,
 				text.Reset().Str("stage process stopped by ").Str(state.String()).String())
 		}
@@ -201,25 +191,6 @@ func dispatch(
 	return result
 }
 
-// cancelStage answers the Cancel function for a stage process: it asks the
-// process to stop with SIGTERM and records in cutShort that the cancel ended
-// it.
-//
-// exec's context watcher can call Cancel after Wait has already reaped the
-// process, when the context is done in the moment the stage exits. The signal
-// then answers os.ErrProcessDone and reached nothing: the stage exited on its
-// own, so its exit is a verdict and cutShort stays false. exec itself treats
-// that error as no failure.
-func cancelStage(cmd *exec.Cmd, cutShort *atomic.Bool) func() error {
-	return func() error {
-		err := cmd.Process.Signal(syscall.SIGTERM)
-		if errors.Is(err, os.ErrProcessDone) {
-			return err
-		}
-		cutShort.Store(true)
-		return err
-	}
-}
 
 // stageCrashFD is the descriptor the stage process holds its crash file at:
 // ExtraFiles[0] is always descriptor 3 in the child.
@@ -253,16 +224,19 @@ func discardCrashFile(crashFile *os.File) {
 	os.Remove(crashFile.Name()) //nolint:errcheck // a leftover empty file under tmp/ costs nothing
 }
 
-// stoppedByInterrupt answers whether the stage process died of SIGINT or
-// SIGTERM, an interrupt that reached it directly (Ctrl-C reaches the whole
-// foreground process group) rather than through this run's context.
-func stoppedByInterrupt(state *os.ProcessState) bool {
+// stoppedByInterrupt classifies direct INT/TERM deaths and an actual leader
+// SIGKILL observed under a canceled root. The latter is not proof of which
+// sender delivered the signal. A natural exit always retains its verdict.
+func stoppedByInterrupt(state *os.ProcessState, canceled bool) bool {
 	status, ok := state.Sys().(syscall.WaitStatus)
 	if !ok {
 		return false
 	}
 	if !status.Signaled() {
 		return false
+	}
+	if status.Signal() == syscall.SIGKILL {
+		return canceled
 	}
 	return status.Signal() == syscall.SIGINT || status.Signal() == syscall.SIGTERM
 }
@@ -284,14 +258,16 @@ func runStage(cmd *exec.Cmd, output *textbuf.Buffer) (held bool, err error) {
 
 	cmd.Stdout = writer
 	cmd.Stderr = writer
-	startErr := cmd.Start()
-	writer.Close() //nolint:errcheck // this process's copy; the stage holds its own
+	process, startErr := runner.StartServerProcess(cmd)
 	if startErr != nil {
+		writer.Close() //nolint:errcheck // No child owns the pipe after a failed start.
 		return false, startErr
 	}
+	defer func() { err = errors.Join(err, process.Close()) }()
+	writer.Close() //nolint:errcheck // This process's copy; the stage holds its own.
 	copied := make(chan struct{})
 	go drainStage(reader, output, copied)
-	waitErr := cmd.Wait()
+	waitErr := process.Wait()
 
 	select {
 	case <-copied:
@@ -301,6 +277,35 @@ func runStage(cmd *exec.Cmd, output *textbuf.Buffer) (held bool, err error) {
 		<-copied
 	}
 	return held, waitErr
+}
+
+// stageProcessError keeps lifecycle failures even when Wait joins them with an
+// ordinary child exit. The bounded error tree is produced by ServerProcess;
+// exit status and context interruption are judged from ProcessState above.
+func stageProcessError(err error) error {
+	switch failure := err.(type) {
+	case nil, *exec.ExitError:
+		return nil
+	case interface{ Unwrap() []error }:
+		var faults error
+		for _, cause := range failure.Unwrap() {
+			faults = errors.Join(faults, stageProcessError(cause))
+		}
+		return faults
+	case interface{ Unwrap() error }:
+		return stageProcessError(failure.Unwrap())
+	default:
+		if errors.Is(err, exec.ErrWaitDelay) {
+			return nil
+		}
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil
+		}
+		return err
+	}
 }
 
 // drainStage copies a stage's output into output until the pipe ends, then

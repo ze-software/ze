@@ -1311,16 +1311,33 @@ with its own cause.
 
 ### What the gate is holding
 
-A verify worktree that carries uncommitted changes is never deleted, whoever
-abandoned it (`sweepAbandoned`, `internal/le/verify/cleanup.go`). The run names
-each one it kept, with the path, the age, the disk it holds, and the shape of
-its dirt:
+A registered verify worktree that carries uncommitted changes is preserved.
+An interrupted removal that already lost its Git registration is reclaimed from
+the tool's worktree directory, without reading the enclosing checkout's status.
+A dead owner's `.owner` marker is reclaimed even when its directory is already
+gone, but only after its Git registration is explicitly removed, including a
+locked entry from an interrupted add. Cleanup lists raw NUL-delimited
+registrations and targets only missing direct children of `tmp/verify-worktree`;
+it never runs repository-wide pruning. Legacy markerless stale registrations
+inside that owned area remain reclaimable. Outside registrations, live owners,
+malformed identities and unreadable owner markers are preserved; unknown
+ownership is a cleanup error, not permission to remove anything. The lifecycle
+publishes its live owner before Git starts creating the checkout, so standalone
+reclamation preserves an in-flight add even before its directory exists.
+The run names each preserved worktree with its path, age, disk use and dirt:
 
 ```
 verify-worktree: 20260903T091500-p123-r1-abcdef012345 was abandoned but holds
 uncommitted changes, so it is left alone: /path/to/it, 8h12m0s old, 8.3G,
 0 modified, 0 untracked, 264 deleted
 ```
+
+`./le reclaim worktrees` runs this cleanup alone: it creates no worktree, builds
+no binary and starts no suite. It shares the release lifecycle's cleanup producer,
+including refusal of unknown ownership. Cleanup errors produce a nonzero status
+and remain visible in the structured report.
+<!-- source: internal/le/reclaim/register.go -- worktrees, Actions -->
+<!-- source: internal/le/verify/cleanup.go -- Reclaim, sweepAbandoned -->
 
 The shape decides what to do. Modified or untracked content exists only there,
 so removing the worktree destroys it. Deletions alone are a tree somebody
@@ -1535,6 +1552,14 @@ attachment without changing the holder.
 <!-- source: internal/le/job/registry.go -- reportBusy -->
 <!-- source: internal/le/job/job.go -- Validate, RunContext, queue -->
 
+A nested job reads the entry named by `ZE_RUN_JOB` (including its dotted aliases)
+before computing an input fingerprint. A readable valid `LABEL` uses that
+parent's slot, including a guest-local host-admission stand-in. A demonstrably
+absent entry admits anew; an unreadable entry or invalid label refuses work and
+names the identity that must be repaired. Cancellation-aware callers use
+`AdmitContext`, so cancellation can stop slot admission as well as child execution.
+<!-- source: internal/le/job/job.go -- AdmitContext, admit, insideParent -->
+
 ## Stage times, and stopping at the first red
 
 Every verification run appends one line per stage it reached to
@@ -1657,6 +1682,48 @@ The release-candidate container gets `docker run -t` for the inner
 (`docs/architecture/testing/interop.md`). The gate stops a
 tool call, not a program that fakes a terminal; the rule that an agent never
 runs a full verification covers that case.
+
+### Issuing owner authorization also requires a terminal
+
+The same stdin/stdout detector gates four existing issuance routes:
+`./le rfc approve` when its reason cites an owner ruling,
+`./le commit create ... attest`, `./le spec review record` whenever
+`owner-authorised` is supplied, and `./le commit push` preparation.
+Both streams must be terminals; a detector error refuses rather than guessing.
+The refusal explains owner authorization, not full verification, and names the
+command Thomas must run himself. It happens before session-directory or artifact
+writes. No environment variable, keyword or flag skips it.
+
+The retry preserves the actual operands, including the ruling reason, attestation
+target and message options, push instruction, or complete review scope and
+above-cap reason. It uses the invocation echo's shell quoting, so apostrophes,
+dollar signs and backticks stay data. Existing `ZE_REPO_ROOT`,
+`CLAUDE_CODE_SESSION_ID` and `ZE_AGENT_ID` assignments preserve the originating
+checkout and known harness/agent identity when Thomas's terminal has different
+values. The raw harness identity is not the eight-hex commit namespace; an
+explicit commit `session` operand remains that operand. Context lookup reads
+existing identity sources and cache state without minting an identity, creating
+a directory or refreshing a cache timestamp.
+Rejected operands are retained too: a retry cannot silently drop an incompatible
+file or admission keyword and turn a refused request into an owner attestation.
+<!-- source: internal/le/le/human/command.go -- AppendArguments, authorizationCommand -->
+<!-- source: internal/le/le/path/known_session.go -- KnownSessionID, knownSessionID -->
+<!-- source: internal/le/commit/authorization.go -- requireAttestationTerminal -->
+<!-- source: internal/le/spec/review_authorization.go -- requireOwnerReviewTerminal -->
+
+Ordinary RFC judge verdicts, the shared weakening-approval writer, review
+recording without owner authorization, and consumers of recorded authorization
+remain noninteractive. An agent can execute an already-prepared push script:
+preparation records the owner's instruction, and execution retains its existing
+debt and target checks. A pseudo-terminal satisfies the check, so this is an
+operational restriction, not authenticated authorship or protection against
+direct file editing.
+<!-- source: internal/le/le/human/human.go -- RequireAuthorization, check -->
+<!-- source: internal/le/rfc/approve.go -- Approve, approveAnswer -->
+<!-- source: internal/le/commit/prepare.go -- Create -->
+<!-- source: internal/le/commit/push.go -- preparePush, renderPushScript -->
+<!-- source: internal/le/spec/review.go -- recordReview -->
+
 
 ## One verify at a time
 

@@ -621,18 +621,18 @@ func TestDetachRestoresTheParentSpellingOrder(t *testing.T) {
 	t.Setenv("Ze.Run_Job", second)
 	env.ResetCache()
 	adm := admission(t, root)
-	if label, nested := adm.insideParent(); !nested || label != "second" {
+	if label, nested, err := adm.insideParent(); err != nil || !nested || label != "second" {
 		t.Fatalf("before detach: parent = (%q, %v), want second", label, nested)
 	}
 
 	t.Run("detached", func(t *testing.T) {
 		detach(t)
-		if label, nested := adm.insideParent(); nested {
+		if label, nested, err := adm.insideParent(); err != nil || nested {
 			t.Fatalf("detached admission still reads parent %q", label)
 		}
 	})
 
-	if label, nested := adm.insideParent(); !nested || label != "second" {
+	if label, nested, err := adm.insideParent(); err != nil || !nested || label != "second" {
 		t.Errorf("after cleanup: parent = (%q, %v), want second", label, nested)
 	}
 }
@@ -679,7 +679,7 @@ func TestAClaimedJobsChildRunsInsideThatJob(t *testing.T) {
 			}
 			env.ResetCache()
 
-			if label, nested := adm.insideParent(); !nested || label != "suite" {
+			if label, nested, err := adm.insideParent(); err != nil || !nested || label != "suite" {
 				t.Errorf("the child's parent is (%q, %v), want the claimed suite", label, nested)
 			}
 		})

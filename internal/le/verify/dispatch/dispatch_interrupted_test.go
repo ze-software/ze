@@ -9,7 +9,6 @@ package verifydispatch
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/exec"
 	"sync/atomic"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // lateCancel is a context that reports done only after its first Err call,
@@ -37,25 +37,34 @@ func (c *lateCancel) Err() error {
 
 func (c *lateCancel) Deadline() (time.Time, bool) { return time.Time{}, false }
 
-// TestCancelOfAnExitedStageDoesNotMarkItCutShort holds that the stage's
-// Cancel records a cut-short stage only when its signal reached a running
-// process. exec's context watcher can call Cancel after Wait has reaped the
-// process, and the signal then answers os.ErrProcessDone: the stage exited on
-// its own, so its exit is a verdict and MUST NOT be refused as interrupted.
-// Method: run this test binary to completion, then call the Cancel function
-// on it.
+// TestCancelOfAnExitedStageDoesNotMarkItCutShort checks the real owner after
+// joining a successful child, then canceling its context. Close and repeated
+// Wait MUST preserve the child's actual zero exit verdict.
 func TestCancelOfAnExitedStageDoesNotMarkItCutShort(t *testing.T) {
-	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^$") //nolint:gosec // the test binary itself, with no test selected
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("run the exiting process: %v", err)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^$") //nolint:gosec // The test binary itself, with no test selected.
+	process, err := runner.StartServerProcess(cmd)
+	if err != nil {
+		t.Fatalf("start the exiting process: %v", err)
 	}
-	var cutShort atomic.Bool
-	err := cancelStage(cmd, &cutShort)()
-	if !errors.Is(err, os.ErrProcessDone) {
-		t.Fatalf("Cancel on an exited process = %v, want os.ErrProcessDone", err)
+	defer func() {
+		if err := process.Close(); err != nil {
+			t.Errorf("close the exited process: %v", err)
+		}
+	}()
+	if err := process.Wait(); err != nil {
+		t.Fatalf("join the exiting process: %v", err)
 	}
-	if cutShort.Load() {
-		t.Fatal("Cancel on an exited process marked the stage cut short, discarding its exit")
+	cancel()
+	if err := process.Close(); err != nil {
+		t.Fatalf("close after late cancellation: %v", err)
+	}
+	if !cmd.ProcessState.Exited() || cmd.ProcessState.ExitCode() != 0 {
+		t.Fatalf("late cancellation changed the natural exit: %v", cmd.ProcessState)
+	}
+	if err := process.Wait(); err != nil {
+		t.Fatalf("repeated Wait changed the successful result: %v", err)
 	}
 }
 

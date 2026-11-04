@@ -107,8 +107,8 @@ const firstRedWithPart = "first-red cannot be combined with part or all: a piece
 	"only when every stage of it runs; at a terminal, le verify worktree first-red gives an early red " +
 	"over the whole population, and le verify worktree part <i> of <m> runs every stage of one piece"
 
-// CleanupFailure is one failed cleanup operation. Cleanup attempts continue so
-// one failure cannot prevent prune or hide another failure.
+// CleanupFailure is one failed cleanup operation. Cleanup attempts retain retry
+// ownership when unregistering fails, and never hide a failure behind a verdict.
 type CleanupFailure struct {
 	Operation string `json:"operation"`
 	Message   string `json:"message"`
@@ -238,7 +238,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	// three use the whole machine. A second worktree verification of this commit
 	// takes this one's verdict rather than materializing a second checkout of
 	// 22,439 files and judging it again.
-	ticket, err := admitWorktree(root, sha, mode, part, options.FirstRed)
+	ticket, err := admitWorktree(ctx, root, sha, mode, part, options.FirstRed)
 	if err != nil {
 		report.Failure = &verifyengine.Failure{Kind: failureAdmission, Message: err.Error()}
 		report.Diagnostics = append(report.Diagnostics,
@@ -282,10 +282,10 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		report.Failure = &verifyengine.Failure{Kind: "stale-worktree-cleanup", Message: cleanupMessage(swept.Failures)}
 		return report
 	}
-	if prune := pruneWorktrees(ctx, root, deps.git); prune != nil {
-		report.Failure = &verifyengine.Failure{Kind: "stale-registration-cleanup", Message: prune.Error()}
+	if err := reclaimRegistrations(ctx, root, deps); err != nil {
+		report.Failure = &verifyengine.Failure{Kind: "stale-registration-cleanup", Message: err.Error()}
 		report.Diagnostics = append(report.Diagnostics,
-			text.Reset().Str("verify-worktree: ").Err(prune).String())
+			text.Reset().Str("verify-worktree: ").Err(err).String())
 		return report
 	}
 
@@ -293,6 +293,15 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		Str("-p").Int(int64(deps.pid())).Str("-r").Uint(runSequence.Add(1)).String()
 	path := worktreePath(root, sha, stamp)
 	report.Worktree = path
+	// Standalone reclamation can run while Git materializes the directory.
+	// Publish the live owner first, including the directoryless interval.
+	if err := os.WriteFile(ownerMarker(path),
+		text.Reset().Int(int64(deps.pid())).Byte('\n').Bytes(), 0o600); err != nil {
+		report.Code = defeatedCode(report.Code, err)
+		report.Failure = &verifyengine.Failure{Kind: "owner-marker",
+			Message: text.Reset().Str("write owner marker: ").Err(err).String()}
+		return report
+	}
 	add, addErr := deps.git(ctx, gitTimeoutWorktree, root, "worktree", "add", "--detach", path, sha)
 	if addErr != nil || add.Code != 0 {
 		failure, diagnostic := addFailure(sha, add, addErr)
@@ -350,13 +359,6 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		report.Code = defeatedCode(report.Code, err)
 		report.Failure = &verifyengine.Failure{Kind: "worktree-setup",
 			Message: text.Reset().Str("create worktree tmp: ").Err(err).String()}
-		return report
-	}
-	if err := os.WriteFile(ownerMarker(path),
-		text.Reset().Int(int64(deps.pid())).Byte('\n').Bytes(), 0o600); err != nil {
-		report.Code = defeatedCode(report.Code, err)
-		report.Failure = &verifyengine.Failure{Kind: "owner-marker",
-			Message: text.Reset().Str("write owner marker: ").Err(err).String()}
 		return report
 	}
 	report.Diagnostics = append(report.Diagnostics,
@@ -520,7 +522,7 @@ func relativeLogs(root, logs string) string {
 }
 
 // admitWorktree claims this lifecycle's slot in the shared job registry.
-func admitWorktree(root, sha, mode string, part verifyengine.Part, firstRed bool) (*job.Ticket, error) {
+func admitWorktree(ctx context.Context, root, sha, mode string, part verifyengine.Part, firstRed bool) (*job.Ticket, error) {
 	admission, err := job.NewIn(root)
 	if err != nil {
 		return nil, err
@@ -531,7 +533,7 @@ func admitWorktree(root, sha, mode string, part verifyengine.Part, firstRed bool
 		// over the same commit, so the two MUST NOT share one verdict.
 		argv = []string{"le", area, verbChanged, commitKeyword, sha}
 	}
-	return admission.Admit(jobLabel, argv)
+	return admission.AdmitContext(ctx, jobLabel, argv)
 }
 
 // worktreeArgv is what the registry fingerprints as this run's work. The commit
@@ -651,7 +653,7 @@ func processAlive(pid int) bool {
 		return false
 	}
 	err := syscall.Kill(pid, 0)
-	return err == nil || errors.Is(err, syscall.EPERM)
+	return !errors.Is(err, syscall.ESRCH)
 }
 
 func runGit(parent context.Context, timeout time.Duration, root string, args ...string) (commandResult, error) {

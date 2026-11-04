@@ -54,6 +54,7 @@ package job
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -510,7 +511,14 @@ func (a *Admission) admit(ctx context.Context, label string, argv []string) (*Ti
 		return nil, err
 	}
 
-	if parent, nested := a.insideParent(); nested {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	parent, nested, err := a.insideParent()
+	if err != nil {
+		return nil, err
+	}
+	if nested {
 		var tb textbuf.Buffer
 		a.note(tb.Byte('[').Str(label).Str("] running inside ").Str(parent).String())
 		return &Ticket{Label: label, Kind: KindInside, adm: a}, nil
@@ -595,19 +603,24 @@ func (a *Admission) queue(ctx context.Context, job *pending) (*Ticket, error) {
 // The function checks the parent's ENTRY, not the variable alone. A job whose
 // parent has finished is not nested. If that job ran without admission, no
 // claim would protect the heavy work.
-func (a *Admission) insideParent() (string, bool) {
+func (a *Admission) insideParent() (string, bool, error) {
 	named := env.Get(parentEntry.Key)
 	if named == "" {
-		return "", false
+		return "", false, nil
 	}
-	body, err := os.ReadFile(named) //nolint:gosec // the path is this process's own parent entry, exported by the job that started it
+	body, err := os.ReadFile(named) //nolint:gosec // The holder exports its own entry to its child.
+	if errors.Is(err, os.ErrNotExist) {
+		// A demonstrably removed parent no longer grants a slot; admit anew.
+		return "", false, nil
+	}
 	if err != nil {
-		return "", false
+		return "", false, fmt.Errorf("cannot read parent job identity %q; restore its readability before starting nested work: %w", named, err)
 	}
-	if label := field(body, "LABEL"); label != "" {
-		return label, true
+	label := field(body, "LABEL")
+	if !validLabel(label) {
+		return "", false, fmt.Errorf("parent job identity %q has no valid LABEL; run nested work from its live job holder", named)
 	}
-	return named, true
+	return label, true, nil
 }
 
 // Run is the whole of the wrapper: admission, the child, its log, and the

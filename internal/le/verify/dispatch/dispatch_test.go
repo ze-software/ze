@@ -7,9 +7,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -80,6 +81,12 @@ func registerProbe() {
 
 func probeAnswer(args []string) (any, int) {
 	if len(args) > 0 {
+		if args[0] == "cancel-slot" {
+			return cancellationProbe(args)
+		}
+		if args[0] == "cancel-group" || args[0] == "cancel-escaped" {
+			return cancellationProbe(args)
+		}
 		if args[0] == "stderr" {
 			return make(chan int), 99
 		}
@@ -101,31 +108,21 @@ func probeAnswer(args []string) (any, int) {
 			syscall.Kill(os.Getpid(), syscall.SIGKILL) //nolint:errcheck // the next line never runs when it works
 			return nil, 3
 		}
-		// A stage that leaves a process running on the output it inherited,
-		// as a harness that starts a daemon and never stops it does.
+		// Transfer the real output descriptor to the test owner. Keeping that
+		// handle open needs no detached process or reusable numeric identity.
 		if args[0] == "orphan" || args[0] == "orphan-red" {
-			leftover := exec.CommandContext(context.Background(), "sleep", "2")
-			leftover.Stdout = os.Stdout
-			if err := leftover.Start(); err != nil {
+			conn, err := net.DialUnix("unix", nil, &net.UnixAddr{Name: args[1], Net: "unix"})
+			if err != nil {
+				return probeText(err.Error()), 5
+			}
+			_, _, sendErr := conn.WriteMsgUnix([]byte("stdout"), syscall.UnixRights(int(os.Stdout.Fd())), nil)
+			if err := errors.Join(sendErr, conn.Close()); err != nil {
 				return probeText(err.Error()), 5
 			}
 			if args[0] == "orphan-red" {
 				return probeText("left a process running\n"), 1
 			}
 			return probeText("left a process running\n"), 0
-		}
-		// A stage that holds resources and releases them on SIGTERM, as a
-		// harness holding a job slot, a port lock or a namespace does.
-		if args[0] == "term" {
-			terms := make(chan os.Signal, 1)
-			signal.Notify(terms, syscall.SIGTERM)
-			select {
-			case <-terms:
-				os.Stdout.WriteString("released on SIGTERM\n") //nolint:errcheck // the shape under test
-				return nil, 7
-			case <-time.After(time.Minute):
-				return nil, 4
-			}
 		}
 		if args[0] == "panic" {
 			panic("BUG: probe crash")
@@ -311,42 +308,105 @@ func TestDispatchReportsAStageThatDidNotExit(t *testing.T) {
 }
 
 // TestDispatchSaysWhenALeftoverProcessHeldTheLog proves the log stops waiting
-// for a process the stage left on its output, and says it stopped, whether the
-// stage passed or failed. Method: the probe starts a sleep on its stdout and
-// exits; the drain wait is shortened so the test does not wait ten seconds.
+// for a retained output descriptor, and says it stopped, whether the stage
+// passed or failed. The probe transfers stdout to this test, which retains it
+// through the verdict and closes it before joining even on a regression.
 func TestDispatchSaysWhenALeftoverProcessHeldTheLog(t *testing.T) {
 	drain := outputDrainMax
 	outputDrainMax = 200 * time.Millisecond
 	t.Cleanup(func() { outputDrainMax = drain })
 
 	for verb, code := range map[string]int{"orphan": 0, "orphan-red": 1} {
-		result := runProbe(context.Background(), t, t.TempDir(),
-			verifyengine.Identity{Name: verb, Command: probeRoot, Args: []string{verb}})
-		if !result.Completed || result.Code != code || result.Failure != nil {
-			t.Fatalf("%s result = %#v", verb, result)
-		}
-		if !strings.Contains(result.Output, "left a process running\n") {
-			t.Errorf("%s stage output lost: %q", verb, result.Output)
-		}
-		if !strings.Contains(result.Output, "still held its output open") {
-			t.Errorf("%s log does not say it stopped waiting: %q", verb, result.Output)
-		}
+		t.Run(verb, func(t *testing.T) {
+			// Use a short owned directory: Unix socket paths have a small bound.
+			dir, err := os.MkdirTemp("", "verify-pipe-")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := os.RemoveAll(dir); err != nil {
+					t.Error(err)
+				}
+			}()
+			socket := filepath.Join(dir, "s")
+			listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: socket, Net: "unix"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer closeHeldPipeFixture(t, listener)
+			deadline := time.Now().Add(5 * time.Second)
+			if err := listener.SetDeadline(deadline); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithDeadline(t.Context(), deadline)
+			defer cancel()
+			answer := make(chan verifyengine.ActionResult, 1)
+			go func() {
+				answer <- runProbe(ctx, t, dir,
+					verifyengine.Identity{Name: verb, Command: probeRoot, Args: []string{verb, socket}})
+			}()
+			joined := false
+			defer func() {
+				cancel()
+				if !joined {
+					// Drop any unaccepted descriptor transfer before joining.
+					closeHeldPipeFixture(t, listener)
+					result := <-answer
+					t.Logf("fixture child verdict: completed=%t exit=%d failure=%+v output=%q",
+						result.Completed, result.Code, result.Failure, result.Output)
+				}
+			}()
+			conn, err := listener.AcceptUnix()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer closeHeldPipeFixture(t, conn)
+			if err := conn.SetReadDeadline(deadline); err != nil {
+				t.Fatal(err)
+			}
+			data, rights := make([]byte, 16), make([]byte, syscall.CmsgSpace(4))
+			_, n, _, _, err := conn.ReadMsgUnix(data, rights)
+			if err != nil {
+				t.Fatal(err)
+			}
+			messages, err := syscall.ParseSocketControlMessage(rights[:n])
+			if err != nil || len(messages) != 1 {
+				t.Fatalf("stdout transfer: %v messages=%d", err, len(messages))
+			}
+			fds, err := syscall.ParseUnixRights(&messages[0])
+			if err != nil || len(fds) != 1 {
+				t.Fatalf("stdout descriptor: %v descriptors=%v", err, fds)
+			}
+			pipe := os.NewFile(uintptr(fds[0]), "owned-stage-stdout")
+			defer closeHeldPipeFixture(t, pipe)
+			select {
+			case result := <-answer:
+				joined = true
+				if !result.Completed || result.Code != code || result.Failure != nil {
+					t.Fatalf("%s result = %#v", verb, result)
+				}
+				if !strings.Contains(result.Output, "left a process running\n") {
+					t.Errorf("%s stage output lost: %q", verb, result.Output)
+				}
+				if !strings.Contains(result.Output, "still held its output open") {
+					t.Errorf("%s log does not say it stopped waiting: %q", verb, result.Output)
+				}
+			case <-ctx.Done():
+				closeHeldPipeFixture(t, pipe)
+				<-answer
+				joined = true
+				t.Fatal("dispatch waited for the retained descriptor instead of bounding output drain")
+			}
+		})
 	}
 }
 
-// TestDispatchStopsACanceledStageWithSIGTERM proves a canceled stage is asked
-// to stop, so it can release what it holds, rather than killed outright.
-// Method: the probe waits for SIGTERM and reports that it released.
-func TestDispatchStopsACanceledStageWithSIGTERM(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-	defer cancel()
-	result := runProbe(ctx, t, t.TempDir(),
-		verifyengine.Identity{Name: "term", Command: probeRoot, Args: []string{"term"}})
-	if result.Completed || result.Code != verifyengine.Interrupted || result.Failure == nil || result.Failure.Kind != "interrupted" {
-		t.Errorf("canceled result = %#v", result)
-	}
-	if !strings.Contains(result.Output, "released on SIGTERM") {
-		t.Errorf("stage was not given SIGTERM: %q", result.Output)
+// closeHeldPipeFixture releases only handles this fixture owns. Duplicate
+// closure on the timeout path is harmless; other cleanup errors fail the test.
+func closeHeldPipeFixture(t *testing.T, owned io.Closer) {
+	t.Helper()
+	if err := owned.Close(); err != nil && !errors.Is(err, os.ErrClosed) && !errors.Is(err, net.ErrClosed) {
+		t.Error(err)
 	}
 }
 

@@ -320,13 +320,9 @@ func TestRedRunPreservesLogsAndReportsTheVerdictLast(t *testing.T) {
 
 func TestCleanupFailureOverridesAFalseGreenAndIsReported(t *testing.T) {
 	repo := newFixtureRepo(t)
-	prunes := 0
 	git := func(ctx context.Context, timeout time.Duration, root string, args ...string) (commandResult, error) {
-		if len(args) >= 2 && args[0] == "worktree" && args[1] == "prune" {
-			prunes++
-			if prunes == 2 {
-				return commandResult{Code: 7, Output: "prune refused"}, nil
-			}
+		if len(args) >= 2 && args[0] == "worktree" && args[1] == "remove" {
+			return commandResult{Code: 7, Output: "scoped unregister refused"}, nil
 		}
 		return runGit(ctx, timeout, root, args...)
 	}
@@ -336,7 +332,7 @@ func TestCleanupFailureOverridesAFalseGreenAndIsReported(t *testing.T) {
 	if report.Code == 0 || report.Failure == nil || report.Failure.Kind != "cleanup" {
 		t.Fatalf("report = %#v", report)
 	}
-	if len(report.Cleanup) == 0 || report.Cleanup[len(report.Cleanup)-1].Operation != "git worktree prune" {
+	if len(report.Cleanup) == 0 || report.Cleanup[len(report.Cleanup)-1].Operation != "git worktree remove" {
 		t.Fatalf("cleanup failures = %#v", report.Cleanup)
 	}
 }
@@ -425,7 +421,7 @@ func TestGitBoundsSeparateAWholeCheckoutFromARefRead(t *testing.T) {
 	want := map[string]time.Duration{
 		"rev-parse --verify":   gitTimeoutMetadata,
 		"symbolic-ref --quiet": gitTimeoutMetadata,
-		"worktree prune":       gitTimeoutMetadata,
+		"worktree list":        gitTimeoutMetadata,
 		"status --porcelain":   gitTimeoutWorktree,
 		"worktree add":         gitTimeoutWorktree,
 		"worktree remove":      gitTimeoutWorktree,
@@ -748,13 +744,9 @@ func TestARealFailureStaysAFailure(t *testing.T) {
 // status the process answers, in every outcome, including the two branches that
 // move report.Code after the stages have run.
 func TestThePrintedVerdictIsTheCodeTheRunExitsWith(t *testing.T) {
-	prunes := 0
-	failingPrune := func(ctx context.Context, timeout time.Duration, root string, args ...string) (commandResult, error) {
-		if len(args) >= 2 && args[0] == "worktree" && args[1] == "prune" {
-			prunes++
-			if prunes == 2 {
-				return commandResult{Code: 7, Output: "prune refused"}, nil
-			}
+	failingRemove := func(ctx context.Context, timeout time.Duration, root string, args ...string) (commandResult, error) {
+		if len(args) >= 2 && args[0] == "worktree" && args[1] == "remove" {
+			return commandResult{Code: 7, Output: "scoped unregister refused"}, nil
 		}
 		return runGit(ctx, timeout, root, args...)
 	}
@@ -773,7 +765,7 @@ func TestThePrintedVerdictIsTheCodeTheRunExitsWith(t *testing.T) {
 		{name: "the device filled", runner: failingRunner(),
 			prepare: func(deps *dependencies) { deps.logs = defeated }, want: verifyengine.Unjudged},
 		{name: "cleanup failed after the stages", runner: passingRunner,
-			prepare: func(deps *dependencies) { deps.git = failingPrune }, want: 1},
+			prepare: func(deps *dependencies) { deps.git = failingRemove }, want: 1},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			repo := newFixtureRepo(t)

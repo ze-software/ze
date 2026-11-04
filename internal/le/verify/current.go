@@ -95,7 +95,7 @@ func runFast(ctx context.Context, root string, firstRed bool, runner verifyengin
 	if err != nil {
 		return admissionFailure(certificateMode, commit, err)
 	}
-	ticket, err := admission.Admit(jobLabel, fastArgv(firstRed))
+	ticket, err := admission.AdmitContext(ctx, jobLabel, fastArgv(firstRed))
 	if err != nil {
 		return admissionFailure(certificateMode, commit, err)
 	}

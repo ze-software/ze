@@ -2,6 +2,7 @@
 package verify
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -58,6 +59,38 @@ func orphaned(ctx context.Context, deps dependencies, path string) bool {
 	return !os.SameFile(here, there)
 }
 
+// Reclaim removes abandoned verification artifacts without creating a checkout
+// or running a verification stage. The caller supplies the checkout root.
+func Reclaim(ctx context.Context, root string) Report {
+	report := Report{Action: "reclaim"}
+	if !filepath.IsAbs(root) {
+		report.Code = 2
+		report.Diagnostics = []string{"reclaim worktrees: checkout root must be absolute; run from a Ze checkout"}
+		return report
+	}
+	swept := sweepAbandoned(ctx, root, filepath.Join(root, "tmp", "verify-worktree"), defaultDependencies())
+	if err := reclaimRegistrations(ctx, root, defaultDependencies()); err != nil {
+		swept.Failures = append(swept.Failures, CleanupFailure{Operation: "reclaim stale registrations", Message: err.Error()})
+	}
+	report.Swept = swept.Removed
+	report.Preserved = swept.Preserved
+	report.Cleanup = swept.Failures
+	report.Diagnostics = swept.Diagnostics
+	for _, path := range swept.Removed {
+		report.Diagnostics = append(report.Diagnostics, "reclaim worktrees: removed "+path)
+	}
+	for _, failure := range swept.Failures {
+		report.Diagnostics = append(report.Diagnostics, "reclaim worktrees: "+failure.Operation+": "+failure.Message)
+	}
+	if len(swept.Failures) != 0 {
+		report.Code = 1
+	}
+	if len(report.Diagnostics) == 0 {
+		report.Diagnostics = []string{"reclaim worktrees: no abandoned artifacts to remove"}
+	}
+	return report
+}
+
 func sweepAbandoned(ctx context.Context, root, base string, deps dependencies) sweep {
 	entries, err := os.ReadDir(base)
 	if err != nil {
@@ -76,19 +109,66 @@ func sweepAbandoned(ctx context.Context, root, base string, deps dependencies) s
 	failures := make([]CleanupFailure, 0)
 	var text textbuf.Buffer
 	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		path := filepath.Join(base, entry.Name())
-		if owner, readErr := markers.ReadFile(text.Reset().Str(entry.Name()).Str(".owner").Slice()); readErr == nil {
-			pid, parseErr := strconv.Atoi(strings.TrimSpace(string(owner)))
-			if parseErr == nil && deps.alive(pid) {
+		name := entry.Name()
+		directoryless := false
+		if strings.HasSuffix(name, ".owner") {
+			if entry.IsDir() {
 				continue
 			}
-		} else if !errors.Is(readErr, os.ErrNotExist) {
-			diagnostics = append(diagnostics, text.Reset().
-				Str("verify-worktree: cannot read owner of ").Str(entry.Name()).
-				Str(", treating it as abandoned: ").Err(readErr).String())
+			name = strings.TrimSuffix(name, ".owner")
+			if name == "" {
+				continue
+			}
+			if _, statErr := markers.Lstat(name); statErr == nil {
+				continue
+			} else if !errors.Is(statErr, os.ErrNotExist) {
+				failures = append(failures, CleanupFailure{Operation: "inspect owner directory " + name, Message: statErr.Error()})
+				continue
+			}
+			directoryless = true
+		} else if !entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(base, name)
+		owner, readErr := markers.ReadFile(name + ".owner")
+		if readErr != nil {
+			if !errors.Is(readErr, os.ErrNotExist) {
+				failures = append(failures, CleanupFailure{Operation: "read owner of " + name, Message: readErr.Error()})
+				continue
+			}
+			if directoryless {
+				// The snapshot can list a marker already removed with its directory.
+				continue
+			}
+		} else {
+			pid, parseErr := strconv.Atoi(strings.TrimSpace(string(owner)))
+			if parseErr != nil {
+				failures = append(failures, CleanupFailure{Operation: "read owner of " + name, Message: "invalid owner identity; preserve the resource and investigate its owner"})
+				continue
+			}
+			if pid < 0 {
+				failures = append(failures, CleanupFailure{Operation: "read owner of " + name, Message: "negative owner identity; preserve the resource and investigate its owner"})
+				continue
+			}
+			if deps.alive(pid) {
+				continue
+			}
+		}
+		if directoryless {
+			reclaimed, err := removeMissingRegistration(ctx, root, path, deps.git, deps.alive)
+			if err != nil {
+				failures = append(failures, CleanupFailure{Operation: "unregister directoryless worktree " + name, Message: err.Error()})
+				continue
+			}
+			if !reclaimed {
+				continue
+			}
+			if err := markers.Remove(name + ".owner"); err != nil {
+				failures = append(failures, CleanupFailure{Operation: "remove directoryless owner of " + name, Message: err.Error()})
+				continue
+			}
+			removed = append(removed, path)
+			continue
 		}
 
 		// A directory that is no longer a worktree ROOT is swept on its
@@ -275,42 +355,32 @@ func preservedAgeAndSize(kept PreservedWorktree) string {
 	return text.Str(diskspace.GiB(kept.SizeBytes)).String()
 }
 
-// reclaimWorktree removes a worktree that a failed or abandoned add left on
-// disk. Git creates the worktree directory before it checks anything out, so an
-// add that created no directory left nothing to reclaim, and a removal there
-// would report a failure of its own.
+// reclaimWorktree reclaims both halves of this run's failed add. A directoryless
+// checkout MUST be unregistered before its retry marker is removed.
 func reclaimWorktree(ctx context.Context, root, path string, git gitRunner) []CleanupFailure {
-	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
+		if _, err := removeMissingRegistration(ctx, root, path, git, nil); err != nil {
+			return []CleanupFailure{{Operation: "git worktree remove", Message: err.Error()}}
+		}
+		if err := os.Remove(ownerMarker(path)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return []CleanupFailure{{Operation: "remove directoryless owner marker", Message: err.Error()}}
+		}
 		return nil
 	}
 	return removeWorktree(ctx, root, path, git)
 }
 
-// removeOrphan deletes a directory git no longer registers as a worktree.
-//
-// `git worktree remove` is not the verb here and answers "is not a working
-// tree" for one of these, because the registration is exactly what is already
-// gone. The files are removed directly and the prune still runs, so an admin
-// entry whose directory this call just deleted goes with it.
+// removeOrphan removes files whose Git root is already gone, then explicitly
+// unregisters any surviving entry before discarding the ownership marker.
 func removeOrphan(ctx context.Context, root, path string, git gitRunner) []CleanupFailure {
-	failures := make([]CleanupFailure, 0)
-	if err := os.Remove(ownerMarker(path)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		failures = append(failures, CleanupFailure{Operation: "remove owner marker", Message: err.Error()})
-	}
 	if err := os.RemoveAll(path); err != nil {
-		failures = append(failures, CleanupFailure{Operation: "remove orphaned directory", Message: err.Error()})
+		return []CleanupFailure{{Operation: "remove orphaned directory", Message: err.Error()}}
 	}
-	if prune := pruneWorktrees(ctx, root, git); prune != nil {
-		failures = append(failures, CleanupFailure{Operation: "git worktree prune", Message: prune.Error()})
-	}
-	return failures
+	return reclaimWorktree(ctx, root, path, git)
 }
 
 func removeWorktree(ctx context.Context, root, path string, git gitRunner) []CleanupFailure {
 	failures := make([]CleanupFailure, 0)
-	if err := os.Remove(ownerMarker(path)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		failures = append(failures, CleanupFailure{Operation: "remove owner marker", Message: err.Error()})
-	}
 
 	// A killed "git worktree add" leaves git's own creation lock behind, and git
 	// refuses to remove a locked worktree with one --force. Nothing but this
@@ -327,18 +397,120 @@ func removeWorktree(ctx context.Context, root, path string, git gitRunner) []Cle
 	} else if !errors.Is(statErr, os.ErrNotExist) {
 		failures = append(failures, CleanupFailure{Operation: "inspect worktree directory", Message: statErr.Error()})
 	}
-	if prune := pruneWorktrees(ctx, root, git); prune != nil {
-		failures = append(failures, CleanupFailure{Operation: "git worktree prune", Message: prune.Error()})
+	if _, statErr := os.Lstat(path); errors.Is(statErr, os.ErrNotExist) && len(failures) == 0 {
+		if err := os.Remove(ownerMarker(path)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			failures = append(failures, CleanupFailure{Operation: "remove owner marker", Message: err.Error()})
+		}
 	}
 	return failures
 }
 
-func pruneWorktrees(ctx context.Context, root string, git gitRunner) error {
-	result, err := git(ctx, gitTimeoutMetadata, root, "worktree", "prune", "--expire", "now")
-	if err != nil || result.Code != 0 {
-		return errors.New(commandFailure("git worktree prune", result, err))
+// reclaimRegistrations preserves legacy markerless stale checkouts only inside
+// this tool's direct-child area. Global pruning bypasses ownership refusals and
+// can erase other sessions' registrations, including paths outside that area.
+func reclaimRegistrations(ctx context.Context, root string, deps dependencies) error {
+	paths, err := worktreeRegistrations(ctx, root, deps.git)
+	if err != nil {
+		return err
 	}
-	return nil
+	base := filepath.Join(root, "tmp", "verify-worktree")
+	var failures error
+	for _, path := range paths {
+		if filepath.Dir(path) != base {
+			continue
+		}
+		if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+			if err != nil {
+				failures = errors.Join(failures, fmt.Errorf("inspect registered worktree %q: %w", path, err))
+			}
+			continue
+		}
+		if _, err := removeMissingRegistration(ctx, root, path, deps.git, deps.alive); err != nil {
+			failures = errors.Join(failures, err)
+		}
+	}
+	return failures
+}
+
+// worktreeRegistrations reads raw NUL records: paths may contain spaces or
+// newlines, so neither line splitting nor shell unquoting identifies a checkout.
+func worktreeRegistrations(ctx context.Context, root string, git gitRunner) ([]string, error) {
+	result, err := git(ctx, gitTimeoutMetadata, root, "worktree", "list", "--porcelain", "-z")
+	if err != nil || result.Code != 0 {
+		return nil, errors.New(commandFailure("git worktree list", result, err))
+	}
+	var paths []string
+	for field := range strings.SplitSeq(result.Output, "\x00") {
+		if path, ok := strings.CutPrefix(field, "worktree "); ok {
+			paths = append(paths, path)
+		}
+	}
+	return paths, nil
+}
+
+// removeMissingRegistration MUST precede marker deletion. It answers false for
+// a live owner, which the caller MUST preserve. alive is required for abandoned
+// resources; nil is reserved for the current run's failed add.
+// Snapshot/rechecks refuse changed ownership, a recreated directory or a target
+// outside the direct-child area before Git can mutate its registration.
+func removeMissingRegistration(ctx context.Context, root, path string, git gitRunner, alive func(int) bool) (bool, error) {
+	if filepath.Clean(path) != path {
+		return false, fmt.Errorf("refuse noncanonical registration path: %q", path)
+	}
+	if filepath.Dir(path) != filepath.Join(root, "tmp", "verify-worktree") {
+		return false, fmt.Errorf("refuse registration outside verification area: %q", path)
+	}
+	owner, ownerErr := os.ReadFile(ownerMarker(path))
+	if ownerErr != nil && !errors.Is(ownerErr, os.ErrNotExist) {
+		return false, fmt.Errorf("read registration owner %q: %w", path, ownerErr)
+	}
+	paths, err := worktreeRegistrations(ctx, root, git)
+	if err != nil {
+		return false, err
+	}
+	registered := false
+	for _, candidate := range paths {
+		if candidate == path {
+			registered = true
+			break
+		}
+	}
+	current, currentErr := os.ReadFile(ownerMarker(path))
+	if currentErr != nil && !errors.Is(currentErr, os.ErrNotExist) {
+		return false, fmt.Errorf("recheck registration owner %q: %w", path, currentErr)
+	}
+	if errors.Is(currentErr, os.ErrNotExist) != errors.Is(ownerErr, os.ErrNotExist) {
+		return false, fmt.Errorf("registration owner changed while reclaiming %q", path)
+	}
+	if !bytes.Equal(current, owner) {
+		return false, fmt.Errorf("registration owner changed while reclaiming %q", path)
+	}
+	if alive != nil && currentErr == nil {
+		pid, err := strconv.Atoi(strings.TrimSpace(string(current)))
+		if err != nil {
+			return false, fmt.Errorf("invalid registration owner for %q: %w", path, err)
+		}
+		if pid < 0 {
+			return false, fmt.Errorf("negative registration owner for %q", path)
+		}
+		if alive(pid) {
+			return false, nil
+		}
+	}
+	if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+		if err != nil {
+			return false, fmt.Errorf("inspect missing registration %q: %w", path, err)
+		}
+		return false, fmt.Errorf("worktree reappeared while reclaiming %q", path)
+	}
+	if !registered {
+		return true, nil
+	}
+	result, err := git(ctx, gitTimeoutWorktree, root, "worktree", "remove", "--force", "--force", path)
+	if err != nil || result.Code != 0 {
+		return false, errors.New(commandFailure("git worktree remove", result, err))
+	}
+	return true, nil
 }
 
 func saveLogs(root, worktree, name string) (string, error) {

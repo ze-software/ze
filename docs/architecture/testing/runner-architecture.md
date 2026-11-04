@@ -248,6 +248,17 @@ process group of its own never saw the Ctrl-C that stopped its parent.
 <!-- source: internal/component/plugin/sysproc.go -- KillGroupOnCancel, KillProcessGroup -->
 <!-- test: internal/test/cli/cmd_exabgp_process_test.go TestCanceledContextReapsTheWholeGroup, TestStopExaProcessReapsTheWholeGroup -->
 
+The release stage dispatcher uses `StartServerProcess` for each owned stage
+group, sharing the stable spawner, identity-locked cancellation and before-reap
+retirement. Root cancellation sends immediate SIGKILL to the still-owned group,
+including TERM-ignoring members. Dispatch immediately defers checked `Close`,
+not the graceful `Stop`. The sole direct-child Wait and output-reader join finish
+before dispatch returns and its caller can release the admission lease.
+Inherited output held by an escaped process has a separate two-second drain
+bound; closing the pipe does not establish that the escaped process was killed
+or reaped. Fixture-owned escaped sentinels are cleaned up separately.
+<!-- source: internal/le/verify/dispatch/dispatch.go -- dispatch, runStage -->
+
 A Docker lab container is the child `Pdeathsig` cannot reach: the daemon, not
 the runner, is its parent, so killing the runner kills nothing it started. The
 labs therefore cover the three routes differently. The `defer` beside the start
