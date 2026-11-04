@@ -597,6 +597,9 @@ func (r *Run) qemuArgs(ctx context.Context, iso, kernel string, port int) ([]str
 func (r *Run) acceleration() (string, error) {
 	if !r.Options.HardwareOnly {
 		if r.ops.GOARCH == ArchARM64 {
+			if r.ops.GOOS == "linux" {
+				return "kvm:tcg", nil
+			}
 			return "hvf:tcg", nil
 		}
 		return "hvf:kvm:tcg", nil
@@ -757,6 +760,8 @@ func shellQuote(value string) string {
 // here because a copy of that declaration drifted once already, and a guest a
 // minor behind downloads a second toolchain on its first `go` command
 // (internal/le/go/versionpin, DeclaredRelease).
+// Each optional shell alternative MUST stay grouped: an ungrouped OR would
+// recover the failure of an earlier required step in the joined AND chain.
 func (r *Run) setupCommand(goRelease string) (string, error) {
 	arch := ArchAMD64
 	if runAlpineArch(r.ops.GOARCH) == "aarch64" {
@@ -775,16 +780,16 @@ func (r *Run) setupCommand(goRelease string) (string, error) {
 		parts = append(parts, b.Str("apk add --no-cache ").Join(r.Options.Packages, " ").String())
 	}
 	parts = append(parts,
-		"modprobe ppp_generic 2>/dev/null || true",
-		"modprobe l2tp_ppp 2>/dev/null || true",
-		"modprobe l2tp_netlink 2>/dev/null || true",
-		"modprobe nft_chain_nat 2>/dev/null || true",
-		"modprobe nf_conntrack 2>/dev/null || true",
-		"modprobe nf_conntrack_netlink 2>/dev/null || true",
-		"[ -w /proc/sys/net/netfilter/nf_conntrack_acct ] && echo 1 > /proc/sys/net/netfilter/nf_conntrack_acct || true",
-		"nft add table inet ztrack 2>/dev/null || true",
-		"nft 'add chain inet ztrack out { type filter hook output priority -150 ; policy accept ; }' 2>/dev/null || true",
-		"nft add rule inet ztrack out ct state new,established,related counter 2>/dev/null || true",
+		"{ modprobe ppp_generic 2>/dev/null || true; }",
+		"{ modprobe l2tp_ppp 2>/dev/null || true; }",
+		"{ modprobe l2tp_netlink 2>/dev/null || true; }",
+		"{ modprobe nft_chain_nat 2>/dev/null || true; }",
+		"{ modprobe nf_conntrack 2>/dev/null || true; }",
+		"{ modprobe nf_conntrack_netlink 2>/dev/null || true; }",
+		"{ [ -w /proc/sys/net/netfilter/nf_conntrack_acct ] && echo 1 > /proc/sys/net/netfilter/nf_conntrack_acct || true; }",
+		"{ nft add table inet ztrack 2>/dev/null || true; }",
+		"{ nft 'add chain inet ztrack out { type filter hook output priority -150 ; policy accept ; }' 2>/dev/null || true; }",
+		"{ nft add rule inet ztrack out ct state new,established,related counter 2>/dev/null || true; }",
 		"echo \"CONNTRACK-SETUP: acct=$(cat /proc/sys/net/netfilter/nf_conntrack_acct 2>/dev/null || echo MISSING) rules=$(nft list ruleset 2>/dev/null | grep -c 'ct state' || echo 0)\"",
 		"mkdir -p /workspace",
 		"mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 workspace /workspace",
@@ -808,7 +813,7 @@ func (r *Run) setupCommand(goRelease string) (string, error) {
 	goURL := b.Str("https://go.dev/dl/go").Str(goRelease).Str(".linux-").Str(arch).Str(".tar.gz").String()
 	parts = append(parts,
 		"cd /workspace", "mkdir -p /workspace/tmp/qemu/go-dl", goTar,
-		b.Reset().Str("[ -f \"$GO_TAR\" ] || curl -fsSL -o \"$GO_TAR\" \"").Str(goURL).Str("\"").String(),
+		b.Reset().Str("{ [ -f \"$GO_TAR\" ] || curl -fsSL -o \"$GO_TAR\" \"").Str(goURL).Str("\"; }").String(),
 		"tar -C /usr/local -xzf \"$GO_TAR\"",
 		"export PATH=\"/usr/local/go/bin:$PATH\"",
 		"export GOROOT=\"/usr/local/go\"",
@@ -816,7 +821,7 @@ func (r *Run) setupCommand(goRelease string) (string, error) {
 		"export GOMODCACHE=\"/workspace/tmp/qemu/gomodcache\"",
 		"export GOFLAGS=\"-buildvcs=false\"", "export CGO_ENABLED=\"0\"",
 		"export HOME=\"/root\"", "export TMPDIR=\"/tmp\"",
-		"git config --global --add safe.directory '*' 2>/dev/null || true",
+		"{ git config --global --add safe.directory '*' 2>/dev/null || true; }",
 		guestPatchedTree,
 		"mkdir -p /workspace/tmp/evidence", "mount -t tmpfs tmpfs /workspace/tmp/evidence",
 		guestRunParentSetup(guestRunJobParent),

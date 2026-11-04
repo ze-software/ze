@@ -1,9 +1,12 @@
 # QEMU Integration Testing
 
 Ze runs on Linux (gokrazy appliances, Debian/Ubuntu servers). Code that uses
-Linux-only syscalls (termios, netlink, nftables, sysctl) cannot be tested on
-macOS or in Docker Desktop. Ze uses a QEMU Alpine Linux VM to run these tests
-with full kernel capabilities.
+Linux-only syscalls (termios, netlink, nftables, sysctl) needs a Linux guest on
+macOS and Docker Desktop. Platform proof requires **Ze's own kernel and system**.
+The legacy `test qemu run` route described below still boots Alpine userland;
+even with Ze's kernel, it does not establish own-system proof. Docker labs
+already use Ze's docker-host image through `test qemu docker-lab`; that route
+runs le on the host, not in the guest, and is not a guest-le bootstrap replacement.
 
 ## Quick Start
 
@@ -56,6 +59,11 @@ as flakiness. `./le setup install` checks this as `kvm-access` and applies
 `sudo usermod -aG kvm $USER`. The new group only reaches a new login, so use
 `sg kvm -c '<command>'` in an existing shell. A host with no `/dev/kvm` reports
 `n/a` and runs under TCG.
+
+Native Linux arm64 requests `kvm:tcg`, not Apple's `hvf:tcg`. QEMU tries KVM
+before its software fallback. Hardware-only runs still require the host's usable
+hypervisor and do not permit TCG.
+<!-- source: internal/le/test/qemu/run.go -- acceleration -->
 
 The first run fetches the Alpine ISO and Go toolchain. Alpine is cached under
 `${XDG_CACHE_HOME:-$HOME/.cache}/ze/alpine-iso/`; Go archives remain under
@@ -372,6 +380,16 @@ parameter is there, the guest release check refuses a boot whose `uname -r`
 disagrees with `internal/appliance/kernel.version`: it accepts that version, a
 longer version of it, and either with the runtime kernel's `-ze` suffix
 (`docs/architecture/appliance/kernel-profiles.md`).
+
+Every required checkout/cache 9p mount must succeed before the setup downloads
+or unpacks Go or runs the patched-tree generator. Optional module, conntrack and
+Git setup alternatives are grouped inside the shell's AND chain: their OR
+branches cannot recover an earlier mount failure. A failed required mount stops
+setup, rather than continuing against an empty or dangling workspace.
+This shell contract does not attribute the historical cache-symlink xattr
+`ELOOP` to BuildKit or the 9p server, and no mount security policy changes on that
+unconfirmed cause.
+<!-- source: internal/le/test/qemu/run.go -- setupCommand, virtfsArgs, cacheShare -->
 
 With a `kernel`, the command line `Run.qemuArgs` appends names the serial
 console of the machine, `ttyS0` on amd64 and `ttyAMA0` on arm64. Alpine's
