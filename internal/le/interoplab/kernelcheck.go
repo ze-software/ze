@@ -427,11 +427,15 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 
 	var missing textbuf.Buffer
 	count := 0
+	unknown := false
 	denied := false
 	deniedBySELinux := false
 	for _, row := range answer.Capabilities {
 		if row.State == "present" {
 			continue
+		}
+		if row.State == "unknown" {
+			unknown = true
 		}
 		if row.State == "denied" {
 			denied = true
@@ -442,6 +446,13 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 			missing.Str(": ").Str(row.Reason)
 		}
 		count++
+	}
+	if unknown {
+		return errors.New(problem.Str("answered an unknown capability; the probe failed to determine kernel support,").
+			Str(" not evidence of a missing kernel feature:").Str(missing.String()).
+			Str("\nResolve the reported probe failure, then rerun the same doctor probe (`").
+			Str(strings.Join(kernelProbeCommand, " ")).Str("`) through:\n  ./le setup docker kernel check ze ").
+			Str(shellJoin([]string{zePath})).String())
 	}
 	if count == 0 {
 		// Every row reads present, so the probe's own verdict must agree: the

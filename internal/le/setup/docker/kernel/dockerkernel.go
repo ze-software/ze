@@ -284,6 +284,10 @@ type installStep struct {
 	Argv []string
 }
 
+// installKernel is the installer body, replaceable only by an isolated fixture
+// process that exercises the real signal entry without changing the host.
+var installKernel = dockerKernelInstall
+
 // runDockerKernelInstall refuses off Linux, without GRUB_DEFAULT=saved, for a
 // cache entry whose release is not the pinned kernel.version with Ze's suffix,
 // for a kernel lacking what this host relies on (hostdeps.go), and without the
@@ -295,11 +299,40 @@ type installStep struct {
 // cache query heads a process group of its own (buildcompile.BuildHost), so
 // the root's cancel is the only stop it gets; a root step still running is
 // sent SIGTERM, which sudo relays, and no later step starts.
+// The entry MUST release its root on every return; the first signal restores
+// default handling before cancellation can enter a wedged sudo wait.
 func runDockerKernelInstall(args leaction.Arguments) (any, int) {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := installSignalContext()
 	defer stop()
 
-	return dockerKernelInstall(ctx, args)
+	return installKernel(ctx, args)
+}
+
+// installSignalContext owns one signal worker. The caller MUST call the returned
+// release to unregister signals, cancel the root and join that worker.
+func installSignalContext() (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.Background())
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	done := make(chan struct{})
+	go cancelInstallOnSignal(ctx, signals, cancel, done)
+	return ctx, func() {
+		signal.Stop(signals)
+		cancel()
+		<-done
+	}
+}
+
+// cancelInstallOnSignal retires interception before waking command cancellation:
+// a second interrupt must retain its default action even if sudo ignores TERM.
+func cancelInstallOnSignal(ctx context.Context, signals chan os.Signal, cancel context.CancelFunc, done chan<- struct{}) {
+	defer close(done)
+	select {
+	case <-signals:
+		signal.Stop(signals)
+		cancel()
+	case <-ctx.Done():
+	}
 }
 
 // dockerKernelInstall is the install under the verb's root ctx.
@@ -350,32 +383,73 @@ func dockerKernelInstall(ctx context.Context, args leaction.Arguments) (any, int
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	for _, step := range steps {
+	return runKernelInstallPlan(ctx, args, release, steps, os.ReadFile)
+}
+
+// runKernelInstallPlan executes the confirmed plan and selects its boot entry.
+// Production reads the host's GRUB menu; controlled fixtures provide only that
+// read and unprivileged step commands, leaving the real command runner in use.
+func runKernelInstallPlan(ctx context.Context, args leaction.Arguments, release string, steps []installStep, read func(string) ([]byte, error)) (any, int) {
+	for i, step := range steps {
+		notStarted := ctx.Err() != nil
 		if err := runInstallStep(ctx, step); err != nil {
-			leaction.ReportError(err)
+			leaction.ReportError(installPlanFailure(args, release, steps, i, notStarted, err))
 			return nil, 1
 		}
 	}
-	grubCfg, err := readGrubConfig(os.ReadFile, func(step installStep) ([]byte, error) {
+	grubCfg, err := readGrubConfig(read, func(step installStep) ([]byte, error) {
 		return runInstallStepOutput(ctx, step)
 	})
 	if err != nil {
-		leaction.ReportError(err)
+		leaction.ReportError(installPlanFailure(args, release, steps, len(steps), false, err))
 		return nil, 1
 	}
 	step, err := grubDefaultStep(string(grubCfg), release)
 	if err != nil {
-		leaction.ReportError(err)
+		leaction.ReportError(installPlanFailure(args, release, steps, len(steps), false, err))
 		return nil, 1
 	}
 	if err := runInstallStep(ctx, step); err != nil {
-		leaction.ReportError(err)
+		leaction.ReportError(installPlanFailure(args, release, steps, len(steps), false, err))
 		return nil, 1
 	}
 	return map[string]string{
 		"release": release,
 		"next":    "reboot when ready, then: ./le setup docker kernel check",
 	}, 0
+}
+
+// installPlanFailure records only successful commands as completed. A failed
+// command can have changed files even when it exited, so its work stays unfinished
+// and a partial module replacement never becomes permission to reboot.
+func installPlanFailure(args leaction.Arguments, release string, steps []installStep, completed int, notStarted bool, err error) error {
+	var tb textbuf.Buffer
+	tb.Str("kernel installation did not finish: ").Err(err).
+		Str("\nCompleted install steps (").Int(int64(completed)).Byte('/').
+		Int(int64(len(steps) + 1)).Str("):")
+	for i := range completed {
+		tb.Str("\n  ").Int(int64(i + 1)).Str(". ").Str(steps[i].Why)
+	}
+	tb.Str("\nUnfinished install work:")
+	for i := completed; i < len(steps); i++ {
+		tb.Str("\n  ").Int(int64(i + 1)).Str(". ").Str(steps[i].Why)
+	}
+	tb.Str("\n  ").Int(int64(len(steps) + 1)).Str(". read the GRUB menu and select its saved default.")
+	if completed == 0 {
+		if notStarted {
+			tb.Str("\nNo install step started.")
+		}
+	}
+	tb.Str("\nNo automatic reboot was requested.")
+	if completed > 0 || !notStarted {
+		tb.Str(" Files for ").Str(release).
+			Str(" may be incomplete. Do not reboot until the installation finishes.")
+	}
+	tb.Str("\nEvery install step can be repeated. Finish with:\n  ./le setup docker kernel install ")
+	if builder := args.One(dockerKernelBuilderKeyword); builder != "" {
+		tb.Str(dockerKernelBuilderKeyword).Byte(' ').Str(builder).Byte(' ')
+	}
+	return errors.New(tb.Str(dockerKernelConfirmKeyword).Byte(' ').Str(release).String())
 }
 
 // dockerKernelInstallPlatform refuses every platform but Linux, naming the
@@ -626,7 +700,7 @@ func grubTitle(line string) string {
 // step is sent SIGTERM (installCommand).
 func runInstallStep(ctx context.Context, step installStep) error {
 	if err := ctx.Err(); err != nil {
-		return installStopped(step, err)
+		return installStopped(step, err, false)
 	}
 	if err := printInstallStep(step); err != nil {
 		return err
@@ -635,7 +709,7 @@ func runInstallStep(ctx context.Context, step installStep) error {
 	command.Stdout = os.Stderr
 	if err := command.Run(); err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return installStopped(step, ctxErr)
+			return installStopped(step, ctxErr, true)
 		}
 		var tb textbuf.Buffer
 		return errors.New(tb.Str(strings.Join(step.Argv, " ")).Str(": ").Err(err).String())
@@ -648,7 +722,7 @@ func runInstallStep(ctx context.Context, step installStep) error {
 // for a password. ctx stops it as it stops runInstallStep.
 func runInstallStepOutput(ctx context.Context, step installStep) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, installStopped(step, err)
+		return nil, installStopped(step, err, false)
 	}
 	if err := printInstallStep(step); err != nil {
 		return nil, err
@@ -656,7 +730,7 @@ func runInstallStepOutput(ctx context.Context, step installStep) ([]byte, error)
 	output, err := installCommand(ctx, step).Output()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return nil, installStopped(step, ctxErr)
+			return nil, installStopped(step, ctxErr, true)
 		}
 		var tb textbuf.Buffer
 		return nil, errors.New(tb.Str(strings.Join(step.Argv, " ")).Str(": ").Err(err).String())
@@ -680,13 +754,16 @@ func installCommand(ctx context.Context, step installStep) *exec.Cmd {
 	return command
 }
 
-// installStopped is the refusal of a root step the verb's root ended: the
-// change is incomplete, and running the verb again redoes every step.
-func installStopped(step installStep, err error) error {
+// installStopped reports whether this step could have started. Only the plan
+// consumer knows what earlier steps completed and can give recovery guidance.
+func installStopped(step installStep, err error, started bool) error {
 	var tb textbuf.Buffer
-	return errors.New(tb.Str("setup docker kernel was stopped by an interrupt or SIGTERM at the step to ").
-		Str(step.Why).Str(" (").Err(err).Str("), so the change is only partly made. Every step is safe to ").
-		Str("repeat: run the same ./le setup docker kernel command again to finish it.").String())
+	tb.Str("setup docker kernel was stopped by an interrupt or SIGTERM at the step to ").
+		Str(step.Why).Str(" (").Err(err).Str("); ")
+	if started {
+		return errors.New(tb.Str("this step may be incomplete.").String())
+	}
+	return errors.New(tb.Str("this step was not started.").String())
 }
 
 // printInstallStep prints one step and its reason to stderr.
