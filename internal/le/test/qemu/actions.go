@@ -254,12 +254,14 @@ func Answer(args []string) (any, int) { return actions.Answer(args) }
 // runHugepagesHere proves the reservation over the checkout this command was
 // run in.
 func runHugepagesHere() (any, int) {
+	ctx, stop := guestContext()
+	defer stop()
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return runHugepages(newHugepages(root))
+	return runHugepages(ctx, newHugepages(root))
 }
 
 // runHugepages answers the proof over one run.
@@ -267,11 +269,12 @@ func runHugepagesHere() (any, int) {
 // A step that the run cannot perform is an error. It answers 1 with no verdict.
 // A SKIP answers 0. This is the self-skip contract that the functional suite and
 // CI both rely on. A machine without QEMU has not disproved anything.
-func runHugepages(run *Hugepages) (HugepagesReport, int) {
-	report, err := run.Run()
+func runHugepages(ctx context.Context, run *Hugepages) (any, int) {
+	report, err := run.Run(ctx)
+	err = errors.Join(err, ctx.Err())
 	if err != nil {
 		leaction.ReportError(err)
-		return report, 1
+		return nil, 1
 	}
 	if report.Verdict == VerdictFail || report.Verdict == VerdictUnspecified {
 		return report, 1

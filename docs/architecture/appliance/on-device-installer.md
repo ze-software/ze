@@ -91,6 +91,12 @@ reachable but unprovisioned state, gated on `ze.gokrazy.enabled`.
 - Injection sets the configuration folder to root-owned 0700 and its seed to
   root-owned 0600. The build host's UID must never become the appliance store
   owner, and debugfs's default directory mode is too loose for the live store.
+- Build-side injection and its external verification commands receive the
+  caller's context and executor explicitly. A canceled mount is an interruption,
+  not an optional mount refusal. Every attempted mount has bounded cleanup on an
+  uncanceled context before releasing its private temporary mount directory;
+  cleanup never reuses or removes an existing foreign mount directory.
+<!-- source: internal/appliance/diskverify.go -- verifyInject, tryLoopbackVerify -->
 - The auto-init gate is an environment variable, not a config leaf, because it
   is needed before config loads.
 - Fallback auth posture is connectivity-only. No SSH or web credential keys are

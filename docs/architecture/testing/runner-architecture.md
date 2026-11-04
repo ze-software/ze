@@ -103,7 +103,31 @@ the owner before removing its directory, releasing ports, or returning the
 scheduler lease. Cleanup failures fail the case while retaining browser steps
 and earlier errors. The owner remains attached if the kernel cannot finish
 reaping; a timeout alone never establishes cleanup.
-<!-- source: internal/test/runner/server_process.go -- StartServerProcess, ServerProcess.Close -->
+`ServerProcess.Wait` and `Done` observe that same reaper; they never call a
+second `Cmd.Wait`. `Close` immediately kills the owned group. `Stop` instead
+sends the caller's signal under the retirement lock, waits for its explicit
+grace, then kills and joins if needed. Browser cleanup retains TERM and the
+canonical ten-second `TeardownGraceTimeout`; normal hugepage VM shutdown retains
+INT and its existing ten-second grace. Deliberate native PPP peer departure
+retains TERM and three seconds, accepting xl2tpd's documented exit 1 only after
+a nonreaping kernel probe excluded an already-exited parent before the stop.
+Cancellation uses immediate `Close` instead of a graceful budget. Both cleanup
+routes cache one verdict, retaining signal and lifecycle errors. A signal death
+is intentional only after a nonreaping probe excludes a preexisting parent exit
+and the owned signal request succeeds. `ESRCH` is benign cleanup, not evidence
+that a signal was delivered. In particular, only a successful, pre-exit owned
+KILL can normalize SIGKILL; the before-reap cleanup of remaining descendants
+cannot normalize the parent's earlier death. Unknown or unsupported stop
+observations remain lifecycle failures after owned cleanup; they do
+not establish a live parent. An unexpected command exit, including self-SIGKILL,
+remains the original exit error when there is no independent cleanup failure.
+A stale compiler output therefore cannot turn a killed build into success.
+Command callers await `Done` and consume `Close` once rather than joining the
+same cached exit twice. A caller's
+positive `Cmd.WaitDelay` supplies its pipe-drain bound; otherwise the existing
+runner grace applies.
+<!-- source: internal/test/runner/server_process.go -- StartServerProcess, ServerProcess.Close, ServerProcess.Stop, ServerProcess.Wait, ServerProcess.Done -->
+<!-- source: internal/test/runner/runner_exec_util.go -- TeardownGraceTimeout -->
 <!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest, zeTestWebServer.stop -->
 
 Web credential seeding checks the case context before and after synchronous

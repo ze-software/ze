@@ -181,7 +181,7 @@ func (r *Runner) awaitDaemonStderr(ctx context.Context, rec *Record, sw *syncWri
 //  1. every await needle appears on the daemon's stderr;
 //  2. every LINGERING check peer has printed peerSuccessToken, or has exited;
 //  3. the runner stops the daemon (SIGTERM, then a kill after
-//     teardownGraceTimeout) and reaps it;
+//     TeardownGraceTimeout) and reaps it;
 //  4. every check peer is reaped. A lingering peer ends when the daemon closes
 //     its session, so it normally exits by itself here. One still running after
 //     peerDrainGrace holds a socket nobody serves, so it is sent SIGTERM.
@@ -281,14 +281,14 @@ func lingerPeerSettled(po *peerOutput, pr *ownedProcess) bool {
 	return strings.Contains(po.stdout.String(), peerSuccessToken)
 }
 
-// stopAndReap sends the daemon SIGTERM, kills it after teardownGraceTimeout,
+// stopAndReap sends the daemon SIGTERM, kills it after TeardownGraceTimeout,
 // and returns its exit error, which an expect=exit:code= assertion reads.
 func stopAndReap(cmd *ownedProcess) error {
 	return cmd.stop()
 }
 
 // collectReapedPeers waits every reaped check peer, bounded: a peer still
-// running after grace is sent SIGTERM, and killed after teardownGraceTimeout.
+// running after grace is sent SIGTERM, and killed after TeardownGraceTimeout.
 // Each peer is marked waited so drainPeers does not Wait it a second time.
 // Returns the peers' exit errors joined.
 func collectReapedPeers(peers []peerOutput, reaped []*ownedProcess, grace time.Duration) error {

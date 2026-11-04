@@ -3,6 +3,7 @@
 package testdeployment
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -64,16 +65,16 @@ func l2tpPPPCHAPRejected(log string) (bool, error) {
 // while xl2tpd is alive. PPP units, data sessions and subscriber routes MUST
 // disappear before the proof stops that peer; forced cleanup cannot count as
 // rejection by Ze.
-func l2tpPPPRejectedState(baselines []pppBaseline) (bool, error) {
+func l2tpPPPRejectedState(ctx context.Context, baselines []pppBaseline) (bool, error) {
 	for _, base := range baselines {
-		links, err := pppLinks(base.ns)
+		links, err := pppLinks(ctx, base.ns)
 		if err != nil {
 			return false, err
 		}
 		if !maps.Equal(links, base.links) {
 			return false, nil
 		}
-		state, err := readL2TPSnapshot(base.ns)
+		state, err := readL2TPSnapshot(ctx, base.ns)
 		if err != nil {
 			return false, err
 		}
@@ -85,7 +86,7 @@ func l2tpPPPRejectedState(baselines []pppBaseline) (bool, error) {
 			return false, nil
 		}
 		for _, address := range []string{L2TPPPPLocalAddr, L2TPPPPPeerAddr} {
-			out, ok := nsText(base.ns, "ip", "-4", "route", "show", "table", "all", "exact", address+"/32")
+			out, ok := nsText(ctx, base.ns, "ip", "-4", "route", "show", "table", "all", "exact", address+"/32")
 			if !ok {
 				return false, fmt.Errorf("%s rejected-peer route inspection failed: %s", base.ns, out)
 			}
@@ -117,7 +118,10 @@ func l2tpPPPRejectedSessions(state, baseline l2tpSnapshot) (bool, error) {
 	return identity.Management && identity.Session == 0, nil
 }
 
-func (l *L2TPPPP) assertWrongSecret(seen *collector, ze *running, work string, baselines []pppBaseline) error {
+func (l *L2TPPPP) assertWrongSecret(ctx context.Context, seen *collector, ze *running, work string, baselines []pppBaseline) (resultErr error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	work = filepath.Join(work, "wrong-secret")
 	if err := l.writeInputs(work); err != nil {
 		return err
@@ -126,7 +130,7 @@ func (l *L2TPPPP) assertWrongSecret(seen *collector, ze *running, work string, b
 		return err
 	}
 	mark := l2tpPPPObservation(seen)
-	peer := nsCommand(l.LACNamespace, PeerName,
+	peer := nsCommand(ctx, l.LACNamespace, PeerName,
 		"-D", "-c", filepath.Join(work, PeerConfigFile),
 		"-s", filepath.Join(work, PeerSecretsFile),
 		"-p", filepath.Join(work, "xl2tpd.pid"),
@@ -138,7 +142,7 @@ func (l *L2TPPPP) assertWrongSecret(seen *collector, ze *running, work string, b
 	}
 	// Every started peer MUST be stopped and its output collector drained.
 	defer said.wait()
-	defer dialer.stop()
+	defer func() { resultErr = errors.Join(resultErr, dialer.closeNative()) }()
 
 	forbidden := append(slices.Clone(pppFatalLines), pppCHAPAcceptedLine, pppIPLine, pppRouteLine, pppUpLine)
 	deadline := time.NewTimer(l.NCPWait)
@@ -162,7 +166,7 @@ func (l *L2TPPPP) assertWrongSecret(seen *collector, ze *running, work string, b
 			return err
 		}
 		if rejected && fresh.sawAll([]string{pppSessionLine, pppCHAPRejectedLine, pppTeardownLine}) {
-			settled, err := l2tpPPPRejectedState(baselines)
+			settled, err := l2tpPPPRejectedState(ctx, baselines)
 			if err != nil {
 				return err
 			}
@@ -172,14 +176,18 @@ func (l *L2TPPPP) assertWrongSecret(seen *collector, ze *running, work string, b
 			}
 		}
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-deadline.C:
 			return errors.New("timed out awaiting CHAP Failure, local rejection, and removal of the rejected network session")
 		case <-poll.C:
 		}
 	}
-	dialer.stop()
+	if err := dialer.stopNative(); err != nil {
+		return err
+	}
 	said.wait()
-	if err := awaitTeardown(baselines, l.CleanupWait); err != nil {
+	if err := awaitTeardown(ctx, baselines, l.CleanupWait); err != nil {
 		return err
 	}
 	if fatal := l2tpPPPSince(seen, mark).firstSeen(forbidden); fatal != "" {

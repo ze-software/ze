@@ -25,12 +25,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
+	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // dnsmasqLease is the duration of the appliance's address lease. It is short
@@ -67,12 +67,15 @@ type gokrazyLab struct {
 	ApplianceMAC string
 	Prefix       string
 
-	// Where dnsmasq keeps what it must be stopped and cleaned up by.
+	// Diagnostic files are not authority to signal a process.
 	PidFile   string
 	LeaseFile string
 	LogFile   string
 
 	Progress io.Writer
+	// dhcp is published only after StartServerProcess succeeds. remove MUST
+	// close it before deleting the network; the lab is not concurrency-safe.
+	dhcp *runner.ServerProcess
 }
 
 // newGokrazyLab answers the lab one run owns, with every name carrying the
@@ -98,8 +101,13 @@ func newGokrazyLab(suffix string) *gokrazyLab {
 // It removes existing objects first. A run that was killed leaves its bridge,
 // its TAP, and its namespace behind under names that this run derives the same
 // way.
-func (g *gokrazyLab) setup() error {
-	g.remove()
+func (g *gokrazyLab) setup(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := g.remove(context.WithoutCancel(ctx)); err != nil {
+		return err
+	}
 	if err := ensureNetnsDir(); err != nil {
 		return err
 	}
@@ -131,14 +139,14 @@ func (g *gokrazyLab) setup() error {
 		{"move LAC veth", []string{"ip", ipLink, ipSet, g.PeerVeth, ipNetns, g.Namespace}},
 	}
 	for i, step := range steps {
-		if err := hostRequired(g.Progress, step.what, step.argv...); err != nil {
+		if err := hostRequired(ctx, g.Progress, step.what, step.argv...); err != nil {
 			return err
 		}
 		// The setup sets the spanning-tree switch immediately after it creates the
 		// bridge. A failure is not fatal. A kernel that rejects the switch still
 		// forwards, just later.
 		if i == 1 {
-			hostText("ip", ipLink, ipSet, g.Bridge, ipType, "bridge", "stp_state", "0") //nolint:errcheck // see above
+			hostText(ctx, "ip", ipLink, ipSet, g.Bridge, ipType, "bridge", "stp_state", "0") //nolint:errcheck // see above
 		}
 	}
 
@@ -152,19 +160,19 @@ func (g *gokrazyLab) setup() error {
 		{"bring up LAC veth", []string{"ip", ipLink, ipSet, g.PeerVeth, "up"}},
 	}
 	for _, step := range inside {
-		if err := nsRequired(g.Progress, g.Namespace, step.what, step.argv...); err != nil {
+		if err := nsRequired(ctx, g.Progress, g.Namespace, step.what, step.argv...); err != nil {
 			return err
 		}
 	}
 
-	if err := g.allowBridgeThroughFirewall(); err != nil {
+	if err := g.allowBridgeThroughFirewall(ctx); err != nil {
 		return fmt.Errorf("cannot permit the appliance proof through UFW; inspect `ufw status verbose` as root, correct the reported error, then retry `./le test deployment gokrazy-l2tp-ppp`: %w", err)
 	}
-	if err := g.startDNSMasq(); err != nil {
+	if err := g.startDNSMasq(ctx); err != nil {
 		return err
 	}
 
-	if out, ok := nsText(g.Namespace, "ping", "-c", "1", "-W", "2", g.HostIP); !ok {
+	if out, ok := nsText(ctx, g.Namespace, "ping", "-c", "1", "-W", "2", g.HostIP); !ok {
 		writeProgress(g.Progress, out)
 		return errors.New("LAC namespace cannot reach the underlay bridge")
 	}
@@ -177,37 +185,31 @@ func (g *gokrazyLab) cidr(address string) string {
 	return tb.Str(address).Byte('/').Str(g.Prefix).String()
 }
 
-// remove takes the whole lab down: the peer's processes, the DHCP server, the
-// firewall hole, the four links and the namespace.
-//
-// Nothing here reports a failure. It runs on the way in, where none of it
-// exists, and on the way out, where the run's verdict is what the caller reads.
-func (g *gokrazyLab) remove() {
-	killNamespaceProcesses(g.Namespace, syscall.SIGTERM)
-	time.Sleep(settleGrace)
-	killNamespaceProcesses(g.Namespace, syscall.SIGKILL)
-
-	g.stopDNSMasq()
-	g.clearBridgeFromFirewall()
+// remove MUST follow setup, including failure, after the peer and QEMU owners
+// have joined. It closes only its own DHCP owner, never a PID read from disk.
+func (g *gokrazyLab) remove(ctx context.Context) error {
+	err := g.stopDNSMasq()
+	g.clearBridgeFromFirewall(ctx)
 
 	// The cleanup removes the TAP and the veths before the bridge they are
 	// enslaved to. It removes the namespace last because the namespace holds one
 	// end of the veth pair.
 	for _, link := range []string{g.Tap, g.HostVeth, g.PeerVeth, g.Bridge} {
-		hostText("ip", ipLink, "delete", link) //nolint:errcheck // cleanup
+		hostText(ctx, "ip", ipLink, "delete", link) //nolint:errcheck // cleanup
 	}
-	hostText("ip", ipNetns, "delete", g.Namespace) //nolint:errcheck // cleanup
+	hostText(ctx, "ip", ipNetns, "delete", g.Namespace) //nolint:errcheck // cleanup
+	return err
 }
 
 // allowBridgeThroughFirewall permits DHCP to the host and traffic between the
 // peer and appliance on this run's bridge. Bridge netfilter can send that
 // traffic through FORWARD even though neither endpoint routes through the host.
 // The caller MUST call clearBridgeFromFirewall even when setup fails partway.
-func (g *gokrazyLab) allowBridgeThroughFirewall() error {
+func (g *gokrazyLab) allowBridgeThroughFirewall(ctx context.Context) error {
 	if !onPath("ufw") {
 		return nil
 	}
-	out, ok := hostText("ufw", "status")
+	out, ok := hostText(ctx, "ufw", "status")
 	if !ok {
 		writeProgress(g.Progress, out)
 		return errors.New("ufw status failed")
@@ -219,11 +221,11 @@ func (g *gokrazyLab) allowBridgeThroughFirewall() error {
 		writeProgress(g.Progress, out)
 		return errors.New("ufw status did not report whether the firewall is active")
 	}
-	if err := hostRequired(g.Progress, "permit appliance DHCP through UFW",
+	if err := hostRequired(ctx, g.Progress, "permit appliance DHCP through UFW",
 		"ufw", "allow", "in", "on", g.Bridge); err != nil {
 		return err
 	}
-	return hostRequired(g.Progress, "permit traffic within the appliance bridge through UFW",
+	return hostRequired(ctx, g.Progress, "permit traffic within the appliance bridge through UFW",
 		"ufw", "route", "allow", "in", "on", g.Bridge, "out", "on", g.Bridge)
 }
 
@@ -231,12 +233,12 @@ func (g *gokrazyLab) allowBridgeThroughFirewall() error {
 // The caller MUST call it after allowBridgeThroughFirewall, including failure.
 // It does not first ask whether the firewall is active. A rule added by a run
 // that was killed survives an off-on firewall cycle.
-func (g *gokrazyLab) clearBridgeFromFirewall() {
+func (g *gokrazyLab) clearBridgeFromFirewall(ctx context.Context) {
 	if !onPath("ufw") {
 		return
 	}
-	hostText("ufw", "--force", "delete", "allow", "in", "on", g.Bridge)                                 //nolint:errcheck // cleanup
-	hostText("ufw", "--force", "route", "delete", "allow", "in", "on", g.Bridge, "out", "on", g.Bridge) //nolint:errcheck // cleanup
+	hostText(ctx, "ufw", "--force", "delete", "allow", "in", "on", g.Bridge)                                 //nolint:errcheck // cleanup
+	hostText(ctx, "ufw", "--force", "route", "delete", "allow", "in", "on", g.Bridge, "out", "on", g.Bridge) //nolint:errcheck // cleanup
 }
 
 // startDNSMasq starts the DHCP server that supplies the appliance's address.
@@ -246,11 +248,51 @@ func (g *gokrazyLab) clearBridgeFromFirewall() {
 // deliberately does NOT request a bind to the interface. That option binds the
 // socket to the interface's unicast address. The unicast address cannot receive
 // the broadcast DISCOVER that the appliance sends.
-func (g *gokrazyLab) startDNSMasq() error {
-	os.Remove(g.PidFile)   //nolint:errcheck // a file from a previous run, whose absence is the wanted state
-	os.Remove(g.LeaseFile) //nolint:errcheck // see above
+func (g *gokrazyLab) startDNSMasq(ctx context.Context) error {
+	os.Remove(g.PidFile)   //nolint:errcheck // Absence is the intended pre-start state.
+	os.Remove(g.LeaseFile) //nolint:errcheck // Absence is the intended pre-start state.
+	os.Remove(g.LogFile)   //nolint:errcheck // Readiness must come from this start, not a previous log.
 
-	return hostRequired(g.Progress, "start dnsmasq for appliance DHCP", dnsmasqArgv(g)...)
+	argv := dnsmasqArgv(g)
+	command := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // The lab constructs the DHCP command.
+	progress := g.Progress
+	if progress == nil {
+		progress = io.Discard
+	}
+	piped := struct{ io.Writer }{progress}
+	command.Stdout, command.Stderr = piped, piped
+	owner, err := runner.StartServerProcess(command)
+	if err != nil {
+		return errors.Join(ctx.Err(), err)
+	}
+	g.dhcp = owner
+	// remove MUST close the published owner even when readiness fails.
+	timer := time.NewTimer(netnsTimeout)
+	defer timer.Stop()
+	poll := time.NewTicker(20 * time.Millisecond)
+	defer poll.Stop()
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		body, err := os.ReadFile(g.LogFile) //nolint:gosec // This lab's own readiness log.
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+		} else if strings.Contains(string(body), "started, version") {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-owner.Done():
+			return errors.Join(errors.New("dnsmasq exited before DHCP readiness"), owner.Wait())
+		case <-timer.C:
+			return errors.New("dnsmasq did not report DHCP readiness")
+		case <-poll.C:
+		}
+	}
 }
 
 // dnsmasqArgv answers the DHCP server this lab starts.
@@ -262,6 +304,7 @@ func dnsmasqArgv(g *gokrazyLab) []string {
 	var tb textbuf.Buffer
 	return []string{
 		"dnsmasq",
+		"--keep-in-foreground",
 		tb.Str("--interface=").Str(g.Bridge).String(),
 		"--port=0",
 		"--no-resolv",
@@ -276,20 +319,17 @@ func dnsmasqArgv(g *gokrazyLab) []string {
 	}
 }
 
-// stopDNSMasq ends the DHCP server this run started, and removes what it wrote.
-//
-// The pid file identifies the process that this run started. A process name CAN
-// identify dnsmasq from another run on the same machine. If this function stops
-// that process, the other run's appliance leaves the network.
-func (g *gokrazyLab) stopDNSMasq() {
-	body, err := os.ReadFile(g.PidFile) //nolint:gosec // a path this run named
-	if err == nil {
-		if pid, err := strconv.Atoi(strings.TrimSpace(string(body))); err == nil {
-			syscall.Kill(pid, syscall.SIGTERM) //nolint:errcheck // a process that has already gone is the wanted state
-		}
+// stopDNSMasq joins the process owner before removing this run's artifacts.
+// It MUST be called by remove after every successful DHCP start.
+func (g *gokrazyLab) stopDNSMasq() error {
+	var err error
+	if g.dhcp != nil {
+		err = g.dhcp.Close()
+		g.dhcp = nil
 	}
-	os.Remove(g.PidFile)   //nolint:errcheck // cleanup
-	os.Remove(g.LeaseFile) //nolint:errcheck // cleanup
+	os.Remove(g.PidFile)   //nolint:errcheck // Cleanup may find the file already absent.
+	os.Remove(g.LeaseFile) //nolint:errcheck // Cleanup may find the file already absent.
+	return err
 }
 
 // awaitAppliance waits until the appliance answers on the address it was
@@ -304,7 +344,7 @@ func (g *gokrazyLab) stopDNSMasq() {
 func (g *gokrazyLab) awaitAppliance(ctx context.Context, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
-		if _, ok := nsText(g.Namespace, "ping", "-c", "1", "-W", "1", g.ApplianceIP); ok {
+		if _, ok := nsText(ctx, g.Namespace, "ping", "-c", "1", "-W", "1", g.ApplianceIP); ok {
 			return nil
 		}
 		if err := ctx.Err(); err != nil {
@@ -315,7 +355,11 @@ func (g *gokrazyLab) awaitAppliance(ctx context.Context, timeout time.Duration) 
 			return errors.New(tb.Str("appliance did not obtain underlay address ").
 				Str(g.ApplianceIP).Str(" (DHCP) in time").String())
 		}
-		time.Sleep(appliancePoll)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(appliancePoll):
+		}
 	}
 }
 

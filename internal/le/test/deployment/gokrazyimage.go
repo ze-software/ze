@@ -24,7 +24,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/appliance"
@@ -74,6 +73,9 @@ const (
 // compile, its database writes, the child le that runs gok) starts under it,
 // bounded by imageBuildTimeout, so a SIGTERM to le ends the build it is in.
 func gokrazyImage(ctx context.Context, tree, work, template, arch string, progress io.Writer) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	image := proofImagePath(tree, work)
 
 	if os.Getenv(GokrazySkipBuildEnv) == "1" {
@@ -111,7 +113,10 @@ func gokrazyImage(ctx context.Context, tree, work, template, arch string, progre
 	if err := buildGokrazyImage(ctx, tree, parent, arch, image, progress); err != nil {
 		return "", err
 	}
-	if err := appliance.InjectDatabase(image, database); err != nil {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if err := appliance.InjectDatabase(ctx, image, database, runNativeImageCommand); err != nil {
 		return "", err
 	}
 	if !isRegularFile(image) {
@@ -119,6 +124,18 @@ func gokrazyImage(ctx context.Context, tree, work, template, arch string, progre
 		return "", errors.New(tb.Str("gokrazy image not found after build: ").Str(image).String())
 	}
 	return image, nil
+}
+
+// runNativeImageCommand is the image injector's required executor. It MUST
+// retain the supplied command context and join the same checked owner as the
+// native build and database commands before exposing its captured output.
+func runNativeImageCommand(ctx context.Context, name string, args ...string) ([]byte, error) {
+	command := exec.CommandContext(ctx, name, args...) //nolint:gosec // The appliance injector selects its image utilities.
+	var output bytes.Buffer
+	command.Stdout = &output
+	command.Stderr = struct{ io.Writer }{os.Stderr}
+	err := runNativeCommand(ctx, command)
+	return output.Bytes(), err
 }
 
 // hostTool builds the host appliance driver under ctx and answers its path.
@@ -140,6 +157,13 @@ func prepareProofDatabase(
 	host, work, template string,
 	progress io.Writer,
 ) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if progress == nil {
+		progress = io.Discard
+	}
+	piped := struct{ io.Writer }{progress}
 	configDir := filepath.Join(work, "init")
 	if err := os.MkdirAll(configDir, 0o750); err != nil {
 		return "", err
@@ -149,14 +173,14 @@ func prepareProofDatabase(
 		"init", "--force", "--yes", "--seed", "--web-cert", "0.0.0.0:8080")
 	initCommand.Env = append(os.Environ(), "ze.config.dir="+configDir)
 	initCommand.Stdin = strings.NewReader("admin\nsecret\n0.0.0.0\n22\nze\n")
-	initCommand.Stdout, initCommand.Stderr = progress, progress
-	if err := initCommand.Run(); err != nil {
+	initCommand.Stdout, initCommand.Stderr = piped, piped
+	if err := runNativeCommand(ctx, initCommand); err != nil {
 		return "", fmt.Errorf("initialize appliance database: %w", err)
 	}
 	writeTemplate := exec.CommandContext(ctx, host, //nolint:gosec // host is the repository-built appliance driver; no safer execution API exists
 		"data", "--path", database, "write", "file/template/ze.conf", template)
-	writeTemplate.Stdout, writeTemplate.Stderr = progress, progress
-	if err := writeTemplate.Run(); err != nil {
+	writeTemplate.Stdout, writeTemplate.Stderr = piped, piped
+	if err := runNativeCommand(ctx, writeTemplate); err != nil {
 		return "", fmt.Errorf("write appliance configuration template: %w", err)
 	}
 	return database, nil
@@ -187,7 +211,7 @@ func buildGokrazyImage(
 	run := gokrazyBuildCommand(ctx, self, tree, env, progress,
 		"build", "gokrazy", "--parent_dir", parent, "-i", "ze", "overwrite",
 		"--full", image, "--target_storage_bytes", "2147483648")
-	if err := run.Run(); err != nil {
+	if err := runNativeCommand(ctx, run); err != nil {
 		return fmt.Errorf("build gokrazy image: %w", err)
 	}
 	return nil
@@ -199,11 +223,9 @@ const gokrazyBuildWaitDelay = 2 * time.Second
 
 // gokrazyBuildCommand answers the child le that runs gok, under ctx.
 //
-// gok runs the Go compiler, and the compiler processes outlive a kill of the
-// child le alone: the default CommandContext cancel signals that one pid. The
-// child therefore heads a process group of its own, and the cancel kills the
-// whole group, so a cancel during the build ends every compiler with it (the
-// pattern of gaterun.StreamContext and interoplab's process runner).
+// gok's compiler descendants MUST be owned by StartServerProcess at the caller,
+// and that owner MUST be closed before returning. CommandContext alone only
+// kills the child le, not the compiler tree.
 //
 // A process in a background group that writes to a terminal set `tostop` is
 // stopped by SIGTTOU and would wait out imageBuildTimeout, so the child never
@@ -219,10 +241,11 @@ func gokrazyBuildCommand(
 	run := exec.CommandContext(ctx, self, argv...) //nolint:gosec // self is this le binary, and the argv is this package's own
 	run.Dir = dir
 	run.Env = env
+	if progress == nil {
+		progress = io.Discard
+	}
 	piped := struct{ io.Writer }{progress}
 	run.Stdout, run.Stderr = piped, piped
-	run.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	run.Cancel = func() error { return syscall.Kill(-run.Process.Pid, syscall.SIGKILL) }
 	run.WaitDelay = gokrazyBuildWaitDelay
 	return run
 }
@@ -237,13 +260,17 @@ func gokrazyBuildCommand(
 func hostToolText(ctx context.Context, tree, name string, argv ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, name, argv...) //nolint:gosec // the argv is this package's own; ze-host refuses a builder other than docker or qemu
 	cmd.Dir = tree
-	out, err := cmd.Output()
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := runNativeCommand(ctx, cmd)
 	if err == nil {
-		return string(out), nil
+		return stdout.String(), nil
 	}
-	var exit *exec.ExitError
-	if errors.As(err, &exit) && len(bytes.TrimSpace(exit.Stderr)) > 0 {
-		return "", errors.New(string(bytes.TrimSpace(exit.Stderr)))
+	if ctx.Err() != nil {
+		return "", errors.Join(ctx.Err(), err)
+	}
+	if detail := bytes.TrimSpace(stderr.Bytes()); len(detail) > 0 {
+		return "", fmt.Errorf("%s: %w", detail, err)
 	}
 	return "", err
 }

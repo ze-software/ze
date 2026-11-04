@@ -18,6 +18,7 @@ import (
 
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // stageRootedBuildTree answers a scratch checkout carrying the files the host
@@ -125,9 +126,11 @@ func TestGokrazyBuildCancelEndsTheGrandchildren(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	run := gokrazyBuildCommand(ctx, stub, t.TempDir(), os.Environ(), writer)
-	if err := run.Start(); err != nil {
+	owned, err := runner.StartServerProcess(run)
+	if err != nil {
 		t.Fatalf("start the stub child: %v", err)
 	}
+	defer owned.Close() //nolint:errcheck // The cancellation assertion below observes the owned build.
 
 	line, err := bufio.NewReader(reader).ReadString('\n')
 	if err != nil {
@@ -140,7 +143,7 @@ func TestGokrazyBuildCancelEndsTheGrandchildren(t *testing.T) {
 	t.Cleanup(func() { syscall.Kill(grandchild, syscall.SIGKILL) }) //nolint:errcheck // the sleeper is gone when the fix holds
 
 	cancel()
-	if err := run.Wait(); err == nil {
+	if err := owned.Wait(); err == nil {
 		t.Fatal("a canceled build answered no error")
 	}
 	writer.Close() //nolint:errcheck,gosec // the test's own pipe
@@ -172,7 +175,7 @@ func (s *stagedAppliance) buildImage(_ context.Context, work, _ string) (string,
 	return filepath.Join(work, "ze.img"), nil
 }
 
-func (s *stagedAppliance) setupLab() error {
+func (s *stagedAppliance) setupLab(context.Context) error {
 	if s.stopAt == "setup" {
 		s.cancel()
 		return errors.New("create lab bridge: signal: interrupt")
@@ -180,7 +183,7 @@ func (s *stagedAppliance) setupLab() error {
 	return nil
 }
 
-func (s *stagedAppliance) removeLab() {}
+func (s *stagedAppliance) removeLab(context.Context) error { return nil }
 
 func (s *stagedAppliance) observe(_ context.Context, report GokrazyL2TPReport, _, _ string) (GokrazyL2TPReport, error) {
 	s.booted = true

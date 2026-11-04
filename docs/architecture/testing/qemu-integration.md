@@ -751,6 +751,30 @@ crash capture and the MPLS boot start outside `Run` carry neither mechanism.
 <!-- test: internal/le/test/qemu/run_guestcommand_test.go TestGuestCommandInterruptReachesTheGuestBeforeTheVMStops, TestGuestCommandTeardownPastTheGraceStopsTheVM, TestGuestCommandSecondInterruptStopsTheVM, TestGuestCommandUndeliveredInterruptSaysSo, TestGuestCommandLineKeepsTheCommandsStatus, TestGuestCommandTimeoutForwardsTheInterrupt, TestGuestCommandSSHFailureAfterTheForwardSaysSSH, TestHostCommandOutlivesADeadTerminal, TestHostCommandOwnGroupLeadsItsOwnProcessGroup -->
 <!-- test: internal/le/test/qemu/run_guestcommand_linux_test.go TestGuestInterruptLineSignalsTheRecordedGroup, TestChildProcAttrDiesWithLe -->
 
+## Stopping the hugepages proof
+
+`./le test qemu vpp-hugepages` establishes its signal root before the host build.
+SIGINT, SIGTERM and SIGHUP cancel the host compiler, appliance initialization or
+image build, QEMU, and the active SSH query or retry wait. Every external command
+uses the shared process-group owner; the action joins that owner before removing
+its work directory and starts no later phase after cancellation. An interrupted
+action returns no report payload for the renderer; completed pass, fail and skip
+verdicts retain their reports. Normal completion preserves QEMU's cooperative
+SIGINT-first shutdown and existing ten-second grace before group termination,
+using the same identity-safe owner and sole reaper. Cancellation or an error
+instead closes the owned group immediately. Both paths join it before returning.
+
+The host compiler remains a native-host build, and no new admission queue is
+introduced by this action. Process-fixture cancellation coverage is not evidence
+that an appliance image built, a kernel reserved hugepages, or a VM booted. Those
+claims still require the actual image-and-boot invocation on the intended host.
+MPLS boot and crash capture retain their existing invocation roots; their shared
+leaf call-site migrations do not establish a cancellation contract for those
+actions.
+<!-- source: internal/le/test/qemu/actions.go -- runHugepagesHere, runHugepages -->
+<!-- source: internal/le/test/qemu/hugepages.go -- Hugepages.Run, buildHostZe, appliance -->
+<!-- source: internal/le/test/qemu/boot.go -- Hugepages.boot, ask, ssh -->
+
 ## Appliance first-boot storage import
 
 The host-side `installer` action boots a fresh appliance through the HTTP
@@ -1120,6 +1144,18 @@ drop L2TP UDP traffic even when the readiness ping succeeds. Setup refuses
 if it cannot inspect UFW or install either rule. Cleanup removes both rules;
 the proof does not disable UFW or change global bridge-netfilter settings.
 <!-- source: internal/le/test/deployment/gokrazylab.go -- allowBridgeThroughFirewall, clearBridgeFromFirewall -->
+
+The appliance proof's signal context also reaches kernel-cache resolution,
+host-driver compilation, database initialization, image construction, lab setup,
+QEMU and its LAC. Each external command has the shared runner process-group
+owner, which joins owned descendants before the phase returns. The lab keeps
+dnsmasq in the foreground under that owner rather than treating a pid file as
+authority to signal a process. Cancellation is an interrupted proof, not a
+failed PPP verdict. Cleanup joins its DHCP owner and removes only this lab's
+network and firewall objects on an uncanceled context.
+<!-- source: internal/le/test/deployment/gokrazyimage.go -- gokrazyImage, prepareProofDatabase, buildGokrazyImage -->
+<!-- source: internal/le/test/deployment/gokrazyl2tp.go -- proveAppliance, observe -->
+<!-- source: internal/le/test/deployment/gokrazylab.go -- setup, startDNSMasq, remove -->
 
 The MOBIKE action is a manual runtime-kernel proof, not a merge gate or a
 scheduled job. It runs both existing movement scenarios, without a selector:

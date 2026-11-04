@@ -236,7 +236,15 @@ func NewL2TPPPP(tree string) *L2TPPPP {
 // the run reached no verdict. Failure of an L2TP path step to occur is NOT an
 // error. It is the verdict. The report contains the verdict, the reason, and
 // the daemon's last lines.
-func (l *L2TPPPP) Run() (L2TPPPPReport, error) {
+func (l *L2TPPPP) Run(ctx context.Context) (result L2TPPPPReport, resultErr error) {
+	defer func() {
+		if err := ctx.Err(); err != nil {
+			resultErr = errors.Join(resultErr, stoppedRun(err))
+		}
+	}()
+	if err := ctx.Err(); err != nil {
+		return L2TPPPPReport{}, stoppedRun(err)
+	}
 	report := L2TPPPPReport{
 		Peer:         PeerName,
 		Scenario:     l.Scenario,
@@ -260,13 +268,11 @@ func (l *L2TPPPP) Run() (L2TPPPPReport, error) {
 	if err := look("ip", "ping", PeerName, "pppd", "python3"); err != nil {
 		return report, err
 	}
-	if err := ensureKernelSupport(proofName); err != nil {
+	if err := ensureKernelSupport(ctx, proofName); err != nil {
 		return report, err
 	}
 
-	// l2tp-ppp is not signal-rooted (signalRooted in actions.go roots only the
-	// container verbs), so the host build has no verb root to end it yet.
-	binary, err := hostDaemon(context.Background(), l.Tree, daemonBinaryName, l.Progress)
+	binary, err := hostDaemon(ctx, l.Tree, daemonBinaryName, l.Progress)
 	if err != nil {
 		return report, err
 	}
@@ -279,19 +285,22 @@ func (l *L2TPPPP) Run() (L2TPPPPReport, error) {
 		return report, err
 	}
 
-	defer l.removeNamespaces()
-	if err := l.setupNamespaces(); err != nil {
+	defer l.removeNamespaces(context.WithoutCancel(ctx))
+	if err := l.setupNamespaces(ctx); err != nil {
 		return report, err
 	}
 
-	report, err = l.observe(report, binary, work)
+	report, err = l.observe(ctx, report, binary, work)
 	if err != nil {
 		return report, err
+	}
+	if err := ctx.Err(); err != nil {
+		return report, stoppedRun(err)
 	}
 	if report.Proven {
 		os.RemoveAll(work) //nolint:errcheck // the run passed; a scratch directory left behind is not a verdict
 	} else {
-		l.diagnose(work)
+		l.diagnose(ctx, work)
 	}
 	return report, nil
 }
@@ -303,8 +312,11 @@ func (l *L2TPPPP) Run() (L2TPPPPReport, error) {
 // The underlay ping is not decoration. A proof that skipped it would report an
 // L2TP failure when the veth pair was never up. That report would direct the
 // reader to the wrong daemon.
-func (l *L2TPPPP) setupNamespaces() error {
-	l.removeNamespaces()
+func (l *L2TPPPP) setupNamespaces(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	l.removeNamespaces(context.WithoutCancel(ctx))
 	if err := ensureNetnsDir(); err != nil {
 		return err
 	}
@@ -321,7 +333,7 @@ func (l *L2TPPPP) setupNamespaces() error {
 		{"move LAC veth", []string{"ip", ipLink, ipSet, l.LACVeth, ipNetns, l.LACNamespace}},
 	}
 	for _, step := range steps {
-		if err := hostRequired(l.Progress, step.what, step.argv...); err != nil {
+		if err := hostRequired(ctx, l.Progress, step.what, step.argv...); err != nil {
 			return err
 		}
 	}
@@ -341,18 +353,18 @@ func (l *L2TPPPP) setupNamespaces() error {
 		{l.LACNamespace, "bring up LAC veth", []string{"ip", ipLink, ipSet, l.LACVeth, "up"}},
 	}
 	for _, step := range inside {
-		if err := nsRequired(l.Progress, step.ns, step.what, step.argv...); err != nil {
+		if err := nsRequired(ctx, l.Progress, step.ns, step.what, step.argv...); err != nil {
 			return err
 		}
 	}
 
-	if out, ok := nsText(l.LACNamespace, "ping", "-c", "1", "-W", "2", l.ZeIP); !ok {
+	if out, ok := nsText(ctx, l.LACNamespace, "ping", "-c", "1", "-W", "2", l.ZeIP); !ok {
 		writeProgress(l.Progress, out)
 		return errors.New("LAC namespace cannot reach Ze namespace underlay")
 	}
 
 	for _, ns := range []string{l.ZeNamespace, l.LACNamespace} {
-		out, ok := nsText(ns, "ip", ipL2TP, ipShow, tunnelObjectName)
+		out, ok := nsText(ctx, ns, "ip", ipL2TP, ipShow, tunnelObjectName)
 		if ok {
 			continue
 		}
@@ -365,8 +377,8 @@ func (l *L2TPPPP) setupNamespaces() error {
 // removeNamespaces takes down both namespaces and the veth pair. It runs before
 // setup and after the run. A previous run that was killed leaves its namespaces
 // behind with names that this run derives in the same way.
-func (l *L2TPPPP) removeNamespaces() {
-	removeNamespaces([]string{l.ZeNamespace, l.LACNamespace}, []string{l.ZeVeth, l.LACVeth})
+func (l *L2TPPPP) removeNamespaces(ctx context.Context) {
+	removeNamespaces(ctx, []string{l.ZeNamespace, l.LACNamespace}, []string{l.ZeVeth, l.LACVeth})
 }
 
 // observe starts both daemons, walks the L2TP path, and answers the verdict.
@@ -375,8 +387,13 @@ func (l *L2TPPPP) removeNamespaces() {
 // their stop paths. The peer stops before ze. The proof asserts that the PEER'S
 // departure causes the teardown. If ze stops first, the session ends from the
 // wrong endpoint. That sequence proves nothing about the withdraw path.
-func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPReport, error) {
-	baselines, err := readPPPBaselines([]string{l.ZeNamespace, l.LACNamespace})
+func (l *L2TPPPP) observe(ctx context.Context, report L2TPPPPReport, binary, work string) (result L2TPPPPReport, resultErr error) {
+	defer func() {
+		if err := ctx.Err(); err != nil {
+			resultErr = errors.Join(resultErr, stoppedRun(err))
+		}
+	}()
+	baselines, err := readPPPBaselines(ctx, []string{l.ZeNamespace, l.LACNamespace})
 	if err != nil {
 		return report, err
 	}
@@ -388,7 +405,7 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 		pppCHAPAcceptedLine, pppCHAPRejectedLine,
 	}, pppFatalLines...)...)
 
-	daemon := nsCommand(l.ZeNamespace, binary, "start", filepath.Join(work, "ze", "ze.conf"))
+	daemon := nsCommand(ctx, l.ZeNamespace, binary, "start", filepath.Join(work, "ze", "ze.conf"))
 	daemon.Env = l.daemonEnv(work)
 
 	ze, err := startWatched(daemon, "ze> ", seen, l.Progress)
@@ -396,19 +413,19 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 		return report, err
 	}
 	defer seen.wait()
-	defer ze.stop()
+	defer func() { resultErr = errors.Join(resultErr, ze.closeNative()) }()
 
 	preSession := append(slices.Clone(pppFatalLines), pppTeardownLine)
-	if verdict, ok := l.step(seen, report, ze, []string{pppListenerLine}, preSession,
+	if verdict, ok := l.step(ctx, seen, report, ze, []string{pppListenerLine}, preSession,
 		l.ListenerWait, "ze L2TP listener did not start"); !ok {
 		return verdict, nil
 	}
-	if verdict, ok := l.step(seen, report, ze, []string{pppPoolLine}, nil,
+	if verdict, ok := l.step(ctx, seen, report, ze, []string{pppPoolLine}, nil,
 		l.PoolWait, "ze l2tp-pool plugin did not load"); !ok {
 		return verdict, nil
 	}
 
-	peer := nsCommand(l.LACNamespace, PeerName,
+	peer := nsCommand(ctx, l.LACNamespace, PeerName,
 		"-D",
 		"-c", filepath.Join(work, PeerConfigFile),
 		"-s", filepath.Join(work, PeerSecretsFile),
@@ -421,28 +438,28 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 		return report, err
 	}
 	defer said.wait()
-	defer dialer.stop()
+	defer func() { resultErr = errors.Join(resultErr, dialer.closeNative()) }()
 
-	if verdict, ok := l.step(seen, report, ze, []string{pppSessionLine}, preSession,
+	if verdict, ok := l.step(ctx, seen, report, ze, []string{pppSessionLine}, preSession,
 		l.SessionWait, "xl2tpd did not establish an incoming L2TP session"); !ok {
 		return verdict, nil
 	}
-	if verdict, ok := l.step(seen, report, ze, []string{pppIPLine, pppRouteLine, pppUpLine}, pppFatalLines,
+	if verdict, ok := l.step(ctx, seen, report, ze, []string{pppIPLine, pppRouteLine, pppUpLine}, pppFatalLines,
 		l.NCPWait, "PPP LCP/IPCP completion and subscriber route injection were not observed"); !ok {
 		return verdict, nil
 	}
 
-	report, proven := l.assertKernelState(report, seen, zeBase, lacBase)
+	report, proven := l.assertKernelState(ctx, report, seen, zeBase, lacBase)
 	if !proven {
 		return report, nil
 	}
 	if l.Scenario == l2tpPPPScenarioCHAP {
-		if verdict, ok := l.step(seen, report, ze, []string{pppCHAPAcceptedLine}, preSession,
+		if verdict, ok := l.step(ctx, seen, report, ze, []string{pppCHAPAcceptedLine}, preSession,
 			l.NCPWait, "local CHAP-MD5 acceptance was not observed"); !ok {
 			return verdict, nil
 		}
 	}
-	report, proven = l.assertLCPRestart(report, seen, ze, dialer, work, zeBase, lacBase)
+	report, proven = l.assertLCPRestart(ctx, report, seen, ze, dialer, work, zeBase, lacBase)
 	if !proven {
 		return report, nil
 	}
@@ -451,19 +468,21 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 	// departure. If the run stopped ze instead, the session would end from the
 	// wrong endpoint. A daemon that never withdraws a route would still pass.
 	withdrawMark := l2tpPPPObservation(seen)
-	dialer.stop()
+	if err := dialer.stopNative(); err != nil {
+		return report, err
+	}
 	said.wait()
-	if err := awaitL2TPPPPWithdrawal(seen, withdrawMark, ze, l.WithdrawWait); err != nil {
+	if err := awaitL2TPPPPWithdrawal(ctx, seen, withdrawMark, ze, l.WithdrawWait); err != nil {
 		return l.fail(report, seen, err.Error()), nil
 	}
 
 	zeBase.iface = report.ZeInterface
 	lacBase.iface = report.LACInterface
-	if err := awaitTeardown([]pppBaseline{zeBase, lacBase}, l.CleanupWait); err != nil {
+	if err := awaitTeardown(ctx, []pppBaseline{zeBase, lacBase}, l.CleanupWait); err != nil {
 		return l.fail(report, seen, err.Error()), nil
 	}
 	if l.Scenario == l2tpPPPScenarioCHAP {
-		if err := l.assertWrongSecret(seen, ze, work, baselines); err != nil {
+		if err := l.assertWrongSecret(ctx, seen, ze, work, baselines); err != nil {
 			return l.fail(report, seen, "wrong-secret CHAP-MD5: "+err.Error()), nil
 		}
 	}
@@ -477,9 +496,12 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 // The caller supplies the failure sentence because it names the missing L2TP
 // step. An operator reads that fact first. A fatal line instead uses the
 // daemon's own sentence. Repeating the step name would hide the reason.
-func (l *L2TPPPP) step(seen *collector, report L2TPPPPReport, ze *running,
+func (l *L2TPPPP) step(ctx context.Context, seen *collector, report L2TPPPPReport, ze *running,
 	wanted, fatal []string, wait time.Duration, missed string,
 ) (L2TPPPPReport, bool) {
+	if err := ctx.Err(); err != nil {
+		return report, false
+	}
 	arrived, err := awaitAll(seen, wanted, fatal, ze, wait)
 	if err != nil {
 		return l.fail(report, seen, err.Error()), false
@@ -505,7 +527,7 @@ func (l *L2TPPPP) fail(report L2TPPPPReport, seen *collector, reason string) L2T
 // possible. It checks the pool address, each interface, both address pairs, and
 // packet delivery. A daemon that logs every line and programs nothing passes
 // none of these checks.
-func (l *L2TPPPP) assertKernelState(report L2TPPPPReport, seen *collector, zeBase, lacBase pppBaseline) (L2TPPPPReport, bool) {
+func (l *L2TPPPP) assertKernelState(ctx context.Context, report L2TPPPPReport, seen *collector, zeBase, lacBase pppBaseline) (L2TPPPPReport, bool) {
 	assigned := seen.carrying(pppIPLine)
 	var tb textbuf.Buffer
 	wantAddress := tb.Str("address=").Str(L2TPPPPPeerAddr).String()
@@ -519,13 +541,13 @@ func (l *L2TPPPP) assertKernelState(report L2TPPPPReport, seen *collector, zeBas
 	// discoverPPPIface uses the interface that appeared in the namespace. An
 	// interface found that way has no session-up line behind it.
 	upLines := seen.carrying(pppUpLine)
-	zeIface, err := discoverPPPIface(l.ZeNamespace, zeBase.links, upLines, "Ze")
+	zeIface, err := discoverPPPIface(ctx, l.ZeNamespace, zeBase.links, upLines, "Ze")
 	if err != nil {
 		return l.fail(report, seen, err.Error()), false
 	}
 	report.ZeInterface = zeIface
 
-	lacIface, err := discoverPPPIface(l.LACNamespace, lacBase.links, nil, "LAC")
+	lacIface, err := discoverPPPIface(ctx, l.LACNamespace, lacBase.links, nil, "LAC")
 	if err != nil {
 		return l.fail(report, seen, err.Error()), false
 	}
@@ -536,14 +558,14 @@ func (l *L2TPPPP) assertKernelState(report L2TPPPPReport, seen *collector, zeBas
 			Str(zeIface).String()), false
 	}
 
-	if err := verifyPPPAddress(l.ZeNamespace, zeIface, L2TPPPPLocalAddr, L2TPPPPPeerAddr); err != nil {
+	if err := verifyPPPAddress(ctx, l.ZeNamespace, zeIface, L2TPPPPLocalAddr, L2TPPPPPeerAddr); err != nil {
 		return l.fail(report, seen, err.Error()), false
 	}
-	if err := verifyPPPAddress(l.LACNamespace, lacIface, L2TPPPPPeerAddr, L2TPPPPLocalAddr); err != nil {
+	if err := verifyPPPAddress(ctx, l.LACNamespace, lacIface, L2TPPPPPeerAddr, L2TPPPPLocalAddr); err != nil {
 		return l.fail(report, seen, err.Error()), false
 	}
 
-	if _, ok := nsText(l.LACNamespace, "ping", "-c", "2", "-W", "3", L2TPPPPLocalAddr); !ok {
+	if _, ok := nsText(ctx, l.LACNamespace, "ping", "-c", "2", "-W", "3", L2TPPPPLocalAddr); !ok {
 		return l.fail(report, seen, tb.Reset().Str("dataplane ping to ").Str(L2TPPPPLocalAddr).
 			Str(" (LNS) through PPP tunnel failed").String()), false
 	}
@@ -591,7 +613,7 @@ func (l *L2TPPPP) daemonEnv(work string) []string {
 // cleanup. It is not the pre-failure state: a SIGTERM in pppd.log or an empty
 // kernel listing may result from cleanup. assertLCPRestart prints its live
 // transport listings before returning the failing verdict.
-func (l *L2TPPPP) diagnose(work string) {
+func (l *L2TPPPP) diagnose(ctx context.Context, work string) {
 	writeProgress(l.Progress, "\n--- diagnostics after process cleanup ---")
 
 	queries := [][]string{
@@ -602,7 +624,7 @@ func (l *L2TPPPP) diagnose(work string) {
 	var tb textbuf.Buffer
 	for _, ns := range []string{l.ZeNamespace, l.LACNamespace} {
 		for _, query := range queries {
-			out, ok := nsText(ns, query...)
+			out, ok := nsText(ctx, ns, query...)
 			if !ok || out == "" {
 				continue
 			}
@@ -618,7 +640,7 @@ func (l *L2TPPPP) diagnose(work string) {
 	}
 
 	for _, ns := range []string{l.ZeNamespace, l.LACNamespace} {
-		out, ok := nsText(ns, "cat", "/proc/net/pppol2tp")
+		out, ok := nsText(ctx, ns, "cat", "/proc/net/pppol2tp")
 		if !ok || out == "" {
 			continue
 		}

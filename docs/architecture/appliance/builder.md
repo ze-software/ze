@@ -48,6 +48,18 @@ absolute `--dir`; it does not guess another appliance directory.
 <!-- source: internal/appliance/manifest.go -- build manifest and image checksums -->
 <!-- source: internal/appliance/kernelargs.go -- the one kernel-cmdline assembly seam -->
 
+Image injection takes an explicit context and command executor through
+formatting, database writes and verification. The native appliance proof supplies
+its existing checked process-group executor, so cancellation during `mkfs.ext4`,
+`debugfs`, `e2fsck` or mount verification joins the command before returning and
+starts no later phase. Every injection command retains the existing ten-minute
+bound. The ordinary appliance build supplies its existing executor at its own
+root; this does not establish a new signal root for that separate command.
+The appliance package imports no development-tool runner to achieve this.
+<!-- source: internal/appliance/cmd_build.go -- InjectDatabase, injectZeFS, runExternal -->
+<!-- source: internal/appliance/inject_command.go -- runInjectionCommand -->
+<!-- source: internal/le/test/deployment/gokrazyimage.go -- runNativeImageCommand -->
+
 ## Kernel command line
 
 `image.hugepages`, `image.isolated-cpus` and `image.crash-dump` are the three

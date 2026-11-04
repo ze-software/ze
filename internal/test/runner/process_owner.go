@@ -33,6 +33,11 @@ type ownedProcess struct {
 	// not an exit result: Cmd.Wait still owns output drain and result publication.
 	signalMu sync.Mutex
 	retired  bool
+	// Written under signalMu before retirement; read only after done closes.
+	// A successful pre-exit owned KILL earns intentionalKill. Post-exit
+	// descendant cleanup in retire does not. Unknown observations stay errors.
+	intentionalKill    bool
+	stopObservationErr error
 }
 
 func (p *ownedProcess) reap() {
@@ -101,7 +106,13 @@ func (p *ownedProcess) Wait() error {
 // It is independent of the child's exit status and cannot satisfy an exit assertion.
 func (p *ownedProcess) lifecycleError() error {
 	<-p.done
-	return p.lifecycleErr
+	if p.stopObservationErr == nil {
+		return p.lifecycleErr
+	}
+	if p.lifecycleErr == nil {
+		return p.stopObservationErr
+	}
+	return errors.Join(p.lifecycleErr, p.stopObservationErr)
 }
 
 const failTypeProcessLifecycle = "process_lifecycle_failed"
@@ -147,7 +158,23 @@ func (p *ownedProcess) cancel() error {
 	if p.retired {
 		return os.ErrProcessDone
 	}
-	return p.groupSignal(-p.cmd.Process.Pid, syscall.SIGKILL)
+	exited, probeErr := p.exitBeforeSignal()
+	signalErr := p.groupSignal(-p.cmd.Process.Pid, syscall.SIGKILL)
+	if probeErr == nil && !exited && signalErr == nil {
+		p.intentionalKill = true
+	}
+	return signalErr
+}
+
+// exitBeforeSignal MUST run under signalMu. Retain the first failed causal
+// observation independently of signal errors, so a benign ESRCH cannot erase
+// it. Unknown observation never prevents the caller's owned cleanup attempt.
+func (p *ownedProcess) exitBeforeSignal() (bool, error) {
+	exited, err := p.exitedBeforeStop()
+	if err != nil && p.stopObservationErr == nil {
+		p.stopObservationErr = fmt.Errorf("observe child %d before owned signal: %w", p.cmd.Process.Pid, err)
+	}
+	return exited, err
 }
 
 // stop preserves a daemon's opportunity to stop its children after SIGTERM.
@@ -159,7 +186,7 @@ func (p *ownedProcess) stop() error {
 	default:
 	}
 	_ = p.cmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck // the child can exit before the signal
-	timer := time.NewTimer(teardownGraceTimeout)
+	timer := time.NewTimer(TeardownGraceTimeout)
 	defer timer.Stop()
 	select {
 	case <-p.done:

@@ -13,6 +13,9 @@ package buildcompile
 
 import (
 	"context"
+	"io"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 
@@ -21,6 +24,7 @@ import (
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 const (
@@ -63,16 +67,44 @@ func Host() (any, int) {
 
 // BuildHost builds the native host-side appliance driver in root, under ctx.
 //
-// ctx is the calling verb's signal root. The build heads a process group of
-// its own (gaterun.StreamContext), so a Ctrl-C reaches le alone, and the
-// root's cancel kills the whole group: a canceled ctx starts no build at all.
+// ctx MUST be the calling verb's root. The shared process owner joins the
+// compiler group, including descendants, before the build answers.
 func BuildHost(ctx context.Context, root string) (BuildReport, int) {
 	payload, code := runWithRoot(ctx, root, hostPlan, func(action string, argv []string, dir string, environ []string) int {
-		_, code, _ := gaterun.RunContext(ctx, action, argv, dir, environ)
+		code := runHostBuild(ctx, action, argv, dir, environ)
 		return code
 	})
 	report, _ := payload.(BuildReport)
 	return report, code
+}
+
+// runHostBuild MUST close its shared owner before reporting a build outcome.
+// Piped output keeps a compiler group off a terminal with tostop enabled.
+func runHostBuild(ctx context.Context, action string, argv []string, dir string, environ []string) (code int) {
+	gaterun.Announce(action)
+	command := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // The host build plan owns argv.
+	command.Dir, command.Env = dir, environ
+	command.Stdout = struct{ io.Writer }{os.Stdout}
+	command.Stderr = struct{ io.Writer }{os.Stderr}
+	owner, err := runner.StartServerProcess(command)
+	if err != nil {
+		leaction.ReportError(err)
+		return gaterun.CannotStart
+	}
+	defer func() {
+		cleanupErr := owner.Close()
+		code = gaterun.ExitCode(cleanupErr)
+		if cleanupErr != nil {
+			leaction.ReportError(cleanupErr)
+		}
+		if ctx.Err() != nil {
+			if code == 0 {
+				code = 1
+			}
+		}
+	}()
+	<-owner.Done()
+	return 0
 }
 
 // Installer cross-builds the installer initrd PID 1 for arch into

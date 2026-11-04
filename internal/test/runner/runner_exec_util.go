@@ -989,7 +989,7 @@ func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, p
 // that descendant exits: display-fill-completion.ci, declared at 90s, was
 // reported at 588s because its fixture's children outlived the fixture. The
 // delay is the teardown grace, so output a clean exit still flushes arrives.
-const processWaitDelay = teardownGraceTimeout
+const processWaitDelay = TeardownGraceTimeout
 
 // boundProcessDeadline makes the context deadline end the process TREE, not
 // only the process the runner started. The process leads a process group of
@@ -1035,9 +1035,9 @@ func awaitQuickZe(cmd *RunCommand, proc *ownedProcess, quickStdout, quickStderr 
 	return waitErr
 }
 
-// teardownGraceTimeout is how long a SIGTERM'd process is given to exit before it
-// is forcefully killed. It is a single shared constant: every teardown/stop site
-// uses the same grace period, so it is not a per-call parameter.
+// TeardownGraceTimeout is the runner's existing shutdown budget for Ze daemons.
+// ServerProcess callers MUST pass their lifecycle's budget explicitly: browser
+// cleanup uses this value, while native peer departure retains its shorter grace.
 //
 // It MUST exceed the shutdown budget the daemon under test declares for itself,
 // or the runner kills a shutdown that is still within contract and the test
@@ -1055,10 +1055,10 @@ func awaitQuickZe(cmd *RunCommand, proc *ownedProcess, quickStdout, quickStderr 
 //
 // The cost is paid only by a process that genuinely will not exit, and only on
 // a failing test.
-const teardownGraceTimeout = 10 * time.Second
+const TeardownGraceTimeout = 10 * time.Second
 
 // terminateGracefully sends SIGTERM to a process and waits for it to exit.
-// If it doesn't exit within teardownGraceTimeout, it is forcefully killed.
+// If it doesn't exit within TeardownGraceTimeout, it is forcefully killed.
 func terminateGracefully(cmd *ownedProcess) {
 	_ = cmd.stop() //nolint:errcheck // teardown preserves the caller's assertion result
 }
@@ -1150,7 +1150,7 @@ func stopNamedBackground(cmd *RunCommand, bgProcs []*ownedProcess, namedBg map[s
 // process the OS has actually torn down (AC-1). With signalKill (the default) it
 // SIGKILLs the process -- the killed peer goes silent, the condition IKEv2 DPD
 // (dead-peer detection) observes. With signalTerm it delegates to
-// terminateGracefully (SIGTERM, then SIGKILL after teardownGraceTimeout) so a test
+// terminateGracefully (SIGTERM, then SIGKILL after TeardownGraceTimeout) so a test
 // wanting a clean stop gets one and the runner never hangs. Errors are ignored
 // throughout: the exit status is intentional and the owner caches it for later
 // consumers. No second reap occurs during teardown.

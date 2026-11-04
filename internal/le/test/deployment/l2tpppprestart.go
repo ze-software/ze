@@ -3,6 +3,7 @@
 package testdeployment
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -31,9 +32,9 @@ type l2tpPPPTransport struct {
 	Management  bool   `json:"management_session"`
 }
 
-func readL2TPPPPTransport(ns string) (l2tpPPPTransport, string, error) {
+func readL2TPPPPTransport(ctx context.Context, ns string) (l2tpPPPTransport, string, error) {
 	var identity l2tpPPPTransport
-	state, err := readL2TPSnapshot(ns)
+	state, err := readL2TPSnapshot(ctx, ns)
 	if err != nil {
 		return identity, "", err
 	}
@@ -237,16 +238,16 @@ func l2tpPPPRestartProgress(log, authentication string) string {
 	return ""
 }
 
-func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, dialer *running, work string, zeBase, lacBase pppBaseline) (L2TPPPPReport, bool) {
+func (l *L2TPPPP) assertLCPRestart(ctx context.Context, report L2TPPPPReport, seen *collector, ze, dialer *running, work string, zeBase, lacBase pppBaseline) (L2TPPPPReport, bool) {
 	fail := func(err error) (L2TPPPPReport, bool) {
 		return l.fail(report, seen, "same-transport LCP restart: "+err.Error()), false
 	}
-	beforeZe, zeListing, err := readL2TPPPPTransport(l.ZeNamespace)
+	beforeZe, zeListing, err := readL2TPPPPTransport(ctx, l.ZeNamespace)
 	writeProgress(l.Progress, l.ZeNamespace+" before LCP restart (before peer cleanup):\n"+zeListing)
 	if err != nil {
 		return fail(err)
 	}
-	beforeLAC, lacListing, err := readL2TPPPPTransport(l.LACNamespace)
+	beforeLAC, lacListing, err := readL2TPPPPTransport(ctx, l.LACNamespace)
 	writeProgress(l.Progress, l.LACNamespace+" before LCP restart (before peer cleanup):\n"+lacListing)
 	if err != nil {
 		return fail(err)
@@ -290,7 +291,7 @@ func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, di
 		return fail(err)
 	}
 	writeProgress(l.Progress, "LCP restart boundary: "+string(body))
-	out, ok := nsText(l.LACNamespace, "python3", "-c", l2tpPPPInjectLCP, beforeLAC.Local, beforeLAC.Peer, hex.EncodeToString(packet))
+	out, ok := nsText(ctx, l.LACNamespace, "python3", "-c", l2tpPPPInjectLCP, beforeLAC.Local, beforeLAC.Peer, hex.EncodeToString(packet))
 	writeProgress(l.Progress, out)
 	if !ok {
 		return fail(errors.New("raw LCP Configure-Request injection failed: " + out))
@@ -339,13 +340,15 @@ func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, di
 			missing = "fresh Ze address assignment, route withdrawal/reinjection and PPP session-up"
 		}
 		select {
+		case <-ctx.Done():
+			return fail(ctx.Err())
 		case <-deadline.C:
 			return fail(errors.New("timed out awaiting " + missing))
 		case <-poll.C:
 		}
 	}
 	writeProgress(l.Progress, "pppd after LCP restart boundary:\n"+freshLog)
-	report, ok = l.assertKernelState(report, fresh, zeBase, lacBase)
+	report, ok = l.assertKernelState(ctx, report, fresh, zeBase, lacBase)
 	if !ok {
 		return fail(errors.New(report.Reason))
 	}
@@ -355,14 +358,14 @@ func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, di
 		{l.LACNamespace, report.LACInterface, L2TPPPPLocalAddr},
 		{l.ZeNamespace, report.ZeInterface, L2TPPPPPeerAddr},
 	} {
-		out, ok := nsText(probe.ns, "ping", "-n", "-I", probe.iface, "-c", "3", "-W", "3", "-w", "10", probe.address)
+		out, ok := nsText(ctx, probe.ns, "ping", "-n", "-I", probe.iface, "-c", "3", "-W", "3", "-w", "10", probe.address)
 		writeProgress(l.Progress, probe.ns+" resumed PPP traffic:\n"+out)
 		if !ok {
 			return fail(errors.New("three-reply PPP delivery failed in " + probe.ns + ": " + out))
 		}
 	}
 	for _, ns := range []string{l.ZeNamespace, l.LACNamespace} {
-		after, listing, err := readL2TPPPPTransport(ns)
+		after, listing, err := readL2TPPPPTransport(ctx, ns)
 		writeProgress(l.Progress, ns+" after LCP restart:\n"+listing)
 		if err != nil {
 			return fail(err)
@@ -381,7 +384,7 @@ func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, di
 	return report, true
 }
 
-func awaitL2TPPPPWithdrawal(seen *collector, mark map[string]int, ze *running, timeout time.Duration) error {
+func awaitL2TPPPPWithdrawal(ctx context.Context, seen *collector, mark map[string]int, ze *running, timeout time.Duration) error {
 	deadline := time.NewTimer(timeout)
 	defer deadline.Stop()
 	poll := time.NewTicker(pollInterval)
@@ -394,6 +397,8 @@ func awaitL2TPPPPWithdrawal(seen *collector, mark map[string]int, ze *running, t
 			return errors.New("ze exited before the final subscriber route withdrawal")
 		}
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-deadline.C:
 			return errors.New("fresh subscriber route withdrawal was not observed during peer-first teardown")
 		case <-poll.C:

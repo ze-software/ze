@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -62,8 +61,16 @@ func TestServerProcessSignalOutcomes(t *testing.T) {
 		server.process.signalMu.Unlock()
 		err = server.Close()
 		if errors.Is(verdict, syscall.ESRCH) {
-			if err != nil {
-				t.Fatal(err)
+			var exited *exec.ExitError
+			if !errors.As(err, &exited) {
+				t.Fatalf("an absent-group verdict concealed the actual command failure: %v", err)
+			}
+			status, ok := exited.Sys().(syscall.WaitStatus)
+			if !ok || !status.Signaled() || status.Signal() != syscall.SIGKILL {
+				t.Fatalf("an absent-group verdict lost the actual command SIGKILL: %v", err)
+			}
+			if errors.Is(err, syscall.ESRCH) {
+				t.Fatalf("an absent group was reported as an independent cleanup failure: %v", err)
 			}
 		} else if !errors.Is(err, verdict) {
 			t.Fatalf("signal failure lost: %v", err)
@@ -180,8 +187,8 @@ func TestServerProcessReportsUnexpectedExit(t *testing.T) {
 	if !errors.As(err, &exited) || exited.ExitCode() != 13 {
 		t.Fatalf("cleanup lost unexpected server exit: %v", err)
 	}
-	if !strings.Contains(err.Error(), "cleanup failed") {
-		t.Fatalf("missing cleanup diagnostic: %v", err)
+	if repeated := server.Close(); repeated != err {
+		t.Fatalf("repeated Close did not return the one cached failure: %v / %v", err, repeated)
 	}
 }
 

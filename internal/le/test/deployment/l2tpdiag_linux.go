@@ -7,6 +7,7 @@
 package testdeployment
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -310,7 +311,7 @@ func l2tpDiagnosticPrerequisites(name string) error {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str(name).Str(" requires root or CAP_NET_ADMIN").String())
 	}
-	loadL2TPModules()
+	loadL2TPModules(context.Background())
 	return nil
 }
 

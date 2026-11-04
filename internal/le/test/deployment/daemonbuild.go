@@ -121,8 +121,13 @@ func runDaemonBuild(ctx context.Context, tree, outRel string, extra []string, pr
 
 	build := exec.CommandContext(ctx, "go", argv...) //nolint:gosec // the argv is derived from the manifest, never from an operator
 	build.Dir = tree
-	build.Stdout = progress
-	build.Stderr = progress
+	if progress == nil {
+		progress = io.Discard
+	}
+	// A background process group must not write to a tostop terminal directly.
+	piped := struct{ io.Writer }{progress}
+	build.Stdout = piped
+	build.Stderr = piped
 	build.Env = append(os.Environ(), "CGO_ENABLED=0")
 	build.Env = append(build.Env, extra...)
 	if os.Getenv("GOCACHE") == "" {
@@ -130,7 +135,7 @@ func runDaemonBuild(ctx context.Context, tree, outRel string, extra []string, pr
 		build.Env = append(build.Env, tb.Str("GOCACHE=").Str(gotoolchain.GoCache(tree)).String())
 	}
 
-	if err := build.Run(); err != nil {
+	if err := runNativeCommand(ctx, build); err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			// The root ended or the bound passed: say so, rather than blame
 			// the toolchain for a build that was stopped.

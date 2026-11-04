@@ -53,11 +53,11 @@ func TestApplianceStepFailureNamesExitStatus(t *testing.T) {
 		want  string
 	}{
 		{"hugepages init", func(host, work string) error {
-			_, err := newHugepages(t.TempDir()).buildImage(host, work)
+			_, err := newHugepages(t.TempDir()).buildImage(t.Context(), host, work)
 			return err
 		}, 3, 0, "ze appliance init failed (exit status 3)"},
 		{"hugepages build", func(host, work string) error {
-			_, err := newHugepages(t.TempDir()).buildImage(host, work)
+			_, err := newHugepages(t.TempDir()).buildImage(t.Context(), host, work)
 			return err
 		}, 0, 4, "ze appliance build failed (exit status 4)"},
 		{"mpls boot init", func(host, work string) error {

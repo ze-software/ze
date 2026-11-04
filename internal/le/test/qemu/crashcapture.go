@@ -191,7 +191,7 @@ func (c *CrashCapture) Run() (CrashCaptureReport, error) {
 	}
 
 	c.run.note("building the host ze...")
-	host, err := c.run.buildHostZe(work)
+	host, err := c.run.buildHostZe(context.Background(), work)
 	if err != nil {
 		return report, err
 	}
@@ -225,7 +225,7 @@ func (c *CrashCapture) buildImage(host, work string) (string, error) {
 		return "", err
 	}
 
-	if out, err := c.run.appliance(host, environment, "init"); err != nil {
+	if out, err := c.run.appliance(context.Background(), host, environment, "init"); err != nil {
 		return "", applianceStepError("init", "", out, err)
 	}
 	applianceDir := filepath.Join(dir, ApplianceName)
@@ -249,7 +249,7 @@ func (c *CrashCapture) buildImage(host, work string) (string, error) {
 		return "", err
 	}
 
-	out, err := c.run.appliance(host, environment, zeApplianceVerbBuild)
+	out, err := c.run.appliance(context.Background(), host, environment, zeApplianceVerbBuild)
 	if err != nil {
 		return "", applianceStepError(zeApplianceVerbBuild, buildHint(out), out, err)
 	}
@@ -468,7 +468,7 @@ func (c *CrashCapture) askArmed(port int) (crashListing, string) {
 // not yet acceptable, and whether that reason is final.
 func (c *CrashCapture) readListing(port int) (crashListing, string, bool) {
 	var listing crashListing
-	out, stderr, err := c.run.ssh(port, CrashesQuery)
+	out, stderr, err := c.run.ssh(context.Background(), port, CrashesQuery)
 	if err != nil {
 		return listing, lastLine(stderr, out, err), false
 	}
@@ -503,7 +503,7 @@ func (c *CrashCapture) bootTime(port int, previous int64) (int64, string) {
 	end := time.Now().Add(c.run.Deadline)
 	lastError := "no answer yet"
 	for {
-		out, stderr, err := c.run.ssh(port, KernelQuery)
+		out, stderr, err := c.run.ssh(context.Background(), port, KernelQuery)
 		stale := false
 		if err != nil {
 			lastError = lastLine(stderr, out, err)
@@ -530,7 +530,7 @@ func (c *CrashCapture) bootTime(port int, previous int64) (int64, string) {
 
 // askText asks one question until it answers, and answers the text.
 func (c *CrashCapture) askText(port int, query string) (string, string) {
-	out, lastError := c.run.ask(port, query)
+	out, lastError := c.run.ask(context.Background(), port, query)
 	if out == "" {
 		return "", "`" + query + "` never answered: " + lastError
 	}

@@ -26,9 +26,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // The two CLI commands the proof asks the booted appliance.
@@ -58,7 +60,10 @@ type answers struct {
 
 // bootAndAssert boots the image, asks the two questions, and answers the
 // verdict.
-func (h *Hugepages) bootAndAssert(report HugepagesReport, image string) (HugepagesReport, error) {
+func (h *Hugepages) bootAndAssert(ctx context.Context, report HugepagesReport, image string) (HugepagesReport, error) {
+	if err := ctx.Err(); err != nil {
+		return report, err
+	}
 	port := h.SSHPort
 	if port == 0 {
 		picked, err := reserveForwardPort()
@@ -83,7 +88,7 @@ func (h *Hugepages) bootAndAssert(report HugepagesReport, image string) (Hugepag
 		return report, err
 	}
 
-	said, err := h.boot(h.qemuArgs(image, port, report), port, console)
+	said, err := h.boot(ctx, h.qemuArgs(image, port, report), port, console)
 	console.Close() //nolint:errcheck // the VM has stopped writing to it by now
 	if err != nil {
 		return report, err
@@ -128,22 +133,31 @@ func (h *Hugepages) startConsole(image string, port int) (*os.File, error) {
 // question only after the first question gets an answer. An appliance that
 // never came up has nothing more to say. Another question would cost another
 // whole deadline.
-func (h *Hugepages) boot(argv []string, port int, console *os.File) (answers, error) {
-	var said answers
-
-	vm := exec.CommandContext(context.Background(), qemuBinary(h.Arch), argv...) //nolint:gosec // the argv is built by this package, never by an operator
+func (h *Hugepages) boot(ctx context.Context, argv []string, port int, console *os.File) (said answers, err error) {
+	vm := exec.CommandContext(ctx, qemuBinary(h.Arch), argv...) //nolint:gosec // the argv is built by this package, never by an operator
 	vm.Stdout = console
 	vm.Stderr = console
-	if err := vm.Start(); err != nil {
+	owner, err := runner.StartServerProcess(vm)
+	if err != nil {
 		return said, err
 	}
-	defer stopVM(vm)
+	defer func() {
+		err = errors.Join(err, ctx.Err())
+		if err != nil {
+			err = errors.Join(err, owner.Close())
+			return
+		}
+		err = owner.Stop(syscall.SIGINT, shutdownGrace, 0)
+	}()
 
-	said.kernelJSON, said.kernelErr = h.ask(port, KernelQuery)
-	if said.kernelJSON != "" {
-		said.memoryJSON, said.memoryErr = h.ask(port, MemoryQuery)
+	said.kernelJSON, said.kernelErr = h.ask(ctx, port, KernelQuery)
+	if err := ctx.Err(); err != nil {
+		return said, err
 	}
-	return said, nil
+	if said.kernelJSON != "" {
+		said.memoryJSON, said.memoryErr = h.ask(ctx, port, MemoryQuery)
+	}
+	return said, ctx.Err()
 }
 
 // qemuArgs answers the VM's arguments. The caller has already established that
@@ -227,10 +241,13 @@ func stopVMWaiting(vm *exec.Cmd, done <-chan struct{}) {
 // still booting. A connected session whose COMMAND was rejected is a different
 // failure. Both cases have the same exit status for a caller. That conflation
 // made "error: unknown command" look like a boot timeout for months.
-func (h *Hugepages) ask(port int, query string) (string, string) {
+func (h *Hugepages) ask(ctx context.Context, port int, query string) (string, string) {
 	end := time.Now().Add(h.Deadline)
 	for {
-		out, stderr, err := h.ssh(port, query)
+		if err := ctx.Err(); err != nil {
+			return "", err.Error()
+		}
+		out, stderr, err := h.ssh(ctx, port, query)
 		if err == nil {
 			return out, ""
 		}
@@ -238,7 +255,13 @@ func (h *Hugepages) ask(port int, query string) (string, string) {
 		if !time.Now().Before(end) {
 			return "", lastError
 		}
-		time.Sleep(sshRetryPause)
+		timer := time.NewTimer(sshRetryPause)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return "", ctx.Err().Error()
+		case <-timer.C:
+		}
 	}
 }
 
@@ -248,8 +271,8 @@ func (h *Hugepages) ask(port int, query string) (string, string) {
 // Therefore, host-key checking is off and the known-hosts file is discarded.
 // The connection timeout is short. A refused connection becomes a retry, not a
 // wait.
-func (h *Hugepages) ssh(port int, query string) (string, string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), sshAttemptMax)
+func (h *Hugepages) ssh(ctx context.Context, port int, query string) (stdout, stderr string, err error) {
+	ctx, cancel := context.WithTimeout(ctx, sshAttemptMax)
 	defer cancel()
 
 	var tb textbuf.Buffer
@@ -264,13 +287,16 @@ func (h *Hugepages) ssh(port int, query string) (string, string, error) {
 		"-o", "ConnectTimeout=5",
 		target, query)
 
-	var out, stderr textbuf.Buffer
-	out.Reset()
-	stderr.Reset()
+	var out, diagnostic textbuf.Buffer
 	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	return out.String(), stderr.String(), err
+	cmd.Stderr = &diagnostic
+	owner, err := runner.StartServerProcess(cmd)
+	if err != nil {
+		return "", "", err
+	}
+	defer func() { err = errors.Join(owner.Close(), ctx.Err()) }()
+	<-owner.Done()
+	return out.String(), diagnostic.String(), nil
 }
 
 // noAnswer answers the verdict for an appliance that never replied.

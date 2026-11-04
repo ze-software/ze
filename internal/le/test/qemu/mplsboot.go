@@ -139,7 +139,7 @@ func (m *MPLSBoot) Run() (MPLSBootReport, error) {
 	}
 
 	m.run.note("building the host ze...")
-	host, err := m.run.buildHostZe(work)
+	host, err := m.run.buildHostZe(context.Background(), work)
 	if err != nil {
 		return report, err
 	}
@@ -185,7 +185,7 @@ func (m *MPLSBoot) buildImage(host, work, seed string) (string, error) {
 		return "", err
 	}
 
-	if out, err := m.run.appliance(host, environment, "init"); err != nil {
+	if out, err := m.run.appliance(context.Background(), host, environment, "init"); err != nil {
 		return "", applianceStepError("init", "", out, err)
 	}
 	applianceDir := filepath.Join(dir, ApplianceName)
@@ -200,7 +200,7 @@ func (m *MPLSBoot) buildImage(host, work, seed string) (string, error) {
 	if err := os.WriteFile(filepath.Join(applianceDir, "ze.conf"), []byte(seed), 0o600); err != nil {
 		return "", err
 	}
-	out, err := m.run.appliance(host, environment, zeApplianceVerbBuild)
+	out, err := m.run.appliance(context.Background(), host, environment, zeApplianceVerbBuild)
 	if err != nil {
 		return "", applianceStepError(zeApplianceVerbBuild, buildHint(out), out, err)
 	}
@@ -275,7 +275,7 @@ func (m *MPLSBoot) askJSON(port int) (string, string) {
 	end := time.Now().Add(m.run.Deadline)
 	var lastError string
 	for {
-		out, stderr, err := m.run.ssh(port, MPLSQuery)
+		out, stderr, err := m.run.ssh(context.Background(), port, MPLSQuery)
 		switch {
 		case err != nil:
 			lastError = lastLine(stderr, out, err)

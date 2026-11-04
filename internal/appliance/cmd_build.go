@@ -102,9 +102,7 @@ func ResolveE2FSTool(name string) string {
 	return ""
 }
 
-func runExternal(name string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
-	defer cancel()
+func runExternal(ctx context.Context, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // controlled invocation
 	cmd.Stderr = os.Stderr
 	return cmd.Output()
@@ -242,7 +240,7 @@ func buildOne(name string) int {
 		defer os.Remove(bakedPath) //nolint:errcheck // temp cleanup
 	}
 
-	if code := injectZeFS(imgPath, dbPath, bakedPath); code != exitOK {
+	if code := injectZeFS(context.Background(), imgPath, dbPath, bakedPath, runExternalFn); code != exitOK {
 		os.Remove(imgPath) //nolint:errcheck // cleanup failed image
 		return code
 	}
@@ -466,8 +464,14 @@ func runGokBuild(cfg *applianceConfig, imgPath string) int {
 // ze/build.json so an installed box can report its build identity via
 // `ze version`. The manifest write is non-fatal: it is a diagnostic aid, not
 // required for the image to boot or for credentials to load.
-func injectZeFS(imgPath, dbPath, manifestPath string) int {
-
+func injectZeFS(
+	ctx context.Context,
+	imgPath, dbPath, manifestPath string,
+	execute func(context.Context, string, ...string) ([]byte, error),
+) int {
+	if ctx.Err() != nil {
+		return exitError
+	}
 	permOff, permSize, err := findLastPartition(imgPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: find /perm partition: %v\n", err)
@@ -485,7 +489,7 @@ func injectZeFS(imgPath, dbPath, manifestPath string) int {
 	debugfs := e2fsDebugfs
 
 	fmt.Fprintf(os.Stderr, "formatting /perm partition...\n")
-	if _, err := runExternalFn(mkfs, "-q", "-F", "-O", "^metadata_csum",
+	if _, err := runInjectionCommand(ctx, execute, mkfs, "-q", "-F", "-O", "^metadata_csum",
 		"-b", "4096",
 		"-E", "offset="+strconv.FormatInt(permOff, 10),
 		imgPath, strconv.FormatInt(permBlocks, 10)); err != nil {
@@ -503,18 +507,21 @@ func injectZeFS(imgPath, dbPath, manifestPath string) int {
 		slog.Error("extract /perm partition", "error", extractErr)
 		return exitError
 	}
+	if ctx.Err() != nil {
+		return exitError
+	}
 	if writeErr := os.WriteFile(permImg, permData, 0o600); writeErr != nil {
 		slog.Error("write perm temp file", "error", writeErr)
 		return exitError
 	}
 
-	if _, err := runExternalFn(debugfs, "-w", "-R", "mkdir ze", permImg); err != nil {
+	if _, err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", "mkdir ze", permImg); err != nil {
 		fmt.Fprintf(os.Stderr, "error: debugfs mkdir: %v\n", err)
 		return exitError
 	}
 
 	writeCmd := fmt.Sprintf("write %s ze/database.zefs", dbPath)
-	if _, err := runExternalFn(debugfs, "-w", "-R", writeCmd, permImg); err != nil {
+	if _, err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", writeCmd, permImg); err != nil {
 		fmt.Fprintf(os.Stderr, "error: debugfs write: %v\n", err)
 		return exitError
 	}
@@ -530,7 +537,7 @@ func injectZeFS(imgPath, dbPath, manifestPath string) int {
 		"set_inode_field ze/database.zefs uid 0",
 		"set_inode_field ze/database.zefs gid 0",
 	} {
-		if _, err := runExternalFn(debugfs, "-w", "-R", command, permImg); err != nil {
+		if _, err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", command, permImg); err != nil {
 			fmt.Fprintf(os.Stderr, "error: debugfs seed permissions: %v\n", err)
 			return exitError
 		}
@@ -539,18 +546,30 @@ func injectZeFS(imgPath, dbPath, manifestPath string) int {
 	if manifestPath != "" {
 		var tb textbuf.Buffer
 		manifestCmd := tb.Str("write ").Str(manifestPath).Str(" ze/build.json").String()
-		if _, err := runExternalFn(debugfs, "-w", "-R", manifestCmd, permImg); err != nil {
+		if _, err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", manifestCmd, permImg); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return exitError
+			}
+			if errors.Is(err, context.DeadlineExceeded) {
+				return exitError
+			}
 			slog.Warn("bake build.json into image failed (non-fatal)", "error", err)
 		}
 	}
 
-	if err := verifyInject(permImg, dbPath); err != nil {
+	if err := verifyInject(ctx, permImg, dbPath, execute); err != nil {
 		return exitError
 	}
 
+	if ctx.Err() != nil {
+		return exitError
+	}
 	updatedPerm, readErr := os.ReadFile(permImg) //nolint:gosec // build-controlled temp file
 	if readErr != nil {
 		slog.Error("read perm temp file", "error", readErr)
+		return exitError
+	}
+	if ctx.Err() != nil {
 		return exitError
 	}
 	if wbErr := writePartition(imgPath, updatedPerm, permOff); wbErr != nil {
@@ -563,9 +582,22 @@ func injectZeFS(imgPath, dbPath, manifestPath string) int {
 
 // InjectDatabase formats an image's /perm partition and writes the ZeFS
 // database into it. Image builders outside this package use the same checked
-// GPT and read-back path as `ze appliance build`.
-func InjectDatabase(imgPath, dbPath string) error {
-	if code := injectZeFS(imgPath, dbPath, ""); code != exitOK {
+// GPT and read-back path as `ze appliance build`. The caller MUST supply its
+// originating context and executor; execute MUST honor that context and join
+// every command it starts before returning. There is no default executor.
+func InjectDatabase(
+	ctx context.Context,
+	imgPath, dbPath string,
+	execute func(context.Context, string, ...string) ([]byte, error),
+) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	code := injectZeFS(ctx, imgPath, dbPath, "", execute)
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("inject database into appliance image: %w", err)
+	}
+	if code != exitOK {
 		return errors.New("inject database into appliance image")
 	}
 	return nil

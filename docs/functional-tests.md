@@ -4071,6 +4071,19 @@ the LNS through the PPP tunnel from the LAC namespace to prove dataplane
 connectivity, observes subscriber route injection, and verifies teardown
 returns both namespaces' kernel L2TP/PPP state to their initial snapshots.
 
+The native `l2tp-ppp` and `gokrazy-l2tp-ppp` actions carry one SIGINT/SIGTERM
+context through kernel preparation, builds, image injection and verification,
+network setup and running peers.
+Cancellation joins each owned process group before returning a non-success
+answer, starts no later phase and prints no protocol verdict for an interrupted
+proof. Cleanup uses an uncanceled context for this run's resources; unrelated
+processes and labs are not cleanup targets. These routes inherit an enclosing
+`le job run` admission rather than creating another scheduler slot.
+<!-- source: internal/le/test/deployment/actions.go -- signalRooted, runL2TPPPPAt -->
+<!-- source: internal/le/test/deployment/l2tpppp.go -- Run, observe -->
+<!-- source: internal/le/test/deployment/nativeprocess.go -- runNativeCommand -->
+<!-- source: internal/appliance/cmd_build.go -- InjectDatabase, injectZeFS -->
+
 On macOS, `./le test deployment docker-l2tp-ppp` runs that same proof in
 privileged Linux containers. Docker is only a Linux userspace wrapper here: the
 test still fails unless the Docker host kernel has `/dev/ppp`, Generic Netlink

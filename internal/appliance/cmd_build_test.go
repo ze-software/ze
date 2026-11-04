@@ -1,6 +1,7 @@
 package appliance
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -106,7 +107,7 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 	defer func() { gokBuildFn = old }()
 
 	oldExt := runExternalFn
-	runExternalFn = func(name string, args ...string) ([]byte, error) {
+	runExternalFn = func(_ context.Context, name string, args ...string) ([]byte, error) {
 		return nil, nil
 	}
 	defer func() { runExternalFn = oldExt }()
@@ -264,7 +265,7 @@ func TestBuildNoGokBinaryCheck(t *testing.T) {
 	defer func() { gokBuildFn = old }()
 
 	oldExt := runExternalFn
-	runExternalFn = func(name string, args ...string) ([]byte, error) {
+	runExternalFn = func(_ context.Context, name string, args ...string) ([]byte, error) {
 		return nil, nil
 	}
 	defer func() { runExternalFn = oldExt }()
@@ -381,7 +382,7 @@ func TestInjectZeFSUsesRunExternalFn(t *testing.T) {
 
 	// debugfs write is mocked: simulate success by injecting db bytes into
 	// the perm temp file so verifyInjectedDB (bytes.Contains) passes.
-	runExternalFn = func(name string, args ...string) ([]byte, error) {
+	runExternalFn = func(_ context.Context, name string, args ...string) ([]byte, error) {
 		base := filepath.Base(name)
 		calledNames = append(calledNames, base)
 		if base == "mkfs.ext4" {
@@ -404,7 +405,7 @@ func TestInjectZeFSUsesRunExternalFn(t *testing.T) {
 		return nil, nil
 	}
 
-	code := injectZeFS(imgPath, dbPath, "")
+	code := injectZeFS(t.Context(), imgPath, dbPath, "", runExternalFn)
 	if code != exitOK {
 		t.Fatalf("injectZeFS returned %d, want %d", code, exitOK)
 	}
@@ -472,12 +473,12 @@ func TestInjectZeFSFailsWhenWriteSilentlyDropped(t *testing.T) {
 	useE2FSDir(t, e2fs)
 
 	old := runExternalFn
-	runExternalFn = func(_ string, _ ...string) ([]byte, error) {
+	runExternalFn = func(_ context.Context, _ string, _ ...string) ([]byte, error) {
 		return nil, nil
 	}
 	defer func() { runExternalFn = old }()
 
-	code := injectZeFS(imgPath, dbPath, "")
+	code := injectZeFS(t.Context(), imgPath, dbPath, "", runExternalFn)
 	if code != exitError {
 		t.Fatalf("injectZeFS should fail when debugfs write is silent-dropped, got %d want %d", code, exitError)
 	}
@@ -519,7 +520,7 @@ func TestInjectZeFSMkfsArgsPinned(t *testing.T) {
 
 	var mkfsArgs []string
 	old := runExternalFn
-	runExternalFn = func(name string, args ...string) ([]byte, error) {
+	runExternalFn = func(_ context.Context, name string, args ...string) ([]byte, error) {
 		if filepath.Base(name) == "mkfs.ext4" {
 			mkfsArgs = append([]string{}, args...)
 		}
@@ -540,7 +541,7 @@ func TestInjectZeFSMkfsArgsPinned(t *testing.T) {
 	}
 	defer func() { runExternalFn = old }()
 
-	code := injectZeFS(imgPath, dbPath, "")
+	code := injectZeFS(t.Context(), imgPath, dbPath, "", runExternalFn)
 	if code != exitOK {
 		t.Fatalf("injectZeFS returned %d, want %d", code, exitOK)
 	}
@@ -637,7 +638,7 @@ func TestInjectZeFSBakesManifest(t *testing.T) {
 
 	var writes []string
 	old := runExternalFn
-	runExternalFn = func(name string, args ...string) ([]byte, error) {
+	runExternalFn = func(_ context.Context, name string, args ...string) ([]byte, error) {
 		fakeLoopbackMount(filepath.Base(name), args, dbContent)
 		if filepath.Base(name) == "debugfs" {
 			for _, a := range args {
@@ -656,7 +657,7 @@ func TestInjectZeFSBakesManifest(t *testing.T) {
 	}
 	defer func() { runExternalFn = old }()
 
-	if code := injectZeFS(imgPath, dbPath, manifestPath); code != exitOK {
+	if code := injectZeFS(t.Context(), imgPath, dbPath, manifestPath, runExternalFn); code != exitOK {
 		t.Fatalf("injectZeFS returned %d, want %d", code, exitOK)
 	}
 
@@ -712,7 +713,7 @@ func TestInjectZeFSNoManifest(t *testing.T) {
 
 	sawManifest := false
 	old := runExternalFn
-	runExternalFn = func(name string, args ...string) ([]byte, error) {
+	runExternalFn = func(_ context.Context, name string, args ...string) ([]byte, error) {
 		fakeLoopbackMount(filepath.Base(name), args, dbContent)
 		if filepath.Base(name) == "debugfs" {
 			for _, a := range args {
@@ -733,7 +734,7 @@ func TestInjectZeFSNoManifest(t *testing.T) {
 	}
 	defer func() { runExternalFn = old }()
 
-	if code := injectZeFS(imgPath, dbPath, ""); code != exitOK {
+	if code := injectZeFS(t.Context(), imgPath, dbPath, "", runExternalFn); code != exitOK {
 		t.Fatalf("injectZeFS returned %d, want %d", code, exitOK)
 	}
 	if sawManifest {

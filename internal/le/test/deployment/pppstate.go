@@ -17,6 +17,7 @@
 package testdeployment
 
 import (
+	"context"
 	"errors"
 	"maps"
 	"slices"
@@ -40,8 +41,8 @@ const cleanupPoll = 200 * time.Millisecond
 // A failure returns an error instead of an empty set. An empty interface list
 // differs from a failed query. The proof would then report a clean teardown.
 // It would not examine the namespace.
-func pppLinks(ns string) (map[string]bool, error) {
-	out, ok := nsText(ns, "ip", "-o", "link", "show", "type", pppPrefix)
+func pppLinks(ctx context.Context, ns string) (map[string]bool, error) {
+	out, ok := nsText(ctx, ns, "ip", "-o", "link", "show", "type", pppPrefix)
 	if !ok {
 		return nil, errors.New("ip link show type ppp failed")
 	}
@@ -75,9 +76,9 @@ func linkName(line string) string {
 
 // l2tpState answers what the kernel holds for ns: its tunnels, then its
 // sessions.
-func l2tpState(ns string) (string, string, error) {
-	tunnel, tunnelOK := nsText(ns, "ip", ipL2TP, "show", tunnelObjectName)
-	session, sessionOK := nsText(ns, "ip", ipL2TP, "show", "session")
+func l2tpState(ctx context.Context, ns string) (string, string, error) {
+	tunnel, tunnelOK := nsText(ctx, ns, "ip", ipL2TP, "show", tunnelObjectName)
+	session, sessionOK := nsText(ctx, ns, "ip", ipL2TP, "show", "session")
 	if !tunnelOK || !sessionOK {
 		return "", "", errors.New("ip l2tp state inspection failed")
 	}
@@ -94,8 +95,8 @@ type l2tpSnapshot struct {
 }
 
 // readL2TPSnapshot answers the namespace's current L2TP state.
-func readL2TPSnapshot(ns string) (l2tpSnapshot, error) {
-	tunnel, session, err := l2tpState(ns)
+func readL2TPSnapshot(ctx context.Context, ns string) (l2tpSnapshot, error) {
+	tunnel, session, err := l2tpState(ctx, ns)
 	if err != nil {
 		return l2tpSnapshot{}, err
 	}
@@ -129,8 +130,8 @@ func interfaceField(line string) string {
 // answer. Two new interfaces show that something else on this machine made one.
 // If the function picked either, the proof's later assertions would rest on a
 // guess.
-func discoverPPPIface(ns string, initial map[string]bool, lines []string, role string) (string, error) {
-	current, err := pppLinks(ns)
+func discoverPPPIface(ctx context.Context, ns string, initial map[string]bool, lines []string, role string) (string, error) {
+	current, err := pppLinks(ctx, ns)
 	if err != nil {
 		return "", err
 	}
@@ -168,8 +169,8 @@ func discoverPPPIface(ns string, initial map[string]bool, lines []string, role s
 // local address but no peer address is a half-finished negotiation. A control
 // plane that programs an address without a route leaves exactly this state
 // behind.
-func verifyPPPAddress(ns, iface, local, peer string) error {
-	out, ok := nsText(ns, "ip", "-o", "addr", "show", "dev", iface)
+func verifyPPPAddress(ctx context.Context, ns, iface, local, peer string) error {
+	out, ok := nsText(ctx, ns, "ip", "-o", "addr", "show", "dev", iface)
 	var tb textbuf.Buffer
 	if !ok {
 		return errors.New(tb.Str("ip addr show dev ").Str(iface).Str(" failed").String())
@@ -220,17 +221,17 @@ type pppBaseline struct {
 // the two halves of the proof comparable. Each question is one `ip` process. A
 // comparison of the argv from two implementations is a comparison of two
 // SEQUENCES.
-func readPPPBaselines(namespaces []string) ([]pppBaseline, error) {
+func readPPPBaselines(ctx context.Context, namespaces []string) ([]pppBaseline, error) {
 	baselines := make([]pppBaseline, len(namespaces))
 	for i, ns := range namespaces {
-		links, err := pppLinks(ns)
+		links, err := pppLinks(ctx, ns)
 		if err != nil {
 			return nil, err
 		}
 		baselines[i] = pppBaseline{ns: ns, links: links}
 	}
 	for i := range baselines {
-		state, err := readL2TPSnapshot(baselines[i].ns)
+		state, err := readL2TPSnapshot(ctx, baselines[i].ns)
 		if err != nil {
 			return nil, err
 		}
@@ -246,10 +247,13 @@ func readPPPBaselines(namespaces []string) ([]pppBaseline, error) {
 // It compares the whole state instead of only the session's interface. This
 // assertion catches a kernel object that the daemon forgot. A check of only the
 // interface does not detect a tunnel left after its session went away.
-func awaitTeardown(baselines []pppBaseline, timeout time.Duration) error {
+func awaitTeardown(ctx context.Context, baselines []pppBaseline, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
-		settled, why := teardownSettled(baselines)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		settled, why := teardownSettled(ctx, baselines)
 		if settled {
 			return nil
 		}
@@ -258,7 +262,11 @@ func awaitTeardown(baselines []pppBaseline, timeout time.Duration) error {
 			return errors.New(tb.Str("kernel L2TP/PPP cleanup did not return to initial state: ").
 				Str(why).String())
 		}
-		time.Sleep(cleanupPoll)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(cleanupPoll):
+		}
 	}
 }
 
@@ -268,10 +276,10 @@ func awaitTeardown(baselines []pppBaseline, timeout time.Duration) error {
 // It asks every namespace about its interfaces before it asks any namespace
 // about its L2TP state. readPPPBaselines states the reason. The sequence of
 // questions is itself part of how this proof is compared.
-func teardownSettled(baselines []pppBaseline) (bool, string) {
+func teardownSettled(ctx context.Context, baselines []pppBaseline) (bool, string) {
 	links := make([]map[string]bool, len(baselines))
 	for i, base := range baselines {
-		current, err := pppLinks(base.ns)
+		current, err := pppLinks(ctx, base.ns)
 		if err != nil {
 			return false, err.Error()
 		}
@@ -279,7 +287,7 @@ func teardownSettled(baselines []pppBaseline) (bool, string) {
 	}
 	states := make([]l2tpSnapshot, len(baselines))
 	for i, base := range baselines {
-		state, err := readL2TPSnapshot(base.ns)
+		state, err := readL2TPSnapshot(ctx, base.ns)
 		if err != nil {
 			return false, err.Error()
 		}

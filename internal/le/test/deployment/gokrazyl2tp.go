@@ -252,7 +252,15 @@ func applianceAccel() string {
 // wait on the console; the lab, the peer and the machine are then torn down by
 // the deferred stops, which take no context. A run the root ended answers an
 // error, because it reached no verdict.
-func (g *gokrazyL2TP) Run(ctx context.Context) (GokrazyL2TPReport, error) {
+func (g *gokrazyL2TP) Run(ctx context.Context) (result GokrazyL2TPReport, resultErr error) {
+	defer func() {
+		if err := ctx.Err(); err != nil {
+			resultErr = errors.Join(resultErr, stoppedRun(err))
+		}
+	}()
+	if err := ctx.Err(); err != nil {
+		return GokrazyL2TPReport{}, stoppedRun(err)
+	}
 	report := GokrazyL2TPReport{
 		Peer:             PeerName,
 		Arch:             g.Arch,
@@ -269,7 +277,7 @@ func (g *gokrazyL2TP) Run(ctx context.Context) (GokrazyL2TPReport, error) {
 	if err := look("ip", "ping", PeerName, "pppd", "dnsmasq"); err != nil {
 		return report, err
 	}
-	if err := ensureKernelSupport(gokrazyProofName); err != nil {
+	if err := ensureKernelSupport(ctx, gokrazyProofName); err != nil {
 		return report, err
 	}
 
@@ -278,7 +286,7 @@ func (g *gokrazyL2TP) Run(ctx context.Context) (GokrazyL2TPReport, error) {
 		return report, err
 	}
 	template := filepath.Join(work, "ze-gokrazy-l2tp.conf")
-	if err := os.WriteFile(template, []byte(g.applianceTemplate()), inputMode); err != nil {
+	if err := os.WriteFile(template, []byte(g.applianceTemplate()), inputMode); err != nil { //nolint:gosec // The credential-free image editor script is readable at 0644 inside this run's fresh scratch directory; only its owner writes it.
 		return report, err
 	}
 
@@ -299,8 +307,8 @@ func (g *gokrazyL2TP) Run(ctx context.Context) (GokrazyL2TPReport, error) {
 // so it reads what a stopped root answers with no image, no lab and no QEMU.
 type gokrazyStages interface {
 	buildImage(ctx context.Context, work, template string) (string, error)
-	setupLab() error
-	removeLab()
+	setupLab(context.Context) error
+	removeLab(context.Context) error
 	observe(ctx context.Context, report GokrazyL2TPReport, image, peerDir string) (GokrazyL2TPReport, error)
 }
 
@@ -310,10 +318,10 @@ func (g *gokrazyL2TP) buildImage(ctx context.Context, work, template string) (st
 }
 
 // setupLab creates the network the appliance and the peer meet on.
-func (g *gokrazyL2TP) setupLab() error { return g.Lab.setup() }
+func (g *gokrazyL2TP) setupLab(ctx context.Context) error { return g.Lab.setup(ctx) }
 
-// removeLab removes the network setupLab created, with no context of its own.
-func (g *gokrazyL2TP) removeLab() { g.Lab.remove() }
+// removeLab MUST run after setupLab, including failure, after peer owners join.
+func (g *gokrazyL2TP) removeLab(ctx context.Context) error { return g.Lab.remove(ctx) }
 
 // proveAppliance builds the image, creates the lab, boots the appliance and
 // answers the verdict. A root that ended at any of these stages answers
@@ -324,7 +332,7 @@ func proveAppliance(
 	stages gokrazyStages,
 	report GokrazyL2TPReport,
 	work, template, peerDir string,
-) (GokrazyL2TPReport, error) {
+) (result GokrazyL2TPReport, resultErr error) {
 	image, err := stages.buildImage(ctx, work, template)
 	if err != nil {
 		return report, stoppedOr(ctx, err)
@@ -335,9 +343,17 @@ func proveAppliance(
 		return report, stoppedRun(err)
 	}
 
-	defer stages.removeLab()
-	if err := stages.setupLab(); err != nil {
+	defer func() {
+		resultErr = errors.Join(resultErr, stages.removeLab(context.WithoutCancel(ctx)))
+		if err := ctx.Err(); err != nil {
+			resultErr = errors.Join(resultErr, stoppedRun(err))
+		}
+	}()
+	if err := stages.setupLab(ctx); err != nil {
 		return report, stoppedOr(ctx, err)
+	}
+	if err := ctx.Err(); err != nil {
+		return report, stoppedRun(err)
 	}
 
 	report, err = stages.observe(ctx, report, image, peerDir)
@@ -372,8 +388,13 @@ func stoppedOr(ctx context.Context, err error) error {
 //
 // The machine runs under ctx, unbounded in time otherwise: the run's own waits
 // bound it, and the stop path is what ends it.
-func (g *gokrazyL2TP) observe(ctx context.Context, report GokrazyL2TPReport, image, peerDir string) (GokrazyL2TPReport, error) {
-	baselines, err := readPPPBaselines([]string{g.Lab.Namespace})
+func (g *gokrazyL2TP) observe(ctx context.Context, report GokrazyL2TPReport, image, peerDir string) (result GokrazyL2TPReport, resultErr error) {
+	defer func() {
+		if err := ctx.Err(); err != nil {
+			resultErr = errors.Join(resultErr, stoppedRun(err))
+		}
+	}()
+	baselines, err := readPPPBaselines(ctx, []string{g.Lab.Namespace})
 	if err != nil {
 		return report, err
 	}
@@ -396,7 +417,7 @@ func (g *gokrazyL2TP) observe(ctx context.Context, report GokrazyL2TPReport, ima
 		return report, err
 	}
 	defer console.wait()
-	defer appliance.stop()
+	defer func() { resultErr = errors.Join(resultErr, appliance.closeNative()) }()
 
 	preSession := append(slices.Clone(gokrazyFatalLines), pppTeardownLine)
 	steps := []struct {
@@ -409,7 +430,7 @@ func (g *gokrazyL2TP) observe(ctx context.Context, report GokrazyL2TPReport, ima
 		{[]string{pppListenerLine}, preSession, g.ListenerWait, "gokrazy appliance L2TP listener did not start"},
 	}
 	for _, step := range steps {
-		if verdict, ok := g.step(console, report, appliance, step.wanted, step.fatal, step.wait, step.missed); !ok {
+		if verdict, ok := g.step(ctx, console, report, appliance, step.wanted, step.fatal, step.wait, step.missed); !ok {
 			return verdict, nil
 		}
 	}
@@ -419,7 +440,7 @@ func (g *gokrazyL2TP) observe(ctx context.Context, report GokrazyL2TPReport, ima
 		return g.fail(report, console, err.Error()), nil
 	}
 
-	peer := nsCommand(g.Lab.Namespace, PeerName,
+	peer := nsCommand(ctx, g.Lab.Namespace, PeerName,
 		"-D",
 		"-c", filepath.Join(peerDir, PeerConfigFile),
 		"-s", filepath.Join(peerDir, PeerSecretsFile),
@@ -432,32 +453,34 @@ func (g *gokrazyL2TP) observe(ctx context.Context, report GokrazyL2TPReport, ima
 		return report, err
 	}
 	defer said.wait()
-	defer dialer.stop()
+	defer func() { resultErr = errors.Join(resultErr, dialer.closeNative()) }()
 
-	if verdict, ok := g.step(console, report, appliance, []string{pppSessionLine}, preSession,
+	if verdict, ok := g.step(ctx, console, report, appliance, []string{pppSessionLine}, preSession,
 		g.SessionWait, "xl2tpd did not establish an incoming L2TP session with the appliance"); !ok {
 		return verdict, nil
 	}
-	if verdict, ok := g.step(console, report, appliance,
+	if verdict, ok := g.step(ctx, console, report, appliance,
 		[]string{pppIPLine, pppRouteLine, pppUpLine}, gokrazyFatalLines, g.NCPWait,
 		"appliance PPP LCP/IPCP completion and route injection were not observed"); !ok {
 		return verdict, nil
 	}
 
-	report, proven := g.assertKernelState(report, console, base)
+	report, proven := g.assertKernelState(ctx, report, console, base)
 	if !proven {
 		return report, nil
 	}
 
-	dialer.stop()
+	if err := dialer.stopNative(); err != nil {
+		return report, err
+	}
 	said.wait()
-	if verdict, ok := g.step(console, report, appliance, []string{pppWithdrawLine}, nil,
+	if verdict, ok := g.step(ctx, console, report, appliance, []string{pppWithdrawLine}, nil,
 		g.WithdrawWait, "appliance subscriber route withdraw was not observed during teardown"); !ok {
 		return verdict, nil
 	}
 
 	base.iface = report.PeerInterface
-	if err := awaitTeardown([]pppBaseline{base}, g.CleanupWait); err != nil {
+	if err := awaitTeardown(ctx, []pppBaseline{base}, g.CleanupWait); err != nil {
 		return g.fail(report, console, err.Error()), nil
 	}
 
@@ -477,7 +500,7 @@ func stoppedRun(cause error) error {
 // virtual machine. The appliance reports its interface through the console. The
 // host kernel reports the peer's interface. A successful dataplane ping proves
 // that a packet crossed both interfaces.
-func (g *gokrazyL2TP) assertKernelState(report GokrazyL2TPReport, console *collector, base pppBaseline) (GokrazyL2TPReport, bool) {
+func (g *gokrazyL2TP) assertKernelState(ctx context.Context, report GokrazyL2TPReport, console *collector, base pppBaseline) (GokrazyL2TPReport, bool) {
 	var tb textbuf.Buffer
 	wantAddress := tb.Str("address=").Str(L2TPPPPPeerAddr).String()
 	if !anyLineCarrying(console.carrying(pppIPLine), wantAddress) {
@@ -495,16 +518,16 @@ func (g *gokrazyL2TP) assertKernelState(report GokrazyL2TPReport, console *colle
 		return g.fail(report, console, "appliance PPP session up log missing interface=pppN field"), false
 	}
 
-	peerIface, err := discoverPPPIface(g.Lab.Namespace, base.links, nil, "LAC")
+	peerIface, err := discoverPPPIface(ctx, g.Lab.Namespace, base.links, nil, "LAC")
 	if err != nil {
 		return g.fail(report, console, err.Error()), false
 	}
 	report.PeerInterface = peerIface
 
-	if err := verifyPPPAddress(g.Lab.Namespace, peerIface, L2TPPPPPeerAddr, L2TPPPPLocalAddr); err != nil {
+	if err := verifyPPPAddress(ctx, g.Lab.Namespace, peerIface, L2TPPPPPeerAddr, L2TPPPPLocalAddr); err != nil {
 		return g.fail(report, console, err.Error()), false
 	}
-	if _, ok := nsText(g.Lab.Namespace, "ping", "-c", "2", "-W", "3", L2TPPPPLocalAddr); !ok {
+	if _, ok := nsText(ctx, g.Lab.Namespace, "ping", "-c", "2", "-W", "3", L2TPPPPLocalAddr); !ok {
 		return g.fail(report, console, tb.Reset().Str("dataplane ping to appliance LNS ").
 			Str(L2TPPPPLocalAddr).Str(" through PPP tunnel failed").String()), false
 	}
@@ -512,9 +535,12 @@ func (g *gokrazyL2TP) assertKernelState(report GokrazyL2TPReport, console *colle
 }
 
 // step waits for one set of console lines and turns a miss into the verdict.
-func (g *gokrazyL2TP) step(console *collector, report GokrazyL2TPReport, appliance *running,
+func (g *gokrazyL2TP) step(ctx context.Context, console *collector, report GokrazyL2TPReport, appliance *running,
 	wanted, fatal []string, wait time.Duration, missed string,
 ) (GokrazyL2TPReport, bool) {
+	if err := ctx.Err(); err != nil {
+		return report, false
+	}
 	arrived, err := awaitAll(console, wanted, fatal, appliance, wait)
 	if err != nil {
 		return g.fail(report, console, err.Error()), false

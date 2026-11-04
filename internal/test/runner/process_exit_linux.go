@@ -14,3 +14,11 @@ func (p *ownedProcess) beforeReap() error {
 		return unix.Waitid(unix.P_PID, p.cmd.Process.Pid, &info, unix.WEXITED|unix.WNOWAIT, nil)
 	})
 }
+
+// exitedBeforeStop MUST run under signalMu while the parent identity is held.
+// WNOWAIT observes an already-exited parent without consuming its sole Wait.
+func (p *ownedProcess) exitedBeforeStop() (bool, error) {
+	var info unix.Siginfo
+	err := unix.Waitid(unix.P_PID, p.cmd.Process.Pid, &info, unix.WEXITED|unix.WNOWAIT|unix.WNOHANG, nil)
+	return info.Signo != 0, err
+}

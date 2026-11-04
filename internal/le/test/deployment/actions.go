@@ -40,7 +40,7 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "l2tp-ppp", Does: doesRun, Summary: "test L2TP PPP and NCP end to end on the host", Why: "the full L2TP PPP/NCP path on the host: LCP, IPCP, a kernel PPP" +
 		" interface at each end, a dataplane ping and a clean teardown." +
 		" Needs Linux root, xl2tpd, pppd, ping and PPPoL2TP kernel support",
-		Answer: runL2TPPPPHere},
+		Answer: signalRooted(runL2TPPPPAt)},
 	leaction.Action{Verb: L2TPScaleAction, Does: doesRun, Summary: "run the loopback L2TP scale registry", Why: "the native loopback L2TP scale registry: 2,000 sessions," +
 		" clean teardown, pool exhaustion, and delayed RADIUS." +
 		" L2TP_SCALE_SCENARIO=<name> runs one scenario",
@@ -101,9 +101,9 @@ var actions = leaction.New(area,
 	},
 )
 
-// signalRooted is the entry root of every verb that starts a container: the
-// checkout this command was run in, and a context SIGINT or SIGTERM cancels,
-// so the verb's waits end and its deferred removals run before it exits.
+// signalRooted gives each process-owning verb the checkout and one context
+// SIGINT or SIGTERM cancels. The verb MUST join its owned processes and finish
+// its deferred cleanup before returning.
 func signalRooted(run func(context.Context, string) (any, int)) func() (any, int) {
 	return func() (any, int) {
 		root, err := lepath.Root()
@@ -179,25 +179,18 @@ func runL2TPScaleHere() (any, int) {
 	return report, code
 }
 
-// runL2TPPPPHere proves the whole L2TP PPP path over the checkout this command
-// was run in.
-func runL2TPPPPHere() (any, int) {
-	root, err := lepath.Root()
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	return runL2TPPPP(NewL2TPPPP(root))
+// runL2TPPPPAt proves the native PPP path under the originating signal root.
+func runL2TPPPPAt(ctx context.Context, root string) (any, int) {
+	return runL2TPPPP(ctx, NewL2TPPPP(root))
 }
 
 // runL2TPPPP answers the proof over one run. It uses the same terms as the
 // container L2TP proof. A step that cannot be performed is an error. A step in
 // the path that did not happen is the verdict.
-func runL2TPPPP(run *L2TPPPP) (L2TPPPPReport, int) {
-	report, err := run.Run()
+func runL2TPPPP(ctx context.Context, run *L2TPPPP) (any, int) {
+	report, err := run.Run(ctx)
 	if err != nil {
-		leaction.ReportError(err)
-		return report, 1
+		return notReached(err, "", "")
 	}
 	if !report.Proven {
 		return report, 1

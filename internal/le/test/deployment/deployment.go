@@ -30,6 +30,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,6 +42,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 const (
@@ -67,9 +69,9 @@ const LogTailLines = 80
 // only spin.
 const pollInterval = 200 * time.Millisecond
 
-// stopGrace is how long a process gets to exit after it is asked to. Each of
-// these processes is a docker client with nothing to flush, so the grace is
-// about letting it close its connection rather than about saving work.
+// stopGrace retains the native peer's existing opportunity to send its L2TP
+// departure before forced teardown. Cancellation uses immediate group Close
+// instead; this grace also bounds the watched container clients' stop path.
 const stopGrace = 3 * time.Second
 
 // killGrace is how long a killed process gets to be reaped before the run stops
@@ -233,13 +235,16 @@ type running struct {
 	done   chan struct{}
 	read   *os.File
 	signal func(syscall.Signal) error
-	// execErr is a watched exec's outcome (startWatchedExec): written before
-	// done closes, so it MUST be read only after done is closed.
+	// owner is nonnil only for a native process started by startWatched.
+	// That process MUST be closed through closeNative before collector.wait.
+	owner *runner.ServerProcess
+	// execErr is written before done closes by the sole watching worker.
+	// It MUST be read only after done is closed.
 	execErr error
 }
 
 // startWatched starts cmd with BOTH its output streams going into seen, and
-// answers the handle the caller stops.
+// answers the handle whose caller MUST defer closeNative before seen.wait.
 //
 // The pipe is made here rather than by StderrPipe, because an *os.File is
 // handed to the child directly: Wait then answers as soon as the child exits,
@@ -259,7 +264,8 @@ func startWatched(cmd *exec.Cmd, prefix string, seen *collector, progress io.Wri
 		cmd.Stdout = write
 	}
 
-	if err := cmd.Start(); err != nil {
+	owner, err := runner.StartServerProcess(cmd)
+	if err != nil {
 		read.Close()  //nolint:errcheck // the start already failed
 		write.Close() //nolint:errcheck // the start already failed
 		return nil, err
@@ -271,15 +277,40 @@ func startWatched(cmd *exec.Cmd, prefix string, seen *collector, progress io.Wri
 	seen.stream(prefix, read, progress)
 
 	proc := &running{
-		done: make(chan struct{}), read: read,
-		signal: func(signal syscall.Signal) error { return cmd.Process.Signal(signal) },
+		done: make(chan struct{}), read: read, owner: owner,
 	}
-	go func() {
-		defer close(proc.done)
-		cmd.Wait() //nolint:errcheck // the exit status is read through exited, not here
-	}()
+	go proc.watchNative()
 
 	return proc, nil
+}
+
+// watchNative observes the shared owner's sole reaper. It never calls Cmd.Wait.
+func (r *running) watchNative() {
+	defer close(r.done)
+	r.execErr = r.owner.Wait()
+}
+
+// closeNative MUST be called after startWatched and before collector.wait.
+// It joins the owned group immediately, including descendants whose parent
+// already exited, and returns cleanup failures rather than inventing a verdict.
+func (r *running) closeNative() error {
+	return errors.Join(r.owner.Close(), r.closeNativeOutput())
+}
+
+// stopNative preserves peer-first protocol teardown's existing grace. xl2tpd's
+// death_handler exits 1 after sending its departure, so only this deliberate
+// peer stop permits that status. Cancellation MUST use closeNative instead.
+func (r *running) stopNative() error {
+	return errors.Join(r.owner.Stop(syscall.SIGTERM, stopGrace, 1), r.closeNativeOutput())
+}
+
+func (r *running) closeNativeOutput() error {
+	<-r.done
+	err := r.read.Close()
+	if errors.Is(err, os.ErrClosed) {
+		return nil
+	}
+	return err
 }
 
 // exited reports whether the process has ended.
@@ -296,6 +327,12 @@ func (r *running) exited() bool {
 // process startWatched started, and it is safe to call for one that has already
 // exited.
 func (r *running) stop() {
+	if r.owner != nil {
+		if err := r.closeNative(); err != nil {
+			slog.Warn("native proof process cleanup failed", "error", err)
+		}
+		return
+	}
 	defer r.read.Close() //nolint:errcheck // the stream is finished either way
 
 	if r.exited() {

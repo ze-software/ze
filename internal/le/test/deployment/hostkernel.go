@@ -126,7 +126,7 @@ func hasNetAdmin() bool {
 //
 // The function does nothing for a process that is not root because modprobe
 // would be refused. It also does nothing on a machine with no modprobe at all.
-func loadL2TPModules() {
+func loadL2TPModules(ctx context.Context) {
 	if os.Geteuid() != 0 {
 		return
 	}
@@ -134,7 +134,10 @@ func loadL2TPModules() {
 		return
 	}
 	for _, module := range l2tpModules {
-		hostText("modprobe", module) //nolint:errcheck // a module that will not load is judged by the evidence read after this
+		if ctx.Err() != nil {
+			return
+		}
+		hostText(ctx, "modprobe", module) //nolint:errcheck // Built-in modules may refuse loading; the subsequent evidence decides.
 	}
 }
 
@@ -144,7 +147,10 @@ func loadL2TPModules() {
 // The checks put the cheapest question first and the one that starts a process
 // last. An operator on a laptop therefore learns they are not root before
 // anything is loaded.
-func ensureKernelSupport(what string) error {
+func ensureKernelSupport(ctx context.Context, what string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := requireLinux(what); err != nil {
 		return err
 	}
@@ -161,13 +167,19 @@ func ensureKernelSupport(what string) error {
 		return errors.New("/dev/ppp exists but is not a character device")
 	}
 
-	loadL2TPModules()
+	loadL2TPModules(ctx)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	if !anyPathExists(pppol2tpEvidence) {
 		return errors.New("missing PPPoL2TP kernel support: expected /proc/net/pppol2tp or l2tp_ppp module")
 	}
 
-	if out, ok := hostText("ip", ipL2TP, ipShow, tunnelObjectName); !ok {
+	if out, ok := hostText(ctx, "ip", ipL2TP, ipShow, tunnelObjectName); !ok {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		return errors.New(tb.Str("ip l2tp cannot access the kernel L2TP Generic Netlink family: ").
 			Str(strings.TrimSpace(out)).String())
 	}
@@ -206,6 +218,9 @@ var (
 // check, the command fails deep inside a namespace where the reason is much
 // harder to see.
 func hostDaemon(ctx context.Context, tree, name string, progress io.Writer) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	var tb textbuf.Buffer
 	if override := firstSetting(evidenceBinaryEntry.Key, l2tpPPPBinaryEntry.Key); override != "" {
 		info, err := os.Stat(override)

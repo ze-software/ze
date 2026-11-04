@@ -59,7 +59,7 @@ func TestTheDaemonsLogNamesTheInterfaceTheSessionCameUpOn(t *testing.T) {
 	t.Setenv("ZE_TEST_LINKS", twoNewLinks)
 
 	lines := []string{"l2tp: PPP session up tunnel-id=1 interface=ppp1"}
-	got, err := discoverPPPIface("ns", map[string]bool{}, lines, "Ze")
+	got, err := discoverPPPIface(t.Context(), "ns", map[string]bool{}, lines, "Ze")
 	if err != nil {
 		t.Fatalf("discover the interface: %v", err)
 	}
@@ -77,26 +77,26 @@ func TestAnAmbiguousInterfaceIsRefusedRatherThanGuessed(t *testing.T) {
 	withStateStub(t)
 
 	t.Setenv("ZE_TEST_LINKS", oneNewLink)
-	got, err := discoverPPPIface("ns", map[string]bool{}, nil, "LAC")
+	got, err := discoverPPPIface(t.Context(), "ns", map[string]bool{}, nil, "LAC")
 	if err != nil || got != "ppp0" {
 		t.Errorf("one new interface answered %q, %v; want ppp0 and no error", got, err)
 	}
 
 	t.Setenv("ZE_TEST_LINKS", twoNewLinks)
-	if _, err := discoverPPPIface("ns", map[string]bool{}, nil, "LAC"); err == nil ||
+	if _, err := discoverPPPIface(t.Context(), "ns", map[string]bool{}, nil, "LAC"); err == nil ||
 		!strings.Contains(err.Error(), "more than one") {
 		t.Errorf("two new interfaces answered %v, want a refusal naming both", err)
 	}
 
 	t.Setenv("ZE_TEST_LINKS", "")
-	if _, err := discoverPPPIface("ns", map[string]bool{}, nil, "LAC"); err == nil ||
+	if _, err := discoverPPPIface(t.Context(), "ns", map[string]bool{}, nil, "LAC"); err == nil ||
 		!strings.Contains(err.Error(), "no new pppN interface") {
 		t.Errorf("no new interface answered %v, want a refusal", err)
 	}
 
 	t.Setenv("ZE_TEST_LINKS", oneNewLink)
 	t.Setenv("ZE_TEST_LINKS_EXIT", "1")
-	if _, err := discoverPPPIface("ns", map[string]bool{}, nil, "LAC"); err == nil {
+	if _, err := discoverPPPIface(t.Context(), "ns", map[string]bool{}, nil, "LAC"); err == nil {
 		t.Error("a listing that could not be read answered an interface")
 	}
 }
@@ -110,7 +110,7 @@ func TestAnInterfaceThatWasAlreadyThereIsNotTheSessions(t *testing.T) {
 	t.Setenv("ZE_TEST_LINKS", twoNewLinks)
 
 	before := map[string]bool{"ppp0": true}
-	got, err := discoverPPPIface("ns", before, nil, "LAC")
+	got, err := discoverPPPIface(t.Context(), "ns", before, nil, "LAC")
 	if err != nil {
 		t.Fatalf("discover the interface: %v", err)
 	}
@@ -151,12 +151,12 @@ func TestTheAddressAssertionNeedsBothEnds(t *testing.T) {
 	withStateStub(t)
 
 	t.Setenv("ZE_TEST_ADDRS", "3: ppp0    inet 10.100.0.1 peer 10.100.0.2/32 scope global ppp0")
-	if err := verifyPPPAddress("ns", "ppp0", "10.100.0.1", "10.100.0.2"); err != nil {
+	if err := verifyPPPAddress(t.Context(), "ns", "ppp0", "10.100.0.1", "10.100.0.2"); err != nil {
 		t.Errorf("a negotiated pair was refused: %v", err)
 	}
 
 	t.Setenv("ZE_TEST_ADDRS", "3: ppp0    inet 10.100.0.1 scope global ppp0")
-	err := verifyPPPAddress("ns", "ppp0", "10.100.0.1", "10.100.0.2")
+	err := verifyPPPAddress(t.Context(), "ns", "ppp0", "10.100.0.1", "10.100.0.2")
 	if err == nil {
 		t.Fatal("an interface with no peer address was accepted")
 	}
@@ -165,7 +165,7 @@ func TestTheAddressAssertionNeedsBothEnds(t *testing.T) {
 	}
 
 	t.Setenv("ZE_TEST_ADDRS_EXIT", "1")
-	if err := verifyPPPAddress("ns", "ppp0", "10.100.0.1", "10.100.0.2"); err == nil {
+	if err := verifyPPPAddress(t.Context(), "ns", "ppp0", "10.100.0.1", "10.100.0.2"); err == nil {
 		t.Error("a listing that could not be read was accepted")
 	}
 }
@@ -180,24 +180,24 @@ func TestTheTeardownAssertionReadsBothTheInterfacesAndTheTunnels(t *testing.T) {
 	t.Setenv("ZE_TEST_TUNNEL", "")
 	t.Setenv("ZE_TEST_SESSION", "")
 
-	baselines, err := readPPPBaselines([]string{"ns"})
+	baselines, err := readPPPBaselines(t.Context(), []string{"ns"})
 	if err != nil {
 		t.Fatalf("read the baseline: %v", err)
 	}
 	baselines[0].iface = "ppp0"
 
-	if err := awaitTeardown(baselines, 100*time.Millisecond); err != nil {
+	if err := awaitTeardown(t.Context(), baselines, 100*time.Millisecond); err != nil {
 		t.Errorf("a namespace back where it started was refused: %v", err)
 	}
 
 	t.Setenv("ZE_TEST_LINKS", oneNewLink)
-	if err := awaitTeardown(baselines, 100*time.Millisecond); err == nil {
+	if err := awaitTeardown(t.Context(), baselines, 100*time.Millisecond); err == nil {
 		t.Error("a namespace still holding the session's interface was accepted")
 	}
 
 	t.Setenv("ZE_TEST_LINKS", "")
 	t.Setenv("ZE_TEST_TUNNEL", "Tunnel 1, encap UDP\n")
-	err = awaitTeardown(baselines, 100*time.Millisecond)
+	err = awaitTeardown(t.Context(), baselines, 100*time.Millisecond)
 	if err == nil {
 		t.Fatal("a namespace still holding an L2TP tunnel was accepted")
 	}

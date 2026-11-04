@@ -4,6 +4,7 @@
 package appliance
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -88,12 +89,12 @@ func TestVerifyE2fsckReportsErrors(t *testing.T) {
 	useE2FSDir(t, e2fs)
 
 	old := runExternalFn
-	runExternalFn = func(_ string, _ ...string) ([]byte, error) {
+	runExternalFn = func(_ context.Context, _ string, _ ...string) ([]byte, error) {
 		return nil, os.ErrPermission
 	}
 	defer func() { runExternalFn = old }()
 
-	err := verifyE2fsck(permImg)
+	err := verifyE2fsck(t.Context(), permImg, runExternalFn)
 	if err == nil {
 		t.Fatal("verifyE2fsck should report e2fsck errors")
 	}
@@ -112,7 +113,7 @@ func TestVerifyE2fsckSkipsWhenNotFound(t *testing.T) {
 	e2fs := t.TempDir()
 	useE2FSDir(t, e2fs)
 
-	if err := verifyE2fsck(permImg); err != nil {
+	if err := verifyE2fsck(t.Context(), permImg, runExternalFn); err != nil {
 		t.Fatalf("verifyE2fsck should skip when e2fsck not found, got: %v", err)
 	}
 }

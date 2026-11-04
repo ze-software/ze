@@ -44,6 +44,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/dockerhost"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // The dot-notation spellings of the ZE_VPP_HP_* variables the Python original
@@ -297,15 +298,18 @@ func Hardware(accelerator string) bool {
 	return accelerator == acceleratorKVM || accelerator == acceleratorHVF
 }
 
-// Run performs the proof and answers what happened.
+// Run performs the proof under the invocation root and answers what happened.
 //
 // A missing machine prerequisite causes a SKIP, not an error. The functional
 // suite and CI rely on this contract. A setting that is not a quantity IS an
 // error. It is the operator's own mistake. A skip would hide the fact that
 // nothing was proven.
-func (h *Hugepages) Run() (HugepagesReport, error) {
+func (h *Hugepages) Run(ctx context.Context) (HugepagesReport, error) {
 	report, err := h.plan()
 	if err != nil {
+		return report, err
+	}
+	if err := ctx.Err(); err != nil {
 		return report, err
 	}
 
@@ -324,19 +328,19 @@ func (h *Hugepages) Run() (HugepagesReport, error) {
 	}
 
 	h.note("building the host ze...")
-	host, err := h.buildHostZe(work)
+	host, err := h.buildHostZe(ctx, work)
 	if err != nil {
 		return report, err
 	}
 
 	h.note("building the appliance image...")
-	image, err := h.buildImage(host, work)
+	image, err := h.buildImage(ctx, host, work)
 	if err != nil {
 		return report, err
 	}
 
 	h.note("booting the appliance...")
-	return h.bootAndAssert(report, image)
+	return h.bootAndAssert(ctx, report, image)
 }
 
 // note writes one line of narration to the progress stream.
@@ -454,20 +458,30 @@ func (h *Hugepages) workDir() (string, error) {
 // The setup surface provides `appliance init` and `appliance build`. Therefore,
 // ze_setup is the tag beside ze_core. Feature gates select daemon features. They
 // do not apply to the setup surface.
-func (h *Hugepages) buildHostZe(work string) (string, error) {
-	host := filepath.Join(work, "ze-host")
+func (h *Hugepages) buildHostZe(ctx context.Context, work string) (host string, err error) {
+	host = filepath.Join(work, "ze-host")
 
-	ctx, cancel := context.WithTimeout(context.Background(), hostBuildTimeout)
+	ctx, cancel := context.WithTimeout(ctx, hostBuildTimeout)
 	defer cancel()
 
 	build := exec.CommandContext(ctx, "go", goCommandBuild, tagsFlag, "ze_core,ze_setup", "-o", host, zeMainPackage) //nolint:gosec // host is a path under the work directory this run made
 	build.Dir = h.Tree
 	build.Env = append(os.Environ(), "CGO_ENABLED=0")
-	out, err := build.CombinedOutput()
+	var out textbuf.Buffer
+	build.Stdout, build.Stderr = &out, &out
+	owner, err := runner.StartServerProcess(build)
 	if err != nil {
-		var tb textbuf.Buffer
-		return "", errors.New(tb.Str("host ze build failed (").Err(err).Str("):\n").Str(string(out)).String())
+		return "", err
 	}
+	defer func() {
+		err = errors.Join(owner.Close(), ctx.Err())
+		if err != nil {
+			host = ""
+			var tb textbuf.Buffer
+			err = errors.New(tb.Str("host ze build failed (").Err(err).Str("):\n").Str(out.String()).String())
+		}
+	}()
+	<-owner.Done()
 	return host, nil
 }
 
@@ -491,20 +505,20 @@ func (h *Hugepages) applianceEnv(dir string) ([]string, error) {
 
 // buildImage initializes an appliance, writes the hugepage reservation into its
 // configuration, and builds the image.
-func (h *Hugepages) buildImage(host, work string) (string, error) {
+func (h *Hugepages) buildImage(ctx context.Context, host, work string) (string, error) {
 	dir := filepath.Join(work, "appliances")
 	environment, err := h.applianceEnv(dir)
 	if err != nil {
 		return "", err
 	}
 
-	if out, err := h.appliance(host, environment, "init"); err != nil {
+	if out, err := h.appliance(ctx, host, environment, "init"); err != nil {
 		return "", applianceStepError("init", "", out, err)
 	}
 	if err := h.writeApplianceConfig(filepath.Join(dir, ApplianceName, "appliance.json")); err != nil {
 		return "", err
 	}
-	out, err := h.appliance(host, environment, zeApplianceVerbBuild)
+	out, err := h.appliance(ctx, host, environment, zeApplianceVerbBuild)
 	if err != nil {
 		return "", applianceStepError(zeApplianceVerbBuild, buildHint(out), out, err)
 	}
@@ -527,15 +541,22 @@ func applianceStepError(verb, hint, out string, err error) error {
 //
 // Standard input is closed because `init` prompts when it has a terminal, and
 // this run answers no prompt.
-func (h *Hugepages) appliance(host string, environment []string, verb string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), applianceTimeout)
+func (h *Hugepages) appliance(ctx context.Context, host string, environment []string, verb string) (out string, err error) {
+	ctx, cancel := context.WithTimeout(ctx, applianceTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, host, zeApplianceArea, verb, ApplianceName) //nolint:gosec // host is a binary this run just built
 	cmd.Env = environment
 	cmd.Stdin = strings.NewReader("")
-	out, err := cmd.CombinedOutput()
-	return string(out), err
+	var output textbuf.Buffer
+	cmd.Stdout, cmd.Stderr = &output, &output
+	owner, err := runner.StartServerProcess(cmd)
+	if err != nil {
+		return "", err
+	}
+	defer func() { err = errors.Join(owner.Close(), ctx.Err()) }()
+	<-owner.Done()
+	return output.String(), nil
 }
 
 // writeApplianceConfig sets the image fields the proof is about, leaving every

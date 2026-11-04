@@ -322,7 +322,7 @@ func TestTheApplianceInterfaceIsReadOutOfItsConsole(t *testing.T) {
 	base := pppBaseline{ns: run.Lab.Namespace, links: map[string]bool{}}
 
 	named := applianceConsole(t, "l2tp: PPP session up tunnel-id=1 interface=ppp7")
-	report, proven := run.assertKernelState(GokrazyL2TPReport{}, named, base)
+	report, proven := run.assertKernelState(t.Context(), GokrazyL2TPReport{}, named, base)
 	if !proven {
 		t.Fatalf("a complete console was refused: %s", report.Reason)
 	}
@@ -331,7 +331,7 @@ func TestTheApplianceInterfaceIsReadOutOfItsConsole(t *testing.T) {
 	}
 
 	unnamed := applianceConsole(t, "l2tp: PPP session up tunnel-id=1 session-id=1")
-	report, proven = run.assertKernelState(GokrazyL2TPReport{}, unnamed, base)
+	report, proven = run.assertKernelState(t.Context(), GokrazyL2TPReport{}, unnamed, base)
 	if proven {
 		t.Fatalf("a console naming no interface was accepted, as %q", report.ApplianceInterface)
 	}
