@@ -64,7 +64,7 @@ func TestOnExecuteCommandAnyMap(t *testing.T) {
 	assert.Equal(t, float64(5), data["peers"])
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 func TestOnExecuteCommandAnyStruct(t *testing.T) {
@@ -97,7 +97,7 @@ func TestOnExecuteCommandAnyStruct(t *testing.T) {
 	assert.Equal(t, "10.0.0.0/24", entries[0].Prefix)
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 func TestOnExecuteCommandAnyNil(t *testing.T) {
@@ -121,7 +121,7 @@ func TestOnExecuteCommandAnyNil(t *testing.T) {
 	assert.Empty(t, out.Data)
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 func TestOnExecuteCommandAnySlice(t *testing.T) {
@@ -148,7 +148,7 @@ func TestOnExecuteCommandAnySlice(t *testing.T) {
 	assert.Equal(t, []string{"cache", "route", "peer"}, events)
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 // TestOnExecuteCommandRawMessagePassthrough locks in the contract that a handler
@@ -179,7 +179,7 @@ func TestOnExecuteCommandRawMessagePassthrough(t *testing.T) {
 	assert.Equal(t, true, data["running"])
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 // TestOnDoctorCheckCallback verifies the doctor-check callback dispatches correctly.
@@ -211,7 +211,7 @@ func TestOnDoctorCheckCallback(t *testing.T) {
 	assert.Equal(t, "warning", out.Diagnostics[0].Severity)
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 // TestOnDoctorCheckDefaultNoOp verifies empty diagnostics when no handler registered.
@@ -235,7 +235,7 @@ func TestOnDoctorCheckDefaultNoOp(t *testing.T) {
 	assert.Empty(t, out.Diagnostics)
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 // TestOnEnrichShowCallback verifies the enrich-show callback dispatches correctly.
@@ -277,7 +277,7 @@ func TestOnEnrichShowCallback(t *testing.T) {
 	assert.Equal(t, "detail", out.Data["mode"])
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 // TestOnEnrichShowDefaultNoOp verifies empty data when no handler registered.
@@ -305,7 +305,7 @@ func TestOnEnrichShowDefaultNoOp(t *testing.T) {
 	assert.Empty(t, out.Data)
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 // TestOnExecuteCommandStringIsDoubleEncoded documents the hazard that motivated
@@ -341,7 +341,7 @@ func TestOnExecuteCommandStringIsDoubleEncoded(t *testing.T) {
 		"a pre-marshaled string must not decode as an object (it is double-encoded)")
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 // executeCommandValueCases are the answers a command handler builds before its
@@ -490,7 +490,7 @@ func TestExecuteCommandValueAnswerIsUnchanged(t *testing.T) {
 	}
 
 	cancel()
-	<-errCh
+	assert.NoError(t, <-errCh)
 }
 
 // jsonRow is a row a test handler already holds as JSON, appended into whatever
@@ -600,7 +600,7 @@ func TestExecuteCommandRecordResult(t *testing.T) {
 			}
 
 			cancel()
-			<-errCh
+			assert.NoError(t, <-errCh)
 		})
 	}
 }

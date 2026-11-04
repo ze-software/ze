@@ -89,9 +89,12 @@ func TestReadDoesNotWaitForAMutation(t *testing.T) {
 	close(store.release)
 	wg.Wait()
 	if incrementErr != nil {
-		t.Fatalf("increment after the hold: %v", incrementErr)
+		t.Errorf("increment after the hold: %v", incrementErr)
 	}
 	if answered != nil {
-		<-answered // the read answers once the hold ends; join it.
+		// The read answers once the hold ends; join it even after a mutation failure.
+		if err := <-answered; err != nil {
+			t.Errorf("read after the hold: %v", err)
+		}
 	}
 }

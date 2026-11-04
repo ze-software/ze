@@ -29,8 +29,10 @@ func TestSeedCrashRootReplacement(t *testing.T) {
 	}
 	opened, err := openSeedCrashRoot(root, entry)
 	if opened != nil {
-		opened.Close()
-	} //nolint:errcheck // Close even a wrongly admitted root.
+		if closeErr := opened.Close(); closeErr != nil {
+			t.Errorf("close unexpectedly admitted crash root: %v", closeErr)
+		}
+	}
 	if err == nil {
 		t.Fatal("accepted replacement crash directory")
 	}

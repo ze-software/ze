@@ -15,8 +15,8 @@ func TestInheritedDirectoryConversion(t *testing.T) {
 		root, folder, err := inheritedDirectory("durable-label")
 		if os.Args[len(os.Args)-1] == "refuse" {
 			if err == nil {
-				root.Close()
-				folder.Close()
+				root.Close()   //nolint:errcheck // Unexpected admission already fails below; cleanup cannot change that verdict.
+				folder.Close() //nolint:errcheck // Unexpected admission already fails below; cleanup cannot change that verdict.
 				t.Fatal("invalid directory accepted")
 			}
 			return
@@ -72,7 +72,7 @@ func TestInheritedDirectoryConversion(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			cmd := exec.Command(executable, "-test.run=^TestInheritedDirectoryConversion$", "--", "--seed-directory-child", expect)
+			cmd := exec.CommandContext(t.Context(), executable, "-test.run=^TestInheritedDirectoryConversion$", "--", "--seed-directory-child", expect)
 			if kind != "missing" {
 				cmd.ExtraFiles = []*os.File{folder, folder}
 			}
