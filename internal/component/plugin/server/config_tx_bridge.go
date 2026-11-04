@@ -344,9 +344,11 @@ func (b *configTxBridge) subscribePhase(parentCtx context.Context, name string, 
 			ph.emitFailed(b, env.TransactionID, name, statusErr)
 			return
 		}
-		if refusal := b.stageVerifiedCapabilities(name, declared); refusal != "" {
-			ph.emitFailed(b, env.TransactionID, name, refusal)
-			return
+		if ph == phaseVerify {
+			if refusal := b.stageVerifiedCapabilities(name, declared); refusal != "" {
+				ph.emitFailed(b, env.TransactionID, name, refusal)
+				return
+			}
 		}
 		ph.emitOK(b, env.TransactionID, name, proc)
 	})

@@ -138,14 +138,24 @@ change and is absent is not delivered at all.
 <!-- source: internal/component/plugin/server/reload_tx.go -- buildTxInputs -->
 <!-- source: internal/component/config/transaction/orchestrator.go -- checkOperationRootCoverage -->
 
-Among participating plugins, every one must respond to verify. The engine sends
-each plugin only the diffs for the roots it declared (`ConfigRoots` or
-`WantsConfig`). A plugin never sees config for roots it did not declare
-interest in. Plugins with affected roots validate and emit `verify-ok` with an
-estimated apply duration. Plugins whose watched roots are not affected by this
-transaction emit `verify-ok` with zero duration. The engine expects exactly one
-positive ack from every participating plugin. Apply is never sent unless all
-are in.
+The engine sends section verify only to participants whose declared
+`ConfigRoots` or `WantsConfig` match a nonempty diff. Each receives only those
+diffs and must answer exactly once. A participant with no matching diff gets
+no section verify and owes no section ack; it may still receive operation
+events. Apply is never sent unless every section verifier has accepted.
+
+A section verify answer may also replace its plugin's OPEN capabilities.
+The bridge stages each answer without changing the live injector. Once all
+section verifiers have answered, including those retaining their current
+declarations, it checks the complete candidate against the unchanged owners.
+This permits one transaction to transfer a capability between plugins but
+refuses duplicate candidate owners before any apply. The verifier set uses the
+same participant diff filter as the coordinator, so an operation-only
+participant cannot leave this check waiting or cause it to be skipped.
+The first apply publishes the complete capability candidate atomically;
+rollback restores the previous complete set through the same injector boundary.
+<!-- source: internal/component/config/transaction/orchestrator.go -- Participant.FilterDiffs, runVerify -->
+<!-- source: internal/component/plugin/server/config_tx_capabilities.go -- stageVerifiedCapabilities, installStagedCapabilities, restoreCapabilities -->
 
 The engine emits per-plugin verify and apply event types (`verify-<plugin>`,
 `apply-<plugin>`), filtered by declared roots, not a single broadcast with the

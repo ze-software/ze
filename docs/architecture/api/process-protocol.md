@@ -277,11 +277,19 @@ one encoding on every connection, so a plugin READS the record answer form of
 The engine holds the declaration for every OPEN. A config-verify answer may
 carry `capabilities`, the plugin's whole declaration for the candidate, in the
 shape Stage 3 sends; absent keeps the current one, and an empty list removes
-them all. The engine checks it against every other plugin's declaration at
-verify, refusing a conflict that names both plugins, installs every staged one
-on the transaction's first apply, before that apply's RPC, so a peer the reload
-adds builds its OPEN from it, and puts the previous declarations back when the
-transaction does not commit.
+them all. After every participating verifier has answered, including answers
+that keep their declaration, the engine checks the complete candidate: staged
+replacements together with declarations whose owners did not replace them.
+One transaction may transfer a capability code and selector between owners;
+two candidate owners claiming the same code and selector are refused before
+any apply, as is a conflict with an unchanged owner. A participant that receives
+only operation events is not a section verifier and does not hold this check.
+The transaction's first apply publishes every staged replacement under the
+capability injector's single write lock, before that apply's RPC, so a peer
+the reload adds builds its OPEN from the complete candidate. Concurrent OPEN
+readers see the previous or candidate set, never a removed or partially added
+set. A transaction that does not commit restores the previous declarations
+through the same atomic publication.
 <!-- source: pkg/plugin/rpc/types.go -- ConfigVerifyOutput.Capabilities -->
 <!-- source: internal/component/plugin/server/config_tx_capabilities.go -- stageVerifiedCapabilities, installStagedCapabilities, restoreCapabilities -->
 <!-- source: internal/component/plugin/server/reload_tx.go -- runTxCoordinator -->

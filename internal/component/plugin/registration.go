@@ -443,7 +443,7 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 	ci.mu.Lock()
 	defer ci.mu.Unlock()
 
-	pending, err := ci.planLocked(caps, "")
+	pending, err := ci.planLocked(caps)
 	if err != nil {
 		return err
 	}
@@ -451,39 +451,84 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 	return nil
 }
 
-// ReplacePluginCapabilities swaps every capability caps.PluginName holds for
-// the ones caps declares, as one step: a reload's declaration for that plugin.
-// It refuses, leaving the store untouched, when a code conflicts with another
-// plugin's declaration for the same selector. The plugin's own previous
-// entries never conflict, because they are what the call replaces.
-func (ci *CapabilityInjector) ReplacePluginCapabilities(caps *PluginCapabilities) error {
+// ReplacePluginCapabilities replaces every named owner's whole declaration as
+// one publication. A nil declaration removes that owner's capabilities; owners
+// absent from declarations retain theirs. Map keys identify owners, including
+// process records whose previous declaration was empty.
+//
+// Safe for concurrent use. OPEN readers see either complete generation. Any
+// decode or ownership conflict leaves the live store untouched. Callers MUST
+// supply the whole transaction candidate, not individual staged answers.
+func (ci *CapabilityInjector) ReplacePluginCapabilities(declarations map[string]*PluginCapabilities) error {
 	ci.mu.Lock()
 	defer ci.mu.Unlock()
 
-	pending, err := ci.planLocked(caps, caps.PluginName)
+	candidate, err := ci.replacementLocked(declarations)
 	if err != nil {
 		return err
 	}
-	ci.removeLocked(caps.PluginName)
-	ci.storeLocked(pending)
+	ci.globalCaps = candidate.globalCaps
+	ci.peerCaps = candidate.peerCaps
+	ci.globalByCode = candidate.globalByCode
+	ci.peerByCode = candidate.peerByCode
 	return nil
 }
 
-// CheckReplacePluginCapabilities answers what ReplacePluginCapabilities would
-// answer, without changing the store: config-verify asks it, so a conflict is
-// refused before any participant applies.
-func (ci *CapabilityInjector) CheckReplacePluginCapabilities(caps *PluginCapabilities) error {
+// CheckReplacePluginCapabilities validates the whole transaction candidate
+// without publishing it. Callers MUST include every staged replacement, after
+// every verifier has answered, so an owner transferring a code can remove it.
+// Safe for concurrent use.
+func (ci *CapabilityInjector) CheckReplacePluginCapabilities(declarations map[string]*PluginCapabilities) error {
 	ci.mu.RLock()
 	defer ci.mu.RUnlock()
 
-	_, err := ci.planLocked(caps, caps.PluginName)
+	_, err := ci.replacementLocked(declarations)
 	return err
 }
 
-// planLocked decodes caps and checks every code against the store, ignoring
-// the entries owned by replacing (empty when nothing is replaced). It returns
-// the entries to store, or the first conflict. The caller holds ci.mu.
-func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities, replacing string) ([]InjectedCapability, error) {
+// replacementLocked retains unchanged owners, then checks the named owners'
+// complete candidate with the same decoder and conflict rules as startup.
+// The caller MUST hold ci.mu; the returned store is private until publication.
+func (ci *CapabilityInjector) replacementLocked(declarations map[string]*PluginCapabilities) (*CapabilityInjector, error) {
+	candidate := NewCapabilityInjector()
+	for i := range ci.globalCaps {
+		if _, replaced := declarations[ci.globalCaps[i].Plugin]; replaced {
+			continue
+		}
+		candidate.storeLocked(ci.globalCaps[i : i+1])
+	}
+	for _, caps := range ci.peerCaps {
+		for i := range caps {
+			if _, replaced := declarations[caps[i].Plugin]; replaced {
+				continue
+			}
+			candidate.storeLocked(caps[i : i+1])
+		}
+	}
+	names := make([]string, 0, len(declarations))
+	for name := range declarations {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	for _, name := range names {
+		caps := declarations[name]
+		if caps == nil {
+			continue
+		}
+		declaration := PluginCapabilities{PluginName: name, Capabilities: caps.Capabilities}
+		pending, err := candidate.planLocked(&declaration)
+		if err != nil {
+			return nil, fmt.Errorf("plugin %s: %w", name, err)
+		}
+		candidate.storeLocked(pending)
+	}
+	return candidate, nil
+}
+
+// planLocked decodes caps and checks every code against the store. It returns
+// the entries to store, or the first conflict. The caller MUST hold ci.mu, or
+// own the private unpublished store.
+func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities) ([]InjectedCapability, error) {
 	addedGlobals := make(map[uint8]string)
 	addedPeers := make(map[string]map[uint8]string)
 	pending := make([]InjectedCapability, 0, len(caps.Capabilities))
@@ -495,7 +540,7 @@ func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities, replacing str
 		}
 
 		if len(cap.Peers) == 0 {
-			if existing, ok := ci.globalByCode[cap.Code]; ok && existing != replacing {
+			if existing, ok := ci.globalByCode[cap.Code]; ok {
 				return nil, fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
 			}
 			if existing, ok := addedGlobals[cap.Code]; ok {
@@ -512,7 +557,7 @@ func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities, replacing str
 
 		for _, peerAddr := range cap.Peers {
 			if peerCodes := ci.peerByCode[peerAddr]; peerCodes != nil {
-				if existing, ok := peerCodes[cap.Code]; ok && existing != replacing {
+				if existing, ok := peerCodes[cap.Code]; ok {
 					return nil, fmt.Errorf("capability conflict: code %d for peer %s already registered by %s",
 						cap.Code, peerAddr, existing)
 				}

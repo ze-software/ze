@@ -23,7 +23,7 @@ func TestReplacePluginCapabilities(t *testing.T) {
 	if err := ci.AddPluginCapabilities(roleCaps("p", "03", "192.0.2.1")); err != nil {
 		t.Fatalf("add: %v", err)
 	}
-	if err := ci.ReplacePluginCapabilities(roleCaps("p", "00", "192.0.2.2")); err != nil {
+	if err := ci.ReplacePluginCapabilities(map[string]*PluginCapabilities{"p": roleCaps("p", "00", "192.0.2.2")}); err != nil {
 		t.Fatalf("replace: %v", err)
 	}
 	if got := ci.GetCapabilitiesForSelectors("192.0.2.1"); len(got) != 0 {
@@ -47,10 +47,10 @@ func TestReplacePluginCapabilitiesConflict(t *testing.T) {
 		t.Fatalf("add q: %v", err)
 	}
 	clash := roleCaps("p", "00", "192.0.2.9")
-	if err := ci.CheckReplacePluginCapabilities(clash); err == nil {
+	if err := ci.CheckReplacePluginCapabilities(map[string]*PluginCapabilities{"p": clash}); err == nil {
 		t.Fatal("check accepted a code another plugin holds for the selector")
 	}
-	if err := ci.ReplacePluginCapabilities(clash); err == nil {
+	if err := ci.ReplacePluginCapabilities(map[string]*PluginCapabilities{"p": clash}); err == nil {
 		t.Fatal("replace accepted a code another plugin holds for the selector")
 	}
 	got := ci.GetCapabilitiesForSelectors("192.0.2.1")

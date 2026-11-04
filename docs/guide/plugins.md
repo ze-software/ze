@@ -146,6 +146,13 @@ A plugin that adds a capability to ze's OPEN (`bgp-softver`, `bgp-hostname`,
 the capabilities the new config declares, and ze installs them when the reload
 commits. A reload that does not commit puts the previous ones back.
 
+The declarations are checked together after every affected plugin has answered.
+One commit may move a capability from one plugin to another when the old owner
+removes it in that same commit. A conflict with an unchanged owner, or two new
+owners claiming the same capability for the same peer, refuses the commit before
+any plugin applies it. Each OPEN built during replacement or rollback sees a
+complete declaration set, never a temporary gap between owners.
+
 | Reload | Result |
 |--------|--------|
 | A peer is added that carries one of these capabilities | Accepted: its first OPEN carries them |

@@ -416,7 +416,7 @@ func (o *TxCoordinator) runVerify(ctx context.Context, diffs map[string][]DiffSe
 	deadlineMS := time.Now().Add(deadline).UnixMilli()
 
 	for _, p := range o.participants {
-		pluginDiffs := o.filterDiffs(diffs, p)
+		pluginDiffs := p.FilterDiffs(diffs)
 		if len(pluginDiffs) == 0 {
 			continue
 		}
@@ -473,7 +473,7 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 	deadlineMS := time.Now().Add(deadline).UnixMilli()
 
 	for _, p := range o.participants {
-		pluginDiffs := o.filterDiffs(diffs, p)
+		pluginDiffs := p.FilterDiffs(diffs)
 		if len(pluginDiffs) == 0 {
 			continue
 		}
@@ -566,7 +566,7 @@ func (o *TxCoordinator) operationNodes(ops []ConfigOperation, diffs map[string][
 
 // sectionDiffsFor returns the diff sections one participant receives through
 // the section apply, and reports whether that participant has any. The
-// executor installs it for the coarse nodes, so filterDiffs stays the single
+// executor installs it for the coarse nodes, so Participant.FilterDiffs stays the single
 // predicate deciding what a participant is sent, whichever path sends it.
 func (o *TxCoordinator) sectionDiffsFor(diffs map[string][]DiffSection) SectionDiffs {
 	return func(name string) ([]DiffSection, bool) {
@@ -574,7 +574,7 @@ func (o *TxCoordinator) sectionDiffsFor(diffs map[string][]DiffSection) SectionD
 			if p.Name != name {
 				continue
 			}
-			sections := o.filterDiffs(diffs, p)
+			sections := p.FilterDiffs(diffs)
 			return sections, len(sections) > 0
 		}
 		return nil, false
@@ -626,9 +626,10 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 	return &TxResult{State: StateCommitted, Saved: saved, Operations: sorted}
 }
 
-// filterDiffs returns only the diffs relevant to a participant.
-// Deduplicates roots that appear in both ConfigRoots and WantsConfig.
-func (o *TxCoordinator) filterDiffs(allDiffs map[string][]DiffSection, p Participant) []DiffSection {
+// FilterDiffs returns the diff sections this participant receives, deduplicating
+// roots in ConfigRoots and WantsConfig. A nonempty result defines section verify
+// participation, for both the coordinator and bridges staging verify answers.
+func (p Participant) FilterDiffs(allDiffs map[string][]DiffSection) []DiffSection {
 	seen := make(map[string]bool, len(p.ConfigRoots)+len(p.WantsConfig))
 	var result []DiffSection
 	for _, root := range p.ConfigRoots {
@@ -661,7 +662,7 @@ func (o *TxCoordinator) filterDiffs(allDiffs map[string][]DiffSection, p Partici
 //
 // It is the input to coarse-node synthesis (operationNodes). runVerify,
 // runApply and this function all decide "does this participant take part" with
-// the same filterDiffs predicate, so a participant can never be verified by
+// the same Participant.FilterDiffs predicate, so a participant can never be verified by
 // one and skipped by another.
 //
 // The check is per-PARTICIPANT rather than per-root because that is the
@@ -699,7 +700,7 @@ func (o *TxCoordinator) participantsWithoutOperations(ops []ConfigOperation, dif
 	}
 	var uncovered []string
 	for _, p := range o.participants {
-		if len(o.filterDiffs(diffs, p)) == 0 {
+		if len(p.FilterDiffs(diffs)) == 0 {
 			continue
 		}
 		if _, ok := owners[p.Name]; !ok {
@@ -725,13 +726,13 @@ var ErrParticipantRootUncovered = errors.New("participant decomposes one of its 
 // for it, and the transaction commits over a change nothing applied.
 //
 // It counts only the roots a participant OWNS (ConfigRoots). A root it reads
-// (WantsConfig) reaches its verify through filterDiffs and is applied by the
+// (WantsConfig) reaches its verify through FilterDiffs and is applied by the
 // root's owner: bgp owns root bgp and reads root bfd, to refuse a peer that
 // names an undefined profile, and a commit that edits a peer and a profile
 // together decomposes bgp's root and leaves bfd's to the bfd participant. A
 // reader that owns operations therefore receives no apply for a read root;
 // one that owns none still takes its coarse node (participantsWithoutOperations
-// reads filterDiffs), which is how bgp-rpki re-applies a changed pki section.
+// reads FilterDiffs), which is how bgp-rpki re-applies a changed pki section.
 //
 // No first-party participant can reach it today. The two that decompose
 // own one root each (internal/component/iface/register.go,
@@ -764,7 +765,7 @@ func (o *TxCoordinator) checkOperationRootCoverage(ops []ConfigOperation, diffs 
 		}
 		// Only the roots the participant owns (ConfigRoots) are its to cover.
 		// A root it reads (WantsConfig) is another plugin's: it reaches the
-		// reader's verify through filterDiffs, and the owner applies it.
+		// reader's verify through FilterDiffs, and the owner applies it.
 		for _, root := range p.ConfigRoots {
 			for _, section := range diffs[root] {
 				if _, ok := owned[section.Root]; ok {
@@ -781,7 +782,7 @@ func (o *TxCoordinator) checkOperationRootCoverage(ops []ConfigOperation, diffs 
 func (o *TxCoordinator) activeParticipantCount(diffs map[string][]DiffSection) int {
 	count := 0
 	for _, p := range o.participants {
-		if len(o.filterDiffs(diffs, p)) > 0 {
+		if len(p.FilterDiffs(diffs)) > 0 {
 			count++
 		}
 	}

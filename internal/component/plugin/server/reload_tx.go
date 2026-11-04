@@ -394,7 +394,7 @@ func (s *Server) completeShutdown(ctx context.Context, batch *reloadOperationBat
 // runTxCoordinator runs the transaction orchestrator for a reload once the
 // caller has computed the affected plugins and the raw diff. It builds
 // participants from the affected plugin registrations, converts the diff
-// into per-root DiffSection slices the orchestrator's filterDiffs walks,
+// into per-root DiffSection slices Participant.FilterDiffs walks,
 // starts an RPC bridge so the stream-based orchestrator can reach the
 // plugin SDK callbacks that still speak RPC, and blocks on
 // TxCoordinator.Execute.
@@ -418,6 +418,14 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 
 	gateway := newConfigEventGateway(s)
 	bridge := newConfigTxBridge(s, gateway, participantNames(participants), verifySections)
+	// The bridge's final capability check waits for exactly the verifiers
+	// runVerify sends to, not operation-only participants with no section diff.
+	bridge.capabilities.verifiers = make(map[string]bool, len(participants))
+	for _, participant := range participants {
+		if len(participant.FilterDiffs(diffs)) > 0 {
+			bridge.capabilities.verifiers[participant.Name] = false
+		}
+	}
 	for _, participant := range affected {
 		bridge.participants[participant.proc.Name()] = reloadParticipant{
 			proc: participant.proc, conn: participant.proc.Conn(),
@@ -827,11 +835,11 @@ func marshalOperationRoot(tree map[string]any, root string) (string, error) {
 // out-of-band preserves the contract without changing the orchestrator.
 //
 // Wildcard config roots (["*"]) are expanded to the concrete (sorted)
-// list of roots present in the diff, because the orchestrator's
-// filterDiffs does exact match lookups and has no wildcard awareness.
+// list of roots present in the diff, because Participant.FilterDiffs does exact
+// match lookups and has no wildcard awareness.
 func buildTxInputs(affected []affectedPlugin, diff *config.ConfigDiff) ([]transaction.Participant, map[string][]transaction.DiffSection, map[string][]rpc.ConfigSection, error) {
 	// Group the diff by the roots the participants actually declared, so the
-	// orchestrator's exact-match filterDiffs can find a nested root's section
+	// exact-match Participant.FilterDiffs can find a nested root's section
 	// (see buildDiffSections). Collected before grouping because the grouping
 	// decides the section roots, which allRoots (and therefore wildcard
 	// expansion) is derived from below.
@@ -868,7 +876,7 @@ func buildTxInputs(affected []affectedPlugin, diff *config.ConfigDiff) ([]transa
 			return nil, nil, nil, fmt.Errorf("plugin %q: %w", ap.proc.Name(), err)
 		}
 		// A read root (reg.ConfigReads) is delivered to the reader and is not
-		// the reader's: it goes to WantsConfig, which filterDiffs delivers and
+		// the reader's: it goes to WantsConfig, which FilterDiffs delivers and
 		// checkOperationRootCoverage does not count. Listed under ConfigRoots,
 		// a commit that edits a peer and a bfd profile together aborted,
 		// because bgp decomposes root bgp and owns no operation for root bfd.
