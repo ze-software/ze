@@ -333,6 +333,91 @@ func TestLiveStoreBypass(t *testing.T) {
 	}
 }
 
+// TestEveryBlobConstructorBypass checks calls and references through each import
+// form. Only storage and the declared artifact producer may suppress them.
+func TestEveryBlobConstructorBypass(t *testing.T) {
+	constructors := []struct {
+		name string
+		args string
+	}{
+		{"Open", `"artifact.zefs"`},
+		{"OpenIn", `folder, "artifact.zefs"`},
+		{"OpenFileIn", `folder, "artifact.zefs", file`},
+		{"Create", `"artifact.zefs"`},
+		{"CreateIn", `folder, "artifact.zefs"`},
+	}
+	imports := []struct {
+		name      string
+		alias     string
+		qualifier string
+	}{
+		{"default", "", "zefs."},
+		{"alias", "blob ", "blob."},
+		{"dot", ". ", ""},
+	}
+	for _, constructor := range constructors {
+		for _, imported := range imports {
+			for _, form := range []string{"call", "reference"} {
+				t.Run(constructor.name+"/"+imported.name+"/"+form, func(t *testing.T) {
+					expression := imported.qualifier + constructor.name
+					statement := "_ = " + expression
+					if form == "call" {
+						statement = "_, _ = " + expression + "(" + constructor.args + ")"
+					}
+					source := "package fixture\nimport (\n\"os\"\n" + imported.alias +
+						"\"github.com/ze-software/ze/pkg/zefs\"\n)\n" +
+						"func use(folder *os.Root, file *os.File) { " + statement + " }\n"
+					tree := writeTree(t, map[string]string{
+						"internal/core/direct/open.go":              source,
+						"internal/component/support/support.go":     source,
+						"internal/component/demo/testing/open.go":   source,
+						"internal/component/config/storage/blob.go": source,
+						"internal/plugins/debug/profile.go":         source,
+					})
+					findings, matched, err := check(tree, 0)
+					if err != nil {
+						t.Fatal(err)
+					}
+					want := map[string]bool{
+						"internal/core/direct/open.go":            true,
+						"internal/component/support/support.go":   true,
+						"internal/component/demo/testing/open.go": true,
+					}
+					if len(findings) != len(want) {
+						t.Fatalf("got %d findings, want %d: %+v", len(findings), len(want), findings)
+					}
+					for _, finding := range findings {
+						if !want[finding.File] {
+							t.Errorf("unexpected or duplicate finding: %+v", finding)
+						}
+						if finding.Pkg != zefsPkg || finding.Fn != constructor.name {
+							t.Errorf("constructor identity lost: %+v", finding)
+						}
+						if !strings.HasPrefix(finding.Code, "live-zefs-open: ") {
+							t.Errorf("missing live-store rule: %+v", finding)
+						}
+						delete(want, finding.File)
+					}
+					if len(want) != 0 {
+						t.Errorf("unreported constructor bypasses: %v", want)
+					}
+					for _, rule := range []string{
+						"internal/component/config/storage/",
+						"live-zefs-open:internal/plugins/debug/profile.go",
+					} {
+						if !matched[rule] {
+							t.Errorf("permitted constructor did not credit exemption %q", rule)
+						}
+					}
+					if len(matched) != 2 {
+						t.Errorf("constructor credited an unrelated raw-write exemption: %v", matched)
+					}
+				})
+			}
+		}
+	}
+}
+
 // A retired artifact exemption must stop authorizing future bypasses.
 func TestDeadBlobArtifactExemption(t *testing.T) {
 	original := blobArtifactAllowlist

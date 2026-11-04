@@ -4,8 +4,8 @@
 // The raw-write rule scans components, plugins and cmd/ze; core crash/audit
 // infrastructure remains outside that rule. The live-zefs-open rule also scans
 // internal/core: a credential reader is not allowed to bypass managed storage.
-// Only the storage package and explicitly named artifact producers may use
-// zefs.Open or zefs.Create. Raw-write exemptions never exempt a live-store open.
+// Only the storage package and explicitly named artifact producers may use the
+// pkg/zefs blob constructors, including rooted and acquired-descriptor forms.
 
 package archfspersistence
 
@@ -119,17 +119,15 @@ var fileAllowlist = map[string]string{
 // zefsPkg names pkg/zefs in a Finding, and is its default import name.
 const zefsPkg = "zefs"
 
-// zefsOpenFn and zefsCreateFn are the two pkg/zefs entry points that open a
-// live store; os.Create shares the second name.
-const (
-	zefsOpenFn   = "Open"
-	zefsCreateFn = "Create"
-)
+// zefsConstructors names every pkg/zefs entry point that opens a blob handle.
+var zefsConstructors = map[string]bool{
+	"Open": true, "OpenIn": true, "OpenFileIn": true, "Create": true, "CreateIn": true,
+}
 
 // osWriteFuncs are the os functions that indicate persistence. os.OpenFile is
 // handled separately, and is flagged only with a write flag.
 var osWriteFuncs = map[string]bool{
-	"WriteFile": true, zefsCreateFn: true, "Rename": true, "Symlink": true, "Link": true,
+	"WriteFile": true, "Create": true, "Rename": true, "Symlink": true, "Link": true,
 }
 
 // readSafeFlags are the os.OpenFile flag terms that cannot open a file for
@@ -290,8 +288,8 @@ func AllowlistedBy(rel string) (string, bool) {
 	return "", false
 }
 
-// ScanFile answers every raw filesystem write in one file. rel is the name the
-// finding carries, which is the repo-relative path a reader can open.
+// ScanFile answers raw filesystem writes and references to pkg/zefs blob
+// constructors in one file. rel is the repo-relative name the finding carries.
 func ScanFile(fset *token.FileSet, path, rel string) ([]Finding, error) {
 	src, err := os.ReadFile(path) //nolint:gosec // repository path
 	if err != nil {
@@ -318,11 +316,11 @@ func ScanFile(fset *token.FileSet, path, rel string) ([]Finding, error) {
 
 	var out []Finding
 	ast.Inspect(file, func(node ast.Node) bool {
-		// Inspect references as well as calls, so f := blob.Open cannot hide
-		// the bypass. Import aliases resolve by their declared package path.
+		// Inspect references as well as calls, so f := blob.OpenFileIn cannot
+		// hide the bypass. Import aliases resolve by their declared package path.
 		if selector, ok := node.(*ast.SelectorExpr); ok {
 			if zefsNames[identName(selector.X)] {
-				if selector.Sel.Name == zefsOpenFn || selector.Sel.Name == zefsCreateFn {
+				if zefsConstructors[selector.Sel.Name] {
 					line := fset.Position(selector.Pos()).Line
 					out = append(out, Finding{File: rel, Line: line, Pkg: zefsPkg, Fn: selector.Sel.Name, Code: "live-zefs-open: " + strings.TrimSpace(lines[line-1])})
 				}
@@ -331,7 +329,7 @@ func ScanFile(fset *token.FileSet, path, rel string) ([]Finding, error) {
 		if ident, ok := node.(*ast.Ident); ok {
 			if zefsNames["."] {
 				if ident.Obj == nil {
-					if ident.Name == zefsOpenFn || ident.Name == zefsCreateFn {
+					if zefsConstructors[ident.Name] {
 						line := fset.Position(ident.Pos()).Line
 						out = append(out, Finding{File: rel, Line: line, Pkg: zefsPkg, Fn: ident.Name, Code: "live-zefs-open: " + strings.TrimSpace(lines[line-1])})
 					}

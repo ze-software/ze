@@ -401,6 +401,14 @@ state then lives in framed keys under that tree. See
 live-store contract.
 <!-- source: internal/core/statestore/statestore.go -- Put, Get, SetStore -->
 
+The fs-persistence guard rejects blob-constructor calls and function references
+in runtime code, including core packages and test harnesses. It recognizes
+`Open`, `OpenIn`, `OpenFileIn`, `Create` and `CreateIn` through normal, aliased
+and dot imports of `pkg/zefs`. Only config storage and declared artifact
+producers are exempt from this rule. Raw-write exemptions do not permit blob
+constructors, and an exemption counts as used only when it suppresses a finding.
+<!-- source: internal/le/arch/fspersistence/fspersistence.go -- ScanFile, check, CheckCheckout -->
+
 ## Implementation
 
 Reference implementation: `pkg/zefs/` in the ze repository.
