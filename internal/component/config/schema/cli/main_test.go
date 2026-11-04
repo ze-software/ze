@@ -432,14 +432,14 @@ func TestSchemaWantsConfigPopulated(t *testing.T) {
 		t.Errorf("ze-hostname WantsConfig should be [bgp], got %v", hostnameSchema.WantsConfig)
 	}
 
-	// ze-bgp-conf should NOT want any config (it provides config, doesn't consume it)
+	// BGP consumes its owned root and the BFD profiles its peers reference.
 	bgpSchema, err := registry.GetByModule("ze-bgp-conf")
 	if err != nil {
 		t.Fatalf("failed to get ze-bgp-conf schema: %v", err)
 	}
 
-	if len(bgpSchema.WantsConfig) != 0 {
-		t.Errorf("ze-bgp should not have WantsConfig, got %v", bgpSchema.WantsConfig)
+	if !slices.Equal(bgpSchema.WantsConfig, []string{"bgp", "bfd"}) {
+		t.Errorf("ze-bgp WantsConfig should be [bgp bfd], got %v", bgpSchema.WantsConfig)
 	}
 }
 
