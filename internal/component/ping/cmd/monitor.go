@@ -55,8 +55,8 @@ func handleMonitorPing(ctx *pluginserver.CommandContext, validated command.Valid
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"destination": mp.Dest.String(),
-			fieldReplies:  rows,
+			leafMonitorDestination: mp.Dest.String(),
+			fieldReplies:           rows,
 		},
 	}, nil
 }

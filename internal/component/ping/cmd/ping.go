@@ -489,11 +489,11 @@ func summarizePingReplies(dest netip.Addr, replies []map[string]any) map[string]
 	}
 
 	result := map[string]any{
-		"destination":  dest.String(),
-		"sent":         sent,
-		"received":     received,
-		"loss-percent": lossPercent,
-		fieldReplies:   replies,
+		leafMonitorDestination: dest.String(),
+		"sent":                 sent,
+		"received":             received,
+		"loss-percent":         lossPercent,
+		fieldReplies:           replies,
 	}
 	if received > 0 {
 		result["min-rtt-ms"] = minMs
@@ -514,10 +514,10 @@ func summarizePingReplies(dest netip.Addr, replies []map[string]any) map[string]
 // (offline.go) holds.
 func emptyPingResult(dest netip.Addr) map[string]any {
 	return map[string]any{
-		"destination":  dest.String(),
-		"sent":         0,
-		"received":     0,
-		"loss-percent": 0.0,
-		fieldReplies:   make([]map[string]any, 0),
+		leafMonitorDestination: dest.String(),
+		"sent":                 0,
+		"received":             0,
+		"loss-percent":         0.0,
+		fieldReplies:           make([]map[string]any, 0),
 	}
 }
