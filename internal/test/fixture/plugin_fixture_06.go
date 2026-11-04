@@ -364,7 +364,7 @@ func fixture06DoctorOwnerCheck(ctx context.Context, p *sdk.Plugin) error {
 	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
 		return err
 	}
-	data, err := fixture06PollObject(ctx, p, "show doctor doctor-missing-plugin.conf", 60, func(map[string]any) bool { return true })
+	data, err := fixture06PollObject(ctx, p, "show doctor config doctor-missing-plugin.conf", 60, func(map[string]any) bool { return true })
 	if err != nil {
 		return err
 	}
