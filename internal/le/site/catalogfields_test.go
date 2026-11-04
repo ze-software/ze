@@ -253,7 +253,7 @@ var catalogFieldRenderings = map[string]catalogFieldRendering{
 // both command surfaces, in the page and in its Markdown mirror.
 //
 // The field list is READ FROM THE PRODUCER'S SOURCE rather than listed here, so
-// a field added to `cmd/ze/help_command.go` fails this test on the day it is
+// a field added to `internal/plugins/help/help_command.go` fails this test on the day it is
 // added rather than being decoded into nothing and dropped in silence. That is
 // how the site came to publish neither `backend`, `task-support`, `subcommands`
 // nor an argument's enumerated `values`: the model never named them, and no
@@ -347,17 +347,16 @@ func writeEquivalentMapping(t *testing.T, output string) {
 // The two files that between them spell the published catalog: the producer,
 // and the package that owns the grammar token it embeds.
 var catalogProducerFiles = []string{
-	"cmd/ze/help_command.go",
+	"internal/plugins/help/help_command.go",
 	"internal/component/command/usage.go",
 }
 
 // publishedCatalogFields answers every JSON field the live command catalog
 // publishes, as dotted paths such as `args.values`.
 //
-// The shape is read from the producer's SOURCE because this package cannot
-// import it: `cmd/ze` is package main behind the `ze_core` build tag. Reading
-// the source is what makes the answer follow the producer instead of following
-// a copy somebody remembered to update.
+// The shape is read from the producer's SOURCE so an unexported field type
+// still participates in the census. Reading the source makes the answer
+// follow the producer instead of a copy somebody remembered to update.
 func publishedCatalogFields(t *testing.T) []string {
 	t.Helper()
 	root := repositoryRoot(t)
@@ -367,7 +366,7 @@ func publishedCatalogFields(t *testing.T) []string {
 	}
 	entry, found := structures["commandEntry"]
 	if !found {
-		t.Fatalf("cmd/ze/help_command.go declares no commandEntry: the catalog's shape moved, "+
+		t.Fatalf("internal/plugins/help/help_command.go declares no commandEntry: the catalog's shape moved, "+
 			"and %v is where this test looks for it", catalogProducerFiles)
 	}
 	var fields []string
