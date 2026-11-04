@@ -153,6 +153,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   runs and produces output), and never reports or compares the figures it
   prints. A Linux-only harness is measured on the Mac inside a Linux QEMU
   guest, whose resources the Mac guarantees.
+- Memory allocation figures (bytes and allocations per operation) do not
+  depend on the host's performance, so an agent measures, reports and
+  compares them on any host, the Linux development VM included. Only time
+  and throughput figures need a known host. Two allocation figures are
+  compared only when the same Go toolchain and architecture produced them.
 - Running on an unknown host limits only performance figures. Every test runs on whatever
   host the agent is on: on Linux, QEMU guests, netns runs, `caps=` and
   `needs-linux` tests included. Only a test that runs only on another OS
