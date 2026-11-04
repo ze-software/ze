@@ -493,9 +493,16 @@ share. A file under `.claude/`, `ai/`, `backups/`, `docs/`, `plan/`, `rfc/` or
 That list is declared once, as `lintIgnores` beside `job.LintLabel`
 (`internal/le/job/treehash.go`), and it EXCLUDES rather than includes. An input
 nobody listed still voids the share, so a missing entry costs a duplicate run
-and never a stale verdict. A tree is on the list because it holds no Go file at
-all, and a `//go:embed` pattern cannot leave the directory of the package that
-writes it, so nothing under such a tree can reach a Go package.
+and never a stale verdict. Before admission, each build's single
+`go list -deps -test` query supplies selected JSON metadata for both the authored
+direct lint scope and the ordinary/test dependency compiler population. A real source in an excluded tree,
+an excluded or out-of-checkout symlink target, or a source-resolution error
+refuses admission rather than sharing a verdict that did not measure its inputs.
+Generated test-main source is a separate compiler role: the planner matches its
+`main` package to the selected tested package by import path and directory, not
+by cache location. It neither joins an absolute generated file beneath that
+directory nor promotes the harness or its dependencies into direct lint scope.
+Authored internal and external test files remain direct lint inputs.
 
 The findings a shared verdict names are read back out of the replay, so an
 attached red still says which files it was about. A red that names no file is

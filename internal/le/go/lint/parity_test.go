@@ -10,6 +10,7 @@ package golint
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -111,7 +112,7 @@ func fixtureOps(root string, tracked []string) (runnerOps, *[]captureCall) {
 		case listProgram:
 			path := filepath.Join(root, "pkg", "p"+twoDigits(goListIndex), "file.go")
 			goListIndex++
-			return commandResult{stdout: []byte(path + "\n")}
+			return commandResult{stdout: []byte(fmt.Sprintf(`{"Dir":%q,"Name":"fixture","ImportPath":%q,"GoFiles":["file.go"]}`+"\n", filepath.Dir(path), "lintfixture/pkg/p"+twoDigits(goListIndex-1)))}
 		case trackedProgram:
 			return commandResult{stdout: append([]byte(strings.Join(tracked, "\x00")), 0)}
 		default:
@@ -284,9 +285,9 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 		t.Fatalf("planning ran %d capture commands, want 20 go list plus git", len(*captureCalls))
 	}
 	wantListCalls := map[int][]string{
-		0:  {"go", "list", "-e", "-tags", "ze_core ze_a ze_b", "-f", listTemplate, "./..."},
-		1:  {"go", "list", "-e", "-tags", "ze_core ze_a ze_b integration", "-f", listTemplate, "./..."},
-		19: {"go", "list", "-e", "-tags", "ze_core", "-f", listTemplate, "./..."},
+		0:  {"go", "list", "-e", "-deps", "-test", "-tags", "ze_core ze_a ze_b", listFormat, "./..."},
+		1:  {"go", "list", "-e", "-deps", "-test", "-tags", "ze_core ze_a ze_b integration", listFormat, "./..."},
+		19: {"go", "list", "-e", "-deps", "-test", "-tags", "ze_core", listFormat, "./..."},
 	}
 	for index, want := range wantListCalls {
 		call := (*captureCalls)[index]
@@ -563,7 +564,12 @@ func TestPlanRefusesLiveInputChanges(t *testing.T) {
 // that the shared lint input declaration excludes.
 func TestPlanStableInputsRetainExactMatrix(t *testing.T) {
 	root, tracked := lintInputRepository(t)
+	initialInputs, err := realRunnerOps().inputHash(root)
+	if err != nil {
+		t.Fatalf("measure initial lint inputs: %v", err)
+	}
 	ops, _ := fixtureOps(root, tracked)
+	ops.inputHash = func(string) (string, error) { return initialInputs, nil }
 	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
 	if err != nil {
 		t.Fatalf("newRunner: %v", err)
@@ -807,7 +813,7 @@ func TestMalformedScopeStopsBeforeAnyLintCommand(t *testing.T) {
 		report, code = runner.runScope([]string{"./bad["})
 	})
 	wantArgv := []string{
-		"go", "list", "-e", "-tags", "ze_core ze_a ze_b", "-f", listTemplate, "./bad[",
+		"go", "list", "-e", "-deps", "-test", "-tags", "ze_core ze_a ze_b", listFormat, "./bad[",
 	}
 	if len(planned) != 1 || !reflect.DeepEqual(planned[0], wantArgv) {
 		t.Fatalf("malformed scope planning argv = %q, want exactly %q", planned, wantArgv)

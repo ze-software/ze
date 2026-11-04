@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -46,7 +47,9 @@ const (
 	// lintFindings is golangci-lint's exitcodes.IssuesFound: the run completed
 	// and reported findings. Any other non-zero exit is a run that stopped.
 	lintFindings = 1
-	listTemplate = "{{$d:=.Dir}}{{range .GoFiles}}{{$d}}/{{.}}\n{{end}}{{range .CgoFiles}}{{$d}}/{{.}}\n{{end}}{{range .TestGoFiles}}{{$d}}/{{.}}\n{{end}}{{range .XTestGoFiles}}{{$d}}/{{.}}\n{{end}}"
+	// Request only the metadata the planner consumes, not every package's
+	// transitive dependency list for every build in the matrix.
+	listFormat = "-json=Dir,ImportPath,Name,ForTest,DepOnly,GoFiles,CgoFiles,TestGoFiles,XTestGoFiles,InvalidGoFiles,EmbedFiles"
 )
 
 var ignoreConstraint = regexp.MustCompile(`(^|[^A-Za-z0-9_])ignore([^A-Za-z0-9_]|$)`)
@@ -79,6 +82,7 @@ type LintPlan struct {
 	NeedsTagless   bool                `json:"-"`
 	reportCoverage bool
 	configContents []byte
+	inputHash      string
 }
 
 // PassResult records one planned child and the code it returned.
@@ -135,6 +139,23 @@ type runnerOps struct {
 	capture   func(context.Context, []string, string, []string) commandResult
 	stream    func(context.Context, []string, string, []string, io.Writer) (int, error)
 	inputHash func(string) (string, error)
+}
+
+// listedPackage is the public go-list metadata used to distinguish authored
+// packages, test variants, and generated test binaries without inspecting cache
+// paths. File names may be absolute for Go-generated sources.
+type listedPackage struct {
+	Dir            string
+	ImportPath     string
+	Name           string
+	ForTest        string
+	DepOnly        bool
+	GoFiles        []string
+	CgoFiles       []string
+	TestGoFiles    []string
+	XTestGoFiles   []string
+	InvalidGoFiles []string
+	EmbedFiles     []string
 }
 
 // Runner owns the checkout, current lint configuration, toolchain, and process
@@ -382,6 +403,7 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 		TaglessConfig:  filepath.Join(r.root, filepath.FromSlash(taglessDir), taglessName+strconv.Itoa(os.Getpid())+".yml"),
 		reportCoverage: reportCoverage,
 		configContents: slices.Clone(r.config),
+		inputHash:      inputs,
 	}
 	for index := range plan.Passes {
 		if len(plan.Passes[index].TagsDropped) == 0 || plan.Passes[index].Skipped {
@@ -406,8 +428,8 @@ func (r *Runner) checkPlanningInputs(want, after string) error {
 
 func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string]bool, map[string]bool, error) {
 	tags := r.effectiveTags(flavor)
-	argv := make([]string, 0, 7+len(patterns))
-	argv = append(argv, "go", "list", "-e", "-tags", strings.Join(tags, " "), "-f", listTemplate)
+	argv := make([]string, 0, 8+len(patterns))
+	argv = append(argv, "go", "list", "-e", "-deps", "-test", "-tags", strings.Join(tags, " "), listFormat)
 	argv = append(argv, patterns...)
 	environment := r.toolchain.Environment(gotoolchain.EnvOptions{
 		MemLimit: true,
@@ -426,6 +448,29 @@ func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string
 		return nil, nil, fmt.Errorf("go list for lint flavor %s returned code %d with %s", flavor.Name, result.code, detail)
 	}
 
+	var listed []listedPackage
+	decoder := json.NewDecoder(bytes.NewReader(result.stdout))
+	for {
+		var pkg listedPackage
+		if err := decoder.Decode(&pkg); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, nil, fmt.Errorf("decode go list for lint flavor %s: %w", flavor.Name, err)
+		}
+		listed = append(listed, pkg)
+	}
+	// Go names a generated test binary <tested import path>.test and gives it
+	// the tested package's directory. Match the actual selected test owner,
+	// not a path suffix or cache location that an authored package can share.
+	testMainDirs := make(map[string]string)
+	for index := range listed {
+		pkg := &listed[index]
+		if !pkg.DepOnly && pkg.ForTest == "" && len(pkg.TestGoFiles)+len(pkg.XTestGoFiles) > 0 {
+			testMainDirs[pkg.ImportPath+".test"] = pkg.Dir
+		}
+	}
+
 	root, err := filepath.Abs(r.root)
 	if err != nil {
 		return nil, nil, fmt.Errorf("resolve lint root: %w", err)
@@ -435,25 +480,56 @@ func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string
 	parentPrefix := pathText.Reset().Str("..").Byte(byte(filepath.Separator)).String()
 	packages := make(map[string]map[string]bool)
 	files := make(map[string]bool)
-	for line := range strings.SplitSeq(string(result.stdout), "\n") {
-		path := filepath.Clean(strings.TrimSpace(line))
-		if path == "." || !strings.HasPrefix(path, prefix) {
+	compilerInputs := make(map[string]bool)
+	for index := range listed {
+		pkg := &listed[index]
+		if directory, ok := testMainDirs[pkg.ImportPath]; ok && pkg.Name == "main" && pkg.ForTest == "" && !pkg.DepOnly && pkg.Dir == directory {
+			// This compiler-generated harness is not an authored checkout input.
+			// Its real dependency packages remain in listed and are checked below.
 			continue
 		}
-		relative, relErr := filepath.Rel(root, path)
-		if relErr != nil || relative == "." || strings.HasPrefix(relative, parentPrefix) {
-			continue
+		direct := !pkg.DepOnly && pkg.ForTest == ""
+		addSources := func(names []string, authored bool) {
+			for _, name := range names {
+				path := name
+				if !filepath.IsAbs(path) {
+					path = filepath.Join(pkg.Dir, path)
+				}
+				path = filepath.Clean(path)
+				if path == "." || !strings.HasPrefix(path, prefix) {
+					continue
+				}
+				relative, relErr := filepath.Rel(root, path)
+				if relErr != nil || relative == "." || strings.HasPrefix(relative, parentPrefix) {
+					continue
+				}
+				relative = filepath.ToSlash(relative)
+				compilerInputs[relative] = true
+				if !authored {
+					continue
+				}
+				directory := filepath.ToSlash(filepath.Dir(relative))
+				if directory == "." {
+					directory = ""
+				}
+				if packages[directory] == nil {
+					packages[directory] = make(map[string]bool)
+				}
+				packages[directory][relative] = true
+				files[relative] = true
+			}
 		}
-		relative = filepath.ToSlash(relative)
-		directory := filepath.ToSlash(filepath.Dir(relative))
-		if directory == "." {
-			directory = ""
+		addSources(pkg.GoFiles, direct)
+		addSources(pkg.CgoFiles, direct)
+		addSources(pkg.InvalidGoFiles, false)
+		addSources(pkg.EmbedFiles, false)
+		if direct {
+			addSources(pkg.TestGoFiles, true)
+			addSources(pkg.XTestGoFiles, true)
 		}
-		if packages[directory] == nil {
-			packages[directory] = make(map[string]bool)
-		}
-		packages[directory][relative] = true
-		files[relative] = true
+	}
+	if err := job.CheckLintInputs(root, compilerInputs); err != nil {
+		return nil, nil, fmt.Errorf("lint flavor %s: %w", flavor.Name, err)
 	}
 	if len(packages) == 0 {
 		return nil, nil, fmt.Errorf("go list for lint flavor %s returned no files inside the checkout", flavor.Name)

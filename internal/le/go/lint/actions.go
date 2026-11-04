@@ -100,6 +100,19 @@ func runHere(arguments leaction.Arguments) (any, int) {
 		}
 		return Report{}, 0
 	}
+	// Planning must precede attachment: its actual compiler population is what
+	// proves that the fingerprint's excluded trees contain no lint input.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	runner, err := NewRunner(ctx, root)
+	if err != nil {
+		leaction.ReportError(err)
+		return Report{Code: cannotPlan, Error: err.Error()}, cannotPlan
+	}
+	plan, err := planRunner(runner, arguments)
+	if err != nil {
+		return runner.runPlan(plan, err)
+	}
 	admission, err := job.NewIn(root)
 	if err != nil {
 		leaction.ReportError(err)
@@ -113,23 +126,21 @@ func runHere(arguments leaction.Arguments) (any, int) {
 	shared := newPathCollector()
 	admission.Out = io.MultiWriter(os.Stdout, shared)
 
-	ticket, err := admission.Admit(jobLabel, jobArgv(arguments))
+	ticket, err := admission.AdmitContext(ctx, jobLabel, jobArgv(arguments))
 	if err != nil {
 		leaction.ReportError(err)
 		return Report{Code: cannotPlan, Error: err.Error()}, cannotPlan
+	}
+	if plan.inputHash != "" {
+		if err := runner.checkPlanningInputs(plan.inputHash, "job admission"); err != nil {
+			ticket.Release(cannotPlan)
+			return runner.runPlan(plan, err)
+		}
 	}
 	if ticket.Kind == job.KindAttached {
 		return Report{Code: ticket.Code, FailingPaths: shared.paths()}, ticket.Code
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-	runner, err := NewRunner(ctx, root)
-	if err != nil {
-		ticket.Release(cannotPlan)
-		leaction.ReportError(err)
-		return Report{Code: cannotPlan, Error: err.Error()}, cannotPlan
-	}
 
 	// The slot's log is opened before the run and closed after it, because
 	// Release removes the file: a writer still holding it would keep the bytes
@@ -148,7 +159,7 @@ func runHere(arguments leaction.Arguments) (any, int) {
 		}
 	}
 
-	payload, code := runRunner(runner, arguments)
+	payload, code := runner.runPlan(plan, nil)
 	ticket.Release(code)
 	return payload, code
 }
@@ -164,8 +175,14 @@ func jobArgv(arguments leaction.Arguments) []string {
 }
 
 func runRunner(runner *Runner, arguments leaction.Arguments) (any, int) {
+	return runner.runPlan(planRunner(runner, arguments))
+}
+
+// planRunner is shared by native admission and direct package callers, so both
+// select and guard exactly the population that their eventual run executes.
+func planRunner(runner *Runner, arguments leaction.Arguments) (LintPlan, error) {
 	if arguments.Has("scope") {
-		return runner.runScope(strings.Fields(arguments.One("scope")))
+		return runner.planScope(strings.Fields(arguments.One("scope")))
 	}
-	return runner.Run()
+	return runner.Plan()
 }

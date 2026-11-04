@@ -588,6 +588,29 @@ obtain a plan. These are observation checks, not an atomic filesystem snapshot.
 <!-- source: internal/le/go/lint/verifylint.go -- plan, checkPlanningInputs -->
 <!-- source: internal/le/job/treehash.go -- InputHash, writeReadPaths, lintIgnores -->
 
+The native action prepares that same selected plan **before** job admission
+can attach to another lint's verdict. Its single Go-list query per build uses
+`-deps -test` with selected JSON fields: package metadata separates authored
+direct lint scope from ordinary and test dependency compiler sources. File names are resolved against
+the package directory only when they are relative. The generated `main` test
+binary is matched to its actual selected tested package by import path and
+directory; it is not an authored direct input, and no cache-prefix exemption
+applies to real dependency sources. That compiler population is checked against
+the admission fingerprint's own excluded-tree declaration. Selected source
+symlinks are resolved too: an
+excluded canonical target, a target outside the measured checkout, or a
+resolution failure refuses by path and cause. Invalid Go files remain in the
+compiler population, so a broken source symlink cannot silently disappear.
+An unrelated backup behind a nested module boundary is not selected or compiled.
+No backup is removed, and direct lint scope does not expand to dependencies or
+all preserved scratch trees. After admission the planner checks its fingerprint
+again before using a shared verdict or executing its prepared plan. Admission's
+queue and shared-output follow use the same interrupt context as planning and
+execution, so Ctrl-C does not leave a signal-intercepting waiter behind.
+These checks still are not an atomic snapshot of concurrent edits.
+<!-- source: internal/le/go/lint/actions.go -- runHere, planRunner -->
+<!-- source: internal/le/job/treehash.go -- CheckLintInputs -->
+
 ## The changed-set selector
 
 `./le repo changed scope` is the one selector, and `./le verify changed` and

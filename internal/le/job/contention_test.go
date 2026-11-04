@@ -34,7 +34,6 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
-	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // helperMarker separates this test binary's own arguments from the ones that
@@ -1276,39 +1275,6 @@ func TestTheTreesTheLintLabelIgnoresDoNotVoidItsShare(t *testing.T) {
 	}
 }
 
-// TestTheTreesTheLintLabelIgnoresHoldNoGoFile is the evidence behind the
-// declaration, checked against the checkout rather than asserted in a comment.
-//
-// A tree is safe to ignore because nothing in it reaches a Go package: it holds
-// no Go source, and a //go:embed pattern cannot leave the directory of the
-// package that writes it, so nothing in it can be embedded either. The day
-// somebody puts a Go file under one of these trees, that reasoning stops
-// holding and this case says so.
-func TestTheTreesTheLintLabelIgnoresHoldNoGoFile(t *testing.T) {
-	root, err := lepath.Root()
-	if err != nil {
-		t.Fatalf("find the checkout this test runs in: %v", err)
-	}
-
-	for _, tree := range lintIgnores {
-		dir := filepath.Join(root, filepath.FromSlash(tree))
-		if _, statErr := os.Stat(dir); errors.Is(statErr, fs.ErrNotExist) {
-			continue
-		}
-		walked := filepath.WalkDir(dir, func(path string, listed fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if !listed.IsDir() && strings.HasSuffix(path, ".go") {
-				t.Errorf("%s holds a Go file, so a lint reads it: %q must leave lintIgnores", path, tree)
-			}
-			return nil
-		})
-		if walked != nil {
-			t.Fatalf("walk %s: %v", dir, walked)
-		}
-	}
-}
 
 // TestALabelThatDeclaresNoInputsIsFingerprintedOverTheWholeCheckout pins the
 // default, which is the direction that fails closed. A label nobody described

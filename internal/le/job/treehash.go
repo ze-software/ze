@@ -94,12 +94,11 @@ const LintLabel = "lint"
 // an input left off it is held identical across a change that could have
 // reddened the run, which is a green that could not have been red.
 //
-// Lint loads Go packages, so a file reaches its verdict by one of two routes.
-// It is Go source that a pass type-checks, or it is embedded into a package by
-// a //go:embed directive. A //go:embed pattern cannot leave the directory of
-// the package that writes it, so a tree holding no Go file at all reaches
-// neither route. Every tree below holds none, and
-// TestTheTreesTheLintLabelIgnoresHoldNoGoFile keeps it that way.
+// Lint validates its actual go-list source population against this declaration
+// before admission can reuse a verdict. A preserved Go file in a nested module,
+// testdata, or a Go-hidden directory is not thereby a compiler input.
+// CheckLintInputs reads this same declaration; it does not maintain a second
+// list of excluded trees.
 //
 // These are the trees several sessions write while a lint runs: journal rows,
 // specs, rules and pages. They are why two identical lints almost never shared
@@ -119,6 +118,41 @@ var lintIgnores = []string{
 // label started: it shares least, and it is never wrong about what it read.
 var labelIgnores = map[string][]string{
 	LintLabel: lintIgnores,
+}
+
+// CheckLintInputs refuses actual checkout-relative compiler inputs omitted from
+// the lint fingerprint, including a selected symlink's canonical target.
+// Callers MUST pass the complete producer-selected compiler population before
+// admitting work that may attach to a shared verdict. Resolution errors refuse.
+func CheckLintInputs(root string, selected map[string]bool) error {
+	canonicalRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return fmt.Errorf("resolve lint checkout %s: %w", root, err)
+	}
+	for path := range selected {
+		if ignoredTree(path, lintIgnores) {
+			return fmt.Errorf("lint input %s belongs to a tree excluded from the lint fingerprint; correct the input declaration before sharing a verdict", path)
+		}
+		canonical, err := filepath.EvalSymlinks(filepath.Join(root, filepath.FromSlash(path)))
+		if err != nil {
+			return fmt.Errorf("resolve lint input %s: %w", path, err)
+		}
+		relative, err := filepath.Rel(canonicalRoot, canonical)
+		if err != nil {
+			return fmt.Errorf("locate canonical lint input %s: %w", path, err)
+		}
+		relative = filepath.ToSlash(relative)
+		if relative == ".." {
+			return fmt.Errorf("lint input %s resolves outside the fingerprinted checkout: %s", path, canonical)
+		}
+		if strings.HasPrefix(relative, "../") {
+			return fmt.Errorf("lint input %s resolves outside the fingerprinted checkout: %s", path, canonical)
+		}
+		if ignoredTree(relative, lintIgnores) {
+			return fmt.Errorf("lint input %s resolves to excluded compiler input %s; correct the input declaration before sharing a verdict", path, relative)
+		}
+	}
+	return nil
 }
 
 // InputHash returns the fingerprint of the inputs one label's work reads.
