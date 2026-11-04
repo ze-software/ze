@@ -88,6 +88,12 @@ func excludes() []string {
 		// bgp-redistribute plugin 1ec5b741f8 removed on 2026-09-04, is a fact
 		// about that publication rather than a claim about the tree today.
 		"internal/le/site/testdata/",
+		// The A-6 text-era benchmark is a FROZEN MEASUREMENT INPUT: its sha256
+		// is pinned in plan/records/filter-wire-0-a6-mac.bench.txt, the owner's
+		// Mac run that measured it. Its `// Design:` line names the spec that
+		// asked for the measurement, which closure deletes; editing the line
+		// would break the pin, so the path is a fact about that run.
+		"test/perf/filter-a6/textera_bench_test.go.txt",
 	}
 	buckets := specpath.Dirs()
 	prefixes := make([]string, 0, len(trees)+len(buckets))

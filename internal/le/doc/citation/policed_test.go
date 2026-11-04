@@ -27,6 +27,8 @@ func TestPolicedKeepsCorpusFilesUnderRecordTrees(t *testing.T) {
 		{"plan/release/fixes/spec-open.md", false},
 		{"plan/proposals/spec-idea.md", false},
 		{"vendor/example.com/x/README.md", false},
+		{"test/perf/filter-a6/textera_bench_test.go.txt", false},
+		{"test/perf/filter-a6/measure.sh", true},
 	}
 	for _, tc := range cases {
 		if got := Policed(tc.path); got != tc.policed {
