@@ -758,15 +758,169 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 			continue
 		}
 		delete(ownDocker, job.name)
-		if !strings.Contains(job.body, "run: "+command) {
-			t.Errorf("%s job %q does not run %q", name, job.name, command)
-		}
-		if strings.Contains(job.body, "sudo") {
-			t.Errorf("%s job %q runs under sudo; its containers need only the runner's Docker group", name, job.name)
+		if !ownDockerCommandRunsAsRunner(t, workflowSource(t, name), job.name, command) {
+			t.Errorf("%s job %q must run exactly %q as the runner user; its containers need only the runner's Docker group", name, job.name, command)
 		}
 	}
 	for job := range ownDocker {
 		t.Errorf("%s has no %q job running on the hosted runner's own Docker", name, job)
+	}
+}
+
+// ownDockerCommandRunsAsRunner reads the owning YAML run step, not preparation
+// steps that may need sudo. Requiring the exact command and a built-in runner
+// shell refuses wrappers and guest routing without interpreting arbitrary shell.
+func ownDockerCommandRunsAsRunner(t *testing.T, source, jobName, command string) bool {
+	t.Helper()
+	type runDefaults struct {
+		Run struct {
+			Shell string `yaml:"shell"`
+		} `yaml:"run"`
+	}
+	var document struct {
+		Defaults runDefaults `yaml:"defaults"`
+		Jobs     map[string]struct {
+			Defaults runDefaults `yaml:"defaults"`
+			Steps    []struct {
+				Run   string `yaml:"run"`
+				Shell string `yaml:"shell"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal([]byte(source), &document); err != nil {
+		t.Fatalf("parse workflow run steps: %v", err)
+	}
+	actions := nativeActionsIn(command)
+	if len(actions) != 1 {
+		t.Fatalf("expected one native action in %q; found %v", command, actions)
+	}
+	// A quoted native command may be a shell -c payload. Conservatively count
+	// it as another owner rather than assume that the shell never executes it.
+	quotes := strings.NewReplacer("'", " ", `"`, " ")
+	owners := 0
+	job := document.Jobs[jobName]
+	for _, step := range job.Steps {
+		stepActions := nativeActionsIn(step.Run)
+		if !slices.Contains(stepActions, actions[0]) {
+			stepActions = nativeActionsIn(quotes.Replace(step.Run))
+		}
+		if !slices.Contains(stepActions, actions[0]) {
+			continue
+		}
+		owners++
+		if strings.TrimSpace(step.Run) != command {
+			return false
+		}
+		// GitHub selects the most specific shell: step, job, then workflow.
+		// Custom templates are not proof of runner-owned execution.
+		shell := step.Shell
+		if shell == "" {
+			shell = job.Defaults.Run.Shell
+		}
+		if shell == "" {
+			shell = document.Defaults.Run.Shell
+		}
+		if shell != "" && shell != "bash" && shell != "sh" {
+			return false
+		}
+	}
+	return owners == 1
+}
+
+// TestOwnDockerCommandRunsAsRunner pins the privilege boundary with owned YAML
+// fixtures: preparation may elevate, but every invocation of the test stays
+// exactly the native command in its own unprivileged run step.
+func TestOwnDockerCommandRunsAsRunner(t *testing.T) {
+	const command = "./le test integration docker-peers"
+	for _, test := range []struct {
+		name     string
+		workflow string
+		job      string
+		steps    string
+		want     bool
+	}{
+		{
+			name:  "privileged preparation",
+			steps: "    - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0\n    - run: " + command + "\n",
+			want:  true,
+		},
+		{
+			name:  "block run scalar",
+			steps: "    - run: |\n        " + command + "\n",
+			want:  true,
+		},
+		{
+			name:  "sudo test",
+			steps: "    - run: sudo -E env PATH=$PATH " + command + "\n",
+		},
+		{
+			name:  "sudo test beside valid invocation",
+			steps: "    - run: " + command + "\n    - run: sudo " + command + "\n",
+		},
+		{
+			name:  "single-quoted sudo duplicate",
+			steps: "    - run: " + command + "\n    - run: sudo bash -c '" + command + "'\n",
+		},
+		{
+			name:  "double-quoted sudo duplicate",
+			steps: "    - run: " + command + "\n    - run: sudo bash -c \"" + command + "\"\n",
+		},
+		{
+			name:  "privileged step shell",
+			steps: "    - run: " + command + "\n      shell: sudo -E bash {0}\n",
+		},
+		{
+			name:  "privileged job shell",
+			job:   "    defaults:\n      run:\n        shell: sudo -E bash {0}\n",
+			steps: "    - run: " + command + "\n",
+		},
+		{
+			name:     "privileged workflow shell",
+			workflow: "defaults:\n  run:\n    shell: sudo -E bash {0}\n",
+			steps:    "    - run: " + command + "\n",
+		},
+		{
+			name:     "step shell overrides privileged defaults",
+			workflow: "defaults:\n  run:\n    shell: sudo -E bash {0}\n",
+			job:      "    defaults:\n      run:\n        shell: sudo -E bash {0}\n",
+			steps:    "    - run: " + command + "\n      shell: bash\n",
+			want:     true,
+		},
+		{
+			name:     "job shell overrides privileged workflow default",
+			workflow: "defaults:\n  run:\n    shell: sudo -E bash {0}\n",
+			job:      "    defaults:\n      run:\n        shell: sh\n",
+			steps:    "    - run: " + command + "\n",
+			want:     true,
+		},
+		{
+			name:  "privileged preparation shell",
+			steps: "    - run: sysctl -w kernel.apparmor_restrict_unprivileged_userns=0\n      shell: sudo bash {0}\n    - run: " + command + "\n",
+			want:  true,
+		},
+		{
+			name:  "privileged test block",
+			steps: "    - run: |\n        sudo " + command + "\n",
+		},
+		{
+			name:  "guest wrapper",
+			steps: "    - run: ./le test qemu docker-lab lab 'test integration docker-peers'\n",
+		},
+		{
+			name:  "command only in step name",
+			steps: "    - name: 'run: " + command + "'\n      run: echo no-test\n",
+		},
+		{
+			name:  "different native action",
+			steps: "    - run: ./le test integration live-rpki\n",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := test.workflow + "jobs:\n  docker-peers:\n" + test.job + "    steps:\n" + test.steps
+			if got := ownDockerCommandRunsAsRunner(t, source, "docker-peers", command); got != test.want {
+				t.Errorf("runner-owned test command = %t, want %t", got, test.want)
+			}
+		})
 	}
 }
 
