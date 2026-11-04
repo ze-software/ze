@@ -947,6 +947,16 @@ built and then deleted (see Abandoned approaches).
   (`Handler` to `CommandContext` to `*Server`) that forces handler, startup,
   reload and schema together. Settled at three: `ipc/`, `process/`,
   `server/`.
+- **A compiled-in filter type always evaluating in the daemon**
+  (spec-filter-wire-0-umbrella, first D-12, withdrawn by the owner on
+  2026-10-31): whatever the plugin's placement, its filter ran in process.
+  Rejected because a forked plugin's evaluation then ran away from the state
+  it reads. Replaced by D-12 below.
+- **`filterapi.Register` beside the bridge path** (spec-filter-wire-0-umbrella,
+  D-13): a compiled-in filter registry kept next to the plugin filter. Two
+  filter mechanisms, one of which silently vanishes when its plugin runs
+  forked, is the layering `ai/rules/no-layering.md` forbids. The registry was
+  deleted; every former entry became a plugin filter or engine code.
 
 ### Load-bearing invariants
 
@@ -958,6 +968,8 @@ built and then deleted (see Abandoned approaches).
 | Plugin subprocess stderr consumed by `relayStderrFrom()` | `process.go` | Never reaches test runner's `expect=stderr:contains=`. (451) |
 | Strict role (RFC 9234) enforcement stays in plugin | `bgp-role` plugin | Engine is policy-free. (239) |
 | Plugin declares what it handles; engine never enumerates | registry API | Families, events, send types all dynamic. (187, 188, 404, 408) |
+| A filter is owned by its plugin, whatever process the plugin runs in, and the author writes the evaluator once | `sdk.OnFilter` installs it; `rpc.DirectBridge.CallFilterSlot` (internal) or the batched, versioned `filter-update` message (forked), chosen by `ipc.PluginConn.CallFilter` | spec-filter-wire-0-umbrella D-12 (owner, 2026-10-31). Internal: a typed slot shaped like `DeliverStructured`, the lazy wire view in and the verdict and sets back, synchronous on the reactor goroutine, no text and no JSON. Forked, any language: the `filter-update` message. The evaluator never blocks on unresolved data and answers "unavailable" outside Stage 5 to `CloseCallbacks`. The bridge already is the in-process transport, so the fast path needs one slot, not a second mechanism (`docs/architecture/api/process-protocol.md`) |
+| BGP has one filter mechanism; there is no compiled-in filter registry | `reactor` `buildOrderedIngressSteps`, `reactor/loopdetect` `LoopIngress` | spec-filter-wire-0-umbrella D-13 (follows D-12 and no-layering). Each former registry entry became a plugin filter in the peer's filter list, keeping its stage order: `bgp-filter-community` (its community-relation tag included), `bgp-role` and `bgp-gr`'s LLGR filters, with their inputs (`meta["src-role"]`, `LLGRAdvertised`, the stale mark) carried as declared fields. `bgp-rs`'s `PreserveOpaqueAttributes` is a forwarding choice with no verdict, so it became a plugin declaration. Loop detection reads `LocalAS`, `RouterID`, `ClusterID` and `AllowOwnAS` and stays engine code as an RFC 4271 / RFC 4456 protocol check (`docs/architecture/core-design.md`, "The in-process BGP chain") |
 | Registry lookup is by name (exact, case-sensitive post-normalisation) | `registry.go` | Case normalized at write time, not read time. (187, 412) |
 | Auto-linter strips imports between Edits | `auto_linter.sh` hook | `goimports` runs after every Edit/Write; import + first usage must be in same Edit call. (288, 422, many others) |
 | Plugin startup needs TWO socket pairs, not one | socketpair creation, `pkg/plugin/rpc` | One socket per direction prevents deadlock. On a single socket both sides can block waiting for the other's response while each holds an unread request. (210) |
