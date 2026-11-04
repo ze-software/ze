@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P3 |
 | Release reason | Complete the promised filter-wire proofs and fix the current defect they exposed: a forked bgp-filter-irr program did not request the policy root, lost the configured IRR server/settings, and rejected authorized announcements. |
 | Depends | Route-policy phases 1-3, landed (490618ef43). This builds on their library in `internal/component/policy/`: `policy.CompileRouteChain`, `policy.RouteChain` and `policy.CheckChain`; the field registry, `policy.MustRegisterField` with a `policy.RouteView` (`Read`, `Written`); `policy.MustRegisterRouteAttachment`; and `ribpolicy.Route` and `ribpolicy.Sets` (`internal/core/rib/policy`) |
@@ -18,7 +18,7 @@ as a substitute for the missing behavioural evidence.
 
 | # | Remaining proof | Prepared evidence / exact prerequisite | What clears it |
 |---|-----------------|----------------------------------------|----------------|
-| 1 | A-6: relative slow-path performance, the only remaining performance-proof blocker | All reachable unit, daemon, load, discrimination and promotion proofs below are recorded. Thomas supplied current Mac output, preserved in [the owner run record](../../records/filter-wire-0-owner-mac.bench.txt). A historical Mac summary also exists, but its workload is not matched to the current SDK benchmarks. Matched text-era/new workload measurements and both runs' provenance remain required; the current measured checkout revision and Go version are not supplied | Establish a compatible, provenance-backed before/after comparison before deciding A-6, not another run of the unmatched current harness. No closure Review Gate or closure completion is claimed |
+| 1 | A-6: relative slow-path performance, the only remaining performance-proof blocker | All reachable unit, daemon, load, discrimination and promotion proofs below are recorded. Thomas supplied current Mac output, preserved in [the owner run record](../../records/filter-wire-0-owner-mac.bench.txt). A historical Mac summary also exists, but its workload is not matched to the current SDK benchmarks. Matched text-era/new workload measurements and both runs' provenance remain required; the current measured checkout revision and Go version are not supplied | Establish a compatible, provenance-backed before/after comparison before deciding A-6, not another run of the unmatched current harness. No closure Review Gate or closure completion is claimed. Update 2026-11-04: the matched pair exists ("A-6 matched slow-path benchmarks"), its allocation half is measured and favours HEAD, and the time half waits on Thomas running `bash test/perf/filter-a6/measure.sh` on the Mac |
 
 AC-22's former in-daemon-when-forked unit framing was superseded by the
 owner's revised D-12, not waived. AC-40's former transit-leak load refusal was
@@ -548,7 +548,7 @@ design question is open.
 | A-3 | Prepend and remove-private need reactor-side state (local AS, peer AS, ASN4 width) a plugin cannot know | `ExtractASPathPrependOps` takes `localAS`; `ExtractRemovePrivateASOps` takes `asn4` and `peerAS` | the plugin could compute them and the intents collapse to set fields | reading both signatures and their callers in `filter_ordered.go` | validated by reading at 544f8f930c |
 | A-4 | BGP chains already run `policy.CheckChain` for named instances, so the fast path inherits a working load-time check | `validateChainNames` in `internal/component/bgp/config/peers.go`; attachments registered in `bgp/config/register.go` | the check must be wired first | reading at 544f8f930c | validated by reading |
 | A-5 | `ribpolicy.Route` cannot carry BGP fields, so the lazy view is a new view kind | BGP fields registered with `RouteView{}` (`internal/component/policy/register.go`); route-policy decision that the Loc-RIB best carries no communities or AS path | BGP fields would be added to a core leaf type the Loc-RIB hot path copies by value | reading at 544f8f930c | validated by reading |
-| A-6 | A JSON message with only the declared fields, batched, is no slower per route than the text subject it replaced | FR-6; a modified text-era UPDATE paid render, two parses and a diff | the slow path regresses for small filters | [Thomas's current Mac output](../../records/filter-wire-0-owner-mac.bench.txt) from `CGO_ENABLED=0 ./le perf filter measure` and the archived Mac summary below are context; deciding A-6 requires matched text-era/new workload measurements and both runs' provenance | unvalidated: the recorded old/new benchmark workloads are not comparable, and the current measured revision/Go version are missing; no relative-performance conclusion follows |
+| A-6 | A JSON message with only the declared fields, batched, is no slower per route than the text subject it replaced | FR-6; a modified text-era UPDATE paid render, two parses and a diff | the slow path regresses for small filters | [Thomas's current Mac output](../../records/filter-wire-0-owner-mac.bench.txt) from `CGO_ENABLED=0 ./le perf filter measure` and the archived Mac summary below are context; deciding A-6 requires matched text-era/new workload measurements and both runs' provenance | allocations confirmed, time unvalidated: the matched benchmarks in "A-6 matched slow-path benchmarks" show HEAD allocating fewer bytes and objects per route than the text era at batch sizes 1, 16 and 64; the time comparison waits on `bash test/perf/filter-a6/measure.sh` run on the Mac |
 | A-7 | The functional runner and the QEMU guest can fork a Python 3 plugin | no `.py` plugin exists under `test/plugin` or `test/reload` today; Python scripts exist only under `test/exabgp-compat` | the non-Go AC needs another language the runner already has | a runner probe `.ci` forking `python3 -I` | confirmed by `test/plugin/filter-wire-python-probe.ci`: the daemon under the runner forks a `#!/usr/bin/env -S python3 -I` plugin, which reports `isolated=1` and holds all five connect-back variables; red when the shebang drops `-I`; 20 stress iterations under load clean. The QEMU guest is not needed: the test carries no `needs-linux` |
 | A-8 | Non-CIDR families (EVPN, VPN, FlowSpec beyond its destination prefix, BGP-LS, SR-Policy, ...) remain reachable by a filter declaring raw, without decoding a prefix it did not declare | `family.Family.PlainCIDR`; `policychain.memberView.Raw` and `Fields` independently honor the reads declaration | the engine implicitly parses undecodable NLRI before a raw filter can judge it | `reactor/filter_raw_families_test.go` `TestDeclaredRawReachesEveryNonCIDRFamily`: all 17 standard non-CIDR registrations, both MP sections and verdicts, exact raw bytes and no implicit fields; includes SR-Policy owners | confirmed by main-thread race run, `job-fw-proof-reactor-292513d4.log`: named test and all 68 cases PASS; that run's unrelated A-2 oracle failure was corrected and passed in its isolated run |
 | A-9 | The BGP fields the view reads can register their readers from the BGP side while their names stay declared in `internal/component/policy/register.go` | D-7; the BGP fields there carry an empty `RouteView{}` today | the library would learn a BGP type, which D-7 forbids | `spec-filter-wire-2-view` reading `MustRegisterField` and registering one reader from `internal/component/bgp/` | confirmed by `policyview.MustRegisterReader` (keyed by `policy.Field`; the library holds no reader seam) |
@@ -603,16 +603,50 @@ MED/LOCAL_PREF fields and measures JSON marshal, an accept evaluator through
 the archived summary is historical context, not A-6 comparison evidence.
 The removed rendering benchmarks are not a matched baseline either.
 
-**A-6 remains unvalidated.** What is missing is a matched text-era/new workload
-measurement on the same Mac/toolchain, with both runs' revisions, toolchain,
-environment and measurement scope—not another current-harness run. The
-supplied current result also lacks its measured checkout revision and Go
-version. No current-HEAD command has been identified that can produce the
-old text-era before workload; the historical benchmark name is not a command
-to run at HEAD, and this evidence bookkeeping restores no legacy machinery.
-No agent ran a performance measurement; there is no configured SSH host for
-that Mac. Harness compilation and the behavioral proofs cannot substitute
-for the missing matched comparison.
+### A-6 matched slow-path benchmarks
+
+The matched workload now exists as two benchmarks of the same operation: a
+forked filter that modifies a route (LOCAL_PREF 100 to 200), from the received
+UPDATE through the live import chain to the rebuilt UPDATE body, with a real
+SDK plugin over `net.Pipe` behind the engine's real `PluginConn` RPC framing.
+Both leave out the TLS socket and the plugin server's process lookup; HEAD
+also leaves out the batcher's queue, so each exchange carries exactly the
+batch size. Each route gets a fresh `WireUpdate`; an untimed check refuses a
+run whose rebuilt payload lacks LOCAL_PREF 200.
+
+| Side | Revision | Benchmark | Per-route work |
+|------|----------|-----------|----------------|
+| Text era | `ec9f715546`, the parent of the first filter-wire commit `1d9b17d181`, whose live chain is `policyFilterFunc` → `PolicyFilterChain` | `BenchmarkFilterSlowPathModifyTextEra`, source `test/perf/filter-a6/textera_bench_test.go.txt` | `AppendUpdateForFilter` (full attribute text), one `SendFilterUpdate` round trip per route, `OnFilterUpdate` answers `local-preference 200`, `applyFilterDelta`, two `parseFilterAttrsInto`, `textDeltaToModOps`, `buildModifiedPayload` |
+| HEAD | the commit carrying `internal/component/bgp/reactor/filter_slow_path_bench_test.go` | `BenchmarkFilterSlowPathModify` | `memberView.Fields` projection, one `filter-update` batch of n routes via `CallRPC`, `OnFilter` → `answerFilterBatch` answering a local-preference Set, `applyExternalSets`, `rewriteLibrary` |
+
+`ec9f715546` is chosen over `885e22e17f` (the parent of the text chain's
+deletion) because by `885e22e17f` the library chain already carried forked
+filters and the text path had no production caller.
+
+**Allocations, measured on the Linux development VM** (owner rule: allocation
+figures do not depend on host performance), go1.27.3 linux/amd64, the patched
+GOROOT `./le go stdpatch goroot` prints, `-benchtime 200x -count 3 -benchmem`,
+counts from `runtime.MemStats` including the in-process SDK goroutines:
+
+| Routes per exchange | Text era B/route | Text era allocs/route | HEAD B/route | HEAD allocs/route |
+|---:|---:|---:|---:|---:|
+| 1 | 73201–73765 | 60.74–61.90 | 4202–4248 | 57.30–58.21 |
+| 16 | 72612–72806 | 60.15–60.49 | 3001–3117 | 21.16–21.26 |
+| 64 | 72178–72227 | 60.09–60.17 | 3305–3377 | 19.07–19.13 |
+
+HEAD allocates fewer bytes and fewer objects per route at every batch size:
+about 17 to 24 times fewer bytes, and at batches of 16 or more about a third of
+the allocations. Most of the text era's 72 KB per route is unverified as to
+cause (the 64 KiB scratch buffer of `runIngressPolicyChain` escaping is the
+leading suspect, not confirmed with `-gcflags=-m`).
+
+**A-6's time half is still unvalidated.** "No slower per route" is a time
+claim, and time figures come only from the owner's Mac.
+`bash test/perf/filter-a6/measure.sh` on the Mac measures both benchmarks
+under one toolchain, ten samples each, and writes `provenance.txt` (HEAD,
+text-era revision, the text-era benchmark source hash, Go version, CPU,
+power), `head.txt` and `textera.txt`. Its `A6_CHECK=1` pass ran here to prove
+the script works; its times are not figures and are not recorded.
 
 
 ### Risks
@@ -1286,6 +1320,7 @@ was revised by the owner the same day, answering R-12 (R-12, revised).
 - [ ] Boundary tests for all numeric inputs
 - [ ] Functional `.ci` tests for end-to-end behavior
 - [ ] Interop tests for protocol features, each with a recorded red
+- [ ] Targeted runs named: `./le test unit bgp` (reactor, policychain, the A-6 slow-path benchmark package), the scoped `go test -tags ze_bgp` of `internal/component/plugin/ipc` and `pkg/plugin/sdk` (batcher, SDK), `./le test functional plugin` (the filter-wire `.ci` proofs)
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it

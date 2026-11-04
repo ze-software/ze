@@ -1,0 +1,236 @@
+// Design: plan/post-release/engineering/spec-filter-wire-0-umbrella.md -- assumption A-6 text-era baseline
+// Related: filter_ordered.go -- runIngressPolicyChain, the live import chain this drives
+// Related: filter_chain.go -- policyFilterFunc, PolicyFilterChain, applyFilterDelta
+
+package reactor
+
+import (
+	"context"
+	"encoding/binary"
+	"net"
+	"net/netip"
+	"runtime"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
+)
+
+// textEraTransport is the filterTransport of one forked filter plugin. Its
+// CallFilterUpdate is Server.CallFilterUpdate (plugin/server/server.go) with the
+// process lookup removed: it calls the real PluginConn.SendFilterUpdate, which
+// marshals the input, frames it through MuxConn.CallRPC, and unmarshals the
+// answer. The plugin is a real sdk.Plugin over net.Pipe, so the SDK's own
+// readLoop, eventLoop dispatch, OnFilterUpdate callback and SendResult run.
+// Safe for concurrent use only as far as PluginConn is.
+type textEraTransport struct {
+	declared []string
+	engine   *ipc.PluginConn
+}
+
+func (f *textEraTransport) FilterInfo(_, _ string) ([]string, bool) { return f.declared, false }
+
+func (f *textEraTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return rpc.OnErrorReject }
+
+func (f *textEraTransport) CallFilterUpdate(ctx context.Context, _ string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+	return f.engine.SendFilterUpdate(ctx, input)
+}
+
+// startTextEraFilterPlugin starts a real SDK plugin on one end of a net.Pipe,
+// drives its startup to ready over the engine's MuxConn, and answers the
+// engine side. The plugin's filter answers every UPDATE with a modify that sets
+// LOCAL_PREF 200. No DirectBridge is offered, so the plugin stays on the socket
+// transport a forked plugin uses. The startup mirrors
+// internal/component/plugin/ipc/rpc_bridge_batch_sdk_test.go at this revision.
+func startTextEraFilterPlugin(b *testing.B) *ipc.PluginConn {
+	b.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	engineEnd, pluginEnd := net.Pipe()
+	engine := ipc.NewMuxPluginConn(rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd)))
+	plugin := sdk.NewWithConn("textera", pluginEnd)
+	plugin.OnFilterUpdate(func(*sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
+		return &sdk.FilterUpdateOutput{Action: rpc.FilterModify, Update: "local-preference 200"}, nil
+	})
+	runDone := make(chan error, 1)
+	go func() { runDone <- plugin.Run(ctx, &sdk.Registration{}) }()
+	b.Cleanup(func() {
+		cancel()
+		plugin.Close() //nolint:errcheck // Teardown of a benchmark fixture.
+		engine.Close() //nolint:errcheck // Teardown of a benchmark fixture.
+		select {
+		case <-runDone:
+		case <-time.After(5 * time.Second):
+			b.Error("SDK lifecycle did not stop")
+		}
+	})
+
+	startCtx, startCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer startCancel()
+
+	for _, stage := range []struct {
+		request  string
+		callback string
+	}{
+		{rpc.MethodDeclareRegistration, "ze-plugin-callback:configure"},
+		{"ze-plugin-engine:declare-capabilities", "ze-plugin-callback:share-registry"},
+	} {
+		request, err := engine.ReadRequest(startCtx)
+		if err != nil {
+			b.Fatalf("startup read: %v", err)
+		}
+		if request.Method != stage.request {
+			b.Fatalf("startup request = %q, want %q", request.Method, stage.request)
+		}
+		if err := engine.SendOK(startCtx, request.ID); err != nil {
+			b.Fatalf("startup ok: %v", err)
+		}
+		if _, err := engine.CallRPC(startCtx, stage.callback, struct{}{}); err != nil {
+			b.Fatalf("startup callback %s: %v", stage.callback, err)
+		}
+	}
+	ready, err := engine.ReadRequest(startCtx)
+	if err != nil {
+		b.Fatalf("ready read: %v", err)
+	}
+	if ready.Method != "ze-plugin-engine:ready" {
+		b.Fatalf("final startup request = %q", ready.Method)
+	}
+	if err := engine.SendOK(startCtx, ready.ID); err != nil {
+		b.Fatalf("ready ok: %v", err)
+	}
+	return engine
+}
+
+// textEraUpdateBody answers the UPDATE body every route of the benchmark
+// carries: ORIGIN IGP, AS_PATH [65001] at four octets, NEXT_HOP 1.1.1.1, MED 7,
+// LOCAL_PREF 100, and the one IPv4 prefix 10.<hi>.<lo>.0/24.
+func textEraUpdateBody(route int) []byte {
+	attrs := []byte{
+		0x40, 1, 1, 0, // ORIGIN IGP
+		0x40, 2, 6, 2, 1, 0, 0, 0xFD, 0xE9, // AS_PATH SEQUENCE [65001]
+		0x40, 3, 4, 1, 1, 1, 1, // NEXT_HOP 1.1.1.1
+		0x80, 4, 4, 0, 0, 0, 7, // MED 7
+		0x40, 5, 4, 0, 0, 0, 100, // LOCAL_PREF 100
+	}
+	body := []byte{0, 0} // No withdrawn routes.
+	body = binary.BigEndian.AppendUint16(body, uint16(len(attrs)))
+	body = append(body, attrs...)
+	return append(body, 24, 10, byte(route>>8), byte(route))
+}
+
+// textEraLocalPref answers the LOCAL_PREF value a rebuilt UPDATE body carries.
+func textEraLocalPref(body []byte) (uint32, bool) {
+	if len(body) < 4 {
+		return 0, false
+	}
+	off := 2 + int(binary.BigEndian.Uint16(body))
+	if len(body) < off+2 {
+		return 0, false
+	}
+	end := off + 2 + int(binary.BigEndian.Uint16(body[off:]))
+	off += 2
+	for off+3 <= end && end <= len(body) {
+		flags, code := body[off], body[off+1]
+		header, length := 3, int(body[off+2])
+		if flags&0x10 != 0 {
+			header, length = 4, int(binary.BigEndian.Uint16(body[off+2:]))
+		}
+		if off+header+length > end {
+			return 0, false
+		}
+		value := body[off+header : off+header+length]
+		if code == 5 {
+			if len(value) != 4 {
+				return 0, false
+			}
+			return binary.BigEndian.Uint32(value), true
+		}
+		off += header + length
+	}
+	return 0, false
+}
+
+// BenchmarkFilterSlowPathModifyTextEra measures what the text-era import chain
+// (revision ec9f715546) spent per route for a forked filter that modifies the
+// route, as the A-6 baseline.
+//
+// Method: each route is one runIngressPolicyChain call, the live entry point,
+// so AppendUpdateForFilter, PolicyFilterChain, policyFilterFunc (context,
+// FilterUpdateInput, validateModifyDelta), applyFilterDelta, the two
+// parseFilterAttrsInto, textDeltaToModOps, the extractors, sectionNLRIDelta and
+// buildModifiedPayload all run as production code. The filter-update travels
+// through the real PluginConn.SendFilterUpdate and a real SDK plugin over
+// net.Pipe. The text era sent one filter-update per route, so routes=N is N
+// round trips. Every route of every iteration gets a fresh WireUpdate, built
+// before the timer starts, because a received UPDATE arrives unparsed.
+func BenchmarkFilterSlowPathModifyTextEra(b *testing.B) {
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	if err != nil {
+		b.Fatalf("register encoding context: %v", err)
+	}
+	addr := netip.MustParseAddr("10.0.0.9")
+	peer := NewPeer(&PeerSettings{
+		Address:      addr,
+		LocalAS:      65000,
+		PeerAS:       65001,
+		ImportPolicy: mustPolicy(b, []routepolicy.Ref{{Name: "textera:set-local-pref"}}, routepolicy.FinalAccept),
+	})
+	r := &Reactor{
+		api: &pluginserver.Server{}, // Non-nil: past the r.api guard.
+		filterTransportSeam: &textEraTransport{
+			declared: []string{policyAttrLocalPreference},
+			engine:   startTextEraFilterPlugin(b),
+		},
+		attrModHandlers: attrModHandlersWithDefaults(),
+	}
+
+	// Outside the timed loop: the chain must MODIFY, so an accept that leaves
+	// LOCAL_PREF at 100 cannot be what is measured.
+	probe := textEraUpdateBody(0)
+	got := r.runIngressPolicyChain(peer, addr, wireu.NewWireUpdate(probe, ctxID), probe)
+	if !got.accept {
+		b.Fatal("the chain did not accept the modified route")
+	}
+	if pref, ok := textEraLocalPref(got.modifiedPayload); !ok || pref != 200 {
+		b.Fatalf("the rebuilt payload carries LOCAL_PREF %d (found=%v), want 200", pref, ok)
+	}
+
+	for _, routes := range []int{1, 16, 64} {
+		b.Run("routes="+strconv.Itoa(routes), func(b *testing.B) {
+			bodies := make([][]byte, routes)
+			for j := range bodies {
+				bodies[j] = textEraUpdateBody(j)
+			}
+			updates := make([]*wireu.WireUpdate, b.N*routes)
+			for k := range updates {
+				updates[k] = wireu.NewWireUpdate(bodies[k%routes], ctxID)
+			}
+
+			var before, after runtime.MemStats
+			b.ReportAllocs()
+			runtime.ReadMemStats(&before)
+			b.ResetTimer()
+			for i := range b.N {
+				for j := range routes {
+					res := r.runIngressPolicyChain(peer, addr, updates[i*routes+j], bodies[j])
+					if res.modifiedPayload == nil {
+						b.Fatalf("route %d was not modified", j)
+					}
+				}
+			}
+			b.StopTimer()
+			runtime.ReadMemStats(&after)
+
+			total := float64(b.N * routes)
+			b.ReportMetric(float64(after.Mallocs-before.Mallocs)/total, "allocs/route")
+			b.ReportMetric(float64(after.TotalAlloc-before.TotalAlloc)/total, "B/route")
+		})
+	}
+}
