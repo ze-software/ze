@@ -872,8 +872,11 @@ func answerFilterBatch(eval FilterEvaluator, params json.RawMessage) (json.RawMe
 		return nil, fmt.Errorf("unmarshal filter-update: %w", err)
 	}
 	out := rpc.FilterUpdateBatchOutput{Verdicts: make([]rpc.FilterUpdateOutput, len(batch.Routes))}
+	// Evaluators cannot retain the borrowed route past their call.
+	// Reuse one wrapper per batch instead of letting one escape per route.
+	var route rpc.FilterRoute
 	for i := range batch.Routes {
-		route := rpc.InputFilterRoute(&batch.Routes[i])
+		route = rpc.InputFilterRoute(&batch.Routes[i])
 		verdict, err := eval(&route)
 		if err != nil {
 			out.Verdicts[i] = rpc.FilterUpdateOutput{Action: rpc.FilterReject, Error: err.Error()}

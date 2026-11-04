@@ -58,3 +58,66 @@ func TestFilterUpdateAnswersOneVerdictPerRoute(t *testing.T) {
 		t.Fatalf("verdict c = %+v, want reject", out.Verdicts[2])
 	}
 }
+
+// TestFilterBatchAllocationBudget bounds allocation pressure for a full batch
+// of header-only filters. The evaluator borrows each route, checks its header
+// and returns an existing verdict; total allocation pressure, including the
+// verdict codec, must stay below two allocations per route while preserving
+// all alternating verdicts in order.
+func TestFilterBatchAllocationBudget(t *testing.T) {
+	input := rpc.FilterUpdateBatchInput{Routes: make([]rpc.FilterUpdateInput, rpc.FilterUpdateBatchMax)}
+	for i := range input.Routes {
+		input.Routes[i] = rpc.FilterUpdateInput{Filter: "f", PeerAS: uint32(i + 1)}
+	}
+	params, err := json.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	accept := FilterUpdateOutput{Action: rpc.FilterAccept}
+	reject := FilterUpdateOutput{Action: rpc.FilterReject}
+	seen := 0
+	eval := func(route *FilterRoute) (*FilterUpdateOutput, error) {
+		seen++
+		if route.PeerAS() != uint32(seen) {
+			return nil, errors.New("batch route header changed")
+		}
+		if seen%2 == 0 {
+			return &reject, nil
+		}
+		return &accept, nil
+	}
+	var answer json.RawMessage
+	var callErr error
+	allocs := testing.AllocsPerRun(100, func() {
+		seen = 0
+		answer, callErr = answerFilterBatch(eval, params)
+	})
+	if callErr != nil {
+		t.Fatal(callErr)
+	}
+	if seen != len(input.Routes) {
+		t.Fatalf("judged %d routes, want %d", seen, len(input.Routes))
+	}
+	var out rpc.FilterUpdateBatchOutput
+	if err := json.Unmarshal(answer, &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Verdicts) != len(input.Routes) {
+		t.Fatalf("%d verdicts for %d routes", len(out.Verdicts), len(input.Routes))
+	}
+	for i := range out.Verdicts {
+		want := rpc.FilterAccept
+		if i%2 == 1 {
+			want = rpc.FilterReject
+		}
+		if out.Verdicts[i].Action != want {
+			t.Fatalf("route %d action = %v, want %v", i, out.Verdicts[i].Action, want)
+		}
+		if out.Verdicts[i].Error != "" {
+			t.Fatalf("route %d error = %q", i, out.Verdicts[i].Error)
+		}
+	}
+	if allocs >= 2*float64(rpc.FilterUpdateBatchMax) {
+		t.Fatalf("full header-only batch allocated %.0f objects, want fewer than %d", allocs, 2*rpc.FilterUpdateBatchMax)
+	}
+}

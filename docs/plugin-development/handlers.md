@@ -383,6 +383,11 @@ atomically. Data it has not resolved yet takes the filter's `on-error`; once
 resolved, the plugin asks Ze to re-judge the routes, which at HEAD is
 `request peer <peer> refresh <family>` (RFC 2918).
 
+The SDK reuses one borrowed route wrapper within a batch, only after each
+evaluator call returns. Decoded input bytes and collected verdicts remain in
+separate storage; concurrent batch invocations do not share the wrapper.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- answerFilterBatch -->
+
 **The conformance harness.** Every fast-path filter's test MUST pass
 `sdk.CheckFilterConformance(t, name, eval, routes)` under `-race`. It refuses
 a call past `sdk.FilterCallDeadline`, a repeat call that answers differently
