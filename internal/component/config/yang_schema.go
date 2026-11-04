@@ -463,7 +463,8 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 	}
 
 	// Standard YANG node types
-	//exhaustive:ignore // Only leaf and directory data entries project into config schema nodes.
+	// Only leaf and directory data entries project into config schema nodes.
+	//exhaustive:ignore
 	switch entry.Kind {
 	case gyang.LeafEntry:
 		// leaf-list without ze:syntax extension — accepts single value or bracket list

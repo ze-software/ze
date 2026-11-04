@@ -508,7 +508,8 @@ func (a *v6AdvertiseCollector) accept(m *dhcpv6.Message) bool {
 	if !v6Identified(m, a.w.duid) {
 		return false
 	}
-	//exhaustive:ignore // a Solicit is answered by Advertise or Reply only; every other type is discarded
+	// a Solicit is answered by Advertise or Reply only; every other type is discarded
+	//exhaustive:ignore
 	switch m.MessageType {
 	case dhcpv6.MessageTypeReply:
 		a.w.noteSolMaxRT(m)

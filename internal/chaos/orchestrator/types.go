@@ -106,7 +106,8 @@ func (es *establishedState) Snapshot() []bool {
 // isLifecycleEvent returns true for event types that produce immediate
 // dashboard output.
 func isLifecycleEvent(t peer.EventType) bool {
-	//exhaustive:ignore // Only events needing immediate terminal output satisfy this predicate.
+	// Only events needing immediate terminal output satisfy this predicate.
+	//exhaustive:ignore
 	switch t {
 	case peer.EventEstablished, peer.EventDisconnected, peer.EventEORSent,
 		peer.EventDroppedEvents, peer.EventError, peer.EventChaosExecuted,

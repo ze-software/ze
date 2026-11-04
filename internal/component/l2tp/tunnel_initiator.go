@@ -295,7 +295,8 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 			first = false
 			continue
 		}
-		//exhaustive:ignore // Extract only SCCRP tunnel setup fields after generic AVP validation.
+		// Extract only SCCRP tunnel setup fields after generic AVP validation.
+		//exhaustive:ignore
 		switch attrType {
 		case AVPProtocolVersion:
 			// RFC 2661 Section 4.4.3 draws the Protocol Version AVP as one

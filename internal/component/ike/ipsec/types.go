@@ -85,7 +85,8 @@ func ParseEncryptionAlgo(s string) (EncryptionAlgo, bool) {
 // RFC 7296 Section 3.3: AEAD ciphers; when proposing AEAD for ESP,
 // INTEG must be NONE.
 func (e EncryptionAlgo) IsAEAD() bool {
-	//exhaustive:ignore // Selects algorithms with integrated authentication; all others are non-AEAD.
+	// Selects algorithms with integrated authentication; all others are non-AEAD.
+	//exhaustive:ignore
 	switch e {
 	case EncryptionAES128GCM, EncryptionAES256GCM, EncryptionChaCha20Poly:
 		return true
@@ -105,7 +106,8 @@ func (e EncryptionAlgo) IsAEAD() bool {
 // Section 7.2. EncryptionImplementedESP reads it, and that function states why the two
 // SA kinds answer differently.
 func (e EncryptionAlgo) IsAESCCM() bool {
-	//exhaustive:ignore // Selects only AES-CCM variants; other algorithms are not CCM.
+	// Selects only AES-CCM variants; other algorithms are not CCM.
+	//exhaustive:ignore
 	switch e {
 	case EncryptionAES128CCM8, EncryptionAES256CCM8,
 		EncryptionAES128CCM12, EncryptionAES256CCM12,

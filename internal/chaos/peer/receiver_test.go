@@ -159,7 +159,8 @@ func TestParseUpdatePrefixesMultiple(t *testing.T) {
 
 	var withdrawals, announcements []netip.Prefix
 	for _, ev := range buf.items {
-		//exhaustive:ignore // This test projects received and withdrawn route prefixes.
+		// This test projects received and withdrawn route prefixes.
+		//exhaustive:ignore
 		switch ev.Type {
 		case EventRouteWithdrawn:
 			withdrawals = append(withdrawals, ev.Prefix)

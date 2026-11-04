@@ -38,7 +38,8 @@ func ProbeConfigType(content string) ConfigType {
 			break
 		}
 
-		//exhaustive:ignore // Only tracks braces and words to detect a top-level bgp block.
+		// Only tracks braces and words to detect a top-level bgp block.
+		//exhaustive:ignore
 		switch t.kind {
 		case tokenLBrace:
 			depth++

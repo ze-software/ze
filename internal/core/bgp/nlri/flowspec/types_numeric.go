@@ -95,7 +95,8 @@ func (c *numericComponent) numericString() string {
 			b.Byte(' ')
 		}
 		if c.compType != FlowIPProtocol {
-			//exhaustive:ignore // Render only comparison bits after masking the operator framing flags.
+			// Render only comparison bits after masking the operator framing flags.
+			//exhaustive:ignore
 			switch m.Op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask) {
 			case FlowOpGreater:
 				b.Byte('>')

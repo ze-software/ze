@@ -364,7 +364,8 @@ func (s *Session) fsmMessageEvent(event fsm.Event) error {
 // fsmErrorNotifies answers whether RFC 4271 Section 8.2.2 opens the "any other
 // event" list of state with a Finite State Machine Error NOTIFICATION.
 func fsmErrorNotifies(state fsm.State) bool {
-	//exhaustive:ignore // Predicate selecting only states whose FSM-error path sends a NOTIFICATION.
+	// Predicate selecting only states whose FSM-error path sends a NOTIFICATION.
+	//exhaustive:ignore
 	switch state {
 	case fsm.StateOpenSent, fsm.StateOpenConfirm, fsm.StateEstablished:
 		return true
@@ -377,7 +378,8 @@ func fsmErrorNotifies(state fsm.State) bool {
 // list of state: OpenSent ("Events 9, 11-13, 20, 25-28") and OpenConfirm
 // ("Events 9, 12-13, 20, 27-28").
 func updateIsUnexpected(state fsm.State) bool {
-	//exhaustive:ignore // Predicate selecting pre-established states where a received UPDATE is unexpected.
+	// Predicate selecting pre-established states where a received UPDATE is unexpected.
+	//exhaustive:ignore
 	switch state {
 	case fsm.StateOpenSent, fsm.StateOpenConfirm:
 		return true

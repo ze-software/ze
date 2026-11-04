@@ -58,7 +58,8 @@ func (f *FSM) handleDelayOpen(event Event) bool {
 	if f.timers == nil {
 		return false
 	}
-	//exhaustive:ignore // Only the shared DelayOpen branches; the caller dispatches every other event.
+	// Only the shared DelayOpen branches; the caller dispatches every other event.
+	//exhaustive:ignore
 	switch event {
 	case EventTCPConnectionConfirmed:
 		// RFC 4271 Section 8.2.2: "If the DelayOpen attribute is set to TRUE, the local system:

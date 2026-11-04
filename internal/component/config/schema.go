@@ -1073,7 +1073,8 @@ func allDigits(value string) bool {
 }
 
 func parseNumericRangeValue(typ ValueType, value string) (*big.Int, error) {
-	//exhaustive:ignore // Only numeric leaf types project to integer range values.
+	// Only numeric leaf types project to integer range values.
+	//exhaustive:ignore
 	switch typ {
 	case TypeUint16:
 		v, err := strconv.ParseUint(value, 10, 16)

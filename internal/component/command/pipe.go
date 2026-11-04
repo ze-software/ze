@@ -239,7 +239,8 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, pipeChainMeta)
 		if isFormatOp(op.kind) {
 			formatSeen = true
 		}
-		//exhaustive:ignore // Only command-owned filters are folded; other operators stay in the output chain.
+		// Only command-owned filters are folded; other operators stay in the output chain.
+		//exhaustive:ignore
 		switch op.kind {
 		case pipeMatch, pipeCount, pipeFirst, pipeLast:
 			if formatSeen {
@@ -313,7 +314,8 @@ type pipeChainMeta []pipeChainStep
 func collectPipeMeta(ops []pipeOp) pipeChainMeta {
 	var meta pipeChainMeta
 	for _, op := range ops {
-		//exhaustive:ignore // Only row-selection and command-owned filters contribute pipe metadata.
+		// Only row-selection and command-owned filters contribute pipe metadata.
+		//exhaustive:ignore
 		switch op.kind {
 		case pipeMatch:
 			meta = append(meta, pipeChainStep{Op: "match", Arg: op.arg})
@@ -1189,7 +1191,8 @@ func formatForcesLineTransforms(k pipeKind) bool {
 // in hand. Metadata can be injected before a later format only after the last
 // such operator, or it would become input to that operator.
 func isDataTransformOp(k pipeKind) bool {
-	//exhaustive:ignore // This predicate selects operators that change or select answer data.
+	// This predicate selects operators that change or select answer data.
+	//exhaustive:ignore
 	switch k {
 	case pipeMatch, pipeCount, pipeResolve, pipeOrigin, pipeFirst, pipeLast, pipeDisplay:
 		return true
@@ -1199,7 +1202,8 @@ func isDataTransformOp(k pipeKind) bool {
 }
 
 func isStructuredTransformOp(k pipeKind) bool {
-	//exhaustive:ignore // This predicate selects operators that require structured fields.
+	// This predicate selects operators that require structured fields.
+	//exhaustive:ignore
 	switch k {
 	case pipeDisplay, pipeFill, pipeResolve, pipeOrigin:
 		return true
@@ -1209,7 +1213,8 @@ func isStructuredTransformOp(k pipeKind) bool {
 }
 
 func isLineTransformOp(k pipeKind) bool {
-	//exhaustive:ignore // This predicate selects operators that can transform rendered lines.
+	// This predicate selects operators that can transform rendered lines.
+	//exhaustive:ignore
 	switch k {
 	case pipeMatch, pipeCount, pipeFirst, pipeLast:
 		return true
@@ -1558,7 +1563,8 @@ func processStreamPipes(input, sessionFormat string, saveAllowed bool) (cmd stri
 
 	flags.Log = hasLogOp(ops)
 	for _, op := range ops {
-		//exhaustive:ignore // Only address-enrichment operators set these stream display flags.
+		// Only address-enrichment operators set these stream display flags.
+		//exhaustive:ignore
 		switch op.kind {
 		case pipeResolve:
 			flags.Resolve = true

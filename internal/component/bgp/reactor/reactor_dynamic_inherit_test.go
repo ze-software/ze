@@ -218,7 +218,8 @@ func fillDistinctValue(field reflect.Value, seed int) error {
 		return nil
 	}
 
-	//exhaustive:ignore // Only PeerSettings fixture kinds are populated; unsupported kinds require an explicit fixture decision.
+	// Only PeerSettings fixture kinds are populated; unsupported kinds require an explicit fixture decision.
+	//exhaustive:ignore
 	switch field.Kind() {
 	case reflect.String:
 		var tb textbuf.Buffer

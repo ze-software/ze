@@ -32,7 +32,8 @@ func holdsSelector(ty reflect.Type) bool {
 	}
 	for f := range ty.Fields() {
 		field := derefType(f.Type)
-		//exhaustive:ignore // Only collection kinds need element projection to find selector-bearing fields.
+		// Only collection kinds need element projection to find selector-bearing fields.
+		//exhaustive:ignore
 		switch field.Kind() {
 		case reflect.Slice, reflect.Array, reflect.Map:
 			field = derefType(field.Elem())
@@ -67,7 +68,8 @@ func TestRFC4301SPDEntryCannotCarryASecondSelectorSet(t *testing.T) {
 	}
 	selectors := 0
 	for field := range reflect.TypeOf(entry).Fields() {
-		//exhaustive:ignore // Only collection kinds can carry multiple selector sets; other kinds are single fields.
+		// Only collection kinds can carry multiple selector sets; other kinds are single fields.
+		//exhaustive:ignore
 		switch field.Type.Kind() {
 		case reflect.Slice, reflect.Array, reflect.Map:
 			if holdsSelector(field.Type.Elem()) {

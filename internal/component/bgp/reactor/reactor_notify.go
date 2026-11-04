@@ -349,7 +349,8 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 		// Engine counts updates, keepalives, and EOR. NLRI-level counters
 		// (announce vs withdraw per prefix) belong in the RIB plugin.
 		if direction == rpc.DirectionReceived {
-			//exhaustive:ignore // Only received UPDATE and KEEPALIVE messages contribute to these counters.
+			// Only received UPDATE and KEEPALIVE messages contribute to these counters.
+			//exhaustive:ignore
 			switch msgType {
 			case msgtype.TypeUPDATE:
 				peer.incrUpdatesReceived()
@@ -392,7 +393,8 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 				peer.incrKeepalivesReceived()
 			}
 		} else {
-			//exhaustive:ignore // Only sent UPDATE and KEEPALIVE messages contribute to these counters.
+			// Only sent UPDATE and KEEPALIVE messages contribute to these counters.
+			//exhaustive:ignore
 			switch msgType {
 			case msgtype.TypeUPDATE:
 				peer.incrUpdatesSent()

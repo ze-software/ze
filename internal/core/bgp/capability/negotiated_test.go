@@ -255,7 +255,8 @@ func TestNegotiateMismatches(t *testing.T) {
 	// Count mismatches by type
 	var extMsgMismatch, errMismatch, ipv6Mismatch, evpnMismatch bool
 	for _, m := range neg.Mismatches {
-		//exhaustive:ignore // Observe only the capability mismatches asserted by this fixture.
+		// Observe only the capability mismatches asserted by this fixture.
+		//exhaustive:ignore
 		switch m.Code {
 		case CodeExtendedMessage:
 			extMsgMismatch = true

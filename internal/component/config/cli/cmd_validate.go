@@ -552,7 +552,8 @@ func listenerConflictRelated(c *config.ListenerConflict) []diagnostic.Related {
 }
 
 func yangRepair(t configyang.ErrorType) (*diagnostic.Repair, diagnostic.FixSafety) {
-	//exhaustive:ignore // Only errors with a known repair contribute repair metadata.
+	// Only errors with a known repair contribute repair metadata.
+	//exhaustive:ignore
 	switch t {
 	case configyang.ErrTypeMissing:
 		return &diagnostic.Repair{ID: "add-missing-field", Summary: "Insert mandatory field with its default or required value"}, diagnostic.SafetySectionLocal

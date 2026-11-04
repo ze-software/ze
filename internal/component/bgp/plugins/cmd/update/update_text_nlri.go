@@ -367,7 +367,8 @@ func parseINETNLRI(token string, fam family.Family, pathID uint32, hasPathID boo
 // Returns NLRI, extra args consumed, and any error.
 // For FlowSpec families, this function is not used - see parseFlowSpecSection.
 func parseNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, int, error) {
-	//exhaustive:ignore // parseNLRISection calls this only for a nativeTextFamily family it has not already handed to its own section parser (FlowSpec, VPLS, EVPN), so only unicast, multicast, VPN and labeled unicast arrive; every other SAFI goes to parseRegistryNLRISection.
+	// parseNLRISection calls this only for a nativeTextFamily family it has not already handed to its own section parser (FlowSpec, VPLS, EVPN), so only unicast, multicast, VPN and labeled unicast arrive; every other SAFI goes to parseRegistryNLRISection.
+	//exhaustive:ignore
 	switch fam.SAFI {
 	case family.SAFIVPN: // SAFI 128 - MPLS VPN
 		return parseVPNNLRI(token, fam, accum)

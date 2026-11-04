@@ -175,7 +175,8 @@ func jointSubnetFRRCapturedUpdate(body []byte, scenario jointSubnetFRRScenario) 
 	var reach, community []byte
 	iter := attribute.NewAttrIterator(sections.Attrs(body))
 	for code, flags, value, ok := iter.Next(); ok; code, flags, value, ok = iter.Next() {
-		//exhaustive:ignore // Only completion fields and withdrawals belong to this oracle.
+		// Only completion fields and withdrawals belong to this oracle.
+		//exhaustive:ignore
 		switch code {
 		case attribute.AttrMPReachNLRI:
 			if flags&^attribute.FlagExtLength != attribute.FlagOptional {

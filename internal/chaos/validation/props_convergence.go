@@ -33,7 +33,8 @@ func (p *ConvergenceDeadline) RFC() string         { return "" }
 
 func (p *ConvergenceDeadline) ProcessEvent(ev peer.Event) {
 	p.lastTime = ev.Time
-	//exhaustive:ignore // This independent property observes only announcement and receipt pairs.
+	// This independent property observes only announcement and receipt pairs.
+	//exhaustive:ignore
 	switch ev.Type {
 	case peer.EventRouteSent:
 		p.convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time, ev.Family)

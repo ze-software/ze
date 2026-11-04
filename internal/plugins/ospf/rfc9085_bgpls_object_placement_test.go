@@ -259,7 +259,8 @@ func rfc9085OSPFPlacementV3(t *testing.T, e *engine, origin, object byte, prefix
 	prefix := []byte{0, 0, 0, 10, 64, object, 0, 0, 0x20, 1, 0x0d, 0xb8, 0, 0, 0, object}
 	prefix = v3packet.AppendSubTLVs(prefix, []v3packet.ExtendedTLV{{Type: sr.V6TypePrefixSID, Value: []byte{0x40, 1, 0, 0, 0, 0, 0, marker}}})
 	typ := uint16(3)
-	//exhaustive:ignore // The fixture varies only the four extended prefix LSA classes.
+	// The fixture varies only the four extended prefix LSA classes.
+	//exhaustive:ignore
 	switch prefixType {
 	case v3types.LSTypeEIntraAreaPrefix:
 		typ = 6

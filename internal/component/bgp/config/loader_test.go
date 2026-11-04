@@ -245,7 +245,8 @@ bgp {
 	// Check both capabilities are present
 	var hasRouteRefresh, hasEnhancedRouteRefresh bool
 	for _, cap := range settings.Capabilities {
-		//exhaustive:ignore // This assertion observes only basic and enhanced route-refresh capability presence.
+		// This assertion observes only basic and enhanced route-refresh capability presence.
+		//exhaustive:ignore
 		switch cap.Code() {
 		case capability.CodeRouteRefresh:
 			hasRouteRefresh = true

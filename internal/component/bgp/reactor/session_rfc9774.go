@@ -57,7 +57,8 @@ func (s *Session) transmittedPathHoldsSet(body []byte) bool {
 		if !ok {
 			return false
 		}
-		//exhaustive:ignore // only the two path attributes can hold a segment
+		// only the two path attributes can hold a segment
+		//exhaustive:ignore
 		switch code {
 		case attribute.AttrASPath:
 			if _, set := message.ASPathSetSegment(value, asnOctets); set {

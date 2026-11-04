@@ -271,7 +271,8 @@ func goDelimitedEnd(lexemes []goLexeme, start int) int {
 }
 
 func goClosing(kind token.Token) token.Token {
-	//exhaustive:ignore // Only opening delimiters have a matching closing token.
+	// Only opening delimiters have a matching closing token.
+	//exhaustive:ignore
 	switch kind {
 	case token.LPAREN:
 		return token.RPAREN

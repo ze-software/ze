@@ -200,7 +200,8 @@ func TestSimulatorSendsRoutes(t *testing.T) {
 	routesSent := 0
 	eorSent := false
 	for ev := range events {
-		//exhaustive:ignore // This test observes route sends, EOR completion and errors.
+		// This test observes route sends, EOR completion and errors.
+		//exhaustive:ignore
 		switch ev.Type {
 		case EventRouteSent:
 			routesSent++
@@ -268,7 +269,8 @@ func TestSimulatorShutdownClean(t *testing.T) {
 	established := false
 	disconnected := false
 	for ev := range events {
-		//exhaustive:ignore // This test observes only establishment and clean disconnection.
+		// This test observes only establishment and clean disconnection.
+		//exhaustive:ignore
 		switch ev.Type {
 		case EventEstablished:
 			established = true

@@ -71,7 +71,8 @@ func pingAction(fields []string) LocalAction {
 // It writes nothing for an action that is not a ping.
 func writePong(w io.Writer, action LocalAction) {
 	var tb textbuf.Buffer
-	//exhaustive:ignore // only the two ping forms carry an answer line; every other local action owes its ack alone
+	// only the two ping forms carry an answer line; every other local action owes its ack alone
+	//exhaustive:ignore
 	switch action {
 	case LocalPing:
 		tb.Str(`{"pong": "`).Str(daemonUUID).Str(`", "active": true}`).Byte('\n')

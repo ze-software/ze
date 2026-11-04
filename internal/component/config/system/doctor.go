@@ -276,7 +276,8 @@ func checkResolvConfPath(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 	if path == "" {
 		return nil
 	}
-	//exhaustive:ignore // Diagnose only platforms with a known resolv.conf path mismatch.
+	// Diagnose only platforms with a known resolv.conf path mismatch.
+	//exhaustive:ignore
 	switch ctx.Platform.Type {
 	case host.PlatformGokrazy:
 		if strings.HasPrefix(path, "/etc/") {

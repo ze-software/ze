@@ -247,7 +247,8 @@ func snapshotLogAttr(attr slog.Attr) slog.Attr {
 	if attr.Equal(slog.Attr{}) {
 		return attr
 	}
-	//exhaustive:ignore // Only groups and arbitrary values can alias caller state; Resolve removed LogValuer and every scalar kind is already a value.
+	// Only groups and arbitrary values can alias caller state; Resolve removed LogValuer and every scalar kind is already a value.
+	//exhaustive:ignore
 	switch attr.Value.Kind() {
 	case slog.KindGroup:
 		children := snapshotLogAttrs(attr.Value.Group())

@@ -755,7 +755,8 @@ func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 		needsProcess := false
 		capName := ""
 		for _, cap := range ps.Capabilities {
-			//exhaustive:ignore // Only route-refresh and graceful-restart require a route-pushing process binding.
+			// Only route-refresh and graceful-restart require a route-pushing process binding.
+			//exhaustive:ignore
 			switch cap.Code() {
 			case capability.CodeRouteRefresh:
 				needsProcess = true

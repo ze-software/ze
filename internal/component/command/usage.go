@@ -504,7 +504,8 @@ func usageToken(def *ArgDef, kind UsageKind) UsageToken {
 // is the caller's: an enumeration's values are copied, so a UsageToken cannot
 // change the definition it was rendered from.
 func usageValues(def *ArgDef) []string {
-	//exhaustive:ignore // Only enum and union argument types contribute usage alternatives.
+	// Only enum and union argument types contribute usage alternatives.
+	//exhaustive:ignore
 	switch def.kind {
 	case ArgEnum:
 		return slices.Clone(def.enumValues)

@@ -221,7 +221,8 @@ func (f *Flooder) SetMetrics(reg metrics.Registry) {
 // type already encodes the level (ISO/IEC 10589 clause 9.5); a non-level type
 // returns false so the caller drops it.
 func levelOf(pt packet.PDUType) (Level, bool) {
-	//exhaustive:ignore // Only LSP and SNP types belong to the flooding level projection.
+	// Only LSP and SNP types belong to the flooding level projection.
+	//exhaustive:ignore
 	switch pt {
 	case packet.PDUTypeL1LSP, packet.PDUTypeL1CSNP, packet.PDUTypeL1PSNP:
 		return Level1, true

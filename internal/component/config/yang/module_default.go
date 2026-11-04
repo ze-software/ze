@@ -123,7 +123,8 @@ func unionMemberName(member *gyang.YangType) string {
 
 // isIntegerKind reports whether kind is one of the eight built-in integer types.
 func isIntegerKind(kind gyang.TypeKind) bool {
-	//exhaustive:ignore // a predicate over the integer subset; every other kind answers false
+	// a predicate over the integer subset; every other kind answers false
+	//exhaustive:ignore
 	switch kind {
 	case gyang.Yint8, gyang.Yint16, gyang.Yint32, gyang.Yint64,
 		gyang.Yuint8, gyang.Yuint16, gyang.Yuint32, gyang.Yuint64:

@@ -442,7 +442,8 @@ func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, pa
 		meta.Default = "false"
 	}
 
-	//exhaustive:ignore // Only numeric bounds and selected patterns add browser validation metadata.
+	// Only numeric bounds and selected patterns add browser validation metadata.
+	//exhaustive:ignore
 	switch leaf.Type {
 	case config.TypeUint16:
 		meta.Min = "0"

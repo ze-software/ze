@@ -164,7 +164,8 @@ func reconcileSection(t *testing.T, raw []byte, sourceASN4 bool) CanonicalASPath
 	recv := ReceivedASPathFamily{SourceASN4: sourceASN4}
 	iter := NewAttrIterator(raw)
 	for code, _, value, ok := iter.Next(); ok; code, _, value, ok = iter.Next() {
-		//exhaustive:ignore // Only project the four AS-path reconciliation attributes.
+		// Only project the four AS-path reconciliation attributes.
+		//exhaustive:ignore
 		switch code {
 		case AttrASPath:
 			recv.ASPath = value

@@ -201,7 +201,8 @@ func (l *v6Lease) apply(m *dhcpv6.Message, received time.Time, iaidNA, iaidPD [4
 // applyIA applies one IA of a Reply. It answers whether the IA was taken.
 func (l *v6Lease) applyIA(kind v6Kind, t1, t2 time.Duration, status *dhcpv6.OptStatusCode, leases []v6Binding, received time.Time, out *v6Applied) bool {
 	if status != nil {
-		//exhaustive:ignore // only the status codes that change IA processing; the set is open (wire)
+		// only the status codes that change IA processing; the set is open (wire)
+		//exhaustive:ignore
 		switch status.StatusCode {
 		case iana.StatusNoBinding:
 			out.noBinding = true

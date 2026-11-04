@@ -775,7 +775,8 @@ const pathIDDetail = "ADD-PATH path identifier compared with 0, but 0 is a valid
 // particular semantics." Zero is one more identifier, so presence follows the
 // negotiated capability and never the value.
 func comparesPathIDWithZero(binary *ast.BinaryExpr) bool {
-	//exhaustive:ignore // a predicate over the six comparison operators; every other operator answers false
+	// a predicate over the six comparison operators; every other operator answers false
+	//exhaustive:ignore
 	switch binary.Op {
 	case token.EQL, token.NEQ, token.GTR, token.LSS, token.GEQ, token.LEQ:
 	default:

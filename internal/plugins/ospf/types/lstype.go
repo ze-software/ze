@@ -110,7 +110,8 @@ func (t LSType) Known() bool { return t.inScope() || t.IsOpaque() }
 
 // inScope reports whether t is implemented by the first OSPFv2 pass.
 func (t LSType) inScope() bool {
-	//exhaustive:ignore // This predicate selects base OSPFv2 LSAs; opaque recognition is separate.
+	// This predicate selects base OSPFv2 LSAs; opaque recognition is separate.
+	//exhaustive:ignore
 	switch t {
 	case LSTypeRouter, LSTypeNetwork, LSTypeSummaryNetwork, LSTypeSummaryASBR, LSTypeASExternal, LSTypeNSSA:
 		return true
@@ -121,7 +122,8 @@ func (t LSType) inScope() bool {
 
 // IsOpaque reports whether t is one of the RFC 5250 opaque LSA types recognized but out of scope.
 func (t LSType) IsOpaque() bool {
-	//exhaustive:ignore // This predicate selects only the three OSPFv2 opaque LSA types.
+	// This predicate selects only the three OSPFv2 opaque LSA types.
+	//exhaustive:ignore
 	switch t {
 	case LSTypeOpaqueLink, LSTypeOpaqueArea, LSTypeOpaqueAS:
 		return true

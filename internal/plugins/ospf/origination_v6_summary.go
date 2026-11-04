@@ -120,7 +120,8 @@ func v6SummaryNetworks(src ospfspf.Source, res *ospfspf.Result, af addressFamily
 			continue
 		}
 		var nr *ospfspf.NodeResult
-		//exhaustive:ignore // Only Router and Network references attach prefixes to summary vertices.
+		// Only Router and Network references attach prefixes to summary vertices.
+		//exhaustive:ignore
 		switch body.ReferencedLSType {
 		case ospfv3types.LSTypeRouter:
 			nr = res.Nodes[ospfspf.VertexID{Kind: ospfspf.VertexRouter, Router: types.RouterID(body.ReferencedAdvRouter)}]

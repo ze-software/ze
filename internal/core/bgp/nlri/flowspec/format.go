@@ -95,7 +95,8 @@ func formatWithOperator(value string, op FlowOperator) string {
 	compOp := op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask)
 
 	var prefix string
-	//exhaustive:ignore // Render only comparison bits after masking the operator framing flags.
+	// Render only comparison bits after masking the operator framing flags.
+	//exhaustive:ignore
 	switch compOp {
 	case FlowOpEqual:
 		prefix = "="

@@ -289,7 +289,8 @@ func levelOfPDUType(pt packet.PDUType) (lsdbLevel, bool) {
 // isIIHType reports whether a PDU type is an IS-IS Hello (per-interface auth) as
 // opposed to an LSP/CSNP/PSNP (per-level auth).
 func isIIHType(pt packet.PDUType) bool {
-	//exhaustive:ignore // Only Hello PDUs use the per-interface authentication chain.
+	// Only Hello PDUs use the per-interface authentication chain.
+	//exhaustive:ignore
 	switch pt {
 	case packet.PDUTypeL1LANHello, packet.PDUTypeL2LANHello, packet.PDUTypeP2PHello:
 		return true

@@ -92,7 +92,8 @@ func newFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 // would let the two disagree, and the route would then be keyed one way on
 // insert and looked up another.
 func IsCIDRFamily(fam family.Family) bool {
-	//exhaustive:ignore // Only plain or label-stripped prefix SAFIs can use CIDR storage.
+	// Only plain or label-stripped prefix SAFIs can use CIDR storage.
+	//exhaustive:ignore
 	switch fam.SAFI {
 	case family.SAFIUnicast, family.SAFIMulticast, family.SAFIMPLSLabel:
 	default:

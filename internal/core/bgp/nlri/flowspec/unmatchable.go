@@ -71,7 +71,8 @@ func CheckMatchable(afi AFI, has func(FlowComponentType) bool, matches func(Flow
 			// puts ICMP after the ports and before the TCP flags, so the ICMP
 			// side is t against a port and first against the TCP flags.
 			icmp, other := need.names(), first
-			//exhaustive:ignore // only an ICMP first changes sides
+			// only an ICMP first changes sides
+			//exhaustive:ignore
 			switch first {
 			case FlowICMPType, FlowICMPCode:
 				icmp, other = required.names(), t
@@ -119,7 +120,8 @@ func CheckMatchable(afi AFI, has func(FlowComponentType) bool, matches func(Flow
 // transportProtocols answers the IP protocols a packet MUST carry for the
 // transport component t to match it. It is asked only about transportTypes.
 func transportProtocols(t FlowComponentType, afi AFI) protocolSet {
-	//exhaustive:ignore // only the transport components restrict the protocol
+	// only the transport components restrict the protocol
+	//exhaustive:ignore
 	switch t {
 	case FlowPort, FlowDestPort, FlowSourcePort:
 		// RFC 8955 Section 4.2.2.4: "The port component, if present, never

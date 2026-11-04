@@ -147,7 +147,8 @@ func newChaosProgress(n int) *chaosProgress {
 // the reactor to reject the second connection and keep the session. A fall is
 // therefore not certain, and a demand for one hangs when the reactor is right.
 func endsSession(t engine.ActionType) bool {
-	//exhaustive:ignore // Only actions expected to end the session affect progress tracking.
+	// Only actions expected to end the session affect progress tracking.
+	//exhaustive:ignore
 	switch t {
 	case engine.ActionTCPDisconnect,
 		engine.ActionNotificationCease,

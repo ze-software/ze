@@ -235,7 +235,8 @@ func OrderAttributes(attrs []Attribute) []Attribute {
 	var mpUnreach, mpReach Attribute
 
 	for _, attr := range attrs {
-		//exhaustive:ignore // Only the two MP codes leave the type-code sort.
+		// Only the two MP codes leave the type-code sort.
+		//exhaustive:ignore
 		switch attr.Code() {
 		case AttrMPUnreachNLRI:
 			mpUnreach = attr

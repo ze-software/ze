@@ -173,7 +173,8 @@ func FamilyLess(a, b Family) bool {
 // command reported "no peer accepted this family", which was untrue, and the
 // operator saw a rule acknowledged and never advertised (ai/rules/principles.md).
 func (f Family) NeedsNextHop() bool {
-	//exhaustive:ignore // Only FlowSpec families bypass forwarding next-hop resolution.
+	// Only FlowSpec families bypass forwarding next-hop resolution.
+	//exhaustive:ignore
 	switch f.SAFI {
 	case SAFIFlowSpec, SAFIFlowSpecVPN:
 		return false

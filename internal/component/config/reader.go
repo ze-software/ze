@@ -207,7 +207,8 @@ func extractBraceContent(tokens []token, pos *int) []token {
 	start := *pos
 	depth := 1
 	for *pos < len(tokens) && depth > 0 {
-		//exhaustive:ignore // Only counts matching braces while preserving intervening tokens.
+		// Only counts matching braces while preserving intervening tokens.
+		//exhaustive:ignore
 		switch tokens[*pos].kind {
 		case tokenLBrace:
 			depth++

@@ -276,7 +276,8 @@ func (p *Peer) replyDiscovery(frame []byte) (uint8, error) {
 	}
 	var outgoing [pppoe.EthMaxLen]byte
 	var reply []byte
-	//exhaustive:ignore // This fixture serves only discovery requests.
+	// This fixture serves only discovery requests.
+	//exhaustive:ignore
 	switch pkt.Code {
 	case pppoe.CodePADI:
 		// RFC 2516 Section 5.2.

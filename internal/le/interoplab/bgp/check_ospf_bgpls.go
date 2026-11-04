@@ -251,7 +251,8 @@ func ospfBGPLSApplyUpdate(inventory map[string]ospfBGPLSRoute, body []byte) erro
 		if !ok {
 			break
 		}
-		//exhaustive:ignore // This collector extracts MP reachability and BGP-LS attributes, not other path attributes.
+		// This collector extracts MP reachability and BGP-LS attributes, not other path attributes.
+		//exhaustive:ignore
 		switch code {
 		case 14:
 			if len(value) < 5 || 5+int(value[3]) > len(value) {

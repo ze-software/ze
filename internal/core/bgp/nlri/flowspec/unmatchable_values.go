@@ -134,7 +134,8 @@ func protocolsAdmitted(list []FlowMatch) protocolSet {
 // componentValueMax answers the largest value the packet field a numeric
 // component reads can hold. It is asked only about valueComponentTypes.
 func componentValueMax(t FlowComponentType, afi AFI) uint64 {
-	//exhaustive:ignore // only the components judged by value have a field width here
+	// only the components judged by value have a field width here
+	//exhaustive:ignore
 	switch t {
 	case FlowPort, FlowDestPort, FlowSourcePort:
 		// RFC 8955 Section 4.2.2.4: "Defines a list of {numeric_op, value}

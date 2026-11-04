@@ -276,7 +276,8 @@ func (d *Display) TestFinished(nick string, state State, elapsed time.Duration) 
 		return
 	}
 	var tag string
-	//exhaustive:ignore // Report completed outcomes only; ongoing states emit no completion line.
+	// Report completed outcomes only; ongoing states emit no completion line.
+	//exhaustive:ignore
 	switch state {
 	case StateSuccess:
 		tag = "PASS"

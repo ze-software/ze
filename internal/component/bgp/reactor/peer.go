@@ -2588,7 +2588,8 @@ func handshakeInFlight(session *Session) bool {
 	if session == nil {
 		return false
 	}
-	//exhaustive:ignore // Only OPEN handshake phases count as an in-flight handshake.
+	// Only OPEN handshake phases count as an in-flight handshake.
+	//exhaustive:ignore
 	switch session.State() {
 	case fsm.StateOpenSent, fsm.StateOpenConfirm:
 		return true

@@ -323,7 +323,8 @@ func testV6Answer(req *dhcpv6.Message, kind dhcpv6.MessageType, server dhcpv6.DU
 // a Reply, each with lease; it ignores Rebind unless rebind is set.
 func leaseServer(lease func() []dhcpv6.Option, renew, rebind bool) func(*dhcpv6.Message) []*dhcpv6.Message {
 	return func(req *dhcpv6.Message) []*dhcpv6.Message {
-		//exhaustive:ignore // the scripted server answers only the types it serves
+		// the scripted server answers only the types it serves
+		//exhaustive:ignore
 		switch req.MessageType {
 		case dhcpv6.MessageTypeSolicit:
 			return []*dhcpv6.Message{testV6Answer(req, dhcpv6.MessageTypeReply, v6ServerA, lease()...)}
@@ -551,7 +552,8 @@ func TestRFC9915Section182101NoBindingSendsRequest(t *testing.T) {
 	r := newV6Rig(t, dHCPConfig{})
 	renewed := false
 	r.srv.serve = func(req *dhcpv6.Message) []*dhcpv6.Message {
-		//exhaustive:ignore // the scripted server answers only the types it serves
+		// the scripted server answers only the types it serves
+		//exhaustive:ignore
 		switch req.MessageType {
 		case dhcpv6.MessageTypeSolicit, dhcpv6.MessageTypeRequest:
 			return []*dhcpv6.Message{testV6Answer(req, dhcpv6.MessageTypeReply, v6ServerA, lease10x16x30()...)}

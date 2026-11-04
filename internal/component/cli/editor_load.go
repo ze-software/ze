@@ -125,7 +125,8 @@ func (e *Editor) loadApply(contextPath []string, loaded *config.Tree, replace bo
 	if node == nil {
 		return fmt.Errorf("load: unknown context path: %s", tb.Join(path, " ").String())
 	}
-	//exhaustive:ignore // A load lands in a container or a list entry; every other kind is refused below.
+	// A load lands in a container or a list entry; every other kind is refused below.
+	//exhaustive:ignore
 	switch node.Kind() {
 	case config.NodeContainer, config.NodeList:
 	default:

@@ -434,7 +434,8 @@ func renderOps(ops []pipeOp, sessionFormat string) []pipeOp {
 }
 
 func recordRendererKeeps(kind pipeKind) bool {
-	//exhaustive:ignore // Keep column-order requests and formats; record transforms have already run.
+	// Keep column-order requests and formats; record transforms have already run.
+	//exhaustive:ignore
 	switch kind {
 	case pipeDisplay, pipeFill:
 		return true

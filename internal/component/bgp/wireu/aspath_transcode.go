@@ -231,7 +231,8 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 			hdrLen = 3
 		}
 
-		//exhaustive:ignore // Transcode only AS-path-family attributes; copy all other codes unchanged.
+		// Transcode only AS-path-family attributes; copy all other codes unchanged.
+		//exhaustive:ignore
 		switch code {
 		case attribute.AttrASPath:
 			if existingPath != nil {

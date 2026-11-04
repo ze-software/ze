@@ -567,7 +567,8 @@ func (s *Session) rfc7606DiagnosticsWithWire(event string, wu *wireu.WireUpdate,
 	var mpReach, mpUnreach []string
 	iter := attribute.NewAttrIterator(attrs)
 	for code, _, value, ok := iter.Next(); ok; code, _, value, ok = iter.Next() {
-		//exhaustive:ignore // Only MP attributes contain NLRI.
+		// Only MP attributes contain NLRI.
+		//exhaustive:ignore
 		switch code {
 		case attribute.AttrMPReachNLRI:
 			mpReach = append(mpReach, mpDiagnosticNLRI(code, value, recvCtx)...)

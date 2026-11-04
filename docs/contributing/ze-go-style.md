@@ -217,12 +217,22 @@ values outside the named set; it does not replace explicit named cases.
 |-------|-------------------|-------------------|
 | C: closed, internal | A value only Ze produces | List every distinct named value explicitly. A retained `default` is only `panic("BUG: <what>")`, after tracing constructors, mutations and callers to prove that unvalidated external input cannot reach it. |
 | O: open, from outside | A code from the wire, a file, config or a plugin | List every accessible distinct named value explicitly. Keep a safe, non-panicking unknown handler in `default`, with a comment that the set is open. |
-| P: intentionally partial | A predicate, projection or independent handler for a legitimate subset | Put `//exhaustive:ignore // <why this switch handles a subset>` immediately before the switch. Preserve the behavior for nonmatching values. |
+| P: intentionally partial | A predicate, projection or independent handler for a legitimate subset | Put a normal `// <why this switch handles a subset>` comment immediately before an argument-free `//exhaustive:ignore` directly above the switch. Preserve the behavior for nonmatching values. |
 
 A complete dispatcher or state/event transition table is C or O, even when some
 named events do nothing. P is not an exemption for missing cases in such a
 dispatcher. Do not use a blanket `nolint:exhaustive`, file exemption, cast or
 untagged switch to avoid coverage.
+
+The rationale MUST be on its own preceding comment line. A trailing comment is
+parsed as directive arguments and rejected:
+
+```go
+// Only events with a defined metric contribute to this projection.
+//exhaustive:ignore
+switch event {
+```
+<!-- source: vendor/github.com/nishanths/exhaustive/passes/exhaustive/exhaustive.go -- parseDirectives -->
 
 Preserve existing named behavior, including unsupported-value errors, sentinel
 outcomes and valid zeros. This coverage migration does not impose invalid-zero
@@ -234,7 +244,7 @@ Completeness is by distinct constant value: one named case covers same-valued
 aliases. Within the enum's package, private members count; across package
 boundaries, only exported members are required. Use named constants, not
 literals, to satisfy named-member coverage.
-<!-- source: vendor/github.com/nishanths/exhaustive/common.go -- checklist.add, checklist.found, exprConstVal -->
+<!-- source: vendor/github.com/nishanths/exhaustive/passes/exhaustive/check.go -- checkExprSwitch, needValues -->
 
 The `exhaustive` linter checks all unignored enum value switches, including
 aliases, with `.golangci.yml` setting `default-signifies-exhaustive: false`.
@@ -243,13 +253,13 @@ apply C/O/P to old and new switches, including those whose named cases are
 already complete: the linter does not prove input closure, judge subset reasons
 or check default and post-switch behavior.
 <!-- source: .golangci.yml -- exhaustive default-signifies-exhaustive -->
-<!-- source: vendor/github.com/nishanths/exhaustive/switch.go -- switchChecker -->
+<!-- source: vendor/github.com/nishanths/exhaustive/passes/exhaustive/check.go -- checkExprSwitch -->
 
 Sealed-interface type switches are separate. Their consumers still list each
 variant with no `default`, under the new-code rule above. `exhaustive` checks
 enum value switches, not sealed-interface type-switch completeness; that
 remains a reader check.
-<!-- source: vendor/github.com/nishanths/exhaustive/switch.go -- switchChecker -->
+<!-- source: vendor/github.com/nishanths/exhaustive/passes/exhaustive/check.go -- checkExprSwitch, checkTypeSwitch -->
 
 #### Validated at construction
 

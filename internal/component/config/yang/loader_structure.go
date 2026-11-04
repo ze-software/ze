@@ -416,7 +416,8 @@ func appendSubstatementNodes(pending []reflect.Value, node reflect.Value) []refl
 			continue
 		}
 		value := node.Field(i)
-		//exhaustive:ignore // goyang's substatement fields are pointers or slices of pointers; nothing else holds a node
+		// goyang's substatement fields are pointers or slices of pointers; nothing else holds a node
+		//exhaustive:ignore
 		switch value.Kind() {
 		case reflect.Pointer:
 			pending = append(pending, value)

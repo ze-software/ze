@@ -821,7 +821,8 @@ func (e *Editor) memberOpConflicts(committedTree *config.Tree, ops []config.Stru
 
 // isMemberOp reports whether op names one leaf-list member.
 func isMemberOp(op config.StructuralOp) bool {
-	//exhaustive:ignore // Only the three member ops name a leaf-list member.
+	// Only the three member ops name a leaf-list member.
+	//exhaustive:ignore
 	switch op.Type {
 	case config.StructuralOpInsertMember, config.StructuralOpDeactivateMember, config.StructuralOpActivateMember:
 		return true

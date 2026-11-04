@@ -516,7 +516,8 @@ func writePeerGridFiltered(w io.Writer, state *DashboardState, statusFilter, sea
 
 // toastForEvent returns a ToastEntry for toast-worthy events, or false for non-toast events.
 func toastForEvent(ev peer.Event) (toastEntry, bool) {
-	//exhaustive:ignore // Only noteworthy lifecycle and chaos events produce optional toasts.
+	// Only noteworthy lifecycle and chaos events produce optional toasts.
+	//exhaustive:ignore
 	switch ev.Type {
 	case peer.EventDisconnected:
 		return toastEntry{PeerIndex: ev.PeerIndex, Label: eventLabelDisconnected, CSSClass: "toast-error", Time: ev.Time}, true

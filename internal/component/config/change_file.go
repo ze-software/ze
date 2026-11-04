@@ -142,7 +142,8 @@ func (op StructuralOp) SessionKey() string {
 
 // isMemberOp reports whether the op targets one leaf-list member.
 func (op StructuralOp) isMemberOp() bool {
-	//exhaustive:ignore // Only classifies leaf-list member operations for path construction.
+	// Only classifies leaf-list member operations for path construction.
+	//exhaustive:ignore
 	switch op.Type {
 	case StructuralOpInsertMember, StructuralOpDeactivateMember, StructuralOpActivateMember:
 		return true
@@ -156,7 +157,8 @@ func (op StructuralOp) isMemberOp() bool {
 
 // isToggleOp reports whether the op deactivates or activates one leaf or path.
 func (op StructuralOp) isToggleOp() bool {
-	//exhaustive:ignore // Only classifies the leaf and path toggles for path construction.
+	// Only classifies the leaf and path toggles for path construction.
+	//exhaustive:ignore
 	switch op.Type {
 	case StructuralOpDeactivateLeaf, StructuralOpActivateLeaf, StructuralOpDeactivatePath, StructuralOpActivatePath:
 		return true

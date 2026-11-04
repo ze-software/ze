@@ -60,7 +60,8 @@ func ownedCapabilities(read openParams, id openIdentity) (map[byte]ownedCapabili
 		for _, tlv := range param.caps {
 			code := tlv[0]
 			value := tlv[2:]
-			//exhaustive:ignore // Override sender-owned capabilities only; other codes remain mirrored.
+			// Override sender-owned capabilities only; other codes remain mirrored.
+			//exhaustive:ignore
 			switch capability.Code(code) {
 			case capability.CodeRole:
 				role, err := complementaryRole(value)

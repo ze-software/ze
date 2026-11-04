@@ -47,7 +47,8 @@ func newConnectedSession(transport io.ReadWriteCloser, initial sessionResult,
 	// An interface can hold a typed nil. This cold admission boundary checks all
 	// nil-capable implementations without imposing reflection on packet handling.
 	value := reflect.ValueOf(transport)
-	//exhaustive:ignore // Only nil-capable kinds need an IsNil check.
+	// Only nil-capable kinds need an IsNil check.
+	//exhaustive:ignore
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		if value.IsNil() {

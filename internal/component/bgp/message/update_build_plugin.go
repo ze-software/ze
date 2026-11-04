@@ -119,7 +119,8 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 		if len(raw) < 3 {
 			continue
 		}
-		//exhaustive:ignore // Only session-owned attributes need special handling; other plugin bytes pass through.
+		// Only session-owned attributes need special handling; other plugin bytes pass through.
+		//exhaustive:ignore
 		switch attribute.AttributeCode(raw[1]) {
 		case attribute.AttrASPath, attribute.AttrLocalPref:
 			continue

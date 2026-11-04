@@ -152,7 +152,8 @@ func TestSRPolicyRouteCarriesRouteTarget(t *testing.T) {
 	}
 	var extComm, tunnel int
 	for _, a := range routes[0].Attrs {
-		//exhaustive:ignore // counts only the two attributes the route must carry; the others are not asserted here
+		// counts only the two attributes the route must carry; the others are not asserted here
+		//exhaustive:ignore
 		switch attribute.AttributeCode(a.Code) {
 		case attribute.AttrExtCommunity:
 			extComm++

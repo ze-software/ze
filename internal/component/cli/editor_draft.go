@@ -864,7 +864,8 @@ func (e *Editor) applyReplayOpsAroundEntries(tree *config.Tree, ops []config.Str
 // A positional insert also waits when its reference is not in tree yet. Any
 // other op never waits.
 func memberOpWaitsForEntries(tree *config.Tree, schema *config.Schema, op config.StructuralOp) bool {
-	//exhaustive:ignore // Only the three member ops can name a member an entry adds.
+	// Only the three member ops can name a member an entry adds.
+	//exhaustive:ignore
 	switch op.Type {
 	case config.StructuralOpDeactivateMember, config.StructuralOpActivateMember:
 		target := walkPath(tree, schema, op.ParentPath)

@@ -418,7 +418,8 @@ func (s *Session) handleBFDEvent(event fsm.Event) error {
 func (s *Session) bfdTeardown(event fsm.Event, state fsm.State) (uint8, string, bool) {
 	strict := s.fsm.BFDStrict()
 
-	//exhaustive:ignore // Only BFD events requiring wire teardown are selected here; FSM.Event handles transitions.
+	// Only BFD events requiring wire teardown are selected here; FSM.Event handles transitions.
+	//exhaustive:ignore
 	switch event {
 	case fsm.EventBfdDown:
 		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.7.2 closes an

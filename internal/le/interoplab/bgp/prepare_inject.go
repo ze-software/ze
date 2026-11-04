@@ -88,7 +88,8 @@ func renderInjectedNextHop(frame []byte, network [4]byte) bool {
 			return false
 		}
 		seen[word] |= bit
-		//exhaustive:ignore // Project only next-hop fields; all other fixture attributes remain byte-for-byte intact.
+		// Project only next-hop fields; all other fixture attributes remain byte-for-byte intact.
+		//exhaustive:ignore
 		switch code {
 		case attribute.AttrNextHop:
 			if len(value) != 4 {

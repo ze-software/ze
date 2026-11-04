@@ -119,7 +119,8 @@ func parseFill(arg string) (way fillWay, reverse, ok bool) {
 func columnsInChain(ops []pipeOp) columnRequest {
 	var request columnRequest
 	for _, op := range ops {
-		//exhaustive:ignore // Only display and fill contribute to the column request.
+		// Only display and fill contribute to the column request.
+		//exhaustive:ignore
 		switch op.kind {
 		case pipeDisplay:
 			request.display = narrowDisplay(request.display, parseDisplay(op.arg))

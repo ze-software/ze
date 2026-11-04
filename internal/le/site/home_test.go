@@ -239,7 +239,8 @@ func linkTargets(fragment string) []string {
 	var targets []string
 	tokenizer := xhtml.NewTokenizer(strings.NewReader(fragment))
 	for {
-		//exhaustive:ignore // Projects hrefs from opening anchors; other tokens cannot contribute link targets.
+		// Projects hrefs from opening anchors; other tokens cannot contribute link targets.
+		//exhaustive:ignore
 		switch tokenizer.Next() {
 		case xhtml.ErrorToken:
 			return targets

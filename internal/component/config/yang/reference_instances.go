@@ -120,7 +120,8 @@ func (w *referenceWalk) typeInstances(leaf *yang.Entry, yangType *yang.YangType,
 	if yangType == nil {
 		return
 	}
-	//exhaustive:ignore // only the leafref, whose path names instances, and the union that can hold one
+	// only the leafref, whose path names instances, and the union that can hold one
+	//exhaustive:ignore
 	switch yangType.Kind {
 	case yang.Yleafref:
 		resolved := w.leafrefTarget(leaf, yangType)

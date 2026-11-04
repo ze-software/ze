@@ -123,7 +123,8 @@ func TestTokenizerNestedBraces(t *testing.T) {
 
 	braceCount := 0
 	for _, tok := range tokens {
-		//exhaustive:ignore // This observer counts braces only.
+		// This observer counts braces only.
+		//exhaustive:ignore
 		switch tok.kind {
 		case tokenLBrace:
 			braceCount++

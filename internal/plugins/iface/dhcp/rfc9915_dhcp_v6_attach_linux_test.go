@@ -111,7 +111,8 @@ func TestRFC9915Section182101DuplicateAddressDeclined(t *testing.T) {
 	}
 	removedBeforeDecline := -1
 	r.srv.serve = func(req *dhcpv6.Message) []*dhcpv6.Message {
-		//exhaustive:ignore // the scripted server answers only the types it serves
+		// the scripted server answers only the types it serves
+		//exhaustive:ignore
 		switch req.MessageType {
 		case dhcpv6.MessageTypeSolicit:
 			return []*dhcpv6.Message{testV6Answer(req, dhcpv6.MessageTypeReply, v6ServerA, leaseNAPD()...)}

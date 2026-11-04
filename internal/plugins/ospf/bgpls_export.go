@@ -384,7 +384,8 @@ func (a *bgplsArea) indexV2(views []ospflsdb.NativeLSAView) {
 		if binary.BigEndian.Uint32(v.Area[:]) != a.snapshot.Domain.Area {
 			continue
 		}
-		//exhaustive:ignore // This correlation index reads only Router and Network topology.
+		// This correlation index reads only Router and Network topology.
+		//exhaustive:ignore
 		switch v.Type {
 		case types.LSTypeRouter:
 			router, err := packet.DecodeRouterLSA(v.Body)
@@ -1164,7 +1165,8 @@ func (a *bgplsArea) prefixRange(id linkstateevents.NodeID, prefix netip.Prefix, 
 func (a *bgplsArea) extendedV3(v *ospflsdb.NativeLSAView, id linkstateevents.NodeID) {
 	typ := v3types.LSType(v.Type)
 	offset := 0
-	//exhaustive:ignore // Only extended LSAs with fixed headers need a nonzero TLV offset.
+	// Only extended LSAs with fixed headers need a nonzero TLV offset.
+	//exhaustive:ignore
 	switch typ {
 	case v3types.LSTypeERouter, v3types.LSTypeENetwork:
 		offset = 4
@@ -1343,7 +1345,8 @@ func (a *bgplsArea) resolveV3Links(views []ospflsdb.NativeLSAView) {
 			continue
 		}
 		key := interfaceKey{router: v.AdvertisingRouter, id: binary.BigEndian.Uint32(v.LinkStateID[:])}
-		//exhaustive:ignore // Only Link and E-Link LSAs supply interface-address enrichment.
+		// Only Link and E-Link LSAs supply interface-address enrichment.
+		//exhaustive:ignore
 		switch v3types.LSType(v.Type) {
 		case v3types.LSTypeLink:
 			lsa := v3packet.LSA{Body: v.Body}

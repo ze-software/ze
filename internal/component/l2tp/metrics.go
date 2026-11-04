@@ -185,7 +185,8 @@ func (p *l2tpStatsPoller) poll() {
 			t := &snap.Tunnels[ti]
 			for si := range t.Sessions {
 				s := &t.Sessions[si]
-				//exhaustive:ignore // Only established and finishing sessions override the negotiating metric.
+				// Only established and finishing sessions override the negotiating metric.
+				//exhaustive:ignore
 				switch L2TPSessionState(s.StateNum) {
 				case L2TPSessionEstablished:
 					sessionEstablished++

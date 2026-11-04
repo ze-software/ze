@@ -61,7 +61,8 @@ func (a *aggregator) ingest(obs observation.Observation) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	//exhaustive:ignore // Byte accounting observes source, destination and flow samples only.
+	// Byte accounting observes source, destination and flow samples only.
+	//exhaustive:ignore
 	switch obs.Kind {
 	case observation.KindSourceIP:
 		// trafficusage per-source-IP: cumulative byte counter.

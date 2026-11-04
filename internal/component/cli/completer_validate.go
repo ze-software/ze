@@ -124,7 +124,8 @@ func validateYangType(t *gyang.YangType, value string) bool {
 		return true
 	}
 
-	//exhaustive:ignore // Completion checks selected types; authoritative validation handles the rest.
+	// Completion checks selected types; authoritative validation handles the rest.
+	//exhaustive:ignore
 	switch t.Kind {
 	case gyang.Yunion:
 		// Union: valid if any member type accepts it

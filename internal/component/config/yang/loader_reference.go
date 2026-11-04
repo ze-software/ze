@@ -100,7 +100,8 @@ func (v *Validator) checkLeafrefSchema(leaf *yang.Entry, typ *yang.YangType) err
 // for an input node, because no config statement is above it.
 func representsConfig(leaf *yang.Entry) bool {
 	for node := leaf; node != nil; node = node.Parent {
-		//exhaustive:ignore // a predicate over the entry kinds that hold no data tree node
+		// a predicate over the entry kinds that hold no data tree node
+		//exhaustive:ignore
 		switch node.Kind {
 		case yang.InputEntry, yang.OutputEntry, yang.NotificationEntry:
 			return false

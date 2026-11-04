@@ -33,7 +33,8 @@ func removeWithDependents(events []peer.Event, removeIdx int) []peer.Event {
 		// For events after the removal point, check preconditions.
 		if j > removeIdx {
 			skip := false
-			//exhaustive:ignore // Only events requiring an established peer have this precondition.
+			// Only events requiring an established peer have this precondition.
+			//exhaustive:ignore
 			switch events[j].Type {
 			case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
 				peer.EventEORSent, peer.EventWithdrawalSent, peer.EventChaosExecuted,

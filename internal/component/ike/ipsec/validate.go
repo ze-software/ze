@@ -45,7 +45,8 @@ func IsEAPMode(mode AuthMode) bool {
 // Pre-shared-secret is not one either. parseAuthConfig reads the same leaf for
 // it, but no EAP exchange runs there, so nothing else asks this question of it.
 func IsEAPPasswordMode(mode AuthMode) bool {
-	//exhaustive:ignore // Only password-based EAP methods use this credential; other modes do not.
+	// Only password-based EAP methods use this credential; other modes do not.
+	//exhaustive:ignore
 	switch mode {
 	case AuthEAPMSCHAPv2, AuthEAPMD5:
 		return true

@@ -96,7 +96,8 @@ func LoopIngress(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any)
 
 		data := pathAttrs[pos : pos+dataLen]
 
-		//exhaustive:ignore // Only AS_PATH, ORIGINATOR_ID and CLUSTER_LIST contribute to loop detection.
+		// Only AS_PATH, ORIGINATOR_ID and CLUSTER_LIST contribute to loop detection.
+		//exhaustive:ignore
 		switch code {
 		case attribute.AttrASPath:
 			// RFC 4271 Section 9.1.2: "If the AS_PATH attribute of a BGP route contains

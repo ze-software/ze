@@ -635,7 +635,8 @@ func fwdReencodeMPAttributes(attrs []byte, srcCtx, destCtx *bgpctx.EncodingConte
 
 		value := attrs[off+hdrLen : end]
 		newValue := value
-		//exhaustive:ignore // Only MP_REACH and MP_UNREACH carry NLRI framing that this conversion rewrites.
+		// Only MP_REACH and MP_UNREACH carry NLRI framing that this conversion rewrites.
+		//exhaustive:ignore
 		switch code {
 		case attribute.AttrMPReachNLRI:
 			mp, err := attribute.ParseMPReachNLRI(value)

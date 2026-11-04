@@ -629,7 +629,8 @@ func validationBuildWire(update *ReceivedUpdate, spans []relayAttrSpan, attrs, w
 	}
 	if len(announced)+len(mpAnnounce) > 0 {
 		for _, span := range spans {
-			//exhaustive:ignore // Only MP NLRI attributes are rebuilt; all other attribute spans are copied unchanged.
+			// Only MP NLRI attributes are rebuilt; all other attribute spans are copied unchanged.
+			//exhaustive:ignore
 			switch span.code {
 			case attribute.AttrMPReachNLRI:
 				if len(mpAnnounce) > 0 {

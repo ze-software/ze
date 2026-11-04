@@ -62,7 +62,8 @@ func testDelayOpenEvents(t *testing.T, state State) {
 				t.Fatal(err)
 			}
 			wantState, wantCounter, retry := StateIdle, uint32(4), false
-			//exhaustive:ignore — only events with a non-default expectation.
+			// — only events with a non-default expectation.
+			//exhaustive:ignore
 			switch event {
 			case EventDelayOpenTimerExpires:
 				wantState, wantCounter = StateOpenSent, 3

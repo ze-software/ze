@@ -985,7 +985,8 @@ func schemaChildNames(schema *Schema, parent Node) []string {
 // every caller's path already, and a value invented here would hide which
 // spelling was rejected.
 func NormalizeLeafValue(typ ValueType, value string) string {
-	//exhaustive:ignore // Only boolean and ASN leaves need canonical spelling conversion.
+	// Only boolean and ASN leaves need canonical spelling conversion.
+	//exhaustive:ignore
 	switch typ {
 	case TypeBool:
 		return normalizeEnableBool(value)

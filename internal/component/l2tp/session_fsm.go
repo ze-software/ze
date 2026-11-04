@@ -608,7 +608,8 @@ func parseICRQ(payload []byte) (icrqInfo, error) {
 			first = false
 			continue
 		}
-		//exhaustive:ignore // Extract only ICRQ fields after generic AVP validation.
+		// Extract only ICRQ fields after generic AVP validation.
+		//exhaustive:ignore
 		switch attrType {
 		case AVPAssignedSessionID:
 			v, rerr := readAVPUint16(value)
@@ -715,7 +716,8 @@ func parseICCN(payload []byte) (iccnInfo, error) {
 			first = false
 			continue
 		}
-		//exhaustive:ignore // Extract only ICCN connection and proxy fields after generic AVP validation.
+		// Extract only ICCN connection and proxy fields after generic AVP validation.
+		//exhaustive:ignore
 		switch attrType {
 		case AVPTxConnectSpeed:
 			v, rerr := readAVPUint32(value)
@@ -833,7 +835,8 @@ func parseOCRQ(payload []byte) (ocrqInfo, error) {
 			first = false
 			continue
 		}
-		//exhaustive:ignore // Extract only OCRQ call setup fields after generic AVP validation.
+		// Extract only OCRQ call setup fields after generic AVP validation.
+		//exhaustive:ignore
 		switch attrType {
 		case AVPAssignedSessionID:
 			v, rerr := readAVPUint16(value)
@@ -936,7 +939,8 @@ func parseOCCN(payload []byte) (occnInfo, error) {
 			first = false
 			continue
 		}
-		//exhaustive:ignore // Extract only OCCN connection fields after generic AVP validation.
+		// Extract only OCCN connection fields after generic AVP validation.
+		//exhaustive:ignore
 		switch attrType {
 		case AVPTxConnectSpeed:
 			v, rerr := readAVPUint32(value)
@@ -1026,7 +1030,8 @@ func parseCDN(payload []byte) (cdnInfo, error) {
 			first = false
 			continue
 		}
-		//exhaustive:ignore // Extract only CDN teardown fields after generic AVP validation.
+		// Extract only CDN teardown fields after generic AVP validation.
+		//exhaustive:ignore
 		switch attrType {
 		case AVPResultCode:
 			rc, rerr := readResultCode(value)

@@ -141,7 +141,8 @@ func reconstructRoute(entry ribOutEntry, fam family.Family, key ribOutKey) *Rout
 	mpNextHop := ""
 	iter := attribute.NewAttrIterator(wireBytes)
 	for typeCode, _, value, ok := iter.Next(); ok; typeCode, _, value, ok = iter.Next() {
-		//exhaustive:ignore // Project display fields only; RawAttrs retains every attribute for replay.
+		// Project display fields only; RawAttrs retains every attribute for replay.
+		//exhaustive:ignore
 		switch typeCode {
 		case attribute.AttrOrigin:
 			if len(value) >= 1 {

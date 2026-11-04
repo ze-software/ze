@@ -36,7 +36,8 @@ func NLRIBearingFieldCount(withdrawn, pathAttrs, nlri []byte) int {
 
 	iter := attribute.NewAttrIterator(pathAttrs)
 	for code, _, _, ok := iter.Next(); ok; code, _, _, ok = iter.Next() {
-		//exhaustive:ignore // Only MP_REACH and MP_UNREACH contribute NLRI-bearing attributes.
+		// Only MP_REACH and MP_UNREACH contribute NLRI-bearing attributes.
+		//exhaustive:ignore
 		switch code {
 		case attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI:
 			n++
@@ -66,7 +67,8 @@ func MPAttributesTrail(pathAttrs []byte) bool {
 	reachSeen := false
 	iter := attribute.NewAttrIterator(pathAttrs)
 	for code, _, _, ok := iter.Next(); ok; code, _, _, ok = iter.Next() {
-		//exhaustive:ignore // Only the two MP codes have a required position.
+		// Only the two MP codes have a required position.
+		//exhaustive:ignore
 		switch code {
 		case attribute.AttrMPUnreachNLRI:
 			if otherSeen {
@@ -118,7 +120,8 @@ const (
 
 // kindOfAttr classifies one attribute code for WriteMPAttributesFirst.
 func kindOfAttr(code attribute.AttributeCode) attrKind {
-	//exhaustive:ignore // Only the two MP codes are moved; every other code keeps its place.
+	// Only the two MP codes are moved; every other code keeps its place.
+	//exhaustive:ignore
 	switch code {
 	case attribute.AttrMPUnreachNLRI:
 		return attrKindMPUnreach

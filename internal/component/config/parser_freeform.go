@@ -196,7 +196,8 @@ func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok tok
 	// Value mode: parse multiple words until semicolon or block delimiter
 	var values []string
 	for tok.kind == tokenWord || tok.kind == tokenString || tok.kind == tokenLBracket || tok.kind == tokenLParen {
-		//exhaustive:ignore // The loop admits only scalar, array and parenthesized values.
+		// The loop admits only scalar, array and parenthesized values.
+		//exhaustive:ignore
 		switch tok.kind {
 		case tokenLBracket:
 			// Array: collect [ ... ]
@@ -461,7 +462,8 @@ func (p *Parser) skipBlock() error {
 	depth := 1
 	for depth > 0 {
 		tok = p.tok.next()
-		//exhaustive:ignore // Skips block contents by tracking only brace depth and EOF.
+		// Skips block contents by tracking only brace depth and EOF.
+		//exhaustive:ignore
 		switch tok.kind {
 		case tokenLBrace:
 			depth++

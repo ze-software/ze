@@ -34,7 +34,8 @@ func (p *MessageOrdering) ProcessEvent(ev peer.Event) {
 	if ev.PeerIndex < 0 || ev.PeerIndex >= p.n {
 		return
 	}
-	//exhaustive:ignore // This independent property observes session and route ordering.
+	// This independent property observes session and route ordering.
+	//exhaustive:ignore
 	switch ev.Type {
 	case peer.EventEstablished:
 		p.established[ev.PeerIndex] = true

@@ -43,7 +43,8 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 
 	// Maintain internal state regardless of whether senders are connected.
 	// Peers may establish before any collector connects (AC-3).
-	//exhaustive:ignore // Only OPEN, NOTIFICATION and state events update the pre-sender cache.
+	// Only OPEN, NOTIFICATION and state events update the pre-sender cache.
+	//exhaustive:ignore
 	switch se.EventType {
 	case rpc.EventKindOpen:
 		bp.cacheOpenPDU(se)

@@ -166,7 +166,8 @@ func typeHoldsReference(t *yang.YangType) bool {
 	if t == nil {
 		return false
 	}
-	//exhaustive:ignore // a predicate over the reference kinds and the union that can hold them
+	// a predicate over the reference kinds and the union that can hold them
+	//exhaustive:ignore
 	switch t.Kind {
 	case yang.Yleafref, yang.YinstanceIdentifier:
 		return true
@@ -284,7 +285,8 @@ func (w *referenceWalk) appendError(path string, err error) {
 // statement, until a match is found". The member that matches is the one
 // whose instance rule applies.
 func (w *referenceWalk) checkInstance(path string, leaf *yang.Entry, yangType *yang.YangType, value string, frames []dataNode) error {
-	//exhaustive:ignore // only the kinds with an instance rule, and the union that can hold them
+	// only the kinds with an instance rule, and the union that can hold them
+	//exhaustive:ignore
 	switch yangType.Kind {
 	case yang.Yleafref:
 		return w.checkLeafrefInstance(path, leaf, yangType, value, frames)
@@ -681,7 +683,8 @@ func canonicalValue(yangType *yang.YangType, value string) string {
 		return value
 	}
 	var tb textbuf.Buffer
-	//exhaustive:ignore // only the integer and decimal64 kinds have a lexical form wider than their value
+	// only the integer and decimal64 kinds have a lexical form wider than their value
+	//exhaustive:ignore
 	switch yangType.Kind {
 	case yang.Yint8, yang.Yint16, yang.Yint32, yang.Yint64:
 		if n, err := strconv.ParseInt(value, 10, 64); err == nil {

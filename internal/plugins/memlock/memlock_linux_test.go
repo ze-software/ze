@@ -46,7 +46,8 @@ func recordedOutcome(t *testing.T) registry.SetupResult {
 func TestMemlockRecordsItsOutcome(t *testing.T) {
 	result := recordedOutcome(t)
 
-	//exhaustive:ignore // Memlock permits only success or soft failure, not every setup outcome.
+	// Memlock permits only success or soft failure, not every setup outcome.
+	//exhaustive:ignore
 	switch result.Outcome {
 	case registry.SetupSucceeded:
 		if result.Reason != "" {

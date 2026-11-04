@@ -81,7 +81,8 @@ func applyPipesRecords(
 			continue
 		}
 		if ndjsonRendered {
-			//exhaustive:ignore // Only line transforms override their record semantics after NDJSON rendering.
+			// Only line transforms override their record semantics after NDJSON rendering.
+			//exhaustive:ignore
 			switch op.kind {
 			case pipeMatch:
 				records = recordsMatchingRenderedJSON(records, op.arg)
@@ -568,7 +569,8 @@ func positionalAddressFields(fields []string, op pipeOp) ([]positionalAddressTra
 			continue
 		}
 		var suffixes []string
-		//exhaustive:ignore // Only address-enrichment operators contribute derived positional columns.
+		// Only address-enrichment operators contribute derived positional columns.
+		//exhaustive:ignore
 		switch op.kind {
 		case pipeResolve:
 			suffixes = []string{"-name"}
@@ -616,7 +618,8 @@ func transformPositionalAddressItem(
 	}
 	for _, transform := range transforms {
 		address, _ := values[transform.sourceIndex].(string)
-		//exhaustive:ignore // Only resolve and origin enrich the selected positional address fields.
+		// Only resolve and origin enrich the selected positional address fields.
+		//exhaustive:ignore
 		switch kind {
 		case pipeResolve:
 			name := ""

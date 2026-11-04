@@ -1340,7 +1340,8 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 	// STA or ignored and never trigger a resend, so mutating the
 	// method there would be wasted work on a stale packet.
 	if pkt.Code == LCPConfigureNak || pkt.Code == LCPConfigureReject {
-		//exhaustive:ignore // Only negotiating states apply Nak/Reject option mutations before the FSM.
+		// Only negotiating states apply Nak/Reject option mutations before the FSM.
+		//exhaustive:ignore
 		switch cur {
 		case LCPStateReqSent, LCPStateAckSent, LCPStateAckRcvd, LCPStateOpened:
 			s.adjustAuthOnNakOrReject(pkt)
@@ -1570,7 +1571,8 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 		s.stopRestartTimer()
 	}
 
-	//exhaustive:ignore // Only stopping and stopped preserve peer-termination bookkeeping.
+	// Only stopping and stopped preserve peer-termination bookkeeping.
+	//exhaustive:ignore
 	switch tr.NewState {
 	case LCPStateStopping:
 		if pkt.Code == LCPTerminateRequest {
@@ -1798,7 +1800,8 @@ func (s *pppSession) stopRestartTimer() {
 // identifiable by the presence of TO events", which the table gives to
 // Closing, Stopping, Req-Sent, Ack-Rcvd and Ack-Sent.
 func restartTimerRuns(state LCPState) bool {
-	//exhaustive:ignore // Predicate selecting states whose restart timer runs.
+	// Predicate selecting states whose restart timer runs.
+	//exhaustive:ignore
 	switch state {
 	case LCPStateClosing, LCPStateStopping, LCPStateReqSent, LCPStateAckRcvd, LCPStateAckSent:
 		return true

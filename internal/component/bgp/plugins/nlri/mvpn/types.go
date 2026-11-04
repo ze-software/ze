@@ -89,7 +89,8 @@ func (t MVPNRouteType) String() string {
 // code 5, sharedjoin.py code 6, sourcejoin.py code 7, and GenericMVPN for the
 // rest), so the two implementations publish the same members for the same bytes.
 func (t MVPNRouteType) bodyParsed() bool {
-	//exhaustive:ignore // Selects only MVPN route types whose bodies are decoded.
+	// Selects only MVPN route types whose bodies are decoded.
+	//exhaustive:ignore
 	switch t {
 	case MVPNSourceActive, MVPNSharedTreeJoin, MVPNSourceTreeJoin:
 		return true

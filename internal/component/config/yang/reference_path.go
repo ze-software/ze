@@ -91,7 +91,8 @@ func isPathTransparent(e *yang.Entry) bool {
 // isOperationParams reports whether e is the input or output of an rpc or an
 // action, which goyang keeps beside the operation's Dir rather than in it.
 func isOperationParams(e *yang.Entry) bool {
-	//exhaustive:ignore // a predicate over the two entry kinds goyang gives input and output
+	// a predicate over the two entry kinds goyang gives input and output
+	//exhaustive:ignore
 	switch e.Kind {
 	case yang.InputEntry, yang.OutputEntry:
 		return true

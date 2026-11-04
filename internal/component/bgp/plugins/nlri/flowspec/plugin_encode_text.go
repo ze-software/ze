@@ -377,7 +377,8 @@ func isComponentKeyword(token string) bool {
 
 // componentMaxValue returns max valid value for component type.
 func componentMaxValue(compType flowspec.FlowComponentType) uint64 {
-	//exhaustive:ignore // This numeric-width projection specializes bounded criteria; others keep the 32-bit limit.
+	// This numeric-width projection specializes bounded criteria; others keep the 32-bit limit.
+	//exhaustive:ignore
 	switch compType {
 	case flowspec.FlowIPProtocol, flowspec.FlowICMPType, flowspec.FlowICMPCode:
 		return 255
@@ -398,7 +399,8 @@ func componentMaxValue(compType flowspec.FlowComponentType) uint64 {
 // componentValueNames answers the value names a numeric component accepts in
 // place of a number, or nil when it accepts numbers only.
 func componentValueNames(compType flowspec.FlowComponentType) map[string]uint8 {
-	//exhaustive:ignore // Only protocol and the ICMP components have named values; every other numeric component takes numbers.
+	// Only protocol and the ICMP components have named values; every other numeric component takes numbers.
+	//exhaustive:ignore
 	switch compType {
 	case flowspec.FlowIPProtocol:
 		return flowspec.ProtocolNameToNumber

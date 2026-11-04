@@ -55,7 +55,8 @@ func newPriorityCorpus(g *graph.Graph, profiles Profiles, metas map[string]Meta,
 	c := &priorityCorpus{graph: g, profiles: profiles, metas: metas, requirements: requirements,
 		figures: figures, proven: proven, evidence: evidence, buildsOn: map[string][]string{}, updaters: map[string][]string{}}
 	for _, edge := range g.Edges() {
-		//exhaustive:ignore // Rows and candidates read builds-on and updates only; an obsoletes edge names a text the builds-on redirect already replaced.
+		// Rows and candidates read builds-on and updates only; an obsoletes edge names a text the builds-on redirect already replaced.
+		//exhaustive:ignore
 		switch edge.Kind {
 		case graph.KindBuildsOn:
 			c.buildsOn[edge.From] = append(c.buildsOn[edge.From], edge.To)

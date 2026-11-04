@@ -143,7 +143,8 @@ func answerEncode(validated command.ValidatedArgs, words []string, route command
 	var updateBytes []byte
 	var nlriBytes []byte
 
-	//exhaustive:ignore // Unicast is local; all other families dispatch through the plugin registry.
+	// Unicast is local; all other families dispatch through the plugin registry.
+	//exhaustive:ignore
 	switch safi {
 	case family.SAFIUnicast:
 		// Unicast is handled locally (not a plugin family)

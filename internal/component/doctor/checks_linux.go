@@ -167,7 +167,8 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 		return nil
 	}
 
-	//exhaustive:ignore // Only known Linux seed-service arrangements have a check.
+	// Only known Linux seed-service arrangements have a check.
+	//exhaustive:ignore
 	switch platform.Type {
 	case host.PlatformGokrazy:
 		path := randomSeedPath(gokrazyRandomSeedPath)

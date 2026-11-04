@@ -37,7 +37,8 @@ func (p *NoDuplicateRoutes) ProcessEvent(ev peer.Event) {
 	if ev.PeerIndex < 0 || ev.PeerIndex >= p.n {
 		return
 	}
-	//exhaustive:ignore // This independent property tracks only duplicate-announcement history.
+	// This independent property tracks only duplicate-announcement history.
+	//exhaustive:ignore
 	switch ev.Type {
 	case peer.EventRouteSent:
 		if p.announced[ev.PeerIndex][ev.Prefix] {

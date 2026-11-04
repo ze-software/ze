@@ -40,7 +40,8 @@ func (s *echoState) observe(sent bool, packet ppp.LCPPacket) {
 	if sent {
 		request, reply = &s.local, &s.peer
 	}
-	//exhaustive:ignore // This observer tracks negotiation and closure, not other LCP codes.
+	// This observer tracks negotiation and closure, not other LCP codes.
+	//exhaustive:ignore
 	switch packet.Code {
 	case ppp.LCPConfigureRequest:
 		if s.opened() {

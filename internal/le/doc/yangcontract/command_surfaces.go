@@ -1398,7 +1398,8 @@ func markdownRenderedHeadingIdentity(heading string) string {
 	tokenizer := xhtml.NewTokenizer(strings.NewReader(heading))
 	var rendered textbuf.Buffer
 	for {
-		//exhaustive:ignore // Heading identity projects visible text and ignores markup tokens.
+		// Heading identity projects visible text and ignores markup tokens.
+		//exhaustive:ignore
 		switch tokenizer.Next() {
 		case xhtml.ErrorToken:
 			return strings.Join(
@@ -1417,7 +1418,8 @@ func markdownInlineVisibleText(value string) string {
 	tokenizer := xhtml.NewTokenizer(strings.NewReader(markdownHTMLSafeInline(value)))
 	var text textbuf.Buffer
 	for {
-		//exhaustive:ignore // Visible-text projection keeps text and termination; markup contributes no text.
+		// Visible-text projection keeps text and termination; markup contributes no text.
+		//exhaustive:ignore
 		switch tokenizer.Next() {
 		case xhtml.ErrorToken:
 			return markdownInlineVisibleTextNoHTML(text.String())

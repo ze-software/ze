@@ -143,7 +143,8 @@ func InverseSectionPosition(inverses []ConfigOperation) int {
 // undoRestartsABinder reports whether undoing op brings a binder back: the
 // inverse of a binder's destroy or modify. Undoing a create stops the binder.
 func undoRestartsABinder(op *ConfigOperation) bool {
-	//exhaustive:ignore // Only undoing a destroy or a modify brings a binder back.
+	// Only undoing a destroy or a modify brings a binder back.
+	//exhaustive:ignore
 	switch op.Verb {
 	case VerbDestroy, VerbModify:
 		return !providesAddressing(op)
@@ -162,7 +163,8 @@ func undoRestartsABinder(op *ConfigOperation) bool {
 // (ifaceConfigureOperation, internal/component/iface/operation.go). A coarse
 // node placed before it would be applied before the address it binds exists.
 func addsAddressing(op *ConfigOperation) bool {
-	//exhaustive:ignore // Only create and modify can add addressing in phase 4.
+	// Only create and modify can add addressing in phase 4.
+	//exhaustive:ignore
 	switch op.Verb {
 	case VerbCreate, VerbModify:
 		return providesAddressing(op)
@@ -178,7 +180,8 @@ func addsAddressing(op *ConfigOperation) bool {
 // A destroy is never one. The stops are phases 1 and 2, and they run before the
 // removals whatever they touch.
 func startsABinder(op *ConfigOperation) bool {
-	//exhaustive:ignore // Only create and modify can start a binder in phase 5.
+	// Only create and modify can start a binder in phase 5.
+	//exhaustive:ignore
 	switch op.Verb {
 	case VerbCreate, VerbModify:
 		return !providesAddressing(op)
@@ -225,7 +228,8 @@ func providesAddressing(op *ConfigOperation) bool {
 
 // addressingKind reports whether one resource kind names addressing.
 func addressingKind(kind ResourceKind) bool {
-	//exhaustive:ignore // Membership predicate for the addressing layer only.
+	// Membership predicate for the addressing layer only.
+	//exhaustive:ignore
 	switch kind {
 	case ResourceAddress, ResourceInterface:
 		return true

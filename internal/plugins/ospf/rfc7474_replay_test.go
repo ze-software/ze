@@ -34,7 +34,8 @@ func rfc7474Store() *authStore {
 func rfc7474Packet(t *testing.T, pktType packet.PacketType, boot, low uint32) []byte {
 	t.Helper()
 	p := packet.Packet{Header: packet.Header{Type: pktType, AuType: packet.AuTypeCryptographicESN}}
-	//exhaustive:ignore // Replay fixtures use only Hello and LS Ack to distinguish packet-type marks.
+	// Replay fixtures use only Hello and LS Ack to distinguish packet-type marks.
+	//exhaustive:ignore
 	switch pktType {
 	case packet.PacketTypeHello:
 		p.Hello = &packet.Hello{NetworkMask: [4]byte{255, 255, 255, 0}, HelloInterval: 10, DeadInterval: 40}

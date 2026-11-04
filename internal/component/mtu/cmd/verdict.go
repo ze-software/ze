@@ -62,7 +62,8 @@ func (v tunnelVerdict) String() string {
 // command in the remediation list: the three verdicts where a recommended
 // value exists and the current one differs from it.
 func (v tunnelVerdict) needsCommand() bool {
-	//exhaustive:ignore // Only verdicts with a remediation command belong to this predicate.
+	// Only verdicts with a remediation command belong to this predicate.
+	//exhaustive:ignore
 	switch v {
 	case tunnelVerdictOversized, tunnelVerdictTight, tunnelVerdictUnderUtilized:
 		return true

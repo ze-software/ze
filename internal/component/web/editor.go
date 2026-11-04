@@ -582,7 +582,8 @@ func (m *EditorManager) pendingChangePaths(username string) []string {
 	}
 	out := make([]string, 0, len(pending))
 	for _, p := range pending {
-		//exhaustive:ignore // Rename and copy project two paths; every other change projects its Path.
+		// Rename and copy project two paths; every other change projects its Path.
+		//exhaustive:ignore
 		switch p.Kind {
 		case contract.PendingChangeRename, contract.PendingChangeCopy:
 			// Both old and new locations carry the change.

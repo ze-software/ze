@@ -435,7 +435,8 @@ func termWritesNetworkHeader(term *firewall.Term) bool {
 // families (arp, bridge, netdev). A lowering handed UNSPEC MUST NOT guess: a
 // family-specific write rejects instead (lowerSetDSCP).
 func tableNFProto(family nftables.TableFamily) byte {
-	//exhaustive:ignore // Only single-IP-family tables project to an NFPROTO; all others stay unspecified.
+	// Only single-IP-family tables project to an NFPROTO; all others stay unspecified.
+	//exhaustive:ignore
 	switch family {
 	case nftables.TableFamilyIPv4:
 		return unix.NFPROTO_IPV4

@@ -17,7 +17,8 @@ type IterationStats struct {
 
 // Add records a single test iteration result.
 func (s *IterationStats) Add(state State, duration time.Duration) {
-	//exhaustive:ignore // Count pass, fail and timeout only; every sample still records its duration.
+	// Count pass, fail and timeout only; every sample still records its duration.
+	//exhaustive:ignore
 	switch state {
 	case StateSuccess:
 		s.Passed++

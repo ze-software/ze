@@ -398,7 +398,8 @@ func cliFormatDefaultLength(value any) (int, error) {
 		return 0, nil
 	}
 	reflected := reflect.ValueOf(value)
-	//exhaustive:ignore // Project only kinds that support Len; other values have no length.
+	// Project only kinds that support Len; other values have no length.
+	//exhaustive:ignore
 	switch reflected.Kind() {
 	case reflect.Array, reflect.Chan, reflect.Map, reflect.Slice, reflect.String:
 		return reflected.Len(), nil

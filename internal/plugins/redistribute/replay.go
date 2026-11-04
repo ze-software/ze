@@ -338,7 +338,8 @@ func (c *replayCoordinator) noteIncremental(source string, fam family.Family, en
 	}
 	for i := range entries {
 		k := sourceRoute{source: source, family: fam, prefix: entries[i].Prefix}
-		//exhaustive:ignore // only the two actions that change a route's presence are recorded; the dispatcher refuses the others
+		// only the two actions that change a route's presence are recorded; the dispatcher refuses the others
+		//exhaustive:ignore
 		switch entries[i].Action {
 		case redistevents.ActionRemove:
 			c.removed[k] = c.gen

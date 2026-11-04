@@ -21,7 +21,8 @@ import "github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
 // it: RecognizeNLRI reads it, and TestImplementedMatchesParseEVPN holds it
 // against ParseEVPN's own dispatch so the two cannot drift.
 func (t EVPNRouteType) Implemented() bool {
-	//exhaustive:ignore // Recognizes only EVPN route types implemented by this codec.
+	// Recognizes only EVPN route types implemented by this codec.
+	//exhaustive:ignore
 	switch t {
 	case EVPNRouteType1, EVPNRouteType2, EVPNRouteType3, EVPNRouteType4, EVPNRouteType5:
 		return true
