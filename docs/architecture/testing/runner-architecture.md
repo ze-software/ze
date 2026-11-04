@@ -396,6 +396,20 @@ loopback address permits omitting IPv6; an occupied IPv6 port rejects the range.
 `LeaseTestPorts` keeps its 25000-32759 fallback band. The lease owner MUST release
 its locks after its use of the ports ends.
 
+The plugin alias/shape, command-catalog plugin-shape, config-archive-prune,
+SSH local-command and pipe-alias completion daemon fixtures receive the
+runner-owned `$PORT` as their fixture argument.
+`startFixtureDaemon` parses that actual port with `parsePort` before launching
+and passes it through `envTestBGPPort`; it does not derive a port from the PID.
+The runner MUST retain the lease until the fixture process exits, and these
+fixture callers MUST stop and reap their daemon before returning, so ownership
+outlasts the daemon's socket use.
+<!-- source: internal/test/fixture/plugin_fixture_11_alias.go -- startFixtureDaemon, aliasDriver, fixtureDaemon.stop -->
+<!-- source: internal/test/fixture/plugin_fixture_command_catalog.go -- commandCatalogPluginShape -->
+<!-- source: internal/test/fixture/config_archive_prune_fixture.go -- configArchivePrune -->
+<!-- source: internal/test/fixture/ui_fixture_local_command_ssh.go -- localCommandDaemonSSH -->
+<!-- source: internal/test/fixture/ui_fixture_pipe_alias_completion.go -- pipeAliasCompletion -->
+
 These are same-host, same-user advisory leases for processes sharing `/tmp`,
 not universal socket reservations. They cannot exclude a nonparticipating
 process that binds after probing, or coordinate isolated lock filesystems.

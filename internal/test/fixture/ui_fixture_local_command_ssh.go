@@ -48,8 +48,8 @@ const localCommandDaemonSSHConfig = `system {
 // judged valid; a file outside it is refused with the local command that
 // reads any file, because the daemon route reads only inside its
 // configuration directories (command.CallerPath).
-func localCommandDaemonSSH(ctx context.Context) error {
-	daemon, cliEnv, err := startFixtureDaemon(ctx, localCommandDaemonSSHConfig)
+func localCommandDaemonSSH(ctx context.Context, args []string) error {
+	daemon, cliEnv, err := startFixtureDaemon(ctx, args, localCommandDaemonSSHConfig)
 	if err != nil {
 		return err
 	}

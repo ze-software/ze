@@ -117,8 +117,8 @@ system {
 // Both are read here for one command and compared, because the contract is that
 // they agree by deriving from one declaration rather than by a check
 // reconciling two producers.
-func commandCatalogPluginShape(ctx context.Context, _ []string) error {
-	daemon, cliEnv, err := startFixtureDaemon(ctx, catalogConfig)
+func commandCatalogPluginShape(ctx context.Context, args []string) error {
+	daemon, cliEnv, err := startFixtureDaemon(ctx, args, catalogConfig)
 	if err != nil {
 		return err
 	}

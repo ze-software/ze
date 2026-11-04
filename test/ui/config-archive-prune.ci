@@ -14,6 +14,6 @@
 option=storage:value=disk
 option=timeout:value=60s
 
-cmd=foreground:seq=1:exec=le test fixture ui/config-archive-prune
+cmd=foreground:seq=1:exec=le test fixture ui/config-archive-prune $PORT
 expect=exit:code=0
 expect=stdout:contains=OK: commit-revisions 2 kept

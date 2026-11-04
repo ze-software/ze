@@ -18,6 +18,6 @@
 # interactive terminal session.
 option=timeout:value=90s
 
-cmd=foreground:seq=1:exec=le test fixture ui/local-command-daemon-ssh
+cmd=foreground:seq=1:exec=le test fixture ui/local-command-daemon-ssh $PORT
 expect=exit:code=0
 expect=stdout:contains=OK: ssh offered show env list

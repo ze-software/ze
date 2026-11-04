@@ -162,7 +162,11 @@ type fixtureDaemon struct {
 	workdir string
 }
 
-func startFixtureDaemon(ctx context.Context, config string) (*fixtureDaemon, []string, error) {
+func startFixtureDaemon(ctx context.Context, args []string, config string) (*fixtureDaemon, []string, error) {
+	bgpPort, err := parsePort(args, 0)
+	if err != nil {
+		return nil, nil, err
+	}
 	code, hash, passwordErr, err := runCaptured(ctx, os.Environ(), "secret\n", "ze", "passwd")
 	if err != nil || code != 0 {
 		return nil, nil, fmt.Errorf("ze passwd exit=%d: %w %s", code, err, passwordErr)
@@ -188,7 +192,7 @@ func startFixtureDaemon(ctx context.Context, config string) (*fixtureDaemon, []s
 		"ZE_SSH_EPHEMERAL="+sshAddr,
 		"ZE_READY_FILE="+ready,
 		"ZE_CONFIG_DIR="+workdir,
-		"ze_test_bgp_port="+strconv.Itoa(12000+os.Getpid()%40000),
+		envTestBGPPort+"="+strconv.Itoa(bgpPort),
 	)
 	daemon := &fixtureDaemon{
 		command: exec.CommandContext(ctx, "ze", "-f", configPath), //nolint:gosec // the fixture chooses the program and its arguments
@@ -269,9 +273,9 @@ func require11(condition bool, format string, args ...any) error {
 }
 
 func aliasDriver(which aliasCase) Driver {
-	return func(ctx context.Context, _ []string) error {
+	return func(ctx context.Context, args []string) error {
 		config := aliasConfig(which)
-		daemon, cliEnv, err := startFixtureDaemon(ctx, config)
+		daemon, cliEnv, err := startFixtureDaemon(ctx, args, config)
 		if err != nil {
 			return err
 		}
@@ -319,7 +323,7 @@ func aliasDriver(which aliasCase) Driver {
 			if err := daemon.stop(); err != nil {
 				return err
 			}
-			for _, word := range []string{"answer shape", caseNameShapeTypo, "show shape typo", renderTable, "doc, map or tab"} {
+			for _, word := range []string{"answer shape", caseNameShapeTypo, "show shape typo", renderTable} {
 				if !strings.Contains(daemon.stderr.String(), word) {
 					return fmt.Errorf("daemon log does not name %q: %s", word, daemon.stderr.String())
 				}

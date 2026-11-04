@@ -45,8 +45,8 @@ func init() {
 // The assertion is the whole of AC-10: after the pipe character the name the
 // plugin declared is offered BESIDE the built-in operators, not in place of
 // them.
-func pipeAliasCompletion(ctx context.Context) error {
-	daemon, cliEnv, err := startFixtureDaemon(ctx, aliasConfig(aliasCaseBasic))
+func pipeAliasCompletion(ctx context.Context, args []string) error {
+	daemon, cliEnv, err := startFixtureDaemon(ctx, args, aliasConfig(aliasCaseBasic))
 	if err != nil {
 		return err
 	}

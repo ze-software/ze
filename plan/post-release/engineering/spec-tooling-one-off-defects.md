@@ -1392,3 +1392,42 @@ H's source review is
 performed but prose/help corrections remain outstanding. Implementation is
 approved, starting with phase 1; global completion remains blocked by the named
 historical evidence and outstanding implementation/proof obligations.
+
+### AC-26 / AC-3: runner-owned port input for private daemon fixtures
+
+This is an appended test-tooling fixture input repair within the existing
+AC-26 le-fixture obligation and AC-3 port-lifetime obligation, not a new WIP
+claim or the separate CLI-history product change. No status, phase or other
+acceptance criterion changes.
+
+| Item | Design and evidence |
+|------|---------------------|
+| Observed blocker | Loaded invocation59 did not reach the unchanged shape-refusal assertions: `tmp/stress-repro/plugin-draft-plugin-shape-declaration-refused-47725c220e9408ffbd22ff8fca03e1fb5cd5cd693fef78a64fc3f6a9f95b3dc0-20261104-190926-3924740863.log:604` reports the daemon bind failure at `127.0.0.1:46760` |
+| Producer and owning layer | `startFixtureDaemon` in `internal/test/fixture/plugin_fixture_11_alias.go` derived its BGP port as 12000 plus PID modulo 40000, bypassing the runner lease and including Linux outbound ephemeral ports; the owner is fixture input plumbing, not plugin shape behavior |
+| Rejected workaround | Retrying startup, selecting another PID-derived port, changing a deadline or weakening refusal assertions hides the unleased-port input rather than repairing its producer |
+| Source repair | Pass fixture args through `aliasDriver`, `commandCatalogPluginShape`, `configArchivePrune`, `localCommandDaemonSSH` and `pipeAliasCompletion` to `startFixtureDaemon`; reuse `parsePort(args, 0)` in `netfilter_fixture_flow_export.go`, accepting actual ports 1 through 65535 before launching, then set existing `envTestBGPPort` to that port |
+| Carrier census | Draft plugin carriers: `command-catalog-plugin-shape`, `plugin-pipe-alias`, `plugin-pipe-alias-help`, `plugin-pipe-alias-namespaced`, `plugin-pipe-alias-collision`, `plugin-shape-declaration-refused`; draft UI carriers: `config-archive-prune`, `cli-local-command-daemon-ssh`, `plugin-pipe-alias-completion`. Add only existing `$PORT` to each fixture invocation. Preserve the shape draft's independently approved obsolete doc/map/tab wording removal |
+| Reachability discovery | Search the bare `startFixtureDaemon(` token across `internal/test/fixture`: one definition and the five caller sites above. The two UI callers register their context-only fixture functions through `registerFixture`; migrate those functions to the supported context-plus-args pattern, preserving their contexts and all SSH completion/execution checks |
+| Lifetime producer | `runTest` in `internal/test/runner/runner_exec.go` acquires `LeaseTestPorts` before expansion, stores the actual lease start in `rec.Port` and defers release until fixture execution returns. `startFixtureDaemon`'s Wait worker closes `done` after Wait, and `fixtureDaemon.stop` waits for `done` before returning, including its kill path |
+| Preservation boundary | Keep contexts, callbacks, daemon cleanup, readiness and refusal/output checks, previous assertions and authored timeouts unchanged. No fallback, PID-selected port, retry, sleep, deadline change, new setting, validation layer, allocator, global lock or production behavior change |
+| Documentation | Extend only the existing port-lease description in `docs/architecture/testing/runner-architecture.md` to explain fixture argument delivery and runner ownership through daemon stop/reap |
+
+| Existing AC | Positive acceptance and permitted survivors |
+|-------------|--------------------------------------------|
+| AC-26 | Each named fixture starts its real daemon using the runner's actual leased port and reaches its original useful-output/refusal/archive/SSH completion and execution assertions under scoped smoke and 80-iteration draft contention proof. Valid plugin declarations and existing aliases continue answering; invalid shape/collision declarations remain refused because those are the behaviors under test. SSH still offers the declared alias beside built-ins and local-data commands still enforce daemon path confinement. No assertion is removed or narrowed |
+| AC-3 | Runner ownership of the supplied port lasts until fixture completion, after daemon stop/reap. Existing bounded readiness and teardown remain permitted unchanged because this repair changes only port input, not process-lifetime policy |
+
+Parent owns independent test judgment where needed, scoped draft smoke,
+80-iteration `any-failure` stress proof, promotion and live-suite evidence.
+The design record above did not claim execution. The following table records
+the subsequently observed scoped results; no full-CI verdict is inferred.
+
+#### Executed leased-port evidence
+
+| Scope | Observed result | Evidence |
+|-------|-----------------|----------|
+| Six plugin draft carriers above | All 80 loaded invocations completed with exit 0; one burner and two concurrent invocations | `tmp/session/2026-11-03-231620/scratch/ci-leased-port-plugin80-evidence.json` and its native capture |
+| Three UI draft carriers above | All 80 loaded invocations completed with exit 0; one burner and two concurrent invocations | `tmp/session/2026-11-03-231620/scratch/ci-leased-port-ui80-evidence.json` and its native capture |
+| Promoted plugin entry points | All six named live cases passed with their original expectations | `tmp/session/2026-11-03-231620/scratch/job-ci-leased-port-plugin-live-c32d4069.log` |
+| Promoted UI entry points | All three named live cases passed, including archive retention, SSH completion and path confinement | `tmp/session/2026-11-03-231620/scratch/job-ci-leased-port-ui-live-1b032926.log` |
+| Independent input judgment | JoinJudge approved all nine canonical units after comparing live, draft and HEAD plus the five actual callers | The implementation commit carries the native `Weakening-approved` verdicts |

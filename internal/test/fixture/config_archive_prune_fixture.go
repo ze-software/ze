@@ -33,7 +33,7 @@ const configArchivePruneUnrelated = "unrelated.conf"
 // filename resolves time to the second and two archives in one second write one
 // file. After the first two archives both files remain; after the third, exactly
 // the second and third remain, and the unrelated .conf file is untouched.
-func configArchivePrune(ctx context.Context, _ []string) error {
+func configArchivePrune(ctx context.Context, args []string) error {
 	archiveDir, err := os.MkdirTemp("", "ze-archive-prune-")
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func configArchivePrune(ctx context.Context, _ []string) error {
 		return err
 	}
 
-	daemon, cliEnv, err := startFixtureDaemon(ctx, configArchivePruneConfig(archiveDir))
+	daemon, cliEnv, err := startFixtureDaemon(ctx, args, configArchivePruneConfig(archiveDir))
 	if err != nil {
 		return err
 	}

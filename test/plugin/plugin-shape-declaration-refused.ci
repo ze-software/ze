@@ -1,10 +1,9 @@
 # Test: a plugin declares an answer shape no shape spells, the plugin does not
 # start, and the daemon keeps running.
 #
-# VALIDATES: spec-plugin-declares-answer-shape AC-2. A shape spelling that is
-#            not doc, map or tab fails Stage 1, the daemon log names the plugin,
-#            the command and the value, and the plugin's command answers
-#            nothing.
+# VALIDATES: spec-plugin-declares-answer-shape AC-2. An unrecognized shape is
+#            refused, the daemon log names the plugin, the command and the
+#            value, and the plugin's command answers nothing.
 # PREVENTS:  two failures. A typo read as `doc` publishes the operators of a
 #            document and refuses the row operators the command supports, in
 #            silence. And a declaration reaching the shape registry through the
@@ -27,6 +26,6 @@ option=timeout:value=60s
 # The plugin under test: one command, one shape spelling no shape writes.
 
 
-cmd=foreground:seq=1:exec=le test fixture plugin/shape-declaration-refused
+cmd=foreground:seq=1:exec=le test fixture plugin/shape-declaration-refused $PORT
 expect=exit:code=0
 expect=stdout:contains=OK
