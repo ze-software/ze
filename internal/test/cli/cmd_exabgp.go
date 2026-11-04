@@ -855,7 +855,7 @@ func runExaBGPServerForeground(test *exabgpTestEntry, port int, saveDir string) 
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(context.Background(), binary, exaBGPServerArgs(test, port, saveDir)...) //nolint:gosec // binary is os.Executable(), this test runner re-executing itself
+	cmd := exec.CommandContext(context.Background(), binary, exaBGPServerArgs(binary, test, port, saveDir)...) //nolint:gosec // binary is os.Executable(), this test runner re-executing itself
 	cmd.Env = exaBGPServerEnv(test, port)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -889,7 +889,7 @@ func startExaBGPServer(ctx context.Context, test *exabgpTestEntry, port int, sav
 	// stdout pipe, and a blocked drain stops reap from ever calling Wait, which
 	// hangs stopExaProcess and with it the whole run.
 	events := &exaEvents{port: make(chan int, 1), signal: make(chan string, len(test.configs))}
-	proc, err := startExaProcess(ctx, "server", binary, exaBGPServerArgs(test, port, saveDir), exaBGPServerEnv(test, port), events)
+	proc, err := startExaProcess(ctx, "server", binary, exaBGPServerArgs(binary, test, port, saveDir), exaBGPServerEnv(test, port), events)
 	return proc, events, err
 }
 
@@ -954,8 +954,17 @@ func startExaBGPDaemon(
 	return client, exabgpClientConfigs{path: config}, nil
 }
 
-func exaBGPServerArgs(test *exabgpTestEntry, port int, saveDir string) []string {
-	args := []string{"test", "interop-bgp", "exabgp-server", "--port", strconv.Itoa(port), "--terse"}
+func exaBGPServerArgs(binary string, test *exabgpTestEntry, port int, saveDir string) []string {
+	// cmd/ze projects argv through the le root only when the executable's
+	// basename selects it. A differently named build needs that root word
+	// explicitly, in foreground debug mode as well as ordinary suite runs.
+	name := strings.TrimSuffix(filepath.Base(binary), ".exe")
+	name = strings.TrimSuffix(name, ".test")
+	args := make([]string, 0, 10)
+	if name != "le" {
+		args = append(args, "le")
+	}
+	args = append(args, "test", "interop-bgp", "exabgp-server", "--port", strconv.Itoa(port), "--terse")
 	if saveDir != "" {
 		args = append(args, "--save", saveDir)
 	}

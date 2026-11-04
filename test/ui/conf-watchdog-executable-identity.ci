@@ -1,0 +1,10 @@
+# GOAL: the registered conf-watchdog route runs its real wire assertions through
+# the selected executable, including a non-le basename and a path with spaces.
+# METHOD: the compiled fixture checks wrong-build refusal, shadows PATH with a
+# refusing le, then runs the actual compatibility case and reads captured frames.
+# accept-only: the compiled fixture returns an error for every failed assertion
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=le test fixture ui/conf-watchdog-executable-identity
+expect=exit:code=0
+expect=stdout:contains=PASS: conf-watchdog wire assertions through selected renamed executable and spaced argv

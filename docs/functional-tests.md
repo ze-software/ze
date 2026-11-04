@@ -3503,6 +3503,16 @@ split-terminal debugging.
 <!-- source: internal/le/interoplab/bgp/exabgp_server.go -- wire server and PORT readiness -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- waitExaBGPPort and split debug modes -->
 
+Both ordinary runs and `--server` debugging launch the compiled wire helper
+through the current runner's exact executable path, never a `le` found on PATH.
+When that executable has another basename, the child argv includes the explicit
+`le` root that its dispatcher needs. Arguments remain separate, including a
+`--save` directory containing spaces, and the requested build identity stays in
+the server's environment. The `conf-watchdog` compatibility case drives its
+migrated process script and checks the resulting announcements and withdrawals
+on the real BGP session; helper startup alone does not satisfy that case.
+<!-- source: internal/test/cli/cmd_exabgp.go -- exaBGPServerArgs, startExaBGPServer, runExaBGPServerForeground -->
+
 The RFC2545 pair `conf-llnh-update` / `conf-llnh-lla-only` needs explicit
 loopback provisioning: `fd00::2/128`, `fd00::3/127`, and `fe80::1` (any
 prefix length; macOS carries it as `/64` from boot) on the same interface.
