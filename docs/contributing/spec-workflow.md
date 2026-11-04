@@ -540,9 +540,11 @@ valid non-active status before the native claim command starts its work.
 A design's source-read backstop retains the union of existing producer subjects
 in the selected file and the proposed edit, from Current Behavior, Files to
 Modify and Files to Create. Replacement prose cannot erase the selected
-producer's obligation before that edit lands. Missing or unreadable Current
-Behavior/Files to Modify source refuses; only genuinely absent Files to Create
-paths are new. Source identities are normalized checkout-relative paths with
+producer's obligation before that edit lands. Unreadable Current Behavior/Files
+to Modify source refuses, and so does a missing one, unless the last commit in
+git history that touched the path deleted it: a spec whose own work removed a
+producer it names has nothing left to read, while a path git never held still
+refuses. Genuinely absent Files to Create paths are new. Source identities are normalized checkout-relative paths with
 symlinks resolved; a source outside this checkout cannot supply evidence.
 
 Source-kind and test-only exemptions use that resolved identity, not the
@@ -565,7 +567,7 @@ matched, and location-only LSP results grant no source freshness. Read the
 producer through a native Read that returns its source text and bounds.
 Subjectless drafts still owe one usable current source read. The backstop does
 not prove understanding or population completeness.
-<!-- source: internal/le/hookruntime/designevidence.go -- recordSourceRead, designSubjects, currentSourceReads, designEvidenceProblem -->
+<!-- source: internal/le/hookruntime/designevidence.go -- recordSourceRead, designSubjects, deletedInHistory, currentSourceReads, designEvidenceProblem -->
 
 The design admission judgment runs in the harness model through `/ze-spec`
 DESIGN, `/ze-design` and `/ze-review-spec`. It requires positive observable

@@ -3,11 +3,14 @@
 package hookruntime
 
 import (
+	"bytes"
+	stdcontext "context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -102,8 +105,11 @@ func (r sourceRead) validRange() bool {
 	return r.StartLine >= 1 && r.NumLines >= 1 && r.TotalLines >= r.StartLine && r.NumLines <= r.TotalLines-r.StartLine+1
 }
 
-// designSubjects retains selected and proposed producer obligations. Only a
-// genuinely absent Files to Create path is new; every other lookup error refuses.
+// designSubjects retains selected and proposed producer obligations. A genuinely
+// absent Files to Create path is new, and an absent Current Behavior or Files to
+// Modify path whose last commit in git history deleted it is gone: a spec whose
+// own work removed a producer it names has nothing left to read. Every other
+// lookup error refuses, including a path git never held.
 func designSubjects(ctx context, repository *os.Root, texts ...string) ([]string, error) {
 	var subjects []string
 	for _, text := range texts {
@@ -120,10 +126,20 @@ func designSubjects(ctx context, repository *os.Root, texts ...string) ([]string
 				}
 				info, err := repository.Stat(filepath.FromSlash(path))
 				if err != nil {
-					if heading == "## Files to Create" && os.IsNotExist(err) {
+					if !os.IsNotExist(err) {
+						return nil, fmt.Errorf("%s: inspect producer: %w", named, err)
+					}
+					if heading == "## Files to Create" {
 						continue
 					}
-					return nil, fmt.Errorf("%s: inspect producer: %w", named, err)
+					deleted, lookup := deletedInHistory(ctx.root, path)
+					if lookup != nil {
+						return nil, fmt.Errorf("%s: inspect producer: %w; git history: %w", named, err, lookup)
+					}
+					if deleted {
+						continue
+					}
+					return nil, fmt.Errorf("%s: inspect producer: %w, and git history never deleted it", named, err)
 				}
 				if !info.Mode().IsRegular() {
 					return nil, fmt.Errorf("%s: producer is not a regular file", named)
@@ -135,6 +151,23 @@ func designSubjects(ctx context, repository *os.Root, texts ...string) ([]string
 		}
 	}
 	return subjects, nil
+}
+
+// deletedInHistory answers whether the last commit that touched path deleted
+// it, so HEAD does not hold it. Rename detection is off, because a file renamed
+// away is deleted from the path the spec names. One path-limited `git log -1`
+// walks history once, within gitTimeout. A git that cannot answer is an error,
+// never "not deleted", so the caller names why it refused.
+func deletedInHistory(root, path string) (bool, error) {
+	timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), gitTimeout)
+	defer cancel()
+	command := exec.CommandContext(timeout, "git", "log", "-1", "--no-renames", "--format=", "--name-status", "--", path) //nolint:gosec // path is checkout-relative and -- ends the option list
+	command.Dir = root
+	output, err := command.Output()
+	if err != nil {
+		return false, err
+	}
+	return bytes.HasPrefix(output, []byte("D\t")), nil
 }
 
 // observedSourceRange applies the native Read text normalization to current
@@ -230,7 +263,7 @@ func designEvidenceProblem(ctx context) *verdict {
 	subjects, err := designSubjects(ctx, repository, string(current), proposed)
 	if err != nil {
 		return &verdict{2, "❌ BLOCKED: cannot establish design source subjects: " + err.Error() +
-			"\n  Make each existing producer readable inside this checkout, then read it in this context and retry. Only genuinely new Files to Create paths may be absent.\n  ai/rules/evidence.md"}
+			"\n  Make each existing producer readable inside this checkout, then read it in this context and retry. Only genuinely new Files to Create paths, and Current Behavior or Files to Modify paths whose last commit deleted them, may be absent.\n  ai/rules/evidence.md"}
 	}
 	reads := currentSourceReads(ctx, repository)
 	if len(subjects) == 0 && len(reads) != 0 {
