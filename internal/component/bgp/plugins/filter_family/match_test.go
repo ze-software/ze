@@ -29,57 +29,60 @@ func buildUpdate(attrs, nlri []byte) []byte {
 	return body
 }
 
-// TestFamilyFromPayload validates AFI/SAFI extraction and the no-MP default.
-//
-// VALIDATES: family match via ExtractMPFamily; no-MP UPDATE => ipv4/unicast.
-// PREVENTS: misreading the family or panicking on a short body.
-func TestFamilyFromPayload(t *testing.T) {
-	// MP flowspec.
-	fam, fromMP, ok := familyFromPayload(buildUpdate(mpFlowReachAttr(), nil))
+// TestFamilyMatch validates target matching and the legacy no-MP default.
+func TestFamilyMatch(t *testing.T) {
+	matched, only, ok := familyMatch(buildUpdate(mpFlowReachAttr(), nil), ipv4Flow)
 	require.True(t, ok)
-	assert.True(t, fromMP)
-	assert.Equal(t, ipv4Flow, fam)
-
-	// No MP attribute -> ipv4/unicast.
-	fam, fromMP, ok = familyFromPayload(buildUpdate(originAttr, []byte{24, 10, 0, 0}))
+	assert.True(t, matched)
+	assert.True(t, only)
+	matched, _, ok = familyMatch(buildUpdate(mpFlowReachAttr(), nil), family.IPv4Unicast)
 	require.True(t, ok)
-	assert.False(t, fromMP)
-	assert.Equal(t, family.IPv4Unicast, fam)
+	assert.False(t, matched)
 
-	// Malformed (too short).
-	_, _, ok = familyFromPayload([]byte{0x00})
+	matched, only, ok = familyMatch(buildUpdate(originAttr, []byte{24, 10, 0, 0}), family.IPv4Unicast)
+	require.True(t, ok)
+	assert.True(t, matched)
+	assert.True(t, only)
+	matched, _, ok = familyMatch(buildUpdate(originAttr, []byte{24, 10, 0, 0}), ipv4Flow)
+	require.True(t, ok)
+	assert.False(t, matched)
+
+	_, _, ok = familyMatch([]byte{0x00}, family.IPv4Unicast)
 	assert.False(t, ok)
 }
 
-// TestCarriesOnlyFamily validates the emptied check behind the whole-UPDATE
-// suppress.
+// TestFamilyMatchOnly validates the emptied check behind whole-UPDATE suppression.
 //
 // VALIDATES: AC-2/AC-3 -- pure MP UPDATE of the family empties (suppress); a
 // legacy NLRI tail, a withdrawn route or another MP family keeps the UPDATE.
 // PREVENTS: suppressing an UPDATE that still carries other routes, or sending
 // one the strip left with no NLRI.
-func TestCarriesOnlyFamily(t *testing.T) {
+func TestFamilyMatchOnly(t *testing.T) {
 	flow, _ := family.LookupFamily("ipv4/flow")
-	only, ok := carriesOnlyFamily(buildUpdate(mpFlowReachAttr(), nil), flow)
+	matched, only, ok := familyMatch(buildUpdate(mpFlowReachAttr(), nil), flow)
 	require.True(t, ok)
+	assert.True(t, matched)
 	assert.True(t, only, "MP-only flowspec UPDATE")
 
 	attrs := append(append([]byte{}, originAttr...), mpFlowReachAttr()...)
-	only, ok = carriesOnlyFamily(buildUpdate(attrs, []byte{24, 10, 0, 0}), flow)
+	matched, only, ok = familyMatch(buildUpdate(attrs, []byte{24, 10, 0, 0}), flow)
 	require.True(t, ok)
+	assert.True(t, matched)
 	assert.False(t, only, "legacy NLRI tail remains")
 
 	withdrawn := append([]byte{0x00, 0x04, 24, 10, 0, 0}, buildUpdate(mpFlowReachAttr(), nil)[2:]...)
-	only, ok = carriesOnlyFamily(withdrawn, flow)
+	matched, only, ok = familyMatch(withdrawn, flow)
 	require.True(t, ok)
+	assert.True(t, matched)
 	assert.False(t, only, "withdrawn routes remain")
 
 	two := append(append([]byte{}, mpFlowReachAttr()...), mpIPv6UnreachAttr()...)
-	only, ok = carriesOnlyFamily(buildUpdate(two, nil), flow)
+	matched, only, ok = familyMatch(buildUpdate(two, nil), flow)
 	require.True(t, ok)
+	assert.True(t, matched)
 	assert.False(t, only, "another MP family remains")
 
-	_, ok = carriesOnlyFamily(buildUpdate([]byte{0x80, 14, 2, 0x00, 0x01}, nil), flow)
+	_, _, ok = familyMatch(buildUpdate([]byte{0x80, 14, 2, 0x00, 0x01}, nil), flow)
 	assert.False(t, ok, "an MP attribute too short for AFI and SAFI is malformed")
 }
 

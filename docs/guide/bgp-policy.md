@@ -222,6 +222,21 @@ Ze ships filters for:
 
 The [plugin guide](plugins.md) documents the registered filter types and their current configuration. The generated [plugin catalogue](https://ze-software.net/reference/plugins/) shows which plugin owns each filter.
 
+### Removing an address family
+
+A `family-filter` instance with `action remove` checks every reachability
+section of the UPDATE: the legacy IPv4 announcements and withdrawals, and the
+families named by MP_REACH_NLRI and MP_UNREACH_NLRI. A mixed UPDATE loses only
+the configured family's sections; announcements and withdrawals of other
+families remain. If no other family remains, the whole UPDATE is suppressed.
+An UPDATE without the configured family passes unchanged.
+
+With `action tear-down`, a match in any of those sections closes the session
+on import. This action is forbidden in export chains.
+
+<!-- source: internal/component/bgp/plugins/filter_family/handler.go -- judgeFamily -->
+<!-- source: internal/component/bgp/plugins/filter_family/match.go -- familyMatch -->
+
 ## Rejecting a path through a transit provider
 
 A `reject-asn` list names the ASNs that must not appear in a path exchanged with

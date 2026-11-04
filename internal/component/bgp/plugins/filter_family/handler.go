@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- family-filter per-update decision
-// Related: match.go -- family extraction + whether the family is all the UPDATE carries
+// Related: match.go -- matching every reachability section and detecting whole suppression
 // Related: config.go -- family-filter instance parsing
 // RFC: rfc/short/rfc4760.md -- multiprotocol family removal (Section 6)
 // RFC: rfc/short/rfc4271.md -- NOTIFICATION on tear-down (Section 6)
@@ -29,10 +29,9 @@ const dirImport = "import"
 //   - missing or malformed raw body: accept (cannot inspect; BGP-layer validation
 //     still applies, and we must not drop valid traffic on a decode failure).
 //   - family does not match: accept (AC-6).
-//   - remove + match: reject when removal empties the UPDATE (RFC 4760 §6 MP-only,
-//     AC-2/AC-4) or a no-MP ipv4/unicast match; otherwise modify with the
-//     family-strip intent, which the engine resolves into the body without
-//     the family's MP attributes (AC-3).
+//   - remove + match: reject when removal empties the UPDATE; otherwise modify
+//     with the family-strip intent, which the engine resolves across legacy
+//     announcements, withdrawals and both MP attributes.
 //   - tear-down + match (import only): reject + Teardown with a Cease / Connection
 //     Rejected NOTIFICATION (RFC 4271, RFC 4486). On export it is accepted
 //     (defensive; config validation already forbids tear-down in export, AC-7).
@@ -59,13 +58,15 @@ func judgeFamily(in *sdk.FilterRoute) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
 
-	fam, fromMP, ok := familyFromPayload(payload)
+	// RFC 4271 Section 4.3; RFC 4760 Sections 3 and 4: interpret each reachability section.
+	matched, only, ok := familyMatch(payload, inst.family)
 	if !ok {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept} // malformed; leave untouched
 	}
-	if fam != inst.family {
+	if !matched {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept} // AC-6: no match
 	}
+	fam := inst.family
 
 	if inst.action == actionTearDown {
 		if in.Direction() != dirImport {
@@ -81,16 +82,6 @@ func judgeFamily(in *sdk.FilterRoute) *sdk.FilterUpdateOutput {
 	}
 
 	// actionRemove.
-	if !fromMP {
-		// Matched ipv4/unicast: a no-MP UPDATE is entirely this family, so removing
-		// it empties the UPDATE — suppress it whole.
-		logger().Info("filter-family remove (suppress unicast)", "filter", in.Filter(), "peer", in.Peer(), "family", fam.String())
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
-	}
-	only, ok := carriesOnlyFamily(payload, fam)
-	if !ok {
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept} // malformed; leave untouched
-	}
 	if only {
 		// Stripping the family empties the UPDATE: suppress it whole. This is a
 		// verdict, not a rewrite, because the engine sends what the strip
@@ -98,10 +89,9 @@ func judgeFamily(in *sdk.FilterRoute) *sdk.FilterUpdateOutput {
 		logger().Info("filter-family remove (suppress)", "filter", in.Filter(), "peer", in.Peer(), "family", fam.String())
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
-	// The family-strip intent (D-5): the engine drops the family's
-	// MP_REACH_NLRI and MP_UNREACH_NLRI and keeps every other section, so
-	// the plugin writes no UPDATE body. The family read admits the intent.
-	logger().Info("filter-family remove (strip MP)", "filter", in.Filter(), "peer", in.Peer(), "family", fam.String())
+	// The engine resolves the family-strip intent across all four reachability
+	// sections, retaining every other family; the plugin writes no UPDATE body.
+	logger().Info("filter-family remove (strip)", "filter", in.Filter(), "peer", in.Peer(), "family", fam.String())
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{{
 		Field: fieldFamily, Action: rpc.FilterSetActionRemove, Value: familyValue(fam),
 	}}}
