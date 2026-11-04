@@ -51,7 +51,7 @@ func TestStartChildSurvivesForkingThreadExit(t *testing.T) {
 	if err := KillProcessGroup(cmd.Process.Pid); err != nil {
 		t.Errorf("stop the child: %v", err)
 	}
-	<-exited
+	<-exited //nolint:errcheck // Join after the explicit SIGKILL; the assertion above proves the child survived its forking thread.
 }
 
 // startFromDoomedThread asks for cmd's start from a goroutine that leaves its

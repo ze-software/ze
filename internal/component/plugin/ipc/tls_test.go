@@ -452,7 +452,7 @@ func TestPluginAcceptorWaitAfterStop(t *testing.T) {
 	// Verify Wait is blocked (not returning prematurely).
 	require.Never(t, func() bool {
 		select {
-		case <-errCh:
+		case <-errCh: //nolint:errcheck // Any return before Stop fails this blocking predicate, regardless of the error.
 			return true
 		default:
 			return false

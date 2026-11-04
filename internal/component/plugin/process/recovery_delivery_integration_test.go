@@ -247,7 +247,7 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		cancel()
 		if !joined {
 			select {
-			case <-completed:
+			case <-completed: //nolint:errcheck // Failure cleanup joins after cancellation; recoveryResult checks the command result on the assertion path.
 			case <-time.After(5 * time.Second):
 				t.Error("recovery command did not join after cancellation")
 			}

@@ -249,10 +249,10 @@ system {
 		stopped = true
 		cancel()
 		select {
-		case <-wait:
+		case <-wait: //nolint:errcheck // Cleanup joins after canceling CommandContext; daemon exit status is not the REST authentication predicate.
 		case <-time.After(2 * time.Second):
 			_ = cmd.Process.Kill()
-			<-wait
+			<-wait //nolint:errcheck // Reap after the cleanup kill; REST responses above determine the test outcome.
 		}
 		_ = logFile.Close()
 	}

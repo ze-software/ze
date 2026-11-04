@@ -138,7 +138,7 @@ func TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer(t *testing.T) {
 			require.True(t, p.armed(), "precondition: the Send Hold Timer must be armed")
 			tc.teardown(client)
 			select {
-			case <-p.runResult:
+			case <-p.runResult: //nolint:errcheck // Join both peer teardown paths before checking state and timer release; their Run errors differ and are not the release predicate.
 			case <-time.After(runExitDeadline):
 				t.Fatal("the session did not leave Established")
 			}
@@ -185,7 +185,8 @@ func TestRFC9687Event29ReleasesHoldTimerAndConnection(t *testing.T) {
 	expired := rfc9687Established(t, 90)
 	expired.clock.Add(rfc9687SendHold)
 	select {
-	case <-expired.runResult:
+	case err := <-expired.runResult:
+		require.Same(t, ErrSendHoldTimerExpired, err)
 	case <-time.After(runExitDeadline):
 		t.Fatal("the Send Hold Timer expired and Run never returned")
 	}

@@ -948,7 +948,8 @@ func TestRFC4271HoldExpiryRunsTheEvent10ActionList(t *testing.T) {
 	session, runResult, drainErr, wire := event10Established(t, 300*time.Millisecond)
 
 	select {
-	case <-runResult:
+	case err := <-runResult:
+		require.Same(t, ErrHoldTimerExpired, err)
 	case <-time.After(runExitDeadline):
 		t.Fatal("RFC 4271 Section 8.2.2 Event 10: the hold timer expired and Run " +
 			"never returned, so none of the action list ran")

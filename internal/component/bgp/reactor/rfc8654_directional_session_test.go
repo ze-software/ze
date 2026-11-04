@@ -92,7 +92,7 @@ func TestRFC8654ReceiveLimitFollowsLocalOPEN(t *testing.T) {
 						}
 						// RFC 4271 Section 6.1: the Data field is the erroneous Length.
 						assertNotification(t, <-answer, message.NotifyMessageHeader, message.NotifyHeaderBadLength, frame[16:18])
-						<-written
+						<-written //nolint:errcheck // Join the sender after header rejection; read-ahead may complete its write before close, while the NOTIFICATION and zero dispatch above prove rejection.
 					})
 				}
 			}

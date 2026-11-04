@@ -239,18 +239,18 @@ func lookupPeerConfigLocked(name, group string) (filterConfig, bool) {
 	return filterConfig{}, false
 }
 
-// ingressFilter is the decision the ingress member answers
-// (evaluateCommunityFilter). Looks up the source peer's filter config and
-// applies strip, RFC 7454 Section 11 scrub, RFC 7999 propagation guard,
-// then tag.
-func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
+// ingressFilter returns the ingress member's rewritten payload, or nil when
+// unchanged. evaluateCommunityFilter accepts the route and derives its edits.
+// It looks up the source peer's filter config and applies strip, RFC 7454
+// Section 11 scrub, RFC 7999 propagation guard, then tag.
+func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any) []byte {
 	mu.RLock()
 	defs := definitions
 	fc, hasCfg := lookupPeerConfigLocked(src.Name, src.GroupName)
 	mu.RUnlock()
 
 	if !hasCfg {
-		return true, nil
+		return nil
 	}
 
 	modified := applyIngressFilter(payload, defs, fc, src.LocalAS, src.PeerAS, src.RouteServerAS)
@@ -263,11 +263,11 @@ func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]an
 			"blackhole-propagation", fc.blackholeGuardToken(),
 		)
 	}
-	return true, modified
+	return modified
 }
 
-// relationIngressFilter is the decision the relation member answers
-// (evaluateCommunityFilter).
+// relationIngressFilter returns the relation member's rewritten payload, or
+// nil when unchanged. evaluateCommunityFilter accepts the route and derives its edits.
 //
 // It is a SECOND member rather than a step inside ingressFilter above, and
 // the reason is ordering rather than tidiness. The relation parameter derives
@@ -277,13 +277,13 @@ func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]an
 // the operator's, so the relation member always reads the answer written.
 // The operator orders ingress and relation against each other by their
 // position in the chain.
-func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
+func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) []byte {
 	mu.RLock()
 	fc, hasCfg := lookupPeerConfigLocked(src.Name, src.GroupName)
 	mu.RUnlock()
 
 	if !hasCfg || !fc.relationTagEnabled() {
-		return true, nil
+		return nil
 	}
 
 	// iBGP carries no customer/peer/provider relation: the source is inside
@@ -292,7 +292,7 @@ func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta ma
 	// exist. IsIBGP is the one rule (PeerSettings.IsIBGP): comparing PeerAS
 	// with LocalAS reads an RFC 7705 migration session as EBGP and tags it.
 	if src.IsIBGP {
-		return true, nil
+		return nil
 	}
 
 	peerRole := relationPeerRoleFromMeta(meta)
@@ -305,7 +305,7 @@ func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta ma
 			"parameter", relationParameterFor(peerRole),
 		)
 	}
-	return true, modified
+	return modified
 }
 
 // egressFilter is the decision the egress member answers

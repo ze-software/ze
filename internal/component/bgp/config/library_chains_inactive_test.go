@@ -39,7 +39,7 @@ func TestLibraryChainSkipsInactiveMembers(t *testing.T) {
 		Reads: []string{"local-preference"}, OnError: rpc.OnErrorReject,
 	}}
 	view := new(policyview.View)
-	view.Reset(updateWithLocalPref(t, 100), policyview.Session{})
+	view.Reset(updateWithLocalPref(t), policyview.Session{})
 	defer view.Clear()
 	sets := new(policychain.RunSets)
 	sets.SetRoute(policychain.ExternalRoute{Caller: caller, Direction: "import"})

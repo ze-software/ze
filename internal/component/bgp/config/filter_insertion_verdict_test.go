@@ -160,7 +160,7 @@ func runVerdict(t *testing.T, p filterapi.Policy, caller policychain.ExternalCal
 		t.Fatalf("the %s list carries library %T, want *policychain.Chain", direction, p.Library())
 	}
 	view := new(policyview.View)
-	view.Reset(updateWithLocalPref(t, 100), policyview.Session{})
+	view.Reset(updateWithLocalPref(t), policyview.Session{})
 	defer view.Clear()
 	sets := new(policychain.RunSets)
 	sets.SetRoute(policychain.ExternalRoute{Caller: caller, Direction: direction, Peer: "192.0.2.9", PeerAS: 65009})

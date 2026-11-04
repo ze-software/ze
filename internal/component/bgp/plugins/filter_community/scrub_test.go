@@ -9,6 +9,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // extractLargeCommunities reads every GA:LD1:LD2 triple from the
@@ -249,14 +251,21 @@ func TestScrubRouteServerKeepFollowsTheRouteServerAS(t *testing.T) {
 
 	t.Run("ingressFilter reads PeerFilterInfo.RouteServerAS", func(t *testing.T) {
 		withPeerConfig(t, filterConfig{scrubOwnGA: new(true)})
-		ok, got := ingressFilter(filterapi.PeerFilterInfo{
+		got := ingressFilter(filterapi.PeerFilterInfo{
 			Name:          relPeerName,
 			PeerAS:        64511,
 			LocalAS:       overrideAS,
 			RSClient:      true,
 			RouteServerAS: routeServerAS,
 		}, payload, nil)
-		require.True(t, ok)
+		route := rpc.InputFilterRoute(&rpc.FilterUpdateInput{
+			Filter: ingressFilterName,
+			Raw:    payload,
+			Fields: []byte(`{"peer-name":"peer1","peer-as":64511,"local-as":65010,"route-server-as":65000}`),
+		})
+		out, err := evaluateCommunityFilter(&route)
+		require.NoError(t, err)
+		require.Equal(t, sdk.FilterModify, out.Action)
 		want(t, got)
 	})
 }

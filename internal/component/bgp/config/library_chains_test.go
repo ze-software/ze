@@ -105,7 +105,7 @@ func TestLibraryChainAtPeerLoad(t *testing.T) {
 		Reads: []string{"local-preference"}, OnError: rpc.OnErrorAccept,
 	}}
 	view := new(policyview.View)
-	view.Reset(updateWithLocalPref(t, 100), policyview.Session{})
+	view.Reset(updateWithLocalPref(t), policyview.Session{})
 	defer view.Clear()
 	sets := new(policychain.RunSets)
 	sets.SetRoute(policychain.ExternalRoute{Caller: caller, Direction: "import"})
@@ -143,11 +143,11 @@ func (c *recordingCaller) CallFilter(plugin string, route *rpc.FilterRoute) (*rp
 }
 
 // updateWithLocalPref builds an UPDATE for 203.0.113.0/24 carrying ORIGIN
-// IGP and LOCAL_PREF lp.
-func updateWithLocalPref(t *testing.T, lp uint32) *wireu.WireUpdate {
+// IGP and LOCAL_PREF 100.
+func updateWithLocalPref(t *testing.T) *wireu.WireUpdate {
 	t.Helper()
 	attrs := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x05, 0x04}
-	attrs = binary.BigEndian.AppendUint32(attrs, lp)
+	attrs = binary.BigEndian.AppendUint32(attrs, 100)
 	payload := binary.BigEndian.AppendUint16([]byte{0, 0}, uint16(len(attrs)))
 	payload = append(payload, attrs...)
 	payload = append(payload, 24, 203, 0, 113)

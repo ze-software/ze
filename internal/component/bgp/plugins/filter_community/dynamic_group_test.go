@@ -158,13 +158,13 @@ func TestIngressFilterFallsBackToTheGroupsConfig(t *testing.T) {
 		},
 	}))
 
-	_, modified := ingressFilter(memberOf("ix", "ix-192.0.2.50"), taggedPayload(), nil)
+	modified := ingressFilter(memberOf("ix", "ix-192.0.2.50"), taggedPayload(), nil)
 	require.NotNil(t, modified, "the member resolved no community policy from its group")
 	assert.Equal(t, []uint32{0x0001_0001, 0xFDE9_0002}, extractCommunities(modified))
 
 	// Negative control: a session outside the group states nothing and is left
 	// alone, so the fallback is a group match rather than a match on anything.
-	_, untouched := ingressFilter(memberOf("", "standalone"), taggedPayload(), nil)
+	untouched := ingressFilter(memberOf("", "standalone"), taggedPayload(), nil)
 	assert.Nil(t, untouched, "a peer in no group picked up a group's policy")
 }
 
@@ -196,7 +196,7 @@ func TestCommunityConfigStillPrefersThePeerOverItsGroup(t *testing.T) {
 		},
 	}))
 
-	_, modified := ingressFilter(memberOf("ix", "member"), taggedPayload(), nil)
+	modified := ingressFilter(memberOf("ix", "member"), taggedPayload(), nil)
 	require.NotNil(t, modified)
 	assert.Equal(t, []uint32{0x0001_0001, 0xFDE9_0002, 0xFDE9_0001}, extractCommunities(modified),
 		"the named peer read its group's template instead of its own entry")
@@ -248,8 +248,8 @@ func TestDynamicGroupCommunityConfigMatchesAStaticPeer(t *testing.T) {
 
 	// The same answer through the registered filter, which is where an operator
 	// would see a divergence.
-	_, fromStatic := ingressFilter(filterapi.PeerFilterInfo{Name: "static", PeerAS: 64511, LocalAS: 65000}, taggedPayload(), nil)
-	_, fromMember := ingressFilter(memberOf("ix", "ix-192.0.2.50"), taggedPayload(), nil)
+	fromStatic := ingressFilter(filterapi.PeerFilterInfo{Name: "static", PeerAS: 64511, LocalAS: 65000}, taggedPayload(), nil)
+	fromMember := ingressFilter(memberOf("ix", "ix-192.0.2.50"), taggedPayload(), nil)
 	assert.Equal(t, fromStatic, fromMember)
 }
 
@@ -296,6 +296,6 @@ func TestRelationIngressFilterFallsBackToTheGroupsConfig(t *testing.T) {
 	}))
 
 	meta := map[string]any{"src-peer-role": "customer"}
-	_, modified := relationIngressFilter(memberOf("ix", "ix-192.0.2.50"), taggedPayload(), meta)
+	modified := relationIngressFilter(memberOf("ix", "ix-192.0.2.50"), taggedPayload(), meta)
 	assert.NotNil(t, modified, "the member resolved no relation tag from its group")
 }

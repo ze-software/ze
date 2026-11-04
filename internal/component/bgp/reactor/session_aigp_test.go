@@ -115,7 +115,7 @@ func TestAIGPOriginWriteDoesNotDeadlockTeardown(t *testing.T) {
 		_ = remote.Close()
 		_ = writer.Close()
 		if !completed {
-			<-written
+			<-written //nolint:errcheck // Failure cleanup releases locks and closes the pipe before joining; the assertion path checks the write error.
 		}
 		session.closeConn()
 	}()

@@ -10,6 +10,7 @@ package process
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -84,7 +85,10 @@ func TestStopReachesThePluginTheShellStarted(t *testing.T) {
 	cancel()
 
 	select {
-	case <-started:
+	case err := <-started:
+		if cause := errors.Unwrap(err); cause != context.Canceled { //nolint:errorlint // The producer wraps cancellation exactly once; assert that exact cause.
+			t.Fatalf("the canceled TLS connect-back returned %v, want wrapped context.Canceled", err)
+		}
 	case <-time.After(pluginStartBudget):
 		t.Fatal("the start never returned after the stop")
 	}

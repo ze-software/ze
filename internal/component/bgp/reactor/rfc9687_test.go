@@ -193,7 +193,8 @@ func TestRFC9687SendHoldExpiryRunsTheEvent29ActionList(t *testing.T) {
 	p.clock.Add(rfc9687SendHold)
 
 	select {
-	case <-p.runResult:
+	case err := <-p.runResult:
+		require.Same(t, ErrSendHoldTimerExpired, err)
 	case <-time.After(runExitDeadline):
 		t.Fatal("RFC 9687 Section 4.3 Event 29: the Send Hold Timer expired and Run " +
 			"never returned, so none of the action list ran")
@@ -445,7 +446,8 @@ func TestRFC9687SilenceDoesNotRestartTheSendHoldTimer(t *testing.T) {
 	p.clock.Add(6 * rfc9687SendHold / 10)
 
 	select {
-	case <-p.runResult:
+	case err := <-p.runResult:
+		require.Same(t, ErrSendHoldTimerExpired, err)
 	case <-time.After(runExitDeadline):
 		t.Fatal("RFC9687-4.3-8 negative: 1.2x the SendHoldTime passed with nothing " +
 			"sent, so the SendHoldTimer was never restarted and Event 29 must have " +
@@ -520,7 +522,8 @@ func TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer(t *testing.T) {
 
 	p.clock.Add(rfc9687SendHold)
 	select {
-	case <-p.runResult:
+	case err := <-p.runResult:
+		require.Same(t, ErrSendHoldTimerExpired, err)
 	case <-time.After(runExitDeadline):
 		t.Fatal("RFC9687-4.3-9 negative: with a non-zero negotiated HoldTime the " +
 			"SendHoldTimer runs, so a silent local system must reach Event 29")

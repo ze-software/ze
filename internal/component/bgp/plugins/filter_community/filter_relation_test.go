@@ -8,6 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const (
@@ -58,10 +61,20 @@ func TestRelationTagWiring(t *testing.T) {
 	withPeerConfig(t, relationOn(nil))
 	payload := buildPayload(buildOriginAttr())
 
-	accept, modified := relationIngressFilter(
+	modified := relationIngressFilter(
 		relPeerInfo(relPeerAS), payload, map[string]any{"src-peer-role": roleProvider})
 
-	assert.True(t, accept, "the relation tag never rejects a route")
+	route := rpc.InputFilterRoute(&rpc.FilterUpdateInput{
+		Filter: relationFilterName,
+		Raw:    payload,
+		Fields: []byte(`{"peer-name":"peer1","local-as":65000,"src-peer-role":"provider"}`),
+	})
+	out, err := evaluateCommunityFilter(&route)
+	require.NoError(t, err)
+	require.Equal(t, sdk.FilterModify, out.Action, "the relation tag never rejects a route")
+	assert.Equal(t, []rpc.FilterSet{
+		{Field: policy.FieldLargeCommunity.String(), Action: rpc.FilterSetActionAdd, Value: []byte(`"65000:3:4"`)},
+	}, out.Sets)
 	require.NotNil(t, modified, "a provider's route must gain the relation community")
 	assert.Equal(t, [][3]uint32{{relLocalAS, 3, 4}}, extractLargeCommunities(modified))
 }
@@ -90,7 +103,7 @@ func TestRelationTagPerRole(t *testing.T) {
 			withPeerConfig(t, relationOn(nil))
 			payload := buildPayload(buildOriginAttr())
 
-			_, modified := relationIngressFilter(
+			modified := relationIngressFilter(
 				relPeerInfo(relPeerAS), payload, map[string]any{"src-peer-role": tt.role})
 
 			if tt.want == nil {
@@ -122,7 +135,7 @@ func TestRelationTagForgedValueRemoved(t *testing.T) {
 		[3]uint32{64512, 3, 2},       // another AS's relation tag, never ours to touch
 	)...))
 
-	_, modified := relationIngressFilter(
+	modified := relationIngressFilter(
 		relPeerInfo(relPeerAS), payload, map[string]any{"src-peer-role": roleProvider})
 	require.NotNil(t, modified)
 
@@ -142,9 +155,9 @@ func TestRelationTagIsIdempotent(t *testing.T) {
 	withPeerConfig(t, relationOn(nil))
 	meta := map[string]any{"src-peer-role": roleProvider}
 
-	_, first := relationIngressFilter(relPeerInfo(relPeerAS), buildPayload(buildOriginAttr()), meta)
+	first := relationIngressFilter(relPeerInfo(relPeerAS), buildPayload(buildOriginAttr()), meta)
 	require.NotNil(t, first)
-	_, second := relationIngressFilter(relPeerInfo(relPeerAS), first, meta)
+	second := relationIngressFilter(relPeerInfo(relPeerAS), first, meta)
 
 	if second != nil {
 		first = second
@@ -174,7 +187,7 @@ func TestRelationTagIBGPWritesNothing(t *testing.T) {
 	migration := relPeerInfo(relPeerAS)
 	migration.IsIBGP = true
 	for name, src := range map[string]filterapi.PeerFilterInfo{"iBGP": internal, "RFC 7705 migration": migration} {
-		_, modified := relationIngressFilter(src, buildPayload(buildOriginAttr()),
+		modified := relationIngressFilter(src, buildPayload(buildOriginAttr()),
 			map[string]any{"src-peer-role": roleProvider})
 		assert.Nil(t, modified, name)
 	}
@@ -188,7 +201,7 @@ func TestRelationTagIBGPWritesNothing(t *testing.T) {
 func TestRelationTagDisabledWritesNothing(t *testing.T) {
 	withPeerConfig(t, filterConfig{ingressTag: []string{"unused"}})
 
-	_, modified := relationIngressFilter(
+	modified := relationIngressFilter(
 		relPeerInfo(relPeerAS), buildPayload(buildOriginAttr()),
 		map[string]any{"src-peer-role": roleProvider})
 
@@ -210,7 +223,7 @@ func TestRelationFunctionNumberIsConfigurable(t *testing.T) {
 
 	withPeerConfig(t, relationOn(new(uint32(64))))
 
-	_, modified := relationIngressFilter(
+	modified := relationIngressFilter(
 		relPeerInfo(relPeerAS), buildPayload(buildOriginAttr()),
 		map[string]any{"src-peer-role": roleCustomer})
 	require.NotNil(t, modified)
@@ -231,7 +244,7 @@ func TestRelationDeForgeFollowsTheConfiguredFunction(t *testing.T) {
 		[3]uint32{relLocalAS, 64, 2}, // forged at the CONFIGURED function
 	)...))
 
-	_, modified := relationIngressFilter(
+	modified := relationIngressFilter(
 		relPeerInfo(relPeerAS), payload, map[string]any{"src-peer-role": roleProvider})
 	require.NotNil(t, modified)
 
@@ -268,7 +281,7 @@ func TestScrubThenTagOrder(t *testing.T) {
 	scrubbed := applyIngressFilter(payload, nil, fc, relLocalAS, relPeerAS, 0)
 	require.NotNil(t, scrubbed)
 
-	_, tagged := relationIngressFilter(
+	tagged := relationIngressFilter(
 		relPeerInfo(relPeerAS), scrubbed, map[string]any{"src-peer-role": rolePeer})
 	require.NotNil(t, tagged)
 

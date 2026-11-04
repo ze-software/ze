@@ -147,12 +147,12 @@ func evaluateCommunityFilter(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, e
 	}
 	switch route.Filter() {
 	case ingressFilterName:
-		accept, modified := ingressFilter(session.peer, route.Raw(), nil)
-		return rewriteVerdict(accept, route.Raw(), modified)
+		modified := ingressFilter(session.peer, route.Raw(), nil)
+		return rewriteVerdict(true, route.Raw(), modified)
 	case relationFilterName:
 		meta := map[string]any{srcPeerRoleName: session.srcPeerRole}
-		accept, modified := relationIngressFilter(session.peer, route.Raw(), meta)
-		return rewriteVerdict(accept, route.Raw(), modified)
+		modified := relationIngressFilter(session.peer, route.Raw(), meta)
+		return rewriteVerdict(true, route.Raw(), modified)
 	case egressFilterName:
 		var mods filterapi.ModAccumulator
 		if !egressFilter(filterapi.PeerFilterInfo{}, session.peer, route.Raw(), nil, &mods) {

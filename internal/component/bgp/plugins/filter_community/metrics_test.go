@@ -102,12 +102,12 @@ func TestRelationTagCountedWhenWritten(t *testing.T) {
 	reg := installCommunityMetrics(t)
 	withPeerConfig(t, relationOn(nil))
 
-	_, modified := relationIngressFilter(relPeerInfo(relPeerAS), buildPayload(buildOriginAttr()),
+	modified := relationIngressFilter(relPeerInfo(relPeerAS), buildPayload(buildOriginAttr()),
 		map[string]any{"src-peer-role": roleProvider})
 	require.NotNil(t, modified)
 	assert.Equal(t, 1.0, seriesValue(t, reg, seriesRelationTag))
 
-	_, modified = relationIngressFilter(relPeerInfo(relPeerAS), buildPayload(buildOriginAttr()),
+	modified = relationIngressFilter(relPeerInfo(relPeerAS), buildPayload(buildOriginAttr()),
 		map[string]any{"src-peer-role": roleRSClient})
 	require.Nil(t, modified)
 	assert.Equal(t, 1.0, seriesValue(t, reg, seriesRelationTag), "an untagged route counts nothing")

@@ -44,7 +44,7 @@ func TestViewFilterChainCompilesToLibrary(t *testing.T) {
 
 	caller := &recordingCaller{decl: policychain.ExternalDeclaration{Reads: []string{"local-preference"}}}
 	view := new(policyview.View)
-	view.Reset(updateWithLocalPref(t, 100), policyview.Session{})
+	view.Reset(updateWithLocalPref(t), policyview.Session{})
 	defer view.Clear()
 	sets := new(policychain.RunSets)
 	sets.SetRoute(policychain.ExternalRoute{Caller: caller, Direction: "import"})

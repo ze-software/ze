@@ -82,9 +82,9 @@ func (m *matchCommunity) in(fields []byte) bool {
 	if !bytes.HasPrefix(list, []byte{'['}) {
 		return false
 	}
-	end := bytes.IndexByte(list, ']')
-	if end < 0 {
+	list, _, found := bytes.Cut(list, []byte{']'})
+	if !found {
 		return false
 	}
-	return bytes.Contains(list[:end], m.needle)
+	return bytes.Contains(list, m.needle)
 }
