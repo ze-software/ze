@@ -16,8 +16,8 @@ func TestClosedFilterSlotAppliesDeclaredOnError(t *testing.T) {
 	for _, onError := range []rpc.OnErrorPolicy{rpc.OnErrorReject, rpc.OnErrorAccept} {
 		t.Run(onError.String(), func(t *testing.T) {
 			transport := &unavailableTransport{
-				externalTransport: externalTransport{reads: []string{rpc.FilterFieldRaw}},
-				onError:           onError,
+				reads:   []string{rpc.FilterFieldRaw},
+				onError: onError,
 			}
 			reactor := &Reactor{filterTransportSeam: transport}
 			addr := netip.MustParseAddr("192.0.2.4")
