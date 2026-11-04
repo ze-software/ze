@@ -29,6 +29,14 @@ docker host start` runs Colima next) never hands its children a removed working
 directory.
 <!-- source: internal/appliance/gok_execute.go -- ExecuteGok, keepWorkingDir -->
 
+The appliance CLI resolves its base directory to an absolute path once, before
+dispatch. This pins relative `--dir`, `ZE_APPLIANCE_DIR` and XDG-default paths to
+the invocation's working directory even while gok temporarily changes it.
+If the relative path cannot be resolved because the working directory is gone,
+the CLI refuses before dispatch and asks for an existing working directory or an
+absolute `--dir`; it does not guess another appliance directory.
+<!-- source: internal/appliance/main.go -- Run, baseDir -->
+
 <!-- source: internal/appliance/main.go -- command dispatch, built at call time -->
 <!-- source: internal/appliance/gok_execute.go -- ExecuteGok, the one gok entry point -->
 <!-- source: internal/appliance/gok_execute_other.go -- the refusal on any other host -->

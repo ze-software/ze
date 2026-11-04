@@ -9,10 +9,12 @@ package appliance
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -79,15 +81,22 @@ func applianceHelpEntries() []helpfmt.HelpEntry {
 	return entries
 }
 
-// baseDir holds the resolved appliance directory for the current invocation.
-// Set once in Run() before dispatching. Not safe for concurrent use (CLI is
+// baseDir holds the absolute appliance directory for the current invocation.
+// Resolved once in Run() before dispatching. Not safe for concurrent use (CLI is
 // single-threaded; tests that call Run() must not use t.Parallel).
 var baseDir string
 
 func Run(args []string) int {
 	var flagDir string
 	args, flagDir = extractDirFlag(args)
-	baseDir = ResolveDir(flagDir)
+	directory, err := filepath.Abs(ResolveDir(flagDir))
+	if err != nil {
+		var message textbuf.Buffer
+		fmt.Fprintln(os.Stderr, message.Str("resolve appliance directory: ").Err(err).
+			Str("; run the command from an existing working directory or supply an absolute --dir path").String())
+		return exitError
+	}
+	baseDir = directory
 
 	if len(args) == 0 {
 		usage()
