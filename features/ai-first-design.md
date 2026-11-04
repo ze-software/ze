@@ -13,7 +13,7 @@
 | Real-path tests | test/plugin/mcp-discover-daemon.ci, test/plugin/mcp-tools-list-stateless.ci, test/plugin/mcp-tools-call-stateless.ci, test/ui/help-ai.ci, test/ui/help-ai-json.ci |
 | RFCs | rfc9728 |
 | Docs | docs/features/ai-first.md |
-| Doc review | 2026-10-07: the row is one line (CLI-as-API with MCP transport); internal/component/mcp serves it |
+| Doc review | 2026-11-04: independently compared the Description and docs/features/ai-first.md against reference/help producers, MCP tool generation and dispatch, command-surface restrictions, diagnostics, bundled skills, commit preparation, and builtin/plugin discovery; registry-derived listings are distinguished from authored guidance, without universal CLI/MCP parity or freshness claims. Source review only; runtime evidence remains separately bounded. |
 | Defect review | 2026-10-07: open: plan/release/fixes/spec-mcp-protected-resource-metadata-path.md (RFC 9728 metadata path) |
 
 ## Description
