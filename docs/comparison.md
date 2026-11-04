@@ -184,15 +184,22 @@ A raw payload rewrite stops later filters but does not bypass that final decisio
 <!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, rawOutcome, endFinal -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 
-Built-in filter plugins (shipped with ze) include `bgp-filter-prefix` for
-prefix-list matching with ge/le bounds, `bgp-filter-aspath` for AS-path regex
-filtering, `bgp-filter-community-match` for community presence matching
-(standard/large/extended), `bgp-filter-modify` for route attribute modification
+Built-in plugins (shipped with ze) include `bgp-filter-prefix`, which registers
+the `prefix-list` match condition with ge/le bounds, `bgp-filter-aspath`, which
+registers the AS-path regex condition, `bgp-filter-community-match`, which
+registers the community presence condition (standard/large/extended); those
+conditions run in process inside a `match` instance. Filter plugins include
+`bgp-filter-modify` for route attribute modification
 (local-preference, MED, origin, next-hop, AS-path prepend),
-`bgp-filter-community` for community tag/strip, `bgp-filter-path-asn` for
-rejecting a path that carries a named ASN at a named position (the RFC 7454
-Section 9 transit-leak check), and `bgp-role` for RFC 9234
-roles enforcement. Filters compose in ordered chains:
+`bgp-filter-community` for community tag/strip, and `bgp-role` for RFC 9234
+roles enforcement; `bgp-filter-path-asn` registers the `reject-asn` condition,
+which rejects a path that carries a named ASN at a named position (the RFC 7454
+Section 9 transit-leak check). A filter plugin can also be an external program
+in any language: it speaks the versioned, batched `filter-update` contract and
+is sent only the fields it declared.
+<!-- source: internal/component/policy/match.go -- MustRegisterMatchCondition -->
+<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchInput, FilterDecl -->
+Filters and `match` instances compose in ordered chains:
 
 ```text
 policy {
