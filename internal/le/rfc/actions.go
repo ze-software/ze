@@ -100,9 +100,9 @@ var actions = leaction.New(area,
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the approved RFC-tagged unit, as <package>.<TestName>", Value: "<package>.<TestName>", Requirement: leaction.Required},
-			{Keyword: keyReason, Kind: leaction.KindString, Help: "the judge's verdict approving the change", Value: keyReason, Requirement: leaction.Required},
+			{Keyword: keyReason, Kind: leaction.KindString, Help: "the verdict; owner rulings require a terminal", Value: keyReason, Requirement: leaction.Required},
 		},
-		AnswerArgs: approveAnswer},
+		PrepareArgs: approveAnswer},
 	leaction.Action{Verb: "check", Summary: "check RFC coverage, evidence and sign-off", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +
 		"verdicts and extraction sign-off, judged from the summaries and the tags and " +
 		"never from a generated page, without writing",

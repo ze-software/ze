@@ -140,6 +140,13 @@ func members(token string) []string {
 // program supplies the page name for help and refusals. It does not change the
 // registered command set.
 func Dispatch(program string, args []string) int {
+	return DispatchWithStartup(program, args, nil)
+}
+
+// DispatchWithStartup carries process initialization to the selected action.
+// Preparation, when declared, MUST succeed before startup can write. The
+// action's captured answer MUST run only after startup returns.
+func DispatchWithStartup(program string, args []string, startup func()) int {
 	checkRegistrations()
 	leaction.SetProgram(program)
 	// The root names no command, so it answers what le holds, as a payload
@@ -150,11 +157,12 @@ func Dispatch(program string, args []string) int {
 		// A person at a terminal who typed nothing at all gets the menu over
 		// the same tree (D-Q4); `le | json` and every pipe still get the page.
 		if len(args) == 0 && interactive() {
-			return openMenu(program)
+			return openMenu(program, startup)
 		}
-		return Run("", toolHandler(func([]string) (any, int) { return manifestOf(program), 0 }), args, os.Stdout, os.Stderr)
+		return runWithStartup("", toolHandler(func([]string) (any, int) { return manifestOf(program), 0 }), args, os.Stdout, os.Stderr, startup)
 	}
 	if isHelpArg(args[0]) {
+		start(startup)
 		if len(args) == 1 {
 			return helpRoot(program)
 		}
@@ -170,22 +178,24 @@ func Dispatch(program string, args []string) int {
 		}
 		return helpAsked(program, args[1:])
 	}
-	return dispatchLine(program, args, false)
+	return dispatchLine(program, args, false, startup)
 }
 
 // dispatchLine runs one command line that is not the root and not a help
 // question. At a terminal, a missing Required value is asked for first
 // (fillLine); fromMenu says the reader built the line at the menu, so it is
 // echoed even when nothing was missing.
-func dispatchLine(program string, args []string, fromMenu bool) int {
+func dispatchLine(program string, args []string, fromMenu bool, startup func()) int {
 	// A retired spelling is refused before anything resolves or parses it,
 	// naming the line that does the work now (D-retired). The rename map is
 	// the one leretired declares, which the documentation sweep also reads.
 	if retired := retiredLine(program, args); retired != nil {
+		start(startup)
 		return refuseRetired(retired)
 	}
 	name, handler, toolArgs := resolve(args)
 	if token, rest, nested := nestedNamespace(name, toolArgs); nested {
+		start(startup)
 		return answerNamespace(program, token, rest)
 	}
 	if handler != nil {
@@ -196,6 +206,7 @@ func dispatchLine(program string, args []string, fromMenu bool) int {
 		// this question, and travels on as that keyword's value.
 		own, _ := splitChain(toolArgs)
 		if asksForUsage(name, own) {
+			start(startup)
 			return helpTrailing(program, name, own)
 		}
 		if interactive() {
@@ -205,17 +216,26 @@ func dispatchLine(program string, args []string, fromMenu bool) int {
 			}
 			toolArgs = line.args
 		}
-		return Run(name, handler, toolArgs, os.Stdout, os.Stderr)
+		return runWithStartup(name, handler, toolArgs, os.Stdout, os.Stderr, startup)
 	}
 
 	if len(members(args[0])) != 0 {
+		start(startup)
 		return answerNamespace(program, args[0], args[1:])
 	}
 
+	start(startup)
 	var tb textbuf.Buffer
 	tb.Str("unknown command: ").Str(args[0]).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	Usage(program)
 	return 2
+}
+
+// start preserves the no-startup contract of direct dispatcher callers.
+func start(startup func()) {
+	if startup != nil {
+		startup()
+	}
 }
 
 // answerNamespace answers a line that names a namespace token and stops

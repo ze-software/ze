@@ -1,15 +1,11 @@
-// Design: docs/contributing/running-commands.md -- the terminal gate a whole-tree verify verb asks first
+// Design: docs/contributing/running-commands.md -- shared terminal gates
 //
-// Package human answers one question at the entry of a whole-tree run: did a
-// person at an interactive terminal start this process?
+// Package human restricts whole-tree runs and issuance of owner authorization
+// to processes whose stdin and stdout are both interactive terminals.
 //
-// A full verification loads the whole shared machine for its length, and only
-// Thomas can judge when that is safe: several sessions run at once nearly all
-// the time, so no check at start can say anything about the hour that follows.
-// Who started the run is a fact the process can read at start. An agent's tool
-// call reaches le with its stdin and stdout as pipes, and Thomas's shell reaches
-// it with a terminal on both, so a whole-tree verb refuses unless both streams
-// are terminals.
+// A full verification loads the shared machine for its length; only Thomas
+// judges when that is safe. Owner authorization records his instruction rather
+// than an agent's. Both gates inspect the same process streams before work starts.
 //
 // The gate stops a tool call, not a determined wrapper: a program that fakes a
 // terminal passes it. No keyword, flag or environment variable skips it, so no
@@ -18,6 +14,7 @@ package human
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"golang.org/x/term"
@@ -58,27 +55,47 @@ func RequireTerminal(commandLine string) error {
 	return Check(IsTerminal, os.Stdin, os.Stdout, commandLine)
 }
 
+// RequireAuthorization refuses owner authorization unless stdin and stdout are
+// interactive terminals. root, the raw harness session when already known, and
+// the action's actual arguments preserve the operation Thomas must run himself.
+// Callers MUST check it before creating any session directory or artifact.
+// A terminal is an operational restriction, not authenticated authorship.
+func RequireAuthorization(root, session, action string, arguments []string) error {
+	return check(IsTerminal, os.Stdin, os.Stdout, action, func(condition, action string) error {
+		commandLine, err := authorizationCommand(root, session, action, arguments)
+		if err != nil {
+			return fmt.Errorf("owner authorization needs Thomas's terminal (%s), but its retry context cannot be read: %w; restore access to %s/tmp/session and correct any invalid session or agent identity, then run the original command from Thomas's terminal", condition, err, root)
+		}
+		return authorizationRefusal(condition, commandLine)
+	})
+}
+
 // Check is RequireTerminal over an injected question and streams, so a test can
 // answer for a terminal it does not have.
 func Check(question Question, stdin, stdout *os.File, commandLine string) error {
+	return check(question, stdin, stdout, commandLine, refusal)
+}
+
+// check shares detection while each issuer supplies the refusal for its purpose.
+func check(question Question, stdin, stdout *os.File, commandLine string, refuse func(string, string) error) error {
 	stdinTerminal, stdinErr := question(stdin)
 	if stdinErr != nil {
-		return refusal(unanswered("stdin", stdinErr), commandLine)
+		return refuse(unanswered("stdin", stdinErr), commandLine)
 	}
 	stdoutTerminal, stdoutErr := question(stdout)
 	if stdoutErr != nil {
-		return refusal(unanswered("stdout", stdoutErr), commandLine)
+		return refuse(unanswered("stdout", stdoutErr), commandLine)
 	}
 	if stdinTerminal && stdoutTerminal {
 		return nil
 	}
 	if stdinTerminal {
-		return refusal("stdout is not a terminal", commandLine)
+		return refuse("stdout is not a terminal", commandLine)
 	}
 	if stdoutTerminal {
-		return refusal("stdin is not a terminal", commandLine)
+		return refuse("stdin is not a terminal", commandLine)
 	}
-	return refusal("neither stdin nor stdout is a terminal", commandLine)
+	return refuse("neither stdin nor stdout is a terminal", commandLine)
 }
 
 // unanswered names a stream whose terminal question failed, and why.
@@ -102,9 +119,18 @@ func refusal(condition, commandLine string) error {
 	return &Refusal{message: text.String()}
 }
 
-// Refusal is the error a whole-tree verb answers when no person at a terminal
-// started it. errors.As finds it, so a caller can tell the refusal from a run
-// that failed.
+// authorizationRefusal names the issuance boundary, never a verification task.
+func authorizationRefusal(condition, commandLine string) error {
+	var text textbuf.Buffer
+	text.Str("owner authorization requires interactive stdin and stdout: ").Str(condition).Byte('\n').
+		Str("  this command records the owner's instruction; an agent cannot issue it\n").
+		Str("  give Thomas this command to run from his own terminal:\n").
+		Str("    ").Str(commandLine)
+	return &Refusal{message: text.String()}
+}
+
+// Refusal reports that a terminal-only action was not admitted. errors.As finds
+// it, so callers can distinguish refusal from an action that ran and failed.
 type Refusal struct {
 	message string
 }

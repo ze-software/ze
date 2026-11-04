@@ -26,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/menu"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/human"
 )
 
 // echoPrefix opens the line le echoes before it runs a line the reader built
@@ -242,14 +243,7 @@ func noteUnlisted(program string, err error) {
 func echoLine(program, name string, toolArgs []string) {
 	var tb textbuf.Buffer
 	tb.Str(echoPrefix).Str(program).Byte(' ').Str(name)
-	for _, word := range toolArgs {
-		tb.Byte(' ')
-		if word != "" && !strings.ContainsAny(word, " \t\n'\"\\$`|&;<>()*?[]{}!#~") {
-			tb.Str(word)
-			continue
-		}
-		tb.Byte('\'').Str(strings.ReplaceAll(word, "'", `'\''`)).Byte('\'')
-	}
+	human.AppendArguments(&tb, toolArgs)
 	tb.Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
@@ -270,7 +264,7 @@ func canceled(program string, err error) int {
 // openMenu opens the menu over the derived tree and runs the line the reader
 // chooses, echoed first, with every missing Required value asked for. Quitting
 // runs nothing and answers 0: the reader asked what le holds and left.
-func openMenu(program string) int {
+func openMenu(program string, startup func()) int {
 	tree := Tree()
 	chosen, err := menu.Run(menu.NewDeclared(program, tree))
 	if err != nil {
@@ -279,5 +273,5 @@ func openMenu(program string) int {
 	if len(chosen) == 0 {
 		return 0
 	}
-	return dispatchLine(program, chosen, true)
+	return dispatchLine(program, chosen, true, startup)
 }

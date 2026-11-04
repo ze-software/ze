@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/human/humantest"
 )
 
 // TestDebtConsumersNameAnOpenPersonAct validates Data Flow step 6 and AC-22 at
@@ -221,6 +222,7 @@ func TestEveryCreateKeywordReadsOptions(t *testing.T) {
 //
 // MUTATION: drop result.Debt = debtReport(root) from Create and this fails.
 func TestCreateDebtNamesAnOpenPersonAct(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "create-debt-fixture")
 	owed := owedClosure(t, root)

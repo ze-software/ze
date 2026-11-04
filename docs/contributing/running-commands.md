@@ -427,10 +427,21 @@ host command`, that never read the profile adding Go to PATH.
 
 Every Go command le starts compiles against Ze's patched standard library
 (`docs/contributing/patching-the-standard-library.md`). le's root handler calls
-`gen.Activate` (`internal/le/go/stdpatch/gen`) before it dispatches: it builds the patched GOROOT from the
-toolchain go.mod pins, on first use, and sets `GOROOT` to it, `GOTOOLCHAIN=local`
-and the tree's `bin` first on `PATH` in le's own environment, so every child
-inherits them. `./le go stdpatch goroot` prints that tree; a plain `go` command
+`gen.Activate` (`internal/le/go/stdpatch/gen`) during startup, before the
+selected action executes. Actions declaring read-only preparation first parse
+and admit their request; only success permits cache-link repair, patched-GOROOT
+activation and before-dispatch hooks, in that order. Owner-ruling RFC approvals,
+commit attestations, push authorization and owner-authorised review records
+therefore refuse a nonterminal invocation before any of those startup writers.
+Ordinary judge approvals and reviews without owner words remain noninteractive,
+and ordinary handlers still receive initialization before execution. Action
+help prints its declared page and exits zero without preparing or executing
+an action, whether called through the root or directly through the area's Go
+API. Shell completion continues to skip startup entirely.
+Activation builds the patched GOROOT from the toolchain go.mod pins on first
+use, and sets `GOROOT` to it, `GOTOOLCHAIN=local` and the tree's `bin` first on
+`PATH` in le's own environment, so every child inherits them.
+`./le go stdpatch goroot` prints that tree; a plain `go` command
 outside le uses it with
 `export GOROOT="$(./le go stdpatch goroot)" GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"`.
 A refusal of the generator (a stale review stamp, a patch that no longer
@@ -441,6 +452,8 @@ and `./le verify` runs it in both modes.
 <!-- source: internal/le/register.go -- activatePatchedGOROOT -->
 <!-- source: internal/le/go/patchstamps/patchstamps.go -- runPatchStampsCheck -->
 <!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- Activate -->
+<!-- source: internal/le/le/root/leroot.go -- runWithStartup -->
+<!-- source: internal/le/le/action/leaction.go -- Action, PreparedAnswer, List.Preparer -->
 
 A named build does not stay forever. The hourly store trim (see "When the disk
 is full") removes `bin/le-<name>/` once nothing in it was written for a day

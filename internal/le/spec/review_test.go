@@ -6,9 +6,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/le/human/humantest"
 )
 
 func TestReviewRoundSixNeedsAProductDefectAndOwnerAuthorization(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	// VALIDATES: round 6 requires both bounds to be lifted independently.
 	// PREVENTS: a session authorizing its own unbounded review loop or using the
 	// owner's words without naming what the extra product pass found.

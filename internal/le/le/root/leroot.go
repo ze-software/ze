@@ -311,14 +311,21 @@ func RegisterShape(name string, shape command.AnswerShape) {
 // out and errOut are parameters so a test drives the same code path the binary
 // runs, rather than a copy of it.
 func Run(name string, handler command.LocalDataHandler, args []string, out, errOut io.Writer) int {
+	return runWithStartup(name, handler, args, out, errOut, nil)
+}
+
+// runWithStartup uses the area's own preparation before process startup.
+// Ordinary handlers keep their existing startup-before-handler ordering.
+func runWithStartup(name string, handler command.LocalDataHandler, args []string, out, errOut io.Writer, startup func()) int {
 	toolArgs, pipeStr := splitChain(args)
+	actions, declared := ActionsOf(name)
 
 	// The action can declare a different answer from its area. Only a verb
 	// in the area's grammar joins the metadata path: argument values stay
 	// opaque argv, even when they contain spaces or pipe characters.
 	var actionVerb string
 	if len(toolArgs) != 0 {
-		if actions, declared := ActionsOf(name); declared {
+		if declared {
 			for i := range actions.Actions {
 				if actions.Actions[i].Verb == toolArgs[0] {
 					actionVerb = actions.Actions[i].Verb
@@ -342,6 +349,15 @@ func Run(name string, handler command.LocalDataHandler, args []string, out, errO
 		}
 		input = tb.String()
 		path = input[:pathLength]
+	}
+
+	var prepare func([]string) (leaction.Prepared, int)
+	if declared {
+		prepare, toolArgs = actions.Preparer(toolArgs)
+	}
+	if prepare == nil {
+		// Ordinary lines retain startup before pipe or argument refusals too.
+		start(startup)
 	}
 
 	// Command-owned filters append words to the metadata path. Append only
@@ -371,7 +387,18 @@ func Run(name string, handler command.LocalDataHandler, args []string, out, errO
 		fmt.Fprintln(errOut, tb.Str("error: ").Str(err.Error()).String()) //nolint:errcheck // CLI output
 		return 2
 	}
-	answer := handler(validated)
+	var answer command.LocalAnswer
+	if prepare != nil {
+		prepared, code := prepare(toolArgs)
+		if code != 0 {
+			return code
+		}
+		start(startup)
+		payload, code := prepared.Answer()
+		answer = command.LocalAnswer{Payload: payload, Code: code}
+	} else {
+		answer = handler(validated)
+	}
 	io.WriteString(errOut, answer.Diagnostic) //nolint:errcheck // CLI output
 	payload, code := answer.Payload, answer.Code
 	if payload == nil {

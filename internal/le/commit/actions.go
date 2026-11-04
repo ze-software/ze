@@ -121,7 +121,6 @@ var retiredVerbs = map[string]string{
 // verify: no agent runs ./le verify, and nothing replaces it.
 const noVerifyOwed = "nothing replaces it: no commit or push owes a local verify, and GitHub CI verifies the pushed commit"
 
-
 // messageResult is a validated message preview.
 type messageResult struct {
 	Message string `json:"text"`
@@ -167,10 +166,10 @@ func table() leaction.Area {
 		},
 		leaction.Action{
 			Verb: "create", Writes: true,
-			Summary:    "validate a file list and write its commit script",
-			Why:        "validate an explicit file/remove population and generate its message and executable commit script",
-			Parameters: createParameters,
-			AnswerArgs: withRoot(answerCreate),
+			Summary:     "validate a file list and write its commit script",
+			Why:         "validate an explicit file/remove population and generate its message and executable commit script",
+			Parameters:  createParameters,
+			PrepareArgs: prepareWithRoot(prepareCreate),
 		},
 		leaction.Action{
 			Verb:       "message",
@@ -196,13 +195,13 @@ func table() leaction.Area {
 			Verb: keywordPush, Writes: true,
 			Summary: "prepare the script that pushes a verified commit",
 			Why: "derive what the verified commit P owes and prepare a script that re-derives against P and pushes P " +
-				"to the upstream branch; takes the owner's authorisation",
+				"to the upstream branch; preparation requires the owner's terminal",
 			// The owner's words are the whole line, as typed: an argv, so words
 			// that begin with a dash or read like a keyword are still his.
 			// answerPush takes exactly one, the quoted form.
 			Parameters: []leaction.Parameter{{Kind: leaction.KindArgv, Value: valueAuthorisation,
-				Requirement: leaction.Required, Help: "the owner's words ordering this push, recorded in the script"}},
-			AnswerArgs: withRoot(answerPush),
+				Requirement: leaction.Required, Help: "the owner's push instruction; terminal-only issuance"}},
+			PrepareArgs: prepareWithRoot(answerPush),
 		},
 		leaction.Action{
 			Verb:    keywordDebtStatus,
@@ -230,6 +229,19 @@ func withRoot(body func(root string, args leaction.Arguments) (any, int)) func(l
 	}
 }
 
+// prepareWithRoot resolves the checkout once before read-only admission.
+// Commit's root failures remain could-not-run (3), not usage refusals (2).
+func prepareWithRoot(body func(string, leaction.Arguments) (leaction.Prepared, int)) func(leaction.Arguments) (leaction.Prepared, int) {
+	return func(args leaction.Arguments) (leaction.Prepared, int) {
+		root, err := lepath.Root()
+		if err != nil {
+			leaction.ReportError(err)
+			return leaction.Prepared{}, 3
+		}
+		return body(root, args)
+	}
+}
+
 func answerSession(root string, args leaction.Arguments) (any, int) {
 	session, err := lepath.CommitSession(root, args.One(keywordSession))
 	if errors.Is(err, lepath.ErrCommitSessionSpelling) {
@@ -243,12 +255,27 @@ func answerSession(root string, args leaction.Arguments) (any, int) {
 	return sessionResult{Session: session}, 0
 }
 
-func answerCreate(root string, args leaction.Arguments) (any, int) {
+// prepareCreate expands population lists and captures typed options once.
+// Direct execution and root admission execute this same request.
+func prepareCreate(root string, args leaction.Arguments) (leaction.Prepared, int) {
 	options, err := optionsOf(args)
 	if err != nil {
 		leaction.ReportError(err)
-		return nil, 2
+		return leaction.Prepared{}, 2
 	}
+	// ClaimedSpec resolves a session directory even when it writes no claim.
+	// Attestation issuance MUST be admitted before that lookup.
+	if err := requireAttestationTerminal(root, &options); err != nil {
+		leaction.ReportError(err)
+		return leaction.Prepared{}, exitCodeOf(refusedKeywords(err))
+	}
+	return leaction.PreparedAnswer(func() (any, int) {
+		return createAdmitted(root, &options)
+	}), 0
+}
+
+// createAdmitted resumes with the options admitted before startup.
+func createAdmitted(root string, options *Options) (any, int) {
 	// The claim is keyed by the harness session and agent, which only the spec
 	// package resolves; Create's own session is the commit namespace and finds
 	// no marker (R-3). An unreadable claim refuses rather than attributing
@@ -262,7 +289,7 @@ func answerCreate(root string, args leaction.Arguments) (any, int) {
 	if claimed != "" {
 		options.SpecWork = specpath.Stem(claimed)
 	}
-	prepared, err := Create(root, &options)
+	prepared, err := Create(root, options)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, exitCodeOf(err)
@@ -293,14 +320,31 @@ func answerReviewCheck(root string, args leaction.Arguments) (any, int) {
 	return review, 0
 }
 
-func answerPush(root string, args leaction.Arguments) (any, int) {
+func answerPush(root string, args leaction.Arguments) (leaction.Prepared, int) {
 	// The authorisation is one quoted word, so `push yes go` is refused as it
 	// always was rather than joined into words the owner may not have typed.
 	if len(args.Values(valueAuthorisation)) != 1 {
-		return nil, table().Refuse(keywordPush,
+		return leaction.Prepared{}, table().Refuse(keywordPush,
 			errors.New(`push takes the owner's authorisation, as in: ./le commit push "<owner authorisation>"`))
 	}
-	prepared, code, err := preparePush(root, args.One(valueAuthorisation))
+	authorisation := args.One(valueAuthorisation)
+	if _, err := pushAuthorisation(authorisation); err != nil {
+		leaction.ReportError(err)
+		return leaction.Prepared{}, 2
+	}
+	if err := requirePushTerminal(root, authorisation); err != nil {
+		leaction.ReportError(err)
+		return leaction.Prepared{}, 2
+	}
+	return leaction.PreparedAnswer(func() (any, int) {
+		return pushAdmitted(root, authorisation)
+	}), 0
+}
+
+// pushAdmitted resumes after process startup; preparePush independently keeps
+// the lower writer's authorization guard.
+func pushAdmitted(root, authorisation string) (any, int) {
+	prepared, code, err := preparePush(root, authorisation)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, code
@@ -365,7 +409,7 @@ var createParameters = []leaction.Parameter{
 		Help: "the block tag inside the script"},
 	{Keyword: keywordAttest, Kind: leaction.KindRevision, Value: keywordCommit, Pair: "owner words",
 		Requirement: leaction.Optional,
-		Help:        "prepare an empty commit attesting the named commit"},
+		Help:        "prepare an empty attestation from the owner's terminal"},
 	{Keyword: keywordLedgerCarried, Kind: leaction.KindString, Value: "row", Requirement: leaction.Optional, Repeat: true,
 		Help: "a \"<sha> <gate key>: <reason>\" Ledger-carried: row"},
 	reasonParameter(keywordNoTest, "the reason the commit carries no test evidence"),

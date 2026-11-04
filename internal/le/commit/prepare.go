@@ -114,6 +114,11 @@ func Create(root string, options *Options) (Prepared, error) {
 		if err := refuseAttestAdmission(options); err != nil {
 			return result, err
 		}
+		// Attestation issuance MUST precede CommitSession's directory writes,
+		// not just the later message/script recording or trailer validation.
+		if err := requireAttestationTerminal(root, options); err != nil {
+			return result, refusedKeywords(err)
+		}
 	}
 	if !attesting && len(paths) == 0 && len(removed) == 0 && len(options.Hunks) == 0 {
 		return result, refusedKeywords(errors.New("at least one file or remove path is required, unless the commit is an attestation: " +

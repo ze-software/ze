@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/le/human/humantest"
 )
 
 const pushTestAuthorisation = "the owner ordered this push in the test"
@@ -72,6 +74,7 @@ func TestDebtStatusExitCodes(t *testing.T) {
 // push-only script re-derives against P before it pushes P, by SHA, to the
 // upstream's remote and branch, and makes no commit. No verify record exists.
 func TestPushScriptPushesPreparedSHAToUpstream(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "push-script-fixture")
 	head := commitOwed(t, root, "a change", map[string]string{"a.txt": "a\n"}, nil)
@@ -103,6 +106,7 @@ func TestPushScriptPushesPreparedSHAToUpstream(t *testing.T) {
 // a commit that lands after the push was prepared is not in the script, which
 // pushes the commit HEAD was at preparation.
 func TestPushScriptPushesPreparedCommitAfterHeadMoved(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "push-moved-fixture")
 	prepared := commitOwed(t, root, "the prepared change", map[string]string{"a.txt": "a\n"}, nil)
@@ -120,6 +124,7 @@ func TestPushScriptPushesPreparedCommitAfterHeadMoved(t *testing.T) {
 // TestPushOntoCommitScriptRefused validates AC-29: a push is refused while
 // this session holds a commit script not yet run, and prepared once it ran.
 func TestPushOntoCommitScriptRefused(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "push-onto-commit-fixture")
 	commitOwed(t, root, "a commit ahead of the upstream", map[string]string{"a.txt": "a\n"}, nil)
@@ -146,6 +151,7 @@ func TestPushOntoCommitScriptRefused(t *testing.T) {
 // appended to a push-only script would not be published, so append is refused
 // naming the push script and replace; replace takes the script over.
 func TestAppendOntoPushOnlyScriptRefused(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "append-onto-push-fixture")
 	commitOwed(t, root, "a change", map[string]string{"a.txt": "a\n"}, nil)
@@ -172,6 +178,7 @@ func TestAppendOntoPushOnlyScriptRefused(t *testing.T) {
 // no file lands as an empty commit carrying Owner-attested: keyed by the owed
 // commit's stable patch-id, which answers the item without a new verify.
 func TestAttestPreparesEmptyCommit(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "attest-empty-fixture")
 	closure := owedClosure(t, root)
@@ -205,6 +212,7 @@ func TestAttestPreparesEmptyCommit(t *testing.T) {
 // Security Review Checklist: an attestation that names a path, a commit
 // already published, and a commit owing nothing are each refused.
 func TestAttestWithFileRefused(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "attest-refused-fixture")
 	closure := owedClosure(t, root)
@@ -231,6 +239,7 @@ func TestAttestWithFileRefused(t *testing.T) {
 // with HEAD unchanged. The second half edits the generated script so the
 // commit takes another tree, which only a defect could produce.
 func TestEmptyAttestationBlockRefusesAnyPath(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "attest-stray-fixture")
 	closure := owedClosure(t, root)
@@ -366,6 +375,7 @@ func TestRemovedKeywordsNameReplacement(t *testing.T) {
 // script is written. A missing upstream is a question the derivation cannot
 // answer, never an empty range read as nothing owed.
 func TestPushRefusedInLinkedWorktreeWithoutUpstream(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "push-worktree-fixture")
 	commitOwed(t, root, "a change", map[string]string{"a.txt": "a\n"}, nil)
@@ -395,6 +405,7 @@ func TestPushRefusedInLinkedWorktreeWithoutUpstream(t *testing.T) {
 // publishes HEAD as it stood at preparation, carries no debt-status re-check
 // (the tree has no ./le to run it), and the answer says NOT-APPLICABLE.
 func TestPushOutsideTheZeCheckoutCarriesNoRecheck(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "push-site-fixture")
 	site := newSiteRepository(t)
 	remote := filepath.Join(t.TempDir(), "origin.git")

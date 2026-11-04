@@ -278,6 +278,14 @@ nothing when pasted.
 trailer that refuses the push until a clean review, a recorded Review Gate or
 the owner's attestation answers it.
 
+Ordinary review recording remains noninteractive. Supplying `owner-authorised
+"<owner words>"` issues owner authorization, even below the round cap, so both
+stdin and stdout must be terminals. A pipe or an unanswered terminal check
+refuses before any review artifact or directory is written. Above the cap, the
+existing owner-authorization and rounds-reason requirements still apply.
+Reading an already-recorded review requires no terminal.
+<!-- source: internal/le/spec/review.go -- recordReview, CheckReview -->
+
 A reviewable file is a Makefile or a file whose suffix names code, a test, a
 script, a schema or a template. `IsReviewCode` holds that one list, and both the
 recorder's check and the commit gate read it. Markdown is never reviewable, so

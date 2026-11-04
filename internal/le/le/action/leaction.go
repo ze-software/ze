@@ -95,12 +95,42 @@ type Action struct {
 	Answer func() (any, int)
 	// AnswerArgs runs an action after Area validates and parses its parameters.
 	AnswerArgs func(Arguments) (any, int)
+	// PrepareArgs parses the action's typed request and admits it without
+	// writing. A nonzero code is an already-reported refusal. A successful
+	// result MUST retain that request and execute it without parsing again.
+	// Root startup MUST wait for this preparation before it can write.
+	PrepareArgs func(Arguments) (Prepared, int)
 	// AnswerWords runs an action whose words after the verb are the command
 	// line of another program, handed over verbatim. `le perf track --check
 	// <history>` is the benchmark program's own `track --check <history>`. The
 	// table owns no grammar for those words, so it publishes that it forwards
 	// them (Row.Forwards) and refuses none of them; the program does.
 	AnswerWords func(words []string) (any, int)
+}
+
+// Prepared holds an admitted action's executable answer. Its zero value is
+// uninitialized; only PreparedAnswer constructs an executable value.
+type Prepared struct {
+	answer func() (any, int)
+}
+
+// PreparedAnswer captures an admitted request's remaining work. The caller
+// MUST complete read-only admission first; the dispatcher MUST finish startup
+// before calling Answer.
+func PreparedAnswer(answer func() (any, int)) Prepared {
+	if answer == nil {
+		panic("BUG: leaction.PreparedAnswer: nil executable answer")
+	}
+	return Prepared{answer: answer}
+}
+
+// Answer executes the captured request. The dispatcher MUST finish startup
+// before calling it; callers MUST construct the value with PreparedAnswer.
+func (p Prepared) Answer() (any, int) {
+	if p.answer == nil {
+		panic("BUG: leaction.Prepared.Answer: uninitialized admitted execution")
+	}
+	return p.answer()
 }
 
 // Area is one tool package's whole command surface: the name it is typed as,
@@ -131,12 +161,12 @@ func New(name string, actions ...Action) Area {
 		case act.Verb == "" && act.Does == "":
 			panic("BUG: leaction.New: a verbless action declares the vocabulary verb it performs in Does")
 		case answerCount(act) != 1:
-			panic("BUG: leaction.New: an action needs exactly one Answer, AnswerArgs or AnswerWords")
+			panic("BUG: leaction.New: an action needs exactly one Answer, AnswerArgs, PrepareArgs or AnswerWords")
 		case act.AnswerWords != nil && len(act.Parameters) != 0:
 			panic("BUG: leaction.New: a forwarding action declares parameters, and the words it forwards are not its grammar")
 		case act.Answer != nil && len(act.Parameters) != 0:
 			panic("BUG: leaction.New: a zero-argument action declares parameters")
-		case act.AnswerArgs != nil && len(act.Parameters) == 0:
+		case (act.AnswerArgs != nil || act.PrepareArgs != nil) && len(act.Parameters) == 0:
 			panic("BUG: leaction.New: an argument-aware action declares no parameters")
 		case act.Why == "":
 			panic("BUG: leaction.New: an action has no Why, so the listing renders it blank")
@@ -152,13 +182,16 @@ func New(name string, actions ...Action) Area {
 	return area
 }
 
-// answerCount answers how many of the three answer forms one action sets.
+// answerCount answers how many answer forms one action sets.
 func answerCount(act Action) int {
 	count := 0
 	if act.Answer != nil {
 		count++
 	}
 	if act.AnswerArgs != nil {
+		count++
+	}
+	if act.PrepareArgs != nil {
 		count++
 	}
 	if act.AnswerWords != nil {
@@ -234,6 +267,9 @@ type Row struct {
 	// command line (Action.AnswerWords), so no word there is this table's to
 	// refuse.
 	Forwards bool `json:"forwards,omitempty"`
+	// prepare retains the area's own parser and admission, not a second root
+	// grammar. It is private and absent from the rendered manifest.
+	prepare func([]string) (Prepared, int)
 }
 
 // List is what `le <area>` answers when no action is named. It is the area
@@ -347,8 +383,41 @@ func (a Area) Actions() List {
 			Parameters: live(act.Parameters),
 			Forwards:   act.AnswerWords != nil,
 		})
+		if act.PrepareArgs != nil {
+			list.Actions[len(list.Actions)-1].prepare = func(args []string) (Prepared, int) {
+				return a.prepareAction(act, args)
+			}
+		}
 	}
 	return list
+}
+
+// Preparer resolves an early-preparation action without parsing its request.
+// The returned words include the table's default verb, when selected. A nil
+// callback leaves ordinary actions and help with their registered handler and
+// their original words. The caller MUST invoke a selected callback only after
+// resolving command-owned pipe filters, and MUST delay startup until success.
+func (l List) Preparer(args []string) (func([]string) (Prepared, int), []string) {
+	if len(args) == 1 && IsHelpArg(args[0]) {
+		return nil, args
+	}
+	line := l.AtVerb(args)
+	if len(line) == 0 {
+		return nil, args
+	}
+	for _, row := range l.Actions {
+		if row.Verb != line[0] {
+			continue
+		}
+		if row.prepare == nil {
+			return nil, args
+		}
+		if len(line) > 1 && trailingAsksForHelp(row.Parameters, line[1:]) {
+			return nil, args
+		}
+		return row.prepare, line
+	}
+	return nil, args
 }
 
 // Accepts reports whether verb's own parser takes args, the words after the
@@ -600,32 +669,23 @@ func (a Area) Answer(args []string) (any, int) {
 		if verb != args[0] {
 			continue
 		}
-		// A forwarding action owns no grammar for its words, so every word,
-		// a help word included, is the program's: the program prints its own
-		// help, and le's one-line usage never stands in for it.
+		// Forwarding actions own even their help words.
 		if act.AnswerWords != nil {
 			return act.AnswerWords(args[1:])
 		}
-		// A TRAILING help word asks what this action takes where it stands in
-		// place of the next keyword. In a keyword's value slot it does not: the
-		// bare word `new help` is the text `new` takes, and to swallow that
-		// line is to answer 0 and run nothing, which no caller can tell from
-		// the work it asked for (ai/rules/principles.md). A dash-leading help
-		// spelling in a value slot is an option where a value is expected, so
-		// it falls through to parseArguments, which refuses it by name and
-		// answers 2, as it does every other option in every slot
-		// (trailingAsksForHelp).
 		if len(args) > 1 && trailingAsksForHelp(act.Parameters, args[1:]) {
 			return nil, a.actionUsage(act)
 		}
-		if act.AnswerArgs != nil {
-			parsed, err := parseLine(spelled(Program(), a.name, verb), act.Parameters, args[1:])
-			if err != nil {
-				ReportError(err)
-				a.writeUsage(verb)
-				return nil, 2
+		if act.PrepareArgs != nil {
+			prepared, code := a.prepareAction(act, args)
+			if code != 0 {
+				return nil, code
 			}
-			if code := a.admit(act, args); code != 0 {
+			return prepared.Answer()
+		}
+		if act.AnswerArgs != nil {
+			parsed, code := a.parseAction(act, args)
+			if code != 0 {
 				return nil, code
 			}
 			return act.AnswerArgs(parsed)
@@ -643,6 +703,33 @@ func (a Area) Answer(args []string) (any, int) {
 	// which is a different fact from a gate that ran and failed. Callers that
 	// read the codes apart keep reading them apart.
 	return nil, a.refuseVerb(args[0])
+}
+
+// prepareAction is the single parser and admission path for direct area calls
+// and root startup. Callers MUST resolve help before selecting preparation;
+// args includes the verb already resolved by the table.
+func (a Area) prepareAction(act Action, args []string) (Prepared, int) {
+	parsed, code := a.parseAction(act, args)
+	if code != 0 {
+		return Prepared{}, code
+	}
+	return act.PrepareArgs(parsed)
+}
+
+// parseAction keeps keyword parsing and table admission shared without
+// allocating executable closures for ordinary handlers.
+func (a Area) parseAction(act Action, args []string) (Arguments, int) {
+	verb := a.verbOf(act)
+	parsed, err := parseLine(spelled(Program(), a.name, verb), act.Parameters, args[1:])
+	if err != nil {
+		ReportError(err)
+		a.writeUsage(verb)
+		return nil, 2
+	}
+	if code := a.admit(act, args); code != 0 {
+		return nil, code
+	}
+	return parsed, 0
 }
 
 // ReportError writes one failure line to stderr, in the spelling every ported
@@ -798,7 +885,7 @@ func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
 			// A sweep runs each action with no arguments, so an argument-aware
 			// action has nothing to run. Refusing by name is what keeps that a
 			// message rather than a call through a nil Answer.
-			if act.AnswerArgs != nil {
+			if len(act.Parameters) != 0 {
 				var tb textbuf.Buffer
 				ReportError(errors.New(tb.Str(a.name).Byte(' ').Str(name).
 					Str(" takes arguments, so it runs on its own: le ").

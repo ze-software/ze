@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/le/human/humantest"
 )
 
 // VALIDATES: the coverage ratchet accepts a polarity lost against HEAD only
@@ -154,6 +156,7 @@ func TestCoverageRatchetAcceptsAnOwnerRuledGap(t *testing.T) {
 // PREVENTS: the exception reading a grammar the writer does not produce, which
 // would leave every owner-ruled move refused with nothing to say why.
 func TestApprovalRowsReadWhatApproveWrites(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := t.TempDir()
 	rows, err := approvalRows(root, "0badcafe")
 	if err != nil {

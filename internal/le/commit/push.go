@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/le/human"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -42,6 +43,11 @@ func preparePush(root, authorisation string) (pushPrepared, int, error) {
 	var prepared pushPrepared
 	reason, err := pushAuthorisation(authorisation)
 	if err != nil {
+		return prepared, 2, err
+	}
+	// Preparation records the owner's instruction; consuming its script later
+	// remains noninteractive. Admission MUST precede commit-session writes.
+	if err := requirePushTerminal(root, authorisation); err != nil {
 		return prepared, 2, err
 	}
 	derived, err := deriveDebt(root, "")
@@ -85,6 +91,12 @@ func preparePush(root, authorisation string) (pushPrepared, int, error) {
 		return prepared, 3, err
 	}
 	return prepared, 0, nil
+}
+
+// requirePushTerminal is shared by root admission and the direct script writer.
+// Both MUST call it before any session or startup writer runs.
+func requirePushTerminal(root, authorisation string) error {
+	return human.RequireAuthorization(root, "", "commit push", []string{authorisation})
 }
 
 // upstreamOf answers the remote and the remote branch ref HEAD's branch

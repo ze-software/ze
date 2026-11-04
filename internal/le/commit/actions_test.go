@@ -14,6 +14,16 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
+// createAnswerForTest executes the canonical preparation and its admitted
+// answer, preserving direct-adapter tests across the lifecycle split.
+func createAnswerForTest(root string, args leaction.Arguments) (any, int) {
+	prepared, code := prepareCreate(root, args)
+	if code != 0 {
+		return nil, code
+	}
+	return prepared.Answer()
+}
+
 // TestCommitCreateHelpRendersEveryLiveKeyword validates AC-6: `le commit create
 // --help` renders every live keyword from the table, subject required and the
 // path and body keywords repeatable, and none of the three retired ones, and
@@ -148,7 +158,7 @@ func TestReviewCheckNotCleanExitsOne(t *testing.T) {
 // over fixture checkouts, and read each code with its error line.
 func TestCommitExecutionFailureIsNotAUsageError(t *testing.T) {
 	refused := newCommitRepository(t)
-	_, code := answerCreate(refused, leaction.Arguments{keywordSubject: {"s"}, keywordFile: {"tracked.txt"},
+	_, code := createAnswerForTest(refused, leaction.Arguments{keywordSubject: {"s"}, keywordFile: {"tracked.txt"},
 		keywordAppend: {""}, keywordReplace: {""}})
 	if code != 2 {
 		t.Errorf("append with replace answered %d, want the keyword refusal 2", code)
@@ -159,7 +169,7 @@ func TestCommitExecutionFailureIsNotAUsageError(t *testing.T) {
 	writeCommitFixture(t, headless, "feature-gates.txt", "")
 	writeCommitFixture(t, headless, "tracked.txt", "tracked\n")
 	runCommitGit(t, headless, "init", "-q")
-	_, code = answerCreate(headless, leaction.Arguments{keywordSubject: {"s"}, keywordFile: {"tracked.txt"}})
+	_, code = createAnswerForTest(headless, leaction.Arguments{keywordSubject: {"s"}, keywordFile: {"tracked.txt"}})
 	if code != 3 {
 		t.Errorf("a checkout with no HEAD answered %d, want could-not-run 3", code)
 	}

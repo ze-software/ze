@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/human/humantest"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -64,7 +65,7 @@ func TestCreateWritesSpecWorkFromTheClaim(t *testing.T) {
 		claimAs(t, root, "spec-work-session", "", "spec-x.md")
 		claimAs(t, root, "spec-work-session", agent, "")
 		writeCommitFixture(t, root, "tracked.txt", "changed "+agent+"\n")
-		answer, code := answerCreate(root, leaction.Arguments{keywordSubject: {"s"}, keywordFile: {"tracked.txt"}})
+		answer, code := createAnswerForTest(root, leaction.Arguments{keywordSubject: {"s"}, keywordFile: {"tracked.txt"}})
 		prepared, ok := answer.(*Prepared)
 		if code != 0 || !ok {
 			t.Fatalf("agent %q: create answered (%#v, %d)", agent, answer, code)
@@ -86,10 +87,11 @@ func TestCreateWritesSpecWorkFromTheClaim(t *testing.T) {
 // PREVENTS: an attribution invented for a session with no spec, and an empty
 // commit attributed to a spec whose review it can add nothing to.
 func TestCreateWithoutAClaimWritesNoSpecWork(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	claimAs(t, root, "spec-work-unclaimed", "", "")
 	writeCommitFixture(t, root, "tracked.txt", "changed\n")
-	answer, code := answerCreate(root, leaction.Arguments{keywordSubject: {"s"}, keywordFile: {"tracked.txt"}})
+	answer, code := createAnswerForTest(root, leaction.Arguments{keywordSubject: {"s"}, keywordFile: {"tracked.txt"}})
 	prepared, ok := answer.(*Prepared)
 	if code != 0 || !ok {
 		t.Fatalf("create with no claim answered (%#v, %d)", answer, code)

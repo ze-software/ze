@@ -150,16 +150,11 @@ func SessionForID(root, id string) (SessionPaths, error) {
 }
 
 func resolveSessionID(root string, process sessionProcess) (string, error) {
-	if raw := os.Getenv("CLAUDE_CODE_SESSION_ID"); raw != "" {
-		if !safeSessionID(raw) {
-			return "", fmt.Errorf("session scratch: unsafe session id %q", raw)
-		}
-		return raw, nil
+	id, err := sessionIDFromContext(process)
+	if err != nil {
+		return "", err
 	}
-	if id := sessionIDFromProcess(process); id != "" {
-		return id, nil
-	}
-	if id := sessionIDFromJWT(os.Getenv("CLAUDE_CODE_SESSION_ACCESS_TOKEN")); id != "" {
+	if id != "" {
 		return id, nil
 	}
 	return mintSessionID(root, process)
@@ -250,10 +245,8 @@ func sessionIDFromJWT(token string) string {
 }
 
 func mintSessionID(root string, process sessionProcess) (string, error) {
-	pid := sessionCLIAncestor(process)
-	key := sessionCacheKey(process, pid)
-	cacheDir := filepath.Join(root, "tmp", sessionRoot)
-	cache := filepath.Join(cacheDir, ".sid-by-pid-"+key)
+	cache := sessionIdentityCache(root, process)
+	cacheDir := filepath.Dir(cache)
 
 	existing, err := readCachedSessionID(cache)
 	if err == nil && existing != "" {

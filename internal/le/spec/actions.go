@@ -150,12 +150,12 @@ func ReviewArea() leaction.Area {
 			AnswerArgs: answerReviewHashLine,
 		},
 		leaction.Action{
-			Verb:       verbRecord,
-			Summary:    "record this session's review of a spec's files",
-			Why:        "record this session's independent review of a spec's files",
-			Writes:     true,
-			Parameters: reviewRecordParameters,
-			AnswerArgs: answerReviewRecordLine,
+			Verb:        verbRecord,
+			Summary:     "record this session's review of a spec's files",
+			Why:         "record this session's independent review of a spec's files",
+			Writes:      true,
+			Parameters:  reviewRecordParameters,
+			PrepareArgs: answerReviewRecordLine,
 		},
 		leaction.Action{
 			Verb:    verbCheck,
@@ -214,7 +214,7 @@ var reviewRecordParameters = []leaction.Parameter{
 	},
 	{
 		Keyword: keywordOwnerAuthorised, Kind: leaction.KindString, Value: "words",
-		Help: "the owner's words that allow rounds past the cap", Requirement: leaction.Optional,
+		Help: "the owner's words; terminal-only at every round", Requirement: leaction.Optional,
 	},
 }
 
@@ -411,12 +411,34 @@ func answerReviewHash(root string, args leaction.Arguments) (any, int) {
 	return report, 0
 }
 
-func answerReviewRecordLine(args leaction.Arguments) (any, int) {
-	owner, err := ownerAtRoot()
+func answerReviewRecordLine(args leaction.Arguments) (leaction.Prepared, int) {
+	request, err := reviewRecordOf(args)
+	if err != nil {
+		return leaction.Prepared{}, ReviewArea().Refuse(verbRecord, err)
+	}
+	root, err := lepath.Root()
+	if err != nil {
+		_, code := lifecycleError(err)
+		return leaction.Prepared{}, code
+	}
+	// Owner resolution creates a session directory. Authorization MUST be
+	// admitted before startup and before that resolution.
+	if err := requireOwnerReviewTerminal(root, request); err != nil {
+		_, code := lifecycleError(err)
+		return leaction.Prepared{}, code
+	}
+	return leaction.PreparedAnswer(func() (any, int) {
+		return reviewRecordAdmitted(root, request)
+	}), 0
+}
+
+// reviewRecordAdmitted uses the typed request admitted before startup.
+func reviewRecordAdmitted(root string, request reviewRecord) (any, int) {
+	owner, err := newSpecOwner(root)
 	if err != nil {
 		return lifecycleError(err)
 	}
-	return answerReviewRecord(owner.Root, owner.SessionID, args)
+	return recordReviewAnswer(owner.Root, owner.SessionID, request)
 }
 
 // answerReviewRecord records the review the line describes as session sid's,
@@ -427,6 +449,11 @@ func answerReviewRecord(root, sid string, args leaction.Arguments) (any, int) {
 	if err != nil {
 		return nil, ReviewArea().Refuse(verbRecord, err)
 	}
+	return recordReviewAnswer(root, sid, request)
+}
+
+// recordReviewAnswer records a parsed request without parsing its line again.
+func recordReviewAnswer(root, sid string, request reviewRecord) (any, int) {
 	request.SessionID = sid
 	artifact, err := recordReview(root, request)
 	if err != nil {

@@ -213,13 +213,10 @@ func init() {
 }
 
 // run is the le root handler: every le command and native hook enters here.
-// It links the checkout's cache/ (ensureCacheLink), then selects the patched
-// standard library (activatePatchedGOROOT), in that order and outside the
-// hook contract, except for a shell callback (leroot.ShellCallback), which
-// runs none of them. Before dispatching it runs the hooks areas registered to run ahead of every
-// command (leroot.RegisterBeforeDispatch), such as the scratch store trim's
-// hourly chance to start. A hook never prints and returns nothing, so the
-// command's exit code and output are the dispatch's alone.
+// It supplies startup to the registered dispatcher: an action's read-only
+// preparation MUST succeed before startup can write. Startup links cache/,
+// selects the patched standard library, then runs before-dispatch hooks, in
+// that order and outside the hook contract. Shell callbacks run none of them.
 func run(_ *registry.RuntimeContext, args []string) int {
 	program := leaction.InvocationName()
 	// A shell callback runs on a keystroke: the repair and the hooks below can
@@ -227,10 +224,11 @@ func run(_ *registry.RuntimeContext, args []string) int {
 	if leroot.ShellCallback(args) {
 		return leroot.Dispatch(program, args)
 	}
-	ensureCacheLink()
-	activatePatchedGOROOT()
-	leroot.RunBeforeDispatch(program)
-	return leroot.Dispatch(program, args)
+	return leroot.DispatchWithStartup(program, args, func() {
+		ensureCacheLink()
+		activatePatchedGOROOT()
+		leroot.RunBeforeDispatch(program)
+	})
 }
 
 // ensureCacheLink makes the checkout's cache/ the link to the per-user cache

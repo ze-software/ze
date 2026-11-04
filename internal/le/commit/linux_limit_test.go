@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/le/human/humantest"
 )
 
 const linuxLimitSummary = "rfc/short/rfc9999.md"
@@ -16,6 +18,7 @@ const linuxLimitAnnotation = " {linux-limit: LL-EXAMPLE; Linux cannot provide th
 // TestALinuxLimitCommitOwesTheOwnersAttestation drives Create, its generated
 // commit, push derivation and Create's empty attestation path (AC-15).
 func TestALinuxLimitCommitOwesTheOwnersAttestation(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "linux-limit-approval")
 	writeCommitFixture(t, root, linuxLimitSummary, linuxLimitRow+linuxLimitAnnotation+"\n")
@@ -179,6 +182,7 @@ func TestLinuxLimitCreateRefusesMalformedAnnotations(t *testing.T) {
 // remain a push refusal even beside a valid owner answer, and Create refuses
 // to generate an attestation over a message it cannot read.
 func TestLinuxLimitMalformedDebtCannotBeAttested(t *testing.T) {
+	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "linux-limit-malformed-debt")
 	changed := commitOwed(t, root, "malformed debt", map[string]string{"a.txt": "a\n"}, nil,

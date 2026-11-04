@@ -84,6 +84,11 @@ func recordReview(root string, request reviewRecord) (reviewArtifact, error) {
 	}
 	reason := strings.TrimSpace(request.RoundsReason)
 	owner := strings.TrimSpace(request.OwnerAuthorised)
+	// Even below the cap, supplied owner words issue an authorization.
+	// Admission MUST precede every artifact or session-directory write.
+	if err := requireOwnerReviewTerminal(root, request); err != nil {
+		return reviewArtifact{}, err
+	}
 	if request.Rounds > reviewRoundCap {
 		if reason == "" {
 			return reviewArtifact{}, fmt.Errorf("review_gate: %d review rounds needs a rounds reason that names the product defect found after round %d", request.Rounds, reviewRoundCap)

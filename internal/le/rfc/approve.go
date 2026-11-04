@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/human"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -74,10 +75,22 @@ func ValidApprovalUnit(unit string) bool {
 	return approvalUnitPattern.MatchString(unit)
 }
 
-// Approve writes the judge's approval of a change to one tagged unit into the
-// session's RFC approval file (ApproveInto).
+// Approve writes the judge's approval into the session's RFC approval file.
+// A reason citing an owner ruling MUST be issued from the owner's terminal.
 func Approve(root, session, unit, reason string) (ApprovalReport, error) {
+	if err := requireRulingTerminal(root, unit, reason); err != nil {
+		return ApprovalReport{}, err
+	}
 	return ApproveInto(root, ApprovalFile{Path: ApprovalPath(session), Header: approvalHeader, Command: "rfc approve"}, unit, reason)
+}
+
+// requireRulingTerminal uses the same predicate as the recorded-ruling consumer.
+// Ordinary judge verdicts and the shared weakening writer remain agent-usable.
+func requireRulingTerminal(root, unit, reason string) error {
+	if ownerRuling(reason) == "" {
+		return nil
+	}
+	return human.RequireAuthorization(root, "", "rfc approve", []string{keyUnit, unit, keyReason, reason})
 }
 
 // ApproveInto writes the judge's approval of one unit into file, creating it,
@@ -178,17 +191,32 @@ func rowNames(line, unit string) bool {
 	return strings.TrimSpace(cells[0]) == unit
 }
 
-// approveAnswer is the `le rfc approve` command body.
-func approveAnswer(args leaction.Arguments) (any, int) {
+// approveAnswer admits a parsed ruling before process startup can write.
+func approveAnswer(args leaction.Arguments) (leaction.Prepared, int) {
 	if !args.Has(keyUnit) || !args.Has(keyReason) {
 		leaction.ReportError(errors.New("rfc approve requires unit <package>.<TestName> reason \"<the judge's verdict>\""))
-		return nil, 2
+		return leaction.Prepared{}, 2
 	}
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
-		return nil, 2
+		return leaction.Prepared{}, 2
 	}
+	unit, reason := args.One(keyUnit), args.One(keyReason)
+	// This boundary MUST admit before SessionCommitSession writes a namespace.
+	// Approve independently guards callers that already have their namespace.
+	if err := requireRulingTerminal(root, unit, reason); err != nil {
+		leaction.ReportError(err)
+		return leaction.Prepared{}, 2
+	}
+	return leaction.PreparedAnswer(func() (any, int) {
+		return approveAdmitted(root, unit, reason)
+	}), 0
+}
+
+// approveAdmitted retains the parsed ruling across startup. Approve keeps the
+// independent lower writer guard for callers that bypass this adapter.
+func approveAdmitted(root, unit, reason string) (any, int) {
 	// The approval admits the main thread's commit, so it is keyed on the
 	// main thread's namespace even when the judge agent records it.
 	session, err := lepath.SessionCommitSession(root)
@@ -196,7 +224,7 @@ func approveAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := Approve(root, session, args.One(keyUnit), args.One(keyReason))
+	report, err := Approve(root, session, unit, reason)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

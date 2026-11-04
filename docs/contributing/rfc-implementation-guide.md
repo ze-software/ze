@@ -774,6 +774,16 @@ requirement id. The row also accepts a weakening of the same unit, so a tagged
 test the judge approved needs no second `./le test weakened approve` answer
 (`docs/contributing/testing.md`, "When a test must be weakened").
 
+An ordinary judge verdict remains agent-callable. A reason citing `owner ruling
+<identity>` instead issues owner authorization: the existing `ownerRuling`
+predicate selects exactly those reasons, and both stdin and stdout must be
+terminals before a session directory or approval row is written or replaced.
+A pipe or an unanswered terminal check refuses with an owner-authorization
+instruction, not a full-verification instruction. The shared weakening writer
+and readers of recorded RFC approvals retain their noninteractive behavior.
+<!-- source: internal/le/rfc/approve.go -- Approve, approveAnswer, ApproveInto -->
+<!-- source: internal/le/rfc/coverage_ruling.go -- ownerRuling, ownerRuledMove -->
+
 When the judge has not ruled yet, `rfc-change-ok "<reason>"` on
 `./le commit create` admits the commit anyway and writes one trailer per
 unapproved unit, `RFC-approval-owed: <package>.<TestName>: <reason>`. The

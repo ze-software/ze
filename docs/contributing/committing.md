@@ -59,6 +59,12 @@ Write a bullet as `body "* item"`, or put a word before the dash, as in
 <!-- source: internal/le/commit/actions.go -- createParameters, createPolicy -->
 <!-- source: internal/le/commit/prepare.go -- refuseAttestAdmission -->
 
+Issuing an `attest` requires the owner's interactive terminal on both stdin and
+stdout, including for `dry-run`. A pipe or an unanswered terminal check refuses
+before a session directory, message or script is written. Reading an existing
+`Owner-attested:` trailer remains noninteractive.
+<!-- source: internal/le/commit/prepare.go -- Create -->
+
 `Message` in `internal/le/commit/input.go` enforces the subject limit and the
 body wrap, and appends one `RFC-approved: <package>.<TestName>: <reason>`
 trailer line, never wrapped, for each `ze-test-judge` approval the commit uses. The
@@ -362,6 +368,13 @@ open on one of those commits. It answers exit 3 when the derivation cannot
 answer, such as a branch with no upstream
 (`git branch --set-upstream-to=origin/<branch>`).
 <!-- source: internal/le/commit/owed.go -- deriveDebt, chooseTarget, pushRefusal -->
+
+Preparing this script also issues the owner's instruction: stdin and stdout
+must both be terminals. A pipe or an unanswered terminal check refuses with
+exit 2 before any session-directory or script write, including replacement of
+an existing push script. Once prepared, the script remains agent-executable and
+noninteractive; its debt re-check and exact push target are unchanged.
+<!-- source: internal/le/commit/push.go -- preparePush, renderPushScript -->
 
 When it admits, it writes a push-only script at the session's `script=` path
 and prints that line and the commit it pushes. The script makes no commit. It

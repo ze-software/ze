@@ -58,10 +58,21 @@ interface editor.
 
 **le compiles Ze against a patched standard library, and its own process
 environment carries it.** Ze's EAP-TLS authenticator compiles only against a
-patched `crypto/tls`, so the le root handler calls `gen.Activate`
-(`internal/le/go/stdpatch/gen`) before any before-dispatch hook or action runs.
-One step precedes it: `ensureCacheLink` makes the checkout's `cache/` the link
-to the per-user cache (`scratch.EnsureCache`), because `gen.CacheDir` creates
+patched `crypto/tls`, so the le root handler supplies startup to the registered
+dispatcher. An action may declare read-only `PrepareArgs`: the area's own
+keyword parser builds its typed request once, admits it, and retains an executable
+`Prepared` answer. Only successful preparation runs startup; a refusal returns
+its existing diagnostic and exit code without cache, toolchain or hook writes.
+The direct area answer uses the same preparation, and lower callable writers
+keep their independent admission guards. Help completes before executable
+preparation, including direct area calls; an empty `Prepared` is never a
+successful help result. Ordinary actions keep initialization
+before their handler, and the dispatcher carries deferred startup through the
+menu and default-action resolution without naming any feature.
+Startup calls `ensureCacheLink`, then `gen.Activate`
+(`internal/le/go/stdpatch/gen`), then the existing before-dispatch hooks before
+executing the retained answer. The first step makes the checkout's `cache/` the
+link to the per-user cache (`scratch.EnsureCache`), because `gen.CacheDir` creates
 `cache/stdpatch` and would otherwise turn a missing `cache/` into a real
 directory holding a second Go build cache. Neither step is a before-dispatch
 hook: that contract forbids printing and slow work, and the link step prints
@@ -83,6 +94,9 @@ the review stamps and every build route are in
 <!-- source: internal/le/register.go -- run, ensureCacheLink, activatePatchedGOROOT -->
 <!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- Activate -->
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- New -->
+<!-- source: internal/le/le/action/leaction.go -- Action, PreparedAnswer, Area.prepareAction, List.Preparer -->
+<!-- source: internal/le/le/root/leroot.go -- runWithStartup -->
+<!-- source: internal/le/le/root/dispatch.go -- DispatchWithStartup, dispatchLine -->
 
 To add a repository tool, add one package under `internal/le/`, register its
 area through `leroot.Register`, and add one blank import to
