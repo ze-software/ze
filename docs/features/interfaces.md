@@ -301,7 +301,7 @@ A managed client (`ze init --managed`) and an appliance seed (`ze init --seed`) 
 discovery and write no initial config: the managed client takes its first config from
 its hub, and the appliance discovers on the device at first boot.
 
-<!-- source: internal/plugins/init/main.go -- runInit -->
+<!-- source: internal/plugins/init/main.go -- runInitPublished -->
 
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces, infoToZeType -->
 

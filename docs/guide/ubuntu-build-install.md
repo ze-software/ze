@@ -7,7 +7,7 @@ The commands assume Ubuntu 24.04 or newer, `sudo`, and an `amd64` or `arm64` hos
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
-<!-- source: internal/plugins/init/main.go -- Run, runInit -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runInitPublished -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
 
@@ -117,12 +117,13 @@ sudo test -d /etc/ze/database
 This creates the bootstrap admin in an atomically published tree. Its directories
 are 0700 and files 0600. Both an existing tree and a `database.zefs` artifact
 refuse initialization; `ze init --force --yes` replaces an unowned store and
-retains a `.replaced-<stamp>` backup. `ze init --from <blob>` imports a local
-blob; the URL form is storage-2. Keep the bootstrap admin as a recovery user until you
-have tested the configured users below.
-<!-- source: internal/plugins/init/main.go -- Run, runInit -->
+retains a `.replaced-<stamp>` backup. `ze init --from <source>` imports a blob
+from a local path or a URL. Add `--sha256 <hex>` to require a specific digest.
+Keep the bootstrap admin as a recovery user until you have tested the configured users below.
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runInitPublished, runImport, runFetchImport -->
 
 The initial config is stored under the name the instance name gives it. If that name cannot be read back, `ze init` fails with `name initial config:` rather than writing `ze.conf`.
+<!-- source: internal/plugins/init/main.go -- runInitPublished -->
 
 ## 5. Create the first stored config
 

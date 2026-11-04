@@ -4,7 +4,7 @@ Third-party files served from this site. Nothing here is fetched at build time
 or at page load: the site is self-hosted, so a reader's browser talks to no CDN
 and to no third-party host.
 
-`internal/le/site.isSourceOnly` keeps this file out of the published
+`isSourceOnly` in `internal/le/site/paths.go` keeps this file out of the published
 artifact. Every other file in this directory is staged verbatim because
 `assets/vendor` is a public asset directory.
 

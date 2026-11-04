@@ -217,9 +217,9 @@ segment that is prepended, and it spends none of the count budget. Ze walks the
 leading segments in order and stops at the first segment it does not prepend,
 which is what leaves a confederation segment further along unreached.
 
-`MergeAS4Path` owns the whole construction, and every caller takes its verdict:
-`ReconcileASPathFamily` beside it, and the filter-text builder that every
-text-mode filter judges.
+`MergeAS4Path` owns the whole construction. `ReconcileASPathFamily` uses it at
+ingest, and `asPathForFilter` uses it for the policy dry-run display.
+Filters read declared route fields, not this display text.
 <!-- source: internal/core/bgp/attribute/as4.go -- MergeAS4Path, appendLeadingSegments, countASNs -->
 <!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter -->
 

@@ -144,6 +144,10 @@ Files: `filter_chain.go`, `filter_delta.go`, `policy_dryrun.go`.
 
 ## 4. The Modify Block's Value Arena
 
+The measurements below record the former text filter path. The text parser
+and its benchmarks were deleted with that protocol. They are not current
+allocation or timing claims. The value arena remains in use by wire edits.
+
 This section replaced a paragraph that said the remaining allocations were the
 14 encoder `make()` sites in `filter_delta.go`. A `-memprofile` run of
 `BenchmarkFilterModifyEgress` on 2026-09-05 read the path per line and said

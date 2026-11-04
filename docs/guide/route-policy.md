@@ -68,7 +68,7 @@ either there is refused.
 | Condition | Met when |
 |-----------|----------|
 | `prefix-list <name>` | The named `prefix-list` instance accepts the prefix. The editor completes the configured prefix-lists, and a commit naming any other is refused |
-| `reject-asn <name>` | The named `reject-asn` instance rejects the route on neither arm: no listed ASN at a listed position of its AS path, and no pattern matching the whole path. The sender is known on import only. A BGP chain only. A match naming it meets the transit-leak filter a declared RFC 9234 role requires (`docs/guide/bgp-role.md`). The editor completes the configured lists, and a commit naming any other is refused |
+| `reject-asn <name>` | The named `reject-asn` instance rejects the route on neither arm: no listed ASN at a listed position of its AS path, and no pattern matching the whole path. The sender is known on import only. A BGP chain only. The editor completes the configured lists, and a commit naming any other is refused |
 | `community <name>` | The named `community-match` instance accepts the route: its first entry whose standard, large or extended community the route carries decides, and a route no entry matches fails. Only a BGP chain judges it. The editor completes the configured lists, and a commit naming any other is refused |
 | `as-path <name>` | The named `as-path-list` instance accepts the UPDATE's AS path, read as its space-separated decimal ASNs. Only a BGP chain judges it. The editor completes the configured lists, and a commit naming any other is refused |
 | `as-path-length <name>` | The UPDATE's AS path hop count, every ASN of the path, lies within the named `as-path-length` instance's `min` and `max`. Only a BGP chain judges it. The editor completes the configured instances, and a commit naming any other is refused |
@@ -87,6 +87,13 @@ either there is refused.
 <!-- source: internal/component/bgp/plugins/filter_aspath/condition.go -- compileBGPCondition -->
 <!-- source: internal/component/bgp/plugins/filter_aspath_length/condition.go -- compileBGPCondition -->
 <!-- source: internal/component/policy/yang/ze-policy-conf.yang -- list match -->
+
+The role plugin inserts `bgp-role:upstream-asn` where the declared role needs
+the upstream check. You do not need a `reject-asn` match for this check.
+The check compares provider ASNs from the config and any `role transit-asns`
+set. Unlike the required OTC members, this member can be disabled.
+See [BGP Role](bgp-role.md#the-upstream-check-a-role-inserts).
+<!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamInsertions, deriveUpstreamSet, evaluateUpstream -->
 
 This hides every static route tagged 4242 and keeps the others:
 
@@ -142,7 +149,7 @@ loads at every other attachment that carries `metric`.
 <!-- source: internal/plugins/isis/register.go -- MustRegisterRouteAttachment -->
 <!-- source: internal/component/sysrib/register.go -- MustRegisterRouteAttachment -->
 <!-- source: internal/plugins/redistribute/register.go -- MustRegisterRouteAttachment -->
-<!-- source: internal/component/bgp/config/register.go -- MustRegisterAttachment, MustRegisterFieldSynonym -->
+<!-- source: internal/component/bgp/config/register.go -- MustRegisterDerivedAttachment, MustRegisterFieldSynonym -->
 
 IS-IS routes carry no tag, because Ze does not implement the IS-IS
 administrative tag (RFC 5130). A static route carries a tag only when its `tag`

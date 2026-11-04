@@ -355,7 +355,6 @@ to attest a commit whose declared trailers cannot be read.
 
 <!-- source: internal/le/commit/owed.go -- deriveDebt, pushRefusal -->
 <!-- source: internal/le/commit/owed_trailers.go -- readPersonActs, stablePatchIDs -->
-<!-- source: internal/le/repo/changed/selector.go -- IsProse -->
 
 ### Asking before the run ends
 

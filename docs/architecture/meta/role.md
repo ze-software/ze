@@ -51,7 +51,7 @@ reports a suppression it could not evaluate under its own reason
 `unknown`.
 
 A role-configured peer no longer reaches that missing state through an
-unanswered validator. `broadcastValidateOpen` still skips a plugin it cannot
+unanswered validator. `broadcastStampedValidateOpen` still skips a plugin it cannot
 ask -- a nil plugin conn or a validate-open RPC error -- but it now carries the
 skip forward as `OpenValidationUnavailableError` and the session is refused with
 NOTIFICATION 2/11 (`unansweredOpenValidation`, `askOpenValidators`). Skipping
@@ -69,7 +69,7 @@ RFC 9234 Section 4.2 requires the connection to be rejected when the Roles do
 not correspond. An unreachable validator leaves ze unable to say that they do,
 so it rejects rather than assume (owner decision, 2026-08-30).
 
-<!-- source: internal/component/bgp/server/validate.go -- broadcastValidateOpen, askOpenValidators, unansweredOpenValidation, OpenValidationUnavailableError -->
+<!-- source: internal/component/bgp/server/validate.go -- broadcastStampedValidateOpen, askOpenValidators, unansweredOpenValidation, OpenValidationUnavailableError -->
 <!-- source: internal/component/bgp/reactor/peer.go -- openPolicyPlugins, capabilitySelectors -->
 
 Learned roles survive a config reload for every peer the new config still

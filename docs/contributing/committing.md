@@ -154,7 +154,7 @@ plus the earlier blocks of the closure's own script (commit A, not yet
 landed), plus the closure commit itself
 (`docs/contributing/spec-workflow.md`, "What each closure gate reads"). A
 commit made before the trailer existed carries none and is not searched for.
-<!-- source: internal/le/commit/actions.go -- answerCreate, declaredTrailers -->
+<!-- source: internal/le/commit/actions.go -- createAdmitted, declaredTrailers -->
 <!-- source: internal/le/commit/review.go -- specWorkPopulation, scriptPaths -->
 
 An admission no gate used records nothing. A reason spanning lines is refused,
@@ -315,7 +315,7 @@ gate or git refused it. `check` answers 1 for a review that is not
 clean. The generated script runs under `set -e`, so any non-zero code stops it.
 
 <!-- source: internal/le/commit/exitcode.go -- exitCodeOf, refusedKeywords, couldNotRun -->
-<!-- source: internal/le/commit/actions.go -- answerCreate, answerSession, answerReviewCheck -->
+<!-- source: internal/le/commit/actions.go -- prepareCreate, createAdmitted, answerSession, answerReviewCheck -->
 
 `normalizePath` and `validateAddPath` (`internal/le/commit/input.go`) refuse a
 path before the script is written:

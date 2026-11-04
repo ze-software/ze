@@ -27,4 +27,4 @@ check`.
 
 ## History moved from rule points (2026-09-26)
 
-- `ai/rules/points/precommit-verify/directives/the-gate-runs-on-a-commit-not-the-working-tree.md`: "(owner directive, 2026-08-21)"
+- Historical rule point `ai/rules/points/precommit-verify/directives/the-gate-runs-on-a-commit-not-the-working-tree.md` recorded "(owner directive, 2026-08-21)". The rule point was deleted. The current rule is `ai/rules/precommit-verify.md`. <!-- doc-links: ignore (the deleted rule-point path records historical attribution, not a current instruction) -->

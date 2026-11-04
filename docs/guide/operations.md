@@ -26,7 +26,7 @@ Defaults: `127.0.0.1:2222`, ED25519 host key auto-generated.
 Credentials are stored under `database/` in the resolved configuration folder,
 with bcrypt-hashed passwords. Initialization seeds every key before publishing
 the directory, so an interrupted initialization cannot expose partial credentials.
-<!-- source: internal/plugins/init/main.go -- Run, runInit -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runInitPublished -->
 
 | Init flag | Effect |
 |-----------|--------|
@@ -59,7 +59,7 @@ does not bypass this protection.
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
 
 The initial config is written under the name the store's instance name gives it. When that name cannot be read, `ze init` fails with `name initial config: ...` and closes the interface backend it opened, rather than writing the config under `ze.conf`.
-<!-- source: internal/plugins/init/main.go -- runInit -->
+<!-- source: internal/plugins/init/main.go -- runInitPublished -->
 
 ### Store folder and ownership
 
