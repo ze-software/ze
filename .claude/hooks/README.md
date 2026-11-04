@@ -215,7 +215,10 @@ Files to Create in both the selected file and the proposed edit, not from
 test-plan citations. Missing or unknown existing producers refuse; only genuinely
 new Files to Create paths, and Current Behavior or Files to Modify paths whose
 last commit in git history deleted them (`deletedInHistory`), may be absent. A
-path git never held still refuses. Reads and subjects share normalized,
+path git never held still refuses. A name whose first segment is no top-level
+directory (`reactor/x.go`) is matched as a path suffix over tracked files
+(`trackedSuffixMatches`): one match must be read, none is skipped, several
+refuse. Reads and subjects share normalized,
 symlink-resolved checkout identities. Matching returned ranges prove only their
 observed text, not unseen source or understanding. A subjectless draft still
 owes a usable current source read. `hookStop` reads the agent marker. Read hooks
@@ -230,7 +233,7 @@ Strict source-identity resolution is separate from shared planned-write checkout
 membership: it does not exempt a planned write through a checkout alias from
 the door, mechanisms, WIP or weakening gate.
 
-<!-- source: internal/le/hookruntime/designevidence.go -- recordSourceRead, designSubjects, deletedInHistory, currentSourceReads, designEvidenceProblem -->
+<!-- source: internal/le/hookruntime/designevidence.go -- recordSourceRead, designSubjects, deletedInHistory, rootAnchored, trackedSuffixMatches, currentSourceReads, designEvidenceProblem -->
 
 <!-- source: internal/le/hookruntime/specproof.go -- daemonProofProblem -->
 <!-- source: internal/le/session/summary.go -- snapshotText, snapshotGrammar -->

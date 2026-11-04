@@ -110,6 +110,13 @@ func (r sourceRead) validRange() bool {
 // Modify path whose last commit in git history deleted it is gone: a spec whose
 // own work removed a producer it names has nothing left to read. Every other
 // lookup error refuses, including a path git never held.
+//
+// A name whose first segment is no top-level directory of the checkout, such as
+// reactor/filter_format.go, is package-relative shorthand rather than a root
+// path, and it is resolved as a path suffix over the files git tracks. One
+// tracked match is the producer and must be read. No tracked match leaves
+// nothing to read, whether the name was deleted or was never a path. Several
+// matches refuse, naming each, because the spec does not say which it means.
 func designSubjects(ctx context, repository *os.Root, texts ...string) ([]string, error) {
 	var subjects []string
 	for _, text := range texts {
@@ -123,6 +130,23 @@ func designSubjects(ctx context, repository *os.Root, texts ...string) ([]string
 				}
 				if !sourceKind(path) || strings.HasSuffix(path, "_test.go") {
 					continue
+				}
+				anchored, err := rootAnchored(repository, path)
+				if err != nil {
+					return nil, fmt.Errorf("%s: inspect producer: %w", named, err)
+				}
+				if !anchored {
+					matches, err := trackedSuffixMatches(ctx.root, path)
+					if err != nil {
+						return nil, fmt.Errorf("%s: resolve package-relative producer: %w", named, err)
+					}
+					if len(matches) == 0 {
+						continue
+					}
+					if len(matches) > 1 {
+						return nil, fmt.Errorf("%s: package-relative producer is ambiguous, it matches %s; write the full path", named, strings.Join(matches, ", "))
+					}
+					path = matches[0]
 				}
 				info, err := repository.Stat(filepath.FromSlash(path))
 				if err != nil {
@@ -168,6 +192,45 @@ func deletedInHistory(root, path string) (bool, error) {
 		return false, err
 	}
 	return bytes.HasPrefix(output, []byte("D\t")), nil
+}
+
+// rootAnchored answers whether path starts at the checkout root: its first
+// segment is a top-level directory there. An absent first segment is shorthand;
+// any other lookup error is an error, never "shorthand".
+func rootAnchored(repository *os.Root, path string) (bool, error) {
+	first, _, _ := strings.Cut(path, "/")
+	info, err := repository.Stat(filepath.FromSlash(first))
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return info.IsDir(), nil
+}
+
+// trackedSuffixMatches lists the tracked files whose path ends in "/" + name,
+// so a match starts on a segment boundary. Spec path tokens hold only
+// [A-Za-z0-9_./-], so the name carries no pathspec wildcard; the leading "*"
+// matches across directories. One `git ls-files` reads the index, within
+// gitTimeout, and never walks history: a name with no tracked match has no
+// live producer, deleted or not. A git that cannot answer is an error.
+func trackedSuffixMatches(root, name string) ([]string, error) {
+	timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), gitTimeout)
+	defer cancel()
+	command := exec.CommandContext(timeout, "git", "ls-files", "-z", "--", "*/"+name) //nolint:gosec // name holds only path characters and -- ends the option list
+	command.Dir = root
+	output, err := command.Output()
+	if err != nil {
+		return nil, err
+	}
+	var matches []string
+	for match := range strings.SplitSeq(string(output), "\x00") {
+		if match != "" {
+			matches = append(matches, match)
+		}
+	}
+	return matches, nil
 }
 
 // observedSourceRange applies the native Read text normalization to current
@@ -263,7 +326,7 @@ func designEvidenceProblem(ctx context) *verdict {
 	subjects, err := designSubjects(ctx, repository, string(current), proposed)
 	if err != nil {
 		return &verdict{2, "❌ BLOCKED: cannot establish design source subjects: " + err.Error() +
-			"\n  Make each existing producer readable inside this checkout, then read it in this context and retry. Only genuinely new Files to Create paths, and Current Behavior or Files to Modify paths whose last commit deleted them, may be absent.\n  ai/rules/evidence.md"}
+			"\n  Make each existing producer readable inside this checkout, then read it in this context and retry. Only genuinely new Files to Create paths, and Current Behavior or Files to Modify paths whose last commit deleted them, may be absent. A package-relative name (reactor/x.go) is matched against tracked files and must name one; write the full path when it matches several.\n  ai/rules/evidence.md"}
 	}
 	reads := currentSourceReads(ctx, repository)
 	if len(subjects) == 0 && len(reads) != 0 {
