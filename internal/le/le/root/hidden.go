@@ -4,12 +4,13 @@
 // Related: helpai.go -- `le help ai commands`, the one listing that names it
 //
 // A hidden command is one Ze starts itself and a person never types: a plugin a
-// test daemon spawns from its config (`le mock engine-steps`). It dispatches
-// like any other command, and only the listings a person reads leave it out.
-// `le help ai commands` still lists it, marked hidden, so every word le
-// accepts is in le's help. The hidden mocks are exactly the ones a functional
-// test's daemon config starts from a plugin `run "le mock <name>"` statement,
-// which TestSpawnedMocksAreExactlyTheHiddenOnes reads from test/**/*.ci.
+// test daemon spawns from its config, or a native worker fed through inherited
+// descriptors. It dispatches like any other command, and only the listings a
+// person reads leave it out. `le help ai commands` still lists it, marked hidden,
+// so every word le accepts is in le's help. TestSpawnedMocksAreExactlyTheHiddenOnes
+// reads config run statements from test/**/*.ci and descriptor-fed process
+// launches from non-test Go under internal/test. Ordinary mock servers with a
+// public command line remain visible even when a fixture also starts them.
 
 package leroot
 

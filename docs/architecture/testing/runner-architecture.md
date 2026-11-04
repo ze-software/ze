@@ -198,9 +198,21 @@ Result keys and step keys use their declared kebab-case JSON tags. Missing,
 null-required, duplicate, unknown and contradictory fields are failures; a
 successful exit alone cannot make an absent result pass.
 <!-- source: internal/test/editorcase/worker.go -- Main, readRequest, run, watchControl -->
-<!-- source: internal/le/mock/editor-case/register.go -- init -->
+<!-- source: internal/le/mock/editorcase/register.go -- init -->
 <!-- source: internal/test/editorcase/parent.go -- Run, wait, finish -->
 <!-- source: internal/test/editorcase/result.go -- readResult -->
+
+The hidden-mock guard reads both daemon config `run` statements in `.ci` files
+and non-test Go launchers under `internal/test`. For a native launcher, it ties
+an `os/exec` mock invocation, inherited `ExtraFiles`, and the process start to
+the same constructor instance in source order. A later reassignment cannot
+transfer an earlier process's launch evidence. A Go test fixture or command name in text
+cannot supply that evidence. Both directions remain checked: every discovered
+private worker is hidden, and every hidden mock has a discovered launcher.
+Ordinary public mock servers do not become hidden merely because a fixture
+starts them without inherited descriptors.
+<!-- source: internal/le/le/root/hidden_spawned_test.go -- TestSpawnedMocksAreExactlyTheHiddenOnes, spawnedMocksAt, descriptorSpawnedMocks -->
+<!-- source: internal/le/le/root/hidden.go -- RegisterHidden, Hidden -->
 
 A suite starts a daemon and a peer, and each of those starts more: ze forks its
 plugins, the ExaBGP mock forks the bridge's scripts. So a stop aimed at the pid
