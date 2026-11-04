@@ -193,12 +193,12 @@ func guestWorkerBuild(req Request) (rel string, args, env []string) {
 	return rel, args, env
 }
 
-// containerRunArgs answers the `docker run` argv that runs the worker in the
-// kernel builder image. runDocker passes it unchanged
-// (TestRunDockerArgvAndOwnershipRepair).
-func containerRunArgs(req Request) ([]string, error) {
+// containerCreateArgs answers the `docker create` argv for the worker under
+// this run's unique name. runDocker passes it unchanged
+// (TestRunDockerArgvAndOwnershipRepair); starting it requires the returned ID.
+func containerCreateArgs(req Request, name string) ([]string, error) {
 	args := []string{
-		"run", "--rm", dockerPlatformFlag, dockerPlatforms[req.Arch],
+		"create", "--name", name, dockerPlatformFlag, dockerPlatforms[req.Arch],
 		"-e", "KERNEL_VERSION=" + req.Version,
 		"-v", filepath.Join(req.Root, req.SourceDir) + ":/src:ro",
 		"-v", filepath.Join(req.Root, req.CommonDir) + ":/builder/common:ro",

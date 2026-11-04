@@ -2254,6 +2254,22 @@ proves `aarch64` is read as arm64 by path validation on an arm64 host and by the
 host-arch refusal naming arm64 elsewhere, and
 `test/appliance/appliance-kernel-cache-arch-identity.ci` only queries the cache.
 
+The compiled install fixture models Docker's create, attached start and exact-ID
+removal separately. It checks that the build container is removed before the
+ownership-repair container is created, and that the repair container is removed
+before the build returns, while keeping the worker's fragment, mount and
+provenance assertions. It is not daemon-lifetime evidence.
+`TestKernelContainerCancellationJoinsBeforeRepair` supplies that separate
+lifecycle proof against a real Docker daemon when
+`KERNEL_CONTAINER_PROOF_IMAGE` names a locally cached image containing `/bin/sh`,
+`sleep`, `chown`, `cat` and `touch`; it never pulls an image. Its heartbeat must
+stop before output repair, the owned container must be gone when `Build`
+returns, the originating cancellation must remain detectable, and a foreign
+sentinel must still be running. This proves container lifecycle only, not a
+kernel compilation, guest boot or architecture result.
+
+<!-- source: internal/appliance/kernelbuilder/container_lifetime_proof_test.go -- TestKernelContainerCancellationJoinsBeforeRepair -->
+
 <!-- source: internal/le/test/install/register.go -- the install suite command -->
 <!-- source: internal/test/fixture/install_fixture.go -- hostKernelArch, syntheticBuildRequest -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->

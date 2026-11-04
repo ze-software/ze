@@ -75,23 +75,30 @@ func TestDockerStopNamesTheStep(t *testing.T) {
 		call  int
 		stage string
 		next  string
-		left  string
 	}{
-		{"builder image", 1, "Docker was stopped while it built the kernel builder image", "docker 'build' ", ""},
-		{"kernel container", 2, "the kernel container was stopped while it built the kernel", "docker ps --filter ancestor=fixture", "docker ps --filter ancestor=fixture"},
+		{"builder image", 1, "Docker was stopped while it built the kernel builder image", "docker 'build' "},
+		{"kernel container", 3, "the kernel container was stopped while it built the kernel", "the build output above"},
 	}
 	for _, step := range steps {
 		for _, tc := range stopCases() {
 			t.Run(step.name+"/"+tc.name, func(t *testing.T) {
 				req := Request{Root: t.TempDir(), Version: "7.1.1", Arch: "amd64", Profile: "qemu", Target: "installer", SourceDir: "configs", OutputDir: "out", BuilderDir: "tools/kernel-builder", CommonDir: "common", Modules: "no", Fragments: []string{"configs/kernel.config"}, Image: "fixture", Stdout: os.Stderr, Stderr: os.Stderr}
 				pinHostWithoutAContainerStore(t)
+				pinDockerCreateOutput(t)
 				old := runCommand
 				t.Cleanup(func() { runCommand = old })
 				calls := 0
-				runCommand = func(ctx context.Context, _ Request, _ string, _ ...string) error {
+				removed := false
+				runCommand = func(ctx context.Context, _ Request, _ string, args ...string) error {
 					calls++
 					if calls == step.call {
 						return exec.CommandContext(ctx, "sleep", "60").Run()
+					}
+					if args[0] == "rm" {
+						if err := ctx.Err(); err != nil {
+							t.Fatalf("container removal inherited the stopped context: %v", err)
+						}
+						removed = true
 					}
 					return nil
 				}
@@ -99,15 +106,16 @@ func TestDockerStopNamesTheStep(t *testing.T) {
 				defer cancel()
 				err := runDocker(ctx, req)
 				checkStopped(t, err, tc, step.stage, step.next)
-				// The container outlives the Docker CLI whatever stopped the
-				// build, so the line that finds it ends every case, a Ctrl-C
-				// included (round-9 ISSUE 2).
-				if step.left == "" || err == nil {
-					return
+				if strings.Contains(err.Error(), "ancestor=") {
+					t.Errorf("stop report still asks for an ancestor-wide scan: %v", err)
 				}
-				lines := strings.Split(err.Error(), "\n")
-				if last := lines[len(lines)-1]; !strings.HasPrefix(last, step.left) {
-					t.Errorf("a stopped kernel container does not end with %q, so a container still compiling goes unnamed:\n%v", step.left, err)
+				if step.name == "kernel container" {
+					if !removed {
+						t.Fatal("stopped kernel container was not removed before return")
+					}
+					if calls != 7 {
+						t.Errorf("stopped worker did not complete removal and ownership repair: %d calls", calls)
+					}
 				}
 			})
 		}

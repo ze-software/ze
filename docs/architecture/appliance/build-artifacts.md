@@ -152,6 +152,8 @@ kernel build with `--builder qemu`. The QEMU backend writes its build tree under
 daemon the space a build used is handed back to the host afterwards, pass or
 fail (`reclaimBuildSpace`), because the VM's sparse disk never shrinks on its
 own.
+Both the build worker and the output-ownership repair container must first be
+confirmed removed; an unknown or failed container teardown refuses reclaim.
 
 <!-- source: internal/appliance/kernelbuilder/space.go -- kernelBuildFreeBytesMin, dockerStoreHostPath, dockerRootDir, checkKernelBuildSpace, kernelBuildSpaceError, reclaimBuildSpace -->
 
@@ -166,7 +168,7 @@ that changes no kernel must keep the cache. The key covers:
 | The backend, `docker` or `qemu` | The Docker image compiles with Debian bookworm's gcc, the QEMU guest with Alpine 3.21's, so the two build different bytes from one tree. The `--builder` value names it; with none, the backend a build here would choose (`kernelbuilder.PreferredBackend`: Docker when installed, else QEMU) |
 | The profile's config fragments, `.require` manifests, and the target's patch series | They are the config and the source the kernel is built from |
 | Every file under `tools/kernel-builder` | The container definition (toolchain and packages), the worker's `main`, and the shared fragments |
-| The `kernelbuilder` files named in `kernelbuilder.BuildSources` | `worker.go` is the build. `recipe.go` holds what the host hands it: the `Request` type, the `docker build` and `docker run` argv, the worker's `go build` argv and environment, the QEMU guest's Alpine release, packages and command line, the request defaults and normalisation, and the provenance record |
+| The `kernelbuilder` files named in `kernelbuilder.BuildSources` | `worker.go` is the build. `recipe.go` holds what the host hands it: the `Request` type, the `docker build` and worker-container `docker create` argv, the worker's `go build` argv and environment, the QEMU guest's Alpine release, packages and command line, the request defaults and normalisation, and the provenance record |
 | Every Ze package those Go files import, followed transitively | The worker and the recipe run that code |
 
 The other `kernelbuilder` files are host-side: they select a backend, probe the

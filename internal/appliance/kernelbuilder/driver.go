@@ -1,9 +1,12 @@
+// Design: docs/architecture/appliance/kernel-profiles.md -- native backend and container ownership.
+
 // Package kernelbuilder builds Ze runtime and installer kernels without an interpreter.
 package kernelbuilder
 
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +16,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -277,53 +282,94 @@ func runDocker(ctx context.Context, req Request) error {
 		}
 		return fmt.Errorf("build kernel builder image: %w", err)
 	}
-	args, err := containerRunArgs(req)
+	name := "ze-kernel-" + rand.Text()
+	args, err := containerCreateArgs(req, name)
 	if err != nil {
 		return err
 	}
-	buildErr := runCommand(ctx, req, backendDocker, args...)
+	buildErr, teardownErr := runContainer(ctx, req, name, args)
+	failed := containerFailure(ctx, buildErr)
+	if teardownErr != nil {
+		// A CLI exit does not prove the daemon worker stopped. Neither chown
+		// nor discard may race a worker whose removal was not confirmed.
+		return errors.Join(failed, teardownErr)
+	}
 	repairCtx, cancelRepair := context.WithTimeout(context.WithoutCancel(ctx), ownershipRepairTimeout)
 	defer cancelRepair()
 	repairErr := repairOwnership(repairCtx, req, platform)
-	// Pass or fail. A failed build leaves the largest tree behind, so the run
-	// that most needs the space returned is the one that did not finish. The
-	// context is the detached one, so a canceled build still discards.
+	if repairErr != nil {
+		return errors.Join(failed, repairErr)
+	}
+	// Pass or fail, but only after both owned containers have been removed.
+	// The detached context lets a canceled build return freed space too.
 	if store.vmDisk {
 		reclaimBuildSpace(repairCtx, req, store.path)
 	}
-	if buildErr != nil {
-		failed := containerFailure(ctx, req, buildErr)
-		if repairErr != nil {
-			return fmt.Errorf("%w (ownership repair also failed: %w)", failed, repairErr)
-		}
-		return failed
-	}
-	if repairErr != nil {
-		return repairErr
-	}
-	return nil
+	return failed
 }
 
-// containerFailure names why `docker run` of the kernel container failed. A
-// stop ends it with "signal: killed", which reads as a failed kernel compile,
-// so the stop is named first. The stop kills the Docker CLI, not the
-// container, so the container may still be compiling, whatever stopped the
-// build: the line that finds it is printed on a Ctrl-C too
-// (errBuildStoppedLeaving).
-func containerFailure(ctx context.Context, req Request, buildErr error) error {
+// containerFailure names a stopped build before exec's CLI error. Successful
+// teardown is established separately, never inferred from the CLI's exit.
+func containerFailure(ctx context.Context, buildErr error) error {
+	if buildErr == nil {
+		return nil
+	}
 	if ctx.Err() != nil {
-		return errBuildStoppedLeaving(ctx, "the kernel container was stopped while it built the kernel",
-			"the build output above shows the last step it reached.",
-			"Docker may still run the container, which holds the build volumes the next build mounts; "+
-				"list it, then stop it with docker stop <id>:\n"+
-				"docker ps --filter ancestor="+req.Image)
+		return errBuildStopped(ctx, "the kernel container was stopped while it built the kernel",
+			"the build output above shows the last step it reached.")
 	}
 	return fmt.Errorf("kernel container failed: %w", buildErr)
 }
 
+// runContainer MUST remove the exact container it creates before its caller
+// repairs ownership or reclaims space. Callers MUST refuse those operations if
+// teardownErr is non-nil. It is synchronous and has no concurrent users.
+// Creation is detached and bounded: cancellation cannot lose the daemon's ID
+// response between creating the container and recording what this run owns.
+// A failed or malformed creation response is Unknown, not absence; no start or
+// output repair follows it. Only a full daemon-issued ID authorizes removal.
+func runContainer(ctx context.Context, req Request, name string, args []string) (runErr, teardownErr error) {
+	if err := ctx.Err(); err != nil {
+		return err, nil
+	}
+	createCtx, cancelCreate := context.WithTimeout(context.WithoutCancel(ctx), hostProbeTimeout)
+	output, err := runCommandOutput(createCtx, req, backendDocker, args...)
+	cancelCreate()
+	if err != nil {
+		return err, fmt.Errorf("Docker did not confirm creating container %s (%w); Ze did not start it, and output ownership repair and disk reclaim were refused. Inspect only this run's container before removing it:\ndocker container inspect %s", name, err, name)
+	}
+	id := strings.TrimSpace(string(output))
+	if len(id) != 64 {
+		return errors.New("Docker did not return a full container ID"),
+			fmt.Errorf("Docker returned %q for container %s; Ze did not start it, and output ownership repair and disk reclaim were refused. Inspect only this run's container before removing it:\ndocker container inspect %s", id, name, name)
+	}
+	for _, ch := range id {
+		if !strings.ContainsRune("0123456789abcdef", ch) {
+			return errors.New("Docker returned an invalid container ID"),
+				fmt.Errorf("Docker returned %q for container %s; Ze did not start it, and output ownership repair and disk reclaim were refused. Inspect only this run's container before removing it:\ndocker container inspect %s", id, name, name)
+		}
+	}
+	runErr = ctx.Err()
+	if runErr == nil {
+		runErr = runCommand(ctx, req, backendDocker, "start", "--attach", id)
+	}
+	removeCtx, cancelRemove := context.WithTimeout(context.WithoutCancel(ctx), hostProbeTimeout)
+	defer cancelRemove()
+	if err := runCommand(removeCtx, req, backendDocker, "rm", "--force", id); err != nil {
+		return runErr, fmt.Errorf("Docker did not confirm removing owned container %s (%w); it may still hold the build volumes, so output ownership repair and disk reclaim were refused. Remove only this container before another build:\ndocker rm --force %s", id, err, id)
+	}
+	// Docker's successful removal joins its worker and removes the identity,
+	// including when start was canceled while the daemon was handling it.
+	return runErr, nil
+}
+
 func repairOwnership(ctx context.Context, req Request, platform string) error {
-	args := []string{"run", "--rm", dockerPlatformFlag, platform, "-v", hostOutputPath(req) + ":/out", req.Image, "chown", "-R", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()), "/out"}
-	if err := runCommand(ctx, req, backendDocker, args...); err != nil {
+	name := "ze-kernel-ownership-" + rand.Text()
+	var owner textbuf.Buffer
+	owner.Int(int64(os.Getuid())).Byte(':').Int(int64(os.Getgid()))
+	args := []string{"create", "--name", name, dockerPlatformFlag, platform, "-v", hostOutputPath(req) + ":/out", req.Image, "chown", "-R", owner.String(), "/out"}
+	runErr, teardownErr := runContainer(ctx, req, name, args)
+	if err := errors.Join(runErr, teardownErr); err != nil {
 		return fmt.Errorf("repair output ownership: %w", err)
 	}
 	return nil

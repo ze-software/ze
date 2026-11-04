@@ -151,8 +151,8 @@ func kernelBuildSpaceError(free uint64, store containerStore, req Request) error
 // the real readings back.
 //
 // It exists for the compiled install fixtures
-// (internal/test/fixture/install_fixture.go), which drive Build against a
-// `docker` that is a symlink to a no-op on their own PATH. That build writes
+// (internal/test/fixture/install_fixture.go), which drive Build against a fake
+// `docker` on their own PATH. That build writes
 // nothing and reads no image layer, so the 40G floor a REAL build needs decided
 // their verdict from the free space of whichever machine ran them: green on a
 // workstation whose container store had room, red on one that did not, with
@@ -166,8 +166,15 @@ func PinNoContainerStore() (restore func()) {
 	oldExists, oldFree, oldOutput := pathExists, freeSpace, runCommandOutput
 	pathExists = func(string) bool { return false }
 	freeSpace = func(string) (uint64, error) { return 0, nil }
-	runCommandOutput = func(context.Context, Request, string, ...string) ([]byte, error) {
-		return nil, errNoContainerStore
+	runCommandOutput = func(ctx context.Context, req Request, name string, args ...string) ([]byte, error) {
+		if name == backendDocker {
+			if len(args) > 0 {
+				if args[0] == "info" {
+					return nil, errNoContainerStore
+				}
+			}
+		}
+		return oldOutput(ctx, req, name, args...)
 	}
 	return func() { pathExists, freeSpace, runCommandOutput = oldExists, oldFree, oldOutput }
 }

@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -84,18 +83,20 @@ func TestInstallNativeKernelFixtures(t *testing.T) {
 		t.Fatal(err)
 	}
 	bin := t.TempDir()
-	// "true" is looked up on PATH rather than hardcoded at /bin/true: recent
-	// macOS releases ship it at /usr/bin/true instead, and /bin/true no
-	// longer exists there.
-	noop, err := exec.LookPath("true")
+	// The real driver acquires a daemon-issued full ID before starting work.
+	// Use the compiled stateful fixture through its existing Docker dispatch,
+	// rather than a no-op that cannot answer creation or realize artifacts.
+	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(noop, filepath.Join(bin, "docker")); err != nil {
+	if err := os.Symlink(self, filepath.Join(bin, "docker")); err != nil {
 		t.Fatal(err)
 	}
 	restore := setFixtureEnv("PATH", bin)
 	defer restore()
+	restoreLog := setFixtureEnv("ZE_INSTALL_DOCKER_LOG", filepath.Join(bin, "docker.log"))
+	defer restoreLog()
 	if err := kernelBuildOwnershipFixture(ctx, []string{repo, filepath.Join(t.TempDir(), "ownership")}); err != nil {
 		t.Fatal(err)
 	}

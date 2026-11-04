@@ -254,6 +254,7 @@ func TestRunDockerReturnsSpaceAfterTheBuild(t *testing.T) {
 	pathExists = func(path string) bool { return strings.HasSuffix(path, colimaVMDir) }
 	freeSpace = func(string) (uint64, error) { return 400 * diskspace.BytesPerGiB, nil }
 	commandAvailable = func(name string) bool { return name == "colima" }
+	pinDockerCreateOutput(t)
 
 	var calls [][]string
 	runCommand = func(_ context.Context, _ Request, name string, args ...string) error {

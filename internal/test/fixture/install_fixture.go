@@ -82,7 +82,8 @@ func registerPassed(name string, driver Driver) {
 	})
 }
 func installDockerStub(args []string) int {
-	if logPath := os.Getenv("ZE_INSTALL_DOCKER_LOG"); logPath != "" {
+	logPath := os.Getenv("ZE_INSTALL_DOCKER_LOG")
+	if logPath != "" {
 		record, err := json.Marshal(args)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -99,7 +100,68 @@ func installDockerStub(args []string) int {
 			return 2
 		}
 	}
-	if len(args) > 0 && args[0] == actionRun && containsArg(args, "ze-kernel-builder") {
+	if len(args) == 0 {
+		return 0
+	}
+	if args[0] == "create" {
+		name := argumentValue(args, "--name")
+		if name == "" {
+			fmt.Fprintln(os.Stderr, "fake Docker creation requires an exact name")
+			return 2
+		}
+		if logPath == "" {
+			fmt.Fprintln(os.Stderr, "fake Docker creation requires fixture-owned state")
+			return 2
+		}
+		id := fmt.Sprintf("%x", sha256.Sum256([]byte(name)))
+		record, err := json.Marshal(args)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		if err := os.WriteFile(logPath+"."+id, record, 0o600); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		fmt.Println(id)
+		return 0
+	}
+	if args[0] == "rm" {
+		if len(args) != 3 {
+			fmt.Fprintln(os.Stderr, "fake Docker removal requires --force and a full ID")
+			return 2
+		}
+		if args[1] != "--force" {
+			fmt.Fprintln(os.Stderr, "fake Docker removal requires --force")
+			return 2
+		}
+		if err := os.Remove(logPath + "." + args[2]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		return 0
+	}
+	if args[0] != "start" {
+		return 0
+	}
+	if len(args) != 3 {
+		fmt.Fprintln(os.Stderr, "fake Docker start requires --attach and a full ID")
+		return 2
+	}
+	if args[1] != "--attach" {
+		fmt.Fprintln(os.Stderr, "fake Docker start requires --attach")
+		return 2
+	}
+	record, err := os.ReadFile(logPath + "." + args[2])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if err := json.Unmarshal(record, &args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if containsArg(args, "ze-kernel-builder") {
 		output := dockerOutputMount(args)
 		if output == "" {
 			fmt.Fprintln(os.Stderr, "fake kernel worker has no /out mount")
@@ -126,8 +188,7 @@ func installDockerStub(args []string) int {
 			return 2
 		}
 	}
-	if len(args) > 0 && args[0] == actionRun && os.Getenv("ZE_INSTALL_DOCKER_FAIL_BUILD") != "" &&
-		containsArg(args, "ze-kernel-builder") {
+	if os.Getenv("ZE_INSTALL_DOCKER_FAIL_BUILD") != "" && containsArg(args, "ze-kernel-builder") {
 		fmt.Fprintln(os.Stderr, "fake kernel build failure")
 		return 1
 	}
@@ -780,7 +841,16 @@ func kernelAutoBuilderFixture(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{builderDocker, qemuProgram, "go"} {
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if err := os.Symlink(self, filepath.Join(bin, builderDocker)); err != nil {
+		return err
+	}
+	restoreLog := setFixtureEnv("ZE_INSTALL_DOCKER_LOG", filepath.Join(root, "docker.log"))
+	defer restoreLog()
+	for _, name := range []string{qemuProgram, "go"} {
 		if err := os.Symlink(noop, filepath.Join(bin, name)); err != nil {
 			return err
 		}
@@ -1008,13 +1078,13 @@ func readDockerCalls(path string) ([][]string, error) {
 
 func assertOwnershipRepairCalls(calls [][]string, arch, outputDir string) error {
 	platform := "linux/" + arch
-	if len(calls) != 3 {
-		return fmt.Errorf("docker calls = %v, want build, worker, repair", calls)
+	if err := assertDockerContainerLifetimes(calls); err != nil {
+		return err
 	}
 	if !containsArgSequence(calls[0], "build", "--platform", platform) {
 		return fmt.Errorf("builder image argv = %v", calls[0])
 	}
-	if !containsArgSequence(calls[1], "run", "--rm", "--platform", platform) {
+	if !containsArgSequence(calls[1], "--platform", platform) {
 		return fmt.Errorf("kernel worker argv = %v", calls[1])
 	}
 	if !containsArg(calls[1], "ze-kernel-builder") {
@@ -1024,14 +1094,45 @@ func assertOwnershipRepairCalls(calls [][]string, arch, outputDir string) error 
 		return fmt.Errorf("kernel worker argv = %v", calls[1])
 	}
 	owner := fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())
-	if !containsArgSequence(calls[2], "run", "--rm", "--platform", platform) {
-		return fmt.Errorf("ownership repair argv = %v", calls[2])
+	if !containsArgSequence(calls[4], "--platform", platform) {
+		return fmt.Errorf("ownership repair argv = %v", calls[4])
 	}
-	if !containsArgSequence(calls[2], "chown", "-R", owner, "/out") {
-		return fmt.Errorf("ownership repair argv = %v", calls[2])
+	if !containsArgSequence(calls[4], "chown", "-R", owner, "/out") {
+		return fmt.Errorf("ownership repair argv = %v", calls[4])
 	}
-	if !containsArg(calls[2], outputDir+":/out") {
-		return fmt.Errorf("ownership repair argv = %v", calls[2])
+	if !containsArg(calls[4], outputDir+":/out") {
+		return fmt.Errorf("ownership repair argv = %v", calls[4])
+	}
+	return nil
+}
+
+// assertDockerContainerLifetimes proves acquisition, attach and exact removal
+// order for both workers, without replacing their argv or output assertions.
+func assertDockerContainerLifetimes(calls [][]string) error {
+	if len(calls) != 7 {
+		return fmt.Errorf("docker calls = %v, want build, create/start/remove worker, create/start/remove repair", calls)
+	}
+	for _, create := range []int{1, 4} {
+		if len(calls[create]) < 3 {
+			return fmt.Errorf("container creation has no identity: %v", calls[create])
+		}
+		if !slices.Equal(calls[create][:2], []string{"create", "--name"}) {
+			return fmt.Errorf("container was not acquired before starting: %v", calls[create])
+		}
+		name := calls[create][2]
+		if !strings.HasPrefix(name, "ze-kernel-") {
+			return fmt.Errorf("container has no per-run name: %v", calls[create])
+		}
+		id := fmt.Sprintf("%x", sha256.Sum256([]byte(name)))
+		if !slices.Equal(calls[create+1], []string{"start", "--attach", id}) {
+			return fmt.Errorf("attachment did not use the acquired full ID: %v", calls[create+1])
+		}
+		if !slices.Equal(calls[create+2], []string{"rm", "--force", id}) {
+			return fmt.Errorf("owned container removal did not precede repair or return: %v", calls[create+2])
+		}
+	}
+	if calls[1][2] == calls[4][2] {
+		return errors.New("build and ownership repair reused a container identity")
 	}
 	return nil
 }
@@ -1375,25 +1476,16 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 }
 
 func assertKernelBuildCalls(calls [][]string, arch, outputDir string, workerSequence []string) error {
-	if len(calls) != 3 {
-		return fmt.Errorf("docker calls = %v, want build, worker, repair", calls)
-	}
-	platform := "linux/" + arch
-	if !containsArgSequence(calls[0], "build", "--platform", platform) {
-		return fmt.Errorf("builder image argv = %v", calls[0])
-	}
-	if !containsArgSequence(calls[1], "run", "--rm", "--platform", platform) ||
-		!containsArg(calls[1], "ze-kernel-builder") ||
-		!containsArg(calls[1], outputDir+":/out") {
-		return fmt.Errorf("worker argv = %v", calls[1])
+	if err := assertOwnershipRepairCalls(calls, arch, outputDir); err != nil {
+		return err
 	}
 	for index := 0; index < len(workerSequence); index += 2 {
 		if !containsArgSequence(calls[1], workerSequence[index:index+2]...) {
 			return fmt.Errorf("worker argv missing %v: %v", workerSequence[index:index+2], calls[1])
 		}
 	}
-	if !containsArgSequence(calls[2], "chown", "-R", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()), "/out") {
-		return fmt.Errorf("repair argv = %v", calls[2])
+	if !containsArgSequence(calls[4], "chown", "-R", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()), "/out") {
+		return fmt.Errorf("repair argv = %v", calls[4])
 	}
 	return nil
 }
@@ -1921,8 +2013,8 @@ func runBuildCapture(ctx context.Context, req *kernelbuilder.Request) (string, e
 // buildKernel runs one kernel build for a fixture, with the container store
 // guard pinned off for its duration.
 //
-// Every build these fixtures run reaches a `docker` that is a symlink to a
-// no-op on their own PATH, so it writes no image layer and needs none of the
+// Every Docker build these fixtures run reaches a stateful fake on their own
+// PATH, so it writes no image layer and needs none of the
 // 40G a real build needs. Left live, that guard read the free space of whatever
 // machine ran the fixture and decided the verdict from it
 // (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-09-07). The guard

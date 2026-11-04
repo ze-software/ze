@@ -23,6 +23,19 @@ The low-level Go worker invokes the kernel's `merge_config.sh`, `patch`, and
 `tar`. The container and QEMU guest run the compiled `ze-kernel-builder`
 command.
 
+Each Docker worker is created, without starting it, under a unique per-run name.
+Creation has a detached 15-second bound, so canceling the build cannot kill the
+CLI before it returns the full container ID. Ze starts and attaches to that ID,
+then uses a detached 15-second bound to force-remove that exact container after
+the CLI finishes, on success, failure or cancellation. A successful daemon
+removal joins the worker before output ownership repair or disk reclaim. The
+ownership-repair container follows the same create, attach and remove lifecycle.
+Ze never finds workers by image ancestry and never prunes another build's work.
+If creation or removal cannot be confirmed, the build refuses without ownership
+repair or disk reclaim; its error names the exact container identity and the
+inspection or removal command. Killing the Docker CLI alone is not evidence
+that a daemon worker stopped.
+
 The builder runs only natively. `validateRequest` refuses a kernel whose
 architecture is not the host's (`hostGOARCH`), so Docker's `--platform` always
 names the host's own platform, and `hardwareAccelerator` refuses a QEMU that
@@ -63,7 +76,7 @@ reported as a failed step or as a kernel that failed to compile:
 |------|------------------------------------|
 | The QEMU backend downloads the Alpine ISO's checksum, or the Alpine ISO | `curl -fL -o /dev/null <url>`, to check that the host reaches the mirror and how fast |
 | Docker builds the builder image | the same `docker build` command, to run by hand |
-| The kernel container builds the kernel | the build output above. On every stop, a Ctrl-C included, it then gives `docker ps --filter ancestor=<image>`: the stop kills the Docker CLI, not the container, which can still be compiling and still holds the build volumes the next build mounts |
+| The kernel container builds the kernel | the build output above. Ze removes the exact owned container before repairing output ownership or reclaiming disk space. If removal fails or cannot be confirmed, every stop, including Ctrl-C, names that failure and gives `docker rm --force <full-container-id>`; repair and reclaim do not run |
 | Go compiles the QEMU kernel worker | the same Go command, with its `GOOS` and `GOARCH`, to run from the repository root |
 | The build VM boots, logs in, or sets up SSH | the QEMU command that boots the same VM to the same stage |
 | The host downloads the kernel tarball for the build VM | the `curl` command that fetches it by hand to the path the next build reads it from, through a `.part` file, so a fetch cut short leaves no partial tarball |
@@ -85,8 +98,8 @@ asks the host first (`hostProbeTimeout`: QEMU's `-accel help` and
 An arm64 kernel is built on the Mac and an amd64 kernel on the Linux host.
 
 <!-- source: internal/appliance/cmd_kernel.go -- kernelBuildTimeout, defaultKernelBuild, downloadFirmwareBlob, firmwareDownloadFailed -->
-<!-- source: internal/appliance/kernelbuilder/stopped.go -- WithBuildLimit, buildLimit, LimitWords, errBuildStopped, errBuildStoppedLeaving, stopReport -->
-<!-- source: internal/appliance/kernelbuilder/driver.go -- Build, SelectBuilder, validateRequest, runDocker, containerFailure -->
+<!-- source: internal/appliance/kernelbuilder/stopped.go -- WithBuildLimit, buildLimit, LimitWords, errBuildStopped, stopReport -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build, SelectBuilder, validateRequest, runDocker, runContainer, containerFailure, repairOwnership -->
 <!-- source: internal/appliance/kernelbuilder/space.go -- dockerRootDir -->
 <!-- source: internal/appliance/kernelbuilder/qemu.go -- hostProbeTimeout, hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed, buildGuestWorker, qemuNextStep, guestBuildNextStep, sshClientOptions, ensureAlpineISO, downloadNextStep, fetchKernelTarball, tarballNextStep -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->

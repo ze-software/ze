@@ -145,6 +145,7 @@ func TestRunDockerArgvAndOwnershipRepair(t *testing.T) {
 	// space_test.go; pinning them here keeps this test's call count a fact about
 	// runDocker rather than about the machine it runs on.
 	pinHostWithoutAContainerStore(t)
+	pinDockerCreateOutput(t)
 	old := runCommand
 	t.Cleanup(func() { runCommand = old })
 	var calls [][]string
@@ -155,34 +156,49 @@ func TestRunDockerArgvAndOwnershipRepair(t *testing.T) {
 	if err := runDocker(context.Background(), req); err != nil {
 		t.Fatal(err)
 	}
-	if len(calls) != 3 {
+	if len(calls) != 7 {
 		t.Fatalf("docker calls = %v", calls)
 	}
-	// runDocker runs the recipe's argv and nothing it built itself: the
-	// recipe is what the cache key hashes (recipe.go, BuildSources).
-	runArgs, err := containerRunArgs(req)
+	// The create invocation carries the unchanged recipe; the daemon's full
+	// ID then owns both attachment and removal before repair can be created.
+	createArgs, err := containerCreateArgs(req, calls[1][3])
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(calls[0], append([]string{"docker"}, containerBuildArgs(req)...)) {
 		t.Errorf("docker build argv = %v, want containerBuildArgs %v", calls[0], containerBuildArgs(req))
 	}
-	if !slices.Equal(calls[1], append([]string{"docker"}, runArgs...)) {
-		t.Errorf("docker run argv = %v, want containerRunArgs %v", calls[1], runArgs)
+	if !slices.Equal(calls[1], append([]string{"docker"}, createArgs...)) {
+		t.Errorf("docker create argv = %v, want containerCreateArgs %v", calls[1], createArgs)
 	}
 	build := strings.Join(calls[0], " ")
 	if !strings.Contains(build, "docker build --platform linux/amd64 -t fixture -f tools/kernel-builder/Dockerfile "+root) {
 		t.Fatalf("docker build argv = %s", build)
 	}
-	run := strings.Join(calls[1], " ")
+	worker := strings.Join(calls[1], " ")
 	for _, want := range []string{"ze-kernel-builder --version 7.1.1", "--fragment /src/kernel.config", "--fragment /builder/common/console.config", "ze-kernel-build:/tmp/kbuild", "ze-kernel-work:/build"} {
-		if !strings.Contains(run, want) {
-			t.Errorf("docker run missing %q: %s", want, run)
+		if !strings.Contains(worker, want) {
+			t.Errorf("docker create missing %q: %s", want, worker)
 		}
 	}
-	repair := strings.Join(calls[2], " ")
+	repair := strings.Join(calls[4], " ")
 	if !strings.Contains(repair, "chown -R") || !strings.HasSuffix(repair, " /out") {
 		t.Fatalf("ownership repair argv = %s", repair)
+	}
+	if !strings.HasPrefix(calls[1][3], "ze-kernel-") {
+		t.Fatalf("worker has no unique run name: %v", calls[1])
+	}
+	if calls[1][3] == calls[4][3] {
+		t.Fatal("worker and ownership repair reused a container identity")
+	}
+	for _, create := range []int{1, 4} {
+		id := fixtureContainerID(calls[create][3])
+		if !slices.Equal(calls[create+1], []string{"docker", "start", "--attach", id}) {
+			t.Errorf("attachment did not use created full ID: %v", calls[create+1])
+		}
+		if !slices.Equal(calls[create+2], []string{"docker", "rm", "--force", id}) {
+			t.Errorf("removal did not precede the next worker: %v", calls[create+2])
+		}
 	}
 }
 
@@ -190,30 +206,38 @@ func TestRunDockerRepairsOwnershipAfterFailure(t *testing.T) {
 	root := t.TempDir()
 	req := Request{Root: root, Version: "7.1.1", Arch: "amd64", Profile: "qemu", Target: "installer", SourceDir: "configs", OutputDir: "out", BuilderDir: "tools/kernel-builder", CommonDir: "common", Modules: "no", Fragments: []string{"configs/kernel.config"}, Image: "fixture", Stdout: os.Stdout, Stderr: os.Stderr}
 	pinHostWithoutAContainerStore(t)
+	pinDockerCreateOutput(t)
 	old := runCommand
 	t.Cleanup(func() { runCommand = old })
 	calls := 0
 	ctx, cancel := context.WithCancel(context.Background())
 	repairRanAfterCancel := false
+	removedAfterCancel := false
 	runCommand = func(callCtx context.Context, _ Request, _ string, args ...string) error {
 		calls++
-		if calls == 2 {
+		if calls == 3 {
 			cancel()
 			return errors.New("build failed")
 		}
-		if calls == 3 {
+		if calls == 4 {
+			removedAfterCancel = callCtx.Err() == nil && args[0] == "rm"
+		}
+		if calls == 5 {
 			repairRanAfterCancel = callCtx.Err() == nil
 		}
 		return nil
 	}
-	// The build was canceled while docker run failed, so the stop is the
+	// The build was canceled while attachment failed, so the stop is the
 	// answer, not the step's own error (round-8 ISSUE 1).
 	err := runDocker(ctx, req)
 	if !errors.Is(err, context.Canceled) || !strings.Contains(err.Error(), "the kernel container was stopped") {
 		t.Fatalf("runDocker error = %v", err)
 	}
-	if calls != 3 || !repairRanAfterCancel {
+	if calls != 7 || !repairRanAfterCancel {
 		t.Fatalf("ownership repair was skipped after cancellation, calls = %d", calls)
+	}
+	if !removedAfterCancel {
+		t.Fatal("ownership repair followed a container not removed after cancellation")
 	}
 }
 
