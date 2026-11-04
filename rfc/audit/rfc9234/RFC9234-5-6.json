@@ -2,8 +2,8 @@
   "note": "non-compliant: an existing OTC value rewritten. TestOTCAttrModHandlerExistingPreserved plans OTC 65001 from source against a set op of 65000 and asserts the emitted value is 65001. Negative TestOTCAttrModHandlerNewAttr: no prior OTC, so the op's value is emitted. The confederation parenthetical has no ze code path (RFC9234-5-7/5-8 are not-applicable)",
   "requirement_sha": "19c8a7485552c882",
   "tests": {
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerExistingPreserved": "103ce3a49f6eb93b",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerNewAttr": "103ce3a49f6eb93b"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerExistingPreserved": "8802c5fd72d90813",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerNewAttr": "8802c5fd72d90813"
   },
   "units": {
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerExistingPreserved": "8016e32b59b373aa",

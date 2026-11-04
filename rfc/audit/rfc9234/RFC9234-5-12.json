@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw": "7c447a92b0d084ce",
     "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw": "7c447a92b0d084ce",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "103ce3a49f6eb93b",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "103ce3a49f6eb93b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "8802c5fd72d90813",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "8802c5fd72d90813",
     "test/plugin/role-otc-malformed-treat-as-withdraw.ci": "efb66645cd582471",
     "test/plugin/role-otc-malformed-treat-as-withdraw.ci#2": "efb66645cd582471"
   },

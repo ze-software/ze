@@ -632,6 +632,10 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	peerAddr := peer.AddrStr()
 	stateETID := events.LookupEventTypeID(bgpevents.EventState)
 	procs := s.PeerScopedProcs(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name)
+	fed := procs
+	if state == rpc.SessionStateDown && reason == rpc.ReasonPeerRemoved {
+		procs = addOpenRemovalObservers(s, peer, procs)
+	}
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -639,7 +643,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 
 	var fmtCache formatCache
 	var scratchArr [512]byte
-	unheldRoles := deliverPeerState(s, peer, procs, procs, state, reason, true, &fmtCache, &scratchArr)
+	unheldRoles := deliverPeerState(s, peer, procs, fed, state, reason, true, &fmtCache, &scratchArr)
 
 	// Deliver to CLI monitors lazily.
 	monitorDeliverLazyTyped(s, stateETID, events.DirUnspecified, peerAddr, peer.Name, func() string {
@@ -648,6 +652,34 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 		}
 		return string(format.AppendStateChange(scratchArr[:0], peer, state, reason, unheldRoles, "json"))
 	})
+}
+
+// addOpenRemovalObservers closes the lifetime opened by askOpenValidators:
+// every registered validator receives OPENs even without a peer attachment,
+// so its state subscription also receives the peer's removal. No other state
+// or message gains a grant, and subscription peer selectors still apply.
+func addOpenRemovalObservers(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*process.Process) []*process.Process {
+	pm := s.ProcessManager()
+	if pm == nil {
+		return procs
+	}
+	var names []string
+	for _, proc := range pm.AllProcesses() {
+		if reg := proc.Registration(); reg != nil && reg.WantsValidateOpen {
+			names = append(names, proc.Name())
+		}
+	}
+	observers := s.SubscribedProcsNamed(bgpNS(), events.LookupEventTypeID(bgpevents.EventState),
+		events.DirUnspecified, peer.AddrStr(), peer.Name, names)
+	extra := observers[:0]
+	for _, proc := range observers {
+		if !slices.Contains(procs, proc) {
+			extra = append(extra, proc)
+		}
+	}
+	// deliverPeerState sorts procs. Keep fed's original backing array intact
+	// when extending it, so an observer cannot replace a peer-fed claimant.
+	return append(slices.Clip(procs), extra...)
 }
 
 // deliverPeerState delivers one peer state event to procs, sequentially and in

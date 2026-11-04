@@ -5,10 +5,10 @@
     "unit": "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCNotStampedOutsideTheDownstreamScope",
     "unit-sha": "0344de1cd3bf3767",
     "claim-sha": "fb4f2aa127b94801",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
-    "producer-sha": "8dffc1871d61f213",
-    "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 673: \"destRemoteRole == roleCustomer || destRemoteRole == rolePeer || destRemoteRole == roleRSClient\" -\u003e \"true\""
   },
   {
     "rid": "RFC9234-5-4",
@@ -16,21 +16,76 @@
     "unit": "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCStampedToEveryDownstreamDestination",
     "unit-sha": "ebf6b6987c04c260",
     "claim-sha": "2bfbc41ecc07b255",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
-    "producer-sha": "8dffc1871d61f213",
-    "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 672: \"payloadAdvertisesNLRI(payload)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC9234-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNoStampOnMPUnreachOnly",
+    "unit-sha": "f08cb5c9604b8e8c",
+    "claim-sha": "b35c8e6d07f32ce1",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 672: \"payloadAdvertisesNLRI(payload)\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC9234-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNoStampOnPureWithdrawal",
+    "unit-sha": "d2fa09368d345aba",
+    "claim-sha": "4a67b32758a3849b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 672: \"payloadAdvertisesNLRI(payload)\" -\u003e \"true\""
   },
   {
     "rid": "RFC9234-5-4",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNoStampProvider",
-    "unit-sha": "a988c485f46418e7",
+    "unit-sha": "8eb7dc872facfe27",
     "claim-sha": "38de6da7dfe55d3c",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
-    "producer-sha": "8dffc1871d61f213",
-    "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 673: \"destRemoteRole == roleCustomer || destRemoteRole == rolePeer || destRemoteRole == roleRSClient\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC9234-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod",
+    "unit-sha": "baacf3249e61712c",
+    "claim-sha": "e2b9ba7b3a49edc4",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 672: \"payloadAdvertisesNLRI(payload)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC9234-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsMixedWithdrawAndAnnounce",
+    "unit-sha": "80f6c2f83a70498b",
+    "claim-sha": "4ccca8de4291e4f8",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 672: \"payloadAdvertisesNLRI(payload)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC9234-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig",
+    "unit-sha": "8f1a79bfceed64fb",
+    "claim-sha": "be46d18233344091",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 672: \"payloadAdvertisesNLRI(payload)\" -\u003e \"false\""
   },
   {
     "rid": "RFC9234-5-4",

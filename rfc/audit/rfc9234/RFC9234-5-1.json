@@ -3,8 +3,8 @@
   "requirement_sha": "af215f89cdddb4ff",
   "tests": {
     "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "8318b202e45b8003",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "103ce3a49f6eb93b",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress#2": "103ce3a49f6eb93b"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "8802c5fd72d90813",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress#2": "8802c5fd72d90813"
   },
   "units": {
     "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "381455aa1d6b1ebf",

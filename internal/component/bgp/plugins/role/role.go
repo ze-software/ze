@@ -130,11 +130,10 @@ func pruneLearnedRoles() {
 //
 // Any other key was never a configured peer's. With a group, it is a dynamic
 // member's, so the answer is whether its group is still a configured dynamic
-// group. Without one, it is kept, since no commit is evidence that its peer
-// is gone; applyValidateOpen stores no role for a peer without role config
-// (a peer made at runtime with `create bgp peer <addr>` has none), so such a
-// key is one an OPEN validated after its peer's removal already ran
-// (docs/architecture/meta/role.md, "Learned role lifecycle").
+// group. Without one, it is kept, since no commit proves its peer is gone:
+// a configured peer's OPEN can still be in flight when its removal runs.
+// Roleless observations are admitted only for configured peers or dynamic
+// groups (observeRolelessPeer), independent of current source policy.
 func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 	if _, configured := filterPeerKeys[key]; configured {
 		return true
@@ -151,8 +150,8 @@ func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 
 // forgetRemovedPeer drops the learned role of a peer the reactor removed. The
 // state down with reason removed calls it (removal.go), on either transport,
-// for every peer whose filter lists carry a bgp-role member, which are the
-// only peers a role is stored for (applyValidateOpen).
+// for every subscribed OPEN validator, whether a filter member currently
+// runs on the peer or not.
 //
 // It clears the key the peer's name maps to (filterKeyLocked, the key every
 // OPEN of that peer wrote) and the peer's address, which keys a role an OPEN
@@ -359,7 +358,7 @@ const (
 	roleRSClient = "rs-client"
 	roleCustomer = "customer"
 	rolePeer     = "peer"
-	roleUnknown  = "unknown" // pseudo-role: peers with no role configured
+	roleUnknown  = "unknown" // Pseudo-role: no usable advertised Role capability.
 )
 
 // RFC 9234 Section 4.1, Table 1: Role values.
@@ -417,9 +416,9 @@ func RunRolePlugin(conn net.Conn) int {
 		return applyValidateOpen(installed.peers, installed.nameToIP, input)
 	})
 
-	// The state down with reason removed frees a removed peer's learned role
-	// (removal.go). The implicit state grant delivers it for every peer whose
-	// filter lists carry a bgp-role member, on either transport.
+	// A validator receives each OPEN and the peer's removal for its complete
+	// observation lifetime, including intervals with no role filter member.
+	// The state subscription intersects that generic removal grant.
 	p.SetStartupSubscriptions([]string{"state"}, nil, "full")
 	p.OnStructuredEvent(handleRoleStructuredEvents)
 	p.OnEvent(handleRoleEvent)
@@ -444,8 +443,8 @@ func RunRolePlugin(conn net.Conn) int {
 	return 0
 }
 
-// applyValidateOpen runs the RFC 9234 Section 4.2 OPEN validation for one peer
-// and re-establishes what that peer IS to us for the Section 5 filters.
+// applyValidateOpen validates locally configured role pairs and observes the
+// advertised role an OTC egress member reads for the source's export set.
 //
 // Every OPEN re-establishes the learned role, INCLUDING declaring its absence.
 // The previous form only wrote when the peer sent a usable Role capability, so
@@ -498,15 +497,13 @@ func applyValidateOpen(
 	}
 	result := validateOpenRolePair(cfg, input)
 
-	// A learned role is stored only for a peer whose config sets role import:
-	// that is the peer whose filter lists carry the bgp-role members, the only
-	// readers of a learned role, and the peer whose state the implicit state
-	// grant delivers, so its removal frees the role on either transport
-	// (removal.go). RFC 9234 Section 4.2 makes the configured role the input of
-	// the Section 5 procedures ("The locally configured BGP Role is used for
-	// the procedures described in Section 5."), so a peer with no role config
-	// has no procedure that reads what its OPEN declared.
-	if cfg == nil {
+	// A roleless destination advertises the value a source's export set reads,
+	// even before any source declares a role. Observe every configured peer
+	// and dynamic member across policy activation and deactivation; the OPEN
+	// validator's removal grant and config census own the observation lifetime.
+	// validateOpenRolePair still applies RFC 9234 Section 4.2 only where a
+	// local role is configured.
+	if cfg == nil && !observeRolelessPeer(input) {
 		return result
 	}
 
@@ -528,9 +525,28 @@ func applyValidateOpen(
 	if previous != "" {
 		logger().Info("role capability withdrawn: peer reconnected without the role it previously advertised",
 			"peer", input.Peer, "previous-role", previous,
-			"effect", "RFC 9234 Section 5 gates now use the configured role complement for this peer")
+			"effect", "export policy now sees an unknown role; RFC 9234 gates use a configured role complement only where a local role exists")
 	}
 	return result
+}
+
+// observeRolelessPeer admits an OPEN observation only for a configured peer
+// or a configured dynamic group's member. The OPEN validator's removal grant
+// and the same census's commit-time pruning own its lifetime.
+func observeRolelessPeer(input *sdk.ValidateOpenInput) bool {
+	filterMu.RLock()
+	defer filterMu.RUnlock()
+	if _, configured := filterPeerKeys[input.Peer]; configured {
+		return true
+	}
+	if _, configured := filterPeerKeys[filterKeyLocked(input.Peer)]; configured {
+		return true
+	}
+	if input.Group == "" {
+		return false
+	}
+	_, configured := filterPeerKeys[configjson.CapabilityGroupKey(input.Group)]
+	return configured
 }
 
 // GetYANG returns the embedded YANG for the Role plugin.

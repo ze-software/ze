@@ -529,11 +529,15 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	srcCfg, _ := getFilterConfig(src.Address.String(), src.Name, src.GroupName)
 	destCfg, destCapRole := getFilterConfig(dest.Address.String(), dest.Name, dest.GroupName)
 
-	// destRemoteRole gates RFC 9234 Section 5 MUSTs and falls back to the
-	// config complement when the peer sent no Role capability (resolvePeerRole).
-	// destCapRole stays capability-only for the operator export set below, where
-	// "unknown" is a documented target rather than a missing answer.
-	destRemoteRole := resolvePeerRole(destCapRole, destCfg)
+	// An advertised role is an operator export-set input even on a roleless
+	// destination. It does not activate the RFC procedures there: RFC 9234
+	// Section 4.2 says "The locally configured BGP Role is used for the
+	// procedures described in Section 5." Only a configured destination
+	// resolves its RFC gate role, falling back to the configured complement.
+	destRemoteRole := ""
+	if destCfg != nil {
+		destRemoteRole = resolvePeerRole(destCapRole, destCfg)
+	}
 
 	// RFC 9234 Section 5 egress rule 2 (unconditional, wire-bytes):
 	// "If a route already contains the OTC Attribute, it MUST NOT be

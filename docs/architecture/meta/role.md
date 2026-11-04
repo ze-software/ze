@@ -77,29 +77,35 @@ names. A learned role is a property of the session, and an established peer
 sends no second OPEN. So wiping the map on reconfigure left every live peer
 looking unrecorded until its session bounced.
 
-A learned role is stored only for a peer whose config sets `role import`, the
-peer whose filter lists carry the `bgp-role` members. RFC 9234 Section 4.2
-makes the locally configured role the input of the Section 5 procedures, and
-those members are the only readers of a learned role, so an OPEN from a peer
-with no role config (a peer made at runtime with `create bgp peer <addr>`
-included) stores nothing.
+A learned role is stored for a locally configured role peer and for roleless
+destinations the configured peer or dynamic-group census owns, even when no
+source role currently activates egress. Name-to-address mapping includes
+roleless configured peers. Their advertised Role serves the source's export
+set only: RFC 9234 Section 4.2 still requires a locally configured role for
+role-pair validation and Section 5 procedures.
 
-Export role filtering (separate from OTC) still applies based on the source
-peer's export policy.
+Each OPEN replaces the observation, including explicit absence. The same
+configured-peer census owns commit-time pruning. The OPEN validator's
+removal-only state grant delivers removal reports on both transports even
+while no source policy is active; generation ordering keeps an old removal
+from deleting a newer OPEN. A later source-policy activation therefore reads
+the destination's current advertised role without requiring a reconnect.
+Unconfigured roleless OPEN identities are not admitted.
 
 <!-- source: internal/component/bgp/plugins/role/otc.go -- OTCEgressFilter -->
 <!-- source: rfc/short/rfc9234.md -- Section 5, OTC leak prevention -->
 
 ## Ordering
 
-Ordering is enforced by pipeline structure, not convention. The two
-procedures are filter-list members `bgp-role` inserts on every peer whose
-config carries `role import`: `bgp-role:otc-ingress` at the head of the
-import list and `bgp-role:otc-egress` at the head of the export list
-(`otcInsertions`, priority 100, required). On the receive path the reactor
-runs the import list to completion before starting egress forwarding, so the
-ingress member runs before the egress member for that UPDATE. A peer with no
-role config carries neither member.
+Ordering is enforced by pipeline structure, not convention.
+`bgp-role:otc-ingress` is inserted at the head of each role peer's import
+list. While any peer or dynamic group sets `role import`,
+`bgp-role:otc-egress` is inserted at the head of every peer's export list
+(`otcInsertions`, priority 100, required, generic `any-peer` scope).
+The destination need not declare a role: egress also enforces the source's
+export set. On receive the reactor finishes the import list before egress,
+so ingress runs before egress for that UPDATE. With no roles anywhere,
+neither OTC member is inserted.
 
 Do **not** read that as "egress always sees ingress metadata". Egress is
 reachable on paths that never ran ingress for the advertisement being built:
@@ -160,17 +166,16 @@ our configured role toward it (`peerRoleComplement`, the value form of RFC
 input for Section 5 procedures. So a peer that sends no capability is still
 subject to those procedures rather than skipping them.
 
-Two asymmetries are worth stating plainly, because they are policy choices
-rather than oversights. A peer with **no role config at all** is not filtered
-as a *source* (it carries no ingress member, and the egress source role
-resolves to empty), and a config-less *destination* carries no egress member,
-so it is not gated either, whatever capability it announced. And an ingress
-rejection now follows from
-**local config alone** rather than from a bilaterally negotiated capability.
-So a one-sided role typo can blackhole prefixes rather than merely misroute
-policy. The egress stamping rule is the exception to the first asymmetry: it
-depends on the destination only, exactly as RFC 9234 Section 5 states, and
-applies even when the source has no role config.
+A peer with **no local role config** is not subject to RFC procedures as a
+source or destination, regardless of an advertised Role. Its destination
+egress member still enforces a configured source's export set against that
+advertised Role, without deriving an RFC gate role from it.
+
+For a locally configured session, ingress rejection follows from local config
+even when the remote sends no Role. A one-sided role typo can therefore
+blackhole prefixes. Egress stamping depends only on the destination's local
+role configuration and resolved peer role, and still applies when the source
+has no role configuration.
 
 One consequence operators should know: that recovery feeds the RFC gates only.
 Export-set matching still sees such a peer as `unknown`. So a peer can hold
@@ -214,10 +219,10 @@ never reaches them: the template visit is keyed by the group and returns first.
 
 ## Learned role lifecycle
 
-The role learned from a peer's OPEN Role capability is re-established on
-**every** OPEN, including when the OPEN carries no Role capability (or an
-unassigned value from the 5-255 range), in which case the previously learned
-role is dropped and the transition is logged. Without that, a peer that once
+For a peer whose role is observed, the learned value is re-established on
+every OPEN, including when the OPEN carries no Role capability or an
+unassigned value from the 5-255 range. Then the previous learned value is
+dropped and a real transition is logged. Without that, a peer that once
 advertised a role and reconnected without one kept the stale value
 indefinitely. `resolvePeerRole` prefers the learned capability over the config
 complement -- so the peer stayed gated against a relationship it had stopped
@@ -240,9 +245,10 @@ recorded for this peer". `remoteRoleRecorded` reads that distinction for the
 drop reason. Both resolve to the configured complement for RFC 9234 gates.
 
 The reactor's removal of a peer removes its learned role. `bgp-role`
-subscribes to `state`, and the implicit state grant of a filter plugin
-delivers it for every peer whose filter lists carry a `bgp-role` member, which
-are exactly the peers a learned role is stored for, on either transport. The
+subscribes to `state`. Every registered OPEN validator receives the peer's
+removal independently of filter membership, intersected with its state
+subscription and peer selector. This cleanup lifetime remains active while
+source policies are inactive. The
 state `down` with reason `removed`, which the reactor emits for every removal,
 established or not, reaches `forgetRemovedPeer` (`removal.go`), which deletes
 the role under the key the peer's name maps to and under its address, and logs

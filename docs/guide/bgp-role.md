@@ -74,6 +74,12 @@ The Section 5 procedures act on what the PEER is to ze, not on what ze is to the
 
 RFC 9234 Section 4.2 settles the second row: "The locally configured BGP Role is used for the procedures described in Section 5." Section 8 names the non-compliant remote as the case the local AS must still stamp for. The complement is the pair table read the other way: `customer` means the peer IS a Provider, `provider` means the peer IS a Customer, `rs-client` means the peer IS an RS, `rs` means the peer IS an RS-Client, and `peer` means the peer IS a Peer.
 
+These RFC procedures require a locally configured `import` role on the
+session. A destination that advertises a Role but has no local role config
+does not acquire RFC stamping, suppression or role-pair validation from that
+advertisement alone. Ze still observes its advertised role for the source's
+operator-selected export set.
+
 The complement feeds the RFC MUST gates only. The `export` set below still reads the capability, because `unknown` there is an operator-selected target and not a missing answer.
 <!-- source: internal/component/bgp/plugins/role/otc.go -- resolvePeerRole, peerRoleComplement -->
 
@@ -146,7 +152,7 @@ Resolution is by address first and by group second, so a member that states its 
 
 A learned role survives a configuration reload while the configuration still names the peer, or names the group a dynamic member belongs to. An established session sends no second OPEN, so a dropped learned role could not be written back.
 
-A peer made at runtime with `create bgp peer <addr>` is named by no configuration, and its learned role survives every reload as well. Deleting that peer removes the role before `delete bgp peer` returns, and ze logs `learned role dropped: peer removed` with the role it held, so a peer later created at the same address starts with none. A rolled-back commit that had added a peer removes that peer's role the same way. One case keeps a role: an OPEN that ze was still validating when its peer was removed can store the role after the removal, and ze keeps it until a new OPEN for that name replaces it or the daemon restarts.
+Ze observes OPENs from configured roleless destinations and members of configured dynamic groups even when no source role is active. Their advertised roles serve export-set matching only. Each new OPEN replaces the prior observation, including recording an OPEN with no Role as `unknown`. Config commits prune removed peers and groups; the registered OPEN observer receives removal events independently of filter membership. Events free a peer's observation in generation order, so an old queued removal cannot delete a newer OPEN. Activating a source's export policy therefore uses the destination's current role without reconnecting it. OPENs for unconfigured roleless identities, including runtime-created peers outside this census, are not recorded.
 
 ## Config That Cannot Be Reached
 
@@ -172,20 +178,25 @@ When strict mode is off (default), ze proceeds even if the peer does not adverti
 
 ## The OTC Procedures a Role Inserts
 
-A peer whose config sets `role import` carries two more members in its filter
-lists, with nothing for you to write: `bgp-role:otc-ingress` at the head of
-its import list and `bgp-role:otc-egress` at the head of its export list. They
-run the RFC 9234 Section 5 procedures described above, the same way whether
-`bgp-role` runs inside Ze or as its own process. On import a leaked route is
-withdrawn, as is an UPDATE whose OTC is malformed, and a route that must carry
-OTC gets it; on export a route that must not reach the peer is not sent, and
-one that must carry OTC gets the local AS.
+A peer whose config sets `role import` carries `bgp-role:otc-ingress` at the
+head of its import list, with nothing for you to write. While any peer or
+dynamic group declares a role, every peer's export list carries
+`bgp-role:otc-egress`. Egress must reach destinations with no role too: the
+source's export set still controls whether they receive its routes. The
+plugin declares this through the generic `any-peer` insertion scope.
+
+The members run the RFC 9234 Section 5 procedures described above, the same
+way whether `bgp-role` runs inside Ze or as its own process. On import a
+leaked route is withdrawn, as is an UPDATE whose OTC is malformed, and a
+route that must carry OTC gets it; on export a route that must not reach
+the peer is not sent, and one that must carry OTC gets the local AS.
 
 Both members are required. RFC 9234 Section 5 says "The operator MUST NOT have
 the ability to modify the procedures defined in this section." So a chain that
 names either member, plain or `inactive:`, is refused at load with that
 sentence, naming the peer, the list and the member. A peer with no `role
-import` carries neither member.
+import` has no ingress member, but its required egress member remains while
+any source declares a role. With no roles anywhere, neither member is inserted.
 <!-- source: internal/component/bgp/plugins/role/otc_filter.go -- otcFilterDecls, otcInsertions, evaluateOTCIngress, evaluateOTCEgress -->
 <!-- source: internal/component/bgp/config/filter_insertion.go -- requiredInsertionRefusal -->
 
@@ -241,7 +252,7 @@ because RFC 7454 is a Best Current Practice: name it as
 
 ## Without Role
 
-When role is not configured for a peer, no OTC processing occurs. Routes are forwarded without role-based filtering, and the upstream check is not inserted on that peer: no relationship is declared, so none is implied.
+A peer with no role has no OTC ingress procedure and no inserted upstream check: no relationship is declared for that session. Its export list still runs the OTC egress procedure while any peer declares a role, so a source's export set cannot be bypassed by omitting the destination's role. With no roles anywhere, no OTC members are inserted.
 
 ze says so rather than passing in silence. The role plugin writes ONE warning naming how many peers and dynamic groups declare no role and the first few by name, each time it installs a config (at start and at every reload) and when `ze config validate` checks one. `ze doctor` reports every one of them under `doctor-bgp-peer-no-role`. All three read the same set, so they always name the same peers.
 

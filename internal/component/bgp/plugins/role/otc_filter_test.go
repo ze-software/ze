@@ -97,6 +97,11 @@ func TestOTCProceduresAreRequiredRoleMembers(t *testing.T) {
 		required = append(required, ins.Filter+" "+ins.Direction.String())
 		assert.Equal(t, []string{"role", "import"}, ins.Config, "the OTC members bind on the declared role")
 		assert.Empty(t, ins.Values, "role present, whatever it holds")
+		if ins.Direction == rpc.FilterExport {
+			assert.Equal(t, rpc.FilterScopeAnyPeer, ins.Scope, "source export policy runs on every destination")
+		} else {
+			assert.Equal(t, rpc.FilterScopePeer, ins.Scope, "ingress stays on role peers")
+		}
 		assert.True(t, served[ins.Filter], "%s is a filter the plugin declares", ins.Filter)
 		assert.True(t, strings.Contains(ins.Reason,
 			`"The operator MUST NOT have the ability to modify the procedures defined in this section."`),
@@ -178,6 +183,44 @@ func TestOTCForkedEgressVerdicts(t *testing.T) {
 	out, err = evaluateRoleFilter(fromProvider)
 	require.NoError(t, err)
 	assert.Equal(t, sdk.FilterReject, out.Action, "a provider's route is not sent to a peer")
+}
+
+// TestOTCExportSetAppliesToRolelessDestination proves the source's export set
+// still decides when the destination has no role config or capability.
+// Method: send the same unmarked route through the forked evaluator with an
+// excluded unknown destination, an explicitly allowed unknown, and no roles.
+func TestOTCExportSetAppliesToRolelessDestination(t *testing.T) {
+	clearFilterState(t)
+	payload := buildTestPayload(buildTestAttrs(0), []byte{24, 10, 1, 0})
+	fields := `{"peer-name":"destination","peer-address":"10.0.0.2","local-as":64512,` +
+		`"source-peer-name":"source","source-peer-address":"10.0.0.1"}`
+	for _, tc := range []struct {
+		name   string
+		source *peerRoleConfig
+		want   sdk.FilterAction
+	}{
+		{name: "excluded", source: &peerRoleConfig{role: roleProvider, resolvedExport: []string{roleCustomer}}, want: sdk.FilterReject},
+		{name: "explicit-unknown", source: &peerRoleConfig{role: roleProvider, resolvedExport: []string{roleUnknown}}, want: sdk.FilterAccept},
+		{name: "no-roles", want: sdk.FilterAccept},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			configs := map[string]*peerRoleConfig{}
+			if tc.source != nil {
+				configs["10.0.0.1"] = tc.source
+			}
+			setFilterState(configs, map[string]string{"source": "10.0.0.1", "destination": "10.0.0.2"})
+			out, err := evaluateRoleFilter(otcForkedRoute(otcEgressFilterName, payload, fields))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out.Action != tc.want {
+				t.Fatalf("roleless destination verdict = %v, want %v", out.Action, tc.want)
+			}
+			if len(out.Sets) != 0 {
+				t.Fatalf("roleless destination unexpectedly modified: %v", out.Sets)
+			}
+		})
+	}
 }
 
 // TestRoleFilterUnknownNameFails proves a call for a filter the plugin does

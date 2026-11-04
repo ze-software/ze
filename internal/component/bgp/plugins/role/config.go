@@ -172,6 +172,13 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 	nameToIP := make(map[string]string)
 
 	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
+		// Egress reads a roleless destination's advertised role for the
+		// source's export set too, so its OPEN needs the same address key.
+		if !origin.Template {
+			if ip := configjson.PeerRemoteIP(peerMap, groupMap); ip != "" && ip != dynamicPeerIP {
+				nameToIP[peerAddr] = ip
+			}
+		}
 		// Check per-peer role config first.
 		peerCfg := parseRoleFromMap(peerMap)
 
@@ -272,8 +279,6 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 				return
 			}
 			key = peerAddr
-		} else {
-			nameToIP[peerAddr] = ip
 		}
 
 		configs[key] = useCfg
@@ -281,7 +286,7 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 	})
 
 	if len(configs) == 0 {
-		return nil, nil
+		return nil, nameToIP
 	}
 
 	return configs, nameToIP

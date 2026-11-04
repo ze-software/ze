@@ -73,6 +73,34 @@ A scenario directory is NAMED and carries no numeric prefix. The name is the
 scenario's identity: `Discover` matches it exactly, `./le test integration` takes it
 as a scenario selector, and specs, journal rows and code comments cite it.
 
+### Role export policy on a roleless destination
+
+`bgp-role-export-roleless-destination-frr` runs FRR as a Customer whose
+Ze-side session deliberately declares no role. A raw Customer source permits
+`customer` and its route must reach FRR; BIRD's source permits only
+`provider` and its route must remain absent there. Ze's received RIB must
+hold both source prefixes, and FRR must also hold Ze's independent control
+route. The positive source detects failure to observe the destination's OPEN;
+the negative source detects failure to insert egress on a roleless destination.
+Before reading FRR's negative result, the checker waits for Ze's completed
+`export-set` rejection naming FRR's address and advertised Customer role.
+The source peers have receive-only forwarding bindings, making FRR the sole
+send-granted target. The received RIB alone is not a forwarding fence.
+BIRD's `bgp_fire_tx` drains queued UPDATEs before its initial End-of-RIB, so
+the source worker's FIFO cannot produce that decision from an earlier EOR.
+
+FRR 10.7.1's `bgp_open_capability` emits a configured `local_role`, and
+`bgp_role_violation` rejects an absent remote Role only with strict mode.
+Its `bgp_otc_filter` accepts an unmarked route as Customer and sets OTC
+locally. BIRD 3.4.0's `bgp_update_attrs` adds OTC only for a configured
+Provider, Peer or RS, so this unconfigured sender originates no OTC.
+These peer-source contracts are in
+[FRR's OPEN code](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_open.c),
+[FRR's route code](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_route.c)
+and BIRD's [attribute code](https://gitlab.nic.cz/labs/bird/-/blob/v3.4.0/proto/bgp/attrs.c)
+and [packet sender](https://gitlab.nic.cz/labs/bird/-/blob/v3.4.0/proto/bgp/packets.c).
+<!-- source: internal/le/interoplab/bgp/register_role_export.go -- init -->
+
 ## Tested Daemons
 
 | Daemon | Version | Image | Query Method | What It Validates |

@@ -3,11 +3,22 @@
     "rid": "RFC9234-5-11",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings",
-    "unit-sha": "c1a20cbd7f97de58",
+    "unit-sha": "fb451a726a530a0b",
     "claim-sha": "a61fef83e23d897c",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/role/otc.go::checkOTCIngress",
     "producer-sha": "a2326791096ae4c7",
-    "break": "body of checkOTCIngress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 287: \"return otcAccept, remoteASN\" -\u003e \"return otcAccept, 0\""
+  },
+  {
+    "rid": "RFC9234-5-11",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck",
+    "unit-sha": "f36e1ffd427c13ba",
+    "claim-sha": "d56a6dd73588c647",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::checkOTCEgress",
+    "producer-sha": "a5bc55397ca30828",
+    "break": "line 301: \"destRemoteRole == roleProvider || destRemoteRole == rolePeer || destRemoteRole == roleRS\" -\u003e \"false\""
   }
 ]

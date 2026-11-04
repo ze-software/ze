@@ -1,11 +1,11 @@
 {
-  "note": "single-polarity positive. non-compliant: egress OTC carrying a value other than the local (internet-facing) AS. TestOTCEgressStampLocalASN asserts the stamped value is dest.LocalAS 64999, not src AS 65001 nor dest peer AS 65002",
+  "note": "Independent rejudgment of the full Section 5 paragraph, not only absent-OTC synthesis. The sentence 'On egress from the Internet-facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN' occurs in the paragraph about private AS numbers behind an Internet-facing ASN. The sole tagged TestOTCEgressStampLocalASN supplies no existing OTC and checks a newly synthesized value of dest.LocalAS (64999 rather than peer/source ASNs). Adding the complementary local destination role makes this new-stamp input applicable and retains that useful exact-value assertion. It does not test an existing OTC carrying an internal/private ASN at the Internet-facing boundary. OTCEgressFilter only creates a value when OTC is absent and otherwise preserves existing OTC; no assertion in the tagged unit distinguishes handling of that boundary case. The former single-polarity rationale that no code path stamps another value overlooked a prohibited value supplied on input rather than synthesized locally. The requirement row now replaces that rationale with an explicit coverage gap and retains the verbatim obligation and checkbox. Removing single-polarity exposes owed negative coverage; no negative tag or discrimination record has been invented. Searches of plan, docs and ai found no existing owned specification for this boundary gap. This is an uncovered test clause, not an observed wire violation or a claim that arbitrary existing OTC should be rewritten outside that boundary. The independent confederation gaps remain unchanged.",
   "requirement_sha": "0d1b5fb6f1229d3e",
   "tests": {
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN": "103ce3a49f6eb93b"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN": "8802c5fd72d90813"
   },
   "units": {
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN": "d3c54cf60f14c3ea"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN": "29cd79d2f71233c6"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

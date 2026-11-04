@@ -16,11 +16,10 @@ import (
 // peer's learned role. The reactor emits that down for every removal,
 // established or not (reactor removePeer).
 //
-// The plugin subscribes to state (RunRolePlugin), and the implicit state grant
-// of a filter plugin delivers it for exactly the peers whose filter lists carry
-// a bgp-role member: the peers whose config sets role import. Those are the
-// only peers applyValidateOpen stores a learned role for, so every stored role
-// has a removal that reaches it, on either transport.
+// The plugin subscribes to state (RunRolePlugin). Its registered OPEN observer
+// receives removals independently of filter membership, so observations survive
+// inactive source-policy intervals without losing their cleanup owner. The
+// subscription and its peer selector still intersect that removal-only grant.
 //
 // The down is delivered on the event loop and validate-open on the callback
 // loop, so a down can still be queued when a peer re-created under the same

@@ -31,7 +31,11 @@ func rfc9234ResetFilterState() {
 // attribute operations.
 func rfc9234EgressStamp(t *testing.T, destRole string, otcASN uint32) (bool, []filterapi.AttrOp) {
 	t.Helper()
-	setFilterState(map[string]*peerRoleConfig{"10.0.0.1": {role: roleProvider}}, nil)
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleProvider},
+		// RFC 9234 Section 4.2 makes the local Role the Section 5 input.
+		"10.0.0.5": {role: peerRoleComplement[destRole]},
+	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", "", destRole)
 	defer rfc9234ResetFilterState()
@@ -96,6 +100,8 @@ func TestRFC9234OTCProceduresSurviveOperatorSettings(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer, strict: true, export: rfc9234AllRoles, resolvedExport: rfc9234AllRoles},
 		"10.0.0.2": {role: roleProvider, strict: true, export: rfc9234AllRoles, resolvedExport: rfc9234AllRoles},
+		"10.0.0.5": {role: roleCustomer, strict: true, export: rfc9234AllRoles, resolvedExport: rfc9234AllRoles},
+		"10.0.0.6": {role: roleProvider, strict: true, export: rfc9234AllRoles, resolvedExport: rfc9234AllRoles},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleProvider)
 	setFilterRemoteRole("10.0.0.2", "", roleCustomer)

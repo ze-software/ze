@@ -48,9 +48,9 @@ func TestPeerRemovedClearsLearnedRole(t *testing.T) {
 		"a peer created again under the name must find no previous role to withdraw")
 }
 
-// TestRolelessPeerStoresNoLearnedRole covers a peer whose config sets no role
-// import: its lists carry no bgp-role member, so no filter reads its learned
-// role and the implicit state grant never delivers its removal.
+// TestRolelessPeerStoresNoLearnedRole covers an unowned roleless identity:
+// neither the configured-peer census nor a configured dynamic group names it,
+// so its OPEN cannot add learned state.
 //
 // VALIDATES: an OPEN from such a peer, Role capability or none, stores nothing.
 // PREVENTS: a learned role that no removal can ever free.

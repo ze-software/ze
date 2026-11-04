@@ -35,7 +35,7 @@ const (
 	otcPriority = 100
 	// otcRequiredReason is the text verify prints when an operator names,
 	// moves or deactivates an OTC member.
-	otcRequiredReason = "the peer's role makes Ze run the RFC 9234 Section 5 OTC procedures on it, and " +
+	otcRequiredReason = "a configured peer's role makes Ze run the RFC 9234 Section 5 OTC procedures on this list, and " +
 		`RFC 9234 Section 5 says "The operator MUST NOT have the ability to modify the procedures defined in this section."`
 	// fieldRaw is the UPDATE body read: the OTC length judgement, the
 	// unicast-only scope and the "is to be advertised" clause read it as
@@ -82,12 +82,14 @@ func otcFilterDecls() []sdk.FilterDecl {
 	}
 }
 
-// otcInsertions places both procedures on every peer whose config sets role
-// import, inherited from the group like the rest of role, and makes them
-// required. role import is the leaf that declares a role: the container is
-// present on every peer, because strict has a default. RFC 9234 Section 5: "The operator MUST NOT have the ability
-// to modify the procedures defined in this section." Like otcFilterDecls it
-// has two readers and MUST stay one function.
+// otcInsertions places ingress on each peer whose config sets role import,
+// inherited from its group. Egress runs on every destination while any source
+// declares a role: OTCEgressFilter also enforces that source's export set,
+// including toward destinations with no role. role import declares the role;
+// the container itself is present on every peer because strict has a default.
+// RFC 9234 Section 5: "The operator MUST NOT have the ability to modify the
+// procedures defined in this section." Like otcFilterDecls this has two
+// readers and MUST stay one function.
 func otcInsertions() []rpc.FilterInsertion {
 	return []rpc.FilterInsertion{
 		{
@@ -96,14 +98,14 @@ func otcInsertions() []rpc.FilterInsertion {
 		},
 		{
 			Filter: otcEgressReference, Direction: rpc.FilterExport, Priority: otcPriority,
-			Config: roleImportPath(), Required: true, Reason: otcRequiredReason,
+			Config: roleImportPath(), Scope: rpc.FilterScopeAnyPeer,
+			Required: true, Reason: otcRequiredReason,
 		},
 	}
 }
 
-// roleImportPath is the insertion condition of every member this plugin
-// inserts: the role import leaf under a peer's resolved entry, which this
-// plugin's own YANG module adds.
+// roleImportPath is the condition the OTC members read under a resolved peer:
+// the role import leaf, which this plugin's own YANG module adds.
 func roleImportPath() []string {
 	return []string{roleKeyword, "import"}
 }

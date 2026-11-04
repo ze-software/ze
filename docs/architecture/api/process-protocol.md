@@ -88,6 +88,12 @@ waiting `CallRPC` callers by `#<id>`, and pushes inbound requests (verb is a met
 name) to the `Requests()` channel.
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn, readLoop -->
 
+A response already routed to a `CallRPC` caller is consumed before the reader's
+terminal error, even when the peer closes immediately after sending it. A close
+with no queued response remains an error. Waiting calls remain cancelable
+through their context.
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallRPC, MuxConn.queuedResponse -->
+
 ---
 
 ## 5-Stage Startup Protocol
@@ -462,6 +468,10 @@ the member goes on every peer's export list while one peer meets it. LLGR's
 egress is the case: RFC 9494 Section 4.3 obliges a speaker that advertised
 the capability to a neighbor for the routes from that neighbor, wherever it
 sends them. The member itself tells those routes apart by their source.
+The role plugin's OTC egress member uses the same scope: while any peer
+declares a role, every destination runs its source export-set decision,
+including a destination whose own config declares no role.
+<!-- source: internal/component/bgp/plugins/role/otc_filter.go -- otcInsertions -->
 <!-- source: internal/component/bgp/config/filter_insertion.go -- anyPeerHolds -->
 <!-- source: internal/component/bgp/policyview/session.go -- SessionConditionHolds -->
 <!-- source: internal/component/bgp/config/templated_chain.go -- keepHolding -->
@@ -2697,6 +2707,16 @@ learned role on it (`docs/architecture/meta/role.md`, "Learned role
 lifecycle").
 <!-- source: internal/component/bgp/reactor/peer.go -- validateOpen -->
 
+`wants-validate-open` makes the process an OPEN observer for every peer, not
+only peers whose local OPEN carries one of its capabilities. That observation
+has a matching cleanup lifetime: a process subscribed to BGP `state` receives
+`down` with reason `removed` even without a peer attachment or filter member.
+Its subscription peer selector still applies. This grants neither other state
+transitions nor other message types, and a process already receiving the
+removal through a binding receives it only once.
+<!-- source: internal/component/bgp/server/validate.go -- askOpenValidators -->
+<!-- source: internal/component/bgp/server/events.go -- onPeerStateChange, addOpenRemovalObservers -->
+
 To reject:
 ```
 #7 ok {"accept":false,"notify-code":2,"notify-subcode":6,"reason":"unacceptable hold time"}
@@ -3022,9 +3042,3 @@ Plugin reads decode requests from stdin, writes responses to stdout, exits on EO
 ---
 
 **Last Updated:** 2026-03-22
-A response already routed to a `CallRPC` caller is consumed before the reader's
-terminal error, even when the peer closes immediately after sending it. A close
-with no queued response remains an error. Waiting calls remain cancelable
-through their context.
-<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallRPC, MuxConn.queuedResponse -->
-

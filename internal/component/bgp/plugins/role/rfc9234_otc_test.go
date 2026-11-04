@@ -433,10 +433,15 @@ func TestOTCIngressFilter(t *testing.T) {
 
 func TestOTCEgressFilter(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
-		"10.0.0.1": {role: roleProvider, export: []string{"default"}, resolvedExport: resolveExport(roleProvider, []string{"default"})},
-		"10.0.0.5": {role: roleProvider, export: []string{"customer", "peer"}, resolvedExport: resolveExport(roleProvider, []string{"customer", "peer"})},
-		"10.0.0.6": {role: roleProvider, export: []string{"default", "unknown"}, resolvedExport: resolveExport(roleProvider, []string{"default", "unknown"})},
-		"10.0.0.7": {role: roleProvider},
+		"10.0.0.1":  {role: roleProvider, export: []string{"default"}, resolvedExport: resolveExport(roleProvider, []string{"default"})},
+		"10.0.0.5":  {role: roleProvider, export: []string{"customer", "peer"}, resolvedExport: resolveExport(roleProvider, []string{"customer", "peer"})},
+		"10.0.0.6":  {role: roleProvider, export: []string{"default", "unknown"}, resolvedExport: resolveExport(roleProvider, []string{"default", "unknown"})},
+		"10.0.0.7":  {role: roleProvider},
+		"10.0.0.10": {role: roleProvider},
+		"10.0.0.11": {role: roleCustomer},
+		"10.0.0.12": {role: rolePeer},
+		"10.0.0.13": {role: roleRS},
+		"10.0.0.15": {role: roleRSClient},
 	}, nil)
 	setFilterRemoteRole("10.0.0.10", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.11", "", roleProvider)
@@ -796,6 +801,11 @@ func TestEgressFilter_IBGPSourceToEBGPDest_WithOTC(t *testing.T) {
 	// Dest: EBGP provider, peer, RS, customer, rs-client.
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.100": {role: roleProvider}, // we are provider to 10.0.0.100 but the route doesn't come from here
+		"10.0.0.200": {role: roleCustomer},
+		"10.0.0.201": {role: roleProvider},
+		"10.0.0.202": {role: rolePeer},
+		"10.0.0.203": {role: roleRSClient},
+		"10.0.0.204": {role: roleRS},
 	}, nil)
 	setFilterRemoteRole("10.0.0.200", "", roleProvider) // EBGP dest: provider
 	setFilterRemoteRole("10.0.0.201", "", roleCustomer) // EBGP dest: customer
@@ -840,10 +850,16 @@ func TestEgressFilter_IBGPSourceToEBGPDest_WithOTC(t *testing.T) {
 // VALIDATES: Routes without OTC are never suppressed by OTC egress rules.
 // PREVENTS: Legitimate routes from IBGP being dropped on egress.
 func TestEgressFilter_IBGPSourceToEBGPDest_NoOTC(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.200": {role: roleCustomer},
+		"10.0.0.201": {role: roleProvider},
+		"10.0.0.202": {role: rolePeer},
+	}, nil)
 	setFilterRemoteRole("10.0.0.200", "", roleProvider)
 	setFilterRemoteRole("10.0.0.201", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.202", "", rolePeer)
 	defer func() {
+		setFilterState(nil, nil)
 		filterMu.Lock()
 		filterRemoteRoles = nil
 		filterMu.Unlock()
@@ -868,7 +884,8 @@ func TestEgressFilter_IBGPSourceToEBGPDest_NoOTC(t *testing.T) {
 // PREVENTS: Role config on one peer affecting filtering decisions for other peers.
 func TestMixedTopology_RoleAndNoRolePeers(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
-		"10.0.0.1": {role: roleProvider, export: []string{"default"}, resolvedExport: resolveExport(roleProvider, []string{"default"})},
+		"10.0.0.1":  {role: roleProvider, export: []string{"default"}, resolvedExport: resolveExport(roleProvider, []string{"default"})},
+		"10.0.0.10": {role: roleCustomer},
 		// 10.0.0.2 has NO role config (IBGP or legacy peer)
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer) // EBGP: we are provider, they are customer
@@ -917,6 +934,7 @@ func TestOTCEgressStampMod(t *testing.T) {
 	// Route has no OTC -> should write mod to stamp OTC with local ASN.
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
+		"10.0.0.5": {role: roleProvider},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
@@ -979,6 +997,7 @@ func TestOTCEgressStampMod(t *testing.T) {
 func TestOTCEgressNoStampProvider(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
+		"10.0.0.5": {role: roleCustomer},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", "", roleProvider)
@@ -1023,6 +1042,7 @@ func TestOTCEgressNoStampProvider(t *testing.T) {
 func TestOTCEgressSuppressProviderLearnedWithoutMeta(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer}, // our role customer => 10.0.0.1 IS our Provider
+		"10.0.0.5": {role: roleCustomer},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleProvider)
 	setFilterRemoteRole("10.0.0.5", "", roleProvider)
@@ -1160,6 +1180,7 @@ func TestOTCIngressStampsWhenPeerSentNoRoleCapability(t *testing.T) {
 func TestOTCEgressMalformedMetaTakesConfigFallback(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer}, // our role customer => 10.0.0.1 IS our Provider
+		"10.0.0.5": {role: roleCustomer},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleProvider)
 	setFilterRemoteRole("10.0.0.5", "", roleProvider)
@@ -1192,6 +1213,7 @@ func TestOTCEgressMetaTakesPrecedenceOverConfig(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		// Config says our role is customer => source IS our Provider => suppress.
 		"10.0.0.1": {role: roleCustomer},
+		"10.0.0.5": {role: roleCustomer},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleProvider)
 	setFilterRemoteRole("10.0.0.5", "", roleProvider)
@@ -1256,6 +1278,7 @@ func TestOTCEgressSuppressToProviderWithoutRoleCapability(t *testing.T) {
 func TestOTCEgressPreserveExisting(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
+		"10.0.0.5": {role: roleProvider},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
@@ -1285,6 +1308,7 @@ func TestOTCEgressPreserveExisting(t *testing.T) {
 func TestOTCEgressStampLocalASN(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
+		"10.0.0.5": {role: roleProvider},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
@@ -1318,6 +1342,7 @@ func TestOTCEgressStampLocalASN(t *testing.T) {
 func TestOTCEgressUnicastOnly(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
+		"10.0.0.5": {role: roleProvider},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
@@ -1499,6 +1524,7 @@ func TestOTCAttrModHandlerOverflow(t *testing.T) {
 func TestOTCEgressStampPeer(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: rolePeer},
+		"10.0.0.5": {role: rolePeer},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", rolePeer)
 	setFilterRemoteRole("10.0.0.5", "", rolePeer)
@@ -1526,6 +1552,7 @@ func TestOTCEgressStampPeer(t *testing.T) {
 func TestOTCEgressStampRSClient(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleRS},
+		"10.0.0.5": {role: roleRS},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", "", roleRSClient)
@@ -1558,6 +1585,7 @@ func TestOTCEgressStampRSClient(t *testing.T) {
 func TestOTCEgressStampLocalASNZero(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
+		"10.0.0.5": {role: roleProvider},
 	}, nil) // localASN = 0
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
@@ -1594,6 +1622,7 @@ func TestOTCEgressStampFailClosedObservability(t *testing.T) {
 
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
+		"10.0.0.5": {role: roleProvider},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
@@ -1673,7 +1702,12 @@ func TestIsPayloadUnicastTruncatedMPReach(t *testing.T) {
 // RFC requirement: RFC9234-5-11 positive -- the wire-bytes OTC suppression runs unconditionally, independent of any source role configuration, so the procedure cannot be disabled by operator config.
 func TestOTCEgressWireBytesCheck(t *testing.T) {
 	// Only destination peer has role config. Source peer has none.
-	setFilterState(nil, nil)
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.200": {role: roleCustomer},
+		"10.0.0.201": {role: roleProvider},
+		"10.0.0.202": {role: rolePeer},
+		"10.0.0.203": {role: roleRSClient},
+	}, nil)
 	setFilterRemoteRole("10.0.0.200", "", roleProvider)
 	setFilterRemoteRole("10.0.0.201", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.202", "", rolePeer)
@@ -1784,6 +1818,7 @@ func customerEgressPeers(t *testing.T) (src, dest filterapi.PeerFilterInfo) {
 	t.Helper()
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
+		"10.0.0.5": {role: roleProvider},
 	}, nil)
 	setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", "", roleCustomer)

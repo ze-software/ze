@@ -150,9 +150,9 @@ func policySection(sections []sdk.ConfigSection) (body map[string]any, delivered
 	return nil, false, nil
 }
 
-// installRoleConfig makes cfg the config the filters and OnValidateOpen
-// read, and says in one line which peers declare no role, so none of this
-// plugin's checks runs on them. It prunes nothing (roleConfigTx).
+// installRoleConfig makes cfg the config the filters and OnValidateOpen read,
+// and reports which peers have no locally configured role. Their advertised
+// roles may still be read by another source's export set. It prunes nothing.
 func installRoleConfig(cfg roleConfig) error {
 	warnPeersWithoutRole(logger(), cfg.roleless)
 	filterMu.Lock()

@@ -3,22 +3,33 @@
     "rid": "RFC9234-3.1-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter",
-    "unit-sha": "5a72c7d8f03a0466",
+    "unit-sha": "b5eb04a475a16096",
     "claim-sha": "1a05a580803695c5",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
-    "producer-sha": "8dffc1871d61f213",
-    "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 569: \"srcRole == roleCustomer || srcRole == rolePeer || srcRole == roleRSClient || srcRole == roleRS\" -\u003e \"false\""
   },
   {
     "rid": "RFC9234-3.1-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter",
-    "unit-sha": "5a72c7d8f03a0466",
+    "unit-sha": "b5eb04a475a16096",
     "claim-sha": "994a651f90c6ccb0",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
-    "producer-sha": "8dffc1871d61f213",
-    "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 569: \"srcRole == roleCustomer || srcRole == rolePeer || srcRole == roleRSClient || srcRole == roleRS\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC9234-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta",
+    "unit-sha": "23d0a3799eaeec8a",
+    "claim-sha": "3a628ce716b8e81f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 569: \"srcRole == roleCustomer || srcRole == rolePeer || srcRole == roleRSClient || srcRole == roleRS\" -\u003e \"false\""
   }
 ]

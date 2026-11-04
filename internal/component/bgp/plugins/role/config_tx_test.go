@@ -264,8 +264,8 @@ func commitRoleReload(t *testing.T, tx *roleConfigTx, sections []sdk.ConfigSecti
 // TestRoleUnrelatedCommitKeepsRolelessPeerRole proves R-14 and AC-5 for a
 // configured peer with no role block: a commit that removes no peer keeps the
 // role its OPEN declared.
-// Method: the role is learned under the peer's name (no name-to-address entry
-// exists for a role-less peer), a reload edits only that peer's description,
+// Method: the role is learned through the peer's name-to-address mapping,
+// a reload edits only that peer's description,
 // then getFilterConfig, which OTCEgressFilter reads for the export set, is read.
 // VALIDATES: spec-plugin-reload-applies-or-refuses R-14, AC-5 for bgp-role.
 // PREVENTS: the prune at config-committed dropping a role-less peer's learned

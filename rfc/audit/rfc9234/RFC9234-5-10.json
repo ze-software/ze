@@ -1,18 +1,18 @@
 {
-  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of db53ccc34d. RFC 9234 Section 5 (row text): \"The described ingress and egress procedures are applicable only for the address families AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast) in both cases and MUST NOT be applied to other address families by default.\" db53ccc34d deleted OTCIngressFilter, which had no non-test caller since the ingress hook removal, and moved its test call sites onto the live bgp-role:otc-ingress filter answer through evaluateRoleFilter (otcIngressAnswer, answerOTC, answerMeta). Every input payload and source role is unchanged; an old reject maps to the FilterWithdraw verdict, an old accept-unmodified to a non-withdraw verdict with no otc set, and an old stamp to FilterModify with the otc set at the expected ASN. The tests now judge the decision the shipped filter returns rather than a dead wrapper, so for the decision this row binds they are stronger than before. The engine's application of a withdraw or modify verdict is the shared filter-chain mechanism, proven by reactor TestWithdrawVerdictReactorRails and TestBuildWithdrawalPayload_IPv4, which carry no tag for this row. Only the units this row names that called OTCIngressFilter changed; the egress units are byte-identical. Verdict unchanged: enforced. Earlier judgement follows. non-compliant: OTC procedures applied to a non AFI1/2 SAFI1 family. Egress stamp: TestOTCEgressUnicastOnly (ipv4 multicast, mods.Len()==0) and TestOTCEgressNonUnicastWithdrawalNotProcessed (VPNv4); egress rule 2: TestOTCNonUnicastWithdrawalSkipsOTCProcedures egress_rule_2_does_not_suppress; ingress rule 1: its ingress_rule_1_does_not_reject subtest; family gate: TestIsPayloadUnicastMPUnreachFamily. Negative TestOTCEgressStampMod stamps IPv4 unicast",
+  "note": "Independent source rejudgment against the complete Section 5 address-family restriction. TestIsPayloadUnicastMPUnreachFamily asserts both allowed AFI 1/2 SAFI 1 cases, multicast/VPN/flowspec/EVPN exclusions and MP_REACH precedence in both attribute orders. TestOTCEgressStampMod supplies an actual reachable unicast advertisement and pins its OTC operation. TestOTCNonUnicastWithdrawalSkipsOTCProcedures supplies an existing OTC toward a locally configured Provider destination with a VPNv4 withdrawal, and an EVPN ingress from a Customer carrying OTC: exact acceptance/no-withdrawal/no-OTC-set assertions distinguish family bypass from the wire-OTC egress suppression and Customer-leak ingress rejection that would otherwise fire. TestOTCEgressUnicastOnly and TestOTCEgressNonUnicastWithdrawalNotProcessed alone are not discriminating stamping negatives because they advertise no reachable NLRI; they are not the basis for whole-requirement credit. The aggregate predicate, positive stamp, and existing-OTC ingress/egress negatives isolate the rule. isPayloadUnicast gates OTCEgressFilter and decideOTCIngress before those procedures. Complementary destination config additions preserve outcomes while activating the intended RFC gate. No corrected runtime run or new discrimination record is claimed.",
   "requirement_sha": "2374441580699bca",
   "tests": {
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "103ce3a49f6eb93b",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNonUnicastWithdrawalNotProcessed": "103ce3a49f6eb93b",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "103ce3a49f6eb93b",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressUnicastOnly": "103ce3a49f6eb93b",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCNonUnicastWithdrawalSkipsOTCProcedures": "103ce3a49f6eb93b"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "8802c5fd72d90813",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNonUnicastWithdrawalNotProcessed": "8802c5fd72d90813",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "8802c5fd72d90813",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressUnicastOnly": "8802c5fd72d90813",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCNonUnicastWithdrawalSkipsOTCProcedures": "8802c5fd72d90813"
   },
   "units": {
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "951fbe646d051a7b",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNonUnicastWithdrawalNotProcessed": "a425d071c1f06300",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "0f30c8c530aea5b4",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressUnicastOnly": "e0753292cabd224a",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "aad6ca343a0d7033",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressUnicastOnly": "8dc090b22c239c67",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCNonUnicastWithdrawalSkipsOTCProcedures": "f592b59e3f8534d0"
   },
   "verdict": "enforced"

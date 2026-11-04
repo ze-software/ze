@@ -1,17 +1,6 @@
 [
   {
     "rid": "RFC9234-4.1-1",
-    "polarity": "positive",
-    "unit": "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig",
-    "unit-sha": "77ba5b4ba36ec6a8",
-    "claim-sha": "93f95e3186667c1c",
-    "route": "mutant",
-    "producer": "internal/component/bgp/plugins/role/config.go::extractPeerRoleConfigs",
-    "producer-sha": "f5becd591afb8d0f",
-    "break": "line 186: \"peerCfg != nil\" -\u003e \"false\""
-  },
-  {
-    "rid": "RFC9234-4.1-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig",
     "unit-sha": "77ba5b4ba36ec6a8",
@@ -20,6 +9,17 @@
     "producer": "internal/component/bgp/plugins/role/config.go::extractRoleCapabilities",
     "producer-sha": "a4b287b96d81936c",
     "break": "body of extractRoleCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9234-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig",
+    "unit-sha": "77ba5b4ba36ec6a8",
+    "claim-sha": "93f95e3186667c1c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/config.go::extractPeerRoleConfigs",
+    "producer-sha": "ac06f373ec9db5d3",
+    "break": "body of extractPeerRoleConfigs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9234-4.1-1",
