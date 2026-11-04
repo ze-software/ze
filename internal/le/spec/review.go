@@ -5,6 +5,7 @@
 package spec
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/commit/hunks"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/repo/objects"
 )
 
 const (
@@ -28,7 +30,7 @@ const (
 
 var (
 	reviewHeaderPattern = regexp.MustCompile(`<!--\s*ze-review\s+spec=(\S+)\s+verdict=(\S+).*?-->`)
-	reviewFilePattern   = regexp.MustCompile(`^\s{2}([0-9a-f]{64}|DELETED)\s+(.+)$`)
+	reviewFilePattern   = regexp.MustCompile(`^  ([0-9a-f]{64}|DELETED)  (100644|100755|120000|0)  (.+)$`)
 )
 
 // reviewCodeSuffixes is the one list of what a review pins, read only through
@@ -44,6 +46,9 @@ type reviewRecord struct {
 	// the review covers HEAD's blob with that patch applied, which is what the
 	// commit lands, not the working-tree file, which holds hunks it leaves out.
 	Hunks           []ReviewHunk
+	Blobs           []ReviewBlob
+	Removed         []string
+	Modes           []ReviewMode
 	Reviewers       string
 	FindingsFile    string
 	Rounds          int
@@ -60,6 +65,18 @@ type ReviewHunk struct {
 	Patch string
 }
 
+// ReviewBlob names an immutable blob the reviewer examined.
+type ReviewBlob struct {
+	Path   string
+	Object string
+}
+
+// ReviewMode names the Git mode the reviewer examined for a carried path.
+type ReviewMode struct {
+	Path string
+	Mode string
+}
+
 // recordReview validates and atomically records one review artifact.
 func recordReview(root string, request reviewRecord) (reviewArtifact, error) {
 	selected := make(map[string]string, len(request.Hunks))
@@ -70,6 +87,46 @@ func recordReview(root string, request reviewRecord) (reviewArtifact, error) {
 		}
 		selected[pair.Path] = pair.Patch
 		named = append(named, pair.Path)
+	}
+	blobs := make(map[string]string, len(request.Blobs))
+	for _, source := range request.Blobs {
+		if _, exists := blobs[source.Path]; exists {
+			return reviewArtifact{}, fmt.Errorf("review_gate: blob %s is named twice", source.Path)
+		}
+		if _, exists := selected[source.Path]; exists {
+			return reviewArtifact{}, fmt.Errorf("review_gate: %s names both blob and hunks sources", source.Path)
+		}
+		if slices.Contains(request.Files, source.Path) {
+			return reviewArtifact{}, fmt.Errorf("review_gate: %s names both blob and file sources", source.Path)
+		}
+		blobs[source.Path] = source.Object
+		named = append(named, source.Path)
+	}
+	removed := make(map[string]bool, len(request.Removed))
+	for _, path := range request.Removed {
+		if slices.Contains(named, path) {
+			return reviewArtifact{}, fmt.Errorf("review_gate: %s names both removal and content sources", path)
+		}
+		removed[path] = true
+		named = append(named, path)
+	}
+	modes := make(map[string]string, len(request.Modes))
+	for _, source := range request.Modes {
+		if _, exists := modes[source.Path]; exists {
+			return reviewArtifact{}, fmt.Errorf("review_gate: mode %s is named twice", source.Path)
+		}
+		if !slices.Contains(named, source.Path) {
+			return reviewArtifact{}, fmt.Errorf("review_gate: mode %s has no content source", source.Path)
+		}
+		switch source.Mode {
+		case "100644", "100755", "120000":
+		default:
+			return reviewArtifact{}, fmt.Errorf("review_gate: invalid Git mode %q", source.Mode)
+		}
+		if removed[source.Path] {
+			return reviewArtifact{}, fmt.Errorf("review_gate: removed path %s cannot carry a file mode", source.Path)
+		}
+		modes[source.Path] = source.Mode
 	}
 	files := uniqueSorted(named)
 	if len(files) == 0 {
@@ -157,12 +214,23 @@ func recordReview(root string, request reviewRecord) (reviewArtifact, error) {
 	if artifact.Reviewers == "" {
 		artifact.Reviewers = "unspecified"
 	}
-	for _, file := range files {
-		hash, err := recordedHash(root, file, selected)
+	head := ""
+	if len(request.Hunks) != 0 {
+		var err error
+		head, err = objects.Resolve(context.Background(), root, "HEAD")
 		if err != nil {
 			return reviewArtifact{}, err
 		}
-		artifact.Files = append(artifact.Files, ReviewedFile{Path: file, Hash: hash})
+	}
+	for _, file := range files {
+		if strings.ContainsAny(file, "\x00\t\r\n") {
+			return reviewArtifact{}, fmt.Errorf("review_gate: path contains unsupported controls: %q", file)
+		}
+		pin, err := recordedFile(root, head, file, selected, blobs, removed, modes)
+		if err != nil {
+			return reviewArtifact{}, err
+		}
+		artifact.Files = append(artifact.Files, pin)
 	}
 	outPath := reviewArtifactPath(root, artifact.Spec, sid)
 	if err := writeAtomic(outPath, []byte(artifact.Document()), 0o600); err != nil {
@@ -197,14 +265,20 @@ func CheckReview(root, spec, sessionID string, files []string) (ReviewCheck, err
 		return ReviewCheck{}, err
 	}
 	check := ReviewCheck{Spec: specStem(spec), Path: relativeReviewPath(root, path), Verdict: artifact.Verdict}
+	if artifact.Spec != specStem(spec) {
+		return ReviewCheck{}, fmt.Errorf("review_gate: artifact names spec %s, not %s", artifact.Spec, specStem(spec))
+	}
 	if artifact.Verdict != "clean" {
 		check.Blocked = true
 		check.Reason = keywordVerdict
 		return check, nil
 	}
-	hashes := make(map[string]string, len(artifact.Files))
+	hashes := make(map[string]ReviewedFile, len(artifact.Files))
 	for _, file := range artifact.Files {
-		hashes[file.Path] = file.Hash
+		if _, duplicate := hashes[file.Path]; duplicate {
+			return ReviewCheck{}, fmt.Errorf("review_gate: artifact repeats path %s", file.Path)
+		}
+		hashes[file.Path] = file
 	}
 	for _, file := range uniqueSorted(files) {
 		if !IsReviewCode(file) {
@@ -216,11 +290,11 @@ func CheckReview(root, spec, sessionID string, files []string) (ReviewCheck, err
 			check.Unreviewed = append(check.Unreviewed, file)
 			continue
 		}
-		current, err := reviewFileHash(root, file)
+		current, err := ReviewFile(root, file)
 		if err != nil {
 			return ReviewCheck{}, err
 		}
-		if recorded != current {
+		if recorded.Hash != current.Hash || recorded.Mode != current.Mode {
 			check.Stale = append(check.Stale, file)
 		}
 	}
@@ -234,32 +308,89 @@ func CheckReview(root, spec, sessionID string, files []string) (ReviewCheck, err
 	return check, nil
 }
 
-// recordedHash answers the pin a review records for path: the digest of the
-// content a `hunks` commit carries when selected names a patch for it, else
-// the working-tree file's.
-func recordedHash(root, path string, selected map[string]string) (string, error) {
-	patch, isSelected := selected[path]
-	if !isSelected {
-		return reviewFileHash(root, path)
+// recordedFile pins exactly one declared source, including its Git mode.
+func recordedFile(root, head, path string, selected, blobs map[string]string, removed map[string]bool, modes map[string]string) (ReviewedFile, error) {
+	if removed[path] {
+		return ReviewedFile{Path: path, Hash: "DELETED", Mode: "0"}, nil
 	}
-	body, err := hunks.Content(root, path, reviewInputPath(root, patch))
-	if err != nil {
-		return "", fmt.Errorf("review_gate: %w", err)
+	pin := ReviewedFile{Path: path}
+	if patch, found := selected[path]; found {
+		entry, err := hunks.Apply(root, head, path, reviewInputPath(root, patch))
+		if err != nil {
+			return pin, err
+		}
+		selection := hunks.Selection{path: {Entry: entry, Patch: patch}}
+		body, err := selection.Read(root, path)
+		if err != nil {
+			return pin, err
+		}
+		metadata, _, _ := strings.Cut(entry, "\t")
+		pin.Mode = strings.Fields(metadata)[0]
+		sum := sha256.Sum256(body)
+		pin.Hash = hex.EncodeToString(sum[:])
+	} else if object, found := blobs[path]; found {
+		mode, found := modes[path]
+		if !found {
+			return pin, fmt.Errorf("review_gate: blob %s needs an explicit mode source", path)
+		}
+		body, err := objects.Read(context.Background(), root, []string{object})
+		if err != nil {
+			return pin, err
+		}
+		sum := sha256.Sum256(body[0])
+		pin.Hash = hex.EncodeToString(sum[:])
+		pin.Mode = mode
+	} else {
+		var err error
+		pin, err = ReviewFile(root, path)
+		if err != nil {
+			return pin, err
+		}
 	}
-	sum := sha256.Sum256(body)
-	return hex.EncodeToString(sum[:]), nil
+	if mode, found := modes[path]; found {
+		if pin.Hash == "DELETED" {
+			return pin, fmt.Errorf("review_gate: removed path %s cannot carry a file mode", path)
+		}
+		pin.Mode = mode
+	}
+	return pin, nil
 }
 
-func reviewFileHash(root, path string) (string, error) {
-	body, err := os.ReadFile(reviewInputPath(root, path))
+// ReviewFile reads a checkout review pin, including the Git executable or link mode.
+func ReviewFile(root, path string) (ReviewedFile, error) {
+	pin := ReviewedFile{Path: path}
+	name := reviewInputPath(root, path)
+	info, err := os.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		pin.Hash, pin.Mode = "DELETED", "0"
+		return pin, nil
+	}
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "DELETED", nil
+		return pin, err
+	}
+	pin.Mode = "100644"
+	if info.Mode()&0o100 != 0 {
+		pin.Mode = "100755"
+	}
+	var body []byte
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := os.Readlink(name)
+		if err != nil {
+			return pin, err
 		}
-		return "", err
+		pin.Mode, body = "120000", []byte(target)
+	} else {
+		if !info.Mode().IsRegular() {
+			return pin, fmt.Errorf("review_gate: %s is not a regular file or symbolic link", path)
+		}
+		body, err = os.ReadFile(name)
+		if err != nil {
+			return pin, err
+		}
 	}
 	sum := sha256.Sum256(body)
-	return hex.EncodeToString(sum[:]), nil
+	pin.Hash = hex.EncodeToString(sum[:])
+	return pin, nil
 }
 
 // specStem reduces a path, file name, or bare spec name to its stem.
@@ -315,7 +446,7 @@ func parseReviewArtifact(path string) (reviewArtifact, error) {
 	artifact := reviewArtifact{Path: path, Spec: header[1], Verdict: strings.ToLower(header[2])}
 	for line := range strings.SplitSeq(text, "\n") {
 		if match := reviewFilePattern.FindStringSubmatch(line); match != nil {
-			artifact.Files = append(artifact.Files, ReviewedFile{Hash: match[1], Path: match[2]})
+			artifact.Files = append(artifact.Files, ReviewedFile{Hash: match[1], Mode: match[2], Path: match[3]})
 		}
 	}
 	if model := regexp.MustCompile(`\bmodel=(\S+)`).FindStringSubmatch(header[0]); model != nil {

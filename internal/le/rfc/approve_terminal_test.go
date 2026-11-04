@@ -25,7 +25,9 @@ func TestOwnerRulingApprovalTerminalBoundary(t *testing.T) {
 					name = "replacement"
 				}
 				t.Run(name, func(t *testing.T) {
-					root := t.TempDir()
+					root, _ := fixtureCommit(t, map[string]string{
+						"pkg/x_test.go": "package pkg\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
+					})
 					if existing {
 						if _, err := Approve(root, approvalSession, "pkg.TestX", "independent judge verdict"); err != nil {
 							t.Fatal(err)
@@ -61,7 +63,9 @@ func TestOwnerRulingApprovalTerminalBoundary(t *testing.T) {
 // shared weakening writer, and noninteractive reading of a recorded ruling.
 func TestOrdinaryApprovalRemainsNoninteractive(t *testing.T) {
 	humantest.Streams(t, "piped-both")
-	root := t.TempDir()
+	root, _ := fixtureCommit(t, map[string]string{
+		"pkg/x_test.go": "package pkg\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
+	})
 	if _, err := Approve(root, approvalSession, "pkg.TestX", "judge: requirement remains proven"); err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +74,7 @@ func TestOrdinaryApprovalRemainsNoninteractive(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(root, filepath.FromSlash(ApprovalPath(approvalSession)))
-	if err := os.WriteFile(path, []byte(approvalHeader+"| pkg.TestX | owner ruling 2026-11-03 |\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(approvalHeader+"| pkg.TestX | owner ruling 2026-11-03 | |\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if ruling := ownerRuling(readApprovals(t, root)); ruling != "2026-11-03" {

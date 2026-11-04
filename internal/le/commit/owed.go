@@ -257,8 +257,9 @@ func (item *owedItem) describe() string {
 			" (" + item.Reason + "): record a clean review with /ze-review, or the owner's " + attest
 	case owedItemRFCApproval:
 		return "commit " + shortSHA(item.Commit) + " (" + strings.TrimSpace(trailerRFCApprovalOwed) + ") owes a ze-test-judge approval of RFC-tagged test " +
-			subjectOr(item.Subject) + " (" + item.Reason + "): ./le rfc approve unit " + item.Subject +
-			` reason "<the judge's verdict>" and commit it, or the owner's ` + attest
+			subjectOr(item.Subject) + " (" + item.Reason + "): ./le rfc approve commit " + item.Commit +
+			" unit " + item.Subject + ` reason "<the judge's verdict>", then ./le commit create subject "publish exact judge approval" rfc-approval ` +
+			item.Commit + " " + item.Subject + ", or the owner's " + attest
 	case owedItemLinuxLimit:
 		return "commit " + shortSHA(item.Commit) + " (" + strings.TrimSpace(trailerLinuxLimitOwed) +
 			") owes the owner's approval of " + item.Subject + " (" + item.Reason + "): " + attest

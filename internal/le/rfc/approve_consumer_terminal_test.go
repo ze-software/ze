@@ -10,7 +10,9 @@ import (
 // TestRecordedOwnerRulingConsumptionRemainsNoninteractive issues through Approve
 // with a terminal, then reads the real ledger and consumes its ruling with pipes.
 func TestRecordedOwnerRulingConsumptionRemainsNoninteractive(t *testing.T) {
-	root := t.TempDir()
+	root, _ := fixtureCommit(t, map[string]string{
+		"pkg/widget_test.go": "package pkg\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
+	})
 	const reason = "owner ruling 2026-11-03 accepts the absent feature"
 	t.Run("issue", func(t *testing.T) {
 		humantest.Streams(t, "terminal")

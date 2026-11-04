@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/test-health.md -- HEAD/worktree comparison and pairing
+// Design: docs/architecture/testing/test-health.md -- immutable baseline/selected-content comparison and pairing
 // Related: ledger.go -- the fail-closed approval row reader; approve.go -- the approval writer.
 // Related: detector.go, scope.go -- verdict production and unit naming.
 package testweakened
@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/commit/hunks"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/repo/objects"
 )
 
 const cannotRunPrefix = "check could not run: "
@@ -42,10 +43,12 @@ type Request struct {
 	Paths           []string     `json:"paths,omitempty"`
 	Removed         []string     `json:"removed,omitempty"`
 	RenamePairs     []RenamePair `json:"rename-pairs,omitempty"`
+	// Anchor is the immutable baseline commit or tree. Native preparation uses
+	// the retained tree after earlier script blocks, never a second HEAD lookup.
 	Anchor          string       `json:"anchor,omitempty"`
-	// Selected is the content a commit carries for each hunks path. The
-	// comparison reads such a path's new side from it, never from the
-	// working tree, which holds hunks the commit leaves behind.
+	// Selected is the immutable content carried for selected paths, including
+	// whole-file snapshots and hunks. Native comparisons never read their new
+	// side from concurrent working-tree bytes.
 	Selected hunks.Selection `json:"-"`
 }
 
@@ -240,6 +243,9 @@ func loadApprovalFile(root string, source ApprovalSource) (approvalFile, []strin
 func claimFinding(approvals *Approvals, file *approvalFile, finding Finding) (bool, string) {
 	carrier := ""
 	for index, row := range file.rows {
+		if row.Target != "" {
+			continue
+		}
 		if !rowMatches(row.Name, finding) {
 			continue
 		}
@@ -454,38 +460,15 @@ func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selectio
 }
 
 func baselineText(root, path, anchor string) (string, string) {
-	var text textbuf.Buffer
-	verified, started := gitStatus(root, "rev-parse", "--verify",
-		text.Str(anchor).Str("^{commit}").Slice())
-	if !started {
-		return "", gitCannotStart
+	tree, err := objects.ResolveTree(context.Background(), root, anchor)
+	if err != nil {
+		return "", err.Error()
 	}
-	if verified != 0 {
-		return "", text.Reset().Str(anchor).
-			Str(" does not resolve to a commit, so nothing was compared").String()
+	content, _, err := objects.ReadPath(context.Background(), root, tree, path)
+	if err != nil {
+		return "", err.Error()
 	}
-	present, missingDetail, presentCode, started := gitCapture(root, "ls-tree", "--name-only",
-		anchor, "--", path)
-	if !started {
-		return "", gitCannotStart
-	}
-	if presentCode != 0 {
-		return "", text.Reset().Str("git ls-tree ").Str(anchor).Str(" -- ").Str(path).
-			Str(" failed: ").Str(strings.TrimSpace(missingDetail)).String()
-	}
-	if strings.TrimSpace(present) == "" {
-		return "", ""
-	}
-	stdout, stderr, code, started := gitCapture(root, "show",
-		text.Reset().Str(anchor).Byte(':').Str(path).Slice())
-	if !started {
-		return "", gitCannotStart
-	}
-	if code != 0 {
-		return "", text.Reset().Str("git show ").Str(anchor).Byte(':').Str(path).
-			Str(" failed: ").Str(strings.TrimSpace(stderr)).String()
-	}
-	return stdout, ""
+	return string(content), ""
 }
 
 // worktreeText answers the text the commit carries for path, or why it cannot
@@ -545,11 +528,6 @@ func uniquePaths(first, second []string) []string {
 	return paths
 }
 
-func gitStatus(root string, args ...string) (int, bool) {
-	_, _, code, started := gitCapture(root, args...)
-	return code, started
-}
-
 func gitCapture(root string, args ...string) (string, string, int, bool) {
 	// #nosec G204 -- Git is the fixed executable and every call site supplies one of this package's closed verbs; path and ref operands remain distinct argv, never shell code.
 	command := exec.CommandContext(context.Background(), "git", args...)
@@ -572,6 +550,5 @@ func gitCapture(root string, args ...string) (string, string, int, bool) {
 // when git answers nothing it can compare.
 const (
 	headRevision        = "HEAD"
-	gitCannotStart      = "git could not start, so nothing was compared"
 	gitRenameUnreadable = "Git returned malformed or ambiguous rename status, so no rename was compared"
 )

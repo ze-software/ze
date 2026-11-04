@@ -20,26 +20,33 @@ const area = "commit"
 
 // The keywords the table declares and the bodies read, each spelled once.
 const (
-	keywordSubject    = "subject"
-	keywordBody       = "body"
-	keywordFile       = "file"
-	keywordFileList   = "file-list"
-	keywordRemove     = "remove"
-	keywordRemoveList = "remove-list"
-	keywordScript     = "script"
-	keywordTag        = "tag"
-	keywordAppend     = "append"
-	keywordReplace    = "replace"
-	keywordNoTest     = "no-test"
-	keywordDryRun     = "dry-run"
-	keywordSpec       = "spec"
-	keywordCommit     = "commit"
+	keywordSubject     = "subject"
+	keywordBody        = "body"
+	keywordFile        = "file"
+	keywordFileList    = "file-list"
+	keywordRemove      = "remove"
+	keywordRemoveList  = "remove-list"
+	keywordScript      = "script"
+	keywordTag         = "tag"
+	keywordAppend      = "append"
+	keywordReplace     = "replace"
+	keywordNoTest      = "no-test"
+	keywordDryRun      = "dry-run"
+	keywordSpec        = "spec"
+	keywordCommit      = "commit"
+	keywordRFCApproval = "rfc-approval"
+	keywordArtifact    = "artifact"
+	keywordTree        = "tree"
+	keywordParent      = "parent"
+	keywordVerdict     = "verdict"
 	// valuePath names the value slot of every keyword that takes one path.
 	valuePath = "path"
 	// valueAuthorisation is push's one positional value: the owner's words,
 	// one quoted word read as typed.
 	valueAuthorisation = "owner authorisation"
 )
+
+const actionApprovalCheck = "approval-check"
 
 // keywordPush is the push verb. It is the one push route: create carries no
 // push keyword.
@@ -105,6 +112,7 @@ var declaredTrailers = []struct {
 	{trailerOwnerAttested, `create ... ` + keywordAttest + ` <commit> "<owner words>"`, false},
 	{trailerLedgerCarried, `the ledger-deletion commit: create ... remove <path> ` + keywordLedgerCarried + ` "<sha> <gate key>: <reason>"`, false},
 	{rfc.ApprovalTrailer, "create from ./le rfc approve", false},
+	{rfc.ApprovalForTrailer, "create rfc-approval <revision> <unit>", true},
 	{testweakened.ApprovalTrailer, "create from ./le test weakened approve", false},
 	{trailerSpecWork, "./le commit create under a claim (./le spec claim), from the claimed spec", true},
 }
@@ -188,8 +196,25 @@ func table() leaction.Area {
 					Help: "the stem of the spec whose recorded review is checked"},
 				{Keyword: keywordFile, Kind: leaction.KindPath, Value: valuePath, Requirement: leaction.Optional, Repeat: true,
 					Help: "one file the review must cover, as the commit will stage it"},
+				{Keyword: keywordArtifact, Kind: leaction.KindPath, Value: valuePath, Requirement: leaction.Optional,
+					Help: "the originating review artifact, required with tree"},
+				{Keyword: keywordTree, Kind: leaction.KindString, Value: "object", Requirement: leaction.Optional,
+					Help: "the actual proposed tree object, required with artifact"},
 			},
 			AnswerArgs: withRoot(answerReviewCheck),
+		},
+		leaction.Action{
+			Verb:    actionApprovalCheck,
+			Does:    actionReviewCheck,
+			Summary: "refuse already-spent ordinary approval verdicts",
+			Why:     "check captured verdicts against the actual publication parent",
+			Parameters: []leaction.Parameter{
+				{Keyword: keywordParent, Kind: leaction.KindRevision, Value: "commit", Requirement: leaction.Required,
+					Help: "the actual full parent commit of this CAS attempt"},
+				{Keyword: keywordVerdict, Kind: leaction.KindString, Value: "line", Requirement: leaction.Required, Repeat: true,
+					Help: "one captured ordinary approval trailer line"},
+			},
+			AnswerArgs: withRoot(answerApprovalCheck),
 		},
 		leaction.Action{
 			Verb: keywordPush, Writes: true,
@@ -313,11 +338,74 @@ func answerReviewCheck(root string, args leaction.Arguments) (any, int) {
 	if args.One(keywordSpec) == "" {
 		return nil, table().Refuse(actionReviewCheck, errors.New(actionReviewCheck+" requires spec <stem>"))
 	}
-	review := CheckReview(root, args.One(keywordSpec), args.Values(keywordFile))
+	stem, paths := args.One(keywordSpec), args.Values(keywordFile)
+	var review ReviewResult
+	if args.Has(keywordTree) || args.Has(keywordArtifact) {
+		if !args.Has(keywordTree) {
+			return nil, table().Refuse(actionReviewCheck, errors.New("artifact requires the actual proposed tree"))
+		}
+		if !args.Has(keywordArtifact) {
+			return nil, table().Refuse(actionReviewCheck, errors.New("tree requires the originating artifact"))
+		}
+		tree := args.One(keywordTree)
+		if len(tree) != 40 && len(tree) != 64 {
+			return nil, table().Refuse(actionReviewCheck, errors.New("tree must name one full Git object ID"))
+		}
+		if strings.Trim(tree, "0123456789abcdef") != "" {
+			return nil, table().Refuse(actionReviewCheck, errors.New("tree must name one full lowercase Git object ID"))
+		}
+		kind, err := gitOutput(root, "cat-file", "-t", tree)
+		if err != nil {
+			return nil, couldNotReview(err)
+		}
+		if strings.TrimSpace(kind) != "tree" {
+			return nil, table().Refuse(actionReviewCheck, errors.New("tree does not name a Git tree object"))
+		}
+		artifact, err := normalizePath(root, args.One(keywordArtifact))
+		if err != nil {
+			return nil, table().Refuse(actionReviewCheck, err)
+		}
+		if !strings.HasPrefix(artifact, "tmp/review/") {
+			return nil, table().Refuse(actionReviewCheck, errors.New("artifact must name the originating review under tmp/review"))
+		}
+		selection, err := treeSelection(root, tree, paths)
+		if err != nil {
+			return nil, couldNotReview(err)
+		}
+		review = checkReviewArtifact(root, stem, artifact, paths, selection)
+	} else {
+		review = CheckReview(root, stem, paths)
+	}
 	if !review.Clean {
 		return review, 1
 	}
 	return review, 0
+}
+
+func couldNotReview(err error) int {
+	leaction.ReportError(err)
+	return 3
+}
+
+func answerApprovalCheck(root string, args leaction.Arguments) (any, int) {
+	if err := rfc.CheckOrdinaryApprovalPublication(root, args.One(keywordParent), args.Values(keywordVerdict)); err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	return nil, 0
+}
+
+// ordinaryApprovalCheckCommand uses the same native read-only checker lifecycle
+// as reviewCheckCommand, with the parent expanded only by the actual CAS loop.
+func ordinaryApprovalCheckCommand(verdicts []string) string {
+	var command strings.Builder
+	command.WriteString(quotePaths([]string{"./le", area, actionApprovalCheck, keywordParent}))
+	command.WriteString(` "$_ze_parent"`)
+	for _, verdict := range verdicts {
+		command.WriteByte(' ')
+		command.WriteString(quotePaths([]string{keywordVerdict, verdict}))
+	}
+	return command.String()
 }
 
 func answerPush(root string, args leaction.Arguments) (leaction.Prepared, int) {
@@ -400,6 +488,9 @@ var createParameters = []leaction.Parameter{
 		Help: "one tracked file to delete; leave it in place for the script"},
 	{Keyword: keywordRemoveList, Kind: leaction.KindPath, Value: "list", Requirement: leaction.Optional, Repeat: true,
 		Help: "a file holding one tracked path to delete per line"},
+	{Keyword: keywordRFCApproval, Kind: leaction.KindRevision, Value: "revision", Pair: "unit",
+		Requirement: leaction.Optional, Repeat: true,
+		Help: "publish a pending judge verdict for this revision and unit"},
 	{Keyword: keywordReplace, Kind: leaction.KindSwitch, Help: "start a fresh script"},
 	{Keyword: keywordAppend, Kind: leaction.KindSwitch, Help: "add another commit block to a script that already exists"},
 	{Keyword: keywordScript, Kind: leaction.KindPath, Value: keywordScript, Requirement: leaction.Optional,
@@ -453,6 +544,7 @@ var createPolicy = map[string]keywordPolicy{
 	keywordFile:           {Given: givenFiles},
 	keywordFileList:       {Given: givenFiles},
 	keywordHunks:          {Given: func(o *Options) bool { return len(o.Hunks) != 0 }},
+	keywordRFCApproval:    {Given: func(o *Options) bool { return len(o.RFCApprovalSelections) != 0 }},
 	keywordRemove:         {Given: givenRemove},
 	keywordRemoveList:     {Given: givenRemove},
 	keywordScript:         {Given: givenText(func(o *Options) string { return o.Script }), WithAttest: true},
@@ -503,6 +595,10 @@ func optionsOf(args leaction.Arguments) (Options, error) {
 	if pairs := args.Pairs(keywordAttest); len(pairs) != 0 {
 		attest = pairs[0]
 	}
+	var approvals []RFCApprovalSelection
+	for _, pair := range args.Pairs(keywordRFCApproval) {
+		approvals = append(approvals, RFCApprovalSelection{Revision: pair[0], Unit: pair[1]})
+	}
 	return Options{
 		Session: args.One(keywordSession), Tag: args.One(keywordTag), Subject: args.One(keywordSubject),
 		Body: args.Values(keywordBody), Files: files, Hunks: hunkSelections(args.Values(keywordHunks)), Remove: removed,
@@ -511,6 +607,7 @@ func optionsOf(args leaction.Arguments) (Options, error) {
 		ReviewOverride: args.One(keywordReviewOverride),
 		RFCChangeOK:    args.One(keywordRFCChangeOK), DryRun: args.Has(keywordDryRun),
 		Attest: attest[0], AttestWords: attest[1], LedgerCarried: args.Values(keywordLedgerCarried),
+		RFCApprovalSelections: approvals,
 	}, nil
 }
 

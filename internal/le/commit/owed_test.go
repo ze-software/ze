@@ -247,7 +247,7 @@ func TestDerivedDebtReadsPersonActTrailers(t *testing.T) {
 		if derived := deriveOwed(t, root, ""); len(derived.Items) != 1 {
 			t.Fatalf("items %+v before any artifact, want the review owed", derived.Items)
 		}
-		writeCommitFixture(t, root, "tmp/review/"+owedSpecStem+"-fixture.md", reviewArtifact("clean",
+		writeCommitFixture(t, root, "tmp/review/"+owedSpecStem+"-fixture.md", reviewArtifact(owedSpecStem, "clean",
 			map[string]string{code: reviewHash(filepath.Join(root, filepath.FromSlash(code)))}))
 		if derived := deriveOwed(t, root, ""); len(derived.Items) != 0 {
 			t.Fatalf("a clean artifact over the commit's own blobs left the review owed: %+v", derived.Items)
@@ -264,7 +264,8 @@ func TestDerivedDebtReadsPersonActTrailers(t *testing.T) {
 		assertOneItem(t, derived, changed, owedItemRFCApproval, owedTaggedUnit)
 
 		commitOwed(t, root, "owner approves", nil, nil,
-			"RFC-approved: "+owedTaggedUnit+": Thomas approved the new assertion")
+			"RFC-approved: "+owedTaggedUnit+": Thomas approved the new assertion",
+			"RFC-approved-for: "+changed+" "+owedTaggedUnit)
 		if derived = deriveOwed(t, root, ""); len(derived.Items) != 0 {
 			t.Fatalf("an RFC-approved unit is still owed: %+v", derived.Items)
 		}

@@ -28,6 +28,7 @@ func approvalRepository(t *testing.T) string {
 	commitFixture(t, root, "the tagged test lands",
 		map[string]string{approvalTagged: taggedUnitText("check(1)")}, nil)
 	writeCommitFixture(t, root, approvalTagged, taggedUnitText("check(2)"))
+	installNativeReviewChecker(t, root)
 	return root
 }
 
@@ -110,6 +111,7 @@ func TestCommitDropsTheUsedApprovalRows(t *testing.T) {
 	if _, err := rfc.Approve(root, approvalSession, approvalUnit, approvalReason); err != nil {
 		t.Fatal(err)
 	}
+	writeCommitFixture(t, root, "other/unused_test.go", "package other\n\nimport \"testing\"\n\nfunc TestUnused(t *testing.T) {}\n")
 	if _, err := rfc.Approve(root, approvalSession, "other.TestUnused", "an approval for a later commit"); err != nil {
 		t.Fatal(err)
 	}

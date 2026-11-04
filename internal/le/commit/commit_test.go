@@ -200,7 +200,7 @@ func TestGeneratedBlockQuotesPathsAndCommitsFromItsOwnIndex(t *testing.T) {
 		`_ze_index="$PWD"/'tmp/commit-owner.index'`,
 		`_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`,
 		`GIT_INDEX_FILE="$_ze_index" git read-tree "$_ze_parent"`,
-		"git update-index --index-info <<'ZE_INDEX_INFO'",
+		"git update-index -z --index-info",
 		"100644 " + strings.Repeat("0", 40) + " 0\tplain.txt",
 		"'space name.txt'", `'quote'"'"'s.txt'`,
 		`git update-index --force-remove -- 'old name.txt'`,
@@ -211,7 +211,7 @@ func TestGeneratedBlockQuotesPathsAndCommitsFromItsOwnIndex(t *testing.T) {
 		"_ze_parent='" + preparedHeadFixture + "'",
 		`_ze_moved=$(git --literal-pathspecs rev-list "$_ze_seen..$_ze_parent" -- 'plain.txt'`,
 		`git update-ref -m 'commit: quote fixture' HEAD "$_ze_commit" "$_ze_parent"`,
-		"git ls-tree HEAD -- 'plain.txt' 'space name.txt' 'quote'\"'\"'s.txt' | git update-index --index-info",
+		"git --literal-pathspecs ls-tree -z HEAD -- 'plain.txt' 'space name.txt' 'quote'\"'\"'s.txt' | git update-index -z --index-info",
 	} {
 		if !strings.Contains(script, want) {
 			t.Errorf("generated block lacks %q:\n%s", want, script)
@@ -349,7 +349,7 @@ func TestTheReviewGateReadsTheArtifactTheRecorderWrites(t *testing.T) {
 		t.Fatal("the commit namespace equals the harness session id, so this test cannot tell the two names apart")
 	}
 	misnamed := filepath.Join(root, "tmp", "review", stem+"-"+namespace+".md")
-	writeArtifactAt(t, root, misnamed, "internal/a.go")
+	writeArtifactAt(t, root, misnamed, stem, "internal/a.go")
 	if wrong := CheckReview(root, stem, []string{"internal/a.go"}); wrong.Clean {
 		t.Fatalf("the gate accepted an artifact named with the commit namespace: %#v", wrong)
 	}
@@ -390,14 +390,18 @@ func writeReviewArtifact(t *testing.T, root, stem string, files ...string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeArtifactAt(t, root, filepath.Join(root, filepath.FromSlash(relative)), files...)
+	writeArtifactAt(t, root, filepath.Join(root, filepath.FromSlash(relative)), stem, files...)
 }
 
-func writeArtifactAt(t *testing.T, root, path string, files ...string) {
+func writeArtifactAt(t *testing.T, root, path, stem string, files ...string) {
 	t.Helper()
-	content := "<!-- ze-review spec=native-port verdict=clean rounds=1 -->\nfiles:\n"
+	content := "<!-- ze-review spec=" + stem + " verdict=clean rounds=1 -->\nfiles:\n"
 	for _, file := range files {
-		content += "  " + reviewHash(filepath.Join(root, filepath.FromSlash(file))) + "  " + file + "\n"
+		pin, err := spec.ReviewFile(root, file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		content += "  " + pin.Hash + "  " + pin.Mode + "  " + file + "\n"
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		t.Fatal(err)
@@ -405,6 +409,10 @@ func writeArtifactAt(t *testing.T, root, path string, files ...string) {
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+func reviewHash(path string) string {
+	content, err := os.ReadFile(path) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
+	return reviewDigest(content, err)
 }
 
 // TestClosureStemReadsRemovalsAndNotJournalRows pins the one signal. A removed
@@ -1012,7 +1020,7 @@ func TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit(t *testing.T) {
 	script := renderBlock(block, "tmp/commit-owner.sh")
 	quoted := shellQuote("it's old.txt")
 	order := []string{
-		`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- ` + quoted + `)`,
+		`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs ls-files -s -z -- ` + quoted + ` | tr '\0' '\n')`,
 		`GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- ` + quoted,
 		`git update-ref -m `,
 		`_ze_gone=(` + quoted + `)`,

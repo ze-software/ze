@@ -46,6 +46,7 @@ Write a bullet as `body "* item"`, or put a word before the dash, as in
 | `hunks` | yes | Two values, `hunks <path> <patch-file>`: commit HEAD's blob of `<path>` with only the hunks in `<patch-file>` applied, and leave the working-tree file as it is. See "Committing some hunks of a shared file" below. Refused with `attest`, and for a path also named by `file` or by `hunks` twice |
 | `remove` | yes | One tracked file to delete, named exactly: a directory or a glob is refused at create time, because the script removes one index entry by its literal name. The commit removes it from Git, then the script deletes the working-tree copy when that copy is what the commit removed. Leave the file in place: no `rm` beforehand |
 | `remove-list` | yes | A file holding one tracked path to delete per line, each handled as `remove` handles one |
+| `rfc-approval` | yes | Two values, `rfc-approval <revision> <unit>`: publish the judge's pending approval of that exact historical change and canonical unit. Revisions resolve once. Missing, replayed and ambiguous same-unit selections refuse |
 | `replace` | no | Start a fresh script. Use it for the first commit of a session |
 | `dry-run` | no | Print the message and the script it would write, and write neither |
 | `append` | no | Add another commit block to a script that already exists. A script an older `./le` prepared, whose blocks do not record the commits they publish, is refused: prepare a fresh one with `replace` |
@@ -74,6 +75,17 @@ generated script drops the used rows from that file after `git commit`
 succeeds, so the trailer in the commit is the only record
 (`docs/contributing/rfc-implementation-guide.md`).
 
+An approval-only publication names `rfc-approval` without files and uses the same
+private-index publication route without changing the tree. It cannot combine
+`attest`, `no-test`, `review-override` or `rfc-change-ok`. Selected targeted rows
+carry their original judge reason as `RFC-approved: <unit>: <reason>` and a
+same-carrier `RFC-approved-for: <fullSHA> <unit>` companion. Unselected rows stay
+pending. Preparation and failed publication prune nothing; only successful
+publication prunes the exact selected target rows.
+Every CAS attempt checks the actual parent's reachable history for an already
+published exact target/unit binding, so two independently prepared scripts cannot
+spend one approval twice.
+
 A judge-approved test weakening is carried the same way, after the RFC
 approvals: one `Weakening-approved: <package>.<TestName>: <the judge's verdict>`
 line per weakened test, never wrapped. `./le test weakened approve unit
@@ -82,6 +94,17 @@ line per weakened test, never wrapped. `./le test weakened approve unit
 after `git commit` succeeds (`docs/contributing/testing.md`, "When a test must be
 weakened"). A weakening no approval names refuses the commit, and no keyword
 admits it.
+
+Before every publication attempt, the script checks the exact ordinary RFC and
+weakening verdict lines it captured against its actual parent's history. An
+earlier block of the same script spends a verdict just like any other commit;
+pruning its pending row does not renew it. This read-only check issues no
+approval and does not reread pending rows as authority. Refusal leaves the
+unpublished block's message and unrelated pending approvals intact.
+The native read-only consumer is `./le commit approval-check parent <fullSHA>
+verdict "<whole verdict line>"`; `verdict` repeats when the block selected
+several ordinary approvals.
+<!-- source: internal/le/commit/script.go -- renderPublish, renderEmptyPublish -->
 <!-- source: internal/le/commit/prepare.go -- checkSourceGates, mergeRFCApprovals -->
 
 A live weakening or RFC approval also enters the message when its existing
@@ -113,7 +136,7 @@ after the approvals (`Prepared.Trailers`):
 | Admission | Trailer | Read by the push derivation |
 |-----------|---------|-----------------------------|
 | `review-override "<reason>"` on a closure with no clean review | `Review-owed: <spec stem>: <reason>` | yes, until a clean review, a recorded Review Gate or the owner's attestation answers it |
-| `rfc-change-ok "<reason>"` | `RFC-approval-owed: <package>.<TestName>: <reason>`, one per unit | yes, until a later `RFC-approved:` for the unit or the owner's attestation |
+| `rfc-change-ok "<reason>"` | `RFC-approval-owed: <package>.<TestName>: <reason>`, one per unit | yes, until a unique same-carrier `RFC-approved:` plus `RFC-approved-for: <fullSHA> <unit>` binds the verdict to that exact change, or the owner's attestation answers it. An unbound `RFC-approved:` answers only its own carrier |
 | Automatic when a selected summary adds or rewords `{linux-limit: LL-ID; reason}` | `Linux-limit-owed: <RID>: <LL-id>`, one per changed annotation | yes, until the owner's attestation of that commit; an RFC approval or review does not answer it |
 
 One more trailer records a fact rather than an admission. A native commit that
@@ -201,14 +224,11 @@ from then on, and the script commits its `git ls-files -s` line as it commits a
 `file` snapshot.
 
 The patch is refused, naming the path and the fix, when it is empty, does not
-apply to HEAD's blob, changes binary content (a binary file has no hunks to
-choose, so commit it whole with `file`), changes nothing, changes another path
-as well, or deletes the path (a deletion is `remove`). A path git quotes in its
-output (a control character, a double quote or a backslash) is refused too:
-rename it first, because the script cannot name it. A space is not one of
-those: git lists the paths a patch changed NUL-terminated, and the script
-names every path in a single-quoted shell word, so a path with a space is
-selected and committed as one path.
+apply to HEAD's blob, changes binary content (commit it whole with `file`),
+changes nothing, changes another path as well, or deletes the path (use
+`remove`). Git paths are read and written NUL-delimited. Spaces, quotes,
+backslashes, non-ASCII and leading or trailing spaces retain their exact
+identity; NUL, tab, carriage return and newline are refused.
 
 A selected path whose entry is not a `git ls-files -s` line for that path is an
 error at every gate that reads it, never a fall back to the working-tree file,
@@ -253,13 +273,23 @@ The refusal prints no command that pins anything by itself. A printed re-pin
 command was tried and removed: whatever it carried, pasting it vouched for
 content no reviewer had read, which cleared the gate's own refusal.
 
-Two judgements do not read the selected blob, and each says so:
+Whole-file snapshots and hunk blobs are captured before content gates. Every
+content gate reads those immutable blobs. The closure review reads one
+prospective tree built from the recorded HEAD, earlier script blocks in order,
+the current snapshots and hunks, then removals; historical `Spec-work` paths
+never read unrelated concurrent checkout bytes.
 
-- The verification state is reported stale, because the certificate's manifest
-  hashes the working-tree file, which holds hunks the commit does not carry.
-- The drift note and the script's review re-check leave a hunks path out: its
-  working tree differs from the commit by design, and its content was judged
-  at create time.
+The comparison baseline is the same retained tree after earlier blocks, not
+necessarily a commit object. A readable tree with no such path is a known
+absence; a missing revision or blob is an unreadable baseline and refuses
+preparation, never a reason to treat an existing file as newly added.
+
+The generated review check receives the originating artifact path and the actual
+proposed tree inside every compare-and-swap attempt, including retries. It checks
+hunks, modes and removals as well as whole-file content. An unavailable blob
+refuses publication. Only the drift note leaves hunk paths out, because their
+working-tree content differs intentionally. Verification is reported stale for
+hunks because its manifest hashes working-tree files.
 
 After the commit lands, the script's shared-index repair
 (`renderSharedIndexRepair`) writes HEAD's entry for every named path, hunks
@@ -271,7 +301,7 @@ script judges what the commit holds, as for any commit.
 <!-- source: internal/le/commit/review.go -- hunksReviewRefusal -->
 <!-- source: internal/le/commit/prepare.go -- Create, checkVerificationGates -->
 <!-- source: internal/le/commit/review.go -- closureStemSelected, checkReviewSelected -->
-<!-- source: internal/le/spec/review.go -- recordedHash -->
+<!-- source: internal/le/spec/review.go -- recordedFile, ReviewFile -->
 <!-- source: internal/le/commit/script.go -- renderSharedIndexRepair -->
 
 ## What the command refuses

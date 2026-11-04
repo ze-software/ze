@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/le/commit/hunks"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 
@@ -46,6 +47,8 @@ type Options struct {
 	// LedgerCarried is one `<sha> <gate key>: <reason>` per person-act row
 	// the ledger-deletion commit carries (D-4).
 	LedgerCarried []string `json:"ledger-carried,omitempty"`
+	// RFCApprovalSelections publishes only these existing targeted judge rows.
+	RFCApprovalSelections []RFCApprovalSelection `json:"rfc-approval-selections,omitempty"`
 	// SpecWork is the stem of the spec the preparing session claims, resolved
 	// by the action layer (spec.ClaimedSpec), or "" when it claims none. A
 	// native commit that changes files carries it as its last trailer,
@@ -120,7 +123,7 @@ func Create(root string, options *Options) (Prepared, error) {
 			return result, refusedKeywords(err)
 		}
 	}
-	if !attesting && len(paths) == 0 && len(removed) == 0 && len(options.Hunks) == 0 {
+	if !attesting && len(options.RFCApprovalSelections) == 0 && len(paths) == 0 && len(removed) == 0 && len(options.Hunks) == 0 {
 		return result, refusedKeywords(errors.New("at least one file or remove path is required, unless the commit is an attestation: " +
 			`attest <commit> "<owner words>"`))
 	}
@@ -144,6 +147,17 @@ func Create(root string, options *Options) (Prepared, error) {
 				"see the claim with ./le spec current", options.SpecWork, strings.TrimSpace(trailerSpecWork))
 		}
 	}
+	selectedApprovals, err := ResolveRFCApprovalSelections(root, options.RFCApprovalSelections)
+	if err != nil {
+		return result, refusedKeywords(err)
+	}
+	if len(selectedApprovals) != 0 {
+		for _, policy := range []string{options.Attest, options.ReviewOverride, options.RFCChangeOK, options.NoTest} {
+			if policy != "" {
+				return result, refusedKeywords(errors.New("rfc-approval cannot be combined with attest, no-test, review-override or rfc-change-ok"))
+			}
+		}
+	}
 
 	// Every gate below reads Ze's own sources: the test ledger, the RFC-tagged
 	// tests, the discovery index, the native verification certificate and the
@@ -165,6 +179,16 @@ func Create(root string, options *Options) (Prepared, error) {
 		return result, err
 	}
 	result.Session = session
+	native := lepath.IsCheckout(root)
+	approvalSession := session
+	// Both current gates and explicit late publication read the main thread's
+	// ledger, unless the caller explicitly selected a commit namespace.
+	if native && !attesting && options.Session == "" {
+		approvalSession, err = lepath.SessionCommitSession(root)
+		if err != nil {
+			return result, couldNotRun(fmt.Errorf("resolve this session's approval namespace: %w", err))
+		}
+	}
 
 	// HEAD is read BEFORE any content is taken: the hunks blobs below and the
 	// snapshot further down. A peer commit landing after this read is then one
@@ -187,8 +211,37 @@ func Create(root string, options *Options) (Prepared, error) {
 		return result, err
 	}
 	paths = slices.Concat(wholePaths, hunkPaths)
+	// Whole files are captured once, before a content gate can observe them.
+	entries, err := snapshotIndexEntries(root, wholePaths)
+	if err != nil {
+		return result, err
+	}
+	if selection == nil {
+		selection = make(hunks.Selection, len(paths))
+	}
+	for _, entry := range entries {
+		_, path, err := snapshotEntryFields(entry)
+		if err != nil {
+			return result, err
+		}
+		selection[path] = hunks.Selected{Entry: entry}
+	}
+	for _, path := range hunkPaths {
+		entries = append(entries, selection[path].Entry)
+	}
+	earlierPath, earlier, err := appendScript(root, session, options)
+	if err != nil {
+		return result, err
+	}
+	content, err := prospectiveTree(root, preparedHead, earlierPath, earlier, entries, removed)
+	if err != nil {
+		return result, err
+	}
+	explicitApprovals, err := SelectRFCApprovals(root, approvalSession, selectedApprovals)
+	if err != nil {
+		return result, err
+	}
 
-	native := lepath.IsCheckout(root)
 	reviewCheck := ""
 	switch {
 	case attesting:
@@ -205,17 +258,17 @@ func Create(root string, options *Options) (Prepared, error) {
 			return result, err
 		}
 	case native:
-		if err := checkSourceGates(root, options, &result, paths, removed, session, selection); err != nil {
+		if err := checkSourceGates(root, options, &result, paths, removed, approvalSession, selection, content); err != nil {
 			return result, err
 		}
-		reviewCheck, err = checkVerificationGates(root, options, &result, paths, removed, selection)
+		reviewCheck, err = checkVerificationGates(root, options, &result, paths, removed, selection, content)
 		if err != nil {
 			return result, err
 		}
 		// A spec the commit edits owes its Existing Mechanisms analysis
 		// (ai/META-DECISIONS.md, "How agents work"). It runs after the review
 		// gate, so a closure still learns first that it owes its review.
-		if err := specMechanismsRefusal(root, paths, removed, selection); err != nil {
+		if err := specMechanismsRefusal(root, paths, removed, selection, content.before); err != nil {
 			return result, err
 		}
 		carried, err := ledgerCarriedTrailers(root, options.LedgerCarried, paths, removed)
@@ -258,15 +311,9 @@ func Create(root string, options *Options) (Prepared, error) {
 	if err != nil {
 		return result, err
 	}
-	// The snapshot is taken HERE, after every gate has judged these paths, so
-	// what the script commits is what the gates read. A hunks path carries
-	// the entry selectHunks built, which the gates read through selection.
-	entries, err := snapshotIndexEntries(root, wholePaths)
+	result.RFCApprovals, err = mergeSelectedRFCApprovals(result.RFCApprovals, explicitApprovals)
 	if err != nil {
 		return result, err
-	}
-	for _, path := range hunkPaths {
-		entries = append(entries, selection[path].Entry)
 	}
 	if native && !attesting {
 		// This producer MUST read the exact entries and removals commitBlock
@@ -292,6 +339,8 @@ func Create(root string, options *Options) (Prepared, error) {
 		Selected:     hunkPaths,
 		PreparedHead: preparedHead,
 		IndexEntries: entries, MessagePath: messagePath, ReviewCheck: reviewCheck,
+		ApprovalTargets:   result.RFCApprovals.targets,
+		OrdinaryApprovals: selectedOrdinaryApprovalTrailers(result.RFCApprovals, result.WeakeningApprovals.Trailers),
 		Approvals: []approvalPrune{
 			{Path: result.RFCApprovals.Path, Dropped: result.RFCApprovals.Dropped},
 			{Path: result.WeakeningApprovals.Path, Dropped: result.WeakeningApprovals.Dropped},
@@ -335,31 +384,25 @@ func Create(root string, options *Options) (Prepared, error) {
 // ledger, the RFC-tagged tests, the discovery index and the test-coverage
 // obligation. Each one reads a file only the Ze checkout holds, so Create runs
 // this over that checkout alone.
-func checkSourceGates(root string, options *Options, result *Prepared, paths, removed []string, session string,
-	selection hunks.Selection,
+func checkSourceGates(root string, options *Options, result *Prepared, paths, removed []string, approvalSession string,
+	selection hunks.Selection, content prospectiveContent,
 ) error {
-	prospective, problems := testweakened.ProspectiveCommit(root, paths, removed, selection)
+	for _, path := range selection.Paths() {
+		if _, err := selection.Blob(path); err != nil {
+			return err
+		}
+	}
+	prospective, problems := testweakened.ProspectiveTree(root, content.before, content.tree, paths, removed)
 	if len(problems) != 0 {
 		return errors.New(strings.Join(problems, "\n"))
-	}
-	// An owner approval, of a weakening or of an RFC-tagged change, is keyed
-	// on the main thread's namespace, not on the agent's
-	// (lepath.SessionCommitSession): Thomas answers the main thread. A caller
-	// that named its session named the namespace its approvals are under too.
-	approvalSession := session
-	if options.Session == "" {
-		var err error
-		approvalSession, err = lepath.SessionCommitSession(root)
-		if err != nil {
-			return couldNotRun(fmt.Errorf("resolve this session's owner approval namespace: %w", err))
-		}
 	}
 	weakening := testweakened.Check(testweakened.Request{
 		Root: root, ApprovalSession: approvalSession, Paths: paths, Removed: removed,
 		RenamePairs: prospective.RenamePairs, Selected: selection,
+		Anchor: content.before,
 	})
 	result.Weakened = weakening.Findings
-	rfcChanges, rfcApprovals, rfcProblems := rfcChangeProblems(root, approvalSession, prospective, selection)
+	rfcChanges, rfcApprovals, rfcProblems := rfcChangeProblems(root, approvalSession, prospective, selection, content.before)
 	result.RFCChanges = rfcChanges
 	// A unit names its directory by base name only, so one approval of a
 	// unit this commit changes in two such directories cannot say which test
@@ -436,21 +479,21 @@ func mergeRFCApprovals(approvals RFCApprovals, weakening testweakened.Approvals)
 // runs on the pushed commit, nor for a red, which is owed at release
 // (ai/META-DECISIONS.md, "Ze is pre-release").
 func checkVerificationGates(root string, options *Options, result *Prepared, paths, removed []string,
-	selection hunks.Selection,
+	selection hunks.Selection, content prospectiveContent,
 ) (string, error) {
 	all := append(append([]string{}, paths...), removed...)
 	result.Verify = verificationState(root, all)
-	if len(selection) != 0 {
+	if len(options.Hunks) != 0 {
 		// The manifest hashes each path's working-tree file, and a hunks path's
 		// file holds hunks this commit leaves behind, so FRESH would vouch for
 		// content the commit does not carry.
 		result.Verify = VerificationState{State: "stale", Detail: hunkSelectedDetail}
 	}
-	base, err := appendBase(root, result.Session, options)
+	base, err := specjournal.ProspectiveBase(root, content.before, content.tree)
 	if err != nil {
 		return "", err
 	}
-	stem, err := closureStemSelected(root, paths, removed, base, selection)
+	stem, err := closureStemSelected(root, paths, removed, base, selection, content.before)
 	if err != nil {
 		return "", err
 	}
@@ -460,19 +503,23 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 	// The closure review covers the spec's whole change set: every commit
 	// attributed to it, every earlier block of this script (commit A, not yet
 	// landed), and this commit, which carries little more than the removal.
-	population, err := specWorkPopulation(root, stem, "HEAD")
+	population, err := specWorkPopulation(root, stem, content.head)
 	if err != nil {
 		return "", err
 	}
 	if options.Append {
-		earlier, err := appendedPaths(root, result.Session, options)
+		earlier, err := scriptPaths(content.scriptPath, content.script)
 		if err != nil {
 			return "", err
 		}
 		population.Paths = unique(slices.Concat(population.Paths, earlier))
 	}
-	covered := unique(slices.Concat(paths, population.Paths))
-	review := checkReviewSelected(root, stem, covered, selection)
+	covered := unique(slices.Concat(paths, removed, population.Paths))
+	reviewSelection, err := treeSelection(root, content.tree, covered)
+	if err != nil {
+		return "", err
+	}
+	review := checkReviewSelected(root, stem, covered, reviewSelection)
 	review.Commits = population.Commits
 	result.Review = &review
 	if !review.Clean && strings.TrimSpace(options.ReviewOverride) == "" {
@@ -486,9 +533,9 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 		result.Trailers = append(result.Trailers, trailer)
 		return "", nil
 	}
-	// A hunks path is pinned by its blob and was judged above; the script's
-	// re-check hashes the working tree, which holds hunks the commit leaves.
-	return reviewCheckCommand(stem, withoutSelected(covered, selection)), nil
+	// Each CAS attempt checks its actual tree against this originating artifact.
+	return reviewCheckCommand(stem, covered) + " " + keywordArtifact + " " +
+		shellQuote(review.Artifact) + ` ` + keywordTree + ` "$_ze_tree"`, nil
 }
 
 // admissionTrailer renders the record of one admission: `<key><subject>:

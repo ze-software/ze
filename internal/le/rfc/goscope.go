@@ -10,6 +10,9 @@
 package rfc
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"path/filepath"
 	"regexp"
 	"regexp/syntax"
@@ -437,15 +440,45 @@ type FunctionUnit struct {
 	Text string `json:"text"`
 }
 
-// FunctionUnits answers every top-level Go function in file order.
+// FunctionUnits answers every top-level Go function in file order. Valid Go
+// declarations end at their own closing brace, not a following declaration.
+// Incomplete source retains the conservative spans used by semantic readers.
 func FunctionUnits(content string) []FunctionUnit {
-	spans := goFuncSpans(content)
-	units := make([]FunctionUnit, 0, len(spans))
-	for _, one := range spans {
-		text := content[one.begin:one.end]
-		units = append(units, FunctionUnit{Name: funcNameIn(text), Text: text})
-	}
+	units, _ := readFunctionUnits(content)
 	return units
+}
+
+// readFunctionUnits shares declaration extraction with identity readers, which
+// must reject a conservative span when the exact declaration is unresolved.
+func readFunctionUnits(content string) ([]FunctionUnit, bool) {
+	positions := token.NewFileSet()
+	file, err := parser.ParseFile(positions, "", content, parser.SkipObjectResolution)
+	if err != nil {
+		spans := goFuncSpans(content)
+		units := make([]FunctionUnit, 0, len(spans))
+		for _, one := range spans {
+			text := content[one.begin:one.end]
+			units = append(units, FunctionUnit{Name: funcNameIn(text), Text: text})
+		}
+		return units, false
+	}
+	source := positions.File(file.Pos())
+	var units []FunctionUnit
+	for _, declaration := range file.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		start := docCommentStart(content, source.Offset(function.Pos()))
+		end := source.Offset(function.End())
+		if end+1 < len(content) && content[end:end+2] == "\r\n" {
+			end += 2
+		} else if end < len(content) && content[end] == '\n' {
+			end++
+		}
+		units = append(units, FunctionUnit{Name: function.Name.Name, Text: content[start:end]})
+	}
+	return units, true
 }
 
 // TaggedUnit is the text one RFC tag governs and how it was resolved.

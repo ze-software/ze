@@ -15,7 +15,9 @@ func TestOwnerRulingCommandRefusesBeforeNamespaceWrites(t *testing.T) {
 	for _, mode := range []string{"piped-stdin", "piped-stdout", "closed-stdin", "closed-stdout"} {
 		t.Run(mode, func(t *testing.T) {
 			humantest.Streams(t, mode)
-			root := t.TempDir()
+			root, _ := fixtureCommit(t, map[string]string{
+				"pkg/widget_test.go": "package pkg\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
+			})
 			t.Setenv("ZE_REPO_ROOT", root)
 			t.Setenv("CLAUDE_CODE_SESSION_ID", "rfc-terminal-entry-fixture")
 			env.ResetCache()

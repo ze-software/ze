@@ -15,7 +15,9 @@ import (
 // and reads the original namespace's ledger to verify the ruling's exact meaning.
 func TestOwnerRulingRefusalPreservesRetryArguments(t *testing.T) {
 	humantest.Streams(t, "piped-both")
-	root := t.TempDir()
+	root, _ := fixtureCommit(t, map[string]string{
+		"pkg/widget_test.go": "package pkg\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
+	})
 	t.Setenv("ZE_REPO_ROOT", root)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "ruling-origin-fixture")
 	t.Setenv("ZE_AGENT_ID", "origin-agent")

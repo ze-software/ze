@@ -1,9 +1,8 @@
 package commit
 
-// VALIDATES: scriptBase reads back what the earlier blocks of a prepared script
-// commit under plan/, last block winning, and refuses a script it cannot read
-// rather than answering HEAD. PREVENTS: an appended closure judged against a
-// tree its earlier blocks do not produce.
+// VALIDATES: prospectiveTree applies earlier blocks in order and refuses
+// unreadable scripts instead of selecting another source. PREVENTS: an appended
+// closure judged against a tree its earlier blocks do not produce.
 
 import (
 	"path/filepath"
@@ -21,14 +20,15 @@ func snapshotEntry(t *testing.T, root, path, content string) string {
 	return "100644 " + object + " 0\t" + path
 }
 
-// TestScriptBaseReadsEarlierBlocks proves the reading over scripts rendered by
-// renderPrivateIndex itself. Method: render two blocks naming one plan/ path,
-// a removal, and a path re-added after its removal, then read the base.
+// TestScriptBaseReadsEarlierBlocks proves last-wins content, actual removal and
+// re-addition through the prospective tree built from rendered script blocks.
 func TestScriptBaseReadsEarlierBlocks(t *testing.T) {
 	root := newCommitRepository(t)
 	class := "plan/journal/native.md"
 	spec := "plan/release/fixes/spec-a.md"
 	gone := "plan/release/fixes/spec-gone.md"
+	commitFixture(t, root, "baseline removal", map[string]string{gone: "gone\n"}, nil)
+	head := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
 	script := renderPrivateIndex(commitBlock{IndexEntries: []string{
 		snapshotEntry(t, root, class, "first\n"),
 		snapshotEntry(t, root, spec, "kept\n"),
@@ -40,21 +40,21 @@ func TestScriptBaseReadsEarlierBlocks(t *testing.T) {
 			snapshotEntry(t, root, spec, "back\n"),
 		}}) + "\n"
 
-	base, err := scriptBase(root, "tmp/commit-x.sh", script)
+	content, err := prospectiveTree(root, head, "tmp/commit-x.sh", script, nil, nil)
 	if err != nil {
-		t.Fatalf("scriptBase: %v", err)
+		t.Fatalf("prospectiveTree: %v", err)
 	}
-	if got := base.Files[class]; got != "second\n" {
-		t.Fatalf("Files[%s] = %q, want the last block's %q", class, got, "second\n")
+	if got := runCommitGitOutput(t, root, "show", content.before+":"+class); got != "second\n" {
+		t.Fatalf("class content = %q, want the last block's bytes", got)
 	}
-	if got := base.Files[spec]; got != "back\n" || base.Removed[spec] {
-		t.Fatalf("spec re-added after its removal: Files %q, Removed %v; want Files %q, not removed", got, base.Removed[spec], "back\n")
+	if got := runCommitGitOutput(t, root, "show", content.before+":"+spec); got != "back\n" {
+		t.Fatalf("spec re-addition content = %q", got)
 	}
-	if !base.Removed[gone] {
-		t.Fatalf("Removed = %v, want %s removed", base.Removed, gone)
+	if status, _ := gitExit(root, "cat-file", "-e", content.before+":"+gone); status == 0 {
+		t.Fatal("the earlier block's removal retained the baseline path")
 	}
-	if _, laid := base.Files["internal/x.go"]; laid {
-		t.Fatal("a path outside plan/ was laid over the base")
+	if got := runCommitGitOutput(t, root, "show", content.before+":internal/x.go"); got != "package x\n" {
+		t.Fatalf("prospective tree lost exact non-plan content: %q", got)
 	}
 }
 
@@ -63,6 +63,7 @@ func TestScriptBaseReadsEarlierBlocks(t *testing.T) {
 func TestScriptBaseRefusesWhatItCannotRead(t *testing.T) {
 	root := newCommitRepository(t)
 	entry := snapshotEntry(t, root, "plan/journal/native.md", "row\n")
+	head := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
 	tests := []struct {
 		name   string
 		script string
@@ -77,13 +78,13 @@ func TestScriptBaseRefusesWhatItCannotRead(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := scriptBase(root, "tmp/commit-x.sh", test.script)
+			_, err := prospectiveTree(root, head, "tmp/commit-x.sh", test.script, nil, nil)
 			if err == nil {
-				t.Fatal("scriptBase read an unreadable script")
+				t.Fatal("prospectiveTree read an unreadable script")
 			}
 			for _, want := range []string{"tmp/commit-x.sh", test.line, "./le commit create replace"} {
 				if !strings.Contains(err.Error(), want) {
-					t.Fatalf("scriptBase error = %q, want it to contain %q", err, want)
+					t.Fatalf("prospectiveTree error = %q, want it to contain %q", err, want)
 				}
 			}
 		})
@@ -96,14 +97,21 @@ func TestAppendBaseJudgesReplaceOnHead(t *testing.T) {
 	root := newCommitRepository(t)
 	script := "tmp/commit-x.sh"
 	writeCommitFixture(t, root, script, scriptMarker+"\n"+indexInfoOpen+"\n")
-	base, err := appendBase(root, "x", &Options{Replace: true, Script: script})
+	path, earlier, err := appendScript(root, "x", &Options{Replace: true, Script: script})
 	if err != nil {
-		t.Fatalf("appendBase(replace): %v", err)
+		t.Fatalf("appendScript(replace): %v", err)
 	}
-	if base.Files != nil || base.Removed != nil {
-		t.Fatalf("appendBase(replace) = %+v, want the zero Base (HEAD)", base)
+	if path != "" || earlier != "" {
+		t.Fatalf("appendScript(replace) = %q, %q; want no earlier overlay", path, earlier)
 	}
-	if _, err := appendBase(root, "x", &Options{Append: true, Script: script}); err == nil {
-		t.Fatal("appendBase(append) read a script whose snapshot heredoc never closes")
+	path, earlier, err = appendScript(root, "x", &Options{Append: true, Script: script})
+	if err != nil {
+		t.Fatalf("appendScript(append) masked the parser input: %v", err)
+	}
+	head := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
+	if _, err := prospectiveTree(root, head, path, earlier, nil, nil); err == nil {
+		t.Fatal("prospectiveTree accepted the malformed earlier script")
+	} else if !strings.Contains(err.Error(), "snapshot line with no path") {
+		t.Fatalf("prospectiveTree refused outside the empty snapshot-entry branch: %v", err)
 	}
 }

@@ -183,17 +183,13 @@ func TestCreateRefusesAnApprovalNamingTwoDirectoriesUnits(t *testing.T) {
 	} {
 		root := newLedgerRepository(t)
 		paths := []string{"x/cmd/one_test.go", "y/cmd/one_test.go"}
-		for _, path := range paths {
-			writeCommitFixture(t, root, path, shape.before)
-		}
-		runCommitGit(t, root, append([]string{"add", "--"}, paths...)...)
-		runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
-			"-c", "commit.gpgsign=false", "commit", "-q", "-m", "two cmd directories")
-		for _, path := range paths {
-			writeCommitFixture(t, root, path, shape.after)
-		}
+		commitFixture(t, root, "first cmd directory", map[string]string{paths[0]: shape.before}, nil)
 		if err := shape.approve(root); err != nil {
 			t.Fatal(err)
+		}
+		commitFixture(t, root, "second cmd directory", map[string]string{paths[1]: shape.before}, nil)
+		for _, path := range paths {
+			writeCommitFixture(t, root, path, shape.after)
 		}
 
 		_, err := ledgerCreate(t, root, paths...)
@@ -422,6 +418,7 @@ func newLedgerRepository(t *testing.T) string {
 	runCommitGit(t, root, "add", "--", "pkg/one_test.go", "pkg/two_test.go")
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
 		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "tests baseline")
+	installNativeReviewChecker(t, root)
 	return root
 }
 

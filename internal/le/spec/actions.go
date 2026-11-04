@@ -201,6 +201,21 @@ var reviewRecordParameters = []leaction.Parameter{
 		Requirement: leaction.Optional, Repeat: true,
 	},
 	{
+		Keyword: keywordBlob, Kind: leaction.KindPath, Value: valuePath, Pair: "object",
+		Help:        "an immutable reviewed blob; add mode for the same path",
+		Requirement: leaction.Optional, Repeat: true,
+	},
+	{
+		Keyword: keywordMode, Kind: leaction.KindPath, Value: valuePath, Pair: "git-mode",
+		Help:        "the reviewed Git mode of a named content source",
+		Requirement: leaction.Optional, Repeat: true,
+	},
+	{
+		Keyword: keywordRemove, Kind: leaction.KindPath, Value: valuePath,
+		Help:        "a reviewed removal, without reading a checkout copy",
+		Requirement: leaction.Optional, Repeat: true,
+	},
+	{
 		Keyword: keywordReviewers, Kind: leaction.KindString, Value: "names",
 		Help: "who reviewed", Requirement: leaction.Optional,
 	},
@@ -402,11 +417,11 @@ func answerReviewHash(root string, args leaction.Arguments) (any, int) {
 	}
 	report := reviewHashes{Files: make([]ReviewedFile, 0, len(files))}
 	for _, path := range uniqueSorted(files) {
-		hash, err := reviewFileHash(root, path)
+		pin, err := ReviewFile(root, path)
 		if err != nil {
 			return lifecycleError(err)
 		}
-		report.Files = append(report.Files, ReviewedFile{Path: path, Hash: hash})
+		report.Files = append(report.Files, pin)
 	}
 	return report, 0
 }
@@ -501,6 +516,13 @@ func reviewRecordOf(args leaction.Arguments) (reviewRecord, error) {
 	for _, pair := range args.Pairs(keywordHunks) {
 		request.Hunks = append(request.Hunks, ReviewHunk{Path: pair[0], Patch: pair[1]})
 	}
+	for _, pair := range args.Pairs(keywordBlob) {
+		request.Blobs = append(request.Blobs, ReviewBlob{Path: pair[0], Object: pair[1]})
+	}
+	for _, pair := range args.Pairs(keywordMode) {
+		request.Modes = append(request.Modes, ReviewMode{Path: pair[0], Mode: pair[1]})
+	}
+	request.Removed = args.Values(keywordRemove)
 	if args.Has(keywordRounds) {
 		value := args.One(keywordRounds)
 		rounds, err := strconv.Atoi(value)
@@ -518,7 +540,7 @@ func reviewRecordOf(args leaction.Arguments) (reviewRecord, error) {
 	if request.Rounds == 0 {
 		return reviewRecord{}, errors.New("review record needs spec, verdict, rounds, and at least one file")
 	}
-	if len(request.Files) == 0 && len(request.Hunks) == 0 {
+	if len(request.Files)+len(request.Hunks)+len(request.Blobs)+len(request.Removed) == 0 {
 		return reviewRecord{}, errors.New("review record needs spec, verdict, rounds, and at least one file")
 	}
 	return request, nil
@@ -555,6 +577,9 @@ const (
 	keywordSpec         = "spec"
 	keywordFile         = "file"
 	keywordHunks        = "hunks"
+	keywordBlob         = "blob"
+	keywordMode         = "mode"
+	keywordRemove       = "remove"
 	keywordRounds       = "rounds"
 	keywordReviewers    = "reviewers"
 	keywordFindingsFile = "findings-file"

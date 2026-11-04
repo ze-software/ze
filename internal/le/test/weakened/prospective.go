@@ -35,6 +35,27 @@ func ProspectiveCommit(root string, paths, removed []string, selection hunks.Sel
 	result := Prospective{Paths: slices.Clone(paths), Removed: slices.Clone(removed)}
 	raw, problem := prospectiveDiff(root, paths, removed, selection,
 		"--name-status", "-z", "--find-renames=1%", "-l0", "--diff-filter=R")
+	return prospectivePairs(result, raw, problem)
+}
+
+// ProspectiveTree derives rename pairs from the immutable tree commit preparation
+// already built. Callers MUST supply the recorded parent and that same tree.
+func ProspectiveTree(root, parent, tree string, paths, removed []string) (Prospective, []string) {
+	result := Prospective{Paths: slices.Clone(paths), Removed: slices.Clone(removed)}
+	args := []string{"--literal-pathspecs", "diff-tree", "-r", "--name-status", "-z", "--find-renames=1%", "-l0", "--diff-filter=R", parent, tree, "--"}
+	args = append(args, paths...)
+	args = append(args, removed...)
+	output, stderr, code, started := gitCapture(root, args...)
+	if !started {
+		return result, []string{cannotRunPrefix + "Git could not read the prospective tree"}
+	}
+	if code != 0 {
+		return result, []string{cannotRunPrefix + "Git could not compare the prospective tree: " + stderr}
+	}
+	return prospectivePairs(result, []byte(output), "")
+}
+
+func prospectivePairs(result Prospective, raw []byte, problem string) (Prospective, []string) {
 	if problem != "" {
 		return result, []string{cannotRunPrefix + problem + ", so no rename was compared"}
 	}
@@ -42,7 +63,7 @@ func ProspectiveCommit(root string, paths, removed []string, selection hunks.Sel
 	if problem != "" {
 		return result, []string{cannotRunPrefix + problem}
 	}
-	accepted, problem := acceptedRenamePairs(paths, removed, pairs)
+	accepted, problem := acceptedRenamePairs(result.Paths, result.Removed, pairs)
 	if problem != "" {
 		return result, []string{cannotRunPrefix + problem}
 	}
@@ -108,7 +129,7 @@ func prospectiveDiff(root string, paths, removed []string, selection hunks.Selec
 		}
 	}
 	if entries := selectedEntries(selection); entries != "" {
-		output, code, err := runInput(entries, "update-index", "--index-info")
+		output, code, err := runInput(entries, "update-index", "-z", "--index-info")
 		if err != nil {
 			return nil, fmt.Sprintf("git update-index --index-info: %v", err)
 		}
@@ -336,12 +357,11 @@ func groupAtDepth(paths []string, depth int) map[string][]string {
 	return groups
 }
 
-// selectedEntries answers the `git ls-files -s` lines of a selection, one per
-// line, in path order, for `git update-index --index-info`.
+// selectedEntries answers raw NUL-delimited index entries in path order.
 func selectedEntries(selection hunks.Selection) string {
 	var text textbuf.Buffer
 	for _, path := range selection.Paths() {
-		text.Str(selection[path].Entry).Byte('\n')
+		text.Str(selection[path].Entry).Byte(0)
 	}
 	return text.String()
 }

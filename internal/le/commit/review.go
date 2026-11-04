@@ -22,7 +22,8 @@ import (
 
 var (
 	reviewHeaderPattern = regexp.MustCompile(`<!-- ze-review\s+[^>]*verdict=([^\s>]+)[^>]*-->`)
-	reviewFilePattern   = regexp.MustCompile(`^\s{2}([0-9a-f]{64}|DELETED)\s{2}(.+)$`)
+	reviewStemPattern   = regexp.MustCompile(`<!--\s*ze-review\s+spec=([^\s>]+)\s`)
+	reviewFilePattern   = regexp.MustCompile(`^  ([0-9a-f]{64}|DELETED)  (100644|100755|120000|0)  (.+)$`)
 )
 
 // ReviewResult is the hash-pinned verdict for one closure population.
@@ -119,18 +120,17 @@ func relocatedSpecs(paths, removed []string) map[string]bool {
 // rewritten against HEAD over specjournal.RowCharsMax. An open row the commit
 // adds or changes against HEAD that no spec's owned journal rows table lists is
 // refused too (specjournal.UnownedOpenRows), so every recorded defect has the
-// spec that will fix it. That check judges against base: HEAD for a commit of
-// its own, and HEAD under the earlier blocks for a block appended to a script
-// (scriptBase), because the appended block lands after them.
+// spec that will fix it. Production judges against the immutable recorded parent
+// plus earlier blocks, captured by prospectiveTree.
 func closureStem(root string, paths, removed []string, base specjournal.Base) (string, error) {
-	return closureStemSelected(root, paths, removed, base, nil)
+	return closureStemSelected(root, paths, removed, base, nil, "HEAD")
 }
 
 // closureStemSelected is closureStem over a commit whose hunks paths carry
 // the selected blob: the journal shape check, the owned-row check and the spec
 // sides all read a selected path through selection, so a row or an owner entry
 // that only the working tree holds is judged absent.
-func closureStemSelected(root string, paths, removed []string, base specjournal.Base, selection hunks.Selection) (string, error) {
+func closureStemSelected(root string, paths, removed []string, base specjournal.Base, selection hunks.Selection, head string) (string, error) {
 	carried := func(path string) ([]byte, error) { return selection.Read(root, path) }
 	for _, path := range paths {
 		if !strings.HasPrefix(path, "plan/journal/") {
@@ -142,7 +142,7 @@ func closureStemSelected(root string, paths, removed []string, base specjournal.
 		if filepath.Base(path) == "README.md" {
 			continue
 		}
-		report, err := specjournal.ValidateCarried(root, path, carried)
+		report, err := specjournal.ValidateAgainst(root, path, carried, base)
 		if err != nil {
 			return "", fmt.Errorf("validate journal %s: %w", path, err)
 		}
@@ -158,59 +158,24 @@ func closureStemSelected(root string, paths, removed []string, base specjournal.
 		return "", errors.New(strings.TrimSuffix(specjournal.UnownedText(unowned), "\n"))
 	}
 
-	return closedSpecStem(paths, removed, workingTreeSides(root, selection))
+	return closedSpecStem(paths, removed, workingTreeSides(root, head, selection))
 }
 
-// appendBase answers the tree a prepared commit lands on, for the journal
-// ownership check. A commit of its own lands on HEAD, the zero Base. An
-// appended block lands after the script's earlier blocks, which have not run:
-// commit B of a two-commit spec closure removes the spec while commit A, still
-// unrun, carries the row's `fixed: ` marker or moves its entry to another spec.
-func appendBase(root, session string, options *Options) (specjournal.Base, error) {
+// appendScript captures only the earlier blocks this preparation will publish.
+// The caller MUST pass its returned text unchanged to prospectiveTree.
+func appendScript(root, session string, options *Options) (string, string, error) {
 	if !options.Append {
-		return specjournal.Base{}, nil
+		return "", "", nil
 	}
-	scriptPath, existing, err := targetScript(root, session, "", options)
-	if err != nil {
-		return specjournal.Base{}, err
-	}
-	return scriptBase(root, scriptPath, existing)
+	return targetScript(root, session, "", options)
 }
 
-// privateIndexUpdate starts every line a block writes to its private index with
-// update-index. renderPrivateIndex writes exactly two such lines, indexInfoOpen
-// and privateRemovalPrefix, so any other line with this start is a script
-// scriptBase cannot read.
+// privateIndexUpdate recognizes standalone private-index updates. Snapshots use
+// the exact indexInfoOpen pipeline; any unknown update form is refused.
 const privateIndexUpdate = `GIT_INDEX_FILE="$_ze_index" git update-index`
 
-// scriptBase reads back what the blocks of a prepared script commit under
-// plan/: each snapshot entry's content, from the blob it names, and each path a
-// block removes. A later block's entry for a path replaces an earlier one's, as
-// the script's commits do. A script it cannot read is an error naming the
-// script and the line, never a base that silently falls back to HEAD: a
-// snapshot heredoc with no closing delimiter, a private-index update-index line
-// in neither rendered form, or a snapshot line that is not an index entry.
-func scriptBase(root, scriptPath, script string) (specjournal.Base, error) {
-	base := specjournal.Base{Files: map[string]string{}, Removed: map[string]bool{}}
-	err := walkScriptBlocks(scriptPath, script,
-		func(entry string) error { return laySnapshotEntry(root, entry, &base) },
-		func(paths []string) {
-			for _, path := range paths {
-				delete(base.Files, path)
-				base.Removed[path] = true
-			}
-		})
-	if err != nil {
-		return specjournal.Base{}, err
-	}
-	return base, nil
-}
-
-// scriptPaths answers every path the blocks of a prepared script commit:
-// each snapshot entry's path and each path a block removes. It reads the
-// script as scriptBase does and refuses one it cannot read the same way,
-// because a closure appended to commit A judges A's paths, which exist
-// nowhere else until the script runs.
+// scriptPaths answers every snapshot and removal path in prepared script order,
+// using the same refusing walker as prospectiveTree.
 func scriptPaths(scriptPath, script string) ([]string, error) {
 	var paths []string
 	err := walkScriptBlocks(scriptPath, script,
@@ -224,16 +189,6 @@ func scriptPaths(scriptPath, script string) ([]string, error) {
 		return nil, err
 	}
 	return unique(paths), nil
-}
-
-// appendedPaths answers every path the earlier blocks of the script an
-// appended commit joins carry (scriptPaths).
-func appendedPaths(root, session string, options *Options) ([]string, error) {
-	scriptPath, existing, err := targetScript(root, session, "", options)
-	if err != nil {
-		return nil, err
-	}
-	return scriptPaths(scriptPath, existing)
 }
 
 // walkScriptBlocks hands each snapshot line of a prepared script to entry and
@@ -276,35 +231,11 @@ func walkScriptBlocks(scriptPath, script string, entry func(string) error, remov
 	return nil
 }
 
-// scriptLineError names the script and line scriptBase could not read, and the
+// scriptLineError names the script and line the walker could not read, and the
 // command that writes a script it can.
 func scriptLineError(scriptPath string, number int, err error) error {
 	return fmt.Errorf("cannot read what the earlier blocks of %s commit, line %d: %w; "+
 		"prepare the whole commit again with ./le commit create replace", scriptPath, number, err)
-}
-
-// laySnapshotEntry lays one `git ls-files -s` line of an earlier block over the
-// base, `<mode> <object> <stage>\t<path>`, when it names a plan/ markdown file:
-// the only files that hold journal rows or owned tables. Every line is checked
-// for that shape first, so a malformed line is refused whatever path it names.
-func laySnapshotEntry(root, entry string, base *specjournal.Base) error {
-	object, path, err := snapshotEntryFields(entry)
-	if err != nil {
-		return err
-	}
-	if !strings.HasPrefix(path, "plan/") {
-		return nil
-	}
-	if !strings.HasSuffix(path, ".md") {
-		return nil
-	}
-	content, err := gitOutput(root, "cat-file", "blob", object)
-	if err != nil {
-		return fmt.Errorf("read %s from the object the snapshot names: %w", path, err)
-	}
-	base.Files[path] = content
-	delete(base.Removed, path)
-	return nil
 }
 
 // snapshotEntryFields reads one `git ls-files -s` line of an earlier block,
@@ -317,6 +248,9 @@ func snapshotEntryFields(entry string) (object, path string, err error) {
 	parts := strings.Fields(fields)
 	if len(parts) != 3 {
 		return "", "", fmt.Errorf("a snapshot line for %s that is not mode, object and stage, %q", path, entry)
+	}
+	if strings.ContainsAny(path, "\x00\t\r\n") {
+		return "", "", fmt.Errorf("snapshot path contains an unsupported control: %q", path)
 	}
 	return parts[1], path, nil
 }
@@ -340,23 +274,30 @@ type specPopulation struct {
 // a whole message line equal to the trailer.
 func specWorkPopulation(root, stem, tip string) (specPopulation, error) {
 	trailer := trailerSpecWork + stem
-	shown, err := gitOutput(root, "-c", "core.quotePath=false", "log", "--no-show-signature", gitNoColor,
-		"--no-renames", "--fixed-strings", "--grep", trailer, "--name-only", "--format=%x1e%H%x00%B%x00", tip, "--")
+	shown, err := gitOutput(root, "log", "--no-show-signature", gitNoColor,
+		"--fixed-strings", "--grep", trailer, "--format=%H", tip, "--")
 	if err != nil {
 		return specPopulation{}, fmt.Errorf("read the commits attributed to spec %s: %w", stem, err)
 	}
 	var population specPopulation
-	for record := range strings.SplitSeq(shown, "\x1e") {
-		fields := strings.SplitN(record, "\x00", 3)
-		if len(fields) != 3 {
+	for commit := range strings.FieldsSeq(shown) {
+		message, err := gitOutput(root, "show", "--no-show-signature", "-s", "--format=%B", commit)
+		if err != nil {
+			return specPopulation{}, err
+		}
+		if !carriesTrailerLine(message, trailer) {
 			continue
 		}
-		if !carriesTrailerLine(fields[1], trailer) {
-			continue
+		names, err := gitOutput(root, "diff-tree", "--root", "-r", "-z", "--no-renames", "--name-only", "--no-commit-id", commit)
+		if err != nil {
+			return specPopulation{}, err
 		}
-		population.Commits = append(population.Commits, strings.TrimSpace(fields[0]))
-		for line := range strings.SplitSeq(fields[2], "\n") {
-			if path := strings.TrimSpace(line); path != "" {
+		population.Commits = append(population.Commits, commit)
+		for path := range strings.SplitSeq(names, "\x00") {
+			if strings.ContainsAny(path, "\x00\t\r\n") {
+				return specPopulation{}, fmt.Errorf("Spec-work commit %s names a path with unsupported controls: %q", commit, path)
+			}
+			if path != "" {
 				population.Paths = append(population.Paths, path)
 			}
 		}
@@ -420,11 +361,10 @@ type specSides struct {
 	after  specSide
 }
 
-// workingTreeSides judges a commit being PREPARED: HEAD is its parent, and the
-// working tree holds the content the snapshot is about to take.
-func workingTreeSides(root string, selection hunks.Selection) specSides {
+// workingTreeSides reads a prepared commit's retained parent and selected blobs.
+func workingTreeSides(root, head string, selection hunks.Selection) specSides {
 	return specSides{
-		before: func(path string) (string, bool, string) { return committedText(root, "HEAD", path) },
+		before: func(path string) (string, bool, string) { return committedText(root, head, path) },
 		after:  func(path string) (string, bool, string) { return workingText(root, path, selection) },
 	}
 }
@@ -584,6 +524,11 @@ func checkReviewSelected(root, stem string, paths []string, selection hunks.Sele
 	if err != nil {
 		return ReviewResult{Spec: stem, Problems: []string{"resolve review artifact path: " + err.Error()}}
 	}
+	return checkReviewArtifact(root, stem, artifact, paths, selection)
+}
+
+// checkReviewArtifact uses the originating artifact, never an ambient substitute.
+func checkReviewArtifact(root, stem, artifact string, paths []string, selection hunks.Selection) ReviewResult {
 	result := ReviewResult{Spec: stem, Artifact: artifact}
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(artifact))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 	if err != nil {
@@ -591,20 +536,18 @@ func checkReviewSelected(root, stem string, paths []string, selection hunks.Sele
 		return result
 	}
 	var unreadable []string
-	judgeReviewCoverage(&result, string(content), paths, func(path string) string {
-		if !selection.Selected(path) {
-			return reviewHash(filepath.Join(root, filepath.FromSlash(path)))
-		}
-		carried, err := selection.Read(root, path)
+	judgeReviewCoverage(&result, string(content), paths, func(path string) spec.ReviewedFile {
+		pin, err := selectedReviewFile(root, path, selection)
 		if err != nil {
 			unreadable = append(unreadable, err.Error())
+			return spec.ReviewedFile{Path: path, Hash: "UNREADABLE"}
 		}
-		return reviewDigest(carried, err)
+		return pin
 	})
 	result.Problems = append(result.Problems, unreadable...)
 	var repin, whole []string
 	for _, path := range append(slices.Clone(result.Stale), result.Unreviewed...) {
-		if selection.Selected(path) {
+		if selection[path].Patch != "" {
 			repin = append(repin, path)
 			continue
 		}
@@ -617,6 +560,7 @@ func checkReviewSelected(root, stem string, paths []string, selection hunks.Sele
 		result.Problems = append(result.Problems, hunksReviewRefusal(stem, repin, selection))
 		result.Clean = false
 	}
+	result.Clean = len(result.Problems) == 0
 	return result
 }
 
@@ -660,7 +604,7 @@ func hunksReviewRefusal(stem string, paths []string, selection hunks.Selection) 
 // covered path MUST carry, which is what makes the judgement usable twice: the
 // working tree answers for a prospective commit, and a commit's own blobs
 // answer for a discharge months later.
-func judgeReviewCoverage(result *ReviewResult, artifactText string, paths []string, hashOf func(string) string) {
+func judgeReviewCoverage(result *ReviewResult, artifactText string, paths []string, hashOf func(string) spec.ReviewedFile) {
 	for _, path := range unique(paths) {
 		if spec.IsReviewCode(path) {
 			result.CodeFiles = append(result.CodeFiles, path)
@@ -672,12 +616,21 @@ func judgeReviewCoverage(result *ReviewResult, artifactText string, paths []stri
 		result.Problems = []string{"review artifact has no valid ze-review header: " + result.Artifact}
 		return
 	}
+	stem := reviewStemPattern.FindStringSubmatch(artifactText)
+	if len(stem) != 2 {
+		result.Problems = append(result.Problems, "review artifact has no spec identity: "+result.Artifact)
+	} else if result.Spec != "" && stem[1] != result.Spec {
+		result.Problems = append(result.Problems, "review artifact names spec "+stem[1]+", not "+result.Spec)
+	}
 	result.Verdict = strings.ToLower(header[1])
-	hashes := make(map[string]string)
+	hashes := make(map[string]spec.ReviewedFile)
 	for line := range strings.SplitSeq(artifactText, "\n") {
 		match := reviewFilePattern.FindStringSubmatch(line)
-		if len(match) == 3 {
-			hashes[match[2]] = match[1]
+		if len(match) == 4 {
+			if _, duplicate := hashes[match[3]]; duplicate {
+				result.Problems = append(result.Problems, "review artifact repeats path "+match[3])
+			}
+			hashes[match[3]] = spec.ReviewedFile{Path: match[3], Hash: match[1], Mode: match[2]}
 		}
 	}
 	for _, path := range result.CodeFiles {
@@ -686,7 +639,9 @@ func judgeReviewCoverage(result *ReviewResult, artifactText string, paths []stri
 			result.Unreviewed = append(result.Unreviewed, path)
 			continue
 		}
-		if recorded != hashOf(path) {
+		current := hashOf(path)
+		same := recorded.Hash == current.Hash && recorded.Mode == current.Mode
+		if !same {
 			result.Stale = append(result.Stale, path)
 		}
 	}
@@ -717,10 +672,6 @@ func countedPaths(count int, what string, paths []string) string {
 	return text.String()
 }
 
-func reviewHash(path string) string {
-	content, err := os.ReadFile(path) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
-	return reviewDigest(content, err)
-}
 
 // reviewDigest answers the review pin of content read with err: DELETED for
 // an absent file, UNREADABLE for any other failure, else its SHA-256.
@@ -746,4 +697,27 @@ func reviewCheckCommand(stem string, paths []string) string {
 		}
 	}
 	return quotePaths(words)
+}
+
+// selectedReviewFile reads a pin from immutable selection entries and modes.
+func selectedReviewFile(root, path string, selection hunks.Selection) (spec.ReviewedFile, error) {
+	if !selection.Selected(path) {
+		return spec.ReviewFile(root, path)
+	}
+	content, err := selection.Read(root, path)
+	if errors.Is(err, os.ErrNotExist) {
+		return spec.ReviewedFile{Path: path, Hash: "DELETED", Mode: "0"}, nil
+	}
+	if err != nil {
+		return spec.ReviewedFile{}, err
+	}
+	metadata, _, found := strings.Cut(selection[path].Entry, "\t")
+	if !found {
+		return spec.ReviewedFile{}, fmt.Errorf("selected review entry has no path: %s", path)
+	}
+	fields := strings.Fields(metadata)
+	if len(fields) != 3 {
+		return spec.ReviewedFile{}, fmt.Errorf("selected review entry has no Git mode: %s", path)
+	}
+	return spec.ReviewedFile{Path: path, Hash: reviewDigest(content, nil), Mode: fields[0]}, nil
 }

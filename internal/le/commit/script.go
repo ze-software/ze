@@ -55,7 +55,11 @@ type commitBlock struct {
 	// commit succeeds: the rows the commit carries as trailers, and any row a
 	// landed commit already carried. renderApprovalPrune writes one step per
 	// file that drops a line.
-	Approvals []approvalPrune
+	Approvals       []approvalPrune
+	ApprovalTargets []resolvedRFCApprovalSelection
+	// OrdinaryApprovals retains only the verdicts selected by this block, so a
+	// prior block's successful pruning cannot erase its publication-time check.
+	OrdinaryApprovals []string
 }
 
 // approvalPrune is one approval file and the lines a block drops from it.
@@ -83,7 +87,7 @@ const indexInfoDelimiter = "ZE_INDEX_INFO"
 // them back, so an appended block is judged against what the earlier blocks
 // commit; one spelling serves both sides.
 const (
-	indexInfoOpen        = `GIT_INDEX_FILE="$_ze_index" git update-index --index-info <<'` + indexInfoDelimiter + `'`
+	indexInfoOpen        = `while IFS= read -r _ze_entry; do printf '%s\0' "$_ze_entry"; done <<'` + indexInfoDelimiter + `' | GIT_INDEX_FILE="$_ze_index" git update-index -z --index-info`
 	privateRemovalPrefix = `GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- `
 )
 
@@ -92,9 +96,6 @@ func renderBlock(block commitBlock, scriptPath string) string {
 	lines := []string{
 		commentLine("Commit " + block.Tag + ": " + block.Subject),
 		blockMarker + " tag=" + block.Tag + " paths=" + quotePaths(all),
-	}
-	if block.ReviewCheck != "" {
-		lines = append(lines, "# critical-review gate re-check", block.ReviewCheck)
 	}
 	lines = append(lines, renderPublish(block, scriptPath))
 	// An empty list must not reach renderDriftNote: ls-files with no pathspec
@@ -190,10 +191,19 @@ func renderPublish(block commitBlock, scriptPath string) string {
 	}
 	all := append(append([]string{}, block.Paths...), block.Removed...)
 	if len(all) == 0 {
-		return renderEmptyPublish(block)
+		return renderEmptyPublish(block, scriptPath)
 	}
 	quoted := quotePaths(all)
 	notPublished := notPublishedLine(block)
+	// The publication check MUST follow the actual parent read in every attempt.
+	parentRead := `_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`
+	if check := renderApprovalPublicationCheck(block.ApprovalTargets, block.OrdinaryApprovals, notPublished); check != "" {
+		parentRead += "\n" + check
+	}
+	treeStep := `_ze_tree=$(GIT_INDEX_FILE="$_ze_index" git write-tree)`
+	if block.ReviewCheck != "" {
+		treeStep += "\n" + block.ReviewCheck
+	}
 	// The capacity is a sizing hint for the two appends below, which write
 	// fewer entries than this; append grows the slice if an edit adds more.
 	lines := make([]string, 0, 64)
@@ -227,7 +237,7 @@ func renderPublish(block commitBlock, scriptPath string) string {
 		`_ze_attempt=1`,
 		`while :; do`,
 		`_ze_seen=$_ze_parent`,
-		`_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`,
+		parentRead,
 		`_ze_moved=$(git --literal-pathspecs rev-list "$_ze_seen..$_ze_parent" -- `+quoted+`)`,
 		// With _ze_own empty, grep reads one empty pattern, which under -x
 		// matches only an empty line, and rev-list never prints one.
@@ -252,7 +262,7 @@ func renderPublish(block commitBlock, scriptPath string) string {
 		strayFilter.Str(" -e ").Str(shellQuote(path))
 	}
 	lines = append(lines,
-		`_ze_tree=$(GIT_INDEX_FILE="$_ze_index" git write-tree)`,
+		treeStep,
 		`_ze_status=0`,
 		`_ze_commit=$(printf '%s\n' "$_ze_text" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree") || _ze_status=$?`,
 		renderRefusal(`"$_ze_status" -ne 0`, notPublished,
@@ -305,9 +315,19 @@ func renderPublish(block commitBlock, scriptPath string) string {
 // and no peer change can collide with it, and the block builds on HEAD as it
 // stands. The empty-diff refusal of a block with paths is inverted: an empty
 // diff is this block's success, and a diff naming any path never lands.
-func renderEmptyPublish(block commitBlock) string {
+func renderEmptyPublish(block commitBlock, scriptPath string) string {
 	notPublished := notPublishedLine(block)
+	// The publication check MUST follow the actual parent read in every attempt.
+	parentRead := `_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`
+	if check := renderApprovalPublicationCheck(block.ApprovalTargets, block.OrdinaryApprovals, notPublished); check != "" {
+		parentRead += "\n" + check
+	}
+	treeStep := `_ze_tree=$(GIT_INDEX_FILE="$_ze_index" git write-tree)`
+	if block.ReviewCheck != "" {
+		treeStep += "\n" + block.ReviewCheck
+	}
 	lines := []string{
+		`_ze_index="$PWD"/` + shellQuote(indexFileFor(scriptPath)),
 		`_ze_message=` + shellQuote(block.MessagePath),
 		renderRefusal(`! -f "$_ze_message"`, notRunLine(block),
 			`echo "Its message file $_ze_message is gone. A block deletes it once its commit lands, so this block already published on an earlier run of this script, or the file was cleaned up."`,
@@ -323,9 +343,12 @@ func renderEmptyPublish(block commitBlock) string {
 		`if [ "$_ze_gpgsign" = true ]; then _ze_sign=1; fi`,
 		`_ze_attempt=1`,
 		`while :; do`,
-		`_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`,
+		parentRead,
+		`rm -f "$_ze_index"`,
+		`GIT_INDEX_FILE="$_ze_index" git read-tree "$_ze_parent"`,
+		treeStep,
 		`_ze_status=0`,
-		`_ze_commit=$(printf '%s\n' "$_ze_text" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_parent^{tree}") || _ze_status=$?`,
+		`_ze_commit=$(printf '%s\n' "$_ze_text" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree") || _ze_status=$?`,
 		renderRefusal(`"$_ze_status" -ne 0`, notPublished,
 			`echo "git commit-tree could not build the commit (its error is above). When commit.gpgsign is true, signing is the usual cause."`),
 		`_ze_changed=$(git diff-tree -r -z --no-renames --name-only "$_ze_parent" "$_ze_commit" | tr '\0' '\n')`,
@@ -428,7 +451,7 @@ func renderPrivateIndex(block commitBlock) string {
 		// private index still carries them: renderWorkingTreeRemoval compares
 		// the working-tree copies against exactly these lines.
 		lines = append(lines,
-			`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- `+quotePaths(block.Removed)+`)`,
+			`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs ls-files -s -z -- `+quotePaths(block.Removed)+` | tr '\0' '\n')`,
 			privateRemovalPrefix+quotePaths(block.Removed))
 	}
 	return strings.Join(lines, "\n")
@@ -455,8 +478,8 @@ func renderLostBlobs(block commitBlock) []string {
 		renderRefusal(`-n "$_ze_lost"`,
 			notPublishedLine(block),
 			`echo "The content prepared for these paths is gone from the object store, collected by a git gc:"`,
-			`GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- `+quotePaths(block.Paths)+
-				` | grep -F "$_ze_lost" | while read -r _ze_mode _ze_object _ze_stage _ze_path; do echo "invalid object $_ze_mode $_ze_object for '$_ze_path'"; done`,
+			`GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs ls-files -s -z -- `+quotePaths(block.Paths)+
+				` | tr '\0' '\n' | grep -F "$_ze_lost" | while IFS=$'\t' read -r _ze_meta _ze_path; do read -r _ze_mode _ze_object _ze_stage <<< "$_ze_meta"; echo "invalid object $_ze_mode $_ze_object for '$_ze_path'"; done`,
 			`echo "The working tree still holds each file. Prepare the commit again with ./le commit create."`))
 	return lines
 }
@@ -488,9 +511,9 @@ func renderDriftNote(paths []string) string {
 	lines := []string{
 		`rm -f "$_ze_index.now"`,
 		`GIT_INDEX_FILE="$_ze_index.now" git add -f -- ` + quoted + ` 2>/dev/null || true`,
-		`_ze_drift=$({ GIT_INDEX_FILE="$_ze_index.now" git -c core.quotePath=false ls-files -s -- ` + quoted + `;` +
-			` GIT_INDEX_FILE="$_ze_index" git -c core.quotePath=false ls-files -s -- ` + quoted + `;` +
-			` } | sort | uniq -u | cut -f2- | sort -u)`,
+		`_ze_drift=$({ GIT_INDEX_FILE="$_ze_index.now" git ls-files -s -z -- ` + quoted + `;` +
+			` GIT_INDEX_FILE="$_ze_index" git ls-files -s -z -- ` + quoted + `;` +
+			` } | tr '\0' '\n' | sort | uniq -u | cut -f2- | sort -u)`,
 		`rm -f "$_ze_index.now"`,
 		`if [ -n "$_ze_drift" ]; then`,
 		`  echo "NOTE: these paths changed on disk after this commit was prepared." >&2`,
@@ -527,7 +550,7 @@ func renderDriftNote(paths []string) string {
 func renderSharedIndexRepair(block commitBlock, scriptPath string) string {
 	steps := make([]string, 0, 2)
 	if len(block.Paths) != 0 {
-		steps = append(steps, "git ls-tree HEAD -- "+quotePaths(block.Paths)+" | git update-index --index-info")
+		steps = append(steps, "git --literal-pathspecs ls-tree -z HEAD -- "+quotePaths(block.Paths)+" | git update-index -z --index-info")
 	}
 	if len(block.Removed) != 0 {
 		steps = append(steps, "git update-index --force-remove -- "+quotePaths(block.Removed))
@@ -601,7 +624,7 @@ func renderWorkingTreeRemoval(removed []string) string {
 		"    continue",
 		"  fi",
 		`  GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs add -f -- "$_ze_path" 2>/dev/null || true`,
-		`  _ze_now=$(GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs -c core.quotePath=false ls-files -s -- "$_ze_path")`,
+		`  _ze_now=$(GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs ls-files -s -z -- "$_ze_path" | tr '\0' '\n')`,
 		`  if [ -n "$_ze_now" ] && printf '%s\n' "$_ze_removed" | grep -q -x -F -- "$_ze_now"; then`,
 		`    rm -f -- "$_ze_path"`,
 		"  else",

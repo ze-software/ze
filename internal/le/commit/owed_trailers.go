@@ -44,14 +44,30 @@ type carriedTrailer struct {
 	reason   string
 }
 
+// boundApproval is the companion of one verdict in the same carrier.
+type boundApproval struct {
+	carrier string
+	target  string
+	unit    string
+}
+
+// approvalIdentity names one unit in one exact commit, never a global unit.
+type approvalIdentity struct {
+	commit string
+	unit   string
+}
+
 // personActs is everything one range's trailers declare: what is owed, and
 // the answers that are records rather than derivations.
 type personActs struct {
 	owed     []owedTrailer
 	carried  []carriedTrailer
 	attested map[string]bool
-	approved map[string]bool
+	approved map[approvalIdentity]bool
 	problems []string
+	commits  map[string]bool
+	verdicts map[approvalIdentity]int
+	bindings []boundApproval
 }
 
 // readPersonActs reads the trailers over `P ^@{u}` (`HEAD ^@{u}` when no P
@@ -68,6 +84,7 @@ func (d *derivedDebt) readPersonActs(root, head string) error {
 		return fmt.Errorf("cannot derive the push debt: %w", err)
 	}
 	acts := parsePersonActs(bodies)
+	acts.validateBindings(root)
 	d.Refusals = append(d.Refusals, acts.problems...)
 	if len(acts.owed) == 0 && len(acts.carried) == 0 {
 		return nil
@@ -103,13 +120,22 @@ func (d *derivedDebt) readPersonActs(root, head string) error {
 // a key is the record. A malformed one is a problem, never skipped: dropping
 // it would drop the obligation it declares.
 func parsePersonActs(bodies string) personActs {
-	acts := personActs{attested: make(map[string]bool), approved: make(map[string]bool)}
+	acts := personActs{
+		attested: make(map[string]bool), approved: make(map[approvalIdentity]bool),
+		commits: make(map[string]bool), verdicts: make(map[approvalIdentity]int),
+	}
 	for record := range strings.SplitSeq(bodies, "\x1e") {
 		sha, body, found := strings.Cut(record, "\x00")
 		if !found {
+			if strings.TrimSpace(record) != "" {
+				acts.problems = append(acts.problems, "malformed Git person-act record "+
+					strconv.Quote(record)+
+					": the derivation cannot tell what it owes, so the push waits until the message framing is corrected")
+			}
 			continue
 		}
 		sha = strings.TrimSpace(sha)
+		acts.commits[sha] = true
 		for line := range strings.SplitSeq(body, "\n") {
 			acts.readLine(sha, strings.TrimRight(line, " \t\r"))
 		}
@@ -123,6 +149,15 @@ func (acts *personActs) readLine(sha, line string) {
 		acts.problems = append(acts.problems, "commit "+shortSHA(sha)+" carries a malformed "+
 			strings.TrimSpace(key)+" trailer "+strconv.Quote(line)+
 			": the derivation cannot tell what it owes, so the push waits until that line is corrected")
+	}
+	if strings.HasPrefix(line, strings.TrimSpace(rfc.ApprovalForTrailer)) {
+		target, unit, valid := rfc.ParseApprovalForTrailer(line)
+		if !valid {
+			malformed(rfc.ApprovalForTrailer)
+			return
+		}
+		acts.bindings = append(acts.bindings, boundApproval{carrier: sha, target: target, unit: unit})
+		return
 	}
 	// Trimming message whitespace must not make an empty declared trailer
 	// disappear just because its declaration includes a trailing space.
@@ -194,11 +229,75 @@ func (acts *personActs) readLine(sha, line string) {
 			malformed(rfc.ApprovalTrailer)
 			return
 		}
-		acts.approved[unit] = true
+		// Historical unbound verdicts keep their opaque subject grammar.
+		// Only an exact own-carrier key can answer; bound units are validated
+		// independently by their canonical companion.
+		key := approvalAnswerKey(sha, unit)
+		acts.verdicts[key]++
+		acts.approved[key] = true
 		return
 	}
 	if value, ok := strings.CutPrefix(line, trailerLedgerCarried); ok {
 		acts.readCarried(sha, value, func() { malformed(trailerLedgerCarried) })
+	}
+}
+
+func approvalAnswerKey(commit, unit string) approvalIdentity {
+	return approvalIdentity{commit: commit, unit: unit}
+}
+
+// validateBindings judges identities over exactly the range parsePersonActs
+// read. A binding never borrows another carrier's verdict or an out-of-range
+// target, and never translates a rebased target through patch identity.
+func (acts *personActs) validateBindings(root string) {
+	paired := make(map[approvalIdentity]bool)
+	targets := make(map[approvalIdentity]bool)
+	for _, binding := range acts.bindings {
+		problem := func(reason string) {
+			acts.problems = append(acts.problems, "commit "+shortSHA(binding.carrier)+
+				" carries invalid "+strings.TrimSpace(rfc.ApprovalForTrailer)+" "+
+				binding.target+" "+binding.unit+": "+reason)
+		}
+		key := approvalAnswerKey(binding.carrier, binding.unit)
+		// A paired verdict is not also an unbound approval of its carrier.
+		delete(acts.approved, key)
+		if acts.verdicts[key] != 1 {
+			problem("exactly one ordinary verdict for this unit must occur in the same carrier")
+			continue
+		}
+		if paired[key] {
+			problem("more than one target binding pairs with the same verdict")
+			continue
+		}
+		paired[key] = true
+		targetKey := approvalAnswerKey(binding.target, binding.unit)
+		if targets[targetKey] {
+			problem("the exact target/unit approval was already published in this range")
+			continue
+		}
+		targets[targetKey] = true
+		if !acts.commits[binding.target] {
+			problem("the target is outside the published range")
+			continue
+		}
+		if binding.target == binding.carrier {
+			problem("the target must precede the approval carrier")
+			continue
+		}
+		ancestor, err := isAncestor(root, binding.target, binding.carrier)
+		if err != nil {
+			problem("cannot read target ancestry: " + err.Error())
+			continue
+		}
+		if !ancestor {
+			problem("the target does not precede the approval carrier")
+			continue
+		}
+		if _, err := rfc.ResolveApprovalUnit(root, binding.target, binding.unit); err != nil {
+			problem(err.Error())
+			continue
+		}
+		acts.approved[targetKey] = true
 	}
 }
 
@@ -309,7 +408,7 @@ func (a *answering) answered(commit string, kind owedItemKind, subject string) b
 		}
 		return a.reviewed(subject, facts)
 	case owedItemRFCApproval:
-		if a.acts.approved[subject] {
+		if a.acts.approved[approvalAnswerKey(commit, subject)] {
 			return true
 		}
 		changed, err := changedTaggedUnits(a.root, facts)

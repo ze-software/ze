@@ -15,7 +15,7 @@ func TestAnsweredNamesACommitItCouldNotRead(t *testing.T) {
 	const commit = "0123456789abcdef0123456789abcdef01234567"
 	cache := newCommitCache()
 	cache.refused[commit] = "git show printed nothing"
-	acts := personActs{attested: map[string]bool{}, approved: map[string]bool{}}
+	acts := personActs{attested: map[string]bool{}, approved: map[approvalIdentity]bool{}}
 	answers := answering{root: t.TempDir(), cache: cache, acts: &acts, patchIDs: map[string]string{}}
 
 	if answers.answered(commit, owedItemReview, "spec-x") {

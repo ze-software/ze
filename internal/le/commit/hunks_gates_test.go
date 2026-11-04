@@ -56,7 +56,7 @@ func TestClosureStemHunksJudgesSelectedOwner(t *testing.T) {
 	selection := selectFixture(t, root, hunkSpecPath, head, head+"mine\n", both)
 	writeCommitFixture(t, root, hunkClassPath, "# Silent default\n\n"+hunkTableHead+hunkOpenRow)
 
-	_, err := closureStemSelected(root, []string{hunkClassPath, hunkSpecPath}, nil, specjournal.Base{}, selection)
+	_, err := closureStemSelected(root, []string{hunkClassPath, hunkSpecPath}, nil, specjournal.Base{}, selection, "HEAD")
 	if err == nil || !strings.Contains(err.Error(), "owned journal rows") {
 		t.Fatalf("an owner entry outside the selected hunks: %v, want the owned-rows refusal", err)
 	}
@@ -84,7 +84,7 @@ func TestClosureStemHunksIgnoresForeignRow(t *testing.T) {
 	both := "# Silent default\n\n" + hunkTableHead + hunkOpenRow + fixed.String() + mineRow
 	selection := selectFixture(t, root, hunkClassPath, head, head+mineRow, both)
 
-	if _, err := closureStemSelected(root, []string{hunkClassPath}, nil, specjournal.Base{}, selection); err != nil {
+	if _, err := closureStemSelected(root, []string{hunkClassPath}, nil, specjournal.Base{}, selection, "HEAD"); err != nil {
 		t.Fatalf("the selected hunk adds a fixed row only, yet the guard refused: %v", err)
 	}
 	if _, err := closureStem(root, []string{hunkClassPath}, nil, specjournal.Base{}); err == nil {
@@ -148,7 +148,7 @@ func TestClosureSidesHunksReadSelectedBlob(t *testing.T) {
 	configureCommitAuthor(t, root)
 	selection := selectFixture(t, root, "shared.txt", hunkBase, hunkMine, hunkBoth)
 
-	text, present, problem := workingTreeSides(root, selection).after("shared.txt")
+	text, present, problem := workingTreeSides(root, "HEAD", selection).after("shared.txt")
 	if problem != "" {
 		t.Fatal(problem)
 	}
@@ -183,7 +183,7 @@ func TestReviewHunksComparesLikeWithLike(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeCommitFixture(t, root, relative, "<!-- ze-review spec=demo verdict=clean rounds=1 -->\nfiles:\n  "+
-		hex.EncodeToString(digest[:])+"  "+path+"\n")
+		hex.EncodeToString(digest[:])+"  100644  "+path+"\n")
 
 	if result := checkReviewSelected(root, "demo", []string{path}, selection); !result.Clean {
 		t.Fatalf("a pin over the selected content: %v, want clean", result.Problems)
@@ -343,13 +343,13 @@ func TestSourceGatesNoTestCannotWaiveMalformedEntry(t *testing.T) {
 			options := &Options{NoTest: "a truthful reason", Session: "malformed-entry-fixture"}
 
 			err := checkSourceGates(root, options, &Prepared{}, []string{code, test}, nil,
-				"malformed-entry-fixture", selection)
+				"malformed-entry-fixture", selection, prospectiveContent{head: "HEAD", before: "HEAD^{tree}", tree: "HEAD^{tree}"})
 			if err == nil {
 				t.Fatal("no-test waived a malformed hunks entry")
 			}
 			// The prospective commit is the first reader of the entry, so its
 			// refusal is the one this entry point answers.
-			if !strings.Contains(err.Error(), "malformed index info not an index line") {
+			if !strings.Contains(err.Error(), "is not a `git ls-files -s` line") {
 				t.Fatalf("the refusal does not name the malformed entry: %v", err)
 			}
 		})

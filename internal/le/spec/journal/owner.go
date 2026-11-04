@@ -43,19 +43,17 @@ type classDate struct {
 	date  string
 }
 
-// Base is the tree a commit lands on, and its zero value is HEAD itself: a
-// commit prepared on its own lands directly on HEAD.
-//
-// A block appended to a prepared script lands after that script's earlier
-// blocks, which have not run yet, so HEAD is not what it lands on. Commit B of
-// the two-commit spec closure is the case: it removes the spec while commit A,
-// still unrun, carries the row's `fixed: ` marker or the entry moved to another
-// spec. Judged against bare HEAD, B strips an owner from a row A already
-// closed. Files holds the content an earlier block commits for a path and
-// Removed the paths an earlier block deletes; a path is in at most one.
+// Base supplies the baseline and reference source for journal judgments.
+// Native commit preparation MUST obtain it from ProspectiveBase and pass that
+// same value to validation and ownership checks: earlier unrun blocks belong
+// to the baseline, and captured references belong to the prospective tree.
+// The zero value intentionally preserves standalone HEAD/checkout judgments.
+// Files and Removed describe explicit baseline overlays for callers supplying
+// those themselves; a path belongs to at most one of the two.
 type Base struct {
 	Files   map[string]string
 	Removed map[string]bool
+	source *revisionSource
 }
 
 // read answers every path's content in the base, reading in one git process
@@ -72,7 +70,13 @@ func (base Base) read(root string, paths []string) (map[string]string, error) {
 		}
 		committed = append(committed, path)
 	}
-	contents, err := headFiles(root, committed)
+	var contents map[string]string
+	var err error
+	if base.source == nil {
+		contents, err = headFiles(root, committed)
+	} else {
+		contents, err = revisionFiles(root, base.source.before, committed)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +356,7 @@ func ownedRows(root string, paths, removed []string, base Base, carried Reader) 
 // block deletes or rewrites, plus every spec an earlier block writes with the
 // heading. The answer is sorted, so the base's map order never shows.
 func uncarriedOwners(root string, carried map[string]bool, base Base) ([]string, error) {
-	committed, err := headOwners(root)
+	committed, err := base.owners(root)
 	if err != nil {
 		return nil, err
 	}

@@ -75,16 +75,17 @@ columns are free prose for the reader and are not compared.
 `./le commit create` refuses a commit that would leave an open row with no
 owner (`UnownedOpenRows`, `internal/le/spec/journal/owner.go`). It judges the
 class and date keys the commit can change: the key of each open row the commit
-adds or changes against HEAD (a new row, an edited one, a `fixed:` row reopened,
+adds or changes against its retained baseline (a new row, an edited one, a `fixed:` row reopened,
 an open row moved into another class), and each key a spec the commit carries
-or removes lists, at HEAD or in the working tree, so closing a spec, deleting an
-entry or renaming a spec away from `spec-*.md` is judged as well. A row whose
-five cells the same class file holds at HEAD, marker included, adds no key, so
+or removes lists, before and after the prospective change, so closing a spec,
+deleting an entry or renaming a spec away from `spec-*.md` is judged as well.
+A row whose five cells the same baseline class holds, marker included, adds no key, so
 a commit merely carrying a legacy row is not judged on it. A key is owned when
 the tables list it at least as often as its class holds open rows of that date,
-so each open row needs its own entry. The tables are read from the specs the
-commit carries, in the working tree, and from every other spec at HEAD: an
-owner left uncommitted owns nothing, and a spec the commit removes owns
+so each open row needs its own entry. Commit preparation reads the tables and
+captures from its immutable prospective Git tree, and unchanged owners and moved
+rows from its recorded parent plus earlier script blocks. An owner left unselected
+owns nothing, and a spec the commit removes owns
 nothing. A `fixed:` row needs no owner. For an under-owned key the refusal names
 every open row of that key, legacy rows included, with its file and line and the
 table line to add, so following it clears the key.
@@ -103,8 +104,9 @@ the Go function that refuses the class's shape and the Go test that proves it,
 each as its repo-relative directory, a dot, and the function name. A `rule`
 capture names a point id under `ai/rules/points/` without `.md`, and is the
 weaker kind. The line carries no pipe, no `..` and no absolute path, and a
-class file holds at most one. The report resolves the references at HEAD and
-validate resolves them in the working tree; either refuses:
+class file holds at most one. The report resolves references at HEAD. Post-write
+validation resolves them in the working tree; commit preparation resolves them
+from its immutable prospective tree, never later checkout bytes. Each refuses:
 
 | Problem | When |
 |---------|------|

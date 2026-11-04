@@ -207,9 +207,10 @@ stem and added under another in the same commit is a RENAME, not a closure, and
 parent) and its text equals the removed spec's text at the parent with every
 occurrence of the old stem replaced by the new stem, and the pairing is one to
 one. Any other edit leaves the removal a closure, because the failure the rule
-guards is a real closure passing as a rename. A prepared commit reads HEAD and
-the working tree, except that a `hunks` path is read from its selected blob, and
-the review artifact must pin that blob's digest
+guards is a real closure passing as a rename. Preparation records HEAD before
+content selection and reads whole files and hunks from immutable snapshots.
+Closure review judges the prospective tree: recorded HEAD, earlier script blocks
+in order, current snapshots and hunks, then removals
 (`docs/contributing/committing.md`, "Committing some hunks of a shared file");
 the push derivation reads the commit's parent and the commit, through
 the same `closedSpecStem`. One commit closes one spec, and `oneStem` refuses a
@@ -260,7 +261,7 @@ result lists the tagged commits it judged (`ReviewResult.Commits`), so a short
 list is visible. The script's review re-check names the same files, and the
 push discharge of a `Review-owed:` judges the same population read at the
 closure commit's tree, through the one producer `specWorkPopulation`.
-<!-- source: internal/le/commit/review.go -- specWorkPopulation, scriptPaths, appendedPaths -->
+<!-- source: internal/le/commit/review.go -- specWorkPopulation, scriptPaths -->
 <!-- source: internal/le/commit/prepare.go -- checkVerificationGates -->
 <!-- source: internal/le/commit/owed_answers.go -- answerReviewed -->
 
@@ -268,12 +269,24 @@ closure commit's tree, through the one producer `specWorkPopulation`.
 Review has no required model. The artifact records the model when available;
 review independence comes from a fresh reviewer context.
 
-The review gate then requires a CLEAN `./le spec review record` artifact
-that covers every reviewable file of the spec's change set above and whose
-hashes still match, so an edit to a reviewable file after the review
-invalidates it. A refusal names the uncovered or stale files and the record
-verb as its usage shape, `./le spec review record spec <stem> ...`, which pins
-nothing when pasted.
+The review gate requires a CLEAN `./le spec review record` artifact covering
+every reviewable file of that change set, with matching SHA-256 content pins and
+Git modes. Historical paths are read from the prospective tree, not live checkout
+files. The generated checker receives the originating artifact and actual proposed
+tree on every compare-and-swap attempt, after constructing the tree and before
+publication; a changed ambient session cannot substitute its own artifact.
+Missing or unreadable Git objects refuse.
+
+The recorder accepts `file <path>`, `hunks <path> <patch-file>`,
+`blob <path> <full-object-ID> mode <path> <Git-mode>`, and `remove <path>`.
+Blob sources require an explicit mode (`100644`, `100755` or `120000`);
+removals pin `DELETED` with mode `0`. Each artifact file row carries the content
+pin, mode and exact path; `./le spec review hash file <path>` prints that same row.
+For ordinary file sources, Git's regular-file executable mode follows the owner
+execute bit. Group or other execute bits alone still pin mode `100644`.
+A refusal names uncovered or stale files and the record
+verb's usage shape, `./le spec review record spec <stem> ...`, which pins nothing
+when pasted.
 `review-override <reason>` is the only way past, and it writes a `Review-owed:`
 trailer that refuses the push until a clean review, a recorded Review Gate or
 the owner's attestation answers it.

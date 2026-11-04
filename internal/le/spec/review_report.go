@@ -9,6 +9,7 @@ import "github.com/ze-software/ze/internal/core/textbuf"
 type ReviewedFile struct {
 	Path string `json:"path"`
 	Hash string `json:"hash"`
+	Mode string `json:"mode,omitempty"`
 }
 
 // reviewArtifact is the structured form of one recorded review.
@@ -34,7 +35,7 @@ func (a reviewArtifact) Document() string {
 		Str(" model=").Str(firstNonemptyString(a.Model, "unknown")).Str(" ts=").Str(a.Timestamp).Str(" -->\n").
 		Str("# Independent review — ").Str(a.Spec).Str("\n\nfiles:\n")
 	for _, file := range a.Files {
-		tb.Str("  ").Str(file.Hash).Str("  ").Str(file.Path).Byte('\n')
+		tb.Str("  ").Str(file.Hash).Str("  ").Str(file.Mode).Str("  ").Str(file.Path).Byte('\n')
 	}
 	if a.RoundsReason != "" {
 		tb.Str("\nrounds-reason: ").Str(a.RoundsReason).Byte('\n')

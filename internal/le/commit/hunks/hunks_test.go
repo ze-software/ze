@@ -138,9 +138,31 @@ func TestApplyRefusals(t *testing.T) {
 		writeFile(t, root, path, "q\nmore\n")
 		patch := filepath.Join(t.TempDir(), "quoted.patch")
 		writeFile(t, filepath.Dir(patch), "quoted.patch", gitIn(t, root, "diff", "--", path))
-		_, err := Apply(root, head, path, patch)
-		if err == nil || !strings.Contains(err.Error(), "git quotes this path") || !strings.Contains(err.Error(), "Rename the file") {
-			t.Fatalf("a path git quotes: %v, want the quoted-path refusal with its fix", err)
+		entry, err := Apply(root, head, path, patch)
+		if err != nil {
+			t.Fatalf("raw quoted path was refused: %v", err)
+		}
+		if !strings.HasSuffix(entry, "\t"+path) {
+			t.Fatalf("entry lost exact raw path: %q", entry)
+		}
+		content, err := (Selection{path: {Entry: entry, Patch: patch}}).Read(root, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(content) != "q\nmore\n" {
+			t.Fatalf("selected raw-path bytes = %q", content)
+		}
+	})
+	t.Run("controls", func(t *testing.T) {
+		root, head := applyRepository(t)
+		for _, path := range []string{"a\tb.txt", "a\nb.txt", "a\rb.txt", "a\x00b.txt"} {
+			_, err := Apply(root, head, path, filepath.Join(t.TempDir(), "not-read.patch"))
+			if err == nil {
+				t.Fatalf("unsupported path controls accepted: %q", path)
+			}
+			if !strings.Contains(err.Error(), "controls") {
+				t.Fatalf("path %q failed outside control admission: %v", path, err)
+			}
 		}
 	})
 }

@@ -132,7 +132,10 @@ func approvalRows(root, session string) (map[string]string, error) {
 	rows := map[string]string{}
 	for line := range strings.SplitSeq(string(content), "\n") {
 		cells := strings.Split(strings.TrimSpace(line), "|")
-		if len(cells) != 4 {
+		if len(cells) != 4 && len(cells) != 5 {
+			continue
+		}
+		if len(cells) == 5 && strings.TrimSpace(cells[3]) != "" {
 			continue
 		}
 		unit := strings.TrimSpace(cells[1])

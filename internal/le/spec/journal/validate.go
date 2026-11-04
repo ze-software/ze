@@ -84,13 +84,51 @@ func ValidateFile(root, rawPath string) (ValidationReport, error) {
 	return ValidateCarried(root, rawPath, WorkingTree(root))
 }
 
-// ValidateCarried is ValidateFile over the content carried answers for the
-// file, which the commit gate passes so a path committed by `hunks` is judged
-// on the selected blob rather than the working-tree file.
+// ValidateCarried is standalone ValidateFile over the supplied file content.
+// Its references and baseline retain ValidateFile's checkout/HEAD semantics.
+// Native commit callers use ValidateAgainst with their immutable ProspectiveBase.
 func ValidateCarried(root, rawPath string, carried Reader) (ValidationReport, error) {
-	relative, err := journalRelativePath(root, rawPath)
-	if err != nil {
-		return ValidationReport{}, err
+	return ValidateAgainst(root, rawPath, carried, Base{})
+}
+
+// ValidateAgainst judges carried content and references against one base.
+// Commit callers MUST pass the same ProspectiveBase to UnownedOpenRows.
+func ValidateAgainst(root, rawPath string, carried Reader, base Base) (ValidationReport, error) {
+	relative := rawPath
+	var err error
+	if base.source == nil {
+		relative, err = journalRelativePath(root, rawPath)
+		if err != nil {
+			return ValidationReport{}, err
+		}
+	} else {
+		if strings.ContainsAny(relative, "\x00\t\r\n") {
+			return ValidationReport{}, fmt.Errorf("journal path contains controls: %q", relative)
+		}
+		if filepath.ToSlash(filepath.Clean(relative)) != relative {
+			return ValidationReport{}, fmt.Errorf("journal path is not canonical: %q", relative)
+		}
+		if !strings.HasPrefix(relative, journalPrefix) {
+			return ValidationReport{}, fmt.Errorf("not a journal class file: %s", relative)
+		}
+		if !strings.HasSuffix(relative, markdownExt) {
+			return ValidationReport{}, fmt.Errorf("not a journal class file: %s", relative)
+		}
+		if filepath.Base(relative) == journalReadme {
+			return ValidationReport{}, fmt.Errorf("not a journal class file: %s", relative)
+		}
+		entries, err := revisionEntries(root, base.source.tree, []string{relative})
+		if err != nil {
+			return ValidationReport{}, err
+		}
+		entry, found := entries[relative]
+		if !found {
+			return ValidationReport{}, fmt.Errorf("journal class is absent from the prospective tree: %s", relative)
+		}
+		regular := entry.mode == "100644" || entry.mode == "100755"
+		if !regular {
+			return ValidationReport{}, fmt.Errorf("journal class is not a regular file in the prospective tree: %s", relative)
+		}
 	}
 	content, err := carried(relative)
 	if err != nil {
@@ -101,12 +139,12 @@ func ValidateCarried(root, rawPath string, carried Reader) (ValidationReport, er
 	// The same file is searched first. A row that matches a HEAD row of another
 	// class was moved between classes (a merge or a split), which keeps its
 	// committed text, so it is not an added row either.
-	committed, err := headFiles(root, []string{relative})
+	committed, err := base.read(root, []string{relative})
 	if err != nil {
 		return ValidationReport{}, err
 	}
 	held := newHeldRows(journalRows(committed[relative]))
-	moved, err := rowsMovedFromOtherClasses(root, relative)
+	moved, err := rowsMovedFromOtherClasses(root, relative, base)
 	if err != nil {
 		return ValidationReport{}, err
 	}
@@ -168,8 +206,11 @@ func ValidateCarried(root, rawPath string, carried Reader) (ValidationReport, er
 	// The working tree is about to be committed, so a capture may carry today's
 	// date; the report, which reads HEAD, refuses one dated after HEAD.
 	today := time.Now().Format(time.DateOnly)
-	verdict, err := resolveCapture(judgeCaptureLines(captureLinesOf(string(content)), today, "dated after today"),
-		treeCaptureSource{root: root})
+	var source captureSource = treeCaptureSource{root: root}
+	if base.source != nil {
+		source = revisionCaptureSource{root: root, revision: base.source.tree}
+	}
+	verdict, err := resolveCapture(judgeCaptureLines(captureLinesOf(string(content)), today, "dated after today"), source)
 	if err != nil {
 		return ValidationReport{}, err
 	}

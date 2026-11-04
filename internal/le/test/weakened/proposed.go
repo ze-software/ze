@@ -612,6 +612,9 @@ func proposedApprovals(root, session, findingPath, packageName string, names []s
 		finding := Finding{Path: findingPath, Package: packageName, Name: name}
 		matched := false
 		for _, row := range rows {
+			if row.Target != "" {
+				continue
+			}
 			if !rowMatches(row.Name, finding) {
 				continue
 			}

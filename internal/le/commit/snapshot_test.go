@@ -196,7 +196,7 @@ func TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex(t *testing.T) {
 func TestSnapshotRefusesAPathGitStagedNothingFor(t *testing.T) {
 	t.Parallel()
 	entries, err := checkSnapshot([]string{"a.txt", "b.txt"},
-		"100644 0000000000000000000000000000000000000000 0\ta.txt\n")
+		"100644 0000000000000000000000000000000000000000 0\ta.txt\x00")
 	if err == nil {
 		t.Fatalf("checkSnapshot accepted a missing entry: %q", entries)
 	}
@@ -204,7 +204,7 @@ func TestSnapshotRefusesAPathGitStagedNothingFor(t *testing.T) {
 		t.Fatalf("the refusal does not name the path: %v", err)
 	}
 	if _, err := checkSnapshot([]string{"a.txt"},
-		"100644 0000000000000000000000000000000000000000 0\t\"a\\tb.txt\"\n"); err == nil {
+		"100644 0000000000000000000000000000000000000000 0\t\"a\\tb.txt\"\x00"); err == nil {
 		t.Fatal("checkSnapshot accepted an entry for a path this commit does not name")
 	}
 }

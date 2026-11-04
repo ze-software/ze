@@ -18,7 +18,7 @@ func TestCreateSemanticRFCApproval(t *testing.T) {
 	for _, mode := range []string{"comment only", "structural overlap", "weakening precedence"} {
 		t.Run(mode, func(t *testing.T) {
 			root := newLedgerRepository(t)
-			const path = "pkg/tagged_test.go"
+			const path = "pkg/one_test.go"
 			commitFixture(t, root, "tagged baseline", map[string]string{path: semanticRFCBaseline}, nil)
 			changed := strings.Replace(semanticRFCBaseline, "1, got)", "1, got) // Explain the assertion.", 1)
 			if mode == "structural overlap" {
@@ -30,6 +30,7 @@ func TestCreateSemanticRFCApproval(t *testing.T) {
 			if _, err := rfc.Approve(root, sessionOne, unit, reason); err != nil {
 				t.Fatal(err)
 			}
+			writeCommitFixture(t, root, "pkg/unused_test.go", "package pkg\n\nimport \"testing\"\n\nfunc TestUnused(t *testing.T) {}\n")
 			if _, err := rfc.Approve(root, sessionOne, "pkg.TestUnused", "reserved verdict"); err != nil {
 				t.Fatal(err)
 			}
@@ -118,7 +119,7 @@ func TestCreateSemanticRFCApprovalSelection(t *testing.T) {
 	for _, mode := range []string{"unchanged unit", "excluded hunk", "foreign session", "unrelated row", "no approval"} {
 		t.Run(mode, func(t *testing.T) {
 			root := newLedgerRepository(t)
-			const path = "pkg/tagged_test.go"
+			const path = "pkg/one_test.go"
 			head := semanticRFCBaseline + "\nfunc TestOther(t *testing.T) {\n\trequire.Equal(t, 1, other)\n}\n"
 			commitFixture(t, root, "tagged baseline", map[string]string{path: head}, nil)
 			changed := strings.Replace(head, "1, got)", "1, got) // Explain the assertion.", 1)
@@ -174,11 +175,14 @@ func TestCreateSemanticRFCApprovalSelection(t *testing.T) {
 func TestCreateSemanticRFCApprovalCollision(t *testing.T) {
 	for _, mixed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "both semantic", true: "semantic and structural"}[mixed], func(t *testing.T) {
-			root := newLedgerRepository(t)
+			root := newCommitRepository(t)
+			configureCommitAuthor(t, root)
 			paths := []string{"x/pkg/tagged_test.go", "y/pkg/tagged_test.go"}
-			commitFixture(t, root, "collision baseline", map[string]string{
-				paths[0]: semanticRFCBaseline, paths[1]: semanticRFCBaseline,
-			}, nil)
+			commitFixture(t, root, "first collision baseline", map[string]string{paths[0]: semanticRFCBaseline}, nil)
+			if _, err := rfc.Approve(root, sessionOne, "pkg.TestOne", "ambiguous verdict"); err != nil {
+				t.Fatal(err)
+			}
+			commitFixture(t, root, "second collision baseline", map[string]string{paths[1]: semanticRFCBaseline}, nil)
 			for index, path := range paths {
 				changed := strings.Replace(semanticRFCBaseline, "1, got)", "1, got) // Explain the assertion.", 1)
 				if mixed {
@@ -187,9 +191,6 @@ func TestCreateSemanticRFCApprovalCollision(t *testing.T) {
 					}
 				}
 				writeCommitFixture(t, root, path, changed)
-			}
-			if _, err := rfc.Approve(root, sessionOne, "pkg.TestOne", "ambiguous verdict"); err != nil {
-				t.Fatal(err)
 			}
 			before := readLedgerFile(t, root, rfc.ApprovalPath(sessionOne))
 			_, err := ledgerCreate(t, root, paths...)

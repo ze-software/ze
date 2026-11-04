@@ -6,8 +6,6 @@ package commit
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -18,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/rfc"
+	"github.com/ze-software/ze/internal/le/spec"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
@@ -150,20 +149,24 @@ func answerReviewed(root, artifact string, facts commitFacts) error {
 		if err != nil {
 			return err
 		}
-		paths = unique(slices.Concat(facts.Paths, population.Paths))
+		paths = unique(slices.Concat(facts.Paths, facts.Removed, population.Paths))
+	}
+	selection, err := treeSelection(root, facts.SHA, paths)
+	if err != nil {
+		return err
 	}
 	result := ReviewResult{Spec: stem, Artifact: artifact}
-	judgeReviewCoverage(&result, string(content), paths, func(path string) string {
-		text, present, problem := committedText(root, facts.SHA, path)
-		if problem != "" {
-			return "UNREADABLE"
+	var unreadable []string
+	judgeReviewCoverage(&result, string(content), paths, func(path string) spec.ReviewedFile {
+		pin, err := selectedReviewFile(root, path, selection)
+		if err != nil {
+			unreadable = append(unreadable, err.Error())
+			return spec.ReviewedFile{Path: path, Hash: "UNREADABLE"}
 		}
-		if !present {
-			return "DELETED"
-		}
-		sum := sha256.Sum256([]byte(text))
-		return hex.EncodeToString(sum[:])
+		return pin
 	})
+	result.Problems = append(result.Problems, unreadable...)
+	result.Clean = len(result.Problems) == 0
 	if !result.Clean {
 		return errors.New(strings.Join(result.Problems, "; "))
 	}

@@ -144,9 +144,9 @@ a unit also accepts that unit's weakening, so one test never needs two answers.
 |---|---|
 | Refused at edit time by | `internal/le/hookruntime` calling `internal/le/test/weakened` |
 | Refused at commit time by | `checkSourceGates` (`internal/le/commit/prepare.go`), which runs `testweakened.Check` |
-| Reads | `tmp/commit-weakening-approved-<session>.md`, `tmp/commit-rfc-approved-<session>.md`, and the HEAD content of the paths the commit names |
+| Reads | `tmp/commit-weakening-approved-<session>.md`, `tmp/commit-rfc-approved-<session>.md`, and immutable baseline/selected blobs for the paths the commit names |
 | Source | `internal/le/test/weakened.Check`, called by both gates |
-| Reviewed afterwards by | `./le test weakened check`, which reads the checked commit's own `Weakening-approved:` and `RFC-approved:` lines. Either line admits a unit's weakening; only an `RFC-approved:` line admits a change to an RFC-tagged unit |
+| Reviewed afterwards by | `./le test weakened check`, which reads the checked commit's own `Weakening-approved:` and unbound `RFC-approved:` lines. Either admits its unit's weakening; only an unbound `RFC-approved:` admits its carrier's RFC-tagged change. A bound historical verdict is not reused for a different change in its publication carrier |
 <!-- source: internal/le/test/weakened/testweakened.go -- Check, loadApprovalFile, claimFinding -->
 
 ### One approval names one test
@@ -165,6 +165,18 @@ named, because a pushed message cannot be corrected and a prose sentence that
 opens with `Weakening-approved:` must not block every later audit. The same
 loader marks a row whose trailer a landed commit already carries, so the hook
 refuses a second edit under it and names that commit, as the commit gate does.
+
+The shared table also reads targeted RFC rows with an optional `Target` column.
+Those rows approve only their exact historical change and are never used by the
+worktree weakening gate, edit hook or ordinary current-change selection. Their
+publication is explicit (`rfc-approval <revision> <unit>`), and landed detection
+requires the ordinary verdict and exact target binding in the same commit.
+The historical audit reads companions through the same strict full-SHA/unit
+parser as push debt. A bound RFC verdict does not also approve a separate
+weakening or tagged change of the same unit in the publication carrier;
+ordinary weakening verdicts in that carrier remain independent.
+<!-- source: internal/le/rfc/approve.go -- ParseApprovalForTrailer -->
+<!-- source: internal/le/test/weakened/audit.go -- acceptedRows, acceptedBy -->
 
 The unit keeps only the base name of its directory, so a test `TestX` in
 `a/cmd` and one in `b/cmd` are both `cmd.TestX`. When one commit changes that
@@ -194,7 +206,7 @@ there.
 ### A row is used once
 
 A semantic test change can keep or add assertions, so the structural detector
-can report no finding. `Check` also compares the selected unit text with HEAD
+can report no finding. `Check` also compares selected unit text with its baseline
 and carries a live approval for that changed existing unit, trying weakening
 rows first and RFC rows second, as it does for structural findings. This includes
 comment-only edits (`//` in Go, whole-line `#` in `.ci`, `.et` and `.py`
@@ -207,6 +219,14 @@ Unchanged units, excluded hunks and foreign-session approvals contribute no
 verdict. New functions and entirely new test files spend no semantic approval.
 The commit gate checks these approved units for ambiguous directory
 names together with structural findings and RFC changes.
+
+Commit preparation records HEAD once and applies earlier captured script blocks
+to form its immutable comparison baseline. It derives rename pairs by comparing
+that baseline with the selected prospective tree used by closure review. Whole
+files and selected hunks are read from captured blobs; the shared index and
+concurrent checkout edits are not alternate sources. An unavailable baseline or
+blob refuses the comparison, rather than becoming an absent or empty file.
+<!-- source: internal/le/test/weakened/prospective.go -- ProspectiveTree -->
 
 The Go scanner supplies exact declaration boundaries, including receiver methods
 and package-less edit fragments. Attached comments belong to the declaration.

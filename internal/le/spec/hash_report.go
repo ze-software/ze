@@ -10,11 +10,11 @@ type reviewHashes struct {
 	Files []ReviewedFile `json:"files"`
 }
 
-// Text renders the hash lines the prior review gate produced.
+// Text renders the content hash, Git mode and exact reviewed path.
 func (r reviewHashes) Text() string {
 	var tb textbuf.Buffer
 	for _, file := range r.Files {
-		tb.Str("  ").Str(file.Hash).Str("  ").Str(file.Path).Byte('\n')
+		tb.Str("  ").Str(file.Hash).Str("  ").Str(file.Mode).Str("  ").Str(file.Path).Byte('\n')
 	}
 	return tb.String()
 }

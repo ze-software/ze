@@ -23,10 +23,15 @@ import (
 // approval for good: `RFC-approved: <package>.<TestName>: <reason>`.
 const ApprovalTrailer = "RFC-approved: "
 
+// ApprovalForTrailer binds a same-carrier ordinary verdict to one exact change.
+const ApprovalForTrailer = "RFC-approved-for: "
+
 // approvalHeader opens a session file. The table is the row grammar
 // testweakened.ParseLedger reads, so the hook and the gate parse every
 // approval file with one reader.
-const approvalHeader = "# RFC-tagged test changes the owner approved\n\n| Test | Reason |\n|------|--------|\n"
+const approvalHeader = "# RFC-tagged test changes the owner approved\n\n| Test | Reason | Target |\n|------|--------|--------|\n"
+
+const keyCommit = "commit"
 
 // approvalUnitPattern is `<package>.<TestName>`: a package directory name, one
 // dot, and a Go test name or a `.ci` file stem. A path, a space, a pipe and a
@@ -51,11 +56,37 @@ func ApprovalTrailerLine(unit, reason string) string {
 	return ApprovalTrailer + unit + ": " + reason
 }
 
+// ApprovalForTrailerLine renders the exact change/unit companion of a verdict.
+func ApprovalForTrailerLine(target, unit string) string {
+	return ApprovalForTrailer + target + " " + unit
+}
+
+// ParseApprovalForTrailer reads one canonical full-SHA/unit companion. Callers
+// retain their existing message-line whitespace normalization.
+func ParseApprovalForTrailer(line string) (target, unit string, valid bool) {
+	value, found := strings.CutPrefix(line, ApprovalForTrailer)
+	if !found {
+		return "", "", false
+	}
+	target, unit, split := strings.Cut(value, " ")
+	if !split {
+		return "", "", false
+	}
+	if !ValidApprovalTarget(target) {
+		return "", "", false
+	}
+	if !ValidApprovalUnit(unit) {
+		return "", "", false
+	}
+	return target, unit, true
+}
+
 // ApprovalReport is what one approve call did.
 type ApprovalReport struct {
 	Path     string `json:"path"`
 	Unit     string `json:"unit"`
 	Reason   string `json:"reason"`
+	Target   string `json:"target,omitempty"`
 	Replaced bool   `json:"replaced"`
 }
 
@@ -67,6 +98,7 @@ type ApprovalFile struct {
 	Path    string
 	Header  string
 	Command string
+	Target  string
 }
 
 // ValidApprovalUnit reports whether unit is `<package>.<TestName>`, the one
@@ -78,28 +110,44 @@ func ValidApprovalUnit(unit string) bool {
 // Approve writes the judge's approval into the session's RFC approval file.
 // A reason citing an owner ruling MUST be issued from the owner's terminal.
 func Approve(root, session, unit, reason string) (ApprovalReport, error) {
-	if err := requireRulingTerminal(root, unit, reason); err != nil {
+	return approveTarget(root, session, "", unit, reason)
+}
+
+func approveTarget(root, session, target, unit, reason string) (ApprovalReport, error) {
+	if err := requireRulingTerminal(root, target, unit, reason); err != nil {
 		return ApprovalReport{}, err
 	}
-	return ApproveInto(root, ApprovalFile{Path: ApprovalPath(session), Header: approvalHeader, Command: "rfc approve"}, unit, reason)
+	if _, err := ResolveApprovalUnit(root, target, unit); err != nil {
+		return ApprovalReport{}, err
+	}
+	return ApproveInto(root, ApprovalFile{
+		Path: ApprovalPath(session), Header: approvalHeader, Command: "rfc approve", Target: target,
+	}, unit, reason)
 }
 
 // requireRulingTerminal uses the same predicate as the recorded-ruling consumer.
 // Ordinary judge verdicts and the shared weakening writer remain agent-usable.
-func requireRulingTerminal(root, unit, reason string) error {
+func requireRulingTerminal(root, target, unit, reason string) error {
+	operands := []string{keyUnit, unit, keyReason, reason}
+	if target != "" {
+		operands = append([]string{keyCommit, target}, operands...)
+	}
+	return requireRulingAuthorization(root, reason, operands)
+}
+
+func requireRulingAuthorization(root, reason string, operands []string) error {
 	if ownerRuling(reason) == "" {
 		return nil
 	}
-	return human.RequireAuthorization(root, "", "rfc approve", []string{keyUnit, unit, keyReason, reason})
+	return human.RequireAuthorization(root, "", "rfc approve", operands)
 }
 
 // ApproveInto writes the judge's approval of one unit into file, creating it,
-// and replaces the reason of a row that already names the unit rather than
-// adding a second row. A unit that is not `<package>.<TestName>`, an empty
-// reason, and a reason that would not fit on one trailer line are refused
-// before anything is written.
+// replacing only the exact (target, unit) row. Ordinary rows have no target.
+// Ordinary rows retain the shared weakening writer's syntactic contract; the
+// RFC entry resolves their carrier before calling this shared writer.
 func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalReport, error) {
-	report := ApprovalReport{Path: file.Path, Unit: unit, Reason: strings.TrimSpace(reason)}
+	report := ApprovalReport{Path: file.Path, Unit: unit, Reason: strings.TrimSpace(reason), Target: file.Target}
 	if !ValidApprovalUnit(unit) {
 		return report, errors.New(file.Command + ": unit must be <package>.<TestName>, got " + unit)
 	}
@@ -108,6 +156,11 @@ func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalR
 	}
 	if strings.ContainsAny(report.Reason, "\r\n|") {
 		return report, errors.New(file.Command + ": reason must be one line and carry no '|': it becomes one trailer line and one ledger cell")
+	}
+	if file.Target != "" {
+		if _, err := ResolveApprovalUnit(root, file.Target, unit); err != nil {
+			return report, err
+		}
 	}
 	full := filepath.Join(root, filepath.FromSlash(report.Path))
 	content, err := os.ReadFile(full) //nolint:gosec // the path is this session's own tmp/ file under the checkout root
@@ -119,10 +172,18 @@ func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalR
 		return report, err
 	}
 	row := "| " + unit + " | " + report.Reason + " |"
+	targetedTable := strings.Contains(string(content), "| Test | Reason | Target |")
+	if file.Target != "" {
+		content = extendApprovalTable(content)
+		targetedTable = true
+	}
+	if targetedTable {
+		row = "| " + unit + " | " + report.Reason + " | " + file.Target + " |"
+	}
 	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
 	var page textbuf.Buffer
 	for _, line := range lines {
-		if rowNames(line, unit) {
+		if rowNames(line, file.Target, unit) {
 			report.Replaced = true
 			page.Str(row).Byte('\n')
 			continue
@@ -146,7 +207,17 @@ func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalR
 // EXTENDS this one would answer for it. It only narrows the candidates: the
 // verdict is a whole message line equal to the trailer.
 func TrailerLanded(root, trailer string) (carrier string, landed bool, problem string) {
-	command := exec.CommandContext(context.Background(), "git", "log", "--fixed-strings", "--grep="+trailer, "--format=%x1e%h %s%x1f%B") // #nosec G204 -- fixed Git query; the trailer is one argv operand.
+	return approvalLanded(root, trailer, "")
+}
+
+// BoundApprovalLanded finds a unique verdict and its exact target binding in one
+// carrier. The tuple is spent regardless of later wording of the judge's reason.
+func BoundApprovalLanded(root, trailer, target, unit string) (carrier string, landed bool, problem string) {
+	return approvalLanded(root, trailer, ApprovalForTrailerLine(target, unit))
+}
+
+func approvalLanded(root, trailer, binding string) (carrier string, landed bool, problem string) {
+	command := exec.CommandContext(context.Background(), "git", "log", "--no-show-signature", "--format=%H") // #nosec G204 -- Fixed metadata-only history query; message bytes never frame carrier IDs.
 	command.Dir = root
 	var stdout bytes.Buffer
 	var complaint bytes.Buffer
@@ -161,34 +232,55 @@ func TrailerLanded(root, trailer string) (carrier string, landed bool, problem s
 			return "", false, ""
 		}
 		if _, ok := errors.AsType[*exec.ExitError](err); ok &&
-			strings.HasPrefix(complaint.String(), "fatal: not a git repository (or any of the parent") {
+			strings.HasPrefix(complaint.String(), "fatal: not a git repository (") {
 			return "", false, ""
 		}
-		return "", false, "git log --grep failed: " + strings.TrimSpace(complaint.String())
+		return "", false, "git log approval history failed: " + strings.TrimSpace(complaint.String())
 	}
-	for record := range strings.SplitSeq(stdout.String(), "\x1e") {
-		name, body, found := strings.Cut(record, "\x1f")
-		if !found {
-			continue
-		}
-		for line := range strings.SplitSeq(body, "\n") {
-			if strings.TrimSpace(line) == trailer {
-				return strings.TrimSpace(name), true, ""
-			}
-		}
-	}
-	return "", false, ""
+	carrier, matched, problem := approvalHistoryLanded(root, stdout.String(), []approvalHistoryQuery{newApprovalHistoryQuery(trailer, binding)})
+	return carrier, matched >= 0, problem
 }
 
-// rowNames reports whether one ledger line is the row for unit: its first
-// cell, under the `| Test | Reason |` grammar, is the unit.
-func rowNames(line, unit string) bool {
+// extendApprovalTable adds target identity to the existing table, retaining
+// ordinary rows as explicitly unbound rather than creating another ledger.
+func extendApprovalTable(content []byte) []byte {
+	if strings.Contains(string(content), "| Test | Reason | Target |") {
+		return content
+	}
+	lines := strings.Split(string(content), "\n")
+	for index, line := range lines {
+		body := strings.TrimSpace(line)
+		if !strings.HasPrefix(body, "|") {
+			continue
+		}
+		if body == "| Test | Reason |" {
+			lines[index] = "| Test | Reason | Target |"
+			continue
+		}
+		if strings.Trim(body, "|-: \t") == "" {
+			lines[index] = strings.TrimRight(body, "|") + "|--------|"
+			continue
+		}
+		lines[index] = strings.TrimRight(body, "|") + "| |"
+	}
+	return []byte(strings.Join(lines, "\n"))
+}
+
+// rowNames compares the existing table's exact target/unit key.
+func rowNames(line, target, unit string) bool {
 	body := strings.TrimSpace(line)
 	if !strings.HasPrefix(body, "|") {
 		return false
 	}
-	cells := strings.SplitN(body[1:], "|", 2)
-	return strings.TrimSpace(cells[0]) == unit
+	cells := strings.Split(strings.Trim(body, "|"), "|")
+	if len(cells) < 2 {
+		return false
+	}
+	rowTarget := ""
+	if len(cells) == 3 {
+		rowTarget = strings.TrimSpace(cells[2])
+	}
+	return strings.TrimSpace(cells[0]) == unit && rowTarget == target
 }
 
 // approveAnswer admits a parsed ruling before process startup can write.
@@ -202,21 +294,40 @@ func approveAnswer(args leaction.Arguments) (leaction.Prepared, int) {
 		leaction.ReportError(err)
 		return leaction.Prepared{}, 2
 	}
-	unit, reason := args.One(keyUnit), args.One(keyReason)
+	unit, reason, target := args.One(keyUnit), args.One(keyReason), args.One(keyCommit)
 	// This boundary MUST admit before SessionCommitSession writes a namespace.
-	// Approve independently guards callers that already have their namespace.
-	if err := requireRulingTerminal(root, unit, reason); err != nil {
+	operands := []string{keyUnit, unit, keyReason, reason}
+	if args.Has(keyCommit) {
+		operands = append([]string{keyCommit, target}, operands...)
+	}
+	if err := requireRulingAuthorization(root, reason, operands); err != nil {
 		leaction.ReportError(err)
 		return leaction.Prepared{}, 2
 	}
+	if args.Has(keyCommit) && target == "" {
+		leaction.ReportError(errors.New("rfc approve: commit requires a canonical full SHA"))
+		return leaction.Prepared{}, 2
+	}
+	if _, err := ResolveApprovalUnit(root, target, unit); err != nil {
+		leaction.ReportError(err)
+		return leaction.Prepared{}, 2
+	}
+	if strings.TrimSpace(reason) == "" {
+		leaction.ReportError(errors.New("rfc approve: reason is required"))
+		return leaction.Prepared{}, 2
+	}
+	if strings.ContainsAny(reason, "\r\n|") {
+		leaction.ReportError(errors.New("rfc approve: reason must be one line and carry no '|'"))
+		return leaction.Prepared{}, 2
+	}
 	return leaction.PreparedAnswer(func() (any, int) {
-		return approveAdmitted(root, unit, reason)
+		return approveAdmitted(root, target, unit, reason)
 	}), 0
 }
 
 // approveAdmitted retains the parsed ruling across startup. Approve keeps the
 // independent lower writer guard for callers that bypass this adapter.
-func approveAdmitted(root, unit, reason string) (any, int) {
+func approveAdmitted(root, target, unit, reason string) (any, int) {
 	// The approval admits the main thread's commit, so it is keyed on the
 	// main thread's namespace even when the judge agent records it.
 	session, err := lepath.SessionCommitSession(root)
@@ -224,7 +335,7 @@ func approveAdmitted(root, unit, reason string) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := Approve(root, session, unit, reason)
+	report, err := approveTarget(root, session, target, unit, reason)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

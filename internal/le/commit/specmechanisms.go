@@ -23,8 +23,8 @@ import (
 // between buckets, as renamedSpecs reads one). A spec that predates the rule
 // therefore owes the section only in the commit that next changes its text. A
 // removed spec carries no design and is judged by nobody.
-func specMechanismsRefusal(root string, paths, removed []string, selection hunks.Selection) error {
-	sides := workingTreeSides(root, selection)
+func specMechanismsRefusal(root string, paths, removed []string, selection hunks.Selection, head string) error {
+	sides := workingTreeSides(root, head, selection)
 	var problems []string
 	for _, path := range paths {
 		if !specpath.IsSpec(path) {

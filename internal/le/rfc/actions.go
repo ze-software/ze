@@ -93,7 +93,7 @@ var actions = leaction.New(area,
 			"this commit session's tmp/commit-rfc-approved-<session>.md. The edit hook and " +
 			"`./le commit create` read that file; the commit carries each row it used as an " +
 			"`RFC-approved:` trailer line and drops it from the file once the commit lands. A " +
-			"second call for the same unit replaces the reason. The judge RUNS IT whenever it " +
+			"second call for the same target and unit replaces the reason. The judge RUNS IT whenever it " +
 			"approves, with its verdict sentence as the reason. What it MUST NOT do is manufacture " +
 			"an approval, so the agent that made the change never runs it, and the reason is never " +
 			"the author's own reasoning about why the change is fine",
@@ -101,6 +101,7 @@ var actions = leaction.New(area,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the approved RFC-tagged unit, as <package>.<TestName>", Value: "<package>.<TestName>", Requirement: leaction.Required},
 			{Keyword: keyReason, Kind: leaction.KindString, Help: "the verdict; owner rulings require a terminal", Value: keyReason, Requirement: leaction.Required},
+			{Keyword: keyCommit, Kind: leaction.KindString, Help: "the exact historical change, as a canonical full commit SHA", Value: "fullSHA", Requirement: leaction.Optional},
 		},
 		PrepareArgs: approveAnswer},
 	leaction.Action{Verb: "check", Summary: "check RFC coverage, evidence and sign-off", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +

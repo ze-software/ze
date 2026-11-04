@@ -20,6 +20,15 @@ func requireOwnerReviewTerminal(root string, request reviewRecord) error {
 	for _, pair := range request.Hunks {
 		arguments = append(arguments, keywordHunks, pair.Path, pair.Patch)
 	}
+	for _, source := range request.Blobs {
+		arguments = append(arguments, keywordBlob, source.Path, source.Object)
+	}
+	for _, source := range request.Modes {
+		arguments = append(arguments, keywordMode, source.Path, source.Mode)
+	}
+	for _, path := range request.Removed {
+		arguments = append(arguments, keywordRemove, path)
+	}
 	for _, pair := range []struct{ keyword, value string }{
 		{keywordReviewers, request.Reviewers}, {keywordFindingsFile, request.FindingsFile},
 		{keywordRoundsReason, request.RoundsReason}, {keywordOwnerAuthorised, request.OwnerAuthorised},

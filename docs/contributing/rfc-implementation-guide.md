@@ -754,25 +754,63 @@ old one did. On APPROVE the judge records its verdict, once:
 
 On REFUSE the refusal stands, and the author fixes the code.
 
-The command writes one row into `tmp/commit-rfc-approved-<session>.md`, the
-file this commit session owns (`./le commit session`) and git never sees. A
-second call for the same unit replaces the reason. The Write/Edit hook and
-`./le commit create` both read that file, and both refuse a change to a tagged
-unit that no row names, printing the command. `./le commit create` then carries
-each row it used into the commit message as one trailer line,
-`RFC-approved: <package>.<TestName>: <reason>`, and the generated script drops
-the used rows from the file once the commit succeeds. The commit that changed
-the test is the record, where a reader looks first: `git log --grep
-RFC-approved:` lists every approval. A row whose whole trailer line a commit
-already carries approves nothing further: `TrailerLanded`
-(`internal/le/rfc/approve.go`) compares each message line to the trailer,
-and the refusal names that commit by short hash and subject. A row with no
-judge's verdict behind
-it is a forgery, not a shortcut, so the reason names what the judge approved
-and why the tagged requirement is still proven after the change, quoting the
-requirement id. The row also accepts a weakening of the same unit, so a tagged
-test the judge approved needs no second `./le test weakened approve` answer
-(`docs/contributing/testing.md`, "When a test must be weakened").
+The command resolves the canonical directory-based unit against current and HEAD
+carriers before writing a namespace or approval. Package-clause aliases, unknown
+units and keys shared by multiple directories refuse. Deleted units, non-Go
+carriers and semantic-only edits remain approvable. Each side is resolved
+independently: moving the only carrier does not create simultaneous duplicates,
+while two functions carrying the same unit in either state remain ambiguous.
+Go identity uses the exact declaration boundary, including one-line functions;
+a following declaration is not part of that function. An unresolved Go
+declaration cannot authorize an approval. The existing tag-scope reader keeps
+its conservative behavior for incomplete source.
+<!-- source: internal/le/rfc/approvalunits.go -- ResolveApprovalUnit -->
+
+Approvals live in the existing `tmp/commit-rfc-approved-<session>.md` table.
+Ordinary rows are unbound and admit only their own change carrier. To judge an
+already committed change, use
+`./le rfc approve commit <fullSHA> unit <package>.<TestName> reason "<verdict>"`.
+The full canonical SHA must resolve, and its parent/commit blobs must change
+that unique unit. Targeted rows are keyed by `(fullSHA, unit)`; a second verdict
+for that pair replaces its reason without replacing another target's row.
+A new reason does not renew a target/unit pair that was already published.
+
+Publish a targeted row with
+`./le commit create subject "<subject>" rfc-approval <revision> <unit>`.
+Repeat the selection for additional rows. Each revision resolves once. The
+publication carries the judge's unchanged `RFC-approved: <unit>: <reason>` and
+`RFC-approved-for: <fullSHA> <unit>` together, including when it changes no files.
+Unselected rows stay pending. Preparation and failed publication remove nothing;
+only successful publication prunes the exact used rows. Landed detection requires
+both lines in the same carrier, so equal reasons for different targets do not
+collapse. A rewritten change needs a fresh approval, not patch-id translation.
+
+Approval history reads canonical commit IDs and then length-framed raw commit
+objects. A reason's record separators, field separators, or NUL bytes cannot
+become another carrier header. An unreadable or malformed object leaves the
+answer unknown and preparation refuses; the judge's reason remains unchanged
+data. Carrier names are display text, not record boundaries or authority.
+Normal Git object validation rejects an embedded NUL in a commit
+(`nulInCommit`); the raw reader's defensive framing is not a claim that native
+publication accepts such a body.
+
+Ordinary RFC and weakening verdicts are captured with the prepared block and
+checked against each publication attempt's actual parent. Earlier blocks of
+the same appended script count as spent history too. Pruning the first block's
+row cannot let a later captured block publish different content under it.
+The refusal gives the matching RFC or weakening judge-recording command.
+After a fresh independent verdict, prepare a new `./le commit create` block
+with the intended selection rather than rerunning the captured block.
+
+Each publication attempt checks its actual Git parent for an already-published
+binding. Preparing two independent messages while a row is live does not permit
+the second message to spend that exact target/unit after the first lands.
+The selected full SHA must still precede that actual parent on every attempt;
+a branch rewrite cannot redirect the approval to another change.
+The ordinary row also accepts a weakening of the same unit, so a tagged test
+needs no second weakening approval (`docs/contributing/testing.md`).
+<!-- source: internal/le/test/weakened/ledger.go -- parseLedger, LoadApprovals -->
+<!-- source: internal/le/commit/rfcchange.go -- ResolveRFCApprovalSelections, SelectRFCApprovals -->
 
 An ordinary judge verdict remains agent-callable. A reason citing `owner ruling
 <identity>` instead issues owner authorization: the existing `ownerRuling`
@@ -787,11 +825,14 @@ and readers of recorded RFC approvals retain their noninteractive behavior.
 When the judge has not ruled yet, `rfc-change-ok "<reason>"` on
 `./le commit create` admits the commit anyway and writes one trailer per
 unapproved unit, `RFC-approval-owed: <package>.<TestName>: <reason>`. The
-commit lands, and the push is refused while the trailer is open: a later commit
-carrying `RFC-approved:` for the same unit answers it, and so does the owner's
-attestation, `./le commit create subject "<subject>" attest <commit> "<owner
-words>"`, an empty commit carrying `Owner-attested: <stable patch-id>: <owner
-words>`. Nothing outside the commits records either
+commit lands, and the push is refused while the trailer is open. A later
+publication answers only the exact target/unit named by its same-carrier pair;
+the target must precede the carrier and both must be in the published range.
+An unbound `RFC-approved:` answers only its own commit, never every change of
+that unit. The owner's attestation remains an alternative:
+`./le commit create subject "<subject>" attest <commit> "<owner words>"`,
+an empty commit carrying `Owner-attested: <stable patch-id>: <owner words>`.
+Nothing outside the commits records either
 (`docs/architecture/testing/verify-freshness-scope.md`).
 <!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
 <!-- source: internal/le/commit/owed_trailers.go -- readPersonActs -->

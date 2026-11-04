@@ -61,7 +61,7 @@ if [ -n "$_ze_peer" ]; then
 fi
 rm -f "$_ze_index"
 GIT_INDEX_FILE="$_ze_index" git read-tree "$_ze_parent"
-GIT_INDEX_FILE="$_ze_index" git update-index --index-info <<'ZE_INDEX_INFO'
+while IFS= read -r _ze_entry; do printf '%s\0' "$_ze_entry"; done <<'ZE_INDEX_INFO' | GIT_INDEX_FILE="$_ze_index" git update-index -z --index-info
 100644 c00ce3727d3ec887c8fa424f606bc729f37b1753 0	docs/listed.md
 100644 351be5bf6e17c59ea560546d69654115ecb2fd8d 0	mine.txt
 100644 e7b9423e2af62b78684f38271350bfd518fb5824 0	pkg/shared.txt
@@ -75,11 +75,11 @@ ZE_INDEX_INFO
 if [ -n "$_ze_lost" ]; then
   echo 'ERROR: commit golden (commit: one golden create line) was not published, and HEAD is unchanged by it.' >&2
   echo "The content prepared for these paths is gone from the object store, collected by a git gc:" >&2
-  GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' | grep -F "$_ze_lost" | while read -r _ze_mode _ze_object _ze_stage _ze_path; do echo "invalid object $_ze_mode $_ze_object for '$_ze_path'"; done >&2
+  GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs ls-files -s -z -- 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' | tr '\0' '\n' | grep -F "$_ze_lost" | while IFS=$'\t' read -r _ze_meta _ze_path; do read -r _ze_mode _ze_object _ze_stage <<< "$_ze_meta"; echo "invalid object $_ze_mode $_ze_object for '$_ze_path'"; done >&2
   echo "The working tree still holds each file. Prepare the commit again with ./le commit create." >&2
   exit 1
 fi
-_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- 'gone.txt')
+_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs ls-files -s -z -- 'gone.txt' | tr '\0' '\n')
 GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- 'gone.txt'
 _ze_tree=$(GIT_INDEX_FILE="$_ze_index" git write-tree)
 _ze_status=0
@@ -131,7 +131,7 @@ done
 git -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit"
 rm -f "$_ze_index.now"
 GIT_INDEX_FILE="$_ze_index.now" git add -f -- 'mine.txt' 'docs/listed.md' 2>/dev/null || true
-_ze_drift=$({ GIT_INDEX_FILE="$_ze_index.now" git -c core.quotePath=false ls-files -s -- 'mine.txt' 'docs/listed.md'; GIT_INDEX_FILE="$_ze_index" git -c core.quotePath=false ls-files -s -- 'mine.txt' 'docs/listed.md'; } | sort | uniq -u | cut -f2- | sort -u)
+_ze_drift=$({ GIT_INDEX_FILE="$_ze_index.now" git ls-files -s -z -- 'mine.txt' 'docs/listed.md'; GIT_INDEX_FILE="$_ze_index" git ls-files -s -z -- 'mine.txt' 'docs/listed.md'; } | tr '\0' '\n' | sort | uniq -u | cut -f2- | sort -u)
 rm -f "$_ze_index.now"
 if [ -n "$_ze_drift" ]; then
   echo "NOTE: these paths changed on disk after this commit was prepared." >&2
@@ -149,7 +149,7 @@ for _ze_path in "${_ze_gone[@]}"; do
     continue
   fi
   GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs add -f -- "$_ze_path" 2>/dev/null || true
-  _ze_now=$(GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs -c core.quotePath=false ls-files -s -- "$_ze_path")
+  _ze_now=$(GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs ls-files -s -z -- "$_ze_path" | tr '\0' '\n')
   if [ -n "$_ze_now" ] && printf '%s\n' "$_ze_removed" | grep -q -x -F -- "$_ze_now"; then
     rm -f -- "$_ze_path"
   else
@@ -159,7 +159,7 @@ done
 rm -f "$_ze_index.gone"
 # Point the shared index at what was committed. Nothing else in it is touched.
 _ze_waited=0
-until _ze_said=$({ git ls-tree HEAD -- 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' | git update-index --index-info && git update-index --force-remove -- 'gone.txt'; } 2>&1); do
+until _ze_said=$({ git --literal-pathspecs ls-tree -z HEAD -- 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' | git update-index -z --index-info && git update-index --force-remove -- 'gone.txt'; } 2>&1); do
   case "$_ze_said" in
     *index.lock*)
       if [ "$_ze_waited" -lt 30 ]; then
@@ -175,7 +175,7 @@ until _ze_said=$({ git ls-tree HEAD -- 'mine.txt' 'docs/listed.md' 'pkg/shared.t
   printf '%s\n' 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' 'gone.txt' >&2
   echo "Any later commit in this script did not run." >&2
   printf 'Run this from %s once .git/index.lock is released:\n' "$PWD" >&2
-  echo 'git ls-tree HEAD -- '"'"'mine.txt'"'"' '"'"'docs/listed.md'"'"' '"'"'pkg/shared.txt'"'"' | git update-index --index-info' >&2
+  echo 'git --literal-pathspecs ls-tree -z HEAD -- '"'"'mine.txt'"'"' '"'"'docs/listed.md'"'"' '"'"'pkg/shared.txt'"'"' | git update-index -z --index-info' >&2
   echo 'git update-index --force-remove -- '"'"'gone.txt'"'"'' >&2
   echo 'rm -f '"'"'tmp/commit-0a1b2c3d-golden-<nonce>.index'"'"'' >&2
   exit 1

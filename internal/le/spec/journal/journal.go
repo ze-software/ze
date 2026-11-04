@@ -696,22 +696,23 @@ func heldKey(cells [5]string) [5]string {
 // binds added and rewritten prose, does not measure it. The pairing is per
 // validated file: a row copied into two classes pairs in each, which the cap
 // does not judge, because the copy adds no prose.
-func rowsMovedFromOtherClasses(tree, relative string) (heldRows, error) {
-	unborn, err := headUnborn(tree)
-	if err != nil {
-		return nil, err
+func rowsMovedFromOtherClasses(tree, relative string, base Base) (heldRows, error) {
+	if base.source == nil {
+		unborn, err := headUnborn(tree)
+		if err != nil {
+			return nil, err
+		}
+		// An unborn standalone validation has no baseline rows.
+		if unborn {
+			return heldRows{}, nil
+		}
 	}
-	// A repository with no commit holds no class file, so no row was moved
-	// from one. git ls-tree refuses a HEAD that does not resolve.
-	if unborn {
-		return heldRows{}, nil
-	}
-	paths, err := classFilesAtHead(tree)
+	paths, err := base.classFiles(tree)
 	if err != nil {
 		return nil, err
 	}
 	others := slices.DeleteFunc(paths, func(path string) bool { return path == relative })
-	committed, err := headFiles(tree, others)
+	committed, err := base.read(tree, others)
 	if err != nil {
 		return nil, err
 	}

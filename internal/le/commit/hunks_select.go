@@ -87,17 +87,3 @@ func selectHunks(root, head string, files []string, raw []HunkSelection) ([]stri
 	}
 	return paths, selection, nil
 }
-
-// withoutSelected answers paths with every selected path left out, in order.
-func withoutSelected(paths []string, selection hunks.Selection) []string {
-	if len(selection) == 0 {
-		return paths
-	}
-	kept := make([]string, 0, len(paths))
-	for _, path := range paths {
-		if _, selected := selection[path]; !selected {
-			kept = append(kept, path)
-		}
-	}
-	return kept
-}

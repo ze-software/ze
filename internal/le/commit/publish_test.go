@@ -15,7 +15,7 @@ import (
 // runs the peer script first: a second session's commit landing in that exact
 // window. The peer script gets the private index path as its first argument. Every call then runs the real git unchanged.
 const peerGitWrapper = `#!/bin/bash
-if [ "${1:-}" = update-index ] && [ "${2:-}" = --index-info ] && [ -n "${GIT_INDEX_FILE:-}" ] && [ ! -e "$ZE_TEST_PEER_DONE" ]; then
+if [ "${1:-}" = update-index ] && [ "${2:-}" = -z ] && [ "${3:-}" = --index-info ] && [ -n "${GIT_INDEX_FILE:-}" ] && [ ! -e "$ZE_TEST_PEER_DONE" ]; then
   : > "$ZE_TEST_PEER_DONE"
   _ze_test_index="$GIT_INDEX_FILE"
   ( unset GIT_INDEX_FILE; bash "$ZE_TEST_PEER" "$_ze_test_index" ) < /dev/null

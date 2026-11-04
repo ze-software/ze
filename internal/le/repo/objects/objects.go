@@ -1,11 +1,12 @@
 // Design: docs/contributing/spec-workflow.md -- committed-source readers share Git object I/O.
-// Package objects resolves committed revisions and reads immutable blobs without
+// Package objects resolves immutable Git revisions and reads their blobs without
 // exporting, compiling or opening working-tree source files.
 package objects
 
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -34,10 +35,70 @@ func Resolve(ctx context.Context, root, revision string) (string, error) {
 	return resolved, nil
 }
 
+// ResolveTree resolves one explicit revision to its immutable tree ID.
+// Callers MUST retain this ID for all subsequent membership and blob reads.
+// Empty input refuses rather than substituting the ambient HEAD.
+func ResolveTree(ctx context.Context, root, revision string) (string, error) {
+	if revision == "" {
+		return "", errors.New("an explicit tree revision is required")
+	}
+	if strings.HasPrefix(revision, "-") {
+		return "", fmt.Errorf("invalid tree revision %q; select an explicit Git tree or commit", revision)
+	}
+	output, err := run(ctx, root, nil, "rev-parse", "--verify", "--end-of-options", revision+"^{tree}")
+	if err != nil {
+		return "", fmt.Errorf("tree revision %q is unavailable; restore its history or objects before preparing the commit: %w", revision, err)
+	}
+	resolved := strings.TrimSpace(string(output))
+	if !objectID(resolved) {
+		return "", fmt.Errorf("tree revision %q returned an invalid object ID; repair the repository", revision)
+	}
+	return resolved, nil
+}
+
+// ReadPath reads one exact blob member of a retained immutable tree. A missing
+// path in a readable tree returns present=false; missing trees or blobs refuse.
+// Callers MUST retain the tree returned by ResolveTree, not resolve HEAD again.
+func ReadPath(ctx context.Context, root, tree, path string) ([]byte, bool, error) {
+	if !objectID(tree) {
+		return nil, false, fmt.Errorf("invalid tree object ID %q; resolve the requested immutable tree before reading its paths", tree)
+	}
+	if path == "" {
+		return nil, false, errors.New("an explicit Git path is required")
+	}
+	for i := range len(path) {
+		if path[i] < ' ' || path[i] == 0x7f {
+			return nil, false, fmt.Errorf("Git path %q contains a control character", path)
+		}
+	}
+	output, err := run(ctx, root, nil, "--literal-pathspecs", "ls-tree", "-r", "-z", tree, "--", path)
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot read path %q from immutable tree %s: %w", path, tree, err)
+	}
+	if len(output) == 0 {
+		return nil, false, nil
+	}
+	entry, rest, terminated := bytes.Cut(output, []byte{0})
+	metadata, name, named := bytes.Cut(entry, []byte{'\t'})
+	mode, kindAndID, moded := bytes.Cut(metadata, []byte{' '})
+	kind, id, typed := bytes.Cut(kindAndID, []byte{' '})
+	blobID := string(id)
+	if !terminated || len(rest) != 0 || !named || string(name) != path ||
+		!moded || len(mode) != 6 || !typed || string(kind) != "blob" {
+		return nil, false, fmt.Errorf("path %q does not identify one exact blob member of immutable tree %s", path, tree)
+	}
+	blobs, err := Read(ctx, root, []string{blobID})
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot read path %q from immutable tree %s: %w", path, tree, err)
+	}
+	return blobs[0], true, nil
+}
+
 // Read reads the selected immutable blob IDs in one Git batch, in request order.
-// Callers MUST select IDs from one commit retained from Resolve, never resolve
-// HEAD again between selecting membership and reading metadata. Returned slices
-// own their retained batch payload and are safe for concurrent read-only use.
+// Callers MUST select IDs from one immutable revision retained from Resolve or
+// ResolveTree, never resolve HEAD again between selecting membership and reading
+// metadata. Returned slices own their retained batch payload and are safe for
+// concurrent read-only use.
 func Read(ctx context.Context, root string, ids []string) ([][]byte, error) {
 	blobs := make([][]byte, 0, len(ids))
 	if len(ids) == 0 {

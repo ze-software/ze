@@ -345,9 +345,9 @@ func parseChangedPaths(output string) []changedPath {
 	return changes
 }
 
-// acceptedRows answers the units one commit's owner approvals name: one row
-// per `Weakening-approved:` or `RFC-approved:` line of its message. The commit
-// is the record of what Thomas approved, so a later audit reads it there. A
+// acceptedRows answers the units one commit's unbound owner approvals name.
+// A bound RFC verdict names an earlier target, not a second change in its
+// publication carrier. The commit is the record a later audit reads. A
 // line whose unit is not `<package>.<TestName>` approves nothing and is
 // skipped: it is never read as a bare test name, and the findings it might
 // have named are still reported. It cannot refuse the commit, because a
@@ -359,6 +359,12 @@ func acceptedRows(root, commit string) (auditApprovals, string) {
 	if !started || code != 0 {
 		return accepted, "git could not read the message of commit " +
 			shortRevision(commit) + ": " + strings.TrimSpace(stderr)
+	}
+	boundTargets := make(map[string]string)
+	for line := range strings.SplitSeq(message, "\n") {
+		if target, unit, valid := rfc.ParseApprovalForTrailer(strings.TrimSpace(line)); valid {
+			boundTargets[unit] = target
+		}
 	}
 	for line := range strings.SplitSeq(message, "\n") {
 		for _, key := range []string{ApprovalTrailer, rfc.ApprovalTrailer} {
@@ -374,6 +380,9 @@ func acceptedRows(root, commit string) (auditApprovals, string) {
 				continue
 			}
 			row := Row{Name: unit, Reason: reason}
+			if key == rfc.ApprovalTrailer {
+				row.Target = boundTargets[unit]
+			}
 			accepted.weakening = append(accepted.weakening, row)
 			if key == rfc.ApprovalTrailer {
 				accepted.rfc = append(accepted.rfc, row)
@@ -426,6 +435,9 @@ func revisionText(root, revision, path string) (string, string) {
 func acceptedBy(rows []Row, packageName, name string) bool {
 	finding := Finding{Package: packageName, Name: name}
 	for _, row := range rows {
+		if row.Target != "" {
+			continue
+		}
 		if rowMatches(row.Name, finding) {
 			return true
 		}

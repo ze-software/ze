@@ -85,11 +85,15 @@ func reviewGateSection(label, verdict string) string {
 }
 
 // reviewArtifact renders a ze-review artifact pinning each path to a hash.
-func reviewArtifact(verdict string, hashes map[string]string) string {
+func reviewArtifact(stem, verdict string, hashes map[string]string) string {
 	var text strings.Builder
-	text.WriteString("<!-- ze-review spec=fixture verdict=" + verdict + " -->\n\n")
+	text.WriteString("<!-- ze-review spec=" + stem + " verdict=" + verdict + " -->\n\n")
 	for path, hash := range hashes {
-		text.WriteString("  " + hash + "  " + path + "\n")
+		mode := "100644"
+		if hash == "DELETED" {
+			mode = "0"
+		}
+		text.WriteString("  " + hash + "  " + mode + "  " + path + "\n")
 	}
 	return text.String()
 }
@@ -170,7 +174,7 @@ func TestReviewedAnswerJudgesTheArtifactAgainstTheCommitBytes(t *testing.T) {
 		map[string]string{code: "package pkg\n\nfunc Thing() {}\n"}, nil))
 
 	artifact := "tmp/review/fixture-clean.md"
-	writeCommitFixture(t, root, artifact, reviewArtifact("clean",
+	writeCommitFixture(t, root, artifact, reviewArtifact("fixture", "clean",
 		map[string]string{code: reviewHash(filepath.Join(root, filepath.FromSlash(code)))}))
 	if err := answerReviewed(root, artifact, reviewed); err != nil {
 		t.Fatalf("a clean artifact over the commit's own bytes was refused: %v", err)
@@ -180,7 +184,7 @@ func TestReviewedAnswerJudgesTheArtifactAgainstTheCommitBytes(t *testing.T) {
 	// path and still says nothing about what the commit carried.
 	writeCommitFixture(t, root, code, "package pkg\n\nfunc Thing() { println(1) }\n")
 	stale := "tmp/review/fixture-stale.md"
-	writeCommitFixture(t, root, stale, reviewArtifact("clean",
+	writeCommitFixture(t, root, stale, reviewArtifact("fixture", "clean",
 		map[string]string{code: reviewHash(filepath.Join(root, filepath.FromSlash(code)))}))
 	err := answerReviewed(root, stale, reviewed)
 	if err == nil {
@@ -202,7 +206,7 @@ func TestReviewedAnswerJudgesTheArtifactAgainstTheCommitBytes(t *testing.T) {
 		{"an uncovered path", "clean", map[string]string{}, "not covered"},
 	} {
 		path := "tmp/review/fixture-" + bad.verdict + strconv.Itoa(len(bad.coverage)) + ".md"
-		writeCommitFixture(t, root, path, reviewArtifact(bad.verdict, bad.coverage))
+		writeCommitFixture(t, root, path, reviewArtifact("fixture", bad.verdict, bad.coverage))
 		err := answerReviewed(root, path, reviewed)
 		if err == nil {
 			t.Errorf("%s answered the commit", bad.why)

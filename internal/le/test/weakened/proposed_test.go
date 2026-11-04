@@ -248,6 +248,7 @@ func TestApproveHookAndCommitReadOneFile(t *testing.T) {
 		t.Fatalf("an edit with no approval file = %#v, %v", report, err)
 	}
 	// A row for another unit buys nothing.
+	writeProposedFile(t, root, "pkg/other_test.go", "package pkg\n\nimport \"testing\"\n\nfunc TestOther(t *testing.T) {}\n")
 	if _, err := rfc.Approve(root, fixtureSession, "pkg.TestOther", "approved, but not this one"); err != nil {
 		t.Fatal(err)
 	}

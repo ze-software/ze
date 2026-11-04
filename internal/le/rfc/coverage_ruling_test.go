@@ -157,7 +157,9 @@ func TestCoverageRatchetAcceptsAnOwnerRuledGap(t *testing.T) {
 // would leave every owner-ruled move refused with nothing to say why.
 func TestApprovalRowsReadWhatApproveWrites(t *testing.T) {
 	humantest.Streams(t, "terminal")
-	root := t.TempDir()
+	root, _ := fixtureCommit(t, map[string]string{
+		"internal/bfd/widget_test.go": "package bfd\n\nimport \"testing\"\n\nfunc TestWidget(t *testing.T) {}\nfunc TestOther(t *testing.T) {}\n",
+	})
 	rows, err := approvalRows(root, "0badcafe")
 	if err != nil {
 		t.Fatal(err)

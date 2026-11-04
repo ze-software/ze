@@ -19,6 +19,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/repo/objects"
 )
 
 // Selection is the content a prepared commit carries for each path whose hunks
@@ -78,6 +80,9 @@ func (s Selection) Blob(path string) (string, error) {
 		return "", errors.New("hunks " + path + ": the selected entry " + strconv.Quote(selected.Entry) +
 			" names another path; this is a defect in ./le commit create, report it with this command line")
 	}
+	if fields[0] == "0" {
+		return "", &os.PathError{Op: "read selected removal", Path: path, Err: os.ErrNotExist}
+	}
 	return fields[1], nil
 }
 
@@ -91,11 +96,11 @@ func (s Selection) Read(root, path string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		out, err := git(root, nil, "cat-file", "blob", blob)
+		blobs, err := objects.Read(context.Background(), root, []string{blob})
 		if err != nil {
 			return nil, errors.New("read the selected content of " + path + ": " + err.Error())
 		}
-		return out, nil
+		return blobs[0], nil
 	}
 	repository, err := os.OpenRoot(root)
 	if err != nil {
@@ -187,17 +192,17 @@ func Apply(root, head, path, patchFile string) (string, error) {
 	if problem := changedProblem(path, patchFile, string(changed)); problem != "" {
 		return "", errors.New(problem)
 	}
-	listed, err := git(root, index, "-c", "core.quotePath=false", "ls-files", "-s", "--", path)
+	listed, err := git(root, index, "--literal-pathspecs", "ls-files", "-s", "-z", "--", path)
 	if err != nil {
 		return "", errors.New("hunks " + path + ": read the selected entry: " + err.Error())
 	}
-	entry := strings.TrimRight(string(listed), "\n")
+	entry := strings.TrimSuffix(string(listed), "\x00")
 	if entry == "" {
 		return "", errors.New("hunks " + path + ": the patch " + patchFile + " deletes " + path +
 			"; a deletion is committed with remove " + path + ", not hunks")
 	}
-	if strings.Contains(entry, "\n") {
-		return "", errors.New(quotedProblem(path) + "\n  git staged: " + entry)
+	if strings.Contains(entry, "\x00") {
+		return "", errors.New("hunks " + path + ": git returned multiple entries")
 	}
 	if !strings.HasSuffix(entry, "\t"+path) {
 		return "", errors.New(quotedProblem(path) + "\n  git staged: " + entry)
@@ -205,10 +210,7 @@ func Apply(root, head, path, patchFile string) (string, error) {
 	return entry, nil
 }
 
-// mustQuote reports whether git quotes path in its output even with
-// core.quotePath=false: a control character, a double quote or a backslash.
-// The script names each path in a shell word and an index line git reads
-// back, and a quoted name matches neither.
+// mustQuote refuses path controls that cannot appear in a prepared script.
 func mustQuote(path string) bool {
 	for _, character := range []byte(path) {
 		if character < 0x20 {
@@ -217,21 +219,13 @@ func mustQuote(path string) bool {
 		if character == 0x7f {
 			return true
 		}
-		if character == '"' {
-			return true
-		}
-		if character == '\\' {
-			return true
-		}
 	}
 	return false
 }
 
-// quotedProblem is the refusal for a path git must quote, with the fix.
+// quotedProblem is the refusal for a path with unsupported controls.
 func quotedProblem(path string) string {
-	return "hunks " + path + ": git quotes this path in its output, so the commit script cannot name it. " +
-		"Rename the file to a name with no control character, double quote or backslash, " +
-		"commit the rename through ./le commit create (remove the old name, file the new one), then select its hunks again"
+	return "hunks " + path + ": a path containing controls cannot be committed; rename it first"
 }
 
 // binaryProblem answers the refusal for a patch that changes binary content,

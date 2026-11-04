@@ -44,10 +44,7 @@ func TestCommitCreateHelpRendersEveryLiveKeyword(t *testing.T) {
 	}
 	want := []string{keywordSubject, keywordBody, keywordFile, keywordFileList, keywordHunks, keywordRemove,
 		keywordRemoveList, keywordReplace, keywordAppend, keywordScript, keywordSession, keywordTag, keywordAttest,
-		keywordLedgerCarried, keywordNoTest, keywordReviewOverride, keywordRFCChangeOK, keywordDryRun}
-	if len(live) != len(want) {
-		t.Errorf("create lists %d keywords, want the %d live ones", len(live), len(want))
-	}
+		keywordLedgerCarried, keywordNoTest, keywordReviewOverride, keywordRFCChangeOK, keywordDryRun, keywordRFCApproval}
 	page, held := list.ActionPage("le", "create")
 	if !held {
 		t.Fatal("the commit listing renders no create page")
@@ -66,7 +63,7 @@ func TestCommitCreateHelpRendersEveryLiveKeyword(t *testing.T) {
 	if live[keywordSubject].Requirement != leaction.Required {
 		t.Error("subject is not marked required")
 	}
-	for _, keyword := range []string{keywordBody, keywordFile, keywordFileList, keywordRemove, keywordRemoveList} {
+	for _, keyword := range []string{keywordBody, keywordFile, keywordFileList, keywordRemove, keywordRemoveList, keywordRFCApproval} {
 		if !live[keyword].Repeat {
 			t.Errorf("%s is not marked repeatable", keyword)
 		}

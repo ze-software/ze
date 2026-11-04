@@ -20,6 +20,7 @@ var separatorCellPattern = regexp.MustCompile(`^:?-{2,}:?$`)
 type Row struct {
 	Name   string `json:"name"`
 	Reason string `json:"reason"`
+	Target string `json:"target,omitempty"`
 	Line   int    `json:"line"`
 }
 
@@ -28,7 +29,10 @@ func parseLedger(contents, path string) ([]Row, []string) {
 	starts := make([]int, 0, 1)
 	for index, line := range lines {
 		cells, tableRow := tableCells(line)
-		if tableRow && len(cells) == 2 && cells[0] == "Test" && cells[1] == "Reason" {
+		if tableRow && len(cells) >= 2 && len(cells) <= 3 && cells[0] == "Test" && cells[1] == "Reason" {
+			if len(cells) == 3 && cells[2] != "Target" {
+				continue
+			}
 			starts = append(starts, index)
 		}
 	}
@@ -51,13 +55,22 @@ func parseLedger(contents, path string) ([]Row, []string) {
 			break
 		}
 		line := index + 1
-		if len(cells) != 2 {
+		header, _ := tableCells(lines[starts[0]])
+		if len(cells) != len(header) {
 			problems = append(problems, message.Reset().Str(path).Byte(':').Int(int64(line)).
-				Str(" has ").Int(int64(len(cells))).Str(" cells; a row is `| Test | Reason |`").String())
+				Str(" has ").Int(int64(len(cells))).Str(" cells; a row must match its approval table header").String())
 			continue
 		}
 		name, reason := cells[0], cells[1]
 		if separatorRow(cells) {
+			continue
+		}
+		target := ""
+		if len(cells) == 3 {
+			target = cells[2]
+		}
+		if target != "" && !rfc.ValidApprovalTarget(target) {
+			problems = append(problems, path+": approval target must be a canonical full commit SHA: "+target)
 			continue
 		}
 		if name == "" {
@@ -71,20 +84,21 @@ func parseLedger(contents, path string) ([]Row, []string) {
 				Str("; a row with no reason accepts nothing").String())
 			continue
 		}
-		if previous, duplicate := seen[name]; duplicate {
+		key := target + "\x00" + name
+		if previous, duplicate := seen[key]; duplicate {
 			problems = append(problems, message.Reset().Str(path).Byte(':').Int(int64(line)).
 				Str(" names ").Str(name).Str(" again (already on line ").Int(int64(previous)).
 				Str("); one test, one reason").String())
 			continue
 		}
-		seen[name] = line
-		rows = append(rows, Row{Name: name, Reason: reason, Line: line})
+		seen[key] = line
+		rows = append(rows, Row{Name: name, Reason: reason, Target: target, Line: line})
 	}
 	return rows, problems
 }
 
 // ParseLedger parses an owner approval file, the weakening one or the RFC
-// one, with the one canonical two-column table contract.
+// one, with the canonical table and optional exact-target column.
 func ParseLedger(contents, path string) ([]Row, []string) {
 	return parseLedger(contents, path)
 }
@@ -164,6 +178,8 @@ type ApprovalSource struct {
 	// Command renders the command that records an approval of unit, for a
 	// refusal to print.
 	Command func(unit string) string
+	// Bindings admits exact historical target rows only in the RFC source.
+	Bindings bool
 }
 
 // WeakeningApprovals is the source of one commit session's weakening
@@ -174,7 +190,7 @@ func WeakeningApprovals(session string) ApprovalSource {
 
 // RFCApprovals is the source of one commit session's RFC approval file.
 func RFCApprovals(session string) ApprovalSource {
-	return ApprovalSource{Path: rfc.ApprovalPath(session), TrailerLine: rfc.ApprovalTrailerLine, Command: rfc.ApproveCommand}
+	return ApprovalSource{Path: rfc.ApprovalPath(session), TrailerLine: rfc.ApprovalTrailerLine, Command: rfc.ApproveCommand, Bindings: true}
 }
 
 // ApprovalRow is one parsed approval row, the exact file line that holds it,
@@ -213,6 +229,10 @@ func LoadApprovals(root string, source ApprovalSource) ([]ApprovalRow, []string)
 	}
 	valid := make([]Row, 0, len(parsed))
 	for _, row := range parsed {
+		if row.Target != "" && !source.Bindings {
+			problems = append(problems, source.Path+": targeted rows belong only in the RFC approval table")
+			continue
+		}
 		if rfc.ValidApprovalUnit(row.Name) {
 			valid = append(valid, row)
 		} else {
@@ -227,7 +247,13 @@ func LoadApprovals(root string, source ApprovalSource) ([]ApprovalRow, []string)
 	rows := make([]ApprovalRow, 0, len(valid))
 	for _, row := range valid {
 		held := ApprovalRow{Row: row, Text: lines[row.Line-1], Trailer: source.TrailerLine(row.Name, row.Reason)}
-		carrier, landed, problem := rfc.TrailerLanded(root, held.Trailer)
+		var carrier, problem string
+		var landed bool
+		if row.Target == "" {
+			carrier, landed, problem = rfc.TrailerLanded(root, held.Trailer)
+		} else {
+			carrier, landed, problem = rfc.BoundApprovalLanded(root, held.Trailer, row.Target, row.Name)
+		}
 		if problem != "" {
 			return nil, []string{text.Reset().Str(cannotRunPrefix).Str(problem).String()}
 		}

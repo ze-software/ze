@@ -252,7 +252,7 @@ func TestDischargeJudgesTheSpecsEarlierCommits(t *testing.T) {
 		return hashes
 	}
 	own := "tmp/review/x-own.md"
-	writeCommitFixture(t, root, own, reviewArtifact("clean", pin("internal/e.go")))
+	writeCommitFixture(t, root, own, reviewArtifact("x", "clean", pin("internal/e.go")))
 	err := answerReviewed(root, own, closure)
 	if err == nil {
 		t.Fatal("an artifact covering only the closure commit's own code answered the spec's review")
@@ -261,7 +261,7 @@ func TestDischargeJudgesTheSpecsEarlierCommits(t *testing.T) {
 		t.Fatalf("the refusal %q does not name the earlier tagged commit's file", err)
 	}
 	whole := "tmp/review/x-whole.md"
-	writeCommitFixture(t, root, whole, reviewArtifact("clean", pin("internal/e.go", "internal/b.go")))
+	writeCommitFixture(t, root, whole, reviewArtifact("x", "clean", pin("internal/e.go", "internal/b.go")))
 	// The working tree moves on; the discharge reads the closure commit's tree.
 	writeCommitFixture(t, root, "internal/b.go", "package moved\n")
 	if err := answerReviewed(root, whole, closure); err != nil {

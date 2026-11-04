@@ -17,7 +17,10 @@ import (
 const approvalSession = "abcd1234"
 
 func TestApproveWritesTheSessionRow(t *testing.T) {
-	root := t.TempDir()
+	root, _ := fixtureCommit(t, map[string]string{
+		"pkg/x_test.go": "package pkg\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\nfunc TestZ(t *testing.T) {}\n",
+		"other/y_test.go": "package other\n\nimport \"testing\"\n\nfunc TestY(t *testing.T) {}\n",
+	})
 
 	report, err := Approve(root, approvalSession, "pkg.TestX", "Thomas approved the new count")
 	if err != nil {
