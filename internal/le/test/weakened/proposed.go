@@ -239,9 +239,9 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 	}
 
 	verdict := detect(oldText, newText, path)
-	findings := proposedFindings(path, oldText, newText)
+	findings, blocking := proposedFindings(path, oldText, newText)
 	report.Weakened = findings
-	if len(verdict.blocking) != 0 {
+	if blocking {
 		names := make([]string, 0, len(findings))
 		for _, finding := range findings {
 			names = appendUniqueName(names, finding.Name)
@@ -465,20 +465,22 @@ func repositoryPath(root, raw string) (string, error) {
 	return path, nil
 }
 
-func proposedFindings(path, oldText, newText string) []Finding {
+func proposedFindings(path, oldText, newText string) ([]Finding, bool) {
 	packageName := filepath.Base(filepath.Dir(path))
 	if filepath.Dir(path) == "." {
 		packageName = ""
 	}
 	verdicts := weakenedUnits(path, oldText, newText)
 	findings := make([]Finding, 0, len(verdicts))
+	blocking := false
 	for _, verdict := range verdicts {
+		blocking = blocking || verdict.blocking
 		findings = append(findings, Finding{
 			Path: path, Package: packageName, Name: verdict.name,
 			Details: append([]string(nil), verdict.details...),
 		})
 	}
-	return findings
+	return findings, blocking
 }
 
 // proposedRFCChanges answers the tagged units newText changes in oldText.

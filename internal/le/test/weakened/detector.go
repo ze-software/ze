@@ -104,7 +104,7 @@ func detect(oldText, newText, path string) detectorVerdict {
 	}
 	oldAssertions := matchCount(assertPattern, oldSource)
 	newAssertions := matchCount(assertPattern, newSource)
-	if oldAssertions > newAssertions && strings.TrimSpace(newText) != "" {
+	if oldAssertions > newAssertions {
 		verdict.advisory = append(verdict.advisory,
 			countVerdict("removing assertions", oldAssertions, newAssertions, ""))
 	}

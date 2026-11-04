@@ -241,7 +241,17 @@ unresolved findings to the file stem. Residual evidence is reported even when
 additions in a complete unit cancel the whole-file count. A complete unit's
 approval cannot cover that evidence. File-stem details are deduplicated only
 when their full text is identical.
+Deleting a complete named function keeps its assertion-count reduction under
+that function, even though its replacement is empty. A whole-file count drop
+already accounted for by that deletion does not require a second file-stem
+approval; genuinely unresolved or outside-function assertion loss still does.
+At edit time, any blocking named or residual verdict opens the existing
+per-unit approval lookup, even when compensating sibling changes leave
+whole-file assertion or skip counts unchanged. An advisory-only count reduction
+remains a notice at edit time; the commit check independently requires approval
+for every weakened unit.
 <!-- source: internal/le/test/weakened/scope.go -- weakenedUnits -->
+<!-- source: internal/le/test/weakened/proposed.go -- Proposed, proposedFindings -->
 
 A scanner diagnostic outside a closed unit does not invalidate that unit's boundary.
 <!-- source: internal/le/test/weakened/scope.go -- changedUnitNames, unitsByName, weakenedUnits -->

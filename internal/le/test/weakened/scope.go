@@ -83,7 +83,7 @@ func weakenedUnits(path, oldText, newText string) []namedVerdict {
 		if len(fileDetails) == 0 {
 			return nil
 		}
-		return []namedVerdict{{name: stem, details: fileDetails}}
+		return []namedVerdict{{name: stem, details: fileDetails, blocking: len(fileVerdict.blocking) != 0}}
 	}
 
 	oldUnits := unitsByName(oldText)
@@ -109,7 +109,7 @@ func weakenedUnits(path, oldText, newText string) []namedVerdict {
 		if name == "" {
 			name = stem
 		}
-		found = append(found, namedVerdict{name: name, details: details})
+		found = append(found, namedVerdict{name: name, details: details, blocking: len(verdict.blocking) != 0})
 		for _, detail := range details {
 			namedKinds[verdictKind(detail)] = true
 		}
@@ -121,6 +121,7 @@ func weakenedUnits(path, oldText, newText string) []namedVerdict {
 	// Residual evidence stands on its own: additions in a complete unit can
 	// cancel the whole-file count without restoring an unresolved unit's proof.
 	residual := appendVerdict(nil, unresolved)
+	residualBlocking := len(unresolved.blocking) != 0
 	for _, detail := range residual {
 		delete(namedKinds, verdictKind(detail))
 	}
@@ -132,16 +133,20 @@ func weakenedUnits(path, oldText, newText string) []namedVerdict {
 			continue
 		}
 		residual = append(residual, detail)
+		if slices.Contains(fileVerdict.blocking, detail) {
+			residualBlocking = true
+		}
 	}
 	if len(residual) != 0 {
-		found = append(found, namedVerdict{name: stem, details: residual})
+		found = append(found, namedVerdict{name: stem, details: residual, blocking: residualBlocking})
 	}
 	return found
 }
 
 type namedVerdict struct {
-	name    string
-	details []string
+	name     string
+	details  []string
+	blocking bool
 }
 
 func appendVerdict(target []string, verdict detectorVerdict) []string {
