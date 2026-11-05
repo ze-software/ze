@@ -205,6 +205,9 @@ func reloadGeneration(ctx context.Context, plugin *sdk.Plugin) int64 {
 }
 
 func runReloadRESTScenario(ctx context.Context, plugin *sdk.Plugin, mode reloadRESTMode, port int) error {
+	if !waitPeerEORSent(ctx, plugin, "peer1", WaitAttempts(100, 100*time.Millisecond, 80)) {
+		return errors.New("peer1 initial-sync EOR never reached the wire")
+	}
 	bootToken := ""
 	initialStatus := http.StatusOK
 	if mode != reloadRESTAuthRebuild {
@@ -266,6 +269,9 @@ func runReloadRESTScenario(ctx context.Context, plugin *sdk.Plugin, mode reloadR
 }
 
 func reloadPolicyScenario(ctx context.Context, plugin *sdk.Plugin) error {
+	if !waitPeerEORSent(ctx, plugin, "peer1", WaitAttempts(100, 100*time.Millisecond, 80)) {
+		return errors.New("peer1 initial-sync EOR never reached the wire")
+	}
 	const update = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000"
 	var policy string
 	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
@@ -322,6 +328,9 @@ func staleWarning(ctx context.Context, plugin *sdk.Plugin) bool {
 }
 
 func reloadPrefixScenario(ctx context.Context, plugin *sdk.Plugin) error {
+	if !waitPeerEORSent(ctx, plugin, "peer1", WaitAttempts(100, 100*time.Millisecond, 80)) {
+		return errors.New("peer1 initial-sync EOR never reached the wire")
+	}
 	if !Poll(ctx, 100, 100*time.Millisecond, func() bool { return staleWarning(ctx, plugin) }) {
 		return errors.New("timed out waiting for the prefix-stale warning to be raised")
 	}
