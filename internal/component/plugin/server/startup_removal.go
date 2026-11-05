@@ -112,6 +112,7 @@ type pluginRemoval struct {
 	err         error
 	scope       *reloadAcceptance
 	stop        sync.Once
+	failure     sync.Once // Supervisor and recovery MUST classify before retirement.
 	stopped     bool
 	recovering  bool
 	recoveryErr error
@@ -209,6 +210,18 @@ func (s *Server) finishPluginRemoval(proc *process.Process, attempt *pluginRemov
 		attempt.stopped = true
 		s.removalMu.Unlock()
 	})
+}
+
+// finishFailedPluginRemoval MUST receive a completed Bye and a generation whose
+// connection failed. It classifies that owner before retirement; a Configure
+// disconnect uses this same path even when the earlier Bye was a live refusal.
+func (s *Server) finishFailedPluginRemoval(proc *process.Process, attempt *pluginRemoval) error {
+	fatal := s.stopDaemonOnRemovalFailure(proc, attempt)
+	s.finishPluginRemoval(proc, attempt)
+	if fatal {
+		return fmt.Errorf("plugin %q failed before acknowledging removal and declares fatal failure; daemon shutdown was requested, so it cannot be restored", proc.Name())
+	}
+	return nil
 }
 
 // finishRemovalScope is called before the outer reload releases its completion
@@ -316,8 +329,14 @@ func removalConnectionFailed(proc *process.Process, err error) bool {
 // restoreRemovedPlugin runs under the same exclusion as config reload and reads
 // the current committed tree, never the rejected candidate captured by removal.
 func (s *Server) restoreRemovedPlugin(ctx context.Context, proc *process.Process, attempt *pluginRemoval) error {
-	if attempt.err == nil || removalConnectionFailed(proc, attempt.err) {
+	if attempt.err == nil {
 		s.finishPluginRemoval(proc, attempt)
+	} else if removalConnectionFailed(proc, attempt.err) {
+		// Recovery MUST classify the failed owner before finishPluginRemoval
+		// retires its manager slot, even when the supervisor has not run yet.
+		if err := s.finishFailedPluginRemoval(proc, attempt); err != nil {
+			return err
+		}
 	}
 	var tree map[string]any
 	if s.reactor != nil {
@@ -391,7 +410,10 @@ func (s *Server) restoreRemovedPlugin(ctx context.Context, proc *process.Process
 			return err
 		}
 		// The generation can disconnect after refusing Bye but before Configure.
-		s.finishPluginRemoval(proc, attempt)
+		// This error, not the earlier live Bye refusal, proves the disconnect.
+		if err := s.finishFailedPluginRemoval(proc, attempt); err != nil {
+			return err
+		}
 		return s.restoreRemovedPlugin(ctx, proc, attempt)
 	}
 	return nil

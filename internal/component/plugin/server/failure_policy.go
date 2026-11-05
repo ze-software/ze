@@ -110,7 +110,7 @@ func declaredPolicyName(declared rpc.FailurePolicy) string {
 // from inside it: releasePluginRegistrations waits on the runtime cleanup that
 // function defers, so calling it earlier waits for a cleanup that cannot run.
 //
-// Deliberate removal and these states are not failures:
+// An acknowledged removal and these states are not failures:
 //
 //   - The daemon is stopping. Every plugin exits then, and none of them failed.
 //   - The manager no longer holds this process under this name. A config reload
@@ -119,7 +119,10 @@ func declaredPolicyName(declared rpc.FailurePolicy) string {
 //   - Another path already replaced it. The name then holds a different process,
 //     which is the live one.
 func (s *Server) applyFailurePolicy(proc *process.Process) {
-	if s.ctx.Err() != nil || s.pluginRemovalPending(proc) {
+	if s.ctx.Err() != nil {
+		return
+	}
+	if s.applyRemovalFailurePolicy(proc) {
 		return
 	}
 	pm := s.procManager.Load()
@@ -153,6 +156,54 @@ func (s *Server) applyFailurePolicy(proc *process.Process) {
 		logger().Warn("plugin exited and is not to be started again, so ze continues without it",
 			"plugin", name)
 	}
+}
+
+// applyRemovalFailurePolicy settles a pending removal against its actual Bye
+// result. The supervisor MUST call it after runtime cleanup; waiting for Bye
+// inside the RPC handler would keep that callback from settling on disconnect.
+func (s *Server) applyRemovalFailurePolicy(proc *process.Process) bool {
+	s.removalMu.Lock()
+	attempt := s.removals[proc]
+	s.removalMu.Unlock()
+	if attempt == nil {
+		return false
+	}
+	select {
+	case <-attempt.done:
+		// Nonfatal removal recovery remains owned by its existing waiter.
+		s.stopDaemonOnRemovalFailure(proc, attempt)
+	case <-s.ctx.Done():
+	}
+	return true
+}
+
+// stopDaemonOnRemovalFailure classifies a failed fatal owner once, before its
+// manager slot can be retired. Callers MUST observe attempt.done first and
+// establish that the generation ended or its connection failed. A successful
+// Bye excludes later faults. The result forbids recovery even while daemon
+// shutdown is still being delivered asynchronously.
+func (s *Server) stopDaemonOnRemovalFailure(proc *process.Process, attempt *pluginRemoval) bool {
+	if attempt.err == nil {
+		return false
+	}
+	if pluginFailurePolicy(proc) != rpc.FailureFatal {
+		return false
+	}
+	attempt.failure.Do(func() {
+		if s.ctx.Err() != nil {
+			return
+		}
+		pm := s.procManager.Load()
+		if pm == nil {
+			return
+		}
+		if pm.GetProcess(proc.Name()) != proc {
+			return
+		}
+		pm.ReportCrash(proc.Name())
+		s.stopDaemonForPlugin(proc.Name(), "the fatal plugin failed before acknowledging removal")
+	})
+	return true
 }
 
 // stopDaemonOnStartupFailure stops the daemon when a plugin's startup failure is

@@ -737,9 +737,12 @@ restarted by the restore.
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- RestoreCreatedPeers -->
 
 A late callback completion waits for the outer scope to finish, then uses the same
-transaction exclusion to reconcile against the current committed tree. A removed,
-disconnected or panicked source is joined and replaced with its required
-dependencies. A live source whose cleanup failed receives its committed
+transaction exclusion to reconcile against the current committed tree. An
+acknowledged removal can be restored after outer rejection. A disconnected or
+panicked source that declared fatal failure stops the daemon before its manager
+slot is retired; recovery cannot replace it while shutdown is pending. A failed
+nonfatal source is joined and replaced with its required dependencies. A live
+source whose cleanup failed receives its committed
 configuration again. The first recovery attempt does not depend on another
 reload. Failed restoration keeps its ownership record, and the next explicit
 reload retries it before applying new configuration. Replacement startup receives
@@ -747,6 +750,7 @@ the recovery target's sections even if failed compensation left the candidate
 published. Failed recovery startup is reported to its owner, not treated as an
 ordinary fatal startup; unrelated startup and runtime failures keep their policy.
 <!-- source: internal/component/plugin/server/startup_removal.go -- notifyPluginRemoval, recoverPluginRemoval, restoreRemovedPlugin -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- applyRemovalFailurePolicy, stopDaemonOnRemovalFailure -->
 <!-- source: internal/component/plugin/server/reload_tx.go -- reloadAcceptance -->
 <!-- source: internal/component/plugin/server/reload_compensation.go -- recordReloadCompensation, compensateReload -->
 

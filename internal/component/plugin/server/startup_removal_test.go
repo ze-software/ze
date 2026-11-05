@@ -377,6 +377,11 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 							return err
 						})
 						registration := sdk.Registration{FailurePolicy: rpc.FailureFatal}
+						if scenario.crash {
+							if generation == 1 {
+								registration.FailurePolicy = rpc.FailureRestart
+							}
+						}
 						if scenario.outerRejected {
 							registration.WantsConfig = []string{root}
 							// It reads its root at configure only and applies no reload.
