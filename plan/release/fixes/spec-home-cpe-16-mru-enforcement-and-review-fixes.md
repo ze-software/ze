@@ -29,9 +29,9 @@ sections retained here. No issue is fixed by this split.
 
 ### Work Not Done
 
-| Finding | Owning spec | Coordination |
+| Finding | Owning spec or completed result | Coordination |
 |---------|-------------|--------------|
-| F-1 | `plan/release/fixes/spec-home-cpe-16a-omitted-mru-transmit-cap.md` | Owns the shared transmit-cap implementation and omitted-MRU proof. |
+| F-1 closure blocked | `plan/release/fixes/spec-home-cpe-16a-omitted-mru-transmit-cap.md` | Shared cap and live omission proof landed in `18ea5e830a` and `3cc99259b0`; closure returns to implementation for stale RFC audit/discrimination records over changed PPP producers. Durable behavior and procedures are in both transport guides and lab pages. |
 | F-2 | `plan/release/fixes/spec-home-cpe-16b-proxy-mru-transmit-cap.md` | Reuses F-1's shared cap; owns accepted-proxy proof and independent test judgment. |
 | F-3 | `plan/release/fixes/spec-home-cpe-16c-auth-policy-repair-commands.md` | Owns editor-executable, transport-specific repair messages. |
 | F-4 | `plan/release/fixes/spec-home-cpe-16d-mru-protocol-floors.md` | Owns IPv4/IPv6 MRU floors and config/runtime consistency. |
@@ -40,7 +40,7 @@ sections retained here. No issue is fixed by this split.
 | F-7 | `plan/release/validation/spec-home-cpe-16g-auth-refusal-order-proof.md` | Owns the live refusal checker's ConfAck exclusion. |
 | F-8 | `plan/release/validation/spec-home-cpe-16h-subscriber-radius-pppd.md` | Owns paired peer-image release alignment and rebuild evidence. |
 
-All children start at `skeleton`. Complete each child's research and design
+The children were created at `skeleton`. Complete each child's research and design
 before implementation. The umbrella closes only after all eight children
 meet their outcomes and their retained evidence supports the original goals.
 RFC requirement mapping belongs in the relevant child's research, not this
