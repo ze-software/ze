@@ -7,7 +7,8 @@
 
 ## Continuation: captured commit wait, 2026-11-05
 
-The prepared diagnostic now ran. The next action is diagnosis of storage latency using the retained trace, subject to the pending owner direction below.
+The prepared diagnostic now ran. Both forced commit and the corrected route-refresh draft reached required storage barriers when their output waits expired.
+The next action is resolution of the storage wait, subject to the pending owner direction below. Do not repeat the completed route-refresh source diagnosis.
 The earlier instruction to obtain the first live stack is satisfied. No product or test change follows from these captures yet.
 
 Both plugin runs used `./le --name ci41685742426-stallcapture test stress-repro run suite 'plugin --draft' test 'session-editor-commit-force session-editor-commit-verify policy-final-disposition bgp-capture-replay attach-process-delivery-graph' any-failure iterations 80 parallel 2 burners 1 timeout 240 minutes 25`, with the prepared fixture overlay and `CGO_ENABLED=0`.
@@ -28,13 +29,22 @@ The existing prohibitions on wider deadlines, changed backing and weaker durabil
 
 Separate reload progress has landed in `405f472cd7`: both community reload tests were promoted with their required egress membership preserved.
 That commit records independent test judgment, native draft and promoted passes, and 80 successful stress invocations of the pair.
-The attempted three-draft run ending `20261105-013407-1358465072.log` stopped at `test "bgp-filter-community-reload" not found`, because that test had been promoted. It supplies no runtime proof.
+The attempted three-draft run ending `20261105-013407-1358465072.log` stopped at `test "bgp-filter-community-reload" not found`, because that test had been promoted. It supplies no runtime proof and establishes no absence of the remaining drafts.
 The live `bgp-route-refresh-enabled-over-ssh` run failed invocation 1 at its 60-second case timeout. Its log ends `20261105-013504-324635378.log`.
 That timeout alone did not locate the failed script step. The disposable `route-refresh-pollcapture/overlay.json` records the first failed poll response without changing predicates or deadlines.
 The instrumented live single-invocation run, with the same parallel and burner settings, failed step 8 waiting for `"route-refresh":true`. Its log ends `20261105-013845-3149552913.log`.
 The actual UI reported `Session committed: 1 change(s) applied and reloaded`. The final peer JSON still reported `negotiation-complete:true`, `route-refresh:false`, one established connection and zero dropped connections.
 The wire evidence contained only the initial EOR, with no Cease. The stack is retained at `tmp/session/2026-11-05-002734/scratch/route-refresh-pollcapture/daemon-stacks-3011966463.json`.
-No product cause is established. `/root/route_refresh_diagnosis` is tracing the candidate-to-reload path read-only, while preserving other sessions' authority and framing migrations.
+Source diagnosis resolved the live test's premise: `peerSettingsSwapPlan` and `negotiationOutcomeUnchanged` correctly keep the session when the peer offered no Route Refresh capability.
+Enabling the local offer leaves that negotiation false, as permitted by `docs/guide/config-reload.md`. The live test incorrectly expected a restart and a true result.
+The retained draft already adds an independent capability-2 offer from the peer. It predates this session and was hidden by the ignored-file search.
+Independent judge `/root/route_refresh_judge` approved that exact retained diff through `tmp/commit-weakening-approved-2c5d4340.md`, preserving the initial false result and all Cease, EOR and final true assertions.
+
+Main then ran `suite 'reload --draft' test 'bgp-route-refresh-enabled-over-ssh' any-failure iterations 80 parallel 2 burners 1 timeout 240 minutes 25` with the poll-capture overlay.
+Its log ends `20261105-014430-210448681.log`: invocations 1 through 44 passed, and invocation 45 failed step 6 waiting for `Session committed:` at the unchanged 20-second output deadline.
+The retained `route-refresh-pollcapture/daemon-stacks-383822974.json` captures goroutine 162 in the active mirror frame's fsync: `installBytes` through `promoteCandidateLocked`, `recoverFileCommit`, `NotifyReload` and `runCommitSession`.
+This is another required storage publication. It establishes neither an 80-invocation pass nor promotion eligibility. No product or test source edits were made in this continuation, apart from the disposable diagnostic overlay.
+The pending owner choice still governs further storage diagnosis or a permitted completion wait within the existing case timeout. No deadline, backing or durability change has been selected.
 
 The publication holds remain: `check_rfc.go` and `check_rfc2545_third_party.go` still differ from HEAD.
 Inventory `source.go`, `registrations.go` and `collectactualfiles.go` are still absent from HEAD. The five RFC metadata records and two DocSource patches remain held for their committed producers.
