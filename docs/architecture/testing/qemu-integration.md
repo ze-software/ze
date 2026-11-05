@@ -17,14 +17,16 @@ for the native validation and its limits.
 CGO_ENABLED=0 ./le --name qemu-setup build-artifacts host
 ./ze-host appliance kernel --target runtime --arch amd64 --builder docker
 
-# test qemu all runs INSIDE the guest. le test qemu run boots the guest and carries it in.
-./le --name qemu-current test qemu run kernel "<kernel-directory>/vmlinuz" packages "iproute2 libcap" \
-  command "./le test qemu all"
 ```
 
-Replace `<kernel-directory>` with the directory the kernel builder prints.
-This example targets an amd64 guest. Use the matching architecture for other
+The kernel builder prints its output directory. This example targets an amd64
+guest. Use the matching architecture for other
 guests. `build-artifacts host` builds only `ze-host`; it does not stage a kernel.
+
+Run the guest commands below through the command branch described in
+"One command in Ze's own system". Prepare the main-checkout mount, explicit
+caches and host-built test binaries first. `test qemu all` requires root in
+that Ze-system guest; the legacy Alpine bootstrap is not an entry point for it.
 
 The Go release the guest unpacks is DERIVED from the `go` directive of `go.mod`
 (`goversion.DeclaredRelease`), so the guest and the host compile with one
@@ -73,14 +75,15 @@ The first run fetches the Alpine ISO and Go toolchain. Alpine is cached under
 
 ### The two entry points
 
-Both entry points run one VM for the whole population, never one VM per test.
+The own-system command carrier can run a whole population in one VM. These
+commands execute inside that guest; `test qemu all` runs as root.
 
 | Command | Population |
 |---------|------------|
 | `./le test qemu netns suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases, the RFC 2545 next-hop replay case and the static-into-OSPF redistribution chain case |
-| `./le test qemu run ... command "./le test qemu all"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Five of the suites run in a per-test network namespace, which needs `packages "iproute2 libcap"` |
-| `./le test qemu run ... command "./le test qemu all only needs-linux"` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
-| `./le test qemu run ... command "./le test qemu all test test/<dir>/<name>.ci"` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`), with the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` and `testqemu.OneCIPackages` |
+| `le test qemu all` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Five suites run in a per-test network namespace, requiring full `ip`, `setcap` and `getcap` tools |
+| `le test qemu all only needs-linux` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
+| `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`), with the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` and `testqemu.OneCIPackages` |
 
 `test qemu all` discovers the suites' tests through the native runner, so a new
 `needs-linux` test needs no registration there. `netns` uses the explicit
@@ -98,16 +101,35 @@ status contract.
 <!-- source: internal/le/test/qemu/alltests_deadline.go -- allTestsRun.suiteChild, allTestsRun.suiteTimeout -->
 <!-- test: internal/le/test/qemu/alltests_timeout_linux_test.go -- TestQEMUAllSuiteDeadlineUsesNativeOwnership, TestQEMUAllSuiteDeadlineRefusesUnboundedBudgets -->
 
+Both full and selected `test qemu all` runs prepare the guest's conntrack flow
+source before starting a suite. The preparation requires UID 0, Ze's runtime
+kernel and `/gokrazy/init` as PID 1 before changing kernel state. Ze builds the
+required conntrack and ctnetlink support in, so an absent `modprobe` is harmless.
+The action enables accounting, reads back `1`, and atomically installs one
+accept-only output tracking rule in its reserved `inet le_test_conntrack`
+table. It replaces only that table's output-chain rule on repeated calls;
+other tables remain untouched. Full chain readback verifies the output hook,
+priority, accept policy and single `ct state` counter rule.
+
+The preparation uses the native process owner with a 30-second deadline and
+the same fifteen-second TERM-to-KILL grace. Setup or readback failure stops
+before a fixture can receive a verdict. The distro test DUT deliberately
+does not perform appliance-only kernel setup, so an own-system boot alone
+does not make its conntrack recent-flow ring live.
+<!-- source: internal/le/test/qemu/alltests_conntrack.go -- allTestsRun.prepareConntrack, guestConntrackSetup -->
+<!-- source: internal/le/test/qemu/alltests.go -- allTestsRun.Execute, allTestsRun.executeOne -->
+<!-- test: internal/le/test/qemu/alltests_conntrack_test.go -- TestQEMUAllPreparesConntrackBeforeSuites, TestQEMUAllRefusesConntrackPreparationFailure -->
+
 <!-- source: internal/le/test/qemu/alltests.go -- AllTestsRun.Run, the phase population -->
 <!-- source: internal/le/test/qemu/guestlabs.go -- the netns suite selection -->
 
 ### `test qemu all` is a GUEST action, and four things must be true before it runs
 
-`le test qemu all` refuses to start outside the VM: `internal/le/test/qemu/actions.go`
-registers it with "This action runs inside the VM. Its caller is the command
-value passed to the host qemu run action." Typed on the host it answers
-`qemu: the repository is not mounted: /workspace` and nothing runs. The host
-driver is always `./le test qemu run ... command "<the guest command>"`.
+`le test qemu all` is a guest action. A host without the checkout mounted at
+`/workspace` refuses immediately. Before kernel preparation, the action also
+checks root and actual Ze-system identity; an environment flag cannot make a
+host or an Alpine guest pass those checks. Use the own-system command carrier
+and its prepared main-checkout mount, caches and binaries.
 
 Four preconditions, each of which fails with a message that does NOT name the
 precondition. Measured 2026-09-04 and 2026-09-05, seven guest boots to establish:
@@ -141,46 +163,43 @@ guest le `./le test qemu run` built on the host and bypasses the dispatcher.
 <!-- source: internal/le/test/qemu/run.go -- setupCommand -->
 <!-- source: le -- le_input_key, choose_build, le_runs_here -->
 
-`coreutils` was a fifth precondition until 2026-09-05. The suite wrapper passed
-GNU `timeout --kill-after=15s`, which the guest's BusyBox `timeout` answers with
-`unrecognized option` and exit 1, so every suite printed the usage text under its
-own header and ran no test. The wrapper now passes `-k 15`, which BusyBox and GNU
-coreutils both accept (`killAfterFlag`, `internal/le/test/qemu/alltests.go`). A run
-with `packages "iproute2"` alone reached ten suites and several thousand `.ci`
-tests on 2026-09-05, with no BusyBox usage text anywhere in its log.
+`coreutils` used to be a fifth precondition. The external timeout wrapper first
+used a GNU long option, then `-k 15`; minimal BusyBox versions reject one or
+both before executing any suite. The native deadline owner now supplies the
+cap and process-group cleanup directly, so neither spelling nor an external
+`timeout` executable is a prerequisite.
 
-### Running ONE `.ci` test in a throwaway guest
+### Running ONE `.ci` test in a Ze guest
 
-For a single Linux-only test, reproduce the shim that `test qemu all` normally
-creates. Build the target binaries first; the QEMU action builds the guest `le`
-itself:
+Boot the [own-system command carrier](#one-command-in-zes-own-system) with
+Ze's matching runtime kernel. Prepare the shared main checkout at `/workspace`,
+explicit `GOCACHE` and `GOMODCACHE`, and the host-built guest harness and daemon
+binaries. Set `GUEST_LE` to that harness's absolute path and pass `ZE_BIN`,
+`ZE_STRIPPED_BIN` and `ZE_STRIPPED_FLOW_BIN` for the selected build.
+
+Inside that prepared Ze guest, as root:
 
 ```bash
-./le test qemu run \
-  kernel tmp/kernel/build/vmlinuz packages "iproute2" command '
-    set -e
-    shim=$(mktemp -d /tmp/ze-bgp.XXXXXX)
-    ln -s /workspace/bin/ze-linux-arm64 "$shim/ze"
-    ln -s /workspace/tmp/qemu/linux-arm64/le "$shim/le"
-    ln -s /workspace/bin/ze-stripped-linux-arm64 "$shim/ze-stripped"
-    cd /workspace
-    PATH="$shim:$PATH" LE_TEST_NO_BUILD=1 \
-      ZE_BIN=/workspace/bin/ze-linux-arm64 "$shim/le" test bgp plugin <test-name>
-  '
+cd /workspace
+"$GUEST_LE" test qemu all test test/plugin/<test-name>.ci
 ```
 
-`LE_TEST_NO_BUILD=1` and `ZE_BIN` are not optional. Without them the runner
+The selected entry point creates the binary shim, prepares conntrack and any
+required network namespace, then runs that CI alone. A direct `test bgp plugin`
+command with a manual shim would bypass the kernel preparation.
+
+`test qemu all` supplies `LE_TEST_NO_BUILD=1` and the explicit `ZE_BIN` to every
+suite (`environment`, `internal/le/test/qemu/alltests.go`). Without them the runner
 builds its own ze from the source tree inside the guest and never looks at the
 `ze` on `PATH` (`NewRunner` and `setupBinShims`, `internal/test/runner/runner.go`).
 The test then passes or fails on a binary you did not build. A red you forced by
 cross-building a broken ze, or by an overlay, never reaches the test, and the
-green it reports proves nothing. `test qemu all` sets both for every suite
-(`environment`, `internal/le/test/qemu/alltests.go`).
+green it reports proves nothing.
 
 Keep the host session identity on the host invocation. Do not export
 `CLAUDE_CODE_SESSION_ID` or `ze.session.id` into the guest command. Without a
 session identity, the functional runner creates fresh work directories in the
-guest's `TMPDIR`, which QEMU sets to `/tmp`.
+guest's `TMPDIR`. Set it to the guest-local `/tmp` during preparation.
 
 Exporting the host identity selects
 the host session directory through `/workspace` instead. Files created through
@@ -191,8 +210,10 @@ their stores. The host admission slot still reaches the guest through
 <!-- source: internal/test/runner/runner_exec.go -- runTest -->
 <!-- source: internal/le/test/qemu/run.go -- setupCommand -->
 
-`./le test qemu run` holds the host's admission slot itself, under the label
-`qemu-run`, and its guest setup writes a stand-in entry in the guest's own
+The own-system command carrier supplies the guest's LABEL-only `ZE_RUN_JOB`
+stand-in; retain that parent rather than passing the host's PID-bearing registry
+entry. The legacy Alpine `./le test qemu run` route holds a host admission slot
+itself, under the label `qemu-run`, and its guest setup writes a stand-in entry in the guest's own
 `/tmp` and exports it as `ZE_RUN_JOB`, so the guest runner runs inside that slot
 instead of touching the host's PID registry: neither machine can judge whether
 a process on the other is alive. A guest le that admitted itself would also
@@ -202,6 +223,8 @@ that ran past the 60-second git limit and killed `le test firewall` before its
 first test. The run never attaches to another run's verdict: its kernel image
 and cross-built binaries are untracked, so equal words over an equal tree can
 still judge different code.
+<!-- source: internal/le/test/qemu/dockerlab_command.go -- Run.dockerLabCommand -->
+<!-- source: internal/le/test/qemu/guestle.go -- guestRunParentSetup -->
 
 The host invocation establishes one signal root before admission or the guest-le
 build. SIGINT, SIGTERM and SIGHUP cancel its own admission wait, active build or

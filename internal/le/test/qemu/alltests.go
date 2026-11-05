@@ -6,12 +6,12 @@
 //
 // alltests.go is the whole ze test suite, run INSIDE the QEMU Linux VM.
 //
-// It runs in the guest, not on the host. The native qemu run action has
-// already prepared the guest: it booted Alpine, 9p-mounted the repository at
-// /workspace, loaded the ppp, l2tp and nft kernel modules, and installed the Go
-// toolchain. The three ze binaries and the le personality were cross-compiled
-// on the host and shared in over that mount. The remaining task is to run every
-// phase and report which phases failed.
+// It runs inside Ze's own guest system, with the main checkout mounted at
+// /workspace and explicit caches and prebuilt daemon binaries. The native
+// action prepares namespace capabilities and the guest's conntrack flow source
+// before starting suites; it does not assume a legacy distribution bootstrap
+// enabled accounting or installed tracking hooks. It then runs every phase and
+// reports which phases failed.
 //
 // Four phases run. The functional suites use concurrency that an 8-vCPU VM can
 // carry, rather than the concurrency that a build host can carry. The unit tests
@@ -602,6 +602,10 @@ func (a *allTestsRun) Execute() (AllTestsReport, int) {
 		leaction.ReportError(err)
 		return report, 1
 	}
+	if err := a.prepareConntrack(environ); err != nil {
+		leaction.ReportError(err)
+		return report, 1
+	}
 
 	for _, suite := range vmSuites {
 		report.add(a.suite(suite, environ))
@@ -849,6 +853,10 @@ func (a *allTestsRun) executeOne(environ []string) (AllTestsReport, int) {
 	}
 	a.note(plan(report.Planned))
 	if err := a.prepareNamespace(environ, scope); err != nil {
+		leaction.ReportError(err)
+		return report, 1
+	}
+	if err := a.prepareConntrack(environ); err != nil {
 		leaction.ReportError(err)
 		return report, 1
 	}

@@ -145,10 +145,9 @@ func TestEveryDeclaredSuiteIsEitherRunOrExcluded(t *testing.T) {
 // phaseCount is the unit phase, the installer phase and the integration phase.
 const phaseCount = 3
 
-// preparationCommands is the one child that runs before the suites: the
-// per-test network namespace preparation (prepareNamespace, alltests.go). It
-// is not a phase, so it carries no verdict and appears in no report.
-const preparationCommands = 1
+// preparationCommands counts namespace and conntrack setup before the suites.
+// Neither preparation is a test phase; both must succeed before a suite starts.
+const preparationCommands = 2
 
 // One command per suite that is not skipped, plus every phase. The count is
 // ABSOLUTE: a run that stopped after five suites and a comparison against
@@ -163,7 +162,7 @@ func TestTheRunEmitsOneCommandPerSuitePlusEveryPhase(t *testing.T) {
 		t.Fatalf("a run whose every child answered 0 exited %d: %v", code, report.Failed)
 	}
 
-	// The preparation, every suite but the skipped one, then the phases.
+	// Both preparations, every suite but the skipped one, then the phases.
 	wantCommands := preparationCommands + len(vmSuites) - 1 + phaseCount
 	if len(rec.calls) != wantCommands {
 		t.Fatalf("%d commands ran, want exactly %d", len(rec.calls), wantCommands)

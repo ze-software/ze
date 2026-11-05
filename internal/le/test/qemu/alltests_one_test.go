@@ -19,11 +19,11 @@ func TestOneTestRunsOnlyTheSuiteThatWalksItsDirectory(t *testing.T) {
 	for _, tc := range []struct {
 		test        string
 		wantWords   []string
-		wantCommand int // namespace preparation, then the suite
+		wantCommand int // namespace (when needed), conntrack, then the suite
 	}{
-		{test: "test/policy/policy-boot-apply.ci", wantWords: []string{"policy", "policy-boot-apply"}, wantCommand: 2},
-		{test: "test/plugin/show-mtu-host.ci", wantWords: []string{"bgp", "plugin", "show-mtu-host"}, wantCommand: 1},
-		{test: "test/pppoe/pppoe-basic.ci", wantWords: []string{"pppoe", "pppoe-basic"}, wantCommand: 2},
+		{test: "test/policy/policy-boot-apply.ci", wantWords: []string{"policy", "policy-boot-apply"}, wantCommand: 3},
+		{test: "test/plugin/show-mtu-host.ci", wantWords: []string{"bgp", "plugin", "show-mtu-host"}, wantCommand: 2},
+		{test: "test/pppoe/pppoe-basic.ci", wantWords: []string{"pppoe", "pppoe-basic"}, wantCommand: 3},
 	} {
 		t.Run(tc.test, func(t *testing.T) {
 			run := vmFixture(t)

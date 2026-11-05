@@ -22,22 +22,22 @@ func TestOnePluginSelectionUsesCanonicalNamespaceMetadata(t *testing.T) {
 		{
 			name:      "declared link",
 			body:      "option=needs-linux:caps=net-admin\noption=netns-link:name=eth1:address=10.0.0.254/24\n",
-			namespace: "per-test", commands: 2,
+			namespace: "per-test", commands: 3,
 		},
 		{
 			name:      "embedded literal is not a declaration",
 			body:      "tmpfs=example.txt:terminator=END_EXAMPLE\noption=netns-link:name=eth1\nEND_EXAMPLE\n",
-			namespace: "guest-root", commands: 1,
+			namespace: "guest-root", commands: 2,
 		},
 		{
 			name:      "BPF without a link",
 			body:      "option=needs-linux:caps=net-admin,bpf\n",
-			namespace: "guest-root", commands: 1,
+			namespace: "guest-root", commands: 2,
 		},
 		{
 			name:      "unrelated routed suites skipped",
 			body:      "option=needs-linux:caps=net-admin\noption=netns-link:name=eth1\n",
-			namespace: "per-test", commands: 2, skipRouted: true,
+			namespace: "per-test", commands: 3, skipRouted: true,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -54,7 +54,7 @@ func TestOnePluginSelectionUsesCanonicalNamespaceMetadata(t *testing.T) {
 				t.Fatalf("selected CI failed before its runner: code=%d phases=%v", code, report.Phases)
 			}
 			if len(rec.calls) != test.commands {
-				t.Fatalf("got %d commands, want %d including namespace preparation", len(rec.calls), test.commands)
+				t.Fatalf("got %d commands, want %d including conntrack and any namespace preparation", len(rec.calls), test.commands)
 			}
 			if len(report.Phases) != 1 {
 				t.Fatalf("got %d phases, want the selected suite alone", len(report.Phases))
