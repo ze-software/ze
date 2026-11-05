@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
@@ -687,13 +688,13 @@ type frrASPathRoute struct {
 }
 
 // asAbsentVerdict decodes the FRR route and refuses it when any path's
-// AS_PATH segment list holds asn. It fails closed: an answer it cannot decode,
+// AS_PATH segment list holds absentASN. It fails closed: an answer it cannot decode,
 // a route with no path, a path with no AS_PATH or one listing no ASN is an
 // error, because none of them shows which ASNs the path carries.
-func asAbsentVerdict(output, prefix, asn string) error {
-	absent, err := parseFRRASN(asn)
+func asAbsentVerdict(output, prefix, absentASN string) error {
+	absent, err := asn.Parse(absentASN)
 	if err != nil {
-		return fmt.Errorf("absent AS %q is not an ASN: %w", asn, err)
+		return fmt.Errorf("absent AS %q is not an ASN: %w", absentASN, err)
 	}
 	var route frrASPathRoute
 	if err := json.Unmarshal([]byte(output), &route); err != nil {
@@ -717,7 +718,7 @@ func asAbsentVerdict(output, prefix, asn string) error {
 					return fmt.Errorf("route %s path %d: %w", prefix, index, elementErr)
 				}
 				if number == absent {
-					return fmt.Errorf("route %s AS_PATH contains AS %s", prefix, asn)
+					return fmt.Errorf("route %s AS_PATH contains AS %s", prefix, absentASN)
 				}
 				listed++
 			}
@@ -790,40 +791,26 @@ func emptyASPathVerdict(output, prefix string) error {
 // frrASPathElement reads one segments[].list element: a JSON number, or an
 // asdot "X.Y" string (lib/asn.c asn_asn2json_array).
 func frrASPathElement(element json.RawMessage) (uint32, error) {
-	if len(element) > 0 && element[0] == '"' {
+	if len(element) == 0 {
+		return 0, errors.New("empty aspath list element is not an ASN")
+	}
+	if element[0] == '"' {
 		var spelled string
 		if err := json.Unmarshal(element, &spelled); err != nil {
 			return 0, fmt.Errorf("aspath list element %s is not a string: %w", element, err)
 		}
-		return parseFRRASN(spelled)
+		return asn.Parse(spelled)
 	}
-	number, err := strconv.ParseUint(string(element), 10, 32)
-	if err != nil {
+	// Numeric JSON must not enter the text parser: 1.2 is a fraction here,
+	// not asdot. A pointer keeps null distinct from the valid AS number zero.
+	var number *uint32
+	if err := json.Unmarshal(element, &number); err != nil {
 		return 0, fmt.Errorf("aspath list element %s is not an ASN: %w", element, err)
 	}
-	return uint32(number), nil
-}
-
-// parseFRRASN reads an ASN in asplain ("4200000000") or asdot ("64086.59904")
-// spelling.
-func parseFRRASN(spelled string) (uint32, error) {
-	high, low, dotted := strings.Cut(spelled, ".")
-	if !dotted {
-		number, err := strconv.ParseUint(spelled, 10, 32)
-		if err != nil {
-			return 0, err
-		}
-		return uint32(number), nil
+	if number == nil {
+		return 0, errors.New("null aspath list element is not an ASN")
 	}
-	highNumber, err := strconv.ParseUint(high, 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("asdot %q high half: %w", spelled, err)
-	}
-	lowNumber, err := strconv.ParseUint(low, 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("asdot %q low half: %w", spelled, err)
-	}
-	return uint32(highNumber<<16 | lowNumber), nil
+	return *number, nil
 }
 func waitLogContains(ctx context.Context, lab interoplab.CheckerLab, peer string, timeout time.Duration, needles ...string) error {
 	if timeout <= 0 {
