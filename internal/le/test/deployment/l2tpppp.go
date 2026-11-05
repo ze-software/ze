@@ -194,6 +194,9 @@ type L2TPPPP struct {
 	// diagnostic a failure produces. It MUST be safe for concurrent use: two
 	// daemons write to it at once, each from its own goroutine.
 	Progress io.Writer
+	// wait observes one process phase; NewL2TPPPP binds the production waiter.
+	// A per-run boundary lets lifecycle proofs rendezvous after the root check.
+	wait func(*collector, []string, []string, *running, time.Duration) (bool, error)
 }
 
 // NewL2TPPPP answers the run the command performs over tree, with every setting
@@ -226,6 +229,7 @@ func NewL2TPPPP(tree string) *L2TPPPP {
 		WithdrawWait: L2TPPPPWithdrawWait,
 		CleanupWait:  L2TPPPPCleanupWait,
 		Progress:     os.Stderr,
+		wait:         awaitAll,
 	}
 	return run
 }
@@ -502,7 +506,7 @@ func (l *L2TPPPP) step(ctx context.Context, seen *collector, report L2TPPPPRepor
 	if err := ctx.Err(); err != nil {
 		return report, false
 	}
-	arrived, err := awaitAll(seen, wanted, fatal, ze, wait)
+	arrived, err := l.wait(seen, wanted, fatal, ze, wait)
 	if err != nil {
 		return l.fail(report, seen, err.Error()), false
 	}
