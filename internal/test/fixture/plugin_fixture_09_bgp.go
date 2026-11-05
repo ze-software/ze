@@ -79,8 +79,8 @@ func llgrReadvertise09(_ string) Driver {
 			if !strings.Contains(best.text, "10.0.0.0/24") {
 				return fmt.Errorf("source route never became best: %s", best.text)
 			}
-			if !Poll(ctx, 60, 250*time.Millisecond, func() bool { return bgpEORSent09(dispatch09(ctx, p, "show bgp peer * detail"), 2) }) {
-				return fmt.Errorf("ze never sent both peers their End-of-Rib")
+			if err := p12WaitPeersEOR(ctx, p, "source", "obsn"); err != nil {
+				return err
 			}
 			routesSent := func() int {
 				return peerCounter09(ctx, p, "127.0.0.2", "updates-sent") - peerCounter09(ctx, p, "127.0.0.2", "eor-sent")
