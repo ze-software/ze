@@ -16,9 +16,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink",
     "unit-sha": "46a6d8d8f90bef29",
     "claim-sha": "e0a8cbc3e716dae0",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
-    "producer-sha": "68950dbf2425118b",
-    "break": "body of runCHAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3f74cce028b64dc5",
+    "break": "line 308: \"if decision.accept {\" -\u003e \"if false {\""
   }
 ]

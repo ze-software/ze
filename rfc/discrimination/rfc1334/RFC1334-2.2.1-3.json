@@ -5,10 +5,10 @@
     "unit": "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRejectedRequestIsStillAnswered",
     "unit-sha": "60ed4e0381654c78",
     "claim-sha": "b992c0a7e95ec52c",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-    "producer-sha": "9ddd1a2f803b541b",
-    "break": "body of runPAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c10755d25dcf5343",
+    "break": "line 228: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
   },
   {
     "rid": "RFC1334-2.2.1-3",
@@ -16,9 +16,9 @@
     "unit": "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRequestInAuthPhaseIsAnswered",
     "unit-sha": "16746bd60bf5e3cf",
     "claim-sha": "afffb0ccb432c652",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-    "producer-sha": "9ddd1a2f803b541b",
-    "break": "body of runPAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c10755d25dcf5343",
+    "break": "line 228: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
   }
 ]

@@ -5,10 +5,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers",
     "unit-sha": "760000471aaf1896",
     "claim-sha": "2dca1c9950a84e70",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "60cbc1941f5121ea",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "da3e879eb53061f8",
+    "break": "line 1269: \"if received != s.peerMagic {\" -\u003e \"if true {\""
   },
   {
     "rid": "RFC1661-6.4-8",
@@ -16,10 +16,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers",
     "unit-sha": "760000471aaf1896",
     "claim-sha": "41ed18abf8f2e898",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "60cbc1941f5121ea",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "da3e879eb53061f8",
+    "break": "line 1269: \"if received != s.peerMagic {\" -\u003e \"if false {\""
   },
   {
     "rid": "RFC1661-6.4-8",
@@ -27,10 +27,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone",
     "unit-sha": "de61d34590721efe",
     "claim-sha": "6870a8ce592f03ee",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "60cbc1941f5121ea",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "da3e879eb53061f8",
+    "break": "line 1269: \"if received != s.peerMagic {\" -\u003e \"if true {\""
   },
   {
     "rid": "RFC1661-6.4-8",
@@ -38,9 +38,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone",
     "unit-sha": "de61d34590721efe",
     "claim-sha": "d12fe68a0aa8320b",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "60cbc1941f5121ea",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "da3e879eb53061f8",
+    "break": "line 1269: \"if received != s.peerMagic {\" -\u003e \"if false {\""
   }
 ]

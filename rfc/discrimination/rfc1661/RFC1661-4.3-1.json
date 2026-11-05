@@ -5,10 +5,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates",
     "unit-sha": "55bba8655d45c5cb",
     "claim-sha": "78396f3877c1e73b",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "60cbc1941f5121ea",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "da3e879eb53061f8",
+    "break": "line 1406: \"tr := LCPDoTransition(cur, ev)\" -\u003e \"tr := LCPDoTransition(cur, LCPEventRXR)\""
   },
   {
     "rid": "RFC1661-4.3-1",

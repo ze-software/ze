@@ -27,10 +27,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure",
     "unit-sha": "c3a7004b2041ad3c",
     "claim-sha": "e01463e7fd514a31",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
-    "producer-sha": "68950dbf2425118b",
-    "break": "body of runCHAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3f74cce028b64dc5",
+    "break": "line 299: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
   },
   {
     "rid": "RFC1994-4.2-1",
@@ -38,10 +38,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent",
     "unit-sha": "0cdaa104321bcedd",
     "claim-sha": "52deb1dce4fce073",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
-    "producer-sha": "68950dbf2425118b",
-    "break": "body of runCHAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3f74cce028b64dc5",
+    "break": "line 299: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
   },
   {
     "rid": "RFC1994-4.2-1",

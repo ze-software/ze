@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Accepted proxy LCP can install MTU 1500 or 9000 despite a 1492 session cap. |
 | RFC gaps | - |
-| Depends | Shared transmit cap landed in `18ea5e830a`; see `docs/guide/l2tp.md`, PPP negotiation and proxy policy, for the directional MRU contract. |
+| Depends | Shared transmit cap landed in `18ea5e830a`; its 53 owned RFC records and three audit updates now verify. Child 16a still requires fresh independent formal closure. See `docs/guide/l2tp.md`, PPP negotiation and proxy policy, for the directional MRU contract. |
 | Phase | 2/2 — central verification complete; closure review remains |
 | Handoff | verify |
 | Updated | 2026-11-05 |

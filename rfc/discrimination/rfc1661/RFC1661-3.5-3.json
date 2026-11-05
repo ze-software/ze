@@ -1,17 +1,6 @@
 [
   {
     "rid": "RFC1661-3.5-3",
-    "polarity": "positive",
-    "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes",
-    "unit-sha": "3de98c266c768eb0",
-    "claim-sha": "89e865ddb59bdf9d",
-    "route": "revert",
-    "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
-    "producer-sha": "fb302bd261a2d076",
-    "break": "body of runNCPPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC1661-3.5-3",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes",
     "unit-sha": "3de98c266c768eb0",
@@ -23,14 +12,25 @@
   },
   {
     "rid": "RFC1661-3.5-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes",
+    "unit-sha": "3de98c266c768eb0",
+    "claim-sha": "89e865ddb59bdf9d",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
+    "producer-sha": "d6efbc61db01efdb",
+    "break": "line 48: \"ipcpEnabled := !s.disableIPCP\" -\u003e \"ipcpEnabled := false\""
+  },
+  {
+    "rid": "RFC1661-3.5-3",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkPhaseRunsAfterAuthCompletes",
     "unit-sha": "46b12c04de607a0e",
     "claim-sha": "607f741ff38b5f50",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "26dcb22afbde02b8",
-    "break": "body of afterLCPOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "8c29948e93780adc",
+    "break": "line 661: \"if !s.runAuthPhase() {\" -\u003e \"if s.runAuthPhase() {\""
   },
   {
     "rid": "RFC1661-3.5-3",
@@ -38,9 +38,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNetworkPhaseUntilAuthCompletes",
     "unit-sha": "af5dfe5a4ababf5f",
     "claim-sha": "55a64ffa673a9b90",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "26dcb22afbde02b8",
-    "break": "body of afterLCPOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "8c29948e93780adc",
+    "break": "line 661: \"if !s.runAuthPhase() {\" -\u003e \"if s.runAuthPhase() {\""
   }
 ]

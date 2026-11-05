@@ -16,9 +16,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent",
     "unit-sha": "5a51a44030917c54",
     "claim-sha": "80f9bc670875a16d",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-    "producer-sha": "9ddd1a2f803b541b",
-    "break": "body of runPAPAuthPhase replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "c10755d25dcf5343",
+    "break": "line 228: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
   }
 ]

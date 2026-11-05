@@ -16,9 +16,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened",
     "unit-sha": "d6fa63bb797282f5",
     "claim-sha": "ac8ca036d13004ef",
-    "route": "revert",
-    "producer": "internal/component/l2tp/ppp/session_run.go::sendProtocolReject",
-    "producer-sha": "05f4700bf8d77857",
-    "break": "body of sendProtocolReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
+    "producer-sha": "33d110da6f29725d",
+    "break": "line 1048: \"return s.rejectUnsupportedProtocol(proto, payload)\" -\u003e \"return false\""
   }
 ]

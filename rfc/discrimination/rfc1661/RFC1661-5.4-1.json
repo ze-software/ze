@@ -38,10 +38,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength",
     "unit-sha": "400b625f66489e48",
     "claim-sha": "3627626d45a67c25",
-    "route": "revert",
-    "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
-    "producer-sha": "15bf63c906944976",
-    "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "da3e879eb53061f8",
+    "break": "line 1341: \"optsBad = verdict == lcpRequestUnacceptable\" -\u003e \"optsBad = false\""
   },
   {
     "rid": "RFC1661-5.4-1",
@@ -71,10 +71,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption",
     "unit-sha": "ccb9c1878cf93469",
     "claim-sha": "6ae29db2008e1300",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "60cbc1941f5121ea",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "da3e879eb53061f8",
+    "break": "line 1341: \"optsBad = verdict == lcpRequestUnacceptable\" -\u003e \"optsBad = false\""
   },
   {
     "rid": "RFC1661-5.4-1",
@@ -82,10 +82,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoConfigureRejectWhenAllOptionsRecognized",
     "unit-sha": "5096df88199670d3",
     "claim-sha": "75989bef3cd2f4db",
-    "route": "revert",
-    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "60cbc1941f5121ea",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendConfigureAck",
+    "producer-sha": "63e628a7c5182c20",
+    "break": "line 1977: \"WriteLCPPacket(buf, off, LCPConfigureAck, req.Identifier, req.Data)\" -\u003e \"WriteLCPPacket(buf, off, LCPConfigureReject, req.Identifier, req.Data)\""
   },
   {
     "rid": "RFC1661-5.4-1",

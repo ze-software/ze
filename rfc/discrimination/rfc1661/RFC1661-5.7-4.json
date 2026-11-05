@@ -5,10 +5,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661ProtocolRejectInformationKeptWhenItFits",
     "unit-sha": "09d0397eea8ddcc2",
     "claim-sha": "85a8b48c7be66373",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::sendProtocolReject",
-    "producer-sha": "05f4700bf8d77857",
-    "break": "body of sendProtocolReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5579919251e8a79f",
+    "break": "line 1163: \"copy(data[2:], info)\" -\u003e \"copy(data[2:], info[:0])\""
   },
   {
     "rid": "RFC1661-5.7-4",
@@ -16,9 +16,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661ProtocolRejectInformationTruncatedToMRU",
     "unit-sha": "5538718b7ba87bf7",
     "claim-sha": "73b81ee4eddb3334",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::sendProtocolReject",
-    "producer-sha": "05f4700bf8d77857",
-    "break": "body of sendProtocolReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5579919251e8a79f",
+    "break": "line 1151: \"len(info) \u003e room\" -\u003e \"false\""
   }
 ]

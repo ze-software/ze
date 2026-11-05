@@ -5,9 +5,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable",
     "unit-sha": "983f98ab680a4c29",
     "claim-sha": "1ffb23a2223b29b4",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/ncp.go::sendNCPConfigureAck",
-    "producer-sha": "0e651e6252e46abf",
-    "break": "body of sendNCPConfigureAck replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5b4dd05524404669",
+    "break": "line 895: \"WriteLCPPacket(buf, off, LCPConfigureAck, req.Identifier, req.Data)\" -\u003e \"WriteLCPPacket(buf, off, LCPConfigureAck, req.Identifier, req.Data[:0])\""
   }
 ]

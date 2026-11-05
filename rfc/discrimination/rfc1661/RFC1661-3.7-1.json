@@ -16,9 +16,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld",
     "unit-sha": "de13536514d9a1e2",
     "claim-sha": "3390e8af65c7a33f",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "60cbc1941f5121ea",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "da3e879eb53061f8",
+    "break": "line 1442: \"return s.applyTransition(cur, tr, pkt)\" -\u003e \"ended := s.applyTransition(cur, tr, pkt); return ended || pkt.Code == LCPTerminateRequest\""
   }
 ]

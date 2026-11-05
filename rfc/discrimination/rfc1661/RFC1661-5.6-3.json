@@ -7,8 +7,8 @@
     "claim-sha": "05d4ecd70d1f40db",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::writeCodeReject",
-    "producer-sha": "11648e10a133df5e",
-    "break": "line 1987: \"max(limit-frameLen(lcpHeaderLen+lcpHeaderLen), 0)\" -\u003e \"min(limit-frameLen(lcpHeaderLen+lcpHeaderLen), 0)\""
+    "producer-sha": "69b0235df9fbd443",
+    "break": "line 2209: \"max(limit-frameLen(lcpHeaderLen+lcpHeaderLen), 0)\" -\u003e \"0 * limit\""
   },
   {
     "rid": "RFC1661-5.6-3",
@@ -18,8 +18,8 @@
     "claim-sha": "31f0d8a4c0ec8c1c",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::writeCodeReject",
-    "producer-sha": "11648e10a133df5e",
-    "break": "line 1989: \"len(rejected) \u003e room\" -\u003e \"false\""
+    "producer-sha": "69b0235df9fbd443",
+    "break": "line 2211: \"len(rejected) \u003e room\" -\u003e \"false\""
   },
   {
     "rid": "RFC1661-5.6-3",
@@ -29,8 +29,8 @@
     "claim-sha": "f46155f8aae854aa",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::writeCodeReject",
-    "producer-sha": "11648e10a133df5e",
-    "break": "line 2124: \"len(rejected) \u003e room\" -\u003e \"false\"",
+    "producer-sha": "69b0235df9fbd443",
+    "break": "line 2223: \"data[1] = req.Identifier\" -\u003e \"data[1] = req.Identifier + 1\"",
     "citation": "4"
   }
 ]

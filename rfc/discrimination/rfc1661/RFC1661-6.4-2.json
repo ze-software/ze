@@ -38,9 +38,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened",
     "unit-sha": "ca2feca8b2be99ce",
     "claim-sha": "b701a9775b495a5a",
-    "route": "revert",
-    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "60cbc1941f5121ea",
-    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendEchoReply",
+    "producer-sha": "cded5fb8b71e138d",
+    "break": "line 2239: \"s.transmitMagic(), data\" -\u003e \"0, data\""
   }
 ]

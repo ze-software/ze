@@ -27,10 +27,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized",
     "unit-sha": "80d4e5b51076e4cb",
     "claim-sha": "c258cfdc747d4df0",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
-    "producer-sha": "15bf63c906944976",
-    "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "33d110da6f29725d",
+    "break": "line 1002: \"return s.handleLCPPacket(pkt)\" -\u003e \"return false\""
   },
   {
     "rid": "RFC1661-2-1",
@@ -38,9 +38,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized",
     "unit-sha": "0063fe3e54540f83",
     "claim-sha": "ffc81371cd7e0960",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
-    "producer-sha": "15bf63c906944976",
-    "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "33d110da6f29725d",
+    "break": "line 1048: \"return s.rejectUnsupportedProtocol(proto, payload)\" -\u003e \"return false\""
   }
 ]

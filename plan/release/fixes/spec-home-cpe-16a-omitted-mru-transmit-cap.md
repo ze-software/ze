@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | verification |
 | Scope | protocol, config, docs |
 | Priority | P1 |
 | Release reason | A working subscriber can transmit packets larger than an accepted 1492 session limit. |
@@ -12,34 +12,36 @@
 | Handoff | verify |
 | Updated | 2026-11-05 |
 
-## Blocker
+## Implementation proof refresh (2026-11-05)
 
-Formal closure returns to implementation because native RFC freshness is not
-complete. `./le rfc check` reports a stale RFC1661-6.1-1 audit over both claims
-of `rfc1661_proxy_policy_driver_test.go` `TestReceiveFullFrameBelowConfiguredMRU`
-and 53 producer-changed discrimination entries in 32 record files for the
-shared PPP producers changed in `18ea5e830a`. The two new full-receive semantic
-discrimination records verify; they do not refresh the older audit or the
-other producers' records.
+The RFC freshness blocker recorded in `6c065fdc93` is cleared. The coordinator
+ran the native recorder for all 53 owned discrimination entries in 32 files:
+each unchanged tagged unit passed normally and failed with its selected
+semantic producer break. No test or tag was changed. Untouched entries in
+the shared record files remain intact.
 
-| Affected surface | Exact repair population |
-|------------------|-------------------------|
-| Audit | Re-judge RFC1661-6.1-1 against the changed `TestReceiveFullFrameBelowConfiguredMRU` and both claims, using `ze-rfc-audit`; this is a changed function, not a line shift, so mechanical resealing cannot repair it. |
-| `rfc/discrimination/rfc1332/` | Refresh `RFC1332-2.1-3.json` and `RFC1332-2.1-4.json`; producer `session_run.go` `afterLCPOpen`. |
-| `rfc/discrimination/rfc1334/` | Refresh `RFC1334-2.2.1-3.json`, `RFC1334-2.2.1-6.json`, `RFC1334-2.3-1.json`, `RFC1334-2.3-2.json`; producer `pap.go` `runPAPAuthPhase`. |
-| `rfc/discrimination/rfc1661/` | Refresh IDs `2-1`, `3.1-2`, `3.5-3`, `3.5-6`, `3.6-2`, `3.6-3`, `3.7-1`, `4.3-1`, `5.2-2`, `5.4-1`, `5.6-1`, `5.6-3`, `5.7-1`, `5.7-3`, `5.7-4`, `5.8-2`, `6.4-2`, `6.4-8` (each file is `RFC1661-<ID>.json`). Producers are `session_run.go` `afterLCPOpen`, `handleFrame`, `handleLCPPacket`, `sendEchoReply`, `sendProtocolReject`, `supportsProtocol`, `writeCodeReject`, and `ncp.go` `runNCPPhase`, `sendNCPConfigureAck`. |
-| `rfc/discrimination/rfc1994/` | Refresh IDs `2-1`, `4.1-10`, `4.1-3`, `4.1-8`, `4.2-1`, `4.2-2`, `4.2-5` (each file is `RFC1994-<ID>.json`); producers `chap.go` `runCHAPAuthPhase` and `session_run.go` `handleFrame`. |
-| `rfc/discrimination/rfc5072/` | Refresh `RFC5072-3-1.json`; producers `session_run.go` `handleFrame` and `ncp.go` `runNCPPhase`. |
+| Evidence | Completed repair |
+|----------|------------------|
+| RFC1332, RFC1334, RFC1661, RFC1994 and RFC5072 discrimination | Current producer fingerprints and observed semantic breaks replace the stale records. Unit and claim fingerprints are unchanged; existing unrelated records are preserved. |
+| RFC1661-6.1-1 audit | Rejudged the complete 1500-octet receive obligation against the current driver test, actual read bytes and independent receive-MRU ioctl assertion. |
+| RFC2661-5.8-8 audit | Rejudged the configurable retransmit-budget obligation after `ExtractParameters` changed; existing valid configuration still preserves the budget. |
+| RFC1334-x-1 audit | Native reseal updates only the surrounding-file fingerprints of the byte-identical auth-selection matrix. |
+| Native freshness check | `./le rfc check` reports 75 findings, none for these 53 entries or three audits. Findings include PPPoE-client and BGP proofs; a shared requirement ID alone does not make a foreign tagged unit part of this repair. |
 
-The same native output reports RFC1334-x-1's byte-identical auth-selection
-audit as SHIFTED; implementation can reseal that result mechanically. Foreign
-PPPoE-client and BGP audit/discrimination failures are outside the producer
-population above. Root will commit this handback with the additive guard
-regression, release the claim, repair the owned RFC evidence in a separate
-implementation phase and resume an independent closure. Clearing the stale
-audit and these producer records, with a successful scoped freshness check,
-clears this blocker. No spec removal or closure CLEAN artifact is authorized
-by the current evidence.
+The two live `checkPPPCodeReject` records now discriminate wire behavior:
+changing the emitted Code-Reject code fails assertion 2; corrupting the
+embedded rejected packet's Identifier fails assertion 4. Both native clean
+runs passed before their mutations. These breaks prove the named assertions,
+not only producer reachability. The existing full-receive ioctl records remain
+current and separate from the transmit cap.
+
+Native `./le rfc update` completed. Its ledger and public outputs are derived,
+ignored files and do not belong in the commit. After the live mutations, the
+coordinator rebuilt the normal L2TP images and observed
+`l2tp-lns-chap-only-xl2tpd` pass: `1 passed, 0 failed` in restoration job
+`3c794461`. The normal images and staged binaries are restored; no persistent
+source mutation remains. Formal closure requires a fresh independent review;
+this implementation update does not issue a closure artifact or remove the spec.
 
 ## Task
 
@@ -301,8 +303,9 @@ The final restored L2TP artifact passed refusal, omitted-MRU MTU 1492 and
 distinct negotiated-MRU checks in
 `job-cpe16-final-artifacts-restored-718e9ad2.log`. Both transport omission
 carriers therefore have observed green/red/restored-green evidence. Central
-runtime verification is complete. Closure later found the RFC proof-freshness
-debt recorded in Blocker; that evidence still requires implementation work.
+runtime verification is complete. Closure later found RFC proof-freshness
+debt; the implementation proof refresh above clears that debt. A fresh
+independent closure review remains.
 
 ### Retained commands and observed output
 
@@ -417,7 +420,7 @@ and teardown are separately proved by both live omission scenarios.
 | approach | The first cap fixed only the interface setter. | Control and authentication senders also produce PPP Information fields. | Complete writer census and central driver tests. | Apply the same cap at each producer and refuse any missed oversized frame at `writeFrame`. |
 | approach | Oversized required Configure replies could report success without sending. | The FSM must stop before AckSent/Opened and later-phase side effects. | Central pre-fix failures in the two real-handler Ack regressions. | Sender failures return false and publish session failure before transition commit. |
 | approach | Only the helper test drove refusal of an unfit MS-CHAPv2 Failure prefix. | The RADIUS backend can supply a raw Reply-Message longer than the admitted transmit size, so its driver entrypoint also needs a refusing case. | Closure traced `radiusAuth.doRADIUS` Access-Reject through `startAuthDrain` and `Driver.AuthResponse` to the unchanged result guard. | Root adds a real-driver raw 80-byte failure case at MRU 68 with a fitting structured control and semantic discrimination. |
-| approach | Implementation refreshed the changed full-receive discrimination records but left earlier records and its audit stale. | A passing test and two fresh claim records do not refresh proof fingerprints for every changed producer. | Native `./le rfc check` reports the precise owned audit and producer-changed population in Blocker. | Hand back to implementation for the RFC audit and 32 affected record files before another closure attempt. |
+| approach | Implementation refreshed the changed full-receive discrimination records but left earlier records and its audit stale. | A passing test and two fresh claim records do not refresh proof fingerprints for every changed producer. | Native `./le rfc check` identified the owned stale audit and producer records. | Handback `6c065fdc93` returned this to implementation; all 53 records and three owned audit updates are now current. A fresh independent closure review remains. |
 | none | No A-N assumption was broken. | A-1 is confirmed by source and both live carriers. | Closure source review and recorded kernel MTU measurements. | No scope reduction or replacement spec is needed. |
 
 ## Implementation Audit
@@ -473,19 +476,19 @@ none are Partial or Skipped. The source-census expansion is recorded above.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Refresh the changed full-receive RFC audit and 32 producer-changed discrimination record files listed in Blocker. | This is implementation-phase proof maintenance, which closure must not author. | `plan/release/fixes/spec-home-cpe-16a-omitted-mru-transmit-cap.md` remains open and returns to implementation. |
+| None after the proof refresh. | The 53 owned records and three audit updates now verify; rebuilt normal L2TP images pass the required-auth refusal scenario. Fresh independent closure remains. | - |
 
 Child 16b retains its separately assigned accepted-proxy proof and test judgment;
 child 16d retains protocol-floor closure. Their work is not removed or closed
-by this handback.
+by this proof refresh.
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | Not issued: closure handed back for the owned RFC freshness blocker. |
-| `./le spec review check` | Not run; no closure CLEAN artifact is recorded while proof debt remains. |
-| Rounds | 2 source-review rounds: full scope, then the additive guard-entrypoint regression and unchanged guard. The source review is clean; closure remains blocked by RFC evidence. |
+| Artifact | Not issued: the earlier closure handed back for RFC freshness. That blocker is cleared; a fresh independent closure must record its own artifact. |
+| `./le spec review check` | Not run for the resumed closure. Implementation proof maintenance does not issue a closure CLEAN artifact. |
+| Rounds | Earlier closure: 2 source-review rounds, full scope then the additive guard-entrypoint regression and unchanged guard. A fresh closure reviews the completed proof repair independently. |
 | Reviewer lenses used | Logic+wiring/removed behavior; security+edge cases/guards; performance+completeness/Ze Go style. All ran inline over committed runtime `18ea5e830a`, carrier `3cc99259b0`, current producers and closure changes. |
 
 ### Native prechecks
@@ -494,12 +497,13 @@ by this handback.
 |---------|---------------------------|
 | `./le repo check` | Reports 9 unused-export findings in policy, extract, perf, CodeQL and terminal-demo tooling. None names a CPE runtime/checker or closure path. The root owns the separately authorized broader cleanup. |
 | `./le test weakened check base 18ea5e830a~1` | Reports 10 unexplained findings in schema helpers, plugin coupling, site plugin-registry tests and OSPF. No CPE test is flagged; accepted test judgments in the implementation commits remain effective. Root owns those separate changes. |
-| `./le doc check all` | The observed check reports 143 published wiki/site catalog mode drifts, three stale inventory-symbol anchors on two main pages and a stale documentation index warning. No finding names the four CPE guide/lab pages. Root's documentation agent repairs the broader surfaces; this check is not recorded green. |
-| `./le rfc check` | Successful invocation reports 131 violations across the working tree, including this spec's stale RFC1661-6.1-1 audit and 53 producer-changed entries in 32 PPP record files. See Blocker for the owned repair population; foreign client/BGP failures are not imported into this spec. The earlier launcher compilation refusal was not an RFC verdict. |
+| `./le doc check all` | Latest central result reports 142 published gh-pages disagreements: one catalog plus 47 mode differences across three representations. Main/wiki anchors, YANG validation, usage/help, rules, discovery and digest stages pass. Main-page repairs landed in `d5efcf8bd3`; no whole-site-green claim is made. |
+| `./le rfc check` | After the implementation proof refresh, the native check reports 75 findings. None concerns the 53 refreshed entries or three owned audits. Remaining PPPoE-client and BGP findings are outside this repair, even when they share a requirement ID. The earlier 131-violation result is the historical handback trigger, not the current outcome. |
 | `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-16a-omitted-mru-transmit-cap.md` | Declared design page `docs/research/l2tpv2-ze-integration.md` and two related pages were missing from the checklist. All three are now explicitly assessed in row16 below; root can check the updated declaration without a new source-review round. |
 
 These are the direct root outputs in precheck log `87e54778`, doc log
-`baf5a445` and RFC/source-census log `94001bcd`. They do not replace the source review or the targeted green
+`baf5a445`, final RFC log `722fbda6` and source-census log `94001bcd`.
+They do not replace the source review or the targeted green
 runtime/live evidence above. No foreign finding is attributed to this
 spec's completed transmit-cap capability.
 
@@ -545,7 +549,9 @@ Failure bytes and incorrect lifecycle/auth reasons, while the fitting
 structured case still passes (`ac5d8bfa`). The restored normal targeted race
 run passes both subtests, PPP `ok` at 1.060s (`616e8ba2`). This resolves the
 coverage ISSUE without a runtime change or coverage reduction. The separate
-RFC freshness blocker still prevents formal closure and a CLEAN artifact.
+RFC freshness blocker was handed back and has now been cleared by the
+implementation proof refresh. Formal closure still needs its fresh independent
+review and native artifact.
 
 The explicit style pass checked socket-reachable panics, names, lifecycle
 obligations, duplicate values, initialized/validated inputs and return widths.
@@ -610,8 +616,8 @@ proof claim is introduced by closure.
 | Live omission procedure and measured peer | `checkLNSOmittedMRU`, `checkOmittedPeerMRU`, `omittedMRUZeLink`; both lab pages in `3cc99259b0` | Yes. Both measure Ze's interface and require useful traffic. |
 | Nonapplicable config/API/SDK/inventory/comparison categories | Scoped runtime diff has no new grammar, command, RPC, event, plugin, metadata or metric registration; anchor census finds the guide/lab claims above. | Yes; separately owned schema/output work is not claimed here. |
 | Declared and related design pages | `docs/research/l2tpv2-ze-integration.md` control/data split and IPv6 route policy; `docs/architecture/l2tp/bng-1-radius-attributes.md` typed failure causes; `docs/research/l2tpv2-implementation-guide.md` FSM/event mapping, checked against `afterLCPOpen`, `runNCPPhase`, `fail`, `codeToEvent`, `applyTransition`. | Unaffected by the transmit cap; now named as the native source census requires. |
-| Native documentation check | `./le doc check all` directly reports published catalog drift and stale inventory documentation outside the CPE pages; see Native prechecks. | Run and disclosed; broader repair is owned by the root's documentation agent. |
-| Native RFC freshness | `./le rfc check` ran and found the owned stale audit and producer records listed in Blocker. | Not satisfied; spec returns to implementation and remains on disk. |
+| Native documentation check | `./le doc check all` reports 142 published-site disagreements after main/wiki source, anchor, YANG, help, rules and discovery checks pass; see Native prechecks. | Run and disclosed; wider site generation remains blocked by concurrent inventory work. |
+| Native RFC freshness | After all 53 native record observations and three audit updates, `./le rfc check` lists 75 foreign findings and no owned stale entry. `./le rfc update` completed; generated outputs remain untracked. | Owned freshness satisfied; this spec stays on disk for fresh independent formal closure. |
 | Source-anchor census | Native census identifies one declared design and two related pages; checklist row16 names and assesses them. | Declaration repaired in this handback; no design change or doc rewrite is required for the transmit cap. |
 
 ### Risks and observations

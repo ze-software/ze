@@ -5,9 +5,9 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened",
     "unit-sha": "bcbb01d59a6afb91",
     "claim-sha": "7a30a89126426664",
-    "route": "revert",
-    "producer": "internal/component/l2tp/ppp/session_run.go::supportsProtocol",
-    "producer-sha": "af7a465d762f6874",
-    "break": "body of supportsProtocol replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::rejectUnsupportedProtocol",
+    "producer-sha": "0e912d3f18f3ad7a",
+    "break": "line 1093: \"if s.supportsProtocol(proto) {\" -\u003e \"if false {\""
   }
 ]

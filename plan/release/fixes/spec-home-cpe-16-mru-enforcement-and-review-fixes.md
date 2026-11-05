@@ -31,7 +31,7 @@ sections retained here. No issue is fixed by this split.
 
 | Finding | Owning spec or completed result | Coordination |
 |---------|-------------|--------------|
-| F-1 closure blocked | `plan/release/fixes/spec-home-cpe-16a-omitted-mru-transmit-cap.md` | Shared cap and live omission proof landed in `18ea5e830a` and `3cc99259b0`; closure returns to implementation for stale RFC audit/discrimination records over changed PPP producers. Durable behavior and procedures are in both transport guides and lab pages. |
+| F-1 implemented; formal closure remains | `plan/release/fixes/spec-home-cpe-16a-omitted-mru-transmit-cap.md` | Shared cap and live omission proof landed in `18ea5e830a` and `3cc99259b0`. Native observations refreshed all 53 owned producer records and three audit updates; current RFC findings are outside that population. The proof blocker is cleared, and rebuilt normal L2TP images pass the refusal scenario after the mutations. Fresh independent closure remains. Durable behavior and procedures are in both transport guides and lab pages. |
 | F-2 | `plan/release/fixes/spec-home-cpe-16b-proxy-mru-transmit-cap.md` | Reuses F-1's shared cap; owns accepted-proxy proof and independent test judgment. |
 | F-3 implemented | `spec-home-cpe-16c-auth-policy-repair-commands`; `docs/guide/l2tp.md`, `docs/guide/pppoe.md` | Executable transport-specific repairs and real editor regressions landed in `18ea5e830a`; matching wiki examples landed in `312639d`. Independent closure reviews the message producers and parser against the guides. |
 | F-4 | `plan/release/fixes/spec-home-cpe-16d-mru-protocol-floors.md` | Owns IPv4/IPv6 MRU floors and config/runtime consistency. |

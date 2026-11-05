@@ -6,9 +6,9 @@
     "unit-sha": "84c30064d1e10ab4",
     "claim-sha": "bbf9d5c4acbe2c12",
     "route": "mutant",
-    "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "26dcb22afbde02b8",
-    "break": "line 688: \"s.wakeUnitReader()\" -\u003e \"_ = s.wakeUnitReader\"",
+    "producer": "internal/component/l2tp/ppp/session_run.go::writeCodeReject",
+    "producer-sha": "69b0235df9fbd443",
+    "break": "line 2226: \"WriteLCPPacket(buf, off, LCPCodeReject, id, data[:n])\" -\u003e \"WriteLCPPacket(buf, off, LCPEchoReply, id, data[:n])\"",
     "citation": "2"
   }
 ]

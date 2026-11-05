@@ -27,10 +27,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened",
     "unit-sha": "ca2feca8b2be99ce",
     "claim-sha": "3c44d9938633550e",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::sendEchoReply",
-    "producer-sha": "da21343f0f83931f",
-    "break": "body of sendEchoReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cded5fb8b71e138d",
+    "break": "line 2240: \"return s.writeFrame(buf[:off])\" -\u003e \"return len(buf[:off]) \u003e 0\""
   },
   {
     "rid": "RFC1661-5.8-2",
