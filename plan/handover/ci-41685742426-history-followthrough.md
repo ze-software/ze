@@ -8,8 +8,9 @@
 ## Continuation: captured commit wait, 2026-11-05
 
 The prepared diagnostic now ran. Both forced commit and the corrected route-refresh draft reached required storage barriers when their output waits expired.
-The next action is resolution of the storage wait, subject to the pending owner direction below. Do not repeat the completed route-refresh source diagnosis.
-The earlier instruction to obtain the first live stack is satisfied. No product or test change follows from these captures yet.
+The next action is landing the verified observer correction, followed by the tracked compile check and the corrected route-refresh draft's native 80-invocation proof.
+Do not repeat the completed route-refresh source diagnosis. The current state is `tmp/session/2026-11-05-002734/state/session-state-cli-history-blocks-ui-codex-ci41685742426-followthrough-20261105.md`, with earlier chronology preserved below.
+The earlier instruction to obtain the first live stack is satisfied. The authorized fixture correction and its pending native proof are recorded below.
 
 Both plugin runs used `./le --name ci41685742426-stallcapture test stress-repro run suite 'plugin --draft' test 'session-editor-commit-force session-editor-commit-verify policy-final-disposition bgp-capture-replay attach-process-delivery-graph' any-failure iterations 80 parallel 2 burners 1 timeout 240 minutes 25`, with the prepared fixture overlay and `CGO_ENABLED=0`.
 The plain diagnostic reproduced force step 12 on invocation 9. Its stress log ends `20261105-012203-3191593247.log` under `tmp/stress-repro/`.
@@ -24,8 +25,14 @@ Those are serial waits in the forced commit. The trace's longest completed fsync
 
 `installBytes` syncs each frame before rename and its destination directory afterward. `recoverFileCommit` durably records intent before publishing the explicit source.
 No redundant barrier or incorrect ordering has been established, so removing a barrier has no correctness basis.
-The owner direction remains pending: investigate VM storage latency, or permit a completion wait within the existing case timeout.
-The existing prohibitions on wider deadlines, changed backing and weaker durability still apply until the owner resolves that choice.
+Thomas replied on 2026-11-05:
+
+> ok you can
+
+This followed the choice between VM storage investigation and a completion wait within the existing case timeout.
+Main explicitly interpreted the reply as approval for that completion wait and proceeded under that reading.
+This is a one-off override of the earlier prohibition on changing the separate output-wait deadline. The case's 60-second timeout, peer's 50-second timeout and stress settings remain unchanged.
+Storage durability and backing remain unchanged.
 
 Separate reload progress has landed in `405f472cd7`: both community reload tests were promoted with their required egress membership preserved.
 That commit records independent test judgment, native draft and promoted passes, and 80 successful stress invocations of the pair.
@@ -44,7 +51,22 @@ Main then ran `suite 'reload --draft' test 'bgp-route-refresh-enabled-over-ssh' 
 Its log ends `20261105-014430-210448681.log`: invocations 1 through 44 passed, and invocation 45 failed step 6 waiting for `Session committed:` at the unchanged 20-second output deadline.
 The retained `route-refresh-pollcapture/daemon-stacks-383822974.json` captures goroutine 162 in the active mirror frame's fsync: `installBytes` through `promoteCandidateLocked`, `recoverFileCommit`, `NotifyReload` and `runCommitSession`.
 This is another required storage publication. It establishes neither an 80-invocation pass nor promotion eligibility. No product or test source edits were made in this continuation, apart from the disposable diagnostic overlay.
-The pending owner choice still governs further storage diagnosis or a permitted completion wait within the existing case timeout. No deadline, backing or durability change has been selected.
+The authorized fixture correction now uses `readPTYUntilContext04` for the session editor's first-frame and expected-output waits, through both `sessionEditorWaitFor` calls.
+The shared matcher reads the case-owned process context. The legacy `readPTYUntil04` wrapper retains its 20-second bound and exact `output deadline expired` text.
+Kill and quit still use the legacy wrapper. This correction changes the observer's completion boundary while preserving the case timeout and durability contract.
+The scoped native race run, with the full registered tags, passed all selected roots in `tmp/session/2026-11-05-002734/scratch/job-ci-history-wait-race-a34ce998.log`.
+Its four new roots cover PTY-close behavior, following-output preservation, caller-owned cancellation and EOF behavior. Existing kill and quit controls also passed, including quit's 20-second bound.
+The five plugin drafts passed all 80 invocations under `--name ci41685742426-completion`, with the original stress settings and no diagnostic `GOFLAGS` overlay.
+The exact log ends `20261105-101145-1929648125.log`. Native stress reported no reproduction in 80 invocations, with its expected exit 1 for that outcome.
+`TestSessionEditorWaitForCancelsLiveSilentRead` also passed under race in `scratch/job-ci-history-live-cancel-race-2f36caf2.log`.
+Independent review's second round was clean, including cancellation of a live silent read. The supplemental review of the foreign quit-test companion was also clean.
+The scoped count-coverage run passed in `scratch/job-ci-history-wait-coverage-0ce41f48.log`, with profile `scratch/session-editor-wait.cover`.
+It executed 6/6 statements in the legacy wrapper, 29/31 in the shared context reader and 8/8 in the session matcher. The unchanged poll-error and OS-deadline error guards were unexecuted.
+All new context, deadline and poll paths have positive counts. These figures describe those functions only.
+No drafts have been promoted in this continuation. The corrected route-refresh draft still owes its post-correction 80-invocation proof.
+Policy disposition is already in HEAD through `4007003754`. Attach graph's remaining draft delta is comments only. The current independent approval receipt records the four other plugin drafts without inventing another policy approval.
+Main verified the scoped documentation anchors against the actual helper functions. The native wiring dry run selected aggregate documentation/index checks, which have not been claimed as executed.
+The observer correction contains no diagnostic instrumentation. The history spec remains open.
 
 The publication holds remain: `check_rfc.go` and `check_rfc2545_third_party.go` still differ from HEAD.
 Inventory `source.go`, `registrations.go` and `collectactualfiles.go` are still absent from HEAD. The five RFC metadata records and two DocSource patches remain held for their committed producers.

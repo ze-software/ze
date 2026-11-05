@@ -532,6 +532,16 @@ changes still pending, `quit` asks for confirmation and the editor never exits,
 so a script that leaves its changes pending ends with `kill`, as both users in
 `session-editor-load-conflict.ci` do. The `test/plugin/session-editor-*.ci` files use it.
 
+A `wait` reads until its text appears or the case ends. The runner's original
+case timeout still bounds the observer process.
+After typing `quit`, the driver requires the client to close its terminal within
+the separate 20-second drain bound. A client that stays alive fails with the
+terminal transcript and is killed and reaped; the driver does not ignore that
+read timeout and then wait indefinitely for process exit.
+<!-- source: internal/test/fixture/plugin_fixture_session_editor.go -- sessionEditorRun, sessionEditorWaitFor -->
+<!-- source: internal/test/fixture/plugin_fixture_04_cli.go -- readPTYUntil04, readPTYUntilContext04 -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+
 The client environment removes every case and separator spelling of an overridden
 key before setting it. Otherwise the runner's dotted `ze.config.dir` outranks
 `ZE_CONFIG_DIR` and sends client initialization into the daemon's locked store.

@@ -556,8 +556,20 @@ func driveEditor04(ctx context.Context, env []string, config string, reject bool
 const ptyReadTimeout04 = 20 * time.Second
 
 func readPTYUntil04(file *os.File, initial []byte, eofOK bool, needles ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), ptyReadTimeout04)
+	defer cancel()
+	buf, err := readPTYUntilContext04(ctx, file, initial, eofOK, needles...)
+	if errors.Is(err, context.DeadlineExceeded) {
+		return buf, errors.New("output deadline expired")
+	}
+	return buf, err
+}
+
+// readPTYUntilContext04 shares the PTY matcher while its caller owns the wait's
+// lifetime. A session-editor observer uses its case-owned process lifetime,
+// rather than a separate deadline that can expire during a durable commit.
+func readPTYUntilContext04(ctx context.Context, file *os.File, initial []byte, eofOK bool, needles ...string) (string, error) {
 	buf := append([]byte(nil), initial...)
-	deadline := time.Now().Add(ptyReadTimeout04)
 	pollFD := []unix.PollFd{{Fd: int32(file.Fd()), Events: unix.POLLIN}}
 	chunk := make([]byte, 65536)
 	for {
@@ -566,10 +578,15 @@ func readPTYUntil04(file *os.File, initial []byte, eofOK bool, needles ...string
 				return string(buf), nil
 			}
 		}
-		if time.Now().After(deadline) {
-			return string(buf), errors.New("output deadline expired")
+		if err := ctx.Err(); err != nil {
+			return string(buf), err
 		}
-		ready, err := unix.Poll(pollFD, max(1, int(time.Until(deadline).Milliseconds())))
+		// Poll periodically so cancellation also ends a silent PTY wait.
+		wait := 100 * time.Millisecond
+		if deadline, bounded := ctx.Deadline(); bounded {
+			wait = min(wait, time.Until(deadline))
+		}
+		ready, err := unix.Poll(pollFD, max(1, int(wait.Milliseconds())))
 		if errors.Is(err, unix.EINTR) {
 			continue
 		}
@@ -577,7 +594,7 @@ func readPTYUntil04(file *os.File, initial []byte, eofOK bool, needles ...string
 			return string(buf), err
 		}
 		if ready == 0 {
-			return string(buf), errors.New("output deadline expired")
+			continue
 		}
 		n, err := file.Read(chunk)
 		if n > 0 {

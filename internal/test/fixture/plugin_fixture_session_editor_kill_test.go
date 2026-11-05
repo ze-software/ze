@@ -6,8 +6,14 @@
 package fixture
 
 import (
+	"context"
+	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -49,4 +55,56 @@ func TestSessionEditorKillDrainsTerminal(t *testing.T) {
 func sessionEditorKillWorker(cmd *exec.Cmd, terminal *os.File, done chan<- error) {
 	_, err := killSessionEditor(cmd, terminal)
 	done <- err
+}
+
+// TestSessionEditorQuitReportsLiveClient runs the script driver against a real
+// PTY client that asks for confirmation instead of exiting after quit. The
+// driver's own PTY timeout must report that prompt while the outer context is
+// still live, and its deferred cleanup must terminate and reap the client.
+func TestSessionEditorQuitReportsLiveClient(t *testing.T) {
+	dir := t.TempDir()
+	fakeZe := filepath.Join(dir, "ze")
+	pidPath := filepath.Join(dir, "client.pid")
+	script := `#!/bin/sh
+printf '%s\n' "$$" > "$3"
+printf '\033[?1049hready\n'
+IFS= read -r command
+if [ "$command" != quit ]; then
+    exit 2
+fi
+printf 'Pending changes. Use commit now or discard all.\n'
+while IFS= read -r ignored; do :; done
+`
+	if err := os.WriteFile(fakeZe, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	ctx, cancel := context.WithTimeout(t.Context(), ptyReadTimeout04+5*time.Second)
+	defer cancel()
+	err := sessionEditorRun(ctx, os.Environ(), pidPath, []sessionEditorStep{
+		{verb: sessionEditorWait, text: "ready"},
+	})
+	if err == nil {
+		t.Fatal("a client awaiting quit confirmation must fail")
+	}
+	if ctx.Err() != nil {
+		t.Fatalf("the outer deadline killed the client before the fixture reported its own timeout: %v", err)
+	}
+	if !strings.Contains(err.Error(), "config editor did not exit after quit: output deadline expired") {
+		t.Fatalf("missing the driver's bounded quit refusal: %v", err)
+	}
+	if !strings.Contains(err.Error(), "Pending changes. Use commit now or discard all.") {
+		t.Fatalf("quit refusal lost the terminal prompt: %v", err)
+	}
+	pidText, readErr := os.ReadFile(pidPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	pid, parseErr := strconv.Atoi(strings.TrimSpace(string(pidText)))
+	if parseErr != nil {
+		t.Fatal(parseErr)
+	}
+	if _, waitErr := syscall.Wait4(pid, nil, syscall.WNOHANG, nil); !errors.Is(waitErr, syscall.ECHILD) {
+		t.Fatalf("the fixture returned before reaping client %d: %v", pid, waitErr)
+	}
 }

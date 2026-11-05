@@ -320,7 +320,7 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 	}()
 
 	var transcript bytes.Buffer
-	pending, err := sessionEditorWaitFor(terminal, nil, &transcript, "\x1b[?1049h")
+	pending, err := sessionEditorWaitFor(ctx, terminal, nil, &transcript, "\x1b[?1049h")
 	if err != nil {
 		return fmt.Errorf("config editor did not draw its first frame: %w\n%s", err, transcript.String())
 	}
@@ -331,7 +331,7 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 		case sessionEditorSend:
 			_, err = terminal.WriteString(step.text + "\r")
 		case sessionEditorWait:
-			pending, err = sessionEditorWaitFor(terminal, pending, &transcript, step.text)
+			pending, err = sessionEditorWaitFor(ctx, terminal, pending, &transcript, step.text)
 		case sessionEditorCLI:
 			command = step.text
 		case sessionEditorHas:
@@ -362,8 +362,11 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 	if _, err := terminal.WriteString("quit\r"); err != nil {
 		return fmt.Errorf("quit: %w\n%s", err, transcript.String())
 	}
-	tail, _ := readPTYUntil04(terminal, nil, true) //nolint:errcheck // the exit status below is the answer
+	tail, err := readPTYUntil04(terminal, nil, true)
 	transcript.WriteString(tail)
+	if err != nil {
+		return fmt.Errorf("config editor did not exit after quit: %w\n%s", err, transcript.String())
+	}
 	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("config editor exited: %w\n%s", err, transcript.String())
 	}
@@ -372,11 +375,11 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 
 // sessionEditorWaitFor reads the PTY from pending until needle appears, records
 // what it read in transcript, and answers the output after the needle.
-func sessionEditorWaitFor(terminal *os.File, pending []byte, transcript *bytes.Buffer, needle string) ([]byte, error) {
+func sessionEditorWaitFor(ctx context.Context, terminal *os.File, pending []byte, transcript *bytes.Buffer, needle string) ([]byte, error) {
 	if rest, found := sessionEditorPendingAfter(pending, needle); found {
 		return rest, nil
 	}
-	buf, err := readPTYUntil04(terminal, pending, false, needle)
+	buf, err := readPTYUntilContext04(ctx, terminal, pending, false, needle)
 	transcript.WriteString(buf[len(pending):])
 	if err != nil {
 		return nil, fmt.Errorf("waiting for %q: %w", needle, err)
