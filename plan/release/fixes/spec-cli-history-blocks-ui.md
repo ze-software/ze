@@ -480,6 +480,8 @@ Final independent fix-only lifetime and behavior reviews found no remaining conf
 
 The documented single cache recovery completed with exit 0 in `job-ci-history-hub-owner-cache-recovery-25969fc6.log`: both real daemon startup-failure/normal-shutdown history-owner regressions pass under race, as do the selected infrastructure/authentication/accounting/lifecycle consumers and explicit loose/backup constructor-refusal case. Main read the full 91-line output. This completes the bounded patch's runtime proof, not AC-7's original disk-backed stress/load or formal spec closure.
 
+Implementation landed as `aa34d659d7`. A single native run of the current draft counterparts passes both force/verify cases (`job-ci-history-original-force-verify-named-874110ea.log`). The separate live-carrier run `job-ci-history-original-live-force-verify-c26c4bee.log` still fails: force's step 16 waits for “force commits over warnings, never errors”; verify's step 18 waits for the prior role/filter diagnostic. Both expire their output deadline. This is unresolved live-CI failure; neither the draft pass nor the committed UI fix closes AC-7.
+
 
 
 
