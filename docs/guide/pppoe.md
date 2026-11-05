@@ -128,11 +128,26 @@ exchange or auth-handler request occurs on that refusal. Explicit
 is dropped.
 <!-- source: internal/component/l2tp/ppp/auth.go -- selectAuthFallback, refuseAuthMethod -->
 
+The editor accepts one method per command. To permit PAP explicitly while
+retaining CHAP-MD5, use `set pppoe authentication-allow chap-md5`, followed by
+`set pppoe authentication-allow pap`. Refusal messages print only PPPoE repair
+commands for a PPPoE subscriber. To repair an invalid explicit list by restoring
+the method-derived default, use `delete pppoe authentication-allow`.
+<!-- source: internal/component/l2tp/ppp/auth.go -- refuseAuthMethod -->
+<!-- source: internal/component/l2tp/pppoe/config.go -- ExtractParameters -->
+<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
+<!-- source: internal/component/cli/editor_commands.go -- SetValue, setLeafListMember -->
+
 **Migration:** CHAP-MD5 and MS-CHAPv2 no longer implicitly permit other
 methods. If subscribers previously relied on PAP fallback, explicitly include
 both the configured method and `pap`. Do not enable `allow-no-auth` as a
 substitute for permitting the authentication method those subscribers need.
 PPPoE's MRU ceiling remains fixed at 1492; there is no PPPoE MRU setting.
+The installed IP interface MTU is at most 1492, including when the peer
+omits its MRU option and thus advertises the PPP default of 1500. A smaller
+negotiated peer MRU still lowers the transmit MTU. The kernel receive buffer
+keeps its required 1500-octet capacity.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
 
 The credential comes from the same auth plugins the L2TP LNS uses. Configure a
 local user, or a RADIUS server:

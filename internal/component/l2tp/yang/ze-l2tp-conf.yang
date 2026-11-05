@@ -48,11 +48,12 @@ module ze-l2tp-conf {
         }
 
         leaf mru {
-            type uint16 { range "64..1500"; }
+            type uint16 { range "68..1500"; }
             default 1500;
             description "Requested PPP receive Information-field size in octets. Receive capacity remains 1500.
+                IPv6CP requires at least 1280; disable IPv6CP to use 68 through 1279 for IPv4-only service.
                 Changes apply to new sessions only.";
-            ze:help "Requested PPP MRU in octets, 64 to 1500, default 1500.";
+            ze:help "Requested PPP MRU in octets, 68 to 1500, at least 1280 with IPv6CP, default 1500.";
         }
 
         leaf auth-method {

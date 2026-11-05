@@ -16,6 +16,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -420,13 +421,40 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 
 	writeBuf := getFrameBuf()
 	defer putFrameBuf(writeBuf)
-	rOff := WriteFrame(writeBuf, 0, ProtoCHAP, nil)
-	msg := []byte(decision.message)
+	replyBuf := writeBuf[:min(frameLen(int(s.transmitMRU())), len(writeBuf))]
+	rOff := WriteFrame(replyBuf, 0, ProtoCHAP, nil)
+	message := decision.message
 	if decision.accept {
-		rOff += writeMSCHAPv2Success(writeBuf, rOff, identifier,
+		// Keep the complete S=<40 hex> M= preface. Only its following
+		// human-readable text consumes the remaining space.
+		const prefaceLen = 2 + 2*mschapv2AuthenticatorResponseLen + 3
+		if len(replyBuf)-rOff < mschapv2HeaderLen+prefaceLen {
+			const reason = "chap-v2: authenticator response does not fit the transmit MRU"
+			s.fail(reason)
+			s.sendAuthEvent(eventAuthFailure{TunnelID: s.tunnelID, SessionID: s.sessionID, Reason: reason})
+			return false
+		}
+		messageLen := min(len(message), max(len(replyBuf)-rOff-mschapv2HeaderLen-prefaceLen, 0))
+		message = message[:messageLen]
+	} else {
+		// RFC 2759 Section 6 makes the error fields protocol-significant.
+		// Only M= display text can be shortened; never cut C= or the other
+		// structured fields to make an invalid failure fit a small link.
+		var fits bool
+		message, fits = fitMSCHAPv2FailureMessage(message, len(replyBuf)-rOff-mschapv2HeaderLen)
+		if !fits {
+			const reason = "chap-v2: auth failure fields exceed the transmit MRU"
+			s.fail(reason)
+			s.sendAuthEvent(eventAuthFailure{TunnelID: s.tunnelID, SessionID: s.sessionID, Reason: reason})
+			return false
+		}
+	}
+	msg := []byte(message)
+	if decision.accept {
+		rOff += writeMSCHAPv2Success(replyBuf, rOff, identifier,
 			decision.authResponseBlob, msg)
 	} else {
-		rOff += writeMSCHAPv2Failure(writeBuf, rOff, identifier, msg)
+		rOff += writeMSCHAPv2Failure(replyBuf, rOff, identifier, msg)
 	}
 	if !s.writeFrame(writeBuf[:rOff]) {
 		return false
@@ -450,4 +478,18 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 		Reason:    decision.message,
 	})
 	return false
+}
+
+// fitMSCHAPv2FailureMessage preserves every fitting handler message. For an
+// oversized structured failure, the full E=/R=/C=/V=/M= preface MUST fit and
+// only M='s display text can be cut. The caller MUST refuse an unfit preface.
+func fitMSCHAPv2FailureMessage(message string, limit int) (string, bool) {
+	if len(message) <= limit {
+		return message, true
+	}
+	optional := strings.Index(message, " M=")
+	if optional < 0 || optional+3 > limit {
+		return "", false
+	}
+	return message[:limit], true
 }

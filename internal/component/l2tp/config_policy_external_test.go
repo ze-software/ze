@@ -21,7 +21,7 @@ func TestConfigPPPPolicy(t *testing.T) {
 		}
 	}
 	for _, body := range []string{
-		"mru 64;", "mru 1492;", "mru 1500;",
+		"mru 68; ncp { enable-ipv6cp false; }", "mru 1492;", "mru 1500;",
 		"auth-method pap; authentication { allow [ pap chap-md5 ]; }",
 		"auth-method none; allow-no-auth true;",
 	} {

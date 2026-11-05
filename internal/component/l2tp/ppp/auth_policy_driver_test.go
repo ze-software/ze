@@ -258,10 +258,10 @@ func TestAuthOfferRetransmitAndLifetime(t *testing.T) {
 	}
 }
 
-// TestConfiguredMRUNakInformationFloor checks 64/65 in Information-field units
+// TestConfiguredMRUNakInformationFloor checks 68/69 in Information-field units
 // and confirms both the requested MRU and peer-side cap use the configured value.
 func TestConfiguredMRUNakInformationFloor(t *testing.T) {
-	for _, mru := range []uint16{64, 65, 1492, 1500} {
+	for _, mru := range []uint16{68, 69, 1492, 1500} {
 		t.Run(strconv.Itoa(int(mru)), func(t *testing.T) {
 			s, rec, _ := newRFC1661Session(LCPStateReqSent)
 			s.maxMRU = 1492

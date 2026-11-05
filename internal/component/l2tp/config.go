@@ -341,6 +341,9 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	}
 
 	// CQM observer (spec-l2tp-9-observer).
+	if err := validateMRUNCP(p.MRU, p.EnableIPv6CP); err != nil {
+		return Parameters{}, err
+	}
 	if v, ok := l2tpRoot.Get("cqm-enabled"); ok {
 		p.CQMEnabled = v == configTrue
 	}

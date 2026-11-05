@@ -25,8 +25,11 @@ func TestProviderPPPPolicyBoundaries(t *testing.T) {
 			t.Errorf("accepted malformed mru %#v", value)
 		}
 	}
-	for _, value := range []string{"64", "1492", "1500"} {
+	for _, value := range []string{"68", "1492", "1500"} {
 		cfg := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {"mru": value}}}
+		if value == "68" {
+			cfg.trees["l2tp"]["ncp"] = map[string]any{"enable-ipv6cp": "false"}
+		}
 		params, err := extractFromProvider(cfg)
 		if err != nil {
 			t.Fatal(err)
@@ -45,7 +48,7 @@ func TestReloadPPPPolicyRefusalKeepsEffectiveConfig(t *testing.T) {
 		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5},
 	})
 	bad := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {
-		"mru": "64", "authentication": map[string]any{"allow": []any{"chap-md5", 42}},
+		"mru": "68", "ncp": map[string]any{"enable-ipv6cp": "false"}, "authentication": map[string]any{"allow": []any{"chap-md5", 42}},
 	}}}
 	if err := s.Reload(context.Background(), bad); err == nil {
 		t.Fatal("malformed explicit policy accepted")
@@ -55,13 +58,13 @@ func TestReloadPPPPolicyRefusalKeepsEffectiveConfig(t *testing.T) {
 		t.Fatalf("refused reload changed policy: %+v", before)
 	}
 	good := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {
-		"mru": "64", "authentication": map[string]any{"allow": []string{"chap-md5", "pap"}},
+		"mru": "68", "ncp": map[string]any{"enable-ipv6cp": "false"}, "authentication": map[string]any{"allow": []string{"chap-md5", "pap"}},
 	}}}
 	if err := s.Reload(context.Background(), good); err != nil {
 		t.Fatal(err)
 	}
 	after := s.EffectiveConfig()
-	if after.MRU != 64 || !slices.Equal(after.AuthAllow, []string{"chap-md5", "pap"}) {
+	if after.MRU != 68 || !slices.Equal(after.AuthAllow, []string{"chap-md5", "pap"}) {
 		t.Fatalf("effective config omitted applied policy: %+v", after)
 	}
 }

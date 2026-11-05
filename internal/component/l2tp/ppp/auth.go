@@ -204,16 +204,17 @@ func (s *pppSession) refuseAuthMethod(cur LCPState, pkt LCPPacket) bool {
 	}
 	reason.Str("]; configure the peer to accept an allowed method.")
 	if suggestion != AuthMethodNone {
-		var values textbuf.Buffer
+		commandPath := "set l2tp authentication allow "
+		if s.pppoe {
+			commandPath = "set pppoe authentication-allow "
+		}
+		reason.Str(" Only if this method is intentionally permitted, use these editor commands: ")
 		for _, allowed := range s.authFallbackOrder {
 			if allowed != suggestion {
-				values.Str(allowed.String()).Str(" ")
+				reason.Byte('`').Str(commandPath).Str(allowed.String()).Str("`, then ")
 			}
 		}
-		values.Str(suggestion.String())
-		commands := values.String()
-		reason.Str(" Only if this method is intentionally permitted, change the policy with `set l2tp authentication allow [ ")
-		reason.Str(commands).Str(" ]` or `set pppoe authentication-allow [ ").Str(commands).Str(" ]`.")
+		reason.Byte('`').Str(commandPath).Str(suggestion.String()).Str("`.")
 	}
 	s.authRefusalReason = reason.String()
 	s.logger.Warn("ppp: authentication policy refused peer", "reason", s.authRefusalReason)
@@ -226,7 +227,15 @@ func (s *pppSession) refuseAuthMethod(cur LCPState, pkt LCPPacket) bool {
 // local receive MRU. Unknown Auth-Protocol is never equivalent to absent auth.
 // RFC 2661 Section 4.4.5: "Note that the LNS policy may be to enter an additional round of LCP negotiation and/or authentication if the LAC is not trusted."
 func (s *pppSession) acceptProxyPolicy(proxy proxyLCPResult) bool {
-	if proxy.LocalMRU < MinMRU {
+	// An absent peer MRU keeps the PPP default. A nonzero limit below the
+	// supported IP floor requires fresh negotiation, not an upward MTU clamp.
+	if proxy.MRU != 0 && proxy.MRU < MinIPv4MRU {
+		return false
+	}
+	if proxy.LocalMRU < MinIPv4MRU {
+		return false
+	}
+	if !s.disableIPv6CP && proxy.LocalMRU < MinIPv6MRU {
 		return false
 	}
 	if proxy.LocalMRU > s.maxMRU {

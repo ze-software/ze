@@ -146,7 +146,7 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 	var err error
 	p.AuthAllow, err = ppp.ResolveAuthAllow(p.AuthMethod, authNames)
 	if err != nil {
-		return Parameters{}, fmt.Errorf("pppoe authentication-allow: %w; delete pppoe authentication-allow to restore the auth-method default, or set pppoe auth-method chap-md5 and set pppoe authentication-allow [chap-md5]", err)
+		return Parameters{}, fmt.Errorf("pppoe authentication-allow: %w; run `delete pppoe authentication-allow` to restore the auth-method default, or run `set pppoe auth-method chap-md5`, `delete pppoe authentication-allow`, then `set pppoe authentication-allow chap-md5` to select CHAP-MD5 only", err)
 	}
 
 	entries, ok := pppoe["interface"].(map[string]any)

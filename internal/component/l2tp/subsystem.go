@@ -190,6 +190,13 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		s.started = true
 		return nil
 	}
+	mru := s.params.MRU
+	if mru == 0 {
+		mru = DefaultMRU
+	}
+	if err := validateMRUNCP(mru, s.params.EnableIPv6CP); err != nil {
+		return err
+	}
 	if len(s.params.ListenAddrs) == 0 {
 		s.logger.Warn("L2TP subsystem enabled but no listener configured, skipping start")
 		s.started = true

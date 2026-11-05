@@ -47,6 +47,18 @@ func (s *pppSession) runNCPPhase() bool {
 	s.ncpStarted = true
 	ipcpEnabled := !s.disableIPCP
 	ipv6cpEnabled := !s.disableIPv6CP
+	if ipv6cpEnabled && !s.ipv6MRUSupported() {
+		// RFC 5072 Section 2 requires an IPv6-capable link to carry at
+		// least the IPv6 minimum MTU. Keep the independent IPv4 NCP usable
+		// without claiming IPv6 service over a smaller negotiated link.
+		s.logger.Warn("ppp: IPv6CP disabled because the negotiated MRU is below 1280; configure the peer MRU to at least 1280 for IPv6 service",
+			"peer-mru", s.negotiatedMRU, "local-mru", s.localMRU, "session-mru", s.maxMRU)
+		ipv6cpEnabled = false
+		if !ipcpEnabled {
+			s.fail("IPv6CP cannot start with negotiated MRU below 1280 and IPCP is disabled; configure the peer MRU to at least 1280")
+			return false
+		}
+	}
 
 	if !ipcpEnabled && !ipv6cpEnabled {
 		s.logger.Warn("ppp: both NCPs disabled, skipping NCP phase")
@@ -869,6 +881,14 @@ func (s *pppSession) writeNCPOptions(family AddressFamily, buf []byte, off int) 
 // sendNCPConfigureAck echoes the peer's Configure-Request option Data
 // back verbatim.
 func (s *pppSession) sendNCPConfigureAck(family AddressFamily, req LCPPacket) bool {
+	limit := s.transmitMRU()
+	if lcpHeaderLen+len(req.Data) > int(limit) {
+		var reason textbuf.Buffer
+		s.fail(reason.Str(family.String()).Str(" Configure-Ack id ").Uint8(req.Identifier).
+			Str(" length ").Int(int64(lcpHeaderLen + len(req.Data))).
+			Str(" exceeds session transmit MRU ").Uint16(limit).String())
+		return false
+	}
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ncpProto(family), nil)
@@ -885,6 +905,16 @@ func (s *pppSession) sendNCPConfigureNakOrReject(family AddressFamily, req LCPPa
 	off := WriteFrame(buf, 0, ncpProto(family), nil)
 	dataOff := off + lcpHeaderLen
 	code, dataLen := s.buildNakOrReject(family, req, buf, dataOff)
+	// The whole unacceptable option set must fit; never cut an option or
+	// silently claim that an unreturned option was accepted.
+	limit := s.transmitMRU()
+	if lcpHeaderLen+dataLen > int(limit) {
+		var reason textbuf.Buffer
+		s.fail(reason.Str(family.String()).Str(" ").Str(LCPCodeName(code)).Str(" id ").Uint8(req.Identifier).
+			Str(" length ").Int(int64(lcpHeaderLen + dataLen)).
+			Str(" exceeds session transmit MRU ").Uint16(limit).String())
+		return false
+	}
 	off += WriteLCPPacket(buf, off, code, req.Identifier, buf[dataOff:dataOff+dataLen])
 	return s.writeFrame(buf[:off])
 }
@@ -1209,6 +1239,9 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 			DNSSecondary: s.dnsSecondary,
 		})
 	case AddressFamilyIPv6:
+		if !s.ipv6MRUSupported() {
+			return true
+		}
 		if !s.peerInterfaceIDNegotiated {
 			// ai/rules/principles.md: a zero peerInterfaceID must never
 			// reach an event as if it were the peer's address. Fail

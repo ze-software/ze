@@ -29,7 +29,8 @@ EOF_DAEMON
 
 stdin=explicit:terminator=EOF_EXPLICIT
 l2tp {
-    mru 64;
+    mru 68;
+    ncp { enable-ipv6cp false; }
     auth-method pap;
     authentication { allow [ pap ms-chap-v2 chap-md5 ]; }
 }
@@ -68,11 +69,11 @@ cmd=foreground:seq=3:exec=ze config validate -:stdin=none:exit=0
 cmd=foreground:seq=4:exec=ze config validate -:stdin=low:exit=1
 expect=stdout:contains=mru
 expect=stdout:contains=63
-expect=stdout:contains=64..1500
+expect=stdout:contains=68..1500
 cmd=foreground:seq=5:exec=ze config validate -:stdin=high:exit=1
 expect=stdout:contains=mru
 expect=stdout:contains=1501
-expect=stdout:contains=64..1500
+expect=stdout:contains=68..1500
 cmd=foreground:seq=6:exec=ze config validate -:stdin=omitted-method:exit=1
 expect=stdout:contains=must include auth-method chap-md5
 expect=stdout:contains=delete l2tp authentication allow
@@ -88,13 +89,14 @@ expect=stdout:contains=delete l2tp authentication allow
 stdin=readback:terminator=EOF_READBACK
 bgp { router-id 192.0.2.1; }
 l2tp {
-    mru 64;
+    mru 68;
+    ncp { enable-ipv6cp false; }
     auth-method pap;
     authentication { allow [ pap ms-chap-v2 chap-md5 ]; }
 }
 EOF_READBACK
 cmd=foreground:seq=9:exec=ze cli -c "show config dump - | json":stdin=readback:exit=0
-expect=stdout:pattern="mru":\s*"64"
+expect=stdout:pattern="mru":\s*"68"
 expect=stdout:pattern="allow":\s*\[\s*"pap",\s*"ms-chap-v2",\s*"chap-md5"\s*\]
 
 cmd=foreground:seq=10:exec=ze -:stdin=daemon:timeout=25s

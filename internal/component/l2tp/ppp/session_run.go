@@ -52,15 +52,6 @@ const (
 	// SHOULD default to ten (10) transmissions." Ze takes the recommended
 	// default.
 	defaultMaxConfigure = 10
-
-	// minIPMTU keeps SetMTU above the IPv4 minimum of 68 octets.
-	// The LCP option parser permits MRUs down to MinMRU, but
-	// accepting a smaller Information field does not lower this IP floor.
-	//
-	// IPv6-on-PPP (spec-l2tp-6c-ncp's IPv6CP) requires MTU >= 1280
-	// per RFC 8200 §5. Spec 6c revisits this: when a session has
-	// IPv6 enabled, this floor must be raised to 1280.
-	minIPMTU = 68
 )
 
 // frameBufPool supplies MaxFrameBufLen-byte buffers used for both reads
@@ -603,6 +594,11 @@ func (s *pppSession) closeFiles() {
 // the session, so both refusals here are logged and counted, never
 // fatal.
 func (s *pppSession) afterLCPOpenIPv6Service(ifname string) {
+	if !s.ipv6MRUSupported() {
+		s.logger.Warn("ppp: refusing IPv6 service below the IPv6 minimum MRU",
+			"peer_mru", s.negotiatedMRU, "local_mru", s.localMRU, "session_mru", s.maxMRU)
+		return
+	}
 	if !s.peerInterfaceIDNegotiated {
 		s.logger.Warn("ppp: IPv6CP opened without a negotiated peer interface identifier, refusing to start the IPv6 service",
 			"tunnel_id", s.tunnelID, "session_id", s.sessionID, "reason", reasonServiceUnnegotiated)
@@ -625,6 +621,24 @@ func (s *pppSession) afterLCPOpenIPv6Service(ifname string) {
 	s.ipv6Svc = svc
 }
 
+// transmitMRU applies the admitted session cap without replacing the peer's
+// negotiated receive capacity. An omitted peer option means 1500, while the
+// admitted maxMRU is initialized by Driver.spawnSession for both transports.
+// Callers MUST hold no session lock; this method takes it for the snapshot.
+func (s *pppSession) transmitMRU() uint16 {
+	s.mu.Lock()
+	mru, cap := s.negotiatedMRU, s.maxMRU
+	s.mu.Unlock()
+	if mru == 0 {
+		mru = MaxFrameLen
+	}
+	if cap == 0 {
+		// An unspecified MaxMRU has the same default as driver admission.
+		cap = MaxFrameLen
+	}
+	return min(mru, cap)
+}
+
 // afterLCPOpen performs the post-Opened side effects: set MRU on the
 // unit fd, set MTU on pppN via iface backend, bring pppN up, run the
 // auth hook. Returns false on failure or an LCP interruption. The caller
@@ -636,11 +650,12 @@ func (s *pppSession) afterLCPOpenIPv6Service(ifname string) {
 // The IPv6 service is started by afterLCPOpenIPv6Service (above), which
 // carries the guard on the peer's negotiated identifier.
 func (s *pppSession) afterLCPOpen() bool {
-	s.mu.Lock()
-	mru := s.negotiatedMRU
-	s.mu.Unlock()
-	if mru == 0 {
-		mru = MaxFrameLen
+	mru := s.transmitMRU()
+	if mru < MinIPv4MRU {
+		var reason textbuf.Buffer
+		s.fail(reason.Str("negotiated PPP MRU ").Str(strconv.Itoa(int(mru))).
+			Str(" is below the IPv4 minimum 68; configure the peer MRU to at least 68").String())
+		return false
 	}
 
 	if !s.runAuthPhase() {
@@ -701,8 +716,10 @@ func (s *pppSession) afterLCPOpen() bool {
 	// RFC 1332 Section 2.1: "The maximum length of an IP packet transmitted
 	// over a PPP link is the same as the maximum length of the Information
 	// field of a PPP data link layer frame." MRU already excludes framing.
-	mtu := max(int(mru), minIPMTU)
-	if err := s.backend.SetMTU(ifname, mtu); err != nil {
+	// The peer's receive capacity does not override the session's admitted
+	// transmit limit. An omitted peer MRU still means 1500 for negotiation,
+	// while PPPoE and an LNS behind a PPPoE LAC must keep their smaller cap.
+	if err := s.backend.SetMTU(ifname, int(mru)); err != nil {
 		s.mu.Unlock()
 		s.fail(tb.Reset().Str("iface SetMTU: ").Err(err).String())
 		return false
@@ -1013,7 +1030,7 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		// 5.7 is what stops the retransmissions, where dropping them left a
 		// dual-stack peer retrying IPV6CP for its whole Configure-Request
 		// budget.
-		if s.disableIPv6CP {
+		if s.disableIPv6CP || !s.ipv6MRUSupported() {
 			return s.rejectUnsupportedProtocol(proto, payload)
 		}
 		if s.ipv6cpState == LCPStateInitial {
@@ -1050,6 +1067,8 @@ func protocolHex(proto uint16) string {
 // An NCP the operator turned off takes its network-layer protocol with it: a
 // session that will never open IPv6CP does not support IPv6, so an IPv6
 // packet on it is unsupported rather than early.
+// A negotiated MRU too small for IPv6 disables the same protocol pair for
+// this LCP lifetime, even when the admitted configuration enables IPv6CP.
 func (s *pppSession) supportsProtocol(proto uint16) bool {
 	switch proto {
 	case ProtoLCP, ProtoPAP, ProtoCHAP:
@@ -1057,7 +1076,7 @@ func (s *pppSession) supportsProtocol(proto uint16) bool {
 	case ProtoIPCP, ProtoIPv4:
 		return !s.disableIPCP
 	case ProtoIPv6CP, ProtoIPv6:
-		return !s.disableIPv6CP
+		return !s.disableIPv6CP && s.ipv6MRUSupported()
 	}
 	return false
 }
@@ -1122,18 +1141,11 @@ func (s *pppSession) rejectUnsupportedProtocol(proto uint16, info []byte) bool {
 func (s *pppSession) sendProtocolReject(proto uint16, info []byte) bool {
 	// RFC 1661 Section 5.7: "The Rejected-Information MUST be truncated to
 	// comply with the peer's established MRU." The MRU bounds the Information
-	// field of the frame ze sends, and MaxFrameLen bounds the pooled buffer
-	// it is built in, so the copy takes the smaller of the two, less the
+	// field of the frame ze sends. The admitted session cap and pooled buffer
+	// can impose a smaller limit, so the copy takes their minimum, less the
 	// octets that precede it: the 2-octet Protocol field, the 4-octet LCP
 	// header and the 2-octet Rejected-Protocol.
-	s.mu.Lock()
-	mru := s.negotiatedMRU
-	s.mu.Unlock()
-	if mru == 0 {
-		// No MRU option was negotiated, so the PPP default stands
-		// (RFC 1661 Section 6.1).
-		mru = MaxFrameLen
-	}
+	mru := s.transmitMRU()
 	limit := min(frameLen(int(mru)), MaxFrameBufLen)
 	room := max(limit-frameLen(lcpHeaderLen+2), 0)
 	if len(info) > room {
@@ -1201,7 +1213,7 @@ const (
 // declaration serves both the verdict and the reply it leads to, so the two
 // can never disagree about what ze wants.
 func (s *pppSession) negPolicy() LCPNegPolicy {
-	return LCPNegPolicy{MaxMRU: s.maxMRU, LocalMagic: s.magic, PPPoE: s.pppoe}
+	return LCPNegPolicy{MinMRU: MinIPv4MRU, MaxMRU: s.maxMRU, LocalMagic: s.magic, PPPoE: s.pppoe}
 }
 
 // evalLCPRequest judges the peer's LCP Configure-Request and returns the
@@ -1370,7 +1382,7 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 					}
 				} else if opt.Type == LCPOptMRU && len(opt.Data) == 2 {
 					mru := binary.BigEndian.Uint16(opt.Data)
-					if mru >= MinMRU && mru <= s.maxMRU {
+					if mru >= MinIPv4MRU && mru <= s.maxMRU {
 						s.localMRU = mru
 					}
 				}
@@ -1720,7 +1732,8 @@ func (s *pppSession) logFSMNoOp(state LCPState, ev lCPEvent, pkt LCPPacket) {
 }
 
 // performAction translates one LCP FSM action into wire I/O on the
-// chan fd. Returns false on a fatal write error.
+// chan fd. Returns false when a required reply cannot be sent; the caller
+// must abort before committing the transition's next state.
 func (s *pppSession) performAction(act LCPAction, current LCPPacket) bool {
 	switch act {
 	case LCPActSCR:
@@ -1948,6 +1961,16 @@ func (s *pppSession) sendConfigureRequest() bool {
 }
 
 func (s *pppSession) sendConfigureAck(req LCPPacket) bool {
+	// An Ack must preserve every option. Failure must stop the automaton
+	// before it commits AckSent or Opened for an acknowledgment never sent.
+	limit := s.transmitMRU()
+	if lcpHeaderLen+len(req.Data) > int(limit) {
+		var reason textbuf.Buffer
+		s.fail(reason.Str("LCP Configure-Ack id ").Uint8(req.Identifier).
+			Str(" length ").Int(int64(lcpHeaderLen + len(req.Data))).
+			Str(" exceeds session transmit MRU ").Uint16(limit).String())
+		return false
+	}
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ProtoLCP, nil)
@@ -2088,7 +2111,9 @@ func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ProtoLCP, nil)
 	dataOff := off + lcpHeaderLen
-	dataLen, fits := WriteLCPOptions(buf, dataOff, opts)
+	limit := s.transmitMRU()
+	replyBuf := buf[:min(frameLen(int(limit)), len(buf))]
+	dataLen, fits := WriteLCPOptions(replyBuf, dataOff, opts)
 	if !fits {
 		// The peer sizes this reply, and one refused option can draw more
 		// octets than it occupied: a Magic-Number at Length 2 is answered by
@@ -2098,13 +2123,12 @@ func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
 		// RFC 1661 Section 5.4 fills the Options field with "only the
 		// unacceptable Configuration Options from the Configure-Request", so
 		// a reply carrying the prefix that fit is a packet the section does
-		// not describe. Ze sends nothing and lets the peer's retransmission
-		// timer drive the negotiation, which ends at its own restart count.
-		s.logger.Warn("ppp: LCP reply suppressed, its options do not fit a frame",
-			"code", LCPCodeName(code),
-			"id", req.Identifier,
-			"options", len(opts))
-		return true
+		// not describe. Fail before the automaton commits a transition that
+		// assumes this required response was transmitted.
+		var reason textbuf.Buffer
+		s.fail(reason.Str("LCP ").Str(LCPCodeName(code)).Str(" id ").Uint8(req.Identifier).
+			Str(" complete options exceed session transmit MRU ").Uint16(limit).String())
+		return false
 	}
 	off += WriteLCPPacket(buf, off, code, req.Identifier, buf[dataOff:dataOff+dataLen])
 	return s.writeFrame(buf[:off])
@@ -2176,18 +2200,11 @@ func (s *pppSession) sendCodeReject(req LCPPacket) bool {
 func (s *pppSession) writeCodeReject(proto uint16, id uint8, req LCPPacket) bool {
 	// RFC 1661 Section 5.6: "The Rejected-Packet MUST be truncated to comply
 	// with the peer's established MRU." The MRU bounds the Information field
-	// of the frame ze sends, and MaxFrameLen bounds the pooled buffer it is
-	// built in, so the copy of the rejected Data takes the smaller of the
-	// two, less the octets that precede it: the 2-octet Protocol field, the
+	// of the frame ze sends. The admitted session cap and pooled buffer can
+	// impose a smaller limit, so the copy of the rejected Data takes their
+	// minimum, less the octets that precede it: the 2-octet Protocol field, the
 	// 4-octet Code-Reject header and the rejected packet's own 4-octet header.
-	s.mu.Lock()
-	mru := s.negotiatedMRU
-	s.mu.Unlock()
-	if mru == 0 {
-		// No MRU option was negotiated, so the PPP default stands
-		// (RFC 1661 Section 6.1).
-		mru = MaxFrameLen
-	}
+	mru := s.transmitMRU()
 	limit := min(frameLen(int(mru)), MaxFrameBufLen)
 	room := max(limit-frameLen(lcpHeaderLen+lcpHeaderLen), 0)
 	rejected := req.Data
@@ -2213,8 +2230,13 @@ func (s *pppSession) writeCodeReject(proto uint16, id uint8, req LCPPacket) bool
 func (s *pppSession) sendEchoReply(req LCPPacket) bool {
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)
+	// Keep the reply's LCP header and local Magic-Number within the same
+	// effective transmit limit as data and rejection packets. Fitting peer
+	// data remains unchanged; only the tail beyond the link limit is cut.
+	limit := min(int(s.transmitMRU()), MaxFrameLen)
+	data := req.Data[:min(len(req.Data), max(limit-lcpHeaderLen, 4))]
 	off := WriteFrame(buf, 0, ProtoLCP, nil)
-	off += BuildLCPEchoReply(buf, off, req.Identifier, s.transmitMagic(), req.Data)
+	off += BuildLCPEchoReply(buf, off, req.Identifier, s.transmitMagic(), data)
 	return s.writeFrame(buf[:off])
 }
 
@@ -2235,6 +2257,13 @@ func (s *pppSession) sendEchoRequest() bool {
 }
 
 func (s *pppSession) writeFrame(frame []byte) bool {
+	// Every producer must build a complete packet within the effective
+	// limit. This final boundary refuses a missed writer without cutting a
+	// digest, a structured authentication result or configuration options.
+	if len(frame) > frameLen(int(s.transmitMRU())) {
+		s.fail("PPP writer produced a frame larger than the session transmit MRU")
+		return false
+	}
 	n, err := s.chanFile.Write(frame)
 	if err == nil && n != len(frame) {
 		err = io.ErrShortWrite

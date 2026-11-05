@@ -450,6 +450,15 @@ func (d *Driver) spawnSession(start *StartSession) {
 		d.emitRejection(start, "invalid fds")
 		return
 	}
+	maxMRU := start.MaxMRU
+	if maxMRU == 0 {
+		maxMRU = MaxFrameLen
+	}
+	if err := ValidateNetworkMRU(maxMRU, !start.DisableIPv6CP); err != nil {
+		start.closeFiles()
+		d.emitRejection(start, err.Error())
+		return
+	}
 	k := sessionKey{start.TunnelID, start.SessionID}
 
 	d.mu.Lock()
@@ -465,11 +474,6 @@ func (d *Driver) spawnSession(start *StartSession) {
 			"tunnel-id", start.TunnelID, "session-id", start.SessionID)
 		d.emitRejection(start, "duplicate (tunnelID, sessionID)")
 		return
-	}
-
-	maxMRU := start.MaxMRU
-	if maxMRU == 0 {
-		maxMRU = MaxFrameLen
 	}
 
 	fallback := start.AuthFallbackOrder

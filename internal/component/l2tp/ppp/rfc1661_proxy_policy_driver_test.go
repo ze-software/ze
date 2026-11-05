@@ -3,6 +3,7 @@ package ppp
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func TestProxyLCPPolicy(t *testing.T) {
 		{"MSCHAP allowed", 1500, 1500, 1400, []byte{0xc2, 0x23, 0x81}, []AuthMethod{AuthMethodMSCHAPv2}, true, true, AuthMethodMSCHAPv2},
 		{"absent LastSent MRU means1500", 1492, 0, 1400, []byte{0xc2, 0x23, 0x05}, []AuthMethod{AuthMethodCHAPMD5}, true, false, AuthMethodCHAPMD5},
 		{"explicit LastSent above cap", 1492, 1500, 1400, []byte{0xc2, 0x23, 0x05}, []AuthMethod{AuthMethodCHAPMD5}, true, false, AuthMethodCHAPMD5},
-		{"peer MRU is not local cap", 1492, 1492, 1500, []byte{0xc2, 0x23, 0x05}, []AuthMethod{AuthMethodCHAPMD5}, true, true, AuthMethodCHAPMD5},
+		{"larger peer MRU preserves proxy admission", 1492, 1492, 1500, []byte{0xc2, 0x23, 0x05}, []AuthMethod{AuthMethodCHAPMD5}, true, true, AuthMethodCHAPMD5},
 		{"unknown protocol optional", 1500, 1500, 1400, []byte{0xc2, 0x27}, []AuthMethod{AuthMethodCHAPMD5}, false, false, AuthMethodCHAPMD5},
 		{"unknown CHAP algorithm optional", 1500, 1500, 1400, []byte{0xc2, 0x23, 0x42}, []AuthMethod{AuthMethodCHAPMD5}, false, false, AuthMethodCHAPMD5},
 		{"malformed auth optional", 1500, 1500, 1400, []byte{0xc0}, []AuthMethod{AuthMethodCHAPMD5}, false, false, AuthMethodCHAPMD5},
@@ -119,11 +120,16 @@ func writePolicyPeerPacket(t *testing.T, peer net.Conn, code, id uint8, data []b
 
 // TestReceiveFullFrameBelowConfiguredMRU sends a 1500-octet Information field
 // over the real Driver reader at requested MRU1492, and observes its reply.
-// RFC requirement: RFC1661-6.1-1 positive -- run receives and answers the complete 1500-octet LCP Information field even though its local requested MRU is1492; the kernel receive MRU remains1500.
+// RFC requirement: RFC1661-6.1-1 positive -- run receives the complete 1500-octet LCP Information field and answers within its1492 transmit cap; the kernel receive MRU remains1500.
 // RFC requirement: RFC1661-6.1-1 negative -- a smaller requested MRU does not lower the kernel receive MRU below1500.
 func TestReceiveFullFrameBelowConfiguredMRU(t *testing.T) {
 	reg := newPipeRegistry()
 	installPipeRegistry(t, reg)
+	reads := make(chan []byte, 4)
+	prev := SetNewChanFileForTest(func(fd int, name string) io.ReadWriteCloser {
+		return &fullMRUReceiveRecorder{ReadWriteCloser: reg.wrap(fd, name), reads: reads}
+	})
+	t.Cleanup(func() { RestoreNewChanFile(prev) })
 	pair := newPipePair(reg, 19101)
 	defer closeConn(pair.peerEnd)
 	ops, calls, mu := newFakeOps()
@@ -158,11 +164,29 @@ func TestReceiveFullFrameBelowConfiguredMRU(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proto != ProtoLCP || reply.Code != LCPEchoReply || reply.Identifier != 77 || len(payload) != 1500 {
+	// Observe the actual driver read independently from the capped reply.
+	// A receive buffer cut to 1492 loses the full-frame count and content.
+	select {
+	case received := <-reads:
+		if len(received) != frameLen(1500) {
+			t.Fatalf("driver read %d octets, want full %d-octet frame", len(received), frameLen(1500))
+		}
+		inputProto, inputPayload, _, inputErr := ParseFrame(received)
+		if inputErr != nil || inputProto != ProtoLCP {
+			t.Fatalf("full driver read protocol=%x error=%v", inputProto, inputErr)
+		}
+		input, inputErr := ParseLCPPacket(inputPayload)
+		if inputErr != nil || input.Code != LCPEchoRequest || input.Identifier != 77 || !bytes.Equal(input.Data, data) {
+			t.Fatalf("driver did not receive the complete original Echo-Request: %+v, %v", input, inputErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("driver did not record a full-sized receive")
+	}
+	if proto != ProtoLCP || reply.Code != LCPEchoReply || reply.Identifier != 77 || len(payload) != 1492 {
 		t.Fatalf("full receive reply proto=%x packet=%+v length=%d", proto, reply, len(payload))
 	}
-	if !bytes.Equal(reply.Data[4:], data[4:]) {
-		t.Fatal("full Information field truncated or changed")
+	if binary.BigEndian.Uint32(reply.Data[:4]) != 0x01020304 || !bytes.Equal(reply.Data[4:], data[4:1492-lcpHeaderLen]) {
+		t.Fatal("capped Echo-Reply changed its local Magic-Number or fitting Data prefix")
 	}
 	oversized := make([]byte, MaxFrameBufLen+1)
 	if _, _, _, err := ParseFrame(oversized); err == nil {
@@ -173,6 +197,21 @@ func TestReceiveFullFrameBelowConfiguredMRU(t *testing.T) {
 	if len(*calls) != 1 || (*calls)[0].mru != 1500 {
 		t.Fatalf("kernel receive MRU %+v", *calls)
 	}
+}
+
+// fullMRUReceiveRecorder observes bytes actually returned to the production
+// driver reader; it does not change its receive buffer or its packet input.
+type fullMRUReceiveRecorder struct {
+	io.ReadWriteCloser
+	reads chan []byte
+}
+
+func (r *fullMRUReceiveRecorder) Read(buf []byte) (int, error) {
+	n, err := r.ReadWriteCloser.Read(buf)
+	if n > 0 {
+		r.reads <- append([]byte(nil), buf[:n]...)
+	}
+	return n, err
 }
 
 // TestAuthAllowPAPFallbackAndOptionalNoAuth reaches successful authentication

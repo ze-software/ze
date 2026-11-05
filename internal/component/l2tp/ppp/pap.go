@@ -218,12 +218,18 @@ func (s *pppSession) runPAPAuthPhase() bool {
 	writeBuf := getFrameBuf()
 	defer putFrameBuf(writeBuf)
 	off := WriteFrame(writeBuf, 0, ProtoPAP, nil)
+	// RFC 1334 Section 2.2.2: "The Message field is zero or more octets,
+	// and its contents are implementation dependent." Keep only the text
+	// that fits after Code, Identifier, Length and Msg-Length. The auth
+	// decision and the cached reply Code do not depend on this display text.
+	messageLen := min(len(resp.message), papMaxFieldLen, max(int(s.transmitMRU())-papHeaderLen-1, 0))
+	message := []byte(resp.message[:messageLen])
 	code := PAPAuthenticateAck
 	if resp.accept {
-		off += WritePAPAck(writeBuf, off, req.Identifier, []byte(resp.message))
+		off += WritePAPAck(writeBuf, off, req.Identifier, message)
 	} else {
 		code = PAPAuthenticateNak
-		off += WritePAPNak(writeBuf, off, req.Identifier, []byte(resp.message))
+		off += WritePAPNak(writeBuf, off, req.Identifier, message)
 	}
 	if !s.writeFrame(writeBuf[:off]) {
 		return false

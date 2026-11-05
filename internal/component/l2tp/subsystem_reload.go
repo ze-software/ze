@@ -353,7 +353,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 	if raw, present := l2tpRoot["mru"]; present {
 		value, ok := raw.(string)
 		if !ok {
-			return Parameters{}, fmt.Errorf("l2tp mru value %#v is not an integer string from 64 to 1500; run 'set l2tp mru 1500'", raw)
+			return Parameters{}, fmt.Errorf("l2tp mru value %#v is not an integer string from 68 to 1500; run 'set l2tp mru 1500'", raw)
 		}
 		mru, err := parseMRU(value)
 		if err != nil {
@@ -406,6 +406,9 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 			}
 			p.NCPTimeout = time.Duration(n) * time.Second
 		}
+	}
+	if err := validateMRUNCP(p.MRU, p.EnableIPv6CP); err != nil {
+		return Parameters{}, err
 	}
 	if v, ok := l2tpRoot["cqm-enabled"].(string); ok {
 		p.CQMEnabled = v == configTrue

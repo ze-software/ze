@@ -10,6 +10,9 @@ import (
 )
 
 func init() {
+	if err := config.RegisterTreeValidator("l2tp-mru-policy", validateMRUPolicy); err != nil {
+		panic("BUG: registering l2tp MRU policy: " + err.Error())
+	}
 	if err := config.RegisterTreeValidator("l2tp-auth-policy", validateAuthPolicy); err != nil {
 		panic("BUG: registering l2tp authentication policy: " + err.Error())
 	}

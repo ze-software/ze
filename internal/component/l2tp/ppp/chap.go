@@ -289,12 +289,17 @@ func (s *pppSession) runCHAPAuthPhase() bool {
 
 	writeBuf := getFrameBuf()
 	defer putFrameBuf(writeBuf)
-	rOff := WriteFrame(writeBuf, 0, ProtoCHAP, nil)
-	msg := []byte(decision.message)
+	// RFC 1994 Section 4.2 makes Message display text, independent of the
+	// authentication outcome. The encoder respects this bounded buffer view
+	// and keeps its header while trimming only text beyond the session cap.
+	replyBuf := writeBuf[:min(frameLen(int(s.transmitMRU())), len(writeBuf))]
+	rOff := WriteFrame(replyBuf, 0, ProtoCHAP, nil)
+	messageLen := min(len(decision.message), max(len(replyBuf)-rOff-chapHeaderLen, 0))
+	msg := []byte(decision.message[:messageLen])
 	if decision.accept {
-		rOff += writeCHAPSuccess(writeBuf, rOff, identifier, msg)
+		rOff += writeCHAPSuccess(replyBuf, rOff, identifier, msg)
 	} else {
-		rOff += writeCHAPFailure(writeBuf, rOff, identifier, msg)
+		rOff += writeCHAPFailure(replyBuf, rOff, identifier, msg)
 	}
 	if !s.writeFrame(writeBuf[:rOff]) {
 		return false

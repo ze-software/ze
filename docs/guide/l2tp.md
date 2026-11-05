@@ -26,7 +26,7 @@ l2tp {
     shared-secret <secret>;     // CHAP-MD5 tunnel auth (RFC 2661 S4.2)
     auth-method chap-md5;        // PPP Auth-Protocol first advertised
     allow-no-auth false;         // explicit opt-in required for no-auth
-    mru 1500;                   // Information-field octets, range 64..1500
+    mru 1500;                   // Information-field octets; 68..1500, IPv6 needs 1280
     authentication {
         allow [ chap-md5 ];     // ordered permitted methods; optional
     }
@@ -172,15 +172,20 @@ default when no list was written. It describes the policy for new sessions,
 not what an established peer negotiated.
 
 Session summaries and details report `mru` as the peer's negotiated receive
-MRU (Ze's transmit MTU), and `auth-method` as the method agreed by LCP.
+MRU before the local transmit cap, and `auth-method` as the method agreed by LCP.
 These are the actual values from normal or accepted proxy negotiation, not
 copies of the configured MRU or preferred method. Both keys are `null`
 before LCP opens and after LCP goes down; negotiated no-auth is the distinct
 value `"none"`. LCP-up precedes authentication, so a reported method does not
 by itself mean the subscriber has authenticated.
+The installed IP interface MTU is bounded by both this peer MRU and the
+session's configured MRU, so a reported peer MRU of 1500 can accompany an
+installed MTU of 1492. An omitted peer option is reported as the PPP default
+of 1500; it does not remove the local transmit cap.
 
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPUp, handleLCPDown -->
 <!-- source: internal/component/l2tp/snapshot.go -- sessionSnapshot -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
 
 ### Destructive commands
 
@@ -252,13 +257,19 @@ PPP negotiation proceeds through these phases:
 The PPP MRU counts the Information field, not the two-octet Protocol field.
 Ze's userspace buffers hold 1502 octets, and the kernel receive MRU stays at
 1500 even when a smaller MRU was requested. The outgoing IP interface MTU
-comes from the peer's negotiated MRU without subtracting PPP framing.
-Set `l2tp mru` to the requested receive MRU (64..1500, default 1500), for
+is the smaller of the peer's negotiated MRU and the session's configured
+MRU, without subtracting PPP framing. An omitted peer option still means a
+peer receive capacity of 1500; it cannot raise the interface MTU past the
+configured cap.
+Code-Reject, Protocol-Reject and Echo-Reply use the same effective transmit
+limit for their returned payloads; a larger receive buffer does not permit an
+oversized reply.
+Set `l2tp mru` to the requested receive MRU (68..1500, default 1500), for
 example 1492 behind a PPPoE LAC. It does not cap receive buffers or describe
 the peer's receive MRU. `show l2tp config` reports the effective `mru` and
 `authentication-allow` policy, not negotiated session values.
 <!-- source: internal/component/l2tp/ppp/frame.go -- MaxFrameLen, MaxFrameBufLen -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen, transmitMRU, writeCodeReject, sendProtocolReject, sendEchoReply -->
 
 PPP descriptors use blocking `os.File` I/O rather than the runtime epoll path.
 Closing a session prevents new operations while an in-flight blocking syscall
@@ -306,10 +317,15 @@ the last request. Nak and Reject replies also need the matching Identifier;
 Reject options must be an unchanged, ordered subset of that request.
 Rejected options stay out of subsequent requests. Unanswered retransmissions
 retain their Identifier, while a changed request or valid reply advances it.
+An LCP or NCP configuration response must fit the session transmit limit
+with all required options intact. If it cannot, Ze reports session failure
+and stops negotiation before an unsent response can advance its state.
 Echo packets carry zero until Magic-Number negotiation succeeds, then the
 local Magic-Number; received Echo packets must carry the peer's value.
 <!-- source: internal/component/l2tp/ppp/lcp.go -- ValidateLCPReply -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- handleLCPPacket, sendConfigureRequest, transmitMagic -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- sendConfigureAck, sendConfigureNakOrReject -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- sendNCPConfigureAck, sendNCPConfigureNakOrReject -->
 LCP enters Opened before authentication and NCP execute. If those phases
 receive an LCP restart or termination, they unwind into the new LCP state
 instead of restoring Opened. Periodic CHAP and MS-CHAPv2 authentication
@@ -361,8 +377,10 @@ alone, and the refusal is logged and counted (see Prometheus metrics).
 <!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
 
 Authentication and NCP have configurable timeouts. LCP negotiation and restart
-timers are fixed. LCP proxy (RFC 2661 S18) is supported: when the LAC provides
+timers are fixed. LCP proxy (RFC 2661 Section 4.4.5) is supported: when the LAC provides
 proxy LCP AVPs, Ze validates them and can renegotiate instead of accepting them.
+<!-- source: internal/component/l2tp/ppp/proxy.go -- EvaluateProxyLCP -->
+<!-- source: internal/component/l2tp/ppp/auth.go -- acceptProxyPolicy -->
 
 NCP enablement is controlled via the `ncp` container under `l2tp`:
 
@@ -384,6 +402,16 @@ Ze separates PPP authentication wire format from credential validation.
 The subsystem handles the PPP auth protocol (PAP/CHAP wire framing),
 then dispatches an `EventAuthRequest` to the registered auth handler.
 The handler responds with accept/reject via a channel.
+
+Authentication results obey the session transmit limit. PAP and CHAP trim
+only optional display text. MS-CHAPv2 preserves the complete authenticator
+response on success and the structured error fields on failure, shortening
+only human-readable text. Cached PAP replies preserve their original outcome
+with an empty message. A required structured result that cannot fit fails
+visibly instead of sending a truncated authenticator or challenge field.
+<!-- source: internal/component/l2tp/ppp/pap.go -- runPAPAuthPhase, reanswerPAP -->
+<!-- source: internal/component/l2tp/ppp/chap.go -- runCHAPAuthPhase -->
+<!-- source: internal/component/l2tp/ppp/mschapv2.go -- runMSCHAPv2AuthPhase, fitMSCHAPv2FailureMessage -->
 
 By default, new sessions advertise `auth-method chap-md5` and
 `allow-no-auth false`. A peer's Configure-Nak can select only an untried
@@ -414,13 +442,49 @@ an available CHAP method. Configuration validation and reload refuse invalid
 lists rather than replacing malformed explicit input with a broader default.
 <!-- source: internal/component/l2tp/ppp/auth_policy.go -- ResolveAuthAllow -->
 
+The editor adds one allowed method per command. For example,
+`set l2tp authentication allow chap-md5`, followed by
+`set l2tp authentication allow pap`, permits both methods. A refusal prints
+the commands for its transport, retaining permitted methods before adding the
+peer's suggestion. Run them only if that additional method is intended;
+changing the peer to accept an already permitted method needs no policy edit.
+<!-- source: internal/component/l2tp/ppp/auth.go -- refuseAuthMethod -->
+<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
+<!-- source: internal/component/cli/editor_commands.go -- SetValue, setLeafListMember -->
+
 Proxy LCP is subject to the same policy. A proxied method outside the permitted
 list, an unknown Auth-Protocol, or absent authentication when authentication is
 required causes Ze to run normal LCP instead. Ze also renegotiates if the LAC's
 Last-Sent receive MRU exceeds `l2tp mru`; an absent Last-Sent MRU means 1500.
-The peer's Last-Received receive MRU remains the transmit MTU, not that local
-policy value.
+The peer's Last-Received receive MRU remains the negotiated peer value.
+The shared interface setup caps the transmit MTU at the smaller of that value
+and the session's configured MRU, including when the peer omitted its option.
+A peer receive MRU of 1500 or 9000 can therefore remain admitted under a
+1492 local policy; authentication and IPCP still complete with a transmit
+MTU of 1492.
 <!-- source: internal/component/l2tp/ppp/auth.go -- selectAuthFallback, refuseAuthMethod, acceptProxyPolicy -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
+
+IPv6CP is enabled by default, so the configured MRU must be at least 1280.
+For IPv4-only service, set `l2tp ncp enable-ipv6cp false` before using an
+MRU from 68 through 1279. Validation checks the effective combination at
+initial load and reload; a refused reload keeps the previous session policy.
+The shared PPP driver also rejects a directly supplied cap that is too small
+for its enabled protocols. The receive buffer capacity remains 1500.
+<!-- source: internal/component/l2tp/config_policy.go -- validateMRUPolicy, validateMRUNCP -->
+<!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
+<!-- source: internal/component/l2tp/subsystem_reload.go -- extractFromProvider -->
+<!-- source: internal/component/l2tp/ppp/manager.go -- spawnSession -->
+
+When an otherwise valid peer negotiates an MRU smaller than 1280, Ze does not
+start IPv6CP or allocate an IPv6 address. IPv4 can still establish using the
+peer's smaller limit. An IPv6-only session fails with an MRU diagnostic rather
+than reporting usable service. A later LCP negotiation can restore IPv6 when
+the new directional MRUs support 1280. Peer MRUs smaller than 68 are Nakked
+to 68 instead of causing Ze to install an MTU larger than the agreed limit.
+<!-- source: internal/component/l2tp/ppp/mru_policy.go -- ipv6MRUSupported -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- runNCPPhase, onNCPOpened -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- negPolicy, handleLCPPacket -->
 
 Two auth handlers ship with ze. The slot holds one handler, and configuration
 decides its owner: `l2tp-auth-radius` claims it when a RADIUS server is

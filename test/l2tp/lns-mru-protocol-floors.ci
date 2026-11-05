@@ -1,0 +1,55 @@
+# Test: L2TP MRU floors agree with effective IPv6CP defaults and explicit disable.
+# VALIDATES: home-cpe-16d AC-1..AC-3 through the real config validation command.
+# PREVENTS: accepting an IPv6 link smaller than 1280, or rejecting IPv4-only 68.
+
+stdin=ipv4-low:refused=config-parse:terminator=EOF_LOW
+l2tp {
+    mru 67;
+    ncp { enable-ipv6cp false; }
+}
+EOF_LOW
+stdin=ipv6-default-low:refused=config-validator-unavailable:terminator=EOF_V6_DEFAULT
+l2tp { mru 1279; }
+EOF_V6_DEFAULT
+stdin=ipv6-explicit-low:refused=config-validator-unavailable:terminator=EOF_V6_EXPLICIT
+l2tp {
+    mru 1279;
+    ncp { enable-ipv6cp true; }
+}
+EOF_V6_EXPLICIT
+stdin=ipv4-minimum:terminator=EOF_V4_MIN
+l2tp {
+    mru 68;
+    ncp { enable-ipv6cp false; }
+}
+EOF_V4_MIN
+stdin=ipv4-upper:terminator=EOF_V4_UPPER
+l2tp {
+    mru 1279;
+    ncp { enable-ipv6cp false; }
+}
+EOF_V4_UPPER
+stdin=ipv6-minimum:terminator=EOF_V6_MIN
+l2tp { mru 1280; }
+EOF_V6_MIN
+stdin=all-disabled:terminator=EOF_DISABLED
+l2tp {
+    mru 68;
+    ncp { enable-ipcp false; enable-ipv6cp false; }
+}
+EOF_DISABLED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ipv4-low:exit=1
+expect=stdout:contains=67
+expect=stdout:contains=68
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ipv6-default-low:exit=1
+expect=stdout:contains=1279
+expect=stdout:contains=1280
+expect=stdout:contains=set l2tp ncp enable-ipv6cp false
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ipv6-explicit-low:exit=1
+expect=stdout:contains=1279
+expect=stdout:contains=1280
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ipv4-minimum:exit=0
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ipv4-upper:exit=0
+cmd=foreground:seq=6:exec=ze config validate -:stdin=ipv6-minimum:exit=0
+cmd=foreground:seq=7:exec=ze config validate -:stdin=all-disabled:exit=0

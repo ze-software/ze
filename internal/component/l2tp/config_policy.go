@@ -15,15 +15,49 @@ import (
 func parseMRU(value string) (uint16, error) {
 	mru, err := strconv.ParseUint(value, 10, 16)
 	if err != nil {
-		return 0, fmt.Errorf("l2tp mru %q is not an integer from 64 to 1500; run 'set l2tp mru 1500': %w", value, err)
+		return 0, fmt.Errorf("l2tp mru %q is not an integer from 68 to 1500; run 'set l2tp mru 1500': %w", value, err)
 	}
-	if mru < 64 {
-		return 0, fmt.Errorf("l2tp mru %d is below 64; run 'set l2tp mru 64' or choose up to 1500", mru)
+	if mru < uint64(ppp.MinIPv4MRU) {
+		return 0, fmt.Errorf("l2tp mru %d is below the IPv4 minimum 68; run 'set l2tp mru 1500'", mru)
 	}
 	if mru > 1500 {
 		return 0, fmt.Errorf("l2tp mru %d exceeds 1500; run 'set l2tp mru 1500'", mru)
 	}
 	return uint16(mru), nil
+}
+
+// validateMRUNCP checks the effective protocol selection, including defaults.
+func validateMRUNCP(mru uint16, ipv6Enabled bool) error {
+	if err := ppp.ValidateNetworkMRU(mru, ipv6Enabled); err != nil {
+		return fmt.Errorf("l2tp mru: %w; run 'set l2tp mru 1500', or use an MRU of at least 68 with 'set l2tp ncp enable-ipv6cp false' for IPv4-only service", err)
+	}
+	return nil
+}
+
+// validateMRUPolicy MUST NOT mutate the original tree while checking defaults.
+func validateMRUPolicy(tree *config.Tree) error {
+	if tree == nil {
+		return nil
+	}
+	root := tree.GetContainer("l2tp")
+	if root == nil {
+		return nil
+	}
+	mru := DefaultMRU
+	if value, present := root.Get("mru"); present {
+		parsed, err := parseMRU(value)
+		if err != nil {
+			return err
+		}
+		mru = parsed
+	}
+	ipv6Enabled := true
+	if ncp := root.GetContainer("ncp"); ncp != nil {
+		if value, present := ncp.Get("enable-ipv6cp"); present {
+			ipv6Enabled = value == configTrue
+		}
+	}
+	return validateMRUNCP(mru, ipv6Enabled)
 }
 
 // validateAuthPolicy is safe for concurrent use and MUST NOT modify tree.

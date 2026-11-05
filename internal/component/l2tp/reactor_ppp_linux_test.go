@@ -138,7 +138,7 @@ func TestReactorPPPPolicyReloadIsolation(t *testing.T) {
 	})
 	s.reactors = []*l2tpReactor{r}
 	cfg := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {
-		"mru": "64", "authentication": map[string]any{"allow": []string{"chap-md5", "pap"}},
+		"mru": "68", "ncp": map[string]any{"enable-ipv6cp": "false"}, "authentication": map[string]any{"allow": []string{"chap-md5", "pap"}},
 	}}}
 	if err := s.Reload(context.Background(), cfg); err != nil {
 		t.Fatal(err)
@@ -151,7 +151,7 @@ func TestReactorPPPPolicyReloadIsolation(t *testing.T) {
 	if first.MaxMRU != 1492 || len(first.AuthFallbackOrder) != 1 {
 		t.Fatalf("earlier session policy changed: %+v", first)
 	}
-	if second.MaxMRU != 64 || len(second.AuthFallbackOrder) != 2 ||
+	if second.MaxMRU != 68 || len(second.AuthFallbackOrder) != 2 ||
 		second.AuthFallbackOrder[1] != ppp.AuthMethodPAP {
 		t.Fatalf("new session did not receive policy: %+v", second)
 	}
