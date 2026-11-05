@@ -25,8 +25,8 @@ var policyFinalCases = []struct {
 }{
 	{name: "empty-accept", final: actionAccept, accept: true},
 	{name: "empty-reject", final: actionReject},
-	{name: "passing-reject", filters: "bgp-filter-path-asn:PASS", final: actionReject},
-	{name: "early-reject", filters: "bgp-filter-path-asn:DENY", final: actionAccept},
+	{name: "passing-reject", filters: "reject-asn-PASS", final: actionReject},
+	{name: "early-reject", filters: "reject-asn-DENY", final: actionAccept},
 	{name: "delta-accept", filters: policyFinalFilterMED, final: actionAccept, accept: true},
 	{name: "delta-reject", filters: policyFinalFilterMED, final: actionReject},
 	{name: "raw-accept", filters: "bgp-filter-family:NoV6", final: actionAccept, accept: true, raw: true},
@@ -57,7 +57,7 @@ func policyFinalScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if !waitPeersEOR03(ctx, plugin, 2) {
+	if err := p12WaitPeersEOR(ctx, plugin, "peer-1", "peer-2"); err != nil {
 		return errors.New("both policy peers must finish initial synchronization")
 	}
 	for index := range policyFinalCases {
@@ -123,17 +123,6 @@ func policyFinalCase(ctx context.Context, plugin *sdk.Plugin, base *config.Tree,
 	if err := quiesce03(ctx, plugin); err != nil {
 		return err
 	}
-	// API-originated export probes have no retained RS source. Restoring the
-	// policy cannot replay a forbidden probe and the next fence remains honest.
-	if err := policyFinalReload(ctx, plugin, config.Serialize(base, schema), "applied"); err != nil {
-		return err
-	}
-	if err := liveStagesRoute(ctx, plugin, "127.0.0.2 update text nhop 192.0.2.1 nlri add 192.169."+epoch+".0/24"); err != nil {
-		return err
-	}
-	if !waitForFile(ctx, "final-fence-"+epoch, 100, liveStagesPollDelay) {
-		return errors.New("destination did not receive the permitted wire fence")
-	}
 	prefix := "10.71." + epoch + ".0/24"
 	if err := policyFinalRIB(ctx, plugin, prefix, row.accept); err != nil {
 		return err
@@ -152,6 +141,17 @@ func policyFinalCase(ctx context.Context, plugin *sdk.Plugin, base *config.Tree,
 			return fmt.Errorf("removed family: %w", err)
 		}
 	}
+	// API-originated export probes have no retained RS source. Restoring the
+	// policy cannot replay a forbidden probe and the next fence remains honest.
+	if err := policyFinalRestore(ctx, plugin, config.Serialize(base, schema), index); err != nil {
+		return err
+	}
+	if err := liveStagesRoute(ctx, plugin, "127.0.0.2 update text nhop 192.0.2.1 nlri add 192.169."+epoch+".0/24"); err != nil {
+		return err
+	}
+	if !waitForFile(ctx, "final-fence-"+epoch, 100, liveStagesPollDelay) {
+		return errors.New("destination did not receive the permitted wire fence")
+	}
 	// Leave no API advertisements for the next final-reject reload to withdraw.
 	// The sink acknowledges these withdrawals before the next epoch starts.
 	withdraw := "127.0.0.2 update text nlri del 192.169." + epoch + ".0/24"
@@ -163,6 +163,51 @@ func policyFinalCase(ctx context.Context, plugin *sdk.Plugin, base *config.Tree,
 	}
 	if !waitForFile(ctx, "final-clean-"+epoch, 100, liveStagesPollDelay) {
 		return errors.New("destination did not receive the epoch cleanup withdrawals")
+	}
+	return nil
+}
+
+// policyFinalRestore waits for both negotiated families' complete replay before
+// another epoch can change the policy that admits those UPDATEs.
+func policyFinalRestore(ctx context.Context, plugin *sdk.Plugin, base string, index int) error {
+	row := &policyFinalCases[index]
+	before, err := peerCounter03(ctx, plugin, addrLoopback, "updates-received")
+	if err != nil {
+		return err
+	}
+	if err := policyFinalReload(ctx, plugin, base, "applied"); err != nil {
+		return err
+	}
+	if row.final != actionReject {
+		return nil
+	}
+	epoch := strconv.Itoa(index + 1)
+	if !waitForFile(ctx, "final-refreshed-"+epoch, 100, liveStagesPollDelay) {
+		return errors.New("source did not answer both families' Route Refresh on its original session")
+	}
+	// The source replays its full IPv4 Adj-RIB-Out in one UPDATE. Only the
+	// last rejecting epoch has IPv6 routes, also replayed in one UPDATE.
+	updates := before + 1
+	if row.raw {
+		updates++
+	}
+	if !waitPeerCounter03(ctx, plugin, "updates-received", updates, 80) {
+		return errors.New("source's complete Route Refresh replay was not received")
+	}
+	if err := quiesce03(ctx, plugin); err != nil {
+		return err
+	}
+	prefix := "10.71." + epoch + ".0/24"
+	if err := policyFinalRIB(ctx, plugin, prefix, true); err != nil {
+		return fmt.Errorf("restored import: %w", err)
+	}
+	if err := policyFinalImportedAttributes(ctx, plugin, prefix, 9); err != nil {
+		return fmt.Errorf("restored import: %w", err)
+	}
+	if row.raw {
+		if err := policyFinalRIB(ctx, plugin, "2001:db8:"+epoch+"::/48", true); err != nil {
+			return fmt.Errorf("restored IPv6 import: %w", err)
+		}
 	}
 	return nil
 }

@@ -449,6 +449,22 @@ separate input. An accepted probe must report one announced NLRI, then satisfy
 the destination's prefix and attribute assertions. A command acknowledgement
 alone is not evidence that the peer received a route.
 
+The passing and early-reject epochs reach their reject-asn lists through named
+`match` instances with `action accept`. A passing match continues to the final
+decision; it does not accept the route early. The rejecting match still refuses
+the route before a final accept. The reject-asn plugin serves match conditions,
+not directly callable chain filters.
+
+The import checks run before restoring the accepting policy: a rejected route
+must be absent while the rejecting policy still applies. The source session
+negotiates RFC 2918 Route Refresh. Restoring a rejecting final decision requests
+both negotiated families on that original socket, and the source replies with
+its complete per-family Adj-RIB-Out. The observer waits for the replay marker, received UPDATE counter
+and quiesce before checking the restored route and its original attributes.
+An empty IPv6 Adj-RIB-Out sends no UPDATE; the last epoch replays both IPv6
+prefixes as well as every previously advertised IPv4 prefix. API-originated
+export probes have no retained source, so this replay cannot hide an export leak.
+
 Each epoch ends with acknowledged withdrawals of its permitted probe and fence.
 Otherwise the next final-reject reload would correctly withdraw those older
 advertisements while the peer script expected only the next epoch. The reload
