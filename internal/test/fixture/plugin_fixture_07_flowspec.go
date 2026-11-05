@@ -250,7 +250,18 @@ func flowSpecUntranslatable07(ctx context.Context, args []string) error {
 	return nil
 }
 
+// peerPIDs07 finds only a canonical test peer from this case. The fixture and
+// its peer run from the same per-test directory and harness executable; argv
+// alone would also select a sibling test or an unrelated program.
 func peerPIDs07() ([]int, error) {
+	workDir, err := os.Stat(".")
+	if err != nil {
+		return nil, fmt.Errorf("identify FlowSpec case directory: %w", err)
+	}
+	executable, err := os.Stat("/proc/self/exe")
+	if err != nil {
+		return nil, fmt.Errorf("identify FlowSpec observer executable: %w", err)
+	}
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return nil, err
@@ -261,14 +272,24 @@ func peerPIDs07() ([]int, error) {
 		if err != nil {
 			continue
 		}
-		raw, err := os.ReadFile("/proc/" + entry.Name() + "/cmdline")
+		processDir := "/proc/" + entry.Name() + "/"
+		raw, err := os.ReadFile(processDir + "cmdline")
 		if err != nil {
 			continue
 		}
 		argv := strings.Split(string(raw), "\x00")
-		if len(argv) > 1 && argv[1] == fieldPeer {
-			pids = append(pids, pid)
+		if len(argv) < 3 || argv[1] != "test" || argv[2] != fieldPeer {
+			continue
 		}
+		candidateDir, err := os.Stat(processDir + "cwd")
+		if err != nil || !os.SameFile(workDir, candidateDir) {
+			continue
+		}
+		candidateExecutable, err := os.Stat(processDir + "exe")
+		if err != nil || !os.SameFile(executable, candidateExecutable) {
+			continue
+		}
+		pids = append(pids, pid)
 	}
 	return pids, nil
 }

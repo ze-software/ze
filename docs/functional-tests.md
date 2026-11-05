@@ -1305,6 +1305,15 @@ that race fails the test rather than passing it.
 <!-- source: internal/plugins/flowspec-firewall/state.go -- tableName, the constant no .ci can vary -->
 <!-- source: internal/component/firewall/legacy_tables.go -- legacyTables, the names any ze daemon removes once -->
 
+The withdrawal-removal observer first checks both selected rules, sends its
+unique wire marker, and checks that only the withdrawn rule left both hooks.
+It then stops only the `le test peer` process running from its own case
+directory and the same harness executable, before requiring the final FlowSpec
+table to disappear. A sibling case's peer or another executable is never a
+candidate for that stop.
+<!-- source: internal/test/fixture/plugin_fixture_07_flowspec.go -- peerPIDs07, flowSpecWithdrawTable07 -->
+<!-- test: internal/test/fixture/plugin_fixture_07_peer_lookup_linux_test.go -- TestFlowSpecPeerLookupUsesCaseProcess -->
+
 Related: a test that binds a *chosen* port must take it from the runner's per-test
 range (`$PORT`, `$PORT2`, `$PORT3`), never a literal. `bfd-echo-handshake` hardcoded
 telemetry port 19274, which sits outside every range the runner hands out, so a
