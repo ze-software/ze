@@ -627,19 +627,19 @@ func TestBespokeCheckerBranches(t *testing.T) {
 			offLink   = "2001:db8:5602::/48"
 			linkLocal = "fe80::be:ef:2"
 		)
-		installed := "B>* " + onLink + " [20/0] via " + linkLocal + ", eth0, weight 1, 00:00:07\n"
-		if err := requireRouteInstalledVia(installed, onLink, linkLocal); err != nil {
+		installed := frrInstalledRouteAnswer(onLink, linkLocal, "bgp")
+		if err := requireRouteInstalledVia(installed, onLink, linkLocal, "bgp"); err != nil {
 			t.Fatalf("a route installed via the link-local next hop failed: %v", err)
 		}
-		split := "B>* " + onLink + " [20/0] via 2001:db8:ffff::1, eth0\n" +
-			"B>* " + offLink + " [20/0] via " + linkLocal + ", eth0\n"
-		if err := requireRouteInstalledVia(split, onLink, linkLocal); err == nil {
-			t.Fatal("a next hop taken from another route's line passed")
+		split := strings.TrimSuffix(frrInstalledRouteAnswer(onLink, "2001:db8:ffff::1", "bgp"), "}") + "," +
+			strings.TrimPrefix(frrInstalledRouteAnswer(offLink, linkLocal, "bgp"), "{")
+		if err := requireRouteInstalledVia(split, onLink, linkLocal, "bgp"); err == nil {
+			t.Fatal("a next hop taken from another route's entry passed")
 		}
-		if err := requireRouteInstalledVia("B>* "+offLink+" [20/0] via "+linkLocal+", eth0\n", onLink, linkLocal); err == nil {
+		if err := requireRouteInstalledVia(frrInstalledRouteAnswer(offLink, linkLocal, "bgp"), onLink, linkLocal, "bgp"); err == nil {
 			t.Fatal("an uninstalled route passed as installed")
 		}
-		if err := requireRouteInstalledVia("", onLink, linkLocal); err == nil {
+		if err := requireRouteInstalledVia("", onLink, linkLocal, "bgp"); err == nil {
 			t.Fatal("an empty route listing passed as installed")
 		}
 	})
@@ -783,16 +783,16 @@ func TestBespokeCheckerBranches(t *testing.T) {
 			defaultRoute = "0.0.0.0/0"
 			borderRouter = "172.30.0.2"
 		)
-		installed := "O>* " + defaultRoute + " [110/20] via " + borderRouter + ", eth0, weight 1, 00:00:12\n"
-		if err := requireRouteInstalledVia(installed, defaultRoute, borderRouter); err != nil {
+		installed := frrInstalledRouteAnswer(defaultRoute, borderRouter, "ospf")
+		if err := requireRouteInstalledVia(installed, defaultRoute, borderRouter, "ospf"); err != nil {
 			t.Fatalf("the NSSA default from the border router was rejected: %v", err)
 		}
-		elsewhere := "O>* " + defaultRoute + " [110/20] via 172.30.0.9, eth0\n" +
-			"O>* 10.0.0.0/24 [110/10] via " + borderRouter + ", eth0\n"
-		if requireRouteInstalledVia(elsewhere, defaultRoute, borderRouter) == nil {
-			t.Fatal("a default from another router passed by matching the border router on a second line")
+		elsewhere := strings.TrimSuffix(frrInstalledRouteAnswer(defaultRoute, "172.30.0.9", "ospf"), "}") + "," +
+			strings.TrimPrefix(frrInstalledRouteAnswer("10.0.0.0/24", borderRouter, "ospf"), "{")
+		if requireRouteInstalledVia(elsewhere, defaultRoute, borderRouter, "ospf") == nil {
+			t.Fatal("a default from another router passed by matching the border router on a second entry")
 		}
-		if requireRouteInstalledVia("", defaultRoute, borderRouter) == nil {
+		if requireRouteInstalledVia("", defaultRoute, borderRouter, "ospf") == nil {
 			t.Fatal("an empty route listing passed as an installed default")
 		}
 		clean := "       OSPF Router with ID (172.30.0.3)\n\n                AS External Link States\n\n"
@@ -897,17 +897,17 @@ func TestBespokeCheckerBranches(t *testing.T) {
 			announced = "203.0.113.0/24"
 			injector  = "172.30.0.9"
 		)
-		installed := "B>* " + announced + " [20/0] via " + injector + ", eth0, weight 1, 00:00:09\n"
-		if err := requireRouteInstalledVia(installed, announced, injector); err != nil {
+		installed := frrInstalledRouteAnswer(announced, injector, "bgp")
+		if err := requireRouteInstalledVia(installed, announced, injector, "bgp"); err != nil {
 			t.Fatalf("the split announce FRR installed was rejected: %v", err)
 		}
-		if requireRouteInstalledVia("B>* "+announced+" [20/0] via 172.30.0.2, eth0\n", announced, injector) == nil {
+		if requireRouteInstalledVia(frrInstalledRouteAnswer(announced, "172.30.0.2", "bgp"), announced, injector, "bgp") == nil {
 			t.Fatal("a route installed through ze's own address passed as the relayed third-party next hop")
 		}
-		if requireRouteInstalledVia("B>* "+replayed+" [20/0] via "+injector+", eth0\n", announced, injector) == nil {
+		if requireRouteInstalledVia(frrInstalledRouteAnswer(replayed, injector, "bgp"), announced, injector, "bgp") == nil {
 			t.Fatal("another route's installation passed as the split announce's")
 		}
-		if requireRouteInstalledVia("", announced, injector) == nil {
+		if requireRouteInstalledVia("", announced, injector, "bgp") == nil {
 			t.Fatal("an unanswered route query passed as an installed route")
 		}
 		renumbered := checkerGuardFailure(t, checkRFC7606MixedUpdate, renumberedNetwork())

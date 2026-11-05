@@ -214,28 +214,62 @@ func requireNextHopShape(entries []nextHop, global, linkLocal netip.Addr) error 
 	return nil
 }
 
-// requireRouteInstalledVia reports whether a daemon's route listing installs prefix
-// through nextHop. The prefix and the next hop MUST appear on ONE line: FRR writes
-// each installed route as `B>* <prefix> [20/0] via <next hop>, eth0`, so a next hop
-// found on any other line belongs to a different route, and accepting it would let
-// a route installed through its global next hop alone pass as installed through the
-// link-local one. An empty listing is a failure rather than an absence, because a
-// query that answered nothing is not a table with no route in it.
-func requireRouteInstalledVia(routes, prefix, nextHop string) error {
-	installed := false
-	for line := range strings.SplitSeq(routes, "\n") {
-		if !strings.Contains(line, prefix) {
+// requireRouteInstalledVia reads FRR 10.7.1's native zebra JSON. Selection,
+// installation and the expected protocol MUST belong to the exact prefix's
+// same route entry; active/FIB state MUST belong to its matching nexthop.
+// Producers: zebra_vty.c:vty_show_ip_route, lib/nexthop.c:nexthop_json_helper.
+func requireRouteInstalledVia(routes, prefix, nextHop, protocol string) error {
+	wantPrefix, err := netip.ParsePrefix(prefix)
+	if err != nil {
+		return fmt.Errorf("invalid expected installed prefix %q: %w", prefix, err)
+	}
+	wantHop, err := netip.ParseAddr(nextHop)
+	if err != nil {
+		return fmt.Errorf("invalid expected installed next hop %q: %w", nextHop, err)
+	}
+	var document map[string][]struct {
+		Prefix       string `json:"prefix"`
+		Protocol     string `json:"protocol"`
+		Selected     bool   `json:"selected"`
+		DestSelected bool   `json:"destSelected"`
+		Installed    bool   `json:"installed"`
+		Nexthops     []struct {
+			IP     string `json:"ip"`
+			Active bool   `json:"active"`
+			FIB    bool   `json:"fib"`
+		} `json:"nexthops"`
+	}
+	if err := json.Unmarshal([]byte(routes), &document); err != nil {
+		return fmt.Errorf("decode FRR installed-route JSON: %w", err)
+	}
+	for _, route := range document[prefix] {
+		gotPrefix, err := netip.ParsePrefix(route.Prefix)
+		if err != nil {
 			continue
 		}
-		installed = true
-		if strings.Contains(line, nextHop) {
-			return nil
+		if gotPrefix != wantPrefix {
+			continue
+		}
+		if route.Protocol != protocol {
+			continue
+		}
+		if !route.Selected {
+			continue
+		}
+		if !route.DestSelected {
+			continue
+		}
+		if !route.Installed {
+			continue
+		}
+		for _, hop := range route.Nexthops {
+			gotHop, err := netip.ParseAddr(hop.IP)
+			if err == nil && gotHop == wantHop && hop.Active && hop.FIB {
+				return nil
+			}
 		}
 	}
-	if !installed {
-		return fmt.Errorf("daemon installed no route for %s", prefix)
-	}
-	return fmt.Errorf("daemon installed %s, but not via next hop %s", prefix, nextHop)
+	return fmt.Errorf("FRR has no selected, installed %s route for %s with active FIB next hop %s", protocol, prefix, nextHop)
 }
 
 // requireNoExternalLSA reports whether FRR's OSPF database holds no AS-external

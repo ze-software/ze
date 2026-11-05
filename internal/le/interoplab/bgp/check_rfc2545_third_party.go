@@ -93,11 +93,11 @@ func checkRFC2545ThirdPartyLinkLocal(ctx context.Context, check *interoplab.Chec
 
 	// Assertion 5. FRR installs the route through frr-sink's link-local, so the
 	// second address was used and not merely parsed.
-	routes, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show ipv6 route bgp"}, nil)
+	routes, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show ipv6 route bgp json"}, nil)
 	if err != nil {
 		return fail(5, err)
 	}
-	if err := requireRouteInstalledVia(routes, prefix, sinkLinkLocal.String()); err != nil {
+	if err := requireRouteInstalledVia(routes, prefix, sinkLinkLocal.String(), "bgp"); err != nil {
 		return fail(5, err)
 	}
 

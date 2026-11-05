@@ -577,11 +577,11 @@ func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) e
 	// Assertion 5. FRR forwards through the link-local address, so the second next
 	// hop was not merely parsed but used. Without this half the RFC2545-3-3 positive
 	// tag claims an installation that nothing reads.
-	routes, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show ipv6 route bgp"}, nil)
+	routes, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show ipv6 route bgp json"}, nil)
 	if err != nil {
 		return fail(5, err)
 	}
-	if err := requireRouteInstalledVia(routes, onLinkRoute.argument, linkLocal.String()); err != nil {
+	if err := requireRouteInstalledVia(routes, onLinkRoute.argument, linkLocal.String(), "bgp"); err != nil {
 		return fail(5, err)
 	}
 
@@ -810,13 +810,13 @@ func checkRFC7606MixedUpdate(ctx context.Context, check *interoplab.CheckContext
 
 	// Assertion 6. FRR gives that route to zebra through the injector's address, so
 	// the mixed UPDATE was not merely held in a BGP table but INSTALLED, which is
-	// what the tag above claims. The prefix and the next hop are required on ONE
-	// line, so a next hop belonging to another route cannot satisfy it.
-	routes, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", showRouteBGP}, nil)
+	// what the tag above claims. The selected, installed BGP route entry must
+	// contain the matching active FIB next hop, so another route cannot satisfy it.
+	routes, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", showRouteBGP + " json"}, nil)
 	if err != nil {
 		return fail(6, err)
 	}
-	if err := requireRouteInstalledVia(routes, announced.argument, injectorAddress); err != nil {
+	if err := requireRouteInstalledVia(routes, announced.argument, injectorAddress, "bgp"); err != nil {
 		return fail(6, err)
 	}
 
@@ -1399,7 +1399,7 @@ func checkNSSADefault(ctx context.Context, check *interoplab.CheckContext) error
 		defaultRoute = "0.0.0.0/0"
 		// The two vtysh commands this scenario alone runs. FRR takes one after
 		// each -c flag, as the shared commands in names.go do.
-		showOSPFRoute   = "show ip route ospf"
+		showOSPFRoute   = "show ip route ospf json"
 		showExternalLSA = "show ip ospf database external"
 	)
 	fail := func(assertion int, cause error) error {
@@ -1418,8 +1418,8 @@ func checkNSSADefault(ctx context.Context, check *interoplab.CheckContext) error
 	// Assertion 2. FRR is NSSA internal, so the default it installs is the Type 7 one
 	// the NSSA border router originates. ze.conf carries no `default-originate` leaf,
 	// so nothing gates that origination on an operator. The border router is required
-	// on the SAME line as the prefix: a default reaching FRR from anywhere else would
-	// otherwise satisfy the assertion.
+	// in the SAME selected, installed JSON route entry as the prefix: a default
+	// reaching FRR from anywhere else cannot satisfy the assertion.
 	borderRouter := networkHostAddress(check.Network, 2)
 	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     60 * time.Second,
@@ -1428,7 +1428,7 @@ func checkNSSADefault(ctx context.Context, check *interoplab.CheckContext) error
 	}, func(probeCtx context.Context) (string, error) {
 		return check.Lab.Query(probeCtx, peerFRR, []string{cmdVtysh, "-c", showOSPFRoute}, nil)
 	}, func(routes string) bool {
-		return requireRouteInstalledVia(routes, defaultRoute, borderRouter) == nil
+		return requireRouteInstalledVia(routes, defaultRoute, borderRouter, "ospf") == nil
 	}); err != nil {
 		return fail(2, err)
 	}
