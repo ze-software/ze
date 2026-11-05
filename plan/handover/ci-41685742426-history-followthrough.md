@@ -5,6 +5,44 @@
 **Current spec:** `plan/release/fixes/spec-cli-history-blocks-ui.md`, in progress and not closed. The user authorized admission of this named fix only; the one-off claim used cap 23, without changing the permanent cap.
 **Outcome:** CI repair remains incomplete. The user requested this handover after objecting to the long wait. Continue the concrete failed-path diagnosis below, not a new audit of the already-landed history design.
 
+## Continuation: captured commit wait, 2026-11-05
+
+The prepared diagnostic now ran. The next action is diagnosis of storage latency using the retained trace, subject to the pending owner direction below.
+The earlier instruction to obtain the first live stack is satisfied. No product or test change follows from these captures yet.
+
+Both plugin runs used `./le --name ci41685742426-stallcapture test stress-repro run suite 'plugin --draft' test 'session-editor-commit-force session-editor-commit-verify policy-final-disposition bgp-capture-replay attach-process-delivery-graph' any-failure iterations 80 parallel 2 burners 1 timeout 240 minutes 25`, with the prepared fixture overlay and `CGO_ENABLED=0`.
+The plain diagnostic reproduced force step 12 on invocation 9. Its stress log ends `20261105-012203-3191593247.log` under `tmp/stress-repro/`.
+`daemon-stacks-1296080553.json`, beside the overlay, captures `runCommitSession` waiting through `NotifyReload` and candidate promotion at the active pointer's destination-directory fsync.
+The UI event loop is in `select`, and its history coalescer is idle. This capture locates durable commit work rather than another synchronous history write.
+
+The same native selection, traced through `./le job run label ci41685742426-sync-trace quiet command strace -f -ttt -T -yy -e trace=fsync,fdatasync,renameat,renameat2`, reproduced force step 12 on invocation 3.
+Its stress log ends `20261105-012905-3802947951.log`. The traced capture is `daemon-stacks-2145862107.json`, which catches pointer promotion reading a pointer.
+The force daemon's identified threads spent 7.905979 seconds syncing the file-commit intent directory, then 10.699060 seconds syncing the explicit-source frame.
+Those are serial waits in the forced commit. The trace's longest completed fsyncs, about 18 seconds each, belong to other identified threads.
+`readPTYUntil04` bounds the whole expected-output wait at 20 seconds. These are observations from failed invocations, not host performance figures or a whole-commit duration estimate.
+
+`installBytes` syncs each frame before rename and its destination directory afterward. `recoverFileCommit` durably records intent before publishing the explicit source.
+No redundant barrier or incorrect ordering has been established, so removing a barrier has no correctness basis.
+The owner direction remains pending: investigate VM storage latency, or permit a completion wait within the existing case timeout.
+The existing prohibitions on wider deadlines, changed backing and weaker durability still apply until the owner resolves that choice.
+
+Separate reload progress has landed in `405f472cd7`: both community reload tests were promoted with their required egress membership preserved.
+That commit records independent test judgment, native draft and promoted passes, and 80 successful stress invocations of the pair.
+The attempted three-draft run ending `20261105-013407-1358465072.log` stopped at `test "bgp-filter-community-reload" not found`, because that test had been promoted. It supplies no runtime proof.
+The live `bgp-route-refresh-enabled-over-ssh` run failed invocation 1 at its 60-second case timeout. Its log ends `20261105-013504-324635378.log`.
+That timeout alone did not locate the failed script step. The disposable `route-refresh-pollcapture/overlay.json` records the first failed poll response without changing predicates or deadlines.
+The instrumented live single-invocation run, with the same parallel and burner settings, failed step 8 waiting for `"route-refresh":true`. Its log ends `20261105-013845-3149552913.log`.
+The actual UI reported `Session committed: 1 change(s) applied and reloaded`. The final peer JSON still reported `negotiation-complete:true`, `route-refresh:false`, one established connection and zero dropped connections.
+The wire evidence contained only the initial EOR, with no Cease. The stack is retained at `tmp/session/2026-11-05-002734/scratch/route-refresh-pollcapture/daemon-stacks-3011966463.json`.
+No product cause is established. `/root/route_refresh_diagnosis` is tracing the candidate-to-reload path read-only, while preserving other sessions' authority and framing migrations.
+
+The publication holds remain: `check_rfc.go` and `check_rfc2545_third_party.go` still differ from HEAD.
+Inventory `source.go`, `registrations.go` and `collectactualfiles.go` are still absent from HEAD. The five RFC metadata records and two DocSource patches remain held for their committed producers.
+
+Retain `tmp/session/2026-11-05-002734/scratch/forced-commit-sync.strace`, `job-ci41685742426-sync-trace-0cfab569.log` and `commit-stall-trace-findings.md` for storage diagnosis.
+Retain both live stack captures beside the prepared overlay. Remove diagnostic-only artifacts after the cause is settled and no further diagnostic run needs them, preserving useful failure evidence.
+The history spec and the pinned CI repair remain open.
+
 ## Start here
 
 1. Read this handover and the spec's latest evidence section. The canonical chronological state is `tmp/session/2026-11-03-231620/state/session-state-cli-history-blocks-ui-omp-ci-41685742426-20261103.md`; its early “missing/unexecuted” entries are superseded by later recorded results.
