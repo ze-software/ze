@@ -11,16 +11,27 @@
 
 ## Blocker
 
-`/ze-close` reached the native owner-authorization boundary. Implementation,
+`/ze-close` has cleared the native owner-authorization boundary. Implementation,
 source review, runtime proofs and owned gate repairs are complete; RFC proof
 renewals are committed as `da5a885294` and documentation repairs as `0a24e5afd4`.
 The actual hash-pinned review record attempt (1123 live blobs and modes, 60
 removals, six recorded rounds) exited 2: `review_gate: 6 review rounds needs
 Thomas's authorization; a session must not authorize itself`. No native CLEAN
-artifact was recorded. The remaining closure work is Thomas's explicit terminal
-authorization of those six rounds, the native record/check, then commits A and
-B and claim release. Resume from the prepared population; this boundary calls
-for neither another review round nor repeated tests. Final citation checking
+artifact was recorded by that refused attempt. Thomas subsequently authorized
+the six recorded rounds through the actual terminal, and the native CLEAN
+artifact was recorded at `2026-11-05T23:06:18Z`. The artifact-status check passed,
+but the actual prospective commit gate then refused six stale shared-path pins
+after other sessions' commits. All six deltas are reconciled: four current blobs
+exactly match the observer closure's independent CLEAN manifest, and the paired
+import relocation is independently cleared. Corrected arguments are retained in
+`tmp/session/2026-11-04-230539/scratch/fw-native-review-argv-current.json`, with
+evidence in `fw-six-pin-reconciliation.md` in the same directory. Only six blob
+values change; modes, 1123 live paths, 60 removals and six rounds are unchanged.
+Thomas's existing authorization remains his decision. The corrected helper
+requires a real-terminal rerecord of this population; no agent may manufacture
+that terminal step. Then resume the native check and commits A+B, final citation
+check and release. No new authorization decision, review round or repeated test
+is needed. The preceding final citation check
 passed after the two dangling prose references were repaired; the handback
 preserves those repairs and this completed evidence.
 
@@ -28,7 +39,14 @@ preserves those repairs and this completed evidence.
 |---|--------|----------|----------------|
 | 1 | (cleared, fa8f2b00c2) Commit B left a dangling citation in `spec-route-policy-0-umbrella` | -- | That spec now cites this one by bare stem; D-12 and D-13 live in `plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture" (be8895df75) |
 | 2 | (cleared, fa8f2b00c2) The open 2026-11-02 row of `plan/journal/second-logger-detaches-runtime-level.md` needed a living owner | -- | `spec-daemon-runtime-one-off-defects` owns it; the row left this spec's Owned journal rows table |
-| 3 | Native review recording refused the six-round lineage without Thomas's authorization; all bounded product findings are resolved under option B | `internal/le/spec/review.go::recordReview` enforces the round cap; `internal/le/spec/review_authorization.go::requireOwnerReviewTerminal` requires real terminal authorization when owner words are supplied. The option-B population and conservative six-round lineage are retained in `tmp/session/2026-11-04-230539/scratch/fw-final-round-lineage.md` and `fw-native-review-argv.json`. | Thomas explicitly authorizes the six recorded rounds through the actual terminal. Resume the exact prepared native record/check and commits A+B, without resetting the count, manufacturing owner words, repeating the historical audit or rerunning completed tests. |
+| 3 | Cleared: Thomas authorized the six recorded rounds through the actual terminal; all bounded product findings are resolved under option B | `internal/le/spec/review.go::recordReview` and `internal/le/spec/review_authorization.go::requireOwnerReviewTerminal` accepted the owner-authorized native record. The option-B population and conservative six-round lineage remain in `tmp/session/2026-11-04-230539/scratch/fw-final-round-lineage.md` and `fw-native-review-argv.json`. | Native CLEAN artifact recorded at `tmp/review/filter-wire-0-umbrella-010c656c-7d73-4e34-9923-47e8f6a7475d.md`, six rounds, 1123 live paths plus 60 removals. Artifact-status check passed; commits A+B follow without resetting the count or repeating completed work. |
+
+Current metadata blocker: `internal/le/commit/review.go::judgeReviewCoverage`,
+through `checkReviewArtifact`, rejects the six stale prospective-tree hashes.
+Clearance is the corrected real-terminal record through
+`internal/le/spec/review_authorization.go::requireOwnerReviewTerminal`, followed
+by the native prospective-content check. The earlier authorization blocker in
+row 3 remains cleared; this is a content-pin refresh, not another review cycle.
 
 The pinned A-6 bench file `test/perf/filter-a6/textera_bench_test.go.txt`
 cites this spec's path and cannot be edited; `citation.Excluded`
@@ -1379,8 +1397,8 @@ was revised by the owner the same day, answering R-12 (R-12, revised).
 - [ ] Targeted runs named: `./le test unit bgp` (reactor, policychain, the A-6 slow-path benchmark package), the scoped `go test -tags ze_bgp` of `internal/component/plugin/ipc` and `pkg/plugin/sdk` (batcher, SDK), `./le test functional plugin` (the filter-wire `.ci` proofs)
 
 ### Closure
-- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it — completed below; brackets retain the spec convention.
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go` — native CLEAN recorded, six owner-authorized rounds; artifact-status check passed, prospective content checked by the commit gate.
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script
 
@@ -1603,8 +1621,9 @@ follow-up runtime receipt; native final review and closure remain separate.
 
 ### Audit Summary
 
-- **Final closure status:** not complete; no native CLEAN artifact or two-commit
-  publication has been prepared.
+- **Final closure status:** blocked on corrected native rerecord after the
+  prospective commit gate rejected six stale shared-path pins. The six-round
+  authorization and completed proofs remain; closure commits have not landed.
 - **Scope reductions:** none by this closure.
 - **Review scope:** the owner's option B below governs. Earlier independent
   per-phase reviews remain evidence; subsequent repairs need current review.
@@ -1625,26 +1644,33 @@ closure template around them.
 
 ## Work Not Done
 
-No in-scope work is deferred by this closure. Active review findings must be
-fixed before it can close. Rejected-route retention storage is separately owned
+No in-scope work is deferred by this closure. All reviewed product findings and
+proof obligations are resolved. Rejected-route retention storage is separately owned
 by `plan/post-release/features/spec-bgp-filtered-route-storage.md`; it is not a
 waiver of this spec's filter-wire obligations.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| No in-scope item is being handed off. | Closure remains in progress until its review findings and proof obligations are complete. | None |
+| No in-scope implementation item is being handed off. | Implementation and proof obligations are complete; corrected native rerecord and closure commits remain. Existing owner authorization is preserved. | None |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
 | Scope | Thomas chose option B on 2026-11-04: review only the code since the last independent per-phase reviews (after f0b04c1428), not the full net diff. That narrows the review; it does not clear the known findings above |
-| Artifact | Not recorded; bounded source findings and actual runtime proofs are reconciled, with final publication/native checks outstanding. |
-| `./le spec review check` | Not run; no CLEAN artifact is claimed. |
+| Artifact | CLEAN: `tmp/review/filter-wire-0-umbrella-010c656c-7d73-4e34-9923-47e8f6a7475d.md`, recorded `2026-11-05T23:06:18Z`; 1123 live blob/mode pins and 60 removals; zero remaining BLOCKER/ISSUE in the option-B population. |
+| Owner authorization | Actual terminal authorization: "I authorize the six recorded review rounds for filter-wire-0-umbrella." Six rounds recorded; no additional review round was performed. |
+| `./le spec review check` | Exit 0: `review_gate: OK (0 code files, clean, hashes match tmp/review/filter-wire-0-umbrella-010c656c-7d73-4e34-9923-47e8f6a7475d.md)`. This checks artifact status with zero checkout-path selectors; it does not compare the full working tree. Native commit creation and its script check the exact prospective population against all 1183 pins. |
 | Rounds | Original option-B rounds 1 and 2 are explicitly recorded in `tmp/session/2026-11-01-384a3761-c376-4523-a82d-0c61fcd10814/scratch/close4-review-findings.md`. The subsequent repair lineage conservatively requires at least six stages in total: continued discovery; repair review exposing actual-ID singleton/W1/U18 defects; U18 repair review exposing admission and scanner-join gaps; then resolved-source review. This is a reconstruction from actual artifacts, not a recovered native historical counter. Nine parallel historical slices are not nine rounds, and closure prose NOTEs add no round. Exact provenance is in `tmp/session/2026-11-04-230539/scratch/fw-final-round-lineage.md`. |
 | Reviewer lenses used | Ownership/lifetime/concurrency; correctness/wiring/security; proof/performance/maintainability and the Go style pass. |
 
 ### Findings fixed
+
+The artifact above remains historical evidence of the authorized six-round
+review. Its six stale shared-path pins do not cover the current prospective
+tree; the actual commit gate refused them. The exact reconciliation and
+corrected argument file named in the Blocker section are ready for terminal
+rerecord, with no new round or scope change.
 
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
@@ -1661,8 +1687,9 @@ waiver of this spec's filter-wire obligations.
 
 The historical findings are retained with their repair evidence; they are not
 erased by later clean source reviews. All currently named runtime obligations
-below are complete. Remaining publication and native gates must still finish
-before recording CLEAN; local repair review does not sign off unrelated work.
+below are complete. Native CLEAN is now recorded for the exact option-B
+population; artifact-status check passed and closure publication remains. Local repair review
+does not sign off unrelated work.
 
 The continuation follows
 `plan/handover/2026-11-05-filter-wire-umbrella-handoff.md`, which supersedes
@@ -1698,9 +1725,10 @@ captured removal recipients during concurrent publication. The earlier
 `job-fw-authority-current-d15dbd49.log`; that mixed-result job's fixture and
 netlink failures are not hidden by the later successful proofs. Authority
 publication landed as `7d1edaeec3`; mechanical lint fixes landed as `672832444f`.
-Final gate integration remains pending. Plugin scoped lint passed all four
-flavors in `job-fw-followup-plugin-lint-final-d870b62c.log`; hub lint and the
-new committed-build receipt remain owned by the main thread.
+Final gate integration is complete as recorded below. Plugin scoped lint passed
+all four flavors in `job-fw-followup-plugin-lint-final-d870b62c.log`; completed
+hub/runtime lint and committed-build evidence are retained with their actual
+scopes. Native review is recorded and its artifact-status check passed; closure publication remains.
 
 The U18 unchanged baseline accepted sixteen distinct
 deliveries after publication failed and the owner remained live after the
@@ -1795,12 +1823,14 @@ owned scratch-log warning was corrected by stating the PASS line separately
 from the log path, preserving the inherited evidence. The repaired citation run
 `job-fw-followup-citation-repaired-ffbaf65d.log` passed: 598 specs, 63 existing
 baselined dangling references and fifteen unrelated line-token warnings. Native
-review recording was attempted and refused the six-round lineage without
-Thomas's authorization, as recorded in the Blocker section; no CLEAN artifact
-or closure commits are claimed.
+review recording initially refused the six-round lineage without Thomas's
+authorization. Thomas has now authorized those rounds through the actual
+terminal and the CLEAN artifact above is recorded. Its artifact-status check
+passed; closure commits remain, with exact prospective-content enforcement by
+the native commit gate.
 Documentation/security
-source integration and individual AC accounting are recorded here; no native
-CLEAN is claimed.
+source integration and individual AC accounting are recorded here alongside the
+native CLEAN artifact; no closure commit is claimed before it lands.
 
 ## Pre-Commit Verification
 
