@@ -172,7 +172,7 @@ func renderNotEnrolled(metas map[string]Meta) string {
 			continue
 		}
 		declared = append(declared, stem)
-		byKind[meta.Enrolment]++
+		byKind[meta.Disposition().Kind]++
 	}
 	var tb textbuf.Buffer
 	tb.Str(generatedBanner("#", "./le rfc update")).Byte('\n')
@@ -185,10 +185,7 @@ func renderNotEnrolled(metas map[string]Meta) string {
 	tb.Str("# KINDS -- a closed set. The counts run in kind order; the rows at the end run in\n")
 	tb.Str("# stem order.\n")
 	tb.Str("#\n")
-	for _, kind := range enrolmentKindNames() {
-		if kind == enrolmentEnrolled {
-			continue
-		}
+	for _, kind := range DispositionKinds() {
 		tb.Str("#   ").Str(kind).Str(": ").Str(share(byKind[kind], len(stems))).Byte('\n')
 	}
 	tb.Str("#\n")
@@ -198,10 +195,7 @@ func renderNotEnrolled(metas map[string]Meta) string {
 	// sixth kind renames every ordinal in a sentence nothing re-reads. An
 	// independent review caught exactly that on 2026-09-02, one commit after
 	// the counts stopped being hand-written.
-	for _, kind := range enrolmentKindNames() {
-		if kind == enrolmentEnrolled {
-			continue
-		}
+	for _, kind := range DispositionKinds() {
 		meaning, held := DispositionKindMeaning(kind)
 		if !held {
 			meaning = "no meaning is recorded for this kind, which is itself a defect"
@@ -218,7 +212,8 @@ func renderNotEnrolled(metas map[string]Meta) string {
 	tb.Byte('\n')
 	for _, stem := range declared {
 		meta := metas[stem]
-		tb.Str(stem).Byte('\t').Str(meta.Enrolment).Byte('\t').Str(meta.EnrolmentReason).Byte('\n')
+		disposition := meta.Disposition()
+		tb.Str(stem).Byte('\t').Str(disposition.Kind).Byte('\t').Str(disposition.Reason).Byte('\n')
 	}
 	return tb.String()
 }

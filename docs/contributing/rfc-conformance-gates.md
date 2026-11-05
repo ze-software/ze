@@ -672,10 +672,12 @@ with no such row, a value outside the four kinds, a kind with no
 `| Implementation reason |` beside it, and a `third-party` or `mixed` reason
 that names no component a reader can go and check. `Meta.Enrolled` gates a
 summary only where `implementationCounts` holds of its kind, so a `third-party`
-or `foundation` document leaves the population `./le rfc check` counts, and the compliance page
-publishes the split under "Who implements each document". A summary that leaves
-the count on this fact carries the kind as its disposition on the declined
-index, with the reason that names the implementer.
+or `foundation` document leaves the population `./le rfc check` counts, and the
+compliance page publishes the split under "Who implements each document".
+`Meta.Disposition` supplies the declined index's kind and reason to both the
+reader and writer, including its per-kind counts: a summary that leaves the
+count because of its implementer publishes `third-party` or `foundation` with
+the implementation reason, never `enrolled` with the enrolment reason.
 
 <!-- source: internal/le/rfc/meta.go -- readImplementation, Meta.Enrolled, implementationCounts -->
 
