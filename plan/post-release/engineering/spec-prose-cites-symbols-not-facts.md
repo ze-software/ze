@@ -90,6 +90,16 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 
 **Behavior to change:** see the five shapes below.
 
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|-----------------------------------------|--------------------|------------------------------------------------------------------|
+| Source-anchor resolution | `internal/le/doc/index/codetodocs.go` `claimIsDeclared`, `claimAppearsAsWord` | Resolves declaration names and accepts whole-word mentions in anchored source | Replaces the word-match fallback with symbol resolution and fingerprint seals for F2 and F4 |
+| Tracked citation checks | `internal/le/doc/check/links.go` `checkLinks` | Checks Markdown links, Design references and tracked path citations | Extends the existing checks with commit-time selection of affected citers for F2 |
+| Markdown command scanning | `internal/le/doc/yangcontract/command_surfaces.go` `scanMarkdownLines` | Marks fenced lines inactive before command-span analysis | Extends scanning to the tagged command fences that F3 requires |
+| RFC row quotes | `internal/le/rfc/check_quote.go` `checkRowQuotes` | Checks requirement-row quotes against the RFC text and cited section | Extends the same quote validation to source comments for F4 |
+| Prospective commit checks | `internal/le/commit/prepare.go` `checkVerificationGates` | Checks selected closure content against its review evidence | Extends commit preparation with affected-citation and derived-input checks for F2 and F5 |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -255,7 +265,7 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 | claim-outlives-the-evidence-it-cites | 2026-10-04 | `./le spec citation` |
 | claim-outlives-the-evidence-it-cites | 2026-09-07 | `./le docs-to-code index-check` |
 | claim-outlives-the-evidence-it-cites | 2026-09-04 | the redistribution section of `docs/guide/configuration.md`, and the same sentence in `docs/comparison.md` |
-| claim-outlives-the-evidence-it-cites | 2026-09-03 | `plan/spec-radius-subscriber-attributes.md`, closed at `64464097c0` |
+| claim-outlives-the-evidence-it-cites | 2026-09-03 | `spec-radius-subscriber-attributes`, closed at `64464097c0` |
 | claim-outlives-the-evidence-it-cites | 2026-09-03 | nine RFC 2918 "Section 3" comments in `route_refresh/handler/refresh.go`, `reactor/reactor_api_forward.go`, ... |
 | claim-outlives-the-evidence-it-cites | 2026-09-03 | the unit row of the carrier table in `docs/contributing/rfc-implementation-guide.md` |
 | claim-outlives-the-evidence-it-cites | 2026-09-01 | `rfc/README.md`, against `docs/features/rfc-status.md` and the `rfc/full/` tree |
@@ -366,7 +376,7 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 | stale-spec-claims-done | 2026-08-14 | bgp replay ownership, plugin startup |
 | stale-spec-claims-done | 2026-08-14 | ipsec interop lab |
 | stale-spec-claims-done | 2026-08-22 | spec metadata Status field against the tree |
-| stale-spec-claims-done | 2026-10-21 | `plan/spec-ospf-ext-0-umbrella.md` against `internal/plugins/ospf/auth_wiring.go` |
+| stale-spec-claims-done | 2026-10-21 | `plan/post-release/features/spec-ospf-ext-0-umbrella.md` against `internal/plugins/ospf/auth_wiring.go` |
 | stale-artifact-reused | 2026-10-09 | `../wiki/command-catalog.md` (`./le cli catalog update`) |
 | stale-artifact-reused | 2026-10-04 | Published wiki and website command catalogs |
 | stale-artifact-reused | 2026-09-16 | `../gh-pages/data/cli-commands.json`, `reference/cli/`, `reference/command-equivalents/` |
