@@ -555,6 +555,12 @@ import` or `bgp export` naming `<plugin>:<filter>` fails when no declared name
 or pattern covers the filter (the refusal lists what the plugin declares), when
 the filter reads a field that attachment does not carry, or when it sets one
 that attachment does not allow: the same check a named policy instance gets.
+The same name, direction, read and set guards apply when a plugin inserts the
+reference instead of the operator naming it. A dynamic template is checked
+before acceptance too, including members whose session condition is resolved
+only when a peer's OPEN arrives; concrete template names are checked again at
+resolution.
+<!-- source: internal/component/bgp/config/filter_insertion.go -- insertForPeer -->
 The daemon loads its config before an external plugin reaches Stage 1, so at
 startup a reference is judged when its plugin declares. A refusal then fails
 that plugin's Stage 1 and fails daemon startup with it, whatever the plugin's

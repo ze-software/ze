@@ -73,7 +73,7 @@ func filterOwnerProcess(ref policy.Ref, plugins []plugin.PluginConfig, types map
 		return processNameFor(plugins, owner), true
 	}
 	if registry.Lookup(prefix) != nil {
-		return prefix, true
+		return processNameFor(plugins, prefix), true
 	}
 	declared := slices.ContainsFunc(plugins, func(p plugin.PluginConfig) bool { return p.Name == prefix })
 	return prefix, declared

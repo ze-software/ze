@@ -206,11 +206,14 @@ Three properties keep them from surprising a reader:
 ### The Implicit State Grant
 
 One grant comes from the filter chain rather than from `redistribute`, and it
-is the one case where Ze widens a block the operator wrote. A plugin whose
+widens a block the operator wrote. A plugin whose
 filter member a peer's import or export list carries, inserted by the plugin
 or named by the operator, is granted that peer's `state`. A member can keep
 state per peer, and the `state` event with reason `removed` is how the plugin
 learns to free it, on either transport.
+The grant names the configured process, not the registration: for
+`internal gr { use bgp-gr; }`, a `bgp-gr:llgr-ingress` member grants `gr`
+the state, so its terminal cleanup reaches the same process as its filter calls.
 
 | Property | What it means |
 |----------|---------------|
@@ -222,6 +225,16 @@ learns to free it, on either transport.
 <!-- source: internal/component/bgp/config/filter_state_binding.go -- grantFilterOwnersState -->
 <!-- source: internal/component/bgp/reactor/config.go -- GrantImplicitReceive -->
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- edgeDisagreements -->
+
+An OPEN observer has a separate, removal-only lifecycle grant.
+`wants-validate-open` receives OPENs for every peer independently of
+attachments, so a subscribed validator also receives `state down` with reason
+`removed` without a filter member or attachment. Subscription peer selectors
+still apply; ordinary state changes and all other messages retain their
+existing grants. This closes the observation lifetime even while config has
+deactivated every filter that consumes that state.
+<!-- source: internal/component/bgp/server/validate.go -- askOpenValidators -->
+<!-- source: internal/component/bgp/server/events.go -- onPeerStateChange, addOpenRemovalObservers -->
 
 ### Key Differences from ExaBGP
 

@@ -182,6 +182,9 @@ func insertForPeer(ps *reactor.PeerSettings, resolved map[string]any,
 				}
 				continue
 			}
+			if err := validateChainNames(reg, refs, ps.IsDynamic, "bgp import", "peer "+ps.Name+" import filters"); err != nil {
+				return members, err
+			}
 			ps.ImportPolicy = ps.ImportPolicy.Prepend(ref, inProcess)
 			if deferred {
 				members.imports = append(members.imports, member)
@@ -193,6 +196,9 @@ func insertForPeer(ps *reactor.PeerSettings, resolved map[string]any,
 				return members, requiredInsertionRefusal(ps, "export", ins)
 			}
 			continue
+		}
+		if err := validateChainNames(reg, refs, ps.IsDynamic, attachmentExport, "peer "+ps.Name+" export filters"); err != nil {
+			return members, err
 		}
 		ps.ExportPolicy = ps.ExportPolicy.Prepend(ref, inProcess)
 		if deferred {
