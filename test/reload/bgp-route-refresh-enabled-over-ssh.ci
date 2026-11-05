@@ -8,9 +8,11 @@
 # Expected:       the commit lands; the capability change restarts the session
 #                 (NOTIFICATION Cease 6/6, RFC 4486 Section 4), and the second
 #                 session negotiates Route Refresh: `show bgp peer detail`
-#                 reports "route-refresh":true. ze-peer mirrors Ze's OPEN, so
-#                 the negotiated flag is true only when Ze's own OPEN carried
-#                 capability 2 (RFC 2918 Section 2).
+#                 reports "route-refresh":true. ze-peer advertises capability 2
+#                 on BOTH sessions (RFC 2918 Section 2), so enabling it locally
+#                 changes the negotiated outcome and requires a restart. Without
+#                 the peer's offer, the reload correctly keeps the old session
+#                 because its negotiated outcome is unchanged.
 #
 # VALIDATES: route-refresh is one capability-mode leaf on every path: the
 #            file parser, the editor's set and commit, and the reactor
@@ -26,6 +28,9 @@ option=timeout:value=60s
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
 option=timeout:value=50s
+# RFC 2918 Section 2: code 2 has an empty value. Offer it independently of Ze
+# so the initial session lacks only Ze's side of the negotiation.
+option=open:value=add-capability:code=2:hex=
 # Keep the second session up so the observer can read what it negotiated.
 option=linger:value=true
 # Connection 1: no routes, EOR from ze.
