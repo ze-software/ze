@@ -641,11 +641,16 @@ carrier. It does not establish the fixtures' runtime results or an RFC proof.
 `command` and `lab` are mutually exclusive. A command requires an explicit
 kernel matching the immutable runtime kernel tree resolved for the image:
 arbitrary custom kernels and unknown module sets are refused. le compares the
-requested bytes with that tree and with the image's boot kernel, then directly
-boots the supplied path with `-kernel`. The image's own FAT boot command line
+requested bytes with that tree and with the image's boot kernel. Before starting
+QEMU, it streams the supplied payload into a private run-owned file and verifies
+the copied bytes against that same SHA256. A changed payload refuses before
+boot; the cache never substitutes for the requested input. QEMU's `-kernel`
+names this private payload, held until the VM stops, so rewriting the shared
+requested path cannot change what QEMU consumes. The image's own FAT boot command line
 supplies its root PARTUUID; le does not guess a `/dev/vda2` root or silently boot
 the embedded kernel instead. The report records requested and selected kernel
-paths, the SHA256 identity and the module release. Before execution, le checks
+paths (original request and actual private payload), the SHA256 identity and the
+module release. Before execution, le checks
 the release, `/gokrazy/init` as PID 1, a squashfs root, runtime modules, and no
 Docker socket. A refusal names the failed check and includes its output.
 The PID 1 executable probe uses `sudo -n readlink /proc/1/exe`: PID 1 belongs

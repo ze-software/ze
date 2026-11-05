@@ -202,6 +202,35 @@ func dockerLabImageBoot(image string, kernel *dockerLabKernel) (string, error) {
 	return strings.TrimSpace(string(line)) + " console=ttyS0 console=hvc0", nil
 }
 
+// dockerLabKernelPayload acquires the requested bytes, never the matching cache
+// artifact. The caller MUST acquire the payload before starting QEMU, retain
+// dir through VM shutdown, and remove it after the VM stops or on any refusal.
+// Hashing the copied stream binds validation to QEMU's input.
+func dockerLabKernelPayload(kernel *dockerLabKernel, dir string) (*dockerLabKernel, error) {
+	requested, err := os.Open(kernel.Selected) //nolint:gosec // the explicitly requested local kernel
+	if err != nil {
+		return nil, fmt.Errorf("open requested kernel payload: %w", err)
+	}
+	defer requested.Close() //nolint:errcheck // read-only input
+	path := filepath.Join(dir, "kernel-payload")
+	payload, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // fresh file inside the run-owned private directory
+	if err != nil {
+		return nil, fmt.Errorf("create private kernel payload: %w", err)
+	}
+	hash := sha256.New()
+	_, copyErr := io.Copy(io.MultiWriter(payload, hash), requested)
+	if err := errors.Join(copyErr, payload.Close()); err != nil {
+		return nil, fmt.Errorf("acquire requested kernel payload: %w", err)
+	}
+	actual := hex.EncodeToString(hash.Sum(nil))
+	if actual != kernel.SHA256 {
+		return nil, fmt.Errorf("requested kernel payload changed: copied SHA256 %s, expected %s", actual, kernel.SHA256)
+	}
+	selected := *kernel
+	selected.Selected = path
+	return &selected, nil
+}
+
 // dockerLabCommand owns exactly the shared VM lifetime, then delegates command
 // interruption and SSH join to the existing guest-command lifecycle.
 func (r *Run) dockerLabCommand(ctx context.Context, image string, kernel *dockerLabKernel) (DockerLabReport, error) {
@@ -212,12 +241,19 @@ func (r *Run) dockerLabCommand(ctx context.Context, image string, kernel *docker
 	}
 	vm, dir, err := r.dockerLabPrepare(ctx, image, "")
 	if dir != "" {
+		// This defer MUST run after stop below: QEMU owns the selected payload
+		// until VM shutdown. A refusal before boot MUST remove partial output.
 		defer os.RemoveAll(dir) //nolint:errcheck // a disposable run-owned directory
 	}
 	if err != nil {
 		return report, err
 	}
-	vm.kernel, vm.cmdline = kernel.Selected, cmdline
+	selected, err := dockerLabKernelPayload(kernel, dir)
+	if err != nil {
+		return report, err
+	}
+	report.Kernel = selected
+	vm.kernel, vm.cmdline = selected.Selected, cmdline
 	report.Accelerator, report.Console = vm.accelerator, vm.console
 	stop, err := r.dockerLabBoot(vm, dir)
 	if err != nil {
