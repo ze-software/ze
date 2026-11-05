@@ -482,15 +482,45 @@ The plugin decides how often the daemon learns of changes:
 
 What the plugin holds is bounded whatever the update rate: a counter's sum
 since the last publish, a gauge's value, and one count and one sum per
-histogram bucket. A publish the daemon did not take (an error, or no registry
-yet) keeps its changes for the next one, so an increment made during startup
-is not lost. Per plugin the daemon holds at most `rpc.MetricsDeclaredMax`
-names and `rpc.MetricsSeriesMax` labeled series; a series past the limit, a
-name without the `ze_` prefix, a name the daemon holds with another shape, and
-a value that is not finite are not forwarded, each with one WARN line. A
-restarted plugin declares its metrics again and carries on from the daemon's
+histogram bucket. Deletion tracking holds only the labeled series the daemon
+acknowledged, at most `rpc.MetricsSeriesMax`; repeated creation and deletion
+between publishes does not accumulate a deletion log. Recreating a deleted
+label replaces its previous value, and handles kept from the deleted series
+cannot change its replacement.
+
+A flush takes one snapshot and splits it into finite requests when necessary
+to fit the RPC frame limit, applying declarations before deletions before
+updates. A request the daemon did not take (an error, or no registry yet)
+keeps its changes and the unsent tail for the next flush; requests already
+acknowledged are not replayed. An increment made during startup is not lost.
+Per plugin the daemon holds at most `rpc.MetricsDeclaredMax` names and
+`rpc.MetricsSeriesMax` labeled series. A series past the limit, a label value
+longer than `rpc.MetricLabelValueMax` octets, a name without the `ze_` prefix,
+a name the daemon holds with another shape, a declaration too wide to fit an
+RPC frame even alone, and a value that is not finite are not forwarded, each
+with one WARN line. Declaration admission uses its encoded size, not an
+arbitrary label-name length limit; a fitting singleton is left to the actual
+request writer. The label-value boundary is inclusive: 256 octets are accepted.
+A restarted plugin declares its metrics again and carries on from the daemon's
 values. A Go plugin outside this repository gets the same registry from
 `Plugin.MetricsRegistry`.
+
+Label values MUST be valid UTF-8: the publisher refuses malformed bytes before
+JSON can replace them and change a series' identity. A valid empty-string
+label and the Unicode replacement character are accepted normally. `Delete`
+returns false for malformed values or a label-value count that does not match
+the vector; it cannot delete another valid label by resolving the same key.
+
+The publisher also refuses an addition or observation if its resulting pending
+aggregate cannot be represented as a finite `float64`. It logs the refusal
+without changing the previously accepted value or histogram count. While a
+request is unacknowledged, admission includes the values that request would
+restore if it failed. Those retained changes remain bounded; an overflowing
+operation cannot poison other labels or metrics. Once the request is
+acknowledged, its values no longer constrain later deltas against a possible
+restoration. A gauge can replace its value with `Set`. This is a transport
+boundary, not parity with native Prometheus's support for infinite aggregates:
+`metrics-publish` carries no non-finite JSON number.
 
 <!-- source: internal/component/plugin/cli/cli.go -- withForkedMetrics -->
 <!-- source: pkg/plugin/sdk/metrics.go -- MetricsPublisher, SetMetricsInterval, FlushMetrics, flushMetricsAtBye -->

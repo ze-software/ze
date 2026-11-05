@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -45,9 +46,10 @@ const (
 //     its changes for the next one, so no increment is lost.
 //
 // What is held is bounded: rpc.MetricsDeclaredMax names and
-// rpc.MetricsSeriesMax labeled series. A counter accumulates one float, a
-// gauge holds its value, and a histogram holds one count and one sum per
-// bucket, whatever the observation rate.
+// rpc.MetricsSeriesMax live labeled series, plus at most that many acknowledged
+// remote generations awaiting deletion or replacement. A counter accumulates
+// one float, a gauge holds its value, and a histogram holds one count and one
+// sum per bucket, whatever the observation rate.
 //
 // Lifecycle: NewMetricsPublisher, then Plugin.Run starts the publish worker
 // after the startup handshake and stops it before it returns. Safe for
@@ -73,7 +75,7 @@ type metricFamily struct {
 	refused  string // why the name is not forwarded; empty while it is
 	warned   bool   // the one WARN line for a value the wire cannot carry
 	series   map[string]*metricSeries
-	deletes  [][]string
+	remote   map[string]*metricSeries // acknowledged generation, bounded by the receiver
 }
 
 type metricSeries struct {
@@ -83,6 +85,12 @@ type metricSeries struct {
 	value   float64   // counter: added since the last publish; gauge: current value
 	counts  []uint64  // histogram: observations per bucket since the last publish
 	sums    []float64 // histogram: their sum per bucket
+
+	// Zero reserves no counter delta; nil reserves no histogram sums.
+	// Histogram sums borrow the immutable update slice, not another array.
+	// After takeUpdate, settle or restore MUST release the reservation.
+	reservedValue float64
+	reservedSums  []float64
 }
 
 // NewMetricsPublisher returns an empty publisher with the default interval.
@@ -232,40 +240,204 @@ func (m *MetricsPublisher) publishLogged(ctx context.Context, call engineCall, w
 type sentItem struct {
 	family *metricFamily
 	series *metricSeries
+	key    string
 	update rpc.MetricUpdate
+}
+
+type sentDeletion struct {
+	family *metricFamily
+	key    string
 }
 
 type sentPublish struct {
 	declared []*metricFamily
-	deletes  map[*metricFamily][][]string
+	deletes  []sentDeletion
 	updates  []sentItem
 }
 
-// publish sends the pending declarations, deletions and, when withUpdates,
-// the accumulated updates, in one metrics-publish.
+// publish takes one bounded snapshot, then sends finite frame-sized chunks.
+// Each acknowledged prefix is settled before the next chunk is sent.
 func (m *MetricsPublisher) publish(ctx context.Context, call engineCall, withUpdates bool) error {
 	m.publishMu.Lock()
 	defer m.publishMu.Unlock()
 
 	in, sent := m.collect(withUpdates)
-	if len(in.Declare)+len(in.Delete)+len(in.Update) == 0 {
-		return nil
-	}
-	raw, err := call(ctx, rpc.MethodMetricsPublish, in)
+	var chunkScratch [1][3]int
+	chunks, err := metricsPublishChunks(in, chunkScratch[:0])
 	if err != nil {
 		m.restore(sent)
 		return err
 	}
-	var out rpc.MetricsPublishOutput
-	if err := json.Unmarshal(raw, &out); err != nil {
-		m.restore(sent)
-		return fmt.Errorf("decode metrics-publish answer: %w", err)
+	for _, chunk := range chunks {
+		part := rpc.MetricsPublishInput{
+			Declare: in.Declare[:chunk[0]],
+			Delete:  in.Delete[:chunk[1]],
+			Update:  in.Update[:chunk[2]],
+		}
+		taken := sentPublish{
+			declared: sent.declared[:chunk[0]],
+			deletes:  sent.deletes[:chunk[1]],
+			updates:  sent.updates[:chunk[2]],
+		}
+		raw, err := call(ctx, rpc.MethodMetricsPublish, &part)
+		if err != nil {
+			m.restore(sent)
+			return err
+		}
+		var out rpc.MetricsPublishOutput
+		if err := json.Unmarshal(raw, &out); err != nil {
+			m.restore(sent)
+			return fmt.Errorf("decode metrics-publish answer: %w", err)
+		}
+		if out.Unavailable {
+			m.restore(sent)
+			return nil
+		}
+		m.settle(&taken, out.Refused)
+		in.Declare, in.Delete, in.Update = in.Declare[chunk[0]:], in.Delete[chunk[1]:], in.Update[chunk[2]:]
+		sent.declared, sent.deletes, sent.updates = sent.declared[chunk[0]:], sent.deletes[chunk[1]:], sent.updates[chunk[2]:]
 	}
-	if out.Unavailable {
-		m.restore(sent)
+	return nil
+}
+
+// metricsPublishPayloadMax uses the shipped encoder, excluding its one-byte
+// probe payload. The widest ID proves fit; a singleton near that bound is
+// left to the ordinary writer, which knows its actual request ID.
+func metricsPublishPayloadMax(id uint64) int {
+	var scratch [128]byte
+	prefix := rpc.AppendRequest(scratch[:0], id, rpc.MethodMetricsPublish, json.RawMessage("0"))
+	return rpc.MaxMessageSize - len(prefix) + 1
+}
+
+// metricsPublishChunks partitions one snapshot, never a concurrently growing
+// queue. Counts address Declare, Delete and Update in wire application order.
+func metricsPublishChunks(in *rpc.MetricsPublishInput, chunks [][3]int) ([][3]int, error) {
+	counts := [3]int{len(in.Declare), len(in.Delete), len(in.Update)}
+	if counts == [3]int{} {
+		return nil, nil
+	}
+	budget := metricsPublishPayloadMax(math.MaxUint64)
+	if metricsPublishSizeBound(in) <= budget {
+		return append(chunks, counts), nil
+	}
+
+	// Like the IPC filter batcher, measure canonical JSON only on the size-risk
+	// path. Keep lengths rather than retaining another encoded snapshot.
+	sizes := make([]int, 0, counts[0]+counts[1]+counts[2])
+	for i := range in.Declare {
+		encoded, err := json.Marshal(&in.Declare[i])
+		if err != nil {
+			return nil, fmt.Errorf("encode metric declaration: %w", err)
+		}
+		sizes = append(sizes, len(encoded))
+	}
+	for i := range in.Delete {
+		encoded, err := json.Marshal(&in.Delete[i])
+		if err != nil {
+			return nil, fmt.Errorf("encode metric deletion: %w", err)
+		}
+		sizes = append(sizes, len(encoded))
+	}
+	for i := range in.Update {
+		encoded, err := json.Marshal(&in.Update[i])
+		if err != nil {
+			return nil, fmt.Errorf("encode metric update: %w", err)
+		}
+		sizes = append(sizes, len(encoded))
+	}
+	fields := [3]string{"declare", "delete", "update"}
+	var chunk [3]int
+	size, at := 2, 0 // The enclosing object.
+	for field, count := range counts {
+		for range count {
+			add := sizes[at] + len(fields[field]) + 5 // "field":[].
+			if chunk[field] > 0 {
+				add = sizes[at] + 1 // Another item needs only a comma.
+			} else if chunk != [3]int{} {
+				add++ // A new field after an earlier field needs a comma.
+			}
+			if size+add > budget && chunk != [3]int{} {
+				chunks = append(chunks, chunk)
+				chunk = [3]int{}
+				size = 2
+				add = sizes[at] + len(fields[field]) + 5
+			}
+			chunk[field]++
+			size += add
+			at++
+		}
+	}
+	return append(chunks, chunk), nil
+}
+
+// metricsJSONStringBound includes JSON's worst-case six-byte escaping per
+// source octet. Saturation prevents oversized declarations overflowing a sum.
+func metricsJSONStringBound(value string) int {
+	if len(value) > rpc.MaxMessageSize/6 {
+		return rpc.MaxMessageSize + 1
+	}
+	return 6 * len(value)
+}
+
+func metricSeriesSizeBound(name string, values []string) int {
+	size := 128 + metricsJSONStringBound(name)
+	for _, value := range values {
+		size += metricsJSONStringBound(value) + 3 // Quotes and separator.
+		if size > rpc.MaxMessageSize {
+			return rpc.MaxMessageSize + 1
+		}
+	}
+	return size
+}
+
+func metricDeclarationSizeBound(d *rpc.MetricDeclaration) int {
+	return metricSeriesSizeBound(d.Name, d.Labels) +
+		metricsJSONStringBound(d.Help) + metricsJSONStringBound(string(d.Kind)) +
+		26*len(d.Buckets)
+}
+
+// metricsPublishSizeBound proves ordinary snapshots fit without encoding a
+// second time. The fixed allowance covers object/field punctuation; a number
+// uses at most 24 octets, with 48 covering each count/sum pair and separators.
+func metricsPublishSizeBound(in *rpc.MetricsPublishInput) int {
+	size := 128
+	for i := range in.Declare {
+		size += metricDeclarationSizeBound(&in.Declare[i])
+		if size > rpc.MaxMessageSize {
+			return rpc.MaxMessageSize + 1
+		}
+	}
+	for i := range in.Delete {
+		size += metricSeriesSizeBound(in.Delete[i].Name, in.Delete[i].Values)
+		if size > rpc.MaxMessageSize {
+			return rpc.MaxMessageSize + 1
+		}
+	}
+	for i := range in.Update {
+		size += metricSeriesSizeBound(in.Update[i].Name, in.Update[i].Values) +
+			48*len(in.Update[i].Counts)
+		if size > rpc.MaxMessageSize {
+			return rpc.MaxMessageSize + 1
+		}
+	}
+	return size
+}
+
+// metricDeclarationTransportError refuses only a declaration that cannot fit
+// even alone with the shortest request ID. A conservative widest-ID estimate
+// MUST NOT refuse a singleton the actual request writer could carry.
+func metricDeclarationTransportError(d *rpc.MetricDeclaration) error {
+	if metricDeclarationSizeBound(d) <= metricsPublishPayloadMax(math.MaxUint64) {
 		return nil
 	}
-	m.settle(sent, out.Refused)
+	in := rpc.MetricsPublishInput{Declare: []rpc.MetricDeclaration{*d}}
+	encoded, err := json.Marshal(&in)
+	if err != nil {
+		return fmt.Errorf("encode metric declaration: %w", err)
+	}
+	if len(encoded) > metricsPublishPayloadMax(1) {
+		return fmt.Errorf("metric %s: its declaration is %d octets and cannot fit a %d-octet RPC frame even alone; shorten its label names", d.Name, len(encoded), rpc.MaxMessageSize)
+	}
 	return nil
 }
 
@@ -274,7 +446,7 @@ func (m *MetricsPublisher) collect(withUpdates bool) (*rpc.MetricsPublishInput, 
 	defer m.mu.Unlock()
 
 	in := &rpc.MetricsPublishInput{}
-	sent := &sentPublish{deletes: make(map[*metricFamily][][]string)}
+	sent := &sentPublish{}
 	for _, f := range m.families {
 		if f.refused != "" {
 			continue
@@ -286,20 +458,20 @@ func (m *MetricsPublisher) collect(withUpdates bool) (*rpc.MetricsPublishInput, 
 		if !withUpdates {
 			continue
 		}
-		for _, values := range f.deletes {
-			in.Delete = append(in.Delete, rpc.MetricSeries{Name: f.decl.Name, Values: values})
+		for key, remote := range f.remote {
+			if f.series[key] == remote {
+				continue
+			}
+			in.Delete = append(in.Delete, rpc.MetricSeries{Name: f.decl.Name, Values: remote.values})
+			sent.deletes = append(sent.deletes, sentDeletion{family: f, key: key})
 		}
-		if len(f.deletes) > 0 {
-			sent.deletes[f] = f.deletes
-			f.deletes = nil
-		}
-		for _, s := range f.series {
+		for key, s := range f.series {
 			if !s.dirty {
 				continue
 			}
 			u := takeUpdate(f, s)
 			in.Update = append(in.Update, u)
-			sent.updates = append(sent.updates, sentItem{family: f, series: s, update: u})
+			sent.updates = append(sent.updates, sentItem{family: f, series: s, key: key, update: u})
 		}
 	}
 	return in, sent
@@ -307,19 +479,22 @@ func (m *MetricsPublisher) collect(withUpdates bool) (*rpc.MetricsPublishInput, 
 
 // takeUpdate moves a series' pending change into an update. A bucket above
 // rpc.MetricBucketCountMax sends that many and keeps the rest pending, at
-// the same mean, so the series stays dirty.
+// the same mean, so the series stays dirty. Its caller MUST settle or restore
+// every taken update to release its reservation before the next snapshot.
 func takeUpdate(f *metricFamily, s *metricSeries) rpc.MetricUpdate {
 	u := rpc.MetricUpdate{Name: f.decl.Name, Values: s.values}
 	s.dirty = false
 	switch f.decl.Kind {
 	case rpc.MetricCounter, rpc.MetricCounterVec:
 		u.Value = s.value
+		s.reservedValue = u.Value
 		s.value = 0
 	case rpc.MetricGauge, rpc.MetricGaugeVec:
 		u.Value = s.value
 	case rpc.MetricHistogram, rpc.MetricHistogramVec:
 		u.Counts = make([]uint64, len(s.counts))
 		u.Sums = make([]float64, len(s.sums))
+		s.reservedSums = u.Sums
 		for i, count := range s.counts {
 			take := min(count, rpc.MetricBucketCountMax)
 			sum := s.sums[i]
@@ -335,16 +510,16 @@ func takeUpdate(f *metricFamily, s *metricSeries) rpc.MetricUpdate {
 	return u
 }
 
-// restore gives back what a publish took, for the next one.
+// restore gives back what a publish took, for the next one. It MUST release
+// every reservation takeUpdate installed, including deleted generations.
 func (m *MetricsPublisher) restore(sent *sentPublish) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for f, deletes := range sent.deletes {
-		f.deletes = append(deletes, f.deletes...)
-	}
 	for _, item := range sent.updates {
 		s := item.series
+		s.reservedValue = 0
+		s.reservedSums = nil
 		if s.deleted {
 			continue
 		}
@@ -364,14 +539,18 @@ func (m *MetricsPublisher) restore(sent *sentPublish) {
 }
 
 // settle records what the engine applied and logs what it refused. A refused
-// declaration stops the name from being forwarded again.
+// declaration stops the name from being forwarded again. It MUST release
+// every reservation takeUpdate installed, including refused items.
 func (m *MetricsPublisher) settle(sent *sentPublish, refused []rpc.MetricRefusal) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	refusedNames := make(map[string]string, len(refused))
+	type refusalKey struct{ item, name, series string }
+	refusedSeries := make(map[refusalKey]bool, len(refused))
 	for _, r := range refused {
 		slog.Warn("plugin metrics: the engine refused a metric", "item", r.Item, "metric", r.Name, "values", r.Values, "reason", r.Reason)
+		refusedSeries[refusalKey{r.Item, r.Name, strings.Join(r.Values, "\xff")}] = true
 		if r.Item == "declare" {
 			refusedNames[r.Name] = r.Reason
 		}
@@ -382,6 +561,35 @@ func (m *MetricsPublisher) settle(sent *sentPublish, refused []rpc.MetricRefusal
 			continue
 		}
 		f.declared = true
+	}
+	for _, deletion := range sent.deletes {
+		f := deletion.family
+		if refusedSeries[refusalKey{"delete", f.decl.Name, deletion.key}] {
+			continue
+		}
+		delete(f.remote, deletion.key)
+	}
+	for _, item := range sent.updates {
+		// Every answer releases takeUpdate's reservation, even for a scalar,
+		// deleted generation or refused item.
+		item.series.reservedValue = 0
+		item.series.reservedSums = nil
+		f := item.family
+		if !f.decl.Kind.IsVector() {
+			continue
+		}
+		if f.refused != "" {
+			continue
+		}
+		if refusedSeries[refusalKey{"update", f.decl.Name, item.key}] {
+			continue
+		}
+		if f.remote == nil {
+			f.remote = make(map[string]*metricSeries)
+		}
+		// Even if Delete ran during this RPC, the daemon now holds this
+		// generation. The next snapshot will remove or replace it.
+		f.remote[item.key] = item.series
 	}
 }
 
@@ -411,6 +619,11 @@ func (m *MetricsPublisher) family(d rpc.MetricDeclaration) *metricFamily {
 	if err := rpc.ValidateMetricDeclaration(&d); err != nil {
 		f.refused = err.Error()
 	}
+	if f.refused == "" {
+		if err := metricDeclarationTransportError(&d); err != nil {
+			f.refused = err.Error()
+		}
+	}
 	if f.refused == "" && len(m.families) >= rpc.MetricsDeclaredMax {
 		f.refused = "the plugin declares more than " + strconv.Itoa(rpc.MetricsDeclaredMax) + " metrics"
 	}
@@ -433,26 +646,35 @@ func (m *MetricsPublisher) seriesFor(f *metricFamily, values []string) *metricSe
 	if len(values) != len(f.decl.Labels) {
 		panic("BUG: metric " + f.decl.Name + " given " + strconv.Itoa(len(values)) + " label values for " + strconv.Itoa(len(f.decl.Labels)) + " labels")
 	}
+	if f.refused != "" {
+		return &metricSeries{deleted: true}
+	}
+	for _, value := range values {
+		if len(value) > rpc.MetricLabelValueMax {
+			m.warnOnce(f, "a label value exceeds "+strconv.Itoa(rpc.MetricLabelValueMax)+" octets")
+			return &metricSeries{deleted: true}
+		}
+		if !utf8.ValidString(value) {
+			m.warnOnce(f, "a label value is not valid UTF-8 and cannot be published without changing its identity")
+			return &metricSeries{deleted: true}
+		}
+	}
+	// Valid UTF-8 cannot contain the separator or change identity in JSON.
 	key := strings.Join(values, "\xff")
 	if s, ok := f.series[key]; ok {
-		return s
-	}
-	s := &metricSeries{values: slices.Clone(values)}
-	if f.decl.Kind.IsHistogram() {
-		s.counts = make([]uint64, len(f.decl.Buckets)+1)
-		s.sums = make([]float64, len(f.decl.Buckets)+1)
-	}
-	if f.refused != "" {
-		s.deleted = true
 		return s
 	}
 	if len(values) > 0 {
 		if m.series >= rpc.MetricsSeriesMax {
 			m.warnOnce(f, "the plugin holds "+strconv.Itoa(rpc.MetricsSeriesMax)+" labeled series, the limit")
-			s.deleted = true
-			return s
+			return &metricSeries{deleted: true}
 		}
 		m.series++
+	}
+	s := &metricSeries{values: slices.Clone(values)}
+	if f.decl.Kind.IsHistogram() {
+		s.counts = make([]uint64, len(f.decl.Buckets)+1)
+		s.sums = make([]float64, len(f.decl.Buckets)+1)
 	}
 	// A series exists from its creation, at zero, as With creates it in-process.
 	s.dirty = true
@@ -464,6 +686,17 @@ func (m *MetricsPublisher) deleteSeries(f *metricFamily, values []string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	if len(values) != len(f.decl.Labels) {
+		return false
+	}
+	for _, value := range values {
+		if len(value) > rpc.MetricLabelValueMax {
+			return false
+		}
+		if !utf8.ValidString(value) {
+			return false
+		}
+	}
 	key := strings.Join(values, "\xff")
 	s, ok := f.series[key]
 	if !ok {
@@ -472,7 +705,6 @@ func (m *MetricsPublisher) deleteSeries(f *metricFamily, values []string) bool {
 	s.deleted = true
 	delete(f.series, key)
 	m.series--
-	f.deletes = append(f.deletes, slices.Clone(values))
 	return true
 }
 
@@ -486,8 +718,9 @@ func (m *MetricsPublisher) warnOnce(f *metricFamily, reason string) {
 }
 
 // update applies fn to s under the lock, unless s was deleted or the value
-// cannot travel: JSON carries no NaN or infinity.
-func (m *MetricsPublisher) update(f *metricFamily, s *metricSeries, value float64, fn func(*metricSeries)) {
+// cannot travel: JSON carries no NaN or infinity. The operation MUST return
+// false before any mutation when its pending aggregate cannot be represented.
+func (m *MetricsPublisher) update(f *metricFamily, s *metricSeries, value float64, fn func(*metricSeries) bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -498,7 +731,10 @@ func (m *MetricsPublisher) update(f *metricFamily, s *metricSeries, value float6
 		m.warnOnce(f, "a value that is not finite cannot be published")
 		return
 	}
-	fn(s)
+	if !fn(s) {
+		m.warnOnce(f, "this update would make the pending aggregate, including unacknowledged changes, non-finite and unpublishable")
+		return
+	}
 	s.dirty = true
 }
 
@@ -552,7 +788,19 @@ func (c *publishedCounter) Add(v float64) {
 	if v < 0 {
 		panic("BUG: counter " + c.f.decl.Name + " cannot decrease")
 	}
-	c.m.update(c.f, c.s, v, func(s *metricSeries) { s.value += v })
+	c.m.update(c.f, c.s, v, func(s *metricSeries) bool {
+		next := s.value + v
+		if math.IsInf(next, 0) {
+			return false
+		}
+		if s.reservedValue != 0 {
+			if math.IsInf(next+s.reservedValue, 0) {
+				return false
+			}
+		}
+		s.value = next
+		return true
+	})
 }
 
 type publishedGauge struct {
@@ -562,12 +810,22 @@ type publishedGauge struct {
 }
 
 func (g *publishedGauge) Set(v float64) {
-	g.m.update(g.f, g.s, v, func(s *metricSeries) { s.value = v })
+	g.m.update(g.f, g.s, v, func(s *metricSeries) bool {
+		s.value = v
+		return true
+	})
 }
 func (g *publishedGauge) Inc() { g.Add(1) }
 func (g *publishedGauge) Dec() { g.Add(-1) }
 func (g *publishedGauge) Add(v float64) {
-	g.m.update(g.f, g.s, v, func(s *metricSeries) { s.value += v })
+	g.m.update(g.f, g.s, v, func(s *metricSeries) bool {
+		next := s.value + v
+		if math.IsInf(next, 0) {
+			return false
+		}
+		s.value = next
+		return true
+	})
 }
 
 type publishedHistogram struct {
@@ -582,10 +840,20 @@ type publishedHistogram struct {
 func (h *publishedHistogram) Observe(v float64) {
 	i := sort.SearchFloat64s(h.f.decl.Buckets, v)
 	near := false
-	h.m.update(h.f, h.s, v, func(s *metricSeries) {
+	h.m.update(h.f, h.s, v, func(s *metricSeries) bool {
+		next := s.sums[i] + v
+		if math.IsInf(next, 0) {
+			return false
+		}
+		if s.reservedSums != nil {
+			if math.IsInf(next+s.reservedSums[i], 0) {
+				return false
+			}
+		}
 		s.counts[i]++
-		s.sums[i] += v
+		s.sums[i] = next
 		near = s.counts[i] >= rpc.MetricBucketCountMax/2
+		return true
 	})
 	if near {
 		wakeMetrics(h.m.full)
