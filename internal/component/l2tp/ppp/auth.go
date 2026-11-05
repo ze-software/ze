@@ -229,12 +229,19 @@ func (s *pppSession) refuseAuthMethod(cur LCPState, pkt LCPPacket) bool {
 func (s *pppSession) acceptProxyPolicy(proxy proxyLCPResult) bool {
 	// An absent peer MRU keeps the PPP default. A nonzero limit below the
 	// supported IP floor requires fresh negotiation, not an upward MTU clamp.
+	// RFC 791 Section 3.2: "Every internet module must be able to forward a datagram of 68
+	// octets without further fragmentation."
 	if proxy.MRU != 0 && proxy.MRU < MinIPv4MRU {
 		return false
 	}
+	// RFC 791 Section 3.2: "Every internet module must be able to forward a datagram of 68
+	// octets without further fragmentation."
 	if proxy.LocalMRU < MinIPv4MRU {
 		return false
 	}
+	// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
+	// information field to be at least as large as the minimum link MTU
+	// size required for IPv6 [2]."
 	if !s.disableIPv6CP && proxy.LocalMRU < MinIPv6MRU {
 		return false
 	}

@@ -341,6 +341,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	}
 
 	// CQM observer (spec-l2tp-9-observer).
+	// RFC 791 Section 3.2 and RFC 5072 Section 2: validate the enabled protocols' MRU floors.
 	if err := validateMRUNCP(p.MRU, p.EnableIPv6CP); err != nil {
 		return Parameters{}, err
 	}

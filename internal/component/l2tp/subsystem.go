@@ -194,6 +194,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	if mru == 0 {
 		mru = DefaultMRU
 	}
+	// RFC 791 Section 3.2 and RFC 5072 Section 2: validate protocol floors before startup.
 	if err := validateMRUNCP(mru, s.params.EnableIPv6CP); err != nil {
 		return err
 	}

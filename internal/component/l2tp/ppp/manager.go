@@ -454,6 +454,7 @@ func (d *Driver) spawnSession(start *StartSession) {
 	if maxMRU == 0 {
 		maxMRU = MaxFrameLen
 	}
+	// RFC 791 Section 3.2 and RFC 5072 Section 2: admit only protocol-capable MRUs.
 	if err := ValidateNetworkMRU(maxMRU, !start.DisableIPv6CP); err != nil {
 		start.closeFiles()
 		d.emitRejection(start, err.Error())

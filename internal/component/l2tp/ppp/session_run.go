@@ -594,6 +594,9 @@ func (s *pppSession) closeFiles() {
 // the session, so both refusals here are logged and counted, never
 // fatal.
 func (s *pppSession) afterLCPOpenIPv6Service(ifname string) {
+	// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
+	// information field to be at least as large as the minimum link MTU
+	// size required for IPv6 [2]."
 	if !s.ipv6MRUSupported() {
 		s.logger.Warn("ppp: refusing IPv6 service below the IPv6 minimum MRU",
 			"peer_mru", s.negotiatedMRU, "local_mru", s.localMRU, "session_mru", s.maxMRU)
@@ -651,6 +654,8 @@ func (s *pppSession) transmitMRU() uint16 {
 // carries the guard on the peer's negotiated identifier.
 func (s *pppSession) afterLCPOpen() bool {
 	mru := s.transmitMRU()
+	// RFC 791 Section 3.2: "Every internet module must be able to forward a datagram of 68
+	// octets without further fragmentation."
 	if mru < MinIPv4MRU {
 		var reason textbuf.Buffer
 		s.fail(reason.Str("negotiated PPP MRU ").Str(strconv.Itoa(int(mru))).
@@ -1030,6 +1035,9 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		// 5.7 is what stops the retransmissions, where dropping them left a
 		// dual-stack peer retrying IPV6CP for its whole Configure-Request
 		// budget.
+		// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
+		// information field to be at least as large as the minimum link MTU
+		// size required for IPv6 [2]."
 		if s.disableIPv6CP || !s.ipv6MRUSupported() {
 			return s.rejectUnsupportedProtocol(proto, payload)
 		}
@@ -1076,6 +1084,9 @@ func (s *pppSession) supportsProtocol(proto uint16) bool {
 	case ProtoIPCP, ProtoIPv4:
 		return !s.disableIPCP
 	case ProtoIPv6CP, ProtoIPv6:
+		// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
+		// information field to be at least as large as the minimum link MTU
+		// size required for IPv6 [2]."
 		return !s.disableIPv6CP && s.ipv6MRUSupported()
 	}
 	return false
@@ -1213,6 +1224,8 @@ const (
 // declaration serves both the verdict and the reply it leads to, so the two
 // can never disagree about what ze wants.
 func (s *pppSession) negPolicy() LCPNegPolicy {
+	// RFC 791 Section 3.2: "Every internet module must be able to forward a datagram of 68
+	// octets without further fragmentation."
 	return LCPNegPolicy{MinMRU: MinIPv4MRU, MaxMRU: s.maxMRU, LocalMagic: s.magic, PPPoE: s.pppoe}
 }
 
@@ -1382,6 +1395,8 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 					}
 				} else if opt.Type == LCPOptMRU && len(opt.Data) == 2 {
 					mru := binary.BigEndian.Uint16(opt.Data)
+					// RFC 791 Section 3.2: "Every internet module must be able to forward a datagram of 68
+					// octets without further fragmentation."
 					if mru >= MinIPv4MRU && mru <= s.maxMRU {
 						s.localMRU = mru
 					}

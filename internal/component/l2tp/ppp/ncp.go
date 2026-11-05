@@ -47,10 +47,12 @@ func (s *pppSession) runNCPPhase() bool {
 	s.ncpStarted = true
 	ipcpEnabled := !s.disableIPCP
 	ipv6cpEnabled := !s.disableIPv6CP
+	// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
+	// information field to be at least as large as the minimum link MTU
+	// size required for IPv6 [2]."
 	if ipv6cpEnabled && !s.ipv6MRUSupported() {
-		// RFC 5072 Section 2 requires an IPv6-capable link to carry at
-		// least the IPv6 minimum MTU. Keep the independent IPv4 NCP usable
-		// without claiming IPv6 service over a smaller negotiated link.
+		// Keep the independent IPv4 NCP usable without claiming IPv6
+		// service over a smaller negotiated link.
 		s.logger.Warn("ppp: IPv6CP disabled because the negotiated MRU is below 1280; configure the peer MRU to at least 1280 for IPv6 service",
 			"peer-mru", s.negotiatedMRU, "local-mru", s.localMRU, "session-mru", s.maxMRU)
 		ipv6cpEnabled = false
@@ -1239,6 +1241,9 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 			DNSSecondary: s.dnsSecondary,
 		})
 	case AddressFamilyIPv6:
+		// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
+		// information field to be at least as large as the minimum link MTU
+		// size required for IPv6 [2]."
 		if !s.ipv6MRUSupported() {
 			return true
 		}

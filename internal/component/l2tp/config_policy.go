@@ -17,6 +17,8 @@ func parseMRU(value string) (uint16, error) {
 	if err != nil {
 		return 0, fmt.Errorf("l2tp mru %q is not an integer from 68 to 1500; run 'set l2tp mru 1500': %w", value, err)
 	}
+	// RFC 791 Section 3.2: "Every internet module must be able to forward a datagram of 68
+	// octets without further fragmentation."
 	if mru < uint64(ppp.MinIPv4MRU) {
 		return 0, fmt.Errorf("l2tp mru %d is below the IPv4 minimum 68; run 'set l2tp mru 1500'", mru)
 	}
@@ -28,6 +30,7 @@ func parseMRU(value string) (uint16, error) {
 
 // validateMRUNCP checks the effective protocol selection, including defaults.
 func validateMRUNCP(mru uint16, ipv6Enabled bool) error {
+	// RFC 791 Section 3.2 and RFC 5072 Section 2: apply the enabled protocols' MRU floors.
 	if err := ppp.ValidateNetworkMRU(mru, ipv6Enabled); err != nil {
 		return fmt.Errorf("l2tp mru: %w; run 'set l2tp mru 1500', or use an MRU of at least 68 with 'set l2tp ncp enable-ipv6cp false' for IPv4-only service", err)
 	}
@@ -57,6 +60,7 @@ func validateMRUPolicy(tree *config.Tree) error {
 			ipv6Enabled = value == configTrue
 		}
 	}
+	// RFC 791 Section 3.2 and RFC 5072 Section 2: validate the effective protocol selection.
 	return validateMRUNCP(mru, ipv6Enabled)
 }
 

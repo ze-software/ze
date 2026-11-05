@@ -407,6 +407,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 			p.NCPTimeout = time.Duration(n) * time.Second
 		}
 	}
+	// RFC 791 Section 3.2 and RFC 5072 Section 2: validate protocol floors before reload.
 	if err := validateMRUNCP(p.MRU, p.EnableIPv6CP); err != nil {
 		return Parameters{}, err
 	}
