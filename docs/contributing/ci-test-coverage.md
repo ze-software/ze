@@ -4,12 +4,13 @@
 
 For current counts and uncovered RPCs, run `./le repo inventory`.
 
-RPC declarations and YANG source paths come only from the first-party source
-areas `internal/`, `pkg/`, and `cmd/`. Scratch copies and runtime evidence outside
-those areas do not contribute RPCs or affect coverage. An unreadable file or
-directory inside the declared source population remains a hard failure, not a
-reason to publish a partial count.
-<!-- source: internal/le/repo/inventory/inventory.go -- codeAreas, extractRPCs -->
+The inventory reads committed `HEAD`. RPC declarations and YANG source paths
+come from `internal/`, `pkg/`, and `cmd/`, and coverage reads committed `.ci`
+files under `test/`. Uncommitted edits, scratch copies, and runtime evidence do
+not change the report. A failure to read or parse a committed input stops the
+report.
+<!-- source: internal/le/repo/inventory/source.go -- ReadCommitted, inventoryInput -->
+<!-- source: internal/le/repo/inventory/collectactualfiles.go -- collectFiles -->
 
 
 ## Gaps -- Config Behavior Without .ci
