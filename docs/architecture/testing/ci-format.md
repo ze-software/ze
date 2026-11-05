@@ -459,6 +459,19 @@ Configurable via environment variables:
 
 ## Options
 
+A peer block may require `option=remote_close:value=true` when its final
+expectation must be followed by the remote ending the transport. The check peer
+waits for EOF or a connection reset before reporting success. Extra bytes, any
+other read error, or cancellation during runner teardown fail the check. The
+runner's command timeout bounds the peer if the remote never closes.
+It sends nothing and does not close its own connection to obtain that evidence.
+It requires check mode and cannot be combined with `linger` or `conn_map`.
+Use it after an exact shutdown NOTIFICATION expectation to prove both the
+protocol message and the remote close.
+<!-- source: internal/test/peer/remote_close.go -- waitRemoteClose, parsePeerOptionRemoteClose -->
+<!-- source: internal/test/peer/reject.go -- completed -->
+<!-- test: internal/test/peer/remote_close_test.go -- TestRemoteCloseRequiresTransportEnd, TestRemoteCloseOption -->
+
 ```
 option=<type>:key=value[:key=value...]
 ```

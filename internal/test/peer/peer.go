@@ -197,6 +197,9 @@ type Config struct {
 	// first makes the daemon's close unobservable, because ze dials again on
 	// its retry timer whoever closed.
 	Linger bool
+	// RemoteClose requires EOF or reset after the last expectation, before success.
+	// It never announces success merely because teardown canceled the peer.
+	RemoteClose bool
 	// Silent stops the AUTOMATIC KEEPALIVE reply a check peer otherwise writes
 	// for every message it receives (replyKeepalive, called from the check-mode
 	// arm of runMessageLoop). The peer holds the TCP connection open and keeps
@@ -371,11 +374,25 @@ type Peer struct {
 	// sessions counts the sessions that wrote an established-file marker, so
 	// each session's first UPDATE names its own file (markEstablished).
 	sessions atomic.Int32
+	// remoteClosed is set only by an observed EOF/reset in waitRemoteClose.
+	// The final Run verdict checks it even when another completion path returns.
+	remoteClosed atomic.Bool
 }
 
 // New creates a new test peer.
 // Returns error if expect rules are invalid.
 func New(config *Config) (*Peer, error) {
+	if config.RemoteClose {
+		if config.Mode != ModeCheck {
+			return nil, errors.New("remote_close requires check mode")
+		}
+		if config.Linger {
+			return nil, errors.New("remote_close cannot be combined with linger")
+		}
+		if config.ConnMap != "" {
+			return nil, errors.New("remote_close cannot be combined with conn_map")
+		}
+	}
 	output := config.Output
 	if output == nil {
 		output = os.Stdout
@@ -476,7 +493,15 @@ func (p *Peer) runDialCheck(ctx context.Context) Result {
 // first expectation still owed. The runner reads the "successful" line the
 // caller prints for a Success, so this guard is what keeps that line honest.
 func (p *Peer) Run(ctx context.Context) Result {
+	p.remoteClosed.Store(false)
 	result := p.run(ctx)
+	if p.config.RemoteClose {
+		if result.Success {
+			if !p.remoteClosed.Load() {
+				return Result{Error: errors.New("remote_close: no remote transport end was observed")}
+			}
+		}
+	}
 	if p.config.Mode != ModeCheck {
 		return result // sink, echo and inject hold no expectations to meet
 	}

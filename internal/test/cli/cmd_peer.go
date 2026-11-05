@@ -245,6 +245,9 @@ func zeTestMergePeerFileConfig(config, fileConfig *peer.Config) {
 	if fileConfig.Linger {
 		config.Linger = true
 	}
+	if fileConfig.RemoteClose {
+		config.RemoteClose = true
+	}
 	if fileConfig.Silent {
 		config.Silent = true
 	}

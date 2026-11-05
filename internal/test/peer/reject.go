@@ -182,6 +182,9 @@ func (p *Peer) rejected(msg *Message) (Result, bool) {
 // rejection found here retracts the announcement above by printing
 // RejectionMarker, which rejected does before it returns.
 func (p *Peer) completed(ctx context.Context, conn net.Conn) Result {
+	if p.config.RemoteClose {
+		return p.waitRemoteClose(ctx, conn)
+	}
 	if !p.config.Linger {
 		return Result{Success: true}
 	}

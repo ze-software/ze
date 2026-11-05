@@ -42,6 +42,7 @@ var peerOptionArms = map[string]peerOptionArm{
 	"conn_map":         {keys: []string{keyValue}, parse: parsePeerOptionConnMap},
 	"established-file": {keys: []string{"path"}, parse: parsePeerOptionEstablishedFile},
 	"linger":           {keys: []string{keyValue}, parse: parsePeerOptionLinger},
+	"remote_close":     {keys: []string{keyValue}, parse: parsePeerOptionRemoteClose},
 	"silent":           {keys: []string{keyValue}, parse: parsePeerOptionSilent},
 	"tcp_connections":  {keys: []string{keyValue}, parse: parsePeerOptionTCPConnections},
 }

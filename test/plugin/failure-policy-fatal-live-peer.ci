@@ -1,0 +1,50 @@
+# Test: fatal plugin process exit tears down an established BGP transport
+# Exercises: external ProcessManager exit -> fatal failure policy -> hub stop
+#            -> BGP Reactor.Stop/Wait, with a real peer's EOR already on wire.
+# VALIDATES: spec-filter-wire-0-umbrella U18 fatal owner teardown obligation.
+# PREVENTS: a shutdown-hook log passing while a live peer never gets Cease.
+# The fixture does not request shutdown or signal ze. The peer does not close
+# itself: remote_close requires actual EOF/reset after the exact Cease 6/2.
+
+option=env:var=ze.log.plugin.server:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=remote_close:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+plugin {
+	external fatal-live-peer {
+		run "le test fixture plugin/failure-policy-fatal-peer"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start ze-bgp.conf:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=FIXTURE: fatal owner exiting after peer1 initial-sync EOR reached the wire
+expect=stderr:contains=stopping ze because a plugin failed
+expect=stderr:contains=the plugin declares that its failure stops ze
+reject=stderr:contains=forced exit
+reject=stderr:contains=shutdown timeout
