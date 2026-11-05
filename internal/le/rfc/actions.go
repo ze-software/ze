@@ -121,6 +121,11 @@ var actions = leaction.New(area,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "an RFC or draft stem whose shifted verdicts are re-stamped", Value: keyStem,
 				Requirement: leaction.Required, Repeat: true},
+			{Keyword: keyID, Kind: leaction.KindLabel, Help: "one recorded requirement within the named stems", Value: keyID,
+				Requirement: leaction.Optional, Repeat: true},
+			{Keyword: keySource, Kind: leaction.KindEnum, Help: "bind to committed source instead of working-tree source", Value: "revision", Values: []string{auditSourceHead},
+				ValueHelp:   map[string]string{auditSourceHead: "read requirements, tags and source from immutable HEAD"},
+				Requirement: leaction.Optional},
 		},
 		AnswerArgs: resealAnswer},
 	leaction.Action{Verb: "evidence-split", Does: "migrate", Summary: "convert evidence files from the retired layout", Why: "convert each per-stem evidence file of the retired layout, " +
@@ -155,6 +160,9 @@ var actions = leaction.New(area,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem the verdicts belong to", Value: keyStem, Requirement: leaction.Required},
 			{Keyword: keyFrom, Kind: leaction.KindPath, Help: "the file holding the judged verdicts", Value: keyPath, Requirement: leaction.Required},
+			{Keyword: keySource, Kind: leaction.KindEnum, Help: "stamp committed source; partial verdicts use working tree", Value: "revision", Values: []string{auditSourceHead},
+				ValueHelp:   map[string]string{auditSourceHead: "read requirements, tags and source from immutable HEAD"},
+				Requirement: leaction.Optional},
 			{Keyword: keyMode, Kind: leaction.KindEnum, Help: "whether the verdicts are new or judged again", Value: "mode", Values: []string{stampModeWordNew, stampModeWordRejudge},
 				ValueHelp: map[string]string{
 					stampModeWordNew:     "stamp ids that hold no verdict yet",
@@ -419,7 +427,7 @@ func resealAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := resealStems(tree, args.Values(keyStem))
+	report, err := resealSelection(tree, args.Values(keyStem), args.Values(keyID), args.One(keySource))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
@@ -478,7 +486,7 @@ func auditStampAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := auditStamp(tree, args.One(keyStem), args.One(keyFrom), mode)
+	report, err := auditStampSource(tree, args.One(keyStem), args.One(keyFrom), mode, args.One(keySource))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

@@ -32,11 +32,19 @@ import (
 type ResealReport struct {
 	Resealed []string `json:"resealed"`
 	Refused  []string `json:"refused"`
+	Revision string   `json:"revision,omitempty"`
+	Fresh    []string `json:"fresh,omitempty"`
 }
 
 // Text renders the page the script printed, without its color.
 func (r ResealReport) Text() string {
 	var tb textbuf.Buffer
+	if r.Revision != "" {
+		tb.Str("source ").Str(r.Revision).Byte('\n')
+	}
+	for _, line := range r.Fresh {
+		tb.Str("fresh ").Str(line).Byte('\n')
+	}
 	for _, line := range r.Refused {
 		tb.Str("refused ").Str(line).Byte('\n')
 	}
@@ -65,6 +73,11 @@ type resealScope struct {
 	every bool
 	// stems are the stems the caller named, each of which must be enrolled.
 	stems map[string]bool
+	// ids narrows the named stems to existing recorded requirements. With no
+	// ids, the stem selection remains the scope.
+	ids map[string]bool
+	// head selects committed inputs; false keeps the working-tree route.
+	head bool
 }
 
 // admits reports whether the scope lets the reseal write stem.
@@ -79,6 +92,12 @@ func (s resealScope) admits(stem string) bool {
 // those, and answers what it did. A verdict of any other stem is neither read
 // for refusal nor written, whatever its state.
 func resealStems(tree string, stems []string) (ResealReport, error) {
+	return resealSelection(tree, stems, nil, "")
+}
+
+// resealSelection narrows the existing stem scope and chooses its source.
+// Selection errors are resolved before reseal writes any verdict.
+func resealSelection(tree string, stems, ids []string, source string) (ResealReport, error) {
 	if len(stems) == 0 {
 		return ResealReport{}, errors.New("rfc reseal requires stem <stem>: name each RFC " +
 			"whose verdicts your own edit shifted, for example `./le rfc reseal stem rfc4271`, " +
@@ -88,7 +107,16 @@ func resealStems(tree string, stems []string) (ResealReport, error) {
 	for _, stem := range stems {
 		named[stem] = true
 	}
-	return reseal(tree, resealScope{stems: named}, nil)
+	selected := make(map[string]bool, len(ids))
+	for _, rid := range ids {
+		selected[rid] = true
+	}
+	if source != "" {
+		if source != auditSourceHead {
+			return ResealReport{}, errors.New("rfc reseal: source takes only head; omit source to read working-tree source")
+		}
+	}
+	return reseal(tree, resealScope{stems: named, ids: selected, head: source == auditSourceHead}, nil)
 }
 
 // ResealWithProof re-stamps mechanically shifted verdicts after the caller
@@ -105,10 +133,11 @@ func ResealWithProof(tree string, prove func(string) bool) (ResealReport, error)
 }
 
 func reseal(tree string, scope resealScope, prove func(string) bool) (ResealReport, error) {
-	collected, err := Collect(tree)
+	snapshot, err := resealInputs(tree, scope)
 	if err != nil {
 		return ResealReport{}, err
 	}
+	collected := snapshot.collected
 	for _, stem := range sortedSet(scope.stems) {
 		if collected.Enrolled[stem] {
 			continue
@@ -118,23 +147,23 @@ func reseal(tree string, scope resealScope, prove func(string) bool) (ResealRepo
 			Str(" is not an enrolled RFC, so it holds no verdict to re-seal: name the stem ").
 			Str("of a summary under rfc/short/ whose Enrolment is enrolled").String())
 	}
-	audits, err := loadAudits(tree, collected.Enrolled)
-	if err != nil {
+	audits := snapshot.audits
+	if err := scope.checkIDs(collected.Requirements, audits); err != nil {
 		return ResealReport{}, err
 	}
-	states := auditFreshness(auditFreshnessInput{
+	states := auditFreshnessFrom(auditFreshnessInput{
 		Tree: tree, Requirements: collected.Requirements, Tags: collected.Tags,
 		Enrolled: collected.Enrolled, Audits: audits,
-	})
+	}, snapshot.reader)
 	byRID := map[string][]Tag{}
 	for _, tag := range collected.Tags {
 		byRID[tag.RID] = append(byRID[tag.RID], tag)
 	}
-	reader := newSourceReader(tree)
+	reader := snapshot.reader
 	index := newScopeIndex()
 	proven := map[string]bool{}
 
-	report := ResealReport{Resealed: []string{}, Refused: []string{}}
+	report := ResealReport{Resealed: []string{}, Refused: []string{}, Revision: snapshot.revision}
 	for _, rfcStem := range sortedSet(collected.Enrolled) {
 		if !scope.admits(rfcStem) {
 			continue
@@ -143,8 +172,13 @@ func reseal(tree string, scope resealScope, prove func(string) bool) (ResealRepo
 		if len(audit.Verdicts) == 0 {
 			continue
 		}
-		touched := false
+		var touched []string
 		for _, req := range collected.Requirements {
+			if len(scope.ids) > 0 {
+				if !scope.ids[req.RID] {
+					continue
+				}
+			}
 			verdict, held := audit.Verdict(req.RID)
 			if req.RFC != rfcStem || !held {
 				continue
@@ -154,6 +188,9 @@ func reseal(tree string, scope resealScope, prove func(string) bool) (ResealRepo
 				state = Freshness{State: FreshState}
 			}
 			if state.State == FreshState {
+				if scope.head {
+					report.Fresh = append(report.Fresh, rfcStem+" "+req.RID)
+				}
 				continue
 			}
 			transitional := state.State == StaleUnitState && len(verdictFingerprintKeys(verdict[fingerprintUnits])) == 0
@@ -200,15 +237,46 @@ func reseal(tree string, scope resealScope, prove func(string) bool) (ResealRepo
 			var message textbuf.Buffer
 			report.Resealed = append(report.Resealed,
 				message.Str(rfcStem).Byte(' ').Str(req.RID).String())
-			touched = true
+			touched = append(touched, req.RID)
 		}
-		if touched {
+		if len(touched) == 0 {
+			continue
+		}
+		if len(scope.ids) > 0 {
+			// An id selection must not re-render a sibling verdict whose
+			// formatting differs from the canonical writer's output.
+			for _, rid := range touched {
+				if err := writeAuditVerdict(tree, rfcStem, rid, audit.Verdicts[rid]); err != nil {
+					return ResealReport{}, err
+				}
+			}
+		} else {
 			if err := replaceAudit(tree, rfcStem, audit); err != nil {
 				return ResealReport{}, err
 			}
 		}
 	}
 	return report, nil
+}
+
+// checkIDs rejects a misspelled or out-of-scope id before any selected record
+// can be written. A recorded id absent from the source summary is not a row.
+func (s resealScope) checkIDs(requirements []Requirement, audits map[string]Audit) error {
+	held := map[string]bool{}
+	for _, req := range requirements {
+		if !s.admits(req.RFC) {
+			continue
+		}
+		if _, recorded := audits[req.RFC].Verdict(req.RID); recorded {
+			held[req.RID] = true
+		}
+	}
+	for _, rid := range sortedSet(s.ids) {
+		if !held[rid] {
+			return errors.New("rfc reseal: id " + rid + " has no recorded requirement in the selected stems; name an existing audited id inside the named stems")
+		}
+	}
+	return nil
 }
 
 func verdictFingerprintKeys(value any) []string {

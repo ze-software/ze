@@ -25,6 +25,7 @@
 package rfc
 
 import (
+	"errors"
 	"maps"
 
 	"github.com/ze-software/ze/internal/core/cliio"
@@ -106,13 +107,17 @@ var rejudgeVerdictKeys = func() map[string]bool {
 // AuditStampReport is what the command answers: the stem, and the verdicts it
 // stamped in the pending file's order.
 type AuditStampReport struct {
-	Stem    string   `json:"stem"`
-	Stamped []string `json:"stamped"`
+	Stem     string   `json:"stem"`
+	Stamped  []string `json:"stamped"`
+	Revision string   `json:"revision,omitempty"`
 }
 
 // Text renders one line per stamped verdict, then the count.
 func (r AuditStampReport) Text() string {
 	var tb textbuf.Buffer
+	if r.Revision != "" {
+		tb.Str("source ").Str(r.Revision).Byte('\n')
+	}
 	for _, rid := range r.Stamped {
 		tb.Str("stamped ").Str(rid).Byte('\n')
 	}
@@ -128,27 +133,21 @@ func (r AuditStampReport) Text() string {
 // list in one pass. The write itself is staged and renamed by replaceAudit,
 // which validates the merged file before it replaces the old one.
 func auditStamp(tree, rfcStem, fromPath string, mode stampMode) (AuditStampReport, error) {
+	return auditStampSource(tree, rfcStem, fromPath, mode, "")
+}
+
+// auditStampSource keeps the existing writer and its refusals while choosing
+// one source snapshot for the requirement, tags, units and cited code.
+func auditStampSource(tree, rfcStem, fromPath string, mode stampMode, source string) (AuditStampReport, error) {
 	if mode == stampModeUnspecified {
 		return AuditStampReport{}, parseErr(new(textbuf.Buffer).Str("BUG: rfc audit-stamp called with no mode"))
 	}
-	collected, err := Collect(tree)
+	snapshot, pending, err := auditStampInputs(tree, rfcStem, fromPath, source)
 	if err != nil {
 		return AuditStampReport{}, err
 	}
-	if !collected.Enrolled[rfcStem] {
-		var tb textbuf.Buffer
-		return AuditStampReport{}, parseErr(tb.Str(pyRepr(rfcStem)).
-			Str(" is not an enrolled stem. `./le rfc check` refuses an audit file for a stem ").
-			Str("it does not gate, so a verdict for it has nowhere durable to live"))
-	}
-	pending, err := readPendingVerdicts(tree, rfcStem, fromPath)
-	if err != nil {
-		return AuditStampReport{}, err
-	}
-	audit, err := loadAudit(tree, rfcStem)
-	if err != nil {
-		return AuditStampReport{}, err
-	}
+	collected := snapshot.collected
+	audit := snapshot.audits[rfcStem]
 	if audit.Verdicts == nil {
 		audit.Verdicts = map[string]any{}
 	}
@@ -164,7 +163,7 @@ func auditStamp(tree, rfcStem, fromPath string, mode stampMode) (AuditStampRepor
 	for _, tag := range collected.Tags {
 		byRID[tag.RID] = append(byRID[tag.RID], tag)
 	}
-	reader := newSourceReader(tree)
+	reader := snapshot.reader
 	index := newScopeIndex()
 
 	var refused []string
@@ -177,6 +176,16 @@ func auditStamp(tree, rfcStem, fromPath string, mode stampMode) (AuditStampRepor
 			continue
 		}
 		verdict, _ := pending.Verdicts[rid].(map[string]any)
+		if snapshot.revision != "" {
+			partial := verdictValue(verdict) == VerdictPartial
+			if req.Annotation != nil {
+				partial = partial || req.Annotation.Kind == AnnotationPartial
+			}
+			if partial {
+				refused = append(refused, rid+" source head cannot stamp a partial row or verdict: quotation and discrimination checks need coherent working source; rejudge without source head after that source is ready")
+				continue
+			}
+		}
 		if err := stampFingerprints(verdict, req, byRID[rid], reader, index); err != nil {
 			refused = append(refused, err.Error())
 			continue
@@ -224,7 +233,67 @@ func auditStamp(tree, rfcStem, fromPath string, mode stampMode) (AuditStampRepor
 	if err := replaceAudit(tree, rfcStem, stamped); err != nil {
 		return AuditStampReport{}, err
 	}
-	return AuditStampReport{Stem: rfcStem, Stamped: pending.Order}, nil
+	return AuditStampReport{Stem: rfcStem, Stamped: pending.Order, Revision: snapshot.revision}, nil
+}
+
+// auditStampInputs retains the normal read order for a working-tree stamp.
+// A committed stamp reads its pending code keys first so newly cited producers
+// are loaded from the same immutable revision as the tagged units.
+func auditStampInputs(tree, stem, fromPath, source string) (auditSource, pendingVerdicts, error) {
+	var snapshot auditSource
+	var pending pendingVerdicts
+	var err error
+	if source == "" {
+		snapshot.collected, err = Collect(tree)
+		if err != nil {
+			return auditSource{}, pendingVerdicts{}, err
+		}
+		snapshot.reader = newSourceReader(tree)
+	} else {
+		if source != auditSourceHead {
+			return auditSource{}, pendingVerdicts{}, errors.New("rfc audit-stamp: source takes only head; omit source to read working-tree source")
+		}
+		pending, err = readPendingVerdicts(tree, stem, fromPath)
+		if err != nil {
+			return auditSource{}, pendingVerdicts{}, err
+		}
+		paths := map[string]bool{}
+		for _, rid := range pending.Order {
+			verdict, isObject := pending.Verdicts[rid].(map[string]any)
+			if !isObject {
+				continue // stampRefusal reports the malformed pending entry.
+			}
+			for _, key := range verdictFingerprintKeys(verdict[fingerprintCode]) {
+				rel, _, err := fingerprintKey(key, fromPath)
+				if err != nil {
+					return auditSource{}, pendingVerdicts{}, err
+				}
+				paths[rel] = true
+			}
+		}
+		snapshot, err = committedAuditSource(tree, map[string]bool{stem: true}, sortedSet(paths))
+		if err != nil {
+			return auditSource{}, pendingVerdicts{}, err
+		}
+	}
+	if !snapshot.collected.Enrolled[stem] {
+		var tb textbuf.Buffer
+		return auditSource{}, pendingVerdicts{}, parseErr(tb.Str(pyRepr(stem)).
+			Str(" is not an enrolled stem. `./le rfc check` refuses an audit file for a stem ").
+			Str("it does not gate, so a verdict for it has nowhere durable to live"))
+	}
+	if source == "" {
+		pending, err = readPendingVerdicts(tree, stem, fromPath)
+		if err != nil {
+			return auditSource{}, pendingVerdicts{}, err
+		}
+	}
+	audit, err := loadAudit(tree, stem)
+	if err != nil {
+		return auditSource{}, pendingVerdicts{}, err
+	}
+	snapshot.audits = map[string]Audit{stem: audit}
+	return snapshot, pending, nil
 }
 
 // readPendingVerdicts reads the pending file and answers its verdicts in the

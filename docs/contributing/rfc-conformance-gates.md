@@ -69,6 +69,31 @@ claimed test with and without its break.
 | `rfc/requirements/<stem>.md` | One RFC's requirement table: six cells per requirement, generated from the summary and the tags |
 | `rfc/graph.tsv` | GENERATED from the RFC texts by `./le rfc update`: the dependency graph, one `from`, `kind`, `to` row per in-corpus edge ("The dependency graph") |
 
+`./le rfc reseal stem <stem> id <requirement-id> source head` narrows a mechanical
+re-stamp to the named requirement and binds it to committed source while other
+sessions edit the checkout. Both `stem` and `id` repeat; an unknown id, an id
+outside the named stems, or one without a recorded verdict refuses before any
+write. Without `id`, the selected stems remain the scope. Without `source head`,
+reseal reads the working tree as before. The committed route resolves HEAD once
+and reads the requirements, tags, carrier declarations and fingerprinted source
+from that immutable commit. It reports that revision, refuses unreadable or
+malformed committed inputs, and changes only the file fingerprints of a SHIFTED
+verdict. A changed requirement, unit or producer still requires rejudgment.
+`./le rfc audit-stamp stem <stem> from <pending> mode rejudge source head`
+uses the same committed snapshot to stamp an independently remade judgment;
+only the pending ids are written. Stamping reads the producers the pending
+judgment cites; resealing reads those of its selected recorded verdicts. An
+obsolete producer in a replaced or unselected verdict does not block either
+operation. This committed-source stamping route refuses
+a partial row or verdict: its quotation and discrimination checks require the
+normal rejudgment route over coherent working source. Omitting `source` keeps
+that existing route, including its partial checks. Neither action executes or
+re-creates a discrimination observation.
+<!-- source: internal/le/rfc/reseal.go -- reseal, resealSelection -->
+<!-- source: internal/le/rfc/reseal_head.go -- committedAuditSource, resealHeadTags -->
+<!-- source: internal/le/rfc/freshness.go -- auditFreshnessFrom -->
+<!-- source: internal/le/rfc/audit_stamp.go -- auditStampSource -->
+
 The audit verdicts and the discrimination records are stored one file per
 requirement, never one per RFC. Several sessions work the same RFC at once, and
 a per-RFC file carried every session's uncommitted entries, so a session could

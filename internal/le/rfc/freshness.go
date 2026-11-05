@@ -395,7 +395,13 @@ type auditFreshnessInput struct {
 // not a gate, and a cited producer that has been deleted must still be
 // reportable rather than crashing every consumer of the ledger.
 func auditFreshness(in auditFreshnessInput) map[string]Freshness {
-	reader := newSourceReader(in.Tree)
+	return auditFreshnessFrom(in, newSourceReader(in.Tree))
+}
+
+// auditFreshnessFrom uses one source snapshot for every comparison. The
+// committed reseal shares this reader with its writer so a working-tree edit
+// cannot supply half of a committed-source judgment.
+func auditFreshnessFrom(in auditFreshnessInput, reader *sourceReader) map[string]Freshness {
 	index := newScopeIndex()
 	byRID := map[string][]Tag{}
 	for _, tag := range in.Tags {
