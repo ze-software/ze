@@ -331,6 +331,11 @@ Three commands, owned by the plugin so removing it removes them with the
 handlers and the config schema. Each answers structured data, so `| json`,
 `| yaml` and `| table` all render it.
 
+The command process requests both the `policy` and `bgp` roots at Stage 1.
+Its config transaction installs the lists and their peer attachment counts
+together, including when the plugin runs as an external process.
+<!-- source: internal/component/bgp/plugins/filter_path_asn/filter_path_asn.go -- runFilterPathASN, parseRejectASNConfig -->
+
 | Command | Answers |
 |---------|---------|
 | `show bgp reject-asn` | every list: each ASN once, with the effective position set, the curated annotation, and the peers that name the list on import and on export |

@@ -88,7 +88,7 @@ func runFilterPathASN(conn net.Conn) int {
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
-		WantsConfig: []string{configRootBGP},
+		WantsConfig: []string{configRootBGP, policy.RootName},
 	}); err != nil {
 		logger().Error("filter-path-asn plugin failed", "error", err)
 		return 1
