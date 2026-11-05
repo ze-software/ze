@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol, config, docs |
 | Priority | P1 |
 | Release reason | Accepted MRU settings conflict with enabled IPv4 or IPv6 service and can exceed the peer's agreed limit after installation. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/1 |
 | Handoff | verify |
-| Updated | 2026-11-04 |
+| Updated | 2026-11-05 |
 
 ## Task
 
@@ -76,6 +76,7 @@ Independent `ze-test-judge` approval is required before changing protected bound
 - Shared PPP negotiation/installation code only where necessary to handle a negotiated incompatible peer limit; share child 16a's cap.
 - Config boundary/reload tests and applicable driver/functional/interop cases.
 - `docs/guide/l2tp.md`, MRU range, NCP defaults, validation errors and reload behavior; corresponding wiki page and affected source anchors updated with implementation.
+- `docs/research/l2tpv2-ze-integration.md`, IPv6 subscriber admission and service-size guard.
 
 ## Risks & Assumptions
 
@@ -88,3 +89,87 @@ Independent `ze-test-judge` approval is required before changing protected bound
 ## Research Remaining Before Ready
 
 Confirm exact RFC floor semantics, disabled-both-NCP behavior, peer negotiation policy and every config/provider producer. Complete full template, named wiring/live cases and integration/documentation checklists. No new RFC summary or full conformance claim is authorized by this skeleton.
+
+## Implementation Handoff (2026-11-04)
+
+The owner authorized implementation with compilation and execution centralized
+in the root session. This agent authored the changes below and ran no code,
+compiler, formatter, linter, test, daemon, Docker command or commit.
+
+| Surface | Decision / authored change |
+|---------|----------------------------|
+| Config entry points | Native MRU range is 68..1500; registered original-tree validation, runtime extraction, provider reload and direct subsystem startup require at least 1280 when IPv6CP is enabled, including its default. |
+| Shared driver admission | Validate the resolved session cap before creating a session; reject and release transferred descriptors for unsupported limits. Both-disabled NCP configuration still requires the 68-octet interface floor. |
+| Negotiated peer limit | Normal IPv4 peer MRUs smaller than 68 are Nakked to 68. Proxy local MRU must meet the configured service floor. A smaller peer receive MRU can keep IPv4 usable, but IPv6CP, address allocation and address publication are withheld. IPv6-only service fails explicitly. |
+| Restart | The IPv6 size refusal does not mutate admitted `disableIPv6CP`, so a later LCP lifetime can regain IPv6 at supported MRUs. |
+| Authoritative basis | RFC 791 Section 3.2 requires forwarding 68 octets without further fragmentation. RFC 5072 Section 2 requires PPP IPv6 Information fields to meet the IPv6 link minimum; RFC 8200 Section 5 states 1280. RFC 1661 Section 6.1 keeps receive capacity at 1500 even after a smaller request. |
+
+| Authored test | Outcome to verify centrally |
+|---------------|-----------------------------|
+| `TestMRUProtocolFloors` | Matrix 64/67/68/1279/1280/1492/1500/1501 through original-tree loading, raw-tree extraction and provider extraction with IPv6 default/on/off and both NCPs off. |
+| `TestMRUFloorReloadIsolation` | Invalid IPv6 MRU preserves active policy; an explicit IPv4-only minimum remains accepted. |
+| `TestSubsystemStartRejectsMRUFloor` | Direct Parameters cannot bypass floor validation. |
+| `TestDriverRejectsUnsupportedNetworkMRU` | Direct StartSession cannot bypass limits or leak transferred files. |
+| `TestPeerMRUBelowIPv4FloorIsNaked` | Values 64/67 Nak to 68, while a minimum supported IPv4 peer is Acked. |
+| `TestPeerNakCannotLowerLocalMRUBelowIPv4Floor` | Correlated peer Naks suggesting 64/65/67 preserve the local MRU1492; a supported suggestion of 68 produces a replacement request at 68. |
+| `TestIPv6MRUServiceGate` | Small directional MRUs cannot allocate or publish IPv6; unusable IPv6-only sessions fail. |
+| `TestSmallPeerMRURetainsIPv4` | A 128-octet peer completes IPCP and installs MTU128; subsequent IPv6CP remains refused. |
+| `TestIPv6MinimumMRUCompletesNCP` | A 1280-octet peer completes IPv6CP, publishes its negotiated IPv6 identifier and installs MTU1280. |
+| Draft `lns-mru-protocol-floors.ci` | Operator config validation rejects incompatible sizes and accepts explicit IPv4-only/IPv6 minimum controls. |
+
+Protected expectation migrations are proposed separately for independent
+judgment; existing tests and the live configuration test remain unchanged
+until that verdict. The old policy assertion at MRU64 is replaced with MRU68
+and explicit IPv6-off service, retaining authentication and reload assertions;
+new tests preserve 64/67 as rejected inputs. Root must format and compile the
+new files, apply approved migrations, run scoped race/functional tests, prove
+live IPv4/IPv6 behavior and synchronize the corresponding wiki text.
+
+### Central Test Finding and Correction
+
+The root's central PPP race run found that the small-peer session completed
+IPCP and installed MTU128, but its post-NCP IPv6CP probe received no reply.
+`handleFrame` called the refusal path, while `supportsProtocol` still classified
+IPv6 as supported using only the configured enable flag. The refusal helper
+therefore silently discarded the packet. The capability verdict now also
+checks the negotiated size guard for both IPv6CP and IPv6 data. The regression
+delivers the post-NCP probe through a unit-descriptor pipe, matching Linux's
+packet route after channel connection, and still requires Protocol-Reject on
+the channel. The author did not execute the correction; root rerun is owed.
+
+An independent review then found a second minimum-size producer: accepted
+proxy LCP admitted a nonzero peer MRU smaller than 68. The root ran the new
+driver-level regression before the fix and observed invalid shortcut LCP-up
+events for peer MRUs 1, 64 and 67; the MRU68 positive control passed. Proxy
+admission now sends these undersized limits through fresh negotiation while
+preserving omitted, 1500 and 9000 peer values. The interface setup also refuses
+an effective transmit MRU smaller than 68 before authentication/NCP side effects
+and installs the exact bounded size rather than raising it to an IP floor.
+The tests retain permitted PAP, successful IPCP, MTU68 and correlated Echo
+after a corrected peer request; root must rerun them after the source fix.
+
+## Central Verification (2026-11-05)
+
+This result supersedes the author's unrun handoff above. The coordinator
+observed proxy peer MRUs 1, 64 and 67 incorrectly publish LCP-Up before the
+lower-bound fix; the MRU68 positive control passed. The same driver tests
+now pass with fresh negotiation, successful permitted PAP/IPCP, exact MTU68
+and Echo. The independent sink refusal and the LCP/NCP unsent-Ack handler
+regressions also pass. Independent review confirmed the source fixes.
+
+The configuration floor carrier and migrated auth-policy carrier each passed
+80 of 80 invocations under load, then were promoted. Their registered live
+runner passed both tests. The final race run passed all L2TP packages,
+including admission, provider, extraction, startup/reload and negotiated
+IPv6-service coverage. The runtime is committed in `18ea5e830a`, and every
+committed build flavor compiles. PPP statement coverage measured 82.6%; the
+new `ValidateNetworkMRU` helper's five statements were all covered.
+
+Evidence: `job-cpe16-handler-and-floor-red-7e7e4fa1.log`,
+`job-cpe16-handler-and-floor-fixed-d12ee1a2.log`,
+`job-cpe16-promoted-config-proofs-8456fabc.log` and
+`job-cpe16-postreview-runtime-race-f3e7163f.log` under the coordinator's
+`tmp/session/2026-11-04-222204/scratch/`. Stress captures under
+`tmp/stress-repro/` identify each of the 80 successful invocations; the
+stress harness's exit1 means no failure reproduced, not a failed carrier.
+The matching wiki update is `312639d`. This spec stays open for closure.

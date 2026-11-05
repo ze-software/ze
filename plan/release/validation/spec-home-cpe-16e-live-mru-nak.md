@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol, tooling, docs |
 | Priority | P2 |
 | Release reason | The LNS MRU interop scenario does not exercise its promised oversized-peer Configure-Nak. |
 | RFC gaps | - |
 | Depends | Peer-image alignment: `plan/release/validation/spec-home-cpe-16h-subscriber-radius-pppd.md` |
-| Phase | - |
+| Phase | Central verification complete; closure review remains |
 | Handoff | verify |
-| Updated | 2026-11-04 |
+| Updated | 2026-11-05 |
 
 ## Task
 
@@ -85,7 +85,42 @@ Record a forced-red run with the Nak behavior broken in the rebuilt Ze artifact,
 F-1 and F-2 runtime cap fixes remain with their specs under `plan/release/fixes/`; this spec owns the missing live Nak proof.
 Peer-image dependency 16h aligns the lab, not production behavior. Complete peer-source research, wiring names, changed-wire census and template checklists before `ready`.
 
+## Implementation Handoff (2026-11-04)
+
+| Surface | Authoring result | Central verification owed |
+|---------|------------------|---------------------------|
+| Nak producer proof | Read pinned pppd 2.5.5 `lcp_addci` and `lcp_nakci`: default 1500 omits MRU; explicit 1493 is emitted and a 1492 Nak is accepted. | Capture that exact request/Nak/retry/Ack from the real pinned peer. |
+| Registered MRU checker | `lnsMRUEvidence` now requires the oversized request, matching Nak, retry and Ack before CHAP; retains local request/Ack and existing positive controls. | Run `TestLNSMRUEvidenceNakSequence`, prior checker tests, and the live `l2tp-lns-mru-xl2tpd` scenario after the judged fixture migration. |
+| Prior trace proof | `TestLNSLocalMRUProofSurvivesNakStrengthening` preserves the complete old trace as a local-request/authentication proof, while refusing to count it as a Nak proof. | Independent judgment of the exact fixture migration in session scratch, then root applies it. |
+| Omitted-MRU carrier for F-1 | Added `l2tp-lns-omitted-mru-xl2tpd`, the typed `checkLNSOmittedMRU`, Ze-side MTU measurement and raw peer MRU 1500 check. | Run new checker/preparation tests and the real omitted-option scenario with useful traffic; F-1 remains open until this succeeds. |
+| Documentation | Updated the lab MRU subsection and added omitted-option evidence requirements. | Root doc/anchor check and corresponding wiki edits. |
+
+The fixture migration and existing scenario's peer MRU 1492 to 1493 change are
+proposed as an exact patch for independent judgment, not applied by the author.
+All Go, image, daemon and test execution remains with the main thread at the
+owner's request. No compilation, formatting, tests, Docker command or commit
+ran in this authoring agent. All runtime outcomes remain unverified.
+
 ## Review Gate
 
 | Run | Scope | Reviewer | Result | Evidence |
 |-----|-------|----------|--------|----------|
+| 1 | Original local-policy/CHAP trace and1493 peer fixture migration | Independent coordinator judgment | Approved before applying; original complete local-policy/auth trace remains a separate positive control and the new trace adds actual Nak correlation. | Native approval for `l2tp.TestLNSMRUEvidence`; fixture Test-judge rationale in `3cc99259b0`. |
+| 2 | Unit/checker race and actual pppd wire exchange | Main coordinator | Pass: peer1493, Ze Nak1492, matching1492 retry/Ack, CHAP/IPCP and useful traffic. | `job-cpe16-postreview-runtime-race-f3e7163f.log`, `job-cpe16-final-l2tp-live-e6b8eb67.log`. |
+
+## Central Verification (2026-11-05)
+
+The coordinator observed the actual pppd1493 Configure-Request, its correlated
+Ze Nak1492, and the replacement1492 request/Ack before successful CHAP/IPCP
+and traffic. Literal1500 negotiation remains covered by the existing driver
+tests: pppd omits its default1500 option, which is why the wire carrier uses
+1493. The separate omitted-option carrier also passed and measured Ze MTU1492.
+
+The full L2TP checker race run passed the original negative cases, the new
+correlation cases and `TestLNSLocalMRUProofSurvivesNakStrengthening`, which
+retains the original local-policy/CHAP proof. This issue agent ran no code;
+all execution and independent test judgment were centralized.
+
+Implementation and carriers are committed as `3cc99259b0`. The two named
+logs are under `tmp/session/2026-11-04-222204/scratch/`. Earlier NOT RUN
+handoffs are superseded by these results. The spec stays open for closure.

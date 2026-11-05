@@ -2,17 +2,24 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol, config, cli, tooling, docs |
 | Priority | P1 |
 | Release reason | An accepted 1492 MRU policy still permits oversized transmissions on implemented subscriber transports. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | Eight issues implemented and centrally verified; closure review remains |
 | Handoff | verify |
-| Updated | 2026-11-04 |
+| Updated | 2026-11-05 |
 
 ## Issue Split and Current Ownership (2026-11-04)
+
+Execution instruction (2026-11-04): "use one agent per tasks to fix the issue,
+they should not compile or run code and bring their work here for review where
+you will centralise the compiling and running of the test they have authored".
+Each issue has one author. The main thread owns formatting, builds, test runs,
+proof records and commits. Authoring agents return uncommitted changes and
+identify all unrun checks explicitly.
 
 The owner requested: "create a spec per issue". This record is now a
 coordination umbrella and the source of the original review and owner direction.
@@ -183,10 +190,71 @@ No rows were filed by the review. This spec owns F-1 through F-8 directly.
 
 | Run | Scope | Reviewer | Result | Evidence |
 |-----|-------|----------|--------|----------|
+| 1 | Eight-agent implementation: correctness, security and coverage | Independent review agent | Found false FSM advancement after unsent Acks and proxy peer MRU below68 bypassing the floor. Both fixed after centrally observed regression reds. | `job-cpe16-handler-and-floor-red-7e7e4fa1.log`, then `job-cpe16-handler-and-floor-fixed-d12ee1a2.log` |
+| 2 | Both source fixes and the native accounting regression carrier | Independent review agent | Product blockers resolved. Atomic accounting status-publication note fixed; actual original accounting fixture then passed. | `job-cpe16-final-l2tp-live-e6b8eb67.log` |
+| 3 | Scoped race, configuration stress, actual kernel/data-plane tests | Main coordinator | All L2TP packages and both checker packages pass race; both configuration carriers pass 80/80 stress runs and promoted execution; all normal live scenarios pass. | Central verification below. |
+| 4 | Rebuilt-artifact semantic discrimination and restoration | Main coordinator | Both transport omission faults and proxy oversize fault fail on actual MTU 1500; copied-output fault fails on 1492 versus peer 1400; old refusal checker passes actual early peer Ack, fixed checker rejects it. All final normal artifacts and controls pass after restoration. | Named fault logs below and `job-cpe16-final-artifacts-restored-718e9ad2.log`. |
 
 ## Next Action
 
-In a fresh session, claim this spec and complete research/design through
-`ze-spec`. The owner has supplied the fix direction and needs no new decision
-on whether the eight defects should be fixed. This skeleton does not authorize
-closure or claim a completed design.
+Implementation, central review, scoped testing and rebuilt-artifact semantic
+discrimination are complete. Review these eight issue specs for closure;
+their recorded results supersede the skeleton research and unrun handoffs.
+No whole-tree green or formal spec closure is claimed here.
+
+## Central Verification (2026-11-05)
+
+The owner requested one author per issue and centralized execution. Eight
+issue agents authored code/tests without compiling or executing them. The
+main coordinator formatted, compiled, ran tests, reviewed independent
+findings and recorded the observed results. Earlier author notes marked
+NOT RUN are historical handoffs, superseded only by the named central runs.
+
+The runtime fix is committed as `18ea5e830a`, and the live carriers, image
+alignment and helper changes as `3cc99259b0`. All committed distro,
+appliance, setup, host and installer flavors compile after both Go commits.
+The matching L2TP and PPPoE wiki corrections are committed as `312639d`.
+No push was performed by this coordinator.
+
+| Finding | Observed central result |
+|---------|-------------------------|
+| F-1 | Both transport omission carriers authenticate, complete IPCP, install measured Ze MTU 1492 and pass traffic. Each rebuilt uncapped artifact fails on actual MTU 1500, then the rebuilt normal artifacts pass again. |
+| F-2 | Accepted proxy peer MRUs1500,9000 and omission retain useful CHAP/IPCP and1492-byte ICMP with actual MTU1492 and per-session cleanup. A rebuilt uncapped artifact fails on actual MTU1500; the restored artifact passes all cases again. |
+| F-3 | Printed repairs run through the real editor/dispatcher. Both transport-specific refusal/counter cases pass under race, retaining the original authentication-policy assertions. |
+| F-4 | Configuration, startup/reload, driver admission and negotiated IPv6 guards pass. Proxy1/64/67 now renegotiate and a corrected68 session remains useful. Both promoted config tests pass80/80 stress invocations each and registered execution. |
+| F-5 | Actual pppd1493 Configure-Request receives correlated Ze Nak1492, retries1492 and receives its matching Ack; CHAP/IPCP and useful traffic complete. |
+| F-6 | Actual wire/session MRU 1400, configured 1492 and installed MTU 1400 remain distinct in both command views. Rebuilding the real publication path to copy configuration fails on reported 1492 versus peer 1400; the rebuilt normal artifact passes again. |
+| F-7 | Required-auth and PPPoE refusals pass; permitted CHAP traffic remains useful. Removing the guard fails the new early-Ack unit/registered-checker cases. A real early peer Ack passes the old checker and is rejected by the fixed checker against the same faulty image. The rebuilt normal artifact and traffic controls pass again. |
+| F-8 | Both rebuilt images report pppd2.5.5 and the matching installed plugin. Release pins/hashes agree; all four native subscriber-RADIUS scenarios pass. |
+
+PPP statement coverage is 82.6%. Shared transmit-limit, final-writer and
+LCP/NCP Configure-Ack helpers are fully covered by the measured count run.
+The changed full-receive RFC1661 test has native semantic discrimination
+records for both claims: changing the actual kernel receive-MRU argument
+to1492 fails its required1500 assertion. This is separate from the transmit
+cap and does not count a halted producer as behavior proof.
+
+The final normal L2TP log includes all five selected scenarios: live Nak,
+CHAP-only refusal, both original accounting fixtures, omitted MRU and
+distinct negotiated output. It is
+`tmp/session/2026-11-04-222204/scratch/job-cpe16-final-l2tp-live-e6b8eb67.log`.
+Other named logs are under the same coordinator scratch directory.
+
+The final restored artifact log is
+`job-cpe16-final-artifacts-restored-718e9ad2.log`: required-auth refusal,
+omitted-MRU MTU 1492 and distinct negotiated output all pass. The fault logs
+include `job-cpe16-l2tp-omitted-cap-disabled-22d28569.log`,
+`job-cpe16-pppoe-cap-disabled-0d495f97.log`,
+`job-cpe16-copied-output-red-1d421026.log`,
+`job-cpe16-live-early-ack-old-checker-8708cdb4.log` and
+`job-cpe16-live-early-ack-fixed-checker-a3f0496b.log`. These are observed
+semantic outcomes, including the old checker's actual false positive.
+
+The configuration corpus check reported four unrelated test-plugin
+registration failures; the repository-wide documentation check reported
+143 drift findings, including published command catalogs, and is not counted
+green. An earlier broad
+fixture run failed four unrelated tests requiring le on PATH; the changed
+parser, native carrier inventory and original accounting regression passed.
+The separately reported weakened-tooling package is not called green. These
+results do not represent a whole-tree pass, and this spec is not closed.

@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | cli, config, docs |
 | Priority | P1 |
 | Release reason | Printed repair commands cannot be accepted by the configuration editor. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/1 |
 | Handoff | verify |
-| Updated | 2026-11-04 |
+| Updated | 2026-11-05 |
 
 ## Task
 
@@ -84,3 +84,55 @@ Read and use `ze-test` before editing any `.ci` file. Independent judgment is re
 ## Research Remaining Before Ready
 
 Read the real editor's leaf-list producer, reproduce rejection and validate the replacement spelling. Complete source-aware command/error census, wiring test names and integration/documentation checklists. This spec changes messages, not authentication admission policy.
+
+## Implementation Handoff
+
+The owner directed implementation with all compilation and execution centralized
+in the main thread. The agent inspected sources and edited code, tests and
+documentation without compiling or running code. Earlier skeleton research
+instructions remain as history; the following source checks and test carriers
+now define the authored change.
+
+| Surface | Source-supported decision |
+|---------|---------------------------|
+| Editor grammar | `Model.cmdSet` takes its last token as the value; `Editor.SetValue` calls `setLeafListMember` for these leaf-lists. Print one command per member, without brackets. |
+| Transport | `pppSession.pppoe` already carries the transport identity. Use it to choose the existing L2TP or PPPoE path without importing the editor into production PPP. |
+| Refusal repair | Retain each permitted method, then add the recognized peer suggestion. The displayed policy warning remains explicit; no admission logic changes. |
+| Config repair | The reset alternative deletes the old explicit list before selecting CHAP-MD5 only, so invalid members cannot survive the repair. |
+
+| AC | Authored carrier | Execution status |
+|----|------------------|------------------|
+| AC-1, AC-2 | `TestAuthRefusalRepairCommands`: actual refusal producer for both transports, then every printed command through the real headless editor, with the full ordered list checked. | Not run; main thread owns compilation and execution. |
+| AC-3 | `TestPPPoEAuthPolicyRepairCommands`: obtain the actual extraction error, execute both command alternatives through editor dispatch, then re-extract and check the resulting policy. | Not run; main thread owns compilation and execution. |
+| AC-4 | `TestAuthRefusalUnknownMethodRepair`: preserve the peer-policy explanation without an invented method for unknown protocols or Reject. Existing allowed-method and termination tests remain unchanged. | Not run; main thread owns compilation and execution. |
+
+New tests are in `internal/component/l2tp/ppp/auth_repair_commands_test.go`
+and `internal/component/cli/pppoe_repair_commands_test.go`, both guarded by
+`ze_l2tp`. The PPP refusal test imports only test/editor infrastructure and
+schema registration, keeping production PPP independent of the editor.
+
+Update the corresponding wiki authentication sections with the guide paragraphs
+added here. No sibling-checkout edit was attempted. The main thread must run
+the new tests, existing auth-policy regression tests, scoped race checks and
+documentation/source-anchor checks before claiming success. No protected test
+expectation was changed by this task.
+
+## Central Verification (2026-11-05)
+
+This result supersedes the author's unrun handoff above. The coordinator ran
+all commands; the issue agent did not compile or execute code.
+
+`TestAuthRefusalRepairCommands`, `TestAuthRefusalUnknownMethodRepair` and
+`TestPPPoEAuthPolicyRepairCommands` passed through the actual editor/command
+dispatcher. Both transport variants of `TestAuthMethodRefusalCounter` passed
+under race with their original refusal count and peer-policy assertions,
+valid per-member repair commands and rejection of the other transport's
+commands. The coordinator independently approved that protected expectation
+migration before applying it. All L2TP packages passed the final race run.
+
+The runtime change is committed in `18ea5e830a`; the matching wiki correction
+is committed in `312639d`. Evidence is retained in the coordinator's
+`job-cpe16-first-auth-image-c7fe6d80.log` and
+`job-cpe16-postreview-runtime-race-f3e7163f.log`, under
+`tmp/session/2026-11-04-222204/scratch/`. No broader CLI-package green is
+claimed. This spec remains available for the separate closure review.

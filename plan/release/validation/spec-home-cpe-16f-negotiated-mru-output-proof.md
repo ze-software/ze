@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol, tooling, docs |
 | Priority | P2 |
 | Release reason | Equal configured and negotiated MRUs let a config-copy defect pass the live session-output assertion. |
 | RFC gaps | - |
 | Depends | Peer-image alignment: `plan/release/validation/spec-home-cpe-16h-subscriber-radius-pppd.md` |
-| Phase | - |
+| Phase | 1/1 |
 | Handoff | verify |
-| Updated | 2026-11-04 |
+| Updated | 2026-11-05 |
 
 ## Task
 
@@ -91,3 +91,62 @@ Complete output-producer research, lifecycle carriers, wiring names, source cens
 
 | Run | Scope | Reviewer | Result | Evidence |
 |-----|-------|----------|--------|----------|
+
+## Implementation Handoff (2026-11-04)
+
+The owner authorized this agent to author changes and the root session to
+centralize review, formatting, builds and execution. This agent ran no code,
+compiler, formatter, linter, test, daemon, Docker command or commit.
+
+| Surface | Source-backed decision / authored change |
+|---------|------------------------------------------|
+| Output producers | `reactor_kernel.go` retains the negotiated MRU in `handleLCPUp` and clears it in `handleLCPDown`; `snapshot.go` publishes that field; `cmd/l2tp.go` reports null when it is zero. These producers remain unchanged. |
+| Peer behavior | Pinned pppd 2.5.5 `lcp_addci` emits MRU when it differs from the default 1500, so the new peer requests 1400 explicitly. No upstream runtime result is assumed. |
+| Independent carrier | New registered `l2tp-lns-negotiated-mru-xl2tpd` uses configured local1492 and peer1400. It preserves the separate oversized-Nak and omitted-option scenarios owned by child16e. |
+| Wire evidence | `lnsDistinctMRUEvidence` requires both directional request/Ack pairs with matching identifiers and CHAP success after the agreements. |
+| Measured values | `checkLNSNegotiatedMRU` measures Ze's interface MTU1400, checks useful traffic and backend reachability, then requires aggregate and detail session MRU1400 while effective config remains1492. |
+| Shared machinery | Reuse child16e's parameterized daemon helpers and factor the existing MTU parser into `lnsMeasuredLinkMTU`; preserve the existing1492 wrapper and its test expectations. |
+
+| Authored test | Outcome for root to verify |
+|---------------|----------------------------|
+| `TestLNSDistinctMRUEvidence` | Correct unequal directions pass; equal/corrupt/unacknowledged inputs, wrong local policy, missing credentials, PAP and redial fail. |
+| `TestLNSMeasuredOutputUnequalMRUs` | Registered full checker reaches effective config, aggregate/detail session commands and Ze interface; either session view copying config1492 fails. |
+| `TestLNSDistinctMRUScenarioPreparation` | Discovery, kernel preflight, checker, independent RADIUS image and peer ordering are wired. |
+| Existing `TestSessionSnapshotNegotiatedPPP` | Preserve actual event-consumer and lifecycle clearing coverage, including negotiated `none`. |
+| Existing `TestSessionJSONMRUAndAuthMethod` | Preserve detail/list JSON null and no-auth semantics. |
+
+Root must format the new files, run tagged race tests, run the new live
+scenario, and record forced red with the actual snapshot producer returning
+configured MRU in a rebuilt artifact followed by restored green. No old test
+expectation was changed by this agent. The corresponding wiki update and live
+verification remain root-owned. Claims in this handoff describe authored
+assertions, not tests that have passed.
+
+## Central Verification (2026-11-05)
+
+The coordinator ran the new and existing checker tests under race, including
+both copied-value negatives and existing null/down/no-auth lifecycle cases.
+The separate registered `l2tp-lns-negotiated-mru-xl2tpd` scenario passed with
+configured MRU 1492, correlated wire/session MRU 1400, actual Ze MTU 1400,
+both command views, RADIUS credentials and useful subscriber traffic.
+
+For semantic discrimination the coordinator rebuilt the actual daemon with
+one hand-written change in `l2tpReactor.handleLCPUp`: publish `r.params.MRU`
+instead of the event's negotiated value. Wire negotiation, the driver, MTU
+and traffic remained independent of that copied field. The live carrier
+failed after those stages with aggregate MRU 1492 versus the peer's 1400.
+This is an actual publication-path defect, rather than injected console text
+or a producer halted before it could publish state. Unit negatives separately
+prove that copying the value into either command view is rejected.
+
+Runtime/carriers are committed in `18ea5e830a` and `3cc99259b0`; matching
+wiki documentation is `312639d`. Evidence:
+`job-cpe16-final-l2tp-live-e6b8eb67.log`,
+`job-cpe16-postreview-runtime-race-f3e7163f.log` and
+`job-cpe16-copied-output-red-1d421026.log`, under
+`tmp/session/2026-11-04-222204/scratch/`. The issue agent authored the test
+and private fault artifact without execution. The final rebuilt normal
+artifact passed both output views again with configured 1492 and negotiated
+1400, alongside MTU and traffic assertions, in
+`job-cpe16-final-artifacts-restored-718e9ad2.log`. Central verification is
+complete; this spec stays open for the separate closure review.
