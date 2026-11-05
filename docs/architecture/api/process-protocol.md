@@ -1854,6 +1854,55 @@ renders the envelope at most once per emit and only when a matching subscriber
 opted in, preserving the lazy-marshal-once cost of the default path.
 <!-- source: internal/component/plugin/server/dispatch.go -- deliverEvent, buildEventEnvelope; pkg/plugin/rpc/types.go -- EventEnvelope -->
 
+The optional `metadata` member is opaque to the generic event transport. Its
+namespace owns its shape and meaning; an event with no such metadata omits it.
+A text payload is a JSON string inside the envelope, not text interpolated into
+a JSON object. The SDK's single-event and batch callbacks carry both forms
+unchanged.
+
+**BGP UPDATE forwarding receipts.** An enveloped `bgp/update` carries the
+engine's per-message receipt in `metadata`, beside the unchanged JSON payload or
+quoted text payload:
+
+| Member | Type | Meaning |
+|--------|------|---------|
+| `peer` | IP address | The peer named by the payload |
+| `message-id` | uint64 | The payload's received or sent message ID |
+| `source-policy-epoch` | uint64 | The payload's original policy admission, including an explicit unrecorded zero |
+| `reactor-forwarded` | bool | The reactor fast path has already decided the eligible destinations |
+| `fast-path-skipped` | address:port list | Destinations handed back to the forwarding plugin; omitted when empty |
+
+`peer`, `message-id`, `source-policy-epoch` and `reactor-forwarded` are mandatory
+and non-null. An explicit zero ID or unrecorded policy epoch and an explicit
+`false` decision remain values, not missing members. An omitted or null decision
+must not silently become `false` and send a second copy to a target the reactor
+already served.
+
+These are delivery facts from the engine's `RawMessage`, never filter-writable
+`route-meta`. A reader binds the receipt to the actual payload's peer, message ID
+and policy epoch before using it. The route server snapshots the skipped list
+into its worker item on structured delivery; JSON decoding owns the list on the
+forked rail. Neither rail keeps a mutable alias to a publisher's receipt.
+
+When `reactor-forwarded` is true, the route server forwards only to the skipped
+destinations and eligible sessions established after the message was numbered,
+under the same peer-up replay cut as ordinary forwarding. It still records the
+announcement or withdrawal for source-DOWN recovery. A destination already
+served by the reactor gets no second cached forwarding request; the session
+writer does not suppress legitimate reannouncements to compensate for a lost
+receipt. Subscriptions without envelope delivery keep their existing bare
+text/JSON format.
+<!-- source: internal/component/bgp/server/events.go -- onMessageReceived, onMessageBatchReceived -->
+<!-- source: internal/component/bgp/types/rawmessage.go -- RawMessage.ReactorForwarded, RawMessage.FastPathSkipped -->
+<!-- source: internal/component/bgp/types/update_receipt.go -- UpdateReceipt, ParseUpdateReceipt, Validate, UnwrapUpdateText -->
+<!-- source: internal/component/bgp/types/update_receipt_scalar.go -- receiptUint64.UnmarshalJSON, receiptDecision.UnmarshalJSON -->
+<!-- source: internal/component/bgp/server/event_update_receipt.go -- updateEnvelopeCache.wrap -->
+<!-- source: internal/component/bgp/event.go -- ParseEvent -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- dispatchText -->
+<!-- source: internal/component/bgp/plugins/rs/server.go -- dispatchText, dispatchStructured -->
+<!-- source: internal/component/bgp/plugins/rs/server_withdrawal.go -- processForward -->
+<!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped -->
+
 ### An Event Emitted Before the Subscribers Exist
 
 A subscription is registered when its plugin handshakes, and plugins handshake

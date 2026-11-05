@@ -690,6 +690,11 @@ func (rr *routeReflector) dispatchText(text string) {
 		rr.validationChanged(routes)
 		return
 	}
+	text, receipt, enveloped, err := bgptypes.UnwrapUpdateText(text)
+	if err != nil {
+		logger().Warn("received UPDATE envelope rejected", "error", err)
+		return
+	}
 
 	// Quick parse: "peer <addr> remote as <n> <dir> <type> <id> ..."
 	// State:       "peer <addr> remote as <n> state <state>"
@@ -775,6 +780,17 @@ func (rr *routeReflector) dispatchText(text string) {
 			}
 			cancel()
 			return
+		}
+		if enveloped {
+			if err := receipt.Validate(fields[1], msgID, sourcePolicyEpoch); err != nil {
+				logger().Warn("received UPDATE receipt rejected", "peer", fields[1], "message-id", msgID, "error", err)
+				ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+				if releaseErr := rr.plugin.ReleaseCached(ctx, []uint64{msgID}); releaseErr != nil {
+					logger().Warn("rejected UPDATE cache release failed", "message-id", msgID, "error", releaseErr)
+				}
+				cancel()
+				return
+			}
 		}
 		// Update withdrawal map from text before forwarding.
 		peerAddr := fields[1]

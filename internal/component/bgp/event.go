@@ -13,6 +13,8 @@ import (
 	"net/netip"
 	"strings"
 
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/ze-software/ze/internal/core/family"
@@ -55,12 +57,29 @@ var KnownFields = map[string]bool{
 func ParseEvent(data []byte) (*Event, error) {
 	// First check if this is ze-bgp JSON format (has "bgp" or "rib" wrapper).
 	var wrapper struct {
+		rpc.EventEnvelope
 		Type string          `json:"type"`
 		BGP  json.RawMessage `json:"bgp"`
 		RIB  json.RawMessage `json:"rib"`
 	}
 	if err := json.Unmarshal(data, &wrapper); err != nil {
 		return nil, err
+	}
+	var receipt bgptypes.UpdateReceipt
+	enveloped := wrapper.Namespace == bgpevents.Namespace && wrapper.Event == bgpevents.EventUpdate
+	if enveloped {
+		decoded, err := bgptypes.ParseUpdateReceipt(wrapper.Metadata)
+		if err != nil {
+			return nil, err
+		}
+		receipt = decoded
+		data = wrapper.Payload
+		wrapper.Type = ""
+		wrapper.BGP = nil
+		wrapper.RIB = nil
+		if err := json.Unmarshal(data, &wrapper); err != nil {
+			return nil, fmt.Errorf("BGP UPDATE envelope JSON payload: %w", err)
+		}
 	}
 
 	// If ze-bgp JSON format, parse the nested payload.
@@ -142,6 +161,17 @@ func ParseEvent(data []byte) (*Event, error) {
 	// Preserve message info.
 	if bgpPayload.Message != nil {
 		event.Message = bgpPayload.Message
+	}
+	if enveloped {
+		kind := event.GetEventType()
+		if kind != rpc.EventKindUpdate {
+			if kind != rpc.EventKindSent {
+				return nil, fmt.Errorf("BGP UPDATE envelope carries a non-UPDATE payload")
+			}
+		}
+		if err := receipt.Validate(event.GetPeerAddress(), event.GetMsgID(), event.SourcePolicyEpoch); err != nil {
+			return nil, err
+		}
 	}
 
 	// Parse raw JSON to extract family operations and ze-bgp JSON nested structures.

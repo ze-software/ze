@@ -4,6 +4,7 @@
 package rs
 
 import (
+	"net/netip"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -29,6 +30,10 @@ type workItem struct {
 	msg               *bgptypes.RawMessage
 	validation        ribevents.ValidationRoute
 	textPayload       string
+	// The delivery receipt is owned by this item on both transports. It is
+	// independent of the borrowed message wrapper and publisher's slice.
+	reactorForwarded bool
+	fastPathSkipped  []netip.AddrPort
 	// barrier, when set, makes the item a settle marker: the worker flushes
 	// its batch and closes it, so every item queued before it was handled
 	// (settleSource). It carries no UPDATE.

@@ -72,7 +72,7 @@ func TestFastPathServedUpdateReachesAPeerEstablishedAfterIt(t *testing.T) {
 	rs.mu.Unlock()
 
 	key := workerKey{sourcePeer: "10.0.0.1"}
-	rs.processForward(key, workItem{msgID: 40, sourcePeer: "10.0.0.1", msg: fastPathServedAnnounce(t)})
+	rs.processForward(key, workItem{msgID: 40, sourcePeer: "10.0.0.1", msg: fastPathServedAnnounce(t), reactorForwarded: true})
 	rs.flushWorkerBatch(key)
 
 	mu.Lock()

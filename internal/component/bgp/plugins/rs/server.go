@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -734,6 +735,11 @@ func (rs *routeServer) dispatchText(text string) {
 		rs.validationChanged(routes)
 		return
 	}
+	text, receipt, enveloped, err := bgptypes.UnwrapUpdateText(text)
+	if err != nil {
+		logger().Warn("received UPDATE envelope rejected", "error", err)
+		return
+	}
 
 	eventType, msgID, peerAddr, payload, err := quickParseTextEvent(text)
 	if err != nil {
@@ -751,6 +757,13 @@ func (rs *routeServer) dispatchText(text string) {
 			rs.releaseCache(msgID)
 			return
 		}
+		if enveloped {
+			if err := receipt.Validate(peerAddr, msgID, sourcePolicyEpoch); err != nil {
+				logger().Warn("received UPDATE receipt rejected", "peer", peerAddr, "message-id", msgID, "error", err)
+				rs.releaseCache(msgID)
+				return
+			}
+		}
 		// Advance the cut cursor on the fork-mode rail too, for the same reason
 		// dispatchStructured does: this runs on the OnEvent goroutine, the one
 		// handleState captures the cut on. A text event whose msgID did not parse
@@ -764,6 +777,10 @@ func (rs *routeServer) dispatchText(text string) {
 
 		key := workerKey{sourcePeer: peerAddr}
 		item := workItem{msgID: msgID, sourcePeer: peerAddr, textPayload: payload, sourcePolicyEpoch: sourcePolicyEpoch}
+		if enveloped {
+			item.reactorForwarded = receipt.ReactorForwarded
+			item.fastPathSkipped = receipt.FastPathSkipped
+		}
 		if !rs.workers.Dispatch(key, item) {
 			logger().Error("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
 			rs.releaseCache(msgID)
@@ -831,7 +848,8 @@ func (rs *routeServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMess
 	rs.mu.Unlock()
 
 	key := workerKey{sourcePeer: peerAddr}
-	item := workItem{msgID: msgID, sourcePeer: peerAddr, msg: msg}
+	item := workItem{msgID: msgID, sourcePeer: peerAddr, msg: msg, sourcePolicyEpoch: msg.SourcePolicyEpoch,
+		reactorForwarded: msg.ReactorForwarded, fastPathSkipped: slices.Clone(msg.FastPathSkipped)}
 	if !rs.workers.Dispatch(key, item) {
 		logger().Error("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
 		rs.releaseCache(msgID)

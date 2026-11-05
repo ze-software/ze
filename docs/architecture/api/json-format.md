@@ -103,6 +103,15 @@ All BGP events have the same structure: type in `message`, `peer` and event-spec
 }
 ```
 
+An UPDATE subscriber that opted into `SetEnvelope(true)` receives this document
+as the `payload` of a `bgp/update` event envelope. The envelope's optional opaque
+`metadata` holds the engine's source-bound forwarding receipt; it is separate
+from the BGP document's filter-writable `route-meta`. Text-encoding subscribers
+with the same opt-in receive a quoted text string as `payload` instead. The
+receipt fields and their ownership are documented in
+[`process-protocol.md`, “BGP UPDATE forwarding receipts”](process-protocol.md#enveloped-delivery).
+Subscribers without the opt-in keep the bare document or text line.
+
 ### Common Fields
 
 | Field | Type | Description |

@@ -91,15 +91,13 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 		wireRecords, recordsErr = extractWireNLRIRecords(item.msg)
 	}
 
-	// Reactor fast path: when ReactorForwarded is set, the reactor already
-	// forwarded this UPDATE to the destinations it served, and this rail
-	// forwards to the rest: the peers it handed back (FastPathSkipped) and the
-	// peers whose session it could not yet serve (PeerState.InitialReplay).
+	// Both transports carry the same owned delivery receipt. The reactor
+	// already served the decided targets; this rail carries only handed-back
+	// and later-established targets under the ordinary peer-up replay cut.
 	// The withdrawal map is still updated for peer-down correctness.
 	forwarded = true
-	reactorHandled := item.msg != nil && item.msg.ReactorForwarded
-	if reactorHandled {
-		rs.batchForwardUpdateSkipped(key, item.sourcePeer, item.msgID, families, item.msg.FastPathSkipped)
+	if item.reactorForwarded {
+		rs.batchForwardUpdateSkipped(key, item.sourcePeer, item.msgID, families, item.fastPathSkipped)
 	} else {
 		rs.batchForwardUpdate(key, item.sourcePeer, item.msgID, families)
 	}

@@ -1402,6 +1402,10 @@ type EventEnvelope struct {
 	Namespace string          `json:"namespace"`
 	Event     string          `json:"event"`
 	Payload   json.RawMessage `json:"payload"`
+	// Metadata is an optional namespace-owned value. Generic transport MUST
+	// preserve it without interpreting its fields; its absence is valid for
+	// events that carry no sideband delivery facts.
+	Metadata json.RawMessage `json:"metadata,omitempty"`
 }
 
 // ParseEventEnvelope unmarshals an enveloped delivered event string produced

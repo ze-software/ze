@@ -210,6 +210,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	// DirectBridge structured consumers skip text formatting entirely.
 	// Stack-allocated cache avoids per-event map allocation.
 	var fmtCache formatCache
+	var envelopeCache updateEnvelopeCache
 	for _, proc := range procs {
 		if proc.HasStructuredHandler() {
 			continue // DirectBridge — no text formatting needed
@@ -231,6 +232,11 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 			delivery = process.EventDelivery{Event: se, Result: results}
 		} else {
 			output, _ := fmtCache.get(proc.FormatCacheKey())
+			output, err := envelopeCache.wrap(peer, &msg, proc, output)
+			if err != nil {
+				logger().Warn("BGP UPDATE event envelope refused", "proc", proc.Name(), "message-id", msg.MessageID, "err", err)
+				continue
+			}
 			delivery = process.EventDelivery{Output: output, Result: results}
 		}
 		if !proc.Deliver(delivery) {
@@ -310,6 +316,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	// next UPDATE to fast subscribers (e.g., bgp-rs's sub-microsecond dispatch).
 	isUpdate := msgs[0].Type == msgtype.TypeUPDATE
 	var fmtCache formatCache
+	var envelopeCache updateEnvelopeCache
 
 	hasStructured := false
 	for _, proc := range procs {
@@ -339,6 +346,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		}
 
 		fmtCache.reset()
+		envelopeCache.reset()
 		for _, proc := range procs {
 			if proc.HasStructuredHandler() {
 				continue
@@ -357,6 +365,11 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 				delivery = process.EventDelivery{Event: se}
 			} else {
 				output, _ := fmtCache.get(proc.FormatCacheKey())
+				output, err := envelopeCache.wrap(peer, msg, proc, output)
+				if err != nil {
+					logger().Warn("BGP UPDATE event envelope refused", "proc", proc.Name(), "message-id", msg.MessageID, "err", err)
+					continue
+				}
 				delivery = process.EventDelivery{Output: output}
 			}
 			if proc.Deliver(delivery) && proc.IsCacheConsumer() {
