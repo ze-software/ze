@@ -7,8 +7,8 @@
     "claim-sha": "05e6b4e2280086f5",
     "route": "revert",
     "producer": "cmd/ze/hub/main_reload.go::diskConfigLoaders",
-    "producer-sha": "9c2dbf60a1d7f450",
-    "break": "body of diskConfigLoaders replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "73a8372551151237",
+    "break": "body of diskConfigLoaders replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7950-8.1-2",

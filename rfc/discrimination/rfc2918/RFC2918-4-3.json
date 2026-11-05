@@ -40,7 +40,7 @@
     "claim-sha": "e0533dc06e5cb1c2",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/egress_inject_filter.go::Reactor.exportFilterForBody",
-    "producer-sha": "aeb794e16c492dcc",
+    "producer-sha": "4a5e577fdaebffda",
     "break": "body of Reactor.exportFilterForBody replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -51,7 +51,7 @@
     "claim-sha": "9a5292ee3b9e32eb",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/egress_inject_filter.go::Reactor.exportFilterForBody",
-    "producer-sha": "aeb794e16c492dcc",
+    "producer-sha": "4a5e577fdaebffda",
     "break": "body of Reactor.exportFilterForBody replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -62,8 +62,8 @@
     "claim-sha": "c89ca1a7c20cd43b",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_write.go::sendUpdateCounted",
-    "producer-sha": "fa3ed5c07c39740f",
-    "break": "body of sendUpdateCounted replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3c2c8e988e6dfcc3",
+    "break": "body of sendUpdateCounted replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2918-4-3",

@@ -19,7 +19,7 @@
     "claim-sha": "9c1f7823d3af3ee4",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/egress_inject_filter.go::Reactor.exportFilterForBody",
-    "producer-sha": "aeb794e16c492dcc",
+    "producer-sha": "4a5e577fdaebffda",
     "break": "body of Reactor.exportFilterForBody replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=1:seq=2:contains=20010DB8001000000000000000000000"
   }
