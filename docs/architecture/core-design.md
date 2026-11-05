@@ -1324,7 +1324,11 @@ code position:
    UPDATE whose MP_REACH_NLRI and MP_UNREACH_NLRI name two families becomes
    two withdrawals, one per family (RFC 7606 Section 3(g) allows one
    MP_UNREACH_NLRI per UPDATE): on import the second is delivered as a
-   received UPDATE of its own after the first (`notifyMessageReceiver`), on
+   received UPDATE of its own after the first (`notifyMessageReceiver`), with
+   the original policy decision already applied. It reuses the cache and
+   publication path without running ingress filters on the attribute-free
+   generated body again. This authority stays private to that accepted
+   continuation; ordinary received withdrawals still run ingress policy. On
    the originated rail the session writes it after the first (the
    `egressRouteFilter` follow body), and the forward rail splits by section
    (`withdrawalBySection`). A raw override stops later filters but

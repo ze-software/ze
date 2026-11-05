@@ -240,8 +240,10 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // after its lock and publication ended, as a received UPDATE of its own: a
 // fresh heap body under the noPoolBufID sentinel, the way the session
 // delivers RFC 7606 treat-as-withdraw extras (processValidatedMessage), so
-// the forward cache finds it and eviction frees no pool slot. The loop ends:
-// a follow-up is a withdrawal of one family, whose conversion owes none.
+// the forward cache finds it and eviction frees no pool slot. The follow-up
+// carries the original policy decision: notifyOneMessage MUST NOT run ingress
+// again on that generated body. It owes no further continuation, so the loop
+// ends without giving ordinary received messages any bypass authority.
 func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) bool {
 	var follow []byte
 	var sourceCtxID bgpctx.ContextID
@@ -250,20 +252,33 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		// Read before the call: the UPDATE's ownership may leave with it.
 		sourceCtxID, sourceID = wireUpdate.SourceCtxID(), wireUpdate.SourceID()
 	}
-	kept := r.notifyOneMessage(peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID, &follow)
+	kept := r.notifyOneMessage(peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID, ingressPolicyUndecided, &follow)
 	for follow != nil {
 		body := follow
 		follow = nil
 		followUpdate := wireu.NewWireUpdate(body, sourceCtxID)
 		followUpdate.SetSourceID(sourceID)
-		r.notifyOneMessage(peerAddr, msgtype.TypeUPDATE, body, followUpdate, ctxID, direction, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0, &follow)
+		r.notifyOneMessage(peerAddr, msgtype.TypeUPDATE, body, followUpdate, ctxID, direction, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0, ingressPolicyAlreadyApplied, &follow)
 	}
 	return kept
 }
 
+// ingressPolicyDisposition keeps accepted-continuation authority inside the
+// notification path. Only the owned follow-up of an accepted withdraw verdict
+// has already run ingress; zero or any other value grants no bypass.
+type ingressPolicyDisposition uint8
+
+const (
+	ingressPolicyUnspecified ingressPolicyDisposition = iota
+	ingressPolicyUndecided
+	ingressPolicyAlreadyApplied
+)
+
 // notifyOneMessage is notifyMessageReceiver for one message. follow receives
-// the second UPDATE an import step owes, nil when none.
-func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64, follow *[]byte) bool {
+// the second UPDATE an import step owes, nil when none. The caller MUST pass
+// ingressPolicyAlreadyApplied only for that accepted policy continuation:
+// it uses the same cache and publication path without judging ingress twice.
+func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64, policyDisposition ingressPolicyDisposition, follow *[]byte) bool {
 	r.mu.RLock()
 	// The region below decodes the peer's UPDATE (IsEOR) and runs per-peer
 	// hooks under the reactor-wide lock. A panic there unwinds to the read
@@ -532,7 +547,7 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 		_, endOfRIB = wireUpdate.IsEOR()
 	}
 	var routeMeta map[string]any
-	if direction == rpc.DirectionReceived && wireUpdate != nil && !endOfRIB && len(r.orderedIngressSteps) > 0 {
+	if policyDisposition != ingressPolicyAlreadyApplied && direction == rpc.DirectionReceived && wireUpdate != nil && !endOfRIB && len(r.orderedIngressSteps) > 0 {
 		src := filterapi.PeerFilterInfo{
 			Address:  peerAddr,
 			PeerAS:   peerAS,

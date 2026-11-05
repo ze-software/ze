@@ -64,8 +64,8 @@ type ingressStepResult struct {
 	// followWithdrawal is a second UPDATE payload the step owes the RIB after
 	// this one: the other family's withdrawal when a withdraw verdict met an
 	// UPDATE naming two MP families (ingressChainWithdrawal). Owned. The
-	// caller MUST deliver it as its own received UPDATE, or the routes it
-	// withdraws stay.
+	// caller MUST deliver it as its own already-judged received UPDATE,
+	// without running ingress policy again, or the routes it withdraws stay.
 	followWithdrawal []byte
 }
 
@@ -304,8 +304,9 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 //
 // An UPDATE whose MP_REACH_NLRI and MP_UNREACH_NLRI name two families is
 // withdrawn as two UPDATEs (buildWithdrawalPayloads): the first replaces this
-// one, the second rides followWithdrawal. The results are owned: receive
-// storage is reused. An UPDATE the conversion refuses (malformed) is dropped
+// one, the second rides followWithdrawal. The caller MUST publish both under
+// this policy decision, not judge the generated body again. The results are
+// owned: receive storage is reused. An UPDATE the conversion refuses is dropped
 // and the refusal logged at WARN, because the withdraw then could not be
 // honored.
 func ingressChainWithdrawal(payload []byte, source *bgpctx.EncodingContext, peerAddr netip.Addr, member string) ingressStepResult {
