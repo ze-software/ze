@@ -101,14 +101,19 @@ The `Run()` method performs the 5-stage startup protocol before entering the eve
 loop. Tests must simulate all five stages from the engine side.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->
 
+Stage 1 must answer the negotiated protocol version, not an empty `ok`: the SDK
+refuses a missing or different version before continuing to Stage 2.
+<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
+
 ```go
 func completeStartup(t *testing.T, ctx context.Context, engineMux *rpc.MuxConn) {
     t.Helper()
 
-    // Stage 1: read declare-registration, respond OK
+    // Stage 1: read declare-registration, answer the protocol version
     req := <-engineMux.Requests()
     assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
-    require.NoError(t, engineMux.SendOK(ctx, req.ID))
+    require.NoError(t, engineMux.SendResult(ctx, req.ID,
+        &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
     // Stage 2: send configure
     configInput := struct {
@@ -250,9 +255,10 @@ func TestConfigHandler(t *testing.T) {
         })
     }()
 
-    // Stage 1
+    // Stage 1: answer the protocol version
     req := <-engineMux.Requests()
-    require.NoError(t, engineMux.SendOK(ctx, req.ID))
+    require.NoError(t, engineMux.SendResult(ctx, req.ID,
+        &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
     // Stage 2: send config
     configInput := struct {
@@ -270,6 +276,7 @@ func TestConfigHandler(t *testing.T) {
 }
 ```
 <!-- source: pkg/plugin/rpc/types.go -- ConfigSection -->
+<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 
 ## Table-Driven Tests
 
