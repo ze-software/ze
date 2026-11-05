@@ -197,7 +197,7 @@ bgp {
 	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
 	filter {
 		import { final accept; }
-		export { final accept; }
+		export { filters [ bgp-filter-community:egress ]; final accept; }
 	}
 	community {
 		standard TAG {
