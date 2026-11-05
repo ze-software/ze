@@ -2,15 +2,15 @@
 
 **Goal:** Resolve the failures from https://github.com/ze-software/ze/actions/runs/41685742426, pinned at `1a2ccaeef8c0da4dc9f3747ce70f4aeecb84ddfa`. Do not chase newer unrelated shared-checkout failures.
 **Branch:** main, shared checkout. No push is authorized.
-**Current spec:** `plan/release/fixes/spec-cli-history-blocks-ui.md`, in progress and not closed. The user authorized admission of this named fix only; the one-off claim used cap 23, without changing the permanent cap.
+**History scope:** `spec-cli-history-blocks-ui`. The completed audit is preserved in git by the paired audit/removal closure. The user authorized admission of this named fix only; the one-off claim used cap 23, without changing the permanent cap.
 **Outcome:** CI repair remains incomplete. The user requested this handover after objecting to the long wait. Continue the concrete failed-path diagnosis below, not a new audit of the already-landed history design.
 
 ## Continuation: captured commit wait, 2026-11-05
 
 The prepared diagnostic now ran. Both forced commit and the corrected route-refresh draft reached required storage barriers when their output waits expired.
-The next action is committing the promoted plugin tests with their graph-fixture companion, then the promoted route-refresh test separately, with the required committed compile checks.
+The next action is resolving the five RFC record bindings distinguished below. CLI history implementation, regression promotion and the independent closure review are complete. Full-CI green remains unobserved.
 Do not repeat the completed route-refresh source diagnosis. The current state is `tmp/session/2026-11-05-002734/state/session-state-cli-history-blocks-ui-codex-ci41685742426-followthrough-20261105.md`, with earlier chronology preserved below.
-The earlier instruction to obtain the first live stack is satisfied. The authorized fixture correction and its pending native proof are recorded below.
+The earlier instruction to obtain the first live stack is satisfied. The authorized fixture correction and its completed native proof are recorded below.
 
 Both plugin runs used `./le --name ci41685742426-stallcapture test stress-repro run suite 'plugin --draft' test 'session-editor-commit-force session-editor-commit-verify policy-final-disposition bgp-capture-replay attach-process-delivery-graph' any-failure iterations 80 parallel 2 burners 1 timeout 240 minutes 25`, with the prepared fixture overlay and `CGO_ENABLED=0`.
 The plain diagnostic reproduced force step 12 on invocation 9. Its stress log ends `20261105-012203-3191593247.log` under `tmp/stress-repro/`.
@@ -80,23 +80,35 @@ The promoted route-refresh test passed in `scratch/job-ci-history-route-promoted
 The earlier startup timeout's cause remains unproved. If it recurs, use native `-s` capture and obtain a live stack from the owned PID before the hard deadline.
 These passes establish no general startup fix or full-CI green result.
 
-The history coverage run passed 37 roots across six affected packages in `scratch/job-ci-history-owned-coverage-29d35418.log`.
-Its profile is `scratch/history-owned-count.cover`. Coverage analysis is pending, so no complete branch-coverage figure is claimed.
+The history coverage run passed 37 package/root instances, representing 36 unique root names across six packages, without skips, in `scratch/job-ci-history-owned-coverage-29d35418.log`.
+Analysis is complete in `scratch/history-owned-coverage-analysis.md` and `.json`, using `scratch/history-owned-count.cover`.
+After summing duplicate counters from the six profiles, 73 of 106 blocks intersecting original production additions have nonzero counts. These are measured block observations, not complete branch coverage.
+Plugin promotion landed in `35fdc9b9f0`, including the graph-fixture companion. Its committed source compiled in all five flavors in `scratch/job-ci-history-promotions-committed-compile-63ed8ad7.log`.
+Route-refresh promotion landed separately in `4603e2da52`. The five plugin cases and all three reload cases have their required 80-invocation proof and promoted live paths.
 Main verified the scoped documentation anchors against the actual helper functions. The native wiring dry run selected aggregate documentation/index checks, which have not been claimed as executed.
-The observer correction contains no diagnostic instrumentation. Formal Review Gate and closure, coverage analysis and the publication holds remain open.
+The observer correction contains no diagnostic instrumentation. Independent `/root/history_closure` completed the source, guard, preservation and style review. Its one missing-proof finding produced `dec7fc60c7`, which adds constructor/stop guard tests through actual `infra.Run` and plugin-server ownership. Both roots pass race and count instrumentation. Omitted cleanup, detached cleanup and removed post-stop admission each produce the intended assertion red under verified one-file diagnostic overlays. A final canonical control passed with GOFLAGS unset. Canonical source/test hashes stayed unchanged. The committed test also passed all five build flavors.
 
-The publication holds remain: `check_rfc.go` and `check_rfc2545_third_party.go` still differ from HEAD.
-Inventory `source.go`, `registrations.go` and `collectactualfiles.go` are still absent from HEAD. The five RFC metadata records and two DocSource patches remain held for their committed producers.
+The focused count profile observes the stopped-admission return, refused-registration cleanup and cleanup body once each, and the sealing callback twice. The initial fixture attempts exposed a nondurable mutex wait and lazy Done channel ownership; those were corrected without changing product code or assertions. Their deliberate diagnostic SIGQUIT is not a product red.
+
+The latest normal startup capture also passed both force/verify cases without signals (`scratch/job-ci-history-startup-causal-capture-8e791a9f.log`, raw streams `scratch/live-startup-causal-capture`). Its first attempt stopped at an unrelated shared inventory compile cutover; the cases actually ran after that source completed. The earlier startup timeouts remain unrepeatable and unexplained, with the next capture step above.
+
+The two DocSource holds are satisfied by inventory foundation `5a6bd238c1` and documentation correction `d5efcf8bd3`. Main verified the current HEAD anchors against their committed producers, so no duplicate patch is owed.
+The five RFC metadata records remain held against their exact source bindings. Main's comparison against `4603e2da52` found two different cases:
+
+- RFC2545-3-2 and RFC2545-3-3 bind actual checker-function changes absent from that HEAD: `checkRFC2545NextHops` and, for the second record, `checkRFC2545ThirdPartyLinkLocal`.
+- Audits RFC4271-5.1.4-1, RFC4659-3.2.1.1-3 and RFC7911-2-2 already match HEAD in every unit and code binding. Only their `tests` whole-file fingerprints for `check_rfc.go` differ. Do not describe those functions as unpublished.
+
+`taggedUnitSHAs` hashes the whole file, while `unitSHAs` hashes the named function. `verdictFreshness` treats tests-only drift as `SHIFTED` when the other bindings match. No native freshness verdict is claimed from that source comparison. Existing `reseal` and `auditStamp` read the working tree through `Collect` and `newSourceReader`; neither refreshes against a selected committed revision. The comparison and exact fingerprints are retained in `scratch/rfc-publication-bindings-20261105.md`. No duplicate proof run, speculative checker publication or new tooling is implied.
 
 Retain `tmp/session/2026-11-05-002734/scratch/forced-commit-sync.strace`, `job-ci41685742426-sync-trace-0cfab569.log` and `commit-stall-trace-findings.md` for storage diagnosis.
 Retain both live stack captures beside the prepared overlay. Remove diagnostic-only artifacts after the cause is settled and no further diagnostic run needs them, preserving useful failure evidence.
-The history spec and the pinned CI repair remain open.
+The history lifecycle scope closes here. The pinned CI metadata publication and full-CI result remain open.
 
 ## Start here
 
-1. Read this handover and the spec's latest evidence section. The canonical chronological state is `tmp/session/2026-11-03-231620/state/session-state-cli-history-blocks-ui-omp-ci-41685742426-20261103.md`; its early “missing/unexecuted” entries are superseded by later recorded results.
+1. Read this handover and the completed audit in git history for `spec-cli-history-blocks-ui`. The canonical chronological state is `tmp/session/2026-11-03-231620/state/session-state-cli-history-blocks-ui-omp-ci-41685742426-20261103.md`; its early “missing/unexecuted” entries are superseded by later recorded results.
 2. Original failure inventory: `tmp/session/2026-11-03-231620/scratch/ci-failure-inventory.json`. Original six downloaded shard logs: `tmp/session/2026-11-01-174538/scratch/ci-41685742426-shard{1..6}.log`.
-3. The next actionable failure is **a forced session commit that produces no final status under load**. Get its live daemon goroutine dump before editing anything. A disposable capture overlay is prepared below.
+3. Use the continuation above for the current next action. The forced-commit diagnosis and disposable capture instructions below preserve the earlier evidence chronology.
 
 ## Landed work and evidence
 
@@ -149,7 +161,7 @@ The required five-case plugin load **reproduced invocation 3**:
 - Actual daemon-session producer: `internal/component/cli/model_commands_commit.go::runCommitSession` (read at lines 419–509). It validates, commits the session candidate, calls `NotifyReload`, marks committed content and records the config commit, then forms `WithSkippedWarnings`; archive notification can also precede the returned result. `handleCommandResult` publishes the status afterward. Current evidence does not isolate which stage remains pending.
 - Original earlier stack capture `scratch/session-stall-inv79-daemon-stacks.json` proved history fsync blocked Update and independent draft fsync. That history bug is fixed; it does not identify this new pending forced-commit stage or the separate reload startup timeout.
 
-## Prepared diagnostic: first next action
+## Prepared diagnostic: historical first action
 
 Disposable files (not tracked, preserve for the next run):
 
@@ -175,11 +187,11 @@ env CLAUDE_CODE_SESSION_ID=<new-session-id> CGO_ENABLED=0 \
 
 ## Remaining obligations
 
-1. Diagnose/fix the loaded forced-commit stall above, with actual producer evidence and independent review. Then prove the five current plugin drafts across all 80 required invocations and promote only those proven drafts. Native route is the documented plain draft-to-live promotion, not `git mv`; preserve all assertions. Existing approval rows: attach-process-delivery-graph 9, force 11, verify 12, policy-final-disposition 14, bgp-capture-replay 15. Policy's current draft also enables route refresh and scripts restoration epochs 2/3/6/8; do not describe its complete delta as only two filter wrappers.
-2. Prove the three remaining reload drafts: `bgp-filter-community-reload bgp-filter-export-reload-next-update-only bgp-route-refresh-enabled-over-ssh`, same stress settings with `suite 'reload --draft'`. Earlier invocation 69 timed out waiting for route-refresh SSH startup; that cause was not proved identical to history. Preserve actual peer replies, waits, config and deadlines. Promote only after actual required proof.
-3. History spec closure: measured new-branch coverage, scoped source-anchor checks, native pinned Review Gate and formal two-commit closure. Keep the spec open; AC-1–6 source/consumer evidence does not close AC-7. Do not rerun already-passing checks merely to reconfirm them.
-4. Original-CI remaining evidence publication: **six formerly ready paths are now committed** in `5d5fb6d60c` and `6774450b8b`; do not publish them twice. Five metadata records remain source-bound holds: RFC2545-3-2, RFC2545-3-3, RFC4271-5.1.4-1, RFC4659-3.2.1.1-3, RFC7911-2-2. Their `check_rfc.go`/`check_rfc2545_third_party.go` producer bytes still differed from HEAD at the last check. Exact fingerprints/prerequisites and logical groups: `scratch/ci-final-rfc-publication-classification.json`; its ready list predates those two new commits. Existing native RFC2545 observations are real working-tree observations, not proof against older HEAD.
-5. Two held DocSource patches still require the inventory `source.go`, `registrations.go`, `collectactualfiles.go` producers to land in HEAD. Owner state: `tmp/session/2026-11-02-121815/state/session-state-tooling-one-off-defects-ses_e640edc6effeAAkQ560zO43PMs.md`; owner recorded InventoryCutover frozen/parked and foundation publication pending. Do not commit claims about absent committed producers or carry another owner's unfinished code.
+1. Completed plugin proof and promotion: all five selected plugin drafts passed 80 invocations. Policy disposition is committed in `4007003754`, and the other four CI repairs plus the graph fixture landed in `35fdc9b9f0`. The observer correction is `fa795bf224`. The unexplained startup timeouts remain retained evidence, with no general startup fix claimed.
+2. Completed reload proof and promotion: both community cases passed their paired 80-invocation proof and landed in `405f472cd7`. Route-refresh passed its corrected 80-invocation proof and landed in `4603e2da52`. Every promoted case has an observed live pass. Earlier startup timeout causes were not proved identical to history.
+3. Completed history closure: measured coverage, scoped source-anchor checks, independent review, constructor-guard discrimination and paired audit/removal commits. The audit preserves approved test deviations and unrepeatable startup evidence. Do not rerun passing checks to refresh timestamps.
+4. Original-CI remaining evidence publication: **six formerly ready paths are now committed** in `5d5fb6d60c` and `6774450b8b`; do not publish them twice. Five metadata records remain source-bound holds: RFC2545-3-2, RFC2545-3-3, RFC4271-5.1.4-1, RFC4659-3.2.1.1-3, RFC7911-2-2. Use the two binding classes above and `scratch/rfc-publication-bindings-20261105.md`. The earlier `scratch/ci-final-rfc-publication-classification.json` ready list predates those two commits. Existing RFC2545 observations prove the working producers, not their older HEAD versions.
+5. Completed DocSource publication: inventory foundation `5a6bd238c1` and documentation correction `d5efcf8bd3` satisfy both earlier holds. Current HEAD anchors were verified against the committed producers. The older owner state under `tmp/session/2026-11-02-121815/state/` remains historical evidence, and no duplicate patch is owed.
 6. Full-CI green is unobserved. Other sessions' nine config/reactor failures and their ongoing BGP/RPC authority/framing cutovers are not this pinned-CI repair's code to alter. The historical no-Python perf-script issue was recorded/owned by `52a9c2c7c9`, not fixed; never execute that archival script or delete the user's history to clear a gate. Do not widen into another audit.
 
 ## Files already handled
