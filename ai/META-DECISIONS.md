@@ -281,6 +281,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 
 ## Every session
 
+- Run the `./le` commands needed for authorized work without asking Thomas
+  for permission again.
 - Before the first edit in each checkout, `git fetch` and confirm
   `git rev-list --count HEAD..@{u}` is zero; pull with
   `git pull --rebase --no-autostash` only when it is not. A dirty tree is no
