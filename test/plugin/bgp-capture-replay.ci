@@ -98,24 +98,19 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-# Asserted under the command that WRITES it.
-expect=stdout:contains=ESTABLISHED
-# Asserted under the command that WRITES it.
-expect=stdout:contains=announce=[10.0.0.0/24]
-# Asserted under the command that WRITES it.
-expect=stdout:contains=UPDATE
-# Asserted under the command that WRITES it.
-expect=stdout:contains=OPEN
-# Asserted under the command that WRITES it.
-expect=stdout:contains=capture-closed
-# Asserted under the command that WRITES it. It used to sit under a later
-# command, where the runner checked it against the whole test's output.
-expect=stdout:contains=capture-has-messages
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp:name=daemon
+# Each marker is asserted on the barrier helper that writes it.
 cmd=foreground:seq=3:exec=le test fixture plugin/bgp-capture-replay-wait-update:timeout=40s
+expect=stdout:contains=capture-has-messages
 cmd=stop:seq=4:name=daemon:signal=term
 cmd=foreground:seq=5:exec=le test fixture plugin/bgp-capture-replay-wait-closed:timeout=40s
+expect=stdout:contains=capture-closed
+# The decoded states and messages belong to replay, not to the wire peer.
 cmd=foreground:seq=6:exec=le test replay ./capture/bgp-127.0.0.1.jsonl:timeout=20s
+expect=stdout:contains=ESTABLISHED
+expect=stdout:contains=announce=[10.0.0.0/24]
+expect=stdout:contains=UPDATE
+expect=stdout:contains=OPEN
 cmd=foreground:seq=7:exec=le test fixture plugin/bgp-capture-replay-stdin:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=stdin-replay-ok

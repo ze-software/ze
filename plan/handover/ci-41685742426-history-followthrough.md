@@ -8,7 +8,7 @@
 ## Continuation: captured commit wait, 2026-11-05
 
 The prepared diagnostic now ran. Both forced commit and the corrected route-refresh draft reached required storage barriers when their output waits expired.
-The next action is landing the verified observer correction, followed by the tracked compile check and the corrected route-refresh draft's native 80-invocation proof.
+The next action is committing the promoted plugin tests with their graph-fixture companion, then the promoted route-refresh test separately, with the required committed compile checks.
 Do not repeat the completed route-refresh source diagnosis. The current state is `tmp/session/2026-11-05-002734/state/session-state-cli-history-blocks-ui-codex-ci41685742426-followthrough-20261105.md`, with earlier chronology preserved below.
 The earlier instruction to obtain the first live stack is satisfied. The authorized fixture correction and its pending native proof are recorded below.
 
@@ -63,10 +63,27 @@ Independent review's second round was clean, including cancellation of a live si
 The scoped count-coverage run passed in `scratch/job-ci-history-wait-coverage-0ce41f48.log`, with profile `scratch/session-editor-wait.cover`.
 It executed 6/6 statements in the legacy wrapper, 29/31 in the shared context reader and 8/8 in the session matcher. The unchanged poll-error and OS-deadline error guards were unexecuted.
 All new context, deadline and poll paths have positive counts. These figures describe those functions only.
-No drafts have been promoted in this continuation. The corrected route-refresh draft still owes its post-correction 80-invocation proof.
-Policy disposition is already in HEAD through `4007003754`. Attach graph's remaining draft delta is comments only. The current independent approval receipt records the four other plugin drafts without inventing another policy approval.
+The observer correction landed in `fa795bf224`. Its committed compile check passed every flavor in `scratch/job-ci-history-wait-committed-compile-63ed8ad7.log`.
+The corrected route-refresh draft then passed all 80 invocations in the log ending `20261105-104041-1192898260.log` and was copied into its live test path.
+The five proven plugin drafts were also copied into their live paths. Four CI files change, because policy disposition is already in HEAD through `4007003754`.
+Attach graph's CI delta is comments only, but a fresh HEAD check found its `deliveryGraph02` fixture repair still uncommitted.
+The fixture companion accounts for the mandatory filter-owner state edges that HEAD's `communityInsertions` and `grantFilterOwnersState` already produce.
+Independent `plugin_promotion_judge` approved that exact fixture companion. Its `Test-judge:` receipt belongs in the commit body, alongside the four CI changes' existing approval rows.
+
+All promoted cases now have observed live passes, with separate startup failures retained. In the first normal four-plugin run, graph and replay passed, while force and verify reached their 180-second startup deadline without early stderr.
+The full transcript is `scratch/live-plugin-promoted-20261105.log`. A lock-traced pair also timed out in `scratch/job-ci-history-live-startup-locks-56544725.log`.
+`scratch/live-startup-processes.json` records separate case stores and staged frames, but no exact blocked producer was captured.
+A later SIGQUIT diagnostic deliberately killed only the two owned daemons and caused an EIO failure. Its elided native output retained no useful full stack.
+That diagnostic is recorded in `scratch/job-ci-history-live-startup-stacks-40534bca.log` and `scratch/live-startup-sigquit-processes.json`.
+A subsequent normal pair passed both force and verify without signals in `scratch/job-ci-history-live-full-capture-7ffc9b69.log`, with raw streams under `scratch/live-startup-full`.
+The promoted route-refresh test passed in `scratch/job-ci-history-route-promoted-6ad0aab8.log`, with raw streams under `scratch/live-route-refresh-promoted`.
+The earlier startup timeout's cause remains unproved. If it recurs, use native `-s` capture and obtain a live stack from the owned PID before the hard deadline.
+These passes establish no general startup fix or full-CI green result.
+
+The history coverage run passed 37 roots across six affected packages in `scratch/job-ci-history-owned-coverage-29d35418.log`.
+Its profile is `scratch/history-owned-count.cover`. Coverage analysis is pending, so no complete branch-coverage figure is claimed.
 Main verified the scoped documentation anchors against the actual helper functions. The native wiring dry run selected aggregate documentation/index checks, which have not been claimed as executed.
-The observer correction contains no diagnostic instrumentation. The history spec remains open.
+The observer correction contains no diagnostic instrumentation. Formal Review Gate and closure, coverage analysis and the publication holds remain open.
 
 The publication holds remain: `check_rfc.go` and `check_rfc2545_third_party.go` still differ from HEAD.
 Inventory `source.go`, `registrations.go` and `collectactualfiles.go` are still absent from HEAD. The five RFC metadata records and two DocSource patches remain held for their committed producers.

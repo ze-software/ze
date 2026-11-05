@@ -55,6 +55,12 @@ bgp {
                 remote 65001
             }
         }
+        role {
+            import peer
+        }
+        filter {
+            import { final accept; }
+        }
     }
 }
 EOF_CONF
@@ -74,18 +80,38 @@ has 1.2.3.4
 send commit now force
 wait commit now force: skipping 1 warning(s)
 has 5.6.7.8
-# A role that needs a transit-leak filter no chain names is an error.
-send set bgp peer peer1 role import peer
+# Naming a required, automatically inserted OTC member is a peer-pipeline error.
+send set bgp peer peer1 filter import filters bgp-role:otc-ingress
 send commit now force
 wait force commits over warnings, never errors
-wait transit leak
+# The status row is clipped to the terminal width; the errors view exposes
+# the exact mandatory-member refusal and its correction on separate lines.
+send show | errors
+wait peer peer1: the import filter list names bgp-role:otc-ingress, which its plugin inserts itself
+wait remove bgp-role:otc-ingress from the import filter list; it runs wherever the config that needs it is set
 send show | changes
 wait 1 pending change
+has 5.6.7.8
+lacks otc-ingress
 send commit confirmed 60 force
 wait never errors
-send delete bgp peer peer1 role
+send show | errors
+wait peer peer1: the import filter list names bgp-role:otc-ingress, which its plugin inserts itself
+wait remove bgp-role:otc-ingress from the import filter list; it runs wherever the config that needs it is set
+send show | changes
+wait 1 pending change
+has 5.6.7.8
+lacks otc-ingress
+send delete bgp peer peer1 filter import filters
+wait Deleted bgp peer peer1 filter import filters
 send set system authentication user carol password notahash
+wait set system authentication user carol password
+# Validate the repaired candidate and change the status prefix before the next
+# `set` acknowledgement; the terminal otherwise redraws only its differing tail.
+send commit verify
+wait nothing was applied; 0 error(s), 2 warning(s):
 send set bgp router-id 6.6.6.6
+wait set bgp router-id 6.6.6.6
 send commit confirmed 60 force
 wait commit confirmed 60 force: skipping 2 warning(s)
 wait Confirm within 60s
@@ -100,4 +126,4 @@ cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-e
 expect=exit:code=0
 expect=file:path=session-editor-commit-force.conf:contains=router-id 6.6.6.6
 expect=file:path=session-editor-commit-force.conf:contains=carol
-expect=file:path=session-editor-commit-force.conf:not-contains=role import
+expect=file:path=session-editor-commit-force.conf:not-contains=otc-ingress

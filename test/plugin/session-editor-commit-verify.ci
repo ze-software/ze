@@ -52,6 +52,12 @@ bgp {
                 remote 65001
             }
         }
+        role {
+            import peer
+        }
+        filter {
+            import { final accept; }
+        }
     }
 }
 EOF_CONF
@@ -73,13 +79,20 @@ wait nothing was applied; 0 error(s), 1 warning(s): system.authentication.user.b
 send show | changes
 wait 2 pending changes
 has 1.2.3.4
-# A role that needs a transit-leak filter no chain names is an error.
-send set bgp peer peer1 role import peer
+# Naming a required, automatically inserted OTC member is a peer-pipeline error.
+send set bgp peer peer1 filter import filters bgp-role:otc-ingress
 send commit verify
-wait nothing was applied; 1 error(s), 1 warning(s): peer peer1: role peer requires a filter against a transit leak
+wait nothing was applied; 1 error(s), 1 warning(s):
+# Read the long refusal in the errors view rather than a clipped status row.
+send show | errors
+wait peer peer1: the import filter list names bgp-role:otc-ingress, which its plugin inserts itself
+wait remove bgp-role:otc-ingress from the import filter list; it runs wherever the config that needs it is set
+wait system.authentication.user.bob.password: not a valid bcrypt hash
 send show | changes
 wait 3 pending changes
 has 1.2.3.4
+lacks 5.6.7.8
+lacks otc-ingress
 kill
 EOF_SCRIPT
 
@@ -87,3 +100,4 @@ cmd=foreground:seq=1:exec=ze start session-editor-commit-verify.conf:timeout=60s
 cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-verify.conf session-editor-commit-verify.script:timeout=60s
 expect=exit:code=0
 expect=file:path=session-editor-commit-verify.conf:contains=1.2.3.4
+expect=file:path=session-editor-commit-verify.conf:not-contains=otc-ingress

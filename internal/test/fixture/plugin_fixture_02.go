@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -553,43 +554,69 @@ func deliveryGraph02(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
+	type processEdge struct {
+		Process    string   `json:"process"`
+		Receive    []string `json:"receive"`
+		Send       []string `json:"send"`
+		Implicit   []string `json:"implicit"`
+		Unresolved []string `json:"unresolved"`
+	}
 	var data struct {
 		Peers []struct {
-			Peer      string `json:"peer"`
-			Processes []struct {
-				Process string   `json:"process"`
-				Receive []string `json:"receive"`
-				Send    []string `json:"send"`
-			} `json:"processes"`
+			Peer      string        `json:"peer"`
+			Processes []processEdge `json:"processes"`
 		} `json:"peers"`
 	}
 	if err := decode02(raw, &data); err != nil {
 		return err
 	}
-	peers := make(map[string]struct {
-		Peer      string `json:"peer"`
-		Processes []struct {
-			Process string   `json:"process"`
-			Receive []string `json:"receive"`
-			Send    []string `json:"send"`
-		} `json:"processes"`
-	})
+	// Every bilateral eBGP peer carries the mandatory BLACKHOLE member, whose
+	// owner gains state only. Explicit attachments grant nothing beyond their
+	// own receive/send tokens.
+	community := processEdge{
+		Process: "bgp-filter-community", Receive: []string{eventState}, Implicit: []string{eventState},
+	}
+	expected := map[string][]processEdge{
+		"127.0.0.1": {
+			community,
+			{Process: "delivery-graph-test", Receive: []string{eventState}},
+		},
+		"192.0.2.9": {
+			community,
+			{Process: "delivery-graph-test", Send: []string{eventUpdate}},
+		},
+		"192.0.2.10": {community},
+	}
+	if len(data.Peers) != len(expected) {
+		return fmt.Errorf("delivery: expected %d peers, got %d", len(expected), len(data.Peers))
+	}
 	for _, peer := range data.Peers {
-		peers[peer.Peer] = peer
-	}
-	if len(peers) != 3 {
-		return fmt.Errorf("delivery: expected 3 peers, got %d", len(peers))
-	}
-	fed := peers["127.0.0.1"].Processes
-	if len(fed) != 1 || fed[0].Process != "delivery-graph-test" || len(fed[0].Receive) != 1 || fed[0].Receive[0] != eventState || len(fed[0].Send) != 0 {
-		return fmt.Errorf("delivery: peer1 edges are %v", fed)
-	}
-	sender := peers["192.0.2.9"].Processes
-	if len(sender) != 1 || len(sender[0].Send) != 1 || sender[0].Send[0] != eventUpdate || len(sender[0].Receive) != 0 {
-		return fmt.Errorf("delivery: peer2 edges are %v", sender)
-	}
-	if len(peers["192.0.2.10"].Processes) != 0 {
-		return fmt.Errorf("delivery: peer3 attaches nothing but has edges")
+		want, found := expected[peer.Peer]
+		if !found {
+			return fmt.Errorf("delivery: unexpected or duplicate peer %s", peer.Peer)
+		}
+		delete(expected, peer.Peer)
+		if len(peer.Processes) != len(want) {
+			return fmt.Errorf("delivery: peer %s edges are %v, want %v", peer.Peer, peer.Processes, want)
+		}
+		for i, edge := range peer.Processes {
+			target := &want[i]
+			if edge.Process != target.Process {
+				return fmt.Errorf("delivery: peer %s process %d is %s, want %s", peer.Peer, i, edge.Process, target.Process)
+			}
+			if !slices.Equal(edge.Receive, target.Receive) {
+				return fmt.Errorf("delivery: peer %s process %s receive is %v, want %v", peer.Peer, edge.Process, edge.Receive, target.Receive)
+			}
+			if !slices.Equal(edge.Send, target.Send) {
+				return fmt.Errorf("delivery: peer %s process %s send is %v, want %v", peer.Peer, edge.Process, edge.Send, target.Send)
+			}
+			if !slices.Equal(edge.Implicit, target.Implicit) {
+				return fmt.Errorf("delivery: peer %s process %s implicit is %v, want %v", peer.Peer, edge.Process, edge.Implicit, target.Implicit)
+			}
+			if len(edge.Unresolved) != 0 {
+				return fmt.Errorf("delivery: peer %s process %s unresolved tokens are %v", peer.Peer, edge.Process, edge.Unresolved)
+			}
+		}
 	}
 	fmt.Fprintln(os.Stderr, "OK: delivery graph published for 3 peers")
 	return nil

@@ -3,9 +3,9 @@
 # Exercises: config load -> Reactor.publishDeliveryGraphLocked -> the plugin
 #            server's index -> dispatch-command -> ze-cmd:show-event-delivery ->
 #            handleShowEventDelivery.
-# VALIDATES: the index names exactly the processes each peer attaches, with the
-#            direction each token grants, and names no process for a peer that
-#            attaches none. An index nobody can see is an index nobody can debug.
+# VALIDATES: the index names exactly the explicitly attached processes and
+#            automatically inserted filters for each peer, with their exact
+#            direction grants, including a peer with no explicit attachments.
 # PREVENTS: the index being built and reaching no surface, which is how the
 #           defect this spec fixes survived: the config surface stayed while
 #           nothing read it.
