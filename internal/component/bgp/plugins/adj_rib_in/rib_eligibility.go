@@ -209,7 +209,7 @@ func (r *AdjRIBInManager) unlockValidation() {
 // unlockValidationCommand MUST replace unlockValidation in a command that
 // mutates eligibility. The command MUST not report success before its owed
 // notifications reach the engine. It may explicitly retry an earlier failure.
-func (r *AdjRIBInManager) unlockValidationCommand(status *string, data *any, result *error) {
+func (r *AdjRIBInManager) unlockValidationCommand(status *string, data *any, result *error) { //nolint:gocritic // ptrToRefParam: deferred publication failure must update the caller's named error result.
 	r.mu.Unlock()
 	if err := r.flushValidationChanges(true); err != nil {
 		*status = statusError
@@ -220,7 +220,7 @@ func (r *AdjRIBInManager) unlockValidationCommand(status *string, data *any, res
 
 // unlockValidationResult is the typed validation command's matching unlock.
 // Its caller MUST return the error this writes rather than an OK receipt.
-func (r *AdjRIBInManager) unlockValidationResult(result *error) {
+func (r *AdjRIBInManager) unlockValidationResult(result *error) { //nolint:gocritic // ptrToRefParam: deferred publication failure must update the caller's named error result.
 	r.mu.Unlock()
 	*result = errors.Join(*result, r.flushValidationChanges(true))
 }
@@ -249,8 +249,7 @@ func (r *AdjRIBInManager) flushValidationChanges(retry bool) error {
 		r.validationEmitErr = nil
 		return nil
 	}
-	var partial *validationEmissionError
-	if errors.As(err, &partial) {
+	if partial, ok := errors.AsType[*validationEmissionError](err); ok {
 		clear(changes[:partial.acknowledged])
 		changes = changes[partial.acknowledged:]
 	}

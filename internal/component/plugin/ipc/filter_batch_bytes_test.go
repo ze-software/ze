@@ -314,7 +314,8 @@ func TestFilterBatchSingletonUsesActualRequestID(t *testing.T) {
 	padding := target - len(encoded)
 	fields := []byte(`{"peer-name":"`)
 	fields = append(fields, bytes.Repeat([]byte{'x'}, padding)...)
-	input.Fields = append(fields, '"', '}')
+	fields = append(fields, '"', '}')
+	input.Fields = fields
 	encoded, err = json.Marshal(&rpc.FilterUpdateBatchInput{Routes: []rpc.FilterUpdateInput{input}})
 	if err != nil {
 		t.Fatal(err)

@@ -18,6 +18,8 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+const filterWireTransportsSourcePeer = "source"
+
 // filterWireTransports forwards the actual post-import cache entries, not a
 // reconstructed route. The receiving peer independently checks every byte.
 // Its arguments name the scenario, transport, accepted UPDATE count and the
@@ -66,7 +68,7 @@ func filterWireTransports(ctx context.Context, args []string) error {
 			if _, eor := event.BGP.Update["eor"]; eor {
 				return p.ReleaseCached(ctx, id)
 			}
-			if event.BGP.Peer.Name != "source" {
+			if event.BGP.Peer.Name != filterWireTransportsSourcePeer {
 				return p.ReleaseCached(ctx, id)
 			}
 			if err := p.ForwardCached(ctx, id, []string{"127.0.0.2"}); err != nil {
@@ -78,7 +80,7 @@ func filterWireTransports(ctx context.Context, args []string) error {
 		return nil
 	}
 	scenario := func(ctx context.Context, p *sdk.Plugin) error {
-		for _, peer := range []string{"source", "destination"} {
+		for _, peer := range []string{filterWireTransportsSourcePeer, "destination"} {
 			if !waitPeerEORSent(ctx, p, peer, WaitAttempts(80, 100*time.Millisecond, 70)) {
 				return fmt.Errorf("%s never sent its initial EOR", peer)
 			}
@@ -130,7 +132,7 @@ func filterWireTransports(ctx context.Context, args []string) error {
 			}
 		}
 		if !Poll(ctx, 100, 100*time.Millisecond, func() bool {
-			peer, err := peerDetail(ctx, p, "source")
+			peer, err := peerDetail(ctx, p, filterWireTransportsSourcePeer)
 			if err != nil {
 				return false
 			}
@@ -202,14 +204,14 @@ func filterWireTransportsDryRun(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil || status != rpc.StatusDone {
 		return fmt.Errorf("mixed dryrun status=%s: %w", status, err)
 	}
-	if data["action"] != "modify" {
+	if data["action"] != rpc.FilterModify.String() {
 		return fmt.Errorf("mixed dryrun action=%v, want modify", data["action"])
 	}
 	policy, ok := data["policy"].(map[string]any)
 	if !ok {
 		return fmt.Errorf("dryrun has no policy: %v", data)
 	}
-	if policy["final"] != "accept" {
+	if policy["final"] != rpc.FilterAccept.String() {
 		return fmt.Errorf("dryrun final=%v, want accept", policy["final"])
 	}
 	trace, ok := data["trace"].([]any)
@@ -227,9 +229,9 @@ func filterWireTransportsDryRun(ctx context.Context, p *sdk.Plugin) error {
 		if entry["filter"] != want {
 			return fmt.Errorf("trace entry %d filter=%v, want %s", i, entry["filter"], want)
 		}
-		wantAction := "modify"
+		wantAction := rpc.FilterModify.String()
 		if i == 2 {
-			wantAction = "accept"
+			wantAction = rpc.FilterAccept.String()
 			if entry["text-after"] != data["text-after"] {
 				return fmt.Errorf("final trace and resulting UPDATE differ: %v", data)
 			}

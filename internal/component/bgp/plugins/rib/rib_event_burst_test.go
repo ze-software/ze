@@ -193,9 +193,7 @@ func burstSDKBus(t *testing.T, consume func(rpc.EmitEventInput) error) *sdkEvent
 	engine := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	var worker sync.WaitGroup
-	worker.Add(1)
-	go func() {
-		defer worker.Done()
+	worker.Go(func() {
 		for request := range engine.Requests() {
 			var input rpc.EmitEventInput
 			err := json.Unmarshal(request.Params, &input)
@@ -212,7 +210,7 @@ func burstSDKBus(t *testing.T, consume func(rpc.EmitEventInput) error) *sdkEvent
 				return
 			}
 		}
-	}()
+	})
 	t.Cleanup(func() { cancel(); _ = plugin.Close(); _ = engine.Close(); worker.Wait() })
 	return &sdkEventBus{plugin: plugin}
 }

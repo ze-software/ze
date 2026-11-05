@@ -38,7 +38,7 @@ func TestFastPathConformanceDeadlineEveryClause(t *testing.T) {
 			}
 			answers := make(chan result, 1)
 			var calls atomic.Int64
-			eval := func(*FilterRoute) (*FilterUpdateOutput, error) {
+			var eval FilterEvaluator = func(*FilterRoute) (*FilterUpdateOutput, error) {
 				call := calls.Add(1)
 				if call == tc.blockCall {
 					close(entered)

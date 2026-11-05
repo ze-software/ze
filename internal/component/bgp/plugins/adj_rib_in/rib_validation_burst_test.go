@@ -82,8 +82,16 @@ func consumeValidationBurst(ctx context.Context, engine *rpc.MuxConn, want []rib
 				return
 			}
 			batch, matched, err := ribevents.DecodeValidationChange(string(envelope))
-			if err != nil || !matched || len(batch) == 0 {
-				result <- fmt.Errorf("invalid validation event: matched=%v routes=%d error=%v", matched, len(batch), err)
+			if err != nil {
+				result <- fmt.Errorf("invalid validation event: matched=%v routes=%d: %w", matched, len(batch), err)
+				return
+			}
+			if !matched {
+				result <- fmt.Errorf("invalid validation event: matched=%v routes=%d", matched, len(batch))
+				return
+			}
+			if len(batch) == 0 {
+				result <- fmt.Errorf("invalid validation event: matched=%v routes=%d", matched, len(batch))
 				return
 			}
 			for _, route := range batch {
