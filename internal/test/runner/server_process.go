@@ -13,10 +13,10 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
-// ServerProcess owns one successfully started server. Its zero and nil values
-// are invalid. The caller MUST defer Close or Stop before releasing files, ports
-// or scheduler leases, and MUST NOT call Cmd.Wait itself. Stop and Close share one
-// cached cleanup result; Wait and Done observe the same sole reaper.
+// ServerProcess owns one successfully started child. Its zero and nil values
+// are invalid. The caller MUST defer Close, Stop or StopGroup before releasing
+// files, ports or scheduler leases, and MUST NOT call Cmd.Wait itself. All stop
+// methods and Close share one cached result; Wait and Done observe the same reaper.
 type ServerProcess struct {
 	process   *ownedProcess
 	closeOnce sync.Once
@@ -27,7 +27,7 @@ type ServerProcess struct {
 // using the runner's existing identity-safe cancellation and sole Wait worker.
 // A positive Cmd.WaitDelay supplies the caller's pipe-drain bound; otherwise the
 // existing runner teardown grace applies.
-// On success the caller MUST defer Close or Stop before performing another operation.
+// On success the caller MUST defer Close, Stop or StopGroup before another operation.
 func StartServerProcess(cmd *exec.Cmd) (*ServerProcess, error) {
 	cmd.SysProcAttr = plugin.NewSysProcAttr()
 	waitDelay := cmd.WaitDelay
@@ -63,18 +63,27 @@ func (s *ServerProcess) Done() <-chan struct{} {
 	return s.process.done
 }
 
-// Stop sends the caller's signal and grants its explicit grace before joining
+// Stop signals the leader and grants its explicit grace before joining
 // the owned group. A nonzero expected exit is accepted only when this stop
 // signaled a parent not already observed exited by the kernel. The caller MUST
 // defer Stop or Close immediately after StartServerProcess. Both return the
 // same cached result, including every signal and lifecycle failure.
 func (s *ServerProcess) Stop(signal syscall.Signal, grace time.Duration, expectedExitCode int) error {
-	s.closeOnce.Do(func() { s.stop(signal, grace, expectedExitCode) })
+	s.closeOnce.Do(func() { s.stop(signal, grace, expectedExitCode, false) })
 	return s.closeErr
 }
 
-func (s *ServerProcess) stop(signal syscall.Signal, grace time.Duration, expectedExitCode int) {
-	signalErr, acceptedSignal, acceptedExitCode := s.signalStop(signal, expectedExitCode)
+// StopGroup signals the whole owned process group, grants the explicit grace,
+// then kills the group if needed and joins its sole reaper. It shares Stop's
+// identity check and cached result. The caller MUST defer Close, Stop or
+// StopGroup immediately after StartServerProcess, including error paths.
+func (s *ServerProcess) StopGroup(signal syscall.Signal, grace time.Duration, expectedExitCode int) error {
+	s.closeOnce.Do(func() { s.stop(signal, grace, expectedExitCode, true) })
+	return s.closeErr
+}
+
+func (s *ServerProcess) stop(signal syscall.Signal, grace time.Duration, expectedExitCode int, wholeGroup bool) {
+	signalErr, acceptedSignal, acceptedExitCode := s.signalStop(signal, expectedExitCode, wholeGroup)
 	timer := time.NewTimer(grace)
 	defer timer.Stop()
 	select {
@@ -87,7 +96,7 @@ func (s *ServerProcess) stop(signal syscall.Signal, grace time.Duration, expecte
 
 // signalStop MUST hold the identity lock through the nonreaping exit probe and
 // signal. An unretired identity alone is not proof that its parent is alive.
-func (s *ServerProcess) signalStop(signal syscall.Signal, expectedExitCode int) (error, syscall.Signal, int) {
+func (s *ServerProcess) signalStop(signal syscall.Signal, expectedExitCode int, wholeGroup bool) (error, syscall.Signal, int) {
 	s.process.signalMu.Lock()
 	defer s.process.signalMu.Unlock()
 	if s.process.retired {
@@ -97,7 +106,11 @@ func (s *ServerProcess) signalStop(signal syscall.Signal, expectedExitCode int) 
 	if probeErr == nil && exited {
 		return nil, 0, 0
 	}
-	signalErr := s.process.groupSignal(s.process.cmd.Process.Pid, signal)
+	target := s.process.cmd.Process.Pid
+	if wholeGroup {
+		target = -target
+	}
+	signalErr := s.process.groupSignal(target, signal)
 	if probeErr != nil || signalErr != nil {
 		return serverSignalError(signalErr), 0, 0
 	}

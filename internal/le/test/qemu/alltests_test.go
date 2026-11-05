@@ -234,14 +234,12 @@ func TestASkippedSuiteEmitsNoCommandAndIsStillReported(t *testing.T) {
 	}
 }
 
-// VALIDATES: a suite runs under the `timeout` wrapper, in the short `-k SECS`
-// spelling the guest's BusyBox `timeout` accepts.
-// PREVENTS: the way this ran nothing. BusyBox 1.37.0 answers the GNU
-// `--kill-after=15s` long form with `unrecognized option` and exits 1, so all 28
-// suites printed the usage text under their own headers and no .ci test ran
-// (plan/journal/gate-excludes-part-of-its-population.md, 2026-09-05). The
-// wall-clock cap still runs the suite in its own process group, so a stuck ze
-// cannot wedge the run.
+// VALIDATES: the native deadline consumer receives the exact suite command,
+// retaining its executable, selectors and concurrency without an external
+// timeout dependency. TestQEMUAllSuiteDeadlineUsesNativeOwnership separately
+// drives group TERM, the 15-second KILL grace, 124/137 verdicts and child cleanup.
+// PREVENTS: a minimal guest's incompatible timeout rejecting the wrapper before
+// any test runs (plan/journal/gate-excludes-part-of-its-population.md).
 func TestASuiteRunsUnderTheWallClockCap(t *testing.T) {
 	run := vmFixture(t)
 	rec := &recorder{}
@@ -249,7 +247,7 @@ func TestASuiteRunsUnderTheWallClockCap(t *testing.T) {
 	run.Execute()
 
 	first := strings.Join(rec.calls[preparationCommands], " ")
-	want := "timeout -k " + killAfterSeconds + " 900s " + filepath.Join(run.BinDir, leName) +
+	want := filepath.Join(run.BinDir, leName) +
 		" test bgp encode --all -p 4"
 	if first != want {
 		t.Errorf("the first suite command is\n  %s\nwant\n  %s", first, want)

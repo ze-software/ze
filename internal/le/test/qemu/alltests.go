@@ -57,24 +57,6 @@ const (
 	guestBinDir    = "/tmp/ze-qemu-bin"
 )
 
-// killAfterFlag and killAfterSeconds are how long `timeout` waits after its own
-// signal before it kills the process group. A stuck ze or plugin child cannot
-// wedge the run past it.
-//
-// The spelling is the GUEST's. /usr/bin/timeout in the Alpine guest is a symlink
-// to BusyBox 1.37.0, whose usage is `timeout [-s SIG] [-k KILL_SECS] SECS PROG
-// ARGS`. It answers `timeout: unrecognized option: kill-after=15s` to the GNU
-// long form and exits 1, so every suite printed the BusyBox usage under its own
-// header and ran no test at all, and a reader who greps the log for a suite name
-// finds it (plan/journal/gate-excludes-part-of-its-population.md, 2026-09-05).
-// `-k 15` is accepted by BusyBox and by GNU coreutils, so one spelling serves a
-// guest with either, and the wrapper no longer depends on `packages coreutils`.
-// Both forms were run in the guest before this was written.
-const (
-	killAfterFlag    = "-k"
-	killAfterSeconds = "15"
-)
-
 // These defaults belong to the native guest action. The host passes explicit
 // values when it needs a different concurrency, timeout, or skip set.
 const (
@@ -647,6 +629,9 @@ func (a *allTestsRun) Execute() (AllTestsReport, int) {
 
 // verify rejects any run that was unable to answer honestly.
 func (a *allTestsRun) verify() error {
+	if _, err := a.suiteTimeout(); err != nil {
+		return err
+	}
 	if info, err := os.Stat(a.Workspace); err != nil || !info.IsDir() {
 		var tb textbuf.Buffer
 		return errors.New(tb.Err(ErrNotMounted).Str(": ").Str(a.Workspace).String())
@@ -934,7 +919,7 @@ func (a *allTestsRun) suite(suite vmSuite, environ []string) PhaseResult {
 		Command:   argv,
 		Namespace: suite.Namespace.String(),
 		Counted:   true,
-		Code:      a.child(argv, a.suiteEnvironment(suite, environ), &tally),
+		Code:      a.suiteChild(argv, a.suiteEnvironment(suite, environ), &tally),
 	}
 	result.Tests = tally.Tests
 	if tally.Seen {
@@ -951,11 +936,10 @@ func (a *allTestsRun) suite(suite vmSuite, environ []string) PhaseResult {
 
 // suiteCommand is the command line one suite runs under.
 //
-// `timeout` runs the suite in its own process group. On expiry, it kills the
-// whole group. Thus a stuck ze or plugin child cannot wedge the run.
+// suiteChild supplies the native deadline and owns the suite's process group.
 func (a *allTestsRun) suiteCommand(suite vmSuite) []string {
-	argv := make([]string, 0, len(suite.Args)+9)
-	argv = append(argv, "timeout", killAfterFlag, killAfterSeconds, a.Timeout, filepath.Join(a.BinDir, leName), leTestWord)
+	argv := make([]string, 0, len(suite.Args)+5)
+	argv = append(argv, filepath.Join(a.BinDir, leName), leTestWord)
 	argv = append(argv, suite.Args...)
 
 	switch suite.Concurrency {

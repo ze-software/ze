@@ -44,7 +44,7 @@ const (
 // runner's summary line out of a copy of its stdout.
 //
 // It is an io.Writer so it can sit beside the terminal in a MultiWriter
-// (gaterun.StreamTee) and never delay a byte a person is waiting for. It is
+// (suiteChild) and never delay a byte a person is waiting for. It is
 // written by one goroutine, the one copying the child's output, and read after
 // the child exits. It is NOT safe for concurrent use.
 type suiteTally struct {

@@ -87,6 +87,17 @@ Both entry points run one VM for the whole population, never one VM per test.
 named populations in `netnsSelections`; selecting a suite does not run every
 test in its directory.
 
+Functional suite children run under a native deadline, without an external
+`timeout` executable. `ZE_QEMU_SUITE_TIMEOUT` is a positive Go duration such as
+the default `900s`; malformed, zero and negative values refuse before starting
+children. On expiry the lifecycle owner sends TERM to the whole process group,
+grants fifteen seconds, then sends KILL if needed and joins the owner. Ordinary
+exit codes and the streamed test-count summary are retained. TERM expiry answers
+124; a child killed by KILL answers 137, preserving the previous wrapper's
+status contract.
+<!-- source: internal/le/test/qemu/alltests_deadline.go -- allTestsRun.suiteChild, allTestsRun.suiteTimeout -->
+<!-- test: internal/le/test/qemu/alltests_timeout_linux_test.go -- TestQEMUAllSuiteDeadlineUsesNativeOwnership, TestQEMUAllSuiteDeadlineRefusesUnboundedBudgets -->
+
 <!-- source: internal/le/test/qemu/alltests.go -- AllTestsRun.Run, the phase population -->
 <!-- source: internal/le/test/qemu/guestlabs.go -- the netns suite selection -->
 
