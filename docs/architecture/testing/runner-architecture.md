@@ -97,6 +97,16 @@ this package. No build context is removed by the ownership repair.
 <!-- source: internal/test/runner/process_exit_openbsd.go -- beforeReap, waitOpenBSDExit, openBSDChild -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest, runOrchestrated -->
 
+Both peer startup paths wait for the peer's `listening on` token within the
+existing case context. The peer prints it only after its listener binds. Startup
+consumes the case's remaining budget; it has no separate five-second limit and
+does not restart the case deadline. A peer that exits before readiness fails
+immediately after its owner joins final output copying, preserving its exit
+status and both streams. Case cancellation and expiration retain their context
+cause, and the consumer never starts without readiness. The existing empty
+expectation diagnostic still explains which directives reach the peer.
+<!-- source: internal/test/runner/peer_startup.go -- awaitPeerListening -->
+
 Web servers use that same sole-reaper ownership through `StartServerProcess`.
 They start on `plugin.StartChild`'s persistent spawner thread. Server stop joins
 the owner before removing its directory, releasing ports, or returning the

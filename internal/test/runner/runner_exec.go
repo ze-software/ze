@@ -261,21 +261,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) (pa
 	}
 	defer peerProc.finish(rec, &passed)
 
-	// Wait for peer to be ready (listening) instead of fixed sleep. Use a short
-	// timeout context to avoid hanging forever if peer fails to start; scale it by
-	// the parallel headroom (identity for serial runs) so a ze-peer slow to bind
-	// under CPU oversubscription is not read as a spurious "never listening" -- the
-	// same non-orchestrated-path deadline named in the "fixed startup deadlines"
-	// entry archived in plan/known-failures/RESOLVED.md.
-	peerBindTimeout := r.withParallelHeadroom(5 * time.Second)
-	waitCtx, waitCancel := context.WithTimeout(testCtx, peerBindTimeout)
-	if !peerStdout.waitFor(waitCtx) {
-		waitCancel()
-		peerProc.cleanup()
-		rec.Error = fmt.Errorf("peer did not start listening within %s (stderr=%q, stdout=%q)", peerBindTimeout, peerStderr.String(), peerStdout.String())
+	if err := awaitPeerListening(testCtx, peerProc, peerStdout, peerStderr); err != nil {
+		rec.Error = err
+		rec.FailureType = FailTypePeerNeverBound
 		return false
 	}
-	waitCancel()
 
 	rec.SetState(StateRunning)
 
@@ -1123,20 +1113,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// It waits for the daemon itself instead, by retrying the dial
 				// (dialTarget, internal/test/peer/peer.go).
 				if !strings.Contains(execStr, "--dial") {
-					// 5s to bind is generous unloaded, but a parallel run oversubscribes
-					// every core: a ze-peer process can take longer than 5s just to start
-					// and listen, which reads as a spurious "peer never bound". Scale the
-					// bind budget by the same parallel headroom the outer test budget gets
-					// (identity for serial runs, so real bind failures still surface fast).
-					peerBindTimeout := r.withParallelHeadroom(5 * time.Second)
-					waitCtx, waitCancel := context.WithTimeout(testCtx, peerBindTimeout)
-					if !po.stdout.waitFor(waitCtx) {
-						waitCancel()
-						rec.Error = peerBindFailure(peerBindTimeout, po.stderr.String(), po.stdout.String())
+					if err := awaitPeerListening(testCtx, owned, po.stdout, po.stderr); err != nil {
+						rec.Error = err
 						rec.FailureType = FailTypePeerNeverBound
 						return false
 					}
-					waitCancel()
 				}
 			case zeReadyFileEnabled(cmd.Mode, binName, rec.WorkDir):
 				// Background-daemon suites poll daemon.pid/daemon.ready.

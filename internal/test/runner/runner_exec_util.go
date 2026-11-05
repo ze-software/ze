@@ -276,8 +276,7 @@ func (r *Runner) parallelFactor() int {
 // slowdowns surface quickly. See ParallelTimeoutHeadroom for rationale.
 //
 // This applies to the OUTER per-test budget AND to the fixed inner readiness
-// gates it used to leave untouched: BOTH ze-peer bind barriers (orchestrated and
-// non-orchestrated), BOTH daemon.ready waits (background and foreground), the
+// gates it used to leave untouched: BOTH daemon.ready waits (background and foreground), the
 // await=stderr fence, the per-message `ze bgp decode` fork, and the HTTP
 // readiness wait / retry-count / per-request budgets (runner_exec.go,
 // await_stderr.go, runner_validate.go). Those gates are what a contended run
