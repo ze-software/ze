@@ -1181,6 +1181,24 @@ deactivated refs needs no filter RPC, but its final still applies. A rejecting
 final cannot use the no-policy acceptance shortcut. Enabled per peer group
 via `PeerSettings.RSFastPath`.
 
+The fast path's decision is a per-message delivery receipt, not route metadata
+and not a writer deduplication rule. Structured route-server dispatch snapshots
+`ReactorForwarded` and an owned `FastPathSkipped` list into its worker item.
+Forked dispatch receives the same facts in the generic event envelope's opaque
+`metadata`, bound to the actual payload's peer, message ID and source-policy
+epoch. The BGP producer owns that metadata's shape; generic plugin transport
+does not interpret it. Text is a quoted JSON-string payload inside the envelope,
+and JSON payloads retain their original object.
+
+Both route-server rails therefore ask the cached forwarder only for the skipped
+targets and sessions established after the UPDATE was numbered, subject to the
+peer-up replay cut. Already-served targets get no duplicate request, while the
+source's withdrawal inventory is maintained even when every target was served
+by the reactor. A bare subscriber's existing text/JSON protocol is unchanged.
+<!-- source: pkg/plugin/rpc/types.go -- EventEnvelope -->
+<!-- source: internal/component/bgp/server/events.go -- onMessageReceived, onMessageBatchReceived -->
+<!-- source: internal/component/bgp/plugins/rs/server_withdrawal.go -- processForward -->
+
 Two consumer categories. **Forwarders** (route server, route reflector, future
 mirror) need every received UPDATE to make a per-peer forwarding decision.
 **State trackers** (BGP RIB plugin, then locrib subscribers like sysrib / FIB)
