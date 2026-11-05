@@ -26,7 +26,7 @@ Row numbers are the numbers the rows had in the parent spec.
 
 | # | Row id | Document, section | Class | What Ze does today |
 |---|--------|-------------------|-------|--------------------|
-| 6 | `RFC4271-8.2.2-13` | RFC 4271 §8.2.2 (Active) | implemented; live proof incomplete | DelayOpen configuration, timer, held connections and collision handoff are implemented. The original promoted base TIME30 remains unresolved; native FRR proof is still owed. |
+| 6 | `RFC4271-8.2.2-13` | RFC 4271 §8.2.2 (Active) | partially implemented; live initial-value retry gap | DelayOpen configuration, timer, held connections and collision handoff are implemented. AC-1e's live retry remains unmet: `Session.handleConnectionCloseLocked` calls `StopAll` after the FSM restarts the initial-value ConnectRetryTimer, cancelling it; `Peer.run` substitutes independent backoff. The original promoted base TIME30 remains unresolved; native FRR proof is still owed. |
 | 7 | `RFC4271-8.2.2-20` | RFC 4271 §8.2.2 (Idle) | implemented; scoped proof recorded | `runOnce` selects Event 3 after an Established cycle and Event 6 after a failed attempt. Real-Peer inbound and passive reconnect proof now has native discrimination records. |
 | 6s | draft-ietf-idr-bgp-bfd-strict-mode §8.3.5, §8.4.5 (and the sub-state branches of §8.3.1, §8.4.1) | draft, Connect and Active | implemented; live integration failure open | Both DelayOpen BFD-pending sub-states landed in `c987777bb8`, with scoped race and draft/stress proof. The promoted strict carrier's TIME30 remains unresolved. |
 
@@ -130,6 +130,15 @@ DelayOpen sub-states remain phase 3a, not part of this implementation.
 - With `timer delay-open` unset (0), the OPEN timing and every existing FSM test unchanged.
 
 **Behavior to change:** rows 6 and 7, as the ACs state.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
+|-----------|-----------------------------------------|--------------------|-----------|
+| DelayOpen FSM | `fsm/delay_open.go`: `FSM.handleDelayOpen`; `fsm/fsm.go`: `FSM.handleActive` | Holds the connection and handles the DelayOpen events; Active Event 18 restarts retry | Reuses these transitions and completes their live retry obligation; no parallel FSM |
+| Timer ownership | `fsm/timer.go`: `Timers.StartConnectRetryTimer`, `Timers.StopAll` | Starts the FSM retry and cancels timers during session cleanup | AC-1e must preserve the restarted retry across connection-resource release |
+| Real connection lifecycle | `reactor/session_read.go`: `Session.handleConnectionCloseLocked` | Delivers the TCP failure event, then cancels timers | Corrects that boundary without replacing the session lifecycle |
+| Peer reconnect loop | `reactor/peer_run.go`: `Peer.run` | Drives actual reconnects with independent backoff | Uses the required initial-value retry for Active Event 18 rather than counting a timer that cleanup cancels |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -525,3 +534,4 @@ the quotes in the Task section.
 |------------|------|-----------------|
 | `callback-reenters-held-lock.md` | 2026-10-30 | strict BFD release holds `openMu` across the negotiated publication, so the read loop's close waits on it |
 | `claim-outlives-the-evidence-it-cites.md` | 2026-10-31 | RFC4271-8.2.2-15 WEAK: no tagged unit runs a DelayOpenTimer in Connect |
+| `lifetime-ends-before-its-last-reader.md` | 2026-11-04 | AC-1e / RFC4271-8.2.2-13: Session `StopAll` cancels Active Event 18's restarted initial-value retry; Peer uses independent backoff |
