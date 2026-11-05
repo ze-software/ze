@@ -37,7 +37,7 @@ sections retained here. No issue is fixed by this split.
 | F-4 | `plan/release/fixes/spec-home-cpe-16d-mru-protocol-floors.md` | Owns IPv4/IPv6 MRU floors and config/runtime consistency. |
 | F-5 | `plan/release/validation/spec-home-cpe-16e-live-mru-nak.md` | Owns live oversized-request Nak and convergence proof. |
 | F-6 | `plan/release/validation/spec-home-cpe-16f-negotiated-mru-output-proof.md` | Owns unequal configured/negotiated output proof. |
-| F-7 | `plan/release/validation/spec-home-cpe-16g-auth-refusal-order-proof.md` | Owns the live refusal checker's ConfAck exclusion. |
+| F-7 implemented | `spec-home-cpe-16g-auth-refusal-order-proof`; `docs/labs/l2tp-interop.md` | Checker/regressions landed in `3cc99259b0`, generic build-ID progress in `0bef13eda7`. A real early peer Ack passes the old checker and fails the fixed checker on identical retained images. Normal rebuilt refusal and permitted CHAP traffic pass. |
 | F-8 | `plan/release/validation/spec-home-cpe-16h-subscriber-radius-pppd.md` | Owns paired peer-image release alignment and rebuild evidence. |
 
 The children were created at `skeleton`. Complete each child's research and design
