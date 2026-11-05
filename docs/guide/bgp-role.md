@@ -225,6 +225,11 @@ not peer with, one reached through another router of your network, goes in a
 `policy asn-set`, named by `role transit-asns` on any peer or group. The check
 compares the union of the two, and never the session's own remote ASN.
 
+Provider discovery uses the same role inheritance as the session: a peer
+declaring its own `role import` overrides its group; a peer with only
+`transit-asns` or the default `strict false` still inherits the group's role.
+Transit sets named on the peer and group both contribute to the union.
+
 ```
 policy {
     asn-set far-transit {

@@ -123,11 +123,13 @@ func deriveUpstreamSet(bgpSubtree, policyRoot map[string]any) (upstreamSet, erro
 		if setErr != nil {
 			return
 		}
-		roleMap := effectiveRoleMap(peerMap, groupMap)
-		if roleMap == nil {
-			return
+		// Resolve the configured role exactly as extractPeerRoleConfigs does:
+		// a container with only transit-asns or strict declares no override.
+		roleCfg := parseRoleFromMap(peerMap)
+		if roleCfg == nil {
+			roleCfg = parseRoleFromMap(groupMap)
 		}
-		if roleName, _ := roleMap["import"].(string); roleName == roleCustomer {
+		if roleCfg != nil && roleCfg.role == roleCustomer {
 			asn, configured, err := remoteASN(peerMap, groupMap)
 			if err != nil {
 				setErr = fmt.Errorf("bgp-role: peer %s has role import customer, so its remote ASN is an upstream, "+
@@ -155,16 +157,6 @@ func deriveUpstreamSet(bgpSubtree, policyRoot map[string]any) (upstreamSet, erro
 	}
 	slices.Sort(set)
 	return slices.Compact(set), nil
-}
-
-// effectiveRoleMap answers the role container that applies to a peer: its
-// own, else its group's.
-func effectiveRoleMap(peerMap, groupMap map[string]any) map[string]any {
-	if roleMap, ok := peerMap["role"].(map[string]any); ok {
-		return roleMap
-	}
-	roleMap, _ := groupMap["role"].(map[string]any) // no group role: the peer declares none
-	return roleMap
 }
 
 // transitSetASNs answers the ASNs of the asn-set the transit-asns leaf of one
