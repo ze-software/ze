@@ -10,4 +10,4 @@ nopersist
 debug
 nodetach
 logfile /run/lns-policy-pppd.log
-mru 1492
+mru 1493

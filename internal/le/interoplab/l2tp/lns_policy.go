@@ -35,8 +35,8 @@ type lnsPolicyConfig struct {
 
 // checkLNSMRU requires pppd's own decoding of both LCP directions, CHAP success,
 // a measured client MTU and traffic, then queries the daemon's actual session.
-// The client's MRU is explicitly 1492: the session's mru is the PEER receive
-// MRU (Ze's transmit MTU), not Ze's configured local receive request.
+// The client requests 1493 and must converge to 1492 after Ze's correlated
+// Nak. The session reports the resulting peer receive MRU, not a config copy.
 func checkLNSMRU(ctx context.Context, lab labOperations, timeout time.Duration) error {
 	if err := waitPeerLog(ctx, lab, peerZe, logSessionIPLine, timeout); err != nil {
 		return err
@@ -199,27 +199,63 @@ func lnsSingleAttempt(trace string) error {
 }
 
 func lnsMRUEvidence(trace string) error {
-	if err := lnsSingleAttempt(trace); err != nil {
+	lines, localAck, err := lnsLocalMRUAgreement(trace)
+	if err != nil {
 		return err
+	}
+	requestID, index, err := lnsTracePacket(lines, 0, "sent [LCP ConfReq ", "<mru 1493>")
+	if err != nil {
+		return err
+	}
+	nakID, index, err := lnsTracePacket(lines, index+1, "rcvd [LCP ConfNak ", "<mru 1492>")
+	if err != nil {
+		return err
+	}
+	if nakID != requestID {
+		return errors.New("Ze's MRU1492 Nak identifier does not match pppd's MRU1493 request")
+	}
+	retryID, index, err := lnsTracePacket(lines, index+1, "sent [LCP ConfReq ", "<mru 1492>")
+	if err != nil {
+		return err
+	}
+	ackID, index, err := lnsTracePacket(lines, index+1, "rcvd [LCP ConfAck ", "<mru 1492>")
+	if err != nil {
+		return err
+	}
+	if ackID != retryID {
+		return errors.New("Ze's MRU1492 Ack identifier does not match pppd's converged request")
+	}
+	return lnsCHAPSuccess(lines, max(localAck, index)+1)
+}
+
+// lnsLocalMRUAgreement preserves the independent proof that Ze advertises its
+// configured receive policy and pppd acknowledges those exact MRU/auth options.
+func lnsLocalMRUAgreement(trace string) ([]string, int, error) {
+	if err := lnsSingleAttempt(trace); err != nil {
+		return nil, 0, err
 	}
 	lines := strings.Split(trace, "\n")
 	id, index, err := lnsTracePacket(lines, 0, "rcvd [LCP ConfReq ", "<mru 1492>", "<auth chap MD5>")
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
-	ackID, _, err := lnsTracePacket(lines, index+1, "sent [LCP ConfAck ", "<mru 1492>", "<auth chap MD5>")
+	ackID, index, err := lnsTracePacket(lines, index+1, "sent [LCP ConfAck ", "<mru 1492>", "<auth chap MD5>")
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
 	if ackID != id {
-		return errors.New("pppd did not acknowledge Ze's MRU1492/CHAP request identifier")
+		return nil, 0, errors.New("pppd did not acknowledge Ze's MRU1492/CHAP request identifier")
 	}
+	return lines, index, nil
+}
+
+func lnsCHAPSuccess(lines []string, start int) error {
 	for _, prefix := range []string{"rcvd [CHAP Challenge ", "sent [CHAP Response ", "rcvd [CHAP Success "} {
-		_, next, packetErr := lnsTracePacket(lines, index+1, prefix)
+		_, next, packetErr := lnsTracePacket(lines, start, prefix)
 		if packetErr != nil {
 			return packetErr
 		}
-		index = next
+		start = next + 1
 	}
 	return nil
 }
@@ -249,6 +285,41 @@ func lnsCHAPOnlyEvidence(trace string) error {
 	if err != nil {
 		return err
 	}
+	// pppd's sent packets are received by Ze. An Ack of Ze's request can
+	// complete LCP before the later refusal; Ze's Ack of the peer's own
+	// request alone can legitimately leave Ze in Ack-Sent instead.
+	var requests [256]bool
+	inAttempt := false
+	for _, raw := range lines[:index] {
+		line := strings.TrimSpace(raw)
+		if strings.HasPrefix(line, "Connect:") {
+			inAttempt = true
+			continue
+		}
+		if !inAttempt {
+			continue
+		}
+		prefix := "rcvd [LCP ConfReq "
+		request := strings.HasPrefix(line, prefix)
+		if !request {
+			prefix = "sent [LCP ConfAck "
+			if !strings.HasPrefix(line, prefix) {
+				continue
+			}
+		}
+		packetID, _, err := lnsTracePacket([]string{line}, 0, prefix)
+		if err != nil {
+			return err
+		}
+		if request {
+			requests[packetID] = true
+		} else if requests[packetID] {
+			return errors.New("PAP-only peer acknowledged Ze's LCP request before Terminate-Request: LCP could open")
+		}
+	}
+	if !inAttempt {
+		return errors.New("pppd trace lacks the checked connection attempt")
+	}
 	ackID, _, err := lnsTracePacket(lines, index+1, "sent [LCP TermAck ")
 	if err != nil {
 		return err
@@ -265,17 +336,21 @@ func lnsCHAPOnlyEvidence(trace string) error {
 }
 
 func lnsClientMTU(output string) error {
+	return lnsMeasuredLinkMTU(output, 1492)
+}
+
+func lnsMeasuredLinkMTU(output string, wantMTU uint16) error {
 	var links []struct {
 		MTU uint16 `json:"mtu"`
 	}
 	if err := json.Unmarshal([]byte(output), &links); err != nil {
-		return fmt.Errorf("decode client's measured link MTU: %w", err)
+		return fmt.Errorf("decode measured link MTU: %w", err)
 	}
 	if len(links) != 1 {
-		return fmt.Errorf("expected one client PPP link, got %d", len(links))
+		return fmt.Errorf("expected one measured PPP link, got %d", len(links))
 	}
-	if links[0].MTU != 1492 {
-		return fmt.Errorf("client PPP MTU is %d, want 1492", links[0].MTU)
+	if links[0].MTU != wantMTU {
+		return fmt.Errorf("measured PPP MTU is %d, want %d", links[0].MTU, wantMTU)
 	}
 	return nil
 }
@@ -294,6 +369,10 @@ func lnsNoCredentialRequest(logs interoplab.LogResult) error {
 }
 
 func checkLNSPolicyOutput(ctx context.Context, lab labOperations) error {
+	return checkLNSPolicyOutputForMRU(ctx, lab, 1492)
+}
+
+func checkLNSPolicyOutputForMRU(ctx context.Context, lab labOperations, peerMRU uint16) error {
 	data, err := lnsPolicyCommand(ctx, lab, "show l2tp config")
 	if err != nil {
 		return err
@@ -333,10 +412,14 @@ func checkLNSPolicyOutput(ctx context.Context, lab labOperations) error {
 	if session.ID != sessions[0].ID {
 		return errors.New("daemon session detail returned another session")
 	}
-	return lnsNegotiatedSession(session)
+	return lnsNegotiatedSessionMRU(session, peerMRU)
 }
 
 func lnsNegotiatedSession(session lnsPolicySession) error {
+	return lnsNegotiatedSessionMRU(session, 1492)
+}
+
+func lnsNegotiatedSessionMRU(session lnsPolicySession, peerMRU uint16) error {
 	if session.Username != "alice" {
 		return fmt.Errorf("daemon session username is %q, want alice", session.Username)
 	}
@@ -346,8 +429,8 @@ func lnsNegotiatedSession(session lnsPolicySession) error {
 	if session.MRU == nil {
 		return errors.New("daemon session has no negotiated peer MRU")
 	}
-	if *session.MRU != 1492 {
-		return fmt.Errorf("daemon negotiated peer MRU is %d, want client's 1492", *session.MRU)
+	if *session.MRU != peerMRU {
+		return fmt.Errorf("daemon negotiated peer MRU is %d, want client's %d", *session.MRU, peerMRU)
 	}
 	if session.Auth == nil {
 		return errors.New("daemon session has no negotiated authentication method")

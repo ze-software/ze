@@ -20,19 +20,39 @@ func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	challenge, _ := tunnelHex("0f1e2d3c4b5a69788796a5b4c3d2e1f0")
-	conn, target, err := tunnelL2TPDial(port)
+	state, err := tunnelL2TPOpenProxySession(ctx, port, 1500, 1500)
 	if err != nil {
 		return err
 	}
-	defer conn.Close() //nolint:errcheck // fixture teardown
+	defer state.conn.Close() //nolint:errcheck // fixture teardown
+	if err := state.negotiateIPCP(ctx); err != nil {
+		return err
+	}
+	return state.checkRadius(ctx)
+}
+
+// tunnelL2TPOpenProxySession is shared by accounting and transmit-cap proofs.
+// The caller owns the returned socket and MUST close it. An error closes it
+// here, before ownership can transfer. Peer MRU zero omits that option.
+func tunnelL2TPOpenProxySession(ctx context.Context, port int, localMRU, peerMRU uint16) (*tunnelAccountingPeer, error) {
+	challenge, _ := tunnelHex("0f1e2d3c4b5a69788796a5b4c3d2e1f0")
+	conn, target, err := tunnelL2TPDial(port)
+	if err != nil {
+		return nil, err
+	}
+	transferred := false
+	defer func() {
+		if !transferred {
+			_ = conn.Close() //nolint:errcheck // failed fixture setup
+		}
+	}()
 	reply, _, err := tunnelL2TPExchange(ctx, conn, target, tunnelL2TPSCCRQ(0x0321, "py-lac", challenge), 40, 250*time.Millisecond)
 	if err != nil {
-		return errors.New("no SCCRP received")
+		return nil, errors.New("no SCCRP received")
 	}
 	avps, err := tunnelL2TPParseAVPs(reply)
 	if err != nil || len(avps[9]) != 2 || len(avps[11]) == 0 {
-		return errors.New("SCCRP missing Assigned Tunnel ID or Challenge")
+		return nil, errors.New("SCCRP missing Assigned Tunnel ID or Challenge")
 	}
 	state := &tunnelAccountingPeer{
 		conn: conn, target: target, localTID: binary.BigEndian.Uint16(avps[9]),
@@ -67,10 +87,14 @@ func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
 		}
 	}
 	if state.zeSID == 0 {
-		return errors.New("no ICRP received")
+		return nil, errors.New("no ICRP received")
 	}
 	fmt.Printf("OK: ICRP received, ze session id %d on tunnel %d\n", state.zeSID, state.localTID)
-	peerOptions := append([]byte{1, 4, 0x05, 0xdc}, []byte{5, 6, 0x11, 0x22, 0x33, 0x44}...)
+	var peerOptions []byte
+	if peerMRU != 0 {
+		peerOptions = append(peerOptions, 1, 4, byte(peerMRU>>8), byte(peerMRU))
+	}
+	peerOptions = append(peerOptions, 5, 6, 0x11, 0x22, 0x33, 0x44)
 	// RFC 2661 Section 4.4.5 carries the LAC's Last-Sent LCP CONFREQ in AVP 27,
 	// and EvaluateProxyLCP (internal/component/l2tp/ppp/proxy.go) reads the
 	// authentication protocol from that AVP alone: the `l2tp auth-method` leaf
@@ -79,7 +103,7 @@ func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
 	// Section 4.1 makes MD5, so ze authenticates the peer over the tunnel and
 	// can build an Access-Request that carries a credential. RFC 2865
 	// Section 4.1 admits no Access-Request without one.
-	lacOptions := append([]byte{1, 4, 0x05, 0xdc}, []byte{3, 5, 0xc2, 0x23, 0x05}...)
+	lacOptions := append([]byte{1, 4, byte(localMRU >> 8), byte(localMRU)}, []byte{3, 5, 0xc2, 0x23, 0x05}...)
 	lacOptions = append(lacOptions, 5, 6, 0x55, 0x66, 0x77, 0x88)
 	iccn := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(12)), tunnelL2TPAVP(true, 24, tunnelL2TPU32(10000000))...)
 	iccn = append(iccn, tunnelL2TPAVP(true, 19, tunnelL2TPU32(2))...)
@@ -88,10 +112,8 @@ func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
 	iccn = append(iccn, tunnelL2TPAVP(false, 28, peerOptions)...)
 	state.sendControl(iccn, state.zeSID)
 	fmt.Println("OK: ICCN sent with proxy LCP AVPs 26, 27 and 28")
-	if err := state.negotiateIPCP(ctx); err != nil {
-		return err
-	}
-	return state.checkRadius(ctx)
+	transferred = true
+	return state, nil
 }
 
 // tunnelCallingNumber is the originating number this peer puts in the ICRQ.
@@ -212,43 +234,22 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 		}
 		return nil
 	}
-	offset := 2
-	if flags&0x4000 != 0 {
-		offset += 2
-	}
-	offset += 4
-	if flags&0x0800 != 0 {
-		offset += 4
-	}
-	if flags&0x0200 != 0 {
-		if len(packet) < offset+2 {
-			return nil
-		}
-		offset += 2 + int(binary.BigEndian.Uint16(packet[offset:offset+2]))
-	}
-	if len(packet) < offset+6 {
-		return nil
-	}
-	payload := packet[offset:]
-	if bytes.HasPrefix(payload, []byte{0xff, 0x03}) {
-		payload = payload[2:]
-	}
-	if len(payload) < 6 {
-		return nil
-	}
 	// A silent peer has stopped answering: no echo reply, no CHAP, no IPCP.
 	// That is the state ze reports as Lost Carrier once its echo probes go
 	// unanswered past the limit.
 	if peer.silent {
 		return nil
 	}
-	protocol := binary.BigEndian.Uint16(payload[:2])
-	code, identifier := payload[2], payload[3]
-	length := int(binary.BigEndian.Uint16(payload[4:6]))
-	if length < 4 || 2+length > len(payload) {
+	protocol, payload, ok := tunnelL2TPPPPData(packet)
+	if !ok || len(payload) < 4 {
 		return nil
 	}
-	body := payload[6 : 2+length]
+	code, identifier := payload[0], payload[1]
+	length := int(binary.BigEndian.Uint16(payload[2:4]))
+	if length < 4 || length > len(payload) {
+		return nil
+	}
+	body := payload[4:length]
 	if protocol == 0xc223 {
 		return peer.answerCHAP(code, identifier, body)
 	}
@@ -293,6 +294,57 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 	return nil
 }
 
+// tunnelL2TPPPPData decodes the fixture's received L2TP data carrier. The
+// returned Information field excludes both PPP framing and Protocol octets.
+func tunnelL2TPPPPData(packet []byte) (uint16, []byte, bool) {
+	if len(packet) < 6 {
+		return 0, nil, false
+	}
+	flags := binary.BigEndian.Uint16(packet[:2])
+	if flags&0x8000 != 0 {
+		return 0, nil, false
+	}
+	offset := 2
+	if flags&0x4000 != 0 {
+		if len(packet) < 4 {
+			return 0, nil, false
+		}
+		declared := int(binary.BigEndian.Uint16(packet[2:4]))
+		if declared < 4 || declared > len(packet) {
+			return 0, nil, false
+		}
+		packet = packet[:declared]
+		offset += 2
+	}
+	offset += 4
+	if flags&0x0800 != 0 {
+		offset += 4
+	}
+	if flags&0x0200 != 0 {
+		if len(packet) < offset+2 {
+			return 0, nil, false
+		}
+		offset += 2 + int(binary.BigEndian.Uint16(packet[offset:offset+2]))
+	}
+	if len(packet) <= offset {
+		return 0, nil, false
+	}
+	payload := packet[offset:]
+	if bytes.HasPrefix(payload, []byte{0xff, 0x03}) {
+		payload = payload[2:]
+	}
+	if len(payload) == 0 {
+		return 0, nil, false
+	}
+	if payload[0]&1 != 0 {
+		return uint16(payload[0]), payload[1:], true
+	}
+	if len(payload) < 2 {
+		return 0, nil, false
+	}
+	return binary.BigEndian.Uint16(payload[:2]), payload[2:], true
+}
+
 // tunnelCHAPPeerName is the subscriber identity the peer puts in the Name
 // field of its CHAP Response. ze copies that name into User-Name, and RFC 2865
 // Section 5 says "Text of length zero (0) MUST NOT be sent", so the name must
@@ -300,9 +352,9 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 const tunnelCHAPPeerName = "subscriber@ze"
 
 // tunnelCHAPPeerSecret is the CHAP secret this peer shares with the
-// authenticator. The RADIUS mock accepts every Access-Request, so no component
-// recomputes the digest: what the test proves is that a credential reaches the
-// wire, not that a particular secret is right.
+// authenticator. The accounting carrier's RADIUS mock accepts every request;
+// its assertion concerns the credential on the wire. The proxy MTU carrier
+// configures a local user with this secret and requires CHAP to succeed.
 const tunnelCHAPPeerSecret = "chapsecret"
 
 // answerCHAP plays the peer half of the RFC 1994 three-way handshake that ze

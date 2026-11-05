@@ -13,15 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-const lnsMRUTrace = `Connect: ppp0 <--> pppol2tp
-sent [LCP ConfReq id=0x1 <mru 1492> <magic 0x1234>]
-rcvd [LCP ConfReq id=0x7 <mru 1492> <auth chap MD5>]
-sent [LCP ConfAck id=0x7 <mru 1492> <auth chap MD5>]
-rcvd [LCP ConfAck id=0x1 <mru 1492> <magic 0x1234>]
-rcvd [CHAP Challenge id=0x1 <1234>, name = "ze"]
-sent [CHAP Response id=0x1 <5678>, name = "alice"]
-rcvd [CHAP Success id=0x1 "Welcome"]
-`
+const lnsMRUTrace = lnsMRUNakTrace
 
 const lnsRefusalTrace = `Connect: ppp0 <--> pppol2tp
 sent [LCP ConfReq id=0x1 <mru 1500>]

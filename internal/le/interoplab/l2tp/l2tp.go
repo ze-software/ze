@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/linuxle"
 )
 
 const (
@@ -33,7 +34,11 @@ const (
 	scenarioDNSResolver         = "dns-resolver-l2tp-subscriber"
 	scenarioPPPCodeReject       = "ppp-code-reject-xl2tpd"
 	scenarioLNSMRU              = "l2tp-lns-mru-xl2tpd"
+	scenarioLNSOmittedMRU       = "l2tp-lns-omitted-mru-xl2tpd"
+	scenarioLNSNegotiatedMRU    = "l2tp-lns-negotiated-mru-xl2tpd"
 	scenarioLNSCHAPOnly         = "l2tp-lns-chap-only-xl2tpd"
+	scenarioProxyMRU            = "l2tp-proxy-mru-transmit-cap"
+	scenarioRadiusFixture       = "l2tp-radius-acct-wire-fixture"
 
 	commandShow  = "show"
 	commandLink  = "link"
@@ -61,7 +66,11 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioDNSResolver:         checker(checkDNSResolverSubscriber, timeout, peerZe, peerLAC, peerKnot),
 		scenarioPPPCodeReject:       checker(checkPPPCodeReject, timeout, peerZe, peerLAC, peerAVPRelay),
 		scenarioLNSMRU:              checker(checkLNSMRU, timeout, peerZe, peerLAC, peerRadius),
+		scenarioLNSOmittedMRU:       checker(checkLNSOmittedMRU, timeout, peerZe, peerLAC, peerRadius),
+		scenarioLNSNegotiatedMRU:    checker(checkLNSNegotiatedMRU, timeout, peerZe, peerLAC, peerRadius),
 		scenarioLNSCHAPOnly:         checker(checkLNSCHAPOnly, timeout, peerZe, peerLAC, peerRadius),
+		scenarioProxyMRU:            checker(checkProxyMRU, timeout, peerZe),
+		scenarioRadiusFixture:       checker(checkRadiusAccountingFixture, timeout, peerZe),
 	}
 }
 
@@ -207,8 +216,12 @@ func prepareScenario(_ context.Context, root string, source interoplab.ScenarioS
 		peers = append(peers, frrPeer(root, environment.Suffix, directory), lac)
 	case scenarioInitiator:
 		peers = []interoplab.PeerConfig{lac, ze}
-	case scenarioRadiusAttrs, scenarioLNSMRU, scenarioLNSCHAPOnly:
+	case scenarioRadiusAttrs, scenarioLNSMRU, scenarioLNSOmittedMRU, scenarioLNSNegotiatedMRU, scenarioLNSCHAPOnly:
 		peers = []interoplab.PeerConfig{radiusPeer(environment.Suffix), ze, lac}
+	case scenarioProxyMRU, scenarioRadiusFixture:
+		// The registered native LAC fixture runs inside Ze's container so it
+		// shares the kernel PPP namespace whose installed MTU it measures.
+		peers = []interoplab.PeerConfig{ze}
 	case scenarioUnknownMandatoryAVP, scenarioPPPCodeReject:
 		// Both put the relay between the LAC and Ze: the AVP scenario for
 		// control messages, the Code-Reject scenario for PPP frames.
@@ -367,15 +380,16 @@ func knotPeer(suffix, directory string) interoplab.PeerConfig {
 	}
 }
 
-// LabBinaries declares the one binary this lab stages into its Docker build
+// LabBinaries declares the binaries this lab stages into its Docker build
 // context, which is what test/interop-l2tp/Dockerfile.ze copies in.
 //
-// The base is ze_core alone. This lab runs the daemon and asserts nothing from
-// inside the container, so it needs neither the ze_distro plugin mode nor the
-// harness that le carries. The producer adds every gate feature-gates.txt declares.
+// The daemon keeps ze_core. The separate linuxle personality supplies compiled
+// fixtures inside the container, including the accepted-proxy MTU proof. The
+// producer adds every gate feature-gates.txt declares and keeps CGO disabled.
 func LabBinaries() []interoplab.LabBinary {
 	return []interoplab.LabBinary{
 		{Name: "ze", Base: "ze_core", Output: "test/interop-l2tp/ze-linux"},
+		{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop-l2tp/le-linux"},
 	}
 }
 
@@ -387,7 +401,8 @@ func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) 
 	for _, plan := range plans {
 		needFRR = needFRR || plan.Source.Name == scenarioBGPRedistribute
 		needRadius = needRadius || plan.Source.Name == scenarioRadiusAttrs ||
-			plan.Source.Name == scenarioLNSMRU || plan.Source.Name == scenarioLNSCHAPOnly
+			plan.Source.Name == scenarioLNSMRU || plan.Source.Name == scenarioLNSOmittedMRU ||
+			plan.Source.Name == scenarioLNSNegotiatedMRU || plan.Source.Name == scenarioLNSCHAPOnly
 		needAVPRelay = needAVPRelay || plan.Source.Name == scenarioUnknownMandatoryAVP ||
 			plan.Source.Name == scenarioPPPCodeReject
 		needKnot = needKnot || plan.Source.Name == scenarioDNSResolver

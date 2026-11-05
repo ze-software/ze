@@ -7,6 +7,8 @@
 # xl2tpd package depends on that ppp, so xl2tpd is built here too, against
 # nothing but libpcap. xl2tpd keeps its default kernel mode (USE_KERNEL), and
 # pppd's pppol2tp plugin lands in /usr/lib/pppd/2.5.5.
+# test/interop-radius-subscriber/Dockerfile.lac uses the same release pins
+# and ppp build procedure: change both files together.
 
 FROM alpine:3.24.3 AS build
 

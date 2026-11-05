@@ -30,7 +30,11 @@ test/interop-l2tp/
     l2tp-unknown-mandatory-avp-xl2tpd/   unknown AVP, M=0 then M=1, through the relay
     ppp-code-reject-xl2tpd/   unknown LCP and IPCP Codes injected through the relay
     l2tp-lns-mru-xl2tpd/   configured MRU, CHAP, live daemon output, and traffic
+    l2tp-lns-omitted-mru-xl2tpd/   default peer MRU and Ze-side transmit cap
+    l2tp-lns-negotiated-mru-xl2tpd/   unequal configured/negotiated session output
     l2tp-lns-chap-only-xl2tpd/   PAP Nak refused before authentication
+    l2tp-proxy-mru-transmit-cap/   accepted proxy AVPs, kernel MTU, and ICMP
+    l2tp-radius-acct-wire-fixture/ original accounting fixture regression
 internal/le/interoplab/l2tp/
   l2tp.go              Native topology, images, selection, and lifecycle
   checkers.go          Typed protocol assertions for the scenarios
@@ -48,7 +52,7 @@ the checker map fixes the complete scenario population. The
 `dns-resolver-l2tp-subscriber` plan adds Knot DNS on `172.29.0.7`, and the
 `l2tp-unknown-mandatory-avp-xl2tpd` and `ppp-code-reject-xl2tpd` plans put the
 relay on `172.29.0.4`, the address their xl2tpd dials as its LNS.
-The two `l2tp-lns-*` plans also start the independent RADIUS backend on
+The `l2tp-lns-*` plans also start the independent RADIUS backend on
 `172.29.0.5` before Ze and the LAC. The positive plan requires a credential
 request there; the refusal plan requires none. Both disable xl2tpd redial and
 pppd persistence, so the evidence belongs to one attempt.
@@ -215,14 +219,19 @@ Ze is the LNS with `mru 1492`, `auth-method chap-md5`, and
 `authentication { allow [ chap-md5 ]; }`. The checker requires pppd's decoded
 trace to show Ze's LCP Configure-Request containing both MRU 1492 and
 CHAP-MD5, and pppd's Configure-Ack with the same Identifier and options.
-It then requires CHAP Challenge, Response, and Success in order, no PAP
+The client explicitly requests MRU 1493. The trace must show Ze's Nak to
+1492 with that request's Identifier, pppd's retry at 1492, and Ze's Ack with
+the retry's Identifier. Only after both LCP directions converge does the
+checker accept CHAP Challenge, Response, and Success in order. It requires no PAP
 protocol packets, a measured client `pppN` MTU of 1492, an independent
 RADIUS Access-Request, and a ping across the live PPP session.
 
-The client explicitly requests MRU 1492 but does not set an MTU cap.
-Its receive MRU and Ze's receive MRU are distinct facts. In particular,
+The client does not set an MTU cap. In pppd 2.5.5, `lcp_addci` omits the MRU
+option at the default 1500, but emits an explicit 1493. `lcp_nakci` accepts
+Ze's suggestion of 1492. This input makes the promised Nak observable.
+The client's receive MRU and Ze's receive MRU remain distinct facts. In particular,
 `show l2tp session id <id>` reports the **peer receive MRU**, which is
-Ze's transmit MTU, not the configured local receive request.
+separate from the local transmit cap and configured local receive request.
 The checker reaches the running daemon through the token-guarded REST
 command dispatcher and requires:
 
@@ -239,6 +248,23 @@ answers in the job log, then stops the LAC and requires both peers' kernel
 PPP links and L2TP tunnels to disappear.
 <!-- source: internal/le/interoplab/l2tp/lns_policy.go -- checkLNSMRU, lnsMRUEvidence, lnsClientMTU, checkLNSPolicyOutput, lnsNegotiatedSession -->
 
+### l2tp-lns-omitted-mru-xl2tpd
+
+Ze again has a 1492 session cap, while pppd uses its default receive MRU
+and omits the MRU option. The checker requires actual peer Configure-Request
+records without MRU, a matching Configure-Ack, Ze's separate 1492/CHAP
+request and its Ack, and a successful CHAP exchange. A configured option
+or a diagnostic line alone cannot prove omission on the wire.
+
+The checker reads Ze's own `pppN` interface and requires MTU 1492. A
+client-only measurement cannot establish Ze's transmit limit. The daemon's
+effective config remains 1492, while the actual session's peer receive MRU
+is 1500. The scenario also requires an independent RADIUS credential request
+and useful traffic across the PPP session before complete kernel teardown.
+These measurements distinguish peer negotiation from local send policy.
+<!-- source: internal/le/interoplab/l2tp/lns_omitted_mru.go -- checkLNSOmittedMRU, lnsOmittedMRUEvidence -->
+<!-- source: test/interop-l2tp/scenarios/l2tp-lns-omitted-mru-xl2tpd/ppp-options -- default MRU omission -->
+
 ### l2tp-lns-chap-only-xl2tpd
 
 Ze is the LNS with `auth-method chap-md5` and no explicit allow-list, exercising
@@ -250,6 +276,15 @@ following decoded packets in order:
 2. pppd's Configure-Nak suggesting PAP, with that request's Identifier.
 3. Ze's Terminate-Request.
 4. pppd's Terminate-Ack with that termination's Identifier.
+
+Before Terminate-Request, the peer must not acknowledge a Ze LCP request:
+in pppd's trace this is a `sent [LCP ConfAck ...]` with an Identifier from
+a received Ze Configure-Request in the same connection attempt. Such an Ack
+can let LCP reach Opened before a later refusal. Ze's independent Ack of the
+peer's request is permitted: that alone leaves Ze in Ack-Sent. Diagnostic
+mentions, pre-connection packets and unmatched Identifiers do not establish
+that the peer acknowledged Ze's request.
+<!-- source: internal/le/interoplab/l2tp/lns_policy.go -- lnsCHAPOnlyEvidence -->
 
 Ze must never offer PAP after the Nak. No PAP protocol packet, CHAP
 credential exchange, IPCP packet or assigned address may appear. The
@@ -266,6 +301,35 @@ pppd's process exit is measured separately: its `Exit.` message goes to
 syslog, not that trace file.
 <!-- source: internal/le/interoplab/l2tp/lns_policy.go -- checkLNSCHAPOnly, lnsCHAPOnlyEvidence, lnsNoCredentialRequest, retainLNSPolicyEvidence -->
 
+### l2tp-lns-negotiated-mru-xl2tpd
+
+This separate scenario keeps Ze's configured MRU at 1492 while pppd requests
+1400. The checker requires both directional requests and matching Acks in
+pppd's decoded trace, followed by CHAP success, an independent RADIUS
+credential request, and traffic through the session. It measures Ze's own
+`pppN` transmit MTU as 1400.
+<!-- source: internal/le/interoplab/l2tp/lns_negotiated_mru.go -- checkLNSNegotiatedMRU, lnsDistinctMRUEvidence -->
+
+The daemon's effective configuration must still report 1492. Both
+`show l2tp sessions` and the selected `show l2tp session id <id>` must report
+the negotiated peer receive MRU of 1400 and `chap-md5`. Returning the
+configured 1492 in either session view fails this proof, even when traffic
+succeeds. The different values make a configuration copy distinguishable
+from actual negotiation. The existing snapshot and command tests retain the
+null-before-Opened/null-after-down behavior and distinct negotiated `none`.
+<!-- source: internal/le/interoplab/l2tp/lns_policy.go -- checkLNSPolicyOutputForMRU, lnsNegotiatedSessionMRU -->
+<!-- source: internal/le/interoplab/l2tp/lns_negotiated_mru.go -- checkLNSNegotiatedMRU -->
+<!-- source: internal/component/l2tp/snapshot_test.go -- TestSessionSnapshotNegotiatedPPP -->
+<!-- source: internal/component/l2tp/cmd/l2tp_test.go -- TestSessionJSONMRUAndAuthMethod -->
+
+The MRU Nak and omitted-option scenarios remain separate attempts. Their
+inputs do not replace this smaller-peer case. New checker tests include
+positive negotiation plus wrong aggregate output, wrong detail output, and
+an interface MTU copied from configuration. No live result is claimed by
+the scenario definition alone.
+<!-- source: test/interop-l2tp/scenarios/l2tp-lns-negotiated-mru-xl2tpd/ppp-options -- explicit peer MRU -->
+<!-- source: internal/le/interoplab/l2tp/lns_negotiated_mru_test.go -- TestLNSMeasuredOutputUnequalMRUs -->
+
 ### Peer-source basis for the policy scenarios
 
 The LAC image pins pppd **2.5.5** from the official GitHub tag archive and
@@ -273,10 +337,35 @@ xl2tpd **1.3.20** from its release archive, each with a SHA256 checksum.
 The ppp archive contains autotools inputs, not `configure`. Upstream
 `autogen.sh` generates the build system and runs `configure` with the
 image's existing installation paths. Build-only autotools dependencies do
-not enter the runtime image. Native runs against pppd 2.5.5 passed both policy
+not enter the runtime image. The subscriber RADIUS LAC uses the same release
+pins, tag archive and autotools build procedure. Both images derive their
+runtime library dependencies with `scanelf`; each keeps its suite-specific
+runtime tools.
+<!-- source: test/interop-l2tp/Dockerfile.lac -- release pins and build stage -->
+<!-- source: test/interop-radius-subscriber/Dockerfile.lac -- release pins and build stage -->
+
+Upstream lists [pppd 2.5.5 as its latest stable release](https://github.com/ppp-project/ppp/releases/tag/v2.5.5),
+checked on 2026-11-04. `TestLACPeerReleasePinsAgree` compares both images'
+pppd and xl2tpd release/hash declarations and rejects a missing or malformed
+hash. This check catches paired-image drift; image builds and subscriber
+scenarios still prove that the selected release operates correctly.
+<!-- source: internal/le/interoplab/lac_images_test.go -- TestLACPeerReleasePinsAgree -->
+
+After both native suites build their LAC images, the integration-tagged
+`TestLACPeerRuntimeVersions` probes those images through the lab's owned
+one-shot container lifecycle. It checks `pppd --version`, including stderr,
+against each image's own Dockerfile pin and requires the PPPoL2TP plugin at
+`/usr/lib/pppd/<version>/pppol2tp.so`. Missing Docker access, images or plugin
+files fail the test. The real subscriber scenarios prove plugin loading and
+PPP service separately.
+<!-- source: internal/le/interoplab/lac_images_runtime_integration_test.go -- TestLACPeerRuntimeVersions -->
+
+Historical native runs against pppd 2.5.5 passed both L2TP policy
 scenarios on 2026-11-04. Each scenario failed under its rebuilt producer break
 and passed again after restoration: ignored MRU configuration for the MRU
 scenario, and the old broad authentication default for CHAP-only refusal.
+Those runs preceded the subscriber RADIUS image alignment and are not proof
+of that image's build or behavior.
 <!-- source: test/interop-l2tp/Dockerfile.lac -- PPP_VERSION, PPP_SHA256, XL2TPD_VERSION, XL2TPD_SHA256, build stage -->
 
 In pppd 2.5.5's
@@ -291,8 +380,73 @@ The refusal checker therefore waits for Ze's lower-layer teardown, not an
 assumed immediate exit on Terminate-Request.
 [`start_pppd`](https://github.com/xelerance/xl2tpd/blob/v1.3.20/xl2tpd.c)
 creates the PPPoL2TP socket and launches the pinned pppd plugin with it.
-Neither scenario substitutes a synthetic PPP peer.
+These scenarios do not substitute a synthetic PPP peer.
 <!-- source: test/interop-l2tp/Dockerfile.lac -- PPP_VERSION, PPP_SHA256, XL2TPD_VERSION, XL2TPD_SHA256 -->
+
+### l2tp-proxy-mru-transmit-cap
+
+This scenario runs the existing compiled `l2tp/proxy-mru-transmit-cap`
+fixture inside Ze's container. The fixture shares that container's PPP
+namespace, `NET_ADMIN` grant and `/dev/ppp` device. Its native LAC sends the
+real ICCN proxy AVPs with Last-Sent MRU 1492 and Last-Received MRU 1500,
+9000, or no MRU option. Each attempt completes local CHAP and IPCP, reads
+the kernel interface MTU as 1492, and receives a full-size IPv4 ICMP
+Echo-Reply through the PPPoL2TP data path. StopCCN must remove the PPP link
+before the next attempt. This is a native kernel functional proof carried
+by the interop suite; it does not substitute a synthetic peer for the
+separate xl2tpd interoperability scenarios.
+<!-- source: internal/test/fixture/tunnel_fixture_l2tp_proxy_mru.go -- tunnelL2TPProxyMRUTransmitCap -->
+<!-- source: internal/le/interoplab/l2tp/proxy_mru.go -- checkProxyMRU, proxyMRUFixtureEvidence -->
+<!-- source: test/interop-l2tp/scenarios/l2tp-proxy-mru-transmit-cap/ze.conf -- proxy policy and local credentials -->
+
+The shared `StageBinaries` preflight builds a separate static Linux `le`
+personality from the current checkout, with the same feature gates as the
+daemon. The existing Ze image copies it to `/usr/local/bin/le`; its name
+selects the registered fixture commands. The image carries no compiler,
+and its daemon remains the normal `ze_core` build. The checker rejects a
+missing helper, nonzero exit, usage output, or absent MTU, ICMP, CHAP,
+IPCP or cleanup evidence.
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- LabBinaries, prepareScenario -->
+<!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, stageBinaries -->
+<!-- source: test/interop-l2tp/Dockerfile.ze -- separate static helper copy -->
+<!-- source: internal/le/interoplab/l2tp/proxy_mru.go -- checkProxyMRU, proxyMRUFixtureEvidence -->
+
+Select it with `ZE_L2TP_INTEROP_SCENARIO=l2tp-proxy-mru-transmit-cap`
+when running `./le --name session test deployment docker-l2tp-ppp`.
+The suite retains its normal Docker-host Ze-kernel prerequisite, image
+staging, peer readiness and cleanup.
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt, scenarioCheckerMap -->
+
+### l2tp-radius-acct-wire-fixture
+
+This regression scenario runs the original registered fixtures from
+`test/l2tp/radius-acct-wire.ci` inside the same Ze container and kernel
+namespace. The existing shared proxy-handshake extraction also serves that
+accounting peer, so its original CHAP, IPCP and decoded RADIUS assertions
+remain part of the required proof. Its Last-Sent and Last-Received MRUs stay
+1500; the separate scenario retains the default local cap and the original
+NAS identifier, template, 60-second accounting interval, pool and link
+monitoring settings.
+<!-- source: internal/test/fixture/tunnel_fixture_l2tp_ppp.go -- tunnelL2TPRadiusAccountingPeer, checkRadius -->
+<!-- source: test/l2tp/radius-acct-wire.ci -- original fixture invocations and config contracts -->
+<!-- source: test/interop-l2tp/scenarios/l2tp-radius-acct-wire-fixture/ze.conf -- native carrier configuration -->
+
+The checker uses the existing detached-exec operation because a complete
+Interim-Update cannot arrive within the ordinary 30-second exec deadline.
+It starts both original fixtures in a private shared directory, waits for
+the mock's socket readiness, and polls the worker's published exit status.
+The worker stops its mock before publishing that status. The checker
+requires both fixtures' output, Access-Request, Start, Interim-Update and
+Lost-Carrier Stop evidence, then observes removal of the kernel PPP link.
+It preserves the original functional carrier's 240-second bound.
+<!-- source: internal/le/interoplab/l2tp/radius_fixture.go -- radiusFixtureWorker, checkRadiusAccountingFixture, radiusAccountingFixtureEvidence -->
+<!-- source: internal/le/interoplab/docker.go -- dockerCommandTimeout, Exec, ExecDetached -->
+
+Select it with `ZE_L2TP_INTEROP_SCENARIO=l2tp-radius-acct-wire-fixture`
+when running `./le --name session test deployment docker-l2tp-ppp`.
+It reuses the proxy-cap scenario's staged helper and the suite's Ze image,
+readiness, kernel prerequisite and cleanup.
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- LabBinaries, scenarioCheckerMap, prepareScenario -->
 
 ## Relationship to Other Evidence
 

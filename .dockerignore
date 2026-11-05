@@ -28,6 +28,7 @@ test/
 !test/interop/ze-le-linux
 !test/interop-ipsec/ze-linux
 !test/interop-l2tp/ze-linux
+!test/interop-l2tp/le-linux
 !test/interop-pppoe/ze-linux
 !test/interop-radius/ze-linux
 !test/interop-radius-subscriber/ze-linux

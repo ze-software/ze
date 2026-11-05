@@ -34,6 +34,7 @@ test/interop-pppoe/
   scenarios/
     01-pppoe-chap-ipv4/         Ze client, accel-ppp concentrator
     02-ze-ac-pppd-client/       Ze concentrator, pppd client
+    pppoe-omitted-mru-ze-ac/    Ze concentrator, peer MRU omitted, measured Ze transmit cap
     pppoe-chap-rechallenge-ze-client/  Ze client, native accel-ppp reauthentication
     pppoe-peer-terminate-ze-ac/        Ze concentrator, pppd LCP termination without incoming PADT
     pppoe-chap-only-pap-client/       Ze concentrator, CHAP-only default, PAP-only pppd client
@@ -165,6 +166,32 @@ reads pppd's discovery, bidirectional LCP, CHAP, and IPCP trace and compares it
 with Ze's REST session table. It then requires PADT and empty state before
 repeating the dial with `wrong-secret`; the second trace must reach CHAP and
 receive a refusal without creating a session.
+
+### pppoe-omitted-mru-ze-ac
+
+The real pppd client omits its MRU option. The checker correlates its decoded
+Configure-Request with Ze's matching Configure-Ack and requires reciprocal
+LCP acknowledgment, CHAP success and assigned IPv4 service. It measures Ze's
+own `pppN` interface with `ip -j link show` and requires MTU 1492. A client
+interface capped at 1492 cannot substitute for this Ze-side measurement.
+Both peers must send traffic through the session, followed by PADT, empty
+session tables and release of Ze's kernel PPP resources.
+<!-- source: internal/le/interoplab/pppoe/check_mru_omitted.go -- checkOmittedPeerMRU, omittedMRULCPEvidence, omittedMRUZeLink -->
+
+The checker appends pppd's `default-mru` option to the normal typed dial.
+In pinned pppd 2.5.5, `lcp_addci` omits MRU when `neg_mru` is false.
+The PPPoE plugin otherwise lowers the requested MRU to 1492 for a normal
+Ethernet link, so leaving out a command-line `mru` value alone does not
+exercise omission. `default-mru` also refuses Ze's initial MRU option;
+successful replacement negotiation remains part of this proof. The test
+retains pppd's full trace and Ze's measured link JSON in the native job log.
+<!-- source: internal/le/interoplab/pppoe/check_mru_omitted.go -- checkOmittedPeerMRU -->
+<!-- source: test/interop-pppoe/Dockerfile.client -- PPP_VERSION -->
+
+Run `ZE_PPPOE_INTEROP_SCENARIO=pppoe-omitted-mru-ze-ac ./le --name session test deployment docker-pppoe-accel`.
+The scenario is authored; a passing run and rebuilt defective-artifact
+discrimination must be recorded before its behavior is claimed as proved.
+<!-- source: internal/le/interoplab/pppoe/check_mru_omitted.go -- init -->
 
 ### pppoe-chap-rechallenge-ze-client
 

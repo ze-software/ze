@@ -1,8 +1,9 @@
 # Ze LNS image for the L2TP PPP/NCP interop lab.
-# Privileged container shares the host kernel for PPPoL2TP.
+# The container shares Ze's host kernel with NET_ADMIN and /dev/ppp grants.
 #
-# It expects a pre-built linux binary at test/interop-l2tp/ze-linux, which
-# `./le test integration interop-l2tp` cross-compiles before it builds this image
+# It expects pre-built Linux binaries at test/interop-l2tp/ze-linux and
+# test/interop-l2tp/le-linux. `./le test integration interop-l2tp`
+# cross-compiles both before it builds this image
 # (internal/le/interoplab/zebuild.go, StageBinaries, declared by
 # internal/le/interoplab/l2tp/l2tp.go, LabBinaries). A bare
 # `docker build -f test/interop-l2tp/Dockerfile.ze .` on a clean checkout fails
@@ -20,5 +21,8 @@ FROM alpine:3.24.3
 RUN apk add --no-cache tini iproute2 ppp
 
 COPY test/interop-l2tp/ze-linux /usr/local/bin/ze
+# StageBinaries builds this separate static personality on the host. Its file
+# name selects le's compiled fixture commands; no compiler enters the image.
+COPY test/interop-l2tp/le-linux /usr/local/bin/le
 
 ENTRYPOINT ["tini", "--", "ze"]

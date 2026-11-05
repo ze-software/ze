@@ -33,6 +33,7 @@ const (
 
 type labOperations interface {
 	Exec(context.Context, string, []string, []interoplab.EnvironmentVariable) (interoplab.CommandResult, error)
+	ExecDetached(context.Context, string, []string, []interoplab.EnvironmentVariable) error
 	Logs(context.Context, string, int) (interoplab.LogResult, error)
 	Signal(context.Context, string, string) error
 }
