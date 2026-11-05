@@ -33,6 +33,9 @@ var errRibClearAdvertisedBare = errors.New("clear bgp rib advertised with no sel
 // with the ZE-OBSERVER-FAIL sentinel the .ci rejects.
 func ribClearAdvertised(ctx context.Context, _ []string) error {
 	return observe09(ctx, "rib-clear-advertised", func(ctx context.Context, p *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, p, "peer1"); err != nil {
+			return err
+		}
 		announced, _, err := p.UpdateRoute(ctx, "*", "update text "+ribClearAdvertisedRoute)
 		if err != nil {
 			return fmt.Errorf("announce %q: %w", ribClearAdvertisedRoute, err)

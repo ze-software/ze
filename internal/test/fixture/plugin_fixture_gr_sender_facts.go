@@ -48,7 +48,12 @@ func grSenderFactsDriver(scenario ObserverScenario) Driver {
 		if len(args) != 0 {
 			return fmt.Errorf("unexpected arguments: %v", args)
 		}
-		return Observe(ctx, "gr-sender-facts", &sdk.Registration{}, scenario)
+		return Observe(ctx, "gr-sender-facts", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+			if err := scenario(ctx, plugin); err != nil {
+				return err
+			}
+			return p12WaitPeersEOR(ctx, plugin, "holder")
+		})
 	}
 }
 

@@ -42,11 +42,11 @@ func llgrLifecycle(scenario string) Driver {
 				return nil
 			}
 			if scenario != llgrScenarioTransition {
-				destination := "control"
 				if scenario == llgrScenarioTimer {
-					destination = "receiver"
-				}
-				if err := fixture10WaitEOR(ctx, p, destination, 60); err != nil {
+					if err := fixture10WaitEOR(ctx, p, "receiver", 60); err != nil {
+						return err
+					}
+				} else if err := fixture10WaitEOR(ctx, p, "control", 60); err != nil {
 					return err
 				}
 				if err := fixture10WaitEOR(ctx, p, "source", 60); err != nil {

@@ -126,6 +126,9 @@ func clearPeeringDBCache04(ctx context.Context, p *sdk.Plugin) error {
 // only be the plugin's, and the answer names the plugin as the owner that
 // removed them. The same steps run with the plugin internal and external.
 func clearIRRCache04(ctx context.Context, p *sdk.Plugin) error {
+	if err := waitPeerEOR04(ctx, p); err != nil {
+		return err
+	}
 	command := "clear irr cache as-set AS-TEST"
 	if !Poll(ctx, 100, 200*time.Millisecond, func() bool {
 		status, value, err := command04(ctx, p, command)

@@ -55,6 +55,9 @@ func roleLearnedClearedOnPeerDelete(ctx context.Context, args []string) error {
 		if !lifecycleWaitEstablished(ctx, plugin, roleClearedPeer) {
 			return fmt.Errorf("the configured peer %s never reached established", roleClearedPeer)
 		}
+		if err := p12WaitPeersEOR(ctx, plugin, "role-peer"); err != nil {
+			return err
+		}
 		fmt.Fprintln(os.Stderr, "OK: the configured peer established with Role customer")
 
 		if _, err := plugin01RequireDone(ctx, plugin, "delete bgp peer "+roleClearedPeer); err != nil {
@@ -75,6 +78,9 @@ func roleLearnedClearedOnPeerDelete(ctx context.Context, args []string) error {
 		}
 		if !lifecycleWaitEstablished(ctx, plugin, roleClearedPeer) {
 			return fmt.Errorf("the peer the reload brought back at %s never reached established", roleClearedPeer)
+		}
+		if err := p12WaitPeersEOR(ctx, plugin, "role-peer"); err != nil {
+			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: the peer the reload brought back established with no Role")
 		return nil

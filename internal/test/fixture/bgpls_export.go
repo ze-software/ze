@@ -45,6 +45,9 @@ func init() {
 }
 
 func bgplsExportLifecycle(ctx context.Context, p *sdk.Plugin) error {
+	if err := p12WaitPeersEOR(ctx, p, "collector"); err != nil {
+		return err
+	}
 	for _, step := range []struct {
 		updates int
 		config  string

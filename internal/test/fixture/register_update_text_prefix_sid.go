@@ -33,6 +33,9 @@ func updateTextPrefixSID(ctx context.Context, plugin *sdk.Plugin) error {
 	const announce = "update text origin igp local-preference 100 " +
 		"bgp-prefix-sid [ 300, [ ( 800000,4096 ) , ( 1000000,5000 ) ] ] " +
 		"nhop 198.51.100.2 mp ipv4/mpls-label label 800002 add 198.51.100.101/32"
+	if err := p12WaitPeersEOR(ctx, plugin, "peer1"); err != nil {
+		return err
+	}
 	if _, _, err := plugin.UpdateRoute(ctx, "*", announce); err != nil {
 		return fmt.Errorf("update text with bgp-prefix-sid: %w", err)
 	}

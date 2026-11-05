@@ -18,6 +18,9 @@ func llgrImportNoLLGR(ctx context.Context, _ []string) error {
 	// The .ci stderr fence owns successful shutdown; a second stop from the
 	// observer would race the runner's signal and force an unclean exit.
 	return runPlugin13(ctx, "observer", nil, func(ctx context.Context, p *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, p, "marked", "plain"); err != nil {
+			return err
+		}
 		count := func(filter string, want int) bool {
 			r := command13(ctx, p, "show bgp rib received "+filter+" count")
 			got, ok := countFrom13(r)

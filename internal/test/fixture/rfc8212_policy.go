@@ -153,10 +153,13 @@ func rfc8212PolicyImport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 	if ibgp {
 		count = 2
 	}
-	if !waitPeersEOR03(ctx, plugin, count) {
+	if err := p12WaitPeersEOR(ctx, plugin, addrLoopback, addrLoopbackSecond); err != nil {
 		return errors.New("policy peers did not finish initial synchronization")
 	}
 	if !ibgp {
+		if err := p12WaitPeersEOR(ctx, plugin, addrLoopbackThird, addrLoopbackFourth); err != nil {
+			return errors.New("policy peers did not finish initial synchronization")
+		}
 		if err := rfc8212PolicyDualStack(ctx, plugin); err != nil {
 			return err
 		}

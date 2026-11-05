@@ -19,6 +19,9 @@ func runWebCommitReject(ctx context.Context) error {
 	}
 	defer plugin.Close() //nolint:errcheck // Run returns the useful transport error
 	plugin.OnConfigApply(func([]sdk.ConfigDiffSection) error {
+		if err := p12WaitPeersEOR(ctx, plugin, "peer1"); err != nil {
+			return err
+		}
 		return errors.New("web test apply rejected")
 	})
 	return plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{namespaceBGP}})
