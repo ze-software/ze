@@ -1,7 +1,9 @@
 # Plugin Metrics
 
-Plugins that have observable runtime state register their own Prometheus metrics
-via the existing `ConfigureMetrics` callback in the `Registration` struct.
+Register metrics in the process that performs the work. Plugins whose engines
+produce the observations use the existing `ConfigureMetrics` callback in the
+`Registration` struct. Code that runs in the daemon independently of its plugin
+process uses the deferred daemon hook described below.
 
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.ConfigureMetrics -->
 
@@ -439,6 +441,23 @@ Two consequences for a plugin author:
   load the atomic pointer at each metric update point, as step 3 above says.
 - Declaring a `Dependency` on `bgp` does not order the injection. Dependencies
   order the 5-stage handshake, not the spawn the hook used to be bound to.
+
+### Metrics owned by daemon callbacks
+
+A callback that runs in the daemon registers its metrics with
+`registry.InjectPluginMetrics` from its owner's `init()`, as the crash-capture
+plugin does. The same deferred injection creates its counters when the daemon's
+registry becomes available; without a registry, no exporter is created.
+
+The `reject-asn` match condition uses this form: its list is compiled into the
+daemon's BGP chain even when the plugin's command process runs forked.
+`bgp-filter-path-asn` therefore declares no process `ConfigureMetrics` callback
+for these counters. The command process must not publish a second copy of
+daemon-owned observations.
+<!-- source: internal/plugins/crashes/register.go -- init -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/register.go -- init -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- setMetricsRegistry, recordReject -->
+
 
 ### A plugin run in its own process
 

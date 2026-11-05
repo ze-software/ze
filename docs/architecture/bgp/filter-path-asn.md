@@ -156,7 +156,8 @@ reconstructs one path from the two before any filter sees the subject
 AS199524 through such a peer, AS_TRANS is not a value an operator lists, and the
 format has no second `as4-path` keyword to write a rule against.
 
-<!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter, attrForFilter -->
+<!-- source: internal/component/bgp/policyview/aspath_text.go -- View.ASPathText -->
+<!-- source: internal/component/bgp/policyview/readers.go -- View.reconstructedPath, View.requireFourOctet -->
 <!-- source: internal/core/bgp/attribute/as4.go -- MergeAS4Path -->
 
 ## The `reject-asn` match condition
@@ -173,6 +174,16 @@ refuses the route on a live run is counted in
 counted; neither is a reject in `show policy test`, a display-only
 run that refuses no route (`MatchRoute.Reports`).
 The `show ... reject-asn` commands are unchanged.
+
+The condition and its counters run in the daemon, including when
+`bgp-filter-path-asn` runs as an external command process. The plugin's init
+registers its metrics through the deferred `registry.InjectPluginMetrics`
+hook, so the daemon exporter counts real refusals without waiting for the
+command process to publish anything. The command process does not publish
+another copy of these counters. With no metrics registry, filtering still
+runs and its counter updates are no-ops.
+<!-- source: internal/component/bgp/plugins/filter_path_asn/register.go -- init -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- setMetricsRegistry, fmetrics, recordReject -->
 
 <!-- source: internal/component/bgp/plugins/filter_path_asn/condition.go -- compileBGPCondition -->
 <!-- source: internal/component/bgp/policychain/match.go -- MatchRoute -->
@@ -246,12 +257,11 @@ Its values are patterns, so no position applies to them. One leaf, one shape: an
 operator who needs a shape question writes it in the same list rather than
 attaching a second filter type.
 
-**The plugin declares ZERO filters at Stage 1.** Filter names come from config,
-so the registration declares the filter TYPE through `FilterTypes`, and
-`policy.BuildRegistry` (`internal/component/policy/registry.go`)
-discovers each instance from the `ze:filter` marker on the YANG list. This is
-the route `filter_aspath` takes. A filter whose name is known at compile time
-is declared in `Registration.Filters` instead; both reach the plugin through
+**The plugin declares no filters at Stage 1.** `policy.BuildRegistry`
+(`internal/component/policy/registry.go`) discovers each reject-asn list from
+the `ze:filter` marker on its YANG list. A BGP chain names a `match` instance
+whose `reject-asn` condition reads that list. The compiled condition runs in
+the daemon over the route view; it does not call the command process through
 `filter-update`.
 
 **A declared RFC 9234 role needs no `reject-asn` list.** The RFC 7454

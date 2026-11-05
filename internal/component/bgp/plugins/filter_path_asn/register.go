@@ -10,7 +10,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
-	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // filterTypeName is the ze:filter list this plugin owns under the policy root.
@@ -46,9 +45,6 @@ func init() {
 		YANG:         fpayang.ZeFilterPathAsnYANG,
 		RunEngine:    runFilterPathASN,
 		Commands:     commandDecls(),
-		ConfigureMetrics: func(reg metrics.Registry) {
-			setMetricsRegistry(reg)
-		},
 	}
 	// The forked form (`ze plugin <name>`) runs the engine over TLS
 	// connect-back, as every external plugin does.
@@ -61,4 +57,7 @@ func init() {
 		slog.Error(reg.Name+": registration failed", "error", err)
 		os.Exit(1)
 	}
+	// The match condition runs in the daemon even when the command owner is
+	// forked. Bind its counters there, never through the child's publisher.
+	registry.InjectPluginMetrics(reg.Name, setMetricsRegistry)
 }

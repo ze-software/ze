@@ -144,18 +144,16 @@ func buildMetrics(reg metrics.Registry) *filterMetrics {
 	return m
 }
 
-// setMetricsRegistry publishes metrics backed by the host registry. Called via
-// the plugin Registration's ConfigureMetrics before RunEngine.
+// setMetricsRegistry binds the daemon's deferred init hook to its registry.
+// The match condition, not the command process, owns these counters.
 func setMetricsRegistry(reg metrics.Registry) { filterMetricsPtr.Store(buildMetrics(reg)) }
 
 // fmetrics returns the current metric set, lazily defaulting to a no-op
 // registry.
 //
-// The filter is registered from init() and the engine calls it whether or not
-// ConfigureMetrics ever ran: telemetry can be off, and the plugin can run as an
-// external process, where no host registry reaches it. Counting must not depend
-// on either, so a missing registry is a no-op counter rather than a nil
-// dereference on the reject path.
+// The match condition runs in the daemon, independently of the command
+// process's transport. The deferred init hook installs the daemon's registry
+// when one exists; with no telemetry registry, rejects use no-op counters.
 func fmetrics() *filterMetrics {
 	if m := filterMetricsPtr.Load(); m != nil {
 		return m
@@ -164,9 +162,8 @@ func fmetrics() *filterMetrics {
 	return filterMetricsPtr.Load()
 }
 
-// recordReject counts one refused route. It is the single counting seam, so
-// every reject handleFilterUpdate returns, and every route the reject-asn
-// match condition refuses on a live run, passes through here.
+// recordReject counts one route the reject-asn match condition refuses on a
+// live run.
 func recordReject(direction string, slot rejectSlot) {
 	fmetrics().rejects[flowOf(direction)][slot].Inc()
 }
