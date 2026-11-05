@@ -45,7 +45,7 @@ type Request struct {
 	RenamePairs     []RenamePair `json:"rename-pairs,omitempty"`
 	// Anchor is the immutable baseline commit or tree. Native preparation uses
 	// the retained tree after earlier script blocks, never a second HEAD lookup.
-	Anchor          string       `json:"anchor,omitempty"`
+	Anchor string `json:"anchor,omitempty"`
 	// Selected is the immutable content carried for selected paths, including
 	// whole-file snapshots and hunks. Native comparisons never read their new
 	// side from concurrent working-tree bytes.
@@ -462,6 +462,13 @@ func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selectio
 func baselineText(root, path, anchor string) (string, string) {
 	tree, err := objects.ResolveTree(context.Background(), root, anchor)
 	if err != nil {
+		if exit, failed := errors.AsType[*exec.ExitError](err); failed {
+			if exit.Exited() {
+				var text textbuf.Buffer
+				return "", text.Str(anchor).
+					Str(" does not resolve to a commit, so nothing was compared").String()
+			}
+		}
 		return "", err.Error()
 	}
 	content, _, err := objects.ReadPath(context.Background(), root, tree, path)

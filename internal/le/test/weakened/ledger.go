@@ -58,7 +58,8 @@ func parseLedger(contents, path string) ([]Row, []string) {
 		header, _ := tableCells(lines[starts[0]])
 		if len(cells) != len(header) {
 			problems = append(problems, message.Reset().Str(path).Byte(':').Int(int64(line)).
-				Str(" has ").Int(int64(len(cells))).Str(" cells; a row must match its approval table header").String())
+				Str(" has ").Int(int64(len(cells))).Str(" cells; a row is `").
+				Str(strings.TrimSpace(lines[starts[0]])).Byte('`').String())
 			continue
 		}
 		name, reason := cells[0], cells[1]

@@ -25,5 +25,6 @@ import (
 	_ "github.com/ze-software/ze/internal/test/plugins/fakel2tp/yang"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeredist"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeredist/yang"
+	_ "github.com/ze-software/ze/internal/test/plugins/filterwirecases"
 	_ "github.com/ze-software/ze/internal/test/plugins/recordplugin/yang"
 )
