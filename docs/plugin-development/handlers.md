@@ -441,9 +441,9 @@ forked plugin's decoded answer is, and you never write into `route.Raw()`.
 <!-- source: pkg/plugin/rpc/filter_slot.go -- FilterSlotHandler, ownRawRewrite -->
 
 `OnFilter` is the only registration of a filter. An evaluator that reads the
-route as one `*sdk.FilterUpdateInput` (the text form in its `Update`
-field, for example) calls `route.Input()`, which encodes a fast-path route's
-fields for that call. It is still an evaluator under the contract above:
+route as one `sdk.FilterUpdateInput` value calls `route.Input()`, which
+returns its declared fields and raw bytes, or a field-read error. It is
+still an evaluator under the contract above:
 its calls run concurrently, so state it keeps is guarded or snapshotted, and
 it does not block.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter -->

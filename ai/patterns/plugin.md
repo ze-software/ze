@@ -277,16 +277,19 @@ state from an atomically swapped snapshot. Its test passes
 checks each clause on both transports
 (`docs/plugin-development/handlers.md`, "Route filters").
 
-`OnFilter` is the only filter registration. An evaluator that needs the
-route as one `filter-update` input (its text `Update` form) calls
-`route.Input()`, and still meets the fast-path contract.
+`OnFilter` is the only filter registration. An evaluator that needs one
+`FilterUpdateInput` value calls `route.Input()`, which returns the declared
+fields and raw bytes, or a field-read error. It still meets the fast-path
+contract.
+<!-- source: pkg/plugin/rpc/filter_slot.go -- FilterRoute.Input -->
 
 **Every plugin filter, whatever fixes its name, is an `OnFilter` evaluator.**
 No compiled-in filter registry exists: a procedure the plugin's config implies
 is a declared filter insertion (`Registration.FilterInsertions`), placed in the
 peer's filter list by the config loader, and the operator's filters are named
-in that list. Both reach the plugin through `filter-update`, internal and
-forked alike.
+in that list. Both use the same evaluator: the typed slot when internal and
+the `filter-update` batch when forked.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->
 
 ### NLRI Codec
 

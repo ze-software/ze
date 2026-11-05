@@ -768,11 +768,13 @@ waiting for all plugins inside reactor startup would wait for itself.
 <!-- source: internal/component/bgp/reactor/api_sync.go -- SetAPIProcessCount, AddAPIProcessCount, SignalAPIReady, SignalPluginStartupComplete -->
 
 The hub's coordinator drops reactor-directed startup signals before
-`SetReactor` attaches the reactor and forwards later signals. This attachment
-order alone does not prove that the server signals completion during reactor
-startup. Borrow-mode peer start follows the coordinator's post-startup callback,
-registered by the BGP plugin after `StartWithContext` returns.
-<!-- source: internal/component/plugin/coordinator.go -- Coordinator.SetReactor, Coordinator.SignalPluginStartupComplete, Coordinator.OnPostStartup -->
+`AttachReactor` publishes the prepared reactor and forwards later signals.
+`DetachReactor` removes only the expected owner and clears its post-startup
+callback. Attachment order alone does not prove that the server signals
+completion during reactor startup. Borrow-mode peer start follows the
+coordinator's post-startup callback, registered by the BGP plugin after
+`StartWithContext` returns.
+<!-- source: internal/component/plugin/coordinator.go -- Coordinator.AttachReactor, Coordinator.DetachReactor, Coordinator.SignalPluginStartupComplete, Coordinator.OnPostStartup -->
 <!-- source: internal/component/bgp/plugin/register.go -- runBGPEngine -->
 
 Calling `SetAPIProcessCount` during borrow-mode startup would rewrite
