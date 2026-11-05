@@ -12,6 +12,38 @@
   },
   {
     "rid": "RFC4271-5.1.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_withdraw_aspath_pair_test.go::TestForwardWithdrawalDoesNotCreateASPath",
+    "unit-sha": "2a2d9ebff31b9ac6",
+    "claim-sha": "c2f608c5b48d4710",
+    "route": "mutant",
+    "producer": "internal/component/bgp/wireu/aspath_slot.go::Record",
+    "producer-sha": "d998d54b8bd9f829",
+    "break": "line 159: \"!PayloadAdvertisesNLRI(payload)\" -\u003e \"false\"",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/reactor/forward_build.go::planAttr",
+        "producer-sha": "dd422598bfe92228",
+        "break": "line 561: \"!gate.advertises()\" -\u003e \"!gate.advertises() \u0026\u0026 code != uint8(attribute.AttrASPath)\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/wireu/aspath_slot.go::Record",
+        "break": "line 159: \"!PayloadAdvertisesNLRI(payload)\" -\u003e \"false\"",
+        "seconds": 60,
+        "green": "lab-exit      0"
+      },
+      {
+        "producer": "internal/component/bgp/reactor/forward_build.go::planAttr",
+        "break": "line 561: \"!gate.advertises()\" -\u003e \"!gate.advertises() \u0026\u0026 code != uint8(attribute.AttrASPath)\"",
+        "seconds": 65,
+        "green": "lab-exit      0"
+      }
+    ]
+  },
+  {
+    "rid": "RFC4271-5.1.2-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet",
     "unit-sha": "c67a744713dc355e",
