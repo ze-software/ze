@@ -766,6 +766,9 @@ func (gp *grPlugin) releaseRoutes(peerAddr string) {
 // entry). The engine delivers the DOWN to bgp-rr and bgp-rs only after this
 // handler returns, and each process's deliveries are FIFO, so the verdict
 // reaches them first; they decide the DOWN from it (retention.Ledger.Take).
+// Emission stays global: peer receive grants belong to bgp/state, not this
+// namespace. Each recipient's ledger admits only its own UP-to-DOWN lifetimes,
+// so unrelated peers and late verdicts cannot create records.
 //
 // RFC 4724 Section 4.2: "the Receiving Speaker MUST retain the routes
 // received from the peer for all the address families that were previously

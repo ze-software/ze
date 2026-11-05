@@ -20,6 +20,7 @@ func envelopeFor(t *testing.T, payload string) string {
 // verdict replaces an earlier one rather than adding to it.
 func TestLedgerRecordTake(t *testing.T) {
 	var ledger Ledger
+	ledger.Begin("192.0.2.1")
 	payload, err := Encode("192.0.2.1", []family.Family{family.IPv4Unicast})
 	if err != nil {
 		t.Fatal(err)
@@ -45,6 +46,7 @@ func TestLedgerRecordTake(t *testing.T) {
 		t.Fatal("a taken verdict answered a second DOWN")
 	}
 
+	ledger.Begin("192.0.2.1")
 	first, _ := Encode("192.0.2.1", []family.Family{family.IPv4Unicast}) //nolint:errcheck // same input encoded above
 	empty, _ := Encode("192.0.2.1", nil)                                 //nolint:errcheck // an empty verdict encodes
 	for _, step := range []string{first, empty} {
@@ -65,6 +67,7 @@ func TestLedgerRecordTake(t *testing.T) {
 // peer is refused whole and leaves the recorded verdict untouched.
 func TestLedgerRefusesBadVerdict(t *testing.T) {
 	var ledger Ledger
+	ledger.Begin("192.0.2.1")
 	good, _ := Encode("192.0.2.1", []family.Family{family.IPv4Unicast}) //nolint:errcheck // a fixed input encodes
 	env, _ := Accepts(envelopeFor(t, good))
 	if err := ledger.Record(env); err != nil {

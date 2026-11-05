@@ -119,6 +119,7 @@ func (rs *routeServer) handleState(event *Event) {
 	}
 
 	if state == "up" {
+		rs.retained.Begin(peerAddr)
 		if event.Reason == rpc.ReasonAttached {
 			rs.handleAttachedUp(peerAddr)
 			return

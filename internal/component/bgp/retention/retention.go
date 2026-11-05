@@ -48,14 +48,28 @@ func Encode(peerAddr string, families []family.Family) (string, error) {
 	return string(encoded), nil
 }
 
-// Ledger holds the latest verdict bgp-gr emitted for each peer, until the
-// asker's own DOWN for that peer takes it. The engine delivers a state event in
-// reverse dependency order and waits for each process (bgp-gr first), and every
-// delivery to one process is FIFO, so the verdict of a DOWN is recorded before
-// that DOWN reaches the asker. Safe for concurrent use. The zero value is ready.
+// Ledger holds verdicts only for the asker's active state lifetimes. The asker
+// MUST call Begin on each UP and Take on each DOWN, including attached/removed
+// lifetimes and empty departures. Global GR verdicts for other peers cannot
+// create records. The engine delivers state events in reverse dependency order
+// (bgp-gr first) and each process receives events FIFO, so an owned verdict is
+// recorded before its DOWN consumes it. Safe for concurrent use; the zero value
+// is ready. Storage is bounded by the owner's active UP-to-DOWN lifetimes.
 type Ledger struct {
 	mu       sync.Mutex
 	verdicts map[string]map[family.Family]bool
+}
+
+// Begin admits a peer's new state lifetime, discarding any earlier verdict.
+// The asker MUST call it on each UP, including an attached session, and MUST
+// call Take on that lifetime's DOWN even when the peer owns no routes.
+func (l *Ledger) Begin(peerAddr string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.verdicts == nil {
+		l.verdicts = make(map[string]map[family.Family]bool)
+	}
+	l.verdicts[peerAddr] = nil
 }
 
 // Accepts reports whether the delivered event string is an enveloped
@@ -81,10 +95,10 @@ func Accepts(delivered string) (rpc.EventEnvelope, bool) {
 // errNoPeer refuses a verdict that names no peer.
 var errNoPeer = errors.New("bgp-gr/retention verdict names no peer-address")
 
-// Record stores the verdict the envelope carries, replacing the peer's earlier
-// one. A payload that does not decode, names no peer or names a family that is
-// not registered is refused whole and changes nothing: applying part of it
-// would withdraw or keep families bgp-gr did not decide.
+// Record stores a verdict only within the peer's admitted state lifetime,
+// replacing its earlier verdict. A payload that does not decode or names no
+// peer is refused. An unowned peer is ignored; an owned verdict naming an
+// unregistered family is refused whole, without changing its earlier verdict.
 func (l *Ledger) Record(envelope rpc.EventEnvelope) error {
 	var verdict Verdict
 	if err := json.Unmarshal(envelope.Payload, &verdict); err != nil {
@@ -94,7 +108,16 @@ func (l *Ledger) Record(envelope rpc.EventEnvelope) error {
 	if verdict.PeerAddress == "" {
 		return errNoPeer
 	}
-	retained := make(map[family.Family]bool, len(verdict.Families))
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	// refuse-by-default: guards Take -- only an admitted peer has an owning DOWN to consume its verdict.
+	if _, active := l.verdicts[verdict.PeerAddress]; !active {
+		return nil
+	}
+	var retained map[family.Family]bool
+	if len(verdict.Families) > 0 {
+		retained = make(map[family.Family]bool, len(verdict.Families))
+	}
 	for _, name := range verdict.Families {
 		fam, ok := family.LookupFamily(name)
 		if !ok {
@@ -104,19 +127,14 @@ func (l *Ledger) Record(envelope rpc.EventEnvelope) error {
 		}
 		retained[fam] = true
 	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.verdicts == nil {
-		l.verdicts = make(map[string]map[family.Family]bool)
-	}
 	l.verdicts[verdict.PeerAddress] = retained
 	return nil
 }
 
-// Take consumes the peer's recorded verdict and clears it, so a later DOWN
-// never reads this one. The asker MUST call it on every DOWN it handles for the
-// peer, an empty departure included. No verdict answers an empty set: bgp-gr
-// handled no DOWN for this peer, so it holds no GR state for it.
+// Take closes the peer's admitted state lifetime and consumes its verdict, so
+// neither a later DOWN nor a late verdict can revive it. After Begin, the asker
+// MUST call Take on every DOWN it handles, an empty departure included. Without
+// a verdict it answers an empty set: GR retained no families for this DOWN.
 func (l *Ledger) Take(peerAddr string) map[family.Family]bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()

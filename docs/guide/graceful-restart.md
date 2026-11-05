@@ -220,13 +220,13 @@ connection, so neither needs the daemon's memory.
 <!-- source: test/plugin/llgr-import-no-llgr-forked.ci -- import NO_LLGR with bgp-gr forked -->
 <!-- source: internal/component/bgp/plugins/gr/gr_filter.go -- evaluateGRFilter, grInsertions -->
 
-The route-server DOWN handler also uses an in-process query owned by `bgp-gr`.
-After draining that source's forwarding worker it asks which families are still
-retained, and withdraws only the others. The route reflector's DOWN handler asks
-the same query, synchronously, before it hands the source's routes to the
-engine's departure recovery, and leaves a retained family's routes out. Without
-that filter a reflector would withdraw every retained route from its other
-peers during the restart window. Both handlers decide retention while they
+The route server and reflector decide which families to retain from `bgp-gr`'s
+bus verdict for that DOWN, not an in-process query. After draining that source's
+forwarding worker, the route server withdraws only the other families. The
+reflector makes the same decision before handing the source's routes to the
+engine's departure recovery. Without that filter a reflector would withdraw
+every retained route from its other peers during the restart window. Both
+handlers consume the verdict synchronously while they
 handle the DOWN, so a reconnect or a Restart Time expiry that follows cannot
 change which families that DOWN withdraws. Each handler then queues the routes
 left over on its plugin's departure workers and returns without waiting.
@@ -247,11 +247,16 @@ dependency order, and waits for each plugin's handler to return, so `bgp-gr`'s
 event is queued to both owners before their DOWN. Each process receives its
 events in the order they were queued. `bgp-rs` is an optional dependency of
 `bgp-gr`, and `bgp-rr` is named in its `StartAfter` (order only, since a GR
-configuration does not load the reflector). Each owner subscribes to the event
-at startup, records the latest verdict for each peer, and takes it when it
-handles that peer's DOWN, so a later DOWN never reads an earlier one; a DOWN
-with no verdict retains nothing, because `bgp-gr` holds no state for that peer.
-A verdict that names an unknown family is refused and logged. When the Restart
+configuration does not load the reflector). Each owner subscribes at startup,
+but records verdicts only within state lifetimes it owns: every received UP,
+including an `attached` UP on reload, opens a lifetime and clears any earlier
+verdict. Every DOWN consumes the verdict and closes that lifetime, including
+empty departures and detach/removal. A global verdict for a peer whose UP this
+owner never received, or whose DOWN it already handled, creates no record.
+Storage is therefore bounded by active owned state lifetimes, even when dynamic
+addresses churn outside this forwarder's attachments. Recreating an address
+opens a fresh lifetime; a DOWN without a new verdict retains nothing. An owned
+verdict naming an unknown family is refused and logged. When the Restart
 Time expires without a reconnect, the retained
 routes are deleted and the reflector's other peers are sent their withdrawal,
 under the Path Identifier each was sent. The verdict comes from GR's existing

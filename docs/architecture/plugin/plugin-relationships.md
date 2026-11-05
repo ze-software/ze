@@ -426,7 +426,7 @@ startup dependencies in the `Dependencies` field.
 | rib | `rib/best-change/` | bgp-rib | Selects system best routes from protocol RIBs |
 | fib-kernel | `system-rib/best-change` | rib | Programs OS routing table |
 | fib-p4 | `system-rib/best-change` | rib | Programs P4 switch entries |
-| bgp-rr, bgp-rs | `bgp-gr/retention` | bgp-gr | Records the families gr retains for a peer; the DOWN that follows consumes the verdict. gr emits it before it answers the DOWN, and gr receives state events before rr and rs (reverse dependency order), so the verdict is queued ahead of their DOWN on both transports |
+| bgp-rr, bgp-rs | `bgp-gr/retention` | bgp-gr | Records retained families only for an owned state lifetime opened by UP; every DOWN consumes its verdict and closes admission. Global verdicts for unrelated or already-down peers create no record. gr emits before answering DOWN and receives state events before rr/rs (reverse dependency order), so FIFO delivery puts the verdict ahead of its owning DOWN on both transports |
 
 <!-- source: internal/component/bgp/retention/retention.go -- Namespace, EventType, Ledger -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- emitRetention -->

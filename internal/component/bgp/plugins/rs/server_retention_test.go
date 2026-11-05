@@ -73,6 +73,8 @@ func TestPeerDownRetainedFamilies(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rs := newTestRouteServer(t)
+			rs.handleState(&Event{PeerAddr: source, State: "up", Reason: rpc.ReasonAttached})
+			rs.handleState(&Event{PeerAddr: other, State: "up", Reason: rpc.ReasonAttached})
 			if tc.provider {
 				payload, err := retention.Encode(tc.retainedPeer, []family.Family{tc.retainedFam})
 				require.NoError(t, err)

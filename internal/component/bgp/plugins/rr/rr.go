@@ -380,6 +380,7 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 	}
 	switch se.State {
 	case rpc.SessionStateUp:
+		rr.retained.Begin(se.PeerAddress)
 		if se.Reason == rpc.ReasonAttached {
 			// A reload attached this plugin to a session already up: the
 			// peer's initial routing update was sent without it, and is not
@@ -735,6 +736,7 @@ func (rr *routeReflector) dispatchText(text string) {
 			peer.Up = (state == "up")
 			switch state {
 			case "up":
+				rr.retained.Begin(peerAddr)
 				if attached {
 					// handleStructuredState's reason: no replay on an attached up.
 					rr.mu.Unlock()

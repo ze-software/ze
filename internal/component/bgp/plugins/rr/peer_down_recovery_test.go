@@ -42,7 +42,7 @@ func newPeerDownReflector(t *testing.T) (*routeReflector, chan peerDownRequest) 
 		return 0, 2, nil
 	})
 	bridge.SetReady()
-	return &routeReflector{plugin: p, withdrawals: make(map[string]map[string]withdrawalInfo)}, requests
+	return &routeReflector{plugin: p, peers: make(map[string]*peerState), withdrawals: make(map[string]map[string]withdrawalInfo)}, requests
 }
 
 // TestPeerDownIsSourceOwnedRecovery takes down an ADD-PATH source that holds
@@ -156,6 +156,8 @@ func TestPeerDownSkipsRetainedFamilies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rr, requests := newPeerDownReflector(t)
+			rr.dispatchText("peer " + source + " remote as 65001 state up reason attached")
+			rr.dispatchText("peer " + other + " remote as 65002 state up reason attached")
 			// bgp-gr's verdict reaches bgp-rr as the bgp-gr/retention event,
 			// through the same event handler the DOWN arrives on, before it.
 			rr.dispatchText(retentionEvent(t, tt.retainedPeer, tt.retainedFam))
@@ -208,10 +210,13 @@ func TestRetentionVerdictConsumedPerDown(t *testing.T) {
 	origin := []byte{0x40, 1, 1, 0}
 
 	rr, requests := newPeerDownReflector(t)
+	rr.dispatchText("peer " + source + " remote as 65001 state up reason attached")
+	rr.dispatchText("peer " + other + " remote as 65002 state up reason attached")
 	rr.dispatchText(retentionEvent(t, source, family.IPv4Unicast))
 	rr.dispatchText(retentionEvent(t, other, family.IPv4Unicast))
 	rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, path11))
 	rr.handleStateDown(source, 7)
+	rr.dispatchText("peer " + source + " remote as 65001 state up reason attached")
 	rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, path11))
 	rr.handleStateDown(source, 8)
 	if retained := rr.retained.Take(other); !retained[family.IPv4Unicast] {
