@@ -149,13 +149,16 @@ func loadFeatureTags(root string) (map[string]string, error) {
 		return nil, errors.New(tb.Str("read ").Str(featureGatesManifest).Str(": ").Err(err).String())
 	}
 
+	return gateTags(rows), nil
+}
+
+func gateTags(rows []repofeaturetags.Gate) map[string]string {
 	tags := make(map[string]string, 2*len(rows))
 	for _, row := range rows {
 		tags[row.Package] = row.Tag
 		tags[path.Join(row.Package, "yang")] = row.Tag
 	}
-
-	return tags, nil
+	return tags
 }
 
 // tagFor answers the build tag gating importPath, or "" when it is universal.
@@ -1061,6 +1064,12 @@ func LoadGateIndex(root string) (GateIndex, error) {
 	}
 
 	return GateIndex{tags: tags}, nil
+}
+
+// GateIndexFrom builds the same index from a manifest already parsed from one
+// committed snapshot. The private map retains no reference to the caller's rows.
+func GateIndexFrom(rows []repofeaturetags.Gate) GateIndex {
+	return GateIndex{tags: gateTags(rows)}
 }
 
 // Requirement answers the build tags that must all be set for the package pkg

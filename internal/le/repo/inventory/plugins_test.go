@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )

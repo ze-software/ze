@@ -6,7 +6,6 @@
 package repoinventory
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -43,11 +42,36 @@ func fixture(t *testing.T) string {
 	return dir
 }
 
+// committedInventoryFixture retains the original report inputs and adds the
+// declared entry and registry package required by committed-source membership.
+func committedInventoryFixture(t *testing.T) string {
+	t.Helper()
+	root := fixture(t)
+	write(t, root, "go.mod", "module github.com/ze-software/ze\n\ngo 1.26\n")
+	write(t, root, "feature-gates.txt", "ze_thing internal/thing\n")
+	write(t, root, "internal/thing/one.go", `package thing
+import r "github.com/ze-software/ze/internal/component/plugin/registry"
+func engine() {}
+func init() { _ = r.Register(r.Registration{Name: "thing", Description: "committed fixture", RunEngine: engine, YANG: "module thing { namespace urn:thing; prefix t; }"}) }
+`)
+	write(t, root, "cmd/ze/main.go", "package main\nimport _ \"github.com/ze-software/ze/internal/thing\"\nfunc main() {}\n")
+	write(t, root, "internal/component/plugin/registry/registry.go", "package registry\ntype Registration struct { Name, Description, YANG string; RunEngine func() }\nfunc Register(Registration) error { return nil }\n")
+	committedGit(t, root, "init", "--initial-branch=main")
+	commitInventoryFixture(t, root)
+	return root
+}
+
+func commitInventoryFixture(t *testing.T, root string) {
+	t.Helper()
+	committedGit(t, root, "add", ".")
+	committedGit(t, root, "-c", "user.name=Inventory Fixture", "-c", "user.email=inventory@example.invalid", "commit", "-m", "committed fixture")
+}
+
 // TestCollectCountsAFixtureTree pins every number the tree contributes. The old
 // subprocess test asserted only that the header and a total were printed; a
 // count that was short by a directory passed it.
 func TestCollectCountsAFixtureTree(t *testing.T) {
-	dir := fixture(t)
+	dir := committedInventoryFixture(t)
 	inv, err := Collect(dir)
 	if err != nil {
 		t.Fatalf("collect: %v", err)
@@ -69,10 +93,10 @@ func TestCollectCountsAFixtureTree(t *testing.T) {
 		t.Errorf("test/ui holds %d .ci files, want 2", got)
 	}
 
-	// Three files over two directories: 3 + 1 + 3 lines.
+	// Four files over three directories: 4 + 1 + 3 + 3 lines.
 	packages, files, lines := inv.totals()
-	if packages != 2 || files != 3 || lines != 7 {
-		t.Errorf("counted %d packages, %d files and %d lines; want 2, 3 and 7", packages, files, lines)
+	if packages != 3 || files != 4 || lines != 11 {
+		t.Errorf("counted %d packages, %d files and %d lines; want 3, 4 and 11", packages, files, lines)
 	}
 	if inv.Generated == "" {
 		t.Error("the page carries no generation time")
@@ -83,7 +107,7 @@ func TestCollectCountsAFixtureTree(t *testing.T) {
 // and the .ci content: `thing-list` is exercised as `thing list` and
 // `core-show` as `core show`, and an RPC no test names stays uncovered.
 func TestCollectResolvesRPCCoverage(t *testing.T) {
-	dir := fixture(t)
+	dir := committedInventoryFixture(t)
 	inv, err := Collect(dir)
 	if err != nil {
 		t.Fatalf("collect: %v", err)
@@ -103,81 +127,39 @@ func TestCollectResolvesRPCCoverage(t *testing.T) {
 	}
 }
 
-// TestExtractRPCsUsesOnlyCodeAreas compares the complete RPC population before
-// and after scratch copies, including duplicate modules and unreadable evidence.
-func TestExtractRPCsUsesOnlyCodeAreas(t *testing.T) {
-	dir := fixture(t)
+// TestCollectRPCsUseOnlyCommittedCodeAreas checks the public report across two
+// committed trees: source-area RPCs remain present, while duplicate and invalid
+// YANG files in tracked session evidence never enter the report population.
+func TestCollectRPCsUseOnlyCommittedCodeAreas(t *testing.T) {
+	dir := committedInventoryFixture(t)
 	write(t, dir, "pkg/example/pkg.yang", "module pkg {\n  rpc pkg-show { }\n}\n")
 	write(t, dir, "cmd/example/cmd.yang", "module cmd {\n  rpc cmd-show { }\n}\n")
-	counts, rpcs, err := extractRPCs(dir)
+	commitInventoryFixture(t, dir)
+	before, err := Collect(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rpcs) != 5 || counts["pkg.yang"] != 1 || counts["cmd.yang"] != 1 {
-		t.Fatalf("source areas missing from RPC population: %v, %v", counts, rpcs)
+	wantCounts := map[string]int{"cmd.yang": 1, "core.yang": 1, "pkg.yang": 1, "thing.yang": 2}
+	if len(before.RPCList) != 5 || !reflect.DeepEqual(before.RPCsByModule, wantCounts) {
+		t.Fatalf("source areas missing from RPC population: %v, %v", before.RPCsByModule, before.RPCList)
 	}
 	write(t, dir, "tmp/session/thing.yang", "module thing {\n  rpc scratch-only { }\n}\n")
 	write(t, dir, "tmp/evidence/crash/hidden.yang", "module hidden {\n  rpc hidden-show { }\n}\n")
-	makeInventoryDirectoryUnreadable(t, filepath.Join(dir, "tmp", "evidence", "crash"))
-	gotCounts, gotRPCs, err := extractRPCs(dir)
+	write(t, dir, "tmp/evidence/crash/invalid.yang", "module invalid {\n")
+	commitInventoryFixture(t, dir)
+	after, err := Collect(dir)
 	if err != nil {
-		t.Fatalf("runtime evidence entered the source walk: %v", err)
+		t.Fatalf("tracked session evidence entered the committed report: %v", err)
 	}
-	if !reflect.DeepEqual(gotCounts, counts) || !reflect.DeepEqual(gotRPCs, rpcs) {
-		t.Fatalf("scratch contaminated RPCs: counts %v, RPCs %v; want %v, %v",
-			gotCounts, gotRPCs, counts, rpcs)
-	}
-}
-
-// TestExtractRPCsRefusesUnreadableSource proves each declared source area
-// remains fail-closed rather than treating a permission error as an empty area.
-func TestExtractRPCsRefusesUnreadableSource(t *testing.T) {
-	for _, area := range codeAreas {
-		t.Run(area, func(t *testing.T) {
-			dir := fixture(t)
-			write(t, dir, area+"/restricted/source.yang", "module source {\n  rpc source-show { }\n}\n")
-			path := filepath.Join(dir, area, "restricted")
-			makeInventoryDirectoryUnreadable(t, path)
-			counts, rpcs, err := extractRPCs(dir)
-			if !errors.Is(err, os.ErrPermission) {
-				t.Fatalf("unreadable source returned %v, want permission error", err)
-			}
-			if !strings.Contains(err.Error(), path) {
-				t.Errorf("permission error does not identify source: %v", err)
-			}
-			if counts != nil || rpcs != nil {
-				t.Fatalf("unreadable source published partial RPCs: %v, %v", counts, rpcs)
-			}
-		})
+	if !reflect.DeepEqual(after.RPCsByModule, before.RPCsByModule) || !reflect.DeepEqual(after.RPCList, before.RPCList) {
+		t.Fatalf("session evidence contaminated RPCs: counts %v, RPCs %v; want %v, %v",
+			after.RPCsByModule, after.RPCList, before.RPCsByModule, before.RPCList)
 	}
 }
 
-// makeInventoryDirectoryUnreadable checks the actual read, not just mode bits:
-// privileged test processes must not silently pass without exercising refusal.
-func makeInventoryDirectoryUnreadable(t *testing.T, path string) {
-	t.Helper()
-	if err := os.Chmod(path, 0); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chmod(path, 0o750); err != nil {
-			t.Errorf("restore fixture directory permissions: %v", err)
-		}
-	})
-	if _, err := os.ReadDir(path); !errors.Is(err, os.ErrPermission) {
-		t.Fatalf("permission fixture is readable by UID %d: %v; run without DAC bypass privileges",
-			os.Geteuid(), err)
-	}
-}
-
-// TestCollectFailsOnAFileItCannotRead is the behavior the script did NOT have,
-// asserted in the direction of the fix. Every number this tool publishes is a
-// count of what the walk saw, so a file the walk lists and cannot open makes a
-// count short. The script returned nil there and published the short count
-// under a header claiming the output is always accurate.
-//
-// A dangling symbolic link is the cheapest way to reach that path: the walk
-// lists it, because the directory entry says it is a file, and opening it fails.
+// TestCollectFailsOnAFileItCannotRead commits unsupported source symlinks
+// before collection. Go, YANG and CI inputs must each refuse with their filename
+// rather than publish an inventory that silently skipped committed source.
 func TestCollectFailsOnAFileItCannotRead(t *testing.T) {
 	for _, tc := range []struct{ name, link string }{
 		{"go file", "internal/thing/broken.go"},
@@ -185,11 +167,12 @@ func TestCollectFailsOnAFileItCannotRead(t *testing.T) {
 		{"ci file", "test/ui/broken.ci"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			dir := fixture(t)
+			dir := committedInventoryFixture(t)
 			path := filepath.Join(dir, tc.link)
 			if err := os.Symlink(filepath.Join(dir, "nowhere"), path); err != nil {
 				t.Fatalf("create the dangling link: %v", err)
 			}
+			commitInventoryFixture(t, dir)
 
 			_, err := Collect(dir)
 			if err == nil {
@@ -208,9 +191,10 @@ func TestCollectFailsOnAFileItCannotRead(t *testing.T) {
 // MaxScanTokenSize, so the rpc below it is never counted; the tool must report
 // that rather than publish the short count.
 func TestCollectFailsOnALineTooLongToScan(t *testing.T) {
-	dir := fixture(t)
+	dir := committedInventoryFixture(t)
 	body := "module big {\n  // " + strings.Repeat("x", 70*1024) + "\n  rpc do-a-thing { }\n}\n"
 	write(t, dir, "internal/plugins/big/yang/big.yang", body)
+	commitInventoryFixture(t, dir)
 
 	_, err := Collect(dir)
 	if err == nil {
@@ -226,42 +210,52 @@ func TestCollectFailsOnALineTooLongToScan(t *testing.T) {
 // about the tree; refusing it would make the tool unusable on any tree that is
 // not a full checkout.
 func TestCollectTreatsAMissingAreaAsEmpty(t *testing.T) {
-	dir := t.TempDir()
-	inv, err := Collect(dir)
+	root := committedInventoryFixture(t) // Complete committed entry, deliberately no pkg/.
+	inv, err := Collect(root)
 	if err != nil {
-		t.Fatalf("an empty tree was refused: %v", err)
+		t.Fatal(err)
 	}
 	if len(inv.PackageStats) != len(codeAreas) {
 		t.Fatalf("the page holds %d area rows, want %d", len(inv.PackageStats), len(codeAreas))
 	}
+	found := false
 	for _, stats := range inv.PackageStats {
+		if stats.Area != "pkg/" {
+			continue
+		}
+		found = true
 		if stats.Packages != 0 || stats.Files != 0 || stats.Lines != 0 {
-			t.Errorf("%s counted %+v over an empty tree", stats.Area, stats)
+			t.Fatalf("absent pkg/ counted %+v", stats)
 		}
 	}
-	if inv.TotalTests != 0 || inv.TotalRPCs != 0 {
-		t.Errorf("an empty tree answered %d tests and %d RPCs", inv.TotalTests, inv.TotalRPCs)
+	if !found {
+		t.Fatal("missing source area lost its explicit zero row")
+	}
+	if inv.TotalTests != 3 || inv.TotalRPCs != 3 {
+		t.Fatalf("missing pkg/ changed other report areas: tests %d RPCs %d", inv.TotalTests, inv.TotalRPCs)
 	}
 }
 
-// TestCollectReadsTheLiveRegistry pins the half of the answer that comes from
-// this process rather than from the tree. It is why the tool blank-imports the
-// product: a plugin list parsed out of source would go stale.
-func TestCollectReadsTheLiveRegistry(t *testing.T) {
-	inv, err := Collect(t.TempDir())
+// TestCollectReadsCommittedRegistrationsAndSchemas checks actual registration
+// resolution and schema metadata from one committed fixture despite dirty source.
+func TestCollectReadsCommittedRegistrationsAndSchemas(t *testing.T) {
+	root := committedInventoryFixture(t)
+	write(t, root, "internal/thing/one.go", "package thing\n// dirty replacement\n")
+	inv, err := Collect(root)
 	if err != nil {
-		t.Fatalf("collect: %v", err)
+		t.Fatal(err)
 	}
-	if len(inv.Plugins) == 0 {
-		t.Fatal("the plugin registry answered nothing: the composition root registered no plugin")
+	if len(inv.Plugins) != 1 || inv.Plugins[0].Name != "thing" || inv.Plugins[0].Description != "committed fixture" {
+		t.Fatalf("report mixed committed fixture and host/dirty registrations: %+v", inv.Plugins)
 	}
-	for _, plugin := range inv.Plugins {
-		if plugin.Name == "" {
-			t.Errorf("a registered plugin carries no name: %+v", plugin)
+	found := false
+	for _, module := range inv.YANGModules {
+		if module.Name == "thing" {
+			found = true
 		}
 	}
-	if len(inv.YANGModules) == 0 {
-		t.Error("no YANG module is loaded")
+	if !found {
+		t.Fatal("committed registration schema is missing from report")
 	}
 }
 
@@ -320,45 +314,31 @@ func TestPluginDirOf(t *testing.T) {
 	}
 }
 
-// TestDescribeModulesAttributesEachModule reads the attribution end to end over
-// a path map, which is what turns a module name into "plugin:<dir>".
-func TestDescribeModulesAttributesEachModule(t *testing.T) {
-	modules := describeModules(map[string]string{
-		"ze-static.yang": "internal/plugins/static/yang/ze-static.yang",
-	})
-	if len(modules) == 0 {
-		t.Fatal("no YANG module is loaded, so this test cannot see an attribution")
+// TestCollectExtractsASingleWordRPC preserves the valid single-word declaration
+// case at the public committed-source boundary, not through a copied line parser.
+func TestCollectExtractsASingleWordRPC(t *testing.T) {
+	root := committedInventoryFixture(t)
+	write(t, root, "pkg/example/single.yang", "module single {\n namespace urn:single;\n prefix s;\n rpc foo { description x; }\n}\n")
+	commitInventoryFixture(t, root)
+	inv, err := Collect(root)
+	if err != nil {
+		t.Fatal(err)
 	}
-	sorted := true
-	for i := 1; i < len(modules); i++ {
-		if modules[i-1].Name > modules[i].Name {
-			sorted = false
+	if inv.TotalRPCs != 4 || len(inv.RPCList) != 4 || inv.RPCsByModule["single.yang"] != 1 {
+		t.Fatalf("single-word RPC missing from committed population: counts %v, RPCs %v", inv.RPCsByModule, inv.RPCList)
+	}
+	found := 0
+	for _, rpc := range inv.RPCList {
+		if rpc.Module != "single.yang" {
+			continue
+		}
+		found++
+		if rpc.Name != "foo" {
+			t.Fatalf("single-word declaration extracted as %q, want foo", rpc.Name)
 		}
 	}
-	if !sorted {
-		t.Error("the module list is not sorted by name")
-	}
-	for _, module := range modules {
-		if module.Source == "" {
-			t.Errorf("%s is attributed to nothing", module.Name)
-		}
-		if module.Name == "ze-static.yang" && module.Source != "plugin:static" {
-			t.Errorf("ze-static.yang is attributed to %q, want plugin:static", module.Source)
-		}
-	}
-}
-
-// TestRPCNameIn pins the two declaration forms a .yang file uses.
-func TestRPCNameIn(t *testing.T) {
-	cases := map[string]string{
-		"rpc foo-bar {":              "foo-bar",
-		"rpc foo { description x; }": "foo",
-		"rpc bare":                   "bare",
-	}
-	for line, want := range cases {
-		if got := rpcNameIn(line); got != want {
-			t.Errorf("rpcNameIn(%q) = %q, want %q", line, got, want)
-		}
+	if found != 1 {
+		t.Fatalf("single-word module has %d extracted RPCs, want 1", found)
 	}
 }
 
@@ -388,49 +368,5 @@ func TestAnswerAnswersTheInventory(t *testing.T) {
 	}
 	if len(inv.Plugins) == 0 {
 		t.Error("the payload holds no plugin")
-	}
-}
-
-// TestVanishedTellsAMissingFileFromADanglingLink is the distinction the whole
-// error policy rests on. Both fail to open with the same error, and only one of
-// them means a published count fell short.
-//
-// The case that made this necessary was real: a concurrent session's temporary
-// file under tmp/ was listed by the walk and removed before this tool reached
-// it, and `le repo inventory` refused the checkout over it.
-func TestVanishedTellsAMissingFileFromADanglingLink(t *testing.T) {
-	dir := t.TempDir()
-
-	gone := filepath.Join(dir, "gone.go")
-	if !vanished(gone, os.ErrNotExist) {
-		t.Error("a path that does not exist was not reported as vanished")
-	}
-
-	link := filepath.Join(dir, "dangling.go")
-	if err := os.Symlink(filepath.Join(dir, "nowhere"), link); err != nil {
-		t.Fatalf("create the dangling link: %v", err)
-	}
-	if vanished(link, os.ErrNotExist) {
-		t.Error("a dangling symbolic link was reported as vanished: its directory entry is still there")
-	}
-
-	present := filepath.Join(dir, "present.go")
-	write(t, dir, "present.go", "package fixture\n")
-	if vanished(present, os.ErrPermission) {
-		t.Error("a file that exists and could not be read was reported as vanished")
-	}
-}
-
-// TestScanLinesSkipsAFileThatIsNoLongerThere pins the caller's contract: a
-// vanished file contributes no line and stops nothing. It is the case that made
-// vanished necessary, and it is the only one where a walked path that cannot be
-// opened is not an error.
-func TestScanLinesSkipsAFileThatIsNoLongerThere(t *testing.T) {
-	lines := 0
-	if err := scanLines(filepath.Join(t.TempDir(), "gone.go"), func(string) { lines++ }); err != nil {
-		t.Errorf("a file that vanished was reported as an error: %v", err)
-	}
-	if lines != 0 {
-		t.Errorf("a file that vanished contributed %d lines", lines)
 	}
 }

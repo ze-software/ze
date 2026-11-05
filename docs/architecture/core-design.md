@@ -43,10 +43,10 @@ that with `go list -deps` over every shipped build flavor, `ze_setup` included;
 the flavors are derived from the `//go:build` lines of
 `cmd/ze/build_tag_*_test.go`, so a new flavor is measured the day it exists.
 `le` MAY link the product
-composition root `internal/component/plugin/all`, because a command inventory, a
-CLI-grammar check or a YANG-leaf check answers what `ze` REGISTERS and cannot be
-computed without loading that registry. Loading it runs the product's `init()`
-functions, which register product roots such as `env`, `interface` and `schema`
+composition root `internal/component/plugin/all` when a command inventory,
+CLI-grammar check or YANG-leaf check reads the compiled registry. Loading it runs
+the product's `init()` functions, which register roots such as `env`, `interface`
+and `schema`
 in the same process. What `le` MUST NOT do is serve one of those as its own, and
 the path is what keeps them apart rather than a second ownership table: every
 `le` tool registers at the canonical `le <tool>` local-data path,
@@ -55,6 +55,14 @@ the registry for it. So `le interface` is an unknown command, not `ze`'s
 interface editor.
 <!-- source: cmd/ze/ze_le_personality_test.go -- TestNormalZeLinksNoInternalLe -->
 <!-- source: internal/le/le/root/leroot.go -- Owns, CommandPath -->
+
+Committed plugin metadata uses a different population from the running registry.
+`repoinventory.ReadCommitted` resolves HEAD once, retains its Git source blobs,
+and selects the transitive imports of the all-feature Linux le entry before
+resolving reachable registration declarations. It neither compiles an inventory
+binary nor substitutes the host registry when source resolution fails.
+<!-- source: internal/le/repo/inventory/source.go -- ReadCommitted -->
+<!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.Plugins -->
 
 **le compiles Ze against a patched standard library, and its own process
 environment carries it.** Ze's EAP-TLS authenticator compiles only against a

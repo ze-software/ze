@@ -53,6 +53,12 @@ func Gates(root string) ([]Gate, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ParseGates(path, raw)
+}
+
+// ParseGates reads the same manifest grammar from retained source bytes. name
+// identifies that source in diagnostics; it is never opened as a path.
+func ParseGates(name string, raw []byte) ([]Gate, error) {
 
 	var gates []Gate
 	for index, rawLine := range strings.Split(string(raw), "\n") {
@@ -63,10 +69,10 @@ func Gates(root string) ([]Gate, error) {
 
 		fields := strings.Fields(line)
 		if len(fields) != 2 {
-			return nil, malformed(path, index+1, "want \"<tag> <package>\"")
+			return nil, malformed(name, index+1, "want \"<tag> <package>\"")
 		}
 		if !validPackagePath(fields[1]) {
-			return nil, malformed(path, index+1, "the package is not a clean relative import path")
+			return nil, malformed(name, index+1, "the package is not a clean relative import path")
 		}
 
 		gates = append(gates, Gate{Tag: fields[0], Package: fields[1]})

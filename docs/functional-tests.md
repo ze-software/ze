@@ -639,10 +639,11 @@ rebuilding it or repeatedly scanning the moving checkout.
 Selftest rows must be named, unique and passing; action help must retain the
 required operations and their effects. Spec-status owns its specs and Git
 history, checking records, ordering, dates, stale markers and argument refusal.
-Inventory owns its filesystem inputs while retaining the binary's full plugin
-and command registries. RFC action checks own a summary and tagged unit, stamp
-their audit through the native CLI, and compare independent copies for writer
-parity. Tracked-build rendering checks compile an owned committed module in
+Inventory owns committed filesystem inputs and derives its plugin and schema
+registries from the same resolved commit, rather than the running binary.
+RFC action checks own a summary and tagged unit, stamp their audit through the
+native CLI, and compare independent copies for writer parity. Tracked-build
+rendering checks compile an owned committed module in
 every production matrix flavor at the unchanged default package floor.
 
 Consistency and discovery assert authored finding and package identities, not

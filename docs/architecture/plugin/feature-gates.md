@@ -67,6 +67,132 @@ one.
 <!-- source: internal/le/repo/featuretags/featuretags.go -- the four derived files -->
 <!-- source: internal/le/arch/tier/gates.go -- manifest read -->
 
+
+## Committed plugin source population
+
+`repoinventory.ReadCommitted` resolves HEAD once and retains its source blobs.
+Membership comes from the transitive import graph of `cmd/ze` under the Linux
+le context: `ze_le`, every manifest gate, `GOOS=linux`, `GOARCH=amd64`,
+`Compiler=gc`, and cgo disabled. Release and tool tags also participate in file
+selection. A Darwin host therefore does not lose Linux-only registration files.
+
+Registration metadata is read from reachable initialization declarations, not
+from every lexical `Registration` literal or from the reader process's registry.
+Initialization includes named and blank package-variable initializers and
+arguments evaluated before an immediate closure. Named init helpers, local and
+imported constants, string concatenation, slice references and append expressions
+retain their declaration identities. Family names also support returned slices
+and the bounded canonical-name projection used by FlowSpec. Engine functions
+identify their defining package; embedded YANG references identify their committed
+source rather than assuming the schema sits beside the engine.
+An expression the reader cannot resolve, an ambiguous schema source or changed
+registration metadata refuses the inventory instead of publishing a smaller
+host-dependent list. Source reads do not export or compile a checkout.
+<!-- source: internal/le/repo/inventory/source.go -- ReadCommitted, linuxContext, Snapshot.selectPackage -->
+<!-- source: internal/le/repo/inventory/expressions.go -- expression.text, expression.texts -->
+<!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.Plugins, registrations.metadata -->
+<!-- source: internal/le/repo/inventory/familyexpressions.go -- expression.familyName, expression.familyProjection -->
+
+Executable calls use one bounded normalized callee for parentheses and immutable
+declaration aliases, then dispatch its retained function or closure in the
+defining file and package. Arguments keep their caller scope. A function value
+merely passed or returned is not executed. Aliases of the registration APIs
+still refuse when their execution ownership is unsupported. An opaque callee
+or unresolved parameter, indexed, returned or import-shadowing receiver cannot
+inherit the standard-library boundary from a missing import lookup: a package
+selector must prove its lexical import binding. Unsupported owners refuse
+without publishing partial membership; this is not a general value interpreter.
+Following a callable initializer also requires an immutable binding: a reused
+short declaration is a write to its existing object, and an escaping address
+refuses rather than guessing which function a pointer write installs.
+<!-- source: internal/le/repo/inventory/callablealiases.go -- registrations.callableSource, expression.callableImport -->
+<!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
+<!-- source: internal/le/repo/inventory/mutations.go -- expression.callableImmutable, expression.writes -->
+
+Every admitted call evaluates its arguments once in the caller's scope before
+dispatch, including plugin and YANG registration calls. Initializers in fields
+outside the report still contribute their executed registrations; function
+literals passed as values remain unexecuted. Mutation checks follow both short
+declaration and `var` aliases by binding identity. A multi-result `var`
+initializer with unresolved alias ownership refuses rather than certifying it.
+<!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
+<!-- source: internal/le/repo/inventory/mutations.go -- refersTo -->
+
+Identifier receivers with retained concrete named types can enter directly
+declared value methods or explicit single-pointer methods. The receiver form
+must match the method declaration: no implicit addressing or value-method
+fallback is inferred. Types come from explicit declarations, immutable
+initializers, a retained constructor's single result signature, or a slice/array
+range element. Resolution preserves lexical and defining-package identity;
+same-spelled types in other scopes cannot supply a method. The actual method
+body is traversed with the caller's conditional status, so registration inside
+a range still refuses uncertain iteration. This proves method identity, not
+pointee immutability. Interface results, multiple pointer layers, promoted
+method sets, generics and unresolved aliases remain unsupported. Receiver
+bindings that were reassigned also refuse.
+This uses retained source only and does not resolve opaque standard-library values.
+<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.valueType, expression.concreteType -->
+
+An unavailable Go body still refuses unless retained target-selected assembly
+proves a narrow direct transfer to the existing standard-library boundary.
+The proof checks the complete entered body and selected-population symbol
+definitions and linkage directives; a Go import alias is not an assembler
+package identity. Unknown preprocessing, relevant remapping, ambiguous
+definitions and unsupported frame/ABI forms refuse. The three admitted header
+spellings, `textflag.h`, `funcdata.h` and `go_asm.h`, share one declared compiler
+language boundary. Any committed local shadow, including a tree or symlink,
+invalidates its include proof without reading a header payload. Assembly bytes
+and header-presence evidence stay separate
+from report paths and Go ASTs. Callback/interface execution without resolved
+ownership also refuses rather than publishing a subset.
+<!-- source: internal/le/repo/inventory/assembly.go -- Snapshot.certifyAssembly -->
+
+Local instruction macros in other bodies can contribute namespace evidence
+without being expanded or executed. Their complete logical definitions,
+including continued lines, must not emit definition words or directives;
+actual argument and prefix-hidden definition words also refuse. Literal
+definition headers must be free of local macro bindings, and the entered
+trampoline's literal instructions remain macro-free. These checks use the
+whole unit, including later definitions. Unknown preprocessing still refuses;
+namespace certification never certifies an arbitrary expanded instruction body.
+<!-- source: internal/le/repo/inventory/assemblymacros.go -- assemblyMacro, macroFreeTokens -->
+
+Balanced `#ifdef`/`#ifndef` blocks can contribute namespace evidence only when
+every arm preserves macro bindings and linker-visible definitions. All arms are
+inspected without choosing a predicate value; conditional definitions, binding
+changes and includes refuse. Function-local labels may differ. Every conditional
+marker in a complete entered body refuses, including empty and post-JMP blocks:
+a namespace certificate is not a conditional execution certificate.
+<!-- source: internal/le/repo/inventory/assemblyconditionals.go -- assemblyConditionals.accept -->
+<!-- source: internal/le/repo/inventory/assembly.go -- trampolineDestination -->
+
+Each assembly unit owns a fresh collision namespace seeded from the retained
+normalized target. Compiler headers, package-generated bindings and local
+definitions use the same redefinition check; fixed compiler flags remain
+distinct from local/generated expansion evidence. The generated header uses
+only that package's selected retained declarations: semantic constant kinds,
+eligible nongeneric struct fields and resolved aliases. Lexical type parameters
+cannot fall back to same-named package or predeclared types; an underlying shape
+that depends on a parameter refuses rather than assuming a substitution.
+Direct generic struct field names remain independent of field-type layouts.
+Emission order and
+duplicate names are preserved. Unknown membership refuses when the generated
+header is requested, not merely because another package has unsupported
+declarations. No layout computation, compiler invocation or ambient header read
+supplies this evidence.
+<!-- source: internal/le/repo/inventory/assemblyheaders.go -- assemblyHeaders, assemblyNamespace.bind -->
+<!-- source: internal/le/repo/inventory/assemblygenerated.go -- generatedAssemblyBindings -->
+
+
+
+The full report uses the same snapshot for family/capability ownership, all four
+family-support flags, schema registrations, RPC declarations, CI coverage and Go
+statistics. Reachable `config/yang.RegisterModule` calls contribute standalone
+schema modules as well as schemas carried by plugin registrations.
+<!-- source: internal/le/repo/inventory/collectactualfiles.go -- Snapshot.collect, Snapshot.collectFiles -->
+<!-- source: internal/le/repo/inventory/registrations.go -- registrations.registerModule -->
+
+
 ## The one invariant
 
 A feature is compile-out-able only when nothing always-on (untagged, non-test)
