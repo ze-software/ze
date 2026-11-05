@@ -32,7 +32,7 @@ import (
 // stated here rather than read from vmSuites: a test that derives its
 // expectation from the table under test agrees with any edit to it, including
 // the edit that puts firewall back in the transport's namespace.
-var perTestSuites = []string{"firewall", "policy", "ospf", "ospfv3"}
+var perTestSuites = []string{"firewall", "policy", "ospf", "ospfv3", "pppoe"}
 
 // The mapping itself. An edit that moves a suite between namespaces has to
 // change this line, which is the point.
@@ -108,7 +108,7 @@ func TestARoutedSuiteChildIsToldToEnterItsOwnNamespace(t *testing.T) {
 }
 
 // A suite that is NOT routed carries none of it. ze then runs as root in the
-// guest namespace, which is what every suite outside the four expects.
+// guest namespace, which is what every suite outside perTestSuites expects.
 func TestASuiteInTheGuestNamespaceIsToldNothingAboutNamespaces(t *testing.T) {
 	run := vmFixture(t)
 	rec := &recorder{}

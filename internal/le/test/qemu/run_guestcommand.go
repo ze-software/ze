@@ -197,7 +197,7 @@ func (r *Run) stopGuestCommand(ctx context.Context, report *RunReport, cause str
 func (r *Run) interruptGuest(ctx context.Context, plan *RunPlan) (string, error) {
 	bounded, stop := context.WithTimeout(context.WithoutCancel(ctx), guestInterruptTimeout)
 	defer stop()
-	args := append(r.sshOptions(plan.SSHPort), "-o", "ConnectTimeout=5", "root@"+forwardHost, guestInterruptRemote(guestCommandGroupFile))
+	args := append(r.guestSessionArgs(plan, "-o", "ConnectTimeout=5"), guestInterruptRemote(guestCommandGroupFile))
 	result, err := r.runCommand(bounded, commandSpec{
 		Name: sshProgram, Args: args, Env: r.ops.Environ(), Stdin: strings.NewReader(""), OwnGroup: true,
 	})

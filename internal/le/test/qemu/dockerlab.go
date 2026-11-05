@@ -4,15 +4,11 @@
 // Related: ../../setup/docker/host/actions.go -- EnsureImage, the image this boot runs
 // Related: ../../setup/docker/kernel/dockerkernel.go -- `setup docker kernel check`, run by the host le
 //
-// dockerlab.go is the one path the Mac (HVF, arm64) and the scheduled nightly
-// (KVM, amd64) share for a Docker lab that runs Ze (spec D-6): boot Ze's
-// docker-host image for the host's architecture, the same image the ze Colima
-// profile runs, with a cidata volume le writes; forward the guest's Docker
-// socket to a socket under the checkout's tmp/qemu; then the HOST le runs the
-// Docker kernel check and the lab against it through DOCKER_HOST. The guest
-// runs dockerd and nothing of le's. The checkout is shared over 9p at its own
-// absolute path, so a bind mount the host le names resolves in the guest
-// (spec R-7).
+// dockerlab.go is the shared own-system boot path for a Docker lab or one
+// unprivileged command. Both boot Ze's native docker-host image with cidata and
+// absolute 9p shares. The lab branch forwards Docker to the host le; the command
+// branch directly boots a matching explicit runtime kernel and starts no Docker
+// daemon. The cached image is always opened in snapshot mode.
 
 package testqemu
 
@@ -106,6 +102,8 @@ type dockerLabGuest struct {
 	// publicKey is the one authorized key, the run's own.
 	publicKey string
 	shares    []dockerLabShare
+	// command uses the host owner's UID and never starts Docker.
+	command bool
 	// bootPreparation is an optional, compiled-in preparation for this disposable
 	// proof VM. It runs before dockerd, never against an existing Docker host.
 	bootPreparation string
@@ -115,10 +113,14 @@ type dockerLabGuest struct {
 // user-data and boot.sh, the files dockerhost ParseCidata and BootScript read.
 func (g dockerLabGuest) cidataFiles() []cidataFile {
 	var limaEnv textbuf.Buffer
+	uid := dockerLabUID
+	if g.command {
+		uid = strconv.Itoa(os.Getuid())
+	}
 	limaEnv.Str("LIMA_CIDATA_IID=").Str(g.instanceID).Byte('\n').
 		Str("LIMA_CIDATA_NAME=").Str(dockerLabHostname).Byte('\n').
 		Str("LIMA_CIDATA_USER=").Str(dockerLabUser).Byte('\n').
-		Str("LIMA_CIDATA_UID=").Str(dockerLabUID).Byte('\n').
+		Str("LIMA_CIDATA_UID=").Str(uid).Byte('\n').
 		Str("LIMA_CIDATA_COMMENT=ze docker-lab\n").
 		Str("LIMA_CIDATA_HOME=").Str(dockerLabHome).Byte('\n').
 		Str("LIMA_CIDATA_SHELL=/bin/sh\n").
@@ -134,6 +136,9 @@ func (g dockerLabGuest) cidataFiles() []cidataFile {
 	user.Str("users:\n  - name: ").Str(strconv.Quote(dockerLabUser)).
 		Str("\n    ssh-authorized-keys:\n      - ").Str(strconv.Quote(g.publicKey)).Byte('\n')
 	bootScript := dockerLabBootScript
+	if g.command {
+		bootScript = "#!/bin/sh\nset -eu\ntouch /run/lima-boot-done\n"
+	}
 	if g.bootPreparation != "" {
 		bootScript = "#!/bin/sh\nset -eu\n" + g.bootPreparation + "\n" + bootScript
 	}
@@ -158,6 +163,9 @@ type dockerLabVM struct {
 	cpus     string
 	sshPort  int
 	shares   []dockerLabShare
+	// kernel and cmdline are supplied only by the checked command branch.
+	kernel  string
+	cmdline string
 }
 
 // argv answers QEMU's argv. The image is opened with snapshot=on, so the
@@ -189,6 +197,9 @@ func (vm dockerLabVM) argv() []string {
 		"-display", "none", "-monitor", "none", "-serial", "none",
 		"-device", "virtio-serial-pci", "-chardev", console, "-device", "virtconsole,chardev=console0",
 	)
+	if vm.kernel != "" {
+		argv = append(argv, "-kernel", vm.kernel, "-append", vm.cmdline)
+	}
 	for _, share := range vm.shares {
 		b.Reset()
 		export := b.Str("local,path=").Str(share.point).Str(",mount_tag=").Str(share.tag).
@@ -210,13 +221,15 @@ type dockerLabRequest struct {
 
 // DockerLabReport is what a docker-lab run answers.
 type DockerLabReport struct {
-	Image       string `json:"image"`
-	Accelerator string `json:"accelerator"`
-	Console     string `json:"console"`
-	CheckExit   int    `json:"check-exit"`
-	LabExit     int    `json:"lab-exit"`
-	Interrupted bool   `json:"interrupted"`
-	LeftBehind  string `json:"left-behind,omitempty"`
+	Image       string           `json:"image"`
+	Accelerator string           `json:"accelerator"`
+	Console     string           `json:"console"`
+	CheckExit   int              `json:"check-exit"`
+	LabExit     int              `json:"lab-exit"`
+	Interrupted bool             `json:"interrupted"`
+	LeftBehind  string           `json:"left-behind,omitempty"`
+	Kernel      *dockerLabKernel `json:"kernel,omitempty"`
+	CommandExit int              `json:"command-exit"`
 }
 
 // runDockerLabHere runs the verb over this checkout under its signal root, so
@@ -238,6 +251,10 @@ func runDockerLabHere(args leaction.Arguments) (any, int) {
 // runDockerLab is the verb over the checkout at root, under its signal root
 // ctx.
 func runDockerLab(ctx context.Context, root string, args leaction.Arguments, bootPreparation string) (any, int) {
+	if err := dockerLabMode(args); err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
 	goarch := GuestArch()
 	lab := strings.Fields(args.One(keywordLab))
 	environment, err := dockerLabEnvironment(args.One(keywordEnv), len(lab) > 0)
@@ -245,7 +262,11 @@ func runDockerLab(ctx context.Context, root string, args leaction.Arguments, boo
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	runArgs := leaction.Arguments{keywordCommand: {dockerLabCommandLine(root, lab, environment)}}
+	command := args.One(keywordCommand)
+	if command == "" {
+		command = dockerLabCommandLine(root, lab, environment)
+	}
+	runArgs := leaction.Arguments{keywordCommand: {command}}
 	if timeout := args.One(keywordTimeout); timeout != "" {
 		runArgs[keywordTimeout] = []string{timeout}
 	}
@@ -254,7 +275,11 @@ func runDockerLab(ctx context.Context, root string, args leaction.Arguments, boo
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	// A lab under TCG measures the emulator and times out; HVF or KVM or nothing.
+	if command := args.One(keywordCommand); command != "" {
+		options.Kernel = args.One(keywordKernel)
+		return runDockerLabCommand(ctx, root, goarch, options)
+	}
+	// Docker labs require hardware acceleration. TCG would measure the emulator.
 	options.HardwareOnly = true
 	image, err := setupdockerhost.EnsureImage(ctx, root, goarch)
 	if err != nil {
@@ -416,9 +441,11 @@ func (r *Run) dockerLabPrepare(ctx context.Context, image, bootPreparation strin
 	if err != nil {
 		return vm, "", fmt.Errorf("create the docker-lab directory under %s: %w", parent, err)
 	}
-	if socket := filepath.Join(dir, "docker.sock"); len(socket) > unixSocketPathMax {
-		return vm, dir, fmt.Errorf("the forwarded Docker socket %s is %d bytes, above the %d a unix socket path holds."+
-			" Fix: run from a checkout whose path is at least %d bytes shorter", socket, len(socket), unixSocketPathMax, len(socket)-unixSocketPathMax)
+	if r.Options.Kernel == "" {
+		if socket := filepath.Join(dir, "docker.sock"); len(socket) > unixSocketPathMax {
+			return vm, dir, fmt.Errorf("the forwarded Docker socket %s is %d bytes, above the %d a unix socket path holds."+
+				" Fix: run from a checkout whose path is at least %d bytes shorter", socket, len(socket), unixSocketPathMax, len(socket)-unixSocketPathMax)
+		}
 	}
 	key := filepath.Join(dir, "id_ed25519")
 	generated, err := r.runCommand(ctx, commandSpec{
@@ -440,13 +467,20 @@ func (r *Run) dockerLabPrepare(ctx context.Context, image, bootPreparation strin
 		instanceID: id.Str("docker-lab-").Int(int64(os.Getpid())).Byte('-').Int(r.ops.Now().Unix()).String(),
 		publicKey:  strings.TrimSpace(string(public)), shares: vm.shares,
 		bootPreparation: bootPreparation,
+		command:         r.Options.Kernel != "",
 	}
 	vm.cidata = filepath.Join(dir, "cidata.iso")
 	if err := writeCidataISO(vm.cidata, guest.cidataFiles()); err != nil {
 		return vm, dir, err
 	}
-	var b textbuf.Buffer
-	vm.console = filepath.Join(parent, b.Str("docker-lab-console-").Int(int64(vm.sshPort)).Str(".log").String())
+	console, err := r.ops.FS.CreateTemp(parent, "docker-lab-console-*.log")
+	if err != nil {
+		return vm, dir, fmt.Errorf("reserve the guest console under %s: %w", parent, err)
+	}
+	vm.console = console.Name()
+	if err := console.Close(); err != nil {
+		return vm, dir, fmt.Errorf("close the guest console reservation %s: %w", vm.console, err)
+	}
 	return vm, dir, nil
 }
 
@@ -618,6 +652,22 @@ func (s dockerLabSession) remote(ctx context.Context, command string, stdout io.
 // waitReady waits up to boot for the guest's sshd, then a bounded time for
 // its dockerd to answer.
 func (s dockerLabSession) waitReady(ctx context.Context, boot time.Duration) error {
+	if err := s.waitSSH(ctx, boot); err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stderr, "  guest up; waiting for dockerd...") //nolint:errcheck // progress output
+	result, err := s.remote(ctx, "timeout "+dockerReadySeconds+" sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done'", nil)
+	if err != nil {
+		return err
+	}
+	if result.Code != 0 {
+		return errors.New("the guest's dockerd did not answer within " + dockerReadySeconds + "s of sshd")
+	}
+	return nil
+}
+
+// waitSSH bounds the wait without requiring or starting a Docker daemon.
+func (s dockerLabSession) waitSSH(ctx context.Context, boot time.Duration) error {
 	deadline := s.run.ops.Now().Add(boot)
 	for {
 		result, err := s.remote(ctx, "true", nil)
@@ -633,14 +683,6 @@ func (s dockerLabSession) waitReady(ctx context.Context, boot time.Duration) err
 		if err := s.run.ops.Sleep(ctx, sshPollInterval); err != nil {
 			return err
 		}
-	}
-	fmt.Fprintln(os.Stderr, "  guest up; waiting for dockerd...") //nolint:errcheck // progress output
-	result, err := s.remote(ctx, "timeout "+dockerReadySeconds+" sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done'", nil)
-	if err != nil {
-		return err
-	}
-	if result.Code != 0 {
-		return errors.New("the guest's dockerd did not answer within " + dockerReadySeconds + "s of sshd")
 	}
 	return nil
 }

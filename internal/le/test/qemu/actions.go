@@ -177,16 +177,17 @@ var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    dockerLabVerb,
 		Does:    doesRun,
-		Summary: "run a Docker lab on the docker-host image in QEMU",
-		Why: "run a Docker lab against the dockerd of Ze's docker-host image booted under QEMU" +
-			" (HVF on macOS, KVM on Linux, never TCG; the image is built or taken from its cache):" +
-			" forward the guest's Docker socket, then this host's le runs the Docker kernel check" +
-			" and `le <lab>` through DOCKER_HOST, under `env` when given (IPSEC_INTEROP_SCENARIO=<name>" +
-			" selects one scenario). With no lab it stops after the check. A Ctrl-C reaches the lab's" +
-			" own teardown, then le lists what the guest still holds, then the VM stops",
+		Summary: "run a Docker lab or an own-system command on Ze's image",
+		Why: "boot Ze's docker-host image under HVF or KVM; command mode also permits TCG for correctness tests. With command," +
+			" require an explicit matching runtime kernel and run as the host owner's UID without Docker." +
+			" Otherwise require hardware acceleration, forward the guest's Docker socket, run the host Docker kernel check," +
+			" then `le <lab>` through DOCKER_HOST under env when given. With no lab stop after the check." +
+			" A Ctrl-C reaches the command's own teardown before the VM stops",
 		Parameters: []leaction.Parameter{
 			{Keyword: keywordLab, Kind: leaction.KindWords, Help: "the le command line of the Docker lab to run in the guest", Value: "le-words", Requirement: leaction.Optional},
 			{Keyword: keywordEnv, Kind: leaction.KindString, Help: "NAME=value pairs the lab runs with", Value: "NAME=value ...", Requirement: leaction.Optional},
+			{Keyword: keywordCommand, Kind: leaction.KindString, Help: "one unprivileged guest shell command; excludes lab", Value: "shell-command", Requirement: leaction.Optional},
+			{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "matching runtime vmlinuz; only with command", Value: "vmlinuz-path", Requirement: leaction.Optional},
 			{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runDockerLabHere,

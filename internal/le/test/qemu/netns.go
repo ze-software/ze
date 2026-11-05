@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/qemu-integration.md -- the per-test network namespace
 // Overview: netns_linux.go -- the netns launcher, one selected subset at a time
-// Related: alltests.go -- the whole-suite run that routes four suites the same way
+// Related: alltests.go -- the whole-suite run using the same namespace mode
 //
 // netns.go holds what the two callers of the per-test network namespace launch
 // mode share: where the capability-carrying binaries live, where the dropped
@@ -9,7 +9,7 @@
 // internal/test/runner/runner_exec_util.go).
 //
 // The constants are HERE rather than in netns_linux.go because `test qemu all`
-// compiles on darwin as well and routes four suites through the same mode. One
+// compiles on darwin as well and routes selected suites through the same mode. One
 // declaration, two callers: a capability set that differed between them would
 // mean the whole-suite run proves something the focused run does not.
 
@@ -100,12 +100,12 @@ func (n networkNamespace) String() string {
 }
 
 // verifyNamespaces refuses a suite that does not say which network namespace
-// its tests run in.
+// its tests run in. Resource checks apply to the selected suites only.
 //
 // The default is the one that cut the transport, so it is not a default. A row
 // added without a Namespace is a decision nobody made, and this is where it is
 // caught rather than an hour into a run.
-func (a *allTestsRun) verifyNamespaces() error {
+func (a *allTestsRun) verifyNamespaces(suites []vmSuite) error {
 	var silent []string
 	for _, suite := range vmSuites {
 		if suite.Namespace == namespaceUnspecified {
@@ -119,7 +119,7 @@ func (a *allTestsRun) verifyNamespaces() error {
 		return fmt.Errorf("%w: %s", ErrNamespaceUnspecified, strings.Join(silent, ", "))
 	}
 
-	if !a.usesPerTestNamespace() {
+	if !a.usesPerTestNamespace(suites) {
 		return nil
 	}
 	for _, command := range []string{setcapCommand, getcapCommand} {
@@ -134,13 +134,17 @@ func (a *allTestsRun) verifyNamespaces() error {
 	return nil
 }
 
-// usesPerTestNamespace reports whether this run will start a suite that needs
-// the per-test network namespace. A skipped suite needs nothing.
-func (a *allTestsRun) usesPerTestNamespace() bool {
-	for _, suite := range vmSuites {
-		if suite.Namespace == perTest && !slices.Contains(a.Skip, suite.Name) {
-			return true
+// usesPerTestNamespace reports whether a selected suite needs the per-test
+// network namespace. A skipped suite needs nothing.
+func (a *allTestsRun) usesPerTestNamespace(suites []vmSuite) bool {
+	for _, suite := range suites {
+		if suite.Namespace != perTest {
+			continue
 		}
+		if slices.Contains(a.Skip, suite.Name) {
+			continue
+		}
+		return true
 	}
 	return false
 }
@@ -152,8 +156,8 @@ func (a *allTestsRun) usesPerTestNamespace() bool {
 // It is the same preparation ./le test qemu netns performs
 // (prepareNetnsBinaries and prepareNetnsState, netns_linux.go). It runs as one
 // child so the run has one exit code to judge and one command line to report.
-func (a *allTestsRun) prepareNamespace(environ []string) error {
-	if !a.usesPerTestNamespace() {
+func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error {
+	if !a.usesPerTestNamespace(suites) {
 		return nil
 	}
 

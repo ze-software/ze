@@ -23,10 +23,12 @@ func TestOneTestRunsOnlyTheSuiteThatWalksItsDirectory(t *testing.T) {
 	}{
 		{test: "test/policy/policy-boot-apply.ci", wantWords: []string{"policy", "policy-boot-apply"}, wantCommand: 2},
 		{test: "test/plugin/show-mtu-host.ci", wantWords: []string{"bgp", "plugin", "show-mtu-host"}, wantCommand: 1},
+		{test: "test/pppoe/pppoe-basic.ci", wantWords: []string{"pppoe", "pppoe-basic"}, wantCommand: 2},
 	} {
 		t.Run(tc.test, func(t *testing.T) {
 			run := vmFixture(t)
 			run.Test = tc.test
+			writeFile(t, run.Workspace, tc.test, "cmd=foreground:seq=1:exec=ze doctor\n")
 			rec := &recorder{}
 			run.Run = rec.run
 

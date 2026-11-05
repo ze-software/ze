@@ -209,6 +209,11 @@ var vmSuites = []vmSuite{
 	},
 	{Name: guestL2TP, Args: []string{guestL2TP, allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
+		Name: "pppoe", Args: []string{"pppoe", allTests}, Concurrency: scaledConcurrency, Namespace: perTest,
+		Why: "its netns-link fixtures provision veth-bng and veth-sub and need NET_ADMIN and NET_RAW" +
+			" in a fresh namespace for each test",
+	},
+	{
 		Name: "firewall", Args: []string{"firewall", allTests}, Concurrency: serial, Namespace: perTest,
 		Why: "firewall-nat-exclude installs a nat prerouting chain, and in the guest root namespace" +
 			" that chain sits under the SSH transport carrying the run: the 2026-09-05 run died there" +
@@ -611,7 +616,7 @@ func (a *allTestsRun) Execute() (AllTestsReport, int) {
 	}
 	a.note(plan(report.Planned))
 
-	if err := a.prepareNamespace(environ); err != nil {
+	if err := a.prepareNamespace(environ, vmSuites); err != nil {
 		leaction.ReportError(err)
 		return report, 1
 	}
@@ -669,8 +674,10 @@ func (a *allTestsRun) verify() error {
 	if err := a.verifySuiteCoverage(); err != nil {
 		return err
 	}
-	if err := a.verifyNamespaces(); err != nil {
-		return err
+	if a.Test == "" {
+		if err := a.verifyNamespaces(vmSuites); err != nil {
+			return err
+		}
 	}
 	_, err := a.integrationArgs()
 	return err
@@ -830,8 +837,8 @@ func setEnv(environ []string, key, value string) []string {
 }
 
 // executeOne runs the one .ci at a.Test through the VM suite that walks its
-// directory, under the shim, environment and namespace preparation the whole
-// run gives that suite. The runner prints the test's own PASS or SKIP line,
+// directory, under the shim, environment and namespace preparation its resource
+// declarations require. The runner prints the test's own PASS or SKIP line,
 // which is what a caller reads: the exit code alone does not say the test ran.
 func (a *allTestsRun) executeOne(environ []string) (AllTestsReport, int) {
 	suite, err := vmSuiteFor(a.Test)
@@ -839,13 +846,26 @@ func (a *allTestsRun) executeOne(environ []string) (AllTestsReport, int) {
 		leaction.ReportError(err)
 		return AllTestsReport{}, 1
 	}
+	// A selected link fixture must not inherit the bulk suite's guest namespace.
+	selected, err := runner.ParseCIFile(a.workspacePath(a.Test))
+	if err != nil {
+		leaction.ReportError(fmt.Errorf("qemu: cannot read selected test %s: %w. "+
+			"Fix: correct the selected .ci file and repeat the command", a.Test, err))
+		return AllTestsReport{}, 1
+	}
+	if len(selected.NetnsLinks) > 0 {
+		suite.Namespace = perTest
+	}
+	scope := []vmSuite{suite}
 	report := AllTestsReport{Planned: []string{suitePhaseName(suite.Name)}, Test: a.Test}
+	if err := a.verifyNamespaces(scope); err != nil {
+		leaction.ReportError(err)
+		return report, 1
+	}
 	a.note(plan(report.Planned))
-	if suite.Namespace == perTest {
-		if err := a.prepareNamespace(environ); err != nil {
-			leaction.ReportError(err)
-			return report, 1
-		}
+	if err := a.prepareNamespace(environ, scope); err != nil {
+		leaction.ReportError(err)
+		return report, 1
 	}
 	report.add(a.suite(suite, environ))
 	if len(report.Failed) > 0 {

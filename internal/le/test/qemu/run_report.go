@@ -67,6 +67,9 @@ type RunPlan struct {
 	QEMUArgv              []string `json:"qemu-argv"`
 	BootstrapCommand      string   `json:"bootstrap-command"`
 	SetupCommand          string   `json:"setup-command"`
+	// commandSession selects the keyed, unprivileged own-system transport.
+	// Nil retains the Alpine root transport for existing callers.
+	commandSession *dockerLabSession
 }
 
 // RunReport is the structured answer from one VM.

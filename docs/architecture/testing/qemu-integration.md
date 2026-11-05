@@ -4,9 +4,11 @@ Ze runs on Linux (gokrazy appliances, Debian/Ubuntu servers). Code that uses
 Linux-only syscalls (termios, netlink, nftables, sysctl) needs a Linux guest on
 macOS and Docker Desktop. Platform proof requires **Ze's own kernel and system**.
 The legacy `test qemu run` route described below still boots Alpine userland;
-even with Ze's kernel, it does not establish own-system proof. Docker labs
-already use Ze's docker-host image through `test qemu docker-lab`; that route
-runs le on the host, not in the guest, and is not a guest-le bootstrap replacement.
+even with Ze's kernel, it does not establish own-system proof. The existing
+`test qemu docker-lab` route boots Ze's docker-host image. Its `lab` branch runs
+le on the host against the guest Docker daemon; its `command` branch runs
+an unprivileged command without Docker. See "One command in Ze's own system"
+for the native validation and its limits.
 
 ## Quick Start
 
@@ -76,7 +78,7 @@ Both entry points run one VM for the whole population, never one VM per test.
 | Command | Population |
 |---------|------------|
 | `./le test qemu netns suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases, the RFC 2545 next-hop replay case and the static-into-OSPF redistribution chain case |
-| `./le test qemu run ... command "./le test qemu all"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Four of the suites run in a per-test network namespace, which needs `packages "iproute2 libcap"` |
+| `./le test qemu run ... command "./le test qemu all"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Five of the suites run in a per-test network namespace, which needs `packages "iproute2 libcap"` |
 | `./le test qemu run ... command "./le test qemu all only needs-linux"` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
 | `./le test qemu run ... command "./le test qemu all test test/<dir>/<name>.ci"` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`), with the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` and `testqemu.OneCIPackages` |
 
@@ -104,7 +106,7 @@ precondition. Measured 2026-09-04 and 2026-09-05, seven guest boots to establish
 | `packages iproute2` | `ZE-OBSERVER-FAIL: ... ip: invalid argument 'replace' to 'ip'`. BusyBox `ip` has no `neigh replace`, so an observer that programs a neighbour dies in test setup, before any assertion |
 | The three daemon binaries, under canonical names | `qemu: bin/ze-stripped-flow is missing or not executable -- cross-compile it on the host first`. `./le test qemu guest-binaries` builds the whole set on the host into `tmp/qemu/linux-<arch>/bin` through `testfunctional.PrepareGuest`, the one list of what a guest needs, and answers the `ZE_BIN`, `ZE_STRIPPED_BIN` and `ZE_STRIPPED_FLOW_BIN` assignments the guest command passes (`GuestBinaryEnvironment`, `guestbin.go`). `shim()` copies them into the guest-local `/tmp/ze-qemu-bin` as `ze`, `ze-stripped` and `ze-stripped-flow`, copies `ze-fakefilter` from beside `ZE_BIN` (or links its path when it was not built), and links `le` to the running guest le (`guestLeLink`), because the tools dispatch on basename. The daemons are copied, not linked into the 9p share: the guest keeps no page cache for a 9p file nothing maps, so a linked `ze` paged its own text in over the share at every start, about 7300 major faults each, and on a loaded host that outlasted a 20s `.ci` budget before ze wrote anything (`copyIntoShim`, `alltests_shim.go`). Every shim copies again rather than reusing an earlier copy: size and modification time miss a daemon replaced through `cp -p` or `rsync -t`, and a content check would read the whole source over the share, which is what the copy costs. A hand-written build list in the nightly once left `ze-stripped-flow` out, and every run refused here before its first test |
 | The three binaries, STATICALLY linked | `qemu: bin/ze: is dynamically linked against /lib64/ld-linux-x86-64.so.2, which the musl guest does not have`, and nothing runs. `runnableInGuest` (`alltests.go`) reads each binary's PT_INTERP header before the first child. Until 2026-09-05 `verify()` only stat'd the file, and the same cause surfaced as 326 identical per-test failures (`start ze: fork/exec ... : no such file or directory`), because the kernel answers ENOENT for the LOADER while naming the BINARY. Build with `CGO_ENABLED=0`, which is what the native toolchain sets (`internal/le/go/toolchain`) |
-| `packages libcap` | `qemu: setcap is not on the guest PATH, so the per-test network namespace suites cannot hold their capabilities`. The four routed suites run ze as an ordinary user inside a fresh namespace, and `setcap` is what gives that user CAP_NET_ADMIN |
+| `packages libcap` | `qemu: setcap is not on the guest PATH, so the per-test network namespace suites cannot hold their capabilities`. The five routed suites run ze as an ordinary user inside a fresh namespace, and `setcap` is what gives that user CAP_NET_ADMIN |
 | The `bgp` verb before the suite | The `ze plugin` help text, and exit 1. `le test plugin <name>` names no suite; the suite form is `le test bgp <suite> <name>`, which is what `vmSuites` passes (`alltests.go`) |
 
 `le test qemu run` installs only `git curl musl-dev` beyond the base image
@@ -285,7 +287,7 @@ binary for source listings.
 <!-- source: internal/le/test/qemu/run.go -- RunOptions.HardwareOnly, acceleration, qemuArgs -->
 <!-- source: internal/le/test/qemu/hugepages.go -- accelerator, Hardware -->
 
-### Four suites do not run in the guest root namespace
+### Five suites do not run in the guest root namespace
 
 `test qemu all` runs inside an SSH session, and that session's transport lives in
 the guest ROOT network namespace. A suite that programs the firewall, the
@@ -303,7 +305,7 @@ none is refused before the run starts.
 | Namespace | Suites | What the child gets |
 |-----------|--------|---------------------|
 | `guest-root` | every other suite | the guest's own namespace, and ze as root |
-| `per-test` | `firewall`, `policy`, `ospf`, `ospfv3` | a fresh namespace for each test, entered by the `.ci` runner before it spawns anything, and ze as uid 1000 holding file capabilities |
+| `per-test` | `firewall`, `policy`, `ospf`, `ospfv3`, `pppoe` | a fresh namespace for each test, entered by the `.ci` runner before it spawns anything, and ze as uid 1000 holding file capabilities |
 
 The runner enters the namespace itself, once per test (`enterTestNetns`,
 `internal/test/runner/netns_linux.go`), and only when `ZE_TEST_NETNS` is set
@@ -315,9 +317,20 @@ dropped user a state directory to write in.
 Routing a suite also un-skips its `option=netns-link` tests. Outside this mode
 the runner SKIPS them (`applyNetnsLinkGate`, `internal/test/runner/caps.go`),
 so eight `test/ospf` and three `test/ospfv3` tests ran in no VM phase at all.
-The `plugin` suite stays in the guest root namespace under `test qemu all`; its
-ASPA `netns-link` cases are therefore skipped there. The separate
-`netns suites plugin` selection runs the seven ASPA validation and policy
+The `plugin` suite stays in the guest root namespace during whole-suite runs.
+Its ASPA `netns-link` cases are therefore skipped in that mode.
+<!-- source: internal/le/test/qemu/alltests.go -- vmSuites -->
+
+A one-CI selection uses the runner's CI parser. A declared `option=netns-link`
+moves only that selected test into a per-test namespace, with its tools checked
+and binaries prepared. An option inside an embedded file is not a declaration.
+A BPF requirement without a link keeps the guest root namespace.
+<!-- source: internal/le/test/qemu/alltests.go -- allTestsRun.executeOne -->
+<!-- source: internal/test/runner/record_parse.go -- ParseCIFile -->
+<!-- source: internal/le/test/qemu/netns.go -- allTestsRun.verifyNamespaces, allTestsRun.prepareNamespace -->
+<!-- test: internal/le/test/qemu/alltests_one_netns_test.go -- TestOnePluginSelectionUsesCanonicalNamespaceMetadata, TestOnePluginSelectionVerifiesItsOwnNamespaceTools -->
+
+The separate `netns suites plugin` selection runs the seven ASPA validation and policy
 cases with their declared `eth1` address, `10.0.0.254/24`. Their received
 NEXT_HOP, `10.0.0.1`, is then nonlocal, on-link and syntactically valid.
 The selection also includes `adj-rib-in-replay-rfc2545-next-hop`. That carrier
@@ -520,8 +533,9 @@ The guest is Ze's docker-host image for the host's architecture, the same image
 the `ze` Colima profile boots (`setupdockerhost.EnsureImage`: built, or taken
 from `~/.cache/ze/docker-host/<arch>/<key>/` when the inputs' key holds it,
 under the setup lock). No Alpine ISO or initramfs is read, no package is
-installed, and nothing of le's runs in the guest. The action demands HVF or KVM,
-because a lab under TCG measures the emulator. It then:
+installed. In the Docker lab branch nothing of le's runs in the guest.
+The action demands HVF or KVM, because a lab under TCG measures the emulator.
+The Docker lab branch then:
 
 1. cross-builds the linux `ze` the kernel check probes with
    (`tmp/qemu/linux-<arch>/ze`, daemon feature tags, through job admission);
@@ -551,7 +565,8 @@ because a lab under TCG measures the emulator. It then:
    cached image is never written and every run starts from the built state,
    then the cidata volume as the last virtio disk; arm64 boots the edk2 UEFI
    firmware, amd64 SeaBIOS. The guest's console (`hvc0`) is written to
-   `tmp/qemu/docker-lab-console-<port>.log`; its first program line is
+   a uniquely reserved `tmp/qemu/docker-lab-console-<random>.log`, so a later
+   run reusing the SSH port cannot truncate an earlier console; its first program line is
    `ze-docker-host: kernel ` and `/proc/version`;
 5. waits for the guest's sshd as `ze` on the forwarded port, up to the boot
    timeout, then at most 120 seconds for `docker info` in the guest. When
@@ -610,6 +625,61 @@ With no `lab` the run stops after the check, which is what
 prove the image boots, its Docker answers over the forwarded socket and the
 kernel passes.
 <!-- source: internal/le/test/qemu/dockerlab.go -- dockerLabEnvironment -->
+
+### One command in Ze's own system
+
+**Validation status, 2026-11-05:** a native run of
+`TestDockerLabCommandRunsInZeSystem` booted Ze's image with runtime kernel
+7.3.0-ze, checked PID 1 and the squashfs root, and read and wrote exact private
+scratch bytes as the checkout owner's ordinary UID. This proves the command
+carrier. It does not establish the fixtures' runtime results or an RFC proof.
+
+```text
+./le test qemu docker-lab kernel "<runtime-tree>/vmlinuz" command "uname -r" timeout 120s
+```
+
+`command` and `lab` are mutually exclusive. A command requires an explicit
+kernel matching the immutable runtime kernel tree resolved for the image:
+arbitrary custom kernels and unknown module sets are refused. le compares the
+requested bytes with that tree and with the image's boot kernel, then directly
+boots the supplied path with `-kernel`. The image's own FAT boot command line
+supplies its root PARTUUID; le does not guess a `/dev/vda2` root or silently boot
+the embedded kernel instead. The report records requested and selected kernel
+paths, the SHA256 identity and the module release. Before execution, le checks
+the release, `/gokrazy/init` as PID 1, a squashfs root, runtime modules, and no
+Docker socket. A refusal names the failed check and includes its output.
+The PID 1 executable probe uses `sudo -n readlink /proc/1/exe`: PID 1 belongs
+to root, so procfs's ptrace credential check refuses its executable link to
+the ordinary cidata user. SSH and the requested command still run as `ze`;
+only that identity primitive uses sudo, and its exact expected value remains
+`/gokrazy/init`.
+<!-- source: internal/le/test/qemu/dockerlab_command.go -- Run.dockerLabCommand -->
+<!-- test: internal/le/test/qemu/dockerlab_identity_test.go -- TestDockerLabCommandNamesTheFailedIdentity -->
+<!-- test: internal/le/test/qemu/dockerlab_identity_test.go -- TestDockerLabCommandReadsRootPID1ThroughSudo -->
+
+The command branch permits TCG when hardware acceleration is unavailable.
+Use it for correctness tests only. Docker labs still require HVF or KVM.
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
+<!-- source: internal/le/test/qemu/run.go -- Run.acceleration -->
+
+This branch reuses the image cache, per-run SSH key, snapshot disk and absolute
+checkout, tmp and cache mounts. The cidata user `ze` has the host owner's UID,
+so mode-0600 scratch can be read and written without sudo or a permissions
+change. Normal Docker labs keep UID1001. Command boot starts neither containerd
+nor dockerd, forwards no Docker socket, performs no Docker kernel check and
+does not build a Linux `ze` just for such a check. No package manager or guest
+Go build is provided: host-built binaries can be copied to the guest user's
+writable home and executed there.
+
+The guest command receives the existing LABEL-only job-parent stand-in, not the
+host registry's PID-bearing entry. Its process group receives SIGINT on timeout
+or host interruption; le waits for the command's own teardown, then joins its
+SSH session before stopping the VM. The command's exit status is the action's
+verdict. A successful boot alone is not a successful command or an RFC proof.
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab, dockerLabGuest.cidataFiles, dockerLabVM.argv -->
+<!-- source: internal/le/test/qemu/dockerlab_command.go -- Run.dockerLabCommand, dockerLabCommandKernel, dockerLabImageBoot -->
+<!-- test: internal/le/test/qemu/dockerlab_command_integration_test.go TestDockerLabCommandRunsInZeSystem -->
+<!-- test: internal/le/test/qemu/dockerlab_command_test.go TestDockerLabCommandRefusesIncompatibleModes, TestDockerLabCommandKernelRejectsDifferentBytes, TestDockerLabCommandKernelRefusesUnknownModules, TestDockerLabCommandRefusesMismatchedImage, TestDockerLabCommandUsesImageRootIdentity, TestDockerLabCommandCidataUsesOwnerWithoutDocker, TestDockerLabCommandTransportKeepsUnprivilegedInterrupt -->
 
 ### VPN facilities without module loading
 

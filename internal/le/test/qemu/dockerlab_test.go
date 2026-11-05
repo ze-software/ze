@@ -122,7 +122,7 @@ func TestDockerLabHostLeTargetsTheForwardedSocket(t *testing.T) {
 }
 
 // VALIDATES: the action is registered with its keywords, so `./le test qemu`
-// lists it and the grammar accepts `lab`, `env` and `timeout`.
+// lists it and the grammar accepts lab, env, command, kernel and timeout.
 func TestDockerLabActionIsRegistered(t *testing.T) {
 	for _, action := range Actions().Actions {
 		if action.Verb != dockerLabVerb {
@@ -132,7 +132,7 @@ func TestDockerLabActionIsRegistered(t *testing.T) {
 		for _, parameter := range action.Parameters {
 			keywords[parameter.Keyword] = true
 		}
-		for _, want := range []string{keywordLab, keywordEnv, keywordTimeout} {
+		for _, want := range []string{keywordLab, keywordEnv, keywordCommand, keywordKernel, keywordTimeout} {
 			if !keywords[want] {
 				t.Errorf("%s does not take %q", dockerLabVerb, want)
 			}
@@ -445,4 +445,109 @@ func qemuLogWritten(pattern string) bool {
 	}
 	data, err := os.ReadFile(logs[0]) //nolint:gosec // the run's own file
 	return err == nil && len(data) > 0
+}
+
+// TestDockerLabPrepareOwnsItsConsole proves two preparations using the same
+// reserved SSH port own different console files, without starting a VM.
+// METHOD: call the actual constructor over osRunFS twice, write distinct
+// console bytes through each returned path, and compare filesystem identities.
+// PREVENTS: a later run reusing, replacing or truncating an earlier console.
+func TestDockerLabPrepareOwnsItsConsole(t *testing.T) {
+	run, _, _ := fakeDockerLabRun(t)
+	port, held := reservedReleasedLoopbackPort(t)
+	t.Cleanup(held.Release)
+	run.Options.SSHPort = port
+	run.ops.FS = osRunFS{}
+
+	// Only prerequisite lookup and key generation are stubbed. Console names
+	// and every filesystem operation still come from the actual constructor.
+	run.ops.Look = func(name string) (string, error) {
+		if name == runQEMUBinary("amd64") {
+			return name, nil
+		}
+		if name == "ssh-keygen" {
+			return name, nil
+		}
+		return "", errors.New("unexpected constructor prerequisite: " + name)
+	}
+	keygen := run.ops.Run
+	run.ops.Run = func(ctx context.Context, spec commandSpec) (commandResult, error) {
+		if spec.Name != "ssh-keygen" {
+			t.Errorf("constructor attempted unexpected command %q", spec.Name)
+			return commandResult{}, errors.New("only fixture ssh-keygen is permitted")
+		}
+		return keygen(ctx, spec)
+	}
+	run.ops.Start = func(command *exec.Cmd) error {
+		t.Errorf("constructor attempted to start a child: %s", command.Path)
+		return errors.New("console ownership test must not start a child")
+	}
+
+	first, _, err := run.dockerLabPrepare(t.Context(), "/img", "")
+	if err != nil {
+		t.Fatalf("first dockerLabPrepare: %v", err)
+	}
+	if _, err := os.Stat(first.console); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("stat first console reservation: %v", err)
+		}
+		t.Errorf("first constructor did not reserve an actual console file: %v", err)
+	}
+
+	// The old constructor only chooses a path. This is a realistic writer,
+	// not a mocked reservation: create the old path or open the fixed
+	// constructor's existing reservation before requesting another console.
+	const sentinel = "first guest console: preserve these diagnostic bytes\n"
+	if err := os.WriteFile(first.console, []byte(sentinel), 0o600); err != nil {
+		t.Fatalf("write the first console: %v", err)
+	}
+	firstInfo, err := os.Stat(first.console)
+	if err != nil {
+		t.Fatalf("capture the first console identity: %v", err)
+	}
+	if mode := firstInfo.Mode().Perm(); mode != 0o600 {
+		t.Errorf("first console permissions = %04o, want 0600", mode)
+	}
+
+	second, _, err := run.dockerLabPrepare(t.Context(), "/img", "")
+	if err != nil {
+		t.Fatalf("second dockerLabPrepare: %v", err)
+	}
+	secondInfo, err := os.Stat(second.console)
+	if err != nil {
+		t.Fatalf("second constructor did not reserve an actual console file: %v", err)
+	}
+
+	// Exercise the second real consumer even when the returned paths alias.
+	// On the old constructor this truncates the first run's sentinel.
+	const secondSentinel = "second guest console: distinct diagnostic bytes\n"
+	if err := os.WriteFile(second.console, []byte(secondSentinel), 0o600); err != nil {
+		t.Fatalf("write the second console: %v", err)
+	}
+	firstAfter, err := os.Stat(first.console)
+	if err != nil {
+		t.Fatalf("first console no longer exists after the second constructor: %v", err)
+	}
+	if first.console == second.console {
+		t.Errorf("both preparations returned the same console path: %s", first.console)
+	}
+	if os.SameFile(firstInfo, secondInfo) {
+		t.Error("both preparations reserved the same console inode")
+	}
+	if !os.SameFile(firstInfo, firstAfter) {
+		t.Error("the second preparation replaced the first console inode")
+	}
+	if firstAfter.Mode() != firstInfo.Mode() {
+		t.Errorf("first console mode changed from %v to %v", firstInfo.Mode(), firstAfter.Mode())
+	}
+	if mode := secondInfo.Mode().Perm(); mode != 0o600 {
+		t.Errorf("second console permissions = %04o, want 0600", mode)
+	}
+	data, err := os.ReadFile(first.console)
+	if err != nil {
+		t.Fatalf("read the first console after the second constructor: %v", err)
+	}
+	if string(data) != sentinel {
+		t.Errorf("second console writer changed the first console bytes: got %q, want %q", data, sentinel)
+	}
 }

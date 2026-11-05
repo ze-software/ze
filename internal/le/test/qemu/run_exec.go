@@ -320,7 +320,7 @@ func (r *Run) sshRun(ctx context.Context, plan *RunPlan, remote string, timeout 
 // client leads its own process group (commandSpec.OwnGroup), so a Ctrl-C at
 // the terminal reaches le alone and ctx decides when the session ends.
 func (r *Run) sshSession(ctx context.Context, plan *RunPlan, remote string, stream bool) (int, error) {
-	args := append(r.sshOptions(plan.SSHPort), "-o", "ServerAliveInterval=30", "root@"+forwardHost, remote)
+	args := append(r.guestSessionArgs(plan, "-o", "ServerAliveInterval=30"), remote)
 	spec := commandSpec{Name: sshProgram, Args: args, Env: r.ops.Environ(), OwnGroup: true}
 	if stream {
 		spec.Stdout = os.Stdout
