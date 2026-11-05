@@ -2,7 +2,7 @@
 
 ## Goal and owner instructions
 
-Finish `plan/post-release/engineering/spec-filter-wire-0-umbrella.md`, including its Review Gate and formal closure. **The umbrella is not closed.**
+Finish `spec-filter-wire-0-umbrella`, including its Review Gate and formal closure. **The umbrella is not closed.**
 
 The owner stopped this session and requested this handover. Do not resume the implementation merely to finish this document. The owner explicitly objected to hours without visible progress: the next session should publish independently verified fixes promptly rather than hold them behind an expanding audit.
 

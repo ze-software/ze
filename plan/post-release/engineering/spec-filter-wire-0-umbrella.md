@@ -7,19 +7,33 @@
 | Release reason | Complete the promised filter-wire proofs and fix the current defect they exposed: a forked bgp-filter-irr program did not request the policy root, lost the configured IRR server/settings, and rejected authorized announcements. |
 | Depends | Route-policy phases 1-3, landed (490618ef43). This builds on their library in `internal/component/policy/`: `policy.CompileRouteChain`, `policy.RouteChain` and `policy.CheckChain`; the field registry, `policy.MustRegisterField` with a `policy.RouteView` (`Read`, `Written`); `policy.MustRegisterRouteAttachment`; and `ribpolicy.Route` and `ribpolicy.Sets` (`internal/core/rib/policy`) |
 | Phase | 5/5 |
-| Updated | 2026-11-04 |
+| Updated | 2026-11-05 |
 
 ## Blocker
 
-`/ze-close` resumed on 2026-11-04 (second attempt) and handed back before the
-Review Gate. Every row of the earlier table below is cleared (A-6 confirmed on
-the owner's Mac). What blocks closure now:
+`/ze-close` reached the native owner-authorization boundary. Implementation,
+source review, runtime proofs and owned gate repairs are complete; RFC proof
+renewals are committed as `da5a885294` and documentation repairs as `0a24e5afd4`.
+The actual hash-pinned review record attempt (1123 live blobs and modes, 60
+removals, six recorded rounds) exited 2: `review_gate: 6 review rounds needs
+Thomas's authorization; a session must not authorize itself`. No native CLEAN
+artifact was recorded. The remaining closure work is Thomas's explicit terminal
+authorization of those six rounds, the native record/check, then commits A and
+B and claim release. Resume from the prepared population; this boundary calls
+for neither another review round nor repeated tests. Final citation checking
+passed after the two dangling prose references were repaired; the handback
+preserves those repairs and this completed evidence.
 
 | # | Blocks | Producer | What clears it |
 |---|--------|----------|----------------|
-| 1 | Commit B leaves a dangling citation: `plan/post-release/features/spec-route-policy-0-umbrella.md` cites this spec's full path on lines 10, 11 and 458 | The pre-write hook (`./le ai hooks pretool-writeedit`, `internal/le/hookruntime/writeedit.go`) refuses any edit of that spec: it is `in-progress` with no `## Existing Mechanisms` section, and its paths need ten doors read | The main thread decides between (a) adding that spec's Existing Mechanisms section, then rewriting the three citations to the bare stem `spec-filter-wire-0-umbrella`, or (b) one `plan/.citation-baseline` entry for this path as a historical record (the skill both allows the move and bans baseline edits at closure) |
-| 2 | The open 2026-11-02 row of `plan/journal/second-logger-detaches-runtime-level.md` (forked BGP plugin logger ignores the dotted `ze.log.<subsystem>` key) needs a living owner | The fitting owner, `plan/release/fixes/spec-daemon-runtime-one-off-defects.md` (already owns the class's 2026-10-28 row), is `design` with no `## Existing Mechanisms` section, so the same hook refuses its owned-rows edit | Add that spec's Existing Mechanisms section (or name another owner), then add the row to its Owned journal rows table |
-| 3 | Review Gate not yet run over the whole spec work | 365 commits carry `Spec-work: filter-wire-0-umbrella`; this attempt reviewed only the post-handback commits (8869b196d2, d4539a9be2, f0b04c1428, 11e37bd142) and its own fixes, with no BLOCKER or ISSUE found | A closing agent runs `/ze-review` over the agreed population and records it with `./le spec review record` |
+| 1 | (cleared, fa8f2b00c2) Commit B left a dangling citation in `spec-route-policy-0-umbrella` | -- | That spec now cites this one by bare stem; D-12 and D-13 live in `plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture" (be8895df75) |
+| 2 | (cleared, fa8f2b00c2) The open 2026-11-02 row of `plan/journal/second-logger-detaches-runtime-level.md` needed a living owner | -- | `spec-daemon-runtime-one-off-defects` owns it; the row left this spec's Owned journal rows table |
+| 3 | Native review recording refused the six-round lineage without Thomas's authorization; all bounded product findings are resolved under option B | `internal/le/spec/review.go::recordReview` enforces the round cap; `internal/le/spec/review_authorization.go::requireOwnerReviewTerminal` requires real terminal authorization when owner words are supplied. The option-B population and conservative six-round lineage are retained in `tmp/session/2026-11-04-230539/scratch/fw-final-round-lineage.md` and `fw-native-review-argv.json`. | Thomas explicitly authorizes the six recorded rounds through the actual terminal. Resume the exact prepared native record/check and commits A+B, without resetting the count, manufacturing owner words, repeating the historical audit or rerunning completed tests. |
+
+The pinned A-6 bench file `test/perf/filter-a6/textera_bench_test.go.txt`
+cites this spec's path and cannot be edited; `citation.Excluded`
+(`internal/le/doc/citation/policed.go`) names it as a record since
+801424a35c, so commit B leaves no dangling link.
 
 The full-disk 2026-11-02 row needs no rehoming:
 `plan/post-release/engineering/spec-le-cache-trim-spares-running-builds.md`
@@ -103,7 +117,8 @@ The independent scoped static reports
 `fw-proof-review-round3-report.md` and `fw-proof-review-round4-fix-report.md`
 remain under `tmp/session/2026-11-01-174538/scratch/`. Their findings and
 subsequent scoped fixes, and the separately recorded test judgments, do not
-constitute a CLEAN closure Review Gate. This spec remains open for A-6;
+constitute a CLEAN closure Review Gate. A-6 is now confirmed; this spec remains
+open for the final native gates and closure publication;
 neither owned journal row is rehomed before closure.
 
 
@@ -116,12 +131,18 @@ stay owned by this spec while it is open, and its closure rehomes them.
 
 ## Read this first
 
-The design was **ready** at c032f72335 (2026-10-31). The implementation and
-reachable proof work are now recorded; the spec remains **blocked** only on
-A-6's text-era comparison and missing current-run provenance, not on absent
-tests or unpromoted files.
-Historical design approval and the scoped proof reviews are not the closure
-Review Gate. The owner answered R-12 on 2026-10-31, recorded in revised D-6.
+The design was **ready** at c032f72335 (2026-10-31). Implementation and
+the promised unit, daemon, load, discrimination and owner Mac evidence are
+recorded below. Closure is **in progress**: independent review has found
+additional producer defects, which are repaired and reviewed separately before
+the final whole-population gate. A-6 is not waiting for another performance run.
+Historical design approval and scoped proof reviews do not replace that gate.
+The owner answered R-12 on 2026-10-31, recorded in revised D-6.
+
+The owner decisions and descriptions of “HEAD” in the design narrative below
+record the 2026-10-31 baseline. They explain the cutover, not a claim that the
+removed text-era APIs still exist. The closure audit records the implemented
+producers and their evidence.
 
 **D-6 was revised by the owner on 2026-10-31 (R-12, revised).** The policy
 library holds mechanism only: chains, the field vocabulary, the `match` and
@@ -807,7 +828,7 @@ requirement each row proves.
 | `TestBGPMatchASPathParity`, `TestBGPMatchASPathLengthParity`, `TestBGPMatchCommunityParity`, `TestBGPMatchRejectASNParity`, `TestBGPMatchPrefixListParity` | `internal/component/bgp/plugins/{filter_aspath,filter_aspath_length,filter_community_match,filter_path_asn,filter_prefix}/bgp_condition_test.go` respectively | AC-30: each package's captured condition verdicts; prefix MP/withdrawal cases retained; `filter_prefix/rfc8955_flowspec_test.go` retains its RFC-tagged destination cases unchanged | All five parity tests PASS: main-thread `job-fw-proof-contracts-a793e314.log`; RFC-tagged assertions untouched |
 | `TestPrefixListConditionMatchesLocRIB` | `internal/component/bgp/plugins/filter_prefix/condition_locrib_parity_test.go` | AC-30: prefix-list condition and Loc-RIB evaluator share exact decisions across seven family/subnet/ge/le boundaries, checked against independent expectations | PASS: main-thread `job-fw-proof-unit-a4173714.log` |
 | `TestMatchConditionRegisteredOutside`, `TestMatchConditionRegistrationRefusals`, `TestMatchEvaluationAllocatesNothing` | `internal/component/policy/match_registry_test.go` | AC-38: external-package registration, compile, field/source check, execution, duplicate registration refusal and zero allocations; registration at package init, never per-test mutation needing restoration | All three PASS: main-thread `job-fw-proof-unit-a4173714.log` |
-| `TestUpstreamSetDerivedFromRoles`, `TestUpstreamCheckRejectsPathThroughProvider`, `TestUpstreamConfigReloadSwapsSet` | `internal/component/bgp/plugins/role/upstream_test.go` | AC-40/R-16 replacement under owner-approved child D-16: provider set, path decisions and atomic reload; insertion exercised by `internal/component/bgp/config/filter_insertion_test.go` `TestInsertionFollowsPeerConfig` and `test/reload/role-upstream-check.ci` | Upstream three and config insertion PASS: `job-fw-proof-unit-a4173714.log`. Inherited reload proof PASS on 2026-11-03 at CI checkout 1a2ccaeef8c0da4dc9f3747ce70f4aeecb84ddfa: `tmp/session/2026-11-01-174538/scratch/ci-41685742426-shard1.log:7169` (checkout SHA at line 200). The test and `role/upstream.go` are unchanged against that revision; its dynamic-peer/show-policy-test/reload stages are inherited coverage, not one of this session's nine promoted proofs |
+| `TestUpstreamSetDerivedFromRoles`, `TestUpstreamCheckRejectsPathThroughProvider`, `TestUpstreamConfigReloadSwapsSet` | `internal/component/bgp/plugins/role/upstream_test.go` | AC-40/R-16 replacement under owner-approved child D-16: provider set, path decisions and atomic reload; insertion exercised by `internal/component/bgp/config/filter_insertion_test.go` `TestInsertionFollowsPeerConfig` and `test/reload/role-upstream-check.ci` | Upstream three and config insertion PASS: `job-fw-proof-unit-a4173714.log`. Inherited reload proof PASS on 2026-11-03 at CI checkout 1a2ccaeef8c0da4dc9f3747ce70f4aeecb84ddfa: `tmp/session/2026-11-01-174538/scratch/ci-41685742426-shard1.log` (PASS at line 7169; checkout SHA at line 200). The test and `role/upstream.go` are unchanged against that revision; its dynamic-peer/show-policy-test/reload stages are inherited coverage, not one of this session's nine promoted proofs |
 | `TestFilterMessageDeclaredFieldsOnly` | `internal/component/bgp/reactor/filter_message_test.go` | AC-2, AC-3 | PASS: main-thread `job-fw-proof-contracts-a793e314.log` |
 | `TestDeclaredRawReachesEveryNonCIDRFamily` | `internal/component/bgp/reactor/filter_raw_families_test.go` | A-8: every registered standard non-CIDR family reaches a declared raw filter without implicit prefix decoding; both MP sections, both verdicts | Named test and all cases PASS: `job-fw-proof-reactor-292513d4.log` |
 | `TestExternalIntentsBytesEqualInProcess`, `TestLibraryNLRIDropMatchesTextSubset`, `TestLibraryASPathIntentsMatchText` | `internal/component/bgp/reactor/filter_library_external_intents_test.go`, `filter_library_intents_test.go` (last two) | AC-7: external/in-process equivalence composed with independent text-era whole-body goldens for AS-path intents and mixed IPv4/IPv6 NLRI subsets | All three PASS: main-thread `job-fw-proof-reactor-292513d4.log` |
@@ -979,7 +1000,7 @@ and `loop-originator-id.ci` under `test/plugin/`.
 |----------|-----------|-------------|----------------|--------|
 | `bgp-policy-final-frr`, `bgp-policy-import-export-frr`, `bgp-policy-modify-mp-frr` | `test/interop/scenarios/` | FRR | AC-10: chain decisions and modified attributes, MP included, accepted by a real peer | All three GREEN after phase 5 at 8c7196ea9e (`fwi-green-<name>.log`). Break `sets` (`reactor/filter_library.go` `runLibraryChain` never calls `chain.Apply`): `bgp-policy-final-frr` RED at assertion 3 ("FRR 10.73.1.0/24: valid=true MED=0 ... want true, 77"), `bgp-policy-import-export-frr` RED at assertion 5 (BIRD wait timed out). Break `prefix` (`filter_prefix/condition.go` `compileBGPCondition` always true): `bgp-policy-import-export-frr` RED at assertion 6 ("peer output unexpectedly contains 10.39.2.0/24"). Logs `fwi-red-sets-*.log`, `fwi-red-prefix2-*.log`, summary `fwi-red-summary.txt`. `bgp-policy-modify-mp-frr`: break `mpreach` (`reactor/filter_library.go` `libraryNLRIOps`: `if len(drops) == 0 || section == sectionMPReach`, so the prefix-list's MP_REACH_NLRI drops are never applied) RED at assertion 5 ("peer output unexpectedly contains 2001:db8:dead::/48", the refused IPv6 prefix FRR now holds), then GREEN clean; logs `p5r-brk-mpreach-bgp-policy-modify-mp-frr.log`, `p5r-clean-mpreach-bgp-policy-modify-mp-frr.log`, summary `p5r-summary.txt` |
 | `bgp-remove-private-as-frr`, `bgp-remove-private-as-as4path-frr`, `as-path-prepend-two-octet-peer` | `test/interop/scenarios/` | FRR | AC-7 intents on the wire | All three GREEN. Break `intents` (`filter_library.go` line 208, the `libraryASPathOps` call skipped): `as-path-prepend-two-octet-peer` RED at assertion 3 (FRR output wait timed out, `fwi-red-intents-as-path-prepend-two-octet-peer.log`). `bgp-remove-private-as-frr` stayed green under the break with the old regex checker (vacuous); after d7bfd9841a (`requireASAbsent` decodes FRR's segment list) it is RED at assertion 5 ("route 10.99.0.0/24 AS_PATH contains AS 64512", `asabs-brk-intents-bgp-remove-private-as-frr.log`) and GREEN clean (`asabs-clean2-bgp-remove-private-as-frr.log`). `bgp-remove-private-as-as4path-frr`: red on assertion 2 at 8c7196ea9e (OPEN Bad Peer AS, a Ze OPEN defect, not the filter wire), fixed by 2c7cbdc16a and 47647de784 with the asn4 OPEN work; then GREEN clean (`p5f-as4-clean1.log`), RED under `intents` at assertion 5 ("route 10.99.1.0/24 AS_PATH contains AS 4200000000", `p5f-as4-brk.log`), GREEN clean again (`p5f-as4-clean2.log`) |
-| `bgp-path-asn-leak-frr`, `bgp-med-increment-gobgp`, `bgp-med-remove-configured-gobgp`, `bgp-attribute-default-localpref-gobgp` | `test/interop/scenarios/` | FRR, GoBGP | AC-10 for `filter_path_asn` and `filter_modify` | All four GREEN at 8c7196ea9e (`fwi-green-<name>.log`). `bgp-med-remove-configured-gobgp`: RFC4271-5.1.4-4 positive recorded on the carrier `check_rfc.go::checkMEDRemovalConfiguration` by `./le rfc record` (route mutant `removeMED`: `sets.RemoveMED()` replaced by `_ = sets`), cc6089ccae, report `fwi-rfc4271-5.1.4-4-handwritten.json`; the hand-written mutant still owes a ze-test-judge reading. The other three carry a recorded red under a Go overlay break of their producer (overlays `fwi-brk/<break>/`, each differing from the tree only at the break line; the four producers' sha256 equal before and after, `fwi-brk/p5r-sha-before.txt`), summary `p5r-summary.txt`. `bgp-path-asn-leak-frr`: break `pathasn` (`filter_path_asn/condition.go` `conditionCheck`: the listed-ASN hit `ok && found.at < 0`, so a listed ASN never rejects) RED at assertion 5 ("peer output unexpectedly contains 10.71.2.0/24", the leaked route reached BIRD), then GREEN clean (`p5r-brk-pathasn-*.log`, `p5r-clean-pathasn-*.log`). `bgp-med-increment-gobgp`: break `medinc` (`policychain/chain.go` `overlayNumeric`: the MED set resolved from `0, false` instead of the route's metric) RED at assertion 5 ("GoBGP decoded Med 50 for 10.63.0.0/24, want 150"), then GREEN clean (`p5r-brk-medinc-*.log`, `p5r-clean-medinc-*.log`). `bgp-attribute-default-localpref-gobgp`: break `lpbase` (`bgp/config/library_chains.go` `parseAttributeBases`: `LocalPreference: lp - lp + 100`, the configured base never reaches the chain) RED at assertion 5 ("GoBGP decoded LocalPref 150 for 10.64.0.0/24, want 130"), then GREEN clean (`p5r-brk-lpbase-*.log`, `p5r-clean2-lpbase-*.log`; the first clean run did not build, another session's in-progress `l2tp/pppoe/config.go`) |
+| `bgp-path-asn-leak-frr`, `bgp-med-increment-gobgp`, `bgp-med-remove-configured-gobgp`, `bgp-attribute-default-localpref-gobgp` | `test/interop/scenarios/` | FRR, GoBGP | AC-10 for `filter_path_asn` and `filter_modify` | All four GREEN at 8c7196ea9e (`fwi-green-<name>.log`). `bgp-med-remove-configured-gobgp`: RFC4271-5.1.4-4 positive recorded on the carrier `check_rfc.go::checkMEDRemovalConfiguration` by `./le rfc record` (route mutant `removeMED`: `sets.RemoveMED()` replaced by `_ = sets`), cc6089ccae, report `fwi-rfc4271-5.1.4-4-handwritten.json`; the handwritten mutant was independently approved (a) on 2026-11-05 in `tmp/session/2026-11-04-230539/scratch/med-remove-handwritten-independent-judge.md`: retained clean PASS and assertion-6 RED (configured prefix still carrying MED 100), unchanged unmatched control and sessions. This proves the removal mechanism, not its separate timing requirement or a negative-polarity record. The other three carry a recorded red under a Go overlay break of their producer (overlays `fwi-brk/<break>/`, each differing from the tree only at the break line; the four producers' sha256 equal before and after, `fwi-brk/p5r-sha-before.txt`), summary `p5r-summary.txt`. `bgp-path-asn-leak-frr`: break `pathasn` (`filter_path_asn/condition.go` `conditionCheck`: the listed-ASN hit `ok && found.at < 0`, so a listed ASN never rejects) RED at assertion 5 ("peer output unexpectedly contains 10.71.2.0/24", the leaked route reached BIRD), then GREEN clean (`p5r-brk-pathasn-*.log`, `p5r-clean-pathasn-*.log`). `bgp-med-increment-gobgp`: break `medinc` (`policychain/chain.go` `overlayNumeric`: the MED set resolved from `0, false` instead of the route's metric) RED at assertion 5 ("GoBGP decoded Med 50 for 10.63.0.0/24, want 150"), then GREEN clean (`p5r-brk-medinc-*.log`, `p5r-clean-medinc-*.log`). `bgp-attribute-default-localpref-gobgp`: break `lpbase` (`bgp/config/library_chains.go` `parseAttributeBases`: `LocalPreference: lp - lp + 100`, the configured base never reaches the chain) RED at assertion 5 ("GoBGP decoded LocalPref 150 for 10.64.0.0/24, want 130"), then GREEN clean (`p5r-brk-lpbase-*.log`, `p5r-clean2-lpbase-*.log`; the first clean run did not build, another session's in-progress `l2tp/pppoe/config.go`) |
 | the remaining scenarios whose config names a filter chain (`grep -rlE "filters \[" test/interop/scenarios`) | `test/interop/scenarios/` | as each names | AC-10 | List `fw-interop-list.txt` (24 with the rows above). GREEN at 8c7196ea9e: `bgp-med-ibgp-post-selection-removal-gobgp`, `bgp-redist-late-join-dynamic-frr`, `bgp-role-rs-client-learned-not-upward-frr`, `isis-export-policy-frr`, `isis-import-policy-frr`, `ospf-export-policy-frr`, `ospf-import-policy-bird`, `ospf-redist-static-tag-frr`, `ospfv3-nssa-redist-frr`, `ospfv3-redist-frr`. `bgp-as-migration-local-as`: red at assertion 7 under the strict d7bfd9841a checker (FRR holds the native-iBGP route with an empty AS_PATH), GREEN after dd435d4832 (exact empty-AS_PATH op, judge-approved; `asmig.log`). `as112-origin-as-frr`: red at assertion 5 (bird-internal lacked the `attach process` send permission), GREEN after 6ea6a314da and 09792c6ca5 (`p5f-as112.log`). SRv6, after b8e7f293ae (judge-approved `wantSID`, FRR 10.7.1 default-instance export re-run): `bgp-srv6-invalid-sid-ineligible-frr`, `bgp-srv6-next-hop-identity-frr`, `bgp-srv6-next-hop-identity-unchanged-frr` GREEN (`fwi3-clean-*.log`); break `raw` (`runLibraryChain` ignores the raw override): `bgp-srv6-next-hop-identity-unchanged-frr` RED at assertion 0 (wire to the changed peer carries hop ::9 where policy answered ::77, `fwi3-raw-bgp-srv6-next-hop-identity-unchanged-frr.log`), GREEN clean again (`fwi3-clean2-*.log`); `bgp-srv6-next-hop-identity-frr` stays green under `raw` (its expected output is the unchanged hop), so it does not discriminate the raw answer |
 
 Each changed behavior owes a recorded red: revert, rebuild the image, see the
@@ -1047,26 +1068,26 @@ touched (`producers-sha256-{before,after}.txt` equal). Logs live in
 | BGP family surface (new SAFI / capability / attribute) | No | no family, capability or attribute added |
 
 ### Documentation Update Checklist (BLOCKING)
-| # | Question | Applies? | File to update |
+| # | Question | Applies? | Implemented documentation and evidence |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | the BGP policy `features/` entry: external filters in any language |
-| 2 | Config syntax changed? | Yes | a chain names a `match` instance where it named one of the five old filter types, and the old member form meets the unknown-filter refusal: `docs/guide/route-policy.md` (the filter type table, the `match` condition table, the completion paragraph's "a BGP chain offers no `match`"), `docs/guide/bgp-policy.md`, `docs/architecture/config/syntax.md`, `docs/config-reference.md`, `docs/guide/configuration.md`, `docs/guide/config-reload.md` |
-| 3 | CLI command added/changed? | No | `show policy test` output is kept (D-11); `docs/guide/command-reference.md` changes only if the trace gains a line |
-| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` if it lists the callback |
-| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` (the five packages provide `match` conditions, no longer filter types; the four filter plugins kept), `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/architecture/plugin/plugin-relationships.md` |
-| 6 | Has a user guide page? | Yes | `docs/guide/route-policy.md` (mechanism-only library, condition registry and owning packages, one prefix-list condition, external filters), `docs/guide/bgp-policy.md`, `docs/guide/bgp-peering.md`, `docs/guide/bgp-role.md` (D-16 upstream check replacing the transit-leak obligation), `docs/guide/route-reflection.md`, `docs/guide/config-editor.md`, `docs/architecture/bgp/filter-path-asn.md` (reject-asn condition, commands and metrics unchanged) |
-| 7 | Wire format changed? | No | BGP wire unchanged |
-| 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `ai/rules/plugins.md` |
-| 9 | RFC behavior implemented, changed, or newly proven? | No | behavior preserved (AC-10) |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if the runner gains a Python plugin |
-| 11 | Affects daemon comparison? | Yes | `docs/comparison.md`: filter plugins in any language |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` |
-| 13 | Route metadata keys added/changed? | No | none |
-| 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | the five packages stop registering filter types and register `match` conditions, so their catalog entries change (AC-40); commands and metrics unchanged: `docs/features.md`, `docs/comparison.md`, `docs/DESIGN.md`, and the catalog text the registration metadata feeds |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived per child by `./le spec citation anchors spec <child spec>`. Pages declared by `// Design:` headers of files listed here, each judged per child: `docs/architecture/api/ipc_protocol.md` (`pkg/plugin/rpc/types.go`: answer framing, affected if batching changes the message size), `docs/architecture/config/syntax.md` (`bgp/config/register.go`, `peers.go`: unaffected, since D-3 adds no config leaf), `docs/architecture/testing/interop.md` (`internal/le/interoplab/bgp/helper.go`, `helper_srv6_identity.go`: unaffected beyond the helpers' filter handler) |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | every `OnFilterUpdate` and text-subject example in `docs/` |
-| 18 | The plugin filter pattern (D-12, D-13) as the documented way to build a filter plugin | Yes | Written by the phase that lands it, never before (pages describe the code as it is). `ai/patterns/plugin.md`, "Route Filters": replace the two routes (`FilterTypes` with `OnFilterUpdate`, and `filterapi.Register`) by the one evaluator registration, the fast-path contract and the conformance harness (phases 3 and 4). `ai/doors/plugin-infra.md`: the typed filter slot in "Boundaries" beside "Every feature works over both transports", and the harness in "Gates" (phase 3). `ai/doors/bgp-plugins.md`: the hook table loses its `filterapi.Register` row and gains the typed filter slot as a fast path with its forked equivalent (phase 4). `ai/doors/system.md`: "Reach another unit through the boundary that survives a process split" lists the EventBus, DirectBridge and the command dispatcher; the phase adds that a typed bridge slot is how DirectBridge serves a per-route callback (phase 3). `ai/doors/bgp-engine.md`: "The engine reaches plugin features only through what they register" loses `filterapi.Register` and "A `filterapi` filter is in-process only" (phase 4). `docs/plugin-development/README.md` ("Architecture"), `protocol.md` ("Runtime Callbacks", the handler section) and `handlers.md`: the one evaluator, its two transports, the contract, ready and unavailable (phase 3). `docs/architecture/api/process-protocol.md`, "Runtime hot path": its `filter-update` row moves from the generic `SendCallback` to the typed slot (phase 3). `docs/architecture/bgp/filter-irr.md`: the snapshot, the removed first-resolution wait (its "The prefix-lists live in memory only" and "A changed as-set starts from no list" paragraphs describe the wait), and the name pattern (phase 4). `docs/architecture/core-design.md`, "Ingress Filter Pipeline": the stage-ordered pass without `filterapi.Register` (phase 4) |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/plugins.md` Description records five package-owned conditions and external declared-field filters (1f4e2fe0bc); `docs/features/plugins.md` follows the declaration. Existing experimental/partial scope is retained; native feature report remains a final check, not an invented level change. |
+| 2 | Config syntax changed? | Yes | `docs/guide/route-policy.md` documents package-owned conditions and inserted role checks (655d07b59b, 4cdeb49449); `bgp-policy.md` declaration checking follows 47d95f9a63 and family sections 2e9a891ed7; `configuration.md` protocol cutover is in 1a2ccaeef8. `config-reload.md` and architecture/config authority paragraphs landed 7d1edaeec3. The retained ConfigurationRuntime review covers syntax/reference/editor companion pages. Reject-ASN YANG help now directs users through `policy match` (7d1edaeec3), matching the actual compiler. |
+| 3 | CLI command added/changed? | No new grammar | `show policy test` and reject-ASN commands keep their grammar and output; `docs/architecture/api/commands.md` documents library-member trace behavior and the typed callback (1a2ccaeef8), matching `policy_dryrun_library.go` and the command regressions. The forked reject-ASN repair changes delivered configuration, not command syntax. |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` Filter Update section describes declared fields and the typed internal slot (1a2ccaeef8); `docs/architecture/api/process-protocol.md` records receipt metadata (505f6d786a), captured Configure authority (7d1edaeec3), and the selected U18 shutdown/frame paragraphs. |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` condition/evaluator split and declared-field contract landed 1a2ccaeef8; declaration/comparison correction is 1f4e2fe0bc. Retained PluginBoundary/PluginRouting reviews cover `plugin-overview.md` and `architecture/plugin/plugin-relationships.md`; current authority documentation landed 7d1edaeec3. |
+| 6 | Has a user guide page? | Yes | The policy guides in row 2 document actual condition/compiler ownership; `docs/guide/bgp-role.md` and role architecture reflect b4b5375625 source-set enforcement and child D-16. `docs/architecture/bgp/filter-path-asn.md` command roots are corrected at a307837924. Retained routing/configuration review packets cover peering, route-reflection and editor pages; later receipt and authority updates are identified in rows 4 and 13. |
+| 7 | Wire format changed? | No BGP encoding format added | The internal filter message changed, not the BGP UPDATE grammar; registered attribute handlers still encode outputs (`TestPlainSetActionsProduceExactUpdate` and retained wire/interoperability review). SDK framing is accounted for in rows 4 and 8. |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md` and `handlers.md` explain declared fields, sets, raw and the single evaluator (1a2ccaeef8); all-clause conformance deadlines follow 1d9bb0050a. Final handlers/pattern `Input()` corrections cite the actual value-returning producer; no text `Update` adapter remains. |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | Roleless destination enforcement and configured-role applicability changed in b4b5375625, with eleven RFC audits and four discrimination records; companion publication was corrected at d14b1a9165. Preserve exact requirement-level status and the unspecified private-domain deployment-model gap. Main must read touched-stem freshness from `./le rfc check`; this row does not assert full RFC conformance. |
+| 10 | Test infrastructure changed? | Yes | Selected `docs/architecture/testing/ci-format.md` Options hunk documents `remote_close`, including exact-frame completion then actual remote EOF/reset; anchors name `waitRemoteClose`, parser and negative controls. The existing runner already forks the isolated Python plugin, so no new runner dependency is claimed. |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` Routing Policy section describes package-owned match conditions and external filters in any language using the versioned batch contract (1a2ccaeef8 and 1f4e2fe0bc); source anchors name the condition registry and protocol types. |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` ingress pipeline uses shared library chains and typed/encoded evaluator paths (1a2ccaeef8); selected authority/inactive-intent paragraphs landed 7d1edaeec3. `docs/architecture/plugin/rib-storage-design.md` current U18 hunk records the admission fence, scanner join and unexpected-owner fatal availability consequence. |
+| 13 | Route metadata keys added/changed? | Yes | `docs/architecture/api/json-format.md` and `process-protocol.md` describe source-bound UPDATE forwarding receipts and opaque generic metadata (505f6d786a); the selected `buffer-architecture.md` receipt row documents asynchronous ownership copy. These are transport sideband fields, not new filter vocabulary fields. |
+| 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` distinguishes successful queue admission, encoded-batch routes and completed typed-slot judgments; daemon condition metrics landed 591845be16 and bounded forked SDK metrics c0cba00d70. Existing reject-ASN metric names are retained. |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | The condition registrations drive the catalog; `features/plugins.md` and `docs/comparison.md` were corrected in 1f4e2fe0bc. Main checks the registry-derived inventory rather than editing generated `docs/features.md` or `docs/DESIGN.md` by hand. Slot/batch metric additions are explicitly accounted for in row 14. |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Retained per-phase review packets cover changed `Design` headers and anchored claims. Current selected process-protocol, buffer-architecture, RIB-storage and CI-format hunks carry producer/test anchors for receipts, frame limits, ownership and remote close. Authority pages landed 7d1edaeec3; final native doc/citation checks must validate the committed projection. |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Protocol/handler examples changed at 1a2ccaeef8; SDK startup example now answers negotiated version. Final closure corrects two stale `route.Input()` text/pointer descriptions in `docs/plugin-development/handlers.md` and `ai/patterns/plugin.md` against `FilterRoute.Input`. These exact current prose hunks belong in commit A. |
+| 18 | The plugin filter pattern (D-12, D-13) as the documented way to build a filter plugin | Yes | `ai/patterns/plugin.md` documents one `OnFilter` evaluator, fast-path contract and conformance harness (d8748e3737, 6b105ebc58); the final prose hunk clarifies typed internal versus batched forked calls. The system/BGP-engine/BGP-plugin/plugin-infrastructure doors were retained and read for this closure; obsolete registry symbols are absent. SDK README/protocol/handlers and core-design pipeline were reviewed with their phase implementations; `docs/architecture/bgp/filter-irr.md` documents the nonwaiting snapshot and forked config root, corrected at d4539a9be2. |
 
 ## Implementation Steps
 
@@ -1203,7 +1224,7 @@ of rejecting every route at run time with "cannot extract ASN".
 | `rpc.FilterUpdateTimeout` comment | `pkg/plugin/rpc/types.go` | the sentence "a plugin that waits inside its handler MUST bound that wait below this value" loses its one in-tree user; rewritten for the batch bound (D-3) |
 | registration | `register.go`, `runFilterIRR` | the name-pattern declaration (D-10) in both `registry.Registration` and `sdk.Registration`, which must agree |
 5. **Phase 5: Delete the text machinery** (`spec-filter-wire-5-delete`) - AC-8; the protocol pages rewritten in the same commit; every interop scenario in the table run with recorded reds. It deletes the transitional text member of the library chain with it: `internal/component/bgp/policychain/external_text.go` (`TextCaller`, `judgeText`), `internal/component/bgp/reactor/filter_library_text.go` (`libraryText`, `textDeltaOps`), `ExternalRoute.Text`, and the text branch of `rewriteLibrary`.
-6. **Throughput harness** (inside `spec-filter-wire-3-chain`, which introduces the batch bound it measures) - FR-7 and AC-17; Thomas supplied the current SDK measurements. The historical text-path summary named in `## Relationship to Other Specs` is not a matched before figure; A-6 still requires comparable text-era/new workload measurements and both runs' provenance.
+6. **Throughput harness** (inside `spec-filter-wire-3-chain`, which introduces the batch bound it measures) - FR-7 and AC-17; Thomas supplied the matched text-era/new measurements and provenance in `plan/records/filter-wire-0-a6-mac.bench.txt`. These confirm A-6 at batch sizes 1, 16 and 64. The earlier unmatched historical summary remains context, not the accepted comparison; no new measurement is owed.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -1229,11 +1250,13 @@ of rejecting every route at run time with "cannot extract ASN".
 | five simple filters provide conditions, not filter types | the five packages exist and none declares `FilterTypes` or `OnFilterUpdate`; `grep -n "matchConditions\|prefixListFilterType" internal/component/policy` returns nothing; `TestPrefixListOneCondition`, `TestMatchConditionRegistry` pass |
 
 ### Security Review Checklist
-| Check | What to look for |
-|-------|-----------------|
-| Input validation | a plugin reply naming an unknown field, an unsettable field, a malformed value, or more verdicts than routes in a batch is refused, never applied partly |
-| Fail-closed | every failure path applies `on-error`, default reject |
-| Resource exhaustion | batch and message size bounded; a plugin cannot make Ze decode undeclared fields |
+| Check | Reviewed invariant | Evidence |
+|-------|--------------------|----------|
+| Input validation | Unknown/unsettable fields, malformed values and wrong-length verdict batches refuse without partial application. | Retained BGPWirePolicy/PluginBoundary reviews; `TestExternalRefusedSetsFailTheRoute`, `TestFilterBatchFailureAppliesOnError`; raw validation and transactional overlay repair matrix. |
+| Fail-closed | Filter failure applies declared on-error, default reject; receive-owner publication failure closes eligibility and terminates the owner. | Unavailable-slot consumer tests, admission/terminal/scanner controls, actual removal classification and live-peer Cease/EOF proof. Intentional successful Bye and live callback refusal remain distinct from fatal failure. |
+| Resource exhaustion | Route-count and actual encoded-byte bounds, declared-only decoding and finite-progress chunk loops; no new retry worker or discarded debt. | Actual-ID serial/mux boundary proof; 170k validation RPC and 180k RIB recovery; admission refuses or settles retained debt before further mutation. Existing scanner has explicit stop and completion join. |
+| Ownership and authorization | Current process identity and captured configuration scope survive removal/recovery; no stale generation or ungranted ordinary event recipient is admitted. | Authority configuration race, twenty repetitions of reactor concurrency controls, receipt source/recipient validation and eight actual removal outcome cases. OPEN lifecycle observer delivery remains explicitly owner-scoped. |
+| Other generic security categories | This bounded repair adds no command interpreter, SQL operation, crypto primitive, credential, privilege-changing action or arbitrary filesystem path. | Retained three-lens source reviews and selected repair diffs; socket/RPC input and allocation risks are addressed in the rows above. No repository-wide security audit is claimed. |
 
 ### Failure Routing
 
@@ -1258,7 +1281,6 @@ of rejecting every route at run time with "cannot extract ASN".
 | plan/journal/comment-describes-superseded-behaviour.md | 2026-11-03 | toPolicyAction comment: text-mode withdraw on-error claim (closed by phase 5) |
 | plan/journal/guard-added-to-one-half-of-a-pair.md | 2026-11-03 | decodeFilterRawOverride: raw export answer skips the RFC 9012 Section 13 invalid-TLV removal |
 | plan/journal/process-global-read-across-the-plugin-boundary.md | 2026-11-03 | `ConfigureMetrics` injected in process only: a forked plugin registers no counters |
-| plan/journal/second-logger-detaches-runtime-level.md | 2026-11-02 | Forked BGP plugin logger named by the hyphenated plugin name ignores the dotted `ze.log.<subsystem>` key (from spec-filter-wire-6-stage-filters, closed) |
 | plan/journal/full-disk-false-red.md | 2026-11-02 | `go test -race -tags ze_bgp` of reactor and plugin packages under `./le job run` fills the cache (from spec-filter-wire-6-stage-filters, closed) |
 
 ## Key Design Decisions
@@ -1441,6 +1463,154 @@ in-code fast path as proposed above.
   or capability negotiation, so a plugin can tell which contract it is
   speaking.
 
+## Implementation Summary
+
+### What Was Implemented
+
+- BGP import and export chains compile through `bgpconfig.compileLibraryChain`
+  and run through the shared `policychain.Chain`; the lazy `policyview.View`
+  decodes declared fields, and registered attribute handlers apply the sets.
+- One SDK evaluator uses the synchronous typed bridge slot when internal and
+  the versioned declared-field `filter-update` batch when forked. The encoded
+  path has both the 64-route bound and the actual RPC frame-size bound.
+- The five simple packages register library `match` conditions; modify,
+  remove-private-AS, family and IRR remain plugin-owned evaluators. The text
+  carrier and text-delta implementation were removed rather than retained as a
+  fallback.
+- The original implementation proofs and the additional closure regressions
+  are recorded separately. This summary is not a whole-population CLEAN claim.
+
+### Bugs Found/Fixed
+
+The independent review found producer defects in lifecycle synchronization,
+failed-member transactionality, conformance deadlines, typed numeric presence,
+raw-answer validation placement, typed numeric overlays, unused fast-path
+timers, declaration direction/name/qualification guards, single-member dry-run
+readers, full-width AIGP rendering and mixed-family removal. Their concrete
+regressions and source fixes belong in the Review Gate findings table below.
+Historical-population review also identified capability, command/metric,
+insertion, retention and reactor-rail defects. Their bounded repair reviews and
+actual proof receipts are now integrated below; final publication and native
+gates remain distinct obligations.
+
+### Documentation Updates
+
+- Durable contracts live in `docs/architecture/core-design.md`,
+  `docs/architecture/api/process-protocol.md` and
+  `docs/plugin-development/{handlers,protocol}.md`, next to their source anchors.
+- `docs/guide/bgp-policy.md` documents direction/qualified-name checking and
+  all-section family removal against the actual registry/compiler/evaluator.
+- `docs/plugin-development/testing.md` now shows the negotiated protocol
+  version in the Stage 1 test helper, matching SDK `completeStartup`.
+- `spec-route-policy-0-umbrella` labels its old producer inventory historical
+  and points to `compileLibraryChain`, `runLibraryChain` and durable core design.
+- Final documentation checks are not claimed while review repairs are active.
+
+### Deviations from Plan
+
+- The owner's D-6, D-12, D-13 and child D-16 revisions remain the governing
+  design, including direct repository-config migration and the explicit
+  engine-owned exceptions. No compatibility shim or new migration mode was added.
+- Review repairs restore the promised semantics; no acceptance criterion is
+  waived by a narrower test or a partial historical review.
+- Existing matched A-6 owner evidence is reused. No new Mac measurement or
+  historical performance comparison is requested by this closure.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The 64-route cap was treated as a serialized-size guarantee. | Declared prefix JSON plus base64 raw bytes can make 64 individually valid inputs exceed 16 MiB. | Real framed IPC regression; the first repair also incorrectly used a maximum-ID upper bound as a singleton refusal. | Bound ordinary batches without preencoding; split risky groups contiguously; let the native writer judge a size-risk singleton with its actual ID. |
+| approach | A failed member could publish part of its view or folded sets before fail-open continued. | Failure must preserve the last accepted route state, including typed overlays and aliased NLRI scratch. | Atomicity/typed-overlay regressions and the real reactor wire consumer. | Preflight folding and journal only touched view state; restore on failure before the next member. |
+| approach | Qualification, direction and unresolved template names were validated at different seams. | Compilation and insertion must retain canonical declaration identity and per-peer resolved-name guards. | Actual parsed-config, reload, insertion and qualified local/external collision regressions. | Reuse the existing canonical resolver and concrete resolution guard; do not invent regex-language intersection. |
+| approach | The SDK testing page's Stage 1 helper answered only OK. | The current SDK requires the negotiated protocol version. | `sdk.acceptProtocolVersion` versus canonical test `completeStartup`. | Correct the documented answer and preserve version refusal. |
+| documentation | The plugin pattern and handler page still described `route.Input()` as returning the removed text `Update` field, and the handler page named a pointer return. | `rpc.FilterRoute.Input` returns a `FilterUpdateInput` value with declared fields and raw bytes, or a read error. | Final source-backed documentation checklist. | Correct both examples and distinguish the internal typed slot from forked batches; this prose correction adds no product review round. |
+| documentation | Two authority paragraphs retained `SetReactor`/`BootPeersFunc` anchors, and the commands rule's point still permitted subagent execution after its rendered page was corrected. | Attach/Detach own the reactor lifetime; rebuild reads the current running map with inactive intent; the owner requires main-thread execution. | Native documentation check af67131f and actual producer/point reads. | Repair the two exact paragraphs and canonical rule point; main regenerates rendered outputs. Foreign catalog and inventory-anchor drift remains separately classified. |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Remove the text round-trip rather than preserve a second protocol. | Done | `pkg/plugin/rpc/types.go`; `reactor/filter_library.go`; SDK evaluator callbacks | Fresh source search found no definitions of the eight retired text producers named by AC-8. |
+| Use one field vocabulary and shared chain/apply mechanism on both transports. | Source and proof reconciled | `policychain`, `policyview`, `plugin/ipc/filter_slot.go` | Retained transport-parity and exact-byte proofs plus bounded repair reviews; final native gate remains separate. |
+| Preserve all nine packages' intended evaluator or condition roles and operator surfaces. | Source and proof reconciled | `bgp/plugins`; compiler/registry; command and metrics producers | Command/config roots, daemon condition metrics and forked bounded metrics repaired and proved. |
+| Preserve dry-run, configuration refusal and real-peer behavior. | Source and proof reconciled | `policy_dryrun_library.go`; config/registry guards; named functional and interop tests below | Scoped closure regressions supplement, not replace, the original daemon and interop proofs. |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Reconciled | `TestWireViewDecodesOnDemand`, `TestWireViewEveryReaderAllocationFree`; contracts-a793e314 | Prefix-only decoding and allocation proof remain unit-level. |
+| AC-2 | Reconciled | `TestFilterMessageDeclaredFieldsOnly`; contracts-a793e314; external-declared fixture | Captured request contains only declared fields. |
+| AC-3 | Reconciled | `TestFilterMessageDeclaredFieldsOnly`; contracts-a793e314 | Raw projection is declaration-scoped. |
+| AC-4 | Reconciled | `TestPlainSetActionsProduceExactUpdate`; plain-sets-dfcb7879; promoted inprocess-import | Cached LP and actual receiver bytes, not verdict alone. |
+| AC-5 | Reconciled | `TestCheckChainExternalDeclaration`; contracts-a793e314; authority/config race 0d741e52 | Existing declaration refusal plus repaired attachment authority. |
+| AC-6 | Reconciled | `TestExternalRefusedSetsFailTheRoute`; unit-a4173714; batch and undeclared-set live proofs | Refusal isolation, counters and unchanged companion routes. |
+| AC-7 | Reconciled | `TestExternalIntentsBytesEqualInProcess`, `TestLibraryNLRIDropMatchesTextSubset`, `TestLibraryASPathIntentsMatchText`; reactor-292513d4; interop table | Independent text-era UPDATE goldens retained. |
+| AC-8 | Reconciled | Retired-producer search in Goal Validation; protocol cutover 1a2ccaeef8 | Final two stale `Input()` descriptions corrected during closure. |
+| AC-9 | Reconciled | `TestDeclareRegistrationRefusesTextContract`; contracts-a793e314; text-contract-refused fixture | Stage 1 version refusal retained. |
+| AC-10 | Reconciled | Retained per-phase fixture/interop reviews; community reload 405f472cd7; six smokes 28ea94a6 | Both formerly missing reload migrations now independently judged, stressed and live GREEN; unchanged expectations retained. |
+| AC-11 | Reconciled | Python plugin b0e0f613f1; `filter-wire-python-plugin.ci` | Non-Go evaluator, actual accepted routes and MED. |
+| AC-12 | Reconciled | `TestFilterBatchOrderAndVerdicts`; transport-cc04e2da; byte-bound repairs 6d52ddb2/3057a0a6; batch daemon proof | Per-connection queued routes and source FIFO follow the recorded D-3 reading. |
+| AC-13 | Reconciled | `TestMixedChainExternalReadsInProcessSet`, `TestExternalMemberReadsEarlierSets`; reactor-292513d4/unit-a4173714 | Later members see accepted earlier changes. |
+| AC-14 | Reconciled | Retained per-plugin evaluator tests and PluginFilters review; SDK transport tests; family/IRR daemon pair | Four evaluator owners retained; five condition donors remain separate. |
+| AC-15 | Reconciled | Retained `policy_library_boundaries_test.go` import/export matrices and ReactorPolicy review; batch-error and unavailable controls | Teardown remains import-only; declared on-error preserved. |
+| AC-16 | Reconciled | Promoted dry-run; `TestPolicyDryRunAttributeOverride`, `TestPolicyDryRunAIGPDeltaMatchesRewrite`; f0e38661 | Single-member readers and full-width rendering repaired; original expectations preserved. |
+| AC-17 | Reconciled | `./le perf` harness and accepted owner A-6 record | No agent measurement; frozen benchmark source unchanged. |
+| AC-18 | Reconciled | `TestDeclareRegistrationVersionAnswer`; contracts-a793e314; negotiated-version fixture | Exact/current and future-version answers retained. |
+| AC-19 | Reconciled | `TestFilterBatchFailureAppliesOnError`; transport-cc04e2da; live batch proof and byte-bound controls | Whole malformed batch applies no verdict; following batch recovers. |
+| AC-20 | Reconciled | `TestExternalRefusedSetsFailTheRoute`; unit-a4173714; live undeclared-set proof | Unknown, prohibited and wrong-shape sets fail transactionally. |
+| AC-21 | Reconciled | `TestCheckChainExternalNamePattern`; contracts-a793e314; name-pattern fixture | Qualification, direction and unresolved names additionally repaired. |
+| AC-22 | Reconciled | Family conformance, typed-slot no-encoding test, promoted intree-forked and followup 28ea94a6 | Actual slot/batch counts and identical receiver UPDATEs. |
+| AC-23 | Reconciled | Lazy reader units and promoted new-fields; contracts-a793e314/promoted-plugin-17a8d3b2 | Four field shapes plus atomic-aggregate-only projection. |
+| AC-24 | Reconciled | `TestCheckChainMetricRefusedAtBGP`; promoted parse proof 379b61c3 | Both BGP directions refuse metric; non-BGP control passes. |
+| AC-25 | Reconciled | Plain-set exact UPDATE matrix; external fold parity; promoted set-actions and followup 28ea94a6 | Eighteen actions; independently judged header-golden correction retained. |
+| AC-26 | Reconciled | `TestFamilyStripIntent`; reactor-292513d4; six mixed-section real-wire controls f0e38661 | Every matching MP section handled, other families preserved. |
+| AC-27 | Reconciled | `TestRawRewriteTerminal`, `TestExternalRawRewriteTerminal`; contracts-a793e314; UClose-5 matrix | Raw validation precedes terminal traversal; final still applies. |
+| AC-28 | Reconciled | `TestWireViewMalformedAttributeErrors`; contracts-a793e314 | Decoder failure reaches on-error, never an invented empty value. |
+| AC-29 | Reconciled | `TestFilterMessageFieldShapes`; contracts-a793e314 | Vocabulary field names, attr shapes and missing-encoder refusal. |
+| AC-30 | Reconciled | Five BGP parity tests and Loc-RIB prefix parity; contracts-a793e314/unit-a4173714; retained match-condition fixtures and interop | Package-owned checks and one prefix-list registration. |
+| AC-31 | Reconciled | Promoted IRR two-transports, actual config-root discrimination/restoration, followup 28ea94a6 | Five identical receiver frames and six real judgments per transport. |
+| AC-32 | Reconciled | `TestIRRUnresolvedTakesOnError`; contracts-a793e314; retained irr-unresolved fixture | Readmission and pending-state fixture retained; no evaluator wait. |
+| AC-33 | Reconciled | Closed-slot and unavailable consumer tests; contracts-a793e314/reactor-292513d4; retained respawn fixture | Old generation cannot provide a verdict; new Stage 5 slot owns later calls. |
+| AC-34 | Reconciled | `TestIRRSnapshotSwap`; contracts-a793e314; capability replacement and authority race repairs | Snapshot boundary retained under concurrent publication. |
+| AC-35 | Reconciled | SDK transport test; retained thirdparty-compiled-in fixture; ToolingPrograms review of standalone fakefilter entry | SDK-only compiled and independent-binary transports retained. |
+| AC-36 | Reconciled | `TestFastPathConformance`, `TestIRRPassesConformance`; contracts-a793e314; all-clause deadline repair 1d9bb0050a | Every clause bounded, conforming concurrent evaluator accepted. |
+| AC-37 | Reconciled | Explicit paired basename inventory above; retained phase-6 reviews; loop exception tests | No second in-process registry; engine exceptions remain named D-13 cases. |
+| AC-38 | Reconciled | Three registry tests in unit-a4173714; retained BGPWirePolicy source review | Registration, duplicate refusal and allocation-free evaluation; no protocol logic moved into policy. |
+| AC-39 | Owner dropped | Recorded 2026-11-01 decision | Repository configuration conversion instead of migration code. |
+| AC-40 | Reconciled | Condition donor review; upstream tests and inherited reload CI; daemon metrics 591845be16/c0cba00d70; forked roots a307837924 | Commands and metric names preserved; child D-16 replaces the former role obligation. |
+| AC-41 | Owner dropped | Recorded 2026-11-01 decision | Existing unknown-filter refusal; no migration hint. |
+
+Reconciled means the retained independent phase evidence and the later repair
+proofs agree with the unchanged criterion. It does not claim a new run of every
+historical test. Exact log names and roots are in the test tables above and the
+follow-up runtime receipt; native final review and closure remain separate.
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Original unit, boundary, functional and interop plan | Evidence reconciled | The four test-plan sections above and individual AC mapping | Planned-name substitutes are explicitly named; new review regressions add proof without replacing promised expectations. |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Planned implementation, test, documentation and removed-path population | Retained reviews reconciled; final owned publication pins prepared | Metadata contains 1123 live reviewable paths and 60 removals, reusing the historical manifest plus 30 later exact-tagged commits. The generic, RR, event-owner and live-peer publications are included, followed by the six mechanical lint blob replacements at cf5259afe32b1e3679a32d5632d674a61e89c6b4; no fresh historical audit is implied. |
+
+### Audit Summary
+
+- **Final closure status:** not complete; no native CLEAN artifact or two-commit
+  publication has been prepared.
+- **Scope reductions:** none by this closure.
+- **Review scope:** the owner's option B below governs. Earlier independent
+  per-phase reviews remain evidence; subsequent repairs need current review.
+  The historical inventory of 1004 live and 60 removed paths is accounting,
+  not a requirement to repeat the full net-diff review.
+
 ## Goal Validation (BLOCKING)
 
 Phase 5 rows, recorded before closure; `/ze-close` completes the rest of the
@@ -1452,3 +1622,226 @@ closure template around them.
 | A forked plugin in any language filters routes over the documented contract (AC-11) | functional | `test/plugin/filter-wire-python-plugin.ci`, b0e0f613f1: a Python 3 plugin with no Go SDK rejects one prefix and sets MED on the rest |
 | A forked plugin keeps its own metrics (D-14) | functional | `test/plugin/plugin-metrics-forked.ci`, cad1dcdc65 (code 15979b0b53): a forked plugin's counter reaches `show metrics` |
 | Real peers accept the chains' decisions and modified attributes (AC-7, AC-10) | interop | The `### Interop Tests` Status cells: every listed scenario green after phase 5, with recorded reds under the `sets`, `prefix`, `intents` and `raw` breaks, and `bgp-policy-modify-mp-frr`, `bgp-path-asn-leak-frr`, `bgp-med-increment-gobgp` and `bgp-attribute-default-localpref-gobgp` under the `mpreach`, `pathasn`, `medinc` and `lpbase` breaks |
+
+## Work Not Done
+
+No in-scope work is deferred by this closure. Active review findings must be
+fixed before it can close. Rejected-route retention storage is separately owned
+by `plan/post-release/features/spec-bgp-filtered-route-storage.md`; it is not a
+waiver of this spec's filter-wire obligations.
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| No in-scope item is being handed off. | Closure remains in progress until its review findings and proof obligations are complete. | None |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Scope | Thomas chose option B on 2026-11-04: review only the code since the last independent per-phase reviews (after f0b04c1428), not the full net diff. That narrows the review; it does not clear the known findings above |
+| Artifact | Not recorded; bounded source findings and actual runtime proofs are reconciled, with final publication/native checks outstanding. |
+| `./le spec review check` | Not run; no CLEAN artifact is claimed. |
+| Rounds | Original option-B rounds 1 and 2 are explicitly recorded in `tmp/session/2026-11-01-384a3761-c376-4523-a82d-0c61fcd10814/scratch/close4-review-findings.md`. The subsequent repair lineage conservatively requires at least six stages in total: continued discovery; repair review exposing actual-ID singleton/W1/U18 defects; U18 repair review exposing admission and scanner-join gaps; then resolved-source review. This is a reconstruction from actual artifacts, not a recovered native historical counter. Nine parallel historical slices are not nine rounds, and closure prose NOTEs add no round. Exact provenance is in `tmp/session/2026-11-04-230539/scratch/fw-final-round-lineage.md`. |
+| Reviewer lenses used | Ownership/lifetime/concurrency; correctness/wiring/security; proof/performance/maintainability and the Go style pass. |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| UClose-1 | ISSUE | Initialization raced close and could start an unclosable worker. | `plugin/ipc/filter_batch.go` `SendFilterUpdate`/`close` | Lifecycle lock repair, published as `3c71a346ec`; three lifecycle regressions and existing order/failure controls PASS. |
+| UClose-3 | ISSUE | Conformance bounded only its first call, leaving later clauses able to hang. | `sdk/filter_conformance.go` | All-clause deadline repair, published as `1d9bb0050a`; all five deadline phases and conforming controls PASS. |
+| UClose-4 | ISSUE | Metadata octets lost numeric presence, including present zero. | `policyview/metadata.go` | Set `numbered` for octets; zero/nonzero and cached-reader regressions PASS. |
+| UClose-5 | ISSUE | Raw validation happened after terminal outcome and lost member on-error semantics. | `libraryCaller.CallFilter`; `policychain.rawAnswer` | Canonical validation before terminal outcome, paired direct-chain framing guard; 48-case matrix, direct framing, valid terminal and existing raw/tunnel controls PASS. |
+| UClose-7 | ISSUE | The activated typed slot paid for an unused per-route context/timer. | `libraryCaller.CallFilter`; `ipc.PluginConn.CallFilter` | Construct the admission deadline only on the encoded branch; actual activated-slot zero-allocation regression PASS. |
+| UClose-11/UClose-12 | ISSUE | Single-member dry-run lost five readers; AIGP trace truncated its full-width value. | `policychain.Chain.Only`; `appendNumericText` | Copy reader bindings without copying counters; render the uint64 metric. Unit and actual operator regressions PASS. |
+| UClose-13 | ISSUE | Count-only batches exceeded RPC frames; the first byte-bound repair falsely refused a fitting singleton. | `filterBatcher.exchange`; `FilterUpdateInput.JSONSizeBound` | Contiguous byte-aware splitting plus native actual-ID singleton validation. Real split/FIFO, oversized-neighbor, size/allocation and serial/mux boundary regressions PASS. |
+| UClose-14 | ISSUE | The family filter inspected only the first MP family and missed other matching sections. | `filter_family.familyMatch`/`judgeFamily` | One bounded all-section match, existing strip intent, preserved suppression/teardown. Both evaluator transports and six real ingress wire-survivor cases PASS. |
+
+### Findings still open
+
+The historical findings are retained with their repair evidence; they are not
+erased by later clean source reviews. All currently named runtime obligations
+below are complete. Remaining publication and native gates must still finish
+before recording CLEAN; local repair review does not sign off unrelated work.
+
+The continuation follows
+`plan/handover/2026-11-05-filter-wire-umbrella-handoff.md`, which supersedes
+the stopped closer's live state. Current proof receipts are collected in
+`tmp/session/2026-11-04-230539/scratch/fw-followup-runtime-results.md`.
+They include the startup and metrics controls, the seven receipt tests across
+four packages, and the forked reject-ASN root repair at `a307837924` with its
+original RED, fixed draft, stress, promoted test, scoped lint, unit tests and
+five committed build flavors. These are completed proofs, not a final closure
+verdict.
+
+The metrics repair is published as `c0cba00d70`; its required five-flavor
+committed build passed in `job-fw-followup-metrics-committed-compile-63ed8ad7.log`.
+The receipt scalar/value cutover is published as `505f6d786a`, with the bounded
+independent review in
+`tmp/session/2026-11-04-230539/scratch/fw-receipt-source-review.md`.
+Its five-flavor committed build passed in
+`job-fw-followup-receipts-committed-compile-63ed8ad7.log`.
+
+Both community reload regressions are published as `405f472cd7`. Their draft
+and promoted live runs each passed both tests. The stress log records eighty
+successful invocations with argv selecting both tests; retained invocation
+tails show only the second test, so they are not claimed as separate retained
+assertion transcripts for the first. Exact logs and the independent judgment
+are in the runtime receipt above.
+
+Authority configuration now has five-package race PASS in
+`job-fw-followup-authority-config-0d741e52.log`, including corrected explicit-file
+publication. Twenty repetitions of each of twenty-two selected reactor tests
+passed under race in `job-fw-followup-authority-reactor-7df130cf.log`, including
+captured removal recipients during concurrent publication. The earlier
+`TestLoadConfig` family PASS is retained from the other continuation's
+`job-fw-authority-current-d15dbd49.log`; that mixed-result job's fixture and
+netlink failures are not hidden by the later successful proofs. Authority
+publication landed as `7d1edaeec3`; mechanical lint fixes landed as `672832444f`.
+Final gate integration remains pending. Plugin scoped lint passed all four
+flavors in `job-fw-followup-plugin-lint-final-d870b62c.log`; hub lint and the
+new committed-build receipt remain owned by the main thread.
+
+The U18 unchanged baseline accepted sixteen distinct
+deliveries after publication failed and the owner remained live after the
+five-second deadline (`job-fw-followup-terminal-debt-baseline-abac40b8.log`).
+Its repair settles publication debt and stops further admission; the owner,
+removal and established-peer proofs below now pass. Event
+framing and partial-ACK recovery now have actual scoped PASS evidence:
+`job-fw-adj-validation-burst-00951eb9.log` proves 170,000 changes through real
+RPC, and `job-fw-rib-event-bursts-ab017f22.log` passes all five selected cases,
+including frame bounds and 180,000-route recovery. These logs are in
+`tmp/session/2026-11-05-001955/scratch/`; they need not be repeated merely to
+renew evidence.
+
+The live U18 owner is continuation `b0feab6a-956a-4153-9fbc-6947ab70c20e`.
+Admission now flushes or refuses existing debt before another mutation;
+`job-fw-u18-debt-green-971064a9.log` passes all six selected tests, including
+both admission cases, removal, terminal cause, refusal, partial-ACK retry and
+receive churn. `job-fw-fatal-removal-green-78a29072.log` passes two fatal-owner
+tests and fourteen recovery controls. The scanner now acknowledges completion,
+and its owner joins it before sampling the final failure or releasing the
+lookup. `TestValidationTimeoutOwnerJoinsPublicationBeforeResult` exercises the
+actual SDK owner and blocked scanner publication: the recorded RED timed out
+with owner cleanup waiting behind that publication; the fixed test and three
+owner controls passed in `job-fw-u18-scanner-green-ee8fbe20.log`. The real
+established-peer teardown proof is now complete: the unchanged draft failed
+after actual EOR with the fixture's failure policy changed only to Ignore
+(`job-fw-followup-fatal-peer-negative-651ff0de.log`). After restoring the exact
+fixture hash, the positive draft passed, eighty stress invocations recorded
+exit zero and the named peer exchange, and the promoted live test passed in
+`job-fw-followup-fatal-peer-promoted-fef80aa6.log`. The peer requires EOR,
+the exact Administrative Shutdown Cease and observed remote close. Actual TCP
+controls independently reject EOR followed by EOF without Cease.
+
+The RR dispatcher attempt in log `4684a5bb` failed during read-only-cache setup
+and proves no test result. The later
+`job-fw-followup-receipt-removal-peer-816f5077.log` passes all twelve RR receipt
+cases, eight actual socket/bridge removal outcome cases, and the peer controls
+under race. Exact source reviews and discrimination receipts are retained in
+`tmp/session/2026-11-04-230539/scratch/fw-live-peer-discrimination-review.md`.
+
+Alias and insertion fixes are published as `52339c131a`, with both scoped lint
+flavors clear. The committed build retry passed all five flavors at
+`934e7d8c035f`, retaining the earlier cache failure separately. All six original
+workflow smokes passed in `job-fw-followup-filter-smokes-28ea94a6.log`.
+Generic fatal removal landed as `edd56fcb5a`, RR receipt proof as `070bf08e36`,
+event framing and receive ownership as `445c0fcdf1`, and live-peer proof as
+`4348b04476`. All owned Go chunks are published. The authority committed build
+passed all five flavors at `7d1edaeec351`; the final owner's committed build
+and remaining lint/native closure gates are still main-thread work.
+Six mechanical lint corrections landed as `cf5259afe3`; the four reached
+packages passed focused race controls in
+`job-fw-followup-lint-repair-controls-23863a1f.log`. All four runtime lint
+flavors passed in `job-fw-followup-core-lint-repaired-bb4cf4c1.log`. The harness
+retry `267b1c9d` was invalidated during planning by concurrent edits; it is not
+a passing result, and separately owned fixture findings remain distinct. The
+later completed harness run `job-fw-followup-harness-lint-final-267b1c9d.log`
+exited 1: host and integration each report the same fifteen findings across
+ten separately owned paths. The owned transport fixture correction is absent
+from those findings. This final scoped result is RED, with no owned defect;
+it does not supersede or approve those other sessions' changes.
+The committed lint-repair build passed all five flavors at `cf5259afe32b` in
+`job-fw-followup-lint-committed-compile-3085f95d.log`. Broad native gates are
+reported separately: repo check `aab77268` found eleven export-surface issues
+across seven unrelated paths; weakened check `ffb3a667` found ten unexplained
+entries across four foreign test paths. None of those paths is in the owned
+native review population or closure-A selection, as recorded in
+`tmp/session/2026-11-04-230539/scratch/fw-native-gates-scope-triage.md`.
+These are scoped exclusions, not whole-tree GREEN results or approval of
+another session's test changes.
+The RFC gate identified nineteen stale discrimination records caused by owned
+producer changes. All nineteen were renewed through the native carrier on the
+main thread: clean named PASS, deliberate producer FAIL, then native record
+write. The exact queue and causal commits are retained in
+`tmp/session/2026-11-04-230539/scratch/fw-owned-rfc-renewal-queue.json`.
+The owned record changes preserve every unit, claim, polarity and citation;
+the separate interop renewal sharing `RFC2545-3-2.json` is excluded from our
+publication. Native RFC update `4d4dee39` completed without tracked generated
+changes. The renewed check in `tmp/session/2026-11-05-030252/scratch/` removes
+exactly these nineteen findings: its remaining 131 violations are byte-identical
+to the corresponding original findings, with none added. Owned proof freshness
+is resolved; broader foreign audit findings are not represented as GREEN. The
+comparison is retained in
+`tmp/session/2026-11-04-230539/scratch/fw-rfc-renewed-triage.md`.
+Final documentation index update `b19c9cee` succeeded without generated changes.
+The final doc check clears both owned stale anchors and confirms all 34 rule
+points fresh with a successful round trip; its remaining 143 external metadata
+differences and three foreign inventory anchors remain separately owned. The
+feature report `5da8e647` succeeded: egress-attribute-conformance remains
+experimental and IRR remains stub-backed; closure does not promote either.
+Citation check `ffbaf65d` found two dangling references in another spec. Its
+owned scratch-log warning was corrected by stating the PASS line separately
+from the log path, preserving the inherited evidence. The repaired citation run
+`job-fw-followup-citation-repaired-ffbaf65d.log` passed: 598 specs, 63 existing
+baselined dangling references and fifteen unrelated line-token warnings. Native
+review recording was attempted and refused the six-round lineage without
+Thomas's authorization, as recorded in the Blocker section; no CLEAN artifact
+or closure commits are claimed.
+Documentation/security
+source integration and individual AC accounting are recorded here; no native
+CLEAN is claimed.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| Closure regression sources and their named producer files | Yes | Retained source review packets and the final owned-publication 1123-live/60-removed Git-object snapshot identify exact paths, modes and objects. All owned implementation chunks are published; closure prose and native checks remain. |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-8 | Retired text producer definitions are absent. | Fresh search of `internal/component/bgp` and `pkg/plugin` for definitions of `AppendUpdateForFilter`, `AppendAttrsForFilter`, `parseFilterAttrs`, `applyFilterDelta`, `formatFilterAttrs`, `textDeltaToModOps`, `validateModifyDelta` and `sectionNLRIDelta`: no matches. |
+| AC-16 | Single-member readers and full-width AIGP display agree with applied values. | `TestPolicyDryRunAttributeOverride` (all five attributes) and `TestPolicyDryRunAIGPDeltaMatchesRewrite`: PASS in the parent-owned scoped race receipt `job-fw-closure-family-operator-timer-green-f0e38661.log`. |
+| AC-12/AC-19 | Size splitting retains FIFO/verdict ownership and isolates a genuinely oversized route. | `TestFilterBatchSplitsAtActualFrameLimit`: PASS in `job-fw-closure-byte-split-green-actual-id-red-6d52ddb2.log`; corrected actual-ID singleton serial/mux and oversized-neighbor controls: PASS in `job-fw-closure-byte-actual-id-green-3057a0a6.log`. The former receipt's intentional singleton RED is not represented as an all-green job. |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Registered family-filter SDK plugin through real ingress executor | Original daemon pair: `test/plugin/filter-wire-intree-forked.ci`; additional consumer `reactor/filter_family_mixed_sections_test.go` | Six applied-wire survivor cases PASS in `f0e38661`; promoted daemon pair and original-workflow followup `28ea94a6` PASS. |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-6 | Confirmed by the existing owner evidence | The matched owner Mac record and its provenance are preserved above; no new Mac measurement is needed for closure. |
+| A-1 | Confirmed | `TestWireViewEveryReaderAllocationFree`: all seventeen readers allocate nothing. |
+| A-2 | Confirmed | Exact UPDATE matrix plain-sets-dfcb7879: eighteen supported actions; independently approved community-header expectations. |
+| A-3 | Confirmed by source | Retained signature/caller review at 544f8f930c: prepend needs local AS; remove-private needs ASN4 width and peer AS. |
+| A-4 | Confirmed by source and followup | Retained `validateChainNames`/attachment review; authority configuration and insertion repairs preserve load-time checks. |
+| A-5 | Confirmed by source | Retained RouteView/ribpolicy ownership review at 544f8f930c; BGP fields stay out of the Loc-RIB core route. |
+| A-7 | Confirmed | Python isolated runner probe, deliberate missing-isolation RED and twenty stress successes; no needs-linux requirement. |
+| A-8 | Confirmed | `TestDeclaredRawReachesEveryNonCIDRFamily`: seventeen registrations, both MP sections and verdicts, sixty-eight PASS cases in reactor-292513d4. |
+| A-9 | Confirmed by source | BGP `policyview.MustRegisterReader` registers by `policy.Field`; policy owns no BGP reader implementation. |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| SDK test startup sends the negotiated protocol version. | `sdk.acceptProtocolVersion`; canonical SDK test `completeStartup`; corrected `docs/plugin-development/testing.md` sample and source anchor | Source reviewed; final scoped documentation gate remains owed. |
+| The family filter checks all four reachability sections and preserves other families. | `familyMatch`, `judgeFamily`, `libraryNLRIOps`; focused `docs/guide/bgp-policy.md` source anchors | Source and both evaluator/real-wire regressions reviewed; no new blanket RFC-compliance claim. |
+| Reactor attachment and insertion rebuild use current authority. | `Coordinator.AttachReactor`, `DetachReactor`, `RebuildRunningPeers`; exact API architecture/process-protocol paragraph patches | Two owned stale anchors and the obsolete boot-text claim repaired after native doc RED af67131f. The canonical main-thread execution point is also corrected; main owns regenerated output and recheck. Three foreign inventory anchors and external catalog drift are not claimed green. |

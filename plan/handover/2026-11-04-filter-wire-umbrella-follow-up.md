@@ -1,6 +1,6 @@
 # Filter-wire umbrella: follow-up after session 384a3761 stood down
 
-**Spec:** `plan/post-release/engineering/spec-filter-wire-0-umbrella.md`, unclaimed by
+**Spec:** `spec-filter-wire-0-umbrella`, unclaimed by
 this session. Another session (its commits call it "UmbrellaCloser") was closing it
 on 2026-11-04 and has uncommitted closure sections in the spec file.
 
