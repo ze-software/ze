@@ -167,7 +167,7 @@ func (s *Server) stopDaemonOnStartupFailure(proc *process.Process, cause error) 
 		s.stopDaemonForPlugin(proc.Name(), errRespawnDisagreement.Error())
 		return
 	}
-	if _, recovering := s.pluginRecoveryConfig(proc.Name()); recovering {
+	if scope, scoped := s.pluginConfigureConfig(proc); scoped && scope.recovering {
 		return
 	}
 	if pluginFailurePolicy(proc) == rpc.FailureFatal {

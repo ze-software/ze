@@ -35,6 +35,11 @@ func (rec *removalRecorder) OnPeerStateChange(peer *plugin.PeerInfo, state rpc.S
 	rec.downs = append(rec.downs, removalDown{peer: *peer, state: state, reason: reason})
 }
 
+func (rec *removalRecorder) CapturePeerStateChange(peer *plugin.PeerInfo, state rpc.SessionState, reason string) func() {
+	snapshot := *peer
+	return func() { rec.OnPeerStateChange(&snapshot, state, reason) }
+}
+
 func (rec *removalRecorder) seen() []removalDown {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()

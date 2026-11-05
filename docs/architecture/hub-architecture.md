@@ -256,11 +256,11 @@ the commit had replaced.
 <!-- source: internal/component/config/storage/pointer.go -- StageSourceCandidate -->
 <!-- source: cmd/ze/hub/main_reload.go -- stageSIGHUPCandidate -->
 
-The BGP reactor factory reads the staged candidate when a reload starts BGP.
-Without a candidate, it reads the accepted stored version that the hub published
-from the selected source. Stdin uses the captured startup bytes. The factory
-never reopens the loose file, so an external edit cannot change an in-flight
-startup or a plugin restart.
+The BGP reactor factory builds from the exact configuration map selected for
+that Configure lifetime. The caller resolves the startup, reload or recovery
+source before invoking the factory. Bootstrap carries infrastructure and schema
+selectors, not configuration bytes. The factory never reopens the loose file or
+selects a stored version, so an external edit cannot change that selected map.
 <!-- source: internal/component/bgp/config/register.go -- createReactorFromCoordinator -->
 
 Before publishing an explicit-file commit, the hub persists a file-commit

@@ -638,17 +638,31 @@ func countPeerUpBarrier(procs []*process.Process, state rpc.SessionState) int {
 // State events are delivered sequentially in reverse dependency order so that
 // plugins with dependencies (e.g., bgp-gr) process before their dependencies (e.g., bgp-rib).
 func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.SessionState, reason string) {
-	if s.Context().Err() != nil {
-		return // Server shutting down, skip event delivery
-	}
+	procs, unheldRoles := peerStateRecipients(s, peer, state, reason)
+	onPeerStateChangeTo(s, peer, state, reason, procs, unheldRoles)
+}
 
-	peerAddr := peer.AddrStr()
+// peerStateRecipients captures actual process identities and their role
+// permissions from the immutable graph before a removal releases its lock.
+func peerStateRecipients(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.SessionState, reason string) ([]*process.Process, []string) {
+	graph := s.DeliveryGraph()
 	stateETID := events.LookupEventTypeID(bgpevents.EventState)
-	procs := s.PeerScopedProcs(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name)
+	procs := s.PeerScopedProcs(bgpNS(), stateETID, events.DirUnspecified, peer.AddrStr(), peer.Name)
 	fed := procs
 	if state == rpc.SessionStateDown && reason == rpc.ReasonPeerRemoved {
 		procs = addOpenRemovalObservers(s, peer, procs)
 	}
+	return procs, peerStateUnheldRoles(s, peer, fed, graph)
+}
+
+// onPeerStateChangeTo delivers a previously captured state recipient set.
+// It MUST be called outside reactor locks; process acknowledgement may block.
+func onPeerStateChangeTo(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.SessionState, reason string, procs []*process.Process, unheldRoles []string) {
+	if s.Context().Err() != nil {
+		return // Server shutting down, skip event delivery.
+	}
+	peerAddr := peer.AddrStr()
+	stateETID := events.LookupEventTypeID(bgpevents.EventState)
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -656,14 +670,24 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 
 	var fmtCache formatCache
 	var scratchArr [512]byte
-	unheldRoles := deliverPeerState(s, peer, procs, fed, state, reason, true, &fmtCache, &scratchArr)
+	deliverPeerState(s, peer, procs, unheldRoles, state, reason, true, &fmtCache, &scratchArr)
 
-	// Deliver to CLI monitors lazily.
+	// CLI monitors still observe delivery time, not one process's grant.
 	monitorDeliverLazyTyped(s, stateETID, events.DirUnspecified, peerAddr, peer.Name, func() string {
 		if jsonOutput, ok := fmtCache.get("json"); ok {
 			return jsonOutput
 		}
 		return string(format.AppendStateChange(scratchArr[:0], peer, state, reason, unheldRoles, "json"))
+	})
+}
+
+// peerStateUnheldRoles judges only the peer-fed set, not additional terminal
+// observers, against the graph captured for this lifetime.
+func peerStateUnheldRoles(s *pluginserver.Server, peer *plugin.PeerInfo, fed []*process.Process, graph *pluginserver.DeliveryGraph) []string {
+	return s.UnheldRoles(fed, func(role string, proc *process.Process) bool {
+		// A replay claimant must be able to emit retained UPDATEs, not merely
+		// observe state. Other roles retain their existing delivery semantics.
+		return role != "bgp-peer-up-replay" || graph.MaySend(peer.AddrStr(), proc.Name(), bgpevents.SendUpdate)
 	})
 }
 
@@ -698,40 +722,24 @@ func addOpenRemovalObservers(s *pluginserver.Server, peer *plugin.PeerInfo, proc
 // deliverPeerState delivers one peer state event to procs, sequentially and in
 // reverse dependency order, and arms the peer-up barrier for the ones that
 // declare it. It fills fmtCache with the text rendering of each encoding it
-// formatted, which the caller reuses for the CLI monitors, and returns the
-// unheld roles it carried on every copy for the same reuse.
+// formatted, which the caller reuses for the CLI monitors.
 //
 // It serves three callers: onPeerStateChange, which delivers to every process
 // the delivery graph feeds this peer; onPeerUnbound, which delivers to named
 // processes the graph no longer feeds; and onPeerBound, which delivers to named
 // processes the graph does not feed yet.
 //
-// fed is every process the peer feeds once this event lands, and the claimed
-// roles are judged held or unheld over it, never over procs alone: a targeted
-// event reaches a few processes, and a role the rest of the fed set holds is
-// still held for this peer. armBarrier says whether an up may arm the peer-up
-// barrier. Only an up that starts a session's initial routing update may: the
-// barrier delays that update's End-of-RIB, and a targeted up starts nothing.
-func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs, fed []*process.Process, state rpc.SessionState, reason string, armBarrier bool, fmtCache *formatCache, scratch *[512]byte) []string {
+// unheldRoles was judged over every process the peer feeds, not merely a
+// targeted recipient subset. Capturing it before a removal releases its lock
+// keeps a subsequent graph or claim publication from changing this lifetime.
+// armBarrier says whether an up starts a session's initial routing update;
+// targeted up events start nothing and MUST NOT arm the barrier.
+func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*process.Process, unheldRoles []string, state rpc.SessionState, reason string, armBarrier bool, fmtCache *formatCache, scratch *[512]byte) {
 	peerAddr := peer.AddrStr()
 	// Sort by reverse dependency tier: dependents first, dependencies last.
 	sortByReverseDependencyTier(procs)
 
 	logger().Debug("OnPeerStateChange", "peer", peerAddr, "state", state, "reason", reason, "count", len(procs))
-
-	// The claimed roles that NO process being fed this peer holds, computed once
-	// for the whole event and carried on every copy of it. A plugin that stood a
-	// role down at Stage 2 reads it to learn the claim does not cover THIS peer;
-	// Server.UnheldRoles states why the daemon-wide answer is not enough. It
-	// costs one map read on a daemon where nothing ever claimed a role, which is
-	// every daemon running neither bgp-rs nor another claiming plugin.
-	graph := s.DeliveryGraph()
-	unheldRoles := s.UnheldRoles(fed, func(role string, proc *process.Process) bool {
-		// A replay claimant must be able to emit RelayStoredRoute's UPDATEs,
-		// not merely observe this peer's state. Other roles keep their own
-		// delivery semantics.
-		return role != "bgp-peer-up-replay" || graph.MaySend(peerAddr, proc.Name(), bgpevents.SendUpdate)
-	})
 
 	// Arm the peer-up barrier before the first delivery. Its expected count is
 	// the barrier-declaring plugins among the ones this event is ACTUALLY being
@@ -827,8 +835,6 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs, fed 
 			"peer", peerAddr, "acknowledged", acknowledged, "expected", barrier)
 		reactor.SetPeerUpBarrier(peerAddr, acknowledged)
 	}
-
-	return unheldRoles
 }
 
 // onPeerUnbound tells the named processes that a live peer no longer feeds
@@ -850,7 +856,7 @@ func onPeerUnbound(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.Sess
 	}
 	var fmtCache formatCache
 	var scratchArr [512]byte
-	deliverPeerState(s, peer, procs, procs, state, reason, false, &fmtCache, &scratchArr)
+	deliverPeerState(s, peer, procs, peerStateUnheldRoles(s, peer, procs, s.DeliveryGraph()), state, reason, false, &fmtCache, &scratchArr)
 }
 
 // onPeerBound tells the named processes that a live peer, already up, now
@@ -885,7 +891,7 @@ func onPeerBound(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plug
 			fed := peerBoundFedSet(s.PeerScopedProcs(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name), procs)
 			var fmtCache formatCache
 			var scratchArr [512]byte
-			deliverPeerState(s, peer, procs, fed, rpc.SessionStateUp, rpc.ReasonAttached, false, &fmtCache, &scratchArr)
+			deliverPeerState(s, peer, procs, peerStateUnheldRoles(s, peer, fed, s.DeliveryGraph()), rpc.SessionStateUp, rpc.ReasonAttached, false, &fmtCache, &scratchArr)
 		}
 	}
 	if len(negotiatedNames) == 0 {

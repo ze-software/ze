@@ -57,12 +57,9 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 		if err != nil {
 			return nil, nil, err
 		}
-		// ToPluginMap, not ToMap: the reload builds every plugin's config
-		// section from this map, so it carries the entry order of a list whose
-		// evaluation depends on it (internal/core/configorder). It is also what
-		// makes a reorder with no other edit show up in the config diff, and so
-		// reach the plugin.
-		return result.Tree.ToPluginMap(), result.Tree, nil
+		// The running authority retains inactive intent as well as list order.
+		// Plugin sections project the same map back to active-only data.
+		return result.Tree.ToRunningMap(), result.Tree, nil
 	}
 	loadMap = func() (map[string]any, error) {
 		m, _, err := loadBoth()
@@ -868,30 +865,14 @@ func stageSIGHUPCandidate(store storage.Storage, configPath string) error {
 	return nil
 }
 
-// lowerForPlugins lowers the loaded tree ONCE for every consumer on the plugin
-// path, seeds cp with its roots, and returns it. It is the boot counterpart of
-// applyLoadedTreeToProvider, which does the same for a reload.
-//
-// The lowering MUST be ToPluginMap and MUST NOT be ToMap, because the returned
-// map becomes the coordinator's config tree, which is what deliverConfigRPC and
-// every reload build a plugin's config section from. It therefore owes the
-// entry order of a list whose evaluation depends on it: a prefix-list, a
-// firewall chain, a failover server list (internal/core/configorder).
-//
-// The provider gets that SAME lowering rather than a second one, because a
-// failed reload replays the provider snapshot into the plugin server
-// (rollbackReload -> snapshotToLoadedTree). Seeding the provider with ToMap
-// while the coordinator held ToPluginMap made that replay hand every plugin a
-// multi-entry list with no order, which configorder.Entries refuses, so the
-// recovery path failed on the first reload after boot.
-// The provider gets a CLONE of each root rather than the returned map's own,
-// because Provider.SetRoot stores the reference it is handed. Sharing it would
-// give the provider and the coordinator two names for one map. That is what
-// applyLoadedTreeToProvider does on the reload path, so boot and reload agree on
-// ownership as well as on the lowering.
+// lowerForPlugins lowers the boot authority with member intent and list order.
+// The coordinator keeps that running projection. ConfigProvider MUST receive
+// only active data, before roots are enumerated, and a clone of each root:
+// it serves public/subsystem consumers and stores references handed to SetRoot.
+// applyLoadedTreeToProvider keeps the same projection and ownership on reload.
 func lowerForPlugins(tree *zeconfig.Tree, cp *zeconfig.Provider) map[string]any {
-	configTree := tree.ToPluginMap()
-	for root, subtree := range configTree {
+	configTree := tree.ToRunningMap()
+	for root, subtree := range zeconfig.ActiveConfigMap(configTree) {
 		if sub, ok := subtree.(map[string]any); ok {
 			cp.SetRoot(root, cloneStringAnyMap(sub))
 		}
@@ -913,7 +894,7 @@ func snapshotProvider(cp *zeconfig.Provider) (map[string]map[string]any, error) 
 
 func applyLoadedTreeToProvider(cp *zeconfig.Provider, tree map[string]any) {
 	existing := rootsSet(cp.Roots())
-	for root, subtree := range tree {
+	for root, subtree := range zeconfig.ActiveConfigMap(tree) {
 		sub, ok := subtree.(map[string]any)
 		if !ok {
 			continue

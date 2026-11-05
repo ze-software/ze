@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -18,37 +19,89 @@ const pluginRemovalGrace = 500 * time.Millisecond
 
 type removalRecoveryContextKey struct{}
 
-// Failed replacement startup belongs to the recovery attempt. Only these
-// named startup generations bypass the ordinary fatal-startup policy. ctx
-// bounds the startup handshakes themselves: reload compensation passes its
-// shared rollback context, so a recovery startup cannot outlive that deadline.
-func (s *Server) runPluginRecoveryPhase(ctx context.Context, plugins []plugin.PluginConfig, tree map[string]any) error {
-	if len(plugins) == 0 {
-		return nil
-	}
-	s.removalMu.Lock()
-	if s.recoveryConfigs == nil {
-		s.recoveryConfigs = make(map[string]map[string]any, len(plugins))
-	}
-	for _, cfg := range plugins {
-		s.recoveryConfigs[cfg.Name] = tree
-	}
-	s.removalMu.Unlock()
-	defer func() {
-		s.removalMu.Lock()
-		for _, cfg := range plugins {
-			delete(s.recoveryConfigs, cfg.Name)
-		}
-		s.removalMu.Unlock()
-	}()
-	return s.runPluginPhaseWithin(ctx, plugins)
+// configureConfig belongs to an actual Configure lifetime, not a process name.
+// A selected candidate does not acquire recovery's fatal-policy exemption.
+type configureConfig struct {
+	tree       map[string]any
+	recovering bool
 }
 
-func (s *Server) pluginRecoveryConfig(name string) (map[string]any, bool) {
+func (s *Server) currentConfigureConfig() configureConfig {
+	var selected configureConfig
+	if s.reactor != nil {
+		selected.tree = s.reactor.GetConfigTree()
+	}
+	return selected
+}
+
+// bindConfigureConfig owns one Configure scope for each process. After success,
+// the caller MUST clear that exact set after Configure and failure-policy readers finish.
+func (s *Server) bindConfigureConfig(procs []*process.Process, selected configureConfig) error {
 	s.removalMu.Lock()
 	defer s.removalMu.Unlock()
-	tree, recovering := s.recoveryConfigs[name]
-	return tree, recovering
+	for _, proc := range procs {
+		if _, exists := s.configureConfigs[proc]; exists {
+			return fmt.Errorf("plugin %q already owns a Configure scope", proc.Name())
+		}
+	}
+	if s.configureConfigs == nil {
+		s.configureConfigs = make(map[*process.Process]configureConfig, len(procs))
+	}
+	for _, proc := range procs {
+		s.configureConfigs[proc] = selected
+	}
+	return nil
+}
+
+// clearConfigureConfig MUST follow a successful bind for this exact process set,
+// after every Configure and failure-policy reader of that scope has finished.
+func (s *Server) clearConfigureConfig(procs []*process.Process) {
+	s.removalMu.Lock()
+	defer s.removalMu.Unlock()
+	for _, proc := range procs {
+		delete(s.configureConfigs, proc)
+	}
+}
+
+func (s *Server) pluginConfigureConfig(proc *process.Process) (configureConfig, bool) {
+	s.removalMu.Lock()
+	defer s.removalMu.Unlock()
+	selected, scoped := s.configureConfigs[proc]
+	return selected, scoped
+}
+
+// ConfigurationFor returns only the map owned by this connection's active
+// Configure scope. It MUST NOT substitute another lifetime, current map or file.
+// Bridge getters are field reads; no transport/provider callback runs under
+// removalMu. External Configure sections remain ordinary active-only data.
+func (s *Server) ConfigurationFor(conn net.Conn) (map[string]any, error) {
+	bridger, ok := conn.(rpc.Bridger)
+	if !ok {
+		return nil, errors.New("configure authority requires an internal connection")
+	}
+	bridge := bridger.Bridge()
+	if bridge == nil {
+		return nil, errors.New("configure authority has no connection bridge")
+	}
+	s.removalMu.Lock()
+	defer s.removalMu.Unlock()
+	for proc, selected := range s.configureConfigs {
+		if proc.Bridge() != bridge {
+			continue
+		}
+		if selected.tree == nil {
+			return nil, errors.New("configure scope has no selected authority")
+		}
+		return selected.tree, nil
+	}
+	return nil, errors.New("connection owns no Configure authority scope")
+}
+
+// Failed replacement startup belongs to the recovery attempt. The shared
+// rollback context bounds startup; only its explicit recovering bit bypasses
+// ordinary fatal-startup policy.
+func (s *Server) runPluginRecoveryPhase(ctx context.Context, plugins []plugin.PluginConfig, tree map[string]any) error {
+	return s.runPluginPhaseWithin(ctx, plugins, configureConfig{tree: tree, recovering: true})
 }
 
 // done publishes the actual callback result, not the caller's waiting deadline.
@@ -328,6 +381,11 @@ func (s *Server) restoreRemovedPlugin(ctx context.Context, proc *process.Process
 	}
 	configureCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	scoped := []*process.Process{proc}
+	if err := s.bindConfigureConfig(scoped, configureConfig{tree: tree, recovering: true}); err != nil {
+		return err
+	}
+	defer s.clearConfigureConfig(scoped)
 	if err := conn.SendConfigure(configureCtx, sections, s.advertiseClaims(proc.Name())); err != nil {
 		if !removalConnectionFailed(proc, err) {
 			return err

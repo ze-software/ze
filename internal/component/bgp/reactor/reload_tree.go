@@ -7,7 +7,7 @@ package reactor
 import "errors"
 
 // TreeReloadFunc builds the peers, the global defaults and the dynamic groups
-// of the whole configuration tree it is handed, in the ToPluginMap shape the
+// of the whole configuration tree it is handed, in the ToRunningMap shape the
 // reload coordinator passes to ApplyConfigDiff. It runs the
 // pipeline ReloadFunc runs over the file (PruneInactive, ResolveBGPTree,
 // CheckRequiredFields, YANG defaults, routes), so a peer it builds compares
@@ -25,29 +25,6 @@ func (r *Reactor) SetTreeReloadFunc(fn TreeReloadFunc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.treeReloadFunc = fn
-}
-
-// BootPeersFunc builds the peers, the global defaults and the dynamic groups
-// of the config text the daemon booted from, through the pipeline ReloadFunc
-// runs over a file. It MUST apply nothing, for the reason ReloadFunc MUST NOT.
-//
-// The running tree RebuildRunningPeers otherwise reads is in the ToPluginMap
-// shape, which carries only active leaf-list members, so a deactivated filter
-// list member is absent from it. The boot text still holds it, and the
-// filter insertion judge must see it: a deactivated required insertion is
-// refused, as `ze config validate` refuses it (requiredInsertionRefusal,
-// ../config/filter_insertion.go).
-type BootPeersFunc func() ([]*PeerSettings, Globals, []*DynamicGroupConfig, error)
-
-// SetBootPeersFunc sets the builder the first RebuildRunningPeers uses
-// (BootPeersFunc). The BGP plugin's post-startup step makes that first call,
-// before any reload can run (cmd/ze/hub waits for startup to complete), so
-// the boot text is then the running config. Later rebuilds read the running
-// tree, which a reload may have replaced.
-func (r *Reactor) SetBootPeersFunc(fn BootPeersFunc) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.bootPeersFunc = fn
 }
 
 // loadPeersFromConfig loads the peers of the whole configuration tree the
@@ -71,13 +48,6 @@ func (r *Reactor) SetBootPeersFunc(fn BootPeersFunc) {
 // defaults and the dynamic groups, and the reconcile would read every peer as
 // changed.
 func (a *reactorAPIAdapter) loadPeersFromConfig(tree map[string]any) (loadedConfig, error) {
-	if a.boot != nil {
-		peers, globals, groups, err := a.boot()
-		if err != nil {
-			return loadedConfig{}, err
-		}
-		return loadedConfig{peers: peers, globals: globals, groups: dynamicGroupsReadAs(groups)}, nil
-	}
 	a.r.mu.RLock()
 	treeReloadFn := a.r.treeReloadFunc
 	a.r.mu.RUnlock()
@@ -118,15 +88,12 @@ var errNoTreeReload = errors.New("bgp: cannot apply the configuration: this reac
 // it keeps the operator's live `subscribe` overrides (reactorAPIAdapter
 // rebuild). The caller MUST NOT hold r.mu.
 //
-// The first call builds from the boot config text when SetBootPeersFunc set
-// a builder, and clears it: the running tree has lost the deactivated filter
-// list members the insertion judge must see (BootPeersFunc).
+// The current running map retains inactive member intent, including after
+// reload or compensation. Every rebuild uses that same authority.
 func (r *Reactor) RebuildRunningPeers() error {
-	r.mu.Lock()
+	r.mu.RLock()
 	running := r.configTree
-	boot := r.bootPeersFunc
-	r.bootPeersFunc = nil
-	r.mu.Unlock()
+	r.mu.RUnlock()
 
-	return (&reactorAPIAdapter{r: r, rebuild: true, boot: boot}).ApplyConfigDiff(running)
+	return (&reactorAPIAdapter{r: r, rebuild: true}).ApplyConfigDiff(running)
 }

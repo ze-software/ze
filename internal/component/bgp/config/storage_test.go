@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -48,11 +49,22 @@ func TestReactorFactoryUsesCandidateThenAcceptedConfig(t *testing.T) {
 	if err := os.WriteFile(path, boot, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// The caller selects fresh authority in each phase; the factory receives
+	// only that canonical map, never a cached candidate or bootstrap bytes.
 	coord := plugin.NewCoordinator(nil)
-	coord.SetBootstrap(registry.BGPBootstrap{ConfigPath: path, ConfigData: boot, Store: store})
+	coord.SetBootstrap(registry.BGPBootstrap{ConfigPath: path, Store: store})
 	for _, phase := range []string{"candidate", "accepted"} {
 		t.Run(phase, func(t *testing.T) {
-			handle, err := createReactorFromCoordinator(coord)
+			content, err := storage.ReadReloadConfig(store, path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			loaded, err := config.ReadConfig(string(content), path, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			coord.SetConfigTree(loaded.Tree.ToRunningMap())
+			handle, err := createReactorFromCoordinator(coord, coord.GetConfigTree())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -66,6 +78,9 @@ func TestReactorFactoryUsesCandidateThenAcceptedConfig(t *testing.T) {
 			}
 		})
 		if phase == "candidate" {
+			if err := storage.WriteConfigFile(store, path, candidate); err != nil {
+				t.Fatal(err)
+			}
 			if err := storage.PromoteCandidate(store, path); err != nil {
 				t.Fatal(err)
 			}

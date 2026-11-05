@@ -16,6 +16,9 @@ import (
 // a container from a keyed list. Delivered list order is retained; an absent
 // order is never invented for a multi-entry list. The caller MUST NOT mutate m
 // until this call returns.
+// It also reconstructs ToRunningMap's private inactive member intent. The
+// caller MUST use ActiveConfigMap before exposing that running projection as
+// public configuration; reconstruction MUST restore intent after ordinary keys.
 func TreeFromPluginMap(m map[string]any) (*Tree, error) {
 	type pendingMap struct {
 		source map[string]any
@@ -28,6 +31,9 @@ func TreeFromPluginMap(m map[string]any) (*Tree, error) {
 	for next := 0; next < len(pending); next++ {
 		item := pending[next]
 		for key, value := range item.source {
+			if IsInactiveMemberMetadata(key, value) {
+				continue
+			}
 			if after, ok := strings.CutPrefix(key, configorder.KeyPrefix); ok {
 				listName := after
 				if _, ok := item.source[listName].(map[string]any); !ok {
@@ -48,12 +54,20 @@ func TreeFromPluginMap(m map[string]any) (*Tree, error) {
 				child := NewTree()
 				item.target.SetContainer(key, child)
 				pending = append(pending, pendingMap{source: v, target: child})
-				allMaps := len(v) > 0
-				for _, entry := range v {
+				entries := 0
+				allMaps := true
+				for name, entry := range v {
+					if IsInactiveMemberMetadata(name, entry) {
+						continue
+					}
+					entries++
 					if _, ok := entry.(map[string]any); !ok {
 						allMaps = false
 						break
 					}
+				}
+				if entries == 0 {
+					allMaps = false
 				}
 				_, ordered := item.source[configorder.OrderKey(key)]
 				if ordered {
@@ -71,9 +85,12 @@ func TreeFromPluginMap(m map[string]any) (*Tree, error) {
 				// Both trees are private until return. The queued visit fills
 				// this shared map, so the two views reference the same entries.
 				item.target.lists[key] = child.containers
-				if len(v) == 1 {
+				if entries == 1 {
 					if !ordered {
-						for name := range v {
+						for name, entry := range v {
+							if IsInactiveMemberMetadata(name, entry) {
+								continue
+							}
 							item.target.listOrder[key] = []string{name}
 						}
 					}
@@ -93,6 +110,11 @@ func TreeFromPluginMap(m map[string]any) (*Tree, error) {
 			default:
 				return nil, fmt.Errorf("%s: unsupported plugin config value %T", key, value)
 			}
+		}
+		// MUST follow ordinary keys: their AppendValue calls must not
+		// reactivate or duplicate a member restored from private intent.
+		if err := restoreRunningMembers(item.source, item.target); err != nil {
+			return nil, err
 		}
 	}
 	return root, nil

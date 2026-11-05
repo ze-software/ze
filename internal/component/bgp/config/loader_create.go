@@ -165,11 +165,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		AllowSharedRouterID: allowSharedRouterID,
 		UpdateDelay:         updateDelay,
 		ConfigDir:           configDir,
-		// ToPluginMap, not ToMap: ConfigTree is what deliverConfigRPC and the
-		// reload path hand to every plugin, so it owes the entry order of a
-		// list a plugin evaluates in order. This is the standalone reactor's
-		// own lowering; the hub builds the same map at its own call site.
-		ConfigTree:                tree.ToPluginMap(),
+		// Running authority retains list order and inactive member intent.
+		// Public plugin delivery projects it back to active-only data.
+		ConfigTree:                tree.ToRunningMap(),
 		ConfiguredFamilies:        configuredFamilies,
 		ConfiguredCustomEvents:    configuredCustomEvents,
 		ConfiguredCustomSendTypes: configuredCustomSendTypes,
@@ -319,7 +317,7 @@ func createReloadFunc(store storage.Storage, cliPlugins []string) reactor.Reload
 
 // createTreeReloadFunc creates the TreeReloadFunc that ApplyConfigDiff runs
 // over the tree the reload coordinator hands it. The
-// tree arrives in the ToPluginMap shape (diskConfigLoaders, cmd/ze/hub), so
+// tree arrives in the ToRunningMap shape (diskConfigLoaders, cmd/ze/hub), so
 // it is rebuilt as a config tree and goes through reloadPeersFromTree, the
 // pipeline createReloadFunc runs over the file.
 //

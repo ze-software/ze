@@ -362,6 +362,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		return fmt.Errorf("config reload would stop calling plugin %q", caller.Name())
 	}
 
+	// Startup can publish a newly constructed runtime before verify/apply.
+	// Own the original map before that first publication, not after success.
+	recordReloadCompensation(ctx, running, newTree, nil)
+
 	// Auto-load plugins for newly added config sections.
 	// When a user adds fib { kernel { } } to their config, the fib-kernel plugin
 	// needs to start before we can send it config.
@@ -651,15 +655,21 @@ func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.Co
 
 	for k, v := range diff.Added {
 		r := ensure(groupFor(k))
-		r.added[k] = v
+		r.added[k] = config.ActiveConfigValue(v)
 	}
 	for k, v := range diff.Removed {
 		r := ensure(groupFor(k))
-		r.removed[k] = v
+		r.removed[k] = config.ActiveConfigValue(v)
 	}
 	for k, v := range diff.Changed {
+		if owner, private := inactiveDiffOwner(k, v); private {
+			if owner != "" {
+				ensure(groupFor(owner))
+			}
+			continue
+		}
 		r := ensure(groupFor(k))
-		r.changed[k] = v
+		r.changed[k] = config.DiffPair{Old: config.ActiveConfigValue(v.Old), New: config.ActiveConfigValue(v.New)}
 	}
 
 	// A key that is an ANCESTOR of a declared root ("traffic" for
@@ -676,24 +686,27 @@ func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.Co
 		}
 		for k, v := range diff.Added {
 			if sub, ok := rootUnderAncestor(k, v, root); ok {
-				ensure(root).added[root] = sub
+				ensure(root).added[root] = config.ActiveConfigValue(sub)
 			}
 		}
 		for k, v := range diff.Removed {
 			if sub, ok := rootUnderAncestor(k, v, root); ok {
-				ensure(root).removed[root] = sub
+				ensure(root).removed[root] = config.ActiveConfigValue(sub)
 			}
 		}
 		for k, pair := range diff.Changed {
+			if _, private := inactiveDiffOwner(k, pair); private {
+				continue
+			}
 			oldSub, inOld := rootUnderAncestor(k, pair.Old, root)
 			newSub, inNew := rootUnderAncestor(k, pair.New, root)
 			switch {
 			case inOld && inNew:
-				ensure(root).changed[root] = config.DiffPair{Old: oldSub, New: newSub}
+				ensure(root).changed[root] = config.DiffPair{Old: config.ActiveConfigValue(oldSub), New: config.ActiveConfigValue(newSub)}
 			case inNew:
-				ensure(root).added[root] = newSub
+				ensure(root).added[root] = config.ActiveConfigValue(newSub)
 			case inOld:
-				ensure(root).removed[root] = oldSub
+				ensure(root).removed[root] = config.ActiveConfigValue(oldSub)
 			}
 		}
 	}
@@ -729,6 +742,25 @@ func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.Co
 	}
 
 	return sections
+}
+
+// inactiveDiffOwner strips only the final private marker before grouping a
+// semantic intent change. A same-named map entry or its descendants are data.
+func inactiveDiffOwner(path string, pair config.DiffPair) (string, bool) {
+	last := strings.LastIndex(path, config.PathSep)
+	name := path[last+1:]
+	private := config.IsInactiveMemberMetadata(name, pair.Old)
+	if !private {
+		private = config.IsInactiveMemberMetadata(name, pair.New)
+	}
+	if !private {
+		return "", false
+	}
+	if last < 0 {
+		// Invalid root metadata cannot become a public section root.
+		return "", true
+	}
+	return path[:last], true
 }
 
 // topLevelRoot extracts the first segment of a config key path.

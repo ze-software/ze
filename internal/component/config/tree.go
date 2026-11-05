@@ -1339,7 +1339,7 @@ func isValidInsertPosition(position string) bool {
 // ToPluginMap is the lowering for a plugin's config payload, and it is the one
 // that carries the order.
 func (t *Tree) ToMap() map[string]any {
-	return t.toMap(false)
+	return t.toMap(false, false)
 }
 
 // ToPluginMap converts the Tree to the nested map[string]any that a plugin
@@ -1361,15 +1361,23 @@ func (t *Tree) ToMap() map[string]any {
 // entryOrderLocked: an order this Tree did not record is one it must not
 // invent.
 func (t *Tree) ToPluginMap() map[string]any {
-	return t.toMap(true)
+	return t.toMap(true, false)
 }
 
-// toMap is the one walker behind both lowerings. withListOrder decides whether
-// a multi-entry list is followed by its order. A list entry is emitted under
+// ToRunningMap lowers the internal candidate/running configuration, retaining
+// inactive leaf-list intent as well as list order. Consumers MUST project with
+// ActiveConfigMap before exposing it publicly; TreeFromPluginMap MUST restore
+// the retained member state when rebuilding the current configuration.
+func (t *Tree) ToRunningMap() map[string]any {
+	return t.toMap(true, true)
+}
+
+// toMap is the one walker behind the public and running lowerings. List order
+// and inactive intent are independent projection choices. A list entry is emitted under
 // its map key, which for a multi-leaf-key list is the canonical address
 // (`fe80::b interface zbl1`), the contract docs/architecture/config/syntax.md
 // states.
-func (t *Tree) toMap(withListOrder bool) map[string]any {
+func (t *Tree) toMap(withListOrder, withInactiveIntent bool) map[string]any {
 	if t == nil {
 		return nil
 	}
@@ -1400,13 +1408,13 @@ func (t *Tree) toMap(withListOrder bool) map[string]any {
 
 	// v.toMap() locks v.mu separately.
 	for k, v := range t.containers {
-		result[k] = v.toMap(withListOrder)
+		result[k] = v.toMap(withListOrder, withInactiveIntent)
 	}
 
 	for listName, entries := range t.lists {
 		listMap := make(map[string]any)
 		for key, tree := range entries {
-			listMap[key] = tree.toMap(withListOrder)
+			listMap[key] = tree.toMap(withListOrder, withInactiveIntent)
 		}
 		if len(listMap) == 0 {
 			continue
@@ -1421,6 +1429,11 @@ func (t *Tree) toMap(withListOrder bool) map[string]any {
 			if order := t.entryOrderLocked(listName, listMap); order != nil {
 				result[configorder.OrderKey(listName)] = order
 			}
+		}
+	}
+	if withInactiveIntent {
+		if records := t.runningMembersLocked(); len(records) > 0 {
+			result[inactiveMembersKey] = records
 		}
 	}
 

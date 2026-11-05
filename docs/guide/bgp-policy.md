@@ -60,6 +60,13 @@ including sessions using the migration AS. Automatic and inactive references
 do not count as an explicit policy.
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 
+A non-required automatic reference you deactivate stays disabled after a plugin
+restart or an unrelated declaration rebuild. A reload uses its current
+deactivation settings, not the settings from boot. Required automatic
+references still cannot be overridden.
+<!-- source: internal/component/bgp/reactor/reload_tree.go -- RebuildRunningPeers -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- requiredInsertionRefusal -->
+
 Named `loop-detection` instances remain visible in the effective import policy,
 including when the direction has no operator `final`. Plain `no-self-as`,
 `loop-detection:no-self-as`, and canonical `loop:no-self-as` references select

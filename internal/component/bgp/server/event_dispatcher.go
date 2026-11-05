@@ -85,6 +85,28 @@ func (d *EventDispatcher) OnPeerStateChange(peer *plugin.PeerInfo, state rpc.Ses
 	onPeerStateChange(d.server, peer, state, reason)
 }
 
+// CapturePeerStateChange retains the actual process identities and role
+// permissions for a terminal state delivery. The caller MUST hold the reactor's
+// peer-removal lock while capturing, then MUST invoke the returned delivery
+// exactly once after Cease and outside every reactor lock. A nil delivery means
+// this dispatcher has no process manager or subscriptions.
+//
+// The copied peer and recipient slices allocate only on the cold removal path,
+// not on UPDATE delivery. No process name or grant is looked up when it runs.
+func (d *EventDispatcher) CapturePeerStateChange(peer *plugin.PeerInfo, state rpc.SessionState, reason string) func() {
+	if d.server.ProcessManager() == nil {
+		return nil
+	}
+	if d.server.Subscriptions() == nil {
+		return nil
+	}
+	removed := *peer
+	procs, unheldRoles := peerStateRecipients(d.server, &removed, state, reason)
+	return func() {
+		onPeerStateChangeTo(d.server, &removed, state, reason, procs, unheldRoles)
+	}
+}
+
 // OnPeerConnected delivers the `connected` event: the peer's TCP connection is
 // established, before any OPEN. Called from the FSM transition that the
 // connection's success drives (RFC 4271 Section 8.1.4, Events 16 and 17).

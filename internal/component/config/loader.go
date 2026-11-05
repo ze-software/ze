@@ -56,6 +56,21 @@ func ReadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 	return loadConfig(input, configPath, cliPlugins, nil)
 }
 
+// LoadRunningConfig reconstructs an already validated canonical running map and
+// resolves its plugins through the ordinary loader finalizer. It MUST NOT parse
+// file bytes, publish environment settings or hash canonical credentials again.
+// No source stamp exists for a map; StampRelease is empty.
+func LoadRunningConfig(running map[string]any, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
+	if running == nil {
+		return nil, errors.New("running configuration authority is missing")
+	}
+	tree, err := TreeFromPluginMap(running)
+	if err != nil {
+		return nil, fmt.Errorf("reconstruct running configuration: %w", err)
+	}
+	return finalizeConfigLoad(tree, configPath, cliPlugins)
+}
+
 // loadConfig is the one body of LoadConfig and ReadConfig. publish is called
 // with the validated tree at the point where refusal by the validators is no
 // longer possible; nil publishes nothing, which is ReadConfig's whole
@@ -135,6 +150,15 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	warnPlaintextOnDisk(configPath, hashed)
 	warnWeakPassword(hashed)
 
+	result, err := finalizeConfigLoad(tree, configPath, cliPlugins)
+	if err != nil {
+		return nil, err
+	}
+	result.StampRelease = ScanStampRelease([]byte(input))
+	return result, nil
+}
+
+func finalizeConfigLoad(tree *Tree, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
 	plugins, err := ExtractPluginsFromTree(tree)
 	if err != nil {
 		return nil, err
@@ -164,11 +188,10 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	}
 
 	return &LoadConfigResult{
-		Tree:         tree,
-		Plugins:      plugins,
-		ConfigDir:    configDir,
-		CLIPlugins:   slices.Clone(cliPlugins),
-		StampRelease: ScanStampRelease([]byte(input)),
+		Tree:       tree,
+		Plugins:    plugins,
+		ConfigDir:  configDir,
+		CLIPlugins: slices.Clone(cliPlugins),
 	}, nil
 }
 

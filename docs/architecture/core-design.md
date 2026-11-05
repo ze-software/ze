@@ -1555,6 +1555,13 @@ configures the operator's policy: a peer whose list holds only inserted
 members keeps the RFC 8212 Section 3 default, because its library chain is
 compiled with no final and the session decides the end
 (`policychain.CompileUnconfigured`, `filterapi.UnconfiguredAccepts`).
+This inactive intent stays in the internal running-map projection through
+boot, reload and compensation. Every later Stage 1 declaration rebuild uses
+that current map; it neither treats a missing active reference as permission
+to insert nor replays the boot text after a reload. Public plugin config
+remains active-only.
+<!-- source: internal/component/config/tree.go -- ToRunningMap -->
+<!-- source: internal/component/bgp/reactor/reload_tree.go -- RebuildRunningPeers -->
 <!-- source: internal/component/bgp/config/filter_insertion.go -- insertDeclaredFilters, insertForPeer, requiredInsertionRefusal -->
 <!-- source: internal/component/bgp/config/library_chains.go -- compileMembers -->
 <!-- source: internal/component/bgp/policychain/chain.go -- CompileUnconfigured, Chain.endFinal -->

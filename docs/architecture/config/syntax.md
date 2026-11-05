@@ -356,18 +356,21 @@ every subscriber a /56 whatever `delegation-length` said. A hand-typed test
 fixture hides it, because a fixture carrying `"delegation-length":48` as a JSON
 number is a payload the producer never emits.
 
-The lowering is ONE WAY. A bare string is a plain leaf and a one-member
-leaf-list alike, so no lowered map can be rebuilt into a Tree without the schema
-that declared the node. A consumer that needs a Tree takes the PARSED one
-(`preparePKIConfig`, `cmd/ze/hub/main_pki.go`), never a rebuild of the map.
+The public lowering loses node types: a bare string is a plain leaf and a
+one-member leaf-list alike. A consumer that needs the fully typed tree takes
+the PARSED one (`preparePKIConfig`, `cmd/ze/hub/main_pki.go`), never a guess
+from that map. The internal running projection below preserves the member
+intent needed by BGP's schema-aware reload compiler; it is not a replacement
+for the original parsed tree in other consumers.
 
 A list is delivered as a map, and a map states no order, so the operator's ENTRY
-ORDER needs a second key to survive lowering. There are two lowerings.
+ORDER needs a second key to survive lowering. There are three lowerings.
 
 | Lowering | Reads | Carries the order |
 |----------|-------|-------------------|
 | `(*Tree).ToMap` | gNMI, `ze config show`, config validation, the CLI editor | no |
 | `(*Tree).ToPluginMap` | the map delivered to a plugin, at startup and at reload | yes |
+| `(*Tree).ToRunningMap` | the internal candidate, running and compensating configuration | yes, plus inactive leaf-list intent |
 
 `ToPluginMap` emits the order of every list of two or more entries as a sibling
 key: the list name with an `@` prefix, holding the entry keys in the operator's
@@ -378,6 +381,42 @@ with a declared sibling. A list of one entry carries no sidecar.
 gNMI would publish a path no YANG module declares, `ze config show | json` would
 show the key to the operator, and whole-config validation would refuse it as an
 unknown node.
+
+`ToRunningMap` uses the same walker, but retains inactive leaf-list members
+under a private `!inactive-members` array of leaf records. Each record keeps
+the complete member order and the unique inactive values; a real map-valued
+list entry with that spelling remains ordinary data. `TreeFromPluginMap`
+restores this intent after the ordinary active values, refusing disagreement.
+This lets a declaration rebuild use the current configuration, including
+operator-disabled automatic filters, without retaining boot text or reading a
+staged file. The internal diff attributes inactive changes to their real leaf
+owners, including beneath a whole added, removed or replaced ancestor.
+Private intent is a change, never a public config addition or deletion.
+
+Plugin sections, callback diffs, ConfigProvider roots, saved effective peer
+data and `show config running` use the active projection. The private records
+never cross those boundaries. Ordered-list `@` keys keep their existing
+plugin contract.
+<!-- source: internal/component/config/running_map.go -- ActiveConfigMap, restoreRunningMembers -->
+<!-- source: internal/component/config/diff.go -- DiffMaps, diffInactiveSubtree -->
+
+The hub binds the selected running map to each actual process's Configure
+lifetime. A normal startup uses current configuration, candidate activation
+uses that candidate, and compensation uses its existing `before` map. Internal
+protocol constructors resolve this scope through the connection's own bridge,
+not a process-name guess, boot text or a fresh storage read. The BGP factory
+reconstructs that whole map before the ordinary constructor, so globals,
+listeners, templates, peers and infrastructure all use the same authority.
+The running-map loader reuses plugin/dependency and directory resolution without
+re-publishing environment settings or hashing canonical credentials again.
+<!-- source: internal/component/plugin/server/startup_removal.go -- ConfigurationFor, bindConfigureConfig -->
+<!-- source: internal/component/config/loader.go -- LoadRunningConfig, finalizeConfigLoad -->
+
+An attachment is published only after its selected map and early cache-consumer
+replay are ready. Detach matches the exact attachment and retains its latest
+running map, serialized with map reads and publication. A later recreation
+therefore cannot inherit stale bootstrap intent or lose an accepted update.
+<!-- source: internal/component/plugin/coordinator.go -- AttachReactor, DetachReactor, SetConfigTree -->
 
 A `list` declared `ordered-by user` MUST be read with `configorder.Entries`
 (`internal/core/configorder`), which returns the entries in the delivered order

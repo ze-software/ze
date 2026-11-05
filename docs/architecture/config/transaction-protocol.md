@@ -1082,6 +1082,22 @@ A restarted plugin applies its roots from the configuration the daemon selected.
 An explicit-file boot uses the named file; a store-only boot uses the active
 pointer. Boot recovers durable publication intent before stale-candidate cleanup.
 
+Configure selection is scoped to the actual process and connection. A newly
+enabled runtime receives the complete candidate; compensation receives the
+existing undo owner's `before` map, while an ordinary respawn receives current
+running configuration. Merely receiving a candidate does not grant recovery's
+fatal-startup exemption. The scope covers the handshake and its failure-policy
+checks, or the committed Configure callback that resumes a refused removal.
+
+A startup can publish runtime configuration before ordinary verify/apply.
+The existing reload acceptance owner therefore captures its original map before
+auto-load starts, not after successful apply. A failure during activation or a
+later verification refusal restores that map through the same compensation
+owner and inverse-settlement machinery.
+<!-- source: internal/component/plugin/server/startup.go -- runPluginPhaseWithin -->
+<!-- source: internal/component/plugin/server/startup_removal.go -- restoreRemovedPlugin -->
+<!-- source: internal/component/plugin/server/reload.go -- reloadConfig -->
+
 ---
 
 ## 14. Failure Modes

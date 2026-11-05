@@ -50,14 +50,15 @@ func handleShowConfigRunning(ctx *pluginserver.CommandContext, _ command.Validat
 	}
 	return &zePlugin.Response{
 		Status: zePlugin.StatusDone,
-		Data:   zePlugin.Map(runningConfigView(tree, config.SecretKeys(schema))),
+		Data:   zePlugin.Map(runningConfigView(config.ActiveConfigMap(tree), config.SecretKeys(schema))),
 	}, nil
 }
 
 // runningConfigView answers a deep copy of the running tree with every string
 // under a secret leaf name replaced by the placeholder. It copies rather than
 // masks in place because the tree is the daemon's live running configuration:
-// the next reload diffs against it.
+// the next reload diffs against it. The caller MUST active-project the tree at
+// the public response boundary before entering this recursive copier.
 //
 // The recursion is bounded by the YANG schema's depth: the tree is the daemon's
 // own parsed config, never input a peer controls.

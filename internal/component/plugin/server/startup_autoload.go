@@ -301,10 +301,9 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 	return plugins, nil
 }
 
-// startAutoLoaded starts plugins that selectAutoLoad chose, and expands
-// nothing. recovery marks a restoration startup: it receives tree rather than
-// the reactor's tree, runs under ctx, and is exempt from the fatal-startup
-// policy (runPluginRecoveryPhase).
+// startAutoLoaded starts plugins that selectAutoLoad chose, and expands nothing.
+// Both modes receive the exact selected tree under ctx; recovery alone grants
+// the restoration startup's explicit fatal-policy exemption.
 func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginConfig, newTree map[string]any, recovery bool) ([]string, error) {
 	if len(plugins) == 0 {
 		return nil, nil
@@ -318,7 +317,7 @@ func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginCon
 	if recovery {
 		startErr = s.runPluginRecoveryPhase(ctx, plugins, newTree)
 	} else {
-		startErr = s.runPluginPhase(plugins)
+		startErr = s.runPluginPhaseWithin(ctx, plugins, configureConfig{tree: newTree})
 	}
 	if startErr != nil {
 		logger().Error("config reload: auto-load plugin startup failed", "error", startErr)

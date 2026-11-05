@@ -42,7 +42,7 @@ type ReactorConfigurator interface {
 	// tree, the tree SetConfigTree takes, not one protocol's block.
 	ApplyConfigDiff(configTree map[string]any) error
 
-	// GetConfigTree returns the full config as a map for plugin config delivery.
+	// GetConfigTree returns the internal running map. Public consumers MUST project active data.
 	GetConfigTree() map[string]any
 
 	// SetConfigTree replaces the running config tree after a successful reload.
@@ -123,7 +123,7 @@ type ProtocolReactor interface {
 	// Reload reloads the configuration.
 	Reload() error
 
-	// GetConfigTree returns the full config as a map for plugin config delivery.
+	// GetConfigTree returns the internal running map. Public consumers MUST project active data.
 	GetConfigTree() map[string]any
 
 	// SetConfigTree replaces the running config tree after a successful reload.

@@ -142,8 +142,8 @@ type Config struct {
 	// Required for Reload() to work.
 	ConfigPath string
 
-	// ConfigTree is the full config as a map for plugin JSON delivery.
-	// Plugins request specific roots (e.g., "bgp") and receive that subtree as JSON.
+	// ConfigTree is the internal running map, including inactive member intent.
+	// Public plugin sections MUST project it to active data before JSON delivery.
 	ConfigTree map[string]any
 
 	// RecentUpdateMax is the maximum number of cached updates (soft limit).
@@ -366,7 +366,7 @@ type Reactor struct {
 
 	aigp aigpState
 
-	// Config tree for plugin JSON delivery
+	// Immutable running authority, including private inactive member intent.
 	configTree map[string]any
 
 	// createdPeers names the peers `create bgp peer` built that no candidate
@@ -493,9 +493,6 @@ type Reactor struct {
 	// hands over, through the same pipeline as reloadFunc. Set via
 	// SetTreeReloadFunc (reload_tree.go).
 	treeReloadFunc TreeReloadFunc
-	// bootPeersFunc builds the peers of the boot config text, read once by
-	// the first RebuildRunningPeers (SetBootPeersFunc). Guarded by mu.
-	bootPeersFunc BootPeersFunc
 
 	// postStartFunc is called after the API server starts.
 	// Used by config loader to wire deferred components (SSH executor, authz).
@@ -1046,8 +1043,8 @@ func (r *Reactor) ExecuteCommand(input string) (string, error) {
 	return string(b), nil
 }
 
-// ConfigTree returns the full config as a map.
-// Used by startup code to extract telemetry and other non-BGP config.
+// ConfigTree returns the immutable internal running map.
+// Public consumers MUST project its private member intent to active data.
 func (r *Reactor) ConfigTree() map[string]any {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

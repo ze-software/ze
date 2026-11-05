@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"net/netip"
+	"reflect"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -23,7 +23,7 @@ var ErrNoReactor = errors.New("no reactor loaded")
 // reactor, returning ErrNoReactor when absent.
 //
 // Any protocol (BGP, OSPF, IS-IS) registers its reactor via RegisterReactor.
-// The BGP reactor also integrates via SetReactor for ReactorLifecycle delegation.
+// The BGP reactor also integrates via AttachReactor for ReactorLifecycle delegation.
 //
 // Created by the hub at startup. Safe for concurrent use.
 type Coordinator struct {
@@ -37,7 +37,7 @@ type Coordinator struct {
 	// to its ack ordering (true = unordered). A config-path plugin declares this
 	// in startup Stage 1, and the BGP reactor is built in the bgp plugin's
 	// Stage 2 OnConfigure, so those declarations are all made while no reactor
-	// is attached. Holding the set here and replaying it from SetReactor is what
+	// is attached. Holding the set here and replaying it from AttachReactor is what
 	// makes a declaration independent of that order; a plugin started later
 	// declares straight onto the attached reactor and is recorded just the same.
 	// Dropping the early ones left bgp-rs registered nowhere: the cache then
@@ -45,10 +45,10 @@ type Coordinator struct {
 	// bgp-rs had batched but not yet forwarded.
 	//
 	// consumerMu covers the set AND the reactor calls it produces, so a
-	// declaration reaches the reactor exactly once however it races SetReactor.
-	// Lock order: consumerMu above mu, never the reverse. Holding it across a
-	// reactor call is safe because the reactor's cache path never re-enters the
-	// Coordinator.
+	// declaration reaches the reactor exactly once however it races attachment.
+	// Lock order: consumerMu above mu, never the reverse. Only map access and
+	// cache registration are called with mu held. Unregister retains its
+	// consumerMu-only callback scope.
 	consumerMu     sync.Mutex
 	cacheConsumers map[string]bool
 }
@@ -82,13 +82,17 @@ func (c *Coordinator) Bootstrap() registry.BGPBootstrap {
 // and type-assert to the protocol-specific interface they need.
 // Pass nil to unregister.
 //
-// The name "bgp" is delegated to SetReactor. Both write the same map row, and
-// only SetReactor replays the recorded cache-consumer declarations onto the
-// arriving reactor; attaching the BGP reactor through this door instead would
-// silently reinstate the defect cacheConsumers exists to prevent.
+// The name "bgp" uses the same owned attachment path as AttachReactor and
+// DetachReactor, including cache replay and running-map handover.
 func (c *Coordinator) RegisterReactor(name string, r any) {
 	if name == "bgp" {
-		if err := c.SetReactor(r); err != nil {
+		var err error
+		if r != nil {
+			err = c.AttachReactor(r)
+		} else if current := c.Reactor(name); current != nil {
+			err = c.DetachReactor(current)
+		}
+		if err != nil {
 			coordinatorLogger().Error("coordinator: bgp reactor rejected by RegisterReactor", "error", err)
 		}
 		return
@@ -110,47 +114,64 @@ func (c *Coordinator) Reactor(name string) any {
 	return c.reactors[name]
 }
 
-// SetReactor registers the BGP reactor for ReactorLifecycle delegation.
-// Pass nil to unregister. Returns error if r is non-nil but not ReactorLifecycle.
-// Stores the reactor under the name "bgp" in the named reactor map.
-// Attaching a reactor also replays the cache-consumer declarations recorded so
-// far, which is the only moment the early ones can reach it: see cacheConsumers.
-func (c *Coordinator) SetReactor(r any) error {
-	// consumerMu spans the attach AND the replay, so a declaration that arrives
-	// in between is either in the snapshot or sees the attached reactor itself,
-	// never both and never neither.
+// AttachReactor publishes a prepared BGP reactor and replays cache declarations.
+// r MUST be a nonnil pointer implementing ReactorLifecycle with a nonnil running
+// map selected by its constructor. An attached owner MUST be detached first.
+func (c *Coordinator) AttachReactor(r any) error {
+	lifecycle, err := ownedReactorLifecycle(r)
+	if err != nil {
+		return err
+	}
 	c.consumerMu.Lock()
 	defer c.consumerMu.Unlock()
-
 	c.mu.Lock()
-	if r == nil {
-		delete(c.reactors, "bgp")
-		c.mu.Unlock()
-		return nil
+	defer c.mu.Unlock()
+	if c.reactors["bgp"] != nil {
+		return errors.New("coordinator: reactor already attached")
 	}
-	lifecycle, ok := r.(ReactorLifecycle)
-	if !ok {
-		c.mu.Unlock()
-		return fmt.Errorf("coordinator: expected ReactorLifecycle, got %T", r)
+	if lifecycle.GetConfigTree() == nil {
+		return errors.New("coordinator: reactor has no selected running configuration")
 	}
-	c.reactors["bgp"] = r
-	replay := make(map[string]bool, len(c.cacheConsumers))
-	maps.Copy(replay, c.cacheConsumers)
-	handover := c.configTree
-	c.mu.Unlock()
-
-	for name, unordered := range replay {
+	// These calls take only the reactor map/cache locks and never re-enter the
+	// coordinator. Publish last: readers cannot see incomplete cache replay.
+	for name, unordered := range c.cacheConsumers {
 		lifecycle.RegisterCacheConsumer(name, unordered)
 	}
-	// The running configuration moves to the reactor with the reactor, for the
-	// reason GetConfigTree states: from here on there is ONE tree, and it is
-	// the reactor's. Handing it over rather than leaving each side with its own
-	// copy is what stops the two answering different questions about the same
-	// running daemon.
-	if handover != nil {
-		lifecycle.SetConfigTree(handover)
-	}
+	c.reactors["bgp"] = r
+	c.configTree = nil
 	return nil
+}
+
+// DetachReactor retains the latest running map and removes only expected's
+// attachment. A stale or unsupported identity MUST NOT remove another lifetime.
+func (c *Coordinator) DetachReactor(expected any) error {
+	lifecycle, err := ownedReactorLifecycle(expected)
+	if err != nil {
+		return err
+	}
+	c.consumerMu.Lock()
+	defer c.consumerMu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.reactors["bgp"] != expected {
+		return errors.New("coordinator: reactor attachment no longer matches owner")
+	}
+	c.configTree = lifecycle.GetConfigTree()
+	delete(c.reactors, "bgp")
+	c.postStartup = nil
+	return nil
+}
+
+func ownedReactorLifecycle(r any) (ReactorLifecycle, error) {
+	lifecycle, ok := r.(ReactorLifecycle)
+	if !ok {
+		return nil, fmt.Errorf("coordinator: expected ReactorLifecycle, got %T", r)
+	}
+	value := reflect.ValueOf(r)
+	if value.Kind() != reflect.Pointer || value.IsNil() {
+		return nil, fmt.Errorf("coordinator: expected nonnil reactor pointer, got %T", r)
+	}
+	return lifecycle, nil
 }
 
 // getReactor returns the BGP reactor from the named map, or nil.
@@ -176,7 +197,7 @@ func (c *Coordinator) FullReactor() ReactorLifecycle {
 
 // --- ReactorConfigurator ---
 
-// GetConfigTree returns the full config as a map for plugin config delivery.
+// GetConfigTree returns the internal running map; public consumers MUST project active data.
 //
 // The attached reactor HOLDS the running configuration, and this answers its
 // tree rather than a second copy of it. The two were separate fields until
@@ -192,11 +213,11 @@ func (c *Coordinator) FullReactor() ReactorLifecycle {
 // The local field answers before a reactor attaches, and for a coordinator
 // that never gets one.
 func (c *Coordinator) GetConfigTree() map[string]any {
-	if r := c.getReactor(); r != nil {
-		return r.GetConfigTree()
-	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	if r, ok := c.reactors["bgp"].(ReactorLifecycle); ok {
+		return r.GetConfigTree()
+	}
 	return c.configTree
 }
 
@@ -204,11 +225,11 @@ func (c *Coordinator) GetConfigTree() map[string]any {
 // It asks the reactor where one is attached, for the reason above; with none,
 // there is no runtime state to leave out and the local tree is the answer.
 func (c *Coordinator) ReloadRunning(candidate map[string]any) map[string]any {
-	if r := c.getReactor(); r != nil {
-		return r.ReloadRunning(candidate)
-	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	if r, ok := c.reactors["bgp"].(ReactorLifecycle); ok {
+		return r.ReloadRunning(candidate)
+	}
 	return c.configTree
 }
 
@@ -233,12 +254,12 @@ func (c *Coordinator) RestoreCreatedPeers(before map[string]any, created map[net
 // SetConfigTree replaces the running config tree after a successful reload. It
 // writes the reactor's tree where one is attached, for the reason above.
 func (c *Coordinator) SetConfigTree(tree map[string]any) {
-	if r := c.getReactor(); r != nil {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if r, ok := c.reactors["bgp"].(ReactorLifecycle); ok {
 		r.SetConfigTree(tree)
 		return
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.configTree = tree
 }
 
@@ -483,7 +504,7 @@ func (c *Coordinator) SignalPeerUpBarrier(peerAddr string) {
 
 // RegisterCacheConsumer initializes tracking for a cache-consumer plugin.
 // The declaration is recorded whether or not a reactor is attached yet, and
-// SetReactor replays it: a plugin declares in startup Stage 1, and the BGP
+// AttachReactor replays it: a plugin declares in startup Stage 1, and the BGP
 // reactor does not exist until Stage 2 (see cacheConsumers).
 func (c *Coordinator) RegisterCacheConsumer(name string, unordered bool) {
 	c.consumerMu.Lock()
@@ -502,7 +523,7 @@ func (c *Coordinator) RegisterCacheConsumer(name string, unordered bool) {
 }
 
 // UnregisterCacheConsumer removes a cache-consumer plugin. The recorded
-// declaration is dropped too, so a later SetReactor does not resurrect a
+// declaration is dropped too, so a later attachment does not resurrect a
 // consumer that has gone.
 func (c *Coordinator) UnregisterCacheConsumer(name string) {
 	c.consumerMu.Lock()

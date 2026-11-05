@@ -8,6 +8,12 @@ Ze supports live configuration reload without restarting the daemon. Changed pee
 <!-- source: internal/component/bgp/reactor/source_policy_relax.go -- swapImportRising, undoImportRelaxation, refuseRelaxationWithoutRefresh -->
 <!-- source: internal/component/bgp/reactor/source_policy_reload.go -- swapImportFalling, prepareImportInvalidation -->
 
+When a reload starts a newly enabled protocol runtime, that runtime uses the
+complete candidate configuration, not an earlier boot snapshot. If activation
+or later verification fails, the reload restores the previous running
+configuration. An ordinary runtime restart uses the latest accepted settings,
+including automatic filter references the operator left inactive.
+
 ## Triggering a Reload
 
 ```bash

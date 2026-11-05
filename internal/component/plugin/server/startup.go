@@ -439,7 +439,7 @@ func (s *Server) startupComplete() bool {
 // Async handlers (handleSingleProcessCommandsRPC) start only after ALL tiers
 // complete, because they read from the same connections used during startup.
 func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
-	return s.runPluginPhaseWithin(s.ctx, plugins)
+	return s.runPluginPhaseWithin(s.ctx, plugins, s.currentConfigureConfig())
 }
 
 // runPluginPhaseWithin runs one startup phase whose handshakes end when ctx
@@ -447,7 +447,7 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 // context, so startup itself obeys that deadline rather than only checking it
 // before blocking. An expired ctx fails the handshake through the ordinary
 // failed-startup rollback.
-func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.PluginConfig) error {
+func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.PluginConfig, selected configureConfig) error {
 	if len(plugins) == 0 {
 		return nil
 	}
@@ -467,6 +467,17 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 		return errSpawnerDidNotProduceAValid
 	}
 	s.procManager.Store(pm)
+	allProcesses := make([]*process.Process, 0, len(plugins))
+	for _, cfg := range plugins {
+		if proc := pm.GetProcess(cfg.Name); proc != nil {
+			allProcesses = append(allProcesses, proc)
+		}
+	}
+	if err := s.bindConfigureConfig(allProcesses, selected); err != nil {
+		return err
+	}
+	// Retain the exact scope through failed-startup rollback and failure policy.
+	defer s.clearConfigureConfig(allProcesses)
 
 	// Track loaded plugins so later phases don't re-load them.
 	for _, p := range plugins {
@@ -483,7 +494,6 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 
 	logger().Debug("plugin startup tiers computed", "tiers", tiers)
 
-	var allProcesses []*process.Process
 	var phaseErr error
 
 	// Step (c): For each tier, create a coordinator and run the 5-stage handshake.
@@ -524,7 +534,6 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 		}
 		procWg.Wait()
 
-		allProcesses = append(allProcesses, tierProcs...)
 		for _, proc := range tierProcs {
 			if proc.Stage() >= plugin.StageRunning {
 				continue
@@ -621,6 +630,12 @@ func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, 
 // sink's Transition), not the returned error -- which is why the driver's error
 // is only logged here and the outer runPluginPhase inspects the process stage.
 func (s *Server) handleProcessStartupRPC(proc *process.Process) {
+	scoped := []*process.Process{proc}
+	if err := s.bindConfigureConfig(scoped, s.currentConfigureConfig()); err != nil {
+		logger().Error("plugin Configure scope refused", "plugin", proc.Name(), "error", err)
+		return
+	}
+	defer s.clearConfigureConfig(scoped)
 	s.handleProcessStartupWithin(s.ctx, proc)
 }
 
@@ -987,18 +1002,18 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 
 	var sections []rpc.ConfigSection
 
-	recoveryTree, recovering := s.pluginRecoveryConfig(proc.Name())
-	if len(reg.WantsConfigRoots) > 0 && (s.reactor != nil || recovering) {
-		configTree := recoveryTree
-		if !recovering {
-			configTree = s.reactor.GetConfigTree()
-		}
-		if configTree != nil {
-			var err error
-			sections, err = config.BuildPluginConfigSections(configTree, reg.WantsConfigRoots)
-			if err != nil {
-				logger().Error("deliverConfigRPC: build config sections", "plugin", proc.Name(), "error", err)
-			}
+	selected, scoped := s.pluginConfigureConfig(proc)
+	recovering := scoped && selected.recovering
+	// Direct ad-hoc delivery has the explicit current authority. Actual startup
+	// and recovery callbacks use their process-owned selection throughout.
+	if !scoped {
+		selected = s.currentConfigureConfig()
+	}
+	if len(reg.WantsConfigRoots) > 0 && selected.tree != nil {
+		var err error
+		sections, err = config.BuildPluginConfigSections(selected.tree, reg.WantsConfigRoots)
+		if err != nil {
+			logger().Error("deliverConfigRPC: build config sections", "plugin", proc.Name(), "error", err)
 		}
 	}
 

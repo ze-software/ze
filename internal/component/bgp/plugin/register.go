@@ -181,7 +181,7 @@ func verifyStartupPeerBFDProfiles(h registry.BGPReactorHandle, sections []sdk.Co
 }
 
 // runBGPEngine is the engine-mode entry point for the BGP plugin.
-func runBGPEngine(conn net.Conn) int {
+func runBGPEngine(conn net.Conn) (result int) {
 	log := slogutil.Logger("bgp.plugin")
 	log.Debug("bgp plugin starting")
 
@@ -189,6 +189,29 @@ func runBGPEngine(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	var bgpReactor registry.BGPReactorHandle
+	var attachedCoord registry.CoordinatorAccessor
+	var attachment any
+	defer func() {
+		// Cleanup also runs when Stage 2 or a later startup stage refuses.
+		// An attachment MUST survive Stop and Wait, then detach by its exact identity.
+		// Only a successfully attached owner installed the insertion listener.
+		if attachment != nil {
+			registry.SetFilterInsertionsChanged(nil)
+		}
+		if bgpReactor != nil {
+			bgpReactor.Stop()
+			if err := bgpReactor.Wait(context.Background()); err != nil {
+				log.Error("bgp reactor cleanup failed", "error", err)
+				result = 1
+			}
+		}
+		if attachment != nil {
+			if err := attachedCoord.DetachReactor(attachment); err != nil {
+				log.Error("bgp reactor detachment failed", "error", err)
+				result = 1
+			}
+		}
+	}()
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		bgpMu.Lock()
@@ -210,8 +233,11 @@ func runBGPEngine(conn net.Conn) int {
 			return errBgpNoReactorFactoryRegistered
 		}
 
-		var err error
-		bgpReactor, err = factoryFn(coord)
+		selected, err := server.ConfigurationFor(conn)
+		if err != nil {
+			return fmt.Errorf("bgp: select Configure authority: %w", err)
+		}
+		bgpReactor, err = factoryFn(coord, selected)
 		if err != nil {
 			return fmt.Errorf("bgp: create reactor: %w", err)
 		}
@@ -244,9 +270,13 @@ func runBGPEngine(conn net.Conn) int {
 		server.UpdateProtocolConfig(families, events, sendTypes)
 
 		// Register reactor with coordinator for ReactorLifecycle delegation.
-		if err := coord.SetReactor(bgpReactor.ReactorLifecycleAdapter()); err != nil {
+		// A successful attachment MUST retain this identity through Stop and Wait
+		// so deferred cleanup can detach only the lifetime this owner installed.
+		owner := bgpReactor.ReactorLifecycleAdapter()
+		if err := coord.AttachReactor(owner); err != nil {
 			return fmt.Errorf("bgp: register reactor: %w", err)
 		}
+		attachedCoord, attachment = coord, owner
 
 		// Start reactor (listeners, wiring). Peers are deferred: the externalServer
 		// flag skips peer startup in StartWithContext to avoid validate-open
@@ -459,24 +489,6 @@ func runBGPEngine(conn net.Conn) int {
 	}); err != nil {
 		log.Error("bgp plugin failed", "error", err)
 		return 1
-	}
-
-	// Clean up reactor on exit (AC-7: BGP removed at reload, or daemon shutdown).
-	// The insertion listener goes first: it rebuilds this reactor's peers.
-	registry.SetFilterInsertionsChanged(nil)
-	if bgpReactor != nil {
-		bgpReactor.Stop()
-		_ = bgpReactor.Wait(context.Background())
-	}
-
-	// Clear coordinator state so BGP can be re-loaded at a future reload.
-	bgpMu.Lock()
-	server := bgpServer
-	bgpMu.Unlock()
-	if server != nil {
-		if coord, ok := server.ReactorAny().(registry.CoordinatorAccessor); ok {
-			_ = coord.SetReactor(nil)
-		}
 	}
 
 	return 0

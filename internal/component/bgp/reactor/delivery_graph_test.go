@@ -418,10 +418,10 @@ func TestRemovedPeerStaysInTheIndexUntilItsDownEvent(t *testing.T) {
 	r.mu.Unlock()
 
 	first := netip.MustParseAddr("192.0.2.1")
-	removed, stop, err := r.doRemovePeer(first, message.NotifyCeasePeerDeconfigured)
+	removal, err := r.doRemovePeer(first, message.NotifyCeasePeerDeconfigured)
 	require.NoError(t, err)
-	require.NotNil(t, removed)
-	stop.run()
+	require.NotNil(t, removal.removed)
+	removal.stop.run()
 	assert.Equal(t, []string{"looking-glass"},
 		recv(srv.DeliveryGraph(), bgpevents.EventState, events.DirUnspecified, "192.0.2.1"),
 		"the down event that follows must still find the process the peer fed")

@@ -402,11 +402,10 @@ func (s *Server) PeerScopedProcs(ns events.NamespaceID, et events.EventTypeID, d
 // SubscribedProcsNamed returns the processes among names that subscribed to one
 // peer-scoped event, with no delivery-graph filter.
 //
-// It serves the one delivery the graph cannot answer: telling a process that a
-// peer stopped feeding it. By then the graph no longer holds that edge, which is
-// the change being reported, so PeerScopedProcs would return nobody. The caller
-// names the processes, so the operator's grant for every other process still
-// decides what they receive.
+// It serves lifecycle deliveries the graph cannot answer: telling a process
+// that a peer stopped feeding it, and closing an OPEN validator's observation
+// lifetime when that peer is removed. The caller names the owning processes;
+// every other delivery still requires the operator's graph grant.
 func (s *Server) SubscribedProcsNamed(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string, names []string) []*process.Process {
 	if s.subscriptions == nil {
 		return nil

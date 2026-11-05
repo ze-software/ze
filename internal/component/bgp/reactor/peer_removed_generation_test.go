@@ -37,8 +37,9 @@ func TestDoRemovePeerIssuesGenerationAboveEveryOpen(t *testing.T) {
 	peer.advanceForwardGeneration()
 	oldOpen := forwardGenerationClock.Load()
 
-	removed, _, err := r.doRemovePeer(addr, message.NotifyCeasePeerDeconfigured)
+	removal, err := r.doRemovePeer(addr, message.NotifyCeasePeerDeconfigured)
 	require.NoError(t, err)
+	removed := removal.removed
 	require.NotNil(t, removed)
 	assert.Greater(t, removed.SessionGeneration, oldOpen,
 		"the removal must name a generation above the removed peer's OPEN")

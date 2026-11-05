@@ -266,6 +266,8 @@ func BuildPluginConfigSections(configTree map[string]any, roots []string) ([]rpc
 // it has to refuse. Every list NESTED in the extracted subtree already carries
 // its own order, because the subtree carries the container that holds both.
 func ExtractConfigSubtree(configTree map[string]any, path string) any {
+	// Running authority retains private inactive intent; public sections do not.
+	configTree = ActiveConfigMap(configTree)
 	if path == "*" {
 		return configTree
 	}

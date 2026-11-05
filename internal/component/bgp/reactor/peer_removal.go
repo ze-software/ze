@@ -14,7 +14,7 @@ import (
 // *bgpserver.EventDispatcher satisfies it, and Reactor.removalEvents holds it as
 // this interface so a test can observe every removal path's down.
 type peerRemovalEvents interface {
-	OnPeerStateChange(peer *plugin.PeerInfo, state rpc.SessionState, reason string)
+	CapturePeerStateChange(peer *plugin.PeerInfo, state rpc.SessionState, reason string) func()
 }
 
 // peerRemoval is what removing one peer still owes once r.mu is released: the
@@ -29,6 +29,9 @@ type peerRemoval struct {
 	stop peerStop
 	// removed is the identity the down carries.
 	removed *plugin.PeerInfo
+	// down owns the captured terminal delivery. completeRemovals MUST invoke
+	// it exactly once, after the Cease and outside r.mu.
+	down func()
 }
 
 // run sends the Cease alone, if the removal owes one. The caller MUST NOT hold
@@ -46,11 +49,10 @@ func (rm peerRemoval) run() {
 //
 // SessionGeneration names the session this removal ends, as the FSM teardown's
 // down does (endNegotiatedSession): a forwarding plugin stamps its departure
-// with it, and the engine refuses a departure that names generation 0. The
-// down reaches the processes first and the index then drops the peer, so the
-// teardown's own down finds no receiver: without the generation here the route
-// server's withdrawals were refused and the peer's routes stayed on every other
-// peer.
+// with it, and the engine refuses a departure that names generation 0.
+// The terminal recipients and role permissions are captured here before any
+// concurrent graph publication can erase the peer's edges. The identity keeps
+// the departure scoped to the removed lifetime, not a replacement at its address.
 //
 // The generation is issued here, under r.mu, rather than read: it is then above
 // the generation every OPEN this peer validated was stamped with
@@ -66,7 +68,7 @@ func (rm peerRemoval) run() {
 func (r *Reactor) removalLocked(peer *Peer, stop peerStop) peerRemoval {
 	settings := peer.Settings()
 	peer.advanceForwardGeneration()
-	return peerRemoval{stop: stop, removed: &plugin.PeerInfo{
+	removal := peerRemoval{stop: stop, removed: &plugin.PeerInfo{
 		Address:           settings.Address,
 		LocalAddress:      settings.LocalAddress,
 		AddressStr:        peer.addrString,
@@ -79,6 +81,12 @@ func (r *Reactor) removalLocked(peer *Peer, stop peerStop) peerRemoval {
 		State:             peer.State().PluginState(),
 		SessionGeneration: peer.forwardGeneration.Load(),
 	}}
+	if r.removalEvents != nil {
+		// Capture allocates only on this cold removal path. The returned
+		// delivery MUST run exactly once in completeRemovals after r.mu is free.
+		removal.down = r.removalEvents.CapturePeerStateChange(removal.removed, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
+	}
+	return removal
 }
 
 // completeRemovals finishes the removals removalLocked built. The caller MUST
@@ -91,18 +99,17 @@ func (r *Reactor) removalLocked(peer *Peer, stop peerStop) peerRemoval {
 // rpc.ReasonPeerRemoved to delete its per-peer ze_gr_* series and skip route
 // retention, and bgp-role to free the peer's learned role.
 //
-// Only then the index drops the peers' edges: the down finds its receivers
-// through the index (PeerScopedProcs), so an index that no longer named the
-// peer told no process it fed that it was gone, and the RIB, the route server
-// and bgp-role kept its state. Guarded on the index being live for the same
-// reason AddPeer is.
+// Recipients were captured by removalLocked under r.mu, so a concurrent peer
+// change may already have republished the graph without losing this terminal
+// delivery. Each captured down MUST run exactly once here, after its Cease and
+// outside r.mu. The final publication reflects the current peer set.
 func (r *Reactor) completeRemovals(removals ...peerRemoval) {
 	for _, removal := range removals {
 		removal.run()
 	}
-	if r.removalEvents != nil {
-		for _, removal := range removals {
-			r.removalEvents.OnPeerStateChange(removal.removed, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
+	for _, removal := range removals {
+		if removal.down != nil {
+			removal.down()
 		}
 	}
 	r.mu.Lock()

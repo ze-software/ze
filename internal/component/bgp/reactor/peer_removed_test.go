@@ -45,8 +45,9 @@ func TestDoRemovePeerReturnsRemovedIdentity(t *testing.T) {
 	addr := netip.MustParseAddr("192.0.2.7")
 	insertTestPeer(r, addr)
 
-	removed, _, err := r.doRemovePeer(addr, message.NotifyCeasePeerDeconfigured)
+	removal, err := r.doRemovePeer(addr, message.NotifyCeasePeerDeconfigured)
 	require.NoError(t, err)
+	removed := removal.removed
 	require.NotNil(t, removed)
 	assert.Equal(t, addr, removed.Address, "removed identity must be the removed peer")
 	assert.Equal(t, rpc.RemoteASOf(65001), removed.PeerAS)
@@ -82,8 +83,9 @@ func TestDoRemovePeerNamesTheSessionGeneration(t *testing.T) {
 	peer.advanceForwardGeneration()
 	generation := peer.forwardGeneration.Load()
 
-	removed, _, err := r.doRemovePeer(addr, message.NotifyCeasePeerDeconfigured)
+	removal, err := r.doRemovePeer(addr, message.NotifyCeasePeerDeconfigured)
 	require.NoError(t, err)
+	removed := removal.removed
 	require.NotNil(t, removed)
 	assert.Greater(t, removed.SessionGeneration, generation,
 		"the removal down names a generation above the session it ends, never 0")

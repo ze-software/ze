@@ -4,6 +4,7 @@ package registry
 
 import (
 	"context"
+	"net"
 	"sync"
 	"time"
 
@@ -16,6 +17,9 @@ import (
 type PluginServerAccessor interface {
 	ReactorAny() any            // Returns ReactorLifecycle (any to avoid importing plugin types)
 	ReactorFor(name string) any // Returns named protocol reactor, or nil
+	// ConfigurationFor returns the exact internal map owned by this connection's
+	// Configure lifetime. Missing scope, bridge or authority MUST be refused.
+	ConfigurationFor(conn net.Conn) (map[string]any, error)
 	UpdateProtocolConfig(families, customEvents, customSendTypes []string)
 	SetMetricsRegistry(reg metrics.Registry)
 	SetCommitManager(cm any) // Set commit manager (type-asserted by handlers)
@@ -211,7 +215,6 @@ type BGPReactorHandle interface {
 type BGPBootstrap struct {
 	ConfigPath string          // config file path ("" or "-" for stdin)
 	CLIPlugins []string        // plugin instance names from the config
-	ConfigData []byte          // captured config bytes (stdin fallback)
 	Store      storage.Storage // blob/file config store
 	ChaosSeed  int64           // le chaos run fault-injection seed (0 = off)
 	ChaosRate  float64         // le chaos run fault rate
@@ -227,16 +230,18 @@ type BGPBootstrap struct {
 // CoordinatorAccessor provides the methods that plugins need from the Coordinator
 // without importing the plugin package.
 type CoordinatorAccessor interface {
-	SetReactor(r any) error
+	AttachReactor(r any) error
+	DetachReactor(expected any) error
 	RegisterReactor(name string, r any)
 	Reactor(name string) any
 	Bootstrap() BGPBootstrap
 	OnPostStartup(fn func() error)
 }
 
-// ReactorFactoryFunc creates a BGP reactor from coordinator-stored config state.
-// Registered by bgp/config at init time, called by bgp/plugin during OnConfigure.
-type ReactorFactoryFunc func(coord CoordinatorAccessor) (BGPReactorHandle, error)
+// ReactorFactoryFunc creates a BGP reactor from its exact selected running map.
+// The map MUST be nonnil and already canonical; the factory MUST NOT substitute
+// stored or bootstrap bytes. Registered by bgp/config for OnConfigure.
+type ReactorFactoryFunc func(coord CoordinatorAccessor, tree map[string]any) (BGPReactorHandle, error)
 
 var (
 	reactorFactoryMu sync.RWMutex

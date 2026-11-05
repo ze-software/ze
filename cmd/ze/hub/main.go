@@ -838,7 +838,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	coordinator.SetBootstrap(registry.BGPBootstrap{
 		ConfigPath:         configPath,
 		CLIPlugins:         plugins,
-		ConfigData:         data,
 		Store:              store,
 		ChaosSeed:          chaosSeed,
 		ChaosRate:          chaosRate,

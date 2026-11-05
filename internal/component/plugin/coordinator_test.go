@@ -23,8 +23,8 @@ func (fakePeerCB) OnPeerClosed(any, string) {}
 
 // TestBootstrapRoundTrip proves the coordinator stores and returns the typed
 // BGPBootstrap struct that replaced the string-keyed extra bag, preserving all
-// its fields (seven since feature-gate-11 moved the two MRT callbacks to the
-// registry seam), and that *Coordinator still satisfies CoordinatorAccessor.
+// its infrastructure/schema fields, and that *Coordinator still satisfies
+// CoordinatorAccessor. Running authority is supplied separately by Configure.
 //
 // VALIDATES: P2 AC-3 (bootstrap delivered via a typed struct; the string-keyed
 // extra bag and its per-read assertions are gone).
@@ -36,7 +36,6 @@ func TestBootstrapRoundTrip(t *testing.T) {
 	want := registry.BGPBootstrap{
 		ConfigPath:         "/etc/ze.conf",
 		CLIPlugins:         []string{"bgp-rs", "bgp-gr"},
-		ConfigData:         []byte("bgp {}"),
 		Store:              fakeStore{},
 		ChaosSeed:          42,
 		ChaosRate:          0.25,
@@ -79,9 +78,9 @@ func TestCoordinatorMultiReactor(t *testing.T) {
 		t.Errorf("expected ospf-reactor, got %v", r)
 	}
 
-	// SetReactor also registers under "bgp"
-	m := &mockReactor{}
-	if err := c.SetReactor(m); err != nil {
+	// AttachReactor also registers under "bgp".
+	m := &mockReactor{configTree: map[string]any{}}
+	if err := c.AttachReactor(m); err != nil {
 		t.Fatal(err)
 	}
 	if r := c.Reactor("bgp"); r == nil {
@@ -94,12 +93,12 @@ func TestCoordinatorMultiReactor(t *testing.T) {
 		t.Errorf("expected nil after unregister, got %v", r)
 	}
 
-	// SetReactor(nil) clears both
-	if err := c.SetReactor(nil); err != nil {
+	// DetachReactor clears both.
+	if err := c.DetachReactor(m); err != nil {
 		t.Fatal(err)
 	}
 	if r := c.Reactor("bgp"); r != nil {
-		t.Errorf("expected nil after SetReactor(nil), got %v", r)
+		t.Errorf("expected nil after DetachReactor, got %v", r)
 	}
 }
 
@@ -152,11 +151,11 @@ func TestCoordinatorWithoutReactor(t *testing.T) {
 }
 
 // VALIDATES: Coordinator delegates to reactor when set.
-// PREVENTS: Reactor methods bypassed after SetReactor.
+// PREVENTS: Reactor methods bypassed after attachment.
 func TestCoordinatorWithReactor(t *testing.T) {
 	c := NewCoordinator(map[string]any{})
-	m := &mockReactor{}
-	if err := c.SetReactor(m); err != nil {
+	m := &mockReactor{configTree: map[string]any{}}
+	if err := c.AttachReactor(m); err != nil {
 		t.Fatal(err)
 	}
 
@@ -197,12 +196,12 @@ func TestCoordinatorWithReactor(t *testing.T) {
 	}
 }
 
-// VALIDATES: SetReactor(nil) reverts to stub behavior.
+// VALIDATES: DetachReactor reverts to stub behavior.
 // PREVENTS: Stale reactor reference after BGP unloads.
 func TestCoordinatorUnsetReactor(t *testing.T) {
 	c := NewCoordinator(map[string]any{})
-	m := &mockReactor{}
-	if err := c.SetReactor(m); err != nil {
+	m := &mockReactor{configTree: map[string]any{}}
+	if err := c.AttachReactor(m); err != nil {
 		t.Fatal(err)
 	}
 
@@ -213,7 +212,7 @@ func TestCoordinatorUnsetReactor(t *testing.T) {
 	}
 
 	// Unset
-	if err := c.SetReactor(nil); err != nil {
+	if err := c.DetachReactor(m); err != nil {
 		t.Fatal(err)
 	}
 	addr := netip.MustParseAddr("10.0.0.1")
@@ -242,8 +241,8 @@ func TestCacheConsumerDeclaredBeforeReactorReachesIt(t *testing.T) {
 	c.RegisterCacheConsumer("test-ordered-consumer", false)
 
 	// Stage 2: the bgp plugin builds the reactor and attaches it.
-	m := &mockReactor{}
-	if err := c.SetReactor(m); err != nil {
+	m := &mockReactor{configTree: map[string]any{}}
+	if err := c.AttachReactor(m); err != nil {
 		t.Fatal(err)
 	}
 
@@ -275,8 +274,8 @@ func TestCacheConsumerRegistrationTracksLifecycle(t *testing.T) {
 	c.RegisterCacheConsumer("bgp-rs", true)
 	c.UnregisterCacheConsumer("bgp-rr")
 
-	m := &mockReactor{}
-	if err := c.SetReactor(m); err != nil {
+	m := &mockReactor{configTree: map[string]any{}}
+	if err := c.AttachReactor(m); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := m.cacheConsumers["bgp-rs"]; !ok {
@@ -298,16 +297,16 @@ func TestCacheConsumerRegistrationTracksLifecycle(t *testing.T) {
 }
 
 // VALIDATES: RegisterReactor("bgp") replays the recorded declarations, because
-// it and SetReactor write the same map row.
-// PREVENTS: the fixed defect coming back through the other door. Only
-// SetReactor carried the replay, and RegisterReactor is on the exported
+// it and AttachReactor write the same map row.
+// PREVENTS: the fixed defect coming back through the other door. Only the owned
+// attachment path carries replay, and RegisterReactor is on the exported
 // CoordinatorAccessor surface, so a caller reaching for it would attach the BGP
 // reactor with every cache consumer unknown to it.
 func TestRegisterReactorBGPReplaysCacheConsumers(t *testing.T) {
 	c := NewCoordinator(map[string]any{})
 	c.RegisterCacheConsumer("bgp-rs", true)
 
-	m := &mockReactor{}
+	m := &mockReactor{configTree: map[string]any{}}
 	c.RegisterReactor("bgp", m)
 
 	unordered, ok := m.cacheConsumers["bgp-rs"]
@@ -322,7 +321,7 @@ func TestRegisterReactorBGPReplaysCacheConsumers(t *testing.T) {
 	}
 
 	// A non-BGP name keeps the plain store, with no replay.
-	other := &mockReactor{}
+	other := &mockReactor{configTree: map[string]any{}}
 	c.RegisterReactor("ospf", other)
 	if len(other.cacheConsumers) != 0 {
 		t.Errorf("ospf reactor was told about %d cache consumers; cache consumers are BGP's", len(other.cacheConsumers))
@@ -333,6 +332,7 @@ func TestRegisterReactorBGPReplaysCacheConsumers(t *testing.T) {
 type mockReactor struct {
 	peersCalled    bool
 	teardownCalled bool
+	configTree     map[string]any
 	apiReadyCalled bool
 
 	barrierSet      string
@@ -386,7 +386,7 @@ func (m *mockReactor) Reload() error {
 }
 func (m *mockReactor) VerifyConfig(map[string]any) error    { return nil }
 func (m *mockReactor) ApplyConfigDiff(map[string]any) error { return nil }
-func (m *mockReactor) GetConfigTree() map[string]any        { return nil }
+func (m *mockReactor) GetConfigTree() map[string]any        { return m.configTree }
 
 // ReloadRunning answers the running config: the mock keeps no runtime state across a reload.
 func (m *mockReactor) ReloadRunning(map[string]any) map[string]any { return m.GetConfigTree() }
@@ -398,7 +398,7 @@ func (m *mockReactor) CreatedPeers() map[netip.Addr]string { return nil }
 // runtime.
 func (m *mockReactor) RestoreCreatedPeers(map[string]any, map[netip.Addr]string) error { return nil }
 
-func (m *mockReactor) SetConfigTree(map[string]any) {}
+func (m *mockReactor) SetConfigTree(tree map[string]any) { m.configTree = tree }
 func (m *mockReactor) SignalAPIReady() {
 	m.apiReadyCalled = true
 }
@@ -462,8 +462,8 @@ func TestCoordinatorRelayStoredRoute(t *testing.T) {
 		t.Fatalf("without a reactor: expected ErrNoReactor, got %v", err)
 	}
 
-	m := &mockReactor{}
-	if err := c.SetReactor(m); err != nil {
+	m := &mockReactor{configTree: map[string]any{}}
+	if err := c.AttachReactor(m); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.RelayStoredRoute(dest, routes, Sender{}); err != nil {

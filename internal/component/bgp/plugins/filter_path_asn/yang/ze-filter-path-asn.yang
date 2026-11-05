@@ -14,8 +14,8 @@ module ze-filter-path-asn {
                  any keyword matches, and there is no first-match-wins ordering.
                  RFC 7454 Section 9 recommends the check for a peer that must
                  not send you transit.
-                 Referenced from peer filter chains as the bare list name, or as
-                 reject-asn:NAME, or as bgp-filter-path-asn:NAME.";
+                 Use reject-asn NAME in a policy match with action accept, then
+                 reference that match from the peer's filter chain.";
 
     revision 2026-09-03 {
         description "Initial revision";
@@ -29,8 +29,8 @@ module ze-filter-path-asn {
             ze:reference "policy-reject-asn";
             description "The route passes this condition when the named reject-asn list rejects it on
                          neither arm: no listed ASN at a listed position of its AS path, and no
-                         pattern matching the whole path. The sender is known on import only, as for
-                         the list as a chain member. A match naming it discharges the transit-leak
+                         pattern matching the whole path. The sender is known on import only.
+                         A match naming it discharges the transit-leak
                          filter a declared RFC 9234 role requires. The list is a policy reject-asn
                          instance: the editor completes the configured ones, and a commit naming any
                          other is refused. A BGP chain judges it; a Loc-RIB chain refuses it.";
@@ -52,10 +52,9 @@ module ze-filter-path-asn {
                 type string {
                     length "1..256";
                 }
-                description "A chain entry reaches this list as the bare NAME, as reject-asn:NAME, or as
-                    bgp-filter-path-asn:NAME. A chain that names a list Ze does not hold rejects every route of
-                    that peer, because the filter fails closed.";
-                ze:help "Filter instance name, referenced from a peer filter chain.";
+                description "The reject-asn condition of a policy match names this list.
+                    A commit naming a list Ze does not hold is refused.";
+                ze:help "List name, referenced by a policy match's reject-asn condition.";
             }
 
             leaf-list direct {

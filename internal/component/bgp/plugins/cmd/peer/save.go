@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/statestore"
@@ -263,6 +264,7 @@ func writeTreeLeaves(ed *cli.Editor, path []string, tree map[string]any) (int, e
 // runningPeerConfig answers the peers the running configuration declares, each
 // with its own subtree.
 func runningPeerConfig(tree map[string]any) map[string]map[string]any {
+	tree = config.ActiveConfigMap(tree)
 	peers := make(map[string]map[string]any)
 
 	bgp, _ := tree[configRootBGP].(map[string]any)

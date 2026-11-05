@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
 )
 
@@ -270,22 +269,22 @@ func (r *Reactor) restartPeer(addr netip.Addr) error {
 // removePeer removes the peer and ends its session with a Cease of the given
 // subcode, which says why (RemovePeer, restartPeer).
 func (r *Reactor) removePeer(addr netip.Addr, subcode uint8) error {
-	removed, stop, err := r.doRemovePeer(addr, subcode)
+	removal, err := r.doRemovePeer(addr, subcode)
 	if err != nil {
 		return err
 	}
 	// The Cease, the removal down and the index without the peer, in that
 	// order, after releasing r.mu (completeRemovals).
-	if removed != nil {
-		r.completeRemovals(peerRemoval{stop: stop, removed: removed})
+	if removal.removed != nil {
+		r.completeRemovals(removal)
 	}
 	return nil
 }
 
-// doRemovePeer performs the locked peer-removal work, and returns the removed peer's identity so
-// RemovePeer can notify plugins after releasing r.mu, and the stop that sends
-// its Cease, which the caller MUST run after releasing r.mu.
-func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo, peerStop, error) {
+// doRemovePeer performs the locked peer-removal work and returns its complete
+// terminal obligation, including the captured recipients. The caller MUST pass
+// it to completeRemovals exactly once after releasing r.mu.
+func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (peerRemoval, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -294,7 +293,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 
 	key, peer, exists := r.findPeerKeyByAddr(addr)
 	if !exists {
-		return nil, peerStop{}, ErrPeerNotFound
+		return peerRemoval{}, ErrPeerNotFound
 	}
 
 	settings := peer.Settings()
@@ -439,17 +438,10 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 		}
 	}
 
-	// The peer-to-process index is republished without this peer by
-	// completeRemovals, AFTER the down event: that event finds its receivers through
-	// the index (PeerScopedProcs), so an index that no longer named the peer
-	// told no process it fed that it was gone, and the RIB and the route server
-	// kept its routes.
-
-	// The identity and the generation the removal down carries, built in the
-	// critical section that deletes the peer (removalLocked).
-	removal := r.removalLocked(peer, stop)
-
-	return removal.removed, removal.stop, nil
+	// Capture the terminal recipients and generation in the same critical
+	// section that removes the peer. A concurrent publication after this lock
+	// is released cannot change who receives the removed lifetime's down.
+	return r.removalLocked(peer, stop), nil
 }
 
 // AddDynamicPeer adds a peer to the running reactor from a config tree the

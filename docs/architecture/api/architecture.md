@@ -264,10 +264,15 @@ The reactor pushes a new index after every peer change: `AddPeer`,
 `createDynamicPeer`, `completeRemovals`, the end of a journaled config apply,
 and once inside `StartWithContext` before any peer starts. `completeRemovals`
 finishes every removal (`delete bgp peer`, a dynamic member the reactor drops,
-a reload's removal, the undo of a reload's add): it sends the Cease, then the
-state `down` with reason `removed`, and only then drops the peer's edges, so
-the down still reaches every process the peer fed. A reader takes a pointer snapshot, so no reader sees a half-built index
-and no surviving edge misses an event across a reload.
+a reload's removal, the undo of a reload's add). While holding the removal
+lock, it captures the actual state recipients, the removed session's identity
+and the delivery graph's role permissions. It then releases the lock, sends
+the Cease and delivers `down` with reason `removed` to that captured set,
+in reverse dependency order. A concurrent peer change may publish another
+graph while Cease blocks; it cannot erase the old recipients or grant the
+removed lifetime to a replacement at the same address. The completed removal
+publishes the current peer set afterward. A reader takes a pointer snapshot,
+so no reader sees a half-built index.
 
 The lookup is one index read and it allocates nothing per event. It replaced a
 scan of every process and every subscription on every delivered message.

@@ -207,36 +207,14 @@ type bgpCaptureHandle interface {
 
 var _ bgpCaptureHandle = (*reactor.Reactor)(nil)
 
-// createReactorFromCoordinator builds a BGP reactor using config state stored
-// in the coordinator by the hub. This keeps bgp/config imports out of the hub.
-func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.BGPReactorHandle, error) {
+// createReactorFromCoordinator builds the whole reactor from the exact selected
+// Configure map. Bootstrap contains infrastructure/schema selectors, not a
+// competing configuration authority.
+func createReactorFromCoordinator(coord registry.CoordinatorAccessor, selected map[string]any) (registry.BGPReactorHandle, error) {
 	bs := coord.Bootstrap()
 	configPath := bs.ConfigPath
 	cliPlugins := bs.CLIPlugins
-	configData := bs.ConfigData
-
-	// The hub records the selected source in stored history beside startup
-	// (storage.BootRecord); until the record lands, the bound handle answers
-	// the boot bytes as active and no candidate, so this reads the same bytes
-	// either way. A newly enabled BGP plugin uses the staged reload candidate; a restarted
-	// plugin uses the accepted version. Neither reopens a mutable loose file.
-	// Captured bytes remain authoritative for stdin and storeless startup.
 	store := bs.Store
-	data := configData
-	if store != nil && configPath != "" && configPath != "-" {
-		candidate, _, present, err := storage.ReadCandidateConfig(store, configPath)
-		if err != nil {
-			return nil, fmt.Errorf("read reactor candidate: %w", err)
-		}
-		if present {
-			data = candidate
-		} else {
-			data, err = storage.ReadActiveConfig(store, configPath)
-			if err != nil {
-				return nil, fmt.Errorf("read accepted reactor config: %w", err)
-			}
-		}
-	}
 
 	// Set YANG validator for runtime attribute validation (origin enum, med/local-pref ranges).
 	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
@@ -244,9 +222,9 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 		plugin.SetYANGValidator(v)
 	}
 
-	result, err := zeconfig.LoadConfig(string(data), configPath, cliPlugins)
+	result, err := zeconfig.LoadRunningConfig(selected, configPath, cliPlugins)
 	if err != nil {
-		return nil, fmt.Errorf("parse config for reactor: %w", err)
+		return nil, fmt.Errorf("load running config for reactor: %w", err)
 	}
 
 	// Production: borrow the hub-owned plugin server (standalone == false). The
@@ -255,21 +233,6 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 	if err != nil {
 		return nil, err
 	}
-
-	// The post-startup rebuild that places the filter insertions the running
-	// plugins declare builds from these bytes once (reactor.BootPeersFunc):
-	// the running tree has lost the deactivated filter list members, and a
-	// deactivated required insertion must be refused at boot as `ze config
-	// validate` refuses it. The bytes are parsed again, never result.Tree,
-	// which the reactor build above pruned and resolved.
-	bootData := string(data)
-	r.SetBootPeersFunc(func() ([]*reactor.PeerSettings, reactor.Globals, []*reactor.DynamicGroupConfig, error) {
-		loaded, loadErr := zeconfig.LoadConfig(bootData, configPath, cliPlugins)
-		if loadErr != nil {
-			return nil, reactor.Globals{}, nil, fmt.Errorf("parse boot config: %w", loadErr)
-		}
-		return reloadPeersFromTree(loaded.Tree)
-	})
 
 	// Chaos injection from hub-stored config.
 	injectChaos(r, coord)

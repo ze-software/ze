@@ -144,10 +144,6 @@ type reactorAPIAdapter struct {
 	// (R-10): a plugin respawning with a new filter declaration changed no
 	// config.
 	rebuild bool
-	// boot, when set, builds the peers in place of the tree reload: the first
-	// rebuild before any reload, from the boot config text
-	// (RebuildRunningPeers, SetBootPeersFunc).
-	boot BootPeersFunc
 }
 
 var _ plugin.FSMHistoryProvider = (*reactorAPIAdapter)(nil)
@@ -475,7 +471,7 @@ func (a *reactorAPIAdapter) SoftClearPeer(sel *selector.Selector, sender plugin.
 	return families, lastErr
 }
 
-// GetConfigTree returns the full config as a map for plugin config delivery.
+// GetConfigTree returns the immutable running map; public sections MUST project it to active data.
 func (a *reactorAPIAdapter) GetConfigTree() map[string]any {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
