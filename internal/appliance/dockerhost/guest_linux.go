@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	// shippedDir holds the static third-party binaries the image carries
-	// (busybox, OpenSSH, sudo), placed by the image's extra files.
+	// shippedDir holds the static third-party binaries placed by the image's
+	// extra files.
 	shippedDir = "/usr/lib/ze-docker-host"
 	// selfPath is where gokrazy installs this program; the systemctl shim is
 	// a link to it.
@@ -53,6 +53,12 @@ var shippedLinks = map[string]string{
 	"/usr/sbin/sshd":      shippedDir + "/sshd",
 	"/usr/bin/ssh-keygen": shippedDir + "/ssh-keygen",
 	"/usr/bin/systemctl":  selfPath,
+	// Full iproute2 replaces busybox's limited ip applet; the other tools
+	// prepare network namespaces and inspect the kernel's firewall state.
+	"/sbin/ip":         shippedDir + "/ip",
+	"/usr/sbin/nft":    shippedDir + "/nft",
+	"/usr/sbin/setcap": shippedDir + "/setcap",
+	"/usr/sbin/getcap": shippedDir + "/getcap",
 	// Docker's static release, unpacked under shippedDir/docker: dockerd
 	// finds containerd, the shim, runc, docker-proxy and docker-init on PATH.
 	"/usr/bin/dockerd":                 shippedDir + "/docker/dockerd",
@@ -63,8 +69,7 @@ var shippedLinks = map[string]string{
 	"/usr/bin/docker":                  shippedDir + "/docker/docker",
 	"/usr/bin/docker-proxy":            shippedDir + "/docker/docker-proxy",
 	"/usr/bin/docker-init":             shippedDir + "/docker/docker-init",
-	// Static legacy iptables, dockerd's firewall backend (spec A-5): the
-	// static dockerd's nftables backend execs nft, which is not shipped.
+	// Static legacy iptables remains dockerd's firewall backend (spec A-5).
 	"/usr/sbin/iptables":          shippedDir + "/xtables-legacy-multi",
 	"/usr/sbin/iptables-save":     shippedDir + "/xtables-legacy-multi",
 	"/usr/sbin/iptables-restore":  shippedDir + "/xtables-legacy-multi",

@@ -1,11 +1,47 @@
 package dockerhost
 
 import (
+	"archive/tar"
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// TestDockerHostFunctionalToolPayload builds the image through the recording
+// builder and reads its actual extra-files archive. The functional harness
+// needs full iproute2, nftables and capability tools in the own-system guest.
+func TestDockerHostFunctionalToolPayload(t *testing.T) {
+	repo := fakeRepo(t)
+	recorder := newRecordingBuilder(t)
+	_, err := recorder.build(context.Background(), buildRequest{
+		repo: repo, arch: "arm64", pins: fullPins(t), sizeGiB: imageSizeGiBDefault,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	members := readTar(t, filepath.Join(repo, "gokrazy", "docker-host", "extrafiles_arm64.tar"))
+	for _, name := range []string{"ip", "nft", "setcap", "getcap"} {
+		header, found := members[guestLibDir+"/"+name]
+		if !found {
+			t.Errorf("functional guest lacks %s", name)
+			continue
+		}
+		if header.Typeflag != tar.TypeReg {
+			t.Errorf("%s is not a regular executable payload", name)
+		}
+		if header.Mode != 0o755 {
+			t.Errorf("%s mode = %o, want 755", name, header.Mode)
+		}
+		if header.Uid != 0 {
+			t.Errorf("%s uid = %d, want root", name, header.Uid)
+		}
+		if header.Gid != 0 {
+			t.Errorf("%s gid = %d, want root", name, header.Gid)
+		}
+	}
+}
 
 // TestBuilderContainerRefusesWithoutTheDockerCLI proves a host with no docker
 // CLI gets the install fix before any container is attempted. Method: run the

@@ -23,7 +23,10 @@ import (
 
 // staticBinaryNames are the files the builder container leaves in /out, each
 // a fully static musl binary the image carries under /usr/lib/ze-docker-host.
-var staticBinaryNames = []string{"sshd", "sshd-session", "ssh-keygen", "sftp-server", sudoBinary, "xtables-legacy-multi"}
+var staticBinaryNames = []string{
+	"sshd", "sshd-session", "ssh-keygen", "sftp-server", sudoBinary, "xtables-legacy-multi",
+	"getcap", "ip", "nft", "setcap",
+}
 
 // dockerCLI is the Docker client, and the name of Docker's pin and runtime.
 const dockerCLI = "docker"
@@ -33,19 +36,22 @@ const sudoBinary = "sudo"
 
 // staticSourceNames are the source pins the recipe builds, each named by a
 // shell variable `<name>_tar` holding its tarball's file name.
-var staticSourceNames = []string{"openssh", "sudo", "iptables"}
+var staticSourceNames = []string{
+	"openssh", "sudo", "iptables", "libmnl", "libnftnl", "nftables", "libcap", "iproute2",
+}
 
 // safeFileName is what a tarball name must look like to be quoted into the
 // recipe: it comes from the pin file's URL.
 var safeFileName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
 
-// staticRecipe builds OpenSSH (no OpenSSL, A-7), sudo (no PAM) and legacy
-// iptables (A-5, D-5) as fully static musl binaries in the pinned Alpine
-// builder, a build tool only (D-13, A-12). libtool drops `-static` when it
-// links sudo and iptables; only its own `-all-static`, given to make,
-// survives. The sources arrive sum-checked in /in, never fetched here.
+// staticRecipe builds the guest's administration and networking tools as
+// fully static musl binaries in the pinned Alpine builder, a build tool only
+// (D-13, A-12). OpenSSH omits OpenSSL (A-7), sudo omits PAM, and iptables
+// retains the legacy backend (A-5, D-5). nft uses bundled mini-GMP and its
+// noninteractive text interface. libtool needs its own -all-static rather
+// than -static. The sources arrive sum-checked in /in, never fetched here.
 const staticRecipe = `set -eux
-apk add --no-cache build-base linux-headers file pkgconf perl
+apk add --no-cache build-base linux-headers file pkgconf perl bison flex
 mkdir -p /build
 cd /build && tar -xzf "/in/$openssh_tar" && cd "${openssh_tar%.tar.gz}"
 ./configure --prefix=/usr --sysconfdir=/etc/ssh --libexecdir=/usr/lib/ze-docker-host \
@@ -71,6 +77,31 @@ cd /build && tar -xJf "/in/$iptables_tar" && cd "${iptables_tar%.tar.xz}"
 make -j"$(nproc)" LDFLAGS=-all-static
 strip iptables/xtables-legacy-multi
 cp iptables/xtables-legacy-multi /out/
+export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+cd /build && tar -xjf "/in/$libmnl_tar" && cd "${libmnl_tar%.tar.bz2}"
+./configure --prefix=/usr/local --disable-shared --enable-static
+make -j"$(nproc)"
+make install
+cd /build && tar -xJf "/in/$libnftnl_tar" && cd "${libnftnl_tar%.tar.xz}"
+./configure --prefix=/usr/local --disable-shared --enable-static
+make -j"$(nproc)"
+make install
+cd /build && tar -xJf "/in/$nftables_tar" && cd "${nftables_tar%.tar.xz}"
+./configure --prefix=/usr --disable-shared --enable-static --disable-man-doc \
+  --with-mini-gmp --without-cli --without-json --without-xtables
+make -j"$(nproc)" LDFLAGS=-all-static src/nft
+strip src/nft
+cp src/nft /out/nft
+cd /build && tar -xJf "/in/$libcap_tar" && cd "${libcap_tar%.tar.xz}"
+make -j"$(nproc)" -C libcap prefix=/usr/local lib=lib SHARED=no PTHREADS=no GOLANG=no USE_GPERF=no install
+make -j"$(nproc)" -C progs SHARED=no DYNAMIC=no LIBCSTATIC=yes PTHREADS=no GOLANG=no USE_GPERF=no getcap setcap
+strip progs/getcap progs/setcap
+cp progs/getcap progs/setcap /out/
+cd /build && tar -xJf "/in/$iproute2_tar" && cd "${iproute2_tar%.tar.xz}"
+./configure --libbpf_force off
+make -j"$(nproc)" SUBDIRS='lib ip' SHARED_LIBS=n LDFLAGS=-static
+strip ip/ip
+cp ip/ip /out/ip
 for binary in /out/*; do file "$binary"; file "$binary" | grep -Eq 'statically linked|static-pie linked'; done
 `
 

@@ -19,12 +19,19 @@ and the guest exposes nothing there but sshd (Lima's own channel) and,
 through it, the Docker socket. The kernel command line names both
 consoles, `hvc0` (vz, virtio console) and `ttyS0` (QEMU), so either boot logs.
 The third-party binaries (busybox, a static musl OpenSSH built without OpenSSL,
-a static musl sudo, a static legacy iptables, Docker's static release) reach
+a static musl sudo, legacy iptables, iproute2's `ip`, nftables' `nft`, libcap's
+`setcap` and `getcap`, and Docker's static release) reach
 the image as the extra files tar
 `extrafiles_<arch>.tar`, under `/usr/lib/ze-docker-host/`. The tar is assembled
 at build time and never committed.
 
 <!-- source: cmd/ze-docker-host/main.go -- main -->
+
+The image includes an empty `/workspace` mountpoint because its root filesystem
+is read-only. A root command can bind the shared checkout there before running
+`le test qemu all`.
+<!-- source: internal/le/setup/docker/host/extrafiles.go -- extraFileDirs -->
+<!-- test: internal/le/setup/docker/host/extrafiles_workspace_test.go -- TestExtraFilesCarriesTheFunctionalWorkspace -->
 
 ## What the program does at boot
 
@@ -88,7 +95,9 @@ second into the boot, after the kernel printed its own banner. Then it:
 8. covers `/bin`, `/sbin`, `/usr/bin` and `/usr/sbin` with a tmpfs holding
    links to busybox's applets in those directories (an applet listed
    elsewhere, such as `/linuxrc`, is skipped), sudo, sshd, ssh-keygen and
-   the `systemctl` shim, plus `/bin/bash` as busybox `sh`;
+   the `systemctl` shim, plus `/bin/bash` as busybox `sh`. Full iproute2
+   replaces busybox's `ip` alias; `nft`, `setcap` and `getcap` are also on
+   `PATH` for the functional harness's namespace and firewall probes;
 9. writes `sshd_config` (public keys only, no root login, stream-local
    forwarding for the Docker socket) and a persistent ed25519 host key;
 10. starts the supervisor, sshd, and Lima's `boot.sh`, which writes
@@ -162,12 +171,11 @@ is not an IP address. Every other daemon setting reaches dockerd through
 `/etc/docker/daemon.json`, which dockerd reads itself. Both units restart
 whenever they exit.
 
-The firewall backend is dockerd's default, iptables. Docker's static build
-links the `nft`-executing variant of its nftables backend (moby
-`daemon/libnetwork/internal/nftables/nft_exec_linux.go`, build tag
-`static_build`, which runs `exec.LookPath("nft")`), so the nftables backend
-would need an `nft` binary and its libraries; legacy `iptables` builds with
-none, and the runtime kernel carries the legacy tables Docker uses.
+The firewall backend remains dockerd's default, iptables, and the runtime
+kernel carries the legacy tables it uses. The image's `nft` is for functional
+kernel probes: it accepts noninteractive text commands and uses bundled
+mini-GMP, with no JSON or interactive-shell dependency. Its presence does
+not select Docker's nftables backend.
 
 The boot writes `/etc/containerd/config.toml` (`version = 2`, containerd's
 defaults) when it is absent. Colima backs that file up with `sudo cp` before
@@ -179,7 +187,8 @@ it writes its own, and the copy needs a file to copy.
 
 `gokrazy/docker-host/binaries.json` is the only home of the third-party
 versions and sums: the builder container image (by digest), Docker's static
-release per arch, and the OpenSSH, sudo and iptables source tarballs. le's
+release per arch, and the source tarballs for OpenSSH, sudo, iptables,
+iproute2, libcap, nftables and nftables' libmnl and libnftnl dependencies. le's
 `setup docker host` area (`internal/le/setup/docker/host`) loads it with
 `LoadPins`, which refuses an unknown key, a sum that is not 64 lowercase hex
 digits, a download for an arch Ze does not build, and a builder not pinned by
@@ -221,7 +230,8 @@ it does not rediscover a different checkout from the invocation directory.
 
 1. every pinned input is fetched and checked against its sha256, so a
    mismatch refuses before anything is written;
-2. OpenSSH, sudo and legacy iptables are built as static musl binaries in the
+2. OpenSSH, sudo, legacy iptables and the functional harness's networking
+   tools are built as static musl binaries in the
    pinned Alpine builder container (`staticRecipe`), cached under
    `<arch>/static-<key>/`. musl, not glibc: a static musl binary reads
    `/etc/passwd` and `/etc/group` itself, while a static glibc binary still
@@ -254,6 +264,14 @@ holder's pid.
 <!-- source: internal/le/setup/docker/host/extrafiles.go -- writeExtraFiles -->
 <!-- source: internal/le/setup/docker/host/perm.go -- formatPerm, permPartition -->
 <!-- source: internal/le/setup/docker/host/lock.go -- takeLock -->
+
+The image payload test reads the generated extra-files archive and requires
+`ip`, `nft`, `setcap` and `getcap` as root-owned executable files. A separate
+guest test checks their executable aliases, including replacement of busybox's
+limited `ip` applet. Runtime proof still runs the kernel fixtures through
+`test qemu all` inside the own-system guest.
+<!-- test: internal/le/setup/docker/host/static_test.go -- TestDockerHostFunctionalToolPayload -->
+<!-- test: internal/appliance/dockerhost/guest_tools_linux_test.go -- TestFunctionalToolsOverrideTheBusyboxAliases -->
 
 ## The `ze` Colima profile: `start`, `stop`, `check`
 

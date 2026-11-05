@@ -70,8 +70,8 @@ func dockerTgz(t *testing.T) []byte {
 	return buffer.Bytes()
 }
 
-// fullPins writes a pin file with the arm64 docker download and the three
-// sources the static build needs.
+// fullPins writes a pin file with the arm64 docker download and every source
+// the static build needs.
 func fullPins(t *testing.T) *Pins {
 	t.Helper()
 	sum := strings.Repeat("a", 64)
@@ -80,7 +80,12 @@ func fullPins(t *testing.T) *Pins {
 "sources": [
  {"name": "openssh", "version": "9.9p2", "url": "https://example.invalid/openssh-9.9p2.tar.gz", "sha256": "` + sum + `"},
  {"name": "sudo", "version": "1.9.16p2", "url": "https://example.invalid/sudo-1.9.16p2.tar.gz", "sha256": "` + sum + `"},
- {"name": "iptables", "version": "1.8.13", "url": "https://example.invalid/iptables-1.8.13.tar.xz", "sha256": "` + sum + `"}]}`
+ {"name": "iptables", "version": "1.8.13", "url": "https://example.invalid/iptables-1.8.13.tar.xz", "sha256": "` + sum + `"},
+ {"name": "libmnl", "version": "1.0.5", "url": "https://example.invalid/libmnl-1.0.5.tar.bz2", "sha256": "` + sum + `"},
+ {"name": "libnftnl", "version": "1.3.2", "url": "https://example.invalid/libnftnl-1.3.2.tar.xz", "sha256": "` + sum + `"},
+ {"name": "nftables", "version": "1.1.7", "url": "https://example.invalid/nftables-1.1.7.tar.xz", "sha256": "` + sum + `"},
+ {"name": "libcap", "version": "2.78", "url": "https://example.invalid/libcap-2.78.tar.xz", "sha256": "` + sum + `"},
+ {"name": "iproute2", "version": "7.3.0", "url": "https://example.invalid/iproute2-7.3.0.tar.xz", "sha256": "` + sum + `"}]}`
 	path := filepath.Join(t.TempDir(), "binaries.json")
 	writeFile(t, path, []byte(body))
 	pins, err := LoadPins(path)
