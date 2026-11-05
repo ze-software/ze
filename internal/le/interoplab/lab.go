@@ -353,6 +353,8 @@ func (s Suite) prepareImages(ctx context.Context, builds []ImageBuild) ([]ImageR
 		if err == nil {
 			results = append(results, result)
 			references[build.Name] = result.Reference
+			var line textbuf.Buffer
+			s.progress(line.Str("interop: image ").Str(result.Name).Str(": reference ").Str(result.Reference))
 			continue
 		}
 		result.Error = err.Error()

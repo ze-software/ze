@@ -1803,6 +1803,12 @@ run-owned tag, never the shared cache tag. The suite pins every container of
 the run to that immutable ID. Quote that ID beside the result, because it
 names the binary the run measured.
 
+The suite prints `interop: image <name>: reference <ID>` after each successful
+local build, before a peer starts. The default progress stream keeps that ID
+beside the scenario verdict in native job logs. Pulled images and `NO_BUILD=1`
+do not print this build identity.
+<!-- source: internal/le/interoplab/lab.go -- prepareImages -->
+
 A scenario that passes either way (common when the peer must accept both the old
 and the new wire form) proves acceptance, not correctness. Say which one it
 proves in the spec's Goal Validation, and move the discrimination to a unit or
