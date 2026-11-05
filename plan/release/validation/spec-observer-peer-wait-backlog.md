@@ -284,8 +284,8 @@ anchor issues across the shared unpushed change set. This is not a passing
 global documentation gate. The two owned claim findings are handled by the
 netlink lifecycle clarification and the Stop reviewed-claim row for
 `12afa215f6`.
-This spec stays in-progress at Phase 6/6. `/ze-close` is the separate closure
-phase; no closure template or Review Gate is added here.
+Implementation stopped in-progress at Phase 6/6. The separate `/ze-close`
+phase records its audit and Review Gate below.
 
 The retained pre-implementation guard output from 2026-11-02 contains 185
 findings over 153 fixtures, including 17 `needs-linux` fixtures. This is a
@@ -713,3 +713,344 @@ population is the Task table.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/validation/spec-observer-peer-wait-backlog.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+
+## Implementation Summary
+
+### What Was Implemented
+
+Observers wait for the named session state or sent-payload marker their CI
+requires, then complete a checked final drain before requesting shutdown.
+Existing family helpers supply the waits. The disabled replay-count control
+pins the guard's literal-true gate. All 208 reached CI files passed three
+consecutive runs each: 191 native and 17 on Ze's system, 624 successful
+invocations and zero skips.
+
+### Bugs Found/Fixed
+
+| Defect | Producing source | Regression |
+|--------|------------------|------------|
+| Allocated registration treated as a completed empty declaration | `internal/component/plugin/server/server.go` `Server.declaredFilters` | `TestDeclaredFiltersWaitsForStageOne` |
+| Peer readiness had a separate five-second cap and lost exit/cancellation causes | `internal/test/runner/peer_startup.go` `awaitPeerListening` | Four `TestPeerStartup*` controls, both consumers |
+| Minimal guest timeout rejected the suite before execution | `internal/le/test/qemu/alltests_deadline.go` `allTestsRun.suiteChild` | `TestQEMUAllSuiteDeadlineUsesNativeOwnership`, invalid-budget controls |
+| Guest omitted conntrack accounting and tracking hook | `internal/le/test/qemu/alltests_conntrack.go` `allTestsRun.prepareConntrack` | Both entry paths' setup/refusal tests and unchanged confidence CI |
+| FlowSpec lookup selected the legacy command instead of its owned peer | `internal/test/fixture/plugin_fixture_07_flowspec.go` `peerPIDs07` | Five-live-child consumer test and unchanged withdrawal CI |
+| Lost or incomplete drain could report success | `internal/test/fixture/fixture.go` `observeConfigured`; custom owners `rsObserver04`, `medRawDrop09`, `accumulatorIsolation09`, `runPlugin13` | Real TLS completion, transport-loss, refusal and warning controls |
+| Policy recovery crossed epochs before checking rejected imports | `internal/test/fixture/policy_final.go` `policyFinalCase`, `policyFinalRestore` | Independently approved paired CI; draft and live 3/3 |
+
+### Documentation Updates
+
+| Page | Committed update and source |
+|------|-----------------------------|
+| `docs/functional-tests.md` | Count gate (`1e410324b2`), policy restoration (`4007003754`), owned FlowSpec lookup (`d52985d520`), final drains (`c994dace87`); anchors name the guard, fixture producers and tests |
+| `docs/architecture/testing/ci-format.md` | `c994dace87`: checked quiesce and failure-before-shutdown; `observeConfigured`, `awaitObserverResult`, custom owners |
+| `docs/architecture/testing/runner-architecture.md` | `12afa215f6`, `e0e95030e8`: sole reaper, leader/group stop and case-budget readiness |
+| `docs/architecture/testing/qemu-integration.md` | `934e7d8c03`, `12afa215f6`, `3265a72946`: actual own-system carrier, selected namespace, native deadline and conntrack setup |
+| `docs/architecture/appliance/docker-host.md` | `1dd25fba1d`: static guest tools, executable aliases and read-only-root workspace mountpoint |
+| `docs/architecture/iface/netlink-monitor.md` | `c994dace87`: Observe requires completed quiesce |
+| `plan/doc-reviewed/e23fbcef.md` | `3265a72946`, `f799f67abd`: unchanged Stop and VPN claims validated against their producers |
+
+The implementation's `./le doc wiring` run included `./le doc check all`.
+The sleep ratchet passed at zero and every path reference resolved. The overall
+command remained red for shared unpushed documentation drift and three foreign
+inventory anchors. Scoped reviewed-claim validation exited zero. Closure
+changes no documentation page, so it reuses these observed checks.
+
+### Deviations from Plan
+
+The main checkout already held most waits in `73978cd75e`; they were audited
+and proved rather than written twice. Runtime proof required the seven
+producer repairs above, the own-system command carrier and static guest tools.
+Those changes preserve the full validation population. The source audit
+expanded the live population to 208 CI files; it did not discard the retained
+historical baseline. The original sent-event flush assumption was wrong, so
+final checked drains complete the post-emit delivery contract. A-4 was broken:
+some historical findings were unrecognized existing polls, now expressed with
+the canonical helper. The policy expectation repair received an independent
+judge's approval before it changed. This completed incremental implementation
+entered closure already committed; commit A preserves its final audit and
+marks the existing owned journal row fixed.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Original A-2 credited sent events as completed flushes | `Session.writeUpdateBody` can report before flush | Read the send and quiesce producers | Require a checked final drain after the last payload gate |
+| assumption | A-4 assumed every historical finding lacked a runtime wait | Three p05 scenarios already polled peer1 through an unrecognized shape | Read `73978cd75e` and the previous poll bodies | Preserve those waits through canonical helpers; report the false positives |
+| approach | Guest startup and suite wrappers assumed distribution tools/setup | Ze's minimal system rejected external timeout and lacked the host tracking preparation | Actual consumer REDs and own-system failures | Native deadline owner, checked conntrack setup and owned peer lookup |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every affected observer waits for each scripted peer | Done | Family scenario functions in the committed path audit below; `p12WaitPeersEOR`, `plugin01WaitCounter` and existing helpers | Placement preserves pre-establishment actions and follows the last required emit |
+| All-family guard zero | Done | `plugin_fixture_peer_wait_test.go` `TestPluginObserversWaitForTheScriptedPeer` | Actual PASS; AC-3 wait cuts produce eight named findings |
+| Changed fixtures each pass three consecutive runs | Done | Registered plugin/reload/UI suites; `allTestsRun.executeOne` for Linux | Exact 191 native + 17 Linux union, 624 successful invocations, zero skips |
+| Preserve wire assertions and 08/12 protection | Done | Existing 08/12 tests; `policy_final.go` and paired CI | Only owned CI change independently approved; all eight original policy epochs retained |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | All-family guard PASS with zero findings | Final race-enabled fixture check |
+| AC-2 | Done | 208 exact CI hashes bound to three consecutive passes per file | 191 native; all 17 Linux on 7.3.0-ze with gokrazy PID 1 |
+| AC-3 | Done | Five family/inline wait cuts produced eight fixture/peer findings; exact restore PASS | Real all-family consumer |
+| AC-4 | Done | Disabled gate red, enabled control green; restored false-pass suite PASS | `observerWalk.readWait` and `scriptedPeer.waitedOnBy` |
+| AC-5 | Done | `ci-sleep ratchet OK (0 <= ceiling 0)` | Wider foreign doc failures are disclosed |
+| AC-6 | Done | `4007003754` carries independent paired-policy approval | Other owned CI expectations unchanged |
+| AC-7 | Done | Unchanged family 08 and 12 guards PASS | No edits to either family guard |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All-family, false-pass and family 08/12 guards | Done | `internal/test/fixture/plugin_fixture*_peer_wait*_test.go` | Zero current findings; AC-3/4 observed RED controls |
+| Observe, active p05 and custom shutdown TLS cases | Done | `fixture_quiesce_test.go`, `plugin_fixture_custom_quiesce_test.go` | Completed positive control and three rejected-drain cases |
+| Three await-result controls | Done | `internal/test/fixture/fixture_test.go` | Late scenario error, success after stop and pre-start transport failure |
+| Four peer startup tests, both paths | Done | `internal/test/runner/peer_startup_test.go` | All eight subcases RED then GREEN; full runner race PASS |
+| Deadline status, group cleanup and invalid budgets | Done | `internal/le/test/qemu/alltests_timeout_linux_test.go` | Consumer RED then GREEN; scoped QEMU race PASS |
+| Conntrack setup and refusal, both entry paths | Done | `internal/le/test/qemu/alltests_conntrack_test.go` | Four subcases RED then GREEN; actual guest strict readback/idempotence |
+| Stage 1 allocated/empty/nonempty declarations | Done | `server_declared_filters_test.go` | RED then GREEN; aliases retain their assertions |
+| Actual own-system command | Done | `dockerlab_command_integration_test.go` | Registered action reaches Ze guest and writes exact private bytes |
+| Actual process lookup with four live exclusions | Done | `plugin_fixture_07_peer_lookup_linux_test.go` | RED then GREEN; final withdrawal CI 3/3 |
+| Every native and Linux functional test planned | Done | 208-file bound population | All three-consecutive runs completed, zero skips |
+| Numeric count boundary | Done | `TestPluginObserverPeerWaitGuardRefusesFalsePasses` | Count equal/short, replay false/true controls |
+| Protocol interoperability | Done | No protocol behavior added or changed | This is harness synchronization; existing wire expectations retained |
+
+All 22 exact test names in the TDD table were checked against their current
+declarations and found. No named test is missing.
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `docs/architecture/appliance/docker-host.md` | Done | Present; exact owned commit reviewed |
+| `docs/architecture/iface/netlink-monitor.md` | Done | Present; exact owned commit reviewed |
+| `docs/architecture/testing/ci-format.md` | Done | Present; exact owned commit reviewed |
+| `docs/architecture/testing/qemu-integration.md` | Done | Present; exact owned commit reviewed |
+| `docs/architecture/testing/runner-architecture.md` | Done | Present; exact owned commit reviewed |
+| `docs/functional-tests.md` | Done | Present; exact owned commit reviewed |
+| `gokrazy/docker-host/binaries.json` | Done | Present; exact owned commit reviewed |
+| `internal/appliance/dockerhost/guest_linux.go` | Done | Present; exact owned commit reviewed |
+| `internal/appliance/dockerhost/guest_tools_linux_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/component/plugin/server/filter_reference_alias_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/component/plugin/server/server.go` | Done | Present; exact owned commit reviewed |
+| `internal/component/plugin/server/server_declared_filters_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/setup/docker/host/build_action_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/setup/docker/host/extrafiles.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/setup/docker/host/extrafiles_workspace_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/setup/docker/host/static.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/setup/docker/host/static_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/actions.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/alltests.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/alltests_conntrack.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/alltests_conntrack_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/alltests_deadline.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/alltests_one_netns_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/alltests_one_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/alltests_tally.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/alltests_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/alltests_timeout_linux_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/dockerlab.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/dockerlab_command.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/dockerlab_command_integration_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/dockerlab_command_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/dockerlab_identity_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/dockerlab_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/netns.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/netns_alltests_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/run_exec.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/run_guestcommand.go` | Done | Present; exact owned commit reviewed |
+| `internal/le/test/qemu/run_report.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/bgpls_export.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/clear_caches_fixture.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/fixture.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/fixture_quiesce_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/misc_fixture_observers.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_claim_permission.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_01.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_01_adj_rib.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_01_api.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_01_save.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_02.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_03_bfd.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_03_fastpath_replay.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_03_mod_copy.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_03_route_server.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_04_cli.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_04_route_server.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_05.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_05_ddos.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_06.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_06_decoder.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_06_events.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_07_flowspec.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_07_peer_lookup_linux_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_09.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_09_bgp.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_09_l2tp.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_10.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_11.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_12_filters.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_13.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_13_peer_lifecycle.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_13_rest.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_14.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_15.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_15_rpki.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_15_show.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_15_standalone.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_16.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_16_l2tp.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_custom_quiesce_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_gr_sender_facts.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_llgr_import.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_llgr_lifecycle.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_llgr_received.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/plugin_fixture_peer_wait_guard_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/policy_final.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/register_rib_clear_advertised.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/register_update_text_prefix_sid.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/rfc8212_policy.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/role_learned_cleared_fixture.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/fixture/ui_fixture_web_commit_reject.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/runner/peer_startup.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/runner/peer_startup_test.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/runner/runner_exec.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/runner/runner_exec_util.go` | Done | Present; exact owned commit reviewed |
+| `internal/test/runner/server_process.go` | Done | Present; exact owned commit reviewed |
+| `plan/doc-reviewed/e23fbcef.md` | Done | Present; exact owned commit reviewed |
+| `plan/release/validation/spec-observer-peer-wait-backlog.md` | Done | Present; exact owned commit reviewed |
+| `test/plugin/policy-final-disposition.ci` | Done | Present; exact owned commit reviewed |
+| Existing family drivers not edited by this work | Done | `plugin_fixture_peer_wait_test.go`, `plugin_fixture_02_events.go`, `plugin_fixture_03.go` and `plugin_fixture_04.go` retain their existing guard/helper paths; no duplicate edit needed |
+
+### Audit Summary
+
+Four task obligations, seven ACs, all 22 named tests and all planned file
+groups are satisfied. No Partial or Skipped item remains. Changes from the
+initial approach are explained under Deviations from Plan. The path audit
+covers 98 committed files, including 18 created files; every created file exists.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Each observer waits for each scripted peer's required state or output | Functional and discrimination | Named waits and checked final drains in the actual observer consumers; 208 affected CI files pass 3/3 with unchanged wire assertions; five wait cuts make the guard name eight missing fixture/peer pairs |
+| Guard over all families reports zero | Unit and negative control | `TestPluginObserversWaitForTheScriptedPeer` PASS; disabled replay gate red, enabled control green; exact restoration PASS; unchanged 08/12 controls PASS |
+| Every changed fixture passes three consecutive runs | Functional | Exact hash-bound population of 191 native and 17 own-system Linux files, 624 successful invocations, zero skips; every Linux invocation reports one test and checked Ze-system identity |
+
+## Work Not Done
+
+None. All agreed implementation and runtime proof is complete. No in-scope
+item needs another spec. Foreign working changes and broad foreign gate
+findings are outside this closure's agreed change set.
+
+## Review Gate
+
+Round 1 scope: the complete owned implementation in commits `73978cd75e`,
+`1e410324b2`, `f4dca4ecab`, `1dd25fba1d`, `19d3857b12`, `f4fb05eebd`,
+`82aa86e9a7`, `934e7d8c03`, `4007003754`, `12afa215f6`, `880f14f641`,
+`e0e95030e8`, `3265a72946`, `d52985d520`, `c994dace87` and `f799f67abd`.
+The independent closure owner read each immutable patch and the reached
+producers inline. This is one pass with three lenses, including the Go style
+pass over every changed Go file. No new product fix was needed.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/observer-peer-wait-backlog-b4d8e48a-cb87-4d81-8524-568c8d63b384.md`; 309 immutable committed blobs and modes |
+| `./le spec review check` | Exit 0: 295 unchanged checkout code files, clean hashes. Foreign working edits excluded. |
+| Full committed-tree check | `./le commit check` exit 0, clean=true over all 300 reviewable code files at tree `c722a1976df62f5a0b7d84bd57923b72be035c6c` |
+| Rounds | 1 |
+| Reviewer lenses used | Logic and wiring; security and edge cases; guard and test integrity; explicit Go style pass |
+| Final verdict | CLEAN: 0 BLOCKER, 0 ISSUE |
+
+### Findings fixed
+
+No BLOCKER or ISSUE was found in the owned change set. Record-only NOTES were
+resolved in this audit: incremental committed entry, corrected assumptions,
+historical/current population distinction and the owned journal's fixed state.
+They do not require another review round.
+
+### Automated pre-checks and limits
+
+`./le repo check` exited 1 with nine unrelated exported-symbol findings.
+`./le test weakened check base origin/main` exited 1 with ten unrelated units
+under schema, coupling, site and OSPF tests. None is an owned review path.
+They are not a passing global gate. The five count-adjustment approvals in
+`3265a72946` are parsed Git trailers. The two approval lines in `934e7d8c03`
+lack a trailer separator; they are approval prose, not parsed trailers.
+Prior independent approval and subsequent exact test-count judgments remain
+recorded; closure does not invent an approval.
+
+`./le rfc check` exited 1 with 131 shared-tree violations, including 26 stale
+and six shifted audit entries. None names an owned path. This implementation
+adds no RFC requirement tag, changes no protocol behavior and owns no RFC
+summary or discrimination record; no such record was rewritten at closure.
+
+The security review traced the explicit local command boundary, checked kernel
+identity and image command-line bounds, resource lifetimes, immutable input
+pins and filename quoting. The sole product change retains completed-empty
+Stage 1 refusal and changes only unfinished declarations. No protocol or SDK
+wire contract changes. No peer-reachable panic was introduced. The new loops
+and workers are bounded by case/command deadlines or owned process completion.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| Every file in Files to Create | Yes | All 18 added paths from the 16 immutable implementation commits resolve as regular files |
+| All reached functional CI files | Yes | All 208 paths read for fresh SHA256 comparison; zero drift |
+| Wiring carriers | Yes | `test/plugin/bgp-rs-reactor-fastpath.ci` and `test/plugin/prefixsid-malformed-receive.ci` read in full |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Guard actually ran and passed | Final log names `TestPluginObserversWaitForTheScriptedPeer` PASS; `observerPeerWaitFindings` traverses all registrations |
+| AC-2 | Full exact population completed | Fresh comparison of all 208 current CI SHA256 values with completed proof: zero mismatches; 191 native + 17 Linux, each three consecutive |
+| AC-3 | Removing waits is rejected | Read actual eight named findings in `TestPluginObserversWaitForTheScriptedPeer` RED; restored run PASS |
+| AC-4 | Replay false is not credited | `observerWalk.readWait` requires literal true at the gate; observed disabled/control RED/GREEN proof |
+| AC-5 | Sleep count does not increase | Read final doc-wiring result: `ci-sleep ratchet OK (0 <= ceiling 0)` |
+| AC-6 | Original expectations retained or independently judged | Read paired `4007003754` patch and approval; only owned CI change; five exact count trailers parsed in `3265a72946` |
+| AC-7 | Existing 08/12 guards preserved | Final log names both PASS; no owned patch edits either guard |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Fixture package guard | All reached plugin/reload/UI carriers | `observerPeerWaitFindings` resolves registrations and scripted peers; negative cuts exercise that entry |
+| `le test bgp plugin bgp-rs-reactor-fastpath` | `test/plugin/bgp-rs-reactor-fastpath.ci` | Actual external observer command, two scripted connections and forward expectation; `rsObserver04` counts distinct peers and drains last |
+| `le test bgp plugin prefixsid-malformed-receive` | `test/plugin/prefixsid-malformed-receive.ci` | Actual external observer command, eight route/withdraw assertions and two peer connections; `routeServerReplay13` then owner drain |
+| Own-system one-CI carrier | All 17 Linux selections | Registered command boot verifies matching kernel/PID1/root; `executeOne` parses real namespace metadata, prepares conntrack and reports one executed CI |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Existing guard and family 08/12 declarations present; final race log names all PASS |
+| A-2 | confirmed after correction | Original flush assumption was broken; `Session.writeUpdateBody` reports pre-flush, `Peer.sendInitialRoutes` increments initial EOR after send/flush, and `observeConfigured` requires the final done barrier |
+| A-3 | confirmed | Each of 208 actual CI consumers completed 3/3; lifecycle cases use the state/payload marker their scenario requires |
+| A-4 | broken | Existing p05 polls predated helper rewrites in `73978cd75e`; source recognition was the issue for those historical entries |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Named waits, count gate and completed final drain | `observerWalk.readWait`, `scriptedPeer.waitedOnBy`, `observeConfigured`, custom shutdown producers | Yes; committed docs carry anchors |
+| FlowSpec process ownership | `peerPIDs07` compares canonical argv, case inode and executable inode | Yes; `d52985d520` |
+| Runner readiness and group lifecycle | `awaitPeerListening`, `ServerProcess.StopGroup`, `allTestsRun.suiteChild` | Yes; `12afa215f6`, `e0e95030e8` |
+| Own-system carrier and conntrack preparation | `dockerLabMode`, `Run.dockerLabCommand`, `allTestsRun.executeOne`, `guestConntrackSetup` | Yes; `934e7d8c03`, `3265a72946` |
+| Image tool payload and mountpoint | `shippedLinks`, `staticRecipe`, `extraFileDirs`; archive and guest-alias regressions | Yes; `1dd25fba1d` |
+| Existing Stop and VPN claims | `ServerProcess.Stop`, `runVPNKernelHere`, `dockerLabGuest.cidataFiles` | Yes; native scoped reviewed-claim validation exit 0 |
+| Feature declaration, config, API/RPC, plugin SDK, wire, RFC, comparison, route metadata, metrics | Owned patch census contains no schema/RPC/wire/metric producer changes; `docs/` anchor census found the harness pages above and unchanged-claim ledger | No update required; Stage 1 completion repair preserves the declared protocol |
+| Documentation check limit | Implementation's `doc wiring` includes `doc check all`; sleep/path checks pass but foreign drift and three inventory anchors fail | Recorded honestly; no global green claim |
+
+## Core Insight
+
+Peer readiness and completed delivery are separate facts. A named state or
+counter gate prevents shutdown before connection progress; a checked final
+quiesce completes buffered delivery after the last relevant emit.
