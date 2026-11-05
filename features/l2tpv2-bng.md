@@ -8,7 +8,7 @@
 | Page | docs/guide/l2tp.md |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | RFC 2661 MUST gaps open in the ledger, BGP announce and withdraw for subscriber routes are proven only with a synthetic producer |
+| Scope gaps | RFC 2661 MUST gaps open in the ledger, BGP announce and withdraw for subscriber routes are proven only with a synthetic producer, subscriber IPv6 remains a post-release extension |
 | Level | experimental |
 | Components | internal/component/l2tp |
 | Real-path tests | test/l2tp/handshake-full.ci, test/l2tp/session-incoming-lns.ci, test/l2tp/auth-radius-basic.ci, test/l2tp/radius-acct-wire.ci, test/l2tp/radius-nas-port-id.ci, test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci, test/l2tp/session-stopccn-cascade.ci, test/l2tp/shaper-upload-rate.ci |
@@ -21,11 +21,31 @@
 
 ## Description
 
-New-session PPP policy includes `mru` (64..1500, default 1500) and the ordered
-`authentication/allow` set. Both hot-apply without mutating established sessions;
-`show l2tp config` reports their effective values. External-peer enforcement and
-interop evidence for these controls remain subject to the protocol phase gates.
+New-session PPP policy includes `mru` (68..1500, default 1500) and the ordered
+`authentication/allow` set. IPv6CP defaults enabled and requires an MRU of at
+least 1280. Disable IPv6CP to configure 68 through 1279 for IPv4-only service.
+MRU and authentication policy hot-apply to new sessions; established sessions
+retain their policy. `show l2tp config` reports the effective values.
 <!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
+<!-- source: internal/component/l2tp/config_policy.go -- validateMRUPolicy, validateMRUNCP -->
 <!-- source: internal/component/l2tp/subsystem_reload.go -- Reload -->
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- handleConfig -->
+
+Native L2TP interop proves the 1492 transmit cap with omitted peer MRU and
+accepted proxy MRUs of 1500 and 9000. Those IPv4 sessions authenticate,
+carry traffic and release their interfaces. The refusal scenario verifies
+required authentication closes before LCP opens.
+<!-- source: internal/le/interoplab/l2tp/lns_omitted_mru.go -- checkLNSOmittedMRU -->
+<!-- source: internal/le/interoplab/l2tp/proxy_mru.go -- checkProxyMRU -->
+<!-- source: internal/le/interoplab/l2tp/lns_policy.go -- checkLNSCHAPOnly -->
+
+The PPP engine's IPv6CP boundary tests negotiate at MRU 1280 with a test
+address provider. Shipped subscriber service remains IPv4-only: the static
+pool declines IPv6 requests. Subscriber IPv6 traffic and prefix delegation
+belong to the post-release IPv6 subscriber spec under the owner's existing
+release decision.
+<!-- source: internal/component/l2tp/ppp/mru_protocol_floor_test.go -- TestIPv6MinimumMRUCompletesNCP -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- poolPlugin.handle -->
+<!-- source: plan/post-release/features/spec-l2tp-ipv6-subscriber.md -- owner ruling, 2026-08-30 -->
 
 RFC 2661 L2TPv2 LNS/LAC with full BNG stack: tunnel lifecycle (SCCRQ/SCCRP/SCCCN, CHAP-MD5 challenge, HELLO keepalive, StopCCN teardown, tie-breaker), configurable dead-peer detection (`hello-retries` x `hello-interval` ACK-driven keepalive timeout, separate from the ~31s reliable-transport retransmit exhaustion, so a peer that dies without StopCCN is torn down fast while an idle-but-alive peer that only ZLB-ACKs HELLOs is not falsely dropped) <!-- source: internal/component/l2tp/reactor.go -- handleTick dead-peer check -->, reliable delivery with sliding window and congestion avoidance, PPP negotiation (LCP 10-state FSM, PAP/CHAP-MD5/MS-CHAPv2 auth, IPCP/IPv6CP address assignment, proxy LCP), kernel data plane via `l2tp_ppp` netlink and PPPoL2TP sockets. Four plugins: auth-local (static users), auth-radius (RADIUS auth/acct/CoA/DM with failover, real per-subscriber traffic counters in Interim/Stop including RFC 2869 Gigawords), pool (bitmap-backed IPv4 ranges from Ze config), shaper (TC TBF/HTB on pppN interfaces with configured defaults and CoA rate updates). Subscriber route redistribution via `redistribute { import l2tp }`: the real RouteObserver emits add/remove route-change batches, and BGP announce/withdraw plumbing is covered with a synthetic producer. CQM monitoring (100s echo RTT/loss buckets, per-login sample rings, 24h retention). Web UI at `/l2tp` with session list, detail page, uPlot CQM graph with SSE live updates, event timeline, and disconnect with audit trail. `ze_l2tp_*` Prometheus metrics (session/tunnel gauges, per-session byte/packet counters, CQM echo RTT histogram, loss ratio, bucket state). `ze_radius_*` metrics (auth/acct/interim counters, server reachability). RADIUS Access-Accept subscriber profile attributes are consumed: Framed-IP-Address bypasses pool (direct IP assignment), Framed-Pool selects a named pool, Session-Timeout/Idle-Timeout enforce session lifetime, Filter-Id sets initial shaping rate at session establishment, Vendor-Specific attributes (RFC 2865 S5.26) extract CoS profiles from Cisco-AVPair/Juniper ERX/Nokia/Huawei VSAs and shaper rates from MikroTik Mikrotik-Rate-Limit (Ze "cos:" Filter-Id takes priority; unknown vendors silently ignored), Acct-Interim-Interval sets the per-session accounting interval for a deployment that left `acct-interval` unset, because RFC 2869 Section 2.1 gives a locally configured value precedence over the Access-Accept, and Framed-Route/Framed-IPv6-Route (RFC 2865 Section 5.22, RFC 6911 Section 3.2) inject per-subscriber static routes into BGP alongside the subscriber /32 or /128. Named pools are configured via YANG `named-pool` list under `l2tp > pool`. PPP auth now defaults to mandatory CHAP-MD5 with finite tunnel/session caps; no-auth requires explicit opt-in, hidden mandatory AVPs are rejected fail-closed. Every Accounting-Request carries Framed-IP-Address, the address IPCP actually assigned (RFC 2866 Section 4.1), and a NAS-Port-Id composed once per session from a `{nas-id}` / `{tunnel-id}` / `{session-id}` template (`nas-port-id-format`, RFC 2869 Section 5.17), so an LNS with no physical port still joins its accounting records. An SCCRQ whose Assigned Tunnel ID AVP carries 0 is a protocol error under RFC 2661 Section 4.4.3: Ze answers it with a StopCCN sent outside any tunnel, allocates no tunnel, and bounds the reply to one per source-address slot per second so a spoofed flood costs nothing. <!-- source: internal/component/l2tp/plugins/authradius/handler.go -- nasPortIDFormat --> <!-- source: internal/component/l2tp/reactor.go -- answerRefusedSCCRQ, stopCCNSlot --> Docker-backed `xl2tpd` evidence covers external LAC control tunnel and incoming-call session setup. A peer-isolated Docker lab (`./le test deployment docker-l2tp-ppp`) proves full PPP LCP/IPCP, kernel pppN creation, dataplane ping, and BGP route redistribution from a live PPP session with Ze LNS, real xl2tpd/pppd LAC, and FRR in separate containers; requires host kernel PPPoL2TP support. Compile-out-able with the `ze_l2tp` build tag (default-on in `ZE_FEATURES`): a stripped build drops the whole BNG subtree (L2TP, PPPoE, subscriber management, local-auth/pool/shaper plugins) and rejects `l2tp {}` and `pppoe {}` blocks; the hub builds the subsystems through the gated `bngRegister` seam, the web session pages and diag l2tp captures answer not-in-this-build, and the cos dynamic RADIUS-CoS handler drops with it. <!-- source: feature-gates.txt -- ze_l2tp --> <!-- source: cmd/ze/hub/bng_infra.go -- bngRegister seam -->
