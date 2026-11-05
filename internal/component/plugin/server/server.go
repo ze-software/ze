@@ -699,6 +699,10 @@ func (s *Server) declaredFilters(process string) ([]registry.DeclaredFilter, boo
 	if reg == nil {
 		return nil, false
 	}
+	// An allocated registration is not an authoritative empty declaration.
+	if !reg.Done {
+		return nil, false
+	}
 	declared := make([]registry.DeclaredFilter, len(reg.Filters))
 	for i := range reg.Filters {
 		declared[i] = reg.Filters[i].DeclaredFilter
