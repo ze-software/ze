@@ -1,15 +1,15 @@
 {
-  "note": "forward_med_test and med-not-propagated-across-as.ci assert attribute 4 stripped toward a plain eBGP peer; negatives keep it toward iBGP, RS clients and for a locally originated metric (med-locally-set-reaches-peer.ci). Rejudged 2026-10-31 by an independent reader after 2fadac201c, which added only a bgp-level filter { import { final accept; } export { final accept; } } so RFC 8212 default-reject stops refusing the route on its EBGP peer; no expect line or RFC tag changed, and the filter has no refs and no modify, so it cannot touch MED. RFC 4271 Section 5.1.4: \"The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes.\" Break evidence (go -overlay against HEAD, ./le test bgp plugin med-locally-set-reaches-peer): green unbroken; RED with \"MED: 100 (missing)\" when buildRIBRouteUpdate (reactor/peer_rib_routes.go) keeps MED only on iBGP, i.e. a blanket strip of attribute 4 toward external peers, which is the over-reaction this negative exists to catch. A stack probe showed the originated route reaches the wire through Peer.sendInitialRoutes -> buildRIBRouteUpdate, NOT writeAnnounceUpdate as the .ci header comment says; eBGP strips in writeAnnounceUpdate, BuildUnicast and planBatchAttrs all stayed green. The assertion stands; the header comment names the wrong rail, and this negative covers only the queued initial-send rail, not an announce to an already Established peer. Same rejudge covers med-not-propagated-across-as.ci, whose unit f8f7628bdf changed the same way (bgp-level final-accept filter only, expects and tags unchanged): green unbroken; RED with \"MED: 100 (unexpected)\" at the plain eBGP receiver when applyFactsMED (reactor/forward_med.go) never records the Suppress (positive), and RED with \"MED: 100 (missing)\" at the RS client when medPropagationAllowedTo ignores rsClient (negative). The Go tagged units are byte-identical to the recorded ones. Verdict stands.",
+  "note": "Independent source rejudgment of RFC 4271 Section 5.1.4: \"The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes.\" Read all tagged Go units, both functional files, native checker and relevant producer/fixture. applyFactsMED strips a received unchanged metric for ordinary eBGP, but retains iBGP/route-server-client propagation and locally created or policy-replaced metrics. Go positives compare exact rebuilt attributes for metrics zero/100/max; controls retain the distinct allowed provenance. med-not-propagated-across-as compares full frames toward the RS client and ordinary external peer. The moved med-locally-set-reaches-peer still expects an exact MED=100 frame and the external fixture originates it through UpdateRoute; its accepting policy does not manufacture MED. This control's source/header naming should not be inflated to every established-session rail: the prior audit located it on queued initial replay, not writeAnnounceUpdate. checkMEDAcrossAS independently requires genuine source AS/NEXT_HOP blocks plus absent received MED and present locally originated MED=42. Verdict enforced with those precise controls, not a blanket ban on attribute 4. No execution or discrimination replay was performed.",
   "requirement_sha": "5d956ce89d316bad",
   "tests": {
-    "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsFilterSetMED": "a0dd0281b27d0572",
-    "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS": "a0dd0281b27d0572",
-    "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS#2": "a0dd0281b27d0572",
-    "internal/component/bgp/reactor/forward_med_test.go::TestForwardWritesLocallySetMED": "a0dd0281b27d0572",
-    "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "a0dd0281b27d0572",
-    "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "07ffe0ba5c7e0809",
-    "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "07ffe0ba5c7e0809",
-    "test/plugin/med-locally-set-reaches-peer.ci": "b849ddb2242bc100",
+    "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsFilterSetMED": "9c699e457619798c",
+    "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS": "9c699e457619798c",
+    "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS#2": "9c699e457619798c",
+    "internal/component/bgp/reactor/forward_med_test.go::TestForwardWritesLocallySetMED": "9c699e457619798c",
+    "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "9c699e457619798c",
+    "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "e4ba9358c797eb4c",
+    "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "e4ba9358c797eb4c",
+    "test/plugin/med-locally-set-reaches-peer.ci": "c9cecb80fb2bab3a",
     "test/plugin/med-not-propagated-across-as.ci": "645c67f92099c212",
     "test/plugin/med-not-propagated-across-as.ci#2": "645c67f92099c212"
   },
@@ -21,7 +21,7 @@
     "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "fe9f75d432bbc528",
     "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "f416657dfdc77c0d",
     "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "f416657dfdc77c0d",
-    "test/plugin/med-locally-set-reaches-peer.ci": "b849ddb2242bc100",
+    "test/plugin/med-locally-set-reaches-peer.ci": "c9cecb80fb2bab3a",
     "test/plugin/med-not-propagated-across-as.ci": "645c67f92099c212",
     "test/plugin/med-not-propagated-across-as.ci#2": "645c67f92099c212"
   },

@@ -5,7 +5,7 @@
     "internal/component/bgp/reactor/adj_rib_out.go::releasePath": "1764c405b6ac7083",
     "internal/component/bgp/reactor/adj_rib_out.go::setOwner": "0bb2cf4418584a3a",
     "internal/component/bgp/reactor/forward_body.go::buildFwdBody": "1f59dff3d361dd02",
-    "internal/component/bgp/reactor/forward_body.go::fwdReencodeMPAttributes": "7ba7e240523ed09d",
+    "internal/component/bgp/reactor/forward_body.go::fwdReencodeMPAttributes": "8769c60e82590bc6",
     "internal/component/bgp/reactor/forward_body.go::fwdReencodeNLRIs": "ed0cc8462f429b32",
     "internal/component/bgp/reactor/forward_path_id.go::framed": "d683b9bb1f8c3317",
     "internal/component/bgp/reactor/forward_path_id.go::fwdAnnouncedPaths": "8f95ae1aa03b0728",
@@ -27,7 +27,7 @@
     "internal/component/bgp/reactor/forward_provenance.go::prepareFwdProvenance": "55b4a396991dd556",
     "internal/component/bgp/reactor/forward_provenance.go::writePath": "b3c04bff61376267",
     "internal/component/bgp/reactor/session_ownership.go::allow": "359bc95131ccb821",
-    "internal/component/bgp/reactor/session_ownership.go::beginAdjOut": "2f196d8453e64539",
+    "internal/component/bgp/reactor/session_ownership.go::beginAdjOut": "e9ae4d388272af7c",
     "internal/component/bgp/reactor/session_ownership.go::bindSourcePath": "e9fb3f220c4c91c2",
     "internal/component/bgp/reactor/session_ownership.go::filter": "bd62e97c08afa619",
     "internal/component/bgp/reactor/session_ownership.go::recordDeletion": "56c645b7aa5cc8af",
@@ -38,7 +38,7 @@
     "internal/component/bgp/reactor/session_write.go::retireWrite": "8d1fe8fe152756e1",
     "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "4f5e4354843aee34"
   },
-  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 7911 Section 3: \"A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route.\" Producers moved in 5f0aa168c2 (one recovery-owner answer per source per write: release now clears the cached answers) and 217c3e6fd5 (entries from a per-table slot store: clearRoutes clears the store, recordDeletion frees the slot after its last read, and the per-NLRI closures of recordSection and filterSection became the pooled walk's methods recordNLRI and allowNLRI in session_ownership_walk.go, now cited in the code map). Re-read: recordNLRI keeps the identifier logic byte-for-byte (takeReleased hands a released receipt's identifier reservation to the new entry, otherwise fwdPathIDs.retain(key.path.received) for an ADD-PATH key), a reused slot is zeroed so it carries no other key's owner, and recordDeletion still calls keepReleased or releasePath before the slot is freed. None mints an identifier, passes a received one through, or lets two paths share one toward a neighbor. All 19 tagged carriers are byte-identical, so the positives still require a generated identifier per destination and the negatives still fail on a received-identifier passthrough. Verdict unchanged: enforced.",
+  "note": "Independent source rejudgment against RFC 7911 Section 2: \"A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route.\" Read every tagged unit and cited producers. Same- and cross-context classic/MP forwarding tests distinguish colliding source paths, preserve each native prefix/identifier pair through attribute replacement and withdrawal, cover non-ADD-PATH sources and numeric boundaries/wrap, and require that withdrawing a sibling not renumber a survivor. Churn tests inspect recipient bytes and reservation counts; the mixed withdraw/announce case keeps the surviving local identity. Functional stored-route replay expects the locally assigned identifier on both live and replay rails, and the native checker compares the full path-identifier set after genuine receiver session generation changes. The obligation is local assignment, not numeric inequality from every received value. fwdReencodeMPAttributes still invokes local generation separately for reach and inverse lookup for unreach, preserving the received body; its exhaustive-ignore directive does not add an alternate framing path. beginAdjOut's current initial-write admission guard retains session/provenance fencing. Source keying, reservation and ownership recording/release were re-read; no evidence supports downgrading these tagged guarantees. Verdict enforced. This source review is not a runtime or discrimination-freshness claim.",
   "requirement_sha": "442640073668ac08",
   "tests": {
     "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDKeepsTheSourceOfARebuiltFrame": "43250a2eec94bdaa",
@@ -58,7 +58,7 @@
     "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "8e4558cf2659911f",
     "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "8e4558cf2659911f",
     "internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go::TestPathIDKeyFollowsWhatTheSourceFramed": "f27c8fc1cc7a38e0",
-    "internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision": "31aab6842e23cf15",
+    "internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision": "e4ba9358c797eb4c",
     "test/plugin/adj-rib-in-replay-addpath-source.ci": "10543a0ef239d49a"
   },
   "units": {
