@@ -227,11 +227,11 @@ func (s *pppSession) refuseAuthMethod(cur LCPState, pkt LCPPacket) bool {
 // local receive MRU. Unknown Auth-Protocol is never equivalent to absent auth.
 // RFC 2661 Section 4.4.5: "Note that the LNS policy may be to enter an additional round of LCP negotiation and/or authentication if the LAC is not trusted."
 func (s *pppSession) acceptProxyPolicy(proxy proxyLCPResult) bool {
-	// An absent peer MRU keeps the PPP default. A nonzero limit below the
-	// supported IP floor requires fresh negotiation, not an upward MTU clamp.
+	// The decoder resolves an absent peer MRU to the PPP default. Every
+	// explicit limit below the IP floor requires fresh negotiation.
 	// RFC 791 Section 3.2: "Every internet module must be able to forward a datagram of 68
 	// octets without further fragmentation."
-	if proxy.MRU != 0 && proxy.MRU < MinIPv4MRU {
+	if proxy.MRU < MinIPv4MRU {
 		return false
 	}
 	// RFC 791 Section 3.2: "Every internet module must be able to forward a datagram of 68

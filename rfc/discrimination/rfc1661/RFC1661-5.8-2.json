@@ -16,10 +16,10 @@
     "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened",
     "unit-sha": "aa34714d733a838a",
     "claim-sha": "bf42c255a642925a",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::run",
-    "producer-sha": "5e9c603558dfa1e1",
-    "break": "body of run replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "23c529a7813362c3",
+    "break": "line 465: \"nowOpened := s.currentState() == LCPStateOpened\" -\u003e \"nowOpened := opened || s.currentState() == LCPStateOpened\""
   },
   {
     "rid": "RFC1661-5.8-2",

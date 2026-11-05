@@ -187,10 +187,8 @@ func (s *pppSession) run(start *StartSession) {
 		})
 	}
 
-	// RFC 2661 Section 18: when the peer LAC provides Initial-Received-
-	// LCP-CONFREQ, Last-Sent-LCP-CONFREQ, and Last-Received-LCP-CONFREQ
-	// AVPs in ICCN, the LNS MAY skip LCP negotiation and use the
-	// proxied options as if they had been negotiated directly.
+	// RFC 2661 Section 4.4.5: "This information may be used to initiate the PPP LCP and authentication
+	// systems on the LNS, allowing PPP to continue without renegotiation of LCP."
 	proxy, perr := EvaluateProxyLCP(
 		start.ProxyLCPInitialRecv, start.ProxyLCPLastSent, start.ProxyLCPLastRecv,
 	)
@@ -221,12 +219,8 @@ func (s *pppSession) run(start *StartSession) {
 			"mru", proxy.MRU,
 			"auth-proto", strconv.Itoa(int(proxy.AuthProto)),
 			"auth-method", negotiatedMethod.String())
-		mru := proxy.MRU
-		if mru == 0 {
-			mru = MaxFrameLen
-		}
 		s.mu.Lock()
-		s.negotiatedMRU = mru
+		s.negotiatedMRU = proxy.MRU
 		s.negotiatedAuthMethod = negotiatedMethod
 		s.state = LCPStateOpened
 		s.mu.Unlock()
@@ -242,7 +236,7 @@ func (s *pppSession) run(start *StartSession) {
 		s.sendEvent(EventLCPUp{
 			TunnelID:             s.tunnelID,
 			SessionID:            s.sessionID,
-			NegotiatedMRU:        mru,
+			NegotiatedMRU:        proxy.MRU,
 			NegotiatedAuthMethod: negotiatedMethod,
 		})
 		if !s.afterLCPOpen() {

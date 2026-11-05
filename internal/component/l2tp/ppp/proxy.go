@@ -1,4 +1,4 @@
-// Design: docs/research/l2tpv2-implementation-guide.md -- proxy LCP (RFC 2661 §18)
+// Design: docs/research/l2tpv2-implementation-guide.md -- proxy LCP (RFC 2661 Section 4.4.5).
 // Related: lcp_options.go -- option codec used to parse the proxied byte streams
 // Related: ppp_fsm.go -- FSM that the short-circuit drives directly to Opened
 
@@ -18,16 +18,16 @@ var errProxyLCPMissing = errors.New("ppp: proxy LCP requires all three CONFREQ A
 // fails to parse as an LCP option list.
 var errProxyLCPInvalid = errors.New("ppp: proxy LCP option stream malformed")
 
-// proxyLCPResult is the outcome of a successful short-circuit. It
-// carries the parameters the caller needs to skip the FSM straight
-// to Opened: the negotiated MRU (so pppN MTU can be set), the
+// proxyLCPResult carries the decoded parameters whose policy the caller
+// MUST approve before skipping the FSM straight to Opened: the peer
+// MRU (so pppN MTU can be set), the
 // negotiated authentication protocol (so the auth phase knows what
 // the LAC already arranged), and the proxied magic numbers (so Echo
 // loopback detection still works for the LNS<->peer link, even
 // though LCP itself was never run on this end).
 type proxyLCPResult struct {
 	// MRU is the peer's receive MRU from Last-Received (our transmit MTU).
-	// Zero denotes the absent option, whose default is 1500.
+	// Absence is resolved to 1500; a present zero remains zero for policy.
 	MRU uint16
 
 	// LocalMRU is the receive MRU in Last-Sent. Absence means 1500.
@@ -55,8 +55,8 @@ type proxyLCPResult struct {
 }
 
 // EvaluateProxyLCP parses the three proxied CONFREQ byte streams from
-// an L2TP ICCN (AVPs 26/27/28) and decides whether the LCP short-
-// circuit is valid for this session. RFC 2661 §18 rules:
+// an L2TP ICCN (AVPs 26/27/28). The decoder requires the proxy information
+// described by RFC 2661 Section 4.4.5 before the caller checks its policy:
 //
 //   - All three slices MUST be non-empty.
 //   - Initial-Received and Last-Received represent successive states
@@ -65,15 +65,18 @@ type proxyLCPResult struct {
 //   - Last-Sent carries the LAC's receive MRU and requested Auth-Protocol;
 //     Last-Received carries the peer's receive MRU.
 //
-// On success returns the parameters the caller should use to drive
-// the FSM directly to Opened. On any parse failure or missing AVP,
+// On success returns the decoded parameters for the caller's policy check.
+// Only accepted parameters may drive the FSM directly to Opened.
+// On any parse failure or missing AVP,
 // returns a non-nil error and the caller MUST fall back to running
 // LCP normally.
 //
 // This function does NOT mutate the FSM; it is a pure decoder. The
-// caller (per-session goroutine in Phase 10) is responsible for
+// caller's per-session goroutine is responsible for
 // invoking the FSM with synthetic events (e.g., set state to Opened,
 // emit TLU action) on success.
+// RFC 2661 Section 4.4.5: "This information may be used to initiate the PPP LCP and authentication
+// systems on the LNS, allowing PPP to continue without renegotiation of LCP."
 func EvaluateProxyLCP(initialRecv, lastSent, lastRecv []byte) (proxyLCPResult, error) {
 	if len(initialRecv) == 0 || len(lastSent) == 0 || len(lastRecv) == 0 {
 		return proxyLCPResult{}, errProxyLCPMissing
@@ -88,25 +91,29 @@ func EvaluateProxyLCP(initialRecv, lastSent, lastRecv []byte) (proxyLCPResult, e
 		return proxyLCPResult{}, errProxyLCPInvalid
 	}
 	// We do not parse initialRecv beyond requiring it to be valid LCP
-	// options; it is informational only (RFC 2661 §18 includes it so
+	// options; it is informational only (RFC 2661 Section 4.4.5 includes it so
 	// the LNS can audit how negotiation evolved). Still validate it
 	// to catch corrupt AVPs.
 	if _, err := ParseLCPOptions(initialRecv); err != nil {
 		return proxyLCPResult{}, errProxyLCPInvalid
 	}
 
-	out := proxyLCPResult{LocalMRU: MaxFrameLen}
-	if v, ok := lookupMRUOption(sentOpts); ok {
-		out.LocalMRU = v
+	// RFC 1661 Section 6.1: decode the local MRU's exact width and default.
+	localMRU, err := decodeProxyMRU(sentOpts)
+	if err != nil {
+		return proxyLCPResult{}, err
 	}
 
 	// MRU: the negotiated MRU is what the peer asked the LAC to use
 	// (Last-Received). RFC 1661 §6.1: a peer's MRU option in its own
 	// CONFREQ tells the OTHER side the maximum it is willing to
 	// receive. So Last-Received MRU is the maximum WE may send.
-	if v, ok := lookupMRUOption(recvOpts); ok {
-		out.MRU = v
+	// RFC 1661 Section 6.1: resolve absence before admitting the peer value.
+	peerMRU, err := decodeProxyMRU(recvOpts)
+	if err != nil {
+		return proxyLCPResult{}, err
 	}
+	out := proxyLCPResult{MRU: peerMRU, LocalMRU: localMRU}
 
 	// Auth-Proto: LAC's Last-Sent CONFREQ tells the peer what auth
 	// protocol the LAC picked. The peer accepted (or LAC would not
@@ -133,6 +140,34 @@ func EvaluateProxyLCP(initialRecv, lastSent, lastRecv []byte) (proxyLCPResult, e
 	}
 
 	return out, nil
+}
+
+// decodeProxyMRU requires at most one correctly sized MRU and resolves an
+// absent option to its default. Policy decides whether the decoded value,
+// including a present zero, supports the enabled IPs.
+// RFC 1661 Section 6.1: "The default value is 1500 octets."
+func decodeProxyMRU(opts []LCPOption) (uint16, error) {
+	mru := uint16(MaxFrameLen)
+	seen := false
+	for _, option := range opts {
+		if option.Type != LCPOptMRU {
+			continue
+		}
+		// RFC 1661 Section 6: "(None of the Configuration
+		// Options in this specification can be listed more than once.)"
+		if seen {
+			return 0, errProxyLCPInvalid
+		}
+		// RFC 1661 Section 6.1: "The Maximum-Receive-Unit field is two octets, and specifies the
+		// maximum number of octets in the Information and Padding fields."
+		// The option's Length is four: two header octets and two MRU octets.
+		if len(option.Data) != 2 {
+			return 0, errProxyLCPInvalid
+		}
+		seen = true
+		mru = binary.BigEndian.Uint16(option.Data)
+	}
+	return mru, nil
 }
 
 // lookupOption returns the Data field of the first option matching
