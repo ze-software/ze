@@ -1,17 +1,16 @@
-// Design: docs/contributing/rfc-conformance-gates.md -- a tagged unit that compiles only in the Linux guest
+// Design: docs/contributing/rfc-conformance-gates.md -- explicit or build-required tagged-unit guest placement
 // Overview: discriminate_observe.go -- the runner this placement extends
-// Related: ../test/qemu/run.go -- the guest `le test qemu run` boots
+// Related: ../test/qemu/dockerlab_command.go -- the own-system unit command carrier
 //
-// discriminate_guest.go places ONE tagged Go unit where its build constraints
-// hold. A test that touches the kernel carries `integration && linux`
-// (ai/rules/platform-linux.md), so the host `go test` never compiles it, and a
-// red that no run could produce was never observable. Such a unit is compiled
-// for the QEMU guest on the host, where the overlay still reaches the compiler,
-// and run there by name through `le test qemu run`, the guest runner the
-// repository already has.
+// discriminate_guest.go places ONE tagged Go unit in an explicitly selected
+// compatible guest, or otherwise where its build constraints hold, host first.
+// A test that touches the kernel may carry `integration && linux`
+// (ai/rules/platform-linux.md), so a host run cannot always compile it. Such a
+// unit is compiled for the QEMU guest on the host, where the overlay still
+// reaches the compiler, and run there by name through `le test qemu docker-lab`.
 //
 // A .ci the host's runner skips (`option=needs-linux:caps=...` on a host that
-// lacks the capability) runs in the same guest through `le test qemu all
+// lacks the capability) retains the legacy Alpine guest through `le test qemu all
 // test <path>`, the one-.ci narrowing `le feature run` already drives,
 // against daemons cross-built on the host under the overlay.
 package rfc
@@ -45,9 +44,8 @@ const guestDaemonsRel = "tmp/qemu/rfc-discriminate"
 const guestCICommandTimeout = "3000s"
 
 // guestLocalDir is where the guest script copies a unit's test binary before
-// running it: the guest's own writable /tmp, which le test qemu run already
-// exports as TMPDIR. guestScript says why the binary cannot run from the
-// shared checkout.
+// running it: the guest's own writable /tmp. The ordinary guest owner creates
+// the copy and counter directory; neither is executed from the shared checkout.
 const guestLocalDir = "/tmp"
 
 // placementContexts answers the two build contexts a tagged unit's file is
@@ -55,7 +53,7 @@ const guestLocalDir = "/tmp"
 //
 // The guest adds the integration tag because a kernel-touching test is what it
 // exists to run. CGO is off in both, because the toolchain sets CGO_ENABLED=0
-// for a test run and the Alpine guest ships no C compiler.
+// for a test run and guest execution requires no C compiler.
 func placementContexts(hostTags []string) (host, guest build.Context) {
 	host = build.Default
 	host.CgoEnabled = false
@@ -67,23 +65,23 @@ func placementContexts(hostTags []string) (host, guest build.Context) {
 	return host, guest
 }
 
-// unitNeedsGuest answers whether one tagged Go file compiles only in the guest.
+// unitNeedsGuest places one tagged Go file under its build constraints.
 //
-// go/build reads the constraints the way the go command does: the `//go:build`
-// line and the _GOOS or _GOARCH file-name suffix. The host is asked first, so a
-// unit that runs here keeps the host run. A file neither context compiles has
-// nowhere to run, and that is an error rather than a skip: a unit nothing ran
-// cannot have gone red.
-func unitNeedsGuest(host, guest *build.Context, file string) (bool, error) {
+// An explicit kernel selects the guest only when its context compiles the file.
+// Without that selection the host comes first. A file neither context compiles
+// is refused rather than skipped: a unit nothing ran cannot have gone red.
+func unitNeedsGuest(host, guest *build.Context, file string, explicitGuest bool) (bool, error) {
 	directory, name := filepath.Split(file)
-	onHost, err := host.MatchFile(directory, name)
-	if err != nil {
-		var tb textbuf.Buffer
-		return false, parseErr(tb.Str("cannot read the build constraints of ").Str(file).
-			Str(": ").Err(err))
-	}
-	if onHost {
-		return false, nil
+	if !explicitGuest {
+		onHost, err := host.MatchFile(directory, name)
+		if err != nil {
+			var tb textbuf.Buffer
+			return false, parseErr(tb.Str("cannot read the build constraints of ").Str(file).
+				Str(": ").Err(err))
+		}
+		if onHost {
+			return false, nil
+		}
 	}
 	inGuest, err := guest.MatchFile(directory, name)
 	if err != nil {
@@ -95,6 +93,12 @@ func unitNeedsGuest(host, guest *build.Context, file string) (bool, error) {
 		return true, nil
 	}
 	var tb textbuf.Buffer
+	if explicitGuest {
+		return false, parseErr(tb.Str(file).Str(" does not compile in the ").
+			Str(guest.GOOS).Byte('/').Str(guest.GOARCH).
+			Str(" QEMU guest selected by `kernel`; remove `kernel` to use host-first placement, ").
+			Str("or select a unit compatible with the guest"))
+	}
 	return false, parseErr(tb.Str(file).Str(" compiles neither on this host nor in the ").
 		Str(guest.GOOS).Byte('/').Str(guest.GOARCH).Str(" QEMU guest under tags ").
 		Quoted(strings.Join(guest.BuildTags, " ")).
@@ -105,8 +109,9 @@ func unitNeedsGuest(host, guest *build.Context, file string) (bool, error) {
 // kernel for a unit that runs on this host.
 //
 // A guest proof MUST boot Ze's runtime kernel, never the Alpine ISO's
-// (ai/rules/platform-linux.md): `le test qemu run` checks the release only when
-// it is given one. A kernel named for a host unit would be read by nothing, and
+// (ai/rules/platform-linux.md). Units use the own-system command carrier;
+// functional cases retain the legacy carrier with an explicit kernel.
+// A kernel named for a host unit would be read by nothing, and
 // an argument read by nothing is a claim the record never tested.
 func requireGuestKernel(unit string, guest bool, kernel string) error {
 	var tb textbuf.Buffer
@@ -187,13 +192,11 @@ func (o *observationRunner) guestBuildArgv(binary, overlay, profile string) []st
 // The binary runs from a copy on the guest's own filesystem, never from the
 // shared checkout. The checkout arrives over 9p with `security_model=none`, so
 // its files keep the host owner's uid and modes, and the checkout root is
-// commonly 0700. The guest's root reaches it only through CAP_DAC_OVERRIDE. A
-// unit that re-executes itself in a new user namespace (CLONE_NEWUSER, as the
-// SAD-selector probes do) holds no capability over an inode whose owner that
-// namespace does not map, so its fork/exec of a path under /workspace is
-// refused with EACCES and the unit SKIPs: a skip observes nothing. A copy owned
-// by the guest's root has an owner the child namespace maps, so the re-exec
-// works on every host whatever the checkout's modes.
+// commonly 0700. The own-system carrier mounts the checkout at its absolute
+// host path and runs as that same owner's UID. The local copy is owned by this
+// ordinary guest user, whose UID a re-executed user namespace maps. This keeps
+// the executable and its counters on the guest filesystem while profiles are
+// written through the mounted checkout. No privileged SSH session is needed.
 //
 // A coverage run also names its counter directory with `-test.gocoverdir=`, as
 // `go test -coverprofile` does on the host. The binary builds its profile from
@@ -226,14 +229,14 @@ func (o *observationRunner) guestScript(binary, profile string) string {
 // as carrierArgv does for interop, so the guest lifecycle has one owner.
 func (o *observationRunner) guestRunArgv(script string) []string {
 	var tb textbuf.Buffer
-	return []string{o.self, leTestCommand, "qemu", "run", keyKernel, o.kernel,
+	return []string{o.self, leTestCommand, "qemu", "docker-lab", keyKernel, o.kernel,
 		"command", tb.Str("sh ").Str(singleQuoted(o.guestPath(script))).String()}
 }
 
-// guestPath answers where the guest sees one path under this checkout, which it
-// mounts at testqemu.GuestWorkspace.
+// guestPath preserves a unit input's absolute main-checkout path. The own-system
+// carrier mounts checkout, scratch and cache at their host paths.
 func (o *observationRunner) guestPath(host string) string {
-	return path.Join(testqemu.GuestWorkspace, filepath.ToSlash(relTo(o.tree, host)))
+	return filepath.ToSlash(host)
 }
 
 // singleQuoted quotes one value for the guest's shell.

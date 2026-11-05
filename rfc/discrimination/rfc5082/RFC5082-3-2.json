@@ -38,10 +38,10 @@
     "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255",
     "unit-sha": "5c0d030f34fc437f",
     "claim-sha": "e7ee536e1ff7d50a",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/gtsm/route_linux.go::installHopLimitRoute",
     "producer-sha": "413242d3af60dde8",
-    "break": "body of installHopLimitRoute replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 96: \"route.Hoplimit = int(p.HopLimit)\" -\u003e \"route.Hoplimit = 0\""
   },
   {
     "rid": "RFC5082-3-2",
@@ -60,10 +60,10 @@
     "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255",
     "unit-sha": "ab70dc3d40e2c6d9",
     "claim-sha": "6f4a46597bc1c308",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/gtsm/route_linux.go::installHopLimitRoute",
     "producer-sha": "413242d3af60dde8",
-    "break": "body of installHopLimitRoute replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 96: \"route.Hoplimit = int(p.HopLimit)\" -\u003e \"route.Hoplimit = 0\""
   },
   {
     "rid": "RFC5082-3-2",

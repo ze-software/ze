@@ -54,7 +54,7 @@ func TestUnitPlacementFollowsBuildConstraints(t *testing.T) {
 		{file: "windows_test.go", fails: true},
 	}
 	for _, c := range cases {
-		inGuest, err := unitNeedsGuest(&host, &guest, filepath.Join(directory, c.file))
+		inGuest, err := unitNeedsGuest(&host, &guest, filepath.Join(directory, c.file), false)
 		if c.fails {
 			if err == nil {
 				t.Errorf("%s: placed (guest=%v), want the refusal for a file nothing compiles", c.file, inGuest)
@@ -138,18 +138,18 @@ func TestGuestObservationCommands(t *testing.T) {
 	// namespace does not map (guestScript). A coverage run names a guest-local
 	// counter directory with -test.gocoverdir=, so a child the unit re-executes
 	// writes its counters where the parent's profile is built from.
-	want := "cp '/workspace/tmp/s/guest-1.test' '/tmp/guest-1.test' && mkdir -p '/tmp/cover-guest-1.test'" +
-		" && cd '/workspace/internal/widget'" +
+	want := "cp '" + filepath.ToSlash(binary) + "' '/tmp/guest-1.test' && mkdir -p '/tmp/cover-guest-1.test'" +
+		" && cd '" + filepath.ToSlash(filepath.Join(tree, "internal/widget")) + "'" +
 		" && exec '/tmp/guest-1.test' -test.run '^TestWidget$'" +
-		" -test.count=1 -test.v -test.timeout 20m -test.coverprofile '/workspace/tmp/s/cover-1.out'" +
+		" -test.count=1 -test.v -test.timeout 20m -test.coverprofile '" + filepath.ToSlash(profile) + "'" +
 		" -test.gocoverdir='/tmp/cover-guest-1.test'\n"
 	if script != want {
 		t.Errorf("guest script\n got %q\nwant %q", script, want)
 	}
 
 	run := runner.guestRunArgv(filepath.Join(scratch, "guest-1.sh"))
-	wantRun := []string{"/bin/le", "test", "qemu", "run", "kernel", "tmp/kernel/build/vmlinuz",
-		"command", "sh '/workspace/tmp/s/guest-1.sh'"}
+	wantRun := []string{"/bin/le", "test", "qemu", "docker-lab", "kernel", "tmp/kernel/build/vmlinuz",
+		"command", "sh '" + filepath.ToSlash(filepath.Join(scratch, "guest-1.sh")) + "'"}
 	if !slices.Equal(run, wantRun) {
 		t.Errorf("guest run argv\n got %q\nwant %q", run, wantRun)
 	}

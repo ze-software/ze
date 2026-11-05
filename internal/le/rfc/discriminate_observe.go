@@ -58,9 +58,8 @@ type observationRunner struct {
 	// command is the last command this runner executed, recorded so the report
 	// carries what was actually run rather than what one branch would have run.
 	command string
-	// guest is true when the tagged unit's file compiles only in the Linux
-	// guest, or when the tagged .ci is one this host's runner skips, so the
-	// unit is built for the guest and run there (discriminate_guest.go).
+	// guest is true when the selected kernel requests a compatible Linux
+	// guest, the tagged file compiles only there, or the host skips the .ci.
 	guest bool
 	// kernel is the runtime kernel a guest run boots, empty for a host run.
 	kernel string
@@ -92,7 +91,7 @@ func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, 
 	}
 	if carrier.Kind == kindUnit {
 		host, guest := placementContexts(strings.Fields(toolchain.TestTags()))
-		runner.guest, err = unitNeedsGuest(&host, &guest, treePath(tree, tag.File))
+		runner.guest, err = unitNeedsGuest(&host, &guest, treePath(tree, tag.File), kernel != "")
 		if err != nil {
 			return nil, err
 		}

@@ -2124,28 +2124,28 @@ checker must resolve uniquely and the scenario must exist in the tree.
 A Go unit runs where its own build constraints hold, and the file decides, not
 the author. `unitNeedsGuest` (`internal/le/rfc/discriminate_guest.go`) asks
 `go/build` of the tagged file, reading the `//go:build` line and the `_linux`
-file-name suffix the way the go command reads them. The host comes first, under
-the tag set the host run passes. A file the host cannot compile is asked of the
-QEMU guest: `linux`, the guest's architecture, and the same tags plus
-`integration`, which is how a test that touches the kernel is marked
-(`ai/rules/platform-linux.md`). A file neither compiles is refused, because a
-unit nothing ran cannot have gone red.
+file-name suffix the way the go command reads them. An explicit `kernel`
+selects the QEMU guest when the file matches `linux`, the guest's architecture,
+and the host tags plus `integration`; an incompatible file is refused before
+execution. Without `kernel`, the host comes first under its own tags, and only
+a file the host cannot compile is asked of the guest. A file neither compiles
+is refused, because a unit nothing ran cannot have gone red.
 
 A guest unit is compiled on the HOST with `go test -c`, cross-built for the
 guest and under the same overlay, so the break still reaches the compiler and no
 file is modified. The binary then runs inside the guest through
-`./le test qemu run`, selected to the one unit with `-test.run '^<Func>$' -test.v`
+`./le test qemu docker-lab command`, selected to the one unit with `-test.run '^<Func>$' -test.v`
 from its package directory, and the coverage profile is written through the
-shared checkout where the host reads it. The guest script first copies the
+shared checkout at its absolute host path, where the host reads it. The guest
+script first copies the
 binary to the guest's own `/tmp` and runs that copy, never the file on the
 shared checkout (`guestScript`). The checkout reaches the guest over 9p with
 `security_model=none`, so its files keep the host owner's uid and modes, and
-the checkout root is commonly closed to other users. A unit that re-executes
-itself in a new user namespace, as the SAD-selector probes do, holds no
-capability over an inode whose owner that namespace does not map, so its exec
-of a checkout path is refused with `EACCES` and the unit fails, observing
-nothing. The guest-local copy is owned by the guest's root, which the child
-namespace maps. A coverage run also names a guest-local counter directory with
+the checkout root is commonly closed to other users. The own-system command
+carrier runs as the checkout owner's ordinary UID. That user owns the
+guest-local executable, and a re-executed user namespace maps that UID. Neither
+the unit command nor its interrupt needs privileged SSH. A coverage run also
+names a guest-local counter directory with
 `-test.gocoverdir=`, as `go test -coverprofile` does on the host: the binary
 builds its profile from every counter file in that directory, and a unit that
 re-executes itself passes the flag on, so a producer only the child reaches
@@ -2155,13 +2155,15 @@ producer.
 <!-- source: internal/test/userns/userns_linux.go -- Enter fails on re-exec errors -->
 <!-- source: internal/le/rfc/discriminate_guest.go -- guestScript, guestLocalDir --> Attribution is unchanged: the red must
 name the unit. A guest proof MUST boot Ze's runtime kernel, so the recorder
-takes `kernel <vmlinuz>` for a guest unit and refuses to run one without it, and
-refuses the keyword for a unit that runs on the host (`requireGuestKernel`):
+takes `kernel <vmlinuz>` for a guest unit and refuses to run one without it
+(`requireGuestKernel`). The unit command carrier validates Ze's kernel and
+system identity before executing the supplied script:
 
     ./le rfc record id <ID> polarity <p> unit <file>::<Func> \
       route revert producer <file>::<Func> kernel tmp/kernel/build/vmlinuz
 
-A `.ci` the host's runner skips takes the same guest. The functional runner
+A `.ci` the host's runner skips retains the legacy Alpine guest. The functional
+runner
 decides, not the recorder: `testrunner.NeedsGuest` answers whether this host
 skips the file (`option=needs-linux:caps=...` on a host that lacks the
 capability), and a file it skips runs in the guest; a file this host runs keeps
