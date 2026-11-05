@@ -298,7 +298,9 @@ func observeConfigured(
 			scenarioErr := invokeScenario(ctx, plugin, scenario)
 			if scenarioErr == nil {
 				status, _, quiesceErr := plugin.DispatchCommand(ctx, "request quiesce")
-				if quiesceErr == nil && status != statusDone {
+				if quiesceErr != nil {
+					scenarioErr = fmt.Errorf("observer quiesce: %w", quiesceErr)
+				} else if status != statusDone {
 					scenarioErr = fmt.Errorf("observer quiesce status is %q", status)
 				}
 			}

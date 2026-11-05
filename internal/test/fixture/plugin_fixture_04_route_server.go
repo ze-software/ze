@@ -157,7 +157,9 @@ func rsObserver04(expected int, prefix string, requireReplay bool, requiredSerie
 		})
 		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
 		result := make(chan error, 1)
+		started := make(chan struct{})
 		p.OnAllPluginsReady(func() error {
+			close(started)
 			go func() {
 				idleTimeout := WaitBudget(60, 30*time.Second)
 				idleDeadline := time.Now().Add(idleTimeout)
@@ -250,7 +252,12 @@ func rsObserver04(expected int, prefix string, requireReplay bool, requiredSerie
 				}
 				var scenarioErr error
 				if !requireReplay {
-					scenarioErr = p12WaitPeersEOR(ctx, p, "source-peer")
+					if !forwardSeen {
+						scenarioErr = fmt.Errorf("route server did not forward %q; inspect the source and receiver peer logs", prefix)
+					}
+					if scenarioErr == nil {
+						scenarioErr = p12WaitPeersEOR(ctx, p, "source-peer")
+					}
 				}
 				if requireReplay && (len(eorPeers) < needEOR || !forwardSeen) {
 					scenarioErr = fmt.Errorf("route server did not replay (EOR peers=%d/%d, forward peers=%d/%d)", len(eorPeers), needEOR, len(forwardPeers), needForward)
@@ -258,20 +265,20 @@ func rsObserver04(expected int, prefix string, requireReplay bool, requiredSerie
 				if scenarioErr == nil && len(requiredSeries) > 0 {
 					scenarioErr = requireSeries04(ctx, p, requiredSeries)
 				}
+				if scenarioErr == nil {
+					// Sent events precede flush, so the final forward needs this barrier.
+					scenarioErr = plugin01Quiesce(ctx, p)
+				}
+				ReportFailure(scenarioErr)
+				result <- scenarioErr
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), WaitBudget(25, 15*time.Second))
 				defer cancel()
 				_, _, _ = p.DispatchCommand(shutdownCtx, "request shutdown")
-				result <- scenarioErr
 			}()
 			return nil
 		})
 		runErr := p.Run(ctx, &sdk.Registration{})
-		select {
-		case scenarioErr := <-result:
-			return errors.Join(scenarioErr, runErr)
-		default:
-			return runErr
-		}
+		return awaitObserverResult(started, result, runErr)
 	}
 }
 

@@ -44,6 +44,11 @@ otherwise the peer can receive a Cease notification where EOR was expected.
 The peer MUST linger after its wire expectation so the API checks finish
 before teardown.
 
+After the API checks succeed, `Observe` MUST receive a `done` acknowledgment
+from `request quiesce` before treating shutdown as successful. A lost transport,
+refusal, or other status reports observer failure before requesting shutdown.
+<!-- source: internal/test/fixture/fixture.go -- observeConfigured -->
+
 The wait runs in `Observe`'s scenario worker, not in a startup callback that
 must return before peers start. Plugin readiness permits command dispatch;
 it does not prove that a peer's initial routing update has reached the wire.

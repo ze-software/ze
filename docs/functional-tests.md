@@ -2573,6 +2573,25 @@ See `docs/architecture/api/commands.md` "Quiesce Barrier".
 <!-- source: internal/test/fixture/misc_fixture_observers.go -- quiesce -->
 <!-- source: internal/component/plugin/server/quiesce.go -- ze-plugin:system-quiesce handler -->
 
+`fixture.Observe` requires a successful quiesce after its scenario. A sent
+UPDATE event or `updates-sent` counter can precede TCP flush, so it does not replace this
+barrier. A transport error, engine refusal or non-done status fails the observer.
+The observer reports `ZE-OBSERVER-FAIL` before it requests shutdown, while the
+daemon can still relay the report.
+<!-- source: internal/test/fixture/fixture.go -- observeConfigured, ReportFailure -->
+<!-- source: internal/test/fixture/plugin_fixture_05.go -- p05RunActivePlugin, p05CustomFlowspecPlugin, p05DDoSFlowspecAnnounce -->
+
+Custom observers that stop the daemon also need a checked quiesce after their
+last sent-event or sent-counter gate. An initial source End-of-RIB does not
+complete a later destination write. `rsObserver04`, `medRawDrop09` and
+`accumulatorIsolation09` use `plugin01Quiesce` at that final boundary.
+`runPlugin13` owns this barrier for every successful scenario whose shutdown
+flag is true, including `routeServerReplay13` and `opaqueWithdraw13`.
+<!-- source: internal/test/fixture/plugin_fixture_04_route_server.go -- rsObserver04 -->
+<!-- source: internal/test/fixture/plugin_fixture_09_bgp.go -- medRawDrop09, accumulatorIsolation09 -->
+<!-- source: internal/test/fixture/plugin_fixture_13.go -- runPlugin13, routeServerReplay13, opaqueWithdraw13 -->
+<!-- source: internal/test/fixture/plugin_fixture_01.go -- plugin01Quiesce -->
+
 Plugin registration readiness is not BGP establishment. Before requesting
 shutdown, an observer waits for the peer state or sent-payload counter its wire
 assertions require. The check peer must linger while observer work remains.

@@ -115,6 +115,7 @@ func plugin15ObserveStarted(name string, registration *sdk.Registration, scenari
 			close(started)
 			go func() {
 				scenarioErr := scenario(ctx, p)
+				ReportFailure(scenarioErr)
 				result <- scenarioErr
 				shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 				defer cancel()

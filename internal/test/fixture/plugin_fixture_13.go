@@ -189,11 +189,17 @@ func runPlugin13(ctx context.Context, name string, setup func(*sdk.Plugin), scen
 		setup(plugin)
 	}
 	result := make(chan error, 1)
+	started := make(chan struct{})
 	plugin.OnAllPluginsReady(func() error {
+		close(started)
 		go func() {
-			err := scenario(ctx, plugin)
-			result <- err
-			if shutdown || err != nil {
+			scenarioErr := scenario(ctx, plugin)
+			if shutdown && scenarioErr == nil {
+				scenarioErr = plugin01Quiesce(ctx, plugin)
+			}
+			ReportFailure(scenarioErr)
+			result <- scenarioErr
+			if shutdown || scenarioErr != nil {
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				_, _, _ = plugin.DispatchCommand(shutdownCtx, "request shutdown")
@@ -202,12 +208,7 @@ func runPlugin13(ctx context.Context, name string, setup func(*sdk.Plugin), scen
 		return nil
 	})
 	runErr := plugin.Run(ctx, &sdk.Registration{})
-	select {
-	case scenarioErr := <-result:
-		return errors.Join(scenarioErr, runErr)
-	default:
-		return runErr
-	}
+	return awaitObserverResult(started, result, runErr)
 }
 
 func passivePlugin13(name string) Driver {

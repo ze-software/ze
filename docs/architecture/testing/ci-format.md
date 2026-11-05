@@ -2128,8 +2128,11 @@ replaces a `time.Sleep` followed by a one-shot assertion.
 
 `fixture.Observe` can request a clean daemon shutdown even after an assertion
 failed, so the daemon's exit code does not prove the observer's assertion. A
-failing observer returns an error, which `fixture.Run` hands to
-`fixture.ReportFailure`.
+successful scenario must also complete `request quiesce` with status `done`.
+Transport errors, engine refusals and other statuses fail the observer. The
+observer reports `ZE-OBSERVER-FAIL` before requesting shutdown, then returns the
+error to `fixture.Run`.
+<!-- source: internal/test/fixture/fixture.go -- observeConfigured, Run, ReportFailure -->
 
 For process-status assertions, `le test fixture runner/helper-command-exit
 <stdout-line> <exit-code>` writes the line and exits with the requested status
@@ -2172,6 +2175,18 @@ observer. `fixture.ReportFailure` emits the FIRST failure only, so the report at
 the failure site and the one on the way out are one line.
 <!-- source: internal/test/fixture/fixture.go -- observeConfigured, ReportFailure -->
 <!-- source: internal/component/plugin/process/process.go -- relayStderrFrom -->
+
+Custom shutdown owners retain the same order: complete the successful
+scenario's final quiesce, report its error, publish its result, then request
+shutdown. `runPlugin13` supplies that barrier when its shutdown flag is true.
+A started scenario retains its verdict if the plugin transport closes first.
+The actual `runPlugin13` and
+`plugin15ObserveStarted` regressions cover successful quiesce, transport loss,
+engine refusal and warning status through the authenticated SDK transport.
+<!-- source: internal/test/fixture/plugin_fixture_13.go -- runPlugin13 -->
+<!-- source: internal/test/fixture/plugin_fixture_15.go -- plugin15ObserveStarted -->
+<!-- source: internal/test/fixture/fixture.go -- awaitObserverResult -->
+<!-- test: internal/test/fixture/plugin_fixture_custom_quiesce_test.go -- TestRunPlugin13RequiresCompletedQuiesceBeforeShutdown, TestPlugin15StartedReportsBarrierFailureBeforeShutdown -->
 
 **A driver's working directory is the per-test directory, so a driver names its
 files relatively and `fixture.Run` refuses to start in the checkout.** The

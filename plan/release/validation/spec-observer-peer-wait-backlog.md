@@ -2,17 +2,20 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Release validation: 151 functional fixtures whose observer can stop ze before its scripted peer has its messages, so their verdict depends on host load and a green run proves less than it claims |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+The owner approved a one-off WIP-cap exception for this implementation session
+(`ZE_SPEC_WIP_CAP=24` for the claim).
 
 ## Task
 
@@ -94,13 +97,214 @@ already, so no guard change is owed for it:
 | `Poll` with a poll-read helper (`fixture10PeerCounter`) | other and family 10 | The peer a `show bgp peer <selector>` command or poll-read selector in the predicate names |
 | `passiveObserve09`, `passivePlugin13`, `p12WaitForDaemonDriver` | `exempt` of families 09, 13, 12 | Nothing: these drivers end no run. They stay alive until the daemon says goodbye, so they never ask for the shutdown the wait protects |
 
-The basis is unchanged: a sent event is emitted only after the message was
-written and flushed to the socket (`internal/component/bgp/reactor/session_write.go`,
-the `onMessageReceived(..., rpc.DirectionSent, ...)` call after the write), so
-a sent End-of-RIB per distinct peer is the fact `eor-sent >= 1` gives, read
-from the event instead of the counter. What remains for the guard is a pinned
-case for the gated count (AC-4), so the `requireReplay` condition cannot be
-dropped without a red.
+The initial-sync `eor-sent` counter advances after `sendUpdateHeld` writes and
+flushes the marker (`Peer.sendInitialRoutes`, `session_write.go`
+`Session.sendUpdateHeld`). A sent UPDATE event in `Session.writeUpdateBody`
+can fire before the buffered bytes are flushed. An event-stream observer's
+distinct-peer End-of-RIB count therefore establishes that those peers have live
+sessions and have emitted their markers into the send path; `Observe` then
+requests quiesce before shutdown to complete delivery. The event alone does
+not prove a completed flush. The gated-count regression (AC-4) pins the
+`requireReplay` condition so that removing the gate makes the test fail.
+
+### Implementation audit, 2026-11-04
+
+The main-checkout baseline already passes the all-family, 08 and 12 guards.
+The named launcher ran `go test -race -v` over `internal/test/fixture`, with
+the feature tags from `feature-gates.txt`, selecting
+`TestPluginObservers(WaitForTheScriptedPeer|08WaitForTheScriptedPeer|12WaitForTheScriptedPeer)$`.
+No observer waits were added by this wiring phase. Earlier implementation
+commit `73978cd75e` and existing shared-checkout edits must be audited rather
+than repeated. AC-2's consecutive fixture runs and AC-3/AC-4 discrimination
+proofs were still owed at that baseline.
+
+### Implementation evidence, 2026-11-05
+
+All 208 affected CI files passed three consecutive runs: 191 native files
+and all 17 Linux files, totaling 624 successful invocations with zero skips.
+The result covers the retained guard baseline and every reached alias added
+by the dependency audit. The final CI hashes match the reviewed population.
+Earlier failed attempts and baseline runs are excluded from that count.
+
+Native proof ran in the main checkout through each registered suite:
+`le test bgp plugin <fixture>`, `le test bgp reload <fixture>` and
+`le test ui <fixture>`, with frozen host-built binaries and explicit
+`LE_TEST_NO_BUILD=1` and `ZE_BIN`. Linux proof used the own-system
+`le test qemu docker-lab kernel <runtime-kernel> command <guest-script>`
+carrier. Its root guest bound the same main checkout at `/workspace` and ran
+`le test qemu all test <test-path>` for each CI. Kernel `7.3.0-ze`, PID 1
+`/gokrazy/init` and the Ze root filesystem were checked; each invocation
+reported one executed test and no skipped phase. The implementation remains
+in-progress for the separate closure phase; this evidence is not a Review Gate.
+
+AC-1, AC-3, AC-4 and AC-7 are complete. The feature-tagged, race-enabled
+`go test` runs of `internal/test/fixture` passed the all-family guard, its
+false-pass cases, and the unchanged 08 and 12 guards. Removing the selected
+waits produced eight fixture/peer findings covering families 05, 11, 14,
+other and an inline scenario. Exact restoration returned the guard to zero
+findings. Removing the replay gate made the disabled-count case fail while
+the enabled control passed. The restored false-pass test passed.
+
+The final fixture-package run also passed the real TLS quiesce regressions
+and all three `awaitObserverResult` controls named in the TDD Test Plan.
+`observeConfigured` and `runPlugin13` now require a completed final drain
+before publishing successful shutdown. The latter drains only when it owns
+shutdown, preserving the externally stopped scenarios. Custom owners report
+their errors while the daemon can still relay them.
+
+Fresh binaries were built from the main checkout and frozen as binary
+artifacts. `testfunctional.PrepareGuest`, reached through
+`./le test qemu guest-binaries`, produced `ze`, `ze-stripped`,
+`ze-stripped-flow` and `ze-fakefilter`. The fresh Linux/amd64 harness was
+pinned for both native and guest use. That build read main directly and
+retained binary artifacts. Fixture-package evidence uses admitted
+`go test -race` runs with the feature tags from `feature-gates.txt`.
+Functional evidence uses each file's
+registered suite, including `le test bgp plugin <fixture>`, with
+`LE_TEST_NO_BUILD=1` and explicit `ZE_BIN`.
+
+All 191 native CI files have now passed three consecutive runs each. The
+first batch supplied 128 triples. After the startup repair, the resumed
+plugin batch supplied 58 triples, including the seven additional aliases.
+That private script then selected the obsolete reload command namespace and
+exited before running a reload CI. The five reload files subsequently passed
+three times each through the documented `le test bgp reload <fixture>` route.
+The verified union of those results exactly matches the 191-file native
+manifest. The completed Linux proof below closes AC-2's remaining population.
+
+The startup diagnosis has an observed RED in both runner paths.
+`TestPeerStartupUsesCaseBudget`, `TestPeerStartupReportsExit`,
+`TestPeerStartupHonorsDeadline` and `TestPeerStartupHonorsCancellation`
+in `internal/test/runner/peer_startup_test.go` failed their eight subcases.
+The tests expose the five-second cap, lost early-exit attribution, and lost
+deadline or cancellation cause. Both production call sites now use
+`awaitPeerListening` in `internal/test/runner/peer_startup.go` with their
+existing bounded case context and owned peer completion. All four tests
+passed after the repair, and the full runner package passed with race enabled.
+
+`TestDockerLabCommandRunsInZeSystem` in
+`internal/le/test/qemu/dockerlab_command_integration_test.go` passed an
+actual own-system command run, including kernel, PID 1, root filesystem and
+private scratch writeback checks. The earlier Linux attempt could not start
+its first selected CI because the image's BusyBox `timeout` rejects `-k`.
+The native deadline regression reproduced that failure through the suite
+consumer before the production repair.
+
+`allTestsRun.suiteChild` in `internal/le/test/qemu/alltests_deadline.go` now
+owns that deadline through `ServerProcess.StopGroup`. The real consumer
+tests `TestQEMUAllSuiteDeadlineUsesNativeOwnership` and
+`TestQEMUAllSuiteDeadlineRefusesUnboundedBudgets` passed after the repair.
+They prove normal exit statuses and tally, group TERM, the 15-second grace
+before forced group KILL, ordinary expiry 124, forced KILL 137, and refusal
+of invalid budgets before child startup. The scoped QEMU package run and
+full fixture package also passed with race enabled. This deadline repair
+landed in `12afa215f6`.
+
+With the fresh harness, `test/plugin/cos-dynamic-coa.ci` and
+`test/plugin/cos-dynamic-session.ci`, followed by
+`test/plugin/ddos-bps-amplification.ci`, `test/plugin/ddos-direction.ci` and
+`test/plugin/ddos-flow-recent.ci`, each passed three consecutive runs through
+`le test qemu all test <test-path>` in Ze's own system. Every invocation
+reported one executed test and zero skipped phases. These supplied the first
+five Linux triples; the subsequent proof below covers additional fixtures.
+
+The first `test/plugin/ddos-incident-confidence.ci` attempt then failed its
+unchanged confidence assertion. The run opened an incident and had nonzero
+eBPF traffic counters, but `show flow recent` remained empty. The frozen
+non-appliance DUT's `ensureConntrackTracking` deliberately leaves tracking
+setup to its host. The older `Run.setupCommand` in
+`internal/le/test/qemu/run.go` enabled conntrack accounting and installed a
+tracking hook. The own-system `qemu all` routes omitted that preparation.
+
+`TestQEMUAllPreparesConntrackBeforeSuites` and
+`TestQEMUAllRefusesConntrackPreparationFailure` in
+`internal/le/test/qemu/alltests_conntrack_test.go` reproduced the missing
+preparation and missing refusal through both whole-run and one-CI entry
+points. All four subcases were observed RED. Both paths now call
+`allTestsRun.prepareConntrack` before a suite. It checks root and Ze-system
+identity, enables and reads back accounting, and atomically replaces only its
+reserved tracking chain. Its native process owner bounds setup to 30 seconds
+plus the existing 15-second cleanup grace. All four subcases passed after the
+repair; the scoped QEMU package passed with race enabled. Five existing
+test-count adjustments received independent approval before they changed.
+The preparation repair landed in `3265a72946`, carrying all five approvals as
+Git trailers.
+
+The repaired guest started with accounting at zero. Preparation read back
+accounting at one and exactly one tracking rule. The unchanged confidence CI,
+`ddos-policy`, `ddos-show` and `flowspec-fw-legacy-table-removed` then each
+passed three consecutive runs. Every invocation executed one test without
+skips and preserved the unrelated sentinel nftables table. Together with the
+prior five triples, these establish nine of the 17 Linux fixtures.
+The next `flowspec-fw-withdraw-removes-table` attempt failed with
+`no peer process to stop after the observed withdrawal`; its peer had
+completed the wire exchange and was lingering. `peerPIDs07` still looked for
+the old `peer` argument at the first position rather than the actual
+`test peer` command. This is a separate fixture failure, not missing
+conntrack data.
+
+`TestFlowSpecPeerLookupUsesCaseProcess` in
+`internal/test/fixture/plugin_fixture_07_peer_lookup_linux_test.go` reproduced
+that lookup failure with five live owned children: a canonical peer and four
+excluded legacy, command, case-directory and executable controls. The old
+lookup selected the legacy child and missed the canonical peer. After that
+RED, `peerPIDs07` was changed to require `test peer`, the current case's
+working-directory inode and the observer harness's executable inode.
+The test passed after repair, together with the all-family zero-findings
+guard, unchanged 08 and 12 guards, false-pass controls, strict TLS consumer
+regressions and `awaitObserverResult` controls. The scoped fixture package
+passed with race enabled, and the spec citation-anchor command exited zero.
+A fresh harness carried this repair; the DUT binaries remained unchanged.
+`flowspec-fw-withdraw-removes-table` then passed three consecutive runs,
+including the peer-loss and final table-removal assertions. All seven ASPA
+fixtures also passed three times each. Those final eight triples, together
+with the earlier five and four, exactly cover all 17 Linux files. Repeated
+conntrack preparation retained one checked rule and preserved the unrelated
+sentinel table throughout the repaired runs. The earlier five triples alone
+did not prove the new conntrack preparation or lookup repair; their actual
+consumer regressions and the later guest runs supply that proof.
+
+The policy recovery repair landed in `4007003754` after independent approval
+of the paired `internal/test/fixture/policy_final.go` and
+`test/plugin/policy-final-disposition.ci` changes. The named draft passed
+three times through `le test bgp plugin --draft --pattern policy-final-disposition`.
+The promoted live CI also passed three times through its registered plugin
+suite. Those passes are included in the completed native population.
+
+Independent full-CI placement reviews covered 201 paths in two batches of
+113 and 88. The parent bound those reviews to the frozen fixture sources
+with zero source drift at that check. A later dependency audit read seven
+additional live aliases and their reached source. The current planned
+population is therefore 191 native and 17 Linux CI files, 208 in total.
+Source review is separate from execution. AC-5's sleep criterion passed:
+`./le doc wiring` reported `ci-sleep ratchet OK (0 <= ceiling 0)`, retaining
+the zero baseline. Every path reference resolved. The overall documentation
+command still exited 1, reporting 143 drift findings and three inventory
+anchor issues across the shared unpushed change set. This is not a passing
+global documentation gate. The two owned claim findings are handled by the
+netlink lifecycle clarification and the Stop reviewed-claim row for
+`12afa215f6`.
+This spec stays in-progress at Phase 6/6. `/ze-close` is the separate closure
+phase; no closure template or Review Gate is added here.
+
+The retained pre-implementation guard output from 2026-11-02 contains 185
+findings over 153 fixtures, including 17 `needs-linux` fixtures. This is a
+larger retained baseline than the task's 182 findings over 151 fixtures.
+Preserve both counts. Do not infer the identities of the two historical
+extra fixtures from the current tree without evidence. Every current guard
+binding is covered by the source audit, and the expanded live population
+retains the larger baseline rather than reducing it.
+
+The seven additional native consumers are included in the completed 191-file
+native proof:
+
+- `test/plugin/clear-irr-cache-external.ci`
+- `test/plugin/llgr-import-no-llgr-forked.ci`
+- `test/plugin/role-learned-cleared-on-peer-delete-forked.ci`
+- `test/plugin/rfc8212-ibgp-no-policy-unchanged.ci`
+- `test/plugin/llgr-rib-stale.ci`
+- `test/plugin/llgr-readvertise.ci`
+- `test/plugin/llgr-readvertise-forked.ci`
 
 ## Required Reading
 
@@ -133,16 +337,16 @@ dropped without a red.
 
 **Source files read:**
 - [ ] `internal/test/fixture/plugin_fixture_peer_wait_test.go` - the all-family guard: `observerWaitFamilies`, the wait kinds (selector, fixed, command, count, poll, poll-read), the gated count, `exempt`, `scriptedPeers`, `waitedOnBy`
-- [ ] `internal/test/fixture/plugin_fixture_peer_wait_guard_test.go` - `TestPluginObserverPeerWaitGuardRefusesFalsePasses`: red cases and controls for each false pass the judges found; no gated-count case yet
+- [ ] `internal/test/fixture/plugin_fixture_peer_wait_guard_test.go` - `TestPluginObserverPeerWaitGuardRefusesFalsePasses`: red cases and controls for each false pass the judges found, including the gated-count case
 - [ ] `internal/test/fixture/plugin_fixture_04_route_server.go` - `rsObserver04`: event-stream count of distinct End-of-RIB peers, skipped when `requireReplay` is false
 - [ ] `internal/test/fixture/plugin_fixture_13.go` - `routeServerReplay13`: two distinct End-of-RIB peers from events and `eor-sent`
 - [ ] `internal/test/fixture/misc_fixture_observers.go` - `waitPeerEORSent` (shared selector wait on `eor-sent`), `quiesce`
 - [ ] `internal/test/fixture/plugin_fixture_08.go` - `waitPeersEOR08`, `waitPeerCounter08` (precedent)
 - [ ] `internal/test/fixture/plugin_fixture_12.go` - `p12WaitPeersEOR`, `p12WaitPeerCounter` (precedent, budget-scaled through `WaitAttempts`)
-- [ ] `internal/component/bgp/reactor/session_write.go` - the sent event fires after a successful write and flush
+- [ ] `internal/component/bgp/reactor/session_write.go` - `Session.writeUpdateBody` emits the sent event after a buffered write, before flush. `Session.sendUpdateHeld` flushes before the initial-sync `eor-sent` counter advances.
 
 **Behavior to preserve:**
-- Every `.ci` file's expectations, byte for byte. A fix changes the observer, never what the peer expects.
+- Every existing wire and scenario assertion. Any necessary `.ci` expectation edit requires an independent `ze-test-judge` approval before commit; the paired policy recovery repair is recorded above.
 - The family 08 and 12 guards and their fixtures stay green, unchanged.
 - An observer's own assertions and its error text.
 - The guard's event-stream, poll and exemption readings above.
@@ -155,12 +359,12 @@ dropped without a red.
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| All-family observer peer-wait guard | `internal/test/fixture/plugin_fixture_peer_wait_test.go` `TestPluginObserversWaitForTheScriptedPeer`, `observerWaitFamilies` (committed 7e68ebce69) | Refuses an observer that never waits for a scripted peer; reads event-stream counts, gated counts, polls and exemptions; 182 findings over all families | Applies as the acceptance check; extended only by a family entry for any existing helper a family starts calling |
+| All-family observer peer-wait guard | `internal/test/fixture/plugin_fixture_peer_wait_test.go` `TestPluginObserversWaitForTheScriptedPeer`, `observerWaitFamilies` (committed 7e68ebce69) | Refuses an observer that never waits for a scripted peer; reads event-stream counts, gated counts, polls and exemptions; the task recorded 182 historical findings | Applies as the acceptance check; the restored current source reports zero findings |
 | False-pass cases of the guard | `plugin_fixture_peer_wait_guard_test.go` `TestPluginObserverPeerWaitGuardRefusesFalsePasses` | Red cases with controls for each way a registration could look as if it waits | Extends: one gated-count case and its control (AC-4) |
 | Family 08 and 12 guards | `plugin_fixture_08_peer_wait_test.go`, `plugin_fixture_12_peer_wait_test.go` | Run the same check over one family; green | Does not change: they keep guarding 08 and 12 as they are at HEAD |
 | Per-peer wait helpers | `waitPeerEORSent` (`misc_fixture_observers.go`), `p12WaitPeersEOR`, `waitPeersEOR08`, and the family helpers in the Task table | Poll `eor-sent` (or a counter) for a named peer | Extends: callers. Families 05 and 11, and the inline scenarios, call an existing helper, never a new per-family copy (`plan/journal/helper-bypassed-by-an-open-coded-copy.md`) |
-| Event-stream replay observers | `routeServerObserver02`, `rsObserver04`, `routeServerReplay13` | Count distinct peers sent an End-of-RIB from sent UPDATE events; the guard already reads them as count waits | Does not change: the `requireReplay=false` fixture (`bgp-rs-reactor-fastpath-fallback`) gains a named wait instead |
-| Quiesce barrier | `misc_fixture_observers.go` `quiesce`, `internal/component/plugin/server/quiesce.go` | Drains pending async work, settles a still-connecting peer | Does not apply: it does not cover a peer whose connect has not completed, which is the defect |
+| Event-stream replay observers | `routeServerObserver02`, `rsObserver04`, `routeServerReplay13` | Count distinct peers sent an End-of-RIB from sent UPDATE events; the guard already reads them as count waits | Retains the count semantics and requires a checked final drain for shutdown owners. The `requireReplay=false` fixture gains a named source wait and retains its forwarding assertion. |
+| Quiesce barrier | `misc_fixture_observers.go` `quiesce`, `internal/component/plugin/server/quiesce.go` | Drains pending async work but treats a still-connecting peer as settled | Complements each peer wait after the last emit. `observeConfigured` and custom shutdown owners now reject a failed, refused or incomplete drain before reporting success. |
 | Budget-scaled polling | `Poll`, `WaitAttempts`, `WaitBudget` (`internal/test/fixture`) | Bounded waits that scale with the run's headroom | Extends: new waits use these bounds, never a fixed `time.Sleep` |
 | Sleep ratchet | `./le doc wiring`, `// sleep(<kind>):` markers (`docs/architecture/testing/ci-format.md`) | Counts and justifies sleeps | Applies: a sleep a wait replaces is removed; none is added |
 | TACACS+ observer guard | `TestTacacsObserversWaitForWhatTheirCIExpects` (`plugin_shell_extra_4_tacacs_test.go`) | Checks mock records, not BGP peers | Does not apply: no scripted BGP peer |
@@ -168,30 +372,33 @@ dropped without a red.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A functional run: `./le test bgp plugin <name>` (or the `reload` and `ui` suites) reads `test/<suite>/<name>.ci`, starts ze, each `le test peer` stdin block and the compiled observer.
+- A functional run: `./le test bgp plugin <name>`, `./le test bgp reload <name>` or `./le test ui <name>` reads `test/<suite>/<name>.ci`, starts ze, each `le test peer` stdin block and the compiled observer.
+- A kernel-dependent run uses the own-system command carrier, then `le test qemu all test <test-path>` inside its prepared Ze guest. The selected route prepares conntrack and the declared namespace resources before starting the suite.
 - The guard: a Go test that parses `internal/test/fixture` source and each registered `.ci`.
 
 ### Transformation Path
 1. The observer registers, receives `OnAllPluginsReady`, runs its scenario.
-2. The scenario's wait helper polls `show bgp peer <name> detail` for `eor-sent` (or reads sent events) until each scripted peer has its initial sync on the wire.
-3. The scenario asserts, returns; `Observe` quiesces and requests shutdown; the peer sees its expected messages before Cease.
+2. The scenario's wait helper polls `show bgp peer <name> detail` for the state or counter its assertions require. Initial-sync `eor-sent` follows flush; a sent event alone establishes a marker in the send path.
+3. The scenario asserts and returns. A successful shutdown owner requires a completed final quiesce, reports any error while the daemon can relay it, publishes its verdict, then requests shutdown.
 4. The guard maps each registration to its `.ci`, resolves the scripted peers, walks every function the registration reaches, and compares.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Observer ↔ engine | SDK `Dispatch` of `show bgp peer <name> detail`, sent UPDATE events | No |
-| Runner ↔ peer | `le test peer` stdin script, `expect=bgp:` lines | No |
+| Observer ↔ engine | SDK `Dispatch` of `show bgp peer <name> detail`, sent UPDATE events and checked quiesce | Yes: all 191 native and 17 Linux triples; real authenticated TLS regressions also exercise successful, refused and lost drain replies |
+| Runner ↔ peer | `le test peer` stdin script, `expect=bgp:` lines | Yes: all 208 affected CI files passed 3/3 without skips through their registered suites |
 
 ### Integration Points
 - `observerWaitFamilies` - each helper and count driver is one entry, beside its family.
-- `Observe` - unchanged; the wait sits in the scenario or its wrapper before it returns.
+- `Observe` - the peer wait sits in the scenario or its wrapper. `observeConfigured` now propagates quiesce transport errors, and custom owners retain that final barrier and failure-report ordering.
+- Runner and QEMU ownership - readiness uses the existing case context; native deadline and setup children use the sole-reaper process owner.
+- Stage 1 filter declarations - `Server.declaredFilters` requires `Registration.Done`, so allocated but unfinished registration cannot reject a valid startup reference as an authoritative empty declaration.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | Waits read the daemon through SDK commands, as the precedents do |
-| No unintended coupling (components stay isolated) | Yes | Test package only |
+| No unintended coupling (components stay isolated) | Yes | Fixtures use the existing SDK; QEMU uses the existing runner lifecycle owner. The plugin declaration repair stays in the server's existing registration resolver. |
 | No duplicated functionality (extends existing, does not recreate) | Yes | No new per-family helper; existing helpers called |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | Test code |
 | Registration over hardcoding, outbound | Yes | A new wait shape is one table entry in `observerWaitFamilies`, which is the guard's only list |
@@ -203,15 +410,22 @@ dropped without a red.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The all-family guard is committed, beside the unchanged 08 and 12 guards | `git log -- internal/test/fixture/plugin_fixture_peer_wait_test.go` names 7e68ebce69 | - | That commit, read 2026-11-02 | confirmed |
-| A-2 | A sent UPDATE event fires only after the bytes were written and flushed | `session_write.go`, the `DirectionSent` callback after the write | The guard's count waits over-credit those drivers; they call a named wait | Read the second `DirectionSent` call site (the forward path, `session_write.go` ~924) too | unvalidated |
-| A-3 | Initial-sync `eor-sent >= 1` is reached for every scripted peer the guard names | Precedent fixes (`waitPeersEOR08`, `p12WaitPeersEOR`) | A peer with no family negotiates no End-of-RIB (`plan/journal/silent-fall-through.md`, 2026-08-16); that observer waits on `updates-sent` or Established instead | Each changed fixture green 3/3 | unvalidated |
-| A-4 | No finding is a guard false positive | 08 and 12 passes found none; three judge probes hardened the guard | A wrongly resolved peer would force a wait on a peer that never connects | Read each `.ci` before adding the wait; a false positive is fixed in the guard, with the case pinned by a test | unvalidated |
+| A-2 | An initial-sync `eor-sent` counter follows a successful flush; a sent End-of-RIB event establishes a live session whose buffered output `Observe` then quiesces before shutdown | `peer_initial_sync.go` `Peer.sendInitialRoutes`, `session_write.go` `Session.sendUpdateHeld` and `Session.writeUpdateBody`, `fixture.go` `observeConfigured` | An event-only caller would need a delivery barrier before shutdown | Read the sending and observer producers in the main checkout, 2026-11-04 | confirmed |
+| A-3 | Each scripted peer can reach the state or marker its observer needs; initial-sync waits using `eor-sent` reach at least one completed marker | Precedent fixes (`waitPeersEOR08`, `p12WaitPeersEOR`) and the reviewed scenario-specific waits | A peer with no family negotiates no End-of-RIB (`plan/journal/silent-fall-through.md`, 2026-08-16); its lifecycle observer must use the appropriate sent-payload counter or Established state instead | All 208 affected CI files passed three consecutive runs without skips, including all 17 Linux files on Ze's system. Initial-sync marker waits and post-emit final drains are distinguished by A-2. | confirmed |
+| A-4 | No finding is a guard false positive | Historical guard findings included existing `p05PeerCounter` poll waits that the guard did not recognize | A guard finding can misclassify an existing runtime wait | Commit `73978cd75e` replaces named `peer1` polls in `p05ConfigAdjRIB`, `p05ConfigGroupUpdates` and `p05CursorReplay` with the canonical helper. Current guard bindings are covered by the source audit. | broken |
+
+### Wrong assumptions found during implementation
+
+| Assumption | Evidence | Correction |
+|------------|----------|------------|
+| Every sent UPDATE event follows a completed flush | `Session.writeUpdateBody` calls the sent callback after `bufWriter.Write`, before its caller flushes | Distinguish post-flush initial-sync counters from sent events, and retain `Observe`'s subsequent quiesce barrier |
+| Every historical finding names a missing runtime wait | Before `73978cd75e`, `p05ConfigAdjRIB`, `p05ConfigGroupUpdates` and `p05CursorReplay` already polled named `peer1` `eor-sent` through `p05PeerCounter`. The guard did not recognize that poll-read shape. | Record these as historical guard false positives. The canonical helper rewrite preserves their waits, and the current guard has no finding for them. Keep recognition rewrites separate from new runtime waits when reporting the historical population. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A wait added before a scenario that must act before the peer is up (peer create, admin-down) | The fixture times out waiting | Put the wait after the action the `.ci` scripts; the guard reads it anywhere in the reached functions |
-| R-2 | A scenario that emits and then returns still ends before the emitted UPDATE is on the wire | Intermittent red after the initial-sync wait | Wait on `updates-sent` stepping past a mark, the `p12EmitOnWire` shape of 7db9137e34 |
+| R-2 | A scenario that emits and then returns still ends before the emitted UPDATE is on the wire | Intermittent red after the initial-sync wait | Wait for the needed post-emit counter or event, then require a completed checked quiesce after that final gate and before shutdown. `p12EmitOnWire` identifies counter progression; the counter alone can precede flush, so it does not replace the final drain. |
 | R-3 | Host load makes a 3/3 run red for a reason outside the fixture | Timeouts across unrelated fixtures, load average far above core count | Name the load and rerun only that fixture (`ai/META-DECISIONS.md`: find the cause, no blind retry); `plan/journal/gate-verdict-depends-on-the-machine.md` |
 | R-4 | The gated count loses its condition in a later guard edit and `bgp-rs-reactor-fastpath-fallback` passes unwaited | Guard green while that fixture still has no wait | AC-4 pinned case: the false branch is a red case in the false-pass test |
 
@@ -219,8 +433,8 @@ dropped without a red.
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | Nothing user-visible: test fixtures only. A wrong wait makes a fixture time out |
-| How is it reverted? | Single commit revert per family |
+| What breaks if this is wrong? | A wrong wait or drain can race shutdown or time out a fixture. Runner ownership and guest preparation can prevent tests from executing. The startup declaration correction also affects live filter-reference validation while a plugin is completing Stage 1. |
+| How is it reverted? | A reviewed follow-up `./le commit` can reverse a family or harness repair. The destructive Git commands banned by META are not an implementation step. |
 | Who else touches this path? | Every session adding a plugin fixture; the guard refuses a new unwaited observer once this lands |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -243,14 +457,35 @@ dropped without a red.
 | AC-6 | `git diff` over `test/**/*.ci` | No `.ci` expectation removed or weakened; any `.ci` edit carries a `ze-test-judge` approval |
 | AC-7 | The 08 and 12 guards | Still pass, unchanged |
 
+### Current acceptance audit
+
+| Criterion | Status | Evidence |
+|-----------|--------|-----------------------------|
+| AC-1 | PASS | `TestPluginObserversWaitForTheScriptedPeer` reports zero findings across all families. |
+| AC-2 | PASS | The exact expanded population of 191 native and 17 Linux CI files passed three consecutive runs each: 624 successful invocations, zero skips. The Linux union is exactly the retained 17-file population. |
+| AC-3 | PASS | Cutting waits from families 05, 11, 14, other and an inline scenario produced eight named fixture/peer findings. Exact restoration returned the guard to zero. |
+| AC-4 | PASS | Removing the replay gate made the disabled-count case fail while its enabled control passed. The restored `TestPluginObserverPeerWaitGuardRefusesFalsePasses` passed. |
+| AC-5 | PASS | `./le doc wiring` reported `ci-sleep ratchet OK (0 <= ceiling 0)`. Its broader shared-tree documentation failures are recorded separately above. |
+| AC-6 | PASS | The policy-final CI repair received independent approval of the paired producer and expectations before `4007003754`. Its original policy checks remain, and replay recovery adds checks. Other wait changes retain the CI assertions. |
+| AC-7 | PASS | `TestPluginObservers08WaitForTheScriptedPeer` and `TestPluginObservers12WaitForTheScriptedPeer` pass; this implementation does not alter those guards. |
+
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPluginObserversWaitForTheScriptedPeer` | `internal/test/fixture/plugin_fixture_peer_wait_test.go` | AC-1, AC-3: red at start (182), green at the end | |
-| `TestPluginObserverPeerWaitGuardRefusesFalsePasses`, new gated-count case | `internal/test/fixture/plugin_fixture_peer_wait_guard_test.go` | AC-4: a gated count counts only when its gate argument is the literal `true` | |
-| `TestPluginObservers08WaitForTheScriptedPeer`, `TestPluginObservers12WaitForTheScriptedPeer` | existing | AC-7 | |
+| `TestPluginObserversWaitForTheScriptedPeer` | `internal/test/fixture/plugin_fixture_peer_wait_test.go` | AC-1, AC-3: zero findings, selected wait cuts fail | PASS, including restored-source run |
+| `TestPluginObserverPeerWaitGuardRefusesFalsePasses`, new gated-count case | `internal/test/fixture/plugin_fixture_peer_wait_guard_test.go` | AC-4: a gated count counts only when its gate argument is the literal `true` | PASS, with gate-removal discrimination |
+| `TestPluginObservers08WaitForTheScriptedPeer`, `TestPluginObservers12WaitForTheScriptedPeer` | existing | AC-7 | PASS, unchanged |
+| `TestObserveConfiguredRequiresCompletedQuiesce`, `TestP05ActiveObserversRequireCompletedQuiesce` | `internal/test/fixture/fixture_quiesce_test.go` | Completed drain control, transport loss, RPC refusal and warning through real observer consumers | PASS |
+| `TestRunPlugin13RequiresCompletedQuiesceBeforeShutdown`, `TestPlugin15StartedReportsBarrierFailureBeforeShutdown` | `internal/test/fixture/plugin_fixture_custom_quiesce_test.go` | The owner checks its drain and publishes failure before shutdown | PASS |
+| `TestAwaitObserverResultDoesNotLoseALateScenarioFailure`, `TestAwaitObserverResultAcceptsTransportStopAfterScenarioSuccess`, `TestAwaitObserverResultReturnsTransportErrorBeforeScenarioStarts` | `internal/test/fixture/fixture_test.go` | Started error, completed success and pre-start transport failure retain their verdicts | PASS |
+| `TestPeerStartupUsesCaseBudget`, `TestPeerStartupReportsExit`, `TestPeerStartupHonorsDeadline`, `TestPeerStartupHonorsCancellation` | `internal/test/runner/peer_startup_test.go` | Both readiness paths obey the case budget, attribute early exit and retain context causes | RED then GREEN in all eight subcases. Full runner package PASS with race. |
+| `TestQEMUAllSuiteDeadlineUsesNativeOwnership`, `TestQEMUAllSuiteDeadlineRefusesUnboundedBudgets` | `internal/le/test/qemu/alltests_timeout_linux_test.go` | Bounded native suite ownership, process-group termination, exit status and tally | Consumer RED then GREEN. Scoped QEMU package PASS with race. |
+| `TestQEMUAllPreparesConntrackBeforeSuites`, `TestQEMUAllRefusesConntrackPreparationFailure` | `internal/le/test/qemu/alltests_conntrack_test.go` | Conntrack setup precedes every suite, and a setup failure prevents suite execution on both guest entry paths | RED then GREEN in all four subcases. Scoped QEMU package PASS with race. Actual accounting, hook readback, idempotence and preserved foreign table observed; confidence CI 3/3 PASS. |
+| `TestDeclaredFiltersWaitsForStageOne` | `internal/component/plugin/server/server_declared_filters_test.go` | Incomplete registration is not an authoritative empty filter declaration | RED then GREEN; before-registration, completed-empty and completed-filter cases PASS, with aliased-reference controls. Repair committed in `f4dca4ecab`. |
+| `TestDockerLabCommandRunsInZeSystem` | `internal/le/test/qemu/dockerlab_command_integration_test.go` | The carrier boots Ze's kernel and system, reaches the command, and writes back only its private scratch | PASS through the actual own-system carrier; fixture execution is recorded separately. |
+| `TestFlowSpecPeerLookupUsesCaseProcess` | `internal/test/fixture/plugin_fixture_07_peer_lookup_linux_test.go` | Canonical peer lookup selects only this case's executable and working directory, excluding four live controls | Consumer RED then GREEN; scoped fixture run also passes all-family, 08/12, false-pass, TLS drain and result-ordering controls with race enabled. The unchanged live withdrawal CI passed 3/3. |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -260,7 +495,9 @@ dropped without a red.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| The 151 fixtures the guard names | `test/plugin/`, `test/reload/`, `test/ui/` | Each passes 3/3 with its observer waiting for each scripted peer | |
+| Native task population, retained guard baseline and current reached aliases | `test/plugin/`, `test/reload/`, `test/ui/` | Every current affected native CI passes 3/3 | All 191 native files passed three consecutive runs. Exact manifest union verified. |
+| The 17 `needs-linux` fixtures | The Phase 5 one-CI own-system route | Each passes 3/3 without skips on Ze's system | All 17 passed three consecutive runs each: 51 successful invocations with zero skips, checked Ze kernel/system identity and exact population coverage. |
+| `policy-final-disposition` | `test/plugin/policy-final-disposition.ci` and its draft counterpart | Policy rejection is checked before same-session Route Refresh recovery | Draft 3/3 and promoted live 3/3 PASS. Paired repair committed in `4007003754`. |
 
 ## Files to Modify
 - `internal/test/fixture/plugin_fixture_peer_wait_guard_test.go` - the gated-count case and its control (AC-4)
@@ -286,10 +523,46 @@ dropped without a red.
 | `internal/test/fixture/misc_fixture_observers.go` | 5 | `reloadRESTObserver`, `observeDriver` |
 | `internal/test/fixture/plugin_fixture_gr_sender_facts.go`, `plugin_fixture_llgr_import.go`, `plugin_fixture_llgr_lifecycle.go` | 5 | `grSenderFactsDriver`, `llgrImportNoLLGR`, `llgrLifecycle` |
 | `internal/test/fixture/policy_final.go`, `rfc8212_policy.go`, `register_rib_clear_advertised.go` | 7 | `policyFinalDriver`, `rfc8212PolicyDriver`, `ribClearAdvertised` |
-| `internal/test/fixture/bgpls_export.go`, `register_update_text_prefix_sid.go`, `ui_fixture_common.go` | 3 | two inline scenarios, `uiDriver` |
+| `internal/test/fixture/bgpls_export.go`, `register_update_text_prefix_sid.go`, `ui_fixture_web_commit_reject.go` | 3 | `bgplsExportLifecycle`, `updateTextPrefixSID`, `runWebCommitReject` |
 
 ## Files to Create
-- None. No new helper file; families without a helper call `waitPeerEORSent` or `p12WaitPeersEOR`.
+
+No new per-family peer-wait helper is needed: families without one call
+`waitPeerEORSent` or `p12WaitPeersEOR`. Runtime proof exposed additional
+infrastructure defects, whose repairs added these files:
+
+| Area | Created files | Purpose |
+|------|---------------|---------|
+| Completed observer drain | `internal/test/fixture/fixture_quiesce_test.go`, `internal/test/fixture/plugin_fixture_custom_quiesce_test.go` | Actual TLS consumer regressions for the shared observer, active p05 scenarios and custom shutdown owners |
+| Stage 1 declarations | `internal/component/plugin/server/server_declared_filters_test.go` | Unfinished registration differs from an authoritative completed empty declaration |
+| Peer readiness | `internal/test/runner/peer_startup.go`, `internal/test/runner/peer_startup_test.go` | Existing case deadline, early exit attribution and cancellation in both startup paths |
+| Native suite deadline | `internal/le/test/qemu/alltests_deadline.go`, `internal/le/test/qemu/alltests_timeout_linux_test.go` | Sole-reaper deadline consumer and process-group lifecycle regressions |
+| Conntrack preparation | `internal/le/test/qemu/alltests_conntrack.go`, `internal/le/test/qemu/alltests_conntrack_test.go` | Checked native guest preparation before either suite entry path |
+| FlowSpec peer ownership | `internal/test/fixture/plugin_fixture_07_peer_lookup_linux_test.go` | Actual process lookup excludes legacy argv, another command, a sibling case and a different executable |
+| Own-system carrier | `internal/le/test/qemu/dockerlab_command.go`, `internal/le/test/qemu/dockerlab_command_test.go`, `internal/le/test/qemu/dockerlab_command_integration_test.go`, `internal/le/test/qemu/dockerlab_identity_test.go`, `internal/le/test/qemu/alltests_one_netns_test.go` | Command execution in Ze's system and canonical one-CI namespace selection |
+| Guest tools and workspace | `internal/appliance/dockerhost/guest_tools_linux_test.go`, `internal/le/setup/docker/host/extrafiles_workspace_test.go` | Image tool installation and the shared main-checkout mountpoint |
+| Unchanged documented behavior | `plan/doc-reviewed/e23fbcef.md` | Records why `ServerProcess.Stop` retains the terminal-demo cleanup claim after delegation to its shared helper |
+
+The corresponding existing producers changed in
+`internal/component/plugin/server/server.go`,
+`internal/test/runner/runner_exec.go`,
+`internal/test/runner/runner_exec_util.go`,
+`internal/test/runner/server_process.go`, `internal/le/test/qemu/alltests.go`,
+the own-system image builder and command carrier. These are validation
+blocker repairs, not new peer-wait implementations.
+
+Additional named-wait consumers include
+`internal/test/fixture/plugin_fixture_llgr_received.go`
+(`llgrStaleReceived02`),
+`internal/test/fixture/plugin_claim_permission.go`
+(`observeReplayClaimPermissions`),
+`internal/test/fixture/clear_caches_fixture.go` (`clearIRRCache04`) and
+`internal/test/fixture/role_learned_cleared_fixture.go`
+(`roleLearnedClearedOnPeerDelete`). Their reached aliases are included in
+the 191-file native proof. The Linux withdrawal diagnosis also reaches
+`internal/test/fixture/plugin_fixture_07_flowspec.go` (`peerPIDs07`), whose
+canonical command and case/executable checks pass the new regression and the
+unchanged live withdrawal/table-removal fixture's three consecutive runs.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -297,13 +570,13 @@ dropped without a red.
 | YANG schema (new RPCs/config) | N-A | Test fixtures only |
 | YANG validation constraints | N-A | No leaf |
 | YANG custom validators | N-A | No leaf |
-| CLI commands/flags | N-A | No command |
-| CLI grammar (keyword before value) | N-A | No command |
+| CLI commands/flags | Yes | Existing `test qemu docker-lab` gains its own-system command branch; selected `test qemu all` retains its path syntax and now checks guest preparation |
+| CLI grammar (keyword before value) | Yes | The command carrier uses the existing keyword grammar: `kernel <path> command <text> timeout <duration>`; selected CI remains `all test <path>` |
 | Editor autocomplete | N-A | No command |
 | Functional test for new RPC/API | N-A | No RPC |
 | Pipe completeness | N-A | No output |
 | Env var registration | N-A | No env var |
-| Doctor check for runtime dependencies | N-A | No runtime dependency |
+| Doctor check for runtime dependencies | N-A for shipped code | The new dependencies belong to the isolated test guest. Native preparation checks actual UID, PID 1, Ze kernel, accounting and nftables readback before a suite; the guest image supplies the required tools. |
 | Prometheus counters/metrics | N-A | Reads existing peer counters only |
 | BGP family surface (new SAFI / capability / attribute) | N-A | None |
 
@@ -312,21 +585,21 @@ dropped without a red.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | Test harness only |
 | 2 | Config syntax changed? | No | |
-| 3 | CLI command added/changed? | No | |
+| 3 | CLI command added/changed? | Yes | `docs/architecture/testing/qemu-integration.md`: own-system command branch, selected CI and root/preparation requirements |
 | 4 | API/RPC added/changed? | No | |
 | 5 | Plugin added/changed? | No | |
 | 6 | Has a user guide page? | No | |
 | 7 | Wire format changed? | No | |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, "Waiting without sleep": name the all-family guard and the count-wait rule for event-stream observers, if the page does not already |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` and `docs/architecture/testing/ci-format.md`: named waits, checked drain and failure ordering; `docs/architecture/testing/runner-architecture.md`: readiness and process ownership; `docs/architecture/testing/qemu-integration.md`: own-system setup and native deadlines; `docs/architecture/appliance/docker-host.md`: guest tools/workspace |
 | 11 | Affects daemon comparison? | No | |
-| 12 | Internal architecture changed? | No | |
+| 12 | Internal architecture changed? | Yes | Existing runner process ownership is reused by suite deadlines and guest preparation; the runner and QEMU architecture pages describe these consumers |
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Each driver file's declared `// Design:` page describes the fixture's scenario, not its synchronization, so none changes unless the edit changes what the scenario asserts; confirm with `./le spec citation anchors spec plan/release/validation/spec-observer-peer-wait-backlog.md` |
-| 17 | Existing docs show config/CLI/API examples for this area? | No | |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Updated the observer claim in `docs/architecture/iface/netlink-monitor.md`; `plan/doc-reviewed/e23fbcef.md` retains the unchanged terminal-demo `ServerProcess.Stop` claim. `./le spec citation anchors spec plan/release/validation/spec-observer-peer-wait-backlog.md` exited zero after the peer lookup repair. |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Replaced the QEMU page's Alpine/manual-shim selected-CI recipe with the prepared Ze-system `qemu all test` route |
 
 ## Implementation Steps
 
@@ -339,7 +612,7 @@ dropped without a red.
    - Files: `plugin_fixture_peer_wait_guard_test.go`
 3. **Phase: Families with a helper** (01, 02, 03, 04, 06, 07, 09, 10, 13, 15, 16, misc) -- one commit per family: each scenario waits for each scripted peer by name before it ends, and on the post-emit counter where it emits (R-2). Run that family's changed `.ci` 3/3.
 4. **Phase: Families without a helper** (05, 11, 14's driver gaps, other, the inline scenarios) -- the same, calling `waitPeerEORSent` or `p12WaitPeersEOR` (or the shared driver's own wait where every scenario of the driver needs it at the same point), adding the helper to the family's entry. Remove each fixed sleep the wait replaces.
-5. **Phase: needs-linux proof** -- run the 17 `needs-linux` fixtures 3/3 inside `./le test qemu run kernel <vmlinuz> command "<the ./le test command>"` on Ze's runtime kernel.
+5. **Phase: needs-linux proof** -- run the 17 `needs-linux` fixtures 3/3 through `./le test qemu docker-lab kernel <runtime-tree>/vmlinuz command <guest-script>`. Boot Ze's own image and matching runtime kernel. The guest script binds the shared main checkout at `/workspace`, then runs a fresh host-built guest `le test qemu all test <test-path>` as root. Carry the guest's LABEL-only `ZE_RUN_JOB` stand-in, and keep the host session identity on the host. Confirm each selected fixture ran without a skip. The own-system command branch permits TCG for this correctness proof.
 6. **Phase: Docs** -- `docs/functional-tests.md` row 10 of the checklist.
 
 ### Critical Review Checklist
@@ -356,8 +629,8 @@ dropped without a red.
 |-------------|---------------------|
 | Guard green over every family | `./le job run label unit-pkg command go test -tags <the tags ./le test unit uses> ./internal/test/fixture/ -run 'TestPluginObserver'` |
 | Changed fixtures 3/3 | `./le test bgp plugin <name>` three times per changed fixture (`reload`, `ui` suites likewise), output kept |
-| needs-linux fixtures 3/3 | `./le test qemu run kernel <vmlinuz> command "..."` log per fixture |
-| Change set judged | `./le verify changed` after the closing commit |
+| needs-linux fixtures 3/3 | The own-system docker-lab carrier in Phase 5, with one-CI `le test qemu all test <test-path>` runs and no skips |
+| Change set judged | Scoped fixture-package tests and the changed fixtures' consecutive 3/3 runs in the main checkout; no `./le verify` command |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -373,7 +646,7 @@ dropped without a red.
 | Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
 | Lint failure | Fix inline. If architectural → DESIGN |
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
-| A fixture stays red after its wait with ze at fault | That is a product defect the wait exposed: fix it or journal it with an owner (`ai/rules/completion.md`) |
+| A fixture stays red after its wait with ze at fault | Diagnose and fix the owning producer, then rerun the affected proof. A journal entry does not discharge a blocker (`ai/rules/completion.md`). |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
@@ -393,7 +666,7 @@ population is the Task table.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| A sent End-of-RIB counted per distinct peer is a wait; the guard reads `routeServerObserver02`, `rsObserver04` and `routeServerReplay13` as count waits (done in 7e68ebce69) | Make each also call a named helper | The sent event fires after the write (A-2), so it is the contract's "peer state or sent-payload counter"; a second wait proves nothing more |
+| A sent End-of-RIB counted per distinct peer is a wait; the guard reads `routeServerObserver02`, `rsObserver04` and `routeServerReplay13` as count waits (done in 7e68ebce69) | Make each also call a named helper | The event establishes a live session and a marker in its send path. `Observe` then quiesces buffered output before shutdown (A-2). Initial-sync `eor-sent` counters instead advance after flush. |
 | `rsObserver04` counts only when `requireReplay` is the literal `true` (done in 7e68ebce69) | Count it unconditionally | Its false branch sets the End-of-RIB need to zero and waits on no peer |
 | Families without a helper call `waitPeerEORSent` or `p12WaitPeersEOR` | A new helper per family, as 08 and 12 got | A per-family copy is the open-coded-copy class |
 | Waits sit where the scenario's assertions need them, in the scenario or in a shared driver | Always in the driver | Some scenarios act before their peer is up (R-1) |
@@ -420,7 +693,7 @@ population is the Task table.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass: the fixture package tests, each changed `.ci` through `./le test bgp plugin <name>` 3/3, the `needs-linux` ones in QEMU, and `./le verify changed` over the closing commits
+- [ ] The targeted tests for what changed pass: the fixture package tests, each changed `.ci` through its registered suite 3/3, and the `needs-linux` ones through `./le test qemu all` in QEMU on Ze's runtime kernel; no `./le verify` command
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Every A-N confirmed or broken, none `unvalidated`

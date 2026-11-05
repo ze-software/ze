@@ -235,7 +235,9 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Raw: stripped}, nil
 	})
 	result := make(chan error, 1)
+	started := make(chan struct{})
 	plugin.OnAllPluginsReady(func() error {
+		close(started)
 		go func() {
 			var scenarioErr error
 			if err := p12WaitPeersEOR(ctx, plugin, "source", "dest"); err != nil {
@@ -245,20 +247,17 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 			} else if !Poll(ctx, 40, 250*time.Millisecond, func() bool { return peerCounter09(ctx, plugin, "127.0.0.2", "updates-sent") >= 2 }) {
 				scenarioErr = fmt.Errorf("RAW-MED-DROP: ze never wrote the restored UPDATE to dest")
 			}
+			if scenarioErr == nil {
+				scenarioErr = plugin01Quiesce(ctx, plugin)
+			}
+			ReportFailure(scenarioErr)
 			result <- scenarioErr
 			_, _, _ = plugin.DispatchCommand(context.Background(), "request shutdown")
 		}()
 		return nil
 	})
 	runErr := plugin.Run(ctx, &sdk.Registration{Filters: []sdk.FilterDecl{{Name: "drop-med-raw", Direction: sdk.FilterExport, Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject}}})
-	select {
-	case scenarioErr := <-result:
-		if scenarioErr != nil {
-			return scenarioErr
-		}
-	default:
-	}
-	return runErr
+	return awaitObserverResult(started, result, runErr)
 }
 
 func rsObserver09(_ string, expectedPeers int) Driver {
@@ -547,7 +546,9 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 		return nil
 	})
 	result := make(chan error, 1)
+	started := make(chan struct{})
 	plugin.OnAllPluginsReady(func() error {
+		close(started)
 		go func() {
 			served := func() bool {
 				mu.Lock()
@@ -559,27 +560,23 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 				}
 				return true
 			}
+			var scenarioErr error
 			if err := p12WaitPeersEOR(ctx, plugin, "source-peer"); err != nil {
-				result <- err
+				scenarioErr = err
 			} else if Poll(ctx, 960, 250*time.Millisecond, served) {
-				result <- nil
+				scenarioErr = plugin01Quiesce(ctx, plugin)
 			} else {
 				mu.Lock()
 				missing := fmt.Sprint(clients)
 				mu.Unlock()
-				result <- fmt.Errorf("forward did not reach every client: %s", missing)
+				scenarioErr = fmt.Errorf("forward did not reach every client: %s", missing)
 			}
+			ReportFailure(scenarioErr)
+			result <- scenarioErr
 			_, _, _ = plugin.DispatchCommand(context.Background(), "request shutdown")
 		}()
 		return nil
 	})
 	runErr := plugin.Run(ctx, &sdk.Registration{})
-	select {
-	case scenarioErr := <-result:
-		if scenarioErr != nil {
-			return scenarioErr
-		}
-	default:
-	}
-	return runErr
+	return awaitObserverResult(started, result, runErr)
 }

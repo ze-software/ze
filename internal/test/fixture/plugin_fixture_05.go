@@ -652,6 +652,8 @@ func p05RunActivePlugin(ctx context.Context, process string, registration *sdk.R
 		close(started)
 		go func() {
 			scenarioErr := scenario(ctx, plugin)
+			// Report while the daemon can still relay the observer's stderr.
+			ReportFailure(scenarioErr)
 			scenarioDone <- scenarioErr
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -685,8 +687,7 @@ func p05CustomFlowspecPlugin(ctx context.Context, args []string) error {
 		}) {
 			return errors.New("peer1 never received the custom-plugin marker")
 		}
-		_, _, err := plugin.DispatchCommand(ctx, "request quiesce")
-		return err
+		return plugin01Quiesce(ctx, plugin)
 	})
 }
 
@@ -734,9 +735,7 @@ func p05DDoSFlowspecAnnounce(ctx context.Context, args []string) error {
 		}) {
 			return errors.New("peer1 never received both DDoS announcements")
 		}
-		// The former wait-for-ack contract was deliberately best effort.
-		_, _, _ = plugin.DispatchCommand(ctx, "request quiesce")
-		return nil
+		return plugin01Quiesce(ctx, plugin)
 	})
 }
 
