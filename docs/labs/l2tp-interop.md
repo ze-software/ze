@@ -344,8 +344,8 @@ runtime tools.
 <!-- source: test/interop-l2tp/Dockerfile.lac -- release pins and build stage -->
 <!-- source: test/interop-radius-subscriber/Dockerfile.lac -- release pins and build stage -->
 
-Upstream lists [pppd 2.5.5 as its latest stable release](https://github.com/ppp-project/ppp/releases/tag/v2.5.5),
-checked on 2026-11-04. `TestLACPeerReleasePinsAgree` compares both images'
+The [upstream latest-release URL](https://github.com/ppp-project/ppp/releases/latest)
+resolved to pppd 2.5.5 on 2026-11-05. `TestLACPeerReleasePinsAgree` compares both images'
 pppd and xl2tpd release/hash declarations and rejects a missing or malformed
 hash. This check catches paired-image drift; image builds and subscriber
 scenarios still prove that the selected release operates correctly.

@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | The LNS MRU interop scenario does not exercise its promised oversized-peer Configure-Nak. |
 | RFC gaps | - |
-| Depends | Peer-image alignment: `plan/release/validation/spec-home-cpe-16h-subscriber-radius-pppd.md` |
+| Depends | Aligned peer images in `3cc99259b0`; `docs/labs/l2tp-interop.md`, Peer-source basis |
 | Phase | Central verification complete; closure review remains |
 | Handoff | verify |
 | Updated | 2026-11-05 |

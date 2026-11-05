@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Equal configured and negotiated MRUs let a config-copy defect pass the live session-output assertion. |
 | RFC gaps | - |
-| Depends | Peer-image alignment: `plan/release/validation/spec-home-cpe-16h-subscriber-radius-pppd.md` |
+| Depends | Aligned peer images in `3cc99259b0`; `docs/labs/l2tp-interop.md`, Peer-source basis |
 | Phase | 1/1 |
 | Handoff | verify |
 | Updated | 2026-11-05 |
