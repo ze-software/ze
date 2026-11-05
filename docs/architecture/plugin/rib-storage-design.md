@@ -1249,6 +1249,33 @@ The lookup stays registered after `disable-validation`, and so do the events. St
 recovery advances their replay sequence so an existing cursor can discover them.
 Ordinary withdrawals and session removal delete retained routes.
 
+One whole-table change may need several events. The receive store checks the
+encoded `emit-event` and enveloped subscriber frame sizes before sending each
+ordered chunk; a route count alone is not a size bound. Emission runs outside
+the store lock and is serialized across chunks. A failed management command
+retains only the unacknowledged suffix, coalesced by route key with newer changes.
+A validation command, including `disable-validation`
+when already disabled, explicitly flushes those obligations before its next
+mutation and before reporting success. Source-policy apply, abort and finalize receipts do the same, including
+duplicate calls at the recorded epoch. No autonomous retry worker exists.
+Consumers read current state; an explicit retry after a timeout can repeat a key
+whose acknowledgement was lost, but never retries an acknowledged prefix
+automatically.
+
+An ordinary receive or timeout delivery encountering paused publication debt
+stops the receive-store owner before changing any route. A new publication
+failure also stops the owner. Mutation admission and removal settlement
+share one lock; queries remain available during publication. The owner keeps the
+failure cause, closes its callback transport, and leaves a static refusing lookup
+through teardown. The plugin declares `fatal`, so any unexpected current owner
+exit stops the daemon and its BGP peers, not only a publication failure. Successful
+live removal first settles all owed publications and then refuses further mutations.
+On runtime exit, the owner stops and joins its timeout scanner before sampling
+the final publication error or releasing the lookup. A scanner publication still
+in flight therefore contributes its failure to the owner's result.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_publication_owner.go -- admitMutation, failValidationOwner, removeValidationOwner, releaseValidationOwner -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- runAdjRIBInPlugin -->
+
 `ribevents.RoutePresent` separately reports pending or installed ownership,
 including ineligible paths. Cache eviction uses it to preserve the regenerated
 ADD-PATH identifier across a temporary validation withdrawal; an actual route
@@ -1343,6 +1370,14 @@ subscribers. A replay request on either hop (`bgp-rib/replay-request`,
 `redistribute/replay-request`) reaches `bgp-rib` through its startup
 subscriptions on both transports (`dispatchReplayRequest`), never through a
 bus subscription.
+The adapter splits oversized best-change, redistribution and validation batches
+by the same encoded-frame bound, preserving the original batch metadata and
+entry order. One emission's chunks remain together, including during replay,
+and one timeout covers the hand-off. Ordinary small payloads keep their single
+marshal. Larger validation arrays encode each route once into bounded owning
+strings. The SDK adapter encodes its whole typed batch once, then cuts only
+between complete entries in the existing canonical array, retaining its
+original metadata. Sizing never re-encodes or re-quotes whole payloads.
 <!-- source: internal/component/bgp/plugins/rib/rib_event_sdk.go -- sdkEventBus, dispatchReplayRequest -->
 <!-- source: internal/core/bgp/ribevents/validation.go -- NoteValidationGate, DecodeValidationGate, ValidationGate, RouteEligibleBatch -->
 <!-- source: internal/core/bgp/ribevents/gate_remote.go -- EligibilityRequest, AnswerEligibility, RegisterGateDispatch, askGateOwner -->

@@ -5,6 +5,7 @@ package ribevents
 import (
 	"encoding/hex"
 	"encoding/json"
+	"math"
 	"net/netip"
 	"sync/atomic"
 
@@ -35,6 +36,39 @@ type validationRouteJSON struct {
 	Prefix netip.Prefix  `json:"prefix"`
 	PathID uint32        `json:"path-id"`
 	NLRI   string        `json:"nlri,omitempty"`
+}
+
+var validationRouteJSONFixed = validationRouteJSONFixedSize()
+
+func validationRouteJSONFixedSize() int {
+	// Unkeyed and nonempty on purpose: a schema addition MUST update the byte
+	// bound before compilation succeeds. Keep the optional NLRI key present.
+	probe := validationRouteJSON{netip.Addr{}, family.IPv4Unicast, netip.Prefix{}, math.MaxUint32, "x"}
+	encoded, err := json.Marshal(probe)
+	if err != nil {
+		panic("BUG: validation route size probe is not encodable")
+	}
+	return len(encoded)
+}
+
+// JSONSizeBound is an allocation-free upper bound on MarshalJSON, saturated
+// at the RPC ceiling plus one. It is a fit proof, never a refusal. Peer and
+// prefix text need at most 46 and 49 ASCII bytes excluding a peer's zone;
+// arbitrary zone/family names may need six bytes per source byte. Native NLRI
+// is hex, exactly twice its source width. The probe includes maximum PathID.
+// The receiver MUST be non-nil.
+func (r *ValidationRoute) JSONSizeBound() int {
+	bound := validationRouteJSONFixed + 46 + 49
+	for _, value := range [...]string{r.Peer.Zone(), r.Family.String()} {
+		if len(value) > (rpc.MaxMessageSize-bound)/6 {
+			return rpc.MaxMessageSize + 1
+		}
+		bound += 6 * len(value)
+	}
+	if len(r.NLRI) > (rpc.MaxMessageSize-bound)/2 {
+		return rpc.MaxMessageSize + 1
+	}
+	return bound + 2*len(r.NLRI)
 }
 
 // MarshalJSON writes the route in the form validationRouteJSON names.

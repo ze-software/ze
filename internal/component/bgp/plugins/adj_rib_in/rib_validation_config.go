@@ -80,9 +80,13 @@ func (r *AdjRIBInManager) suspendForRevalidation() []map[string]any {
 // authorization checks enforced by selection and forwarding. A decision for a
 // newer UPDATE remains a generation fence until that UPDATE arrives: disabling
 // a validator must not resurrect its already superseded predecessor.
-func (r *AdjRIBInManager) disableValidationCommand() (string, any, error) {
+func (r *AdjRIBInManager) disableValidationCommand() (status string, data any, err error) {
+	if err := r.admitMutation(true); err != nil {
+		return statusError, "", err
+	}
+	defer r.mutationMu.Unlock()
 	r.mu.Lock()
-	defer r.unlockValidation()
+	defer r.unlockValidationCommand(&status, &data, &err)
 	r.validationEnabled = false
 	for key, pending := range r.pending {
 		if !isSimplePrefixFamily(pending.family) {

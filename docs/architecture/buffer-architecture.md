@@ -472,7 +472,9 @@ none of them is a defect until this table names the new trigger.
 | Ingress PATHS-LIMIT refuses a path | A received UPDATE carries more paths for one prefix than Ze advertised it accepts. The refused NLRIs are removed into one fresh copy, keeping the session's `ContextID`; an UPDATE that refuses nothing is not copied | `(*Session).receiveCeiling` |
 | Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
 | An external plugin reads the UPDATE | The plugin needs JSON text, not wire bytes | `appendParsedUpdateJSONDirect` |
+| A forwarding receipt enters an asynchronous route-server worker | The worker outlives structured dispatch and must own the skipped-destination list independently of the publisher | `routeServer.dispatchStructured` |
 | A best change leaves bgp-rib | The winner's attributes cross to subscribers as bytes, because a pool handle points into bgp-rib's pool and a forked subscriber cannot read it. Once per published best change; an unchanged best publishes nothing | `storedAttributes` |
+| A domain event batch does not fit an RPC frame | The SDK takes one contiguous JSON string per event. Oversized best-change and redistribution arrays reuse their encoded entries inside independently framed payloads; validation rows are encoded once into owning chunks. `textbuf.Buffer.String` transfers each backing allocation because engine delivery may retain the string past its ACK; borrowing and resetting that storage would corrupt queued events | `sdkEventBus.Emit`, `AdjRIBInManager.emitValidationEvent` |
 | A recovery election writes several keys of one received UPDATE | Each owed key is staged as its own UPDATE; adjacent announcements of one source message with identical attributes are packed into one body, a fresh copy, so the staged items keep their buffers until the admission releases them | `recoveryBucketMerge` |
 | An owner withdrawal is owed to recovery | Twice. The writer stages the NLRI in its pooled staging storage, because a body that lost a path is copied over the session write buffer before the owe applies, and the owed path's bytes would then read as the emitted one. The owed record then copies them again, because it outlives the write and the pooled writer reuses that storage | `(*adjOutWrite).stageOwe`, `(*adjRIBOut).owe` |
 
@@ -485,10 +487,13 @@ none of them is a defect until this table names the new trigger.
 <!-- source: internal/component/bgp/reactor/session_read.go -- Session.collapseASPathFamily -->
 <!-- source: internal/component/bgp/reactor/session_paths_limit_recv.go -- Session.receiveCeiling -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendParsedUpdateJSONDirect -->
+<!-- source: internal/component/bgp/plugins/rs/server.go -- routeServer.dispatchStructured -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- storedAttributes -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut.owe -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- stageOwe -->
 <!-- source: internal/component/bgp/reactor/forward_bucket.go -- recoveryBucketMerge -->
+<!-- source: internal/component/bgp/plugins/rib/rib_event_sdk.go -- sdkEventBus.Emit, sdkEventChunkEnd -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- emitValidationEvent -->
 
 ## The pools Ze runs
 

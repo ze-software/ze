@@ -220,6 +220,21 @@ path whose `nlri` is not hex refuses the whole batch
 `emit-event` (`sdk.Plugin.EmitEvent`), so it holds no EventBus of its own.
 It emits only once validation has enabled its eligibility gate, in the
 daemon or forked.
+Large validation changes retain this array shape in consecutive byte-bounded
+events. A validation command fails if any chunk is not acknowledged by the
+engine; the store retains its unacknowledged keys and an explicit retry flushes
+them before another mutation, even when validation is already disabled.
+Acknowledged chunks are not replayed automatically. Consumers read current eligibility, so a retry after an
+ambiguous transport timeout may repeat keys but never supplies an old verdict.
+An ordinary receive or timeout delivery encountering paused debt fences the
+receive store before mutation and closes its transport with a failure result.
+A new hand-off failure also fences the store.
+Its `fatal` declaration stops the daemon for any unexpected current owner exit.
+An acknowledged live removal settles owed changes before fencing later mutations.
+Runtime shutdown joins the timeout scanner before reporting the owner's result,
+so a publication failure during shutdown remains a failure result.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_publication_owner.go -- failValidationOwner, removeValidationOwner -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- runAdjRIBInPlugin -->
 It also emits `bgp-rib/validation-gate`, `{"enabled": <bool>, "command":
 <string>}`, after each `enable-validation` and `disable-validation`. `command`
 names the hidden command the store serves for eligibility queries, so a
@@ -1813,6 +1828,23 @@ delivers after it.
 The SDK unpacks the batch and dispatches each event to the `OnEvent` handler individually.
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- callbackDeliverBatch -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- the callbackDeliverBatch handler -->
+
+`CallBatchRPC` splits between events, not inside an event's payload. A producer
+of a whole-table batch must split its domain entries before `emit-event`.
+`EmitEventInput.CanonicalPayloadBudget` gives a conservative byte budget for
+HTML-escaped canonical JSON in both that request and a singleton enveloped
+`deliver-batch`, including string quoting and the widest correlation ID.
+The emit-event envelope carries no receipt metadata; the BGP receive producer's
+metadata has a separate ownership contract. The receive store's validation
+arrays and the forked BGP RIB's best-change, redistribution and validation
+batches use this budget. Each chunk keeps the original event shape and replay
+metadata, and one hand-off deadline covers all chunks. A failed chunk stops the
+hand-off; no chunk is retried by the framing layer. An indivisible value that
+does not meet the conservative proof is left to the actual writer and its
+actual ID, not declared unencodable from the proof alone.
+<!-- source: pkg/plugin/rpc/event_frame_size.go -- EmitEventInput.CanonicalPayloadBudget -->
+<!-- source: internal/component/bgp/plugins/rib/rib_event_sdk.go -- sdkEventBus.Emit, sdkEventArray, sdkEventChunkEnd -->
+
 
 ### Subscription Namespace
 

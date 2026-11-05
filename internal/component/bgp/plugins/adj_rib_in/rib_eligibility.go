@@ -14,6 +14,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // validationEmitTimeout bounds one validation-change hand-off to the engine.
@@ -55,6 +57,11 @@ func validationRouteKey(route ribevents.ValidationRoute) (key compactRouteKey, o
 // That provider applies the source-policy denial to FlowSpec authorization
 // (rib-storage-design.md, "Source-policy lifecycle owners").
 func (r *AdjRIBInManager) routeEligible(key ribevents.ValidationRoute, msgID uint64) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.terminal != nil {
+		return false
+	}
 	// refuse-by-default: guards ribevents.RouteEligible -- the FlowSpec provider already refused every rule it did not authorize, and this store holds none
 	if ribevents.IsFlowSpec(key.Family) {
 		return true
@@ -63,8 +70,6 @@ func (r *AdjRIBInManager) routeEligible(key ribevents.ValidationRoute, msgID uin
 	if !named {
 		return false
 	}
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 	if _, pending := r.pending[pendingKey(key.Peer, rk)]; pending {
 		return false
 	}
@@ -112,8 +117,9 @@ func (r *AdjRIBInManager) routePresent(key ribevents.ValidationRoute) bool {
 	return false
 }
 
-// noteValidationChange MUST run under mu. The caller MUST finish with
-// unlockValidation, never mu.Unlock, so downstream selection sees the change.
+// noteValidationChange MUST run under mu. The caller MUST finish with a
+// validation unlock helper, or unlock mu then flushValidationChanges; simply
+// unlocking would leave downstream selection unaware of its owed change.
 //
 // Nothing is noted until validation enables the eligibility gate (in memory
 // in the daemon, through eligibilityCommand when forked). Before that,
@@ -141,6 +147,12 @@ func (r *AdjRIBInManager) noteValidationChange(peer netip.Addr, key compactRoute
 			return
 		}
 		change.NLRI = nlri
+	}
+	if r.validationOwed != nil {
+		if _, owed := r.validationOwed[change]; owed {
+			return
+		}
+		r.validationOwed[change] = struct{}{}
 	}
 	r.validationChanges = append(r.validationChanges, change)
 }
@@ -183,35 +195,191 @@ func (r *AdjRIBInManager) validationNLRILocked(peer netip.Addr, key compactRoute
 	return change.NLRI, true
 }
 
-// unlockValidation MUST follow every mutation that calls noteValidationChange.
-// Notifications carry keys only: subscribers read the current state even when
-// another mutation overtakes this emission. No store lock crosses the event bus.
+// unlockValidation follows ordinary receive mutations that note validation
+// changes. Commands MUST use their error-returning validation unlock instead.
+// Subscribers read current state; no store lock crosses the event bus.
 func (r *AdjRIBInManager) unlockValidation() {
-	changes := r.validationChanges
-	r.validationChanges = nil
 	r.mu.Unlock()
-	if len(changes) == 0 {
-		return
-	}
-	if err := r.emitValidation(changes); err != nil {
-		logger().Error("validation selection notification failed", "error", err)
+	if err := r.flushValidationChanges(false); err != nil {
+		r.failValidationOwner(err)
+		logger().Error("receive store stopped because validation publication failed; ze must stop its peers before restarting", "error", err)
 	}
 }
 
-// emitValidationEvent hands one batch to the engine as
-// bgp-rib/validation-change through the SDK, which reaches every subscriber
-// whether this plugin runs in the daemon or forked: the daemon's own EventBus
-// never reaches a subprocess. The payload is the JSON form
-// ribevents.DecodeValidationChange reads.
+// unlockValidationCommand MUST replace unlockValidation in a command that
+// mutates eligibility. The command MUST not report success before its owed
+// notifications reach the engine. It may explicitly retry an earlier failure.
+func (r *AdjRIBInManager) unlockValidationCommand(status *string, data *any, result *error) {
+	r.mu.Unlock()
+	if err := r.flushValidationChanges(true); err != nil {
+		*status = statusError
+		*data = ""
+		*result = errors.Join(*result, err)
+	}
+}
+
+// unlockValidationResult is the typed validation command's matching unlock.
+// Its caller MUST return the error this writes rather than an OK receipt.
+func (r *AdjRIBInManager) unlockValidationResult(result *error) {
+	r.mu.Unlock()
+	*result = errors.Join(*result, r.flushValidationChanges(true))
+}
+
+// flushValidationChanges never holds the receive-store lock across emission.
+// One failed hand-off pauses automatic attempts; explicit commands may retry
+// the unacknowledged keys, whose consumers always read current state. A timeout
+// is ambiguous, so this does not promise exactly-once delivery after a retry.
+func (r *AdjRIBInManager) flushValidationChanges(retry bool) error {
+	r.validationEmitMu.Lock()
+	defer r.validationEmitMu.Unlock()
+	if !retry && r.validationEmitErr != nil {
+		return r.validationEmitErr
+	}
+	r.mu.Lock()
+	changes := r.validationChanges
+	r.validationChanges = nil
+	r.validationOwed = nil
+	r.mu.Unlock()
+	if len(changes) == 0 {
+		r.validationEmitErr = nil
+		return nil
+	}
+	err := r.emitValidation(changes)
+	if err == nil {
+		r.validationEmitErr = nil
+		return nil
+	}
+	var partial *validationEmissionError
+	if errors.As(err, &partial) {
+		clear(changes[:partial.acknowledged])
+		changes = changes[partial.acknowledged:]
+	}
+	r.mu.Lock()
+	newer := r.validationChanges
+	r.validationChanges = nil
+	r.validationOwed = make(map[ribevents.ValidationRoute]struct{}, len(changes)+len(newer))
+	for _, batch := range [][]ribevents.ValidationRoute{changes, newer} {
+		for _, route := range batch {
+			if _, held := r.validationOwed[route]; held {
+				continue
+			}
+			r.validationOwed[route] = struct{}{}
+			r.validationChanges = append(r.validationChanges, route)
+		}
+	}
+	r.mu.Unlock()
+	r.validationEmitErr = err
+	return err
+}
+
+// validationEmissionError records the acknowledged prefix only. The failed
+// chunk and the untouched suffix remain owed; no acknowledged chunk is retried.
+type validationEmissionError struct {
+	acknowledged int
+	cause        error
+}
+
+func (err *validationEmissionError) Error() string { return err.cause.Error() }
+func (err *validationEmissionError) Unwrap() error { return err.cause }
+
+// emitValidationEvent hands ordered canonical arrays to the engine through the
+// SDK on both transports. Small batches keep one ordinary Marshal; large ones
+// call each existing route MarshalJSON once and transfer each chunk's ownership
+// to its event string. DirectBridge may queue that string beyond its ACK.
 func (r *AdjRIBInManager) emitValidationEvent(changes []ribevents.ValidationRoute) error {
-	payload, err := json.Marshal(changes)
-	if err != nil {
-		return fmt.Errorf("encode validation-change: %w", err)
+	if len(changes) == 0 {
+		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), validationEmitTimeout)
 	defer cancel()
-	if _, err := r.plugin.EmitEvent(ctx, ribevents.Namespace, ribevents.EventValidationChange, "", "", string(payload)); err != nil {
-		return fmt.Errorf("emit validation-change: %w", err)
+	input := rpc.EmitEventInput{Namespace: ribevents.Namespace, EventType: ribevents.EventValidationChange}
+	budget := input.CanonicalPayloadBudget()
+	singleFrame := len(changes) == 1
+	if !singleFrame {
+		singleFrame = validationArrayFits(changes, budget)
+	}
+	if singleFrame {
+		payload, err := json.Marshal(changes)
+		if err != nil {
+			return &validationEmissionError{cause: fmt.Errorf("encode validation-change: %w", err)}
+		}
+		return r.emitValidationChunk(ctx, string(payload), 0)
+	}
+	start, end := 0, 0
+	var pending []byte
+	var payload textbuf.Buffer
+	for start < len(changes) {
+		if err := ctx.Err(); err != nil {
+			return &validationEmissionError{acknowledged: start, cause: err}
+		}
+		if pending == nil {
+			var err error
+			pending, err = changes[end].MarshalJSON()
+			if err != nil {
+				return &validationEmissionError{acknowledged: start, cause: fmt.Errorf("encode validation-change: %w", err)}
+			}
+		}
+		if len(pending) > rpc.MaxMessageSize-2 {
+			return &validationEmissionError{acknowledged: start,
+				cause: fmt.Errorf("validation route has %d canonical JSON bytes before RPC framing, beyond the %d-byte frame ceiling", len(pending), rpc.MaxMessageSize)}
+		}
+		// String transfers this backing allocation to the event. It MUST NOT
+		// be borrowed with Slice and then reused: engine delivery is queued.
+		payload.Reset(max(budget, len(pending)+2)).Byte('[')
+		for end < len(changes) {
+			if pending == nil {
+				var err error
+				pending, err = changes[end].MarshalJSON()
+				if err != nil {
+					return &validationEmissionError{acknowledged: start, cause: fmt.Errorf("encode validation-change: %w", err)}
+				}
+			}
+			if end > start && len(pending)+2 > budget-payload.Len() {
+				break
+			}
+			if end > start {
+				payload.Byte(',')
+			}
+			if _, err := payload.Write(pending); err != nil {
+				return &validationEmissionError{acknowledged: start, cause: err}
+			}
+			pending = nil
+			end++
+			if payload.Len()+1 > budget {
+				break // An indivisible row goes to the actual writer alone.
+			}
+		}
+		payload.Byte(']')
+		if err := r.emitValidationChunk(ctx, payload.String(), start); err != nil {
+			return err
+		}
+		start = end
+	}
+	return nil
+}
+
+func validationArrayFits(changes []ribevents.ValidationRoute, budget int) bool {
+	used := 2 // Array brackets.
+	for i := range changes {
+		remaining := budget - used
+		if i > 0 {
+			remaining-- // Comma before this route.
+		}
+		size := changes[i].JSONSizeBound()
+		if size > remaining {
+			return false
+		}
+		used += size
+		if i > 0 {
+			used++
+		}
+	}
+	return true
+}
+
+func (r *AdjRIBInManager) emitValidationChunk(ctx context.Context, event string, acknowledged int) error {
+	if _, err := r.plugin.EmitEvent(ctx, ribevents.Namespace, ribevents.EventValidationChange, "", "", event); err != nil {
+		return &validationEmissionError{acknowledged: acknowledged, cause: fmt.Errorf("emit validation-change: %w", err)}
 	}
 	return nil
 }
@@ -260,6 +428,10 @@ func (r *AdjRIBInManager) announcedGateCommand(status string, data any, err erro
 	if err != nil {
 		return status, data, err
 	}
+	if err := r.admitMutation(true); err != nil {
+		return statusError, "", err
+	}
+	defer r.mutationMu.Unlock()
 	// refuse-by-default: guards emitValidationGateEvent -- a nil announcer is a test manager with no engine, and no other process exists to tell
 	if r.announceGate == nil {
 		return status, data, nil

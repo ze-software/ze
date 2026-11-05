@@ -294,21 +294,34 @@ func (r *AdjRIBInManager) sweepExpiredEarlyDecisions() {
 const sweepInterval = 5 * time.Second
 
 // startTimeoutScanner launches a long-lived goroutine that periodically
-// promotes expired pending routes (fail-open). Stops when stopCh is closed.
-func (r *AdjRIBInManager) startTimeoutScanner(stopCh <-chan struct{}) {
-	go func() {
-		ticker := time.NewTicker(sweepInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-stopCh:
+// promotes expired pending routes (fail-open). Closing stopCh requests stop;
+// the returned channel closes after the worker's final publication settles.
+// Its owner MUST await that completion before reading failure or releasing state.
+func (r *AdjRIBInManager) startTimeoutScanner(stopCh <-chan struct{}) <-chan struct{} {
+	done := make(chan struct{})
+	go r.runTimeoutScanner(stopCh, done)
+	return done
+}
+
+// runTimeoutScanner owns the timer and MUST acknowledge completion on every exit
+// after its final publication settles.
+func (r *AdjRIBInManager) runTimeoutScanner(stopCh <-chan struct{}, done chan<- struct{}) {
+	defer close(done)
+	ticker := time.NewTicker(sweepInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stopCh:
+			return
+		case <-ticker.C:
+			if err := r.admitMutation(false); err != nil {
 				return
-			case <-ticker.C:
-				r.mu.Lock()
-				r.sweepExpiredPending()
-				r.sweepExpiredEarlyDecisions()
-				r.unlockValidation()
 			}
+			r.mu.Lock()
+			r.sweepExpiredPending()
+			r.sweepExpiredEarlyDecisions()
+			r.unlockValidation()
+			r.mutationMu.Unlock()
 		}
-	}()
+	}
 }

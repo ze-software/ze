@@ -17,6 +17,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -171,9 +172,23 @@ type AdjRIBInManager struct {
 	// Zero means use defaultValidationTimeout (30s).
 	validationTimeout time.Duration
 
-	// validationChanges is drained after mu is released, so selection can query
-	// this store without acquiring mu recursively.
+	// validationChanges is drained outside mu so selection can query the store.
+	// After a failed hand-off validationOwed coalesces pending keys; no retry
+	// worker exists. An explicit command MUST flush them before success.
 	validationChanges []ribevents.ValidationRoute
+	validationOwed    map[ribevents.ValidationRoute]struct{}
+	// validationEmitMu orders complete emissions without holding mu across the
+	// event bus. validationEmitErr pauses background hand-offs after a failure;
+	// only an explicit command may attempt the retained obligations again.
+	validationEmitMu  sync.Mutex
+	validationEmitErr error
+	// mutationMu serializes store mutations through publication and live removal.
+	// Queries take only mu, so subscribers can query during publication.
+	mutationMu sync.Mutex
+	// terminal is protected by mu; nil leaves debt settlement to admission,
+	// errReceiveStoreRemoved records successful removal, and every other error
+	// records terminal failure.
+	terminal error
 	// emitValidation hands a drained batch to the subscribers: the SDK
 	// emit-event in a running plugin (emitValidationEvent). Nil emits nothing,
 	// so a test manager with no engine notes no change.
@@ -398,7 +413,8 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	}
 	r.emitValidation = r.emitValidationEvent
 	r.announceGate = r.emitValidationGateEvent
-	defer ribevents.RegisterValidationLookup(nil, nil)
+	defer r.releaseValidationOwner()
+	p.OnBye(r.removeValidationOwner)
 	// A store that does not share the selecting RIB's process reads its
 	// FlowSpec lookup through the command the flowspec-gate announcement
 	// names (ribevents.NoteFlowSpecGate asks it through this dispatch).
@@ -464,8 +480,12 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 
 	// Start the timeout scanner for pending validation routes (fail-open).
 	stopCh := make(chan struct{})
-	r.startTimeoutScanner(stopCh)
-	defer close(stopCh)
+	scannerDone := r.startTimeoutScanner(stopCh)
+	stopScanner := sync.OnceFunc(func() {
+		close(stopCh)
+		<-scannerDone
+	})
+	defer stopScanner()
 
 	// Register typed batch-validate handler for DirectBridge fast path.
 	rpc.RegisterBatchValidator(r.handleBatchValidateTyped)
@@ -484,8 +504,13 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, &sdk.Registration{
-		Commands: commandDecls(),
+		Commands:      commandDecls(),
+		FailurePolicy: rpc.FailureFatal,
 	})
+	// Run drains SDK callbacks, but the scanner owns its own publication. Join
+	// it without a store lock before reading its cause or releasing the lookup.
+	stopScanner()
+	err = errors.Join(err, r.validationFailure())
 	if err != nil {
 		logger().Error("adj-rib-in plugin failed", "error", err)
 		return 1
@@ -513,6 +538,10 @@ func parsePeerAddress(peerAddr string) (netip.Addr, error) {
 // every other (rib_complex.go). The legacy handleReceived path is preserved for
 // external text/JSON plugins.
 func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
+	if err := r.admitMutation(false); err != nil {
+		return
+	}
+	defer r.mutationMu.Unlock()
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil {
 		return
@@ -707,6 +736,10 @@ func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr netip.Addr, fam family.
 
 // handleStructuredState processes a structured state event from DirectBridge.
 func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
+	if err := r.admitMutation(false); err != nil {
+		return
+	}
+	defer r.mutationMu.Unlock()
 	if se.PeerAddress == "" {
 		return
 	}
@@ -803,6 +836,10 @@ func (r *AdjRIBInManager) dispatch(event *bgp.Event) {
 // handleReceived processes received UPDATE events from peers.
 // Stores routes as raw hex from format=full events.
 func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
+	if err := r.admitMutation(false); err != nil {
+		return
+	}
+	defer r.mutationMu.Unlock()
 	if event.GetPeerAddress() == "" {
 		return
 	}
@@ -969,6 +1006,10 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 // (buildReplayRoutes takes RLock, relayRoutes does I/O).
 // Only processes "up" and "down" states; unknown/intermediate FSM states are ignored.
 func (r *AdjRIBInManager) handleState(event *bgp.Event) {
+	if err := r.admitMutation(false); err != nil {
+		return
+	}
+	defer r.mutationMu.Unlock()
 	if event.GetPeerAddress() == "" {
 		return
 	}

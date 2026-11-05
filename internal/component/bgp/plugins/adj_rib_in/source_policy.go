@@ -42,11 +42,15 @@ func (txn *sourcePolicyTxn) ledgerOf() *sourcepolicy.Ledger {
 // handleSourcePolicy is this owner's source-policy lifecycle handler. Source.Peer
 // is matched as the peer address the received-UPDATE events carry, parsed to the
 // netip.Addr that keys ribIn. It runs on the SDK source-policy worker
-// concurrently with OnEvent, so every phase works under mu. No phase waits on
-// anything: this store has no asynchronous worker, and its downstream is its
-// own replay and eligibility answers, which read mu. The phase is therefore
-// settled when the handler returns. Safe for concurrent use.
+// concurrently with OnEvent, so every phase works under mu. A successful
+// receipt MUST follow the validation notification hand-off, including a
+// duplicate phase whose earlier hand-off failed. No store lock crosses that
+// hand-off. Safe for concurrent use.
 func (r *AdjRIBInManager) handleSourcePolicy(_ context.Context, input rpc.SourcePolicyInput) error {
+	if err := r.admitMutation(true); err != nil {
+		return err
+	}
+	defer r.mutationMu.Unlock()
 	return sourcePolicyOwner.Handle(input, sourcepolicy.Phases{
 		Prepare: r.prepareSourcePolicy, Apply: r.applySourcePolicy,
 		Abort: r.abortSourcePolicy, Finalize: r.finalizeSourcePolicy,
@@ -126,7 +130,7 @@ func (r *AdjRIBInManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePol
 	}
 	if duplicate {
 		r.mu.Unlock()
-		return nil
+		return r.flushValidationChanges(true)
 	}
 	if r.policyDenied == nil {
 		r.policyDenied = make(map[netip.Addr]uint64)
@@ -137,8 +141,8 @@ func (r *AdjRIBInManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePol
 	}
 	r.noteSourcePolicyChangesLocked(peer, txn)
 	err = txn.ledger.Record(input, sourcepolicy.StageApplied, nil)
-	r.unlockValidation()
-	return err
+	r.mu.Unlock()
+	return errors.Join(err, r.flushValidationChanges(true))
 }
 
 // abortSourcePolicy releases the pins of a transaction that was never applied
@@ -159,7 +163,7 @@ func (r *AdjRIBInManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePol
 	}
 	if duplicate {
 		r.mu.Unlock()
-		return nil
+		return r.flushValidationChanges(true)
 	}
 	if input.NextPolicyEpoch == 0 {
 		// The ledger admits a zero target only before apply: no denial bound
@@ -190,8 +194,8 @@ func (r *AdjRIBInManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePol
 	r.noteSourcePolicyChangesLocked(peer, txn)
 	txn.installed, txn.pending = nil, nil
 	err = txn.ledger.Record(input, sourcepolicy.StageAborted, nil)
-	r.unlockValidation()
-	return err
+	r.mu.Unlock()
+	return errors.Join(err, r.flushValidationChanges(true))
 }
 
 // finalizeSourcePolicy accepts an applied transaction (abort is the path after
@@ -209,14 +213,14 @@ func (r *AdjRIBInManager) finalizeSourcePolicy(peer netip.Addr, input rpc.Source
 	}
 	if duplicate {
 		r.mu.Unlock()
-		return nil
+		return r.flushValidationChanges(true)
 	}
 	// The ledger admits finalize only after apply.
 	r.dropDeniedLocked(peer, txn.ledger.Source().PolicyEpoch)
 	txn.installed, txn.pending = nil, nil
 	err = txn.ledger.Record(input, sourcepolicy.StageFinalized, nil)
-	r.unlockValidation()
-	return err
+	r.mu.Unlock()
+	return errors.Join(err, r.flushValidationChanges(true))
 }
 
 // restoreDenialLocked puts back the source's bound from before an aborted

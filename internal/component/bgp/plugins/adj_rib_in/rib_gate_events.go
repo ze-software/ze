@@ -32,6 +32,10 @@ func (r *AdjRIBInManager) handleGateEvent(text string) bool {
 	if !ribevents.IsGateQuery(text) {
 		return false
 	}
+	if err := r.admitMutation(false); err != nil {
+		return true
+	}
+	defer r.mutationMu.Unlock()
 	// refuse-by-default: guards emitValidationGateEvent -- a nil announcer is a test manager with no engine, and no other process exists to tell
 	if r.announceGate == nil {
 		return true

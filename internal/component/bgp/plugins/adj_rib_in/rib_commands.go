@@ -88,7 +88,11 @@ const (
 // handleBatchValidateTyped processes typed validation decisions from the
 // DirectBridge fast path, bypassing string serialization entirely.
 // Pre-validates all decisions before mutating state (same as batchValidateCommand).
-func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
+func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDecision) (result *rpc.BatchValidateResult, err error) {
+	if err := r.admitMutation(true); err != nil {
+		return nil, err
+	}
+	defer r.mutationMu.Unlock()
 	if len(decisions) == 0 {
 		return &rpc.BatchValidateResult{}, nil
 	}
@@ -116,7 +120,7 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 	}
 
 	r.mu.Lock()
-	defer r.unlockValidation()
+	defer r.unlockValidationResult(&err)
 
 	var accepted, rejected, early int
 	for i := range decisions {
@@ -371,7 +375,11 @@ func (r *AdjRIBInManager) claimReplayCommand() (string, any, error) {
 
 // enableValidationCommand can also gate and snapshot retained routes for a
 // config change. The snapshot and eligibility transition share the store lock.
-func (r *AdjRIBInManager) enableValidationCommand(args []string) (string, any, error) {
+func (r *AdjRIBInManager) enableValidationCommand(args []string) (status string, data any, err error) {
+	if err := r.admitMutation(true); err != nil {
+		return statusError, "", err
+	}
+	defer r.mutationMu.Unlock()
 	refresh := false
 	if len(args) > 0 {
 		if args[0] == "refresh" {
@@ -397,7 +405,7 @@ func (r *AdjRIBInManager) enableValidationCommand(args []string) (string, any, e
 		timeout = time.Duration(seconds) * time.Second
 	}
 	r.mu.Lock()
-	defer r.unlockValidation()
+	defer r.unlockValidationCommand(&status, &data, &err)
 	if timeout != 0 {
 		r.validationTimeout = timeout
 	}
@@ -409,16 +417,20 @@ func (r *AdjRIBInManager) enableValidationCommand(args []string) (string, any, e
 		ribevents.RegisterValidationLookup(r.routeEligible, r.routePresent)
 	}
 	r.validationGate = true
-	data := map[string]any{"validation-enabled": true}
+	answer := map[string]any{"validation-enabled": true}
 	if refresh {
-		data["routes"] = r.suspendForRevalidation()
+		answer["routes"] = r.suspendForRevalidation()
 	}
-	return statusDone, data, nil
+	return statusDone, answer, nil
 }
 
 // acceptRoutesCommand handles "request bgp adj-rib-in accept-routes <peer> <family> <prefix> <pathID> <state>".
 // Promotes a pending route to installed with the given validation state.
-func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error) {
+func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (status string, data any, err error) {
+	if err := r.admitMutation(true); err != nil {
+		return statusError, "", err
+	}
+	defer r.mutationMu.Unlock()
 	if len(args) < 5 {
 		return statusError, "", errAcceptRoutesRequiresPeerFamilyPrefix
 	}
@@ -439,7 +451,7 @@ func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error
 	}
 
 	r.mu.Lock()
-	defer r.unlockValidation()
+	defer r.unlockValidationCommand(&status, &data, &err)
 
 	lookupFam, _ := family.LookupFamily(fam)
 	rKey := routeKeyFromStrings(lookupFam, prefix, uint32(pathID))
@@ -452,7 +464,11 @@ func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error
 
 // rejectRoutesCommand handles "request bgp adj-rib-in reject-routes <peer> <family> <prefix> <pathID>".
 // Discards a pending route (does not install it).
-func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (string, any, error) {
+func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (status string, data any, err error) {
+	if err := r.admitMutation(true); err != nil {
+		return statusError, "", err
+	}
+	defer r.mutationMu.Unlock()
 	if len(args) < 4 {
 		return statusError, "", errRejectRoutesRequiresPeerFamilyPrefix
 	}
@@ -469,7 +485,7 @@ func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (string, any, error
 	}
 
 	r.mu.Lock()
-	defer r.unlockValidation()
+	defer r.unlockValidationCommand(&status, &data, &err)
 
 	lookupFam, _ := family.LookupFamily(fam)
 	rKey := routeKeyFromStrings(lookupFam, prefix, uint32(pathID))
