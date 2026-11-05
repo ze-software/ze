@@ -86,7 +86,9 @@ Show that the previous checker accepts the new false-positive fixture. Record fo
 
 ## Scope and Next Action
 
-Printed repair-command fixes remain with `plan/release/fixes/spec-home-cpe-16c-auth-policy-repair-commands.md`.
+Printed repair-command fixes from `spec-home-cpe-16c-auth-policy-repair-commands`
+landed in `18ea5e830a`; executable editor examples are retained in
+`docs/guide/l2tp.md` and `docs/guide/pppoe.md`.
 Complete peer-source checks, functional wiring names and template checklists before `ready`; 16h is a lab-image dependency only.
 
 ## Review Gate
