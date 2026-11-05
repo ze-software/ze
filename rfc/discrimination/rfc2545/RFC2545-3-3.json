@@ -190,7 +190,7 @@
     "rid": "RFC2545-3-3",
     "polarity": "positive",
     "unit": "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops",
-    "unit-sha": "d6abf3dd5cdf7538",
+    "unit-sha": "bee8f5c56f378919",
     "claim-sha": "d0ade615a2ccb576",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
@@ -202,7 +202,7 @@
     "rid": "RFC2545-3-3",
     "polarity": "negative",
     "unit": "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops",
-    "unit-sha": "d6abf3dd5cdf7538",
+    "unit-sha": "bee8f5c56f378919",
     "claim-sha": "1974c4a4eb4e8906",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/link_scope.go::sharesNextHopSubnet",
@@ -220,14 +220,14 @@
       {
         "producer": "internal/component/bgp/reactor/link_scope.go::sharesNextHopSubnet",
         "break": "line 119: \"prefix.Contains(ls.peer) \u0026\u0026 prefix.Contains(global)\" -\u003e \"prefix.Contains(ls.peer)\"",
-        "seconds": 126,
-        "green": "interop: bgp-rfc2545-linklocal-nexthop-frr: pass (1m18s)"
+        "seconds": 305,
+        "green": "interop: bgp-rfc2545-linklocal-nexthop-frr: pass (4m7s)"
       },
       {
         "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
         "break": "line 239: \"ls.thirdPartyLinkLocal(global)\" -\u003e \"configured\"",
-        "seconds": 129,
-        "green": "interop: bgp-rfc2545-linklocal-nexthop-frr: pass (1m19s)"
+        "seconds": 174,
+        "green": "interop: bgp-rfc2545-linklocal-nexthop-frr: pass (2m5s)"
       }
     ]
   },
@@ -235,7 +235,7 @@
     "rid": "RFC2545-3-3",
     "polarity": "positive",
     "unit": "internal/le/interoplab/bgp/check_rfc2545_third_party.go::checkRFC2545ThirdPartyLinkLocal",
-    "unit-sha": "ddbb2f9355e3a95a",
+    "unit-sha": "9221fed271c01efb",
     "claim-sha": "9e45d4543e43bc6b",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",

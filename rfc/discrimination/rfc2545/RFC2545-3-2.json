@@ -234,13 +234,34 @@
     "rid": "RFC2545-3-2",
     "polarity": "positive",
     "unit": "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops",
-    "unit-sha": "ea4bf7290198b295",
+    "unit-sha": "bee8f5c56f378919",
     "claim-sha": "b2cfc4640aa74c69",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/link_scope.go::sharesNextHopSubnet",
-    "producer-sha": "ba97f961c58ff969",
-    "break": "body of sharesNextHopSubnet replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-    "citation": "4"
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/update_build.go::buildMPReach",
+    "producer-sha": "4d39aed49a7780ef",
+    "break": "line 702: \"linkLocal.IsValid()\" -\u003e \"false\"",
+    "citation": "4",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop",
+        "producer-sha": "e63c43dc48848eb9",
+        "break": "line 236: \"!ll.IsValid()\" -\u003e \"true\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/message/update_build.go::buildMPReach",
+        "break": "line 702: \"linkLocal.IsValid()\" -\u003e \"false\"",
+        "seconds": 140,
+        "green": "interop: bgp-rfc2545-linklocal-nexthop-frr: pass (1m38s)"
+      },
+      {
+        "producer": "internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop",
+        "break": "line 236: \"!ll.IsValid()\" -\u003e \"true\"",
+        "seconds": 139,
+        "green": "interop: bgp-rfc2545-linklocal-nexthop-frr: pass (1m37s)"
+      }
+    ]
   },
   {
     "rid": "RFC2545-3-2",
