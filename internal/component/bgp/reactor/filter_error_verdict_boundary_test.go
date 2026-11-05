@@ -93,7 +93,7 @@ func errorVerdictConnection(t *testing.T, typed bool, judge func(rpc.FilterUpdat
 		if bridge != nil {
 			bridge.CloseCallbacks()
 		}
-		engine.Close() //nolint:errcheck // fixture cleanup closes either transport.
+		engine.Close()    //nolint:errcheck // fixture cleanup closes either transport.
 		pluginEnd.Close() //nolint:errcheck // fixture cleanup also closes the unused typed peer.
 		select {
 		case err := <-done:

@@ -156,15 +156,17 @@ func TestPluginSchemaDecl(t *testing.T) {
 // VALIDATES: AC-1 — Plugin sends declare-registration with filters list containing two named filters.
 // PREVENTS: Filter declaration data loss during stage 1 registration.
 func TestFilterDeclarationParse(t *testing.T) {
+	validation := registry.DeclaredFilter{Name: "validate", Direction: rpc.FilterImport}
+	logging := registry.DeclaredFilter{Name: "log", Direction: rpc.FilterBoth}
 	reg := &PluginRegistration{
 		Name: "rpki",
 		Filters: []FilterRegistration{
 			{
-				DeclaredFilter: registry.DeclaredFilter{Name: "validate", Direction: rpc.FilterImport},
+				DeclaredFilter: validation,
 				OnError:        rpc.OnErrorReject,
 			},
 			{
-				DeclaredFilter: registry.DeclaredFilter{Name: "log", Direction: rpc.FilterBoth},
+				DeclaredFilter: logging,
 				OnError:        rpc.OnErrorAccept,
 			},
 		},
@@ -192,11 +194,12 @@ func TestFilterDeclarationParse(t *testing.T) {
 // VALIDATES: AC-19 — Filter declares overrides to remove default filters.
 // PREVENTS: Override data lost during registration.
 func TestFilterDeclarationWithOverrides(t *testing.T) {
+	relaxed := registry.DeclaredFilter{Name: "relaxed", Direction: rpc.FilterImport}
 	reg := &PluginRegistration{
 		Name: "allow-own-as",
 		Filters: []FilterRegistration{
 			{
-				DeclaredFilter: registry.DeclaredFilter{Name: "relaxed", Direction: rpc.FilterImport},
+				DeclaredFilter: relaxed,
 				OnError:        rpc.OnErrorAccept,
 				Overrides:      []string{"rfc:no-self-as"},
 			},

@@ -326,7 +326,7 @@ func (target announceTarget) sendBatchUpdatePreFiltered(ctx context.Context, upd
 	}
 	if batch.InitialReplay == 0 && batch.SentOwnerMessage != 0 && target.peer.withdrawBehindForwards() {
 		if batch.Replay {
-			owner.meta = map[string]any{"replay": true}
+			owner.meta = map[string]any{metaKeyReplay: true}
 		}
 		return target.queueBatchBodyPreFiltered(ctx, update, body, maxSize, addPath, &owner)
 	}
@@ -830,7 +830,7 @@ func (target announceTarget) queueBehindForwards(expectedMessage, sourcePolicyEp
 				item.sourcePolicyEpoch = sourcePolicyEpoch
 			}
 			if replay {
-				item.meta = map[string]any{"replay": true}
+				item.meta = map[string]any{metaKeyReplay: true}
 			}
 			if !target.peer.reactor.fwdPool.dispatchOverflow(key, &item) {
 				return errForwardPoolStopped

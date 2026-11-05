@@ -30,6 +30,9 @@ import (
 // is not a registered plugin depending on policy, so the two cannot drift.
 const attachmentOwnerBGP = "bgp"
 
+// attachmentImportBGP names the BGP import policy attachment.
+const attachmentImportBGP = "bgp import"
+
 func init() {
 	// The filter attachment points a BGP peer's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
@@ -56,10 +59,10 @@ func init() {
 	// attribute numbers their owners registered (policyview.AttributeNumber,
 	// otc by bgp-role); the chain lets only the owner's filters do so.
 	settableAt := map[string]func() []policy.Field{
-		"bgp import": importSettable,
-		"bgp export": exportSettable,
+		attachmentImportBGP: importSettable,
+		"bgp export":        exportSettable,
 	}
-	for _, attachment := range []string{"bgp import", "bgp export"} {
+	for _, attachment := range []string{attachmentImportBGP, "bgp export"} {
 		policy.MustRegisterDerivedAttachment(attachmentOwnerBGP, attachment, policyview.Fields, settableAt[attachment])
 		policy.MustRegisterFieldSynonym(attachment, policy.FieldMetric, policy.FieldMED)
 		direction := strings.TrimPrefix(attachment, attachmentOwnerBGP+" ")

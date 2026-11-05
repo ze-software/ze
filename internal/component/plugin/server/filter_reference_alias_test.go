@@ -108,10 +108,11 @@ func aliasedSlotProcess(t *testing.T, block, registration string, action rpc.Fil
 	conn.SetBridge(bridge)
 	proc := process.NewProcess(plugin.PluginConfig{Name: block, Internal: true, Run: registration})
 	proc.SetConn(conn)
+	ingress := registry.DeclaredFilter{Name: "ingress", Direction: rpc.FilterImport}
 	proc.SetRegistration(&plugin.PluginRegistration{
 		Done: true,
 		Filters: []plugin.FilterRegistration{{
-			DeclaredFilter: registry.DeclaredFilter{Name: "ingress", Direction: rpc.FilterImport},
+			DeclaredFilter: ingress,
 			OnError:        rpc.OnErrorAccept,
 		}},
 	})

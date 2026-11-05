@@ -167,7 +167,7 @@ func TestEditorConstructorRefusalReleasesOwnedStore(t *testing.T) {
  leaf refusal { type string; ze:hepl "Undeclared extension."; }
 }`)
 			defer restore()
-			code := exitOK
+			var code int
 			if backup {
 				code = runBackupModel(ed)
 			} else {

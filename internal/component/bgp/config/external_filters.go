@@ -156,7 +156,7 @@ func refuseExternalChainName(pluginName string, declared []registry.DeclaredFilt
 }
 
 func judgeExternalChainDeclaration(d *registry.DeclaredFilter, ref externalChainRef) error {
-	if ref.attachment == "bgp import" {
+	if ref.attachment == attachmentImportBGP {
 		if !d.AllowsDirection(rpc.FilterImport) {
 			return refuseExternalChainDirection(d, ref)
 		}

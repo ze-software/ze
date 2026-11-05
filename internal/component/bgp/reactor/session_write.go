@@ -30,6 +30,9 @@ import (
 // controlWriteDeadlineMin is the minimum write deadline for control messages.
 const controlWriteDeadlineMin = 10 * time.Second
 
+// metaKeyReplay marks a re-advertisement of an existing Adj-RIB-Out entry.
+const metaKeyReplay = "replay"
+
 // holdExpiryNotifyDeadline bounds the write of the RFC 4271 Section 8.2.2
 // Event 10 NOTIFICATION (session.go, the OnHoldTimerExpires callback).
 //
@@ -1152,7 +1155,7 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 	// origin when the sent event returns to the RIB plugin; it is not a new
 	// plugin-owned replacement of a config-static route.
 	if replay {
-		s.sentMeta = map[string]any{"replay": true}
+		s.sentMeta = map[string]any{metaKeyReplay: true}
 		defer func() { s.sentMeta = nil }()
 	}
 	before := s.updateSendTotals

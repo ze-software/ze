@@ -147,7 +147,11 @@ func testInfraSSHHistoryOwner(t *testing.T, startupFailure bool) {
 		if built == nil {
 			return nil
 		}
-		builtServer = built.(*zessh.Server)
+		var ok bool
+		builtServer, ok = built.(*zessh.Server)
+		if !ok {
+			t.Fatalf("SSH builder returned %T, want *ssh.Server", built)
+		}
 		builtServer.SetSessionModelFactory(func(username, _ string, _ plugin.Authorizer, _ zessh.SessionRequest) (tea.Model, error) {
 			model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 			model.SetHistory(cli.NewHistory(store, username))
