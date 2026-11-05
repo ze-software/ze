@@ -1,5 +1,5 @@
 // Design: docs/architecture/route-selection.md -- Step 0, stale depreference
-// Related: plugin_fixture_02.go -- the registration, eorSent02, requireDone02, map02
+// Related: plugin_fixture_02.go -- the registration, requireDone02, map02
 // Related: ../../../test/plugin/llgr-stale-received-depreferenced.ci -- the scenario
 
 package fixture
@@ -26,10 +26,8 @@ type llgrReceivedVerdict struct {
 // from the session whose OPEN did not carry it is not depreferenced, so its
 // higher LOCAL_PREF wins.
 func llgrStaleReceived02(ctx context.Context, plugin *sdk.Plugin) error {
-	for _, peer := range []string{"llgr", "plain"} {
-		if !eorSent02(ctx, plugin, peer, 1, 40) {
-			return fmt.Errorf("ze never sent its End-of-RIB to %s", peer)
-		}
+	if err := p12WaitPeersEOR(ctx, plugin, "llgr", "plain"); err != nil {
+		return err
 	}
 	verdicts := []llgrReceivedVerdict{
 		{prefix: "10.0.0.0/8", winner: addrLoopbackV6, step: "stale-level"},
