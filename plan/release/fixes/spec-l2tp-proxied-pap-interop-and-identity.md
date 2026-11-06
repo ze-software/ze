@@ -5,14 +5,14 @@
 | Status | ready |
 | Scope | protocol |
 | Priority | P1 |
-| Release reason | A LAC's unverified name reaches RADIUS accounting as User-Name, an IPv4-only decline disables IPv6CP for good, and proxied PAP has no proof against a real PPP client |
+| Release reason | A LAC's unverified name becomes the subscriber's authenticated identity, an IPv4-only decline disables IPv6CP for good, and proxied PAP has no proof against a real PPP client |
 | RFC gaps | - |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-06 |
 
-Scope is protocol: the wire change is the User-Name a RADIUS server receives, and
+Scope is protocol: the wire change is which name a RADIUS server receives as User-Name, and
 IPv6CP returning on a later LCP lifetime. No config or CLI command changes.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -44,6 +44,13 @@ accounting as User-Name (`buildAcctPacket`), the CoA session match (`coa.go`), a
 the CLI as `Username`. `l2tp/session.go` calls the field "the PPP-authenticated peer
 identity", which is false. Ze never authenticates from the Proxy Authen AVPs.
 
+**Owner decision: RADIUS accounting carries the LAC's name.** The fix keeps the claim out
+of the identity, and does not drop it from accounting. When nothing authenticated a name,
+User-Name carries the LAC's claimed name, so billing keeps the name the LAC gave. An
+authenticated name always wins over the claim, and a session with neither omits
+User-Name. A CoA by User-Name matches the same name accounting sent, so the operator's
+RADIUS can act on the session it was told about.
+
 Goal: `username` means what its comment says, a declined IPv6 lasts one LCP lifetime,
 and proxied PAP is proven against a real client.
 
@@ -64,7 +71,7 @@ and proxied PAP is proven against a real client.
   → Constraint: RFC 2661 Section 4.4.5: "The Proxy Authen Name AVP, Attribute Type 30, specifies the name of the authenticating client when using proxy authentication." Ze does not use proxy authentication, so the name is a claim.
   → Constraint: RFC 2661 Section 4.4.5: "Note that the LNS policy may be to enter an additional round of LCP negotiation and/or authentication if the LAC is not trusted."
 - [ ] `rfc/short/rfc2865.md`, `rfc/short/rfc2866.md` - User-Name
-  → Constraint: RFC 2865 Section 5.1: "This Attribute indicates the name of the user to be authenticated." RFC 2866's attribute table lists User-Name as 0-1 in an Accounting-Request, so omitting it is valid, and Section 5 already omits zero-length text.
+  → Constraint: RFC 2865 Section 5.1: "This Attribute indicates the name of the user to be authenticated." RFC 2866's attribute table lists User-Name as 0-1 in an Accounting-Request, so omitting it is valid, and Section 5 already omits zero-length text. Sending the LAC's claim there is the owner's decision; the guide says the name is the LAC's, not authenticated.
 - [ ] `rfc/short/rfc1661.md`, `rfc/short/rfc1334.md` - renegotiation and PAP
   → Constraint: RFC 1661 Section 4.3: "The Down followed by an Up will cause an orderly renegotiation of the link, by progressing through the Starting to the Request-Sent state."
 - [ ] `rfc/short/rfc5072.md` - IPv6CP
@@ -98,7 +105,8 @@ and proxied PAP is proven against a real client.
 - Ze never authenticates from the Proxy Authen AVPs. `plan/post-release/features/spec-l2tp-proxy-authentication.md` owns that feature.
 - An operator's `enable-ipv6cp false` stays for the session's whole life.
 - The Protocol-Reject that stops a peer retransmitting IPv6CP in the lifetime the handler declined.
-- User-Name omitted when no identity exists (RFC 2866 Section 5).
+- User-Name omitted when there is neither an identity nor a LAC claim (RFC 2866 Section 5).
+- The LAC's name in User-Name for a session nothing authenticated, as today.
 - The relay originates no control datagram: `xl2tpd` and Ze own sequencing.
 
 **Behavior to change:**
@@ -113,7 +121,7 @@ and proxied PAP is proven against a real client.
 | Per-lifetime IPv6 refusal | `session_run.go` `supportsProtocol`, `ipv6MRUSupported` | A low MRU refuses IPv6 "for this LCP lifetime" | Extends: the decline is read the same way, beside it |
 | Accepted identity | `reactor_kernel.go` `handleSessionIPAssigned`, `ppp` `authenticatedUsername` | PPP reports the accepted name, cleared on LCP down | Extends: it becomes the only writer of `username` |
 | Proxy AVP capture | `session.go` `proxyAuthenName`, `session_fsm.go` | Stores the LAC's name in its own field | Extends: the CLI reads it from there, labelled as the LAC's claim |
-| Attribute omission | `radius.AppendTextAttr`, `buildAcctPacket` | Omits zero-length text | Extends unchanged: an empty `username` already gives the valid packet |
+| Attribute omission | `radius.AppendTextAttr`, `buildAcctPacket` | Omits zero-length text | Extends unchanged: an empty identity with no claim already gives the valid packet |
 | AVP relay | `internal/le/interoplab/l2tp/avprelay` | Transparent relay with injection on a marker | Extends: a proxied mode holds the ICCN, answers `pppd`'s LCP and PAP as the LAC would, then forwards the ICCN with the proxy AVPs. It still originates no control datagram: `xl2tpd`'s retransmit carries the ICCN |
 | Compiled proxy fixture | `internal/test/fixture/tunnel_fixture_l2tp_proxy_mru.go` | Plays a whole LAC with a scripted PPP peer | Does not apply to the client proof: the point is a real `pppd`. It carries the `.ci` below |
 | Proxy authentication feature | `plan/post-release/features/spec-l2tp-proxy-authentication.md` | Skeleton for consuming the AVPs | Does not apply: post-release, and this spec consumes nothing |
@@ -128,7 +136,7 @@ and proxied PAP is proven against a real client.
 ### Transformation Path
 1. `session_fsm.go` stores the Proxy Authen Name in `proxyAuthenName` only.
 2. PPP runs. An accepted, non-empty name reaches `sess.username` through `handleSessionIPAssigned`.
-3. `l2tpevents` carries `username`, and `buildAcctPacket` omits User-Name when it is empty. A CoA by User-Name matches accepted identities only.
+3. `l2tpevents` carries `username` and, separately, the LAC's claim. `buildAcctPacket` sends the identity, else the claim, else omits User-Name. A CoA by User-Name matches the name accounting sent.
 4. `SessionSnapshot` exposes the accepted identity and, separately, the LAC's claim.
 5. A decline sets the per-lifetime field. `resetNCP` clears it. The next `runNCPPhase` asks the handler.
 
@@ -146,9 +154,9 @@ and proxied PAP is proven against a real client.
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| RADIUS User-Name in accounting | writer | `acct.go` `buildAcctPacket` | sends `sess.username` | Change: never the LAC's name |
+| RADIUS User-Name in accounting | writer | `acct.go` `buildAcctPacket` | sends `sess.username` | Change: the accepted identity, else the LAC's claim, else nothing |
 | RADIUS User-Name in Access-Request | writer | `handler.go` | sends `req.Username`, what the peer presented | Preserve: a credential, not this field |
-| CoA User-Name | reader | `coa.go` session match | reads `sess.Username` | Change: matches accepted identities only |
+| CoA User-Name | reader | `coa.go` session match | reads `sess.Username` | Change: matches the name accounting sent, identity or claim |
 | CLI session output | reader | `snapshot.go`, `l2tp/cli` | prints `Username` | Change: accepted identity, plus a separate field for the claim |
 | Subscriber route log | reader | `route_observer.go` | logs `username` | Change: accepted identity |
 | IPv6CP to a peer | writer | `session_run.go` `handleFrame` | Protocol-Reject | Change: per lifetime |
@@ -175,13 +183,13 @@ and proxied PAP is proven against a real client.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `xl2tpd` retransmits an unacknowledged ICCN long enough for the relay's PPP exchange | `control.c` sends ICCN with `control_xmit`, then starts `pppd` | The hold times out before PAP ends | The scenario's first run. If it fails, the relay answers PPP from the ICRP on, and the hold shortens | unvalidated |
 | A-2 | `pppd` 2.5.5, in Network phase, renegotiates and repeats PAP on a Configure-Request | `fsm_rconfreq` OPENED on upstream master; the lab builds 2.5.5 | The scenario can never pass, and reads as a Ze defect | Read `pppd/fsm.c` and `upap.c` at 2.5.5 before writing the check | unvalidated |
-| A-3 | No RADIUS or accounting consumer in the tree needs the LAC's name in User-Name | The census above | A scenario asserts it | `04-radius-acct-attrs`, `l2tp-radius-acct-wire-fixture`, `test/l2tp/radius-acct-wire.ci`: this `.ci` is CHAP through proxy, so its name still arrives accepted | unvalidated |
+| A-3 | Every RADIUS and accounting consumer in the tree that reads the LAC's name in User-Name keeps reading it | The census above | A scenario loses the name it asserts | `04-radius-acct-attrs`, `l2tp-radius-acct-wire-fixture`, `test/l2tp/radius-acct-wire.ci`: this `.ci` is CHAP through proxy, so its name still arrives accepted | unvalidated |
 | A-4 | A second lifetime should ask the handler again | RFC 5072 Section 3, and identity may change between lifetimes | A handler is asked more often than it expects | `TestIPv6CPDeclineEndsWithLCPLifetime` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | An operator bills no-auth sessions on the LAC's name | A RADIUS record with no User-Name | The guide says what changed; the CLI still shows the claim. `Calling-Station-Id` and `Acct-Session-Id` stay on the record |
+| R-1 | An operator reads the LAC's name in User-Name as authenticated | A billing dispute over a no-auth session | The guide says User-Name is the LAC's claim when nothing authenticated; the CLI labels identity and claim apart |
 | R-2 | The relay grows into a LAC | Its size and its comment | It keeps no L2TP state: PPP only, and the hold is a dropped datagram |
 | R-3 | The scenario depends on 6 s of timing | Flakes under load | It asserts the outcome, with the lab's own timeout, never the delay |
 | R-4 | `plan/release/fixes/spec-home-cpe-15-lns-lcp-renegotiation.md` still lists this seeding as behavior to preserve | A review of that spec | Its line was repointed here when this spec was written |
@@ -198,7 +206,7 @@ and proxied PAP is proven against a real client.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| ICCN with Proxy Authen Name, no-auth admission | → | `session_fsm.go`, `handleSessionIPAssigned`, `buildAcctPacket` | `test/l2tp/proxy-name-not-accounted.ci` |
+| ICCN with Proxy Authen Name, no-auth admission | → | `session_fsm.go`, `handleSessionIPAssigned`, `buildAcctPacket` | `test/l2tp/proxy-name-accounted.ci` |
 | A handler declines IPv6, then LCP restarts | → | `runNCPPhase`, `resetNCP` | `TestIPv6CPDeclineEndsWithLCPLifetime` |
 | `xl2tpd` and `pppd` through the proxied relay | → | `runPAPAuthPhase`, `renegotiateProxiedLCP` | `l2tp-proxy-pap-pppd` |
 
@@ -206,23 +214,24 @@ and proxied PAP is proven against a real client.
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | ICCN names `lac-claim`, the session is admitted with no authentication | The Accounting-Request carries no User-Name, and `Acct-Session-Id` and `Calling-Station-Id` as usual | None: nothing authenticated `lac-claim` |
-| AC-2 | ICCN names `lac-claim`, the peer authenticates with an empty name | The Accounting-Request carries no User-Name | None |
+| AC-1 | ICCN names `lac-claim`, the session is admitted with no authentication | User-Name is `lac-claim`, in Start and Stop, with `Acct-Session-Id` and `Calling-Station-Id` as usual, while the session's identity stays empty | None: the owner wants the LAC's name accounted |
+| AC-2 | ICCN names `lac-claim`, the peer authenticates with an empty name | User-Name is `lac-claim` | None |
 | AC-3 | ICCN names `lac-claim`, the peer authenticates as `alice` | User-Name is `alice`, in Start and Stop | None |
-| AC-4 | A CoA by User-Name `lac-claim` against AC-1's session | It matches no session, and answers as any unmatched CoA does | A CoA by session id still matches |
+| AC-4 | A CoA by User-Name `lac-claim` against AC-1's session | It matches AC-1's session, the name accounting sent | A CoA by session id still matches |
 | AC-5 | `show l2tp` for AC-1's session | The identity is empty, and the LAC's claim shows in its own labelled field | The claim stays visible: an operator diagnosing a LAC needs it |
 | AC-6 | A handler declines IPv6 in LCP lifetime 1 | The peer's IPv6CP gets Protocol-Reject in lifetime 1 | None |
 | AC-7 | LCP renegotiates to lifetime 2 | The handler is asked again. If it grants, IPv6CP opens | A second decline behaves as AC-6 |
 | AC-8 | `enable-ipv6cp false` | IPv6CP stays refused in every lifetime, and the handler is never asked | None: the operator chose |
 | AC-9 | Real `pppd` finishes PAP with the LAC role, then ICCN carries proxy LCP naming PAP | Ze renegotiates LCP, `pppd` authenticates again, IPCP opens, and an ICMP round trip crosses the session | None |
 | AC-10 | The same with `pppd` still sending its PAP request | Ze answers that request and no renegotiation happens | None |
+| AC-11 | No Proxy Authen Name and no authenticated name | The Accounting-Request carries no User-Name | None: there is no name to send |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | A subscriber connects through a LAC that finished PAP | LAC ICCN -> proxy LCP -> wait -> renegotiate -> PAP -> IPCP -> traffic | `l2tp-proxy-pap-pppd` |
-| 2 | An operator reads accounting for a no-auth session | ICCN -> session up -> Accounting-Request without the LAC's name | `test/l2tp/proxy-name-not-accounted.ci` |
+| 2 | An operator reads accounting for a no-auth session | ICCN -> session up -> Accounting-Request with the LAC's name as User-Name | `test/l2tp/proxy-name-accounted.ci` |
 | 3 | A subscriber's LCP restarts after an IPv4-only pool answered | reset -> asked again -> IPv6CP opens | `test/l2tp/ipv6cp-after-decline.ci` |
 
 ## 🧪 TDD Test Plan
@@ -234,7 +243,8 @@ and proxied PAP is proven against a real client.
 | `TestOperatorIPv6CPDisableSurvivesLCPRestart` | same | AC-8 | |
 | `TestProxyAuthenNameDoesNotSeedUsername` | `internal/component/l2tp/session_fsm_test.go` | AC-1, AC-2: `username` stays empty after ICCN | |
 | `TestAcceptedNameReachesUsername` | `internal/component/l2tp/reactor_kernel_test.go` | AC-3 | |
-| `TestCoAUserNameIgnoresProxyClaim` | `internal/component/l2tp/plugins/authradius/coa_test.go` | AC-4 | |
+| `TestAcctUserNameIdentityElseClaim` | `internal/component/l2tp/plugins/authradius/acct_test.go` | AC-1, AC-2, AC-3, AC-11: identity wins, else the claim, else no attribute | |
+| `TestCoAUserNameMatchesAccountedClaim` | `internal/component/l2tp/plugins/authradius/coa_test.go` | AC-4 | |
 | `TestSnapshotSeparatesClaimFromIdentity` | `internal/component/l2tp/snapshot_test.go` | AC-5 | |
 
 ### Boundary Tests (numeric inputs)
@@ -245,7 +255,7 @@ and proxied PAP is proven against a real client.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `proxy-name-not-accounted` | `test/l2tp/proxy-name-not-accounted.ci` | AC-1, reading what the RADIUS server decoded | |
+| `proxy-name-accounted` | `test/l2tp/proxy-name-accounted.ci` | AC-1, reading what the RADIUS server decoded | |
 | `ipv6cp-after-decline` | `test/l2tp/ipv6cp-after-decline.ci` | AC-7 through the real daemon | |
 | `radius-acct-wire` | `test/l2tp/radius-acct-wire.ci` | Stays green: its proxied session authenticates | |
 
@@ -263,19 +273,19 @@ and proxied PAP is proven against a real client.
 - `internal/component/l2tp/reactor_kernel.go` - clear on every LCP down path that held an identity
 - `internal/component/l2tp/snapshot.go` - the claim as its own field
 - `internal/component/l2tp/plugins/authradius/acct.go` - the comment
-- `internal/component/l2tp/plugins/authradius/coa.go` - reads the accepted identity
+- `internal/component/l2tp/plugins/authradius/coa.go` - matches the name accounting sent
 - `internal/le/interoplab/l2tp/l2tp.go` - scenario row
 - `internal/le/interoplab/l2tp/avprelay/main.go` - proxied mode, and its header comment
 - `docs/guide/l2tp.md` - the Proxy Authen paragraph
 - `docs/architecture/l2tp/subscriber-session-model.md` - the transport identity sentence
-- `docs/guide/radius.md` - when User-Name is absent
+- `docs/guide/radius.md` - User-Name is the authenticated name, else the LAC's claim, else absent
 - `docs/labs/l2tp-interop.md` - the scenario and the relay mode
 
 ## Files to Create
 - `internal/le/interoplab/l2tp/proxy_pap.go` - the scenario's checker
 - `internal/le/interoplab/l2tp/avprelay/pppproxy.go` - the relay's LCP and PAP role
 - `test/interop-l2tp/scenarios/l2tp-proxy-pap-pppd/ze.conf` - with `xl2tpd.conf`, `ppp-options` and `l2tp-secrets`
-- `test/l2tp/proxy-name-not-accounted.ci` - AC-1
+- `test/l2tp/proxy-name-accounted.ci` - AC-1
 - `test/l2tp/ipv6cp-after-decline.ci` - AC-7
 
 ### Integration Checklist
@@ -326,7 +336,7 @@ and proxied PAP is proven against a real client.
    - Files: `ncp.go`, `ppp/session.go`, `session_run.go`
    - Verify: tests fail, implement, tests pass
 3. **Phase: Identity** -- D-3
-   - Tests: `TestProxyAuthenNameDoesNotSeedUsername`, `TestAcceptedNameReachesUsername`, `TestCoAUserNameIgnoresProxyClaim`, `TestSnapshotSeparatesClaimFromIdentity`, `test/l2tp/proxy-name-not-accounted.ci`, `test/l2tp/radius-acct-wire.ci`
+   - Tests: `TestProxyAuthenNameDoesNotSeedUsername`, `TestAcceptedNameReachesUsername`, `TestAcctUserNameIdentityElseClaim`, `TestCoAUserNameMatchesAccountedClaim`, `TestSnapshotSeparatesClaimFromIdentity`, `test/l2tp/proxy-name-accounted.ci`, `test/l2tp/radius-acct-wire.ci`
    - Files: `session_fsm.go`, `session.go`, `reactor_kernel.go`, `snapshot.go`, `acct.go`, `coa.go`
    - Verify: tests fail, implement, tests pass; every scenario that names a proxy session is re-read
 4. **Phase: Client proof** -- D-1
@@ -357,9 +367,9 @@ and proxied PAP is proven against a real client.
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Trust | A name from the LAC never reaches a billing record or a CoA match |
+| Trust | A name from the LAC is never recorded as the authenticated identity; it reaches User-Name only where nothing authenticated |
 | Input validation | The Proxy Authen Name stays bounded by the AVP parse, and is shown as data |
-| Fail-closed | An empty identity omits the attribute, and invents nothing |
+| Fail-closed | Neither identity nor claim omits the attribute, and invents nothing |
 
 ### Failure Routing
 
@@ -375,7 +385,7 @@ and proxied PAP is proven against a real client.
 
 ## Design Insights
 
-- The seeding is documented as intended behavior in three places: `docs/guide/l2tp.md`, `docs/architecture/l2tp/subscriber-session-model.md`, and the behavior-to-preserve list of `spec-home-cpe-15-lns-lcp-renegotiation`. This spec overrides them, on the commissioning brief's finding and on `ai/rules/principles.md` (a silently wrong value). RFC 2866 allows the omission. Thomas can reverse it in one line, by naming the LAC's name as wanted in accounting: then only the comment and the CoA match change.
+- The seeding is documented as intended behavior in three places: `docs/guide/l2tp.md`, `docs/architecture/l2tp/subscriber-session-model.md`, and the behavior-to-preserve list of `spec-home-cpe-15-lns-lcp-renegotiation`. This spec overrides them, on the commissioning brief's finding and on `ai/rules/principles.md` (a silently wrong value). Thomas decided the LAC's name stays in accounting, so the override separates identity from claim and leaves accounting carrying the claim where nothing authenticated.
 - Handover item 20 (`plan/handover/2026-11-06-unpushed-review-findings.md`) reads as a stall, and `926f01f732` already fixed it. What remains is the proof.
 - No real LAC in the lab can carry this case, so the scenario proves the client half only. Reading freeRtr's and accel-ppp's LAC for proxy AVPs is the way to a whole-LAC proof, and neither is in this lab today.
 
@@ -391,7 +401,7 @@ and proxied PAP is proven against a real client.
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Omit User-Name for no accepted identity | Keep the claim and fix the comment | Billing reads User-Name as an identity. RFC 2866 allows absence, and the CLI keeps the claim visible |
+| User-Name is the accepted identity, else the LAC's claim (owner decision) | Omit User-Name for no accepted identity; keep seeding the identity from the claim | Thomas wants the LAC's name accounted. Keeping it out of `username` fixes the false comment and the CLI, while billing keeps the name |
 | Relay plays the LAC's PPP role | Fixture with `pppd` on a pty; wait for a real LAC | Keeps `xl2tpd`'s L2TP and `pppd`'s PPP real. A pty fixture replaces `xl2tpd` with Ze's own code on the wire |
 | New per-lifetime field | Restore `disableIPv6CP` in `resetNCP` from the start value | Two facts stay two fields, and `supportsProtocol` can say which applies |
 
