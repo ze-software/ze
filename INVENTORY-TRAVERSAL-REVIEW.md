@@ -117,3 +117,28 @@ depth, substitutions and flags, under an equivalent active ancestry), beside the
 looser count that ignores ancestry. Route A is built only if its provable subset
 covers the repeated work found. Neither route is implemented yet, and no count
 is a claim about speed.
+
+## Actual-root measurement, 2026-11-06
+
+A diagnostic overlay counted the actual root's traversal for ten minutes without
+changing any answer; its synthetic controls compared every observed method union
+with an unobserved run. The inventory still did not finish. 29,150 queries
+completed with 603,282 named visits in total. One query was still running: it
+had made 1,416,890,951 named visits over only 1,774 distinct states.
+
+That query starts at the `Editor` callback parameter of
+`internal/component/cli/model_commands_edit.go` and reaches goyang's recursive
+`yang.Statement` and `yang.Node` syntax tree, which it walks again on every
+path that reaches it.
+
+| Rule for reusing a completed visit | Repeats it proves skippable in that query |
+|------------------------------------|-------------------------------------------|
+| Same state and identical ancestry, or nothing pruned below the earlier visit | 13,761,877 of 326,489,532 (4 %) |
+| Same state, and every frame the earlier visit pruned against is also on the current path | 326,465,059 of 326,489,532 (99.99 %) |
+
+The second rule is sound because the later visit then prunes at least the edges
+the earlier one did, while every frame active inside the subtree is the same, so
+its contribution is contained in what the shared output union already holds.
+The 24,473 repeats it does not prove are mostly ones whose earlier record the
+measurement's size caps dropped. Route A is therefore built on the second rule,
+with the full traversal kept as the fallback whenever the proof is unavailable.
