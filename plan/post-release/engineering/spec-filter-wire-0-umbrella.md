@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P3 |
 | Release reason | Complete the promised filter-wire proofs and fix the current defect they exposed: a forked bgp-filter-irr program did not request the policy root, lost the configured IRR server/settings, and rejected authorized announcements. |
 | Depends | Route-policy phases 1-3, landed (490618ef43). This builds on their library in `internal/component/policy/`: `policy.CompileRouteChain`, `policy.RouteChain` and `policy.CheckChain`; the field registry, `policy.MustRegisterField` with a `policy.RouteView` (`Read`, `Written`); `policy.MustRegisterRouteAttachment`; and `ribpolicy.Route` and `ribpolicy.Sets` (`internal/core/rib/policy`) |
 | Phase | 5/5 |
-| Updated | 2026-11-05 |
+| Updated | 2026-11-06 |
 
 ## Blocker
 
@@ -27,11 +27,17 @@ import relocation is independently cleared. Corrected arguments are retained in
 `tmp/session/2026-11-04-230539/scratch/fw-native-review-argv-current.json`, with
 evidence in `fw-six-pin-reconciliation.md` in the same directory. Only six blob
 values change; modes, 1123 live paths, 60 removals and six rounds are unchanged.
-Thomas's existing authorization remains his decision. The corrected helper
-requires a real-terminal rerecord of this population; no agent may manufacture
-that terminal step. Then resume the native check and commits A+B, final citation
-check and release. No new authorization decision, review round or repeated test
-is needed. The preceding final citation check
+Thomas's existing authorization remains his decision. The native CLEAN record
+at `2026-11-06T00:29:15Z` included those six reconciled pins and passed its
+artifact-status check. The prospective gate then identified two additional
+shared interop pins changed by `71b1f3d799`; their exact deltas and existing
+independent judgments are reconciled in `fw-two-interop-pin-reconciliation.md`
+in the same scratch directory. The prepared current argument file includes all
+eight refreshed blobs, preserving modes, population and six rounds. The owner
+publication helper refreshes the native record from those inputs, checks it,
+prepares A and appends B, executes the exact native script, then checks citations
+and releases the claim. Those steps are not claimed complete in this candidate.
+No new review round or repeated test is needed. The preceding citation check
 passed after the two dangling prose references were repaired; the handback
 preserves those repairs and this completed evidence.
 
@@ -41,12 +47,11 @@ preserves those repairs and this completed evidence.
 | 2 | (cleared, fa8f2b00c2) The open 2026-11-02 row of `plan/journal/second-logger-detaches-runtime-level.md` needed a living owner | -- | `spec-daemon-runtime-one-off-defects` owns it; the row left this spec's Owned journal rows table |
 | 3 | Cleared: Thomas authorized the six recorded rounds through the actual terminal; all bounded product findings are resolved under option B | `internal/le/spec/review.go::recordReview` and `internal/le/spec/review_authorization.go::requireOwnerReviewTerminal` accepted the owner-authorized native record. The option-B population and conservative six-round lineage remain in `tmp/session/2026-11-04-230539/scratch/fw-final-round-lineage.md` and `fw-native-review-argv.json`. | Native CLEAN artifact recorded at `tmp/review/filter-wire-0-umbrella-010c656c-7d73-4e34-9923-47e8f6a7475d.md`, six rounds, 1123 live paths plus 60 removals. Artifact-status check passed; commits A+B follow without resetting the count or repeating completed work. |
 
-Current metadata blocker: `internal/le/commit/review.go::judgeReviewCoverage`,
-through `checkReviewArtifact`, rejects the six stale prospective-tree hashes.
-Clearance is the corrected real-terminal record through
-`internal/le/spec/review_authorization.go::requireOwnerReviewTerminal`, followed
-by the native prospective-content check. The earlier authorization blocker in
-row 3 remains cleared; this is a content-pin refresh, not another review cycle.
+Both shared-path reconciliations are complete. The earlier authorization
+blocker in row 3 remains cleared. The publication helper must record the fully
+reconciled inputs before `internal/le/commit/review.go::judgeReviewCoverage`,
+through `checkReviewArtifact`, validates the prospective content. This is a
+content-pin refresh, not another review cycle or a claim of completed publication.
 
 The pinned A-6 bench file `test/perf/filter-a6/textera_bench_test.go.txt`
 cites this spec's path and cannot be edited; `citation.Excluded`
@@ -1621,9 +1626,10 @@ follow-up runtime receipt; native final review and closure remain separate.
 
 ### Audit Summary
 
-- **Final closure status:** blocked on corrected native rerecord after the
-  prospective commit gate rejected six stale shared-path pins. The six-round
-  authorization and completed proofs remain; closure commits have not landed.
+- **Final closure status:** native six-round CLEAN exists; both shared-path
+  reconciliations are complete. The publication helper refreshes the prepared
+  inputs before native check and A+B, then citation and release. Authorization
+  and completed proofs are preserved; that sequence is not claimed complete.
 - **Scope reductions:** none by this closure.
 - **Review scope:** the owner's option B below governs. Earlier independent
   per-phase reviews remain evidence; subsequent repairs need current review.
@@ -1651,26 +1657,28 @@ waiver of this spec's filter-wire obligations.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| No in-scope implementation item is being handed off. | Implementation and proof obligations are complete; corrected native rerecord and closure commits remain. Existing owner authorization is preserved. | None |
+| No in-scope implementation or test item is being handed off. | All obligations are complete; the native record/check, A+B, citation and release publication sequence remains. | None |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
 | Scope | Thomas chose option B on 2026-11-04: review only the code since the last independent per-phase reviews (after f0b04c1428), not the full net diff. That narrows the review; it does not clear the known findings above |
-| Artifact | CLEAN: `tmp/review/filter-wire-0-umbrella-010c656c-7d73-4e34-9923-47e8f6a7475d.md`, recorded `2026-11-05T23:06:18Z`; 1123 live blob/mode pins and 60 removals; zero remaining BLOCKER/ISSUE in the option-B population. |
+| Artifact | Native six-round CLEAN artifact exists at `tmp/review/filter-wire-0-umbrella-010c656c-7d73-4e34-9923-47e8f6a7475d.md`. Fully reconciled inputs contain 1123 live blob/mode pins and 60 removals, including both shared-path reconciliations (six plus two); zero remaining BLOCKER/ISSUE in the option-B population. The publication helper refreshes the artifact from those inputs before the exact prospective gate and A+B. |
 | Owner authorization | Actual terminal authorization: "I authorize the six recorded review rounds for filter-wire-0-umbrella." Six rounds recorded; no additional review round was performed. |
-| `./le spec review check` | Exit 0: `review_gate: OK (0 code files, clean, hashes match tmp/review/filter-wire-0-umbrella-010c656c-7d73-4e34-9923-47e8f6a7475d.md)`. This checks artifact status with zero checkout-path selectors; it does not compare the full working tree. Native commit creation and its script check the exact prospective population against all 1183 pins. |
+| `./le spec review check` | Refreshed artifact check exited 0: `review_gate: OK (0 code files, clean, hashes match tmp/review/filter-wire-0-umbrella-010c656c-7d73-4e34-9923-47e8f6a7475d.md)`. This is artifact-status validation with zero checkout-path selectors, not a full-tree comparison. Native commit creation and its script check the exact prospective population against all 1183 current pins. |
 | Rounds | Original option-B rounds 1 and 2 are explicitly recorded in `tmp/session/2026-11-01-384a3761-c376-4523-a82d-0c61fcd10814/scratch/close4-review-findings.md`. The subsequent repair lineage conservatively requires at least six stages in total: continued discovery; repair review exposing actual-ID singleton/W1/U18 defects; U18 repair review exposing admission and scanner-join gaps; then resolved-source review. This is a reconstruction from actual artifacts, not a recovered native historical counter. Nine parallel historical slices are not nine rounds, and closure prose NOTEs add no round. Exact provenance is in `tmp/session/2026-11-04-230539/scratch/fw-final-round-lineage.md`. |
 | Reviewer lenses used | Ownership/lifetime/concurrency; correctness/wiring/security; proof/performance/maintainability and the Go style pass. |
+| Complete population audit | At chosen HEAD `c3a1f049417280b6737d282480c5e18b0dc4fd54`, 407 exact Spec-work trailers yield 1183 reviewable paths: all 1123 live hashes/modes/objects and 60 absent removals match the prepared argv with zero differences. The stored artifact still has two stale interop pins; this audit is not a native gate PASS. Full rows: `tmp/session/2026-11-04-230539/scratch/fw-complete-population-audit.json`; all eight baseline-delta provenance: `tmp/session/2026-11-04-230539/scratch/fw-complete-population-provenance.md`. No additional review round. |
 
 ### Findings fixed
 
-The artifact above remains historical evidence of the authorized six-round
-review. Its six stale shared-path pins do not cover the current prospective
-tree; the actual commit gate refused them. The exact reconciliation and
-corrected argument file named in the Blocker section are ready for terminal
-rerecord, with no new round or scope change.
+The actual commit gate identified six, then two stale shared-path pins. Both
+exact reconciliations are complete and their corrected inputs are prepared,
+with no new round or scope change. The historical 00:29:15Z artifact and its
+status check cover the first six; the publication helper records the full
+current input before exact prospective-content enforcement. Publication remains
+pending until that sequence succeeds.
 
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
