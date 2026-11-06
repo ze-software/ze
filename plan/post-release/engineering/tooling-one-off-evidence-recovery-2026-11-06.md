@@ -96,8 +96,12 @@ CLAUDE_CODE_SESSION_ID=01a1a907-3278-7971-98dc-dbc41d4a54a5 CGO_ENABLED=1 \
 | Archive log `job-tooling-clock-targeted-restored-20261106-992abb87.log` | `794c99cd0b9ee4ace4eb8879649fae40dc971f77deedba36f67194c172a52e52` |
 
 The log is retained under the private archive named above. This result proves
-the selected timestamp controls. A complete native GoBGP wire pass remains owed,
-and this run supplies no verdict for the inventory method census.
+the selected timestamp controls. The complete native GoBGP job remains owed,
+with the ordinary assertion and cleanup outcomes recorded below. This run
+supplies no verdict for the inventory method census.
+
+Commit `ba5e3f3d4f` landed the clock correction, its timestamp tests, and the
+corresponding documentation. It does not close Phase 9 or the tooling spec.
 
 ## Inventory method census source controls
 
@@ -208,5 +212,234 @@ CLAUDE_CODE_SESSION_ID=01a1a907-3278-7971-98dc-dbc41d4a54a5 CGO_ENABLED=1 \
 | `clock-gobgp-affected.cover` | `9d4ecc5a817e4919861617706c2971e78bbf9013542b8e8c7dff6a1067bf32b3` |
 
 This result covers the selected source controls. The fresh native ordinary
-GoBGP scenario had no result when this record was added. No native pass is
-claimed.
+GoBGP result is recorded below.
+
+## Inventory traversal decision
+
+Owner choice is pending. Three approaches reduced work inside each descriptor
+visit but did not produce the required actual inventory report: cheaper binding
+and output construction, completed pure receiver queries, and the ordered method
+census. The current actual-root run still times out after ten minutes. This
+source-only diagnosis does not approve another repair.
+
+The model being reconsidered is that cheaper individual visits are sufficient.
+`externalreflectiontypes.go` `collectNamed` removes a named frame when its active
+call returns, so a later sibling can traverse that completed subgraph again.
+`collectMethods` traverses a matching method signature even when the same method
+is already present in the output. The current depth limit bounds each path,
+while branching can still multiply the total visits.
+
+MAIN observed all nine cases of the diagnostic-only
+`TestExternalTraversalObservation` overlay pass with race instrumentation.
+At depth 12, the single-child chain made 29 collection calls across 29 distinct
+structural keys and visited the one method signature once. The branching
+diamond made 24,575 calls across 41 structural keys and visited the same one
+signature 4,096 times. Both returned the same `Touch` method, without unknowns
+or external origins, and recorded no active backedge, scope-bearing visit, or
+argument-bearing visit. The recursive control recorded one backedge. Distinct
+generic bindings and a one-key diagnostic-storage overflow also passed.
+
+These keys deliberately omit semantic substitutions and active contexts. The
+counts demonstrate repeated traversal in the synthetic graph only. They do not
+establish equivalent semantic states or dominance in the actual repository run.
+No evaluator repair was part of this observation. MAIN ran:
+
+```sh
+CLAUDE_CODE_SESSION_ID=01a1a907-3278-7971-98dc-dbc41d4a54a5 CGO_ENABLED=1 \
+  bin/le-tooling-resume-01a1a907/le job run \
+  label tooling-traversal-observation-20261106 quiet command \
+  go test -race \
+  -overlay /home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-06-080923/scratch/inventory-traversal-observation/overlay.json \
+  -tags "$tooling_test_tags" -p=1 -run '^TestExternalTraversalObservation$' \
+  -count=1 -timeout=3m -v ./internal/le/repo/inventory
+```
+
+The private archive retains the overlay and its notes under
+`inventory-traversal-observation/`. Its observed log is
+`job-tooling-traversal-observation-20261106-04a11315.log`, SHA-256
+`cb2fe2dd269b4634938c36d6acc0fb33826cc2297289c7c520a4e69b94d7babe`.
+
+The private archive contains the fuller proposal in
+`inventory-reflection-traversal-model-decision.md`. Both proposed routes retain
+the approved Git-only boundary, exact depth and substitution rules, ordered
+refusals, independently owned outputs, and all existing proof obligations.
+
+| Choice | Proposed implementation | Proof required before reuse |
+|--------|-------------------------|-----------------------------|
+| A. Query-local completed-subgraph coverage (recommended) | Within one query and its same monotone output union, skip a completed contribution already represented there. Store coverage facts without cached answer maps. Use the original traversal whenever proof is unavailable. | Exact incoming depth and substitutions, completed traversal, and independence from the current active ancestors. A prior visit in another ancestry alone proves none of these. |
+| B. Explicit ordered state graph | Replace recursive execution with ordered continuations and completion states that retain the full relevant active context. This is a larger rewrite. | Equivalent source, depth, substitutions, visibility, root flags and active context. Unproved state identity retains the original operation. |
+
+Route A is recommended as the smaller change with explicit raw fallback.
+Its useful coverage of the actual repository remains to be established.
+Neither route is implemented or approved by this record.
+
+`ai/rules/completion.md` requires this decision:
+
+> After three failed fixes you MUST stop, report all three approaches, question the mental model, and ask the user which way to fix it.
+
+MAIN has stopped further inventory patches pending the owner's choice between
+these routes. The complete actual-root report and signed fixtures remain owed.
+
+## Native ordinary GoBGP assertions pass, cleanup fails
+
+The fresh ordinary scenario passed its initial state, all reload phases, and
+wire assertions. The recorded assertion verdict is `<nil>`. The overall job
+exited 1 because all five container removal commands exceeded their 30-second
+deadlines. This is an assertion pass with a cleanup failure, and the complete
+native job remains failed.
+
+The scenario is `bgp-export-reload-gobgp`. Its outer admission command used the
+committed launcher while its child rebuilt the working-tree test runner:
+
+```sh
+env -u NO_BUILD \
+  CLAUDE_CODE_SESSION_ID=01a1a907-3278-7971-98dc-dbc41d4a54a5 CGO_ENABLED=0 \
+  INTEROP_SCENARIO=bgp-export-reload-gobgp \
+  ZE_INTEROP_SUFFIX=01a1a907-gobgp-ordinary-recovered \
+  bin/builds/20261106T085530Z-926f01f732/le job run \
+  label gobgp-native-clock-restored-ordinary-ready-20261106 quiet command \
+  ./le --name tooling-resume-01a1a907 test integration interop
+```
+
+The private archive contains `bgp-export-reload-gobgp-429617498/` with the proof
+and original wire capture. Capture metadata reports 403 packets captured, 405
+received by the filter, and zero kernel drops. The applied patch digest matches
+`35eed21c951868c3846465c8bbf4fc5c507ffedd93f9c35b4c4e06d03a09b047`.
+
+| Archive artifact | SHA-256 |
+|------------------|---------|
+| `bgp-export-reload-gobgp-429617498/proof.json` | `b41e9ed8c0c9caa1f9952c07643cb946331ce1ec7e994795c14641cf5cbfaf0e` |
+| `bgp-export-reload-gobgp-429617498/wire.pcap` | `5b0d2b5025e968decf9f461aa4bc791c33c4439e2f5cb75e4e40606f45237bcb` |
+| `job-gobgp-native-clock-restored-ordinary-ready-20261106-fe673b84.log` | `2feaf9d95e7b48aee59b8ab56ed5f8d0e18ce2ff6785d09c682ad832bc43b90a` |
+
+A later filtered `docker ps` query returned no names. Its suffix and daemon
+endpoint binding to this run had not been confirmed, so that observation does
+not establish removal of all owned containers. Later exact lifecycle events
+identify all five container IDs and owner run `ZEHVVNFUHZL4HB4WFFXACZMOMC`.
+They record all five destroy events at 09:28:07–08 UTC, after the owned network's
+destroy event at 09:28:04.872 UTC. The private archive retains
+`native-ordinary-container-lifecycle.events` and
+`native-ordinary-network-lifecycle.events`.
+
+Those positive events establish eventual removal. Their order does not explain
+the timeouts. No cleanup fix or clean native pass is claimed. The secondary
+scenario's omission and restoration proofs remain owed.
+
+## Actual browser poster inputs retained
+
+MAIN observed `TestWebConfigPosterUsesAuthoredInputs` pass in both the renderer
+child and its parent, with no skips. The test ran against the reviewed
+three-file Go overlay after refreshing the native demo binaries and renderer
+image. Its three captures completed the authored login, edit, save, diff,
+confirm, and readback journey. The unchanged assertions require identical bytes
+for identical inputs and different bytes when only the hostname changes.
+
+The overlay retained all three actual WebP inputs before the successful cleanup
+callbacks. They are in `phase4-save-observation-180032089/` under the private
+archive above. Its `manifest.json` records:
+
+| Retained image | Bytes | SHA-256 |
+|----------------|-------|---------|
+| `first.webp` and `same-input.webp` | 61,282 each | `673b056da7d0671cb629c259c0e294653d0f456d21f4f387897daa4822e3decf` |
+| `hostname-only.webp` | 62,834 | `b6653da5578e68e3887addd1bf4d7deb74b5871e87ca7039405f25b7aaea642c` |
+
+The retained log is
+`job-phase4-save-owned-goroutines-retained-posters-20261106-c908d5b4.log`.
+The failure observer did not run, and the manifest has no failure observations.
+This result proves the current poster assertions. It does not explain the
+earlier intermittent Save failures or establish an Fsync cause.
+
+## Removal diagnostic ownership control restored
+
+Before native execution, the independent review found a name-reassignment risk
+in the diagnostic overlay. Its receipt checks verified a full container ID,
+but its later removal still used the name. Reassignment could target another
+container between those operations.
+
+MAIN observed both subcases of
+`TestOwnedRemovalReceiptSurvivesNameReassignment` fail with the original draft.
+The fake probe exercises `ownedRemovalCase.removeReadyContainer` and
+`removeUnattemptedContainer`, without Docker or HTTP operations. Both paths
+and the observer now use the verified full ID. The unchanged fake assertions
+then passed for both `ready` and `setup-cleanup`, with no skips.
+
+The retained baseline and restored logs are
+`job-owned-removal-fake-baseline-20261106-e1567663.log` and
+`job-owned-removal-fake-restored-20261106-e1567663.log`. The reviewed fixed
+source and restored log are also retained in `owned-removal-fake-restored/`
+under the private archive above.
+
+This correction applies to the private diagnostic fixture. It does not fix or
+explain the native GoBGP cleanup timeout. The inventory repair choice remains
+pending, and no further evaluator repair is recorded.
+
+## Native removal controls do not reproduce the timeout
+
+After the fake pass and independent review, MAIN ran the two exact native
+roots serially with race instrumentation. Both passed without skips:
+
+| Root | Retained log | Private archive directory |
+|------|--------------|---------------------------|
+| `TestNativeOwnedRemovalWithoutNetwork` | `job-owned-removal-none-native-20261106-d0687b91.log` | `owned-removal-none-native/case-1222680614/` |
+| `TestNativeOwnedRemovalOnOwnedBridge` | `job-owned-removal-bridge-native-20261106-4c91bb5d.log` | `owned-removal-bridge-native/case-2480728650/` |
+
+Each case's `events.jsonl` records raw removal exit 0, the unchanged 30-second
+command timeout, and exact-ID absence after removal. The bridge case also
+records successful removal of its owned empty bridge. MAIN immediately retained
+both cases and logs outside managed scratch, under the private archive above.
+
+These controls did not reproduce the native GoBGP cleanup timeout. They prove
+no production correction or cause. The secondary omission result follows.
+
+## Secondary GoBGP omission exposes a stale route
+
+The native `bgp-export-reload-secondary-gobgp` omission run failed in its
+`simultaneous` phase. Its runtime patch digest was
+`1b7b90213a0875f9a1ef8e8e5cfadb5537bde56a641174651cbb5050871bcc67`.
+That candidate retains the BOTH reset and omits the secondary withdrawal
+correction. Earlier phases reached the simultaneous check.
+
+At probe 16, secondary FRR still held `10.240.6.0/24` although the phase
+required its absence. The independent FRR sink returned an empty route object
+for the same prefix. GoBGP's sent bookkeeping toward secondary FRR reported
+five prefixes where the receiver contract required four.
+
+The final probe, number 17, also hit the existing 30-second command bound
+while querying `10.240.5.0/24`. The failed verdict retains that timeout.
+The stale-route observation is a semantic failure, but this run does not prove
+that every negative-run control completed cleanly. The capture reports 450
+packets captured, 450 received by the filter, zero kernel drops, and stop exit 0.
+
+The private archive retains `gobgp-secondary-cut-native/`, including
+`job-gobgp-secondary-cut-native-20261106-fe673b84.log` and
+`bgp-export-reload-secondary-gobgp-759034807/` with the proof and wire capture.
+The safe projection is
+`scratch/gobgp-secondary-paired-proof/cut-actual-safe-projection.json` in the
+current session. This is a new successor scenario, not recovery of the missing
+historical four-peer proof.
+
+MAIN restored the full patch only after the live file matched the exact cut
+candidate. Its digest is again
+`35eed21c951868c3846465c8bbf4fc5c507ffedd93f9c35b4c4e06d03a09b047`.
+All frozen control hashes matched. The full secondary restoration job
+`gobgp-secondary-restored-native-20261106` passed with exit 0 and no cleanup
+error. Its assertion verdict is `<nil>`, and all phases passed, including
+repeat and restore. The capture reports 454 packets captured, 456 received by
+the filter, zero kernel drops, and stop exit 0. The private archive retains
+`gobgp-secondary-restored-native/`, including
+`job-gobgp-secondary-restored-native-20261106-fe673b84.log` and
+`bgp-export-reload-secondary-gobgp-2789421850/` with the proof and wire capture.
+
+Independent review accepted the semantic omission failure and full-patch
+positive result, but refused the controlled pair. The Ze and BIRD image IDs
+changed between the separate suite runs. Matching Ze binary bytes and FRR
+image IDs do not establish equivalent nonproducer filesystems or BIRD inputs.
+The old cut-run Ze and BIRD images are unavailable for inspection. This record
+does not identify what removed them.
+
+`internal/le/interoplab/docker.go` `Docker.Build` adds the process owner's image
+labels to each build. Those labels can change image identity. They do not
+prove filesystem equivalence. A source author is preparing one `Suite.Run`
+case that shares immutable Ze, BIRD, and FRR image IDs across both runs while
+building the cut and full GoBGP images separately. That case has not run.
+The controlled pair and phase closure remain owed.
