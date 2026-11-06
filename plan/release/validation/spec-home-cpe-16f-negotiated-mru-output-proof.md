@@ -79,7 +79,7 @@ Record forced red with the actual snapshot producer returning configured MRU in 
 | ID | Risk / assumption | Early signal or basis | Validation / mitigation |
 |----|-------------------|-----------------------|-------------------------|
 | A-1 | Peer MRU1400 is a suitable distinct value. | It is less than1492 and more than IPv6's1280; peer producer not yet checked. | Read pinned pppd source and validate actual negotiation; unvalidated. |
-| R-1 | F-5 convergence makes local/peer values equal again. | `plan/release/validation/spec-home-cpe-16e-live-mru-nak.md` touches the same scenario. | Keep separate attempts or scenarios so each proof remains discriminating. |
+| R-1 | F-5 convergence makes local/peer values equal again. | `spec-home-cpe-16e-live-mru-nak` owns the separate1493-to1492 Nak scenario in `docs/labs/l2tp-interop.md`. | Keep separate attempts or scenarios so each proof remains discriminating. |
 | R-2 | Raw peer MRU is renamed implicitly as effective MTU. | 16a/16b introduce transmit capping. | Read snapshot/event producers and document each field before changing expected output. |
 
 ## Scope and Next Action
