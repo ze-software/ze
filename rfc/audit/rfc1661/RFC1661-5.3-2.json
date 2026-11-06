@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject": "480d72ff3c4dac57",
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject#2": "480d72ff3c4dac57",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661BooleanOptionsUseRejectNotNak": "a38269fa86eda1cf",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ValuedOptionUsesNak": "a38269fa86eda1cf"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661BooleanOptionsUseRejectNotNak": "4f9ab6a38ee26d29",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ValuedOptionUsesNak": "4f9ab6a38ee26d29"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject": "0cc5e611ff5a07bd",

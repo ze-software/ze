@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: an accepted Peer-ID/Password pair answered with anything but a PAP Code 2. TestPAPRequestEmitsEvent (accept=true) asserts reply proto ProtoPAP and payload[0]==PAPAuthenticateAck through runPAPAuthPhase; TestPAPRejectWritesNak asserts the reject path sends Nak, so an unconditional Ack goes red.",
+  "note": "RFC 1334 Section 2.2.2: \"If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate-Ack).\" Rejudged statically at HEAD; the bodies are unchanged, only line references in the doc comments moved. TestPAPRequestEmitsEvent delivers accept through the real runPAPAuthPhase over a pipe and asserts ProtoPAP and payload[0]==PAPAuthenticateAck, so both the PAP packet and Code 2 are proved. TestPAPRejectWritesNak asserts Code 3 on reject, so an unconditional Ack goes red. Acceptance itself is the handler's decision, delivered on authRespCh; this row proves the reply to that decision. The pap.go producer rewritten by 926f01f732 keeps the accept branch these tests exercise. The row cites Section 2.3, which RFC 1334 does not have; the sentence is in 2.2.2.",
   "requirement_sha": "5924f6ce926f17d2",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "8adffcb3742d299f",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8adffcb3742d299f"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "25c6d3c80a46b9bf",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "fead172fde580aff"
   },
   "verdict": "enforced"
 }

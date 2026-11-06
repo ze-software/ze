@@ -1,17 +1,17 @@
 {
-  "note": "Forbidden: a reply Identifier not copied from the request that caused it. TestPAPRequestEmitsEvent and TestPAPRejectWritesNak assert 0x42 and 0x77 echoed on Ack and Nak; TestPAPReanswersAfterAuthentication asserts replies carry 0x5a, 0x5b, 0x5c in turn, so a hardcoded or stale Identifier goes red.",
+  "note": "RFC 1334 Section 2.2.2: \"The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply.\" Rejudged statically at HEAD; the bodies are unchanged. TestPAPRequestEmitsEvent asserts 0x42 on Ack and TestPAPRejectWritesNak asserts 0x77 on Nak, so a hardcoded value goes red on the first-reply path. TestPAPReanswersAfterAuthentication drives handleFrame in AckSent and Opened and asserts replies 0x5a, 0x5b, 0x5c, so a cached initial Identifier in reanswerPAP goes red. Its accept-only session is sufficient: a rejected session ends through s.fail, so the Nak has no reanswer path here. Doc comments in rfc1334_pap_test.go still cite pap.go:123, 129 and 138, which no longer name WritePAPAck, WritePAPNak or the Identifier copy.",
   "requirement_sha": "7beeec6de3934fde",
   "tests": {
     "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "8e29592e5f428395",
     "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "8e29592e5f428395",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "8adffcb3742d299f",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8adffcb3742d299f"
   },
   "units": {
     "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "7b2de7debcb06a87",
     "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "7b2de7debcb06a87",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "25c6d3c80a46b9bf",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "fead172fde580aff"
   },
   "verdict": "enforced"
 }

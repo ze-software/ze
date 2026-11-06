@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic": "9702a8b651d08d9e",
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic#2": "9702a8b651d08d9e",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic": "a38269fa86eda1cf",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "a38269fa86eda1cf"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic": "4f9ab6a38ee26d29",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "4f9ab6a38ee26d29"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic": "c6346cdc5edd76e3",

@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: no Protocol-Reject for an unrecognized protocol in Opened. TestRFC1661UnsupportedProtocolRejectedInOpened goes red unless one LCP code-8 frame names 0x8281; TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened goes red on any frame outside Opened.",
+  "note": "RFC 1661 Section 5.7: \"If the LCP automaton is in the Opened state, then this MUST be reported back to the peer by transmitting a Protocol-Reject.\" Rejudged statically at HEAD; the body is unchanged. TestRFC1661UnsupportedProtocolRejectedInOpened goes red unless one LCP code-8 frame names the received protocol. TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened requires zero frames outside Opened, matching the same section: \"Protocol-Reject packets can only be sent in the LCP Opened state.\" The mutant record on the handleFrame fall-through is semantic; the negative record is a producer panic showing reachability only, and removing the Opened gate goes red by reading.",
   "requirement_sha": "744d413be21b2a4a",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened": "b6e0cb190623fbb9",
-    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "b6e0cb190623fbb9"
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened": "92fae431476548ad",
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "92fae431476548ad"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened": "f5ccb4b293bca977",
-    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "e246a3ae0acfbd29"
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "fbeb4182131d546d"
   },
   "verdict": "enforced"
 }

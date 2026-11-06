@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: a rejected pair answered with anything but a PAP Code 3. TestPAPRejectWritesNak (accept=false) asserts payload[0]==PAPAuthenticateNak; TestPAPRequestEmitsEvent asserts the accept path sends Ack, so an unconditional Nak goes red. The SHOULD-terminate half of the sentence is RFC1334-2.3-5 and is not claimed here.",
+  "note": "RFC 1334 Section 2.2.2: \"If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate-Nak), and SHOULD take action to terminate the link.\" Rejudged statically at HEAD. Code 3 on reject is enforced: TestPAPRejectWritesNak asserts payload[0]==PAPAuthenticateNak, and TestPAPRequestEmitsEvent asserts Ack on accept. The clause 'a PAP packet' is not: TestPAPRejectWritesNak discards the protocol (`_, payload := readPeerFrame`), and the only ProtoPAP assertion is on the Ack in the other test. A reject path that framed Code 3 under another Protocol stays green. Today pap.go writes both replies under one WriteFrame(ProtoPAP) before the branch, so the code complies and this is a test gap, not a product defect. Fix: assert proto==ProtoPAP on the reply in TestPAPRejectWritesNak. The SHOULD half is RFC1334-2.3-5 and is not claimed here.",
   "requirement_sha": "1413540851c632dd",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "8adffcb3742d299f",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8adffcb3742d299f"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "25c6d3c80a46b9bf",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "fead172fde580aff"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

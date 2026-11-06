@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: silence for an unsupported protocol in Opened. TestRFC1661UnsupportedProtocolRejectedInOpened goes red unless exactly one LCP Protocol-Reject naming 0x8281 with the Information field is written; the negative TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened goes red on any frame in ReqSent/AckSent/Stopped.",
+  "note": "RFC 1661 Section 3.6: \"While LCP is in the Opened state, any protocol packet which is unsupported by the implementation MUST be returned in a Protocol-Reject (described later).\" Rejudged statically at HEAD; the narrowed claim drops supportsProtocol, which the body never exercised. TestRFC1661UnsupportedProtocolRejectedInOpened sends MPLSCP in Opened and asserts exactly one frame, ProtoLCP, code 8, Rejected-Protocol, the Information field returned verbatim, and state Opened; the mutant at the handleFrame fall-through goes red. TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened asserts zero frames in ReqSent, AckSent and Stopped; removing the Opened gate goes red by reading, though its recorded break is a producer panic that shows reachability only. One unsupported value is sufficient because handleFrame's fall-through handles every unnamed protocol. Disabled-NCP rejection added by 926f01f732 is proved by ncp_disabled_test.go, which this row does not cite.",
   "requirement_sha": "1ab7e6a94e541ead",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened": "b6e0cb190623fbb9",
-    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "b6e0cb190623fbb9"
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened": "92fae431476548ad",
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "92fae431476548ad"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened": "f5ccb4b293bca977",
-    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "e246a3ae0acfbd29"
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "fbeb4182131d546d"
   },
   "verdict": "enforced"
 }
