@@ -292,14 +292,14 @@ func TestPAPWriteAckCapsMessageAt255(t *testing.T) {
 //
 // RFC requirement: RFC1334-2.3-1 positive -- on an accepted id/password pair
 // runPAPAuthPhase transmits an Authenticate-Ack with Code=2 (producer
-// internal/component/l2tp/ppp/pap.go:259 -> WritePAPAck pap.go:123); the reply
+// internal/component/l2tp/ppp/pap.go:259 -> WritePAPAck pap.go:132); the reply
 // payload[0] asserted here is PAPAuthenticateAck.
 // RFC requirement: RFC1334-2.3-2 negative -- the accept path sends an Ack
 // (Code=2), never a Nak, so Nak stays confined to the reject path (contrast the
 // WritePAPNak call at pap.go:262).
 // RFC requirement: RFC1334-2.3-3 positive -- the reply echoes the request
 // Identifier 0x42 (producer writePAPReply copies buf[off+1]=identifier,
-// internal/component/l2tp/ppp/pap.go:138); paired with the 0x77 case in
+// internal/component/l2tp/ppp/pap.go:147); paired with the 0x77 case in
 // TestPAPRejectWritesNak, the two distinct ids discriminate a hardcoded value.
 func TestPAPRequestEmitsEvent(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
@@ -406,14 +406,14 @@ func TestPAPRequestEmitsEvent(t *testing.T) {
 //
 // RFC requirement: RFC1334-2.3-2 positive -- on a rejected id/password pair
 // runPAPAuthPhase transmits an Authenticate-Nak with Code=3 (producer
-// internal/component/l2tp/ppp/pap.go:262 -> WritePAPNak pap.go:129); the reply
+// internal/component/l2tp/ppp/pap.go:262 -> WritePAPNak pap.go:138); the reply
 // payload[0] asserted here is PAPAuthenticateNak.
 // RFC requirement: RFC1334-2.3-1 negative -- the reject path sends a Nak
 // (Code=3), never an Ack, so Ack stays confined to the accept path (contrast the
 // WritePAPAck call at pap.go:259).
 // RFC requirement: RFC1334-2.3-3 positive -- the reply echoes the distinct
 // request Identifier 0x77 (producer writePAPReply copies buf[off+1]=identifier,
-// internal/component/l2tp/ppp/pap.go:138); the 0x42/0x77 pair across these two
+// internal/component/l2tp/ppp/pap.go:147); the 0x42/0x77 pair across these two
 // tests proves the identifier is copied from the request, not hardcoded.
 func TestPAPRejectWritesNak(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
@@ -447,7 +447,10 @@ func TestPAPRejectWritesNak(t *testing.T) {
 
 	s.authRespCh <- authResponseMsg{accept: false, message: "nope"}
 
-	_, payload := readPeerFrame(t, peerEnd)
+	proto, payload := readPeerFrame(t, peerEnd)
+	if proto != ProtoPAP {
+		t.Errorf("reply proto = 0x%04x, want 0x%04x", proto, ProtoPAP)
+	}
 	if payload[0] != PAPAuthenticateNak {
 		t.Errorf("reply code = %d, want PAPAuthenticateNak", payload[0])
 	}

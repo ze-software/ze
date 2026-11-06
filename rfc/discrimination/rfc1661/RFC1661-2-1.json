@@ -26,7 +26,7 @@
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized",
     "unit-sha": "80d4e5b51076e4cb",
-    "claim-sha": "c258cfdc747d4df0",
+    "claim-sha": "9374f686b6b99cb2",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
     "producer-sha": "dd8b1e1b25fb1c02",

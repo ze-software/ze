@@ -232,12 +232,12 @@ func TestRFC1661NonCompliantProtocolTreatedUnrecognized(t *testing.T) {
 
 // VALIDATES: the same body under the compliant LCP Protocol 0xC021 IS
 //
-//	recognized and answered, so the drop above is parity-driven rather than
-//	a blanket refusal.
+//	recognized and answered, so the Protocol-Reject above is parity-driven
+//	rather than a blanket refusal.
 //
 // RFC requirement: RFC1661-2-1 positive -- 0xC021 satisfies both parity rules
 // (LSB of the least significant octet is 1, LSB of the most significant octet
-// is 0) and is dispatched to the LCP handler instead of being dropped.
+// is 0) and is dispatched to the LCP handler instead of being rejected.
 func TestRFC1661CompliantProtocolRecognized(t *testing.T) {
 	s, rec, _ := newRFC1661Session(LCPStateOpened)
 	s.peerMagic = 0x11223344
