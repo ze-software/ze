@@ -18,12 +18,12 @@ func (e *externalEffects) assemblyResult(function sourceFunction, inputs externa
 	}
 	if e.assemblyErr != nil {
 		e.problem(source, "assembly ownership is unresolved: "+e.assemblyErr.Error())
-		return externalValue{unknown: "assembly ownership is unresolved"}
+		return externalValue{unknownAt: source, unknown: "assembly ownership is unresolved"}
 	}
 	proof, err := e.source.snapshot.certifyAssembly(function, e.assembly)
 	if err != nil {
 		e.problem(source, "assembly ownership is unresolved: "+err.Error())
-		return externalValue{unknown: "assembly ownership is unresolved"}
+		return externalValue{unknownAt: source, unknown: "assembly ownership is unresolved"}
 	}
 	var result externalValue
 	result.join(inputs)
@@ -34,7 +34,7 @@ func (e *externalEffects) assemblyResult(function sourceFunction, inputs externa
 		// a direct call into that import: its witness and its origin as well.
 		if err := e.source.witness(proof.identity); err != nil {
 			e.problem(source, err.Error())
-			return externalValue{unknown: "assembly external witness is unresolved"}
+			return externalValue{unknownAt: source, unknown: "assembly external witness is unresolved"}
 		}
 		result.join(externalOrigin(proof.identity))
 	case bodylessLeaf:
@@ -48,16 +48,16 @@ func (e *externalEffects) assemblyResult(function sourceFunction, inputs externa
 			object := callablePackageBinding(function.pkg, name)
 			if object == nil {
 				e.problem(source, "assembly leaf reads variable "+name+", which no retained Go file declares")
-				return externalValue{unknown: "assembly leaf variable is unresolved"}
+				return externalValue{unknownAt: source, unknown: "assembly leaf variable is unresolved"}
 			}
 			if object.Kind != ast.Var {
 				e.problem(source, "assembly leaf reads "+name+", which is not a Go variable")
-				return externalValue{unknown: "assembly leaf variable is unresolved"}
+				return externalValue{unknownAt: source, unknown: "assembly leaf variable is unresolved"}
 			}
 			value := e.readObject(object)
 			if value.unknown != "" {
 				e.problem(source, "assembly leaf variable "+name+" is unresolved: "+value.unknown)
-				return externalValue{unknown: "assembly leaf variable is unresolved"}
+				return externalValue{unknownAt: source, unknown: "assembly leaf variable is unresolved"}
 			}
 			result.join(value)
 		}

@@ -77,7 +77,7 @@ func (proofs *externalFormalProofs) expression(source sourceExpr, depth int) *ex
 		proof := &externalFormalProof{grounded: true}
 		for _, element := range expression.Elts {
 			if keyed, ok := element.(*ast.KeyValueExpr); ok {
-				if !e.structLiteral(sourceExpr{value: expression.Type, file: source.file, pkg: source.pkg}) {
+				if !e.literalKeyMember(sourceExpr{value: expression.Type, file: source.file, pkg: source.pkg}, keyed.Key) {
 					proof.join(child(keyed.Key))
 				}
 				proof.join(child(keyed.Value))

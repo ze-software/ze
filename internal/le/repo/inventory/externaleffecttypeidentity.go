@@ -16,6 +16,14 @@ func (w *externalTypeWalk) definition(source sourceExpr) (*ast.TypeSpec, sourceE
 			return nil, sourceExpr{}, reason
 		}
 	case *ast.SelectorExpr:
+		if identity, external := w.effects.source.externalImport(source, datatype); external {
+			// Standard-library source is not an analyzer input, so there is no
+			// declaration to return. The capability, reflection, interface-root
+			// and literal walks model the type as external before asking here;
+			// a question only its declaration answers (a range kind, a field
+			// type) refuses with this reason.
+			return nil, sourceExpr{}, "standard-library type " + identity + "." + datatype.Sel.Name + " has no retained declaration"
+		}
 		directory, imported := w.effects.source.snapshot.evaluator().callableImport(source, datatype)
 		if !imported {
 			return nil, sourceExpr{}, "retained type import binding is unresolved"

@@ -208,6 +208,24 @@ This transfer grants neither backing storage nor ordinary callee ownership.
 <!-- source: internal/le/repo/inventory/externaltypearguments.go -- externalEffects.indexArgument, externalEffects.typeArgument -->
 <!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.expose -->
 
+A standard-library named type is external on every route that names it: a
+bare selector (`sync.Pool`), an instantiation (`atomic.Pointer[T]`,
+`iter.Seq2[K, V]`), a pointer to one, a field or an embedded field of that
+type, and a composite literal of it. Its source is not an analyzer input, so
+the type is modelled the way an external call is: it contributes its import's
+origin and may reach the ambient pool, and its type arguments are still walked
+as retained types, so `atomic.Pointer[hook]` keeps the methods of `hook`. A
+keyed literal of such a type evaluates every key that could be a value and
+treats only an identifier that binds nothing in scope as a field name. A
+question only the declaration answers (the range kind of the type, the type of
+one of its fields) refuses with the reason that the type has no retained
+declaration. A selector into a module package the inventory does not retain
+still refuses as an unresolved import binding.
+<!-- source: internal/le/repo/inventory/externaleffecttypes.go -- externalTypeWalk.named, externalTypeWalk.external -->
+<!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk.collectNamed, externalReflectionWalk.collectExternal -->
+<!-- source: internal/le/repo/inventory/externalliteralshapes.go -- externalEffects.literalLayout, externalLiteralLayout.member -->
+<!-- source: internal/le/repo/inventory/externaleffecttypeidentity.go -- externalTypeWalk.definition -->
+
 Reflection authority is separate from actual callable ownership. Its exported
 methods, opaque origins and unresolved type facts enter the ambient pool only
 when exposed. Ordinary retained calls still execute only their actual function
@@ -272,7 +290,15 @@ operation; local unknown values, field-ownership obligations and provisional
 failures do not establish that condition. The refusal retains any currently
 recorded issue preferred by the existing issue ordering; otherwise it reports the
 unresolved ambient unknown without an execution-source position, and effects not
-visited need not receive a diagnostic. The ordinary unresolved diagnostic
+visited need not receive a diagnostic. The reason still names where it came
+from: each unknown carries the committed expression that first produced it (the
+innermost expression, type or descriptor walk that saw it), the first reason
+keeps its site through every join, and the refusal message reads
+`committed inventory <file>:<line>: external registration capability is unknown:
+<reason>` with the usual fix. The site changes only the message, never which
+issue the ordering prefers.
+<!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.refuseUnknown, externalEffects.cause -->
+<!-- source: internal/le/repo/inventory/externalvalues.go -- externalValue.locate --> The ordinary unresolved diagnostic
 traversal keeps its saved refusal and cannot publish a partial population. Every
 potentially successful analysis still completes all required effects, ownership
 checks and bounds.

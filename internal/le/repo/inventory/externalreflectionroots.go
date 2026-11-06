@@ -66,6 +66,14 @@ func (w *externalReflectionWalk) interfaceRoot(source sourceExpr, scope *externa
 		default:
 			return false, "unsupported reflected value root representation"
 		}
+		if selector, selected := source.value.(*ast.SelectorExpr); selected {
+			if _, external := w.effects.source.externalImport(source, selector); external {
+				// An instantiated standard-library type, as the bare selector
+				// above: the full walker keeps its origin and collects its
+				// retained type arguments.
+				return false, ""
+			}
+		}
 		definition, owner, reason := identity.definition(source)
 		if reason != "" {
 			return false, reason

@@ -34,7 +34,14 @@ func (e *externalEffects) object(source sourceExpr) *ast.Object {
 // callable/reference ownership are not converted into the empty capability set.
 // Once ambient unknown proves refusal, new expression expansion retains that fact.
 // indexArgument MUST preserve this entrance refusal order for type operands.
+// Any unknown the expression produced is sited at it, innermost first.
 func (e *externalEffects) value(source sourceExpr, possible bool, depth int) externalValue {
+	result := e.expressionValue(source, possible, depth)
+	result.locate(source)
+	return result
+}
+
+func (e *externalEffects) expressionValue(source sourceExpr, possible bool, depth int) externalValue {
 	if e.amb.unknown != "" {
 		return externalValue{unknown: e.amb.unknown}
 	}
@@ -166,7 +173,9 @@ func (e *externalEffects) value(source sourceExpr, possible bool, depth int) ext
 				return result
 			}
 			if _, literal := value.X.(*ast.CompositeLit); !literal {
+				// This reason replaces the operand's, so its site does too.
 				result.unknown = "address ownership is unresolved"
+				result.unknownAt = source
 			}
 		}
 		return result

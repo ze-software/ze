@@ -130,7 +130,7 @@ func (e *externalEffects) readObject(object *ast.Object) externalValue {
 		e.formalDemand[object] = true
 	}
 	if e.linkedObject(object) {
-		return externalValue{unknown: "linkname authority is unsupported"}
+		return externalValue{unknown: "linkname authority is unsupported", unknownAt: e.linknames[object]}
 	}
 	var result externalValue
 	result.join(e.bindings[object])

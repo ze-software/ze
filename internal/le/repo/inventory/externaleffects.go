@@ -98,11 +98,21 @@ func (e *externalEffects) issue(source sourceExpr, reason string, kind externalI
 	} else if source.file != nil {
 		position = source.file.Pos()
 	}
-	var cause error = fmt.Errorf("external %s", reason)
-	if source.file != nil {
-		cause = e.source.snapshot.evaluator().problem(source, "external "+reason)
+	e.prefer(&externalIssue{kind: kind, position: position, cause: e.cause(source, reason)})
+}
+
+// cause names the committed site of reason when one is known. An issue with
+// no site still refuses, with the reason alone.
+func (e *externalEffects) cause(source sourceExpr, reason string) error {
+	if source.file == nil {
+		return fmt.Errorf("external %s", reason)
 	}
-	candidate := &externalIssue{kind: kind, position: position, cause: cause}
+	return e.source.snapshot.evaluator().problem(source, "external "+reason)
+}
+
+// prefer keeps the issue of the highest kind, then the earliest position, then
+// the smallest message, so the refusal does not depend on visiting order.
+func (e *externalEffects) prefer(candidate *externalIssue) {
 	previous, found := e.failure.(*externalIssue)
 	if found {
 		if previous.kind > candidate.kind {
@@ -128,7 +138,12 @@ func (e *externalEffects) refuseUnknown() error {
 	if e.amb.unknown == "" {
 		return nil
 	}
-	e.issue(sourceExpr{}, "registration capability is unknown: "+e.amb.unknown, externalUnresolved)
+	// The ambient refusal keeps no position, so it orders before every other
+	// unresolved issue as it always has; only its message names the site
+	// that first produced the reason (unknownAt, absent only when no walk
+	// could site it).
+	reason := "registration capability is unknown: " + e.amb.unknown
+	e.prefer(&externalIssue{kind: externalUnresolved, position: token.NoPos, cause: e.cause(e.amb.unknownAt, reason)})
 	return e.failure
 }
 

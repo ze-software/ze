@@ -1,7 +1,10 @@
 // Design: docs/architecture/plugin/feature-gates.md -- positional literals preserve field capabilities.
 package repoinventory
 
-import "go/ast"
+import (
+	"go/ast"
+	"go/types"
+)
 
 type externalLiteralKind uint8
 
@@ -9,6 +12,9 @@ const (
 	externalLiteralUnresolved externalLiteralKind = iota
 	externalLiteralCollection
 	externalLiteralStruct
+	// externalLiteralOpaque is a standard-library type: its declaration is not
+	// an analyzer input, so neither its fields nor its key kind are known.
+	externalLiteralOpaque
 )
 
 type externalLiteralLayout struct {
@@ -17,14 +23,41 @@ type externalLiteralLayout struct {
 	types  map[string]sourceExpr
 }
 
-// structLiteral is also used by formal provenance to distinguish member names
-// from executable collection-key expressions under the same root proof.
-func (e *externalEffects) structLiteral(source sourceExpr) bool {
-	layout, reason := e.literalLayout(source, 0, false)
+// literalKeyMember is also used by formal provenance to distinguish member
+// names from executable collection-key expressions under the same root proof.
+func (e *externalEffects) literalKeyMember(datatype sourceExpr, key ast.Expr) bool {
+	layout, reason := e.literalLayout(datatype, 0, false)
 	if reason != "" {
 		return false
 	}
-	return layout.kind == externalLiteralStruct
+	return layout.member(datatype.pkg, key)
+}
+
+// member reports whether key names a field rather than executing as a value.
+// A standard-library literal's key is a field name only when it is an
+// identifier that binds nothing in scope (New in sync.Pool{New: f}); any key
+// that could be a value is evaluated as one, which only widens the union.
+func (layout externalLiteralLayout) member(pkg *sourcePackage, key ast.Expr) bool {
+	switch layout.kind {
+	case externalLiteralStruct:
+		return true
+	case externalLiteralUnresolved, externalLiteralCollection:
+		return false
+	case externalLiteralOpaque:
+		name, identifier := key.(*ast.Ident)
+		if !identifier {
+			return false
+		}
+		if name.Obj != nil {
+			return false
+		}
+		if callablePackageBinding(pkg, name.Name) != nil {
+			return false
+		}
+		return types.Universe.Lookup(name.Name) == nil
+	default:
+		panic("BUG: literal layout kind is not declared")
+	}
 }
 
 // literalLayout follows exact retained aliases and defined types. Field slots
@@ -95,6 +128,13 @@ func (e *externalEffects) literalLayout(source sourceExpr, depth int, positional
 			generic = true
 			arguments = len(datatype.Indices)
 			source.value = datatype.X
+		}
+		if selector, selected := source.value.(*ast.SelectorExpr); selected {
+			if _, external := e.source.externalImport(source, selector); external {
+				// Every element still joins the literal's union; only member
+				// projection needs a retained layout.
+				return externalLiteralLayout{kind: externalLiteralOpaque}, ""
+			}
 		}
 		definition, owner, reason := walk.definition(source)
 		if reason != "" {
@@ -170,7 +210,7 @@ func (e *externalEffects) literalValue(source sourceExpr, literal *ast.Composite
 					return result
 				}
 				name = member.Name
-			} else {
+			} else if !layout.member(source.pkg, keyed.Key) {
 				key := e.value(sourceExpr{value: keyed.Key, file: source.file, pkg: source.pkg}, possible, depth+1)
 				if e.amb.unknown != "" {
 					return externalValue{unknown: e.amb.unknown}

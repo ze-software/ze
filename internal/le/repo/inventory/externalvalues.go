@@ -8,11 +8,14 @@ import "go/ast"
 // retains reflection authority. Unknown is a separate explicit fact. Reads
 // record metadata dependencies without granting writes to scalar copies.
 type externalValue struct {
-	callables  map[ast.Node]sourceExpr
-	locations  map[*ast.Object]bool
-	reads      map[*ast.Object]bool
-	origins    map[string]bool
-	unknown    string
+	callables map[ast.Node]sourceExpr
+	locations map[*ast.Object]bool
+	reads     map[*ast.Object]bool
+	origins   map[string]bool
+	unknown   string
+	// unknownAt is the expression that produced unknown. It travels with the
+	// first reason, so a terminal refusal names the line that caused it.
+	unknownAt  sourceExpr
 	fields     map[string]externalValue
 	reflection externalReflection
 	// unresolvedFields is a root-selector obligation, not an absent capability.
@@ -104,10 +107,24 @@ func (v *externalValue) join(other externalValue) bool {
 	if v.unknown == "" {
 		if other.unknown != "" {
 			v.unknown = other.unknown
+			v.unknownAt = other.unknownAt
 			changed = true
 		}
 	}
 	return changed
+}
+
+// locate gives an unsited unknown the expression a walk was evaluating when
+// the reason appeared. Walks call it on their own result as they return, so
+// the innermost walk sites the reason and every outer walk keeps that site.
+func (v *externalValue) locate(source sourceExpr) {
+	if v.unknown == "" {
+		return
+	}
+	if v.unknownAt.file != nil {
+		return
+	}
+	v.unknownAt = source
 }
 
 func externalCallable(node ast.Node, source sourceExpr) externalValue {

@@ -10,6 +10,9 @@ type externalReflection struct {
 	methods map[ast.Node]sourceExpr
 	origins map[string]bool
 	unknown string
+	// unknownAt is the type expression that produced unknown, carried with
+	// the first reason exactly as externalValue carries its own.
+	unknownAt sourceExpr
 }
 
 // join owns its output maps independently from either input. Method identities
@@ -41,6 +44,7 @@ func (r *externalReflection) join(other externalReflection) bool {
 	if r.unknown == "" {
 		if other.unknown != "" {
 			r.unknown = other.unknown
+			r.unknownAt = other.unknownAt
 			changed = true
 		}
 	}
@@ -53,7 +57,7 @@ func (e *externalEffects) promoteReflection(reflection externalReflection) {
 	if e.amb.unknown != "" {
 		return
 	}
-	value := externalValue{callables: reflection.methods, origins: reflection.origins, unknown: reflection.unknown}
+	value := externalValue{callables: reflection.methods, origins: reflection.origins, unknown: reflection.unknown, unknownAt: reflection.unknownAt}
 	if e.amb.join(value) {
 		e.changed = true
 	}
@@ -67,7 +71,7 @@ func (e *externalEffects) exposeSignature(node ast.Node, source sourceExpr) {
 	}
 	signature, _ := externalFormalSignature(node)
 	if signature == nil {
-		e.promoteReflection(externalReflection{unknown: "exposed callable signature is unavailable"})
+		e.promoteReflection(externalReflection{unknown: "exposed callable signature is unavailable", unknownAt: source})
 		return
 	}
 	source.value = signature
@@ -79,12 +83,12 @@ func (e *externalEffects) exposeSignature(node ast.Node, source sourceExpr) {
 // value alone has no concrete runtime descriptor; descriptor child edges do.
 func (e *externalEffects) reflectedValue(source sourceExpr, scope *externalTypeScope, depth int) externalReflection {
 	if e.amb.unknown != "" {
-		return externalReflection{unknown: e.amb.unknown}
+		return externalReflection{unknown: e.amb.unknown, unknownAt: e.amb.unknownAt}
 	}
 	walk := externalReflectionWalk{effects: e}
 	interfaceRoot, reason := walk.interfaceRoot(source, scope, depth)
 	if reason != "" {
-		return externalReflection{unknown: reason}
+		return externalReflection{unknown: reason, unknownAt: source}
 	}
 	if interfaceRoot {
 		return externalReflection{}

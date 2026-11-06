@@ -41,7 +41,14 @@ type externalTypeScope struct {
 	parameters map[string]externalTypeBinding
 }
 
+// value sites any unknown its shape produced at the type expression it walked.
 func (w *externalTypeWalk) value(source sourceExpr, scope *externalTypeScope, methods bool, depth int) externalValue {
+	result := w.shape(source, scope, methods, depth)
+	result.locate(source)
+	return result
+}
+
+func (w *externalTypeWalk) shape(source sourceExpr, scope *externalTypeScope, methods bool, depth int) externalValue {
 	if depth >= 128 {
 		return externalValue{unknown: "type capability depth exceeds 128"}
 	}
@@ -136,15 +143,6 @@ func (w *externalTypeWalk) value(source sourceExpr, scope *externalTypeScope, me
 		}
 		return w.named(source, nil, methods, depth+1)
 	case *ast.SelectorExpr:
-		if identity, external := w.effects.source.externalImport(source, datatype); external {
-			if err := w.effects.source.witness(identity); err != nil {
-				return externalValue{unknown: err.Error()}
-			}
-			result := externalOrigin(identity)
-			w.references = true
-			result.join(externalFlat(w.effects.amb, 0))
-			return result
-		}
 		return w.named(source, nil, methods, depth+1)
 	case *ast.IndexExpr:
 		arguments := []externalTypeArgument{{source: sourceExpr{value: datatype.Index, file: source.file, pkg: source.pkg}, scope: scope}}
@@ -159,9 +157,16 @@ func (w *externalTypeWalk) value(source sourceExpr, scope *externalTypeScope, me
 	return externalValue{unknown: "unsupported retained type capability shape"}
 }
 
+// named is the one entrance for a named type, bare or instantiated, so a
+// standard-library type is external on every route that reaches it.
 func (w *externalTypeWalk) named(source sourceExpr, arguments []externalTypeArgument, methods bool, depth int) externalValue {
 	if depth >= 128 {
 		return externalValue{unknown: "type capability depth exceeds 128"}
+	}
+	if selector, selected := source.value.(*ast.SelectorExpr); selected {
+		if identity, external := w.effects.source.externalImport(source, selector); external {
+			return w.external(identity, arguments, depth)
+		}
 	}
 	definition, owner, reason := w.definition(source)
 	if reason != "" {
@@ -212,6 +217,29 @@ func (w *externalTypeWalk) named(source sourceExpr, arguments []externalTypeArgu
 	result.join(w.value(owner, scope, methods && definition.Assign.IsValid(), depth+1))
 	if methods {
 		result.join(w.methods(definition, owner, depth+1))
+	}
+	return result
+}
+
+// external models a standard-library named type the way an external call is
+// modelled: its source is not an analyzer input, so the type contributes its
+// import's origin and may reach every ambient capability. Its type arguments
+// are still retained types in this scope: atomic.Pointer[hook] keeps hook's
+// methods, so a registering argument is still tracked.
+func (w *externalTypeWalk) external(identity string, arguments []externalTypeArgument, depth int) externalValue {
+	if err := w.effects.source.witness(identity); err != nil {
+		return externalValue{unknown: err.Error()}
+	}
+	result := externalOrigin(identity)
+	w.references = true
+	result.join(externalFlat(w.effects.amb, 0))
+	for _, argument := range arguments {
+		argument = externalResolvedTypeArgument(argument, depth)
+		if argument.source.value == nil {
+			continue
+		}
+		retained := w.value(argument.source, argument.scope, true, depth+1)
+		result.join(externalFlat(retained, 0))
 	}
 	return result
 }

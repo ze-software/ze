@@ -41,9 +41,16 @@ func (w *externalReflectionWalk) value(source sourceExpr, scope *externalTypeSco
 	return result
 }
 
-// collect bounds descriptor expansion at the original 128 source edges.
-// valueRoot suppresses only an actual interface value's absent descriptor.
+// collect sites any unknown its descriptor produced at the type expression it
+// walked. The output union is shared, so the innermost visit sites a reason.
 func (w *externalReflectionWalk) collect(source sourceExpr, scope *externalTypeScope, methods, valueRoot bool, depth int, result *externalReflection) {
+	w.descriptor(source, scope, methods, valueRoot, depth, result)
+	result.locate(source)
+}
+
+// descriptor bounds descriptor expansion at the original 128 source edges.
+// valueRoot suppresses only an actual interface value's absent descriptor.
+func (w *externalReflectionWalk) descriptor(source sourceExpr, scope *externalTypeScope, methods, valueRoot bool, depth int, result *externalReflection) {
 	if depth >= 128 {
 		result.noteUnknown("reflection type capability depth exceeds 128")
 		return
@@ -126,17 +133,6 @@ func (w *externalReflectionWalk) collect(source sourceExpr, scope *externalTypeS
 		w.collectNamed(source, nil, methods, valueRoot, depth+1, result)
 		return
 	case *ast.SelectorExpr:
-		if identity, external := w.effects.source.externalImport(source, datatype); external {
-			if err := w.effects.source.witness(identity); err != nil {
-				result.noteUnknown(err.Error())
-				return
-			}
-			if result.origins == nil {
-				result.origins = make(map[string]bool)
-			}
-			result.origins[identity] = true
-			return
-		}
 		w.collectNamed(source, nil, methods, valueRoot, depth+1, result)
 		return
 	case *ast.IndexExpr:
@@ -158,6 +154,12 @@ func (w *externalReflectionWalk) collectNamed(source sourceExpr, arguments []ext
 	if depth >= 128 {
 		result.noteUnknown("reflection type capability depth exceeds 128")
 		return
+	}
+	if selector, selected := source.value.(*ast.SelectorExpr); selected {
+		if origin, external := w.effects.source.externalImport(source, selector); external {
+			w.collectExternal(origin, arguments, depth, result)
+			return
+		}
 	}
 	identity := externalTypeWalk{effects: w.effects}
 	definition, owner, reason := identity.definition(source)
@@ -270,6 +272,39 @@ func (w *externalReflectionWalk) collectMethods(definition *ast.TypeSpec, owner 
 		source.value = function.decl.Type
 		w.collect(source, w.effects.typeIdentities.lexicalScope(source), true, false, depth+1, result)
 	}
+}
+
+// collectExternal records a standard-library named type, bare or
+// instantiated, as its import's origin: its descriptor is not an analyzer
+// input. Its type arguments are retained descriptors and are still collected.
+func (w *externalReflectionWalk) collectExternal(origin string, arguments []externalTypeArgument, depth int, result *externalReflection) {
+	if err := w.effects.source.witness(origin); err != nil {
+		result.noteUnknown(err.Error())
+		return
+	}
+	if result.origins == nil {
+		result.origins = make(map[string]bool)
+	}
+	result.origins[origin] = true
+	for _, argument := range arguments {
+		argument = externalResolvedTypeArgument(argument, depth)
+		if argument.source.value == nil {
+			result.noteUnknown("reflected generic type argument ownership is unresolved")
+			return
+		}
+		w.collect(argument.source, argument.scope, true, false, depth+1, result)
+	}
+}
+
+// locate sites an unsited first reason; see externalValue.locate.
+func (r *externalReflection) locate(source sourceExpr) {
+	if r.unknown == "" {
+		return
+	}
+	if r.unknownAt.file != nil {
+		return
+	}
+	r.unknownAt = source
 }
 
 func (r *externalReflection) noteUnknown(reason string) {
