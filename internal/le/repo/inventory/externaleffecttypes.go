@@ -77,8 +77,13 @@ func (w *externalTypeWalk) shape(source sourceExpr, scope *externalTypeScope, me
 		result.references = true
 		return result
 	case *ast.ChanType:
+		// A channel is a reference container like a slice, whatever its
+		// direction: what one holder sends any holder can receive, so its
+		// possible contents are the flattened capability of its element type.
 		w.references = true
-		return externalValue{unknown: "channel element capability transfer is unsupported", references: true}
+		result := externalFlat(child(datatype.Value, true), 0)
+		result.references = true
+		return result
 	case *ast.StructType:
 		result := externalValue{fields: make(map[string]externalValue)}
 		for _, field := range datatype.Fields.List {

@@ -9,44 +9,45 @@ import (
 )
 
 // TestExternalTerminalUnknownPreservesRecordedUnsupported analyzes an authored
-// send before the ambient unknown arises. It must keep the recorded unsupported
+// linkname call before the ambient unknown arises. It must keep the recorded unsupported
 // issue while stopping the later callback, not stop on that earlier failure.
-// The nil-channel send exercises analysis policy; Go initialization never runs.
+// The bodyless linkname pull exercises analysis policy; Go initialization never runs.
 func TestExternalTerminalUnknownPreservesRecordedUnsupported(t *testing.T) {
-	effects, file := externalTerminalSelectedSource(t, `
-var channel chan int
+	effects, file := externalTerminalSelectedSource(t, externalTerminalLoop+externalTerminalPull+`
 type Payload struct {
 	Labels []string
 	Values map[string][]int
 }
 func delayed(value Payload) {}
 `, `
-channel <- 1
-fmt.Print(make(chan int), delayed)
+pulled()
+fmt.Print(loop{}, delayed)
 `)
-	var send *ast.SendStmt
-	ast.Inspect(file, func(node ast.Node) bool {
-		statement, found := node.(*ast.SendStmt)
+	// The linkname issue is sited at the pulled declaration's name.
+	var pulled *ast.FuncDecl
+	for _, declaration := range file.Decls {
+		function, found := declaration.(*ast.FuncDecl)
 		if found {
-			if send != nil {
-				t.Fatal("selected source has more than its authored send")
+			if function.Name.Name == "pulled" {
+				if pulled != nil {
+					t.Fatal("selected source has more than its authored linkname pull")
+				}
+				pulled = function
 			}
-			send = statement
 		}
-		return true
-	})
-	if send == nil {
-		t.Fatal("selected source lost the unsupported send")
+	}
+	if pulled == nil {
+		t.Fatal("selected source lost the unsupported linkname pull")
 	}
 	err := effects.solve()
-	if effects.amb.unknown != externalTerminalChannelUnknown {
+	if effects.amb.unknown != externalTerminalCyclicUnknown {
 		t.Errorf("analysis stopped at the earlier failure before reaching terminal ambient unknown: %q", effects.amb.unknown)
 	}
 	if len(effects.admitted) != 0 {
 		t.Errorf("terminal refusal admitted external operations: %+v", effects.admitted)
 	}
 	if err == nil {
-		t.Fatal("source with an observed unsupported send and ambient unknown was accepted")
+		t.Fatal("source with an observed unsupported linkname call and ambient unknown was accepted")
 	}
 	var issue *externalIssue
 	if !errors.As(err, &issue) {
@@ -55,11 +56,11 @@ fmt.Print(make(chan int), delayed)
 	if issue.kind != externalUnsupported {
 		t.Errorf("ambient unknown replaced the currently recorded unsupported issue: kind %d, error %v", issue.kind, err)
 	}
-	if issue.position != send.Chan.Pos() {
-		t.Errorf("recorded issue lost its exact selected send attribution: got %d, want %d", issue.position, send.Chan.Pos())
+	if issue.position != pulled.Name.Pos() {
+		t.Errorf("recorded issue lost its exact linkname attribution: got %d, want %d", issue.position, pulled.Name.Pos())
 	}
-	if !strings.Contains(err.Error(), "external channel capability transfer is unsupported") {
-		t.Errorf("recorded unsupported issue lost its send cause: %v", err)
+	if !strings.Contains(err.Error(), "external linkname authority is unsupported") {
+		t.Errorf("recorded unsupported issue lost its linkname cause: %v", err)
 	}
 	delayed := effects.source.snapshot.packages[externalTerminalDirectory].functions["delayed"].decl
 	if delayed == nil {

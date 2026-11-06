@@ -406,15 +406,44 @@ func (e *externalEffects) assignment(statement *ast.AssignStmt, scope sourceExpr
 				continue
 			}
 		}
-		location := e.value(sourceExpr{value: left, file: scope.file, pkg: scope.pkg}, possible, 0)
+		target := sourceExpr{value: left, file: scope.file, pkg: scope.pkg}
+		location := e.value(target, possible, 0)
 		if len(location.locations) == 0 {
-			e.problem(scope, "assignment location ownership is unresolved")
+			// Sited at the target, never the file: a file-start position
+			// orders first and would mask the target's own reason.
+			reason := "assignment location ownership is unresolved"
+			if location.unknown != "" {
+				reason += ": " + location.unknown
+			}
+			e.problem(target, reason)
 			continue
 		}
 		for object := range location.locations {
 			e.writes[object] = sourceExpr{value: left, file: scope.file, pkg: scope.pkg}
 			e.bind(object, joined)
 		}
+	}
+}
+
+// send stores the sent value into every location the channel operand names,
+// the way assignment stores into an indexed slice element: a channel's binding
+// is the flattened union of everything any holder sent, so a receive anywhere
+// reads it. A channel whose location is unresolved refuses, never drops it.
+func (e *externalEffects) send(statement *ast.SendStmt, scope sourceExpr, possible bool) {
+	target := sourceExpr{value: statement.Chan, file: scope.file, pkg: scope.pkg}
+	sent := externalFlat(e.value(sourceExpr{value: statement.Value, file: scope.file, pkg: scope.pkg}, possible, 0), 0)
+	location := e.value(target, possible, 0)
+	if len(location.locations) == 0 {
+		reason := "channel send location ownership is unresolved"
+		if location.unknown != "" {
+			reason += ": " + location.unknown
+		}
+		e.problem(target, reason)
+		return
+	}
+	for object := range location.locations {
+		e.writes[object] = target
+		e.bind(object, sent)
 	}
 }
 
@@ -475,7 +504,7 @@ func (e *externalEffects) statements(node ast.Node, scope sourceExpr, owner ast.
 		e.value(sourceExpr{value: statement.Call, file: scope.file, pkg: scope.pkg}, true, 0)
 		return
 	case *ast.SendStmt:
-		e.issue(sourceExpr{value: statement.Chan, file: scope.file, pkg: scope.pkg}, "channel capability transfer is unsupported", externalUnsupported)
+		e.send(statement, scope, possible)
 		return
 	}
 	first := true

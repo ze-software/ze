@@ -157,8 +157,9 @@ func TestExternalStandardTypeModulePackageStillRefuses(t *testing.T) {
 
 // TestExternalTerminalUnknownNamesItsSite requires a terminal ambient unknown
 // produced deep in a type walk to refuse at the committed line that produced
-// it, not at the call that exposed it. Method: a channel field two struct
-// levels down a declaration is exposed whole by fmt.Print.
+// it, not at the call that exposed it. Method: a field of a self-referential
+// type two struct levels down a declaration is exposed whole by fmt.Print; the
+// cycle is found at the loop identifier in next *loop.
 //
 // MUTATION: (internal/le/repo/inventory/externalvalues.go,
 // "v.unknownAt = other.unknownAt", "v.unknownAt = sourceExpr{}") drops the site.
@@ -167,9 +168,12 @@ func TestExternalStandardTypeModulePackageStillRefuses(t *testing.T) {
 // drops the site from the message.
 func TestExternalTerminalUnknownNamesItsSite(t *testing.T) {
 	effects, file := externalTerminalSelectedSource(t, `
+type loop struct {
+	next *loop
+}
 type carrier struct {
 	Inner struct {
-		Blocked chan int
+		Blocked loop
 	}
 }
 `, "fmt.Print(carrier{})")
@@ -178,28 +182,32 @@ type carrier struct {
 	if err == nil {
 		return
 	}
-	var channel, call ast.Node
+	var cycle, call ast.Node
 	ast.Inspect(file, func(node ast.Node) bool {
-		switch node.(type) {
-		case *ast.ChanType:
-			channel = node
+		switch value := node.(type) {
+		case *ast.StarExpr:
+			if name, named := value.X.(*ast.Ident); named {
+				if name.Name == "loop" {
+					cycle = name
+				}
+			}
 		case *ast.CallExpr:
 			call = node
 		}
 		return true
 	})
-	if channel == nil {
-		t.Fatal("fixture lost its channel field")
+	if cycle == nil {
+		t.Fatal("fixture lost the loop identifier in next *loop")
 	}
 	if call == nil {
 		t.Fatal("fixture lost its exposing call")
 	}
 	fset := effects.source.snapshot.fset
-	site := fset.Position(channel.Pos())
+	site := fset.Position(cycle.Pos())
 	if site.Line == fset.Position(call.Pos()).Line {
 		t.Fatal("fixture puts the producer on the exposing call's line")
 	}
-	want := "committed inventory " + site.Filename + ":" + strconv.Itoa(site.Line) + ": external registration capability is unknown: " + externalTerminalChannelUnknown
+	want := "committed inventory " + site.Filename + ":" + strconv.Itoa(site.Line) + ": external registration capability is unknown: " + externalTerminalCyclicUnknown
 	if !strings.Contains(err.Error(), want) {
 		t.Errorf("terminal refusal is not sited at its producer:\n got %v\nwant %s", err, want)
 	}

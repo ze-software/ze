@@ -36,10 +36,11 @@ func (e *externalEffects) rangeExecution(source sourceExpr) {
 	switch kind {
 	case externalRangeArray, externalRangeArrayPointer, externalRangeSlice, externalRangeMap, externalRangeInteger, externalRangeString:
 		// These kinds have no implicit user-defined iterator invocation.
+	case externalRangeChannel:
+		// A channel range only receives; each element reads the channel's
+		// contents through the ranged binding, as a receive does.
 	case externalRangeIterator:
 		e.problem(source, "function-range execution is unsupported; use a retained collection before publishing inventory")
-	case externalRangeChannel:
-		e.problem(source, "channel range capability transfer is unsupported")
 	case externalRangeUnresolved:
 		e.problem(source, "range execution ownership is unknown: "+reason)
 	}

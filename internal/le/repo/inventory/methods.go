@@ -146,33 +146,32 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 			}
 		case *ast.AssignStmt:
 			// go/parser binds range variables to a synthetic short assignment
-			// with one unary RANGE RHS, not to the RangeStmt itself. Only the
-			// second binding denotes the slice/array element; the key does not.
+			// with one unary RANGE RHS, not to the RangeStmt itself.
 			if len(declaration.Rhs) == 1 {
 				if ranged, ok := declaration.Rhs[0].(*ast.UnaryExpr); ok {
 					if ranged.Op == token.RANGE {
 						if declaration.Tok != token.DEFINE {
 							return sourceExpr{}, false
 						}
-						if len(declaration.Lhs) != 2 {
+						collection, found := e.valueType(sourceExpr{value: ranged.X, file: source.file, pkg: source.pkg}, depth+1)
+						if !found {
 							return sourceExpr{}, false
 						}
-						name, ok := declaration.Lhs[1].(*ast.Ident)
+						element, datatype, known := rangedElement(collection)
+						if !known {
+							return sourceExpr{}, false
+						}
+						if len(declaration.Lhs) != element+1 {
+							return sourceExpr{}, false
+						}
+						name, ok := declaration.Lhs[element].(*ast.Ident)
 						if !ok {
 							return sourceExpr{}, false
 						}
 						if name.Obj != binding {
 							return sourceExpr{}, false
 						}
-						collection, found := e.valueType(sourceExpr{value: ranged.X, file: source.file, pkg: source.pkg}, depth+1)
-						if !found {
-							return sourceExpr{}, false
-						}
-						array, ok := collection.value.(*ast.ArrayType)
-						if !ok {
-							return sourceExpr{}, false
-						}
-						return sourceExpr{value: array.Elt, file: collection.file, pkg: collection.pkg}, true
+						return sourceExpr{value: datatype, file: collection.file, pkg: collection.pkg}, true
 					}
 				}
 			}
@@ -191,6 +190,20 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		}
 	}
 	return sourceExpr{}, false
+}
+
+// rangedElement answers which range binding denotes the element of a
+// collection, and its type. Only the second binding of a slice or array range
+// is its element, and the key is not; a channel range has one binding, and it
+// is the received element.
+func rangedElement(collection sourceExpr) (int, ast.Expr, bool) {
+	switch kind := collection.value.(type) {
+	case *ast.ArrayType:
+		return 1, kind.Elt, true
+	case *ast.ChanType:
+		return 0, kind.Value, true
+	}
+	return 0, nil, false
 }
 
 // concreteType preserves the defining declaration's identity. Only direct

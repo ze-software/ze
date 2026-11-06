@@ -163,7 +163,13 @@ func (e *externalEffects) expressionValue(source sourceExpr, possible bool, dept
 			return externalValue{unknown: reason}
 		}
 		if value.Op == token.ARROW {
-			return externalValue{unknown: "channel receive capability transfer is unsupported", unresolvedFields: "channel receive capability transfer is unsupported"}
+			// A receive reads the channel's flattened contents, as an index
+			// reads a slice's. A received whole value cannot borrow a field
+			// from an earlier binding, so its fields stay an obligation.
+			result := child(value.X)
+			result.fields = nil
+			result.unresolvedFields = "received channel element field ownership requires a retained element summary"
+			return result
 		}
 		result := child(value.X)
 		if value.Op == token.AND {

@@ -8,6 +8,10 @@ import (
 type externalStore struct {
 	target sourceExpr
 	values []ast.Expr
+	// element marks a store into a container's contents (a channel send):
+	// its values join flattened, as send does, so a sent value's root fields
+	// and field obligation never become the channel holder's own.
+	element bool
 }
 
 // externalDefinition keeps producing execution separate from later reads of
@@ -68,6 +72,10 @@ func (e *externalEffects) indexDefinitions(directories []string) {
 							e.definitions[object] = append(e.definitions[object], externalDefinition{source: sourceExpr{value: value, file: file.File, pkg: pkg}, owner: owner})
 						}
 					}
+				case *ast.SendStmt:
+					// A send stores into the channel's contents, as an
+					// indexed assignment stores into a slice element.
+					e.stores = append(e.stores, externalStore{target: sourceExpr{value: declaration.Chan, file: file.File, pkg: pkg}, values: []ast.Expr{declaration.Value}, element: true})
 				case *ast.RangeStmt:
 					e.indexRangeAssignment(declaration, sourceExpr{file: file.File, pkg: pkg}, owner)
 				case *ast.Field:
@@ -115,6 +123,9 @@ func (e *externalEffects) indirectStores() {
 				value := e.value(sourceExpr{value: expression, file: store.target.file, pkg: store.target.pkg}, true, 0)
 				if e.amb.unknown != "" {
 					return
+				}
+				if store.element {
+					value = externalFlat(value, 0)
 				}
 				e.bind(object, value)
 			}

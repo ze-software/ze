@@ -11,7 +11,17 @@ import (
 
 const externalTerminalDirectory = "internal/terminalproof"
 const externalTerminalFilename = externalTerminalDirectory + "/proof.go"
-const externalTerminalChannelUnknown = "channel element capability transfer is unsupported"
+
+// externalTerminalCyclicUnknown is a type the walk cannot summarise: a
+// self-referential struct reached again through its own pointer field.
+const externalTerminalCyclicUnknown = "cyclic retained type capability shape: loop"
+
+const externalTerminalLoop = "type loop struct{ next *loop }\n"
+
+// externalTerminalPull is a bodyless go:linkname function pull whose target
+// is outside the standard library, so only a visit that reads it records
+// "linkname authority is unsupported".
+const externalTerminalPull = "//go:linkname pulled example.com/other.hidden\nfunc pulled()\n"
 
 // TestExternalTerminalUnknownProvisionalFailureSurvives keeps a returned
 // callable's first empty summary from becoming a permanent refusal. The package
@@ -35,11 +45,11 @@ var result = factory()()
 }
 
 // TestExternalTerminalUnknownLocalProjectionSurvives builds a holder with a
-// channel capability, then exposes only its exact scalar member. A local type
+// cyclic type capability, then exposes only its exact scalar member. A local type
 // unknown must not cancel analysis before that projection removes the sibling.
 func TestExternalTerminalUnknownLocalProjectionSurvives(t *testing.T) {
-	effects, file := externalTerminalSelectedSource(t, "", `
-fmt.Print((struct { Blocked chan int; Label string }{Label: "scalar copy"}).Label)
+	effects, file := externalTerminalSelectedSource(t, externalTerminalLoop, `
+fmt.Print((struct { Blocked loop; Label string }{Label: "scalar copy"}).Label)
 `)
 	if err := effects.solve(); err != nil {
 		t.Fatalf("a local unknown contaminated the exposed scalar projection: %v", err)
@@ -48,17 +58,17 @@ fmt.Print((struct { Blocked chan int; Label string }{Label: "scalar copy"}).Labe
 }
 
 // TestExternalTerminalUnknownStopsCallbackExpansion obtains terminal unknown
-// from a selected channel construction in the same call that exposes delayed.
+// from a selected cyclic type construction in the same call that exposes delayed.
 // The actual delayed declaration and formal must remain unscheduled; observing
 // those identities proves skipped expansion without a timing threshold.
 func TestExternalTerminalUnknownStopsCallbackExpansion(t *testing.T) {
-	effects, _ := externalTerminalSelectedSource(t, `
+	effects, _ := externalTerminalSelectedSource(t, externalTerminalLoop+`
 type Payload struct {
 	Labels []string
 	Values map[string][]int
 }
 func delayed(value Payload) {}
-`, "fmt.Print(make(chan int), delayed)")
+`, "fmt.Print(loop{}, delayed)")
 	err := effects.solve()
 	externalTerminalRefused(t, effects, err)
 	delayed := effects.source.snapshot.packages[externalTerminalDirectory].functions["delayed"].decl
@@ -92,12 +102,14 @@ func delayed(value Payload) {}
 
 // TestExternalTerminalUnknownDiagnosticPrecedesUnvisitedUnsupported pins the
 // proposed terminal diagnostic policy. The current exhaustive producer visits
-// the closure and prefers its unsupported send. Terminal cancellation must
+// the closure and prefers its unsupported linkname call. Terminal cancellation must
 // instead retain the unresolved ambient refusal and never schedule that body.
 // This is a new policy case, not permission to refresh existing expectations.
 func TestExternalTerminalUnknownDiagnosticPrecedesUnvisitedUnsupported(t *testing.T) {
-	effects, file := externalTerminalSelectedSource(t, "var channel chan int\n", `
-fmt.Print(make(chan int), func() { channel <- 1 })
+	// A bodyless pull from a target outside the standard library records its
+	// unsupported issue only when a visit reads it, never at definition.
+	effects, file := externalTerminalSelectedSource(t, externalTerminalLoop+externalTerminalPull, `
+fmt.Print(loop{}, func() { pulled() })
 `)
 	err := effects.solve()
 	externalTerminalRefused(t, effects, err)
@@ -116,7 +128,7 @@ fmt.Print(make(chan int), func() { channel <- 1 })
 		t.Fatal("selected diagnostic source lost its callback")
 	}
 	if _, scheduled := effects.bodies[callback]; scheduled {
-		t.Error("terminal ambient refusal still scheduled the unsupported-send callback")
+		t.Error("terminal ambient refusal still scheduled the unsupported-linkname callback")
 	}
 }
 
@@ -218,12 +230,12 @@ func externalTerminalAccepted(t *testing.T, effects *externalEffects, file *ast.
 	}
 }
 
-// externalTerminalRefused pins the permanent channel fact and the proposed
+// externalTerminalRefused pins the permanent cyclic type fact and the proposed
 // source-free unresolved refusal, while requiring that no operation is admitted.
 // Source-selected tests do not replace signed public-report publication checks.
 func externalTerminalRefused(t *testing.T, effects *externalEffects, err error) {
 	t.Helper()
-	if effects.amb.unknown != externalTerminalChannelUnknown {
+	if effects.amb.unknown != externalTerminalCyclicUnknown {
 		t.Errorf("negative source did not reach its exact ambient unknown: %q", effects.amb.unknown)
 	}
 	if len(effects.admitted) != 0 {
@@ -244,7 +256,7 @@ func externalTerminalRefused(t *testing.T, effects *externalEffects, err error) 
 	if issue.position != token.NoPos {
 		t.Errorf("ambient terminal refusal borrowed an execution-source attribution: %d", issue.position)
 	}
-	if !strings.Contains(err.Error(), "registration capability is unknown: "+externalTerminalChannelUnknown) {
+	if !strings.Contains(err.Error(), "registration capability is unknown: "+externalTerminalCyclicUnknown) {
 		t.Errorf("terminal refusal lost its exact ambient cause: %v", err)
 	}
 }

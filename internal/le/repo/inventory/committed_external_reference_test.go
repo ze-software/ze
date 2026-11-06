@@ -70,9 +70,10 @@ func TestCommittedExternalSliceMetadataAlias(t *testing.T) {
 	externalEffectsRefusal(t, fixture, "metadata")
 }
 
-// TestCommittedExternalChannelTransferRefuses requires an explicit unsupported
-// channel proof rather than silently dropping a sent callback. Neither inert
-// nor effectful channels are asserted to be supported by this bounded model.
+// TestCommittedExternalChannelTransferRefuses requires a sent callback to
+// reach its receiver rather than being silently dropped. The channel is a
+// modelled container: an inert callback publishes, and a registering one,
+// received and called inside an external callback, refuses as escaped.
 func TestCommittedExternalChannelTransferRefuses(t *testing.T) {
 	for _, body := range []string{"", "install(0)"} {
 		t.Run("callback-"+body, func(t *testing.T) {
@@ -83,7 +84,11 @@ func TestCommittedExternalChannelTransferRefuses(t *testing.T) {
 			call := "queue := make(chan func(), 1); queue <- func() { " + body + " }; _ = clock.AfterFunc(0, func() { callback := <-queue; callback() })"
 			fixture.goFile(t, callableOwnerCaller, externalEffectsSource("", call))
 			commitInventoryFixture(t, fixture.root)
-			externalEffectsRefusal(t, fixture, "channel")
+			if body == "" {
+				externalEffectsPositive(t, fixture)
+				return
+			}
+			externalEffectsRefusal(t, fixture, "registration may execute through an escaped capability")
 		})
 	}
 }

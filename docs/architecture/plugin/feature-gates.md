@@ -337,8 +337,16 @@ Indexed or ranged values retain all aggregate capabilities, but carry a separate
 field-ownership obligation until an actual element-field summary is available;
 a type-only empty callback field cannot discharge it. Nested fields preserve
 their own obligations without contaminating an unrelated scalar sibling.
-Unsupported channel receives carry that root-field obligation too; a received
-whole value cannot borrow an earlier inert field from the same binding.
+A channel is modelled as the same kind of reference container as a slice,
+whatever its direction (`chan T`, `chan<- T`, `<-chan T`): its possible contents
+are the flattened capability of its element type. A send stores the flattened
+sent value into every location the channel operand names, as an indexed
+assignment stores into a slice element, and enters the retained-write equations
+the same way; a send whose channel location is unresolved refuses. A receive
+(`<-c`, a `select` case, `for v := range c`) reads the channel's contents and
+carries that root-field obligation too, so a received whole value cannot borrow
+an earlier inert field from the same binding. A received value passed as an
+argument to a retained function still refuses its formal provenance.
 Flattening copies every visited node's capabilities into one output-owned union,
 dropping field names and their selector obligations at each node. Its unchanged
 128-edge cutoff excludes that node's capabilities, preserves the first unknown
@@ -346,6 +354,9 @@ encountered and continues traversing siblings.
 <!-- source: internal/le/repo/inventory/externalrootfields.go -- externalEffects.fieldReceiverType, externalEffects.declaredFieldType, externalEffects.projectField -->
 <!-- source: internal/le/repo/inventory/externalvalues.go -- externalValue.join, externalFlat, externalValue.joinFlat -->
 <!-- source: internal/le/repo/inventory/externaleffecttypes.go -- externalTypeWalk.value, externalTypeWalk.named -->
+<!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.send -->
+<!-- source: internal/le/repo/inventory/externalexpressions.go -- externalEffects.expressionValue -->
+<!-- source: internal/le/repo/inventory/methods.go -- rangedElement -->
 
 Parameter provenance includes every exact retained direct caller, including
 dormant callers, through equations that keep the caller's execution owner.
@@ -447,9 +458,9 @@ Executable ownership must be complete even when a value also contains a known
 callable. Unknown members of that union refuse before callable dispatch; an exact
 lexical type conversion still transfers its input and result-type capabilities
 without invoking them. An executed range needs a source proof of a non-invoking
-array, array pointer, slice, map, integer or string kind. Function iterators,
-unresolved kinds and unsupported channel transfers refuse even when the loop
-discards every yielded value. Operand and body calls retain their ordinary effect
+array, array pointer, slice, map, channel, integer or string kind. Function
+iterators and unresolved kinds refuse even when the loop discards every yielded
+value. Operand and body calls retain their ordinary effect
 traversal separately from the kind proof.
 
 Range assignments to existing key or value targets also enter the complete
