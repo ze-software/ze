@@ -165,6 +165,9 @@ func TestResolverLeavesSystemNameServers(t *testing.T) {
 		}
 	})
 	resolvConf := filepath.Join(t.TempDir(), "resolv.conf")
+	if err := os.WriteFile(resolvConf, []byte("nameserver 192.0.2.53\n"), 0o600); err != nil {
+		t.Fatalf("seed the stub resolver file: %v", err)
+	}
 	if err := system.ProcessResolvers().Configure(resolvConf, stub); err != nil {
 		t.Fatalf("configure the stub: %v", err)
 	}
