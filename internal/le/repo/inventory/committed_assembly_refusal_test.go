@@ -23,7 +23,6 @@ func TestCommittedAssemblyBodyAndContextRefusals(t *testing.T) {
 		"indirect-jump":           "TEXT ·inventoryGate(SB),4,$0-56\n JMP AX\n",
 		"local-destination":       "TEXT ·inventoryGate(SB),4,$0-56\n JMP ·Syscall(SB)\n",
 		"third-party-destination": "TEXT ·inventoryGate(SB),4,$0-56\n JMP example∕org∕callback·Invoke(SB)\n",
-		"return-stub":             "TEXT ·inventoryGate(SB),4,$0-56\n RET\n",
 		"dupok":                   "TEXT ·inventoryGate(SB),DUPOK|NOSPLIT,$0-56\n JMP syscall·Syscall(SB)\n",
 		"numeric-dupok":           "TEXT ·inventoryGate(SB),6,$0-56\n JMP syscall·Syscall(SB)\n",
 		"wrapper-flag":            "TEXT ·inventoryGate(SB),NOSPLIT|WRAPPER,$0-56\n JMP syscall·Syscall(SB)\n",
@@ -51,6 +50,17 @@ func TestCommittedAssemblyBodyAndContextRefusals(t *testing.T) {
 			asmExpectRefusal(t, fixture)
 		})
 	}
+	// A body that only returns names no symbol and calls nothing, so the leaf
+	// proof (assemblyleaf.go) admits it and the report publishes; its zeroed
+	// results stay an opaque external value, never a known constant.
+	// MUTATION: refuse every leaf in certifyAssembly, and this case refuses.
+	t.Run("return-stub", func(t *testing.T) {
+		fixture := newASMInventoryFixture(t)
+		fixture.addBoundary(t, "syscall")
+		write(t, fixture.root, asmTargetFile, "TEXT ·inventoryGate(SB),4,$0-56\n RET\n")
+		commitInventoryFixture(t, fixture.root)
+		externalEffectsPositive(t, fixture)
+	})
 	for _, name := range []string{"filename-excluded", "constraint-excluded", "duplicate-selected-entry"} {
 		t.Run(name, func(t *testing.T) {
 			fixture := newASMInventoryFixture(t)

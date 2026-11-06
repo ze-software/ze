@@ -423,7 +423,8 @@ capability set.
 <!-- source: internal/le/repo/inventory/externalrangestores.go -- externalEffects.indexRangeAssignment, externalEffects.rangeAssignment -->
 
 An unavailable Go body still refuses unless retained target-selected assembly
-proves a narrow direct transfer to the existing standard-library boundary.
+proves a narrow direct transfer to the existing standard-library boundary, or
+proves a leaf body (below).
 The proof checks the complete entered body and selected-population symbol
 definitions and linkage directives; a Go import alias is not an assembler
 package identity. Unknown preprocessing, relevant remapping, ambiguous
@@ -446,16 +447,60 @@ witness, and its arguments flow into the external capability model. A target
 whose first path element holds a dot (a module path), a target that names a
 selected repository package (an executable's `main`), a second directive for
 the same entry, or another directive touching the entry or the target
-refuses, and a bodyless declaration with neither proof refuses as before.
+refuses, and a bodyless declaration with no proof refuses as before.
 <!-- source: internal/le/repo/inventory/assembly.go -- Snapshot.certifyAssembly, standardLinkname, standardLinkTarget -->
 <!-- source: internal/le/repo/inventory/externallinkage.go -- externalEffects.indexLinkname -->
+
+A third proof admits a leaf body, such as `klauspost/compress`'s
+`cpuinfo.x86extensions` or `cespare/xxhash/v2`'s `writeBlocks`, decided from
+the retained `.s` text alone. Its TEXT header keeps the trampoline's entry
+symbol, with any canonical frame: `$N`, which Go assembly allows when the Go
+prototype gives the argument size, or `$N-M`. Its flags are `NOSPLIT`
+(required: without it the assembler inserts a call to `runtime·morestack`),
+optionally joined by `|` with `NOFRAME`, which needs a zero frame
+(`runtime/textflag.h`). Neither flag can change registration: each changes
+only the prologue the assembler emits, and for a zero-frame body with no
+`CALL` the amd64 assembler sets the no-frame attribute itself. Any other flag
+refuses, `DUPOK` among them, because it lets the linker keep another
+definition. Its body reads no `TLS`, holds no `CALL`, no
+`BYTE`/`WORD`/`LONG`/`QUAD`/`DWORD`/`OCTA` data that could encode an
+instruction, no definition word and no conditional, uses no local macro, and
+branches only to labels defined in the same body, never through a symbol. A
+branch label needs a lower-case letter, because register names are upper case
+and the assembler reads a register first, and the last statement must be
+`RET` or a local `JMP`, so control cannot run past the body.
+
+A leaf may name a symbol through `(SB)` only to read it, as `sym[<>][+N](SB)`
+with no index register. An operand in the last slot is the destination, so it
+refuses unless the opcode writes no operand (`CMP`, `TEST`, `BT`, `UCOMIS`,
+`COMIS`, `PTEST`); an instruction of more than two operands, an exchange
+(`XCHG`, `XADD`, `CMPXCHG`), `LEA` and a `$` address constant refuse too,
+because an address can be written through or called later. The symbol must be
+either a table of the same `.s` file whose one `GLOBL` carries `RODATA` (with
+`NOPTR` or not) and whose `DATA` holds no symbol address, which adds nothing,
+or a package-level Go variable of the same package (`·name`). Another
+package's symbol, a function, a symbol defined neither way, and a symbol a
+linkage directive touches refuse, each with its own cause.
+
+The trust contract above rules out fabricated references, so such a body can
+act only on its registers, its stack frame, the memory its arguments point to
+and the values the variables it reads hold. That is the effect model of an
+external call, which the evaluator applies to it with its arguments, the
+ambient set and each variable read joined as inputs, and no import witness,
+since no external code runs: a registering callback held in such a variable
+refuses exactly as one passed as an argument does. A body that is not a leaf
+takes the trampoline proof, and its refusal carries the trampoline's cause and
+the leaf's.
+<!-- source: internal/le/repo/inventory/assemblyleaf.go -- leafDefinition, leafHeader, leafFlags, leafBody, leafInstruction -->
+<!-- source: internal/le/repo/inventory/assemblyleafreads.go -- leafSymbolReads, leafSymbolOperand, leafVariables, leafReadOnlyTable -->
+<!-- source: internal/le/repo/inventory/externalassembly.go -- externalEffects.assemblyResult -->
 
 Local instruction macros in other bodies can contribute namespace evidence
 without being expanded or executed. Their complete logical definitions,
 including continued lines, must not emit definition words or directives;
 actual argument and prefix-hidden definition words also refuse. Literal
 definition headers must be free of local macro bindings, and the entered
-trampoline's literal instructions remain macro-free. These checks use the
+trampoline's or leaf's literal instructions remain macro-free. These checks use the
 whole unit, including later definitions. Unknown preprocessing still refuses;
 namespace certification never certifies an arbitrary expanded instruction body.
 <!-- source: internal/le/repo/inventory/assemblymacros.go -- assemblyMacro, macroFreeTokens -->

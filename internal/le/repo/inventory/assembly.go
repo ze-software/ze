@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+// bodylessProof is the certificate of a retained bodyless function. Its two
+// variants are bodylessTransfer and bodylessLeaf; certifyAssembly returns nil
+// only beside an error.
+type bodylessProof interface{ bodylessProof() }
+
 // bodylessTransfer is the proved standard-library destination of a retained
 // bodyless function: the linker symbol it reaches and that symbol's import path.
 type bodylessTransfer struct {
@@ -16,25 +21,45 @@ type bodylessTransfer struct {
 	identity    string
 }
 
-// certifyAssembly proves only a direct transfer from a retained bodyless entry
-// to a standard-library destination that is not remapped or implemented
-// elsewhere in the retained selected population: a complete zero-frame
-// NOSPLIT trampoline, or one pull-style linkname. It executes no instructions.
-func (s *Snapshot) certifyAssembly(function sourceFunction, index *assemblyIndex) (bodylessTransfer, error) {
+// bodylessLeaf is a retained assembly body that transfers control nowhere
+// outside itself and reads symbols only as leafSymbolReads admits (leafBody).
+// variables names, once each, the same-package Go variables it reads, which
+// assemblyResult joins as inputs of the call; it is empty when the body reads
+// none.
+type bodylessLeaf struct {
+	variables []string
+}
+
+func (bodylessTransfer) bodylessProof() {}
+func (bodylessLeaf) bodylessProof()     {}
+
+// assemblySymbolRole names one symbol a linkage directive must not touch, and
+// the role the refusal gives it.
+type assemblySymbolRole struct {
+	role   string
+	symbol string
+}
+
+// certifyAssembly proves a retained bodyless entry in one of three ways, each
+// not remapped or implemented elsewhere in the retained selected population:
+// one pull-style linkname to a standard-library symbol, a complete leaf body,
+// or a complete zero-frame NOSPLIT trampoline to a standard-library
+// destination. It executes no instructions.
+func (s *Snapshot) certifyAssembly(function sourceFunction, index *assemblyIndex) (bodylessProof, error) {
 	prefix, found := index.prefixes[function.pkg]
 	if !found {
-		return bodylessTransfer{}, fmt.Errorf("assembly entry package is not in the selected source population")
+		return nil, fmt.Errorf("assembly entry package is not in the selected source population")
 	}
 	entry := prefix + "." + function.decl.Name.Name
 	declarations := index.declarations[entry]
 	if len(declarations) != 1 {
-		return bodylessTransfer{}, fmt.Errorf("assembly entry %s has ambiguous Go declarations", entry)
+		return nil, fmt.Errorf("assembly entry %s has ambiguous Go declarations", entry)
 	}
 	if declarations[0] != function.decl {
-		return bodylessTransfer{}, fmt.Errorf("assembly entry %s has conflicting Go ownership", entry)
+		return nil, fmt.Errorf("assembly entry %s has conflicting Go ownership", entry)
 	}
 	if index.objects[entry] {
-		return bodylessTransfer{}, fmt.Errorf("assembly entry %s conflicts with a Go object", entry)
+		return nil, fmt.Errorf("assembly entry %s conflicts with a Go object", entry)
 	}
 	definitions := index.definitions[entry]
 	pulled := -1
@@ -50,51 +75,82 @@ func (s *Snapshot) certifyAssembly(function sourceFunction, index *assemblyIndex
 		pulled = own[0]
 		linked, err := standardLinkname(index, index.linkages[pulled].target)
 		if err != nil {
-			return bodylessTransfer{}, fmt.Errorf("%s: bodyless entry %s: %w", index.linkages[pulled].site, entry, err)
+			return nil, fmt.Errorf("%s: bodyless entry %s: %w", index.linkages[pulled].site, entry, err)
 		}
 		transfer = linked
 	} else {
 		if len(definitions) != 1 {
-			return bodylessTransfer{}, fmt.Errorf("assembly entry %s has %d selected definitions, not one proved body", entry, len(definitions))
+			return nil, fmt.Errorf("assembly entry %s has %d selected definitions, not one proved body", entry, len(definitions))
 		}
 		definition := &definitions[0]
-		if err := trampolineHeader(definition.header, function.decl.Name.Name); err != nil {
-			return bodylessTransfer{}, fmt.Errorf("%s: %w", definition.path, err)
-		}
 		body := s.blobs[definition.path][definition.bodyStart:definition.bodyEnd]
+		// The approved trust contract (INVENTORY-EXTERNAL-EFFECTS.md) trusts
+		// code not to fabricate references to retained registration functions:
+		// unsafe pointer fabrication, go:linkname, runtime symbol tricks and
+		// arbitrary native capability fabrication are outside it. A leaf calls
+		// nothing, branches only to its own labels and names a symbol only to
+		// read a same-file RODATA table or a same-package Go variable, so it can
+		// act only on its registers, its stack frame, the memory its arguments
+		// point to and the values those variables hold. That is the effect
+		// model of an external call with its arguments and those variables
+		// tracked, which assemblyResult applies to it. A body that is not a
+		// leaf takes the trampoline proof, and its refusal carries both causes.
+		variables, leafErr := leafDefinition(index, definition, body, function.decl.Name.Name, prefix)
+		if leafErr == nil {
+			if err := linkageFree(index, pulled, assemblySymbolRole{role: "entry", symbol: entry}); err != nil {
+				return nil, err
+			}
+			return bodylessLeaf{variables: variables}, nil
+		}
+		notLeaf := func(err error) error {
+			return fmt.Errorf("%w; not a proved leaf: %w", err, leafErr)
+		}
+		if err := trampolineHeader(definition.header, function.decl.Name.Name); err != nil {
+			return nil, notLeaf(fmt.Errorf("%s: %w", definition.path, err))
+		}
 		destination, err := trampolineDestination(body, definition.path, prefix, definition.macros)
 		if err != nil {
-			return bodylessTransfer{}, err
+			return nil, notLeaf(err)
 		}
 		identity, err := standardAssemblyImport(function, destination)
 		if err != nil {
-			return bodylessTransfer{}, err
+			return nil, notLeaf(err)
 		}
 		transfer = bodylessTransfer{destination: destination, identity: identity}
 	}
 	destination := transfer.destination
 	if len(index.definitions[destination]) != 0 {
-		return bodylessTransfer{}, fmt.Errorf("assembly destination %s is defined by selected repository assembly", destination)
+		return nil, fmt.Errorf("assembly destination %s is defined by selected repository assembly", destination)
 	}
 	if len(index.declarations[destination]) != 0 {
-		return bodylessTransfer{}, fmt.Errorf("assembly destination %s has a selected repository Go declaration", destination)
+		return nil, fmt.Errorf("assembly destination %s has a selected repository Go declaration", destination)
 	}
 	if index.objects[destination] {
-		return bodylessTransfer{}, fmt.Errorf("assembly destination %s has a selected repository Go object", destination)
+		return nil, fmt.Errorf("assembly destination %s has a selected repository Go object", destination)
 	}
+	entryRole := assemblySymbolRole{role: "entry", symbol: entry}
+	destinationRole := assemblySymbolRole{role: "destination", symbol: destination}
+	if err := linkageFree(index, pulled, entryRole, destinationRole); err != nil {
+		return nil, err
+	}
+	return transfer, nil
+}
+
+// linkageFree refuses the first selected directive that remaps or opens one
+// of symbols. The directive at offset pulled established the transfer and is
+// its own evidence, so it is skipped; -1 skips none.
+func linkageFree(index *assemblyIndex, pulled int, symbols ...assemblySymbolRole) error {
 	for offset, linkage := range index.linkages {
-		// The one directive that established the transfer is its own evidence.
 		if offset == pulled {
 			continue
 		}
-		if linkageTouches(linkage, entry) {
-			return bodylessTransfer{}, fmt.Errorf("%s: linkage remaps or opens assembly entry %s", linkage.site, entry)
-		}
-		if linkageTouches(linkage, destination) {
-			return bodylessTransfer{}, fmt.Errorf("%s: linkage remaps or opens assembly destination %s", linkage.site, destination)
+		for _, symbol := range symbols {
+			if linkageTouches(linkage, symbol.symbol) {
+				return fmt.Errorf("%s: linkage remaps or opens assembly %s %s", linkage.site, symbol.role, symbol.symbol)
+			}
 		}
 	}
-	return transfer, nil
+	return nil
 }
 
 // entryLinkages returns the offsets of every selected directive whose local
@@ -168,17 +224,8 @@ func trampolineHeader(tokens []string, name string) error {
 	if len(tokens) != 12 {
 		return fmt.Errorf("unsupported assembly TEXT flags, frame or ABI grammar")
 	}
-	want := []string{"TEXT", "·" + name, "(", "SB", ")", ","}
-	for offset, token := range want {
-		if tokens[offset] != token {
-			return fmt.Errorf("unsupported assembly entry symbol or TEXT grammar")
-		}
-	}
-	if tokens[6] != "NOSPLIT" && tokens[6] != "4" {
-		return fmt.Errorf("unsupported assembly TEXT flags; only canonical NOSPLIT is proved")
-	}
-	if tokens[7] != "," {
-		return fmt.Errorf("unsupported assembly TEXT flags")
+	if err := textHeaderEntry(tokens, name); err != nil {
+		return err
 	}
 	if tokens[8] != "$" {
 		return fmt.Errorf("unsupported assembly frame")
@@ -189,11 +236,43 @@ func trampolineHeader(tokens []string, name string) error {
 	if tokens[10] != "-" {
 		return fmt.Errorf("unsupported assembly argument size")
 	}
-	if len(tokens[11]) > 1 && tokens[11][0] == '0' {
-		return fmt.Errorf("assembly argument size must be canonical decimal")
+	return assemblySize(tokens[11], "argument")
+}
+
+// textHeaderEntry checks the entry symbol and the one canonical flag of a
+// TEXT header. The caller MUST have checked that tokens holds at least eight.
+func textHeaderEntry(tokens []string, name string) error {
+	if err := textHeaderSymbol(tokens, name); err != nil {
+		return err
 	}
-	if _, err := strconv.ParseUint(tokens[11], 10, 31); err != nil {
-		return fmt.Errorf("unsupported assembly argument size: %w", err)
+	if tokens[6] != "NOSPLIT" && tokens[6] != "4" {
+		return fmt.Errorf("unsupported assembly TEXT flags; only canonical NOSPLIT is proved")
+	}
+	if tokens[7] != "," {
+		return fmt.Errorf("unsupported assembly TEXT flags")
+	}
+	return nil
+}
+
+// textHeaderSymbol checks the `TEXT ·name(SB),` entry of a TEXT header. The
+// caller MUST have checked that tokens holds at least six.
+func textHeaderSymbol(tokens []string, name string) error {
+	want := []string{"TEXT", "·" + name, "(", "SB", ")", ","}
+	for offset, token := range want {
+		if tokens[offset] != token {
+			return fmt.Errorf("unsupported assembly entry symbol or TEXT grammar")
+		}
+	}
+	return nil
+}
+
+// assemblySize accepts one canonical decimal frame or argument size.
+func assemblySize(value, what string) error {
+	if len(value) > 1 && value[0] == '0' {
+		return fmt.Errorf("assembly %s size must be canonical decimal", what)
+	}
+	if _, err := strconv.ParseUint(value, 10, 31); err != nil {
+		return fmt.Errorf("unsupported assembly %s size: %w", what, err)
 	}
 	return nil
 }
