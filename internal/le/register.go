@@ -106,6 +106,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/repo/archmap"
 	_ "github.com/ze-software/ze/internal/le/repo/bootstraps"
 	_ "github.com/ze-software/ze/internal/le/repo/changed"
+	_ "github.com/ze-software/ze/internal/le/repo/codeql"
 	_ "github.com/ze-software/ze/internal/le/repo/compiles"
 	_ "github.com/ze-software/ze/internal/le/repo/featuretags"
 	_ "github.com/ze-software/ze/internal/le/repo/inventory"

@@ -46,6 +46,7 @@ Ask the question from Bash instead
 | Configure PPP authentication policy or LNS MRU | `docs/guide/l2tp.md`, `docs/guide/pppoe.md` | Transport config, derived defaults, negotiation, proxy admission, reload, and negotiated session output |
 | Prove built-in VPN facilities on Ze's native kernel | `docs/architecture/testing/qemu-integration.md` (“VPN facilities without module loading”) | `./le test qemu vpn-kernel`; kernel proof, not product WireGuard configuration-commit proof |
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/completion.md` | Implement the missing behavior at the source, never route around it |
+| Editor child FD protocol and cooperative cancellation | `docs/architecture/testing/runner-architecture.md` | `internal/test/editorcase/worker.go`; registered as hidden `le mock editor-case` |
 | Decide how much machinery a fix or feature needs (KISS, MVP, over-engineering) | `ai/rules/simplicity.md` | The simplest FULLY CORRECT answer, nothing beyond it. Cuts machinery, never correctness. A second problem gets its own spec, never an extra branch in this fix |
 | Modify wire encoding | `ai/rules/performance.md` | `docs/architecture/buffer-architecture.md` |
 | Add route processing | `ai/rules/architecture.md` | `docs/architecture/core-design.md` |
@@ -389,7 +390,7 @@ disagree, the manifest is right and the row is stale.
 | `./le setup docker kernel` | `internal/le/setup/docker/kernel.DockerKernelAnswer` | check or install Ze's Docker host kernel |
 | `./le site facts` | `internal/le/site/facts.Answer` | the numbers the website publishes about this repository: derive them into website/data/repo-facts.json, or check what has gone stale in it |
 | `./le site release` | `internal/le/site/release.Answer` | the releases the website publishes: read them from the forge into website/data/github-releases.json, which the site build reads instead of reaching the network |
-| `./le site terminal-demo` | `internal/le/site/terminaldemo.Answer` | build, validate, verify and render demonstrations; `readme-carrier output <directory>` measures the canonical hero's SVG, video and thumbnail, and `probe <file>` selects only from observed GitHub results |
+| `./le site terminal-demo` | `internal/le/site/terminaldemo.Answer` | check demo artifacts, release identity or validation; build the renderer image or binaries; render one demo or all; record a tape or drive a program through `pty` |
 | `./le spec citation` | `internal/le/spec/citation.Answer` | a plan/spec-*.md citing a sibling spec absent on disk fails, unless the target is grandfathered in plan/.citation-baseline; a path:line citation whose backtick-quoted token drifted off that line warns |
 | `./le spec roadmap` | `internal/le/spec/roadmap.Answer` | release roadmap and release progress: committed inventory preview, derived plan index, and pinned endpoint evidence for weekly news |
 | `./le spec current` | `internal/le/spec.Answer` | spec ownership, per-spec state paths, transcript model facts, and independent review artifacts |
@@ -538,6 +539,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | Interop testing | `docs/architecture/testing/interop.md` |
 | QEMU integration | `docs/architecture/testing/qemu-integration.md` |
 | CI workflows: which suite runs where, and what blocks | `docs/architecture/testing/ci-workflows.md` |
+| CodeQL tracked package selection and cache dependency refusal | `internal/le/repo/codeql/`, `docs/architecture/testing/ci-workflows.md` |
 | Test runner | `docs/architecture/testing/runner-architecture.md` |
 | ExaBGP mapping | `docs/exabgp/exabgp-code-map.md` |
 | ExaBGP compat | `docs/exabgp/exabgp-differences.md` |

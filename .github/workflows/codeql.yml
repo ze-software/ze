@@ -57,9 +57,28 @@ jobs:
         if: matrix.build-mode == 'manual'
         shell: bash
         run: |
-          CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' ./...
-          CGO_ENABLED=0 go build -tags 'ze_core ze_appliance ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' ./...
-          CGO_ENABLED=0 go build -tags 'ze_setup' ./...
+          # Both selection and tracing use the same controlled Go environment.
+          export GOENV=off GOFLAGS= GOWORK=off GOTOOLCHAIN=local
+          codeql_build() {
+            local assignment="$1"
+            shift
+            if [[ "$assignment" != CGO_ENABLED=0 || "$#" != 4 || "$1" != go || "$2" != build || "$3" != -tags ]]; then
+              echo "CodeQL needs the explicit CGO-disabled tagged build context" >&2
+              return 2
+            fi
+            local selected
+            selected="$(env "$assignment" ./le repo codeql packages tags "$4")" || return
+            if [[ -z "$selected" ]]; then
+              echo "CodeQL refuses an empty tracked package selection" >&2
+              return 2
+            fi
+            local -a packages
+            mapfile -t packages <<< "$selected"
+            env "$assignment" "$@" "${packages[@]}"
+          }
+          codeql_build CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
+          codeql_build CGO_ENABLED=0 go build -tags 'ze_core ze_appliance ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
+          codeql_build CGO_ENABLED=0 go build -tags 'ze_setup'
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4.39.1

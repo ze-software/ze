@@ -24,7 +24,7 @@ developer host.
 | `./le test deployment docker-pppoe-accel`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `pppoe-interop` | schedule | advisory |
 | `./le test qemu all`, inside a guest booting the runtime kernel | `qemu-nightly.yml`, job `needs-linux` | schedule `43 4 * * *` | advisory |
 | The LDP, IS-IS and VRRP protocol labs, each inside `./le test qemu run` | `qemu-nightly.yml`, job `protocol-labs` | schedule | advisory |
-| The L2TP appliance proof, the PPPoE labs, the ASPA and RFC 2545 plugin namespace subset, and the traffic-usage eBPF proof | `qemu-nightly.yml`, job `runtime-kernel-labs` | schedule | advisory |
+| The L2TP appliance proof, the accel-ppp lab and the traffic-usage eBPF proof, plus the PPPoE suite and the ASPA and RFC 2545 plugin namespace subset inside `./le test qemu docker-lab harness` | `qemu-nightly.yml`, job `runtime-kernel-labs` | schedule | advisory |
 | `./le perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory | <!-- doc-links: ignore (the history file is written by the nightly job and is not committed; perf-nightly.yml:33 guards on its absence) -->
 | `./le verify deps vulnerability` | `govulncheck.yml` | schedule `37 5 * * *` | advisory |
 | CodeQL | `codeql.yml` | push, pull_request, schedule `21 16 * * 3` | as configured by the action |
@@ -37,6 +37,31 @@ a restriction it lifts) is pinned by a test in `internal/le/workflowcheck`,
 which goes red when the step leaves the workflow.
 <!-- source: internal/le/workflowcheck/qemu_guest_binaries_test.go -- TestQEMUNightlyBuildsEveryGuestDaemon -->
 <!-- source: internal/le/workflowcheck/docker_peers_userns_test.go -- TestDockerPeersLiftsTheUsernsRestrictionBeforeItsTests -->
+
+### CodeQL's Go population
+
+The Go job retains the patched-GOROOT bootstrap and builds the distro,
+appliance and setup tag contexts. Each build passes its actual tag argument to
+`./le repo codeql packages tags '<tags>'`; no second tag list or authored-root
+list supplies the population. The native selector derives package directories
+from tracked Go files in that complete Go build context. Vendor, the
+`gokrazy/modcache` cache, `testdata`, root tool pins, ruleguard data and the
+separate-module plugin example are explicit classifications. Unsupported
+tracked forms refuse rather than disappear.
+
+Before returning any package arguments, the selector runs strict
+`go list -deps` for those roots in the same context and checks canonical package
+and source paths. A direct cache root, or an authored dependency or source
+symlink resolving into `gokrazy/modcache`, refuses before the traced build.
+The workflow checks the selector's exit status and refuses an empty answer;
+there is no `./...` fallback. `paths-ignore` is not extraction evidence.
+
+Local fixture builds prove selection and admission boundaries, not CodeQL
+extraction. A future CI extraction must still show an authored sentinel included,
+a cache sentinel excluded and an explicit cache extraction refused. No local
+selector result discharges that CI evidence debt.
+<!-- source: internal/le/repo/codeql/population.go -- Select, Guard -->
+<!-- source: .github/workflows/codeql.yml -- Build Go shipped feature combinations -->
 
 ## What every verify shard prepares
 
