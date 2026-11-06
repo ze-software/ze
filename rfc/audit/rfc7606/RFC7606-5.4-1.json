@@ -13,7 +13,7 @@
     "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "498b67ae2a187448",
     "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "470773810c685ca2",
     "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "470773810c685ca2",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "e946324e6211f974",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "e4ba9358c797eb4c",
     "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "5e4675419a58a505",
     "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "ed1705a77ef4b70d",
     "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "dc7bf87ff6f0f097"

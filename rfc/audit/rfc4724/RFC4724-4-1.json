@@ -10,7 +10,7 @@
     "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "01f60dd8a785dc52",
     "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "01f60dd8a785dc52",
     "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48",
-    "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "e946324e6211f974"
+    "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "e4ba9358c797eb4c"
   },
   "units": {
     "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
