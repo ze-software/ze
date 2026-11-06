@@ -121,6 +121,12 @@ type pppSession struct {
 	lcpRejectedMRU       bool
 	lcpRejectedMagic     bool
 
+	// lcpProxied is true while the current LCP lifetime is the one that opened
+	// on values the LAC negotiated, so no Configure-Request of Ze's own opened
+	// it. run sets it when it admits proxy LCP, and resetAuthNegotiation clears
+	// it when a new lifetime starts. Goroutine-owned.
+	lcpProxied bool
+
 	// Cached authenticator decision, cleared when LCP restarts. Goroutine-owned.
 	papReplyCode uint8
 
@@ -207,10 +213,6 @@ type pppSession struct {
 	// NCP dispatch starts only after authentication completes. runNCPPhase
 	// MUST set ncpStarted; LCP This-Layer-Down MUST clear it through resetNCP.
 	ncpStarted bool
-
-	// earlyNCPFrames holds frames received in the network phase before
-	// their family's FSM starts. resetNCP MUST discard them with that lifetime.
-	earlyNCPFrames [][]byte
 
 	// Driver's shutdown signal (the goroutine selects on this and
 	// the chan fd's blocking read).

@@ -162,12 +162,21 @@ func selectAuthFallback(suggestion AuthMethod, order []AuthMethod, tried uint8) 
 // that leaves Opened, or when Stopped begins negotiation again.
 // RFC 1661 Section 4.3: "The implementation MUST be prepared to immediately
 // renegotiate the Configuration Options."
+//
+// A peer's Nak and Reject answer the negotiation they arrived in, so every value
+// they changed returns to its configured form here: the Auth-Protocol offer, the
+// local MRU (zero offers the admitted maxMRU, see sendConfigureRequest) and the
+// offers of the MRU and Magic-Number options. A new lifetime is not proxied either.
 func (s *pppSession) resetAuthNegotiation() {
 	s.authMethodsTried = 0
 	s.lcpRejectedAuth = false
 	s.configuredAuthMethod = s.initialAuthMethod
 	s.lastLCPRequestSent = false
 	s.lastLCPReplyReceived = false
+	s.localMRU = 0
+	s.lcpRejectedMRU = false
+	s.lcpRejectedMagic = false
+	s.lcpProxied = false
 }
 
 // refuseAuthMethod preserves the normal Close/Restart/Terminate-Ack lifecycle.

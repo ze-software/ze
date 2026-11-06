@@ -129,17 +129,50 @@ func EvaluateProxyLCP(initialRecv, lastSent, lastRecv []byte) (proxyLCPResult, e
 	}
 
 	// Peer's Magic from its last CONFREQ toward LAC.
-	if v, ok := lookupMagicNumber(recvOpts); ok {
-		out.PeerMagic = v
+	out.PeerMagic, err = decodeProxyMagic(recvOpts)
+	if err != nil {
+		return proxyLCPResult{}, err
 	}
 
 	// The LAC's Magic from its last CONFREQ toward the peer, which the
 	// peer acknowledged; the LNS inherits it as its own negotiated value.
-	if v, ok := lookupMagicNumber(sentOpts); ok {
-		out.LocalMagic = v
+	out.LocalMagic, err = decodeProxyMagic(sentOpts)
+	if err != nil {
+		return proxyLCPResult{}, err
 	}
 
 	return out, nil
+}
+
+// decodeProxyMagic requires at most one correctly sized, nonzero Magic-Number,
+// so zero answers only for an absent option. Reading a malformed one as absent
+// would hold the peer's Echo packets to a zero they do not carry and drop them.
+// RFC 1661 Section 6.4: "The Magic-Number field is four octets, and indicates a
+// number which is very likely to be unique to one end of the link.  A
+// Magic-Number of zero is illegal and MUST always be Nak'd, if it is
+// not Rejected outright."
+func decodeProxyMagic(opts []LCPOption) (uint32, error) {
+	var magic uint32
+	seen := false
+	for _, option := range opts {
+		if option.Type != LCPOptMagic {
+			continue
+		}
+		// RFC 1661 Section 6: "(None of the Configuration
+		// Options in this specification can be listed more than once.)"
+		if seen {
+			return 0, errProxyLCPInvalid
+		}
+		if len(option.Data) != 4 {
+			return 0, errProxyLCPInvalid
+		}
+		seen = true
+		magic = binary.BigEndian.Uint32(option.Data)
+		if magic == 0 {
+			return 0, errProxyLCPInvalid
+		}
+	}
+	return magic, nil
 }
 
 // decodeProxyMRU requires at most one correctly sized MRU and resolves an

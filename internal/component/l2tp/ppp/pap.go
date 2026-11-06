@@ -13,6 +13,7 @@ package ppp
 import (
 	"encoding/binary"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -35,6 +36,13 @@ const papHeaderLen = 4
 // papFirstRequestTimeout bounds the wait for the peer's first PAP
 // Authenticate-Request. Matches the session-level defaultAuthTimeout.
 const papFirstRequestTimeout = 30 * time.Second
+
+// proxyPAPRequestWait bounds the same wait on a proxied LCP lifetime, where the
+// LAC may already have finished PAP with the peer. It covers two Restart periods:
+// a peer still in the Authentication phase repeats its request, RFC 1334 Section
+// 2.2.1: "The Authenticate-Request packet MUST be repeated until a valid reply
+// packet is received, or an optional retry counter expires."
+const proxyPAPRequestWait = 2 * defaultRestartTimer
 
 // papMaxFieldLen is the maximum length of a Peer-ID, Password or
 // Message field. RFC 1334 prefixes each field with a one-octet length,
@@ -158,8 +166,20 @@ func writePAPReply(buf []byte, off int, code, identifier uint8, message []byte) 
 //
 // RFC 1334 Section 2 flow: the peer is the sole initiator, so the
 // handler's first action is a blocking Read rather than a write.
+//
+// Non-PAP frames arriving during the wait go through s.handleFrame, as in
+// waitCHAPLike, so LCP stays responsive. A change of LCP state ends the wait and
+// the caller resumes the session loop.
+//
+// A proxied lifetime that sees no request renegotiates LCP instead of failing
+// (renegotiateProxiedLCP), which also returns false.
 func (s *pppSession) runPAPAuthPhase() bool {
-	deadline := time.NewTimer(papFirstRequestTimeout)
+	lcpState := s.currentState()
+	wait := papFirstRequestTimeout
+	if s.lcpProxied {
+		wait = proxyPAPRequestWait
+	}
+	deadline := time.NewTimer(wait)
 	defer deadline.Stop()
 
 	var req pAPRequest
@@ -173,6 +193,10 @@ func (s *pppSession) runPAPAuthPhase() bool {
 			}
 			frame = f
 		case <-deadline.C:
+			if s.lcpProxied {
+				s.renegotiateProxiedLCP()
+				return false
+			}
 			s.fail("pap: timed out waiting for Authenticate-Request")
 			return false
 		case <-s.stopCh:
@@ -188,7 +212,13 @@ func (s *pppSession) runPAPAuthPhase() bool {
 			return false
 		}
 		if proto != ProtoPAP {
+			// RFC 1661 Section 5.5: "Upon reception of a Terminate-Request, a
+			// Terminate-Ack MUST be transmitted."
+			term := s.handleFrame(frame)
 			putFrameBuf(frame)
+			if term || s.currentState() != lcpState {
+				return false
+			}
 			continue
 		}
 		parsed, perr := parsePAPRequest(payload)
@@ -254,6 +284,37 @@ func (s *pppSession) runPAPAuthPhase() bool {
 		Reason:    resp.message,
 	})
 	return false
+}
+
+// renegotiateProxiedLCP restarts LCP on a proxied lifetime whose peer sent no
+// Authenticate-Request. PAP is peer-initiated, so Ze cannot ask for one, and a
+// peer the LAC already authenticated is in the Network phase and will not send
+// one. Proxy LCP is optional for the LNS, and Ze never authenticates from the
+// Proxy Authen AVPs: the Proxy Authen Name only seeds the displayed username
+// until an authenticated identity replaces it (l2tp/reactor_kernel.go
+// handleSessionIPAssigned). The peer authenticates to Ze in the new round, so
+// nothing rests on the LAC.
+//
+// RFC 2661 Section 4.4.5: "Note that the LNS policy may be to enter an additional
+// round of LCP negotiation and/or authentication if the LAC is not trusted."
+// RFC 1661 Section 4.3: "The Down followed by an Up will cause an orderly
+// renegotiation of the link, by progressing through the Starting to the
+// Request-Sent state."
+//
+// The Down and Up run as one transition, so a Configure-Request that cannot be
+// sent leaves LCP in Opened with the session failed, where the caller ends it.
+func (s *pppSession) renegotiateProxiedLCP() {
+	s.logger.Info("ppp: no PAP Authenticate-Request on proxied LCP, renegotiating LCP",
+		"waited", proxyPAPRequestWait.String())
+	s.resetAuthNegotiation()
+	down := LCPDoTransition(LCPStateOpened, LCPEventDown)
+	up := LCPDoTransition(down.NewState, LCPEventUp)
+	// The caller reads the outcome from the LCP state, as it does after every
+	// other LCP interruption of the authentication phase.
+	s.applyTransition(LCPStateOpened, lCPTransition{
+		NewState: up.NewState,
+		Actions:  slices.Concat(down.Actions, up.Actions),
+	}, LCPPacket{})
 }
 
 // reanswerPAP preserves the authentication decision for later requests.

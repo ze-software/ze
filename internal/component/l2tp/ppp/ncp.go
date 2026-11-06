@@ -100,17 +100,6 @@ func (s *pppSession) runNCPPhase() bool {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
-	if len(s.earlyNCPFrames) > 0 {
-		s.logger.Info("ppp: draining early NCP frames", "count", len(s.earlyNCPFrames))
-	}
-	for _, early := range s.earlyNCPFrames {
-		if s.handleFrame(early) || s.currentState() != lcpState {
-			s.earlyNCPFrames = nil
-			return false
-		}
-	}
-	s.earlyNCPFrames = nil
-
 	for {
 		if s.currentState() != lcpState {
 			return false
@@ -1337,7 +1326,6 @@ func (s *pppSession) resetNCP() bool {
 	}
 	s.ipcpState = LCPStateInitial
 	s.ipv6cpState = LCPStateInitial
-	s.earlyNCPFrames = nil
 	s.lastIPCPRequestSent = false
 	s.lastIPv6CPRequestSent = false
 	s.localIPv4 = netip.Addr{}

@@ -465,6 +465,25 @@ MTU of 1492.
 <!-- source: internal/component/l2tp/ppp/auth.go -- selectAuthFallback, refuseAuthMethod, acceptProxyPolicy -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
 
+Ze also runs normal LCP when a proxied MRU or Magic-Number is malformed: the
+wrong width, listed twice, or a Magic-Number of zero.
+
+Ze never authenticates from the Proxy Authen AVPs. The Proxy Authen Name only
+seeds the displayed username until an authenticated identity replaces it. A
+session with no such identity (no authentication ran, or the peer authenticated
+with an empty name) keeps the LAC's unverified Name, and RADIUS accounting sends
+it as User-Name. A proxied CHAP or MS-CHAPv2 session gets a fresh Challenge from
+Ze. PAP is started by the peer, so a proxied PAP session waits 6 seconds for the
+peer's Authenticate-Request. A peer that sends none, because the LAC already
+finished PAP with it, gets a new round of LCP from Ze and authenticates again,
+so such a session comes up about 6 seconds later than one that needs no new
+round.
+<!-- source: internal/component/l2tp/session_fsm.go -- handleICCN -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- onSessionIPAssigned, buildAcctPacket -->
+<!-- source: internal/component/l2tp/ppp/proxy.go -- decodeProxyMRU, decodeProxyMagic -->
+<!-- source: internal/component/l2tp/ppp/pap.go -- proxyPAPRequestWait, runPAPAuthPhase, renegotiateProxiedLCP -->
+
 IPv6CP is enabled by default, so the configured MRU must be at least 1280.
 For IPv4-only service, set `l2tp ncp enable-ipv6cp false` before using an
 MRU from 68 through 1279. Validation checks the effective combination at
@@ -480,11 +499,14 @@ When an otherwise valid peer negotiates an MRU smaller than 1280, Ze does not
 start IPv6CP or allocate an IPv6 address. IPv4 can still establish using the
 peer's smaller limit. An IPv6-only session fails with an MRU diagnostic rather
 than reporting usable service. A later LCP negotiation can restore IPv6 when
-the new directional MRUs support 1280. Peer MRUs smaller than 68 are Nakked
-to 68 instead of causing Ze to install an MTU larger than the agreed limit.
+the new directional MRUs support 1280: it starts from the configured MRU again,
+so a smaller value the peer Nakked in an earlier negotiation does not carry
+over. Peer MRUs smaller than 68 are Nakked to 68 instead of causing Ze to
+install an MTU larger than the agreed limit.
 <!-- source: internal/component/l2tp/ppp/mru_policy.go -- ipv6MRUSupported -->
 <!-- source: internal/component/l2tp/ppp/ncp.go -- runNCPPhase, onNCPOpened -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- negPolicy, handleLCPPacket -->
+<!-- source: internal/component/l2tp/ppp/auth.go -- resetAuthNegotiation -->
 
 Two auth handlers ship with ze. The slot holds one handler, and configuration
 decides its owner: `l2tp-auth-radius` claims it when a RADIUS server is

@@ -215,6 +215,7 @@ func (s *pppSession) run(start *StartSession) {
 		negotiatedMethod := authMethodFromAuthProto(proxy.AuthProto, proxy.AuthData)
 		s.initialAuthMethod = s.configuredAuthMethod
 		s.authNegotiationStarted = true
+		s.lcpProxied = true
 		s.logger.Info("ppp: proxy LCP short-circuit",
 			"mru", proxy.MRU,
 			"auth-proto", strconv.Itoa(int(proxy.AuthProto)),
@@ -636,13 +637,17 @@ func (s *pppSession) transmitMRU() uint16 {
 	return min(mru, cap)
 }
 
-// afterLCPOpen performs the post-Opened side effects: set MRU on the
-// unit fd, set MTU on pppN via iface backend, bring pppN up, run the
-// auth hook. Returns false on failure or an LCP interruption. The caller
+// afterLCPOpen performs the post-Opened work, in this order: check the
+// transmit MRU against the IPv4 minimum, run authentication and the NCP
+// phase, wait for the unit to drain after a reconnect, set the MTU on pppN
+// through the iface backend, connect the channel to the unit, set the MRU
+// on the unit fd, bring pppN up, start the IPv6 service, and publish
+// EventSessionUp. Returns false on failure or an LCP interruption. The caller
 // MUST resume the session loop when LCP has entered negotiation or termination.
 //
-// Order matters: set the fd-side MRU BEFORE asking the kernel to
-// bring the interface up, so the first frame is sized correctly.
+// Order matters: set the interface MTU BEFORE connecting the channel, and
+// the fd-side MRU BEFORE asking the kernel to bring the interface up, so
+// the first frame is sized correctly.
 //
 // The IPv6 service is started by afterLCPOpenIPv6Service (above), which
 // carries the guard on the peer's negotiated identifier.
@@ -688,16 +693,33 @@ func (s *pppSession) afterLCPOpen() bool {
 		return false
 	}
 
+	var tb textbuf.Buffer
+	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
+	// RFC 1332 Section 2.1: "The maximum length of an IP packet transmitted
+	// over a PPP link is the same as the maximum length of the Information
+	// field of a PPP data link layer frame." MRU already excludes framing.
+	// The peer's receive capacity does not override the session's admitted
+	// transmit limit. An omitted peer MRU still means 1500 for negotiation,
+	// while PPPoE and an LNS behind a PPPoE LAC must keep their smaller cap.
+	//
+	// The MTU goes first because the interface of a reopened lifetime is still
+	// up with the previous MTU: resetNCP disconnects the channel and leaves the
+	// interface alone, and the connect below is what lets it transmit again.
+	if err := s.backend.SetMTU(ifname, int(mru)); err != nil {
+		s.mu.Unlock()
+		s.fail(tb.Str("iface SetMTU: ").Err(err).String())
+		return false
+	}
+
 	// Post-NCP: connect channel to unit and bring interface up.
 	// PPPIOCCONNECT must happen after NCP because it changes frame
 	// routing from channel fd to unit fd (accel-ppp uses the same
 	// deferred-connect pattern): from here on the NCP frames arrive on
-	// the unit, so readUnitFrames is woken to read them. MRU/MTU/AdminUp
+	// the unit, so readUnitFrames is woken to read them. MRU/AdminUp
 	// follow.
-	var tb textbuf.Buffer
 	if err := s.ops.connect(s.chanFD, s.unitNum); err != nil {
 		s.mu.Unlock()
-		s.fail(tb.Str("PPPIOCCONNECT: ").Err(err).String())
+		s.fail(tb.Reset().Str("PPPIOCCONNECT: ").Err(err).String())
 		return false
 	}
 	s.channelConnected = true
@@ -709,18 +731,6 @@ func (s *pppSession) afterLCPOpen() bool {
 	if err := s.ops.setMRU(s.unitFD, MaxFrameLen); err != nil {
 		s.mu.Unlock()
 		s.fail(tb.Reset().Str("PPPIOCSMRU: ").Err(err).String())
-		return false
-	}
-	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
-	// RFC 1332 Section 2.1: "The maximum length of an IP packet transmitted
-	// over a PPP link is the same as the maximum length of the Information
-	// field of a PPP data link layer frame." MRU already excludes framing.
-	// The peer's receive capacity does not override the session's admitted
-	// transmit limit. An omitted peer MRU still means 1500 for negotiation,
-	// while PPPoE and an LNS behind a PPPoE LAC must keep their smaller cap.
-	if err := s.backend.SetMTU(ifname, int(mru)); err != nil {
-		s.mu.Unlock()
-		s.fail(tb.Reset().Str("iface SetMTU: ").Err(err).String())
 		return false
 	}
 	if err := s.backend.SetAdminUp(ifname); err != nil {
@@ -984,7 +994,9 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		// from the Authentication phase to the Network-Layer Protocol
 		// phase MUST NOT occur until authentication has completed."
 		// LCP Opened alone is insufficient: replacement authentication
-		// runs there too. Discard before buffering an old NCP reply.
+		// runs there too. A frame sent while runNCPPhase starts its FSMs
+		// waits in the channel, because that phase reads no frame until an
+		// enabled FSM has left Initial.
 		if !s.ncpStarted {
 			return false
 		}
@@ -1005,13 +1017,11 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		}
 		return false
 	case ProtoIPCP:
-		if s.ipcpState == LCPStateInitial {
-			buf := make([]byte, len(frame))
-			copy(buf, frame)
-			s.earlyNCPFrames = append(s.earlyNCPFrames, buf)
-			s.logger.Info("ppp: buffered early IPCP frame", "count", len(s.earlyNCPFrames), "len", len(frame))
-			return false
-		}
+		// A disabled IPCP stays in Initial for good, so its peer's
+		// retransmissions are answered here or never.
+		// RFC 1661 Section 5.7: "If the LCP automaton is in the Opened state,
+		// then this MUST be reported back to the peer by transmitting a
+		// Protocol-Reject."
 		if s.disableIPCP {
 			return s.rejectUnsupportedProtocol(proto, payload)
 		}
@@ -1021,25 +1031,16 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		}
 		return s.handleIPCPPacket(pkt)
 	case ProtoIPv6CP:
-		// Disabled takes precedence over the early-frame buffer: once
-		// IPv6CP is dropped (config, or handler-declined IPv6 in
-		// runNCPPhase), the peer keeps retransmitting CONFREQ -- buffering
-		// those into earlyNCPFrames would grow unbounded since the NCP
-		// never starts to drain them. Answer them instead: RFC 1661 Section
-		// 5.7 is what stops the retransmissions, where dropping them left a
-		// dual-stack peer retrying IPV6CP for its whole Configure-Request
-		// budget.
+		// Once IPv6CP is dropped (config, or handler-declined IPv6 in
+		// runNCPPhase), the peer keeps retransmitting CONFREQ. Answer them:
+		// RFC 1661 Section 5.7 is what stops the retransmissions, where
+		// dropping them left a dual-stack peer retrying IPV6CP for its whole
+		// Configure-Request budget.
 		// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
 		// information field to be at least as large as the minimum link MTU
 		// size required for IPv6 [2]."
 		if s.disableIPv6CP || !s.ipv6MRUSupported() {
 			return s.rejectUnsupportedProtocol(proto, payload)
-		}
-		if s.ipv6cpState == LCPStateInitial {
-			buf := make([]byte, len(frame))
-			copy(buf, frame)
-			s.earlyNCPFrames = append(s.earlyNCPFrames, buf)
-			return false
 		}
 		if perr != nil {
 			s.logger.Debug("ppp: malformed IPv6CP packet", "error", perr.Error())
@@ -1348,11 +1349,12 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		optsBad = verdict == lcpRequestUnacceptable
 	}
 
-	// A validated configuration packet leaving Opened starts a fresh LCP
-	// lifetime. Reset before applying its Nak/Reject, never after that mutation.
+	// A validated configuration packet or a Terminate-Ack leaving Opened starts
+	// a fresh LCP lifetime: each of them is a tld,scr edge in LCPDoTransition.
+	// Reset before applying its Nak/Reject, never after that mutation.
 	if cur == LCPStateOpened {
 		switch pkt.Code {
-		case LCPConfigureRequest, LCPConfigureAck, LCPConfigureNak, LCPConfigureReject:
+		case LCPConfigureRequest, LCPConfigureAck, LCPConfigureNak, LCPConfigureReject, LCPTerminateAck:
 			s.resetAuthNegotiation()
 		}
 	}
