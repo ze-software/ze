@@ -7,7 +7,7 @@
     "claim-sha": "23dd79eda7163948",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4",
-    "producer-sha": "63619e94feecbb25",
+    "producer-sha": "278b215192a72cbe",
     "break": "body of Reactor.runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "4583c65c74ce116d",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4",
-    "producer-sha": "63619e94feecbb25",
+    "producer-sha": "278b215192a72cbe",
     "break": "body of Reactor.runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

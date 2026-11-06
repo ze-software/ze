@@ -166,8 +166,10 @@ func exportThroughSession(t *testing.T, settings *PeerSettings, delta string, bo
 //
 // RFC requirement: RFC4271-5.1.2-2 negative -- an export as-path-prepend or
 // remove-private toward a peer that is internal by RFC 7705 Section 4.2 (peer
-// AS = the configured migration AS) is not applied by exportFilterForBody,
-// while the same peer AS with no migration AS is prepended and stripped.
+// AS = the configured migration AS) is not applied by the export gate's chain
+// run (Reactor.exportFilterFromFacts, through the test helper
+// exportFilterForBody), while the same peer AS with no migration AS is
+// prepended and stripped.
 func TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict(t *testing.T) {
 	assert.Equal(t, []uint32{64496},
 		exportThroughSession(t, migrationSettings("10.0.0.31", true), "as-path-prepend 2", asPathBodyAtWidth(true)),

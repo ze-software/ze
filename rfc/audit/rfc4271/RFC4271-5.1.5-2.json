@@ -1,14 +1,14 @@
 {
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc4271): \"A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065].\" The only edit to test/plugin/local-pref-strip-ebgp.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Re-judged 2026-11-06 by an independent auditor who authored none of the change; no test, record or lab ran for this judgement. RFC 4271 Section 5.1.5: \"A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065].\" rfc4271_test.go changed in doc comments only and its citations are true (reactor_wire.go:536-542, the gate through localPrefAllowedTo). checkLocalPrefStrip, uncommitted in the working tree, drops requireGoBGPAttributeAbsent for waitLocalPrefWire, a stronger proof: the speaker relays the original Ze to GoBGP connection and requireLocalPrefInterval reads each frame, so code 5 on any subject UPDATE through the FIFO fence is a semantic failure at assertion 13, with session identity, all three subjects and the reverse KEEPALIVE barrier required. The old assertion could not have gone red: GoBGP v4.11.0 ProcessMessage (read from upstream) holds case *bgp.PathAttributeLocalPref ... if !external, with external true for this non-RS-client peer, so the RIB never showed a leak, as the checker's comment says. The scenario's injector is internal and sends LOCAL_PREF 200, so a strip is owed. TestLocalPrefStripChecksDestinationWire reddens leaked200, leaked0, truncated, wrong connection and missing fence with an unchanged RIB, by its own words checker-boundary evidence and no native run. Bound: no native run of the rewritten checker was seen here and it carries no discrimination record. The unit proofs stand without it: TestRFC4271LocalPrefOmittedForExternalPeers, TestForwardLocalPrefStrippedToExternalPeer, TestForwardLocalPrefStripBeatsAFilterSet. Confederation exception: localPrefAllowedTo holds it constantly false and no YANG module configures a member AS, so it cannot apply. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "82f98f8417a1cee3",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStripBeatsAFilterSet": "33e3a14230a4a91e",
     "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "33e3a14230a4a91e",
     "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestLocalPrefAllowedToIsTheOnlyAnswer": "33e3a14230a4a91e",
     "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "130297db967addd6",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "cf56fd5b02c69045",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "cf56fd5b02c69045",
-    "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "e4ba9358c797eb4c",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "678867473385a541",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "678867473385a541",
+    "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "5d6de7c759aceba0",
     "test/plugin/local-pref-strip-ebgp.ci": "a883dea4cd288662",
     "test/plugin/local-pref-strip-ebgp.ci#2": "a883dea4cd288662"
   },
@@ -17,9 +17,9 @@
     "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "73e599b61c252e0c",
     "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestLocalPrefAllowedToIsTheOnlyAnswer": "635195b862c7b4e2",
     "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "165f41675250d78c",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "783191eb4bc341cf",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "d9f9d0718c76e7d9",
-    "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "a8c131ab25086c17",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "fba509eb8fe13369",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "4b0a4ab61fcb46ea",
+    "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "14290b982a94c280",
     "test/plugin/local-pref-strip-ebgp.ci": "a883dea4cd288662",
     "test/plugin/local-pref-strip-ebgp.ci#2": "a883dea4cd288662"
   },

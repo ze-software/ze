@@ -7,8 +7,8 @@
     "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS#2": "9c699e457619798c",
     "internal/component/bgp/reactor/forward_med_test.go::TestForwardWritesLocallySetMED": "9c699e457619798c",
     "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "9c699e457619798c",
-    "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "e4ba9358c797eb4c",
-    "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "e4ba9358c797eb4c",
+    "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "5d6de7c759aceba0",
+    "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "5d6de7c759aceba0",
     "test/plugin/med-locally-set-reaches-peer.ci": "c9cecb80fb2bab3a",
     "test/plugin/med-not-propagated-across-as.ci": "645c67f92099c212",
     "test/plugin/med-not-propagated-across-as.ci#2": "645c67f92099c212"

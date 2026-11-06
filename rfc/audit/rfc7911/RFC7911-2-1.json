@@ -14,7 +14,7 @@
     "internal/component/bgp/reactor/forward_path_id.go::releaseSource": "8a85e0965ed30bd1",
     "internal/component/bgp/reactor/forward_path_id.go::reserve": "4280d67a383d192c",
     "internal/component/bgp/reactor/forward_path_id.go::retain": "228bba38516d7670",
-    "internal/component/bgp/reactor/session_ownership.go::allow": "359bc95131ccb821",
+    "internal/component/bgp/reactor/session_ownership.go::allow": "da4eedcf4cb498f1",
     "internal/component/bgp/reactor/session_ownership.go::beginAdjOut": "e9ae4d388272af7c",
     "internal/component/bgp/reactor/session_ownership.go::bindSourcePath": "e9fb3f220c4c91c2",
     "internal/component/bgp/reactor/session_ownership.go::filter": "bd62e97c08afa619",
@@ -24,9 +24,9 @@
     "internal/component/bgp/reactor/session_ownership_walk.go::allowNLRI": "0ecd4eae79be1689",
     "internal/component/bgp/reactor/session_ownership_walk.go::recordNLRI": "1a567afd68772de3",
     "internal/component/bgp/reactor/session_write.go::retireWrite": "8d1fe8fe152756e1",
-    "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "4f5e4354843aee34"
+    "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "cc902bb317ba7206"
   },
-  "note": "Independent source rejudgment against RFC 7911 Section 2: \"However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.\" Read both tagged tests and all cited ownership/generator boundaries. Colliding received identifiers from two distinct sources for the same native prefix must leave under different local identifiers; replacement from the same source must retain its assigned identifier. These are falsifiable destination-visible pair assertions, not a demand that every local number differ from its received number. beginAdjOut still rejects retired/wrong-session/provenance writes, binds the current session's table and clears only replaced-session state; the moved code now also checks initial-write admission. Source keying, generatePath/mintLocked and bindSourcePath maintain local reservations, while recordNLRI and deletion preserve/release the proper owner. The tests cover uniqueness and stable replacement, not every recovery lifecycle race. Verdict enforced; the broadened producer admission does not undermine those assertions. No tests or discrimination replay ran.",
+  "note": "Re-judged 2026-11-06 by an independent auditor who authored none of the changes named. RFC 7911 Section 2: \"However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.\" 1e65b6d4bb changed two cited producers. adjOutWrite.allow gains a branch for sentForward.ownRouteWithdrawal, which only sendOwnRouteWithdrawal sets, for a stale-rail withdrawal with no sent receipt: it spares an absent key or another source's entry, and does not change how a key is built or an identifier assigned. writeUpdateBody now takes the receipt in a local and calls noteExportWrite, which can only raise the export watermark and writes nothing. Neither reaches the generator, and neither fires on the relay these units drive. Both tagged units are byte-identical and were re-read: TestForwardPathIDsDifferForCollidingSources reads the identifier field from two destination frames of colliding sources and requires them unequal; TestForwardPathIDStableAcrossUpdates requires a repeat of one path to keep its identifier and a colliding source to differ. Caveat on scope: both units drive buildFwdBody, so they judge identifiers on re-advertised paths and do not exercise identifiers on originated routes. No test or record ran for this rejudgment. Verdict unchanged: enforced.",
   "requirement_sha": "5df8a5af519ff87a",
   "tests": {
     "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "8e4558cf2659911f",

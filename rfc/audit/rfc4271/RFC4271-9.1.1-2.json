@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-01 (BGP c17 judge). Forbidden: an IBGP readvertisement carrying a LOCAL_PREF other than the degree of preference the import policy computed. NEW TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers runs an external route through the source's real runIngressPolicyChain (filter seam answers local-preference 200) and forwards the chain's payload on the general rail: the internal destination is sent exactly 000000C8 and the external one none; the same route with no import policy is sent 00000064, so a constant (100 or 200) cannot pass both cases. Records: + on runIngressPolicyChain, - on applyFactsLocalPref, both observed red; author semantic overlay (applyFactsLocalPref overwrites any base LOCAL_PREF toward internal peers with 100) reddens the + case, c17-ov-lp.log. The HEAD - tag on TestRFC4271LocalPrefOmittedForExternalPeers was removed (D-15): its assertion is RFC4271-5.1.5-2's rule, which the unit keeps. HEAD + TestRFC4271LocalPrefIncludedForInternalPeers stays supplementary (default 100 on the announce rail, no record). Bound: the general forward rail is proven; the route-server rail and the rib plugin's readvertisement are not driven by this unit (5.1.5-5 shares that composition).",
+  "note": "Re-judged 2026-11-06 by an independent auditor who authored none of the change; no test or record ran for this judgement. RFC 4271 Section 9.1.1: \"otherwise, the return value MUST be used as the LOCAL_PREF value in any IBGP readvertisement.\" The staleness is a doc comment: TestRFC4271LocalPrefIncludedForInternalPeers changed in its comment only, and reactor_wire.go:537-541 is the true citation (lpVal default, stored override, writeLocalPrefAttr). Its claim is wider than its body: it says the value is the stored LOCAL_PREF defaulting to 100, and the route it builds stores none, so it proves the default only; the claim should be narrowed or the tag dropped. The verdict rests on TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers, re-read: the source's real import chain computes 200, the internal destination is sent exactly 000000C8 and the external none, and with no policy the internal is sent 00000064, so no constant passes both; both polarities carry observed reach records. Bound: the unit drives the general forward rail. The route-server rail shares applyFactsLocalPref (forward_rs.go:553), and the rib plugin's readvertisement is not driven by it. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "a1b8e0c8297d0ee1",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers": "58ed5910a898b549",
     "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers#2": "58ed5910a898b549",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "cf56fd5b02c69045"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "678867473385a541"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers": "dd1ed352098de2ea",
     "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers#2": "dd1ed352098de2ea",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "783191eb4bc341cf"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "fba509eb8fe13369"
   },
   "verdict": "enforced"
 }

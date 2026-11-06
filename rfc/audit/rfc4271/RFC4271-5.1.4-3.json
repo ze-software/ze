@@ -3,7 +3,7 @@
   "requirement_sha": "39b6d1281fba91ed",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess": "3b8c32c143d860f2",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271MEDAlterationHappensAtIngress": "cf56fd5b02c69045"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271MEDAlterationHappensAtIngress": "678867473385a541"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess": "bd007c6205cd89f4",

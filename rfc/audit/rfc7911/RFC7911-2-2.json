@@ -26,7 +26,7 @@
     "internal/component/bgp/reactor/forward_path_id.go::unframed": "a765f1d1ce318ab9",
     "internal/component/bgp/reactor/forward_provenance.go::prepareFwdProvenance": "55b4a396991dd556",
     "internal/component/bgp/reactor/forward_provenance.go::writePath": "b3c04bff61376267",
-    "internal/component/bgp/reactor/session_ownership.go::allow": "359bc95131ccb821",
+    "internal/component/bgp/reactor/session_ownership.go::allow": "da4eedcf4cb498f1",
     "internal/component/bgp/reactor/session_ownership.go::beginAdjOut": "e9ae4d388272af7c",
     "internal/component/bgp/reactor/session_ownership.go::bindSourcePath": "e9fb3f220c4c91c2",
     "internal/component/bgp/reactor/session_ownership.go::filter": "bd62e97c08afa619",
@@ -36,9 +36,9 @@
     "internal/component/bgp/reactor/session_ownership_walk.go::allowNLRI": "0ecd4eae79be1689",
     "internal/component/bgp/reactor/session_ownership_walk.go::recordNLRI": "1a567afd68772de3",
     "internal/component/bgp/reactor/session_write.go::retireWrite": "8d1fe8fe152756e1",
-    "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "4f5e4354843aee34"
+    "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "cc902bb317ba7206"
   },
-  "note": "Independent source rejudgment against RFC 7911 Section 2: \"A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route.\" Read every tagged unit and cited producers. Same- and cross-context classic/MP forwarding tests distinguish colliding source paths, preserve each native prefix/identifier pair through attribute replacement and withdrawal, cover non-ADD-PATH sources and numeric boundaries/wrap, and require that withdrawing a sibling not renumber a survivor. Churn tests inspect recipient bytes and reservation counts; the mixed withdraw/announce case keeps the surviving local identity. Functional stored-route replay expects the locally assigned identifier on both live and replay rails, and the native checker compares the full path-identifier set after genuine receiver session generation changes. The obligation is local assignment, not numeric inequality from every received value. fwdReencodeMPAttributes still invokes local generation separately for reach and inverse lookup for unreach, preserving the received body; its exhaustive-ignore directive does not add an alternate framing path. beginAdjOut's current initial-write admission guard retains session/provenance fencing. Source keying, reservation and ownership recording/release were re-read; no evidence supports downgrading these tagged guarantees. Verdict enforced. This source review is not a runtime or discrimination-freshness claim.",
+  "note": "Re-judged 2026-11-06 by an independent auditor who authored none of the changes named. RFC 7911 Section 2: \"A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route.\" 1e65b6d4bb changed two cited producers. adjOutWrite.allow gains a branch for sentForward.ownRouteWithdrawal, which only sendOwnRouteWithdrawal sets, for a stale-rail withdrawal with no sent receipt; the relayed withdrawals in the churn units do not set it, so they take the old path. writeUpdateBody now takes the receipt in a local and calls noteExportWrite, which can only raise the export watermark. Neither generates, rewrites or releases an identifier. All tagged units are byte-identical and were re-read, with the functional file's expectations and the interop checker. Colliding sources must leave under different identifiers on classic and MP rails, same-context, cross-context and unframed sources alike; replacement, attribute change and withdrawal must carry the identifier announced, read from recipient bytes; a sibling's withdrawal must not renumber a survivor; wrap must not hand a third source an occupied identifier; the checker compares FRR's identifiers across a real session reset. Inequality is asserted only between colliding paths, and the obligation is local assignment, not difference from the received number. Caveat on proof: the .ci positive tag reads identifier 0 against a received 1, which pins this build's assignment, and no test or record ran for this rejudgment. Verdict unchanged: enforced.",
   "requirement_sha": "442640073668ac08",
   "tests": {
     "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDKeepsTheSourceOfARebuiltFrame": "43250a2eec94bdaa",
@@ -58,7 +58,7 @@
     "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "8e4558cf2659911f",
     "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "8e4558cf2659911f",
     "internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go::TestPathIDKeyFollowsWhatTheSourceFramed": "f27c8fc1cc7a38e0",
-    "internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision": "e4ba9358c797eb4c",
+    "internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision": "5d6de7c759aceba0",
     "test/plugin/adj-rib-in-replay-addpath-source.ci": "10543a0ef239d49a"
   },
   "units": {

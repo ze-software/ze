@@ -161,7 +161,7 @@
     "claim-sha": "6596988e04880e27",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
-    "producer-sha": "ca00cf350a68d400",
+    "producer-sha": "6d38f3058c2e37b0",
     "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -172,7 +172,7 @@
     "claim-sha": "fdd9a59176ae2e37",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
-    "producer-sha": "ca00cf350a68d400",
+    "producer-sha": "6d38f3058c2e37b0",
     "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

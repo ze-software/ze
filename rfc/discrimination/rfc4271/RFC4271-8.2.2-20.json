@@ -40,7 +40,7 @@
     "claim-sha": "c3257e5e26e96064",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "7b9a59a2872626e1",
+    "producer-sha": "ac656d49fdbbf1d1",
     "break": "body of runOnce replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -51,8 +51,8 @@
     "claim-sha": "7a8a0b892c0bd702",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "7b9a59a2872626e1",
-    "break": "line 440: \"session.startDamped\" -\u003e \"session.startAutomatic\""
+    "producer-sha": "ac656d49fdbbf1d1",
+    "break": "line 438: \"session.startDamped\" -\u003e \"session.startAutomatic\""
   },
   {
     "rid": "RFC4271-8.2.2-20",
@@ -73,8 +73,8 @@
     "claim-sha": "2db8de6abba0e809",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "7b9a59a2872626e1",
-    "break": "line 443: \"session.startAutomatic\" -\u003e \"session.startDamped\""
+    "producer-sha": "ac656d49fdbbf1d1",
+    "break": "line 441: \"session.startAutomatic\" -\u003e \"session.startDamped\""
   },
   {
     "rid": "RFC4271-8.2.2-20",
@@ -84,7 +84,7 @@
     "claim-sha": "7166bb73daf1148a",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "7b9a59a2872626e1",
-    "break": "line 443: \"session.startAutomatic\" -\u003e \"session.startDamped\""
+    "producer-sha": "ac656d49fdbbf1d1",
+    "break": "line 441: \"session.startAutomatic\" -\u003e \"session.startDamped\""
   }
 ]

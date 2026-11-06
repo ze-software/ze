@@ -78,14 +78,14 @@ func rfc4271FindAttr(attrs []byte, code attribute.AttributeCode) ([]byte, bool) 
 //
 // PREVENTS: Leaking local preference across an AS boundary, or omitting it inside the AS.
 //
-// RFC requirement: RFC4271-5.1.5-1 positive -- WriteAnnounceUpdate writes LOCAL_PREF into
-// every announce built for an internal peer (internal/component/bgp/reactor/reactor_wire.go:347-354).
+// RFC requirement: RFC4271-5.1.5-1 positive -- writeAnnounceUpdate writes LOCAL_PREF into
+// every announce built for an internal peer (internal/component/bgp/reactor/reactor_wire.go:536-542).
 // RFC requirement: RFC4271-5.1.5-2 negative -- the same gate is what keeps LOCAL_PREF out
 // of an external peer's UPDATE, so the attribute's presence is conditional on the session
-// being internal rather than unconditional (reactor_wire.go:347).
+// being internal rather than unconditional (reactor_wire.go:536).
 // RFC requirement: RFC4271-9.1.1-2 positive -- the value carried to the internal peer is
 // the computed degree of preference for the route (the stored LOCAL_PREF, defaulting to
-// 100) (internal/component/bgp/reactor/reactor_wire.go:348-352).
+// 100) (internal/component/bgp/reactor/reactor_wire.go:537-541).
 func TestRFC4271LocalPrefIncludedForInternalPeers(t *testing.T) {
 	attrs := rfc4271Announce(t, true)
 	value, ok := rfc4271FindAttr(attrs, attribute.AttrLocalPref)
@@ -103,10 +103,10 @@ func TestRFC4271LocalPrefIncludedForInternalPeers(t *testing.T) {
 //
 // RFC requirement: RFC4271-5.1.5-2 positive -- an announce built for an external peer
 // contains no LOCAL_PREF, because the write is gated on isIBGP
-// (internal/component/bgp/reactor/reactor_wire.go:347-354).
+// (internal/component/bgp/reactor/reactor_wire.go:536-542).
 // RFC requirement: RFC4271-5.1.5-1 negative -- the SHALL-include obligation is not applied
 // blindly: the same producer omits the attribute when the peer is external, so its
-// presence for internal peers is a real decision (reactor_wire.go:347).
+// presence for internal peers is a real decision (reactor_wire.go:536).
 func TestRFC4271LocalPrefOmittedForExternalPeers(t *testing.T) {
 	attrs := rfc4271Announce(t, false)
 	_, ok := rfc4271FindAttr(attrs, attribute.AttrLocalPref)
@@ -126,9 +126,9 @@ func TestRFC4271LocalPrefOmittedForExternalPeers(t *testing.T) {
 //
 // PREVENTS: Breaking iBGP loop semantics and path length by prepending inside the AS.
 //
-// RFC requirement: RFC4271-5.1.2-2 positive -- WriteAnnounceUpdate leaves the AS_PATH
+// RFC requirement: RFC4271-5.1.2-2 positive -- writeAnnounceUpdate leaves the AS_PATH
 // unmodified for an internal peer: the eBGP prepend branch is not taken and the AS number
-// list stays empty (internal/component/bgp/reactor/reactor_wire.go:322-332).
+// list stays empty (internal/component/bgp/reactor/reactor_wire.go:513-522).
 func TestRFC4271ASPathUnmodifiedTowardInternalPeer(t *testing.T) {
 	attrs := rfc4271Announce(t, true)
 	value, ok := rfc4271FindAttr(attrs, attribute.AttrASPath)
@@ -145,7 +145,7 @@ func TestRFC4271ASPathUnmodifiedTowardInternalPeer(t *testing.T) {
 //
 // RFC requirement: RFC4271-5.1.2-2 negative -- the same producer does modify the AS_PATH
 // when the peer is external, prepending the local AS, so the internal-peer no-modify rule
-// is a deliberate branch (internal/component/bgp/reactor/reactor_wire.go:326-332).
+// is a deliberate branch (internal/component/bgp/reactor/reactor_wire.go:513-522).
 func TestRFC4271ASPathPrependedTowardExternalPeer(t *testing.T) {
 	attrs := rfc4271Announce(t, false)
 	value, ok := rfc4271FindAttr(attrs, attribute.AttrASPath)

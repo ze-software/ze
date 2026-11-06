@@ -9,7 +9,7 @@
     "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopForwardAdmission#2": "4b117c9387c8821b",
     "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission": "4b117c9387c8821b",
     "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission#2": "4b117c9387c8821b",
-    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "01f60dd8a785dc52",
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "6ff57b8bf466ee67",
     "internal/component/bgp/reactor/peer_static_group_next_hop_test.go::TestStaticGroupedResolvedNextHopWire": "6427acc3c9957f8b",
     "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress": "a612df4304b21407",
     "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress": "a612df4304b21407",
@@ -24,7 +24,7 @@
     "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling": "958abdcc2e698896",
     "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling#2": "958abdcc2e698896",
     "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "aee9e1900e952b80",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "e4ba9358c797eb4c",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "5d6de7c759aceba0",
     "test/encode/new-v6.ci": "4ffdf2e413e62f0c",
     "test/exabgp-compat/encoding/conf-llnh-update.ci": "7f4eea9ed22f6382",
     "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci": "dcba781a296b74e1"
