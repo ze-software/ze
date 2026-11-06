@@ -31,7 +31,7 @@ var sleeperArgv = []string{"sh", "-c", "sleep 30 & sleep 30"}
 // METHOD: the verb's runner drives a child that would sleep for 30 s; the test
 // signals itself 300 ms in and requires the runner back within 10 s, non-zero.
 // G-2: the SIGKILL of the child's group means labtest's t.Cleanup never
-// runs, so after the signaled exit the verb runs one non-dry orphan sweep,
+// runs, so after the signaled exit the verb runs one non-dry owned orphan sweep,
 // on a context the signal did not cancel, in the same invocation.
 // PREVENTS: the root's NotifyContext swallowing the signal while the child,
 // run on context.Background, runs on; and a killed run's containers waiting
@@ -63,6 +63,9 @@ func TestDockerChildStopsOnSignal(t *testing.T) {
 		if !slices.Equal(cleaner.dry, []bool{false}) {
 			t.Errorf("%v: CleanupOrphans calls = %v, want one non-dry sweep after the signal", delivered, cleaner.dry)
 		}
+		if cleaner.ownedCalls != 1 {
+			t.Errorf("%v: owned cleanup calls = %d, want 1", delivered, cleaner.ownedCalls)
+		}
 		if slices.Contains(cleaner.canceled, true) {
 			t.Errorf("%v: the sweep ran on a context the signal had canceled", delivered)
 		}
@@ -93,6 +96,9 @@ func TestSignalSweepReports(t *testing.T) {
 	}}
 	if text := sweepAfterSignal(t.Context(), dockerPeersVerb, removed, gaterun.ProcessGroup{}, groupExitTimeout); !strings.Contains(text, "1 removed") {
 		t.Errorf("summary = %q, want the report's removed count", text)
+	}
+	if removed.ownedCalls != 1 {
+		t.Errorf("owned cleanup calls = %d, want 1", removed.ownedCalls)
 	}
 	refused := &fakeCleaner{err: errors.New("daemon gone")}
 	text := sweepAfterSignal(t.Context(), dockerPeersVerb, refused, gaterun.ProcessGroup{}, groupExitTimeout)
@@ -173,6 +179,9 @@ func TestSignalSweepNamesMembersLeft(t *testing.T) {
 	text := sweepAfterSignal(t.Context(), dockerPeersVerb, cleaner, group, 200*time.Millisecond)
 	if !slices.Equal(cleaner.dry, []bool{false}) {
 		t.Errorf("CleanupOrphans calls = %v, want one non-dry sweep past the bound", cleaner.dry)
+	}
+	if cleaner.ownedCalls != 1 {
+		t.Errorf("owned cleanup calls = %d, want 1", cleaner.ownedCalls)
 	}
 	for _, want := range []string{strconv.Itoa(member), "had not all exited", "live-owned: process group ", "./le test integration clean"} {
 		if !strings.Contains(text, want) {

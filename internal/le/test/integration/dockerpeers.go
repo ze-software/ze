@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/qemu-integration.md -- the docker population and its verb
 // Related: ../buildtag/buildtag.go -- the tree scan this verb's package set comes from.
 // Related: gates.go -- the docker-peers and live-rpki rows.
-// Related: cleanup.go -- labCleaner, the orphan sweep a signaled run ends with.
+// Related: cleanup.go -- the explicit global cleanup, separate from child cleanup.
 
 package testintegration
 
@@ -45,6 +45,14 @@ const (
 	groupExitTimeout = 10 * time.Second
 )
 
+// childLabCleaner binds a launched child's inherited identity to the bounded
+// cleanup that removes only this invocation's gone owners.
+type childLabCleaner interface {
+	labCleaner
+	ChildEnvironment([]string) ([]string, error)
+	CleanupOwnedOrphans(context.Context) (interoplab.OrphanReport, error)
+}
+
 func runDockerPeers(ctx context.Context, root string) (any, int) {
 	return runRequiringDocker(ctx, dockerPeersVerb, func(tc gotoolchain.Toolchain) ([]string, error) {
 		return dockerPeersArgv(root, tc.TestTags())
@@ -68,15 +76,14 @@ func runLiveRPKI(ctx context.Context, root string) (any, int) {
 // non-zero at once instead of waiting out the child's own bound.
 //
 // That SIGKILL skips every labtest t.Cleanup, so a signaled run ends with
-// one orphan sweep through cleaner, the call `./le test integration clean`
-// makes: the killed test binaries own their containers, so the sweep proves
-// them gone and removes them in this invocation rather than at the next lab
-// start. A child that ends on its own already ran its cleanups and gets none.
+// one owned orphan sweep through cleaner. The child inherits this client's
+// launch identity and the sweep requires that identity before its gone-owner
+// check. A child that ends on its own already ran its cleanups and gets none.
 //
 // The sweep waits for the child's process group to empty first: reaping `go
 // test` does not reap the test binaries it started, and a binary still exiting
 // reads as a live owner, whose containers the sweep would leave.
-func runRequiringDocker(ctx context.Context, verb string, argvOf func(gotoolchain.Toolchain) ([]string, error), root string, cleaner labCleaner) (any, int) {
+func runRequiringDocker(ctx context.Context, verb string, argvOf func(gotoolchain.Toolchain) ([]string, error), root string, cleaner childLabCleaner) (any, int) {
 	tc, err := gotoolchain.New(root)
 	if err != nil {
 		leaction.ReportError(err)
@@ -87,8 +94,12 @@ func runRequiringDocker(ctx context.Context, verb string, argvOf func(gotoolchai
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	report, code, group := gaterun.RunContext(ctx, verb, argv, root,
-		requireDockerEnvironment(tc.Environment(gotoolchain.EnvOptions{Test: true})))
+	environ, err := cleaner.ChildEnvironment(requireDockerEnvironment(tc.Environment(gotoolchain.EnvOptions{Test: true})))
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	report, code, group := gaterun.RunContext(ctx, verb, argv, root, environ)
 	if ctx.Err() == nil {
 		return report, code
 	}
@@ -97,18 +108,18 @@ func runRequiringDocker(ctx context.Context, verb string, argvOf func(gotoolchai
 }
 
 // sweepAfterSignal waits, for at most groupBound, until the killed child's
-// process group is empty, then runs one non-dry orphan sweep, both on a
+// process group is empty, then runs one non-dry owned orphan sweep, both on a
 // context that ctx's cancellation does not reach, bounded together by
 // signalSweepTimeout, and answers the operator's summary. A group still holding
 // members at its bound is swept anyway, and the summary names the pids left,
 // whose containers the sweep may have judged live. A sweep the daemon refuses
 // is reported with the fix: neither changes the signaled run's non-zero answer.
-func sweepAfterSignal(ctx context.Context, verb string, cleaner labCleaner, group gaterun.ProcessGroup, groupBound time.Duration) string {
+func sweepAfterSignal(ctx context.Context, verb string, cleaner childLabCleaner, group gaterun.ProcessGroup, groupBound time.Duration) string {
 	sweep, cancel := context.WithTimeout(context.WithoutCancel(ctx), signalSweepTimeout)
 	defer cancel()
 
 	left := group.AwaitExit(sweep, groupBound)
-	report, err := cleaner.CleanupOrphans(sweep, false)
+	report, err := cleaner.CleanupOwnedOrphans(sweep)
 	var text textbuf.Buffer
 	if left != nil {
 		text.Str(verb).Str(": the killed tests had not all exited, so the sweep may have kept containers of").

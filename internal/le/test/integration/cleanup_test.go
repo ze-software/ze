@@ -18,11 +18,12 @@ import (
 // canceled records, per CleanupOrphans call, whether its context was already
 // done, and err is what every call answers.
 type fakeCleaner struct {
-	probed   bool
-	dry      []bool
-	canceled []bool
-	report   interoplab.OrphanReport
-	err      error
+	ownedCalls int
+	probed     bool
+	dry        []bool
+	canceled   []bool
+	report     interoplab.OrphanReport
+	err        error
 	// group, when set, is a process group whose presence each sweep records
 	// in groupLive, so a test can tell whether the sweep ran before it emptied.
 	group     int
@@ -30,6 +31,19 @@ type fakeCleaner struct {
 }
 
 func (f *fakeCleaner) Probe(context.Context) error { f.probed = true; return nil }
+
+// ChildEnvironment preserves the test's standalone process environment. The
+// real Docker client's launch identity is tested by the inherited-label proof.
+func (f *fakeCleaner) ChildEnvironment(environ []string) ([]string, error) {
+	return environ, nil
+}
+
+// CleanupOwnedOrphans preserves the existing observations and records that
+// cancellation chose owned cleanup rather than the explicit global entry.
+func (f *fakeCleaner) CleanupOwnedOrphans(ctx context.Context) (interoplab.OrphanReport, error) {
+	f.ownedCalls++
+	return f.CleanupOrphans(ctx, false)
+}
 
 func (f *fakeCleaner) CleanupOrphans(ctx context.Context, dry bool) (interoplab.OrphanReport, error) {
 	f.dry = append(f.dry, dry)
