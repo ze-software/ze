@@ -1,0 +1,919 @@
+// Design: docs/architecture/testing/interop.md -- native selected scenario images.
+package bgp
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/netip"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+)
+
+// TestBGPSuiteSelectedImagesUsePreparedDependencies checks explicit and
+// environment selectors through suiteFor and the actual dynamic preparer.
+// Default and version-pinned FRR must resolve through their own declarations;
+// relays use Ze, and an unselected full suite retains eager preparation.
+func TestBGPSuiteSelectedImagesUsePreparedDependencies(t *testing.T) {
+	const plain = "ospf-opaque-frr"
+	const pinned = "bgp-extended-message-bilateral-frr"
+	const reference = "quay.io/frrouting/frr:10.4.1"
+	root := t.TempDir()
+	for _, name := range []string{plain, pinned} {
+		directory := filepath.Join(root, "test", "interop", "scenarios", name)
+		if err := os.MkdirAll(directory, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		writeFixture(t, filepath.Join(directory, "ze.conf"), "bgp {}\n")
+		writeFixture(t, filepath.Join(directory, "frr.conf"), "router bgp 65002\n")
+	}
+	pinnedDirectory := filepath.Join(root, "test", "interop", "scenarios", pinned)
+	writeFixture(t, filepath.Join(pinnedDirectory, frrImageFile), reference+"\n")
+	writeFixture(t, filepath.Join(pinnedDirectory, speakerArgsFile), "--hold-time 90\n")
+	for _, row := range []struct {
+		name, explicit, environment string
+		selected                    bool
+		want                        []string
+	}{
+		{name: "explicit", explicit: plain, selected: true, want: []string{plain}},
+		{name: "environment pin", environment: pinned, selected: true, want: []string{pinned}},
+		{name: "explicit wins", explicit: plain, environment: pinned, selected: true, want: []string{plain}},
+		{name: "full suite", want: []string{pinned, plain}},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			t.Setenv("INTEROP_SCENARIO", row.environment)
+			t.Setenv("FRR_IMAGE", "default-frr:fixture")
+			suite, err := suiteFor(root, Options{Scenario: row.explicit, Suffix: "image-closure"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if suite.ImagesOnDemand != row.selected {
+				t.Fatalf("ImagesOnDemand=%v, want %v", suite.ImagesOnDemand, row.selected)
+			}
+			var names []string
+			for _, plan := range suite.Scenarios {
+				names = append(names, plan.Source.Name)
+				prepared, err := plan.Prepare(t.Context(), interoplab.PrepareContext{
+					Source:  plan.Source,
+					Network: interoplab.Network{Name: plan.Network.Name, IPv4: netip.MustParsePrefix("172.30.9.0/24")},
+				})
+				if prepared.Cleanup != nil {
+					if cleanupErr := prepared.Cleanup(); cleanupErr != nil {
+						t.Fatal(cleanupErr)
+					}
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				images := make(map[string]string)
+				for _, peer := range prepared.Peers {
+					found := false
+					for _, declaration := range suite.Images {
+						if declaration.Name == peer.Image {
+							images[peer.Name] = declaration.Tag
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Fatalf("prepared peer %q has undeclared image %q", peer.Name, peer.Image)
+					}
+				}
+				want := map[string]string{"ze": "ze-interop", peerFRR: "default-frr:fixture"}
+				if plan.Source.Name == pinned {
+					want[peerFRR] = reference
+					want[peerSpeaker] = "ze-interop"
+				}
+				if !reflect.DeepEqual(images, want) {
+					t.Fatalf("%s prepared dependencies=%v, want %v", plan.Source.Name, images, want)
+				}
+			}
+			if !reflect.DeepEqual(names, row.want) {
+				t.Fatalf("selected=%v, want %v", names, row.want)
+			}
+		})
+	}
+	t.Setenv("INTEROP_SCENARIO", "")
+	if _, err := suiteFor(root, Options{Scenario: "ospf-opaque"}); err == nil {
+		t.Fatal("unknown partial selector succeeded")
+	}
+}
+
+// TestNativeGoBGPSecondarySameSuitePair drives the registered secondary scenario
+// twice through one native Suite.Run. Only its private patch input changes; actual
+// consumed Ze, BIRD, FRR and sink image IDs MUST remain identical.
+func TestNativeGoBGPSecondarySameSuitePair(t *testing.T) {
+	if _, bounded := t.Deadline(); !bounded {
+		t.Fatal("this native diagnostic requires an explicit go test timeout")
+	}
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair, err := newGoBGPSameSuitePair(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("private paired diagnostic: %s", pair.directory)
+	suite, err := pair.suite()
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := suite.Run(t.Context())
+	if err := pair.writeJSON("suite-report.private.json", report); err != nil {
+		t.Error(err)
+	}
+	// Retain the full proof even if the final scenario or cleanup failed.
+	full, proofErr := pair.takeProof(pair.fullNetwork)
+	if proofErr != nil {
+		t.Error(proofErr)
+	}
+	if err := pair.requireReport(report); err != nil {
+		t.Error(err)
+		return
+	}
+	if pair.cutProof == nil {
+		t.Error("the full scenario never observed the cut scenario's completed proof")
+		return
+	}
+	if proofErr != nil {
+		return
+	}
+	if err := pair.requirePair(pair.cutProof, full); err != nil {
+		t.Error(err)
+		return
+	}
+	if err := pair.verifyControls(); err != nil {
+		t.Error(err)
+		return
+	}
+	safe := map[string]any{
+		"scope":                        "same-Suite stable-session non-ADD-PATH secondary producer pair only",
+		"cut-proof-directory":          pair.cutProof.directory,
+		"full-proof-directory":         full.directory,
+		"cut-patch-sha256":             goBGPPairCutSHA,
+		"full-patch-sha256":            goBGPPairFullSHA,
+		"nonproducer-images-identical": true,
+		"nonproducer-images": map[string]string{
+			"ze": full.evidence["image-ze"], peerBIRD: full.evidence["image-"+peerBIRD],
+			peerFRR: full.evidence["image-"+peerFRR], peerFRRSink: full.evidence["image-"+peerFRRSink],
+		},
+		"cut-gobgp-image":          pair.cutProof.evidence["image-"+peerGoBGP],
+		"full-gobgp-image":         full.evidence["image-"+peerGoBGP],
+		"controls-manifest-sha256": pair.controlsSHA,
+		"cut-verdict":              "target stale route and bookkeeping observed with unchanged source/session fences",
+		"full-verdict":             "shared native assertion body and cleanup passed",
+		"canonical-patch-sha256":   goBGPPairFullSHA,
+	}
+	if err := pair.writeJSON("pair-safe.json", safe); err != nil {
+		t.Error(err)
+		return
+	}
+	t.Logf("same-Suite cut semantic RED and full native PASS; retained proof paths in %s",
+		filepath.Join(pair.directory, "pair-safe.json"))
+}
+
+const (
+	goBGPPairFullSHA          = "35eed21c951868c3846465c8bbf4fc5c507ffedd93f9c35b4c4e06d03a09b047"
+	goBGPPairCutSHA           = "1b7b90213a0875f9a1ef8e8e5cfadb5537bde56a641174651cbb5050871bcc67"
+	goBGPPairCutImage         = "gobgp-pair-cut"
+	goBGPPairFullImage        = "gobgp-pair-full"
+	goBGPPairWireLimit  int64 = 4096*(65535+16) + 24
+	goBGPPairProofLimit int64 = 512 << 20
+)
+
+// goBGPSameSuitePair owns private two-file GoBGP contexts and immutable expected
+// inputs. Its zero and nil values are uninitialized. No operation opens the
+// canonical patch or any first-party source for writing.
+type goBGPSameSuitePair struct {
+	root        string
+	scratch     string
+	directory   string
+	cutContext  string
+	fullContext string
+	dockerfile  []byte
+	fullInput   gobgpReloadPatchInput
+	cutInput    gobgpReloadPatchInput
+	full        []byte
+	cut         []byte
+	controls    []goBGPPairControl
+	controlsSHA string
+	seen        map[string]bool
+	cutNetwork  interoplab.Network
+	fullNetwork interoplab.Network
+	cutProof    *goBGPPairProof
+}
+
+type goBGPPairControl struct {
+	path   string
+	digest string
+}
+
+// goBGPPairProof holds retained raw observations, not an assertion result.
+// Its map remains private to the diagnostic, and is never printed in full.
+type goBGPPairProof struct {
+	directory string
+	evidence  map[string]string
+	wire      []byte
+	network   interoplab.Network
+}
+
+func newGoBGPSameSuitePair(root string) (*goBGPSameSuitePair, error) {
+	paths, err := lepath.ResolveSession(root, true)
+	if err != nil {
+		return nil, err
+	}
+	scratch := filepath.Join(root, paths.Scratch)
+	artifacts := filepath.Join(scratch, "gobgp-secondary-paired-proof")
+	full, err := readGoBGPPairFile(filepath.Join(artifacts, "full.before.patch"), 1<<20)
+	if err != nil {
+		return nil, err
+	}
+	if goBGPPairDigest(full) != goBGPPairFullSHA {
+		return nil, errors.New("the retained full patch differs from the independently reviewed artifact")
+	}
+	cut, err := readGoBGPPairFile(filepath.Join(artifacts, "both-only.candidate.patch"), 1<<20)
+	if err != nil {
+		return nil, err
+	}
+	if goBGPPairDigest(cut) != goBGPPairCutSHA {
+		return nil, errors.New("the retained cut patch differs from the independently reviewed artifact")
+	}
+	patchPath := filepath.Join(root, "test", "interop", gobgpReloadPatchFile)
+	info, err := os.Lstat(patchPath)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, errors.New("the live patch is not a regular file; preserve it without mutation")
+	}
+	live, err := readGoBGPPairFile(patchPath, 1<<20)
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(live, full) {
+		return nil, errors.New("the live patch is not the exact reviewed full patch; preserve the current edits")
+	}
+	manifest, err := readGoBGPPairFile(filepath.Join(artifacts, "frozen-controls.sha256"), 1<<20)
+	if err != nil {
+		return nil, err
+	}
+	var controls []goBGPPairControl
+	seenPaths := make(map[string]bool)
+	for line := range strings.SplitSeq(string(manifest), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			return nil, errors.New("unknown frozen-control manifest row")
+		}
+		if !filepath.IsLocal(fields[1]) {
+			return nil, errors.New("frozen-control manifest names a path outside the checkout")
+		}
+		digest, err := hex.DecodeString(fields[0])
+		if err != nil {
+			return nil, err
+		}
+		if len(digest) != sha256.Size {
+			return nil, errors.New("frozen-control manifest has a non-SHA256 digest")
+		}
+		if seenPaths[fields[1]] {
+			return nil, errors.New("frozen-control manifest repeats a path")
+		}
+		seenPaths[fields[1]] = true
+		controls = append(controls, goBGPPairControl{path: fields[1], digest: fields[0]})
+	}
+	if len(controls) == 0 {
+		return nil, errors.New("frozen-control manifest is empty")
+	}
+	canonicalPatch := filepath.Join("test", "interop", gobgpReloadPatchFile)
+	if !seenPaths[canonicalPatch] {
+		controls = append(controls, goBGPPairControl{path: canonicalPatch, digest: goBGPPairFullSHA})
+	}
+	directory, err := os.MkdirTemp(scratch, "gobgp-same-suite-pair-run-")
+	if err != nil {
+		return nil, err
+	}
+	dockerfile, err := readGoBGPPairFile(filepath.Join(root, "test", "interop", "Dockerfile.gobgp"), 16<<20)
+	if err != nil {
+		return nil, err
+	}
+	fullInput, err := newGoBGPReloadPatchInput(full)
+	if err != nil {
+		return nil, err
+	}
+	cutInput, err := newGoBGPReloadPatchInput(cut)
+	if err != nil {
+		return nil, err
+	}
+	cutContext := filepath.Join(directory, "gobgp-cut-input")
+	fullContext := filepath.Join(directory, "gobgp-full-input")
+	if err := writeGoBGPPairContext(cutContext, dockerfile, cut); err != nil {
+		return nil, err
+	}
+	if err := writeGoBGPPairContext(fullContext, dockerfile, full); err != nil {
+		return nil, err
+	}
+	pair := &goBGPSameSuitePair{
+		root: root, scratch: scratch, directory: directory,
+		cutContext: cutContext, fullContext: fullContext, dockerfile: dockerfile,
+		fullInput: fullInput, cutInput: cutInput,
+		full: full, cut: cut, controls: controls, controlsSHA: goBGPPairDigest(manifest),
+	}
+	if err := pair.verifyControls(); err != nil {
+		return nil, err
+	}
+	pair.seen, err = pair.proofDirectories()
+	if err != nil {
+		return nil, err
+	}
+	if err := writeGoBGPPairNewFile(filepath.Join(directory, "frozen-controls.sha256"), manifest, 0o600); err != nil {
+		return nil, err
+	}
+	return pair, nil
+}
+
+func (pair *goBGPSameSuitePair) suite() (interoplab.Suite, error) {
+	suffix := "01a1a907-" + filepath.Base(pair.directory)
+	suite, err := suiteFor(pair.root, Options{Scenario: gobgpReloadSecondary, Suffix: suffix + "-cut"})
+	if err != nil {
+		return interoplab.Suite{}, err
+	}
+	if suite.NoBuild {
+		return interoplab.Suite{}, errors.New("this diagnostic requires NO_BUILD unset and native source-image preparation")
+	}
+	if !suite.ImagesOnDemand {
+		return interoplab.Suite{}, errors.New("the selected native suite did not enable on-demand image ownership")
+	}
+	if len(suite.Scenarios) != 1 {
+		return interoplab.Suite{}, errors.New("the native selector did not resolve exactly the secondary scenario")
+	}
+	fullPlans, err := scenarioPlans(pair.root, filepath.Join(pair.root, "test", "interop"),
+		suffix+"-full", []interoplab.ScenarioSource{suite.Scenarios[0].Source})
+	if err != nil {
+		return interoplab.Suite{}, err
+	}
+	if len(fullPlans) != 1 {
+		return interoplab.Suite{}, errors.New("the native full plan did not resolve exactly one scenario")
+	}
+	var images []interoplab.ImageBuild
+	gobgpDeclarations := 0
+	for _, image := range suite.Images {
+		if image.Name != peerGoBGP {
+			images = append(images, image)
+			continue
+		}
+		gobgpDeclarations++
+		cutImage := image
+		cutImage.Name = goBGPPairCutImage
+		cutImage.Dockerfile = filepath.Join(pair.cutContext, "Dockerfile.gobgp")
+		cutImage.Context = pair.cutContext
+		fullImage := image
+		fullImage.Name = goBGPPairFullImage
+		fullImage.Dockerfile = filepath.Join(pair.fullContext, "Dockerfile.gobgp")
+		fullImage.Context = pair.fullContext
+		images = append(images, cutImage, fullImage)
+	}
+	if gobgpDeclarations != 1 {
+		return interoplab.Suite{}, errors.New("the native suite does not declare exactly one GoBGP build")
+	}
+	cutPlan := suite.Scenarios[0]
+	fullPlan := fullPlans[0]
+	if cutPlan.Prepare == nil {
+		return interoplab.Suite{}, errors.New("the native cut plan has no preparer")
+	}
+	if fullPlan.Prepare == nil {
+		return interoplab.Suite{}, errors.New("the native full plan has no preparer")
+	}
+	cutPrepare := cutPlan.Prepare
+	fullPrepare := fullPlan.Prepare
+	cutPlan.Source.Checker = specialChecker(cutPlan.Source.Name, goBGPPairChecker(pair.cutInput))
+	fullPlan.Source.Checker = specialChecker(fullPlan.Source.Name, goBGPPairChecker(pair.fullInput))
+	cutPlan.Prepare = func(ctx context.Context, prepare interoplab.PrepareContext) (interoplab.PreparedScenario, error) {
+		if err := pair.verifyControls(); err != nil {
+			return interoplab.PreparedScenario{}, err
+		}
+		pair.cutNetwork = prepare.Network
+		prepared, err := cutPrepare(ctx, prepare)
+		if err != nil {
+			return prepared, err
+		}
+		return renameGoBGPPairImage(prepared, goBGPPairCutImage)
+	}
+	fullPlan.Prepare = func(ctx context.Context, prepare interoplab.PrepareContext) (interoplab.PreparedScenario, error) {
+		cut, err := pair.takeProof(pair.cutNetwork)
+		if err != nil {
+			return interoplab.PreparedScenario{}, err
+		}
+		pair.cutProof = cut
+		if err := pair.requireCut(cut); err != nil {
+			return interoplab.PreparedScenario{}, err
+		}
+		if err := pair.verifyControls(); err != nil {
+			return interoplab.PreparedScenario{}, err
+		}
+		pair.fullNetwork = prepare.Network
+		prepared, err := fullPrepare(ctx, prepare)
+		if err != nil {
+			return prepared, err
+		}
+		return renameGoBGPPairImage(prepared, goBGPPairFullImage)
+	}
+	suite.Images = images
+	suite.Scenarios = []interoplab.ScenarioPlan{cutPlan, fullPlan}
+	return suite, nil
+}
+
+func renameGoBGPPairImage(prepared interoplab.PreparedScenario, image string) (interoplab.PreparedScenario, error) {
+	found := 0
+	for index := range prepared.Peers {
+		if prepared.Peers[index].Name != peerGoBGP {
+			continue
+		}
+		if prepared.Peers[index].Image != peerGoBGP {
+			return prepared, errors.New("the native GoBGP peer no longer names its original logical image")
+		}
+		prepared.Peers[index].Image = image
+		found++
+	}
+	if found != 1 {
+		return prepared, errors.New("the native preparer did not yield exactly one GoBGP peer")
+	}
+	return prepared, nil
+}
+
+// goBGPPairChecker passes an owned input value into the same native assertion
+// body. The plan retains the native specialChecker error/log wrapper.
+func goBGPPairChecker(input gobgpReloadPatchInput) interoplab.Checker {
+	return func(ctx context.Context, check *interoplab.CheckContext) error {
+		return checkGoBGPExportReloadWithPatchInput(ctx, check, input)
+	}
+}
+
+// writeGoBGPPairContext creates only two explicit third-party build inputs.
+// The canonical Dockerfile is byte-identical, including its relative COPY name.
+// This is not a source-tree export, first-party build copy or alternate checkout.
+func writeGoBGPPairContext(directory string, dockerfile, patch []byte) error {
+	if err := os.Mkdir(directory, 0o700); err != nil {
+		return err
+	}
+	if err := writeGoBGPPairNewFile(filepath.Join(directory, "Dockerfile.gobgp"), dockerfile, 0o400); err != nil {
+		return err
+	}
+	if err := writeGoBGPPairNewFile(filepath.Join(directory, gobgpReloadPatchFile), patch, 0o400); err != nil {
+		return err
+	}
+	return os.Chmod(directory, 0o500)
+}
+
+// writeGoBGPPairNewFile never replaces an existing private artifact.
+func writeGoBGPPairNewFile(path string, body []byte, mode os.FileMode) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	if err != nil {
+		return err
+	}
+	written, writeErr := file.Write(body)
+	if written != len(body) {
+		writeErr = errors.Join(writeErr, io.ErrShortWrite)
+	}
+	return errors.Join(writeErr, file.Sync(), file.Close())
+}
+
+func requireGoBGPPairContext(directory string, dockerfile, patch []byte) error {
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return err
+	}
+	if len(entries) != 2 {
+		return errors.New("private GoBGP context no longer contains exactly its two selected inputs")
+	}
+	for _, input := range []struct {
+		name string
+		body []byte
+	}{{"Dockerfile.gobgp", dockerfile}, {gobgpReloadPatchFile, patch}} {
+		path := filepath.Join(directory, input.name)
+		info, err := os.Lstat(path)
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return errors.New("private GoBGP context input is not a regular file")
+		}
+		actual, err := readGoBGPPairFile(path, 16<<20)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(actual, input.body) {
+			return errors.New("private GoBGP context bytes changed")
+		}
+	}
+	return nil
+}
+
+func (pair *goBGPSameSuitePair) verifyControls() error {
+	for _, control := range pair.controls {
+		body, err := readGoBGPPairFile(filepath.Join(pair.root, control.path), 16<<20)
+		if err != nil {
+			return err
+		}
+		if goBGPPairDigest(body) != control.digest {
+			return fmt.Errorf("frozen control changed: %s", control.path)
+		}
+	}
+	if err := requireGoBGPPairContext(pair.cutContext, pair.dockerfile, pair.cut); err != nil {
+		return err
+	}
+	return requireGoBGPPairContext(pair.fullContext, pair.dockerfile, pair.full)
+}
+
+func (pair *goBGPSameSuitePair) proofDirectories() (map[string]bool, error) {
+	entries, err := os.ReadDir(pair.scratch)
+	if err != nil {
+		return nil, err
+	}
+	directories := make(map[string]bool)
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), gobgpReloadSecondary+"-") {
+			continue
+		}
+		if entry.IsDir() {
+			directories[entry.Name()] = true
+		}
+	}
+	return directories, nil
+}
+
+func (pair *goBGPSameSuitePair) takeProof(network interoplab.Network) (*goBGPPairProof, error) {
+	directories, err := pair.proofDirectories()
+	if err != nil {
+		return nil, err
+	}
+	var fresh []string
+	for directory := range directories {
+		if !pair.seen[directory] {
+			fresh = append(fresh, directory)
+		}
+	}
+	if len(fresh) != 1 {
+		return nil, fmt.Errorf("need one new completed native proof directory, observed %d; preserve ambiguous evidence", len(fresh))
+	}
+	directory := filepath.Join(pair.scratch, fresh[0])
+	body, err := readGoBGPPairFile(filepath.Join(directory, "proof.json"), goBGPPairProofLimit)
+	if err != nil {
+		return nil, err
+	}
+	var evidence map[string]string
+	if err := json.Unmarshal(body, &evidence); err != nil {
+		return nil, err
+	}
+	if evidence == nil {
+		return nil, errors.New("native proof is null")
+	}
+	wire, err := readGoBGPPairFile(filepath.Join(directory, "wire.pcap"), goBGPPairWireLimit)
+	if err != nil {
+		return nil, err
+	}
+	pair.seen = directories
+	return &goBGPPairProof{directory: directory, evidence: evidence, wire: wire, network: network}, nil
+}
+
+func (pair *goBGPSameSuitePair) requireReport(report interoplab.SuiteReport) error {
+	if report.SetupError != "" {
+		return errors.New("native suite setup failed; see retained private suite report")
+	}
+	if len(report.Scenarios) != 2 {
+		return errors.New("native suite did not execute both exact secondary plans")
+	}
+	if report.Scenarios[0].Passed {
+		return errors.New("the omitted secondary repair did not redden the registered native checker")
+	}
+	if !strings.Contains(report.Scenarios[0].Error, "native SIGHUP phase simultaneous") {
+		return errors.New("the cut scenario failed outside the intended semantic phase")
+	}
+	if !strings.Contains(report.Scenarios[0].Error, "FRR still has a route or unknown document for absent "+gobgpReloadPrefixes[6]) {
+		return errors.New("the cut scenario did not report the intended secondary stale route")
+	}
+	if !report.Scenarios[1].Passed {
+		return errors.New("the restored native checker failed; see retained private suite report")
+	}
+	if report.Scenarios[1].Error != "" {
+		return errors.New("the restored native scenario retained an assertion error")
+	}
+	for _, result := range report.Scenarios {
+		if len(result.CleanupErrors) != 0 {
+			return errors.New("native scenario cleanup failed independently of assertions")
+		}
+	}
+	if len(report.CleanupErrors) != 0 {
+		return errors.New("native image-retention cleanup failed")
+	}
+	if report.Passed != 1 {
+		return errors.New("native suite did not retain exactly one positive scenario verdict")
+	}
+	if report.Failed != 1 {
+		return errors.New("native suite did not retain exactly one negative scenario verdict")
+	}
+	if report.Code != 1 {
+		return errors.New("the native suite did not preserve its semantic-failure exit code")
+	}
+	counts := make(map[string]int)
+	for _, image := range report.Images {
+		counts[image.Name]++
+		if image.Error != "" {
+			return errors.New("native image preparation failed")
+		}
+		if image.Name != peerFRR {
+			if !image.Built {
+				return errors.New("native source-image preparation did not build its selected input")
+			}
+		}
+	}
+	for _, name := range []string{"ze", peerBIRD, peerFRR, goBGPPairCutImage, goBGPPairFullImage} {
+		if counts[name] != 1 {
+			return fmt.Errorf("native suite prepared logical image %s %d times, want once", name, counts[name])
+		}
+	}
+	if len(counts) != 5 {
+		return errors.New("native suite prepared an unselected image")
+	}
+	return nil
+}
+
+func (pair *goBGPSameSuitePair) requirePair(cut, full *goBGPPairProof) error {
+	if err := pair.requireCut(cut); err != nil {
+		return err
+	}
+	if full.evidence["verdict-error"] != "<nil>" {
+		return errors.New("the full patch has no clean registered checker verdict")
+	}
+	if err := requireGoBGPPairPatch(full, pair.full, goBGPPairFullSHA); err != nil {
+		return err
+	}
+	if err := requireGoBGPPairWire(full); err != nil {
+		return err
+	}
+	for _, peer := range []string{"ze", peerBIRD, peerFRR, peerFRRSink} {
+		before := cut.evidence["image-"+peer]
+		after := full.evidence["image-"+peer]
+		if before == "" {
+			return fmt.Errorf("cut proof omitted the consumed %s image", peer)
+		}
+		if before != after {
+			return fmt.Errorf("nonproducer %s image changed across the native pair", peer)
+		}
+	}
+	if cut.evidence["image-"+peerGoBGP] == full.evidence["image-"+peerGoBGP] {
+		return errors.New("the cut and restored native GoBGP images are identical")
+	}
+	if cut.evidence["ze-binary-sha256"] == "" {
+		return errors.New("the cut proof omitted Ze's actual executable digest")
+	}
+	if cut.evidence["ze-binary-sha256"] != full.evidence["ze-binary-sha256"] {
+		return errors.New("Ze's actual executable changed across the native pair")
+	}
+	if cut.evidence["gobgp-binary-sha256"] == full.evidence["gobgp-binary-sha256"] {
+		return errors.New("the two GoBGP producer executable observations are identical")
+	}
+	return nil
+}
+
+func (pair *goBGPSameSuitePair) requireCut(proof *goBGPPairProof) error {
+	if err := requireGoBGPPairPatch(proof, pair.cut, goBGPPairCutSHA); err != nil {
+		return err
+	}
+	verdict := proof.evidence["verdict-error"]
+	if !strings.Contains(verdict, "native SIGHUP phase simultaneous") {
+		return errors.New("cut proof did not reach the intended phase")
+	}
+	if !strings.Contains(verdict, "FRR still has a route or unknown document for absent "+gobgpReloadPrefixes[6]) {
+		return errors.New("cut proof did not retain the intended semantic fault")
+	}
+	if err := requireGoBGPPairWire(proof); err != nil {
+		return err
+	}
+	beforeAttempt, err := proof.lastCompleteAttempt("initial")
+	if err != nil {
+		return err
+	}
+	afterAttempt, err := proof.lastCompleteAttempt("simultaneous")
+	if err != nil {
+		return err
+	}
+	before, err := proof.snapshot("initial", beforeAttempt)
+	if err != nil {
+		return err
+	}
+	after, err := proof.snapshot("simultaneous", afterAttempt)
+	if err != nil {
+		return err
+	}
+	if err := compareGoBGPReloadSnapshot(before, after); err != nil {
+		return fmt.Errorf("cut source/session fence changed: %w", err)
+	}
+	model := gobgpReloadProof{check: &interoplab.CheckContext{Source: interoplab.ScenarioSource{Name: gobgpReloadSecondary}, Network: proof.network}}
+	prefix := "simultaneous-probe-" + strconv.Itoa(afterAttempt) + "-"
+	for _, receiver := range []struct {
+		name string
+		host uint8
+	}{{peerFRR, 3}, {peerFRRSink, 15}} {
+		count := uint64(0)
+		for subject, route := range gobgpReloadPrefixes {
+			step := 7
+			if receiver.host == 3 {
+				if subject == 6 {
+					// The one intended wrong survivor retains the prior phase's
+					// exact useful path; all other route contracts are unchanged.
+					step = 6
+				}
+			}
+			path, nextHop, med := model.expected(step, subject, receiver.host)
+			output, ok := proof.evidence[prefix+receiver.name+"-"+route]
+			if !ok {
+				return errors.New("the complete cut probe omitted a receiver route")
+			}
+			if err := requireGoBGPReloadRoute(output, route, path, nextHop, med); err != nil {
+				return fmt.Errorf("cut has a second receiver fault: %w", err)
+			}
+			if path != "" {
+				count++
+			}
+		}
+		if after.Peers[receiver.host].Families[0].State.Advertised != count {
+			return errors.New("cut bookkeeping does not identify only the intended stale secondary route")
+		}
+	}
+	return nil
+}
+
+func requireGoBGPPairPatch(proof *goBGPPairProof, expected []byte, digest string) error {
+	if proof.evidence["gobgp-patch"] != string(expected) {
+		return errors.New("native applied patch bytes differ from the selected artifact")
+	}
+	fields := strings.Fields(proof.evidence["gobgp-patch-sha256"])
+	if len(fields) != 2 {
+		return errors.New("native applied patch digest has an unknown format")
+	}
+	if fields[0] != digest {
+		return errors.New("native applied patch digest differs from the selected artifact")
+	}
+	if fields[1] != gobgpReloadPatchPath {
+		return errors.New("native digest names a different patch path")
+	}
+	return nil
+}
+
+func requireGoBGPPairWire(proof *goBGPPairProof) error {
+	if !packetCaptureActivated(proof.evidence["capture-log"]) {
+		return errors.New("native pair capture did not activate")
+	}
+	packets, err := packetCaptureComplete(proof.evidence["capture-log"], gobgpReloadCapture.packets)
+	if err != nil {
+		return err
+	}
+	if proof.evidence["capture-stop-exit"] != "0" {
+		return errors.New("native pair capture stop did not succeed")
+	}
+	if strings.TrimSpace(proof.evidence[gobgpReloadCapture.exit()]) != "0" {
+		return errors.New("native pair capture did not end successfully")
+	}
+	if proof.evidence["capture-sha256"] != goBGPPairDigest(proof.wire) {
+		return errors.New("native retained capture digest differs from its actual bytes")
+	}
+	baseline, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(proof.evidence["baseline-clock"]))
+	if err != nil {
+		return err
+	}
+	return requireGoBGPReloadWire(proof.wire, proof.network, baseline, packets)
+}
+
+// lastCompleteAttempt ignores the final interrupted probe. A complete attempt
+// has every daemon row; snapshot then validates all its required observations.
+func (proof *goBGPPairProof) lastCompleteAttempt(phase string) (int, error) {
+	prefix := phase + "-probe-"
+	latest := 0
+	for key := range proof.evidence {
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		tail := strings.TrimPrefix(key, prefix)
+		attempt, _, ok := strings.Cut(tail, "-")
+		if !ok {
+			return 0, errors.New("native proof has a malformed probe key")
+		}
+		number, err := strconv.Atoi(attempt)
+		if err != nil {
+			return 0, err
+		}
+		row := prefix + attempt + "-"
+		complete := true
+		for _, peer := range []string{peerGoBGP, peerBIRD, peerFRR, peerFRRSink, "ze"} {
+			if strings.TrimSpace(proof.evidence[row+peer+"-daemon"]) == "" {
+				complete = false
+			}
+		}
+		if complete {
+			latest = max(latest, number)
+		}
+	}
+	if latest == 0 {
+		return 0, errors.New("native proof has no complete attempt for " + phase)
+	}
+	return latest, nil
+}
+
+// snapshot reuses the registered checker's parsers and comparison type. It
+// reads one coherent retained attempt, never a latest-value mix across probes.
+func (proof *goBGPPairProof) snapshot(phase string, attempt int) (gobgpReloadSnapshot, error) {
+	state := gobgpReloadSnapshot{
+		Peers:       make(map[uint8]gobgpReloadPeer),
+		Sources:     make(map[uint8]map[string][]map[string]json.RawMessage),
+		Generations: make(map[string]uint64), Identities: make(map[string]string),
+	}
+	key := phase + "-probe-" + strconv.Itoa(attempt) + "-"
+	for _, peer := range []struct {
+		host uint8
+		asn  uint32
+	}{{2, 65001}, {4, 65004}, {3, 65002}, {15, 65015}} {
+		address := networkHostAddress(proof.network, peer.host)
+		observed, err := parseGoBGPReloadPeer(proof.evidence[key+address+"-neighbor"], address, peer.asn)
+		if err != nil {
+			return state, err
+		}
+		state.Peers[peer.host] = observed
+		switch peer.host {
+		case 2, 4:
+			prefixes := gobgpReloadPrefixes[:]
+			if peer.host == 4 {
+				prefixes = gobgpReloadPrefixes[3:5]
+			}
+			routes, err := sourceGoBGPReloadPaths(proof.evidence[key+address+"-adj-in"], address, peer.asn, prefixes)
+			if err != nil {
+				return state, err
+			}
+			state.Sources[peer.host] = routes
+		case 3, 15:
+			// Receiver source routes are observed at their native FRR table.
+		default:
+			return state, errors.New("unknown diagnostic peer host")
+		}
+	}
+	for _, receiver := range []string{peerFRR, peerFRRSink} {
+		address := networkHostAddress(proof.network, 5)
+		generation, err := parseFRRSessionGeneration(proof.evidence[key+receiver+"-neighbor"], address)
+		if err != nil {
+			return state, err
+		}
+		state.Generations[receiver] = generation
+	}
+	for _, peer := range []string{peerGoBGP, peerBIRD, peerFRR, peerFRRSink, "ze"} {
+		fields := strings.Fields(proof.evidence[key+peer+"-daemon"])
+		if len(fields) < 22 {
+			return state, errors.New("retained native daemon identity has no proc starttime")
+		}
+		state.Identities[peer] = fields[0] + ":" + fields[21]
+	}
+	return state, nil
+}
+
+func (pair *goBGPSameSuitePair) writeJSON(name string, value any) error {
+	body, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeGoBGPPairNewFile(filepath.Join(pair.directory, name), body, 0o600)
+}
+
+func readGoBGPPairFile(path string, limit int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	body, readErr := io.ReadAll(io.LimitReader(file, limit+1))
+	err = errors.Join(readErr, file.Close())
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > limit {
+		return nil, errors.New("paired diagnostic artifact exceeded its explicit read bound")
+	}
+	return body, nil
+}
+
+func goBGPPairDigest(body []byte) string {
+	digest := sha256.Sum256(body)
+	return hex.EncodeToString(digest[:])
+}

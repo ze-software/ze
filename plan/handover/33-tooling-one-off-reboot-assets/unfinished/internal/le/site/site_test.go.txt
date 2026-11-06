@@ -1,0 +1,851 @@
+package site
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"io/fs"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	leroot "github.com/ze-software/ze/internal/le/le/root"
+	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
+)
+
+// VALIDATES: every former website launcher has a native site action.
+func TestActionsExposeNativeWebsiteWorkflows(t *testing.T) {
+	if !leroot.Owns("site") {
+		t.Fatal("site area is not registered with the le root")
+	}
+	verbs := map[string]bool{}
+	for _, action := range Actions().Actions {
+		verbs[action.Verb] = true
+	}
+	for _, verb := range []string{"build", "check", "bundle", "activity", "talk"} {
+		if !verbs[verb] {
+			t.Errorf("site action %q is not registered", verb)
+		}
+	}
+}
+
+// VALIDATES: the source and output roots cannot overlap.
+func TestResolvePathsRejectsInTreeOutput(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "website"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolvePaths(root, filepath.Join(root, "website", "public")); err == nil {
+		t.Fatal("accepted an output inside website sources")
+	}
+}
+
+// VALIDATES: every former source-only family stays out of deployment.
+func TestSourceOnlyBoundary(t *testing.T) {
+	for _, name := range []string{"tools/build.go", "assets/css/site.css", "blog/posts/a.md", "presentations/tools/bundle.go", "faq/faq.md", "assets/demos/browser.webm", "assets/demo.MP4"} {
+		if !isSourceOnly(name) {
+			t.Errorf("%s escaped the source-only boundary", name)
+		}
+	}
+	for _, name := range []string{"faq/index.html", "assets/site.css", "blog/index.html", "CNAME", "assets/demos/session.cast", "assets/demos/browser.webp"} {
+		if isSourceOnly(name) {
+			t.Errorf("%s was incorrectly source-only", name)
+		}
+	}
+}
+
+// VALIDATES: the build digest commits to names, bytes, symlink targets, and ordering.
+func TestSourceDigestIsOrderIndependentAndContentSensitive(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "a"), []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "b"), []byte("two"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	first, err := sourceDigest(root, []string{"b", "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := sourceDigest(root, []string{"a", "b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != second {
+		t.Fatal("digest depends on discovery order")
+	}
+	if err := os.WriteFile(filepath.Join(root, "a"), []byte("changed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := sourceDigest(root, []string{"a", "b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed == first {
+		t.Fatal("digest ignored changed bytes")
+	}
+}
+
+// VALIDATES: CSS imports resolve relative to their own stylesheet and cycles fail closed.
+func TestRenderCSSExpandsNestedImports(t *testing.T) {
+	source, output := t.TempDir(), t.TempDir()
+	directory := filepath.Join(source, "assets", "css")
+	if err := os.MkdirAll(filepath.Join(directory, "parts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "site.css"), []byte("@import url(\"parts/base.css\");\nmain { color: red; }"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "parts", "base.css"), []byte(`body { margin: 0; }`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := renderCSS(source, output); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(output, "assets", "site.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "body{margin:0}") || !strings.Contains(string(content), "main{color:red}") {
+		t.Fatalf("imports were not expanded: %s", content)
+	}
+}
+
+// VALIDATES: descendant pseudo-class selectors still target descendants after minification.
+// PREVENTS: removing the descendant combinator so article title rules never match.
+func TestMinifyCSSPreservesDescendantPseudoSelector(t *testing.T) {
+	got := string(minifyCSS([]byte(`.hero :is(h1, h2) { font-size: 3rem; }`)))
+	want := `.hero :is(h1,h2){font-size:3rem}`
+	if got != want {
+		t.Fatalf("minified CSS = %q, want %q", got, want)
+	}
+}
+
+// VALIDATES: deck images, nested CSS assets, slide sources, and standalone identity are in one file.
+func TestBundlePresentationInlinesLocalAssets(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "pixel.png"), []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "slides.md"), []byte("# Talk"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	input := filepath.Join(root, "deck.html")
+	if err := os.WriteFile(input, []byte(`<html><head><title>Ze - conference slides</title></head><body><img src="pixel.png"><script></script></body></html>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	output, err := bundlePresentation(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"data:image/png;base64,", `id="embedded-slides"`, "standalone HTML deck"} {
+		if !strings.Contains(string(content), want) {
+			t.Errorf("bundled deck lacks %q: %s", want, content)
+		}
+	}
+}
+
+// VALIDATES: every vendored font URL is local and every face remains swappable.
+func TestVendoredFontsAreSelfHosted(t *testing.T) {
+	root := filepath.Join("..", "..", "..", "website", "assets", "vendor", "fonts")
+	files, err := filepath.Glob(filepath.Join(root, "*.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no vendored font stylesheets")
+	}
+	for _, path := range files {
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		text := blockComment.ReplaceAllString(string(content), "")
+		if strings.Contains(text, "@font-face") && !strings.Contains(text, "font-display: swap") {
+			t.Errorf("%s has a font face without swap display", path)
+		}
+		for _, match := range cssURLPattern.FindAllStringSubmatch(text, -1) {
+			name := strings.Trim(strings.TrimSpace(match[1]), `"'`)
+			if remoteAsset(name) {
+				t.Errorf("%s contains remote font URL %s", path, name)
+				continue
+			}
+			if _, statErr := os.Stat(filepath.Join(filepath.Dir(path), filepath.FromSlash(name))); statErr != nil {
+				t.Errorf("%s names missing font %s", path, name)
+			}
+		}
+	}
+}
+
+// VALIDATES: a full build stages repository inputs, refreshes command pages,
+// and removes source-only files from a fresh artifact.
+func TestBuildStagesADeployableArtifact(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "main")
+	source := filepath.Join(root, "website")
+	if err := os.MkdirAll(filepath.Join(source, "data"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "ai"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(source, "tools"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(source, "talks", "netmcr"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "CNAME"), []byte("example.test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "tools", "source.txt"), []byte("source only\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog := `[{"path":"show test","short-help":"Show rows","mode":"read-only","operators":[{"name":"json","class":"global","available":"always","description":"JSON"}]}]`
+	stubLiveInputs(t, catalog)
+	// This build is about staging, so the page producers are stubbed out: a
+	// synthetic checkout carries no docs/ tree for them to publish, and
+	// TestBuildRunsEveryRegisteredProducer already pins the registry itself.
+	stubProducers(t)
+	// The staged source carries a STALE catalog, so the assertion below tells
+	// the published catalog apart from the file staging copied.
+	if err := os.WriteFile(filepath.Join(source, "data", "cli-commands.json"), []byte("[]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "talks", "netmcr", "index.html"), []byte("<html><script></script></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeSourceAssets(t, source)
+	seedAssets := filepath.Join(parent, "gh-pages", "assets")
+	if err := os.MkdirAll(seedAssets, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedAssets, "site.css"), []byte("body{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedAssets, "site.js"), []byte("\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, arguments := range [][]string{{"init"}, {"add", "."}} {
+		command := exec.CommandContext(t.Context(), "git", arguments...)
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", arguments, err, output)
+		}
+	}
+	commitSiteFixture(t, root)
+	output := filepath.Join(parent, "artifact")
+	report, err := Build(t.Context(), BuildOptions{Repository: root, Output: output})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Six staged sources: CNAME, the command catalog, the talk page, the
+	// source-only tools file, and the two asset bundles every build renders.
+	if report.Files != 6 || report.SourceDigest == "" {
+		t.Fatalf("unexpected build report: %#v", report)
+	}
+	if _, err := os.Stat(filepath.Join(output, "CNAME")); err != nil {
+		t.Fatal(err)
+	}
+	// The command catalog is published from the live binary on every build,
+	// over whatever the source staged, because every command surface reads it.
+	if got := readArtifact(t, output, catalogFile); got != catalog {
+		t.Errorf("the published command catalog is %q, want the live one", got)
+	}
+	if _, err := os.Stat(filepath.Join(output, "talks", "netmcr", "index-inlined.html")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(output, "tools")); !os.IsNotExist(err) {
+		t.Fatalf("source-only tools directory was deployed: %v", err)
+	}
+}
+
+// stubLiveInputs makes a build read stated inputs instead of building the
+// daemon, and restores the real readers when the test ends.
+//
+// A build refreshes four data files from the live product before any producer
+// runs: the command catalog, the plugin registry, the YANG configuration tree
+// and the facts snapshot. Each needs a real checkout -- the catalog and the
+// tree run a daemon the build compiles from cmd/ze, the registry pairs the
+// registrations with the checkout's YANG, and the facts walk the test tree and
+// the RFC ledger -- so a test over a synthetic tree states all four together
+// rather than one at a time: a build test that stubbed one and forgot another
+// would fail on a missing feature-gates.txt rather than on what it set out to
+// check.
+func stubLiveInputs(t *testing.T, catalog string) {
+	t.Helper()
+	previousDaemon := liveDaemon
+	previousCatalog := liveCommandCatalog
+	previousPlugins := livePluginRegistry
+	previousTree := liveYANGConfigTree
+	previousFacts := liveSiteFacts
+	previousLedger := liveRequirementLedger
+	previousRFCData := liveRFCData
+	t.Cleanup(func() {
+		liveDaemon = previousDaemon
+		liveCommandCatalog = previousCatalog
+		livePluginRegistry = previousPlugins
+		liveYANGConfigTree = previousTree
+		liveSiteFacts = previousFacts
+		liveRequirementLedger = previousLedger
+		liveRFCData = previousRFCData
+	})
+	// The stated catalog and tree run no daemon, so the build compiles none.
+	liveDaemon = func(_ context.Context, _, dir string) (string, error) { return filepath.Join(dir, "ze"), nil }
+	liveCommandCatalog = func(context.Context, string, string) ([]byte, error) { return []byte(catalog), nil }
+	livePluginRegistry = func(string) ([]repoinventory.Plugin, error) {
+		return []repoinventory.Plugin{{
+			Name: "static", Description: "Static routes",
+			ConfigRoots: []string{"static"}, SourceDir: "internal/plugins/static",
+		}}, nil
+	}
+	liveYANGConfigTree = func(context.Context, string, string) ([]byte, error) {
+		return []byte(`[{"name":"static","kind":"container","description":"Static routes."}]`), nil
+	}
+	liveSiteFacts = func(Paths) (siteFacts, error) {
+		return siteFacts{Sources: map[string]string{"tests": "a test stated these"},
+			CLICommands: 1, Tests: factsTests{Unit: 1, UnitDisplay: "1"}}, nil
+	}
+	// The requirement ledger reads rfc/short and the three test roots of a real
+	// checkout, and derives the evidence tier from .github/workflows. A synthetic tree has none of them, so a build over one
+	// states the ledger the way it states the other four inputs.
+	liveRequirementLedger = func(string) (rfcLedger, error) { return twoStemLedger(), nil }
+	// The RFC data reads the same corpus, so a synthetic tree states it empty.
+	liveRFCData = func(string) (rfcData, error) { return rfcData{index: rfcDataIndex{Bars: rfcBars}}, nil }
+}
+
+// VALIDATES: a normal full build snapshots the current Pages checkout before
+// cleaning it, so a page the build does not write keeps its exact bytes.
+func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
+	stubLiveInputs(t, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
+	parent := t.TempDir()
+	root := filepath.Join(parent, "main")
+	source := filepath.Join(root, "website")
+	output := filepath.Join(parent, "gh-pages")
+	if err := os.MkdirAll(source, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeSourceAssets(t, source)
+	// The last published artifact is found beside the main checkout, which Git
+	// names, so the repository is a real one.
+	roadmapGit(t, root, "init", "-q")
+	if err := os.MkdirAll(filepath.Join(output, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	want := []byte("<html>published bytes</html>\n")
+	page := filepath.Join(output, "blog", "index.html")
+	if err := os.MkdirAll(filepath.Dir(page), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(page, want, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(output, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(output, "assets", "site.css"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(output, "assets", "site.js"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	paths, err := resolvePaths(root, output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous, release, err := snapshotArtifact(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	if err := seedArtifact(paths, previous); err != nil {
+		t.Fatal(err)
+	}
+	if err := refreshNativeSurfaces(t.Context(), paths); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(page)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("artifact bytes changed: %q", got)
+	}
+	if info, err := os.Stat(filepath.Join(output, ".git")); err != nil || !info.IsDir() {
+		t.Fatalf("artifact repository metadata was removed: %v", err)
+	}
+}
+
+// VALIDATES: a build run from a linked worktree seeds from the Pages checkout
+// beside the MAIN checkout, and still writes its default output beside the
+// worktree.
+// PREVENTS: TestBuildRendersEveryPublishedRoute going red in the verify
+// worktree under tmp/verify-worktree, where nothing sits beside the worktree,
+// so the build found no demo media to lay down.
+// METHOD: a main checkout with a gh-pages sibling holding one demo file, and a
+// linked worktree nested inside the main checkout as the verify worktree is.
+func TestALinkedWorktreeSeedsFromTheMainCheckoutsPagesTree(t *testing.T) {
+	parent := t.TempDir()
+	checkout := filepath.Join(parent, "main")
+	writeSourceAssets(t, filepath.Join(checkout, "website"))
+	roadmapGit(t, checkout, "init", "-q")
+	commitSiteFixture(t, checkout)
+	published := filepath.Join(parent, "gh-pages")
+	writeFixtureFile(t, filepath.Join(published, "assets", "demos", "hero.cast"), "{}\n")
+	worktree := filepath.Join(checkout, "tmp", "verify-worktree", "fixture")
+	roadmapGit(t, checkout, "worktree", "add", "-q", "--detach", worktree)
+
+	paths, err := resolvePaths(worktree, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(checkout, "tmp", "verify-worktree", "gh-pages"); paths.Output != want {
+		t.Errorf("default output %s, want %s beside the worktree", paths.Output, want)
+	}
+	got, err := lastPublished(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == "" {
+		t.Fatalf("a linked worktree found no last published artifact; want %s", published)
+	}
+	same, err := sameDirectory(got, published)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !same {
+		t.Fatalf("a linked worktree seeds from %s, want the main checkout's sibling %s", got, published)
+	}
+	previous, release, err := snapshotArtifact(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	if _, err := os.Stat(filepath.Join(previous, "assets", "demos", "hero.cast")); err != nil {
+		t.Fatalf("the seed lacks the published demo media: %v", err)
+	}
+}
+
+// VALIDATES: a build refreshes the published command catalog from the binary,
+// and leaves an EXISTING published page alone.
+// PREVENTS: commit 9f45348a7, which published the drift checker's contract
+// fixture over the real pages and cut 396 of them from about 10KB to 481 bytes.
+// The fixture carries no head, no title, no navigation and no vendor
+// equivalents, so it is a comparison input and never a page.
+func TestBuildLeavesAPublishedPageAlone(t *testing.T) {
+	stubLiveInputs(t, `[{"path":"show live","short-help":"Show live rows","mode":"read-only"}]`)
+	parent := t.TempDir()
+	root := filepath.Join(parent, "main")
+	output := filepath.Join(parent, "gh-pages")
+	if err := os.MkdirAll(filepath.Join(root, "website"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeSourceAssets(t, filepath.Join(root, "website"))
+	// A real published page: a head, a title and a body the fixture renderer
+	// does not produce. Its survival is what this test is about.
+	const publishedPage = "<!doctype html><html><head><title>CLI</title></head><body>show retired</body></html>\n"
+	stale := filepath.Join(output, "reference", "cli", "index.html")
+	if err := os.MkdirAll(filepath.Dir(stale), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stale, []byte(publishedPage), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(output, "data"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	catalog := filepath.Join(output, "data", "cli-commands.json")
+	if err := os.WriteFile(catalog, []byte(`[{"path":"show retired","mode":"read-only"}]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(output, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"site.css", "site.js"} {
+		if err := os.WriteFile(filepath.Join(output, "assets", name), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	paths, err := resolvePaths(root, output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := refreshNativeSurfaces(t.Context(), paths); err != nil {
+		t.Fatal(err)
+	}
+	published, err := os.ReadFile(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(published), "show retired") {
+		t.Errorf("the published catalog still names a command the live registries dropped: %s", published)
+	}
+	page, err := os.ReadFile(stale)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(page) != publishedPage {
+		t.Errorf("a published page was overwritten by the contract fixture:\n got: %s\nwant: %s", page, publishedPage)
+	}
+}
+
+// VALIDATES: the schema extractor indexes top-level nodes by name and writes
+// stable, sorted JSON bytes.
+func TestYANGConfigTreeIndexesRoots(t *testing.T) {
+	output := t.TempDir()
+	raw := []byte(`[{"name":"zeta","children":[]},{"name":"alpha","kind":"container"}]`)
+	count, err := writeYANGConfigTree(output, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Fatalf("root count = %d, want 2", count)
+	}
+	content, err := os.ReadFile(filepath.Join(output, "data", "yang-config-tree.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "{\n  \"alpha\": {\n    \"name\": \"alpha\",\n    \"kind\": \"container\"\n  },\n  \"zeta\": {\n    \"name\": \"zeta\",\n    \"children\": []\n  }\n}\n"
+	if string(content) != want {
+		t.Fatalf("configuration tree bytes:\n%s\nwant:\n%s", content, want)
+	}
+}
+
+// VALIDATES: the page registry follows public routes and requires Markdown
+// mirrors without treating unrelated HTML files as pages. A redirect stub is a
+// route like any other: the site publishes no redirect, so a stub the seed
+// carried must reach the coverage and mirror checks rather than hide from them.
+func TestPageRegistryAndMirrorCheck(t *testing.T) {
+	root := t.TempDir()
+	for name, content := range map[string]string{
+		"index.html": "home", "index.md": "# Home",
+		"guide/index.html": "guide", "guide/extra.html": "helper",
+		"moved/index.html":              `<meta name="robots" content="noindex"><meta http-equiv="refresh" content="0; url=/guide/">`,
+		"presentations/deck/index.html": "standalone deck",
+	} {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pages, err := pageRegistry(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pages) != 3 || pages[0].Route != "/" || pages[1].Route != "/guide/" || pages[2].Route != "/moved/" {
+		t.Fatalf("unexpected page registry: %#v", pages)
+	}
+	missing, err := checkPageMirrors(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) != 2 || !strings.Contains(missing[0], "guide/index.md") || !strings.Contains(missing[1], "moved/index.md") {
+		t.Fatalf("unexpected missing mirrors: %v", missing)
+	}
+}
+
+// VALIDATES: the former LINX updater refreshes every live slide statistic,
+// activity, and the standalone deck through one native call.
+func TestUpdateTalkRefreshesStatsActivityAndBundle(t *testing.T) {
+	root := t.TempDir()
+	for _, directory := range []string{
+		"ai/rationale", "cmd/example", "internal/plugins/one", "internal/plugins/two",
+		"plan/learned", "schema", "test/interop/scenarios/one", "vendor",
+	} {
+		if err := os.MkdirAll(filepath.Join(root, directory), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files := map[string][]byte{
+		"ai/rationale/one.md":                []byte("# Why\n"),
+		"cmd/example/main.go":                []byte(strings.Repeat("package example\n", 1001)),
+		"plan/learned/one.md":                []byte("# Learned\n"),
+		"schema/example.yang":                []byte("container system {\n\tleaf name { type string; }\n}\n"),
+		"test/example.ci":                    []byte("exec=ze\n"),
+		"test/interop/scenarios/one/run.txt": []byte("scenario\n"),
+		"vendor/blob":                        make([]byte, 1025),
+	}
+	for name, content := range files {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, content, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	talk := filepath.Join(root, "website", "talks", "linx")
+	if err := os.MkdirAll(talk, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	slides := strings.Join([]string{
+		"**9,999 co-authored commits**", "**99 plugins**",
+		"**9,999 config nodes** across 999 YANG schemas",
+		"99 rationale files", "**9,999 functional tests**",
+		"99 interop scenarios", "999 learned summaries",
+		"- Only **999k lines** of Go code",
+		"- Only **999M** of vendored code",
+		"<!-- embed: activity.html -->",
+	}, "\n")
+	if err := os.WriteFile(filepath.Join(talk, "slides.md"), []byte(slides), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(talk, "index.html"), []byte("<html><body><script></script></body></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit := func(arguments ...string) {
+		command := exec.CommandContext(t.Context(), "git", arguments...)
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", arguments, err, output)
+		}
+	}
+	runGit("init")
+	runGit("add", ".")
+	runGit("-c", "user.name=Site Test", "-c", "user.email=site@example.test", "commit", "-m", "site fixture", "-m", "Co-Authored-By: Helper <helper@example.test>")
+
+	report, err := updateTalk(talkUpdateOptions{Repository: root, Directory: talk, Today: time.Now().UTC()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Slides == "" || report.Activity == "" || report.Bundle == "" {
+		t.Fatalf("incomplete talk report: %#v", report)
+	}
+	updated, err := os.ReadFile(filepath.Join(talk, "slides.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"**1 co-authored commits**", "**2 plugins**",
+		"**2 config nodes** across 1 YANG schemas",
+		"1 rationale files", "**1 functional tests**",
+		"1 interop scenarios", "1 learned summaries",
+		"- Only **1k lines** of Go code", "- Only **2K** of vendored code",
+	} {
+		if !strings.Contains(string(updated), want) {
+			t.Errorf("updated slides lack %q:\n%s", want, updated)
+		}
+	}
+	bundle, err := os.ReadFile(report.Bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`id="embedded-slides"`, `id="embedded-activity-html"`} {
+		if !strings.Contains(string(bundle), want) {
+			t.Errorf("standalone deck lacks %q", want)
+		}
+	}
+}
+
+// VALIDATES: the former NetMCR updater remains a bundle-only operation and
+// does not need repository statistics.
+func TestUpdateTalkBundleOnlyDoesNotNeedRepository(t *testing.T) {
+	talk := t.TempDir()
+	if err := os.WriteFile(filepath.Join(talk, "index.html"), []byte("<html><script></script></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, err := updateTalk(talkUpdateOptions{Directory: talk, BundleOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Bundle == "" || report.Slides != "" || report.Activity != "" {
+		t.Fatalf("unexpected bundle-only report: %#v", report)
+	}
+}
+
+// VALIDATES: a website build refreshes the LINX activity and bundle without
+// changing the historical slide statistics.
+func TestRefreshTalksPreservesHistoricalSlides(t *testing.T) {
+	root := t.TempDir()
+	talks := filepath.Join(root, "website", "talks")
+	talk := filepath.Join(talks, "linx-2026-06")
+	if err := os.MkdirAll(talk, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	slides := []byte("**99 plugins**\n<!-- embed: activity.html -->\n")
+	if err := os.WriteFile(filepath.Join(talk, "slides.md"), slides, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(talk, "index.html"), []byte("<html><script></script></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit := func(arguments ...string) {
+		command := exec.CommandContext(t.Context(), "git", arguments...)
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", arguments, err, output)
+		}
+	}
+	runGit("init")
+	runGit("add", ".")
+	runGit("-c", "user.name=Site Test", "-c", "user.email=site@example.test", "commit", "-m", "historical talk")
+
+	reports, err := refreshTalks(root, talks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reports) != 1 || reports[0].Activity == "" || reports[0].Bundle == "" || reports[0].Slides != "" {
+		t.Fatalf("unexpected staged talk report: %#v", reports)
+	}
+	updated, err := os.ReadFile(filepath.Join(talk, "slides.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(updated, slides) {
+		t.Fatalf("historical slides changed:\n%s", updated)
+	}
+}
+
+// VALIDATES: AC-14, a second build over an unchanged tree changes nothing.
+// PREVENTS: a build whose artifact differs from the previous one with no input
+// changed, so every publish commits a diff a reviewer cannot read.
+//
+// Method: two builds write into the published location, the sibling gh-pages,
+// so the second seeds from the first and carries its publication stamps. The
+// second build runs one hour later on the build clock. The only input that
+// moved is the wall clock, and a reader must not see it: the page keeps the
+// first build's stamp and every byte of the tree matches.
+func TestASecondBuildChangesNothing(t *testing.T) {
+	stubLiveInputs(t, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
+	// The facts snapshot is stated, as stubLiveInputs states it, and stamped
+	// from the build clock the way deriveSiteFacts stamps it, so the build time
+	// reaches the published JSON as it does in a real build.
+	liveSiteFacts = func(Paths) (siteFacts, error) {
+		published := buildClock().UTC()
+		return siteFacts{Sources: map[string]string{"tests": "a test stated these"},
+			GeneratedAt: published.Format(time.DateOnly), PublishedAt: published.Format(time.RFC3339),
+			CLICommands: 1, Tests: factsTests{Unit: 1, UnitDisplay: "1"}}, nil
+	}
+	stubProducers(t, Producer{Name: "labs", Render: func(paths Paths) ([]string, error) {
+		page := filepath.Join(paths.Output, "labs", "index.html")
+		if err := os.MkdirAll(filepath.Dir(page), 0o755); err != nil {
+			return nil, err
+		}
+		body := "<!doctype html><html><body><main>labs</main>\n<footer></footer>\n</body></html>\n"
+		return []string{"/labs/"}, os.WriteFile(page, []byte(body), 0o644)
+	}})
+	root, _ := siteFixture(t)
+	output := filepath.Join(filepath.Dir(root), "gh-pages")
+	first := time.Date(2026, 10, 8, 4, 0, 0, 0, time.UTC)
+
+	previous := buildClock
+	t.Cleanup(func() { buildClock = previous })
+	buildClock = func() time.Time { return first }
+	if _, err := Build(t.Context(), BuildOptions{Repository: root, Output: output}); err != nil {
+		t.Fatalf("first build: %v", err)
+	}
+	before := artifactTree(t, output)
+
+	buildClock = func() time.Time { return first.Add(time.Hour) }
+	if _, err := Build(t.Context(), BuildOptions{Repository: root, Output: output}); err != nil {
+		t.Fatalf("second build: %v", err)
+	}
+	after := artifactTree(t, output)
+
+	page := after["labs/index.html"]
+	if !strings.Contains(page, publishedDisplay(first)) {
+		t.Fatalf("the page lost the first build's stamp %q:\n%s", publishedDisplay(first), page)
+	}
+	for name, content := range before {
+		changed, present := after[name]
+		if !present {
+			t.Errorf("the second build removed %s", name)
+			continue
+		}
+		if changed != content {
+			t.Errorf("the second build rewrote %s:\nfirst:  %q\nsecond: %q", name, content, changed)
+		}
+	}
+	for name := range after {
+		if _, present := before[name]; !present {
+			t.Errorf("the second build added %s", name)
+		}
+	}
+}
+
+// VALIDATES: a full build over the real checkout leaves no published route
+// unclaimed and none claimed twice: every page in the artifact was written by
+// exactly one registered producer during this build.
+// PREVENTS: the frozen-page defect this work exists for, a page that reaches
+// the artifact from the seed alone with no producer rendering it.
+//
+// Method: `Build` runs over this checkout into a scratch output, seeded from
+// the sibling gh-pages the way a publish is, with every live input real except
+// the star count, which reaches the network and is stated failing so the build
+// takes its no-network path. The RFC gate snapshot and the test-health render
+// are the live derivations the other real-checkout tests share
+// (checkout_test.go), computed once for the process rather than again here.
+// The coverage the build reports is the end-user answer `./le site build`
+// prints. It takes minutes, as a publish does.
+func TestBuildRendersEveryPublishedRoute(t *testing.T) {
+	root := repositoryRoot(t)
+	previous := liveGitHubStars
+	t.Cleanup(func() { liveGitHubStars = previous })
+	liveGitHubStars = func() (int, error) { return 0, errors.New("this test reaches no network") }
+	shareCheckoutDerivations(t)
+	output := filepath.Join(t.TempDir(), "artifact")
+
+	report, err := Build(t.Context(), BuildOptions{Repository: root, Output: output})
+	if err != nil {
+		t.Fatalf("build the real checkout: %v", err)
+	}
+
+	coverage := report.Coverage
+	if coverage.Producers != len(allProducers()) {
+		t.Errorf("the build counted %d producers, the registry holds %d", coverage.Producers, len(allProducers()))
+	}
+	if coverage.Published == 0 {
+		t.Fatal("the build published no route")
+	}
+	if len(coverage.Unclaimed) != 0 {
+		t.Errorf("%d published routes no producer wrote: %v", len(coverage.Unclaimed), coverage.Unclaimed)
+	}
+	if len(coverage.Doubled) != 0 {
+		t.Errorf("%d routes two producers wrote: %v", len(coverage.Doubled), coverage.Doubled)
+	}
+	if coverage.Written != coverage.Published {
+		t.Errorf("producers wrote %d routes and the artifact publishes %d", coverage.Written, coverage.Published)
+	}
+}
+
+// artifactTree reads every file of a built artifact, keyed by its slash-form
+// path relative to the artifact root. Git metadata is not part of the artifact.
+func artifactTree(t *testing.T, output string) map[string]string {
+	t.Helper()
+	tree := map[string]string{}
+	err := filepath.WalkDir(output, func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == gitMetadataDir {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		content, err := os.ReadFile(name)
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(output, name)
+		if err != nil {
+			return err
+		}
+		tree[filepath.ToSlash(relative)] = string(content)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("read artifact %s: %v", output, err)
+	}
+	return tree
+}

@@ -1,0 +1,386 @@
+// Design: docs/architecture/plugin/feature-gates.md -- selected fields need an exact retained owner.
+package repoinventory
+
+import (
+ "strings"
+ "testing"
+)
+
+// TestCommittedExternalCollectionKeysCannotBorrowMethodOwner distinguishes a
+// real bound method from a fabricated field named by a collection key. Direct
+// literal receivers may refuse under the bounded method-owner contract.
+func TestCommittedExternalCollectionKeysCannotBorrowMethodOwner(t *testing.T) {
+	for _, shape := range []struct{ name, declarations, literal string }{
+		{"array", "type parcelCollection [1]uint32\nconst Fire = 0\n", "parcelCollection{Fire: 0}"},
+		{"slice", "type parcelCollection []uint32\nconst Fire = 0\n", "parcelCollection{Fire: 0}"},
+		{"map", "type parcelCollection map[string]uint32\nconst Fire = \"key\"\n", "parcelCollection{Fire: 0}"},
+	} {
+		for _, kind := range []string{"plugin", "yang"} {
+			t.Run(shape.name+"/"+kind, func(t *testing.T) {
+				fixture := externalEffectsFixture(t, kind)
+				externalPhantomMethodControl(t, fixture, shape.declarations, shape.literal)
+				for _, method := range []struct{ name, body string }{{"installer", "install(0)"}, {"inert", ""}} {
+					t.Run(method.name, func(t *testing.T) {
+						declarations := shape.declarations + "func (parcelCollection) Fire() { " + method.body + " }\n"
+						call := "store.Callback = (" + shape.literal + ").Fire; parcel, fault := remote.Stat(\".\"); _ = parcel; _ = fault"
+						fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations, call))
+						commitInventoryFixture(t, fixture.root)
+						externalEffectsRefusal(t, fixture, "ownership")
+					})
+				}
+			})
+		}
+	}
+}
+
+// TestCommittedExternalAggregateFieldsCannotBorrowMethodOwner covers type and
+// value aggregation of nested fields. A collection element or named child field
+// does not add that child's fields to its holder's actual selector namespace.
+func TestCommittedExternalAggregateFieldsCannotBorrowMethodOwner(t *testing.T) {
+	const element = "type parcelElement struct { Fire uint32 }\n"
+	for _, shape := range []struct{ name, declarations, literal string }{
+		{"array element", element + "type parcelCollection [1]parcelElement\n", "parcelCollection{parcelElement{Fire: 0}}"},
+		{"slice element", element + "type parcelCollection []parcelElement\n", "parcelCollection{parcelElement{Fire: 0}}"},
+		{"map value", element + "type parcelCollection map[string]parcelElement\n", "parcelCollection{\"key\": parcelElement{Fire: 0}}"},
+		{"named child", element + "type parcelCollection struct { Inner parcelElement }\n", "parcelCollection{Inner: parcelElement{Fire: 0}}"},
+	} {
+		for _, kind := range []string{"plugin", "yang"} {
+			t.Run(shape.name+"/"+kind, func(t *testing.T) {
+				fixture := externalEffectsFixture(t, kind)
+				externalPhantomMethodControl(t, fixture, shape.declarations, shape.literal)
+				for _, method := range []struct{ name, body string }{{"installer", "install(0)"}, {"inert", ""}} {
+					t.Run(method.name, func(t *testing.T) {
+						declarations := shape.declarations + "func (parcelCollection) Fire() { " + method.body + " }\n"
+						call := "store.Callback = (" + shape.literal + ").Fire; parcel, fault := remote.Stat(\".\"); _ = parcel; _ = fault"
+						fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations, call))
+						commitInventoryFixture(t, fixture.root)
+						externalEffectsRefusal(t, fixture, "ownership")
+					})
+				}
+			})
+		}
+	}
+}
+
+// TestCommittedExternalAssertedOwnerCannotBorrowField keeps a legitimate field
+// projection in one interface alternative. The asserted receiver's actual type
+// has a method with that spelling, so its callback cannot use the other field.
+func TestCommittedExternalAssertedOwnerCannotBorrowField(t *testing.T) {
+	const shapes = "type parcelElement struct { Fire uint32 }\ntype parcelCollection struct{}\n"
+	for _, kind := range []string{"plugin", "yang"} {
+		t.Run(kind, func(t *testing.T) {
+			fixture := externalEffectsFixture(t, kind)
+			externalPhantomMethodControl(t, fixture, shapes, "parcelCollection{}")
+			for _, method := range []struct{ name, body string }{{"installer", "install(0)"}, {"inert", ""}} {
+				t.Run(method.name, func(t *testing.T) {
+					declarations := shapes + "func (parcelCollection) Fire() { " + method.body + " }\n"
+					call := "var boxed any = parcelElement{Fire: 0}; boxed = parcelCollection{}; store.Callback = (boxed.(parcelCollection)).Fire; parcel, fault := remote.Stat(\".\"); _ = parcel; _ = fault"
+					fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations, call))
+					commitInventoryFixture(t, fixture.root)
+					externalEffectsRefusal(t, fixture, "ownership")
+				})
+			}
+		})
+	}
+}
+
+// TestCommittedExternalNestedFieldsKeepScalarSiblingIndependent keeps actual
+// keyed fields precise when a named child has a different field of the same
+// spelling. A child callback cannot become the root scalar's capability.
+func TestCommittedExternalNestedFieldsKeepScalarSiblingIndependent(t *testing.T) {
+	const child = "type parcelInner struct { Label func() }\n"
+	const box = "type parcelBox struct { Inner parcelInner; Label any }\n"
+	for _, shape := range []struct{ name, declarations, datatype string }{
+		{"named", child + box, "parcelBox"},
+		{"alias", child + box + "type parcelAlias = parcelBox\n", "parcelAlias"},
+		{"defined", child + box + "type parcelDefined parcelBox\n", "parcelDefined"},
+		{"generic", child + "type parcelGeneric[T any] struct { Inner parcelInner; Label T }\n", "parcelGeneric[any]"},
+	} {
+		for _, kind := range []string{"plugin", "yang"} {
+			t.Run(shape.name+"/"+kind, func(t *testing.T) {
+				fixture := externalEffectsFixture(t, kind)
+				before := "order.Slice([]any{(" + shape.datatype + "{Inner: parcelInner{Label: func() { install(0) }}, Label: "
+				after := "}).Label}, func(i, j int) bool { return false })"
+				fixture.goFile(t, callableOwnerCaller, externalEffectsSource(shape.declarations, before+"\"copy\""+after))
+				commitInventoryFixture(t, fixture.root)
+				externalEffectsPositive(t, fixture)
+
+				fixture.goFile(t, callableOwnerCaller, externalEffectsSource(shape.declarations, before+"func() { install(0) }"+after))
+				commitInventoryFixture(t, fixture.root)
+				externalEffectsRefusal(t, fixture, "registration")
+			})
+		}
+	}
+}
+
+func externalPhantomMethodControl(t *testing.T, fixture *asmInventoryFixture, shapes, literal string) {
+	t.Helper()
+	declarations := shapes + "func (parcelCollection) Fire() {}\n"
+	call := "value := " + literal + "; store.Callback = value.Fire; parcel, fault := remote.Stat(\".\"); _ = parcel; _ = fault"
+	fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations, call))
+	commitInventoryFixture(t, fixture.root)
+	externalEffectsPositive(t, fixture)
+}
+
+// TestCommittedExternalRangedScalarSiblingIsolation exposes a selected builtin
+// scalar while keeping a sibling installer callback in the exact same element.
+// Only whole-element exposure may make that callback externally reachable.
+func TestCommittedExternalRangedScalarSiblingIsolation(t *testing.T) {
+	const declarations = `type scalarParcel struct { Label string; Callback func() }
+func scalarValues() []scalarParcel {
+ return []scalarParcel{scalarParcel{Label:"copy", Callback:func(){install(0)}}}
+}
+`
+	const literal = `scalarParcel{Label:"copy", Callback:func(){install(0)}}`
+	for _, scenario := range []struct{ name, setup, loop string }{
+		{"slice", "records := []scalarParcel{"+literal+"}", "for _, item := range records"},
+		{"array", "records := [1]scalarParcel{"+literal+"}", "for _, item := range records"},
+		{"returned", "records := scalarValues()", "for _, item := range records"},
+		{"existing", "records := []scalarParcel{"+literal+"}; var item scalarParcel", "for _, item = range records"},
+		{"shadowed", "records := []scalarParcel{"+literal+"}; item := struct{Label func()}{Label:func(){install(0)}}; _ = item", "for _, item := range records"},
+	} {
+		for _, kind := range []string{"plugin", "yang"} {
+			t.Run(scenario.name+"/"+kind, func(t *testing.T) {
+				fixture := externalEffectsFixture(t, kind)
+				prefix := scenario.setup+"; "+scenario.loop+" { "
+				fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations,
+					prefix+externalRangedScalarOpaqueCall("item.Label")+" }"))
+				commitInventoryFixture(t, fixture.root)
+				externalEffectsPositive(t, fixture)
+
+				fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations,
+					prefix+externalRangedScalarOpaqueCall("item")+" }"))
+				commitInventoryFixture(t, fixture.root)
+				externalRangedScalarRegistrationRefusal(t, fixture, kind)
+			})
+		}
+	}
+}
+
+// TestCommittedExternalRangedScalarDescriptorIsolation keeps an unselected
+// callback signature's descriptor authority out of the selected builtin scalar.
+// The callback is absent or inert; only reflection can reach its parameter's
+// private named type and exported installer-bearing method in this pair.
+func TestCommittedExternalRangedScalarDescriptorIsolation(t *testing.T) {
+	const declarations = `type descriptorParcel struct{}
+func (descriptorParcel) Trigger() { install(0) }
+type scalarParcel struct { Label string; Callback func(descriptorParcel) }
+`
+	for _, callback := range []struct{ name, field string }{
+		{"nil-callback", ""},
+		{"inert-callback", ", Callback:func(descriptorParcel){}"},
+	} {
+		for _, kind := range []string{"plugin", "yang"} {
+			t.Run(callback.name+"/"+kind, func(t *testing.T) {
+				fixture := externalEffectsFixture(t, kind)
+				prefix := `records := []scalarParcel{scalarParcel{Label:"copy"`+
+					callback.field+"}}; for _, item := range records { "
+				fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations,
+					prefix+externalRangedScalarOpaqueCall("item.Label")+" }"))
+				commitInventoryFixture(t, fixture.root)
+				externalEffectsPositive(t, fixture)
+
+				fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations,
+					prefix+externalRangedScalarOpaqueCall("item")+" }"))
+				commitInventoryFixture(t, fixture.root)
+				externalRangedScalarRegistrationRefusal(t, fixture, kind)
+			})
+		}
+	}
+}
+
+// TestCommittedExternalRangedScalarMethodReceiver keeps the exact receiver
+// argument grounded through the fresh range declaration and retained call.
+// This ordinary type and method share no family-related names.
+func TestCommittedExternalRangedScalarMethodReceiver(t *testing.T) {
+	const declarations = `type scalarParcel struct { Label string }
+func (p scalarParcel) Text() string { return p.Label }
+`
+	for _, kind := range []string{"plugin", "yang"} {
+		t.Run(kind, func(t *testing.T) {
+			fixture := externalEffectsFixture(t, kind)
+			call := `records := []scalarParcel{scalarParcel{Label:"copy"}}; for _, item := range records { `+
+				externalRangedScalarOpaqueCall("item.Text()")+" }"
+			fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations, call))
+			commitInventoryFixture(t, fixture.root)
+			externalEffectsPositive(t, fixture)
+		})
+	}
+}
+
+// TestCommittedExternalRangedNamedScalarKeepsMethods changes only an exported
+// method body on the selected private named scalar. A scalar representation
+// does not justify deleting that type's callable or reflection authority.
+func TestCommittedExternalRangedNamedScalarKeepsMethods(t *testing.T) {
+	const declarations = `type scalarLabel string
+func (scalarLabel) Trigger() { BODY }
+type scalarParcel struct { Label scalarLabel }
+`
+	const call = `records := []scalarParcel{scalarParcel{Label:scalarLabel("copy")}}; for _, item := range records { `
+	for _, kind := range []string{"plugin", "yang"} {
+		t.Run(kind, func(t *testing.T) {
+			fixture := externalEffectsFixture(t, kind)
+			operation := call+externalRangedScalarOpaqueCall("item.Label")+" }"
+			fixture.goFile(t, callableOwnerCaller, externalEffectsSource(
+				strings.Replace(declarations, "BODY", "", 1), operation))
+			commitInventoryFixture(t, fixture.root)
+			externalEffectsPositive(t, fixture)
+
+			fixture.goFile(t, callableOwnerCaller, externalEffectsSource(
+				strings.Replace(declarations, "BODY", "install(0)", 1), operation))
+			commitInventoryFixture(t, fixture.root)
+			externalRangedScalarRegistrationRefusal(t, fixture, kind)
+		})
+	}
+}
+
+// TestCommittedExternalElementReferenceFieldObligation keeps actual callback,
+// interface and pointer fields behind their existing element-value obligation.
+// The direct retained field is a prerequisite; a type-only element field is not.
+func TestCommittedExternalElementReferenceFieldObligation(t *testing.T) {
+	for _, shape := range []struct{ name, field, value, declaration string }{
+		{"callback", "func()", "func(){ BODY }", ""},
+		{"interface", "any", "func(){ BODY }", ""},
+		{"pointer", "*scalarLabel", "new(scalarLabel)", "type scalarLabel string\nfunc (*scalarLabel) Trigger(){ BODY }\n"},
+	} {
+		for _, kind := range []string{"plugin", "yang"} {
+			t.Run(shape.name+"/"+kind, func(t *testing.T) {
+				fixture := externalEffectsFixture(t, kind)
+				for _, body := range []struct{ name, effect string }{{"inert", ""}, {"installer", "install(0)"}} {
+					t.Run(body.name, func(t *testing.T) {
+						declarations := strings.Replace(shape.declaration, "BODY", body.effect, 1)+
+							"type referenceParcel struct { Value "+shape.field+" }\n"
+						literal := "referenceParcel{Value:"+strings.Replace(shape.value, "BODY", body.effect, 1)+"}"
+						direct := "record := "+literal+"; "+externalRangedScalarOpaqueCall("record.Value")
+						fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations, direct))
+						commitInventoryFixture(t, fixture.root)
+						if body.effect == "" {
+							externalEffectsPositive(t, fixture)
+						} else {
+							externalRangedScalarRegistrationRefusal(t, fixture, kind)
+						}
+
+						for _, selection := range []struct{ name, operation, cause string }{
+							{"range", "records := []referenceParcel{"+literal+"}; for _, item := range records { "+externalRangedScalarOpaqueCall("item.Value")+" }", "ranged element field ownership"},
+							{"index", "records := []referenceParcel{"+literal+"}; "+externalRangedScalarOpaqueCall("records[0].Value"), "indexed element field ownership"},
+						} {
+							t.Run(selection.name, func(t *testing.T) {
+								fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations, selection.operation))
+								commitInventoryFixture(t, fixture.root)
+								externalEffectsRefusal(t, fixture, selection.cause)
+							})
+						}
+					})
+				}
+			})
+		}
+	}
+}
+
+// TestCommittedExternalRangedScalarUnknownTransfer keeps a known element type
+// and scalar member from discharging an earlier channel-transfer obligation.
+func TestCommittedExternalRangedScalarUnknownTransfer(t *testing.T) {
+	for _, kind := range []string{"plugin", "yang"} {
+		t.Run(kind, func(t *testing.T) {
+			fixture := externalPublicEntryFixture(t, kind)
+			const body = `type scalarParcel struct { Label string }
+func Fire(ch <-chan scalarParcel) {
+ records := []scalarParcel{scalarParcel{Label:"copy"}}
+ TRANSFER
+ for _, item := range records { _ = item.Label }
+}
+`
+			fixture.goFile(t, externalPublicEntryDir+"/entry.go",
+				externalPublicHelperSource("publicentry", strings.Replace(body, "TRANSFER", "", 1)))
+			commitInventoryFixture(t, fixture.root)
+			externalEffectsPositive(t, fixture)
+
+			fixture.goFile(t, externalPublicEntryDir+"/entry.go",
+				externalPublicHelperSource("publicentry", strings.Replace(body, "TRANSFER", "records[0] = <-ch", 1)))
+			commitInventoryFixture(t, fixture.root)
+			externalEffectsRefusal(t, fixture, "channel")
+		})
+	}
+}
+
+// TestCommittedExternalRangedScalarMetadataBacking keeps the selected scalar
+// copy separate from the writable object used by the registration's metadata.
+// Both halves traverse the same new range-scalar field branch before exposure.
+func TestCommittedExternalRangedScalarMetadataBacking(t *testing.T) {
+	fixture := externalEffectsFixture(t, "plugin")
+	const registration = asmOrdinaryDir+"/register.go"
+	source := fixture.goSources[registration]
+	if !strings.Contains(source, "Description: \"ordinary committed control\"") {
+		t.Fatal("authored metadata prerequisite lost its description")
+	}
+	source = strings.Replace(source, "func init() {",
+		"type scalarMetadata struct { Label string }\nvar scalarRegistered = scalarMetadata{Label:\"ordinary committed control\"}\nfunc init() {", 1)
+	source = strings.Replace(source, "Description: \"ordinary committed control\"", "Description: scalarRegistered.Label", 1)
+	fixture.goFile(t, registration, source)
+	const start = "for _, item := range []*scalarMetadata{&scalarRegistered} { label := item.Label; "
+	fixture.goFile(t, callableOwnerCaller, externalEffectsSource("", start+externalRangedScalarOpaqueCall("label")+" }"))
+	commitInventoryFixture(t, fixture.root)
+	externalEffectsPositive(t, fixture)
+
+	fixture.goFile(t, callableOwnerCaller, externalEffectsSource("", start+externalRangedScalarOpaqueCall("label, item")+" }"))
+	commitInventoryFixture(t, fixture.root)
+	externalEffectsRefusal(t, fixture, "metadata")
+	_, reportErr := Collect(fixture.root)
+	_, pluginErr := Plugins(fixture.root)
+	for _, err := range []error{reportErr, pluginErr} {
+		if err == nil {
+			t.Fatal("writable backing escaped without a metadata refusal")
+		}
+		text := err.Error()
+		mutation := strings.Contains(text, "external mutation can change registration metadata through")
+		write := strings.Contains(text, "external registration metadata depends on a mutated retained backing location")
+		if !mutation {
+			if !write {
+				t.Fatalf("new scalar branch was masked by an unrelated refusal: %v", err)
+			}
+		}
+	}
+}
+
+func externalRangedScalarOpaqueCall(expression string) string {
+	return "order.Slice([]any{"+expression+"}, func(i,j int) bool { return false })"
+}
+
+// externalRangedScalarRegistrationRefusal keeps both no-partial-output checks
+// and the semantic sink cause; the generic capability-unknown prefix is not it.
+func externalRangedScalarRegistrationRefusal(t *testing.T, fixture *asmInventoryFixture, kind string) {
+	t.Helper()
+	const cause = "registration may execute through an escaped capability"
+	externalEffectsRefusal(t, fixture, cause)
+	_, reportErr := Collect(fixture.root)
+	_, pluginErr := Plugins(fixture.root)
+	for _, err := range []error{reportErr, pluginErr} {
+		if err == nil {
+			t.Fatal("repeated consumer lost its escaped-registration refusal")
+		}
+		text := err.Error()
+		if !strings.Contains(text, "external "+cause) {
+			t.Fatalf("selected field refused without reaching the semantic sink: %v", err)
+		}
+		authored := strings.Contains(text, callableOwnerCaller+":")
+		if !authored {
+			authored = strings.Contains(text, callableOwnerFile+":")
+		}
+		if authored {
+			continue
+		}
+		switch kind {
+		case "plugin":
+			if !strings.Contains(text, registrationPackage+"/registry.go:") {
+				t.Fatalf("escaped plugin registration has no authored call or sink attribution: %v", err)
+			}
+		case "yang":
+			if !strings.Contains(text, "internal/component/config/yang/register.go:") {
+				t.Fatalf("escaped YANG registration has no authored call or sink attribution: %v", err)
+			}
+		default:
+			t.Fatalf("unknown ranged-scalar fixture semantic kind %q", kind)
+		}
+	}
+}
+

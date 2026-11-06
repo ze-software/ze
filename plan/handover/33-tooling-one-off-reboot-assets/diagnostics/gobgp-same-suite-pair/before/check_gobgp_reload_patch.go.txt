@@ -1,0 +1,62 @@
+// Design: docs/architecture/testing/interop.md -- image-bound applied patch provenance.
+// Related: check_gobgp_reload.go -- identify observes images before this patch.
+package bgp
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+const gobgpReloadPatchFile = "gobgp-v4.11.0-export-reload.patch"
+const gobgpReloadPatchPath = "/usr/local/share/ze/" + gobgpReloadPatchFile
+const gobgpReloadPatchFix = "Fix: restore test/interop/" + gobgpReloadPatchFile + " and rerun the selected successor to rebuild its GoBGP image:\n`./le test integration interop`"
+
+// identifyPatch binds the applied artifact inside the consumed image to this
+// checkout's declared patch. The Dockerfile copies the same builder input it
+// applied, and native reload discrimination separately proves its effect.
+func (proof *gobgpReloadProof) identifyPatch(ctx context.Context) error {
+	if proof.check.Checkout == "" {
+		return errors.New("GoBGP reload has no checkout for its patch source, so its producer cannot be identified. Fix: run the selected successor from the main checkout:\n`./le test integration interop`")
+	}
+	expected, err := os.ReadFile(filepath.Join(proof.check.Checkout, "test", "interop", gobgpReloadPatchFile))
+	if err != nil {
+		return fmt.Errorf("GoBGP patch source could not be read, so its producer cannot be identified: %w. %s", err, gobgpReloadPatchFix)
+	}
+	if len(bytes.TrimSpace(expected)) == 0 {
+		return errors.New("GoBGP patch source is empty, so its producer cannot be identified. " + gobgpReloadPatchFix)
+	}
+	applied, err := proof.query(ctx, "gobgp-patch", peerGoBGP, []string{cmdCat, gobgpReloadPatchPath})
+	if err != nil {
+		return fmt.Errorf("the running GoBGP image could not supply its applied patch, so its producer cannot be identified: %w. %s", err, gobgpReloadPatchFix)
+	}
+	if applied != string(expected) {
+		return errors.New("the running GoBGP image carries a different patch than this checkout, so this reload cannot identify its producer. " + gobgpReloadPatchFix)
+	}
+	output, err := proof.query(ctx, "gobgp-patch-sha256", peerGoBGP, []string{"sha256sum", gobgpReloadPatchPath})
+	if err != nil {
+		return fmt.Errorf("the running GoBGP image could not supply its patch digest, so its producer cannot be identified: %w. %s", err, gobgpReloadPatchFix)
+	}
+	fields := strings.Fields(output)
+	if len(fields) != 2 {
+		return errors.New("the running GoBGP image returned an unknown patch digest format, so its producer cannot be identified. " + gobgpReloadPatchFix)
+	}
+	if fields[1] != gobgpReloadPatchPath {
+		return errors.New("the running GoBGP image returned a digest for a different patch file, so its producer cannot be identified. " + gobgpReloadPatchFix)
+	}
+	digest, err := hex.DecodeString(fields[0])
+	if err != nil {
+		return fmt.Errorf("the running GoBGP image returned a malformed patch digest, so its producer cannot be identified: %w. %s", err, gobgpReloadPatchFix)
+	}
+	computed := sha256.Sum256(expected)
+	if !bytes.Equal(digest, computed[:]) {
+		return errors.New("the running GoBGP image returned a digest that differs from its observed patch bytes, so its producer cannot be identified. " + gobgpReloadPatchFix)
+	}
+	return nil
+}

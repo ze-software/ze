@@ -1,0 +1,5 @@
+--relay-peer 172.30.0.5:179
+--relay-transparent
+--test local-pref-strip
+--result /tmp/extended
+--duration 180

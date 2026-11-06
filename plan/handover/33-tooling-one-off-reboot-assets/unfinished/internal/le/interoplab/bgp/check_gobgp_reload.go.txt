@@ -1,0 +1,384 @@
+// Design: docs/architecture/testing/interop.md -- actual SIGHUP export reconciliation.
+// Related: check_gobgp_reload_state.go, check_gobgp_reload_wire.go -- independent observers.
+// Related: check_gobgp_reload_patch.go -- applied producer source identity.
+package bgp
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
+)
+
+type gobgpReloadSnapshot struct {
+	Peers       map[uint8]gobgpReloadPeer
+	Sources     map[uint8]map[string][]map[string]json.RawMessage
+	Generations map[string]uint64
+	Identities  map[string]string
+}
+
+type gobgpReloadProof struct {
+	check     *interoplab.CheckContext
+	directory string
+	evidence  map[string]string
+	baseline  time.Time
+	attempt   int
+}
+
+func checkGoBGPExportReload(ctx context.Context, check *interoplab.CheckContext) (resultErr error) {
+	if !check.Network.IPv4.IsValid() {
+		return errors.New("GoBGP reload successor needs a selected IPv4 network")
+	}
+	switch check.Source.Name {
+	case gobgpReloadOrdinary, gobgpReloadSecondary:
+	default:
+		return errors.New("unknown GoBGP reload successor")
+	}
+	directory, err := retainedProofDirectory(check)
+	if err != nil {
+		return err
+	}
+	proof := gobgpReloadProof{check: check, directory: directory, evidence: make(map[string]string)}
+	defer func() {
+		diagnostic, cancel := context.WithTimeout(context.WithoutCancel(ctx), 20*time.Second)
+		defer cancel()
+		resultErr = errors.Join(resultErr, proof.finish(diagnostic))
+		proof.evidence["verdict-error"] = fmt.Sprint(resultErr)
+		data, encodeErr := json.MarshalIndent(proof.evidence, "", "  ")
+		resultErr = errors.Join(resultErr, encodeErr)
+		if encodeErr == nil {
+			resultErr = errors.Join(resultErr, os.WriteFile(filepath.Join(directory, "proof.json"), data, 0o600))
+		}
+	}()
+	if err := proof.identify(ctx); err != nil {
+		return err
+	}
+	before, err := proof.wait(ctx, 0, nil)
+	if err != nil {
+		return fmt.Errorf("initial native successor barrier: %w", err)
+	}
+	stamp, err := proof.query(ctx, "baseline-clock", peerGoBGP, []string{"/bin/date", "-u", "+%Y-%m-%dT%H:%M:%S.%NZ"})
+	if err != nil {
+		return err
+	}
+	proof.baseline, err = time.Parse(time.RFC3339Nano, strings.TrimSpace(stamp))
+	if err != nil {
+		return err
+	}
+	for step, phase := range gobgpReloadPhases[1:] {
+		step++
+		path := gobgpReloadMounted + "gobgp-reload-" + phase + ".toml"
+		if phase == "repeat" {
+			if err := proof.requireIdenticalRepeat(ctx, path); err != nil {
+				return err
+			}
+		}
+		if err := proof.exec(ctx, phase+"-config-copy", peerGoBGP, []string{"cp", path, gobgpReloadRunning}); err != nil {
+			return err
+		}
+		if phase == "repeat" {
+			if err := proof.repeatReload(ctx); err != nil {
+				return err
+			}
+		} else {
+			if err := check.Lab.Signal(ctx, peerGoBGP, "HUP"); err != nil {
+				return err
+			}
+		}
+		if _, err := proof.wait(ctx, step, &before); err != nil {
+			return fmt.Errorf("native SIGHUP phase %s (NEW successor, not historical recovery): %w", phase, err)
+		}
+	}
+	return nil
+}
+
+func (proof *gobgpReloadProof) query(ctx context.Context, key, peer string, command []string) (string, error) {
+	answer, err := proof.check.Lab.Query(ctx, peer, command, nil)
+	proof.evidence[key] = answer
+	if err != nil {
+		proof.evidence[key+"-error"] = err.Error()
+	}
+	return answer, err
+}
+
+// exec records a command's actual exit status without treating successful empty
+// stdout as missing measurement. Read-only observations MUST still use query.
+func (proof *gobgpReloadProof) exec(ctx context.Context, key, peer string, command []string) error {
+	result, err := proof.check.Lab.Exec(ctx, peer, command, nil)
+	proof.evidence[key+"-stdout"] = result.Stdout
+	proof.evidence[key+"-stderr"] = result.Stderr
+	proof.evidence[key+"-exit"] = strconv.Itoa(result.ExitCode)
+	if err != nil {
+		proof.evidence[key+"-error"] = err.Error()
+		return err
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("native command %s exited %d: %s", key, result.ExitCode, result.Stderr)
+	}
+	return nil
+}
+
+func (proof *gobgpReloadProof) identify(ctx context.Context) error {
+	proof.evidence["scope"] = "NEW stable-session non-ADD-PATH IPv4-unicast successor; original four-peer configs/OPENs/captures remain missing; no fifteen-checker obligation discharged"
+	proof.evidence["declared-producer"] = "github.com/osrg/gobgp/v4@v4.11.0 with build-time gobgp-v4.11.0-export-reload.patch; applied patch bytes, digest and actual consumed image IDs are separately observed"
+	images, ok := proof.check.Lab.(interface {
+		PeerImage(context.Context, string) (string, error)
+	})
+	if !ok {
+		return errors.New("GoBGP reload proof requires actual peer-image observation")
+	}
+	for _, peer := range []string{"ze", peerGoBGP, peerFRR, peerFRRSink, peerBIRD} {
+		identity, err := images.PeerImage(ctx, peer)
+		if err != nil {
+			proof.evidence["image-"+peer+"-error"] = err.Error()
+			return fmt.Errorf("observe %s consumed image: %w", peer, err)
+		}
+		proof.evidence["image-"+peer] = identity
+	}
+	for _, query := range []struct {
+		peer, key string
+		command   []string
+	}{
+		{peerGoBGP, "gobgpd-version", []string{"gobgpd", "--version"}},
+		{peerGoBGP, "gobgp-version", []string{"gobgp", "--version"}},
+		{peerGoBGP, "gobgp-binary-sha256", []string{"sha256sum", "/usr/local/bin/gobgpd", "/usr/local/bin/gobgp"}},
+		{peerGoBGP, "capture-tool-version", []string{"tcpdump", "--version"}},
+		{peerGoBGP, "timeout-tool-version", []string{"/usr/bin/timeout", "--version"}},
+		{peerGoBGP, "read-observer-package-version", []string{"apk", "info", "-v", "inotify-tools", "inotify-tools-libs"}},
+		{peerFRR, "frr-version", []string{cmdVtysh, "-c", frrShowVersion}},
+		{peerFRRSink, "sink-version", []string{cmdVtysh, "-c", frrShowVersion}},
+		{peerBIRD, "bird-version", []string{cmdBirdc, "show status"}},
+		{"ze", "ze-version", []string{"ze", "--version"}},
+		{"ze", "ze-binary-sha256", []string{"sha256sum", "/usr/local/bin/ze"}},
+	} {
+		if _, err := proof.query(ctx, query.key, query.peer, query.command); err != nil {
+			return err
+		}
+	}
+	if err := proof.identifyPatch(ctx); err != nil {
+		return err
+	}
+	if _, err := proof.query(ctx, "rendered-input-sha256", peerGoBGP, []string{"sh", "-c", "sha256sum /etc/gobgp/gobgp.toml /etc/gobgp/reload/*.toml"}); err != nil {
+		return err
+	}
+	for _, phase := range gobgpReloadPhases {
+		path := "/etc/gobgp/gobgp.toml"
+		if phase != "initial" {
+			path = gobgpReloadMounted + "gobgp-reload-" + phase + ".toml"
+		}
+		if _, err := proof.query(ctx, "rendered-"+phase, peerGoBGP, []string{cmdCat, path}); err != nil {
+			return err
+		}
+	}
+	for _, file := range []struct{ peer, path string }{
+		{"ze", zeMountedConfig}, {peerBIRD, "/etc/bird/bird.conf"}, {peerFRR, "/etc/frr/frr.conf"}, {peerFRRSink, "/etc/frr/frr.conf"},
+	} {
+		if _, err := proof.query(ctx, "rendered-"+file.peer, file.peer, []string{cmdCat, file.path}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (proof *gobgpReloadProof) wait(ctx context.Context, step int, before *gobgpReloadSnapshot) (gobgpReloadSnapshot, error) {
+	var latest gobgpReloadSnapshot
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 25 * time.Second, Interval: time.Second, Description: "exact native GoBGP reload receiver state"}, func(probe context.Context) (bool, error) {
+		proof.attempt++
+		var err error
+		latest, err = proof.snapshot(probe, step)
+		if before != nil {
+			if len(latest.Identities) == len(before.Identities) {
+				err = errors.Join(err, compareGoBGPReloadSnapshot(*before, latest))
+			}
+		}
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}, func(ready bool) bool { return ready })
+	return latest, err
+}
+
+func (proof *gobgpReloadProof) snapshot(ctx context.Context, step int) (gobgpReloadSnapshot, error) {
+	state := gobgpReloadSnapshot{Peers: make(map[uint8]gobgpReloadPeer), Sources: make(map[uint8]map[string][]map[string]json.RawMessage), Generations: make(map[string]uint64), Identities: make(map[string]string)}
+	key := gobgpReloadPhases[step] + "-probe-" + strconv.Itoa(proof.attempt) + "-"
+	var routeErrors error
+	for _, peer := range []struct {
+		host uint8
+		asn  uint32
+	}{{2, 65001}, {4, 65004}, {3, 65002}, {15, 65015}} {
+		address := networkHostAddress(proof.check.Network, peer.host)
+		text, err := proof.query(ctx, key+address+"-neighbor", peerGoBGP, []string{"gobgp", "neighbor", address, "-j"})
+		if err != nil {
+			return state, err
+		}
+		observed, err := parseGoBGPReloadPeer(text, address, peer.asn)
+		if err != nil {
+			return state, err
+		}
+		state.Peers[peer.host] = observed
+		switch peer.host {
+		case 2, 4:
+			text, err := proof.query(ctx, key+address+"-adj-in", peerGoBGP, []string{"gobgp", "neighbor", address, "adj-in", "-a", "ipv4", "-j"})
+			if err != nil {
+				return state, err
+			}
+			prefixes := gobgpReloadPrefixes[:]
+			if peer.host == 4 {
+				prefixes = gobgpReloadPrefixes[3:5]
+			}
+			routes, err := sourceGoBGPReloadPaths(text, address, peer.asn, prefixes)
+			if err != nil {
+				return state, err
+			}
+			state.Sources[peer.host] = routes
+		}
+	}
+	for _, receiver := range []struct {
+		name string
+		host uint8
+	}{{peerFRR, 3}, {peerFRRSink, 15}} {
+		address := networkHostAddress(proof.check.Network, 5)
+		text, err := proof.query(ctx, key+receiver.name+"-neighbor", receiver.name, []string{cmdVtysh, "-c", "show bgp neighbor " + address + " json"})
+		if err != nil {
+			return state, err
+		}
+		generation, err := parseFRRSessionGeneration(text, address)
+		if err != nil {
+			return state, err
+		}
+		state.Generations[receiver.name] = generation
+		count := uint64(0)
+		for subject, prefix := range gobgpReloadPrefixes {
+			path, nextHop, med := proof.expected(step, subject, receiver.host)
+			text, err := proof.query(ctx, key+receiver.name+"-"+prefix, receiver.name, []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + prefix + " json"})
+			if err != nil {
+				return state, err
+			}
+			routeErrors = errors.Join(routeErrors, requireGoBGPReloadRoute(text, prefix, path, nextHop, med))
+			if path != "" {
+				count++
+			}
+		}
+		if state.Peers[receiver.host].Families[0].State.Advertised != count {
+			routeErrors = errors.Join(routeErrors, fmt.Errorf("GoBGP actual sent bookkeeping toward %s has %d prefixes, receiver contract wants %d", receiver.name, state.Peers[receiver.host].Families[0].State.Advertised, count))
+		}
+		for _, table := range []string{"adj-out", "local"} {
+			command := []string{"gobgp", "neighbor", networkHostAddress(proof.check.Network, receiver.host), table, "-a", "ipv4", "-j"}
+			if table == "local" {
+				if proof.check.Source.Name == gobgpReloadOrdinary {
+					command = []string{"gobgp", "global", "rib", "-a", "ipv4", "-j"}
+				}
+			}
+			if _, err := proof.query(ctx, key+receiver.name+"-diagnostic-"+table, peerGoBGP, command); err != nil {
+				return state, err
+			}
+		}
+	}
+	for _, daemon := range []struct{ peer, process string }{{peerGoBGP, "gobgpd"}, {peerBIRD, "bird"}, {peerFRR, "bgpd"}, {peerFRRSink, "bgpd"}, {"ze", "ze"}} {
+		// Observational process identity, never a numeric PID lifecycle owner.
+		command := "p=$(pidof " + daemon.process + "); test -n \"$p\" && test \"${p#* }\" = \"$p\" && cat /proc/$p/stat"
+		text, err := proof.query(ctx, key+daemon.peer+"-daemon", daemon.peer, []string{"sh", "-c", command})
+		if err != nil {
+			return state, err
+		}
+		fields := strings.Fields(text)
+		if len(fields) < 22 {
+			return state, errors.New("daemon identity has no proc starttime")
+		}
+		state.Identities[daemon.peer] = fields[0] + ":" + fields[21]
+	}
+	return state, routeErrors
+}
+
+func (proof *gobgpReloadProof) expected(step, subject int, receiver uint8) (string, string, uint32) {
+	if step == 9 {
+		step = 0
+	}
+	source := uint8(2)
+	med := uint32(0)
+	if subject == 7 {
+		return "", "", med
+	}
+	if subject == 1 {
+		if step == 0 {
+			return "", "", med
+		}
+		if step >= 3 {
+			return "", "", med
+		}
+	}
+	if subject == 2 {
+		med = 10
+		if step >= 2 {
+			med = 20
+		}
+	}
+	if subject == 3 {
+		if step >= 5 {
+			source = 4
+		}
+	}
+	if subject == 4 {
+		if step >= 4 {
+			if proof.check.Source.Name != gobgpReloadSecondary {
+				return "", "", med
+			}
+			if receiver != 3 {
+				return "", "", med
+			}
+			source = 4
+		}
+	}
+	if subject == 5 {
+		if step >= 6 {
+			return "", "", med
+		}
+	}
+	if subject == 6 {
+		if step >= 7 {
+			return "", "", med
+		}
+	}
+	path := "65001"
+	if source == 4 {
+		path = "65004"
+	}
+	nextHop := networkHostAddress(proof.check.Network, source)
+	if proof.check.Source.Name == gobgpReloadOrdinary {
+		path = "65005 " + path
+		nextHop = networkHostAddress(proof.check.Network, 5)
+	}
+	return path, nextHop, med
+}
+
+func compareGoBGPReloadSnapshot(before, after gobgpReloadSnapshot) error {
+	for host, peer := range before.Peers {
+		if err := sameGoBGPReloadSession(peer, after.Peers[host], host == 2 || host == 4); err != nil {
+			return err
+		}
+	}
+	for host, routes := range before.Sources {
+		if err := sameGoBGPReloadSources(routes, after.Sources[host]); err != nil {
+			return err
+		}
+	}
+	for peer, generation := range before.Generations {
+		if after.Generations[peer] != generation {
+			return fmt.Errorf("%s generation changed", peer)
+		}
+	}
+	for peer, identity := range before.Identities {
+		if after.Identities[peer] != identity {
+			return fmt.Errorf("%s daemon identity changed", peer)
+		}
+	}
+	return nil
+}

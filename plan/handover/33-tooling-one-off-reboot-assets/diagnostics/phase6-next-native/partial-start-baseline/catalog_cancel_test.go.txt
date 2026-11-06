@@ -1,0 +1,1936 @@
+// Design: docs/contributing/documentation-testing.md -- native catalog cancellation.
+// Related: actions.go -- Answer, the registered consumer these probes invoke.
+
+package docyangcontract
+
+import (
+	"bytes"
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"io"
+	"net"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"runtime"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/env"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/test/runner"
+)
+
+const catalogCancelProbe = "ZE_YANG_CATALOG_CANCEL_PROBE"
+
+// TestCatalogCancellationConsumerHelper enters the registered action in an
+// isolated process so the parent can deliver a real terminal signal.
+func TestCatalogCancellationConsumerHelper(t *testing.T) {
+	if os.Getenv(catalogCancelProbe) != "action" {
+		return
+	}
+	env.ResetCache()
+	payload, code := Answer([]string{"doc-drift"})
+	result := struct {
+		Code   int
+		Report any
+	}{Code: code, Report: payload}
+	raw, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resultPath := os.Getenv("ZE_YANG_CATALOG_RESULT")
+	if err := os.WriteFile(resultPath+".pending", raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(resultPath+".pending", resultPath); err != nil {
+		t.Fatal(err)
+	}
+	// Keep the helper's group identity pinned until the parent finishes its
+	// assertions. Its outer owner MUST NOT clean descendants before those
+	// assertions can distinguish product teardown from fixture cleanup.
+	var release [1]byte
+	if _, err := os.Stdin.Read(release[:]); err != nil && !errors.Is(err, io.EOF) {
+		t.Fatal(err)
+	}
+}
+
+// TestCatalogActionCancellation owns real native build and catalog subprocesses
+// through Answer. The build probe gates an actual compiler under go build; the
+// run probe gates the actual freshly built daemon at its invocation boundary.
+// Cancellation must return a failure verdict, join both recorded owned processes,
+// preserve an unrelated sentinel, and never advance beyond the canceled stage.
+func TestCatalogActionCancellation(t *testing.T) {
+	for _, stage := range []string{"build", "run"} {
+		t.Run(stage, func(t *testing.T) {
+			probe := newCatalogCancellationProbe(t, stage)
+			probe.waitFile(t, probe.ready, 5*time.Minute)
+			pids := probe.pids(t)
+			if err := probe.command.Process.Signal(syscall.SIGTERM); err != nil {
+				t.Fatal(err)
+			}
+			probe.wait(t, 5*time.Second)
+			raw, err := os.ReadFile(probe.result)
+			if err != nil {
+				t.Errorf("Answer did not record its cancellation verdict: %v; output: %s", err, probe.output.String())
+			} else {
+				var result struct{ Code int }
+				if err := json.Unmarshal(raw, &result); err != nil {
+					t.Fatal(err)
+				}
+				if result.Code == 0 {
+					t.Error("canceled catalog action answered success")
+				}
+			}
+			for _, pid := range pids {
+				if catalogProbeAlive(t, pid) {
+					t.Errorf("owned %s process %d survived Answer's return", stage, pid)
+				}
+			}
+			if !catalogProbeAlive(t, probe.sentinel.Process.Pid) {
+				t.Error("cancellation killed the foreign sentinel")
+			}
+			if _, err := os.Stat(probe.next); !errors.Is(err, os.ErrNotExist) {
+				t.Errorf("canceled %s advanced to the next stage: %v", stage, err)
+			}
+		})
+	}
+}
+
+// TestCatalogActionNormalInvocation releases the same run gate without a signal.
+// The untouched daemon must execute and the real consumer must parse its catalog;
+// unrelated standing documentation findings are not turned into catalog failures.
+func TestCatalogActionNormalInvocation(t *testing.T) {
+	probe := newCatalogCancellationProbe(t, "run")
+	probe.waitFile(t, probe.ready, 5*time.Minute)
+	if err := os.WriteFile(probe.release, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	probe.wait(t, time.Minute)
+	probe.waitFile(t, probe.next, time.Second)
+	raw, err := os.ReadFile(probe.result)
+	if err != nil {
+		t.Fatalf("normal Answer recorded no verdict: %v; output: %s", err, probe.output.String())
+	}
+	var result struct {
+		Code   int
+		Report DriftReport
+	}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		t.Fatal(err)
+	}
+	for _, issue := range result.Report.Issues {
+		if issue.Message == "could not generate or parse the live per-command catalog" {
+			t.Fatalf("normal catalog invocation failed: %s", issue.Detail)
+		}
+	}
+}
+
+type catalogCancellationProbe struct {
+	command                      *exec.Cmd
+	sentinel                     *exec.Cmd
+	output                       catalogProbeOutput
+	ready, release, next, result string
+	done                         <-chan struct{}
+}
+
+func newCatalogCancellationProbe(t *testing.T, stage string) *catalogCancellationProbe {
+	t.Helper()
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	goBinary, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	// Root preserves ZE_REPO_ROOT's explicit path, including a symlink. This
+	// names the same checkout and native inputs without inheriting its sibling
+	// publication/wiki corpus, which this process-cancellation proof does not own.
+	invocationRoot := filepath.Join(dir, "checkout")
+	if err := os.Symlink(root, invocationRoot); err != nil {
+		t.Fatal(err)
+	}
+	probe := &catalogCancellationProbe{
+		ready: filepath.Join(dir, "ready"), release: filepath.Join(dir, "release"),
+		next: filepath.Join(dir, "next"), result: filepath.Join(dir, "result"),
+	}
+	gateWait := "while [ ! -f " + catalogShellQuote(probe.release) + " ]; do sleep 0.02; done\n"
+	gate := "sleep 120 &\nchild=$!\nprintf '%s %s\\n' \"$$\" \"$child\" > " + catalogShellQuote(probe.ready+".pending") + "\n" +
+		"mv " + catalogShellQuote(probe.ready+".pending") + " " + catalogShellQuote(probe.ready) + "\n" +
+		gateWait + "kill \"$child\"\nwait \"$child\" 2>/dev/null\nprintf next > " + catalogShellQuote(probe.next) + "\n"
+	childEnv := append(os.Environ(), catalogCancelProbe+"=action", "ZE_REPO_ROOT="+invocationRoot,
+		"ZE_YANG_CATALOG_RESULT="+probe.result)
+	if stage == "build" {
+		tool := filepath.Join(dir, "compiler-gate")
+		// One tool owns readiness; competing compilers wait on the same release
+		// without replacing that complete atomic process-identity record.
+		toolGate := "case \"$*\" in *-V=full*) exec \"$@\" ;; esac\n" +
+			"if mkdir " + catalogShellQuote(probe.ready+".claim") + " 2>/dev/null; then\n" +
+			gate + "else\n" + gateWait + "fi\nexec \"$@\"\n"
+		writeCatalogProbeScript(t, tool, toolGate)
+		childEnv = append(childEnv, "GOFLAGS=-a -toolexec="+tool)
+	} else {
+		wrapper := filepath.Join(dir, "go")
+		body := "if [ \"$1\" != build ]; then exec " + catalogShellQuote(goBinary) + " \"$@\"; fi\n" +
+			"previous=\nbinary=\nfor argument do\nif [ \"$previous\" = -o ]; then binary=$argument; fi\nprevious=$argument\ndone\n" +
+			catalogShellQuote(goBinary) + " \"$@\" || exit $?\n" +
+			"mv \"$binary\" \"$binary.real\"\ncat > \"$binary\" <<'ZE_CATALOG_GATE'\n#!/bin/sh\n" +
+			gate + "exec \"$0.real\" \"$@\"\nZE_CATALOG_GATE\nchmod 700 \"$binary\"\n"
+		writeCatalogProbeScript(t, wrapper, body)
+		childEnv = append(childEnv, "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+	probe.sentinel = exec.CommandContext(t.Context(), "sleep", "600")
+	if err := probe.sentinel.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := probe.sentinel.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			t.Error(err)
+		}
+		_ = probe.sentinel.Wait() // The sentinel is deliberately killed during cleanup.
+	})
+	probe.command = exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestCatalogCancellationConsumerHelper$")
+	probe.command.Env = childEnv
+	probe.command.Dir = root
+	input, release := io.Pipe()
+	probe.command.Stdin = input
+	probe.command.Stdout = &probe.output
+	probe.command.Stderr = &probe.output
+	owner, err := runner.StartServerProcess(probe.command)
+	if err != nil {
+		_ = input.Close()
+		_ = release.Close()
+		t.Fatal(err)
+	}
+	// Close MUST follow every successful StartServerProcess, after assertions
+	// and before temporary files are removed; it joins the sole reaper.
+	t.Cleanup(func() {
+		if err := release.Close(); err != nil {
+			t.Error(err)
+		}
+		if err := owner.Close(); err != nil {
+			t.Error(err)
+		}
+		if err := input.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	probe.done = owner.Done()
+	return probe
+}
+
+func (p *catalogCancellationProbe) wait(t *testing.T, bound time.Duration) {
+	t.Helper()
+	p.waitFile(t, p.result, bound)
+}
+
+func (p *catalogCancellationProbe) waitFile(t *testing.T, path string, bound time.Duration) {
+	t.Helper()
+	timer := time.NewTimer(bound)
+	defer timer.Stop()
+	tick := time.NewTicker(20 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		if _, err := os.Stat(path); err == nil {
+			return
+		}
+		select {
+		case <-p.done:
+			t.Fatalf("catalog helper exited before %s: %s", filepath.Base(path), p.output.String())
+		case <-timer.C:
+			// Failure-only diagnostics keep the original success bound intact.
+			// Signal the retained os.Process handle, never a marker's numeric PID.
+			if err := p.command.Process.Signal(syscall.SIGQUIT); err != nil && !errors.Is(err, os.ErrProcessDone) {
+				t.Logf("request helper timeout stack: %v", err)
+			}
+			select {
+			case <-p.done:
+			case <-time.After(2 * time.Second):
+				t.Log("helper did not finish its timeout stack diagnostic")
+			}
+			_, nextErr := os.Stat(p.next)
+			t.Fatalf("catalog helper did not reach %s (next-stage marker: %v): %s", filepath.Base(path), nextErr, p.output.String())
+		case <-tick.C:
+		}
+	}
+}
+
+func (p *catalogCancellationProbe) pids(t *testing.T) []int {
+	t.Helper()
+	raw, err := os.ReadFile(p.ready)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := strings.Fields(string(raw))
+	if len(fields) != 2 {
+		t.Fatalf("owned process readiness has %d identities: %q", len(fields), raw)
+	}
+	pids := make([]int, 0, len(fields))
+	for _, field := range fields {
+		pid, err := strconv.Atoi(field)
+		if err != nil || pid <= 0 {
+			t.Fatalf("invalid owned process identity %q", field)
+		}
+		pids = append(pids, pid)
+	}
+	return pids
+}
+
+func catalogProbeAlive(t *testing.T, pid int) bool {
+	t.Helper()
+	command := exec.CommandContext(t.Context(), "ps", "-o", "stat=", "-p", strconv.Itoa(pid))
+	raw, err := command.Output()
+	if err != nil {
+		if exit, ok := errors.AsType[*exec.ExitError](err); ok && exit.ExitCode() == 1 && len(raw) == 0 {
+			return false
+		}
+		t.Fatalf("query process %d: %v", pid, err)
+	}
+	state := strings.TrimSpace(string(raw))
+	return state != "" && !strings.HasPrefix(state, "Z")
+}
+
+func catalogShellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+}
+
+func writeCatalogProbeScript(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// catalogProbeOutput permits timeout diagnostics while os/exec still drains output.
+type catalogProbeOutput struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (o *catalogProbeOutput) Write(raw []byte) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.buffer.Write(raw)
+}
+
+func (o *catalogProbeOutput) String() string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.buffer.String()
+}
+
+// TestNativeCatalogBuildCancellation enters doc-drift through the real launcher.
+// Only the retained entry receives SIGTERM; owned-death assertions precede every
+// fixture cleanup, and a separate positive socket stays live.
+func TestNativeCatalogBuildCancellation(t *testing.T) {
+	p := newNativeCatalogProbe(t)
+	ready := p.awaitCompiler(t)
+	deadline := nativeCatalogDeadline(t, 5*time.Second)
+	if err := p.native.command.Process.Signal(syscall.SIGTERM); err != nil {
+		t.Fatal(err)
+	}
+	if p.native.finishedBy(deadline) {
+		if !p.native.command.ProcessState.Exited() {
+			t.Errorf("native action died from a signal: %v", p.native.err)
+		}
+		if p.native.command.ProcessState.ExitCode() != 1 {
+			t.Errorf("canceled native exit = %d, want 1", p.native.command.ProcessState.ExitCode())
+		}
+	} else {
+		t.Error("native cancellation did not return within five seconds")
+	}
+	stderr := p.read(t, "stderr")
+	if !strings.Contains(string(stderr), "context canceled") {
+		t.Errorf("no native cancellation diagnostic: %s", stderr)
+	}
+	ready.requireStopped(t, deadline)
+	p.foreign.exchange(t, "ping", "pong", time.Now().Add(time.Second))
+	if err := p.foreign.process.Signal(syscall.Signal(0)); err != nil {
+		t.Errorf("foreign sentinel did not survive: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(p.directory, "compiler-released")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("canceled compiler passed its release gate: %v", err)
+	}
+	p.record(t, "cancellation-assertions-finished", nil)
+}
+
+// TestNativeCatalogBuildCompletes releases the same compiler gate and requires
+// the native JSON consumer to read its actual catalog. Standing documentation
+// findings preserve their normal failure status instead of becoming a skip.
+func TestNativeCatalogBuildCompletes(t *testing.T) {
+	p := newNativeCatalogProbe(t)
+	ready := p.awaitCompiler(t)
+	ready.descendant.exchange(t, "stop", "stopping", time.Now().Add(time.Second))
+	ready.gate.exchange(t, "release", "releasing", time.Now().Add(time.Second))
+	p.native.await(t, nativeCatalogDeadline(t, time.Minute))
+	if !p.native.command.ProcessState.Exited() {
+		t.Fatalf("normal native action died from a signal: %v", p.native.err)
+	}
+	raw := p.read(t, "stdout")
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatalf("native JSON is not an object: %v; stderr: %s", err, p.read(t, "stderr"))
+	}
+	if _, exists := document["issues"]; !exists {
+		t.Fatalf("native JSON has no issues field: %s", raw)
+	}
+	var report DriftReport
+	if err := json.Unmarshal(raw, &report); err != nil {
+		t.Fatal(err)
+	}
+	for _, issue := range report.Issues {
+		if issue.Message == "could not generate or parse the live per-command catalog" {
+			t.Fatalf("normal native catalog failed: %s", issue.Detail)
+		}
+	}
+	expected := 0
+	if len(report.Issues) > 0 {
+		expected = 1
+	}
+	if got := p.native.command.ProcessState.ExitCode(); got != expected {
+		t.Errorf("native exit %d disagrees with %d drift findings: %v", got, len(report.Issues), p.native.err)
+	}
+	if _, err := os.Stat(filepath.Join(p.directory, "compiler-released")); err != nil {
+		t.Errorf("normal compiler did not pass its gate: %v", err)
+	}
+	ready.requireStopped(t, time.Now().Add(time.Second))
+	p.foreign.exchange(t, "ping", "pong", time.Now().Add(time.Second))
+	p.record(t, "normal-assertions-finished", struct{ Issues int }{len(report.Issues)})
+}
+
+const nativeCatalogEvidenceRoot = "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-06-080923/scratch/phase6-next-native"
+
+// nativeCatalogDeadline preserves the phase's bound and leaves a cleanup margin
+// before the outer test's hard timeout. It never lengthens a product deadline.
+func nativeCatalogDeadline(t *testing.T, bound time.Duration) time.Time {
+	t.Helper()
+	deadline := time.Now().Add(bound)
+	if outer, ok := t.Deadline(); ok {
+		limit := outer.Add(-10 * time.Second)
+		if limit.Before(deadline) {
+			return limit
+		}
+	}
+	return deadline
+}
+
+// nativeCatalogChild owns one direct child and its sole Wait worker. await MUST
+// precede reading its result; finish MUST join that same worker.
+type nativeCatalogChild struct {
+	command  *exec.Cmd
+	done     chan struct{}
+	err      error
+	returned time.Time
+}
+
+func startNativeCatalogChild(t *testing.T, command *exec.Cmd) *nativeCatalogChild {
+	t.Helper()
+	if err := command.Start(); err != nil {
+		t.Fatal(err)
+	}
+	child := &nativeCatalogChild{command: command, done: make(chan struct{})}
+	go child.reap()
+	return child
+}
+
+func (c *nativeCatalogChild) reap() {
+	c.err = c.command.Wait()
+	c.returned = time.Now()
+	close(c.done)
+}
+
+// await MUST follow startNativeCatalogChild and precede result reads. It sends
+// no signal and performs no descendant cleanup.
+func (c *nativeCatalogChild) await(t *testing.T, deadline time.Time) {
+	t.Helper()
+	if !c.finishedBy(deadline) {
+		t.Fatal("native child did not return within the observation bound")
+	}
+}
+
+// finishedBy observes the sole Wait worker without cleanup. A miss is retained
+// as failure by cancellation while its owned-state assertions still execute.
+func (c *nativeCatalogChild) finishedBy(deadline time.Time) bool {
+	timer := time.NewTimer(time.Until(deadline))
+	defer timer.Stop()
+	select {
+	case <-c.done:
+		return !c.returned.After(deadline)
+	case <-timer.C:
+		return false
+	}
+}
+
+// finish MUST follow startNativeCatalogChild, after product assertions. It uses
+// only Start's retained process handle and joins the existing Wait worker.
+func (c *nativeCatalogChild) finish(t *testing.T) {
+	t.Helper()
+	select {
+	case <-c.done:
+		return
+	default:
+	}
+	if err := c.command.Process.Kill(); err != nil {
+		if !errors.Is(err, os.ErrProcessDone) {
+			t.Errorf("stop fixture direct child: %v", err)
+		}
+	}
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-c.done:
+	case <-timer.C:
+		t.Error("fixture did not join its Wait worker")
+	}
+}
+
+// nativeCatalogReceipt is untrusted input until readPeer binds its pidfds.
+type nativeCatalogReceipt struct {
+	Role               string
+	Token              string
+	PID                int
+	Parent             int
+	Group              int
+	Descendant         int
+	Arguments          []string
+	ParentArguments    []string
+	ParentExecutable   string
+	Directory          string
+	GoFlags            string
+	CompilerSHA256     string
+	GoSHA256           string
+	GoModSHA256        string
+	FeatureGatesSHA256 string
+	IgnoredSignals     uint64
+}
+
+// nativeCatalogPeer is returned only after readPeer binds a transferred pidfd.
+// Its zero is uninitialized and is never passed to exchange.
+type nativeCatalogPeer struct {
+	connection *net.UnixConn
+	process    *os.Process
+	receipt    nativeCatalogReceipt
+}
+
+func (p *nativeCatalogPeer) exchange(t *testing.T, request, expected string, deadline time.Time) {
+	t.Helper()
+	if err := p.connection.SetDeadline(deadline); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.connection.Write([]byte(request)); err != nil {
+		t.Fatal(err)
+	}
+	var response [64]byte
+	n, err := p.connection.Read(response[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(response[:n]) != expected {
+		t.Fatalf("peer %s answered %q, want %q", p.receipt.Role, response[:n], expected)
+	}
+}
+
+type nativeCatalogProbe struct {
+	directory, root, address, token, nativePath string
+	listener                                    *net.UnixListener
+	connections                                 []*net.UnixConn
+	journal, output, diagnostic                 *os.File
+	native                                      *nativeCatalogChild
+	foreign                                     *nativeCatalogPeer
+	peers                                       []*nativeCatalogPeer
+	handles                                     []*os.Process
+}
+
+type nativeCatalogReady struct {
+	gate, descendant *nativeCatalogPeer
+	builder          *os.Process
+}
+
+func newNativeCatalogProbe(t *testing.T) *nativeCatalogProbe {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skip("native ownership diagnostic requires Linux pidfds and pidfs")
+	}
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory, err := os.MkdirTemp(nativeCatalogEvidenceRoot, "case-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &nativeCatalogProbe{directory: directory, root: root}
+	t.Cleanup(func() { p.finish(t) })
+	t.Logf("private native catalog evidence: %s", directory)
+	token := make([]byte, 16)
+	if _, err := rand.Read(token); err != nil {
+		t.Fatal(err)
+	}
+	p.token = hex.EncodeToString(token)
+	p.address = "@ze-catalog-" + p.token
+	p.journal = p.create(t, "events.jsonl")
+	p.output = p.create(t, "stdout")
+	p.diagnostic = p.create(t, "stderr")
+	p.listener, err = net.ListenUnix("unixpacket", &net.UnixAddr{Name: p.address, Net: "unixpacket"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := nativeCatalogDeadline(t, 5*time.Minute)
+	if err := p.listener.SetDeadline(deadline); err != nil {
+		t.Fatal(err)
+	}
+	foreignCommand := exec.Command(os.Args[0], "-test.run=^TestNativeCatalogPeer$", "-test.timeout=8m", "--",
+		"--catalog-native-peer", p.address, p.token, "foreign")
+	foreignCommand.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	foreignCommand.Stdout, foreignCommand.Stderr = p.diagnostic, p.diagnostic
+	foreign := startNativeCatalogChild(t, foreignCommand)
+	// Separate fixture cleanup follows product assertions; the product is
+	// never given this foreign child's handle or process group.
+	t.Cleanup(func() { foreign.finish(t) })
+	peer, builder := p.readPeer(t, deadline)
+	if builder != nil {
+		t.Fatal("foreign sentinel supplied an unexpected parent pidfd")
+	}
+	if peer.receipt.Role != "foreign" {
+		t.Fatal("first ready socket is not the separate foreign sentinel")
+	}
+	if peer.process.Pid != foreign.command.Process.Pid {
+		t.Fatal("foreign pidfd disagrees with the directly started child")
+	}
+	p.foreign = peer
+	peer.exchange(t, "ping", "pong", time.Now().Add(time.Second))
+	tool := filepath.Join(directory, "compiler-gate")
+	body := "case \"$*\" in *-V=full*) exec \"$@\" ;; esac\n" +
+		"if [ \"$" + "{TOOLEXEC_IMPORTPATH:-}\" != github.com/ze-software/ze/cmd/ze ]; then exec \"$@\"; fi\n" +
+		"case \"$1\" in */compile) ;; *) exec \"$@\" ;; esac\n" +
+		"for argument do\nif [ \"$argument\" = " + catalogShellQuote(filepath.Join(root, "cmd/ze/ze_le_register.go")) + " ]; then exec \"$@\"; fi\ndone\n" +
+		"exec " + catalogShellQuote(os.Args[0]) + " -test.run='^TestNativeCatalogCompilerTool$' -test.timeout=8m -- --catalog-native-tool " +
+		catalogShellQuote(p.address) + " " + catalogShellQuote(p.token) + " " + catalogShellQuote(directory) + " " + catalogShellQuote(root) + " \"$@\"\n"
+	writeCatalogProbeScript(t, tool, body)
+	flagsContext, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	flags, err := gotoolchain.EffectiveGoFlags(flagsContext, []string{"go"}, root, os.Environ())
+	cancel()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// This unmatched per-case debug-path prefix changes only cmd/ze's action.
+	// Dependencies keep warm caches; no -a, export or cold cache is requested.
+	if strings.Contains(flags, "-gcflags") {
+		t.Fatal("inherited compiler flags require a separate preservation design")
+	}
+	if strings.Contains(flags, "-toolexec") {
+		t.Fatal("inherited toolexec instrumentation is an unresolved precondition")
+	}
+	// This conservative refusal also catches quoted -a and -asmflags. The
+	// diagnostic does not silently replace or reinterpret inherited forcing.
+	if strings.Contains(flags, "-a") {
+		t.Fatal("inherited dependency-forcing flags require a separate bounded design")
+	}
+	if strings.ContainsAny(directory, " \t\r\n") {
+		t.Fatal("case path requires Go whole-field quoting before native execution")
+	}
+	flags += " -toolexec=" + tool + " -gcflags=github.com/ze-software/ze/cmd/ze=-trimpath=" + filepath.Join(directory, "unused-prefix")
+	environment := make([]string, 0, len(os.Environ())+3)
+	for _, variable := range os.Environ() {
+		if strings.HasPrefix(variable, "GOFLAGS=") {
+			continue
+		}
+		if strings.HasPrefix(variable, "CGO_ENABLED=") {
+			continue
+		}
+		if strings.HasPrefix(variable, "ZE_REPO_ROOT=") {
+			continue
+		}
+		environment = append(environment, variable)
+	}
+	environment = append(environment, "GOFLAGS="+strings.TrimSpace(flags), "CGO_ENABLED=0", "ZE_REPO_ROOT="+root)
+	name := "tooling-phase6-native-" + p.token[:12]
+	p.nativePath = filepath.Join(root, "bin", "le-"+name, "le")
+	command := exec.Command(filepath.Join(root, "le"), "--name", name, "doc", "yang-contract", "doc-drift", "|", "json")
+	command.Dir, command.Env = root, environment
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Stdout, command.Stderr = p.output, p.diagnostic
+	p.record(t, "native-launch", struct {
+		Arguments []string
+		GoFlags   string
+		Name      string
+	}{command.Args, flags, name})
+	p.native = startNativeCatalogChild(t, command)
+	return p
+}
+
+func (p *nativeCatalogProbe) create(t *testing.T, name string) *os.File {
+	t.Helper()
+	file, err := os.OpenFile(filepath.Join(p.directory, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+func (p *nativeCatalogProbe) read(t *testing.T, name string) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(p.directory, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+func (p *nativeCatalogProbe) record(t *testing.T, event string, data any) {
+	t.Helper()
+	row := struct {
+		Event string
+		UTC   time.Time
+		Data  any
+	}{event, time.Now().UTC(), data}
+	if err := json.NewEncoder(p.journal).Encode(row); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// readPeer consumes one fixed-size packet, then validates its process handles.
+// Only successfully bound peers enter the fixture's fallback ownership list.
+func (p *nativeCatalogProbe) readPeer(t *testing.T, deadline time.Time) (*nativeCatalogPeer, *os.Process) {
+	t.Helper()
+	connection, err := p.listener.AcceptUnix()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.connections = append(p.connections, connection)
+	if err := connection.SetDeadline(deadline); err != nil {
+		t.Fatal(err)
+	}
+	raw := make([]byte, 64<<10)
+	control := make([]byte, syscall.CmsgSpace(8))
+	n, oob, flags, _, err := connection.ReadMsgUnix(raw, control)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if flags&syscall.MSG_TRUNC != 0 {
+		t.Fatal("ready packet exceeded its fixed byte bound")
+	}
+	if flags&syscall.MSG_CTRUNC != 0 {
+		t.Fatal("ready packet truncated its pidfds")
+	}
+	messages, err := syscall.ParseSocketControlMessage(control[:oob])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var descriptors []int
+	defer func() {
+		for _, descriptor := range descriptors {
+			if err := syscall.Close(descriptor); err != nil {
+				t.Errorf("close received pidfd: %v", err)
+			}
+		}
+	}()
+	for index := range messages {
+		rights, err := syscall.ParseUnixRights(&messages[index])
+		if err != nil {
+			t.Fatal(err)
+		}
+		descriptors = append(descriptors, rights...)
+	}
+	var receipt nativeCatalogReceipt
+	if err := json.Unmarshal(raw[:n], &receipt); err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Token != p.token {
+		t.Fatal("ready packet has another case's token")
+	}
+	expected := 1
+	if receipt.Role == "gate" {
+		expected = 2
+	}
+	if receipt.Role == "handoff-safety" {
+		expected = 2
+	}
+	if len(descriptors) != expected {
+		t.Fatalf("%s supplied %d pidfds, want %d", receipt.Role, len(descriptors), expected)
+	}
+	process, err := nativeCatalogBind(receipt.PID, descriptors[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	peer := &nativeCatalogPeer{connection: connection, process: process, receipt: receipt}
+	p.peers = append(p.peers, peer)
+	if receipt.Role != "foreign" {
+		p.handles = append(p.handles, process)
+	}
+	p.record(t, "ready-receipt", receipt)
+	if receipt.Role != "gate" {
+		if receipt.Role != "handoff-safety" {
+			return peer, nil
+		}
+	}
+	builder, err := nativeCatalogBind(receipt.Parent, descriptors[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.handles = append(p.handles, builder)
+	return peer, builder
+}
+
+// nativeCatalogBind refuses numeric fallback. FindProcess's handle and the
+// transferred self/parent pidfd MUST identify the same pidfs inode, so reuse
+// between publication and lookup cannot make fixture cleanup signal a new task.
+func nativeCatalogBind(pid, received int) (*os.Process, error) {
+	if pid <= 0 {
+		return nil, errors.New("ready packet has no positive process ID")
+	}
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return nil, err
+	}
+	expected, err := os.Stat("/proc/self/fd/" + strconv.Itoa(received))
+	if err != nil {
+		return nil, errors.Join(err, process.Release())
+	}
+	var comparison error
+	handleErr := process.WithHandle(func(handle uintptr) {
+		path := "/proc/self/fd/" + strconv.Itoa(int(handle))
+		var filesystem syscall.Statfs_t
+		if err := syscall.Statfs(path, &filesystem); err != nil {
+			comparison = err
+			return
+		}
+		// PID_FS_MAGIC is the retained x/sys Linux constant. Anonymous-inode
+		// pidfds on older kernels do not prove per-task inode equality.
+		if uint64(filesystem.Type) != 0x50494446 {
+			comparison = errors.New("process handle is not on pidfs; numeric fallback refused")
+			return
+		}
+		actual, err := os.Stat(path)
+		if err != nil {
+			comparison = err
+			return
+		}
+		if !os.SameFile(expected, actual) {
+			comparison = errors.New("received pidfd and selected process identify different tasks")
+		}
+	})
+	if err := errors.Join(handleErr, comparison); err != nil {
+		return nil, errors.Join(err, process.Release())
+	}
+	return process, nil
+}
+
+func (p *nativeCatalogProbe) awaitCompiler(t *testing.T) *nativeCatalogReady {
+	t.Helper()
+	deadline := nativeCatalogDeadline(t, 5*time.Minute)
+	if err := p.listener.SetDeadline(deadline); err != nil {
+		t.Fatal(err)
+	}
+	ready := &nativeCatalogReady{}
+	for range 2 {
+		peer, builder := p.readPeer(t, deadline)
+		switch peer.receipt.Role {
+		case "gate":
+			if ready.gate != nil {
+				t.Fatal("two shipped compilers claimed the one gate")
+			}
+			ready.gate, ready.builder = peer, builder
+		case "descendant":
+			if builder != nil {
+				t.Fatal("descendant supplied an unexpected parent pidfd")
+			}
+			if ready.descendant != nil {
+				t.Fatal("two descendants claimed the one gate")
+			}
+			ready.descendant = peer
+		default:
+			t.Fatalf("unexpected ready role %q", peer.receipt.Role)
+		}
+	}
+	if ready.gate == nil {
+		t.Fatal("no shipped compiler reached readiness")
+	}
+	if ready.descendant == nil {
+		t.Fatal("no TERM-ignoring descendant reached readiness")
+	}
+	gate := ready.gate.receipt
+	if gate.Group != ready.builder.Pid {
+		t.Fatal("compiler is not in the go parent's product-owned group")
+	}
+	if ready.descendant.receipt.Parent != gate.PID {
+		t.Fatal("descendant did not identify the compiler as its parent")
+	}
+	if ready.descendant.receipt.PID != gate.Descendant {
+		t.Fatal("compiler's direct child and descendant packet disagree")
+	}
+	if ready.descendant.receipt.Group != gate.Group {
+		t.Fatal("descendant escaped the compiler's product-owned group")
+	}
+	if p.foreign.receipt.Group == gate.Group {
+		t.Fatal("foreign sentinel shares the product-owned group")
+	}
+	for _, peer := range []*nativeCatalogPeer{ready.gate, ready.descendant, p.foreign} {
+		if err := peer.process.Signal(syscall.Signal(0)); err != nil {
+			t.Fatalf("ready peer is no longer alive: %v", err)
+		}
+		group, err := syscall.Getpgid(peer.process.Pid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if group != peer.receipt.Group {
+			t.Fatal("ready receipt disagrees with the kernel process group")
+		}
+	}
+	if p.foreign.receipt.Group != p.foreign.process.Pid {
+		t.Fatal("foreign sentinel did not retain its separate process group")
+	}
+	entryGroup, err := syscall.Getpgid(p.native.command.Process.Pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entryGroup != p.native.command.Process.Pid {
+		t.Fatal("native entry did not retain its separate process group")
+	}
+	if p.foreign.receipt.Group == entryGroup {
+		t.Fatal("foreign sentinel entered the native entry's group")
+	}
+	status, err := os.ReadFile("/proc/" + strconv.Itoa(ready.builder.Pid) + "/status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	parentFound := false
+	for line := range strings.SplitSeq(string(status), "\n") {
+		value, found := strings.CutPrefix(line, "PPid:")
+		if !found {
+			continue
+		}
+		parent, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if parent != p.native.command.Process.Pid {
+			t.Fatal("go builder is not a direct child of this native entry")
+		}
+		parentFound = true
+	}
+	if !parentFound {
+		t.Fatal("go builder status did not identify its parent")
+	}
+	if filepath.Base(gate.ParentExecutable) != "go" {
+		t.Fatal("gated compiler's parent executable is not Go")
+	}
+	if gate.Directory != p.root {
+		t.Fatal("gated compiler was not invoked in the main checkout")
+	}
+	if !slices.Contains(gate.ParentArguments, "build") {
+		t.Fatal("compiler parent did not execute go build")
+	}
+	if !slices.Contains(gate.ParentArguments, "./cmd/ze") {
+		t.Fatal("compiler parent did not build the shipped composition root")
+	}
+	if err := ready.builder.Signal(syscall.Signal(0)); err != nil {
+		t.Fatal(err)
+	}
+	actual, err := os.Readlink("/proc/" + strconv.Itoa(p.native.command.Process.Pid) + "/exe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual != p.nativePath {
+		t.Fatalf("native entry consumed %q, want its private named build %q", actual, p.nativePath)
+	}
+	p.record(t, "consumed-native-binary", struct{ Path, SHA256 string }{
+		actual, nativeCatalogHash(t, "/proc/"+strconv.Itoa(p.native.command.Process.Pid)+"/exe"),
+	})
+	ready.gate.exchange(t, "ping", "pong", deadline)
+	ready.descendant.exchange(t, "ping", "pong", deadline)
+	p.record(t, "compiler-ready", nil)
+	return ready
+}
+
+func (r *nativeCatalogReady) requireStopped(t *testing.T, deadline time.Time) {
+	t.Helper()
+	for _, process := range []*os.Process{r.builder, r.gate.process, r.descendant.process} {
+		if err := process.Signal(syscall.Signal(0)); err != nil {
+			if errors.Is(err, os.ErrProcessDone) {
+				continue
+			}
+			t.Errorf("owned process death is unknown for %d: %v", process.Pid, err)
+			continue
+		}
+		raw, err := os.ReadFile("/proc/" + strconv.Itoa(process.Pid) + "/stat")
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			t.Errorf("owned state is unknown for %d: %v", process.Pid, err)
+			continue
+		}
+		end := strings.LastIndex(string(raw), ") ")
+		if end < 0 {
+			t.Errorf("owned process stat has no state: %d", process.Pid)
+			continue
+		}
+		fields := strings.Fields(string(raw[end+2:]))
+		if len(fields) == 0 {
+			t.Errorf("owned process stat has no state: %d", process.Pid)
+			continue
+		}
+		if fields[0] != "Z" {
+			if fields[0] != "X" {
+				t.Errorf("owned process %d survived native return in state %s", process.Pid, fields[0])
+			}
+		}
+	}
+	for _, peer := range []*nativeCatalogPeer{r.gate, r.descendant} {
+		if err := peer.connection.SetReadDeadline(deadline); err != nil {
+			t.Error(err)
+			continue
+		}
+		var raw [1]byte
+		n, err := peer.connection.Read(raw[:])
+		if n != 0 {
+			t.Errorf("owned %s socket produced data after native return", peer.receipt.Role)
+		}
+		if !errors.Is(err, io.EOF) {
+			t.Errorf("owned %s socket did not close after native return: %v", peer.receipt.Role, err)
+		}
+	}
+}
+
+func (p *nativeCatalogProbe) finish(t *testing.T) {
+	t.Helper()
+	// Every oracle precedes this fallback. No group-wide fixture signal or
+	// StartServerProcess wrapper can turn an owned-lifetime failure into PASS.
+	for _, process := range p.handles {
+		if err := process.Kill(); err != nil {
+			if !errors.Is(err, os.ErrProcessDone) {
+				t.Errorf("exact owned-handle fallback: %v", err)
+			}
+		}
+		if err := process.Release(); err != nil {
+			t.Errorf("release owned pidfd: %v", err)
+		}
+	}
+	if p.native != nil {
+		p.native.finish(t)
+	}
+	for _, peer := range p.peers {
+		if peer.receipt.Role == "foreign" {
+			if err := peer.process.Release(); err != nil {
+				t.Error(err)
+			}
+		}
+	}
+	for _, connection := range p.connections {
+		if err := connection.Close(); err != nil {
+			t.Error(err)
+		}
+	}
+	if p.listener != nil {
+		if err := p.listener.Close(); err != nil {
+			t.Error(err)
+		}
+	}
+	for _, file := range []*os.File{p.journal, p.output, p.diagnostic} {
+		if file != nil {
+			if err := file.Close(); err != nil {
+				t.Error(err)
+			}
+		}
+	}
+}
+
+// TestNativeCatalogPeer installs ignored dispositions before its self-pidfd
+// packet. Its connected socket, not a pathname or old PID, proves readiness.
+func TestNativeCatalogPeer(t *testing.T) {
+	arguments := nativeCatalogHelperArguments("--catalog-native-peer")
+	if arguments == nil {
+		return
+	}
+	if len(arguments) != 3 {
+		t.Fatal("native peer requires address, token and role")
+	}
+	signal.Ignore(syscall.SIGTERM, syscall.SIGINT)
+	connection, err := net.DialUnix("unixpacket", nil, &net.UnixAddr{Name: arguments[0], Net: "unixpacket"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := connection.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	if err := connection.SetDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	receipt := nativeCatalogSelf(t, arguments[2], arguments[1])
+	nativeCatalogSendReceipt(t, connection, receipt, nil)
+	for range 4 {
+		var request [64]byte
+		n, err := connection.Read(request[:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		switch string(request[:n]) {
+		case "ping":
+			if _, err := connection.Write([]byte("pong")); err != nil {
+				t.Fatal(err)
+			}
+		case "stop":
+			if _, err := connection.Write([]byte("stopping")); err != nil {
+				t.Fatal(err)
+			}
+			return
+		default:
+			t.Fatalf("unknown native peer instruction %q", request[:n])
+		}
+	}
+	t.Fatal("native peer exceeded its fixed instruction count")
+}
+
+// TestNativeCatalogCompilerTool is entered only for shipped cmd/ze compilation.
+// Other tools, -V=full and the le-launcher compile keep their original exec.
+func TestNativeCatalogCompilerTool(t *testing.T) {
+	arguments := nativeCatalogHelperArguments("--catalog-native-tool")
+	if arguments == nil {
+		return
+	}
+	if len(arguments) < 5 {
+		t.Fatal("compiler gate requires address, token, case, root and actual tool")
+	}
+	address, token, directory, root := arguments[0], arguments[1], arguments[2], arguments[3]
+	tool := arguments[4:]
+	var partial *nativeCatalogPartialHandoff
+	if tool[0] == "--partial-start-safety" {
+		if len(tool) < 5 {
+			t.Fatal("partial-start seam requires safety/child addresses, startup deadline and tool")
+		}
+		deadline, err := time.Parse(time.RFC3339Nano, tool[3])
+		if err != nil {
+			t.Fatal(err)
+		}
+		partial = newNativeCatalogPartialHandoff(t, tool[1], tool[2], token, deadline)
+		defer partial.close(t)
+		tool = tool[4:]
+	}
+	if filepath.Base(tool[0]) != "compile" {
+		t.Fatal("gate intercepted a non-compiler tool")
+	}
+	if !slices.Contains(tool, filepath.Join(root, "cmd/ze/main.go")) {
+		t.Fatal("compiler did not receive the main checkout's main.go")
+	}
+	if slices.Contains(tool, filepath.Join(root, "cmd/ze/ze_le_register.go")) {
+		t.Fatal("gate intercepted le-launcher compilation")
+	}
+	signal.Ignore(syscall.SIGTERM, syscall.SIGINT)
+	parentPID := os.Getppid()
+	parent, err := os.FindProcess(parentPID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := parent.Release(); err != nil {
+			t.Error(err)
+		}
+	}()
+	receipt := nativeCatalogSelf(t, "gate", token)
+	receipt.Arguments = tool
+	receipt.GoFlags = os.Getenv("GOFLAGS")
+	raw, err := os.ReadFile("/proc/" + strconv.Itoa(parentPID) + "/cmdline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt.ParentArguments = strings.Split(strings.TrimSuffix(string(raw), "\x00"), "\x00")
+	receipt.ParentExecutable, err = os.Readlink("/proc/" + strconv.Itoa(parentPID) + "/exe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if partial == nil {
+		receipt.CompilerSHA256 = nativeCatalogHash(t, tool[0])
+		receipt.GoSHA256 = nativeCatalogHash(t, "/proc/"+strconv.Itoa(parentPID)+"/exe")
+		receipt.GoModSHA256 = nativeCatalogHash(t, filepath.Join(root, "go.mod"))
+		receipt.FeatureGatesSHA256 = nativeCatalogHash(t, filepath.Join(root, "feature-gates.txt"))
+	} else {
+		// This controlled seam checks abort between bounded reads. It does not
+		// change hashing or startup in either refused native observation root.
+		for _, input := range []struct {
+			path   string
+			output *string
+		}{
+			{tool[0], &receipt.CompilerSHA256},
+			{"/proc/" + strconv.Itoa(parentPID) + "/exe", &receipt.GoSHA256},
+			{filepath.Join(root, "go.mod"), &receipt.GoModSHA256},
+			{filepath.Join(root, "feature-gates.txt"), &receipt.FeatureGatesSHA256},
+		} {
+			digest, active := partial.hash(t, input.path)
+			if !active {
+				return
+			}
+			*input.output = digest
+		}
+	}
+	if os.Getppid() != parentPID {
+		t.Fatal("original go parent exited before pidfd publication")
+	}
+	childAddress := address
+	if partial != nil {
+		childAddress = partial.childAddress
+	}
+	childCommand := exec.Command(os.Args[0], "-test.run=^TestNativeCatalogPeer$", "-test.timeout=8m", "--",
+		"--catalog-native-peer", childAddress, token, "descendant")
+	childCommand.Stdout, childCommand.Stderr = os.Stderr, os.Stderr
+	var child *nativeCatalogChild
+	if partial == nil {
+		child = startNativeCatalogChild(t, childCommand)
+	} else {
+		var active bool
+		child, active = partial.startChild(t, childCommand)
+		if !active {
+			return
+		}
+	}
+	defer func() {
+		child.finish(t)
+		if partial != nil {
+			partial.joined(t, child)
+		}
+	}()
+	if partial != nil {
+		if !partial.publishChild(t, child.command.Process) {
+			return
+		}
+	}
+	receipt.Descendant = childCommand.Process.Pid
+	connection, err := net.DialUnix("unixpacket", nil, &net.UnixAddr{Name: address, Net: "unixpacket"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := connection.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	if err := connection.SetDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	nativeCatalogSendReceipt(t, connection, receipt, parent)
+	// This instruction worker owns one helper lifecycle; it is not a poll.
+	for range 3 {
+		var request [64]byte
+		n, err := connection.Read(request[:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		switch string(request[:n]) {
+		case "ping":
+			if _, err := connection.Write([]byte("pong")); err != nil {
+				t.Fatal(err)
+			}
+		case "release":
+			if _, err := connection.Write([]byte("releasing")); err != nil {
+				t.Fatal(err)
+			}
+			child.await(t, nativeCatalogDeadline(t, time.Minute))
+			if child.err != nil {
+				t.Fatalf("released descendant failed: %v", child.err)
+			}
+			if err := os.WriteFile(filepath.Join(directory, "compiler-released"), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := crashlog.Exec(tool[0], tool, os.Environ()); err != nil {
+				t.Fatal(err)
+			}
+		default:
+			t.Fatalf("unknown compiler instruction %q", request[:n])
+		}
+	}
+	t.Fatal("compiler gate exceeded its fixed instruction count")
+}
+
+func nativeCatalogHelperArguments(marker string) []string {
+	for index, argument := range os.Args {
+		if argument == marker {
+			return os.Args[index+1:]
+		}
+	}
+	return nil
+}
+
+func nativeCatalogSelf(t *testing.T, role, token string) nativeCatalogReceipt {
+	t.Helper()
+	group, err := syscall.Getpgid(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile("/proc/self/status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for line := range strings.SplitSeq(string(raw), "\n") {
+		value, found := strings.CutPrefix(line, "SigIgn:")
+		if !found {
+			continue
+		}
+		ignored, err := strconv.ParseUint(strings.TrimSpace(value), 16, 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ignored&(1<<(uint(syscall.SIGTERM)-1)) == 0 {
+			t.Fatal("helper published readiness before ignoring SIGTERM")
+		}
+		if ignored&(1<<(uint(syscall.SIGINT)-1)) == 0 {
+			t.Fatal("helper published readiness before ignoring SIGINT")
+		}
+		return nativeCatalogReceipt{Role: role, Token: token, PID: os.Getpid(), Parent: os.Getppid(), Group: group, Directory: directory, IgnoredSignals: ignored}
+	}
+	t.Fatal("kernel process status has no ignored-signal mask")
+	return nativeCatalogReceipt{}
+}
+
+// nativeCatalogSendReceipt borrows handles only inside WithHandle. The kernel
+// duplicates those exact pidfds for this connected controller, even on exit.
+func nativeCatalogSendReceipt(t *testing.T, connection *net.UnixConn, receipt nativeCatalogReceipt, parent *os.Process) {
+	t.Helper()
+	self, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := self.Release(); err != nil {
+			t.Error(err)
+		}
+	}()
+	raw, err := json.Marshal(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sendErr error
+	handleErr := self.WithHandle(func(handle uintptr) {
+		send := func(descriptors ...int) {
+			n, _, err := connection.WriteMsgUnix(raw, syscall.UnixRights(descriptors...), nil)
+			sendErr = err
+			if n != len(raw) {
+				sendErr = errors.Join(sendErr, io.ErrShortWrite)
+			}
+		}
+		if parent == nil {
+			send(int(handle))
+			return
+		}
+		parentErr := parent.WithHandle(func(parentHandle uintptr) {
+			if os.Getppid() != parent.Pid {
+				sendErr = errors.New("compiler parent changed before its pidfd transfer")
+				return
+			}
+			send(int(handle), int(parentHandle))
+		})
+		sendErr = errors.Join(sendErr, parentErr)
+	})
+	if err := errors.Join(handleErr, sendErr); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// nativeCatalogHash streams only known compile inputs, with a fixed 128 MiB
+// bound. The evidence records identities without retaining environment secrets.
+func nativeCatalogHash(t *testing.T, path string) string {
+	t.Helper()
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	digest := sha256.New()
+	n, err := io.Copy(digest, io.LimitReader(file, (128<<20)+1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n > 128<<20 {
+		t.Fatal("native input exceeded its fixed hashing byte bound")
+	}
+	return hex.EncodeToString(digest.Sum(nil))
+}
+
+// TestNativeCatalogPartialHandoffCleanup isolates orphan adoption in its own
+// test process. The actual controller oracle still precedes safety reaping.
+func TestNativeCatalogPartialHandoffCleanup(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("controlled handoff requires Linux pidfds and pidfs")
+	}
+	if arguments := nativeCatalogHelperArguments("--catalog-partial-supervisor"); arguments != nil {
+		if len(arguments) != 0 {
+			t.Fatal("controlled supervisor accepts no extra inputs")
+		}
+		nativeCatalogPartialSubreaper(t)
+		proveNativeCatalogPartialHandoff(t)
+		return
+	}
+	command := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestNativeCatalogPartialHandoffCleanup$", "-test.timeout=50s", "--", "--catalog-partial-supervisor")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("controlled partial-start supervisor: %v\n%s", err, output)
+	}
+	t.Logf("controlled partial-start supervisor:\n%s", output)
+}
+
+// proveNativeCatalogPartialHandoff interrupts the actual helper after separate
+// safety ownership is retained but before cleanup-controller child ownership.
+func proveNativeCatalogPartialHandoff(t *testing.T) {
+	t.Helper()
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := make([]byte, 16)
+	if _, err := rand.Read(raw); err != nil {
+		t.Fatal(err)
+	}
+	token := hex.EncodeToString(raw)
+	controller := newNativeCatalogPartialEndpoint(t, root, token, "controller")
+	safety := newNativeCatalogPartialEndpoint(t, root, token, "safety")
+	childWire := newNativeCatalogPartialEndpoint(t, root, token, "unaccepted-child")
+	foreign := newNativeCatalogPartialEndpoint(t, root, token, "foreign")
+	protected, finished := false, false
+	var protectedChild *nativeCatalogPeer
+	var protectedGate *os.Process
+	// No force is permitted during unprotected startup. Closing the safety
+	// channel aborts its pre-readiness hook; that helper owns and joins its
+	// direct child before it returns. Once protected, only pinned handles can
+	// enter the final safety fallback, after the oracle (or failed precondition).
+	t.Cleanup(func() {
+		if !protected {
+			for _, connection := range safety.connections {
+				if err := connection.Close(); err != nil {
+					t.Error(err)
+				}
+			}
+			safety.connections = nil
+			if safety.listener != nil {
+				if err := safety.listener.Close(); err != nil {
+					t.Error(err)
+				}
+				safety.listener = nil
+			}
+			if controller.native != nil {
+				// The surrogate retains its helper's Wait through the helper's
+				// unchanged forty-second process bound. The supervisor's original
+				// fifty-second bound encloses that join; never discard the handle
+				// at a shorter independent cleanup timer or force an unknown child.
+				<-controller.native.done
+			}
+		}
+		if !finished {
+			controller.finish(t)
+		}
+		// These separate safety handles do not contribute to the oracle.
+		childWire.finish(t)
+		if protected {
+			// These are independent copies of the kernel identity handles.
+			// Adopted-child Wait owns their final release, even on a timeout;
+			// the generic safety controller must not race that worker.
+			safety.handles = nil
+			nativeCatalogPartialReap(t, protectedGate)
+			nativeCatalogPartialReap(t, protectedChild.process)
+		}
+		safety.finish(t)
+		foreign.finish(t)
+	})
+	foreignCommand := exec.Command(os.Args[0], "-test.run=^TestNativeCatalogPeer$", "-test.timeout=45s", "--",
+		"--catalog-native-peer", foreign.address, token, "foreign")
+	foreignCommand.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	foreignCommand.Stdout, foreignCommand.Stderr = foreign.diagnostic, foreign.diagnostic
+	foreign.native = startNativeCatalogChild(t, foreignCommand)
+	foreignPeer, parent := foreign.readPeer(t, nativeCatalogDeadline(t, 10*time.Second))
+	if parent != nil {
+		t.Fatal("foreign preflight supplied an unexpected parent")
+	}
+	foreignPeer.exchange(t, "ping", "pong", nativeCatalogDeadline(t, time.Second))
+	startupDeadline := nativeCatalogDeadline(t, 10*time.Second)
+	parentCommand := exec.Command(os.Args[0], "-test.run=^TestNativeCatalogPartialParent$", "-test.timeout=45s", "--",
+		"--catalog-partial-parent", controller.address, safety.address, childWire.address, token, controller.directory, root, startupDeadline.Format(time.RFC3339Nano))
+	parentCommand.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	parentCommand.Stdout, parentCommand.Stderr = controller.diagnostic, controller.diagnostic
+	controller.native = startNativeCatalogChild(t, parentCommand)
+	// This packet transfers the just-started child's actual Start handle and
+	// its helper owner's handle, before the helper may publish final readiness.
+	protectedChild, protectedGate = safety.readPeer(t, startupDeadline)
+	if protectedChild.receipt.Role != "handoff-safety" {
+		t.Fatal("startup did not transfer independent safety ownership")
+	}
+	if protectedGate == nil {
+		t.Fatal("startup did not transfer its helper's safety handle")
+	}
+	protected = true
+	protectedChild.exchange(t, "safety-owned", "safety-recorded", nativeCatalogDeadline(t, time.Second))
+	gate, builder := controller.readPeer(t, nativeCatalogDeadline(t, 10*time.Second))
+	if gate.receipt.Role != "gate" {
+		t.Fatal("actual helper did not publish its gate packet")
+	}
+	if builder == nil {
+		t.Fatal("actual helper did not transfer its direct parent")
+	}
+	if builder.Pid != controller.native.command.Process.Pid {
+		t.Fatal("controlled builder packet does not identify the directly started surrogate")
+	}
+	if gate.process.Pid != protectedGate.Pid {
+		t.Fatal("controlled gate differs from its protected startup owner")
+	}
+	// The independent observer accepts this packet. The actual cleanup
+	// controller intentionally never receives or owns the child's transfer.
+	child, parent := childWire.readPeer(t, nativeCatalogDeadline(t, 10*time.Second))
+	if parent != nil {
+		t.Fatal("child supplied an unexpected parent handle")
+	}
+	if child.receipt.PID != protectedChild.process.Pid {
+		t.Fatal("independent child packet differs from the protected Start handle")
+	}
+	child.exchange(t, "ping", "pong", nativeCatalogDeadline(t, time.Second))
+	controller.record(t, "partial-handoff-interrupted", struct{ Gate, Child, Builder int }{
+		gate.receipt.PID, child.receipt.PID, builder.Pid,
+	})
+	controller.finish(t)
+	finished = true
+
+	deadline := nativeCatalogDeadline(t, time.Second)
+	if err := protectedChild.process.Signal(syscall.Signal(0)); !errors.Is(err, os.ErrProcessDone) {
+		t.Errorf("partial handoff cleanup left the independently protected child alive or unknown: %v", err)
+	}
+	if err := protectedGate.Signal(syscall.Signal(0)); !errors.Is(err, os.ErrProcessDone) {
+		t.Errorf("partial handoff cleanup left the helper owner alive or unknown: %v", err)
+	}
+	if err := child.connection.SetReadDeadline(deadline); err != nil {
+		t.Fatal(err)
+	}
+	var packet [64]byte
+	n, childErr := child.connection.Read(packet[:])
+	if n != 0 {
+		t.Error("untransferred child emitted data instead of closing its socket")
+	}
+	if !errors.Is(childErr, io.EOF) {
+		t.Errorf("untransferred child socket remained live after actual finish: %v", childErr)
+	}
+	if err := protectedChild.connection.SetReadDeadline(nativeCatalogDeadline(t, time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, joinErr := protectedChild.connection.Read(packet[:])
+	joined := string(packet[:n])
+	if joinErr != nil {
+		t.Errorf("helper supplied no child-join acknowledgement: %v", joinErr)
+	}
+	if joined != "child-joined" {
+		t.Errorf("helper acknowledgement = %q, want child-joined", joined)
+	}
+	foreignPeer.exchange(t, "ping", "pong", nativeCatalogDeadline(t, time.Second))
+	safety.record(t, "partial-handoff-oracle-before-safety-fallback", struct{ ChildSocket, JoinError, Join string }{
+		nativeCatalogPartialError(childErr), nativeCatalogPartialError(joinErr), joined,
+	})
+}
+
+// TestNativeCatalogPartialParent owns the actual compiler helper, never a native
+// le action or compiler. No force before the independent ownership mark is safe.
+func TestNativeCatalogPartialParent(t *testing.T) {
+	arguments := nativeCatalogHelperArguments("--catalog-partial-parent")
+	if arguments == nil {
+		return
+	}
+	if len(arguments) != 7 {
+		t.Fatal("controlled parent requires three endpoints, token, case, checkout and startup deadline")
+	}
+	root := arguments[5]
+	compiler := filepath.Join(runtime.GOROOT(), "pkg", "tool", runtime.GOOS+"_"+runtime.GOARCH, "compile")
+	command := exec.Command(os.Args[0], "-test.run=^TestNativeCatalogCompilerTool$", "-test.timeout=40s", "--",
+		"--catalog-native-tool", arguments[0], arguments[3], arguments[4], root,
+		"--partial-start-safety", arguments[1], arguments[2], arguments[6], compiler, filepath.Join(root, "cmd/ze/main.go"))
+	command.Stdout, command.Stderr = os.Stderr, os.Stderr
+	helper := startNativeCatalogChild(t, command)
+	defer func() {
+		_, err := os.Stat(filepath.Join(arguments[4], "partial-safety-owned"))
+		if err == nil {
+			helper.finish(t)
+			return
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Error(err)
+		}
+		// Before safety ownership exists, the control reader aborts preparation
+		// and joins any in-flight child. Keep this sole Wait owner until the
+		// helper has actually returned; its existing forty-second hard bound is
+		// inside this surrogate's unchanged forty-five-second process bound.
+		<-helper.done
+	}()
+	<-helper.done
+}
+
+func newNativeCatalogPartialEndpoint(t *testing.T, root, token, label string) *nativeCatalogProbe {
+	t.Helper()
+	directory, err := os.MkdirTemp(nativeCatalogEvidenceRoot, "partial-"+label+"-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &nativeCatalogProbe{root: root, directory: directory, token: token, address: "@ze-partial-" + token + "-" + label}
+	// Resource-only fallback also covers a later endpoint constructor failing
+	// before the compound process guard is registered. It never signals a task.
+	t.Cleanup(func() { nativeCatalogPartialCloseResources(t, p) })
+	p.journal = p.create(t, "events.jsonl")
+	p.output = p.create(t, "stdout")
+	p.diagnostic = p.create(t, "stderr")
+	p.listener, err = net.ListenUnix("unixpacket", &net.UnixAddr{Name: p.address, Net: "unixpacket"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.listener.SetDeadline(nativeCatalogDeadline(t, 10*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("private controlled endpoint %s: %s", label, directory)
+	return p
+}
+
+// nativeCatalogPartialHandoff exists only under the controlled test argv seam.
+// Normal native roots never construct it and keep the refused cleanup behavior.
+type nativeCatalogPartialHandoff struct {
+	connection          *net.UnixConn
+	childAddress, token string
+	deadline            time.Time
+	mu                  sync.Mutex
+	aborted             bool
+	child               *nativeCatalogChild
+	permission          chan bool
+	done                chan struct{}
+}
+
+func newNativeCatalogPartialHandoff(t *testing.T, address, childAddress, token string, deadline time.Time) *nativeCatalogPartialHandoff {
+	t.Helper()
+	connection, err := net.DialUnix("unixpacket", nil, &net.UnixAddr{Name: address, Net: "unixpacket"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.SetDeadline(deadline); err != nil {
+		t.Fatal(errors.Join(err, connection.Close()))
+	}
+	h := &nativeCatalogPartialHandoff{connection: connection, childAddress: childAddress, token: token,
+		deadline: deadline, permission: make(chan bool, 1), done: make(chan struct{})}
+	// readControl MUST start before preparation or child creation, and close
+	// MUST join it. This is one worker for the controlled startup lifetime.
+	go h.readControl(t)
+	return h
+}
+
+// readControl exclusively reads the safety connection, beginning before hashing.
+// Only a timely ownership grant ends the abort phase. EOF, expiry or any other
+// instruction closes startup and joins a child already created under the lock.
+func (h *nativeCatalogPartialHandoff) readControl(t *testing.T) {
+	defer close(h.done)
+	var packet [64]byte
+	n, err := h.connection.Read(packet[:])
+	if err == nil {
+		if string(packet[:n]) == "safety-owned" {
+			h.mu.Lock()
+			active := h.activeLocked()
+			if h.child == nil {
+				// A grant cannot precede the actual Start handle it claims to own.
+				h.aborted = true
+				active = false
+			}
+			h.mu.Unlock()
+			if active {
+				h.permission <- true
+				return
+			}
+		}
+	}
+	h.mu.Lock()
+	h.aborted = true
+	child := h.child
+	h.mu.Unlock()
+	if child != nil {
+		child.finish(t)
+		// Do not publish settled abort while the sole child Wait is pending.
+		// The helper's original hard test bound remains the outer boundary.
+		<-child.done
+	}
+	h.permission <- false
+}
+
+// activeLocked is evaluated with mu held before every new fork. The deadline is
+// the controller's original absolute accept deadline, not a helper-relative one.
+func (h *nativeCatalogPartialHandoff) activeLocked() bool {
+	if h.aborted {
+		return false
+	}
+	if !time.Now().Before(h.deadline) {
+		h.aborted = true
+		return false
+	}
+	return true
+}
+
+func (h *nativeCatalogPartialHandoff) active() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.activeLocked()
+}
+
+// startChild MUST be paired with close. mu makes an observed abort precede the
+// fork or follow installation of its actual child owner, never fall between them.
+func (h *nativeCatalogPartialHandoff) startChild(t *testing.T, command *exec.Cmd) (*nativeCatalogChild, bool) {
+	t.Helper()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if !h.activeLocked() {
+		return nil, false
+	}
+	if h.child != nil {
+		t.Fatal("controlled startup already owns its one child")
+	}
+	child := startNativeCatalogChild(t, command)
+	h.child = child
+	return child, true
+}
+
+// hash limits both bytes and work between startup-cancellation checks. No child
+// exists during initial hashing; an observed abort prevents every later fork.
+func (h *nativeCatalogPartialHandoff) hash(t *testing.T, path string) (string, bool) {
+	t.Helper()
+	if !h.active() {
+		return "", false
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	digest := sha256.New()
+	var chunk [32 << 10]byte
+	var total int64
+	for total <= 128<<20 {
+		if !h.active() {
+			return "", false
+		}
+		n, err := file.Read(chunk[:])
+		total += int64(n)
+		if total > 128<<20 {
+			t.Fatal("native input exceeded its fixed hashing byte bound")
+		}
+		if _, writeErr := digest.Write(chunk[:n]); writeErr != nil {
+			t.Fatal(writeErr)
+		}
+		if errors.Is(err, io.EOF) {
+			return hex.EncodeToString(digest.Sum(nil)), h.active()
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n == 0 {
+			t.Fatal("controlled input reader made no progress")
+		}
+	}
+	t.Fatal("controlled input exceeded its fixed hashing byte bound")
+	return "", false
+}
+
+// publishChild blocks final gate publication until the test has a separate,
+// identity-verified fallback. Failure returns through the real child's defer.
+func (h *nativeCatalogPartialHandoff) publishChild(t *testing.T, child *os.Process) bool {
+	t.Helper()
+	self, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := self.Release(); err != nil {
+			t.Error(err)
+		}
+	}()
+	receipt := nativeCatalogSelf(t, "handoff-safety", h.token)
+	receipt.PID, receipt.Parent = child.Pid, os.Getpid()
+	raw, err := json.Marshal(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var transfer error
+	childErr := child.WithHandle(func(childHandle uintptr) {
+		ownerErr := self.WithHandle(func(ownerHandle uintptr) {
+			n, _, err := h.connection.WriteMsgUnix(raw, syscall.UnixRights(int(childHandle), int(ownerHandle)), nil)
+			transfer = err
+			if n != len(raw) {
+				transfer = errors.Join(transfer, io.ErrShortWrite)
+			}
+		})
+		transfer = errors.Join(transfer, ownerErr)
+	})
+	if err := errors.Join(childErr, transfer); err != nil {
+		t.Fatal(err)
+	}
+	if !<-h.permission {
+		return false
+	}
+	if _, err := h.connection.Write([]byte("safety-recorded")); err != nil {
+		t.Fatal(err)
+	}
+	// The directory comes from the real helper's existing argv, not a name
+	// inferred from another process. This mark grants only controlled fallback.
+	arguments := nativeCatalogHelperArguments("--catalog-native-tool")
+	if err := os.WriteFile(filepath.Join(arguments[2], "partial-safety-owned"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return true
+}
+
+func (h *nativeCatalogPartialHandoff) joined(t *testing.T, child *nativeCatalogChild) {
+	t.Helper()
+	h.mu.Lock()
+	aborted := h.aborted
+	h.mu.Unlock()
+	if aborted {
+		// An unprotected abort has no oracle awaiting a join packet; readControl
+		// and close still retain and observe the actual child Wait themselves.
+		return
+	}
+	select {
+	case <-child.done:
+		if _, err := h.connection.Write([]byte("child-joined")); err != nil {
+			t.Errorf("record controlled child join: %v", err)
+		}
+	default:
+		t.Error("refusing join acknowledgement before the actual child Wait")
+	}
+}
+
+func (h *nativeCatalogPartialHandoff) close(t *testing.T) {
+	t.Helper()
+	if err := h.connection.Close(); err != nil {
+		t.Error(err)
+	}
+	// close MUST follow construction and every possible startChild. Joining the
+	// reader settles the startup-abort owner before this helper may return.
+	<-h.done
+	h.mu.Lock()
+	child := h.child
+	h.mu.Unlock()
+	if child != nil {
+		child.finish(t)
+		<-child.done
+	}
+}
+
+func nativeCatalogPartialError(err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+func nativeCatalogPartialCloseResources(t *testing.T, p *nativeCatalogProbe) {
+	t.Helper()
+	for _, connection := range p.connections {
+		if err := connection.Close(); err != nil {
+			if !errors.Is(err, net.ErrClosed) {
+				t.Error(err)
+			}
+		}
+	}
+	if p.listener != nil {
+		if err := p.listener.Close(); err != nil {
+			if !errors.Is(err, net.ErrClosed) {
+				t.Error(err)
+			}
+		}
+	}
+	for _, file := range []*os.File{p.journal, p.output, p.diagnostic} {
+		if file != nil {
+			if err := file.Close(); err != nil {
+				if !errors.Is(err, os.ErrClosed) {
+					t.Error(err)
+				}
+			}
+		}
+	}
+}
+
+// nativeCatalogPartialSubreaper changes only the isolated supervisor process.
+// syscall numbers are the retained Linux amd64/arm64 SYS_PRCTL definitions;
+// PR_SET_CHILD_SUBREAPER is the retained x/sys value 0x24. Darwin never calls it.
+func nativeCatalogPartialSubreaper(t *testing.T) {
+	t.Helper()
+	var trap uintptr
+	switch runtime.GOARCH {
+	case "amd64":
+		trap = 157
+	case "arm64":
+		trap = 167
+	default:
+		t.Fatalf("no reviewed native prctl ABI for %s", runtime.GOARCH)
+	}
+	_, _, errno := syscall.Syscall6(trap, 0x24, 1, 0, 0, 0, 0)
+	if errno != 0 {
+		t.Fatalf("isolate exact-handle orphan adoption: %v", errno)
+	}
+}
+
+// nativeCatalogPartialReaper owns one adopted Wait and its final handle release.
+// The caller MUST stop using that handle after starting this sole worker.
+type nativeCatalogPartialReaper struct {
+	process *os.Process
+	done    chan error
+}
+
+func nativeCatalogPartialReap(t *testing.T, process *os.Process) {
+	t.Helper()
+	if err := process.Kill(); err != nil {
+		if !errors.Is(err, os.ErrProcessDone) {
+			t.Errorf("post-oracle exact-handle safety kill: %v", err)
+		}
+	}
+	reaper := &nativeCatalogPartialReaper{process: process, done: make(chan error, 1)}
+	go reaper.wait()
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	select {
+	case err := <-reaper.done:
+		if err != nil {
+			t.Errorf("join adopted fixture process: %v", err)
+		}
+	case <-timer.C:
+		t.Error("exact adopted-process Wait did not finish; its worker retains ownership")
+	}
+}
+
+// wait MUST be the only waiter for this adopted copy of a process handle. An
+// ECHILD is accepted only when the kernel handle also proves the task is gone.
+func (r *nativeCatalogPartialReaper) wait() {
+	_, err := r.process.Wait()
+	if errors.Is(err, syscall.ECHILD) {
+		state := r.process.Signal(syscall.Signal(0))
+		if errors.Is(state, os.ErrProcessDone) {
+			err = nil
+		} else {
+			err = errors.Join(err, state)
+		}
+	}
+	if errors.Is(err, os.ErrProcessDone) {
+		err = nil
+	}
+	r.done <- errors.Join(err, r.process.Release())
+}

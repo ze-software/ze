@@ -441,5 +441,73 @@ does not identify what removed them.
 labels to each build. Those labels can change image identity. They do not
 prove filesystem equivalence. A source author is preparing one `Suite.Run`
 case that shares immutable Ze, BIRD, and FRR image IDs across both runs while
-building the cut and full GoBGP images separately. That case has not run.
-The controlled pair and phase closure remain owed.
+building the cut and full GoBGP images separately. The completed comparison
+below resolves that image-identity gap. Wider phase closure remains owed.
+
+## Controlled same-suite secondary comparison
+
+`TestNativeGoBGPSecondarySameSuitePair` passed with race instrumentation in
+`job-gobgp-secondary-same-suite-private-inputs-20261106-ecdbab03.log`.
+Its one Suite retained identical consumed Ze, BIRD, FRR and sink image IDs.
+The omitted-repair case produced the intended stale secondary prefix and sent
+count; the full-repair case passed every reload phase. Both captures and both
+scenario cleanup paths passed their checks, as did image-retention cleanup.
+Independent review accepted this bounded comparison.
+
+The diagnostic used immutable private patch inputs and the unchanged common
+assertion body and runtime byte/SHA checks. It wrote no canonical patch or
+first-party source. Five default and selected-input provenance test roots
+passed first. The actual project patch remained the full `35eed21c…09b047`.
+
+The private archive retains `gobgp-same-suite-private-native/`, containing
+`gobgp-same-suite-pair-run-314078206/`, cut proof directory
+`bgp-export-reload-secondary-gobgp-668364761/`, and full proof directory
+`bgp-export-reload-secondary-gobgp-2540349095/`. The safe report's SHA-256 is
+`155d2d837f4b0bb89ea0ebc4eff699885d7b83a83db22264874fd3aa6a1e7064`.
+Source snapshots and review are retained separately in
+`gobgp-same-suite-private-inputs-source/`.
+
+This proves the new stable-session, non-ADD-PATH IPv4-unicast secondary case.
+It does not recover the original four-peer evidence, discharge the fifteen
+historical checker proofs, or explain the earlier ordinary cleanup stall.
+
+## Complete committed-fixture baseline
+
+All 151 `TestCommitted` inventory roots executed across three retained runs:
+145 passed and six failed. The first batch's ten-minute aggregate alarm
+interrupted a root after two seconds; that root passed alone, and the remaining
+48 roots then ran separately. The evaluator's 149 source/configuration hashes
+matched before and after these runs.
+
+Five failures concern generic template exposure. The sixth is the FlowSpec
+family-name projection's ranged-field ownership proof. The private archive
+retains all logs and root accounting in `inventory-committed-cohort-baseline/`.
+These failures remain open. No evaluator repair was part of this baseline.
+
+## Reboot checkpoint and later scoped results
+
+The [reboot handoff](../../handover/33-tooling-one-off-reboot-2026-11-06.md)
+is the current continuation record. It links the inert source-only diagnostic
+and unfinished-source assets needed on another machine. Canonical inventory
+checkpoint `6abaa27aa6` retains the Git-only evaluator and direct consumers;
+it does not close this spec or repair the six failures above.
+
+The explicit type-argument probe subsequently exposed sixteen false-clean cases.
+The canonical repair restores all 32 cases and preserves 43 prior roots with
+race instrumentation (logs `c464e961`, `cca25cb2`). This is separate from the
+generic-template and ranged-field failures. The inferred-interface hypothesis
+and revised range tests are source-only, with no runtime result claimed.
+
+The controlled Phase 6 partial-handoff baseline produced the intended RED in
+`TestNativeCatalogPartialHandoffCleanup`, log `0519d6ad`: protected child/socket
+observations survived old cleanup and the join receipt was EOF. Its test-only
+startup-abort envelope was independently approved. The full native observer
+still requires the two refused cleanup/lifetime repairs before execution.
+
+The latest documentation check, `0c016d69`, failed with 142 drift issues. Its
+source-anchor check passed for 4,234 paths and 772 packages. No complete
+repository inventory report or new actual-root performance result exists.
+
+Before reboot, scratch, state, the mixed-tree patch and untracked sources were
+also saved privately under `reboot-checkpoint/` in the archive named above.
+They contain private evidence and must be transferred separately from Git.

@@ -1,0 +1,2060 @@
+package bgp
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/netip"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/component/bgp/plugins/softver"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/linuxle"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+)
+
+// VALIDATES: `./le test integration interop` wires the shared staging producer, and no longer hands the image its feature tags.
+// PREVENTS: an image build that compiles ze inside the container, which the kernel killed three times on an idle 31 GiB host (2026-09-06).
+func TestBGPSuiteDeclaresAPreflightBuild(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout root: %v", err)
+	}
+	suite, err := suiteFor(root, Options{NoBuild: true})
+	if err != nil {
+		t.Fatalf("build the BGP suite: %v", err)
+	}
+
+	if suite.Preflight == nil {
+		t.Fatal("the BGP suite declares no Preflight, so nothing stages the binaries the image copies in")
+	}
+	for _, image := range suite.Images {
+		if image.Name != "ze" {
+			continue
+		}
+		if len(image.BuildArgs) != 0 {
+			t.Errorf("the ze image still takes build arguments %v; the feature tags belong to the host build now", image.BuildArgs)
+		}
+		if image.Dockerfile != filepath.Join(root, "test", "interop", "Dockerfile.ze") {
+			t.Errorf("the ze image builds %q", image.Dockerfile)
+		}
+		return
+	}
+	t.Fatal("the BGP suite declares no ze image")
+}
+
+// VALIDATES: the bgp lab stages BOTH personalities, the daemon and a linuxle le, at the paths its Dockerfile copies.
+// PREVENTS: an image with no le, or no shim for a retired harness name the scenario ze.conf files still run.
+func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
+	declared := LabBinaries()
+	if len(declared) != 3 {
+		t.Fatalf("the bgp lab declares %d binaries, want the daemon, the test personality and the ze_le daemon: %+v", len(declared), declared)
+	}
+
+	want := map[string]struct{ base, output string }{
+		"ze": {base: repofeaturetags.DaemonBase, output: "test/interop/ze-linux"},
+		"le": {base: linuxle.Base, output: "test/interop/le-linux"},
+		// The ze_le daemon only a scenario holding zeLeDaemonFile runs.
+		"ze with ze_le": {base: repofeaturetags.DaemonBase + " " + repofeaturetags.LEBase, output: "test/interop/ze-le-linux"},
+	}
+	for _, binary := range declared {
+		expected, named := want[binary.Name]
+		if !named {
+			t.Errorf("the bgp lab declares an unexpected binary %q", binary.Name)
+			continue
+		}
+		if binary.Base != expected.base {
+			t.Errorf("%s is built on base %q, want %q", binary.Name, binary.Base, expected.base)
+		}
+		if binary.Output != expected.output {
+			t.Errorf("%s is staged at %q, want %q", binary.Name, binary.Output, expected.output)
+		}
+		delete(want, binary.Name)
+	}
+	for name := range want {
+		t.Errorf("the bgp lab declares no %s binary", name)
+	}
+
+	// The Dockerfile is the consumer of those paths, so it has to copy each one.
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout root: %v", err)
+	}
+	body, err := os.ReadFile(filepath.Join(root, "test", "interop", "Dockerfile.ze"))
+	if err != nil {
+		t.Fatalf("read the ze Dockerfile: %v", err)
+	}
+	for _, binary := range declared {
+		if !strings.Contains(string(body), binary.Output) {
+			t.Errorf("test/interop/Dockerfile.ze copies no %s", binary.Output)
+		}
+	}
+	// The file inside the image MUST be named le, because cmd/ze selects its
+	// personality from that name.
+	if !strings.Contains(string(body), "COPY test/interop/le-linux /usr/local/bin/le\n") {
+		t.Error("test/interop/Dockerfile.ze does not install the le build as /usr/local/bin/le")
+	}
+	// Every scenario config execs the harness as `le test <name>`, so the image
+	// carries no shim that forwards another program name to it (AC-43).
+	if strings.Contains(string(body), "exec /usr/local/bin/le test") {
+		t.Error("test/interop/Dockerfile.ze still installs a shim that forwards to `le test`")
+	}
+}
+
+// TestCheckerPopulationMatchesProducer validates that every scenario directory
+// has a typed checker, so adding one can never silently shrink the gate.
+func TestCheckerPopulationMatchesProducer(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve checkout: %v", err)
+	}
+	entries, err := os.ReadDir(filepath.Join(root, "test", "interop", "scenarios"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	producer := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		producer = append(producer, entry.Name())
+	}
+	slices.Sort(producer)
+	checkers := checkers()
+	native := make([]string, 0, len(checkers))
+	for name, checker := range checkers {
+		if checker == nil {
+			t.Errorf("checker %s is nil", name)
+		}
+		if len(scenarioOperations[name]) == 0 && specialCheckers[name] == nil {
+			t.Errorf("checker %s has no typed assertion", name)
+		}
+		native = append(native, name)
+	}
+	for name := range specialCheckers {
+		if _, generic := scenarioOperations[name]; generic {
+			t.Errorf("bespoke checker %s still has a generic fallback", name)
+		}
+		if _, generic := scenarioExtras[name]; generic {
+			t.Errorf("bespoke checker %s still has generic extra operations", name)
+		}
+	}
+	slices.Sort(native)
+	if strings.Join(native, "\n") != strings.Join(producer, "\n") {
+		t.Fatalf("native scenario population differs from producer\nnative: %v\nproducer: %v", native, producer)
+	}
+}
+
+// TestEveryCheckerFailsClosedWithoutPeerEvidence runs the complete checker
+// registry against a lab where every observation fails.
+func TestEveryCheckerFailsClosedWithoutPeerEvidence(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+	defer cancel()
+
+	network := interoplab.Network{
+		Name: "missing-evidence",
+		IPv4: netip.MustParsePrefix("172.30.44.0/24"),
+		IPv6: netip.MustParsePrefix("fd00:1e:2c::/64"),
+	}
+	for name, checker := range checkers() {
+		if err := checker(ctx, &interoplab.CheckContext{
+			Source:   interoplab.ScenarioSource{Name: name},
+			Lab:      noEvidenceLab{},
+			Network:  network,
+			Checkout: t.TempDir(),
+		}); err == nil {
+			t.Errorf("checker %s passed with no peer evidence", name)
+		}
+	}
+}
+
+// TestEveryScenarioOperationUsesRecorder drives every registered checker operation
+// against measured peer output. It catches an operation branch that stops querying.
+func TestEveryScenarioOperationUsesRecorder(t *testing.T) {
+	network := interoplab.Network{
+		Name: "recorded",
+		IPv4: netip.MustParsePrefix("172.30.44.0/24"),
+		IPv6: netip.MustParsePrefix("fd00:1e:2c::/64"),
+	}
+	covered := make(map[operationKind]int)
+	for name, operations := range scenarioOperations {
+		operations := append(append([]operation(nil), operations...), scenarioExtras[name]...)
+		t.Run(name, func(t *testing.T) {
+			for index := range operations {
+				current := &operations[index]
+				rewriteOperation(network, current)
+				recorder := recorderFor(current)
+				if current.kind == opDelayRequireContains {
+					current.delay = time.Nanosecond
+				}
+				err := runOperation(t.Context(), network, recorder, current)
+				if err != nil {
+					t.Fatalf("operation %d (%d): %v", index+1, current.kind, err)
+				}
+				if recorder.reads == 0 && current.kind != opExec && current.kind != opSignal && current.kind != opStart {
+					t.Fatalf("operation %d read no peer output", index+1)
+				}
+				covered[current.kind]++
+			}
+		})
+	}
+	for _, branch := range []operationKind{
+		opFRRSession, opBIRDSession, opGoBGPSession, opFRRRoute, opFRRRouteAbsent,
+		opBIRDRoute, opGoBGPRoute, opFRRCommunity, opFRRNoAS, opFRREmptyASPath,
+		opWaitContains, opWaitContainsAny, opWaitAbsent, opRequireContains, opRequireAbsent,
+		opRequireJSONFields, opWaitJSONFields, opExec, opSignal, opStart, opStop,
+		opWaitLogFields, opWaitLogContains, opDelayRequireContains, opWaitRPKI,
+	} {
+		if covered[branch] == 0 {
+			t.Errorf("operation branch %d has no scenario fixture", branch)
+		}
+	}
+}
+
+// TestEveryScenarioOperationRejectsContradictoryRecorder proves each typed
+// operation rejects missing required state or present forbidden state.
+func TestEveryScenarioOperationRejectsContradictoryRecorder(t *testing.T) {
+	network := interoplab.Network{
+		Name: "contradictory",
+		IPv4: netip.MustParsePrefix("172.30.44.0/24"),
+		IPv6: netip.MustParsePrefix("fd00:1e:2c::/64"),
+	}
+	for name, operations := range scenarioOperations {
+		operations := append(append([]operation(nil), operations...), scenarioExtras[name]...)
+		t.Run(name, func(t *testing.T) {
+			for index := range operations {
+				current := &operations[index]
+				rewriteOperation(network, current)
+				recorder := contradictoryRecorderFor(current)
+				current.timeout = time.Nanosecond
+				if current.kind == opDelayRequireContains {
+					current.delay = time.Nanosecond
+				}
+				if err := runOperation(t.Context(), network, recorder, current); err == nil {
+					t.Fatalf("operation %d (%d) accepted contradictory peer state", index+1, current.kind)
+				}
+			}
+		})
+	}
+}
+
+func TestRequiredOperationBranchScenarioMappings(t *testing.T) {
+	for branch, scenario := range map[operationKind]string{
+		opStart:           "vrrp-mastership-keepalived",
+		opStop:            "ospf-self-lsa-flush-frr",
+		opWaitContainsAny: "ospf-nbma-frr",
+	} {
+		found := false
+		operations := append(append([]operation(nil), scenarioOperations[scenario]...), scenarioExtras[scenario]...)
+		for index := range operations {
+			if operations[index].kind == branch {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("operation branch %d has no real mapping in scenario %s", branch, scenario)
+		}
+	}
+}
+
+// TestRFCInteropCheckerBindings pins each RFC carrier to the scenario whose
+// foreign-peer observations the native integration action executes.
+func TestRFCInteropCheckerBindings(t *testing.T) {
+	for _, name := range []string{
+		"bgp-addpath-readvertise-collision-frr",
+		"bgp-local-pref-strip-gobgp",
+		"bgp-med-across-as-gobgp",
+		"bgp-med-remove-configured-gobgp",
+		"bgp-relay-withdraw-reflector-frr",
+		"bgp-relay-withdraw-shape-frr",
+		"bgp-rfc2545-linklocal-nexthop-frr",
+		"bgp-rfc2545-third-party-linklocal-frr",
+		"bgp-rfc7606-relay-shape-frr",
+		"bgp-rfc7606-typed-nlri-discard",
+		"bgp-rfc7999-blackhole-frr",
+		"bgp-role-otc-withdraw-frr",
+		"bgp-role-otc-withdraw-frr-forked",
+		"bgp-route-server-frr",
+		"bgp-route-server-replacement-frr",
+		"bgp-self-nexthop-withheld-frr",
+		"bgp-wellknown-noexport-frr",
+		"isis-p2p-frr",
+		"no-family-peer-eor-frr",
+		"ospf-stub-nssa-frr",
+	} {
+		if _, ok := specialCheckers[name]; !ok {
+			t.Errorf("native integration registry does not execute RFC checker %s", name)
+		}
+	}
+	for name, checker := range map[string]interoplab.Checker{
+		"bgp-addpath-readvertise-collision-frr": checkAddPathReadvertiseCollision,
+		"bgp-local-pref-strip-gobgp":            checkLocalPrefStrip,
+		"bgp-med-across-as-gobgp":               checkMEDAcrossAS,
+		"bgp-med-remove-configured-gobgp":       checkMEDRemovalConfiguration,
+		"bgp-relay-withdraw-shape-frr":          checkRelayWithdrawalShape,
+		"bgp-rfc2545-linklocal-nexthop-frr":     checkRFC2545NextHops,
+		"bgp-rfc2545-third-party-linklocal-frr": checkRFC2545ThirdPartyLinkLocal,
+		"bgp-rfc7606-relay-shape-frr":           checkRFC7606MixedUpdate,
+		"bgp-rfc7606-typed-nlri-discard":        checkRFC7606TypedNLRIDiscard,
+		"bgp-rfc7999-blackhole-frr":             checkRFC7999Blackhole,
+		"bgp-role-otc-withdraw-frr":             checkOTCWithdrawal,
+		"bgp-route-server-frr":                  checkRouteServerASPath,
+		"bgp-route-server-replacement-frr":      checkRouteServerReplacement,
+		"bgp-self-nexthop-withheld-frr":         checkSelfNextHopWithheld,
+		"bgp-wellknown-noexport-frr":            checkNoExportBoundary,
+		"isis-p2p-frr":                          checkISISDynamicHostname,
+		"no-family-peer-eor-frr":                checkNoFamilyEndOfRIB,
+		"ospf-stub-nssa-frr":                    checkNSSADefault,
+	} {
+		t.Run(name, func(t *testing.T) {
+			sentinel := errors.New("stop at first foreign-peer query")
+			lab := &recordingLab{failure: sentinel}
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			err := checker(ctx, &interoplab.CheckContext{
+				Network: interoplab.Network{
+					IPv4: netip.MustParsePrefix("172.30.44.0/24"),
+					IPv6: netip.MustParsePrefix("fd00:1e:2c::/64"),
+				},
+				Lab: lab,
+			})
+			if err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("checker error = %v, want scenario name %q", err, name)
+			}
+		})
+	}
+}
+
+// TestRFCInteropStructuredPeerEvidence proves checks that cannot be
+// represented as substring operations decode the foreign daemon's exact state.
+func TestRFCInteropStructuredPeerEvidence(t *testing.T) {
+	t.Run("distinct add-path identifiers", func(t *testing.T) {
+		state, err := parseAddPathState(`{"routes":{"10.99.0.0/24":[{"aspath":{"string":"65003"}},{"aspath":{"string":"65004"},"addpathRxId":1}]}}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if state["65003"] != 0 || state["65004"] != 1 {
+			t.Fatalf("Path Identifiers = %v", state)
+		}
+		if _, err := parseAddPathState(`{"routes":{"10.99.0.0/24":[{"aspath":{"string":"65003"}},{"aspath":{"string":"65004"}}]}}`); err == nil {
+			t.Fatal("colliding received Path Identifiers passed")
+		}
+	})
+
+	t.Run("OTC value", func(t *testing.T) {
+		for _, output := range []string{"OTC: 65001", `{"otc":65001}`} {
+			value, err := parseOTCValue(output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if value != 65001 {
+				t.Fatalf("OTC = %d", value)
+			}
+		}
+		if value, err := parseOTCValue("OTC: 65002"); err != nil || value == 65001 {
+			t.Fatalf("wrong OTC verdict: value=%d err=%v", value, err)
+		}
+	})
+
+	t.Run("RFC2545 next-hop lengths", func(t *testing.T) {
+		onLink, err := parseFRRNextHops(`{"paths":[{"nexthops":[{"scope":"global","ip":"fd00:1e:2c::2"},{"scope":"link-local","ip":"fe80::be:ef:2"}]}]}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := requireNextHopShape(onLink, netip.MustParseAddr("fd00:1e:2c::2"), netip.MustParseAddr("fe80::be:ef:2")); err != nil {
+			t.Fatal(err)
+		}
+		offLink, err := parseFRRNextHops(`{"paths":[{"nexthops":[{"scope":"global","ip":"2001:db8:ffff::1"}]}]}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := requireNextHopShape(offLink, netip.MustParseAddr("2001:db8:ffff::1"), netip.Addr{}); err != nil {
+			t.Fatal(err)
+		}
+		if err := requireNextHopShape(onLink, netip.MustParseAddr("fd00:1e:2c::2"), netip.Addr{}); err == nil {
+			t.Fatal("off-link route accepted a link-local next hop")
+		}
+	})
+}
+
+// TestNegativeAssertionsRequirePositiveProof verifies both failure branches of
+// an absence check: the forbidden state and a mechanism that never ran.
+func TestNegativeAssertionsRequirePositiveProof(t *testing.T) {
+	if err := requireAbsentWithProof("session Established", []string{"NOTIFICATION"}, nil); err == nil {
+		t.Fatal("absence assertion without positive proof passed")
+	}
+	if err := requireAbsentWithProof("session Idle", []string{"NOTIFICATION"}, []string{"Established"}); err == nil {
+		t.Fatal("absence assertion passed without proof that the session ran")
+	}
+	if err := requireAbsentWithProof("Established NOTIFICATION", []string{"NOTIFICATION"}, []string{"Established"}); err == nil {
+		t.Fatal("absence assertion accepted the forbidden state")
+	}
+	if err := requireAbsentWithProof("Established route received", []string{"NOTIFICATION"}, []string{"Established", "route received"}); err != nil {
+		t.Fatalf("measured absence failed: %v", err)
+	}
+}
+
+// TestCheckerFailureKeepsPrimaryCauseWhenLogsFail preserves the former
+// scenario-55 exception polarity without executing its deleted probe.
+func TestCheckerFailureKeepsPrimaryCauseWhenLogsFail(t *testing.T) {
+	cause := errors.New("BIRD route is absent")
+	err := checkerFailure(t.Context(), &recordingLab{failure: errors.New("docker logs unavailable")}, "bgp-wire-edit-api-origin-bird", 2, cause)
+	if !errors.Is(err, cause) || strings.Contains(err.Error(), "docker logs unavailable") {
+		t.Fatalf("checker failure replaced the primary assertion: %v", err)
+	}
+}
+
+func TestCheckerFailureIncludesAvailablePeerLogs(t *testing.T) {
+	cause := errors.New("route is absent")
+	err := checkerFailure(t.Context(), &recordingLab{logs: "peer startup clue"}, "scenario", 1, cause)
+	if !errors.Is(err, cause) || !strings.Contains(err.Error(), "peer startup clue") {
+		t.Fatalf("checker failure omitted the primary cause or peer logs: %v", err)
+	}
+}
+
+// TestScenarioPreparerBuildsOrderedPeers validates config discovery, compiled
+// helper argv, rebased speaker addressing, and the legacy participant order.
+func TestScenarioPreparerBuildsOrderedPeers(t *testing.T) {
+	producer := t.TempDir()
+	scenario := t.TempDir()
+	writeFixture(t, filepath.Join(scenario, "ze.conf"), "bgp {}\n")
+	writeFixture(t, filepath.Join(scenario, "frr.conf"), "router bgp 65002\n")
+	writeFixture(t, filepath.Join(scenario, "bird.conf"), "protocol device {}\n")
+	writeFixture(t, filepath.Join(scenario, "gobgp.toml"), "[global.config]\n")
+	writeFixture(t, filepath.Join(scenario, "speaker-args"), "--asn 65010\n")
+	network := interoplab.Network{Name: "lab", IPv4: netip.MustParsePrefix("172.31.22.0/24")}
+	peers, err := scenarioPeers(producer, scenario, "fixture", network)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, 0, len(peers))
+	for _, peer := range peers {
+		got = append(got, peer.Name)
+	}
+	want := []string{"ze", "speaker", "frr", "bird", "gobgp"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("peer order = %v, want %v", got, want)
+	}
+	if joined := strings.Join(peers[1].Command, " "); !strings.HasPrefix(joined, "test interop-bgp speaker --connect 172.31.22.2:179") {
+		t.Fatalf("compiled speaker command did not use selected network: %s", joined)
+	}
+	if got := peers[1].Arguments; !slices.Equal(got, []string{"--entrypoint", "le"}) {
+		t.Fatalf("speaker entrypoint = %v, want le", got)
+	}
+	if len(peers[0].Mounts) != 1 || peers[0].Mounts[0].Target != "/etc/ze/bgp.conf" || !peers[0].Mounts[0].ReadOnly {
+		t.Fatalf("ze mounts = %+v, want only immutable rendered config", peers[0].Mounts)
+	}
+}
+
+// TestSpecialCheckerParsers validates the structured answers used by the two
+// non-linear checkers, including the exact ADD-PATH wire comparison token.
+func TestSpecialCheckerParsers(t *testing.T) {
+	recorder := &recordingLab{output: `{"count":256}`}
+	count, err := zeRIBCount(t.Context(), recorder)
+	if err != nil || count != 256 {
+		t.Fatalf("RIB count = %d, %v", count, err)
+	}
+	recorder.output = `{"adj-rib-in":{"peer":[{"prefix":"10.0.0.0/24"},{"prefix":"10.0.1.0/24"}]}}`
+	count, err = zeRIBDocumentCount(t.Context(), recorder)
+	if err != nil || count != 2 {
+		t.Fatalf("RIB document count = %d, %v", count, err)
+	}
+	rows := make([]map[string]string, 50)
+	for index := range rows {
+		rows[index] = map[string]string{"prefix": fmt.Sprintf("10.0.%d.0/24", index)}
+	}
+	data, err := json.Marshal(rows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder.output = string(data)
+	count, err = zeRIBBestRows(t.Context(), recorder)
+	if err != nil || count != 50 {
+		t.Fatalf("best rows = %d, %v", count, err)
+	}
+	logs := "established: yes\nresult: PASS\nnote: update-hex: 0000000000000007180a6300\n"
+	update, err := speakerRouteUpdate(logs, "speaker")
+	if err != nil || fmt.Sprintf("%x", update) != "0000000000000007180a6300" {
+		t.Fatalf("route-bearing update = %x, %v", update, err)
+	}
+}
+
+// TestBespokeCheckerBranches pins every non-linear checker predicate that a
+// generic presence assertion cannot represent.
+func TestBespokeCheckerBranches(t *testing.T) {
+	t.Run(pathsLimitScenario, pathsLimitCheckerBranches)
+	t.Run(rpkiReloadScenario, rpkiReloadCheckerBranches)
+	t.Run(medWholeSetScenario, medWholeSetEpochBranches)
+	t.Run(scenarioGracefulRestartFRR, llgrCheckerBranches)
+	t.Run(scenarioFlowspecGoBGP, flowSpecCheckerBranches)
+	t.Run(scenarioAIGPSourceCostFRR, aigpSourceCostCheckerBranches)
+	t.Run(bfdProfileEditScenario, bfdProfileEditCheckerBranches)
+	t.Run(attachReceiveOnlyLiveScenario, liveKeepSessionCheckerBranches)
+	t.Run(ospfSRAnycastScenario, ospfSRAnycastCheckerBranches)
+	t.Run(rfc2545ThirdPartyScenario, rfc2545ThirdPartyCheckerBranches)
+	t.Run(isisExportPolicyScenario, isisExportPolicyCheckerBranches)
+	t.Run(ospfExportPolicyScenario, ospfExportPolicyCheckerBranches)
+
+	t.Run("bfd-frr", func(t *testing.T) {
+		const established = "BGP state = Established, up for 00:00:05\n  Connections established 1; dropped 0\n"
+		const reestablished = "BGP state = Established, up for 00:00:00\n  Connections established 2; dropped 1\n"
+		if dropped, ok := bgpConnectionsDropped(established); !ok || dropped != 0 {
+			t.Fatalf("dropped count = %d, %v; want 0, true", dropped, ok)
+		}
+		if _, ok := bgpConnectionsDropped("BGP state = Established"); ok {
+			t.Fatal("a missing dropped count was read as a number")
+		}
+		if bgpSessionReset(established, 0) {
+			t.Fatal("an Established session with no new drop was reported reset")
+		}
+		if !bgpSessionReset("BGP state = Idle", 0) {
+			t.Fatal("a non-Established BGP session was not reported reset")
+		}
+		if !bgpSessionReset(reestablished, 0) {
+			t.Fatal("a session that dropped and came back was not reported reset")
+		}
+		if err := requireBFDTeardownBudget(1999 * time.Millisecond); err != nil {
+			t.Fatalf("sub-two-second teardown failed: %v", err)
+		}
+		if err := requireBFDTeardownBudget(2 * time.Second); err == nil {
+			t.Fatal("two-second teardown passed the strict budget")
+		}
+		const cease = "level=INFO msg=\"sent NOTIFICATION\" code=Cease subcode=\"BFD Down\"\n"
+		if !bfdCeaseLoggedSince("", cease) {
+			t.Fatal("a Cease logged after the break was not counted")
+		}
+		if bfdCeaseLoggedSince(cease, cease+"level=INFO msg=\"peer up\"\n") {
+			t.Fatal("a Cease logged before the break passed as the break's")
+		}
+		if !bfdCeaseLoggedSince(cease, cease+cease) {
+			t.Fatal("a second Cease after an earlier one was not counted")
+		}
+	})
+
+	t.Run("frr-software-version", func(t *testing.T) {
+		const neighbor = `{"172.30.0.2":{"bgpState":"Established",` +
+			`"neighborCapabilities":{"softwareVersion":{"advertisedSoftwareVersion":"FRRouting/10.3.1","receivedSoftwareVersion":"Ze/0.1.0"}}}}`
+		if version, ok := frrReceivedSoftwareVersion(neighbor); !ok || version != zeSoftwareVersion {
+			t.Fatalf("received version = %q, %v; want %q, true", version, ok, zeSoftwareVersion)
+		}
+		if version, ok := frrReceivedSoftwareVersion(`{"172.30.0.2":{"neighborCapabilities":{"softwareVersion":{"advertisedSoftwareVersion":"FRRouting/10.3.1"}}}}`); ok {
+			t.Fatalf("FRR's own advertised version passed as the one it received from ze: %q", version)
+		}
+		if _, ok := frrReceivedSoftwareVersion("not json"); ok {
+			t.Fatal("an unreadable answer passed as a received version")
+		}
+		const refused = `{"peers":{"fd00:1e::3":{"state":"active","last-notification":{"code":2,"subcode":0,"direction":"received","time":"2026-09-27T15:21:04Z"}}}}`
+		if code, subcode, ok := zeLastNotificationReceived(refused, "fd00:1e::3"); !ok || code != 2 || subcode != 0 {
+			t.Fatalf("last notification = %d/%d, %v; want 2/0, true", code, subcode, ok)
+		}
+		sent := strings.Replace(refused, `"received"`, `"sent"`, 1)
+		if _, _, ok := zeLastNotificationReceived(sent, "fd00:1e::3"); ok {
+			t.Fatal("a NOTIFICATION ze sent passed as one FRR sent")
+		}
+		if _, _, ok := zeLastNotificationReceived(refused, "fd00:1e::4"); ok {
+			t.Fatal("another peer's NOTIFICATION passed as this peer's")
+		}
+		if _, _, ok := zeLastNotificationReceived(`{"peers":{"fd00:1e::3":{"state":"established"}}}`, "fd00:1e::3"); ok {
+			t.Fatal("a peer with no NOTIFICATION passed as refused")
+		}
+		if _, _, ok := zeLastNotificationReceived(`{"peers":{"fd00:1e::3":{"last-notification":{"direction":"received"}}}}`, "fd00:1e::3"); ok {
+			t.Fatal("a NOTIFICATION with no code read as code 0")
+		}
+	})
+
+	// The ADD-PATH reading of bgp-route-server-replacement-frr: both polarities,
+	// and the two answers that carry no capability block at all, which must not
+	// pass as "no ADD-PATH".
+	t.Run("bgp-route-server-replacement-frr", func(t *testing.T) {
+		const plain = "ze_peer    BGP  ---  up  12:00:00  Established\n" +
+			"  BGP state:          Established\n" +
+			"    Neighbor capabilities\n      Multiprotocol\n        AF announced: ipv4\n      4-octet AS numbers\n"
+		if err := requireBIRDNoAddPath(plain); err != nil {
+			t.Fatalf("a session with no ADD-PATH capability was refused: %v", err)
+		}
+		withAddPath := plain + "      ADD-PATH\n        RX: ipv4\n        TX:\n"
+		if requireBIRDNoAddPath(withAddPath) == nil {
+			t.Fatal("a neighbor advertising ADD-PATH passed as a session without it")
+		}
+		if requireBIRDNoAddPath("") == nil {
+			t.Fatal("an empty BIRD answer passed as a session without ADD-PATH")
+		}
+		if requireBIRDNoAddPath("ze_peer    BGP  ---  start  12:00:00  Active\n") == nil {
+			t.Fatal("a session that is not Established passed as one without ADD-PATH")
+		}
+	})
+
+	t.Run("bgp-addpath-readvertise-collision-frr", func(t *testing.T) {
+		negotiated := `{"172.30.0.2":{"neighborCapabilities":{"addPath":{"ipv4Unicast":{"rxAdvertised": true, "rxAdvertisedAndReceived": true}}}}}`
+		if !addPathReceiveNegotiated(negotiated) {
+			t.Fatal("a negotiated ADD-PATH receive direction was rejected")
+		}
+		if addPathReceiveNegotiated(`{"addPath":{"ipv4Unicast":{"txAdvertisedAndReceived": true}}}`) {
+			t.Fatal("the ADD-PATH send direction passed as the receive direction")
+		}
+		if addPathReceiveNegotiated(`{"addPath":{"ipv4Unicast":{"rxAdvertised": true, "rxAdvertisedAndReceived": false}}}`) {
+			t.Fatal("an advertised but unagreed receive direction passed as negotiated")
+		}
+		if addPathReceiveNegotiated("") {
+			t.Fatal("an empty neighbor answer passed as a negotiated capability")
+		}
+		live := map[string]uint64{"65003": 0, "65004": 1}
+		if !samePathIdentifiers(live, map[string]uint64{"65003": 0, "65004": 1}) {
+			t.Fatal("a replay repeating both Path Identifiers was reported as renumbered")
+		}
+		if samePathIdentifiers(live, map[string]uint64{"65003": 1, "65004": 0}) {
+			t.Fatal("a replay that swapped the two Path Identifiers passed")
+		}
+		if samePathIdentifiers(live, map[string]uint64{"65004": 1}) {
+			t.Fatal("a replay that lost one path passed")
+		}
+	})
+
+	t.Run("bgp-rfc2545-linklocal-nexthop-frr", func(t *testing.T) {
+		const (
+			onLink    = "2001:db8:5601::/48"
+			offLink   = "2001:db8:5602::/48"
+			linkLocal = "fe80::be:ef:2"
+		)
+		installed := frrInstalledRouteAnswer(onLink, linkLocal, "bgp")
+		if err := requireRouteInstalledVia(installed, onLink, linkLocal, "bgp"); err != nil {
+			t.Fatalf("a route installed via the link-local next hop failed: %v", err)
+		}
+		split := strings.TrimSuffix(frrInstalledRouteAnswer(onLink, "2001:db8:ffff::1", "bgp"), "}") + "," +
+			strings.TrimPrefix(frrInstalledRouteAnswer(offLink, linkLocal, "bgp"), "{")
+		if err := requireRouteInstalledVia(split, onLink, linkLocal, "bgp"); err == nil {
+			t.Fatal("a next hop taken from another route's entry passed")
+		}
+		if err := requireRouteInstalledVia(frrInstalledRouteAnswer(offLink, linkLocal, "bgp"), onLink, linkLocal, "bgp"); err == nil {
+			t.Fatal("an uninstalled route passed as installed")
+		}
+		if err := requireRouteInstalledVia("", onLink, linkLocal, "bgp"); err == nil {
+			t.Fatal("an empty route listing passed as installed")
+		}
+	})
+
+	t.Run("gtsm-related-icmp-ttl", func(t *testing.T) {
+		// The two files FRR's container prints, concatenated as the checker
+		// reads them, with the counters the verdict reads at their measured
+		// positions.
+		counters := func(minHopDrops, destUnreach, inErrors int) string {
+			return "TcpExt: SyncookiesSent TCPMinTTLDrop OutOfWindowIcmps\n" +
+				fmt.Sprintf("TcpExt: 0 %d 0\n", minHopDrops) +
+				"IpExt: InNoRoutes\nIpExt: 0\n" +
+				"Ip6InReceives                   \t10\n" +
+				fmt.Sprintf("Icmp6InErrors                   \t%d\n", inErrors) +
+				fmt.Sprintf("Icmp6InDestUnreachs             \t%d\n", destUnreach)
+		}
+		before, err := parseGTSMPeerCounters(counters(0, 4, 1))
+		if err != nil {
+			t.Fatalf("measured counters were refused: %v", err)
+		}
+		if before.minHopDrops != 0 || before.destUnreach != 4 || before.inErrors != 1 {
+			t.Fatalf("counters = %+v, want drops 0, unreach 4, errors 1", before)
+		}
+		if _, err := parseGTSMPeerCounters("TcpExt: SyncookiesSent\nTcpExt: 0\n"); err == nil {
+			t.Fatal("a netstat with no TCPMinTTLDrop column passed as a zero")
+		}
+		if _, err := parseGTSMPeerCounters(counters(0, 4, 1) + "Icmp6InDestUnreachs x\n"); err != nil {
+			t.Fatalf("the first spelling of a counter did not decide: %v", err)
+		}
+		if _, err := parseSNMP6Counter("Icmp6InErrors\t1\n", "Icmp6InDestUnreachs"); err == nil {
+			t.Fatal("an absent snmp6 counter passed as a zero")
+		}
+		accepted, _ := parseGTSMPeerCounters(counters(0, 5, 1))
+		if !gtsmErrorArrived(before, accepted) {
+			t.Fatal("one more Destination Unreachable was not read as an arrival")
+		}
+		if gtsmErrorArrived(before, before) {
+			t.Fatal("an unchanged counter was read as an arrival")
+		}
+		if err := requireRelatedICMPAccepted(before, accepted); err != nil {
+			t.Fatalf("an error delivered above the floor failed: %v", err)
+		}
+		if err := requireRelatedICMPAccepted(before, before); err == nil {
+			t.Fatal("no error arriving at all passed as accepted")
+		}
+		unmatched, _ := parseGTSMPeerCounters(counters(0, 5, 2))
+		if err := requireRelatedICMPAccepted(before, unmatched); err == nil {
+			t.Fatal("an error the kernel matched to no socket passed as accepted")
+		}
+		dropped, _ := parseGTSMPeerCounters(counters(1, 5, 1))
+		if err := requireRelatedICMPAccepted(before, dropped); err == nil {
+			t.Fatal("an error dropped below the GTSM floor passed as accepted")
+		}
+		hops, err := frrGTSMHops(`{"fd00:1e:2c::2":{"remoteAs":65001,"externalBgpNbrMaxHopsAway":1}}`)
+		if err != nil || hops != 1 {
+			t.Fatalf("hops = %d, %v; want 1", hops, err)
+		}
+		if _, err := frrGTSMHops(`{"fd00:1e:2c::2":{"remoteAs":65001}}`); err == nil {
+			t.Fatal("a neighbor with no ttl-security passed as armed")
+		}
+		if _, err := frrGTSMHops(""); err == nil {
+			t.Fatal("an empty neighbor answer passed as armed")
+		}
+	})
+
+	t.Run("no-family-peer-eor-frr", func(t *testing.T) {
+		const peer = "172.30.0.2"
+		decoded := "2026/08/31 03:18:06 BGP: [T1234-56789] " + peer + " rcvd End-of-RIB for IPv4 Unicast from " + peer + "\n"
+		if !endOfRIBDecoded(decoded, peer) {
+			t.Fatal("FRR's own End-of-RIB decode was rejected")
+		}
+		if !endOfRIBDecoded("BGP: rcvd End-of-RIB for ipv4 unicast from "+peer+"\n", peer) {
+			t.Fatal("a lower-case address family spelling was rejected")
+		}
+		if endOfRIBDecoded("BGP: "+peer+" sending End-of-RIB for IPv4 Unicast to "+peer+"\n", peer) {
+			t.Fatal("the send direction passed as FRR's receive decode")
+		}
+		split := "BGP: rcvd End-of-RIB for IPv4 Unicast from 172.30.0.9\n" +
+			"BGP: " + peer + " went from OpenConfirm to Established\n"
+		if endOfRIBDecoded(split, peer) {
+			t.Fatal("another peer's marker passed by matching ze on a second line")
+		}
+		if endOfRIBDecoded("", peer) {
+			t.Fatal("an empty log passed as a decoded marker")
+		}
+		const capabilities = `{%q:{"neighborCapabilities":{"multiprotocolExtensions":{"ipv4Unicast":{%s}}}}}`
+		advertised := fmt.Sprintf(capabilities, peer, `"advertised":true`)
+		if err := requireMultiprotocolAdvertisedOnly(advertised, peer); err != nil {
+			t.Fatalf("FRR advertising the family alone was rejected: %v", err)
+		}
+		both := fmt.Sprintf(capabilities, peer, `"advertisedAndReceived":true`)
+		if requireMultiprotocolAdvertisedOnly(both, peer) == nil {
+			t.Fatal("a Multiprotocol capability received from ze passed as absent")
+		}
+		received := fmt.Sprintf(capabilities, peer, `"advertised":true,"received":true`)
+		if requireMultiprotocolAdvertisedOnly(received, peer) == nil {
+			t.Fatal("a capability received from ze passed because it was not spelled advertisedAndReceived")
+		}
+		foreign := fmt.Sprintf(capabilities, "172.30.0.3", `"advertised":true`)
+		if requireMultiprotocolAdvertisedOnly(foreign, peer) == nil {
+			t.Fatal("another neighbor's capability block passed as the answer about ze")
+		}
+		if requireMultiprotocolAdvertisedOnly("", peer) == nil {
+			t.Fatal("an empty neighbor answer passed as a measured capability")
+		}
+	})
+
+	t.Run("isis-p2p-frr", func(t *testing.T) {
+		const hostname = "ze-p2p"
+		if !isisAdjacencyUp(" frr-isis-p2p   eth0   2  Up    27   2020.2020.2020\n") {
+			t.Fatal("an Up IS-IS adjacency was reported down")
+		}
+		if isisAdjacencyUp(" frr-isis-p2p   eth0   2  Down  -    2020.2020.2020\n") {
+			t.Fatal("a Down IS-IS adjacency was reported Up")
+		}
+		if isisAdjacencyUp(" ze-Uplink      eth0   2  Init  27\n") {
+			t.Fatal("a neighbor name carrying Up passed as the adjacency state")
+		}
+		if isisAdjacencyUp("") {
+			t.Fatal("an empty neighbor table passed as an Up adjacency")
+		}
+		database := "IS-IS Level-1 link-state database:\n" +
+			"LSP ID          PduLen  SeqNumber   Chksum  Holdtime  ATT/P/OL\n" +
+			hostname + ".00-00        85  0x00000003  0x1234      1123  0/0/0\n"
+		if !isisDatabaseNamesZe(database) {
+			t.Fatal("an LSP rendered by ze's dynamic hostname was rejected")
+		}
+		if isisDatabaseNamesZe("0000.0000.0002.00-00        85  0x00000003\n") {
+			t.Fatal("an LSP rendered by system ID passed as a decoded TLV 137")
+		}
+		if isisDatabaseNamesZe(hostname + "-2.00-00        85  0x00000003\n") {
+			t.Fatal("another router whose name starts with ze's passed as ze's LSP")
+		}
+		if isisDatabaseNamesZe("") {
+			t.Fatal("an empty database passed as a rendered hostname")
+		}
+	})
+
+	t.Run("ospf-stub-nssa-frr", func(t *testing.T) {
+		const (
+			defaultRoute = "0.0.0.0/0"
+			borderRouter = "172.30.0.2"
+		)
+		installed := frrInstalledRouteAnswer(defaultRoute, borderRouter, "ospf")
+		if err := requireRouteInstalledVia(installed, defaultRoute, borderRouter, "ospf"); err != nil {
+			t.Fatalf("the NSSA default from the border router was rejected: %v", err)
+		}
+		elsewhere := strings.TrimSuffix(frrInstalledRouteAnswer(defaultRoute, "172.30.0.9", "ospf"), "}") + "," +
+			strings.TrimPrefix(frrInstalledRouteAnswer("10.0.0.0/24", borderRouter, "ospf"), "{")
+		if requireRouteInstalledVia(elsewhere, defaultRoute, borderRouter, "ospf") == nil {
+			t.Fatal("a default from another router passed by matching the border router on a second entry")
+		}
+		if requireRouteInstalledVia("", defaultRoute, borderRouter, "ospf") == nil {
+			t.Fatal("an empty route listing passed as an installed default")
+		}
+		clean := "       OSPF Router with ID (172.30.0.3)\n\n                AS External Link States\n\n"
+		if err := requireNoExternalLSA(clean); err != nil {
+			t.Fatalf("an NSSA holding no Type 5 LSA was reported as leaking: %v", err)
+		}
+		if requireNoExternalLSA(clean+"  LS age: 42\n  Link State ID: 10.9.9.0 (External Network Number)\n") == nil {
+			t.Fatal("a Type 5 AS-external LSA in the NSSA passed as absent")
+		}
+		if requireNoExternalLSA("") == nil {
+			t.Fatal("an unanswered database query passed as an absent LSA")
+		}
+	})
+
+	t.Run("bgp-relay-withdraw-shape-frr", func(t *testing.T) {
+		const (
+			peer   = "172.30.0.2"
+			prefix = "10.10.0.0/24"
+			want   = "65001 65004"
+		)
+		relayed := fmt.Sprintf(`{"prefix":%q,"paths":[{"aspath":{"string":%q}}]}`, prefix, want)
+		if err := requireFRRASPath(relayed, want); err != nil {
+			t.Fatalf("the AS_PATH ze prepended its own AS to was rejected: %v", err)
+		}
+		if requireFRRASPath(`{"paths":[{"aspath":{"string":"65004"}}]}`, want) == nil {
+			t.Fatal("a path missing ze's prepended AS passed")
+		}
+		if requireFRRASPath(`{"paths":[{"aspath":{"string":"65001 65004 65005"}}]}`, want) == nil {
+			t.Fatal("a longer path carrying the wanted one passed")
+		}
+		if requireFRRASPath(`{"paths":[{"aspath":{"string":"65001 65004"}},{"aspath":{"string":"65002 65004"}}]}`, want) == nil {
+			t.Fatal("the wanted path found beside a second path passed")
+		}
+		if requireFRRASPath("", want) == nil {
+			t.Fatal("an unanswered route query passed as a decoded AS_PATH")
+		}
+		withdrawn := "2026/08/31 03:18:06 BGP: [T1234-56789] " + peer + " rcvd UPDATE about " + prefix + " IPv4 unicast -- withdrawn\n"
+		announced := "BGP: " + peer + " rcvd " + prefix + " IPv4 unicast\n"
+		if !frrDecodedWithdrawal(withdrawn, peer, prefix) {
+			t.Fatal("FRR's own decode of the withdrawal was rejected")
+		}
+		if frrDecodedWithdrawal(announced, peer, prefix) {
+			t.Fatal("the decode of the announcement passed as a decode of the withdrawal")
+		}
+		if frrDecodedWithdrawal("BGP: "+peer+" send UPDATE about "+prefix+" IPv4 unicast -- withdrawn\n", peer, prefix) {
+			t.Fatal("the send direction passed as FRR's receive decode")
+		}
+		if frrDecodedWithdrawal("BGP: "+peer+" rcvd UPDATE about "+prefix+" IPv4 unicast\nBGP: withdrawn\n", peer, prefix) {
+			t.Fatal("the withdrawn marker matched from a second line")
+		}
+		if frrDecodedWithdrawal(strings.ReplaceAll(withdrawn, peer, "172.30.0.22"), peer, prefix) {
+			t.Fatal("a neighbor whose address carries ze's as a prefix passed as ze")
+		}
+		// FRR 10.3.1 writes the neighbor as `<address>(<hostname>)`, and it spells
+		// the hostname `Unknown` for a peer that advertised none, so this is the
+		// form a live run reads. Every fixture above carries the bare address,
+		// which is why a predicate that could never match a real log stayed green.
+		if !frrDecodedWithdrawal(strings.ReplaceAll(withdrawn, peer, peer+"(Unknown)"), peer, prefix) {
+			t.Fatal("FRR's own `<address>(<hostname>)` spelling of the neighbor was rejected")
+		}
+		if frrDecodedWithdrawal(strings.ReplaceAll(withdrawn, peer, "172.30.0.22(Unknown)"), peer, prefix) {
+			t.Fatal("a longer neighbor address in FRR's own spelling passed as ze")
+		}
+		if err := requireNoAttributeError(withdrawn, peer, prefix); err != nil {
+			t.Fatalf("a withdrawal FRR accepted was reported as refused: %v", err)
+		}
+		missing := "BGP: [EC 33554482] " + peer + " Missing well-known attribute NEXT_HOP.\n"
+		if requireNoAttributeError(withdrawn+missing, peer, prefix) == nil {
+			t.Fatal("FRR's missing-attribute verdict passed as acceptance")
+		}
+		refused := "BGP: [EC 33554455] " + peer + "(Unknown) rcvd UPDATE with errors in attr(s)!! Withdrawing route.\n"
+		if requireNoAttributeError(withdrawn+refused, peer, prefix) == nil {
+			t.Fatal("FRR's attribute-error verdict passed as acceptance")
+		}
+		if requireNoAttributeError(announced+refused, peer, prefix) == nil {
+			t.Fatal("a log carrying no withdrawal decode passed as an accepted withdrawal")
+		}
+		if requireNoAttributeError("", peer, prefix) == nil {
+			t.Fatal("an unanswered log query passed as an accepted withdrawal")
+		}
+	})
+
+	t.Run("bgp-rfc7606-relay-shape-frr", func(t *testing.T) {
+		const (
+			replayed = "10.0.0.0/24"
+			want     = "65004"
+		)
+		transparent := fmt.Sprintf(`{"prefix":%q,"paths":[{"aspath":{"string":%q},"nexthops":[{"ip":"172.30.0.9"}]}]}`, replayed, want)
+		if err := requireFRRASPath(transparent, want); err != nil {
+			t.Fatalf("a route-server relay that kept the client's own path was rejected: %v", err)
+		}
+		if requireFRRASPath(`{"paths":[{"aspath":{"string":"65001 65004"}}]}`, want) == nil {
+			t.Fatal("a relay that prepended ze's own AS passed as route-server transparency")
+		}
+		if requireFRRASPath(`{"paths":[{"aspath":{"string":""}}]}`, want) == nil {
+			t.Fatal("an empty AS_PATH passed as the client's own path")
+		}
+		if requireFRRASPath("{}", want) == nil {
+			t.Fatal("a prefix FRR does not hold passed as a relayed path")
+		}
+		const (
+			announced = "203.0.113.0/24"
+			injector  = "172.30.0.9"
+		)
+		installed := frrInstalledRouteAnswer(announced, injector, "bgp")
+		if err := requireRouteInstalledVia(installed, announced, injector, "bgp"); err != nil {
+			t.Fatalf("the split announce FRR installed was rejected: %v", err)
+		}
+		if requireRouteInstalledVia(frrInstalledRouteAnswer(announced, "172.30.0.2", "bgp"), announced, injector, "bgp") == nil {
+			t.Fatal("a route installed through ze's own address passed as the relayed third-party next hop")
+		}
+		if requireRouteInstalledVia(frrInstalledRouteAnswer(replayed, injector, "bgp"), announced, injector, "bgp") == nil {
+			t.Fatal("another route's installation passed as the split announce's")
+		}
+		if requireRouteInstalledVia("", announced, injector, "bgp") == nil {
+			t.Fatal("an unanswered route query passed as an installed route")
+		}
+		renumbered := checkerGuardFailure(t, checkRFC7606MixedUpdate, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab did not reach its network guard: %s", renumbered)
+		}
+	})
+
+	t.Run("bgp-self-nexthop-withheld-frr", func(t *testing.T) {
+		const (
+			peer     = "172.30.0.2"
+			control  = "10.12.0.0/24"
+			withheld = "10.11.0.0/24"
+			injector = "172.30.0.9"
+			frrOwn   = "172.30.0.3"
+		)
+		decoded := "2026/08/31 03:18:06 BGP: [T1234-56789] " + peer + " rcvd " + control + " IPv4 unicast\n"
+		if !frrDecodedPrefix(decoded, peer, control) {
+			t.Fatal("FRR's own decode of the control route was rejected")
+		}
+		if frrDecodedPrefix(decoded, peer, withheld) {
+			t.Fatal("the withheld route passed on the control route's decode")
+		}
+		if !frrDecodedPrefix("BGP: "+peer+" rcvd UPDATE about "+control+" IPv4 unicast -- withdrawn\n", peer, control) {
+			t.Fatal("the withdrawn form of a decode was not read as the prefix reaching FRR")
+		}
+		if frrDecodedPrefix("BGP: "+peer+" rcvd 1"+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("a longer prefix carrying the wanted one passed")
+		}
+		if !frrDecodedPrefix("BGP: "+peer+"(Unknown) rcvd "+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("FRR's own `<address>(<hostname>)` spelling of the neighbor was rejected")
+		}
+		if frrDecodedPrefix("BGP: 172.30.0.22(Unknown) rcvd "+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("a longer neighbor address in FRR's own spelling passed as ze")
+		}
+		if frrDecodedPrefix("BGP: 172.30.0.22 rcvd "+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("a neighbor whose address carries ze's as a prefix passed as ze")
+		}
+		if frrDecodedPrefix("BGP: "+peer+" send "+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("the send direction passed as FRR's receive decode")
+		}
+		if frrDecodedPrefix("BGP: "+peer+" went from OpenConfirm to Established\nBGP: rcvd "+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("the peer and its decode matched across two log lines")
+		}
+		if frrDecodedPrefix("", peer, control) {
+			t.Fatal("an empty log passed as a decoded prefix")
+		}
+		third := netip.MustParseAddr(injector)
+		if err := requireSoleNextHop([]nextHop{{IP: injector}}, third); err != nil {
+			t.Fatalf("the third-party next hop ze relayed was rejected: %v", err)
+		}
+		if requireSoleNextHop([]nextHop{{IP: injector}, {IP: frrOwn}}, third) == nil {
+			t.Fatal("a second next hop beside the wanted one passed")
+		}
+		if requireSoleNextHop([]nextHop{{IP: frrOwn}}, third) == nil {
+			t.Fatal("FRR's own address passed as the third-party next hop")
+		}
+		if requireSoleNextHop(nil, third) == nil {
+			t.Fatal("a route carrying no next hop passed")
+		}
+		if requireSoleNextHop([]nextHop{{IP: "not-an-address"}}, third) == nil {
+			t.Fatal("an unparsable next hop passed")
+		}
+		renumbered := checkerGuardFailure(t, checkSelfNextHopWithheld, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab did not reach its network guard: %s", renumbered)
+		}
+	})
+
+	t.Run("bgp-rfc7999-blackhole-frr", func(t *testing.T) {
+		blackholed := netip.MustParseAddr("10.100.0.1")
+		uncovered := netip.MustParseAddr("198.51.100.1")
+		unagreed := netip.MustParseAddr("10.200.0.1")
+		fib := "172.30.0.0/24 dev eth0 proto kernel scope link src 172.30.0.2\n" +
+			"blackhole " + blackholed.String() + "\n" +
+			uncovered.String() + " via 172.30.0.3 dev eth0 proto bgp\n" +
+			unagreed.String() + " via 172.30.0.4 dev eth0 proto bgp\n"
+		if verdict := kernelRouteFor(fib, blackholed); verdict != kernelRouteDiscard {
+			t.Fatalf("the honored blackhole read as %s", verdict)
+		}
+		for _, forwarded := range []netip.Addr{uncovered, unagreed} {
+			if verdict := kernelRouteFor(fib, forwarded); verdict != kernelRouteForwarded {
+				t.Fatalf("the forwarded %s read as %s", forwarded, verdict)
+			}
+		}
+		if verdict := kernelRouteFor("blackhole "+blackholed.String()+"/32\n", blackholed); verdict != kernelRouteDiscard {
+			t.Fatalf("iproute2's /32 spelling of a discard route read as %s", verdict)
+		}
+		ignored := blackholed.String() + " via 172.30.0.3 dev eth0 proto bgp\n"
+		if verdict := kernelRouteFor(ignored, blackholed); verdict == kernelRouteDiscard {
+			t.Fatal("a forwarded route for the covered prefix passed as a discard route")
+		}
+		discarded := "blackhole " + uncovered.String() + "\n"
+		if verdict := kernelRouteFor(discarded, uncovered); verdict == kernelRouteForwarded {
+			t.Fatal("a discard route for the uncovered prefix passed as forwarded")
+		}
+		covering := "blackhole 10.100.0.0/24\n"
+		if verdict := kernelRouteFor(covering, blackholed); verdict != kernelRouteUnspecified {
+			t.Fatalf("a covering discard route answered for the announced host route as %s", verdict)
+		}
+		if verdict := kernelRouteFor(covering, netip.MustParseAddr("10.100.0.0")); verdict != kernelRouteUnspecified {
+			t.Fatalf("a covering discard route answered for the host route at its own network address as %s", verdict)
+		}
+		longer := "blackhole 10.100.0.10\n"
+		if verdict := kernelRouteFor(longer, blackholed); verdict != kernelRouteUnspecified {
+			t.Fatalf("a longer address carrying the wanted one answered as %s", verdict)
+		}
+		split := "blackhole 10.9.9.9\n" + blackholed.String() + " via 172.30.0.3 dev eth0\n"
+		if verdict := kernelRouteFor(split, blackholed); verdict != kernelRouteForwarded {
+			t.Fatalf("the discard verb matched from another route's line, giving %s", verdict)
+		}
+		onLink := blackholed.String() + " dev eth0 scope link\n"
+		if verdict := kernelRouteFor(onLink, blackholed); verdict != kernelRouteOther {
+			t.Fatalf("a route in neither shape read as %s", verdict)
+		}
+		if verdict := kernelRouteFor("", blackholed); verdict != kernelRouteUnspecified {
+			t.Fatalf("an empty route table read as %s", verdict)
+		}
+	})
+
+	t.Run("bgp-route-server-frr", func(t *testing.T) {
+		const (
+			prefix = "10.99.0.0/24"
+			want   = "65002"
+		)
+		relayed := prefix + "           unicast [ze_peer 03:18:06.271] * (100) [AS65002i]\n" +
+			"\tvia 172.30.0.2 on eth0\n" +
+			"\tpreference: 100\n" +
+			"\tfrom: 172.30.0.2\n" +
+			"\tsource: BGP\n" +
+			"\tbgp_origin: IGP\n" +
+			"\tbgp_path: " + want + "\n" +
+			"\tbgp_next_hop: 172.30.0.2\n" +
+			"\tInternal route handling values: 0L 2G 0S id 1\n"
+		if err := requireBIRDASPath(relayed, prefix, want); err != nil {
+			t.Fatalf("a relay that kept the client's own path was rejected: %v", err)
+		}
+		prepended := strings.ReplaceAll(relayed, "bgp_path: "+want, "bgp_path: 65001 "+want)
+		if requireBIRDASPath(prepended, prefix, want) == nil {
+			t.Fatal("a relay that prepended ze's own AS passed as route-server transparency")
+		}
+		appended := strings.ReplaceAll(relayed, "bgp_path: "+want, "bgp_path: "+want+" 65001")
+		if requireBIRDASPath(appended, prefix, want) == nil {
+			t.Fatal("a relay that added ze's AS elsewhere in the path passed")
+		}
+		emptied := strings.ReplaceAll(relayed, "bgp_path: "+want, "bgp_path: ")
+		if requireBIRDASPath(emptied, prefix, want) == nil {
+			t.Fatal("an empty AS_PATH passed as the client's own path")
+		}
+		covering := strings.ReplaceAll(relayed, prefix, "10.0.0.0/8")
+		if requireBIRDASPath(covering, prefix, want) == nil {
+			t.Fatal("BIRD's longest-match answer about a covering route passed as this prefix's")
+		}
+		longer := strings.ReplaceAll(relayed, prefix, "110.99.0.0/24")
+		if requireBIRDASPath(longer, prefix, want) == nil {
+			t.Fatal("a longer prefix carrying the wanted one passed as the wanted route")
+		}
+		if requireBIRDASPath(relayed+relayed, prefix, want) == nil {
+			t.Fatal("two paths for one prefix passed the exact-one branch")
+		}
+		if requireBIRDASPath(relayed, "10.98.0.0/24", want) == nil {
+			t.Fatal("an answer about another prefix passed as the answer about the one asked for")
+		}
+		if requireBIRDASPath(relayed, prefix, "65004") == nil {
+			t.Fatal("the predicate read a fixed AS_PATH rather than the one it was given")
+		}
+		if requireBIRDASPath("", prefix, want) == nil {
+			t.Fatal("an unanswered route query passed as a decoded AS_PATH")
+		}
+	})
+
+	t.Run("bgp-wellknown-noexport-frr", func(t *testing.T) {
+		const (
+			withheld = "10.10.0.0/24"
+			control  = "10.11.0.0/24"
+		)
+		table := func(prefixes ...string) string {
+			routes := make([]string, 0, len(prefixes))
+			for _, prefix := range prefixes {
+				routes = append(routes, fmt.Sprintf("%q:[{\"prefix\":%q,\"valid\":true}]", prefix, prefix))
+			}
+			return `{"vrfId":0,"localAS":65002,"routes":{` + strings.Join(routes, ",") + `}}`
+		}
+		if err := requireRouteWithheld(table(control), withheld, control); err != nil {
+			t.Fatalf("a table holding the control route alone was rejected: %v", err)
+		}
+		if requireRouteWithheld(table(control, withheld), withheld, control) == nil {
+			t.Fatal("the external observer learning the NO_EXPORT route passed")
+		}
+		if requireRouteWithheld(table(withheld), withheld, control) == nil {
+			t.Fatal("a table missing the control route passed as a withheld route")
+		}
+		if requireRouteWithheld(table(), withheld, control) == nil {
+			t.Fatal("an empty table passed as proof that ze withheld the route")
+		}
+		if err := requireRouteWithheld(table(control, "110.10.0.0/24"), withheld, control); err != nil {
+			t.Fatalf("a longer prefix carrying the withheld one was read as the withheld route: %v", err)
+		}
+		if requireRouteWithheld(table("110.11.0.0/24"), withheld, control) == nil {
+			t.Fatal("a longer prefix carrying the control one passed as the control route")
+		}
+		const third = "10.12.0.0/24"
+		if err := requireRouteWithheld(table(control), third, control); err != nil {
+			t.Fatalf("a prefix the table does not hold was reported as learned: %v", err)
+		}
+		if requireRouteWithheld(table(control, third), third, control) == nil {
+			t.Fatal("the predicate read a fixed withheld prefix rather than the one it was given")
+		}
+		if err := requireRouteWithheld(table(third), withheld, third); err != nil {
+			t.Fatalf("the predicate read a fixed control prefix rather than the one it was given: %v", err)
+		}
+		if requireRouteWithheld("", withheld, control) == nil {
+			t.Fatal("an unanswered table query passed as a withheld route")
+		}
+		renumbered := checkerGuardFailure(t, checkNoExportBoundary, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+		}
+	})
+
+	t.Run("bgp-local-pref-strip-gobgp", func(t *testing.T) {
+		const (
+			prefix   = "10.54.0.0/24"
+			sourceAS = "65004"
+			nextHop  = "172.30.0.9"
+			path     = "65001 " + sourceAS
+		)
+		stripped := gobgpTable(gobgpRouteLine(prefix, nextHop, path, "[{Origin: i}]"))
+		if err := requireGoBGPSourceBlock(stripped, prefix, sourceAS, nextHop); err != nil {
+			t.Fatalf("the relayed route was not read as the injected one: %v", err)
+		}
+		if err := requireGoBGPAttributeAbsent(stripped, prefix, gobgpLocalPrefAttribute); err != nil {
+			t.Fatalf("a stripped LOCAL_PREF was rejected: %v", err)
+		}
+		leaked := gobgpTable(gobgpRouteLine(prefix, nextHop, path, "[{Origin: i} {LocalPref: 200}]"))
+		if requireGoBGPAttributeAbsent(leaked, prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a LOCAL_PREF that crossed to an external peer passed as a stripped attribute")
+		}
+		zeroed := gobgpTable(gobgpRouteLine(prefix, nextHop, path, "[{Origin: i} {LocalPref: 0}]"))
+		if requireGoBGPAttributeAbsent(zeroed, prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a LOCAL_PREF carrying zero read as an absent attribute")
+		}
+		neighbor := gobgpTable(
+			gobgpRouteLine(prefix, nextHop, path, "[{Origin: i}]"),
+			gobgpRouteLine("10.54.1.0/24", nextHop, path, "[{Origin: i} {LocalPref: 200}]"),
+		)
+		if err := requireGoBGPAttributeAbsent(neighbor, prefix, gobgpLocalPrefAttribute); err != nil {
+			t.Fatalf("another route's LOCAL_PREF was read as this route's: %v", err)
+		}
+		if requireGoBGPAttributeAbsent(neighbor, "10.54.1.0/24", gobgpLocalPrefAttribute) == nil {
+			t.Fatal("the predicate read a fixed prefix rather than the one it was given")
+		}
+		longer := gobgpTable(gobgpRouteLine("110.54.0.0/24", nextHop, path, "[{Origin: i}]"))
+		if requireGoBGPAttributeAbsent(longer, prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a longer prefix carrying the wanted one answered as the wanted route")
+		}
+		covering := gobgpTable(gobgpRouteLine("10.54.0.0/16", nextHop, path, "[{Origin: i}]"))
+		if requireGoBGPAttributeAbsent(covering, prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a covering route answered for the announced prefix")
+		}
+		if requireGoBGPAttributeAbsent(stripped+gobgpRouteLine(prefix, nextHop, path, "[{Origin: i}]"), prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("two paths for one prefix passed the exact-one branch")
+		}
+		message := "Network " + prefix + " is not in table\n"
+		if requireGoBGPAttributeAbsent(message, prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a not-in-table message naming the prefix passed as a decode of it")
+		}
+		if requireGoBGPAttributeAbsent("", prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("an unanswered RIB query passed as a stripped attribute")
+		}
+		rebuilt := gobgpTable(gobgpRouteLine(prefix, "172.30.0.2", path, "[{Origin: i}]"))
+		if requireGoBGPSourceBlock(rebuilt, prefix, sourceAS, nextHop) == nil {
+			t.Fatal("a route carrying ze's own next hop passed as the relayed source block")
+		}
+		reoriginated := gobgpTable(gobgpRouteLine(prefix, nextHop, "65001", "[{Origin: i}]"))
+		if requireGoBGPSourceBlock(reoriginated, prefix, sourceAS, nextHop) == nil {
+			t.Fatal("a path without the injected AS passed as the relayed source block")
+		}
+		renumbered := checkerGuardFailure(t, checkLocalPrefStrip, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+		}
+	})
+
+	t.Run("bgp-med-across-as-gobgp", func(t *testing.T) {
+		const (
+			relayed    = "10.60.0.0/24"
+			originated = "10.60.9.0/24"
+			sourceAS   = "65004"
+			zeAS       = "65001"
+			injector   = "172.30.0.9"
+			zeAddress  = "172.30.0.2"
+			metric     = "42"
+		)
+		table := gobgpTable(
+			gobgpRouteLine(relayed, injector, zeAS+" "+sourceAS, "[{Origin: i}]"),
+			gobgpRouteLine(originated, zeAddress, zeAS, "[{Origin: i} {Med: "+metric+"}]"),
+		)
+		if err := requireGoBGPSourceBlock(table, relayed, sourceAS, injector); err != nil {
+			t.Fatalf("the relayed route was not read as the injected one: %v", err)
+		}
+		if err := requireGoBGPAttributeAbsent(table, relayed, gobgpMEDAttribute); err != nil {
+			t.Fatalf("a metric that stopped at ze was rejected: %v", err)
+		}
+		if err := requireGoBGPSourceBlock(table, originated, zeAS, zeAddress); err != nil {
+			t.Fatalf("the originated route was not read as ze's own: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, originated, gobgpMEDAttribute, metric); err != nil {
+			t.Fatalf("ze's own metric was rejected: %v", err)
+		}
+		propagated := gobgpTable(gobgpRouteLine(relayed, injector, zeAS+" "+sourceAS, "[{Origin: i} {Med: 100}]"))
+		if requireGoBGPAttributeAbsent(propagated, relayed, gobgpMEDAttribute) == nil {
+			t.Fatal("a received metric that crossed to another neighboring AS passed as stopped")
+		}
+		zeroed := gobgpTable(gobgpRouteLine(relayed, injector, zeAS+" "+sourceAS, "[{Origin: i} {Med: 0}]"))
+		if requireGoBGPAttributeAbsent(zeroed, relayed, gobgpMEDAttribute) == nil {
+			t.Fatal("a metric carrying zero read as an absent attribute")
+		}
+		blanket := gobgpTable(gobgpRouteLine(originated, zeAddress, zeAS, "[{Origin: i}]"))
+		if requireGoBGPAttributeValue(blanket, originated, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("a blanket strip of attribute 4 passed as the propagation rule")
+		}
+		injected := gobgpTable(gobgpRouteLine(originated, zeAddress, zeAS, "[{Origin: i} {Med: 100}]"))
+		if requireGoBGPAttributeValue(injected, originated, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("the injected metric passed as the one ze set itself")
+		}
+		longerValue := gobgpTable(gobgpRouteLine(originated, zeAddress, zeAS, "[{Origin: i} {Med: 420}]"))
+		if requireGoBGPAttributeValue(longerValue, originated, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("a metric carrying the wanted one as a text prefix passed as the wanted value")
+		}
+		if requireGoBGPAttributeValue(table, originated, gobgpLocalPrefAttribute, metric) == nil {
+			t.Fatal("the predicate read a fixed attribute name rather than the one it was given")
+		}
+		if requireGoBGPAttributeValue("", originated, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("an unanswered RIB query passed as ze's own metric")
+		}
+		renumbered := checkerGuardFailure(t, checkMEDAcrossAS, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+		}
+	})
+
+	t.Run("bgp-med-remove-configured-gobgp", func(t *testing.T) {
+		const (
+			removed  = "10.61.0.0/24"
+			control  = "10.61.1.0/24"
+			sourceAS = "65005"
+			source   = "172.30.0.3"
+			metric   = "100"
+		)
+		table := gobgpTable(
+			gobgpRouteLine(removed, source, sourceAS, "[{Origin: i} [65005:1]]"),
+			gobgpRouteLine(control, source, sourceAS, "[{Origin: i} {Med: "+metric+"}]"),
+		)
+		if err := requireGoBGPSourceBlock(table, removed, sourceAS, source); err != nil {
+			t.Fatalf("the matched route was not read as the source one: %v", err)
+		}
+		if err := requireGoBGPAttributeAbsent(table, removed, gobgpMEDAttribute); err != nil {
+			t.Fatalf("the configured removal was rejected: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, control, gobgpMEDAttribute, metric); err != nil {
+			t.Fatalf("the control route's kept metric was rejected: %v", err)
+		}
+		if requireGoBGPAttributeAbsent(table, control, gobgpMEDAttribute) == nil {
+			t.Fatal("the predicate read a fixed prefix rather than the one it was given")
+		}
+		kept := gobgpTable(gobgpRouteLine(removed, source, sourceAS, "[{Origin: i} {Med: "+metric+"}]"))
+		if requireGoBGPAttributeAbsent(kept, removed, gobgpMEDAttribute) == nil {
+			t.Fatal("a route the policy named that kept its metric passed as removed")
+		}
+		unconditional := gobgpTable(gobgpRouteLine(control, source, sourceAS, "[{Origin: i}]"))
+		if requireGoBGPAttributeValue(unconditional, control, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("an unconditional strip passed as a mechanism the operator selected")
+		}
+		rewritten := gobgpTable(gobgpRouteLine(control, source, sourceAS, "[{Origin: i} {Med: 1000}]"))
+		if requireGoBGPAttributeValue(rewritten, control, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("a metric carrying the wanted one as a text prefix passed as the wanted value")
+		}
+		foreign := gobgpTable(gobgpRouteLine(removed, source, "65004", "[{Origin: i}]"))
+		if requireGoBGPSourceBlock(foreign, removed, sourceAS, source) == nil {
+			t.Fatal("a route from another AS passed as the source one")
+		}
+		// This body derives every address from the selected network, so it owes the
+		// selected-network guard rather than the base-network one: networkHostAddress
+		// panics on the zero Addr instead of answering.
+		unselected := checkerGuardFailure(t, checkMEDRemovalConfiguration, interoplab.Network{})
+		if !strings.Contains(unselected, "no selected IPv4 network") {
+			t.Fatalf("a lab with no selected network was not named before the first query: %s", unselected)
+		}
+	})
+
+	t.Run("bgp-attribute-default-localpref-gobgp", func(t *testing.T) {
+		const (
+			configured = "10.64.0.0/24"
+			control    = "10.64.1.0/24"
+			sourceAS   = "65005"
+			source     = "172.30.0.9"
+			path       = "65001 " + sourceAS
+			// 80 from bgp { defaults { attribute { local-preference } } },
+			// plus the chain's 50.
+			computed = "130"
+			// What the same chain writes when the configured base never reaches
+			// the plugin: the schema's declared 100 plus 50.
+			fromDeclaredBase = "150"
+			// What the forward rail adds toward an internal peer for a route
+			// that carries none (RFC 4271 Section 5.1.5).
+			internal = "100"
+		)
+		table := gobgpTable(
+			gobgpRouteLine(configured, source, path, "[{Origin: i} {LocalPref: "+computed+"} [65005:1]]"),
+			gobgpRouteLine(control, source, path, "[{Origin: i} {LocalPref: "+internal+"}]"),
+		)
+		if err := requireGoBGPSourceBlock(table, configured, sourceAS, source); err != nil {
+			t.Fatalf("the matched route was not read as the injected one: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, configured, gobgpLocalPrefAttribute, computed); err != nil {
+			t.Fatalf("the configured base's result was rejected: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, control, gobgpLocalPrefAttribute, internal); err != nil {
+			t.Fatalf("the control route's internal-peer preference was rejected: %v", err)
+		}
+		// The defect this scenario exists to catch. The chain computing from the
+		// schema's declared base writes 150, and that must not read as the
+		// configured 130.
+		declaredBase := gobgpTable(gobgpRouteLine(configured, source, path, "[{Origin: i} {LocalPref: "+fromDeclaredBase+"}]"))
+		if requireGoBGPAttributeValue(declaredBase, configured, gobgpLocalPrefAttribute, computed) == nil {
+			t.Fatal("arithmetic on the declared base passed as arithmetic on the configured one")
+		}
+		// No preference at all is not a value, and it must not read as one.
+		stripped := gobgpTable(gobgpRouteLine(configured, source, path, "[{Origin: i}]"))
+		if requireGoBGPAttributeValue(stripped, configured, gobgpLocalPrefAttribute, computed) == nil {
+			t.Fatal("a route with no preference at all passed as the computed one")
+		}
+		// A blanket rewrite would satisfy the assertion above, so the control
+		// has to refuse the computed preference.
+		blanket := gobgpTable(gobgpRouteLine(control, source, path, "[{Origin: i} {LocalPref: "+computed+"}]"))
+		if requireGoBGPAttributeValue(blanket, control, gobgpLocalPrefAttribute, internal) == nil {
+			t.Fatal("a blanket rewrite passed as an operation the operator selected")
+		}
+		// The configured base is the arithmetic's starting point, not the value
+		// the forward rail writes, so 80 on the control is a leak.
+		leaked := gobgpTable(gobgpRouteLine(control, source, path, "[{Origin: i} {LocalPref: 80}]"))
+		if requireGoBGPAttributeValue(leaked, control, gobgpLocalPrefAttribute, internal) == nil {
+			t.Fatal("the arithmetic base written onto the wire passed as the internal-peer default")
+		}
+		// RFC 4271 Section 5.1.5 obliges the attribute toward an internal peer,
+		// so a control that arrives with none is a defect, not a pass.
+		absent := gobgpTable(gobgpRouteLine(control, source, path, "[{Origin: i}]"))
+		if requireGoBGPAttributeValue(absent, control, gobgpLocalPrefAttribute, internal) == nil {
+			t.Fatal("a relayed iBGP route with no LOCAL_PREF passed the control")
+		}
+		if requireGoBGPSourceBlock(gobgpTable(gobgpRouteLine(configured, source, "65001", "[{Origin: i}]")), configured, sourceAS, source) == nil {
+			t.Fatal("a path without the injected AS passed as the relayed source block")
+		}
+		// inject.msg writes the NEXT_HOP as raw hex, so the body owes the
+		// base-network guard rather than the selected-network one.
+		renumbered := checkerGuardFailure(t, checkAttributeDefaultLocalPref, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+		}
+	})
+
+	t.Run("bgp-med-increment-gobgp", func(t *testing.T) {
+		const (
+			incremented = "10.63.0.0/24"
+			control     = "10.63.1.0/24"
+			sourceAS    = "65005"
+			source      = "172.30.0.9"
+			sent        = "100"
+			computed    = "150"
+			// What the increment writes when the filter subject does not name
+			// `med`: the arithmetic starts from the RFC 4271 Section 9.1.2.2
+			// absent base of 0 instead of from the route's metric.
+			fromAbsentBase = "50"
+		)
+		table := gobgpTable(
+			gobgpRouteLine(incremented, source, sourceAS, "[{Origin: i} {Med: "+computed+"} [65005:1]]"),
+			gobgpRouteLine(control, source, sourceAS, "[{Origin: i} {Med: "+sent+"}]"),
+		)
+		if err := requireGoBGPSourceBlock(table, incremented, sourceAS, source); err != nil {
+			t.Fatalf("the matched route was not read as the injected one: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, incremented, gobgpMEDAttribute, computed); err != nil {
+			t.Fatalf("the incremented metric was rejected: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, control, gobgpMEDAttribute, sent); err != nil {
+			t.Fatalf("the control route's kept metric was rejected: %v", err)
+		}
+		// The defect this scenario exists to catch. `increment 50` computing
+		// from an absent-attribute base writes 50 on a route that carried 100,
+		// and that must not read as the wanted 150.
+		absentBase := gobgpTable(gobgpRouteLine(incremented, source, sourceAS, "[{Origin: i} {Med: "+fromAbsentBase+"}]"))
+		if requireGoBGPAttributeValue(absentBase, incremented, gobgpMEDAttribute, computed) == nil {
+			t.Fatal("arithmetic on the absent base passed as arithmetic on the route's metric")
+		}
+		// No arithmetic at all leaves the injected metric in place.
+		untouched := gobgpTable(gobgpRouteLine(incremented, source, sourceAS, "[{Origin: i} {Med: "+sent+"}]"))
+		if requireGoBGPAttributeValue(untouched, incremented, gobgpMEDAttribute, computed) == nil {
+			t.Fatal("a route the policy never touched passed as incremented")
+		}
+		// A blanket rewrite would satisfy the first assertion, so the control
+		// has to refuse the computed value.
+		blanket := gobgpTable(gobgpRouteLine(control, source, sourceAS, "[{Origin: i} {Med: "+computed+"}]"))
+		if requireGoBGPAttributeValue(blanket, control, gobgpMEDAttribute, sent) == nil {
+			t.Fatal("a blanket rewrite passed as an operation the operator selected")
+		}
+		// A stripped metric is not a value, and it must not read as one.
+		stripped := gobgpTable(gobgpRouteLine(incremented, source, sourceAS, "[{Origin: i}]"))
+		if requireGoBGPAttributeValue(stripped, incremented, gobgpMEDAttribute, computed) == nil {
+			t.Fatal("a route with no metric at all passed as incremented")
+		}
+		if requireGoBGPSourceBlock(gobgpTable(gobgpRouteLine(incremented, source, "65004", "[{Origin: i}]")), incremented, sourceAS, source) == nil {
+			t.Fatal("a route from another AS passed as the injected one")
+		}
+		// This body derives every address from the selected network, so it owes
+		// the selected-network guard: networkHostAddress panics on the zero Addr
+		// instead of answering.
+		unselectedIncrement := checkerGuardFailure(t, checkMEDIncrementFromRouteValue, interoplab.Network{})
+		if !strings.Contains(unselectedIncrement, "no selected IPv4 network") {
+			t.Fatalf("a lab with no selected network was not named before the first query: %s", unselectedIncrement)
+		}
+	})
+
+	t.Run("bgp-rfc7606-typed-nlri-discard", func(t *testing.T) {
+		report := func(lines ...string) string {
+			return strings.Join(lines, "\n") + "\n"
+		}
+		const (
+			pass        = "result: PASS"
+			oracle      = "plugin: no-unrecognized-evpn-type"
+			established = "note: established: yes"
+			updates     = "note: route-bearing-updates: 1"
+			evpn        = "note: evpn-nlri: 1"
+		)
+		relayed := report(pass, oracle, updates, established, evpn)
+		if !speakerReportPrinted(relayed) {
+			t.Fatal("a finished verdict was read as an unfinished run")
+		}
+		if speakerReportPrinted(report("waiting for the relayed EVPN routes")) {
+			t.Fatal("a log without a verdict line was read as a finished run")
+		}
+		if err := requireSpeakerEVPNDiscard(relayed); err != nil {
+			t.Fatalf("a verdict naming only the assigned EVPN route type was rejected: %v", err)
+		}
+		unassigned := report(
+			"result: FAIL",
+			oracle,
+			"fail: RFC 7606 Section 5.4: received EVPN route type 99, which is not assigned; it must have been discarded, not relayed",
+			updates, established, evpn,
+		)
+		if requireSpeakerEVPNDiscard(unassigned) == nil {
+			t.Fatal("an unassigned EVPN route type that reached the speaker passed")
+		}
+		if requireSpeakerEVPNDiscard(report(pass, oracle, updates, "note: established: no", evpn)) == nil {
+			t.Fatal("a session that never came up passed as proof of a discard")
+		}
+		if requireSpeakerEVPNDiscard(report(pass, oracle, updates, "note: not-established: yes", evpn)) == nil {
+			t.Fatal("a note naming not-established answered for established")
+		}
+		if requireSpeakerEVPNDiscard(report(pass, oracle, updates, established, "note: evpn-nlri: 0")) == nil {
+			t.Fatal("a relay that delivered no EVPN NLRI passed as a discard")
+		}
+		if requireSpeakerEVPNDiscard(report(pass, oracle, "note: route-bearing-updates: 0", established, evpn)) == nil {
+			t.Fatal("a session that carried no route-bearing UPDATE passed as a discard")
+		}
+		unmeasured := requireSpeakerEVPNDiscard(report(pass, oracle, updates, established))
+		measuredZero := requireSpeakerEVPNDiscard(report(pass, oracle, updates, established, "note: evpn-nlri: 0"))
+		if unmeasured == nil || measuredZero == nil {
+			t.Fatalf("an unmeasured EVPN count passed: unmeasured=%v zero=%v", unmeasured, measuredZero)
+		}
+		if unmeasured.Error() == measuredZero.Error() {
+			t.Fatalf("a count the speaker never took reported the same failure as a measured zero: %v", unmeasured)
+		}
+		if requireSpeakerEVPNDiscard(report(pass, oracle, updates, established, "note: evpn-nlri: many")) == nil {
+			t.Fatal("an EVPN count that is not a number passed as a count")
+		}
+		if requireSpeakerEVPNDiscard(report(pass, "plugin: no-duplicate-attribute", updates, established, evpn)) == nil {
+			t.Fatal("another oracle's verdict answered for this requirement")
+		}
+		if requireSpeakerEVPNDiscard(report(oracle, updates, established, evpn)) == nil {
+			t.Fatal("notes with no verdict line passed as a PASS")
+		}
+		if requireSpeakerEVPNDiscard("") == nil {
+			t.Fatal("an unread speaker log passed as a discard")
+		}
+		// The body itself, driven with a lab that answers the speaker's log and
+		// nothing else. It reaches the verdict with no container, so both polarities
+		// of the whole checker run here rather than only the predicate's.
+		if err := checkRFC7606TypedNLRIDiscard(t.Context(), &interoplab.CheckContext{Lab: &recordingLab{logs: relayed}}); err != nil {
+			t.Fatalf("the checker rejected a verdict naming only the assigned EVPN route type: %v", err)
+		}
+		if err := checkRFC7606TypedNLRIDiscard(t.Context(), &interoplab.CheckContext{Lab: &recordingLab{logs: unassigned}}); err == nil {
+			t.Fatal("the checker passed a verdict reporting an unassigned EVPN route type")
+		}
+	})
+
+	t.Run("bgp-addpath-rail-agreement-speaker", func(t *testing.T) {
+		const update = "0000000000000007180a6300"
+		logs := "established: yes\nresult: PASS\nnote: update-hex: " + update + "\n"
+		body, err := speakerRouteUpdate(logs, "speaker")
+		if err != nil || fmt.Sprintf("%x", body) != update {
+			t.Fatalf("valid ADD-PATH UPDATE = %x, %v", body, err)
+		}
+		if _, err := speakerRouteUpdate(logs+"note: update-hex: "+update+"\n", "speaker"); err == nil {
+			t.Fatal("two route-bearing UPDATEs passed the exact-one branch")
+		}
+		bare := "established: yes\nresult: PASS\nnote: update-hex: 00000000180a6300\n"
+		if _, err := speakerRouteUpdate(bare, "speaker"); err == nil {
+			t.Fatal("bare, non-ADD-PATH NLRI passed")
+		}
+	})
+
+	t.Run("bgp-holdtime-deadpeer-frr", func(t *testing.T) {
+		if holdNotificationSeen("notification sent\nhold timer expired") {
+			t.Fatal("hold notification matched tokens from different log lines")
+		}
+		if !holdNotificationSeen("NOTIFICATION sent: Hold Timer Expired") {
+			t.Fatal("hold notification did not match one complete peer event")
+		}
+		if frrReceivedHoldExpiry(map[string]any{"lastResetDueTo": "BGP Notification send", "lastNotificationReason": "Hold Timer Expired"}) {
+			t.Fatal("FRR-originated notification passed as a received notification")
+		}
+		if !frrReceivedHoldExpiry(map[string]any{"lastResetDueTo": "BGP Notification receive", "lastNotificationReason": "Hold Timer Expired"}) {
+			t.Fatal("received hold expiry was rejected")
+		}
+	})
+
+	t.Run("bgp-max-prefix-per-family-frr", func(t *testing.T) {
+		if !maxPrefixWarnOnlyDecision("prefix count exceeded maximum family=ipv4/unicast teardown=false") {
+			t.Fatal("complete warn-only decision was rejected")
+		}
+		if maxPrefixWarnOnlyDecision("prefix count exceeded maximum\nfamily=ipv4/unicast teardown=false") {
+			t.Fatal("decision tokens on separate lines passed")
+		}
+		if maxPrefixWarnOnlyDecision("prefix count exceeded maximum family=ipv4/unicast teardown=true") {
+			t.Fatal("teardown family passed warn-only decision")
+		}
+	})
+
+	t.Run("bgp-relay-withdraw-reflector-frr", func(t *testing.T) {
+		network := interoplab.Network{IPv4: netip.MustParsePrefix("172.30.44.0/24")}
+		originator, cluster := reflectorAttributeTokens(network)
+		if originator != "800904AC1E2C03" || cluster != "800A04AC1E2C02" {
+			t.Fatalf("reflector attributes = %s, %s", originator, cluster)
+		}
+		if err := requireNoEarlyReflectorWithdrawal("advertisement only"); err != nil {
+			t.Fatalf("clean pre-withdrawal log failed: %v", err)
+		}
+		if err := requireNoEarlyReflectorWithdrawal(":02:0004180a14000000"); err == nil {
+			t.Fatal("early withdrawal body passed")
+		}
+	})
+
+	t.Run("bgp-wire-edit-api-origin-bird", func(t *testing.T) {
+		recorder := &recordingLab{output: "10.55.0.0/24\n\tbgp_community: (65001,100) (65001,200)\n\tbgp_large_community: (65001, 0, 1)\n"}
+		if err := checkBIRDAPICommunities(t.Context(), recorder, "10.55.0.0/24"); err != nil {
+			t.Fatalf("scoped community lines failed: %v", err)
+		}
+		recorder.output = "10.55.0.0/24\n\tbgp_community: (65001,100)\n\tother: (65001,200)\n\tbgp_large_community: (65001, 0, 1)\n"
+		if err := checkBIRDAPICommunities(t.Context(), recorder, "10.55.0.0/24"); err == nil {
+			t.Fatal("community on the wrong attribute line passed")
+		}
+		recorder.logs = "ZE-OBSERVER-FAIL: queue rail lost"
+		if err := observerFailure(t.Context(), recorder); err == nil {
+			t.Fatal("observer failure sentinel passed")
+		}
+	})
+
+	t.Run("isis-purge-reorig-frr", func(t *testing.T) {
+		const golden = "831b010612010000001b0000000000000002000000001000c02c01"
+		pdu := buildISISL1Purge([6]byte{0, 0, 0, 0, 0, 2}, 4096, 0, 0)
+		if got := fmt.Sprintf("%x", pdu); got != golden {
+			t.Fatalf("purge PDU = %s, want %s", got, golden)
+		}
+		frame, err := buildISISEthernetFrame(net.HardwareAddr{2, 66, 172, 30, 44, 2}, pdu[:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := fmt.Sprintf("%x", frame[:17]); got != "0180c20000140242ac1e2c02001efefe03" {
+			t.Fatalf("802.3/LLC header = %s", got)
+		}
+		recorder := &recordingLab{output: "02:42:ac:1e:2c:02\n"}
+		called := false
+		err = injectISISOwnLSPPurge(t.Context(), recorder, func(_ context.Context, _ interoplab.CheckerLab, peer, interfaceName string, sent []byte) error {
+			called = true
+			if peer != "ze" || interfaceName != "eth0" || !bytes.Equal(sent, frame) {
+				t.Fatalf("inject call = peer %s interface %s frame %x, want ze eth0 %x", peer, interfaceName, sent, frame)
+			}
+			return nil
+		})
+		if err != nil || !called {
+			t.Fatalf("in-container purge injection seam = called %v, err %v", called, err)
+		}
+		recorder.output = "ze-purge.00-00 83 0x00001001 0xc530 1176 0/0/0"
+		row, err := queryISISLSP(t.Context(), recorder)
+		if err != nil || row.sequence != 4097 || row.holdtime != 1176 || row.pduLen != 83 {
+			t.Fatalf("IS-IS LSP row = %+v, %v", row, err)
+		}
+		recorder.output = "ze-purge.00-00 27 0x00001000 0xc530 (0) 0/0/0"
+		row, err = queryISISLSP(t.Context(), recorder)
+		if err != nil || row.holdtime != 0 || row.pduLen != 27 {
+			t.Fatalf("purged IS-IS LSP row = %+v, %v", row, err)
+		}
+	})
+
+	t.Run("ospf-lfa-frr", func(t *testing.T) {
+		rows := []map[string]any{{"prefix": "172.30.255.3/32", "next-hops": []any{
+			map[string]any{"protected": true, "backup": "172.30.0.3", "repair-labels": []any{"not-a-label"}},
+		}}}
+		if !fastRerouteProtected(rows, false) {
+			t.Fatal("base LFA rejected a protected backup because of unused repair metadata")
+		}
+	})
+
+	t.Run("ospf-ti-lfa-frr", func(t *testing.T) {
+		sr := map[string]any{
+			"enabled":     true,
+			"srgb":        []any{map[string]any{"lower-bound": float64(16000), "upper-bound": float64(23999)}},
+			"prefix-sids": []any{map[string]any{"prefix": "172.30.0.2/32", "index": float64(200)}},
+		}
+		if !srProgrammed(sr) {
+			t.Fatal("configured SRGB and Prefix-SID were rejected")
+		}
+		sr["enabled"] = false
+		if srProgrammed(sr) {
+			t.Fatal("disabled SR state passed")
+		}
+		rows := []map[string]any{{"prefix": "172.30.255.3/32", "next-hops": []any{
+			map[string]any{"protected": true, "backup": "172.30.0.3", "repair-labels": []any{float64(16000)}},
+		}}}
+		if !fastRerouteProtected(rows, true) {
+			t.Fatal("protected TI-LFA backup was rejected")
+		}
+		rows[0]["next-hops"] = []any{map[string]any{"protected": true, "backup": "172.30.0.3", "repair-labels": []any{float64(0x100000)}}}
+		if fastRerouteProtected(rows, true) {
+			t.Fatal("repair label wider than 20 bits passed")
+		}
+	})
+
+	t.Run("show-rib-under-frr-load", func(t *testing.T) {
+		if ribLoadRoutes != 256 || ribLoadWalkers != 8 || ribLoadWindow != 45*time.Second {
+			t.Fatalf("load dimensions changed: routes=%d walkers=%d window=%s", ribLoadRoutes, ribLoadWalkers, ribLoadWindow)
+		}
+		recorder := &recordingLab{}
+		if err := setFRRRedistribution(t.Context(), recorder, false); err != nil {
+			t.Fatal(err)
+		}
+		if err := setFRRRedistribution(t.Context(), recorder, true); err != nil {
+			t.Fatal(err)
+		}
+		if recorder.reads != 2 {
+			t.Fatalf("redistribution mutations = %d, want 2", recorder.reads)
+		}
+	})
+}
+
+// The sentence a body prints when the lab is renumbered away from the network its
+// raw-hex injections name. A scenario whose inject.msg carries a hex NEXT_HOP can
+// only run on the base network, and saying so is what stops a renumbered lab from
+// reading as an egress defect.
+const renumberedNetworkNeedle = "the injected NEXT_HOP octets name a peer only on"
+
+// renumberedNetwork is a selected network other than the base one, which is what
+// interoplab.Discover hands a checker when the base subnet is already taken.
+func renumberedNetwork() interoplab.Network {
+	return interoplab.Network{
+		IPv4: netip.MustParsePrefix("172.30.44.0/24"),
+		IPv6: netip.MustParsePrefix("fd00:1e:2c::/64"),
+	}
+}
+
+// checkerGuardFailure runs one checker over a lab that answers an Established BGP
+// session and nothing else, then returns what the checker said. A body whose
+// network guard sits behind a session assertion still reaches that guard. The
+// query cancels its context as it returns the initial observation, so a state
+// that does not satisfy readiness cannot poll again. The caller asserts the
+// guard's own sentence, which no other failure of these bodies carries.
+func checkerGuardFailure(t *testing.T, checker interoplab.Checker, network interoplab.Network) string {
+	t.Helper()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	err := checker(ctx, &interoplab.CheckContext{
+		Network: network,
+		Lab:     &recordingLab{output: "BGP state = Established", afterQuery: cancel},
+	})
+	if err == nil {
+		t.Fatal("a checker passed with a lab that answered nothing but a session state")
+	}
+	return err.Error()
+}
+
+// gobgpRouteLine renders one route the way `gobgp global rib` prints it: the
+// best-path flag, then the columns GoBGP gives an attribute of its own, then the
+// Age, then the Attrs field carrying every remaining attribute as {Name: value}.
+// The padding is what separates the columns into whole fields.
+func gobgpRouteLine(prefix, nextHop, path, attributes string) string {
+	return fmt.Sprintf("*> %-20s %-20s %-20s %-10s %s\n", prefix, nextHop, path, "00:00:12", attributes)
+}
+
+// gobgpTable puts GoBGP's column heading above route lines, so a predicate meets
+// the same answer the lab reads out of the container.
+func gobgpTable(routes ...string) string {
+	const heading = "   Network              Next Hop             AS_PATH              Age        Attrs\n"
+	return heading + strings.Join(routes, "")
+}
+
+type recordingLab struct {
+	output     string
+	logs       string
+	reads      int
+	failure    error
+	afterQuery func()
+}
+
+// frrNoASRoute is FRR 10.7.1's pretty `show bgp ipv4 unicast <prefix> json`
+// answer for one path, in vty_json's two-space indentation: the prefix, the
+// aspath string, then the AS_SEQUENCE list body.
+const frrNoASRoute = `{
+  "prefix":%q,
+  "paths":[
+    {
+      "aspath":{
+        "string":%q,
+        "segments":[
+          {
+            "type":"as-sequence",
+            "list":[
+              %s
+            ]
+          }
+        ],
+        "length":2
+      },
+      "valid":true
+    }
+  ]
+}
+`
+
+// frrEmptyASPathAnswer is FRR 10.7.1's pretty answer for one path whose
+// AS_PATH is empty: aspath_make_str_count (bgpd/bgp_aspath.c), in its
+// `!as->segments` branch, prints "string":"Local", "segments":[] and
+// "length":0.
+const frrEmptyASPathAnswer = `{
+  "prefix":%q,
+  "paths":[
+    {
+      "aspath":{
+        "string":"Local",
+        "segments":[
+        ],
+        "length":0
+      },
+      "valid":true
+    }
+  ]
+}
+`
+
+func recorderFor(current *operation) *recordingLab {
+	recorder := &recordingLab{}
+	switch current.kind {
+	case opUnspecified:
+		recorder.failure = errors.New("checker operation is unspecified")
+	case opFRRSession:
+		recorder.output = "BGP state = Established"
+	case opBIRDSession:
+		recorder.output = current.argument + " Established"
+	case opGoBGPSession:
+		recorder.output = "state: established"
+	case opFRRRoute:
+		recorder.output = fmt.Sprintf(`{"prefix":%q,"paths":[{}]}`, current.argument)
+	case opFRRRouteAbsent:
+		recorder.output = `{}`
+	case opBIRDRoute, opGoBGPRoute:
+		recorder.output = current.argument
+	case opBIRDRouteAbsent, opRequireAbsent, opWaitAbsent:
+		recorder.output = strings.Join(current.proof, " ")
+	case opFRRCommunity:
+		recorder.output = current.argument + " " + strings.Join(current.contains, " ")
+	case opFRRNoAS:
+		// A valid FRR 10.7.1 pretty route whose AS_SEQUENCE omits the absent
+		// ASN, so the accepting path runs through the structured decode.
+		recorder.output = fmt.Sprintf(frrNoASRoute, current.argument, "65000 65010", "65000,\n              65010")
+	case opFRREmptyASPath:
+		recorder.output = fmt.Sprintf(frrEmptyASPathAnswer, current.argument)
+	case opWaitContains, opWaitContainsAny, opDelayRequireContains, opRequireContains:
+		recorder.output = strings.Join(current.contains, " ")
+	case opRequireJSONFields, opWaitJSONFields:
+		document := make(map[string]any, len(current.fields)+len(current.minimum))
+		for key, value := range current.fields {
+			document[key] = value
+		}
+		for key, minimum := range current.minimum {
+			document[key] = minimum
+		}
+		data, err := json.Marshal(document)
+		if err != nil {
+			panic("BUG: recorder JSON contains only supported scalar values")
+		}
+		recorder.output = string(data)
+	case opWaitRPKI:
+		recorder.output = rpkiRetainedObservation
+	case opWaitLogFields:
+		var report strings.Builder
+		for key, value := range current.fields {
+			fmt.Fprintf(&report, "note: %s: %s\n", key, value)
+		}
+		for key, minimum := range current.minimum {
+			fmt.Fprintf(&report, "note: %s: %d\n", key, minimum)
+		}
+		recorder.logs = report.String()
+	case opWaitLogContains:
+		recorder.logs = strings.Join(current.contains, " ")
+	case opExec, opSignal, opStart, opStop:
+		recorder.output = ""
+	default:
+		panic("BUG: recorder has an unknown operation kind")
+	}
+	return recorder
+}
+
+func contradictoryRecorderFor(current *operation) *recordingLab {
+	recorder := &recordingLab{
+		output: "RECORDER-CONTRADICTION",
+		logs:   "RECORDER-CONTRADICTION",
+	}
+	switch current.kind {
+	case opUnspecified:
+		recorder.failure = errors.New("checker operation is unspecified")
+	case opFRRSession:
+		recorder.output = "BGP state = Idle"
+	case opBIRDSession:
+		recorder.output = current.argument + " Idle"
+	case opGoBGPSession:
+		recorder.output = "state: idle"
+	case opFRRRoute:
+		recorder.output = `{}`
+	case opFRRRouteAbsent:
+		recorder.output = fmt.Sprintf(`{"prefix":%q,"paths":[{}]}`, current.argument)
+	case opBIRDRoute, opGoBGPRoute:
+		recorder.output = "measured peer table without requested prefix"
+	case opBIRDRouteAbsent:
+		recorder.output = strings.Join(append(append([]string(nil), current.proof...), current.argument), " ")
+	case opFRRCommunity:
+		recorder.output = current.argument + " without requested community"
+	case opFRRNoAS:
+		// FRR 10.7.1 vty_json pretty output, where the absent ASN is the last
+		// element of both aspath.string and segments[0].list. The last ASN is
+		// followed by a quote in the string and a newline in the list, the
+		// place a text match on separators does not see.
+		recorder.output = fmt.Sprintf(frrNoASRoute, current.argument, "65000 "+current.absent[0], "65000,\n              "+current.absent[0])
+	case opFRREmptyASPath:
+		// The external treatment: the route arrives with ze's AS prepended.
+		recorder.output = fmt.Sprintf(frrNoASRoute, current.argument, rfc7705GlobalAS, rfc7705GlobalAS)
+	case opWaitContains, opWaitContainsAny, opDelayRequireContains, opRequireContains:
+		recorder.output = "measured output without required values"
+	case opRequireAbsent, opWaitAbsent:
+		values := append(append([]string(nil), current.proof...), current.absent...)
+		recorder.output = strings.Join(values, " ")
+	case opRequireJSONFields, opWaitJSONFields:
+		recorder.output = `{}`
+	case opWaitRPKI:
+		recorder.output = strings.Replace(rpkiRetainedObservation, `"ineligible":true`, `"ineligible":false`, 1)
+	case opExec, opSignal, opStart, opStop:
+		recorder.failure = fmt.Errorf("recorded mutation failed")
+	case opWaitLogFields:
+		recorder.logs = "note: result: FAIL\n"
+	case opWaitLogContains:
+		recorder.logs = "measured log without required values"
+	default:
+		panic("BUG: contradictory recorder has an unknown operation kind")
+	}
+	return recorder
+}
+
+func (r *recordingLab) Exec(context.Context, string, []string, []interoplab.EnvironmentVariable) (interoplab.CommandResult, error) {
+	r.reads++
+	if r.failure != nil {
+		return interoplab.CommandResult{}, r.failure
+	}
+	return interoplab.CommandResult{Stdout: r.output}, nil
+}
+
+func (r *recordingLab) ExecDetached(context.Context, string, []string, []interoplab.EnvironmentVariable) error {
+	r.reads++
+	return r.failure
+}
+
+func (r *recordingLab) Query(context.Context, string, []string, []interoplab.EnvironmentVariable) (string, error) {
+	r.reads++
+	if r.afterQuery != nil {
+		defer r.afterQuery()
+	}
+	if r.failure != nil {
+		return "", r.failure
+	}
+	if strings.TrimSpace(r.output) == "" {
+		return "", fmt.Errorf("recorded query returned no output")
+	}
+	return r.output, nil
+}
+
+func (r *recordingLab) Logs(context.Context, string, int) (interoplab.LogResult, error) {
+	r.reads++
+	if r.failure != nil {
+		return interoplab.LogResult{}, r.failure
+	}
+	return interoplab.LogResult{Text: r.logs, Available: true}, nil
+}
+
+func (r *recordingLab) PeerPID(context.Context, string) (int, error) {
+	r.reads++
+	if r.failure != nil {
+		return 0, r.failure
+	}
+	return 4242, nil
+}
+
+func (r *recordingLab) Signal(context.Context, string, string) error {
+	r.reads++
+	return r.failure
+}
+
+func (r *recordingLab) Pause(context.Context, string) error {
+	r.reads++
+	return r.failure
+}
+
+func (r *recordingLab) Unpause(context.Context, string) error {
+	r.reads++
+	return r.failure
+}
+
+func (r *recordingLab) Start(context.Context, string) error {
+	r.reads++
+	return r.failure
+}
+
+func (r *recordingLab) Stop(context.Context, string, int) error {
+	r.reads++
+	return r.failure
+}
+
+var errNoPeerEvidence = errors.New("peer produced no evidence")
+
+type noEvidenceLab struct{}
+
+func (noEvidenceLab) Exec(context.Context, string, []string, []interoplab.EnvironmentVariable) (interoplab.CommandResult, error) {
+	return interoplab.CommandResult{}, errNoPeerEvidence
+}
+
+func (noEvidenceLab) ExecDetached(context.Context, string, []string, []interoplab.EnvironmentVariable) error {
+	return errNoPeerEvidence
+}
+
+func (noEvidenceLab) Query(context.Context, string, []string, []interoplab.EnvironmentVariable) (string, error) {
+	return "", errNoPeerEvidence
+}
+
+func (noEvidenceLab) Logs(context.Context, string, int) (interoplab.LogResult, error) {
+	return interoplab.LogResult{}, errNoPeerEvidence
+}
+
+func (noEvidenceLab) PeerPID(context.Context, string) (int, error) {
+	return 0, errNoPeerEvidence
+}
+
+func (noEvidenceLab) Signal(context.Context, string, string) error {
+	return errNoPeerEvidence
+}
+
+func (noEvidenceLab) Pause(context.Context, string) error {
+	return errNoPeerEvidence
+}
+
+func (noEvidenceLab) Unpause(context.Context, string) error {
+	return errNoPeerEvidence
+}
+
+func (noEvidenceLab) Start(context.Context, string) error {
+	return errNoPeerEvidence
+}
+
+func (noEvidenceLab) Stop(context.Context, string, int) error {
+	return errNoPeerEvidence
+}
+
+func writeFixture(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+var _ interoplab.CheckerLab = (*recordingLab)(nil)
+
+// TestISISPerLevelHelloNeighborTable pins the reading of FRR's `show isis
+// neighbor` table the isis-per-level-hello-frr checker depends on: the level in
+// the third column, the state in the fourth, and the holding time in the fifth.
+// A misread column would turn the scenario's holding-time bounds into an
+// assertion about the wrong field, which passes for the wrong reason.
+func TestISISPerLevelHelloNeighborTable(t *testing.T) {
+	const table = "Area ZE:\n" +
+		"  System Id           Interface   L  State        Holdtime SNPA\n" +
+		" frr-isis-perlevel   eth0        1  Up           8        2020.2020.2020\n" +
+		" frr-isis-perlevel   eth0        2  Up           117      2020.2020.2020\n"
+
+	rows := parseISISNeighbors(table)
+	if len(rows) != 2 {
+		t.Fatalf("parseISISNeighbors read %d rows, want 2: %+v", len(rows), rows)
+	}
+	level1, ok := upAtLevel(rows, 1)
+	if !ok || level1.holdtime != 8 {
+		t.Errorf("Level-1 row = %+v (found %v), want holdtime 8", level1, ok)
+	}
+	level2, ok := upAtLevel(rows, 2)
+	if !ok || level2.holdtime != 117 {
+		t.Errorf("Level-2 row = %+v (found %v), want holdtime 117", level2, ok)
+	}
+	if !isisBothLevelsUp(table) {
+		t.Error("a table with an Up adjacency at each level was read as incomplete")
+	}
+
+	// The header line carries no level number where the parse looks, so it is
+	// dropped rather than read as a row.
+	if rows := parseISISNeighbors("  System Id           Interface   L  State        Holdtime SNPA\n"); len(rows) != 0 {
+		t.Errorf("the header line parsed as %d adjacency rows", len(rows))
+	}
+	// One level Up is not both: the checker would otherwise read a holding time
+	// for a level that never formed.
+	if isisBothLevelsUp(" frr-isis-perlevel   eth0        1  Up           8        2020.2020.2020\n") {
+		t.Error("a Level-1-only table passed as both levels Up")
+	}
+	// A Down row is not an Up row, whatever holding time it prints.
+	if isisBothLevelsUp(" frr-isis-perlevel   eth0        1  Up    8   x\n frr-isis-perlevel   eth0        2  Init  9   x\n") {
+		t.Error("an Init Level-2 adjacency passed as Up")
+	}
+}
+
+// TestZeSoftwareVersionMatchesProducer checks the frr-software-version
+// checker's copy of ze's version string against the one the encoder sends.
+//
+// VALIDATES: zeSoftwareVersion equals softver.ZeVersion.
+// PREVENTS: a version bump that leaves the scenario asserting the old string.
+func TestZeSoftwareVersionMatchesProducer(t *testing.T) {
+	if zeSoftwareVersion != softver.ZeVersion {
+		t.Fatalf("zeSoftwareVersion = %q, softver.ZeVersion = %q", zeSoftwareVersion, softver.ZeVersion)
+	}
+}

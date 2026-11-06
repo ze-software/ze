@@ -1,0 +1,1174 @@
+package siteterminaldemo
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"reflect"
+	"slices"
+	"strconv"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/interoplab"
+)
+
+// VALIDATES: `le site terminal-demo render` with no demo id is refused, and never falls through to the whole gallery.
+// PREVENTS: a typo re-recording every demo, which is the cost the single-demo action exists to avoid.
+func TestRenderWithoutADemoIdIsRefused(t *testing.T) {
+	for _, args := range [][]string{{"render"}, {"render", "name", ""}} {
+		payload, code := Answer(args)
+		if code != 2 {
+			t.Errorf("%v answered code %d, want 2", args, code)
+		}
+		if payload != nil {
+			t.Errorf("%v answered the payload %v", args, payload)
+		}
+	}
+}
+
+// VALIDATES: `le site terminal-demo render all` naming a demo as well is refused
+// with exit 2 before any renderer runs.
+// PREVENTS: one of the two selections silently winning, so a developer who
+// meant one demo re-records the whole gallery, or the reverse.
+func TestRenderAllWithADemoIdIsRefused(t *testing.T) {
+	payload, code := Answer([]string{"render", "all", "name", "term"})
+	if code != 2 {
+		t.Errorf("render all name term answered code %d, want 2", code)
+	}
+	if payload != nil {
+		t.Errorf("render all name term answered the payload %v", payload)
+	}
+}
+
+// VALIDATES: renderer builds inherit the activated toolchain and target environment.
+// PREVENTS: overriding the patched GOROOT or selecting host OS and CGO settings.
+func TestBuildCommandsUseRendererEnvironment(t *testing.T) {
+	root := t.TempDir()
+	tree := filepath.Join(root, "patched-goroot")
+	if err := os.MkdirAll(tree, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GOTOOLCHAIN", "local")
+	t.Setenv("GOROOT", tree)
+	toolchain := gotoolchain.Toolchain{
+		Root: root, Features: []string{"ze_alpha", "ze_beta"}, ExtraTags: []string{"ze_extra"},
+		GoToolchain: "go1.26.6", Version: "26.08.27", BuildDate: "2026-08-27T12:34:56Z",
+	}
+	ze, _ := buildCommand(root, toolchain, "arm64", demoTags(toolchain))
+	assertEnvironmentLast(t, ze.Env, "CGO_ENABLED", "0")
+	for _, entry := range toolchain.Overrides(gotoolchain.EnvOptions{GOOS: "linux", GOARCH: "arm64"}) {
+		if strings.HasPrefix(entry, "GOTOOLCHAIN=") || strings.HasPrefix(entry, "GOROOT=") {
+			t.Errorf("Overrides sets %s, which the activated process environment owns", entry)
+		}
+	}
+	assertEnvironmentLast(t, ze.Env, "GOTOOLCHAIN", "local")
+	assertEnvironmentLast(t, ze.Env, "GOROOT", tree)
+	assertEnvironmentLast(t, ze.Env, "GOOS", "linux")
+	assertEnvironmentLast(t, ze.Env, "GOARCH", "arm64")
+	recorder, _ := recorderBuildCommand(root, ze.Env, "ze_le ze_alpha", "arm64")
+	assertEnvironmentLast(t, recorder.Env, "CGO_ENABLED", "0")
+	assertEnvironmentLast(t, recorder.Env, "GOOS", "linux")
+	assertEnvironmentLast(t, recorder.Env, "GOARCH", "arm64")
+	assertEnvironmentLast(t, recorder.Env, "GOTOOLCHAIN", "local")
+	assertEnvironmentLast(t, recorder.Env, "GOROOT", tree)
+}
+
+func assertEnvironmentLast(t *testing.T, environ []string, key, want string) {
+	t.Helper()
+	prefix := key + "="
+	for _, entry := range slices.Backward(environ) {
+		if got, ok := strings.CutPrefix(entry, prefix); ok {
+			if got != want {
+				t.Errorf("%s = %q, want %q", key, got, want)
+			}
+			return
+		}
+	}
+	t.Errorf("%s is absent from environment", key)
+}
+
+type demoFixture struct {
+	root            string
+	artifacts       string
+	commands        []Command
+	canceledRuns    int
+	failValidation  int
+	wrongTranscript bool
+	// missingImage is the exit code `docker image inspect` answers with, so a
+	// case can model a host where the renderer image was never built.
+	missingImage int
+	// daemonDown makes `docker image inspect` fail the way a daemon that does
+	// not answer does, which is not the daemon saying the image is absent.
+	daemonDown bool
+	// staleLabels, when set, are the labels the renderer image answers with in
+	// place of the checkout's peer pins.
+	staleLabels map[string]string
+	// failImageBuild is the exit code `docker build` answers with.
+	failImageBuild int
+	// kernelChecked records the binary each Docker kernel check probed with.
+	kernelChecked []string
+	// netSysctlRefusal is what the net sysctl grant answers; nil grants
+	// fixtureNetSysctlGrants.
+	netSysctlRefusal error
+	// appArmorUnapplied makes every container run under the net sysctl
+	// profile fail as runc does when the daemon cannot apply it.
+	appArmorUnapplied bool
+}
+
+// fixtureNetSysctlGrants stands in for the daemon's net sysctl arguments.
+var fixtureNetSysctlGrants = []string{"--security-opt", "systempaths=unconfined", "--security-opt", "apparmor=ze-lab-net-sysctl"}
+
+// netSysctl stands in for interoplab's net sysctl arguments, so a case reads
+// the grants a net-sysctl demo takes without a Docker daemon.
+func (f *demoFixture) netSysctl(context.Context) ([]string, error) {
+	if f.netSysctlRefusal != nil {
+		return nil, f.netSysctlRefusal
+	}
+	return fixtureNetSysctlGrants, nil
+}
+
+// kernelCheck stands in for the Docker host kernel check: it records the
+// binary and answers a kernel with every feature, so the render cases reach
+// the steps they are about without a Docker daemon.
+func (f *demoFixture) kernelCheck(_ context.Context, zePath string) error {
+	f.kernelChecked = append(f.kernelChecked, zePath)
+	return nil
+}
+
+func newDemoFixture(t *testing.T) *demoFixture {
+	t.Helper()
+	base := t.TempDir()
+	fixture := &demoFixture{root: filepath.Join(base, "main"), artifacts: filepath.Join(base, "published")}
+	fixture.writeTree(t)
+	return fixture
+}
+
+func (f *demoFixture) writeTree(t *testing.T) {
+	t.Helper()
+	mustMkdir(t, filepath.Join(f.root, "docs", "guide"))
+	mustWrite(t, filepath.Join(f.root, "docs", "guide", "gallery.md"), "gallery\n")
+	mustWrite(t, filepath.Join(f.root, "docs", "guide", "demo.md"), "demo\n")
+	demoRoot := filepath.Join(f.root, "demos", "terminal")
+	for _, name := range []string{"common.tape", "Dockerfile"} {
+		mustWrite(t, filepath.Join(demoRoot, name), name+"\n")
+	}
+	peerPin, err := os.ReadFile(filepath.Join("..", "..", "..", "..", rendererKeepalivedPin))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(f.root, rendererKeepalivedPin), string(peerPin))
+	for _, relative := range recorderBinaries {
+		mustWrite(t, filepath.Join(f.root, filepath.FromSlash(relative)), relative+"\n")
+	}
+	// The package half of the recorder sources is walked, so the fixture needs
+	// the directory rather than a copy of a list.
+	mustMkdir(t, filepath.Join(f.root, filepath.FromSlash(recorderPackageDir)))
+	for _, name := range []string{"manifest.go", "actions.go", "cards.json"} {
+		mustWrite(t, filepath.Join(f.root, filepath.FromSlash(recorderPackageDir), name), name+"\n")
+	}
+	mustWrite(t, filepath.Join(demoRoot, "term", "demo.tape"), "Source common.tape\nSleep 5s\nType show term\n")
+	mustWrite(t, filepath.Join(demoRoot, "term", "transcript.txt"), "Terminal session\n\n$ show term\n")
+	mustWrite(t, filepath.Join(demoRoot, "browser", "run.cjs"), "browser driver\n")
+	mustWrite(t, filepath.Join(demoRoot, "browser", "transcript.txt"), "Browser session\n\n$ browser\n")
+	manifest := Manifest{
+		Schema:      manifestSchema,
+		Renderer:    Renderer{Name: "fixture", Version: "3", Image: "fixture-renderer:3", Platform: "linux/amd64"},
+		GalleryPage: "guide/gallery.md",
+		Demos: []Demo{
+			{ID: "term", Title: "Terminal", Description: "Terminal demo", Page: "guide/demo.md", Anchor: "terminal", Platform: "portable", Kind: "terminal", Engine: "Ze recorder", Source: "term/demo.tape", Validate: "term"},
+			{ID: "browser", Title: "Browser", Description: "Browser demo", Page: "guide/demo.md", Anchor: "browser", Platform: "portable", Kind: "browser", Engine: "Playwright", Source: "browser/run.cjs", Validate: "browser", Duration: "10 seconds", Privileged: new(true), PrivilegedReason: "the fixture browser needs the whole device tree"},
+		},
+	}
+	writeJSON(t, filepath.Join(demoRoot, "manifest.json"), manifest)
+	mustWrite(t, filepath.Join(f.root, "tmp", "terminal-demos", "bin", "ze"), "fixture-binary\n")
+}
+
+func (f *demoFixture) engine(output *bytes.Buffer) *Engine {
+	return New(Options{
+		Root:         f.root,
+		ArtifactRoot: f.artifacts,
+		Executor:     f.execute,
+		Lookup:       func(name string) (string, error) { return name, nil },
+		Output:       output,
+		LockWait:     30 * time.Millisecond,
+		LockPoll:     time.Millisecond,
+		KernelCheck:  f.kernelCheck,
+		NetSysctl:    f.netSysctl,
+		Docker:       interoplab.NewFixtureDocker(f),
+	})
+}
+
+const fixtureRendererImageID = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+// Run is the fixture's Docker process boundary: every demo container the
+// wrapper starts is recorded beside the build commands, in order,
+// and answered by execute.
+func (f *demoFixture) Run(ctx context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
+	if err := ctx.Err(); err != nil {
+		f.canceledRuns++
+		return interoplab.ProcessResult{ExitCode: 124}, err
+	}
+	code := f.execute(Command{Args: command.Arguments, Dir: command.Directory, Env: command.Environment, Stdout: command.Stdout, Stderr: command.Stderr})
+	args := command.Arguments
+	if f.daemonDown && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" {
+		return interoplab.ProcessResult{ExitCode: 1, Stderr: "Cannot connect to the Docker daemon at unix:///var/run/docker.sock"}, nil
+	}
+	// Absence and immutable identity come from the daemon, not from a tag
+	// guessed by the wrapper. Attached build streams are not captured.
+	if code != 0 && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" {
+		return interoplab.ProcessResult{ExitCode: code, Stderr: "Error: No such image: " + args[len(args)-1]}, nil
+	}
+	if code == 0 && len(args) >= 2 && args[1] == "build" {
+		if command.Stdout != nil {
+			return interoplab.ProcessResult{}, nil
+		}
+		return interoplab.ProcessResult{Stdout: fixtureRendererImageID + "\n"}, nil
+	}
+	if code == 0 && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" && slices.Contains(args, "{{json .}}") {
+		return f.imageRecord()
+	}
+	if code == 0 && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" {
+		return interoplab.ProcessResult{Stdout: fixtureRendererImageID + "\n"}, nil
+	}
+	return interoplab.ProcessResult{ExitCode: code}, nil
+}
+
+// imageRecord answers `docker image inspect --format '{{json .}}'` for the
+// fixture renderer image. Its labels carry the checkout's peer pins, the way
+// a build from demos/terminal/Dockerfile records them, unless a case set
+// staleLabels to model an image built before a pin bump.
+func (f *demoFixture) imageRecord() (interoplab.ProcessResult, error) {
+	labels := f.staleLabels
+	if labels == nil {
+		arguments, err := rendererPeerArguments(f.root)
+		if err != nil {
+			return interoplab.ProcessResult{}, err
+		}
+		labels = make(map[string]string, len(arguments))
+		for _, argument := range arguments {
+			name, value, _ := strings.Cut(argument, "=")
+			labels[rendererPinLabels[name]] = value
+		}
+	}
+	record := map[string]any{"Id": fixtureRendererImageID, "RepoTags": []string{"fixture-renderer:3"}, "Config": map[string]any{"Labels": labels}}
+	data, err := json.Marshal(record)
+	if err != nil {
+		return interoplab.ProcessResult{}, err
+	}
+	return interoplab.ProcessResult{Stdout: string(data) + "\n"}, nil
+}
+
+func (f *demoFixture) execute(command Command) int {
+	f.commands = append(f.commands, command)
+	if len(command.Args) == 0 {
+		return 127
+	}
+	if f.appArmorUnapplied && slices.Contains(command.Args, "apparmor=ze-lab-net-sysctl") {
+		if command.Stderr != nil {
+			//nolint:errcheck // the fixture's stderr is a test buffer
+			command.Stderr.Write([]byte("docker: Error response from daemon: failed to create task: " +
+				"OCI runtime create failed: runc create failed: unable to apply apparmor profile: " +
+				"apparmor failed to apply profile: write /proc/self/attr/apparmor/exec: no such file or directory\n"))
+		}
+		return 126
+	}
+	// `docker image inspect <image>` is how the pipeline asks whether the renderer
+	// image is built. The fixture image is, unless a case says otherwise.
+	if len(command.Args) >= 3 && command.Args[1] == "image" && command.Args[2] == "inspect" {
+		return f.missingImage
+	}
+	// `docker image rm` drops the run-owned tag a build retains.
+	if len(command.Args) >= 3 && command.Args[1] == "image" && command.Args[2] == "rm" {
+		return 0
+	}
+	// `docker build` writes no artifact this fixture publishes; the test that
+	// covers it reads the argv.
+	if len(command.Args) >= 2 && command.Args[1] == "build" {
+		return f.failImageBuild
+	}
+	entry := command.Args[len(command.Args)-1]
+	if len(command.Args) >= 2 && command.Args[len(command.Args)-2] == "validate" {
+		if f.failValidation != 0 {
+			return f.failValidation
+		}
+		return 0
+	}
+	if strings.HasSuffix(entry, "term.tape") {
+		burst := "$ show term\r\n"
+		if f.wrongTranscript {
+			burst = "$ another command\r\n"
+		}
+		cast := "{\"version\": 2, \"width\": 80, \"height\": 24}\n[0.1, \"o\", " + strconv.Quote(burst) + "]\n"
+		if err := os.WriteFile(filepath.Join(f.artifacts, "term.cast"), []byte(cast), 0o644); err != nil {
+			return 1
+		}
+		return 0
+	}
+	if err := os.WriteFile(filepath.Join(f.artifacts, "browser.webp"), []byte("captured-screenshot\n"), 0o644); err != nil {
+		return 1
+	}
+	return 0
+}
+
+// VALIDATES: validation and render use the exact Docker contract, including platform, privilege, mounts, and renderer environment.
+// PREVENTS: a renderer with network access, a missing lock marker, or release metadata absent from the container.
+func TestRenderAllRunsValidationAndPublishesExactArtifacts(t *testing.T) {
+	fixture := newDemoFixture(t)
+	mustWrite(t, filepath.Join(fixture.artifacts, "term.webm"), "superseded\n")
+	mustWrite(t, filepath.Join(fixture.artifacts, "term.png"), "superseded\n")
+	mustWrite(t, filepath.Join(fixture.artifacts, "browser.cast"), "superseded\n")
+	mustWrite(t, filepath.Join(fixture.artifacts, "browser.webm"), "superseded\n")
+	mustWrite(t, filepath.Join(fixture.artifacts, "browser.png"), "superseded\n")
+	var output bytes.Buffer
+	engine := fixture.engine(&output)
+	report, err := engine.RenderAll("26.08.27")
+	if err != nil {
+		t.Fatalf("RenderAll: %v", err)
+	}
+	if report.Mode != "render" || !reflect.DeepEqual(report.Demos, []string{"term", "browser"}) {
+		t.Errorf("report = %#v", report)
+	}
+	assertSubsequence(t, fixture.commands[0].Args, []string{"docker", "image", "inspect", "fixture-renderer:3"})
+	validation := fixture.commands[1].Args
+	assertSubsequence(t, validation, []string{"docker", "run", "--rm", "--platform", "linux/amd64", "--network", "none"})
+	assertSubsequence(t, validation, []string{"--env", "ZE_DEMO_LOCK_HELD=1"})
+	assertSubsequence(t, validation, []string{"fixture-renderer:3", "/src/tmp/terminal-demos/bin/ze-demo", "validate", "term"})
+	// spec-lab-containers-least-privilege AC-10: Docker's default seccomp
+	// profile admits mount, unshare and setns once SYS_ADMIN is granted, so a
+	// demo container keeps the profile and holds the three capabilities.
+	assertSubsequence(t, validation, []string{"--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW", "--cap-add", "SYS_ADMIN"})
+	if slices.Contains(validation, "seccomp=unconfined") {
+		t.Errorf("validation runs with seccomp=unconfined: %v", validation)
+	}
+	if containsPrefix(validation, "ZE_DEMO_RELEASE=") {
+		t.Errorf("validation received render release env: %v", validation)
+	}
+	render := fixture.commands[3].Args
+	assertSubsequence(t, render, []string{"--env", "ZE_DEMO_RELEASE=26.08.27", "--env", "ZE_DEMO_SPEEDUP=5", "fixture-renderer:3"})
+	browserRender := fixture.commands[4].Args
+	assertSubsequence(t, browserRender, []string{"docker", "run", "--rm", "--platform", "linux/amd64", "--privileged", "--network", "none"})
+	for _, command := range fixture.commands {
+		if command.Args[0] == "ffmpeg" {
+			t.Fatalf("render invoked an encoded-video transform: %v", command.Args)
+		}
+	}
+	for _, name := range []string{"term.cast", "term.txt", "browser.webp", "browser.txt", "manifest.json"} {
+		info, statErr := os.Stat(filepath.Join(fixture.artifacts, name))
+		if statErr != nil || info.Size() == 0 {
+			t.Errorf("published %s: info=%v err=%v", name, info, statErr)
+		}
+	}
+	for _, name := range []string{"term.webm", "term.png", "browser.cast", "browser.webm", "browser.png"} {
+		if _, statErr := os.Stat(filepath.Join(fixture.artifacts, name)); !errors.Is(statErr, os.ErrNotExist) {
+			t.Errorf("superseded %s remains: %v", name, statErr)
+		}
+	}
+	cast := mustRead(t, filepath.Join(fixture.artifacts, "term.cast"))
+	if !strings.Contains(cast, `[0.5, "o", "$ show term\r\n"]`) {
+		t.Errorf("expanded cast = %q", cast)
+	}
+	if !strings.Contains(output.String(), "Ze demo artifacts verified: term, browser") {
+		t.Errorf("output = %q", output.String())
+	}
+	before := mustRead(t, filepath.Join(fixture.artifacts, "manifest.json"))
+	if _, err := engine.checkAll("26.08.27"); err != nil {
+		t.Fatalf("release check after render: %v", err)
+	}
+	after := mustRead(t, filepath.Join(fixture.artifacts, "manifest.json"))
+	if before != after {
+		t.Error("a check rewrote the artifact manifest")
+	}
+}
+
+// VALIDATES: a single-demo render validates and records that demo alone, and publishes beside the demos it did not record.
+// PREVENTS: a developer iterating on one tape paying for every demo in the gallery, and a partial render dropping the others from the artifact manifest.
+func TestRenderOneRecordsTheNamedDemoAndKeepsTheRest(t *testing.T) {
+	fixture := newDemoFixture(t)
+	engine := fixture.engine(&bytes.Buffer{})
+	if _, err := engine.RenderAll("26.08.27"); err != nil {
+		t.Fatalf("RenderAll: %v", err)
+	}
+	fixture.commands = nil
+
+	report, err := engine.RenderOne("term", "26.08.28")
+	if err != nil {
+		t.Fatalf("RenderOne: %v", err)
+	}
+	if report.Mode != rendererRenderMode || !reflect.DeepEqual(report.Demos, []string{"term"}) {
+		t.Errorf("report = %#v, want mode %q over [term] alone", report, rendererRenderMode)
+	}
+	// One image check, one validation and one recording. The browser capture
+	// stays untouched while the named terminal demo is recorded.
+	if len(fixture.commands) != 3 {
+		t.Fatalf("commands = %d, want 3: %#v", len(fixture.commands), fixture.commands)
+	}
+	for _, command := range fixture.commands {
+		for _, argument := range command.Args {
+			if strings.Contains(argument, "browser") {
+				t.Errorf("a single-demo render of term ran %v", command.Args)
+			}
+		}
+	}
+
+	var published artifactManifest
+	if err := readJSON(fixture.artifacts, &published); err != nil {
+		t.Fatalf("read published manifest: %v", err)
+	}
+	if published.Demos["term"].Release != "26.08.28" {
+		t.Errorf("term was published for release %q", published.Demos["term"].Release)
+	}
+	// The demo this run did not record keeps its entry and its release. A
+	// partial render that rewrote the manifest from its own selection would
+	// unpublish the rest of the gallery.
+	if published.Demos["browser"].Release != "26.08.27" {
+		t.Errorf("browser was published for release %q, want the release of the run that recorded it",
+			published.Demos["browser"].Release)
+	}
+	for _, name := range []string{"browser.webp", "browser.txt"} {
+		if _, statErr := os.Stat(filepath.Join(fixture.artifacts, name)); statErr != nil {
+			t.Errorf("a single-demo render removed %s: %v", name, statErr)
+		}
+	}
+}
+
+// VALIDATES: an id the manifest does not declare is refused by name, before any container runs.
+// PREVENTS: a typo reported an hour later as a missing artifact, or as a silent no-op render.
+func TestRenderOneRefusesAnIdTheManifestDoesNotDeclare(t *testing.T) {
+	fixture := newDemoFixture(t)
+	engine := fixture.engine(&bytes.Buffer{})
+
+	_, err := engine.RenderOne("termm", "26.08.27")
+	if err == nil {
+		t.Fatal("an unknown demo id was accepted")
+	}
+	if !strings.Contains(err.Error(), `"termm"`) || !strings.Contains(err.Error(), "term, browser") {
+		t.Errorf("the refusal is %q, want it to quote the id and name the declared ids", err)
+	}
+	if len(fixture.commands) != 0 {
+		t.Errorf("an unknown demo id ran %#v", fixture.commands)
+	}
+}
+
+func containsPrefix(values []string, prefix string) bool {
+	for _, value := range values {
+		if strings.HasPrefix(value, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func assertSubsequence(t *testing.T, values, wanted []string) {
+	t.Helper()
+	at := 0
+	for _, value := range values {
+		if at < len(wanted) && value == wanted[at] {
+			at++
+		}
+	}
+	if at != len(wanted) {
+		t.Errorf("%v does not contain ordered subsequence %v", values, wanted)
+	}
+}
+
+// VALIDATES: all three renderer modes validate the same source manifest before effects.
+// PREVENTS: validation or render accepting a manifest that the artifact check refuses.
+func TestEveryModeFailsClosedOnTheManifestContract(t *testing.T) {
+	for _, mode := range []struct {
+		name string
+		run  func(*Engine) error
+	}{
+		{"check", func(engine *Engine) error { _, err := engine.checkAll(""); return err }},
+		{"release-check", func(engine *Engine) error { _, err := engine.checkAll("26.08.27"); return err }},
+		{"validation", func(engine *Engine) error { _, err := engine.validationCheckAll(); return err }},
+		{"render", func(engine *Engine) error { _, err := engine.RenderAll("26.08.27"); return err }},
+	} {
+		t.Run(mode.name, func(t *testing.T) {
+			fixture := newDemoFixture(t)
+			path := filepath.Join(fixture.root, "demos", "terminal", "manifest.json")
+			var manifest Manifest
+			readJSONForTest(t, path, &manifest)
+			manifest.Schema = 99
+			writeJSON(t, path, manifest)
+			err := mode.run(fixture.engine(&bytes.Buffer{}))
+			if err == nil || err.Error() != "manifest.json: unsupported schema" {
+				t.Fatalf("error = %v", err)
+			}
+			if len(fixture.commands) != 0 {
+				t.Errorf("invalid manifest started commands: %#v", fixture.commands)
+			}
+		})
+	}
+}
+
+// VALIDATES: a privileged demo with no privileged-reason, and a reason on a
+// demo that is not privileged, are refused before any command starts, and the
+// refusal names the demo, why the reason is owed and the manifest key that
+// fixes it (spec-lab-containers-least-privilege, owner decision 3).
+// PREVENTS: --privileged, which lifts every container limit, being granted to a
+// demo nobody justified, or a stale reason surviving its grant.
+func TestAPrivilegedDemoWithoutAReasonIsRefused(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		privileged *bool
+		reason     string
+		want       []string
+	}{
+		{"privileged without reason", new(true), "", []string{
+			"manifest.json: browser runs --privileged and states no privileged-reason",
+			"lifts every container limit",
+			`add "privileged-reason" to browser in demos/terminal/manifest.json`,
+		}},
+		{"reason without privilege", nil, "stale", []string{
+			"manifest.json: browser states a privileged-reason but is not privileged",
+			`remove "privileged-reason" from browser in demos/terminal/manifest.json`,
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newDemoFixture(t)
+			path := filepath.Join(fixture.root, "demos", "terminal", "manifest.json")
+			var manifest Manifest
+			readJSONForTest(t, path, &manifest)
+			manifest.Demos[1].Privileged = tc.privileged
+			manifest.Demos[1].PrivilegedReason = tc.reason
+			writeJSON(t, path, manifest)
+			_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27")
+			if err == nil {
+				t.Fatal("the manifest was accepted")
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error %q lacks %q", err, want)
+				}
+			}
+			if len(fixture.commands) != 0 {
+				t.Errorf("the refused manifest started commands: %#v", fixture.commands)
+			}
+		})
+	}
+}
+
+// VALIDATES: NOTE 9 of spec-lab-containers-least-privilege review round 1. A
+// net-sysctl demo validates and records with systempaths unconfined under the
+// net sysctl profile and never --privileged; a host that cannot confine the
+// writes refuses it before its container starts; and a demo that states both
+// grants is refused before any command starts.
+// PREVENTS: the rib-fib demo regaining --privileged, which lifts every
+// container limit, for what is only a /proc/sys/net write.
+func TestANetSysctlDemoRunsWithoutPrivilege(t *testing.T) {
+	setNetSysctl := func(t *testing.T, fixture *demoFixture, privileged bool) {
+		t.Helper()
+		path := filepath.Join(fixture.root, "demos", "terminal", "manifest.json")
+		var manifest Manifest
+		readJSONForTest(t, path, &manifest)
+		manifest.Demos[1].NetSysctl = new(true)
+		if !privileged {
+			manifest.Demos[1].Privileged = nil
+			manifest.Demos[1].PrivilegedReason = ""
+		}
+		writeJSON(t, path, manifest)
+	}
+	t.Run("granted", func(t *testing.T) {
+		fixture := newDemoFixture(t)
+		setNetSysctl(t, fixture, false)
+		if _, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27"); err != nil {
+			t.Fatalf("RenderAll: %v", err)
+		}
+		runs := 0
+		for _, command := range fixture.commands {
+			if !slices.Contains(command.Args, "--network") {
+				continue
+			}
+			if slices.Contains(command.Args, "--privileged") {
+				t.Errorf("a container runs --privileged: %v", command.Args)
+			}
+			if slices.Contains(command.Args, "/src/demos/terminal/browser/run.cjs") || slices.Contains(command.Args, "browser") {
+				runs++
+				assertSubsequence(t, command.Args, append([]string{"docker", "run", "--rm", "--platform", "linux/amd64"}, fixtureNetSysctlGrants...))
+			}
+		}
+		if runs != 2 {
+			t.Errorf("net-sysctl demo containers = %d, want 2 (validation and recording): %#v", runs, fixture.commands)
+		}
+	})
+	t.Run("host cannot confine", func(t *testing.T) {
+		fixture := newDemoFixture(t)
+		setNetSysctl(t, fixture, false)
+		fixture.netSysctlRefusal = errors.New("load it with: sudo apparmor_parser -r ze-lab-net-sysctl")
+		_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27")
+		if err == nil {
+			t.Fatal("a net-sysctl demo ran on a host that cannot confine its writes")
+		}
+		for _, want := range []string{"terminal demo browser writes /proc/sys/net", "apparmor_parser"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error %q lacks %q", err, want)
+			}
+		}
+		for _, command := range fixture.commands {
+			if slices.Contains(command.Args, "browser") && slices.Contains(command.Args, "--network") {
+				t.Errorf("the refused demo's container started: %v", command.Args)
+			}
+		}
+	})
+	t.Run("daemon cannot apply the profile", func(t *testing.T) {
+		// The host's profile list was unreadable, so the grant went ahead;
+		// the daemon then refuses the profile. The refusal names the load
+		// command and what the demo needs, never a bare exit code.
+		fixture := newDemoFixture(t)
+		setNetSysctl(t, fixture, false)
+		fixture.appArmorUnapplied = true
+		_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27")
+		if err == nil {
+			t.Fatal("a demo whose profile the daemon could not apply was accepted")
+		}
+		for _, want := range []string{
+			"terminal demo browser writes /proc/sys/net",
+			"a container (a lab peer or a terminal demo)",
+			"\n  ./le setup docker kernel apparmor confirm ze-lab-net-sysctl",
+		} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error %q lacks %q", err, want)
+			}
+		}
+		if _, ok := errors.AsType[commandFailure](err); ok {
+			t.Errorf("the refusal is a bare exit code: %v", err)
+		}
+	})
+	t.Run("both grants", func(t *testing.T) {
+		fixture := newDemoFixture(t)
+		setNetSysctl(t, fixture, true)
+		_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27")
+		if err == nil {
+			t.Fatal("a demo stating --privileged and net-sysctl was accepted")
+		}
+		if want := "manifest.json: browser runs --privileged and also states net-sysctl"; !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q lacks %q", err, want)
+		}
+		if len(fixture.commands) != 0 {
+			t.Errorf("the refused manifest started commands: %#v", fixture.commands)
+		}
+	})
+}
+
+// VALIDATES: release and source digests are checked before a published artifact is accepted.
+// PREVENTS: a tag shipping an older recording, or changed tape inputs retaining a fresh verdict.
+func TestCheckRejectsReleaseAndSourceDrift(t *testing.T) {
+	fixture := newDemoFixture(t)
+	engine := fixture.engine(&bytes.Buffer{})
+	if _, err := engine.RenderAll("26.08.27"); err != nil {
+		t.Fatalf("render fixture: %v", err)
+	}
+	if _, err := engine.checkAll("26.08.28"); err == nil || !strings.Contains(err.Error(), "rendered for '26.08.27', expected '26.08.28'") {
+		t.Fatalf("release drift error = %v", err)
+	}
+	mustWrite(t, filepath.Join(fixture.root, "demos", "terminal", "term", "demo.tape"), "Source common.tape\nSleep 6s\nType show term\n")
+	if _, err := engine.checkAll(""); err == nil || err.Error() != "term: source changed since the last render" {
+		t.Fatalf("source drift error = %v", err)
+	}
+}
+
+// VALIDATES: a held state lock refuses a second owner without reading or writing artifacts.
+// PREVENTS: two render or check processes racing on the artifact manifest and temporary tapes.
+func TestCheckRefusesAContendedLock(t *testing.T) {
+	fixture := newDemoFixture(t)
+	engine := fixture.engine(&bytes.Buffer{})
+	mustMkdir(t, filepath.Dir(engine.lockPath))
+	handle, err := os.OpenFile(engine.lockPath, os.O_RDONLY|os.O_CREATE, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close() //nolint:errcheck // Test cleanup.
+	if err := syscall.Flock(int(handle.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.Flock(int(handle.Fd()), syscall.LOCK_UN) //nolint:errcheck // Test cleanup.
+	started := time.Now()
+	_, err = engine.checkAll("")
+	if err == nil || !strings.Contains(err.Error(), "another demo run held") {
+		t.Fatalf("lock error = %v", err)
+	}
+	if time.Since(started) > time.Second {
+		t.Errorf("short fixture lock wait took %s", time.Since(started))
+	}
+}
+
+// VALIDATES: validation stops at the first failing scenario and retains that process code in the failure.
+// PREVENTS: later validators hiding the first failure or running after the result is already red.
+func TestValidationStopsAtTheFirstFailure(t *testing.T) {
+	fixture := newDemoFixture(t)
+	fixture.failValidation = 23
+	_, code, err := executeRenderer(fixture.engine(&bytes.Buffer{}), "validate", "")
+	var failure commandFailure
+	if !errors.As(err, &failure) {
+		t.Fatalf("error = %T %v, want commandFailure", err, err)
+	}
+	if failure.code != 23 {
+		t.Errorf("failure code = %d, want 23", failure.code)
+	}
+	if code != 1 {
+		t.Errorf("action code = %d, want renderer code 1", code)
+	}
+	// The image check, then the validation that failed. Nothing after it ran.
+	if len(fixture.commands) != 2 {
+		t.Errorf("commands after first failure = %d, want 2", len(fixture.commands))
+	}
+}
+
+// VALIDATES: a failed image build is reported with the argv that failed, and its
+// report still names the action that ran.
+// PREVENTS: a build failure reaching the operator as a bare exit code, with no
+// way to see which tag or Dockerfile Docker refused.
+func TestBuildImageReportsTheArgvThatFailed(t *testing.T) {
+	fixture := newDemoFixture(t)
+	fixture.failImageBuild = 7
+	var output bytes.Buffer
+	report, err := fixture.engine(&output).BuildImage()
+	if err == nil {
+		t.Fatal("a failed docker build was reported as success")
+	}
+	if report.Mode != rendererImageBuildMode {
+		t.Errorf("report = %#v, want mode %q", report, rendererImageBuildMode)
+	}
+	if !strings.Contains(err.Error(), "fixture-renderer:3") || !strings.Contains(err.Error(), "exit 7") {
+		t.Errorf("error = %v, want the exit code and the tag it refused", err)
+	}
+}
+
+// VALIDATES: a render on a host where the renderer image is not built is refused
+// by name, before any validator runs, and the refusal names the action that builds it.
+// PREVENTS: Docker answering a missing local image with a registry pull, which fails
+// as "pull access denied" after every validator has already run.
+func TestRenderRefusesAnUnbuiltRendererImage(t *testing.T) {
+	fixture := newDemoFixture(t)
+	fixture.missingImage = 1
+	var output bytes.Buffer
+	_, err := fixture.engine(&output).RenderAll("26.08.30")
+	if err == nil {
+		t.Fatal("a render with no renderer image was accepted")
+	}
+	if !strings.Contains(err.Error(), "le site terminal-demo build image") {
+		t.Errorf("error = %v, want the action that builds the image", err)
+	}
+	if len(fixture.commands) != 1 {
+		t.Errorf("commands = %d, want the image check alone: %#v", len(fixture.commands), fixture.commands)
+	}
+}
+
+// VALIDATES: a render whose renderer image carries a peer pin other than the
+// checkout's is refused before any validator, naming the stale label, the pin
+// the checkout declares, and the action that rebuilds the image; an image with
+// no pin labels at all is refused the same way.
+// PREVENTS: a pin bump that leaves the old image under the unchanged manifest
+// tag, so demos record against a peer release the labs no longer run.
+func TestRenderRefusesARendererImageBuiltFromOtherPins(t *testing.T) {
+	arguments, err := rendererPeerArguments(newDemoFixture(t).root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, frr, _ := strings.Cut(arguments[0], "=")
+	stale := map[string]string{}
+	for _, argument := range arguments {
+		name, value, _ := strings.Cut(argument, "=")
+		stale[rendererPinLabels[name]] = value
+	}
+	stale["ze.renderer.frr"] = "0.0.1"
+	for _, tc := range []struct {
+		name   string
+		labels map[string]string
+		want   string
+	}{
+		{name: "stale frr pin", labels: stale, want: `label ze.renderer.frr is "0.0.1", and the checkout pins FRR_VERSION=` + frr},
+		{name: "no labels", labels: map[string]string{}, want: "is missing, and the checkout pins"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newDemoFixture(t)
+			fixture.staleLabels = tc.labels
+			_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.10.30")
+			if err == nil {
+				t.Fatal("a render with a stale renderer image was accepted")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error = %v, want %q", err, tc.want)
+			}
+			if !strings.Contains(err.Error(), "le site terminal-demo build image") {
+				t.Errorf("error = %v, want the action that rebuilds the image", err)
+			}
+			if len(fixture.commands) != 1 {
+				t.Errorf("commands = %d, want the image check alone: %#v", len(fixture.commands), fixture.commands)
+			}
+		})
+	}
+}
+
+// VALIDATES: an image check the daemon does not answer is reported as that
+// failure, and the run stops before any validator.
+// PREVENTS: a stopped daemon read as "the image is not built", which sends the
+// operator to rebuild an image that is already there.
+func TestRenderReportsAnImageCheckTheDaemonDidNotAnswer(t *testing.T) {
+	fixture := newDemoFixture(t)
+	fixture.daemonDown = true
+	_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.10.19")
+	if err == nil {
+		t.Fatal("a render whose image check failed was accepted")
+	}
+	if strings.Contains(err.Error(), "build image") {
+		t.Errorf("error = %v, a daemon that did not answer was read as an unbuilt image", err)
+	}
+	if !strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
+		t.Errorf("error = %v, want the daemon's own answer", err)
+	}
+	if len(fixture.commands) != 1 {
+		t.Errorf("commands = %d, want the image check alone: %#v", len(fixture.commands), fixture.commands)
+	}
+}
+
+// VALIDATES: transcript refusal removes the bad cast from the publish tree and leaves the manifest unwritten.
+// PREVENTS: a failed demo recording remaining publishable after its transcript no longer matches.
+func TestTranscriptRefusalMovesTheRecordingOutOfPublishedArtifacts(t *testing.T) {
+	fixture := newDemoFixture(t)
+	fixture.wrongTranscript = true
+	_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27")
+	if err == nil || !strings.Contains(err.Error(), "the recording does not show") {
+		t.Fatalf("error = %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(fixture.artifacts, "term.cast")); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("bad cast remains published: %v", statErr)
+	}
+	if _, statErr := os.Stat(filepath.Join(fixture.root, "tmp", "terminal-demos", "rejected", "term.cast")); statErr != nil {
+		t.Errorf("rejected cast is absent: %v", statErr)
+	}
+	if _, statErr := os.Stat(filepath.Join(fixture.artifacts, "manifest.json")); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("failed render wrote a manifest: %v", statErr)
+	}
+	if _, statErr := os.Stat(filepath.Join(fixture.root, "tmp", "terminal-demos", "render-tapes", "term.tape")); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("accelerated tape remains: %v", statErr)
+	}
+}
+
+// VALIDATES: artifact bytes and metadata are both part of the check verdict.
+// PREVENTS: a present but modified published file passing because only its path was checked.
+func TestCheckRejectsArtifactDigestDrift(t *testing.T) {
+	fixture := newDemoFixture(t)
+	engine := fixture.engine(&bytes.Buffer{})
+	if _, err := engine.RenderAll("26.08.27"); err != nil {
+		t.Fatalf("render fixture: %v", err)
+	}
+	mustWrite(t, filepath.Join(fixture.artifacts, "term.cast"), "modified\n")
+	if _, err := engine.checkAll(""); err == nil || err.Error() != "term: cast digest mismatch" {
+		t.Fatalf("asset drift error = %v", err)
+	}
+}
+
+// VALIDATES: demo kind and duration rules fail closed at the source manifest.
+// PREVENTS: a terminal demo publishing browser assets, or a browser demo with no duration contract.
+func TestManifestRejectsUnsupportedKindsAndDurationDrift(t *testing.T) {
+	tests := []struct {
+		name   string
+		change func(*Manifest)
+		want   string
+	}{
+		{
+			name:   "unknown kind",
+			change: func(manifest *Manifest) { manifest.Demos[0].Kind = "unknown" },
+			want:   "manifest.json: term.kind is unsupported",
+		},
+		{
+			name:   "cast duration duplicated",
+			change: func(manifest *Manifest) { manifest.Demos[0].Duration = "5 seconds" },
+			want:   "manifest.json: term.duration is read from the cast, so the manifest must not state it",
+		},
+		{
+			name:   "browser duration absent",
+			change: func(manifest *Manifest) { manifest.Demos[1].Duration = "" },
+			want:   "manifest.json: browser.duration is required",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newDemoFixture(t)
+			path := filepath.Join(fixture.root, "demos", "terminal", "manifest.json")
+			var manifest Manifest
+			readJSONForTest(t, path, &manifest)
+			test.change(&manifest)
+			writeJSON(t, path, manifest)
+			if _, err := fixture.engine(&bytes.Buffer{}).checkAll(""); err == nil || err.Error() != test.want {
+				t.Fatalf("error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
+// VALIDATES: transcript verification resolves the cursor, erases, scroll region, wrapping, and repaint history used by real demo casts.
+// PREVENTS: searching the raw byte stream, which contains ghost completions and overwritten commands a reader never saw together.
+func TestScreenModelReconstructsTheRenderedTerminal(t *testing.T) {
+	t.Run("inline completion", func(t *testing.T) {
+		screen := paintScreen("\x1b[36;1Hze> ")
+		typed := "monitor"
+		for index, character := range typed {
+			var burst bytes.Buffer
+			ghost := typed[index+1:]
+			burst.WriteString("\x1b[36;")
+			burst.WriteString(strconv.Itoa(5 + index))
+			burst.WriteByte('H')
+			burst.WriteRune(character)
+			burst.WriteString(ghost)
+			burst.WriteString("\x1b[K")
+			screen.settle(burst.String())
+		}
+		if !strings.Contains(screen.text(), "ze> monitor") {
+			t.Errorf("screen = %q", screen.text())
+		}
+	})
+	t.Run("scroll region", func(t *testing.T) {
+		screen := paintScreen(
+			"\x1b[10;1Hanswer\x1b[34;1Hstatus\x1b[36;1Hze# commit",
+			"\x1b[6;32r\x1b[32;1H\x1b[7S\x1b[1;36r",
+		)
+		rows := strings.Split(screen.text(), "\n")
+		if !slices.Contains(rows, "status") || !slices.Contains(rows, "ze# commit") || slices.Contains(rows, "answer") {
+			t.Errorf("rows = %#v", rows)
+		}
+	})
+	t.Run("delete and reverse index", func(t *testing.T) {
+		deleted := paintScreen("\x1b[1;1Hone\r\ntwo\r\nthree", "\x1b[2;1H\x1b[M")
+		if got := strings.Split(deleted.text(), "\n"); !reflect.DeepEqual(got, []string{"one", "three"}) {
+			t.Errorf("deleted rows = %#v", got)
+		}
+		reversed := paintScreen("\x1b[1;1Hone\r\ntwo", "\x1bM\rONE")
+		if got := strings.Split(reversed.text(), "\n"); !reflect.DeepEqual(got, []string{"ONE", "two"}) {
+			t.Errorf("reverse-index rows = %#v", got)
+		}
+	})
+	t.Run("trailing blank and repaint history", func(t *testing.T) {
+		prompt := paintScreen("\x1b[1;1H$ ")
+		if !strings.Contains(prompt.text(), "$ ") {
+			t.Errorf("prompt screen = %q", prompt.text())
+		}
+		repaint := paintScreen("\x1b[36;1Hze# commit", "\x1b[36;1Hze# ......")
+		if !slices.Contains(repaint.painted(), "ze# commit") {
+			t.Errorf("painted history = %#v", repaint.painted())
+		}
+	})
+	t.Run("wrap and scrollback", func(t *testing.T) {
+		wrapped := paintScreen("\x1b[1;1H" + strings.Repeat("x", 200))
+		rows := strings.Split(wrapped.text(), "\n")
+		if len(rows) != 2 || len(rows[0]) != 137 || len(rows[1]) != 63 {
+			t.Errorf("wrapped row lengths = %d/%d across %d rows", len(rows[0]), len(rows[len(rows)-1]), len(rows))
+		}
+		bursts := []string{"\x1b[1;1Hfirst"}
+		for row := 2; row < 40; row++ {
+			bursts = append(bursts, "\x1b["+strconv.Itoa(row)+";1Hrow"+strconv.Itoa(row))
+		}
+		scrolled := paintScreen(bursts...)
+		if !slices.Contains(scrolled.painted(), "first") || strings.Contains(scrolled.text(), "first") {
+			t.Errorf("painted=%#v screen=%q", scrolled.painted(), scrolled.text())
+		}
+	})
+}
+
+func paintScreen(bursts ...string) *terminalScreen {
+	screen := newTerminalScreen(36, 137)
+	for _, burst := range bursts {
+		screen.settle(burst)
+	}
+	return screen
+}
+
+func mustWrite(t *testing.T, path, content string) {
+	t.Helper()
+	mustMkdir(t, filepath.Dir(path))
+	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustMkdir(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustRead(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func writeJSON(t *testing.T, path string, value any) {
+	t.Helper()
+	mustMkdir(t, filepath.Dir(path))
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = append(data, '\n')
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readJSONForTest(t *testing.T, path string, value any) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, value); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// VALIDATES: a new file in the recorder package changes what a recording is a
+// function of.
+// PREVENTS: the defect this replaced. The sources were hand-listed and the list
+// had gone stale in the direction that costs most -- actions.go and register.go
+// were absent, so a change to the command surface a demo records moved no
+// digest and invalidated no recording. A recorded demo went on claiming to show
+// the behavior of code that had moved under it.
+func TestRecorderSourcesFollowThePackage(t *testing.T) {
+	fixture := newDemoFixture(t)
+	fixture.writeTree(t)
+
+	before, err := nativeRecorderSources(fixture.root)
+	if err != nil {
+		t.Fatalf("read recorder sources: %v", err)
+	}
+
+	added := filepath.Join(fixture.root, filepath.FromSlash(recorderPackageDir), "register.go")
+	mustWrite(t, added, "package terminaldemo\n")
+	ignored := filepath.Join(fixture.root, filepath.FromSlash(recorderPackageDir), "manifest_test.go")
+	mustWrite(t, ignored, "package terminaldemo\n")
+
+	after, err := nativeRecorderSources(fixture.root)
+	if err != nil {
+		t.Fatalf("read recorder sources: %v", err)
+	}
+	if len(after) != len(before)+1 {
+		t.Fatalf("sources went from %d to %d; want exactly the one new non-test file", len(before), len(after))
+	}
+	if !slices.Contains(after, recorderPackageDir+"/register.go") {
+		t.Errorf("a new package file is not a recorder source: %v", after)
+	}
+	if slices.Contains(after, recorderPackageDir+"/manifest_test.go") {
+		t.Error("a test file became a recorder source, so every test edit would invalidate every recording")
+	}
+	if !slices.IsSorted(after) {
+		t.Error("recorder sources are unsorted, so the digest depends on directory order")
+	}
+}
+
+// VALIDATES: the renderer container records a tape with `le site terminal-demo pty`, run from the linux le the build writes.
+// PREVENTS: the container entrypoint or a validator still exec'ing ze-terminal-pty, which the demo build no longer writes.
+func TestTheContainerRecordsThroughLe(t *testing.T) {
+	name, arguments := recorderCommand("--tape", "term/demo.tape")
+	if name != demoBinary("le") {
+		t.Errorf("the recorder program is %s, want %s", name, demoBinary("le"))
+	}
+	want := []string{"site", "terminal-demo", "pty", "--tape", "term/demo.tape"}
+	if !reflect.DeepEqual(arguments, want) {
+		t.Errorf("the recorder argv is %q, want %q", arguments, want)
+	}
+}
+
+// VALIDATES: `le site terminal-demo pty --help` reaches RunPTY, which answers its own usage and exit 0.
+// PREVENTS: the pty action answering le's one-line usage, or RunPTY refusing --help as an unknown argument.
+func TestPTYActionAnswersRunPTYsHelp(t *testing.T) {
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := os.Stdout
+	os.Stdout = writer
+	payload, code := Answer([]string{"pty", "--help"})
+	os.Stdout = saved
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	if _, err := output.ReadFrom(reader); err != nil {
+		t.Fatal(err)
+	}
+	if code != 0 || payload != nil {
+		t.Errorf("pty --help answered (%v, %d), want (nil, 0)", payload, code)
+	}
+	if output.String() != ptyUsage {
+		t.Errorf("pty --help printed %q, want RunPTY's usage", output.String())
+	}
+	if _, code := Answer([]string{"pty", "--no-such-option"}); code != 2 {
+		t.Errorf("pty --no-such-option answered %d, want RunPTY's refusal 2", code)
+	}
+}
+
+// VALIDATES: spec-terminal-demo-showcase AC-5. A topic fragment lives outside
+// every demo directory and two demos source it, a topic tape and the showcase.
+// Editing the fragment, or a config snippet beside it, moves both demos' source
+// and definition digests, and the check mode reports the rendered demo stale.
+// PREVENTS: a digest built from the demo's own directory alone, which reports
+// a recording current after the fragment it plays has changed.
+func TestSourceDigestFollowsSourcedTapes(t *testing.T) {
+	fixture := newDemoFixture(t)
+	demoRoot := filepath.Join(fixture.root, "demos", "terminal")
+	fragment := filepath.Join(demoRoot, "topics", "rpki", "configure.tape")
+	snippet := filepath.Join(demoRoot, "topics", "rpki", "1-cache.conf")
+	mustWrite(t, fragment, "Type load file relative merge topics/rpki/1-cache.conf\n")
+	mustWrite(t, snippet, "rpki { cache-server 192.0.2.1 }\n")
+	mustWrite(t, filepath.Join(demoRoot, "term", "demo.tape"),
+		"Source common.tape\nSource topics/rpki/configure.tape\nType show term\n")
+	mustWrite(t, filepath.Join(demoRoot, "showcase", "demo.tape"),
+		"Source common.tape\nSource topics/rpki/configure.tape\nType show showcase\n")
+	topic := Demo{ID: "term", Kind: "terminal", Source: "term/demo.tape"}
+	showcase := Demo{ID: "showcase", Kind: "terminal", Source: "showcase/demo.tape"}
+
+	engine := fixture.engine(&bytes.Buffer{})
+	if _, err := engine.RenderAll("26.08.27"); err != nil {
+		t.Fatalf("render fixture: %v", err)
+	}
+	digests := func() []string {
+		t.Helper()
+		var all []string
+		for _, demo := range []Demo{topic, showcase} {
+			source, err := engine.sourceDigest(demo)
+			if err != nil {
+				t.Fatalf("%s source digest: %v", demo.ID, err)
+			}
+			definition, err := engine.definitionDigest(demo)
+			if err != nil {
+				t.Fatalf("%s definition digest: %v", demo.ID, err)
+			}
+			all = append(all, source, definition)
+		}
+		return all
+	}
+	names := []string{"topic source", "topic definition", "showcase source", "showcase definition"}
+
+	before := digests()
+	for _, edit := range []struct{ name, path, content string }{
+		{"fragment", fragment, "Type load file relative merge topics/rpki/1-cache.conf\nType show bgp rpki status\n"},
+		{"snippet", snippet, "rpki { cache-server 192.0.2.2 }\n"},
+	} {
+		mustWrite(t, edit.path, edit.content)
+		after := digests()
+		for index := range before {
+			if after[index] == before[index] {
+				t.Errorf("%s edit: %s digest did not change", edit.name, names[index])
+			}
+		}
+		before = after
+	}
+
+	_, err := engine.checkAll("")
+	if err == nil || err.Error() != "term: source changed since the last render" {
+		t.Fatalf("check after a fragment edit: err %v, want the term demo reported stale", err)
+	}
+}

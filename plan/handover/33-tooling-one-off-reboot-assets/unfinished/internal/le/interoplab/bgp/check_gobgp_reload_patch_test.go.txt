@@ -1,0 +1,177 @@
+// Design: docs/architecture/testing/interop.md -- image-bound applied patch provenance.
+// Provenance must bind the running image to its applied source patch.
+package bgp
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
+)
+
+const gobgpReloadPatchFixturePath = "/usr/local/share/ze/gobgp-v4.11.0-export-reload.patch"
+const gobgpReloadPatchFixture = "--- a/pkg/config/config.go\n+++ b/pkg/config/config.go\n@@ -1 +1 @@\n-IN\n+BOTH\n"
+
+// TestGoBGPReloadRetainsAppliedPatch drives identify through live image
+// observation and requires the applied artifact's bytes and SHA256 before
+// configuration observations. A version string cannot supply either artifact.
+func TestGoBGPReloadRetainsAppliedPatch(t *testing.T) {
+	lab, proof := gobgpReloadPatchFixtureProof(t)
+	if err := proof.identify(t.Context()); err != nil {
+		t.Fatalf("complete observed patch was refused: %v", err)
+	}
+	if proof.evidence["gobgp-patch"] != gobgpReloadPatchFixture {
+		t.Errorf("applied patch bytes = %q, want the observed artifact", proof.evidence["gobgp-patch"])
+	}
+	if proof.evidence["gobgp-patch-sha256"] != lab.digest {
+		t.Errorf("applied patch digest = %q, want the observed digest", proof.evidence["gobgp-patch-sha256"])
+	}
+	if !slices.Equal(lab.patchCalls, []string{"bytes", "digest"}) {
+		t.Errorf("patch observations = %v, want bytes then digest", lab.patchCalls)
+	}
+	if lab.configReads == 0 {
+		t.Error("valid patch evidence never reached the existing configuration observations")
+	}
+	if proof.evidence["image-"+peerGoBGP] == "" {
+		t.Error("patch observations lost the actual consumed image identity")
+	}
+}
+
+// TestGoBGPReloadRefusesUnknownAppliedPatch supplies otherwise working native
+// queries and varies only applied-artifact evidence. Unknown or inconsistent
+// producer evidence must refuse before the existing configuration observations.
+func TestGoBGPReloadRefusesUnknownAppliedPatch(t *testing.T) {
+	observed := errors.New("fixture patch observation refused")
+	for _, scenario := range []struct {
+		name   string
+		change func(*testing.T, *gobgpReloadPatchLab, *gobgpReloadProof)
+		cause  error
+	}{
+		{name: "unreadable runtime bytes", cause: observed, change: func(_ *testing.T, lab *gobgpReloadPatchLab, _ *gobgpReloadProof) {
+			lab.patchError = observed
+		}},
+		{name: "empty runtime bytes", change: func(_ *testing.T, lab *gobgpReloadPatchLab, _ *gobgpReloadProof) {
+			lab.patch = ""
+		}},
+		{name: "different runtime patch", change: func(_ *testing.T, lab *gobgpReloadPatchLab, _ *gobgpReloadProof) {
+			lab.patch += "+unreviewed change\n"
+		}},
+		{name: "unreadable runtime digest", cause: observed, change: func(_ *testing.T, lab *gobgpReloadPatchLab, _ *gobgpReloadProof) {
+			lab.digestError = observed
+		}},
+		{name: "malformed digest", change: func(_ *testing.T, lab *gobgpReloadPatchLab, _ *gobgpReloadProof) {
+			lab.digest = "not-a-sha256  " + gobgpReloadPatchFixturePath + "\n"
+		}},
+		{name: "different digest", change: func(_ *testing.T, lab *gobgpReloadPatchLab, _ *gobgpReloadProof) {
+			lab.digest = strings.Repeat("0", 64) + "  " + gobgpReloadPatchFixturePath + "\n"
+		}},
+		{name: "different digest file", change: func(_ *testing.T, lab *gobgpReloadPatchLab, _ *gobgpReloadProof) {
+			lab.digest = strings.Replace(lab.digest, gobgpReloadPatchFixturePath, "/different.patch", 1)
+		}},
+		{name: "multiple digest rows", change: func(_ *testing.T, lab *gobgpReloadPatchLab, _ *gobgpReloadProof) {
+			lab.digest += lab.digest
+		}},
+		{name: "missing checkout", change: func(_ *testing.T, _ *gobgpReloadPatchLab, proof *gobgpReloadProof) {
+			proof.check.Checkout = ""
+		}},
+		{name: "missing source patch", change: func(t *testing.T, _ *gobgpReloadPatchLab, proof *gobgpReloadProof) {
+			if err := os.Remove(filepath.Join(proof.check.Checkout, "test", "interop", "gobgp-v4.11.0-export-reload.patch")); err != nil {
+				t.Fatalf("remove this fixture's patch source: %v", err)
+			}
+		}},
+		{name: "empty source patch", change: func(t *testing.T, _ *gobgpReloadPatchLab, proof *gobgpReloadProof) {
+			if err := os.WriteFile(filepath.Join(proof.check.Checkout, "test", "interop", "gobgp-v4.11.0-export-reload.patch"), nil, 0o600); err != nil {
+				t.Fatalf("empty this fixture's patch source: %v", err)
+			}
+		}},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			lab, proof := gobgpReloadPatchFixtureProof(t)
+			scenario.change(t, lab, proof)
+			err := proof.identify(t.Context())
+			if err == nil {
+				t.Fatal("unknown applied patch supplied a native reload proof")
+			}
+			if scenario.cause != nil {
+				if !errors.Is(err, scenario.cause) {
+					t.Errorf("observation failure was lost: %v", err)
+				}
+			}
+			for _, want := range []string{"patch", "Fix:"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("patch refusal %q lacks %q", err, want)
+				}
+			}
+			if lab.configReads != 0 {
+				t.Errorf("unknown producer proceeded to %d configuration observations", lab.configReads)
+			}
+		})
+	}
+}
+
+// gobgpReloadPatchFixtureProof supplies the independently declared source file
+// and a working image/query boundary. No Docker process is created.
+func gobgpReloadPatchFixtureProof(t *testing.T) (*gobgpReloadPatchLab, *gobgpReloadProof) {
+	t.Helper()
+	checkout := t.TempDir()
+	directory := filepath.Join(checkout, "test", "interop")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatalf("create this fixture's patch directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "gobgp-v4.11.0-export-reload.patch"), []byte(gobgpReloadPatchFixture), 0o600); err != nil {
+		t.Fatalf("write this fixture's patch source: %v", err)
+	}
+	digest := sha256.Sum256([]byte(gobgpReloadPatchFixture))
+	lab := &gobgpReloadPatchLab{patch: gobgpReloadPatchFixture, digest: hex.EncodeToString(digest[:]) + "  " + gobgpReloadPatchFixturePath + "\n"}
+	proof := &gobgpReloadProof{check: &interoplab.CheckContext{Checkout: checkout, Lab: lab}, evidence: make(map[string]string)}
+	return lab, proof
+}
+
+type gobgpReloadPatchLab struct {
+	interoplab.CheckerLab
+	patch       string
+	digest      string
+	patchError  error
+	digestError error
+	patchCalls  []string
+	configReads int
+}
+
+func (lab *gobgpReloadPatchLab) PeerImage(context.Context, string) (string, error) {
+	return "sha256:" + strings.Repeat("a", 64), nil
+}
+
+func (lab *gobgpReloadPatchLab) Query(_ context.Context, peer string, command []string, _ []interoplab.EnvironmentVariable) (string, error) {
+	if slices.Equal(command, []string{"cat", gobgpReloadPatchFixturePath}) {
+		if peer != peerGoBGP {
+			return "", errors.New("applied patch queried from a different peer")
+		}
+		lab.patchCalls = append(lab.patchCalls, "bytes")
+		return lab.patch, lab.patchError
+	}
+	if slices.Equal(command, []string{"sha256sum", gobgpReloadPatchFixturePath}) {
+		if peer != peerGoBGP {
+			return "", errors.New("applied patch digest queried from a different peer")
+		}
+		lab.patchCalls = append(lab.patchCalls, "digest")
+		return lab.digest, lab.digestError
+	}
+	// Hashing rendered inputs reads configuration files too; an unknown
+	// producer must stop before this observation as well as before cat.
+	if slices.Equal(command, []string{"sh", "-c", "sha256sum /etc/gobgp/gobgp.toml /etc/gobgp/reload/*.toml"}) {
+		lab.configReads++
+	}
+	if len(command) > 0 {
+		if command[0] == "cat" {
+			lab.configReads++
+		}
+	}
+	return "working native observation\n", nil
+}

@@ -1,0 +1,7 @@
+{
+  "Replace": {
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/repo/inventory/committed_external_root_fields_test.go": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-06-080923/scratch/inventory-range-scalar-tests/after/committed_external_root_fields_test.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/repo/inventory/external_received_field_solver_test.go": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-06-080923/scratch/inventory-range-scalar-tests/after/external_received_field_solver_test.go.txt"
+  }
+}
+

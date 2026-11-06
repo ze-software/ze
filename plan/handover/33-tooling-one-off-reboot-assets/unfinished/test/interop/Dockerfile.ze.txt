@@ -1,0 +1,51 @@
+# Ze image for the general BGP interop lab.
+#
+# It expects three pre-built linux binaries, at test/interop/ze-linux,
+# test/interop/le-linux and test/interop/ze-le-linux, which `./le test integration interop` cross-compiles
+# before it builds this image (internal/le/interoplab/zebuild.go, StageBinaries,
+# declared by internal/le/interoplab/bgp/run.go, LabBinaries). A bare
+# `docker build -f test/interop/Dockerfile.ze .` on a clean checkout fails at
+# the COPY until that action has run.
+#
+# The binaries are built rather than compiled here on purpose. A Go compiler and
+# linker inside this image was killed by the kernel three times on an idle
+# 31 GiB workstation on 2026-09-06, and took 40m39s on a small VM on 2026-09-04.
+#
+# ze and le are both cmd/ze selected by build tag: the daemon personality
+# takes ze_core ze_distro and le takes ze_le (internal/le/linuxle, Base), which
+# carries every harness command as `le test <name>`. Both also
+# carry every gate feature-gates.txt declares, because a personality tag alone
+# leaves every compile-out-able feature off and BGP itself is one of them
+# (ze_bgp). The producer reads that manifest through internal/le/repo/featuretags, so
+# this file names no feature and cannot drift from the shipped binary.
+
+FROM alpine:3.24.3
+
+# nftables supplies the `nft` CLI. Ze programs the kernel over netlink and needs
+# no binary, but a scenario that asserts what reached the KERNEL has no other
+# instrument: `show firewall` renders the registry's own record, and the nft
+# readback skips every table outside the ze_ ownership prefix
+# (internal/plugins/firewall/nft/readback_linux.go).
+# iproute2 supplies `ip xfrm` for the same reason: the ospf-ipsec scenarios read
+# the RFC 4552 states and policies ze installed back out of the kernel, and the
+# BusyBox `ip` in the base image has no xfrm object.
+# tcpreplay: the isis-purge-reorig-frr checker sends a purge of Ze's own LSP
+# from inside this container (interoplab.SendFrameInContainer), so the send
+# needs no host privilege to enter the container's network namespace.
+# tcpdump observes native DelayOpen timing and the NSSA's first OSPF exchange.
+# GNU timeout owns and joins that capture, including SIGINT flush at the bound;
+# BusyBox timeout's detached watchdog does not provide that lifetime contract.
+# These tools run only inside this lab container, never through a host sudo.
+RUN apk add --no-cache tini nftables iproute2 tcpreplay tcpdump coreutils=9.11-r0
+
+COPY test/interop/ze-linux /usr/local/bin/ze
+# The file MUST be named le: cmd/ze selects its personality from the name it
+# was started under.
+COPY test/interop/le-linux /usr/local/bin/le
+# The daemon again, built with ze_le added, which compiles the test seams no
+# shipped binary carries (the read-path panic injection of bgp-panic-cease).
+# It sits outside PATH so `ze` everywhere stays the shipped build; only a
+# scenario holding a ze-le-daemon file starts it (scenarioPeers, prepare.go).
+COPY test/interop/ze-le-linux /usr/local/lib/ze-le/ze
+# tini ensures proper signal handling (SIGTERM → ze process).
+ENTRYPOINT ["tini", "--", "ze"]

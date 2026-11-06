@@ -1,0 +1,13 @@
+log stderr all;
+router id 172.30.0.4;
+protocol device { }
+protocol static reload_sources {
+ ipv4;
+ route 10.240.3.0/24 blackhole;
+ route 10.240.4.0/24 blackhole;
+}
+protocol bgp gobgp_peer {
+ local 172.30.0.4 as 65004;
+ neighbor 172.30.0.5 as 65005;
+ ipv4 { import none; export where proto = "reload_sources"; };
+}

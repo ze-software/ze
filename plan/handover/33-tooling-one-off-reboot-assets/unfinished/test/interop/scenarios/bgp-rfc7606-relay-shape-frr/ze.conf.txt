@@ -1,0 +1,90 @@
+# Ze configured as a route server (RFC 7947): it relays a client's routes to other
+# clients without inserting its own AS. Ze is a general BGP speaker; this is one mode.
+plugin {
+	internal rib {
+		use bgp-rib;
+	}
+	internal rs {
+		use bgp-rs;
+	}
+	# The injector sends before FRR is up, so the route reaches FRR through the
+	# peer-up REPLAY rather than a live forward. The route server asks
+	# adj-rib-in for that replay, so without this instance it waits for a store
+	# that does not exist and logs `peer-up replay gave up waiting for
+	# adj-rib-in to reach the cut ... ingested=0`.
+	internal adj-rib-in {
+		use bgp-adj-rib-in;
+	}
+}
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	# The raw injector. Ze dials it (accept false) exactly as the plugin .ci suite
+	# does, because le test peer listens rather than connects in check mode.
+	peer injector {
+		connection {
+			remote { ip 172.30.0.9; }
+			local  { ip 172.30.0.2; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65004; }
+			router-id 172.30.0.2;
+			# RFC 7947 Section 2.2.2.1: a route server MUST NOT prepend its own AS.
+			# `rs-client` DEFAULTS TO FALSE (plugins/rs/yang/ze-rs-conf.yang) and is the
+			# ONLY thing that selects the non-prepending path: reactor_api_forward.go:711
+			# gates on `facts.isEBGP && !facts.rsClient`, and facts.rsClient comes only
+			# from this leaf (peer_forward_facts.go:111 <- reactor/config.go:266). Without
+			# it these peers are plain eBGP peers and Ze correctly prepends 65001, which is
+			# exactly what check_route_no_as() below fails on. Same trap the plugin suite
+			# already records: test/plugin/bgp-rs-asn4-transcode.ci:18-26.
+			rs-client true;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		# Without this block the route server receives no peer-scoped event and
+		# relays nothing: PeerScopedProcs (plugin/server/delivery_graph.go) reads
+		# the attach bindings, and filterPermittedPeers (reactor/send_permission.go)
+		# drops a destination whose bindings grant no `send update`. The tokens
+		# match SetStartupSubscriptions in RunRouteServer (plugins/rs/server.go),
+		# and `state` and `open-received` are as load-bearing as `update-received`,
+		# because they are what fill peer.Up and peer.Families.
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		# The SOURCE half of the replay: adj-rib-in stores what this peer sends.
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+	peer frr {
+		connection {
+			remote { ip 172.30.0.11; }
+			local  { ip 172.30.0.2; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 172.30.0.2;
+			# See the peer above: rs-client is what suppresses the AS prepend.
+			rs-client true;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		# See the peer above: this block is what feeds the route server.
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		# The DESTINATION half of the replay: the replayed route leaves on this
+		# peer's wire, so adj-rib-in needs permission to originate one here
+		# (maySend, internal/component/bgp/reactor/send_permission.go).
+		attach process adj-rib-in {
+			send [ update ]
+		}
+	}
+}

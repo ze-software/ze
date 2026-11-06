@@ -1,0 +1,8 @@
+{
+  "Replace": {
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/interoplab/bgp/selected_images_test.go": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-06-080923/scratch/gobgp-same-suite-pair/after/selected_images_test.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/interoplab/bgp/check_gobgp_reload.go": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-06-080923/scratch/gobgp-same-suite-pair/after/check_gobgp_reload.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/interoplab/bgp/check_gobgp_reload_patch.go": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-06-080923/scratch/gobgp-same-suite-pair/after/check_gobgp_reload_patch.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/interoplab/bgp/check_gobgp_reload_patch_test.go": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-11-06-080923/scratch/gobgp-same-suite-pair/after/check_gobgp_reload_patch_test.go.txt"
+  }
+}

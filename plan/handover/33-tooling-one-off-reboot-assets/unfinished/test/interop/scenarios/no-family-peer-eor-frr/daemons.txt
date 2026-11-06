@@ -1,0 +1,22 @@
+# Preserve test/interop/daemons daemon selection. Enable bgpd's log before
+# integrated configuration so its native startup fences the initial EOR.
+zebra=yes
+bgpd=yes
+ospfd=yes
+ospf6d=yes
+ripd=no
+ripngd=no
+isisd=yes
+pimd=no
+pim6d=no
+ldpd=no
+nhrpd=no
+eigrpd=no
+babeld=no
+sharpd=no
+pbrd=no
+bfdd=yes
+fabricd=no
+vrrpd=no
+pathd=no
+bgpd_options="--log file:/tmp/frr.log --log-level debug"

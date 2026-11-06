@@ -1,0 +1,189 @@
+# NEW successor; original historical four-peer artifacts remain missing.
+[global.config]
+  as = 65005
+  router-id = "172.30.0.5"
+  port = 179
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.2"
+    peer-as = 65001
+  [neighbors.transport.config]
+    passive-mode = true
+  [neighbors.timers.config]
+    hold-time = 90
+    keepalive-interval = 3
+  [neighbors.route-server.config]
+    route-server-client = true
+    secondary-route = false
+  [neighbors.apply-policy.config]
+    import-policy-list = ["source-ze"]
+    export-policy-list = ["receiver-export"]
+    default-import-policy = "accept-route"
+    default-export-policy = "accept-route"
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.4"
+    peer-as = 65004
+  [neighbors.transport.config]
+    passive-mode = true
+  [neighbors.timers.config]
+    hold-time = 90
+    keepalive-interval = 3
+  [neighbors.route-server.config]
+    route-server-client = true
+    secondary-route = false
+  [neighbors.apply-policy.config]
+    import-policy-list = ["source-bird"]
+    export-policy-list = ["receiver-export"]
+    default-import-policy = "accept-route"
+    default-export-policy = "accept-route"
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.3"
+    peer-as = 65002
+  [neighbors.transport.config]
+    passive-mode = true
+  [neighbors.timers.config]
+    hold-time = 90
+    keepalive-interval = 3
+  [neighbors.route-server.config]
+    route-server-client = true
+    secondary-route = true
+  [neighbors.apply-policy.config]
+    import-policy-list = ["receiver-import"]
+    export-policy-list = ["receiver-export"]
+    default-import-policy = "accept-route"
+    default-export-policy = "accept-route"
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.15"
+    peer-as = 65015
+  [neighbors.transport.config]
+    passive-mode = true
+  [neighbors.timers.config]
+    hold-time = 90
+    keepalive-interval = 3
+  [neighbors.route-server.config]
+    route-server-client = true
+    secondary-route = false
+  [neighbors.apply-policy.config]
+    import-policy-list = ["receiver-import"]
+    export-policy-list = ["receiver-export"]
+    default-import-policy = "accept-route"
+    default-export-policy = "accept-route"
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+
+[[defined-sets.prefix-sets]]
+  prefix-set-name = "p0"
+  [[defined-sets.prefix-sets.prefix-list]]
+    ip-prefix = "10.240.0.0/24"
+    masklength-range = "24..24"
+
+[[defined-sets.prefix-sets]]
+  prefix-set-name = "p1"
+  [[defined-sets.prefix-sets.prefix-list]]
+    ip-prefix = "10.240.1.0/24"
+    masklength-range = "24..24"
+
+[[defined-sets.prefix-sets]]
+  prefix-set-name = "p2"
+  [[defined-sets.prefix-sets.prefix-list]]
+    ip-prefix = "10.240.2.0/24"
+    masklength-range = "24..24"
+
+[[defined-sets.prefix-sets]]
+  prefix-set-name = "p3"
+  [[defined-sets.prefix-sets.prefix-list]]
+    ip-prefix = "10.240.3.0/24"
+    masklength-range = "24..24"
+
+[[defined-sets.prefix-sets]]
+  prefix-set-name = "p4"
+  [[defined-sets.prefix-sets.prefix-list]]
+    ip-prefix = "10.240.4.0/24"
+    masklength-range = "24..24"
+
+[[defined-sets.prefix-sets]]
+  prefix-set-name = "p5"
+  [[defined-sets.prefix-sets.prefix-list]]
+    ip-prefix = "10.240.5.0/24"
+    masklength-range = "24..24"
+
+[[defined-sets.prefix-sets]]
+  prefix-set-name = "p6"
+  [[defined-sets.prefix-sets.prefix-list]]
+    ip-prefix = "10.240.6.0/24"
+    masklength-range = "24..24"
+
+[[defined-sets.prefix-sets]]
+  prefix-set-name = "p7"
+  [[defined-sets.prefix-sets.prefix-list]]
+    ip-prefix = "10.240.7.0/24"
+    masklength-range = "24..24"
+
+[[defined-sets.bgp-defined-sets.as-path-sets]]
+  as-path-set-name = "ze-source"
+  as-path-list = ["^65001$"]
+
+[[policy-definitions]]
+  name = "source-ze"
+  [[policy-definitions.statements]]
+    name = "prefer-ze"
+    [policy-definitions.statements.actions]
+      route-disposition = "accept-route"
+    [policy-definitions.statements.actions.bgp-actions]
+      set-local-pref = 200
+
+[[policy-definitions]]
+  name = "source-bird"
+  [[policy-definitions.statements]]
+    name = "backup"
+    [policy-definitions.statements.actions]
+      route-disposition = "accept-route"
+    [policy-definitions.statements.actions.bgp-actions]
+      set-local-pref = 100
+
+[[policy-definitions]]
+  name = "receiver-import"
+  [[policy-definitions.statements]]
+    name = "no-receiver-origins"
+    [policy-definitions.statements.actions]
+      route-disposition = "reject-route"
+
+[[policy-definitions]]
+  name = "receiver-export"
+  [[policy-definitions.statements]]
+    name = "never-sent"
+    [policy-definitions.statements.conditions.match-prefix-set]
+      prefix-set = "p7"
+    [policy-definitions.statements.actions]
+      route-disposition = "reject-route"
+  [[policy-definitions.statements]]
+    name = "attribute-only"
+    [policy-definitions.statements.conditions.match-prefix-set]
+      prefix-set = "p2"
+    [policy-definitions.statements.actions]
+      route-disposition = "accept-route"
+    [policy-definitions.statements.actions.bgp-actions]
+      set-med = "20"
+  [[policy-definitions.statements]]
+    name = "accept-rest"
+    [policy-definitions.statements.actions]
+      route-disposition = "accept-route"
+    [policy-definitions.statements.actions.bgp-actions]
+      set-med = "0"

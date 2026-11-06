@@ -1,0 +1,189 @@
+// Design: docs/architecture/plugin/feature-gates.md -- whole-value ownership survives field selection.
+package repoinventory
+
+import (
+	"go/ast"
+	"go/token"
+	"strings"
+	"testing"
+)
+
+// TestExternalReceivedStructFieldSolver exercises the ownership solver directly
+// over production-selected retained source. The committed both-API regression
+// separately proves Git capture and publication behavior; this test cannot.
+func TestExternalReceivedStructFieldSolver(t *testing.T) {
+	for _, receive := range []bool{false, true} {
+		name := "known-initial-field"
+		transfer := ""
+		if receive {
+			name = "received-whole-value"
+			transfer = "s = <-ch;"
+		}
+		t.Run(name, func(t *testing.T) {
+			const directory = "internal/channelproof"
+			const filename = directory + "/proof.go"
+			text := "package channelproof\ntype box struct { Cb func() }\nfunc Fire(ch <-chan box) { var s box = box{Cb:func(){}}; " + transfer + " s.Cb() }\n"
+			snapshot := &Snapshot{
+				blobs:       map[string][]byte{filename: []byte(text)},
+				directories: map[string][]string{directory: {filename}},
+				fset:        token.NewFileSet(), packages: make(map[string]*sourcePackage),
+			}
+			context := linuxContext(nil, snapshot.blobs)
+			if err := snapshot.selectPackage(directory, &context); err != nil {
+				t.Fatal(err)
+			}
+			source := &externalSource{snapshot: snapshot, roots: map[string]bool{directory: true}}
+			effects := newExternalEffects(source)
+			function, found := snapshot.packages[directory].functions["Fire"]
+			if !found {
+				t.Fatal("selected source lost Fire")
+			}
+			effects.body(function.decl, sourceExpr{file: function.file, pkg: function.pkg}, false)
+			err := effects.solve()
+			if !receive {
+				if err != nil {
+					t.Fatalf("known inert field refused: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("received whole struct borrowed the initial inert field's ownership")
+			}
+			if !strings.Contains(err.Error(), "channel") {
+				t.Fatalf("received ownership refusal lost its channel cause: %v", err)
+			}
+		})
+	}
+}
+
+// TestExternalRangedScalarReadDependencies inspects the retained method's actual
+// result after source selection and fixed-point solving. A builtin scalar copy
+// MUST preserve its collection read and MUST NOT acquire sibling callables or
+// writable locations from the whole element.
+func TestExternalRangedScalarReadDependencies(t *testing.T) {
+	for _, loop := range []struct{ name, code string }{
+		{"fresh", "for _, item := range records { consume(item.Text()) }"},
+		{"existing", "var item scalarParcel; for _, item = range records { consume(item.Text()) }"},
+	} {
+		t.Run(loop.name, func(t *testing.T) {
+			const directory = "internal/scalarread"
+			const filename = directory+"/source.go"
+			text := `package scalarread
+type scalarParcel struct { Label string; Callback func() }
+var records = []scalarParcel{scalarParcel{Label:"copy", Callback:func(){}}}
+func (p scalarParcel) Text() string { return p.Label }
+func consume(_ string) {}
+func Run() { LOOP }
+`
+			effects := typeIdentitySelectedSource(t, directory, map[string]string{
+				filename: strings.Replace(text, "LOOP", loop.code, 1),
+			})
+			pkg := effects.source.snapshot.packages[directory]
+			file := typeIdentitySelectedFile(t, pkg, filename)
+			method := externalRangedScalarSelectedMethod(t, file)
+			run, found := pkg.functions["Run"]
+			if !found {
+				t.Fatal("selected source lost the authored entry")
+			}
+			effects.body(run.decl, sourceExpr{file: run.file, pkg: pkg}, false)
+			if err := effects.solve(); err != nil {
+				t.Fatalf("proved ranged scalar receiver refused: %v", err)
+			}
+			result := effects.returns[method]
+			if result.unknown != "" {
+				t.Fatalf("scalar result retained value uncertainty: %s", result.unknown)
+			}
+			if result.unresolvedFields != "" {
+				t.Fatalf("selected scalar retained its holder's selector obligation: %s", result.unresolvedFields)
+			}
+			if len(result.callables) != 0 {
+				t.Fatal("builtin scalar copy acquired a sibling or receiver callable")
+			}
+			if len(result.origins) != 0 {
+				t.Fatal("retained builtin scalar copy acquired an ordinary opaque origin")
+			}
+			if len(result.reflection.methods) != 0 {
+				t.Fatal("builtin scalar copy acquired a sibling or receiver descriptor method")
+			}
+			if len(result.reflection.origins) != 0 {
+				t.Fatal("retained builtin scalar copy acquired a reflected opaque origin")
+			}
+			if result.reflection.unknown != "" {
+				t.Fatalf("builtin scalar descriptor retained uncertainty: %s", result.reflection.unknown)
+			}
+			if len(result.locations) != 0 {
+				t.Fatal("builtin scalar copy acquired writable backing locations")
+			}
+			if result.references {
+				t.Fatal("builtin scalar copy retained a reference-bearing field shape")
+			}
+			records := file.Scope.Lookup("records")
+			if records == nil {
+				t.Fatal("selected source lost the actual collection binding")
+			}
+			if !result.reads[records] {
+				t.Fatal("ranged scalar result lost its actual collection read dependency")
+			}
+		})
+	}
+}
+
+// TestExternalRangedScalarFormalProvenance queries the real source-equation
+// solver. A retained empty collection is a real witness; a missing argument or
+// ungrounded incoming caller cannot borrow that witness from another binding.
+func TestExternalRangedScalarFormalProvenance(t *testing.T) {
+	for _, scenario := range []struct{ name, collection, callers, cause string }{
+		{"nonempty", `[]scalarParcel{scalarParcel{Label:"copy"}}`, "func Run(){ for _, item := range records { _ = item.Text() } }", ""},
+		{"empty", "[]scalarParcel{}", "func Run(){ for _, item := range records { _ = item.Text() } }", ""},
+		{"missing", "[]scalarParcel{}", "func Run(){}", "no grounded retained argument"},
+		{"mixed-incoming", `[]scalarParcel{scalarParcel{Label:"copy"}}`, "func Run(){ for _, item := range records { _ = item.Text() } }\nfunc dormant(missing scalarParcel){ _ = missing.Text() }", "no grounded retained argument"},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			const directory = "internal/scalarground"
+			const filename = directory+"/source.go"
+			text := "package scalarground\ntype scalarParcel struct{Label string}\n"+
+				"var records = "+scenario.collection+"\n"+
+				"func(p scalarParcel) Text() string { return p.Label }\n"+scenario.callers+"\n"
+			effects := typeIdentitySelectedSource(t, directory, map[string]string{filename:text})
+			pkg := effects.source.snapshot.packages[directory]
+			file := typeIdentitySelectedFile(t, pkg, filename)
+			method := externalRangedScalarSelectedMethod(t, file)
+			effects.indexDefinitions([]string{directory})
+			effects.indexFormalSources([]string{directory})
+			proofs := externalFormalProofs{
+				effects:effects, objects:make(map[*ast.Object]*externalFormalProof),
+				returns:make(map[ast.Node]*externalFormalProof),
+			}
+			receiver := method.Recv.List[0].Names[0].Obj
+			reason := externalFormalComplete(proofs.object(receiver, 0))
+			if scenario.cause != "" {
+				if !strings.Contains(reason, scenario.cause) {
+					t.Fatalf("unproved caller acquired range authority: %q, want %q", reason, scenario.cause)
+				}
+				return
+			}
+			if reason != "" {
+				t.Fatalf("retained range source did not ground its exact receiver: %s", reason)
+			}
+		})
+	}
+}
+
+func externalRangedScalarSelectedMethod(t *testing.T, file *ast.File) *ast.FuncDecl {
+	t.Helper()
+	for _, declaration := range file.Decls {
+		function, declared := declaration.(*ast.FuncDecl)
+		if !declared {
+			continue
+		}
+		if function.Recv == nil {
+			continue
+		}
+		if function.Name.Name == "Text" {
+			return function
+		}
+	}
+	t.Fatal("selected source lost the authored scalar method")
+	return nil
+}
+

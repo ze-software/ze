@@ -1,0 +1,908 @@
+{
+  "base_commit": "938894dc74353198237b508253e6bb4cca0c758e",
+  "status": "unfinished source snapshots; not installed or tested by packaging",
+  "files": [
+    {
+      "path": "internal/le/doc/wiring/docverify.go",
+      "asset": "unfinished/internal/le/doc/wiring/docverify.go.txt",
+      "sha256": "3c96e024b2d875926e606d987dd18c095fc8075ad6361d9f06c8fcc8219ab6b7",
+      "base_sha256": "09676154fe88bfa38b2bc45ed96172d5b9ddd5cf9d34ac7e3572b3d725b89ba1",
+      "base_asset": "base/internal/le/doc/wiring/docverify.go.txt"
+    },
+    {
+      "path": "internal/le/doc/yangcontract/actions.go",
+      "asset": "unfinished/internal/le/doc/yangcontract/actions.go.txt",
+      "sha256": "1c378e00b3757652863a082e2d10700972514f0bcc66d085e456c19b974dd6c6",
+      "base_sha256": "1b28d712f9d6bc908c692ec4628a02f77cee2eeecc2fc039aca6a8ddb4e13697",
+      "base_asset": "base/internal/le/doc/yangcontract/actions.go.txt"
+    },
+    {
+      "path": "internal/le/doc/yangcontract/catalog_cancel_test.go",
+      "asset": "unfinished/internal/le/doc/yangcontract/catalog_cancel_test.go.txt",
+      "sha256": "8e9f4efef388748a9fb2eb10dbb2f3a1797779c80e9a5ad5b75e2797f1d6274f",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/doc/yangcontract/command_catalog_daemon_test.go",
+      "asset": "unfinished/internal/le/doc/yangcontract/command_catalog_daemon_test.go.txt",
+      "sha256": "ef5990ce3611394904910912f23a5482de9fb5eb5d6e69741534df0723c6a17b",
+      "base_sha256": "2a822f20de1c96815e0599d5ba46e71d0fac0cbdcad66700699cf4b619f313c1",
+      "base_asset": "base/internal/le/doc/yangcontract/command_catalog_daemon_test.go.txt"
+    },
+    {
+      "path": "internal/le/doc/yangcontract/command_render.go",
+      "asset": "unfinished/internal/le/doc/yangcontract/command_render.go.txt",
+      "sha256": "d1908b6a7fb79e0d715a5f214305f60f48a466f5a165f3fb1bae29bb2bcff768",
+      "base_sha256": "e6705bd0d4677092128b61c557fc877c5d696b1d95f063ea8d28763f48a3738e",
+      "base_asset": "base/internal/le/doc/yangcontract/command_render.go.txt"
+    },
+    {
+      "path": "internal/le/doc/yangcontract/command_surfaces.go",
+      "asset": "unfinished/internal/le/doc/yangcontract/command_surfaces.go.txt",
+      "sha256": "4430f075f287883af50c953f9a811c468224eac4e62565475b2be0b3dea87230",
+      "base_sha256": "d25d3aec6fb76e8bd535812594feb670c872662fad0dd1dad7b66f346fee90f7",
+      "base_asset": "base/internal/le/doc/yangcontract/command_surfaces.go.txt"
+    },
+    {
+      "path": "internal/le/doc/yangcontract/command_surfaces_test.go",
+      "asset": "unfinished/internal/le/doc/yangcontract/command_surfaces_test.go.txt",
+      "sha256": "a651acb6d9735161a3557f91208506c284086faa01f96fb2bbacfc075065c788",
+      "base_sha256": "c671d09401373591157e4a5c9379631f8942ab0f388cb388e1eea8e2c70c8564",
+      "base_asset": "base/internal/le/doc/yangcontract/command_surfaces_test.go.txt"
+    },
+    {
+      "path": "internal/le/doc/yangcontract/drift.go",
+      "asset": "unfinished/internal/le/doc/yangcontract/drift.go.txt",
+      "sha256": "9da8c240de67251fb3915bee17e1eae617de646fc1e3918ca0e32f35ad5aa21c",
+      "base_sha256": "385c6e34d349f24d8778f803f4c7ad0244f79a7a866ea1eff0a47c3216d96640",
+      "base_asset": "base/internal/le/doc/yangcontract/drift.go.txt"
+    },
+    {
+      "path": "internal/le/doc/yangcontract/drift_test.go",
+      "asset": "unfinished/internal/le/doc/yangcontract/drift_test.go.txt",
+      "sha256": "0aefd4e5323f780c9aa90ce4127241cc90a35b56aab09c2a05fb3bb8e6cea764",
+      "base_sha256": "7f5bba14bfd89732fc91a4ee8399ae1d61f0a5f64ac492c63dd3e97487c1bd5c",
+      "base_asset": "base/internal/le/doc/yangcontract/drift_test.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/automatic_ownership_test.go",
+      "asset": "unfinished/internal/le/interoplab/automatic_ownership_test.go.txt",
+      "sha256": "3a9e7eaafff2b04da3b96d6ed50068afd36128352265c481e1dfc014fe81f0ac",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/bgp_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/bgp_test.go.txt",
+      "sha256": "ac265dff81c1b3f6ae0ab61031aeb87c0d466defbb4b415399b08103793295cf",
+      "base_sha256": "7c80e7ee930f67bad55b251801d03b5d62fdd76514feb51b88a41e796ebb4ce0",
+      "base_asset": "base/internal/le/interoplab/bgp/bgp_test.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_delayopen.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_delayopen.go.txt",
+      "sha256": "b4da0e6c35f4775d549c5e421c0793fc24d0e3bf4e8b81949a925ae19980b444",
+      "base_sha256": "189cdddfda6ad62a9a377957d7df84273a6ed9df508f25d7eafb2cd655760d54",
+      "base_asset": "base/internal/le/interoplab/bgp/check_delayopen.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_delayopen_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_delayopen_test.go.txt",
+      "sha256": "d9fa9700ba5486889b9cf5eb53e7d4faf8fb730ea487c71dec0cac40da0ba65a",
+      "base_sha256": "726933c435b8e5ff9d95ff22a5258a0f98a7632ffda281387b5797ccc00e167f",
+      "base_asset": "base/internal/le/interoplab/bgp/check_delayopen_test.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_delayopen_wire.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_delayopen_wire.go.txt",
+      "sha256": "c6d0a3a2d7c324910474cd57e6e9263021142b8c631006dbe71c39ee7fe2c006",
+      "base_sha256": "638091ccf694134dd243bd2e81a6f9e11f6156f7daa7e4e93bceef7b7cfa5f24",
+      "base_asset": "base/internal/le/interoplab/bgp/check_delayopen_wire.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_engine.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_engine.go.txt",
+      "sha256": "cf74ad2aff09ec4862b027cf0e6d9ad907c68bbd885eef6194f2f3f6b0834240",
+      "base_sha256": "82cd52b7fd9f337ded3b7cd95ea25e916245260db2e337660660256aec0bf418",
+      "base_asset": "base/internal/le/interoplab/bgp/check_engine.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_gobgp_reload.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_gobgp_reload.go.txt",
+      "sha256": "83ce6ddd3c3f562045117c216300bceba608af67f4a75704107ccf5dcc30d099",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_gobgp_reload_caps_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_gobgp_reload_caps_test.go.txt",
+      "sha256": "0a180a5f7e1ddfc1253a08d8173cdae12a106f0f41fc8bacd1dd5a02abba8b81",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_gobgp_reload_image_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_gobgp_reload_image_test.go.txt",
+      "sha256": "f7cea7950c6e3c500a7cded26313857f5c596ed765199738f288bc4693b8d058",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_gobgp_reload_patch.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_gobgp_reload_patch.go.txt",
+      "sha256": "c864b9591158b477888639b0014b7c88eea23f1bcbd559ca7b4c2cd762f516b3",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_gobgp_reload_patch_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_gobgp_reload_patch_test.go.txt",
+      "sha256": "f0ce1c8f35c932e291ce2cb570745ac7bfe9eae27141a2d59e1f034cd54e39dc",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_gobgp_reload_read.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_gobgp_reload_read.go.txt",
+      "sha256": "ecde5379757f6032dd1c249f233a38b2dfdd44b90042efad5a6e55ea3a83fdcb",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_gobgp_reload_read_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_gobgp_reload_read_test.go.txt",
+      "sha256": "76548e14cd6ad3600a1d2b147ea7b9722b622d8cf89bb608bde2c4f8a026f56f",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_gobgp_reload_state.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_gobgp_reload_state.go.txt",
+      "sha256": "76ca1fc1313f14ff422d7348fe4a0f64f2dbaf722276dfb2d76bcc7060cb93fa",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_gobgp_reload_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_gobgp_reload_test.go.txt",
+      "sha256": "e6b55e5a26ba133c414e018bc753783fbdb637c40adf879c6c607ba2e8021d29",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_gobgp_reload_wire.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_gobgp_reload_wire.go.txt",
+      "sha256": "87efbcebb2d1e3493852317bc7f4a5331c20b34031c7f70b4b31b3cafe8d4f1a",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_local_pref_reverse_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_local_pref_reverse_test.go.txt",
+      "sha256": "1c9a5670e6e228896114015503b6eed4af682367e8bd3b5e0504b4872ecf3013",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_local_pref_wire.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_local_pref_wire.go.txt",
+      "sha256": "05a681627a701bc11f0a7b5b011f524d1dd121d80f8a1d198938e1933f17bae6",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_local_pref_wire_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_local_pref_wire_test.go.txt",
+      "sha256": "27fbdc3deb5f86fd3cc19b5179746ac3bfe57eec8c5f3ad3c2ffc6d08002662a",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_mixed_discard.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_mixed_discard.go.txt",
+      "sha256": "6c1a8ccdb56df2c5d233dc8358dac0bb81bf812a0cd7fe0a705e9418bb3cde88",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_mixed_discard_boundary_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_mixed_discard_boundary_test.go.txt",
+      "sha256": "38da10b740e7e09bef83873391f47474c5810d83ceae14edcf066ad80eddde61",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_no_family_eor.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_no_family_eor.go.txt",
+      "sha256": "cebe2c982e6b94060788045a6c46b4ef91ce5db1b04315f2de73434ad73f8611",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_no_family_eor_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_no_family_eor_test.go.txt",
+      "sha256": "eb3b1f2c079e912c3376c4f2b70ea97d8dd46ef11cc17d5c2ef9d6ad002f65e4",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_nssa_epoch_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_nssa_epoch_test.go.txt",
+      "sha256": "c02fce2a6e1076eb14cf8308b24c8158ea57e72078faf998295f807b5e469767",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_nssa_wire.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_nssa_wire.go.txt",
+      "sha256": "fe5f8a1e3424d0364b34e28b6d8e73462175e57b123d17e88ab97b57c62d9e9a",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_nssa_wire_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_nssa_wire_test.go.txt",
+      "sha256": "0e204fd319789e3eb8c71ce15309c49d65b004046f6c3a460d67f1c84827d820",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_oracle_contract_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_oracle_contract_test.go.txt",
+      "sha256": "59eb6dbbea58dad8036738cee8cb23d7e5cb717181d227b75c0325381ff13b43",
+      "base_sha256": "635a84c18805b73229b4ba6320b070b0134a2e0f9945d0fc6b590f170f9f9d49",
+      "base_asset": "base/internal/le/interoplab/bgp/check_oracle_contract_test.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_packet_capture.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_packet_capture.go.txt",
+      "sha256": "7baf07c53c21773c1aa50ef2b1081294eca6ea8333a2fca25e765969462a5c54",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_parsed_empty_mp_wire.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_parsed_empty_mp_wire.go.txt",
+      "sha256": "5d7361fad1bcc3818373a86a5204ef88414b66ec3a49cdf8a773e9e61a5662e7",
+      "base_sha256": "7cdee56f33334c49a6a8bcc19d67c7488a36768ccfe216dc5ba6e0de517dc6fd",
+      "base_asset": "base/internal/le/interoplab/bgp/check_parsed_empty_mp_wire.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_rfc.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_rfc.go.txt",
+      "sha256": "979a338c2eeae6974ba5027b578b972eff32a62e61fced66df4962c80e182b89",
+      "base_sha256": "eb7a0ec1634281e630e597b15ff9f6f625b2b1b9e2dd69264fcaa0174e19b1de",
+      "base_asset": "base/internal/le/interoplab/bgp/check_rfc.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_rfc_predicate.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_rfc_predicate.go.txt",
+      "sha256": "ce3cd60ae1b37a4e1aed0c12bc8b9ce0b137c23be235149d65bcf36d62d9b04c",
+      "base_sha256": "153adea375237302af9af212f4e7d768ad862cc3a703c4367147260ae83c5ba9",
+      "base_asset": "base/internal/le/interoplab/bgp/check_rfc_predicate.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_typed_discard_boundary_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_typed_discard_boundary_test.go.txt",
+      "sha256": "e193070293cda166bc562a76ca35021a44f581dc3671a1d0d0b3b6f97766e51b",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/check_typed_discard_wire.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/check_typed_discard_wire.go.txt",
+      "sha256": "f85c0583d383148db421e5f6eff6cab9fda6988164d420e839c4ff621f0183b0",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/extended_message_test.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/extended_message_test.go.txt",
+      "sha256": "6897bafac5465e0172c9ebe279e326312dc29977e24eb9848eb215876b7ed5b8",
+      "base_sha256": "3366aa8a26569f640e5049131e2e9e7444c40ae9a580269222478849ee903f48",
+      "base_asset": "base/internal/le/interoplab/bgp/extended_message_test.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/extended_relay.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/extended_relay.go.txt",
+      "sha256": "1b15e27c9f90921368059d7d313501c677b32fdd95aff9f5dcf68f1055042892",
+      "base_sha256": "78a582f66e9b4a3416dffe6de224eeb051e6c67d58e0aa08991aae8103aab343",
+      "base_asset": "base/internal/le/interoplab/bgp/extended_relay.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/prepare.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/prepare.go.txt",
+      "sha256": "23735fdfe05270f899712dc07373161afc314c5d069f2f0451456a8658bf0b60",
+      "base_sha256": "f33cc566a21d60044be604fce21e2d53626087c79f9024dd4a3d1ccaba435036",
+      "base_asset": "base/internal/le/interoplab/bgp/prepare.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/prepare_gobgp_reload.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/prepare_gobgp_reload.go.txt",
+      "sha256": "3c0e23761e265ebad69d811e198a9114624ab8d4bce62f7b570403fde32424e1",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/prepare_nssa_capture.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/prepare_nssa_capture.go.txt",
+      "sha256": "113c6cedbcfee7f58134cdef1b30ace8981bf48af14641a9ba4f691970490f57",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/prepare_registry.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/prepare_registry.go.txt",
+      "sha256": "06f036706d3a1c671bd51c26f0887ae839c082a0665420e36fc67f9020f27ee5",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/register_gobgp_reload.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/register_gobgp_reload.go.txt",
+      "sha256": "6baccdc49ced59b1baaed8cc1eca463b6f6904b6efe71a0116885967fbf5b1fd",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/register_nssa_capture.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/register_nssa_capture.go.txt",
+      "sha256": "f8d14523a8e4808099386e3ea60cd5d0f4bb207a84e6082b1a07a36d9331189d",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/bgp/speaker.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/speaker.go.txt",
+      "sha256": "5945706b5ad1b5d56f4cf39fa932283babeb357616b32a7c814c648ea314efb1",
+      "base_sha256": "910f56be5e47f46e6f22353af39bbd1b261e0f875abeaeba2cd02b74cca0de07",
+      "base_asset": "base/internal/le/interoplab/bgp/speaker.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/bgp/speaker_framing.go",
+      "asset": "unfinished/internal/le/interoplab/bgp/speaker_framing.go.txt",
+      "sha256": "9d2d6fa645ab45137611b29f04a636efe1ad437d7b5087be0305da3c3fde012a",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/lab.go",
+      "asset": "unfinished/internal/le/interoplab/lab.go.txt",
+      "sha256": "ef3690aaaa459a769c80b3c573bb0b66155dca373c4dc8f708da44b98570419c",
+      "base_sha256": "37ca671499092a7421a6aad828847db619a9f70f0700aebf4ecdc37f7fa91949",
+      "base_asset": "base/internal/le/interoplab/lab.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/lab_test.go",
+      "asset": "unfinished/internal/le/interoplab/lab_test.go.txt",
+      "sha256": "06822fd9570f0f4381034934570607498286a9aacb85dc7c17143753d809e41b",
+      "base_sha256": "4a1b93e2ad4f2c7ff17bf532f95d3adbd296455916fa84bf896479f2bfeb9997",
+      "base_asset": "base/internal/le/interoplab/lab_test.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/orphans.go",
+      "asset": "unfinished/internal/le/interoplab/orphans.go.txt",
+      "sha256": "6b176a2d3a88e7ee8d67e4a9f381ce5ade4f69a123d7db405489261af96a783a",
+      "base_sha256": "92d74bc2fa9bb78cbeab164d90b49ecd302b50167383a75b53f80179cc702de4",
+      "base_asset": "base/internal/le/interoplab/orphans.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/orphans_docker_test.go",
+      "asset": "unfinished/internal/le/interoplab/orphans_docker_test.go.txt",
+      "sha256": "b3396b8710a76cb92c235fba36569f5f99b97d1ca3a18deec65226df447b10e9",
+      "base_sha256": "3f13ed369a4e6dba4c8fd224c572d296bb5dc4ebb0aa4e1566d124f21bc74fcf",
+      "base_asset": "base/internal/le/interoplab/orphans_docker_test.go.txt"
+    },
+    {
+      "path": "internal/le/interoplab/owned_claim_controls_test.go",
+      "asset": "unfinished/internal/le/interoplab/owned_claim_controls_test.go.txt",
+      "sha256": "cb5057da80b89d2bd5b32b8180fbd29c3ff2f3afd351422a497d5645881c3f58",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/owned_cleanup_controls_test.go",
+      "asset": "unfinished/internal/le/interoplab/owned_cleanup_controls_test.go.txt",
+      "sha256": "1af0d41404b9d7fcfb4ba9ed5d6098558d1499a08bf7995770c6f1a7dd4d6a53",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/interoplab/run_identity.go",
+      "asset": "unfinished/internal/le/interoplab/run_identity.go.txt",
+      "sha256": "83487c6a3d0730fffcfbd755c78f2f5edc908b01a4d5ede00a8f4eae6dab5e3b",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/perf/actions.go",
+      "asset": "unfinished/internal/le/perf/actions.go.txt",
+      "sha256": "3f98e9aa88991ccee04e8ffed5dd14e867fe63d98bc6a096630957fc35a62ec6",
+      "base_sha256": "4d0fddb2094c19189cedf3119f87c23099f48ef3e3fe5e3845de1b477c466f49",
+      "base_asset": "base/internal/le/perf/actions.go.txt"
+    },
+    {
+      "path": "internal/le/perf/bench.go",
+      "asset": "unfinished/internal/le/perf/bench.go.txt",
+      "sha256": "2fb89aae797a3c88eda39d4f34c71b3d109615274a32b03cff55368a6ce71a9d",
+      "base_sha256": "2fbcd3072b1cc50de44f97be76f61679c212359e4e72b689884d22b5679f7035",
+      "base_asset": "base/internal/le/perf/bench.go.txt"
+    },
+    {
+      "path": "internal/le/perf/bench_build_staging_test.go",
+      "asset": "unfinished/internal/le/perf/bench_build_staging_test.go.txt",
+      "sha256": "4823bf89f228a792a9298d1339aae97e937dabc78b480932c9e93d19b5307650",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/perf/bench_test.go",
+      "asset": "unfinished/internal/le/perf/bench_test.go.txt",
+      "sha256": "8426203d5c81fbe7285f32819f038aed1364530c77a8d7084b24095c71b75b81",
+      "base_sha256": "d2e90359f9a9d126a53e4c44a056317d02f9180e2a5b41203c77f2a6c50d5c0c",
+      "base_asset": "base/internal/le/perf/bench_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/actions.go",
+      "asset": "unfinished/internal/le/site/actions.go.txt",
+      "sha256": "8c7abeb8d72f675ce7bdee1f8c8e6bb87d1cd63334dac12a6a4c32835ab01583",
+      "base_sha256": "4536f1fd44adbcfafcbec49d5ef84c13e636db8014f45875698660184a137a7a",
+      "base_asset": "base/internal/le/site/actions.go.txt"
+    },
+    {
+      "path": "internal/le/site/artifact_publication_test.go",
+      "asset": "unfinished/internal/le/site/artifact_publication_test.go.txt",
+      "sha256": "f7c328da131edb74905276e3cf0edb9c9ba2e00ddc73ee56b2d1c6ad33bf54ba",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/site/artifact_review_test.go",
+      "asset": "unfinished/internal/le/site/artifact_review_test.go.txt",
+      "sha256": "6dd7539af7fe02197d9173bae6a301b0106d40a7f37afaa037b389c436b0c578",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/site/artifact_seed_test.go",
+      "asset": "unfinished/internal/le/site/artifact_seed_test.go.txt",
+      "sha256": "762455f096554d82c0f534935ce948c1a23a3fed1f6b46bcdafcbb5efc750c97",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/site/assets_build_test.go",
+      "asset": "unfinished/internal/le/site/assets_build_test.go.txt",
+      "sha256": "94fe8ea1194303b1e75cb74db8b7c4254f6becbc00ae7ed3da55cffb97f29636",
+      "base_sha256": "32fc52477b6b49c15fe45cc2c0be3986075a9017e38159bbdf4414dd03ba1588",
+      "base_asset": "base/internal/le/site/assets_build_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/build.go",
+      "asset": "unfinished/internal/le/site/build.go.txt",
+      "sha256": "dfddf24bd271090049fe060d642cfbd68cb4577cd13c8d7fdf965a703add4d1d",
+      "base_sha256": "cf824d7ca923fd3abcc4f62e4e2d8469c2083b0d785827401a2d79a93a653e46",
+      "base_asset": "base/internal/le/site/build.go.txt"
+    },
+    {
+      "path": "internal/le/site/changes.go",
+      "asset": "unfinished/internal/le/site/changes.go.txt",
+      "sha256": "096fd92821817e13b02cd925a97fdd668ea6a64a2d6dfe634d7ef1fcb452d430",
+      "base_sha256": "403f5fd1fb8ad940eff464866f1d2314712943c2e9483cdbace88ce408503e0d",
+      "base_asset": "base/internal/le/site/changes.go.txt"
+    },
+    {
+      "path": "internal/le/site/changes_coverage_test.go",
+      "asset": "unfinished/internal/le/site/changes_coverage_test.go.txt",
+      "sha256": "d5333a107761178d5308df71609f778e67cceb471da51f2fb9ea4d308cc94f1c",
+      "base_sha256": "9c841ba14fb0e782a2153a094ea663514589600b3b2d2e558eed19839f15b8ff",
+      "base_asset": "base/internal/le/site/changes_coverage_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/copyparents.go",
+      "asset": "unfinished/internal/le/site/copyparents.go.txt",
+      "sha256": "855a008852fc1952bdc060c4b0a9aca1bd1a4997dce574486cb6c97007f63423",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/site/demo.go",
+      "asset": "unfinished/internal/le/site/demo.go.txt",
+      "sha256": "6f8ae8a4d934f9dbe826f59b8e59826cb3694c61a1e58484f88cdf613e360420",
+      "base_sha256": "573ff4adbd1ff93272a70de98b558c0e2e38d5959bac5b90836f1a65e37ea2a0",
+      "base_asset": "base/internal/le/site/demo.go.txt"
+    },
+    {
+      "path": "internal/le/site/demo_test.go",
+      "asset": "unfinished/internal/le/site/demo_test.go.txt",
+      "sha256": "ba2e06a9c2471d38b05662e491df56c7efafff8099a8beeec98345a6300a00a1",
+      "base_sha256": "d6263ed1d6b286d34475041dd54dc674cbae21dfd6231aee9217c04c86cb3c1e",
+      "base_asset": "base/internal/le/site/demo_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/facts_test.go",
+      "asset": "unfinished/internal/le/site/facts_test.go.txt",
+      "sha256": "a9c14c7e8dae155af242f580b9cdd339b902601890ebe0a62e6b515a0569034c",
+      "base_sha256": "1dc7e1bacc74b6756245799d86d44dac9c06e867aa37412fd9c50776f6666101",
+      "base_asset": "base/internal/le/site/facts_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/footer_test.go",
+      "asset": "unfinished/internal/le/site/footer_test.go.txt",
+      "sha256": "30707a85480675adea245399817425b3393aa6b11c95bbcf5ef3494d525a7f84",
+      "base_sha256": "23e76d3ab359cde1afa5d7c5ff9d4ecd493546958bdd5dbffcb01bb0ce1c9eec",
+      "base_asset": "base/internal/le/site/footer_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/pluginregistry.go",
+      "asset": "unfinished/internal/le/site/pluginregistry.go.txt",
+      "sha256": "218f5309d95126e96f5559bbe746614af6e1a7e0283d97125f2f76f24d02d615",
+      "base_sha256": "eeb46084c1b610994bcad0c1d4cffa87dc8ff4c9a897ee8e81d261a4980ecd07",
+      "base_asset": "base/internal/le/site/pluginregistry.go.txt"
+    },
+    {
+      "path": "internal/le/site/pluginregistry_test.go",
+      "asset": "unfinished/internal/le/site/pluginregistry_test.go.txt",
+      "sha256": "bfc961524bf666a7c9870c139b37835755314ebad8b160a8bf47d52ae0d76d21",
+      "base_sha256": "a40fd466f596bedecdcc5a87bfb9c95b88a6441a7e7151061a51ee600403bb56",
+      "base_asset": "base/internal/le/site/pluginregistry_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/plugins_test.go",
+      "asset": "unfinished/internal/le/site/plugins_test.go.txt",
+      "sha256": "df27a40ccdea93b047af8927311e102bc8e453fa4f22a172450269c548249324",
+      "base_sha256": "28d3b854b9f1bdedb7d5f9f24880b40bca1c8e16fd49f3ca470b17e8ba94d968",
+      "base_asset": "base/internal/le/site/plugins_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/producer_test.go",
+      "asset": "unfinished/internal/le/site/producer_test.go.txt",
+      "sha256": "3edaa54fab6a23ebe70985f6ecd178e916f235da2e0a06602746bf677c5b3028",
+      "base_sha256": "50dd524bbe07a6df2fbb0865919b3e0cecf52cffaf4c8b592029aedbb20dc4db",
+      "base_asset": "base/internal/le/site/producer_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/rfcdata_test.go",
+      "asset": "unfinished/internal/le/site/rfcdata_test.go.txt",
+      "sha256": "0284636363a0aa6148c3e13aaca038479610c61e7cd7fc8cc210a4b7a73ea3c5",
+      "base_sha256": "6fb98021184dd0960553541c50e12d18b19eb343231b99ffb1edc0c5933d5bee",
+      "base_asset": "base/internal/le/site/rfcdata_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/roadmap_test.go",
+      "asset": "unfinished/internal/le/site/roadmap_test.go.txt",
+      "sha256": "08f0356129a433c1be528aca24a5c6a5ede10055fcda109f786df541cc5a89cc",
+      "base_sha256": "186cf0b878b42c5c00ec3ac9265ff2872226a591aa94e66da81109b5add77af5",
+      "base_asset": "base/internal/le/site/roadmap_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/site_test.go",
+      "asset": "unfinished/internal/le/site/site_test.go.txt",
+      "sha256": "d33d486c01c4f3fcf22cd61d5b3097a58eb3488a479ef23fc24eef03b1651559",
+      "base_sha256": "28817b2cbaa46ecda76c19182a98ef002343f4820da096c9a2b0c33fbb55d119",
+      "base_asset": "base/internal/le/site/site_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/terminaldemo/artifact.go",
+      "asset": "unfinished/internal/le/site/terminaldemo/artifact.go.txt",
+      "sha256": "d5b57c8cad6710ec3ba69a4b1e38c2115b11ee6a248dd13e5cf46a0a96c77561",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/site/terminaldemo/artifact_payload_test.go",
+      "asset": "unfinished/internal/le/site/terminaldemo/artifact_payload_test.go.txt",
+      "sha256": "8634fbe6044f94c91ffa9283684b9288b3ed30caf851f04b94a0f84305c80e70",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/site/terminaldemo/artifact_publication_test.go",
+      "asset": "unfinished/internal/le/site/terminaldemo/artifact_publication_test.go.txt",
+      "sha256": "3acf22edd3cef7d6f1988b38a3e36f0f6f5ee67889c305730c7f34b86c737e46",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/site/terminaldemo/artifact_review_test.go",
+      "asset": "unfinished/internal/le/site/terminaldemo/artifact_review_test.go.txt",
+      "sha256": "f8eb3368bb70c13b1a73d0858ed8d2ee2c60aaad211ae29839c6be0df917500e",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/site/terminaldemo/manifest.go",
+      "asset": "unfinished/internal/le/site/terminaldemo/manifest.go.txt",
+      "sha256": "b8593e22efccb4861e7c664b8d505fdadf1c517050478bbbc6861d1be6ad4e17",
+      "base_sha256": "3c57aff24ba448e4549e3a1c47633fd67ea0b77ac9b5bdb8e00eb3cd29f7604e",
+      "base_asset": "base/internal/le/site/terminaldemo/manifest.go.txt"
+    },
+    {
+      "path": "internal/le/site/terminaldemo/render.go",
+      "asset": "unfinished/internal/le/site/terminaldemo/render.go.txt",
+      "sha256": "bfd8f3638b458bba01507fe49e0ad1893a8b4481f8965edf7e1b6906a84c1555",
+      "base_sha256": "400db32369e537f765f9633aeaaff3d945ce309e6e81e0afdf9b9a143ce42a87",
+      "base_asset": "base/internal/le/site/terminaldemo/render.go.txt"
+    },
+    {
+      "path": "internal/le/site/terminaldemo/tapetype_test.go",
+      "asset": "unfinished/internal/le/site/terminaldemo/tapetype_test.go.txt",
+      "sha256": "cadd0a0eef803212093b7b112f9a90833fc0ab4120e85f8af09ad3282204d64a",
+      "base_sha256": "879e5d307a4a50c063cda16e628dffebafbe0e0cc703d2b036d4b99c8ec300b0",
+      "base_asset": "base/internal/le/site/terminaldemo/tapetype_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/terminaldemo/terminaldemo_test.go",
+      "asset": "unfinished/internal/le/site/terminaldemo/terminaldemo_test.go.txt",
+      "sha256": "222522dc480ec0100f690607b053ea5a22a669e6e6013ebeaae468475d123e7d",
+      "base_sha256": "15dcc5b9656fe4fbd6e41775317be96448f8d9d02055bcbc501b917fc3aabd97",
+      "base_asset": "base/internal/le/site/terminaldemo/terminaldemo_test.go.txt"
+    },
+    {
+      "path": "internal/le/site/terminaldemo/types.go",
+      "asset": "unfinished/internal/le/site/terminaldemo/types.go.txt",
+      "sha256": "47c664debbf2957a9a34a8ef1cc6c82c02f217b3ac6ed557660a239107ad6adb",
+      "base_sha256": "b23a8eb8cc834f39fbd3ae2e32dcc6b2c72c0b207287b0ece931a34fce366198",
+      "base_asset": "base/internal/le/site/terminaldemo/types.go.txt"
+    },
+    {
+      "path": "internal/le/site/yang.go",
+      "asset": "unfinished/internal/le/site/yang.go.txt",
+      "sha256": "c074b8bcecbcb5bb0b569ffc223186d06deee3f60d3934db48cc61c85f31e713",
+      "base_sha256": "d3ac4da2a8141b4d168052a41239438888507c4b4c4dae03045eb09ce5f24794",
+      "base_asset": "base/internal/le/site/yang.go.txt"
+    },
+    {
+      "path": "internal/le/test/integration/child_environment_refusal_test.go",
+      "asset": "unfinished/internal/le/test/integration/child_environment_refusal_test.go.txt",
+      "sha256": "285291534fc3c68412ab1b00d089c51d67ce5d4a4294c688645ad157c0f69a55",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/test/integration/cleanup_test.go",
+      "asset": "unfinished/internal/le/test/integration/cleanup_test.go.txt",
+      "sha256": "4618cb7a4440c683fd11270cf06475786f028a5c3ddb525d88d4530996e7a13c",
+      "base_sha256": "0132651169c4ae25c2767ce0eb198f8c1ef4e7387f160645a5d28a2da92e110b",
+      "base_asset": "base/internal/le/test/integration/cleanup_test.go.txt"
+    },
+    {
+      "path": "internal/le/test/integration/dockerpeers.go",
+      "asset": "unfinished/internal/le/test/integration/dockerpeers.go.txt",
+      "sha256": "56a1b03bc38c3a3190ec98a2438ab2d128267274d27cbc2a95c115bb4f7632f9",
+      "base_sha256": "01fb62b4c91cc02aa5b1c2558c07ed061478f5470b01aa969c189091d6d1cb30",
+      "base_asset": "base/internal/le/test/integration/dockerpeers.go.txt"
+    },
+    {
+      "path": "internal/le/test/integration/dockerpeers_signal_test.go",
+      "asset": "unfinished/internal/le/test/integration/dockerpeers_signal_test.go.txt",
+      "sha256": "c86e5f53f25e040e45bf1ab0939d19ed6de3ff49f3a4b39495ad2ab761bef784",
+      "base_sha256": "e121e7bccf413b0a6f3c57fb0268c670d13df4ed2b273c057bc71b6ffffe60dd",
+      "base_asset": "base/internal/le/test/integration/dockerpeers_signal_test.go.txt"
+    },
+    {
+      "path": "internal/le/test/integration/signal_owned_launch_test.go",
+      "asset": "unfinished/internal/le/test/integration/signal_owned_launch_test.go.txt",
+      "sha256": "c1e80e366f32815320f75498e35c7e21857289e859b26027043c90a3e6eac1bf",
+      "base_sha256": null
+    },
+    {
+      "path": "internal/le/test/integration/signal_ownership_test.go",
+      "asset": "unfinished/internal/le/test/integration/signal_ownership_test.go.txt",
+      "sha256": "f4fb877845f35f30eb638bc40b052f97de2b77228d13671731ed165887a8d02a",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/Dockerfile.gobgp",
+      "asset": "unfinished/test/interop/Dockerfile.gobgp.txt",
+      "sha256": "26e45743b0add530ee0b5b041d73b11e7a77f11e38009894d18ff26b9cf38deb",
+      "base_sha256": "8f25199e932fda1798694b699535dadcb35e2e9fa0db08741291587f78a0d028",
+      "base_asset": "base/test/interop/Dockerfile.gobgp.txt"
+    },
+    {
+      "path": "test/interop/Dockerfile.ze",
+      "asset": "unfinished/test/interop/Dockerfile.ze.txt",
+      "sha256": "c81fed971902924651c03390286b75805b5cb3a6ca1e66971770c7e81f9397a2",
+      "base_sha256": "533879ab7c506f8805a320eba2a21100b316d20088252661ab6289cb0092ddf7",
+      "base_asset": "base/test/interop/Dockerfile.ze.txt"
+    },
+    {
+      "path": "test/interop/gobgp-v4.11.0-export-reload.patch",
+      "asset": "unfinished/test/interop/gobgp-v4.11.0-export-reload.patch.txt",
+      "sha256": "35eed21c951868c3846465c8bbf4fc5c507ffedd93f9c35b4c4e06d03a09b047",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/bird.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/bird.conf.txt",
+      "sha256": "de24f07cf41aa773d25eab4af6a49f0167edef158678e2de28c96f44ef7859ed",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/frr-sink.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/frr-sink.conf.txt",
+      "sha256": "cddd21c6e8338b1f1c503c41b29e4af279acdd8f87a3450c7b622428cb1432d4",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/frr.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/frr.conf.txt",
+      "sha256": "5db42d5a28545fd92eab477f1cb7a0c7448009ccfdaeb3e841607c776cb795a1",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-accept.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-accept.toml.txt",
+      "sha256": "cada939d03c10ae809386c5e26165399bc9a50fe4bf4e13d34076ba576d2e15a",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-attributes.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-attributes.toml.txt",
+      "sha256": "c12f511629a45bf438f3e86ab1a38038143bde5a501013f7f9e2aa057a68b2a3",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-fallback.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-fallback.toml.txt",
+      "sha256": "294393d621785938bbe70f38b115fa54b9d716eb24fb659ac5e484d36e512399",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-last.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-last.toml.txt",
+      "sha256": "7def8e24238390000eb288fe3563272b057a36e48815745b5f378045714fb0d4",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-reject.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-reject.toml.txt",
+      "sha256": "c48b821db92379ac33fc0105c1cd02eb927867aff3c90a097b608aa57ccd2427",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-repeat.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-repeat.toml.txt",
+      "sha256": "81fd953f0631c2db8cd037622f7df249a86774edda86483af8a830521a0739f6",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-replacement.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-replacement.toml.txt",
+      "sha256": "08efc6a00f64b542513cbf6a278c98415706b73aedf73599d09f74636f74eaf7",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-restore.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-restore.toml.txt",
+      "sha256": "45fb994eda343302b83e1f8f4e77030e3a283064ea6022220c9932ed3e8096dd",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-simultaneous.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/gobgp-reload-simultaneous.toml.txt",
+      "sha256": "81fd953f0631c2db8cd037622f7df249a86774edda86483af8a830521a0739f6",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/gobgp.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/gobgp.toml.txt",
+      "sha256": "45fb994eda343302b83e1f8f4e77030e3a283064ea6022220c9932ed3e8096dd",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-gobgp/ze.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-gobgp/ze.conf.txt",
+      "sha256": "b29c9f7005c03b60ea00aa9df0f1401ec5635fb2378c43a8340ef6684f125fa3",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/bird.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/bird.conf.txt",
+      "sha256": "de24f07cf41aa773d25eab4af6a49f0167edef158678e2de28c96f44ef7859ed",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/frr-sink.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/frr-sink.conf.txt",
+      "sha256": "b01edde5a4dfe9f72d8b60b006970a09d98b6824d2b896a50c1ad9782baa1fb8",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/frr.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/frr.conf.txt",
+      "sha256": "5b5783eea8cd6b33221ae402135ea019b8418f84dc01014e83e57b0a35d25c6c",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-accept.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-accept.toml.txt",
+      "sha256": "eaf898d0c053f354e6728806c48a17eb7e079c25b792b87cbcb4ad31b7508ef9",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-attributes.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-attributes.toml.txt",
+      "sha256": "acb1544e83263940ec867be2982c5c153fca7ee6cb0093596ddabdac7209ff86",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-fallback.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-fallback.toml.txt",
+      "sha256": "f687db5ebd396a233d3450a9fc296d50621681b25265293f4b92f7f4e2901181",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-last.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-last.toml.txt",
+      "sha256": "5c7959600d50f4f3e5c3d8bd462bd4accc9e47838012023126bb29820b162219",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-reject.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-reject.toml.txt",
+      "sha256": "df33bcc141347544cd1427c8bd652743c469ee26600aa3146b0264a81542d373",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-repeat.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-repeat.toml.txt",
+      "sha256": "2e345586d18fd4d313ba732d05c617da89725560e3336ee0436b57463b7ad10c",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-replacement.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-replacement.toml.txt",
+      "sha256": "c62093fd7e7f1515aab5648c1b8889d9b43d5591fa68cd6774763c1235fb6be8",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-restore.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-restore.toml.txt",
+      "sha256": "27785387ed36551428d27c974dade472e38e0fb7a1ceb16107791437f445fd18",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-simultaneous.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp-reload-simultaneous.toml.txt",
+      "sha256": "2e345586d18fd4d313ba732d05c617da89725560e3336ee0436b57463b7ad10c",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/gobgp.toml.txt",
+      "sha256": "27785387ed36551428d27c974dade472e38e0fb7a1ceb16107791437f445fd18",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-export-reload-secondary-gobgp/ze.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-export-reload-secondary-gobgp/ze.conf.txt",
+      "sha256": "b29c9f7005c03b60ea00aa9df0f1401ec5635fb2378c43a8340ef6684f125fa3",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-local-pref-strip-gobgp/gobgp.toml",
+      "asset": "unfinished/test/interop/scenarios/bgp-local-pref-strip-gobgp/gobgp.toml.txt",
+      "sha256": "2e5c8c215c776373d7c28df8ca81ac6e07c02ad9509c22ce31d7a618dee6fc06",
+      "base_sha256": "047c7548ef7fffaa96f483fba25c765302033ff4d915409e3bf55eba9c9e51e2",
+      "base_asset": "base/test/interop/scenarios/bgp-local-pref-strip-gobgp/gobgp.toml.txt"
+    },
+    {
+      "path": "test/interop/scenarios/bgp-local-pref-strip-gobgp/inject.msg",
+      "asset": "unfinished/test/interop/scenarios/bgp-local-pref-strip-gobgp/inject.msg.txt",
+      "sha256": "2063f2afc0a733c27a780ea2b949867da74568d9067afd2654a981fdeb0494ec",
+      "base_sha256": "a8d5089dd20fa90fa4440a9ac06100b66513082a6393b8fe3f80054b804fda4b",
+      "base_asset": "base/test/interop/scenarios/bgp-local-pref-strip-gobgp/inject.msg.txt"
+    },
+    {
+      "path": "test/interop/scenarios/bgp-local-pref-strip-gobgp/speaker-args",
+      "asset": "unfinished/test/interop/scenarios/bgp-local-pref-strip-gobgp/speaker-args.txt",
+      "sha256": "dd896aa02b649b332f3908584eff38458f6994ba807f7205d4483a5e56f34aa5",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-local-pref-strip-gobgp/ze.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-local-pref-strip-gobgp/ze.conf.txt",
+      "sha256": "bcfc1163aa08a527e91903528b502e701861d37f8fad507c5214fc08c9b86b1f",
+      "base_sha256": "9a325fe30826fc399e385a4425a6d131d8895cc8c3483c7b997d4623ce50f38c",
+      "base_asset": "base/test/interop/scenarios/bgp-local-pref-strip-gobgp/ze.conf.txt"
+    },
+    {
+      "path": "test/interop/scenarios/bgp-rfc7606-relay-shape-frr/frr.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-rfc7606-relay-shape-frr/frr.conf.txt",
+      "sha256": "f86e0157ed2d10656d6760d8e548d65db3dbd8bcb3969fbe250d5400f41daa1c",
+      "base_sha256": "437c8a9b32105e0ba245459a0c872100970ab755ca0b3f5626d0be7992b0ee65",
+      "base_asset": "base/test/interop/scenarios/bgp-rfc7606-relay-shape-frr/frr.conf.txt"
+    },
+    {
+      "path": "test/interop/scenarios/bgp-rfc7606-relay-shape-frr/inject.msg",
+      "asset": "unfinished/test/interop/scenarios/bgp-rfc7606-relay-shape-frr/inject.msg.txt",
+      "sha256": "88faa46965f11983bea6c59f5495d890a3331b79d0b5061832b7a7bb71a429ef",
+      "base_sha256": "793644763b4b3f48e15b83c75632f0624eb19fe62d5d16ea58bef1770fed2c63",
+      "base_asset": "base/test/interop/scenarios/bgp-rfc7606-relay-shape-frr/inject.msg.txt"
+    },
+    {
+      "path": "test/interop/scenarios/bgp-rfc7606-relay-shape-frr/speaker2-args",
+      "asset": "unfinished/test/interop/scenarios/bgp-rfc7606-relay-shape-frr/speaker2-args.txt",
+      "sha256": "fb13c1d720e0d986b08cfec38ce8512cd1e1184216cfd4a4d808b353ed241050",
+      "base_sha256": null
+    },
+    {
+      "path": "test/interop/scenarios/bgp-rfc7606-relay-shape-frr/ze.conf",
+      "asset": "unfinished/test/interop/scenarios/bgp-rfc7606-relay-shape-frr/ze.conf.txt",
+      "sha256": "1d08eee3f7650ed734b9bc9ceb14c68c68fecc5bb750e0a7d1d5f48942ee6fcd",
+      "base_sha256": "dfb2a11fc7227950aab5298ce42603db7dbb099faf6a2cd302b30b51fb9312df",
+      "base_asset": "base/test/interop/scenarios/bgp-rfc7606-relay-shape-frr/ze.conf.txt"
+    },
+    {
+      "path": "test/interop/scenarios/bgp-rfc7606-typed-nlri-discard/inject.msg",
+      "asset": "unfinished/test/interop/scenarios/bgp-rfc7606-typed-nlri-discard/inject.msg.txt",
+      "sha256": "1b96b215dde16ddcfce13e120566addc49d39fe93a639ebb950ddb7ebea34073",
+      "base_sha256": "b2decb2acce09cde603d1c811c2cb4e014dd1b7d602b075db2711f04ec68dced",
+      "base_asset": "base/test/interop/scenarios/bgp-rfc7606-typed-nlri-discard/inject.msg.txt"
+    },
+    {
+      "path": "test/interop/scenarios/no-family-peer-eor-frr/daemons",
+      "asset": "unfinished/test/interop/scenarios/no-family-peer-eor-frr/daemons.txt",
+      "sha256": "97d9e9b12d4b388b7e965cbd2e659d2deeef190f53257dec1447f33370b2bc97",
+      "base_sha256": null
+    }
+  ]
+}
