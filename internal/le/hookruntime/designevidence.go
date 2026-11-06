@@ -105,11 +105,15 @@ func (r sourceRead) validRange() bool {
 	return r.StartLine >= 1 && r.NumLines >= 1 && r.TotalLines >= r.StartLine && r.NumLines <= r.TotalLines-r.StartLine+1
 }
 
-// designSubjects retains selected and proposed producer obligations. A genuinely
-// absent Files to Create path is new, and an absent Current Behavior or Files to
-// Modify path whose last commit in git history deleted it is gone: a spec whose
-// own work removed a producer it names has nothing left to read. Every other
-// lookup error refuses, including a path git never held.
+// designSubjects retains selected and proposed producer obligations. A producer
+// the current text names and that exists must still be read, even when the edit
+// removes it. A path absent from the checkout is judged only where the proposed
+// text cites it: an edit that drops or corrects a stale citation has nothing to
+// read, and every path the edit keeps or adds meets the proposed text's rule. A
+// genuinely absent Files to Create path is new, and an absent Current Behavior
+// or Files to Modify path whose last commit in git history deleted it is gone: a
+// spec whose own work removed a producer it names has nothing left to read.
+// Every other lookup error refuses, including a path git never held.
 //
 // A name whose first segment is no top-level directory of the checkout, such as
 // reactor/filter_format.go, is package-relative shorthand rather than a root
@@ -117,11 +121,14 @@ func (r sourceRead) validRange() bool {
 // tracked match is the producer and must be read. No tracked match leaves
 // nothing to read, whether the name was deleted or was never a path. Several
 // matches refuse, naming each, because the spec does not say which it means.
-func designSubjects(ctx context, repository *os.Root, texts ...string) ([]string, error) {
+func designSubjects(ctx context, repository *os.Root, current, proposed string) ([]string, error) {
 	var subjects []string
-	for _, text := range texts {
+	for _, source := range []struct {
+		text     string
+		proposed bool
+	}{{current, false}, {proposed, true}} {
 		for _, heading := range []string{"## Current Behavior", "## Files to Modify", "## Files to Create"} {
-			for _, named := range specRepoPaths(ctx.root, markdownSection(text, heading)) {
+			for _, named := range specRepoPaths(ctx.root, markdownSection(source.text, heading)) {
 				subject := ctx
 				subject.path = named
 				path, err := checkoutRelative(subject)
@@ -152,6 +159,10 @@ func designSubjects(ctx context, repository *os.Root, texts ...string) ([]string
 				if err != nil {
 					if !os.IsNotExist(err) {
 						return nil, fmt.Errorf("%s: inspect producer: %w", named, err)
+					}
+					// The proposed pass judges every absent path the edit keeps or adds.
+					if !source.proposed {
+						continue
 					}
 					if heading == "## Files to Create" {
 						continue
@@ -326,7 +337,7 @@ func designEvidenceProblem(ctx context) *verdict {
 	subjects, err := designSubjects(ctx, repository, string(current), proposed)
 	if err != nil {
 		return &verdict{2, "❌ BLOCKED: cannot establish design source subjects: " + err.Error() +
-			"\n  Make each existing producer readable inside this checkout, then read it in this context and retry. Only genuinely new Files to Create paths, and Current Behavior or Files to Modify paths whose last commit deleted them, may be absent. A package-relative name (reactor/x.go) is matched against tracked files and must name one; write the full path when it matches several.\n  ai/rules/evidence.md"}
+			"\n  Make each existing producer readable inside this checkout, then read it in this context and retry. Only genuinely new Files to Create paths, Current Behavior or Files to Modify paths whose last commit deleted them, and paths the edit stops citing, may be absent. A package-relative name (reactor/x.go) is matched against tracked files and must name one; write the full path when it matches several.\n  ai/rules/evidence.md"}
 	}
 	reads := currentSourceReads(ctx, repository)
 	if len(subjects) == 0 && len(reads) != 0 {

@@ -544,7 +544,11 @@ producer's obligation before that edit lands. Unreadable Current Behavior/Files
 to Modify source refuses, and so does a missing one, unless the last commit in
 git history that touched the path deleted it: a spec whose own work removed a
 producer it names has nothing left to read, while a path git never held still
-refuses. Genuinely absent Files to Create paths are new. A name whose first
+refuses. Genuinely absent Files to Create paths are new. A missing path is
+judged only where the proposed text still cites it: an edit that drops or
+corrects a stale citation in the selected file has nothing to read, so the
+repair is never refused by the citation it repairs, while a missing path the
+edit keeps or adds meets the rule above. A name whose first
 segment is no top-level directory of the checkout, such as
 `reactor/filter_format.go`, is package-relative shorthand and is matched as a
 path suffix against the files git tracks (`trackedSuffixMatches`): one match is
