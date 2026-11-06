@@ -521,8 +521,8 @@ func policyChainNames(ctx context.Context, _ []string) error {
 			return fmt.Errorf("status=%s: %w", status, err)
 		}
 		chains, _ := data["chains"].([]any)
-		if len(chains) == 0 {
-			return fmt.Errorf("no chains in output: %v", data)
+		if len(chains) != 1 {
+			return fmt.Errorf("expected one chain in output: %v", data)
 		}
 		chain, _ := chains[0].(map[string]any)
 		exportPolicy, ok := chain["export"].(map[string]any)
@@ -533,13 +533,21 @@ func policyChainNames(ctx context.Context, _ []string) error {
 			return fmt.Errorf("export final=%v, want accept", exportPolicy["final"])
 		}
 		exports, _ := exportPolicy["filters"].([]any)
-		if len(exports) == 0 {
-			return fmt.Errorf("no export refs: %v", chain)
+		// The mandatory BLACKHOLE agreement check precedes the operator's
+		// STRIP member; both expose a plain name and the canonical reference.
+		expected := [...]struct{ name, canonical string }{
+			{"blackhole-agreement", "bgp-filter-community:blackhole-agreement"},
+			{"STRIP", "bgp-filter-remove-private-as:STRIP"},
 		}
-		ref, _ := exports[0].(map[string]any)
-		fmt.Printf("OK: export ref name=%q canonical=%q\n", ref["name"], ref["canonical"])
-		if ref["name"] != "STRIP" || ref["canonical"] != "bgp-filter-remove-private-as:STRIP" {
-			return fmt.Errorf("unexpected export ref: %v", ref)
+		if len(exports) != len(expected) {
+			return fmt.Errorf("export refs=%v, want %v", exports, expected)
+		}
+		for i, want := range expected {
+			ref, _ := exports[i].(map[string]any)
+			if ref["name"] != want.name || ref["canonical"] != want.canonical {
+				return fmt.Errorf("unexpected export ref %d: %v, want %v", i, ref, want)
+			}
+			fmt.Printf("OK: export ref name=%q canonical=%q\n", ref["name"], ref["canonical"])
 		}
 		fmt.Println("OK: show policy chain exposes plain name and canonical ref")
 		return nil

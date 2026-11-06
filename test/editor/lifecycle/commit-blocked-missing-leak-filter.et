@@ -1,20 +1,16 @@
 # Test: the config editor blocks a commit the BGP peer pipeline refuses
-# VALIDATES: AC-39 -- a peer whose declared RFC 9234 role requires a
-#            transit-leak filter, and whose chains name none, blocks `commit`
-#            while the operator still has the config on the screen
-# VALIDATES: End-to-end user story 10 -- the same omission user story 7 types
-#            into a file, typed into the editor instead
-# PREVENTS:  the refusal arriving one step later as `commit failed:` about a
-#            config already written. Until this change ValidateTransition
-#            (internal/component/cli/validator.go) reached no peer-pipeline
-#            check at all, so EVERY such refusal was invisible here, not only
-#            this rule's.
+# VALIDATES: a peer-pipeline error blocks `commit` while the operator still has
+#            the candidate on screen and leaves the edit pending.
+# PREVENTS: the refusal arriving one step later as `commit failed:` about a
+#           config already written, or an editor build omitting the BGP check.
 #
+# A role's upstream check is inserted automatically; an empty provider set is
+# valid. Instead, explicitly naming its required OTC ingress member is refused:
+# RFC 9234 Section 5 does not permit the operator to modify that procedure.
 # The producing chain is cmdCommit -> ValidateTransition -> bgpPeerErrors ->
-# infra.ValidateBGPPeers -> PeersFromConfigTree -> validateLeakFilterObligations
-# (internal/component/bgp/config/peers.go). The seam is filled by
-# internal/component/bgp/config/register.go, so a build without the BGP engine
-# reports nothing here rather than blocking.
+# infra.ValidateBGPPeers -> PeersFromConfigTree -> insertForPeer ->
+# requiredInsertionRefusal (internal/component/bgp/config/filter_insertion.go).
+# internal/component/bgp/config/register.go fills the always-on validator seam.
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -44,6 +40,9 @@ bgp {
   	role {
   		import peer
   	}
+  	filter {
+  		import { final accept; }
+  	}
   }
 }
 EOF_CONF
@@ -51,10 +50,14 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=20s
 
-# One edit, so the commit has something to apply and the transition is real.
-input=type:text=set bgp peer peer1 session router-id 1.2.3.5
+# One invalid edit reaches the peer-pipeline check before anything is written.
+input=type:text=set bgp peer peer1 filter import filters bgp-role:otc-ingress
 input=enter
+expect=error:none
 
 input=type:text=commit now
 input=enter
 expect=status:contains=commit blocked
+expect=status:contains=peer peer1: the import filter list names bgp-role:otc-ingress, which its plugin inserts itself
+expect=status:contains=cannot be named, moved or deactivated
+expect=dirty:true
