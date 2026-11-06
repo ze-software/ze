@@ -308,9 +308,23 @@ including grouped names and proved alias or defined-type chains. A projected
 field retains its own capabilities, reads and references without borrowing a
 sibling callback or the holder's methods. Unresolved positional layouts refuse
 at construction, so a later field projection cannot erase that uncertainty.
-Empty elided literals remain zero constructions; nonempty elided, positional
-generic-struct and embedded-field layouts remain unsupported.
-<!-- source: internal/le/repo/inventory/externalliteralshapes.go -- externalEffects.literalLayout, externalEffects.literalValue -->
+An element, key or value literal that elides its type takes the type its
+enclosing literal states, as the Go specification defines it: the element type
+of an array or slice, the key or value type of a map, through retained aliases
+and defined types, and `T` when that type is `*T`, in which case the literal is
+`&T{...}`. Nested elisions (`[][]T{{{...}}}`) take each level's type in turn. A
+generic collection substitutes its argument only where the element type is the
+type parameter alone or a pointer to it. A standard-library collection states a
+type the analyzer has no declaration for, so its elided elements take the
+standard-library literal's treatment above. The formal-provenance proof reads
+an elided literal's keys under the same stated type. Where the enclosing type
+cannot state the elided one, a generic element type that names its parameter
+inside a larger type (`[]map[string]E`), an empty elided literal remains a zero
+construction and a nonempty one refuses as `nonempty elided literal layout is
+unresolved`, sited at the element. Positional generic-struct and
+embedded-field layouts remain unsupported.
+<!-- source: internal/le/repo/inventory/externalliteralshapes.go -- externalEffects.literalLayout, externalEffects.literalValue, externalEffects.literalElement, elidedLiteralType, boundLiteralType -->
+<!-- source: internal/le/repo/inventory/externalformalexpressions.go -- externalFormalProofs.literal -->
 
 Root field names are separate from aggregate reachable capabilities. Collection
 keys and elements, named child fields and generic arguments contribute their

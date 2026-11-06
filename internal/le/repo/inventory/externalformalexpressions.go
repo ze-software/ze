@@ -74,18 +74,8 @@ func (proofs *externalFormalProofs) expression(source sourceExpr, depth int) *ex
 	case *ast.CallExpr:
 		return proofs.call(source, expression, depth+1)
 	case *ast.CompositeLit:
-		proof := &externalFormalProof{grounded: true}
-		for _, element := range expression.Elts {
-			if keyed, ok := element.(*ast.KeyValueExpr); ok {
-				if !e.literalKeyMember(sourceExpr{value: expression.Type, file: source.file, pkg: source.pkg}, keyed.Key) {
-					proof.join(child(keyed.Key))
-				}
-				proof.join(child(keyed.Value))
-				continue
-			}
-			proof.join(child(element))
-		}
-		return proof
+		written := externalLiteralType{datatype: sourceExpr{value: expression.Type, file: source.file, pkg: source.pkg}}
+		return proofs.literal(source, expression, written, depth)
 	case *ast.UnaryExpr:
 		if expression.Op == token.ARROW {
 			return &externalFormalProof{unknown: "channel argument provenance is unsupported"}
@@ -165,4 +155,51 @@ func (proofs *externalFormalProofs) call(source sourceExpr, call *ast.CallExpr, 
 
 func externalFormalDependency(proof *externalFormalProof) *externalFormalProof {
 	return &externalFormalProof{depends: map[*externalFormalProof]bool{proof: true}}
+}
+
+// literal proves a composite literal's elements under the type it constructs,
+// so an element literal that elides its type is proved under the type its
+// enclosing literal states, as the capability walk evaluates it. A layout the
+// walk cannot read proves every key as a value, which only adds obligations.
+func (proofs *externalFormalProofs) literal(source sourceExpr, literal *ast.CompositeLit, stated externalLiteralType, depth int) *externalFormalProof {
+	e := proofs.effects
+	layout, reason := e.literalTypeLayout(stated, 0, false)
+	child := func(element ast.Expr, mapKey bool) *externalFormalProof {
+		value := source
+		value.value = element
+		nested, composite := element.(*ast.CompositeLit)
+		if !composite {
+			return proofs.expression(value, depth+1)
+		}
+		if nested.Type != nil {
+			return proofs.expression(value, depth+1)
+		}
+		if reason != "" {
+			return proofs.expression(value, depth+1)
+		}
+		elided, known := elidedLiteralType(layout, mapKey)
+		if !known {
+			return proofs.expression(value, depth+1)
+		}
+		if depth+1 >= 128 {
+			return &externalFormalProof{unknown: "argument expression depth exceeds 128"}
+		}
+		return proofs.literal(value, nested, elided, depth+1)
+	}
+	proof := &externalFormalProof{grounded: true}
+	for _, element := range literal.Elts {
+		if keyed, ok := element.(*ast.KeyValueExpr); ok {
+			member := false
+			if reason == "" {
+				member = layout.member(source.pkg, keyed.Key)
+			}
+			if !member {
+				proof.join(child(keyed.Key, true))
+			}
+			proof.join(child(keyed.Value, false))
+			continue
+		}
+		proof.join(child(element, false))
+	}
+	return proof
 }

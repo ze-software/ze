@@ -17,20 +17,70 @@ const (
 	externalLiteralOpaque
 )
 
+// externalElidedLiteralUnresolved is the refusal for an element literal that
+// elides its type where no enclosing literal states one the analyzer can read.
+const externalElidedLiteralUnresolved = "nonempty elided literal layout is unresolved"
+
 type externalLiteralLayout struct {
 	kind   externalLiteralKind
 	fields []string
 	types  map[string]sourceExpr
+	// key and element are a collection's key and element types, in the scope
+	// that states them, for an element literal that elides its own type. A nil
+	// value is a type that names a type parameter the walk cannot substitute.
+	key, element sourceExpr
 }
 
-// literalKeyMember is also used by formal provenance to distinguish member
-// names from executable collection-key expressions under the same root proof.
-func (e *externalEffects) literalKeyMember(datatype sourceExpr, key ast.Expr) bool {
-	layout, reason := e.literalLayout(datatype, 0, false)
-	if reason != "" {
-		return false
+// externalLiteralType is the type a composite literal constructs: the one
+// written on it, or the one its enclosing literal states when it elides it.
+type externalLiteralType struct {
+	datatype sourceExpr
+	// opaque is set when a standard-library enclosing type states the type:
+	// that declaration is not an analyzer input, so no layout is retained.
+	opaque bool
+	// pointer is set when the stated type is *T, so the literal is &T{...}.
+	pointer bool
+}
+
+// elidedLiteralType answers the type of an element literal, or with mapKey a
+// map key literal, that elides its type inside an enclosing literal of the
+// given layout. Go spec, Composite literals: "Within a composite literal of
+// array, slice, or map type T, elements or map keys that are themselves
+// composite literals may elide the respective literal type if it is identical
+// to the element or key type of T. Similarly, elements or keys that are
+// addresses of composite literals may elide the &T when the element or key
+// type is *T."
+func elidedLiteralType(enclosing externalLiteralLayout, mapKey bool) (externalLiteralType, bool) {
+	switch enclosing.kind {
+	case externalLiteralOpaque:
+		return externalLiteralType{opaque: true}, true
+	case externalLiteralCollection:
+		stated := enclosing.element
+		if mapKey {
+			stated = enclosing.key
+		}
+		if stated.value == nil {
+			return externalLiteralType{}, false
+		}
+		if pointer, address := ast.Unparen(stated.value).(*ast.StarExpr); address {
+			stated.value = pointer.X
+			return externalLiteralType{datatype: stated, pointer: true}, true
+		}
+		return externalLiteralType{datatype: stated}, true
+	case externalLiteralUnresolved, externalLiteralStruct:
+		// A struct literal's values never elide their type in valid Go.
+		return externalLiteralType{}, false
+	default:
+		panic("BUG: literal layout kind is not declared")
 	}
-	return layout.member(datatype.pkg, key)
+}
+
+// literalTypeLayout is literalLayout for a written or stated literal type.
+func (e *externalEffects) literalTypeLayout(stated externalLiteralType, depth int, positional bool) (externalLiteralLayout, string) {
+	if stated.opaque {
+		return externalLiteralLayout{kind: externalLiteralOpaque}, ""
+	}
+	return e.literalLayout(stated.datatype, depth, positional)
 }
 
 // member reports whether key names a field rather than executing as a value.
@@ -63,17 +113,36 @@ func (layout externalLiteralLayout) member(pkg *sourcePackage, key ast.Expr) boo
 // literalLayout follows exact retained aliases and defined types. Field slots
 // retain declaration order, including each name in a grouped field declaration.
 // Generic collections need no element substitution to identify their layout;
-// positional generic structs and embedded fields remain explicit uncertainty.
+// a collection's key and element types substitute a type parameter only where
+// the type is that parameter alone. Positional generic structs and embedded
+// fields remain explicit uncertainty.
 func (e *externalEffects) literalLayout(source sourceExpr, depth int, positional bool) (externalLiteralLayout, string) {
 	walk := externalTypeWalk{effects: e}
 	seen := make(map[*ast.TypeSpec]bool)
 	generic := false
+	// bindings maps the type parameters of the declaration being walked to
+	// the arguments that instantiated it; stated is false once it cannot.
+	var bindings map[string]sourceExpr
+	stated := true
 	for depth < 128 {
 		depth++
 		arguments := -1
+		var instantiation []ast.Expr
 		switch datatype := source.value.(type) {
-		case *ast.ArrayType, *ast.MapType:
-			return externalLiteralLayout{kind: externalLiteralCollection}, ""
+		case *ast.ArrayType:
+			element := sourceExpr{value: datatype.Elt, file: source.file, pkg: source.pkg}
+			return externalLiteralLayout{
+				kind:    externalLiteralCollection,
+				element: boundLiteralType(element, bindings, stated),
+			}, ""
+		case *ast.MapType:
+			key := sourceExpr{value: datatype.Key, file: source.file, pkg: source.pkg}
+			element := sourceExpr{value: datatype.Value, file: source.file, pkg: source.pkg}
+			return externalLiteralLayout{
+				kind:    externalLiteralCollection,
+				key:     boundLiteralType(key, bindings, stated),
+				element: boundLiteralType(element, bindings, stated),
+			}, ""
 		case *ast.StructType:
 			if generic {
 				if positional {
@@ -123,10 +192,12 @@ func (e *externalEffects) literalLayout(source sourceExpr, depth int, positional
 		case *ast.IndexExpr:
 			generic = true
 			arguments = 1
+			instantiation = []ast.Expr{datatype.Index}
 			source.value = datatype.X
 		case *ast.IndexListExpr:
 			generic = true
 			arguments = len(datatype.Indices)
+			instantiation = datatype.Indices
 			source.value = datatype.X
 		}
 		if selector, selected := source.value.(*ast.SelectorExpr); selected {
@@ -152,22 +223,135 @@ func (e *externalEffects) literalLayout(source sourceExpr, depth int, positional
 		if definition.TypeParams.NumFields() != 0 {
 			generic = true
 		}
+		bindings, stated = literalBindings(definition, instantiation, source, bindings, stated)
 		source = owner
 	}
 	return externalLiteralLayout{}, "positional literal layout exceeds 128 declaration steps"
 }
 
-func (e *externalEffects) literalValue(source sourceExpr, literal *ast.CompositeLit, possible bool, depth int) externalValue {
-	datatype := sourceExpr{value: literal.Type, file: source.file, pkg: source.pkg}
-	result := e.typeMethods(datatype, depth+1)
-	if len(literal.Elts) == 0 {
-		// An elided empty element, such as []Shape[T]{{}}, constructs zero
-		// without transferring a positional expression into an unknown field.
-		return result
+// literalBindings names what each type parameter of definition stands for in
+// the scope its declaration opens. Each argument is read in scope, the scope
+// of the instantiation, under the bindings of that scope. A declaration
+// without type parameters opens a scope that names none; a generic one
+// reached uninstantiated states none of its own.
+func literalBindings(definition *ast.TypeSpec, instantiation []ast.Expr, scope sourceExpr, outer map[string]sourceExpr, stated bool) (map[string]sourceExpr, bool) {
+	if definition.TypeParams.NumFields() == 0 {
+		return nil, true
 	}
+	if len(instantiation) != definition.TypeParams.NumFields() {
+		return nil, false
+	}
+	bindings := make(map[string]sourceExpr, len(instantiation))
+	index := 0
+	for _, field := range definition.TypeParams.List {
+		for _, name := range field.Names {
+			argument := sourceExpr{value: instantiation[index], file: scope.file, pkg: scope.pkg}
+			bindings[name.Name] = boundLiteralType(argument, outer, stated)
+			index++
+		}
+	}
+	return bindings, true
+}
+
+// boundLiteralType answers datatype with a type parameter that is the whole
+// type, or the whole pointed-to type, replaced by its argument. A type that
+// names a parameter anywhere else answers a nil value: substituting inside it
+// would build a type the analyzer has no declaration for.
+func boundLiteralType(datatype sourceExpr, bindings map[string]sourceExpr, stated bool) sourceExpr {
+	if !stated {
+		return sourceExpr{}
+	}
+	if len(bindings) == 0 {
+		return datatype
+	}
+	value := ast.Unparen(datatype.value)
+	if parameter, named := value.(*ast.Ident); named {
+		if argument, bound := bindings[parameter.Name]; bound {
+			return argument
+		}
+	}
+	if pointer, address := value.(*ast.StarExpr); address {
+		if parameter, named := ast.Unparen(pointer.X).(*ast.Ident); named {
+			if argument, bound := bindings[parameter.Name]; bound {
+				if argument.value == nil {
+					return sourceExpr{}
+				}
+				return sourceExpr{value: &ast.StarExpr{X: argument.value}, file: argument.file, pkg: argument.pkg}
+			}
+		}
+	}
+	mentioned := false
+	ast.Inspect(datatype.value, func(node ast.Node) bool {
+		if identifier, named := node.(*ast.Ident); named {
+			if _, bound := bindings[identifier.Name]; bound {
+				mentioned = true
+			}
+		}
+		return !mentioned
+	})
+	if mentioned {
+		return sourceExpr{}
+	}
+	return datatype
+}
+
+// literalValue evaluates a literal reached as an expression of its own. A
+// literal that elides its type is reached through literalElement instead,
+// which passes the type its enclosing literal states, so arriving here with a
+// nonempty elided literal means no enclosing literal was walked.
+func (e *externalEffects) literalValue(source sourceExpr, literal *ast.CompositeLit, possible bool, depth int) externalValue {
+	written := externalLiteralType{datatype: sourceExpr{value: literal.Type, file: source.file, pkg: source.pkg}}
 	if literal.Type == nil {
-		e.problem(source, "nonempty elided literal layout is unresolved")
-		result.join(externalValue{unknown: "nonempty elided literal layout is unresolved"})
+		if len(literal.Elts) != 0 {
+			result := e.typeMethods(written.datatype, depth+1)
+			e.problem(source, externalElidedLiteralUnresolved)
+			result.join(externalValue{unknown: externalElidedLiteralUnresolved})
+			return result
+		}
+	}
+	return e.typedLiteralValue(source, literal, written, possible, depth)
+}
+
+// literalElement evaluates one element, key or value of a literal whose layout
+// is known. An element literal that elides its type takes the type the
+// enclosing layout states; one whose type it cannot state takes literalValue,
+// which keeps an empty one a zero construction and refuses a nonempty one.
+func (e *externalEffects) literalElement(source sourceExpr, element ast.Expr, enclosing externalLiteralLayout, mapKey, possible bool, depth int) externalValue {
+	child := sourceExpr{value: element, file: source.file, pkg: source.pkg}
+	nested, composite := element.(*ast.CompositeLit)
+	if !composite {
+		return e.value(child, possible, depth+1)
+	}
+	if nested.Type != nil {
+		return e.value(child, possible, depth+1)
+	}
+	stated, known := elidedLiteralType(enclosing, mapKey)
+	if !known {
+		return e.value(child, possible, depth+1)
+	}
+	// These guards are the ones value applies before it dispatches a literal.
+	if e.amb.unknown != "" {
+		return externalValue{unknown: e.amb.unknown}
+	}
+	if depth+1 == 128 {
+		return externalValue{unknown: "expression capability depth exceeds 128"}
+	}
+	result := e.typedLiteralValue(child, nested, stated, possible, depth+1)
+	if stated.pointer {
+		// The elided &T{...} is an address of the literal, as value records it.
+		result.references = true
+	}
+	result.locate(child)
+	return result
+}
+
+// typedLiteralValue evaluates a literal under the type it constructs, written
+// or stated, and passes each element its layout's stated type in turn.
+func (e *externalEffects) typedLiteralValue(source sourceExpr, literal *ast.CompositeLit, stated externalLiteralType, possible bool, depth int) externalValue {
+	result := e.typeMethods(stated.datatype, depth+1)
+	if len(literal.Elts) == 0 {
+		// An empty literal, written or elided as in []Shape[T]{{}}, constructs
+		// zero without transferring a positional expression into a field.
 		return result
 	}
 	positional := 0
@@ -176,7 +360,7 @@ func (e *externalEffects) literalValue(source sourceExpr, literal *ast.Composite
 			positional++
 		}
 	}
-	layout, reason := e.literalLayout(datatype, depth+1, positional != 0)
+	layout, reason := e.literalTypeLayout(stated, depth+1, positional != 0)
 	if reason != "" {
 		// Recording the issue here prevents a later known field projection
 		// from erasing uncertainty stored only on its enclosing value.
@@ -211,13 +395,13 @@ func (e *externalEffects) literalValue(source sourceExpr, literal *ast.Composite
 				}
 				name = member.Name
 			} else if !layout.member(source.pkg, keyed.Key) {
-				key := e.value(sourceExpr{value: keyed.Key, file: source.file, pkg: source.pkg}, possible, depth+1)
+				key := e.literalElement(source, keyed.Key, layout, true, possible, depth)
 				if e.amb.unknown != "" {
 					return externalValue{unknown: e.amb.unknown}
 				}
 				result.join(externalFlat(key, 0))
 			}
-			field := e.value(sourceExpr{value: keyed.Value, file: source.file, pkg: source.pkg}, possible, depth+1)
+			field := e.literalElement(source, keyed.Value, layout, false, possible, depth)
 			if e.amb.unknown != "" {
 				return externalValue{unknown: e.amb.unknown}
 			}
@@ -229,7 +413,7 @@ func (e *externalEffects) literalValue(source sourceExpr, literal *ast.Composite
 			}
 			continue
 		}
-		field := e.value(sourceExpr{value: element, file: source.file, pkg: source.pkg}, possible, depth+1)
+		field := e.literalElement(source, element, layout, false, possible, depth)
 		if e.amb.unknown != "" {
 			return externalValue{unknown: e.amb.unknown}
 		}
