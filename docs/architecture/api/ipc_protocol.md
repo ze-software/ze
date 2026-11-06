@@ -147,6 +147,12 @@ response verbs. They can occur only inside a command-dispatch result payload.
 <!-- source: pkg/plugin/rpc/message.go -- AppendResult, AppendError -->
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn.readLoop, interpretResponse -->
 
+If the peer sends a response and then closes, `MuxConn.CallRPC` consumes that
+queued response before returning the reader's terminal error. A peer that
+closes without responding still fails the call. Waiting calls remain cancelable
+through their context.
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallRPC, MuxConn.queuedResponse -->
+
 ### Event Format (Engine → Plugin)
 
 JSON with `type` field indicating which key contains the payload. The `peer` field is at the `bgp` level; event type is in `bgp.message.type`; event-specific data is nested under the event type key:
@@ -1272,9 +1278,3 @@ Plugins can register custom commands:
 - `commands.md` - Command syntax details
 - `cli.md` - JSON output format details
 - `capability-contract.md` - GR/RR capability handling
-If the peer sends a response and then closes, `MuxConn.CallRPC` consumes that
-queued response before returning the reader's terminal error. A peer that
-closes without responding still fails the call. Waiting calls remain cancelable
-through their context.
-<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallRPC, MuxConn.queuedResponse -->
-

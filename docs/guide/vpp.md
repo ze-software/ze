@@ -384,7 +384,21 @@ hugepages yourself. On the gokrazy appliance Ze owns the kernel cmdline: set
 `ze appliance build` bakes `default_hugepagesz`/`hugepagesz`/`hugepages` into the
 boot cmdline for you (see the appliance guide). `ze doctor` reports
 `doctor-vpp-hugepages` when VPP is enabled but the reservation is missing,
-insufficient, or clamped. Before enabling VPP:
+insufficient, or clamped.
+
+The boot-time reservation proof is `./le test qemu vpp-hugepages`. Its invocation
+root covers the native host build, appliance build and boot-time SSH assertions;
+SIGINT, SIGTERM or SIGHUP ends the active owned command group and prevents a later
+phase or renderable verdict payload. QEMU is joined before the work directory is
+removed. Normal completion first sends QEMU SIGINT and preserves its existing
+ten-second shutdown grace; cancellation or an error closes the owned group
+immediately. Host process-fixture tests establish that lifetime contract only:
+a hugepage reservation still needs the actual booted kernel's
+`show host kernel` and `show host memory` answers.
+<!-- source: internal/le/test/qemu/hugepages.go -- Hugepages.Run -->
+<!-- source: internal/le/test/qemu/boot.go -- Hugepages.bootAndAssert, boot, ask, ssh -->
+
+Before enabling VPP:
 
 | Requirement | How to provide it |
 |-------------|-------------------|

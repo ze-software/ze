@@ -75,6 +75,15 @@ Authenticate-Requests receive that decision with their own Identifier, without
 another authentication lookup. An LCP restart clears the cached decision.
 <!-- source: internal/component/l2tp/ppp/pap.go -- runPAPAuthPhase, reanswerPAP -->
 
+PAP, CHAP and MS-CHAPv2 result writers apply the admitted session transmit
+limit before encoding. Optional display text can shrink; the authentication
+outcome, packet identifiers and required MS-CHAPv2 authenticator/error fields
+remain intact. PAP reanswers use an empty optional message. A required result
+preface that cannot fit ends the attempt with an explicit failure.
+<!-- source: internal/component/l2tp/ppp/pap.go -- runPAPAuthPhase, reanswerPAP -->
+<!-- source: internal/component/l2tp/ppp/chap.go -- runCHAPAuthPhase -->
+<!-- source: internal/component/l2tp/ppp/mschapv2.go -- runMSCHAPv2AuthPhase, fitMSCHAPv2FailureMessage -->
+
 ### Kernel intercept behavior
 
 After `L2TP_CMD_TUNNEL_CREATE`, the kernel installs `encap_recv` on the
@@ -262,13 +271,15 @@ Follow existing ze config patterns. Mirror `bgp peer connection { local { ip } }
 for endpoint shapes.
 
 The sketch below is historical, not the current schema. The implemented
-`ze-l2tp-conf.yang` uses root `l2tp mru` (64..1500 Information-field octets,
-default 1500) and `l2tp authentication allow` (user-ordered permitted methods).
+`ze-l2tp-conf.yang` uses root `l2tp mru` (68..1500 Information-field octets,
+default 1500), with a minimum of 1280 when IPv6CP is enabled, and
+`l2tp authentication allow` (user-ordered permitted methods).
 An absent allow-list derives the configured method's policy: CHAP-MD5 only,
 MS-CHAPv2 only, CHAP-MD5 then PAP for PAP, and empty for none. Original-tree
 validation checks the allow-list against `auth-method`; both startup extraction
 and strict provider reload parsing resolve it before new-session dispatch.
 <!-- source: internal/component/l2tp/config_policy.go -- validateAuthPolicy, providerAuthAllow -->
+<!-- source: internal/component/l2tp/config_policy.go -- validateMRUPolicy -->
 <!-- source: internal/component/l2tp/ppp/auth_policy.go -- ResolveAuthAllow -->
 
 ```yang
@@ -711,6 +722,15 @@ L2TP subscriber routes carry:
 ### 9.5 IPv6 Routes
 
 IPv6 addressing for PPP subscribers involves two separate protocols:
+
+The PPP admission cap must be at least 1280 when IPv6CP is enabled. Before
+starting IPv6CP, the driver also checks the negotiated directional MRUs. A
+smaller peer limit withholds IPv6 address allocation, negotiation and service;
+independent IPCP can still establish IPv4. If IPCP is disabled, the unusable
+IPv6-only session fails explicitly. An LCP restart reevaluates these sizes
+without changing the admitted NCP policy.
+<!-- source: internal/component/l2tp/ppp/mru_policy.go -- ValidateNetworkMRU, ipv6MRUSupported -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- runNCPPhase, onNCPOpened -->
 
 1. **IPv6CP** (RFC 5072): negotiates only the 64-bit interface identifier.
    Does NOT assign addresses or prefixes. After IPv6CP completes, ze installs

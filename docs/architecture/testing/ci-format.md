@@ -2202,7 +2202,7 @@ ze `go.mod` (`sessionpath.IsRepoRoot`). The runner never starts a fixture
 there, so the refusal is written for a person who typed
 `./le test fixture <name>` at the root: plain text, not a `ZE-OBSERVER-FAIL`
 line, ending with the command that runs each `.ci` test whose step starts the
-fixture, such as `./le test ui ze-help-ai-unchanged`. It reads every
+fixture, such as `./le test ui pipe-interactive-save`. It reads every
 `test/<dir>/*.ci`, skips `#` comment lines, and asks the one resolver of which
 runner walks a directory (`testfunctional.CIRunnerWords`): the functional suite
 table, then the `le test bgp` directories, then a registered `le test <dir>`
