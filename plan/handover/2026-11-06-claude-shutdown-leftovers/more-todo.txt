@@ -1,0 +1,20 @@
+Priority: P1
+Spec: plan/release/fixes/spec-command-surface-parity.md
+What it fixes or adds: Every local command, including ze doctor, the support archive, config inspection and env, also runs through the daemon with the same
+output, so a remote AI or operator can debug the box. It also covers the commands the web admin and SSH offer but can't run (25), plugin commands missing from
+ the web admin, and ze cli completion leaving out commands it serves. A check per surface keeps it fixed, and MCP listing and running each command is its own
+acceptance criterion.
+Size: 25 commands offered but not served, plus 19 more local-only ones that get a daemon side
+────────────────────────────────────────
+Priority: P2
+Spec: plan/release/validation/spec-plugin-smoke-run.md
+What it fixes or adds: Every registered plugin runs alone and all together, on its own small config, and fails on a crash, a data race, a caught panic or a
+hang. Caught panics keep their message and stack trace.
+Size: 22 acceptance criteria
+────────────────────────────────────────
+Priority: P3
+Spec: plan/post-release/engineering/spec-structure-checkin.md
+What it fixes or adds: Oversized, frequently changed files trigger a structural check-in. Proposals become spec skeletons, and you pick which run. It replaces
+the 1,000-line check that fails today and nobody reads.
+Size: After release
+
