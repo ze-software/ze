@@ -257,9 +257,12 @@ func committedBacklogAt(tree, revision string) (committedBacklog, string) {
 			return committedBacklog{counts: counts, at: revision}, ""
 		}
 	}
-	// A deletion is not a commit that holds the file, so --diff-filter=d
-	// skips it and the commits that still held it answer, newest first.
-	holders, failure := gitAnswer(tree, "log", "--format=%H", "--diff-filter=d", revision, "--", evidenceBacklogRel)
+	// A deletion is not a commit that holds the file, so the filter names every
+	// status that leaves a copy, and the commits that held it answer, newest
+	// first. It names them rather than excluding D: git 2.43's `log
+	// --diff-filter=d` with no diff output format lists no commit at all, which
+	// reads as a history that never held the file and disarms this walk.
+	holders, failure := gitAnswer(tree, "log", "--format=%H", "--diff-filter=ACMRT", revision, "--", evidenceBacklogRel)
 	if failure != "" {
 		return committedBacklog{}, failure + repairGitSuffix
 	}
