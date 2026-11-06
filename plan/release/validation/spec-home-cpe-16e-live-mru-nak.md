@@ -2,22 +2,22 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | done |
 | Scope | protocol, tooling, docs |
 | Priority | P2 |
 | Release reason | The LNS MRU interop scenario does not exercise its promised oversized-peer Configure-Nak. |
 | RFC gaps | - |
 | Depends | Aligned peer images in `3cc99259b0`; `docs/labs/l2tp-interop.md`, Peer-source basis |
-| Phase | Source review and live Nak fault red complete, normal restoration blocked by Docker lifecycle |
-| Handoff | blocked |
+| Phase | Independent closure review and native checks complete |
+| Handoff | closure |
 | Updated | 2026-11-06 |
 
 ## Task
 
 Own finding F-5 from `plan/release/fixes/spec-home-cpe-16-mru-enforcement-and-review-fixes.md`, which records the original owner direction.
 Make `l2tp-lns-mru-xl2tpd` prove a peer request greater than 1492 is Nakked to 1492 on the wire, then converges and carries traffic.
-The direct semantic red is observed. Fresh normal restoration and cleanup
-are blocked by Docker lifecycle failure before the scenario starts.
+The direct semantic red and fresh rebuilt normal green are observed.
+The earlier Docker removal blocker is resolved and normal cleanup passes.
 The independent closure agent reads source and central observations without executing code.
 
 ## Required Reading
@@ -84,8 +84,8 @@ Record a forced-red run with the Nak behavior broken in the rebuilt Ze artifact,
 ## Scope and Next Action
 
 This spec owns the live Nak proof. F-1 and F-2 cap fixes and the peer-image
-alignment have separate completed reviews. Restore the native Docker
-lifecycle, observe the fresh normal run and cleanup, then resume closure.
+alignment have separate completed reviews. The native closure artifact and
+check are clean. Land the two-commit script preserving this completed record.
 
 ## Implementation Handoff (2026-11-04)
 
@@ -129,7 +129,8 @@ test was rerun to reconstruct that command.
 
 Implementation and carriers are committed as `3cc99259b0`. The two named
 logs are under `tmp/session/2026-11-04-222204/scratch/`. Earlier NOT RUN
-handoffs are superseded by these results. The spec stays open for closure.
+handoffs are superseded by these results. This historical record precedes
+the independent closure and fresh discrimination below.
 
 ## Central Fault Discrimination (2026-11-06)
 
@@ -152,13 +153,14 @@ mutation, an assertion change, a panic or a failure to establish PPP.
 | RADIUS | `sha256:38b54923cc1c77a6d79916b08ef599dea15bcf2f72b665c9116c3cf7b0e3b8f3` |
 
 The forced run also reports three peer-container removal timeouts. That is
-a cleanup failure, separate from the actual semantic failure. A fresh normal
-rebuild and complete cleanup remain blocked. The trace and build IDs are in
+a cleanup failure, separate from the actual semantic failure. The coordinator
+later confirmed removal completed. The fresh normal rebuild and complete
+scenario cleanup passed after that recovery. The trace and build IDs are in
 `job-cpe16e-nak-disabled-native-1f721660.log` under the central scratch directory.
 
-## Blocker
+## Resolved Resource Blocker
 
-On 2026-11-06, the normal restoration job `c2b9a595` exited1 in native
+On 2026-11-06, `job-cpe16e-nak-restored-native-c2b9a595.log` records exit1 in native
 L2TP preflight: its Docker one-shot exceeded the2-minute limit. It reports
 0 passed and0 failed scenarios. It reached neither image rebuilding nor
 the Nak scenario, so it proves no normal restoration or protocol failure.
@@ -172,19 +174,52 @@ removing. At00:12:50, all three owned fault-run peer containers also had
 PID0 and remained removing. No source bug in those lifecycle functions
 has been verified. Native cleanup reports its failures honestly.
 
-The source overlay is private and tracked production source is normal.
-That does not establish which artifact a later native run consumes. Resume
-only after the lifecycle can create and remove the required owned resources.
-Rebuild normal images through the native harness, retain their immutable
-IDs, observe1493/Nak1492/retry1492/Ack, useful PPP traffic and complete
-cleanup. Then obtain the native review artifact and close this same spec.
-No global cleanup or daemon restart is authorized by this handback.
+At00:21:31, the coordinator inspected all three owned fault-run containers
+and the preflight one-shot: every lookup returned NoSuchObject. Asynchronous
+removal had completed. This resolves the resource blocker without changing
+its historical failure or establishing a normal scenario result.
+
+The fault image is preserved under the quarantine tag
+`ze-fault-quarantine:cpe16e-e597ec4c-nak-disabled`. After checking image IDs,
+the coordinator removed only `ze-l2tp-interop:latest` with no-prune. The
+fault-staged Ze and le binaries were moved to the session scratch directory,
+and their original staging paths were confirmed absent. NO_BUILD therefore
+cannot reuse those fault artifacts. Tracked source is unchanged.
+
+The normal run below resolves the remaining rebuild/service/cleanup proof.
+No global cleanup or daemon restart was used. The failed preflight remains
+a historical failure, separate from the later successful run.
+
+## Fresh Normal Restoration (2026-11-06)
+
+The actual command was `./le --name cpe16 job run label cpe16e-nak-restored-after-recovery quiet command env -u GOFLAGS -u NO_BUILD ZE_L2TP_INTEROP_SCENARIO=l2tp-lns-mru-xl2tpd SESSION_TIMEOUT=300 ./le --name cpe16 test deployment docker-l2tp-ppp`.
+The coordinator observed exit0. The full log is
+`job-cpe16e-nak-restored-after-recovery-c2b9a595.log`. The full label matters:
+the earlier failed preflight has the same short command hash.
+
+| Native peer | Consumed normal-run image reference |
+|-------------|-------------------------------------|
+| Ze | `sha256:b4c128e3dd9552274811aa6581632e74cbd37ca075e10147f0abdb8068cd35ac` |
+| LAC | `sha256:e006f88157057c0a0acca784b9a33f15fc8e63837e9176af4cad72870a9bf86d` |
+| RADIUS | `sha256:35cdd43e414e74e078f6f9f28008e77f4bf1e911998b4e95237a0f5fdc23d208` |
+
+The real peer sends request0x1/MRU1493, receives Nak0x1/MRU1492, sends
+retry0x2/MRU1492 and receives Ack0x2/MRU1492. Ze's own1492/CHAP request
+also receives its matching Ack. CHAP success and IPCP follow. The measured
+client link has MTU1492. Effective config is1492, and session list/detail
+both report1492 for the same live session28019.
+
+The selected scenario reports1 passed,0 failed, with no cleanup warning.
+`checkLNSMRU` reaches useful ICMP, RADIUS and `waitL2TPClean` before that
+verdict. The native lab cleanup also completes. The independent reviewer
+read the complete normal log. No source change or extra review round was
+needed to observe this restored behavior.
 
 ## Executive Summary
 
-F-5 remains blocked: fresh normal restoration and cleanup did not run after
-the observed direct Nak fault red. The latest failure is Docker preflight,
-not PPP negotiation. This spec remains open.
+F-5's direct rebuilt fault fails for missing Nak, and the fresh rebuilt
+normal scenario passes negotiation, service and cleanup. The native review
+artifact and check are clean. The resource blocker is resolved.
 
 The registered live checker now requires pppd1493, Ze Nak1492, the1492 retry
 and its matching Ack before CHAP. The earlier normal native session passed
@@ -201,12 +236,12 @@ conformance claim follows from these scoped results.
 
 | Deliverable | Done | Source and evidence |
 |-------------|------|---------------------|
-| Real oversized peer request, matching Nak and convergence | Yes | `lnsMRUEvidence`, real `l2tp-lns-mru-xl2tpd` trace in `job-cpe16-final-l2tp-live-e6b8eb67.log`. |
+| Real oversized peer request, matching Nak and convergence | Yes | `lnsMRUEvidence`; actual trace in `job-cpe16e-nak-restored-after-recovery-c2b9a595.log`. |
 | Working subscriber service after convergence | Yes | `checkLNSMRU`: CHAP, client MTU, ping, RADIUS, live daemon answers and `waitL2TPClean`. |
 | Missing evidence and incorrect correlation fail | Yes | `TestLNSMRUEvidenceNakSequence`, `TestLNSMRUEvidence`, checker race run. |
 | Prior positive trace and explicit1500 remain proved | Yes | `TestLNSLocalMRUProofSurvivesNakStrengthening`; `TestConfiguredMRUNakInformationFloor`. |
 | Accurate operator/lab documentation | Yes | `docs/labs/l2tp-interop.md` in `3cc99259b0`, matching wiki `312639d`. |
-| Fresh normal restoration and cleanup after direct Nak fault | No | `1f721660` proves the missing-Nak red. Restoration `c2b9a595` stops in Docker preflight before any scenario. |
+| Fresh normal restoration and cleanup after direct Nak fault | Yes | `job-cpe16e-nak-disabled-native-1f721660.log` proves the direct wire red. `job-cpe16e-nak-restored-after-recovery-c2b9a595.log` proves fresh normal negotiation, service and cleanup. |
 
 ## Changed-Wire Census and Wiring
 
@@ -264,7 +299,7 @@ whole-tree documentation pass.
 |------------------|--------|---------------------------------|
 | Task: live oversized request/Nak/convergence | Done | AC-1, `lnsMRUEvidence`; final native peer1493/Nak1492/retry1492/Ack trace. |
 | AC-1 | Done | Matching request/Nak IDs and retry/Ack IDs, ordered before CHAP. |
-| AC-2 | Historical normal proof complete; fresh restoration blocked | `checkLNSMRU`; `e6b8eb67` passes CHAP/IPCP, client MTU1492, ping, RADIUS and cleanup. `c2b9a595` runs no scenario. |
+| AC-2 | Done | `checkLNSMRU`; `job-cpe16e-nak-restored-after-recovery-c2b9a595.log` passes CHAP/IPCP, client MTU1492, ping, RADIUS and cleanup. |
 | AC-3 | Done | `TestLNSMRUEvidenceNakSequence` rejects missing/wrong request, Nak, retry, Ack and early CHAP; prior negatives preserved. |
 | AC-4 | Done | `TestConfiguredMRUNakInformationFloor` sends literal1500 and requires Nak1492. |
 | Every planned test | Done | Nak test is in `lns_mru_nak_test.go`, prior trace test is additive, existing `TestLNSMRUEvidence` retains its assertions. |
@@ -274,10 +309,10 @@ whole-tree documentation pass.
 
 | Goal | Evidence type | Concrete evidence |
 |------|---------------|-------------------|
-| Actual wire Nak and useful convergence | Native interop | `job-cpe16-final-l2tp-live-e6b8eb67.log`: request0x1/MRU1493, Nak0x1/MRU1492, retry0x2/MRU1492, Ack0x2, CHAP/IPCP, MTU1492, scenario pass. |
+| Actual wire Nak and useful convergence | Native interop | `job-cpe16e-nak-restored-after-recovery-c2b9a595.log`: request0x1/MRU1493, Nak0x1/MRU1492, retry0x2/MRU1492, Ack0x2, CHAP/IPCP, MTU1492, scenario pass. |
 | A missing or unrelated packet cannot pass | Negative and positive unit controls | `TestLNSMRUEvidenceNakSequence` and retained previous local-policy/CHAP trace in the central checker race scope. |
 | The default-option limitation does not erase literal1500 coverage | Unit and peer-source inspection | `TestConfiguredMRUNakInformationFloor`; pinned pppd `lcp_addci` default exclusion and `lcp_nakci` acceptance. |
-| Direct producer fault must fail, then normal rebuilt service and cleanup must pass | Native semantic discrimination | `1f721660`: guard-disabled image Acks1493 and fails the missing-Nak assertion despite CHAP/IPCP. Fresh normal `c2b9a595` stops in Docker preflight, so this goal remains incomplete. |
+| Direct producer fault must fail, then normal rebuilt service and cleanup must pass | Native semantic discrimination | `job-cpe16e-nak-disabled-native-1f721660.log`: guard-disabled image Acks1493 and fails the missing-Nak assertion despite CHAP/IPCP. `job-cpe16e-nak-restored-after-recovery-c2b9a595.log`: freshly rebuilt normal image passes negotiation, useful service and cleanup. |
 
 ## Deviations and Mistake Log
 
@@ -286,29 +321,31 @@ whole-tree documentation pass.
 | approach | A default1500 peer request was assumed observable. | pppd omits the MRU option at1500. | Pinned `lcp_addci`, then actual native trace. | Use explicit1493 live, retain explicit1500 unit proof. |
 | approach | Skeleton named the new Nak test in `lns_policy_test.go`. | It is in `lns_mru_nak_test.go`. | Independent source review. | Correct the test carrier name without changing its proof. |
 | approach | Historical author handoff and absent closure tables left current verification unclear. | Earlier normal scenarios and checker race had passed. | Independent closure read of source and native logs. | Add the evidence and identify historical entries. |
-| approach | Earlier live green did not retain a Nak-specific producer red. | Omission/proxy cap mutations do not establish the Nak assertion. | Independent closure evidence review. | Observe direct rebuilt upper-MRU-guard red in `1f721660`; keep this spec blocked until normal restoration and cleanup pass. |
+| approach | Earlier live green did not retain a Nak-specific producer red. | Omission/proxy cap mutations do not establish the Nak assertion. | Independent closure evidence review. | Observe direct rebuilt upper-MRU-guard red in `1f721660`; require fresh normal restoration and cleanup before closure. |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Fresh normal restoration and cleanup after the Nak fault | `c2b9a595` stops in Docker preflight before image rebuilding or any scenario. | `plan/release/validation/spec-home-cpe-16e-live-mru-nak.md` |
+| None | Every F-5 acceptance criterion and direct live discrimination obligation is satisfied. | None |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | Not recorded: blocked implementation-evidence handback, no closure prepared. |
-| `./le spec review check` | Not run for this blocked handback. |
+| Artifact | `tmp/review/home-cpe-16e-live-mru-nak-3a525723-d369-4547-9124-fe35463dc0f5.md`, native job `e5489eb4`:20 paths, CLEAN. |
+| `./le spec review check` | Pass in `e5489eb4`: all10 reviewed code-file hashes match. |
 | Rounds | 1 |
+| Reviewer | `close_16e-Codex-GPT6`, independent Codex GPT-6 closure context. |
 | Reviewer lenses used | Logic/wiring/spec alignment; adversarial correlation/removed behavior; security/edge cases/style. |
-| Final independent source result | CLEAN:0 BLOCKER,0 ISSUE. No product fix. Direct semantic red observed; fresh normal restoration and cleanup remain blocked. |
+| Final independent source result | CLEAN:0 BLOCKER,0 ISSUE. No product fix. Direct semantic red and fresh normal restoration/service/cleanup green observed. |
 
 ### Findings fixed
 
 | Severity | Finding | Location | Fixed by |
 |----------|---------|----------|----------|
 | NOTE | Stale skeleton statements, test filename and missing closure tables. | This spec. | One closure prose edit. |
+| NOTE | The native automatic model field selects a historical Claude transcript and does not identify this reviewer. | Native artifact metadata. | Explicit reviewer identity and native Findings provenance note. No source change or extra round. |
 
 All changed Go was read against the style guide, including socket-to-panic,
 loop bounds, naming, lifecycle, copies and validation. No new panic, worker,
@@ -329,8 +366,8 @@ The prior complete trace remains a positive local-policy/CHAP control.
 
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | Real request and correlated convergence | Read final native `e6b8eb67` trace and `lnsMRUEvidence` source. |
-| AC-2 | Authenticated useful session and cleanup | Historical `e6b8eb67` passes. Fresh restoration `c2b9a595` reaches no scenario and does not re-establish this result. |
+| AC-1 | Real request and correlated convergence | Read `job-cpe16e-nak-restored-after-recovery-c2b9a595.log` and `lnsMRUEvidence` source. |
+| AC-2 | Authenticated useful session and cleanup | Fresh normal `job-cpe16e-nak-restored-after-recovery-c2b9a595.log` passes all checker/service/cleanup assertions. |
 | AC-3 | Missing or mismatched packets fail | Read all11 Nak-sequence fixtures, retained prior controls and central checker race pass. |
 | AC-4 | Literal1500 is still checked | Read `TestConfiguredMRUNakInformationFloor`: explicit1500 request requires Nak1492. |
 
@@ -357,9 +394,10 @@ The prior complete trace remains a positive local-policy/CHAP control.
 
 | Check | Observed result |
 |-------|-----------------|
-| Scoped implementation validation | Historical checker race and normal native run pass. Direct Nak fault `1f721660` fails correctly. Fresh normal `c2b9a595` exits1 before any scenario. |
+| Scoped implementation validation | Historical checker race passes. Direct Nak fault `job-cpe16e-nak-disabled-native-1f721660.log` fails correctly. Fresh normal `job-cpe16e-nak-restored-after-recovery-c2b9a595.log` passes1/1 with complete service and cleanup. |
 | Committed flavors | `job-cpe16d` committed compile `9f891c3d`: all five flavors pass after `7e2fb4953f`. |
 | RFC proof freshness | Final central check `722fbda6`:76 foreign findings, no owned stale/missing record. Derived RFC update `8119b55c` passes. |
 | Repo/weakening prechecks | Central result:9 unused exports and10 unrelated weakening findings. Original3 scoped failures were repaired in `f16fe6136b`. |
 | Documentation | Full check `baf5a445` and targeted repair `dc77857d` as disclosed above. |
-| Manual and build limits | Real peer sources and owned source anchors were read. Normal fresh Docker rebuilding/cleanup are blocked as above. No full verify or push runs. Foreign site build remains blocked. |
+| Final native closure review and anchors | `e5489eb4` records CLEAN1 over20 paths and checks10 matching code hashes. Targeted anchor check `e0152e97` exits0 without advisory. |
+| Manual and build limits | Real peer sources and owned source anchors were read. Fresh normal Docker rebuilding/service/cleanup pass. Earlier failed preflight/removal is retained separately as resolved history. No full verify or push runs. Foreign site build remains blocked. |
