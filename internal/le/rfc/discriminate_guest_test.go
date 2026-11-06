@@ -184,8 +184,8 @@ func TestFunctionalPlacementIsTheRunnersAnswer(t *testing.T) {
 	}
 }
 
-// VALIDATES: a guest .ci observation boots the named runtime kernel with the packages a
-// caps-gated test needs, and runs the ONE .ci against this run's own cross-built daemons.
+// VALIDATES: a guest .ci observation boots Ze's own system on the named runtime kernel
+// under the harness, and runs the ONE .ci against this run's own cross-built daemons.
 // METHOD: guestCIArgv over a fixture runner.
 // PREVENTS: a guest proof over the Alpine kernel, a run of the shared guest daemons
 // rather than the ones built under the overlay, and a whole-suite run with no attribution.
@@ -197,8 +197,8 @@ func TestGuestCIObservationCommand(t *testing.T) {
 	}
 	binaries := "tmp/qemu/rfc-discriminate/pid-1/linux-amd64/bin"
 	got := runner.guestCIArgv(binaries, testqemu.ArchAMD64)
-	want := []string{"/bin/le", "test", "qemu", "run", "kernel", "tmp/kernel/build/vmlinuz",
-		"packages", testqemu.OneCIPackages, "timeout", guestCICommandTimeout,
+	want := []string{"/bin/le", "test", "qemu", "docker-lab", "kernel", "tmp/kernel/build/vmlinuz",
+		testqemu.KeywordHarness, "timeout", guestCICommandTimeout,
 		"command", testqemu.OneCICommand(binaries, "test/plugin/gated.ci", testqemu.ArchAMD64)}
 	if !slices.Equal(got, want) {
 		t.Errorf("guest .ci argv\n got %q\nwant %q", got, want)

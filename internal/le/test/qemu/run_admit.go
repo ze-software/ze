@@ -26,8 +26,8 @@ const runJobLabel = "qemu-run"
 // a test can name a child without depending on where the test binary runs.
 var runSelf = os.Executable
 
-// admitQEMURun admits one `test qemu run` through the host's job registry and
-// answers its code.
+// admitQEMURun admits one guest run, `test qemu run` or the `docker-lab` harness
+// branch, through the host's job registry and answers its code.
 //
 // The host holds the slot, never the guest. The guest sees the host's registry
 // through /workspace but not the host's processes, so a guest le that admitted
@@ -95,15 +95,26 @@ func runQEMUClaimed(ctx context.Context, admission *job.Admission, ticket *job.T
 	return admission.RunClaimedContext(ctx, ticket, child, dir, nil)
 }
 
-// runArgv spells a parsed `test qemu run` line back as the words that typed
-// it, from the parameters the action declares: the job key fingerprints these
-// words, and a claimed slot re-executes them.
+// runArgv spells a parsed `test qemu run` line back as the words that typed it.
 func runArgv(args leaction.Arguments) []string {
-	argv := make([]string, 0, 4+2*len(runParameters))
+	return typedArgv(runVerb, runParameters, args)
+}
+
+// dockerLabArgv spells a parsed `test qemu docker-lab` line back as the words
+// that typed it.
+func dockerLabArgv(args leaction.Arguments) []string {
+	return typedArgv(dockerLabVerb, dockerLabParameters, args)
+}
+
+// typedArgv spells a parsed line of verb back from the parameters the action
+// declares: the job key fingerprints these words, and a claimed slot re-executes
+// them.
+func typedArgv(verb string, parameters []leaction.Parameter, args leaction.Arguments) []string {
+	argv := make([]string, 0, 4+2*len(parameters))
 	argv = append(argv, "le")
 	argv = append(argv, strings.Fields(area)...)
-	argv = append(argv, runVerb)
-	for _, parameter := range runParameters {
+	argv = append(argv, verb)
+	for _, parameter := range parameters {
 		if !args.Has(parameter.Keyword) {
 			continue
 		}

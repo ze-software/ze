@@ -96,15 +96,17 @@ const guestJobParentName = "host-job"
 // names: the label job.insideParent reports as the slot it runs inside.
 const guestJobParentEntry = "LABEL=qemu-held-by-host\n"
 
-// guestRunJobParent is the stand-in the `test qemu run` setup writes in the
+// guestRunJobParent is the stand-in a guest command's setup writes in the
 // guest's own /tmp, never in the shared checkout, and names as the guest
 // command's job parent (guestRunParentSetup).
 const guestRunJobParent = "/tmp/ze-" + guestJobParentName
 
 // guestRunParentSetup answers the setup step that writes the stand-in parent
 // at path and exports it under job.ParentVariable, so every le the guest
-// command starts runs inside the slot the host's `test qemu run` holds
-// (admitQEMURun) and never admits itself against the host's registry.
+// command starts runs inside the slot the host holds (admitQEMURun, taken by
+// `test qemu run` and the `docker-lab` harness) and never admits itself against
+// the host's registry. A plain `docker-lab` command holds no slot, so a command
+// that starts le goes through the harness.
 func guestRunParentSetup(path string) string {
 	var b textbuf.Buffer
 	return b.Str("printf '").Str(strings.TrimSuffix(guestJobParentEntry, "\n")).Str("\\n' > ").Str(shellQuote(path)).

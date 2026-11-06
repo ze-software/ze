@@ -70,6 +70,9 @@ type RunPlan struct {
 	// commandSession selects the keyed, unprivileged own-system transport.
 	// Nil retains the Alpine root transport for existing callers.
 	commandSession *dockerLabSession
+	// rootCommand says the guest command runs under sudo, so a signal the
+	// session's ordinary user sends never reaches it (guestRootInterruptRemote).
+	rootCommand bool
 }
 
 // RunReport is the structured answer from one VM.

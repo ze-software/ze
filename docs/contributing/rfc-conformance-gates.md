@@ -2187,7 +2187,7 @@ system identity before executing the supplied script:
     ./le rfc record id <ID> polarity <p> unit <file>::<Func> \
       route revert producer <file>::<Func> kernel tmp/kernel/build/vmlinuz
 
-A `.ci` the host's runner skips retains the legacy Alpine guest. The functional
+A `.ci` the host's runner skips runs in the same own system. The functional
 runner
 decides, not the recorder: `testrunner.NeedsGuest` answers whether this host
 skips the file (`option=needs-linux:caps=...` on a host that lacks the
@@ -2196,7 +2196,8 @@ the host run, and an ExaBGP compatibility file never asks. The daemons are
 cross-built on the host into `tmp/qemu/rfc-discriminate/pid-<pid>/`, with the
 overlay in `GOFLAGS` for the broken run, and the guest runs the one file through
 `le test qemu all test <path>`, the narrowing `./le feature run`
-already drives (`testqemu.OneCICommand`). The guest le that `le test qemu run`
+already drives (`testqemu.OneCICommand`), through `le test qemu docker-lab
+harness`. The guest le that route
 rebuilds into the shared `tmp/qemu/` path is built after `GOFLAGS` is restored,
 so it never carries the break. The same `kernel <vmlinuz>` rule applies:
 

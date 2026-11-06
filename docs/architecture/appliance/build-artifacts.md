@@ -100,7 +100,10 @@ source root: profiles, shared includes, manifests, patches and builder sources
 are read there, while cache hashes retain repository-relative labels so the
 checkout's absolute path does not change the key. Requirement enforcement keeps
 selected-root absolute manifest paths; it cannot read a decoy in the caller's
-working directory.
+working directory. The Linux release stays the binary's own, because its source
+digest is compiled in with it, so `RuntimeKernelTree` refuses a selected root
+whose `internal/appliance/kernel.version` pins another release rather than build
+one release from another's config.
 
 A warm library lookup does not materialize a shared output. A cold lookup builds
 in a run-owned directory under the selected root's `tmp/kernel`, validates the

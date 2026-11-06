@@ -10,9 +10,9 @@
 // reaches the compiler, and run there by name through `le test qemu docker-lab`.
 //
 // A .ci the host's runner skips (`option=needs-linux:caps=...` on a host that
-// lacks the capability) retains the legacy Alpine guest through `le test qemu all
-// test <path>`, the one-.ci narrowing `le feature run` already drives,
-// against daemons cross-built on the host under the overlay.
+// lacks the capability) runs in the same own system through `le test qemu all
+// test <path>`, the one-.ci narrowing `le feature run` drives, against daemons
+// cross-built on the host under the overlay.
 package rfc
 
 import (
@@ -36,11 +36,11 @@ const guestGOOS = "linux"
 const exabgpCarrierName = "functional-exabgp"
 
 // guestDaemonsRel is where a guest .ci observation cross-builds its daemons,
-// inside the checkout because the guest reaches it as GuestWorkspace.
+// inside the checkout because the harness binds it at GuestWorkspace.
 const guestDaemonsRel = "tmp/qemu/rfc-discriminate"
 
-// guestCICommandTimeout is what `le test qemu run` gives the guest command,
-// inside carrierRunDeadline: a boot, the package install, and the one .ci.
+// guestCICommandTimeout is what `le test qemu docker-lab` gives the guest command,
+// inside carrierRunDeadline, which also bounds the boot and any image build.
 const guestCICommandTimeout = "3000s"
 
 // guestLocalDir is where the guest script copies a unit's test binary before
@@ -109,8 +109,8 @@ func unitNeedsGuest(host, guest *build.Context, file string, explicitGuest bool)
 // kernel for a unit that runs on this host.
 //
 // A guest proof MUST boot Ze's runtime kernel, never the Alpine ISO's
-// (ai/rules/platform-linux.md). Units use the own-system command carrier;
-// functional cases retain the legacy carrier with an explicit kernel.
+// (ai/rules/platform-linux.md). Units and functional cases both use the
+// own-system command carrier, which refuses any other kernel.
 // A kernel named for a host unit would be read by nothing, and
 // an argument read by nothing is a claim the record never tested.
 func requireGuestKernel(unit string, guest bool, kernel string) error {
@@ -268,7 +268,7 @@ func functionalNeedsGuest(carrier Carrier, file string, needs func(string) (bool
 // The daemons are cross-built on the host, with the overlay in GOFLAGS for the
 // broken run, into a directory of this process's own: a concurrent recorder
 // must never boot this run's broken ze. The guest command then runs under the
-// restored environment, so the guest le `le test qemu run` rebuilds into the
+// restored environment, so the guest le `docker-lab harness` rebuilds into the
 // shared tmp/qemu path never carries the break.
 func (o *observationRunner) runFunctionalInGuest(overlay string) (bool, string, error) {
 	goarch := testqemu.GuestArch()
@@ -301,11 +301,12 @@ func (o *observationRunner) buildGuestDaemons(binaries, goarch, overlay string) 
 	return nil
 }
 
-// guestCIArgv answers the command that boots the guest on the runtime kernel
+// guestCIArgv answers the command that boots Ze's own system on the runtime kernel
 // and runs the one .ci there, re-executing this le binary on the qemu action
-// as guestRunArgv does for a Go unit.
+// as guestRunArgv does for a Go unit. The harness gives `test qemu all` the root,
+// the mount and the guest le it requires.
 func (o *observationRunner) guestCIArgv(binaries, goarch string) []string {
-	return []string{o.self, leTestCommand, "qemu", "run", keyKernel, o.kernel,
-		"packages", testqemu.OneCIPackages, "timeout", guestCICommandTimeout,
+	return []string{o.self, leTestCommand, "qemu", "docker-lab", keyKernel, o.kernel,
+		testqemu.KeywordHarness, "timeout", guestCICommandTimeout,
 		"command", testqemu.OneCICommand(binaries, filepath.ToSlash(o.tag.File), goarch)}
 }

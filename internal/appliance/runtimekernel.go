@@ -9,7 +9,10 @@ package appliance
 import (
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
+	"strings"
 )
 
 // RuntimeKernelTree resolves ze's runtime kernel for arch and answers its
@@ -23,7 +26,37 @@ func RuntimeKernelTree(root, arch string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if err := refuseAnotherRootsRelease(absolute); err != nil {
+		return "", err
+	}
 	return resolveKernel(absolute, defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime, "")
+}
+
+// kernelVersionRel is where a source root declares the Linux release it pins.
+const kernelVersionRel = "internal/appliance/kernel.version"
+
+// refuseAnotherRootsRelease refuses a root that pins another Linux release than
+// this binary. The release is compiled in with its tracked source digest
+// (kernelbuilder.SourceDigest), so the binary cannot build the root's release;
+// going on would build its own release from that root's config, and cache the mix
+// under a name that hides it.
+func refuseAnotherRootsRelease(root string) error {
+	path := filepath.Join(root, filepath.FromSlash(kernelVersionRel))
+	raw, err := os.ReadFile(path) //nolint:gosec // a fixed file under the caller's selected source root
+	if errors.Is(err, fs.ErrNotExist) {
+		// refuse-by-default: guards RuntimeKernelTree -- a root with no version file pins no other release, and its profile files still decide
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read the kernel release of source root %s: %w", root, err)
+	}
+	pinned := strings.TrimSpace(string(raw))
+	if pinned == defaultKernelVersion {
+		return nil
+	}
+	return fmt.Errorf("source root %s pins Linux %s, but this binary was built for Linux %s, so it would build %s from that root's config. "+
+		"Fix: rebuild this tool from that root (commit the kernel.version change so ./le rebuilds, or ./le build host-driver run for ze-host), then rerun",
+		root, pinned, defaultKernelVersion, defaultKernelVersion)
 }
 
 // ImageRuntimeKernelTree is RuntimeKernelTree for a caller that builds an

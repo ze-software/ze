@@ -69,6 +69,19 @@ jobs:
       # its first test.
       - name: Cross-build the guest daemons
         run: ./le test qemu guest-binaries
+      - name: Fill the gokrazy module cache
+        # The docker-host image builds with GOPROXY=off over gokrazy/modcache,
+        # and git holds only module source there: this downloads what every
+        # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
+        run: ./le setup appliance-modules
+      # Ze's image carries no Go, and the unit, installer and integration phases
+      # of `test qemu all` compile in the guest. The patched tree's links name
+      # this runner's GOROOT, outside every share, so the guest gets a copy that
+      # holds the files. The `_` keeps it out of the unit phase's `./...`.
+      - name: Copy the patched Go tree into the checkout the guest mounts
+        run: |
+          mkdir -p tmp/qemu
+          cp -RL "$GOROOT" tmp/qemu/_guest-go
       - name: Run every Linux-only functional test in the VM
         env:
           ZE_QEMU_MEMORY: "8192"
@@ -76,11 +89,11 @@ jobs:
           ZE_QEMU_PARALLEL: "2"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le test qemu run
+          ./le test qemu docker-lab
           kernel tmp/kernel/build/vmlinuz
-          packages "coreutils nftables iproute2 iputils-ping kmod iptables libcap e2fsprogs e2fsprogs-extra"
+          harness
           timeout 5400s
-          command 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN=tmp/qemu/linux-amd64/bin/ze ZE_STRIPPED_BIN=tmp/qemu/linux-amd64/bin/ze-stripped ZE_STRIPPED_FLOW_BIN=tmp/qemu/linux-amd64/bin/ze-stripped-flow ZE_QEMU_SKIP_SUITES=web ZE_QEMU_PARALLEL=2 tmp/qemu/linux-amd64/le test qemu all'
+          command 'ZE_QEMU_LINUX_ONLY=1 PATH=/workspace/tmp/qemu/_guest-go/bin:$PATH GOROOT=/workspace/tmp/qemu/_guest-go GOTOOLCHAIN=local GOCACHE=/workspace/tmp/qemu/go-cache GOMODCACHE=/workspace/tmp/qemu/gomodcache ZE_BIN=tmp/qemu/linux-amd64/bin/ze ZE_STRIPPED_BIN=tmp/qemu/linux-amd64/bin/ze-stripped ZE_STRIPPED_FLOW_BIN=tmp/qemu/linux-amd64/bin/ze-stripped-flow ZE_QEMU_SKIP_SUITES=web ZE_QEMU_PARALLEL=2 tmp/qemu/linux-amd64/le test qemu all'
 
   protocol-labs:
     runs-on: ubuntu-latest
@@ -224,6 +237,14 @@ jobs:
           packages "accel-ppp ppp iproute2 iputils-ping kmod"
           timeout 600s
           command 'tmp/qemu/linux-amd64/le test qemu pppoe-accel'
+      # The two namespace steps below need only setcap, getcap, nft and ip, which
+      # Ze's image carries, so they boot it. Their accel-ppp and Go neighbours
+      # still need tools it does not carry.
+      - name: Fill the gokrazy module cache
+        if: ${{ !cancelled() }}
+        # The docker-host image builds with GOPROXY=off over gokrazy/modcache,
+        # and git holds only module source there.
+        run: ./le setup appliance-modules
       - name: PPPoE functional suite
         if: ${{ !cancelled() }}
         env:
@@ -231,8 +252,9 @@ jobs:
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le test qemu run kernel tmp/kernel/build/vmlinuz
-          packages "nftables iproute2 libcap kmod"
+          ./le test qemu docker-lab
+          kernel tmp/kernel/build/vmlinuz
+          harness
           timeout 1200s
           command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 tmp/qemu/linux-amd64/le test qemu pppoe'
       - name: ASPA plugin namespace subset
@@ -242,8 +264,9 @@ jobs:
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le test qemu run kernel tmp/kernel/build/vmlinuz
-          packages "nftables iproute2 libcap kmod"
+          ./le test qemu docker-lab
+          kernel tmp/kernel/build/vmlinuz
+          harness
           timeout 1200s
           command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 tmp/qemu/linux-amd64/le test qemu netns suites plugin'
       - name: Traffic-usage eBPF proof

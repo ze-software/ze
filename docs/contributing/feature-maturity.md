@@ -150,9 +150,10 @@ output, ending with the selector that runner was given (the stem for a `.ci`,
 the repository path for an `.et`), because a `-run` pattern that matched
 nothing exits 0. A skip is never a pass. A `.ci` that declares
 `option=needs-linux`, with or without `caps=`, and that this host would skip
-(`runner.NeedsGuest`, the parser's own skip decision) runs in a throwaway QEMU
-guest instead: feature run cross-builds `ze` and `ze-stripped` for the guest
-under `tmp/qemu/feature-record-run/`, then runs `le test qemu run ... command
+(`runner.NeedsGuest`, the parser's own skip decision) runs in a throwaway boot of
+Ze's own system instead: feature run cross-builds `ze` and `ze-stripped` for the
+guest under `tmp/qemu/feature-record-run/`, resolves the image's runtime kernel,
+then runs `le test qemu docker-lab kernel <vmlinuz> harness ... command
 '<guest le> test qemu all test <path>'`, which runs that one test through
 the suite `test qemu all` gives its directory, network-namespace preparation
 included. The guest runner's own PASS line is still the observation. When the

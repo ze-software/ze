@@ -51,12 +51,12 @@ const scenarioRunDeadline = 2 * time.Hour
 // one test. An expired deadline is an error, never a red and never a pass.
 const guestRunDeadline = time.Hour
 
-// guestCommandTimeout is what `le test qemu run` gives the guest command, inside
-// guestRunDeadline.
+// guestCommandTimeout is what `le test qemu docker-lab` gives the guest command,
+// inside guestRunDeadline, which also bounds the boot and any image build.
 const guestCommandTimeout = "3000s"
 
 // guestBinariesRel is where the guest daemons are cross-built, inside the
-// checkout because the guest reaches it as /workspace.
+// checkout because the harness binds it at /workspace.
 const guestBinariesRel = "tmp/qemu/feature-record-run"
 
 // excerptOctetsMax bounds the run output quoted in a refusal.
@@ -360,6 +360,9 @@ type repoRunner struct {
 	// because its home is the QEMU guest" (runner.NeedsGuest).
 	needsGuest func(path string) (bool, error)
 	guestBuilt bool
+	// guestKernel answers the vmlinuz the guest boots. The zero value is
+	// testqemu.GuestRuntimeKernel over tree.
+	guestKernel func() (string, error)
 	// hostReady is the functional host preflight (setup.FunctionalHostPreflight).
 	hostReady func() error
 }
@@ -430,8 +433,8 @@ func (r *repoRunner) prepare() error {
 	return nil
 }
 
-// runInGuest runs the .ci at file in a throwaway QEMU guest, through the
-// suite `le test qemu all` gives its directory, because this host skips
+// runInGuest runs the .ci at file in a throwaway boot of Ze's own system, through
+// the suite `le test qemu all` gives its directory, because this host skips
 // it (runner.NeedsGuest): a skip is never a pass, so the host run proves
 // nothing. The guest daemons are cross-built once into the checkout, which the
 // guest mounts. The observation is the guest runner's own output, so the
@@ -445,16 +448,24 @@ func (r *repoRunner) runInGuest(file string) (observation, error) {
 		}
 		r.guestBuilt = true
 	}
-	argv := []string{filepath.Join(r.set.Dir, testfunctional.LE), "test", "qemu", "run",
-		"packages", testqemu.OneCIPackages, "timeout", guestCommandTimeout,
+	resolve := r.guestKernel
+	if resolve == nil {
+		resolve = func() (string, error) { return testqemu.GuestRuntimeKernel(r.tree, goarch) }
+	}
+	kernel, err := resolve()
+	if err != nil {
+		return observation{}, errors.New("cannot resolve the runtime kernel Ze's guest boots: " + err.Error())
+	}
+	argv := []string{filepath.Join(r.set.Dir, testfunctional.LE), "test", "qemu", "docker-lab",
+		"kernel", kernel, testqemu.KeywordHarness, "timeout", guestCommandTimeout,
 		"command", testqemu.OneCICommand(binaries, file, goarch)}
 	seen, err := r.exec(argv, r.set.Environment(r.toolchain), guestRunDeadline)
 	if err != nil {
-		return observation{}, errors.New("the QEMU guest route (`le test qemu run`): " + err.Error())
+		return observation{}, errors.New("the QEMU guest route (`le test qemu docker-lab`): " + err.Error())
 	}
 	if !seen.exited {
 		seen.output = "feature run: " + file + " is skipped on this host (option=needs-linux), so it ran in " +
-			"the QEMU guest through `le test qemu run`; that route failed, and a failure before the guest " +
+			"Ze's QEMU guest through `le test qemu docker-lab`; that route failed, and a failure before the guest " +
 			"booted means the route is unavailable on this host\n" + seen.output
 	}
 	return seen, nil

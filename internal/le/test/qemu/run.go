@@ -131,6 +131,8 @@ type RunOptions struct {
 	// otherwise drops to TCG in silence, and a stress run under TCG measures
 	// the emulator rather than Ze.
 	HardwareOnly bool
+	// GuestHarness is the docker-lab command branch's KeywordHarness.
+	GuestHarness bool
 }
 
 // parseRunArguments validates the qemu run keyword values.

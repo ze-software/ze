@@ -182,14 +182,9 @@ var actions = leaction.New(area,
 			" require an explicit matching runtime kernel and run as the host owner's UID without Docker." +
 			" Otherwise require hardware acceleration, forward the guest's Docker socket, run the host Docker kernel check," +
 			" then `le <lab>` through DOCKER_HOST under env when given. With no lab stop after the check." +
+			" `harness` runs a command the way `test qemu all` needs it: the guest le built, the checkout at /workspace, as root." +
 			" A Ctrl-C reaches the command's own teardown before the VM stops",
-		Parameters: []leaction.Parameter{
-			{Keyword: keywordLab, Kind: leaction.KindWords, Help: "the le command line of the Docker lab to run in the guest", Value: "le-words", Requirement: leaction.Optional},
-			{Keyword: keywordEnv, Kind: leaction.KindString, Help: "NAME=value pairs the lab runs with", Value: "NAME=value ...", Requirement: leaction.Optional},
-			{Keyword: keywordCommand, Kind: leaction.KindString, Help: "one unprivileged guest shell command; excludes lab", Value: "shell-command", Requirement: leaction.Optional},
-			{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "matching runtime vmlinuz; only with command", Value: "vmlinuz-path", Requirement: leaction.Optional},
-			{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
-		},
+		Parameters: dockerLabParameters,
 		AnswerArgs: runDockerLabHere,
 	},
 	leaction.Action{
@@ -341,6 +336,17 @@ var runParameters = []leaction.Parameter{
 	{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
 	{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "the kernel image to boot instead of the default", Value: "path", Requirement: leaction.Optional},
 	{Keyword: "keep-alive", Kind: leaction.KindSwitch, Help: "leave the guest running after the command"},
+}
+
+// dockerLabParameters are the keywords `test qemu docker-lab` takes. The action
+// declares them, and dockerLabArgv spells a parsed line back from the same list.
+var dockerLabParameters = []leaction.Parameter{
+	{Keyword: keywordLab, Kind: leaction.KindWords, Help: "the le command line of the Docker lab to run in the guest", Value: "le-words", Requirement: leaction.Optional},
+	{Keyword: keywordEnv, Kind: leaction.KindString, Help: "NAME=value pairs the lab runs with", Value: "NAME=value ...", Requirement: leaction.Optional},
+	{Keyword: keywordCommand, Kind: leaction.KindString, Help: "one guest shell command, as root with harness; excludes lab", Value: "shell-command", Requirement: leaction.Optional},
+	{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "matching runtime vmlinuz; only with command", Value: "vmlinuz-path", Requirement: leaction.Optional},
+	{Keyword: KeywordHarness, Kind: leaction.KindSwitch, Help: "run command as root with the guest le at /workspace"},
+	{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
 }
 
 // runQEMUHere admits the run on the host, then runs the host harness over this

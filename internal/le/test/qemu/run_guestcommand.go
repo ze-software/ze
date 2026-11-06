@@ -73,6 +73,15 @@ func guestInterruptRemote(groupFile string) string {
 	return b.Str("pgid=$(cat ").Str(groupFile).Str(") && kill -INT -$pgid && echo $pgid").String()
 }
 
+// guestRootInterruptRemote is guestInterruptRemote for a command that runs under
+// sudo: the kernel refuses the session's ordinary user a signal to a root process,
+// and kill still answers success once the signal reaches the shell alone, so only
+// an elevated kill reaches the command.
+func guestRootInterruptRemote(groupFile string) string {
+	var b textbuf.Buffer
+	return b.Str("pgid=$(cat ").Str(groupFile).Str(") && sudo -n kill -INT -$pgid && echo $pgid").String()
+}
+
 // runGuestCommand runs the plan's command in the guest and answers its exit
 // status as the verdict. When the run's signal root ends or the command's
 // timeout passes while it runs, stopGuestCommand forwards SIGINT to it rather
@@ -197,7 +206,11 @@ func (r *Run) stopGuestCommand(ctx context.Context, report *RunReport, cause str
 func (r *Run) interruptGuest(ctx context.Context, plan *RunPlan) (string, error) {
 	bounded, stop := context.WithTimeout(context.WithoutCancel(ctx), guestInterruptTimeout)
 	defer stop()
-	args := append(r.guestSessionArgs(plan, "-o", "ConnectTimeout=5"), guestInterruptRemote(guestCommandGroupFile))
+	remote := guestInterruptRemote(guestCommandGroupFile)
+	if plan.rootCommand {
+		remote = guestRootInterruptRemote(guestCommandGroupFile)
+	}
+	args := append(r.guestSessionArgs(plan, "-o", "ConnectTimeout=5"), remote)
 	result, err := r.runCommand(bounded, commandSpec{
 		Name: sshProgram, Args: args, Env: r.ops.Environ(), Stdin: strings.NewReader(""), OwnGroup: true,
 	})

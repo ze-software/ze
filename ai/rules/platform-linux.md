@@ -28,7 +28,7 @@
 
 **A tight loop MAY be used while iterating, and the full pass MUST be the one that reports the result**, because it is the only form that covers the whole population. The entry points and the population each one covers are `docs/architecture/testing/qemu-integration.md`.
 
-**Every functional QEMU proof MUST boot Ze's runtime kernel, never the stock Alpine kernel, and the caller MUST supply that kernel path.** `./le test qemu run kernel <vmlinuz> command "<command>"` owns the Alpine image, the QEMU process, the bounded waits, SSH execution and cleanup; `Run.assertRuntimeKernel` (`internal/le/test/qemu/run_exec.go`) then refuses the result unless the guest reports the release in `internal/appliance/kernel.version`.
+**Every functional QEMU proof MUST boot Ze's runtime kernel, never the stock Alpine kernel, and the caller MUST supply that kernel path.** `./le test qemu docker-lab kernel <vmlinuz> harness command "<command>"` is the proof route: it boots Ze's image, owns the QEMU process, the bounded waits, SSH execution and cleanup, and refuses a kernel whose bytes differ from the image's runtime kernel, then a guest whose release, PID 1 or root filesystem is not Ze's (`dockerLabCommandKernel` and `Run.dockerLabCommand`, `internal/le/test/qemu/dockerlab_command.go`). A guest not yet moved off Alpine boots through `./le test qemu run kernel <vmlinuz> command "<command>"`, where `Run.assertRuntimeKernel` (`internal/le/test/qemu/run_exec.go`) refuses the result unless the guest reports the release in `internal/appliance/kernel.version`.
 
 "The stock kernel has the needed feature" is not an exception. A failure to load the supplied kernel can leave the ISO kernel running, so checking the staged file on the host proves nothing, and the verdict would describe Alpine's kernel while reading as a verdict about Ze.
 
@@ -79,7 +79,7 @@ that skips it is invisible rather than red.
 
 1. **Native netns evidence:** implement the lab under `internal/le` and register a named `./le test deployment <verb>` or `./le test qemu <verb>` action. Run Ze and the peer daemon in separate network namespaces joined by a veth, without Docker.
 2. **Peer from Alpine packages:** install the peer daemon through the `packages` parameter of `./le test qemu run`, or declare it in the dedicated native QEMU action. Use the same packaged peer in the Docker and QEMU proofs where Alpine supplies it.
-3. **Runtime kernel, always:** pass Ze's staged runtime kernel through `./le test qemu run kernel <vmlinuz>`. `Run.assertRuntimeKernel` refuses a guest whose `uname -r` does not match `internal/appliance/kernel.version`. Add every required `CONFIG_*` symbol to `gokrazy/kernel/runtime.config` and `gokrazy/kernel/runtime.require`.
+3. **Runtime kernel, always:** pass Ze's staged runtime kernel through `./le test qemu docker-lab kernel <vmlinuz>`, which refuses any other bytes, or through `./le test qemu run kernel <vmlinuz>` for a peer only Alpine supplies, where `Run.assertRuntimeKernel` refuses a guest whose `uname -r` does not match `internal/appliance/kernel.version`. Add every required `CONFIG_*` symbol to `gokrazy/kernel/runtime.config` and `gokrazy/kernel/runtime.require`.
 4. **Registered action:** add the feature action to the owning Go action table and expose it through `./le test qemu` or `./le test deployment`. The bare area command is the inventory, and it MUST list the new action.
 
 **A new interop lab MUST ship both native actions in the same change, and MUST add its row to the lab table in `docs/architecture/testing/qemu-integration.md`.**

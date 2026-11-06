@@ -109,10 +109,13 @@ func newRecordingBuilder(t *testing.T) *recordingBuilder {
 	downloads := filepath.Join(cache, "downloads")
 	docker := dockerTgz(t)
 	recorder := &recordingBuilder{}
+	// The image key reads the kernel's bytes, so the entry is a real file.
+	tree := filepath.Join(cache, "7.2.9-runtime-arm64-runtime-docker-387d6b76-34cba457")
+	writeFile(t, filepath.Join(tree, runtimeKernelFile), []byte("runtime kernel"))
 	recorder.builder = builder{
 		cacheDir: cache,
 		kernelTree: func(string, string) (string, error) {
-			return "/cache/7.2.9-runtime-arm64-runtime-docker-387d6b76-34cba457", nil
+			return tree, nil
 		},
 		fetch: func(_ context.Context, _ *Pins, pin Pin) (string, error) {
 			path := filepath.Join(downloads, fileName(pin))

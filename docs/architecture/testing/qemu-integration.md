@@ -24,9 +24,10 @@ guest. Use the matching architecture for other
 guests. `build-artifacts host` builds only `ze-host`; it does not stage a kernel.
 
 Run the guest commands below through the command branch described in
-"One command in Ze's own system". Prepare the main-checkout mount, explicit
-caches and host-built test binaries first. `test qemu all` requires root in
-that Ze-system guest; the legacy Alpine bootstrap is not an entry point for it.
+"One command in Ze's own system", with its `harness` switch: it builds the guest
+le, binds the main checkout at `/workspace`, names the caches and runs the command
+as root. Cross-build the daemons first (`./le test qemu guest-binaries`).
+The legacy Alpine bootstrap is not an entry point for `test qemu all`.
 
 The Go release the guest unpacks is DERIVED from the `go` directive of `go.mod`
 (`goversion.DeclaredRelease`), so the guest and the host compile with one
@@ -83,7 +84,7 @@ commands execute inside that guest; `test qemu all` runs as root.
 | `./le test qemu netns suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases, the RFC 2545 next-hop replay case and the static-into-OSPF redistribution chain case |
 | `le test qemu all` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Five suites run in a per-test network namespace, requiring full `ip`, `setcap` and `getcap` tools |
 | `le test qemu all only needs-linux` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
-| `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`), with the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` and `testqemu.OneCIPackages` |
+| `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`), with the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` under `docker-lab harness` |
 
 `test qemu all` discovers the suites' tests through the native runner, so a new
 `needs-linux` test needs no registration there. `netns` uses the explicit
@@ -129,7 +130,7 @@ does not make its conntrack recent-flow ring live.
 `/workspace` refuses immediately. Before kernel preparation, the action also
 checks root and actual Ze-system identity; an environment flag cannot make a
 host or an Alpine guest pass those checks. Use the own-system command carrier
-and its prepared main-checkout mount, caches and binaries.
+with `harness`, which prepares the mount, the caches and the root.
 
 Four preconditions, each of which fails with a message that does NOT name the
 precondition. Measured 2026-09-04 and 2026-09-05, seven guest boots to establish:
@@ -172,17 +173,18 @@ cap and process-group cleanup directly, so neither spelling nor an external
 ### Running ONE `.ci` test in a Ze guest
 
 Boot the [own-system command carrier](#one-command-in-zes-own-system) with
-Ze's matching runtime kernel. Prepare the shared main checkout at `/workspace`,
-explicit `GOCACHE` and `GOMODCACHE`, and the host-built guest harness and daemon
-binaries. Set `GUEST_LE` to that harness's absolute path and pass `ZE_BIN`,
-`ZE_STRIPPED_BIN` and `ZE_STRIPPED_FLOW_BIN` for the selected build.
-
-Inside that prepared Ze guest, as root:
+Ze's matching runtime kernel and `harness`. Cross-build the daemons first and
+pass `ZE_BIN`, `ZE_STRIPPED_BIN` and `ZE_STRIPPED_FLOW_BIN` for the selected
+build, as `./le test qemu guest-binaries` answers them:
 
 ```bash
-cd /workspace
-"$GUEST_LE" test qemu all test test/plugin/<test-name>.ci
+./le test qemu guest-binaries
+./le test qemu docker-lab kernel "<runtime-tree>/vmlinuz" harness timeout 1800s \
+  command 'ZE_BIN=tmp/qemu/linux-<arch>/bin/ze ZE_STRIPPED_BIN=tmp/qemu/linux-<arch>/bin/ze-stripped ZE_STRIPPED_FLOW_BIN=tmp/qemu/linux-<arch>/bin/ze-stripped-flow tmp/qemu/linux-<arch>/le test qemu all test test/plugin/<test-name>.ci'
 ```
+<!-- source: internal/le/test/qemu/onetest.go -- OneCICommand -->
+<!-- source: internal/le/feature/recordrun.go -- repoRunner.runInGuest -->
+<!-- source: internal/le/rfc/discriminate_guest.go -- observationRunner.guestCIArgv -->
 
 The selected entry point creates the binary shim, prepares conntrack and any
 required network namespace, then runs that CI alone. A direct `test bgp plugin`
@@ -199,7 +201,7 @@ green it reports proves nothing.
 Keep the host session identity on the host invocation. Do not export
 `CLAUDE_CODE_SESSION_ID` or `ze.session.id` into the guest command. Without a
 session identity, the functional runner creates fresh work directories in the
-guest's `TMPDIR`. Set it to the guest-local `/tmp` during preparation.
+guest's `TMPDIR`, which `harness` sets to the guest-local `/tmp`.
 
 Exporting the host identity selects
 the host session directory through `/workspace` instead. Files created through
@@ -212,8 +214,10 @@ their stores. The host admission slot still reaches the guest through
 
 The own-system command carrier supplies the guest's LABEL-only `ZE_RUN_JOB`
 stand-in; retain that parent rather than passing the host's PID-bearing registry
-entry. The legacy Alpine `./le test qemu run` route holds a host admission slot
-itself, under the label `qemu-run`, and its guest setup writes a stand-in entry in the guest's own
+entry. Its `harness` branch and the legacy Alpine `./le test qemu run` route each
+hold a host admission slot themselves, under the label `qemu-run`, and re-execute
+the typed words as a child in it (`admitQEMURun`). A plain `docker-lab` command
+holds none, so a command that starts le goes through `harness`. The guest setup writes a stand-in entry in the guest's own
 `/tmp` and exports it as `ZE_RUN_JOB`, so the guest runner runs inside that slot
 instead of touching the host's PID registry: neither machine can judge whether
 a process on the other is alive. A guest le that admitted itself would also
@@ -387,13 +391,13 @@ The plugin subset is scheduled in `qemu-nightly.yml`'s
 the runtime-kernel guest:
 
 ```bash
-./le test qemu run kernel tmp/kernel/build/vmlinuz packages "nftables iproute2 libcap kmod" \
-  timeout 1200s command 'tmp/qemu/linux-amd64/le test qemu netns suites plugin'
+./le test qemu docker-lab kernel tmp/kernel/build/vmlinuz harness \
+  timeout 1200s command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 tmp/qemu/linux-amd64/le test qemu netns suites plugin'
 ```
 
 This uses the architecture-qualified guest binaries selected by the existing
 `ZE_QEMU_BIN` and `ZE_QEMU_STRIPPED_BIN` overrides or their defaults. The
-harness is the guest le that runs the action: `./le test qemu run` builds it
+harness is the guest le that runs the action: `docker-lab harness` builds it
 with `internal/le/linuxle` for `QEMU_GOARCH` or the host architecture at
 `tmp/qemu/linux-<guest arch>/le` (`buildGuestLe`) before it boots the guest, and
 the launcher runs `le test <suite>` through a link to it (`guestLeLink`). No
@@ -471,7 +475,7 @@ The native host action cross-compiles a Linux `cmd/ze` personality with the
 Linux suite is:
 
 ```text
-./le test qemu run kernel <vmlinuz> packages "<packages>" timeout 3600s \
+./le test qemu docker-lab kernel <vmlinuz> harness timeout 3600s \
   command '<guest-le-binary> le test qemu all'
 ```
 
@@ -719,6 +723,43 @@ verdict. A successful boot alone is not a successful command or an RFC proof.
 <!-- source: internal/le/test/qemu/dockerlab_command.go -- Run.dockerLabCommand, dockerLabCommandKernel, dockerLabImageBoot -->
 <!-- test: internal/le/test/qemu/dockerlab_command_integration_test.go TestDockerLabCommandRunsInZeSystem -->
 <!-- test: internal/le/test/qemu/dockerlab_command_test.go TestDockerLabCommandRefusesIncompatibleModes, TestDockerLabCommandKernelRejectsDifferentBytes, TestDockerLabCommandKernelRefusesUnknownModules, TestDockerLabCommandRefusesMismatchedImage, TestDockerLabCommandUsesImageRootIdentity, TestDockerLabCommandCidataUsesOwnerWithoutDocker, TestDockerLabCommandTransportKeepsUnprivilegedInterrupt -->
+
+The `harness` switch runs a command the way `test qemu all` needs it, and no
+caller spells any of it. Before boot le builds the guest le at
+`tmp/qemu/linux-<arch>/le`, after the caller's own builds, so a discrimination
+overlay never reaches it. In the guest the setup binds the checkout at
+`/workspace`, a directory the image carries empty because its root is read-only,
+mounts a guest-only tmpfs over `cache/stdpatch`, and enters `/workspace`. The
+command then runs through `sudo -n env`, because sudo resets the environment,
+with the job stand-in, `HOME` and `TMPDIR` on the guest's `/tmp`, guest-local
+`GOCACHE` and `GOMODCACHE`, `GOFLAGS=-buildvcs=false` and `CGO_ENABLED=0`. The
+command's own assignments win. The session stays the ordinary `ze` user, and
+the forwarded SIGINT goes through `sudo -n kill`: the kernel refuses that user a
+signal to a root process, and `kill` still answers success once the shell alone
+receives it.
+
+Ze's image carries no Go and no git, and `go test` runs in three phases of a
+whole `test qemu all`. A whole run therefore names a Go tree the guest can read
+and a cache on the share. The nightly copies the patched tree with `cp -RL` into
+`tmp/qemu/_guest-go`, whose `_` keeps it out of the unit phase's `./...`, and
+assigns `PATH` with that tree's `bin` first, `GOROOT`, `GOTOOLCHAIN=local`,
+`GOCACHE` and `GOMODCACHE` in its command. `PATH` is what makes it work: le and
+the phases find `go` through `exec.LookPath`, and `sudo` reset the variable, so the
+command's own shell expands the assignment. A selected `.ci` compiles nothing and needs none of this. A test that shells out
+to a tool the image lacks (the image ships `ip`, `nft`, `setcap`, `getcap`, sudo,
+iptables and busybox) fails there: the fix is that test's dependency or the image,
+never a move back to another guest.
+<!-- source: internal/le/test/qemu/dockerlab_command.go -- dockerLabHarnessSetup, dockerLabHarnessCommand, runDockerLabCommand, GuestRuntimeKernel -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
+<!-- source: internal/le/test/qemu/run_admit.go -- admitQEMURun, dockerLabArgv -->
+<!-- source: internal/le/test/qemu/run_guestcommand.go -- guestRootInterruptRemote, Run.interruptGuest -->
+<!-- test: internal/le/test/qemu/dockerlab_harness_test.go TestDockerLabHarnessIsOnlyValidWithCommand, TestDockerLabHarnessSetupMountsTheWorkspace, TestDockerLabHarnessRunsTheCommandAsRootWithItsEnvironment, TestDockerLabHarnessInterruptReachesRootCommand, TestDockerLabHarnessActionPreparesTheGuest, TestDockerLabHarnessHoldsAHostSlot, TestDockerLabHarnessBootMountsAndInterruptsAsRoot -->
+
+The image's cache key holds the SHA-256 of the runtime kernel's `vmlinuz`, the
+same bytes this branch compares, so the "rebuild the image" refusal has a fix: a
+runtime entry rebuilt under its old name holds new bytes and gets a new image.
+<!-- source: internal/le/setup/docker/host/build.go -- builder.build -->
+<!-- test: internal/le/setup/docker/host/build_kernel_key_test.go TestDockerHostBuildKeysTheImageByKernelBytes -->
 
 ### VPN facilities without module loading
 
@@ -1431,11 +1472,13 @@ runners, so it is refused too. Split such a file into a `docker` file and an
 RPKI tests through the same switch. Both run their `go test` child under the
 verb's signal root: a SIGINT or SIGTERM kills the child's whole process group,
 so `le` answers non-zero at once rather than waiting out the child's own
-900 s bound. That kill skips every `labtest` `t.Cleanup`, so a signalled run
-then makes the call `./le test integration clean` makes, one non-dry orphan
-sweep on a context the signal did not cancel, bounded at 60 s, and prints its
-summary: the killed test binaries owned the containers, so the sweep proves
-them gone and removes them in the same invocation. Reaping `go test` does not
+900 s bound. Before launch, the runner passes its Docker client's launch id
+through `Docker.ChildEnvironment`. That kill skips every `labtest` `t.Cleanup`,
+so a signaled run calls `Docker.CleanupOwnedOrphans` on that same client.
+This non-dry sweep uses a context the signal did not cancel, bounded at 60 s,
+and prints its summary. Only resources with that launch id can be removed,
+after the ordinary owner checks prove their creating process gone. Resources
+with another launch id or no launch label stay. Reaping `go test` does not
 reap the test binaries it started, which are members of its process group and
 may still be exiting, and a binary still exiting reads as a live owner. So the
 sweep first waits, for at most 10 s of its 60, until `kill(-group, 0)` answers
@@ -1449,6 +1492,8 @@ ran its cleanups and gets no sweep. Both run on the hosted runner's own Docker
 in `evidence-nightly.yml`, because no container in either runs Ze, so the Docker
 host kernel check does not apply.
 <!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, runRequiringDocker, sweepAfterSignal, requireDockerEnvironment, liveRPKIArgv -->
+<!-- source: internal/le/interoplab/run_identity.go -- Docker.ChildEnvironment -->
+<!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOwnedOrphans, Docker.sweepOne -->
 <!-- source: internal/le/gaterun/gaterun.go -- StreamContext, RunContext -->
 <!-- source: internal/le/gaterun/group.go -- ProcessGroup.AwaitExit -->
 <!-- test: internal/le/test/integration/dockerpeers_signal_test.go TestSignalSweepWaitsForTheGroup, TestSignalSweepNamesMembersLeft -->

@@ -16,6 +16,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/appliance"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	setupdockerhost "github.com/ze-software/ze/internal/le/setup/docker/host"
 	"github.com/ze-software/ze/internal/thirdparty/fat"
@@ -48,15 +50,39 @@ func dockerLabMode(args leaction.Arguments) error {
 	if args.Has(keywordKernel) {
 		return errors.New("docker-lab kernel is only valid with command. Fix: supply command or omit kernel for a Docker lab")
 	}
+	if args.Has(KeywordHarness) {
+		return errors.New("docker-lab harness is only valid with command. Fix: supply the guest command it prepares for")
+	}
 	return nil
+}
+
+// dockerLabCommandHost holds the host steps of the command branch: a kernel, an
+// image and a guest le are each minutes of work, and the boot needs QEMU. A test
+// replaces them to read what the branch hands each one.
+type dockerLabCommandHost struct {
+	runtimeTree func(root, arch string) (string, error)
+	ensureImage func(ctx context.Context, root, arch string) (string, error)
+	buildGuest  func(ctx context.Context, root, arch string) error
+	boot        func(ctx context.Context, run *Run, image string, kernel *dockerLabKernel) (DockerLabReport, error)
+}
+
+// dockerLabHost is the command branch's steps, a variable for the reason runSelf
+// is. Nothing writes it outside a test.
+var dockerLabHost = dockerLabCommandHost{
+	runtimeTree: func(root, arch string) (string, error) {
+		return appliance.ImageRuntimeKernelTree(root, arch, dockerLabImageBuild)
+	},
+	ensureImage: setupdockerhost.EnsureImage,
+	buildGuest:  buildGuestLe,
+	boot: func(ctx context.Context, run *Run, image string, kernel *dockerLabKernel) (DockerLabReport, error) {
+		return run.dockerLabCommand(ctx, image, kernel)
+	},
 }
 
 // runDockerLabCommand resolves the same immutable runtime tree EnsureImage uses,
 // refusing a mismatched request before an image build can start.
 func runDockerLabCommand(ctx context.Context, root, arch string, options RunOptions) (any, int) {
-	tree, err := appliance.ImageRuntimeKernelTree(root, arch, func(arch string) string {
-		return "./le setup docker host build arch " + arch
-	})
+	tree, err := dockerLabHost.runtimeTree(root, arch)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -66,18 +92,83 @@ func runDockerLabCommand(ctx context.Context, root, arch string, options RunOpti
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	image, err := setupdockerhost.EnsureImage(ctx, root, arch)
+	image, err := dockerLabHost.ensureImage(ctx, root, arch)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	if options.GuestHarness {
+		// After the caller's own builds, under the environment it restored, so
+		// the guest le never carries a discrimination overlay.
+		if err := dockerLabHost.buildGuest(ctx, root, arch); err != nil {
+			leaction.ReportError(err)
+			return nil, 1
+		}
+		options.Command = dockerLabHarnessCommand(options.Command)
+	}
 	options.Kernel = kernel.Selected
-	report, err := NewRun(root, options).dockerLabCommand(ctx, image, kernel)
+	report, err := dockerLabHost.boot(ctx, NewRun(root, options), image, kernel)
 	if err != nil {
 		leaction.ReportError(err)
 		return &report, 1
 	}
 	return &report, report.CommandExit
+}
+
+// dockerLabImageBuild answers the command that builds the image for arch, which
+// a refusal for a kernel this host cannot build names.
+func dockerLabImageBuild(arch string) string {
+	return "./le setup docker host build arch " + arch
+}
+
+// GuestRuntimeKernel answers the vmlinuz of the runtime kernel the image for arch
+// boots, for a caller with no kernel of its own to name: the bytes the docker-lab
+// command branch accepts, resolved or built the way EnsureImage resolves them.
+func GuestRuntimeKernel(root, arch string) (string, error) {
+	tree, err := appliance.ImageRuntimeKernelTree(root, arch, dockerLabImageBuild)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(tree, "vmlinuz"), nil
+}
+
+// dockerLabHarnessSetup answers the setup step of a harness command: the checkout
+// bound at GuestWorkspace, where `test qemu all` requires it, then a guest-only
+// tmpfs over the patched-tree cache, as guestPatchedTree mounts for the same
+// reason, and the guest's working directory. The image carries GuestWorkspace as
+// an empty directory because its root is a read-only squashfs. The mounts need
+// root and the session does not hold it, so each step elevates alone.
+func dockerLabHarnessSetup(tree string) string {
+	var b textbuf.Buffer
+	return b.Str("sudo -n mount -o bind ").Str(shellQuote(tree)).Byte(' ').Str(GuestWorkspace).
+		Str(" && sudo -n mkdir -p ").Str(guestStdpatchCache).
+		Str(" && sudo -n mount -t tmpfs tmpfs ").Str(guestStdpatchCache).
+		Str(" && cd ").Str(GuestWorkspace).String()
+}
+
+// The caches a harness command gets by default, and the scratch it works in, on
+// the guest's own /tmp: `test qemu all` refuses an unnamed cache, and a selected
+// .ci compiles nothing. A caller that compiles in the guest assigns its own in
+// the command.
+const (
+	guestHarnessGoCache    = "/tmp/ze-guest-gocache"
+	guestHarnessModuleDir  = "/tmp/ze-guest-gomodcache"
+	guestHarnessScratchDir = "/tmp"
+)
+
+// dockerLabHarnessCommand answers command as the guest runs it under the harness:
+// as root, because `test qemu all` prepares kernel state and refuses anything
+// else, under the environment the action reads. sudo resets the environment, so
+// everything travels through env, the job stand-in included
+// (guestRunParentSetup). HOME and TMPDIR name the guest's own /tmp: the root is
+// read-only, and a work directory on the share would carry the host's UID.
+// GOFLAGS drops the VCS stamp because the image carries no git.
+func dockerLabHarnessCommand(command string) string {
+	var b textbuf.Buffer
+	return b.Str("sudo -n env ").Str(job.ParentVariable).Str("=\"$").Str(job.ParentVariable).Str("\"").
+		Str(" HOME=").Str(guestHarnessScratchDir).Str(" TMPDIR=").Str(guestHarnessScratchDir).
+		Str(" GOCACHE=").Str(guestHarnessGoCache).Str(" GOMODCACHE=").Str(guestHarnessModuleDir).
+		Str(" GOFLAGS=-buildvcs=false CGO_ENABLED=0 sh -c ").Str(shellQuote(command)).String()
 }
 
 // dockerLabCommandKernel checks bytes rather than the requested filename or
@@ -283,7 +374,11 @@ func (r *Run) dockerLabCommand(ctx context.Context, image string, kernel *docker
 				observed.Code, strings.TrimSpace(observed.Stdout), strings.TrimSpace(observed.Stderr), report.Console)
 		}
 	}
-	command := RunReport{Plan: RunPlan{SSHPort: vm.sshPort, SetupCommand: guestRunParentSetup(guestRunJobParent), commandSession: &session}}
+	setup := guestRunParentSetup(guestRunJobParent)
+	if r.Options.GuestHarness {
+		setup += " && " + dockerLabHarnessSetup(r.Tree)
+	}
+	command := RunReport{Plan: RunPlan{SSHPort: vm.sshPort, SetupCommand: setup, commandSession: &session, rootCommand: r.Options.GuestHarness}}
 	ended, err := r.runGuestCommand(ctx, &command)
 	report.CommandExit = ended.GuestExitCode
 	report.Interrupted = ctx.Err() != nil

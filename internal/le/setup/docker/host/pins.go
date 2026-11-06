@@ -162,7 +162,7 @@ func (p *Pins) Download(name, arch string) (Pin, error) {
 type KeyInputs struct {
 	// Arch is the image architecture, amd64 or arm64.
 	Arch string
-	// KernelKey names the runtime kernel cache entry the image boots.
+	// KernelKey identifies the bytes of the runtime kernel the image boots.
 	KernelKey string
 	// SourceDigest digests the guest program's source and the instance
 	// directory, so a change to either builds a new image.

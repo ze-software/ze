@@ -11,7 +11,7 @@ import (
 )
 
 // VALIDATES: a .ci the runner says this host skips (runner.NeedsGuest) is run
-// in the QEMU guest through `le test qemu run ... test qemu all test <path>`, and a
+// in the QEMU guest through `le test qemu docker-lab ... test qemu all test <path>`, and a
 // .ci it does not skip still runs through its host runner.
 // PREVENTS: feature run observing a host SKIP of a capability-gated test and
 // recording nothing, with no route to the place the test really runs.
@@ -31,13 +31,14 @@ func TestAGuestOnlyTestRunsInTheQEMUGuest(t *testing.T) {
 	}
 	for _, guest := range []bool{true, false} {
 		runner := &repoRunner{tree: t.TempDir(), toolchain: toolchain, prepared: true, guestBuilt: true,
-			set:        testfunctional.BinarySet{Dir: set},
-			needsGuest: func(string) (bool, error) { return guest, nil }}
+			set:         testfunctional.BinarySet{Dir: set},
+			needsGuest:  func(string) (bool, error) { return guest, nil },
+			guestKernel: func() (string, error) { return "/k", nil }}
 		seen, err := runner.run("test/policy/gated.ci")
 		if err != nil {
 			t.Fatalf("guest=%v: %v", guest, err)
 		}
-		inGuest := strings.Contains(seen.output, "argv: test qemu run ") &&
+		inGuest := strings.Contains(seen.output, "argv: test qemu docker-lab ") &&
 			strings.Contains(seen.output, " test qemu all test test/policy/gated.ci")
 		if inGuest != guest {
 			t.Fatalf("guest=%v: the command feature run chose was:\n%s", guest, seen.output)

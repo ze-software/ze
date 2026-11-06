@@ -39,6 +39,10 @@ import (
 const (
 	dockerLabVerb = "docker-lab"
 	keywordLab    = "lab"
+	// KeywordHarness asks the command branch for what `test qemu all` needs: the
+	// guest le built, the checkout at GuestWorkspace, the command run as root. A
+	// host caller outside this package places it in its docker-lab argv.
+	KeywordHarness = "harness"
 	// keywordEnv carries NAME=value assignments the lab runs under, such as
 	// IPSEC_INTEROP_SCENARIO=mobike-initiator: the suites select one scenario
 	// from the environment.
@@ -277,7 +281,15 @@ func runDockerLab(ctx context.Context, root string, args leaction.Arguments, boo
 	}
 	if command := args.One(keywordCommand); command != "" {
 		options.Kernel = args.One(keywordKernel)
-		return runDockerLabCommand(ctx, root, goarch, options)
+		options.GuestHarness = args.Has(KeywordHarness)
+		if !options.GuestHarness {
+			return runDockerLabCommand(ctx, root, goarch, options)
+		}
+		// The harness command runs `le test <suite>` in the guest, which reads
+		// its stand-in as the slot this host holds, so the host holds one.
+		return admitQEMURun(ctx, root, dockerLabArgv(args), func() (any, int) {
+			return runDockerLabCommand(ctx, root, goarch, options)
+		})
 	}
 	// Docker labs require hardware acceleration. TCG would measure the emulator.
 	options.HardwareOnly = true

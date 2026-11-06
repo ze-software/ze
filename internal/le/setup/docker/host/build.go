@@ -25,6 +25,8 @@ import (
 )
 
 const (
+	// runtimeKernelFile is the kernel's name inside its runtime cache entry.
+	runtimeKernelFile = "vmlinuz"
 	// imageFileName is the image's name inside its cache entry.
 	imageFileName = "docker-host.img"
 	// instanceName is the gokrazy instance the image is built from.
@@ -91,7 +93,14 @@ func (b *builder) build(ctx context.Context, req buildRequest) (builtImage, erro
 	if err != nil {
 		return builtImage{}, err
 	}
-	key, err := ImageKey(req.pins, KeyInputs{Arch: req.arch, KernelKey: filepath.Base(tree), SourceDigest: digest})
+	// The kernel's bytes, not the cache entry's name: a kernel build is not
+	// reproducible, so an entry rebuilt under one name holds a different kernel,
+	// and `docker-lab command` refuses an image that embeds any other.
+	kernel, err := fileSHA256(filepath.Join(tree, runtimeKernelFile))
+	if err != nil {
+		return builtImage{}, runtimeKernelRefusal(tree, req.arch, err)
+	}
+	key, err := ImageKey(req.pins, KeyInputs{Arch: req.arch, KernelKey: kernel, SourceDigest: digest})
 	if err != nil {
 		return builtImage{}, err
 	}
@@ -136,7 +145,23 @@ func (b *builder) build(ctx context.Context, req buildRequest) (builtImage, erro
 	if err := os.Rename(partial, image); err != nil {
 		return builtImage{}, fmt.Errorf("move the image into %s: %w", image, err)
 	}
+	// A kernel rebuild now adds an image under a new key, so the arch's directory
+	// needs the same bound as the kernels it boots.
+	appliance.EvictKeepN(filepath.Dir(dir), image)
 	return builtImage{Path: image, Key: key, Built: true}, nil
+}
+
+// runtimeKernelRefusal says why the kernel of the runtime cache entry at tree
+// could not be read. Only a missing kernel makes the entry incomplete: any other
+// failure, a permission included, leaves a built kernel nobody should remove.
+func runtimeKernelRefusal(tree, arch string, cause error) error {
+	vmlinuz := filepath.Join(tree, runtimeKernelFile)
+	if errors.Is(cause, fs.ErrNotExist) {
+		return fmt.Errorf("the %s runtime kernel cache entry %s holds no %s, so it is incomplete and no image can name its kernel. "+
+			"Fix: rm -rf %q && ./le setup docker host build arch %s", arch, tree, runtimeKernelFile, tree, arch)
+	}
+	return fmt.Errorf("cannot read the %s runtime kernel %s, so no image can name it: %w. "+
+		"Fix: make it readable by this user (ls -l %q), then ./le setup docker host build arch %s", arch, vmlinuz, cause, vmlinuz, arch)
 }
 
 // fetchedInputs are the sum-checked downloads a build reads.
