@@ -22,15 +22,6 @@ func yangTreeForTest(t testing.TB) *cli.Command {
 	return tree
 }
 
-func wireToPathsForTest(t testing.TB) map[string][]string {
-	t.Helper()
-	paths, err := cli.WireToPaths()
-	if err != nil {
-		t.Fatalf("WireToPaths: %v", err)
-	}
-	return paths
-}
-
 func commandTreeForTest(t testing.TB) *cli.Command {
 	t.Helper()
 	tree, err := cli.BuildCommandTree(false)

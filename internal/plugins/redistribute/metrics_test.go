@@ -84,20 +84,10 @@ func (nopGauge) Inc()        {}
 func (nopGauge) Dec()        {}
 func (nopGauge) Add(float64) {}
 
-type nopCounterVec struct{}
-
-func (nopCounterVec) With(...string) metrics.Counter { return nopCounter{} }
-func (nopCounterVec) Delete(...string) bool          { return false }
-
 type nopGaugeVec struct{}
 
 func (nopGaugeVec) With(...string) metrics.Gauge { return nopGauge{} }
 func (nopGaugeVec) Delete(...string) bool        { return false }
-
-type nopCounter struct{}
-
-func (nopCounter) Inc()        {}
-func (nopCounter) Add(float64) {}
 
 type nopHistogram struct{}
 

@@ -54,7 +54,7 @@ func TestRIShowRender(t *testing.T) {
 		switch e.AF {
 		case "v2":
 			haveV2 = true
-			if !containsStr(e.Capabilities, "stub-router") {
+			if !containsStubRouter(e.Capabilities) {
 				t.Errorf("v2 RI capabilities = %v, want stub-router", e.Capabilities)
 			}
 			if len(e.Instances) == 0 || len(e.Instances[0].TLVs) == 0 {
@@ -87,4 +87,6 @@ func TestRIShowMalformedTLV(t *testing.T) {
 	}
 }
 
-func containsStr(s []string, want string) bool { return slices.Contains(s, want) }
+func containsStubRouter(capabilities []string) bool {
+	return slices.Contains(capabilities, "stub-router")
+}
