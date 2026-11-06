@@ -461,11 +461,21 @@ system {
             }
         }
     }
+    authorization {
+        profile admin {
+            run { default-action allow }
+            edit { default-action allow }
+        }
+    }
 }
 ```
 
 The key name (`laptop`, `workstation`) is an identifier only. It appears in
 no protocol exchange but helps distinguish multiple keys for the same user.
+
+The user's `profile` must name a profile defined under `system authorization`;
+`admin` is not an implicit allow-all profile. Key authentication and permission
+to run a command are separate checks.
 
 ### Supported key types
 

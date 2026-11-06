@@ -381,6 +381,9 @@ system {
 			public-keys testkey { type ssh-ed25519; key %s }
 		}
 	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
 }
 environment { ssh { enabled true; server main { ip 127.0.0.1; port %s } } }
 `
