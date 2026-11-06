@@ -47,6 +47,36 @@ state back under the same pair. It is the tunnel and session id for L2TP, and
 the access interface index with the PPPoE session id for PPPoE. The branch lives
 on the session rather than in each consumer.
 
+## Subscriber transmit limit
+
+### Owner requirement, 2026-11-04
+
+> The auth policy holds, but the MRU control doesn't do its job, so I wouldn't treat this spec as closed. With a 1492 limit, Ze can still transmit above it. All of this still needs a fix; I changed nothing and no rows are filed.
+
+> Fix for 1 and 2: limit the transmit MTU to the session's mru
+
+The second excerpt is the intact opening of the owner's final paragraph;
+the remainder arrived with truncated words and is not reconstructed here.
+
+### Design derived from the requirement
+
+Each admitted L2TP or PPPoE session retains its transmit cap through normal
+LCP, accepted proxy LCP and later renegotiation. The effective transmit limit
+is the smaller of the peer's negotiated receive MRU and the session cap. An
+omitted peer MRU means the PPP default of 1500; a larger valid proxy MRU
+remains admissible without raising the installed interface MTU above the cap.
+The peer's raw negotiated MRU remains distinct from this effective limit.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- transmitMRU, afterLCPOpen -->
+<!-- source: internal/component/l2tp/ppp/auth.go -- acceptProxyPolicy -->
+
+The same limit bounds userspace PPP replies. Complete configuration options
+and mandatory authentication fields are preserved; a reply that cannot fit
+fails the attempt before an unsent response can advance negotiation. The
+receive buffer and kernel receive MRU retain the full 1500-octet capacity.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- writeFrame, sendConfigureAck, sendConfigureNakOrReject, afterLCPOpen -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- sendNCPConfigureAck, sendNCPConfigureNakOrReject -->
+<!-- source: internal/component/l2tp/ppp/mschapv2.go -- fitMSCHAPv2FailureMessage -->
+
 ## Consequences worth knowing
 
 - A new access type such as IPoE follows the same three steps: populate the

@@ -113,19 +113,18 @@ Child spec files, all in `plan/release/fixes/`:
 | 21 | `spec-home-cpe-21-mss-clamp-not-raise.md` |
 | 22 | `spec-home-cpe-22-ike-responder-reauth.md` |
 
-Review correction (2026-11-04): child 16's closure above is historical, not
-proof that its MRU goal is complete. The owner's review found that omitted
-and proxied peer MRUs can bypass the transmit cap, plus six configuration and
-evidence defects. All eight remain open under
-`plan/release/fixes/spec-home-cpe-16-mru-enforcement-and-review-fixes.md`.
-The auth allow-list behavior is to be preserved. The follow-up owns the
-fixes and live proof before the MRU goal can be treated as complete.
-
-Issue split (2026-11-04): the follow-up is now a coordination umbrella.
-Its "Issue Split and Current Ownership" table routes the eight open findings
-to separate specs: `16a` through `16d` under `plan/release/fixes/`, and
-`16e` through `16h` under `plan/release/validation/`. Closing one child does
-not close the other findings or complete the original child 16 MRU goal.
+Review correction and completion (2026-11-06): the owner found eight defects
+in the earlier child16 closure. The follow-up
+`spec-home-cpe-16-mru-enforcement-and-review-fixes` split them into16a through16h;
+all eight now have implementation, independent review, scoped central proof and
+formal closure. Omitted and valid proxied MRUs preserve useful authenticated
+service while Ze installs the session transmit cap. The dated owner requirement and its derived design live in
+`docs/architecture/l2tp/subscriber-session-model.md`, Subscriber transmit limit.
+The durable operator contracts and reproduction procedures are `docs/guide/l2tp.md`, `docs/guide/pppoe.md`,
+`docs/labs/l2tp-interop.md` and `docs/labs/pppoe-interop.md`. The final coordination
+record is retained in its closure commit history; these surviving pages carry
+the operator behavior. Full subscriber IPv6 remains the previously owner-approved
+post-release feature in `plan/post-release/features/spec-l2tp-ipv6-subscriber.md`.
 
 Existing specs the children reuse rather than duplicate:
 `release/validation/spec-wireguard-runtime-proof.md` (the road-warrior
