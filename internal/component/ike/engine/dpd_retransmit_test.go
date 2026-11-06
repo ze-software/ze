@@ -71,7 +71,9 @@ func TestDprUnansweredProbeIsRetransmitted(t *testing.T) {
 		t.Fatal("the unanswered probe was never retransmitted")
 	}
 	close(ps.stopCh)
-	<-done
+	if err := <-done; err != nil {
+		t.Fatalf("owner loop after stop: %v", err)
+	}
 
 	firstHdr := parseMsg(t, first).Header
 	secondHdr := parseMsg(t, second).Header
@@ -115,7 +117,7 @@ func TestDprSilentPeerStillTimesOut(t *testing.T) {
 		}
 	case <-time.After(rtxArrive):
 		close(ps.stopCh)
-		<-done
+		<-done //nolint:errcheck // Join after forced shutdown; the timeout below already fails this test.
 		t.Fatal("the silent peer never reached the dead-peer branch")
 	}
 }

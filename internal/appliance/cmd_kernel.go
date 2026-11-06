@@ -695,7 +695,7 @@ type kernelBuildSpec struct {
 }
 
 func defaultKernelBuild(spec kernelBuildSpec) error {
-	if err := os.MkdirAll(spec.outDir, cacheDirPerm); err != nil {
+	if err := os.MkdirAll(spec.outDir, cacheDirPerm); err != nil { //nolint:gosec // G301: public kernel build outputs use 0755 directories; only the owner can write.
 		return fmt.Errorf("create output directory: %w", err)
 	}
 	resolved, err := resolveKernelProfile(spec.root, spec.srcDir, spec.profile)
@@ -754,7 +754,7 @@ func ensureFirmware(profile string) (string, error) {
 }
 
 func downloadFirmwareBlob(rawURL, destPath string) error {
-	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil { //nolint:gosec // G301: public firmware blobs use 0755 directories; only the owner can write.
 		return fmt.Errorf("create firmware directory: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)

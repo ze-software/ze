@@ -374,7 +374,7 @@ func TestPolicyOwnerHoldsTheSelectorAcrossTheKernelDelete(t *testing.T) {
 		// The claim cannot complete while this delete runs. Without the lock it did,
 		// and this delete then removed the policy site-b had just installed.
 		select {
-		case <-claimed:
+		case <-claimed: //nolint:errcheck // Any completion during the delete is the failure asserted below, regardless of its error.
 			duringDelete.Store(true)
 		case <-time.After(50 * time.Millisecond):
 		}

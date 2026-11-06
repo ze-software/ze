@@ -7,6 +7,7 @@
 package engine
 
 import (
+	"errors"
 	"net/netip"
 	"sync"
 	"testing"
@@ -43,7 +44,10 @@ func TestLeaseReleasedWhenRunEstablishedExits(t *testing.T) {
 		done <- ps.runEstablished(resp, ps.peerCfg, testIKEGroup(), NewSATable(), nil, nil, slogutil.DiscardLogger())
 	}()
 	select {
-	case <-done:
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("runEstablished after stop: %v", err)
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("runEstablished did not return after the session was stopped")
 	}
@@ -78,7 +82,10 @@ func TestLeaseReleasedOnResponderDeadBranch(t *testing.T) {
 	}
 	close(ps.stopCh)
 	select {
-	case <-done:
+	case err := <-done:
+		if !errors.Is(err, errStopped) {
+			t.Fatalf("runResponder after stop: %v, want errStopped", err)
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("runResponder did not return after the session was stopped")
 	}

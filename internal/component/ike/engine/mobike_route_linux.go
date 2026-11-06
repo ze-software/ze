@@ -26,7 +26,8 @@ func routeSourceTo(remote net.IP) (net.IP, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ike: MOBIKE route to %s: %w", remote, err)
 	}
-	for _, route := range routes {
+	for i := range routes {
+		route := &routes[i]
 		if route.Src != nil && !route.Src.IsUnspecified() {
 			return route.Src, nil
 		}

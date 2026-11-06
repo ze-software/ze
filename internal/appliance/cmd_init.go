@@ -122,7 +122,7 @@ func runInit(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: create directories: %v\n", err)
 		return exitError
 	}
-	if err := os.Chmod(SecretsDir(dir, name), secretsDirPerm); err != nil {
+	if err := os.Chmod(SecretsDir(dir, name), secretsDirPerm); err != nil { //nolint:gosec // G302: 0700 is owner-only directory access; traversal requires the execute bit.
 		fmt.Fprintf(os.Stderr, "error: chmod secrets: %v\n", err)
 		return exitError
 	}
@@ -448,7 +448,7 @@ func initOneFromBatch(dir string, entry batchEntry, password string, passphrase 
 		fmt.Fprintf(os.Stderr, "error: create directories for %s: %v\n", name, err)
 		return exitError
 	}
-	if err := os.Chmod(SecretsDir(dir, name), secretsDirPerm); err != nil {
+	if err := os.Chmod(SecretsDir(dir, name), secretsDirPerm); err != nil { //nolint:gosec // G302: 0700 is owner-only directory access; traversal requires the execute bit.
 		fmt.Fprintf(os.Stderr, "error: chmod secrets for %s: %v\n", name, err)
 		return exitError
 	}

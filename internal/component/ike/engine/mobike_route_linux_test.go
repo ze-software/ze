@@ -39,7 +39,7 @@ const (
 // mobike-initiator lab leaves after it moves Ze (mobikeMove).
 func mobikeRouteNetns(t *testing.T) {
 	t.Helper()
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "mobike0"}}
+	link := &netlink.Dummy{Name: "mobike0"}
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Skipf("the namespace refused a dummy interface: %v", err)
 	}

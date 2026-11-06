@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 25 findings of the full lint in IKE, L2TP and the appliance; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 2-3/4: source fixes written; RFC audit stamp and serialized verification pending |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
@@ -56,24 +56,24 @@ modernize 1. Line numbers are the CI run's.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/doors/access-security.md` - IKE, L2TP, the subscriber model
+- [x] `ai/doors/access-security.md` - IKE, L2TP, the subscriber model
   → Constraint: EAP-TLS compiles only against the patched `crypto/tls`; build and test through `./le`, never a plain `go test` of a package that links `internal/core/eap`
   → Constraint: a datagram that fails to decrypt must not kill a live SA; an exhaustive fix in `eap_auth.go` keeps every outcome
-- [ ] `ai/doors/appliance.md` - the build host tooling
+- [x] `ai/doors/appliance.md` - the build host tooling
   → Constraint: secrets are never in process arguments; a gosec G204 fix keeps argv free of them
   → Constraint: `internal/appliance` is build-host tooling behind `ze_setup`
-- [ ] `docs/contributing/ze-go-style.md` - the `exhaustive` C/O/P classification
-  → Constraint: the L2TP session FSM switches are transition tables (C or O), never P
+- [x] `docs/contributing/ze-go-style.md` - the `exhaustive` C/O/P classification
+  → Constraint: transition tables stay C/O; the three cited L2TP switches extract AVP subsets and are P
 
 **Key insights:**
-- The three `session_fsm.go` findings are the L2TP session state machine: each missing named state is listed with its current behavior, never a new transition.
+- The three cited `session_fsm.go` switches extract ICRQ, ICCN and OCRQ fields after generic AVP validation. They already carry reasoned partial-switch annotations; no transition changes are needed.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/l2tp/session_fsm.go` - three enum switches `exhaustive` reports
-- [ ] `internal/appliance/cache.go` - five gosec sites
-- [ ] `.golangci.yml` - the linter settings
+- [x] `internal/component/l2tp/session_fsm.go` - three enum switches `exhaustive` reports
+- [x] `internal/appliance/cache.go` - five gosec sites
+- [x] `.golangci.yml` - the linter settings
 
 **Behavior to preserve:**
 - Every IKE, L2TP and appliance behavior; FSM transitions unchanged.
@@ -111,12 +111,42 @@ modernize 1. Line numbers are the CI run's.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | The scoped run before the first edit | unvalidated |
+| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | Source audit of every listed site; parent prohibited another baseline lint | broken: all seven exhaustive sites already carry annotations |
+
+### Wrong assumptions
+
+The source audit found all seven exhaustive findings already addressed. The three
+L2TP findings are AVP projections, not transition tables. Keep those annotations
+and the existing transitions. Saved local lint logs did not supply the exact CI
+diagnostics; appliance permission IDs were checked against gosec's
+`NewMkdirPerms` and `NewFilePerms` in its vendored `rules/fileperms.go` and the
+ID mapping in `rules/rulelist.go`.
+
+### Implementation handoff (2026-11-02)
+
+- Written, unverified: eight G301 directory-mode reasons and two G302 reasons
+  for owner-only directory traversal; all modes and paths are unchanged.
+- Written, unverified: `routeSourceTo` iterates routes by index; the MOBIKE
+  namespace fixture uses the Go 1.27 promoted-field literal.
+- Written, unverified: six errcheck sites now assert the normal loop outcome
+  or explain the ignored result on an already-failing path.
+- Independent `ze-test-judge` approved the annotation-only edit to unit
+  `internal/component/ike/engine.TestRFC4301SADLifetimeHardTimeTerminatesTheSA`
+  in `rfc4301_sad_lifetime_action_test.go`. Its timeout branch closes `stopCh`,
+  joins `done`, then fails unconditionally. The approved annotation is applied;
+  inputs, assertions and the RFC claim are unchanged. Discrimination hashes strip
+  this comment, so no new discrimination record is owed. Audit unit hashes retain
+  comments (`freshness.go` `unitSHAs`), so the coordinator owes an independent
+  rejudge stamp for `RFC4301-4.4.2.1-11`; plain reseal refuses a stale unit.
+- No tests, lint, builds or commits ran in this phase. The parent serializes
+  AC-1 and AC-2. `git diff --check` passed for the nine edited Go files.
+- No product defect was identified that needs a red-first implementation queue.
+  A failure of the strengthened error assertions must be diagnosed before a fix.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | An exhaustive arm added to the L2TP FSM changes a transition | An L2TP `.ci` or unit test goes red | List each missing state with the behavior the `default` gave it |
+| R-1 | A lint edit changes an L2TP transition | An L2TP `.ci` or unit test goes red | No L2TP edit is needed: the cited AVP projections already carry partial-switch reasons |
 | R-2 | A gosec fix on a path read breaks the appliance cache | `./le test functional appliance` red | Annotate trusted paths instead of rewriting them |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -165,7 +195,7 @@ modernize 1. Line numbers are the CI run's.
 
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Protocol outcomes | L2TP transition tables stay C/O and preserve default outcomes. IKE EAP outcomes remain intact (R-1). |
+| Protocol outcomes | L2TP transition tables stay C/O; the cited AVP projections stay P. IKE EAP outcomes remain intact (R-1). |
 | Appliance safety | Gosec annotations establish path and argv trust, preserve cache behavior, and leave secrets out of arguments (R-2). |
 | Access evidence | Four trees are lint-clean, tagged race tests use the patched GOROOT, and an FSM change has L2TP functional proof (AC-1–3). |
 

@@ -114,7 +114,7 @@ func TestRFC4301SADLifetimeHardTimeTerminatesTheSA(t *testing.T) {
 	case loopErr = <-done:
 	case <-time.After(5 * time.Second):
 		close(ps.stopCh)
-		<-done
+		<-done //nolint:errcheck // Join after forced shutdown; the timeout below already fails this test.
 		ps.pendingRekey.clear()
 		t.Fatal("the owner loop kept a hard-expired Child SA alive")
 	}

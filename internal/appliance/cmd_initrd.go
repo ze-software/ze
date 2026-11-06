@@ -166,7 +166,7 @@ func defaultInitrdMakeBuild(destPath string) error {
 		return fmt.Errorf("read init binary: %w", err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil { //nolint:gosec // G301: public initrd artifacts use 0755 directories; only the owner can write.
 		return fmt.Errorf("create cache directory: %w", err)
 	}
 
