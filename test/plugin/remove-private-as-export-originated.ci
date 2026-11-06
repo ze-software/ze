@@ -3,7 +3,7 @@
 # VALIDATES: including on routes that leave via the session write gate rather than
 # VALIDATES: forwardUpdateCore (API/plugin injection, redistribute, static routes,
 # VALIDATES: adj-rib-in replay, and bgp-rs `update text` re-advertisement).
-# PREVENTS: exportFilterForBody honoring only Reject/raw and silently discarding the
+# PREVENTS: Peer.egressGate honoring only Reject/raw and silently discarding the
 # PREVENTS: FilterModify TEXT delta that remove-private-as returns (private ASN leak).
 # PREVENTS: the egress gate parsing the body without the peer's send context, which
 # PREVENTS: renders an attribute-less filter text so no attribute filter ever matches.

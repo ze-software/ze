@@ -3,6 +3,9 @@
 package filterapi
 
 import (
+	"reflect"
+	"slices"
+
 	"github.com/ze-software/ze/internal/component/policy"
 )
 
@@ -60,6 +63,11 @@ type TemplatedChain interface {
 type LibraryChain interface {
 	// Refused answers how many routes a member of the chain failed.
 	Refused() uint64
+	// SameDecisions reports whether other was compiled from what this chain was,
+	// so both judge every route alike. A rebuilt chain holds new evaluator funcs,
+	// which never compare equal, and its own counters, which say nothing of what
+	// it decides, so reflect.DeepEqual answers neither question.
+	SameDecisions(other LibraryChain) bool
 }
 
 // NewPolicy constructs a configured policy and refuses a missing or unknown final.
@@ -143,6 +151,29 @@ func (p Policy) CompileResolved(peer PeerFilterInfo) (Policy, error) {
 	templated := p.templated
 	p.templated = nil
 	return templated.CompileResolved(p, peer)
+}
+
+// SameDecisions reports whether p and other judge every route alike: the same
+// refs, stage bindings and final, the same template, and library chains compiled
+// from the same instances (LibraryChain.SameDecisions). A config reload rebuilds
+// every policy, so a caller that asks "did the policy change" MUST ask this.
+func (p Policy) SameDecisions(other Policy) bool {
+	if p.chain.Final() != other.chain.Final() {
+		return false
+	}
+	if !slices.Equal(p.chain.Refs(), other.chain.Refs()) {
+		return false
+	}
+	if !slices.Equal(p.inProcess, other.inProcess) {
+		return false
+	}
+	if !reflect.DeepEqual(p.templated, other.templated) {
+		return false
+	}
+	if p.library == nil {
+		return other.library == nil
+	}
+	return other.library != nil && p.library.SameDecisions(other.library)
 }
 
 // Library answers the compiled library chain, nil when the policy has none.

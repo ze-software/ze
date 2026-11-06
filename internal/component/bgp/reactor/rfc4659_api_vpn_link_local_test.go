@@ -30,7 +30,7 @@ const vpnLLAPINLRI = "78" + "003e81" + "0000fde900000064" + "20010db8"
 
 // vpnLLAPIAnnounce announces one VPN-IPv6 route with the explicit next hop
 // through the operator batch API to a recipient whose session egress is the
-// production gate (peer_run.go installs exportFilterForBody the same way), and
+// production gate (peer_run.go installs Peer.egressGate, which runs the same chain), and
 // returns the Next Hop field the recipient read off the wire, as hex.
 func vpnLLAPIAnnounce(t *testing.T, recipient string, nextHop netip.Addr) string {
 	t.Helper()

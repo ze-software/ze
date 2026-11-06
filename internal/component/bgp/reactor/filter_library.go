@@ -8,6 +8,7 @@
 package reactor
 
 import (
+	"bytes"
 	"context"
 	"sync"
 
@@ -50,6 +51,16 @@ type libraryIntentContext struct {
 	// readvertise marks the stale readvertise rail's run: only the members
 	// whose filter opts in run (policychain.ExternalRoute.Readvertise).
 	readvertise bool
+	// skipReadvertise passes over those members
+	// (policychain.ExternalRoute.SkipReadvertise).
+	skipReadvertise bool
+	// judgeFinal marks a pass over a body the chain already rewrote: only the
+	// members that declare it run (policychain.ExternalRoute.JudgeFinal).
+	judgeFinal bool
+	// chainInput is the route as the chain received it, what a member reads as
+	// raw on a pass over a body the chain already rewrote (runFinalJudges).
+	// Nil on a chain's first pass, whose payload is that route.
+	chainInput []byte
 }
 
 // libraryResult is one library chain run, as the policy steps map it.
@@ -97,8 +108,13 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	run.view.Reset(wireUpdate, session)
 	defer run.view.Clear()
 
-	route := policychain.ExternalRoute{Direction: direction, Peer: peer, PeerAS: intent.peerAS, Raw: payload,
-		Readvertise: intent.readvertise}
+	raw := payload
+	if intent.chainInput != nil {
+		raw = intent.chainInput
+	}
+	route := policychain.ExternalRoute{Direction: direction, Peer: peer, PeerAS: intent.peerAS, Raw: raw,
+		Readvertise: intent.readvertise, SkipReadvertise: intent.skipReadvertise, JudgeFinal: intent.judgeFinal,
+		BodyRewritten: intent.chainInput != nil && !bytes.Equal(intent.chainInput, payload)}
 	if api := r.filterAPI(); api != nil {
 		route.Caller = libraryCaller{api: api}
 	}
@@ -151,6 +167,71 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 		return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, wireChanges: describeWireOps(&run.mods), treatments: treatments}
 	}
 	return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, treatments: treatments}
+}
+
+// rewrote reports whether an accepting run changed the route's body.
+func (res *libraryResult) rewrote() bool {
+	return res.outcome.Action == policychain.OutcomeAccept && !res.failed && res.modifiedPayload != nil
+}
+
+// runFinalJudges runs the members that declare judges-final again over a body the
+// export chain rewrote, so a member outside that set cannot undo what they owe,
+// whether it did so by a set or a raw rewrite. A judge has no such protection from
+// another judge behind it: the pass runs them in chain order, so the last one's
+// answer stands. A filter declares it knowing its answer repeats on bytes it judged.
+// They read as raw the route as the chain received it (input) and each field from
+// the rewritten body, which is how a member tells what the chain took off. An
+// unchanged body, or a chain with no judge, needs no pass. The pass's verdict is the
+// chain's. Nothing here names a filter or a field: which members run comes from
+// their declarations.
+//
+// record, when not nil, makes the pass display only, as on runLibraryChain.
+func (r *Reactor) runFinalJudges(library filterapi.LibraryChain, res libraryResult, input []byte, ctxID bgpctx.ContextID, session policyview.Session, intent libraryIntentContext, site, peer string, record func(policychain.MemberTrace)) libraryResult {
+	if !res.rewrote() || !r.holdsFinalJudge(library) {
+		return res
+	}
+	var update wireu.WireUpdate
+	wireu.InitWireUpdate(&update, res.modifiedPayload, ctxID)
+	intent.judgeFinal, intent.skipReadvertise, intent.chainInput = true, false, input
+	last := r.runLibraryChain(library, &update, res.modifiedPayload, session, intent, directionExport, site, peer, record)
+	if last.outcome.Action == policychain.OutcomeAccept && !last.failed && last.modifiedPayload == nil {
+		last.modifiedPayload = res.modifiedPayload
+	}
+	last.treatments |= res.treatments
+	last.wireChanges = append(res.wireChanges, last.wireChanges...)
+	return last
+}
+
+// holdsFinalJudge reports whether library holds a member a pass over a rewritten
+// body would run, counting each whose declaration cannot be read
+// (policychain.Chain.HoldsFinalJudge).
+func (r *Reactor) holdsFinalJudge(library filterapi.LibraryChain) bool {
+	chain, ok := library.(*policychain.Chain)
+	if !ok || chain == nil {
+		return false
+	}
+	return chain.HoldsFinalJudge(r.libraryDeclarations())
+}
+
+// railEndsOnFinalJudge reports whether a stale rail run over library owes no pass
+// (policychain.Chain.RailEndsOnFinalJudge).
+func (r *Reactor) railEndsOnFinalJudge(library filterapi.LibraryChain) bool {
+	chain, ok := library.(*policychain.Chain)
+	if !ok || chain == nil {
+		return false
+	}
+	return chain.RailEndsOnFinalJudge(r.libraryDeclarations())
+}
+
+// libraryDeclarations answers what reads the members' declarations. Nil when no
+// transport exists: the members cannot be reached and their run fails closed
+// (judgeExternal), so the chain counts each of them.
+func (r *Reactor) libraryDeclarations() policychain.ExternalCaller {
+	api := r.filterAPI()
+	if api == nil {
+		return nil
+	}
+	return libraryCaller{api: api}
 }
 
 // logMemberFailures logs, at Warn and naming the peer, each member failure a
@@ -222,7 +303,12 @@ func (c libraryCaller) FilterDeclaration(plugin, filter string) (policychain.Ext
 		return policychain.ExternalDeclaration{}, false
 	}
 	readvertise, ok := c.api.FilterReadvertise(plugin, filter)
-	return policychain.ExternalDeclaration{Reads: reads, Sets: sets, OnError: onError, Readvertise: readvertise}, ok
+	if !ok {
+		return policychain.ExternalDeclaration{}, false
+	}
+	judgesFinal, ok := c.api.FilterJudgesFinal(plugin, filter)
+	return policychain.ExternalDeclaration{Reads: reads, Sets: sets, OnError: onError,
+		Readvertise: readvertise, JudgesFinal: judgesFinal}, ok
 }
 
 // CallFilter judges the route through the plugin's typed filter slot when the

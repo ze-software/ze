@@ -115,6 +115,10 @@ type filterTransport interface {
 	// readvertise rail (rpc.FilterDecl.Readvertise), ok false when no running
 	// plugin declares the filter.
 	FilterReadvertise(pluginName, filterName string) (readvertise, ok bool)
+	// FilterJudgesFinal answers whether the declaration runs again over a body the
+	// export chain rewrote (rpc.FilterDecl.JudgesFinal), ok false when no running
+	// plugin declares the filter.
+	FilterJudgesFinal(pluginName, filterName string) (judgesFinal, ok bool)
 	// CallFilterUpdate judges route by the plugin's filter, on the transport the
 	// plugin runs on: its typed filter slot internal, its filter-update
 	// batch forked (D-12).

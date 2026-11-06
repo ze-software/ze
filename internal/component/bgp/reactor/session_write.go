@@ -455,7 +455,7 @@ func (s *Session) writeUpdate(update *message.Update) error {
 }
 
 // writeUpdatePreFiltered writes an UPDATE whose required export evaluation has
-// already run: the full forward chain or the stale readvertise subset. Caller
+// already run: the full forward chain or the stale readvertise rail's run. Caller
 // MUST hold writeMu. Originated owners still receive non-policy admission.
 //
 // forwardUpdateCore runs the export chain on the ORIGINAL received wire and only
@@ -488,7 +488,7 @@ func (s *Session) writeOriginatedBodyPreFiltered(body []byte) error {
 // Caller must hold writeMu.
 //
 // gate selects the full export chain, not ownership. A stale readvertisement
-// already ran its opted-in members but remains originated for final next-hop,
+// already ran its own chain members but remains originated for final next-hop,
 // AIGP and message-size admission. Its existing sentForward owner carries that
 // fact; forwarded owners keep their separate admission on the forward rails.
 func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
@@ -527,6 +527,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	// bgp-adj-rib-in stored-route replay. End-of-RIB markers of any family are
 	// exempt: RFC 4724 graceful-restart signals are not routes.
 	if gate && s.egressRouteFilter != nil && !update.IsEndOfRIBAnyFamily() {
+		defer func() { s.gateGeneration = 0 }() // the gate stamped it for this write alone
 		suppress, override, follow := s.egressRouteFilter(body)
 		if suppress {
 			// No BGP message was sent, so this attempt earns no SendHold restart.
@@ -534,7 +535,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		}
 		if follow != nil {
 			// The other family's withdrawal of a withdraw verdict, its own
-			// UPDATE (exportFilterForBody), shaped as an override is.
+			// UPDATE (Peer.egressGate), shaped as an override is.
 			if err := s.writeOrdinaryUpdateBody(follow, false, true); err != nil {
 				return err
 			}
@@ -885,7 +886,9 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	written = true
 	if !opaque {
 		ownership.applyStaged()
-		s.sentReceipt.SetMessageID(nextMsgID())
+		receipt := nextMsgID()
+		s.sentReceipt.SetMessageID(receipt)
+		s.noteExportWrite(receipt, body)
 		if err := ownership.record(body); err != nil {
 			return false, err
 		}
@@ -1306,6 +1309,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	// it is what makes this slice safe -- anyone splitting them owes this check.
 	body := s.writeBuf.Buffer()[message.HeaderLen:n]
 	if s.egressRouteFilter != nil {
+		defer func() { s.gateGeneration = 0 }() // the gate stamped it for this write alone
 		suppress, override, follow := s.egressRouteFilter(body)
 		if suppress {
 			return nil

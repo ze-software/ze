@@ -508,6 +508,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	before := p.settings.StaticRoutes
 	// RFC 8212 Section 3.
 	acceptedBefore := p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
+	exportBefore := p.settings.ExportPolicy
 	bfd := bfdOptInChange{before: p.settings.BFD, requestBefore: bfdRequestFor(p.settings)}
 	copy(p.settings, next)
 	if p.settings.IsDynamic {
@@ -515,6 +516,12 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	}
 	after := p.settings.StaticRoutes
 	finalChanged := acceptedBefore != p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
+	// A reload rebuilds every chain, so this asks what the chain decides and not
+	// whether it is the same value (filterapi.Policy.SameDecisions).
+	if !exportBefore.SameDecisions(p.settings.ExportPolicy) {
+		// By analogy with RFC 2918 Section 4 (runStaleChain).
+		p.noteExportPolicyChangeLocked()
+	}
 	bfd.after, bfd.requestAfter = p.settings.BFD, bfdRequestFor(p.settings)
 	p.mu.Unlock()
 	if r != nil {

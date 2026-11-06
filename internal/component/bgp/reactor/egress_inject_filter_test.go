@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// exportFilterForBody is the single egress gate for originated / injected /
+// Peer.egressGate is the single egress gate for originated / injected /
 // redistributed / replayed routes (egress_inject_filter.go). Its guard used to
 // fuse three unrelated conditions into one permissive early return:
 //
@@ -23,7 +23,8 @@ import (
 // MISS, and returning (false, nil) sent the route to the wire UNFILTERED and
 // silently, the exact fail-open its sibling default-originate
 // (peer_initial_sync.go) already rejects loudly. These tests
-// drive exportFilterForBody directly (the entry point that triggers the guard,
+// drive the test helper exportFilterForBody, which runs the gate's chain with no
+// session (the entry point that triggers the guard,
 // per evidence.md) and pin each of the three split cases.
 //
 // Spec: plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md (AC-1, AC-2).

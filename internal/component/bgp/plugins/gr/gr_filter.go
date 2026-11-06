@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -45,6 +46,9 @@ const (
 	// 4.6 depreference, in the set values the engine reads.
 	communityNoExportText = `"65535:65281"`
 	localPrefZeroText     = "0"
+	// communityLLGRStaleText is LLGR_STALE in the same form, the community an
+	// export member took off a route RFC 9494 Section 4.3 binds.
+	communityLLGRStaleText = `"65535:6"`
 )
 
 // llgrConfig is the config condition both insertions share: the leaf whose
@@ -58,10 +62,13 @@ var llgrConfig = []string{"session", "capability", grConfigName, "long-lived-sta
 // The ingress step reads the body for COMMUNITIES and llgr-advertised for
 // whether Ze sent the capability on this session; it sets the stale level.
 // The egress step reads the stale level, the destination's address and AS
-// facts, and, for a route rebuilt from storage, the source's
-// llgr-advertised and the body; it opts into the stale readvertise rail
-// (RFC 9494 Section 4.3 governs the routes that rail re-advertises). A
-// failure rejects: a route this plugin cannot judge is never sent on.
+// facts, the route's COMMUNITIES as the chain left them, the body as the chain
+// received it and, for a route rebuilt from storage, the source's
+// llgr-advertised. It opts into the stale readvertise rail (RFC 9494 Section
+// 4.3 governs the routes that rail re-advertises) and judges again whatever body
+// an export chain rewrote, so it answers last for what a member that does not
+// also judge the final body took off. A failure rejects: a route this plugin
+// cannot judge is never sent on.
 func grFilterDecls() []sdk.FilterDecl {
 	return []sdk.FilterDecl{
 		{
@@ -77,10 +84,12 @@ func grFilterDecls() []sdk.FilterDecl {
 			Reads: []string{
 				rpc.FilterFieldRaw, fieldStale.String(), policyview.FieldSourceLLGRAdvertised.String(),
 				policyview.FieldPeerAddress.String(), policyview.FieldPeerAS.String(), policyview.FieldLocalAS.String(),
+				policy.FieldCommunity.String(),
 			},
 			Sets:        []string{policy.FieldCommunity.String(), policy.FieldLocalPreference.String()},
 			OnError:     sdk.OnErrorReject,
 			Readvertise: true,
+			JudgesFinal: true,
 		},
 	}
 }
@@ -174,17 +183,43 @@ func evaluateLLGREgress(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error)
 	var mods filterapi.ModAccumulator
 	src := filterapi.PeerFilterInfo{LLGRAdvertised: session.sourceLLGR}
 	// RFC 9494 Section 4.3
+	lost := session.lostLLGRStale(advertisedStaleLevel(src, route.Raw(), meta), route.Raw())
+	// RFC 9494 Section 4.3
 	keep := LLGREgressFilter(src, session.dest, route.Raw(), meta, &mods)
 	clear(meta)
 	llgrEgressMeta.Put(meta)
-	return llgrEgressVerdict(keep, &mods), nil
+	return llgrEgressVerdict(keep, lost, &session, &mods), nil
+}
+
+// lostLLGRStale reports whether the chain took LLGR_STALE off a route the RFC
+// binds. The binding is the route's level, which llgrStaleFromSource decided at
+// ingress or decides here for a rebuilt copy, or the retention mark that goes with
+// attaching the community: a neighbor Ze sent no capability to reaches no such level,
+// so the operator's member may scrub the community it sent. raw is the route as the
+// chain received it, so a route that never carried the community is not given one.
+//
+// RFC 9494 Section 4.3: "A BGP speaker that has advertised the Long-Lived Graceful
+// Restart Capability to a neighbor MUST perform the following upon receiving a
+// route from that neighbor with the LLGR_STALE community or upon attaching the
+// LLGR_STALE community itself per Section 4.2:" and "The LLGR_STALE community MUST
+// NOT be removed when the route is further advertised."
+func (s *llgrSession) lostLLGRStale(level uint8, raw []byte) bool {
+	if level < llgrStaleLevel {
+		return false
+	}
+	if s.holdsLLGRStale {
+		return false
+	}
+	return payloadCarriesLLGRStale(raw)
 }
 
 // llgrEgressVerdict turns LLGREgressFilter's decision into the filter's
 // answer: withdraw toward an eBGP destination that has not sent the
 // capability, NO_EXPORT and LOCAL_PREF 0 toward an iBGP one, unchanged
-// otherwise.
-func llgrEgressVerdict(keep bool, mods *filterapi.ModAccumulator) *sdk.FilterUpdateOutput {
+// otherwise; and LLGR_STALE back on a route that lost it. It asks for nothing
+// the route already holds, because it answers again over a rewritten body
+// (runFinalJudges), where its own NO_EXPORT is already there.
+func llgrEgressVerdict(keep, lost bool, session *llgrSession, mods *filterapi.ModAccumulator) *sdk.FilterUpdateOutput {
 	if !keep {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
@@ -194,9 +229,17 @@ func llgrEgressVerdict(keep bool, mods *filterapi.ModAccumulator) *sdk.FilterUpd
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterWithdraw}
 	}
 	var sets []rpc.FilterSet
+	if lost {
+		// RFC 9494 Section 4.3
+		sets = append(sets, rpc.FilterSet{Field: policy.FieldCommunity.String(),
+			Action: rpc.FilterSetActionAdd, Value: []byte(communityLLGRStaleText)})
+	}
 	for _, op := range mods.Ops() {
 		switch op.Code {
 		case attrCodeCommunity:
+			if session.holdsNoExport {
+				continue
+			}
 			sets = append(sets, rpc.FilterSet{Field: policy.FieldCommunity.String(),
 				Action: rpc.FilterSetActionAdd, Value: []byte(communityNoExportText)})
 		case attrCodeLocalPref:
@@ -214,13 +257,26 @@ func llgrEgressVerdict(keep bool, mods *filterapi.ModAccumulator) *sdk.FilterUpd
 // llgrSession is what the LLGR filters read beside the UPDATE body: on
 // import whether Ze sent the capability on the session, on export the
 // route's stale level, the source's capability fact when the route was
-// rebuilt from storage, and the destination's address and AS facts.
+// rebuilt from storage, the destination's address and AS facts, and which of the
+// communities the egress step writes the route holds as the chain left it.
 type llgrSession struct {
 	llgrAdvertised bool
 	stale          uint8
 	sourceKnown    bool // source-llgr-advertised is present: the route was rebuilt
 	sourceLLGR     bool
 	dest           filterapi.PeerFilterInfo
+	holdsLLGRStale bool
+	holdsNoExport  bool
+}
+
+// noteCommunity records one community the route holds.
+func (s *llgrSession) noteCommunity(community attribute.Community) {
+	if community == attribute.CommunityLLGRStale {
+		s.holdsLLGRStale = true
+	}
+	if community == attribute.CommunityFrom4(communityNoExport) {
+		s.holdsNoExport = true
+	}
 }
 
 // governed reports whether LLGREgressFilter can decide anything but accept:
@@ -236,7 +292,7 @@ func (s llgrSession) governed() bool {
 // llgrReaders are the view readers of the fields llgrSession holds, resolved
 // once by resolveLLGRReaders from init, after the stale field is registered.
 var llgrReaders struct {
-	llgrAdvertised, stale, sourceLLGR, peerAddress, peerAS, localAS policyview.Reader
+	llgrAdvertised, stale, sourceLLGR, peerAddress, peerAS, localAS, community policyview.Reader
 }
 
 func resolveLLGRReaders() {
@@ -246,6 +302,7 @@ func resolveLLGRReaders() {
 	llgrReaders.peerAddress = mustLLGRReader(policyview.FieldPeerAddress)
 	llgrReaders.peerAS = mustLLGRReader(policyview.FieldPeerAS)
 	llgrReaders.localAS = mustLLGRReader(policyview.FieldLocalAS)
+	llgrReaders.community = mustLLGRReader(policy.FieldCommunity)
 }
 
 func mustLLGRReader(field policy.Field) policyview.Reader {
@@ -283,7 +340,7 @@ func viewLLGRSession(view *policyview.View, egress bool) (llgrSession, error) {
 		s.llgrAdvertised = value.Flag()
 		return s, nil
 	}
-	var errs [5]error
+	var errs [6]error
 	var value policyview.Value
 	value, errs[0] = view.Read(llgrReaders.stale)
 	s.stale = viewOctet(value)
@@ -298,6 +355,12 @@ func viewLLGRSession(view *policyview.View, egress bool) (llgrSession, error) {
 	s.dest.PeerAS = viewASN(value)
 	value, errs[4] = view.Read(llgrReaders.localAS)
 	s.dest.LocalAS = viewASN(value)
+	value, errs[5] = view.Read(llgrReaders.community)
+	communities := value.Wire()
+	// RFC 1997: "The attribute consists of a set of four octet values, each of which specify a community."
+	for off := 0; off+4 <= len(communities); off += 4 {
+		s.noteCommunity(attribute.CommunityFrom4([4]byte(communities[off : off+4])))
+	}
 	if err := errors.Join(errs[:]...); err != nil {
 		return llgrSession{}, fmt.Errorf("bgp-gr: llgr-egress: the session cannot be read: %w", err)
 	}
@@ -320,12 +383,13 @@ func viewASN(value policyview.Value) uint32 {
 // llgrFieldsJSON is the fields object of a forked call, keyed by the field
 // names grFilterDecls declares.
 type llgrFieldsJSON struct {
-	LLGRAdvertised bool   `json:"llgr-advertised"`
-	Stale          uint8  `json:"stale"`
-	SourceLLGR     *bool  `json:"source-llgr-advertised"`
-	PeerAddress    string `json:"peer-address"`
-	PeerAS         uint32 `json:"peer-as"`
-	LocalAS        uint32 `json:"local-as"`
+	LLGRAdvertised bool     `json:"llgr-advertised"`
+	Stale          uint8    `json:"stale"`
+	SourceLLGR     *bool    `json:"source-llgr-advertised"`
+	PeerAddress    string   `json:"peer-address"`
+	PeerAS         uint32   `json:"peer-as"`
+	LocalAS        uint32   `json:"local-as"`
+	Community      []string `json:"community"`
 }
 
 func fieldsLLGRSession(raw []byte) (llgrSession, error) {
@@ -340,6 +404,17 @@ func fieldsLLGRSession(raw []byte) (llgrSession, error) {
 		s.sourceKnown, s.sourceLLGR = true, *fields.SourceLLGR
 	}
 	s.dest.PeerAS, s.dest.LocalAS = fields.PeerAS, fields.LocalAS
+	if s.governed() {
+		// As viewLLGRSession does: a route the filter accepts whatever it holds
+		// costs no parse of its communities.
+		for _, text := range fields.Community {
+			community, err := attribute.ParseCommunity(text)
+			if err != nil {
+				return llgrSession{}, fmt.Errorf("bgp-gr: LLGR: community fact %q cannot be read: %w", text, err)
+			}
+			s.noteCommunity(attribute.Community(community))
+		}
+	}
 	if fields.PeerAddress == "" {
 		return s, nil
 	}

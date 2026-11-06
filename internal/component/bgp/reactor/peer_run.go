@@ -270,9 +270,7 @@ func (p *Peer) runOnce() error {
 		session.onWireMessage = func(wire []byte, ctxID bgpctx.ContextID, sent bool, endpoints *sessionTransport) {
 			p.reactor.dispatchObservedWire(&wirePeer, wire, ctxID, sent, endpoints)
 		}
-		session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
-			return p.reactor.exportFilterForBody(p, body)
-		}
+		session.egressRouteFilter = p.egressGate(session)
 	}
 	if p.reactor != nil {
 		session.prefixMetrics = p.reactor.rmetrics

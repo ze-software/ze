@@ -646,7 +646,7 @@ export dry-run toward an internal peer lists no AS_PATH operation.
 The width comes from the call site, and each one derives it from wherever the
 payload came from. The import chain and the forwarded export chain read the
 source encoding context, because those bytes are still in the sending peer's
-encoding. `exportFilterForBody` passes the destination's send width, because the
+encoding. `egressGate` passes the destination's send width, because the
 session write path has already encoded that body in the destination's send
 context.
 

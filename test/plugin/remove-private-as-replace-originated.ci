@@ -2,7 +2,7 @@
 # VALIDATES: RFC 6996 Section 4 on the session write gate, in `replace-with peer-as`
 # VALIDATES: mode: the substituted ASN is the EXPORT DESTINATION peer AS (65002),
 # VALIDATES: not the local AS (64500).
-# PREVENTS: exportFilterForBody passing the wrong destPeerAS to the export chain.
+# PREVENTS: Peer.egressGate passing the wrong destPeerAS to the export chain.
 # PREVENTS: the STRIP-only sibling test passing while peer-as substitution is unwired
 # PREVENTS: (STRIP cannot distinguish a wrong peerAS -- it never uses it).
 #

@@ -185,6 +185,11 @@ func (teSessionFilterTransport) FilterReadvertise(_, _ string) (readvertise, ok 
 	return false, true
 }
 
+// FilterJudgesFinal answers that the filter does not run again over a rewritten body.
+func (teSessionFilterTransport) FilterJudgesFinal(_, _ string) (judgesFinal, ok bool) {
+	return false, true
+}
+
 // FilterDeclaration answers every filter as declared, reading the raw body and
 // setting no field, as the library chain's external member asks.
 func (teSessionFilterTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {

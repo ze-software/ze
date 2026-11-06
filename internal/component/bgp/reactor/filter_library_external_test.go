@@ -56,6 +56,12 @@ func (e *externalTransport) FilterReadvertise(plugin, filter string) (readvertis
 	return e.readvertise, true
 }
 
+// FilterJudgesFinal answers that the one filter does not run again over a rewritten
+// body, which its own field does not ask.
+func (e *externalTransport) FilterJudgesFinal(plugin, filter string) (judgesFinal, ok bool) {
+	return false, plugin == "probe" && filter == "f"
+}
+
 func (e *externalTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return rpc.OnErrorReject }
 
 func (e *externalTransport) CallFilterUpdate(_ context.Context, _ string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {

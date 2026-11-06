@@ -22,6 +22,7 @@ func TestCompileFilterDeclarations(t *testing.T) {
 		{"wildcard", rpc.FilterDecl{Name: "*"}, `"name-pattern": ".+"`},
 		{"bad pattern", rpc.FilterDecl{NamePattern: "("}, "not an RE2 expression"},
 		{"readvertise import", rpc.FilterDecl{Name: "a", Direction: rpc.FilterImport, Readvertise: true}, "readvertise on an import-only filter"},
+		{"judges-final import", rpc.FilterDecl{Name: "a", Direction: rpc.FilterImport, JudgesFinal: true}, "judges-final on an import-only filter"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := CompileFilterDeclarations("p", []rpc.FilterDecl{tc.filter})
@@ -36,6 +37,7 @@ func TestCompileFilterDeclarations(t *testing.T) {
 		{Name: "65001", Reads: []string{"prefix"}},
 		{Name: "stale", Direction: rpc.FilterExport, Readvertise: true},
 		{Name: "stale-both", Direction: rpc.FilterBoth, Readvertise: true},
+		{Name: "final", Direction: rpc.FilterExport, JudgesFinal: true},
 	})
 	if err != nil {
 		t.Fatal(err)

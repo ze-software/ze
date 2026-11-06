@@ -1199,6 +1199,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			item.session, item.authority = session, adjOutForwarded
 			item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
 			item.sourcePolicyEpoch = update.SourcePolicyEpoch
+			item.exportGeneration = facts.exportGeneration
 			item.aigpOrigin = announceOrigin(srcInfo.sender)
 			item.aigpRevision = metricRevision
 			item.aigpReplay = update.aigpReplay

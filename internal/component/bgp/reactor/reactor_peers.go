@@ -153,6 +153,9 @@ func (r *Reactor) addPeerLocked(settings *PeerSettings) error {
 	peer.SetReactor(r)
 	// Set message callback to forward raw bytes to reactor's message receiver
 	peer.messageCallback = r.notifyMessageReceiver
+	// A reload that restarts a peer builds this Peer while the RIB's sent routes
+	// for the address survive, and their export decisions were the old Peer's.
+	peer.raiseExportPolicyFrom(nextMsgID())
 	r.peers[key] = peer
 	r.peerGeneration.Add(1)
 

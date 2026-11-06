@@ -736,10 +736,6 @@ func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr netip.Addr, fam family.
 
 // handleStructuredState processes a structured state event from DirectBridge.
 func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
-	if err := r.admitMutation(false); err != nil {
-		return
-	}
-	defer r.mutationMu.Unlock()
 	if se.PeerAddress == "" {
 		return
 	}
@@ -758,14 +754,9 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 	isUp := state == rpc.SessionStateUp
 	initialReplay := se.InitialReplay
 
-	r.mu.Lock()
-	r.peerUp[peerAddr] = isUp
-
-	if !isUp {
-		r.removePeerInstalled(peerAddr)
-		r.clearPeerPending(peerAddr)
+	if !r.recordPeerState(peerAddr, isUp) {
+		return
 	}
-	r.unlockValidation()
 
 	if !isUp {
 		return
@@ -1002,14 +993,11 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 
 // handleState processes peer state changes.
 // On peer-up: marks peer as up, then replays all known routes from other
-// source peers. Replay runs after lock release to avoid deadlock
-// (buildReplayRoutes takes RLock, relayRoutes does I/O).
+// source peers. Replay runs after recordPeerState released mutationMu and the
+// RIB locks, because relayRoutes waits on the engine and a mutation must not
+// wait behind it.
 // Only processes "up" and "down" states; unknown/intermediate FSM states are ignored.
 func (r *AdjRIBInManager) handleState(event *bgp.Event) {
-	if err := r.admitMutation(false); err != nil {
-		return
-	}
-	defer r.mutationMu.Unlock()
 	if event.GetPeerAddress() == "" {
 		return
 	}
@@ -1031,15 +1019,9 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	isUp := state == stateUp
 	initialReplay := event.InitialReplay
 
-	r.mu.Lock()
-	r.peerUp[peerAddr] = isUp
-
-	if !isUp {
-		// Peer went down -- clear installed and pending routes.
-		r.removePeerInstalled(peerAddr)
-		r.clearPeerPending(peerAddr)
+	if !r.recordPeerState(peerAddr, isUp) {
+		return
 	}
-	r.unlockValidation()
 
 	if !isUp {
 		return
@@ -1054,8 +1036,8 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 		// Replay all known routes to the newly-up peer: no other plugin drives
 		// peer-up replay for THIS peer, so nothing else tracks a cut and nothing
 		// else forwards these routes.
-		// buildReplayRoutes takes RLock internally; relayRoutes does I/O.
-		// Both must run outside the write lock to avoid deadlock.
+		// buildReplayRoutes takes RLock internally; relayRoutes does I/O and
+		// waits on the engine. Both run outside mutationMu and the write lock.
 		routes, _ := r.buildReplayRoutes(peerAddr, 0, unboundedReplay())
 		if err := r.relayRoutes(event.GetPeerAddress(), routes); err != nil {
 			logger().Error("peer-up replay failed", "peer", event.GetPeerAddress(), "routes", len(routes), "error", err)
@@ -1065,6 +1047,25 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 		}
 	}
 	r.signalSessionReady(event.GetPeerAddress(), initialReplay)
+}
+
+// recordPeerState applies one peer's up or down under the mutation owner and
+// releases it, and answers whether it was admitted. A peer going down loses its
+// installed and pending routes. The caller's replay MUST run after this returns.
+func (r *AdjRIBInManager) recordPeerState(peerAddr netip.Addr, isUp bool) bool {
+	if err := r.admitMutation(false); err != nil {
+		return false
+	}
+	defer r.mutationMu.Unlock()
+
+	r.mu.Lock()
+	r.peerUp[peerAddr] = isUp
+	if !isUp {
+		r.removePeerInstalled(peerAddr)
+		r.clearPeerPending(peerAddr)
+	}
+	r.unlockValidation()
+	return true
 }
 
 // noteIngested advances the ingest position to msgID if it is newer.

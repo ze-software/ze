@@ -2275,7 +2275,7 @@ peer transit-a {
 This excerpt deliberately permits export of the configured routes. An EBGP
 peer without explicit export policy receives no announcements, including locally
 configured routes. Import remains a separate decision.
-<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- egressGate -->
 
 A configured route is sent only when the session negotiated its address
 family. A route whose family the peer did not advertise, an `ipv6/mpls-vpn`

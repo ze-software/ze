@@ -418,6 +418,10 @@ whether the replacement proves at least as much.
 | `state-event-emitted-without-comparing-state.md` | 2026-11-06 | rebuilt chain with a func member never compares equal |
 | `late-write-lands-on-the-successor.md` | 2026-11-06 | stale decision before `writeMu` writes under the old chain |
 | `grace-bound-hides-a-missing-signal.md` | 2026-11-06 | export policy reload stalls at the barrier, then `MaxUint64` |
+| `state-event-emitted-without-comparing-state.md` | 2026-11-06 | `peerSettingsEqual` runs `DeepEqual` over the policies and reads `refused` |
+| `state-event-emitted-without-comparing-state.md` | 2026-11-06 | raw injection carries no generation and raises the export watermark |
+| `policy-change-never-re-evaluates-what-it-admitted.md` | 2026-11-06 | a filter's Withdraw on a no-owner stale batch removes whatever the key holds |
+| `guard-added-to-one-half-of-a-pair.md` | 2026-11-06 | import member strips LLGR_STALE; forward-rail LOCAL_PREF and NO_EXPORT undo |
 
 ## Key Design Decisions
 

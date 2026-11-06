@@ -234,7 +234,7 @@ func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrSt
 //
 //   - forwardUpdateCore (reflected / forwarded routes), via runEgressPolicyChain,
 //     which derives asn4 from the update's SOURCE encoding context.
-//   - exportFilterForBody (originated / injected / redistributed routes, and the
+//   - Peer.egressGate (originated / injected / redistributed routes, and the
 //     bgp-rs `update text` re-advertisement), which passes the
 //     DESTINATION peer's sendASN4, because the session write path has already
 //     encoded the body in the destination's send context. The bgp-adj-rib-in
@@ -269,6 +269,8 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		intent := libraryIntentContext{asn4: asn4, localAS: destLocalAS, peerAS: destPeerAS, asPathEditable: !destInternal}
 		res := r.runLibraryChain(library, wireUpdate, wireUpdate.Payload(), session, intent,
 			directionExport, modifySiteExportChain, destAddrStr, nil)
+		res = r.runFinalJudges(library, res, wireUpdate.Payload(), wireUpdate.SourceCtxID(), session, intent,
+			modifySiteExportChain, destAddrStr, nil)
 		if res.outcome.Action == policychain.OutcomeWithdraw {
 			return egressStepResult{withdraw: true} // accept == false: withdraw toward this peer
 		}

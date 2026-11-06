@@ -150,6 +150,11 @@ func (c *teCommunityTransport) FilterReadvertise(pluginName, filterName string) 
 	return decl.Readvertise, ok
 }
 
+func (c *teCommunityTransport) FilterJudgesFinal(pluginName, filterName string) (bool, bool) {
+	decl, ok := c.decl(pluginName, filterName)
+	return decl.JudgesFinal, ok
+}
+
 func (c *teCommunityTransport) CallFilterUpdate(_ context.Context, _ string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
 	input, err := route.Input()
 	if err != nil {

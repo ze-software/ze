@@ -535,6 +535,21 @@ type Peer struct {
 	// after its replay completion marker, then wakeForwardOverflow.
 	policyReplayHolds atomic.Int32
 	policyReplayEpoch atomic.Uint64 // Identifies one outer hold, including its nested reconciliations.
+	// exportGeneration counts this Peer's export policy changes, zero until the
+	// first. It rises under p.mu with the policy, so buildForwardFacts and
+	// staleChainFor read it together with the chain a decision then runs, and the
+	// writer compares that stamp with it (Session.noteExportWrite).
+	exportGeneration atomic.Uint64
+	// exportPolicyFrom is the lowest message id known to be decided under the
+	// current export policy: a sent route older than it, or naming no receipt, is
+	// re-judged by the whole chain on the stale rail (staleChainFor). It only rises:
+	// with a policy change (noteExportPolicyChangeLocked), and past the receipt of
+	// a write whose decision read an older chain (Session.noteExportWrite). A Peer
+	// the reactor built starts above zero, because the RIB's sent routes outlive
+	// the Peer that wrote them (addPeerLocked, createDynamicPeer). Zero guards
+	// exportPolicyNewerThan: no reactor site built this Peer, so it has sent nothing
+	// older than itself.
+	exportPolicyFrom atomic.Uint64
 	// replayFence names the processes whose report lowers initialUpdateOwed:
 	// the reporters that declared registry.FencesLiveForwards. Protected by p.mu.
 	replayFence []string

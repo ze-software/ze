@@ -182,7 +182,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `wants-validate-open` | `bool` | Whether plugin wants OPEN validation callbacks |
 | `cache-consumer` | `bool` | Whether plugin consumes cached events |
 | `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
-| `filters` | `[]FilterDecl` | Named route filters the plugin provides: each a `name` or a `name-pattern`, and the route fields it `reads` (`raw` for the UPDATE body) and `sets`; Stage 1 and config load judge them (`docs/architecture/api/process-protocol.md`, "Filter Declaration") |
+| `filters` | `[]FilterDecl` | Named route filters the plugin provides: each a `name` or a `name-pattern`, and the route fields it `reads` (`raw` for the UPDATE body) and `sets`, and whether an export filter also runs on two extra occasions, `readvertise` and `judges-final` ("Filter Run Occasions"); Stage 1 and config load judge them (`docs/architecture/api/process-protocol.md`, "Filter Declaration") |
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides |
 | `resolver-caches` | `[]string` | Resolver caches the plugin holds clients for: `peeringdb`, `irr`, `cymru`. Set by `OnResolverCacheClear`; any other name is refused |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
@@ -827,7 +827,9 @@ the value in the field's shape:
   route is withdrawn toward that destination. Every route of the UPDATE is
   withdrawn: one whose MP_REACH_NLRI and MP_UNREACH_NLRI name two families is
   withdrawn as two UPDATEs, one per family, because one UPDATE carries one
-  MP_UNREACH_NLRI. The later filters of the chain are not called.
+  MP_UNREACH_NLRI. Both generated withdrawals carry the original policy
+  decision: import does not run the filter again on the attribute-free
+  follow-up. The later filters of the chain are not called.
 - A filter that declares no `reads` is never called: Ze has no field to send
   it, so every route the chain asks it to judge fails, and the chain treats
   the failure as `on-error` `reject` whatever the filter declared. Declare at
@@ -848,7 +850,8 @@ the value in the field's shape:
   applies when the filter did not declare `raw`, when the body is shorter than
   its two 2-octet length fields or a section extends beyond it, and when an
   earlier member already set a field: a rewrite made from the received body
-  would discard that change.
+  would discard that change. It also applies when a filter answers `raw` on a
+  pass over a body that differs from the chain's input ("Filter Run Occasions").
 - `teardown` on an import route closes the session; on export it is ignored
   and the action stands.
 <!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets, rawAnswer -->
@@ -863,6 +866,69 @@ the value in the field's shape:
 <!-- source: internal/component/bgp/policychain/chain_overlay_attributes.go -- overlayAttributes -->
 <!-- source: internal/component/bgp/policyview/fields_json.go -- appendOverlaid -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
+
+### Filter Run Occasions
+
+An export chain calls a filter once for each route. Two fields of the filter's
+declaration add occasions, and both default to false. Stage 1 refuses each one
+on an import-only filter. The request does not name the occasion: the same
+`filter-update` message arrives each time.
+
+| Field | When the filter also runs | Which members run | What decides the route |
+|-------|---------------------------|-------------------|------------------------|
+| `readvertise` | A graceful-restart retention re-advertises its stale routes (the stale readvertise rail) | Only the external members that declare it. The route's `stale` metadata is set | A route that reaches the end of those members is sent: the chain's final is not read. A `raw` answer ends the run and the final decides it, so a chain whose final is reject withholds a raw answer where it would send a set answer |
+| `judges-final` | The export chain rewrote the body, by a set or by a `raw` answer | Only the external members that declare it, in chain order | The answer of the pass replaces the answer of the chain. A route that reaches the end of the pass is accepted, because the chain's final already decided it. A `raw` answer, allowed only when the rewritten body equals the chain's input, ends the pass and the final decides it |
+
+A member whose declaration Ze cannot read, because its plugin has gone or no
+longer declares the filter, runs on both occasions and fails under
+`on-error`. Whether it opted in is unknown, and it may be the filter that
+withholds the route.
+
+**The stale readvertise rail.** The rail takes its body from what Ze already
+sent, so the route has passed the chain once. If the destination's export policy
+changed after the route was sent, the policy of that first run no longer
+applies. Ze then runs every member that does not declare `readvertise`, then the
+chain's final, then the members that declare it over that result, with `raw`
+holding the body the rail started from.
+
+**The pass over a rewritten body.** The pass reads `raw` as the route the chain
+received, and every other field from the rewritten body. A filter that declares
+`raw` compares the two to see what the chain took off. The pass may reject,
+withdraw or set. A raw answer is refused when the pass runs over a body that
+differs from the chain's input, because it would discard the rewrite. The refusal
+is a member failure under that filter's `on-error`. `show policy test` shows the
+pass.
+
+The pass protects a member's answer from a member that does not declare
+`judges-final`. It does not protect that answer from a member that does: the
+last one in chain order has the last word.
+
+On the stale rail, a member must declare both fields to run in the pass, unless
+the policy changed, in which case every member that declares `judges-final`
+runs. The rail skips the pass when it has one member and that member is the
+chain's only `judges-final` member, because it already ran last.
+
+**What repeats.** A `judges-final` filter that ran in the chain runs again on
+every rewritten route. A `readvertise` filter answers again on bytes it already judged when the route was
+first sent. A filter that declares both can run more times than that on one
+route.
+
+**What a filter author makes safe to repeat.** The filter MUST answer correctly
+on a route it already changed:
+
+- A verdict MUST hold on the rewritten body, not only on the body the filter
+  first saw. Read `raw` to see the route before the chain changed it.
+- A set that adds to the route applies again. A `prepend` of the AS path in the
+  pass doubles the copies. Compare first, or set a value that the second run
+  leaves as it is.
+- A side effect in the filter (a counter, a log line, a lookup) happens on each
+  run, so it cannot count routes.
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, readvertiseRuns, Readvertises, judgesFinalRuns, HoldsFinalJudge, RailEndsOnFinalJudge -->
+<!-- source: internal/component/bgp/policychain/external.go -- ExternalRoute, errExternalRawAfterSets -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runFinalJudges, runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- runStaleChain -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- runFinalJudges -->
+<!-- source: internal/component/plugin/registry/filter_declaration.go -- JudgesFinal on an import-only filter -->
 
 ## Runtime RPCs (Plugin to Engine)
 

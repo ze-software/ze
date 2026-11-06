@@ -420,9 +420,19 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		}
 	}
 	if withdraw {
+		own := w.session.sentForward != nil && w.session.sentForward.ownRouteWithdrawal
+		if own && entry == nil {
+			return false, nil // Nothing under the key to withdraw.
+		}
+		if own && entry.owner.source != nil {
+			return false, nil // Another source's route, which this request does not name.
+		}
 		if w.owesWithdrawal(key, entry) {
 			w.owes[key] = w.stageOwe(fam, raw)
 			return false, nil
+		}
+		if own {
+			w.session.sentForward.ownRouteWithdrawn = true
 		}
 		w.withdrawn[key] = struct{}{}
 		return true, nil

@@ -14,7 +14,7 @@
 // Every OTHER outbound route -- API/plugin injection, redistribute, configured
 // update{} blocks, static routes -- is written by the session via
 // writeUpdate or SendAnnounce, which historically bypassed export filters entirely.
-// exportFilterForBody is the single egress gate those session write paths call so a
+// Peer.egressGate is the single egress gate those session write paths call so a
 // peer's export filter applies uniformly to ALL outbound routes, not just reflected
 // ones. EORs and the already-filtered forwarded path are excluded by the callers:
 // the forward pool must NOT re-enter this gate, or every export filter is applied
@@ -38,14 +38,39 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// exportFilterForBody runs the destination peer's export filter chain on the wire
-// body of an outbound (non-forwarded, non-EOR) route UPDATE, by delegating to the
-// SAME chain body forwardUpdateCore uses (runEgressPolicyChainASN4). It then
-// normalizes the effective ordinary IPv6 next hop, even with no active filters.
-// Returns suppress=true to drop the route for this peer, or override != nil to
-// write a rewritten body instead. Unchanged bodies are neither allocated nor copied.
+// exportGateFacts answers the facts one run of the egress gate reads, once, and
+// whether they were captured because the session has no forwarding facts yet.
+func (p *Peer) exportGateFacts() (*peerForwardFacts, bool) {
+	if facts := p.forwardFacts(); facts != nil {
+		return facts, false
+	}
+	captured := new(peerForwardFacts)
+	p.captureOriginatedFacts(captured)
+	return captured, true
+}
+
+// egressGate answers session's export gate. The stamp comes from the facts the gate
+// runs and from no second read of them: a refreshForwardFacts Swap can land between
+// two reads and put older facts back, and an old chain's write would then read as
+// current. session's writers call the gate holding writeMu, which guards the stamp,
+// and clear it when the write ends (writeUpdateGated, SendAnnounce).
+func (p *Peer) egressGate(session *Session) func(body []byte) (suppress bool, override, follow []byte) {
+	return func(body []byte) (bool, []byte, []byte) {
+		facts, pending := p.exportGateFacts()
+		session.gateGeneration = facts.exportGeneration
+		return p.reactor.exportFilterFromFacts(p, facts, pending, body)
+	}
+}
+
+// exportFilterFromFacts runs the destination peer's export filter chain, as facts
+// hold it, on the wire body of an outbound (non-forwarded, non-EOR) route UPDATE, by
+// delegating to the SAME chain body forwardUpdateCore uses
+// (runEgressPolicyChainASN4). It then normalizes the effective ordinary IPv6 next
+// hop, even with no active filters. Returns suppress=true to drop the route for this
+// peer, or override != nil to write a rewritten body instead. Unchanged bodies are
+// neither allocated nor copied.
 //
-// It must not re-implement the chain: this function used to "mirror"
+// It must not re-implement the chain: this gate used to "mirror"
 // forwardUpdateCore and honored only Reject and raw overrides, so every
 // FilterModify TEXT delta (which is what remove-private-as, as-path prepend and
 // the other text filters return) was silently discarded and the route went out
@@ -57,12 +82,8 @@ import (
 // the forward pool skips export-filtered peers (forward_rs.go FastPathSkipped), so
 // it never contends for this peer's writeMu; the only serialized writes are this
 // peer's own keepalives/routes, which writeMu serializes regardless.
-func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, override, follow []byte) {
-	facts := peer.forwardFacts()
-	if facts == nil {
-		var pending peerForwardFacts
-		peer.captureOriginatedFacts(&pending)
-		facts = &pending
+func (r *Reactor) exportFilterFromFacts(peer *Peer, facts *peerForwardFacts, pending bool, body []byte) (suppress bool, override, follow []byte) {
+	if pending {
 		if facts.exportPolicy.RequiresIngress() {
 			return true, nil, nil
 		}
@@ -128,6 +149,9 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 func (peer *Peer) captureOriginatedFacts(pending *peerForwardFacts) {
 	peer.mu.RLock()
 	pending.exportPolicy = peer.settings.ExportPolicy
+	// Read with exportPolicy under p.mu: the gate stamps its write with it, and a
+	// zero would read a decision under the current chain as old (noteExportWrite).
+	pending.exportGeneration = peer.exportGeneration.Load()
 	pending.peerAS = peer.settings.PeerAS
 	pending.localAS = peer.settings.LocalAS
 	pending.isEBGP = peer.settings.IsEBGP()

@@ -84,6 +84,8 @@ func (r *Reactor) createDynamicPeer(dg *DynamicGroupConfig, remoteAddr netip.Add
 	peer.SetDialer(r.dialer)
 	peer.SetReactor(r)
 	peer.messageCallback = r.notifyMessageReceiver
+	// The RIB's sent routes for a returning address were judged by an older Peer.
+	peer.raiseExportPolicyFrom(nextMsgID())
 
 	key := ps.PeerKey()
 	r.peers[key] = peer
@@ -660,6 +662,10 @@ func (p *Peer) publishDynamicResolution(read dynamicTemplateRead, remoteAS uint3
 	}
 	p.settings.PeerAS = remoteAS
 	p.settings.ImportPolicy = newImport
+	if !p.settings.ExportPolicy.SameDecisions(newExport) {
+		// RFC 2918 Section 4
+		p.noteExportPolicyChangeLocked()
+	}
 	p.settings.ExportPolicy = newExport
 	return true
 }

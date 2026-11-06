@@ -88,6 +88,7 @@ type peerForwardFacts struct {
 	name               string
 	groupName          string
 	exportPolicy       filterapi.Policy
+	exportGeneration   uint64 // Read with exportPolicy; a decision stamps its write with it (fwdItem.exportGeneration).
 	// exportChainActive records that the export chain must run
 	// (hasActiveFilter): the route-server fast path runs it per destination,
 	// through the one implementation the general rail runs
@@ -403,6 +404,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	connectedLocal := connectedLocalAddress(p.session)
 	sendCtxID := p.sendCtxID
 	exportPolicy := s.ExportPolicy
+	exportGeneration := p.exportGeneration.Load()
 	peerAS := s.PeerAS
 	isEBGP := s.IsEBGP()
 	isIBGP := s.IsIBGP()
@@ -442,6 +444,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 		name:               s.Name,
 		groupName:          s.GroupName,
 		exportPolicy:       exportPolicy,
+		exportGeneration:   exportGeneration,
 		exportChainActive:  hasActiveFilter(exportPolicy, directionExport),
 
 		sendCtxID:   sendCtxID,

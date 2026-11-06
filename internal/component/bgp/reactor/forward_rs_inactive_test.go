@@ -104,7 +104,7 @@ func TestReactorForwardRSDeactivatedExportFilterKeepsTheFastPath(t *testing.T) {
 // VALIDATES: an all-`inactive:` export chain takes the legitimate-accept branch,
 // the one an empty chain takes, rather than the r.api == nil fail-closed branch.
 // PREVENTS: the two rails disagreeing about the same peer -- reactorForwardRS
-// forwarding the route while exportFilterForBody suppresses it, which
+// forwarding the route while Peer.egressGate suppresses it, which
 // blackholes the operator who recorded a filter and switched it off.
 func TestExportFilterForBodyDeactivatedChainAcceptsWithoutAPIServer(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)

@@ -608,9 +608,11 @@ var locRIBExtendedNextHop = [...]capability.ExtendedNextHopFamily{
 // the case the marker exists to describe. A collector attached to a router with
 // an empty table then waits forever for a dump that already finished.
 //
-// Runs after the replay-request Emit returns. In-process EventBus delivery is
-// synchronous, so by then every batch this dump produced has been processed and
-// scope.closed is final.
+// Runs after the replay-request Emit returns, and treats scope.closed as final
+// then. That holds only for a subscriber on the engine side, such as the tests'
+// stand-in RIB. bgp-rib takes the request as a plugin subscription on both
+// transports (Server.deliverEvent, Process.Deliver), which queues it, so against
+// the real RIB this sweep can run before the batches arrive.
 //
 // The MIXED table is covered too, and that is the point of working from
 // scope.closed rather than from "did the dump produce anything at all". A table
@@ -764,10 +766,13 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 		}
 	}
 
-	// A replay batch IS the full table for its family (the RIB emits one batch
-	// per family, rib_bestchange.go replayBestPaths), so the End-of-RIB marker
-	// belongs right here: it tells the collector the dump for this family is
-	// complete.
+	// An in-daemon RIB replays one batch per family (rib_bestchange.go
+	// replayBestPaths), so a batch claimed as ours IS the full table for its
+	// family and the End-of-RIB marker belongs right here: it tells the collector
+	// the dump for this family is complete. A forked RIB's sdkEventBus can split a
+	// family into chunks, but those decode with the Broadcast token
+	// (ribevents.BestChangeBatch.UnmarshalJSON), which no dump token equals, so no
+	// chunk is claimed and none closes a family early.
 	//
 	// Only for a dump this plugin requested. RFC 4724 Section 2 gives the marker
 	// one meaning -- "my initial routing update is complete" -- so emitting it

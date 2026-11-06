@@ -152,6 +152,9 @@ type announceTarget struct {
 	source           *Peer
 	sourceGeneration uint64
 	sourceState      PeerState
+	// exportGeneration stamps the write with the generation of the chain a caller
+	// ran ahead of it (fwdItem.exportGeneration).
+	exportGeneration uint64
 }
 
 // nlriUnitLen is how many NLRIs of one batch a single UPDATE carries toward one
@@ -281,7 +284,7 @@ func (target announceTarget) sendBatchUpdate(ctx context.Context, update *messag
 // ordinary and already-filtered batches. Policy completion does not change
 // originated ownership or waive initial-replay admission.
 func (target announceTarget) initBatchOwner(owner *fwdItem, batch *bgptypes.NLRIBatch) error {
-	*owner = fwdItem{peer: target.peer, session: target.session, originated: true}
+	*owner = fwdItem{peer: target.peer, session: target.session, originated: true, exportGeneration: target.exportGeneration}
 	if batch.SentOwnerMessage != 0 {
 		owner.authority = adjOutExpected
 		owner.expectedMessage = batch.SentOwnerMessage
@@ -313,6 +316,27 @@ func (target announceTarget) initBatchOwner(owner *fwdItem, batch *bgptypes.NLRI
 		}
 	}
 	return nil
+}
+
+// sendOwnRouteWithdrawal sends a withdrawal the policy decided for a stale batch that
+// names no sent receipt, and answers whether any of it left. With no expected owner
+// the writer would remove whatever each key holds, a fresher route from another source
+// included, so the writer's table decides under its own lock: a key holding a route
+// with no source is this speaker's own and is withdrawn, and any other is spared. Two
+// originated routes under one key share that owner, so the fresher of them is not
+// told apart from this one.
+//
+// RFC 4271 Section 9.1.3: "If a route in Loc-RIB is excluded from a particular
+// Adj-RIB-Out, the previously advertised route in that Adj-RIB-Out MUST
+// be withdrawn from service by means of an UPDATE message (see 9.2)."
+func (target announceTarget) sendOwnRouteWithdrawal(ctx context.Context, update *message.Update, maxSize int, addPath bool, batch *bgptypes.NLRIBatch) (bool, error) {
+	var owner fwdItem
+	if err := target.initBatchOwner(&owner, batch); err != nil {
+		return false, err
+	}
+	owner.ownRouteWithdrawal = true
+	err := target.session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, batch.Replay, &owner, (*Session).writeUpdatePreFiltered)
+	return err == nil && owner.ownRouteWithdrawn, err
 }
 
 // sendBatchUpdatePreFiltered borrows the UPDATE and any already encoded body
@@ -555,9 +579,10 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 			continue // Skip peer that doesn't support this family
 		}
 
-		// LLGR stale readvertise (RFC 9494): run the per-peer readvertise
-		// filters (the export chain's readvertise-opted plugin filters,
-		// staleRailToward) so the
+		// LLGR stale readvertise (RFC 9494): a peer whose export chain holds a
+		// readvertise-opted plugin filter (staleRailToward) takes the stale rail,
+		// which runs those filters, and the whole chain ahead of them for a route
+		// older than the peer's current policy (staleChainFor), so the
 		// route is kept+marked for LLGR-capable peers,
 		// depreferenced for non-LLGR iBGP, or withdrawn for non-LLGR eBGP.
 		// Rare (GR-expiry) path; the common Stale==0 path is untouched.
@@ -2169,8 +2194,10 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 // the per-peer decision: withdrawal for a non-LLGR eBGP peer (mods.IsWithdraw),
 // a depreferenced announce for a non-LLGR iBGP peer (attribute mods), or the
 // unchanged announce for an LLGR-capable peer. The filter chain here is ONLY the
-// Readvertise-opted filters, never the full egress chain, so a readvertise does
-// not re-apply OTC/community/policy that already ran at the original announce.
+// Readvertise-opted filters while the destination's export policy is the one that
+// judged the original announce, so a readvertise does not re-apply OTC/community/
+// policy that already ran. A route sent before that policy changed runs the whole
+// chain (staleChainFor), since the policy that passed it is no longer the one in force.
 //
 // Returns (sent, failErr). sent counts the messages accepted for sending, which
 // is one for a peer that groups updates and one per NLRI for a peer carrying
@@ -2257,7 +2284,12 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 		RSClient: peer.Settings().RSClient,
 		IsIBGP:   peer.IsIBGP(),
 	}
-	outcome, modified := a.decideStaleReadvertise(dest, staleChainFor(peer), body, batch.Stale)
+	// By analogy with RFC 2918 Section 4 (runStaleChain).
+	chain := staleChainFor(peer, batch.SentOwnerMessage)
+	outcome, modified := a.decideStaleReadvertise(dest, chain, body, batch.Stale)
+	// The write's receipt must not read as current if this chain is replaced
+	// before the writer runs (Session.noteExportWrite).
+	target.exportGeneration = chain.generation
 
 	switch outcome {
 	case staleFilterFailed:
@@ -2273,7 +2305,8 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 	case staleSuppress:
 		return false, nil // filter suppressed the route for this peer
 	case staleWithdraw:
-		// Non-LLGR eBGP peer: send a withdrawal for the same NLRIs.
+		// Non-LLGR eBGP peer, or a policy that rejects what the peer already holds:
+		// send a withdrawal for the same NLRIs.
 		wdAttr := getBuildBuf()
 		wdNlri := getBuildBuf()
 		defer putBuildBuf(wdAttr)
@@ -2296,6 +2329,10 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 			// Same reasoning as the announce build above, under the withdraw
 			// rail's own cause (already logged); nothing was sent.
 			return false, errWithdrawTooLarge
+		}
+		if chain.unowned {
+			// RFC 4271 Section 9.1.3
+			return target.sendOwnRouteWithdrawal(ctx, wd, maxMsgSize, facts.addPath, &batch)
 		}
 		err := target.sendBatchUpdatePreFiltered(ctx, wd, nil, maxMsgSize, facts.addPath, &batch)
 		return err == nil, err
@@ -2344,7 +2381,7 @@ type staleOutcome int
 const (
 	staleKeep         staleOutcome = iota // send the stale route unchanged (LLGR-capable peer)
 	staleModify                           // send with attribute mods (non-LLGR iBGP depreference)
-	staleWithdraw                         // send a withdrawal (non-LLGR eBGP)
+	staleWithdraw                         // send a withdrawal (non-LLGR eBGP, or a re-judged route the policy rejects)
 	staleSuppress                         // a filter rejected the route for this peer
 	staleFilterFailed                     // a filter could not run: nothing was decided for this peer
 	staleBuildFailed                      // a filter decided, but its modifications could not be built
@@ -2355,8 +2392,14 @@ const (
 // the modified UPDATE body. The filters are the members of the destination's
 // export chain whose filter declares readvertise (runStaleChain): bgp-gr's
 // llgr-egress (RFC 9494) today, which reads the destination's facts and
-// meta["stale"]. It is the pure decision half of sendStaleReadvertise, split
-// out so the filter->outcome mapping is unit-testable without a live session.
+// meta["stale"]; chain.judgeAll runs every member. It is the pure decision half of
+// sendStaleReadvertise, split out so the filter->outcome mapping is unit-testable
+// without a live session. A staleWithdraw for a batch with no receipt reaches only
+// what the writer finds is this speaker's own (sendOwnRouteWithdrawal).
+//
+// RFC 4271 Section 9.1.3: "If a route in Loc-RIB is excluded from a particular
+// Adj-RIB-Out, the previously advertised route in that Adj-RIB-Out MUST
+// be withdrawn from service by means of an UPDATE message (see 9.2)."
 func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo, chain staleChain, body []byte, stale uint8) (staleOutcome, []byte) {
 	// RFC 9494 Section 4.3
 	res, ran := a.r.runStaleChain(chain, dest, body, stale)
@@ -2374,6 +2417,17 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 		// obligations cannot be applied on a guess. staleFilterFailed is no
 		// decision at all, never the filter's staleSuppress.
 		return staleFilterFailed, nil
+	case res.outcome.Action != policychain.OutcomeAccept && chain.judgeAll:
+		// The current policy rejects a route the peer holds, so holding back the
+		// stale readvertisement would leave it there, unmarked, until the purge.
+		// RFC 9494 Section 4.2: "The helper router MUST attach the LLGR_STALE
+		// community to the stale routes being retained.  Note that this requirement
+		// implies that the routes would need to be readvertised in order to
+		// disseminate the modified community."
+		// RFC 9494 Section 4.3: "The LLGR_STALE community MUST NOT be removed when
+		// the route is further advertised."
+		// The route cannot go out and cannot stay as it was, so it is withdrawn.
+		return staleWithdraw, nil
 	case res.outcome.Action != policychain.OutcomeAccept:
 		return staleSuppress, nil
 	case res.failed:

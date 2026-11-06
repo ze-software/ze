@@ -934,7 +934,7 @@ the speaker shares a subnet with the recipient, and a 48-octet pair is cut to
 24 octets when it does not. End-of-RIB and already-filtered
 forward/route-server/replay writes bypass this ordinary callback; their existing
 forwarding normalization is separate.
-<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody, normalizeOrdinaryNextHop, normalizeVPNNextHop -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- egressGate, normalizeOrdinaryNextHop, normalizeVPNNextHop -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated, writeUpdatePreFiltered -->
 
 RFC 8212 Section 3 applies at this gate before any EBGP announcement can enter
@@ -942,7 +942,7 @@ Adj-RIB-Out, including before forwarding facts are published. Policy and session
 type come from one coherent snapshot. An absent IBGP direction still accepts.
 Pure withdrawals and EOR survive a rejecting final. Mixed UPDATEs retain only
 their explicit withdrawals. Automatic references do not establish operator policy.
-<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- egressGate -->
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- policyWithdrawals -->
 
 The final writer applies the same scalar decision to raw injection, without

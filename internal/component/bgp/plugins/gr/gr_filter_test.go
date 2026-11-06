@@ -98,6 +98,27 @@ func TestLLGRProceduresAreRequiredInsertions(t *testing.T) {
 	}
 	assert.False(t, decls[ingress].Readvertise, "the ingress step is not on the readvertise rail")
 	assert.True(t, decls[egress].Readvertise, "the egress step governs the routes the readvertise rail sends")
+	assert.False(t, decls[ingress].JudgesFinal, "the ingress step judges no export body")
+	assert.True(t, decls[egress].JudgesFinal, "the egress step answers again for what another member took off")
+}
+
+// TestFieldsLLGRSessionParsesCommunitiesWhenGoverned proves a forked call parses its
+// community facts only for a route the egress step can decide anything about, as
+// viewLLGRSession reads them, and refuses a bad fact on the route it does decide.
+//
+// PREVENTS: every route through a forked llgr-egress paying a parse per community,
+// and a community the filter cannot read answering for a route it never judges.
+func TestFieldsLLGRSessionParsesCommunitiesWhenGoverned(t *testing.T) {
+	session, err := fieldsLLGRSession([]byte(`{"stale":0,"community":["not-a-community"]}`))
+	require.NoError(t, err, "an ungoverned route's communities are not read")
+	assert.False(t, session.holdsLLGRStale)
+
+	_, err = fieldsLLGRSession([]byte(`{"stale":2,"community":["not-a-community"]}`))
+	require.Error(t, err, "a governed route's unreadable community fails the route")
+
+	session, err = fieldsLLGRSession([]byte(`{"stale":2,"community":["65535:6"]}`))
+	require.NoError(t, err)
+	assert.True(t, session.holdsLLGRStale)
 }
 
 // TestLLGRIngressVerdicts proves the RFC 9494 Section 4.3 ingress step on
@@ -172,6 +193,88 @@ func TestLLGREgressVerdicts(t *testing.T) {
 			fields(ebgp, `,"source-llgr-advertised":true`), rpc.FilterAccept, nil},
 	} {
 		judgeBoth(t, &tc)
+	}
+}
+
+// TestLLGREgressKeepsLLGRStale proves the egress step's answer over a body a member
+// rewrote: it puts LLGR_STALE back on a route RFC 9494 Section 4.3 binds, and on no
+// other. Method: raw is the route as the chain received it and the view or the
+// fields object the body it left, on both transports, as the engine's pass over a
+// rewritten body delivers them.
+//
+// VALIDATES: RFC 9494 Section 4.3 "The LLGR_STALE community MUST NOT be removed when
+// the route is further advertised." under its opening condition, that Ze advertised
+// the capability to the neighbor the route came from.
+// PREVENTS: a member removing the mark, and Ze putting back a community a source it
+// sent no capability to chose to send and the operator chose to scrub.
+func TestLLGREgressKeepsLLGRStale(t *testing.T) {
+	setEgressState(newTestEgressState(map[string]*llgrPeerCap{"10.0.0.9": {}}))
+	t.Cleanup(func() { setEgressState(nil) })
+
+	ibgp := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65000, LocalAS: 65000}
+	llgrDest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.9"), PeerAS: 65001, LocalAS: 65000}
+	source := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), LLGRAdvertised: true}
+	silent := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	marked, plain, noExport := ingressTestUpdate(ingressLLGRStale), ingressTestPlainUpdate(), ingressTestUpdate(ingressNoExport)
+	restore := rpc.FilterSet{Field: "community", Action: rpc.FilterSetActionAdd, Value: json.RawMessage(`"65535:6"`)}
+	restoreOnly, noRestore := []rpc.FilterSet{restore}, []rpc.FilterSet(nil)
+	addNoExport := rpc.FilterSet{Field: "community", Action: rpc.FilterSetActionAdd, Value: json.RawMessage(`"65535:65281"`)}
+	lpZero := rpc.FilterSet{Field: "local-preference", Action: rpc.FilterSetActionSet, Value: json.RawMessage("0")}
+
+	cases := []struct {
+		name    string
+		raw     []byte // the route as the chain received it
+		body    []byte // the route as the chain left it
+		dest    filterapi.PeerFilterInfo
+		src     filterapi.PeerFilterInfo
+		level   uint8
+		rebuilt bool
+		fields  string
+		want    rpc.FilterAction
+		sets    []rpc.FilterSet
+	}{
+		{name: "level 2, stripped, LLGR peer", raw: marked, body: plain, dest: llgrDest, src: source, level: 2,
+			fields: `,"stale":2`, want: rpc.FilterModify, sets: restoreOnly},
+		{name: "level 2, not stripped, LLGR peer", raw: marked, body: marked, dest: llgrDest, src: source, level: 2,
+			fields: `,"stale":2,"community":["llgr-stale"]`, want: rpc.FilterAccept, sets: noRestore},
+		{name: "rebuilt from an LLGR source, stripped", raw: marked, body: plain, dest: llgrDest, src: source, rebuilt: true,
+			fields: `,"source-llgr-advertised":true`, want: rpc.FilterModify, sets: restoreOnly},
+		{name: "rebuilt from a source Ze sent no LLGR, stripped", raw: marked, body: plain, dest: llgrDest, src: silent, rebuilt: true,
+			fields: `,"source-llgr-advertised":false`, want: rpc.FilterAccept, sets: noRestore},
+		{name: "live from a source Ze sent no LLGR, stripped", raw: marked, body: plain, dest: llgrDest, src: silent,
+			want: rpc.FilterAccept, sets: noRestore},
+		{name: "level 2 that never carried it", raw: plain, body: plain, dest: llgrDest, src: source, level: 2,
+			fields: `,"stale":2`, want: rpc.FilterAccept, sets: noRestore},
+		{name: "level 1", raw: marked, body: plain, dest: llgrDest, src: source, level: 1,
+			fields: `,"stale":1`, want: rpc.FilterAccept, sets: noRestore},
+		{name: "stripped toward iBGP non-LLGR", raw: marked, body: plain, dest: ibgp, src: source, level: 2,
+			fields: `,"stale":2`, want: rpc.FilterModify, sets: []rpc.FilterSet{restore, addNoExport, lpZero}},
+		{name: "own NO_EXPORT on the body, not asked twice", raw: plain, body: noExport, dest: ibgp, src: source, level: 2,
+			fields: `,"stale":2,"community":["65535:65281"]`, want: rpc.FilterModify, sets: []rpc.FilterSet{lpZero}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			session := policyview.ExportSession(tc.dest, tc.src, true)
+			switch {
+			case tc.rebuilt:
+				session = session.WithExportMetadata(map[string]any{filterapi.MetaKeyRebuilt: true})
+			case tc.level > 0:
+				session = session.WithExportMetadata(map[string]any{"stale": tc.level})
+			}
+			var view policyview.View
+			view.Reset(wireu.NewWireUpdate(tc.body, 0), session)
+			header := rpc.FilterUpdateInput{Filter: llgrEgressFilterName}
+			fast := rpc.ViewFilterRoute(&header, llgrViewRoute{view: &view, raw: tc.raw})
+			forkedFields := `{"peer-address":"` + tc.dest.Address.String() + `","peer-as":` + strconv.FormatUint(uint64(tc.dest.PeerAS), 10) +
+				`,"local-as":` + strconv.FormatUint(uint64(tc.dest.LocalAS), 10) + tc.fields + `}`
+			forked := rpc.InputFilterRoute(&rpc.FilterUpdateInput{Filter: llgrEgressFilterName, Raw: tc.raw, Fields: []byte(forkedFields)})
+			for transport, route := range map[string]*sdk.FilterRoute{"fast path": &fast, "forked": &forked} {
+				out, err := evaluateGRFilter(route)
+				require.NoError(t, err, transport)
+				assert.Equal(t, tc.want, out.Action, transport)
+				assert.Equal(t, tc.sets, out.Sets, transport)
+			}
+		})
 	}
 }
 

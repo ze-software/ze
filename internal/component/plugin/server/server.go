@@ -640,6 +640,17 @@ func (s *Server) FilterReadvertise(pluginName, filterName string) (readvertise, 
 	return f.Readvertise, true
 }
 
+// FilterJudgesFinal answers whether the declaration serving filterName runs again
+// over a body the export chain rewrote (rpc.FilterDecl.JudgesFinal). ok is false
+// when no running plugin declares the filter.
+func (s *Server) FilterJudgesFinal(pluginName, filterName string) (judgesFinal, ok bool) {
+	f := s.filterRegistration(pluginName, filterName)
+	if f == nil {
+		return false, false
+	}
+	return f.JudgesFinal, true
+}
+
 // filterRegistration answers the declaration of a running plugin that serves
 // filterName, nil when the plugin is not running or declares no such filter.
 func (s *Server) filterRegistration(pluginName, filterName string) *plugin.FilterRegistration {

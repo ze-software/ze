@@ -108,6 +108,116 @@ func TestExternalRawRewriteTerminal(t *testing.T) {
 	}
 }
 
+// TestExternalRawOverARewrittenBodyRefused proves a raw answer on a pass over a body
+// the chain already rewrote fails under the member's on-error, though no earlier
+// member of this pass set anything: the answer is built from the route as the chain
+// received it, so taking it would discard the rewrite, a remove-private set included.
+//
+// PREVENTS: a private ASN or any other rewrite of the first pass lost with no error.
+func TestExternalRawOverARewrittenBodyRefused(t *testing.T) {
+	decl := ExternalDeclaration{Reads: []string{"local-preference", rpc.FilterFieldRaw}, OnError: rpc.OnErrorReject, JudgesFinal: true}
+	caller := &fakeCaller{filters: map[string]fakeFilter{"ext:raw": {decl: decl,
+		answer: func(*rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+			return &rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: rawBody}, nil
+		}}}}
+	chain := compileMembers(t, testAttachment, []Member{{Name: "raw", Plugin: "ext"}})
+	for _, tc := range []struct {
+		name    string
+		route   ExternalRoute
+		refused bool
+	}{
+		{"first pass", ExternalRoute{Caller: caller, Direction: "export"}, false},
+		{"pass over the same body", ExternalRoute{Caller: caller, Direction: "export", JudgeFinal: true}, false},
+		{"pass over a rewritten body", ExternalRoute{Caller: caller, Direction: "export", JudgeFinal: true, BodyRewritten: true}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var view policyview.View
+			sets := new(RunSets)
+			sets.SetRoute(tc.route)
+			view.Reset(update(t, localPref(100)), policyview.Session{})
+			defer view.Clear()
+			outcome := chain.Run(&view, sets)
+			if tc.refused != (outcome.Action == OutcomeReject && outcome.Failed) {
+				t.Fatalf("outcome=%+v, refused should be %v", outcome, tc.refused)
+			}
+			if tc.refused != (sets.Raw() == nil) {
+				t.Fatalf("raw=%x, refused should be %v", sets.Raw(), tc.refused)
+			}
+		})
+	}
+}
+
+// TestJudgeFinalRunsOnlyDeclaredMembers proves a pass over a rewritten body runs what
+// declares judges-final and nothing else, with Readvertise also set what declares
+// both, fails closed on a declaration it cannot read, and answers accept at its end
+// whatever the chain's final says.
+//
+// PREVENTS: a filter that opted into the stale rail running twice on every forward.
+func TestJudgeFinalRunsOnlyDeclaredMembers(t *testing.T) {
+	const judge, rail, both, plain = "judge", "rail", "both", "plain"
+	asked := map[string]int{}
+	answer := func(name string) func(*rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+		return func(*rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+			asked[name]++
+			return &rpc.FilterUpdateOutput{Action: rpc.FilterAccept}, nil
+		}
+	}
+	reads := []string{"local-preference"}
+	caller := &fakeCaller{filters: map[string]fakeFilter{
+		"ext:judge": {decl: ExternalDeclaration{Reads: reads, JudgesFinal: true}, answer: answer(judge)},
+		"ext:rail":  {decl: ExternalDeclaration{Reads: reads, Readvertise: true}, answer: answer(rail)},
+		"ext:both":  {decl: ExternalDeclaration{Reads: reads, Readvertise: true, JudgesFinal: true}, answer: answer(both)},
+		"ext:plain": {decl: ExternalDeclaration{Reads: reads}, answer: answer(plain)},
+	}}
+	members := []Member{{Name: judge, Plugin: "ext"}, {Name: rail, Plugin: "ext"}, {Name: both, Plugin: "ext"}, {Name: plain, Plugin: "ext"}}
+	reg, err := policy.NewRegistry()
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
+	chain, err := Compile(testAttachment, reg, members, policy.FinalReject, Bases{})
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	run := func(route ExternalRoute) Outcome {
+		clear(asked)
+		route.Caller, route.Direction = caller, "export"
+		var view policyview.View
+		sets := new(RunSets)
+		sets.SetRoute(route)
+		view.Reset(update(t, localPref(100)), policyview.Session{})
+		defer view.Clear()
+		return chain.Run(&view, sets)
+	}
+
+	outcome := run(ExternalRoute{JudgeFinal: true})
+	if outcome.Action != OutcomeAccept || asked[judge] != 1 || asked[both] != 1 || asked[rail] != 0 || asked[plain] != 0 {
+		t.Fatalf("outcome=%+v asked=%v, want the two judges and an accept under final reject", outcome, asked)
+	}
+	outcome = run(ExternalRoute{JudgeFinal: true, Readvertise: true})
+	if outcome.Action != OutcomeAccept || asked[both] != 1 || len(asked) != 1 {
+		t.Fatalf("outcome=%+v asked=%v, want only the member that declares both", outcome, asked)
+	}
+	if !chain.HoldsFinalJudge(caller) {
+		t.Fatal("the chain holds two judges")
+	}
+	if chain.RailEndsOnFinalJudge(caller) {
+		t.Fatal("two members run on the rail, so one can run behind the other")
+	}
+
+	lone := compileMembers(t, testAttachment, []Member{{Name: both, Plugin: "ext"}})
+	if !lone.RailEndsOnFinalJudge(caller) {
+		t.Fatal("one member that judges and runs on the rail has nothing behind it")
+	}
+	railOnly := compileMembers(t, testAttachment, []Member{{Name: rail, Plugin: "ext"}})
+	if railOnly.HoldsFinalJudge(caller) || railOnly.RailEndsOnFinalJudge(caller) {
+		t.Fatal("a member that only opted into the rail is no final judge")
+	}
+	gone := compileMembers(t, testAttachment, []Member{{Name: "gone", Plugin: "ext"}})
+	if !gone.HoldsFinalJudge(caller) {
+		t.Fatal("a member whose declaration cannot be read must run, and fail closed")
+	}
+}
+
 // TestExternalRawRewriteTraced proves the display-only run records a
 // whole-body rewrite as what it is: one TraceRewrite step naming the member
 // and carrying the body it answered, with no sets, under either final, so

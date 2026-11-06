@@ -710,6 +710,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		item.session, item.authority = session, adjOutForwarded
 		item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
 		item.sourcePolicyEpoch = update.SourcePolicyEpoch
+		item.exportGeneration = facts.exportGeneration
 
 		extendedMessage := facts.extendedMsg
 		maxMsgSize := facts.maxMsgSize

@@ -465,7 +465,11 @@ marks a received LLGR_STALE route as described above. While any peer sets
 the leaf, `bgp-gr:llgr-egress` runs on every peer's export list, ahead of the
 operator's members: RFC 9494 Section 4.3 binds the routes of the neighbor
 Ze advertised the capability to, and they can leave toward any peer. It
-declares `readvertise`, so the stale readvertise rail runs it too. Both members are required:
+declares `readvertise`, so the stale readvertise rail runs it too, and
+`judges-final`, so it runs again over a body the export chain rewrote: that is what
+keeps LLGR_STALE, its NO_EXPORT and its LOCAL_PREF 0 on a route whatever a member
+behind it did, unless that member also declares `judges-final`, whose answer then
+comes after it. A lone member on the stale rail has nothing behind it and runs once. Both members are required:
 a chain that names, moves or deactivates one is refused at commit with the
 RFC 9494 Section 4.3 reason. The decisions read the route's stale level, the
 destination's address and AS facts, and for a route rebuilt from storage the

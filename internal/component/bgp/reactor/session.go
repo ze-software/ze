@@ -355,6 +355,10 @@ type Session struct {
 	// until the Established callback starts it and for a peer with no reactor.
 	recovery    atomic.Pointer[recoveryWorker]
 	sentForward *fwdItem
+	// gateGeneration is the export generation of the facts the writer's own gate ran
+	// (Peer.egressGate), for the write it is judging. Guarded by writeMu; zero outside
+	// a write that ran the gate.
+	gateGeneration uint64
 	// The callback borrows scalar IDs and this typed, reusable origin receipt.
 	sentReceipt wireu.WireUpdate
 	sentOrigin  wireu.SentOrigin
@@ -515,7 +519,7 @@ type Session struct {
 	sentAIGPCostWithheld bool
 
 	aigpReactor *Reactor
-	aigpPeer    *Peer
+	aigpPeer    *Peer // The Peer this session writes for, nil for a session no Peer runs.
 	aigpPending []aigpAdvertisement
 
 	// fwdDirty tracks destination sessions with unflushed writes from the RS

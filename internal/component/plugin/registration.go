@@ -160,6 +160,9 @@ type FilterRegistration struct {
 	// Readvertise is set when the filter runs on the stale readvertise rail
 	// (rpc.FilterDecl.Readvertise).
 	Readvertise bool
+	// JudgesFinal is set when the filter runs again over a body the export chain
+	// rewrote (rpc.FilterDecl.JudgesFinal).
+	JudgesFinal bool
 }
 
 // DoctorCheckRegistration holds a doctor check declaration from Stage 1.

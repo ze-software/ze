@@ -46,6 +46,9 @@ type ExternalDeclaration struct {
 	// Readvertise is set when the filter opts into the stale readvertise
 	// rail (rpc.FilterDecl.Readvertise).
 	Readvertise bool
+	// JudgesFinal is set when the filter runs again over a body the export
+	// chain rewrote (rpc.FilterDecl.JudgesFinal).
+	JudgesFinal bool
 }
 
 // ExternalCaller reaches the filters plugins run. It MUST be safe for
@@ -80,6 +83,22 @@ type ExternalRoute struct {
 	// chain is accepted, since the operator's export policy already judged
 	// the route when it was first advertised (Chain.readvertiseRuns).
 	Readvertise bool
+	// SkipReadvertise passes over exactly the members Readvertise runs. The
+	// stale rail sets it for its run of the operator's members on a route the
+	// current policy has not judged, then runs the opted members over the result,
+	// so what they owe is not undone by a later member. With Readvertise also set
+	// no member runs.
+	SkipReadvertise bool
+	// JudgeFinal marks a pass over a body the chain already rewrote: only the
+	// external members whose declaration asks for it run, and a route reaching
+	// the end of the pass is accepted, since the chain's final already decided it
+	// (Chain.judgesFinalRuns). With Readvertise also set a member must declare
+	// both, because a filter that does not opt into that rail is not run on it.
+	JudgeFinal bool
+	// BodyRewritten says the view holds a body other than Raw, the route as the
+	// chain received it. A raw answer replaces the whole body from Raw, so here it
+	// would discard the rewrite, and it is refused (errExternalRawAfterSets).
+	BodyRewritten bool
 }
 
 // externalMember is the plugin side of a member.
@@ -113,7 +132,7 @@ var (
 		"UPDATE body's two length fields")
 	errExternalRawSections  = errors.New("the filter answered a raw rewrite whose section lengths run past the body")
 	errExternalRawAfterSets = errors.New("the filter answered a raw rewrite of the received body after an " +
-		"earlier filter of the chain set fields, which the rewrite would discard")
+		"earlier filter of the chain changed the route, which the rewrite would discard")
 	errExternalAction = errors.New("the filter answered an action that is neither accept, reject nor modify")
 	errExternalSetsOn = errors.New("the filter answered sets without action modify")
 )

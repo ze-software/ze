@@ -384,6 +384,18 @@ module ze-plugin-engine {
                          refuses it on an import-only filter.";
                     ze:help "Run this export filter when stale routes are re-advertised";
                 }
+                leaf judges-final {
+                    type boolean;
+                    default false;
+                    description
+                        "The export filter runs once more over a body the export chain rewrote,
+                         reading raw as the route the chain received and every other field from
+                         the rewritten body. Its answer holds only against a member that does not
+                         declare judges-final, and it MUST be safe to repeat. A raw answer is
+                         refused when that body differs from the chain's input. Stage 1 refuses
+                         it on an import-only filter.";
+                    ze:help "Run this export filter again over a body the chain rewrote";
+                }
                 leaf-list attributes {
                     type string;
                     description

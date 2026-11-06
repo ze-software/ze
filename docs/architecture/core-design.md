@@ -1607,7 +1607,65 @@ uses the existing prefiltered writer for the resulting announce or withdrawal.
 The session does not rerun the full export chain. Direct and queued writes
 retain their existing ownership authority; skipping an already-run policy
 does not skip final origination admission or message sizing.
-<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertiseUnit -->
+
+A route sent before the destination's export policy last changed runs the whole
+chain and its final on this rail instead, because the policy that passed it is gone.
+RFC 2918 Section 4 says this of a received refresh and a stale pass is not one, so
+the rule is applied by analogy. The members that do not opt in run first and the opted
+members last, so a later member cannot undo the NO_EXPORT and LOCAL_PREF zero of
+RFC 9494 Section 4.6. A chain that rejects the route withdraws it (RFC 4271 Section
+9.1.3): holding back the readvertisement would leave the peer an unmarked copy until
+the purge. A withdrawal from a batch naming no sent owner, whichever answer produced it,
+has no expected owner and would remove whatever the key holds, a fresher route from
+another source included. So the writer sends it only for a key that holds this speaker's
+own route (`sendOwnRouteWithdrawal`, `adjOutWrite.allow`), and two originated routes under
+one key share that owner.
+
+Each `Peer` holds a message id watermark and a policy generation. A change of the
+export policy raises both in the `p.mu` hold that publishes the policy, and
+`SameDecisions` decides what a change is: a reload compiles new evaluators every
+time, so it compares refs, final, bases and the instance configs a chain was
+compiled from, and a commit that leaves the policy alone raises nothing. A batch
+whose sent owner is below the watermark, or names none, is re-judged. A `Peer` the
+reactor builds starts with a watermark, since the RIB's sent routes outlive a
+restarted peer, so a batch naming no owner always re-judges.
+
+A decision reads its chain and generation together (the forwarding facts,
+`staleChainFor`, or the facts one run of the egress gate reads, `Peer.egressGate`) and
+reaches the writer later with no lock across, so a reload can land between them and
+no barrier can see it. The writer therefore compares the decision's stamp with the
+current generation when it takes the receipt, and a write of an older decision raises
+the watermark past its own receipt. The cost is precision: a current decision written
+just before an older decision's receipt is re-judged too. A current decision's own
+write raises nothing. A write no export chain judged carries no stamp, which reads as
+generation zero: it raises the watermark once the peer's generation is above zero, and
+at generation zero, before any change, it matches and raises nothing.
+Message ids are one global counter, so this needs no new field on the plugin
+protocol and a forked RIB changes nothing. A change inside an external plugin's own
+data is not a policy change here and stays invisible to the comparison.
+
+The engine holds nothing of its own for what a filter owes a route. When an export
+chain rewrites a body, the members that declare `judges-final` run once more over it
+(`runFinalJudges`), reading as raw the route as the chain received it and every field
+from the rewritten body, so a member outside that set cannot undo them whichever way
+it changed the route. Their answer holds only against such members: the pass runs the
+judges in chain order, so a judge behind another can still undo it. A raw answer in
+the pass is refused when the body differs from the chain's input, because it would
+discard the rewrite. The field is separate from
+`readvertise`, so a filter that asks for the stale rail is not run twice on every
+rewritten forward. On that rail a lone member that judges and has nothing behind it
+runs once. `llgr-egress` uses the pass
+to put LLGR_STALE back on a route RFC 9494 Section 4.3 binds, and its LOCAL_PREF
+zero and NO_EXPORT on a depreferenced one; without `bgp-gr` in the chain nothing runs
+and an operator's removal stands. An import member can still strip the community
+before any export chain runs.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertiseUnit, decideStaleReadvertise -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- staleChainFor, runStaleChain -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- noteExportPolicyChangeLocked, noteExportWrite -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- egressGate -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runFinalJudges -->
+<!-- source: internal/component/bgp/plugins/gr/gr_filter.go -- evaluateLLGREgress, lostLLGRStale -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.SameDecisions -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdatePreFiltered, writeUpdateGated -->
 
 

@@ -29,20 +29,22 @@ type libraryDryRun struct {
 
 // traceLibraryChain runs a library chain for show policy test (D-11): the
 // same runLibraryChain the live import and export steps run, in its
-// display-only mode, so the decision, the final and the rewritten UPDATE are
-// the live path's, while no failure is counted or logged. Each member's trace
-// entry is drawn from its step: a passing member's sets as text in delta, a
-// failure's error, and in text-after the UPDATE as the chain rewrote it up to
-// that member (libraryTraceText). It also answers the display of the UPDATE
-// the chain leaves (before itself when the chain changed nothing, nil when it
-// leaves none) and the attribute operations the run applied, as the dry-run's
-// wire-changes.
+// display-only mode, and on export the same runFinalJudges, so the
+// decision, the final and the rewritten UPDATE are the live path's, while no
+// failure is counted or logged. A member that runs twice has two entries. Each
+// member's trace entry is drawn from its step: a passing member's sets as text
+// in delta, a failure's error, and in text-after the UPDATE as the chain
+// rewrote it up to that member (libraryTraceText). It also answers the display
+// of the UPDATE the chain leaves (before itself when the chain changed nothing,
+// nil when it leaves none) and the attribute operations the run applied, as the
+// dry-run's wire-changes.
 func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *libraryDryRun, before *routeDisplay) (PolicyChainResult, *routeDisplay, []plugin.PolicyTraceEntry, []string) {
 	var trace []plugin.PolicyTraceEntry
 	textBefore := before.text()
+	traced := dry
 	record := func(step policychain.MemberTrace) {
 		entry := libraryTraceEntry(step)
-		text, err := r.libraryTraceText(step, dry, textBefore)
+		text, err := r.libraryTraceText(step, traced, textBefore)
 		entry.TextAfter = text
 		if err != nil && entry.Error == "" {
 			entry.Error = err.Error()
@@ -51,6 +53,18 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *library
 	}
 	res := r.runLibraryChain(library, dry.wireUpdate, dry.payload, dry.session, dry.intent,
 		dry.direction, "", dry.peer, record)
+	if dry.direction == directionExport && res.rewrote() {
+		// A member of the pass over the rewritten body is shown over that body.
+		rewritten := *dry
+		rewritten.payload = res.modifiedPayload
+		rewritten.wireUpdate = wireu.NewWireUpdate(res.modifiedPayload, dry.ctxID)
+		traced = &rewritten
+		if shown, err := displayUpdate(rewritten.wireUpdate); err == nil {
+			textBefore = shown.text()
+		}
+		// RFC 9494 Section 4.3
+		res = r.runFinalJudges(library, res, dry.payload, dry.ctxID, dry.session, dry.intent, "", dry.peer, record)
+	}
 	outcome := res.outcome
 	if outcome.Action == policychain.OutcomeWithdraw {
 		result, after := dryRunWithdrawal(dry)

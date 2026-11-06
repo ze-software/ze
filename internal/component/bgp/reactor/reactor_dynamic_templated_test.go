@@ -23,6 +23,10 @@ type compiledMarker struct{ first string }
 
 func (compiledMarker) Refused() uint64 { return 0 }
 
+func (m compiledMarker) SameDecisions(other filterapi.LibraryChain) bool {
+	return other == filterapi.LibraryChain(m)
+}
+
 // recordingTemplated is a TemplatedChain that compiles every resolved chain to
 // a compiledMarker, or, when refuse is set, answers the fail-closed policy
 // with an error, as bgp/config does for a resolved name naming no instance.

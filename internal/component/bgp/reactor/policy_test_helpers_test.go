@@ -128,6 +128,19 @@ func (f *fakeFilterTransport) FilterReadvertise(_, _ string) (readvertise, ok bo
 	return false, true
 }
 
+// FilterJudgesFinal answers that the filter does not run again over a rewritten body.
+func (f *fakeFilterTransport) FilterJudgesFinal(_, _ string) (judgesFinal, ok bool) {
+	return false, true
+}
+
+// exportFilterForBody runs body through the chain and the normalization of the
+// session's export gate, for a test that holds no session: production reaches them
+// through Peer.egressGate, which also stamps the write.
+func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, override, follow []byte) {
+	facts, pending := peer.exportGateFacts()
+	return r.exportFilterFromFacts(peer, facts, pending, body)
+}
+
 // FilterDeclaration answers every filter as declared, reading the prefix and
 // setting nothing, under onError: a library chain member with no declaration
 // or no reads fails every route before its answer is read.

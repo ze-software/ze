@@ -26,6 +26,9 @@ type fieldsTransport struct {
 // readvertise rail.
 func (f *fieldsTransport) FilterReadvertise(_, _ string) (readvertise, ok bool) { return false, true }
 
+// FilterJudgesFinal answers that the filter does not run again over a rewritten body.
+func (f *fieldsTransport) FilterJudgesFinal(_, _ string) (judgesFinal, ok bool) { return false, true }
+
 // FilterDeclaration answers a filter named in reads as declared, reading
 // those fields and setting none, as the library chain's external member
 // asks before it calls the filter.

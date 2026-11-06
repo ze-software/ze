@@ -29,8 +29,15 @@ type writerBoundaryTransport struct {
 	conn *plugipc.PluginConn
 }
 
+// FilterReadvertise opts "stale" and "stale-too" in, as llgr-egress does, and
+// "rail-only", a third party's filter that asks for the stale rail and no more.
 func (w *writerBoundaryTransport) FilterReadvertise(plugin, filter string) (bool, bool) {
-	return filter == "stale", plugin == answerPlugin
+	return filter == "stale" || filter == "stale-too" || filter == "rail-only", plugin == answerPlugin
+}
+
+// FilterJudgesFinal has "stale" and "stale-too" run again over a rewritten body.
+func (w *writerBoundaryTransport) FilterJudgesFinal(plugin, filter string) (bool, bool) {
+	return filter == "stale" || filter == "stale-too", plugin == answerPlugin
 }
 
 func (w *writerBoundaryTransport) CallFilterUpdate(ctx context.Context, _ string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
@@ -38,7 +45,9 @@ func (w *writerBoundaryTransport) CallFilterUpdate(ctx context.Context, _ string
 }
 
 // writerBoundaryPeer binds the exact same send encoding to peer and session,
-// as OPEN completion does, and installs the real originated export gate.
+// as OPEN completion does, and installs the chain and normalization of the originated
+// export gate through exportFilterForBody. Production installs Peer.egressGate,
+// which also stamps the write.
 func writerBoundaryPeer(t *testing.T, r *Reactor) (*Peer, *recordingConn) {
 	t.Helper()
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")

@@ -1349,6 +1349,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 			OnError:        onError,
 			Overrides:      f.Overrides,
 			Readvertise:    f.Readvertise,
+			JudgesFinal:    f.JudgesFinal,
 		})
 	}
 

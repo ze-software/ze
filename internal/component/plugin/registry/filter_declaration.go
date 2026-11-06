@@ -124,6 +124,11 @@ func compileFilterDeclaration(pluginName string, f *rpc.FilterDecl) (DeclaredFil
 			"readvertise rail runs export chains, so declare direction export or both, or drop readvertise " +
 			"(docs/architecture/api/process-protocol.md)").String())
 	}
+	if f.JudgesFinal && f.Direction == rpc.FilterImport {
+		return DeclaredFilter{}, errors.New(tb.Str("with judges-final on an import-only filter; the pass over a " +
+			"rewritten body runs export chains, so declare direction export or both, or drop judges-final " +
+			"(docs/architecture/api/process-protocol.md)").String())
+	}
 	d := DeclaredFilter{
 		Name: f.Name, Direction: f.Direction,
 		Reads: append([]string(nil), f.Reads...), Sets: append([]string(nil), f.Sets...),

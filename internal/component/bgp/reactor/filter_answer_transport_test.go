@@ -53,6 +53,10 @@ func (a *answerTransport) FilterReadvertise(pluginName, _ string) (readvertise, 
 	return false, pluginName == answerPlugin
 }
 
+func (a *answerTransport) FilterJudgesFinal(pluginName, _ string) (judgesFinal, ok bool) {
+	return false, pluginName == answerPlugin
+}
+
 func (a *answerTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return rpc.OnErrorReject }
 
 func (a *answerTransport) CallFilterUpdate(_ context.Context, _ string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {

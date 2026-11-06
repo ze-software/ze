@@ -18,7 +18,7 @@ operator states what a peer must hear.
 Every other rail that reaches a peer works the same way.
 `(*BGPConsumer).InjectRoute` formats `update text ... nlri add <prefix>` (`mp <family> add` for any other family, and for IPv4 unicast with an IPv6 next hop)
 and dispatches it, so a redistributed static or OSPF route re-enters through this
-same announce rail. Export policy still applies: `exportFilterForBody` runs the
+same announce rail. Export policy still applies: `egressGate` runs the
 destination peer's export chain at the session write gate for every originated
 route. An announce that reached no peer comes back as zero routes added with no
 error; `InjectRoute` logs that at Warn under `bgp.redistribute`, naming the
@@ -32,7 +32,7 @@ the filter accepting is not enough toward an EBGP peer with no policy; a
 filter that fails under its on-error refuses the default. The filter only
 gates: its sets change nothing, and emission still passes through the full
 export gate.
-<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- egressGate -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- defaultOriginateFilterAccepts -->
 
 **Every form names its destination, and every form states
@@ -63,7 +63,7 @@ candidates and answers nil.
 
 <!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- the RPCRegistration block -->
 <!-- source: internal/core/selector/selector.go -- ParseDefault -->
-<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- egressGate -->
 <!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce, InjectRoute -->
 
 **The verb covers every BGP family, not FlowSpec only.** `AnnounceNLRIBatch` is

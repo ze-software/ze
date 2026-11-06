@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -1029,6 +1030,11 @@ func TestDefaultOriginateFilterReadsTheDestinationFacts(t *testing.T) {
 type stubLibraryChain struct{}
 
 func (stubLibraryChain) Refused() uint64 { return 0 }
+
+func (stubLibraryChain) SameDecisions(other filterapi.LibraryChain) bool {
+	_, same := other.(stubLibraryChain)
+	return same
+}
 
 // TestDefaultOriginateConditionRunsBesideALibraryChain proves the named
 // condition filter is called when the peer's export chain carries a library

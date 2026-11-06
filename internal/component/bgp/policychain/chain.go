@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"reflect"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -125,6 +126,11 @@ type member struct {
 	settable setMask
 	// external is set for a filter a plugin runs; evaluate is nil then.
 	external *externalMember
+	// config is the instance's config subtree and resolved what its compiler
+	// resolved beside it, both read-only: evaluate is compiled from them, and a
+	// func cannot be compared, so sameDecisions compares these instead.
+	config   map[string]any
+	resolved []policy.Instance
 }
 
 // Chain is one compiled in-process BGP chain. Immutable after Compile, so safe
@@ -254,12 +260,60 @@ func compileMember(attachment string, reg *policy.Registry, name string) (member
 	if err != nil {
 		return member{}, fmt.Errorf("%s: %w", attachment, err)
 	}
-	evaluate, err := registration.compile(name, inst.Config, registryResolver(reg))
+	var resolved []policy.Instance
+	resolve := registryResolver(reg)
+	evaluate, err := registration.compile(name, inst.Config, func(other, filterType string) (map[string]any, error) {
+		config, err := resolve(other, filterType)
+		if err == nil {
+			resolved = append(resolved, policy.Instance{Name: other, Type: filterType, Config: config})
+		}
+		return config, err
+	})
 	if err != nil {
 		return member{}, fmt.Errorf("%s filter %q (%s): %w", attachment, name, inst.Type, err)
 	}
 	return member{name: name, filterType: inst.Type, evaluate: evaluate, onError: registration.onError,
-		settable: maskOf(sets) | intentsOfReads(reads)}, nil
+		settable: maskOf(sets) | intentsOfReads(reads), config: inst.Config, resolved: resolved}, nil
+}
+
+// sameDecisions reports whether m and other were compiled from the same instance
+// and what it resolved, or name the same plugin filter under the same bounds. An
+// external member's verdict is its plugin's own, so a change inside the plugin is
+// invisible here.
+func (m *member) sameDecisions(other *member) bool {
+	if m.name != other.name || m.filterType != other.filterType {
+		return false
+	}
+	if m.onError != other.onError || m.settable != other.settable {
+		return false
+	}
+	if (m.external == nil) != (other.external == nil) {
+		return false
+	}
+	if m.external != nil && *m.external != *other.external {
+		return false
+	}
+	return reflect.DeepEqual(m.config, other.config) && reflect.DeepEqual(m.resolved, other.resolved)
+}
+
+// SameDecisions reports whether other was compiled from what c was. It reads no
+// evaluator, which never compares equal, and not refused, a count of routes that
+// says nothing of how the next one is judged and that a running chain is writing.
+func (c *Chain) SameDecisions(other filterapi.LibraryChain) bool {
+	chain, ok := other.(*Chain)
+	if !ok {
+		return false
+	}
+	if c == chain {
+		return true
+	}
+	if c.attachment != chain.attachment || c.final != chain.final {
+		return false
+	}
+	if c.unconfigured != chain.unconfigured || c.bases != chain.bases {
+		return false
+	}
+	return slices.EqualFunc(c.members, chain.members, func(a, b member) bool { return a.sameDecisions(&b) })
 }
 
 // registryResolver answers, for a member's compiler, the config of the
@@ -379,6 +433,12 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		if sets.route.Readvertise && !c.readvertiseRuns(m, &sets.route) {
 			continue
 		}
+		if sets.route.SkipReadvertise && c.readvertiseRuns(m, &sets.route) {
+			continue
+		}
+		if sets.route.JudgeFinal && !c.judgesFinalRuns(m, &sets.route) {
+			continue
+		}
 		sets.member.Reset()
 		sets.member.display = record != nil
 		sets.member.route = &sets.route
@@ -390,7 +450,10 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 					NotifyCode: verdict.notifyCode, NotifySubcode: verdict.notifySub}
 			}
 			if err == nil && verdict.raw != nil {
-				if sets.folded.Empty() {
+				// A raw answer is built from the route as the chain received it, so
+				// it discards what this pass's earlier members set and, on a pass
+				// over a rewritten body, the rewrite itself.
+				if sets.folded.Empty() && !sets.route.BodyRewritten {
 					return c.rawOutcome(m, verdict.raw, view, sets, record)
 				}
 				err = errExternalRawAfterSets
@@ -451,7 +514,7 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		writeMetadata(view, &sets.member)
 		traceStep(record, m, TracePass, nil, &sets.member)
 	}
-	if sets.route.Readvertise {
+	if sets.route.Readvertise || sets.route.JudgeFinal {
 		return Outcome{Action: OutcomeAccept}
 	}
 	switch c.endFinal(view) {
@@ -539,6 +602,57 @@ func (c *Chain) Readvertises(caller ExternalCaller) bool {
 		}
 	}
 	return false
+}
+
+// judgesFinalRuns reports whether m runs on a pass over a body the chain rewrote:
+// an external member whose plugin's declaration asks for it. A member whose
+// declaration cannot be read runs, and fails under judgeExternal, for the reason
+// readvertiseRuns gives.
+func (c *Chain) judgesFinalRuns(m *member, route *ExternalRoute) bool {
+	if m.external == nil {
+		return false
+	}
+	if route.Caller == nil {
+		return true
+	}
+	decl, ok := route.Caller.FilterDeclaration(m.external.plugin, m.external.filter)
+	if !ok {
+		return true
+	}
+	return decl.JudgesFinal
+}
+
+// HoldsFinalJudge reports whether a pass over a rewritten body would run any member
+// of the chain through caller.
+func (c *Chain) HoldsFinalJudge(caller ExternalCaller) bool {
+	route := ExternalRoute{Caller: caller}
+	for i := range c.members {
+		if c.judgesFinalRuns(&c.members[i], &route) {
+			return true
+		}
+	}
+	return false
+}
+
+// RailEndsOnFinalJudge reports whether a run of the stale readvertise rail already
+// gives the chain's final judge the last look: the rail runs one member, that member
+// is the chain's only final judge, so nothing ran behind it and no pass is owed.
+func (c *Chain) RailEndsOnFinalJudge(caller ExternalCaller) bool {
+	route := ExternalRoute{Caller: caller}
+	rail, judges, both := 0, 0, 0
+	for i := range c.members {
+		onRail, judge := c.readvertiseRuns(&c.members[i], &route), c.judgesFinalRuns(&c.members[i], &route)
+		if onRail {
+			rail++
+		}
+		if judge {
+			judges++
+		}
+		if onRail && judge {
+			both++
+		}
+	}
+	return rail == 1 && judges == 1 && both == 1
 }
 
 // endFinal answers the final that decides a run reaching the end of the

@@ -52,17 +52,28 @@ type fwdKey struct {
 
 // fwdItem is a unit of work dispatched to a forward worker.
 // Pre-computed send operations for one destination peer from one ForwardUpdate call.
-// The worker executes rawBodies (SendRawUpdateBody) then updates (SendUpdate).
+// The worker executes rawBodies then updates under writeMu (fwdBatchHandler).
 type fwdItem struct {
-	rawBodies [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
-	updates   []*message.Update // Re-encode path: SendUpdate per entry
+	rawBodies [][]byte          // Zero-copy or split pieces: writeOriginatedBodyPreFiltered when originated, else writeRawUpdateBody
+	updates   []*message.Update // Re-encode path: writeUpdateGated, gated when originated
 	peer      *Peer             // Target peer for all operations
 	session   *Session          // Destination incarnation captured before materialization
 	authority adjOutAuthority
+
+	// exportGeneration is the Peer.exportGeneration read together with the chain
+	// that judged this item, zero when no chain ran ahead of the writer: the
+	// writer's own gate judges it, or nothing stamped it and it reads as old.
+	exportGeneration uint64
+
 	// pathsLimitDemotion marks an election's withdrawal of a path the RIB
 	// ranked outside the peer's PATHS-LIMIT: its owner is current, and the
 	// recovery writer withdraws it anyway (session_paths_limit_elect.go).
-	pathsLimitDemotion   bool
+	pathsLimitDemotion bool
+	// ownRouteWithdrawal limits an unowned withdrawal to what the key holds as this
+	// speaker's own route (adjOutWrite.allow), and ownRouteWithdrawn records that a
+	// path passed, so the caller can tell a withheld withdrawal from a sent one.
+	ownRouteWithdrawal   bool
+	ownRouteWithdrawn    bool
 	provenance           *fwdProvenance
 	writeBody            int    // Original body ordinal, before final ownership filtering
 	expectedMessage      uint64 // Exact sent receipt for replay/cleanup, never ordinary withdrawal

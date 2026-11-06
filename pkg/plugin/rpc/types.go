@@ -663,9 +663,22 @@ type FilterDecl struct {
 	// a graceful-restart retention re-advertises its stale routes, the
 	// destination's export chain runs only the members whose filter declares
 	// it, with the route's "stale" metadata set (RFC 9494 Section 4.3). A
-	// filter that does not declare it is not run there. An import-only
-	// filter cannot declare it.
+	// filter that does not declare it is not run there. An import-only filter
+	// cannot declare it.
 	Readvertise bool `json:"readvertise,omitempty"`
+	// JudgesFinal runs the filter again over the body an export chain rewrote, so
+	// a member behind it cannot undo what it owes the route. The pass reads as raw
+	// the route as the chain received it and every other field from the rewritten
+	// body, and it may reject, withdraw or set, but a raw answer is refused when
+	// that body differs from the chain's input.
+	// Every member that declares it runs in the pass, in chain order, so a later
+	// one can still undo an earlier one. The answer MUST be safe to repeat on bytes
+	// the filter already judged, because a rewritten route runs it again. The
+	// stale readvertise rail skips the pass when its one member already ran last. A
+	// filter on that rail that does not also declare Readvertise is not run there,
+	// except after a policy change, when the whole chain runs. An import-only filter
+	// cannot declare it.
+	JudgesFinal bool `json:"judges-final,omitempty"`
 }
 
 // FilterFieldRaw is the declarable read that asks for the raw UPDATE body

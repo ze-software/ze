@@ -228,8 +228,36 @@ A stale readvertisement runs only export members whose declarations opt into
 members do not run again, and a non-idempotent set such as AS-path prepend is
 not doubled. A withdrawal decision remains a withdrawal. Writer ownership,
 message-size limits and origination admission still apply.
+
+The exception is a route sent before the peer's export policy last changed,
+whether by a reload that changed it or by the peer being restarted, and a route
+whose earlier send cannot be identified. It runs the whole export policy and its
+final, because the policy that passed it is no longer the one in force, the members
+that opted in running last. A reload that leaves the export policy as it was does
+not trigger this. A rejection withdraws the route from the peer, since leaving it
+would keep a copy with no LLGR_STALE mark until the purge. A route whose earlier send
+cannot be identified is withdrawn only while the prefix holds a route this router
+originated: a fresher route another source put under the same prefix stays.
+
+Known defects, owned by
+[`spec-bgp-refresh-reapplies-export-policy`](../../plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md):
+this run goes over the bytes already sent, so a non-idempotent set such as AS-path
+prepend applies a second time to that route, and a change inside an external
+plugin's own data is not seen as an export policy change and does not trigger it.
+
+When `bgp-gr` runs, its required `llgr-egress` member answers again on a route
+RFC 9494 Section 4.3 binds, one Ze advertised the LLGR Capability for or attached
+LLGR_STALE to: it runs over a body the export chain rewrote, and puts the community
+back if a member took it off. That holds against an ordinary member. A plugin filter
+that declares `judges-final` runs in the same pass, and one behind `llgr-egress` can
+take the community off again. A route from a neighbor Ze sent no capability
+to is not bound, so an export member may remove the 65535:6 such a neighbor sent. An
+import member runs ahead of it and can still take the community off first.
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- defaultOriginateFilterAccepts, sendDefaultOriginateRoutes -->
-<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertiseUnit -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertiseUnit, decideStaleReadvertise -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- staleChainFor, runStaleChain -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runFinalJudges -->
+<!-- source: internal/component/bgp/plugins/gr/gr_filter.go -- evaluateLLGREgress, lostLLGRStale -->
 
 
 ## Common policy building blocks

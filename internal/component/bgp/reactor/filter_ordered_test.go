@@ -590,7 +590,7 @@ func TestImportChainPassesTheSourceContextWidthToThePrepend(t *testing.T) {
 }
 
 // TestExportChainPassesItsWidthToThePrepend is the egress twin. The width is
-// the chain's own asn4 argument, which exportFilterForBody fills with the
+// the chain's own asn4 argument, which Peer.egressGate fills with the
 // destination's send context and runEgressPolicyChain with the source's.
 //
 // VALIDATES: the Wiring Test row for the export chain.
