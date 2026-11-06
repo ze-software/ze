@@ -5,6 +5,7 @@ package repoinventory
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -18,6 +19,11 @@ type assemblyDefinition struct {
 	bodyStart int
 	bodyEnd   int
 	macros    map[string]bool
+	// locals holds, for a TEXT definition, the file's local macros defined
+	// where its body starts; localNames every name the file defines locally.
+	// leafExpansion expands the body from them.
+	locals     map[string]*assemblyLocalMacro
+	localNames map[string]bool
 }
 
 type assemblyStatement struct {
@@ -139,6 +145,11 @@ func assemblyDefine(tokens []string) bool {
 	return len(tokens) >= 2 && tokens[0] == "#" && tokens[1] == "define"
 }
 
+// assemblyUndef reports a complete `#undef name` statement.
+func assemblyUndef(tokens []string) bool {
+	return len(tokens) == 3 && tokens[0] == "#" && tokens[1] == "undef"
+}
+
 func assemblySymbol(raw, prefix string) (string, error) {
 	if raw == "" {
 		return "", fmt.Errorf("empty assembly symbol")
@@ -190,6 +201,14 @@ func assemblyDefinitions(raw []byte, name, prefix string, unit *assemblyNamespac
 					return fmt.Errorf("%s: conditional assembly changes namespace through define", name)
 				}
 				if err := assemblyMacro(statement, unit); err != nil {
+					return fmt.Errorf("%s: %w", name, err)
+				}
+				return nil
+			}
+			// An #undef inside a conditional would change the namespace in one
+			// arm only, so it stays unsupported preprocessing, refused below.
+			if assemblyUndef(tokens) && !blocks.inside() {
+				if err := unit.undefine(tokens[2]); err != nil {
 					return fmt.Errorf("%s: %w", name, err)
 				}
 				return nil
@@ -259,6 +278,9 @@ func assemblyDefinitions(raw []byte, name, prefix string, unit *assemblyNamespac
 		if tokens[0] != "TEXT" {
 			definitionRecord.bodyEnd = end
 		}
+		if tokens[0] == "TEXT" {
+			definitionRecord.locals = maps.Clone(unit.current)
+		}
 		definitions = append(definitions, definitionRecord)
 		return nil
 	})
@@ -278,6 +300,7 @@ func assemblyDefinitions(raw []byte, name, prefix string, unit *assemblyNamespac
 		}
 		definitions[index].symbol = symbol
 		definitions[index].macros = unit.expandable
+		definitions[index].localNames = unit.local
 	}
 	return definitions, nil
 }

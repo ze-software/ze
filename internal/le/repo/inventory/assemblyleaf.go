@@ -34,7 +34,7 @@ func leafDefinition(index *assemblyIndex, definition *assemblyDefinition, body [
 	if err := leafHeader(definition.header, name); err != nil {
 		return nil, fmt.Errorf("%s: %w", definition.path, err)
 	}
-	reads, err := leafBody(body, definition.path, definition.macros)
+	reads, err := leafBody(body, definition)
 	if err != nil {
 		return nil, err
 	}
@@ -123,62 +123,96 @@ func leafFlags(tokens []string) (int, bool, error) {
 	return offset + 1, seen["NOFRAME"], nil
 }
 
-// leafBody proves that a complete entered body is a leaf: every statement is
-// macro-free and condition-free, names a symbol only as a read
-// (leafSymbolReads), calls nothing, emits no raw data and defines nothing;
-// every branch names a label of this body; and the last statement cannot
-// fall past the body's end into whatever follows it. It returns every symbol
-// read, for leafVariables to resolve.
-func leafBody(raw []byte, name string, macros map[string]bool) ([]leafRead, error) {
-	labels := make(map[string]bool)
-	var targets []string
-	var reads []leafRead
-	terminated := false
+// leafWalk is what leafBody has proved of the expanded statements read so
+// far. It is not safe for concurrent use.
+type leafWalk struct {
+	labels     map[string]bool
+	targets    []string   // every branch target, checked against labels at the end
+	reads      []leafRead // every symbol read, in body order
+	terminated bool       // the last statement read cannot fall through
+}
+
+// leafBody proves that a complete entered body is a leaf. It reads the body
+// as the assembler does, with the file's own macros expanded
+// (leafExpansion.statements), and judges every expanded statement: it is
+// condition-free and names no go_asm.h constant, names a symbol only as a
+// read (leafSymbolReads), calls nothing, emits no raw data and defines
+// nothing; no label is defined twice; every branch names a label of this
+// body; and the last statement cannot fall past the body's end into whatever
+// follows it. It returns every symbol read, for leafVariables to resolve.
+func leafBody(raw []byte, definition *assemblyDefinition) ([]leafRead, error) {
+	name := definition.path
+	expansion := newLeafExpansion(definition)
+	walk := leafWalk{labels: make(map[string]bool)}
 	err := assemblyStatements(raw, name, func(statement assemblyStatement) error {
-		tokens := statement.tokens
 		// The complete unit's preprocessing was already validated by the census.
-		if tokens[0] == "#" {
-			if assemblyConditionalDirective(tokens) != assemblyConditionalNone {
+		if statement.tokens[0] == "#" {
+			if assemblyConditionalDirective(statement.tokens) != assemblyConditionalNone {
 				return fmt.Errorf("%s: entered assembly body contains conditional", name)
+			}
+			if err := expansion.directive(statement); err != nil {
+				return fmt.Errorf("%s: %w", name, err)
 			}
 			return nil
 		}
-		if err := macroFreeTokens(tokens, macros); err != nil {
-			return fmt.Errorf("%s: %w", name, err)
-		}
-		for len(tokens) >= 2 && tokens[1] == ":" {
-			labels[tokens[0]] = true
-			// A branch to this label runs what follows it, so the body is
-			// terminated only by an instruction after the last label.
-			terminated = false
-			tokens = tokens[2:]
-		}
-		if len(tokens) == 0 {
-			return nil
-		}
-		step, err := leafInstruction(tokens)
+		statements, err := expansion.statements(statement.tokens)
 		if err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
-		if step.branch {
-			targets = append(targets, step.target)
+		for _, tokens := range statements {
+			if err := walk.statement(tokens, definition.macros); err != nil {
+				return fmt.Errorf("%s: %w", name, err)
+			}
 		}
-		reads = append(reads, step.reads...)
-		terminated = step.ends
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	for _, target := range targets {
-		if !labels[target] {
+	for _, target := range walk.targets {
+		if !walk.labels[target] {
 			return nil, fmt.Errorf("%s: assembly leaf branch target %s is not a label of its body", name, target)
 		}
 	}
-	if !terminated {
+	if !walk.terminated {
 		return nil, fmt.Errorf("%s: assembly leaf body can run past its end", name)
 	}
-	return reads, nil
+	return walk.reads, nil
+}
+
+// statement judges one expanded statement of a leaf body. macros holds the
+// file's expandable names; after expansion only a go_asm.h constant can still
+// match one, and it refuses as before.
+func (walk *leafWalk) statement(tokens []string, macros map[string]bool) error {
+	if err := macroFreeTokens(tokens, macros); err != nil {
+		return err
+	}
+	for len(tokens) >= 2 && tokens[1] == ":" {
+		// cmd/asm's Parser.append refuses a label defined twice in one TEXT
+		// ("label %q multiply defined"), because each TEXT opens a new label
+		// space; so a macro holding a label expands at most once per body.
+		if walk.labels[tokens[0]] {
+			return fmt.Errorf("assembly leaf body defines label %s twice", tokens[0])
+		}
+		walk.labels[tokens[0]] = true
+		// A branch to this label runs what follows it, so the body is
+		// terminated only by an instruction after the last label.
+		walk.terminated = false
+		tokens = tokens[2:]
+	}
+	if len(tokens) == 0 {
+		return nil
+	}
+	step, err := leafInstruction(tokens)
+	if err != nil {
+		return err
+	}
+	if step.branch {
+		walk.targets = append(walk.targets, step.target)
+	}
+	walk.reads = append(walk.reads, step.reads...)
+	walk.terminated = step.ends
+	return nil
 }
 
 // leafInstruction classifies one label-free instruction of a leaf body. The

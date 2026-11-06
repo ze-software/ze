@@ -71,13 +71,13 @@ func asmLeafRefusal(t *testing.T, fixture *asmInventoryFixture, cause string) {
 // no symbol and branches only inside itself, so the full report publishes for
 // both registration sinks.
 //
-// MUTATION: in leafHeader, change `len(tokens) != 10 && len(tokens) != 12` to
-// `len(tokens) != 12`: the `$0` header falls back to the trampoline grammar
-// and the report refuses with "unsupported assembly TEXT flags, frame or ABI
-// grammar", the actual-root message.
-// MUTATION: in leafBody, change `labels[tokens[0]] = true` to
-// `labels[tokens[0]] = false`: the local `JB unsupported` loses its label and
-// the report refuses.
+// MUTATION: (assemblyleaf.go, `if len(frame) != 2 && len(frame) != 4 {`,
+// `if len(frame) != 4 {`): the `$0` header refuses, the trampoline grammar
+// refuses it too, and the report refuses with "unsupported assembly TEXT
+// flags, frame or ABI grammar", the actual-root message.
+// MUTATION: (assemblyleaf.go, `walk.labels[tokens[0]] = true`,
+// `walk.labels[tokens[0]] = false`): the local `JB unsupported` loses its
+// label and the report refuses.
 func TestCommittedAssemblyLeafCPUInfoPreservesFullReport(t *testing.T) {
 	for _, kind := range []string{"plugin", "yang"} {
 		t.Run(kind, func(t *testing.T) {
@@ -115,27 +115,51 @@ func TestCommittedAssemblyLeafTracksPointerArgument(t *testing.T) {
 // MUTATION (call-register): in leafInstruction, delete the
 // `strings.HasPrefix(opcode, "CALL")` refusal: `CALL AX` becomes a leaf and
 // publishes.
-// MUTATION (call-symbol, jump-symbol): these two are refused by two rules
-// each, the CALL rule and the symbol-write rule, or the branch-through-symbol
-// rule and the single-label rule; they publish only when both are deleted.
-// MUTATION (address-constant): refused by two rules, the `operand[0] == "$"`
-// rule in leafSymbolReads and the operand-form rule in leafSymbolOperand,
-// which reads `$` as no symbol; it publishes only when both are deleted.
+// MUTATION (call-symbol): refused by three rules, so it publishes only under
+// all three breaks. (assemblyleaf.go, `if strings.HasPrefix(opcode, "CALL") {`,
+// `if false {`) lets the CALL reach leafSymbolReads;
+// (assemblyleafreads.go, `if offset == len(operands)-1 && !leafCompares[opcode] {`,
+// `if offset == len(operands)-1 && !leafCompares[opcode] && false {`) reads
+// its one operand as a read; and ·inventoryOther, which no Go file and no
+// assembly defines, then refuses in leafReadOnlyTable until
+// (assemblyleafreads.go, `if globals != 1 {`, `if globals != 1 && false {`).
+// MUTATION (jump-symbol): refused by three rules, so it publishes only under
+// all three breaks. (assemblyleaf.go, `if slices.Contains(tokens[1:], "SB") {`,
+// `if false {`) and (assemblyleaf.go, `if len(tokens) != 2 {`, `if false {`)
+// make `·inventoryOther` the branch target, which holds a lower-case letter,
+// so leafBody refuses it as a label the body never defines until
+// (assemblyleaf.go, `if !walk.labels[target] {`,
+// `if !walk.labels[target] && false {`).
+// MUTATION (address-constant): the `$` sits in the symbol slot of the
+// operand, so beyond the `$` rule three checks read it as the symbol: the
+// operand-form check in leafSymbolOperand, its closing `(SB)` check, and
+// assemblySymbol in leafSymbolTarget. It publishes under these three breaks:
+// (assemblyleafreads.go, `if operand[0] == "$" {`,
+// `if operand[0] == "$" && false {`);
+// (assemblyleafreads.go, `read, err := leafSymbolOperand(operand)`,
+// `read, err := leafSymbolOperand(operand[1:])`), which reads the operand
+// past its first token, here the `$`; and, because ·inventoryRegistry is
+// defined nowhere, (assemblyleafreads.go, `if globals != 1 {`,
+// `if globals != 1 && false {`).
 // MUTATION (register-named-label): in leafInstruction, change
 // `strings.ContainsFunc(target, unicode.IsLower)` to `true`: a body that
 // defines a label spelled `AX` turns the register jump `JMP AX` into a
 // "local" branch and publishes.
 // MUTATION (jump-register): refused by two rules, the lowercase-label rule
 // and the defined-label rule; it publishes only when both are deleted.
-// MUTATION (jump-missing-label): in leafBody, delete the `!labels[target]`
-// refusal: a branch to a label the body never defines publishes.
+// MUTATION (jump-missing-label): (assemblyleaf.go, `if !walk.labels[target] {`,
+// `if !walk.labels[target] && false {`): a branch to a label the body never
+// defines publishes.
 // MUTATION (byte-directive): in leafInstruction, delete the data-directive
 // refusal: `BYTE $0xe8` publishes.
-// MUTATION (falls-through): in leafBody, delete the `!terminated` refusal: a
-// body that runs off its end publishes.
-// MUTATION (noncanonical-flag, flag-expression): in leafFlags, change
-// `if !admitted {` to `if false {`: the `DUPOK` leaf and the
-// `NOSPLIT|DUPOK` leaf publish.
+// MUTATION (falls-through): (assemblyleaf.go, `if !walk.terminated {`,
+// `if false {`): a body that runs off its end publishes.
+// MUTATION (flag-expression): (assemblyleaf.go, `if !admitted {`,
+// `if !admitted && false {`): DUPOK reads as an admitted flag beside NOSPLIT
+// and the `NOSPLIT|DUPOK` leaf publishes.
+// MUTATION (noncanonical-flag): the same break leaves the `DUPOK` leaf
+// without NOSPLIT, so leafFlags still refuses it; it publishes only beside
+// (assemblyleaf.go, `if !seen["NOSPLIT"] {`, `if false {`).
 // MUTATION (noframe-frame): in leafHeader, delete the NOFRAME zero-frame
 // refusal: the `NOSPLIT|NOFRAME, $8-2` leaf publishes.
 // MUTATION (missing-nosplit): in leafFlags, delete the `!seen["NOSPLIT"]`

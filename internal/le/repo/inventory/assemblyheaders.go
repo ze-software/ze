@@ -52,6 +52,8 @@ type assemblyHeaderReader struct {
 type assemblyNamespace struct {
 	bound      map[string]bool
 	expandable map[string]bool
+	local      map[string]bool                // every name the file's own #define lines bind, anywhere in it
+	current    map[string]*assemblyLocalMacro // the file's local macros defined at the census's position
 	headers    *assemblyHeaderReader
 	pkg        *sourcePackage
 }
@@ -63,7 +65,14 @@ func (reader *assemblyHeaderReader) unit(pkg *sourcePackage) (*assemblyNamespace
 			return nil, fmt.Errorf("unproved special-package assembler context for %s", identity)
 		}
 	}
-	unit := &assemblyNamespace{bound: make(map[string]bool), expandable: make(map[string]bool), headers: reader, pkg: pkg}
+	unit := &assemblyNamespace{
+		bound:      make(map[string]bool),
+		expandable: make(map[string]bool),
+		local:      make(map[string]bool),
+		current:    make(map[string]*assemblyLocalMacro),
+		headers:    reader,
+		pkg:        pkg,
+	}
 	for _, name := range reader.snapshot.assemblyPredefines {
 		if err := unit.bind(name, false); err != nil {
 			return nil, err
@@ -82,6 +91,22 @@ func (unit *assemblyNamespace) bind(name string, expandable bool) error {
 	if expandable {
 		unit.expandable[name] = true
 	}
+	return nil
+}
+
+// undefine applies `#undef name`. cmd/asm refuses an #undef of a name no
+// macro holds ("#undef for undefined macro"). A header binding is refused
+// too, because removing one would change what a header token means; only a
+// local macro defined above can be removed.
+func (unit *assemblyNamespace) undefine(raw string) error {
+	name, err := assemblySymbol(raw, "")
+	if err != nil {
+		return fmt.Errorf("unsupported #undef name: %w", err)
+	}
+	if unit.current[name] == nil {
+		return fmt.Errorf("assembly #undef %s names no local macro defined above it", raw)
+	}
+	delete(unit.current, name)
 	return nil
 }
 

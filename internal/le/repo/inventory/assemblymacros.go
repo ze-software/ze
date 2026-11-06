@@ -1,9 +1,10 @@
-// Design: docs/architecture/plugin/feature-gates.md -- macro namespace evidence without token expansion.
+// Design: docs/architecture/plugin/feature-gates.md -- macro namespace evidence, and the definitions a leaf body expands.
 // Related: assemblysyntax.go -- whole logical directives and literal definition census.
 package repoinventory
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -20,72 +21,97 @@ func assemblyDefinitionWord(value string) bool {
 	return false
 }
 
-// assemblyMacro admits only definitions whose complete token stream cannot
-// supply a definition opcode/directive. Actual-argument and prefix origins are
-// checked separately by macroDefinitionOrigins; this function expands nothing.
+// assemblyMacro records one #define of the census in unit. cmd/asm refuses a
+// redefinition (Input.defineMacro: "redefinition of macro"), so a name
+// already bound is admitted again only after its #undef (undefine).
 func assemblyMacro(statement assemblyStatement, unit *assemblyNamespace) error {
+	name, macro, err := parseAssemblyMacro(statement)
+	if err != nil {
+		return err
+	}
+	if unit.local[name] && unit.current[name] == nil {
+		unit.current[name] = macro
+		return nil
+	}
+	if err := unit.bind(name, true); err != nil {
+		return err
+	}
+	unit.local[name] = true
+	unit.current[name] = macro
+	return nil
+}
+
+// parseAssemblyMacro admits only definitions whose complete token stream
+// cannot supply a definition opcode/directive. Actual-argument and prefix
+// origins are checked separately by macroDefinitionOrigins. It returns the
+// normalized name and the macro as leafExpansion expands it, with its body
+// copied out of the lexer's reused token slice.
+func parseAssemblyMacro(statement assemblyStatement) (string, *assemblyLocalMacro, error) {
 	tokens := statement.tokens
 	if len(tokens) < 3 {
-		return fmt.Errorf("incomplete macro definition")
+		return "", nil, fmt.Errorf("incomplete macro definition")
 	}
 	name, err := assemblySymbol(tokens[2], "")
 	if err != nil {
-		return fmt.Errorf("unsupported macro name: %w", err)
+		return "", nil, fmt.Errorf("unsupported macro name: %w", err)
 	}
 	if assemblyDefinitionWord(name) {
-		return fmt.Errorf("macro redefines assembly definition word %s", name)
+		return "", nil, fmt.Errorf("macro redefines assembly definition word %s", name)
 	}
-	for _, value := range tokens[3:] {
-		if value == "#" {
-			return fmt.Errorf("macro %s can emit a directive or token-pasting operator", name)
+	for _, word := range tokens[3:] {
+		if word == "#" {
+			return "", nil, fmt.Errorf("macro %s can emit a directive or token-pasting operator", name)
 		}
-		if value == "\\" {
-			return fmt.Errorf("macro %s has unsupported literal escape tokens", name)
+		if word == "\\" {
+			return "", nil, fmt.Errorf("macro %s has unsupported literal escape tokens", name)
 		}
-		if assemblyDefinitionWord(normalizedAssemblyToken(value)) {
-			return fmt.Errorf("macro %s contains a definition-word origin", name)
-		}
-	}
-	if statement.functionMacro {
-		if len(tokens) < 5 {
-			return fmt.Errorf("macro %s has incomplete formals", name)
-		}
-		if tokens[3] != "(" {
-			return fmt.Errorf("macro %s has unproved function-like adjacency", name)
-		}
-		formals := make(map[string]bool)
-		accept := true
-		closed := false
-		for _, value := range tokens[4:] {
-			if value == ")" {
-				closed = true
-				break
-			}
-			if value == "," {
-				if accept {
-					return fmt.Errorf("macro %s has malformed formals", name)
-				}
-				accept = true
-				continue
-			}
-			if !accept {
-				return fmt.Errorf("macro %s has malformed formals", name)
-			}
-			formal, err := assemblySymbol(value, "")
-			if err != nil {
-				return fmt.Errorf("macro %s has unsupported formal: %w", name, err)
-			}
-			if formals[formal] {
-				return fmt.Errorf("macro %s has duplicate formals", name)
-			}
-			formals[formal] = true
-			accept = false
-		}
-		if !closed {
-			return fmt.Errorf("macro %s has unclosed formals", name)
+		if assemblyDefinitionWord(normalizedAssemblyToken(word)) {
+			return "", nil, fmt.Errorf("macro %s contains a definition-word origin", name)
 		}
 	}
-	return unit.bind(name, true)
+	if !statement.functionMacro {
+		return name, &assemblyLocalMacro{body: slices.Clone(tokens[3:])}, nil
+	}
+	if len(tokens) < 5 {
+		return "", nil, fmt.Errorf("macro %s has incomplete formals", name)
+	}
+	if tokens[3] != "(" {
+		return "", nil, fmt.Errorf("macro %s has unproved function-like adjacency", name)
+	}
+	macro := &assemblyLocalMacro{function: true}
+	accept := true
+	closing := -1
+	for offset := 4; offset < len(tokens); offset++ {
+		value := tokens[offset]
+		if value == ")" {
+			closing = offset
+			break
+		}
+		if value == "," {
+			if accept {
+				return "", nil, fmt.Errorf("macro %s has malformed formals", name)
+			}
+			accept = true
+			continue
+		}
+		if !accept {
+			return "", nil, fmt.Errorf("macro %s has malformed formals", name)
+		}
+		formal, err := assemblySymbol(value, "")
+		if err != nil {
+			return "", nil, fmt.Errorf("macro %s has unsupported formal: %w", name, err)
+		}
+		if slices.Contains(macro.formals, formal) {
+			return "", nil, fmt.Errorf("macro %s has duplicate formals", name)
+		}
+		macro.formals = append(macro.formals, formal)
+		accept = false
+	}
+	if closing < 0 {
+		return "", nil, fmt.Errorf("macro %s has unclosed formals", name)
+	}
+	macro.body = slices.Clone(tokens[closing+1:])
+	return name, macro, nil
 }
 
 // macroDefinitionOrigins rejects raw definition words outside the literal
@@ -108,7 +134,8 @@ func macroDefinitionOrigins(tokens []string) error {
 
 // macroFreeTokens is applied only after the complete unit's local namespace is
 // known, including later declarations. Namespace safety cannot certify a header
-// alias or a locally expanded instruction in the entered body.
+// alias or a locally expanded trampoline instruction; a leaf body applies it
+// after expansion (leafExpansion), where only a go_asm.h name can still match.
 func macroFreeTokens(tokens []string, names map[string]bool) error {
 	for _, value := range tokens {
 		if names[normalizedAssemblyToken(value)] {

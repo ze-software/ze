@@ -464,11 +464,39 @@ only the prologue the assembler emits, and for a zero-frame body with no
 refuses, `DUPOK` among them, because it lets the linker keep another
 definition. Its body reads no `TLS`, holds no `CALL`, no
 `BYTE`/`WORD`/`LONG`/`QUAD`/`DWORD`/`OCTA` data that could encode an
-instruction, no definition word and no conditional, uses no local macro, and
-branches only to labels defined in the same body, never through a symbol. A
-branch label needs a lower-case letter, because register names are upper case
-and the assembler reads a register first, and the last statement must be
-`RET` or a local `JMP`, so control cannot run past the body.
+instruction, no definition word, no conditional and no `go_asm.h` constant,
+defines no label twice, and branches only to labels defined in the same body,
+never through a symbol. A branch label needs a lower-case letter, because
+register names are upper case and the assembler reads a register first, and
+the last statement must be `RET` or a local `JMP`, so control cannot run past
+the body.
+
+Every one of those rules judges the body after the `.s` file's own macros
+expand, as `cmd/asm` expands them, so a rule never judges a name in place of
+the instruction it stands for. `xxhash`'s register aliases (`#define prime1
+R13`) and its function-like macros continued over several lines
+(`#define round(acc, x) \`) expand in place: an object-like macro becomes its
+replacement; a function-like one takes a parenthesized argument list on the
+same line, split at the commas outside nested parentheses, and each formal in
+its replacement becomes the raw tokens of its argument. The result is read
+again, so a macro in a replacement or an argument expands in turn, and a
+newline or `;` a replacement holds ends a statement. `#undef` removes a local
+macro defined above it, and the name may then be defined again. The expansion
+refuses a local macro name used before its `#define` or after its `#undef`
+(the assembler would read a plain name), a function-like macro with no
+argument list, an unterminated list or the wrong argument count, a macro whose
+expansion reaches itself, and an expansion that pushes more than 65536 tokens
+in one body. A redefinition without `#undef`, an `#undef` of anything but a
+local macro, either one inside a conditional, and a replacement that holds a
+definition word or a directive refuse when the file is read, so no expansion
+yields a `TEXT`, `GLOBL` or `DATA` line. A label inside a macro expanded twice
+in one body is refused as a label defined twice, which the assembler refuses
+too, because each `TEXT` opens its own label space. The fixed bindings of
+`textflag.h` and `funcdata.h` stay names, and a `go_asm.h` constant still
+refuses.
+<!-- source: internal/le/repo/inventory/assemblyexpand.go -- leafExpansion.statements, leafActuals, leafReplacement, leafExpansionTokensMax -->
+<!-- source: internal/le/repo/inventory/assemblymacros.go -- assemblyMacro, parseAssemblyMacro -->
+<!-- source: internal/le/repo/inventory/assemblyheaders.go -- assemblyNamespace.undefine -->
 
 A leaf may name a symbol through `(SB)` only to read it, as `sym[<>][+N](SB)`
 with no index register. An operand in the last slot is the destination, so it
@@ -500,9 +528,11 @@ without being expanded or executed. Their complete logical definitions,
 including continued lines, must not emit definition words or directives;
 actual argument and prefix-hidden definition words also refuse. Literal
 definition headers must be free of local macro bindings, and the entered
-trampoline's or leaf's literal instructions remain macro-free. These checks use the
+trampoline's literal instructions remain macro-free. These checks use the
 whole unit, including later definitions. Unknown preprocessing still refuses;
 namespace certification never certifies an arbitrary expanded instruction body.
+A leaf body alone is expanded, and then only to judge every expanded
+statement by the leaf rules above.
 <!-- source: internal/le/repo/inventory/assemblymacros.go -- assemblyMacro, macroFreeTokens -->
 
 Balanced `#ifdef`/`#ifndef` blocks can contribute namespace evidence only when
