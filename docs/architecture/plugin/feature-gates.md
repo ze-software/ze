@@ -232,13 +232,28 @@ method signatures, without copying an intermediate map through every ancestor.
 Separate root or field queries, even on one reused walker, own fresh summaries.
 Valid argument visits retain their order before backedge checks; an argument
 ownership preflight preserves the existing unknown-only invalid-argument return.
-No completed descriptor answer is cached. Local uncertainty does not cancel
-sibling traversal.
+No completed descriptor answer is cached, within a query or across queries.
+Local uncertainty does not cancel sibling traversal.
 <!-- source: internal/le/repo/inventory/externalreflection.go -- externalEffects.exposeSignature, externalEffects.reflectedValue, externalEffects.promoteReflection -->
 <!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk.value, externalReflectionWalk.collect, externalReflectionWalk.collectNamed, externalReflectionWalk.collectMethods -->
 <!-- source: internal/le/repo/inventory/externalreflectionidentity.go -- externalReflectionFrameEqual, externalReflectionArgumentEqual -->
 <!-- source: internal/le/repo/inventory/externalreflectionroots.go -- externalReflectionWalk.interfaceRoot -->
 <!-- source: internal/le/repo/inventory/externalreflectionreturns.go -- externalEffects.returnedReflection -->
+
+Within one query, the walk can skip a named visit, but only when it has proof
+that the output union already holds what the visit would add. The proof is an
+earlier completed visit of the same exact frame (definition, resolved arguments
+and flags) at the same owner and incoming depth, where every ancestor frame
+that its subtree pruned against is on the current path. The later visit then
+prunes at least the same edges, so it can only collect a part of what the
+earlier one collected. A visit skipped this way charges those ancestors to the
+visit that contains it, so that visit's own record stays a proof. The table
+keeps this proof and never an answer: no method, origin or refusal reason. Each
+query owns a fresh table and drops it when it returns. When the table is full
+(in total, for one key, or in ancestor frames), the visit is not recorded and a
+later equal visit takes the full walk.
+<!-- source: internal/le/repo/inventory/externalreflectionreuse.go -- externalReflectionReuse.covered, externalReflectionReuse.complete, externalReflectionReuse.store, externalReflectionAncestorsActive -->
+<!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk.value, externalReflectionWalk.collectNamed -->
 
 The observation horizon is completed initialization. Without a proved ordering
 boundary, delayed callbacks and retained writes to exposed roots remain possible

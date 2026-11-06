@@ -12,6 +12,12 @@ import (
 type externalReflectionWalk struct {
 	effects *externalEffects
 	path    []externalReflectionFrame
+	// reuse is the running query's table of completed visits, nil outside a
+	// query or when a test disabled reuse.
+	reuse *externalReflectionReuse
+	// probe is set only by tests: it disables reuse, shrinks the table, or
+	// counts expanded visits. Production walkers leave it nil.
+	probe *externalReflectionReuseProbe
 }
 
 type externalReflectionFrame struct {
@@ -24,8 +30,13 @@ type externalReflectionFrame struct {
 // value owns one fresh output for each query, including queries on a reused
 // walker. Recursive descriptor edges collect into that output without copying
 // intermediate summaries. Active path lifetime remains scoped to recursion.
+// The query also owns a fresh reuse table, which is dropped when it returns,
+// so no proof crosses from one output union to another.
 func (w *externalReflectionWalk) value(source sourceExpr, scope *externalTypeScope, methods, valueRoot bool, depth int) externalReflection {
 	var result externalReflection
+	outer := w.reuse
+	w.reuse = newExternalReflectionReuse(w.probe)
+	defer func() { w.reuse = outer }()
 	w.collect(source, scope, methods, valueRoot, depth, &result)
 	return result
 }
@@ -172,13 +183,41 @@ func (w *externalReflectionWalk) collectNamed(source sourceExpr, arguments []ext
 		w.collect(argument.source, argument.scope, true, false, depth+1, result)
 	}
 	frame := externalReflectionFrame{definition: definition, arguments: arguments, methods: methods, valueRoot: valueRoot}
-	for _, active := range w.path {
+	for index, active := range w.path {
 		if externalReflectionFrameEqual(active, frame, depth) {
+			if w.reuse != nil {
+				w.reuse.pruned(index)
+			}
+			return
+		}
+	}
+	// Skip this visit when the output union already holds everything it could
+	// add. An earlier visit of the same exact frame, owner and incoming depth
+	// has completed in this query, and every active frame its subtree pruned
+	// against is on the path now. Inside its subtree that visit read only the
+	// frame, the depth, the scopes its arguments carry, and the active path,
+	// and it read the path only in the backedge check above. So this visit
+	// would make every prune the earlier one made, and perhaps more, and a
+	// prune only cuts a subtree out: this walk would be the earlier walk with
+	// parts removed. The union only accumulates (methods and origins are sets,
+	// and the first unknown reason wins), so what this visit could add is
+	// already there. Without that proof, or when the table is full, the visit
+	// traverses as before.
+	if w.reuse != nil {
+		if w.reuse.covered(w.path, frame, owner, depth) {
 			return
 		}
 	}
 	w.path = append(w.path, frame)
 	defer func() { w.path = w.path[:len(w.path)-1] }()
+	if w.probe != nil {
+		w.probe.traversals++
+	}
+	if w.reuse != nil {
+		w.reuse.enter(len(w.path) - 1)
+		// Runs before the path pop above, so the path still holds this frame.
+		defer func() { w.reuse.complete(w.path, frame, owner, depth) }()
+	}
 	scope := w.effects.typeIdentities.lexicalScope(owner)
 	if len(arguments) != 0 {
 		scope = externalBindTypeParameters(scope, definition.TypeParams, arguments)
