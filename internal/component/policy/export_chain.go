@@ -17,7 +17,7 @@ const exportDirection = "export"
 // chain, `<root> filter export filters`. The owner registers it with
 // MustRegisterRouteChainPath so `ze config validate` checks the names offline.
 func ExportChainPath(root string) []string {
-	return []string{root, "filter", exportDirection, "filters"}
+	return []string{root, chainFilterContainer, exportDirection, chainFiltersLeaf}
 }
 
 // CompileExportChain compiles the export chain configured at `<root> filter
@@ -27,7 +27,7 @@ func ExportChainPath(root string) []string {
 // unchanged. A chain with no valid final, or naming a filter the attachment
 // refuses, is an error naming the fix.
 func CompileExportChain(root, attachment string, rootCfg, policyCfg map[string]any) (chain *RouteChain, present bool, err error) {
-	filterCfg, ok := rootCfg["filter"].(map[string]any)
+	filterCfg, ok := rootCfg[chainFilterContainer].(map[string]any)
 	if !ok {
 		return nil, false, nil
 	}
@@ -35,19 +35,19 @@ func CompileExportChain(root, attachment string, rootCfg, policyCfg map[string]a
 	if !ok {
 		return nil, false, nil
 	}
-	finalText, _ := exportCfg["final"].(string) // a missing final is refused below
+	finalText, _ := exportCfg[chainFinalLeaf].(string) // a missing final is refused below
 	var final Final
 	switch finalText {
-	case "accept":
+	case chainFinalAccept:
 		final = FinalAccept
-	case "reject":
+	case chainFinalReject:
 		final = FinalReject
 	default:
 		return nil, false, fmt.Errorf("%s/filter/export/final: missing or invalid final %q; "+
 			"every export policy requires a final decision; write export { filters [ NAME ]; final accept; } or final reject",
 			root, finalText)
 	}
-	chain, err = CompileRouteChain(attachment, configvalue.LeafList(exportCfg["filters"]), final, policyCfg)
+	chain, err = CompileRouteChain(attachment, configvalue.LeafList(exportCfg[chainFiltersLeaf]), final, policyCfg)
 	if err != nil {
 		return nil, false, fmt.Errorf("%s/filter/export: %w", root, err)
 	}

@@ -39,7 +39,7 @@ func MustRegisterRouteChainPath(pattern []string, attachment string) {
 	if len(pattern) < 2 {
 		panic("BUG: policy: route chain path for " + attachment + " is too short")
 	}
-	if pattern[len(pattern)-1] != "filters" {
+	if pattern[len(pattern)-1] != chainFiltersLeaf {
 		panic("BUG: policy: route chain path " + strings.Join(pattern, " ") + " does not end in filters")
 	}
 	vocab.mu.RLock()

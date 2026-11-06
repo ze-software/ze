@@ -143,7 +143,7 @@ func chainLeafAt(at []string) (chainLeaf, error) {
 		return chainLeaf{}, fmt.Errorf("policy: %q is not a filter chain: a chain is <root> filter <direction> filters",
 			strings.Join(at, " "))
 	}
-	if at[last-2] != "filter" {
+	if at[last-2] != chainFilterContainer {
 		return chainLeaf{}, fmt.Errorf("policy: %q is not a filter chain: a chain is <root> filter <direction> filters",
 			strings.Join(at, " "))
 	}
@@ -168,19 +168,15 @@ func chainLeafAt(at []string) (chainLeaf, error) {
 	return leaf, nil
 }
 
-// ribFinalAccept is the `final accept` the one-member chain ribMemberCheck
-// asks about carries: readRIBChain refuses a chain with no final, and the
-// member check does not depend on which final it is.
-const ribFinalAccept = "accept"
-
 // ribMemberCheck is the check readRIBChain runs at verify over policyCfg,
 // asked of a chain holding member alone: every member is judged on its own
 // there too.
 func ribMemberCheck(imp ribImport, policyCfg map[string]any) ChainMemberCheck {
 	return func(reg *Registry, member, _ string) error {
-		chainCfg := map[string]any{"filter": map[string]any{"import": map[string]any{
-			"filters": []string{member},
-			"final":   ribFinalAccept,
+		// The member check requires a final but does not depend on its value.
+		chainCfg := map[string]any{chainFilterContainer: map[string]any{"import": map[string]any{
+			chainFiltersLeaf: []string{member},
+			chainFinalLeaf:   chainFinalAccept,
 		}}}
 		_, _, err := readRIBChain(imp, chainCfg, reg, policyCfg)
 		return err

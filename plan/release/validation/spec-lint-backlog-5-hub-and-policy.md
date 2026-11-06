@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 18 findings of the full lint in `cmd/ze` and the policy component; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 2/3 |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
@@ -49,12 +49,12 @@ modernize 1, unused 1. Line numbers are the CI run's.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/doors/hub-engine.md` - `cmd/ze` and the hub
+- [x] `ai/doors/hub-engine.md` - `cmd/ze` and the hub
   → Constraint: an untagged test does not see BGP; the hub tests run with the tags their package needs
   → Constraint: `TestEveryCommandOnEverySurface`-style parity tests must keep proving every surface; a gocritic rewrite keeps every case
-- [ ] `ai/doors/system.md` - the policy component sits under no subsystem door
+- [x] `ai/doors/system.md` - the policy component sits under no subsystem door
   → Constraint: a goconst constant names one concept once; a config path or chain keyword the YANG already declares is read from its declaration where one exists
-- [ ] `docs/contributing/ze-go-style.md` - "The rules a tool enforces"
+- [x] `docs/contributing/ze-go-style.md` - "The rules a tool enforces"
 
 **Key insights:**
 - The policy goconst strings are config words (chain and source names); check whether a declared constant already holds each before adding one.
@@ -62,9 +62,9 @@ modernize 1, unused 1. Line numbers are the CI run's.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/policy/export_chain.go` - three repeated strings
-- [ ] `cmd/ze/hub/surface_parity_test.go` - the parity test's gocritic and modernize sites
-- [ ] `.golangci.yml` - the linter settings
+- [x] `internal/component/policy/export_chain.go` - three repeated strings
+- [x] `cmd/ze/hub/surface_parity_test.go` - the parity test's gocritic and modernize sites
+- [x] `.golangci.yml` - the linter settings
 
 **Behavior to preserve:**
 - The policy chain's config words and every hub test's assertions.
@@ -101,7 +101,7 @@ modernize 1, unused 1. Line numbers are the CI run's.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | The scoped run before the first edit | unvalidated |
+| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | Saved CI list compared with current source; parent prohibited concurrent lint | broken: the seven hub findings already have source rewrites; fresh lint remains owed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -148,6 +148,48 @@ modernize 1, unused 1. Line numbers are the CI run's.
 1. Scoped lint; record the current list.
 2. Policy goconst; hub test findings.
 3. Scoped lint zero; tests pass.
+
+### Step 2 source audit and patch (2026-11-02)
+
+The parent authorized this child under the umbrella's one-off WIP exception;
+claim used command-local `ZE_SPEC_WIP_CAP=25`. The parent holds serialized
+verification and commits. No tests, lint, builds or compiles ran in this phase.
+
+| Finding | Current source and action |
+|---------|---------------------------|
+| Hub errcheck, two sites | The cleanup in `build_tag_ssh_absent_test.go` already explicitly discards `Process.Kill` and log close errors. No edit. This establishes the reported lint shape is gone, not new runtime proof. |
+| Hub gocritic and exhaustive in local bridge | `matchMandatoryArgs` indexes definitions; `matchValue` lists all five named argument kinds. `matchArtifact` also already uses `bytes.Equal`. No assertions changed. |
+| Hub modernize and two gocritic sites in surface parity | `bashRootNames` uses `strings.Cut`; `registerStage1Commands` and `collectCommandRegistrations` index command declarations. All surface checks remain in place. No edit. |
+| Policy goconst, ten sites | `chain.go` declares the shared chain container, leaf and final-value tokens. The tree, export, RIB and reference readers use those exact values. The former `ribFinalAccept` declaration is incorporated into the shared final token; match-action tokens remain separate concepts. No registry or selection behavior changes. |
+| Unused schema helper | Removed only `cmd/ze/schema_helpers_test.go`'s uncalled `wireToPathsForTest`. Recursive search of every Go file under `cmd/ze`, without build-tag filtering, found only this declaration and the separate helper and caller in `cmd/ze/internal/cmdutil`. The latter are retained. No test case or executed assertion was removed. |
+
+Diagnosis: repeated chain vocabulary, rather than a policy-selection defect,
+caused the ten policy findings. The source fix shares names for the same config
+concept. A lint suppression would leave the duplication and is not used. The
+unused helper belongs to a package with no caller; keeping it behind a different
+tag would hide the finding without restoring a use.
+
+### Evidence still owed to step 3
+
+- AC-1: `./le go lint run scope "./cmd/ze/... ./internal/component/policy/..."`.
+  Use the runner's existing flavor matrix, including SSH-absent and SSH/web-present.
+- AC-2: serialized package tests for `./cmd/ze`, `./cmd/ze/hub` and
+  `./internal/component/policy`, using the declared feature tags (BGP for the
+  local-bridge fixture; SSH and web for surface parity; `ze_core` for the
+  removed helper's package). Include the existing SSH-absent tests in a build
+  without `ze_ssh`. Derive the full shipped tag set from the existing manifest.
+- Keep `TestLocalCommandDaemonMatchesLocal`, `TestEveryCommandOnEverySurface`,
+  `TestExtractChain`, `TestRIBImportCompilesAndJudges` and
+  `TestRIBImportRefusals` in that evidence; do not replace their assertions.
+- AC-3: no suppression was added. Independent review and the spec citation-anchor
+  check remain owed. No documented behavior changed, so no guide rewrite is needed.
+- No product defect was identified for a red-first queue by this source audit.
+
+### Mistake Log: Wrong Assumptions
+
+| Assumption | Correction |
+|------------|------------|
+| A-1: all saved CI findings still need edits | Current source already carries the seven hub lint rewrites. Only policy literals and the unused helper were changed. This does not establish a clean lint run. |
 
 ### Critical Review Checklist
 

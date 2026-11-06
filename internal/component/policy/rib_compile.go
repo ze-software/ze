@@ -176,7 +176,7 @@ func registryFromPolicy(policyCfg map[string]any) (*Registry, error) {
 // one attachment's root and checks every name it holds. configured is false
 // when the root holds no import chain.
 func readRIBChain(imp ribImport, rootCfg map[string]any, reg *Registry, policyCfg map[string]any) (ribChainConfig, bool, error) {
-	filterCfg, ok := rootCfg["filter"].(map[string]any)
+	filterCfg, ok := rootCfg[chainFilterContainer].(map[string]any)
 	if !ok {
 		return ribChainConfig{}, false, nil
 	}
@@ -184,12 +184,12 @@ func readRIBChain(imp ribImport, rootCfg map[string]any, reg *Registry, policyCf
 	if !ok {
 		return ribChainConfig{}, false, nil
 	}
-	chain := ribChainConfig{imp: imp, refs: configvalue.LeafList(importCfg["filters"])}
-	finalText, _ := importCfg["final"].(string)
+	chain := ribChainConfig{imp: imp, refs: configvalue.LeafList(importCfg[chainFiltersLeaf])}
+	finalText, _ := importCfg[chainFinalLeaf].(string)
 	switch finalText {
-	case "accept":
+	case chainFinalAccept:
 		chain.final = FinalAccept
-	case "reject":
+	case chainFinalReject:
 		chain.final = FinalReject
 	default:
 		return ribChainConfig{}, false, fmt.Errorf("%s/filter/import/final: missing or invalid final %q; "+

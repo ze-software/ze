@@ -30,6 +30,16 @@ const (
 	FinalReject
 )
 
+// Chain config tokens name the containers, leaves and final values shared by
+// the tree reader, plugin-map readers and reference completion.
+const (
+	chainFilterContainer = "filter"
+	chainFiltersLeaf     = "filters"
+	chainFinalLeaf       = "final"
+	chainFinalAccept     = "accept"
+	chainFinalReject     = "reject"
+)
+
 // Chain is an immutable filter chain: ordered refs and the final decision.
 // Its zero value is an absent operator chain; refs alone do not make it
 // configured, so a protocol can carry automatic refs and still decide its own
@@ -100,15 +110,15 @@ func ExtractChain(tree *config.Tree, direction, path string) (Chain, error) {
 	if final == 0 {
 		return Chain{}, nil
 	}
-	block := tree.GetContainer("filter").GetContainer(direction)
-	return NewChain(RefsFromMembers(block.GetMultiValuesState("filters")), final)
+	block := tree.GetContainer(chainFilterContainer).GetContainer(direction)
+	return NewChain(RefsFromMembers(block.GetMultiValuesState(chainFiltersLeaf)), final)
 }
 
 // ParseChainFinal validates an original layer before inheritance can hide an
 // omitted final, and answers zero for a layer with no chain in direction.
 // Validation alone never allocates or copies refs.
 func ParseChainFinal(tree *config.Tree, direction, path string) (Final, error) {
-	fc := tree.GetContainer("filter")
+	fc := tree.GetContainer(chainFilterContainer)
 	if fc == nil {
 		return 0, nil
 	}
@@ -122,11 +132,11 @@ func ParseChainFinal(tree *config.Tree, direction, path string) (Final, error) {
 		}
 		return 0, nil
 	}
-	final, _ := block.Get("final")
+	final, _ := block.Get(chainFinalLeaf)
 	switch final {
-	case "accept":
+	case chainFinalAccept:
 		return FinalAccept, nil
-	case "reject":
+	case chainFinalReject:
 		return FinalReject, nil
 	default:
 		return 0, fmt.Errorf("%s/filter/%s/final: missing or invalid final %q; every configured policy requires a final decision; write %s { filters [ NAME ]; final accept; } or final reject", path, direction, final, direction)
