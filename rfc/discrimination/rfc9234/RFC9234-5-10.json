@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9234-5-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNonUnicastWithdrawalNotProcessed",
+    "unit-sha": "a12ba38cdb0b0a65",
+    "claim-sha": "23849f39b4c35a1b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 526: \"return true\" -\u003e \"return false\""
+  },
+  {
+    "rid": "RFC9234-5-10",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod",
+    "unit-sha": "baacf3249e61712c",
+    "claim-sha": "29fe961287eecc6f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 525: \"!isPayloadUnicast(payload)\" -\u003e \"isPayloadUnicast(payload)\""
+  },
+  {
+    "rid": "RFC9234-5-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressUnicastOnly",
+    "unit-sha": "752fbbc3552c38fd",
+    "claim-sha": "1430cab89b0f8550",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 526: \"return true\" -\u003e \"return false\""
+  },
+  {
+    "rid": "RFC9234-5-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCNonUnicastWithdrawalSkipsOTCProcedures",
+    "unit-sha": "d0a3c5479a069d1b",
+    "claim-sha": "ec20c0fc11e1856f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 525: \"!isPayloadUnicast(payload)\" -\u003e \"false\""
+  }
+]

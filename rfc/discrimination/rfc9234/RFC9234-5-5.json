@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9234-5-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck",
+    "unit-sha": "f36e1ffd427c13ba",
+    "claim-sha": "a1a981bcde97050c",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::checkOTCEgress",
+    "producer-sha": "a5bc55397ca30828",
+    "break": "line 301: \"destRemoteRole == roleProvider || destRemoteRole == rolePeer || destRemoteRole == roleRS\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC9234-5-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck",
+    "unit-sha": "f36e1ffd427c13ba",
+    "claim-sha": "01ab7f06ed8a50bb",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::checkOTCEgress",
+    "producer-sha": "a5bc55397ca30828",
+    "break": "line 301: \"destRemoteRole == roleProvider || destRemoteRole == rolePeer || destRemoteRole == roleRS\" -\u003e \"true\""
+  }
+]

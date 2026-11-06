@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9234-5-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN",
+    "unit-sha": "b8153ce5d86bfade",
+    "claim-sha": "470526e9ec4b0f99",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 680: \"dest.LocalAS\" -\u003e \"dest.PeerAS\""
+  }
+]
