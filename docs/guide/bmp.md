@@ -346,8 +346,9 @@ connects (or reconnects after a drop) is told everything again, in this order:
    both. RFC 4724 Section 4 requires the marker "including the case when there is
    no update to send" for an address family, and RFC 7854 Section 5 imports that
    definition for the BMP dump. A Loc-RIB with no best paths at all therefore
-   still gets both markers, so a collector can tell an empty table from a dump
-   still in flight.
+   still gets both markers. These markers usually arrive before the routes, so a
+   collector cannot yet use them to tell an empty table from a dump still in
+   flight (see the Loc-RIB paragraph below).
 
 The sender maintains the current per-NLRI state even while collectors are
 disconnected. ADD-PATH identifiers distinguish paths, and family-specific keys
@@ -362,15 +363,26 @@ rebuild its complete state before that peer can be replayed.
 
 <!-- source: internal/component/bgp/plugins/bmp/bmp_replay.go -- cacheAdjUpdate, replayPeerLocked -->
 
-Each Loc-RIB dump carries a correlation token, and the RIB echoes it on every batch
-that dump produces. Ze closes a family only for a batch whose token matches, so
-two collectors that connect together each get a complete dump of their own, and
-neither is told that a dump it never requested has finished. A replay that
-another subsystem asks for (sysrib emits one on the same handle) still reaches
-every collector as Route Monitoring, because those routes are real, but it closes
-no family.
+A Loc-RIB End-of-RIB marker does not yet mean that the dump has finished. Each
+dump carries a correlation token, and `bgp-rib` takes the request as a plugin
+subscription. Delivery only queues that request, so it returns before `bgp-rib`
+has sent a route. Ze then ends the dump's scope and sends the End-of-RIB marker
+of every family not already closed, which is normally both. The routes usually
+arrive after the markers. No scope then matches their token, so they reach every
+connected collector as Route Monitoring, not only the collector that asked.
 
-<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- emitReplayRequest, handleBestChange, dumpFamilies -->
+Read a Loc-RIB End-of-RIB marker only as "the dump was requested", and keep
+applying Route Monitoring after it. A collector can also receive the routes of a
+dump another collector asked for. RFC 7854 Section 5 says "When the initial dump
+is completed for a given peer, this MUST be indicated by sending an End-of-RIB
+marker for that peer", so this order does not meet the RFC. The fix is
+`plan/release/fixes/spec-bmp-locrib-dump-end-of-rib-before-routes.md`. A replay
+that another subsystem asks for reaches every collector the same way, and it
+closes no family.
+
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- emitReplayRequest, handleBestChange, closeDumpFamilies -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin startup subscriptions -->
+<!-- source: internal/component/plugin/process/delivery.go -- Process.Deliver -->
 
 Reconnection is not immediate: after a connection ends, ze waits out its
 reconnect interval before redialing, so a flapping collector cannot drive a

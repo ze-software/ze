@@ -6,7 +6,7 @@
 | Priority | P1 |
 | Release reason | Committed export policy must reconcile previously advertised routes, not only future updates. |
 | Scope | protocol |
-| Depends | `plan/release/fixes/spec-plugin-reload-applies-or-refuses.md` (the egress filter plugins gain a live apply there) |
+| Depends | `plan/release/fixes/spec-plugin-reload-applies-or-refuses.md` (the egress filter plugins gain a live apply there); `plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md` (re-running the chain needs the pre-policy attributes that spec stores) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-14 |

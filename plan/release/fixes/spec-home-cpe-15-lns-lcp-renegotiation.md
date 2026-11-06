@@ -137,8 +137,9 @@ Also owed:
 **Behavior to preserve:**
 - Default: proxy LCP accepted exactly as today, including the re-challenge.
 - Malformed or partial proxy AVPs still fall back to normal LCP.
-- The username from Proxy Authen Name still seeds `sess.username` for logs
-  and accounting until authentication replaces it.
+- `plan/release/fixes/spec-l2tp-proxied-pap-interop-and-identity.md` ends the
+  seeding of `sess.username` from Proxy Authen Name, so this spec reads an
+  accepted identity there and leaves that behavior to that spec.
 
 **Behavior to change:**
 - With the new leaf set to renegotiate, the LNS ignores AVPs 26-28 and runs
