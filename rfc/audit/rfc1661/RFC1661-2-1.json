@@ -1,16 +1,16 @@
 {
-  "note": "RFC 1661 Section 2: \"Frames received which don't comply with these rules MUST be treated as having an unrecognized Protocol.\" Rejudged statically at HEAD; the narrowed claim on TestRFC1661NonCompliantProtocolTreatedUnrecognized matches its body, which asserts no termination, exactly one Protocol-Reject naming 0xC020 and state Opened. Low-octet rule: 0xC020. High-octet rule: TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized sends 0xC121 and asserts one Protocol-Reject naming it, so no Echo-Reply, and state Opened. Transmit side: the same unit checks both parity bits on LCP, PAP, CHAP, IPCP, IPV6CP, IPv4 and IPv6, and the WriteFrame callers in the package name only those control protocols, writeCodeReject included (its callers pass ProtoLCP or ncpProto). TestRFC1661CompliantProtocolRecognized requires the Echo-Reply under 0xC021, so a blanket refusal goes red. Caveat on proof: the recorded break of the parity-constant positive panics rejectUnsupportedProtocol, which reddens the later half of the unit and never falsifies the constant loop; by reading, an even constant reaches t.Fatalf, but no record shows it. That doc comment also still says 'dropped' and 'the drop above' where the code now answers a Protocol-Reject.",
+  "note": "RFC 1661 Section 2: \"Frames received which don't comply with these rules MUST be treated as having an unrecognized Protocol.\" Rejudged after 83deb89129, which changed only the doc comment of TestRFC1661CompliantProtocolRecognized ('dropped' became a Protocol-Reject, matching the code). Low-octet rule: TestRFC1661NonCompliantProtocolTreatedUnrecognized sends 0xC020 and asserts no termination, exactly one Protocol-Reject naming 0xC020 and state Opened; the recorded mutant removes the final rejectUnsupportedProtocol return of handleFrame. High-octet rule: TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized sends 0xC121 and asserts one Protocol-Reject naming it, so no Echo-Reply, and state Opened. Transmit side: the same unit checks both parity bits on LCP, PAP, CHAP, IPCP, IPV6CP, IPv4 and IPv6, and the package's WriteFrame callers name LCP, PAP, CHAP and the NCP protocols; the one variable caller, session_run.go:2228, was judged earlier as writeCodeReject with ProtoLCP or ncpProto and was not re-traced here. TestRFC1661CompliantProtocolRecognized requires the Echo-Reply under 0xC021, so a blanket refusal goes red. Caveat on proof: the recorded break of the parity-constant positive panics rejectUnsupportedProtocol, which reddens the later half of the unit and never falsifies the constant loop; by reading, an even constant reaches t.Fatalf, but no record shows it.",
   "requirement_sha": "d38d0dc4f4ee74bc",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized": "480d72ff3c4dac57",
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized#2": "480d72ff3c4dac57",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "4f9ab6a38ee26d29",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "4f9ab6a38ee26d29"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "86bc304723db0e98",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "86bc304723db0e98"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized": "d4a168f08f11f2e5",
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized#2": "d4a168f08f11f2e5",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "95aab366be3298dd",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "66591472a6deaba9",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "f9021568510f4302"
   },
   "verdict": "enforced"

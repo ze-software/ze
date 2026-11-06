@@ -1,13 +1,13 @@
 {
-  "note": "RFC 1334 Section 2.2.2: \"If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate-Nak), and SHOULD take action to terminate the link.\" Rejudged statically at HEAD. Code 3 on reject is enforced: TestPAPRejectWritesNak asserts payload[0]==PAPAuthenticateNak, and TestPAPRequestEmitsEvent asserts Ack on accept. The clause 'a PAP packet' is not: TestPAPRejectWritesNak discards the protocol (`_, payload := readPeerFrame`), and the only ProtoPAP assertion is on the Ack in the other test. A reject path that framed Code 3 under another Protocol stays green. Today pap.go writes both replies under one WriteFrame(ProtoPAP) before the branch, so the code complies and this is a test gap, not a product defect. Fix: assert proto==ProtoPAP on the reply in TestPAPRejectWritesNak. The SHOULD half is RFC1334-2.3-5 and is not claimed here.",
+  "note": "RFC 1334 Section 2.2.2: \"If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate-Nak), and SHOULD take action to terminate the link.\" The earlier weak verdict rested on the clause 'a PAP packet': TestPAPRejectWritesNak discarded the Protocol. 83deb89129 makes it read the Protocol and assert proto == ProtoPAP on the reject reply, so a Code 3 framed under another Protocol now goes red by reading. Code 3 is asserted by the same unit, and TestPAPRequestEmitsEvent asserts Ack on accept, so an unconditional Nak goes red; the recorded mutant inverts the branch at pap.go:258. Caveat on proof: no record shows the new assertion red. The positive record panics WritePAPNak, which fails before any assertion is reached, and pap.go:250 frames both replies under one WriteFrame(ProtoPAP). The tagged units compare the symbolic constant; the literal Code 3 is pinned by the untagged TestPAPWriteNak (0x03). The SHOULD half is RFC1334-2.3-5 and is not claimed here.",
   "requirement_sha": "1413540851c632dd",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "8adffcb3742d299f",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8adffcb3742d299f"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "bcead1076c8ea0bc",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "bcead1076c8ea0bc"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "25c6d3c80a46b9bf",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "fead172fde580aff"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "1665c54fc4dc88c2",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "c5dcc74a7e3e7c50"
   },
-  "verdict": "weak"
+  "verdict": "enforced"
 }

@@ -2,8 +2,8 @@
   "note": "Forbidden: no reply, or the wrong reply, to a Configure-Request. TestRFC1661ConfigureAckEchoesOptionsVerbatim goes red when no Configure-Ack (Identifier 0x21) is written for an acceptable request; TestRFC1661ConfigureRejectForUnrecognizedOption goes red on an Ack or a missing Configure-Reject for an unrecognized option. Driven in ReqSent through handleLCPPacket.",
   "requirement_sha": "c006cbe0d0327790",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "4f9ab6a38ee26d29",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "4f9ab6a38ee26d29"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "86bc304723db0e98",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "86bc304723db0e98"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "d94762f04091a218",

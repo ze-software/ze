@@ -3,8 +3,8 @@
   "requirement_sha": "e4e0a40a9df761c7",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable": "a65c290db4ba68a7",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckDoesNotReorderOptions": "4f9ab6a38ee26d29",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "4f9ab6a38ee26d29"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckDoesNotReorderOptions": "86bc304723db0e98",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "86bc304723db0e98"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable": "bbba5bcde2729466",

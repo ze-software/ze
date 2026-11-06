@@ -2,8 +2,8 @@
   "note": "Forbidden: accepting a zero Magic-Number. TestRFC1661ZeroMagicNumberRefused (server) and TestRFC1661ClientNaksZeroMagicInAWellFormedRequest / ...WithAValueOfItsOwn (client) go red unless a zero Magic draws a Nak carrying a 4-octet non-zero value; negatives Ack a non-zero Magic (TestRFC1661PeerMagicNumberAcked, TestRFC1661ClientAcksANonZeroMagic).",
   "requirement_sha": "2184660ce626c053",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661PeerMagicNumberAcked": "4f9ab6a38ee26d29",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused": "4f9ab6a38ee26d29",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661PeerMagicNumberAcked": "86bc304723db0e98",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused": "86bc304723db0e98",
     "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC1661ClientAcksANonZeroMagic": "f877ac02501b6ee0",
     "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC1661ClientNaksZeroMagicInAWellFormedRequest": "f877ac02501b6ee0",
     "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn": "4dbb87a949959706",

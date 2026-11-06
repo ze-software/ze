@@ -5,8 +5,8 @@
     "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly": "a65c290db4ba68a7",
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified": "2325ea607f732027",
     "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified#2": "2325ea607f732027",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions": "4f9ab6a38ee26d29",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "4f9ab6a38ee26d29",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions": "86bc304723db0e98",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "86bc304723db0e98",
     "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified": "4dbb87a949959706",
     "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified#2": "4dbb87a949959706"
   },

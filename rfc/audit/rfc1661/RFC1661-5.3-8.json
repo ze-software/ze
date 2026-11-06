@@ -2,8 +2,8 @@
   "note": "RFC 1661 Section 5.3: Since the Nak'd Option has been modified by the peer, the implementation MUST be able to handle an Option length which is different from the original Configure-Request. Rejudged TestRFC1661NakHandlesDifferentOptionLength and TestRFC1661NakTooShortOptionNotDecoded: Q1 yes, the shorter 4-octet PAP suggestion is accepted against the offered 5-octet CHAP form while a one-octet protocol value is not decoded; Q2 yes, the recorded WalkLCPOptions minimum-length mutant and adjustAuthOnNakOrReject one-byte decode mutant discriminate these exact assertions; Q3 yes, explicit permitted orders and the already-offered CHAP bit isolate length handling from authentication fallback eligibility, and the malformed value remains structurally inside its own option; Q4 yes, the variable-length acceptance obligation and unsafe-short-input boundary are covered. Existing enforced verdict retained; no product fix identified.",
   "requirement_sha": "dc26bc0f9203f8d0",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakHandlesDifferentOptionLength": "4f9ab6a38ee26d29",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakTooShortOptionNotDecoded": "4f9ab6a38ee26d29"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakHandlesDifferentOptionLength": "86bc304723db0e98",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakTooShortOptionNotDecoded": "86bc304723db0e98"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakHandlesDifferentOptionLength": "49deab0530a5836e",
