@@ -3,12 +3,67 @@
 **Goal:** Resolve the failures from https://github.com/ze-software/ze/actions/runs/41685742426, pinned at `1a2ccaeef8c0da4dc9f3747ce70f4aeecb84ddfa`. Do not chase newer unrelated shared-checkout failures.
 **Branch:** main, shared checkout. No push is authorized.
 **History scope:** `spec-cli-history-blocks-ui`. The completed audit is preserved in git by the paired audit/removal closure. The user authorized admission of this named fix only; the one-off claim used cap 23, without changing the permanent cap.
-**Outcome:** CI repair remains incomplete. The user requested this handover after objecting to the long wait. Continue the concrete failed-path diagnosis below, not a new audit of the already-landed history design.
+**Outcome:** History closure and the authorized checker/evidence publication are complete. Full-CI green remains unobserved. The earlier unexplained startup timeouts and their completed diagnostic captures are preserved below.
+
+## Publication continuation, 2026-11-05 and 2026-11-06
+
+Thomas authorized this publication turn:
+
+> Commit the pending checkers, align fingerprints with committed source, publish the records
+
+The authorized publication task is complete. All commits have landed, and all 18 audits are fresh against committed source, covering the 17 checker-file references plus RFC2545-3-6.
+No owned proof, judgment or metadata publication remains pending. The required working-tree RFC check reported 76 violations before the final updates, so no whole-corpus green result is claimed.
+Do not repeat the already-passing checker or writer checks. History closure remains complete, with its earlier evidence preserved below. No push or full-CI green result is claimed.
+
+Checker commit `71b1f3d799` adds strict FRR JSON installation checks and the required mixed-UPDATE/NSSA adapters, with their selected fixtures and contract test.
+The two scoped BGP roots passed race in `scratch/job-ci-rfc-checker-predicate-race-9799407e.log`. The final installation-guard root passed race in `scratch/job-ci-rfc-installation-guard-race-final-6aeaadf1.log`.
+All five committed build flavors passed in `scratch/job-ci-rfc-checkers-committed-compile-63ed8ad7.log`. Unrelated shared wire-checker rewrites were preserved.
+The two previously held RFC2545 proof records were published in `0db1290f22`, preserving their other recorded covers.
+
+The native audit writer initially lacked committed-source selection. `ce17a46ba6` extends the existing reseal and audit-stamp actions with one strict HEAD snapshot and exact requirement selection.
+It preserves the working-tree defaults and writes fingerprints through the native readers, without manually replacing hashes.
+Independent review was clean after the deleted-producer and assertion corrections. All 24 scoped roots passed in `scratch/job-ci-rfc-head-writer-tests-72e96da1.log`.
+The ten new roots passed race in `scratch/job-ci-rfc-head-writer-race-00f135a8.log`, and all five committed build flavors passed in `scratch/job-ci-rfc-writer-committed-compile-63ed8ad7.log`.
+
+Native HEAD reseal refreshed the three original held audits. Two required RFC7606/RFC3101 rejudgments used native HEAD audit-stamp, all pinned to `1875e80c5c3ba3b7837bd9a6798274daf1916ccf`.
+The logs are `scratch/job-ci-rfc-held-audits-head-2ee9ad68.log`, `scratch/job-ci-rfc7606-dependent-head-73094511.log` and `scratch/job-ci-rfc3101-dependent-head-4bbab479.log`.
+All five audit files were published in `d8472f0d86`, preserving the judged verdicts. Together with `0db1290f22`, this completes the five original holds.
+
+The native RFC2545-3-6 renewal completed with exit 0 in `scratch/job-ci-rfc2545-thirdparty-renew-19021b2f.log`.
+The baseline scenario passed. Disabling `linkScope.thirdPartyLinkLocal` produced the intended assertion-4 failure through the injected producer panic, and the native writer accepted that observed red.
+Only the third-party unit hash changed, from `ddbb2f9355e3a95a` to `9221fed271c01efb`. The other four recorded entries were preserved.
+The broken run reported three Docker removal commands exceeding their 30-second cleanup bounds. Those cleanup warnings are retained caveats, separate from the passing baseline and intended assertion red.
+Independent partial rejudgment and native default stamp completed for RFC2545-3-3 and RFC2545-3-6 in `scratch/job-ci-rfc2545-partial-rejudge-43271ac6.log`.
+Both verdicts remain partial. Targeted HEAD reseal completed at `d8472f0d8649d66bfddd4bd82e37ff2748ea1779`: RFC2545-3-6 was fresh, RFC2545-3-3 was re-stamped, and zero records were refused.
+The result is retained in `scratch/job-ci-rfc2545-partial-head-a2b49650.log`. The three dependent files were published in `7565a5b4b7`.
+The executed script was `tmp/commit-2c5d4340-b-1b37c0.sh`, using message `tmp/commit-msg-2c5d4340-b-d0f86b.txt`.
+Final native HEAD freshness checked all seven selected audits at `7565a5b4b7ecc7e90254e3a04a00e58871b884c2`, with nothing to reseal and zero refusals.
+That result is retained in `scratch/job-ci-rfc-published-head-freshness-b39538e9.log`.
+The final discrimination report passed in `scratch/job-ci-rfc-publication-discrimination-66d18b7d.log`, with no stale records and all five target interop covers current.
+It still lists the inherited RFC2545-3-2 negative claim in `test/encode/new-v6.ci` as unproven. That claim is outside this publication task and was not represented as renewed evidence.
+The required RFC check exited 1 with 76 violations in `scratch/job-ci-rfc-publication-check-f758acb7.log`.
+It exposed RFC2545-3-2's stale audit binding to `checkRFC2545NextHops`, changed by `71b1f3d799`. This was an owned consequence omitted from the seven-audit selection above.
+Independent `checker_test_judge` rejudged RFC2545-3-2 as enforced, and native HEAD stamp completed in `scratch/job-ci-rfc2545-length-head-rejudge-715ce8a6.log`.
+The bounded census is retained at `scratch/rfc2545-checker-selection/check-rfc-audit-census-20261106.json`, comparing all 17 audit references against the parent of `71b1f3d799`, that commit and HEAD.
+It found eight newly shifted records, additional checker-file drift in the already-shifted RFC4271-5.1.5-2, and the inherited shifted RFC9234-5-4.
+Native exact-eight HEAD reseal re-stamped seven records and refused RFC4271-5.1.2-3, whose unit moved in concurrent `cd0b42213c` after the census.
+That latest record was independently rejudged as enforced and stamped in `scratch/job-ci-rfc4271-concurrent-aspath-head-17688197.log`.
+The separate exact-two reseal refreshed RFC4271-5.1.5-2 and RFC9234-5-4, with zero refusals.
+Both operations used `b4215935acd576856c4ddfb9160d1d67a6860fd8`. Their logs are `scratch/job-ci-rfc-sibling-audits-head-8908b402.log` and `scratch/job-ci-rfc-inherited-sibling-head-961d212a.log`.
+All eleven additional audit records landed in `bc121becf6`: nine mechanical reseals and the two independently rejudged enforced audits.
+The executed script was `tmp/commit-2c5d4340-b-2cb2e2.sh`, using message `tmp/commit-msg-2c5d4340-b-c09a92.txt`.
+Final exact-18 committed-source validation passed at `bc121becf614a805058c6ddabeb16aded510903e`: every audit is fresh, nothing needs resealing, and zero records were refused.
+The result is retained in `scratch/job-ci-rfc-complete-checker-audit-bindings-c20cb4af.log`. No test rerun is owed for these metadata-only changes.
+Main's read-only Docker check found no remaining containers or networks owned by the proof run, despite its earlier bounded cleanup timeouts.
+The 76 check violations have not all been classified as unrelated.
+The judge input is `scratch/checker-judge-rfc2545-partial-rejudge.json`. `scratch/rfc2545-checker-selection/partial-audit-consequence-comparison.json` verifies the judged working functions equal HEAD.
+The missing-neighbor resolution and automatic re-advertisement gap must remain partial, with no whole-requirement credit.
+Earlier controller-build and partial-writer compile failures stopped before tests. The coherent checker and writer sources have the passing evidence above.
 
 ## Continuation: captured commit wait, 2026-11-05
 
 The prepared diagnostic now ran. Both forced commit and the corrected route-refresh draft reached required storage barriers when their output waits expired.
-The next action is resolving the five RFC record bindings distinguished below. CLI history implementation, regression promotion and the independent closure review are complete. Full-CI green remains unobserved.
+CLI history implementation, regression promotion and the independent closure review are complete. The publication continuation above supersedes this section's earlier RFC holds. Full-CI green remains unobserved.
 Do not repeat the completed route-refresh source diagnosis. The current state is `tmp/session/2026-11-05-002734/state/session-state-cli-history-blocks-ui-codex-ci41685742426-followthrough-20261105.md`, with earlier chronology preserved below.
 The earlier instruction to obtain the first live stack is satisfied. The authorized fixture correction and its completed native proof are recorded below.
 
@@ -93,16 +148,16 @@ The focused count profile observes the stopped-admission return, refused-registr
 The latest normal startup capture also passed both force/verify cases without signals (`scratch/job-ci-history-startup-causal-capture-8e791a9f.log`, raw streams `scratch/live-startup-causal-capture`). Its first attempt stopped at an unrelated shared inventory compile cutover; the cases actually ran after that source completed. The earlier startup timeouts remain unrepeatable and unexplained, with the next capture step above.
 
 The two DocSource holds are satisfied by inventory foundation `5a6bd238c1` and documentation correction `d5efcf8bd3`. Main verified the current HEAD anchors against their committed producers, so no duplicate patch is owed.
-The five RFC metadata records remain held against their exact source bindings. Main's comparison against `4603e2da52` found two different cases:
+Before the publication turn above, the five RFC metadata records were held against their exact source bindings. Main's comparison against `4603e2da52` found two different cases:
 
 - RFC2545-3-2 and RFC2545-3-3 bind actual checker-function changes absent from that HEAD: `checkRFC2545NextHops` and, for the second record, `checkRFC2545ThirdPartyLinkLocal`.
 - Audits RFC4271-5.1.4-1, RFC4659-3.2.1.1-3 and RFC7911-2-2 already match HEAD in every unit and code binding. Only their `tests` whole-file fingerprints for `check_rfc.go` differ. Do not describe those functions as unpublished.
 
-`taggedUnitSHAs` hashes the whole file, while `unitSHAs` hashes the named function. `verdictFreshness` treats tests-only drift as `SHIFTED` when the other bindings match. No native freshness verdict is claimed from that source comparison. Existing `reseal` and `auditStamp` read the working tree through `Collect` and `newSourceReader`; neither refreshes against a selected committed revision. The comparison and exact fingerprints are retained in `scratch/rfc-publication-bindings-20261105.md`. No duplicate proof run, speculative checker publication or new tooling is implied.
+`taggedUnitSHAs` hashes the whole file, while `unitSHAs` hashes the named function. `verdictFreshness` treats tests-only drift as `SHIFTED` when the other bindings match. No native freshness verdict was claimed from that source comparison. At that time, `reseal` and `auditStamp` read the working tree through `Collect` and `newSourceReader`, without committed-source selection. The comparison and exact fingerprints remain in `scratch/rfc-publication-bindings-20261105.md`. The authorized writer change and completed publications are recorded above.
 
 Retain `tmp/session/2026-11-05-002734/scratch/forced-commit-sync.strace`, `job-ci41685742426-sync-trace-0cfab569.log` and `commit-stall-trace-findings.md` for storage diagnosis.
 Retain both live stack captures beside the prepared overlay. Remove diagnostic-only artifacts after the cause is settled and no further diagnostic run needs them, preserving useful failure evidence.
-The history lifecycle scope closes here. The pinned CI metadata publication and full-CI result remain open.
+The history lifecycle scope and authorized publication task are complete. The required working-tree RFC check's 76-violation snapshot remains disclosed, and full-CI green remains unobserved.
 
 ## Start here
 
@@ -190,7 +245,7 @@ env CLAUDE_CODE_SESSION_ID=<new-session-id> CGO_ENABLED=0 \
 1. Completed plugin proof and promotion: all five selected plugin drafts passed 80 invocations. Policy disposition is committed in `4007003754`, and the other four CI repairs plus the graph fixture landed in `35fdc9b9f0`. The observer correction is `fa795bf224`. The unexplained startup timeouts remain retained evidence, with no general startup fix claimed.
 2. Completed reload proof and promotion: both community cases passed their paired 80-invocation proof and landed in `405f472cd7`. Route-refresh passed its corrected 80-invocation proof and landed in `4603e2da52`. Every promoted case has an observed live pass. Earlier startup timeout causes were not proved identical to history.
 3. Completed history closure: measured coverage, scoped source-anchor checks, independent review, constructor-guard discrimination and paired audit/removal commits. The audit preserves approved test deviations and unrepeatable startup evidence. Do not rerun passing checks to refresh timestamps.
-4. Original-CI remaining evidence publication: **six formerly ready paths are now committed** in `5d5fb6d60c` and `6774450b8b`; do not publish them twice. Five metadata records remain source-bound holds: RFC2545-3-2, RFC2545-3-3, RFC4271-5.1.4-1, RFC4659-3.2.1.1-3, RFC7911-2-2. Use the two binding classes above and `scratch/rfc-publication-bindings-20261105.md`. The earlier `scratch/ci-final-rfc-publication-classification.json` ready list predates those two commits. Existing RFC2545 observations prove the working producers, not their older HEAD versions.
+4. Completed authorized publication: the original five holds are in `0db1290f22` and `d8472f0d86`, dependent RFC2545 proof/audits in `7565a5b4b7`, and eleven additional checker-audit consequences in `bc121becf6`. The five target interop covers are current, and all 18 selected audits are fresh against committed source with zero refusals. No owned proof, judgment or metadata publication remains pending. Six earlier ready paths already landed in `5d5fb6d60c` and `6774450b8b`. Do not publish any twice or call all 76 working-tree check violations unrelated.
 5. Completed DocSource publication: inventory foundation `5a6bd238c1` and documentation correction `d5efcf8bd3` satisfy both earlier holds. Current HEAD anchors were verified against the committed producers. The older owner state under `tmp/session/2026-11-02-121815/state/` remains historical evidence, and no duplicate patch is owed.
 6. Full-CI green is unobserved. Other sessions' nine config/reactor failures and their ongoing BGP/RPC authority/framing cutovers are not this pinned-CI repair's code to alter. The historical no-Python perf-script issue was recorded/owned by `52a9c2c7c9`, not fixed; never execute that archival script or delete the user's history to clear a gate. Do not widen into another audit.
 
