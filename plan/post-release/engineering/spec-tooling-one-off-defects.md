@@ -33,6 +33,45 @@ Earlier references below to pending design approval describe the review history
 and are superseded by this gate. This checkpoint records approval only; it claims
 no implementation, runtime proof or incident closure.
 
+## Inventory traversal decision — 2026-11-06
+
+Thomas chose to measure first, then take Route A. Route B is not pursued. The
+measurement and its result are in `INVENTORY-TRAVERSAL-REVIEW.md` (commits
+52e4a49989 and 96b5efb758). Route A landed in e2ee3abf78. The actual-root
+inventory now completes the traversal in about 30 seconds, where before it
+never finished.
+
+## Actual-root inventory progress — 2026-11-06
+
+The actual-root inventory run stopped on a series of false refusals. Each one
+was fixed in this order:
+
+| Order | Commit | Fix |
+|-------|--------|-----|
+| 1 | 2bf9e52533 | A local rebind is not a mutation |
+| 2 | 5c07be9e6d | A YANG module directory is read from its embed |
+| 3 | d04cf29cb8 | A standard-library pull linkname is accepted |
+| 4 | 8e7f58c734 | Leaf assembly that names only read-only data is proven |
+| 5 | d151a7c2b4 | Local assembly macros are expanded before the leaf rules |
+| 6 | ca11decbe5 | A standard-library named type is external on every route, and an unknown refusal names its site |
+| 7 | 26fdc8726f | An elided composite literal takes its stated type |
+| 8 | 29900ed1a0 | A channel is modelled like a slice of its element |
+| 9 | a843a12de1 | The design-evidence hook judges only the paths the proposed text still cites (ordered by Thomas) |
+
+Thomas's decision: the inventory keeps proving each vendored assembly body and
+never trusts one wholesale.
+
+The run now stops with this refusal:
+
+```
+vendor/github.com/openconfig/goyang/pkg/yang/parse.go:58: cyclic retained type capability shape: Statement
+```
+
+The active-path index for the reflection walk is in progress. The actual-root
+test now takes about 320 s; before the channel commit (29900ed1a0) it took
+about 40 s. The cause of the slowdown is not yet measured. The six fixture
+failures that the reboot handover lists are unchanged.
+
 ## Task
 
 The 2026-10-23 journal sweep left about 265 open rows that fit none of the
@@ -81,7 +120,7 @@ Spot-checked on 2026-10-23: `zeTestParseRunCLI` still lives in
 - [ ] `internal/le/rfc/` - `checkGapCountAgreement`
 - [ ] `internal/le/test/qemu/` - `Run.virtfsArgs`, `Run.acceleration`, `guestScript`
 - [ ] `internal/le/interoplab/ipsec/ipsec.go` - `zeEnvironment`
-- [ ] `internal/le/interoplab/check_special.go` - `specialCheckers`
+- [ ] `internal/le/interoplab/bgp/check_special.go` - `specialCheckers`
 - [ ] `internal/le/perf/bench.go` - `(*Bench).Run`
 - [ ] `cmd/ze/le_build_name.go` - `refuseWrongBuildName`
 - [ ] `internal/appliance/cmd_build.go` - `runGokInProcess`
@@ -232,6 +271,7 @@ before execution. The responsible component remains unestablished.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| guard-keyed-on-a-field-its-consumer-ignores.md | 2026-11-06 | weakening gate keys a unit by directory base name, a judge by Go package name |
 | `container-build-leaves-root-owned-scratch` | 2026-11-04 | poster proof default entrypoint rewrites shared SSH config and chowns shared scratch |
 | `gate-red-where-nothing-blocks-on-it` | 2026-11-04 | tracked historical filter-a6 shell recipe is the new native-helper census red |
 | `gate-excludes-part-of-its-population` | 2026-11-04 | remaining site and PPPoE AC integration declarations after host-clock routing |
