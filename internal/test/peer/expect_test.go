@@ -277,7 +277,7 @@ func TestSendBulkBuildsOneOversizeMessage(t *testing.T) {
 		ASN:       65001,
 		MaxMsgLen: bgpExtMsgLen,
 	}
-	data, msgs, err := buildUpdates(spec)
+	data, msgs, err := buildUpdates(spec, spec.ASN)
 	require.NoError(t, err)
 	assert.Equal(t, 1, msgs, "16373 /24 prefixes must fit one extended message")
 	require.Len(t, data, bgpExtMsgLen)
@@ -296,7 +296,7 @@ func TestSendBulkBuildsOneOversizeMessage(t *testing.T) {
 	// The same spec at the default ceiling must NOT be one message, or the
 	// max-msg knob would be doing nothing.
 	spec.MaxMsgLen = 0
-	_, stdMsgs, err := buildUpdates(spec)
+	_, stdMsgs, err := buildUpdates(spec, spec.ASN)
 	require.NoError(t, err)
 	assert.Greater(t, stdMsgs, 1, "at the RFC 4271 ceiling the same prefixes must split")
 }

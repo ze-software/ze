@@ -138,7 +138,8 @@ func (s InjectSpec) msgLen() int {
 // A single slice is allocated up-front at the exact final size; the hot
 // loop performs offset writes only. Returns the bytes and the message
 // count (UPDATEs + optional EOR) for telemetry.
-func buildUpdates(spec InjectSpec) ([]byte, int, error) {
+// senderAS is the OPEN-resolved external sender, or 0 for an internal session.
+func buildUpdates(spec InjectSpec, senderAS uint32) ([]byte, int, error) {
 	if spec.Count < 0 {
 		return nil, 0, errors.New("count must be >= 0")
 	}
@@ -155,22 +156,37 @@ func buildUpdates(spec InjectSpec) ([]byte, int, error) {
 		return nil, 0, errors.New("prefix and next-hop family mismatch")
 	}
 	if spec.Prefix.Addr().Is4() {
-		return buildV4Unicast(spec)
+		// RFC 4271 Section 5.1.5: preserve the negotiated session kind.
+		return buildV4Unicast(spec, senderAS == 0)
 	}
-	return buildV6Unicast(spec)
+	// RFC 4271 Section 5.1.5: preserve the negotiated session kind.
+	return buildV6Unicast(spec, senderAS == 0)
 }
 
 // buildV4Unicast writes ORIGIN + AS_PATH + NEXT_HOP + inline NLRI UPDATEs.
-func buildV4Unicast(spec InjectSpec) ([]byte, int, error) {
+//
+// RFC 4271 Sections 4.3 and 5.1.5, offsets from the message start:
+//
+//	0..18    BGP header
+//	19..20   Withdrawn Routes Length (0)
+//	21..22   Total Path Attribute Length
+//	23..26   ORIGIN; 27..35 AS_PATH; 36..42 NEXT_HOP
+//	43..     Optional varied attributes, then LOCAL_PREF (7 octets, iBGP only)
+//	         NLRI follows the complete attribute block.
+func buildV4Unicast(spec InjectSpec, internal bool) ([]byte, int, error) {
 	plen := spec.Prefix.Bits()
 	if plen < 0 || plen > 32 {
 		return nil, 0, fmt.Errorf("invalid IPv4 prefix length %d", plen)
 	}
 	plBytes := (plen + 7) / 8
 	stride := 1 + plBytes
-	// Path attrs: ORIGIN(4) + AS_PATH(5+4) + NEXT_HOP(3+4) = 20 bytes, then
-	// the VaryAttrs attributes when asked for.
-	attrsLen := 4 + 9 + 7 + spec.varyLen()
+	// Path attrs: ORIGIN(4) + AS_PATH(9) + NEXT_HOP(7), varied attributes,
+	// and LOCAL_PREF(7) only for the internal session resolved at OPEN.
+	localPrefOctets := 0
+	if internal {
+		localPrefOctets = 7
+	}
+	attrsLen := 4 + 9 + 7 + spec.varyLen() + localPrefOctets
 	maxMsg := spec.msgLen()
 	budget := maxMsg - HeaderLen - 2 - 2 - attrsLen
 	nlriPer := spec.nlriPerMsg(budget, stride)
@@ -226,8 +242,15 @@ func buildV4Unicast(spec InjectSpec) ([]byte, int, error) {
 		if spec.VaryAttrs {
 			writeVaryAttrs(buf[at+43:at+43+varyAttrsLen], msgIndex)
 		}
+		// RFC 4271 Section 5.1.5: "LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers."
+		// RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]."
+		if internal {
+			pref := at + 43 + spec.varyLen()
+			buf[pref], buf[pref+1], buf[pref+2] = flagWKTrans, 5, 4
+			binary.BigEndian.PutUint32(buf[pref+3:pref+7], 100)
+		}
 		msgIndex++
-		return at + 43 + spec.varyLen() // NLRI starts here
+		return at + 43 + spec.varyLen() + localPrefOctets // NLRI starts here
 	}
 	writeNLRI := func(at, n int) {
 		var tmp [4]byte
@@ -264,16 +287,29 @@ func buildV4Unicast(spec InjectSpec) ([]byte, int, error) {
 // buildV6Unicast writes ORIGIN + AS_PATH + MP_REACH_NLRI (RFC 4760) UPDATEs.
 // MP_REACH always uses extended-length (flag 0x90) since its value routinely
 // exceeds 255 bytes.
-func buildV6Unicast(spec InjectSpec) ([]byte, int, error) {
+//
+// RFC 4271 Sections 4.3 and 5.1.5, offsets from the message start:
+//
+//	0..18    BGP header; 19..20 Withdrawn Routes Length (0)
+//	21..22   Total Path Attribute Length
+//	23..26   ORIGIN; 27..35 AS_PATH
+//	36..     Optional varied attributes, then LOCAL_PREF (7 octets, iBGP only)
+//	         MP_REACH follows: flags/type/length(4), AFI/SAFI(3),
+//	         next-hop length(1), next hop(16), reserved(1), then IPv6 NLRI.
+func buildV6Unicast(spec InjectSpec, internal bool) ([]byte, int, error) {
 	plen := spec.Prefix.Bits()
 	if plen < 0 || plen > 128 {
 		return nil, 0, fmt.Errorf("invalid IPv6 prefix length %d", plen)
 	}
 	plBytes := (plen + 7) / 8
 	stride := 1 + plBytes
-	// Base attrs (ORIGIN + AS_PATH) = 4 + 9 = 13, then the VaryAttrs
-	// attributes when asked for, which sit before MP_REACH_NLRI.
-	baseAttrsLen := 4 + 9 + spec.varyLen()
+	// Base attrs: ORIGIN(4) + AS_PATH(9), varied attributes, and
+	// LOCAL_PREF(7) only for the internal session resolved at OPEN.
+	localPrefOctets := 0
+	if internal {
+		localPrefOctets = 7
+	}
+	baseAttrsLen := 4 + 9 + spec.varyLen() + localPrefOctets
 	// MP_REACH fixed part: attr flags(1)+type(1)+extlen(2)+AFI(2)+SAFI(1)+nh_len(1)+nh(16)+reserved(1) = 25.
 	const mpFixed = 25
 	budget := spec.msgLen() - HeaderLen - 2 - 2 - baseAttrsLen - mpFixed
@@ -325,8 +361,15 @@ func buildV6Unicast(spec InjectSpec) ([]byte, int, error) {
 		if spec.VaryAttrs {
 			writeVaryAttrs(buf[at+36:at+36+varyAttrsLen], msgIndex)
 		}
+		// RFC 4271 Section 5.1.5: "LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers."
+		// RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]."
+		if internal {
+			pref := at + 36 + spec.varyLen()
+			buf[pref], buf[pref+1], buf[pref+2] = flagWKTrans, 5, 4
+			binary.BigEndian.PutUint32(buf[pref+3:pref+7], 100)
+		}
 		msgIndex++
-		mp := at + 36 + spec.varyLen()
+		mp := at + 36 + spec.varyLen() + localPrefOctets
 		// MP_REACH_NLRI: flags(0x90) type(14) extlen(2)
 		mpValueLen := 4 + 16 + 1 + count*stride // AFI(2)+SAFI(1)+nhlen(1)+nh(16)+reserved(1)+NLRI
 		buf[mp], buf[mp+1] = flagOptNonTransEx, 14
@@ -472,7 +515,14 @@ func (p *Peer) runActive(ctx context.Context) Result {
 		return Result{Error: fmt.Errorf("expected KEEPALIVE, got type %d", kaHeader[18])}
 	}
 
-	return p.doInject(ctx, conn)
+	// RFC 4271 Section 5.1.5: compare the OPEN we actually sent with the
+	// remote OPEN. The passive identity resolver mirrors by default, whereas
+	// buildActiveOpen can take its ASN from the inject spec.
+	senderAS := zeAdvertisedAS(ourOpen[HeaderLen:])
+	if senderAS == zeAdvertisedAS(peerBody) {
+		senderAS = 0
+	}
+	return p.doInject(ctx, conn, senderAS)
 }
 
 // buildActiveOpen constructs the OPEN message we send when acting as the
@@ -569,9 +619,10 @@ func dialTargetAddr(target string) netip.Addr {
 	return addr
 }
 
-// doInject is the ModeInject connection handler. Called from
-// handleConnection after OPEN + KEEPALIVE have been exchanged.
-func (p *Peer) doInject(ctx context.Context, conn net.Conn) Result {
+// doInject is the ModeInject connection handler after the OPEN exchange.
+// senderAS is the actual external OPEN sender, or 0 for an internal session,
+// following the same convention as runMessageLoop.
+func (p *Peer) doInject(ctx context.Context, conn net.Conn, senderAS uint32) Result {
 	if p.config.Inject == nil {
 		return Result{Error: errors.New("inject mode requires an InjectSpec (--inject-prefix/--inject-count/--inject-nexthop/--inject-asn)")}
 	}
@@ -581,7 +632,8 @@ func (p *Peer) doInject(ctx context.Context, conn net.Conn) Result {
 	}
 
 	t0 := time.Now()
-	buf, nMsgs, err := buildUpdates(spec)
+	// RFC 4271 Section 5.1.5: use the completed OPEN exchange, not spec.ASN.
+	buf, nMsgs, err := buildUpdates(spec, senderAS)
 	if err != nil {
 		return Result{Error: fmt.Errorf("build updates: %w", err)}
 	}

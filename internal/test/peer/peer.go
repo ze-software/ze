@@ -263,7 +263,7 @@ type Config struct {
 	// SendRoutes: custom routes to send after OPEN (option=update:value=send-route:...)
 	SendRoutes []RouteToSend
 	// SendBulk: generated prefix runs to send after OPEN
-	// (option=update:value=send-bulk:...). Each spec is expanded by BuildUpdates
+	// (option=update:value=send-bulk:...). Each spec is expanded by buildUpdates
 	// into whole BGP messages, so one entry with a large MaxMsgLen produces a
 	// single oversize UPDATE rather than many standard ones. This is how a `.ci`
 	// expresses an UPDATE too large to write as a hex literal: a max-size RFC
@@ -738,7 +738,8 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 
 	// Inject mode: stream the bulk UPDATE image after handshake, then dwell.
 	if p.config.Mode == ModeInject {
-		return p.doInject(ctx, conn)
+		// RFC 4271 Section 5.1.5: preserve this accepted session's OPEN identity.
+		return p.doInject(ctx, conn, p.ebgpSenderAS(body, conn))
 	}
 
 	// Send unknown message type if requested.
@@ -808,12 +809,13 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 		}
 	}
 
-	// Send generated prefix runs if configured. BuildUpdates sizes the whole
+	// Send generated prefix runs if configured. buildUpdates sizes the whole
 	// byte image up front, so a spec whose MaxMsgLen was raised emits ONE
 	// oversize UPDATE and the daemon sees a single message, which is the input
 	// such a test exists to produce.
 	for i, spec := range p.config.SendBulk {
-		data, msgs, err := buildUpdates(spec)
+		// RFC 4271 Section 5.1.5: senderAS is resolved from this session's OPENs.
+		data, msgs, err := buildUpdates(spec, senderAS)
 		if err != nil {
 			return Result{Success: false, Error: fmt.Errorf("build bulk %d (%s x%d): %w", i, spec.Prefix, spec.Count, err)}
 		}
