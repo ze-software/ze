@@ -1,3 +1,5 @@
+**Superseded: the spec closure landed in `54c5e8af0c`.**
+
 # Filter-wire umbrella: follow-up after session 384a3761 stood down
 
 **Spec:** `spec-filter-wire-0-umbrella`, unclaimed by

@@ -1,3 +1,5 @@
+**Superseded: the spec closure landed in `54c5e8af0c`.**
+
 # Filter wire umbrella handover
 
 ## Goal and owner instructions
