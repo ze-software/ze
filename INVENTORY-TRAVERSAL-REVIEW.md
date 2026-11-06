@@ -110,6 +110,10 @@ correctness defects and remaining signed
 fixture failures remain owed: faster traversal alone cannot establish a correct,
 complete inventory.
 
-The review decision remains between A and B. Neither route is implemented or
-approved. Actual-root measurement and proof of semantic reuse must precede any
-claim about their impact.
+Thomas decided on 2026-11-06: measure first, then Route A. Route B is not
+pursued. The measurement counts, on the actual repository root, how many visits
+repeat a state whose contribution is provably the same (equal frame, incoming
+depth, substitutions and flags, under an equivalent active ancestry), beside the
+looser count that ignores ancestry. Route A is built only if its provable subset
+covers the repeated work found. Neither route is implemented yet, and no count
+is a claim about speed.
