@@ -2,6 +2,11 @@
 
 Inert copies, not installed code. Nothing here was linted or tested.
 
+**Update:** the Codex session code then landed (76bf9c345b..7af01375e9), and with it
+the doc hunks and the peer image helper below. Only the first `functional-tests.md`
+hunk, `more-todo`, `my-diff.patch` and `plan/roadmap.md` remain uncommitted; the
+other copies here are now history.
+
 The claude host carried uncommitted work that no commit or snapshot preserved.
 Everything that stood on its own was committed (`715fa2833e..56fb983dba`). These
 pieces could not land as code, so they are saved here as text.
