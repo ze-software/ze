@@ -434,7 +434,21 @@ invalidates its include proof without reading a header payload. Assembly bytes
 and header-presence evidence stay separate
 from report paths and Go ASTs. Callback/interface execution without resolved
 ownership also refuses rather than publishing a subset.
-<!-- source: internal/le/repo/inventory/assembly.go -- Snapshot.certifyAssembly -->
+
+A bodyless declaration with no assembly definition is admitted on one other
+proof: exactly one pull-style `//go:linkname <local> <target>` whose target
+names a standard-library symbol, such as `golang.org/x/sys/unix`'s
+`syscall_prlimit` pulled from `syscall.prlimit`. Its body is then
+standard-library code, which is not analyzer input and which the trust
+contract above trusts not to use `go:linkname` against registration, so the
+call is modeled exactly as a direct call into that package: the same import
+witness, and its arguments flow into the external capability model. A target
+whose first path element holds a dot (a module path), a target that names a
+selected repository package (an executable's `main`), a second directive for
+the same entry, or another directive touching the entry or the target
+refuses, and a bodyless declaration with neither proof refuses as before.
+<!-- source: internal/le/repo/inventory/assembly.go -- Snapshot.certifyAssembly, standardLinkname, standardLinkTarget -->
+<!-- source: internal/le/repo/inventory/externallinkage.go -- externalEffects.indexLinkname -->
 
 Local instruction macros in other bodies can contribute namespace evidence
 without being expanded or executed. Their complete logical definitions,

@@ -9,59 +9,145 @@ import (
 	"strings"
 )
 
-// certifyAssembly proves only a complete zero-frame NOSPLIT direct trampoline
-// whose entry and standard-library destination are not remapped or implemented
-// elsewhere in the retained selected population. It executes no instructions.
-func (s *Snapshot) certifyAssembly(function sourceFunction, index *assemblyIndex) error {
+// bodylessTransfer is the proved standard-library destination of a retained
+// bodyless function: the linker symbol it reaches and that symbol's import path.
+type bodylessTransfer struct {
+	destination string
+	identity    string
+}
+
+// certifyAssembly proves only a direct transfer from a retained bodyless entry
+// to a standard-library destination that is not remapped or implemented
+// elsewhere in the retained selected population: a complete zero-frame
+// NOSPLIT trampoline, or one pull-style linkname. It executes no instructions.
+func (s *Snapshot) certifyAssembly(function sourceFunction, index *assemblyIndex) (bodylessTransfer, error) {
 	prefix, found := index.prefixes[function.pkg]
 	if !found {
-		return fmt.Errorf("assembly entry package is not in the selected source population")
+		return bodylessTransfer{}, fmt.Errorf("assembly entry package is not in the selected source population")
 	}
 	entry := prefix + "." + function.decl.Name.Name
 	declarations := index.declarations[entry]
 	if len(declarations) != 1 {
-		return fmt.Errorf("assembly entry %s has ambiguous Go declarations", entry)
+		return bodylessTransfer{}, fmt.Errorf("assembly entry %s has ambiguous Go declarations", entry)
 	}
 	if declarations[0] != function.decl {
-		return fmt.Errorf("assembly entry %s has conflicting Go ownership", entry)
+		return bodylessTransfer{}, fmt.Errorf("assembly entry %s has conflicting Go ownership", entry)
 	}
 	if index.objects[entry] {
-		return fmt.Errorf("assembly entry %s conflicts with a Go object", entry)
+		return bodylessTransfer{}, fmt.Errorf("assembly entry %s conflicts with a Go object", entry)
 	}
 	definitions := index.definitions[entry]
-	if len(definitions) != 1 {
-		return fmt.Errorf("assembly entry %s has %d selected definitions, not one proved body", entry, len(definitions))
+	pulled := -1
+	var transfer bodylessTransfer
+	if own := entryLinkages(index, entry); len(own) == 1 && len(definitions) == 0 {
+		// The approved trust contract (INVENTORY-EXTERNAL-EFFECTS.md) puts
+		// go:linkname outside external authority: code outside the retained
+		// source is trusted not to use it against registration.
+		// A bodyless declaration pulled from a standard-library symbol therefore
+		// runs standard-library code, which is not analyzer input and reaches
+		// registration only through the values passed to it, exactly like a
+		// direct call. A module target could name retained code and is refused.
+		pulled = own[0]
+		linked, err := standardLinkname(index, index.linkages[pulled].target)
+		if err != nil {
+			return bodylessTransfer{}, fmt.Errorf("%s: bodyless entry %s: %w", index.linkages[pulled].site, entry, err)
+		}
+		transfer = linked
+	} else {
+		if len(definitions) != 1 {
+			return bodylessTransfer{}, fmt.Errorf("assembly entry %s has %d selected definitions, not one proved body", entry, len(definitions))
+		}
+		definition := &definitions[0]
+		if err := trampolineHeader(definition.header, function.decl.Name.Name); err != nil {
+			return bodylessTransfer{}, fmt.Errorf("%s: %w", definition.path, err)
+		}
+		body := s.blobs[definition.path][definition.bodyStart:definition.bodyEnd]
+		destination, err := trampolineDestination(body, definition.path, prefix, definition.macros)
+		if err != nil {
+			return bodylessTransfer{}, err
+		}
+		identity, err := standardAssemblyImport(function, destination)
+		if err != nil {
+			return bodylessTransfer{}, err
+		}
+		transfer = bodylessTransfer{destination: destination, identity: identity}
 	}
-	definition := &definitions[0]
-	if err := trampolineHeader(definition.header, function.decl.Name.Name); err != nil {
-		return fmt.Errorf("%s: %w", definition.path, err)
-	}
-	body := s.blobs[definition.path][definition.bodyStart:definition.bodyEnd]
-	destination, err := trampolineDestination(body, definition.path, prefix, definition.macros)
-	if err != nil {
-		return err
-	}
-	if err := standardAssemblyImport(function, destination); err != nil {
-		return err
-	}
+	destination := transfer.destination
 	if len(index.definitions[destination]) != 0 {
-		return fmt.Errorf("assembly destination %s is defined by selected repository assembly", destination)
+		return bodylessTransfer{}, fmt.Errorf("assembly destination %s is defined by selected repository assembly", destination)
 	}
 	if len(index.declarations[destination]) != 0 {
-		return fmt.Errorf("assembly destination %s has a selected repository Go declaration", destination)
+		return bodylessTransfer{}, fmt.Errorf("assembly destination %s has a selected repository Go declaration", destination)
 	}
 	if index.objects[destination] {
-		return fmt.Errorf("assembly destination %s has a selected repository Go object", destination)
+		return bodylessTransfer{}, fmt.Errorf("assembly destination %s has a selected repository Go object", destination)
 	}
-	for _, linkage := range index.linkages {
+	for offset, linkage := range index.linkages {
+		// The one directive that established the transfer is its own evidence.
+		if offset == pulled {
+			continue
+		}
 		if linkageTouches(linkage, entry) {
-			return fmt.Errorf("%s: linkage remaps or opens assembly entry %s", linkage.site, entry)
+			return bodylessTransfer{}, fmt.Errorf("%s: linkage remaps or opens assembly entry %s", linkage.site, entry)
 		}
 		if linkageTouches(linkage, destination) {
-			return fmt.Errorf("%s: linkage remaps or opens assembly destination %s", linkage.site, destination)
+			return bodylessTransfer{}, fmt.Errorf("%s: linkage remaps or opens assembly destination %s", linkage.site, destination)
 		}
 	}
-	return nil
+	return transfer, nil
+}
+
+// entryLinkages returns the offsets of every selected directive whose local
+// name is entry. More than one is ambiguous and leaves the transfer unproved.
+func entryLinkages(index *assemblyIndex, entry string) []int {
+	var offsets []int
+	for offset, linkage := range index.linkages {
+		if linkage.local == entry {
+			offsets = append(offsets, offset)
+		}
+	}
+	return offsets
+}
+
+// standardLinkname proves that a pull-style linkname target names a
+// standard-library symbol and no package of the retained selected population.
+func standardLinkname(index *assemblyIndex, target string) (bodylessTransfer, error) {
+	identity, err := standardLinkTarget(target)
+	if err != nil {
+		return bodylessTransfer{}, err
+	}
+	// A dotless retained package (an executable's "main") shares the spelling.
+	for _, prefix := range index.prefixes {
+		if prefix == identity {
+			return bodylessTransfer{}, fmt.Errorf("linkname target %s names a selected repository package", target)
+		}
+	}
+	return bodylessTransfer{destination: target, identity: identity}, nil
+}
+
+// standardLinkTarget reads the import path of a linkname target whose package
+// is in the standard library: its first path element holds no dot, and its
+// linker prefix is the import path unchanged.
+func standardLinkTarget(target string) (string, error) {
+	separator := strings.LastIndexByte(target, '.')
+	if separator < 1 {
+		return "", fmt.Errorf("linkname target %s has no proved package identity", target)
+	}
+	if !token.IsIdentifier(target[separator+1:]) {
+		return "", fmt.Errorf("linkname target %s has unsupported symbol identity", target)
+	}
+	identity := target[:separator]
+	first, _, _ := strings.Cut(identity, "/")
+	if strings.Contains(first, ".") {
+		return "", fmt.Errorf("linkname target %s names a module package, which may hold retained code", target)
+	}
+	if linkerPathPrefix(identity) != identity {
+		return "", fmt.Errorf("linkname target %s has unsupported package identity", target)
+	}
+	if identity == "unsafe" {
+		return "", fmt.Errorf("linkname target %s manufactures an unsafe reference", target)
+	}
+	return identity, nil
 }
 
 func linkageTouches(linkage assemblyLinkage, symbol string) bool {
@@ -163,31 +249,33 @@ func trampolineDestination(raw []byte, name, prefix string, macros map[string]bo
 // standardAssemblyImport compares the linker package prefix with the actual
 // retained import path. A Go-local alias or an empty import-map target is not
 // evidence that an assembly qualifier denotes the standard library.
-func standardAssemblyImport(function sourceFunction, destination string) error {
+func standardAssemblyImport(function sourceFunction, destination string) (string, error) {
 	separator := strings.LastIndexByte(destination, '.')
 	if separator < 1 {
-		return fmt.Errorf("assembly destination %s has no proved package identity", destination)
+		return "", fmt.Errorf("assembly destination %s has no proved package identity", destination)
 	}
 	if !token.IsIdentifier(destination[separator+1:]) {
-		return fmt.Errorf("assembly destination %s has unsupported symbol identity", destination)
+		return "", fmt.Errorf("assembly destination %s has unsupported symbol identity", destination)
 	}
 	prefix := destination[:separator]
+	identity := ""
 	matches := 0
 	for _, imported := range function.file.Imports {
 		name, err := strconv.Unquote(imported.Path.Value)
 		if err != nil {
-			return fmt.Errorf("read assembly boundary import: %w", err)
+			return "", fmt.Errorf("read assembly boundary import: %w", err)
 		}
 		first, _, _ := strings.Cut(name, "/")
 		if strings.Contains(first, ".") {
 			continue
 		}
 		if linkerPathPrefix(name) == prefix {
+			identity = name
 			matches++
 		}
 	}
 	if matches != 1 {
-		return fmt.Errorf("assembly destination %s does not identify one declared standard-library import", destination)
+		return "", fmt.Errorf("assembly destination %s does not identify one declared standard-library import", destination)
 	}
-	return nil
+	return identity, nil
 }

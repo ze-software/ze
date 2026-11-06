@@ -36,6 +36,16 @@ func (e *externalEffects) indexLinkname(comment string, source sourceExpr) {
 	switch declaration := object.Decl.(type) {
 	case *ast.FuncDecl:
 		source.value = declaration.Name
+		// A bodyless pull from a standard-library symbol is a call into that
+		// library, which the approved trust contract (INVENTORY-EXTERNAL-EFFECTS.md)
+		// trusts not to use go:linkname against registration. Its call reaches
+		// assemblyResult, whose certificate refuses an ambiguous directive or a
+		// target the retained population defines.
+		if declaration.Body == nil && len(fields) == 3 {
+			if _, err := standardLinkTarget(fields[2]); err == nil {
+				return
+			}
+		}
 		e.linknames[object] = source
 		if declaration.Body == nil {
 			return

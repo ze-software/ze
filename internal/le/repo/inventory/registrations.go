@@ -228,7 +228,7 @@ func (r *registrations) node(node ast.Node, function initializationScope, condit
 					}
 					r.assembly = evidence
 				}
-				if err := r.eval.snapshot.certifyAssembly(called, r.assembly); err != nil {
+				if _, err := r.eval.snapshot.certifyAssembly(called, r.assembly); err != nil {
 					return r.eval.problem(sourceExpr{value: current, file: function.file, pkg: function.pkg}, "initialization calls "+called.pkg.dir+"."+called.decl.Name.Name+" without a proved retained Go or assembly body: "+err.Error())
 				}
 			} else if err := r.function(called, conditional); err != nil {
