@@ -304,7 +304,11 @@ func (r *registrations) registerModule(call *ast.CallExpr, function initializati
 	if err != nil {
 		return err
 	}
-	document, err := r.eval.text(sourceExpr{value: call.Args[1], file: function.file, pkg: function.pkg})
+	// The module's directory comes from the walk that resolved its content,
+	// never from a search of committed .yang files by module name: that
+	// search also finds test copies of a module, such as those under
+	// internal/le/yang/migration/testdata.
+	document, origin, err := r.eval.textFrom(sourceExpr{value: call.Args[1], file: function.file, pkg: function.pkg})
 	if err != nil {
 		return err
 	}
@@ -314,20 +318,19 @@ func (r *registrations) registerModule(call *ast.CallExpr, function initializati
 	if _, duplicate := r.modules[name]; duplicate {
 		return r.eval.problem(source, "multiple reachable YANG registrations claim "+name)
 	}
-	directory := function.pkg.dir
-	found := false
-	for _, name := range r.eval.snapshot.paths {
-		if !strings.HasSuffix(name, yangSuffix) {
-			continue
-		}
-		if yangModuleName(string(r.eval.snapshot.blobs[name])) != yangModuleName(document) {
-			continue
-		}
-		if found {
-			return r.eval.problem(source, "registered YANG module has ambiguous committed sources")
-		}
-		found = true
-		directory = path.Dir(name)
+	var directory string
+	switch origin.kind {
+	case textOriginEmbed:
+		// The embedded file is the module's committed source.
+		directory = path.Dir(origin.file)
+	case textOriginGo:
+		// A Go string names no committed file, so the module belongs to the
+		// package whose registration makes it one.
+		directory = function.pkg.dir
+	case textOriginMixed:
+		return r.eval.problem(source, "registered YANG content joins an embedded file with other text, so no committed file is its source: register the //go:embed variable alone")
+	case textOriginUnspecified:
+		return r.eval.problem(source, "registered YANG content has no resolved origin")
 	}
 	r.modules[name] = directory
 	r.moduleIdentities[yangModuleName(document)] = true

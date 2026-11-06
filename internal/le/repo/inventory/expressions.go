@@ -127,13 +127,43 @@ func (e *expression) enter(source sourceExpr) (func(), error) {
 	return func() { delete(e.active, source.value); e.depth-- }, nil
 }
 
+// textOriginKind says where a resolved string's bytes are declared. The zero
+// value is never produced by a resolution.
+type textOriginKind uint8
+
+const (
+	textOriginUnspecified textOriginKind = iota
+	// textOriginGo is a string declared in Go source: literals, their
+	// concatenation, or a family name. It names no committed file.
+	textOriginGo
+	// textOriginEmbed is exactly the content of one //go:embed file.
+	textOriginEmbed
+	// textOriginMixed is a concatenation that includes an embedded file, so no
+	// single committed file holds the string.
+	textOriginMixed
+)
+
+// textOrigin is where a resolved string is declared. file is the snapshot
+// path of the embedded file, set only for textOriginEmbed.
+type textOrigin struct {
+	kind textOriginKind
+	file string
+}
+
 func (e *expression) text(source sourceExpr) (string, error) {
+	value, _, err := e.textFrom(source)
+	return value, err
+}
+
+// textFrom resolves a string and where it is declared, in one walk, so a
+// caller that needs the embedded file never resolves the string twice.
+func (e *expression) textFrom(source sourceExpr) (string, textOrigin, error) {
 	if source.value == nil {
 		return e.embeddedText(source)
 	}
 	leave, err := e.enter(source)
 	if err != nil {
-		return "", err
+		return "", textOrigin{}, err
 	}
 	defer leave()
 	switch node := source.value.(type) {
@@ -141,47 +171,52 @@ func (e *expression) text(source sourceExpr) (string, error) {
 		if node.Kind == token.STRING {
 			value, err := strconv.Unquote(node.Value)
 			if err != nil {
-				return "", e.problem(source, "invalid string literal")
+				return "", textOrigin{}, e.problem(source, "invalid string literal")
 			}
-			return value, nil
+			return value, textOrigin{kind: textOriginGo}, nil
 		}
 	case *ast.BinaryExpr:
 		if node.Op == token.ADD {
-			left, err := e.text(sourceExpr{value: node.X, file: source.file, pkg: source.pkg})
+			left, leftOrigin, err := e.textFrom(sourceExpr{value: node.X, file: source.file, pkg: source.pkg})
 			if err != nil {
-				return "", err
+				return "", textOrigin{}, err
 			}
-			right, err := e.text(sourceExpr{value: node.Y, file: source.file, pkg: source.pkg})
+			right, rightOrigin, err := e.textFrom(sourceExpr{value: node.Y, file: source.file, pkg: source.pkg})
 			if err != nil {
-				return "", err
+				return "", textOrigin{}, err
 			}
-			return left + right, nil
+			origin := textOrigin{kind: textOriginMixed}
+			if leftOrigin.kind == textOriginGo && rightOrigin.kind == textOriginGo {
+				origin = textOrigin{kind: textOriginGo}
+			}
+			return left + right, origin, nil
 		}
 	case *ast.CallExpr:
 		if method, ok := node.Fun.(*ast.SelectorExpr); ok {
 			if method.Sel.Name == "String" && len(node.Args) == 0 {
-				return e.familyName(sourceExpr{value: method.X, file: source.file, pkg: source.pkg})
+				value, err := e.familyName(sourceExpr{value: method.X, file: source.file, pkg: source.pkg})
+				return value, textOrigin{kind: textOriginGo}, err
 			}
 		}
 		function, found := e.function(sourceExpr{value: node.Fun, file: source.file, pkg: source.pkg})
 		if found && len(node.Args) == 0 && function.decl.Body != nil && len(function.decl.Body.List) == 1 {
 			returned, ok := function.decl.Body.List[0].(*ast.ReturnStmt)
 			if ok && len(returned.Results) == 1 {
-				return e.text(sourceExpr{value: returned.Results[0], file: function.file, pkg: function.pkg})
+				return e.textFrom(sourceExpr{value: returned.Results[0], file: function.file, pkg: function.pkg})
 			}
 		}
-		return "", e.problem(source, "string value requires unsupported executable logic")
+		return "", textOrigin{}, e.problem(source, "string value requires unsupported executable logic")
 	case *ast.Ident, *ast.SelectorExpr, *ast.ParenExpr:
 		if err := e.immutable(source); err != nil {
-			return "", err
+			return "", textOrigin{}, err
 		}
 		resolved, err := e.target(source)
 		if err != nil {
-			return "", err
+			return "", textOrigin{}, err
 		}
-		return e.text(resolved)
+		return e.textFrom(resolved)
 	}
-	return "", e.problem(source, "unsupported string expression")
+	return "", textOrigin{}, e.problem(source, "unsupported string expression")
 }
 
 func (e *expression) texts(source sourceExpr) ([]string, error) {
@@ -306,7 +341,7 @@ func (e *expression) integer(source sourceExpr, depth int) (uint64, error) {
 	return e.integer(resolved, depth+1)
 }
 
-func (e *expression) embeddedText(source sourceExpr) (string, error) {
+func (e *expression) embeddedText(source sourceExpr) (string, textOrigin, error) {
 	for _, declaration := range source.file.Decls {
 		group, ok := declaration.(*ast.GenDecl)
 		if !ok {
@@ -340,19 +375,19 @@ func (e *expression) embeddedText(source sourceExpr) (string, error) {
 				}
 				fields := strings.Fields(pattern)
 				if len(fields) != 1 || strings.ContainsAny(fields[0], "*?[\\\"") {
-					return "", e.problem(source, "string embed requires one exact source filename")
+					return "", textOrigin{}, e.problem(source, "string embed requires one exact source filename")
 				}
 				name := path.Join(source.pkg.dir, fields[0])
 				if !strings.HasPrefix(name, source.pkg.dir+"/") {
-					return "", e.problem(source, "embedded schema escapes its package")
+					return "", textOrigin{}, e.problem(source, "embedded schema escapes its package")
 				}
 				raw, found := e.snapshot.blobs[name]
 				if !found {
-					return "", e.problem(source, "embedded schema blob "+name+" is missing")
+					return "", textOrigin{}, e.problem(source, "embedded schema blob "+name+" is missing")
 				}
-				return string(raw), nil
+				return string(raw), textOrigin{kind: textOriginEmbed, file: name}, nil
 			}
 		}
 	}
-	return "", e.problem(source, "string has no immutable initializer or exact embedded source")
+	return "", textOrigin{}, e.problem(source, "string has no immutable initializer or exact embedded source")
 }
