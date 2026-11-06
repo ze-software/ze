@@ -160,6 +160,9 @@ func (file *declarationMutationFile) writes(reader *expression, reference declar
 					}
 				}
 			}
+			if rebindsLocal(target, reference, file.file) {
+				continue
+			}
 			if check == registrationFieldWrites {
 				if field, selected := target.(*ast.SelectorExpr); selected {
 					if !metadataField(field.Sel.Name) {
@@ -173,4 +176,26 @@ func (file *declarationMutationFile) writes(reader *expression, reference declar
 		}
 	}
 	return nil
+}
+
+// rebindsLocal reports whether a write target is a bare identifier naming a
+// function-local variable other than the queried declaration. Assigning to such
+// an identifier replaces the local's own value and never writes through it, so
+// `fam := IPv4FlowSpec; fam = IPv6FlowSpec` leaves IPv4FlowSpec intact. A write
+// through an alias (`fam.AFI = x`, `p[i] = v`, `*p = v`) is not a bare
+// identifier and stays with refersTo. A package-level variable of this file is
+// the object its file scope holds, the resolution refersTo also relies on; one
+// declared in another file of the package is unresolved (nil Obj), because each
+// file is parsed alone, and also stays with refersTo.
+func rebindsLocal(target ast.Expr, reference declarationReference, file *ast.File) bool {
+	if name, bare := target.(*ast.Ident); bare {
+		if object := name.Obj; object != nil {
+			if object.Kind == ast.Var {
+				if object != reference.local {
+					return file.Scope.Lookup(name.Name) != object
+				}
+			}
+		}
+	}
+	return false
 }
