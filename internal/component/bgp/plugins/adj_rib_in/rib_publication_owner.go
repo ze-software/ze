@@ -83,19 +83,28 @@ func (r *AdjRIBInManager) removeValidationOwner(string) error {
 
 // releaseValidationOwner runs after SDK Run has joined admitted handlers and
 // the runtime owner has stopped and joined its timeout scanner.
-// Successful removal releases the lookup. An unexpected exit leaves selection
-// closed while the declared fatal policy stops the daemon and its peers.
+// Successful removal releases the lookup. An exit with no removal, which a
+// daemon stop also is (it closes the connection and sends no bye), leaves
+// selection closed while the declared fatal policy stops the daemon and its
+// peers. That holds only for an owner that ever gated a route: one whose
+// validation was never enabled registered no lookup, so its exit has no verdict
+// to keep, and a refusing lookup would switch on a gate nobody asked for
+// (ribevents.ValidationEnabled) in this process.
 func (r *AdjRIBInManager) releaseValidationOwner() {
 	r.mutationMu.Lock()
 	defer r.mutationMu.Unlock()
 	r.mu.Lock()
 	removed := errors.Is(r.terminal, errReceiveStoreRemoved)
+	gated := r.validationGate || r.terminal != nil
 	if r.terminal == nil {
 		r.terminal = errReceiveStoreStopped
 	}
 	r.mu.Unlock()
 	if removed {
 		ribevents.RegisterValidationLookup(nil, nil)
+		return
+	}
+	if !gated {
 		return
 	}
 	ribevents.RegisterValidationLookup(refuseValidationRoute, refusePresentRoute)

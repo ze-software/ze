@@ -1268,7 +1268,10 @@ failure also stops the owner. Mutation admission and removal settlement
 share one lock; queries remain available during publication. The owner keeps the
 failure cause, closes its callback transport, and leaves a static refusing lookup
 through teardown. The plugin declares `fatal`, so any unexpected current owner
-exit stops the daemon and its BGP peers, not only a publication failure. Successful
+exit stops the daemon and its BGP peers, not only a publication failure. An exit
+leaves the refusing lookup only when the owner held a gate: validation was enabled
+at some point, or a publication failed. An owner that never enabled validation
+registered no lookup and leaves none. Successful
 live removal first settles all owed publications and then refuses further mutations.
 On runtime exit, the owner stops and joins its timeout scanner before sampling
 the final publication error or releasing the lookup. A scanner publication still
