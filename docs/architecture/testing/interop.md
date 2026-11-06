@@ -2994,8 +2994,15 @@ order. The real-Peer tests retain that detailed ordering responsibility.
 
 Timing uses each byte's first captured arrival. ACK and FIN boundaries must
 already have complete payload coverage at their capture time; a later
-retransmission or FIN cannot repair earlier evidence. A reordered capture may
-therefore be refused as insufficient timing proof, not as a peer protocol fault.
+retransmission or FIN cannot repair earlier evidence. Every packet needs a
+nonzero capture timestamp, and timestamps must be monotone across both
+directions of each complete address-and-port tuple. Independent connections
+may have records with out-of-order timestamps because packets can be
+timestamped and queued on different CPUs, as described in the
+[libpcap timestamp manual](https://github.com/the-tcpdump-group/libpcap/blob/master/pcap-tstamp.manmisc.in).
+The checker retains the original packet order and timestamps. Missing times
+or a reversal within one connection refuse the timing proof, not the peer's
+protocol behavior.
 <!-- source: test/interop/scenarios/bgp-delayopen-frr/ -- native peer configuration -->
 <!-- source: internal/le/interoplab/bgp/check_delayopen.go -- checkDelayOpenFRR, startDelayOpenCapture, stopDelayOpenCapture -->
 <!-- source: internal/le/interoplab/bgp/check_delayopen_wire.go -- delayOpenHistory, judgeDelayOpen, delayOpenCaptureComplete -->

@@ -18,7 +18,10 @@ import (
 	"github.com/ze-software/ze/internal/core/pcap"
 )
 
-const delayOpenPacketLimit = 4096
+const (
+	delayOpenPacketLimit      = 4096
+	delayOpenTimestampProblem = "DelayOpen capture timestamps missing or reversed"
+)
 
 // delayOpenMessage timestamps the first arrival of every covered byte, so a
 // segmented OPEN completes only after all bytes arrived, not on a retransmit.
@@ -33,6 +36,8 @@ type delayOpenConnection struct {
 	Handshake, Closed time.Time
 	Ze, FRR           []delayOpenMessage
 	Packets           int
+	// Both directions share a timeline for first-arrival, ACK and FIN checks.
+	timestampPrevious time.Time
 	syn               [2]time.Time
 	sequence          [2]uint32
 	firstPayload      [2]uint32
@@ -74,7 +79,6 @@ func delayOpenHistory(raw []byte, ze netip.Addr) ([]*delayOpenConnection, error)
 	byFlow := make(map[pcap.Flow]*delayOpenConnection)
 	var history []*delayOpenConnection
 	var record pcap.Record
-	var previous time.Time
 	for count := 0; ; count++ {
 		err := reader.Next(&record)
 		if errors.Is(err, io.EOF) {
@@ -86,10 +90,13 @@ func delayOpenHistory(raw []byte, ze netip.Addr) ([]*delayOpenConnection, error)
 		if count >= delayOpenPacketLimit-1 {
 			return nil, errors.New("DelayOpen capture reached packet bound")
 		}
-		if record.Timestamp.IsZero() || record.Timestamp.Before(previous) {
-			return nil, errors.New("DelayOpen capture timestamps missing or reversed")
+		if record.Timestamp.IsZero() {
+			return nil, errors.New(delayOpenTimestampProblem)
 		}
-		previous = record.Timestamp
+		// Native (seconds=0, fraction=0) is an absent capture clock, not Go's zero time.
+		if record.Timestamp.Equal(time.Unix(0, 0)) {
+			return nil, errors.New(delayOpenTimestampProblem)
+		}
 		frame := record.Data
 		if record.OriginalLen != len(frame) || len(frame) < 54 {
 			return nil, errors.New("truncated DelayOpen Ethernet frame")
@@ -131,6 +138,10 @@ func delayOpenHistory(raw []byte, ze netip.Addr) ([]*delayOpenConnection, error)
 			byFlow[flow] = connection
 			history = append(history, connection)
 		}
+		if record.Timestamp.Before(connection.timestampPrevious) {
+			return nil, errors.New(delayOpenTimestampProblem)
+		}
+		connection.timestampPrevious = record.Timestamp
 		connection.Packets++
 		seq, ack, flags := binary.BigEndian.Uint32(tcp[4:8]), binary.BigEndian.Uint32(tcp[8:12]), tcp[13]
 		if flags&2 != 0 {
