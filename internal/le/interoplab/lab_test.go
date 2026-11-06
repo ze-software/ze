@@ -9,9 +9,9 @@ import (
 )
 
 // VALIDATES: the wiring row "any lab verb -> Suite.Run -> Docker.CleanupOrphans
-// before Preflight": the labeled listing follows the probe and precedes both
+// dry before Preflight": the labeled listing follows the probe and precedes both
 // the Preflight and the first create.
-// PREVENTS: a lab start that never collects a killed run's leftovers.
+// PREVENTS: a lab start that never reports a killed run's leftovers.
 func TestSuiteRunCleansOrphansBeforePreflight(t *testing.T) {
 	runner := &recordingRunner{}
 	runner.run = kernelAnswering(nil)
@@ -59,7 +59,7 @@ func TestSuiteRunCleansOrphansBeforePreflight(t *testing.T) {
 	}
 }
 
-// VALIDATES: a lab run's start sweep prints its summary after its per-resource
+// VALIDATES: a lab run's start inspection prints its summary after its per-resource
 // lines, so a sweep that met nothing still says it ran. Method: run the suite
 // against a fake daemon, stop it at Preflight, and read the progress output.
 // PREVENTS: a clean daemon's sweep that prints nothing, which an operator
@@ -82,10 +82,15 @@ func TestSuiteRunPrintsTheSweepSummary(t *testing.T) {
 	}{
 		{name: "clean daemon", run: kernelAnswering(nil),
 			lines: []string{"interop: cleanup: no Ze lab resource on this Docker daemon"}},
-		{name: "one removable orphan", run: orphanDaemon(fixtureLabels(nil), oneContainer),
+		{name: "one own orphan preview", run: orphanDaemon(fixtureLabels(nil), oneContainer),
 			lines: []string{
-				"interop: cleanup: removed container lab-peer-4242",
-				"interop: cleanup: 1 removed, 0 kept, 0 failed, 0 unknown",
+				"interop: cleanup: would remove container lab-peer-4242",
+				"interop: cleanup: 1 to remove, 0 kept, 0 failed, 0 unknown",
+			}},
+		{name: "one foreign orphan preview", run: orphanDaemon(otherRunLabels(), oneContainer),
+			lines: []string{
+				"interop: cleanup: would remove container lab-peer-4242",
+				"interop: cleanup: 1 to remove, 0 kept, 0 failed, 0 unknown",
 			}},
 	} {
 		t.Run(row.name, func(t *testing.T) {
@@ -113,10 +118,10 @@ func TestSuiteRunPrintsTheSweepSummary(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-7: preClean removes a same-name container only when its labels
-// prove the owner gone, and refuses a live owner's or an unlabeled one with an
+// VALIDATES: preClean refuses another run's same-name container even when its
+// owner is gone, and refuses a live owner's or an unlabeled one with an
 // error naming the container, its owner and the fix.
-// PREVENTS: a run force-removing another live run's same-name container.
+// PREVENTS: a run force-removing another run's same-name container.
 func TestPreCleanRefusesLiveOrUnlabeledSameName(t *testing.T) {
 	for _, row := range []struct {
 		name    string
@@ -125,7 +130,8 @@ func TestPreCleanRefusesLiveOrUnlabeledSameName(t *testing.T) {
 		removed bool
 		message []string
 	}{
-		{name: "gone owner is removed", labels: labelJSON(otherRunLabels()), removed: true},
+		{name: "gone foreign owner is refused", labels: labelJSON(otherRunLabels()),
+			message: []string{"lab-peer", "4242", "_INTEROP_SUFFIX", "not this run's to remove"}},
 		{name: "live owner is refused", labels: labelJSON(otherRunLabels()), lookup: "100",
 			message: []string{"lab-peer", "4242", "_INTEROP_SUFFIX", "./le test integration clean"}},
 		{name: "unlabeled is refused", labels: "null",
@@ -157,7 +163,7 @@ func TestPreCleanRefusesLiveOrUnlabeledSameName(t *testing.T) {
 				return
 			}
 			if err == nil {
-				t.Fatal("preClean accepted a container it cannot prove dead")
+				t.Fatal("preClean accepted a container this run did not create")
 			}
 			for _, want := range row.message {
 				if !strings.Contains(err.Error(), want) {

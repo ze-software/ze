@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- Crash-safe teardown: owner labels and the orphan cleanup
 // Related: docker.go -- every create argv appends ownerIdentity.labelArguments.
-// Related: lab.go -- Suite.Run sweeps before Preflight; Lab.preClean claims names through claimName.
+// Related: lab.go -- Suite.Run inspects before Preflight; Lab.preClean claims names through claimName.
 // Related: ../procscan/procscan.go -- the pid start token the verdict compares.
 package interoplab
 
@@ -18,18 +18,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/procscan"
 )
 
-// The owner label keys. Every resource the wrapper creates carries all of
-// them, and the cleanup lists only resources carrying labelMarker, so a
-// resource without it is never a candidate. docs/architecture/testing/interop.md
-// lists these keys from this declaration.
+// The owner label keys. Creates carry the common labels and the applicable
+// optional labels. Every cleanup verdict requires labelMarker, so a resource
+// without it cannot be removed. docs/architecture/testing/interop.md lists
+// these keys from this declaration.
 const (
 	labelMarker       = "ze.lab"
 	labelMarkerValue  = "1"
 	labelRun          = "ze.lab.run"
+	labelLaunch       = "ze.lab.launch"
 	labelPID          = "ze.lab.pid"
 	labelPIDStart     = "ze.lab.pid-start"
 	labelBootID       = "ze.lab.boot-id"
@@ -75,6 +77,7 @@ const (
 // is the inode of the Linux pid namespace the process runs in, and is empty
 // on macOS, which has no pid namespace: its pid label is the host's own.
 type ownerIdentity struct {
+	launch       string
 	run          string
 	pid          int
 	pidStart     string
@@ -102,10 +105,11 @@ func (o ownerIdentity) labelArguments(kind resourceKind) []string {
 }
 
 // labelPairs is every owner label a create of kind carries, as key and value.
-// The pid namespace label is present only where the client has one (Linux).
+// The PID namespace label is present only on Linux. The launch label is
+// present only when this process inherited its launcher's identity.
 func (o ownerIdentity) labelPairs(kind resourceKind) [][2]string {
-	// Twelve: the eleven labels every create carries, and the pid namespace.
-	pairs := make([][2]string, 0, 12)
+	// Up to thirteen: eleven common labels, a PID namespace and a launch id.
+	pairs := make([][2]string, 0, 13)
 	pairs = append(pairs,
 		[2]string{labelMarker, labelMarkerValue},
 		[2]string{labelKind, kind.labelValue()},
@@ -119,6 +123,9 @@ func (o ownerIdentity) labelPairs(kind resourceKind) [][2]string {
 		[2]string{labelUID, strconv.Itoa(o.uid)},
 		[2]string{labelOS, o.goos},
 	)
+	if o.launch != "" {
+		pairs = append(pairs, [2]string{labelLaunch, o.launch})
+	}
 	if o.pidNamespace == "" {
 		return pairs
 	}
@@ -127,12 +134,16 @@ func (o ownerIdentity) labelPairs(kind resourceKind) [][2]string {
 
 // created reports whether labels are exactly the ones this client's own
 // creates of kind carry: the same run id, pid, pid start token, boot, machine,
-// uid, OS, pid namespace and start time. Only this process writes that set, so
-// a resource carrying it is this run's own leftover, such as a shared lab
+// uid, OS, pid namespace, start time and optional launch id. Cooperating
+// processes each write their own identity, so a resource carrying it is this
+// run's own leftover, such as a shared lab
 // network a previous scenario's removal left behind while it outlasted its
 // bound. An identity with no run id answers false: it names no run.
 func (o ownerIdentity) created(kind resourceKind, labels map[string]string) bool {
 	if o.run == "" {
+		return false
+	}
+	if labels[labelLaunch] != o.launch {
 		return false
 	}
 	pairs := o.labelPairs(kind)
@@ -168,7 +179,8 @@ func fixtureJudge() ownerJudge {
 var processIdentity = sync.OnceValues(func() (ownerIdentity, ownerJudge) {
 	host := readHostFacts(systemHostReaders())
 	owner := ownerIdentity{
-		run: rand.Text(), pid: os.Getpid(), bootID: host.bootID, machineID: host.machineID,
+		launch: env.Get(runIdentityKey),
+		run:    rand.Text(), pid: os.Getpid(), bootID: host.bootID, machineID: host.machineID,
 		started: time.Now(), purpose: purposeOf(os.Args),
 		uid: host.uid, goos: host.goos, pidNamespace: host.pidNamespace,
 	}
@@ -841,26 +853,47 @@ type listedResource struct {
 // the daemon refuses is the returned error; every per-resource outcome is in
 // the report. dry lists and removes nothing.
 func (d *Docker) CleanupOrphans(ctx context.Context, dry bool) (OrphanReport, error) {
+	return d.cleanupOrphans(ctx, dry, "")
+}
+
+// CleanupOwnedOrphans removes only gone owners' resources carrying the launch
+// id this client passed to its children through ChildEnvironment. The caller
+// MUST use ChildEnvironment before launching the children it later cleans.
+func (d *Docker) CleanupOwnedOrphans(ctx context.Context) (OrphanReport, error) {
+	launch := d.owner.launchIdentity()
+	if launch == "" {
+		return OrphanReport{}, errors.New("the Docker client has no launch identity, so child resources cannot be attributed. Fix: create the client with NewDocker before launching tests")
+	}
+	return d.cleanupOrphans(ctx, false, launch)
+}
+
+// cleanupOrphans shares the explicit cleanup's ordering and settlement. A
+// nonempty launch restricts both the daemon listing and the inspected labels.
+func (d *Docker) cleanupOrphans(ctx context.Context, dry bool, launch string) (OrphanReport, error) {
 	report := OrphanReport{Dry: dry, Removed: []OrphanResource{}, Skipped: []OrphanResource{},
 		Failed: []OrphanResource{}, Unknown: []OrphanResource{}, Unlabeled: []OrphanResource{}}
-	containers, err := d.listResources(ctx, resourceContainer, "label="+labelMarker)
+	filter := "label=" + labelMarker
+	if launch != "" {
+		filter = "label=" + labelLaunch + "=" + launch
+	}
+	containers, err := d.listResources(ctx, resourceContainer, filter)
 	if err != nil {
 		return report, err
 	}
-	networks, err := d.listResources(ctx, resourceNetwork, "label="+labelMarker)
+	networks, err := d.listResources(ctx, resourceNetwork, filter)
 	if err != nil {
 		return report, err
 	}
-	images, err := d.listResources(ctx, resourceImageTag, "label="+labelMarker)
+	images, err := d.listResources(ctx, resourceImageTag, filter)
 	if err != nil {
 		return report, err
 	}
 
 	for _, container := range containers {
-		d.sweepOne(ctx, &report, resourceContainer, container, container.id)
+		d.sweepOne(ctx, &report, resourceContainer, container, container.id, launch)
 	}
 	for _, network := range networks {
-		d.sweepOne(ctx, &report, resourceNetwork, network, network.id)
+		d.sweepOne(ctx, &report, resourceNetwork, network, network.id, launch)
 	}
 	labeledImages := map[string]bool{}
 	for _, image := range images {
@@ -868,7 +901,7 @@ func (d *Docker) CleanupOrphans(ctx context.Context, dry bool) (OrphanReport, er
 		if !strings.HasPrefix(image.name, retainedTagRepository+":") {
 			continue
 		}
-		d.sweepOne(ctx, &report, resourceImageTag, image, image.id)
+		d.sweepOne(ctx, &report, resourceImageTag, image, image.id, launch)
 	}
 	if !dry {
 		return report, nil
@@ -897,7 +930,7 @@ func (d *Docker) CleanupOrphans(ctx context.Context, dry bool) (OrphanReport, er
 // sweepOne judges one listed resource and, outside a dry run, removes it when
 // its owner is gone. inspectID is the id its labels are read from: an image
 // tag's labels are its image's.
-func (d *Docker) sweepOne(ctx context.Context, report *OrphanReport, kind resourceKind, listed listedResource, inspectID string) {
+func (d *Docker) sweepOne(ctx context.Context, report *OrphanReport, kind resourceKind, listed listedResource, inspectID, launch string) {
 	resource := OrphanResource{Kind: kind, ID: listed.id, Name: listed.name}
 	labels, vanished, err := d.resourceLabels(ctx, kind, inspectID)
 	if vanished {
@@ -909,6 +942,14 @@ func (d *Docker) sweepOne(ctx context.Context, report *OrphanReport, kind resour
 		resource.Fix = "run `" + cleanupCommand + "` again once the daemon answers"
 		report.Failed = append(report.Failed, resource)
 		return
+	}
+	if launch != "" {
+		if labels[labelLaunch] != launch {
+			resource.Reason = "its launch identity differs from this invocation's launched children"
+			resource.Fix = "leave this resource for the run that created it"
+			report.Skipped = append(report.Skipped, resource)
+			return
+		}
 	}
 	judgement := d.judge.judge(kind, labels)
 	resource.Reason = judgement.reason
@@ -1121,12 +1162,10 @@ func absentAnswer(err error, ref string) bool {
 	return false
 }
 
-// claimName clears an existing resource of exactly this name before a
-// scenario creates its own: removed when every owner label equals this run's
-// own (an earlier scenario's leftover, ownerIdentity.created) or its owner is
-// proven gone, refused otherwise, unlabeled included. A run never force-removes
-// a name another live run may hold. The refusal's fix names suffixVariable, the lab's own
-// suffix variable, when it has one, and otherwise the verdict's own fix.
+// claimName reclaims a same-name resource only when every owner label equals
+// this process's own (ownerIdentity.created). Liveness does not prove creation:
+// an exited foreign owner's resource is refused too. The fix names this lab's
+// suffix variable when available and otherwise asks for a different name.
 func (d *Docker) claimName(ctx context.Context, kind resourceKind, name, suffixVariable string) error {
 	rows, err := d.listResources(ctx, kind, "name="+name)
 	if err != nil {
@@ -1150,19 +1189,17 @@ func (d *Docker) claimName(ctx context.Context, kind resourceKind, name, suffixV
 			continue
 		}
 		judgement := d.judge.judge(kind, labels)
-		if judgement.verdict == ownerGone {
-			if removeErr := d.removeResource(ctx, kind, row); removeErr != nil {
-				return removeErr
-			}
-			continue
-		}
 		var refusal textbuf.Buffer
 		refusal.Str(kind.String()).Byte(' ').Str(name).Str(" already exists and is not this run's to remove: ").
 			Str(judgement.reason).Str(". Fix: ")
 		if suffixVariable != "" {
 			refusal.Str("set ").Str(suffixVariable).Str(" to a value no other run uses, or ")
 		}
-		refusal.Str(judgement.fix)
+		if judgement.fix != "" {
+			refusal.Str(judgement.fix)
+		} else {
+			refusal.Str("choose a different resource name. This resource stays with the run that created it")
+		}
 		return errors.New(refusal.String())
 	}
 	return nil

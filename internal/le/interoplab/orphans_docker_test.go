@@ -24,8 +24,8 @@ const orphanChildVariable = "ZE_ORPHAN_TEST_CHILD"
 // orphanTestImage is the base the child's container and build use.
 const orphanTestImage = "alpine:3.24.3"
 
-// VALIDATES: the wiring row "a lab run SIGKILLed, then any lab start ->
-// labels on create + Docker.CleanupOrphans", against the real daemon: a run
+// VALIDATES: a launcher's cleanup after its child was SIGKILLed, through
+// inherited launch labels and Docker.CleanupOwnedOrphans against the real daemon: a run
 // killed with SIGKILL leaves its network, container and run-owned tag, and the
 // next sweep removes exactly that set while a live run's set beside it stays,
 // reported as kept. Once the second run dies too, the next sweep removes its
@@ -44,13 +44,14 @@ func TestKilledLabRunIsCleanedByNextStart(t *testing.T) {
 		t.Skip("docker is not installed; install Docker to run this test")
 	}
 	ctx := testDeadlineContext(t)
-	if err := NewDocker().Probe(ctx); err != nil {
+	parent := NewDocker()
+	if err := parent.Probe(ctx); err != nil {
 		t.Fatalf("Docker does not answer: %v. Fix: start Docker, or point DOCKER_HOST at a daemon", err)
 	}
 
 	stamp := strconv.FormatInt(time.Now().UnixNano(), 36)
-	killed := startOrphanChild(t, "killed-"+stamp, 0)
-	live := startOrphanChild(t, "live-"+stamp, 1)
+	killed := startOrphanChild(t, parent, "killed-"+stamp, 0)
+	live := startOrphanChild(t, parent, "live-"+stamp, 1)
 
 	if err := killed.process.Process.Signal(syscall.SIGKILL); err != nil {
 		t.Fatalf("SIGKILL the first run: %v", err)
@@ -62,9 +63,9 @@ func TestKilledLabRunIsCleanedByNextStart(t *testing.T) {
 		}
 	}
 
-	report, err := NewDocker().CleanupOrphans(ctx, false)
+	report, err := parent.CleanupOwnedOrphans(ctx)
 	if err != nil {
-		t.Fatalf("CleanupOrphans: %v", err)
+		t.Fatalf("CleanupOwnedOrphans: %v", err)
 	}
 	t.Logf("first sweep:\n%s", report.Text())
 	for _, name := range killed.resources() {
@@ -91,9 +92,9 @@ func TestKilledLabRunIsCleanedByNextStart(t *testing.T) {
 		t.Fatalf("SIGKILL the second run: %v", err)
 	}
 	_ = live.process.Wait() //nolint:errcheck // a SIGKILLed child exits non-zero by design
-	report, err = NewDocker().CleanupOrphans(ctx, false)
+	report, err = parent.CleanupOwnedOrphans(ctx)
 	if err != nil {
-		t.Fatalf("CleanupOrphans: %v", err)
+		t.Fatalf("CleanupOwnedOrphans: %v", err)
 	}
 	t.Logf("second sweep:\n%s", report.Text())
 	for _, name := range live.resources() {
@@ -117,14 +118,18 @@ func (c orphanChild) resources() []string {
 	return []string{"container:" + c.container, "network:" + c.network, "image:" + c.retained}
 }
 
-func startOrphanChild(t *testing.T, suffix string, subnet int) orphanChild {
+func startOrphanChild(t *testing.T, parent *Docker, suffix string, subnet int) orphanChild {
 	t.Helper()
 	// The child shares this run's deadline rather than a constant of its own,
 	// and the context kills it at that deadline: its build is bounded by the
 	// wrapper alone (testDeadlineContext), and a kill ends the read below.
 	ctx := testDeadlineContext(t)
 	command := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestKilledLabRunIsCleanedByNextStart$", orphanChildTimeout(t)) //nolint:gosec // this test binary
-	command.Env = append(os.Environ(), orphanChildVariable+"="+suffix, "ZE_ORPHAN_TEST_SUBNET="+strconv.Itoa(subnet))
+	environ, err := parent.ChildEnvironment(os.Environ())
+	if err != nil {
+		t.Fatalf("attribute the %s child's resources: %v", suffix, err)
+	}
+	command.Env = append(environ, orphanChildVariable+"="+suffix, "ZE_ORPHAN_TEST_SUBNET="+strconv.Itoa(subnet))
 	command.Stderr = os.Stderr
 	stdout, err := command.StdoutPipe()
 	if err != nil {

@@ -204,7 +204,7 @@ var _ CheckerLab = (*Lab)(nil)
 // start, so a caller that walks a suite's whole peer set can skip the absent ones.
 var ErrUnknownPeer = errors.New("unknown peer")
 
-// Run probes Docker once, removes what earlier runs left behind, checks the
+// Run probes Docker once, reports what earlier runs left behind, checks the
 // daemon's kernel, prepares images once, and runs every scenario.
 func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 	if s.Docker == nil {
@@ -222,20 +222,17 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		report.Code = 1
 		return report
 	}
-	// The orphan cleanup runs before Preflight and before anything is
-	// created, so a killed run's leftovers go before this run's names are
-	// claimed. Its per-resource outcomes and then its summary are progress
-	// lines: a dead run's leftover it could not remove is not this run's
-	// failure, and preClean still refuses a name it collides with. The summary
-	// prints even when the sweep met nothing, so the operator can tell a sweep
-	// that ran from one that never did.
+	// An exited owner does not make its resources this run's. Inspect its
+	// leftovers without removing them. preClean reclaims only exact current
+	// owner labels and refuses every other name collision. Print the summary
+	// even when the inspection met nothing, so the operator knows it ran.
 	var line textbuf.Buffer
-	orphans, err := s.Docker.CleanupOrphans(ctx, false)
+	orphans, err := s.Docker.CleanupOrphans(ctx, true)
 	if err != nil {
-		report.SetupError = line.Str("the pre-run cleanup of killed runs' leftovers could not list the labeled lab").
-			Str(" resources (").Err(err).Str("), so this run cannot clear a dead run's same-name container or").
-			Str(" network before it claims its own. Fix: run the failing docker command by hand to see why the").
-			Str(" daemon refuses it, then run `").Str(cleanupCommand).Str("` or this run again").String()
+		report.SetupError = line.Str("the pre-run inspection could not list the labeled lab resources (").Err(err).
+			Str("), so their ownership could not be reported. Fix: run the failing docker command by hand to").
+			Str(" see why the daemon refuses it. Correct that refusal, then retry the inspection:\n`").
+			Str(cleanupCommand).Str(" dry`\nRun this suite again").String()
 		report.Code = 1
 		return report
 	}
@@ -568,12 +565,9 @@ func (l *Lab) setPeers(peers []PeerConfig) {
 	}
 }
 
-// preClean clears this scenario's container and network names before it
-// creates them. A same-name resource goes when every owner label equals this
-// run's own (an earlier scenario's leftover, ownerIdentity.created) or when its
-// owner labels prove the owner gone; a live, foreign, unjudgeable or unlabeled
-// one fails the scenario with the owner and the fix (Docker.claimName), which
-// names suffixVariable when the lab has one.
+// preClean reclaims same-name resources only when every owner label equals
+// this process's own (ownerIdentity.created). Every other owner is refused,
+// including an exited one. The refusal names suffixVariable when available.
 func (l *Lab) preClean(ctx context.Context, network string, peers []PeerConfig, suffixVariable string) error {
 	for index := range peers {
 		if err := l.docker.claimName(ctx, resourceContainer, peers[index].Container, suffixVariable); err != nil {

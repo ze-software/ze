@@ -277,9 +277,14 @@ the runner, is its parent, so killing the runner kills nothing it started. The
 labs therefore cover the three routes differently. The `defer` beside the start
 is `Suite.Run`'s teardown. Cancellation is a `signal.NotifyContext` root on
 SIGINT and SIGTERM at each lab entry point, so a Ctrl-C runs that teardown. The
-stand-in for `Pdeathsig` is the owner labels every lab resource carries: the
-next lab start, or `./le test integration clean`, removes the resources whose
-owner is provably gone (`interop.md`, "Crash-safe teardown").
+stand-in for `Pdeathsig` is the owner labels every lab resource carries.
+The next lab start reports leftovers without removing them. The explicit
+`./le test integration clean` command removes resources whose owner is provably
+gone (`interop.md`, "Crash-safe teardown"). A launcher can automatically remove
+only its attributed children's leftovers through `Docker.CleanupOwnedOrphans`.
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run -->
+<!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans, Docker.CleanupOwnedOrphans -->
+<!-- source: internal/le/interoplab/run_identity.go -- Docker.ChildEnvironment -->
 
 The docker client is the opposite case to a runner with no handler: le holds
 the signal root, so the client must not see the Ctrl-C itself. Every docker
