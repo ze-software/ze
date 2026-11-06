@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 22 findings of the full lint in the BGP plugins; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 2/3: source fixes; parent owns serialized verification |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
@@ -107,7 +107,7 @@ gocritic 1, nilnil 1. Line numbers are the CI run's.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | The scoped run before the first edit | unvalidated |
+| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | Source audit: role fixes landed in 56bc606e5c; the other 18 finding shapes remain. Parent's baseline lint was interrupted by server restarts; no fresh lint verdict is available | broken |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -162,6 +162,45 @@ gocritic 1, nilnil 1. Line numbers are the CI run's.
 | Role absence | Every caller preserves its outcome after the nilnil repair in `role/config_tx.go` (R-1). |
 | Plugin contracts | Constants stay within their owning plugin, filter verdicts stay intact, and RFC quotes remain byte-exact. |
 | Plugin evidence | All eight scopes are lint-clean, tagged race tests pass, and annotations state their reasons (AC-1–3). |
+
+## Source audit and implementation handoff
+
+The source audit found four role findings already addressed by 56bc606e5c.
+The remaining 18 finding shapes were present before these edits. This is
+source evidence, not a current lint result: the parent's baseline run was
+interrupted by server restarts. Role files are owned by another session and
+were not edited by this phase.
+
+The remaining source fixes are written: community field constants stay in
+filter_modify; its bracket guard uses bytes.HasPrefix; the three conformance
+comments use US spelling; the logging helpers lose unused input/output;
+the labeled-prefix fixture appends into its own slice variable. No RFC quote
+was changed. The affected guide sections keep the same documented behavior.
+
+The IRR snapshot test now fails on FilterWithdraw as well as modify and
+unspecified. Diagnosis: the saved exhaustive finding exposed a missing enum
+case in TestIRRSnapshotSwap, which let that verdict pass without an assertion.
+The owning layer is the test. The source fix adds the verdict to the existing
+failure arm; suppressing exhaustive would leave that blind spot in place.
+Existing assertions are preserved and no product behavior changes.
+
+GR's familyRetained was used only by tests. It moved unchanged into
+gr_state_helpers_test.go, retaining its generic peer argument and a reasoned
+unparam annotation: assertions keep the queried peer explicit although current
+fixtures share one address. Its RFC-tagged callers and their claims were not
+edited. No RFC-test judgment is requested by this patch.
+
+AC-1 and AC-2 remain unverified. AC-3 has one linter-specific, reasoned
+annotation, pending the parent's lint run. No tests, lint or builds ran in
+this implementation phase; the main session owns serialized verification,
+independent review and committing. The exact commands and changed-file digest
+are in the session's per-spec state file.
+
+### Mistake Log — Wrong Assumptions
+
+| Assumption | Evidence | Correction |
+|------------|----------|------------|
+| A-1: all 22 CI findings still need edits | The role source and 56bc606e5c already carry its four fixes | Implement the remaining source findings; retain all eight scopes for acceptance verification |
 
 ### Deliverables Checklist
 

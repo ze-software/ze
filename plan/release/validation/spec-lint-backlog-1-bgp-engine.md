@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 53 findings of the full lint in the BGP engine packages; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/1 — implementation steps 2–4; verification owned by main |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
@@ -139,7 +139,36 @@ the reactor.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted; findings added or gone | The scoped run before the first edit | unvalidated |
+| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted; findings added or gone | Source audit found 29 recorded sites already addressed and 24 requiring treatment; current lint matrix is still unverified after interrupted baseline runs | broken |
+
+### Source audit and execution boundary
+
+The saved CI list guides implementation, not a current lint-clean claim. The
+parent authorized steps 2–4 before a new lint run because server restarts
+interrupted the baseline. It owns serialized lint and test execution after the
+implementation handoff. AC-1 and AC-2 remain unverified.
+
+The implementation patch addresses all 24 remaining recorded sites:
+mechanical rewrites and spelling, plus eight test error-channel receives whose
+existing completion assertions remain intact. Five intentional cleanup or
+failure-session joins carry local `errcheck` reasons; three forbidden early
+completions include the returned error in their unconditional failure message.
+No protocol behavior, RFC-tagged test, or quoted RFC sentence changed.
+
+The parent recovered CI run `41447216730`'s exact diagnostics:
+`policychain/prefix_overlay.go:dropMPReach` reports `appendAssign`, and
+`reactor/capture_replay.go:sessionCapture.openFile` reports `G302` (permissions
+above 0600). The append now writes back to its local slice, still publishing
+the scratch buffer only after a successful rewrite. G302 has a local reason:
+`captureFilePerm` deliberately grants daemon-group read access with 0640,
+paired with the existing 0750 directory contract. No permission changed.
+Both source treatments still await the parent's scoped lint and tests.
+
+### Mistake Log — Wrong Assumptions
+
+| Assumption | Evidence | Correction |
+|------------|----------|------------|
+| A-1: the saved CI list still describes current source | `filter_nlri_delta.go:nlriSectionOf` already propagates MP errors; commit `5c1aea079c` also cleared reactor mechanical findings | Preserve existing repairs; patch remaining source sites and reconcile the full list against the next completed lint run |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

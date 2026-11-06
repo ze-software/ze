@@ -67,7 +67,7 @@ that: an IGP import filter decides local installation only, never flooding.
 - [ ] `docs/guide/redistribution.md` - filters and redistribution roots
   → Decision: the `redistribute` root's `family` and `tag` leaves are replaced by chains in phase 3 (no layering). Withdrawal always reaches a destination that holds a route, whatever the rule now says; that rule stays.
 - [ ] `docs/architecture/core-design.md` - Ingress Filter Pipeline, ModAccumulator
-  → Constraint: in-process BGP filters take wire bytes and write mod-ops; the external chain is text-based (`spec-filter-wire-0-umbrella` removes the text). The library must not add a third representation for BGP.
+  → Historical constraint, before phase 4: in-process BGP filters took wire bytes and wrote mod-ops; the external chain was text-based. `spec-filter-wire-0-umbrella` replaced that text path with the two-transport mechanism listed under Existing Mechanisms below. The library must not add a third representation for BGP.
 - [ ] `internal/component/sysrib/yang/ze-rib-conf.yang` - the `rib` root that gains `filter`
   → Constraint: `fib-withhold` sits downstream of selection in sysrib and never touches the Loc-RIB. Import filtering is a different stage: a hidden path is not selected at all, a withheld winner is selected and not programmed. Both stay.
 - [ ] `docs/architecture/isis/isis-9-spf-rib.md` - IS-IS install is a Loc-RIB insert
@@ -85,7 +85,9 @@ that: an IGP import filter decides local installation only, never flooding.
 - [ ] No RFC defines a local RIB import policy for IS-IS or OSPF; it is local policy. The constraint that applies is that the LSDB is not altered: flooding and SPF input stay untouched (A-3).
   → Constraint: an IGP import filter acts after SPF, on the routes the IGP offers the Loc-RIB; it never edits LSPs/LSAs received or suppresses flooding.
 
-**Key insights:** (minimal context to resume after compaction)
+**Historical design-baseline insights:** these record the producers before phases
+1-4, not the implementation now. Existing Mechanisms below names the current
+surviving mechanisms.
 - Every Loc-RIB write ends in `(*RIB).insert` / `(*RIB).Remove` (`internal/core/rib/locrib/manager.go`), forked plugins included (`applyRouteInstall` in `plugin/server/dispatch_route.go` calls `InsertForward`). That is the one gate.
 - Insert is the BGP full-table hot path and runs under the shard lock with OnChange subscribers dispatched under it: the gate is allocation-free and reads a snapshot published through an atomic pointer, like the distance seam (`internal/core/rib/distance`).
 - `locrib.Path` carries no tag, IS-IS level or OSPF route type; prefix and family are arguments to insert, not fields. Static's tag reaches only redistevents.
@@ -94,6 +96,14 @@ that: an IGP import filter decides local installation only, never flooding.
 - Redistribution's `ImportRule.Accept` is an OR over rules with no `final`; `import ibgp`/`import ebgp` never match (journal row).
 
 ## Current Behavior (MANDATORY)
+
+The source inventory below preserves the pre-implementation baseline. Names such
+as `BuildFilterRegistry`, `filterapi.Register` and `PolicyFilterChain` describe
+that baseline, not surviving APIs. Current BGP chain compilation and execution
+are `compileLibraryChain` and `runLibraryChain`; see Existing Mechanisms below
+and `docs/architecture/core-design.md`, "Policy Filter Chain".
+<!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
 
 **Source files read:**
 - [ ] `internal/core/rib/locrib/manager.go` - `insert` validates, locks the prefix shard, upserts in `Modify`, computes best and ECMP siblings, dispatches Add/Update, records metrics. `Remove` keyed on (Source, Instance).
