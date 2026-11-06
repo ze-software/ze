@@ -42,6 +42,7 @@ import (
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -50,7 +51,17 @@ var (
 	errSshServerAlreadyStarted           = errors.New("SSH server already started")
 	errHostCertificateFileDoesNotContain = errors.New("host-certificate file does not contain an SSH certificate")
 	errSessionModelOwnerMissing          = errors.New("interactive SSH session owner missing: reconnect to the daemon")
+	errModelDrainOverdue                 = errors.New("an SSH editor session's storage write did not finish in time: check the disk holding the configuration store")
 )
+
+// modelDrainLimitDefault bounds how long Stop waits for model cleanup. It only
+// ever matters to storage that has stopped answering: a healthy history write
+// takes milliseconds. It spends from the same teardown margin as every other stop
+// bound, in series with them and after the drain (cmd/ze/hub/main.go), and the
+// systemd unit SIGKILLs ze and its plugins once that margin is gone. So it takes a
+// sixth of the margin, which leaves the rest of teardown room to finish
+// (TestModelDrainLimitLeavesRoomInTheTeardownMargin adds it up).
+const modelDrainLimitDefault = rpc.DrainTeardownMarginSeconds * time.Second / 6
 
 type sessionAuthorizerKey struct{}
 
@@ -166,6 +177,7 @@ type Server struct {
 	mu                       sync.Mutex // Protects wish/models, factories and lifecycle callbacks.
 	wish                     *ssh.Server
 	models                   *modelSessions
+	modelDrainLimit          time.Duration  // how long Stop joins model cleanup
 	listener                 net.Listener   // bound listener (for address resolution)
 	extraListeners           []net.Listener // additional listeners for multi-address binding
 	logger                   *slog.Logger
@@ -233,8 +245,9 @@ func NewServer(cfg Config) (*Server, error) {
 	}
 
 	return &Server{
-		config: cfg,
-		logger: slog.Default().With("subsystem", "ssh"),
+		config:          cfg,
+		logger:          slog.Default().With("subsystem", "ssh"),
+		modelDrainLimit: modelDrainLimitDefault,
 	}, nil
 }
 
@@ -460,6 +473,11 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 	if s.wish != nil {
 		return errSshServerAlreadyStarted
 	}
+	// A session the last Stop gave up on still holds its storage write, and a new
+	// generation beside it could have that late write land over what it saved.
+	if s.models != nil && s.models.running() {
+		return errModelDrainOverdue
+	}
 	s.models = &modelSessions{}
 
 	// Resolve host key: from storage (blob mode) or filesystem path.
@@ -578,7 +596,12 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 // Stop seals model admission, shuts down the network, and joins all admitted
 // model cleanup before returning. The owner MUST call it before store release.
 // ctx bounds network shutdown only: an error forces network closure but cannot
-// drop accepted history. Start cannot open a new generation until this returns.
+// drop accepted history. Only modelDrainLimit ends the join, for a storage call
+// that has stopped answering: Stop then answers errModelDrainOverdue. A write that
+// session has not begun yet fails once the store closes, with the fs.ErrClosed
+// storage.store answers. The stuck write itself holds the store's lock, so closing
+// the store waits for it. Start cannot open a new generation until this returns,
+// nor while a session this gave up on is still running.
 func (s *Server) Stop(ctx context.Context) error {
 	s.lifecycle.Lock()
 	defer s.lifecycle.Unlock()
@@ -596,7 +619,13 @@ func (s *Server) Stop(ctx context.Context) error {
 	}
 	// Factories use Server getters. Never hold s.mu while joining them, and
 	// never confuse the vendor's connection join with model cleanup.
-	models.wait()
+	if !models.wait(s.modelDrainLimit) {
+		// The hub's stop hook has no caller to hand an error to, so this line
+		// is what tells the operator.
+		s.logger.Error("SSH server stopped waiting for an editor session's storage write, so ze stops without it; command history or an unsaved edit may be lost, check the disk holding the configuration store",
+			"limit", s.modelDrainLimit)
+		err = errors.Join(err, errModelDrainOverdue)
+	}
 	s.mu.Lock()
 	s.wish = nil
 	s.listener = nil

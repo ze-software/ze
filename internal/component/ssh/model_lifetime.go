@@ -6,6 +6,7 @@ package ssh
 import (
 	"io"
 	"sync"
+	"time"
 
 	"charm.land/ssh"
 )
@@ -17,41 +18,74 @@ import (
 // Existing maxSessionsMiddleware bounds admission; this is not another limit or
 // statistics counter. Safe for concurrent use; MUST NOT be copied after use.
 type modelSessions struct {
-	mu     sync.Mutex
-	exited sync.WaitGroup
-	sealed bool
+	mu      sync.Mutex
+	active  int
+	sealed  bool
+	drained chan struct{} // made by seal, closed once sealed with no active owner
 }
 
 // admit reserves ownership before invoking a model factory. A successful caller
 // MUST defer finish until its model closer returns, including factory refusal or
-// panic. Add and seal share mu, so no positive Add can race a sealed zero Wait.
+// panic. The count and seal share mu, so an admission cannot race the drain.
 func (m *modelSessions) admit() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.sealed {
 		return false
 	}
-	m.exited.Add(1)
+	m.active++
 	return true
 }
 
 // finish MUST follow one successful admit, after the actual model was closed.
 func (m *modelSessions) finish() {
-	m.exited.Done()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.active--
+	if m.sealed && m.active == 0 {
+		close(m.drained)
+	}
+}
+
+// running answers whether an admitted owner has not finished. A generation whose
+// wait answered false stays running until its stuck owner returns, and Start
+// reads this so that no new generation writes beside it.
+func (m *modelSessions) running() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.active > 0
 }
 
 // seal refuses later admissions. The owner MUST call wait afterward before
-// releasing borrowed resources or opening a new generation.
+// releasing borrowed resources. An owner still running when wait answers false
+// keeps using them, so a resource it borrows MUST refuse its late calls once
+// released. seal MUST be called once per generation.
 func (m *modelSessions) seal() {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.sealed = true
-	m.mu.Unlock()
+	m.drained = make(chan struct{})
+	if m.active == 0 {
+		close(m.drained)
+	}
 }
 
 // wait MUST be called after seal. It joins every admitted factory/model cleanup
-// without a network deadline or dispatch/result-delivery dependency.
-func (m *modelSessions) wait() {
-	m.exited.Wait()
+// without a network deadline or dispatch/result-delivery dependency, for at most
+// limit, because a storage call that never returns would otherwise hold the
+// daemon's whole stop. It answers false when an owner was still running at limit.
+func (m *modelSessions) wait(limit time.Duration) bool {
+	m.mu.Lock()
+	drained := m.drained
+	m.mu.Unlock()
+	timer := time.NewTimer(limit)
+	defer timer.Stop()
+	select {
+	case <-drained:
+		return true
+	case <-timer.C:
+		return false
+	}
 }
 
 // modelSession owns the closer of one admitted SSH channel. Session methods,
