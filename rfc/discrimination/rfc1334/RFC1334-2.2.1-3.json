@@ -7,8 +7,8 @@
     "claim-sha": "b992c0a7e95ec52c",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-    "producer-sha": "c10755d25dcf5343",
-    "break": "line 228: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
+    "producer-sha": "b46126199c45686c",
+    "break": "line 258: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
   },
   {
     "rid": "RFC1334-2.2.1-3",
@@ -18,7 +18,7 @@
     "claim-sha": "afffb0ccb432c652",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-    "producer-sha": "c10755d25dcf5343",
-    "break": "line 228: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
+    "producer-sha": "b46126199c45686c",
+    "break": "line 258: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
   }
 ]

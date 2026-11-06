@@ -7,7 +7,7 @@
     "claim-sha": "699b0b5c823e1787",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
-    "producer-sha": "d6efbc61db01efdb",
+    "producer-sha": "3f1b908bb5a296ba",
     "break": "line 48: \"ipcpEnabled := !s.disableIPCP\" -\u003e \"ipcpEnabled := false\""
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "c0bb32e9c1bf91e5",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
-    "producer-sha": "d6efbc61db01efdb",
-    "break": "line 64: \"s.logger.Warn(\\\"ppp: both NCPs disabled, skipping NCP phase\\\")\" -\u003e \"s.sendNCPConfigureRequest(AddressFamilyIPv4)\""
+    "producer-sha": "3f1b908bb5a296ba",
+    "break": "line 66: \"s.logger.Warn(\\\"ppp: both NCPs disabled, skipping NCP phase\\\")\" -\u003e \"s.sendNCPConfigureRequest(AddressFamilyIPv4)\""
   }
 ]

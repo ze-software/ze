@@ -40,8 +40,8 @@
     "claim-sha": "3627626d45a67c25",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "da3e879eb53061f8",
-    "break": "line 1341: \"optsBad = verdict == lcpRequestUnacceptable\" -\u003e \"optsBad = false\""
+    "producer-sha": "9c3092d569b56385",
+    "break": "line 1349: \"optsBad = verdict == lcpRequestUnacceptable\" -\u003e \"optsBad = false\""
   },
   {
     "rid": "RFC1661-5.4-1",
@@ -73,8 +73,8 @@
     "claim-sha": "6ae29db2008e1300",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "da3e879eb53061f8",
-    "break": "line 1341: \"optsBad = verdict == lcpRequestUnacceptable\" -\u003e \"optsBad = false\""
+    "producer-sha": "9c3092d569b56385",
+    "break": "line 1349: \"optsBad = verdict == lcpRequestUnacceptable\" -\u003e \"optsBad = false\""
   },
   {
     "rid": "RFC1661-5.4-1",

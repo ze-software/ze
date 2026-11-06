@@ -7,8 +7,8 @@
     "claim-sha": "e3d2771b3f3f1d3e",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
-    "producer-sha": "33d110da6f29725d",
-    "break": "line 989: \"if !s.ncpStarted {\" -\u003e \"if !s.ncpStarted { early, _ := ParseLCPPacket(payload); s.sendNCPConfigureAck(AddressFamilyIPv6, early)\""
+    "producer-sha": "dd8b1e1b25fb1c02",
+    "break": "line 1000: \"if !s.ncpStarted {\" -\u003e \"if !s.ncpStarted { early, _ := ParseLCPPacket(payload); s.sendNCPConfigureAck(AddressFamilyIPv6, early)\""
   },
   {
     "rid": "RFC5072-3-1",
@@ -40,7 +40,7 @@
     "claim-sha": "8ab0c4eb25ff409f",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
-    "producer-sha": "d6efbc61db01efdb",
+    "producer-sha": "3f1b908bb5a296ba",
     "break": "line 49: \"ipv6cpEnabled := !s.disableIPv6CP\" -\u003e \"ipv6cpEnabled := false\""
   }
 ]

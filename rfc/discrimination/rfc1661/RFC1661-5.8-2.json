@@ -18,8 +18,8 @@
     "claim-sha": "bf42c255a642925a",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::run",
-    "producer-sha": "23c529a7813362c3",
-    "break": "line 465: \"nowOpened := s.currentState() == LCPStateOpened\" -\u003e \"nowOpened := opened || s.currentState() == LCPStateOpened\""
+    "producer-sha": "b10957cfcaf40a53",
+    "break": "line 466: \"nowOpened := s.currentState() == LCPStateOpened\" -\u003e \"nowOpened := opened || s.currentState() == LCPStateOpened\""
   },
   {
     "rid": "RFC1661-5.8-2",

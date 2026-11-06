@@ -120,7 +120,8 @@ func writePolicyPeerPacket(t *testing.T, peer net.Conn, code, id uint8, data []b
 
 // TestReceiveFullFrameBelowConfiguredMRU sends a 1500-octet Information field
 // over the real Driver reader at requested MRU1492, and observes its reply.
-// RFC requirement: RFC1661-6.1-1 positive -- run receives the complete 1500-octet LCP Information field and answers within its1492 transmit cap; the kernel receive MRU remains1500.
+// run answers within its1492 transmit cap; the kernel receive MRU remains1500.
+// RFC requirement: RFC1661-6.1-1 positive -- at requested MRU1492, run receives the complete 1500-octet LCP Information field in one read of the real Driver reader.
 // RFC requirement: RFC1661-6.1-1 negative -- a smaller requested MRU does not lower the kernel receive MRU below1500.
 func TestReceiveFullFrameBelowConfiguredMRU(t *testing.T) {
 	reg := newPipeRegistry()

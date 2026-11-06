@@ -45,8 +45,7 @@ func rejectedProtocol(t *testing.T, pkt LCPPacket) uint16 {
 //
 // RFC requirement: RFC1661-3.6-3 positive -- the same answer is what Section
 // 3.6 states for a protocol packet the implementation does not support while
-// LCP is Opened, and supportsProtocol (session_run.go) is what tells that case
-// apart from a supported protocol whose NCP has not opened yet.
+// LCP is Opened.
 func TestRFC1661UnsupportedProtocolRejectedInOpened(t *testing.T) {
 	s, rec, _ := newRFC1661Session(LCPStateOpened)
 	info := []byte{0x01, 0x02, 0x00, 0x04}

@@ -7,8 +7,8 @@
     "claim-sha": "102885fcae66997e",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "8c29948e93780adc",
-    "break": "line 722: \"s.backend.SetMTU(ifname, int(mru))\" -\u003e \"s.backend.SetMTU(ifname, int(MaxFrameLen))\""
+    "producer-sha": "02b8b819c2c4278f",
+    "break": "line 708: \"s.backend.SetMTU(ifname, int(mru))\" -\u003e \"s.backend.SetMTU(ifname, int(MaxFrameLen))\""
   },
   {
     "rid": "RFC1332-2.1-4",
@@ -18,7 +18,7 @@
     "claim-sha": "c3d7ae58bf224aec",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "8c29948e93780adc",
-    "break": "line 722: \"s.backend.SetMTU(ifname, int(mru))\" -\u003e \"s.backend.SetMTU(ifname, int(MaxFrameLen))\""
+    "producer-sha": "02b8b819c2c4278f",
+    "break": "line 708: \"s.backend.SetMTU(ifname, int(mru))\" -\u003e \"s.backend.SetMTU(ifname, int(MaxFrameLen))\""
   }
 ]

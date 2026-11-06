@@ -4,7 +4,7 @@
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak",
     "unit-sha": "6e1b6bd0c3527d74",
-    "claim-sha": "577ec0cbb399399e",
+    "claim-sha": "ed2615838fec6481",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/pap.go::WritePAPNak",
     "producer-sha": "6af4676dc236558a",
@@ -15,10 +15,10 @@
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent",
     "unit-sha": "5a51a44030917c54",
-    "claim-sha": "80f9bc670875a16d",
+    "claim-sha": "3c6578630e42a4f7",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-    "producer-sha": "c10755d25dcf5343",
-    "break": "line 228: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
+    "producer-sha": "b46126199c45686c",
+    "break": "line 258: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
   }
 ]

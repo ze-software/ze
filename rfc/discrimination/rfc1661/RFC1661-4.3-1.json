@@ -7,8 +7,8 @@
     "claim-sha": "78396f3877c1e73b",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "da3e879eb53061f8",
-    "break": "line 1406: \"tr := LCPDoTransition(cur, ev)\" -\u003e \"tr := LCPDoTransition(cur, LCPEventRXR)\""
+    "producer-sha": "9c3092d569b56385",
+    "break": "line 1417: \"tr := LCPDoTransition(cur, ev)\" -\u003e \"tr := LCPDoTransition(cur, LCPEventRXR)\""
   },
   {
     "rid": "RFC1661-4.3-1",

@@ -202,10 +202,10 @@ func lcpFrame(proto uint16, code, id uint8, data []byte) []byte {
 //
 // RFC requirement: RFC1661-2-1 negative -- Protocol 0xC020 has the least
 // significant bit of its least significant octet equal to 0, so it is not a
-// legal PPP Protocol; handleFrame (session_run.go) recognizes only 0xC021,
-// 0x8021 and 0x8057, so the body below is never read as an Echo-Request: the
-// one frame written back is a Protocol-Reject naming 0xC020, which is what
-// Section 5.7 requires of an unsupported protocol in the Opened state.
+// legal PPP Protocol; handleFrame (session_run.go) has no case for it, so in
+// Opened the session does not end, LCP state does not move, and the one frame
+// written back is a Protocol-Reject naming 0xC020, which is what Section 5.7
+// requires of an unsupported protocol in the Opened state.
 func TestRFC1661NonCompliantProtocolTreatedUnrecognized(t *testing.T) {
 	s, rec, _ := newRFC1661Session(LCPStateOpened)
 	// A well-formed Echo-Request body carried under an illegal (even)
@@ -498,9 +498,8 @@ func TestRFC1661NoAuthProtocolWhenNotDesired(t *testing.T) {
 //	authentication is refused.
 //
 // RFC requirement: RFC1661-3.5-3 positive -- afterLCPOpen (session_run.go)
-// calls runAuthPhase and returns immediately on failure, so none of the
-// post-authentication network-layer work (PPPIOCCONNECT, MRU, MTU, interface
-// up, EventSessionUp) runs.
+// calls runAuthPhase and returns false when authentication is rejected, so the
+// SetMTU, setMRU and SetAdminUp calls after it do not run.
 func TestRFC1661NoNetworkPhaseUntilAuthCompletes(t *testing.T) {
 	s, _, _ := newRFC1661Session(LCPStateAckSent)
 	backend := &fakeBackend{}

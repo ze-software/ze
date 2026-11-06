@@ -7,7 +7,7 @@
     "claim-sha": "375023a02805b490",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
-    "producer-sha": "33d110da6f29725d",
-    "break": "line 1048: \"return s.rejectUnsupportedProtocol(proto, payload)\" -\u003e \"if proto == ProtoCHAP { s.fail(\\\"CHAP Response outside the active authentication exchange\\\"); return true }; return s.rejectUnsupportedProtocol(proto, payload)\""
+    "producer-sha": "dd8b1e1b25fb1c02",
+    "break": "line 1051: \"return s.rejectUnsupportedProtocol(proto, payload)\" -\u003e \"if proto == ProtoCHAP { s.fail(\\\"CHAP Response outside the active authentication exchange\\\"); return true }; return s.rejectUnsupportedProtocol(proto, payload)\""
   }
 ]

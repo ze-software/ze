@@ -15,10 +15,10 @@
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened",
     "unit-sha": "d6fa63bb797282f5",
-    "claim-sha": "ac8ca036d13004ef",
+    "claim-sha": "832b8676111c5939",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
-    "producer-sha": "33d110da6f29725d",
-    "break": "line 1048: \"return s.rejectUnsupportedProtocol(proto, payload)\" -\u003e \"return false\""
+    "producer-sha": "dd8b1e1b25fb1c02",
+    "break": "line 1051: \"return s.rejectUnsupportedProtocol(proto, payload)\" -\u003e \"return false\""
   }
 ]

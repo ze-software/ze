@@ -18,7 +18,7 @@
     "claim-sha": "89e865ddb59bdf9d",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
-    "producer-sha": "d6efbc61db01efdb",
+    "producer-sha": "3f1b908bb5a296ba",
     "break": "line 48: \"ipcpEnabled := !s.disableIPCP\" -\u003e \"ipcpEnabled := false\""
   },
   {
@@ -29,18 +29,18 @@
     "claim-sha": "607f741ff38b5f50",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "8c29948e93780adc",
-    "break": "line 661: \"if !s.runAuthPhase() {\" -\u003e \"if s.runAuthPhase() {\""
+    "producer-sha": "02b8b819c2c4278f",
+    "break": "line 665: \"if !s.runAuthPhase() {\" -\u003e \"if s.runAuthPhase() {\""
   },
   {
     "rid": "RFC1661-3.5-3",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNetworkPhaseUntilAuthCompletes",
     "unit-sha": "af5dfe5a4ababf5f",
-    "claim-sha": "55a64ffa673a9b90",
+    "claim-sha": "e8b7b07eb255599a",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "8c29948e93780adc",
-    "break": "line 661: \"if !s.runAuthPhase() {\" -\u003e \"if s.runAuthPhase() {\""
+    "producer-sha": "02b8b819c2c4278f",
+    "break": "line 665: \"if !s.runAuthPhase() {\" -\u003e \"if s.runAuthPhase() {\""
   }
 ]

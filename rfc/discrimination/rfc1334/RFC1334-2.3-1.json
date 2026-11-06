@@ -4,18 +4,18 @@
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak",
     "unit-sha": "6e1b6bd0c3527d74",
-    "claim-sha": "71e08ada85a7695b",
+    "claim-sha": "62a638a6ade7d649",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-    "producer-sha": "c10755d25dcf5343",
-    "break": "line 228: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
+    "producer-sha": "b46126199c45686c",
+    "break": "line 258: \"if resp.accept {\" -\u003e \"if !resp.accept {\""
   },
   {
     "rid": "RFC1334-2.3-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent",
     "unit-sha": "5a51a44030917c54",
-    "claim-sha": "c2ae3660f8e41e1a",
+    "claim-sha": "513be600fdde8384",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/pap.go::WritePAPAck",
     "producer-sha": "da01e0fe96e14dc6",
