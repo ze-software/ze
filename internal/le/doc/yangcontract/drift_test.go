@@ -77,7 +77,7 @@ func TestDriftReadsAnInteropFloorClaim(t *testing.T) {
 			}
 			writeDoc(t, root, "docs/DESIGN.md", "# Design\n\n"+tc.claim+"\n")
 
-			report := Drift(root)
+			report := Drift(t.Context(), root)
 			if got := reports(report, marker); got != tc.reject {
 				t.Fatalf("claim %q: interop complaint present=%v, want %v: %v", tc.claim, got, tc.reject, messages(report))
 			}
@@ -98,7 +98,7 @@ func TestDriftDoesNotCountACacheDirectoryAsAScenario(t *testing.T) {
 	}
 	writeDoc(t, root, "docs/DESIGN.md", "# Design\n\n2 interop scenarios run here.\n")
 
-	if report := Drift(root); reports(report, "interop scenarios, actual is") {
+	if report := Drift(t.Context(), root); reports(report, "interop scenarios, actual is") {
 		t.Fatalf("a cache directory was counted as a scenario: %v", messages(report))
 	}
 }
@@ -129,7 +129,7 @@ func TestDriftReadsTheTextParserClaims(t *testing.T) {
 			root := t.TempDir()
 			writeDoc(t, root, "docs/architecture/api/text-parser.md", tc.body)
 
-			report := Drift(root)
+			report := Drift(t.Context(), root)
 			if tc.wants == "" {
 				if len(report.Issues) != 0 {
 					t.Fatalf("a clean fixture drew findings: %v", messages(report))
@@ -164,7 +164,7 @@ func TestDriftReadsReadmeCounts(t *testing.T) {
 			"at-least tolerated: 1+ fuzz targets in the tree\n"+
 			"bare undercount: 2 unit tests in the tree\n")
 
-	report := Drift(root)
+	report := Drift(t.Context(), root)
 	for _, want := range []string{
 		"claims 5 fuzz targets (bare exact count), actual is 3",
 		"claims 9+ fuzz targets, actual is 3",
@@ -196,7 +196,7 @@ func TestDriftReportsAFileItCouldNotFinishReading(t *testing.T) {
 	writeDoc(t, root, "internal/z/z_test.go",
 		"package z\n\n// "+strings.Repeat("x", 70*1024)+"\nfunc TestA()\n")
 
-	report := Drift(root)
+	report := Drift(t.Context(), root)
 	if !reports(report, "read stopped early") {
 		t.Fatalf("the gate did not report the unreadable file: %v", messages(report))
 	}
@@ -219,7 +219,7 @@ func TestDriftReportsAFileItCouldNotOpen(t *testing.T) {
 	}
 	writeDoc(t, root, "README.md", "# Ze\n\n1 unit tests in the tree\n")
 
-	report := Drift(root)
+	report := Drift(t.Context(), root)
 	if !reports(report, "could not be read") {
 		t.Fatalf("the gate counted a file it could not open: %v", messages(report))
 	}
@@ -234,7 +234,7 @@ func TestDriftReportsAFileItCouldNotOpen(t *testing.T) {
 // not a page that agrees with the tree.
 func TestDriftTellsAnAbsentDocumentFromAnUnreadableOne(t *testing.T) {
 	absent := t.TempDir()
-	if report := Drift(absent); len(report.Issues) != 0 {
+	if report := Drift(t.Context(), absent); len(report.Issues) != 0 {
 		t.Fatalf("an empty tree drew findings: %v", messages(report))
 	}
 
@@ -243,7 +243,7 @@ func TestDriftTellsAnAbsentDocumentFromAnUnreadableOne(t *testing.T) {
 	if err := os.Symlink(filepath.Join(unreadable, "no-such-readme"), link); err != nil {
 		t.Fatalf("create the dangling link: %v", err)
 	}
-	report := Drift(unreadable)
+	report := Drift(t.Context(), unreadable)
 	if !reports(report, "could not be read") {
 		t.Fatalf("an unreadable document was read as agreement: %v", messages(report))
 	}
@@ -266,7 +266,7 @@ func TestDriftKeepsWalkingPastAnUnreadableDirectory(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(closed, 0o750) })
 	writeDoc(t, root, "README.md", "# Ze\n\n2 unit tests in the tree\n")
 
-	report := Drift(root)
+	report := Drift(t.Context(), root)
 	if !reports(report, "could not be read") {
 		t.Fatalf("the gate said nothing about the directory it could not read: %v", messages(report))
 	}
@@ -285,7 +285,7 @@ func TestDriftIsSilentAboutADirectoryThatDoesNotExist(t *testing.T) {
 	root := t.TempDir()
 	writeDoc(t, root, "docs/architecture/api/text-parser.md", "# Text Parser\n\nIt scans.\n")
 
-	if report := Drift(root); len(report.Issues) != 0 {
+	if report := Drift(t.Context(), root); len(report.Issues) != 0 {
 		t.Fatalf("a tree with no source directories drew findings: %v", messages(report))
 	}
 }
@@ -299,13 +299,13 @@ func TestDriftScopesTheOperatorTableToTreesThatOweOne(t *testing.T) {
 	bare := t.TempDir()
 	writeDoc(t, bare, "docs/architecture/api/text-parser.md",
 		"# Text Parser Architecture\n\nThe parser uses `textparse.NewScanner`.\n")
-	if report := Drift(bare); len(report.Issues) != 0 {
+	if report := Drift(t.Context(), bare); len(report.Issues) != 0 {
 		t.Fatalf("a fixture root with no docs/features was judged: %v", messages(report))
 	}
 
 	populated := t.TempDir()
 	writeDoc(t, populated, "docs/features/formatting.md", "# Output Formatting\n")
-	if report := Drift(populated); !reports(report, "the generated pipe operator reference is missing") {
+	if report := Drift(t.Context(), populated); !reports(report, "the generated pipe operator reference is missing") {
 		t.Fatalf("a tree carrying docs/features and no operator table was accepted: %v", messages(report))
 	}
 }
@@ -317,7 +317,7 @@ func TestDriftScopesTheOperatorTableToTreesThatOweOne(t *testing.T) {
 func TestDriftComparesThePublishedOperatorTable(t *testing.T) {
 	root := t.TempDir()
 	writeDoc(t, root, pipeOperatorReferencePath, "# Pipe operators\n\nsomething else entirely\n")
-	if report := Drift(root); !reports(report, "the published pipe operator table and the operator catalog disagree") {
+	if report := Drift(t.Context(), root); !reports(report, "the published pipe operator table and the operator catalog disagree") {
 		t.Fatalf("a stale operator table was accepted: %v", messages(report))
 	}
 
@@ -328,7 +328,7 @@ func TestDriftComparesThePublishedOperatorTable(t *testing.T) {
 	if written.Path != pipeOperatorReferencePath {
 		t.Fatalf("the writer named %q", written.Path)
 	}
-	if report := Drift(root); len(report.Issues) != 0 {
+	if report := Drift(t.Context(), root); len(report.Issues) != 0 {
 		t.Fatalf("the table this tool wrote does not satisfy the tool that checks it: %v", messages(report))
 	}
 }
@@ -341,7 +341,7 @@ func TestDriftDerivesSuitesWithoutAnLESubprocess(t *testing.T) {
 	root := t.TempDir()
 	writeDoc(t, root, "docs/functional-tests.md", "The functional test target runs 2 suites: bgp, web.\n")
 
-	report := Drift(root)
+	report := Drift(t.Context(), root)
 	files := map[string]bool{}
 	for _, issue := range report.Issues {
 		if strings.Contains(issue.Message, "could not derive") {
@@ -365,7 +365,7 @@ func TestDriftReadsTheComparisonTable(t *testing.T) {
 	writeDoc(t, root, "docs/comparison.md",
 		"| AFI/SAFI | Ze | Other |\n|---|---|---|\n| IPv4 Unicast | No | Yes |\n")
 
-	if report := Drift(root); !reports(report, `claims Ze lacks "IPv4 Unicast"`) {
+	if report := Drift(t.Context(), root); !reports(report, `claims Ze lacks "IPv4 Unicast"`) {
 		t.Fatalf("a denied family that IS registered was accepted: %v", messages(report))
 	}
 }
@@ -378,8 +378,8 @@ func TestDriftDoesNotShareStateBetweenRuns(t *testing.T) {
 	writeDoc(t, root, "internal/z/z_test.go",
 		"package z\n\n// "+strings.Repeat("x", 70*1024)+"\nfunc TestA()\n")
 
-	first := Drift(root)
-	second := Drift(root)
+	first := Drift(t.Context(), root)
+	second := Drift(t.Context(), root)
 	if len(first.Issues) != len(second.Issues) {
 		t.Fatalf("run one reported %d findings and run two reported %d", len(first.Issues), len(second.Issues))
 	}
@@ -439,7 +439,7 @@ func TestCheckDesignMDPluginCount(t *testing.T) {
 			root := t.TempDir()
 			writeDoc(t, root, "docs/DESIGN.md", "# Design\n\n"+tc.claim+"\n")
 
-			report := Drift(root)
+			report := Drift(t.Context(), root)
 			if got := reports(report, marker); got != tc.reject {
 				t.Fatalf("claim %q: plugin-count complaint present=%v, want %v: %v", tc.claim, got, tc.reject, messages(report))
 			}

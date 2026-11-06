@@ -40,7 +40,7 @@ func runRenderedCommandDriftFixture(t *testing.T, root, livePath string) (string
 		wikiCatalogCollect: func() ([]clicatalog.Entry, error) {
 			return entries, nil
 		},
-	}).checkPublishedCommandSurfaces(livePath)}
+	}).checkPublishedCommandSurfaces(t.Context(), livePath)}
 	if len(report.Issues) == 0 {
 		return report.Text(), nil
 	}
@@ -361,7 +361,7 @@ func TestDocDriftRejectsWikiCatalogProducerFieldLossBeforeRendering(t *testing.T
 					calls++
 					return entries, nil
 				},
-			}).checkPublishedCommandSurfaces(livePath)
+			}).checkPublishedCommandSurfaces(t.Context(), livePath)
 
 			if calls != 1 {
 				t.Fatalf("wiki catalog collector called %d times; want once", calls)

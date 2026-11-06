@@ -6,6 +6,7 @@
 package docyangcontract
 
 import (
+	"context"
 	"fmt"
 	"html"
 	"os"
@@ -29,6 +30,7 @@ var renderCommandSurfaces = renderNativeCommandSurfaces
 
 // CommandCatalog answers `ze help command --json` from the daemon binary named,
 // run in dir, and refuses an answer that does not parse as the catalog.
+// The caller's context owns the command and its process group until it is joined.
 //
 // It is exported for the site build, which publishes the catalog and every page
 // derived from it. The site compiles the daemon once, from the checkout with
@@ -36,8 +38,8 @@ var renderCommandSurfaces = renderNativeCommandSurfaces
 // configuration tree from that one binary. This checker runs the same command
 // built from the same tags, so a page can only disagree with the registries
 // between one build and the next.
-func CommandCatalog(dir, binary string) ([]byte, error) {
-	raw, _, err := runCommandCatalog(dir, binary)
+func CommandCatalog(ctx context.Context, dir, binary string) ([]byte, error) {
+	raw, _, err := runCommandCatalog(ctx, dir, binary)
 	return raw, err
 }
 

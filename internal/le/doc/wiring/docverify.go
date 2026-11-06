@@ -9,11 +9,14 @@ package docwiring
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	aidigest "github.com/ze-software/ze/internal/le/ai/digest"
@@ -106,7 +109,14 @@ func answerDocVerify(root string) (any, int) {
 }
 
 func docDriftStage(root string) (any, int) {
-	report := docyangcontract.Drift(root)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	restore := context.AfterFunc(ctx, stop)
+	defer restore()
+	report := docyangcontract.Drift(ctx, root)
+	if err := ctx.Err(); err != nil {
+		return errorPage(err), 1
+	}
 	if len(report.Issues) > 0 {
 		return report, 1
 	}

@@ -4,6 +4,7 @@
 package docyangcontract
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -31,7 +32,7 @@ func TestLiveCommandCatalogBoundExcludesCompile(t *testing.T) {
 	})
 	commandCatalogGenerationTimeout = 2 * time.Second
 	var daemonDir string
-	catalogDaemon = func(repository, dir string) (string, error) {
+	catalogDaemon = func(_ context.Context, repository, dir string) (string, error) {
 		if repository != root {
 			t.Errorf("daemon built from %q, want %q", repository, root)
 		}
@@ -46,7 +47,7 @@ func TestLiveCommandCatalogBoundExcludesCompile(t *testing.T) {
 		return binary, nil
 	}
 
-	_, commands, err := loadLiveCommandCatalog(root, "")
+	_, commands, err := loadLiveCommandCatalog(t.Context(), root, "")
 	if err != nil {
 		t.Fatalf("live catalog after a slow compile: %v", err)
 	}

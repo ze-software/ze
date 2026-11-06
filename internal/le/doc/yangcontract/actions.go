@@ -8,6 +8,11 @@
 package docyangcontract
 
 import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -84,12 +89,20 @@ func runContract() (any, int) {
 
 // runDrift checks documentation claims over the checkout.
 func runDrift() (any, int) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	restore := context.AfterFunc(ctx, stop)
+	defer restore()
 	root, err := lepath.Root()
 	if err != nil {
 		reportError(err)
 		return nil, 1
 	}
-	report := Drift(root)
+	report := Drift(ctx, root)
+	if err := ctx.Err(); err != nil {
+		reportError(err)
+		return report, 1
+	}
 	if len(report.Issues) > 0 {
 		return report, 1
 	}

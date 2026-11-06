@@ -15,6 +15,7 @@
 package docyangcontract
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -32,13 +33,13 @@ import (
 
 // Drift answers every documentation claim in root that the tree disagrees
 // with. An empty report is a tree whose documents all still hold.
-func Drift(root string) DriftReport {
+func Drift(ctx context.Context, root string) DriftReport {
 	c := &checker{root: root}
-	return DriftReport{Issues: c.run()}
+	return DriftReport{Issues: c.run(ctx)}
 }
 
 // run walks every check in the order the gate printed them.
-func (c *checker) run() []Issue {
+func (c *checker) run(ctx context.Context) []Issue {
 	issues := make([]Issue, 0, len(c.unreadable))
 
 	pluginNames := registryPluginNames()
@@ -56,7 +57,7 @@ func (c *checker) run() []Issue {
 	issues = append(issues, c.checkFunctionalTestsMD(releaseGateSuites)...)
 	issues = append(issues, c.checkForbiddenDocClaims()...)
 	issues = append(issues, c.checkPipeOperatorReference()...)
-	issues = append(issues, c.checkPublishedCommandSurfaces("")...)
+	issues = append(issues, c.checkPublishedCommandSurfaces(ctx, "")...)
 	issues = append(issues, c.unreadable...)
 
 	return issues

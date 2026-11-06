@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	clicatalog "github.com/ze-software/ze/internal/le/cli/catalog"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // The four availability keys the live command catalog publishes for a pipe
@@ -183,7 +184,7 @@ const daemonBuildTimeout = 5 * time.Minute
 // from. It is a variable so a test can state the daemon rather than compile it.
 var catalogDaemon = BuildDaemon
 
-func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Issue {
+func (c *checker) checkPublishedCommandSurfaces(ctx context.Context, commandCatalogPath string) []Issue {
 	root := c.root
 	if commandCatalogPath == "" {
 		if _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil {
@@ -210,7 +211,7 @@ func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Iss
 			filepath.Join(root, "wiki", "command-catalog.md"))
 	}
 
-	liveRaw, live, err := loadLiveCommandCatalog(root, commandCatalogPath)
+	liveRaw, live, err := loadLiveCommandCatalog(ctx, root, commandCatalogPath)
 	if err != nil {
 		return []Issue{{
 			File:    "cmd/ze/help_command.go",
@@ -412,7 +413,7 @@ const shippedCommandCatalogBase = "ze_core"
 // run` the daemon under the command's two minutes, and a compile on a loaded
 // host (`./le verify worktree` runs this beside every other stage) outlasted
 // them: "generate `ze help command --json`: signal: killed".
-func loadLiveCommandCatalog(root, commandCatalogPath string) (raw []byte, commands []publishedCommand, err error) {
+func loadLiveCommandCatalog(ctx context.Context, root, commandCatalogPath string) (raw []byte, commands []publishedCommand, err error) {
 	if commandCatalogPath != "" {
 		data, err := os.ReadFile(commandCatalogPath) //nolint:gosec // caller-selected fixture or repository artifact
 		if err != nil {
@@ -428,28 +429,29 @@ func loadLiveCommandCatalog(root, commandCatalogPath string) (raw []byte, comman
 	}
 	defer func() { err = errors.Join(err, os.RemoveAll(daemonDir)) }()
 
-	binary, err := catalogDaemon(root, daemonDir)
+	binary, err := catalogDaemon(ctx, root, daemonDir)
 	if err != nil {
 		return nil, nil, err
 	}
-	return runCommandCatalog(root, binary)
+	return runCommandCatalog(ctx, root, binary)
 }
 
 // BuildDaemon compiles cmd/ze from the checkout at repository into dir, with
 // ze_core and every gate feature-gates.txt declares, and answers the binary's
 // path. The compile has its own bound, so the bound on each command run
 // afterwards covers only that command.
+// The caller's context owns the compile; a stop joins its group before returning.
 //
 // It is exported for the site build, which reads its command catalog and its
 // configuration tree from the one binary this compiles.
-func BuildDaemon(repository, dir string) (string, error) {
+func BuildDaemon(ctx context.Context, repository, dir string) (string, error) {
 	tags, err := repofeaturetags.DaemonBuildTags(repository, shippedCommandCatalogBase)
 	if err != nil {
 		return "", err
 	}
 	binary := filepath.Join(dir, "ze")
 
-	ctx, cancel := context.WithTimeout(context.Background(), daemonBuildTimeout)
+	ctx, cancel := context.WithTimeout(ctx, daemonBuildTimeout)
 	defer cancel()
 	// #nosec G204 -- the argv is fixed apart from the build tags, which are read
 	// from the checkout's own feature-gates.txt, and the output path is ours.
@@ -458,7 +460,7 @@ func BuildDaemon(repository, dir string) (string, error) {
 	var output bytes.Buffer
 	command.Stdout = &output
 	command.Stderr = &output
-	if err := command.Run(); err != nil {
+	if err := runCatalogProcess(ctx, command); err != nil {
 		return "", fmt.Errorf("compile ./cmd/ze: %w: %s", err, strings.TrimSpace(output.String()))
 	}
 	return binary, nil
@@ -466,8 +468,8 @@ func BuildDaemon(repository, dir string) (string, error) {
 
 // runCommandCatalog runs the daemon binary's `ze help command --json` in dir,
 // and answers the catalog it printed with the catalog parsed.
-func runCommandCatalog(dir, binary string) ([]byte, []publishedCommand, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), commandCatalogGenerationTimeout)
+func runCommandCatalog(ctx context.Context, dir, binary string) ([]byte, []publishedCommand, error) {
+	ctx, cancel := context.WithTimeout(ctx, commandCatalogGenerationTimeout)
 	defer cancel()
 	// #nosec G204 -- the binary is a daemon the caller built, and the argv is
 	// fixed.
@@ -475,13 +477,27 @@ func runCommandCatalog(dir, binary string) ([]byte, []publishedCommand, error) {
 	cmd.Dir = dir
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	data, err := cmd.Output()
-	if err != nil {
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := runCatalogProcess(ctx, cmd); err != nil {
 		return nil, nil, fmt.Errorf("generate `ze help command --json`: %w: %s",
 			err, strings.TrimSpace(stderr.String()))
 	}
+	data := stdout.Bytes()
 	commands, err := parseCommandCatalog("ze help command --json", data)
 	return data, commands, err
+}
+
+// runCatalogProcess keeps the process group owned until its sole reaper joins.
+// The deferred Close MUST finish before the caller removes the build directory.
+func runCatalogProcess(ctx context.Context, command *osexec.Cmd) (err error) {
+	command.WaitDelay = 2 * time.Second
+	owner, err := runner.StartServerProcess(command)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, owner.Close()) }()
+	return errors.Join(owner.Wait(), ctx.Err())
 }
 
 func parseCommandCatalog(source string, data []byte) ([]publishedCommand, error) {
