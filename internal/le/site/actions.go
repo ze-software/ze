@@ -2,10 +2,13 @@
 package site
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/le/feature"
@@ -55,6 +58,10 @@ func Subs() string                    { return actions.Subs() }
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 func runBuild(arguments leaction.Arguments) (any, int) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	restore := context.AfterFunc(ctx, stop)
+	defer restore()
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
@@ -68,7 +75,7 @@ func runBuild(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	report, err := Build(BuildOptions{Repository: root, Output: arguments.One(keywordOutput), Partial: arguments.Has("partial")})
+	report, err := Build(ctx, BuildOptions{Repository: root, Output: arguments.One(keywordOutput), Partial: arguments.Has("partial")})
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -228,6 +235,10 @@ func runUpdateTalk(arguments leaction.Arguments) (any, int) {
 }
 
 func runConfigTree(arguments leaction.Arguments) (any, int) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	restore := context.AfterFunc(ctx, stop)
+	defer restore()
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
@@ -238,7 +249,7 @@ func runConfigTree(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	count, err := configTreeFrom(root, paths.Output, arguments.One("binary"))
+	count, err := configTreeFrom(ctx, root, paths.Output, arguments.One("binary"))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

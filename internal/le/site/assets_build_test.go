@@ -32,7 +32,7 @@ func TestAnAssetEditReachesTheArtifact(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(seed, "site.js"), []byte("window.zeStale = true;\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Build(BuildOptions{Repository: root, Output: output}); err != nil {
+	if _, err := Build(t.Context(), BuildOptions{Repository: root, Output: output}); err != nil {
 		t.Fatalf("build: %v", err)
 	}
 
@@ -65,7 +65,7 @@ func TestNoBuildStagePublishesTheCommandFixture(t *testing.T) {
 	stubProducers(t)
 	root, output := siteFixture(t)
 
-	if _, err := Build(BuildOptions{Repository: root, Output: output}); err != nil {
+	if _, err := Build(t.Context(), BuildOptions{Repository: root, Output: output}); err != nil {
 		t.Fatalf("build: %v", err)
 	}
 	for _, fixture := range []string{

@@ -13,7 +13,7 @@ import (
 func TestUpdateCoverageReachesEverySurface(t *testing.T) {
 	paths := Paths{Repository: repositoryRoot(t), Source: t.TempDir(), Output: t.TempDir()}
 	writeArtifactFile(t, paths.Source, topicsVocabularyFile, `{"tags":{"BGP":"routing"}}`)
-	copyFixture(t, filepath.Join(paths.Repository, "website/data/page-links.json"), filepath.Join(paths.Source, "data/page-links.json"))
+	copyFixture(t, filepath.Join(paths.Repository, "website", "data", "page-links.json"), filepath.Join(paths.Source, "data", "page-links.json"))
 	writeArtifactFile(t, paths.Source, changesSourceDirectory+"/2026-10-26.md", "---\ncovers: 2026-10-12 .. 2026-10-25\ntags: BGP\n---\n**Update**\n\nThe full introduction.\n\n**Routing**\nA change.\n")
 	if _, err := renderChanges(paths); err != nil {
 		t.Fatal(err)

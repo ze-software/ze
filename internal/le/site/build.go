@@ -4,10 +4,12 @@ package site
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -64,7 +66,8 @@ type BuildReport struct {
 // seed, refreshes native generated surfaces, runs every registered page
 // producer, removes every source-only input from deployment, and stamps the
 // publication time into the footer of every published page.
-func Build(options BuildOptions) (BuildReport, error) {
+// The caller's context owns native daemon compilation and extraction.
+func Build(ctx context.Context, options BuildOptions) (BuildReport, error) {
 	paths, err := resolvePaths(options.Repository, options.Output)
 	if err != nil {
 		return BuildReport{}, err
@@ -95,8 +98,7 @@ func Build(options BuildOptions) (BuildReport, error) {
 	}
 
 	// The artifact as it was last published both seeds this build and answers
-	// which pages the build left alone. Take it before anything writes into the
-	// output, because seeding cleans the output first.
+	// which pages the build left alone. Take it before any file is replaced.
 	previous, releasePrevious, err := snapshotArtifact(paths)
 	if err != nil {
 		return BuildReport{}, err
@@ -119,7 +121,7 @@ func Build(options BuildOptions) (BuildReport, error) {
 	}).RetireDeleted(); err != nil {
 		return BuildReport{}, err
 	}
-	if err := refreshNativeSurfaces(paths); err != nil {
+	if err := refreshNativeSurfaces(ctx, paths); err != nil {
 		return BuildReport{}, err
 	}
 
@@ -298,9 +300,9 @@ func sameDirectory(first, second string) (bool, error) {
 // snapshotArtifact answers a readable copy of the last published artifact and
 // the function that releases it.
 //
-// The copy is needed only when the build writes over that artifact, because
-// seeding cleans the output first. A build that writes elsewhere reads the
-// published tree where it stands.
+// The copy is needed only when the build writes over that artifact, so its
+// previous bytes remain available while replacements proceed. A build that
+// writes elsewhere reads the published tree where it stands.
 func snapshotArtifact(paths Paths) (string, func(), error) {
 	release := func() {}
 	published, err := lastPublished(paths)
@@ -328,16 +330,63 @@ func snapshotArtifact(paths Paths) (string, func(), error) {
 	return snapshot, release, nil
 }
 
-// seedArtifact empties the output and lays the last published artifact back
-// down, so a build that changes three pages leaves the rest as they were.
+// seedArtifact overlays the last published artifact one complete file at a
+// time. It removes output-only paths only after every seeded copy succeeds.
 func seedArtifact(paths Paths, previous string) error {
-	if err := cleanArtifact(paths.Output); err != nil {
+	if previous == "" {
+		return cleanArtifact(paths.Output)
+	}
+	if err := copyTree(previous, paths.Output, publishable); err != nil {
 		return err
 	}
-	if previous == "" {
-		return nil
+	return pruneUnseededArtifact(paths.Output, previous)
+}
+
+// pruneUnseededArtifact walks the finite output tree after successful seeding.
+// Rooted removals cannot follow an output link outside the publication root.
+func pruneUnseededArtifact(output, previous string) error {
+	previousRoot, err := os.OpenRoot(previous)
+	if err != nil {
+		return err
 	}
-	return copyTree(previous, paths.Output, publishable)
+	defer previousRoot.Close() //nolint:errcheck // The rooted inspection owns the read verdict.
+	outputRoot, err := os.OpenRoot(output)
+	if err != nil {
+		return err
+	}
+	defer outputRoot.Close() //nolint:errcheck // The rooted removal owns the write verdict.
+	return filepath.WalkDir(output, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(output, path)
+		if err != nil {
+			return err
+		}
+		if relative == "." {
+			return nil
+		}
+		if relative == gitMetadataDir {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if publishable(filepath.ToSlash(relative)) {
+			if _, err := previousRoot.Lstat(relative); err == nil {
+				return nil
+			} else if !os.IsNotExist(err) {
+				return err
+			}
+		}
+		if err := outputRoot.RemoveAll(relative); err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return filepath.SkipDir
+		}
+		return nil
+	})
 }
 
 func cleanArtifact(root string) error {
@@ -360,8 +409,23 @@ func cleanArtifact(root string) error {
 }
 
 func stageSources(source, output string, files []string) error {
+	sourceRoot, err := os.OpenRoot(source)
+	if err != nil {
+		return err
+	}
+	defer sourceRoot.Close() //nolint:errcheck // Each acquisition owns its read verdict.
+	targetRoot, err := os.OpenRoot(output)
+	if err != nil {
+		return err
+	}
+	defer targetRoot.Close() //nolint:errcheck // Each replacement owns its write verdict.
 	for _, name := range files {
-		if err := copyPath(filepath.Join(source, name), filepath.Join(output, name)); err != nil {
+		if err := checkCopyParent(targetRoot, filepath.Dir(name)); err != nil {
+			return fmt.Errorf("stage %s: %w", name, err)
+		}
+	}
+	for _, name := range files {
+		if err := copyPath(sourceRoot, name, targetRoot, name); err != nil {
 			return fmt.Errorf("stage %s: %w", name, err)
 		}
 	}
@@ -369,6 +433,22 @@ func stageSources(source, output string, files []string) error {
 }
 
 func copyTree(source, target string, keep func(string) bool) error {
+	sourceRoot, err := os.OpenRoot(source)
+	if err != nil {
+		return err
+	}
+	defer sourceRoot.Close() //nolint:errcheck // Each acquisition owns its read verdict.
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		return err
+	}
+	targetRoot, err := os.OpenRoot(target)
+	if err != nil {
+		return err
+	}
+	defer targetRoot.Close() //nolint:errcheck // Each replacement owns its write verdict.
+	if err := checkTreeCopyParents(source, targetRoot, keep); err != nil {
+		return err
+	}
 	return filepath.WalkDir(source, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -378,7 +458,7 @@ func copyTree(source, target string, keep func(string) bool) error {
 			return err
 		}
 		if relative == "." {
-			return os.MkdirAll(target, 0o755) //nolint:gosec // published web content: a web server, often another account, serves these bytes
+			return nil
 		}
 		name := filepath.ToSlash(relative)
 		if !keep(name) {
@@ -388,33 +468,54 @@ func copyTree(source, target string, keep func(string) bool) error {
 			return nil
 		}
 		if entry.IsDir() {
-			return os.MkdirAll(filepath.Join(target, relative), 0o755) //nolint:gosec // published web content: a web server, often another account, serves these bytes
+			parent, err := openCopyParent(targetRoot, relative)
+			if err != nil {
+				return err
+			}
+			return parent.Close()
 		}
-		return copyPath(path, filepath.Join(target, relative))
+		return copyPath(sourceRoot, relative, targetRoot, relative)
 	})
 }
 
-func copyPath(source, target string) error {
-	info, err := os.Lstat(source)
+// copyPath acquires through the source root once and copies that descriptor to
+// an owned temporary file. It never reproduces a source link, and replaces the
+// destination only after reading, writing and closing succeed.
+func copyPath(sourceRoot *os.Root, source string, targetRoot *os.Root, target string) error {
+	input, err := sourceRoot.Open(source)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
-		return err
-	}
-	_ = os.RemoveAll(target)
-	if info.Mode()&os.ModeSymlink != 0 {
-		value, readErr := os.Readlink(source)
-		if readErr != nil {
-			return readErr
-		}
-		return os.Symlink(value, target)
-	}
-	content, err := os.ReadFile(source) //nolint:gosec // a site build reads the checkout it was pointed at
+	defer input.Close() //nolint:errcheck // The copy owns the read verdict.
+	info, err := input.Stat()
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(target, content, info.Mode().Perm())
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("site source %s is not a regular file; restore a regular source file", source)
+	}
+	parent, err := openCopyParent(targetRoot, filepath.Dir(target))
+	if err != nil {
+		return err
+	}
+	defer parent.Close() //nolint:errcheck // The replacement owns the write verdict.
+	temporary := ".site-" + rand.Text()
+	output, err := parent.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	defer parent.Remove(temporary) //nolint:errcheck // A successful rename already removed this name.
+	// The acquired size bounds the read even if a writer keeps growing it.
+	written, copyErr := io.Copy(output, io.LimitReader(input, info.Size()+1))
+	modeErr := output.Chmod(info.Mode().Perm())
+	closeErr := output.Close()
+	if err := errors.Join(copyErr, modeErr, closeErr); err != nil {
+		return err
+	}
+	if written != info.Size() {
+		return fmt.Errorf("site source %s changed size while being copied; retry with stable sources", source)
+	}
+	return parent.Rename(temporary, filepath.Base(target))
 }
 
 // refreshNativeSurfaces republishes the generated surfaces a build owns.
@@ -431,7 +532,7 @@ func copyPath(source, target string) error {
 //
 // The catalog and the configuration tree are both read from one daemon this
 // build compiles into a temporary directory, removed when the refresh ends.
-func refreshNativeSurfaces(paths Paths) (err error) {
+func refreshNativeSurfaces(ctx context.Context, paths Paths) (err error) {
 	daemonDir, err := os.MkdirTemp("", "ze-site-daemon-*")
 	if err != nil {
 		return fmt.Errorf("daemon build directory: %w", err)
@@ -444,11 +545,11 @@ func refreshNativeSurfaces(paths Paths) (err error) {
 	if err := publishPluginRegistry(paths); err != nil {
 		return err
 	}
-	daemon, err := liveDaemon(paths.Repository, daemonDir)
+	daemon, err := liveDaemon(ctx, paths.Repository, daemonDir)
 	if err != nil {
 		return err
 	}
-	if err := publishCommandCatalog(paths, daemon); err != nil {
+	if err := publishCommandCatalog(ctx, paths, daemon); err != nil {
 		return err
 	}
 	if err := publishRFCLedger(paths); err != nil {
@@ -457,7 +558,7 @@ func refreshNativeSurfaces(paths Paths) (err error) {
 	if err := publishRFCData(paths); err != nil {
 		return err
 	}
-	if err := publishYANGConfigTree(paths, daemon); err != nil {
+	if err := publishYANGConfigTree(ctx, paths, daemon); err != nil {
 		return err
 	}
 	// The facts snapshot counts the two files above, so it is written after
@@ -496,8 +597,8 @@ var liveCommandCatalog = docyangcontract.CommandCatalog
 // pages now have their own producers, in commands.go and equivalents.go, and
 // docvalid keeps rendering its fixture into a temporary tree of its own, where
 // the drift check compares it against what those producers published.
-func publishCommandCatalog(paths Paths, daemon string) error {
-	raw, err := liveCommandCatalog(paths.Repository, daemon)
+func publishCommandCatalog(ctx context.Context, paths Paths, daemon string) error {
+	raw, err := liveCommandCatalog(ctx, paths.Repository, daemon)
 	if err != nil {
 		return err
 	}
@@ -511,16 +612,12 @@ func publishCommandCatalog(paths Paths, daemon string) error {
 	return nil
 }
 
-// livePluginRegistry answers the plugin registrations the shipped Linux build
-// of this checkout carries (hostPluginRegistry, pluginregistry.go). It is a
-// variable so a test can state a registry rather than depend on the feature
-// gates its own test binary was built with: an untagged `go test` registers
-// twelve plugins where the shipped daemon registers eighty-eight.
-var livePluginRegistry = hostPluginRegistry
+// livePluginRegistry reads the committed Linux le population. The seam lets
+// tests exercise publication refusals before any daemon compilation.
+var livePluginRegistry = committedPluginRegistry
 
-// publishPluginRegistry republishes the plugin registry of the shipped Linux
-// build: this process's own registrations on Linux, a linux le's in a
-// container anywhere else.
+// publishPluginRegistry republishes registrations from one committed snapshot,
+// independently of the publishing process's host and linked feature tags.
 //
 // It is written here rather than by the catalog producer for the reason
 // publishCommandCatalog is: three surfaces read it, the catalog, the
@@ -541,8 +638,8 @@ func publishPluginRegistry(paths Paths) error {
 
 // publishYANGConfigTree republishes the configuration tree the live YANG schema
 // answers, which the configuration reference and llms.txt both read.
-func publishYANGConfigTree(paths Paths, daemon string) error {
-	if _, err := extractYANGConfigTree(paths.Repository, paths.Output, daemon); err != nil {
+func publishYANGConfigTree(ctx context.Context, paths Paths, daemon string) error {
+	if _, err := extractYANGConfigTree(ctx, paths.Repository, paths.Output, daemon); err != nil {
 		return err
 	}
 	return nil

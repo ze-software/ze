@@ -300,18 +300,29 @@ func (f *demoFixture) execute(command Command) int {
 		}
 		return 0
 	}
+	artifactRoot := ""
+	for index, argument := range command.Args {
+		if argument == "--volume" && index+1 < len(command.Args) {
+			if source, found := strings.CutSuffix(command.Args[index+1], ":/src/demos/terminal/artifacts"); found {
+				artifactRoot = source
+			}
+		}
+	}
+	if artifactRoot == "" {
+		return 1
+	}
 	if strings.HasSuffix(entry, "term.tape") {
 		burst := "$ show term\r\n"
 		if f.wrongTranscript {
 			burst = "$ another command\r\n"
 		}
 		cast := "{\"version\": 2, \"width\": 80, \"height\": 24}\n[0.1, \"o\", " + strconv.Quote(burst) + "]\n"
-		if err := os.WriteFile(filepath.Join(f.artifacts, "term.cast"), []byte(cast), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(artifactRoot, "term.cast"), []byte(cast), 0o644); err != nil {
 			return 1
 		}
 		return 0
 	}
-	if err := os.WriteFile(filepath.Join(f.artifacts, "browser.webp"), []byte("captured-screenshot\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(artifactRoot, "browser.webp"), []byte("captured-screenshot\n"), 0o644); err != nil {
 		return 1
 	}
 	return 0

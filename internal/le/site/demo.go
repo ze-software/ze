@@ -3,8 +3,6 @@
 package site
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -223,11 +221,11 @@ func (catalog *demoCatalog) expand(body, mirror, root, docRel string) (string, s
 		if err != nil {
 			return "", "", "", err
 		}
-		transcript, err := os.ReadFile(assets[demoTranscript]) //nolint:gosec // the path is one this build verified against the artifact manifest
+		transcript, err := assets[demoTranscript].Text()
 		if err != nil {
 			return "", "", "", err
 		}
-		text := strings.TrimRight(string(transcript), " \t\r\n")
+		text := strings.TrimRight(transcript, " \t\r\n")
 		duration := demo.Duration
 		var facts *castFacts
 		if cast, replayed := assets[demoCast]; replayed {
@@ -346,18 +344,17 @@ func substituteDemoMarkers(text string, rendered map[string]string) string {
 	})
 }
 
-// verifyAssets answers the file behind each asset one demonstration kind
-// publishes, having checked every one against the size and digest its manifest
-// states.
+// verifyAssets retains the payload behind each asset one demonstration kind
+// publishes, having checked every one against its manifest.
 //
 // A demonstration that publishes an asset its kind does not name is refused,
 // so an obsolete encoded video cannot remain in a screenshot's inventory.
-func (catalog *demoCatalog) verifyAssets(id, kind string, entry siteterminaldemo.ArtifactEntry) (map[string]string, error) {
+func (catalog *demoCatalog) verifyAssets(id, kind string, entry siteterminaldemo.ArtifactEntry) (map[string]siteterminaldemo.Asset, error) {
 	names, known := demoKindAssets[kind]
 	if !known {
 		return nil, fmt.Errorf("terminal demo %s has an unknown kind: %q", id, kind)
 	}
-	published := make(map[string]string, len(names))
+	published := make(map[string]siteterminaldemo.Asset, len(names))
 	for _, name := range names {
 		path, err := catalog.verifyAsset(id, name, entry)
 		if err != nil {
@@ -370,52 +367,51 @@ func (catalog *demoCatalog) verifyAssets(id, kind string, entry siteterminaldemo
 			return nil, fmt.Errorf("terminal demo %s is a %s demo and must not publish %s", id, kind, name)
 		}
 	}
+	root, err := os.OpenRoot(catalog.assetRoot())
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close() //nolint:errcheck // Each retained payload owns its publication verdict.
+	// Every declared path and payload MUST pass before any file is replaced.
+	for _, name := range names {
+		asset := published[name]
+		if err := asset.Publish(root, asset.Metadata().Path); err != nil {
+			return nil, err
+		}
+	}
 	return published, nil
 }
 
-// verifyAsset answers the file behind one asset, refusing a path that leaves
-// the media root and a file whose size or digest disagrees with the manifest.
-func (catalog *demoCatalog) verifyAsset(id, name string, entry siteterminaldemo.ArtifactEntry) (string, error) {
+// verifyAsset acquires through the media root and retains the checked bytes.
+// Every parser and publisher MUST use this payload rather than reopen its path.
+func (catalog *demoCatalog) verifyAsset(id, name string, entry siteterminaldemo.ArtifactEntry) (siteterminaldemo.Asset, error) {
 	metadata, present := entry.Assets[name]
-	if !present || metadata.Path == "" {
-		return "", fmt.Errorf("terminal demo %s is missing its %s artifact", id, name)
+	if !present {
+		return siteterminaldemo.Asset{}, fmt.Errorf("terminal demo %s is missing its %s artifact", id, name)
 	}
-	clean := filepath.FromSlash(metadata.Path)
-	if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(filepath.Clean(clean), ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("terminal demo %s %s path leaves the demo root: %s", id, name, metadata.Path)
+	if metadata.Path == "" {
+		return siteterminaldemo.Asset{}, fmt.Errorf("terminal demo %s is missing its %s artifact", id, name)
 	}
-	path := filepath.Join(catalog.assetRoot(), clean)
-	info, err := os.Stat(path)
-	if err != nil || !info.Mode().IsRegular() {
-		return "", fmt.Errorf("terminal demo %s %s artifact is missing: %s", id, name, path)
-	}
-	if info.Size() != metadata.Bytes {
-		return "", fmt.Errorf("terminal demo %s %s artifact is %d bytes, and its manifest states %d", id, name, info.Size(), metadata.Bytes)
-	}
-	digest, err := fileDigest(path)
+	demo, err := catalog.demo(id)
 	if err != nil {
-		return "", err
+		return siteterminaldemo.Asset{}, err
 	}
-	if digest != metadata.SHA256 {
-		return "", fmt.Errorf("terminal demo %s %s artifact digest does not match its manifest", id, name)
-	}
-	return path, nil
-}
-
-// fileDigest answers the SHA-256 of one file, read in bounded chunks so a
-// large recording never sits in memory whole.
-func fileDigest(path string) (string, error) {
-	handle, err := os.Open(path) //nolint:gosec // the path is one this build resolved inside its own media root
+	expected, err := siteterminaldemo.AssetPaths(demo)
 	if err != nil {
-		return "", err
+		return siteterminaldemo.Asset{}, err
 	}
-	defer handle.Close() //nolint:errcheck // the read side has nothing to report on close
-
-	digest := sha256.New()
-	if _, err := io.Copy(digest, handle); err != nil {
-		return "", fmt.Errorf("digest %s: %w", path, err)
+	path, exists := expected[name]
+	if !exists {
+		return siteterminaldemo.Asset{}, fmt.Errorf("terminal demo %s does not publish %s", id, name)
 	}
-	return hex.EncodeToString(digest.Sum(nil)), nil
+	if metadata.Path != path {
+		return siteterminaldemo.Asset{}, fmt.Errorf("terminal demo %s %s artifact path %q does not name its published file %q; restore the recorded manifest", id, name, metadata.Path, path)
+	}
+	asset, err := siteterminaldemo.ReadAsset(catalog.assetRoot(), metadata)
+	if err != nil {
+		return siteterminaldemo.Asset{}, fmt.Errorf("terminal demo %s %s: %w", id, name, err)
+	}
+	return asset, nil
 }
 
 // castFacts is what a recording says about itself: the grid it was recorded on
@@ -426,15 +422,15 @@ type castFacts struct {
 	Seconds float64
 }
 
-// readCastFacts reads the grid and the running time out of an asciicast v2
-// file, whose first line is a JSON header and whose remaining lines are the
-// timed events.
-func readCastFacts(path string) (castFacts, error) {
-	content, err := os.ReadFile(path) //nolint:gosec // the path is one this build verified against the artifact manifest
+// readCastFacts parses the grid and running time from the retained asciicast
+// payload. It MUST NOT reopen the recording's mutable source path.
+func readCastFacts(asset siteterminaldemo.Asset) (castFacts, error) {
+	content, err := asset.Text()
 	if err != nil {
 		return castFacts{}, err
 	}
-	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
+	path := asset.Metadata().Path
+	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
 	var header struct {
 		Version int `json:"version"`
 		Width   int `json:"width"`

@@ -550,7 +550,7 @@ func TestTheFactsSnapshotIsWrittenBeforeAnyProducerReadsIt(t *testing.T) {
 		read = string(content)
 		return nil, nil
 	}})
-	if _, err := Build(BuildOptions{Repository: root, Output: output}); err != nil {
+	if _, err := Build(t.Context(), BuildOptions{Repository: root, Output: output}); err != nil {
 		t.Fatalf("build: %v", err)
 	}
 	if !strings.Contains(read, `"cli_commands": 1`) {

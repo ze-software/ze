@@ -124,21 +124,20 @@ type Options struct {
 // Engine owns one invocation of the renderer pipeline. It is not safe for
 // concurrent use. Separate processes serialize through lockPath.
 type Engine struct {
-	root                 string
-	demoRoot             string
-	artifactRoot         string
-	artifactManifestPath string
-	binaryPath           string
-	lockPath             string
-	execute              Executor
-	lookup               PathLookup
-	output               io.Writer
-	lockWait             time.Duration
-	lockPoll             time.Duration
-	kernelCheck          KernelCheck
-	netSysctl            NetSysctlArguments
-	ctx                  context.Context
-	docker               *interoplab.Docker
+	root         string
+	demoRoot     string
+	artifactRoot string
+	binaryPath   string
+	lockPath     string
+	execute      Executor
+	lookup       PathLookup
+	output       io.Writer
+	lockWait     time.Duration
+	lockPoll     time.Duration
+	kernelCheck  KernelCheck
+	netSysctl    NetSysctlArguments
+	ctx          context.Context
+	docker       *interoplab.Docker
 }
 
 // New creates an Engine. Root and ArtifactRoot must be absolute or relative
@@ -182,21 +181,20 @@ func New(options Options) *Engine {
 	}
 	demoRoot := filepath.Join(options.Root, "demos", terminalLabel)
 	return &Engine{
-		root:                 options.Root,
-		demoRoot:             demoRoot,
-		artifactRoot:         options.ArtifactRoot,
-		artifactManifestPath: filepath.Join(options.ArtifactRoot, "manifest.json"),
-		binaryPath:           filepath.Join(options.Root, "tmp", "terminal-demos", "bin", "ze"),
-		lockPath:             filepath.Join(options.Root, "tmp", "terminal-demos", "demo-run.lock"),
-		execute:              execute,
-		lookup:               lookup,
-		output:               output,
-		lockWait:             wait,
-		lockPoll:             poll,
-		kernelCheck:          kernelCheck,
-		ctx:                  ctx,
-		docker:               docker,
-		netSysctl:            netSysctl,
+		root:         options.Root,
+		demoRoot:     demoRoot,
+		artifactRoot: options.ArtifactRoot,
+		binaryPath:   filepath.Join(options.Root, "tmp", "terminal-demos", "bin", "ze"),
+		lockPath:     filepath.Join(options.Root, "tmp", "terminal-demos", "demo-run.lock"),
+		execute:      execute,
+		lookup:       lookup,
+		output:       output,
+		lockWait:     wait,
+		lockPoll:     poll,
+		kernelCheck:  kernelCheck,
+		ctx:          ctx,
+		docker:       docker,
+		netSysctl:    netSysctl,
 	}
 }
 

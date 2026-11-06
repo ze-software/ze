@@ -96,7 +96,7 @@ func TestBuildRunsEveryRegisteredProducer(t *testing.T) {
 	)
 	root, output := siteFixture(t)
 
-	report, err := Build(BuildOptions{Repository: root, Output: output})
+	report, err := Build(t.Context(), BuildOptions{Repository: root, Output: output})
 	if err != nil {
 		t.Fatal(err)
 	}

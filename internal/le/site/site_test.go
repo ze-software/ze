@@ -2,6 +2,7 @@ package site
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io/fs"
 	"os"
@@ -241,7 +242,7 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 	}
 	commitSiteFixture(t, root)
 	output := filepath.Join(parent, "artifact")
-	report, err := Build(BuildOptions{Repository: root, Output: output})
+	report, err := Build(t.Context(), BuildOptions{Repository: root, Output: output})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,15 +298,15 @@ func stubLiveInputs(t *testing.T, catalog string) {
 		liveRFCData = previousRFCData
 	})
 	// The stated catalog and tree run no daemon, so the build compiles none.
-	liveDaemon = func(_, dir string) (string, error) { return filepath.Join(dir, "ze"), nil }
-	liveCommandCatalog = func(string, string) ([]byte, error) { return []byte(catalog), nil }
+	liveDaemon = func(_ context.Context, _, dir string) (string, error) { return filepath.Join(dir, "ze"), nil }
+	liveCommandCatalog = func(context.Context, string, string) ([]byte, error) { return []byte(catalog), nil }
 	livePluginRegistry = func(string) ([]repoinventory.Plugin, error) {
 		return []repoinventory.Plugin{{
 			Name: "static", Description: "Static routes",
 			ConfigRoots: []string{"static"}, SourceDir: "internal/plugins/static",
 		}}, nil
 	}
-	liveYANGConfigTree = func(string, string) ([]byte, error) {
+	liveYANGConfigTree = func(context.Context, string, string) ([]byte, error) {
 		return []byte(`[{"name":"static","kind":"container","description":"Static routes."}]`), nil
 	}
 	liveSiteFacts = func(Paths) (siteFacts, error) {
@@ -367,7 +368,7 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 	if err := seedArtifact(paths, previous); err != nil {
 		t.Fatal(err)
 	}
-	if err := refreshNativeSurfaces(paths); err != nil {
+	if err := refreshNativeSurfaces(t.Context(), paths); err != nil {
 		t.Fatal(err)
 	}
 	got, err := os.ReadFile(page)
@@ -476,7 +477,7 @@ func TestBuildLeavesAPublishedPageAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := refreshNativeSurfaces(paths); err != nil {
+	if err := refreshNativeSurfaces(t.Context(), paths); err != nil {
 		t.Fatal(err)
 	}
 	published, err := os.ReadFile(catalog)
@@ -740,13 +741,13 @@ func TestASecondBuildChangesNothing(t *testing.T) {
 	previous := buildClock
 	t.Cleanup(func() { buildClock = previous })
 	buildClock = func() time.Time { return first }
-	if _, err := Build(BuildOptions{Repository: root, Output: output}); err != nil {
+	if _, err := Build(t.Context(), BuildOptions{Repository: root, Output: output}); err != nil {
 		t.Fatalf("first build: %v", err)
 	}
 	before := artifactTree(t, output)
 
 	buildClock = func() time.Time { return first.Add(time.Hour) }
-	if _, err := Build(BuildOptions{Repository: root, Output: output}); err != nil {
+	if _, err := Build(t.Context(), BuildOptions{Repository: root, Output: output}); err != nil {
 		t.Fatalf("second build: %v", err)
 	}
 	after := artifactTree(t, output)
@@ -794,7 +795,7 @@ func TestBuildRendersEveryPublishedRoute(t *testing.T) {
 	shareCheckoutDerivations(t)
 	output := filepath.Join(t.TempDir(), "artifact")
 
-	report, err := Build(BuildOptions{Repository: root, Output: output})
+	report, err := Build(t.Context(), BuildOptions{Repository: root, Output: output})
 	if err != nil {
 		t.Fatalf("build the real checkout: %v", err)
 	}

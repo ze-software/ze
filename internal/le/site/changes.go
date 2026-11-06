@@ -150,8 +150,9 @@ func renderChanges(paths Paths) ([]string, error) {
 	}
 
 	routes := make([]string, 0, len(weeks)+1)
-	for _, week := range weeks {
-		if err := renderChangeWeek(paths.Output, week, links); err != nil {
+	for index := range weeks {
+		week := &weeks[index]
+		if err := renderChangeWeek(paths.Output, *week, links); err != nil {
 			return nil, fmt.Errorf("week %s: %w", week.Slug, err)
 		}
 		routes = append(routes, "/"+changesDirectory+"/"+week.Slug+"/")
@@ -526,7 +527,8 @@ const changesIndexLead = "What shipped in Ze, newest first: development updates,
 // buttons over the categories any week touched, then one row for each week.
 func changesIndexBody(weeks []changeWeek) string {
 	present := make(map[string]bool, len(categoryFilterOrder))
-	for _, week := range weeks {
+	for index := range weeks {
+		week := &weeks[index]
 		for _, category := range week.categories() {
 			present[category] = true
 		}
@@ -547,8 +549,8 @@ func changesIndexBody(weeks []changeWeek) string {
 	}
 	page.Str("                </div>\n")
 	page.Str(`                <div class="ch-list reveal">`).Byte('\n')
-	for _, week := range weeks {
-		page.Str(changesIndexRow(week))
+	for index := range weeks {
+		page.Str(changesIndexRow(weeks[index]))
 	}
 	page.Str(`                    <p class="ch-empty filtered-out">No updates in that category yet.</p>`).Byte('\n')
 	page.Str("                </div>\n            </section>\n")
@@ -596,7 +598,8 @@ func changesIndexMirror(weeks []changeWeek) string {
 		Str("the full write-up. Ze is pre-release, so the configuration syntax can still change, and the ").
 		Str("[roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a ").
 		Str("timeline, see [Milestones](../milestones/).\n\n")
-	for _, week := range weeks {
+	for index := range weeks {
+		week := &weeks[index]
 		title := week.label()
 		if week.IsDraft {
 			title += " (pending review)"
@@ -624,7 +627,8 @@ func changesFeed(weeks []changeWeek) string {
 	var items textbuf.Buffer
 	items.Reset()
 	built := feedEpoch
-	for _, week := range weeks {
+	for index := range weeks {
+		week := &weeks[index]
 		if week.IsDraft {
 			continue
 		}
@@ -688,8 +692,8 @@ var weekDirectory = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 // left alone whatever else the section grows.
 func removeRetiredWeeks(output string, weeks []changeWeek) error {
 	live := make(map[string]bool, len(weeks))
-	for _, week := range weeks {
-		live[week.Slug] = true
+	for index := range weeks {
+		live[weeks[index].Slug] = true
 	}
 	root := filepath.Join(output, filepath.FromSlash(changesDirectory))
 	entries, err := os.ReadDir(root)

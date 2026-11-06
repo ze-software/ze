@@ -522,28 +522,26 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 	if renderSource != sourcePath {
 		defer os.Remove(renderSource) //nolint:errcheck // The generated tape is best-effort cleanup after the primary verdict.
 	}
-	if err := os.MkdirAll(e.artifactRoot, 0o755); err != nil { // #nosec G301 -- Public website artifacts must be traversable by the web server.
+	scratch := filepath.Join(e.root, "tmp", "terminal-demos")
+	if err := os.MkdirAll(scratch, 0o750); err != nil {
 		return ArtifactEntry{}, err
 	}
-	expected, err := e.assetPaths(demo)
+	stage, err := os.MkdirTemp(scratch, "artifact-")
+	if err != nil {
+		return ArtifactEntry{}, err
+	}
+	defer os.RemoveAll(stage) //nolint:errcheck // Staging cleanup cannot replace the publication verdict.
+	// Only the completed container writes this private stage. All subsequent
+	// checks and publishers consume retained bytes, not its mutable file names.
+	recorder := *e
+	recorder.artifactRoot = stage
+	expected, err := recorder.assetPaths(demo)
 	if err != nil {
 		return ArtifactEntry{}, err
 	}
 	names, err := assetNames(demo.Kind)
 	if err != nil {
 		return ArtifactEntry{}, err
-	}
-	castPath := expected[castLabel]
-	for _, name := range names {
-		if name == transcriptLabel {
-			continue
-		}
-		path := expected[name]
-		if err := os.Remove(path); err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				return ArtifactEntry{}, err
-			}
-		}
 	}
 	relativeSource, err := filepath.Rel(e.root, renderSource)
 	if err != nil {
@@ -554,7 +552,7 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 	if err != nil {
 		return ArtifactEntry{}, err
 	}
-	command := e.containerCommand(manifest.Renderer, grants, containerSource)
+	command := recorder.containerCommand(manifest.Renderer, grants, containerSource)
 	var buffer textbuf.Buffer
 	releaseEnv := buffer.Str("ZE_DEMO_RELEASE=").Str(release).String()
 	buffer.Reset()
@@ -567,46 +565,39 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 	if err := e.runDemoContainer(&demo, command); err != nil {
 		return ArtifactEntry{}, err
 	}
-	if castPath != "" {
-		if err := expandCastTimeline(castPath, speedup); err != nil {
-			return ArtifactEntry{}, err
+	payloads := make(map[string]Asset, len(names))
+	for _, name := range names {
+		if name == transcriptLabel {
+			continue
 		}
-	}
-	transcriptSource := filepath.Join(filepath.Dir(sourcePath), transcriptFilename)
-	if castPath != "" {
-		if err := checkTranscript(demo.ID, castPath, transcriptSource); err != nil {
-			rejected := filepath.Join(e.root, "tmp", "terminal-demos", "rejected", filepath.Base(castPath))
-			if mkdirErr := os.MkdirAll(filepath.Dir(rejected), 0o750); mkdirErr != nil {
-				return ArtifactEntry{}, mkdirErr
-			}
-			if renameErr := os.Rename(castPath, rejected); renameErr != nil {
-				return ArtifactEntry{}, renameErr
-			}
-			return ArtifactEntry{}, err
+		asset, err := acquireAsset(stage, filepath.Base(expected[name]), nil)
+		if err != nil {
+			return ArtifactEntry{}, fmt.Errorf("%s: acquire generated %s: %w", demo.ID, name, err)
 		}
+		if name == castLabel {
+			asset, err = expandCastTimeline(asset, speedup)
+			if err != nil {
+				return ArtifactEntry{}, err
+			}
+		}
+		payloads[name] = asset
 	}
-	if err := copyFile(transcriptSource, expected[transcriptLabel]); err != nil {
+	transcript, err := acquireAsset(e.demoRoot, filepath.Join(filepath.Dir(demo.Source), transcriptFilename), nil)
+	if err != nil {
 		return ArtifactEntry{}, err
 	}
-	assets := make(map[string]AssetMetadata, len(expected))
-	for _, name := range names {
-		path := expected[name]
-		info, err := os.Stat(path)
-		if err != nil {
-			return ArtifactEntry{}, fmt.Errorf("%s: missing generated %s: %s", demo.ID, name, path)
-		}
-		if info.Size() == 0 {
-			return ArtifactEntry{}, fmt.Errorf("%s: missing generated %s: %s", demo.ID, name, path)
-		}
-		digest, err := hashFile(path)
-		if err != nil {
+	payloads[transcriptLabel] = transcript
+	if cast, recorded := payloads[castLabel]; recorded {
+		if err := checkTranscript(demo.ID, cast, transcript); err != nil {
+			rejected := filepath.Join(scratch, "rejected")
+			if mkdirErr := os.MkdirAll(rejected, 0o750); mkdirErr != nil {
+				return ArtifactEntry{}, mkdirErr
+			}
+			if copyErr := copyFile(cast, filepath.Join(rejected, cast.Metadata().Path)); copyErr != nil {
+				return ArtifactEntry{}, copyErr
+			}
 			return ArtifactEntry{}, err
 		}
-		relative, err := filepath.Rel(e.artifactRoot, path)
-		if err != nil {
-			return ArtifactEntry{}, err
-		}
-		assets[name] = AssetMetadata{Path: filepath.ToSlash(relative), Bytes: info.Size(), SHA256: digest}
 	}
 	binaryDigest, err := hashFile(e.binaryPath)
 	if err != nil {
@@ -620,12 +611,28 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 	if err != nil {
 		return ArtifactEntry{}, err
 	}
+	if err := os.MkdirAll(e.artifactRoot, 0o755); err != nil {
+		return ArtifactEntry{}, err
+	}
+	root, err := os.OpenRoot(e.artifactRoot)
+	if err != nil {
+		return ArtifactEntry{}, err
+	}
+	defer root.Close() //nolint:errcheck // Each per-file publication owns its write verdict.
+	assets := make(map[string]AssetMetadata, len(names))
+	for _, name := range names {
+		asset := payloads[name]
+		relative := filepath.Base(expected[name])
+		if err := asset.Publish(root, relative); err != nil {
+			return ArtifactEntry{}, err
+		}
+		metadata := asset.Metadata()
+		metadata.Path = relative
+		assets[name] = metadata
+	}
 	return ArtifactEntry{
-		Release:          release,
-		BinarySHA256:     binaryDigest,
-		SourceSHA256:     sourceDigest,
-		DefinitionSHA256: definitionDigest,
-		Assets:           assets,
+		Release: release, BinarySHA256: binaryDigest,
+		SourceSHA256: sourceDigest, DefinitionSHA256: definitionDigest, Assets: assets,
 	}, nil
 }
 
@@ -659,47 +666,41 @@ func (e *Engine) removeSupersededAssets(demo Demo) ([]string, error) {
 	return removed, nil
 }
 
-func expandCastTimeline(path string, speedup int) error {
+func expandCastTimeline(asset Asset, speedup int) (Asset, error) {
 	if speedup == 1 {
-		return nil
+		return asset, nil
 	}
-	root, err := os.OpenRoot(filepath.Dir(path))
+	content, err := asset.Text()
 	if err != nil {
-		return err
+		return Asset{}, err
 	}
-	defer root.Close() //nolint:errcheck // The artifact update owns the write verdict.
-	name := filepath.Base(path)
-	data, err := root.ReadFile(name)
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+	path := asset.Metadata().Path
+	lines := strings.Split(strings.TrimSuffix(content, "\n"), "\n")
 	if len(lines) == 0 || strings.TrimSpace(lines[0]) == "" {
-		return fmt.Errorf("%s: the recorder wrote no header", path)
+		return Asset{}, fmt.Errorf("%s: the recorder wrote no header", path)
 	}
 	expanded := make([]string, 1, len(lines))
 	expanded[0] = lines[0]
 	for index, line := range lines[1:] {
 		var event []any
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			return fmt.Errorf("%s:%d: not an asciicast event", path, index+2)
+			return Asset{}, fmt.Errorf("%s:%d: not an asciicast event", path, index+2)
 		}
 		if len(event) == 0 {
-			return fmt.Errorf("%s:%d: not an asciicast event", path, index+2)
+			return Asset{}, fmt.Errorf("%s:%d: not an asciicast event", path, index+2)
 		}
 		timestamp, ok := event[0].(float64)
 		if !ok {
-			return fmt.Errorf("%s:%d: not an asciicast event", path, index+2)
+			return Asset{}, fmt.Errorf("%s:%d: not an asciicast event", path, index+2)
 		}
 		event[0] = math.Round(timestamp*float64(speedup)*1_000_000) / 1_000_000
 		encoded, err := artifactJSON(event)
 		if err != nil {
-			return err
+			return Asset{}, err
 		}
 		expanded = append(expanded, encoded)
 	}
-	data = append([]byte(strings.Join(expanded, "\n")), '\n')
-	return root.WriteFile(name, data, 0o644) // #nosec G306 -- The asciicast is a public website artifact, not private data.
+	return assetFromText(path, strings.Join(expanded, "\n")+"\n"), nil
 }
 
 func artifactJSON(value any) (string, error) {
@@ -772,12 +773,12 @@ type transcriptCommand struct {
 	command string
 }
 
-func transcriptCommands(path string) ([]transcriptCommand, error) {
-	data, err := readRootFile(filepath.Dir(path), filepath.Base(path))
+func transcriptCommands(asset Asset) ([]transcriptCommand, error) {
+	data, err := asset.Text()
 	if err != nil {
 		return nil, err
 	}
-	lines := strings.Split(string(data), "\n")
+	lines := strings.Split(data, "\n")
 	commands := make([]transcriptCommand, 0)
 	for index, line := range lines {
 		match := transcriptPromptPattern.FindStringSubmatch(line)
@@ -789,18 +790,13 @@ func transcriptCommands(path string) ([]transcriptCommand, error) {
 	return commands, nil
 }
 
-func castVisibleText(path string) ([]string, error) {
-	root, err := os.OpenRoot(filepath.Dir(path))
+func castVisibleText(asset Asset) ([]string, error) {
+	content, err := asset.Text()
 	if err != nil {
 		return nil, err
 	}
-	defer root.Close() //nolint:errcheck // The cast read owns the verdict.
-	handle, err := root.Open(filepath.Base(path))
-	if err != nil {
-		return nil, err
-	}
-	defer handle.Close() //nolint:errcheck // Scanner errors own the read verdict.
-	scanner := bufio.NewScanner(handle)
+	path := asset.Metadata().Path
+	scanner := bufio.NewScanner(strings.NewReader(content))
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	if !scanner.Scan() {
 		if err := scanner.Err(); err != nil {
@@ -839,15 +835,16 @@ func castVisibleText(path string) ([]string, error) {
 	return screen.painted(), nil
 }
 
-func checkTranscript(demoID, castPath, transcriptPath string) error {
-	claimed, err := transcriptCommands(transcriptPath)
+func checkTranscript(demoID string, cast, transcript Asset) error {
+	transcriptPath := transcript.Metadata().Path
+	claimed, err := transcriptCommands(transcript)
 	if err != nil {
 		return err
 	}
 	if len(claimed) == 0 {
 		return fmt.Errorf("%s: %s quotes no command line, so it gates nothing", demoID, transcriptPath)
 	}
-	visible, err := castVisibleText(castPath)
+	visible, err := castVisibleText(cast)
 	if err != nil {
 		return err
 	}
@@ -879,30 +876,11 @@ func checkTranscript(demoID, castPath, transcriptPath string) error {
 	return nil
 }
 
-func copyFile(source, target string) error {
-	sourceRoot, err := os.OpenRoot(filepath.Dir(source))
-	if err != nil {
-		return err
-	}
-	defer sourceRoot.Close() //nolint:errcheck // The copy owns the source read verdict.
-	input, err := sourceRoot.Open(filepath.Base(source))
-	if err != nil {
-		return err
-	}
-	defer input.Close() //nolint:errcheck // Copy owns the read verdict.
+func copyFile(source Asset, target string) error {
 	targetRoot, err := os.OpenRoot(filepath.Dir(target))
 	if err != nil {
 		return err
 	}
-	defer targetRoot.Close() //nolint:errcheck // Closing the output file owns the write verdict.
-	output, err := targetRoot.Create(filepath.Base(target))
-	if err != nil {
-		return err
-	}
-	_, copyErr := io.Copy(output, input)
-	closeErr := output.Close()
-	if copyErr != nil {
-		return copyErr
-	}
-	return closeErr
+	defer targetRoot.Close() //nolint:errcheck // Asset.Publish owns the write verdict.
+	return source.Publish(targetRoot, filepath.Base(target))
 }

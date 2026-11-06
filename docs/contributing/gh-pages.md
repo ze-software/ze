@@ -392,13 +392,35 @@ definitions without changing their output.
 
 A presentation change does not make an old recording current. Preserve its
 recorded source, definition, binary and release identities. The site publisher
-checks the bytes against the artifact manifest. The separate
-`./le site terminal-demo check artifacts` action also checks current recorder
-sources and refuses stale recordings. Do not replace those digests to make a
-presentation-only change pass.
+acquires media through its rooted artifact directory, checks size and digest on
+the retained payload, and uses that same payload for parsing and publication.
+Each manifest path must name that demo's canonical kind-specific file, which is
+also the filename its player and download URLs serve. A mismatched path is
+refused before that payload is acquired or any demo asset is republished.
+Replacing a source path or writing its inode after verification cannot change
+the bytes the parser or publisher uses. File copies publish file content, never
+symlinks; a link that leaves the source root is refused. Each destination file is
+replaced through a temporary file only after its bytes are ready, so a failed
+replacement keeps its preceding bytes. This is not a multi-file transaction.
+The separate `./le site terminal-demo check artifacts` action also checks current
+recorder sources and refuses stale recordings. Do not replace those digests to
+make a presentation-only change pass.
 <!-- source: internal/le/site/demo.go -- demoCatalog.verifyAssets, demoCatalog.verifyAsset -->
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.checkAll -->
 <!-- source: internal/le/site/terminaldemo/manifest.go -- nativeRecorderSources, Engine.verifyAssets -->
+
+The retained-payload guarantee applies to demo media checked against its manifest.
+Generic website-source copies use rooted reads and per-file atomic replacement;
+they do not create an immutable snapshot of all website inputs. The build's
+source digest is a separate change-detection boundary, not proof that concurrent
+source writes cannot occur.
+<!-- source: internal/le/site/build.go -- sourceDigest, stageSources, copyPath -->
+
+Before seed or source overlay writes begin, every selected destination parent is
+checked for symlinks. Aliased parents are refused without replacing earlier
+files, including aliases into `.git` or a directory later pruning would remove.
+Confined source-file links remain usable as file content.
+<!-- source: internal/le/site/copyparents.go -- checkCopyParent, checkTreeCopyParents, openCopyParent -->
 
 Do not generate or publish MP4 or WebM assets for this site. The former README
 carrier conversion and GitHub SVG/video selection workflow is retired. A
@@ -537,28 +559,25 @@ optional dependencies, startup ordering, and the YANG schema it registers.
 
 Two facts the catalog shows are DERIVED rather than declared, so do not look for
 a field to fill in. The source directory is the package the plugin's engine
-function was compiled in. The YANG file list is every `.yang` file in the
+function is defined in the selected committed source. The YANG file list is every `.yang` file in the
 directory that holds the module the registration carries, and beside the
 package when it carries none.
-<!-- source: internal/le/repo/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
+<!-- source: internal/le/repo/inventory/registrations.go -- engineSource, yangFiles -->
 
 A build reads the plugin registrations, writes
 `../gh-pages/data/plugin-registry.json`, and renders the catalog plus one local
 detail page per plugin.
 
-The registrations published are always the Linux build's, because Ze ships only
-on Linux and some plugins register from a file built only there (memlock,
-iface-dhcp and iface-ra, for example). On Linux the build reads its own
-registry. On any other host, such as a Mac, its own registry is smaller with no
-error, so the build never reads it: it cross-compiles a linux `le` into the
-checkout's `tmp/` with the lab recipe (`interoplab.StageBinaries`, `linuxle.Base`
-and every feature gate, for the Docker daemon's architecture), runs
-`le repo inventory | json` in a one-shot container over the checkout mounted
-read-only, and publishes the plugins it printed. This happens before the daemon
-compile. When Docker does not answer, or the container fails, the build stops
-with the reason and the fix (start Docker, check `docker info`, then
-`./le site build` again); it never falls back to the host's registry.
-<!-- source: internal/le/site/pluginregistry.go -- pluginRegistryFor, readLinuxPluginRegistry, linuxRegistryRefusal -->
+The published registrations come from one resolved commit and retained blob
+batch. The reader follows `cmd/ze` imports under the declared Linux/amd64 le
+context: `ze_le`, every committed feature gate and cgo disabled. It resolves
+reachable registrations and their metadata from those same source bytes, never
+from the publishing process's registry or dirty working-tree files. This works
+on a Mac without compiling or staging a Linux executable or starting Docker.
+Unreadable, empty or unresolved membership stops publication before the daemon
+compile; it never falls back to a partial host population.
+<!-- source: internal/le/repo/inventory/source.go -- ReadCommitted, normalizeLinuxContext -->
+<!-- source: internal/le/site/pluginregistry.go -- committedPluginRegistry -->
 
 The command catalog and the configuration tree below need no container: a
 command whose handler is Linux-only registers a non-Linux stub under the same
@@ -606,6 +625,16 @@ own, and the documentation drift check (`./le doc check all`) compiles its
 live catalog the same way. Each run of the compiled binary has a 2-minute bound
 that covers the command alone, so a slow compile on a loaded host does not kill
 the catalog.
+
+The native build and extraction APIs take the caller's context. The `site build`
+and `site config-tree` actions root that context in SIGINT and SIGTERM, so the
+phase bounds do not detach native work from an interrupted invocation. The shared
+process owner stops the owned group and joins its sole reaper before temporary
+files are removed. A canceled compile starts no catalog or schema extraction; a
+canceled catalog stops the refresh before schema extraction or a success verdict.
+These actions do not acquire a second scheduler slot: any caller's existing job
+ownership remains in force.
+<!-- source: internal/le/site/actions.go -- runBuild, runConfigTree -->
 <!-- source: internal/le/site/build.go -- refreshNativeSurfaces, publishCommandCatalog, liveCommandCatalog -->
 <!-- source: internal/le/site/yang.go -- liveDaemon, runYANGConfigTree -->
 <!-- source: internal/le/doc/yangcontract/command_surfaces.go -- BuildDaemon, loadLiveCommandCatalog, runCommandCatalog -->
@@ -1013,13 +1042,15 @@ Five shapes are load-bearing on that page:
   `evaluate` (`internal/le/rfc/check_core.go`) skips every requirement of an
   un-enrolled RFC, so on those pages the population card names what the summary
   DECLARES and states that the gate holds none of it.
-- **An un-enrolled kind is published with its meaning.** Six kinds exist:
-  `enrolled` and the five dispositions `non-normative`, `backlog`, `blocked`,
-  `source-restricted` and `out-of-scope`. The last says the extraction is DONE
-  and the owner declined the feature, which is a scope decision rather than a
-  conformance gap, and its public row may read only `Future` or `Unsupported`.
-  The sentence for each comes from `rfc.DispositionKindMeaning`, so a seventh
-  kind cannot print as a bare word.
+- **An un-enrolled kind is published with its meaning.** The five enrolment
+  dispositions are `non-normative`, `backlog`, `blocked`, `source-restricted`
+  and `out-of-scope`. The last says the extraction is DONE and the owner
+  declined the feature, which is a scope decision rather than a conformance
+  gap, and its public row may read only `Future` or `Unsupported`. A summary
+  whose implementation takes it out of the count instead publishes
+  `third-party` or `foundation` and its implementation reason. The declined
+  index's rows and counts use the same `Meta.Disposition` as its reader;
+  each kind's sentence comes from `rfc.DispositionKindMeaning`.
 - **Retiring a page is keyed on the marker this family writes**, never on a
   directory name absent from the live set. The output of a real build is the
   `../gh-pages` checkout, so a name test would delete any directory under

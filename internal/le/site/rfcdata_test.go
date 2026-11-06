@@ -366,7 +366,7 @@ func TestTheNativeRefreshPublishesTheRFCData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := refreshNativeSurfaces(paths); err != nil {
+	if err := refreshNativeSurfaces(t.Context(), paths); err != nil {
 		t.Fatal(err)
 	}
 	var got rfcStemData

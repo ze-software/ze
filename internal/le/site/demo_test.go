@@ -293,14 +293,27 @@ func TestARunningTimeReadsAsAPhrase(t *testing.T) {
 // it is about a file nothing else would accept.
 func TestTheFixtureCastParsesAsAsciicastV2(t *testing.T) {
 	paths := demoFixture(t)
-	facts, err := readCastFacts(filepath.Join(paths.Output, "assets", "demos", "launcher.cast"))
+	catalog := newDemoCatalog(paths)
+	if err := catalog.load(); err != nil {
+		t.Fatal(err)
+	}
+	entry := catalog.built["launcher"]
+	cast, err := catalog.verifyAsset("launcher", demoCast, entry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts, err := readCastFacts(cast)
 	if err != nil {
 		t.Fatalf("read cast: %v", err)
 	}
 	if facts.Columns != 100 || facts.Rows != 25 || facts.Seconds != 7.25 {
 		t.Errorf("the recording states %dx%d over %v seconds", facts.Columns, facts.Rows, facts.Seconds)
 	}
-	if _, err := readCastFacts(filepath.Join(paths.Output, "assets", "demos", "launcher.txt")); err == nil {
+	transcript, err := catalog.verifyAsset("launcher", demoTranscript, entry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readCastFacts(transcript); err == nil {
 		t.Error("a file that is not an asciicast must be refused")
 	}
 }

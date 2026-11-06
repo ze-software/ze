@@ -204,7 +204,7 @@ func TestBuildStampsEveryPublishedPage(t *testing.T) {
 		}
 	}
 	commitSiteFixture(t, root)
-	report, err := Build(BuildOptions{Repository: root, Output: filepath.Join(parent, "artifact")})
+	report, err := Build(t.Context(), BuildOptions{Repository: root, Output: filepath.Join(parent, "artifact")})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -254,7 +254,12 @@ func assetExtensions(kind string) (map[string]string, error) {
 	}
 }
 
-func (e *Engine) assetPaths(demo Demo) (map[string]string, error) {
+// AssetPaths answers the canonical root-relative publication names for a demo.
+// Callers MUST bind artifact metadata paths to these names before acquisition.
+func AssetPaths(demo Demo) (map[string]string, error) {
+	if !demoIDPattern(demo.ID) {
+		return nil, fmt.Errorf("invalid demo id %q", demo.ID)
+	}
 	extensions, err := assetExtensions(demo.Kind)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", demo.ID, err)
@@ -263,6 +268,17 @@ func (e *Engine) assetPaths(demo Demo) (map[string]string, error) {
 	for name, extension := range extensions {
 		var buffer textbuf.Buffer
 		filename := buffer.Str(demo.ID).Str(extension).String()
+		paths[name] = filename
+	}
+	return paths, nil
+}
+
+func (e *Engine) assetPaths(demo Demo) (map[string]string, error) {
+	paths, err := AssetPaths(demo)
+	if err != nil {
+		return nil, err
+	}
+	for name, filename := range paths {
 		paths[name] = filepath.Join(e.artifactRoot, filename)
 	}
 	return paths, nil
@@ -558,8 +574,12 @@ func (e *Engine) writeArtifactManifest(generated artifactManifest) error {
 	if err != nil {
 		return err
 	}
-	data = append(data, '\n')
-	return os.WriteFile(e.artifactManifestPath, data, 0o644) // #nosec G306 -- The manifest is a public website artifact, not private data.
+	root, err := os.OpenRoot(e.artifactRoot)
+	if err != nil {
+		return err
+	}
+	defer root.Close() //nolint:errcheck // The replacement owns the write verdict.
+	return replaceArtifact(root, "manifest.json", strings.NewReader(string(data)+"\n"))
 }
 
 func artifactJSONValue(generated artifactManifest) map[string]any {
@@ -671,20 +691,14 @@ func (e *Engine) verifyAssets(manifest Manifest, indexed map[string]Demo, select
 			if asset.Path == "" {
 				return fmt.Errorf("%s: missing %s metadata", demoID, name)
 			}
-			published := filepath.Join(e.artifactRoot, filepath.FromSlash(asset.Path))
-			info, err := os.Stat(published)
-			if err != nil {
-				return fmt.Errorf("%s: missing generated asset: %s", demoID, published)
+			if asset.Path != filepath.Base(expected[name]) {
+				return fmt.Errorf("%s: %s artifact path %q does not name its published file %q; restore the recorded manifest", demoID, name, asset.Path, filepath.Base(expected[name]))
 			}
-			digest, err := hashFile(published)
-			if err != nil {
-				return err
-			}
-			if info.Size() != asset.Bytes {
-				return fmt.Errorf("%s: %s digest mismatch", demoID, name)
-			}
-			if digest != asset.SHA256 {
-				return fmt.Errorf("%s: %s digest mismatch", demoID, name)
+			if _, err := ReadAsset(e.artifactRoot, asset); err != nil {
+				if errors.Is(err, errAssetMismatch) {
+					return fmt.Errorf("%s: %s digest mismatch", demoID, name)
+				}
+				return fmt.Errorf("%s: acquire generated %s: %w", demoID, name, err)
 			}
 		}
 	}

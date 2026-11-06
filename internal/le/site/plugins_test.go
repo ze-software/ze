@@ -695,7 +695,7 @@ func TestABuildRefreshesThePluginRegistryAndTheConfigurationTree(t *testing.T) {
 		}
 	}
 
-	if _, err := Build(BuildOptions{Repository: root, Output: output}); err != nil {
+	if _, err := Build(t.Context(), BuildOptions{Repository: root, Output: output}); err != nil {
 		t.Fatalf("build: %v", err)
 	}
 

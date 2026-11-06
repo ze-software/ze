@@ -73,7 +73,7 @@ func TestRoadmapBuildTracksPlanChanges(t *testing.T) {
 				"# Spec: Optional capability\n\n| Field | Value |\n|---|---|\n| Status | deferred |\n| Priority | P3 |\n| Release reason | Independent capability |\n")
 			roadmapGit(t, root, "add", "plan")
 			roadmapGit(t, root, "-c", "commit.gpgsign=false", "commit", "-qm", "First obligation")
-			first, err := Build(BuildOptions{Repository: root, Output: output})
+			first, err := Build(t.Context(), BuildOptions{Repository: root, Output: output})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -86,7 +86,7 @@ func TestRoadmapBuildTracksPlanChanges(t *testing.T) {
 			writeFixtureFile(t, filepath.Join(root, "plan", "release", "validation", "spec-new.md"), "# Spec: Dirty replacement\n")
 			writeFixtureFile(t, filepath.Join(root, "plan", "post-release", "engineering", "spec-untracked.md"), "# Spec: Untracked obligation\n")
 			writeFixtureFile(t, filepath.Join(root, "plan", "release", "roadmap.md"), "# Stale generated inventory\n")
-			second, err := Build(BuildOptions{Repository: root, Output: output, Partial: partial})
+			second, err := Build(t.Context(), BuildOptions{Repository: root, Output: output, Partial: partial})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -162,7 +162,7 @@ func TestRoadmapBuildTracksPlanChanges(t *testing.T) {
 					t.Fatal("the docs producer still owns the roadmap route")
 				}
 			}
-			if _, err := Build(BuildOptions{Repository: root, Output: output, Partial: true}); err != nil {
+			if _, err := Build(t.Context(), BuildOptions{Repository: root, Output: output, Partial: true}); err != nil {
 				t.Fatal(err)
 			}
 			if readArtifact(t, output, roadmapDataFile) != after {
@@ -182,7 +182,7 @@ func TestRoadmapBuildRefusesMissingPlan(t *testing.T) {
 	roadmapGit(t, root, "rm", "-r", "plan")
 	roadmapGit(t, root, "-c", "commit.gpgsign=false", "commit", "-qm", "Remove plan")
 	writeFixtureFile(t, filepath.Join(root, "plan", "post-release", "engineering", "spec-local.md"), "# Spec: Local only\n")
-	_, err := Build(BuildOptions{Repository: root, Output: output})
+	_, err := Build(t.Context(), BuildOptions{Repository: root, Output: output})
 	if err == nil {
 		t.Fatal("a committed tree without plan published an empty roadmap")
 	}

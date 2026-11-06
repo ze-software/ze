@@ -13,6 +13,7 @@ import (
 	"time"
 
 	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // schemaExtractionTimeout bounds one run of the compiled daemon's schema
@@ -32,7 +33,7 @@ var liveYANGConfigTree = runYANGConfigTree
 // The binary is run as it stands. A build passes the daemon it compiled from
 // THIS checkout (liveDaemon), and the config-tree action passes the binary its
 // caller named or one it compiled the same way.
-func runYANGConfigTree(repository, binary string) ([]byte, error) {
+func runYANGConfigTree(ctx context.Context, repository, binary string) (_ []byte, err error) {
 	info, err := os.Stat(binary)
 	if err != nil {
 		return nil, fmt.Errorf("ze binary %s: %w", binary, err)
@@ -41,7 +42,7 @@ func runYANGConfigTree(repository, binary string) ([]byte, error) {
 		return nil, fmt.Errorf("ze binary %s: not a regular file", binary)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), schemaExtractionTimeout)
+	ctx, cancel := context.WithTimeout(ctx, schemaExtractionTimeout)
 	defer cancel()
 	// #nosec G204 -- the binary is the daemon this build compiled or the one
 	// the operator named, and the argv is fixed.
@@ -49,11 +50,19 @@ func runYANGConfigTree(repository, binary string) ([]byte, error) {
 	command.Dir = repository
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
-	raw, err := command.Output()
+	var stdout bytes.Buffer
+	command.Stdout = &stdout
+	command.WaitDelay = 2 * time.Second
+	owner, err := runner.StartServerProcess(command)
 	if err != nil {
+		return nil, fmt.Errorf("start %s schema extraction: %w", binary, err)
+	}
+	// Close MUST finish before the caller removes the temporary daemon directory.
+	defer func() { err = errors.Join(err, owner.Close()) }()
+	if err := errors.Join(owner.Wait(), ctx.Err()); err != nil {
 		return nil, fmt.Errorf("%s show yang tree --config | json: %w: %s", binary, err, stderr.String())
 	}
-	return raw, nil
+	return stdout.Bytes(), nil
 }
 
 // liveDaemon compiles the daemon a build reads its command catalog and its
@@ -66,8 +75,8 @@ var liveDaemon = docyangcontract.BuildDaemon
 
 // extractYANGConfigTree writes the top-level-name-indexed configuration tree
 // the site publishes, and answers how many roots it holds.
-func extractYANGConfigTree(repository, output, binary string) (int, error) {
-	raw, err := liveYANGConfigTree(repository, binary)
+func extractYANGConfigTree(ctx context.Context, repository, output, binary string) (int, error) {
+	raw, err := liveYANGConfigTree(ctx, repository, binary)
 	if err != nil {
 		return 0, err
 	}
@@ -77,9 +86,9 @@ func extractYANGConfigTree(repository, output, binary string) (int, error) {
 // configTreeFrom extracts the configuration tree from the binary named, or,
 // when none is named, from a daemon it compiles from this checkout into a
 // temporary directory it removes afterwards.
-func configTreeFrom(repository, output, binary string) (count int, err error) {
+func configTreeFrom(ctx context.Context, repository, output, binary string) (count int, err error) {
 	if binary != "" {
-		return extractYANGConfigTree(repository, output, binary)
+		return extractYANGConfigTree(ctx, repository, output, binary)
 	}
 	daemonDir, err := os.MkdirTemp("", "ze-site-daemon-*")
 	if err != nil {
@@ -87,11 +96,11 @@ func configTreeFrom(repository, output, binary string) (count int, err error) {
 	}
 	defer func() { err = errors.Join(err, os.RemoveAll(daemonDir)) }()
 
-	daemon, err := liveDaemon(repository, daemonDir)
+	daemon, err := liveDaemon(ctx, repository, daemonDir)
 	if err != nil {
 		return 0, err
 	}
-	return extractYANGConfigTree(repository, output, daemon)
+	return extractYANGConfigTree(ctx, repository, output, daemon)
 }
 
 func writeYANGConfigTree(output string, raw []byte) (int, error) {
