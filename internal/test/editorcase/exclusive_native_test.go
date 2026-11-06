@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +19,9 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/le/job"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // TestEditorSuiteNativeExclusive observes actual child entry through a FIFO.
@@ -25,20 +29,21 @@ import (
 // Every release route must reap the holder and remove work before waiter entry.
 // MUTATION: drop ExclusiveGroup in the editor scheduler adapter.
 func TestEditorSuiteNativeExclusive(t *testing.T) {
+	admission := admitLeaseSuites(t)
 	for _, outcome := range []string{"success", "failure", "cancel"} {
 		t.Run(outcome, func(t *testing.T) {
 			group := t.TempDir()
-			holder := startLeaseSuite(t, group, outcome)
+			holder := startLeaseSuite(t, admission, group, outcome)
 			holder.enter(t)
 			work := holder.ownedWork(t)
-			waiter := startLeaseSuite(t, group, "success")
+			waiter := startLeaseSuite(t, admission, group, "success")
 			waiter.await(t, func() bool {
 				if waiter.tryEntry(t) {
 					t.Fatal("same-group child entered before group admission")
 				}
 				return waiter.hasGroupDescriptor(t)
 			})
-			canceled := startLeaseSuite(t, group, "success")
+			canceled := startLeaseSuite(t, admission, group, "success")
 			canceled.await(t, func() bool { return canceled.hasGroupDescriptor(t) })
 			if err := canceled.cmd.Process.Signal(syscall.SIGTERM); err != nil {
 				t.Fatal(err)
@@ -59,7 +64,7 @@ func TestEditorSuiteNativeExclusive(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
-			other := startLeaseSuite(t, group+"-independent", "success")
+			other := startLeaseSuite(t, admission, group+"-independent", "success")
 			other.enter(t)
 			if waiter.tryEntry(t) {
 				t.Fatal("same-group child entered while holder and independent child were active")
@@ -99,14 +104,76 @@ func TestEditorSuiteNativeExclusive(t *testing.T) {
 // actual Linux host, alongside an undeclared case. Both must enter their editors
 // concurrently and pass, with no capability grant or implicit exclusive group.
 func TestEditorSuiteNativeLinuxTarget(t *testing.T) {
-	linux := startLeaseSuite(t, "", "success")
+	admission := admitLeaseSuites(t)
+	linux := startLeaseSuite(t, admission, "", "success")
 	linux.enter(t)
-	plain := startLeaseSuite(t, "", "default")
+	plain := startLeaseSuite(t, admission, "", "default")
 	plain.enter(t)
 	linux.release(t)
 	plain.release(t)
 	linux.join(t, false)
 	plain.join(t, false)
+}
+
+// leaseAdmission keeps every suite inside one real job slot. This makes the
+// launched PID the scheduler owner rather than an admission wrapper's PID.
+type leaseAdmission struct {
+	executable string
+	parent     string
+	progress   io.Writer
+}
+
+func admitLeaseSuites(t *testing.T) *leaseAdmission {
+	t.Helper()
+	// Resolve the standalone build before holding a slot its launcher may need.
+	executable := admissionExecutable(t)
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	admission, err := job.NewIn(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	admission.MayAttach = false
+	ticket, err := admission.Admit("editor-lease-proof", []string{"go", "test", t.Name()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch ticket.Kind {
+	case job.KindInside:
+		return &leaseAdmission{
+			executable: executable,
+			parent:     env.Get(job.ParentKey),
+			progress:   io.Discard,
+		}
+	case job.KindClaimed:
+		t.Cleanup(func() {
+			code := 0
+			if t.Failed() {
+				code = 1
+			}
+			ticket.Release(code)
+		})
+		progress, err := os.OpenFile(filepath.Join(root, filepath.FromSlash(ticket.Log)),
+			os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := progress.Close(); err != nil {
+				t.Error(err)
+			}
+		})
+		return &leaseAdmission{
+			executable: executable,
+			parent:     filepath.Join(root, filepath.FromSlash(ticket.Entry)),
+			progress:   progress,
+		}
+	case job.KindUnspecified, job.KindAttached, job.KindUnadmitted:
+		t.Fatalf("native lease proof requires its own execution, got admission %s", ticket.Kind)
+	}
+	panic("BUG: unknown native lease proof admission kind")
 }
 
 // leaseSuite owns exactly one native suite and its wait worker. Cleanup signals
@@ -121,9 +188,8 @@ type leaseSuite struct {
 	joined          bool
 }
 
-func startLeaseSuite(t *testing.T, group, outcome string) *leaseSuite {
+func startLeaseSuite(t *testing.T, admission *leaseAdmission, group, outcome string) *leaseSuite {
 	t.Helper()
-	executable := admissionExecutable(t)
 	root := t.TempDir()
 	fifo := filepath.Join(root, "entry.conf")
 	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
@@ -154,10 +220,13 @@ func startLeaseSuite(t *testing.T, group, outcome string) *leaseSuite {
 		cancel()
 		t.Fatal(err)
 	}
-	cmd := exec.CommandContext(ctx, executable, "test", "editor", "--dir", root, "--all")
+	cmd := exec.CommandContext(ctx, admission.executable, "test", "editor", "--dir", root, "--all")
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "TMPDIR="+root, "ze_le_store_trim=off")
-	cmd.Stdout, cmd.Stderr = log, log
+	cmd.Env = append(env.Without(os.Environ(), job.ParentKey, job.AttachKey),
+		job.ParentVariable+"="+admission.parent, job.AttachKey+"=0",
+		"TMPDIR="+root, "ze_le_store_trim=off")
+	output := io.MultiWriter(log, admission.progress)
+	cmd.Stdout, cmd.Stderr = output, output
 	plugin.KillGroupOnCancel(cmd)
 	if err := plugin.StartChild(cmd); err != nil {
 		cancel()
@@ -248,7 +317,7 @@ func (suite *leaseSuite) join(t *testing.T, fail bool) {
 // The holder's active FIFO keeps that lock unavailable; no sleep guesses startup.
 func (suite *leaseSuite) hasGroupDescriptor(t *testing.T) bool {
 	t.Helper()
-	path := filepath.Join("/proc", strconv.Itoa(suite.cmd.Process.Pid), "fd")
+	path := "/proc/" + strconv.Itoa(suite.cmd.Process.Pid) + "/fd"
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		t.Fatal(err)
