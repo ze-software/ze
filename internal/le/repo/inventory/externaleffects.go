@@ -1,0 +1,480 @@
+// Design: docs/architecture/plugin/feature-gates.md -- final external-effect closure.
+package repoinventory
+
+import (
+	"fmt"
+	"go/ast"
+	"go/token"
+	"slices"
+	"strings"
+)
+
+type externalIssueKind uint8
+
+const (
+	externalIssueInvalid externalIssueKind = iota
+	externalUnresolved
+	externalUnsupported
+)
+
+// externalIssue distinguishes incomplete ownership from a directly observed
+// unsupported operation. Only incomplete ownership permits private diagnostic
+// traversal; neither class permits publication.
+type externalIssue struct {
+	kind     externalIssueKind
+	position token.Pos
+	cause    error
+}
+
+func (issue *externalIssue) Error() string { return issue.cause.Error() }
+func (issue *externalIssue) Unwrap() error { return issue.cause }
+
+// externalEffects is private to one report reader. Bindings, return summaries,
+// reachable bodies and ambient references only grow. No provisional admission
+// may be consumed until solve has reached its fixed point and validated metadata.
+type externalEffects struct {
+	source          *externalSource
+	resolver        *expression
+	typeIdentities  *externalTypeIdentityIndex
+	receiverQueries map[externalReceiverQuery]externalReceiverResult
+	methodCensuses  map[externalMethodCensusQuery]*externalMethodCensus
+	bindings        map[*ast.Object]externalValue
+	returns         map[ast.Node]externalValue
+	bodies          map[ast.Node]sourceExpr
+	possible        map[ast.Node]bool
+	amb             externalValue
+	metadata        map[*ast.Object]bool
+	operations      map[externalCallSite]sourceExpr
+	admitted        map[externalCallSite]bool
+	changed         bool
+	failure         error
+	definitions     map[*ast.Object][]externalDefinition
+	types           map[*ast.Object]sourceExpr
+	reading         map[*ast.Object]bool
+	stores          []externalStore
+	linknames       map[*ast.Object]sourceExpr
+	linkDefinitions map[string][]sourceExpr
+	linkInvalid     map[string]sourceExpr
+	assembly        *assemblyIndex
+	assemblyErr     error
+	writes          map[*ast.Object]sourceExpr
+	formals         map[*ast.Object]externalFormal
+	formalDemand    map[*ast.Object]bool
+	formalExternal  map[*ast.Object]bool
+	formalIndirect  map[ast.Node]sourceExpr
+	formalInvalid   map[ast.Node]string
+}
+
+func newExternalEffects(source *externalSource) *externalEffects {
+	return &externalEffects{
+		source: source, resolver: source.snapshot.evaluator(), bindings: make(map[*ast.Object]externalValue),
+		typeIdentities:  newExternalTypeIdentityIndex(source.snapshot),
+		receiverQueries: make(map[externalReceiverQuery]externalReceiverResult),
+		methodCensuses:  make(map[externalMethodCensusQuery]*externalMethodCensus),
+		returns:         make(map[ast.Node]externalValue), bodies: make(map[ast.Node]sourceExpr),
+		possible: make(map[ast.Node]bool), metadata: make(map[*ast.Object]bool),
+		operations: make(map[externalCallSite]sourceExpr), admitted: make(map[externalCallSite]bool),
+		definitions: make(map[*ast.Object][]externalDefinition), types: make(map[*ast.Object]sourceExpr), reading: make(map[*ast.Object]bool),
+		linknames:       make(map[*ast.Object]sourceExpr),
+		linkDefinitions: make(map[string][]sourceExpr),
+		linkInvalid:     make(map[string]sourceExpr),
+		writes:          make(map[*ast.Object]sourceExpr),
+		formals:         make(map[*ast.Object]externalFormal),
+		formalDemand:    make(map[*ast.Object]bool),
+		formalExternal:  make(map[*ast.Object]bool),
+		formalIndirect:  make(map[ast.Node]sourceExpr),
+		formalInvalid:   make(map[ast.Node]string),
+	}
+}
+
+func (e *externalEffects) problem(source sourceExpr, reason string) {
+	e.issue(source, reason, externalUnresolved)
+}
+
+func (e *externalEffects) issue(source sourceExpr, reason string, kind externalIssueKind) {
+	position := token.NoPos
+	if source.value != nil {
+		position = source.value.Pos()
+	} else if source.file != nil {
+		position = source.file.Pos()
+	}
+	var cause error = fmt.Errorf("external %s", reason)
+	if source.file != nil {
+		cause = e.source.snapshot.evaluator().problem(source, "external "+reason)
+	}
+	candidate := &externalIssue{kind: kind, position: position, cause: cause}
+	previous, found := e.failure.(*externalIssue)
+	if found {
+		if previous.kind > candidate.kind {
+			return
+		}
+		if previous.kind == candidate.kind {
+			if previous.position < candidate.position {
+				return
+			}
+			if previous.position == candidate.position {
+				if previous.Error() <= candidate.Error() {
+					return
+				}
+			}
+		}
+	}
+	e.failure = candidate
+}
+
+// refuseUnknown stops only on a permanent ambient fact. Provisional failures
+// still need later rounds; current preferred issues retain their normal order.
+func (e *externalEffects) refuseUnknown() error {
+	if e.amb.unknown == "" {
+		return nil
+	}
+	e.issue(sourceExpr{}, "registration capability is unknown: "+e.amb.unknown, externalUnresolved)
+	return e.failure
+}
+
+func (e *externalEffects) bind(object *ast.Object, value externalValue) {
+	if e.amb.unknown != "" {
+		return
+	}
+	if object == nil {
+		return
+	}
+	current := e.bindings[object]
+	if current.join(value) {
+		e.bindings[object] = current
+		e.changed = true
+	}
+}
+
+func (e *externalEffects) body(node ast.Node, source sourceExpr, possible bool) {
+	if e.amb.unknown != "" {
+		return
+	}
+	if function, declared := node.(*ast.FuncDecl); declared {
+		if e.linkedObject(function.Name.Obj) {
+			return
+		}
+	}
+	var signature *ast.FuncType
+	switch function := node.(type) {
+	case *ast.FuncDecl:
+		if function.Body != nil {
+			signature = function.Type
+		}
+	case *ast.FuncLit:
+		signature = function.Type
+	}
+	if signature != nil {
+		if signature.Results != nil {
+			for _, result := range signature.Results.List {
+				if len(result.Names) != 0 {
+					e.problem(source, "named result ownership is unsupported")
+					return
+				}
+			}
+		}
+	}
+	if _, exists := e.bodies[node]; !exists {
+		e.bodies[node] = source
+		e.changed = true
+	}
+	if possible {
+		if !e.possible[node] {
+			e.possible[node] = true
+			e.changed = true
+		}
+	}
+}
+
+// solve uses 128 monotone rounds, each visiting only captured declarations and
+// scheduled bodies. Exhaustion refuses; recursion never yields an early clean
+// result merely because its declaration is already active. Permanent ambient
+// unknown stops expansion before another round can clear the current failure.
+func (e *externalEffects) solve() error {
+	if err := e.refuseUnknown(); err != nil {
+		return err
+	}
+	directories := make([]string, 0, len(e.source.snapshot.packages))
+	for directory := range e.source.snapshot.packages {
+		directories = append(directories, directory)
+	}
+	slices.Sort(directories)
+	e.indexDefinitions(directories)
+	e.indexFormalSources(directories)
+	for directory := range e.source.roots {
+		for _, identity := range e.source.imports[directory] {
+			first, _, _ := strings.Cut(identity, "/")
+			if strings.Contains(first, ".") {
+				continue
+			}
+			// unsafe is a compiler intrinsic, not an external initializer.
+			// Its operations refuse separately at the capability-call boundary.
+			if identity == "unsafe" {
+				continue
+			}
+			if err := e.source.witness(identity); err != nil {
+				return err
+			}
+			e.amb.join(externalOrigin(identity))
+		}
+	}
+	for range 128 {
+		if err := e.refuseUnknown(); err != nil {
+			return err
+		}
+		e.changed = false
+		e.failure = nil
+		for _, directory := range directories {
+			pkg := e.source.snapshot.packages[directory]
+			if e.source.roots[directory] {
+				e.linkageDefinitions(directory)
+				for _, initializer := range pkg.initializerValues {
+					e.value(initializer, false, 0)
+					if err := e.refuseUnknown(); err != nil {
+						return err
+					}
+				}
+				for _, initializer := range pkg.initializers {
+					e.body(initializer.decl, sourceExpr{file: initializer.file, pkg: pkg}, false)
+					if err := e.refuseUnknown(); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		for node, source := range e.bodies {
+			var body *ast.BlockStmt
+			switch function := node.(type) {
+			case *ast.FuncDecl:
+				body = function.Body
+			case *ast.FuncLit:
+				body = function.Body
+			}
+			if body == nil {
+				function, declared := node.(*ast.FuncDecl)
+				if !declared {
+					e.problem(source, "execution body is unavailable")
+					continue
+				}
+				result := e.assemblyResult(sourceFunction{decl: function, file: source.file, pkg: source.pkg}, e.amb)
+				if err := e.refuseUnknown(); err != nil {
+					return err
+				}
+				current := e.returns[node]
+				if current.join(result) {
+					e.returns[node] = current
+					e.changed = true
+				}
+				continue
+			}
+			e.statements(body, source, node, e.possible[node])
+			if err := e.refuseUnknown(); err != nil {
+				return err
+			}
+		}
+		e.staticRoots()
+		if err := e.refuseUnknown(); err != nil {
+			return err
+		}
+		e.expose(e.amb)
+		if err := e.refuseUnknown(); err != nil {
+			return err
+		}
+		e.indirectStores()
+		if err := e.refuseUnknown(); err != nil {
+			return err
+		}
+		if e.changed {
+			continue
+		}
+		e.validateFormals()
+		if e.failure != nil {
+			return e.failure
+		}
+		for object := range e.amb.locations {
+			if e.metadata[object] {
+				return fmt.Errorf("external mutation can change registration metadata through %s; isolate the retained metadata before publishing inventory", object.Name)
+			}
+		}
+		for object, source := range e.writes {
+			if e.metadata[object] {
+				return e.source.snapshot.evaluator().problem(source, "external registration metadata depends on a mutated retained backing location")
+			}
+		}
+		for site := range e.operations {
+			e.admitted[site] = true
+		}
+		return nil
+	}
+	return fmt.Errorf("external registration effect closure exceeds 128 rounds; simplify the retained capability graph before publishing inventory")
+}
+
+// expose expands the ambient pool until its monotone unknown guarantees refusal.
+// A local unknown becomes terminal only after its value joins that pool.
+func (e *externalEffects) expose(value externalValue) {
+	if e.amb.unknown != "" {
+		return
+	}
+	if e.amb.join(value) {
+		e.changed = true
+	}
+	if e.amb.unknown != "" {
+		return
+	}
+	e.promoteReflection(value.reflection)
+	if e.amb.unknown != "" {
+		return
+	}
+	for object := range value.locations {
+		if e.amb.join(e.readObject(object)) {
+			e.changed = true
+		}
+		if e.amb.unknown != "" {
+			return
+		}
+	}
+	for node, source := range value.callables {
+		if externalRegistration(node, source) {
+			e.problem(source, "registration may execute through an escaped capability")
+			continue
+		}
+		e.exposeSignature(node, source)
+		if e.amb.unknown != "" {
+			return
+		}
+		e.externalParameters(node, source)
+		if e.amb.unknown != "" {
+			return
+		}
+		e.body(node, source, true)
+		if e.amb.unknown != "" {
+			return
+		}
+		if e.amb.join(e.returns[node]) {
+			e.changed = true
+		}
+		if e.amb.unknown != "" {
+			return
+		}
+	}
+}
+
+func (e *externalEffects) valueSpec(spec *ast.ValueSpec, scope sourceExpr) {
+	var joined externalValue
+	for _, value := range spec.Values {
+		joined.join(e.value(sourceExpr{value: value, file: scope.file, pkg: scope.pkg}, true, 0))
+	}
+	if spec.Type != nil {
+		joined.join(e.typeMethods(sourceExpr{value: spec.Type, file: scope.file, pkg: scope.pkg}, 0))
+	}
+	for _, name := range spec.Names {
+		e.bind(name.Obj, joined)
+	}
+}
+
+func (e *externalEffects) assignment(statement *ast.AssignStmt, scope sourceExpr, possible bool) {
+	var joined externalValue
+	for _, right := range statement.Rhs {
+		joined.join(e.value(sourceExpr{value: right, file: scope.file, pkg: scope.pkg}, possible, 0))
+	}
+	for _, left := range statement.Lhs {
+		object := e.object(sourceExpr{value: left, file: scope.file, pkg: scope.pkg})
+		if object != nil {
+			if statement.Tok != token.DEFINE {
+				e.writes[object] = sourceExpr{value: left, file: scope.file, pkg: scope.pkg}
+			}
+			e.bind(object, joined)
+			continue
+		}
+		if name, ok := left.(*ast.Ident); ok {
+			if name.Name == "_" {
+				continue
+			}
+		}
+		location := e.value(sourceExpr{value: left, file: scope.file, pkg: scope.pkg}, possible, 0)
+		if len(location.locations) == 0 {
+			e.problem(scope, "assignment location ownership is unresolved")
+			continue
+		}
+		for object := range location.locations {
+			e.writes[object] = sourceExpr{value: left, file: scope.file, pkg: scope.pkg}
+			e.bind(object, joined)
+		}
+	}
+}
+
+func (e *externalEffects) statements(node ast.Node, scope sourceExpr, owner ast.Node, possible bool) {
+	if e.amb.unknown != "" {
+		return
+	}
+	if node == nil {
+		return
+	}
+	switch statement := node.(type) {
+	case *ast.FuncLit:
+		return
+	case *ast.CallExpr:
+		e.value(sourceExpr{value: statement, file: scope.file, pkg: scope.pkg}, possible, 0)
+		return
+	case *ast.ReturnStmt:
+		result := e.returns[owner]
+		for _, expression := range statement.Results {
+			if result.join(e.value(sourceExpr{value: expression, file: scope.file, pkg: scope.pkg}, possible, 0)) {
+				e.changed = true
+			}
+		}
+		e.returns[owner] = result
+		return
+	case *ast.AssignStmt:
+		e.assignment(statement, scope, possible)
+		return
+	case *ast.RangeStmt:
+		e.rangeExecution(sourceExpr{value: statement.X, file: scope.file, pkg: scope.pkg})
+		e.rangeAssignment(statement, scope, possible)
+		// An unresolved source kind alone does not prune header/body effects.
+		// Only permanent ambient unknown stops their remaining expansion.
+		e.statements(statement.Key, scope, owner, possible)
+		e.statements(statement.Value, scope, owner, possible)
+		e.statements(statement.X, scope, owner, possible)
+		e.statements(statement.Body, scope, owner, possible)
+		return
+	case *ast.IncDecStmt:
+		target := sourceExpr{value: statement.X, file: scope.file, pkg: scope.pkg}
+		if object := e.object(target); object != nil {
+			e.writes[object] = target
+			return
+		}
+		location := e.value(target, possible, 0)
+		if len(location.locations) == 0 {
+			e.problem(target, "increment location ownership is unresolved")
+			return
+		}
+		for object := range location.locations {
+			e.writes[object] = target
+		}
+		return
+	case *ast.GoStmt:
+		e.value(sourceExpr{value: statement.Call, file: scope.file, pkg: scope.pkg}, true, 0)
+		return
+	case *ast.DeferStmt:
+		e.value(sourceExpr{value: statement.Call, file: scope.file, pkg: scope.pkg}, true, 0)
+		return
+	case *ast.SendStmt:
+		e.issue(sourceExpr{value: statement.Chan, file: scope.file, pkg: scope.pkg}, "channel capability transfer is unsupported", externalUnsupported)
+		return
+	}
+	first := true
+	ast.Inspect(node, func(child ast.Node) bool {
+		if e.amb.unknown != "" {
+			return false
+		}
+		if first {
+			first = false
+			return true
+		}
+		if child != nil {
+			e.statements(child, scope, owner, possible)
+		}
+		return false
+	})
+}

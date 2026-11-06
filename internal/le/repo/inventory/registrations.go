@@ -29,6 +29,8 @@ type registrations struct {
 	modules          map[string]string
 	moduleIdentities map[string]bool
 	assembly         *assemblyIndex
+	external         map[externalCallSite]bool
+	diagnosticOnly   bool
 }
 
 // initializationScope distinguishes a function's lexical block from a package
@@ -67,7 +69,13 @@ func (s *Snapshot) registrations() ([]registeredPlugin, error) {
 }
 
 func (s *Snapshot) readRegistrations() (*registrations, error) {
+	certificate, err := s.externalCertificate()
+	if err != nil {
+		return nil, err
+	}
 	reader := &registrations{eval: s.evaluator(), active: make(map[*ast.FuncDecl]bool), visited: make(map[*ast.FuncDecl]bool), plugins: make(map[string]registeredPlugin), modules: make(map[string]string)}
+	reader.external = certificate.sites
+	reader.diagnosticOnly = certificate.refusal != nil
 	reader.moduleIdentities = make(map[string]bool)
 	packages := make([]string, 0, len(s.packages))
 	for dir := range s.packages {
@@ -86,6 +94,11 @@ func (s *Snapshot) readRegistrations() (*registrations, error) {
 				return nil, err
 			}
 		}
+	}
+	// Diagnostic traversal never upgrades an incomplete effect proof. Even a
+	// complete-looking private population must be discarded on this path.
+	if certificate.refusal != nil {
+		return nil, certificate.refusal
 	}
 	if len(reader.plugins) == 0 {
 		return nil, fmt.Errorf("committed Linux le at %s registers no plugins; commit its composition imports before publishing inventory", s.revision)
@@ -151,10 +164,35 @@ func (r *registrations) node(node ast.Node, function initializationScope, condit
 	case *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
 		return r.children(node, function, true)
 	case *ast.CallExpr:
+		if r.external[externalSite(r.eval.snapshot, current)] {
+			if err := r.node(current.Fun, function, conditional); err != nil {
+				return err
+			}
+			for _, argument := range current.Args {
+				if err := r.node(argument, function, conditional); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 		// Execution MUST consume this normalized source and its declaration
 		// classification, never dispatch the original alias/parentheses again.
 		callee, declared, err := r.callableSource(current, function)
 		if err != nil {
+			if r.diagnosticOnly {
+				// The saved unresolved proof already forbids publication. Keep
+				// evaluating operands to reach a more specific retained-source
+				// refusal, without inventing an owner for this invocation.
+				if err := r.node(current.Fun, function, conditional); err != nil {
+					return err
+				}
+				for _, argument := range current.Args {
+					if err := r.node(argument, function, conditional); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
 			return err
 		}
 		for _, argument := range current.Args {
@@ -467,7 +505,7 @@ func (r *registrations) engineSource(source sourceExpr) (string, error) {
 }
 
 func (r *registrations) functionPresent(source sourceExpr) (bool, error) {
-	if name, ok := source.value.(*ast.Ident); ok && name.Name == "nil" {
+	if predeclaredIdentifier(source, "nil") {
 		return false, nil
 	}
 	_, err := r.engineSource(source)

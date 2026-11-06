@@ -34,10 +34,20 @@ func asmHeaderPaths(extra ...string) []string {
 // asmHeaderFixture includes an authored report-only file that is deliberately
 // outside the selected import graph. Report statistics must retain it while
 // selected Go paths must not acquire it or any header/assembly evidence.
-func asmHeaderFixture(t *testing.T, declarations, unit string) *asmInventoryFixture {
+func asmHeaderFixture(t *testing.T, declarations, unit string, witnesses ...string) *asmInventoryFixture {
 	t.Helper()
 	fixture := newASMInventoryFixture(t)
 	fixture.addBoundary(t, "syscall")
+	for _, origin := range witnesses {
+		for _, sink := range []struct{ file, name string }{
+			{"internal/component/plugin/registry/registry.go", "registry"},
+			{"internal/component/config/yang/register.go", "yang"},
+		} {
+			declaration := "package " + sink.name + "\n"
+			body := strings.Replace(fixture.goSources[sink.file], declaration, declaration+"import _ \""+origin+"\"\n", 1)
+			fixture.goFile(t, sink.file, body)
+		}
+	}
 	fixture.goFile(t, asmOrdinaryDir+"/header_probe_import.go", "package ordinary\nimport _ \"github.com/ze-software/ze/"+asmHeaderProbeDir+"\"\n")
 	fixture.goFile(t, asmHeaderProbeFile, declarations)
 	fixture.goFile(t, asmHeaderReportFile, "package reportonly\nconst Unselected = len(\"not selected\")\n")

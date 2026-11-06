@@ -119,13 +119,14 @@ func TestCommittedAssemblyGeneratedMembershipRefusesUnknown(t *testing.T) {
 		name         string
 		declarations string
 		cause        string
+		origin       string
 	}{
-		{"external-constant-kind", "package headerprobe\nimport \"math\"\nconst Unknown = math.Pi\n", "unsupported generated assembly constant kind"},
-		{"external-struct-shape", "package headerprobe\nimport \"time\"\ntype Unknown = time.Time\n", "unsupported generated assembly type"},
+		{"external-constant-kind", "package headerprobe\nimport \"math\"\nconst Unknown = math.Pi\n", "unsupported generated assembly constant kind", "math"},
+		{"external-struct-shape", "package headerprobe\nimport \"time\"\ntype Unknown = time.Time\n", "unsupported generated assembly type", "time"},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			fixture := asmHeaderFixture(t, test.declarations, "#include \"textflag.h\"\n"+asmHeaderNumericBody)
+			fixture := asmHeaderFixture(t, test.declarations, "#include \"textflag.h\"\n"+asmHeaderNumericBody, test.origin)
 			// A DIFFERENT package needs generated evidence. That must not
 			// eagerly classify this probe's unused unsupported declarations.
 			write(t, fixture.root, asmTargetFile, "#include \"go_asm.h\"\n"+asmTargetBody)

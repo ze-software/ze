@@ -185,9 +185,14 @@ func sourceObjects(ctx context.Context, root, revision string) (sourcePopulation
 			continue
 		}
 		report := inventoryInput(rel)
+		identity := rel == "go.work" || strings.HasSuffix(rel, "/go.mod") || rel == "vendor/modules.txt"
 		assembly := strings.HasSuffix(rel, ".s")
-		if !report && !assembly {
-			continue
+		if !report {
+			if !assembly {
+				if !identity {
+					continue
+				}
+			}
 		}
 		regular := fields[1] == "blob" && (fields[0] == "100644" || fields[0] == "100755")
 		if assembly {

@@ -68,6 +68,15 @@ func (fixture *asmInventoryFixture) goFile(t *testing.T, name, body string) {
 
 func (fixture *asmInventoryFixture) addBoundary(t *testing.T, alias string) {
 	t.Helper()
+	// The assembly certificate and external initializer certificate have
+	// separate obligations. Keep the original assembly stimulus unchanged.
+	for _, sink := range []struct{ file, name string }{
+		{"internal/component/plugin/registry/registry.go", "registry"},
+		{"internal/component/config/yang/register.go", "yang"},
+	} {
+		body := strings.Replace(fixture.goSources[sink.file], "package "+sink.name+"\n", "package "+sink.name+"\nimport _ \"syscall\"\n", 1)
+		fixture.goFile(t, sink.file, body)
+	}
 	imported := "\"syscall\""
 	if alias != "syscall" {
 		imported = alias + " \"syscall\""

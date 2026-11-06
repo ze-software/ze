@@ -58,9 +58,12 @@ without claiming to know the library's implementation or return values.
 
 The design has three parts:
 
-1. Prove an import path from each registration sink to the external package.
-   In a valid Go program, an ordinary static import back to a sink would create
-   an import cycle. This proof comes from source, not a library-name whitelist.
+1. Prove which retained packages external code can import. Paths from both
+   registration sinks to the external package exclude a static return path by
+   the Go import-cycle rule. A second source certificate uses a closed module
+   namespace and Go's internal-package rule: outside code must first enter
+   through a retained public package. Both routes require analysis of the
+   remaining accessible code and initialization; neither exempts a library name.
 2. Track all other ways external code can obtain registration capabilities:
    callbacks, returned interfaces, captured objects, shared writable values, and
    accessible package globals. A neutral package can expose a callback even when
@@ -82,19 +85,113 @@ or the actual result of `IsDir`. Both branches remain subject to analysis.
 
 ## Implementation and evidence status
 
+Evidence availability changed on November 6. The old session's raw logs,
+profiles, omission overlays and reviewed scratch proposals linked below became
+unavailable during an automatic cleanup run. Its log does not identify every
+removed directory. Earlier results remain recorded observations, while their original
+bytes are unavailable. The
+[recovery record](plan/post-release/engineering/tooling-one-off-evidence-recovery-2026-11-06.md)
+identifies surviving source snapshots and the private archive for new retained
+proof. The approved Git-only decision and trust contract remain recorded here.
+
 The retained-source inventory foundation was committed as `5a6bd238c1`. Its value
 and pointer ownership tests passed, but the actual-root run still refused at the
 external receiver described above.
 
-At this record's creation, the new contract documentation and adversarial fixtures
-are being prepared. The external-effect evaluator has not yet been implemented or
-proven. Tests must cover both registration sinks, multiple results, interface
-methods, escaped callbacks, neutral globals, mutation, and stale cached summaries.
-All tests and builds run in the main session, as Thomas requested.
+An external-effect evaluator is now present in the working tree. It tracks
+external result ownership, callable and writable capabilities, accessible package
+state, and their fixed point over retained source. Parameter provenance includes
+dormant retained callers and distinguishes a proved nil or inert argument from
+missing argument evidence. Recursive forwarding needs a grounded source for every
+dependent obligation; unresolved indirect callers refuse. The new forwarding and
+unbound-parameter regressions now pass with their ordinary inventory controls.
 
-The approved design must still pass those controls and a fresh actual-root run.
-Approval does not guarantee that every remaining initializer can be certified.
-The owning spec stays open until its required implementation and proofs succeed.
+The escaped registration-function, exported-constant method and nested-module
+identity regressions pass, as do the retained constructor and receiver controls.
+The public-entry certificate and its initialization, private-reference and
+new-origin regressions now pass. Targeted tests also pass for positional fields,
+unknown callable unions, range execution and assignments, and exact field owners.
+The per-reader mutation index and completed-query cache preserve declaration
+identity and mutation policy in their targeted tests.
+
+The actual repository run has not produced a report. The last observed
+pre-terminal run of `TestAnswerAnswersTheInventory` reached its ten-minute limit.
+After the allocation repair, the native `repo inventory` command also ended at its
+fifteen-minute diagnostic deadline with exit 124 and no report. That attempt
+predates the terminal-refusal guards. Three later actual-root attempts timed out
+at the unchanged ten-minute bound under normal `CGO_ENABLED=0` execution. The
+latest attempt includes the completed receiver-query repair as well as the
+reflected-signature, package-binding and descriptor allocation repairs. Thirty-five
+affected source roots pass. Separate fallback tests also preserve raw resolution
+for synthetic or unindexed receiver sources, with every block in the new wrapper
+executed. The latest full-run profile still points to repeated method collection
+and receiver-table lookups. A method-census repair is under source-only design,
+with no implementation released yet.
+The [evidence record](plan/post-release/engineering/tooling-one-off-evidence.md#git-only-evaluator-continuation-on-2026-11-06)
+retains the exact command and validation scope.
+
+The allocation repair passes eleven source-selected controls for value merging,
+flattening, lexical and type identity, and received-field ownership. The terminal
+guards now stop further expansion once a nonempty unknown in the monotone ambient
+pool guarantees refusal. They preserve the current preferred issue and admit no
+operations on that path. Independent source review found the change clean, and
+all sixteen selected roots pass with race instrumentation and full feature tags:
+the earlier eleven controls and all five `TestExternalTerminalUnknown*` roots.
+Those five include the two valid survivors and the three restored refusal cases.
+The tests are in `internal/le/repo/inventory/`; the evidence record gives their
+exact selection command. This result does not establish a complete inventory.
+
+The exposed-signature repair separates reflected type authority from executable
+callable ownership. MAIN restored all five paired scenarios in
+`TestExternalSignatureTypeCapabilitiesSolver` and all thirty-two cases in
+`TestExternalSignatureAuthoritySourceSolver`: the twenty-two previously unsafe
+cases now refuse, and twenty controls retain their expected outcomes. Six
+reflection-domain roots passed, followed by the corrected generic nil-interface
+precision cases. The earlier sixteen source controls also passed after the
+signature repair. Independent review found the revised implementation clean
+within that scope.
+
+A return-value baseline found seven unsafe admissions. A retained call can
+return a typed nil function or pointer, or a named scalar constant, whose
+declared result type carries reflected methods. Those failures are in
+`TestExternalSignatureReturnedValueAuthoritySolver`. Its controls and the
+companion `TestExternalSignatureReturnedNilCallableKeepsOwnership` retain fifteen
+expected outcomes.
+The repair now carries declared Results type authority on actual retained call
+results after the original ownership and assembly checks. All seven unsafe cases
+are restored, and independent review found the actual change clean within that
+scope. The full affected source selection passes all twenty-six roots: four
+signature roots with twenty-nine restored unsafe cases and thirty-five controls,
+six reflection-domain roots, and the sixteen prior source controls. Existing
+tests were unchanged. The source-reviewed closure and assembly-sibling tests now
+pass. Their old-hook overlay baseline preserved both scalar controls and exposed
+both unsafe returned-value cases. The unchanged live tests now refuse both unsafe
+cases. The assembly sibling proves composition with the retained source
+certificate, without executing a native assembly call.
+
+The package-binding index and descriptor collector passed all thirty-two
+affected source roots, including those two siblings and four new cost and
+compatibility roots. The collector gives each query one fresh output instead of
+copying intermediate method maps through each descriptor ancestor. Its allocation
+test measures three allocations for both shallow and nested descriptors, after
+reproducing nine and thirty-one before the repair. Exact binding identity,
+ambiguity, independent outputs and the existing depth boundary remain covered.
+These source tests do not establish a complete inventory report.
+
+The analyzer also lost uncertainty when a channel receive replaced a struct
+with an earlier inert callback field.
+The direct solver regression reproduced that defect and passes after the repair.
+After Thomas unlocked signing, its committed fixtures passed for both plugin and
+YANG registrations. The signed public-entry capability, certain-initializer and
+both-sink-witness roots also pass. Separate omission runs expose unsafe report
+publication when either accessible exports or possible initializers are removed
+from the analysis. Restoration after those omissions is still in progress.
+
+The actual-root proof, remaining discrimination tests, full signed-fixture
+regression, measured coverage, final review and publication remain owed. All
+tests and builds run in the main session, as Thomas requested.
+Approval does not guarantee that every initializer can be certified, and the
+owning spec remains open.
 
 The detailed decision and reviewed design are retained in the session artifacts:
 

@@ -126,6 +126,22 @@ func callablePackageBinding(pkg *sourcePackage, name string) *ast.Object {
 	return nil
 }
 
+// predeclaredIdentifier excludes both lexical and cross-file package shadows.
+// A parser object alone cannot identify the language universe across files.
+func predeclaredIdentifier(source sourceExpr, name string) bool {
+	identifier, found := source.value.(*ast.Ident)
+	if !found {
+		return false
+	}
+	if identifier.Name != name {
+		return false
+	}
+	if identifier.Obj != nil {
+		return false
+	}
+	return callablePackageBinding(source.pkg, name) == nil
+}
+
 // callableAliasBinding admits only a declaration whose corresponding initializer
 // the existing expression.target can identify. Parameters, ranges, zero values
 // and multi-result assignments are not a fallback to a same-named package value.

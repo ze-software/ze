@@ -58,12 +58,12 @@ func (e *expression) reference(source sourceExpr) (declarationReference, bool, b
 		name = node.Name
 		local = node.Obj
 	case *ast.SelectorExpr:
-		owner, ok := node.X.(*ast.Ident)
-		if !ok {
-			return declarationReference{}, false, false
+		directory, imported := e.callableImport(source, node)
+		if !imported {
+			return e.reference(sourceExpr{value: node.X, file: source.file, pkg: source.pkg})
 		}
 		var found bool
-		pkg, found = e.snapshot.packages[source.pkg.imports[source.file][owner.Name]]
+		pkg, found = e.snapshot.packages[directory]
 		if !found {
 			return declarationReference{}, false, false
 		}
@@ -100,54 +100,20 @@ func (e *expression) writes(reference declarationReference, check mutationCheck)
 	if check != allDeclarationWrites && check != registrationFieldWrites && check != callableBindingWrites {
 		return fmt.Errorf("unsupported declaration mutation scan mode %d; select a named mutation policy before reading declarations", check)
 	}
-	for _, pkg := range e.snapshot.packages {
-		for _, file := range pkg.files {
-			if reference.local != nil && file.File != reference.file {
-				continue
-			}
-			if pkg != reference.pkg && !importsPackage(pkg.imports[file.File], reference.pkg.dir) {
-				continue
-			}
-			var problem error
-			ast.Inspect(file.File, func(node ast.Node) bool {
-				var targets []ast.Expr
-				switch statement := node.(type) {
-				case *ast.AssignStmt:
-					// Only the actual defining occurrence is excluded below;
-					// := can reassign a variable bound by an earlier declaration.
-					targets = statement.Lhs
-				case *ast.IncDecStmt:
-					targets = []ast.Expr{statement.X}
-				case *ast.UnaryExpr:
-					if check == callableBindingWrites && statement.Op == token.AND && refersTo(statement.X, reference, pkg, file.File, 0) {
-						problem = e.problem(sourceExpr{value: statement, file: file.File, pkg: pkg}, "callable declaration input "+reference.name+" has an escaping address")
-						return false
-					}
-				}
-				for _, target := range targets {
-					if assignment, ok := node.(*ast.AssignStmt); ok && assignment.Tok == token.DEFINE {
-						if declared, ok := target.(*ast.Ident); ok && declared.Obj != nil && declared.Obj.Decl == assignment {
-							continue
-						}
-					}
-					if check == registrationFieldWrites {
-						if field, ok := target.(*ast.SelectorExpr); ok && !metadataField(field.Sel.Name) {
-							continue
-						}
-					}
-					if refersTo(target, reference, pkg, file.File, 0) {
-						problem = e.problem(sourceExpr{value: target, file: file.File, pkg: pkg}, "declaration input "+reference.name+" is mutated after initialization")
-						return false
-					}
-				}
-				return problem == nil
-			})
-			if problem != nil {
-				return problem
-			}
-		}
+	query := declarationMutationQuery{reference: reference, check: check}
+	if completed, found := e.mutationQueries[query]; found {
+		return completed.failure
 	}
-	return nil
+	if e.mutations == nil {
+		e.mutations = newDeclarationMutationIndex(e.snapshot)
+	}
+	failure := e.mutations.writes(e, reference, check)
+	if e.mutationQueries == nil {
+		e.mutationQueries = make(map[declarationMutationQuery]declarationMutationResult)
+	}
+	// Only a completed query writes an entry, including a successful nil error.
+	e.mutationQueries[query] = declarationMutationResult{failure: failure}
+	return failure
 }
 
 func importsPackage(aliases map[string]string, dir string) bool {
@@ -223,8 +189,16 @@ func refersTo(value ast.Expr, reference declarationReference, pkg *sourcePackage
 		}
 	case *ast.SelectorExpr:
 		if owner, ok := node.X.(*ast.Ident); ok && reference.local == nil {
-			if pkg.imports[file][owner.Name] == reference.pkg.dir && node.Sel.Name == reference.name {
-				return true
+			lexicalImport := owner.Obj == nil
+			if owner.Obj != nil {
+				lexicalImport = owner.Obj.Kind == ast.Pkg
+			}
+			if lexicalImport {
+				if pkg.imports[file][owner.Name] == reference.pkg.dir {
+					if node.Sel.Name == reference.name {
+						return true
+					}
+				}
 			}
 		}
 		return refersTo(node.X, reference, pkg, file, depth+1)

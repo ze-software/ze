@@ -15,11 +15,12 @@ const callableOwnerCaller = asmOrdinaryDir + "/callable_owner.go"
 const callableOwnerSchema = "module owner { namespace urn:owner; prefix o; }\n"
 
 type callableOwnerCase struct {
-	name         string
-	declarations string
-	call         string
-	extraImport  string
-	prefix       string
+	name           string
+	declarations   string
+	call           string
+	extraImport    string
+	prefix         string
+	witnessImports []string
 }
 
 func callableOwnerPaths() []string {
@@ -60,6 +61,16 @@ func callableOwnerHelper(kind string) string {
 func callableOwnerFixture(t *testing.T, kind string, scenario callableOwnerCase) *asmInventoryFixture {
 	t.Helper()
 	fixture := newASMInventoryFixture(t)
+	for _, origin := range scenario.witnessImports {
+		for _, sink := range []struct{ file, name string }{
+			{"internal/component/plugin/registry/registry.go", "registry"},
+			{"internal/component/config/yang/register.go", "yang"},
+		} {
+			declaration := "package " + sink.name + "\n"
+			body := strings.Replace(fixture.goSources[sink.file], declaration, declaration+"import _ "+strconv.Quote(origin)+"\n", 1)
+			fixture.goFile(t, sink.file, body)
+		}
+	}
 	fixture.goFile(t, callableOwnerFile, callableOwnerHelper(kind))
 	fixture.goFile(t, "internal/callableownerreportonly/report.go", "package reportonly\nconst Unselected = true\n")
 	if kind == "yang" {

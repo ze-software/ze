@@ -10,12 +10,8 @@
 package coupling
 
 import (
-	"errors"
 	"go/ast"
-	"go/parser"
 	"go/token"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -29,10 +25,6 @@ const module = "github.com/ze-software/ze"
 // typed event-bus handle.
 const eventsImport = module + "/internal/core/events"
 
-// scanRoots are the trees a shipped binary is built from. internal/le and
-// internal/test are skipped below: le is tooling, and the test plugins under
-// internal/test register only in test binaries.
-var scanRoots = []string{"cmd", "internal", "pkg"}
 
 // skippedDirs are directories whose code no shipped binary carries.
 var skippedDirs = []string{"internal/le", "internal/test", "vendor"}
@@ -85,50 +77,6 @@ type scanned struct {
 	files       int
 }
 
-// parseTree parses every shipped, non-test Go file under the scan roots.
-func parseTree(root string) ([]sourceFile, *token.FileSet, error) {
-	fset := token.NewFileSet()
-	var files []sourceFile
-	for _, top := range scanRoots {
-		// A scan root the tree does not hold has no source to read; rootExists
-		// already refused a tree with no internal/ at all.
-		if _, statErr := os.Stat(filepath.Join(root, top)); errors.Is(statErr, fs.ErrNotExist) {
-			continue
-		}
-		walkErr := filepath.WalkDir(filepath.Join(root, top), func(path string, entry fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			rel, relErr := filepath.Rel(root, path)
-			if relErr != nil {
-				return relErr
-			}
-			rel = filepath.ToSlash(rel)
-			if entry.IsDir() {
-				if skipped(rel) {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !strings.HasSuffix(rel, ".go") {
-				return nil
-			}
-			if strings.HasSuffix(rel, "_test.go") {
-				return nil
-			}
-			file, parseErr := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
-			if parseErr != nil {
-				return parseErr
-			}
-			files = append(files, sourceFile{dir: filepath.ToSlash(filepath.Dir(rel)), path: rel, file: file})
-			return nil
-		})
-		if walkErr != nil {
-			return nil, nil, walkErr
-		}
-	}
-	return files, fset, nil
-}
 
 // skipped reports whether a directory holds no shipped code.
 func skipped(rel string) bool {
@@ -405,9 +353,3 @@ func registersHandle(expr ast.Expr, eventsAlias string) bool {
 	return slices.Contains([]string{"Register", "RegisterSignal"}, selector.Sel.Name)
 }
 
-// rootExists reports whether root holds the scan roots, so a wrong root is an
-// error rather than a tree with no coupling in it.
-func rootExists(root string) error {
-	_, err := os.Stat(filepath.Join(root, "internal"))
-	return err
-}

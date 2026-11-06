@@ -74,7 +74,7 @@ func TestCommittedOpaqueCallableOwnersCannotDisappear(t *testing.T) {
 		{name: "local-function-field", declarations: "type ownerFields struct { Run func(uint32) }", call: "local := ownerFields{Run: install}; local.Run(ownerProbe())"},
 		{name: "indexed-receiver", declarations: method + "var ownerHooks = []ownerHook{{}}", call: "ownerHooks[ownerProbe()].Run(ownerProbe())"},
 		{name: "returned-receiver", declarations: method + "func ownerReceiver() ownerHook { return ownerHook{} }", call: "ownerReceiver().Run(ownerProbe())"},
-		{name: "shadowed-standard-import", extraImport: "std \"fmt\"", declarations: method + "var _ = std.Sprintf", prefix: "_ = std.Sprintf(\"ordinary import control\")\n", call: "std := ownerHook{}; std.Run(ownerProbe())"},
+		{name: "shadowed-standard-import", extraImport: "std \"fmt\"", witnessImports: []string{"fmt"}, declarations: method + "var _ = std.Sprintf", prefix: "_ = std.Sprintf(\"ordinary import control\")\n", call: "std := ownerHook{}; std.Run(ownerProbe())"},
 		{name: "shadowed-retained-import", declarations: method, prefix: "_ = helper.Install\n", call: "helper := ownerHook{}; helper.Run(ownerProbe())"},
 		{name: "generic-index", declarations: "func ownerGeneric[T any](_ uint32) { install(0) }", call: "ownerGeneric[int](ownerProbe())"},
 		{name: "generic-index-list", declarations: "func ownerGeneric[T, U any](_ uint32) { install(0) }", call: "ownerGeneric[int, string](ownerProbe())"},

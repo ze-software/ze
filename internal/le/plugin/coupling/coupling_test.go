@@ -2,6 +2,7 @@
 package coupling
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,16 +17,20 @@ import (
 // check is green for that pair; with the edge removed it reports flow export to
 // bgp-rib over ribevents.BestChange.
 //
-// Method: load the real tree and the registrations this test binary links (it
-// MUST be built with every feature tag, as le is), judge it, then judge it
-// again with bgp-rib removed from flow-export's OptionalDependencies in memory.
+// Method: load registrations, manifest and selected source from one committed
+// snapshot, judge it, then judge it again with bgp-rib removed from flow-export's
+// OptionalDependencies in memory.
 // No file is edited, so nothing has to be restored.
 func TestCouplingCheckFlagsUndeclaredSubscriber(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatal(err)
 	}
-	plugins, err := repoinventory.Plugins(root)
+	snapshot, err := repoinventory.ReadCommitted(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plugins, err := snapshot.Plugins()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,20 +42,14 @@ func TestCouplingCheckFlagsUndeclaredSubscriber(t *testing.T) {
 		t.Fatalf("flow-export declares no optional edge to bgp-rib: %v", plugins[at].OptionalDependencies)
 	}
 
-	declared, err := buildModel(root, plugins)
-	if err != nil {
-		t.Fatal(err)
-	}
+	declared := buildSnapshotModel(snapshot, plugins)
 	if found := flowExportRIBCoupling(declared.judge()); found != nil {
 		t.Fatalf("with the edge declared the check still reports %+v", *found)
 	}
 
 	plugins[at].OptionalDependencies = slices.DeleteFunc(slices.Clone(plugins[at].OptionalDependencies),
 		func(name string) bool { return name == "bgp-rib" })
-	removed, err := buildModel(root, plugins)
-	if err != nil {
-		t.Fatal(err)
-	}
+	removed := buildSnapshotModel(snapshot, plugins)
 	found := flowExportRIBCoupling(removed.judge())
 	if found == nil {
 		t.Fatal("with flow-export's edge to bgp-rib removed the check reports no flow-export coupling over ribevents.BestChange")

@@ -6,12 +6,10 @@
 // the always-compiled table of every plugin a build can compile out and the
 // build tags that carry it.
 //
-// No binary can name a plugin it was built without, because the plugin's
-// registration is compiled out with it. le is built with every feature tag, so
-// it links every registration: this generator joins each registration's name
-// and package directory (repoinventory.Plugins) with the manifest's gates
-// (pluginimports.GateIndex, over repofeaturetags.Gates) and writes the answer
-// into a file no build tag removes.
+// A shipped binary cannot name a plugin it was built without. The generator
+// instead resolves the committed all-feature Linux le source population and
+// reads its registrations and gate manifest from one snapshot. No executable
+// inventory or dirty working-tree source supplies its rows.
 //
 // The tags a row carries are the ones the composition root's //go:build line
 // states for that plugin's import, from the same function, so the table cannot
@@ -20,6 +18,7 @@ package gatedtable
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"go/format"
 	"maps"
@@ -52,21 +51,18 @@ type Row struct {
 	ConfigRoots []string `json:"config-roots,omitempty"`
 }
 
-// Derive answers every gated plugin this binary registers, sorted by name.
-// A plugin whose package no manifest row gates is absent, because every build
-// carries it.
+// Derive answers gated registrations and their manifest requirements from one
+// committed Linux source snapshot, independent of dirty files and host tags.
 func Derive(root string) ([]Row, error) {
-	gates, err := pluginimports.LoadGateIndex(root)
+	snapshot, err := repoinventory.ReadCommitted(context.Background(), root)
 	if err != nil {
 		return nil, err
 	}
-
-	plugins, err := repoinventory.Plugins(root)
+	plugins, err := snapshot.Plugins()
 	if err != nil {
 		return nil, err
 	}
-
-	return rowsOf(gates, plugins), nil
+	return rowsOf(snapshot.Gates(), plugins), nil
 }
 
 // rowsOf keeps the gated plugins and orders them by name, so two runs over one

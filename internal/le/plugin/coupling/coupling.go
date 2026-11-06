@@ -18,6 +18,8 @@
 package coupling
 
 import (
+	"context"
+	"path"
 	"slices"
 	"strings"
 
@@ -55,9 +57,8 @@ type model struct {
 	scan    scanned
 }
 
-// Check scans the tree under root and answers every undeclared cross-gate
-// coupling. The registrations come from the plugins this binary links, so le,
-// built with every feature tag, sees them all.
+// Check judges registrations, manifest gates and selected source from the same
+// committed Linux le snapshot, independently of host and dirty checkout state.
 func Check(root string) (CheckReport, error) {
 	built, err := load(root)
 	if err != nil {
@@ -68,30 +69,30 @@ func Check(root string) (CheckReport, error) {
 
 // load reads the manifest, the registrations and the source.
 func load(root string) (model, error) {
-	if err := rootExists(root); err != nil {
-		return model{}, err
-	}
-	plugins, err := repoinventory.Plugins(root)
+	snapshot, err := repoinventory.ReadCommitted(context.Background(), root)
 	if err != nil {
 		return model{}, err
 	}
-	return buildModel(root, plugins)
+	plugins, err := snapshot.Plugins()
+	if err != nil {
+		return model{}, err
+	}
+	return buildSnapshotModel(snapshot, plugins), nil
 }
 
-// buildModel reads the manifest and the source under root for one set of
-// plugins, so a test can judge the tree against registrations it edited.
-func buildModel(root string, plugins []repoinventory.Plugin) (model, error) {
-	gates, err := pluginimports.LoadGateIndex(root)
-	if err != nil {
-		return model{}, err
+func buildSnapshotModel(snapshot *repoinventory.Snapshot, plugins []repoinventory.Plugin) model {
+	sources, fset := snapshot.Sources()
+	files := make([]sourceFile, 0, len(sources))
+	for _, source := range sources {
+		dir := path.Dir(source.Path)
+		if skipped(dir) {
+			continue
+		}
+		files = append(files, sourceFile{dir: dir, path: source.Path, file: source.File})
 	}
-	files, fset, err := parseTree(root)
-	if err != nil {
-		return model{}, err
-	}
-	built := model{plugins: plugins, gates: gates}
+	built := model{plugins: plugins, gates: snapshot.Gates()}
 	built.scan = scanTree(files, fset, func(dir string) bool { return built.owner(dir) != "" })
-	return built, nil
+	return built
 }
 
 // owner answers the plugin whose source directory holds dir, the deepest one

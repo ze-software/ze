@@ -1,0 +1,127 @@
+// Design: docs/architecture/plugin/feature-gates.md -- retained field projections require root ownership.
+package repoinventory
+
+import (
+	"go/ast"
+	"go/token"
+)
+
+// fieldReceiverType proves the receiver expression's static root, independently
+// of the capability union carried by interface alternatives or child values.
+// Indexed and ranged element fields need a separate value summary; they cannot
+// borrow a type-only empty callback field after collection flattening.
+func (e *externalEffects) fieldReceiverType(source sourceExpr, depth int) (sourceExpr, string) {
+	if depth >= 128 {
+		return sourceExpr{}, "root field ownership exceeds 128 source steps"
+	}
+	child := func(value ast.Expr) (sourceExpr, string) {
+		return e.fieldReceiverType(sourceExpr{value: value, file: source.file, pkg: source.pkg}, depth+1)
+	}
+	switch value := source.value.(type) {
+	case *ast.ParenExpr:
+		return child(value.X)
+	case *ast.CompositeLit:
+		if value.Type == nil {
+			return sourceExpr{}, "elided root field ownership is unresolved"
+		}
+		return sourceExpr{value: value.Type, file: source.file, pkg: source.pkg}, ""
+	case *ast.TypeAssertExpr:
+		if value.Type == nil {
+			return sourceExpr{}, "asserted root field ownership is unresolved"
+		}
+		return sourceExpr{value: value.Type, file: source.file, pkg: source.pkg}, ""
+	case *ast.UnaryExpr:
+		if value.Op == token.AND {
+			return child(value.X)
+		}
+		return sourceExpr{}, "unary root field ownership is unresolved"
+	case *ast.StarExpr:
+		return child(value.X)
+	case *ast.IndexExpr:
+		return sourceExpr{}, "indexed element field ownership requires a retained element summary"
+	case *ast.CallExpr:
+		callee := sourceExpr{value: value.Fun, file: source.file, pkg: source.pkg}
+		if e.conversion(callee) {
+			return callee, ""
+		}
+		if datatype, known := e.resolver.valueType(source, depth+1); known {
+			return datatype, ""
+		}
+		return sourceExpr{}, "returned root field ownership is unresolved"
+	case *ast.SelectorExpr:
+		if _, imported := e.resolver.callableImport(source, value); !imported {
+			datatype, reason := child(value.X)
+			if reason != "" {
+				return sourceExpr{}, reason
+			}
+			return e.declaredFieldType(datatype, value.Sel.Name, depth+1)
+		}
+	case *ast.Ident:
+	default:
+		return sourceExpr{}, "root field expression ownership is unresolved"
+	}
+	object := e.object(source)
+	if object == nil {
+		return sourceExpr{}, "root field binding ownership is unresolved"
+	}
+	if assignment, assigned := object.Decl.(*ast.AssignStmt); assigned {
+		if len(assignment.Rhs) == 1 {
+			if ranged, synthetic := assignment.Rhs[0].(*ast.UnaryExpr); synthetic {
+				if ranged.Op == token.RANGE {
+					return sourceExpr{}, "ranged element field ownership requires a retained element summary"
+				}
+			}
+		}
+	}
+	if datatype, declared := e.types[object]; declared {
+		return datatype, ""
+	}
+	initializer, err := e.resolver.target(source)
+	if err != nil {
+		return sourceExpr{}, "root field initializer ownership is unresolved"
+	}
+	return e.fieldReceiverType(initializer, depth+1)
+}
+
+func (e *externalEffects) declaredFieldType(datatype sourceExpr, name string, depth int) (sourceExpr, string) {
+	layout, reason := e.literalLayout(datatype, depth, false)
+	if reason != "" {
+		return sourceExpr{}, "root field ownership is unresolved: " + reason
+	}
+	if layout.kind != externalLiteralStruct {
+		return sourceExpr{}, "root field ownership is not a retained struct"
+	}
+	field, found := layout.types[name]
+	if !found {
+		return sourceExpr{}, "root field ownership has no direct declared member " + name
+	}
+	return field, ""
+}
+
+func (e *externalEffects) projectField(source sourceExpr, selector *ast.SelectorExpr, receiver externalValue, depth int) externalValue {
+	datatype, reason := e.fieldReceiverType(sourceExpr{value: selector.X, file: source.file, pkg: source.pkg}, depth+1)
+	if reason == "" {
+		_, reason = e.declaredFieldType(datatype, selector.Sel.Name, depth+1)
+	}
+	if reason != "" {
+		e.problem(source, reason)
+		return externalValue{unknown: reason}
+	}
+	if receiver.unresolvedFields != "" {
+		e.problem(source, receiver.unresolvedFields)
+		return externalValue{unknown: receiver.unresolvedFields}
+	}
+	field, known := receiver.fields[selector.Sel.Name]
+	if !known {
+		reason = "declared root field value ownership is unresolved"
+		e.problem(source, reason)
+		return externalValue{unknown: reason}
+	}
+	var result externalValue
+	result.join(field)
+	result.join(externalValue{reads: receiver.reads})
+	if field.references {
+		result.join(externalValue{locations: receiver.locations})
+	}
+	return result
+}

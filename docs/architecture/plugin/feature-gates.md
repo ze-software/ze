@@ -98,40 +98,314 @@ declaration aliases, then dispatch its retained function or closure in the
 defining file and package. Arguments keep their caller scope. A function value
 merely passed or returned is not executed. Aliases of the registration APIs
 still refuse when their execution ownership is unsupported. An opaque callee
-or unresolved parameter, indexed, returned or import-shadowing receiver cannot
+or local, parameter, indexed, returned or import-shadowing receiver cannot
 inherit the standard-library boundary from a missing import lookup: a package
 selector must prove its lexical import binding. Unsupported owners refuse
-without publishing partial membership; this is not a general value interpreter.
+without publishing partial membership; this is not a method or value interpreter.
 Following a callable initializer also requires an immutable binding: a reused
 short declaration is a write to its existing object, and an escaping address
 refuses rather than guessing which function a pointer write installs.
-<!-- source: internal/le/repo/inventory/callablealiases.go -- registrations.callableSource, expression.callableImport -->
+<!-- source: internal/le/repo/inventory/callablealiases.go -- registrations.callableSource, registrations.callableImport -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
 <!-- source: internal/le/repo/inventory/mutations.go -- expression.callableImmutable, expression.writes -->
 
-Every admitted call evaluates its arguments once in the caller's scope before
-dispatch, including plugin and YANG registration calls. Initializers in fields
-outside the report still contribute their executed registrations; function
-literals passed as values remain unexecuted. Mutation checks follow both short
-declaration and `var` aliases by binding identity. A multi-result `var`
-initializer with unresolved alias ownership refuses rather than certifying it.
-<!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
-<!-- source: internal/le/repo/inventory/mutations.go -- refersTo -->
+### Approved external-effect contract
 
-Identifier receivers with retained concrete named types can enter directly
-declared value methods or explicit single-pointer methods. The receiver form
-must match the method declaration: no implicit addressing or value-method
-fallback is inferred. Types come from explicit declarations, immutable
-initializers, a retained constructor's single result signature, or a slice/array
-range element. Resolution preserves lexical and defining-package identity;
-same-spelled types in other scopes cannot supply a method. The actual method
-body is traversed with the caller's conditional status, so registration inside
-a range still refuses uncertain iteration. This proves method identity, not
-pointee immutability. Interface results, multiple pointer layers, promoted
-method sets, generics and unresolved aliases remain unsupported. Receiver
-bindings that were reassigned also refuse.
-This uses retained source only and does not resolve opaque standard-library values.
-<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.valueType, expression.concreteType -->
+The Git-only external-effect analysis below is the approved implementation
+contract. Its new discriminating fixtures precede the producer changes; the
+existing real-root refusal remains until the analysis and its tests are complete.
+
+External execution is modeled as arbitrary use of every callable and writable
+location it can reach through ordinary Go references or static imports. This is
+an explicitly bounded trust contract, not a conclusion drawn from signatures or
+library names. Unsafe reference fabrication, `go:linkname`, runtime symbol access,
+dynamic loading and arbitrary native capability manufacture are outside its
+authority. Retained escapes outside this model refuse. The inventory reads no
+host GOROOT, copies no standard-library source and has no inert-library whitelist.
+
+Each opaque origin needs a source certificate for its possible static access to
+the registration sinks. Retained import paths from both sink packages to that
+origin establish the cycle certificate: a static import back to either sink
+would create a Go import cycle. Alternatively, an origin outside the certified
+parent-module namespace may use a public-entry certificate when both sinks lie
+behind that namespace's exact `internal` path segments. Closed module and provider
+selection must prove that every parent-qualified import resolves to retained
+source. An outside importer, including any hidden dependency, must then enter
+through a retained public package before reaching either internal sink.
+
+The public-entry certificate includes every potentially importable public parent
+package and the full retained import-initializer closure of each entry, including
+blank imports and internal dependencies. Its exported constants, globals,
+functions and types contribute all transitive values, methods and writable
+locations. Initializers already selected by the ordinary root retain their
+certain, once-only classification; other activations remain possible effects.
+Package-main entries remain conservative roots. Retained packages outside the
+parent namespace, including vendor internals, keep their independent static
+roots unless an exact package-to-origin cycle excludes them.
+Opaque imports discovered in an entry's initializer closure, including blank
+imports, add their origins to the same ambient fixed point. Every new origin
+requires its own certificate and entry analysis before the closure can succeed.
+<!-- source: internal/le/repo/inventory/externalentries.go -- externalSource.entrySet, externalSource.publicEntryOrigin, externalParentInternal -->
+<!-- source: internal/le/repo/inventory/externalentries_effects.go -- externalEffects.staticRoots, externalEffects.staticExports, externalEffects.possibleInitializers -->
+
+Neither certificate proves isolation from callbacks or shared state. A neutral
+retained package can hold an installer callback or mutable registration metadata.
+All retained internal bodies and assignments remain in the capability analysis,
+even when their packages are not independently accessible static entries. Only
+proved import-cycle or internal-access restrictions may exclude an entry. A
+restriction on the direct external importer does not exclude an unknown permitted
+transitive importer. Missing selected package identity, source ownership or build
+selection refuses rather than assuming no hidden import.
+
+An independent committed nested module is outside the root module's package
+selection. Its source and vendor directories do not enter the potential import
+universe. A certain or recursive potential import that crosses its module
+boundary refuses the inventory instead of borrowing the parent module's identity.
+Nested module declarations are parsed from committed manifests. An unresolved
+import matching a nested module's declared namespace refuses before potential
+package exclusion; a dotless module name is not evidence of standard-library
+ownership. Malformed nested declarations also refuse uncertain identity.
+Root replacements and workspaces still refuse before these boundaries apply.
+For vendor descendants, module boundaries apply only above the first `vendor`
+path segment. Root vendor packages remain subject to `vendor/modules.txt`, and
+an unresolved nested vendor tree still refuses despite a copied `go.mod`.
+A directory whose path ends at `vendor` remains an ordinary package path,
+including its local module boundary if it carries a `go.mod`.
+<!-- source: internal/le/repo/inventory/externalmodules.go -- externalNestedModule, checkExternalModuleSelection -->
+<!-- source: internal/le/repo/inventory/externalsource.go -- newExternalSource -->
+<!-- source: internal/le/repo/inventory/externalidentity.go -- externalVendorPackages -->
+
+One monotone capability pool includes those static roots, all references passed
+externally and all retained assignments to accessible roots. Callbacks may execute
+immediately, later or concurrently; possible registration is uncertainty, never
+certain membership. Each opaque return slot and interface receiver carries the
+entire input, receiver and ambient capability union. Writable references taint
+dependent metadata and execution ownership. Returned values are not assumed fresh,
+and a named scalar's methods are not assumed harmless. Without a permanent
+ambient unknown, both branches remain analyzed; return, panic and failure paths
+do not prune effects.
+
+An exposed function value also reveals its parameter and result types through
+ordinary reflection, even when its body ignores a parameter or returns a nil
+pointer. One exposure hook inspects retained function and closure signatures
+in their defining scope; bound method signatures omit the captured receiver.
+Typed-nil function values retain their concrete type without an implementation
+node. Their type authority and each struct field's type authority preserve exact
+generic substitutions through binding, field projection and flattening.
+An actual retained call also preserves its declared result types when the
+returned expression is nil or an untyped constant. This result authority includes
+only Results, in the callee's defining scope, and survives direct use or inferred
+local bindings without exposing the callee's parameters or receiver. Ordinary
+and certified assembly call results use the same boundary after their existing
+execution-ownership checks.
+
+Generic instantiation retains proved type arguments as deferred descriptor
+authority. An opaque call or an exposed instantiated function promotes that
+authority. An unexposed local instantiation does not. A type argument includes
+interface signature types, even though a nil interface value has no concrete
+descriptor. An unproved type kind retains ordinary value-index evaluation.
+This transfer grants neither backing storage nor ordinary callee ownership.
+<!-- source: internal/le/repo/inventory/externaltypearguments.go -- externalEffects.indexArgument, externalEffects.typeArgument -->
+<!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.expose -->
+
+Reflection authority is separate from actual callable ownership. Its exported
+methods, opaque origins and unresolved type facts enter the ambient pool only
+when exposed. Ordinary retained calls still execute only their actual function
+values. Descriptor inspection follows pointer, array, slice, map, channel and
+struct field types, function signatures, interface methods and the signatures
+of accessible exported methods. It grants no existing writable backing storage;
+inspecting a channel element type is not a channel value transfer. A nil interface
+value alone reveals no concrete runtime type, while a concrete holder's field
+descriptor still reveals that interface's method signature types.
+The reflection summary resolves the value root's exact substituted
+representation before collecting generic argument authority; a nil generic
+interface contributes no reflected argument methods.
+
+Aliases preserve the target's methods; a new defined type does not inherit its
+underlying named type's methods. A real field or element descriptor edge exposes
+that child's own methods. Descriptor backedges therefore compare exact retained
+declarations, resolved substitutions and method visibility. Their bounded walk
+does not expand another field-value tree; unresolved identities and its 128-edge
+limit remain explicit uncertainty, refused when exposed.
+Each query collects descriptor facts into one output-owned union, including
+method signatures, without copying an intermediate map through every ancestor.
+Separate root or field queries, even on one reused walker, own fresh summaries.
+Valid argument visits retain their order before backedge checks; an argument
+ownership preflight preserves the existing unknown-only invalid-argument return.
+No completed descriptor answer is cached. Local uncertainty does not cancel
+sibling traversal.
+<!-- source: internal/le/repo/inventory/externalreflection.go -- externalEffects.exposeSignature, externalEffects.reflectedValue, externalEffects.promoteReflection -->
+<!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk.value, externalReflectionWalk.collect, externalReflectionWalk.collectNamed, externalReflectionWalk.collectMethods -->
+<!-- source: internal/le/repo/inventory/externalreflectionidentity.go -- externalReflectionFrameEqual, externalReflectionArgumentEqual -->
+<!-- source: internal/le/repo/inventory/externalreflectionroots.go -- externalReflectionWalk.interfaceRoot -->
+<!-- source: internal/le/repo/inventory/externalreflectionreturns.go -- externalEffects.returnedReflection -->
+
+The observation horizon is completed initialization. Without a proved ordering
+boundary, delayed callbacks and retained writes to exposed roots remain possible
+before that horizon; the bounded analysis conservatively includes later writes
+too. Binding-sensitive summaries reach a bounded fixed point over the captured
+source identity and ambient pool. A visited declaration alone proves neither an
+effect-free second invocation nor a completed recursive summary. Every previously
+collected registration and metadata value is revalidated against that final
+closure. Unknown effects, mutable dependencies or exhausted bounds refuse the
+whole report, with no partial population. This contract certifies registration
+effects only, not termination or absence of file, network and system effects.
+
+A nonempty unknown in the monotone ambient capability pool permanently refuses
+the whole report. Remaining effect expansion may then stop without admitting any
+operation; local unknown values, field-ownership obligations and provisional
+failures do not establish that condition. The refusal retains any currently
+recorded issue preferred by the existing issue ordering; otherwise it reports the
+unresolved ambient unknown without an execution-source position, and effects not
+visited need not receive a diagnostic. The ordinary unresolved diagnostic
+traversal keeps its saved refusal and cannot publish a partial population. Every
+potentially successful analysis still completes all required effects, ownership
+checks and bounds.
+
+Positional retained struct literals map each value to its declared field slot,
+including grouped names and proved alias or defined-type chains. A projected
+field retains its own capabilities, reads and references without borrowing a
+sibling callback or the holder's methods. Unresolved positional layouts refuse
+at construction, so a later field projection cannot erase that uncertainty.
+Empty elided literals remain zero constructions; nonempty elided, positional
+generic-struct and embedded-field layouts remain unsupported.
+<!-- source: internal/le/repo/inventory/externalliteralshapes.go -- externalEffects.literalLayout, externalEffects.literalValue -->
+
+Root field names are separate from aggregate reachable capabilities. Collection
+keys and elements, named child fields and generic arguments contribute their
+capabilities without adding their field names to the holder. Keyed literals
+populate only proved direct struct members, including names in a retained generic
+struct declaration. Retained field selection proves the receiver's static root
+and direct member before consuming a field value; an asserted type cannot borrow
+another interface alternative's field. Unsupported owner shapes refuse explicitly.
+Indexed or ranged values retain all aggregate capabilities, but carry a separate
+field-ownership obligation until an actual element-field summary is available;
+a type-only empty callback field cannot discharge it. Nested fields preserve
+their own obligations without contaminating an unrelated scalar sibling.
+Unsupported channel receives carry that root-field obligation too; a received
+whole value cannot borrow an earlier inert field from the same binding.
+Flattening copies every visited node's capabilities into one output-owned union,
+dropping field names and their selector obligations at each node. Its unchanged
+128-edge cutoff excludes that node's capabilities, preserves the first unknown
+encountered and continues traversing siblings.
+<!-- source: internal/le/repo/inventory/externalrootfields.go -- externalEffects.fieldReceiverType, externalEffects.declaredFieldType, externalEffects.projectField -->
+<!-- source: internal/le/repo/inventory/externalvalues.go -- externalValue.join, externalFlat, externalValue.joinFlat -->
+<!-- source: internal/le/repo/inventory/externaleffecttypes.go -- externalTypeWalk.value, externalTypeWalk.named -->
+
+Parameter provenance includes every exact retained direct caller, including
+dormant callers, through equations that keep the caller's execution owner.
+An actual nil argument is evidence; an absent binding or an early empty recursive
+summary is not. Relevant indirect callable uses and unsupported caller shapes
+refuse instead of silently reducing that caller population. Primitive scalar
+parameters acquire their own type methods without borrowing ambient references;
+reference-bearing parameters exposed externally retain the full ambient union.
+At stabilization, every demanded forwarding component must reach a real argument
+or explicit external authority, and every outgoing provenance obligation must be
+complete. This admits a nil-grounded cycle while refusing an ungrounded cycle.
+<!-- source: internal/le/repo/inventory/externalformals.go -- externalEffects.indexFormalSources, externalEffects.indexFormalCall -->
+<!-- source: internal/le/repo/inventory/externalformalproof.go -- externalEffects.validateFormals, externalFormalComplete -->
+<!-- source: internal/le/repo/inventory/externalformalexpressions.go -- externalFormalProofs.expression -->
+
+Retained caller indexing reuses one private declaration resolver for its captured
+snapshot. Mutation queries capture the complete selected file and import census,
+then lazily index each needed file's full preorder assignments, range assignments
+to existing bindings, increments and address expressions. A completed empty file
+index is distinct from an unbuilt one. The exact declaring-file population, files
+that import the owning package and the existing alias checks remain authoritative.
+Both existing range key and value targets count as writes; fresh `:=` bindings
+remain separate. Completed results are memoized by
+package, declaring file, local binding identity, declaration name and mutation
+policy. A clean all-writes result cannot certify a callable whose address escapes.
+No provisional result, mutable AST, other reader or later snapshot shares that
+cache; unsupported policies refuse before source access.
+<!-- source: internal/le/repo/inventory/mutationindex.go -- newDeclarationMutationIndex, declarationMutationIndex.writes -->
+<!-- source: internal/le/repo/inventory/mutations.go -- expression.writes -->
+
+Type ownership uses a separate private structural index of the complete selected
+source: exact package and declaration identities map to their owning files,
+including nested type declarations, and each package retains its original ordered
+receiver declaration list. Completed package binding tables retain every parser
+scope map key and exact object, including non-type shadows, absent/nil objects
+and sticky ambiguity between distinct objects. An empty selected package remains
+distinct from an unindexed package's original pure lookup fallback. Exact lexical
+objects take precedence before package fallback, without rescanning discarded
+bindings. Lexical bindings, duplicate-name refusals, imports,
+receiver alias/generic checks and recursion bounds still run in their existing
+contexts. This index stores no capability, substitution, ambient, lexical-scope
+or depth-dependent result. An unavailable declaration owner still refuses.
+<!-- source: internal/le/repo/inventory/externaltypeindex.go -- newExternalTypeIdentityIndex -->
+<!-- source: internal/le/repo/inventory/externaltypebindings.go -- externalTypeIdentityIndex.indexPackageBindings, externalTypeIdentityIndex.packageBinding -->
+<!-- source: internal/le/repo/inventory/externaleffecttypeidentity.go -- externalTypeWalk.definition, externalTypeWalk.methods -->
+
+The structural index also records exact selected receiver expressions with their
+defining file and package identities. A separate table belongs to one effects
+reader and reuses only completed declaration, generic-flag and refusal tuples.
+Its key retains the full source identity and exact incoming depth from 0 through
+127, with at most 128 entries per selected receiver. Negative depths, synthetic
+or unindexed sources and mismatched identities use the original resolver.
+Exhausted queries retain the original depth refusal. The table stores no
+capability, substitution, ambient value, active path or descriptor summary.
+<!-- source: internal/le/repo/inventory/externaltypeindex.go -- newExternalTypeIdentityIndex -->
+<!-- source: internal/le/repo/inventory/externalreceiverquery.go -- externalReceiverQuery, externalReceiverResult, externalTypeWalk.receiver -->
+<!-- source: internal/le/repo/inventory/externaleffecttypeidentity.go -- externalTypeWalk.receiverSource -->
+
+The original resolver retains its local alias-cycle set and exact depth
+arithmetic. Only a completed query enters the table, including a failed query.
+Other readers, snapshots or mutable syntax cannot share those results.
+<!-- source: internal/le/repo/inventory/externalreceiverquery.go -- externalTypeWalk.receiver -->
+<!-- source: internal/le/repo/inventory/externaleffecttypeidentity.go -- externalTypeWalk.receiverSource -->
+
+A second reader-local table completes each captured package's receiver census
+once per exact incoming depth from 0 through 127. It resolves every original row
+and groups successful tuples by exact type declaration. Shape and resolution
+failures remain in one shared list, with each row's original ordinal.
+Private, generic and bodyless declarations remain source facts in that census.
+<!-- source: internal/le/repo/inventory/externalmethodcensus.go -- externalEffects.methodCursor, externalEffects.buildMethodCensus -->
+
+Each method query merges its exact target list with the shared failure list in
+original order. Both collectors retain visibility, shape, error-before-target,
+generic and bodyless checks. Matching method signatures still traverse the
+current descriptor path and fresh defining scope, even after local uncertainty.
+Negative, exhausted and uncaptured package queries retain lazy raw traversal.
+<!-- source: internal/le/repo/inventory/externalmethodcensus.go -- externalMethodCursor.next, externalMethodRow.resolution -->
+<!-- source: internal/le/repo/inventory/externaleffecttypeidentity.go -- externalTypeWalk.methods -->
+<!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk.collectMethods -->
+
+Census rows are immutable after publication. Each query owns its cursor and
+output maps. The table stores no capability, substitution, ambient value, active
+path or descriptor summary. It stores at most 128 censuses per captured nonempty
+package and does not copy failures into each target list.
+<!-- source: internal/le/repo/inventory/externalmethodcensus.go -- externalMethodCensus, externalMethodCursor, externalEffects.buildMethodCensus -->
+
+The same completed structural index records each selected file's nonempty
+type parameter declarations in original preorder, including files with none. Each
+entry preserves the conjunction of every ancestor's position/end containment
+checks. Queries use the exact file and expression span, so positioned synthetic
+expressions retain the original behavior. Each match constructs a fresh parameter
+scope chain. Scope objects and answers are never reused. Nil/unpositioned inputs
+keep their original empty result, and an unindexed file uses the original AST
+traversal rather than borrowing an empty selected-file fact.
+<!-- source: internal/le/repo/inventory/externaltypeindex.go -- externalTypeIdentityIndex.lexicalScope -->
+<!-- source: internal/le/repo/inventory/externaleffecttypeidentity.go -- externalLexicalTypeScope, externalBindTypeParameters -->
+
+Executable ownership must be complete even when a value also contains a known
+callable. Unknown members of that union refuse before callable dispatch; an exact
+lexical type conversion still transfers its input and result-type capabilities
+without invoking them. An executed range needs a source proof of a non-invoking
+array, array pointer, slice, map, integer or string kind. Function iterators,
+unresolved kinds and unsupported channel transfers refuse even when the loop
+discards every yielded value. Operand and body calls retain their ordinary effect
+traversal separately from the kind proof.
+
+Range assignments to existing key or value targets also enter the complete
+retained-write equations, including dormant writers and alias or indexed targets.
+Fresh `:=` bindings and blank identifiers are not existing stores. The bounded
+reader marks unsupported transferred ownership explicitly when a retained target
+is needed; a later field projection cannot turn that uncertainty into an empty
+capability set.
+<!-- source: internal/le/repo/inventory/externalcalls.go -- externalEffects.call -->
+<!-- source: internal/le/repo/inventory/externalranges.go -- externalEffects.rangeExecution, externalRangeWalk.expression, externalRangeWalk.datatype -->
+<!-- source: internal/le/repo/inventory/externalrangestores.go -- externalEffects.indexRangeAssignment, externalEffects.rangeAssignment -->
 
 An unavailable Go body still refuses unless retained target-selected assembly
 proves a narrow direct transfer to the existing standard-library boundary.
@@ -188,9 +462,12 @@ supplies this evidence.
 The full report uses the same snapshot for family/capability ownership, all four
 family-support flags, schema registrations, RPC declarations, CI coverage and Go
 statistics. Reachable `config/yang.RegisterModule` calls contribute standalone
-schema modules as well as schemas carried by plugin registrations.
+schema modules as well as schemas carried by plugin registrations. The site
+publisher and coupling checker consume this snapshot too; neither reopens dirty
+source or substitutes its host registry.
 <!-- source: internal/le/repo/inventory/collectactualfiles.go -- Snapshot.collect, Snapshot.collectFiles -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.registerModule -->
+<!-- source: internal/le/plugin/coupling/coupling.go -- buildSnapshotModel -->
 
 
 ## The one invariant
@@ -409,22 +686,18 @@ with `Lookup` and never prints a tag for either.
 
 `./le plugin gated-table update` generates the table, and `./le repo update`
 runs it after `./le plugin imports update`. It joins two facts that are each
-declared once. The name and the package come from the registrations
-(`repoinventory.Plugins`), which le can see in full because it is built with
-every feature tag. The tags come from the manifest, through
-`pluginimports.GateIndex`. That type answers from the same function that writes
-the composition root's `//go:build` lines, so the table cannot disagree with
-what actually links a plugin. No row is written by hand.
+declared once. Registration names, source directories and the gate manifest
+come from one `repoinventory.ReadCommitted` snapshot of HEAD.
+`pluginimports.GateIndex` uses the same constraint derivation that writes the
+composition root's `//go:build` lines. No row is written by hand, and no host
+registry or Docker inventory supplies missing registrations.
 
-`./le plugin gated-table check` refuses a table that disagrees with the
-manifest or the registrations: a gate added without regenerating, a plugin
-moved under a gate, a new gated plugin. It is a stage of `./le verify current`
-and of `./le repo check generated`. The table comes from the registrations
-compiled into the running le, so a plugin added in the same run that rewrites
-the composition root reaches the table on the next run, once le has been
-rebuilt with it. `TestGatedPluginTableMatchesManifest` closes that gap from
-the other side: it walks every manifest package whose source calls
-`registry.Register` and refuses one with no row.
+`./le plugin gated-table check` refuses a table that disagrees with that
+committed manifest or population. Commit changed declarations and composition
+imports before deriving their table; dirty declarations do not enter it merely
+because a local le binary linked them. `TestGatedRowsKeepTheCommittedManifest`
+proves a dirty manifest cannot change the gate attached to a committed plugin.
+<!-- source: internal/le/plugin/gatedtable/gatedtable.go -- Derive, rowsOf -->
 
 ### Refusing a root whose plugin is compiled out
 

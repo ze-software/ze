@@ -15,9 +15,11 @@ import (
 // set and a depth bound prevent cycles or hostile source nesting from recursing
 // without a limit; unsupported executable expressions are errors, not defaults.
 type expression struct {
-	snapshot *Snapshot
-	active   map[ast.Expr]bool
-	depth    int
+	snapshot        *Snapshot
+	active          map[ast.Expr]bool
+	depth           int
+	mutations       *declarationMutationIndex
+	mutationQueries map[declarationMutationQuery]declarationMutationResult
 }
 
 func (s *Snapshot) evaluator() *expression {
@@ -53,16 +55,21 @@ func (e *expression) target(source sourceExpr) (sourceExpr, error) {
 					}
 				}
 			}
+			if binding := callablePackageBinding(source.pkg, node.Name); binding == node.Obj {
+				if value, known := source.pkg.values[node.Name]; known {
+					return value, nil
+				}
+			}
+			return sourceExpr{}, e.problem(source, "local declaration ownership is unresolved")
 		}
 		if value, known := source.pkg.values[node.Name]; known {
 			return value, nil
 		}
 	case *ast.SelectorExpr:
-		owner, ok := node.X.(*ast.Ident)
-		if !ok {
-			break
+		dir, imported := e.callableImport(source, node)
+		if !imported {
+			return e.fieldTarget(source, node)
 		}
-		dir := source.pkg.imports[source.file][owner.Name]
 		pkg, known := e.snapshot.packages[dir]
 		if !known {
 			break
@@ -188,7 +195,7 @@ func (e *expression) texts(source sourceExpr) ([]string, error) {
 	defer leave()
 	switch node := source.value.(type) {
 	case *ast.Ident:
-		if node.Name == "nil" {
+		if predeclaredIdentifier(source, "nil") {
 			return nil, nil
 		}
 	case *ast.CompositeLit:
@@ -208,8 +215,8 @@ func (e *expression) texts(source sourceExpr) ([]string, error) {
 				return e.stringSliceHelper(function, source)
 			}
 		}
-		function, builtin := node.Fun.(*ast.Ident)
-		if builtin && function.Name == "append" && len(node.Args) > 0 {
+		callee := sourceExpr{value: node.Fun, file: source.file, pkg: source.pkg}
+		if predeclaredIdentifier(callee, "append") && len(node.Args) > 0 {
 			result, err := e.texts(sourceExpr{value: node.Args[0], file: source.file, pkg: source.pkg})
 			if err != nil {
 				return nil, err

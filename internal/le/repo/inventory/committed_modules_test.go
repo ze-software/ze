@@ -13,6 +13,8 @@ import (
 func TestCollectIncludesReachableStandaloneModuleRegistration(t *testing.T) {
 	root := committedInventoryFixture(t)
 	write(t, root, "internal/component/config/yang/register.go", "package yang\nfunc RegisterModule(name, content string) {}\n")
+	write(t, root, "internal/component/plugin/registry/external_witness.go", "package registry\nimport _ \"embed\"\n")
+	write(t, root, "internal/component/config/yang/external_witness.go", "package yang\nimport _ \"embed\"\n")
 	write(t, root, "internal/extra/register.go", `package extra
 import (
  _ "embed"

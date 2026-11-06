@@ -38,6 +38,10 @@ import _ "github.com/ze-software/ze/internal/plugins/example"
 type Registration struct { Name, Description, YANG string; Dependencies, OptionalDependencies, StartAfter, ConfigRoots []string; RunEngine func() }
 func Register(Registration) error { return nil }
 `)
+	// Separate witness files survive tests replacing the sink declarations;
+	// the embedded-schema and metadata assertions keep their original inputs.
+	write(t, root, "internal/component/plugin/registry/external_witness.go", "package registry\nimport _ \"embed\"\n")
+	write(t, root, "internal/component/config/yang/external_witness.go", "package yang\nimport _ \"embed\"\n")
 	write(t, root, "internal/shared/engine.go", `package shared
 const Name = "committed-" + "linux"
 const Root = "example"
@@ -101,9 +105,9 @@ func TestCommittedPluginsIgnoreDirtySourcesAndRetainLinuxRegistration(t *testing
 	}
 	for field, pair := range map[string][2][]string{
 		"dependencies": {plugin.Dependencies, {"first", "base"}},
-		"optional": {plugin.OptionalDependencies, {"optional"}},
-		"order": {plugin.StartAfter, {"ordered"}},
-		"roots": {plugin.ConfigRoots, {"example"}},
+		"optional":     {plugin.OptionalDependencies, {"optional"}},
+		"order":        {plugin.StartAfter, {"ordered"}},
+		"roots":        {plugin.ConfigRoots, {"example"}},
 	} {
 		if !reflect.DeepEqual(pair[0], pair[1]) {
 			t.Errorf("%s = %v, want %v", field, pair[0], pair[1])
