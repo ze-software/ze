@@ -608,7 +608,7 @@ progress while tests are still running.
 | Firewall | `le test firewall` | `test/firewall/*.ci` | Exercises firewall configuration and daemon behavior through `.ci` process tests. |
 | Policy | `le test policy` | `test/policy/*.ci` | Exercises policy-routing configuration and daemon behavior through `.ci` process tests. |
 | IPsec | `le test ipsec` | `test/ipsec/*.ci` | Exercises the `vpn ipsec` show, monitor, and clear surfaces and the IKEv2 SA lifecycle through `.ci` process tests. `ipsec-eap-nak-unacceptable-type` reads the daemon log after an authenticator offered an EAP method the peer does not run, so an operator sees the type Ze asked for instead of a dead SA. `ipsec-eap-md5-challenge` runs `authentication { mode eap-md5 }` on both daemons, so an operator reaches EAP MD5-Challenge and the tunnel establishes. Its AUTH payloads come from SK_pi and SK_pr, which RFC 7296 Section 2.16 prescribes for a method that establishes no shared key. The tests that read the kernel XFRM tables declare `option=needs-linux:caps=net-admin`, run under QEMU, and share the `ipsec-xfrm` exclusive group described below. Two of them read Ze's own kernel read-back surface: `ipsec-show-dataplane-kernel` asserts that `show vpn ipsec dataplane sa` names the ESP transform and the addresses the test configured, and stops naming them after `clear vpn ipsec sa`, which is a transition rather than a state; `ipsec-show-sa-counters` asserts that `show vpn ipsec sa` reports `counters-known` true and NUMERIC byte counters, where 0 is the kernel's true count for a tunnel no packet crossed and null is the failure it discriminates. `ipsec-dataplane-show` is their unprivileged sibling: under the noop backend every dump reports that the backend cannot enumerate, which is reachability evidence and never kernel evidence. |
-| Web | `le test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with a per-test server and an isolated `agent-browser --session`. `option=server:kind=` picks which of Ze three htmx interfaces the test drives: the web UI (default), the looking glass (a daemon plus a `le test peer` sink, so its pages have a session to report), the looking glass with a failing engine (`lg-no-engine`, served by `le mock lg`), the chaos dashboard (`le chaos run`), or the web UI on a running daemon (`daemon`, the only kind whose commits reach the confirmed-commit window). |
+| Web | `le test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with a per-test server and an isolated `agent-browser --session`. `option=server:kind=` picks which of Ze three htmx interfaces the test drives: the web UI (default), the looking glass (a daemon plus a `le test peer` sink, so its pages have a session to report), the looking glass with a failing engine (`lg-no-engine`, served by `le mock lg`), the chaos dashboard (`le chaos run`), or the web UI on a running daemon (`daemon`, the only kind whose commits reach the confirmed-commit window). `recorded-config-save.wb` is also the web-config demo's validator/recorder journey: real login, edit, Save, reviewed diff, confirmation and fresh readback; recording alone adds a settled WebP capture. |
 | Install | `le test install` | `test/install/*.ci` | Exercises offline install command and installer helper behavior. |
 | Static | `le test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
 | Traffic | `le test traffic` | `test/traffic/*.ci` | Exercises traffic-control configuration and daemon behavior. |
@@ -631,6 +631,15 @@ progress while tests are still running.
 <!-- source: internal/test/cli/cmd_web.go -- .wb suite runner -->
 <!-- source: internal/test/cli/cmd_vpp.go -- VPP stub-backed suite runner -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- ExaBGP compatibility runner -->
+
+The `le-rules-answers` UI fixture selects each child checkout after removing
+every case and dot/underscore spelling of the inherited repository-root key.
+Its registered renderer must change the selected fixture's authored rule bytes,
+not an inherited checkout. The focused native regression supplies both roots
+and checks that the foreign rule stays unchanged; it does not attribute the
+historical render-update failure.
+<!-- source: internal/test/fixture/ui_fixture_le_rules_answers.go -- uiLeRulesAnswersSetEnv -->
+<!-- source: internal/test/fixture/one_off_proof_test.go -- TestRulesFixtureRootAliasesReachOnlyOwnedTree -->
 
 An editor `.et` test's `option=timeout:value=<duration>` is its wall-clock
 budget, 30s when the file declares none. `le test editor` and
@@ -689,6 +698,14 @@ rejects repository violations.
 <!-- source: internal/test/fixture/ui_fixture_le_docvalid_answers.go -- leDocvalidAnswers, leDocvalidTree -->
 <!-- source: internal/test/fixture/ui_fixture_le_discovery_answers.go -- leDiscoveryAnswers, leDiscoveryTree, leDiscoveryWiringTree -->
 <!-- source: internal/test/fixture/ui_fixture_le_placement_answers.go -- lePlacementAnswers -->
+
+The generator behavior fixture invokes `yang glue update` and
+`plugin imports update` through the native `le` supplied on `PATH`. It then
+runs the generated composition root in an authored module with no external
+dependencies, checking actual plugin initialization and exact embedded YANG
+bytes. Adding a nested plugin and schema repeats that proof without a fixed
+repository population. Module and toolchain downloads are disabled.
+<!-- source: internal/test/fixture/one_off_proof_test.go -- TestToolFixturesReachTheirProducer, toolGeneratorSources, toolGeneratorRunProgram -->
 
 ### Per-suite wall-clock budget
 

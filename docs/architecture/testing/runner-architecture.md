@@ -820,6 +820,13 @@ forwarding commands are the harness commands. `le mock <name>` runs there too
 bare name in that directory. Every other `le` head keeps the repository root,
 as `./le` and `go` do.
 
+`TestRTRSyncReleaseNativeRunnerEntry` exercises this mock path with a current
+named `le` binary supplied through `-rtr-native-le`. Its foreground observer
+writes the release in the private directory and requires the complete cache
+response over TCP, including the expected VRP and End of Data. Without the
+binary argument the test skips; that skip is not native execution evidence.
+This harness proof does not replace the functional BGP route assertions.
+
 The runner prepends a shim directory to every child's PATH. It holds `ze` and
 `le` as symlinks to the two binaries above, and nothing else. So
 `exec.LookPath`, `exec.Command("ze", ...)`, and a plugin `run` string that

@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 func init() {
@@ -566,15 +568,8 @@ func uiLeRulesAnswersSortedKeys(value map[string]any) []string {
 	return keys
 }
 
-func uiLeRulesAnswersSetEnv(env []string, key, value string) []string {
-	prefix := key + "="
-	out := make([]string, 0, len(env)+1)
-	for _, entry := range env {
-		if !strings.HasPrefix(entry, prefix) {
-			out = append(out, entry)
-		}
-	}
-	return append(out, prefix+value)
+func uiLeRulesAnswersSetEnv(environ []string, key, value string) []string {
+	return append(env.Without(environ, key), key+"="+value)
 }
 
 func writeFixture(root string, files map[string]string) error {
