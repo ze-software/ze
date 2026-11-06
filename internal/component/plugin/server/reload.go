@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -362,9 +363,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		return fmt.Errorf("config reload would stop calling plugin %q", caller.Name())
 	}
 
-	// Startup can publish a newly constructed runtime before verify/apply.
-	// Own the original map before that first publication, not after success.
-	recordReloadCompensation(ctx, running, newTree, nil)
+	// Read before auto-load, whose startup can publish a runtime and so drop
+	// the created peers the candidate declares. Every record below hands over
+	// these marks, the ones the prior tree held.
+	created := s.reactor.CreatedPeers()
 
 	// Auto-load plugins for newly added config sections.
 	// When a user adds fib { kernel { } } to their config, the fib-kernel plugin
@@ -379,8 +381,18 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		for k := range diff.Added {
 			addedKeys = append(addedKeys, k)
 		}
+		// Startup can publish a newly constructed runtime before verify/apply,
+		// and a detaching runtime leaves its map behind, so the reload owns the
+		// prior map as soon as the running tree moved, whether startup succeeded
+		// or not. A startup that moved nothing leaves nothing to compensate: a
+		// refusal before any apply never touches the reactor, and the scope's
+		// last applied tree stays the one an earlier reload recorded.
+		authority := s.reactor.GetConfigTree()
 		var autoLoadErr error
 		autoLoaded, autoLoadErr = s.autoLoadForNewConfigPaths(ctx, newTree, addedKeys)
+		if !reflect.DeepEqual(authority, s.reactor.GetConfigTree()) {
+			recordReloadCompensation(ctx, running, newTree, nil, created)
+		}
 		if autoLoadErr != nil {
 			return autoLoadErr
 		}
@@ -399,7 +411,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 
 			sections, err := reloadConfigSections(newTree, diff, reg)
 			if err != nil {
-				return err
+				return errors.Join(err, s.autoStopPluginNames(autoLoaded))
 			}
 
 			if len(sections) > 0 {
@@ -413,7 +425,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	}
 
 	if len(affected) == 0 {
-		recordReloadCompensation(ctx, running, newTree, nil)
+		recordReloadCompensation(ctx, running, newTree, nil, created)
 		if err := s.reactor.ApplyConfigDiff(newTree); err != nil {
 			return errors.Join(fmt.Errorf("reactor config apply: %w", err), s.compensateReload(ctx))
 		}
@@ -455,7 +467,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		}
 		return err
 	}
-	recordReloadCompensation(ctx, running, newTree, affected)
+	recordReloadCompensation(ctx, running, newTree, affected, created)
 
 	// Transaction committed. Recompute against the post-auto-load process set
 	// so new dependents keep shared dependencies alive.

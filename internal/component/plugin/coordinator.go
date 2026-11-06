@@ -46,9 +46,12 @@ type Coordinator struct {
 	//
 	// consumerMu covers the set AND the reactor calls it produces, so a
 	// declaration reaches the reactor exactly once however it races attachment.
-	// Lock order: consumerMu above mu, never the reverse. Only map access and
-	// cache registration are called with mu held. Unregister retains its
-	// consumerMu-only callback scope.
+	// Lock order: consumerMu above mu above the reactor's own lock, never the
+	// reverse. GetConfigTree, ReloadRunning and SetConfigTree call the attached
+	// reactor with mu held, as AttachReactor and DetachReactor do, so a tree
+	// written while DetachReactor hands the running map over cannot land on a
+	// reactor that has already gone. A reactor MUST NOT call the Coordinator
+	// under its own lock. Unregister retains its consumerMu-only callback scope.
 	consumerMu     sync.Mutex
 	cacheConsumers map[string]bool
 }

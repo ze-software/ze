@@ -805,9 +805,24 @@ a new generation would only be torn down again.
 `fatal` is open to any plugin, whether ze ships it or an operator wrote it
 (owner directive, 2026-09-06). Configuring a plugin is accepting its terms.
 
+A failure during a reload means the plugin failed. A startup handshake that ended
+because the reload's context did, a reload over its budget or abandoned by its
+client, refuses that reload and leaves the daemon running, whatever the plugin
+declared. So does a sibling's failure: a plugin aborted at the tier barrier while
+it waited, still connected, has not failed. A `fatal` plugin whose connection had
+already ended when that wait ended has failed, and stops the daemon.
+
+Boot has no running state to keep. A `fatal` plugin that does not reach running
+stops ze in every startup phase, however its handshake ended, because running
+without it is what the plugin declared must not happen. When a sibling's failure
+aborted it, the error log line names the plugin and the sibling's failure.
+
 <!-- source: pkg/plugin/rpc/enums.go -- FailurePolicy -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.FailurePolicy -->
-<!-- source: internal/component/plugin/server/failure_policy.go -- pluginFailurePolicy, refuseRespawnDisagreement, (*Server).applyFailurePolicy -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- pluginFailurePolicy, refuseRespawnDisagreement, (*Server).applyFailurePolicy, (*Server).stopDaemonOnStartupFailure, reloadOwnsStartup, startupEndedOutsidePlugin -->
+<!-- source: internal/component/plugin/server/startup_failure.go -- tierFailureCause, withTierCause -->
+<!-- source: internal/component/plugin/server/startup.go -- (*Server).stageTransition -->
+<!-- source: internal/component/plugin/process/process.go -- (*Process).PluginEnded -->
 <!-- source: internal/component/plugin/process/manager.go -- RespawnLimit, RespawnWindow, MaxTotalRespawns, RefuseRespawns, ErrDaemonStopping -->
 
 **Pipe Alias Declaration (Stage 1):**
@@ -1906,7 +1921,7 @@ quoted text payload:
 | Member | Type | Meaning |
 |--------|------|---------|
 | `peer` | IP address | The peer named by the payload |
-| `message-id` | uint64 | The payload's received or sent message ID |
+| `message-id` | uint64 | The payload's received message ID |
 | `source-policy-epoch` | uint64 | The payload's original policy admission, including an explicit unrecorded zero |
 | `reactor-forwarded` | bool | The reactor fast path has already decided the eligible destinations |
 | `fast-path-skipped` | address:port list | Destinations handed back to the forwarding plugin; omitted when empty |
@@ -1931,7 +1946,12 @@ served by the reactor gets no second cached forwarding request; the session
 writer does not suppress legitimate reannouncements to compensate for a lost
 receipt. Subscriptions without envelope delivery keep their existing bare
 text/JSON format.
-<!-- source: internal/component/bgp/server/events.go -- onMessageReceived, onMessageBatchReceived -->
+
+Only a received UPDATE is enveloped. A sent UPDATE reaches a subscriber that
+opted in as the bare JSON document or text line, with no envelope and no receipt,
+so a subscriber to both directions parses each delivery by its form: a sent
+UPDATE is never an `EventEnvelope`.
+<!-- source: internal/component/bgp/server/events.go -- onMessageReceived, onMessageBatchReceived, onMessageSent -->
 <!-- source: internal/component/bgp/types/rawmessage.go -- RawMessage.ReactorForwarded, RawMessage.FastPathSkipped -->
 <!-- source: internal/component/bgp/types/update_receipt.go -- UpdateReceipt, ParseUpdateReceipt, Validate, UnwrapUpdateText -->
 <!-- source: internal/component/bgp/types/update_receipt_scalar.go -- receiptUint64.UnmarshalJSON, receiptDecision.UnmarshalJSON -->

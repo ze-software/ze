@@ -53,15 +53,17 @@ func (s *Server) claimReloadOwnership(pending *reloadAcceptance) {
 	s.txLock.configOwner = pending
 }
 
-func recordReloadCompensation(ctx context.Context, before, after map[string]any, affected []affectedPlugin) {
+// recordReloadCompensation names before and after as what a rejection of this
+// scope restores. The caller MUST record only once something moved: a record
+// makes rejection replay before into the reactor. created is the reactor's
+// marks as the reload found them, read before pending.mu because the reactor's
+// lock is never taken under it. Only the first record keeps them.
+func recordReloadCompensation(ctx context.Context, before, after map[string]any, affected []affectedPlugin, created map[netip.Addr]string) {
 	pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
 	if pending == nil {
 		return
 	}
 	pending.server.claimReloadOwnership(pending)
-	// Lock order: the reactor's lock is never taken under pending.mu, so the
-	// snapshot is read before pending.mu. Only the first record keeps it.
-	created := pending.server.reactor.CreatedPeers()
 	pending.mu.Lock()
 	defer pending.mu.Unlock()
 	if pending.compensation == nil {

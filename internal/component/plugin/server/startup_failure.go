@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 )
 
@@ -37,6 +38,34 @@ func preferDiagnosedError(current, candidate error) error {
 		return candidate
 	}
 	return current
+}
+
+// tierFailureCause answers the one diagnosis of a tier's failed handshakes. It MUST
+// be read before the tier's rollback starts, because an aborted plugin can sort
+// ahead of the sibling that caused the abort.
+func tierFailureCause(procs []*process.Process) error {
+	var cause error
+	for _, proc := range procs {
+		if proc.Stage() >= plugin.StageRunning {
+			continue
+		}
+		cause = preferDiagnosedError(cause, startupFailureError(proc))
+	}
+	return cause
+}
+
+// withTierCause adds the sibling's diagnosis to a barrier abort, which alone says
+// only that something in the tier failed. The diagnosis is text, not a wrap: the
+// sentinels in its chain describe the sibling, and errors.Is on the result answers
+// for this plugin alone.
+func withTierCause(own, tierCause error) error {
+	if !errors.Is(own, errStartupBarrierAborted) {
+		return own
+	}
+	if errors.Is(tierCause, errStartupBarrierAborted) {
+		return own
+	}
+	return fmt.Errorf("%w, because %s", own, tierCause.Error())
 }
 
 // startupFailureError builds the error reported for a plugin that did not reach

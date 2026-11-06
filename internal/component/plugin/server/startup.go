@@ -82,6 +82,13 @@ func (s *Server) stageTransition(ctx context.Context, proc *process.Process, plu
 	err := coord.WaitForStageProgress(ctx, waitStage, timeout)
 
 	if err != nil {
+		// The wait watches no connection, so a plugin can have died inside it. The
+		// Stop below closes the connection, which makes this the last moment its
+		// end says anything about the plugin, and the first recorded cause stands
+		// over the barrier abort the handshake reports next.
+		if proc.PluginEnded() {
+			proc.SetStartupError(errStartupPluginEnded)
+		}
 		logger().Error("stage stalled", "plugin", pluginName, "waiting_for", waitStage, "error", err)
 		coord.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
 		proc.Stop()
@@ -534,6 +541,7 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 		}
 		procWg.Wait()
 
+		tierCause := tierFailureCause(tierProcs)
 		for _, proc := range tierProcs {
 			if proc.Stage() >= plugin.StageRunning {
 				continue
@@ -547,7 +555,7 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 			// A phase that fails leaves the daemon running without those
 			// plugins, which is right for a plugin that said nothing about its
 			// own failure and wrong for one that did (failure_policy.go).
-			s.stopDaemonOnStartupFailure(proc, err)
+			s.stopDaemonOnStartupFailure(ctx, proc, withTierCause(err, tierCause))
 			s.refuseStartupOnLoadedChain(err)
 		}
 

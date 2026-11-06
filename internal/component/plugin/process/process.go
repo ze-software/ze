@@ -467,6 +467,21 @@ func (p *Process) EngineDone() <-chan struct{} {
 	return p.engineDone
 }
 
+// PluginEnded reports whether the plugin behind this process has gone: its
+// in-process engine returned, its connection ended, or the connection was already
+// cleared. A nil engineDone (a fork) never fires, and a fork's exit reaches the
+// connection. Stop closes the connection too, so a caller asking what the plugin
+// itself did MUST ask before it stops the process. Safe for concurrent use.
+func (p *Process) PluginEnded() bool {
+	select {
+	case <-p.engineDone:
+		return true
+	default:
+	}
+	conn := p.Conn()
+	return conn == nil || conn.Err() != nil
+}
+
 // Done closes when Stop cancels this process.
 // It returns nil before Start initializes the process context.
 func (p *Process) Done() <-chan struct{} {

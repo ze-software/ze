@@ -52,6 +52,11 @@ var (
 	// so no error is sent to the plugin; the engine caller ignores this value
 	// and relies on the process stage set through the transition.
 	errStartupBarrierAborted = errors.New("startup barrier aborted")
+
+	// errStartupPluginEnded is the cause recorded for a plugin that was already
+	// gone when its barrier wait ended. It is the plugin's own failure, where
+	// errStartupBarrierAborted is a statement about the tier.
+	errStartupPluginEnded = errors.New("the plugin exited while waiting for its startup tier: read the plugin's own log for why")
 )
 
 // startupSink injects the caller-specific effects of the 5-stage plugin startup

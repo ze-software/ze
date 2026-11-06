@@ -6,6 +6,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -213,7 +214,14 @@ func (s *Server) stopDaemonOnRemovalFailure(proc *process.Process, attempt *plug
 // The two reasons are read in this order because a disagreement is refused
 // BEFORE the registration is stored, so the process carries no declared policy
 // to read at that point.
-func (s *Server) stopDaemonOnStartupFailure(proc *process.Process, cause error) {
+//
+// ctx is the phase's own context. Under a reload's scope, a handshake that ctx
+// ended, or one a sibling's failure ended at the barrier, says nothing about the
+// plugin: the reload is refused and the running daemon carries on with the state
+// it had (startupEndedOutsidePlugin). Boot has no prior state to keep, so a fatal
+// plugin that did not reach running stops ze however its handshake ended: running
+// without it is what the plugin declared must not happen.
+func (s *Server) stopDaemonOnStartupFailure(ctx context.Context, proc *process.Process, cause error) {
 	if errors.Is(cause, errRespawnDisagreement) {
 		s.stopDaemonForPlugin(proc.Name(), errRespawnDisagreement.Error())
 		return
@@ -221,9 +229,51 @@ func (s *Server) stopDaemonOnStartupFailure(proc *process.Process, cause error) 
 	if scope, scoped := s.pluginConfigureConfig(proc); scoped && scope.recovering {
 		return
 	}
-	if pluginFailurePolicy(proc) == rpc.FailureFatal {
-		s.stopDaemonForPlugin(proc.Name(), "the plugin declares that its failure stops ze")
+	if pluginFailurePolicy(proc) != rpc.FailureFatal {
+		return
 	}
+	if reloadOwnsStartup(ctx) && startupEndedOutsidePlugin(ctx, cause) {
+		logger().Warn("plugin startup was ended by its tier or its caller, not by the plugin, so ze keeps running without the plugin; correct the failure the log names and reload",
+			"plugin", proc.Name(), "error", cause)
+		return
+	}
+	s.stopDaemonForPlugin(proc.Name(), "the plugin declares that its failure stops ze, and its startup ended: "+
+		cause.Error()+"; correct that failure and start ze again")
+}
+
+// reloadOwnsStartup reports whether a startup phase runs inside a reload's
+// transaction. reloadConfig puts its acceptance scope on the context of everything
+// it starts, and boot's phases run under the server's own context, which never
+// carries one.
+func reloadOwnsStartup(ctx context.Context) bool {
+	pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+	return pending != nil
+}
+
+// startupEndedOutsidePlugin reports whether cause says nothing about the plugin.
+// It MUST be asked only under a reload's scope (reloadOwnsStartup).
+//
+// A barrier abort never does, under either state of ctx: the plugin finished its
+// stage and was waiting for its tier, so a sibling's failure or the caller ended
+// the wait. stageTransition has already recorded errStartupPluginEnded as the cause
+// of a plugin that died in that wait, and the first recorded cause stands, so an
+// abort that reaches here belongs to a plugin that was still connected.
+//
+// A context error counts only once ctx has really ended. The two halves are both
+// needed: ctx alone would forgive a plugin that crashed while a sibling held the
+// tier until ctx ended, and the cause alone would forgive a plugin that outlasted a
+// timeout of its own under a live ctx.
+func startupEndedOutsidePlugin(ctx context.Context, cause error) bool {
+	if errors.Is(cause, errStartupBarrierAborted) {
+		return true
+	}
+	if ctx.Err() == nil {
+		return false
+	}
+	if errors.Is(cause, context.Canceled) {
+		return true
+	}
+	return errors.Is(cause, context.DeadlineExceeded)
 }
 
 // stopDaemonForPlugin asks the daemon to stop, and says which plugin asked for

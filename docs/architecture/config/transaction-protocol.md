@@ -1094,13 +1094,31 @@ fatal-startup exemption. The scope covers the handshake and its failure-policy
 checks, or the committed Configure callback that resumes a refused removal.
 
 A startup can publish runtime configuration before ordinary verify/apply.
-The existing reload acceptance owner therefore captures its original map before
-auto-load starts, not after successful apply. A failure during activation or a
-later verification refusal restores that map through the same compensation
-owner and inverse-settlement machinery.
-<!-- source: internal/component/plugin/server/startup.go -- runPluginPhaseWithin -->
+The reload therefore reads the running tree before auto-load starts, not after
+successful apply, and the existing reload acceptance owner takes the original map
+as soon as auto-load has moved that tree. A failure during activation or a later
+verification refusal restores that map through the same compensation owner and
+inverse-settlement machinery. A reload refused before anything moved or applied
+owns no compensation: it never touches the reactor, so the running tree stays
+the one it found.
+
+Auto-load runs under the reload's own context. A handshake that context ended,
+through the reload's budget, a shutdown or a request client going away, is the
+reload's refusal rather than the plugin's failure, so a `fatal` plugin's handshake
+ending that way does not stop the daemon. Nor does a sibling's failure in the same
+tier, such as a plugin refusing the operator's config: a connected `fatal` plugin
+aborted at the barrier for it has not failed, so the reload is refused and the
+daemon runs on. A `fatal` plugin that crashed or refused during the same reload
+still stops the daemon, including one that died while it waited at the barrier.
+
+These excuses belong to the reload's transaction, which is what its acceptance
+scope on the context marks. Boot carries no such scope and has no prior state to
+keep, so there a `fatal` plugin that did not reach running stops ze, including one
+a sibling aborted at the barrier.
+<!-- source: internal/component/plugin/server/startup.go -- runPluginPhaseWithin, stageTransition -->
 <!-- source: internal/component/plugin/server/startup_removal.go -- restoreRemovedPlugin -->
 <!-- source: internal/component/plugin/server/reload.go -- reloadConfig -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- stopDaemonOnStartupFailure, reloadOwnsStartup, startupEndedOutsidePlugin -->
 
 ---
 
