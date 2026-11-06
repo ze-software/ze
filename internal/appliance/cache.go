@@ -389,7 +389,7 @@ func downloadAndVerify(artifactURL, checksumURL, destPath string) error {
 		return fmt.Errorf("download checksum from %s: %w", checksumURL, err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil { //nolint:gosec // G301: public build artifacts use 0755 directories; only the owner can write.
 		return fmt.Errorf("create cache directory %s: %w", filepath.Dir(destPath), err)
 	}
 
@@ -476,7 +476,7 @@ func validateDownloadURL(rawURL string) error {
 }
 
 func copyToToolsPath(src, dst string) error {
-	if err := os.MkdirAll(filepath.Dir(dst), cacheDirPerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), cacheDirPerm); err != nil { //nolint:gosec // G301: public build artifacts use 0755 directories; only the owner can write.
 		return fmt.Errorf("create directory %s: %w", filepath.Dir(dst), err)
 	}
 
@@ -519,7 +519,7 @@ func copyToToolsPath(src, dst string) error {
 // special files (devices, sockets) are skipped.
 func copyTree(src, dst string) error {
 	parent := filepath.Dir(dst)
-	if err := os.MkdirAll(parent, cacheDirPerm); err != nil {
+	if err := os.MkdirAll(parent, cacheDirPerm); err != nil { //nolint:gosec // G301: public kernel trees use 0755 parent directories; only the owner can write.
 		return fmt.Errorf("create directory %s: %w", parent, err)
 	}
 	// Stage in a dot-prefixed sibling: on the same filesystem as dst (so the
@@ -578,7 +578,7 @@ func walkCopyInto(src, dst string) error {
 			if err != nil {
 				return err
 			}
-			if err := os.MkdirAll(filepath.Dir(target), cacheDirPerm); err != nil {
+			if err := os.MkdirAll(filepath.Dir(target), cacheDirPerm); err != nil { //nolint:gosec // G301: public kernel tree directories retain 0755 access; only the owner can write.
 				return err
 			}
 			os.Remove(target) //nolint:errcheck // best-effort replace
@@ -659,6 +659,12 @@ func evictKeepN(nsDir, current string) {
 	}
 }
 
+// EvictKeepN is evictKeepN for a namespace another package owns. An image cache
+// holds one directory per arch, so its names carry no arch field and share a group.
+func EvictKeepN(nsDir, current string) {
+	evictKeepN(nsDir, current)
+}
+
 // cacheEntryArch returns the architecture field of a kernel cache entry name,
 // "<version>-<target>-<arch>-<profile>[-<config hash>-<builder hash>]" as
 // kernelCachePath and kernelTreeCachePath build it. The version holds no hyphen,
@@ -698,8 +704,8 @@ func copyRegularFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer in.Close() //nolint:errcheck // read-only
-	if err := os.MkdirAll(filepath.Dir(dst), cacheDirPerm); err != nil {
+	defer in.Close()                                                     //nolint:errcheck // read-only
+	if err := os.MkdirAll(filepath.Dir(dst), cacheDirPerm); err != nil { //nolint:gosec // G301: public kernel artifacts use 0755 directories; only the owner can write.
 		return err
 	}
 	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode().Perm()) //nolint:gosec // controlled dest tree
