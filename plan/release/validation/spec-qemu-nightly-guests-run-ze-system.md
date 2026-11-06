@@ -344,6 +344,7 @@ No wire changes. The move is between test routes, and no protocol, event or file
 | `gate-verdict-depends-on-the-machine.md` | 2026-11-06 | `qemu-nightly.yml` steps still on Alpine `test qemu run` |
 | `gate-excludes-part-of-its-population.md` | 2026-11-06 | plain `docker-lab command` holds no host slot |
 | `gate-excludes-part-of-its-population.md` | 2026-11-06 | `internal/test/pppoeac` integration tests run nowhere |
+| `check-probes-a-peer-its-own-teardown-stopped.md` | 2026-11-06 | `TestInjectionConsumerCancellationJoinsDescendants` fails on its own teardown race |
 
 ## Key Design Decisions
 
