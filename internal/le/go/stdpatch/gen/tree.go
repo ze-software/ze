@@ -92,7 +92,7 @@ func (b builder) build() (string, error) {
 	// runs as another user, such as the uid 1000 `le test fixture` a
 	// capability-holding ze forks under a root-built QEMU guest tree, would
 	// otherwise read the tree as absent and rebuild it on every launch.
-	if err := os.Chmod(staging, treeDirMode); err != nil {
+	if err := os.Chmod(staging, treeDirMode); err != nil { //nolint:gosec // Our MkdirTemp directory becomes the GOROOT key; 0755 lets other-user children traverse it without write access.
 		return "", fmt.Errorf("stdpatch: %w", err)
 	}
 
@@ -242,7 +242,7 @@ func (b builder) key(targets map[string][]byte) string {
 // directory; an embedded file is a copy, because the go command refuses to
 // embed a link ("cannot embed irregular file").
 func populate(target, source string, copies map[string]bool) error {
-	if err := os.Mkdir(target, treeDirMode); err != nil {
+	if err := os.Mkdir(target, treeDirMode); err != nil { //nolint:gosec // The GOROOT under our staging directory must be traversable at 0755 by other-user children, owner-writable only.
 		return fmt.Errorf("stdpatch: %w", err)
 	}
 	entries, err := os.ReadDir(source)
@@ -268,7 +268,7 @@ func populate(target, source string, copies map[string]bool) error {
 		}
 		link := filepath.Join(target, rel)
 		if entry.IsDir() {
-			return os.Mkdir(link, treeDirMode)
+			return os.Mkdir(link, treeDirMode) //nolint:gosec // Directories mirrored from the real GOROOT into our staging tree need 0755 traversal by other-user children, not write access.
 		}
 		if entry.Type().IsRegular() && copies[filepath.ToSlash(rel)] {
 			return copyFile(link, path)

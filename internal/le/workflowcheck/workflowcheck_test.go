@@ -575,7 +575,7 @@ func TestVerifyPreparesTheRunnerKernelBeforeReadingStages(t *testing.T) {
 // through ~/.cache/ze/golangci-lint-cache (gotoolchain.GoCache, LintCache),
 // which setup-go's cache never covers, so every shard compiled and linted
 // cold: shard 1 of verify run 41295105997 spent 79 minutes in `go lint run`
-// and was cancelled at the 120-minute job bound.
+// and was canceled at the 120-minute job bound.
 //
 // VALIDATES: the shard restores both directories under a key naming the
 // toolchain, go.sum and both patch sets, per shard; backdates what it

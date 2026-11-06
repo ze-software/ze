@@ -49,7 +49,10 @@ func TestMOBIKENativeSwanConfigComposesLabAndOptionalScenario(t *testing.T) {
 			t.Fatal(err)
 		}
 		written := readFile(t, filepath.Join(lab.directory, "strongswan.conf"))
-		if strings.Index(written, labMarker) < 0 || strings.Index(written, scenarioMarker) < strings.Index(written, labMarker) {
+		if !strings.Contains(written, labMarker) {
+			t.Fatalf("want the lab drop-in, then the scenario's settings:\n%s", written)
+		}
+		if strings.Index(written, scenarioMarker) < strings.Index(written, labMarker) {
 			t.Fatalf("want the lab drop-in, then the scenario's settings:\n%s", written)
 		}
 	})

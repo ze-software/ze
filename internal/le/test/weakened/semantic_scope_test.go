@@ -3,6 +3,7 @@
 package testweakened
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"slices"
@@ -81,7 +82,7 @@ func TestCheckSemanticApprovalExcludesNewUnits(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if string(after) != string(before) {
+			if !bytes.Equal(after, before) {
 				t.Fatalf("Check changed approval file: before %q, after %q", before, after)
 			}
 		})

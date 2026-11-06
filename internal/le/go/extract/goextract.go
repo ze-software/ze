@@ -96,7 +96,7 @@ func Goimports(path string) error {
 		return nil
 	}
 
-	if err := os.WriteFile(path, formatted, filePerm); err != nil {
+	if err := os.WriteFile(path, formatted, filePerm); err != nil { //nolint:gosec // The operator-selected Go source stays readable at 0644; only its owner can write it.
 		return fmt.Errorf("goimports %s: %w", path, err)
 	}
 	return nil
@@ -199,10 +199,10 @@ func Move(req Request, format Format) (Report, error) {
 		return Report{}, err
 	}
 
-	if err := os.WriteFile(req.Dest, []byte(plan.Dest), filePerm); err != nil {
+	if err := os.WriteFile(req.Dest, []byte(plan.Dest), filePerm); err != nil { //nolint:gosec // The operator-selected destination is Go source, intentionally readable at 0644 and owner-writable only.
 		return Report{}, fmt.Errorf("write %s: %w", req.Dest, err)
 	}
-	if err := os.WriteFile(req.Source, []byte(plan.Source), filePerm); err != nil {
+	if err := os.WriteFile(req.Source, []byte(plan.Source), filePerm); err != nil { //nolint:gosec // The operator-selected source remains readable Go code at 0644 and owner-writable only.
 		return Report{}, fmt.Errorf("write %s: %w", req.Source, err)
 	}
 

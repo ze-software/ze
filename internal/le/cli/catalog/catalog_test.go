@@ -240,19 +240,19 @@ func TestCollectLabelsLocalByKind(t *testing.T) {
 	bothRoutes := 0
 	for _, entry := range collectForTest(t) {
 		if entry.WireMethod == "" {
-			continue // no daemon route: labelled by the local registry alone
+			continue // no daemon route: labeled by the local registry alone
 		}
 		hasLocalRoute := strings.HasSuffix(entry.Mode, ", "+modeOffline)
 		if command.HasLocal(entry.Path) || mainPackageLocal(entry.Path) {
 			bothRoutes++
 			if !hasLocalRoute {
-				t.Errorf("%q: daemon RPC %s and a local handler, labelled %q: the local route is missing",
+				t.Errorf("%q: daemon RPC %s and a local handler, labeled %q: the local route is missing",
 					entry.Path, entry.WireMethod, entry.Mode)
 			}
 			continue
 		}
 		if hasLocalRoute {
-			t.Errorf("%q: labelled %q, but no local handler serves it", entry.Path, entry.Mode)
+			t.Errorf("%q: labeled %q, but no local handler serves it", entry.Path, entry.Mode)
 		}
 	}
 	if bothRoutes == 0 {
@@ -263,8 +263,9 @@ func TestCollectLabelsLocalByKind(t *testing.T) {
 // mainPackageLocal answers whether path is one of cmd/ze's main-package local
 // handlers, which this package declares because it cannot import them.
 func mainPackageLocal(path string) bool {
-	for _, local := range mainPackageLocals() {
-		if local.Path == path {
+	locals := mainPackageLocals()
+	for index := range locals {
+		if locals[index].Path == path {
 			return true
 		}
 	}

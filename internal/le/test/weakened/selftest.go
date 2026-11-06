@@ -182,7 +182,7 @@ func SelfTest() SelfTestReport {
 	check(unchangedApproved.ExitCode() == 0 && unchangedApproved.Rows == 0 &&
 		len(unchangedApproved.Approvals.Trailers) == 0 && len(unchangedApproved.Approvals.Dropped) == 0,
 		"a live approval of an unchanged selected unit must remain unused")
-	retainedApproval, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(selfTestApprovals)))
+	retainedApproval, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(selfTestApprovals))) //nolint:gosec // root is this selftest's private MkdirTemp repository; ApprovalPath names its owned fixture file.
 	check(readErr == nil && string(retainedApproval) == unusedApproval,
 		"checking an unchanged selected unit must preserve its live approval file")
 	check(os.Remove(filepath.Join(root, filepath.FromSlash(selfTestApprovals))) == nil,

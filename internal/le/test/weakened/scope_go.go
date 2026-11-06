@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -286,8 +287,7 @@ func goClosing(kind token.Token) token.Token {
 }
 
 func goDocStart(content string, comments []goComment, start int) int {
-	for index := len(comments) - 1; index >= 0; index-- {
-		comment := comments[index]
+	for _, comment := range slices.Backward(comments) {
 		if comment.end > start {
 			continue
 		}

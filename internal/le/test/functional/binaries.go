@@ -51,6 +51,8 @@ import (
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
+const goBuild = "build"
+
 var (
 	_ = env.MustRegister(env.EnvEntry{
 		Key:         "ze.suffix",
@@ -201,7 +203,7 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
 	}
 
 	build := func(extra []string, tags, name string) []string {
-		argv := []string{"go", "build"}
+		argv := []string{"go", goBuild}
 		argv = append(argv, extra...)
 		return append(argv, "-tags", tags, "-o", filepath.Join(binaries, name), "./cmd/ze")
 	}
@@ -220,7 +222,7 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
 // set carries it: the isolated set (buildCommands) and the QEMU guest set
 // (guestBuildCommands), so a prebuilt run finds it beside ze.
 func fakeFilterBuildCommand(binaries string) []string {
-	return []string{"go", "build", "-o", filepath.Join(binaries, runner.FakeFilterBinary), runner.FakeFilterPackage}
+	return []string{"go", goBuild, "-o", filepath.Join(binaries, runner.FakeFilterBinary), runner.FakeFilterPackage}
 }
 
 // strippedFlowTags are the tags of ze-stripped-flow: the flow features (flow
@@ -236,7 +238,7 @@ var strippedFlowTags = []string{"ze_core", "ze_ssh", "ze_ddos", "ze_anomaly", "z
 // against, ze, ze-stripped and ze-stripped-flow, into binaries.
 func daemonBuildCommands(tc gotoolchain.Toolchain, binaries string, extra []string) [][]string {
 	build := func(tags, name string) []string {
-		argv := []string{"go", "build"}
+		argv := []string{"go", goBuild}
 		argv = append(argv, extra...)
 		return append(argv, "-tags", tags, "-o", filepath.Join(binaries, name), "./cmd/ze")
 	}

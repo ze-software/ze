@@ -70,7 +70,7 @@ type catalogCommand struct {
 	//
 	// `| table` prints this order and `| json` deliberately ignores it. So a
 	// reader comparing the two renderings is told the order rather than left
-	// to infer it (cmd/ze/help_command.go, catalogEntry.ColumnOrders).
+	// to infer it (internal/plugins/help/help_command.go, commandEntry.ColumnOrders).
 	ColumnOrders [][]string     `json:"column-orders,omitempty"`
 	Aliases      []catalogAlias `json:"pipe-aliases,omitempty"`
 	// Subcommands names the children an operator can type after this command.

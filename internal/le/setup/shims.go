@@ -406,7 +406,7 @@ func writeShim(path, content string) error {
 	closeErr := temp.Close()
 	err = errors.Join(writeErr, closeErr)
 	if err == nil {
-		err = os.Chmod(tempPath, shimMode)
+		err = os.Chmod(tempPath, shimMode) //nolint:gosec // Our CreateTemp file is an executable tool shim: 0755 permits execution, with writes restricted to its owner.
 	}
 	if err == nil {
 		err = os.Rename(tempPath, path)

@@ -172,11 +172,11 @@ func waitOrKill(process child) {
 		return
 	}
 	select {
-	case <-process.done:
+	case <-process.done: //nolint:errcheck // Teardown reaps a deliberately stopped child; run preserves the primary process result or received signal.
 		return
 	case <-time.After(5 * time.Second):
 		_ = process.cmd.Process.Kill()
-		<-process.done
+		<-process.done //nolint:errcheck // After teardown's SIGKILL, the expected Wait error does not replace run's primary result or received signal.
 	}
 }
 

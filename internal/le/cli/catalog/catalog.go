@@ -246,7 +246,7 @@ func withLocalRoute(daemonMode string) string {
 }
 
 // labelLocalRoute adds the local route to the entry at path, which a YANG
-// node already labelled with the daemon route. Collect calls it only for a
+// node already labeled with the daemon route. Collect calls it only for a
 // path it has seen, so a miss is a defect in Collect.
 func labelLocalRoute(entries []Entry, path string) {
 	for index := range entries {

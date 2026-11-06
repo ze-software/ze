@@ -37,6 +37,7 @@ func TestSelfTestCoversEveryDetectorVerdictThroughCheck(t *testing.T) {
 	// The structural fixtures cannot prove that a semantic verdict survives.
 	// Exercise that independent obligation through Check with no findings.
 	t.Run("semantic approval without a structural finding", func(t *testing.T) {
+		t.Parallel()
 		root := newParityRepository(t)
 		const path = "pkg/a_test.go"
 		writeParityFile(t, root, path,

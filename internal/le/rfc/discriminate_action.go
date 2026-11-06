@@ -728,7 +728,7 @@ func isMajorVersion(element string) bool {
 // the halt goes after that comment rather than one line into the body.
 func disableBody(text string) (string, bool) {
 	lineEnd := -1
-	for index := 0; index < len(text); index++ {
+	for index := range len(text) {
 		if text[index] != '{' {
 			continue
 		}
