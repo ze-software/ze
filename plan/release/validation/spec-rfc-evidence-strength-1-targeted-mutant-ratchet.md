@@ -365,6 +365,7 @@ behavior or new home-CPE scope.
 |------------|------|-----------------|
 | `reference-checked-claim-unchecked.md` | 2026-10-26 | `./le rfc record` has no statement-level break route; `revert` proves only function dependence |
 | `help-text-describes-superseded-behaviour.md` | 2026-11-04 | `rfc discriminate report` help calls its existing mutant-report input an output path |
+| `reference-checked-claim-unchecked.md` | 2026-11-06 | panic breaks on RFC1661-2-1, 3.6-3, 5.7-1, 3.5-3 and RFC2918-4-3 prove reachability only |
 
 ## Checklist
 

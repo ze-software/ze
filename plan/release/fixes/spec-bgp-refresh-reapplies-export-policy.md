@@ -422,6 +422,8 @@ whether the replacement proves at least as much.
 | `state-event-emitted-without-comparing-state.md` | 2026-11-06 | raw injection carries no generation and raises the export watermark |
 | `policy-change-never-re-evaluates-what-it-admitted.md` | 2026-11-06 | a filter's Withdraw on a no-owner stale batch removes whatever the key holds |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-11-06 | import member strips LLGR_STALE; forward-rail LOCAL_PREF and NO_EXPORT undo |
+| `guard-added-to-one-half-of-a-pair.md` | 2026-11-06 | RFC4271-5.1.2-2: no tagged unit reaches the route-server rail AS_PATH guards |
+| `green-that-could-not-have-been-red.md` | 2026-11-06 | `TestRFC4271LocalPrefIncludedForInternalPeers` claims more than its body checks |
 
 ## Key Design Decisions
 

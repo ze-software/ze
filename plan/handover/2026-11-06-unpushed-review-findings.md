@@ -6,18 +6,39 @@
 
 ## Status
 
-The main thread updates this table.
+Final state. The fixes landed in `715fa2833e..7d397b3250`. Nothing was pushed, and no push is authorized.
 
-| Work | Findings | Owner | Status |
-|------|----------|-------|--------|
-| Inventory and its consumers | 1, 7, 8, 9 | Another live session holds uncommitted work here | Not touched, waits for that work to land |
-| QEMU callers and image cache | 4, 10, 11 | Fix agent: QEMU callers | In progress |
-| Reload and SDK | 2, 3, 12, 13, 14, 15, 16 | Fix agent: plugin/reload | In progress |
-| BGP stale path | 5, 17, 18, 19 | Fix agent: BGP stale | In progress |
-| PPP | 6, 20, 21, 22, 23, 24, 25 | Fix agent: PPP | In progress |
-| RFC corpus check | 26, 27, 28 | Main thread, after the fix agents | Not started |
-| Tests and notes | 29, 30 | Main thread, after the fix agents | Not started |
-| Stale handovers | 31 | State fork | Superseded lines written, not committed |
+| Finding | State | Where |
+|---------|-------|-------|
+| 1, 7, 8, 9, site notes | Open, held | Another session still has live uncommitted work under `internal/le/repo/inventory/`, `plugin/coupling/`, `plugin/gatedtable/` and `internal/le/site/`. Re-run `./le repo inventory` once it lands |
+| 2 | Fixed | 03cf855074: a refused reload no longer republishes the old tree, and the nine reload reds pass with their tests unedited |
+| 3 | Fixed | 03cf855074: a fatal plugin stops the daemon only when it failed, not when the reload's caller ended |
+| 4 | Fixed | eead8aea7a: rfc record, feature run and the nightly run through Ze's guest. 34549af4be repaired the HEAD build that eead8aea7a broke |
+| 5 | Fixed | 1e65b6d4bb: a stale route older than the export policy runs the whole chain. The remaining gaps are owned by `spec-bgp-refresh-reapplies-export-policy` |
+| 6, 20, 21, 22, 23, 24 | Fixed | 926f01f732: LCP lifetimes restart from config, the PAP wait answers LCP, proxied PAP renegotiates, disabled IPCP is rejected, MTU is set before connect, a malformed Magic renegotiates. Interop for proxied PAP is owed to `spec-l2tp-proxied-pap-interop-and-identity` |
+| 10, 11 | Fixed | eead8aea7a: the image is keyed by kernel bytes, and a root pinning another Linux release is refused |
+| 12 | Fixed | 0cb6989326 |
+| 13 | Fixed | 03cf855074 corrected the coordinator comment |
+| 14 | Owner decision | Should a daemon stopped by a fatal plugin exit non-zero? `test/plugin/failure-policy-fatal-live-peer.ci` still expects 0 |
+| 15 | Fixed | 44e0550ad9: shutdown's wait on a stuck editor session is bounded |
+| 16 | Unverified | No inversion found, not every lock holder audited |
+| 17, 19 | Fixed | 1e65b6d4bb: forward_pool comments corrected, adj-rib-in replays with its mutation owner released. Its break was not run |
+| 18 | Comment fixed, defect owned | 1e65b6d4bb corrected the comment. End-of-RIB before routes on a forked RIB is owned by `spec-bmp-locrib-dump-end-of-rib-before-routes` |
+| 25 | Recorded gap | RFC1661-4.6-4, unchanged |
+| 26 | Fixed | 35749ca2dc: RFC1661-6.1-1 positive breaks the read path, and its two orphan rows are gone |
+| 27 | Classified | After 7d397b3250, `./le rfc check` names 71 rows: 58 pppoeclient rows that predate this work, and other sessions' stale or shifted verdicts. None left is this work's |
+| 28 | Open | RFC9234-5-9 still has no negative test. RFC5082-3-2 still names line 96, unchecked |
+| 29, 30 | Open | 29 is held with the inventory package. 30: the stalls are still unexplained |
+| 31 | Done | Superseded lines landed with this handover |
+| New, from the audits | Owned | RFC4271-5.1.2-2 rs rail and the LOCAL_PREF claim: `spec-bgp-refresh-reapplies-export-policy`. Panic breaks on RFC1661 and RFC2918 rows: `spec-rfc-evidence-strength-1-targeted-mutant-ratchet` |
+
+Owner decisions still open: the fatal-plugin exit code (14), and whether RADIUS accounting carries the LAC name (`spec-l2tp-proxied-pap-interop-and-identity`).
+
+Reds this work did not cause: `TestEveryIntegrationPackageIsNamed` (pppoeac, owned by `spec-qemu-nightly-guests-run-ze-system`, plus another session's site test), `TestEveryWorkflowNativeActionExists` (another session's `codeql.yml`), `TestInjectionConsumerCancellationJoinsDescendants` (journaled in ef85422a40), website catalog drift in `./le doc check all`, and the 58 pppoeclient RFC rows.
+
+Not proven: interop for proxied PAP, no interop scenario for the stale rail, the converted nightly PPPoE and ASPA steps and `_guest-go` not boot-proven, the adj-rib-in replay break not run.
+
+Lesson: package tests compile the working tree, so a commit that leaves a needed hunk behind stays invisible until `le` builds HEAD. That broke HEAD once (eead8aea7a called a function its commit did not carry, fixed by 34549af4be). Wait for the HEAD build after each Go commit.
 
 ## Ownership
 
