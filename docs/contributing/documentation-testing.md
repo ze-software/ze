@@ -58,6 +58,25 @@ any non-test importer, so such an export can never have a non-test reference.
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
 <!-- source: internal/le/doc/ste/actions.go -- Answer -->
 
+### Native catalog lifetime
+
+The `doc-drift` action builds a native daemon before reading its command catalog.
+SIGINT or SIGTERM cancels that invocation's build or catalog command. The caller's
+context bounds both phases: the five-minute build bound and two-minute catalog
+bound never detach them from a caller that stopped. Each process group is stopped
+and joined before its temporary daemon directory is removed. A canceled build
+starts no catalog command, and a canceled invocation returns a failure verdict.
+The Go callers of `Drift`, `BuildDaemon` and `CommandCatalog` pass their context
+explicitly.
+
+The drift stage of `doc check all` has the same invocation-level cancellation.
+The aggregate documentation checker still runs its independent later stages after
+a failed stage; this is not a claim that one interrupt cancels that whole sequence.
+<!-- source: internal/le/doc/yangcontract/actions.go -- runDrift -->
+<!-- source: internal/le/doc/yangcontract/drift.go -- Drift -->
+<!-- source: internal/le/doc/yangcontract/command_surfaces.go -- BuildDaemon, runCommandCatalog, runCatalogProcess -->
+<!-- source: internal/le/doc/wiring/docverify.go -- docDriftStage, answerDocVerify -->
+
 ## When to run
 
 | Situation | Recommended target |
