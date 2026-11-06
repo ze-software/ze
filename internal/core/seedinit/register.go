@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/crashlog"
@@ -45,10 +46,8 @@ func controls(environ []string, parent bool) error {
 		if parent && key == DirectoryKey {
 			return fmt.Errorf("%s is already set; unset it before seeding", key)
 		}
-		for _, conflict := range []string{"ze.config.dir", "ze.crash.dir", "ze.storage.blob"} {
-			if key == conflict {
-				return fmt.Errorf("%s conflicts with descriptor-bound session init; unset it before seeding", key)
-			}
+		if slices.Contains([]string{"ze.config.dir", "ze.crash.dir", "ze.storage.blob"}, key) {
+			return fmt.Errorf("%s conflicts with descriptor-bound session init; unset it before seeding", key)
 		}
 	}
 	return nil
@@ -97,9 +96,10 @@ func dispatch(args []string, label string) (int, error) {
 		return 1, fmt.Errorf("inherited session directory cannot run %s; launch through le session seed-store", args[0])
 	}
 	importing := false
-	if len(args) == 2 && args[1] == "--seed" {
+	switch {
+	case len(args) == 2 && args[1] == "--seed":
 		// The first child creates only the canonical seed.
-	} else if len(args) == 3 && args[1] == "--from" {
+	case len(args) == 3 && args[1] == "--from":
 		from, err := filepath.Abs(args[2])
 		if err != nil {
 			return 1, err
@@ -108,7 +108,7 @@ func dispatch(args []string, label string) (int, error) {
 			return 1, fmt.Errorf("inherited init source is outside the accepted directory; launch through le session seed-store")
 		}
 		importing = true
-	} else {
+	default:
 		return 1, fmt.Errorf("inherited session directory accepts only seed creation or its import; launch through le session seed-store")
 	}
 	if err := controls(os.Environ(), false); err != nil {

@@ -1176,7 +1176,7 @@ func TestRuntimeTreeOffersLocalDataCommands(t *testing.T) {
 		}
 		for _, path := range localData {
 			node := tree
-			for _, word := range strings.Fields(path) {
+			for word := range strings.FieldsSeq(path) {
 				if node == nil {
 					break
 				}

@@ -132,7 +132,7 @@ func handleMonitorInterfaceRate(ctx *pluginserver.CommandContext, validated comm
 // plugin like the one-shot answer. A second the plugin cannot answer (not
 // running yet, the filtered interface absent) prints nothing, as before.
 //
-// The loop has no count: it ends only when ctx is cancelled, which the
+// The loop has no count: it ends only when ctx is canceled, which the
 // streaming caller does when the operator's session ends.
 func streamInterfaceRate(ctx context.Context, server *pluginserver.Server, w io.Writer, _ string, args command.ValidatedArgs) error {
 	tokens := args.Tokens()
