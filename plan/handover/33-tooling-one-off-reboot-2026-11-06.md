@@ -6,6 +6,31 @@
 The owner requested a checkpoint, commit and push before stopping this host.
 This is a continuation record, not closure: the spec remains in progress.
 
+## Publication at shutdown
+
+Canonical evaluator checkpoint: `6abaa27aa6`. Handoff/source snapshot checkpoint:
+`5b5bfd703b`. The configured push destination was checked as SSH to
+`github.com:ze-software/ze.git`, with no embedded credentials. There were 134
+commits ahead of the recorded upstream after these checkpoints; a normal push
+publishes that accumulated branch history, not only this session's two commits.
+
+Automatic approval review rejected the attempted push before execution, stating
+that the accumulated commits and diagnostic snapshots were a sensitive payload
+to an unverified destination. No push was performed. The destination was then
+checked as above; raw logs/captures/profiles/binaries are absent from the source
+asset directory. Thomas still needs to authorize publication to that destination
+and prepare the native push from his interactive terminal. The required command
+is `./le commit push "we want to commit push"`; execute only its printed script.
+Do not infer that a local commit or Git bundle is already present on GitHub.
+
+A private incremental Git bundle will be saved beside the evidence archive as
+`tooling-reboot.bundle` after the final handoff commit, plus a checksum and
+recorded HEAD. It carries the local commits since the recorded upstream. Copy
+that bundle and the private evidence archive before switching machines if the
+remote still lacks these commits. Clone the repository normally first, then
+verify the bundle's prerequisite base before importing it; preserve an existing
+dirty checkout and never reset or overwrite it to restore the checkpoint.
+
 Read this record before the older November 3 handover or scratch state. It
 supersedes their current-status statements, including private author handoffs
 that still describe subsequently tested source as untested.
