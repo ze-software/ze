@@ -11,8 +11,6 @@ import (
 	"net/netip"
 	"slices"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/pcap"
@@ -395,30 +393,6 @@ func judgeDelayOpen(history []*delayOpenConnection, peer netip.Addr, zeDelay, fr
 		return "", fmt.Errorf("DelayOpen peer %s has %d complete live wire winners, want one", peer, winners)
 	}
 	return fmt.Sprintf("peer=%s completed TCP connections=%d live OPEN/KEEPALIVE winner=1 opposite-initiator overlaps=%d; overlap is observed native collision opportunity, not proof of an internal arbitration order", peer, completed, overlaps), nil
-}
-
-func delayOpenCaptureComplete(log string) (int, error) {
-	captured, dropped := -1, -1
-	for line := range strings.SplitSeq(log, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
-			continue
-		}
-		value, err := strconv.Atoi(fields[0])
-		if err != nil {
-			continue
-		}
-		if strings.Join(fields[1:], " ") == "packets captured" {
-			captured = value
-		}
-		if strings.Join(fields[1:], " ") == "packets dropped by kernel" {
-			dropped = value
-		}
-	}
-	if captured <= 0 || captured >= delayOpenPacketLimit || dropped != 0 {
-		return captured, fmt.Errorf("incomplete DelayOpen capture: captured=%d dropped=%d; capture log: %s", captured, dropped, log)
-	}
-	return captured, nil
 }
 
 // delayOpenFirstArrivals inserts only previously uncovered intervals. Input is

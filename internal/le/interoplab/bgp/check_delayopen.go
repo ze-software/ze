@@ -19,9 +19,10 @@ import (
 
 const (
 	delayOpenScenario    = "bgp-delayopen-frr"
-	delayOpenCapture     = "/tmp/bgp-delayopen.pcap"
-	delayOpenCaptureLog  = "/tmp/bgp-delayopen-capture.log"
-	delayOpenCaptureExit = "/tmp/bgp-delayopen-capture.exit"
+	delayOpenCaptureBase = "/tmp/bgp-delayopen"
+	delayOpenCapture     = delayOpenCaptureBase + ".pcap"
+	delayOpenCaptureLog  = delayOpenCaptureBase + "-capture.log"
+	delayOpenCaptureExit = delayOpenCaptureBase + "-capture.exit"
 )
 
 var delayOpenCases = [...]struct {
@@ -53,7 +54,7 @@ func checkDelayOpenFRR(ctx context.Context, check *interoplab.CheckContext) (res
 			resultErr = errors.Join(resultErr, stopDelayOpenCapture(diagnostic, check.Lab))
 			text, readErr := check.Lab.Query(diagnostic, "ze", []string{cmdCat, delayOpenCaptureLog}, nil)
 			evidence["capture-log"] = text
-			captured, captureErr := delayOpenCaptureComplete(text)
+			captured, captureErr := packetCaptureComplete(text, delayOpenPacketLimit)
 			resultErr = errors.Join(resultErr, readErr, captureErr)
 			encoded, readErr := check.Lab.Query(diagnostic, "ze", []string{"base64", delayOpenCapture}, nil)
 			resultErr = errors.Join(resultErr, readErr)
@@ -210,14 +211,13 @@ func checkDelayOpenFRR(ctx context.Context, check *interoplab.CheckContext) (res
 // scenario assertion fails. timeout bounds the detached process if its caller
 // disappears; packet and snapshot limits bound the file independently.
 func startDelayOpenCapture(ctx context.Context, lab interoplab.CheckerLab) error {
-	script := "timeout -s INT 120 tcpdump -n -U -s 65535 -B 4096 -c 4096 -i eth0 -w " + delayOpenCapture + " 'ip and tcp port 179' 2>" + delayOpenCaptureLog + "; echo $? >" + delayOpenCaptureExit
+	capture := packetCapture{base: delayOpenCaptureBase, filter: "ip and tcp port 179", seconds: 120, packets: delayOpenPacketLimit}
+	script, err := capture.command()
+	if err != nil { return err }
 	if err := lab.ExecDetached(ctx, "ze", []string{"sh", "-c", script}, nil); err != nil {
 		return err
 	}
-	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 10 * time.Second, Interval: 100 * time.Millisecond, Description: "native DelayOpen capture socket activated"}, func(probe context.Context) (string, error) {
-		return lab.Query(probe, "ze", []string{cmdCat, delayOpenCaptureLog}, nil)
-	}, func(log string) bool { return strings.Contains(log, "listening on eth0") })
-	return err
+	return capture.waitActivated(ctx, lab)
 }
 
 // stopDelayOpenCapture MUST complete before reading wire.pcap; a log without

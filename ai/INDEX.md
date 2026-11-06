@@ -592,6 +592,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | cache, update cache | `update-cache.md`, `update-density-analysis.md` |
 | metadata, route meta | `meta/README.md` |
 | interop, test infra, raw injector, inject.msg sidecar, python speaker, speaker-args, independent bgp peer | `testing/interop.md`, `testing/ci-format.md`, `../plan/spec-bgp-plugin-speaker.md` |
+| GoBGP export reload, SIGHUP unchanged best, secondary route withdrawal, applied GoBGP patch, gobgp-patch-sha256 | `docs/architecture/testing/interop.md` (GoBGP export-reload successor proof), `internal/le/interoplab/bgp/check_gobgp_reload_patch.go`, `test/interop/gobgp-v4.11.0-export-reload.patch` |
 | zefs, blob, netcapstring, storage | `storage-backends.md`, `zefs-format.md`, `fleet-config.md` |
 | config history, object/<sha256>, content-addressed version, dangling entry, orphan object, dangling pointer | `storage-backends.md`, `internal/component/config/storage/history.go`, `internal/component/config/storage/history_check.go` |
 | ze init, bootstrap the store, import a blob, --from, --force, --seed, --managed | `storage-backends.md`, `guide/quickstart.md`, `internal/plugins/init/main.go` |

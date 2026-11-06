@@ -287,27 +287,38 @@ func requireNoExternalLSA(database string) error {
 	return requireAbsentWithProof(database, []string{lsaAge}, []string{heading})
 }
 
-// endOfRIBDecoded reports whether FRR's log holds its own decode of the IPv4-unicast
-// End-of-RIB marker received from peer. FRR writes each decode as
-// `<peer> rcvd End-of-RIB for IPv4 Unicast from <peer>` (bgp_packet.c), and both
-// halves are required on ONE line: a "rcvd" phrase on one line and the peer address
-// on another belong to two different events, and the marker of a THIRD peer would
-// otherwise pass. The family half is matched case-folded because FRR renders it
-// through get_afi_safi_str, whose spelling moves between releases, while the peer
-// half is matched exactly because an address has one spelling. The "rcvd" verb keeps
-// the send direction, which FRR spells "sending End-of-RIB", from passing as a
-// receive decode.
+// endOfRIBDecoded matches the startup-fenced FRR 10.7.1 receive event from
+// bgpd/bgp_packet.c:bgp_update_receive_eor (commit
+// f8c0b08dcb0c78f9e42b9b86ae70b049e4e617c1, lines 2330-2338).
+// bgp_update_receive (2602-2622) calls it for an empty non-MP IPv4 UPDATE.
+// lib/libfrr.c:frr_run emits the startup before entering the event loop;
+// the scenario enables this file target on bgpd's command line. Sender,
+// direction, family, producer and VRF must equal the entire native payload.
+// The caller separately proves the original daemon/session and log inode.
 func endOfRIBDecoded(log, peer string) bool {
-	needle := strings.ToLower("rcvd End-of-RIB for IPv4 Unicast from")
+	started, received := false, false
+	want := "bgp_update_receive_eor: rcvd End-of-RIB for IPv4 Unicast from " + peer + " in vrf default"
 	for line := range strings.SplitSeq(log, "\n") {
-		if !strings.Contains(strings.ToLower(line), needle) {
+		message, ok := noFamilyFRRLogMessage(line)
+		if !ok {
 			continue
 		}
-		if strings.Contains(line, peer) {
-			return true
+		if versionAndTarget, startup := strings.CutPrefix(message, "bgpd "); startup {
+			version, _, nativeStartup := strings.Cut(versionAndTarget, " starting: ")
+			if !nativeStartup {
+				continue
+			}
+			if started || version != "10.7.1" {
+				return false
+			}
+			started = true
+			continue
+		}
+		if started && message == want {
+			received = true
 		}
 	}
-	return false
+	return started && received
 }
 
 // frrNeighborCapabilities is FRR's `show bgp neighbor <peer> json`, cut to the one
@@ -893,7 +904,7 @@ func requireSpeakerEVPNDiscard(report string) error {
 	if result != speakerResultPass {
 		return fmt.Errorf("the speaker verdict is %s: %s", result, strings.Join(speakerReportFailures(report), "; "))
 	}
-	return nil
+	return requireTypedEVPNWire(report)
 }
 
 // gtsmPeerCounters is the GTSM receiver's own kernel reading of the related

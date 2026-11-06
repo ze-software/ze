@@ -1,10 +1,57 @@
 package bgp
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
+
+// FRR 10.7.1 f8c0b08d: bgp_show_table emits the default-VRF table envelope;
+// bgp_show_route_in_table emits prefix/paths, but both an absent route and an
+// unconfigured BGP process can answer {}. Only the table proves absence.
+func TestRouteJSONRequiresPinnedSchema(t *testing.T) {
+	const prefix = "10.10.0.0/24"
+	const present = `{"prefix":"10.10.0.0/24","paths":[{"valid":true}]}`
+	const absent = `{"vrfId":0,"vrfName":"default","tableVersion":0,"routerId":"172.30.0.3","routes":{}}`
+	for _, test := range []struct {
+		name, output          string
+		wantPresent, accepted bool
+	}{
+		{"exact prefix present", present, true, true},
+		{"recognized table absent", absent, false, true},
+		{"wrong prefix", `{"prefix":"110.10.0.0/24","paths":[{"valid":true}]}`, true, false},
+		{"empty paths", `{"prefix":"10.10.0.0/24","paths":[]}`, true, false},
+		{"null paths", `{"prefix":"10.10.0.0/24","paths":null}`, true, false},
+		{"scalar path", `{"prefix":"10.10.0.0/24","paths":[true]}`, true, false},
+		{"nested unrelated route", `{"error":{"prefix":"10.10.0.0/24","paths":[{}]}}`, true, false},
+		{"missing paths", `{"prefix":"10.10.0.0/24"}`, true, false},
+		{"empty object is not absence", `{}`, false, false},
+		{"wrong prefix is not absence", `{"prefix":"10.20.0.0/24","paths":[]}`, false, false},
+		{"error is not absence", `{"error":"No BGP process is configured"}`, false, false},
+		{"unrelated JSON is not absence", `{"neighborCapabilities":{}}`, false, false},
+		{"array is not absence", `[]`, false, false},
+		{"null is not absence", `null`, false, false},
+		{"missing routes is not absence", `{"vrfId":0,"vrfName":"default","tableVersion":0,"routerId":"172.30.0.3"}`, false, false},
+		{"null routes is not absence", `{"vrfId":0,"vrfName":"default","tableVersion":0,"routerId":"172.30.0.3","routes":null}`, false, false},
+		{"other VRF is not absence", strings.Replace(absent, `"default"`, `"other"`, 1), false, false},
+		{"malformed JSON", `{`, false, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			lab := &recordingLab{output: test.output}
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+			defer cancel()
+			err := waitFRRRoute(ctx, lab, prefix, frrIPv4Unicast, 20*time.Millisecond, test.wantPresent)
+			if (err == nil) != test.accepted {
+				t.Fatalf("route observation accepted=%t, want %t: %v; answer %s", err == nil, test.accepted, err, test.output)
+			}
+			if lab.reads == 0 {
+				t.Fatal("route verdict made without observing FRR")
+			}
+		})
+	}
+}
 
 // FRR 10.7.1 zebra_vty.c:vty_show_ip_route emits each protocol, selection and
 // installation state in one prefix-keyed route entry. lib/nexthop.c emits

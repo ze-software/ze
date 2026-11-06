@@ -32,9 +32,11 @@ FROM alpine:3.24.3
 # tcpreplay: the isis-purge-reorig-frr checker sends a purge of Ze's own LSP
 # from inside this container (interoplab.SendFrameInContainer), so the send
 # needs no host privilege to enter the container's network namespace.
-# tcpdump: bgp-delayopen-frr observes native TCP handshakes and BGP timing.
-# Its bounded capture runs inside this container, never through a host sudo.
-RUN apk add --no-cache tini nftables iproute2 tcpreplay tcpdump
+# tcpdump observes native DelayOpen timing and the NSSA's first OSPF exchange.
+# GNU timeout owns and joins that capture, including SIGINT flush at the bound;
+# BusyBox timeout's detached watchdog does not provide that lifetime contract.
+# These tools run only inside this lab container, never through a host sudo.
+RUN apk add --no-cache tini nftables iproute2 tcpreplay tcpdump coreutils=9.11-r0
 
 COPY test/interop/ze-linux /usr/local/bin/ze
 # The file MUST be named le: cmd/ze selects its personality from the name it

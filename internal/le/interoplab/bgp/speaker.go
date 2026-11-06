@@ -38,6 +38,7 @@ type speakerUpdate struct {
 	attributes []pathAttribute
 	nlri       []byte
 	raw        []byte
+	decodeErr  error
 }
 
 type speakerVerdict struct {
@@ -58,18 +59,23 @@ func (v *speakerVerdict) fail(message string) {
 }
 
 func decodeSpeakerUpdate(body []byte) speakerUpdate {
-	result := speakerUpdate{raw: body}
-	if len(body) < 4 {
-		return result
+	update, err := parsedEmptyMPUpdate(body)
+	if err != nil {
+		return speakerUpdate{raw: body, decodeErr: err}
 	}
-	withdrawnLength := min(int(binary.BigEndian.Uint16(body)), len(body)-2)
+	return update
+}
+
+// decodeSpeakerUpdateFields is called only after parsedEmptyMPUpdate has
+// validated both section lengths. That caller MUST also account for every
+// attribute octet before publishing the decoded UPDATE.
+func decodeSpeakerUpdateFields(body []byte) speakerUpdate {
+	result := speakerUpdate{raw: body}
+	withdrawnLength := int(binary.BigEndian.Uint16(body))
 	result.withdrawn = body[2 : 2+withdrawnLength]
 	attributeLengthOffset := 2 + withdrawnLength
-	if attributeLengthOffset+2 > len(body) {
-		return result
-	}
 	attributeStart := attributeLengthOffset + 2
-	attributeLength := min(int(binary.BigEndian.Uint16(body[attributeLengthOffset:])), len(body)-attributeStart)
+	attributeLength := int(binary.BigEndian.Uint16(body[attributeLengthOffset:]))
 	attributeEnd := attributeStart + attributeLength
 	result.attributes = decodeSpeakerAttributes(body[attributeStart:attributeEnd])
 	result.nlri = body[attributeEnd:]
@@ -219,22 +225,23 @@ func speakerEOR() []byte       { return speakerMessage(bgpUpdate, []byte{0, 0, 0
 func speakerKeepalive() []byte { return speakerMessage(bgpKeepalive, nil) }
 
 type speakerOptions struct {
-	connect         string
-	asn             uint
-	routerID        string
-	test            string
-	result          string
-	holdTime        uint
-	duration        time.Duration
-	stopAfter       int
-	connectDelay    time.Duration
-	families        familyFlags
-	addPath         bool
-	bfdStrict       bool
-	bfdDelay        time.Duration
-	relayPeer       string
-	relayExtended   bool
-	sourceNextHopV6 string
+	connect          string
+	asn              uint
+	routerID         string
+	test             string
+	result           string
+	holdTime         uint
+	duration         time.Duration
+	stopAfter        int
+	connectDelay     time.Duration
+	families         familyFlags
+	addPath          bool
+	bfdStrict        bool
+	bfdDelay         time.Duration
+	relayPeer        string
+	relayExtended    bool
+	relayTransparent bool
+	sourceNextHopV6  string
 }
 
 // peerAddress is the host half of --connect. A single-hop BFD session goes to
@@ -269,11 +276,15 @@ func parseSpeakerOptions(args []string) (speakerOptions, error) {
 		"seconds to stay silent before answering BFD, which is the window ze must hold its BGP session for")
 	flags.StringVar(&options.relayPeer, "relay-peer", "", "FRR address for OPEN-only capability relay")
 	flags.BoolVar(&options.relayExtended, "relay-extended", false, "deliver capability 6 to Ze")
+	flags.BoolVar(&options.relayTransparent, "relay-transparent", false, "forward original OPEN and all subsequent frames unchanged")
 	flags.StringVar(&options.sourceNextHopV6, "source-next-hop-v6", "", "native source IPv6 next hop")
 	if err := flags.Parse(args); err != nil {
 		return options, err
 	}
 	if options.relayPeer != "" {
+		if options.test == "local-pref-strip" && !options.relayTransparent {
+			return options, errors.New("local-pref-strip requires --relay-transparent")
+		}
 		options.duration = time.Duration(*duration * float64(time.Second))
 		if options.connect == "" {
 			return options, errors.New("relay requires --connect")
@@ -407,6 +418,7 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 			continue
 		}
 		if err != nil {
+			verdict.fail("BGP capture interrupted: " + err.Error())
 			if !established {
 				verdict.notes = append(verdict.notes, "peer closed before establishment")
 			}
@@ -414,6 +426,16 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 		}
 		switch messageType {
 		case bgpOpen:
+			if sawOpen {
+				verdict.fail("received a second OPEN on the captured session")
+				deadline = time.Time{}
+				break
+			}
+			if openErr := validateSpeakerOpen(body); openErr != nil {
+				verdict.fail("invalid OPEN: " + openErr.Error())
+				deadline = time.Time{}
+				break
+			}
 			// The speaker answers ze's OPEN with its KEEPALIVE at once, even
 			// under --bfd-strict. draft-ietf-idr-bgp-bfd-strict-mode Section
 			// 8.5.6 is written for exactly that: "the remote BFD speaker's BFD
@@ -426,6 +448,11 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 			sawOpen = true
 			_, err = connection.Write(speakerKeepalive())
 		case bgpKeepalive:
+			if !sawOpen {
+				verdict.fail("KEEPALIVE received before a valid OPEN")
+				deadline = time.Time{}
+				break
+			}
 			// The FIRST KEEPALIVE ze sends is the whole strict-mode
 			// observable. draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5
 			// withholds it while the BFD session is neither Up nor AdminDown,
@@ -444,8 +471,9 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 			}
 		case bgpUpdate:
 			if !established {
-				established = true
-				_, err = connection.Write(speakerEOR())
+				verdict.fail("UPDATE received before OPEN and initial KEEPALIVE")
+				deadline = time.Time{}
+				break
 			}
 			update := decodeSpeakerUpdate(body)
 			applySpeakerOracle(update, verdict)
@@ -458,6 +486,9 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 			}
 		case bgpNotification:
 			verdict.notes = append(verdict.notes, fmt.Sprintf("received NOTIFICATION: %x", body))
+			deadline = time.Time{}
+		default:
+			verdict.fail(fmt.Sprintf("unexpected BGP message type %d", messageType))
 			deadline = time.Time{}
 		}
 		if err != nil {
@@ -502,8 +533,11 @@ func readSpeakerMessage(connection net.Conn, deadline time.Time) (byte, []byte, 
 	if idle || err != nil {
 		return 0, nil, idle, err
 	}
-	length := int(binary.BigEndian.Uint16(header[16:18]))
-	if length <= bgpHeaderLength {
+	length, err := validateSpeakerMessageHeader(header)
+	if err != nil {
+		return 0, nil, false, err
+	}
+	if length == bgpHeaderLength {
 		return header[18], nil, false, nil
 	}
 	body, _, err := readSpeakerExact(connection, length-bgpHeaderLength, deadline, false)
@@ -544,6 +578,10 @@ func readSpeakerExact(connection net.Conn, size int, deadline time.Time, allowId
 // looked up in speakerUpdateOracles. An oracle with no per-UPDATE judgement (the
 // BFD strict-mode one judges ordering) has no entry and judges nothing here.
 func applySpeakerOracle(update speakerUpdate, verdict *speakerVerdict) {
+	if update.decodeErr != nil {
+		verdict.fail("malformed UPDATE: " + update.decodeErr.Error())
+		return
+	}
 	oracle, ok := speakerUpdateOracles[verdict.plugin]
 	if !ok {
 		return

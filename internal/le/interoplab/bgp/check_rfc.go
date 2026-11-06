@@ -132,12 +132,12 @@ func checkLocalPrefStrip(ctx context.Context, check *interoplab.CheckContext) er
 	}
 
 	// Assertions 2 and 3. Both destination sessions, read from the two daemons
-	// themselves. GoBGP carries every attribute assertion below, and FRR carries the
-	// other half of the job: a conforming peer ACCEPTS the stripped UPDATE, sends no
-	// NOTIFICATION, and installs the route.
+	// themselves. GoBGP's original connection carries the wire assertion.
+	// FRR also must accept the stripped UPDATE without a NOTIFICATION and
+	// install the route.
 	sessions := []operation{
 		{kind: opFRRSession, argument: zeLabAddress},
-		{kind: opGoBGPSession, argument: zeLabAddress},
+		{kind: opGoBGPSession, argument: baseIPv4Prefix + "10"},
 	}
 	for index := range sessions {
 		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
@@ -162,12 +162,14 @@ func checkLocalPrefStrip(ctx context.Context, check *interoplab.CheckContext) er
 		}
 	}
 
-	// Assertions 10 to 12. GoBGP's own decode, one answer per prefix. GoBGP is the
-	// witness and FRR cannot be: Section 5.1.5 also says a LOCAL_PREF received from
-	// an external peer MUST be ignored, and FRR implements that by skipping the
-	// attribute during parse, so a leaked value is invisible in its RIB either way.
-	// GoBGP keeps the RECEIVED attribute list on the path and prints it, so it
-	// reports what ARRIVED rather than what it decided to keep.
+	// Assertions 10 to 12 retain GoBGP's source-block controls, one per prefix.
+	// Neither daemon's RIB proves wire absence: RFC 4271 Section 5.1.5 requires
+	// an externally received LOCAL_PREF to be ignored. GoBGP v4.11.0's
+	// internal/pkg/table/table_manager.go ProcessMessage removes it before
+	// storage for external non-RouteServerClient peers, including this peer.
+	// Assertion 13 instead checks the complete declared original-connection
+	// interval through all three subjects and the later FIFO fence, plus the
+	// reverse KEEPALIVE barrier. Later session traffic is outside that interval.
 	for index, prefix := range relayed {
 		route, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, prefix}, nil)
 		if err != nil {
@@ -176,17 +178,17 @@ func checkLocalPrefStrip(ctx context.Context, check *interoplab.CheckContext) er
 		if err := requireGoBGPSourceBlock(route, prefix, sourceAS, injectorAddress); err != nil {
 			return fail(index+10, err)
 		}
-		if err := requireGoBGPAttributeAbsent(route, prefix, gobgpLocalPrefAttribute); err != nil {
-			return fail(index+10, err)
-		}
+	}
+	if err := waitLocalPrefWire(ctx, check.Lab); err != nil {
+		return fail(13, err)
 	}
 
-	// Assertions 13 and 14. Both sessions survived. Withholding an attribute is a
+	// Assertions 14 and 15. Both sessions survived. Withholding an attribute is a
 	// decision about egress, and a peer that answered the relay with a NOTIFICATION
 	// would hold no route to read an attribute off.
 	for index := range sessions {
 		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
-			return fail(index+13, err)
+			return fail(index+14, err)
 		}
 	}
 	return nil
@@ -740,101 +742,7 @@ func untilDecoded[T any](ctx context.Context, read func() (T, error)) (T, error)
 // combination" clause against a foreign peer. The existing unit binding
 // (message/rfc7606_test.go) proves the "any position" clause only; its own audit note says so.
 func checkRFC7606MixedUpdate(ctx context.Context, check *interoplab.CheckContext) error {
-	const (
-		name = "bgp-rfc7606-relay-shape-frr"
-		// The injector announces this one before FRR connects, so it reaches FRR
-		// through ze's replay-on-peer-up. The replay is forwarded verbatim, so it
-		// is a relay-liveness barrier rather than the discriminator.
-		replayedPrefix = "10.0.0.0/24"
-		// The two halves of the ONE UPDATE that mixes Withdrawn Routes with NLRI.
-		// The announced half is the discriminator: ze splits the mixed shape and
-		// re-encodes the announcement through the wire-mode builder, and a
-		// duplicated NEXT_HOP there is a treat-as-withdraw at FRR.
-		splitAnnouncedPrefix = "203.0.113.0/24"
-		splitWithdrawnPrefix = "198.51.100.0/24"
-		// ze.conf makes both peers RS clients, so RFC 7947 Section 2.2.2.1 leaves
-		// the injector's AS alone at the head of the relayed path. FRR runs with
-		// enforce-first-as off for the same reason.
-		relayedASPath = "65004"
-		// The NEXT_HOP both injected UPDATEs carry, and the vtysh command that
-		// reads what FRR gave to zebra. FRR takes one command after each -c flag.
-		injectorAddress = baseIPv4Prefix + "9"
-		showRouteBGP    = "show ip route bgp"
-	)
-	fail := func(assertion int, cause error) error {
-		return checkerFailure(ctx, check.Lab, name, assertion, cause)
-	}
-
-	// Assertion 1. The session, read from FRR.
-	session := operation{kind: opFRRSession, argument: zeLabAddress}
-	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
-		return fail(1, err)
-	}
-
-	// Assertion 2. Both injected UPDATEs carry their NEXT_HOP as raw hex
-	// (inject.msg, AC1E0009), and renderScenario rewrites text rather than hex, so
-	// those octets name the injector on the base network alone. On any other
-	// selected network FRR resolves that address through nothing and installs no
-	// route, and the installation assertion below would read a renumbered lab as a
-	// relay defect. Say which it is.
-	baseNetwork := netip.MustParseAddr(baseIPv4Prefix + "0")
-	if check.Network.IPv4.Addr() != baseNetwork {
-		return fail(2, fmt.Errorf("scenario runs on network %s, and the injected NEXT_HOP octets name a peer only on %s", check.Network.IPv4, baseNetwork))
-	}
-
-	// Assertion 3. The replayed route, which is the relay-liveness barrier.
-	replayed := operation{kind: opFRRRoute, argument: replayedPrefix, timeout: 100 * time.Second}
-	if err := runOperation(ctx, check.Network, check.Lab, &replayed); err != nil {
-		return fail(3, err)
-	}
-
-	// Assertion 4. The relay is a route server on this rail, so what FRR decodes is
-	// the client's own path. Without this half the route above proves a relay ran
-	// and says nothing about what it relayed.
-	route, err := queryFRRIPv4Route(ctx, check.Lab, replayed.argument)
-	if err != nil {
-		return fail(4, err)
-	}
-	if err := requireFRRASPath(route, relayedASPath); err != nil {
-		return fail(4, err)
-	}
-
-	// Assertion 5. The announced half of the mixed UPDATE reaches FRR. Ze splits
-	// that UPDATE and re-encodes this half through the wire-mode builder, and a
-	// duplicated NEXT_HOP there is a treat-as-withdraw under RFC 7606 Section 3(g),
-	// so this is the half that goes red when the de-duplication is lost.
-	announced := operation{kind: opFRRRoute, argument: splitAnnouncedPrefix, timeout: 100 * time.Second}
-	if err := runOperation(ctx, check.Network, check.Lab, &announced); err != nil {
-		return fail(5, err)
-	}
-
-	// Assertion 6. FRR gives that route to zebra through the injector's address, so
-	// the mixed UPDATE was not merely held in a BGP table but INSTALLED, which is
-	// what the tag above claims. The selected, installed BGP route entry must
-	// contain the matching active FIB next hop, so another route cannot satisfy it.
-	routes, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", showRouteBGP + " json"}, nil)
-	if err != nil {
-		return fail(6, err)
-	}
-	if err := requireRouteInstalledVia(routes, announced.argument, injectorAddress, "bgp"); err != nil {
-		return fail(6, err)
-	}
-
-	// Assertions 7 and 8. The withdrawn half of that UPDATE never announced
-	// anything, so its absence alone would also hold with the whole rail deleted:
-	// the arrival of its message-mate above is the barrier this absence is read
-	// against. Then the session, because ze accepting the mixed shape on receive
-	// and FRR accepting ze's output both require that no NOTIFICATION passed.
-	closing := []operation{
-		{kind: opFRRRouteAbsent, argument: splitWithdrawnPrefix, timeout: 30 * time.Second},
-		{kind: opFRRSession, argument: zeLabAddress},
-	}
-	for index := range closing {
-		if err := runOperation(ctx, check.Network, check.Lab, &closing[index]); err != nil {
-			return fail(index+7, err)
-		}
-	}
-	return nil
+	return checkMixedUpdateWire(ctx, check)
 }
 
 // RFC requirement: RFC7606-5.4-1 positive -- an independent peer receives the assigned EVPN route type and never the unassigned one ze was sent in the same attribute.
@@ -877,11 +785,10 @@ func checkRFC7606TypedNLRIDiscard(ctx context.Context, check *interoplab.CheckCo
 		return fail(1, err)
 	}
 
-	// Assertion 2. The verdict itself. requireSpeakerEVPNDiscard requires the
-	// oracle's name, an Established session, one route-bearing UPDATE and one
-	// decoded EVPN NLRI before it reads the PASS, because the behavior under test
-	// REMOVES a route: a verdict reporting only the absence of the unassigned type
-	// would read the same on a relay that was broken outright.
+	// Assertion 2. The full requested capture belongs to an actual valid OPEN
+	// and Established session. The independent wire witness must contain exactly
+	// the fixture's assigned type-2 NLRI, and no other EVPN announcement or
+	// withdrawal. Counts alone cannot prove which assigned route survived.
 	if err := requireSpeakerEVPNDiscard(report); err != nil {
 		return fail(2, err)
 	}
@@ -1324,12 +1231,12 @@ func checkISISDynamicHostname(ctx context.Context, check *interoplab.CheckContex
 	return nil
 }
 
-// RFC requirement: RFC4724-4-1 positive -- an independent conforming receiver
-// (FRR 10.3.1) decodes ze's End-of-RIB marker for IPv4 unicast on a session where
-// neither speaker advertised a Multiprotocol capability. Removing the per-side
-// implicit family in capability.Negotiate leaves FRR receiving the route and no
-// marker, which is the state this scenario was written against (measured
-// 2026-08-17).
+// RFC 4724 Section 4: "The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established."
+// RFC requirement: RFC4724-4-1 positive -- FRR decodes Ze's IPv4-unicast
+// End-of-RIB on the original session after receiving the route. Ze advertises
+// no Multiprotocol capability; FRR advertises IPv4 unicast. The declared FRR
+// default is 10.7.1; bgp_update_receive and bgp_update_receive_eor determine
+// this native receive event. This assertion is not a recovered historical run.
 func checkNoFamilyEndOfRIB(ctx context.Context, check *interoplab.CheckContext) error {
 	const name = "no-family-peer-eor-frr"
 	fail := func(assertion int, cause error) error {
@@ -1343,20 +1250,19 @@ func checkNoFamilyEndOfRIB(ctx context.Context, check *interoplab.CheckContext) 
 	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
 		return fail(1, err)
 	}
+	identity, err := readNoFamilyEORIdentity(ctx, check.Lab, zeAddress)
+	if err != nil {
+		return fail(1, err)
+	}
 
-	// Assertion 2. IPv4 unicast is exchanged in this state, which RFC 4271 carries
-	// with no capability at all. Without this assertion the End-of-RIB below would
-	// be a barrier over an empty conversation.
+	// Assertion 2. Require actual IPv4 route arrival independently of EOR.
 	route := operation{kind: opFRRRoute, argument: injectPrefixFirst, timeout: 60 * time.Second}
 	if err := runOperation(ctx, check.Network, check.Lab, &route); err != nil {
 		return fail(2, err)
 	}
 
-	// Assertion 3. The marker is owed because the family is IMPLICIT, not because ze
-	// named it: FRR reports the IPv4-unicast capability as advertised by itself and
-	// received from nobody. That pins the fix in capability.Negotiate rather than in
-	// the OPEN builder, which is what keeps the wire byte-identical for every peer
-	// configured this way.
+	// Assertion 3. Preserve asymmetric capability inputs: FRR advertises MP,
+	// Ze does not. Changing the OPEN would test a different negotiation path.
 	neighbor, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp neighbor " + zeAddress + " json"}, nil)
 	if err != nil {
 		return fail(3, err)
@@ -1365,27 +1271,46 @@ func checkNoFamilyEndOfRIB(ctx context.Context, check *interoplab.CheckContext) 
 		return fail(3, err)
 	}
 
-	// Assertion 4. The marker is the last frame of the initial update, so it can land
-	// after the route: poll FRR's own per-UPDATE decode. Neither a routing table nor
-	// `show bgp neighbor json` answers this question here, because FRR fills
-	// gracefulRestartInfo.endOfRibRecv only for the families a peer named in a
-	// Graceful Restart capability, and this peer advertises neither that capability
-	// nor a Multiprotocol one.
-	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	// Assertion 4. RFC 4724 Section 4: read the pinned peer's actual receive
+	// decoder, not a routing-table or GR-capability surrogate. A native startup
+	// fences the log; exact sender/family/VRF and the original daemon/session
+	// identity must survive both sides of the read.
+	type observation struct {
+		log     string
+		failure error
+	}
+	observed, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     60 * time.Second,
 		Interval:    time.Second,
-		Description: "FRR decode of the End-of-RIB marker",
-	}, func(probeCtx context.Context) (string, error) {
-		return check.Lab.Query(probeCtx, peerFRR, []string{cmdCat, frrLogPath}, nil)
-	}, func(log string) bool {
-		return endOfRIBDecoded(log, zeAddress)
-	}); err != nil {
+		Description: "FRR current-session decode of the End-of-RIB marker",
+	}, func(probeCtx context.Context) (observation, error) {
+		if err := requireNoFamilyEORIdentity(probeCtx, check.Lab, zeAddress, identity); err != nil {
+			return observation{failure: err}, nil
+		}
+		log, err := check.Lab.Query(probeCtx, peerFRR, []string{cmdCat, frrLogPath}, nil)
+		if err != nil {
+			return observation{}, err
+		}
+		if err := requireNoFamilyEORIdentity(probeCtx, check.Lab, zeAddress, identity); err != nil {
+			return observation{log: log, failure: err}, nil
+		}
+		return observation{log: log}, nil
+	}, func(current observation) bool {
+		return current.failure != nil || endOfRIBDecoded(current.log, zeAddress)
+	})
+	if err != nil {
 		return fail(4, err)
 	}
+	if observed.failure != nil {
+		return fail(4, observed.failure)
+	}
 
-	// Assertion 5. The session is still established after the exchange, so the marker
-	// above was decoded on a live session rather than on one that was failing.
+	// Assertion 5. Keep the original Established check and prove that its
+	// daemon, log inode and original connection still match the receive read.
 	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(5, err)
+	}
+	if err := requireNoFamilyEORIdentity(ctx, check.Lab, zeAddress, identity); err != nil {
 		return fail(5, err)
 	}
 	return nil
@@ -1393,7 +1318,7 @@ func checkNoFamilyEndOfRIB(ctx context.Context, check *interoplab.CheckContext) 
 
 // RFC requirement: RFC3101-2.4-5 positive -- the NSSA border router
 // originates a default into every directly attached NSSA without a config gate.
-func checkNSSADefault(ctx context.Context, check *interoplab.CheckContext) error {
+func checkNSSADefault(ctx context.Context, check *interoplab.CheckContext) (resultErr error) {
 	const (
 		name         = "ospf-stub-nssa-frr"
 		defaultRoute = "0.0.0.0/0"
@@ -1408,6 +1333,11 @@ func checkNSSADefault(ctx context.Context, check *interoplab.CheckContext) error
 	if !check.Network.IPv4.IsValid() {
 		return fail(1, errors.New("NSSA default scenario has no selected IPv4 network"))
 	}
+	proof, err := adoptNSSAFirstEpochCapture(ctx, check)
+	if err != nil {
+		return fail(3, err)
+	}
+	defer func() { resultErr = proof.finish(ctx, resultErr) }()
 
 	// Assertion 1. The adjacency forms only when the two N-bit options agree, so
 	// reaching Full is itself the option-match assertion.
@@ -1433,9 +1363,9 @@ func checkNSSADefault(ctx context.Context, check *interoplab.CheckContext) error
 		return fail(2, err)
 	}
 
-	// Assertion 3. No Type 5 AS-external LSA is flooded into the NSSA. FRR prints the
-	// database heading whether or not the area holds one, so the heading is the
-	// positive proof that the query ran and an `LS age` entry is the leak.
+	// Assertion 3 retains FRR's receiver database observation as an ancillary check.
+	// FRR discards incoming Type5 in NSSA, so only the complete first-epoch wire
+	// proof joined above can establish that Ze did not flood Type5.
 	database, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", showExternalLSA}, nil)
 	if err != nil {
 		return fail(3, err)

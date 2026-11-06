@@ -707,12 +707,13 @@ func TestBespokeCheckerBranches(t *testing.T) {
 
 	t.Run("no-family-peer-eor-frr", func(t *testing.T) {
 		const peer = "172.30.0.2"
-		decoded := "2026/08/31 03:18:06 BGP: [T1234-56789] " + peer + " rcvd End-of-RIB for IPv4 Unicast from " + peer + "\n"
+		decoded := "2026/11/04 12:00:00 BGP: [START-00000] bgpd 10.7.1 starting: vty@2605\n" +
+			"2026/11/04 12:00:01 BGP: [EOR00-00000] bgp_update_receive_eor: rcvd End-of-RIB for IPv4 Unicast from " + peer + " in vrf default\n"
 		if !endOfRIBDecoded(decoded, peer) {
 			t.Fatal("FRR's own End-of-RIB decode was rejected")
 		}
-		if !endOfRIBDecoded("BGP: rcvd End-of-RIB for ipv4 unicast from "+peer+"\n", peer) {
-			t.Fatal("a lower-case address family spelling was rejected")
+		if endOfRIBDecoded(strings.Replace(decoded, "IPv4 Unicast", "ipv4 unicast", 1), peer) {
+			t.Fatal("a family spelling the pinned FRR decoder never emits was accepted")
 		}
 		if endOfRIBDecoded("BGP: "+peer+" sending End-of-RIB for IPv4 Unicast to "+peer+"\n", peer) {
 			t.Fatal("the send direction passed as FRR's receive decode")
@@ -1433,7 +1434,8 @@ func TestBespokeCheckerBranches(t *testing.T) {
 
 	t.Run("bgp-rfc7606-typed-nlri-discard", func(t *testing.T) {
 		report := func(lines ...string) string {
-			return strings.Join(lines, "\n") + "\n"
+			return strings.Join(append(lines, "note: ze-open: yes", "note: capture-complete: yes",
+				fmt.Sprintf("note: update-hex: %x", typedDiscardBoundaryBody(t))), "\n") + "\n"
 		}
 		const (
 			pass        = "result: PASS"
@@ -1781,7 +1783,7 @@ func recorderFor(current *operation) *recordingLab {
 	case opFRRRoute:
 		recorder.output = fmt.Sprintf(`{"prefix":%q,"paths":[{}]}`, current.argument)
 	case opFRRRouteAbsent:
-		recorder.output = `{}`
+		recorder.output = `{"vrfId":0,"vrfName":"default","tableVersion":0,"routerId":"172.30.0.3","routes":{}}`
 	case opBIRDRoute, opGoBGPRoute:
 		recorder.output = current.argument
 	case opBIRDRouteAbsent, opRequireAbsent, opWaitAbsent:

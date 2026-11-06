@@ -122,7 +122,7 @@ func TestExtendedRelayPreservesPayloads(t *testing.T) {
 	input := bytes.Join(frames, nil)
 	path := filepath.Join(t.TempDir(), "capture.jsonl")
 	var target bytes.Buffer
-	err := captureExtendedRelay(&target, bytes.NewReader(input), true, path)
+	err := captureExtendedRelay(&target, bytes.NewReader(input), relayCaptureOptions{advertise: true}, path)
 	if !errors.Is(err, io.EOF) {
 		t.Fatalf("end of bounded fixture stream: %v", err)
 	}
@@ -142,13 +142,13 @@ func TestExtendedRelayPreservesPayloads(t *testing.T) {
 	if capture.largeOctets != len(frames[2]) || capture.updatesLarge != 1 {
 		t.Fatal("capture did not retain the actual extended frame")
 	}
-	if err := captureExtendedRelay(&target, bytes.NewReader(input), true, path); err == nil {
+	if err := captureExtendedRelay(&target, bytes.NewReader(input), relayCaptureOptions{advertise: true}, path); err == nil {
 		t.Fatal("relay overwrote a previous session capture")
 	}
 	for name, writer := range map[string]io.Writer{"short": extendedShortWriter{}, "error": extendedErrorWriter{}} {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "capture.jsonl")
-			if err := captureExtendedRelay(writer, bytes.NewReader(input), true, path); err == nil {
+			if err := captureExtendedRelay(writer, bytes.NewReader(input), relayCaptureOptions{advertise: true}, path); err == nil {
 				t.Fatal("failed forwarding passed")
 			}
 			data, err := os.ReadFile(path)

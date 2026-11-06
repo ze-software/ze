@@ -15,6 +15,7 @@ option=tcp_connections:value=1
 # Bind all interfaces: the default is loopback only, which ze cannot dial from another container.
 option=bind:value=0.0.0.0
 option=timeout:value=180s
+option=linger:value=true
 
 # Wait for TWO KEEPALIVEs before announcing anything. The first arrives with the OPEN
 # handshake; the second is ze's periodic one, a third of the 90-second hold later. By then
@@ -33,10 +34,5 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005D020000004640010
 # End-of-RIB: this peer's initial routes are complete.
 action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Hold the session open while the internal/le/interoplab/bgp checker reads the speaker's verdict. A
-# peer whose script is
-# exhausted exits, and its session dropping would make ze-build withdraw the relayed route before
-# the speaker sees it. Two more KEEPALIVE waits keep it up for roughly 60s.
-# Checker.check silently accepts an unmatched KEEPALIVE or EOR (internal/test/peer/checker.go).
-expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-expect=bgp:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+# Linger keeps the same source session alive for the observer's full requested
+# capture. No fixed count of periodic KEEPALIVEs substitutes for that lifetime.

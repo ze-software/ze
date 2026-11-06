@@ -1,0 +1,53 @@
+Ze-Reviewed-Against: github.com/osrg/gobgp/v4 v4.11.0
+Upstream-PR: none opened yet
+Purpose: reconcile actual exports on configuration reload, including an advertised
+secondary destination removed while its old candidates become export-rejected.
+Source: https://github.com/osrg/gobgp/blob/v4.11.0/pkg/config/config.go
+Source: https://github.com/osrg/gobgp/blob/v4.11.0/pkg/server/server.go
+
+--- a/pkg/config/config.go
++++ b/pkg/config/config.go
+@@ -528,7 +528,7 @@
+ 	if updatePolicy {
+ 		if err := bgpServer.ResetPeer(ctx, &api.ResetPeerRequest{
+ 			Address:   "",
+-			Direction: api.ResetPeerRequest_DIRECTION_IN,
++			Direction: api.ResetPeerRequest_DIRECTION_BOTH,
+ 			Soft:      true,
+ 		}); err != nil {
+ 			bgpServer.Log().Error("failed to update policy config",
+--- a/pkg/server/server.go
++++ b/pkg/server/server.go
+@@ -1383,14 +1383,26 @@
+ 		if path != nil {
+ 			paths = append(paths, path)
+ 		} else if old != nil {
+ 			paths = append(paths, old.Clone(true))
+-		} else if len(dst.KnownPathList) > 0 {
+-			// softResetOut uses filtered paths to withdraw destinations that were
+-			// previously advertised but no longer have an advertisable path.
+-			// For secondary-route peers, return one withdrawal candidate when all
+-			// current paths for a destination are filtered.
+-			filtered = append(filtered, filteredPathForPeer(peer, dst.KnownPathList[0]))
++		} else {
++			// The current export policy can reject every old candidate while
++			// import policy removes the destination. Withdraw only a path this
++			// peer was actually sent; OUT cannot later enumerate a removed entry.
++			for _, previous := range dst.OldKnownPathList {
++				previous = filteredPathForPeer(peer, previous)
++				if peer.hasPathAlreadyBeenSent(previous) {
++					paths = append(paths, previous.Clone(true))
++					break
++				}
++			}
++			if len(dst.KnownPathList) > 0 {
++				// softResetOut uses filtered paths to withdraw destinations that were
++				// previously advertised but no longer have an advertisable path.
++				// For secondary-route peers, return one withdrawal candidate when all
++				// current paths for a destination are filtered.
++				filtered = append(filtered, filteredPathForPeer(peer, dst.KnownPathList[0]))
++			}
+ 		}
+ 	}
+ 	return paths, filtered
+ }

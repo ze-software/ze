@@ -134,7 +134,7 @@ func parsedEmptyMPUpdate(body []byte) (speakerUpdate, error) {
 	if withdrawn+4+attrs > len(body) {
 		return speakerUpdate{}, errors.New("truncated attribute field")
 	}
-	update := decodeSpeakerUpdate(body)
+	update := decodeSpeakerUpdateFields(body)
 	consumed := 0
 	for _, attr := range update.attributes {
 		header := 3

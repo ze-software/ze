@@ -107,7 +107,7 @@ and [packet sender](https://gitlab.nic.cz/labs/bird/-/blob/v3.4.0/proto/bgp/pack
 |--------|---------|-------|--------------|-------------------|
 | FRR | 10.7.1 | `quay.io/frrouting/frr:10.7.1`, pinned by digest (`interoplab.FRRImage`, one declaration for the BGP, IPsec and L2TP labs and the perf runner) | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
 | BIRD | 3.4.0 | Built from the upstream `v3.4.0` tag on Debian trixie (`test/interop/Dockerfile.bird`, which refuses a tag moved off the pinned commit). BIRD 3 line only (`ai/META-DECISIONS.md`); Alpine 3.24 packages 3.2.4, and 3.4.0 built on Alpine 3.24.3 dies with SIGILL in `rte_announce_to` on the first route it imports | birdc | eBGP, route exchange, triangle topologies |
-| GoBGP | 4.11.0 | Go builder (`golang:1.25-alpine`, `test/interop/Dockerfile.gobgp`) | gobgp CLI, and `gobgp-paths` (a gRPC ListPath reader) for the families the CLI cannot name; it prints each attribute through GoBGP's `String()`, and an Extended Communities attribute also through its `MarshalJSON`, because `String()` writes an IPv4-address-specific Route Target and Route Origin alike | eBGP, route injection and verification |
+| GoBGP | 4.11.0 with the export-reload source patch | Checksum-verified release and build-time source diff (`golang:1.25-alpine`, `test/interop/Dockerfile.gobgp`) | gobgp CLI, and `gobgp-paths` (a gRPC ListPath reader) for the families the CLI cannot name; it prints each attribute through GoBGP's `String()`, and an Extended Communities attribute also through its `MarshalJSON`, because `String()` writes an IPv4-address-specific Route Target and Route Origin alike | eBGP, route injection and verification |
 | StayRTR | 0.6.4, patched to write its queued Error Report before it closes | Go builder (`golang:1.27-alpine3.24`, runtime `alpine:3.24.3`, `test/interop/Dockerfile.stayrtr`) | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
 | pmacct `pmbmpd` | 1.8.0 | `pmacct/pmbmpd:v1.8.0` | JSON msglog file | BMP (RFC 7854, RFC 9069) as the COLLECTOR. pmacct decodes the per-peer header, the Peer Up Information TLVs and the Peer Down reason itself, so a scenario reads another implementation's reading of Ze's bytes rather than a string Ze emitted |
 | Unbound | 1.26.2 | Built from the upstream release on `alpine:3.24.3` (`test/interop/Dockerfile.unbound`; Alpine 3.24 packages 1.25.2) | `kdig` from the `dnsclient` container; the query log on stderr (`log-queries`) | Upstream recursive resolver of Ze's LAN DNS resolver (`dns-resolver-forward-unbound`): Ze's answer per query equals Unbound's own, a repeated query reaches Unbound once, and a truncated UDP reply is retried over TCP |
@@ -116,11 +116,120 @@ and [packet sender](https://gitlab.nic.cz/labs/bird/-/blob/v3.4.0/proto/bgp/pack
 | ExaBGP | API 6.0.0 contract fixtures | Compiled Go wire server | Wire byte comparison | Byte-for-byte encoding across all address families |
 <!-- source: internal/le/interoplab/bgp/prepare.go -- peer helpers and scenario preparation -->
 <!-- source: internal/le/interoplab/bgp/run.go -- scenario orchestrator -->
+<!-- source: test/interop/Dockerfile.gobgp -- pinned release, source patch and runtime artifact -->
 
 The conditional-MED collector check requires a single AS number in the received
 AS_PATH. It uses the shared AS-number parser, so decimal and dotted spellings
 identify the same source without accepting a multi-AS path.
 <!-- source: internal/le/interoplab/bgp/check_med_pmacct_epoch.go -- medWholeSetInputCriteria -->
+
+### GoBGP export-reload successor proof
+
+`bgp-export-reload-gobgp` and `bgp-export-reload-secondary-gobgp` are new
+successor scenarios, not recovery of the historical four-peer experiment.
+Their registered leaf checker uses GoBGP's actual SIGHUP configuration reload.
+Both exact scenario identities also register their native peer preparation
+with the shared preparation registry; the common dispatcher contains no
+scenario-specific feature calls or rendered-directory-name heuristics.
+The ordinary scenario uses the global RIB; the secondary scenario uses
+route-server clients, with secondary selection enabled only toward FRR and
+disabled toward the independent FRR sink. Ze and BIRD originate fixed routes.
+Neither source changes its routes after the baseline fence.
+Ordinary export-policy AS_PATH matching includes GoBGP's already-prepended
+AS65005 (`65005 65001` for the primary source); route-server matching sees the
+unprepended source path. Their fallback expectations must not be interchanged.
+
+The phase configurations exercise reject-to-accept, accept-to-reject,
+attribute-only unchanged-best changes, export-rejected best with an acceptable
+backup, import-driven replacement, last-candidate removal, simultaneous import
+removal and export rejection, repeated reload, and restoration. Exact FRR and
+sink route objects are the delivery oracle. GoBGP's computed Adj-RIB-Out is
+retained only as diagnostic policy state, never as delivery evidence.
+
+Repeat retains a byte-identical configuration and the native
+no-policy-difference reload path. Two separately armed, one-shot native
+`CLOSE_NOWRITE` watches observe the actual running configuration file, one per
+SIGHUP. Only the daemon reads that file while either watch is armed. The second
+read proves that GoBGP's serial signal loop returned from the first
+`UpdateConfig` and consumed the unchanged file again before restore overwrites
+it. The first reload has completed; the second read does not claim its own
+`UpdateConfig` completion or acknowledge a wire queue. Both receiver tables,
+source counters and original-session checks remain required.
+Native CLI capability collections are normalized once at their parser boundary
+as canonical JSON multisets, retaining duplicate multiplicity and exact values.
+GoBGP emits remote capabilities by iterating a map, so array order is not session
+identity. The original OPEN bytes remain independently retained in the packet
+capture; normalization does not replace that wire evidence.
+
+The GoBGP container starts a bounded native packet capture before starting
+the patched v4.11.0 daemon against a writable container-local config copy.
+Only these two topologies start GoBGP first and await its native CLI readiness
+before starting the active source peers. This retains the original handshakes
+without collecting avoidable connection-refused attempts during daemon startup.
+The observation runtime is Alpine 3.24.3 with GNU coreutils 9.11-r0, tcpdump
+and inotify-tools 4.23.9.0-r0. The shared native-capture lifecycle owns and reaps
+the packet capture; each one-shot file observer also requires joined completion.
+<!-- source: internal/le/interoplab/bgp/prepare_gobgp_reload.go -- prepareGoBGPReloadPeers -->
+<!-- source: test/interop/Dockerfile.gobgp -- native capture runtime -->
+
+The daemon and CLI build from the checksum-verified v4.11.0 release with
+[`gobgp-v4.11.0-export-reload.patch`](../../../test/interop/gobgp-v4.11.0-export-reload.patch)
+applied before compilation. Policy reload performs retained-input processing
+followed by export reconciliation. A second change withdraws a secondary
+destination that was actually sent when import removes its last candidate and
+the new export policy rejects every old candidate. Both changes use GoBGP's
+existing outgoing queue and sent-route bookkeeping.
+<!-- source: test/interop/Dockerfile.gobgp -- patched release build -->
+<!-- source: test/interop/gobgp-v4.11.0-export-reload.patch -- UpdateConfig and sendSecondaryRoutes -->
+
+The image retains the exact patch input that its builder applied. Before reading
+configuration files, the checker reads those bytes and their SHA256 from the
+running GoBGP peer. They must match this checkout's declared patch and the named
+runtime artifact. Missing, empty, different or inconsistent evidence refuses the
+proof; an upstream version string cannot replace the applied source identity.
+The observed bytes and digest remain in `proof.json` as `gobgp-patch` and
+`gobgp-patch-sha256`, beside the actual image and binary identities.
+<!-- source: internal/le/interoplab/bgp/check_gobgp_reload_patch.go -- gobgpReloadProof.identifyPatch -->
+<!-- source: internal/le/interoplab/bgp/check_gobgp_reload.go -- gobgpReloadProof.identify -->
+
+The checker retains original OPENs, the complete captured interval, exact
+source Adj-RIB-In attributes, receiver tables, daemon identities and counter
+fences. Unknown route documents, failed queries, missing capture completion,
+capture loss, a reconnect, or source UPDATE/ROUTE-REFRESH after the baseline
+cannot establish a reload proof. Never-sent routes must remain absent without
+spurious withdrawals. All phases remain proof debt until the native run
+actually reaches them; a first-phase failure proves no later phase.
+
+The scope is stable-session, non-ADD-PATH IPv4 unicast only. Original
+four-peer configurations, OPENs and captures remain missing; ADD-PATH IDs and
+send-max, VRFs, deferred families and preexisting orphan advertisements remain
+unverified. These successors neither replace that evidence nor discharge the
+fifteen historical live-checker obligations.
+<!-- source: internal/le/interoplab/bgp/register_gobgp_reload.go -- successor registration and phase contract -->
+<!-- source: internal/le/interoplab/bgp/check_gobgp_reload.go -- native reload and retained observations -->
+
+
+`bgp-local-pref-strip-gobgp` reuses the bounded single-session relay below in
+transparent mode: it changes neither OPEN nor UPDATE nor KEEPALIVE bytes.
+The existing GoBGP destination remains AS 65003 with external peer AS 65001;
+only its transport neighbor moves to the relay at `.10`. A RIB cannot prove
+LOCAL_PREF stripping: [GoBGP v4.11.0 `ProcessMessage`](https://github.com/osrg/gobgp/blob/v4.11.0/internal/pkg/table/table_manager.go#L38-L98)
+removes the attribute before storage for an external, non-route-server-client
+peer, including this fixture's peer.
+
+The wire proof covers a declared interval on that original connection, not its
+future traffic. Ze's direction must contain the original OPEN and KEEPALIVE,
+all three injected subjects (the third follows EOR), and the later, distinct
+`10.54.255.0/24` FIFO fence. Only after forwarding and recording that full fence
+can the reverse worker begin reading its subsequent KEEPALIVE barrier. Each
+closed capture ends with its actual source/target endpoints, exact frame count
+and declared boundary. Timeout, EOF, truncation or the 256-frame limit cannot
+produce a completion marker. The checker revalidates both intervals, exact
+speaker identities, AS 65004/injector next hop and every LOCAL_PREF code 5,
+while retaining all three arrivals and both surviving native sessions. The
+workers keep forwarding later bytes, which are explicitly outside the proof.
+<!-- source: internal/le/interoplab/bgp/check_local_pref_wire.go -- declared-interval sequence and strict oracle -->
+<!-- source: internal/le/interoplab/bgp/extended_relay.go -- transparent forwarding and attributed completion -->
 
 The Extended Message FRR scenarios use a bounded, single-session relay that
 changes capability 6 in OPEN only. It records Ze's original OPEN separately,
@@ -219,6 +328,30 @@ answered. An empty answer still satisfies no positive wait. A negative wait
 keeps the refusal, because there an empty answer would read as absence.
 <!-- source: internal/le/interoplab/lab.go -- EmptyAnswerError, Query -->
 <!-- source: internal/le/interoplab/bgp/check_engine.go -- queryAnswered, answered -->
+
+The shared FRR BGP route wait reads an exact-prefix `show bgp <family>
+<prefix> json` answer for presence: the top-level prefix must match and its
+`paths` must be a nonempty array of objects. Absence instead reads `show bgp
+<family> json` and requires FRR's default-VRF table envelope with a `routes`
+object. Only that table's missing exact-prefix key, or an empty array under
+that key, proves absence. A prefix query's `{}` cannot: FRR 10.7.1 also emits
+it when no BGP process exists. Errors, missing fields, unrelated JSON, and a
+different prefix's per-prefix answer are not measured absence.
+<!-- source: internal/le/interoplab/bgp/check_engine.go -- waitFRRRoute, jsonHasRoute -->
+
+Installed-route assertions use FRR's native zebra JSON for BGP and OSPF,
+including IPv6 link-local installation. One entry under the exact prefix key
+must carry the matching prefix and expected protocol, with `selected`,
+`destSelected`, and `installed` true. Its matching next-hop object must itself
+carry both `active` and `fib` true. A protocol, state, address substring, or
+next hop found in another entry cannot satisfy the proof. These fields come
+from FRR 10.7.1
+[`vty_show_ip_route`](https://github.com/FRRouting/frr/blob/f8c0b08dcb0c78f9e42b9b86ae70b049e4e617c1/zebra/zebra_vty.c#L550-L665)
+and
+[`nexthop_json_helper`](https://github.com/FRRouting/frr/blob/f8c0b08dcb0c78f9e42b9b86ae70b049e4e617c1/lib/nexthop.c#L1231-L1331).
+The pure boundary regressions supplement, not replace, live scenario proof;
+source identity alone does not establish the identity of a running image.
+<!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- requireRouteInstalledVia -->
 
 The FRR readiness producers are
 [`peer_unshut_after_cfg`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgpd.c),
@@ -409,13 +542,13 @@ via each daemon's native CLI.
 
 The native `internal/le/interoplab/bgp` package discovers scenario directories in
 `test/interop/scenarios/`. Before any scenario, the shared `interoplab.Suite`
-engine removes what a killed earlier run left behind ("Crash-safe teardown"
+engine reports what a killed earlier run left behind ("Crash-safe teardown"
 below), runs the lab's preflight (which stages ze), checks the Docker daemon's
 kernel with that ze ("The Docker host kernel check" below), and builds the
 images. For each scenario it then:
 
 1. Creates an isolated Docker network, after refusing an existing container or
-   network of the same name that it cannot prove abandoned.
+   network of the same name that this process did not create.
 2. Starts Ze and the peer daemons declared by the scenario's config files.
 3. Waits for every declared readiness probe.
 4. Runs the scenario's typed checker from the package-local BGP registry.
@@ -429,8 +562,8 @@ images. For each scenario it then:
    could not render) records nothing. So a name the pre-clean refused, one
    another run took first, or one never created is never removed. `Docker.CreateNetwork` refuses a
    network name that already exists rather than join it. A SIGKILL, a lost
-   machine or a panic runs no teardown; the next lab start, or
-   `./le test integration clean`, removes what it left.
+   machine or a panic runs no teardown. The next lab start reports the leftovers.
+   The explicit `./le test integration clean` command can remove them.
 <!-- source: internal/le/interoplab/lab.go -- Suite.Run, Lab.preClean, Lab.cleanup, createdResources -->
 <!-- source: internal/le/interoplab/docker.go -- Docker.CreateNetwork, ContainerMayExist, containerNameTaken -->
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
@@ -460,8 +593,9 @@ from one helper, `ownerIdentity.labelArguments`:
 
 | Label | Value |
 |-------|-------|
-| `ze.lab` | `1`, the marker. The cleanup lists only resources carrying it |
-| `ze.lab.run` | a random id for the run |
+| `ze.lab` | `1`, the marker required by every cleanup verdict |
+| `ze.lab.run` | a random id unique to the creating process |
+| `ze.lab.launch` | an optional inherited id from the parent that launched the creating process |
 | `ze.lab.pid` | the creating process's pid |
 | `ze.lab.pid-start` | that pid's start token, which changes when the pid is reused (`procscan`) |
 | `ze.lab.boot-id` | the client machine's boot id |
@@ -484,8 +618,29 @@ only, not created by a lab run.
 
 Every owner fact is read on the client, the machine running `le`, never from
 the daemon: on a Mac the daemon runs in a VM whose pids are not the Mac's.
+<!-- source: internal/le/interoplab/orphans.go -- processIdentity, readHostFacts -->
 
-`Docker.CleanupOrphans` removes a labeled resource only when its owner is
+Automatic startup only inspects leftovers and reports a dry cleanup preview.
+A same-name container or network is reclaimed only when every owner label equals
+this process's own labels. An exited foreign owner still causes a name refusal.
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Lab.preClean -->
+<!-- source: internal/le/interoplab/orphans.go -- ownerIdentity.created, Docker.claimName -->
+
+A parent that launches test children passes `Docker.ChildEnvironment` to each
+child and uses the same client for `Docker.CleanupOwnedOrphans` after they exit.
+The private bootstrap variable `ZE_LAB_LAUNCH` carries the parent's launch id.
+Descendants keep that id but generate their own `ze.lab.run` and process labels.
+The owned cleanup filters and rechecks `ze.lab.launch` before the ordinary owner
+checks below. It retains resources with no launch label or another launch id.
+<!-- source: internal/le/interoplab/run_identity.go -- Docker.ChildEnvironment, ownerIdentity.launchIdentity -->
+<!-- source: internal/le/interoplab/orphans.go -- processIdentity, Docker.CleanupOwnedOrphans, Docker.sweepOne -->
+
+This attributes cooperating children to their launcher. It does not protect
+against copied labels or isolate suites within one launch.
+<!-- source: internal/le/interoplab/run_identity.go -- Docker.ChildEnvironment, ownerIdentity.launchIdentity -->
+<!-- source: internal/le/interoplab/orphans.go -- processIdentity, Docker.CleanupOwnedOrphans, Docker.sweepOne -->
+
+The explicit `Docker.CleanupOrphans` removes a labeled resource only when its owner is
 provably gone. Every path to "gone" first requires the owner's machine id,
 operating system, uid and pid namespace to equal this client's: a client in
 another pid namespace (a devcontainer mounting the host's `docker.sock`) or
@@ -641,23 +796,22 @@ left a container: never for a name the daemon refused as another container's.
 <!-- source: internal/test/perfrunner/run.go -- Runner.measure, Runner.buildImages, Runner.startContainer, Runner.removeContainer -->
 <!-- source: internal/le/interoplab/container.go -- Docker.ContainerRunning -->
 
-`Suite.Run` runs the cleanup after the Docker probe and before Preflight. It
-prints each removal or skip as a progress line, then the summary line that
-`./le test integration clean` ends with: `interop: cleanup: N removed, N kept,
-N failed, N unknown`, or `interop: cleanup: no Ze lab resource on this Docker
-daemon` when the sweep met nothing. So a sweep that ran always says so. A listing the daemon refuses is
-a setup error that names the pre-run cleanup, why the run stops, and the fix:
-run the failing docker command by hand, then `./le test integration clean`
-or the run again. Before a scenario creates its network and containers, its
-pre-clean removes an existing resource of the same name when its labels are
-exactly the ones this run's own creates carry (an earlier scenario's shared
-network whose removal outlasted its bound, `ownerIdentity.created`) or on the
-same verdict, and otherwise fails the scenario naming the owner and the fix: set
-the lab's own suffix variable, which the message names from
-`Suite.SuffixVariable` (`ZE_L2TP_INTEROP_SUFFIX` for the L2TP lab), or the
-verdict's own fix: stop the owner pid it names, or run the cleanup. The
-scenario's teardown then removes nothing of that name: it removes only what
-the scenario itself created.
+`Suite.Run` inspects resources after the Docker probe and before Preflight.
+It prints each proposed removal or skip, then `interop: cleanup: N to remove,
+N kept, N failed, N unknown`. An empty inspection prints `interop: cleanup:
+no Ze lab resource on this Docker daemon`. A failed listing stops setup and
+names the failing Docker command to diagnose before another run.
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run -->
+<!-- source: internal/le/interoplab/orphans.go -- OrphanReport.Summary -->
+
+Before a scenario creates resources, its pre-clean reclaims a same-name resource
+only when all labels equal this process's labels (`ownerIdentity.created`).
+This includes an earlier scenario's shared network whose removal outlasted its
+bound. Every other owner causes a refusal, including an exited owner. The
+refusal names the lab's suffix variable, such as `ZE_L2TP_INTEROP_SUFFIX`, when
+available, or another action that avoids the conflicting name. The scenario's
+teardown removes only resources the scenario itself created.
+<!-- source: internal/le/interoplab/lab.go -- Suite.SuffixVariable, Lab.cleanup -->
 <!-- source: internal/le/interoplab/orphans.go -- Docker.claimName, OrphanReport.Summary -->
 
 `./le test integration clean` runs the cleanup by hand and exits 1 when a
@@ -834,12 +988,14 @@ both make the same check, through one shared preflight, with the demo binary
 (`tmp/terminal-demos/bin/ze`) after confirming that binary exists and before the
 renderer image is inspected or any container starts.
 
-`./le perf run` and `./le perf record evidence` run the ze DUT in a container,
-so a run that tests the ze DUT (every DUT, or `ze` named) first cross-compiles
-the ze the DUT image carries, `test/interop/ze-linux` (the path the BGP lab
-declares, through the BGP lab's own staging), then makes the same check with it
-before the benchmark starts. A build alone, or a run of other DUTs only, starts
-no ze, stages nothing and does not check.
+`./le perf run` and `./le perf record evidence` prepare the ze DUT's inputs
+through the BGP lab's own staging whenever the selected build or test includes
+Ze (every DUT, or `ze` named). That staging cross-compiles the same three
+binaries `test/interop/Dockerfile.ze` consumes: `ze-linux`, `le-linux` and
+`ze-le-linux`. A test then makes the same kernel check with the staged
+`test/interop/ze-linux` before the benchmark starts. A build-only invocation
+stages before image construction, but starts no Ze and does not probe the
+runtime kernel. Selecting only other DUTs neither stages Ze nor probes for it.
 
 Every route refuses a staged ze path that holds no file, or holds a directory,
 naming the path, before any docker command runs. Docker answers a bind mount of
@@ -1480,6 +1636,57 @@ log before container teardown. The original Full-adjacency failure remains
 the result; diagnostic query failures are retained alongside it.
 <!-- source: internal/le/interoplab/bgp/check_ospf_bgpls.go -- ospfBGPLSFailureDiagnostics -->
 
+The RFC 7606 mixed-UPDATE scenario first observes `198.51.100.0/24` in
+FRR's BGP table and installed routing table. Only then does the checker send
+the injector's explicit release route. The injector withdraws that seed and
+announces `203.0.113.0/24` in one UPDATE, followed by a same-session fence
+route. FRR must remove the seed and install the announcement and fence through
+the injector's next hop. A byte-transparent relay independently checks the
+split withdrawal and announcement through that fence, including exactly one
+NEXT_HOP. FRR 10.7.1 discards a later duplicate attribute in `bgp_attr_parse`,
+so FRR installation alone cannot prove that sender-side wire property.
+<!-- source: internal/le/interoplab/bgp/check_mixed_discard.go -- checkMixedUpdateWire, requireMixedSplitWire -->
+
+The typed-NLRI discard scenario requires the full requested speaker capture
+on a valid OPEN and Established session. Its independent wire assertion
+strictly decodes every reported UPDATE and requires exactly the injected
+type-2 MAC/IP Advertisement: RD `172.30.0.9:1`, zero ESI and Ethernet tag,
+MAC `00:11:22:33:44:55`, no IP address, and label 2. A different assigned
+type, altered retained route, withdrawal, malformed envelope, early EOF or
+missing OPEN cannot stand for successful discard of the unassigned type 99.
+<!-- source: internal/le/interoplab/bgp/check_typed_discard_wire.go -- requireTypedEVPNWire -->
+
+`no-family-peer-eor-frr` intentionally uses asymmetric OPENs: FRR advertises
+IPv4-unicast Multiprotocol capability, while Ze, configured with no `family`
+block, does not. The checker independently requires route arrival and that
+capability DTO, then matches FRR's complete native receive payload for Ze's
+exact address, IPv4 Unicast and VRF `default`. The default peer declaration is
+FRR 10.7.1 at commit
+[`f8c0b08dcb0c78f9e42b9b86ae70b049e4e617c1`](https://github.com/FRRouting/frr/tree/f8c0b08dcb0c78f9e42b9b86ae70b049e4e617c1):
+[`bgp_update_receive`](https://github.com/FRRouting/frr/blob/f8c0b08dcb0c78f9e42b9b86ae70b049e4e617c1/bgpd/bgp_packet.c#L2602-L2622)
+recognizes the empty non-MP UPDATE and
+[`bgp_update_receive_eor`](https://github.com/FRRouting/frr/blob/f8c0b08dcb0c78f9e42b9b86ae70b049e4e617c1/bgpd/bgp_packet.c#L2330-L2338)
+emits the message. A table entry is not an EOR substitute.
+
+The scenario's `bgpd_options` enables file logging before integrated
+configuration, so `frr_run`'s native startup precedes the initial receive
+window. Only a decode after the sole startup is eligible. The checker brackets
+the log read with bgpd PID and `/proc` start ticks, log device/inode, exact
+neighbor socket ports, Established state, one connection establishment and
+zero drops. Foreign peers, address substrings, other families/VRFs, send
+messages, pre-startup events and daemon/session/log replacement cannot certify
+this observation. The final Established check and identity comparison retain
+the original-session survival assertion.
+<!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkNoFamilyEndOfRIB -->
+<!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- endOfRIBDecoded, requireMultiprotocolAdvertisedOnly -->
+<!-- source: internal/le/interoplab/bgp/check_no_family_eor.go -- readNoFamilyEORIdentity, noFamilyFRRLogMessage -->
+<!-- source: test/interop/scenarios/no-family-peer-eor-frr/daemons -- early bgpd logging -->
+
+These are checker/source contracts, not a live result. Current native GREEN,
+the actual Ze EOR-source cut producing RED despite route arrival, and restored
+GREEN remain separately recorded runtime obligations. They do not recover or
+replace missing historical originals.
+
 A scenario that needs a test seam no shipped build carries holds a
 `ze-le-daemon` file. Its presence is the declaration: the ze container then
 starts `/usr/local/lib/ze-le/ze`, the daemon built with `ze_le`, under `tini`,
@@ -1786,6 +1993,17 @@ Scheduling delays cannot let the cache synchronize before the initial observatio
 <!-- source: internal/test/mock/rtr/rtr.go -- rtrMockWaitRelease -->
 <!-- source: internal/test/fixture/plugin_fixture_15_rpki.go -- plugin15RPKILateSync -->
 
+The same private-directory barrier controls the RR and RS
+`bgp-{rr,rs}-rpki-pending-withdraw-relay` and
+`bgp-{rr,rs}-rpki-revalidate-relay` functional carriers. Each has its own wire
+expectation: pending-withdraw cases permit only the revalidated fence route;
+revalidation cases require the route on the destination's second connection,
+after its End of RIB. The RR expectation includes reflection attributes and the
+RS expectation has its own AS path. A successful RTR transfer alone proves none
+of these downstream outcomes. Each carrier needs its own live run and a
+discriminating route-behavior break, separately from the shared cwd break.
+<!-- source: internal/test/fixture/plugin_fixture_15_rpki.go -- plugin15RPKIPendingWithdrawRelay, plugin15RPKIRevalidateRelay -->
+
 ### Prove a scenario discriminates
 
 An interop scenario is evidence only if it goes RED when the behaviour it tests is
@@ -1808,6 +2026,21 @@ local build, before a peer starts. The default progress stream keeps that ID
 beside the scenario verdict in native job logs. Pulled images and `NO_BUILD=1`
 do not print this build identity.
 <!-- source: internal/le/interoplab/lab.go -- prepareImages -->
+
+The GoBGP export-reload successor also records the actual image ID of each
+registered live peer container before reading versions or configuration. Its
+`proof.json` carries `image-<peer>` identities, including pulled peers whose
+suite build result still names a tag. `Lab.PeerImage` inspects that container's
+consumed image and refuses missing or malformed IDs; it never substitutes the
+current shared tag. This records the current run's provenance and does not
+recover an earlier run's missing image identity.
+The same identification step requires the applied patch bytes inside that image
+to equal this checkout's patch, and validates its named SHA256 before reading
+configuration files. Neither an old image nor a version string supplies the
+patched producer's identity.
+<!-- source: internal/le/interoplab/peer_image.go -- Lab.PeerImage -->
+<!-- source: internal/le/interoplab/bgp/check_gobgp_reload_patch.go -- gobgpReloadProof.identifyPatch -->
+<!-- source: internal/le/interoplab/bgp/check_gobgp_reload.go -- gobgpReloadProof.identify -->
 
 A scenario that passes either way (common when the peer must accept both the old
 and the new wire form) proves acceptance, not correctness. Say which one it
@@ -3015,7 +3248,8 @@ or a reversal within one connection refuse the timing proof, not the peer's
 protocol behavior.
 <!-- source: test/interop/scenarios/bgp-delayopen-frr/ -- native peer configuration -->
 <!-- source: internal/le/interoplab/bgp/check_delayopen.go -- checkDelayOpenFRR, startDelayOpenCapture, stopDelayOpenCapture -->
-<!-- source: internal/le/interoplab/bgp/check_delayopen_wire.go -- delayOpenHistory, judgeDelayOpen, delayOpenCaptureComplete -->
+<!-- source: internal/le/interoplab/bgp/check_delayopen_wire.go -- delayOpenHistory, judgeDelayOpen -->
+<!-- source: internal/le/interoplab/bgp/check_packet_capture.go -- packetCaptureComplete -->
 
 ### Scenario Inventory
 
@@ -3101,6 +3335,31 @@ extended form, and requires FRR to reach Established and report a prefix of that
 IS-IS (auth, convergence, dual-stack, LAN DIS,
 P2P, redistribution) and OSPFv2/OSPFv3 (auth, BFD, TE, LFA/TI-LFA, graceful restart,
 segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop families.
+
+`ospf-stub-nssa-frr` observes Ze's **first** NSSA exchange, not a replacement
+adjacency. Its startup wrapper waits for tcpdump's activated `eth0` packet
+socket before executing Ze, so even a startup-only Type 5 flood is in scope.
+The original configuration still omits `default-originate`. Native FRR must
+reach Full and hold the exact selected, installed OSPF default through Ze.
+The complete Ethernet capture must independently contain both peers' NSSA
+Hellos and initial database descriptions, Ze's matching border-router LSA,
+and its non-MaxAge Type 7 default. Every outbound update is checked for Type 5;
+FRR's empty external database alone cannot prove no flood, because FRR
+discards incoming Type 5 LSAs in an NSSA.
+
+The observation window is intentionally bounded at 120 seconds. The lab image
+explicitly installs GNU coreutils 9.11-r0; its fixed `/usr/bin/timeout` owns
+and joins tcpdump after SIGINT. Only the normal timeout completion, complete
+packet counts, zero kernel drops, valid checksums and matching capture
+timestamps, interface, MACs, addresses, router IDs and area support absence.
+Truncation, forced termination and missing positive traffic refuse proof.
+Retained packet/configuration/binary hashes and native FRR answers attribute
+this current session; they do not replace missing historical originals or
+establish kernel, VM or conformance results.
+<!-- source: internal/le/interoplab/bgp/prepare_nssa_capture.go -- prepareNSSAPeers -->
+<!-- source: internal/le/interoplab/bgp/prepare_registry.go -- registerPeerPreparation, prepareRegisteredPeers -->
+<!-- source: internal/le/interoplab/bgp/check_nssa_wire.go -- adoptNSSAFirstEpochCapture, observeNSSAFirstEpoch -->
+<!-- source: internal/le/interoplab/bgp/check_packet_capture.go -- packetCapture -->
 
 `ospf-virtual-link-frr` and `ospfv3-vlink-frr` put a transit FRR between Ze and
 the far virtual-link endpoint. VLAN 100 connects Ze `eth1` to transit `eth1`;

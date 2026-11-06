@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"maps"
 	"net/netip"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -503,11 +502,11 @@ func waitFRRRoute(ctx context.Context, lab interoplab.CheckerLab, prefix, family
 		timeout = 30 * time.Second
 	}
 	var text textbuf.Buffer
-	command := []string{
-		cmdVtysh,
-		"-c",
-		text.Str("show bgp ").Str(family).Byte(' ').Str(prefix).Str(" json").String(),
+	query := text.Str("show bgp ").Str(family)
+	if present {
+		query.Byte(' ').Str(prefix)
 	}
+	command := []string{cmdVtysh, "-c", query.Str(" json").String()}
 	description := text.Reset().Str("FRR route ").Str(prefix).String()
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
@@ -516,38 +515,62 @@ func waitFRRRoute(ctx context.Context, lab interoplab.CheckerLab, prefix, family
 	}, func(probeCtx context.Context) (string, error) {
 		return lab.Query(probeCtx, peerFRR, command, nil)
 	}, func(output string) bool {
-		hasRoute, measured := jsonHasRoute(output)
+		hasRoute, measured := jsonHasRoute(output, prefix)
 		return measured && hasRoute == present
 	})
 	return err
 }
 
-func jsonHasRoute(output string) (bool, bool) {
-	var value any
-	if err := json.Unmarshal([]byte(output), &value); err != nil {
+// jsonHasRoute recognizes FRR 10.7.1's exact-prefix answer or default-VRF
+// table. A prefix query's {} also means "no BGP process", so only a measured
+// table can establish absence (bgp_route.c:bgp_show_route, bgp_show_table).
+func jsonHasRoute(output, prefix string) (bool, bool) {
+	want, err := netip.ParsePrefix(prefix)
+	if err != nil {
 		return false, false
 	}
-	return nestedRoute(value), true
-}
-
-func nestedRoute(value any) bool {
-	switch typed := value.(type) {
-	case map[string]any:
-		if _, ok := typed["paths"]; ok {
-			return true
+	var document struct {
+		Prefix       string                 `json:"prefix"`
+		Paths        []*struct{}            `json:"paths"`
+		Routes       map[string][]*struct{} `json:"routes"`
+		VRFID        *uint32                `json:"vrfId"`
+		VRFName      string                 `json:"vrfName"`
+		TableVersion *uint64                `json:"tableVersion"`
+		RouterID     string                 `json:"routerId"`
+		Error        json.RawMessage        `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(output), &document); err != nil || document.Error != nil {
+		return false, false
+	}
+	if document.Routes == nil {
+		got, err := netip.ParsePrefix(document.Prefix)
+		if err != nil || got != want || len(document.Paths) == 0 {
+			return false, false
 		}
-		if _, ok := typed["prefix"]; ok {
-			return true
-		}
-		for _, child := range typed {
-			if nestedRoute(child) {
-				return true
+		for _, path := range document.Paths {
+			if path == nil {
+				return false, false
 			}
 		}
-	case []any:
-		return slices.ContainsFunc(typed, nestedRoute)
+		return true, true
 	}
-	return false
+	routerID, err := netip.ParseAddr(document.RouterID)
+	if document.VRFID == nil || *document.VRFID != 0 || document.VRFName != "default" ||
+		document.TableVersion == nil || err != nil || !routerID.Is4() {
+		return false, false
+	}
+	for route, paths := range document.Routes {
+		got, err := netip.ParsePrefix(route)
+		if err != nil || got.Addr().Is4() != want.Addr().Is4() || paths == nil {
+			return false, false
+		}
+		for _, path := range paths {
+			if path == nil {
+				return false, false
+			}
+		}
+	}
+	return len(document.Routes[prefix]) > 0, true
 }
 
 // requireJSONFields is the one-shot JSON assertion; its failure carries the answer

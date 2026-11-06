@@ -26,8 +26,15 @@ const extendedCaptureBase = "/tmp/extended"
 // Original is always the sender's frame. Delivered exists only for an OPEN; every
 // other message is forwarded byte-for-byte. No frame is recorded before its write.
 type extendedRelayFrame struct {
-	Original  string `json:"original"`
-	Delivered string `json:"delivered,omitempty"`
+	Original  string                `json:"original"`
+	Delivered string                `json:"delivered,omitempty"`
+	Complete  *relayCaptureBoundary `json:"complete,omitempty"`
+}
+
+type relayCaptureOptions struct {
+	advertise   bool
+	transparent bool
+	interval    *relayCaptureInterval
 }
 
 type extendedRelayPeer struct {
@@ -134,11 +141,19 @@ func runExtendedRelaySession(ctx context.Context, options speakerOptions) (resul
 		return err
 	}
 	results := make(chan error, 2)
+	toNative := relayCaptureOptions{advertise: true, transparent: options.relayTransparent}
+	toZe := relayCaptureOptions{advertise: options.relayExtended, transparent: options.relayTransparent}
+	if options.test == localPrefCapturePersonality {
+		if !options.relayTransparent {
+			return errors.New("LOCAL_PREF capture requires transparent relay")
+		}
+		toNative.interval, toZe.interval = localPrefRelayIntervals(ze.RemoteAddr().String(), frr.RemoteAddr().String())
+	}
 	// RFC 8654 Sections 3 and 4. FRR sees capability 6 regardless of Ze's
 	// original OPEN. This does NOT change the OPEN Ze generated or its state.
-	go forwardExtendedRelay(frr, ze, true, options.result+"-ze.jsonl", results)
+	go forwardExtendedRelay(frr, ze, toNative, options.result+"-ze.jsonl", results)
 	// RFC 8654 Sections 3 and 4. Ze sees the scenario's remote advertisement.
-	go forwardExtendedRelay(ze, frr, options.relayExtended, options.result+"-frr.jsonl", results)
+	go forwardExtendedRelay(ze, frr, toZe, options.result+"-frr.jsonl", results)
 	first := <-results
 	// Expiring both sockets stops the other worker without double-closing them.
 	stopErr := errors.Join(frr.SetDeadline(time.Now()), ze.SetDeadline(time.Now()))
@@ -168,24 +183,30 @@ func dialExtendedRelay(ctx context.Context, address string) (net.Conn, error) {
 // socket deadline bound disk use, loops and all blocking I/O.
 // RFC 8654 Section 2: "BGP Extended Messages have a maximum message size of
 // 65,535 octets".
-func forwardExtendedRelay(target, source net.Conn, advertise bool, path string, results chan<- error) {
+func forwardExtendedRelay(target, source net.Conn, policy relayCaptureOptions, path string, results chan<- error) {
 	// RFC 8654 Sections 2-4: capture complete messages and change only OPEN code6.
-	results <- captureExtendedRelay(target, source, advertise, path)
+	results <- captureExtendedRelay(target, source, policy, path)
 }
 
 // captureExtendedRelay retains complete original frames after their writes.
 // RFC 8654 Section 4: "The BGP Extended Message Capability applies to all messages
 // except for OPEN and KEEPALIVE messages.".
-func captureExtendedRelay(target io.Writer, source io.Reader, advertise bool, path string) (resultErr error) {
+func captureExtendedRelay(target io.Writer, source io.Reader, policy relayCaptureOptions, path string) (resultErr error) {
 	capture, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // Path comes from the trusted fixture CLI --result, never from BGP bytes; exclusive creation prevents overwrite.
 	if err != nil {
 		return err
 	}
-	defer func() { resultErr = errors.Join(resultErr, capture.Close()) }()
+	captureOpen := true
+	defer func() {
+		if captureOpen {
+			resultErr = errors.Join(resultErr, capture.Close())
+		}
+	}()
 	encoder := json.NewEncoder(capture)
 	var frame [65535]byte
 	var rewritten [4096]byte
-	for range 256 {
+	for index := range 256 {
+		afterFence := policy.interval != nil && policy.interval.BeforeRead != nil && policy.interval.BeforeRead()
 		// RFC 8654 Section 2: retain complete frames, including >4096 UPDATEs.
 		octets, err := readExtendedFrame(source, frame[:])
 		if err != nil {
@@ -193,10 +214,13 @@ func captureExtendedRelay(target io.Writer, source io.Reader, advertise bool, pa
 		}
 		original := frame[:octets]
 		delivered := original
-		row := extendedRelayFrame{Original: textbuf.StringHexUpper(original)}
-		if original[18] == bgpOpen {
+		row := extendedRelayFrame{}
+		if captureOpen {
+			row.Original = textbuf.StringHexUpper(original)
+		}
+		if original[18] == bgpOpen && !policy.transparent {
 			// RFC 8654 Section 3: the only wire transformation in this relay.
-			octets, _, err = rewriteExtendedOpen(rewritten[:], original, advertise)
+			octets, _, err = rewriteExtendedOpen(rewritten[:], original, policy.advertise)
 			if err != nil {
 				return err
 			}
@@ -210,7 +234,32 @@ func captureExtendedRelay(target io.Writer, source io.Reader, advertise bool, pa
 		if written != len(delivered) {
 			return io.ErrShortWrite
 		}
+		if !captureOpen {
+			continue
+		}
 		if err := encoder.Encode(row); err != nil {
+			return err
+		}
+		if policy.interval == nil {
+			continue
+		}
+		sealed, err := policy.interval.Observe(original, afterFence)
+		if err != nil {
+			return err
+		}
+		if !sealed {
+			continue
+		}
+		if index == 255 {
+			return errors.New("relay capture reached 256-frame limit before completion")
+		}
+		boundary := policy.interval.Boundary
+		boundary.Frames = index + 1
+		if err := encoder.Encode(extendedRelayFrame{Complete: &boundary}); err != nil {
+			return err
+		}
+		captureOpen = false
+		if err := capture.Close(); err != nil {
 			return err
 		}
 	}
@@ -230,19 +279,14 @@ func readExtendedFrame(source io.Reader, frame []byte) (int, error) {
 	if _, err := io.ReadFull(source, frame[:bgpHeaderLength]); err != nil {
 		return 0, err
 	}
-	for _, octet := range frame[:16] {
-		if octet != 0xff {
-			return 0, errors.New("relay received invalid BGP marker")
-		}
-	}
-	octets := int(binary.BigEndian.Uint16(frame[16:18]))
-	if octets < bgpHeaderLength {
-		return 0, errors.New("relay received short BGP length")
+	octets, err := validateSpeakerHeader(frame[:bgpHeaderLength])
+	if err != nil {
+		return 0, err
 	}
 	if octets > len(frame) {
 		return 0, io.ErrShortBuffer
 	}
-	_, err := io.ReadFull(source, frame[bgpHeaderLength:octets])
+	_, err = io.ReadFull(source, frame[bgpHeaderLength:octets])
 	return octets, err
 }
 

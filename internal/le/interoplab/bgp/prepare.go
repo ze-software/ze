@@ -278,6 +278,10 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 	if err != nil {
 		return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, err
 	}
+	peers, err = prepareRegisteredPeers(peers, rendered, prepare.Source.Name)
+	if err != nil {
+		return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, err
+	}
 	links, linksErr := renderLinks(prepare.Source.Name, scenarioLinks[prepare.Source.Name], peers)
 	if linksErr != nil {
 		return interoplab.PreparedScenario{Cleanup: cleanup}, linksErr

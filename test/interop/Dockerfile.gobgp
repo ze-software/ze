@@ -1,10 +1,22 @@
 # GoBGP daemon for interoperability testing.
-# Uses the official GoBGP binary from the golang image.
+# Builds the checksum-verified v4.11.0 release with Ze's export-reload patch.
 
 FROM golang:1.25-alpine AS builder
 
-RUN go install github.com/osrg/gobgp/v4/cmd/gobgpd@v4.11.0 && \
-    go install github.com/osrg/gobgp/v4/cmd/gobgp@v4.11.0
+# Keep the applied input for runtime provenance. Both binaries below MUST build
+# from the patched source; a versioned go install would bypass this patch.
+COPY gobgp-v4.11.0-export-reload.patch /gobgp-v4.11.0-export-reload.patch
+RUN set -eu; \
+    apk add --no-cache patch; \
+    go mod download -json github.com/osrg/gobgp/v4@v4.11.0 > /gobgp-module.json; \
+    module=$(sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$/\1/p' /gobgp-module.json); \
+    test -n "$module"; \
+    cp -R "$module" /gobgp-source; \
+    chmod -R u+w /gobgp-source; \
+    cd /gobgp-source; \
+    patch --batch --forward --fuzz=0 -p1 < /gobgp-v4.11.0-export-reload.patch; \
+    CGO_ENABLED=0 go build -o /go/bin/gobgpd ./cmd/gobgpd; \
+    CGO_ENABLED=0 go build -o /go/bin/gobgp ./cmd/gobgp
 
 # gobgp-paths prints the global RIB of one numeric AFI/SAFI, one path per
 # line: the NLRI then every path attribute, each through GoBGP's own String().
@@ -133,13 +145,15 @@ RUN go mod init gobgp-paths && \
     go mod tidy && \
     CGO_ENABLED=0 go build -o /go/bin/gobgp-paths .
 
-FROM alpine:3.21
+FROM alpine:3.24.3
 
-RUN apk add --no-cache tini
+# Native successor capture observes the patched daemon, without a relay.
+RUN apk add --no-cache tini tcpdump coreutils=9.11-r0 inotify-tools=4.23.9.0-r0
 
 COPY --from=builder /go/bin/gobgpd /usr/local/bin/gobgpd
 COPY --from=builder /go/bin/gobgp /usr/local/bin/gobgp
 COPY --from=builder /go/bin/gobgp-paths /usr/local/bin/gobgp-paths
+COPY --from=builder /gobgp-v4.11.0-export-reload.patch /usr/local/share/ze/gobgp-v4.11.0-export-reload.patch
 
 ENTRYPOINT ["tini", "--", "gobgpd"]
 CMD ["-f", "/etc/gobgp/gobgp.toml"]

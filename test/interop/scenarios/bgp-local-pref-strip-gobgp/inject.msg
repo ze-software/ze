@@ -10,9 +10,10 @@
 # an internal peer relays routes it learned elsewhere, and both destinations are
 # EXTERNAL peers of Ze, so an empty path would be an odd thing to hand them.
 #
-# LOCAL_PREF is 200 rather than 100. GoBGP's own default local preference is
-# 100, so a check for the value 100 could not tell a leaked attribute from a
-# default; 200 can only have come off the wire.
+# LOCAL_PREF is 200 rather than 100 so its value identifies the injected input.
+# Neither destination RIB proves stripping: GoBGP v4.11.0 removes an external
+# peer's LOCAL_PREF before storage. The destination-connection wire capture
+# must therefore inspect attribute code 5 itself, regardless of its value.
 #
 # The NEXT_HOP is written as hex (AC1E0009), so it does NOT follow the runner's
 # rendered subnet prefix the way a dotted address in a text file does. This
@@ -61,6 +62,12 @@ action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # announce sits in the initial burst would not say so.
 expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A3602
+
+# The distinct non-subject FIFO fence follows the third, post-EOR subject in
+# a separate full UPDATE. The transparent destination relay seals only after
+# forwarding all three subjects and this fence on the original connection.
+# This defines the captured interval; later connection traffic is not claimed.
+action=send:conn=1:seq=9:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A36FF
 
 # Hold the session open while the internal/le/interoplab/bgp checker polls both daemons. A peer
 # whose script

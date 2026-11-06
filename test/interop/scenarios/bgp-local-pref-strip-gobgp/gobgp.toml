@@ -5,7 +5,7 @@
 
 [[neighbors]]
   [neighbors.config]
-    neighbor-address = "172.30.0.2"
+    neighbor-address = "172.30.0.10"
     peer-as = 65001
   [[neighbors.afi-safis]]
     [neighbors.afi-safis.config]

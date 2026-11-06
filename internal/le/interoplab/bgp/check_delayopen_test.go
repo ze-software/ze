@@ -72,7 +72,7 @@ func TestDelayOpenCaptureCompletion(t *testing.T) {
 		{"listening on eth0\n", false},
 		{"0 packets captured\n0 packets dropped by kernel\n", false},
 	} {
-		if _, err := delayOpenCaptureComplete(test.log); (err == nil) != test.valid {
+		if _, err := packetCaptureComplete(test.log, delayOpenPacketLimit); (err == nil) != test.valid {
 			t.Errorf("log %q: %v", test.log, err)
 		}
 	}
