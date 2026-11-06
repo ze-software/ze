@@ -15,10 +15,12 @@ import (
 
 // Command words and fields several le fixtures share.
 const (
-	areaSpec    = "spec"
-	fieldDryRun = "dry-run"
-	flagJSON    = "--json"
-	programZeLe = "ze le"
+	areaSpec     = "spec"
+	fieldDryRun  = "dry-run"
+	flagJSON     = "--json"
+	mockRadius   = "radius" // The le mock server selector.
+	programZeLe  = "ze le"
+	sourceRadius = "radius" // The authentication source recorded after a RADIUS login.
 )
 
 // Environment variables and build tags.
@@ -89,6 +91,7 @@ const (
 	prefixTenNinetyNine        = "10.99.0.0/24"
 	prefixTenOne               = "10.1.0.0/24"
 	prefixTenTwenty            = "10.20.0.0/24"
+	prefixTenZero              = "10.0.0.0/24"
 )
 
 // Plugin dispatch statuses, event kinds and payload field keys.
@@ -141,6 +144,7 @@ const (
 	fieldPeersConfigured    = "peers-configured"
 	fieldPeersEstablished   = "peers-established"
 	fieldReady              = "ready"
+	fieldRecord             = "record" // The rejected answer's record number.
 	fieldRerun              = "rerun"
 	fieldResult             = "result" // The field in a dispatch answer.
 	fieldRouterID           = "router-id"
@@ -151,6 +155,7 @@ const (
 	fieldTimeout            = "timeout"
 	fieldTop                = "top" // The field in a payload.
 	fieldTotals             = "totals"
+	fieldTree               = "tree" // The checkout path in an evidence report.
 	fieldTunnelID           = "tunnel-id"
 	fieldType               = "type"    // The field in a payload.
 	fieldUpdated            = "updated" // The field in a payload.
@@ -280,6 +285,7 @@ const (
 	actionCreate                  = "create"
 	actionL2TPTest                = "l2tp"
 	actionPayloadReport           = "report payload"
+	actionRecord                  = "record" // The le action that records evidence.
 	actionReject                  = "reject"
 	actionReleaseCandidate        = "release-candidate"
 	actionReport                  = "report"
@@ -314,6 +320,7 @@ const (
 	checkPluginBoundary           = "plugin boundary"
 	checkPortDefaults             = "config ports"
 	checkRepoCompiles             = "repo compiles"
+	checkRepositoryTree           = "tree" // The repo check subject.
 	checkStaticcheckFeatureMatrix = "go staticcheck"
 	checkTestSensitivity          = "test sensitivity"
 	checkYANGLeafMentions         = "config unread-leaves"

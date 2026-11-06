@@ -19,6 +19,11 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+const (
+	sflowProofLinkFirst  = "sfproof0"
+	sflowProofLinkSecond = "sfproof1"
+)
+
 func init() {
 	Register("flow-export/sflow-agent-address-daemon", sflowAgentAddressDaemon)
 	Register("flow-export/sflow-agent-address-receiver", sflowAgentAddressReceiver)
@@ -28,7 +33,7 @@ func init() {
 // the exporter. A dummy pair would incorrectly exercise the loopback branch.
 // The two .ci callers MUST hold the sflow-agent-address-topology exclusive group.
 func sflowAgentAddressDaemon(ctx context.Context, _ []string) (result error) {
-	link := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: "sfproof0"}, PeerName: "sfproof1"}
+	link := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: sflowProofLinkFirst}, PeerName: sflowProofLinkSecond}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("create owned sFlow proof veth pair: %w", err)
 	}
@@ -39,8 +44,8 @@ func sflowAgentAddressDaemon(ctx context.Context, _ []string) (result error) {
 		name   string
 		prefix string
 	}{
-		{"sfproof0", "192.0.2.41/32"},
-		{"sfproof1", "198.51.100.41/32"},
+		{sflowProofLinkFirst, "192.0.2.41/32"},
+		{sflowProofLinkSecond, "198.51.100.41/32"},
 	} {
 		device, err := netlink.LinkByName(endpoint.name)
 		if err != nil {
@@ -86,8 +91,8 @@ func sflowAgentAddressReceiver(ctx context.Context, args []string) error {
 		name    string
 		address netip.Addr
 	}{
-		{"sfproof0", netip.MustParseAddr("192.0.2.41")},
-		{"sfproof1", netip.MustParseAddr("198.51.100.41")},
+		{sflowProofLinkFirst, netip.MustParseAddr("192.0.2.41")},
+		{sflowProofLinkSecond, netip.MustParseAddr("198.51.100.41")},
 	} {
 		link, err := netlink.LinkByName(endpoint.name)
 		if err != nil {
@@ -114,7 +119,7 @@ func sflowAgentAddressReceiver(ctx context.Context, args []string) error {
 			return fmt.Errorf("proof interface %s does not hold %s", endpoint.name, endpoint.address)
 		}
 	}
-	link, err := netlink.LinkByName("sfproof0")
+	link, err := netlink.LinkByName(sflowProofLinkFirst)
 	if err != nil {
 		return err
 	}

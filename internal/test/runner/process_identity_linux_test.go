@@ -24,8 +24,16 @@ func TestOwnedCleanupPinsIdentityThroughSignal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer input.Close()
-	defer release.Close()
+	defer func() {
+		if err := input.Close(); err != nil {
+			t.Errorf("close child input: %v", err)
+		}
+	}()
+	defer func() {
+		if err := release.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			t.Errorf("close child release: %v", err)
+		}
+	}()
 	cmd := exec.CommandContext(t.Context(), "sh", "-c", "read line; exit 0")
 	cmd.Stdin = input
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -112,8 +120,17 @@ func TestOwnedNormalExitCleansDescendantsBeforeReap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer descendant.Release()
-	defer descendant.Kill() // pidfd-backed on Linux; never kill a recycled number.
+	defer func() {
+		if err := descendant.Release(); err != nil {
+			t.Errorf("release descendant handle: %v", err)
+		}
+	}()
+	defer func() {
+		// The pidfd cannot target a recycled PID; normal teardown may have killed it already.
+		if err := descendant.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			t.Errorf("kill descendant: %v", err)
+		}
+	}()
 	go p.reap()
 	defer p.cleanup()
 	select {

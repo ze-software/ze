@@ -65,7 +65,7 @@ func waitOpenBSDExit(fd, pid int,
 	if event.Flags&unix.EV_ERROR != 0 {
 		return unix.Errno(event.Data)
 	}
-	if uint64(event.Ident) != uint64(pid) {
+	if event.Ident != uint64(pid) {
 		return fmt.Errorf("exit observation returned child %d", event.Ident)
 	}
 	if event.Fflags&unix.NOTE_EXIT == 0 {

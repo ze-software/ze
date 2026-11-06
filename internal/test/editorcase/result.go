@@ -115,8 +115,8 @@ func completeObject(raw []byte, shape reflect.Type, noNull bool) error {
 		return errors.New("editor result must be one object")
 	}
 	allowed := make(map[string]struct{}, shape.NumField())
-	for i := range shape.NumField() {
-		allowed[shape.Field(i).Tag.Get("json")] = struct{}{}
+	for field := range shape.Fields() {
+		allowed[field.Tag.Get("json")] = struct{}{}
 	}
 	seen := make(map[string]struct{}, shape.NumField())
 	for decoder.More() {

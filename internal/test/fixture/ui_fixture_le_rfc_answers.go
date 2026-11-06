@@ -249,10 +249,10 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	// read from that area's page and keyed by their whole words.
 	listed := map[string]string{}
 	var listings strings.Builder
-	for _, page := range []string{"rfc", "rfc extraction"} {
+	for _, page := range []string{areaRFC, "rfc extraction"} {
 		listing := runLE(root, strings.Fields(page)...)
 		listings.WriteString(listing.stdout)
-		prefix := strings.TrimPrefix(strings.TrimPrefix(page, "rfc"), " ")
+		prefix := strings.TrimPrefix(strings.TrimPrefix(page, areaRFC), " ")
 		if prefix != "" {
 			prefix += " "
 		}
@@ -293,7 +293,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		"extraction report":   fieldChecks,
 		"tagged-scope":        fieldChecks,
 		"discriminate":        fieldChecks,
-		"record":              wordWrites,
+		actionRecord:          wordWrites,
 		actionCheck:           fieldChecks,
 		actionSelftest:        fieldChecks,
 		"approve":             wordWrites,
@@ -308,7 +308,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 			action, listed[action], effect, listings.String())
 	}
 	for _, action := range []string{"extraction report", actionCheck, actionSelftest, actionUpdate} {
-		refused := runLE(root, append(append([]string{"rfc"}, strings.Fields(action)...), "rfc7606")...)
+		refused := runLE(root, append(append([]string{areaRFC}, strings.Fields(action)...), "rfc7606")...)
 		leRFCAnswersRequire(refused.code == 2,
 			"rfc %s accepted a stem argument or exited %d\nstdout:\n%s\nstderr:\n%s",
 			action, refused.code, refused.stdout, refused.stderr)

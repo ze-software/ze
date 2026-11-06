@@ -127,7 +127,7 @@ func TestOwnedProcessCachesExit(t *testing.T) {
 		}
 	}
 	terminateGracefully(p)
-	if err := p.Wait(); err != p.err {
+	if err := p.Wait(); err != p.err { //nolint:errorlint // Every waiter must receive the identical cached error, not merely an error wrapping it.
 		t.Fatalf("teardown replaced exit: %v", err)
 	}
 }
@@ -214,7 +214,11 @@ func TestOwnedCleanupPrecedesResourceRelease(t *testing.T) {
 	go func() {
 		defer close(done)
 		defer lease.Release()
-		defer os.RemoveAll(work)
+		defer func() {
+			if err := os.RemoveAll(work); err != nil {
+				t.Errorf("remove owned work directory: %v", err)
+			}
+		}()
 		defer p.cleanup()
 	}()
 	select {
@@ -328,8 +332,7 @@ func TestOwnedCancellationJoinsLifetime(t *testing.T) {
 	default:
 		t.Error("cleanup did not join the lifetime worker")
 	}
-	var exit *exec.ExitError
-	if !errors.As(p.Wait(), &exit) {
+	if _, ok := errors.AsType[*exec.ExitError](p.Wait()); !ok {
 		t.Fatalf("canceled child exit=%v", p.Wait())
 	}
 }

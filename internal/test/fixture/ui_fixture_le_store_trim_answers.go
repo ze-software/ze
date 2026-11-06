@@ -118,8 +118,8 @@ func leStoreTrimAnswers(ctx context.Context) error {
 	// files, so a bare directory answers SKIP and trims nothing. The markers are
 	// only tested for existence, and nothing in this run builds against them.
 	for marker, content := range map[string]string{
-		"go.mod":            "module github.com/ze-software/ze\n",
-		"feature-gates.txt": "",
+		fileGoMod:        "module github.com/ze-software/ze\n",
+		fileFeatureGates: "",
 	} {
 		if err := os.WriteFile(filepath.Join(checkout, marker), []byte(content), 0o600); err != nil {
 			return leStoreTrimFailf("write the checkout marker %s: %v", marker, err)

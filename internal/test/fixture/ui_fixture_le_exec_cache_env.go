@@ -208,7 +208,7 @@ func leExecCheckout(source, checkout string) error {
 	if err != nil {
 		return leExecFailf("list the stdpatch patches: %v", err)
 	}
-	copies := []string{fileGoMod, "feature-gates.txt"}
+	copies := []string{fileGoMod, fileFeatureGates}
 	for _, patch := range patches {
 		copies = append(copies, filepath.Join(patchDir, filepath.Base(patch)))
 	}

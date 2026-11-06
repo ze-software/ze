@@ -117,7 +117,7 @@ func TestPluginObservers08WaitForTheScriptedPeer(t *testing.T) {
 
 // scriptedPeerBlock08 matches a .ci stdin block that scripts a BGP peer:
 // `stdin=peer:` or `stdin=peer<N>:`.
-var scriptedPeerBlock08 = regexp.MustCompile(`(?m)^stdin=(peer[0-9]*):`)
+var scriptedPeerBlock08 = regexp.MustCompile(`(?m)^stdin=(peer\d*):`)
 
 // scriptedPeers08 answers the ze peer names a .ci scripts a BGP peer for. The
 // unnumbered block is ze's peer1, by the convention every single-peer .ci of

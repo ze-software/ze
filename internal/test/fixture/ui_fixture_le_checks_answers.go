@@ -628,8 +628,8 @@ func runLEChecksAnswers(ctx context.Context) error {
 func leChecksBuildTree(ctx context.Context, parent, checkout string) (string, []string, error) {
 	root := filepath.Join(parent, "compiles")
 	files := map[string]string{
-		"go.mod":                             "module fixture.invalid/compiles\n\ngo 1.26\n",
-		"feature-gates.txt":                  "ze_probe\tinternal/p0\n",
+		fileGoMod:                            "module fixture.invalid/compiles\n\ngo 1.26\n",
+		fileFeatureGates:                     "ze_probe\tinternal/p0\n",
 		"cmd/ze/main.go":                     contentEmptyMain,
 		"cmd/ze/ze_core_dispatch.go":         "//go:build ze_core\n\npackage main\n",
 		"cmd/ze/setup_features_distro.go":    "//go:build ze_distro\n\npackage main\n",

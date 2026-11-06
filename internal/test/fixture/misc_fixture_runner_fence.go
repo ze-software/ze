@@ -82,7 +82,7 @@ bgp {
 		peerExec += " -"
 	}
 	rec.RunCommands = []runner.RunCommand{
-		{Mode: "background", Seq: 1, Exec: peerExec, Stdin: fieldPeer},
+		{Mode: ownedRunnerBackground, Seq: 1, Exec: peerExec, Stdin: fieldPeer},
 		{Mode: "foreground", Seq: 2, Exec: "ze -", Stdin: sourceConfig},
 	}
 	r, err := runner.NewRunner(tests, base)
@@ -99,7 +99,7 @@ bgp {
 		return errors.New("fence failed without its pending-peer diagnostic")
 	}
 	if !strings.Contains(rec.Error.Error(), want) {
-		return fmt.Errorf("lost routed linger classification: got %v; want %q; peer=%s; daemon=%s", rec.Error, want, rec.PeerOutput, rec.ClientStderr)
+		return fmt.Errorf("lost routed linger classification: got %w; want %q; peer=%s; daemon=%s", rec.Error, want, rec.PeerOutput, rec.ClientStderr)
 	}
 	if !strings.Contains(rec.ClientStderr, "session established") {
 		return errors.New("fence did not observe a real established BGP session")
@@ -119,7 +119,7 @@ bgp {
 
 func ownedFenceReleased(rec *runner.Record) error {
 	children := 0
-	pidPattern := regexp.MustCompile(`s pid ([0-9]+),`)
+	pidPattern := regexp.MustCompile(`s pid (\d+),`)
 	for _, step := range rec.StepTrace {
 		match := pidPattern.FindStringSubmatch(step.Assert)
 		if match == nil {
@@ -132,7 +132,10 @@ func ownedFenceReleased(rec *runner.Record) error {
 		var status syscall.WaitStatus
 		got, err := syscall.Wait4(pid, &status, syscall.WNOHANG, nil)
 		if !errors.Is(err, syscall.ECHILD) {
-			return fmt.Errorf("fence child %d not reaped: wait4=%d, %v", pid, got, err)
+			if err == nil {
+				return fmt.Errorf("fence child %d not reaped: wait4=%d without ECHILD", pid, got)
+			}
+			return fmt.Errorf("fence child %d not reaped: wait4=%d: %w", pid, got, err)
 		}
 		children++
 	}
@@ -140,7 +143,10 @@ func ownedFenceReleased(rec *runner.Record) error {
 		return fmt.Errorf("fence checked %d children, want peer and daemon", children)
 	}
 	if _, err := os.Stat(rec.WorkDir); !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("fence work directory not released: %v", err)
+		if err == nil {
+			return errors.New("fence work directory not released: still exists")
+		}
+		return fmt.Errorf("fence work directory not released: %w", err)
 	}
 	lease, err := runner.LeaseTestPorts(rec.Port)
 	if err != nil {

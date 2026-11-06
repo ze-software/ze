@@ -34,7 +34,7 @@ func probeCaps(bits ...int) (bool, error) {
 // probeCapsFile reads the capability source at path, so tests can exercise read
 // and format failures without changing the host's procfs.
 func probeCapsFile(path string, bits ...int) (bool, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // Production passes /proc/self/status; only package tests supply another capability source.
 	if err != nil {
 		return false, fmt.Errorf("capability probe: cannot read %s: %w", path, err)
 	}

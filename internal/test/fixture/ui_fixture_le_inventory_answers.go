@@ -267,7 +267,7 @@ func inventoryOverAStillTree(ctx context.Context, root, here, binary string, chi
 
 func leInventoryTree(root string) error {
 	files := map[string]string{
-		"go.mod":                            "module fixture.invalid/inventory\n\ngo 1.26\n",
+		fileGoMod:                           "module fixture.invalid/inventory\n\ngo 1.26\n",
 		"internal/widget/widget.go":         "package widget\n\nconst Name = \"widget\"\n",
 		"internal/widget/yang/fixture.yang": "module fixture {\n namespace \"urn:fixture\";\n prefix f;\n rpc show-widget {\n }\n rpc clear-widget {\n }\n}\n",
 		"cmd/widget/main.go":                contentEmptyMain,

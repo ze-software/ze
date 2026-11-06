@@ -25,6 +25,7 @@ import (
 
 const ownedPeerOpen = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001D01040001005A0A141E2800"
 const ownedPeerKeepalive = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304"
+const ownedRunnerBackground = "background"
 const ownedRunnerStop = "stop"
 const ownedPeerWireName = "wire"
 
@@ -68,11 +69,11 @@ func ownedPeerRoute(ctx context.Context, base, route string) error {
 	zero := 0
 	rec.ExpectExitCode = &zero
 	rec.RunCommands = []runner.RunCommand{
-		{Mode: "background", Seq: 1, Name: fieldPeer, Ready: "listening on", Exec: peerExec, Stdin: fieldPeer},
-		{Mode: "background", Seq: 2, Name: ownedPeerWireName, Ready: "wire-live", Exec: "le test fixture runner/owned-peer-wire $PORT " + marker},
-		{Mode: "stop", Seq: 3, Name: fieldPeer, Signal: "term"},
+		{Mode: ownedRunnerBackground, Seq: 1, Name: fieldPeer, Ready: "listening on", Exec: peerExec, Stdin: fieldPeer},
+		{Mode: ownedRunnerBackground, Seq: 2, Name: ownedPeerWireName, Ready: "wire-live", Exec: "le test fixture runner/owned-peer-wire $PORT " + marker},
+		{Mode: ownedRunnerStop, Seq: 3, Name: fieldPeer, Signal: "term"},
 		{Mode: "foreground", Seq: 4, Exec: "le test fixture runner/owned-peer-closed " + marker, ExitCode: &zero},
-		{Mode: "stop", Seq: 5, Name: ownedPeerWireName, Signal: "term"},
+		{Mode: ownedRunnerStop, Seq: 5, Name: ownedPeerWireName, Signal: "term"},
 	}
 	r, err := runner.NewRunner(tests, base)
 	if err != nil {
@@ -86,7 +87,7 @@ func ownedPeerRoute(ctx context.Context, base, route string) error {
 		return fmt.Errorf("peer did not enter completed linger: %s", rec.PeerOutput)
 	}
 	// The runner's trace records only successful starts, including their PID.
-	pidPattern := regexp.MustCompile(`s pid ([0-9]+),`)
+	pidPattern := regexp.MustCompile(`s pid (\d+),`)
 	children := 0
 	for _, step := range rec.StepTrace {
 		match := pidPattern.FindStringSubmatch(step.Assert)
@@ -100,7 +101,10 @@ func ownedPeerRoute(ctx context.Context, base, route string) error {
 		var status syscall.WaitStatus
 		got, err := syscall.Wait4(pid, &status, syscall.WNOHANG, nil)
 		if !errors.Is(err, syscall.ECHILD) {
-			return fmt.Errorf("child %d not reaped at return: wait4=%d, error=%v", pid, got, err)
+			if err == nil {
+				return fmt.Errorf("child %d not reaped at return: wait4=%d without ECHILD", pid, got)
+			}
+			return fmt.Errorf("child %d not reaped at return: wait4=%d: %w", pid, got, err)
 		}
 		children++
 	}
@@ -108,7 +112,10 @@ func ownedPeerRoute(ctx context.Context, base, route string) error {
 		return fmt.Errorf("checked %d started children, want 3", children)
 	}
 	if _, err := os.Stat(rec.WorkDir); !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("work directory not released: %v", err)
+		if err == nil {
+			return errors.New("work directory not released: still exists")
+		}
+		return fmt.Errorf("work directory not released: %w", err)
 	}
 	lease, err := runner.LeaseTestPorts(rec.Port)
 	if err != nil {

@@ -148,7 +148,7 @@ func (state *policyFinalWireState) receive(event string) error {
 		return nil
 	}
 	bgp := &envelope.BGP
-	if bgp.Message.Type != "update" || bgp.Message.Direction != "received" || bgp.Peer.Remote.Address != "127.0.0.2" {
+	if bgp.Message.Type != eventUpdate || bgp.Message.Direction != directionReceived || bgp.Peer.Remote.Address != addrLoopbackSecond {
 		return nil
 	}
 	state.mu.Lock()

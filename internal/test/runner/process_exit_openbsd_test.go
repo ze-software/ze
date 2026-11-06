@@ -51,7 +51,7 @@ func TestOpenBSDExitRetiresBeforeReap(t *testing.T) {
 				return nil
 			}
 			calls := 0
-			kevent := func(fd int, changes, events []unix.Kevent_t, timeout *unix.Timespec) (int, error) {
+			kevent := func(_ int, changes, events []unix.Kevent_t, _ *unix.Timespec) (int, error) {
 				calls++
 				if tc.interrupt && calls == 1 {
 					return 0, unix.EINTR

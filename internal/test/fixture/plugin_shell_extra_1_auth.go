@@ -422,7 +422,7 @@ func extra1RadiusUnsignedAcceptLegacy(ctx context.Context, args []string) error 
 	if len(args) != 0 {
 		return fmt.Errorf("aaa-radius-unsigned-accept-legacy takes no arguments: %q", args)
 	}
-	return extra1RadiusUnsignedLogin(ctx, "aaa-radius-unsigned-accept-legacy.conf", " require-message-authenticator false;", "radius")
+	return extra1RadiusUnsignedLogin(ctx, "aaa-radius-unsigned-accept-legacy.conf", " require-message-authenticator false;", sourceRadius)
 }
 
 // extra1RadiusUnsignedLogin logs in over SSH against an unsigned mock and
@@ -458,8 +458,8 @@ func extra1RadiusUnsignedLogin(ctx context.Context, configName, serverOptions, w
 		return fmt.Errorf("the mock never answered Access-Accept: %s", mock.contents())
 	}
 	fmt.Fprintln(os.Stderr, "OK: the mock answered Access-Accept unsigned")
-	otherSource := "radius"
-	if wantSource == "radius" {
+	otherSource := sourceRadius
+	if wantSource == sourceRadius {
 		otherSource = "local"
 	}
 	if !Poll(ctx, 20, 100*time.Millisecond, func() bool {

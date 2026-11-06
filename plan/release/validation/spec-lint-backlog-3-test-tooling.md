@@ -8,7 +8,7 @@
 | Release reason | 58 findings of the full lint in the test harness, `le` and the chaos tooling; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5: tooling and fixture edits written; parent verification pending |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
@@ -151,7 +151,7 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | The scoped run before the first edit | unvalidated |
+| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | Source audit found all 14 listed exhaustive sites already annotated; parent schedules the matrix | broken: source list is stale; current matrix unverified |
 | A-2 | 752d8f19ef cleared its eight locations | Its body: a scoped lint over the three packages reports 0 issues | They reappear in this scope | This child's scoped run covers `internal/le/...` | unvalidated |
 
 ### Risks
@@ -203,6 +203,77 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 4. `internal/chaos`: exhaustive, classified C/O/P.
 5. Scoped lint zero; package tests pass.
 
+### Step 2 handoff: tooling-fix
+
+The permission annotations preserve the existing source-file, GOROOT-directory,
+executable-shim and credential-free image-template modes. They explain those modes,
+not only why their paths are trusted. The freeRtr teardown receives deliberately
+reap stopped children while `run` retains the primary result or signal.
+
+The parent ran `TestParsedEmptyMPReadyOwnsItsFile` through the job runner against
+the unchanged writer. The fresh-marker case passed; the existing-file and symlink
+cases both failed: the writer returned nil and replaced the target contents with
+the establishment marker. The implementation agent read that output before the fix.
+The canonical test is `internal/le/interoplab/bgp/speaker_parsed_empty_mp_ready_test.go`;
+the command was `CGO_ENABLED=0 ./le job run label tooling-marker-red command go test -tags "$tags" ./internal/le/interoplab/bgp -run '^TestParsedEmptyMPReadyOwnsItsFile$' -v`.
+
+`writeParsedEmptyMPReady` now exclusively creates a 0600 file and returns both
+write and close errors. It refuses existing files and symlinks rather than
+overwriting them. A rerun needs a fresh marker path, as the source capture already
+does. The helper fix landed in `d2c19eae5c`. The registered-speaker entry test,
+owned-path routing through `--result`, and documentation landed in `fc62fd18ec`.
+
+The marker green/red/green proof is observed. Both tests in
+`internal/le/interoplab/bgp/speaker_parsed_empty_mp_ready_test.go` passed, including
+all five subcases. Restoring the former `os.WriteFile` helper while retaining the
+new path routing made `TestParsedEmptyMPSourcePropagatesMarkerRefusal` fail for both
+existing files and symlinks. Each failure explicitly reported overwritten target
+bytes, not only a lifetime expiry. Restoring the exclusive helper made both tests
+and all five subcases pass again. `cmp` confirmed the restored source was identical
+to the saved pre-proof source. No mutation remains.
+
+All three runs used `CGO_ENABLED=0 ./le --name lint-backlog job run label <label> quiet command go test -tags "$tags" ./internal/le/interoplab/bgp -run '<selector>' -v`,
+with `tags` containing `ze_core` and the feature-manifest tags. Initial and restored
+runs selected `^TestParsedEmptyMP(SourcePropagatesMarkerRefusal|ReadyOwnsItsFile)$`.
+The mutation run selected `^TestParsedEmptyMPSourcePropagatesMarkerRefusal$`.
+The restored run added `-count=1` and executed rather than using a cached verdict.
+The labels were `tooling-marker-entry-green`, `tooling-marker-entry-red` and
+`tooling-marker-entry-restored`. The canonical tests and the two commits above
+retain the proof's subject; session log locations are recorded in the state handoff.
+
+The parent still owes tagged tests of the changed packages: `internal/le/go/extract`,
+`internal/le/go/stdpatch/gen`, `internal/le/setup`,
+`internal/le/test/deployment`, `internal/le/test/functional`,
+`internal/le/interoplab/bgp`, `internal/le/interoplab/ipsec`,
+`internal/le/workflowcheck`, and `tools/freertr-entrypoint`.
+The existing exhaustive annotations need no edits. `internal/test` belongs to
+the separate phase. AC-1 and AC-2 remain unverified; AC-3 is addressed by the
+written annotations and still owes scoped lint and independent review.
+
+### Step 3 handoff: fixture-fix
+
+The sibling phase's current diff was read when incorporating its handoff. Its
+23 edited files cover meaning-specific fixture constants, equivalent ASCII digit
+classes, the local `signaled` spelling in fakefilter, logging the runner's expected
+Wait result, and the trusted AppArmor-knob read annotation. Existing exhaustive
+annotations remain unchanged. No source edit was repeated during incorporation.
+
+AC-1 and AC-2 remain unverified. The parent owes tagged tests of
+`internal/test/fixture`, `internal/test/plugins/fakefilter`, `internal/test/runner`
+and `internal/test/userns`, including `TestBackgroundLifetimeStopsTheProcess`,
+`TestUsernsPolicyHintNamesTheAppArmorRestriction` and
+`TestPluginObservers08WaitForTheScriptedPeer`, followed by scoped lint.
+Functional reach is plugin, reload, ui, runner and firewall. The handoff reports
+no documentation contract change and no new daemon evidence from sFlow constants.
+Concurrent `internal/test/peer` edits are not part of fixture-fix's changes.
+
+### Mistake Log: wrong assumptions
+
+The original CI locations are a baseline, not proof of the current tree. The
+source audit found the 14 exhaustive annotations already present and fakefilter's
+misspelled local identifier at a moved location. Implementation follows current
+source, preserving those annotations. The full matrix remains unverified.
+
 ### Native approval blocker (2026-11-02)
 
 The parent authorized this related blocker repair before the policy migration
@@ -251,6 +322,46 @@ offer no path scope, so those full-tree checks were not run. Independent review
 of the whole tooling diff remains owed. No real checkout commit was prepared or run.
 
 ## Review Gate
+
+### Round seven: owner authorization and scope
+
+Owner authorization, 2026-11-02: asked "Do you authorize this correction and
+independent review round seven?", the owner answered "yes". This authorizes
+this correction and independent review round seven only. Round eight is not
+authorized. Round six remains clean for its recorded scope.
+
+Scope: the semantic RFC approval omission in `testweakened.Check`, its native
+Create/message/publication/pruning regressions, and the shared approval consumers.
+The semantic loop considers only weakening rows, while the structural loop
+also considers RFC rows. A comment-only tagged edit therefore loses its approved
+verdict because `ChangedTags` correctly finds no behavior change.
+
+Extend the existing semantic loop with weakening-first, RFC-fallback matching.
+Reuse exact selected existing-unit comparison, live-row checks, single-use
+tracking and `ApprovalSites` collision protection. Preserve discrimination
+fingerprints and the access child's source, audit and real approval files.
+Manual trailers or artificial test edits would hide the producer defect.
+
+Before independent review, observe focused red/green through native Create and
+serial race results for `internal/le/commit` and `internal/le/test/weakened`.
+Cover unrelated, unchanged, excluded-hunk, foreign-session and already-carried
+rows, collisions, precedence and overlapping selectors. Update the committing
+and test-health contracts in the same change. No commit precedes round seven.
+
+Implementation evidence: the focused native regression first failed for the
+missing comment-only trailer and for both semantic directory-collision cases.
+The same tests pass after `Check` reuses `claimFinding` for RFC fallback and
+records its matches in `ApprovalSites`. Publication retains the exact verdict,
+prunes its row, preserves unrelated rows and cannot reuse a carried verdict.
+Selection exclusions, weakening precedence and overlapping selectors pass.
+
+Both complete packages passed serial race testing with manifest tags and
+CGO enabled. Evidence logs under `tmp/session/2026-11-02-150621/scratch/`:
+`job-semantic-round7-red-be5a6b56.log`,
+`job-semantic-round7-green-be5a6b56.log`, and
+`job-semantic-round7-race-41e8a1f4.log`.
+Independent round-seven review remains pending; this is implementation evidence,
+not a review verdict. The real access-child approval was not consumed.
 
 ### Round six: owner authorization and scope
 

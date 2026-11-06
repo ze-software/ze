@@ -101,7 +101,7 @@ func nativeBlockedSuite(t *testing.T, executable, root, mode string) {
 	// Poll the kernel rendezvous, never assume startup finished after a delay.
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
-	writer := -1
+	var writer int
 	for {
 		writer, err = syscall.Open(fifo, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
 		if err == nil {

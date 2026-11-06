@@ -647,12 +647,12 @@ environment {
 	if !ok || len(fault) != 4 {
 		return fmt.Errorf("rejected row has wrong shape: %v", errorsList[0])
 	}
-	for _, key := range []string{"encoded-bytes", "limit-bytes", fieldMessage, "record"} {
+	for _, key := range []string{"encoded-bytes", "limit-bytes", fieldMessage, fieldRecord} {
 		if _, found := fault[key]; !found {
 			return fmt.Errorf("rejected row missing %s: %v", key, fault)
 		}
 	}
-	if fault["message"] != "answer record does not fit one wire message" || fixture10Number(fault["record"]) != 1 || fixture10Number(fault["limit-bytes"]) != 16777216 {
+	if fault["message"] != "answer record does not fit one wire message" || fixture10Number(fault[fieldRecord]) != 1 || fixture10Number(fault["limit-bytes"]) != 16777216 {
 		return fmt.Errorf("rejected document fault mismatch: %v", fault)
 	}
 	minimumWidth := 2 * (16777216 * 5 / 8)

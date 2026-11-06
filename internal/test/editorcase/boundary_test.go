@@ -172,7 +172,7 @@ func blockedDiagnosticFixture(req *request) int {
 }
 
 func blockedDiagnosticStack(data []byte) bool {
-	for _, stack := range bytes.Split(data, []byte("\n\n")) {
+	for stack := range bytes.SplitSeq(data, []byte("\n\n")) {
 		if !bytes.Contains(stack, []byte("editorcase.watchControl")) {
 			continue
 		}
@@ -194,8 +194,8 @@ func TestEditorAdmissionChild(t *testing.T) {
 		t.Skip("subprocess fixture requires a descriptor case")
 	}
 	mode := flag.Args()[0]
-	if strings.HasPrefix(mode, "closed-") {
-		fd, err := strconv.Atoi(strings.TrimPrefix(mode, "closed-"))
+	if descriptor, closed := strings.CutPrefix(mode, "closed-"); closed {
+		fd, err := strconv.Atoi(descriptor)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -232,8 +232,8 @@ func TestEditorDescriptorAdmission(t *testing.T) {
 			}
 			extra := append([]*os.File(nil), files.handles[:4]...)
 			cause := "bad file descriptor"
-			if strings.HasPrefix(mode, "stream-") {
-				fd, err := strconv.Atoi(strings.TrimPrefix(mode, "stream-"))
+			if descriptor, stream := strings.CutPrefix(mode, "stream-"); stream {
+				fd, err := strconv.Atoi(descriptor)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -422,7 +422,7 @@ func pipeDescriptors() (map[string]int, error) {
 	}
 	pipes := make(map[string]int)
 	for _, entry := range entries {
-		target, err := os.Readlink(filepath.Join("/proc/self/fd", entry.Name()))
+		target, err := os.Readlink("/proc/self/fd/" + entry.Name())
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
@@ -442,7 +442,7 @@ func noOwnedDescriptors(root string) error {
 		return err
 	}
 	for _, entry := range entries {
-		target, err := os.Readlink(filepath.Join("/proc/self/fd", entry.Name()))
+		target, err := os.Readlink("/proc/self/fd/" + entry.Name())
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}

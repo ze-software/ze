@@ -565,13 +565,13 @@ type zeTestRunCLIFlags struct {
 func zeTestParseRunCLI(args []string) (*zeTestRunCLIFlags, error) {
 	if len(args) < 1 {
 		zeTestPrintRunUsage()
-		return nil, nil
+		return nil, nil //nolint:nilnil // Help was rendered successfully; zeTestBgpMain uses nil flags to stop without running a suite.
 	}
 
 	command := args[0]
 	if isHelpArg(command) {
 		zeTestPrintRunUsage()
-		return nil, nil
+		return nil, nil //nolint:nilnil // Help was rendered successfully; zeTestBgpMain uses nil flags to stop without running a suite.
 	}
 
 	if !bgpCIRunnerDirs[command] {

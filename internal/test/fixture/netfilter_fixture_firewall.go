@@ -406,8 +406,8 @@ func firewallLegacySweep(ctx context.Context, _ []string) error {
 // boundary (withCounter, internal/plugins/firewall/nft/lower_linux.go), so nft
 // prints it between the port match and the verdict.
 var (
-	reloadRule22  = regexp.MustCompile(`dport 22 counter packets [0-9]+ bytes [0-9]+ accept`)
-	reloadRule443 = regexp.MustCompile(`dport 443 counter packets [0-9]+ bytes [0-9]+ accept`)
+	reloadRule22  = regexp.MustCompile(`dport 22 counter packets \d+ bytes \d+ accept`)
+	reloadRule443 = regexp.MustCompile(`dport 443 counter packets \d+ bytes \d+ accept`)
 )
 
 func firewallReload(ctx context.Context, _ []string) error {

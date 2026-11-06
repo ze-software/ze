@@ -19,7 +19,7 @@ func policyFinalReloadDriver(ctx context.Context, args []string) error {
 	state := &policyFinalWireState{routes: make(map[string]bool)}
 	return observeConfigured(ctx, "policy-final-reload", &sdk.Registration{}, func(plugin *sdk.Plugin) error {
 		plugin.OnEvent(state.receive)
-		plugin.SetStartupSubscriptions([]string{"update"}, []string{"127.0.0.2"}, "full")
+		plugin.SetStartupSubscriptions([]string{eventUpdate}, []string{addrLoopbackSecond}, "full")
 		return nil
 	}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		return policyFinalReloadScenario(ctx, plugin, state)

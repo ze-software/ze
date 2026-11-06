@@ -29,7 +29,7 @@ func fixture06DecodeMPReach(ctx context.Context, p *sdk.Plugin) error {
 	if err := json.Unmarshal(result.NLRI, &nlri); err != nil {
 		return fmt.Errorf("decode MP_REACH NLRI: %w", err)
 	}
-	if len(nlri) != 1 || nlri[0] != "10.0.0.0/24" {
+	if len(nlri) != 1 || nlri[0] != prefixTenZero {
 		return fmt.Errorf("expected exactly [10.0.0.0/24], got %v", nlri)
 	}
 	announced, _, err := p.UpdateRoute(ctx, "*", fmt.Sprintf("update text nhop %s %s add %s", result.NextHop, nlriSectionText(result.Family, result.NextHop), nlri[0]))

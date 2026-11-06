@@ -31,7 +31,7 @@ const (
 // filterThirdpartyAccepted names the route each transport accepted: peer1's,
 // judged through the internal copy's slot, and peer2's, judged by the forked
 // copy over the batch.
-var filterThirdpartyAccepted = []string{"10.0.0.0/24", "10.1.0.0/24"}
+var filterThirdpartyAccepted = []string{prefixTenZero, prefixTenOne}
 
 // filterWireThirdpartyCompiledIn waits for every peer's End-of-RIB, which a
 // session counts only after the import verdict of every UPDATE before it, so

@@ -268,11 +268,11 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	var report map[string]any
 	err = json.Unmarshal([]byte(rendered.stdout), &report)
 	uiLeEvidenceAnswersRequire(err == nil, "the release-candidate JSON is invalid: %v; output %q", err, rendered.stdout)
-	for _, key := range []string{fieldImage, "platform", "tree", "dirty", fieldPassed, "code"} {
+	for _, key := range []string{fieldImage, "platform", fieldTree, "dirty", fieldPassed, "code"} {
 		uiLeEvidenceAnswersRequire(hasKey(report, key), "the report answered no %q key: %v", key, uiLeEvidenceAnswersSortedKeys(report))
 	}
 	uiLeEvidenceAnswersRequire(report["passed"] == true, "a container that exited 0 reports %v", report["passed"])
-	uiLeEvidenceAnswersRequire(report["tree"] == checkout, "the report names %q, want the fixture", report["tree"])
+	uiLeEvidenceAnswersRequire(report[fieldTree] == checkout, "the report names %q, want the fixture", report[fieldTree])
 
 	// Preserve the container's exact status rather than flattening it.
 	for _, code := range []string{"2", "3", "125"} {

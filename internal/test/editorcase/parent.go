@@ -122,7 +122,7 @@ func (files *caseFiles) create() error {
 		return err
 	}
 	for i, name := range []string{"request.json", "result.json", "stacks.txt"} {
-		file, err := os.Create(filepath.Join(files.root, name))
+		file, err := os.Create(filepath.Join(files.root, name)) //nolint:gosec // Fixed artifact names in the case's private directory.
 		if err != nil {
 			return err
 		}

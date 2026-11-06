@@ -808,7 +808,7 @@ func plugin01ComparePayloads(_ context.Context, args []string) error {
 		faultKeys = append(faultKeys, key)
 	}
 	slices.Sort(faultKeys)
-	if !slices.Equal(faultKeys, []string{"encoded-bytes", "limit-bytes", fieldMessage, "record"}) {
+	if !slices.Equal(faultKeys, []string{"encoded-bytes", "limit-bytes", fieldMessage, fieldRecord}) {
 		return fmt.Errorf("rejection fields are %v", faultKeys)
 	}
 	fmt.Fprintf(os.Stderr, "OK: %d collapsed rows are the bytes the producer wrote\n", len(rows))

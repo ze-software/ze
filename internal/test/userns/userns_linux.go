@@ -257,7 +257,7 @@ func usernsPolicyHint(uid int, knob string) string {
 	if uid == 0 {
 		return general
 	}
-	raw, err := os.ReadFile(knob)
+	raw, err := os.ReadFile(knob) //nolint:gosec // childFailure passes apparmorUsernsKnob; tests pass paths in their own temporary directory.
 	if errors.Is(err, os.ErrNotExist) {
 		return general
 	}
