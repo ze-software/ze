@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 19 findings of the full lint in system plugins and the OSPF and IS-IS plugins; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 2/3 — source fixes applied; verification owed |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
@@ -51,12 +51,12 @@ goimports 2, misspell 1, godot 1, unparam 1. Line numbers are the CI run's.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/doors/system-plugins.md` - edge plugins, ownership
+- [x] `ai/doors/system-plugins.md` - edge plugins, ownership
   → Constraint: a plugin owns its whole surface; a goconst constant stays in the plugin's package
-- [ ] `ai/doors/routing-protocols.md` - OSPF and IS-IS
+- [x] `ai/doors/routing-protocols.md` - OSPF and IS-IS
   → Constraint: OSPFv2 and OSPFv3 share code; the two redistribute consumers (`ospf`, `isis`) carry the same gocritic and goconst findings, so fix them the same way in both
   → Constraint: an RFC quote in a comment stays byte-exact (the `isis/register.go` misspell and the `isis/server.go` godot may sit in one)
-- [ ] `docs/contributing/ze-go-style.md` - "The rules a tool enforces"
+- [x] `docs/contributing/ze-go-style.md` - "The rules a tool enforces"
 
 **Key insights:**
 - The six `unused` findings are one test helper block in `redistribute/metrics_test.go`: either a test lost its caller or the helper is dead; find which before deleting.
@@ -64,9 +64,9 @@ goimports 2, misspell 1, godot 1, unparam 1. Line numbers are the CI run's.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/redistribute/metrics_test.go` - the unused block
-- [ ] `internal/plugins/ospf/redistribute/consumer.go` - the gocritic site mirrored in IS-IS
-- [ ] `.golangci.yml` - the linter settings
+- [x] `internal/plugins/redistribute/metrics_test.go` - the unused block
+- [x] `internal/plugins/ospf/redistribute/consumer.go` - the gocritic site mirrored in IS-IS
+- [x] `.golangci.yml` - the linter settings
 
 **Behavior to preserve:**
 - Redistribution behavior in both protocols; every test's assertions.
@@ -103,8 +103,8 @@ goimports 2, misspell 1, godot 1, unparam 1. Line numbers are the CI run's.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | The scoped run before the first edit | unvalidated |
-| A-2 | The unused helpers in `redistribute/metrics_test.go` have no live caller in any build flavor | golangci-lint runs every flavor | A tagged test uses them | Grep and `./le repo compiles check` before deleting | unvalidated |
+| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | Source audit against the recorded findings, with the parent's instruction to run no CPU jobs | confirmed for the recorded source shapes; current scoped lint still owed |
+| A-2 | The unused helpers in `redistribute/metrics_test.go` have no live caller in any build flavor | golangci-lint runs every flavor | A tagged test uses them | Package-wide source search including tagged files, and the change in 48c539ba35 | confirmed by source; independent judge approved removal before editing |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -151,6 +151,46 @@ goimports 2, misspell 1, godot 1, unparam 1. Line numbers are the CI run's.
 1. Scoped lint; record the current list.
 2. The OSPF and IS-IS redistribute pair together; the rest per plugin.
 3. Scoped lint zero; tests pass.
+
+### Step 2 handoff — 2026-11-02
+
+The source audit found the listed shapes still present, including both help
+tests at their original plugin paths. No fresh lint, test, build or compile
+was run: the parent serializes CPU jobs. The recorded CI list remains the red
+baseline, not a claim about a fresh run.
+
+| Finding | Source edit or remaining action |
+|---------|---------------------------------|
+| debug modernize and goconst | `optionAnswer` uses `errors.AsType`; `runDeleteModule` and `runSetTimeout` share `resultDisabled`, preserving the answer text |
+| help goimports | Separate the repository imports from testify in both listed tests |
+| paired consumer range copies | Both `Consumer.Rejudge` loops range keys, then read the map value once; locks, verdicts and writeback remain the same |
+| paired source constants | Both source registrations reuse their package's existing `ConsumerName` for name, protocol and config root; IS-IS standard-library imports are grouped |
+| IS-IS spelling and punctuation | `init` uses US spelling outside quoted text; `applyMetricStyle` ends its section reference with a period; no RFC quote was changed |
+| OSPF helper parameter | `containsStubRouter` preserves the sole expected capability at all four callers, including `ri_functional_test.go`; assertions and fixtures are unchanged |
+| redistribution range copy | `prefixes` indexes the input slice rather than copying each injected entry |
+| skills modernize | `hasFlag` uses `slices.Contains` |
+| six unused metrics declarations | Independent judge approved removal; removed only `nopCounterVec`, `nopCounter` and their four methods, preserving every `TestMetricsCadence` input and assertion |
+
+Metrics diagnosis: `recordingRegistry.CounterVec` was changed in 48c539ba35
+from `nopCounterVec` to `recordingCounterVec`. The latter records label sets,
+and `TestMetricsCadence` asserts both the rejected-chain count and the zero
+count for a source no rule imports. The old helper's only internal reference
+is `nopCounterVec.With` returning `nopCounter`; no test calls either helper.
+This is dead test scaffolding, not a lost metrics assertion. The source fix
+removed the obsolete declarations after independent approval; suppressing
+`unused` or adding a dummy caller would retain the cause. No test was removed
+or weakened. The independent approval for `redistribute.TestMetricsCadence`
+was read before applying the removal; its exact reason must accompany the
+commit's `Weakening-approved` trailer.
+
+The author read every changed hunk; the scoped `git diff --check` reported no
+whitespace errors. AC-1 and AC-2 remain unverified. AC-3 has no new annotation
+to judge. The parent owes scoped lint over
+the six plugin trees and race tests for debug, help (including `ze_vrrp`),
+redistribute, skills, OSPF and IS-IS (including their redistribution packages
+and feature tags). Citation-anchor checks and the independent Review Gate
+remain owed. These style-only changes alter no documented operator or wire
+behavior, so no architecture or guide prose changes are required.
 
 ### Critical Review Checklist
 

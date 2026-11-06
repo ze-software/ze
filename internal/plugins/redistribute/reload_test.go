@@ -106,8 +106,8 @@ func isHeld(consumer, prefix string) bool {
 // prefixes lists the prefixes of injected entries, in order.
 func prefixes(inj []injectedEntry) []string {
 	out := make([]string, 0, len(inj))
-	for _, e := range inj {
-		out = append(out, e.entry.Prefix)
+	for i := range inj {
+		out = append(out, inj[i].entry.Prefix)
 	}
 	return out
 }

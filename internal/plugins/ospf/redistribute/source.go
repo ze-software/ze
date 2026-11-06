@@ -45,11 +45,11 @@ var sourcesOnce sync.Once
 func RegisterOSPFSources() {
 	sourcesOnce.Do(func() {
 		mustRegister(configredist.RouteSource{
-			Name:     "ospf",
-			Protocol: "ospf",
+			Name:     ConsumerName,
+			Protocol: ConsumerName,
 			// A rule importing ospf with no ospf block moves nothing, so it is
 			// refused at load and commit (config.RefuseRedistributeRules).
-			ConfigRoot:  "ospf",
+			ConfigRoot:  ConsumerName,
 			Description: "OSPF SPF routes",
 		})
 	})

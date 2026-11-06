@@ -26,6 +26,7 @@ package isisredistribute
 
 import (
 	"log/slog"
+	"net/netip"
 	"sync"
 
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
@@ -36,8 +37,6 @@ import (
 	"github.com/ze-software/ze/internal/plugins/isis/spf"
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 	"github.com/ze-software/ze/pkg/ze"
-
-	"net/netip"
 )
 
 var sourcesOnce sync.Once
@@ -52,11 +51,11 @@ var sourcesOnce sync.Once
 func RegisterISISSources() {
 	sourcesOnce.Do(func() {
 		mustRegister(configredist.RouteSource{
-			Name:     "isis",
-			Protocol: "isis",
+			Name:     ConsumerName,
+			Protocol: ConsumerName,
 			// A rule importing isis with no isis block moves nothing, so it is
 			// refused at load and commit (config.RefuseRedistributeRules).
-			ConfigRoot:  "isis",
+			ConfigRoot:  ConsumerName,
 			Description: "IS-IS SPF routes",
 		})
 	})

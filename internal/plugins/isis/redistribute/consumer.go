@@ -212,7 +212,8 @@ func (c *Consumer) Rejudge(ctx context.Context) {
 
 	c.rejudging = true
 	c.rejudgeChanged = false
-	for prefix, o := range c.offered {
+	for prefix := range c.offered {
+		o := c.offered[prefix]
 		metric, accepted := exportVerdict(&o.entry)
 		if accepted == o.advertised && metric == o.metric {
 			continue // the verdict did not change: the LSP already holds it

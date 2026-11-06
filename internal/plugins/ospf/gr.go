@@ -125,7 +125,7 @@ type grManager struct {
 	expected     map[ospftypes.RouterID]bool // pre-restart adjacencies -> reached Full again
 	restartTimer *time.Timer
 	restartArmed uint64 // generation of restartTimer (timerGen); 0 when none is armed
-	gracefulStop bool // a graceful-restart stop is in progress: skip RemoveAll
+	gracefulStop bool   // a graceful-restart stop is in progress: skip RemoveAll
 
 	// stopped is set by stop at engine shutdown and never cleared: the manager then arms no
 	// timer and refuses every exit, so a timer callback that began before stop, or a

@@ -14,6 +14,7 @@ import (
 	"embed"
 	"encoding/json"
 	"os"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -214,12 +215,7 @@ func wantsHelp(args []string) bool {
 
 // hasFlag reports whether flag is one of args.
 func hasFlag(args []string, flag string) bool {
-	for _, a := range args {
-		if a == flag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(args, flag)
 }
 
 func skillNames() string {

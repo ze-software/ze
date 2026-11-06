@@ -56,7 +56,7 @@ func init() {
 	// The export chain judges a redistributed route before IS-IS injects it.
 	// The level is where IS-IS will inject the route, at every origination
 	// level, not a field the route arrives with, so the chain cannot match on
-	// it; and no filter sets a level the consumer could honour, so it is not
+	// it; and no filter sets a level the consumer could honor, so it is not
 	// settable either.
 	policy.MustRegisterRouteAttachment(componentName, exportAttachment,
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag},

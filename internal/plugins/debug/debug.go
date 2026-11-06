@@ -32,6 +32,7 @@ var _ = env.MustRegister(env.EnvEntry{Key: "ze.debug.store", Type: "string", Des
 const (
 	defaultDebugStore = "debug.zefs"
 	defaultProfile    = "default"
+	resultDisabled    = "disabled"
 )
 
 var debugStoreOverride string
@@ -80,8 +81,7 @@ func refuseOption(lines ...string) error { return &optionRefusal{lines: lines} }
 
 // optionAnswer turns a refused module option into the command's answer.
 func optionAnswer(err error) command.LocalAnswer {
-	var refusal *optionRefusal
-	if errors.As(err, &refusal) {
+	if refusal, ok := errors.AsType[*optionRefusal](err); ok {
 		return refused(refusal.lines...)
 	}
 	return refused(err.Error())
@@ -208,14 +208,14 @@ func runDeleteModule(validated command.ValidatedArgs) command.LocalAnswer {
 		if err := saveAndApply(storePath, p); err != nil {
 			return storeRefusal(err)
 		}
-		return changed(debugChange{Subject: subjectModule, Name: module, Result: "disabled"})
+		return changed(debugChange{Subject: subjectModule, Name: module, Result: resultDisabled})
 	}
 	if len(args) == 1 {
 		p.toggleModule(module) // present -> removes the whole module
 		if err := saveAndApply(storePath, p); err != nil {
 			return storeRefusal(err)
 		}
-		return changed(debugChange{Subject: subjectModule, Name: module, Result: "disabled"})
+		return changed(debugChange{Subject: subjectModule, Name: module, Result: resultDisabled})
 	}
 	if err := deleteModuleSetting(p, module, args[1:]); err != nil {
 		return optionAnswer(err)
@@ -281,7 +281,7 @@ func runSetTimeout(validated command.ValidatedArgs) command.LocalAnswer {
 	}
 
 	if minutes == 0 {
-		return changed(debugChange{Subject: subjectTimeout, Result: "disabled"})
+		return changed(debugChange{Subject: subjectTimeout, Result: resultDisabled})
 	}
 	return changed(debugChange{Subject: subjectTimeout, Result: "set", Minutes: minutes})
 }

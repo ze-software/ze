@@ -542,7 +542,7 @@ func (e *engine) setConfig(cfg Config) {
 // unchanged until the refresh interval elapsed. The caller holds electMu and
 // origMu.
 //
-// RFC 3787 Section 5
+// RFC 3787 Section 5.
 func (e *engine) applyMetricStyle(style lsdb.MetricStyle) {
 	if e.originator == nil {
 		return

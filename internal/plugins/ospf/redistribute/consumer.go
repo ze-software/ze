@@ -222,7 +222,8 @@ func (c *Consumer) Rejudge(ctx context.Context) {
 	c.offerMu.Lock()
 	defer c.offerMu.Unlock()
 
-	for prefix, o := range c.offered {
+	for prefix := range c.offered {
+		o := c.offered[prefix]
 		ext, accepted := exportVerdict(&o.entry)
 		if accepted == o.originated && ext == o.ext {
 			continue // the verdict did not change: the LSDB already holds it

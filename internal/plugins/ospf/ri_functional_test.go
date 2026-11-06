@@ -146,7 +146,7 @@ func TestOSPFRIReceiveFunctional(t *testing.T) {
 	view := riShowView(t, riDatabaseSnapshot(eng, nil))
 	var found bool
 	for _, e := range view.RouterInformation {
-		if e.AdvertisingRouter == "2.2.2.2" && containsStr(e.Capabilities, "stub-router") {
+		if e.AdvertisingRouter == "2.2.2.2" && containsStubRouter(e.Capabilities) {
 			found = true
 		}
 	}
@@ -192,7 +192,7 @@ func TestOSPFRI6ReceiveFunctional(t *testing.T) {
 	view := riShowView(t, riDatabaseSnapshot(nil, eng))
 	var found bool
 	for _, e := range view.RouterInformation {
-		if e.AF == "v3" && e.Scope == OpaqueScopeArea.String() && e.AdvertisingRouter == "2.2.2.2" && containsStr(e.Capabilities, "stub-router") {
+		if e.AF == "v3" && e.Scope == OpaqueScopeArea.String() && e.AdvertisingRouter == "2.2.2.2" && containsStubRouter(e.Capabilities) {
 			found = true
 		}
 	}
@@ -219,7 +219,7 @@ func TestOSPFRIShowFunctional(t *testing.T) {
 	view := riShowView(t, riDatabaseSnapshot(v4, v6))
 	var v2Caps, v3 bool
 	for _, e := range view.RouterInformation {
-		if e.AF == "v2" && containsStr(e.Capabilities, "stub-router") {
+		if e.AF == "v2" && containsStubRouter(e.Capabilities) {
 			v2Caps = true
 		}
 		if e.AF == "v3" {
