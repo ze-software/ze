@@ -49,16 +49,24 @@ const (
 // rpc.MetricsSeriesMax live labeled series, plus at most that many acknowledged
 // remote generations awaiting deletion or replacement. A counter accumulates
 // one float, a gauge holds its value, and a histogram holds one count and one
-// sum per bucket, whatever the observation rate.
+// sum per bucket, whatever the observation rate. A refused name holds no series
+// and frees its labeled slots; rpc.MetricsDeclaredMax of them are remembered free
+// of charge, by name and kind, so a repeat warns once. Past that a name the engine
+// refuses is remembered in its declared slot, and a name refused here is not held,
+// with one WARN line saying further ones go unnamed. A name over
+// rpc.MetricNameMax is never held, with one WARN line of its own.
 //
 // Lifecycle: NewMetricsPublisher, then Plugin.Run starts the publish worker
 // after the startup handshake and stops it before it returns. Safe for
 // concurrent use.
 type MetricsPublisher struct {
 	mu        sync.Mutex
-	families  []*metricFamily // declared order; refused names are not here
+	families  []*metricFamily // declared order; a refused name is here only past the refused bound
 	byName    map[string]*metricFamily
-	series    int // labeled series held across the vectors
+	refused   int  // refused names held outside families, at most rpc.MetricsDeclaredMax
+	unheld    bool // the one WARN line for refused names past that bound
+	oversized bool // the one WARN line for names over rpc.MetricNameMax
+	series    int  // labeled series held across the vectors
 	interval  time.Duration
 	declared  chan struct{} // a new name waits to be published
 	full      chan struct{} // a histogram bucket nears rpc.MetricBucketCountMax
@@ -557,7 +565,7 @@ func (m *MetricsPublisher) settle(sent *sentPublish, refused []rpc.MetricRefusal
 	}
 	for _, f := range sent.declared {
 		if reason, ok := refusedNames[f.decl.Name]; ok {
-			f.refused = reason
+			m.forgetRefusedFamily(f, reason)
 			continue
 		}
 		f.declared = true
@@ -614,40 +622,108 @@ func (m *MetricsPublisher) family(d rpc.MetricDeclaration) *metricFamily {
 		}
 		return f
 	}
+	if reason := m.declarationRefusal(&d); reason != "" {
+		return m.refuseFamily(&d, reason)
+	}
 	f := &metricFamily{decl: d, series: make(map[string]*metricSeries)}
 	m.byName[d.Name] = f
-	if err := rpc.ValidateMetricDeclaration(&d); err != nil {
-		f.refused = err.Error()
-	}
-	if f.refused == "" {
-		if err := metricDeclarationTransportError(&d); err != nil {
-			f.refused = err.Error()
-		}
-	}
-	if f.refused == "" && len(m.families) >= rpc.MetricsDeclaredMax {
-		f.refused = "the plugin declares more than " + strconv.Itoa(rpc.MetricsDeclaredMax) + " metrics"
-	}
-	if f.refused != "" {
-		slog.Warn("plugin metrics: metric not forwarded to the engine", "metric", d.Name, "reason", f.refused)
-		return f
-	}
 	m.families = append(m.families, f)
 	wakeMetrics(m.declared)
 	return f
 }
 
+// declarationRefusal answers why d cannot be forwarded, or empty when it can.
+// It MUST be called with m.mu held.
+func (m *MetricsPublisher) declarationRefusal(d *rpc.MetricDeclaration) string {
+	if err := rpc.ValidateMetricDeclaration(d); err != nil {
+		return err.Error()
+	}
+	if err := metricDeclarationTransportError(d); err != nil {
+		return err.Error()
+	}
+	if len(m.families) >= rpc.MetricsDeclaredMax {
+		return "the plugin declares more than " + strconv.Itoa(rpc.MetricsDeclaredMax) + " metrics"
+	}
+	return ""
+}
+
+// refuseFamily reports a declaration this publisher refused and answers the
+// family its handles detach from. The answer carries the name and the kind only,
+// so a refused declaration's help, labels and buckets are never retained. It
+// MUST be called with m.mu held.
+func (m *MetricsPublisher) refuseFamily(d *rpc.MetricDeclaration, reason string) *metricFamily {
+	if len(d.Name) > rpc.MetricNameMax {
+		return m.refuseOversizedName(d)
+	}
+	f := &metricFamily{decl: rpc.MetricDeclaration{Name: d.Name, Kind: d.Kind}, refused: reason}
+	if m.refused < rpc.MetricsDeclaredMax {
+		m.byName[d.Name] = f
+		m.refused++
+		slog.Warn("plugin metrics: metric not forwarded to the engine", "metric", d.Name, "reason", reason)
+		return f
+	}
+	if !m.unheld {
+		m.unheld = true
+		slog.Warn("plugin metrics: too many refused metric names to track, so further ones are not named; correct the metrics this plugin declares",
+			"metric", d.Name, "reason", reason)
+	}
+	return f
+}
+
+// refuseOversizedName answers a declaration whose name is over the limit. Nothing
+// can remember such a name, so it holds no entry, the family keeps only the part
+// within the limit, and one WARN line speaks for every such name: the validator's
+// reason quotes the name whole, so this one replaces it. It MUST be called with
+// m.mu held.
+func (m *MetricsPublisher) refuseOversizedName(d *rpc.MetricDeclaration) *metricFamily {
+	reason := "the name is " + strconv.Itoa(len(d.Name)) + " octets, above the limit of " + strconv.Itoa(rpc.MetricNameMax)
+	f := &metricFamily{decl: rpc.MetricDeclaration{Name: d.Name[:rpc.MetricNameMax], Kind: d.Kind}, refused: reason}
+	if !m.oversized {
+		m.oversized = true
+		slog.Warn("plugin metrics: metric not forwarded to the engine, and further names over the limit go unnamed; shorten the metric names this plugin declares",
+			"metric", f.decl.Name+"...", "reason", f.refused)
+	}
+	return f
+}
+
+// forgetRefusedFamily releases what a family the engine refused holds: its labeled
+// series, whose handles detach, and all of its declaration but the name and kind.
+// Within the bound on refused names it also gives back its declared slot. Past that
+// bound it keeps the slot and stays held: evicted, the name would be new again, and
+// each re-declaration would cost another RPC, refusal and WARN line. Slots are
+// finite, so byName stays at most twice rpc.MetricsDeclaredMax, and a plugin past
+// that meets refuseFamily's own bound. It MUST be called with m.mu held.
+func (m *MetricsPublisher) forgetRefusedFamily(f *metricFamily, reason string) {
+	f.refused = reason
+	// Field by field: a counter handle reads the name without the lock.
+	f.decl.Help, f.decl.Labels, f.decl.Buckets = "", nil, nil
+	for _, s := range f.series {
+		s.deleted = true
+		if len(s.values) > 0 {
+			m.series--
+		}
+	}
+	f.series, f.remote = nil, nil
+	if m.refused >= rpc.MetricsDeclaredMax {
+		return
+	}
+	m.refused++
+	m.families = slices.DeleteFunc(m.families, func(held *metricFamily) bool { return held == f })
+}
+
 // seriesFor returns the series of values, creating it. A vector holds at most
 // rpc.MetricsSeriesMax series across the plugin; past it the series is
-// detached, updates nothing, and one WARN line names the metric.
+// detached, updates nothing, and one WARN line names the metric. A refused
+// family's series is always detached, and it holds no labels to check against.
 func (m *MetricsPublisher) seriesFor(f *metricFamily, values []string) *metricSeries {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if len(values) != len(f.decl.Labels) {
-		panic("BUG: metric " + f.decl.Name + " given " + strconv.Itoa(len(values)) + " label values for " + strconv.Itoa(len(f.decl.Labels)) + " labels")
-	}
 	if f.refused != "" {
 		return &metricSeries{deleted: true}
+	}
+	if len(values) != len(f.decl.Labels) {
+		panic("BUG: metric " + f.decl.Name + " given " + strconv.Itoa(len(values)) + " label values for " + strconv.Itoa(len(f.decl.Labels)) + " labels")
 	}
 	for _, value := range values {
 		if len(value) > rpc.MetricLabelValueMax {
@@ -838,9 +914,10 @@ type publishedHistogram struct {
 // Prometheus does, and wakes an early publish when that bucket nears the
 // most one update may carry.
 func (h *publishedHistogram) Observe(v float64) {
-	i := sort.SearchFloat64s(h.f.decl.Buckets, v)
 	near := false
 	h.m.update(h.f, h.s, v, func(s *metricSeries) bool {
+		// Under the lock: an engine refusal clears the buckets of its family.
+		i := sort.SearchFloat64s(h.f.decl.Buckets, v)
 		next := s.sums[i] + v
 		if math.IsInf(next, 0) {
 			return false

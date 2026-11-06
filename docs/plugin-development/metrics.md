@@ -498,7 +498,14 @@ Per plugin the daemon holds at most `rpc.MetricsDeclaredMax` names and
 longer than `rpc.MetricLabelValueMax` octets, a name without the `ze_` prefix,
 a name the daemon holds with another shape, a declaration too wide to fit an
 RPC frame even alone, and a value that is not finite are not forwarded, each
-with one WARN line. Declaration admission uses its encoded size, not an
+with one WARN line. A name the daemon refuses gives back its labeled series and
+its declared slot, and its handles update nothing. The plugin remembers
+`rpc.MetricsDeclaredMax` refused names, so a repeat stays one WARN line. Past
+that, a name the daemon refuses is remembered in the declared slot it keeps, and
+a name the plugin itself refuses is not held: one further WARN line says later
+refused names go unnamed. A name longer than `rpc.MetricNameMax` is never held
+either. One WARN line covers all such names, showing the name cut at the limit.
+Declaration admission uses its encoded size, not an
 arbitrary label-name length limit; a fitting singleton is left to the actual
 request writer. The label-value boundary is inclusive: 256 octets are accepted.
 A restarted plugin declares its metrics again and carries on from the daemon's
