@@ -11,7 +11,7 @@ import (
 // to one summary; independently owned field summaries never share a visitor.
 type externalReflectionWalk struct {
 	effects *externalEffects
-	path    []externalReflectionFrame
+	path    externalReflectionActivePath
 	// reuse is the running query's table of completed visits, nil outside a
 	// query or when a test disabled reuse.
 	reuse *externalReflectionReuse
@@ -36,6 +36,9 @@ func (w *externalReflectionWalk) value(source sourceExpr, scope *externalTypeSco
 	var result externalReflection
 	outer := w.reuse
 	w.reuse = newExternalReflectionReuse(w.probe)
+	if len(w.path.frames) == 0 {
+		w.path.linear = w.probe != nil && w.probe.linearPath
+	}
 	defer func() { w.reuse = outer }()
 	w.collect(source, scope, methods, valueRoot, depth, &result)
 	return result
@@ -185,13 +188,14 @@ func (w *externalReflectionWalk) collectNamed(source sourceExpr, arguments []ext
 		w.collect(argument.source, argument.scope, true, false, depth+1, result)
 	}
 	frame := externalReflectionFrame{definition: definition, arguments: arguments, methods: methods, valueRoot: valueRoot}
-	for index, active := range w.path {
-		if externalReflectionFrameEqual(active, frame, depth) {
-			if w.reuse != nil {
-				w.reuse.pruned(index)
-			}
-			return
+	// The first active frame equal to this one is the backedge, as a scan of
+	// the path from the outside in would find it; the path's index compares
+	// only the frames that share this frame's definition and flags.
+	if index := w.path.backedge(frame, depth); index >= 0 {
+		if w.reuse != nil {
+			w.reuse.pruned(index)
 		}
+		return
 	}
 	// Skip this visit when the output union already holds everything it could
 	// add. An earlier visit of the same exact frame, owner and incoming depth
@@ -206,19 +210,19 @@ func (w *externalReflectionWalk) collectNamed(source sourceExpr, arguments []ext
 	// already there. Without that proof, or when the table is full, the visit
 	// traverses as before.
 	if w.reuse != nil {
-		if w.reuse.covered(w.path, frame, owner, depth) {
+		if w.reuse.covered(&w.path, frame, owner, depth) {
 			return
 		}
 	}
-	w.path = append(w.path, frame)
-	defer func() { w.path = w.path[:len(w.path)-1] }()
+	w.path.push(frame)
+	defer w.path.pop()
 	if w.probe != nil {
 		w.probe.traversals++
 	}
 	if w.reuse != nil {
-		w.reuse.enter(len(w.path) - 1)
+		w.reuse.enter(len(w.path.frames) - 1)
 		// Runs before the path pop above, so the path still holds this frame.
-		defer func() { w.reuse.complete(w.path, frame, owner, depth) }()
+		defer func() { w.reuse.complete(w.path.frames, frame, owner, depth) }()
 	}
 	scope := w.effects.typeIdentities.lexicalScope(owner)
 	if len(arguments) != 0 {

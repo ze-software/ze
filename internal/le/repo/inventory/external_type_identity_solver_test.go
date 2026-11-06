@@ -160,7 +160,7 @@ func TestExternalTypeIdentityRetainsReceiverRefusals(t *testing.T) {
 	}
 }
 
-func typeIdentitySelectedSource(t *testing.T, directory string, sources map[string]string) *externalEffects {
+func typeIdentitySelectedSource(t testing.TB, directory string, sources map[string]string) *externalEffects {
 	t.Helper()
 	snapshot := &Snapshot{blobs: make(map[string][]byte), directories: make(map[string][]string), fset: token.NewFileSet(), packages: make(map[string]*sourcePackage)}
 	for name, text := range sources {

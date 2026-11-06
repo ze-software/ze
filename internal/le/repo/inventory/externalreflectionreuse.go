@@ -25,13 +25,15 @@ const (
 )
 
 // externalReflectionReuseProbe is set only by tests, on the walker. A nil
-// probe is the production walk: reuse on, default capacity, nothing counted.
+// probe is the production walk: reuse on, path index on, default capacity,
+// nothing counted.
 type externalReflectionReuseProbe struct {
 	disabled     bool // traverse every visit, as before reuse existed
 	visits       int  // completed visits the table may keep; 0 keeps the default
 	visitsPerKey int  // completed visits one key may keep; 0 keeps the default
 	frames       int  // ancestor frames all kept visits may hold; 0 keeps the default
 	traversals   int  // named visits that pushed a frame and expanded
+	linearPath   bool // scan the active path for every lookup, as before its index existed
 }
 
 // externalReflectionReuse belongs to one query: one value call and its one
@@ -128,8 +130,8 @@ func (v *externalReflectionOpenVisit) note(index int) {
 // incoming depth pruned only against frames that are active now. On a yes, the
 // skipped visit's pruned set is charged to the innermost open visit, exactly
 // as its traversal would have charged it, so that visit's own record stays a
-// proof.
-func (r *externalReflectionReuse) covered(path []externalReflectionFrame, frame externalReflectionFrame, owner sourceExpr, depth int) bool {
+// proof. Both ancestor lookups go through the path's index.
+func (r *externalReflectionReuse) covered(path *externalReflectionActivePath, frame externalReflectionFrame, owner sourceExpr, depth int) bool {
 	for _, visit := range r.completed[externalReflectionVisitKeyOf(frame, owner, depth)] {
 		if !externalReflectionArgumentsSame(visit.arguments, frame.arguments) {
 			continue
@@ -247,24 +249,4 @@ func externalReflectionFrameSame(left, right externalReflectionFrame) bool {
 		return false
 	}
 	return externalReflectionArgumentsSame(left.arguments, right.arguments)
-}
-
-// externalReflectionActiveIndex answers the outermost path index holding a
-// frame exactly the same as frame, or -1 when none does.
-func externalReflectionActiveIndex(path []externalReflectionFrame, frame externalReflectionFrame) int {
-	for index, active := range path {
-		if externalReflectionFrameSame(active, frame) {
-			return index
-		}
-	}
-	return -1
-}
-
-func externalReflectionAncestorsActive(path []externalReflectionFrame, ancestors []externalReflectionFrame) bool {
-	for _, ancestor := range ancestors {
-		if externalReflectionActiveIndex(path, ancestor) < 0 {
-			return false
-		}
-	}
-	return true
 }

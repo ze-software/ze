@@ -220,7 +220,7 @@ func TestExternalMethodCensusWidePackage(t *testing.T) {
 	}
 }
 
-func methodCensusFixture(t *testing.T, body string) (*externalEffects, *ast.TypeSpec, sourceExpr) {
+func methodCensusFixture(t testing.TB, body string) (*externalEffects, *ast.TypeSpec, sourceExpr) {
 	t.Helper()
 	const directory = "internal/methodcensusfixture"
 	effects := typeIdentitySelectedSource(t, directory, map[string]string{
@@ -230,7 +230,7 @@ func methodCensusFixture(t *testing.T, body string) (*externalEffects, *ast.Type
 	return effects, definition, owner
 }
 
-func methodCensusNamedType(t *testing.T, effects *externalEffects, pkg *sourcePackage, name string) (*ast.TypeSpec, sourceExpr) {
+func methodCensusNamedType(t testing.TB, effects *externalEffects, pkg *sourcePackage, name string) (*ast.TypeSpec, sourceExpr) {
 	t.Helper()
 	for _, file := range pkg.files {
 		if file.File.Scope == nil {

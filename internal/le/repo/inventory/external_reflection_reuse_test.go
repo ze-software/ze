@@ -33,12 +33,7 @@ func TestExternalReflectionReuseDiamond(t *testing.T) {
 // Top is on the path at the second visit, which reuse must skip.
 // MUTATION: in store, return when pruned is non-zero, and the counts tie.
 func TestExternalReflectionReuseRecursiveCluster(t *testing.T) {
-	body := "type Top struct { Left *Left; Right *Right }\n" +
-		"type Left struct { Next *Shared }\n" +
-		"type Right struct { Next *Shared }\n" +
-		"type Shared struct { Back *Top }\n" +
-		"func (Left) TouchLeft() {}\nfunc (Right) TouchRight() {}\nfunc (Shared) TouchShared() {}\n" +
-		"type Root = Top\n"
+	body := reflectionReuseClusterBody
 	effects, source := reflectionReuseFixture(t, body)
 	on, onCount := reflectionReuseWalk(effects, source, 0, &externalReflectionReuseProbe{})
 	off, offCount := reflectionReuseWalk(effects, source, 0, &externalReflectionReuseProbe{disabled: true})
@@ -60,10 +55,7 @@ func TestExternalReflectionReuseRecursiveCluster(t *testing.T) {
 // MUTATION: build the key with depth 0 in externalReflectionVisitKeyOf, and the
 // boundary start loses its depth refusal.
 func TestExternalReflectionReuseKeepsIncomingDepth(t *testing.T) {
-	body := "type Root struct { A Shared; B Wrap }\n" +
-		"type Wrap struct { X Shared }\n" +
-		"type Shared struct { Next Chain1 }\n" +
-		reflectionReuseChain(6, "Touch")
+	body := reflectionReuseDepthBody
 	reflectionReuseAcrossDepths(t, body)
 }
 
@@ -74,11 +66,7 @@ func TestExternalReflectionReuseKeepsIncomingDepth(t *testing.T) {
 // MUTATION: make externalReflectionArgumentsSame return true, and the boundary
 // start loses its depth refusal.
 func TestExternalReflectionReuseKeepsGenericArguments(t *testing.T) {
-	body := "type Root struct { A Box[Near]; B Box[Far] }\n" +
-		"type Box[T any] struct { Value T }\n" +
-		"type Near int\nfunc (Near) TouchNear() {}\n" +
-		"type Far struct { Next Chain1 }\n" +
-		reflectionReuseChain(4, "TouchFar")
+	body := reflectionReuseGenericBody
 	reflectionReuseAcrossDepths(t, body)
 }
 
@@ -91,12 +79,7 @@ func TestExternalReflectionReuseKeepsGenericArguments(t *testing.T) {
 // MUTATION: make externalReflectionActiveIndex return 0, so every recorded
 // ancestor reads as active, and the boundary start loses its depth refusal.
 func TestExternalReflectionReuseNeedsPrunedAncestorsOnPath(t *testing.T) {
-	body := "type Root struct { A *Holder; B *Other }\n" +
-		"type Holder struct { S *Shared; C Chain1 }\n" +
-		"type Other struct { S *Shared; C Plain }\n" +
-		"type Shared struct { Back *Holder }\n" +
-		"type Plain int\n" +
-		reflectionReuseChain(4, "Touch")
+	body := reflectionReuseAbsentAncestorBody
 	reflectionReuseAcrossDepths(t, body)
 }
 
@@ -110,13 +93,7 @@ func TestExternalReflectionReuseNeedsPrunedAncestorsOnPath(t *testing.T) {
 // hands the pruned set to the parent, and the boundary start loses its depth
 // refusal.
 func TestExternalReflectionReusePropagatesPrunedAncestors(t *testing.T) {
-	body := "type Root struct { A *Holder; B *Other }\n" +
-		"type Holder struct { M *Mid; C Chain1 }\n" +
-		"type Other struct { M *Mid; C Plain }\n" +
-		"type Mid struct { S *Shared }\n" +
-		"type Shared struct { Back *Holder }\n" +
-		"type Plain int\n" +
-		reflectionReuseChain(4, "Touch")
+	body := reflectionReusePropagateBody
 	reflectionReuseAcrossDepths(t, body)
 }
 
@@ -129,14 +106,7 @@ func TestExternalReflectionReusePropagatesPrunedAncestors(t *testing.T) {
 // MUTATION: in covered, delete the r.pruned call in the ancestors loop, and the
 // boundary start loses its depth refusal.
 func TestExternalReflectionReuseChargesSkippedVisits(t *testing.T) {
-	body := "type Root struct { A *Holder; B *Other }\n" +
-		"type Holder struct { X *Pad; M *Mid; C Chain1 }\n" +
-		"type Other struct { M *Mid; C Plain }\n" +
-		"type Pad struct { S *Shared }\n" +
-		"type Mid struct { S *Shared }\n" +
-		"type Shared struct { Back *Holder }\n" +
-		"type Plain int\n" +
-		reflectionReuseChain(4, "Touch")
+	body := reflectionReuseChargeBody
 	reflectionReuseAcrossDepths(t, body)
 }
 
@@ -186,11 +156,7 @@ func TestExternalReflectionReuseFullFramesTraverses(t *testing.T) {
 // default count and no higher than the full walk's.
 func reflectionReuseCapTraverses(t *testing.T, label string, capped *externalReflectionReuseProbe) {
 	t.Helper()
-	body := "type Root struct { A *Left; B *Right }\n" +
-		"type Left struct { S *Shared }\n" +
-		"type Right struct { S *Shared; T *Shared }\n" +
-		"type Shared struct { One *Left; Two *Right }\n" +
-		"func (Left) TouchLeft() {}\nfunc (Right) TouchRight() {}\nfunc (Shared) TouchShared() {}\n"
+	body := reflectionReuseCapBody
 	effects, source := reflectionReuseFixture(t, body)
 	normal, normalCount := reflectionReuseWalk(effects, source, 0, &externalReflectionReuseProbe{})
 	small, smallCount := reflectionReuseWalk(effects, source, 0, capped)
@@ -235,7 +201,59 @@ func reflectionReuseAcrossDepths(t *testing.T, body string) {
 	}
 }
 
-func reflectionReuseFixture(t *testing.T, body string) (*externalEffects, sourceExpr) {
+// The reuse fixtures, shared by the reuse tests and the path index tests.
+var (
+	// reflectionReuseClusterBody reaches Shared through Left and then Right; Shared points back at Top.
+	reflectionReuseClusterBody = "type Top struct { Left *Left; Right *Right }\n" +
+		"type Left struct { Next *Shared }\n" +
+		"type Right struct { Next *Shared }\n" +
+		"type Shared struct { Back *Top }\n" +
+		"func (Left) TouchLeft() {}\nfunc (Right) TouchRight() {}\nfunc (Shared) TouchShared() {}\n" +
+		"type Root = Top\n"
+	// reflectionReuseDepthBody reaches Shared through A, then three edges deeper through Wrap.
+	reflectionReuseDepthBody = "type Root struct { A Shared; B Wrap }\n" +
+		"type Wrap struct { X Shared }\n" +
+		"type Shared struct { Next Chain1 }\n" +
+		reflectionReuseChain(6, "Touch")
+	// reflectionReuseGenericBody holds Box[Near] and Box[Far] as siblings, Far deeper than Near.
+	reflectionReuseGenericBody = "type Root struct { A Box[Near]; B Box[Far] }\n" +
+		"type Box[T any] struct { Value T }\n" +
+		"type Near int\nfunc (Near) TouchNear() {}\n" +
+		"type Far struct { Next Chain1 }\n" +
+		reflectionReuseChain(4, "TouchFar")
+	// reflectionReuseAbsentAncestorBody reaches Shared under Holder, where its Back edge is pruned, then under Other.
+	reflectionReuseAbsentAncestorBody = "type Root struct { A *Holder; B *Other }\n" +
+		"type Holder struct { S *Shared; C Chain1 }\n" +
+		"type Other struct { S *Shared; C Plain }\n" +
+		"type Shared struct { Back *Holder }\n" +
+		"type Plain int\n" +
+		reflectionReuseChain(4, "Touch")
+	// reflectionReusePropagateBody reaches Holder from Mid only through Shared.
+	reflectionReusePropagateBody = "type Root struct { A *Holder; B *Other }\n" +
+		"type Holder struct { M *Mid; C Chain1 }\n" +
+		"type Other struct { M *Mid; C Plain }\n" +
+		"type Mid struct { S *Shared }\n" +
+		"type Shared struct { Back *Holder }\n" +
+		"type Plain int\n" +
+		reflectionReuseChain(4, "Touch")
+	// reflectionReuseChargeBody reaches Shared through Pad, then through Mid where it is skipped.
+	reflectionReuseChargeBody = "type Root struct { A *Holder; B *Other }\n" +
+		"type Holder struct { X *Pad; M *Mid; C Chain1 }\n" +
+		"type Other struct { M *Mid; C Plain }\n" +
+		"type Pad struct { S *Shared }\n" +
+		"type Mid struct { S *Shared }\n" +
+		"type Shared struct { Back *Holder }\n" +
+		"type Plain int\n" +
+		reflectionReuseChain(4, "Touch")
+	// reflectionReuseCapBody needs two records for Shared under one key.
+	reflectionReuseCapBody = "type Root struct { A *Left; B *Right }\n" +
+		"type Left struct { S *Shared }\n" +
+		"type Right struct { S *Shared; T *Shared }\n" +
+		"type Shared struct { One *Left; Two *Right }\n" +
+		"func (Left) TouchLeft() {}\nfunc (Right) TouchRight() {}\nfunc (Shared) TouchShared() {}\n"
+)
+
+func reflectionReuseFixture(t testing.TB, body string) (*externalEffects, sourceExpr) {
 	t.Helper()
 	effects, definition, owner := methodCensusFixture(t, body)
 	return effects, sourceExpr{value: definition.Name, file: owner.file, pkg: owner.pkg}

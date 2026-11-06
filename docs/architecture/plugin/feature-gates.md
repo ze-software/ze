@@ -270,7 +270,13 @@ keeps this proof and never an answer: no method, origin or refusal reason. Each
 query owns a fresh table and drops it when it returns. When the table is full
 (in total, for one key, or in ancestor frames), the visit is not recorded and a
 later equal visit takes the full walk.
-<!-- source: internal/le/repo/inventory/externalreflectionreuse.go -- externalReflectionReuse.covered, externalReflectionReuse.complete, externalReflectionReuse.store, externalReflectionAncestorsActive -->
+The active path is indexed by definition and flags, so finding whether an
+equal frame is active, its outermost position, or whether a recorded ancestor
+is still on the path compares only the frames that share that key, with the
+same exact comparison a full scan of the path makes. The index holds no more
+entries than the path, which the depth guard bounds at 128.
+<!-- source: internal/le/repo/inventory/externalreflectionreuse.go -- externalReflectionReuse.covered, externalReflectionReuse.complete, externalReflectionReuse.store -->
+<!-- source: internal/le/repo/inventory/externalreflectionpath.go -- externalReflectionActivePath, externalReflectionActiveIndex, externalReflectionAncestorsActive -->
 <!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk.value, externalReflectionWalk.collectNamed -->
 
 The observation horizon is completed initialization. Without a proved ordering
