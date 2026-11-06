@@ -4,7 +4,6 @@ package gomodule
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +12,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 )
 
 const (
@@ -636,16 +637,9 @@ func remapPackage(path, source, destination string) string {
 }
 
 func runPluginGenerator(root string) int {
-	command := exec.CommandContext(context.Background(), "go", "run", pluginGenerator)
-	command.Dir = root
-	command.Env = append(os.Environ(), "CGO_ENABLED=0")
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	if err := command.Run(); err != nil {
-		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
-			return exit.ExitCode()
-		}
-		return 2
+	if _, err := pluginimports.Write(root); err != nil {
+		fmt.Fprintln(os.Stderr, "regenerate moved plugin imports:", err) //nolint:errcheck // stderr diagnostic accompanies the failing exit code.
+		return 1
 	}
 	return 0
 }

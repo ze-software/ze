@@ -126,6 +126,12 @@ The codegen (`internal/le/plugin/imports.Write`) scans the directory tree for:
 Because discovery is directory-based, copying a plugin folder in (or deleting it)
 and re-running codegen is all that's needed to wire (or unwire) the plugin.
 
+`le go module move ... apply` refreshes the moved tree through that same
+`pluginimports.Write` producer. It does not execute the generator's Go source:
+the generator is a library package, not a standalone program. A generation
+error retains its cause in the diagnostic and returns a failing move result.
+<!-- source: internal/le/go/module/move.go -- runPluginGenerator, applyMove -->
+
 ### The CLI command owner
 
 A package whose `init()` calls `registry.MustRegisterRootHandler`,
