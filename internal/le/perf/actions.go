@@ -98,6 +98,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    filterVerb,
+		Does:    "run",
 		Summary: "measure the route filter paths' throughput",
 		Why: "the throughput harness of the route filter paths: the in-process typed" +
 			" slot and the external filter-update batch at 1, 16 and 64 routes." +

@@ -309,16 +309,19 @@ func (b *Bench) Run(ctx context.Context, steps perfrunner.Steps, duts []string) 
 	if err := validateDUTs(duts); err != nil {
 		return fail(runVerb, 1, err)
 	}
-	// The ze DUT runs Ze in a container on the Docker daemon's kernel, so that
-	// kernel must carry every feature Ze enrolls before the DUT starts (owner
-	// D-4: a wrong kernel "should not be possible - fail"). A build alone, or a
-	// run of other DUTs only, starts no ze.
-	if steps.Test && runsZe(duts) {
+	// Image construction and runtime probing consume the same staged lab
+	// binaries. Build-only must refresh them too, but starts no Ze container
+	// and therefore needs no runtime kernel probe.
+	if (steps.Build || steps.Test) && runsZe(duts) {
 		if err := b.Stage(ctx, b.Root); err != nil {
 			return fail(runVerb, 1, err)
 		}
-		if err := b.Kernel(ctx, b.stagedZe()); err != nil {
-			return fail(runVerb, 1, err)
+		if steps.Test {
+			// Owner D-4: the Docker kernel must carry every feature Ze
+			// enrolls before the DUT starts.
+			if err := b.Kernel(ctx, b.stagedZe()); err != nil {
+				return fail(runVerb, 1, err)
+			}
 		}
 	}
 	gaterun.Announce(measureAction)

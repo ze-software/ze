@@ -507,7 +507,7 @@ func TestRunChecksTheDockerKernelBeforeTheZeDUT(t *testing.T) {
 // VALIDATES: review round 2, finding 3. A run that starts the ze DUT builds the
 // linux ze the DUT image carries before the kernel check probes with it, at the
 // path the BGP lab declares for that binary, and a failed build stops the run
-// before the check and the measurement. A run that starts no ze builds nothing.
+// before the check and the measurement. A run selecting no ze builds nothing.
 // PREVENTS: the kernel check probing test/interop/ze-linux on a checkout where
 // nothing produced it, so Docker bind-mounts a missing path and creates a
 // root-owned directory in its place.
@@ -532,7 +532,6 @@ func TestRunStagesTheZeTheKernelCheckProbes(t *testing.T) {
 		steps perfrunner.Steps
 		duts  []string
 	}{
-		{"build alone", perfrunner.Steps{Build: true}, []string{"ze"}},
 		{"no ze", bothSteps(), []string{"bird"}},
 	} {
 		bench, rec := fixtureBench(t)
