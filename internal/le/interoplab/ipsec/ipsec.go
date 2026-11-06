@@ -381,7 +381,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 
 func zeEnvironment(directory string) ([]interoplab.EnvironmentVariable, error) {
 	variables := []interoplab.EnvironmentVariable{
-		{Name: "ZE_LOG_LEVEL", Value: "debug"},
+		{Name: "ZE_LOG", Value: "debug"},
 	}
 	content, err := readFileUnder(directory, "ze-env")
 	if errors.Is(err, os.ErrNotExist) {
@@ -446,11 +446,6 @@ func readFileUnder(directory, name string) ([]byte, error) {
 func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
-}
-
-func directoryExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.IsDir()
 }
 
 // Commands the scenarios run inside a peer, the ip(8) words they use to move

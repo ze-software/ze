@@ -1854,6 +1854,16 @@ its own `src`/`dst` header and takes the set of directions its caller can claim,
 and it also refuses a ping whose `% packet loss` summary is missing or non-zero.
 <!-- source: internal/le/interoplab/ipsec/helpers.go -- directed ESP counters and the lossless-ping clause -->
 
+### IPsec diagnostic environment
+
+The IPsec lab sets `ZE_LOG=debug`, the registered base logger key `ze.log`, on
+its Ze container. `ZE_LOG_LEVEL` names no effective base level and cannot
+enable the diagnostic records a checker observes. Scenario `ze-env` files
+remain additive: a more specific key such as `ZE_LOG_IKE=info` selects that
+subsystem's level without changing the shared default.
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- zeEnvironment, prepareScenario -->
+<!-- source: internal/core/slogutil/slogutil.go -- getLogEnv, Logger -->
+
 ### IPsec injected datagrams
 
 `out-of-sa-request-notified-over-sa` proves RFC 7296 Section 2.21.4 against
