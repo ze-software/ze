@@ -533,7 +533,11 @@ func recoveryReceivedFrom(delivery process.EventDelivery, source string) (uint64
 			} `json:"peer"`
 		} `json:"bgp"`
 	}
-	if err := json.Unmarshal([]byte(delivery.Output), &envelope); err != nil {
+	wrapped, err := rpc.ParseEventEnvelope(delivery.Output)
+	if err != nil || wrapped.Namespace != "bgp" || wrapped.Event != "update" {
+		return 0, false
+	}
+	if err := json.Unmarshal(wrapped.Payload, &envelope); err != nil {
 		return 0, false
 	}
 	return envelope.BGP.Message.ID, envelope.BGP.Message.Direction == "received" &&
