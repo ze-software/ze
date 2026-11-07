@@ -26,9 +26,9 @@ type scenarioChecker func(context.Context, *scenarioLab) error
 type scenarioCheck struct {
 	run scenarioChecker
 	// writesPeerSysctl marks a checker that writes strongSwan's sysctls while
-	// the scenario runs (dropFragmentsAtPeer). Only that scenario's strongSwan
-	// gets /proc/sys writable, under the generic net sysctl profile; every
-	// other strongSwan keeps Docker's read-only /proc/sys.
+	// the scenario runs (dropFragmentsAtPeer, vtiIPv6PeerInner). Only that
+	// scenario's strongSwan gets /proc/sys writable, under the generic net
+	// sysctl profile; every other strongSwan keeps Docker's read-only /proc/sys.
 	writesPeerSysctl bool
 }
 
@@ -99,6 +99,9 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"unbound-inner-address-uniqueness":      {run: checkUnboundInnerAddressUniqueness},
 	"virtual-ip-assignment":                 {run: checkVirtualIPAssignment},
 	"virtual-ip-uniqueness":                 {run: checkVirtualIPUniqueness},
+	// IPv6 inside an IPv4 Child SA on vti0: the checker enables IPv6 on strongSwan's
+	// lab interface, where its policy-based tunnel decapsulates (vtiipv6.go).
+	"vti-ipv6-inner-ipv4-outer": {run: checkVTIIPv6InnerIPv4Outer, writesPeerSysctl: true},
 	// RFC 8247 Section 3.1 legacy signatures: strongSwan runs with RFC 7427 off, so
 	// Ze signs and verifies the AUTH method of each key (legacysig.go).
 	"x509-legacy-ecdsa-p256-signature": {run: checkLegacySignature("ECDSA-256 signature")},

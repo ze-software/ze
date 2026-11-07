@@ -91,10 +91,11 @@ func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 
 // VALIDATES: AC-1. No peer is privileged; the NAT box, strongSwan and ze hold
 // NET_ADMIN; the NAT box sets its sysctls through --sysctl and its script writes
-// none; strongSwan, where the scenario's checker cuts its reassembly marks at
-// run time (writesPeerSysctl on its checker entry) and only there, gets
-// /proc/sys writable under the generic net sysctl profile, which grants both
-// marks; ze gets neither.
+// none; strongSwan, where the scenario's checker writes its sysctls at run time
+// (cutting its reassembly marks, or enabling IPv6 on its lab interface;
+// writesPeerSysctl on its checker entry) and only there, gets /proc/sys
+// writable under the generic net sysctl profile, which grants every sysctl
+// those checkers write; ze gets neither.
 // PREVENTS: a lab peer silently running --privileged again, or a grant drifting
 // from the writes the lab makes.
 func TestIPsecLabPeersRunWithoutPrivilege(t *testing.T) {
@@ -147,12 +148,19 @@ func TestIPsecLabPeersRunWithoutPrivilege(t *testing.T) {
 			t.Errorf("strongSwan's profile does not grant %s, which dropFragmentsAtPeer writes", mark)
 		}
 	}
+	for _, key := range vtiIPv6PeerSysctls {
+		if !interoplab.NetSysctlGranted(key) {
+			t.Errorf("strongSwan's profile does not grant %s, which vtiIPv6PeerInner writes", key)
+		}
+	}
 }
 
 // VALIDATES: a scenario's checker entry sets writesPeerSysctl exactly when its
-// checker reaches dropFragmentsAtPeer, the one helper that writes strongSwan's
-// sysctls. The package source is parsed and the calls between its functions
-// followed to a fixed point, so a checker that writes through a helper counts.
+// checker reaches a function that writes strongSwan's sysctls. The package
+// source is parsed; a writer is any function whose body calls
+// exec(ctx, swanPeer, "sysctl", "-w", ...) (today dropFragmentsAtPeer and
+// vtiIPv6PeerInner), and the calls between functions are followed to a fixed
+// point, so a checker that writes directly or through a helper counts.
 // PREVENTS: a checker gaining a peer sysctl write while its strongSwan keeps a
 // read-only /proc/sys (the scenario fails at run time on a lab host only), or
 // a flag left behind that holds /proc/sys writable for nothing.
@@ -162,6 +170,7 @@ func TestOnlyCheckersThatWritePeerSysctlsAreFlagged(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := map[string][]string{}
+	writers := map[string]bool{}
 	fileSet := token.NewFileSet()
 	for _, name := range files {
 		if strings.HasSuffix(name, "_test.go") {
@@ -186,12 +195,17 @@ func TestOnlyCheckersThatWritePeerSysctlsAreFlagged(t *testing.T) {
 					calls[function.Name.Name] = append(calls[function.Name.Name], callee.Name)
 				case *ast.SelectorExpr:
 					calls[function.Name.Name] = append(calls[function.Name.Name], callee.Sel.Name)
+					if callee.Sel.Name == "exec" && writesSwanSysctl(call.Args) {
+						writers[function.Name.Name] = true
+					}
 				}
 				return true
 			})
 		}
 	}
-	writers := map[string]bool{"dropFragmentsAtPeer": true}
+	if len(writers) == 0 {
+		t.Fatal(`no function calls exec(ctx, swanPeer, "sysctl", "-w", ...): the writer derivation matches nothing`)
+	}
 	for grew := true; grew; {
 		grew = false
 		for caller, callees := range calls {
@@ -208,8 +222,27 @@ func TestOnlyCheckersThatWritePeerSysctlsAreFlagged(t *testing.T) {
 		qualified := runtime.FuncForPC(reflect.ValueOf(entry.run).Pointer()).Name()
 		function := qualified[strings.LastIndexByte(qualified, '.')+1:]
 		if writers[function] != entry.writesPeerSysctl {
-			t.Errorf("%s: %s reaches dropFragmentsAtPeer = %v, but its entry sets writesPeerSysctl = %v",
+			t.Errorf("%s: %s reaches a peer sysctl writer = %v, but its entry sets writesPeerSysctl = %v",
 				scenario, function, writers[function], entry.writesPeerSysctl)
 		}
 	}
+}
+
+// writesSwanSysctl reports whether exec's arguments are
+// (ctx, swanPeer, "sysctl", "-w", ...): a sysctl write on the strongSwan peer.
+func writesSwanSysctl(args []ast.Expr) bool {
+	if len(args) < 4 {
+		return false
+	}
+	peer, ok := args[1].(*ast.Ident)
+	if !ok || peer.Name != "swanPeer" {
+		return false
+	}
+	for i, want := range []string{`"sysctl"`, `"-w"`} {
+		literal, ok := args[2+i].(*ast.BasicLit)
+		if !ok || literal.Kind != token.STRING || literal.Value != want {
+			return false
+		}
+	}
+	return true
 }

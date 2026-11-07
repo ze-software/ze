@@ -98,3 +98,67 @@ func TestResponderAnswersTSUnacceptableToAMixedFamilyChild(t *testing.T) {
 		t.Errorf("the IKE SA is %v after a refused Child SA, want established", link.resp.State)
 	}
 }
+
+// TestInitiatorAcceptsNarrowingToOneFamily proposes the home CPE's two entries, IPv4
+// 0.0.0.0/0 to 0.0.0.0/0 and then IPv6 ::/0 to ::/0, and answers with one family alone.
+// The IPv6 answer is strongSwan's when its child config names only ::/0: its
+// traffic_selector_list select_ intersects each configured selector with each received
+// one, and get_subset (traffic_selector.c, 6.1.0) answers NULL for two selectors whose
+// types differ, so the IPv4 entries drop out.
+//
+// VALIDATES: recordInitiatorSelectors adopts either one-family subset of a two-family
+// proposal and records exactly the one pair answered, in that family on both halves.
+// PREVENTS: the initiator installing its proposal instead of the answer, which programs a
+// policy for the family the responder never agreed to carry (RFC 7296 Section 2.9).
+func TestInitiatorAcceptsNarrowingToOneFamily(t *testing.T) {
+	for _, answer := range []string{"::/0", "0.0.0.0/0"} {
+		t.Run(answer, func(t *testing.T) {
+			peer, _ := dualFamilyPeer(t)
+			sa := tisInitiator(t, peer)
+			if len(sa.ProposedChildPairs) != 2 {
+				t.Fatalf("the recorded proposal holds %d pairs, want both families", len(sa.ProposedChildPairs))
+			}
+
+			err := recordInitiatorSelectors(sa,
+				tsPayload(t, wire.PayloadTypeTSi, answer),
+				tsPayload(t, wire.PayloadTypeTSr, answer), nil)
+			if err != nil {
+				t.Fatalf("the one-family subset %s was refused: %v", answer, err)
+			}
+			if len(sa.NegotiatedPairs) != 1 {
+				t.Fatalf("recorded %d pairs %s, want the one %s pair", len(sa.NegotiatedPairs), pairsText(sa.NegotiatedPairs), answer)
+			}
+			if got := sa.NegotiatedPairs[0].I.Net.String(); got != answer {
+				t.Errorf("TSi = %s, want %s", got, answer)
+			}
+			if got := sa.NegotiatedPairs[0].R.Net.String(); got != answer {
+				t.Errorf("TSr = %s, want %s", got, answer)
+			}
+		})
+	}
+}
+
+// TestInitiatorRefusesAWidenedFamilyOfATwoFamilyProposal proposes 10.1.0.0/16 to
+// 10.2.0.0/16 and fd00:1::/64 to fd00:2::/64, and answers the IPv6 family alone with a
+// TSr wider than the one proposed.
+//
+// VALIDATES: AC-4: dropping a family does not license widening the other one; the answer
+// is refused with errTSWidened and nothing is recorded.
+// PREVENTS: the one-family acceptance above becoming a route around the ceiling check.
+func TestInitiatorRefusesAWidenedFamilyOfATwoFamilyProposal(t *testing.T) {
+	peer := ipsec.SiteToSitePeer{Name: "two-family", TrafficSelectors: []ipsec.TrafficSelectorPolicy{
+		comboPolicy(t, "1", "10.1.0.0/16", "10.2.0.0/16"),
+		comboPolicy(t, "2", "fd00:1::/64", "fd00:2::/64"),
+	}}
+	sa := tisInitiator(t, peer)
+
+	err := recordInitiatorSelectors(sa,
+		tsPayload(t, wire.PayloadTypeTSi, "fd00:1::/64"),
+		tsPayload(t, wire.PayloadTypeTSr, "fd00::/16"), nil)
+	if !errors.Is(err, errTSWidened) {
+		t.Fatalf("recordInitiatorSelectors = %v, want errTSWidened", err)
+	}
+	if sa.NegotiatedPairs != nil {
+		t.Errorf("a widened answer recorded selectors %s", pairsText(sa.NegotiatedPairs))
+	}
+}

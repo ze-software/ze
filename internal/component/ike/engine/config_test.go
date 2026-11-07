@@ -98,3 +98,21 @@ func TestParseIPsecSectionsEmpty(t *testing.T) {
 		t.Fatalf("expected 0 peers, got %d", len(cfg.Peers))
 	}
 }
+
+// TestDualFamilySelectorListValidates verifies the home CPE's management peer, one
+// IPv4 0.0.0.0/0 to 0.0.0.0/0 entry and one IPv6 ::/0 to ::/0 entry on a VTI-bound
+// tunnel, through validateIPsecSections, the plugin's OnConfigVerify body.
+//
+// VALIDATES: AC-1, validation half: the list commits. validateSelectorCombinations
+// passes it, because each local entry already meets its own family's remote entry and
+// the cross-family combinations match no packet (RFC 7296 Section 3.13).
+// PREVENTS: the dual-stack form the guide recommends being refused at commit.
+func TestDualFamilySelectorListValidates(t *testing.T) {
+	if err := validateIPsecSections(vpnSection(dualFamilyCPEConfig)); err != nil {
+		t.Fatalf("the dual-family VTI peer failed config verify: %v", err)
+	}
+	_, cfg := dualFamilyPeer(t)
+	if err := validateSelectorCombinations(cfg); err != nil {
+		t.Errorf("validateSelectorCombinations refused one IPv4 and one IPv6 entry: %v", err)
+	}
+}

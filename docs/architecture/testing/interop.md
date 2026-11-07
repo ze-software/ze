@@ -928,9 +928,12 @@ the profile grants each. In the IPsec lab the NAT box, strongSwan and ze hold
 `NET_ADMIN`; the NAT box sets its three sysctls through `--sysctl`; strongSwan
 runs under `ze-lab-net-sysctl` only in a scenario whose `scenarioCheckers`
 entry sets `writesPeerSysctl` (`internal/le/interoplab/ipsec/checkers.go`),
-because its checker cuts strongSwan's reassembly marks at run time;
+because its checker writes strongSwan's sysctls at run time (it cuts the
+reassembly marks through `dropFragmentsAtPeer`, or enables IPv6 on the lab
+interface through `vtiIPv6PeerInner`), and `TestIPsecLabPeersRunWithoutPrivilege`
+checks the profile grants every one of them;
 `TestOnlyCheckersThatWritePeerSysctlsAreFlagged` reads the source and refuses
-a checker that reaches `dropFragmentsAtPeer` without the flag, or the flag
+a checker that reaches one of those helpers without the flag, or the flag
 without the write. In the L2TP lab ze and the xl2tpd LAC hold `NET_ADMIN` and
 `--device /dev/ppp`, and the preflight probes with the same grants and loads no
 module, so it passes only where the peers can run. The PPPoE lab grants ze,
@@ -2299,6 +2302,39 @@ names `sa-failed` and the size.
 
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkRealNATTransport, checkRealNATTunnelControl -->
+
+### IPv6 inside an IPv4 Child SA on an xfrm interface
+
+`vti-ipv6-inner-ipv4-outer` is the home CPE's management path. Ze initiates over the
+plain IPv4 lab pair with two `traffic-selector` entries, `0.0.0.0/0` and then `::/0`
+on both sides, bound to `vti0` (`if-id 7`), with `fd00:db8:1::1/128` on `vti0` and a
+static route for `fd00:db8:1::/112` through it. strongSwan's child config names
+`::/0` alone, so it narrows the answer to `::/0 === ::/0`: strongSwan 6.1.0's
+`traffic_selector_list.c` `select_` intersects each configured selector with each
+received one, and `traffic_selector.c` `get_subset` answers NULL when the two types
+differ. Ze's unconfigured wildcard over an IPv4 outer pair would be `0.0.0.0/0`
+alone, which this child config cannot accept, so the established `::/0` child is
+itself proof that the IPv6 entry reached the wire. The checker asserts:
+
+| Step | State read | Fails when |
+|------|------------|------------|
+| Selectors | `swanctl --list-sas`, and the child of `show vpn ipsec sa \| json` | Either end holds anything but `::/0` on both halves, strongSwan holds an IPv4 selector, or Ze's child does not report `if-id` 7 |
+| Policies | Ze's `ip xfrm policy`, the records on `if_id 0x7` | They are not exactly one `::/0` policy for each of `out`, `in` and `fwd` |
+| States | Ze's `ip xfrm state`, the records on `if_id 0x7` | Fewer than two, or one without `flag af-unspec` (child 20's `XFRM_STATE_AF_UNSPEC`) |
+| Datapath | `ip -6 route get fd00:db8:1::2` on Ze, a ping from `fd00:db8:1::1`, and the four directed ESP counters | The route does not leave through `vti0`, the ping loses anything, or any simplex SA did not count bytes |
+| Rekey | The four rows above again after `swanctl --rekey --child ze-child` and a new SPI | Any of them fails |
+
+The ping cannot pass outside the tunnel: `xfrmi_xmit2`
+(`net/xfrm/xfrm_interface_core.c`) refuses a packet whose lookup returns no xfrm
+state, so `vti0` has no clear exit. strongSwan's lab interface has IPv6 disabled on
+the IPv4-only network, and its policy-based tunnel decapsulates onto that interface,
+so the checker enables IPv6 there (`writesPeerSysctl`) and puts `fd00:db8:1::2` on
+its loopback with a route through `eth0`. The red walk reverts child 20's
+`state.AFUnspec = true` in `xfrmStateFromParams`, rebuilds the Ze image, and must
+fail at the state row and the ping.
+
+<!-- source: internal/le/interoplab/ipsec/vtiipv6.go -- checkVTIIPv6InnerIPv4Outer, vtiIPv6PeerInner, requireIPv6PoliciesOnIfID, requireAFUnspecStates -->
+<!-- source: test/interop-ipsec/scenarios/vti-ipv6-inner-ipv4-outer/swanctl.conf -- local_ts and remote_ts ::/0 -->
 
 ### IPsec virtual-IP leases
 

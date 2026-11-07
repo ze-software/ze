@@ -55,12 +55,14 @@ IPsec is configured under `vpn { ipsec { } }`. Named `ike-group` and `esp-group`
 
 ```text
 pki {
-    certificate my-cert {
-        certificate-file /etc/ze/certs/router.pem;
-        private-key-file /etc/ze/certs/router-key.pem;
+    ca my-ca {
+        certificate "-----BEGIN CERTIFICATE-----...";
     }
-    ca-certificate my-ca {
-        certificate-file /etc/ze/certs/ca.pem;
+    certificate my-cert {
+        certificate "-----BEGIN CERTIFICATE-----...";
+        private {
+            key "-----BEGIN PRIVATE KEY-----...";
+        }
     }
 }
 
@@ -417,11 +419,13 @@ RFC 7427 Digital Signature (method 14). A peer that does not, such as strongSwan
 with `charon.signature_authentication = no`, gets the method that fits Ze's
 certificate key: RSA Digital Signature (method 1, SHA-1) for an RSA key, and
 ECDSA-256, ECDSA-384 or ECDSA-521 (methods 9, 10, 11) for an ECDSA key on P-256,
-P-384 or P-521. Any other key, Ed25519 for example, cannot authenticate to such
-a peer, and the refusal says so. Ze verifies all of these methods from the peer.
+P-384 or P-521. Ze signs with RSA and ECDSA keys only: Ed25519 and Ed448 are not
+supported yet for IKEv2 authentication, with either method, and an IKE_AUTH that
+would sign with such a key fails with an unsupported key type. Ze verifies all of these methods from the peer.
 A ze started with `GODEBUG=fips140=only` refuses method 1, because Go refuses
 SHA-1 signatures in that mode: enable RFC 7427 on the peer instead.
 <!-- source: internal/component/ike/engine/auth_legacy.go -- computeLegacySignatureAuth, signLegacyRSAAuth, verifyLegacyRSAAuth -->
+<!-- source: internal/component/ike/engine/auth.go -- selectSignatureAlgorithm, errUnsupportedKey -->
 <!-- source: internal/component/ike/engine/auth_ecdsa.go -- signECDSAAuth -->
 
 An `eap-tls` peer whose EAP-TLS client sends its certificate without the
@@ -1407,6 +1411,48 @@ IKE runs over IPv6.
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
 <!-- source: internal/component/ike/transport/udp.go -- newTransport -->
 
+### IPv6 inside an IPv4 tunnel on a VTI
+
+A route-based peer that carries both families writes one entry for each family. A peer
+with no list proposes the wildcard of its outer family alone, so a peer reached over IPv4
+would never propose IPv6.
+
+```
+interface {
+    xfrm vti0 {
+        if-id 7;
+        unit 0 { ipv6 { address [ fd00:db8:1::1/128 ]; } }
+    }
+}
+static {
+    table default {
+        route fd00:db8:1::/112 { next { interface vti0 { } } }
+    }
+}
+vpn { ipsec { site-to-site { peer hq {
+    vti { bind vti0; }
+    traffic-selector 1 { local { prefix 0.0.0.0/0; } remote { prefix 0.0.0.0/0; } }
+    traffic-selector 2 { local { prefix ::/0; } remote { prefix ::/0; } }
+} } } }
+```
+
+Ze proposes both entries, the IPv4 one first. A responder whose own policy names IPv6
+alone, such as strongSwan with `local_ts = ::/0` and `remote_ts = ::/0`, answers `::/0`
+on both sides. RFC 7296 Section 2.9 allows that: "When the responder chooses a subset of
+the traffic proposed by the initiator, it narrows the Traffic Selectors to some subset
+of the initiator's proposal (provided the set does not become the null set)." Ze then
+installs what the responder answered and nothing more: an IPv6 policy for each of the
+in, out and forward directions, each carrying vti0's if_id, and no IPv4 policy, so the
+router's own IPv4 traffic never enters vti0. An answer wider than the entry Ze proposed
+is refused. `show vpn ipsec sa` reports the narrowed selectors and the if-id. The
+`vti-ipv6-inner-ipv4-outer` interop scenario runs this configuration against strongSwan,
+with a ping before and after a Child SA rekey.
+
+<!-- source: internal/component/ike/engine/rekey.go -- proposeChildTSPayloads -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- recordInitiatorSelectorsIn -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicies, childInstalledPolicies -->
+<!-- source: internal/le/interoplab/ipsec/vtiipv6.go -- checkVTIIPv6InnerIPv4Outer -->
+
 As responder, Ze narrows the initiator's proposed TSi and TSr to a subset the list allows,
 and leads the answer with the initiator's first choices. When the pairs it accepts are not
 every combination of their own selectors, it answers the largest part that is, starting
@@ -1562,7 +1608,7 @@ through it. Use the XFRM backend, which is the default and the production path.
 
 ## PKI certificate store
 
-The `pki { }` block stores X.509 certificates, private keys, CA certificates, and the certificate revocation lists each CA published. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.
+The `pki { }` block stores X.509 certificates, private keys, CA certificates, and the certificate revocation lists each CA published. A `ca` entry holds a CA `certificate` and its `crl` list; a `certificate` entry holds its `certificate`, its `intermediate` list and an optional `private { key }`. Each value is written inline in the config, not read from a file, and is validated at commit time. The key leaf accepts PKCS8, SEC1 and PKCS1 encodings, but IKEv2 signs with RSA and ECDSA keys only: an Ed25519 or Ed448 certificate cannot authenticate an IKE peer yet. The PKI store also serves TLS certificates for the web UI and gRPC API.
 
 Health monitoring reports certificate expiry as a warning at 30 days and an error after expiry. Prometheus exposes `ze_pki_certificate_expiry_seconds` and `ze_pki_certificate_valid`.
 
@@ -1759,7 +1805,7 @@ IKE peers. The scenarios cover:
 | Ze as responder | PSK, EAP-MSCHAPv2, EAP-TLS over TLS 1.3, IKE SA rekey started by strongSwan, and a fresh IKE_SA_INIT accepted beside an established SA |
 | Rekey and teardown | Child SA rekey with make-before-break, `clear vpn ipsec sa` and re-establishment, and a Delete sent while the one request window is held |
 | Negotiation | The INVALID_KE_PAYLOAD retry and the COOKIE challenge |
-| Dataplane | A live Child SA whose peer changes ESP form mid-session, and BGP routes exchanged with FRR over the tunnel |
+| Dataplane | A live Child SA whose peer changes ESP form mid-session, BGP routes exchanged with FRR over the tunnel, and IPv6 carried inside an IPv4 Child SA on an xfrm interface after strongSwan narrows a two-family proposal to `::/0` (`vti-ipv6-inner-ipv4-outer`) |
 | NAT traversal | Transport mode and tunnel mode with ESP in UDP 4500, each measuring what Ze's stack does with the inner TCP and UDP checksum after decapsulation (RFC 3948 Section 3.1.2) |
 | MOBIKE | `mobike-initiator` and `mobike-responder` remove the mobile peer's original outer address, retain the same IKE and Child SPIs, and require encrypted traffic in both directions after migration |
 | Traffic selectors | Child SA rekey narrowing, an answer that narrows the initiator's proposal, ESN offered both ways, and a peer reload that narrows |

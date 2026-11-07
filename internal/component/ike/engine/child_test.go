@@ -551,3 +551,34 @@ func TestTunnelModeIsTheChildSADefault(t *testing.T) {
 		}
 	}
 }
+
+// TestNarrowedChildInstallsOnlyTheNegotiatedFamily installs the first Child SA of an
+// initiator that proposed IPv4 0.0.0.0/0 and IPv6 ::/0 and was answered with the IPv6
+// pair alone, bound to an xfrm interface with if_id 7, over IPv4 tunnel endpoints.
+//
+// VALIDATES: A-2 and AC-3: the install programs one ::/0 === ::/0 policy for each
+// direction, every one with the if_id and an IPv4 template, beside the two IPv4-addressed
+// states; nothing of the IPv4 half of the proposal reaches the dataplane.
+// PREVENTS: R-3: an IPv4 policy on the if_id would pull the CPE's IPv4 traffic into vti0,
+// where no SA carries it.
+func TestNarrowedChildInstallsOnlyTheNegotiatedFamily(t *testing.T) {
+	sa := testSA()
+	sa.IsInitiator = true
+	sa.ProposedChildPairs = []tsPair{
+		{I: sel(t, "0.0.0.0/0"), R: sel(t, "0.0.0.0/0")},
+		{I: sel(t, "::/0"), R: sel(t, "::/0")},
+	}
+	sa.NegotiatedPairs = []tsPair{{I: sel(t, "::/0"), R: sel(t, "::/0")}}
+	sa.NegotiatedTSi = sa.NegotiatedPairs[0].I.Net
+	sa.NegotiatedTSr = sa.NegotiatedPairs[0].R.Net
+	dp := &mockDP{}
+
+	child, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", dualFamilyVTIIfID, dp, slogutil.DiscardLogger())
+	if err != nil {
+		t.Fatalf("createFirstChildSA: %v", err)
+	}
+	t.Cleanup(child.Clear)
+
+	requireOuterIPv4States(t, dp.sas)
+	requireIPv6PoliciesOnly(t, dp.policies, []dataplane.SADir{dataplane.SADirIn, dataplane.SADirOut})
+}

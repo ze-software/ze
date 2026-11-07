@@ -129,6 +129,29 @@ state is still reported with its outer family.
 
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
 
+**A dual-family proposal narrowed to one family on a VTI installs that family alone.**
+A peer whose `traffic-selector` list holds an IPv4 entry and an IPv6 entry proposes
+both, in list order (`proposeChildTSPayloads`), and records them as the ceiling in
+`SA.ProposedChildPairs`. RFC 7296 Section 2.9: "When the responder chooses a subset
+of the traffic proposed by the initiator, it narrows the Traffic Selectors to some
+subset of the initiator's proposal (provided the set does not become the null set)."
+A responder that keeps one family is such a subset, so `recordInitiatorSelectorsIn`
+accepts it when each answered pair sits inside one proposed entry, and records only
+the answered pairs in `SA.NegotiatedPairs`. `createFirstChildSA` builds the Child SA's
+selectors from `NegotiatedPairs`, never from the proposal, so `childInstalledPolicies`
+emits the in, forward and out policies of the answered family, each with the `if_id`
+`resolveIfID` read from the bound xfrm interface. Nothing of the dropped family
+reaches the kernel: a policy for it on the `if_id` would pull that family's traffic
+into an interface whose SA does not carry it. The state pair keeps the outer family
+and the flag above, so IPv6 inside an IPv4 outer pair finds its state.
+`TestDualFamilyProposalNarrowedToIPv6InstallsVTIPolicy` drives this from the parsed
+configuration to a fake dataplane, and the `vti-ipv6-inner-ipv4-outer` interop
+scenario runs it against strongSwan.
+
+<!-- source: internal/component/ike/engine/rekey.go -- proposeChildTSPayloads -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- recordInitiatorSelectorsIn -->
+<!-- source: internal/component/ike/engine/child.go -- createFirstChildSA, childInstalledPolicies -->
+
 **Every negotiated selector pair gets its own policy, in each direction.** A peer
 that answers several TSi/TSr pairs negotiated several values. `childInstalledPolicies`
 builds inbound and outbound policies for each pair, plus a forward policy when the
