@@ -7,29 +7,28 @@
 | Priority | P3 |
 | Release reason | Feature: a dual-stack home CPE on a PPPoE WAN. Owner timing: a missing RFC feature may wait until after the first release. The rows it closes are recorded gaps of enrolled RFCs (RFC 7084 G-4, G-5, WLL-2, WLL-3, L-2, L-3, L-4; RFC 5072 on the client side). |
 | RFC gaps | rfc5072, RFC7084-4.1-4, RFC7084-4.1-5, RFC7084-4.2-9, RFC7084-4.2-10, RFC7084-4.3-5, RFC7084-4.3-6, RFC7084-4.3-7, RFC9915-6.3-1, RFC9915-6.3-2, RFC9915-6.3-3 |
-| Depends | Implementation: `spec-home-cpe-1-logical-interface-name.md` (the PPPoE client's kernel device carries its configured name, which every IPv6 action, the DHCPv6 lease and the delegated-prefix source name); owner scope decision (below), for Phases 4 and 5 only. Proof and closure: `spec-home-cpe-18-interoplab-multi-link-topology.md` (the `topology` suite and its `interop-topology` verb that run `pppoe-dhcpv6-pd-ze-client`); `plan/release/validation/spec-ppp-ipv6-link-local-never-assigned.md` (its live proof validates A-2) |
-| Phase | 0/5 |
+| Depends | Implementation: `spec-home-cpe-1-logical-interface-name.md` (the PPPoE client's kernel device carries its configured name, which every IPv6 action, the DHCPv6 lease and the delegated-prefix source name). Proof and closure: `spec-home-cpe-18-interoplab-multi-link-topology.md` (the `topology` suite and its `interop-topology` verb that run `pppoe-dhcpv6-pd-ze-client`); `plan/release/validation/spec-ppp-ipv6-link-local-never-assigned.md` (its live proof validates A-2) |
+| Phase | 3/5 |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-07 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 8).
 
-RFC gaps, in full: RFC 5072 (IPv6CP, client side); RFC 7084 `RFC7084-4.1-4` (G-4), `RFC7084-4.1-5` (G-5), `RFC7084-4.2-9` (WLL-2), `RFC7084-4.2-10` (WLL-3), `RFC7084-4.3-5` (L-2), `RFC7084-4.3-6` (L-3), `RFC7084-4.3-7` (L-4); RFC 9915 Section 6.3 rows `RFC9915-6.3-1`, `RFC9915-6.3-2`, `RFC9915-6.3-3`, today `{feature-declined}`.
+RFC gaps, in full: RFC 5072 (IPv6CP, client side); RFC 7084 `RFC7084-4.1-4` (G-4), `RFC7084-4.1-5` (G-5), `RFC7084-4.2-9` (WLL-2), `RFC7084-4.2-10` (WLL-3), `RFC7084-4.3-5` (L-2), `RFC7084-4.3-6` (L-3), `RFC7084-4.3-7` (L-4); RFC 9915 Section 6.3 rows `RFC9915-6.3-1`, `RFC9915-6.3-2`, `RFC9915-6.3-3`, `{gap}` and owed (owner ruling below).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Owner decision needed before this spec moves to ready
+## Owner ruling: delegated-prefix use is owed
 
-Using a delegated prefix on the LAN lifts a feature the owner declined. The
-three RFC 9915 Section 6.3 rows in `rfc/short/rfc9915.md` (`RFC9915-6.3-1`,
-`RFC9915-6.3-2`, `RFC9915-6.3-3`) carry `{feature-declined}`
-with the reason "The owner kept delegated-prefix use declined on 2026-10-19
-(plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)". That is an
-owner scope decision, so this spec cannot reverse it on its own.
-
-| Decision | What each answer changes |
-|----------|--------------------------|
-| Lift the 2026-10-19 decline of delegated-prefix use for the home-CPE role | Yes: the three rows become `{gap}` now and are implemented and proven here (Phases 4 and 5). No: Phases 1 to 3 (IPv6CP, WAN RA/SLAAC, requesting PD on the PPPoE interface) still stand, the delegated prefix stays published and unused, and RFC 7084 G-4, G-5, L-2, L-3 and L-4 stay gaps, because all five act on a LAN unit that takes its prefix from the WAN (the CE role below) |
+Thomas ruled on 2026-11-07 that `RFC9915-6.3-1`, `RFC9915-6.3-2` and
+`RFC9915-6.3-3` are requirements Ze owes. The line this spec carried saying
+delegated-prefix use was declined on 2026-10-19 had no decision of his behind
+it, and a feature an earlier agent declined with no owner decision behind it
+is a gap, not a declined feature (`ai/META-DECISIONS.md`). The three rows are
+`{gap}` in `rfc/short/rfc9915.md` and are owed. Phases 4 and 5 are in scope
+and run: they implement and prove the three rows, and RFC 7084 G-4, G-5, L-2,
+L-3 and L-4, which act on the LAN unit that takes its prefix from the WAN (the
+CE role below).
 
 ## Task
 
@@ -170,9 +169,10 @@ Range rules:
 | Two units naming the same `source` and `subnet-id` (L-2: "a separate /64 ... for each of its LAN interfaces") | config verify, naming both units |
 | `subnet-id` outside a delegation shorter than the hint (WPD-3 lets the server choose) | at run time: the unit takes no /64, P stays false for it, and Ze logs a system management error (RFC 7084 `RFC7084-4.2-31`: "If the delegated prefix is too small to address all of its interfaces, the IPv6 CE router SHOULD log a system management error.") |
 
-Two choices remain that neither the RFC nor the existing YANG settles, and
-BIRD, which has no DHCPv6 client, offers no reference. The syntax above is the
-proposal until they are answered:
+Two choices neither the RFC nor the existing YANG settles, and BIRD, which has
+no DHCPv6 client, offers no reference. Both are settled on the syntax above,
+one subnet id per LAN unit, the shape the brief for Phases 4 and 5 names:
+OD-1 (a) and OD-2 (a).
 
 | Open decision | Options | Evidence |
 |---------------|---------|----------|
@@ -185,7 +185,7 @@ proposal until they are answered:
 - [ ] `docs/guide/pppoe.md`, `docs/guide/configuration.md` (interface units, `ipv6 dhcpv6`, `router-advertisement`)
   → Constraint: `list pppoe-client` in `ze-iface-conf.yang` uses `grouping interface-common` only, so it has no `ipv6` container today; the `ipv6` container is written inline inside `grouping interface-unit`.
 - [ ] `plan/post-release/features/spec-dhcpv6-client-0-umbrella.md` Q5
-  → Decision: owner, 2026-10-19: the 17 other declined rows stay declined; delegated-prefix use among them. This spec asks to lift it for the CPE role.
+  → Decision: Q5 recorded delegated-prefix use as declined with no decision of Thomas's behind it. He ruled on 2026-11-07 that `RFC9915-6.3-1/2/3` are owed ("Owner ruling" above); the umbrella's other rows are not judged here.
 - [ ] `plan/post-release/features/spec-router-advertisement-options-out-of-scope.md`
   → Constraint: it holds RFC 4191 route information and router preference as deferred options. This spec implements the RIO only for a delegated prefix, as RFC 7084 L-3 requires; router preference and operator-configured routes stay there.
 - [ ] `plan/release/validation/spec-ppp-ipv6-link-local-never-assigned.md`
@@ -296,7 +296,7 @@ proposal until they are answered:
 | A-1 | accel-ppp serves IPv6CP, RAs and DHCPv6 IA_PD on PPPoE | accel-ppp `ipv6pool` and `ipv6-dhcp` modules | interop peer must change | read accel-ppp's source and configure the existing `Dockerfile.accel` image | unvalidated |
 | A-2 | The kernel does not derive a link-local on the client's device by itself | `spec-ppp-ipv6-link-local-never-assigned` premise | the client's install is redundant but harmless | that spec's live proof; the client test reads the address either way | unvalidated |
 | A-3 | The ipv6 grouping can be shared by `pppoe-client` without the unit's other leaves | YANG grouping structure | a separate container duplicates leaves | YANG refactor in Phase 1 | unvalidated |
-| A-4 | The owner lifts the decline for the CPE role | open | Phases 4 and 5 do not run | owner answer | unvalidated |
+| A-4 | Delegated-prefix use on the LAN is owed work | Thomas's ruling of 2026-11-07 ("Owner ruling" above) | - | owner ruling | validated |
 | A-5 | The kernel installs the RA-learned `::/0` on `<wan>` with the AC's link-local as next hop, and removes it when the device goes | Linux `accept_ra 2` behaviour; child 1 AC-1 (device exists only during a session) | W must be derived from the sender's own RA reception instead | `TestRFC7084G4RouterLifetimeFollowsWANDefault` against a route event fixture, and the topology scenario reading the LAN RA after `accel-cmd` terminates the session | unvalidated |
 
 ### Risks
@@ -333,7 +333,7 @@ proposal until they are answered:
 | AC-4 | IPv6CP closes while IPCP is Opened | IPv4 traffic continues |
 | AC-5 | AC sends RAs on the session | `pppoe0` has accept_ra 2 with forwarding on; a default route via the AC's link-local through `pppoe0`; a SLAAC address when the RA carries an autonomous prefix |
 | AC-6 | `dhcpv6 pd length 56` on the PPPoE client | Solicit on `pppoe0` carries IA_PD with a /56 hint; the binding is published with its valid and preferred lifetimes; a different delegated length is accepted (WPD-3) |
-| AC-7 | `ipv6 delegated-prefix pppoe0 subnet-id 1` on the LAN unit, no `interface-identifier` (owner decision Yes) | the unit holds `<delegated>:1::1/64`, preferred and valid lifetimes never above the delegation's remaining ones; with `interface-identifier ::2` it holds `<delegated>:1::2/64` instead |
+| AC-7 | `ipv6 delegated-prefix pppoe0 subnet-id 1` on the LAN unit, no `interface-identifier` | the unit holds `<delegated>:1::1/64`, preferred and valid lifetimes never above the delegation's remaining ones; with `interface-identifier ::2` it holds `<delegated>:1::2/64` instead |
 | AC-8 | same | the unit's RAs carry a PIO for the /64 with A and L set and lifetimes bounded the same way, and a RIO for the delegated prefix |
 | AC-9 | each of the four rows of the Router Lifetime condition matrix, on a CE-role unit | the unit's RAs carry the Router Lifetime that row names: the configured value for W yes and P yes, 0 for the other three; for W no and P yes the PIO and RIO are still sent (L-3) |
 | AC-10 | Renew returns shorter lifetimes | the installed and advertised lifetimes shrink on the next RA |
@@ -390,7 +390,7 @@ proposal until they are answered:
 |----------|-----------|-------------|----------------|--------|
 | `pppoe-ipv6cp-ze-client` | `test/interop-pppoe/scenarios/pppoe-ipv6cp-ze-client/`, checker `checkZeClientIPv6CP` (`internal/le/interoplab/pppoe/check_ipv6cp_client.go`) | accel-ppp, which Naks every Interface-Identifier but its own `ipv6-peer-intf-id` 0:0:0:5a | AC-1, AC-2, AC-5: Ze adopts the Nak's identifier and opens IPv6CP, `pppoe0` holds fe80::5a, RA default route and SLAAC address, IPv6 ping to accel-ppp. Red walks owed: `keepaliveLoop` never calls `startIPv6CP`; `receiveNak` keeps `c.local` instead of adopting the suggestion | written, not run |
 | `pppoe-ipv6cp-rejected-ze-client` | `test/interop-pppoe/scenarios/pppoe-ipv6cp-rejected-ze-client/`, checker `checkZeClientIPv6CPRejected` | accel-ppp with IPv6 denied, which Protocol-Rejects IPv6CP | NCP independence (AC-3): one Protocol-Reject, no LCP Terminate-Request, one CHAP Success, IPv4 ping after the reject, no link-local address. Red walk owed: the `ppp.LCPProtocolReject` arm of `keepaliveLoop` returns instead of stopping IPv6CP | written, not run |
-| `pppoe-dhcpv6-pd-ze-client` | `test/interop-topology/scenarios/` (suite and verb from child 18; this spec owns the scenario) | accel-ppp, dhcpcd | PD on `pppoe0`, LAN /64, RA PIO and RIO, LAN host traffic; after `accel-cmd` terminates the session, the next LAN RA carries Router Lifetime 0 and dhcpcd drops Ze as default router. Red walks: lifetime bound removed (advertised valid lifetime above remaining); W input forced true (Router Lifetime stays non-zero after the session ends) | written, not run, for Phases 1 to 3 only: the scenario (`test/interop-topology/scenarios/pppoe-dhcpv6-pd-ze-client/`, `register_pppoe_dhcpv6_pd.go`, checker `checkPPPoEDHCPv6PD`) proves IPv6CP, the WAN RA and SLAAC, and DHCPv6 PD on `pppoe0` (AC-1, AC-5, AC-6: IA_PD with a /56 hint, the /60 accel-ppp offered requested and delegated). No LAN node runs yet: the LAN /64, RA PIO and RIO, the terminate step and the two red walks above belong to Phases 4 and 5, which wait on the owner. AC-6 gap: no show command reports the lease's valid and preferred lifetimes on Ze's side, so the checker does not observe the published lifetimes |
+| `pppoe-dhcpv6-pd-ze-client` | `test/interop-topology/scenarios/` (suite and verb from child 18; this spec owns the scenario) | accel-ppp, dhcpcd | PD on `pppoe0`, LAN /64, RA PIO and RIO, LAN host traffic; after `accel-cmd` terminates the session, the next LAN RA carries Router Lifetime 0 and dhcpcd drops Ze as default router. Red walks: lifetime bound removed (advertised valid lifetime above remaining); W input forced true (Router Lifetime stays non-zero after the session ends) | written, not run, for Phases 1 to 3 only: the scenario (`test/interop-topology/scenarios/pppoe-dhcpv6-pd-ze-client/`, `register_pppoe_dhcpv6_pd.go`, checker `checkPPPoEDHCPv6PD`) proves IPv6CP, the WAN RA and SLAAC, and DHCPv6 PD on `pppoe0` (AC-1, AC-5, AC-6: IA_PD with a /56 hint, the /60 accel-ppp offered requested and delegated). No LAN node runs yet: the LAN /64, RA PIO and RIO, the terminate step and the two red walks above belong to Phases 4 and 5, which are in scope (owner ruling) and extend this scenario with a LAN node. AC-6 gap: no show command reports the lease's valid and preferred lifetimes on Ze's side, so the checker does not observe the published lifetimes |
 
 AC-4 (IPv6CP closes while IPCP is Opened) has no interop form: accel-ppp ends the whole session when an IPv6CP it started finishes (`accel-pppd/ppp/ppp_ipv6cp.c`, `ipv6cp_layer_finished` calls `ap_session_terminate` once `ipv6cp->started`), so no accel-ppp run can close IPv6CP alone. `TestRFC7084WLL3NCPIndependence` proves AC-4 by driving the close through the automaton and the session glue.
 
@@ -455,14 +455,14 @@ AC-4 (IPv6CP closes while IPCP is Opened) has no interop form: accel-ppp ends th
 ## Implementation Steps
 
 Prerequisite: child 1 has landed (the client's device carries its configured
-name). Phases 1 to 3 need only that; Phases 4 and 5 also need the owner's Yes
-and the answers to OD-1 and OD-2. Closure also needs child 18's `topology`
+name). Phases 1 to 3 need only that. Phases 4 and 5 are in scope by the owner
+ruling, and take OD-1 (a) and OD-2 (a). Closure also needs child 18's `topology`
 suite, because `pppoe-dhcpv6-pd-ze-client` runs in it.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- YANG `ipv6` grouping on `pppoe-client`, parse test, interop scenario skeleton failing at IPv6CP
 2. **Phase: IPv6CP client** -- AC-1 to AC-4; RFC 5072 quotes above each implementing function
 3. **Phase: WAN RA, SLAAC and DHCPv6 on `<wan>`** -- AC-5, AC-6
-4. **Phase: LAN /64 and RA** (after the owner's Yes) -- AC-7 to AC-11, AC-14 to AC-16, the `delegated-prefix` list and the Router Lifetime matrix
+4. **Phase: LAN /64 and RA** -- AC-7 to AC-11, AC-14 to AC-16, the `delegated-prefix` list and the Router Lifetime matrix
 5. **Phase: No Release, rows and docs** -- AC-12, AC-13; RFC rows recorded with `./le rfc record`
 
 ### Critical Review Checklist
