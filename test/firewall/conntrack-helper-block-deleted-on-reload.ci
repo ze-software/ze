@@ -1,0 +1,34 @@
+# Test: deleting the whole `system conntrack` block on reload removes the helper table.
+# VALIDATES: spec-home-cpe-3 AC-5 -- the boot config lists ftp, so
+#            ze_conntrack_helpers holds the ftp ct helper and its assignment;
+#            the reload config has no system conntrack block at all, so the
+#            transaction delivers the removed system/conntrack root as an
+#            empty section, which lists no helper, and the apply withdraws the
+#            tables: `nft list tables` no longer shows them while the daemon
+#            still runs (the fixture checks it is alive).
+# PREVENTS: a helper that keeps being assigned after the operator deleted the
+#           block (the hub returned early on an absent block, so nothing
+#           withdrew the tables).
+#
+# Requires CAP_NET_ADMIN and a kernel that provides nf_conntrack_ftp.
+
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+system {
+	conntrack {
+		module ftp;
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+system {
+	host ze-test;
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=le test fixture firewall/conntrack-helper-block-deleted-on-reload:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=helper table removed on reload

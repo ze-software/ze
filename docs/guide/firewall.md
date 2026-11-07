@@ -347,8 +347,10 @@ the table, the chain, the term and the hook it found. The table family must be
 `ip`, `ip6` or `inet`. The `vpp` backend refuses both actions.
 
 A home CPE behind PPPoE clamps every SYN it forwards onto the PPPoE session.
-With the session MTU at 1492, a SYN offering 1460 leaves with 1452 over IPv4
-and 1432 over IPv6:
+The term matches TCP without a flags condition: only a SYN carries the MSS
+option, and a segment without the option passes unchanged. With the session
+MTU at 1492, a SYN offering 1460 leaves with 1452 over IPv4 and 1432 over
+IPv6:
 
 ```
 firewall {
@@ -364,7 +366,6 @@ firewall {
                 from {
                     output-interface "pppoe*";
                     protocol tcp;
-                    tcp-flags syn;
                 }
                 then { tcp-mss-clamp-to-pmtu; }
             }

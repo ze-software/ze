@@ -1,0 +1,38 @@
+# Test: `system conntrack module ftp` installs the ftp ct helper and assigns it.
+# VALIDATES: spec-home-cpe-3 AC-1 -- a config with no firewall {} block
+#            starts the firewall engine on its system/conntrack root, which
+#            lowers the listed helper (ConntrackHelperTables), the nft
+#            backend installs the inet table ze_conntrack_helpers, and
+#            `nft list table` shows the ct helper object ftp-tcp (kernel
+#            helper "ftp", protocol tcp) and a rule assigning it to tcp 21 in
+#            both the prerouting and the output chain at priority filter - 5.
+# PREVENTS: a listed helper that is accepted and assigns nothing (the state
+#           before this spec: modprobe only, a no-op on Ze's kernel, and no
+#           kernel since 6.0 assigns a helper without an explicit rule).
+#
+# Requires CAP_NET_ADMIN and a kernel that provides nf_conntrack_ftp (built in
+# on Ze's kernel). The fixture waits up to 15 s (registerTableSnapshot), under
+# the 20 s timeout. Without the helper the kernel refuses the ct helper object,
+# the table is never created, and the fixture's `nft list table` fails.
+
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+system {
+	conntrack {
+		module ftp;
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=le test fixture firewall/conntrack-helper-ftp-assigned:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=table inet ze_conntrack_helpers
+expect=stdout:pattern=ct helper "?ftp-tcp"? \{
+expect=stdout:pattern=type "ftp" protocol tcp
+expect=stdout:pattern=hook prerouting priority (filter - 5|-5)
+expect=stdout:pattern=hook output priority (filter - 5|-5)
+# ze places an anonymous counter at the term's match/action boundary
+# (withCounter, internal/plugins/firewall/nft/lower_linux.go).
+expect=stdout:pattern=(tcp|th) dport 21 counter packets [0-9]+ bytes [0-9]+ ct helper set "ftp-tcp"

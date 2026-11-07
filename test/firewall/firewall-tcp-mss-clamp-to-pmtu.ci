@@ -1,0 +1,79 @@
+# Test: `tcp-mss-clamp-to-pmtu` in a forward chain reaches the kernel as the
+# route-MSS clamp, and the same term behind a prerouting chain is refused at
+# verify with the table, chain, term, hook and fix named.
+# VALIDATES: spec-home-cpe-9 wiring row 2 and AC-4. The daemon parses the empty
+#            leaf (parseThenBlock) to firewall.ClampTCPMSSToPMTU, verify accepts
+#            it in a forward base chain (validateClampTCPMSSToPMTU), and the nft
+#            backend installs rt tcpmss, a byteorder hton and the two-byte
+#            exthdr write (lowerClampTCPMSSToPMTU), which nft lists as
+#            `tcp option maxseg size set rt mtu`. Offline, `ze config validate`
+#            refuses a regular chain jumped to from prerouting, because the
+#            kernel computes the route MSS only at forward, output and
+#            postrouting (nft_rt_validate, net/netfilter/nft_rt.c).
+# PREVENTS: the leaf parsing to nothing, a lowering the kernel does not list as
+#           the route clamp, and a jump from prerouting slipping past verify
+#           into a netlink refusal of the whole commit.
+#
+# Requires CAP_NET_ADMIN for the daemon half. The fixture waits for the table
+# (registerTableSnapshot) under the 15 s timeout.
+
+option=needs-linux:caps=net-admin
+
+stdin=refused:terminator=EOF_REFUSED
+firewall {
+	backend nft;
+	table mss_pre {
+		family inet;
+		chain prerouting {
+			type filter;
+			hook prerouting;
+			priority 0;
+			policy accept;
+			term enter {
+				then { jump mss; }
+			}
+		}
+		chain mss {
+			term clamp {
+				from { protocol tcp; }
+				then { tcp-mss-clamp-to-pmtu; }
+			}
+		}
+	}
+}
+EOF_REFUSED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=refused
+expect=exit:code=1
+expect=stdout:contains=table "ze_mss_pre" chain "mss" term "clamp": tcp-mss-clamp-to-pmtu is not available at hook prerouting
+expect=stdout:contains=base chain "prerouting"
+expect=stdout:contains=move the term to a chain reached only from hook forward or postrouting
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table mss_pmtu {
+		family inet;
+		chain forward {
+			type filter;
+			hook forward;
+			priority 0;
+			policy accept;
+			term clamp {
+				from { output-interface "ppp*"; protocol tcp; }
+				then { tcp-mss-clamp-to-pmtu; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=firewall config applied
+cmd=foreground:seq=3:exec=le test fixture firewall/firewall-tcp-mss-clamp-to-pmtu:timeout=15s
+expect=exit:code=0
+expect=stdout:contains=table inet ze_mss_pmtu
+expect=stdout:pattern=oifname "ppp\*"
+expect=stdout:contains=tcp option maxseg size set rt mtu
