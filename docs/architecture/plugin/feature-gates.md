@@ -241,43 +241,45 @@ interface contributes no reflected argument methods.
 
 Aliases preserve the target's methods; a new defined type does not inherit its
 underlying named type's methods. A real field or element descriptor edge exposes
-that child's own methods. Descriptor backedges therefore compare exact retained
-declarations, resolved substitutions and method visibility. Their bounded walk
-does not expand another field-value tree; unresolved identities and its 128-edge
-limit remain explicit uncertainty, refused when exposed.
-Each query collects descriptor facts into one output-owned union, including
-method signatures, without copying an intermediate map through every ancestor.
-Separate root or field queries, even on one reused walker, own fresh summaries.
-Valid argument visits retain their order before backedge checks; an argument
-ownership preflight preserves the existing unknown-only invalid-argument return.
-No completed descriptor answer is cached, within a query or across queries.
-Local uncertainty does not cancel sibling traversal.
+that child's own methods. A named frame is therefore its exact retained
+declaration, its resolved substitutions and its method and value-root flags.
+The walk does not expand another field-value tree; unresolved identities remain
+explicit uncertainty, refused when exposed.
+Each query collects descriptor facts into its own output-owned union, including
+method signatures. Valid argument visits retain their order before the frame is
+entered; an argument ownership preflight preserves the existing unknown-only
+invalid-argument return. Local uncertainty does not cancel sibling traversal.
 <!-- source: internal/le/repo/inventory/externalreflection.go -- externalEffects.exposeSignature, externalEffects.reflectedValue, externalEffects.promoteReflection -->
 <!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk.value, externalReflectionWalk.collect, externalReflectionWalk.collectNamed, externalReflectionWalk.collectMethods -->
-<!-- source: internal/le/repo/inventory/externalreflectionidentity.go -- externalReflectionFrameEqual, externalReflectionArgumentEqual -->
+<!-- source: internal/le/repo/inventory/externaltypeterms.go -- externalTypeTerms.frame, externalTypeTerms.term -->
 <!-- source: internal/le/repo/inventory/externalreflectionroots.go -- externalReflectionWalk.interfaceRoot -->
 <!-- source: internal/le/repo/inventory/externalreflectionreturns.go -- externalEffects.returnedReflection -->
 
-Within one query, the walk can skip a named visit, but only when it has proof
-that the output union already holds what the visit would add. The proof is an
-earlier completed visit of the same exact frame (definition, resolved arguments
-and flags) at the same owner and incoming depth, where every ancestor frame
-that its subtree pruned against is on the current path. The later visit then
-prunes at least the same edges, so it can only collect a part of what the
-earlier one collected. A visit skipped this way charges those ancestors to the
-visit that contains it, so that visit's own record stays a proof. The table
-keeps this proof and never an answer: no method, origin or refusal reason. Each
-query owns a fresh table and drops it when it returns. When the table is full
-(in total, for one key, or in ancestor frames), the visit is not recorded and a
-later equal visit takes the full walk.
-The active path is indexed by definition and flags, so finding whether an
-equal frame is active, its outermost position, or whether a recorded ancestor
-is still on the path compares only the frames that share that key, with the
-same exact comparison a full scan of the path makes. The index holds no more
-entries than the path, which the depth guard bounds at 128.
-<!-- source: internal/le/repo/inventory/externalreflectionreuse.go -- externalReflectionReuse.covered, externalReflectionReuse.complete, externalReflectionReuse.store -->
-<!-- source: internal/le/repo/inventory/externalreflectionpath.go -- externalReflectionActivePath, externalReflectionActiveIndex, externalReflectionAncestorsActive -->
-<!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk.value, externalReflectionWalk.collectNamed -->
+The walk treats the type graph by reachability. Each exact frame is walked once
+per analysis, and its contribution (methods with their defining sources,
+standard-library origins, the first refusal and its site) is the union of what
+its own walk meets and what the frames it reaches contribute. Tarjan's
+algorithm computes it: a frame met again while it is still open is a cycle and
+adds nothing on that path, the frames of one strongly connected component share
+one union, and the analysis keeps that union for every member once the
+component's first frame completes. Every later visit, from any query, joins the
+kept union, so a finite graph costs one walk however many paths reach a frame.
+The contribution reads no ambient pool, binding, settled type value or incoming
+depth, so it is the same from every query. A union's first refusal is the first
+the walk met in source order, a kept union joined at the point the walk reached
+it; a component keeps the first refusal of the walk that computed it, so every
+member and every later query reaching it carries that refusal, and an unsited
+one is sited at the type expression that joins it. Frames and arguments are
+interned for the analysis: two arguments are one term when they are the same
+retained expression with every type parameter it mentions bound to the same
+term. The only depth bound left is on that term: an instantiation that grows
+without end, such as `grow[T]` holding `*grow[[]T]`, reaches a new frame on
+every step with an argument nested one level deeper, and the first frame whose
+argument nests past 128 levels refuses with `reflection type capability depth
+exceeds 128`. A query that starts at an expression depth of 128 or more refuses
+with the same reason, as the value flow that asks it does.
+<!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk, externalReflectionWalk.collectNamed, externalReflectionWalk.store -->
+<!-- source: internal/le/repo/inventory/externaltypeterms.go -- externalTypeTermDepthMax, externalTypeTerms -->
 
 The observation horizon is completed initialization. Without a proved ordering
 boundary, delayed callbacks and retained writes to exposed roots remain possible
@@ -356,10 +358,40 @@ argument to a retained function still refuses its formal provenance.
 Flattening copies every visited node's capabilities into one output-owned union,
 dropping field names and their selector obligations at each node. Its unchanged
 128-edge cutoff excludes that node's capabilities, preserves the first unknown
-encountered and continues traversing siblings.
+encountered and continues traversing siblings. The type walk treats the type
+graph by reachability, as the reflection walk does: a frame is the exact
+declaration, its interned arguments, the method flag and the reflection
+setting, a cycle re-enters an open frame, and the only depth bound inside the
+walk is the argument nesting bound above, refused as `type capability depth
+exceeds 128`.
+A recursive type, such as goyang's `Statement` holding `[]*Statement`, has the
+least fixpoint of its own walk as its capability. A reference back to a named
+type the walk is still computing, with the same resolved arguments and method
+flag, answers that frame's current estimate, flattened, so a children field
+carries every method, origin, ambient capability, unknown and site the type
+carries. Answering it with nothing would publish a children field with no
+capability. Estimates start empty, live for one walk, and take each round's
+flattened value. Frames that re-enter one another form a component, and only
+its outermost frame repeats: an inner frame that read an outer estimate returns
+after one round, and the outer frame repeats the whole component until a round
+grows no estimate, so mutual and nested recursion cost a few rounds, not a
+power of the nesting depth. A frame still growing after eight rounds refuses
+with `cyclic retained type capability shape`. A frame whose rounds read no
+outer estimate is final; the walk keeps its value, unknown included, and
+answers a later visit of the same exact frame with it: no guard inside the
+walk depends on how deep the frame was met. The table belongs to the whole
+analysis, so every `typeMethods` call shares it, and a slot also names the
+ambient pool it read: a walk
+reads the pool for unbound type parameters and standard-library types, and
+`growAmbient`, the pool's one writer, advances its version on every growth,
+so a value read from a smaller pool is never answered. Polymorphic recursion
+(`type grow[T any] struct{ next *grow[[]T] }`) never repeats a frame, so it
+still refuses, at the argument nesting bound.
 <!-- source: internal/le/repo/inventory/externalrootfields.go -- externalEffects.fieldReceiverType, externalEffects.declaredFieldType, externalEffects.projectField -->
 <!-- source: internal/le/repo/inventory/externalvalues.go -- externalValue.join, externalFlat, externalValue.joinFlat -->
 <!-- source: internal/le/repo/inventory/externaleffecttypes.go -- externalTypeWalk.value, externalTypeWalk.named -->
+<!-- source: internal/le/repo/inventory/externaleffecttypesettled.go -- externalTypeWalk.settledValue, externalTypeWalk.settle -->
+<!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.growAmbient -->
 <!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.send -->
 <!-- source: internal/le/repo/inventory/externalexpressions.go -- externalEffects.expressionValue -->
 <!-- source: internal/le/repo/inventory/methods.go -- rangedElement -->
@@ -368,13 +400,17 @@ Parameter provenance includes every exact retained direct caller, including
 dormant callers, through equations that keep the caller's execution owner.
 An actual nil argument is evidence; an absent binding or an early empty recursive
 summary is not. Relevant indirect callable uses and unsupported caller shapes
-refuse instead of silently reducing that caller population. Primitive scalar
+refuse instead of silently reducing that caller population. A method value
+`x.M` is the one indirect use that binds part of the population: it fixes M's
+receiver to `x` where it is taken, with the equation a call `x.M()` writes,
+while M's parameters still come from the value's unseen callers and refuse.
+Primitive scalar
 parameters acquire their own type methods without borrowing ambient references;
 reference-bearing parameters exposed externally retain the full ambient union.
 At stabilization, every demanded forwarding component must reach a real argument
 or explicit external authority, and every outgoing provenance obligation must be
 complete. This admits a nil-grounded cycle while refusing an ungrounded cycle.
-<!-- source: internal/le/repo/inventory/externalformals.go -- externalEffects.indexFormalSources, externalEffects.indexFormalCall -->
+<!-- source: internal/le/repo/inventory/externalformals.go -- externalEffects.indexFormalSources, externalEffects.indexFormalCall, externalEffects.indexFormalMethodValue -->
 <!-- source: internal/le/repo/inventory/externalformalproof.go -- externalEffects.validateFormals, externalFormalComplete -->
 <!-- source: internal/le/repo/inventory/externalformalexpressions.go -- externalFormalProofs.expression -->
 
@@ -428,7 +464,9 @@ Other readers, snapshots or mutable syntax cannot share those results.
 <!-- source: internal/le/repo/inventory/externaleffecttypeidentity.go -- externalTypeWalk.receiverSource -->
 
 A second reader-local table completes each captured package's receiver census
-once per exact incoming depth from 0 through 127. It resolves every original row
+once, resolving receivers from depth 0: the walks that ask treat the type graph
+by reachability, so a frame's methods do not depend on how deep it was met. It
+resolves every original row
 and groups successful tuples by exact type declaration. Shape and resolution
 failures remain in one shared list, with each row's original ordinal.
 Private, generic and bodyless declarations remain source facts in that census.
@@ -437,16 +475,16 @@ Private, generic and bodyless declarations remain source facts in that census.
 Each method query merges its exact target list with the shared failure list in
 original order. Both collectors retain visibility, shape, error-before-target,
 generic and bodyless checks. Matching method signatures still traverse the
-current descriptor path and fresh defining scope, even after local uncertainty.
-Negative, exhausted and uncaptured package queries retain lazy raw traversal.
+frame being walked and its fresh defining scope, even after local uncertainty.
+An uncaptured package retains lazy raw traversal.
 <!-- source: internal/le/repo/inventory/externalmethodcensus.go -- externalMethodCursor.next, externalMethodRow.resolution -->
 <!-- source: internal/le/repo/inventory/externaleffecttypeidentity.go -- externalTypeWalk.methods -->
 <!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk.collectMethods -->
 
 Census rows are immutable after publication. Each query owns its cursor and
 output maps. The table stores no capability, substitution, ambient value, active
-path or descriptor summary. It stores at most 128 censuses per captured nonempty
-package and does not copy failures into each target list.
+path or descriptor summary. It stores one census per captured nonempty package
+and does not copy failures into each target list.
 <!-- source: internal/le/repo/inventory/externalmethodcensus.go -- externalMethodCensus, externalMethodCursor, externalEffects.buildMethodCensus -->
 
 The same completed structural index records each selected file's nonempty

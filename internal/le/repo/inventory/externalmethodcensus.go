@@ -4,13 +4,6 @@ package repoinventory
 
 import "go/ast"
 
-// externalMethodCensusQuery identifies one captured package and exact incoming
-// depth. Only depths 0 through 127 enter the effects reader's table.
-type externalMethodCensusQuery struct {
-	pkg   *sourcePackage
-	depth int
-}
-
 // externalMethodCensus is published only after every original receiver row is
 // classified. Its lists and receiver facts remain immutable after publication.
 type externalMethodCensus struct {
@@ -37,32 +30,27 @@ type externalMethodCursor struct {
 	failures   []externalMethodRow
 }
 
-// methodCursor accounts for every captured row once per exact depth. A query
+// methodCursor accounts for every captured row once per package. A query
 // visits matching targets and all source failures in their original order.
-// Unsupported depths and uncaptured lists retain the original lazy traversal.
-func (e *externalEffects) methodCursor(pkg *sourcePackage, definition *ast.TypeSpec, depth int) externalMethodCursor {
+// The walks that ask treat the type graph by reachability, so a receiver is
+// resolved from depth 0 whatever depth the frame was met at. An uncaptured
+// list retains the original lazy traversal.
+func (e *externalEffects) methodCursor(pkg *sourcePackage, definition *ast.TypeSpec) externalMethodCursor {
 	functions, captured := e.typeIdentities.methods[pkg]
-	if depth < 0 {
-		return externalMethodCursor{raw: functions}
-	}
-	if depth >= 128 {
-		return externalMethodCursor{raw: functions}
-	}
 	if !captured {
 		return externalMethodCursor{raw: functions}
 	}
-	query := externalMethodCensusQuery{pkg: pkg, depth: depth}
-	census, complete := e.methodCensuses[query]
+	census, complete := e.methodCensuses[pkg]
 	if !complete {
-		census = e.buildMethodCensus(pkg, functions, depth)
-		e.methodCensuses[query] = census
+		census = e.buildMethodCensus(pkg, functions)
+		e.methodCensuses[pkg] = census
 	}
 	return externalMethodCursor{targets: census.byType[definition], failures: census.failures}
 }
 
 // buildMethodCensus resolves source facts only. Visibility, execution checks and
 // method signatures remain the collectors' decisions when each row is visited.
-func (e *externalEffects) buildMethodCensus(pkg *sourcePackage, functions []sourceFunction, depth int) *externalMethodCensus {
+func (e *externalEffects) buildMethodCensus(pkg *sourcePackage, functions []sourceFunction) *externalMethodCensus {
 	census := &externalMethodCensus{byType: make(map[*ast.TypeSpec][]externalMethodRow)}
 	identity := externalTypeWalk{effects: e}
 	for ordinal, function := range functions {
@@ -73,7 +61,7 @@ func (e *externalEffects) buildMethodCensus(pkg *sourcePackage, functions []sour
 		}
 		source := sourceExpr{value: function.decl.Recv.List[0].Type, file: function.file, pkg: pkg}
 		row.receiver = &externalReceiverResult{}
-		row.receiver.definition, row.receiver.generic, row.receiver.reason = identity.receiver(source, depth)
+		row.receiver.definition, row.receiver.generic, row.receiver.reason = identity.receiver(source, 0)
 		if row.receiver.reason != "" {
 			census.failures = append(census.failures, row)
 			continue
@@ -114,11 +102,11 @@ func (cursor *externalMethodCursor) next() (externalMethodRow, bool) {
 
 // resolution MUST be called only after the collector proves one receiver
 // field. Raw rows then resolve lazily, after its visibility and shape checks.
-func (row externalMethodRow) resolution(identity *externalTypeWalk, pkg *sourcePackage, depth int) externalReceiverResult {
+func (row externalMethodRow) resolution(identity *externalTypeWalk, pkg *sourcePackage) externalReceiverResult {
 	if row.receiver != nil {
 		return *row.receiver
 	}
 	source := sourceExpr{value: row.function.decl.Recv.List[0].Type, file: row.function.file, pkg: pkg}
-	definition, generic, reason := identity.receiver(source, depth)
+	definition, generic, reason := identity.receiver(source, 0)
 	return externalReceiverResult{definition: definition, generic: generic, reason: reason}
 }

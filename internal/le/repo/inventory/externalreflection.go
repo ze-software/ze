@@ -58,7 +58,7 @@ func (e *externalEffects) promoteReflection(reflection externalReflection) {
 		return
 	}
 	value := externalValue{callables: reflection.methods, origins: reflection.origins, unknown: reflection.unknown, unknownAt: reflection.unknownAt}
-	if e.amb.join(value) {
+	if e.growAmbient(value) {
 		e.changed = true
 	}
 }
@@ -81,10 +81,36 @@ func (e *externalEffects) exposeSignature(node ast.Node, source sourceExpr) {
 
 // reflectedValue preserves concrete typed-nil function authority. An interface
 // value alone has no concrete runtime descriptor; descriptor child edges do.
+// Past the ambient check, the answer is kept for the analysis
+// (externalReflectionMemo) and is shared: a caller MUST only read it.
 func (e *externalEffects) reflectedValue(source sourceExpr, scope *externalTypeScope, depth int) externalReflection {
 	if e.amb.unknown != "" {
 		return externalReflection{unknown: e.amb.unknown, unknownAt: e.amb.unknownAt}
 	}
+	key := externalReflectionMemoKey{source: source, scope: scope}
+	if e.counters != nil {
+		e.counters.reflected(key)
+	}
+	memo := true
+	if probe := e.typeProbe; probe != nil {
+		memo = !probe.unmemoized
+	}
+	if !memo {
+		return e.walkReflectedValue(source, scope, depth)
+	}
+	if answer, found := e.reflectedValues.answer(key, depth); found {
+		if e.counters != nil {
+			e.counters.memoHits++
+		}
+		return answer
+	}
+	answer := e.walkReflectedValue(source, scope, depth)
+	e.reflectedValues.keep(key, depth, answer)
+	return answer
+}
+
+// walkReflectedValue is reflectedValue's walk, run once per kept answer.
+func (e *externalEffects) walkReflectedValue(source sourceExpr, scope *externalTypeScope, depth int) externalReflection {
 	walk := externalReflectionWalk{effects: e}
 	interfaceRoot, reason := walk.interfaceRoot(source, scope, depth)
 	if reason != "" {

@@ -6,60 +6,123 @@ import (
 	"go/types"
 )
 
-// externalReflectionWalk traverses descriptor edges without constructing a
-// field-value tree or granting existing backing storage. Active paths are local
-// to one summary; independently owned field summaries never share a visitor.
+// externalReflectionWalk walks descriptor edges by reachability, without
+// constructing a field-value tree or granting existing backing storage.
+//
+// Each exact frame (definition, resolved arguments, method and value-root
+// flags) contributes the union of what its own walk meets and what the frames
+// it reaches contribute, so its contribution is the same from every query.
+// The walk computes it once per analysis with Tarjan's algorithm over the
+// frames: a frame met again while it is still open is a cycle, and closes no
+// path; the frames of one strongly connected component share one union, kept
+// for every member in the analysis-wide table (externalEffects.reflectionFrames)
+// when the component's first frame completes; every later visit joins the
+// table's entry. The walk recursion is bounded by the number of distinct
+// frames, since an open frame is never entered again, and by the nesting of
+// retained type expressions.
+//
+// The first unknown reason of a union is the first one the walk met in source
+// order, frames joined at the moment it reached them. A component's union
+// keeps the first reason met by the walk that computed it, so every member,
+// and every later query reaching any of them, carries that reason; an unsited
+// reason is sited at the type expression that joins it, as before.
+//
+// Not safe for concurrent use; one analysis runs on one goroutine.
 type externalReflectionWalk struct {
 	effects *externalEffects
-	path    externalReflectionActivePath
-	// reuse is the running query's table of completed visits, nil outside a
-	// query or when a test disabled reuse.
-	reuse *externalReflectionReuse
-	// probe is set only by tests: it disables reuse, shrinks the table, or
-	// counts expanded visits. Production walkers leave it nil.
-	probe *externalReflectionReuseProbe
+	// order counts the reasons and joins the walk has met, so each part
+	// records when its first reason arrived.
+	order int
+	// active maps an open frame's id to its position on stack; stack holds
+	// the open frames in the order they were entered, and calls the frames
+	// whose walk is running, innermost last.
+	active map[int32]int
+	stack  []*externalReflectionOpen
+	calls  []*externalReflectionOpen
 }
 
-type externalReflectionFrame struct {
-	definition *ast.TypeSpec
-	arguments  []externalTypeArgument
-	methods    bool
-	valueRoot  bool
+// externalReflectionPart is the union one walk collects into: a query's
+// answer or an open frame's own contribution. order is when its first
+// unknown reason arrived (externalReflectionWalk.order).
+type externalReflectionPart struct {
+	reflection externalReflection
+	order      int
 }
 
-// value owns one fresh output for each query, including queries on a reused
-// walker. Recursive descriptor edges collect into that output without copying
-// intermediate summaries. Active path lifetime remains scoped to recursion.
-// The query also owns a fresh reuse table, which is dropped when it returns,
-// so no proof crosses from one output union to another.
-func (w *externalReflectionWalk) value(source sourceExpr, scope *externalTypeScope, methods, valueRoot bool, depth int) externalReflection {
-	var result externalReflection
-	outer := w.reuse
-	w.reuse = newExternalReflectionReuse(w.probe)
-	if len(w.path.frames) == 0 {
-		w.path.linear = w.probe != nil && w.probe.linearPath
+// externalReflectionOpen is a frame entered and not yet stored. low is the
+// lowest stack position its walk reached through frames still open.
+type externalReflectionOpen struct {
+	frame int32
+	low   int
+	part  externalReflectionPart
+}
+
+// externalReflectionFrameKind is the frame kind the reflection walk interns:
+// distinct from every type-walk kind, with its two flags.
+func externalReflectionFrameKind(methods, valueRoot bool) uint8 {
+	kind := uint8(4)
+	if methods {
+		kind |= 2
 	}
-	defer func() { w.reuse = outer }()
-	w.collect(source, scope, methods, valueRoot, depth, &result)
-	return result
+	if valueRoot {
+		kind |= 1
+	}
+	return kind
+}
+
+// value owns one fresh output for each query. A query that starts at an
+// incoming expression depth of 128 or more refuses, as the value flow that
+// asks it does; past that guard the answer does not depend on the depth.
+func (w *externalReflectionWalk) value(source sourceExpr, scope *externalTypeScope, methods, valueRoot bool, depth int) externalReflection {
+	var result externalReflectionPart
+	if counters := w.effects.counters; counters != nil {
+		counters.reflectionQueries++
+	}
+	if depth >= 128 {
+		w.noteUnknown(&result, "reflection type capability depth exceeds 128")
+		result.reflection.locate(source)
+		return result.reflection
+	}
+	w.collect(source, scope, methods, valueRoot, &result)
+	return result.reflection
 }
 
 // collect sites any unknown its descriptor produced at the type expression it
-// walked. The output union is shared, so the innermost visit sites a reason.
-func (w *externalReflectionWalk) collect(source sourceExpr, scope *externalTypeScope, methods, valueRoot bool, depth int, result *externalReflection) {
-	w.descriptor(source, scope, methods, valueRoot, depth, result)
-	result.locate(source)
+// walked. The innermost collect over an unsited reason sites it.
+func (w *externalReflectionWalk) collect(source sourceExpr, scope *externalTypeScope, methods, valueRoot bool, result *externalReflectionPart) {
+	w.descriptor(source, scope, methods, valueRoot, result)
+	result.reflection.locate(source)
 }
 
-// descriptor bounds descriptor expansion at the original 128 source edges.
-// valueRoot suppresses only an actual interface value's absent descriptor.
-func (w *externalReflectionWalk) descriptor(source sourceExpr, scope *externalTypeScope, methods, valueRoot bool, depth int, result *externalReflection) {
-	if depth >= 128 {
-		result.noteUnknown("reflection type capability depth exceeds 128")
+// noteUnknown notes a reason in the part, which keeps its first one.
+func (w *externalReflectionWalk) noteUnknown(result *externalReflectionPart, reason string) {
+	w.order++
+	if result.reflection.unknown != "" {
 		return
 	}
+	result.reflection.noteUnknown(reason)
+	result.order = w.order
+}
+
+// join adds a stored frame contribution to the part at this point of the walk.
+func (w *externalReflectionWalk) join(result *externalReflectionPart, contribution externalReflection) {
+	w.order++
+	first := result.reflection.unknown == ""
+	result.reflection.join(contribution)
+	if first {
+		if result.reflection.unknown != "" {
+			result.order = w.order
+		}
+	}
+}
+
+// descriptor walks one type expression. Its recursion follows the retained
+// expression and the parameter substitutions it mentions, both finite; a cycle
+// passes through a named frame, which collectNamed closes. valueRoot
+// suppresses only an actual interface value's absent descriptor.
+func (w *externalReflectionWalk) descriptor(source sourceExpr, scope *externalTypeScope, methods, valueRoot bool, result *externalReflectionPart) {
 	child := func(value ast.Expr, includeMethods bool, root bool) {
-		w.collect(sourceExpr{value: value, file: source.file, pkg: source.pkg}, scope, includeMethods, root, depth+1, result)
+		w.collect(sourceExpr{value: value, file: source.file, pkg: source.pkg}, scope, includeMethods, root, result)
 	}
 	switch datatype := source.value.(type) {
 	case *ast.ParenExpr:
@@ -88,7 +151,7 @@ func (w *externalReflectionWalk) descriptor(source sourceExpr, scope *externalTy
 		return
 	case *ast.FuncType:
 		if datatype.TypeParams.NumFields() != 0 {
-			result.noteUnknown("generic reflected callable signature is unsupported")
+			w.noteUnknown(result, "generic reflected callable signature is unsupported")
 			return
 		}
 		for _, fields := range []*ast.FieldList{datatype.Params, datatype.Results} {
@@ -111,10 +174,10 @@ func (w *externalReflectionWalk) descriptor(source sourceExpr, scope *externalTy
 	case *ast.Ident:
 		if argument, found := scope.argument(datatype); found {
 			if argument.source.value == nil {
-				result.noteUnknown("reflected type parameter has no retained argument")
+				w.noteUnknown(result, "reflected type parameter has no retained argument")
 				return
 			}
-			w.collect(argument.source, argument.scope, methods, valueRoot, depth+1, result)
+			w.collect(argument.source, argument.scope, methods, valueRoot, result)
 			return
 		}
 		binding := datatype.Obj
@@ -123,123 +186,182 @@ func (w *externalReflectionWalk) descriptor(source sourceExpr, scope *externalTy
 			binding, reason = w.effects.typeIdentities.packageBinding(source.pkg, datatype.Name)
 		}
 		if reason != "" {
-			result.noteUnknown(reason)
+			w.noteUnknown(result, reason)
 			return
 		}
 		if binding == nil {
 			if _, builtin := types.Universe.Lookup(datatype.Name).(*types.TypeName); builtin {
 				return
 			}
-			result.noteUnknown("reflected type ownership is unresolved: " + datatype.Name)
+			w.noteUnknown(result, "reflected type ownership is unresolved: "+datatype.Name)
 			return
 		}
-		w.collectNamed(source, nil, methods, valueRoot, depth+1, result)
+		w.collectNamed(source, nil, methods, valueRoot, result)
 		return
 	case *ast.SelectorExpr:
-		w.collectNamed(source, nil, methods, valueRoot, depth+1, result)
+		w.collectNamed(source, nil, methods, valueRoot, result)
 		return
 	case *ast.IndexExpr:
 		arguments := []externalTypeArgument{{source: sourceExpr{value: datatype.Index, file: source.file, pkg: source.pkg}, scope: scope}}
-		w.collectNamed(sourceExpr{value: datatype.X, file: source.file, pkg: source.pkg}, arguments, methods, valueRoot, depth+1, result)
+		w.collectNamed(sourceExpr{value: datatype.X, file: source.file, pkg: source.pkg}, arguments, methods, valueRoot, result)
 		return
 	case *ast.IndexListExpr:
 		arguments := make([]externalTypeArgument, 0, len(datatype.Indices))
 		for _, argument := range datatype.Indices {
 			arguments = append(arguments, externalTypeArgument{source: sourceExpr{value: argument, file: source.file, pkg: source.pkg}, scope: scope})
 		}
-		w.collectNamed(sourceExpr{value: datatype.X, file: source.file, pkg: source.pkg}, arguments, methods, valueRoot, depth+1, result)
+		w.collectNamed(sourceExpr{value: datatype.X, file: source.file, pkg: source.pkg}, arguments, methods, valueRoot, result)
 		return
 	}
-	result.noteUnknown("unsupported reflected type capability shape")
+	w.noteUnknown(result, "unsupported reflected type capability shape")
 }
 
-func (w *externalReflectionWalk) collectNamed(source sourceExpr, arguments []externalTypeArgument, methods, valueRoot bool, depth int, result *externalReflection) {
-	if depth >= 128 {
-		result.noteUnknown("reflection type capability depth exceeds 128")
+// collectNamed joins a named type's frame contribution, computing it first
+// when the analysis holds none (externalReflectionWalk).
+func (w *externalReflectionWalk) collectNamed(source sourceExpr, arguments []externalTypeArgument, methods, valueRoot bool, result *externalReflectionPart) {
+	named := w.effects.reflectionNamed(source)
+	if named.external {
+		w.collectExternal(named.origin, arguments, result)
 		return
 	}
-	if selector, selected := source.value.(*ast.SelectorExpr); selected {
-		if origin, external := w.effects.source.externalImport(source, selector); external {
-			w.collectExternal(origin, arguments, depth, result)
-			return
-		}
-	}
-	identity := externalTypeWalk{effects: w.effects}
-	definition, owner, reason := identity.definition(source)
-	if reason != "" {
-		result.noteUnknown(reason)
+	if named.reason != "" {
+		w.noteUnknown(result, named.reason)
 		return
 	}
+	definition := named.definition
 	if len(arguments) != definition.TypeParams.NumFields() {
-		result.noteUnknown("reflected generic type argument count is unresolved")
+		w.noteUnknown(result, "reflected generic type argument count is unresolved")
 		return
 	}
 	// The old invalid-argument branch returned a new unknown-only summary,
 	// discarding earlier arguments. Prove ownership before collecting any of
 	// this node's arguments; valid arguments retain their original visit order.
 	for index, argument := range arguments {
-		arguments[index] = externalResolvedTypeArgument(argument, depth)
+		arguments[index] = externalResolvedTypeArgument(argument, 0)
 		if arguments[index].source.value == nil {
-			result.noteUnknown("reflected generic type argument ownership is unresolved")
+			w.noteUnknown(result, "reflected generic type argument ownership is unresolved")
 			return
 		}
 	}
 	for _, argument := range arguments {
-		w.collect(argument.source, argument.scope, true, false, depth+1, result)
+		w.collect(argument.source, argument.scope, true, false, result)
 	}
-	frame := externalReflectionFrame{definition: definition, arguments: arguments, methods: methods, valueRoot: valueRoot}
-	// The first active frame equal to this one is the backedge, as a scan of
-	// the path from the outside in would find it; the path's index compares
-	// only the frames that share this frame's definition and flags.
-	if index := w.path.backedge(frame, depth); index >= 0 {
-		if w.reuse != nil {
-			w.reuse.pruned(index)
-		}
+	if counters := w.effects.counters; counters != nil {
+		counters.namedVisits++
+		counters.tick()
+	}
+	// An instantiation that grows without end reaches a new frame on every
+	// step, and its argument term is what keeps nesting
+	// (externalTypeTermDepthMax).
+	id, bounded := w.effects.typeTerms.frame(named.ownerID, externalReflectionFrameKind(methods, valueRoot), arguments)
+	if !bounded {
+		w.noteUnknown(result, "reflection type capability depth exceeds 128")
 		return
 	}
-	// Skip this visit when the output union already holds everything it could
-	// add. An earlier visit of the same exact frame, owner and incoming depth
-	// has completed in this query, and every active frame its subtree pruned
-	// against is on the path now. Inside its subtree that visit read only the
-	// frame, the depth, the scopes its arguments carry, and the active path,
-	// and it read the path only in the backedge check above. So this visit
-	// would make every prune the earlier one made, and perhaps more, and a
-	// prune only cuts a subtree out: this walk would be the earlier walk with
-	// parts removed. The union only accumulates (methods and origins are sets,
-	// and the first unknown reason wins), so what this visit could add is
-	// already there. Without that proof, or when the table is full, the visit
-	// traverses as before.
-	if w.reuse != nil {
-		if w.reuse.covered(&w.path, frame, owner, depth) {
-			return
+	if contribution, stored := w.effects.reflectionFrames[id]; stored {
+		w.join(result, contribution)
+		return
+	}
+	if position, open := w.active[id]; open {
+		// A cycle: the frame's contribution reaches this part through the
+		// union its component shares.
+		w.lower(position)
+		return
+	}
+	open := w.open(id)
+	w.expand(named, arguments, methods, valueRoot, &open.part)
+	w.calls = w.calls[:len(w.calls)-1]
+	position := w.active[id]
+	if open.low < position {
+		w.lower(open.low)
+		return
+	}
+	w.store(position)
+	w.join(result, w.effects.reflectionFrames[id])
+}
+
+// open enters frame id as the innermost open frame and the running walk.
+func (w *externalReflectionWalk) open(id int32) *externalReflectionOpen {
+	position := len(w.stack)
+	open := &externalReflectionOpen{frame: id, low: position}
+	w.stack = append(w.stack, open)
+	w.calls = append(w.calls, open)
+	if w.active == nil {
+		w.active = make(map[int32]int)
+	}
+	w.active[id] = position
+	if counters := w.effects.counters; counters != nil {
+		counters.reflectionFrames++
+	}
+	return open
+}
+
+// lower records that the running frame's walk reached the open frame at
+// position. Outside every frame (a query's own part) no frame is open, so
+// nothing it reaches is open either.
+func (w *externalReflectionWalk) lower(position int) {
+	if len(w.calls) == 0 {
+		return
+	}
+	running := w.calls[len(w.calls)-1]
+	running.low = min(running.low, position)
+}
+
+// store closes the component whose first frame is at position: its frames
+// share the union of their parts, which the table keeps for each of them.
+// The union's first reason is the earliest any member met.
+func (w *externalReflectionWalk) store(position int) {
+	members := w.stack[position:]
+	first := -1
+	for index, member := range members {
+		if member.part.reflection.unknown == "" {
+			continue
+		}
+		if first < 0 {
+			first = index
+			continue
+		}
+		if member.part.order < members[first].part.order {
+			first = index
 		}
 	}
-	w.path.push(frame)
-	defer w.path.pop()
-	if w.probe != nil {
-		w.probe.traversals++
+	var union externalReflection
+	if first >= 0 {
+		union.join(members[first].part.reflection)
 	}
-	if w.reuse != nil {
-		w.reuse.enter(len(w.path.frames) - 1)
-		// Runs before the path pop above, so the path still holds this frame.
-		defer func() { w.reuse.complete(w.path.frames, frame, owner, depth) }()
+	for _, member := range members {
+		union.join(member.part.reflection)
 	}
+	if w.effects.reflectionFrames == nil {
+		w.effects.reflectionFrames = make(map[int32]externalReflection)
+	}
+	for _, member := range members {
+		w.effects.reflectionFrames[member.frame] = union
+		delete(w.active, member.frame)
+	}
+	w.stack = w.stack[:position]
+}
+
+// expand runs a frame's own walk into its part: the methods its definition
+// declares, and its representation in the definition's scope.
+func (w *externalReflectionWalk) expand(named externalReflectionNamed, arguments []externalTypeArgument, methods, valueRoot bool, part *externalReflectionPart) {
+	definition, owner := named.definition, named.owner
 	scope := w.effects.typeIdentities.lexicalScope(owner)
 	if len(arguments) != 0 {
 		scope = externalBindTypeParameters(scope, definition.TypeParams, arguments)
 	}
 	if methods {
-		w.collectMethods(definition, owner, depth+1, result)
+		w.collectMethods(definition, owner, part)
 	}
-	w.collect(owner, scope, methods && definition.Assign.IsValid(), valueRoot, depth+1, result)
+	w.collect(owner, scope, methods && definition.Assign.IsValid(), valueRoot, part)
 }
 
 // collectMethods records only ordinary reflected callable methods. Signatures
 // join this SAME traversal, so method-result chains cannot recursively launch
 // independent walkers or borrow a different lexical owner.
-func (w *externalReflectionWalk) collectMethods(definition *ast.TypeSpec, owner sourceExpr, depth int, result *externalReflection) {
+func (w *externalReflectionWalk) collectMethods(definition *ast.TypeSpec, owner sourceExpr, result *externalReflectionPart) {
 	identity := externalTypeWalk{effects: w.effects}
-	cursor := w.effects.methodCursor(owner.pkg, definition, depth)
+	cursor := w.effects.methodCursor(owner.pkg, definition)
 	for row, present := cursor.next(); present; row, present = cursor.next() {
 		function := row.function
 		if !ast.IsExported(function.decl.Name.Name) {
@@ -247,56 +369,56 @@ func (w *externalReflectionWalk) collectMethods(definition *ast.TypeSpec, owner 
 		}
 		// A raw row MUST pass this shape guard before resolution.
 		if len(function.decl.Recv.List) != 1 {
-			result.noteUnknown("reflected receiver shape is unresolved")
+			w.noteUnknown(result, "reflected receiver shape is unresolved")
 			continue
 		}
-		receiver := row.resolution(&identity, owner.pkg, depth)
+		receiver := row.resolution(&identity, owner.pkg)
 		if receiver.reason != "" {
-			result.noteUnknown(receiver.reason)
+			w.noteUnknown(result, receiver.reason)
 			continue
 		}
 		if receiver.definition != definition {
 			continue
 		}
 		if receiver.generic {
-			result.noteUnknown("generic reflected receiver execution is unsupported")
+			w.noteUnknown(result, "generic reflected receiver execution is unsupported")
 			continue
 		}
 		if function.decl.Body == nil {
-			result.noteUnknown("bodyless reflected method execution is unsupported")
+			w.noteUnknown(result, "bodyless reflected method execution is unsupported")
 			continue
 		}
 		source := sourceExpr{value: function.decl.Name, file: function.file, pkg: owner.pkg}
-		if result.methods == nil {
-			result.methods = make(map[ast.Node]sourceExpr)
+		if result.reflection.methods == nil {
+			result.reflection.methods = make(map[ast.Node]sourceExpr)
 		}
-		if _, found := result.methods[function.decl]; !found {
-			result.methods[function.decl] = source
+		if _, found := result.reflection.methods[function.decl]; !found {
+			result.reflection.methods[function.decl] = source
 		}
 		source.value = function.decl.Type
-		w.collect(source, w.effects.typeIdentities.lexicalScope(source), true, false, depth+1, result)
+		w.collect(source, w.effects.typeIdentities.lexicalScope(source), true, false, result)
 	}
 }
 
 // collectExternal records a standard-library named type, bare or
 // instantiated, as its import's origin: its descriptor is not an analyzer
 // input. Its type arguments are retained descriptors and are still collected.
-func (w *externalReflectionWalk) collectExternal(origin string, arguments []externalTypeArgument, depth int, result *externalReflection) {
+func (w *externalReflectionWalk) collectExternal(origin string, arguments []externalTypeArgument, result *externalReflectionPart) {
 	if err := w.effects.source.witness(origin); err != nil {
-		result.noteUnknown(err.Error())
+		w.noteUnknown(result, err.Error())
 		return
 	}
-	if result.origins == nil {
-		result.origins = make(map[string]bool)
+	if result.reflection.origins == nil {
+		result.reflection.origins = make(map[string]bool)
 	}
-	result.origins[origin] = true
+	result.reflection.origins[origin] = true
 	for _, argument := range arguments {
-		argument = externalResolvedTypeArgument(argument, depth)
+		argument = externalResolvedTypeArgument(argument, 0)
 		if argument.source.value == nil {
-			result.noteUnknown("reflected generic type argument ownership is unresolved")
+			w.noteUnknown(result, "reflected generic type argument ownership is unresolved")
 			return
 		}
-		w.collect(argument.source, argument.scope, true, false, depth+1, result)
+		w.collect(argument.source, argument.scope, true, false, result)
 	}
 }
 

@@ -157,9 +157,9 @@ func TestExternalStandardTypeModulePackageStillRefuses(t *testing.T) {
 
 // TestExternalTerminalUnknownNamesItsSite requires a terminal ambient unknown
 // produced deep in a type walk to refuse at the committed line that produced
-// it, not at the call that exposed it. Method: a field of a self-referential
-// type two struct levels down a declaration is exposed whole by fmt.Print; the
-// cycle is found at the loop identifier in next *loop.
+// it, not at the call that exposed it. Method: a loop field two struct levels
+// down a declaration is exposed whole by fmt.Print; loop holds a polymorphically
+// recursive grow, so the depth guard is reached on the grow declaration's line.
 //
 // MUTATION: (internal/le/repo/inventory/externalvalues.go,
 // "v.unknownAt = other.unknownAt", "v.unknownAt = sourceExpr{}") drops the site.
@@ -168,9 +168,7 @@ func TestExternalStandardTypeModulePackageStillRefuses(t *testing.T) {
 // drops the site from the message.
 func TestExternalTerminalUnknownNamesItsSite(t *testing.T) {
 	effects, file := externalTerminalSelectedSource(t, `
-type loop struct {
-	next *loop
-}
+type grow[T any] struct{ next *grow[[]T] }; type loop struct{ next *grow[int] }
 type carrier struct {
 	Inner struct {
 		Blocked loop
@@ -185,11 +183,9 @@ type carrier struct {
 	var cycle, call ast.Node
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch value := node.(type) {
-		case *ast.StarExpr:
-			if name, named := value.X.(*ast.Ident); named {
-				if name.Name == "loop" {
-					cycle = name
-				}
+		case *ast.TypeSpec:
+			if value.Name.Name == "grow" {
+				cycle = value.Name
 			}
 		case *ast.CallExpr:
 			call = node
@@ -197,7 +193,7 @@ type carrier struct {
 		return true
 	})
 	if cycle == nil {
-		t.Fatal("fixture lost the loop identifier in next *loop")
+		t.Fatal("fixture lost the grow declaration")
 	}
 	if call == nil {
 		t.Fatal("fixture lost its exposing call")
@@ -207,7 +203,7 @@ type carrier struct {
 	if site.Line == fset.Position(call.Pos()).Line {
 		t.Fatal("fixture puts the producer on the exposing call's line")
 	}
-	want := "committed inventory " + site.Filename + ":" + strconv.Itoa(site.Line) + ": external registration capability is unknown: " + externalTerminalCyclicUnknown
+	want := "committed inventory " + site.Filename + ":" + strconv.Itoa(site.Line) + ": external registration capability is unknown: " + externalTerminalDepthUnknown
 	if !strings.Contains(err.Error(), want) {
 		t.Errorf("terminal refusal is not sited at its producer:\n got %v\nwant %s", err, want)
 	}

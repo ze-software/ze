@@ -122,15 +122,19 @@ func TestExternalTypeIdentityReceiverQueriesKeepTheirDepth(t *testing.T) {
 	if reason != "" {
 		t.Fatal(reason)
 	}
-	value := walk.methods(definition, owner, 0)
+	value := walk.methods(definition, owner)
 	if value.unknown != "" || len(value.callables) != 1 {
 		t.Fatalf("ordinary alias receiver lost its selected method: %+v", value)
 	}
-	if value := walk.methods(definition, owner, 128); !strings.Contains(value.unknown, "depth exceeds") {
-		t.Fatalf("deep receiver query reused a shallow result: %+v", value)
+	typeSource := sourceExpr{value: name, file: file, pkg: pkg}
+	if value := walk.value(typeSource, nil, true, 128); value.unknown != "type capability depth exceeds 128" {
+		t.Fatalf("a query at depth 128 did not refuse: %+v", value)
 	}
-	if value := walk.methods(definition, owner, 0); value.unknown != "" || len(value.callables) != 1 {
-		t.Fatalf("a depth refusal contaminated another query: %+v", value)
+	if value := walk.value(typeSource, nil, true, 0); value.unknown != "" {
+		t.Fatalf("a depth refusal contaminated a shallow query: %+v", value)
+	}
+	if value := walk.methods(definition, owner); value.unknown != "" || len(value.callables) != 1 {
+		t.Fatalf("a depth refusal contaminated the method query: %+v", value)
 	}
 }
 
@@ -153,7 +157,7 @@ func TestExternalTypeIdentityRetainsReceiverRefusals(t *testing.T) {
 			if reason != "" {
 				t.Fatal(reason)
 			}
-			if value := walk.methods(definition, owner, 0); !strings.Contains(value.unknown, scenario.cause) {
+			if value := walk.methods(definition, owner); !strings.Contains(value.unknown, scenario.cause) {
 				t.Fatalf("receiver census dropped its %s refusal: %+v", scenario.cause, value)
 			}
 		})

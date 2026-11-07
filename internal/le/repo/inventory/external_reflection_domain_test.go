@@ -192,37 +192,45 @@ type alternate chain
 // TestExternalReflectionVisitIdentity proves reconstructed scopes cannot grow
 // monotone identities and suppressed method coverage cannot hide a child edge.
 func TestExternalReflectionVisitIdentity(t *testing.T) {
-	definition := &ast.TypeSpec{Name: ast.NewIdent("Owner")}
 	parameter := ast.NewIdent("T")
 	parameter.Obj = &ast.Object{Name: "T", Kind: ast.Typ}
+	bind := func(argument externalTypeArgument) *externalTypeScope {
+		return &externalTypeScope{parameters: map[string]externalTypeBinding{"T": {object: parameter.Obj, argument: argument}}}
+	}
 	actual := externalTypeArgument{source: sourceExpr{value: ast.NewIdent("int")}}
-	first := &externalTypeScope{parameters: map[string]externalTypeBinding{"T": {object: parameter.Obj, argument: actual}}}
-	second := &externalTypeScope{parameters: map[string]externalTypeBinding{"T": {object: parameter.Obj, argument: actual}}}
+	other := externalTypeArgument{source: sourceExpr{value: ast.NewIdent("string")}}
 	composite := sourceExpr{value: &ast.ArrayType{Elt: parameter}}
-	left := externalReflectionFrame{definition: definition, arguments: []externalTypeArgument{{source: composite, scope: first}}, methods: true}
-	right := externalReflectionFrame{definition: definition, arguments: []externalTypeArgument{{source: composite, scope: second}}, methods: true}
-	if !externalReflectionFrameEqual(left, right, 0) {
-		t.Fatal("rebuilt equivalent substitution scopes failed exact coverage")
+	var terms externalTypeTerms
+	frame := func(scope *externalTypeScope, methods, valueRoot bool) (int32, bool) {
+		return terms.frame(0, externalReflectionFrameKind(methods, valueRoot), []externalTypeArgument{{source: composite, scope: scope}})
 	}
-	right.methods = false
-	if externalReflectionFrameEqual(left, right, 0) {
-		t.Fatal("suppressed methods certified enabled method coverage")
+	id := func(scope *externalTypeScope, methods, valueRoot bool) int32 {
+		t.Helper()
+		frame, bounded := frame(scope, methods, valueRoot)
+		if !bounded {
+			t.Fatal("a shallow argument exceeded the nesting bound")
+		}
+		return frame
 	}
-	right.methods = true
-	right.valueRoot = true
-	if externalReflectionFrameEqual(left, right, 0) {
-		t.Fatal("nil-interface value suppression certified a descriptor edge")
+	left := id(bind(actual), true, false)
+	if id(bind(actual), true, false) != left {
+		t.Fatal("rebuilt equivalent substitution scopes interned to different frames")
 	}
-	right.valueRoot = false
-	second.parameters["T"] = externalTypeBinding{object: parameter.Obj, argument: externalTypeArgument{source: sourceExpr{value: ast.NewIdent("string")}}}
-	if externalReflectionFrameEqual(left, right, 0) {
-		t.Fatal("different actual substitutions certified a backedge")
+	if id(bind(actual), false, false) == left {
+		t.Fatal("suppressed methods interned to the enabled-method frame")
 	}
-	if externalReflectionArgumentEqual(actual, actual, 128) {
-		t.Fatal("exhausted substitution equality certified a backedge")
+	if id(bind(actual), true, true) == left {
+		t.Fatal("nil-interface value suppression interned to the descriptor frame")
 	}
-	if externalReflectionArgumentEqual(externalTypeArgument{}, externalTypeArgument{}, 0) {
-		t.Fatal("absent actual arguments certified a backedge")
+	if id(bind(other), true, false) == left {
+		t.Fatal("different actual substitutions interned to one frame")
+	}
+	scope := bind(actual)
+	for range externalTypeTermDepthMax + 1 {
+		scope = bind(externalTypeArgument{source: composite, scope: scope})
+	}
+	if _, bounded := frame(scope, true, false); bounded {
+		t.Fatal("an argument nested past the bound interned a frame")
 	}
 }
 

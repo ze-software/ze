@@ -175,7 +175,10 @@ compatibility roots. The collector gives each query one fresh output instead of
 copying intermediate method maps through each descriptor ancestor. Its allocation
 test measures three allocations for both shallow and nested descriptors, after
 reproducing nine and thirty-one before the repair. Exact binding identity,
-ambiguity, independent outputs and the existing depth boundary remain covered.
+ambiguity and independent outputs remain covered; the depth boundary has since
+been replaced by reachability, bounded only for a generic instantiation that
+grows without end ([INVENTORY-TRAVERSAL-REVIEW.md](INVENTORY-TRAVERSAL-REVIEW.md#depth-decision-2026-11-07),
+"Depth decision, 2026-11-07").
 These source tests do not establish a complete inventory report.
 
 The analyzer also lost uncertainty when a channel receive replaced a struct

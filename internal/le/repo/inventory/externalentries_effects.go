@@ -17,7 +17,7 @@ func (e *externalEffects) staticRoots() {
 			continue
 		}
 		for _, origin := range entries.origins {
-			if e.amb.join(externalOrigin(origin)) {
+			if e.growAmbient(externalOrigin(origin)) {
 				e.changed = true
 			}
 		}

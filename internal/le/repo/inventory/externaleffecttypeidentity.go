@@ -135,9 +135,9 @@ func externalBindTypeParameters(parent *externalTypeScope, parameters *ast.Field
 
 // methods joins pointer and value receiver capabilities. Alias normalization is
 // private to this conservative walk and does not widen expression.method.
-func (w *externalTypeWalk) methods(definition *ast.TypeSpec, owner sourceExpr, depth int) externalValue {
+func (w *externalTypeWalk) methods(definition *ast.TypeSpec, owner sourceExpr) externalValue {
 	var result externalValue
-	cursor := w.effects.methodCursor(owner.pkg, definition, depth)
+	cursor := w.effects.methodCursor(owner.pkg, definition)
 	for row, present := cursor.next(); present; row, present = cursor.next() {
 		function := row.function
 		// A raw row MUST pass this shape guard before resolution.
@@ -145,7 +145,7 @@ func (w *externalTypeWalk) methods(definition *ast.TypeSpec, owner sourceExpr, d
 			result.join(externalValue{unknown: "retained receiver shape is unresolved"})
 			continue
 		}
-		receiver := row.resolution(w, owner.pkg, depth)
+		receiver := row.resolution(w, owner.pkg)
 		if receiver.reason != "" {
 			result.join(externalValue{unknown: receiver.reason})
 			continue

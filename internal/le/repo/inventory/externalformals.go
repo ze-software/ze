@@ -8,6 +8,8 @@ import "go/ast"
 type externalFormal struct {
 	owner  ast.Node
 	source sourceExpr
+	// receiver marks a method receiver, which a method value binds.
+	receiver bool
 }
 
 // indexFormalSources records dormant callers without executing their bodies.
@@ -39,7 +41,7 @@ func (e *externalEffects) indexFormalSources(directories []string) {
 						for _, name := range field.Names {
 							source := scope
 							source.value = name
-							e.formals[name.Obj] = externalFormal{owner: node, source: source}
+							e.formals[name.Obj] = externalFormal{owner: node, source: source, receiver: fields == receiver}
 						}
 					}
 				}
@@ -207,8 +209,15 @@ func (e *externalEffects) indexFormalReferences(scope sourceExpr, direct map[ast
 		}
 		source := scope
 		source.value = expression
-		target, _, _ := e.formalTarget(source)
+		target, _, receiver := e.formalTarget(source)
 		if target != nil {
+			if receiver != nil {
+				// A method value x.M binds M's receiver to x where it is
+				// taken, as a call x.M() does; only its parameters come
+				// from the unseen callers of the value.
+				e.indexFormalMethodValue(target, receiver, source, externalFormalOwner(parents))
+				return true
+			}
 			e.formalIndirect[target] = source
 			return true
 		}
@@ -224,6 +233,36 @@ func (e *externalEffects) indexFormalReferences(scope sourceExpr, direct map[ast
 		}
 		return true
 	})
+}
+
+// indexFormalMethodValue records the receiver a method value binds, with the
+// same equation a direct call writes, and marks its parameters unbound.
+func (e *externalEffects) indexFormalMethodValue(node ast.Node, receiver ast.Expr, value sourceExpr, owner ast.Node) {
+	e.formalUnbound[node] = value
+	_, receivers := externalFormalSignature(node)
+	if receivers == nil {
+		e.formalInvalid[node] = "method receiver provenance is unresolved"
+		return
+	}
+	for _, field := range receivers.List {
+		for _, name := range field.Names {
+			source := value
+			source.value = receiver
+			e.definitions[name.Obj] = append(e.definitions[name.Obj], externalDefinition{source: source, owner: owner})
+		}
+	}
+}
+
+// externalFormalOwner answers the innermost function among parents, the
+// execution owner of a reference inside it; nil at package level.
+func externalFormalOwner(parents []ast.Node) ast.Node {
+	for index := len(parents) - 1; index >= 0; index-- {
+		switch parents[index].(type) {
+		case *ast.FuncDecl, *ast.FuncLit:
+			return parents[index]
+		}
+	}
+	return nil
 }
 
 func externalFormalReference(expression ast.Expr, parent ast.Node) bool {

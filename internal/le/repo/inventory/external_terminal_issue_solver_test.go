@@ -40,7 +40,7 @@ fmt.Print(loop{}, delayed)
 		t.Fatal("selected source lost the unsupported linkname pull")
 	}
 	err := effects.solve()
-	if effects.amb.unknown != externalTerminalCyclicUnknown {
+	if effects.amb.unknown != externalTerminalDepthUnknown {
 		t.Errorf("analysis stopped at the earlier failure before reaching terminal ambient unknown: %q", effects.amb.unknown)
 	}
 	if len(effects.admitted) != 0 {

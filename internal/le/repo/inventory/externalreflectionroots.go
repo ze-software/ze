@@ -4,6 +4,7 @@ package repoinventory
 import (
 	"go/ast"
 	"go/types"
+	"slices"
 )
 
 // interfaceRoot classifies only the substituted value's outer representation.
@@ -12,7 +13,8 @@ import (
 // Alias/source traversal and unproved cycles remain bounded at 128 steps.
 func (w *externalReflectionWalk) interfaceRoot(source sourceExpr, scope *externalTypeScope, depth int) (bool, string) {
 	identity := externalTypeWalk{effects: w.effects}
-	var path []externalReflectionFrame
+	// path holds the interned frames (externalTypeTerms) the chain entered.
+	var path []int32
 	for depth < 128 {
 		depth++
 		var arguments []externalTypeArgument
@@ -87,11 +89,13 @@ func (w *externalReflectionWalk) interfaceRoot(source sourceExpr, scope *externa
 				return false, "reflected value generic argument ownership is unresolved"
 			}
 		}
-		frame := externalReflectionFrame{definition: definition, arguments: arguments, valueRoot: true}
-		for _, active := range path {
-			if externalReflectionFrameEqual(active, frame, depth) {
-				return false, "cyclic reflected value root representation"
-			}
+		owned := w.effects.reflectionKeys.owner(owner.pkg, definition)
+		frame, bounded := w.effects.typeTerms.frame(owned, externalReflectionFrameKind(false, true), arguments)
+		if !bounded {
+			return false, "reflected value root representation exceeds 128 steps"
+		}
+		if slices.Contains(path, frame) {
+			return false, "cyclic reflected value root representation"
 		}
 		path = append(path, frame)
 		scope = w.effects.typeIdentities.lexicalScope(owner)

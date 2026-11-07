@@ -134,6 +134,12 @@ func (proofs *externalFormalProofs) object(object *ast.Object, depth int) *exter
 		if _, indirect := e.formalIndirect[formal.owner]; indirect {
 			proof.unknown = "indirect retained caller provenance is unresolved"
 		}
+		// A method value binds the receiver, never the parameters.
+		if _, unbound := e.formalUnbound[formal.owner]; unbound {
+			if !formal.receiver {
+				proof.unknown = "indirect retained caller provenance is unresolved"
+			}
+		}
 		if reason := e.formalInvalid[formal.owner]; reason != "" {
 			proof.unknown = reason
 		}

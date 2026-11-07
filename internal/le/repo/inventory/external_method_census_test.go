@@ -74,7 +74,7 @@ func TestExternalMethodCensusRefusalOrder(t *testing.T) {
 		t.Run(scenario.name, func(t *testing.T) {
 			effects, definition, owner := methodCensusFixture(t, scenario.body)
 			for range 2 {
-				methodCensusCheck(t, effects, definition, owner, 0, scenario.ordinary, scenario.reflected, scenario.ordinaryNames, scenario.reflectedNames)
+				methodCensusCheck(t, effects, definition, owner, scenario.ordinary, scenario.reflected, scenario.ordinaryNames, scenario.reflectedNames)
 			}
 		})
 	}
@@ -104,30 +104,9 @@ func TestExternalMethodCensusSignatureOrder(t *testing.T) {
 			pkg := effects.source.snapshot.packages[directory]
 			definition, owner := methodCensusNamedType(t, effects, pkg, "Root")
 			for range 2 {
-				methodCensusCheck(t, effects, definition, owner, 0, cycle, scenario.reflected, []string{"First", "Later"}, []string{"First", "Later"})
+				methodCensusCheck(t, effects, definition, owner, cycle, scenario.reflected, []string{"First", "Later"}, []string{"First", "Later"})
 			}
 		})
-	}
-}
-
-// TestExternalMethodCensusDepthIsolation interleaves exact receiver cutoffs,
-// uncached negative/deep queries and a subsequent shallow success.
-func TestExternalMethodCensusDepthIsolation(t *testing.T) {
-	effects, definition, owner := methodCensusFixture(t, "type Root int\ntype Alias = Root\nfunc (Alias) Act() {}\n")
-	for _, scenario := range []struct {
-		depth  int
-		reason string
-		names  []string
-	}{
-		{depth: 0, names: []string{"Act"}},
-		{depth: 126, names: []string{"Act"}},
-		{depth: 127, reason: "receiver capability depth exceeds 128"},
-		{depth: 0, names: []string{"Act"}},
-		{depth: -1, names: []string{"Act"}},
-		{depth: 128, reason: "receiver capability depth exceeds 128"},
-		{depth: 0, names: []string{"Act"}},
-	} {
-		methodCensusCheck(t, effects, definition, owner, scenario.depth, scenario.reason, scenario.reason, scenario.names, scenario.names)
 	}
 }
 
@@ -136,9 +115,9 @@ func TestExternalMethodCensusDepthIsolation(t *testing.T) {
 func TestExternalMethodCensusExactIdentity(t *testing.T) {
 	effects, root, owner := methodCensusFixture(t, "type Root int\nfunc (Root) Alpha() {}\ntype Other int\nfunc (Other) Beta() {}\nfunc Local() { type Root int; _ = Root(0) }\n")
 	other, otherOwner := methodCensusNamedType(t, effects, owner.pkg, "Other")
-	methodCensusCheck(t, effects, root, owner, 0, "", "", []string{"Alpha"}, []string{"Alpha"})
-	methodCensusCheck(t, effects, other, otherOwner, 0, "", "", []string{"Beta"}, []string{"Beta"})
-	methodCensusCheck(t, effects, root, owner, 0, "", "", []string{"Alpha"}, []string{"Alpha"})
+	methodCensusCheck(t, effects, root, owner, "", "", []string{"Alpha"}, []string{"Alpha"})
+	methodCensusCheck(t, effects, other, otherOwner, "", "", []string{"Beta"}, []string{"Beta"})
+	methodCensusCheck(t, effects, root, owner, "", "", []string{"Alpha"}, []string{"Alpha"})
 	var local *ast.TypeSpec
 	ast.Inspect(owner.file, func(node ast.Node) bool {
 		declaration, ok := node.(*ast.TypeSpec)
@@ -164,29 +143,34 @@ func TestExternalMethodCensusExactIdentity(t *testing.T) {
 	if localDefinition != local {
 		t.Fatal("local type borrowed the package declaration")
 	}
-	methodCensusCheck(t, effects, localDefinition, localOwner, 0, "", "", nil, nil)
+	methodCensusCheck(t, effects, localDefinition, localOwner, "", "", nil, nil)
 	unindexed := *owner.pkg
-	methodCensusCheck(t, effects, root, sourceExpr{pkg: &unindexed}, 0, "", "", nil, nil)
+	methodCensusCheck(t, effects, root, sourceExpr{pkg: &unindexed}, "", "", nil, nil)
 	second, secondRoot, secondOwner := methodCensusFixture(t, "type Root int\nfunc (Root) Second() {}\n")
-	methodCensusCheck(t, second, secondRoot, secondOwner, 0, "", "", []string{"Second"}, []string{"Second"})
-	methodCensusCheck(t, effects, secondRoot, owner, 0, "", "", nil, nil)
-	methodCensusCheck(t, effects, root, owner, 0, "", "", []string{"Alpha"}, []string{"Alpha"})
+	methodCensusCheck(t, second, secondRoot, secondOwner, "", "", []string{"Second"}, []string{"Second"})
+	methodCensusCheck(t, effects, secondRoot, owner, "", "", nil, nil)
+	methodCensusCheck(t, effects, root, owner, "", "", []string{"Alpha"}, []string{"Alpha"})
 }
 
 // TestExternalMethodCensusOwnsOutputs prevents source-fact reuse from sharing
 // mutable callable, field or reflected-method outputs between visits.
 func TestExternalMethodCensusOwnsOutputs(t *testing.T) {
 	effects, definition, owner := methodCensusFixture(t, "type Root int\nfunc (Root) Act() {}\n")
-	ordinary, reflected := methodCensusCheck(t, effects, definition, owner, 0, "", "", []string{"Act"}, []string{"Act"})
+	ordinary, reflected := methodCensusCheck(t, effects, definition, owner, "", "", []string{"Act"}, []string{"Act"})
 	for node := range ordinary.callables {
 		delete(ordinary.callables, node)
+	}
+	// join allocates the field table only when a value carries fields, so the
+	// injection makes its own before writing the prior output's field.
+	if ordinary.fields == nil {
+		ordinary.fields = make(map[string]externalValue)
 	}
 	ordinary.fields["from-prior-output"] = externalValue{unknown: "injected output"}
 	for node := range reflected.methods {
 		delete(reflected.methods, node)
 	}
 	reflected.methods[&ast.FuncDecl{Name: ast.NewIdent("Fabricated")}] = sourceExpr{}
-	next, _ := methodCensusCheck(t, effects, definition, owner, 0, "", "", []string{"Act"}, []string{"Act"})
+	next, _ := methodCensusCheck(t, effects, definition, owner, "", "", []string{"Act"}, []string{"Act"})
 	if len(next.fields) != 0 {
 		t.Fatalf("a later method query borrowed prior output fields: %v", next.fields)
 	}
@@ -206,13 +190,14 @@ func TestExternalMethodCensusWidePackage(t *testing.T) {
 	ordinaryWalk := externalTypeWalk{effects: effects}
 	reflectionWalk := externalReflectionWalk{effects: effects}
 	for range 128 {
-		ordinary := ordinaryWalk.methods(definition, owner, 0)
+		ordinary := ordinaryWalk.methods(definition, owner)
 		if ordinary.unknown != "" {
 			t.Fatal(ordinary.unknown)
 		}
 		methodCensusCompareNodes(t, ordinary.callables, wanted)
-		var reflected externalReflection
-		reflectionWalk.collectMethods(definition, owner, 0, &reflected)
+		var part externalReflectionPart
+		reflectionWalk.collectMethods(definition, owner, &part)
+		reflected := part.reflection
 		if reflected.unknown != "" {
 			t.Fatal(reflected.unknown)
 		}
@@ -255,19 +240,20 @@ func methodCensusNamedType(t testing.TB, effects *externalEffects, pkg *sourcePa
 	return nil, sourceExpr{}
 }
 
-func methodCensusCheck(t *testing.T, effects *externalEffects, definition *ast.TypeSpec, owner sourceExpr, depth int, ordinaryCause, reflectedCause string, ordinaryNames, reflectedNames []string) (externalValue, externalReflection) {
+func methodCensusCheck(t *testing.T, effects *externalEffects, definition *ast.TypeSpec, owner sourceExpr, ordinaryCause, reflectedCause string, ordinaryNames, reflectedNames []string) (externalValue, externalReflection) {
 	t.Helper()
 	ordinaryWalk := externalTypeWalk{effects: effects}
-	ordinary := ordinaryWalk.methods(definition, owner, depth)
+	ordinary := ordinaryWalk.methods(definition, owner)
 	if ordinary.unknown != ordinaryCause {
-		t.Fatalf("ordinary depth%d reason = %q, want %q", depth, ordinary.unknown, ordinaryCause)
+		t.Fatalf("ordinary reason = %q, want %q", ordinary.unknown, ordinaryCause)
 	}
 	methodCensusCompareNodes(t, ordinary.callables, methodCensusExpectedNodes(t, effects, owner.pkg, ordinaryNames))
 	reflectionWalk := externalReflectionWalk{effects: effects}
-	var reflected externalReflection
-	reflectionWalk.collectMethods(definition, owner, depth, &reflected)
+	var part externalReflectionPart
+	reflectionWalk.collectMethods(definition, owner, &part)
+	reflected := part.reflection
 	if reflected.unknown != reflectedCause {
-		t.Fatalf("reflected depth%d reason = %q, want %q", depth, reflected.unknown, reflectedCause)
+		t.Fatalf("reflected reason = %q, want %q", reflected.unknown, reflectedCause)
 	}
 	methodCensusCompareNodes(t, reflected.methods, methodCensusExpectedNodes(t, effects, owner.pkg, reflectedNames))
 	return ordinary, reflected

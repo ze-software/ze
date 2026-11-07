@@ -43,8 +43,13 @@ func (v *externalValue) join(other externalValue) bool {
 			changed = true
 		}
 	}
+	// The field table is made only when there is a field to hold: most joins
+	// carry none, and an empty table reads exactly as an absent one. A writer
+	// that adds a field itself makes the table first.
 	if v.fields == nil {
-		v.fields = make(map[string]externalValue, len(other.fields))
+		if len(other.fields) != 0 {
+			v.fields = make(map[string]externalValue, len(other.fields))
+		}
 	}
 	for name, value := range other.fields {
 		current, exists := v.fields[name]

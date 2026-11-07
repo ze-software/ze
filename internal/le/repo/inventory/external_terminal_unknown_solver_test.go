@@ -12,11 +12,12 @@ import (
 const externalTerminalDirectory = "internal/terminalproof"
 const externalTerminalFilename = externalTerminalDirectory + "/proof.go"
 
-// externalTerminalCyclicUnknown is a type the walk cannot summarise: a
-// self-referential struct reached again through its own pointer field.
-const externalTerminalCyclicUnknown = "cyclic retained type capability shape: loop"
+// externalTerminalDepthUnknown is a type the walk cannot summarize: loop holds
+// grow[int], whose field instantiates grow with a longer argument at every
+// level, so no frame repeats and the walk stops at its depth guard.
+const externalTerminalDepthUnknown = "type capability depth exceeds 128"
 
-const externalTerminalLoop = "type loop struct{ next *loop }\n"
+const externalTerminalLoop = "type grow[T any] struct{ next *grow[[]T] }; type loop struct{ next *grow[int] }\n"
 
 // externalTerminalPull is a bodyless go:linkname function pull whose target
 // is outside the standard library, so only a visit that reads it records
@@ -45,7 +46,7 @@ var result = factory()()
 }
 
 // TestExternalTerminalUnknownLocalProjectionSurvives builds a holder with a
-// cyclic type capability, then exposes only its exact scalar member. A local type
+// permanent type capability unknown, then exposes only its exact scalar member. A local type
 // unknown must not cancel analysis before that projection removes the sibling.
 func TestExternalTerminalUnknownLocalProjectionSurvives(t *testing.T) {
 	effects, file := externalTerminalSelectedSource(t, externalTerminalLoop, `
@@ -58,7 +59,7 @@ fmt.Print((struct { Blocked loop; Label string }{Label: "scalar copy"}).Label)
 }
 
 // TestExternalTerminalUnknownStopsCallbackExpansion obtains terminal unknown
-// from a selected cyclic type construction in the same call that exposes delayed.
+// from a selected unsummarizable type construction in the same call that exposes delayed.
 // The actual delayed declaration and formal must remain unscheduled; observing
 // those identities proves skipped expansion without a timing threshold.
 func TestExternalTerminalUnknownStopsCallbackExpansion(t *testing.T) {
@@ -230,12 +231,12 @@ func externalTerminalAccepted(t *testing.T, effects *externalEffects, file *ast.
 	}
 }
 
-// externalTerminalRefused pins the permanent cyclic type fact and the proposed
+// externalTerminalRefused pins the permanent type depth fact and the proposed
 // source-free unresolved refusal, while requiring that no operation is admitted.
 // Source-selected tests do not replace signed public-report publication checks.
 func externalTerminalRefused(t *testing.T, effects *externalEffects, err error) {
 	t.Helper()
-	if effects.amb.unknown != externalTerminalCyclicUnknown {
+	if effects.amb.unknown != externalTerminalDepthUnknown {
 		t.Errorf("negative source did not reach its exact ambient unknown: %q", effects.amb.unknown)
 	}
 	if len(effects.admitted) != 0 {
@@ -256,7 +257,7 @@ func externalTerminalRefused(t *testing.T, effects *externalEffects, err error) 
 	if issue.position != token.NoPos {
 		t.Errorf("ambient terminal refusal borrowed an execution-source attribution: %d", issue.position)
 	}
-	if !strings.Contains(err.Error(), "registration capability is unknown: "+externalTerminalCyclicUnknown) {
+	if !strings.Contains(err.Error(), "registration capability is unknown: "+externalTerminalDepthUnknown) {
 		t.Errorf("terminal refusal lost its exact ambient cause: %v", err)
 	}
 }

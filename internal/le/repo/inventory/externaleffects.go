@@ -37,7 +37,31 @@ type externalEffects struct {
 	resolver        *expression
 	typeIdentities  *externalTypeIdentityIndex
 	receiverQueries map[externalReceiverQuery]externalReceiverResult
-	methodCensuses  map[externalMethodCensusQuery]*externalMethodCensus
+	// ambient counts growths of amb, so a settled type value read from one
+	// pool is never answered once the pool has grown (growAmbient).
+	ambient int
+	// settledTypes keeps settled type frames for the whole analysis
+	// (externalTypeWalk.settle).
+	settledTypes map[int32]externalTypeSettled
+	// typeProbe is set only by tests (externalTypeProbe); production leaves it nil.
+	typeProbe *externalTypeProbe
+	// reflectionNames memoizes the reflection walk's resolution of each type
+	// reference it meets, and reflectionKeys interns what they resolve to
+	// (externalReflectionNamed). Both live for the whole analysis.
+	reflectionNames map[externalReflectionNameKey]externalReflectionNamed
+	reflectionKeys  externalReflectionKeys
+	// reflectedValues keeps reflectedValue answers for the whole analysis
+	// (externalReflectionMemo).
+	reflectedValues externalReflectionMemo
+	// typeTerms interns exact type arguments and frames, and
+	// reflectionFrames keeps each reflection frame's contribution, for the
+	// whole analysis (externalTypeTerms, externalReflectionWalk).
+	typeTerms        externalTypeTerms
+	reflectionFrames map[int32]externalReflection
+	// counters is set only by tests (externalAnalysisCounters); production
+	// leaves it nil and counts nothing.
+	counters        *externalAnalysisCounters
+	methodCensuses  map[*sourcePackage]*externalMethodCensus
 	bindings        map[*ast.Object]externalValue
 	returns         map[ast.Node]externalValue
 	bodies          map[ast.Node]sourceExpr
@@ -62,7 +86,11 @@ type externalEffects struct {
 	formalDemand    map[*ast.Object]bool
 	formalExternal  map[*ast.Object]bool
 	formalIndirect  map[ast.Node]sourceExpr
-	formalInvalid   map[ast.Node]string
+	// formalUnbound holds methods taken as a method value: the value binds
+	// the receiver where it is taken, but its parameters come from callers
+	// the census cannot see.
+	formalUnbound map[ast.Node]sourceExpr
+	formalInvalid map[ast.Node]string
 }
 
 func newExternalEffects(source *externalSource) *externalEffects {
@@ -70,7 +98,7 @@ func newExternalEffects(source *externalSource) *externalEffects {
 		source: source, resolver: source.snapshot.evaluator(), bindings: make(map[*ast.Object]externalValue),
 		typeIdentities:  newExternalTypeIdentityIndex(source.snapshot),
 		receiverQueries: make(map[externalReceiverQuery]externalReceiverResult),
-		methodCensuses:  make(map[externalMethodCensusQuery]*externalMethodCensus),
+		methodCensuses:  make(map[*sourcePackage]*externalMethodCensus),
 		returns:         make(map[ast.Node]externalValue), bodies: make(map[ast.Node]sourceExpr),
 		possible: make(map[ast.Node]bool), metadata: make(map[*ast.Object]bool),
 		operations: make(map[externalCallSite]sourceExpr), admitted: make(map[externalCallSite]bool),
@@ -83,6 +111,7 @@ func newExternalEffects(source *externalSource) *externalEffects {
 		formalDemand:    make(map[*ast.Object]bool),
 		formalExternal:  make(map[*ast.Object]bool),
 		formalIndirect:  make(map[ast.Node]sourceExpr),
+		formalUnbound:   make(map[ast.Node]sourceExpr),
 		formalInvalid:   make(map[ast.Node]string),
 	}
 }
@@ -230,7 +259,7 @@ func (e *externalEffects) solve() error {
 			if err := e.source.witness(identity); err != nil {
 				return err
 			}
-			e.amb.join(externalOrigin(identity))
+			e.growAmbient(externalOrigin(identity))
 		}
 	}
 	for range 128 {
@@ -330,7 +359,7 @@ func (e *externalEffects) expose(value externalValue) {
 	if e.amb.unknown != "" {
 		return
 	}
-	if e.amb.join(value) {
+	if e.growAmbient(value) {
 		e.changed = true
 	}
 	if e.amb.unknown != "" {
@@ -341,7 +370,7 @@ func (e *externalEffects) expose(value externalValue) {
 		return
 	}
 	for object := range value.locations {
-		if e.amb.join(e.readObject(object)) {
+		if e.growAmbient(e.readObject(object)) {
 			e.changed = true
 		}
 		if e.amb.unknown != "" {
@@ -365,7 +394,7 @@ func (e *externalEffects) expose(value externalValue) {
 		if e.amb.unknown != "" {
 			return
 		}
-		if e.amb.join(e.returns[node]) {
+		if e.growAmbient(e.returns[node]) {
 			e.changed = true
 		}
 		if e.amb.unknown != "" {
@@ -521,4 +550,15 @@ func (e *externalEffects) statements(node ast.Node, scope sourceExpr, owner ast.
 		}
 		return false
 	})
+}
+
+// growAmbient is the one writer of amb. Every growth advances ambient, which
+// keys the settled type values, because a type walk reads the pool for
+// ambient type parameters and standard-library types.
+func (e *externalEffects) growAmbient(value externalValue) bool {
+	if !e.amb.join(value) {
+		return false
+	}
+	e.ambient++
+	return true
 }

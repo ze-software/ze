@@ -407,6 +407,10 @@ func (e *externalEffects) typedLiteralValue(source sourceExpr, literal *ast.Comp
 			}
 			result.join(externalFlat(field, 0))
 			if layout.kind == externalLiteralStruct {
+				// join makes the field table only for a value that has fields.
+				if result.fields == nil {
+					result.fields = make(map[string]externalValue)
+				}
 				current := result.fields[name]
 				current.join(field)
 				result.fields[name] = current
@@ -422,6 +426,9 @@ func (e *externalEffects) typedLiteralValue(source sourceExpr, literal *ast.Comp
 			name := layout.fields[index]
 			if name == "_" {
 				continue
+			}
+			if result.fields == nil {
+				result.fields = make(map[string]externalValue)
 			}
 			current := result.fields[name]
 			current.join(field)

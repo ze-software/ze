@@ -95,6 +95,18 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		return e.valueType(sourceExpr{value: value.X, file: source.file, pkg: source.pkg}, depth+1)
 	case *ast.CompositeLit:
 		return sourceExpr{value: value.Type, file: source.file, pkg: source.pkg}, value.Type != nil
+	case *ast.UnaryExpr:
+		// The static type of &operand is a pointer to the operand's type, so
+		// x := &T{} resolves x.Method exactly as var x *T does. The pointer
+		// spans the operand's type, in the file that declares that type.
+		if value.Op != token.AND {
+			return sourceExpr{}, false
+		}
+		operand, found := e.valueType(sourceExpr{value: value.X, file: source.file, pkg: source.pkg}, depth+1)
+		if !found {
+			return sourceExpr{}, false
+		}
+		return sourceExpr{value: &ast.StarExpr{Star: operand.value.Pos(), X: operand.value}, file: operand.file, pkg: operand.pkg}, true
 	case *ast.CallExpr:
 		function, found := e.declaredFunction(sourceExpr{value: value.Fun, file: source.file, pkg: source.pkg})
 		if !found {
