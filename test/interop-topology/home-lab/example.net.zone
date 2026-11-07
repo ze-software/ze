@@ -1,0 +1,6 @@
+$ORIGIN example.net.
+$TTL 60
+@	SOA	ns.example.net. hostmaster.example.net. 1 3600 600 86400 60
+@	NS	ns.example.net.
+ns	A	192.0.2.53
+vpn	A	198.51.100.30

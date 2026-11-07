@@ -1,0 +1,4 @@
+cpe@lab.example.net	Cleartext-Password := "cpe-fixture-password"
+	Service-Type = Framed-User,
+	Framed-Protocol = PPP,
+	Framed-IP-Address = 203.0.113.1

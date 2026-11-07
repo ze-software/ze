@@ -1,0 +1,6 @@
+#!/bin/sh
+# The web and FTP server's daemons: vsftpd beside busybox httpd. The node's
+# prestart has already started the SYN capture.
+set -e
+vsftpd /etc/vsftpd.conf &
+exec busybox httpd -f -v -p 80 -h /srv/www

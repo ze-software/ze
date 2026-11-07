@@ -41,6 +41,9 @@ type node struct {
 	// empty for a node the next one does not depend on: the checker then
 	// waits on the state it reads.
 	ready []string
+	// prepared are files the node mounts from the directory its scenario's
+	// prepare step wrote for this run, each named relative to it.
+	prepared []sharedFile
 }
 
 // sharedFile is one read-only mount of a node: source is a slash path
@@ -56,6 +59,10 @@ type scenario struct {
 	nodes   []node
 	links   []interoplab.Link
 	checker interoplab.Checker
+	// prepare writes the files a run of the scenario issues into directory
+	// (home_lab_render.go, preparePlan), nil for a scenario that mounts only
+	// committed files.
+	prepare func(root, directory string) error
 }
 
 // scenarios holds every topology scenario by its directory name. Register
@@ -105,7 +112,11 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 	plans := make([]interoplab.ScenarioPlan, 0, len(sources))
 	var images []string
 	for _, source := range sources {
-		plan := scenarioPlan(root, source, scenarios[source.Name], options.Suffix)
+		declared := scenarios[source.Name]
+		plan := scenarioPlan(root, source, declared, options.Suffix)
+		if err := preparePlan(root, options.Suffix, &declared, &plan); err != nil {
+			return setupFailure(err)
+		}
 		for index := range plan.Peers {
 			images = append(images, plan.Peers[index].Image)
 		}

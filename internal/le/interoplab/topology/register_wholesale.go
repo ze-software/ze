@@ -28,25 +28,17 @@ const (
 	pppdLog         = "/var/log/ppp/pppd.log"
 )
 
-// wholesaleChain is the access chain with the scenario's own LAC, which
-// relays the realm lab.example.net instead of the empty Service-Name, so
-// the LAC runs LCP and starts CHAP itself and hands ze-lns proxy LCP.
-// subscriber is the node that dials: a Ze CPE or pppd.
-func wholesaleChain(checker interoplab.Checker, subscriber node) scenario {
-	chain := accessChain(checker)
+// wholesaleChain is chain with the scenario's own LAC, which relays the
+// realm lab.example.net instead of the empty Service-Name, so the LAC runs
+// LCP and starts CHAP itself and hands ze-lns proxy LCP. chain is the access
+// chain with its subscriber: the converted Ze CPE (accessChain) or pppd
+// (dialChain).
+func wholesaleChain(chain scenario) scenario {
 	for i := range chain.nodes {
-		switch chain.nodes[i].name {
-		case nodeLAC:
+		if chain.nodes[i].name == nodeLAC {
 			chain.nodes[i].shared = nil
 			chain.nodes[i].config = "ze-lac.conf"
 			chain.nodes[i].mountedAt = zeMountedConfig
-		case nodeCPE:
-			chain.nodes[i] = subscriber
-		}
-	}
-	for i := range chain.links {
-		if chain.links[i].Name == accessLink {
-			chain.links[i].Members = []string{nodeLAC, subscriber.name}
 		}
 	}
 	return chain
@@ -75,8 +67,6 @@ func pppdSubscriber() node {
 }
 
 func init() {
-	cpe := zeNode(nodeCPE, 5, "ze-cpe.conf", interoplab.PPPDeviceArguments()...)
-	cpe.prestart = "ip -4 address flush dev eth0; ip -6 address flush dev eth0 scope global"
-	scenarios[accessWholesaleScenario] = wholesaleChain(checkAccessWholesale, cpe)
-	scenarios[lcpRenegotiatePPPD] = wholesaleChain(checkLCPRenegotiatePPPD, pppdSubscriber())
+	scenarios[accessWholesaleScenario] = wholesaleChain(accessChain(checkAccessWholesale))
+	scenarios[lcpRenegotiatePPPD] = wholesaleChain(dialChain(checkLCPRenegotiatePPPD, pppdSubscriber()))
 }

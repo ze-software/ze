@@ -43,7 +43,9 @@ func shapes(builds []interoplab.ImageBuild) []buildShape {
 // image a suite ran before the move.
 // METHOD: every suite package is linked, so every registration ran; each
 // owner's SuiteImages under a fixed checkout is compared with the literal
-// list each suite's builder held before the change.
+// list each suite's builder held before the change, plus the images added
+// since (ze-ipsec-dns, ze-topology-webftp, ze-topology-wireguard), in
+// registration order: a package's init functions run in file-name order.
 func TestSuiteImageListsUnchanged(t *testing.T) {
 	root := "/checkout"
 	join := func(parts ...string) string { return filepath.Join(append([]string{root}, parts...)...) }
@@ -92,6 +94,7 @@ func TestSuiteImageListsUnchanged(t *testing.T) {
 			{"ze-pppoe-client", filepath.Join(pppoe, "Dockerfile.client"), pppoe, true, false},
 		}},
 		{"interop-ipsec", []buildShape{
+			{"ze-ipsec-dns", filepath.Join(ipsec, "Dockerfile.dns"), ipsec, true, false},
 			{"ze-ipsec-interop", filepath.Join(ipsec, "Dockerfile.ze"), root, true, false},
 			{"ze-ipsec-strongswan", filepath.Join(ipsec, "Dockerfile.strongswan"), ipsec, true, false},
 			{"ze-ipsec-nat", filepath.Join(ipsec, "Dockerfile.nat"), ipsec, true, false},
@@ -101,6 +104,8 @@ func TestSuiteImageListsUnchanged(t *testing.T) {
 			{"ze-rsvpte-freertr", filepath.Join(rsvpte, "Dockerfile.freertr"), rsvpte, true, false},
 		}},
 		{"interop-topology", []buildShape{
+			{"ze-topology-webftp", join("test", "interop-topology", "home-lab", "Dockerfile.webftp"), join("test", "interop-topology", "home-lab"), true, false},
+			{"ze-topology-wireguard", join("internal", "le", "test", "deployment", "testdata", "Dockerfile.wireguard"), join("internal", "le", "test", "deployment", "testdata"), true, false},
 			{"ze-topology-freeradius", join("test", "interop-topology", "access-chain", "Dockerfile.freeradius"), join("test", "interop-topology", "access-chain"), true, false},
 		}},
 		{"docker-wireguard", []buildShape{

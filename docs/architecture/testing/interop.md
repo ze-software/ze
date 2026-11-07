@@ -3090,11 +3090,39 @@ for every suite, so a directory with no declaration is an error.
 | `ze-static-link-chain` | Ze nodes `ze-a`, `ze-b`, `ze-c` on links `a-b` (VLAN 181, `10.181.1.0/24`) and `b-c` (VLAN 182, `10.181.2.0/24`), B forwarding; `outside` on `eth0` alone | each node answers `show interface brief` by name; A pings C through B; `outside` cannot reach a link address |
 | `two-ze-pppoe-link` | a Ze PPPoE client and a Ze PPPoE server on a link with no prefix; an observer on `eth0` alone | the client holds an address from the server's pool on a ppp device (assigned only once IPCP is Opened), the server's kernel PPPoE table holds the session on the link device, and the observer received no untagged PPPoE discovery frame |
 | `pppoe-mss-pmtu` | Ze CPE `ze-cpe` dialing accel-ppp `accel` on link `access` (VLAN 184, no prefix) with MTU 1492; `lan-host` behind Ze on link `lan` (VLAN 185, `10.185.1.0/24`); `server` beyond accel-ppp on link `core` (VLAN 186, `10.186.1.0/24`), capturing SYNs | Ze's `pppoe0` holds an IPCP address and reports MTU 1492, its table lists `tcp option maxseg size set rt mtu`, and the server captures the SYN lan-host offered with MSS 1460 as 1452 and the one offered with 1200 as 1200 |
-| `access-up` | the access chain (below): Ze CPE `ze-cpe` on link `access` (VLAN 191, no prefix) to Ze LAC `ze-lac`, which relays the empty Service-Name over link `core` (VLAN 192, `192.0.2.0/24`) to Ze LNS `ze-lns`, which checks CHAP with `freeradius` on the same link | the LAC's access capture holds a PADO with a zero-length Service-Name and a PADS with a non-zero session; the LAC holds one tunnel to the LNS with one session, the kernel PPPoE session on its access device, and no addressed PPP device; FreeRADIUS logged an Accept for `cpe@lab.example.net` with a CHAP-Password, no User-Password, NAS-Identifier `ze-lns` and NAS-IP-Address and source `192.0.2.3`; the LNS session names the user and holds `203.0.113.1`, its detail reports `mru` 1492 and `auth-method` `chap-md5`, its core capture holds its LCP Configure-Request with MRU 1492; the CPE's `pppoe0` holds `203.0.113.1` with MTU 1492, its resolv.conf lists the two DNS servers IPCP offered, its eth0 holds no address, its route to `100.64.0.1` leaves on `pppoe0`, it pings that address with no loss, and the LNS's PPP device toward the subscriber received at least the pings sent |
-| `access-pool` | the access chain, with a user whose Access-Accept carries no Framed-IP-Address | the CPE's `pppoe0` holds an address in `100.64.0.0/24`, the LNS session holds the same one, and `show l2tp pool` reports one address allocated, to that session |
+| `access-up` | the access chain (below): Ze CPE `ze-cpe`, running the home-CPE lab's converted configuration, on link `access` (VLAN 191, no prefix) and on link `lan` (VLAN 197, no prefix) with `lan-client`, to Ze LAC `ze-lac`, which relays the empty Service-Name over link `core` (VLAN 192, `192.0.2.0/24`) to Ze LNS `ze-lns`, which checks CHAP with `freeradius` on the same link | the LAC's access capture holds a PADO with a zero-length Service-Name and a PADS with a non-zero session; the LAC holds one tunnel to the LNS with one session, the kernel PPPoE session on its access device, and no addressed PPP device; FreeRADIUS logged an Accept for `cpe@lab.example.net` with a CHAP-Password, no User-Password, NAS-Identifier `ze-lns` and NAS-IP-Address and source `192.0.2.3`; the LNS session names the user and holds `203.0.113.1`, its detail reports `mru` 1492 and `auth-method` `chap-md5`, its core capture holds its LCP Configure-Request with MRU 1492; the CPE's `pppoe0` holds `203.0.113.1` with MTU 1492, its resolv.conf lists the two DNS servers IPCP offered, its eth0 holds no address, its route to `100.64.0.1` leaves on `pppoe0`, it pings that address with no loss, and the LNS's PPP device toward the subscriber received at least the pings sent |
+| `access-pool` | the access chain, with FreeRADIUS answering `cpe@lab.example.net` with no Framed-IP-Address | the CPE's `pppoe0` holds an address in `100.64.0.0/24`, the LNS session holds the same one, and `show l2tp pool` reports one address allocated, to that session |
 | `access-accounting` | the access chain, with the LNS's `acct-interval 60` | FreeRADIUS's `ze_detail` holds the session's Start, an Interim-Update and, once the CPE is stopped (its PPPoE client sends PADT), the Stop, all under one Acct-Session-Id and carrying `203.0.113.1`, the Stop counting at least the 20 560 octets a 20-packet ping of 1000-octet payloads carried each way |
 | `access-wholesale` | the access chain with the scenario's own LAC, which relays the realm `lab.example.net` (`relay-realm`) and so hands the LNS the proxy LCP AVPs of RFC 2661 Section 4.4.5, and an LNS set `proxy-lcp renegotiate` | the CPE's `pppoe0` holds `203.0.113.1`; FreeRADIUS logged the LNS's CHAP Accept for `cpe@lab.example.net`; the LNS session detail reports `mru` 1492, `auth-method` `chap-md5` and `proxy-lcp` `renegotiated`; the LNS's core capture holds its own LCP Configure-Request with MRU 1492, which an LNS that accepted the proxy never sends; the subscriber pings across |
 | `l2tp-lns-lcp-renegotiate-pppd` | `access-wholesale` with pppd 2.5.5 (rp-pppoe plugin, the PPPoE suite's `ze-pppoe-client` image) as subscriber `pppd@lab.example.net` | pppd's `ppp0` holds `203.0.113.1`; the LNS session reports `proxy-lcp` `renegotiated` and `chap-md5`; the LNS's core capture holds its LCP Configure-Request; pppd's debug log holds two received LCP Configure-Requests and two sent Configure-Acks (the LAC's negotiation and the LNS's renegotiation, RFC 1661 Section 4.3), a CHAP success and the IPCP address; pppd pings `192.0.2.3` |
+| `conversion` | the home-CPE lab (below) with `lan-client` on the CPE's bridge | `conversion-record.md` names every line of `vyos.conf` with its own text and a Ze form or a dropped reason; every scenario whose `ze-cpe` node runs mounts the rendered conversion (only `pppoe-mss-pmtu` is exempt); `ze config validate` passes on the file the CPE mounted; the CPE's `pppoe0` holds `203.0.113.1` and the kernel holds `br0`, `wg0` and `vti0` |
+| `lan-services` | the home-CPE lab with `lan-client`, `lan-res-a` and `lan-res-b` (dhcpcd), `lan-host` (static `192.168.50.10`) and `web` | `lan-client` binds inside `192.168.50.100`-`199`; `lan-res-a` binds `192.168.50.30` and `lan-res-b` `10.99.0.40` (the later subnet); `web` captures `lan-host`'s fetch from `203.0.113.1`; SYNs offered with MSS 1460 and 1300 arrive as 1400 and 1300; `web` gets no answer from `203.0.113.1:22` while the CPE's default-drop counter advances, and `lan-host` completes TCP to `192.168.50.1:22`; an active-mode FTP download completes |
+| `road-warrior` | the home-CPE lab with `lan-res-a`, `web` and `wg-client` | the CPE's `wg show wg0 dump` lists port 51820 and the laptop's key with a preshared key and `10.88.0.2/32`; `wg-client` holds a handshake, pings `lan-res-a` and fetches from `web`, which captures the SYN from `203.0.113.1` |
+| `mgmt-tunnel` | the home-CPE lab with `lan-client`, `strongswan` (`vpn.example.net`) and a `dns` gated shut | no IKE SA while DNS is down; once it answers, strongSwan's SA sits on `203.0.113.1[4500]` with the CHILD_SA narrowed to `::/0` both sides; an IPv6 ping across `vti0` loses nothing and each simplex SA's bytes advance on both peers. P-256 only: the Ed25519 clause waits on `spec-home-cpe-5` |
+| `access-reconnect` | the home-CPE lab with `lan-host`, `web`, `strongswan` and `dns`, FreeRADIUS answering from a writable copy of its users file | after FreeRADIUS is changed to answer `203.0.113.2`, restarted, and the LNS clears the session, the CPE holds `203.0.113.2`, strongSwan's SA sits on it, ESP advances both ways, and `web` captures `lan-host`'s fetch from it |
+
+The home-CPE lab (`spec-home-cpe-11`) runs the CPE every home-CPE scenario
+shares: `test/interop-topology/cpe/ze-cpe.conf`, the model's conversion of
+the invented `vyos.conf` with `conversion-record.md` beside it. The file holds
+placeholders, never values: `<<SECRET:name>>` (filled from `lab-values`) and
+`<<LAB:name>>` (issued by the run: a fresh P-256 CA with path length 0, the
+`vpn.example.net` and `cpe.lab.example.net` certificates, and the laptop's
+X25519 public key derived from its lab private key). The scenario's prepare
+step renders it into the session scratch before any container starts, and
+the CPE mounts the rendered file, so no scenario carries a CPE file of its
+own: the access chain's scenarios below run it too. The lab adds a `lan` link (VLAN 194, no prefix: the CPE numbers it,
+`br0` on `eth2`) and an `internet` link (VLAN 196, `198.51.100.0/24`) the LNS
+routes, beside the access chain's `access` (VLAN 193) and `core` (VLAN 195);
+`dns` (Knot, `192.0.2.53`) answers `vpn.example.net`. Every node beyond the
+LNS flushes its `eth0`, so the links are its only path. The web and FTP
+server and `lan-host` run `ze-topology-webftp` (Debian, busybox httpd,
+vsftpd active-only, curl, bash), registered from
+`test/interop-topology/home-lab/Dockerfile.webftp`; `wg-client` runs
+`ze-topology-wireguard`, registered from the deployment proof's
+`Dockerfile.wireguard`.
+<!-- source: internal/le/interoplab/topology/register_home_lab.go -- homeLab, convertedCPE, dnsServer, swanResponder, wgClient -->
+<!-- source: internal/le/interoplab/topology/home_lab_render.go -- renderHomeCPE, issueLab, preparePlan -->
+<!-- source: internal/le/interoplab/topology/check_conversion.go -- checkConversion, homeCPEScenariosConverted -->
 
 The access chain is the first end-to-end proof that a subscriber's PPP
 session crosses Ze's LAC (`relay ""`) and terminates on Ze's LNS: the LAC
@@ -3108,8 +3136,11 @@ the LAC configuration, which no scenario changes, and FreeRADIUS's
 login (`mods-ze-auth-log`: the presence of a User-Password and a
 CHAP-Password, the NAS-Identifier, the NAS-IP-Address and the request's
 source), and the subscriber lab's `ze_detail` module mounted unchanged. Each
-scenario directory carries what differs: the CPE and LNS configurations and
-FreeRADIUS's `users`. FreeRADIUS joins the core link, so it runs
+scenario directory carries what differs: the LNS configuration and
+FreeRADIUS's `users`. The CPE is the home-CPE lab's (`convertedCPE`, with
+the same prepare step), and since its bridge holds `eth2` it also joins link
+`lan` (VLAN 197) with `lan-client`, a link needing two members;
+`l2tp-lns-lcp-renegotiate-pppd` dials with pppd instead and has no `lan`. FreeRADIUS joins the core link, so it runs
 `ze-topology-freeradius`, the pinned release built with iproute2 for the
 link's start wrapper. Each clause reads a different producer (vacuity trap
 5), and the CPE's prestart flushes its eth0, so the session is its only path
@@ -3122,7 +3153,7 @@ leaf's range starts there. The scenarios need a Docker host running Ze's
 kernel, with PPPoE, L2TP and PPPoL2TP (`spec-docker-hosts-run-the-ze-kernel`);
 the core's kernel check refuses another.
 <!-- source: internal/le/interoplab/topology/register_wholesale.go -- wholesaleChain, pppdSubscriber -->
-<!-- source: internal/le/interoplab/topology/register_access_chain.go -- accessChain, captureStart -->
+<!-- source: internal/le/interoplab/topology/register_access_chain.go -- accessChain, dialChain, captureStart -->
 <!-- source: internal/le/interoplab/topology/check_access.go -- checkAccessUp, checkAccessPool, checkAccessAccounting -->
 <!-- source: internal/le/interoplab/topology/register_images.go -- freeRADIUSLinkImage -->
 

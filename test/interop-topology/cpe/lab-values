@@ -1,0 +1,13 @@
+# Lab values for the placeholders of ze-cpe.conf, one "name value" pair per
+# line. Every value is invented. A name the lab issues at run time (the PKI
+# bodies and key, the laptop's WireGuard public key) is not listed here: the
+# renderer derives it, and refuses a name listed both here and as issued.
+# The WireGuard keys are base64 of 32 ASCII octets, which X25519 accepts as a
+# private key (RFC 7748 Section 5 clamps any 32 octets).
+pppoe-pppoe0-password cpe-fixture-password
+wg-wg0-private-key emUtbGFiLWNwZS13aXJlZ3VhcmQtcHJpdmF0ZS0wMSE=
+wg-wg0-laptop-psk emUtbGFiLWxhcHRvcC13aXJlZ3VhcmQtcHNrLTAwMDM=
+user-admin-password lab-admin-password
+# The laptop's own private key: not a CPE placeholder, read by the renderer to
+# derive wg-wg0-laptop-public-key and written to the wg-client's key file.
+wg-laptop-private-key emUtbGFiLWxhcHRvcC13aXJlZ3VhcmQtcHJpdmF0MDI=

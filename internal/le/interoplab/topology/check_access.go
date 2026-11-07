@@ -77,7 +77,7 @@ func checkAccessUp(ctx context.Context, check *interoplab.CheckContext) error {
 	return checkPingAcross(ctx, check, subscriber, pingCount)
 }
 
-// checkAccessPool proves access-pool: the pool user's Access-Accept carries
+// checkAccessPool proves access-pool: the subscriber's Access-Accept carries
 // no Framed-IP-Address (access-pool/users), so the CPE's address comes from
 // the LNS pool, and the pool shows it allocated to that session.
 func checkAccessPool(ctx context.Context, check *interoplab.CheckContext) error {
@@ -88,10 +88,10 @@ func checkAccessPool(ctx context.Context, check *interoplab.CheckContext) error 
 	if err != nil {
 		return err
 	}
-	if err := waitLogin(ctx, check, poolUser); err != nil {
+	if err := waitLogin(ctx, check, subscriberUser); err != nil {
 		return err
 	}
-	if _, err := lnsSessionOf(ctx, check, poolUser, address); err != nil {
+	if _, err := lnsSessionOf(ctx, check, subscriberUser, address); err != nil {
 		return err
 	}
 	var allocation struct {

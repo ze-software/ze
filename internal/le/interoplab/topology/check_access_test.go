@@ -250,6 +250,9 @@ func TestAccessChainDetailVerdict(t *testing.T) {
 // PREVENTS: a checker that passes a login RADIUS never checked as CHAP.
 func TestAccessChainLoginVerdict(t *testing.T) {
 	nas := netip.MustParseAddr(lnsCoreAddress)
+	// otherUser is a login for a user the scenario does not dial, which the
+	// verdict for subscriberUser skips.
+	const otherUser = "other@lab.example.net"
 	line := func(verdict, user, chap, password, identifier, address, source string) string {
 		return "verdict=" + verdict + " user=" + user + " user-password=" + password + " chap-password=" + chap +
 			" nas-identifier=" + identifier + " nas-ip-address=" + address + " source=" + source + "\n"
@@ -261,14 +264,14 @@ func TestAccessChainLoginVerdict(t *testing.T) {
 		wantErr string
 		waiting bool
 	}{
-		{"accepted CHAP passes", line("accept", poolUser, "present", "absent", "x", "x", "x") + good, "", false},
+		{"accepted CHAP passes", line("accept", otherUser, "present", "absent", "x", "x", "x") + good, "", false},
 		{"reject refused", line("reject", subscriberUser, "present", "absent", lnsNASIdentifier, lnsCoreAddress, lnsCoreAddress), "verdict=reject", false},
 		{"no CHAP refused", line("accept", subscriberUser, "absent", "present", lnsNASIdentifier, lnsCoreAddress, lnsCoreAddress), "no CHAP-Password", false},
 		{"User-Password refused", line("accept", subscriberUser, "present", "present", lnsNASIdentifier, lnsCoreAddress, lnsCoreAddress), "User-Password beside", false},
 		{"identifier refused", line("accept", subscriberUser, "present", "absent", "lns", lnsCoreAddress, lnsCoreAddress), "NAS-Identifier lns", false},
 		{"NAS-IP refused", line("accept", subscriberUser, "present", "absent", lnsNASIdentifier, "none", lnsCoreAddress), "NAS-IP-Address none", false},
 		{"source refused", line("accept", subscriberUser, "present", "absent", lnsNASIdentifier, lnsCoreAddress, "192.0.2.9"), "came from 192.0.2.9", false},
-		{"no line waits", line("accept", poolUser, "present", "absent", "x", "x", "x"), "no login", true},
+		{"no line waits", line("accept", otherUser, "present", "absent", "x", "x", "x"), "no login", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

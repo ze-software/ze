@@ -43,10 +43,10 @@ const (
 	dnsPrimary        = "192.0.2.53"
 	dnsSecondary      = "192.0.2.54"
 	subscriberUser    = "cpe@lab.example.net"
-	poolUser          = "pool@lab.example.net"
 	lnsNASIdentifier  = "ze-lns"
 	sessionMRU        = 1492
-	// cpeDevice is the logical name ze-cpe.conf gives its PPPoE client.
+	// cpeDevice is the logical name the converted ze-cpe.conf gives its
+	// PPPoE client.
 	cpeDevice = "pppoe0"
 	// accessCapture and coreCapture are the captures ze-lac and ze-lns start
 	// in their prestart, before their daemon: PPPoE discovery on ze-lac's
@@ -59,13 +59,52 @@ const (
 	accountingDetailPath = "/var/log/freeradius/ze-detail"
 )
 
-// accessChain answers the access chain's declaration: ze-cpe ==PPPoE (link
-// access)== ze-lac ==L2TP (link core)== ze-lns -- RADIUS -- freeradius. The
-// LAC relays the empty Service-Name and terminates nothing, so LCP, CHAP and
-// IPCP run between the CPE and the LNS across the LAC's kernel bridge. The
-// nodes start server first, so each one's peer is up when it starts; the
-// CPE's eth0 is flushed, so the session is its only path to the LNS.
+// accessChain answers the access chain's declaration with the home CPE as
+// the subscriber: ze-cpe ==PPPoE (link access)== ze-lac ==L2TP (link core)==
+// ze-lns -- RADIUS -- freeradius. The CPE runs the converted configuration
+// the prepare step rendered (convertedCPE, spec-home-cpe-11 AC-1), whose
+// bridge br0 holds eth2, so the CPE also joins link lan, with lan-client as
+// the link's second member: a link needs two. Links are declared access,
+// core, lan, so the CPE reaches access as eth1 (pppoe0's source) and lan as
+// eth2, and the LAC reaches access as eth1 and core as eth2.
 func accessChain(checker interoplab.Checker) scenario {
+	chain := dialChain(checker, convertedCPE())
+	chain.nodes = append(chain.nodes, dhcpClient(nodeLANClient, 21, ""))
+	chain.links = append(chain.links, interoplab.Link{Name: homeLANLink, VLAN: 197, Members: []string{nodeCPE, nodeLANClient}})
+	chain.prepare = prepareHomeCPE
+	return chain
+}
+
+// dialChain answers the access chain with subscriber dialing PPPoE on link
+// access. The LAC relays the empty Service-Name and terminates nothing, so
+// LCP, CHAP and IPCP run between the subscriber and the LNS across the LAC's
+// kernel bridge. The nodes start server first, so each one's peer is up when
+// it starts; the subscriber flushes its eth0 in its prestart, so the session
+// is its only path to the LNS.
+func dialChain(checker interoplab.Checker, subscriber node) scenario {
+	lns := zeNode(nodeLNS, 3, "ze-lns.conf", interoplab.PPPDeviceArguments()...)
+	lns.prestart = captureStart("eth1", coreCapture, "udp port 1701")
+	lns.ready = []string{"sh", "-c", "ss -lun | grep -q ':1701 '"}
+	return scenario{
+		nodes: []node{accessRADIUS(""), lns, accessLAC(), subscriber},
+		links: []interoplab.Link{
+			{Name: accessLink, VLAN: 191, Members: []string{nodeLAC, subscriber.name}},
+			{Name: coreLink, VLAN: 192, IPv4: netip.MustParsePrefix("192.0.2.0/24"), Members: []string{nodeLAC, nodeLNS, nodeRADIUS}},
+		},
+		checker: checker,
+	}
+}
+
+// reconnectUsersTarget is where access-reconnect mounts its users file, so
+// its FreeRADIUS answers from a writable copy the checker edits.
+const reconnectUsersTarget = "/etc/ze-lab/users"
+
+// accessRADIUS is the access chain's FreeRADIUS on link core, answering from
+// the scenario's users file. usersCopy empty mounts that file read-only as the
+// authorize file; otherwise it is mounted at usersCopy and the prestart copies
+// it into place once, so a checker can change the answer and restart the
+// server (the copy survives a restart; a second copy would undo the change).
+func accessRADIUS(usersCopy string) node {
 	freeRADIUS := node{name: nodeRADIUS, image: freeRADIUSLinkImage, host: 4,
 		config: "users", mountedAt: "/etc/raddb/mods-config/files/authorize",
 		capabilities: []string{capabilityNetAdmin},
@@ -81,27 +120,25 @@ func accessChain(checker interoplab.Checker) scenario {
 		// 0714 is 1812, the authentication listener, and 0715 is 1813, the
 		// accounting listener (access-chain/site-default).
 		ready: []string{"sh", "-c", "grep -q ':0714 ' /proc/net/udp && grep -q ':0715 ' /proc/net/udp"}}
-	lns := zeNode(nodeLNS, 3, "ze-lns.conf", interoplab.PPPDeviceArguments()...)
-	lns.prestart = captureStart("eth1", coreCapture, "udp port 1701")
-	lns.ready = []string{"sh", "-c", "ss -lun | grep -q ':1701 '"}
+	if usersCopy != "" {
+		freeRADIUS.mountedAt = usersCopy
+		freeRADIUS.prestart = "[ -e /etc/raddb/.ze-lab-users ] || { cp " + usersCopy +
+			" /etc/raddb/mods-config/files/authorize && touch /etc/raddb/.ze-lab-users; }"
+	}
+	return freeRADIUS
+}
+
+// accessLAC is the access chain's Ze LAC, relaying the empty Service-Name to
+// ze-lns, with its access capture started before the daemon.
+func accessLAC() node {
 	// The LAC's configuration is the same in every access scenario, so it is
 	// a shared file rather than a scenario-directory config.
-	lac := node{name: nodeLAC, image: zeImage, host: 2,
+	return node{name: nodeLAC, image: zeImage, host: 2,
 		command: []string{"start", zeMountedConfig}, capabilities: []string{capabilityNetAdmin},
 		arguments: interoplab.PPPDeviceArguments(),
 		shared:    []sharedFile{{source: accessChainDirectory + "/ze-lac.conf", target: zeMountedConfig}},
 		prestart:  captureStart("eth1", accessCapture, "ether proto 0x8863"),
 		ready:     []string{"sh", "-c", "ss -lun | grep -q ':1701 '"}}
-	cpe := zeNode(nodeCPE, 5, "ze-cpe.conf", interoplab.PPPDeviceArguments()...)
-	cpe.prestart = "ip -4 address flush dev eth0; ip -6 address flush dev eth0 scope global"
-	return scenario{
-		nodes: []node{freeRADIUS, lns, lac, cpe},
-		links: []interoplab.Link{
-			{Name: accessLink, VLAN: 191, Members: []string{nodeLAC, nodeCPE}},
-			{Name: coreLink, VLAN: 192, IPv4: netip.MustParsePrefix("192.0.2.0/24"), Members: []string{nodeLAC, nodeLNS, nodeRADIUS}},
-		},
-		checker: checker,
-	}
 }
 
 // captureStart is the prestart that records filter on device into file from

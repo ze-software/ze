@@ -1,0 +1,19 @@
+# The home-CPE lab's web and FTP server, and its LAN host: busybox httpd,
+# vsftpd and tcpdump to serve and capture, curl and bash to drive HTTP, active
+# FTP and a bare TCP connect from the LAN. Debian rather than Alpine
+# (ai/META-DECISIONS.md, "Test systems and labs"). Registered by name as
+# ze-topology-webftp (internal/le/interoplab/topology/register_home_lab.go).
+# The build refuses a busybox without the httpd applet rather than producing
+# an image whose server never starts.
+FROM debian:trixie-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends bash busybox curl iproute2 tcpdump vsftpd \
+    && apt-get clean \
+    && busybox --list | grep -qx httpd \
+    && mkdir -p /srv/www /srv/ftp /var/run/vsftpd/empty \
+    && printf 'ze home lab web\n' > /srv/www/index.html \
+    && printf 'ze home lab ftp\n' > /srv/ftp/file.txt
+COPY vsftpd.conf /etc/vsftpd.conf
+COPY webftp-start /usr/local/bin/webftp-start
+RUN chmod 0755 /usr/local/bin/webftp-start
+ENTRYPOINT ["/usr/local/bin/webftp-start"]
