@@ -340,6 +340,9 @@ type ipv6Settings struct {
 	// RouterAdvertisement is the send side: what this unit advertises to hosts
 	// on the link. AcceptRA above is the receive side. See config_ra.go.
 	RouterAdvertisement *raUnitConfig
+	// DelegatedPrefixes are the WAN delegations this unit takes a /64 from.
+	// See delegated_prefix.go.
+	DelegatedPrefixes []delegatedPrefixConfig
 }
 
 // parseIfaceSections finds the "interface" section and parses it. Returns a
@@ -1507,6 +1510,14 @@ func parseIPv6Settings(um map[string]any) (*ipv6Settings, error) {
 	}
 	s.RouterAdvertisement = ra
 	if ra != nil {
+		set = true
+	}
+	delegated, err := parseDelegatedPrefixes(v6)
+	if err != nil {
+		return nil, err
+	}
+	s.DelegatedPrefixes = delegated
+	if len(delegated) > 0 {
 		set = true
 	}
 	if !set {

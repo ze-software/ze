@@ -1,0 +1,125 @@
+# Test: a subnet-id the pd length cannot hold, and two units on one subnet-id, are refused
+# spec-home-cpe-8 AC-16: pd length 56 holds subnet ids 0 to 255, so 256 is
+# refused naming 255; two units taking subnet-id 1 from pppoe0 would share one
+# /64 (RFC 7084 L-2), so the refusal names both units. A valid config with
+# subnet-id 255 is accepted, which proves the refusals are not a blanket one.
+# PLATFORM: pppoe-client is ze:os "linux"; skip on darwin.
+option=skip-os:value=darwin
+stdin=above:terminator=EOF_ABOVE
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    ethernet eth3 {
+        unit 0 {
+            ipv6 {
+                delegated-prefix pppoe0 {
+                    subnet-id 256
+                }
+            }
+        }
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username user@isp.example
+            password secret123
+        }
+        ipv6 {
+            enabled true
+            dhcpv6 {
+                enabled true
+                pd {
+                    length 56
+                }
+            }
+        }
+    }
+}
+EOF_ABOVE
+
+stdin=duplicate:terminator=EOF_DUPLICATE
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    ethernet eth3 {
+        unit 0 {
+            ipv6 {
+                delegated-prefix pppoe0 {
+                    subnet-id 1
+                }
+            }
+        }
+    }
+    ethernet eth4 {
+        unit 0 {
+            ipv6 {
+                delegated-prefix pppoe0 {
+                    subnet-id 1
+                }
+            }
+        }
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username user@isp.example
+            password secret123
+        }
+        ipv6 {
+            enabled true
+            dhcpv6 {
+                enabled true
+                pd {
+                    length 56
+                }
+            }
+        }
+    }
+}
+EOF_DUPLICATE
+
+stdin=valid:terminator=EOF_VALID
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    ethernet eth3 {
+        unit 0 {
+            ipv6 {
+                delegated-prefix pppoe0 {
+                    subnet-id 255
+                    interface-identifier ::2
+                }
+            }
+        }
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username user@isp.example
+            password secret123
+        }
+        ipv6 {
+            enabled true
+            dhcpv6 {
+                enabled true
+                pd {
+                    length 56
+                }
+            }
+        }
+    }
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=above
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=subnet-id 256: pd length 56 holds subnet ids 0 to 255
+cmd=foreground:seq=2:exec=ze config validate -:stdin=duplicate
+expect=exit:code=1
+expect=stdout:contains=interface eth3 unit 0 and interface eth4 unit 0 both take subnet-id 1 from delegated-prefix pppoe0
+cmd=foreground:seq=3:exec=ze config validate -:stdin=valid
+expect=exit:code=0

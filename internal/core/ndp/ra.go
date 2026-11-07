@@ -25,6 +25,8 @@ const (
 	OptSourceLinkLayerAddress = 1
 	// OptPrefixInformation is the Prefix Information option (RFC 4861 Section 4.6.2).
 	OptPrefixInformation = 3
+	// OptRouteInformation is the Route Information option (RFC 4191 Section 2.3).
+	OptRouteInformation = 24
 	// OptRDNSS is the Recursive DNS Server option (RFC 8106 Section 5.1).
 	OptRDNSS = 25
 )
@@ -75,6 +77,9 @@ const (
 	prefixOptionLen  = 32
 	rdnssOptionFixed = 8
 	rdnssAddressLen  = 16
+	// routeOptionFixed is the Route Information option without its Prefix
+	// field: type, length, prefix length, flags and Route Lifetime.
+	routeOptionFixed = 8
 	// linkLayerOptionLen covers a type octet, a length octet, and a six-octet
 	// IEEE 802 address: one 8-octet unit.
 	linkLayerOptionLen = 8
@@ -125,6 +130,35 @@ type PrefixInfo struct {
 	PreferredLifetime uint32
 }
 
+// RouteInfo is one advertised Route Information option (RFC 4191 Section
+// 2.3), sent at the medium Route Preference (Prf 00).
+type RouteInfo struct {
+	// Prefix is the advertised route. Bits after the prefix length are masked
+	// off before encoding.
+	Prefix netip.Prefix
+	// Lifetime is the seconds the route stays valid for route determination.
+	// LifetimeInfinity means it never expires.
+	Lifetime uint32
+}
+
+// routeOptionLen returns the encoded size of one Route Information option: the
+// shortest Length that carries every valid bit of the prefix.
+//
+// RFC 4191 Section 2.3: "The Length field is 1, 2, or 3 depending on the
+// Prefix Length.  If Prefix Length is greater than 64, then Length must be 3.
+// If Prefix Length is greater than 0, then Length must be 2 or 3.  If Prefix
+// Length is zero, then Length must be 1, 2, or 3."
+func routeOptionLen(p netip.Prefix) int {
+	bits := p.Bits()
+	if bits > 64 {
+		return routeOptionFixed + 16
+	}
+	if bits > 0 {
+		return routeOptionFixed + 8
+	}
+	return routeOptionFixed
+}
+
 // RAConfig holds every field of a Router Advertisement this encoder emits.
 // The zero value encodes a minimal 16-octet RA with no options.
 type RAConfig struct {
@@ -152,6 +186,12 @@ type RAConfig struct {
 	SourceLinkLayerAddress []byte
 	// Prefixes are the advertised Prefix Information options, in order.
 	Prefixes []PrefixInfo
+	// Routes are the advertised Route Information options, in order. RFC 4191
+	// Section 2.3: "Routers MUST NOT include two Route Information Options
+	// with the same Prefix and Prefix Length in the same Router
+	// Advertisement." The caller builds the list unique; the encoder states
+	// the wire layout and does not judge it.
+	Routes []RouteInfo
 	// RDNSS are recursive DNS server addresses advertised in one RFC 8106
 	// option. They share RDNSSLifetime.
 	RDNSS []netip.Addr
@@ -173,6 +213,9 @@ func RALen(cfg RAConfig) int {
 		n += linkLayerOptionLen
 	}
 	n += prefixOptionLen * len(cfg.Prefixes)
+	for _, r := range cfg.Routes {
+		n += routeOptionLen(r.Prefix)
+	}
 	if len(cfg.RDNSS) > 0 {
 		n += rdnssOptionFixed + rdnssAddressLen*len(cfg.RDNSS)
 	}
@@ -190,7 +233,7 @@ func RALen(cfg RAConfig) int {
 // where the kernel computes the ICMPv6 checksum.
 //
 // Options are written in the order Source Link-layer Address, Prefix
-// Information, RDNSS. RFC 4861 Section 4.6 gives options no required order and
+// Information, Route Information, RDNSS. RFC 4861 Section 4.6 gives options no required order and
 // tells receivers to ignore the ones they do not recognize.
 func BuildRA(buf []byte, off int, cfg RAConfig) int {
 	if off < 0 || len(cfg.RDNSS) > RDNSSMax || len(buf)-off < RALen(cfg) {
@@ -229,9 +272,48 @@ func BuildRA(buf []byte, off int, cfg RAConfig) int {
 
 	off = writeSourceLinkLayerAddress(buf, off, cfg)
 	off = writePrefixOptions(buf, off, cfg)
+	// RFC 7084 Section 4.3 L-3: "An IPv6 CE router MUST advertise itself as a
+	// router for the delegated prefix(es) (and ULA prefix if configured to
+	// provide ULA addressing) using the "Route Information Option" specified
+	// in Section 2.3 of [RFC4191]."
+	off = writeRouteInformation(buf, off, cfg)
 	off = writeRDNSS(buf, off, cfg)
 
 	return off - start
+}
+
+// writeRouteInformation appends one Route Information option per route and
+// returns the new offset.
+//
+// RFC 4191 Section 2.3 layout, offsets from the option start:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|     Type      |    Length     | Prefix Length |Resvd|Prf|Resvd|  0
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                        Route Lifetime                         |  4
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                   Prefix (Variable Length)                    |  8
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+func writeRouteInformation(buf []byte, off int, cfg RAConfig) int {
+	for _, r := range cfg.Routes {
+		n := routeOptionLen(r.Prefix)
+		buf[off] = OptRouteInformation
+		buf[off+1] = uint8(n / 8)
+		buf[off+2] = uint8(r.Prefix.Bits())
+		// RFC 4191 Section 2.3: the Resvd fields "MUST be initialized to zero
+		// by the sender"; Prf 00 is the medium preference.
+		buf[off+3] = 0
+		binary.BigEndian.PutUint32(buf[off+4:], r.Lifetime)
+		// RFC 4191 Section 2.3: "The bits in the prefix after the prefix
+		// length (if any) are reserved and MUST be initialized to zero by the
+		// sender and ignored by the receiver."
+		addr := r.Prefix.Masked().Addr().As16()
+		copy(buf[off+routeOptionFixed:off+n], addr[:n-routeOptionFixed])
+		off += n
+	}
+	return off
 }
 
 // writeSourceLinkLayerAddress appends the Source Link-layer Address option

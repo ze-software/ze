@@ -530,6 +530,47 @@ module ze-iface-conf {
 
                 uses ipv6-host;
 
+                list delegated-prefix {
+                    ze:backend "netlink";
+                    key "source";
+                    description "Ze takes one /64 for this unit out of the prefix the named pppoe-client
+                                 leases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated
+                                 prefix plus subnet-id, shifted into the bits between the delegated
+                                 length and 64. The unit's address is that /64 plus
+                                 interface-identifier, and its preferred and valid lifetimes never
+                                 exceed what remains of the delegation (RFC 9915 Section 6.3). With
+                                 router-advertisement enabled, the unit advertises the /64 in a Prefix
+                                 Information option and the delegated prefix in a Route Information
+                                 option. Ze refuses a source that is not a pppoe-client requesting a
+                                 delegated prefix, a subnet-id the pd length cannot hold, and two units
+                                 taking the same subnet-id from one source.";
+                    ze:help "Number this unit from a prefix delegated to a pppoe-client.";
+
+                    leaf source {
+                        type string;
+                        description "The name of a pppoe-client whose ipv6 dhcpv6 pd container is set.";
+                        ze:help "The pppoe-client that leases the delegated prefix.";
+                    }
+
+                    leaf subnet-id {
+                        type uint16;
+                        mandatory true;
+                        description "Which /64 of the delegated prefix this unit takes. With pd length 56
+                                     the ids run from 0 to 255; with no pd length, the largest id is
+                                     65535, the /48 maximum. An id the delegation the server chose
+                                     cannot hold leaves the unit without a /64, and Ze logs it.";
+                        ze:help "The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).";
+                    }
+
+                    leaf interface-identifier {
+                        type zt:ipv6-address;
+                        default "::1";
+                        description "Only the low 64 bits are used; Ze refuses a value with any of the
+                                     high 64 bits set.";
+                        ze:help "The host part of the unit's address in the /64 (default ::1).";
+                    }
+                }
+
                 leaf rpf-check {
                     type enumeration {
                         enum disable { ze:help "No source address validation."; }

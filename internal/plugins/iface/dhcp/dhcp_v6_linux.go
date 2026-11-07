@@ -550,6 +550,14 @@ func (w *v6Worker) payload(b v6Binding, leaseTime int) iface.DHCPPayload {
 		Address:      b.prefix.Addr().String(),
 		PrefixLength: b.prefix.Bits(),
 		LeaseTime:    leaseTime,
+		Delegated:    b.kind == v6KindPrefix,
+		Received:     b.received.Unix(),
+	}
+	// RFC 9915 Section 6.3: a consumer of a delegated prefix bounds the
+	// preferred lifetime too, so the event carries it; an expiry carries 0
+	// for both, as LeaseTime does.
+	if leaseTime > 0 {
+		p.PreferredLifetime = v6Seconds(b.preferred)
 	}
 	if b.kind == v6KindAddress && len(w.lease.dns) > 0 {
 		p.DNS = w.lease.dns[0]

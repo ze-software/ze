@@ -123,6 +123,16 @@ type DHCPPayload struct {
 	DNSAll       []string `json:"dns-all,omitempty"`
 	NTPServers   []string `json:"ntp-servers,omitempty"`
 	LeaseTime    int      `json:"lease-time"`
+	// Delegated marks a DHCPv6 IA_PD prefix: Address and PrefixLength are
+	// the delegated prefix, not an address installed on Name.
+	Delegated bool `json:"delegated,omitempty"`
+	// PreferredLifetime is the DHCPv6 preferred lifetime in seconds, beside
+	// LeaseTime, the valid lifetime; 0xffffffff is infinite. Absent for DHCPv4.
+	PreferredLifetime int `json:"preferred-lifetime,omitempty"`
+	// Received is the Unix time in seconds of the Reply that set the
+	// lifetimes. A consumer bounds what it derives by Received plus each
+	// lifetime, never by the moment it read the event (RFC 9915 Section 6.3).
+	Received int64 `json:"received,omitempty"`
 }
 
 // InterfaceInfo describes an OS network interface for display.

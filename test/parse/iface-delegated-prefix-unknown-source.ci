@@ -1,0 +1,43 @@
+# Test: a LAN unit taking a /64 from a name that is not a pppoe-client with pd is refused
+# spec-home-cpe-8 AC-16: the unit would never get a prefix, so Ze refuses the
+# config at verify and names the pppoe-client configuration that fixes it.
+# PLATFORM: pppoe-client is ze:os "linux"; skip on darwin.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    ethernet eth3 {
+        unit 0 {
+            ipv6 {
+                delegated-prefix wan9 {
+                    subnet-id 1
+                }
+            }
+        }
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username user@isp.example
+            password secret123
+        }
+        ipv6 {
+            enabled true
+            dhcpv6 {
+                enabled true
+                pd {
+                    length 56
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=ipv6 delegated-prefix wan9: no pppoe-client of that name requests a delegated prefix
+expect=stdout:contains=set interface pppoe-client wan9 ipv6 dhcpv6 enabled true

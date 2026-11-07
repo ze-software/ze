@@ -209,7 +209,10 @@ func (w *Watcher) subscribeOnce() error {
 				Protocol: int(update.Protocol),
 				Metric:   uint32(update.Priority),
 				TableID:  uint32(update.Table),
-				Action:   action,
+				// The output device lets a consumer ask "is there a default
+				// route through this interface" (RFC 7084 G-4 on the RA side).
+				OutIfindex: update.LinkIndex,
+				Action:     action,
 			})
 		}
 	}

@@ -20,7 +20,10 @@ type RouteEvent struct {
 	Protocol int
 	Metric   uint32
 	TableID  uint32
-	Action   Action
+	// OutIfindex is the kernel index of the route's output device (RTA_OIF),
+	// 0 when the route names none (a multipath route carries one per hop).
+	OutIfindex int
+	Action     Action
 }
 
 type Handler func(RouteEvent)

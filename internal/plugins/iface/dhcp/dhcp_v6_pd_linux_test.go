@@ -64,7 +64,8 @@ func TestDHCPv6PDLeaseFlow(t *testing.T) {
 	msg.AddOption(iapd)
 
 	w := &v6Worker{c: c, iaidPD: [4]byte{1, 2, 3, 4}}
-	if !w.takeLease(msg, time.Now()) {
+	received := time.Now()
+	if !w.takeLease(msg, received) {
 		t.Fatal("takeLease refused a Reply carrying one IA_PD prefix")
 	}
 
@@ -94,5 +95,16 @@ func TestDHCPv6PDLeaseFlow(t *testing.T) {
 	}
 	if lease.LeaseTime != 3600 {
 		t.Errorf("lease time = %d, want 3600", lease.LeaseTime)
+	}
+	// RFC 9915 Section 6.3: the consumer bounds both lifetimes from the
+	// Reply's receive instant, so the event carries all three.
+	if !lease.Delegated {
+		t.Error("lease delegated = false, want true for an IA_PD prefix")
+	}
+	if lease.PreferredLifetime != 1800 {
+		t.Errorf("lease preferred-lifetime = %d, want 1800", lease.PreferredLifetime)
+	}
+	if lease.Received != received.Unix() {
+		t.Errorf("lease received = %d, want %d (the Reply's receive instant)", lease.Received, received.Unix())
 	}
 }

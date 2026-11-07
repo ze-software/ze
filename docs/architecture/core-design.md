@@ -2738,7 +2738,9 @@ subscription with `ListExisting: true`. It discards updates without a destinatio
 and messages other than NEWROUTE or DELROUTE. Registered consumers receive
 `RouteEvent` values through synchronous callbacks, including Ze-owned route changes.
 Each event carries the kernel table and priority so consumers can identify the
-affected route. Both `fib-kernel` (route recovery) and `kernel` (BGP redistribution)
+affected route, and the output device's interface index (`OutIfindex`, from
+RTA_OIF) so a consumer can ask whether a route leaves through a given device.
+Both `fib-kernel` (route recovery) and `kernel` (BGP redistribution)
 register as consumers. Late registration is supported: each event uses a snapshot
 of the handlers. On non-Linux, `subscribe()` blocks without delivering events.
 

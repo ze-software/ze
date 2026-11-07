@@ -65,7 +65,8 @@ func raAdvertisementEqual(a, b ndp.RAConfig) bool {
 		a.RDNSSLifetime == b.RDNSSLifetime &&
 		slices.Equal(a.SourceLinkLayerAddress, b.SourceLinkLayerAddress) &&
 		slices.Equal(a.RDNSS, b.RDNSS) &&
-		slices.Equal(a.Prefixes, b.Prefixes)
+		slices.Equal(a.Prefixes, b.Prefixes) &&
+		slices.Equal(a.Routes, b.Routes)
 }
 
 // raSenderFactory is set by the ifacera package at init time through
