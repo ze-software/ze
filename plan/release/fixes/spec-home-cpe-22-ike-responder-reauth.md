@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | An `initiate` peer drops a reauthentication started by the other side (RFC 7296 Section 2.8.3 lets either party create the new IKE SA). The tunnel then breaks until the old SA is deleted and Ze reconnects. Interop behaviour with strongSwan gateways that schedule reauthentication; low impact because Ze reconnects within the backoff. |
@@ -257,7 +257,7 @@ settles it (strongSwan 6.1.0 source, read 2026-11-02):
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N-A | needs a real peer; covered by interop | | |
+| `ipsec-respond-reinit-supersede` | `test/ipsec/ipsec-respond-reinit-supersede.ci` | Two Ze daemons in QEMU (`option=needs-linux`, as `test/ipsec/ipsec-child-rekey-xfrm.ci`): the `initiate` daemon is restarted while the `respond` daemon still holds the old IKE SA, so its new IKE_SA_INIT is a parallel re-initiation on the `respond` peer; asserts through `show vpn ipsec sa` and the XFRM state that the successor supersedes only after its Child SA is installed (AC-2 and AC-15 on the daemon path). The `initiate`-peer path needs a gateway that schedules reauthentication, which no Ze daemon does before `spec-ike-reauth.md`, so its daemon proof is the interop scenarios below | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |

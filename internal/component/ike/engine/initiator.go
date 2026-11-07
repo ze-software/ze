@@ -90,8 +90,8 @@ func encodeSAInitRequest(sa *SA, ikeGroup ipsec.IKEGroup) ([]byte, error) {
 		wire.PayloadEntry{Payload: buildSignatureHashAlgosNotify()},
 	)
 
-	localIP := net.ParseIP(sa.PeerCfg.LocalAddress)
-	remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
+	localIP := cycleLocalAddress(sa)
+	remoteIP := cycleRemoteAddress(sa)
 	if localIP != nil && remoteIP != nil {
 		payloads = append(payloads, buildNATDetectionPayloads(sa.InitiatorSPI, sa.ResponderSPI, localIP, remoteIP, transport.IKEPort)...)
 	}

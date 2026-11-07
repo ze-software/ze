@@ -1,0 +1,323 @@
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- following a dynamic WAN address
+// Related: apply.go -- applyConfig and rebindListeners, which this worker re-runs on an address event
+// Related: reconcile.go -- reconcilePeersWith, which starts each peer on the socket pair of its origin
+// Related: respond_names.go -- the DNS responder cache this worker refreshes
+// Related: doctor_interface_address.go -- the doctor view of the peers that wait
+// RFC: rfc/short/rfc4555.md -- address change triggers (Section 3.5)
+
+package engine
+
+import (
+	"maps"
+	"net"
+	"slices"
+	"sync/atomic"
+	"time"
+
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/pkg/ze"
+)
+
+// addressQueueDepth bounds the address events waiting for the worker. An event is a
+// trigger and the interface resolver is the truth, so one pending trigger carries any
+// number of events: a send that finds the slot full drops the event, and the re-read the
+// pending trigger causes already sees what it announced.
+const addressQueueDepth = 1
+
+// peerPlan is what one configuration means for the address the engine has now: which
+// peers run, each with the local address it sends from, which socket pair each peer
+// holds, and which peers wait for an address.
+//
+// The listener set it describes (spec home-cpe-4, "Listener set"):
+//   - no `interface`: every peer holds the primary pair, bound as ikeListenHost says;
+//   - `interface` set, the peer names no local-address, or the interface's current
+//     address: the primary pair, bound to that address and absent while there is none;
+//   - `interface` set, the peer names another literal: a pair bound to that literal, so
+//     an interface address event never touches its socket or its session.
+type peerPlan struct {
+	// cfg is the configuration the sessions run: the operator's, with the interface
+	// address filled into every peer that names no local-address, and the peers that
+	// wait for one left out. It is a copy; the operator's configuration is not changed.
+	cfg *ipsec.IPsecConfig
+	// hostOf is the bind host of the pair each running peer holds.
+	hostOf map[string]string
+	// primaryHost is the host of the primary pair, empty when the interface has no
+	// address and the pair is closed.
+	primaryHost string
+	// literalHosts are the hosts of the pairs bound to a peer's own literal, `interface`
+	// mode only.
+	literalHosts map[string]bool
+	// waiting are the peers held back because the interface has no address, sorted.
+	waiting []string
+}
+
+// planPeers derives the plan of cfg for the interface address ifIP (empty: none, or the
+// lookup failed). It is a pure function of its inputs, so the apply path and the address
+// worker reach the same answer for the same address.
+func planPeers(cfg *ipsec.IPsecConfig, ifIP string) *peerPlan {
+	running := *cfg
+	running.Peers = make(map[string]ipsec.SiteToSitePeer, len(cfg.Peers))
+	plan := &peerPlan{cfg: &running, hostOf: make(map[string]string, len(cfg.Peers)), literalHosts: map[string]bool{}}
+
+	if cfg.Interface == "" {
+		// One pair for every peer, as before the listener set: the wildcard in
+		// production, and under the test port the first local-address found.
+		peerLocal := ""
+		for name := range cfg.Peers {
+			if la := cfg.Peers[name].LocalAddress; la != "" {
+				peerLocal = la
+				break
+			}
+		}
+		plan.primaryHost = ikeListenHost("", peerLocal)
+		for name := range cfg.Peers {
+			running.Peers[name] = cfg.Peers[name]
+			plan.hostOf[name] = plan.primaryHost
+		}
+		return plan
+	}
+
+	plan.primaryHost = ifIP
+	for name := range cfg.Peers {
+		peer := cfg.Peers[name]
+		host := ifIP
+		switch {
+		case peer.LocalAddress == "" && ifIP == "":
+			plan.waiting = append(plan.waiting, name)
+			continue
+		case peer.LocalAddress == "":
+			peer.LocalAddress = ifIP
+		case peer.LocalAddress == ifIP:
+			// One address and port cannot be bound twice, so a literal equal to the
+			// interface address shares its pair, and follows it when it leaves.
+		default:
+			host = peer.LocalAddress
+			plan.literalHosts[host] = true
+		}
+		running.Peers[name] = peer
+		plan.hostOf[name] = host
+	}
+	slices.Sort(plan.waiting)
+	return plan
+}
+
+// primaryWanted reports whether a running peer holds the primary pair.
+func (p *peerPlan) primaryWanted() bool {
+	if p.primaryHost == "" {
+		return false
+	}
+	for _, host := range p.hostOf {
+		if host == p.primaryHost {
+			return true
+		}
+	}
+	return false
+}
+
+// publishWaiting hands the doctor the peers this plan holds back. The caller holds
+// applyMu.
+func publishWaiting(cfg *ipsec.IPsecConfig, plan *peerPlan) {
+	interfaceWaitPtr.Store(&interfaceWait{iface: cfg.Interface, peers: slices.Clone(plan.waiting)})
+}
+
+// addressWorker follows interface addresses for one engine: it re-reads the configured
+// interface on every `interface/addr-added` and `interface/addr-removed` event, and
+// refreshes the `respond` peers' names every respondNameRefresh.
+//
+// Lifecycle: startAddressWorker creates the trigger channel, subscribes, and starts the
+// one goroutine; kick enqueues without blocking; Stop unsubscribes, closes stop and
+// waits for the goroutine. The goroutine reaches engine state only through
+// ikeEngineState.followAddress, which takes applyMu, so it never runs beside an apply.
+type addressWorker struct {
+	trigger chan struct{}
+	stop    chan struct{}
+	done    chan struct{}
+	unsub   []func()
+}
+
+// startAddressWorker subscribes to the interface address events on bus and starts the
+// worker. A nil bus (a unit test that wires none) starts the worker with no subscription,
+// so only kick reaches it.
+func startAddressWorker(s *ikeEngineState, bus ze.EventBus) *addressWorker {
+	w := &addressWorker{
+		trigger: make(chan struct{}, addressQueueDepth),
+		stop:    make(chan struct{}),
+		done:    make(chan struct{}),
+	}
+	if bus != nil {
+		// The payload is not read: it names a kernel device, while the configured
+		// interface is a logical name the resolver maps (resolveInterfaceAddr). Any
+		// address event is a reason to ask the resolver again.
+		trigger := func(any) { w.kick() }
+		w.unsub = append(w.unsub,
+			bus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrAdded, trigger),
+			bus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrRemoved, trigger),
+		)
+	}
+	go w.run(s)
+	return w
+}
+
+// kick asks the worker to re-read the interface and re-resolve the `respond` names. It
+// never blocks: a trigger already pending covers this one.
+func (w *addressWorker) kick() {
+	select {
+	case w.trigger <- struct{}{}:
+	default:
+	}
+}
+
+// run is the worker loop. It ends only when stop closes.
+func (w *addressWorker) run(s *ikeEngineState) {
+	defer close(w.done)
+	ticker := time.NewTicker(respondNameRefresh)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-w.stop:
+			return
+		case <-w.trigger:
+			s.followAddress()
+			resolveRespondNames(respondNames.queries(), w.stop, s.log)
+		case <-ticker.C:
+			resolveRespondNames(respondNames.queries(), w.stop, s.log)
+		}
+	}
+}
+
+// Stop unsubscribes and waits for the worker to return. MUST be called before the engine
+// stops its peers (ikeEngineState.shutdown), so no event restarts one behind the stop.
+func (w *addressWorker) Stop() {
+	for _, unsub := range w.unsub {
+		unsub()
+	}
+	close(w.stop)
+	<-w.done
+}
+
+// followAddress re-reads the configured interface and, when the address moved or a
+// literal pair is still missing its socket, re-plans the running configuration onto it:
+// the primary pair moves, only the sessions that held it stop, and the reconcile starts
+// the peers the new address serves. It then restarts any route-chosen session whose
+// source left the host. It does nothing before the first apply.
+//
+// The event is a trigger and the resolver is the truth, so a burst of events, or an event
+// for another interface, costs one read and changes nothing (R-1: act only on a change).
+func (s *ikeEngineState) followAddress() {
+	s.applyMu.Lock()
+	defer s.applyMu.Unlock()
+	if s.applied == nil || s.plan == nil {
+		return
+	}
+	if s.applied.Interface != "" {
+		ifIP, err := resolveInterfaceAddrFn(s.applied.Interface)
+		switch {
+		case err != nil:
+			// A failed read is not "no address": keep what runs. Taking every tunnel
+			// down for a transient lookup fault is what the reload refusal prevents.
+			s.log.Warn("ike: cannot read interface addresses, keeping the current address",
+				"interface", s.applied.Interface, "address", s.ifAddr, "error", err)
+		case ifIP != s.ifAddr:
+			s.log.Info("ike: interface address changed",
+				"interface", s.applied.Interface, "from", s.ifAddr, "to", ifIP)
+			s.ifAddr = ifIP
+			s.adoptPlan(planPeers(s.applied, ifIP))
+		case s.literalPairIncomplete():
+			s.adoptPlan(planPeers(s.applied, ifIP))
+		}
+	}
+	s.restartVanishedRouteSources()
+}
+
+// literalPairIncomplete reports whether a literal pair failed to bind its IKE socket,
+// which is what a literal the host does not hold yet looks like.
+func (s *ikeEngineState) literalPairIncomplete() bool {
+	for _, pair := range s.literalPairs {
+		if pair.ike == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// adoptPlan moves the sockets to plan and starts or stops the sessions it changes. It is
+// the half of applyConfig after the SPD, and the address worker's whole action. Peer
+// starts stay deferred to OnAllPluginsReady while the startup configuration is pending.
+// The caller holds applyMu.
+func (s *ikeEngineState) adoptPlan(plan *peerPlan) {
+	s.rebindListeners(plan)
+	s.plan = plan
+	publishWaiting(s.applied, plan)
+	s.reCtx.Store(&reEstablishCtx{cfg: plan.cfg, sockets: s.socketSnapshot(plan)})
+	if s.startupCfg != nil {
+		s.startupCfg = plan
+		return
+	}
+	s.reconcile(plan)
+}
+
+// hostHoldsAddrFn reports whether an interface of this host carries ip. Swapped in unit
+// tests, which cannot remove an address from the host.
+var hostHoldsAddrFn = func(ip net.IP) (bool, error) {
+	addresses, err := net.InterfaceAddrs()
+	if err != nil {
+		return false, err
+	}
+	for _, address := range addresses {
+		if network, ok := address.(*net.IPNet); ok && network.IP.Equal(ip) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// restartVanishedRouteSources restarts each route-chosen session (no `interface`, no
+// local-address) whose IKE SA runs from an address the host no longer holds, so the next
+// cycle asks the routing table again and comes up from the new source. The caller holds
+// applyMu.
+//
+// A session whose SA negotiated MOBIKE is left alone. RFC 4555 Section 3.5 names "changes
+// in IP addresses" as a trigger for the MOBIKE path, which moves the established SA with
+// UPDATE_SA_ADDRESSES (serviceMobike, mobike.go), so a restart here would only break it.
+func (s *ikeEngineState) restartVanishedRouteSources() {
+	if s.startupCfg != nil {
+		return
+	}
+	peersMu.RLock()
+	running := maps.Clone(s.peers)
+	peersMu.RUnlock()
+
+	dp := dataplane.Get()
+	bus := getEventBus()
+	stopped := false
+	for name, ps := range running {
+		if ps.peerCfg.LocalAddress != "" {
+			continue
+		}
+		sa := ps.getSA()
+		if sa == nil || sa.cycleLocal == nil {
+			continue
+		}
+		// RFC 4555 Section 3.5
+		if atomic.LoadInt32(&sa.mobikeUp) == 1 {
+			continue
+		}
+		held, err := hostHoldsAddrFn(sa.cycleLocal)
+		if err != nil {
+			s.log.Warn("ike: cannot list host addresses, route-chosen peers are not checked", "error", err)
+			return
+		}
+		if held {
+			continue
+		}
+		s.log.Info("ike: route-chosen local address left the host, restarting the peer from the new source",
+			"peer", name, "address", sa.cycleLocal)
+		stopPeerSession(name, ps, s.peers, s.table, dp, bus, s.log)
+		stopped = true
+	}
+	if stopped {
+		s.reconcile(s.plan)
+	}
+}

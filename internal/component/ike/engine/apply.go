@@ -8,6 +8,7 @@ package engine
 import (
 	"log/slog"
 	"maps"
+	"sync"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -15,26 +16,31 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/transport"
 )
 
-// ikeListeners is the pair of UDP sockets the engine receives IKE on, with the
-// configured host. A mobility-capable NAT-T socket listens on the wildcard.
+// ikeListeners is one pair of UDP sockets the engine receives IKE on, with the host it
+// was bound for. The engine holds one pair per local origin (peerPlan, dynamic_wan.go):
+// the primary pair, and under `interface` one pair per distinct literal local-address.
 //
 // The host is recorded because a bound socket cannot be re-addressed in place. An
-// operator who edits `vpn ipsec interface`, or the local-address of the peer the bind
-// followed, is asking for a different socket, and the only way to give them one is to
-// close this pair and open another. Comparing the host is how an apply tells that edit
-// from every other one.
+// operator who edits `vpn ipsec interface`, or an interface address that moves, asks for
+// a different socket, and the only way to give one is to close this pair and open
+// another. Comparing the host is how a rebind tells that move from every other change.
 //
 // A nil member beside a non-empty host is a bind that FAILED and was reported. The host
-// still records what the pair was asked for, so a later apply at the same address
+// still records what the pair was asked for, so a later rebind at the same address
 // retries the failed half instead of reading the working half as the whole answer.
+//
+// nattShared marks a NAT-T member that is the engine's one wildcard port-4500 socket
+// (ikeEngineState.sharedNATT), which every pair shares when live XFRM migration is
+// available. closeSockets leaves that socket open: no interface event moves it.
 type ikeListeners struct {
-	host string
-	ike  *transport.UDPTransport
-	natt *transport.UDPTransport
+	host       string
+	ike        *transport.UDPTransport
+	natt       *transport.UDPTransport
+	nattShared bool
 }
 
 // boundElsewhere reports whether a socket is open at an address the configuration no
-// longer asks for. Nothing open means nothing to rebind: open below then binds at the
+// longer asks for. Nothing open means nothing to rebind: openPair then binds at the
 // new host, which is what the daemon's first apply does.
 func (l *ikeListeners) boundElsewhere(host string) bool {
 	if l.ike == nil && l.natt == nil {
@@ -43,39 +49,57 @@ func (l *ikeListeners) boundElsewhere(host string) bool {
 	return l.host != host
 }
 
-// open binds whichever socket is absent and starts its receive loop. The IKE
-// listener follows host; a mobility-capable NAT-T listener accepts other local
-// destinations too. Closing existing listeners is a separate ordered decision.
+// natTraversalMobile reports whether the NAT-T socket listens on the wildcard: MOBIKE
+// changes the destination of an established IKE SA, packet-info records the concrete
+// destination and SendFrom preserves the chosen reply source. Under the test port every
+// socket follows its host, so two local daemons can share one port knob.
+func natTraversalMobile() bool {
+	_, mobile := dataplane.Get().(dataplane.TunnelMigrator)
+	return mobile && ikeTestPortFn() == ""
+}
+
+// openPair binds whichever socket of l is absent and starts its receive loop. The IKE
+// listener follows host. The NAT-T listener follows host too, unless it is mobile, when
+// the pair takes the engine's one wildcard socket. Closing existing listeners is a
+// separate ordered decision (rebindListeners).
 //
 // A failed bind is reported and leaves that member nil. The engine keeps running,
 // because the other socket can still carry a tunnel.
-func (l *ikeListeners) open(host string, table *SATable, log *slog.Logger) {
+func (s *ikeEngineState) openPair(l *ikeListeners, host string) {
 	l.host = host
 
 	if l.ike == nil {
-		tr, err := transport.NewUDPTransport(ikeAddr(host), log)
+		tr, err := transport.NewUDPTransport(ikeAddr(host), s.log)
 		if err != nil {
-			log.Warn("ike: failed to start UDP transport", "error", err)
+			s.log.Warn("ike: failed to start UDP transport", "address", host, "error", err)
 		} else {
 			l.ike = tr
 			go tr.Run()
-			go dispatchInbound(tr, table, log)
+			go dispatchInbound(tr, s.table, s.log)
 		}
 	}
 
 	if l.natt != nil {
 		return
 	}
+	if natTraversalMobile() {
+		if s.sharedNATT == nil {
+			s.sharedNATT = openNATT("0.0.0.0", s.table, s.log)
+		}
+		l.natt = s.sharedNATT
+		l.nattShared = l.natt != nil
+		return
+	}
+	l.natt = openNATT(host, s.table, s.log)
+	l.nattShared = false
+}
 
+// openNATT binds the port-4500 socket at host, enables UDP encapsulation on it and starts
+// its receive loop, or reports the failure and answers nil.
+func openNATT(host string, table *SATable, log *slog.Logger) *transport.UDPTransport {
 	// RFC 3948 Section 2.1: the NAT-T listener on port 4500 carries UDP-encapsulated
 	// IKE and ESP.
-	// MOBIKE changes the destination of an established IKE SA. Packet-info records
-	// the concrete destination and SendFrom preserves the chosen reply source.
-	nattHost := host
-	if _, mobile := dataplane.Get().(dataplane.TunnelMigrator); mobile && ikeTestPortFn() == "" {
-		nattHost = "0.0.0.0"
-	}
-	natt, err := transport.NewNATTTransport(nattAddr(nattHost), log)
+	natt, err := transport.NewNATTTransport(nattAddr(host), log)
 	if err != nil {
 		// Recorded, not only logged. Without the socket ze receives no
 		// UDP-encapsulated ESP at all, which is a stronger failure than the UDP_ENCAP
@@ -84,10 +108,9 @@ func (l *ikeListeners) open(host string, table *SATable, log *slog.Logger) {
 		// failure fails open (ai/rules/evidence.md).
 		setUDPEncapFailure(err)
 		countUDPEncapFailure()
-		log.Warn("ike: failed to start NAT-T transport", "error", err)
-		return
+		log.Warn("ike: failed to start NAT-T transport", "address", host, "error", err)
+		return nil
 	}
-	l.natt = natt
 
 	// RFC 7296 Section 2.23 MUST: "all devices MUST be able to receive and process
 	// both UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time."
@@ -112,10 +135,12 @@ func (l *ikeListeners) open(host string, table *SATable, log *slog.Logger) {
 	}
 	go natt.Run()
 	go dispatchNATTInbound(natt, table, log)
+	return natt
 }
 
 // closeSockets shuts both sockets and empties the pair, which ends the two receive
-// loops open started.
+// loops openPair started. A shared NAT-T member is dropped from the pair and left open:
+// ikeEngineState.closeAllListeners closes it at exit.
 //
 // The caller MUST have stopped every peer session that holds them first. PeerSession.ike
 // and PeerSession.natt are immutable after startPeerSession, so a session that outlives
@@ -127,33 +152,35 @@ func (l *ikeListeners) closeSockets(log *slog.Logger) {
 		}
 		l.ike = nil
 	}
-	if l.natt != nil {
+	if l.natt != nil && !l.nattShared {
 		if err := l.natt.Close(); err != nil {
 			log.Warn("ike: NAT-T transport close error", "error", err)
 		}
-		l.natt = nil
 	}
+	l.natt = nil
+	l.nattShared = false
 }
 
 // reEstablishCtx is what operator `clear` needs to start the peers again: the
-// configuration the engine is running and the two sockets it is running them on. It is
-// republished by every apply, so a `clear` after a reload re-initiates against the
-// sockets that reload left bound rather than the ones the daemon started with.
+// configuration the engine is running and the socket pair each peer runs on. It is
+// republished by every apply and every address move, so a `clear` after either
+// re-initiates against the sockets now bound rather than the ones the daemon started
+// with. sockets is a frozen snapshot (socketSnapshot), because `clear` runs on another
+// goroutine than the one that moves the pairs.
 type reEstablishCtx struct {
-	cfg  *ipsec.IPsecConfig
-	tr   *transport.UDPTransport
-	natt *transport.UDPTransport
+	cfg     *ipsec.IPsecConfig
+	sockets peerSockets
 }
 
 // ikeEngineState is the running state one IKE engine owns across the configurations it
 // is given: the two sockets, the peer sessions, the SA table, the operator's SPD
 // entries and the remote-access address pool.
 //
-// applyConfig is the only writer, and both deliveries reach it. OnConfigure carries the
-// configuration the daemon starts with and OnConfigApply carries every reload after
-// that. The SDK dispatch goroutine serves one callback at a time, so no member needs a
-// lock. The peers map is the exception, and it is guarded by peersMu because the shared
-// dispatch goroutine reads it too.
+// Two goroutines write it: the SDK dispatch goroutine (applyConfig, from OnConfigure and
+// OnConfigApply, and OnAllPluginsReady) and the address worker (followAddress,
+// dynamic_wan.go). Each holds applyMu for its whole step, so the members need no lock of
+// their own. The peers map is the exception, and it is guarded by peersMu because the
+// shared dispatch goroutine reads it too.
 //
 // peers is the SAME map object as activePeersMap, which operator `clear` relies on:
 // TerminateAllSAs deletes from that map and calls reEstablishFn, and the reconcile then
@@ -164,7 +191,37 @@ type ikeEngineState struct {
 	metrics *IPsecMetrics
 	log     *slog.Logger
 
+	// applyMu serializes every writer of this state: an apply, the deferred startup
+	// reconcile, and the address worker's re-plan.
+	applyMu sync.Mutex
+
+	// listeners is the primary pair: the interface's address under `interface`, else
+	// the one pair every peer holds (peerPlan).
 	listeners ikeListeners
+
+	// literalPairs are the pairs of peers whose own local-address differs from the
+	// interface's current address, keyed by that address. An interface address event
+	// never touches them (AC-5).
+	literalPairs map[string]*ikeListeners
+
+	// sharedNATT is the one wildcard port-4500 socket every pair holds when live XFRM
+	// migration is available (openPair). Nil otherwise, and before the first bind.
+	sharedNATT *transport.UDPTransport
+
+	// applied is the configuration as the operator wrote it, before the interface
+	// address was filled in. The address worker re-plans from it (planPeers).
+	applied *ipsec.IPsecConfig
+
+	// ifAddr is the interface address the current plan was derived for, empty when the
+	// interface has none.
+	ifAddr string
+
+	// plan is the current plan, the one the running sessions follow.
+	plan *peerPlan
+
+	// worker follows interface addresses and refreshes `respond` names. Nil in a unit
+	// test that starts none; kickAddressWorker then does nothing.
+	worker *addressWorker
 
 	// installedSPD is the operator's SPD entries as currently installed. It is tracked
 	// rather than re-derived from the live configuration because the removal half needs
@@ -189,14 +246,13 @@ type ikeEngineState struct {
 	// (refuseImplicitDiscard, unmatched.go), so it is atomic.
 	discardInForce atomic.Bool
 
-	// startupCfg carries the daemon's first configuration across to OnAllPluginsReady,
-	// which is where its peers start. It is nil once those peers run, and it stays nil
-	// for every reload.
+	// startupCfg carries the daemon's first plan across to OnAllPluginsReady, which is
+	// where its peers start. It is nil once those peers run, and it stays nil for every
+	// reload. An address that moves before then re-plans it in place (adoptPlan).
 	//
-	// There is no member holding the configuration the running peers were started from.
-	// The sessions ARE that configuration (reconcilePeers), so a copy beside them could
-	// only disagree with them.
-	startupCfg *ipsec.IPsecConfig
+	// The sessions are what the running peers were started from (reconcilePeers); plan
+	// above is the derivation they were started by, which the next re-plan replaces.
+	startupCfg *peerPlan
 
 	// reCtx is read by the operator `clear` path on another goroutine, so it is atomic
 	// where the members above are not.
@@ -215,6 +271,9 @@ type ikeEngineState struct {
 // The order of the steps below is load-bearing, and each one states why it sits where it
 // does.
 func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) error {
+	s.applyMu.Lock()
+	defer s.applyMu.Unlock()
+
 	// The interface lookup and the refusal it can raise run FIRST, before anything
 	// about the running engine changes. A refused reload rolls the transaction back,
 	// and a mutation made ahead of the refusal survives that rollback: the operator is
@@ -244,27 +303,22 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		// configuration to fall back to and no running tunnel to protect, so a refusal
 		// would start no peer, no IKE socket and no NAT-T socket at all, including for
 		// the peers that carry their own local-address and are unaffected. An interface
-		// that comes up after the daemon does is ordinary at boot.
+		// that comes up after the daemon does is ordinary at boot: the peers that need
+		// its address wait (planPeers) and the address worker starts them when it
+		// appears (followAddress, dynamic_wan.go).
 		switch unbindable := unbindablePeers(cfg, ifErr); {
 		case unbindable != nil && phase == applyReload:
 			return unbindable
 		case unbindable != nil:
-			s.log.Warn("ike: peers without local-address will fail", "error", unbindable)
+			s.log.Warn("ike: peers without local-address wait for the interface address", "error", unbindable)
 		case ifErr != nil:
 			s.log.Warn("ike: cannot read interface addresses", "interface", cfg.Interface, "error", ifErr)
 		default:
 			s.log.Warn("ike: no IPv4 address on interface", "interface", cfg.Interface)
 		}
 	default:
-		for name := range cfg.Peers {
-			peer := cfg.Peers[name]
-			if peer.LocalAddress == "" {
-				peer.LocalAddress = ifIP
-				cfg.Peers[name] = peer
-				s.log.Debug("ike: resolved local-address from interface",
-					"peer", name, "interface", cfg.Interface, "address", ifIP)
-			}
-		}
+		// The interface has an address. planPeers below fills it into every peer that
+		// names no local-address of its own.
 	}
 
 	// RFC 4301 Section 4.4.1 gives the SPD three dispositions, and the operator writes
@@ -323,16 +377,16 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// refused catch-all leaves the running threshold unchanged.
 	setCookieThreshold(cfg.CookieThreshold)
 
-	// Resolve the configured source once. open uses it as the IKE bind and the
-	// default NAT-T source, even when mobility needs a wildcard NAT-T listener.
-	peerLocal := ""
-	for name := range cfg.Peers {
-		if la := cfg.Peers[name].LocalAddress; la != "" {
-			peerLocal = la
-			break
-		}
-	}
-	s.rebindListeners(ikeListenHost(ifIP, peerLocal), len(cfg.Peers) > 0)
+	// The plan for the address the interface has now: which peers run, the local
+	// address each sends from, the socket pair each holds, and which wait. The
+	// operator's configuration is kept as written, so the address worker can re-plan it
+	// when the address moves (followAddress, dynamic_wan.go).
+	plan := planPeers(cfg, ifIP)
+	s.applied = cfg
+	s.ifAddr = ifIP
+	s.rebindListeners(plan)
+	s.plan = plan
+	publishWaiting(cfg, plan)
 
 	s.table.virtualIP.reload(cfg.RemoteAccess, s.log)
 
@@ -346,12 +400,18 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// coord.OnPostStartup (bgp/plugin/register.go).
 	//
 	// A reload has no such window, so it reconciles here as it always did.
-	s.reCtx.Store(&reEstablishCtx{cfg: cfg, tr: s.listeners.ike, natt: s.listeners.natt})
+	s.reCtx.Store(&reEstablishCtx{cfg: plan.cfg, sockets: s.socketSnapshot(plan)})
 	if phase == applyStartup {
-		s.startupCfg = cfg
+		s.startupCfg = plan
 	} else {
-		s.reconcile(cfg)
+		s.reconcile(plan)
 	}
+
+	// The `respond` peers named by DNS: a new or renamed one matches nothing until the
+	// worker answers, and the worker re-reads the interface too, which covers an
+	// address event that arrived while this apply ran (R-2).
+	respondNames.sync(cfg)
+	s.kickAddressWorker()
 
 	if s.metrics != nil {
 		s.metrics.Update()
@@ -368,44 +428,161 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	return nil
 }
 
-// reconcile starts, stops and restarts peer sessions so the running set matches cfg.
-func (s *ikeEngineState) reconcile(cfg *ipsec.IPsecConfig) {
-	reconcilePeers(cfg, s.peers, s.table, s.listeners.ike, s.listeners.natt, getEventBus(), s.log)
+// reconcile starts, stops and restarts peer sessions so the running set matches plan,
+// each new session on the socket pair of its origin.
+func (s *ikeEngineState) reconcile(plan *peerPlan) {
+	reconcilePeersWith(plan.cfg, s.peers, s.table, s.socketsFor(plan), getEventBus(), s.log)
 }
 
-// rebindListeners moves both sockets to host when the operator's edit moved the address
-// the engine listens at, and opens whichever socket is absent when wanted says the
-// configuration has a peer to serve.
+// kickAddressWorker asks the worker, when one runs, to re-read the interface and the
+// `respond` names.
+func (s *ikeEngineState) kickAddressWorker() {
+	if s.worker != nil {
+		s.worker.kick()
+	}
+}
+
+// pairOf answers the pair host is bound in, or nil.
+func (s *ikeEngineState) pairOf(host string) *ikeListeners {
+	if host == s.listeners.host {
+		return &s.listeners
+	}
+	return s.literalPairs[host]
+}
+
+// socketsFor answers each peer's sockets from the pairs as they are bound now. The
+// caller holds applyMu for as long as it uses the answer.
+func (s *ikeEngineState) socketsFor(plan *peerPlan) peerSockets {
+	return func(name string) (*transport.UDPTransport, *transport.UDPTransport, string) {
+		host := plan.hostOf[name]
+		if pair := s.pairOf(host); pair != nil {
+			return pair.ike, pair.natt, host
+		}
+		return nil, nil, host
+	}
+}
+
+// socketSnapshot is socketsFor frozen now, for a reader on another goroutine (operator
+// `clear`), which must not read the pairs while the address worker moves them.
+func (s *ikeEngineState) socketSnapshot(plan *peerPlan) peerSockets {
+	type socketPair struct{ ike, natt *transport.UDPTransport }
+	frozen := make(map[string]socketPair, len(plan.hostOf))
+	for _, host := range plan.hostOf {
+		if pair := s.pairOf(host); pair != nil {
+			frozen[host] = socketPair{pair.ike, pair.natt}
+		}
+	}
+	hostOf := maps.Clone(plan.hostOf)
+	return func(name string) (*transport.UDPTransport, *transport.UDPTransport, string) {
+		host := hostOf[name]
+		pair := frozen[host]
+		return pair.ike, pair.natt, host
+	}
+}
+
+// rebindListeners moves the socket pairs to what plan asks for: the primary pair to its
+// host, one pair for each literal host, and no pair nobody holds.
 //
 // The ORDER is the whole of this function, and it is why the rebind is not a
 // create-if-nil line. PeerSession.ike and PeerSession.natt are immutable after
-// startPeerSession, so a session that survives a rebind holds a closed file descriptor
-// and every message it sends is refused. Every session therefore stops, then the sockets
-// close, then the new pair opens, and the reconcile that follows starts every peer
-// against it.
+// startPeerSession, so a session that survives its pair's rebind holds a closed file
+// descriptor and every message it sends is refused. The sessions that hold a moving
+// pair therefore stop, then its sockets close, then the new pair opens, and the
+// reconcile that follows starts those peers against it.
 //
-// Stopping the peers is not a cost the rebind pays reluctantly. A moved listen address
-// is a new local address to offer, and a restart is the only thing that carries a
-// configuration edit to the wire (peerConfigChanged, reconcile.go). A peer whose own
-// local-address changed is restarted by that guard anyway, and this is the same answer
-// for the peers that merely share the socket.
-func (s *ikeEngineState) rebindListeners(host string, wanted bool) {
-	if s.listeners.boundElsewhere(host) {
+// Only the sessions that held the moved pair stop (stopSessionsOn). A peer on another
+// pair, a literal local-address the interface event did not move, keeps its session and
+// its socket (AC-5). A session that started while its pair had no IKE socket (the bind
+// failed: the address was not on the host yet) is stopped when the socket is finally
+// bound, so the reconcile restarts it on a socket that can send.
+//
+// Every pair that leaves closes before any pair opens. One address and port is bound
+// once, and an address moves between the two kinds: the interface takes an address a
+// peer names as its literal local-address, and that peer then shares the primary pair
+// (planPeers). Opened first, the primary pair would bind an address the departing
+// literal pair still holds, fail, and leave every peer on it without a socket.
+func (s *ikeEngineState) rebindListeners(plan *peerPlan) {
+	if s.listeners.boundElsewhere(plan.primaryHost) {
 		s.log.Info("ike: listen address changed, rebinding",
-			"from", s.listeners.host, "to", host, "peers", len(s.peers))
-		s.stopAllPeers()
+			"from", s.listeners.host, "to", plan.primaryHost, "peers", len(s.peers))
+		s.stopSessionsOn(s.listeners.host)
 		s.listeners.closeSockets(s.log)
 	}
-	if wanted {
-		s.listeners.open(host, s.table, s.log)
+	for host, pair := range s.literalPairs {
+		if plan.literalHosts[host] {
+			continue
+		}
+		s.stopSessionsOn(host)
+		pair.closeSockets(s.log)
+		delete(s.literalPairs, host)
+	}
+
+	if plan.primaryWanted() {
+		s.openPairFor(&s.listeners, plan.primaryHost)
+	} else if plan.primaryHost == "" {
+		s.listeners.host = ""
+	}
+	for host := range plan.literalHosts {
+		if s.literalPairs == nil {
+			s.literalPairs = map[string]*ikeListeners{}
+		}
+		pair, ok := s.literalPairs[host]
+		if !ok {
+			pair = &ikeListeners{}
+			s.literalPairs[host] = pair
+		}
+		s.openPairFor(pair, host)
+	}
+}
+
+// openPairFor opens the absent sockets of pair at host, and stops the sessions that were
+// started while its IKE socket was absent, so they restart on the socket now bound.
+func (s *ikeEngineState) openPairFor(pair *ikeListeners, host string) {
+	hadIKE := pair.ike != nil
+	s.openPair(pair, host)
+	if !hadIKE && pair.ike != nil {
+		s.stopSessionsOn(host)
+	}
+}
+
+// stopSessionsOn stops every session that holds the pair bound for host, removing each
+// Child SA before it returns (stopPeerSession).
+func (s *ikeEngineState) stopSessionsOn(host string) {
+	peersMu.RLock()
+	stopping := make(map[string]*PeerSession, len(s.peers))
+	for name, ps := range s.peers {
+		if ps.bindHost == host {
+			stopping[name] = ps
+		}
+	}
+	peersMu.RUnlock()
+
+	dp := dataplane.Get()
+	bus := getEventBus()
+	for name, ps := range stopping {
+		stopPeerSession(name, ps, s.peers, s.table, dp, bus, s.log)
+	}
+}
+
+// closeAllListeners closes every pair and the shared NAT-T socket. The caller MUST have
+// stopped every peer first (closeSockets).
+func (s *ikeEngineState) closeAllListeners(log *slog.Logger) {
+	s.listeners.closeSockets(log)
+	for host, pair := range s.literalPairs {
+		pair.closeSockets(log)
+		delete(s.literalPairs, host)
+	}
+	if s.sharedNATT != nil {
+		if err := s.sharedNATT.Close(); err != nil {
+			log.Warn("ike: NAT-T transport close error", "error", err)
+		}
+		s.sharedNATT = nil
 	}
 }
 
 // stopAllPeers tears every running session down, removing each Child SA before it
-// returns (stopPeerSession). It is the first step of a rebind: the sockets a session
-// holds cannot be swapped under it, so the session cannot outlive them. It is also the
-// first step of every exit of runEngine, before releaseSPD, and a second call finds no
-// peer.
+// returns (stopPeerSession). It is the first step of every exit of runEngine, before
+// the sockets close and releaseSPD runs, and a second call finds no peer.
 func (s *ikeEngineState) stopAllPeers() {
 	peersMu.RLock()
 	stopping := make(map[string]*PeerSession, len(s.peers))
@@ -421,8 +598,8 @@ func (s *ikeEngineState) stopAllPeers() {
 
 // shutdown ends everything the engine runs, on every exit of runEngine, in an order
 // each step depends on:
-//   - operator `clear` loses its way to start peers (reEstablishFn), so no session can
-//     be started behind the stop below;
+//   - operator `clear` loses its way to start peers (reEstablishFn), and the address
+//     worker stops, so no session can be started behind the stop below;
 //   - every peer stops, so every Child SA and its policies are gone;
 //   - the IKE sockets close, so nothing left can negotiate a Child SA and install a
 //     policy behind the release (closeSockets requires the peers stopped first);
@@ -436,8 +613,13 @@ func (s *ikeEngineState) stopAllPeers() {
 // The caller MUST close the backend after it returns: releaseSPD needs the dataplane.
 func (s *ikeEngineState) shutdown(log *slog.Logger) {
 	reEstablishFn.Store(nil)
+	if s.worker != nil {
+		// Before the peers stop, so no address event restarts one behind the stop.
+		s.worker.Stop()
+		s.worker = nil
+	}
 	s.stopAllPeers()
-	s.listeners.closeSockets(log)
+	s.closeAllListeners(log)
 	s.releaseSPD(dataplane.Get(), log)
 }
 

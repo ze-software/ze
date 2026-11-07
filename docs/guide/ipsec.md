@@ -266,6 +266,26 @@ restart instead of waiting for Dead Peer Detection.
 <!-- source: internal/component/ike/engine/established.go -- owned SA routing -->
 <!-- source: internal/component/ike/engine/auth.go -- INITIAL_CONTACT -->
 
+The replacement takes over only once its Child SA is installed. If Ze refuses
+that Child SA (no matching ESP proposal, traffic selectors it cannot accept),
+the new IKE SA is held beside the old one and the old tunnel keeps carrying
+traffic; the log names the refusal and its fix. If the old IKE SA then ends
+while the replacement still has no Child SA, Ze deletes the replacement and the
+session reconnects.
+
+A gateway can also reauthenticate a tunnel that Ze started (RFC 7296 Section
+2.8.3 lets either end create the new IKE SA). An `initiate` peer accepts a new
+IKE_SA_INIT while its IKE SA is established, and only from the address that SA
+talks to; with no established SA it still refuses every unsolicited initiation.
+The new IKE SA authenticates with the same peer configuration, and Ze moves the
+tunnel onto it, new Child SA first, without reconnecting. A peer that
+authenticates with EAP refuses it, because RFC 7296 says reauthentication then
+has to come from the side that started the original IKE SA: set
+`reauth_time = 0s` on a strongSwan gateway for such a peer.
+
+<!-- source: internal/component/ike/engine/reauth_receive.go -- matchReauthenticatingPeer, adoptPeerStartedSuccessor -->
+<!-- source: internal/component/ike/engine/responder.go -- finishResponderEstablish -->
+
 
 ```text
 vpn {
@@ -1831,3 +1851,44 @@ boundaries; neither is a claim that every IKE extension is implemented.
 <!-- source: internal/component/ike/dataplane/dataplane.go -- XFRM state and policy programming -->
 <!-- source: internal/component/ike/ipsec/config.go -- configuration and validation -->
 <!-- source: internal/le/interoplab/ipsec/ipsec.go -- strongSwan interoperability scenarios -->
+
+## A WAN address that comes and goes
+
+A CPE often dials its tunnel from a PPPoE or DHCP WAN whose address does not exist
+at boot and can change on every reconnect. Ze follows it.
+
+| You write | Local address of a peer that names no `local-address` |
+|-----------|--------------------------------------------------------|
+| `vpn ipsec interface <name>` | The interface's first IPv4 address, followed as it changes |
+| Neither `interface` nor `local-address` | The source address the route to the remote selects, looked up at the start of every connection attempt |
+
+With `interface` set:
+
+- At boot with no address yet, Ze warns, starts the peers that carry their own
+  `local-address`, and holds the others. `ze doctor` reports each waiting peer
+  (check `ipsec-interface-address`).
+- When the address appears, the waiting peers start from it.
+- When it changes, those peers restart from the new address, and their old
+  Child SAs are removed.
+- When it leaves, those peers stop, remove their Child SAs, and wait.
+- A peer with its own `local-address` has its own socket and is never restarted
+  by any of this.
+
+A reload whose interface has no IPv4 address is still refused: an address that
+arrives later is followed without a commit.
+
+`local-address` takes an IP address and nothing else. `local-address any` is
+refused; leave the leaf out instead.
+
+`remote-address` may be a DNS name. It is resolved at the start of every
+connection attempt: a name that does not resolve yet is retried with the
+reconnect backoff (1 s, doubling to 60 s, never giving up), and the address it
+resolves to is the one NAT detection, the Child SA and transport mode use. A
+`respond` peer configured by name accepts an initiation from any address the
+name resolved to at the last refresh (every 60 s and after each commit); an
+incoming packet never causes a DNS query.
+
+On a host with several addresses, the route-chosen source is also the address
+replies to an initiating peer leave from, which is not always the address the
+request reached (RFC 7296 Section 2.11; tracked by
+`plan/release/fixes/spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address.md`).

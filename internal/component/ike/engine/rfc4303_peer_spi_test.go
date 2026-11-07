@@ -130,7 +130,7 @@ func TestInitiatorRefusesPeerSPIZero(t *testing.T) {
 	}
 
 	dp := &mockDP{}
-	child, err := initiatorFirstChildSA(ini, ini.PeerCfg, 7, dp, log)
+	child, err := initiatorFirstChildSA(ini, 7, dp, log)
 	if err == nil {
 		t.Fatalf("initiatorFirstChildSA accepted a missing peer SPI and sends on SPI %#08x", child.OutboundSPI)
 	}
@@ -160,7 +160,7 @@ func TestInitiatorUsesPeerSPI(t *testing.T) {
 	}
 
 	dp := &mockDP{}
-	child, err := initiatorFirstChildSA(ini, ini.PeerCfg, 7, dp, log)
+	child, err := initiatorFirstChildSA(ini, 7, dp, log)
 	if err != nil {
 		t.Fatalf("initiatorFirstChildSA: %v", err)
 	}
@@ -264,7 +264,7 @@ func peerSPIRekey(t *testing.T) peerSPIRekeyExchange {
 	if respOld == nil {
 		t.Fatal("the responder holds no first Child SA to rekey")
 	}
-	iniOld, err := initiatorFirstChildSA(ini, ini.PeerCfg, 7, &mockDP{}, log)
+	iniOld, err := initiatorFirstChildSA(ini, 7, &mockDP{}, log)
 	if err != nil {
 		t.Fatalf("initiatorFirstChildSA: %v", err)
 	}

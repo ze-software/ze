@@ -1,7 +1,8 @@
 //go:build !linux
 
 // Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- authenticated endpoint mobility
-// Related: mobike.go -- mobikeRouteSource, the one caller
+// Related: mobike.go -- mobikeRouteSource, which finds the source MOBIKE moves to
+// Related: cycle_addr.go -- resolveCyclePair, the route-chosen local address of a connect cycle
 // Related: mobike_route_linux.go -- the Linux lookup, which must not cross the SPD
 
 package engine
@@ -17,14 +18,14 @@ import (
 func routeSourceTo(remote net.IP) (net.IP, error) {
 	conn, err := net.DialUDP("udp4", nil, &net.UDPAddr{IP: remote, Port: 4500})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ike: route lookup toward %s failed: %w; check the routing table", remote, err)
 	}
 	local, ok := conn.LocalAddr().(*net.UDPAddr)
 	if err := conn.Close(); err != nil {
 		return nil, err
 	}
 	if !ok {
-		return nil, fmt.Errorf("ike: MOBIKE route has no UDP source")
+		return nil, fmt.Errorf("ike: the route toward %s gave no UDP source address", remote)
 	}
 	return local.IP, nil
 }

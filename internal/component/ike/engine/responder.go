@@ -369,8 +369,8 @@ func buildSAInitResponse(sa *SA, chosen crypto.IKEProposal) ([]byte, error) {
 		payloads = append(payloads, wire.PayloadEntry{Payload: multipleAuthNotify()})
 	}
 
-	localIP := net.ParseIP(sa.PeerCfg.LocalAddress)
-	remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
+	localIP := cycleLocalAddress(sa)
+	remoteIP := cycleRemoteAddress(sa)
 	if localIP != nil && remoteIP != nil {
 		payloads = append(payloads, buildNATDetectionPayloads(sa.InitiatorSPI, sa.ResponderSPI, localIP, remoteIP, transport.IKEPort)...)
 	}
@@ -420,8 +420,8 @@ func chosenIKEProposalToWire(chosen crypto.IKEProposal) []wire.Proposal {
 // computed them with the responder SPI still zero (it did not know ours yet), so we
 // verify against the SPIs as they appear in the request header. RFC 7296 Section 2.23.
 func detectResponderNAT(sa *SA, msg *wire.Message) {
-	peerIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
-	localIP := net.ParseIP(sa.PeerCfg.LocalAddress)
+	peerIP := cycleRemoteAddress(sa)
+	localIP := cycleLocalAddress(sa)
 	for _, pe := range msg.Payloads {
 		p, ok := pe.Payload.(*wire.PayloadNotify)
 		if !ok {
@@ -1031,7 +1031,7 @@ func (ps *PeerSession) buildFinalAuthResponse(sa *SA, msgID uint32, authInner []
 	// templates. A parallel handshake may follow a MOBIKE move; preserving an old
 	// selector on rollback would not restore its migrated tunnel endpoints.
 	// The response already names ChildInboundSPI, which the constructor reuses.
-	child, err := createFirstChildSA(sa, sa.ESPGroup, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, ifID, dataplane.Get(), log)
+	child, err := createFirstChildSA(sa, sa.ESPGroup, ipText(cycleLocalAddress(sa)), ipText(cycleRemoteAddress(sa)), ifID, dataplane.Get(), log)
 	if err != nil {
 		// The response above promised a Child SA the dataplane refused, so it is
 		// replaced by the childless answer before anything was sent.
@@ -1259,14 +1259,42 @@ func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byt
 	log.Info("ike: responder established SA", "peer", sa.PeerName,
 		"ispi", SPIHex(sa.InitiatorSPI), "rspi", SPIHex(sa.ResponderSPI),
 		"parallel", parallel, "initial-contact", sa.InitialContact)
-	if parallel {
-		// RFC 7296 Section 2.4: "The INITIAL_CONTACT notification asserts that this IKE
-		// SA is the only IKE SA currently active between the authenticated identities";
-		// the recipient "MAY use this information to delete any other IKE SAs it has to
-		// the same authenticated identity without waiting for a timeout." ze is
-		// one-SA-per-configured-peer, so an authenticated re-initiation always supersedes.
-		ps.signalSupersede(log)
+	if !parallel {
+		return
 	}
+	// A successor whose Child SA was refused, or whose install failed, has nothing to
+	// switch to, so it is HELD beside the owner rather than adopted: the old IKE SA and
+	// its Child SA keep the session and carry the traffic. Superseding on
+	// authentication alone removed the working Child SA and promoted a childless one.
+	// buildChildlessAuthResponse already logged the refusal notify and its fix; an
+	// install failure there answered the peer with that refusal before anything was
+	// sent, so the peer holds no half of the pair and no Delete is owed for it.
+	//
+	// RFC 7296 Section 2.21.2: "This failure does not automatically cause the IKE SA to
+	// be deleted."
+	//
+	// RFC 7296 Section 2.8.3: "Reauthentication is done by creating a new IKE SA from
+	// scratch (using IKE_SA_INIT/IKE_AUTH exchanges, without any REKEY_SA Notify
+	// payloads), creating new Child SAs within the new IKE SA (without REKEY_SA Notify
+	// payloads), and finally deleting the old IKE SA (which deletes the old Child SAs as
+	// well)."
+	//
+	// The held successor is resolved when the owner loop ends: resolvePendingAfterOwnerLoop
+	// (respond) and adoptPeerStartedSuccessor (initiate) delete it rather than promote a
+	// session with no Child SA.
+	if child == nil {
+		log.Warn("ike: re-initiated IKE SA authenticated without a Child SA, holding it beside the established SA rather than adopting it",
+			"peer", sa.PeerName, "ispi", SPIHex(sa.InitiatorSPI), "rspi", SPIHex(sa.ResponderSPI),
+			"fix", "make the peer's traffic selectors and ESP proposals match this peer's configuration (see the refusal logged just before); the established tunnel keeps carrying traffic")
+		return
+	}
+	// RFC 7296 Section 2.4: "The INITIAL_CONTACT notification asserts that this IKE
+	// SA is the only IKE SA currently active between the authenticated identities";
+	// the recipient "MAY use this information to delete any other IKE SAs it has to
+	// the same authenticated identity without waiting for a timeout." ze is
+	// one-SA-per-configured-peer, so an authenticated re-initiation whose Child SA is
+	// installed supersedes.
+	ps.signalSupersede(log)
 }
 
 // respondAuthError sends an SK-encrypted IKE_AUTH response carrying one error notify,

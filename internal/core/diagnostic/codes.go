@@ -61,6 +61,7 @@ const (
 	CodeDoctorIPsecCertURLDenied                   = "doctor-ipsec-cert-url-denied"
 	CodeDoctorIPsecCookieThreshold                 = "doctor-ipsec-cookie-threshold"
 	CodeDoctorIPsecVirtualIPPool                   = "doctor-ipsec-virtual-ip-pool"
+	CodeDoctorIPsecInterfaceAddress                = "doctor-ipsec-interface-address"
 	CodeDoctorIPsecIface                           = "doctor-ipsec-iface"
 	CodeDoctorIPsecUDPEncap                        = "doctor-ipsec-udp-encap"
 	CodeDoctorIPsecXFRMUnavailable                 = "doctor-ipsec-xfrm-unavailable"
@@ -963,6 +964,16 @@ var builtinCodes = []CodeMeta{
 			"or range6 under vpn ipsec remote-access pool <name>, or bind some peers to another " +
 			"pool with virtual-ip-pool.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-virtual-ip-pool"},
+	},
+	{
+		Code:  CodeDoctorIPsecInterfaceAddress,
+		Title: "IPsec peer waiting for its interface address",
+		Description: "vpn ipsec interface names an interface that has no IPv4 address, so every " +
+			"site-to-site peer without a local-address of its own is not started: it has no " +
+			"address to send from. The peer starts by itself when an address appears on the " +
+			"interface (a PPPoE or DHCP WAN that is not up yet). Bring the interface up, or give " +
+			"the peer an address with set vpn ipsec site-to-site peer <name> local-address <ipv4>.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-interface-address"},
 	},
 	{
 		Code:  CodeDoctorIPsecXFRMUnavailable,

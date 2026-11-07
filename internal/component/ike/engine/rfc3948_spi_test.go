@@ -83,7 +83,7 @@ func TestRFC3948OutboundESPSPIIsNeverZero(t *testing.T) {
 		t.Fatalf("state = %v, want established for SAr2 SPI %#08x", ini.State, uint32(peerSPI))
 	}
 	dp := &mockDP{}
-	if _, err := initiatorFirstChildSA(ini, ini.PeerCfg, 7, dp, log); err != nil {
+	if _, err := initiatorFirstChildSA(ini, 7, dp, log); err != nil {
 		t.Fatalf("initiatorFirstChildSA: %v", err)
 	}
 	got := outboundSPIs(dp)
@@ -99,7 +99,7 @@ func TestRFC3948OutboundESPSPIIsNeverZero(t *testing.T) {
 		t.Fatal("the initiator established an IKE SA whose SAr2 carries the zero ESP SPI")
 	}
 	dp = &mockDP{}
-	if child, err := initiatorFirstChildSA(ini, ini.PeerCfg, 7, dp, log); err == nil {
+	if child, err := initiatorFirstChildSA(ini, 7, dp, log); err == nil {
 		t.Fatalf("initiatorFirstChildSA accepted the zero SPI and sends on SPI %#08x", child.OutboundSPI)
 	}
 	if len(dp.sas) != 0 {

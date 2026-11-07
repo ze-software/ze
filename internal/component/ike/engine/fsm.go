@@ -91,6 +91,13 @@ var afterFunc = time.After
 // failure reads zero there. That read gave reconnectBase, and ze answered a peer that
 // refuses authentication with a fresh IKE_SA_INIT and a fresh Diffie-Hellman every second,
 // indefinitely, which is a denial of service ze inflicts on its own CPU and on the peer.
+//
+// It reads ps.sa without ps.mu, and that is safe only on its one caller's terms: run calls
+// it on the session goroutine after a failed INITIATOR cycle (runResponder returns only
+// once the session is stopped), and an initiator's ps.sa has no other writer. Every
+// setSA for it runs on the session goroutine (runInitiator, maintainSA, the reauth
+// promotion); dispatchInbound publishes only a responder's SA (tryResponderSAInit's
+// default arm). A writer added on another goroutine owes getSA here.
 func reconnectDelay(ps *PeerSession) time.Duration {
 	attempt := ps.connectFailures
 	if ps.sa != nil && ps.sa.RetransmitCount > attempt {
@@ -130,10 +137,25 @@ func (ps *PeerSession) runInitiator(
 	bus ze.EventBus,
 	log *slog.Logger,
 ) error {
+	// The pair this cycle runs on, measured before anything is built: the remote-address
+	// resolved (it may be a DNS name) and the local address (the literal, or the
+	// route-chosen source). A failure ends the cycle, and run backs off and retries, so
+	// a name that does not resolve yet is tried again rather than given up on.
+	pair, err := resolveCyclePair(ps.peerName, peer)
+	if err != nil {
+		// WARN, because the backoff line run writes is INFO and Ze logs at WARN: a CPE
+		// whose name never resolves would otherwise retry in silence.
+		log.Warn("ike: connect cycle cannot start", "peer", ps.peerName, "remote-address", peer.RemoteAddress, "error", err)
+		return err
+	}
 	sa, err := newInitiatorSA(ps.peerName, peer, ikeGroup, ps.getESPGroup())
 	if err != nil {
 		return fmt.Errorf("ike: create SA: %w", err)
 	}
+	// Written before the SA is published (setSA, table.Insert) and never after, so every
+	// reader takes them without a lock (SA.cycleRemote).
+	sa.cycleRemote = pair.remote.IP
+	sa.cycleLocal = pair.local
 	// The peering's EAP-TLS resumption state, so a ticket an earlier
 	// authentication with this peer stored is offered on this one
 	// (buildPeerTLSConfig).
@@ -179,10 +201,7 @@ func (ps *PeerSession) runInitiator(
 	// retransmit count; the established exit clears it, and says there why.
 	defer table.removeByPeer(sa.PeerName)
 
-	remote, err := net.ResolveUDPAddr("udp4", ikeAddr(peer.RemoteAddress))
-	if err != nil {
-		return fmt.Errorf("ike: resolve remote: %w", err)
-	}
+	remote := pair.remote
 
 	initMsg, err := encodeSAInitRequest(sa, ikeGroup)
 	if err != nil {
@@ -278,7 +297,40 @@ func (ps *PeerSession) runInitiator(
 	// clear. reconnectDelay reads the same answer either way: the establishment above
 	// zeroed RetransmitCount, and runEstablished never writes it.
 	emitSADown(bus, sa, log)
+	// The gateway may have reauthenticated the SA that just ended by creating a new IKE
+	// SA (matchReauthenticatingPeer). The session continues on that successor rather
+	// than reconnecting, for as many reauthentications as the gateway runs.
+	// RFC 7296 Section 2.8.3
+	for {
+		finished := ps.getSA()
+		successor := ps.adoptPeerStartedSuccessor(table, dataplane.Get(), bus, log)
+		if successor == nil {
+			break
+		}
+		if finished != nil {
+			table.Remove(finished.InitiatorSPI, finished.ResponderSPI)
+		}
+		if bus != nil {
+			if _, emitErr := SAUp.Emit(bus, &SAEvent{
+				PeerName:      successor.PeerName,
+				InitiatorSPI:  SPIHex(successor.InitiatorSPI),
+				ResponderSPI:  SPIHex(successor.ResponderSPI),
+				RemoteAddress: peer.RemoteAddress,
+				AuthMethod:    peer.Auth.Mode.String(),
+			}); emitErr != nil {
+				log.Warn("ike: emit sa-up failed", "error", emitErr)
+			}
+		}
+		err = ps.runEstablished(successor, peer, ikeGroup, table, tr, bus, log)
+		emitSADown(bus, successor, log)
+	}
 	ps.setSA(nil)
+	// A nil answer ends the session for good (PeerSession.run). The owner loop answers
+	// nil when the operator stopped it, and when it relinquished to a successor. The
+	// second case without an adopted successor is a reconnect, never an end.
+	if err == nil && !ps.stopped() {
+		return errSuccessorNotAdopted
+	}
 	return err
 }
 
@@ -400,7 +452,8 @@ const (
 // make-before-break Child SA -- so a Child SA installed by a parallel handshake that
 // authenticated in the operator-clear race is NEVER promoted-then-leaked -- and returns
 // pendingReturn. Otherwise it promotes a parallel SA into the primary slot so the poll
-// loop adopts it (pendingContinue), or, if none, clears the half-open gate
+// loop adopts it (pendingContinue), deletes an authenticated one held with no Child SA
+// (retireHeldSuccessor, pendingReturn), or, if none, clears the half-open gate
 // (pendingReturn). RFC 7296 Section 2.4.
 func (ps *PeerSession) resolvePendingAfterOwnerLoop(table *SATable, dp dataplane.Dataplane, bus ze.EventBus, log *slog.Logger) pendingResolution {
 	if ps.stopped() {
@@ -414,18 +467,20 @@ func (ps *PeerSession) resolvePendingAfterOwnerLoop(table *SATable, dp dataplane
 		ps.responderBusy.Store(false)
 		return pendingReturn
 	}
+	// An authenticated successor holding no Child SA was held beside the owner, never
+	// adopted (finishResponderEstablish). The owner is gone now, so promoting it would
+	// leave the session up with no tunnel, which a session never does: it takes the
+	// reestablish exit instead, here by deleting the successor and waiting for the
+	// peer's next IKE_SA_INIT.
+	if ps.getPendingChild() == nil && pending.State == StateEstablished {
+		ps.retireHeldSuccessor(pending, table, log)
+		ps.responderBusy.Store(false)
+		return pendingReturn
+	}
 	// Adopt the parallel SA (authenticated supersede, or half-open relocated because this
 	// SA died independently) so the poll loop tracks it and it is not orphaned. Its Child
 	// SA -- installed only once it authenticated -- moves with it (make-before-break).
-	ps.setPendingSA(nil)
-	if pc := ps.getPendingChild(); pc != nil {
-		ps.setChildSA(pc)
-		ps.setPendingChild(nil)
-		// The promoted child took its ports from the pending IKE SA's own endpoint, so a
-		// rekey owed for the old pair no longer describes the current child.
-		ps.rebindRekeyOwed = false
-	}
-	ps.setSA(pending)
+	ps.promotePendingSA(pending)
 	log.Info("ike: promoting re-initiated SA", "peer", ps.peerName,
 		"ispi", SPIHex(pending.InitiatorSPI), "rspi", SPIHex(pending.ResponderSPI),
 		"state", pending.State.String())
@@ -612,7 +667,9 @@ func handleSAInitResponse(
 			// through sa.sendPath, so the IKE_AUTH below and the whole established
 			// lifetime leave from 4500.
 			if p.NotifyMsgType == wire.NotifyNATDetectionSourceIP {
-				remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
+				// The address this cycle dialed, resolved from a name when the
+				// remote-address leaf holds one (cycleRemoteAddress).
+				remoteIP := cycleRemoteAddress(sa)
 				if remoteIP != nil {
 					expected := transport.NATDetectionHash(sa.InitiatorSPI, sa.ResponderSPI, remoteIP, transport.IKEPort)
 					if !natHashEqual(p.NotificationData, expected) {
@@ -634,7 +691,7 @@ func handleSAInitResponse(
 			// NAT, substitute the IP address in the TSi entries with the local address of
 			// the IKE SA."
 			if p.NotifyMsgType == wire.NotifyNATDetectionDestIP {
-				localIP := net.ParseIP(sa.PeerCfg.LocalAddress)
+				localIP := cycleLocalAddress(sa)
 				if localIP != nil {
 					expected := transport.NATDetectionHash(sa.InitiatorSPI, sa.ResponderSPI, localIP, transport.IKEPort)
 					if !natHashEqual(p.NotificationData, expected) {

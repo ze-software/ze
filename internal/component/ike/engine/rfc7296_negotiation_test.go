@@ -791,7 +791,7 @@ func TestNegInitiatorInstallsAcceptedESPSuite(t *testing.T) {
 		}
 
 		dp := &mockDP{}
-		if _, err := initiatorFirstChildSA(ini, ini.PeerCfg, 7, dp, log); err != nil {
+		if _, err := initiatorFirstChildSA(ini, 7, dp, log); err != nil {
 			t.Fatalf("initiatorFirstChildSA: %v", err)
 		}
 		enc, auth := negInstalledSuite(t, dp)

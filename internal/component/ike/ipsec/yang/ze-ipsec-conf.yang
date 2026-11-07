@@ -72,11 +72,17 @@ module ze-ipsec-conf {
             leaf interface {
                 type string;
                 description "Commit refuses a name no interface on the host carries. The first IPv4 address of
-                    the interface fills the local-address of every peer that names none. The IKE socket
+                    the interface fills the local-address of every peer that names none, and Ze
+                    follows it: when an address appears (a PPPoE or DHCP WAN that came up after
+                    Ze), those peers start; when it changes, they restart from the new address;
+                    when it leaves, they stop and remove their Child SAs, and wait. The IKE socket
                     on port 500 binds there. The NAT-T socket on port 4500 also binds there unless
                     live XFRM migration is available, when it listens on the wildcard and selects
-                    each SA's source address explicitly. A reload whose interface holds no IPv4
-                    address is refused, and the same case at startup runs and writes a warning.";
+                    each SA's source address explicitly. A peer with its own local-address keeps
+                    its own socket and is never restarted by an interface address event. A reload
+                    whose interface holds no IPv4 address is refused, and the same case at startup
+                    runs, writes a warning, and the doctor check ipsec-interface-address names the
+                    waiting peers.";
                 ze:help "WAN interface for IPsec traffic.";
             }
 
@@ -861,21 +867,30 @@ module ze-ipsec-conf {
 
                     leaf local-address {
                         type string;
-                        description "The value is an IP address literal. Ze reads it with net.ParseIP, so an
-                            interface name here resolves to nothing and the peer cannot build a Child
-                            SA. Name the interface under vpn ipsec interface instead, and Ze fills this
-                            leaf from the first IPv4 address of that interface.";
+                        description "The value is an IP address literal, and commit refuses anything else,
+                            an interface name or a keyword such as any included. Leave it out to let
+                            the address follow something: under vpn ipsec interface, the first IPv4
+                            address of that interface, followed as it changes; without it, the source
+                            address the kernel's route to the remote selects, resolved at the start
+                            of every connection attempt. On a host with several addresses that
+                            source is the route's, and replies to a peer that initiates leave from
+                            it too.";
                         ze:help "Local endpoint IP address.";
                     }
 
                     leaf remote-address {
                         type string;
-                        description "Ze resolves the value with net.ResolveUDPAddr over udp4 and sends IKE to
-                            port 500 there, so an IPv6 literal is refused with \"ike: resolve remote\".
-                            Ze builds the NAT detection hashes of RFC 7296 Section 2.23 from this value.
-                            It sends none when the value is not an address literal. An unsolicited
-                            IKE_SA_INIT reaches a respond peer only when its source address equals this
-                            leaf, character for character.";
+                        description "An IPv4 literal or a DNS name. An initiating peer resolves it over udp4
+                            at the start of every connection attempt, so a name that answers with a
+                            new address is dialed there next time, and a name that does not resolve
+                            fails the attempt, which is retried with the reconnect backoff (1 s
+                            doubling to 60 s). The resolved address is the remote of the IKE SA: the
+                            NAT detection hashes of RFC 7296 Section 2.23, the Child SA endpoints and
+                            the transport-mode host pair are built from it. IKE over IPv6 is not
+                            supported, so an IPv6 literal does not resolve. A respond peer accepts an
+                            unsolicited IKE_SA_INIT from this literal, or from any address the name
+                            resolved to at the last refresh (every 60 s and after each commit); a
+                            datagram never causes a DNS query.";
                         ze:help "Remote endpoint IPv4 address or DNS hostname.";
                     }
 

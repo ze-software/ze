@@ -1,7 +1,8 @@
 //go:build linux
 
 // Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- authenticated endpoint mobility
-// Related: mobike.go -- mobikeRouteSource, the one caller
+// Related: mobike.go -- mobikeRouteSource, which finds the source MOBIKE moves to
+// Related: cycle_addr.go -- resolveCyclePair, the route-chosen local address of a connect cycle
 // Related: unmatched.go -- the SPD catch-all this lookup must not cross
 
 package engine
@@ -24,7 +25,7 @@ import (
 func routeSourceTo(remote net.IP) (net.IP, error) {
 	routes, err := netlink.RouteGet(remote)
 	if err != nil {
-		return nil, fmt.Errorf("ike: MOBIKE route to %s: %w", remote, err)
+		return nil, fmt.Errorf("ike: route lookup toward %s failed: %w; check the routing table with: ze show route", remote, err)
 	}
 	for i := range routes {
 		route := &routes[i]
@@ -32,5 +33,5 @@ func routeSourceTo(remote net.IP) (net.IP, error) {
 			return route.Src, nil
 		}
 	}
-	return nil, fmt.Errorf("ike: MOBIKE route to %s names no source address", remote)
+	return nil, fmt.Errorf("ike: the route toward %s names no source address; give the route a preferred source, or the interface an address on it", remote)
 }

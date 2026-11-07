@@ -69,7 +69,9 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
    passed through `StripNonESPMarker`/`IsNATKeepalive` (`engine/register.go`,
    `engine/register.go`, `nat.go`, `nat.go`). No SATable match → `tryResponderSAInit`
    creates a responder SA if the packet is an unsolicited IKE_SA_INIT request from a
-   configured `respond` peer (spec-ipsec-14), else logged and dropped. A match calls
+   configured `respond` peer (spec-ipsec-14), or from the address an established
+   `initiate` peer's SA talks to (a gateway reauthenticating, `matchReauthenticatingPeer`,
+   `reauth_receive.go`; `runInitiator` adopts the successor), else logged and dropped. A match calls
    `handleInbound` (`fsm.go`), which routes responder SAs to `handleResponderInbound`
    and otherwise switches on `sa.State`.
 7. **IKE_SA_INIT response.** `handleSAInitResponse` (`fsm.go`) re-keys the table
@@ -244,7 +246,7 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
   (`ps.ownedSA atomic.Pointer[SA]`, replacing the old `established` bool) so the parallel
   half-open SA's packets are not misdelivered to the established SA's owner loop, and it
   stays correct across an IKE-rekey swap. On the AUTHENTICATED IKE_AUTH,
-  `finishResponderEstablish` stages the new child and signals `ps.supersede`; `maintainSA`
+  `finishResponderEstablish` stages the new child and signals `ps.supersede` only once that Child SA is installed (a childless successor is held, and `retireHeldSuccessor`, `reauth_receive.go`, deletes it when the owner loop ends); `maintainSA`
   relinquishes (removing only the old child, make-before-break) and `runResponder`
   promotes the pending SA. Abandoned parallel handshakes are reaped by time
   (`reapStalePending`, immutable CreatedAt only — never reads pending.State). The

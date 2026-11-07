@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -569,6 +570,16 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 	}
 
 	if v, ok := t.Get("local-address"); ok {
+		// The leaf names the address this peer sends from, and nothing else: an
+		// absent leaf already means "the route's source" (or the interface address
+		// under `vpn ipsec interface`), so a keyword such as VyOS's `any` would be a
+		// second spelling of the same fact, and a name would be read as no address.
+		if _, err := netip.ParseAddr(v); err != nil {
+			return peer, fmt.Errorf("ipsec peer %q local-address %q is not an IP address: "+
+				"delete the leaf to send from the source the route to the peer selects "+
+				"(delete vpn ipsec site-to-site peer %s local-address), "+
+				"or bind the interface whose address to use with: set vpn ipsec interface <name>", name, v, name)
+		}
 		peer.LocalAddress = v
 	}
 	if v, ok := t.Get("remote-address"); ok {

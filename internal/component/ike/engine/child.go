@@ -261,14 +261,17 @@ func generateESPSPI() (uint32, error) {
 //
 // runEstablished (established.go) is its only production caller. The group lives here
 // rather than in that caller's argument list so no site can supply a different one.
+//
+// The endpoints are the pair the connect cycle measured (cycleLocalAddress,
+// cycleRemoteAddress), so a remote-address written as a DNS name, and a route-chosen
+// local address, reach the Child SA as addresses.
 func initiatorFirstChildSA(
 	sa *SA,
-	peer ipsec.SiteToSitePeer,
 	ifID uint32,
 	dp dataplane.Dataplane,
 	log *slog.Logger,
 ) (*ChildSA, error) {
-	return createFirstChildSA(sa, sa.ESPGroup, peer.LocalAddress, peer.RemoteAddress, ifID, dp, log)
+	return createFirstChildSA(sa, sa.ESPGroup, ipText(cycleLocalAddress(sa)), ipText(cycleRemoteAddress(sa)), ifID, dp, log)
 }
 
 // createFirstChildSA creates the initial Child SA after IKE_AUTH completes.

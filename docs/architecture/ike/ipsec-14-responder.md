@@ -51,13 +51,20 @@ acceptable ESP proposal, TS_UNACCEPTABLE, a missing or zero SAi2 SPI, a refused
 install, no authenticated endpoint to take a UDP encapsulation port from) does not end the IKE SA (RFC 7296 Sections 2.21.2 and 1.3.1).
 `buildChildlessAuthResponse` answers IDr, CERT when X.509, AUTH and the error
 notify, and `finishResponderEstablish` establishes the IKE SA with a nil Child
-SA; a parallel re-initiation then stages a nil `pendingChild`, and the promotion
-in `resolvePendingAfterOwnerLoop` leaves the session childless. The EAP path
-defers a refusal found on its first IKE_AUTH to the final one.
+SA. A parallel re-initiation that ends this way is held in the second slot and
+not adopted: `finishResponderEstablish` signals supersede only once the
+successor's Child SA is installed, so the old IKE SA and its Child SA keep the
+session. When the old owner loop ends with the successor still childless,
+`resolvePendingAfterOwnerLoop` (a `respond` peer) or `adoptPeerStartedSuccessor`
+(an `initiate` peer) deletes it (`retireHeldSuccessor`) rather than promote a
+session with no tunnel. A successor whose Child SA install fails is answered with
+the same refusal before anything is sent, so the peer holds no half of that pair.
+The EAP path defers a refusal found on its first IKE_AUTH to the final one.
 
 <!-- source: internal/component/ike/engine/responder.go -- buildAuthResponse, buildChildlessAuthResponse, finishResponderEstablish -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- startResponderEAP -->
 <!-- source: internal/component/ike/engine/fsm.go -- resolvePendingAfterOwnerLoop -->
+<!-- source: internal/component/ike/engine/reauth_receive.go -- adoptPeerStartedSuccessor, retireHeldSuccessor -->
 
 A parallel authenticated handshake installs its Child before publishing
 `pendingChild`. Those operations share `childLifecycleMu` with established-owner

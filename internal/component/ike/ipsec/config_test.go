@@ -359,6 +359,40 @@ func TestParseSiteToSitePeerX509(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-9: local-address takes an IP literal and nothing else. VyOS's `any`, an
+// interface name or a DNS name is refused with a message that says the value is not an
+// address, that omitting the leaf selects the route's source, and that `vpn ipsec
+// interface` binds an interface.
+//
+// RED before the fix: the leaf was stored as written, and every reader's net.ParseIP
+// turned it into no address, so the peer committed and never built a Child SA.
+func TestLocalAddressMustBeLiteral(t *testing.T) {
+	for _, value := range []string{"any", "eth0", "vpn.example.net"} {
+		tree := makePeerTree("p", peerOpts{
+			ikeGroupName: "IKE", espGroupName: "ESP", ikeGroup: "IKE", espGroup: "ESP",
+			authMode: "pre-shared-secret", psk: "k", localAddr: value, remoteAddr: "192.0.2.1",
+		})
+		_, err := ParseIPsecConfig(tree)
+		if err == nil {
+			t.Fatalf("local-address %q was accepted", value)
+		}
+		for _, want := range []string{"is not an IP address", "delete the leaf", "route", "set vpn ipsec interface"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("local-address %q refusal %q does not say %q", value, err, want)
+			}
+		}
+	}
+	for _, value := range []string{"203.0.113.1", "2001:db8::1"} {
+		tree := makePeerTree("p", peerOpts{
+			ikeGroupName: "IKE", espGroupName: "ESP", ikeGroup: "IKE", espGroup: "ESP",
+			authMode: "pre-shared-secret", psk: "k", localAddr: value, remoteAddr: "192.0.2.1",
+		})
+		if _, err := ParseIPsecConfig(tree); err != nil {
+			t.Fatalf("literal local-address %q refused: %v", value, err)
+		}
+	}
+}
+
 func TestParseSiteToSitePeerPSK(t *testing.T) {
 	tree := makePeerTree("psk-peer", peerOpts{
 		ikeGroupName: "IKE-RW",

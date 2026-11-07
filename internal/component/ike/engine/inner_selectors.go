@@ -175,8 +175,8 @@ type innerSelectorGuard struct {
 	// installs in this node's orientation (configuredPairs).
 	configured []policyPair
 	// configuredHost is the pair a transport-mode connection installs between the two
-	// configured addresses for every protocol and every port, or nil when either address
-	// is not an address literal (configuredHostPair).
+	// connection's two addresses for every protocol and every port, the pair the connect
+	// cycle measured, or nil when the SA carries no address on one side (configuredHostPair).
 	configuredHost *policyPair
 }
 
@@ -208,15 +208,19 @@ func configuredPairs(peer ipsec.SiteToSitePeer) []policyPair {
 // address, each as a host prefix, every protocol and every port (RFC 7296 Section 2.23.1:
 // "For transport mode, it MUST use exactly one IP address in the TSi and TSr payloads.").
 // The local half is the address the IKE SA runs on (observedLocalAddress). It is nil when
-// either address is not an address literal (the remote-address leaf also takes a DNS
-// hostname): then the operator wrote no address, only a name that resolves to one, and no
-// transport pair of that peer is operator-fixed by it (classifyInnerPair).
-func configuredHostPair(peer ipsec.SiteToSitePeer) *policyPair {
-	local := hostPrefixOf(peer.LocalAddress)
+// the SA carries no address on one side: an SA no connect cycle measured, whose leaf is
+// not an address literal. No transport pair of that peer is then operator-fixed by it
+// (classifyInnerPair).
+//
+// It reads the pair the connect cycle measured (cycleLocalAddress, cycleRemoteAddress), so a
+// remote-address written as a DNS name fixes the host pair at the address it resolved to,
+// and a route-chosen local address at the source the routing table picked.
+func configuredHostPair(sa *SA) *policyPair {
+	local := hostPrefixOf(ipText(cycleLocalAddress(sa)))
 	if local == nil {
 		return nil
 	}
-	remote := hostPrefixOf(peer.RemoteAddress)
+	remote := hostPrefixOf(ipText(cycleRemoteAddress(sa)))
 	if remote == nil {
 		return nil
 	}
@@ -378,7 +382,7 @@ func dropForeignInnerOverlaps(sa *SA, pairs []tsPair, mode uint8) ([]tsPair, err
 	// responds, so its own side is TSr (narrowChildSelectorsIn).
 	probe := &ChildSA{IfID: ifID, Mode: mode, Owner: sa.PeerName, PolicyPriority: sa.PeerCfg.PolicyPriority}
 	configured := configuredPairs(sa.PeerCfg)
-	host := configuredHostPair(sa.PeerCfg)
+	host := configuredHostPair(sa)
 	kept := make([]tsPair, 0, len(pairs))
 	var refusal error
 	for _, pair := range pairs {
@@ -740,8 +744,8 @@ func innerSelectorConflict(owner string, p innerSelectorPair, holder string, h i
 // distinct priorities order the two only when the tunnel is exactly a traffic selector its
 // operator configured, both halves, and the transport-mode connection is exactly the pair
 // between its peer's two configured addresses, any protocol and any port
-// (classifyInnerPair). It names when that pair exists: a local-address and a
-// remote-address that are address literals (configuredHostPair), or a traffic selector of
+// (classifyInnerPair). It names when that pair exists: a local and a remote address the
+// connect cycle measured or the leaves state as literals (configuredHostPair), or a traffic selector of
 // exactly those two hosts the transport peer's operator configured. The selector commands
 // carry the connection's own two addresses, each a host prefix of its family (/32 or
 // /128), and both halves, because a traffic selector entry commits only with its local

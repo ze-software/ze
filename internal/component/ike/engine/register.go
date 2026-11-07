@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"maps"
 	"net"
+	"net/netip"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -367,6 +368,16 @@ func init() {
 			Platforms:    []string{doctorPlatformAny},
 			Codes:        []string{diagnostic.CodeDoctorIPsecVirtualIPPool},
 			Check:        checkIPsecVirtualIPPool,
+		}, {
+			// A peer whose `interface` has no IPv4 address is not started, and nothing
+			// else says why its tunnel is down (a CPE booted before its WAN is up).
+			Name:         "ipsec-interface-address",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        735,
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnostic.CodeDoctorIPsecInterfaceAddress},
+			Check:        checkIPsecInterfaceAddress,
 		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
@@ -426,6 +437,12 @@ func runEngine(conn net.Conn) int {
 		state.metrics = RegisterMetrics(reg)
 	}
 
+	// The address worker: interface address events re-plan the peers onto the address the
+	// interface has now (followAddress, dynamic_wan.go), and the `respond` peers' names
+	// are refreshed. Started before the first apply, which kicks it; stopped first by
+	// shutdown, before any peer stops.
+	state.worker = startAddressWorker(state, getEventBus())
+
 	// Operator `clear` re-initiates against the configuration and the sockets the LAST
 	// apply published, which is why it reads reCtx rather than closing over a socket
 	// variable. It passes no previous configuration: every session it bounced is
@@ -436,7 +453,7 @@ func runEngine(conn net.Conn) int {
 		if rc == nil || rc.cfg == nil {
 			return
 		}
-		reconcilePeers(rc.cfg, state.peers, state.table, rc.tr, rc.natt, getEventBus(), log)
+		reconcilePeersWith(rc.cfg, state.peers, state.table, rc.sockets, getEventBus(), log)
 	}
 	reEstablishFn.Store(&reEstablish)
 
@@ -542,13 +559,17 @@ func runEngine(conn net.Conn) int {
 	// states. Nothing here waits on peer activity, which is the one thing
 	// sendPostStartupToAll cannot be asked to do (plugin/server/poststartup.go).
 	p.OnAllPluginsReady(func() error {
+		// applyMu: the address worker may be re-planning the startup configuration
+		// onto an address that just appeared (adoptPlan).
+		state.applyMu.Lock()
+		defer state.applyMu.Unlock()
 		if state.startupCfg == nil {
 			return nil
 		}
-		cfg := state.startupCfg
+		plan := state.startupCfg
 		state.startupCfg = nil
-		state.reconcile(cfg)
-		log.Info("ike peers started", "peers", len(cfg.Peers))
+		state.reconcile(plan)
+		log.Info("ike peers started", "peers", len(plan.cfg.Peers), "waiting", len(plan.waiting))
 		return nil
 	})
 
@@ -715,15 +736,21 @@ func routeInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.UD
 	handleInbound(sa, pkt, table, tr, log)
 }
 
-// matchResponderPeer finds a running `respond` peer whose configured remote
-// address equals the packet source, or nil. Used to accept an unsolicited
-// IKE_SA_INIT. Called on the dispatch goroutine; reads immutable session config
-// under the peers lock.
+// matchResponderPeer finds a running `respond` peer whose remote address equals the
+// packet source, or nil. Used to accept an unsolicited IKE_SA_INIT. Called on the
+// dispatch goroutine; reads immutable session config under the peers lock.
+//
+// A remote-address written as a literal is compared as itself. One written as a DNS name
+// is compared against every address that name last resolved to (respondNames), and this
+// function NEVER resolves: an unauthenticated datagram must not make Ze query DNS, so the
+// address worker resolves on apply and on its refresh timer instead (respond_names.go).
 func matchResponderPeer(remoteAddr *net.UDPAddr) *PeerSession {
 	if remoteAddr == nil {
 		return nil
 	}
 	src := remoteAddr.IP.String()
+	srcAddr, _ := netip.AddrFromSlice(remoteAddr.IP)
+	srcAddr = srcAddr.Unmap()
 	peersMu.RLock()
 	defer peersMu.RUnlock()
 	if activePeersMap == nil {
@@ -733,7 +760,13 @@ func matchResponderPeer(remoteAddr *net.UDPAddr) *PeerSession {
 		if ps.peerCfg.ConnectionType != ipsec.ConnectionRespond {
 			continue
 		}
-		if ps.peerCfg.RemoteAddress != "" && ps.peerCfg.RemoteAddress == src {
+		if ps.peerCfg.RemoteAddress == "" {
+			continue
+		}
+		if ps.peerCfg.RemoteAddress == src {
+			return ps
+		}
+		if respondNames.matches(ps.peerName, ps.peerCfg.RemoteAddress, srcAddr) {
 			return ps
 		}
 	}
@@ -741,7 +774,9 @@ func matchResponderPeer(remoteAddr *net.UDPAddr) *PeerSession {
 }
 
 // tryResponderSAInit accepts an unsolicited IKE_SA_INIT request (no SATable entry)
-// from a configured `respond` peer: it creates the responder SA, inserts it, and
+// from a configured `respond` peer, or from the gateway of an `initiate` peer's
+// established IKE SA reauthenticating it (matchReauthenticatingPeer): it creates the
+// responder SA, inserts it, and
 // hands the packet to the handshake handler. Returns true when the packet was
 // consumed (accepted or deliberately dropped as an unconfigured/duplicate attempt).
 // RFC 7296 Section 1.2, Section 2.6.
@@ -758,6 +793,10 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 		return false
 	}
 	ps := matchResponderPeer(pkt.RemoteAddr)
+	if ps == nil {
+		// RFC 7296 Section 2.8.3
+		ps = matchReauthenticatingPeer(pkt.RemoteAddr, log)
+	}
 	if ps == nil {
 		log.Debug("ike: unsolicited IKE_SA_INIT from unconfigured source", "src", pkt.RemoteAddr)
 		return false
@@ -818,6 +857,15 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 		// Both sockets, before the IKE_SA_INIT is processed. detectResponderNAT runs
 		// inside that processing and can float the SA at once (RFC 7296 Section 2.23).
 		sa.bindSockets(ps.ike, ps.natt)
+		// The pair this handshake runs on, before anything reads it: the initiator's
+		// source, which matched the remote-address or an address its name resolved to,
+		// and, for a peer that names no local-address, the address the request reached.
+		// A remote-address written as a name then reaches the NAT_DETECTION payloads and
+		// the Child SA as an address (cycleRemoteAddress, cycle_addr.go).
+		sa.cycleRemote = append(net.IP(nil), pkt.RemoteAddr.IP...)
+		if sa.PeerCfg.LocalAddress == "" && pkt.LocalAddr != nil && !pkt.LocalAddr.IP.IsUnspecified() {
+			sa.cycleLocal = append(net.IP(nil), pkt.LocalAddr.IP...)
+		}
 	}
 	if err != nil {
 		log.Warn("ike: create responder SA failed", "peer", ps.peerName, "error", err)
@@ -829,13 +877,24 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 		ps.responderBusy.Store(false)
 		return true
 	}
-	if ps.ownedSA.Load() != nil {
+	switch {
+	case ps.ownedSA.Load() != nil:
 		// An established SA already owns the loop: the new handshake coexists in the
 		// second slot and drives inline on the dispatch goroutine (routeInbound keys
 		// on SA identity, so it is not delivered to the old SA's owner loop).
 		ps.setPendingSA(sa)
 		log.Info("ike: accepting parallel inbound IKE_SA_INIT alongside established SA", "peer", ps.peerName, "src", pkt.RemoteAddr)
-	} else {
+	case ps.peerCfg.ConnectionType == ipsec.ConnectionInitiate:
+		// matchReauthenticatingPeer admitted this as a reauthentication of an SA that
+		// ended since. An `initiate` session's primary slot belongs to runInitiator, and
+		// with no SA left there is nothing to reauthenticate, so the initiation is refused
+		// as it would have been a moment later: Ze reconnects on its own schedule.
+		table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+		sa.forgetKeys()
+		ps.responderBusy.Store(false)
+		log.Info("ike: dropping the gateway's reauthentication, the IKE SA it reauthenticates has ended", "peer", ps.peerName, "src", pkt.RemoteAddr)
+		return true
+	default:
 		ps.setSA(sa)
 		log.Info("ike: accepting inbound IKE_SA_INIT", "peer", ps.peerName, "src", pkt.RemoteAddr)
 	}

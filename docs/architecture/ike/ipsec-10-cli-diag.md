@@ -183,3 +183,9 @@ lives in the monitor command schema, not in the show command schema.
 event broker in this project carries config-change notifications only. Live
 table data uses the workbench table fragment with sub-path HTMX partials, the
 same as the L2TP and BGP pages.
+
+## ipsec-interface-address
+
+`checkIPsecInterfaceAddress` (`doctor_interface_address.go`) warns once per peer the
+running engine holds back because `vpn ipsec interface` has no IPv4 address, naming
+the peer, the interface and the fixes. Code `doctor-ipsec-interface-address`.

@@ -60,8 +60,9 @@ type PeerSession struct {
 	// established lifetime, so a fresh IKE_SA_INIT that arrives while an SA is up is
 	// accepted in parallel (pendingSA) rather than dropped. A concurrent second
 	// half-open attempt while busy is dropped (AC-6); a genuine retransmit finds the
-	// SA already in the SATable and never reaches the creation path. Initiator
-	// sessions never touch it.
+	// SA already in the SATable and never reaches the creation path. An `initiate`
+	// session uses it only for a reauthentication its gateway starts while an SA is
+	// established (matchReauthenticatingPeer); adoptPeerStartedSuccessor clears it.
 	responderBusy atomic.Bool
 
 	// ownedSA is the SA maintainSA currently owns (runEstablished sets it, clears it
@@ -101,9 +102,11 @@ type PeerSession struct {
 	// pendingSA / pendingChild are the single explicit second slot for a parallel
 	// responder handshake accepted while an established SA still owns the loop
 	// (RFC 7296 Section 2.4 coexist-then-supersede-on-authentication). Guarded by mu.
-	// The new SA supersedes the old only once it authenticates (finishResponderEstablish
-	// signals supersede); the new Child SA lives in pendingChild until promotion so the
-	// old owner loop's cleanupChild removes only its own child (make-before-break).
+	// The new SA supersedes the old only once it authenticates AND its Child SA is
+	// installed (finishResponderEstablish signals supersede); the new Child SA lives in
+	// pendingChild until promotion so the old owner loop's cleanupChild removes only its
+	// own child (make-before-break). An authenticated successor with no Child SA stays
+	// here, held, until the owner loop ends and retireHeldSuccessor deletes it.
 	pendingSA    *SA
 	pendingChild *ChildSA
 
@@ -127,6 +130,11 @@ type PeerSession struct {
 	// Immutable after startPeerSession, so they are read from any goroutine.
 	ike  *transport.UDPTransport
 	natt *transport.UDPTransport
+
+	// bindHost names the socket pair ike and natt belong to (ikeEngineState.pairOf), so a
+	// rebind stops exactly the sessions that hold the pair it moves (stopSessionsOn).
+	// Written by reconcilePeersWith before the session is published, never after.
+	bindHost string
 
 	// pendingRekey and supersededChild are owned exclusively by the maintainSA
 	// loop (no lock): the CREATE_CHILD_SA exchange we initiated and await a
@@ -564,21 +572,38 @@ func (ps *PeerSession) StopGraceful() {
 	ps.Stop()
 }
 
-// reconcilePeers diffs the new config against running peers and starts/stops
-// peer sessions as needed. Follows the PPPoE reconciliation pattern.
-// The natt parameter is the port-4500 socket, or nil when its bind failed. Every SA
-// a started session creates is bound to both sockets, so RFC 7296 Section 2.23's
-// "MUST send all subsequent traffic from port 4500" has a socket to send from.
-//
-// It is given the new configuration alone. The PREVIOUS one is not a parameter, because
-// the running sessions ARE the previous configuration: each holds the peer block and the
-// two resolved groups it was started with, and peerConfigChanged asks those. A second
-// description of the same state is one the caller can get wrong.
+// peerSockets answers the socket pair a peer's session holds, and the bind host of that
+// pair (PeerSession.bindHost). The natt member is nil when its bind failed. Every SA a
+// started session creates is bound to both sockets, so RFC 7296 Section 2.23's "MUST send
+// all subsequent traffic from port 4500" has a socket to send from.
+type peerSockets func(name string) (ike, natt *transport.UDPTransport, host string)
+
+// reconcilePeers is reconcilePeersWith where every peer holds the one pair tr and natt.
 func reconcilePeers(
 	newCfg *ipsec.IPsecConfig,
 	active map[string]*PeerSession,
 	table *SATable,
 	tr, natt *transport.UDPTransport,
+	bus ze.EventBus,
+	log *slog.Logger,
+) {
+	onePair := func(string) (*transport.UDPTransport, *transport.UDPTransport, string) { return tr, natt, "" }
+	reconcilePeersWith(newCfg, active, table, onePair, bus, log)
+}
+
+// reconcilePeersWith diffs the new config against running peers and starts/stops peer
+// sessions as needed, each new session on the pair sockets names for it (one pair per
+// local origin, peerPlan, dynamic_wan.go). Follows the PPPoE reconciliation pattern.
+//
+// It is given the new configuration alone. The PREVIOUS one is not a parameter, because
+// the running sessions ARE the previous configuration: each holds the peer block and the
+// two resolved groups it was started with, and peerConfigChanged asks those. A second
+// description of the same state is one the caller can get wrong.
+func reconcilePeersWith(
+	newCfg *ipsec.IPsecConfig,
+	active map[string]*PeerSession,
+	table *SATable,
+	sockets peerSockets,
 	bus ze.EventBus,
 	log *slog.Logger,
 ) {
@@ -668,7 +693,10 @@ func reconcilePeers(
 			log.Warn("ike: peer references unknown esp-group", "peer", name, "esp-group", peer.ESPGroup)
 			continue
 		}
+		tr, natt, host := sockets(name)
 		ps := startPeerSession(name, peer, ikeGroup, espGroup, table, tr, natt, bus, log)
+		// Written before the session is published in the map, and never after.
+		ps.bindHost = host
 		peersMu.Lock()
 		active[name] = ps
 		dataplaneChanged()

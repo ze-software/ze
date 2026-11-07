@@ -601,9 +601,13 @@ overlapping pair at any priority (`TestRFC3948OrderedTransportNarrowedToPortRefu
 the connection's own host prefixes. So a transport-mode peer at 198.18.0.9 beside
 a full-tunnel peer configured with 0.0.0.0/0 on both sides is served when the two
 priorities differ, and the second to establish is refused when they are equal. A
-peer whose `remote-address` is a DNS hostname rather than an address literal has
-no configured host, so its transport-mode pair is ordered only when it is exactly
-one of its configured traffic selectors.
+peer whose `remote-address` is a DNS hostname, or whose local address is chosen
+by the route or the interface, takes its configured host from the pair its connect
+cycle measured: the address the name resolved to and the address it sends from
+(`cycleRemoteAddress`, `cycleLocalAddress`, `engine/cycle_addr.go`). An SA no cycle
+measured, whose leaf is not an address literal, has no configured host, so its
+transport-mode pair is ordered only when it is exactly one of its configured
+traffic selectors.
 
 With no dataplane (`Get()` nil) nothing is installed, and the record is still
 taken, so the control plane never holds two peers' Child SAs for one inner
@@ -900,6 +904,18 @@ which reconnects without a goodbye. The SA remembers that the peer deleted it
 (`peerDeletedIKE`), and `sayGoodbye` sends nothing for such an SA, so a datagram
 queued behind the peer's Delete, or read while `sayGoodbye` waits, cannot raise
 a goodbye for it either.
+
+The exception is a reauthentication the peer started (RFC 7296 Section 2.8.3:
+new IKE SA, new Child SAs, then the Delete of the old IKE SA). Once the
+successor's Child SA is installed, the peer's Delete of the old IKE SA, or the
+supersede signal, whichever the owner loop reads first, ends the old SA's owner
+loop and the run loop adopts the successor instead of reconnecting:
+`runResponder` for a `respond` peer, `adoptPeerStartedSuccessor` in
+`runInitiator` for an `initiate` peer. A Delete that arrives after the adoption
+names an SA no longer in the SATable. A successor still without a Child SA is
+deleted and the session reconnects.
+
+<!-- source: internal/component/ike/engine/reauth_receive.go -- adoptPeerStartedSuccessor -->
 
 The one IKE SA Delete that does take the exit is the peer's Delete of the OLD
 IKE SA after it rekeyed the IKE SA, when the same request also deletes the live

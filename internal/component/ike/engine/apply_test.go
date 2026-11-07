@@ -76,7 +76,7 @@ func applyTestState(t *testing.T) *ikeEngineState {
 	}
 	t.Cleanup(func() {
 		state.stopAllPeers()
-		state.listeners.closeSockets(state.log)
+		state.closeAllListeners(state.log)
 	})
 	return state
 }
@@ -151,8 +151,10 @@ func TestReloadRebindsTheListenSocketsWhenTheAddressChanges(t *testing.T) {
 // startPeerSession, so a session that survives the rebind can never send again.
 //
 // The interface lookup is stubbed because the box running this test has one address to
-// bind. The two values it answers are both bindable, and the peer takes neither: its own
-// local-address is what it binds to.
+// bind. It first answers the wildcard, so the peer's local-address 127.0.0.1 gets a
+// literal pair of its own. The reload answers 127.0.0.1, the peer's literal: the primary
+// pair opens at that address, the literal pair departs, and the restarted peer shares the
+// primary pair because its literal equals the interface address.
 //
 // RED before the fix: no rebind happened at all, so the pair stayed at the wildcard. With
 // a rebind that closes the sockets and leaves the peers running, the surviving session
@@ -170,13 +172,13 @@ func TestReloadRestartsAnUneditedPeerWhoseSocketMoved(t *testing.T) {
 	if err := state.applyConfig(running, applyReload); err != nil {
 		t.Fatalf("setup apply: %v", err)
 	}
-	oldIKE := state.listeners.ike
 	first := state.peers["test-peer"]
 	if first == nil {
 		t.Fatal("setup: the peer did not start")
 	}
-	if first.ike != oldIKE {
-		t.Fatal("setup: the session does not hold the socket the apply bound")
+	lit := state.literalPairs["127.0.0.1"]
+	if lit == nil || lit.ike == nil || first.ike != lit.ike {
+		t.Fatal("setup: the session does not hold the literal pair the apply bound")
 	}
 
 	// Only the interface moved. The peer block is byte-for-byte the one already running.
@@ -188,6 +190,9 @@ func TestReloadRestartsAnUneditedPeerWhoseSocketMoved(t *testing.T) {
 	}
 	if err := state.applyConfig(moved, applyReload); err != nil {
 		t.Fatalf("reload apply: %v", err)
+	}
+	if state.listeners.ike == nil {
+		t.Fatal("the primary pair did not open: the departing literal pair still held its address")
 	}
 
 	second := state.peers["test-peer"]

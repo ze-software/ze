@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -73,7 +74,7 @@ func mobikeAuthOffer(sa *SA) []wire.PayloadEntry {
 	sa.mobike.offered = true
 	sa.mobike.originalInitiator = sa.IsInitiator
 	if sa.mobike.local == nil {
-		local := &net.UDPAddr{IP: net.ParseIP(sa.PeerCfg.LocalAddress)}
+		local := &net.UDPAddr{IP: cycleLocalAddress(sa)}
 		if addr, ok := sa.nattSocket.LocalAddr().(*net.UDPAddr); ok {
 			local.Port = addr.Port
 		}
@@ -97,6 +98,7 @@ func (sa *SA) acceptMobikeOffer(inner []wire.PayloadEntry) {
 	// RFC 4555 Section 4.2.1: "its contents (if any) MUST be ignored when this
 	// notification is received". Presence negotiates support, data does not.
 	sa.mobike.enabled = true
+	atomic.StoreInt32(&sa.mobikeUp, 1)
 	sa.mobike.originalInitiator = sa.IsInitiator
 	sa.floatToNATTPort()
 }
@@ -124,7 +126,7 @@ func (sa *SA) localSendAddr(out *transport.UDPTransport) *net.UDPAddr {
 		}
 		return &net.UDPAddr{IP: sa.mobike.local.IP, Port: bound.Port, Zone: sa.mobike.local.Zone}
 	}
-	if ip := net.ParseIP(sa.PeerCfg.LocalAddress); ip != nil {
+	if ip := cycleLocalAddress(sa); ip != nil {
 		return &net.UDPAddr{IP: ip, Port: bound.Port}
 	}
 	return nil
@@ -616,7 +618,7 @@ func mobikeRouteSource(sa *SA, tr *transport.UDPTransport) (*net.UDPAddr, error)
 	}
 	source, err := routeSourceTo(remote.IP)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ike: MOBIKE cannot find the source address it moves to: %w", err)
 	}
 	local := &net.UDPAddr{IP: source}
 	out, _ := sa.sendPath(tr)

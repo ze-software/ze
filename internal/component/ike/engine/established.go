@@ -105,7 +105,7 @@ func (ps *PeerSession) runEstablished(
 		ps.childCreate.start(time.Now())
 	case sa.IsInitiator:
 		var err error
-		child, err = initiatorFirstChildSA(sa, peer, ifID, dp, log)
+		child, err = initiatorFirstChildSA(sa, ifID, dp, log)
 		switch {
 		case errors.Is(err, errChildEncapPort):
 			// The peer answered IKE_AUTH and installed its half of the pair, and this
@@ -322,10 +322,13 @@ func (ps *PeerSession) maintainSA(
 			return errServerCertRevoked
 		case <-ps.supersede:
 			// RFC 7296 Section 2.4: a parallel IKE_SA_INIT authenticated (the new SA
-			// reached IKE_AUTH), so relinquish this old SA and let runResponder promote
-			// the new one. The new Child SA is already installed in ps.pendingChild;
-			// remove only ours (make-before-break, so traffic is not dropped before the
-			// new tunnel is up, R-2).
+			// reached IKE_AUTH) and its Child SA is installed in ps.pendingChild, the
+			// only case finishResponderEstablish signals. Relinquish this old SA and let
+			// the run loop promote the new one: runResponder for a `respond` peer, and
+			// runInitiator's adoptPeerStartedSuccessor for an `initiate` peer whose
+			// gateway reauthenticated (RFC 7296 Section 2.8.3). Remove only ours
+			// (make-before-break, so traffic is not dropped before the new tunnel is up,
+			// R-2).
 			ps.cleanupChild(dp, bus, log)
 			log.Info("ike: superseded by a re-initiated SA, relinquishing owner loop", "peer", ps.peerName)
 			return nil

@@ -628,3 +628,35 @@ octets an accepted exchange carried.
 
 <!-- source: internal/component/ike/engine/remote_id.go -- remote identity matching -->
 <!-- source: internal/component/ike/engine/notify_error.go -- error notification emission -->
+
+## Following a dynamic WAN address
+
+`dynamic_wan.go` holds the address worker. `startAddressWorker` subscribes to
+`interface/addr-added` and `interface/addr-removed` and feeds a one-slot trigger
+channel drained by one goroutine; the event is a trigger and
+`resolveInterfaceAddrFn` is the truth, so a burst costs one read. Every writer of
+`ikeEngineState` (an apply, the deferred startup reconcile, the worker) holds
+`applyMu`.
+
+`planPeers` derives, from the configuration as written and the interface address,
+which peers run, the local address each sends from, and the socket pair each holds:
+
+| Local origin | Pair |
+|--------------|------|
+| no `interface` | the primary pair (wildcard in production) |
+| `interface`, no `local-address`, or the interface's own address | the primary pair, bound to the interface address, closed while it has none; the peer waits |
+| `interface`, another literal | a pair bound to that literal, untouched by interface events |
+
+With live XFRM migration the port-4500 socket is one wildcard socket every pair
+shares. `rebindListeners` stops only the sessions whose pair moves
+(`PeerSession.bindHost`), then closes and reopens that pair; the reconcile restarts
+them, since their filled `local-address` changed. A route-chosen session whose
+source left the host is restarted unless its SA negotiated MOBIKE, which moves
+itself (RFC 4555 Section 3.5).
+
+Each initiator cycle resolves its pair first (`resolveCyclePair`, `cycle_addr.go`):
+the remote name, and the route-chosen source through `routeSourceTo`. The pair is
+stored on the SA (`cycleRemote`, `cycleLocal`) and every reader takes it through
+`cycleRemoteAddress` and `cycleLocalAddress`. A responder SA records the datagram's
+source and destination the same way. `respond` peers configured by name are matched
+against `respondNames` (`respond_names.go`), which only the worker fills.

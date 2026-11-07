@@ -18,10 +18,12 @@
 # link does.
 #
 # WHY BOTH KINDS OF PEER. peer-bound carries its own local-address and is unaffected by
-# the interface; peer-unbound depends on it and is the peer the warning is about. A fix
-# that dropped the dependent peer instead of refusing the whole config would still start
-# peer-bound, so the assertion below names peer-unbound too: the engine applies the
-# configuration it was given and says which peers cannot bind.
+# the interface; peer-unbound depends on it and is the peer the warning is about. Startup
+# applies the configuration it was given: peer-bound starts, and peer-unbound waits for
+# the interface address rather than starting with none (the address worker starts it
+# when one appears). The warning asserted below is the one the engine writes only when a
+# peer without local-address exists, so the run proves the engine saw peer-unbound and
+# still served peer-bound.
 #
 # WHY `ike engine configured`. It is the LAST line applyIPsecConfig writes, after the
 # transports, the reconcile and the active-config store. A run that took the refusal
@@ -126,12 +128,14 @@ EOF_CONFIG
 cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=45s
 
 # The engine reports the unbindable peers rather than staying quiet about them, and then
-# applies the configuration: both peer sessions start and the apply reaches its last line.
+# applies the configuration: the peer with its own local-address starts, the other waits for
+# the interface address (the address worker starts it when one appears), and the apply
+# reaches its last line.
 command=show vpn ipsec status
 # No timeout= on these three. Unlike the expect=output steps beside them,
 # expect=stderr is evaluated once, against the accumulated output, after the run
 # ends -- there is nothing for a timeout to wait for.
-expect=stderr:contains=ike: peers without local-address will fail
+expect=stderr:contains=ike: peers without local-address wait for the interface address
 expect=stderr:contains=ike: started peer
 expect=stderr:contains=ike engine configured
 expect=output:contains=engine-running:timeout=5

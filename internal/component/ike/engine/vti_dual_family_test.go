@@ -170,7 +170,7 @@ func TestDualFamilyProposalNarrowedToIPv6InstallsVTIPolicy(t *testing.T) {
 
 	// AC-3: the install.
 	dp := &mockDP{}
-	child, err := initiatorFirstChildSA(sa, sa.PeerCfg, ifID, dp, slogutil.DiscardLogger())
+	child, err := initiatorFirstChildSA(sa, ifID, dp, slogutil.DiscardLogger())
 	if err != nil {
 		t.Fatalf("initiatorFirstChildSA: %v", err)
 	}

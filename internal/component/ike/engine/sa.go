@@ -279,6 +279,22 @@ type SA struct {
 	// Owner-loop state after establishment, like lastResponse, so it needs no lock.
 	peerEndpoint *net.UDPAddr
 
+	// cycleRemote and cycleLocal are the addresses the connect cycle that built this SA
+	// measured: the remote-address leaf resolved (it may be a DNS name), and the local
+	// address the session sends from (the peer's literal, the interface address the
+	// apply filled in, or the route-chosen source). They are written once, before the
+	// SA is inserted into the table, and never after, so every goroutine reads them
+	// without a lock. Nil means the cycle measured nothing and the readers fall back
+	// to the configured literal (cycleRemoteAddress, cycleLocalAddress, cycle_addr.go).
+	cycleRemote net.IP
+	cycleLocal  net.IP
+
+	// mobikeUp is 1 once MOBIKE was negotiated on this SA (acceptMobikeOffer). It is
+	// the copy of sa.mobike.enabled the address worker reads from its own goroutine
+	// (restartVanishedRouteSources, dynamic_wan.go), through atomic.LoadInt32 for the
+	// reason hardExpiry gives: the twin-SA test copies this struct.
+	mobikeUp int32
+
 	// localPort names the UDP port this SA sends FROM.
 	//
 	// RFC 7296 Section 2.23 MUST: an endpoint
@@ -586,9 +602,15 @@ func (sa *SA) remoteUDPAddr() *net.UDPAddr {
 			Zone: sa.peerEndpoint.Zone,
 		}
 	}
-	destination := ikeAddr(sa.PeerCfg.RemoteAddress)
+	// The address this cycle resolved, so a remote-address written as a DNS name is
+	// not resolved a second time, possibly to another address, mid-handshake.
+	host := sa.PeerCfg.RemoteAddress
+	if sa.cycleRemote != nil {
+		host = sa.cycleRemote.String()
+	}
+	destination := ikeAddr(host)
 	if sa.localPort == transport.NATTPort {
-		destination = nattAddr(sa.PeerCfg.RemoteAddress)
+		destination = nattAddr(host)
 	}
 	addr, err := net.ResolveUDPAddr("udp4", destination)
 	if err != nil {

@@ -19,7 +19,7 @@ import "net"
 // It returns nil when the peer has no usable local-address, and every caller then leaves
 // the selector alone rather than substituting a zero address.
 func observedLocalAddress(sa *SA) net.IP {
-	return net.ParseIP(sa.PeerCfg.LocalAddress)
+	return cycleLocalAddress(sa)
 }
 
 // observedRemoteAddress returns the remote IP address of the IKE SA: the address this
@@ -38,7 +38,7 @@ func observedRemoteAddress(sa *SA) net.IP {
 	if addr := sa.remoteUDPAddr(); addr != nil && addr.IP != nil {
 		return addr.IP
 	}
-	return net.ParseIP(sa.PeerCfg.RemoteAddress)
+	return cycleRemoteAddress(sa)
 }
 
 // storeOriginalSelectorAddresses records the traffic-selector addresses as they arrived,

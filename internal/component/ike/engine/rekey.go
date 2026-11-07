@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
-	"net"
 	"slices"
 	"strconv"
 	"time"
@@ -235,7 +234,7 @@ func espSPIFromSA(p *wire.PayloadSA) (uint32, error) {
 // It is no longer used to build a RESPONSE, where answering with a wildcard widened the
 // initiator's proposal (RFC 7296 Section 2.9).
 func anyChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
-	remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
+	remoteIP := cycleRemoteAddress(sa)
 	isV6 := remoteIP != nil && remoteIP.To4() == nil
 	tsAny := anyTrafficSelector(isV6)
 	return &wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSi, TrafficSelectors: []wire.TrafficSelector{tsAny}},

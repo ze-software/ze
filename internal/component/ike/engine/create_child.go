@@ -92,7 +92,7 @@ func newChildSA(sa *SA, localAddr, remoteAddr string, spec *childSpec) (*ChildSA
 		innerGuard: innerSelectorGuard{
 			registry:       sa.innerSelectors,
 			configured:     configuredPairs(sa.PeerCfg),
-			configuredHost: configuredHostPair(sa.PeerCfg),
+			configuredHost: configuredHostPair(sa),
 		},
 		// RFC 4301 Section 4.4.1: the operator orders the SPD entries, and these are two
 		// of them.
@@ -423,7 +423,7 @@ func respondNewChild(sa *SA, inner []wire.PayloadEntry, espGroup ipsec.ESPGroup,
 	}
 
 	tsLocal, tsRemote := negotiatedChildTS(sa.NegotiatedPairs, false)
-	child, err := newChildSA(sa, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, &childSpec{
+	child, err := newChildSA(sa, ipText(cycleLocalAddress(sa)), ipText(cycleRemoteAddress(sa)), &childSpec{
 		inSPI:    inSPI,
 		outSPI:   req.peerSPI,
 		keys:     keys,
@@ -1067,7 +1067,7 @@ func applyChildCreateResponse(sa *SA, pending *pendingRekey, inner []wire.Payloa
 	// This node sent Ni, so its side is TSi in the set recorded above and it keys the pair
 	// as the exchange's initiator, whatever its IKE SA role.
 	tsLocal, tsRemote := negotiatedChildTS(sa.NegotiatedPairs, true)
-	child, err := newChildSA(sa, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, &childSpec{
+	child, err := newChildSA(sa, ipText(cycleLocalAddress(sa)), ipText(cycleRemoteAddress(sa)), &childSpec{
 		inSPI:               pending.newInboundSPI,
 		outSPI:              outSPI,
 		keys:                keys,
