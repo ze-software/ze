@@ -152,6 +152,11 @@ func TestExternalFlatCutoffAndOwnership(t *testing.T) {
 	delete(flat.locations, location)
 	delete(flat.reads, read)
 	delete(flat.origins, "retained origin")
+	// join allocates the field table only when a value carries fields, so the
+	// mutation makes its own before writing a field into the flattened output.
+	if flat.fields == nil {
+		flat.fields = make(map[string]externalValue)
+	}
 	flat.fields["new root"] = externalValue{}
 	if child.callables[childCallback].value != childCallback || independent.callables[childCallback].value != childCallback {
 		t.Fatal("flattened callable maps share mutable input or output storage")
