@@ -88,8 +88,10 @@ A reload moves the web server, the looking glass and the MCP server to a new
 address or port with no restart. Change the `ip` or `port` of a `server` entry
 under `environment { web }`, `environment { looking-glass }` or
 `environment { mcp }`, then commit or reload. The REST and gRPC listeners of
-`api-server` move the same way.
-<!-- source: cmd/ze/hub/listener_migrate.go -- buildChanges, reloadListeners -->
+`api-server` move the same way, and so do the SSH server's `server` entries
+under `environment { ssh }`.
+<!-- source: cmd/ze/hub/listener_migrate.go -- buildChanges, reloadListeners, setSSH -->
+<!-- source: internal/component/ssh/ssh.go -- Server.Reconfigure -->
 
 ```
 environment {
@@ -133,7 +135,7 @@ the new values. A reload that fails restores the previous values.
 | Change | Why |
 |--------|-----|
 | Hub listen address/port | Listener cannot be changed at runtime |
-| SSH server settings | Server cannot be reconfigured live |
+| SSH server settings other than its `server` addresses | A reload moves only the SSH listeners (`Server.Reconfigure`); every other SSH setting is read when the server is built |
 | The web or MCP authentication MODE | Both choose it once, when they are built. A reload that asks for a different mode fails the whole commit before anything is applied |
 | Anything under `exabgp bridge` other than `route-refresh` and `add-path` (its processes, their `run` command, families), and adding or removing the bridge | The bridge's scripts keep the config they started with. The reload is refused at verify, naming the leaf, with the restart steps |
 

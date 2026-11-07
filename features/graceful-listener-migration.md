@@ -17,4 +17,4 @@
 
 ## Description
 
-Hot reload of listener endpoints (web, LG, REST, gRPC, MCP). New listener starts before old one stops; in-flight connections are drained.
+Hot reload of listener endpoints (web, LG, REST, gRPC, MCP, SSH). New listener starts before old one stops; in-flight connections are drained.
