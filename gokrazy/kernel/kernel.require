@@ -46,6 +46,24 @@ CONFIG_NFT_REJECT
 CONFIG_NF_FLOW_TABLE
 CONFIG_NF_FLOW_TABLE_INET
 CONFIG_NFT_FLOW_OFFLOAD
+CONFIG_NF_CONNTRACK_FTP
+CONFIG_NF_CONNTRACK_H323
+CONFIG_NF_CONNTRACK_PPTP
+CONFIG_NF_CONNTRACK_SIP
+CONFIG_NF_CONNTRACK_TFTP
+CONFIG_NF_NAT_FTP
+CONFIG_NF_NAT_H323
+CONFIG_NF_NAT_PPTP
+CONFIG_NF_NAT_SIP
+CONFIG_NF_NAT_TFTP
+CONFIG_NF_CONNTRACK_AMANDA
+CONFIG_NF_CONNTRACK_IRC
+CONFIG_NF_CONNTRACK_NETBIOS_NS
+CONFIG_NF_CONNTRACK_SNMP
+CONFIG_NF_CONNTRACK_SANE
+CONFIG_NF_NAT_AMANDA
+CONFIG_NF_NAT_IRC
+CONFIG_NF_NAT_SNMP_BASIC
 
 # The list above is derived, not chosen: it is every nft expression the backend
 # emits that still has a Kconfig symbol of its own in 7.x. `expr.Ct`, `expr.NAT`,
@@ -54,6 +72,9 @@ CONFIG_NFT_FLOW_OFFLOAD
 # those symbols is tristate, so every one can silently answer =m. The backend
 # also creates flowtable objects (applyFlowtable), which NF_FLOW_TABLE and
 # NF_FLOW_TABLE_INET provide; both are tristate too.
+# It also creates ct helper objects (lowerCtHelper), which NFT_CT provides, and
+# each one names a kernel helper that must be built in, with its NAT companion,
+# or the kernel refuses the object and with it the whole batch.
 #
 # Deliberately NOT pinned, so the next reader does not read the gap as an
 # oversight:

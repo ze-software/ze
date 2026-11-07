@@ -54,6 +54,9 @@ func verifyTable(tbl *firewall.Table) error {
 	if len(tbl.Flowtables) > 0 {
 		errs = append(errs, fmt.Errorf("table %q: flowtables not supported by backend vpp", tbl.Name))
 	}
+	if len(tbl.CtHelpers) > 0 {
+		errs = append(errs, fmt.Errorf("table %q: conntrack helpers (system conntrack module) not supported by backend vpp (VPP has no conntrack helper or ALG); remove system conntrack module, or use firewall backend nft", tbl.Name))
+	}
 	for i := range tbl.Chains {
 		if err := verifyChain(tbl, &tbl.Chains[i]); err != nil {
 			errs = append(errs, err)
@@ -344,6 +347,8 @@ func verifyAction(prefix string, a firewall.Action) error {
 		return fmt.Errorf("%s: redirect action not supported by backend vpp", prefix)
 	case firewall.Notrack:
 		return fmt.Errorf("%s: notrack action not supported by backend vpp", prefix)
+	case firewall.SetCtHelper:
+		return fmt.Errorf("%s: ct helper assignment not supported by backend vpp (VPP has no conntrack helper or ALG)", prefix)
 	case firewall.SetMark:
 		return nil
 	case firewall.SetConnMark:

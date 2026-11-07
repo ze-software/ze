@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -85,12 +86,74 @@ func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) err
 // OnConfigApply. Backend is the selected backend name; Tables is the
 // desired kernel state. RawData carries the JSON for global-options extraction.
 // FlushOnShutdown mirrors the `flush-on-shutdown` leaf (default true): remove
-// ze-owned tables on a clean daemon stop.
+// ze-owned tables on a clean daemon stop. Configured says the operator wrote a
+// `firewall {}` block; without one the engine runs only for the conntrack
+// helpers. Helpers is `system conntrack module`, and HelperTables the tables
+// it lowers to (ConntrackHelperTables), which the engine registers under
+// conntrackHelperOwner beside its own.
 type firewallConfig struct {
 	Backend         string
 	Tables          []Table
 	RawData         string
 	FlushOnShutdown bool
+	Configured      bool
+	Helpers         []string
+	HelperTables    []Table
+}
+
+// parseConfigSections reads one delivery onto base, the running config. A
+// reload hands the engine only the roots that changed, so a root the delivery
+// does not carry keeps its running value, while a root the operator deleted
+// arrives as an empty section and parses to nothing: an absent `system
+// conntrack` block is an empty helper list, and its tables are withdrawn.
+// base nil starts from the defaults (boot, offline validate).
+func parseConfigSections(sections []sdk.ConfigSection, base *firewallConfig) (*firewallConfig, error) {
+	cfg := &firewallConfig{Backend: defaultBackendName, FlushOnShutdown: true}
+	if base != nil {
+		running := *base
+		cfg = &running
+	}
+	if hasFirewallSection(sections) {
+		fw, err := parseFirewallSections(sections)
+		if err != nil {
+			return nil, err
+		}
+		fw.Helpers, fw.HelperTables = cfg.Helpers, cfg.HelperTables
+		cfg = fw
+	}
+	modules, delivered, err := conntrackSectionModules(sections)
+	if err != nil {
+		return nil, err
+	}
+	if delivered {
+		tables, err := ConntrackHelperTables(modules)
+		if err != nil {
+			return nil, fmt.Errorf("system conntrack module: %w", err)
+		}
+		cfg.Helpers, cfg.HelperTables = modules, tables
+	}
+	return cfg, nil
+}
+
+// desiredTables is every table the engine registers, its own and the helper
+// tables, as one backend verifier judges them.
+func (c *firewallConfig) desiredTables() []Table {
+	return append(slices.Clone(c.Tables), c.HelperTables...)
+}
+
+// registerConfigTables registers both of the engine's table owners for cfg
+// and reconciles. A failure while helpers are listed names the helper fixes.
+func registerConfigTables(cfg *firewallConfig) error {
+	if err := RegisterTables("firewall", cfg.Tables); err != nil {
+		return err
+	}
+	if err := RegisterTables(conntrackHelperOwner, cfg.HelperTables); err != nil {
+		return err
+	}
+	if err := ApplyAll(); err != nil {
+		return conntrackHelperApplyError(cfg.Helpers, err)
+	}
+	return nil
 }
 
 // parseFirewallSections extracts the firewall section from the SDK
@@ -121,6 +184,11 @@ func parseFirewallSections(sections []sdk.ConfigSection) (*firewallConfig, error
 		}
 		cfg.Tables = tables
 		cfg.RawData = s.Data
+		configured, err := firewallRootPresent(s.Data)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Configured = configured
 		return cfg, nil
 	}
 	return cfg, nil
@@ -178,6 +246,22 @@ func extractFlushOnShutdown(data string) (bool, error) {
 	return false, fmt.Errorf("firewall config: flush-on-shutdown: expected true or false, got %v", fw["flush-on-shutdown"])
 }
 
+// firewallRootPresent reports whether a delivered firewall section holds a
+// `firewall {}` block. A deleted block arrives as an empty section, which the
+// engine applies as "no firewall tables" and then no longer counts as
+// configured.
+func firewallRootPresent(data string) (bool, error) {
+	if strings.TrimSpace(data) == "" {
+		return false, nil
+	}
+	var root map[string]any
+	if err := json.Unmarshal([]byte(data), &root); err != nil {
+		return false, fmt.Errorf("firewall config: unmarshal: %w", err)
+	}
+	_, ok := root[configRootFirewall]
+	return ok, nil
+}
+
 // hasFirewallSection reports whether the SDK delivered a firewall
 // section in this payload. Lets the engine distinguish "no firewall
 // configured" (legitimately idle) from "firewall section present but
@@ -191,33 +275,50 @@ func hasFirewallSection(sections []sdk.ConfigSection) bool {
 	return false
 }
 
-// VerifyConfig validates firewall config without loading or applying a backend.
+// VerifyConfig validates firewall config, and the conntrack helper tables
+// `system conntrack module` lowers to, without loading or applying a backend.
+// It is the InProcessConfigVerifier, so `ze config validate` refuses what the
+// commit would refuse.
 func VerifyConfig(sections []sdk.ConfigSection) error {
-	_, err := parseAndVerifyFirewallSections(sections)
+	_, err := parseAndVerifyFirewallSections(sections, nil)
 	return err
 }
 
-func parseAndVerifyFirewallSections(sections []sdk.ConfigSection) (*firewallConfig, error) {
-	cfg, err := parseFirewallSections(sections)
+// parseAndVerifyFirewallSections parses one delivery onto base, the running
+// config (nil for boot and offline validate), and refuses what the backend
+// cannot apply exactly: the firewall tables and the helper tables are judged
+// by ValidateTables and by the selected backend's verifier together, so a
+// backend with no conntrack helper (vpp) refuses a listed helper at verify,
+// before anything is applied.
+func parseAndVerifyFirewallSections(sections []sdk.ConfigSection, base *firewallConfig) (*firewallConfig, error) {
+	cfg, err := parseConfigSections(sections, base)
 	if err != nil {
 		return nil, err
 	}
-	if !hasFirewallSection(sections) {
+	if hasFirewallSection(sections) {
+		if cfg.Backend == "" {
+			return nil, errFirewallNoBackendConfiguredAndNo
+		}
+		if _, err := ExtractGlobalOptions(cfg.RawData); err != nil {
+			return nil, err
+		}
+		if err := validateBackendGate(sections, cfg.Backend); err != nil {
+			return nil, err
+		}
+	}
+	if len(cfg.Tables) == 0 && len(cfg.HelperTables) == 0 {
 		return cfg, nil
 	}
 	if cfg.Backend == "" {
 		return nil, errFirewallNoBackendConfiguredAndNo
 	}
-	if _, err := ExtractGlobalOptions(cfg.RawData); err != nil {
-		return nil, err
-	}
-	if err := validateBackendGate(sections, cfg.Backend); err != nil {
-		return nil, err
-	}
 	if err := ValidateTables(cfg.Tables); err != nil {
 		return nil, err
 	}
-	if err := RunVerifier(cfg.Backend, cfg.Tables); err != nil {
+	if err := ValidateTables(cfg.HelperTables); err != nil {
+		return nil, fmt.Errorf("system conntrack module: %w", err)
+	}
+	if err := RunVerifier(cfg.Backend, cfg.desiredTables()); err != nil {
 		return nil, err
 	}
 	return cfg, nil
@@ -293,17 +394,17 @@ func runEngine(conn net.Conn) int {
 	var activeJournal *sdk.Journal
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseFirewallSections(sections)
+		cfg, err := parseConfigSections(sections, nil)
 		if err != nil {
 			return err
 		}
-		if !hasFirewallSection(sections) {
+		if !cfg.Configured && len(cfg.HelperTables) == 0 {
 			log.Debug("firewall: no configuration, plugin idle")
 			activeCfg.Store(cfg)
 			// No one-time legacy sweep here. This branch is reached only when
-			// the firewall plugin is loaded and no firewall {} section exists,
-			// which happens only through an explicit `plugin { internal
-			// firewall }` block: getConfigPathPlugins
+			// the plugin was started with nothing to install: an explicit
+			// `plugin { internal firewall }` block, or a `system conntrack`
+			// block that lists no helper. getConfigPathPlugins
 			// (internal/component/plugin/server/startup_autoload.go) starts
 			// this plugin for a PRESENT config root and there is no always-load
 			// phase. The owners of the legacy names run that reconcile instead,
@@ -316,43 +417,48 @@ func runEngine(conn net.Conn) int {
 		}
 		setFlushOnShutdown(cfg.FlushOnShutdown)
 
-		if err := validateBackendGate(sections, cfg.Backend); err != nil {
-			return err
+		if cfg.Configured {
+			if err := validateBackendGate(sections, cfg.Backend); err != nil {
+				return err
+			}
 		}
 		if err := ValidateTables(cfg.Tables); err != nil {
 			return err
 		}
-
-		if err := LoadBackend(cfg.Backend); err != nil {
-			return fmt.Errorf("firewall backend %q: %w", cfg.Backend, err)
+		if err := ValidateTables(cfg.HelperTables); err != nil {
+			return fmt.Errorf("system conntrack module: %w", err)
 		}
-		log.Info("firewall backend loaded", "backend", cfg.Backend)
 
-		if err := RegisterTables("firewall", cfg.Tables); err != nil {
-			return err
+		// Without a `firewall {}` block the OS default backend is the one
+		// ApplyAll loads on demand, as it does for copp's tables, so a
+		// backend another owner already loaded is not replaced.
+		if cfg.Configured {
+			if err := LoadBackend(cfg.Backend); err != nil {
+				return fmt.Errorf("firewall backend %q: %w", cfg.Backend, err)
+			}
+			log.Info("firewall backend loaded", "backend", cfg.Backend)
 		}
-		if err := ApplyAll(); err != nil {
+
+		// ApplyAll runs the backend's verifier over the merged set before it
+		// applies, so a helper the backend cannot hold stops the boot here.
+		if err := registerConfigTables(cfg); err != nil {
 			return fmt.Errorf("firewall config apply: %w", err)
 		}
 		activeCfg.Store(cfg)
-		log.Info("firewall config applied", "tables", len(cfg.Tables))
+		log.Info("firewall config applied", "tables", len(cfg.Tables), "conntrack-helpers", cfg.Helpers)
 
 		emitGlobalOptionsSysctlDefaults(eb, cfg.RawData, false, log)
 		return nil
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseAndVerifyFirewallSections(sections)
+		cfg, err := parseAndVerifyFirewallSections(sections, activeCfg.Load())
 		if err != nil {
 			return err
 		}
-		if !hasFirewallSection(sections) {
-			pendingCfg = cfg
-			log.Debug("firewall config verified: no firewall section")
-			return nil
-		}
 		pendingCfg = cfg
-		log.Debug("firewall config verified", "backend", cfg.Backend, "tables", len(cfg.Tables))
+		log.Debug("firewall config verified", "backend", cfg.Backend, "tables", len(cfg.Tables),
+			"conntrack-helpers", cfg.Helpers)
 		return nil
 	})
 
@@ -387,26 +493,23 @@ func runEngine(conn net.Conn) int {
 			log.Info("firewall backend loaded", "backend", desiredBackend)
 		}
 
+		// The journal restores both owners, the firewall tables and the
+		// conntrack helper tables, so a failed reload or a rollback puts the
+		// previous helper set back rather than leaving the new one assigned.
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
-				if regErr := RegisterTables("firewall", cfg.Tables); regErr != nil {
-					return regErr
-				}
-				if applyErr := ApplyAll(); applyErr != nil {
+				if applyErr := registerConfigTables(cfg); applyErr != nil {
 					return fmt.Errorf("firewall reload: %w", applyErr)
 				}
 				return nil
 			},
 			func() error {
-				var desired []Table
+				previous := &firewallConfig{}
 				if previousCfg != nil {
-					desired = previousCfg.Tables
+					previous = previousCfg
 				}
-				if regErr := RegisterTables("firewall", desired); regErr != nil {
-					return regErr
-				}
-				if rollbackErr := ApplyAll(); rollbackErr != nil {
+				if rollbackErr := registerConfigTables(previous); rollbackErr != nil {
 					return fmt.Errorf("firewall rollback: %w", rollbackErr)
 				}
 				return nil
@@ -418,7 +521,7 @@ func runEngine(conn net.Conn) int {
 		}
 		activeCfg.Store(cfg)
 		activeJournal = j
-		log.Info("firewall config reloaded", "tables", len(cfg.Tables))
+		log.Info("firewall config reloaded", "tables", len(cfg.Tables), "conntrack-helpers", cfg.Helpers)
 
 		emitGlobalOptionsSysctlDefaults(eb, cfg.RawData, true, log)
 		return nil
@@ -439,7 +542,7 @@ func runEngine(conn net.Conn) int {
 
 	ctx := context.Background()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig:  []string{configRootFirewall},
+		WantsConfig:  []string{configRootFirewall, configRootConntrack},
 		VerifyBudget: 2,
 		ApplyBudget:  10,
 	}); err != nil {
@@ -456,8 +559,9 @@ func runEngine(conn net.Conn) int {
 	// actor: no race with the per-plugin withdraw paths (copp/policy-routes/
 	// ddos-local) that share this in-process backend.
 	if flushOnShutdownEnabled() {
-		if err := FlushAllTables(); err != nil {
-			log.Warn("firewall flush-on-shutdown failed", "error", err)
+		if err := flushOnStop(activeCfg.Load()); err != nil {
+			log.Warn("firewall flush-on-shutdown failed: ze-owned nft tables may remain after the stop",
+				"error", err, "fix", "nft list tables, then nft delete table <family> <ze_name>")
 		} else {
 			log.Info("firewall tables flushed on clean shutdown")
 		}
@@ -471,4 +575,17 @@ func runEngine(conn net.Conn) int {
 	log.Info("firewall backend closed")
 
 	return 0
+}
+
+// flushOnStop removes the tables a clean stop owes. With a `firewall {}` block
+// the engine is the single ordered actor for every ze-owned table and flushes
+// them all (FlushAllTables). Without one it runs only for the conntrack
+// helpers, and it may be stopping because a reload removed the `system
+// conntrack` block while copp or policy routing still hold their tables, so it
+// withdraws only its own two owners.
+func flushOnStop(cfg *firewallConfig) error {
+	if cfg != nil && cfg.Configured {
+		return FlushAllTables()
+	}
+	return registerConfigTables(&firewallConfig{})
 }

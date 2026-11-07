@@ -163,7 +163,7 @@ func TestConfigureAcceptsIRRTableTerm(t *testing.T) {
 	data := `{"firewall":{"backend":"nft","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"from-cloudflare":{"from":{"source-asn":"13335"},"then":{"accept":""}}}}}}}}}`
 	sections := []sdk.ConfigSection{{Root: configRootFirewall, Data: data}}
 
-	cfg, err := parseAndVerifyFirewallSections(sections)
+	cfg, err := parseAndVerifyFirewallSections(sections, nil)
 	require.NoError(t, err, "an IRR table term must pass the verify path")
 	require.Len(t, cfg.Tables, 1)
 
@@ -231,7 +231,7 @@ func TestConfigureAcceptsIRRTableTermWithOneFamily(t *testing.T) {
 	data := `{"firewall":{"backend":"nft","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"from-cloudflare":{"from":{"source-asn":"13335"},"then":{"accept":""}}}}}}}}}`
 	sections := []sdk.ConfigSection{{Root: configRootFirewall, Data: data}}
 
-	cfg, err := parseAndVerifyFirewallSections(sections)
+	cfg, err := parseAndVerifyFirewallSections(sections, nil)
 	require.NoError(t, err, "an IRR table term must pass the verify path")
 
 	var applied []Table

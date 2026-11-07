@@ -274,6 +274,7 @@ func mergeSameNameTables(tables []Table) []Table {
 			merged[idx].Chains = append(merged[idx].Chains, t.Chains...)
 			merged[idx].Sets = append(merged[idx].Sets, t.Sets...)
 			merged[idx].Flowtables = append(merged[idx].Flowtables, t.Flowtables...)
+			merged[idx].CtHelpers = append(merged[idx].CtHelpers, t.CtHelpers...)
 		} else {
 			groups[k] = len(merged)
 			merged = append(merged, t)

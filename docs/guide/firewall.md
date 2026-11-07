@@ -155,6 +155,15 @@ that needs kernel state of its own publishes a table through the same backend,
 so it appears beside yours in `show firewall ruleset <name>` and is withdrawn
 with the configuration that asked for it.
 
+`system conntrack module <helper>` is another: each listed helper publishes
+`ze_conntrack_helpers` (family `inet`) or `ze_conntrack_helpers_ip` (family
+`ip`, for helpers the kernel registers for IPv4 only). Each holds one `ct
+helper` object per kernel helper and transport, and `prerouting` and `output`
+chains at priority -5 that assign it by destination port, so the assignment
+runs before your own chains at priority 0. A chain of yours at a priority below
+-5 sees the connection before the helper is attached. The per-helper ports are
+in [the configuration guide](configuration.md), `system conntrack`.
+
 One example: a BGP peer configured
 with `connection { ttl { max N; } }` (RFC 5082 GTSM) gets `ze_gtsm`, an input
 chain with two kinds of term for that peer.

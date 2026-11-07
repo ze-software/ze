@@ -401,15 +401,16 @@ module ze-system-conf {
                     enum sane { ze:help "SANE helper (nf_conntrack_sane)."; }
                     enum irc { ze:help "IRC helper (nf_conntrack_irc)."; }
                     enum amanda { ze:help "Amanda helper (nf_conntrack_amanda)."; }
-                    enum nfs { ze:help "NFS helper (nf_conntrack_nfs)."; }
                     enum netbios-ns { ze:help "NetBIOS-NS helper (nf_conntrack_netbios_ns)."; }
                     enum snmp { ze:help "SNMP helper (nf_conntrack_snmp)."; }
-                    enum sqlnet { ze:help "SQLnet/TNS helper (nf_conntrack_sqlnet)."; }
                 }
-                description "The leaf-list only loads a module. Removing a module from
-                             the list stops the load on the next boot, and it does not
-                             unload the module at runtime.";
-                ze:help "Conntrack helper modules to load.";
+                description "Each listed helper gets an nft ct helper object, and new
+                             connections to its ports are assigned to it, in prerouting
+                             and output at priority -5. A helper the kernel registers
+                             for IPv4 only is assigned in IPv4 alone. The list is empty
+                             by default, so no ALG runs unless listed (RFC 4787 REQ-10).
+                             Removing a helper removes its assignment on the next commit.";
+                ze:help "Conntrack helpers (ALGs) to assign to new connections.";
             }
 
             leaf table-size {

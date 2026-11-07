@@ -16,7 +16,10 @@ Everything else rejects at commit with a message naming the unsupported
 expression: NAT (a separate NAT44 plugin), the classifier (mark matching), the
 policer (per-rule rate limiting), packet modification (set-mark, set-dscp),
 counters, log, and chain traversal. This is exact-or-reject
-(`ai/rules/protocol.md`).
+(`ai/rules/protocol.md`). A conntrack helper (`system conntrack module`, which
+lowers to `ct helper` objects and `ct helper set` assignments in the
+`ze_conntrack_helpers` tables) is refused too: VPP has no conntrack helper or
+ALG, so the helper would never see a connection.
 
 `MatchConnState` maps to `PERMIT_REFLECT` for established and related only.
 `ConnStateNew` and `ConnStateInvalid` have no VPP ACL equivalent and are

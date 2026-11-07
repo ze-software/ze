@@ -107,6 +107,10 @@ func deepCopyTables(src []Table) []Table {
 				dst[i].Flowtables[j] = nf
 			}
 		}
+		if len(src[i].CtHelpers) > 0 {
+			dst[i].CtHelpers = make([]CtHelper, len(src[i].CtHelpers))
+			copy(dst[i].CtHelpers, src[i].CtHelpers)
+		}
 	}
 	return dst
 }

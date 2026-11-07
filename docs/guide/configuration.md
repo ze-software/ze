@@ -3574,12 +3574,34 @@ system {
 }
 ```
 
-**Helper modules:** Load kernel conntrack ALG helpers via `modprobe`. Valid modules: ftp, h323, sip, pptp, tftp, sane, irc, amanda, netbios-ns, snmp. Modules are load-only (removing from config stops loading on next boot but does not unload at runtime). On gokrazy, modules are built-in and loading is skipped.
+**Helper modules:** Each `module` names a conntrack helper (an ALG) that Ze assigns to new connections. Valid modules: amanda, ftp, h323, irc, netbios-ns, pptp, sane, sip, snmp, tftp. `nfs` and `sqlnet` are not accepted: they need user-space helpers that no kernel module provides. The list is empty by default, so no helper runs unless you list it (RFC 4787 Section 7 REQ-10).
+
+Since Linux 6.0 the kernel never assigns a helper on its own, so loading a module is not enough. For each listed helper Ze installs a ze-owned nft table with one `ct helper` object per kernel helper and transport, and one rule per port that assigns it, in the `prerouting` and `output` hooks at priority -5 (before your own filter chains at priority 0). A helper the kernel registers for both IPv4 and IPv6 is assigned from the `inet` table `ze_conntrack_helpers`; one the kernel registers for IPv4 only is assigned from the `ip` table `ze_conntrack_helpers_ip`, so no IPv6 connection is ever given it. Removing a module removes its assignment on the next commit, and deleting the whole `system conntrack` block does the same.
+
+The helper tables belong to the firewall's config transaction, with or without a `firewall {}` block. `ze config validate` and the commit refuse a helper the firewall backend cannot hold, a failed commit or a rollback puts the previous helpers back, and a clean daemon stop removes them unless `firewall { flush-on-shutdown false; }` is set. When the kernel refuses a helper, the commit error names the `modprobe` command that loads it and the `delete system conntrack module` command that stops assigning it.
+
+| Module | Kernel helper | Assigned on | Families |
+|--------|---------------|-------------|----------|
+| amanda | `amanda` | udp 10080 | IPv4, IPv6 |
+| ftp | `ftp` | tcp 21 | IPv4, IPv6 |
+| h323 | `RAS`, `Q.931` | udp 1719, tcp 1720 | IPv4, IPv6 |
+| irc | `irc` | tcp 6667 | IPv4 |
+| netbios-ns | `netbios-ns` | udp 137 | IPv4 |
+| pptp | `pptp` | tcp 1723 | IPv4 |
+| sane | `sane` | tcp 6566 | IPv4, IPv6 |
+| sip | `sip` | udp and tcp 5060, 5061 | IPv4, IPv6 |
+| snmp | `snmp` | udp 161 | IPv4 |
+| tftp | `tftp` | udp 69 | IPv4, IPv6 |
+
+Ze's own kernel builds in every helper above, with its NAT companion where the kernel has one (sane and netbios-ns have none). Built in and unassigned, a helper sees no connection. On a distribution kernel the helper's `nf_conntrack_<name>` module must be loaded. The VPP firewall backend has no conntrack helper and refuses any listed module at commit.
 
 **Dual-setting prevention:** Sysctl keys managed by conntrack (e.g., `nf_conntrack_max`) are rejected if also set in `sysctl { setting { ... } }`. The error message names the friendly conntrack config option to use instead.
 
-**Monitoring:** Use `show system conntrack` to view current entry count, configured max, loaded modules, per-protocol timeouts, and TCP behavior flags.
+**Monitoring:** Use `show system conntrack` to view current entry count, configured max, loaded modules, the assigned helpers (kernel helper, protocol, ports and families of each), per-protocol timeouts, and TCP behavior flags.
 <!-- source: internal/component/config/system/conntrack.go -- ConntrackConfig, sysctl key mapping -->
+<!-- source: internal/component/config/system/conntrack_helpers.go -- conntrackHelpers -->
+<!-- source: internal/component/firewall/conntrack_helpers.go -- ConntrackHelperTables, conntrackSectionModules, conntrackHelperApplyError, assignedConntrackHelpers -->
+<!-- source: internal/component/firewall/engine.go -- parseConfigSections, parseAndVerifyFirewallSections, flushOnStop -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- conntrack container -->
 
 ## Flow Export

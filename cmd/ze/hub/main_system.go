@@ -247,6 +247,12 @@ func applyConntrackConfig(cc *system.ConntrackConfig, eb ze.EventBus) {
 		}
 	}
 
+	// Loading a module assigns nothing: since Linux 6.0 a helper sees no
+	// connection until a rule assigns it. The firewall engine owns that
+	// assignment through the config transaction, on its `system/conntrack`
+	// root (internal/component/firewall/conntrack_helpers.go), so verify
+	// refuses what cannot apply and rollback restores the previous helpers.
+
 	if eb == nil {
 		return
 	}

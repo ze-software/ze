@@ -648,6 +648,12 @@ type Notrack struct{}
 // FlowOffload offloads the connection to a flowtable for hardware acceleration.
 type FlowOffload struct{ FlowtableName string }
 
+// SetCtHelper assigns the connection to the conntrack helper object Name,
+// which MUST be declared in the same table's CtHelpers. Since Linux 6.0 the
+// kernel assigns a helper only from such an explicit rule, so this action is
+// the only way a helper ever sees a connection.
+type SetCtHelper struct{ Name string }
+
 // --- Modifier types (8, also implement Action) ---
 
 // SetMark sets the packet mark.
@@ -732,6 +738,7 @@ func (Masquerade) actionMarker()  {}
 func (Redirect) actionMarker()    {}
 func (Notrack) actionMarker()     {}
 func (FlowOffload) actionMarker() {}
+func (SetCtHelper) actionMarker() {}
 func (SetMark) actionMarker()     {}
 func (SetConnMark) actionMarker() {}
 func (SetDSCP) actionMarker()     {}
@@ -803,6 +810,7 @@ type Table struct {
 	Chains     []Chain
 	Sets       []Set
 	Flowtables []Flowtable
+	CtHelpers  []CtHelper
 }
 
 // Validate checks that the table has a valid name and family.
@@ -903,6 +911,34 @@ func (f Flowtable) Validate() error {
 	}
 	if !f.Hook.Valid() {
 		return fmt.Errorf("firewall: flowtable %q: hook required", f.Name)
+	}
+	return nil
+}
+
+// CtHelper declares an nftables conntrack helper object: the named object a
+// SetCtHelper action assigns. Helper is the name the kernel helper registered
+// (nf_ct_helper_init in net/netfilter/nf_conntrack_*.c), which is not always
+// the operator's name for it (h323 registers "RAS" and "Q.931"). The object
+// carries no address family of its own: the kernel takes the table's family,
+// and an inet object resolves the IPv4 and the IPv6 helper
+// (nft_ct_helper_obj_init, net/netfilter/nft_ct.c).
+type CtHelper struct {
+	Name     string
+	Helper   string
+	Protocol string // "tcp" or "udp", the transport the kernel helper registered
+}
+
+// Validate checks that the object has a valid name, a kernel helper name and
+// a transport the kernel helper can register for.
+func (h CtHelper) Validate() error {
+	if err := ValidateName(h.Name); err != nil {
+		return fmt.Errorf("firewall: ct helper: %w", err)
+	}
+	if h.Helper == "" {
+		return fmt.Errorf("firewall: ct helper %q: kernel helper name required", h.Name)
+	}
+	if h.Protocol != "tcp" && h.Protocol != "udp" {
+		return fmt.Errorf("firewall: ct helper %q: protocol must be tcp or udp (got %q)", h.Name, h.Protocol)
 	}
 	return nil
 }

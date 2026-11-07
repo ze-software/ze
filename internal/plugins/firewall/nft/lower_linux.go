@@ -658,6 +658,8 @@ func lowerAction(a firewall.Action, nfproto byte) ([]expr.Any, error) {
 		return lowerSetTCPMSS(v.Size)
 	case firewall.FlowOffload:
 		return []expr.Any{&expr.FlowOffload{Name: v.FlowtableName}}, nil
+	case firewall.SetCtHelper:
+		return lowerSetCtHelper(v)
 	case firewall.SNAT:
 		return lowerSNAT(v)
 	case firewall.DNAT:
@@ -669,6 +671,48 @@ func lowerAction(a firewall.Action, nfproto byte) ([]expr.Any, error) {
 }
 
 // --- Lowering helpers ---
+
+// lowerSetCtHelper assigns the connection to a named ct helper object: the
+// rule `ct helper set "<name>"`, which nft encodes as an objref expression of
+// type NFT_OBJECT_CT_HELPER. The kernel resolves the name when it adds the
+// rule (nft_objref_init calls nft_obj_lookup on the rule's table), so
+// applyTable adds every object before any rule.
+func lowerSetCtHelper(a firewall.SetCtHelper) ([]expr.Any, error) {
+	if a.Name == "" {
+		return nil, fmt.Errorf("ct helper assignment: object name required")
+	}
+	return []expr.Any{&expr.Objref{Type: int(unix.NFT_OBJECT_CT_HELPER), Name: a.Name}}, nil
+}
+
+// lowerCtHelper builds the ct helper object for table t. L3Proto stays zero
+// so the kernel takes the table's family: an inet object then resolves both
+// the IPv4 and the IPv6 helper of that name, and an ip object only the IPv4
+// one (nft_ct_helper_obj_init, net/netfilter/nft_ct.c).
+func lowerCtHelper(t *nftables.Table, h *firewall.CtHelper) (*nftables.NamedObj, error) {
+	l4proto, err := lowerCtHelperProtocol(h.Protocol)
+	if err != nil {
+		return nil, err
+	}
+	return &nftables.NamedObj{
+		Table: t,
+		Name:  h.Name,
+		Type:  nftables.ObjTypeCtHelper,
+		Obj:   &expr.CtHelper{Name: h.Helper, L4Proto: l4proto},
+	}, nil
+}
+
+// lowerCtHelperProtocol maps the transport a kernel helper registered to its
+// IP protocol number. The kernel refuses an object without one
+// (nft_ct_helper_obj_init requires NFTA_CT_HELPER_L4PROTO).
+func lowerCtHelperProtocol(protocol string) (uint8, error) {
+	switch protocol {
+	case "tcp":
+		return unix.IPPROTO_TCP, nil
+	case "udp":
+		return unix.IPPROTO_UDP, nil
+	}
+	return 0, fmt.Errorf("ct helper protocol %q: must be tcp or udp", protocol)
+}
 
 // lowerAddrMatch produces nfproto guard + Payload + Bitwise + Cmp for an IP
 // prefix match.

@@ -66,6 +66,9 @@ func formatTable(b *textbuf.Buffer, t *firewall.Table) {
 	for i := range t.Flowtables {
 		formatFlowtable(b, &t.Flowtables[i])
 	}
+	for i := range t.CtHelpers {
+		formatCtHelper(b, &t.CtHelpers[i])
+	}
 	b.WriteString("}\n")
 }
 
@@ -206,6 +209,8 @@ func formatAction(a firewall.Action) string {
 		return "notrack"
 	case firewall.FlowOffload:
 		return tb.Str("flow offload @").Str(v.FlowtableName).String()
+	case firewall.SetCtHelper:
+		return tb.Str("ct helper set ").Str(v.Name).String()
 	case firewall.SNAT:
 		return tb.Str("snat to ").Str(formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd)).String()
 	case firewall.DNAT:
@@ -386,6 +391,13 @@ func formatFlowtable(b *textbuf.Buffer, ft *firewall.Flowtable) {
 	if len(ft.Devices) > 0 {
 		b.Str("    devices = { ").Join(ft.Devices, ", ").Str(" };\n")
 	}
+	b.Str("  }\n")
+}
+
+// formatCtHelper prints a ct helper object in nft's own syntax.
+func formatCtHelper(b *textbuf.Buffer, h *firewall.CtHelper) {
+	b.Str("  ct helper ").Str(h.Name).Str(" {\n")
+	b.Str("    type \"").Str(h.Helper).Str("\" protocol ").Str(h.Protocol).Str(";\n")
 	b.Str("  }\n")
 }
 

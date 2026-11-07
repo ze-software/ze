@@ -48,11 +48,15 @@ const (
 
 func init() { //nolint:gochecknoinits // plugin registration
 	reg := registry.Registration{
-		Name:                 "firewall",
-		Description:          "Packet filter and NAT rules (nftables on Linux)",
-		Features:             "yang",
-		YANG:                 firewallyang.ZeFirewallConfYANG,
-		ConfigRoots:          []string{configRootFirewall},
+		Name:        "firewall",
+		Description: "Packet filter and NAT rules (nftables on Linux)",
+		Features:    "yang",
+		YANG:        firewallyang.ZeFirewallConfYANG,
+		// `system conntrack` is the second root: its helpers lower to nft
+		// tables, so a config that lists one starts this engine with no
+		// `firewall {}` block, and the transaction verifies, applies and rolls
+		// back the helper tables with the firewall tables (engine.go).
+		ConfigRoots:          []string{configRootFirewall, configRootConntrack},
 		OptionalDependencies: []string{vppPlugin},
 		ConfigNeeds: []registry.ConfigNeed{{
 			Path:      []string{"firewall", "backend"},

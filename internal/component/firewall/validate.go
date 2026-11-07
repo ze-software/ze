@@ -39,6 +39,9 @@ func ValidateTables(tables []Table) error {
 				return fmt.Errorf("table %q: %w", tbl.Name, err)
 			}
 		}
+		if err := validateCtHelpers(tbl); err != nil {
+			return err
+		}
 		for j := range tbl.Chains {
 			ch := &tbl.Chains[j]
 			if err := ch.Validate(); err != nil {
@@ -364,6 +367,11 @@ func validateAction(tbl *Table, ch *Chain, term *Term, a Action, chains, flowtab
 			return fmt.Errorf("table %q chain %q term %q: flow-offload references unknown flowtable %q",
 				tbl.Name, ch.Name, term.Name, v.FlowtableName)
 		}
+	case SetCtHelper:
+		if !tableHasCtHelper(tbl, v.Name) {
+			return fmt.Errorf("table %q chain %q term %q: assigns unknown ct helper %q",
+				tbl.Name, ch.Name, term.Name, v.Name)
+		}
 	case Counter:
 		if v.Name != "" {
 			return fmt.Errorf("table %q chain %q term %q: named counter %q not yet supported; omit the name for an anonymous counter",
@@ -391,4 +399,41 @@ func validateAction(tbl *Table, ch *Chain, term *Term, a Action, chains, flowtab
 		}
 	}
 	return nil
+}
+
+// validateCtHelpers checks each conntrack helper object of a table. The kernel
+// holds ct helper objects only in the ip, ip6 and inet families
+// (nft_ct_helper_obj_init, net/netfilter/nft_ct.c, refuses every other family
+// with EOPNOTSUPP), so a table of another family is refused here rather than
+// at Apply.
+func validateCtHelpers(tbl *Table) error {
+	if len(tbl.CtHelpers) == 0 {
+		return nil
+	}
+	if tbl.Family != FamilyIP && tbl.Family != FamilyIP6 && tbl.Family != FamilyInet {
+		return fmt.Errorf("table %q: ct helper objects require family ip, ip6, or inet (got %s)",
+			tbl.Name, tbl.Family)
+	}
+	seen := make(map[string]bool, len(tbl.CtHelpers))
+	for i := range tbl.CtHelpers {
+		h := &tbl.CtHelpers[i]
+		if err := h.Validate(); err != nil {
+			return fmt.Errorf("table %q: %w", tbl.Name, err)
+		}
+		if seen[h.Name] {
+			return fmt.Errorf("table %q: ct helper %q declared twice", tbl.Name, h.Name)
+		}
+		seen[h.Name] = true
+	}
+	return nil
+}
+
+// tableHasCtHelper reports whether tbl declares the ct helper object name.
+func tableHasCtHelper(tbl *Table, name string) bool {
+	for i := range tbl.CtHelpers {
+		if tbl.CtHelpers[i].Name == name {
+			return true
+		}
+	}
+	return false
 }

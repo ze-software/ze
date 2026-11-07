@@ -171,19 +171,20 @@ registration).
 2. Verify: each name is checked against the helper table, which declares per helper its kernel helper names, protocols, ports and families. The table is the single declaration; the YANG enumeration is generated from it or checked against it by a test (principles: declare once).
 3. Kernel presence: the kernel-modules spec's enrolment answers whether the helper is present (built in or loadable). Absent: verify refuses with the helper name and the fix.
 4. Lower: a ze-owned inet table for the helpers registered in both families and a ze-owned ip table for the IPv4-only ones, each holding one `ct helper` object per kernel helper and protocol and two base chains, prerouting and output at priority filter - 5, with one rule per protocol and port setting the helper.
-5. Install: through the firewall backend that owns nft tables, replaced atomically on reload; an empty list removes the tables.
+5. Install: the firewall engine owns the helper tables through the config transaction. Its registration takes `system/conntrack` as a second config root, so a config listing a helper starts the engine with no `firewall {}` block. Verify lowers the helpers and judges them with the firewall tables through `ValidateTables` and the selected backend's verifier, so `ze config validate` and the commit refuse what cannot apply (VPP). Apply registers them under their own owner beside the firewall tables and reconciles once; the apply journal restores the previous helpers on a failed reload or a rollback. A reload delivers only the roots that changed, so the root a delivery does not carry keeps its running value, and a deleted block arrives as an empty section, which is an empty list: the tables are removed. A clean stop removes them (only the engine's own owners when no `firewall {}` block exists). The hub keeps the module load and the sysctls only.
+   → Decision: the hub's post-commit call was deleted (no layering); review findings B-1 and I-1 on it are fixed by construction.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config to system apply | `ExtractConntrackFromMap` | No |
-| System apply to firewall backend | an abstract `firewall.Table` with helper objects and a set-helper action | No |
+| Config to firewall engine | transaction section for root `system/conntrack`, read by `conntrackSectionModules` through `ExtractConntrackFromMap` | `TestConntrackSectionRemovedWithdrawsHelpers`, `TestConntrackSectionUndeliveredKeepsRunningValue` |
+| Firewall engine to backend | an abstract `firewall.Table` with helper objects and a set-helper action, registered under `conntrack-helpers` | `TestVerifyRunsBackendVerifierOverHelperTables`, `TestHelperTablesInstallWithdrawAndShow` |
 | Backend to kernel | nftables netlink: object add, rule add | No |
 
 ### Integration Points
 - `internal/component/firewall/model.go` - gains a helper object declaration on a table and a set-helper action; the VPP backend refuses both with an error naming the backend.
 - `internal/plugins/firewall/nft/lower_linux.go` - lowers them to `CtHelper` objects and `objref` assignment.
-- `cmd/ze/hub/main_system.go` `applyConntrackConfig` - submits the helper tables.
+- `internal/component/firewall/register.go` and `engine.go` - the second config root and the verify, apply, rollback and stop paths that carry the helper tables.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -270,6 +271,7 @@ registration).
 |------|----------|-------------------|--------|
 | `conntrack-helper-ftp-assigned` | `test/firewall/conntrack-helper-ftp-assigned.ci` | AC-1, AC-9 | |
 | `conntrack-helper-removed-on-reload` | `test/firewall/conntrack-helper-removed-on-reload.ci` | AC-5 | |
+| `conntrack-helper-block-deleted-on-reload` | `test/firewall/conntrack-helper-block-deleted-on-reload.ci` | AC-5: the second config has no `system conntrack` block at all | |
 | `TestConntrackHelperAssignment` | `internal/component/config/system/conntrack_helpers_integration_linux_test.go` (`integration && linux`) | AC-2, AC-11: one subtest per row, family, protocol and port; installs the lowered tables through the nft backend in a throwaway netns, opens the connection, reads the helper name from the conntrack entry; IPv4-only rows also assert the IPv6 connection carries none | |
 | `TestConntrackHelperNotAssignedWhenUnlisted` | same file | A-1, R-3, AC-5: with the helpers built in and the list empty, a connection to tcp 21 carries no helper and a PORT command creates no expectation | |
 | `TestConntrackHelperFTPThroughMasquerade` | same file | AC-6 in both families (PORT over IPv4, EPRT over IPv6): client netns, masquerading router netns, server netns; the data connection completes; red phase: the ftp row removed from the configured list, the data connection fails | |

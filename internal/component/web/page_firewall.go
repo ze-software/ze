@@ -430,6 +430,8 @@ func actionSummary(actions []firewall.Action) string {
 			parts = append(parts, "notrack")
 		case firewall.FlowOffload:
 			parts = append(parts, "flow offload "+v.FlowtableName)
+		case firewall.SetCtHelper:
+			parts = append(parts, "ct helper set "+v.Name)
 		case firewall.Counter:
 			parts = append(parts, "counter")
 		case firewall.Log:

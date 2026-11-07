@@ -198,6 +198,17 @@ func (b *backend) applyTable(tbl *firewall.Table) error {
 		}
 	}
 
+	// Ct helper objects are added before any rule for the same reason: a
+	// `ct helper set` rule is an objref the kernel resolves by name when it
+	// adds the rule (nft_objref_init, net/netfilter/nft_objref.c in 7.3).
+	for i := range tbl.CtHelpers {
+		obj, err := lowerCtHelper(t, &tbl.CtHelpers[i])
+		if err != nil {
+			return fmt.Errorf("ct helper %q: %w", tbl.CtHelpers[i].Name, err)
+		}
+		b.conn.AddObj(obj)
+	}
+
 	// Every chain is added before any rule. A jump or goto names its target
 	// chain, and the kernel resolves that name when it adds the rule, so a
 	// rule in one chain that jumps to a chain listed after it is refused

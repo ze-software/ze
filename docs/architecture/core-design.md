@@ -2242,6 +2242,24 @@ that model firewall concepts (MatchSourceAddress, Accept, SetMark), not nftables
 operations. The nft backend lowers abstract types to nftables expressions internally. The
 VPP backend maps them directly to ACL rules and policers.
 
+A table may also carry conntrack helper objects (`Table.CtHelpers`), which a
+`SetCtHelper` action assigns. The nft backend adds them as `ct helper` objects
+before any rule, because the kernel resolves an objref by name when it adds the
+rule; the VPP verifier refuses both, since VPP has no conntrack helper. Their
+one producer is `system conntrack module`. The firewall engine owns it as a
+second config root, `system/conntrack`, so a config that lists a helper starts
+the engine with no `firewall {}` block. Verify lowers the helpers
+(`ConntrackHelperTables`) and judges them with the firewall tables through
+`ValidateTables` and the backend's verifier, apply registers them under their
+own owner beside the firewall tables, and the apply journal restores both on
+rollback. A reload delivers only the roots that changed, so the root a
+delivery does not carry keeps its running value, and a deleted block arrives
+as an empty section that withdraws the tables. On a clean stop without a
+`firewall {}` block the engine withdraws only its own two owners.
+<!-- source: internal/component/firewall/conntrack_helpers.go -- ConntrackHelperTables, conntrackSectionModules -->
+<!-- source: internal/component/firewall/engine.go -- parseConfigSections, parseAndVerifyFirewallSections, flushOnStop -->
+<!-- source: internal/component/firewall/register.go -- ConfigRoots -->
+
 Table ownership: ze tables are prefixed `ze_*`. Backends only touch `ze_*` tables and never
 modify tables owned by other software (e.g., Lachesis). Apply receives the full desired state
 and reconciles against the kernel atomically.

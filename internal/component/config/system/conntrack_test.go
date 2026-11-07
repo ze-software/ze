@@ -194,8 +194,13 @@ func TestConntrackValidateModules(t *testing.T) {
 	cc := system.ConntrackConfig{Modules: []string{"ftp", "sip"}}
 	assert.NoError(t, cc.ValidateModules())
 
+	// nfs and sqlnet need user-space helpers no Linux kernel module provides,
+	// so the model no longer offers them and the guard refuses both.
 	cc.Modules = []string{"ftp", "sqlnet"}
-	assert.NoError(t, cc.ValidateModules())
+	assert.Error(t, cc.ValidateModules())
+
+	cc.Modules = []string{"ftp", "nfs"}
+	assert.Error(t, cc.ValidateModules())
 
 	cc.Modules = []string{"ftp", "nonexistent"}
 	assert.Error(t, cc.ValidateModules())

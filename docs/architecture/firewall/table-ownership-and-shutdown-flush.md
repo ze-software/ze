@@ -145,6 +145,15 @@ The firewall engine parses `flush-on-shutdown` only when a `firewall` section is
 present. A copp-only config keeps the package default of true. `atomic.Bool`
 zeroes to false, so the fail-safe default needs a `Store(true)` at init.
 
+The engine also runs with no `firewall` section when `system conntrack` is
+configured, its second config root, which carries the conntrack helper tables.
+Its post-`Run` path then removes only its own two owners, the firewall tables
+and the helper tables, and leaves every other owner's. The engine can stop
+while the daemon lives on, because a reload that deletes the `system conntrack`
+block stops it, and a full flush there would take copp's and policy routing's
+tables with it.
+<!-- source: internal/component/firewall/engine.go -- flushOnStop -->
+
 ## Rule 4: an attack-response table is cleared at the next start
 
 A ddos-local drop rule is not persistent state. It is an attack response, and a
