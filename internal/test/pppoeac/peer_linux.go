@@ -203,6 +203,18 @@ func (p *Peer) ServeNoAuth(ctx context.Context, observed chan<- ppp.LCPPacket) e
 					return err
 				}
 			case ppp.ProtoIPCP:
+				// This server offers no DNS, as accel-ppp without [dns] does: it
+				// Rejects every option but IP-Address, echoed unmodified, before
+				// it judges the address. Naking the address alone would answer a
+				// request whose address already matches, and the client would
+				// repeat it until its IPCP timeout.
+				// RFC 1661 Section 5.4: "If some Configuration Options received in a Configure-Request are not recognizable or are not acceptable for negotiation (as configured by a network administrator), then the implementation MUST transmit a Configure-Reject."
+				if rejected := ipcpOptionsOtherThanAddress(pkt.Data); len(rejected) != 0 {
+					if err := p.SendControl(incoming[6:12], proto, ppp.LCPConfigureReject, pkt.Identifier, rejected); err != nil {
+						return err
+					}
+					continue
+				}
 				address := []byte{3, 6, 192, 0, 2, 2}
 				if !bytes.Equal(pkt.Data, address) {
 					// RFC 1332 Section 3.3: "The peer can provide this information by NAKing the option, and returning a valid IP-address."
