@@ -125,8 +125,9 @@ func TestCommittedExternalChannelCarriesRegistration(t *testing.T) {
 // "result := externalValue{}\n\t\t\tresult.fields = nil") makes the select
 // receive yield nothing: its quiet call refuses as unresolved.
 // MUTATION: (internal/le/repo/inventory/methods.go,
-// "return 0, kind.Value, true", "return 1, kind.Value, true") loses the
-// ranged element's type: the quiet range refuses.
+// "case *ast.ChanType:\n\t\tif position == 0 {",
+// "case *ast.ChanType:\n\t\tif position == 1 {") loses the ranged element's
+// type: the quiet range refuses.
 // MUTATION: (internal/le/repo/inventory/externalranges.go,
 // "\tcase externalRangeChannel:\n",
 // "\tcase externalRangeChannel:\n\t\te.problem(source, \"channel range capability transfer is unsupported\")\n")

@@ -87,14 +87,34 @@ func (e *expression) method(source sourceExpr) (sourceFunction, bool) {
 // valueType follows at most 64 declaration edges. It derives static types, not
 // possible dynamic values; an interface result never becomes its returned literal.
 func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) {
-	if depth == 64 {
+	if depth >= 64 {
 		return sourceExpr{}, false
 	}
 	switch value := source.value.(type) {
 	case *ast.ParenExpr:
 		return e.valueType(sourceExpr{value: value.X, file: source.file, pkg: source.pkg}, depth+1)
+	case *ast.BasicLit:
+		// An untyped constant takes its default type where a variable is
+		// declared from it or a range ranges over it (Go specification,
+		// "Constants"): x := 3 is an int, and range "ab" ranges a string.
+		//exhaustive:ignore
+		switch value.Kind {
+		case token.INT:
+			return universeType(source, "int")
+		case token.CHAR:
+			return universeType(source, "rune")
+		case token.STRING:
+			return universeType(source, "string")
+		case token.FLOAT:
+			return universeType(source, "float64")
+		case token.IMAG:
+			return universeType(source, "complex128")
+		}
+		return sourceExpr{}, false
 	case *ast.CompositeLit:
 		return sourceExpr{value: value.Type, file: source.file, pkg: source.pkg}, value.Type != nil
+	case *ast.FuncLit:
+		return sourceExpr{value: value.Type, file: source.file, pkg: source.pkg}, true
 	case *ast.UnaryExpr:
 		// The static type of &operand is a pointer to the operand's type, so
 		// x := &T{} resolves x.Method exactly as var x *T does. The pointer
@@ -126,6 +146,18 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		}
 		if binding == nil {
 			return sourceExpr{}, false
+		}
+		if binding.Kind == ast.Fun {
+			// A package function's static type is its signature; a generic one
+			// has no type until it is instantiated.
+			function, found := source.pkg.functions[value.Name]
+			if !found {
+				return sourceExpr{}, false
+			}
+			if function.decl.Type.TypeParams.NumFields() != 0 {
+				return sourceExpr{}, false
+			}
+			return sourceExpr{value: function.decl.Type, file: function.file, pkg: function.pkg}, true
 		}
 		if binding.Kind != ast.Var {
 			return sourceExpr{}, false
@@ -162,28 +194,7 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 			if len(declaration.Rhs) == 1 {
 				if ranged, ok := declaration.Rhs[0].(*ast.UnaryExpr); ok {
 					if ranged.Op == token.RANGE {
-						if declaration.Tok != token.DEFINE {
-							return sourceExpr{}, false
-						}
-						collection, found := e.valueType(sourceExpr{value: ranged.X, file: source.file, pkg: source.pkg}, depth+1)
-						if !found {
-							return sourceExpr{}, false
-						}
-						element, datatype, known := rangedElement(collection)
-						if !known {
-							return sourceExpr{}, false
-						}
-						if len(declaration.Lhs) != element+1 {
-							return sourceExpr{}, false
-						}
-						name, ok := declaration.Lhs[element].(*ast.Ident)
-						if !ok {
-							return sourceExpr{}, false
-						}
-						if name.Obj != binding {
-							return sourceExpr{}, false
-						}
-						return sourceExpr{value: datatype, file: collection.file, pkg: collection.pkg}, true
+						return e.rangedType(source, declaration, ranged, value.Name, depth+1)
 					}
 				}
 			}
@@ -204,18 +215,241 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 	return sourceExpr{}, false
 }
 
-// rangedElement answers which range binding denotes the element of a
-// collection, and its type. Only the second binding of a slice or array range
-// is its element, and the key is not; a channel range has one binding, and it
-// is the received element.
-func rangedElement(collection sourceExpr) (int, ast.Expr, bool) {
-	switch kind := collection.value.(type) {
-	case *ast.ArrayType:
-		return 1, kind.Elt, true
-	case *ast.ChanType:
-		return 0, kind.Value, true
+// rangedType answers the static type of the range variable named variable,
+// which declaration declares.
+// The operand's type comes from valueType, so a package map declared from a
+// composite literal, or a call whose single result type is declared, ranges as
+// its declared type; an operand whose type is unknown leaves the variable
+// unknown. Only a defining range (:=) declares a variable.
+func (e *expression) rangedType(source sourceExpr, declaration *ast.AssignStmt, ranged *ast.UnaryExpr, variable string, depth int) (sourceExpr, bool) {
+	if declaration.Tok != token.DEFINE {
+		return sourceExpr{}, false
 	}
-	return 0, nil, false
+	// One defining assignment cannot declare a name twice, so the name alone
+	// finds the variable's position; the blank identifier declares nothing.
+	position := -1
+	for index, left := range declaration.Lhs {
+		name, ok := left.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		if name.Name == "_" {
+			continue
+		}
+		if name.Name == variable {
+			position = index
+		}
+	}
+	if position < 0 {
+		return sourceExpr{}, false
+	}
+	collection, found := e.valueType(sourceExpr{value: ranged.X, file: source.file, pkg: source.pkg}, depth+1)
+	if !found {
+		return sourceExpr{}, false
+	}
+	shape, found := e.underlyingType(collection, depth+1)
+	if !found {
+		return sourceExpr{}, false
+	}
+	if pointer, indirect := shape.value.(*ast.StarExpr); indirect {
+		// Go specification, "For statements with range clause": a pointer to
+		// an array ranges as the array does. No other pointer ranges.
+		shape, found = e.underlyingType(sourceExpr{value: pointer.X, file: shape.file, pkg: shape.pkg}, depth+1)
+		if !found {
+			return sourceExpr{}, false
+		}
+		array, isArray := shape.value.(*ast.ArrayType)
+		if !isArray {
+			return sourceExpr{}, false
+		}
+		if array.Len == nil {
+			return sourceExpr{}, false
+		}
+	}
+	return rangedElement(collection, shape, position)
+}
+
+// underlyingType resolves a retained named type to the type its declaration
+// names, in the file that declares it, following at most 64 edges. A
+// predeclared basic type and an unnamed type literal are their own underlying
+// type. An alias, a generic type or a named chain refuses, as concreteType does.
+func (e *expression) underlyingType(source sourceExpr, depth int) (sourceExpr, bool) {
+	for ; depth < 64; depth++ {
+		switch datatype := source.value.(type) {
+		case *ast.ParenExpr:
+			source.value = datatype.X
+			continue
+		case *ast.Ident:
+			if _, basic := basicType(source); basic {
+				return source, true
+			}
+		case *ast.SelectorExpr:
+			// The exact retained declaration is resolved below.
+		default:
+			return source, true
+		}
+		definition, owner, found := e.concreteType(source)
+		if !found {
+			return sourceExpr{}, false
+		}
+		file, found := declaringFile(owner, definition)
+		if !found {
+			return sourceExpr{}, false
+		}
+		source = sourceExpr{value: definition.Type, file: file, pkg: owner}
+	}
+	return sourceExpr{}, false
+}
+
+// declaringFile answers the retained file whose package scope declares
+// definition, so the imports its type expression names resolve in that file.
+func declaringFile(owner *sourcePackage, definition *ast.TypeSpec) (*ast.File, bool) {
+	for _, file := range owner.files {
+		object := file.File.Scope.Lookup(definition.Name.Name)
+		if object == nil {
+			continue
+		}
+		if object.Decl == definition {
+			return file.File, true
+		}
+	}
+	return nil, false
+}
+
+// rangedElement answers the type of the range variable at position (0 for the
+// first, 1 for the second) over a collection whose underlying type is shape,
+// by the table in the Go specification, "For statements with range clause":
+//
+//	array, pointer to array, slice  index int        element
+//	string                          index int        rune
+//	map                             key              element
+//	channel                         element          (none)
+//	integer n                       the type of n    (none)
+//	func(yield func(K, V) bool)     K                V
+//
+// named is the operand's own type, because an integer range variable has the
+// operand's type and not its underlying one. A position the kind has no
+// variable for refuses.
+func rangedElement(named, shape sourceExpr, position int) (sourceExpr, bool) {
+	at := func(value ast.Expr) (sourceExpr, bool) {
+		return sourceExpr{value: value, file: shape.file, pkg: shape.pkg}, true
+	}
+	switch kind := shape.value.(type) {
+	case *ast.ArrayType:
+		switch position {
+		case 0:
+			return universeType(shape, "int")
+		case 1:
+			return at(kind.Elt)
+		}
+	case *ast.MapType:
+		switch position {
+		case 0:
+			return at(kind.Key)
+		case 1:
+			return at(kind.Value)
+		}
+	case *ast.ChanType:
+		if position == 0 {
+			return at(kind.Value)
+		}
+	case *ast.FuncType:
+		yielded, found := iteratorYields(kind)
+		if !found {
+			return sourceExpr{}, false
+		}
+		if position < len(yielded) {
+			return at(yielded[position])
+		}
+	case *ast.Ident:
+		basic, found := basicType(shape)
+		if !found {
+			return sourceExpr{}, false
+		}
+		if basic.Info()&types.IsString != 0 {
+			switch position {
+			case 0:
+				return universeType(shape, "int")
+			case 1:
+				return universeType(shape, "rune")
+			}
+		}
+		if basic.Info()&types.IsInteger != 0 {
+			if position == 0 {
+				return named, true
+			}
+		}
+	}
+	return sourceExpr{}, false
+}
+
+// iteratorYields answers the parameter types of yield for a range-over-func
+// iterator, func(yield func(...) bool) with at most two yielded values, in
+// order. Any other function shape is no iterator.
+func iteratorYields(iterator *ast.FuncType) ([]ast.Expr, bool) {
+	if iterator.Results.NumFields() != 0 {
+		return nil, false
+	}
+	if iterator.Params.NumFields() != 1 {
+		return nil, false
+	}
+	yield, ok := iterator.Params.List[0].Type.(*ast.FuncType)
+	if !ok {
+		return nil, false
+	}
+	if yield.Results.NumFields() != 1 {
+		return nil, false
+	}
+	result, ok := yield.Results.List[0].Type.(*ast.Ident)
+	if !ok {
+		return nil, false
+	}
+	if result.Name != "bool" {
+		return nil, false
+	}
+	if result.Obj != nil {
+		return nil, false
+	}
+	var yielded []ast.Expr
+	for _, field := range yield.Params.List {
+		yielded = append(yielded, field.Type)
+		for range len(field.Names) - 1 {
+			yielded = append(yielded, field.Type)
+		}
+	}
+	if len(yielded) > 2 {
+		return nil, false
+	}
+	return yielded, true
+}
+
+// basicType answers the predeclared basic type an identifier names, when no
+// retained declaration shadows it.
+func basicType(source sourceExpr) (*types.Basic, bool) {
+	name, ok := source.value.(*ast.Ident)
+	if !ok {
+		return nil, false
+	}
+	if !predeclaredIdentifier(source, name.Name) {
+		return nil, false
+	}
+	builtin, ok := types.Universe.Lookup(name.Name).(*types.TypeName)
+	if !ok {
+		return nil, false
+	}
+	basic, ok := builtin.Type().(*types.Basic)
+	return basic, ok
+}
+
+// universeType names the predeclared type name at the position of at, in its
+// file, so a type walk resolves it as the source spelling would. A retained
+// declaration that shadows name refuses rather than answer the wrong type.
+func universeType(at sourceExpr, name string) (sourceExpr, bool) {
+	result := sourceExpr{value: &ast.Ident{NamePos: at.value.Pos(), Name: name}, file: at.file, pkg: at.pkg}
+	if !predeclaredIdentifier(result, name) {
+		return sourceExpr{}, false
+	}
+	return result, true
 }
 
 // concreteType preserves the defining declaration's identity. Only direct
