@@ -19,7 +19,10 @@ import (
 
 // The router owns .1 (::1) on each side. The SYN comes from .10 on the
 // ingress side and goes to .20 on the egress side, which no interface holds,
-// so the router forwards it rather than delivering it.
+// so the router forwards it rather than delivering it. Each of .10 and .20
+// also gets a host route through its own side (steer), because the connected
+// /24 and /64 alone do not decide the path in a namespace that other tests
+// share.
 var (
 	ingressRouterV4 = net.IPv4(192, 0, 2, 1).To4()
 	egressRouterV4  = net.IPv4(198, 51, 100, 1).To4()
@@ -80,7 +83,82 @@ func (l *Lab) setup() error {
 	if err := l.forwarding(); err != nil {
 		return err
 	}
+	if err := l.steer(); err != nil {
+		return err
+	}
 	return l.sockets()
+}
+
+// steer pins the path of each probe to the lab's own veths, then asks the
+// kernel which device it would forward a probe to, and refuses when the answer
+// is not the egress side.
+//
+// The connected routes are not enough. A .ci test in a QEMU guest runs in the
+// guest's root namespace, which keeps what earlier tests left: a leftover
+// device holding 198.51.100.2/24 adds a second connected 198.51.100.0/24, the
+// kernel picks the older one, and the SYN leaves through that device and never
+// reaches the egress peer. A host route is longer than any leftover subnet
+// route, so the probe takes the lab's path wherever the lab runs. The reverse
+// route for the source keeps the source check on the ingress side too.
+func (l *Lab) steer() error {
+	hosts := []struct {
+		side string
+		ip   net.IP
+		bits int
+	}{
+		{l.ingress, net.IP(sourceV4[:]), 32},
+		{l.ingress, net.IP(sourceV6[:]), 128},
+		{l.egress, net.IP(targetV4[:]), 32},
+		{l.egress, net.IP(targetV6[:]), 128},
+	}
+	for _, host := range hosts {
+		link, err := netlink.LinkByName(host.side)
+		if err != nil {
+			return fmt.Errorf("msslab: read %s: %w", host.side, err)
+		}
+		route := &netlink.Route{
+			LinkIndex: link.Attrs().Index,
+			Scope:     netlink.SCOPE_LINK,
+			Dst:       &net.IPNet{IP: host.ip, Mask: net.CIDRMask(host.bits, host.bits)},
+		}
+		if err := netlink.RouteAdd(route); err != nil {
+			return fmt.Errorf("msslab: host route %s on %s: %w", host.ip, host.side, err)
+		}
+	}
+	return l.checkPath()
+}
+
+// checkPath answers an error unless the kernel forwards a probe of each family,
+// arriving on the ingress side from the source, out of the egress side. It is
+// `ip route get <target> from <source> iif <ingress>`.
+func (l *Lab) checkPath() error {
+	egress, err := netlink.LinkByName(l.egress)
+	if err != nil {
+		return fmt.Errorf("msslab: read %s: %w", l.egress, err)
+	}
+	probes := []struct {
+		source, target net.IP
+	}{
+		{net.IP(sourceV4[:]), net.IP(targetV4[:])},
+		{net.IP(sourceV6[:]), net.IP(targetV6[:])},
+	}
+	for _, probe := range probes {
+		options := &netlink.RouteGetOptions{Iif: l.ingress, SrcAddr: probe.source}
+		routes, err := netlink.RouteGetWithOptions(probe.target, options)
+		if err != nil {
+			return fmt.Errorf("msslab: ip route get %s from %s iif %s: %w", probe.target, probe.source, l.ingress, err)
+		}
+		if len(routes) != 1 {
+			return fmt.Errorf("msslab: ip route get %s from %s iif %s answered %d routes, want 1",
+				probe.target, probe.source, l.ingress, len(routes))
+		}
+		if routes[0].LinkIndex != egress.Attrs().Index {
+			return fmt.Errorf("msslab: the kernel forwards %s from %s arriving on %s out of ifindex %d, not %s (ifindex %d), "+
+				"so a route or rule in this namespace takes the probe away from the lab: list them with `ip route show table all` and `ip rule`",
+				probe.target, probe.source, l.ingress, routes[0].LinkIndex, l.egress, egress.Attrs().Index)
+		}
+	}
+	return nil
 }
 
 // Close closes the sockets and removes both veth pairs. Deleting one end of a
@@ -138,8 +216,9 @@ func (l *Lab) Forward(family Family, sent Option, wait time.Duration) (Seen, err
 
 // SetMTU sets the MTU of each side, on the router's veth and on its peer, so
 // the route the router takes toward the target (egress) and the route back
-// toward the source (ingress) carry those MTUs. A connected route takes the
-// MTU of its device (dst_mtu), which is what `rt mtu` reads. Each value MUST
+// toward the source (ingress) carry those MTUs. The host routes steer adds
+// carry no MTU of their own, so each takes the MTU of its device (dst_mtu),
+// which is what `rt mtu` reads. Each value MUST
 // be a valid veth MTU (68 to 65535).
 func (l *Lab) SetMTU(ingress, egress int) error {
 	sides := []struct {
