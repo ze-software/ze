@@ -1,0 +1,67 @@
+# FreeRADIUS of the access chain: the whole virtual server, written out.
+#
+# It is the subscriber lab's server (test/interop-radius-subscriber/
+# site-default: Access-Requests on 1812, Accounting-Requests on 1813, CHAP
+# against the users file, every accounting record to the ze_detail module)
+# with one addition: post-auth writes each answered login to ze_auth_log, so
+# the checker reads what the server saw and what it answered. The ze_detail
+# module is that lab's own file, mounted unchanged.
+server default {
+	listen {
+		type = auth
+		ipaddr = *
+		port = 1812
+	}
+
+	listen {
+		type = acct
+		ipaddr = *
+		port = 1813
+	}
+
+	authorize {
+		preprocess
+		update request {
+			&Tmp-String-0 := "absent"
+			&Tmp-String-1 := "absent"
+		}
+		if (&User-Password) {
+			update request {
+				&Tmp-String-0 := "present"
+			}
+		}
+		if (&CHAP-Password) {
+			update request {
+				&Tmp-String-1 := "present"
+			}
+		}
+		chap
+		files
+		pap
+	}
+
+	authenticate {
+		Auth-Type CHAP {
+			chap
+		}
+		Auth-Type PAP {
+			pap
+		}
+	}
+
+	preacct {
+		preprocess
+	}
+
+	accounting {
+		ze_detail
+	}
+
+	post-auth {
+		ze_auth_log
+
+		Post-Auth-Type REJECT {
+			ze_auth_log
+		}
+	}
+}

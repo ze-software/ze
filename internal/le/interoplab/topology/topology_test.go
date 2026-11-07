@@ -28,7 +28,7 @@ func TestTopologyCatalogDiscovers(t *testing.T) {
 		t.Fatalf("discovered %d scenario directories, declared %d", len(sources), len(scenarios))
 	}
 	for _, source := range sources {
-		plan := scenarioPlan(source, scenarios[source.Name], "fixture")
+		plan := scenarioPlan(root, source, scenarios[source.Name], "fixture")
 		if err := interoplab.ValidateLinks(source.Name, plan.Links, plan.Peers); err != nil {
 			t.Fatal(err)
 		}

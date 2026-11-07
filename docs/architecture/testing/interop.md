@@ -3014,13 +3014,48 @@ for every suite, so a directory with no declaration is an error.
 | `ze-static-link-chain` | Ze nodes `ze-a`, `ze-b`, `ze-c` on links `a-b` (VLAN 181, `10.181.1.0/24`) and `b-c` (VLAN 182, `10.181.2.0/24`), B forwarding; `outside` on `eth0` alone | each node answers `show interface brief` by name; A pings C through B; `outside` cannot reach a link address |
 | `two-ze-pppoe-link` | a Ze PPPoE client and a Ze PPPoE server on a link with no prefix; an observer on `eth0` alone | the client holds an address from the server's pool on a ppp device (assigned only once IPCP is Opened), the server's kernel PPPoE table holds the session on the link device, and the observer received no untagged PPPoE discovery frame |
 | `pppoe-mss-pmtu` | Ze CPE `ze-cpe` dialing accel-ppp `accel` on link `access` (VLAN 184, no prefix) with MTU 1492; `lan-host` behind Ze on link `lan` (VLAN 185, `10.185.1.0/24`); `server` beyond accel-ppp on link `core` (VLAN 186, `10.186.1.0/24`), capturing SYNs | Ze's `pppoe0` holds an IPCP address and reports MTU 1492, its table lists `tcp option maxseg size set rt mtu`, and the server captures the SYN lan-host offered with MSS 1460 as 1452 and the one offered with 1200 as 1200 |
+| `access-up` | the access chain (below): Ze CPE `ze-cpe` on link `access` (VLAN 191, no prefix) to Ze LAC `ze-lac`, which relays the empty Service-Name over link `core` (VLAN 192, `192.0.2.0/24`) to Ze LNS `ze-lns`, which checks CHAP with `freeradius` on the same link | the LAC's access capture holds a PADO with a zero-length Service-Name and a PADS with a non-zero session; the LAC holds one tunnel to the LNS with one session, the kernel PPPoE session on its access device, and no addressed PPP device; FreeRADIUS logged an Accept for `cpe@lab.example.net` with a CHAP-Password, no User-Password, NAS-Identifier `ze-lns` and NAS-IP-Address and source `192.0.2.3`; the LNS session names the user and holds `203.0.113.1`, its detail reports `mru` 1492 and `auth-method` `chap-md5`, its core capture holds its LCP Configure-Request with MRU 1492; the CPE's `pppoe0` holds `203.0.113.1` with MTU 1492, its resolv.conf lists the two DNS servers IPCP offered, its eth0 holds no address, its route to `100.64.0.1` leaves on `pppoe0`, it pings that address with no loss, and the LNS's PPP device toward the subscriber received at least the pings sent |
+| `access-pool` | the access chain, with a user whose Access-Accept carries no Framed-IP-Address | the CPE's `pppoe0` holds an address in `100.64.0.0/24`, the LNS session holds the same one, and `show l2tp pool` reports one address allocated, to that session |
+| `access-accounting` | the access chain, with the LNS's `acct-interval 60` | FreeRADIUS's `ze_detail` holds the session's Start, an Interim-Update and, once the CPE is stopped (its PPPoE client sends PADT), the Stop, all under one Acct-Session-Id and carrying `203.0.113.1`, the Stop counting at least the 20 560 octets a 20-packet ping of 1000-octet payloads carried each way |
+
+The access chain is the first end-to-end proof that a subscriber's PPP
+session crosses Ze's LAC (`relay ""`) and terminates on Ze's LNS: the LAC
+terminates nothing, so LCP, CHAP and IPCP run between the CPE and the LNS
+across the LAC's kernel channel bridge. Every value is invented: core
+`192.0.2.0/24`, subscriber `203.0.113.1/32`, pool `100.64.0.0/24`, realm
+`lab.example.net`. The three scenarios share one declaration
+(`accessChain`) and the files under `test/interop-topology/access-chain/`:
+the LAC configuration, which no scenario changes, and FreeRADIUS's
+`clients.conf`, a `site-default` that adds a `ze_auth_log` line per answered
+login (`mods-ze-auth-log`: the presence of a User-Password and a
+CHAP-Password, the NAS-Identifier, the NAS-IP-Address and the request's
+source), and the subscriber lab's `ze_detail` module mounted unchanged. Each
+scenario directory carries what differs: the CPE and LNS configurations and
+FreeRADIUS's `users`. FreeRADIUS joins the core link, so it runs
+`ze-topology-freeradius`, the pinned release built with iproute2 for the
+link's start wrapper. Each clause reads a different producer (vacuity trap
+5), and the CPE's prestart flushes its eth0, so the session is its only path
+to the LNS (trap 4). The LAC and the LNS start their captures in their
+prestart, before their daemon, and the LNS's and FreeRADIUS's readiness gate
+the next node's start. The interim waits the full 60 seconds: RFC 2869
+Section 5.16 says of Acct-Interim-Interval "The value MUST NOT be smaller
+than 60.", Ze clamps a received value to that floor and the `acct-interval`
+leaf's range starts there. The scenarios need a Docker host running Ze's
+kernel, with PPPoE, L2TP and PPPoL2TP (`spec-docker-hosts-run-the-ze-kernel`);
+the core's kernel check refuses another.
+<!-- source: internal/le/interoplab/topology/register_access_chain.go -- accessChain, captureStart -->
+<!-- source: internal/le/interoplab/topology/check_access.go -- checkAccessUp, checkAccessPool, checkAccessAccounting -->
+<!-- source: internal/le/interoplab/topology/register_images.go -- freeRADIUSLinkImage -->
 
 `./le test integration interop-topology` runs every scenario;
 `./le test integration interop-topology scenario <name>`, or
-`TOPOLOGY_INTEROP_SCENARIO=<name>`, runs one. The suite asks each Ze node's
-CLI through `interoplab.ZeCLICommand`, the same argv the IPsec lab sends, so
-every Ze configuration in the suite serves that SSH account on
-`127.0.0.1` port 2222.
+`TOPOLOGY_INTEROP_SCENARIO=<name>`, runs one. A checker that asks a Ze
+node's CLI does so through `interoplab.ZeCLICommand`, the same argv the IPsec
+lab sends, and that node's configuration serves the SSH account on
+`127.0.0.1` port 2222. The access chain's checkers read each Ze node through
+its REST surface instead (`POST /api/v1/execute` on `127.0.0.1` port 17012,
+the `api-server` block its configurations carry), which answers the
+`show l2tp` commands as JSON.
 
 Images are registered by name in the core. Each suite registers the images it
 builds from `init()` in its `register_images.go` (`interoplab.RegisterImage`),

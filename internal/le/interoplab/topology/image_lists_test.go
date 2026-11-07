@@ -100,6 +100,9 @@ func TestSuiteImageListsUnchanged(t *testing.T) {
 			{"ze-rsvpte-interop", filepath.Join(rsvpte, "Dockerfile.ze"), root, true, false},
 			{"ze-rsvpte-freertr", filepath.Join(rsvpte, "Dockerfile.freertr"), rsvpte, true, false},
 		}},
+		{"interop-topology", []buildShape{
+			{"ze-topology-freeradius", join("test", "interop-topology", "access-chain", "Dockerfile.freeradius"), join("test", "interop-topology", "access-chain"), true, false},
+		}},
 		{"docker-wireguard", []buildShape{
 			{"ze-vpn-wireguard", join("internal", "le", "test", "deployment", "testdata", "Dockerfile.wireguard"), root, true, false},
 		}},

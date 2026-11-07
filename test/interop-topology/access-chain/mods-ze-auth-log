@@ -1,0 +1,22 @@
+# FreeRADIUS of the access chain: the server's own record of every login it
+# answered, one line per request, which the checker reads
+# (internal/le/interoplab/topology/check_access.go, authLogPath).
+#
+# Tmp-String-0 and Tmp-String-1 carry the PRESENCE of a User-Password and of a
+# CHAP-Password, never their values, so the file holds no password and no
+# digest. sites-enabled/default sets both before any module runs. source is
+# the address the request came from, so the line shows the LNS's configured
+# source-address as the server received it, beside the NAS-IP-Address and
+# NAS-Identifier the LNS wrote into the request.
+linelog ze_auth_log {
+	filename = ${logdir}/ze-auth.log
+	escape_filenames = no
+	permissions = 0644
+	format = ""
+	reference = "messages.%{%{reply:Packet-Type}:-unknown}"
+	messages {
+		Access-Accept = "verdict=accept user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none} nas-ip-address=%{%{NAS-IP-Address}:-none} source=%{Packet-Src-IP-Address}"
+		Access-Reject = "verdict=reject user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none} nas-ip-address=%{%{NAS-IP-Address}:-none} source=%{Packet-Src-IP-Address}"
+		unknown = "verdict=unhandled user=%{%{User-Name}:-none} user-password=%{Tmp-String-0} chap-password=%{Tmp-String-1} nas-identifier=%{%{NAS-Identifier}:-none} nas-ip-address=%{%{NAS-IP-Address}:-none} source=%{Packet-Src-IP-Address}"
+	}
+}

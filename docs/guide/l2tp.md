@@ -109,11 +109,15 @@ listener, a dial asks for a restart instead.
 The `relay` binding is the LAC path: a PPPoE subscriber whose Service-Name
 matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
 instead of terminating PPP locally. The subscriber-PPP↔L2TP kernel channel
-bridge that carries frames at the LAC is Linux-only. What proves it today is
-`TestLACChannelBridge`, which shows only that the bridge ioctls reach the
-kernel. No end-to-end run carries a PPPoE subscriber through a Ze LAC yet:
+bridge that carries frames at the LAC is Linux-only. `TestLACChannelBridge`
+shows only that the bridge ioctls reach the kernel, and
 `./le test deployment l2tp-ppp` has xl2tpd dial Ze as an LNS with no PPPoE
-and no Ze LAC, so it never reaches the bridge. Initiator tunnel interop is
+and no Ze LAC, so it never reaches the bridge. The end-to-end proof of the
+relay data path is the topology scenario `access-up`
+(`./le test integration interop-topology scenario access-up`): a Ze CPE
+dials with no Service-Name, a Ze LAC relays it with `relay ""` to a Ze LNS,
+and the CPE pings the LNS across the session. It needs a Docker host running
+Ze's kernel and has not yet run green. Initiator tunnel interop is
 proven against xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
 
 ### Relay by realm (wholesale LAC)

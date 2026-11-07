@@ -1,0 +1,3 @@
+pool@lab.example.net	Cleartext-Password := "pool-fixture-password"
+	Service-Type = Framed-User,
+	Framed-Protocol = PPP

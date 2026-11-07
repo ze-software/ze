@@ -33,6 +33,21 @@ type node struct {
 	capabilities []string
 	arguments    []string
 	prestart     string
+	// shared are files the node mounts from a lab directory several
+	// scenarios share, each named relative to the checkout, so one file
+	// serves every scenario that runs the same node.
+	shared []sharedFile
+	// ready is the command the core waits on before it starts the next node,
+	// empty for a node the next one does not depend on: the checker then
+	// waits on the state it reads.
+	ready []string
+}
+
+// sharedFile is one read-only mount of a node: source is a slash path
+// relative to the checkout, target the path inside the container.
+type sharedFile struct {
+	source string
+	target string
 }
 
 // scenario is one topology scenario's declaration: its nodes in start order,
@@ -90,7 +105,7 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 	plans := make([]interoplab.ScenarioPlan, 0, len(sources))
 	var images []string
 	for _, source := range sources {
-		plan := scenarioPlan(source, scenarios[source.Name], options.Suffix)
+		plan := scenarioPlan(root, source, scenarios[source.Name], options.Suffix)
 		for index := range plan.Peers {
 			images = append(images, plan.Peers[index].Image)
 		}
@@ -133,11 +148,12 @@ func ScenarioNames() []string {
 }
 
 // scenarioPlan turns a declaration into the plan the core runs: one network,
-// one peer per node, and the declared links.
-func scenarioPlan(source interoplab.ScenarioSource, declared scenario, suffix string) interoplab.ScenarioPlan {
+// one peer per node, and the declared links. root is the checkout a node's
+// shared files are named relative to.
+func scenarioPlan(root string, source interoplab.ScenarioSource, declared scenario, suffix string) interoplab.ScenarioPlan {
 	peers := make([]interoplab.PeerConfig, 0, len(declared.nodes))
 	for index := range declared.nodes {
-		peers = append(peers, nodePeer(source.Directory, &declared.nodes[index], suffix))
+		peers = append(peers, nodePeer(root, source.Directory, &declared.nodes[index], suffix))
 	}
 	var network textbuf.Buffer
 	return interoplab.ScenarioPlan{
@@ -148,9 +164,10 @@ func scenarioPlan(source interoplab.ScenarioSource, declared scenario, suffix st
 	}
 }
 
-// nodePeer is one node's container. Readiness waits on nothing: each checker
-// waits on the state it reads.
-func nodePeer(directory string, declared *node, suffix string) interoplab.PeerConfig {
+// nodePeer is one node's container. Readiness waits on the node's ready
+// command when it declares one, and on nothing otherwise: each checker waits
+// on the state it reads.
+func nodePeer(root, directory string, declared *node, suffix string) interoplab.PeerConfig {
 	var container textbuf.Buffer
 	peer := interoplab.PeerConfig{Name: declared.name,
 		Container: container.Str("ze-topo-").Str(declared.name).Byte('-').Str(suffix).String(),
@@ -158,15 +175,22 @@ func nodePeer(directory string, declared *node, suffix string) interoplab.PeerCo
 		Capabilities: declared.capabilities, Arguments: declared.arguments, Prestart: declared.prestart,
 		Ready: &interoplab.ReadyProbe{Command: []string{"true"}, Timeout: 30 * time.Second, Interval: time.Second}}
 	if declared.config != "" {
-		peer.Mounts = []interoplab.Mount{{Source: filepath.Join(directory, declared.config), Target: declared.mountedAt, ReadOnly: true}}
+		peer.Mounts = append(peer.Mounts, interoplab.Mount{Source: filepath.Join(directory, declared.config), Target: declared.mountedAt, ReadOnly: true})
+	}
+	for _, file := range declared.shared {
+		peer.Mounts = append(peer.Mounts, interoplab.Mount{Source: filepath.Join(root, filepath.FromSlash(file.source)), Target: file.target, ReadOnly: true})
+	}
+	if len(declared.ready) != 0 {
+		peer.Ready = &interoplab.ReadyProbe{Command: declared.ready, Timeout: 90 * time.Second, Interval: time.Second}
 	}
 	return peer
 }
 
 // zeNode is a Ze node of a topology scenario: the ze image the BGP suite
-// registers, its own configuration file, NET_ADMIN for the routes and
-// devices it programs, and the CLI account the checker queries it with
-// (each config file carries interoplab.ZeCLIConfig's block).
+// registers, its own configuration file and NET_ADMIN for the routes and
+// devices it programs. A checker that asks the node's CLI uses
+// interoplab.ZeCLICommand, whose account the node's configuration then
+// carries; one that reads its REST surface needs the api-server block.
 func zeNode(name string, host uint8, config string, arguments ...string) node {
 	return node{name: name, image: zeImage, host: host, config: config, mountedAt: zeMountedConfig,
 		command: []string{"start", zeMountedConfig}, capabilities: []string{capabilityNetAdmin}, arguments: arguments}

@@ -1,0 +1,14 @@
+# FreeRADIUS for the topology suite's access chain: the pinned release every
+# RADIUS lab pulls (interoplab.FreeRADIUSImage, passed in as FREERADIUS_IMAGE
+# by internal/le/interoplab/topology/register_images.go), plus iproute2.
+#
+# The server sits on the scenario's core link, and a link member's start
+# wrapper builds its VLAN device with ip before radiusd starts. The pulled
+# image carries no ip, so the core's link-tool probe refuses it as a member.
+# Nothing else changes: the image's own entrypoint and command still run.
+ARG FREERADIUS_IMAGE
+FROM ${FREERADIUS_IMAGE}
+
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends iproute2 \
+	&& rm -rf /var/lib/apt/lists/*
