@@ -2316,6 +2316,59 @@ names `sa-failed` and the size.
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkRealNATTransport, checkRealNATTunnelControl -->
 
+### The IPsec name server
+
+A scenario that carries `dns.conf` starts a name server container, `dns`, at
+172.28.0.8, keyed on that file as the NAT box is keyed on `nat.conf`. It exists so
+Ze's `remote-address` can be a DNS name: RFC 7296 Section 2.23 NAT detection must
+then hash over the address the name resolved to, which no scenario with a literal
+reaches.
+
+`dns.conf` is one record per line, `<name> <ipv4>`. The lab refuses an empty file, a
+malformed line, a name given twice, an address outside the lab network and the
+server's own address, before any container starts (`readDNSConfig`). The image is
+Alpine with dnsmasq (`Dockerfile.dns`), built only when a planned scenario carries a
+`dns.conf`.
+
+Two choices are load-bearing:
+
+- **The container starts with no server running.** A checker calls `startDNS` when
+  its scenario wants the names to answer, which runs dnsmasq with one
+  `--host-record` per line, no upstream and no hosts file, then waits until
+  `nslookup` over the lab network returns every record. So a scenario can boot Ze
+  while DNS is down and bring it up later, the home CPE's "boot before DNS" case.
+- **Ze asks this server and nothing else.** The lab mounts a `resolv.conf` naming
+  172.28.0.8 alone (`options timeout:1 attempts:1`) over Ze's `/etc/resolv.conf`,
+  which replaces Docker's own file and its embedded resolver. While dnsmasq is down a
+  query is refused at once, so the DNS-down phase measures Ze's backoff rather than a
+  resolver timeout.
+
+Ze's SPD catch-all DISCARD (`vpn ipsec unmatched discard`, the default) drops Ze's own
+DNS query like any other clear traffic, so each scenario's `ze.conf` carries a
+`policy lab-dns` bypass to 172.28.0.8 at order 1000, ahead of the tunnel's 2000. An
+operator with a DNS-named peer writes the same entry for their resolver
+(`docs/guide/ipsec.md`, "The catch-all entry").
+
+| Scenario | Proves |
+|----------|--------|
+| `fqdn-remote-dynamic-local` | Ze names no `interface` and no `local-address` (the route-chosen source) and dials `vpn.example.net`. With DNS down, Ze logs `ike: connect cycle cannot start` naming the name and "does not resolve", logs it again (the retry), and charon parses no IKE_SA_INIT. Once `startDNS` runs, the SA establishes; charon's parsed IKE_SA_INIT request and its generated response both carry `N(NATD_S_IP)` and `N(NATD_D_IP)`; charon logs no NAT condition and Ze reports `nat-detected` false; charon received the request from 172.28.0.2 port 500, and the IKE SA sits on Ze's port 4500 (MOBIKE, RFC 4555); both ends hold the Child SA between 172.28.0.2 and 172.28.0.3, and traffic crosses it |
+| `fqdn-remote-real-nat` | `real-nat-tunnel-control` with `remote-address vpn.example.net`, answered with strongSwan's public 172.28.0.7. charon logs "local host is behind NAT" and "remote host is behind NAT", Ze reports the NAT verdict, the IKE SA sits on Ze's public 172.28.0.6 port 4500, Ze's inbound state carries `encap type espinudp`, and ESP crosses the box in all four directions |
+
+charon answers NAT detection only when the request carried both payloads (strongSwan
+6.1.0 `src/libcharon/sa/ikev2/tasks/ike_natd.c` `build_r`: "if (this->src_seen &&
+this->dst_seen)"), and it compares each received hash with the addresses it observed
+(`process_payloads`), setting `COND_NAT_HERE` on a destination mismatch and
+`COND_NAT_THERE` on a source mismatch, which `ike_sa.c` `set_condition` logs as the two
+"behind NAT" lines. Before spec-home-cpe-4, Ze built the payloads and checked the reply
+only when `remote-address` parsed as an IP, so a named remote sent none: the first
+scenario goes red on the parsed request and the second on charon's NAT lines and Ze's
+verdict.
+
+<!-- source: internal/le/interoplab/ipsec/dns.go -- readDNSConfig, dnsPeerConfig, zeResolvConf, dnsmasqCommand, startDNS, nslookupAnswers -->
+<!-- source: internal/le/interoplab/ipsec/fqdn.go -- checkFQDNRemoteDynamicLocal, checkFQDNRemoteRealNAT, requireUnresolvedRetries, requireNATDetectionExchanged -->
+<!-- source: internal/le/interoplab/ipsec/register_dns.go -- the dns image and both checkers -->
+<!-- source: test/interop-ipsec/Dockerfile.dns -- dnsmasq -->
+
 ### IPv6 inside an IPv4 Child SA on an xfrm interface
 
 `vti-ipv6-inner-ipv4-outer` is the home CPE's management path. Ze initiates over the

@@ -1,0 +1,17 @@
+# Name server for the IPsec interop lab.
+#
+# It is the extra container of a scenario that carries a dns.conf, and it exists so
+# Ze's remote-address can be a DNS name (RFC 7296 Section 2.23 NAT detection over the
+# address the name resolved to). The container starts with NO server running: the
+# checker starts dnsmasq when the scenario wants the name to answer, so a scenario
+# can boot Ze while DNS is down and bring it up later. The records come from dns.conf
+# and are passed on dnsmasq's command line by internal/le/interoplab/ipsec/dns.go.
+#
+# dnsmasq answers only its own --host-record names: --no-resolv and --no-hosts give it
+# no upstream and no hosts file, so a name the scenario did not declare never answers.
+
+FROM alpine:3.24.3
+
+RUN apk add --no-cache dnsmasq tini
+
+ENTRYPOINT ["tini", "--", "/bin/sh"]

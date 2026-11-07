@@ -407,11 +407,14 @@ measured, and the configuration is only where it came from.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `unwired-feature.md` | 2026-09-04 | IPsec `remote-address` accepts a hostname its consumers cannot use (FIRST finding: NAT detection, `detectResponderNAT`, transport mode, `respond` match) |
+| `unwired-feature.md` | 2026-11-07 | IKE over IPv6, every socket udp4 (owner of record) |
 
-The row is listed today in `plan/release/fixes/spec-yang-single-source-of-truth.md`'s
-owned rows. Its SECOND finding (IKE over IPv6, all sockets `udp4`) is not this
-spec's work. When this spec moves to `ready`, the main thread splits the row (the
-IPv6 half gets its own row and owner) and moves the first half's ownership here.
+The 2026-09-04 row once carried two findings. It is split: the 2026-09-04 row now
+holds the hostname half alone, which this spec fixes, and the IPv6 half is the
+2026-11-07 row. This spec is that row's owner of record only. Making IKE run over
+IPv6 is not this spec's work (Known Limitations), so the row stays open when this
+spec closes and moves to the spec that carries a second socket family through the
+transport.
 
 ## Key Design Decisions
 

@@ -26,7 +26,8 @@ func TestPreparedIPsecPeerEnablesDebugLogging(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(directory, "ze.conf"), []byte("ike {}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	prepared, err := prepareScenario(root, interoplab.ScenarioSource{Name: "logger-environment", Directory: directory}, &scenarioState{}, "ze-logger", "swan-logger", "frr-logger", "nat-logger")
+	prepared, err := prepareScenario(root, interoplab.ScenarioSource{Name: "logger-environment", Directory: directory}, &scenarioState{},
+		labContainers{ze: "ze-logger", swan: "swan-logger", frr: "frr-logger", nat: "nat-logger", dns: "dns-logger"})
 	if prepared.Cleanup != nil {
 		t.Cleanup(func() {
 			if err := prepared.Cleanup(); err != nil {

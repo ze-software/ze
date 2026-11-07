@@ -158,6 +158,7 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 	plans := make([]interoplab.ScenarioPlan, 0, len(sources))
 	needFRR := false
 	needNAT := false
+	needDNS := false
 	for _, source := range sources {
 		state := &scenarioState{}
 		checker := scenarioCheckers[source.Name].run
@@ -176,12 +177,24 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 		if fileExists(filepath.Join(source.Directory, natConfigName)) {
 			needNAT = true
 		}
+		if fileExists(filepath.Join(source.Directory, dnsConfigName)) {
+			needDNS = true
+		}
 	}
 
 	// The Ze and strongSwan images always, the NAT image only when a planned
-	// scenario carries a NAT config, and FRR from the run's environment.
+	// scenario carries a NAT config, the name server's only when one carries a DNS
+	// config, and FRR from the run's environment.
 	images := slices.DeleteFunc(interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),
-		func(build interoplab.ImageBuild) bool { return build.Name == natImage && !needNAT })
+		func(build interoplab.ImageBuild) bool {
+			if build.Name == natImage {
+				return !needNAT
+			}
+			if build.Name == dnsImage {
+				return !needDNS
+			}
+			return false
+		})
 	if needFRR {
 		images = append(images, interoplab.ImageBuild{Name: frrPeer, Tag: environment.Image, Required: true, Pull: true})
 	}
@@ -211,6 +224,7 @@ func scenarioPlan(root string, environment interoplab.Environment, source intero
 	swanContainer := tb.Reset().Str("ze-ipsec-swan-").Str(environment.Suffix).String()
 	frrContainer := tb.Reset().Str("ze-ipsec-frr-").Str(environment.Suffix).String()
 	natContainer := tb.Reset().Str("ze-ipsec-nat-").Str(environment.Suffix).String()
+	dnsContainer := tb.Reset().Str("ze-ipsec-dns-").Str(environment.Suffix).String()
 	networkName := tb.Reset().Str("ze-ipsec-").Str(environment.Suffix).String()
 	return interoplab.ScenarioPlan{
 		Source: source,
@@ -218,14 +232,20 @@ func scenarioPlan(root string, environment interoplab.Environment, source intero
 			Name:       networkName,
 			Candidates: []interoplab.Subnet{{IPv4: networkPrefix}},
 		},
-		Containers: []string{zeContainer, swanContainer, frrContainer, natContainer},
+		Containers: []string{zeContainer, swanContainer, frrContainer, natContainer, dnsContainer},
 		Prepare: func(_ context.Context, prepare interoplab.PrepareContext) (interoplab.PreparedScenario, error) {
-			return prepareScenario(root, source, state, zeContainer, swanContainer, frrContainer, natContainer)
+			return prepareScenario(root, source, state, labContainers{ze: zeContainer, swan: swanContainer,
+				frr: frrContainer, nat: natContainer, dns: dnsContainer})
 		},
 	}
 }
 
-func prepareScenario(root string, source interoplab.ScenarioSource, state *scenarioState, zeContainer, swanContainer, frrContainer, natContainer string) (interoplab.PreparedScenario, error) {
+// labContainers names one scenario's containers, one per peer the lab can start.
+type labContainers struct {
+	ze, swan, frr, nat, dns string
+}
+
+func prepareScenario(root string, source interoplab.ScenarioSource, state *scenarioState, containers labContainers) (interoplab.PreparedScenario, error) {
 	scratchRoot := filepath.Join(root, "tmp", interoplab.RenderedConfigDirectory)
 	if err := os.MkdirAll(scratchRoot, 0o750); err != nil {
 		return interoplab.PreparedScenario{}, fmt.Errorf("create rendered config directory: %w", err)
@@ -261,7 +281,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		}
 		peers = append(peers, interoplab.PeerConfig{
 			Name:         natPeer,
-			Container:    natContainer,
+			Container:    containers.nat,
 			Image:        natImage,
 			Host:         natHost,
 			Capabilities: []string{capabilityNetAdmin},
@@ -273,6 +293,22 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 				Interval: time.Second,
 			},
 		})
+	}
+
+	// The name server is keyed on dns.conf as the NAT box is on nat.conf. It starts with
+	// no server running (dnsPeerConfig), so its place in the order decides nothing; Ze
+	// asks it alone, through the resolv.conf mounted below.
+	zeMounts := []interoplab.Mount{{Source: renderedConfig, Target: "/etc/ze/ze.conf", ReadOnly: true}}
+	if fileExists(filepath.Join(source.Directory, dnsConfigName)) {
+		if _, dnsErr := readDNSConfig(source.Directory); dnsErr != nil {
+			return fail(dnsErr)
+		}
+		resolvMount, dnsErr := zeResolvConf(workDir)
+		if dnsErr != nil {
+			return fail(dnsErr)
+		}
+		zeMounts = append(zeMounts, resolvMount)
+		peers = append(peers, dnsPeerConfig(containers.dns))
 	}
 
 	if swanConfig := filepath.Join(source.Directory, "swanctl.conf"); fileExists(swanConfig) {
@@ -310,7 +346,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		}
 		peers = append(peers, interoplab.PeerConfig{
 			Name:         swanPeer,
-			Container:    swanContainer,
+			Container:    containers.swan,
 			Image:        swanImage,
 			Host:         3,
 			Mounts:       mounts,
@@ -329,7 +365,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 	if frrConfig := filepath.Join(source.Directory, "frr.conf"); fileExists(frrConfig) {
 		peers = append(peers, interoplab.PeerConfig{
 			Name:      frrPeer,
-			Container: frrContainer,
+			Container: containers.frr,
 			Image:     frrPeer,
 			Host:      4,
 			Mounts: []interoplab.Mount{
@@ -355,12 +391,13 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 	}
 	peers = append(peers, interoplab.PeerConfig{
 		Name:      zePeer,
-		Container: zeContainer,
+		Container: containers.ze,
 		Image:     zeImage,
 		Host:      2,
-		// Mount only the input file; /etc/ze remains container-owned and writable
-		// for the database tree created beside that explicit configuration.
-		Mounts:       []interoplab.Mount{{Source: renderedConfig, Target: "/etc/ze/ze.conf", ReadOnly: true}},
+		// Mount only the input file (and, with a dns.conf, the resolv.conf naming the
+		// lab name server); /etc/ze remains container-owned and writable for the
+		// database tree created beside that explicit configuration.
+		Mounts:       zeMounts,
 		Environment:  environment,
 		Capabilities: []string{capabilityNetAdmin},
 		Command:      []string{"start", "/etc/ze/ze.conf"},

@@ -589,6 +589,7 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 			"ze-ipsec-swan-plan-test",
 			"ze-ipsec-frr-plan-test",
 			"ze-ipsec-nat-plan-test",
+			"ze-ipsec-dns-plan-test",
 		}
 		if !reflect.DeepEqual(plan.Containers, wantContainers) {
 			t.Errorf("%s cleanup containers = %v", source.Name, plan.Containers)
@@ -664,7 +665,38 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 		} else if ipsecHasPeer(prepared.Peers, natPeer) {
 			t.Errorf("%s unexpectedly starts the NAT box", source.Name)
 		}
+		// The name server is keyed on dns.conf, starts with no server running, and is
+		// the only resolver Ze's container is given.
+		hasDNS := fileExists(filepath.Join(source.Directory, dnsConfigName))
+		if hasDNS {
+			dns := ipsecPeerByName(t, prepared.Peers, dnsPeer)
+			if dns.Host != dnsHost || dns.Image != dnsImage {
+				t.Errorf("%s DNS peer = %#v", source.Name, dns)
+			}
+			if strings.Contains(strings.Join(dns.Command, " "), "dnsmasq") {
+				t.Errorf("%s starts dnsmasq with the container, so it cannot boot Ze while DNS is down", source.Name)
+			}
+			if !ipsecHasMount(ze.Mounts, zeResolvConfTarget) {
+				t.Errorf("%s Ze mounts no %s, so it asks Docker's resolver rather than the lab name server", source.Name, zeResolvConfTarget)
+			}
+		} else {
+			if ipsecHasPeer(prepared.Peers, dnsPeer) {
+				t.Errorf("%s unexpectedly starts the name server", source.Name)
+			}
+			if ipsecHasMount(ze.Mounts, zeResolvConfTarget) {
+				t.Errorf("%s mounts a resolv.conf with no name server to answer it", source.Name)
+			}
+		}
 	}
+}
+
+func ipsecHasMount(mounts []interoplab.Mount, target string) bool {
+	for _, mount := range mounts {
+		if mount.Target == target {
+			return true
+		}
+	}
+	return false
 }
 
 // VALIDATES: nat.conf refuses every shape that would leave a scenario running with no

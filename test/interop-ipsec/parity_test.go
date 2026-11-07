@@ -50,6 +50,8 @@ func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 	extra := map[string][]string{
 		"eap-tls":                         {"ze-env"},
 		"eap-tls13":                       {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"fqdn-remote-dynamic-local":       {"dns.conf"},
+		"fqdn-remote-real-nat":            {"dns.conf", "nat.conf"},
 		"initiator-rekey-answer-narrows":  {"ze-env"},
 		"ipsec-bgp-redistribute-frr":      {"frr.conf"},
 		"peer-reload-narrowing":           {"ze-narrowed.conf"},
