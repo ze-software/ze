@@ -73,7 +73,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | IPv6 default route from RA with configurable metric | have | |
 | | Routes carry `proto 253` (`ze-iface`), so a teardown removes only its own | have | <!-- source: internal/plugins/iface/netlink/manage_linux.go -- AddRoute stamps rtm_protocol, RemoveRoute matches on it --> |
 | | Learned default routes rank at metric 254, clear of a static route's metric | have | <!-- source: internal/component/iface/config.go -- defaultLearnedRouteMetric --> |
-| | DNS from DHCP to `/tmp/resolv.conf`, tracked per lease: a renewal without DNS or a lease end removes that lease's servers only | have | <!-- source: internal/component/config/system/resolv.go -- Resolvers --> |
+| | DNS from DHCP and from PPPoE IPCP (RFC 1877) to `/tmp/resolv.conf`, tracked per lease and ordered DHCPv4, DHCPv6, PPP: a renewal or renegotiation without DNS, or a lease or session end, removes that lease's servers only | have | <!-- source: internal/component/config/system/resolv.go -- Resolvers --> |
 | | Hostname in DHCPv4 (option 12) | have | |
 | | Client-ID in DHCPv4 (option 61) | have | |
 | | DHCPv4 flags bits 1 to 15 sent as zero, even when the server's OFFER or ACK sets them (RFC 2131 section 2) | have | |

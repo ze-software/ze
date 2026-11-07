@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/system"
 	ifaceyang "github.com/ze-software/ze/internal/component/iface/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
@@ -34,6 +35,12 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+// pppoeClientResolverOrigin is the resolv.conf origin of the servers a PPPoE
+// client learns from IPCP (RFC 1877). Rank 300 lists them after the DHCPv4
+// (100) and DHCPv6 (200) leases, so adding PPP never reorders the servers a
+// DHCP client already supplies.
+var pppoeClientResolverOrigin = system.RegisterResolverOrigin("ppp", 300)
 
 var (
 	errInterfaceNoBackendConfiguredAndNo   = diagnostic.HostVerdict(errors.New("interface: no backend configured and no OS default available"))
@@ -395,6 +402,8 @@ func runEngine(conn net.Conn) int {
 	// activePPPoE tracks running PPPoE client sessions keyed by config name.
 	activePPPoE := make(map[string]*PPPoEClient)
 	var pppoeMu sync.Mutex
+	// PPPoEClientCommand answers from this process, which owns the clients.
+	globalPPPoEClients.Store(&pppoeClientSet{mu: &pppoeMu, active: activePPPoE})
 
 	// activeRouters tracks IPv6 routers discovered via NTF_ROUTER neighbor events.
 	// Protected by dhcpMu (shared lock, short critical sections).

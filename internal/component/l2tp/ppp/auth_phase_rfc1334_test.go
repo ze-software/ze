@@ -270,14 +270,14 @@ func TestPAPInitialReplyWriteFailureDoesNotAuthenticate(t *testing.T) {
 // carries the given address, or no IP-Address option when addr is invalid.
 func ipcpRequest(addr netip.Addr) LCPPacket {
 	buf := make([]byte, 32)
-	n := WriteIPCPOptions(buf, 0, iPCPOptions{IPAddress: addr, HasIPAddress: addr.IsValid()})
+	n := WriteIPCPOptions(buf, 0, IPCPOptions{IPAddress: addr, HasIPAddress: addr.IsValid()})
 	return LCPPacket{Code: LCPConfigureRequest, Identifier: 7, Data: buf[:n]}
 }
 
 // ipcpNakOptions runs one Configure-Request through buildNakOrReject on a
 // session that assigns the peer the given address and returns the parsed
 // options of the reply, which the test requires to be a Configure-Nak.
-func ipcpNakOptions(t *testing.T, assigned netip.Addr, req LCPPacket) iPCPOptions {
+func ipcpNakOptions(t *testing.T, assigned netip.Addr, req LCPPacket) IPCPOptions {
 	t.Helper()
 	s, _, _ := newRFC1661Session(LCPStateOpened)
 	s.peerIPv4 = assigned

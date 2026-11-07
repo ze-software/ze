@@ -853,7 +853,7 @@ func (s *pppSession) writeNCPOptions(family AddressFamily, buf []byte, off int) 
 	case AddressFamilyIPv4:
 		// RFC 1332: ConfReq carries only our own IP-Address.
 		// DNS is communicated via Nak to the peer's ConfReq (RFC 1877).
-		opts := iPCPOptions{
+		opts := IPCPOptions{
 			IPAddress:    s.localIPv4,
 			HasIPAddress: s.localIPv4.IsValid(),
 		}
@@ -934,7 +934,7 @@ func (s *pppSession) buildNakOrReject(family AddressFamily, req LCPPacket, buf [
 		// appropriate Length and Data." The Nak below carries ze's
 		// assigned address and DNS servers, each at its own correct
 		// Length, which is that desired option set.
-		nak := iPCPOptions{
+		nak := IPCPOptions{
 			IPAddress:    s.peerIPv4,
 			HasIPAddress: s.peerIPv4.IsValid(),
 			PrimaryDNS:   s.dnsPrimary,

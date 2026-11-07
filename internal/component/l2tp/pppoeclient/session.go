@@ -44,9 +44,13 @@ type sessionConfig struct {
 type sessionResult struct {
 	localIP netip.Addr
 	peerIP  netip.Addr
-	negMTU  uint16
-	magic   uint32
-	reader  *frameReader // Shared by initial negotiation and the connected owner.
+	// primaryDNS and secondaryDNS are the RFC 1877 servers IPCP learned; an
+	// invalid address means the server supplied none for that option.
+	primaryDNS   netip.Addr
+	secondaryDNS netip.Addr
+	negMTU       uint16
+	magic        uint32
+	reader       *frameReader // Shared by initial negotiation and the connected owner.
 	// peerMRU bounds the Rejected-Packet of a network-phase Code-Reject, and
 	// ipcpCodeRejectID is the Identifier of the last IPCP Code-Reject sent.
 	peerMRU          uint16
@@ -643,6 +647,69 @@ func writeClientPAPRequest(w io.Writer, buf, request []byte) error {
 type ipcpResult struct {
 	localIP netip.Addr
 	peerIP  netip.Addr
+	// primaryDNS and secondaryDNS are invalid when the server Rejected the
+	// option or Acknowledged the 0.0.0.0 request (learnedDNS).
+	primaryDNS   netip.Addr
+	secondaryDNS netip.Addr
+}
+
+// ipcpRequestLenMax is the largest IPCP Configure-Request frame this client
+// sends: the PPP protocol field, the packet header and the three 6-octet
+// options IP-Address, Primary-DNS-Address and Secondary-DNS-Address.
+const ipcpRequestLenMax = 2 + 4 + 3*6
+
+// ipcpInitialRequest is the option set of the first IPCP Configure-Request:
+// IP-Address, Primary-DNS-Address and Secondary-DNS-Address, each 0.0.0.0,
+// in that order.
+//
+// The client wants an address assigned, so IP-Address also carries 0.0.0.0.
+//
+// RFC 1877 Section 1.1: "If all four octets are set to zero, it indicates an
+// explicit request that the peer provide the address information in a
+// Config-Nak packet." Section 1.3 states the same for the secondary server.
+func ipcpInitialRequest() ppp.IPCPOptions {
+	return ppp.IPCPOptions{
+		IPAddress: netip.IPv4Unspecified(), HasIPAddress: true,
+		PrimaryDNS: netip.IPv4Unspecified(), HasPrimary: true,
+		SecondaryDNS: netip.IPv4Unspecified(), HasSecondary: true,
+	}
+}
+
+// adoptNakDNS answers the server value a Configure-Nak carried for one DNS
+// option, or current when that value is not a usable server. requested says
+// the outstanding request still carries the option: a Rejected option is
+// never requested again, whatever a later Nak names. A 0.0.0.0 or other
+// non-unicast value is not adopted, so the request keeps asking and the IPCP
+// timeout bounds a server that never names one.
+//
+// RFC 1877 Section 1.1: "If local peer requests an invalid server address
+// (which it will typically do intentionally) the remote peer specifies the
+// address by NAKing this option, and returning the IP address of a valid DNS
+// server."
+func adoptNakDNS(current netip.Addr, requested, naked bool, value netip.Addr) netip.Addr {
+	if !requested {
+		return current
+	}
+	if !naked {
+		return current
+	}
+	if !value.IsGlobalUnicast() {
+		return current
+	}
+	return value
+}
+
+// learnedDNS answers the server an Acknowledged request names for one DNS
+// option: the invalid address when the option was not requested, or when the
+// server Acknowledged the 0.0.0.0 request and so named no server.
+func learnedDNS(requested bool, value netip.Addr) netip.Addr {
+	if !requested {
+		return netip.Addr{}
+	}
+	if !value.IsGlobalUnicast() {
+		return netip.Addr{}
+	}
+	return value
 }
 
 // negotiateIPCP opens IPCP. chap is nil when LCP did not negotiate CHAP, and
@@ -658,14 +725,14 @@ type ipcpResult struct {
 // only after PPPIOCCONNECT and dispatches channel control before unit input.
 func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU uint16, chap *networkPhaseCHAP, identifier *uint8, stopCh <-chan struct{}, logger *slog.Logger, codeRejectID *uint8) (ipcpResult, error) {
 	var result ipcpResult
-	requestedIP := netip.IPv4Unspecified()
+	requested := ipcpInitialRequest()
 	// RFC 1332 Section 2 uses the LCP exchange mechanism. A new exchange
 	// advances the session sequence so an interrupted exchange cannot supply
 	// the reply to this request (RFC 1661 Section 5.1).
 	*identifier++
 	state := ppp.LCPStateReqSent
-	var request [12]byte
-	requestLen, err := sendIPCPRequest(w, request[:], *identifier, requestedIP)
+	var request [ipcpRequestLenMax]byte
+	requestLen, err := sendIPCPRequest(w, request[:], *identifier, requested)
 	if err != nil {
 		return ipcpResult{}, err
 	}
@@ -804,7 +871,11 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 				state = ppp.LCPStateAckSent
 			}
 		case ppp.LCPConfigureAck:
-			result.localIP = requestedIP
+			// ValidateLCPReply matched the Ack to the outstanding request
+			// byte for byte, so its values are the request's.
+			result.localIP = requested.IPAddress
+			result.primaryDNS = learnedDNS(requested.HasPrimary, requested.PrimaryDNS)
+			result.secondaryDNS = learnedDNS(requested.HasSecondary, requested.SecondaryDNS)
 			switch state {
 			case ppp.LCPStateReqSent:
 				state = ppp.LCPStateAckRcvd
@@ -829,10 +900,14 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 				continue
 			}
 			if options.HasIPAddress {
-				requestedIP = options.IPAddress
+				requested.IPAddress = options.IPAddress
 			}
+			// RFC 1877 Section 1.1 and Section 1.3: the server names each DNS
+			// server by NAKing the 0.0.0.0 request.
+			requested.PrimaryDNS = adoptNakDNS(requested.PrimaryDNS, requested.HasPrimary, options.HasPrimary, options.PrimaryDNS)
+			requested.SecondaryDNS = adoptNakDNS(requested.SecondaryDNS, requested.HasSecondary, options.HasSecondary, options.SecondaryDNS)
 			*identifier++
-			requestLen, err = sendIPCPRequest(w, request[:], *identifier, requestedIP)
+			requestLen, err = sendIPCPRequest(w, request[:], *identifier, requested)
 			if err != nil {
 				return ipcpResult{}, err
 			}
@@ -840,8 +915,34 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 				state = ppp.LCPStateReqSent
 			}
 		case ppp.LCPConfigureReject:
-			if len(pkt.Data) != 0 {
-				return ipcpResult{}, errors.New("pppoe-client: server rejected IPCP IP-Address option")
+			if len(pkt.Data) == 0 {
+				continue
+			}
+			// ValidateLCPReply proved the Reject an ordered subset of the
+			// outstanding request, so it lists only options this client sent.
+			rejected, err := ppp.ParseIPCPOptions(pkt.Data)
+			if err != nil {
+				continue
+			}
+			if rejected.HasIPAddress {
+				return ipcpResult{}, errors.New("pppoe-client: the access concentrator rejected the IPCP IP-Address option, so no IPv4 address can be assigned; configure an address pool for PPPoE sessions on the access concentrator")
+			}
+			// RFC 1661 Section 5.4: "Reception of a valid Configure-Reject indicates that when a new Configure-Request is sent, it MUST NOT include any of the Configuration Options listed in the Configure-Reject."
+			// A server with no DNS to offer Rejects 129 and 131; the session
+			// continues without learned servers.
+			if rejected.HasPrimary {
+				requested.HasPrimary = false
+			}
+			if rejected.HasSecondary {
+				requested.HasSecondary = false
+			}
+			*identifier++
+			requestLen, err = sendIPCPRequest(w, request[:], *identifier, requested)
+			if err != nil {
+				return ipcpResult{}, err
+			}
+			if state != ppp.LCPStateAckSent {
+				state = ppp.LCPStateReqSent
 			}
 		case ppp.LCPTerminateRequest:
 			off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
@@ -1014,9 +1115,24 @@ func sendEchoReply(w io.Writer, buf []byte, req ppp.LCPPacket, magic uint32) {
 	w.Write(buf[:off]) //nolint:errcheck // best effort
 }
 
-func sendIPCPRequest(w io.Writer, buf []byte, id uint8, addr netip.Addr) (int, error) {
-	ipcpPkt := buildIPCPRequest(id, addr)
-	off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, ipcpPkt)
+// sendIPCPRequest writes the IPCP Configure-Request carrying options into buf
+// and sends it, answering the frame length. buf MUST hold ipcpRequestLenMax
+// octets; the caller keeps it as the outstanding request that
+// ppp.ValidateLCPReply compares an Ack or Reject with.
+//
+// Wire format (RFC 1661 Section 5.1, RFC 1332 Section 3.3, RFC 1877
+// Sections 1.1 and 1.3), offsets from the start of buf:
+//
+//	0       2    3    4        6
+//	+-------+----+----+--------+------------------------------+
+//	| 80 21 | 01 | ID | Length | options, 6 octets each:      |
+//	+-------+----+----+--------+ type(1) length=6(1) addr(4) |
+//	                           +------------------------------+
+func sendIPCPRequest(w io.Writer, buf []byte, id uint8, options ppp.IPCPOptions) (int, error) {
+	off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
+	optionsLen := ppp.WriteIPCPOptions(buf, off+4, options)
+	// WriteLCPPacket copies the options onto themselves: they are already in place.
+	off += ppp.WriteLCPPacket(buf, off, ppp.LCPConfigureRequest, id, buf[off+4:off+4+optionsLen])
 	if err := writeClientPacket(w, buf[:off]); err != nil {
 		return 0, fmt.Errorf("pppoe-client: IPCP Configure-Request: %w", err)
 	}

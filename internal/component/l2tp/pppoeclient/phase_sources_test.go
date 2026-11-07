@@ -20,7 +20,7 @@ func TestClientIPCPConnectedSources(t *testing.T) {
 		frames := make(chan readFrame)
 		unit := make(chan readFrame, 3)
 		unit <- ipcpFrame(ppp.LCPConfigureNak, 8, []byte{3, 6, 192, 0, 2, 2})
-		unit <- ipcpFrame(ppp.LCPConfigureAck, 9, []byte{3, 6, 192, 0, 2, 2})
+		unit <- ipcpFrame(ppp.LCPConfigureAck, 9, ipcpRequestFor([]byte{3, 6, 192, 0, 2, 2}))
 		unit <- ipcpFrame(ppp.LCPConfigureRequest, 0x70, []byte{3, 6, 192, 0, 2, 1})
 		w := &recordingRWC{}
 		var buf [ppp.MaxFrameBufLen]byte

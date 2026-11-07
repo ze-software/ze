@@ -59,6 +59,33 @@ Failed or short request and Ack writes abort negotiation. The client requires
 usable local and peer IPv4 addresses before connecting the PPP unit.
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateIPCP, sendLCPAck, writeClientPacket -->
 
+The request carries IP-Address, Primary-DNS-Address (129) and
+Secondary-DNS-Address (131), each 0.0.0.0 and in that order (RFC 1877
+Sections 1.1 and 1.3), written by `ppp.WriteIPCPOptions` into the outstanding
+request buffer. A Nak's DNS value is adopted only when it is a unicast address,
+so a Nak of 0.0.0.0 records nothing and the request keeps asking until the IPCP
+timeout. A Configure-Reject of a DNS option removes it from every later request
+of that negotiation (RFC 1661 Section 5.4), so an access concentrator with no
+DNS to offer (accel-ppp without `[dns]` Rejects both) still brings the session
+up; a Reject of IP-Address still ends it. On Ack the request's DNS values are
+the learned servers, carried in `iface.PPPoESession` and in every change record
+after a renegotiation.
+
+`runSession` hands the learned servers, primary first, to the process
+resolv.conf writer (`system.Resolvers`) as a lease keyed by the client's
+configured name (`iface.PPPoEResolverSource`), replaces the lease when a
+renegotiation changes only the servers, and withdraws it when the session
+ends. Leases order by the rank their producer registered
+(`system.RegisterResolverOrigin`): DHCPv4 100, DHCPv6 200, PPP 300, so PPP
+servers list after DHCP ones, and a static `system name-server` still replaces
+them all. `show interface pppoe-client` answers each client's state and its
+`dns-servers` from the iface plugin's process (`iface.PPPoEClientCommand`).
+Whether the LAN `dns-resolver` should also forward to learned servers is an
+open owner decision: today it forwards only to its configured servers.
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- ipcpInitialRequest, adoptNakDNS, learnedDNS, sendIPCPRequest -->
+<!-- source: internal/component/iface/pppoe_client.go -- runSession, leaseDNS, pppoeDNSServers, PPPoEResolverSource -->
+<!-- source: internal/component/iface/pppoe_client_command.go -- PPPoEClientCommand, pppoeClientAnswer -->
+
 **Client-mode PPP drives the FSM directly, it does not extend the PPP driver.**
 The existing driver is server oriented: it sends the authentication challenge,
 assigns addresses from a pool, and uses external authentication and address

@@ -31,12 +31,13 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-detail", Handler: handleShowInterfaceDetail},
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-counters", Handler: handleShowInterfaceCounters},
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-scan", Handler: handleShowInterfaceScan},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-pppoe-client", Handler: handleShowInterfacePPPoEClient, PluginCommand: iface.PPPoEClientCommand},
 	)
 }
 
 // usageShowInterface names every form of the command, for a caller who typed a
 // token no handler here owns.
-const usageShowInterface = "usage: show interface [brief | type <type> | errors | rate [<name>]] " +
+const usageShowInterface = "usage: show interface [brief | type <type> | errors | rate [<name>] | pppoe-client] " +
 	"or show interface name <name> detail|counters"
 
 // handleShowInterface serves the bare `show interface`: every interface, full

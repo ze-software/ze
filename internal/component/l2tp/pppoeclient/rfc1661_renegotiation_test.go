@@ -49,7 +49,7 @@ func TestClientDiscardsMalformedReentryDuringIPCP(t *testing.T) {
 		frames := make(chan readFrame, 4)
 		frames <- ipcpFrame(ppp.LCPConfigureNak, 1, []byte{3, 6, 192, 0, 2, 2})
 		frames <- serverFrame(ppp.LCPConfigureRequest, 0x73, options)
-		frames <- ipcpFrame(ppp.LCPConfigureAck, 2, []byte{3, 6, 192, 0, 2, 2})
+		frames <- ipcpFrame(ppp.LCPConfigureAck, 2, ipcpRequestFor([]byte{3, 6, 192, 0, 2, 2}))
 		frames <- ipcpFrame(ppp.LCPConfigureRequest, 0x70, []byte{3, 6, 192, 0, 2, 1})
 		close(frames)
 		w := &recordingRWC{}
@@ -449,7 +449,7 @@ func (w *restartExchange) Write(data []byte) (int, error) {
 				return len(data), nil
 			}
 		}
-		if bytes.Equal(pkt.Data[2:], []byte{0, 0, 0, 0}) {
+		if bytes.Equal(pkt.Data, ipcpRequestFor([]byte{3, 6, 0, 0, 0, 0})) {
 			if w.epoch == 2 {
 				if w.auth != ppp.ProtoCHAP {
 					w.frames <- chapChallengeFrame(0x66, []byte{4, 1, 2, 3, 4})
@@ -457,7 +457,7 @@ func (w *restartExchange) Write(data []byte) (int, error) {
 			}
 			w.frames <- ipcpFrame(ppp.LCPConfigureNak, pkt.Identifier, []byte{3, 6, 192, 0, 2, 2})
 		} else {
-			if !bytes.Equal(pkt.Data, []byte{3, 6, 192, 0, 2, 2}) {
+			if !bytes.Equal(pkt.Data, ipcpRequestFor([]byte{3, 6, 192, 0, 2, 2})) {
 				w.t.Fatalf("IPCP local proposal = % x", pkt.Data)
 			}
 			w.frames <- ipcpFrame(ppp.LCPConfigureAck, pkt.Identifier, append([]byte(nil), pkt.Data...))

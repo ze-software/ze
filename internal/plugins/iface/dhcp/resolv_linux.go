@@ -24,7 +24,7 @@ func (c *DHCPClient) resolvers() *system.Resolvers {
 // Domain Name System (STD 13, RFC 1035 [8]) name servers available to the
 // client." Each ACK's list replaces the previous one.
 func (c *DHCPClient) setV4Resolvers(servers []string) {
-	if err := c.resolvers().SetLease(system.DHCPv4ResolverSource(c.ifaceName, c.unit), servers); err != nil {
+	if err := c.resolvers().SetLease(dhcpv4ResolverOrigin.Source(c.ifaceName, c.unit), servers); err != nil {
 		loggerPtr.Load().Warn("iface dhcp v4: resolv.conf write failed", "iface", c.ifaceName, "err", err)
 	}
 }
@@ -42,7 +42,7 @@ func (c *DHCPClient) setV4Resolvers(servers []string) {
 // SHOULD stop using the previously received configuration information." The
 // lease's list is empty after such a Reply, so the servers leave the file.
 func (c *DHCPClient) setV6Resolvers(servers []string) {
-	if err := c.resolvers().SetLease(system.DHCPv6ResolverSource(c.ifaceName, c.unit), servers); err != nil {
+	if err := c.resolvers().SetLease(dhcpv6ResolverOrigin.Source(c.ifaceName, c.unit), servers); err != nil {
 		loggerPtr.Load().Warn("iface dhcp v6: resolv.conf write failed", "iface", c.ifaceName, "err", err)
 	}
 }

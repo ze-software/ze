@@ -328,6 +328,27 @@ func (s *Session) CHAP(ctx context.Context, id uint8, challenge []byte, username
 	return s.SendControl(ppp.ProtoCHAP, 3, id, nil)
 }
 
+// ipcpOptionsOtherThanAddress answers the options of an IPCP option list
+// other than IP-Address, in order and unmodified. A malformed list answers
+// what precedes the malformed option.
+func ipcpOptionsOtherThanAddress(options []byte) []byte {
+	var rejected []byte
+	for len(options) >= 2 {
+		length := int(options[1])
+		if length < 2 {
+			break
+		}
+		if length > len(options) {
+			break
+		}
+		if options[0] != ppp.IPCPOptIPAddress {
+			rejected = append(rejected, options[:length]...)
+		}
+		options = options[length:]
+	}
+	return rejected
+}
+
 // IPCP assigns the host address and requires an exact Ack of the peer address.
 // RFC 1332 Section 3.3: "The peer can provide this information by NAKing the option, and returning a valid IP-address."
 func (s *Session) IPCP(ctx context.Context, id uint8, local, remote netip.Addr) error {
@@ -352,6 +373,15 @@ func (s *Session) IPCP(ctx context.Context, id uint8, local, remote netip.Addr) 
 		}
 		if pkt.Code != ppp.LCPConfigureRequest {
 			return fmt.Errorf("expected IPCP Request, received code %d", pkt.Code)
+		}
+		// This server offers no DNS, as accel-ppp without [dns] does: it
+		// Rejects every option but IP-Address, echoed unmodified.
+		// RFC 1661 Section 5.4: "If some Configuration Options received in a Configure-Request are not recognizable or are not acceptable for negotiation (as configured by a network administrator), then the implementation MUST transmit a Configure-Reject."
+		if rejected := ipcpOptionsOtherThanAddress(pkt.Data); len(rejected) != 0 {
+			if err := s.SendControl(proto, ppp.LCPConfigureReject, pkt.Identifier, rejected); err != nil {
+				return err
+			}
+			continue
 		}
 		if !bytes.Equal(pkt.Data, theirs[:]) {
 			// RFC 1332 Section 3.3.

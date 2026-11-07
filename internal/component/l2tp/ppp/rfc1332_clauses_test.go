@@ -24,7 +24,7 @@ import (
 func TestIPCPOptionsWrittenInLCPFormat(t *testing.T) {
 	t.Parallel()
 
-	opts := iPCPOptions{
+	opts := IPCPOptions{
 		IPAddress: netip.MustParseAddr("10.0.0.5"), HasIPAddress: true,
 		PrimaryDNS: netip.MustParseAddr("9.9.9.9"), HasPrimary: true,
 		SecondaryDNS: netip.MustParseAddr("149.112.112.112"), HasSecondary: true,

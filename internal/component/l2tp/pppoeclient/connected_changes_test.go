@@ -64,7 +64,7 @@ func TestConnectedChangesNewestWins(t *testing.T) {
 		peer := []byte{3, 6, 203, 0, 113, 1}
 		w.send(ppp.ProtoIPCP, 3, request[3], local)
 		request = w.take(t, ppp.ProtoIPCP, 1)
-		if !bytes.Equal(request[6:], local) {
+		if !bytes.Equal(request[6:], ipcpRequestFor(local)) {
 			t.Fatalf("second local address not adopted: %x", request)
 		}
 		w.send(ppp.ProtoIPCP, 1, 95, peer)

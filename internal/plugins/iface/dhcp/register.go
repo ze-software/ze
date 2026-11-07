@@ -16,6 +16,14 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
+// The DHCP lease origins of resolv.conf. Their ranks keep DHCPv4 servers
+// before DHCPv6 servers; a lease protocol registered later ranks after both
+// unless it declares otherwise (system.RegisterResolverOrigin).
+var (
+	dhcpv4ResolverOrigin = system.RegisterResolverOrigin("dhcpv4", 100)
+	dhcpv6ResolverOrigin = system.RegisterResolverOrigin("dhcpv6", 200)
+)
+
 func init() {
 	d := slogutil.DiscardLogger()
 	loggerPtr.Store(d)

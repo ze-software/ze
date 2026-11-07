@@ -56,11 +56,22 @@ func commandDecls() []sdk.CommandDecl {
 			Name:      RateCommand,
 			ShortHelp: "Show per-second traffic rates on your interfaces.",
 		},
+		{
+			Name:      PPPoEClientCommand,
+			ShortHelp: "Show each PPPoE client: session, addresses and learned DNS servers.",
+		},
 	}
 }
 
 // executeCommand answers a command the dispatcher routed to this plugin.
 func executeCommand(command string, args []string) (string, any, error) {
+	if strings.EqualFold(command, PPPoEClientCommand) {
+		statuses, err := pppoeClientAnswer(globalPPPoEClients.Load())
+		if err != nil {
+			return "error", nil, err
+		}
+		return "done", statuses, nil
+	}
 	if !strings.EqualFold(command, RateCommand) {
 		var tb textbuf.Buffer
 		return "error", nil, errors.New(tb.Str("interface plugin serves no command ").Quoted(command).String())

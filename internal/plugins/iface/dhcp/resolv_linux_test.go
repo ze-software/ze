@@ -117,7 +117,7 @@ func TestDHCPv4TeardownWithdrawsItsDNS(t *testing.T) {
 	if err := resolvers.Configure(path, nil); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
-	if err := resolvers.SetLease(system.DHCPv6ResolverSource("eth1", "0"), []string{resolvV6Server}); err != nil {
+	if err := resolvers.SetLease(dhcpv6ResolverOrigin.Source("eth1", "0"), []string{resolvV6Server}); err != nil {
 		t.Fatalf("set lease: %v", err)
 	}
 	c := &DHCPClient{ifaceName: "eth0", unit: "0", config: dHCPConfig{Resolvers: resolvers}}

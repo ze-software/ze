@@ -57,7 +57,7 @@ func TestClientIPCPReplyCorrelation(t *testing.T) {
 		first := recordedIPCP(t, w, 0)
 		assigned := netip.MustParseAddr("192.0.2.2")
 		peer := netip.MustParseAddr("192.0.2.1")
-		options := buildIPCPRequest(1, assigned)[4:]
+		options := ipcpAddressOption(assigned)
 		for _, invalid := range []readFrame{
 			ipcpFrame(ppp.LCPConfigureAck, first.Identifier+1, first.Data),
 			ipcpFrame(ppp.LCPConfigureAck, first.Identifier, options),
@@ -86,10 +86,10 @@ func TestClientIPCPReplyCorrelation(t *testing.T) {
 		frames <- ipcpFrame(ppp.LCPConfigureNak, first.Identifier, options)
 		synctest.Wait()
 		next := recordedIPCP(t, w, 2)
-		if next.Identifier == first.Identifier || !bytes.Equal(next.Data, options) {
+		if next.Identifier == first.Identifier || !bytes.Equal(next.Data, ipcpRequestFor(options)) {
 			t.Fatalf("replacement request = %+v, want new Identifier and assigned address", next)
 		}
-		frames <- ipcpFrame(ppp.LCPConfigureRequest, 77, buildIPCPRequest(77, peer)[4:])
+		frames <- ipcpFrame(ppp.LCPConfigureRequest, 77, ipcpAddressOption(peer))
 		frames <- ipcpFrame(ppp.LCPConfigureAck, first.Identifier, first.Data)
 		synctest.Wait()
 		select {
@@ -110,7 +110,7 @@ func TestClientIPCPReplyCorrelation(t *testing.T) {
 			t.Fatalf("superseded peer proposal opened IPCP: %+v", got)
 		default:
 		}
-		frames <- ipcpFrame(ppp.LCPConfigureRequest, 79, buildIPCPRequest(79, peer)[4:])
+		frames <- ipcpFrame(ppp.LCPConfigureRequest, 79, ipcpAddressOption(peer))
 		got := <-done
 		if got.err != nil || got.result.localIP != assigned || got.result.peerIP != peer {
 			t.Fatalf("IPCP result = %+v, want %v/%v", got, assigned, peer)
@@ -122,7 +122,7 @@ func TestClientIPCPReplyCorrelation(t *testing.T) {
 // unrelated reply, and stops immediately when the initial request cannot be sent.
 func TestClientIPCPRejectAndWriteFailure(t *testing.T) {
 	frames := make(chan readFrame, 1)
-	frames <- ipcpFrame(ppp.LCPConfigureReject, 1, buildIPCPRequest(1, netip.IPv4Unspecified())[4:])
+	frames <- ipcpFrame(ppp.LCPConfigureReject, 1, ipcpAddressOption(netip.IPv4Unspecified()))
 	var buf [ppp.MaxFrameBufLen]byte
 	if _, err := negotiateIPCP(io.Discard, testFrameReader(t, frames, nil), buf[:], 1, 0, nil, new(uint8), make(chan struct{}), slog.Default(), new(uint8)); err == nil {
 		t.Fatal("valid IP-Address rejection opened IPCP")

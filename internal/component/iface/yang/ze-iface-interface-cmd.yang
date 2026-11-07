@@ -33,8 +33,8 @@ module ze-iface-interface-cmd {
             config false;
             ze:command "ze-iface:show-interface";
             description "Without arguments, returns all interfaces with full detail.
-Subcommands: brief, type <t>, errors, rate [<name>], name <name> detail,
-name <name> counters.";
+Subcommands: brief, type <t>, errors, rate [<name>], pppoe-client,
+name <name> detail, name <name> counters.";
             ze:help "Show network interfaces on this box.";
 
             container brief {
@@ -52,6 +52,17 @@ addresses are assigned.";
 and MAC for each interface found. Pipe to table, yaml, or json for different
 views. Use it during initial setup to see what the box has.";
                 ze:help "Discover and classify all OS interfaces.";
+            }
+
+            container pppoe-client {
+                config false;
+                ze:command "ze-iface:show-interface-pppoe-client";
+                description "One object per configured PPPoE client: its state, source
+interface, session id, local and peer address, uptime, and the DNS servers
+learned from IPCP (RFC 1877), primary first. dns-servers is an empty list
+when the access concentrator supplied none; a configured system name-server
+still takes precedence in resolv.conf.";
+                ze:help "Show PPPoE client sessions and the DNS servers they learned.";
             }
 
             container type {

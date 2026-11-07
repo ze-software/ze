@@ -7,9 +7,11 @@ import (
 	"errors"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
@@ -50,16 +52,22 @@ type PPPoEClientConfig struct {
 	Timing PPPoEClientTiming
 }
 
-// pppoeClientStatus is a snapshot of the client state for show commands.
-type pppoeClientStatus struct {
-	Name            string
-	State           string
-	SourceInterface string
-	PPPInterface    string
-	LocalIP         netip.Addr
-	PeerIP          netip.Addr
-	SessionID       uint16
-	Uptime          time.Duration
+// PPPoEClientStatus is a snapshot of one client's state, the answer of
+// `show interface pppoe-client` (PPPoEClientCommand).
+type PPPoEClientStatus struct {
+	Name            string     `json:"name"`
+	State           string     `json:"state"`
+	SourceInterface string     `json:"source-interface"`
+	PPPInterface    string     `json:"ppp-interface"`
+	SessionID       uint16     `json:"session-id"`
+	LocalIP         netip.Addr `json:"local-ip"`
+	PeerIP          netip.Addr `json:"peer-ip"`
+	// Uptime is the session's age to the second, empty while it is not up.
+	Uptime string `json:"uptime"`
+	// DNSServers are the servers IPCP learned and resolv.conf was given,
+	// primary first. It is never nil, so the key is an empty list when the
+	// access concentrator supplied none.
+	DNSServers []string `json:"dns-servers"`
 }
 
 // PPPoEDialer abstracts the platform-specific PPPoE discovery and kernel
@@ -75,6 +83,10 @@ type PPPoEResult struct {
 	LocalIP netip.Addr
 	PeerIP  netip.Addr
 	NegMTU  uint16
+	// PrimaryDNS and SecondaryDNS are the RFC 1877 servers IPCP learned. An
+	// invalid address means the access concentrator supplied none.
+	PrimaryDNS   netip.Addr
+	SecondaryDNS netip.Addr
 }
 
 // PPPoESession represents a fully negotiated PPPoE+PPP session.
@@ -87,6 +99,10 @@ type PPPoESession struct {
 	LocalIP netip.Addr
 	PeerIP  netip.Addr
 	NegMTU  uint16
+	// PrimaryDNS and SecondaryDNS are the RFC 1877 servers IPCP learned. An
+	// invalid address means the access concentrator supplied none.
+	PrimaryDNS   netip.Addr
+	SecondaryDNS netip.Addr
 	// Changes carries a complete result after every successful renegotiation,
 	// including unchanged results. The sole producer replaces the oldest pending
 	// value in a one-slot channel. It never closes Changes; Done ends consumption.
@@ -108,15 +124,20 @@ type PPPoEClient struct {
 	dialer  PPPoEDialer
 	logger  *slog.Logger
 
-	mu       sync.Mutex
-	state    pppoeSessionState
-	sessID   uint16
-	pppUnit  int
-	localIP  netip.Addr
-	peerIP   netip.Addr
-	upSince  time.Time
-	lastErr  error
-	attempts int
+	mu      sync.Mutex
+	state   pppoeSessionState
+	sessID  uint16
+	pppUnit int
+	localIP netip.Addr
+	peerIP  netip.Addr
+	// dnsServers are the servers leased to resolvers, primary first.
+	dnsServers []string
+	upSince    time.Time
+	lastErr    error
+	attempts   int
+
+	// resolvers is the resolv.conf writer the learned servers go to.
+	resolvers *system.Resolvers
 
 	stopCh chan struct{}
 	done   chan struct{}
@@ -131,8 +152,10 @@ func NewPPPoEClient(cfg PPPoEClientConfig, dialer PPPoEDialer, backend Backend, 
 		logger:  logger.With("pppoe-client", cfg.Name, "src-iface", cfg.SourceInterface),
 		state:   sessStateDisconnected,
 		pppUnit: -1,
-		stopCh:  make(chan struct{}),
-		done:    make(chan struct{}),
+		// The process writer the hub configures, as the DHCP client uses.
+		resolvers: system.ProcessResolvers(),
+		stopCh:    make(chan struct{}),
+		done:      make(chan struct{}),
 	}
 }
 
@@ -148,7 +171,7 @@ func (c *PPPoEClient) Stop() {
 }
 
 // Status returns a snapshot of the client state.
-func (c *PPPoEClient) status() pppoeClientStatus {
+func (c *PPPoEClient) status() PPPoEClientStatus {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -162,12 +185,12 @@ func (c *PPPoEClient) status() pppoeClientStatus {
 		pppIface = c.cfg.Name
 	}
 
-	var uptime time.Duration
+	uptime := ""
 	if c.state == sessStateUp && !c.upSince.IsZero() {
-		uptime = time.Since(c.upSince)
+		uptime = time.Since(c.upSince).Truncate(time.Second).String()
 	}
 
-	return pppoeClientStatus{
+	return PPPoEClientStatus{
 		Name:            c.cfg.Name,
 		State:           c.stateString(),
 		SourceInterface: c.cfg.SourceInterface,
@@ -176,6 +199,7 @@ func (c *PPPoEClient) status() pppoeClientStatus {
 		PeerIP:          c.peerIP,
 		SessionID:       c.sessID,
 		Uptime:          uptime,
+		DNSServers:      append([]string{}, c.dnsServers...),
 	}
 }
 
@@ -262,6 +286,7 @@ func (c *PPPoEClient) runSession() error {
 	c.pppUnit = -1
 	c.localIP = netip.Addr{}
 	c.peerIP = netip.Addr{}
+	c.dnsServers = nil
 	// setTiming writes cfg.Timing from the reconcile goroutine.
 	dialCfg := c.cfg
 	c.mu.Unlock()
@@ -272,6 +297,8 @@ func (c *PPPoEClient) runSession() error {
 		return err
 	}
 	defer sess.Cleanup()
+	// The lease ends with the session, on every return path below.
+	defer c.leaseDNS(nil)
 
 	// The dialer creates the kernel device under its configured name through
 	// rtnetlink, so every backend call below addresses the device by that name.
@@ -319,6 +346,9 @@ func (c *PPPoEClient) runSession() error {
 		}
 	}
 
+	dnsLeased := pppoeDNSServers(sess.PrimaryDNS, sess.SecondaryDNS)
+	c.leaseDNS(dnsLeased)
+
 	c.mu.Lock()
 	c.sessID = sess.SessionID
 	c.pppUnit = sess.UnitNum
@@ -331,7 +361,7 @@ func (c *PPPoEClient) runSession() error {
 
 	c.logger.Info("pppoe-client: session up",
 		"session-id", sess.SessionID, "iface", ifname,
-		"local-ip", sess.LocalIP, "peer-ip", sess.PeerIP)
+		"local-ip", sess.LocalIP, "peer-ip", sess.PeerIP, "dns-servers", dnsLeased)
 
 	// This worker owns all interface writes until stop, session loss or a fatal
 	// apply error. Changes holds at most one complete pending result.
@@ -398,11 +428,56 @@ func (c *PPPoEClient) runSession() error {
 					pairApplied = pair
 				}
 			}
+			// A renegotiation that changed only the DNS servers still
+			// replaces the lease; an equal list makes no call.
+			if dns := pppoeDNSServers(next.PrimaryDNS, next.SecondaryDNS); !slices.Equal(dns, dnsLeased) {
+				c.leaseDNS(dns)
+				dnsLeased = dns
+			}
 			c.mu.Lock()
 			c.localIP = next.LocalIP
 			c.peerIP = next.PeerIP
 			c.mu.Unlock()
 		}
+	}
+}
+
+// pppoeDNSServers lists the servers IPCP learned for resolv.conf, primary
+// first, leaving out an option that named no server.
+//
+// RFC 1877 Section 1: "Primary and secondary addresses are negotiated
+// independently.  They serve identical purposes, except that when both are
+// present an attempt SHOULD be made to resolve names using the primary
+// address before using the secondary address."
+func pppoeDNSServers(primary, secondary netip.Addr) []string {
+	var servers []string
+	if primary.IsValid() {
+		servers = append(servers, primary.String())
+	}
+	if secondary.IsValid() {
+		servers = append(servers, secondary.String())
+	}
+	return servers
+}
+
+// PPPoEResolverSource names the resolv.conf lease of the PPPoE client
+// called name. It is keyed by the configured name, which a reconnect keeps,
+// never by the ppp unit, which a reconnect changes.
+func PPPoEResolverSource(name string) system.ResolverSource {
+	return pppoeClientResolverOrigin.Source(name, "")
+}
+
+// leaseDNS hands servers to the resolv.conf writer as this client's lease;
+// an empty list withdraws it. Static name-servers still win
+// (system.Resolvers). A failed write keeps the session: the operator reads
+// the warning, and the next change retries.
+func (c *PPPoEClient) leaseDNS(servers []string) {
+	c.mu.Lock()
+	c.dnsServers = servers
+	c.mu.Unlock()
+	if err := c.resolvers.SetLease(PPPoEResolverSource(c.cfg.Name), servers); err != nil {
+		c.logger.Warn("pppoe-client: failed to write the learned DNS servers to resolv.conf; name resolution may use stale servers; inspect with ze show interface pppoe-client",
+			"dns-servers", servers, "error", err)
 	}
 }
 

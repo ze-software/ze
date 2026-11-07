@@ -4040,8 +4040,11 @@ Records with TTL=0 from the server are not cached (per RFC 1035).
 
 When static name servers are configured, DHCP-discovered DNS servers do not
 overwrite resolv.conf. When no static servers are configured, resolv-conf-path
-lists the servers of every DHCP lease, DHCPv4 before DHCPv6, and a lease whose
-renewal omits DNS, or that ends, takes only its own servers out
+lists the servers of every DHCP lease and every PPPoE client session, DHCPv4
+first, then DHCPv6, then the servers a PPPoE client learned from IPCP
+(RFC 1877, primary first). A lease whose renewal omits DNS, a PPPoE
+renegotiation whose access concentrator offers none, or a lease or session
+that ends takes only its own servers out
 (`docs/features/dns-resolver.md`, "DHCP interaction").
 
 The internal resolver never falls back to a public recursive resolver. If no

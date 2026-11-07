@@ -20,10 +20,13 @@ import (
 type negotiatedSession struct {
 	localIP netip.Addr
 	peerIP  netip.Addr
-	negMTU  uint16
-	magic   uint32
-	peerMRU uint16
-	chap    *networkPhaseCHAP
+	// primaryDNS and secondaryDNS are invalid when IPCP learned no server.
+	primaryDNS   netip.Addr
+	secondaryDNS netip.Addr
+	negMTU       uint16
+	magic        uint32
+	peerMRU      uint16
+	chap         *networkPhaseCHAP
 }
 
 // negotiatePhases returns only after both directions of IPCP reach Opened.
@@ -75,13 +78,15 @@ func negotiatePhases(transport io.ReadWriteCloser, reader *frameReader,
 			}
 			return negotiatedSession{}, err
 		}
-		logger.Info("pppoe-client: IPCP opened", "local-ip", ipcp.localIP, "peer-ip", ipcp.peerIP)
+		logger.Info("pppoe-client: IPCP opened", "local-ip", ipcp.localIP, "peer-ip", ipcp.peerIP,
+			"primary-dns", ipcp.primaryDNS, "secondary-dns", ipcp.secondaryDNS)
 		negMTU := lcp.peerMRU
 		if negMTU == 0 {
 			negMTU = ppp.MaxFrameLen
 		}
 		return newNegotiatedSession(sessionResult{
 			localIP: ipcp.localIP, peerIP: ipcp.peerIP, negMTU: min(negMTU, cfg.mtu),
+			primaryDNS: ipcp.primaryDNS, secondaryDNS: ipcp.secondaryDNS,
 			magic: magic, peerMRU: lcp.peerMRU, chap: chap,
 		}, cfg)
 	}

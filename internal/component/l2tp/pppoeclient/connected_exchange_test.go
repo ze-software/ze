@@ -238,7 +238,7 @@ func (w *connectedExchange) openIPCP(t *testing.T, previousID uint8, passes int)
 	if request[3] != previousID+1 {
 		t.Fatalf("new IPCP Identifier = %d, want %d", request[3], previousID+1)
 	}
-	if !bytes.Equal(request[6:], []byte{3, 6, 0, 0, 0, 0}) {
+	if !bytes.Equal(request[6:], ipcpRequestFor([]byte{3, 6, 0, 0, 0, 0})) {
 		t.Fatalf("initial IPCP address: %x", request)
 	}
 	w.send(ppp.ProtoIPCP, 3, request[3], []byte{3, 6, 198, 51, 100, 2})
@@ -246,7 +246,7 @@ func (w *connectedExchange) openIPCP(t *testing.T, previousID uint8, passes int)
 	if request[3] != previousID+2 {
 		t.Fatalf("Nak IPCP Identifier = %d", request[3])
 	}
-	if !bytes.Equal(request[6:], []byte{3, 6, 198, 51, 100, 2}) {
+	if !bytes.Equal(request[6:], ipcpRequestFor([]byte{3, 6, 198, 51, 100, 2})) {
 		t.Fatalf("Nak address not adopted: %x", request)
 	}
 	// An old epoch's Identifier cannot acknowledge even byte-identical options.

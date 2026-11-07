@@ -156,6 +156,7 @@ func checkers() map[string]interoplab.Checker {
 		"01-pppoe-chap-ipv4":                     checkZeClient,
 		"02-ze-ac-pppd-client":                   checkZeAccessConcentrator,
 		"pppoe-pap-ze-client":                    checkZeClientPAP,
+		"pppoe-ipcp-dns-rejected-ze-client":      checkZeClientDNSRejected,
 		"pppoe-chap-rechallenge-ze-client":       checkCHAPRechallenge,
 		"pppoe-peer-terminate-ze-ac":             checkPeerTerminate,
 		"pppoe-named-device-reconnect-ze-client": checkNamedDeviceReconnect,

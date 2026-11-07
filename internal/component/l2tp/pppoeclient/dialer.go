@@ -243,8 +243,11 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		LocalIP:   result.localIP,
 		PeerIP:    result.peerIP,
 		NegMTU:    result.negMTU,
-		Changes:   connected.changes,
-		Done:      link.stopped,
+		// RFC 1877 Section 1: the servers IPCP learned, primary first.
+		PrimaryDNS:   result.primaryDNS,
+		SecondaryDNS: result.secondaryDNS,
+		Changes:      connected.changes,
+		Done:         link.stopped,
 		Cleanup: func() {
 			link.cleanupConnected(keepaliveDone, cleanup)
 		},

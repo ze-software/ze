@@ -803,6 +803,9 @@ ze show interface type <type>      # Filter by type (ethernet, bridge, vxlan, wi
 ze show interface errors           # Interfaces with non-zero Rx/Tx error or drop counters
 ze show interface rate             # Per-second rate data for all interfaces
 ze show interface rate <name>      # Per-second rate data for one interface
+ze show interface pppoe-client     # Each PPPoE client: name, state, source-interface, ppp-interface,
+                                   # session-id, local-ip, peer-ip, uptime, dns-servers (IPCP-learned,
+                                   # primary first, [] when none)
 ze show interface --json           # JSON output
 ze interface create dummy <name>   # Create a dummy interface
 ze interface create veth <n> <p>   # Create a veth pair

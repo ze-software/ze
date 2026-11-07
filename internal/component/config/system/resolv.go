@@ -12,34 +12,73 @@ import (
 	"sync"
 )
 
-// resolverOrigin is the protocol that leased a set of resolver servers. Its
-// numeric order is the order those sources appear in resolv.conf.
-type resolverOrigin uint8
+// ResolverOrigin is a lease protocol registered with RegisterResolverOrigin.
+// Its rank is the order that protocol's sources appear in resolv.conf. The
+// zero value is no registered origin: a source built from it names nothing
+// and Resolvers.SetLease refuses it.
+type ResolverOrigin struct {
+	rank uint16
+	name string
+}
 
-const (
-	resolverOriginUnspecified resolverOrigin = iota
-	resolverOriginDHCPv4
-	resolverOriginDHCPv6
-)
+// resolverOriginRegistry holds every registered origin. Each lease producer
+// registers its own from its package, so adding a lease protocol edits only
+// that protocol's package: the order is the ranks, each one declared beside
+// its producer. Safe for concurrent use.
+type resolverOriginRegistry struct {
+	mu    sync.Mutex
+	names map[string]uint16
+	ranks map[uint16]string
+}
 
-// ResolverSource names one lease that supplied resolver servers: one DHCP
-// client, keyed by its protocol, interface and unit. Build it with
-// DHCPv4ResolverSource or DHCPv6ResolverSource; the zero value names no
-// source and Resolvers.SetLease refuses it.
+var resolverOrigins resolverOriginRegistry
+
+// RegisterResolverOrigin registers the lease protocol name with rank and
+// answers the origin its sources are built from. A lower rank lists first in
+// resolv.conf. It MUST be called from a package-level declaration or init():
+// rank zero, an empty name, or a name or rank already registered is a Ze
+// defect, and it panics.
+func RegisterResolverOrigin(name string, rank uint16) ResolverOrigin {
+	return resolverOrigins.register(name, rank)
+}
+
+func (g *resolverOriginRegistry) register(name string, rank uint16) ResolverOrigin {
+	if name == "" {
+		panic("BUG: resolver origin registered with no name")
+	}
+	if rank == 0 {
+		panic("BUG: resolver origin " + name + " registered with rank 0, which names no origin")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if _, taken := g.names[name]; taken {
+		panic("BUG: resolver origin " + name + " registered twice")
+	}
+	if holder, taken := g.ranks[rank]; taken {
+		panic("BUG: resolver origin " + name + " registered with the rank of " + holder)
+	}
+	if g.names == nil {
+		g.names = make(map[string]uint16)
+		g.ranks = make(map[uint16]string)
+	}
+	g.names[name] = rank
+	g.ranks[rank] = name
+	return ResolverOrigin{rank: rank, name: name}
+}
+
+// Source names the lease of this origin's client on iface and unit.
+func (o ResolverOrigin) Source(iface, unit string) ResolverSource {
+	return ResolverSource{origin: o, iface: iface, unit: unit}
+}
+
+// ResolverSource names one lease that supplied resolver servers: one client,
+// keyed by its registered origin, interface and unit. Build it with
+// ResolverOrigin.Source; the zero value names no source and
+// Resolvers.SetLease refuses it.
 type ResolverSource struct {
-	origin resolverOrigin
+	origin ResolverOrigin
 	iface  string
 	unit   string
-}
-
-// DHCPv4ResolverSource names the DHCPv4 client of iface and unit.
-func DHCPv4ResolverSource(iface, unit string) ResolverSource {
-	return ResolverSource{origin: resolverOriginDHCPv4, iface: iface, unit: unit}
-}
-
-// DHCPv6ResolverSource names the DHCPv6 client of iface and unit.
-func DHCPv6ResolverSource(iface, unit string) ResolverSource {
-	return ResolverSource{origin: resolverOriginDHCPv6, iface: iface, unit: unit}
 }
 
 // Resolvers is the only writer of resolv.conf. It records the resolver
@@ -50,8 +89,9 @@ func DHCPv6ResolverSource(iface, unit string) ResolverSource {
 // The file lists the static name-servers alone when any are configured:
 // RFC 3646 Section 6: "Where DNS parameters such as the domain searchlist or
 // DNS servers have been manually configured, these parameters SHOULD NOT be
-// overridden by DHCP." Otherwise it lists every lease's servers, DHCPv4
-// clients before DHCPv6 clients, each group by interface then unit, each
+// overridden by DHCP." Otherwise it lists every lease's servers, ordered by
+// the rank of each source's registered origin (DHCPv4, then DHCPv6, then
+// PPP), each group by interface then unit, each
 // lease's servers in the order the server sent them, and a server a
 // previous source already listed is not repeated.
 //
@@ -71,12 +111,13 @@ type Resolvers struct {
 
 // errUnnamedResolverSource refuses the zero ResolverSource: servers recorded
 // under it could never be withdrawn by the lease that supplied them.
-var errUnnamedResolverSource = errors.New("resolver servers from an unnamed source: build the source with DHCPv4ResolverSource or DHCPv6ResolverSource")
+var errUnnamedResolverSource = errors.New("resolver servers from an unnamed source: build the source with Source on the origin RegisterResolverOrigin returned")
 
 var processResolvers Resolvers
 
 // ProcessResolvers answers the daemon's resolv.conf writer: the hub
-// configures it and every DHCP client sets its lease on it.
+// configures it and every lease producer (the DHCP and PPPoE clients) sets
+// its lease on it.
 func ProcessResolvers() *Resolvers { return &processResolvers }
 
 // Configure sets the resolv.conf path (empty disables writing) and the
@@ -97,7 +138,7 @@ func (r *Resolvers) Configure(path string, static []string) error {
 // file. An empty list withdraws the source: its lease ended, or its latest
 // reply carried no resolver servers.
 func (r *Resolvers) SetLease(source ResolverSource, servers []string) error {
-	if source.origin == resolverOriginUnspecified {
+	if source.origin.rank == 0 {
 		return errUnnamedResolverSource
 	}
 	r.mu.Lock()
@@ -176,7 +217,7 @@ func appendServers(out, servers []string) []string {
 
 func compareResolverSources(a, b ResolverSource) int {
 	return cmp.Or(
-		cmp.Compare(a.origin, b.origin),
+		cmp.Compare(a.origin.rank, b.origin.rank),
 		strings.Compare(a.iface, b.iface),
 		strings.Compare(a.unit, b.unit),
 	)

@@ -118,6 +118,7 @@ func newNegotiatedSession(initial sessionResult, cfg sessionConfig) (negotiatedS
 	}
 	result := negotiatedSession{
 		localIP: initial.localIP, peerIP: initial.peerIP, negMTU: initial.negMTU,
+		primaryDNS: initial.primaryDNS, secondaryDNS: initial.secondaryDNS,
 		magic: initial.magic, peerMRU: initial.peerMRU,
 	}
 	if initial.chap != nil {
@@ -172,6 +173,7 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 	}
 	s.changes <- iface.PPPoEResult{
 		LocalIP: next.localIP, PeerIP: next.peerIP, NegMTU: next.negMTU,
+		PrimaryDNS: next.primaryDNS, SecondaryDNS: next.secondaryDNS,
 	}
 	return nil
 }
