@@ -293,7 +293,7 @@ type Action interface {
 	actionMarker()
 }
 
-// --- Match types (21) ---
+// --- Match types (23) ---
 
 // MatchSourceAddress matches packets by source IP prefix.
 type MatchSourceAddress struct{ Prefix netip.Prefix }
@@ -580,7 +580,7 @@ func (MatchARPOperation) matchMarker()     {}
 func (MatchARPSenderAddress) matchMarker() {}
 func (MatchNDTargetAddress) matchMarker()  {}
 
-// --- Action types (16) ---
+// --- Action types (13) ---
 
 // Accept terminates evaluation and accepts the packet.
 type Accept struct{}
@@ -674,6 +674,15 @@ type SetDSCP struct{ Value uint8 }
 // SetTCPMSS clamps the TCP Maximum Segment Size option.
 type SetTCPMSS struct{ Size uint16 }
 
+// ClampTCPMSSToPMTU clamps the TCP Maximum Segment Size option to the MSS the
+// route of the packet allows: the smaller of the MTU of the route the packet
+// takes and the MTU of the route back to its source, less the fixed IP and TCP
+// headers (40 bytes for IPv4, 60 for IPv6). The kernel computes the value per
+// packet (get_tcpmss, net/netfilter/nft_rt.c), so the action carries no size.
+// The kernel computes it only at the forward, output and postrouting hooks
+// (nft_rt_validate), which validateAction enforces.
+type ClampTCPMSSToPMTU struct{}
+
 // Counter increments a named or anonymous counter.
 type Counter struct{ Name string }
 
@@ -726,26 +735,27 @@ type Limit struct {
 // Interface compliance: every Action type implements Action. Keep this list
 // exhaustive with the struct definitions above -- a markerless type compiles
 // but silently fails the `a.(Action)` assertion at runtime.
-func (Accept) actionMarker()      {}
-func (Drop) actionMarker()        {}
-func (Reject) actionMarker()      {}
-func (Jump) actionMarker()        {}
-func (Goto) actionMarker()        {}
-func (Return) actionMarker()      {}
-func (SNAT) actionMarker()        {}
-func (DNAT) actionMarker()        {}
-func (Masquerade) actionMarker()  {}
-func (Redirect) actionMarker()    {}
-func (Notrack) actionMarker()     {}
-func (FlowOffload) actionMarker() {}
-func (SetCtHelper) actionMarker() {}
-func (SetMark) actionMarker()     {}
-func (SetConnMark) actionMarker() {}
-func (SetDSCP) actionMarker()     {}
-func (SetTCPMSS) actionMarker()   {}
-func (Counter) actionMarker()     {}
-func (Log) actionMarker()         {}
-func (Limit) actionMarker()       {}
+func (Accept) actionMarker()            {}
+func (Drop) actionMarker()              {}
+func (Reject) actionMarker()            {}
+func (Jump) actionMarker()              {}
+func (Goto) actionMarker()              {}
+func (Return) actionMarker()            {}
+func (SNAT) actionMarker()              {}
+func (DNAT) actionMarker()              {}
+func (Masquerade) actionMarker()        {}
+func (Redirect) actionMarker()          {}
+func (Notrack) actionMarker()           {}
+func (FlowOffload) actionMarker()       {}
+func (SetCtHelper) actionMarker()       {}
+func (SetMark) actionMarker()           {}
+func (SetConnMark) actionMarker()       {}
+func (SetDSCP) actionMarker()           {}
+func (SetTCPMSS) actionMarker()         {}
+func (ClampTCPMSSToPMTU) actionMarker() {}
+func (Counter) actionMarker()           {}
+func (Log) actionMarker()               {}
+func (Limit) actionMarker()             {}
 
 // --- Set types ---
 

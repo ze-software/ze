@@ -656,6 +656,8 @@ func lowerAction(a firewall.Action, nfproto byte) ([]expr.Any, error) {
 		return lowerSetDSCP(nfproto, v.Value)
 	case firewall.SetTCPMSS:
 		return lowerSetTCPMSS(v.Size)
+	case firewall.ClampTCPMSSToPMTU:
+		return lowerClampTCPMSSToPMTU(), nil
 	case firewall.FlowOffload:
 		return []expr.Any{&expr.FlowOffload{Name: v.FlowtableName}}, nil
 	case firewall.SetCtHelper:
@@ -1478,14 +1480,60 @@ func lowerSetTCPMSS(mss uint16) ([]expr.Any, error) {
 	binary.BigEndian.PutUint16(mssBytes, mss)
 	return []expr.Any{
 		&expr.Immediate{Register: 1, Data: mssBytes},
-		&expr.Exthdr{
-			SourceRegister: 1,
-			Type:           2, // TCP option kind: MSS
-			Offset:         2, // past kind (1 byte) + length (1 byte)
-			Len:            2,
-			Op:             expr.ExthdrOpTcpopt,
-		},
+		tcpMSSWrite(),
 	}, nil
+}
+
+// lowerClampTCPMSSToPMTU clamps the TCP MSS option to the MSS of the packet's
+// route. The nftables equivalent is `tcp option maxseg size set rt mtu`.
+//
+// The rt expression with key TCPMSS loads, into the register, the smaller of
+// the MTU of the route the packet takes and the MTU of the route back to its
+// source, less the fixed IP and TCP headers (get_tcpmss,
+// net/netfilter/nft_rt.c: minlen is sizeof(struct iphdr) + sizeof(struct
+// tcphdr) for IPv4 and sizeof(struct ipv6hdr) + sizeof(struct tcphdr) for
+// IPv6). It stores the value in host byte order (nft_reg_store16), while the
+// two-byte TCP option write reads the register as the option's network-order
+// bytes (nft_exthdr_tcp_set_eval, nft_reg_load16 into a __be16), so a
+// byteorder hton sits between them, as nft itself emits. Without it a
+// little-endian host would compare a byte-swapped value, the kernel guard
+// would skip the write, and no SYN would ever be clamped.
+//
+// The write is the same two-byte write lowerSetTCPMSS emits, so the kernel
+// guard that never raises a smaller MSS applies to this action as well.
+//
+// RFC 6691 Section 2: "When calculating the value to put in the TCP MSS
+// option, the MTU value SHOULD be decreased by only the size of the fixed IP
+// and TCP headers and SHOULD NOT be decreased to account for any possible IP
+// or TCP options; conversely, the sender MUST reduce the TCP data length to
+// account for any IP or TCP options that it is including in the packets that
+// it sends."
+func lowerClampTCPMSSToPMTU() []expr.Any {
+	return []expr.Any{
+		&expr.Rt{Register: 1, Key: expr.RtTCPMSS},
+		&expr.Byteorder{
+			SourceRegister: 1,
+			DestRegister:   1,
+			Op:             expr.ByteorderHton,
+			Len:            2,
+			Size:           2,
+		},
+		tcpMSSWrite(),
+	}
+}
+
+// tcpMSSWrite is the two-byte write of register 1 into the MSS value of the
+// TCP MSS option, shared by lowerSetTCPMSS and lowerClampTCPMSSToPMTU. It MUST
+// stay two bytes at offset 2: only that arm of nft_exthdr_tcp_set_eval
+// carries the guard that skips a write which would raise the MSS.
+func tcpMSSWrite() *expr.Exthdr {
+	return &expr.Exthdr{
+		SourceRegister: 1,
+		Type:           2, // TCP option kind: MSS
+		Offset:         2, // past kind (1 byte) + length (1 byte)
+		Len:            2,
+		Op:             expr.ExthdrOpTcpopt,
+	}
 }
 
 // lowerRedirect emits the nftables `redir` expression. The operator's

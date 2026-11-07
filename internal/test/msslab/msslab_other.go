@@ -30,3 +30,8 @@ func (l *Lab) Close() error {
 func (l *Lab) Forward(_ Family, _ Option, _ time.Duration) (Seen, error) {
 	return Seen{}, errNeedsLinux
 }
+
+// SetMTU refuses: no lab exists on this host.
+func (l *Lab) SetMTU(_, _ int) error {
+	return errNeedsLinux
+}

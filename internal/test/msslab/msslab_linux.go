@@ -136,6 +136,28 @@ func (l *Lab) Forward(family Family, sent Option, wait time.Duration) (Seen, err
 	return l.read(family, wait)
 }
 
+// SetMTU sets the MTU of each side, on the router's veth and on its peer, so
+// the route the router takes toward the target (egress) and the route back
+// toward the source (ingress) carry those MTUs. A connected route takes the
+// MTU of its device (dst_mtu), which is what `rt mtu` reads. Each value MUST
+// be a valid veth MTU (68 to 65535).
+func (l *Lab) SetMTU(ingress, egress int) error {
+	sides := []struct {
+		name string
+		mtu  int
+	}{{l.ingress, ingress}, {l.ingress + "p", ingress}, {l.egress, egress}, {l.egress + "p", egress}}
+	for _, side := range sides {
+		link, err := netlink.LinkByName(side.name)
+		if err != nil {
+			return fmt.Errorf("msslab: read %s: %w", side.name, err)
+		}
+		if err := netlink.LinkSetMTU(link, side.mtu); err != nil {
+			return fmt.Errorf("msslab: set the MTU of %s to %d: %w", side.name, side.mtu, err)
+		}
+	}
+	return nil
+}
+
 func (l *Lab) read(family Family, wait time.Duration) (Seen, error) {
 	deadline := time.Now().Add(wait)
 	var buf [2048]byte

@@ -650,3 +650,25 @@ func TestVerifyRejectsSetMarkAndLimitCombined(t *testing.T) {
 		t.Errorf("want 'cannot be combined' message, got %v", err)
 	}
 }
+
+// VALIDATES: AC-7 of spec-home-cpe-9: the vpp backend refuses
+// tcp-mss-clamp-to-pmtu at verify and names itself, because a VPP ACL
+// cannot rewrite a TCP option, so no config reaches Apply with a clamp the
+// data plane would silently skip.
+// PREVENTS: the action falling into the default arm, whose message does
+// not say which leaf to change.
+func TestVPPRefusesClampToPMTU(t *testing.T) {
+	tables := simpleTable(baseChain(firewall.Term{
+		Name:    "clamp",
+		Actions: []firewall.Action{firewall.ClampTCPMSSToPMTU{}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("tcp-mss-clamp-to-pmtu must be refused by backend vpp")
+	}
+	for _, want := range []string{"tcp-mss-clamp-to-pmtu", "backend vpp", "use backend nft"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("want %q in message, got %v", want, err)
+		}
+	}
+}

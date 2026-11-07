@@ -702,6 +702,11 @@ func TestFirewallActionSummary(t *testing.T) {
 			want:    "tcp-mss 1400",
 		},
 		{
+			name:    "clamp tcp mss to pmtu",
+			actions: []firewall.Action{firewall.ClampTCPMSSToPMTU{}},
+			want:    "tcp-mss rt mtu",
+		},
+		{
 			name:    "limit",
 			actions: []firewall.Action{firewall.Limit{Rate: 100, Unit: "second"}},
 			want:    "limit 100/second",

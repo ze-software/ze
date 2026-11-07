@@ -853,6 +853,60 @@ func TestLowerSetTCPMSS(t *testing.T) {
 	}
 }
 
+// VALIDATES: ClampTCPMSSToPMTU, reached through lowerAction, lowers to
+// Rt(r1, TCPMSS), Byteorder(r1 = hton(r1, 2, 2)), then the same two-byte
+// Exthdr write lowerSetTCPMSS emits: the nftables equivalent of
+// `tcp option maxseg size set rt mtu`.
+// PREVENTS: a missing byteorder, which leaves the host-order route MSS in the
+// register the write reads as network order (nft_reg_store16 in nft_rt.c,
+// nft_reg_load16 into a __be16 in nft_exthdr.c), so the kernel guard sees a
+// byte-swapped value and never clamps; and a write that is not two bytes at
+// offset 2, which loses the guard that never raises a smaller MSS.
+func TestLowerClampToPMTU(t *testing.T) {
+	exprs, err := lowerAction(firewall.ClampTCPMSSToPMTU{}, unix.NFPROTO_INET)
+	if err != nil {
+		t.Fatalf("lowerAction: %v", err)
+	}
+	if len(exprs) != 3 {
+		t.Fatalf("len = %d, want 3 (Rt + Byteorder + Exthdr)", len(exprs))
+	}
+	rt, ok := exprs[0].(*expr.Rt)
+	if !ok {
+		t.Fatalf("exprs[0] = %T, want *expr.Rt", exprs[0])
+	}
+	if rt.Register != 1 || rt.Key != expr.RtTCPMSS {
+		t.Errorf("Rt = %+v, want register 1, key RtTCPMSS", rt)
+	}
+	order, ok := exprs[1].(*expr.Byteorder)
+	if !ok {
+		t.Fatalf("exprs[1] = %T, want *expr.Byteorder", exprs[1])
+	}
+	if order.SourceRegister != 1 || order.DestRegister != 1 {
+		t.Errorf("Byteorder registers = %d -> %d, want 1 -> 1", order.SourceRegister, order.DestRegister)
+	}
+	if order.Op != expr.ByteorderHton || order.Len != 2 || order.Size != 2 {
+		t.Errorf("Byteorder = %+v, want hton, len 2, size 2", order)
+	}
+	exthdr, ok := exprs[2].(*expr.Exthdr)
+	if !ok {
+		t.Fatalf("exprs[2] = %T, want *expr.Exthdr", exprs[2])
+	}
+	fixed, err := lowerSetTCPMSS(1400)
+	if err != nil {
+		t.Fatalf("lowerSetTCPMSS: %v", err)
+	}
+	want, ok := fixed[1].(*expr.Exthdr)
+	if !ok {
+		t.Fatalf("lowerSetTCPMSS write = %T, want *expr.Exthdr", fixed[1])
+	}
+	if *exthdr != *want {
+		t.Errorf("Exthdr = %+v, want the tcp-mss-set write %+v", *exthdr, *want)
+	}
+	if exthdr.SourceRegister != 1 || exthdr.Type != 2 || exthdr.Offset != 2 || exthdr.Len != 2 || exthdr.Op != expr.ExthdrOpTcpopt {
+		t.Errorf("Exthdr = %+v, want write of r1 into tcp option 2 at offset 2, len 2", *exthdr)
+	}
+}
+
 // VALIDATES: SetTCPMSS rejects zero MSS.
 func TestLowerSetTCPMSSZeroRejects(t *testing.T) {
 	if _, err := lowerSetTCPMSS(0); err == nil {

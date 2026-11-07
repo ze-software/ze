@@ -198,6 +198,8 @@ func formatAction(a firewall.Action) string {
 		return textbuf.StrInt("dscp set ", int64(v.Value))
 	case firewall.SetTCPMSS:
 		return textbuf.StrInt("tcp-mss set ", int64(v.Size))
+	case firewall.ClampTCPMSSToPMTU:
+		return "tcp-mss set rt mtu"
 	case firewall.Redirect:
 		if v.Port != 0 {
 			return textbuf.StrInt("redirect to ", int64(v.Port))

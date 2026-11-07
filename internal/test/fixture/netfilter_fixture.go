@@ -40,6 +40,7 @@ func init() {
 	Register("firewall/firewall-set-element-timeout", firewallSetElementTimeout)
 	registerTableSnapshot("firewall/firewall-setdscp-inet", "inet", "ze_fw10_007")
 	registerTableSnapshot("firewall/firewall-snat-addr-range", "ip", "ze_fw10_011")
+	registerTableSnapshot("firewall/firewall-tcp-mss-clamp-to-pmtu", "inet", "ze_mss_pmtu")
 	Register("firewall/flush-crash", func(ctx context.Context, _ []string) error {
 		return firewallPersist(ctx, "ze_fwcrash", syscall.SIGKILL, "CRASH")
 	})

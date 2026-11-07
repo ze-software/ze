@@ -450,6 +450,8 @@ func actionSummary(actions []firewall.Action) string {
 		case firewall.SetTCPMSS:
 			var bMss textbuf.Buffer
 			parts = append(parts, bMss.Reset().Str("tcp-mss ").Int(int64(v.Size)).String())
+		case firewall.ClampTCPMSSToPMTU:
+			parts = append(parts, "tcp-mss rt mtu")
 		case firewall.Limit:
 			// An inverted limiter matches the packets ABOVE the rate, which is
 			// the opposite set, so the word is part of the rule rather than a

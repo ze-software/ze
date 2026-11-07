@@ -427,6 +427,12 @@ func parseThenBlock(m map[string]any) ([]Action, error) {
 		actions = append(actions, SetTCPMSS{Size: uint16(mss)})
 	}
 
+	// An empty leaf: its presence is the whole value. validateAction refuses
+	// it beside tcp-mss-set, so a term never carries two MSS writes.
+	if _, ok := m["tcp-mss-clamp-to-pmtu"]; ok {
+		actions = append(actions, ClampTCPMSSToPMTU{})
+	}
+
 	// Actions (terminals and NAT).
 	if foMap, ok := m["flow-offload"].(map[string]any); ok {
 		ftName, _ := foMap["flowtable"].(string)

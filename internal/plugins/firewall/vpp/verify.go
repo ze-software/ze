@@ -357,6 +357,8 @@ func verifyAction(prefix string, a firewall.Action) error {
 		return fmt.Errorf("%s: dscp-set action not supported by backend vpp", prefix)
 	case firewall.SetTCPMSS:
 		return fmt.Errorf("%s: tcp-mss-set action not supported by backend vpp", prefix)
+	case firewall.ClampTCPMSSToPMTU:
+		return fmt.Errorf("%s: tcp-mss-clamp-to-pmtu action not supported by backend vpp (VPP ACL cannot rewrite TCP options); use backend nft", prefix)
 	case firewall.Counter:
 		return fmt.Errorf("%s: counter action not supported by backend vpp (VPP ACL has implicit per-ACL counters, not per-rule named counters)", prefix)
 	case firewall.Log:

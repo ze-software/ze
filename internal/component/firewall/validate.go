@@ -397,8 +397,124 @@ func validateAction(tbl *Table, ch *Chain, term *Term, a Action, chains, flowtab
 			return fmt.Errorf("table %q chain %q term %q: tcp-mss-set requires family ip, ip6, or inet (got %s)",
 				tbl.Name, ch.Name, term.Name, tbl.Family)
 		}
+	case ClampTCPMSSToPMTU:
+		return validateClampTCPMSSToPMTU(tbl, ch, term)
 	}
 	return nil
+}
+
+// validateClampTCPMSSToPMTU refuses every placement the kernel would refuse,
+// so a commit never fails at netlink with an error the operator cannot map to
+// a term. nft_rt_validate (net/netfilter/nft_rt.c) accepts the route MSS only
+// in the ip, ip6 and inet families, and only in a chain whose hooks are all
+// forward, output or postrouting; for a regular chain the kernel checks the
+// hook of every base chain that reaches it through jump or goto.
+func validateClampTCPMSSToPMTU(tbl *Table, ch *Chain, term *Term) error {
+	if tbl.Family != FamilyIP && tbl.Family != FamilyIP6 && tbl.Family != FamilyInet {
+		return fmt.Errorf("table %q chain %q term %q: tcp-mss-clamp-to-pmtu requires family ip, ip6, or inet (got %s)",
+			tbl.Name, ch.Name, term.Name, tbl.Family)
+	}
+	for _, other := range term.Actions {
+		if _, ok := other.(SetTCPMSS); ok {
+			return fmt.Errorf("table %q chain %q term %q: tcp-mss-set and tcp-mss-clamp-to-pmtu cannot be combined in one term; keep one of them",
+				tbl.Name, ch.Name, term.Name)
+		}
+	}
+	if ch.IsBase {
+		if !routeMSSHook(ch.Hook) {
+			return fmt.Errorf("table %q chain %q term %q: tcp-mss-clamp-to-pmtu is not available at hook %s, because the kernel computes the route MSS only at forward, output or postrouting; move the term to a chain with hook forward or postrouting",
+				tbl.Name, ch.Name, term.Name, ch.Hook)
+		}
+		return nil
+	}
+	base, hook, found := baseChainReaching(tbl, ch.Name)
+	if found {
+		return fmt.Errorf("table %q chain %q term %q: tcp-mss-clamp-to-pmtu is not available at hook %s, which reaches this chain from base chain %q through jump or goto, because the kernel computes the route MSS only at forward, output or postrouting; move the term to a chain reached only from hook forward or postrouting",
+			tbl.Name, ch.Name, term.Name, hook, base)
+	}
+	return nil
+}
+
+// routeMSSHook reports whether the kernel computes the route MSS at hook h:
+// the hook mask NFT_RT_TCPMSS carries in nft_rt_validate is forward, local
+// out and postrouting.
+func routeMSSHook(h ChainHook) bool {
+	switch h {
+	case HookForward, HookOutput, HookPostrouting:
+		return true
+	case chainHookUnknown, HookInput, HookPrerouting, HookIngress, HookEgress:
+		return false
+	}
+	return false
+}
+
+// baseChainReaching finds a base chain of tbl whose hook does not allow the
+// route MSS and that reaches the regular chain target through jump or goto.
+// It answers that base chain's name and hook. A regular chain no base chain
+// reaches is never run, so the kernel never checks it and neither does this.
+// The walk visits each chain once, so it is bounded by len(tbl.Chains).
+func baseChainReaching(tbl *Table, target string) (string, ChainHook, bool) {
+	byName := make(map[string]*Chain, len(tbl.Chains))
+	for i := range tbl.Chains {
+		byName[tbl.Chains[i].Name] = &tbl.Chains[i]
+	}
+	for i := range tbl.Chains {
+		base := &tbl.Chains[i]
+		if !base.IsBase {
+			continue
+		}
+		if routeMSSHook(base.Hook) {
+			continue
+		}
+		if chainReaches(byName, base, target) {
+			return base.Name, base.Hook, true
+		}
+	}
+	return "", chainHookUnknown, false
+}
+
+// chainReaches reports whether a jump or goto path leads from chain from to
+// the chain named target. A breadth-first walk with a visited set, so a jump
+// cycle (which the kernel refuses on its own) cannot loop it.
+func chainReaches(byName map[string]*Chain, from *Chain, target string) bool {
+	visited := make(map[string]bool, len(byName))
+	queue := []*Chain{from}
+	visited[from.Name] = true
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for i := range cur.Terms {
+			for _, a := range cur.Terms[i].Actions {
+				next := jumpTarget(a)
+				if next == "" {
+					continue
+				}
+				if next == target {
+					return true
+				}
+				if visited[next] {
+					continue
+				}
+				visited[next] = true
+				if c, ok := byName[next]; ok {
+					queue = append(queue, c)
+				}
+			}
+		}
+	}
+	return false
+}
+
+// jumpTarget answers the chain a jump or goto action enters, and "" for an
+// action that enters no chain.
+func jumpTarget(a Action) string {
+	switch v := a.(type) {
+	case Jump:
+		return v.Target
+	case Goto:
+		return v.Target
+	}
+	return ""
 }
 
 // validateCtHelpers checks each conntrack helper object of a table. The kernel

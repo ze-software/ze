@@ -3013,6 +3013,7 @@ for every suite, so a directory with no declaration is an error.
 |----------|-----------------|-------------------------|
 | `ze-static-link-chain` | Ze nodes `ze-a`, `ze-b`, `ze-c` on links `a-b` (VLAN 181, `10.181.1.0/24`) and `b-c` (VLAN 182, `10.181.2.0/24`), B forwarding; `outside` on `eth0` alone | each node answers `show interface brief` by name; A pings C through B; `outside` cannot reach a link address |
 | `two-ze-pppoe-link` | a Ze PPPoE client and a Ze PPPoE server on a link with no prefix; an observer on `eth0` alone | the client holds an address from the server's pool on a ppp device (assigned only once IPCP is Opened), the server's kernel PPPoE table holds the session on the link device, and the observer received no untagged PPPoE discovery frame |
+| `pppoe-mss-pmtu` | Ze CPE `ze-cpe` dialing accel-ppp `accel` on link `access` (VLAN 184, no prefix) with MTU 1492; `lan-host` behind Ze on link `lan` (VLAN 185, `10.185.1.0/24`); `server` beyond accel-ppp on link `core` (VLAN 186, `10.186.1.0/24`), capturing SYNs | Ze's `pppoe0` holds an IPCP address and reports MTU 1492, its table lists `tcp option maxseg size set rt mtu`, and the server captures the SYN lan-host offered with MSS 1460 as 1452 and the one offered with 1200 as 1200 |
 
 `./le test integration interop-topology` runs every scenario;
 `./le test integration interop-topology scenario <name>`, or

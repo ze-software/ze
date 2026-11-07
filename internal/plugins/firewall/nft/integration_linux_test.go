@@ -757,3 +757,101 @@ func TestTCPMSSSetClampsNeverRaises(t *testing.T) {
 		}
 	})
 }
+
+// tcpMSSClampToPMTUConfig is the operator's config for the route-MSS proof: a
+// forward base chain whose one term clamps TCP SYNs to the route MSS. It goes
+// through firewall.ParseFirewallConfig and firewall.ValidateTables, the parse
+// and verify the daemon runs, so the rule under test is the one
+// `tcp-mss-clamp-to-pmtu;` produces.
+const tcpMSSClampToPMTUConfig = `{"firewall":{"table":{"mss":{"family":"inet","chain":{"forward":{` +
+	`"type":"filter","hook":"forward","priority":"0","policy":"accept",` +
+	`"term":{"clamp":{"from":{"protocol":"tcp","tcp-flags":"syn"},"then":{"tcp-mss-clamp-to-pmtu":""}}}}}}}}}`
+
+// VALIDATES: spec-home-cpe-9 AC-1..AC-3 and A-2. A SYN forwarded through the
+// rule Ze installs for `tcp-mss-clamp-to-pmtu` leaves with the route MSS:
+// with an egress MTU of 1492 (a PPPoE link), MSS 1460 leaves as 1452 for IPv4
+// and 1432 for IPv6, MSS 1200 is kept, and a SYN with no MSS gains none. With
+// the route back to the source smaller (ingress MTU 1400), the kernel takes
+// that MTU instead (get_tcpmss, net/netfilter/nft_rt.c), so 1460 leaves as
+// 1360 and 1340.
+// PREVENTS: a clamp that ignores the route, and one that raises a smaller MSS.
+// RFC 9293 Section 3.7.1: "The MSS value to be sent in an MSS Option should be
+// equal to the effective MTU minus the fixed IP and TCP headers."
+//
+// The method is TestTCPMSSSetClampsNeverRaises's: one router namespace with
+// two veth pairs (msslab), the SYN injected on the ingress peer, forwarded by
+// the kernel through the forward chain, and read on the egress peer, so the
+// assertion is on the forwarded packet.
+//
+// Red walk, each run red then green on Ze's kernel:
+//   - lowering (AC-1, AC-2): lowerAction answers no expressions for
+//     firewall.ClampTCPMSSToPMTU. The 1460 SYN then arrives as 1460.
+//   - byte order: lowerClampTCPMSSToPMTU drops the Byteorder expression. The
+//     write then reads the host-order route MSS as network order, the kernel
+//     guard sees a value above 1460 and skips the write, and the 1460 SYN
+//     arrives as 1460 on a little-endian host.
+//
+// The 1460 cases are the positive control for the 1200 and absent cases: a
+// lab that forwarded nothing, or a rule that never matched, fails them.
+func TestTCPMSSClampToPMTU(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	withNftNetNS(t, func() {
+		lab, err := msslab.Open("zepmtuin", "zepmtuout")
+		if err != nil {
+			t.Fatalf("build the router: %v", err)
+		}
+		t.Cleanup(func() {
+			if err := lab.Close(); err != nil {
+				t.Errorf("remove the router: %v", err)
+			}
+		})
+
+		tables, err := firewall.ParseFirewallConfig(tcpMSSClampToPMTUConfig)
+		if err != nil {
+			t.Fatalf("parse the tcp-mss-clamp-to-pmtu config: %v", err)
+		}
+		if err := firewall.ValidateTables(tables); err != nil {
+			t.Fatalf("verify the tcp-mss-clamp-to-pmtu config: %v", err)
+		}
+		b := newNftIntegrationBackend(t)
+		if err := b.Apply(tables); err != nil {
+			t.Fatalf("apply the tcp-mss-clamp-to-pmtu table: %v", err)
+		}
+
+		mss := func(v uint16) msslab.Option { return msslab.Option{Present: true, Value: v} }
+		steps := []struct {
+			name            string
+			ingress, egress int
+			family          msslab.Family
+			sent, want      msslab.Option
+		}{
+			{"PPPoE egress, larger MSS is lowered", 1500, 1492, msslab.FamilyIPv4, mss(1460), mss(1452)},
+			{"PPPoE egress, larger MSS is lowered", 1500, 1492, msslab.FamilyIPv6, mss(1460), mss(1432)},
+			{"PPPoE egress, smaller MSS is kept", 1500, 1492, msslab.FamilyIPv4, mss(1200), mss(1200)},
+			{"PPPoE egress, smaller MSS is kept", 1500, 1492, msslab.FamilyIPv6, mss(1200), mss(1200)},
+			{"PPPoE egress, absent MSS stays absent", 1500, 1492, msslab.FamilyIPv4, msslab.Option{}, msslab.Option{}},
+			{"PPPoE egress, absent MSS stays absent", 1500, 1492, msslab.FamilyIPv6, msslab.Option{}, msslab.Option{}},
+			{"smaller route back to the source", 1400, 1492, msslab.FamilyIPv4, mss(1460), mss(1360)},
+			{"smaller route back to the source", 1400, 1492, msslab.FamilyIPv6, mss(1460), mss(1340)},
+		}
+		for _, s := range steps {
+			if err := lab.SetMTU(s.ingress, s.egress); err != nil {
+				t.Fatalf("%s, %s: %v", s.family, s.name, err)
+			}
+			seen, err := lab.Forward(s.family, s.sent, 3*time.Second)
+			if err != nil {
+				t.Fatalf("%s, %s: %v", s.family, s.name, err)
+			}
+			if seen.MSS != s.want {
+				t.Errorf("%s, %s (MTU in %d, out %d): sent %+v, the forwarded SYN carries %+v, want %+v",
+					s.family, s.name, s.ingress, s.egress, s.sent, seen.MSS, s.want)
+			}
+			if !s.sent.Present && seen.HeaderOctets != 20 {
+				t.Errorf("%s, %s: the forwarded TCP header is %d octets, want 20 (no option added)",
+					s.family, s.name, seen.HeaderOctets)
+			}
+		}
+	})
+}

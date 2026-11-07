@@ -113,6 +113,7 @@ func TestFormatActionTypes(t *testing.T) {
 		{"connmark set", firewall.SetConnMark{Value: 0x20, Mask: 0xFF}, "connection-mark set 0x20"},
 		{"dscp set", firewall.SetDSCP{Value: 46}, "dscp set 46"},
 		{"tcp-mss set", firewall.SetTCPMSS{Size: 1400}, "tcp-mss set 1400"},
+		{"tcp-mss clamp to pmtu", firewall.ClampTCPMSSToPMTU{}, "tcp-mss set rt mtu"},
 		{"redirect port", firewall.Redirect{Port: 8080}, "redirect to 8080"},
 		{"redirect bare", firewall.Redirect{}, "redirect"},
 		{"masquerade", firewall.Masquerade{}, "masquerade"},

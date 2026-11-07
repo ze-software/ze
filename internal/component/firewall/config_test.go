@@ -1202,6 +1202,58 @@ func TestParseThenTCPMSSSetInvalidRejects(t *testing.T) {
 	}
 }
 
+// VALIDATES: the empty leaf tcp-mss-clamp-to-pmtu parses to
+// ClampTCPMSSToPMTU, and a term that also sets tcp-mss-set parses to both
+// actions so that verify (TestValidateClampToPMTUHook, AC-5 of
+// spec-home-cpe-9) can refuse the pair naming both leaves.
+// PREVENTS: the leaf being dropped in parsing, which would leave a term with
+// no MSS write and no error.
+func TestParseTCPMSSClampToPMTU(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"fwd":{"term":{"clamp":{"then":{"tcp-mss-clamp-to-pmtu":""}}}}}}}}}`
+	tables, err := ParseFirewallConfig(data)
+	if err != nil {
+		t.Fatalf("ParseFirewallConfig: %v", err)
+	}
+	if _, ok := firstAction(t, tables).(ClampTCPMSSToPMTU); !ok {
+		t.Fatalf("action type = %T, want ClampTCPMSSToPMTU", firstAction(t, tables))
+	}
+
+	both := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"fwd":{"term":{"clamp":{"then":{"tcp-mss-set":"1400","tcp-mss-clamp-to-pmtu":""}}}}}}}}}`
+	tables, err = ParseFirewallConfig(both)
+	if err != nil {
+		t.Fatalf("ParseFirewallConfig both: %v", err)
+	}
+	actions := tables[0].Chains[0].Terms[0].Actions
+	var fixed, route bool
+	for _, a := range actions {
+		switch a.(type) {
+		case SetTCPMSS:
+			fixed = true
+		case ClampTCPMSSToPMTU:
+			route = true
+		}
+	}
+	if !fixed {
+		t.Errorf("actions %+v carry no SetTCPMSS", actions)
+	}
+	if !route {
+		t.Errorf("actions %+v carry no ClampTCPMSSToPMTU", actions)
+	}
+	tables[0].Chains[0].IsBase = true
+	tables[0].Chains[0].Type = ChainFilter
+	tables[0].Chains[0].Hook = HookForward
+	tables[0].Chains[0].Policy = PolicyAccept
+	err = ValidateTables(tables)
+	if err == nil {
+		t.Fatal("a term with tcp-mss-set and tcp-mss-clamp-to-pmtu must be refused")
+	}
+	for _, want := range []string{"tcp-mss-set", "tcp-mss-clamp-to-pmtu", `term "clamp"`} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not name %q", err, want)
+		}
+	}
+}
+
 func TestParseFlowtable(t *testing.T) {
 	data := `{"firewall":{"table":{"wan":{"family":"inet","flowtable":{"ft0":{"hook":"ingress","priority":"-100","device":["eth0","eth1"]}}}}}}`
 	tables, err := ParseFirewallConfig(data)

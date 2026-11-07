@@ -736,3 +736,96 @@ func TestValidateRefusesARPAndNDMatchesOutsideTheirFamily(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: AC-4 and AC-6 of spec-home-cpe-9. verify accepts
+// tcp-mss-clamp-to-pmtu exactly where nft_rt_validate (net/netfilter/nft_rt.c)
+// accepts NFT_RT_TCPMSS: families ip, ip6 and inet, base chains at forward,
+// output and postrouting, and regular chains that only such base chains
+// reach. Every refusal names the table, the chain, the term, the hook found
+// and the fix.
+// PREVENTS: a ruleset verify accepted and the kernel then refuses at commit
+// with a netlink error, most easily through a regular chain jumped to or
+// gone to from prerouting or input (R-1).
+func TestValidateClampToPMTUHook(t *testing.T) {
+	clamp := Term{Name: "clamp", Actions: []Action{ClampTCPMSSToPMTU{}}}
+	base := func(name string, hook ChainHook, terms ...Term) Chain {
+		return Chain{Name: name, IsBase: true, Type: ChainFilter, Hook: hook, Policy: PolicyAccept, Terms: terms}
+	}
+	regular := func(name string, terms ...Term) Chain {
+		return Chain{Name: name, Terms: terms}
+	}
+	enter := func(action Action) Term {
+		return Term{Name: "enter", Actions: []Action{action}}
+	}
+	tests := []struct {
+		name    string
+		family  TableFamily
+		chains  []Chain
+		wantErr []string
+	}{
+		{"forward accepts", FamilyInet, []Chain{base("fwd", HookForward, clamp)}, nil},
+		{"output accepts", FamilyIP, []Chain{base("out", HookOutput, clamp)}, nil},
+		{"postrouting accepts", FamilyIP6, []Chain{base("post", HookPostrouting, clamp)}, nil},
+		{"prerouting refuses", FamilyInet, []Chain{base("pre", HookPrerouting, clamp)},
+			[]string{`table "ze_wan"`, `chain "pre"`, `term "clamp"`, "hook prerouting", "move the term to a chain with hook forward or postrouting"}},
+		{"input refuses", FamilyInet, []Chain{base("in", HookInput, clamp)},
+			[]string{`chain "in"`, "hook input"}},
+		{"ingress refuses", FamilyInet, []Chain{base("ing", HookIngress, clamp)},
+			[]string{`chain "ing"`, "hook ingress"}},
+		{"regular from forward accepts", FamilyInet,
+			[]Chain{base("fwd", HookForward, enter(Jump{Target: "mss"})), regular("mss", clamp)}, nil},
+		{"regular reached by nobody accepts", FamilyInet,
+			[]Chain{base("fwd", HookForward), regular("mss", clamp)}, nil},
+		{"regular jumped from prerouting refuses", FamilyInet,
+			[]Chain{base("pre", HookPrerouting, enter(Jump{Target: "mss"})), regular("mss", clamp)},
+			[]string{`chain "mss"`, `term "clamp"`, "hook prerouting", `base chain "pre"`, "move the term"}},
+		{"regular gone to from input refuses", FamilyInet,
+			[]Chain{base("in", HookInput, enter(Goto{Target: "mss"})), regular("mss", clamp)},
+			[]string{`chain "mss"`, "hook input", `base chain "in"`}},
+		{"regular two jumps from prerouting refuses", FamilyInet,
+			[]Chain{
+				base("fwd", HookForward, enter(Jump{Target: "mid"})),
+				base("pre", HookPrerouting, enter(Jump{Target: "mid"})),
+				regular("mid", enter(Jump{Target: "mss"})),
+				regular("mss", clamp),
+			},
+			[]string{`chain "mss"`, "hook prerouting", `base chain "pre"`}},
+		{"jump cycle terminates", FamilyInet,
+			[]Chain{
+				base("pre", HookPrerouting, enter(Jump{Target: "a"})),
+				regular("a", enter(Jump{Target: "b"})),
+				regular("b", enter(Jump{Target: "a"})),
+				base("fwd", HookForward, enter(Jump{Target: "mss"})),
+				regular("mss", clamp),
+			}, nil},
+		{"arp refuses", FamilyARP, []Chain{base("fwd", HookForward, clamp)},
+			[]string{"tcp-mss-clamp-to-pmtu requires family ip, ip6, or inet"}},
+		{"bridge refuses", FamilyBridge, []Chain{base("fwd", HookForward, clamp)},
+			[]string{"tcp-mss-clamp-to-pmtu requires family ip, ip6, or inet"}},
+		{"netdev refuses", FamilyNetdev, []Chain{base("fwd", HookForward, clamp)},
+			[]string{"tcp-mss-clamp-to-pmtu requires family ip, ip6, or inet"}},
+		{"with tcp-mss-set refuses", FamilyInet,
+			[]Chain{base("fwd", HookForward, Term{Name: "clamp", Actions: []Action{SetTCPMSS{Size: 1400}, ClampTCPMSSToPMTU{}}})},
+			[]string{"tcp-mss-set", "tcp-mss-clamp-to-pmtu", "cannot be combined"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tbl := Table{Name: "ze_wan", Family: tt.family, Chains: tt.chains}
+			err := ValidateTables([]Table{tbl})
+			if len(tt.wantErr) == 0 {
+				if err != nil {
+					t.Fatalf("expected accept, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected a refusal naming %q, got nil", tt.wantErr)
+			}
+			for _, want := range tt.wantErr {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error %q does not contain %q", err, want)
+				}
+			}
+		})
+	}
+}

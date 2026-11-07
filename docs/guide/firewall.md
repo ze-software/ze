@@ -320,10 +320,61 @@ client.
 | `connection-mark-set` | Set connmark | `connection-mark-set { value 0x20/0xff; }` |
 | `dscp-set` | Set DSCP | `dscp-set 46;` |
 | `tcp-mss-set` | Clamp TCP MSS to at most the value: a larger MSS is lowered, a smaller one is left alone, and only a SYN carries the option | `tcp-mss-set 1400;` |
+| `tcp-mss-clamp-to-pmtu` | Clamp TCP MSS to the MTU of the packet's route less the fixed IP and TCP headers; never raises a smaller MSS. Forward, output and postrouting chains only, and not with `tcp-mss-set` in one term | `tcp-mss-clamp-to-pmtu;` |
 | `counter` | Count packets/bytes | `counter;` |
 | `log` | Log packet | `log { prefix "DROPPED"; }` |
 | `limit-rate` | Rate limit | `limit-rate { rate 10/second; burst 5; }` |
 | `exclude` | Skip NAT (Return) | `exclude;` |
+
+### TCP MSS Clamping
+
+`tcp-mss-set` writes a fixed upper bound. `tcp-mss-clamp-to-pmtu` takes the
+bound from the route instead: the kernel computes it for each packet as the
+smaller of the MTU of the route the packet takes and the MTU of the route back
+to its source, less the fixed headers (40 bytes for IPv4, 60 for IPv6, as
+RFC 6691 asks). It is the nftables `tcp option maxseg size set rt mtu`, and
+what VyOS writes for `adjust-mss clamp-mss-to-pmtu` on an interface.
+
+Both forms are clamps. An MSS already at or below the bound is left alone,
+because the kernel skips a two-byte MSS write that would raise the value, and a
+SYN without the option is not changed. A term carries one of the two, never
+both.
+
+The kernel computes the route MSS only at the forward, output and postrouting
+hooks. Verify refuses the leaf in a chain of another hook, and in a regular
+chain that a chain of another hook reaches through `jump` or `goto`, naming
+the table, the chain, the term and the hook it found. The table family must be
+`ip`, `ip6` or `inet`. The `vpp` backend refuses both actions.
+
+A home CPE behind PPPoE clamps every SYN it forwards onto the PPPoE session.
+With the session MTU at 1492, a SYN offering 1460 leaves with 1452 over IPv4
+and 1432 over IPv6:
+
+```
+firewall {
+    backend nft;
+    table cpe {
+        family inet;
+        chain forward {
+            type filter;
+            hook forward;
+            priority 0;
+            policy accept;
+            term clamp {
+                from {
+                    output-interface "pppoe*";
+                    protocol tcp;
+                    tcp-flags syn;
+                }
+                then { tcp-mss-clamp-to-pmtu; }
+            }
+        }
+    }
+}
+```
+
+<!-- source: internal/component/firewall/validate.go -- validateClampTCPMSSToPMTU -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerClampTCPMSSToPMTU -->
 
 ### NAT Exclude
 

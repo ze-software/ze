@@ -475,6 +475,19 @@ module ze-firewall-conf {
                 repairs a path whose smallest link cannot carry the segment size the two ends agreed.";
             ze:help "Clamp the TCP MSS to at most this value (a smaller MSS is kept)";
         }
+        leaf tcp-mss-clamp-to-pmtu {
+            type empty;
+            ze:backend "nft";
+            description "Ze clamps the TCP MSS option to the MTU of the route the packet takes, less the fixed
+                IP and TCP headers: 40 bytes for IPv4 and 60 for IPv6, so a 1492-byte PPPoE route gives
+                1452 or 1432. The kernel also takes the MTU of the route back to the source when it is
+                smaller. An MSS already at or below that value is left alone, so the clamp never raises
+                it. The kernel computes the route MSS only at the forward, output and postrouting hooks,
+                so verify refuses the leaf in a chain of another hook, or in a regular chain such a chain
+                reaches by jump or goto. The table MUST be of family ip, ip6 or inet, and the leaf cannot
+                be combined with tcp-mss-set in one term.";
+            ze:help "Clamp the TCP MSS to the route MTU less the IP and TCP headers";
+        }
         container counter {
             presence "Enable per-rule counter";
             description "Anonymous per-rule counter. A non-empty `name` leaf is reserved for a future named-counter feature,
