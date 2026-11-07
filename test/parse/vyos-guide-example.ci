@@ -1,0 +1,411 @@
+# Test: the worked example of docs/guide/migrating-from-vyos.md is valid Ze.
+#
+# VALIDATES: spec-home-cpe-10-vyos-mapping-guide AC-3. The configuration below
+#            is the guide's "Ze output" with the lab values substituted for its
+#            placeholders, the way the guide's check step does it. Every
+#            construct of the mapping table that has a Ze form appears once:
+#            ethernet MAC match and offloads, a bridge with addresses, the
+#            pppoe-client named pppoe0 with a static default route through it,
+#            WireGuard with a PSK peer, an xfrm VTI with both families, IKEv2
+#            with X.509 and an explicit pfs-disable ESP group, filter tables
+#            for ip and ip6 with a set, conntrack helpers, DHCPv4 with a
+#            reservation, the MSS clamp, masquerade, SSH on :: only, a user
+#            with a bcrypt hash and a key, gRPC over TLS and the Prometheus
+#            exporter with Netdata metrics.
+# PREVENTS: the guide showing a Ze form the schema refuses (a leaf that does
+#           not exist, such as a tcp-flags match, or a value form a leaf does
+#           not take).
+# PLATFORM: pppoe-client is ze:os "linux"; skip on darwin.
+#
+# All values are invented: RFC 5737 and RFC 3849 documentation addresses,
+# fd00:db8::/32 ULA, example.net names. The PKI bodies are the ze-test-ca
+# fixture of test/parse/web-pki-certificate.ci; the WireGuard and SSH keys are
+# base64 of ASCII text, not real keys.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink
+	ethernet eth0 {
+		mac {
+			match 02:00:5e:10:00:01
+		}
+		offload {
+			gro true
+			gso true
+		}
+	}
+	ethernet eth1 {
+		mac {
+			match 02:00:5e:10:00:02
+		}
+	}
+	bridge br0 {
+		member [ eth1 ]
+		unit 0 {
+			ipv4 {
+				address [ 192.0.2.1/24 ]
+			}
+			ipv6 {
+				address [ fd00:db8:10::1/64 ]
+			}
+		}
+	}
+	pppoe-client pppoe0 {
+		source-interface eth0
+		mtu 1492
+		no-default-route
+		authentication {
+			username subscriber@isp.example.net
+			password lab-pppoe-secret
+		}
+	}
+	wireguard wg0 {
+		listen-port 51820
+		private-key ZXhhbXBsZS1jcGUtd2ctcHJpdmF0ZS1rZXktbGFiMDE=
+		peer phone {
+			public-key ZXhhbXBsZS1waG9uZS13Zy1wdWJsaWMta2V5LWxhYjA=
+			preshared-key ZXhhbXBsZS1waG9uZS13Zy1wcmVzaGFyZWRrZXktMDM=
+			allowed-ips [ 198.51.100.2/32 ]
+			persistent-keepalive 25
+		}
+		unit 0 {
+			ipv4 {
+				address [ 198.51.100.1/24 ]
+			}
+		}
+	}
+	xfrm vti0 {
+		if-id 10
+		unit 0 {
+			ipv4 {
+				address [ 198.51.100.253/30 ]
+			}
+			ipv6 {
+				address [ fd00:db8:20::2/64 ]
+			}
+		}
+	}
+}
+
+static {
+	table default {
+		route 0.0.0.0/0 {
+			distance 10
+			next {
+				interface pppoe0 {
+				}
+			}
+		}
+	}
+}
+
+sysctl {
+	setting net.ipv4.conf.all.accept_source_route {
+		value 0
+	}
+}
+
+firewall {
+	backend nft
+	global-options {
+		all-ping enable
+		syn-cookies enable
+		log-martians enable
+	}
+	table v4-input {
+		family ip
+		set ADMIN {
+			type ipv4
+			element 192.0.2.10 {
+			}
+			element 192.0.2.11 {
+			}
+		}
+		chain input {
+			type filter
+			hook input
+			priority 0
+			policy drop
+			term rule-10 {
+				from {
+					connection-state established,related
+				}
+				then {
+					accept
+				}
+			}
+			term rule-20-a {
+				from {
+					protocol tcp
+					source-address 192.0.2.0/24
+					destination-port 22,9273
+				}
+				then {
+					accept
+				}
+			}
+			term rule-20-b {
+				from {
+					protocol tcp
+					source-address 198.51.100.0/24
+					destination-port 22,9273
+				}
+				then {
+					accept
+				}
+			}
+			term rule-30 {
+				from {
+					protocol udp
+					destination-port 51820
+				}
+				then {
+					accept
+				}
+			}
+			term rule-40 {
+				from {
+					protocol icmp
+				}
+				then {
+					accept
+				}
+			}
+			term rule-50 {
+				from {
+					source-address @ADMIN
+				}
+				then {
+					accept
+				}
+			}
+			term default-action {
+				then {
+					counter
+					log {
+						prefix "[ipv4-input-default-D]"
+					}
+					drop
+				}
+			}
+		}
+	}
+	table v6-input {
+		family ip6
+		chain input {
+			type filter
+			hook input
+			priority 0
+			policy drop
+			term rule-10 {
+				from {
+					connection-state established,related
+				}
+				then {
+					accept
+				}
+			}
+			term rule-20 {
+				from {
+					protocol icmpv6
+				}
+				then {
+					accept
+				}
+			}
+			term default-action {
+				then {
+					reject
+				}
+			}
+		}
+	}
+	table wan-mss {
+		family inet
+		chain mss {
+			type filter
+			hook postrouting
+			priority -300
+			policy accept
+			term pppoe0-clamp {
+				from {
+					output-interface pppoe0
+					protocol tcp
+				}
+				then {
+					tcp-mss-clamp-to-pmtu
+				}
+			}
+		}
+	}
+	table nat-source {
+		family ip
+		chain postrouting {
+			type nat
+			hook postrouting
+			priority 100
+			policy accept
+			term rule-100 {
+				from {
+					output-interface pppoe0
+					source-address 192.0.2.0/24
+				}
+				then {
+					masquerade
+				}
+			}
+		}
+	}
+}
+
+service {
+	dhcp-server {
+		enabled true
+		listen-interface br0
+		shared-network LAN {
+			subnet 192.0.2.0/24 {
+				range 0 {
+					start 192.0.2.100
+					stop 192.0.2.199
+				}
+				lease-time 86400
+				default-router 192.0.2.1
+				dns-server 192.0.2.1
+				domain-name home.example.net
+				static-mapping printer {
+					mac-address 02:00:5e:10:00:20
+					ip-address 192.0.2.20
+				}
+			}
+		}
+	}
+}
+
+pki {
+	ca HQ-CA {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate CPE {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+		private {
+			key MHcCAQEEIJWSrBva0yYuEY9NyV6LSqFoZ4eRNSoFUCZj9KdmaPuioAoGCCqGSM49AwEHoUQDQgAE9ujhR+AuyNpjClq9wS3fPg4sLDh2JYdiXLRih2EDVDNJAhFQEQ6RbqhwdSMnZUmPBBuoNbt1T6U+jcrRyF0VhA==
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		interface pppoe0
+		esp-group ESP-HQ {
+			pfs disable
+			proposal 1 {
+				encryption aes128gcm
+			}
+		}
+		ike-group IKE-HQ {
+			key-exchange ikev2
+			proposal 1 {
+				dh-group 19
+				encryption aes128gcm
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer hq {
+				ike-group IKE-HQ
+				esp-group ESP-HQ
+				remote-address hq.example.net
+				vti {
+					bind vti0
+				}
+				traffic-selector 1 {
+					local {
+						prefix 0.0.0.0/0
+					}
+					remote {
+						prefix 0.0.0.0/0
+					}
+				}
+				traffic-selector 2 {
+					local {
+						prefix ::/0
+					}
+					remote {
+						prefix ::/0
+					}
+				}
+				authentication {
+					mode x509
+					ca-certificate HQ-CA
+					certificate CPE
+					remote-id hq.example.net
+				}
+			}
+		}
+	}
+}
+
+system {
+	host cpe
+	domain home.example.net
+	name-server 192.0.2.53
+	conntrack {
+		module ftp
+		module sip
+	}
+	commit-revisions 100
+	authentication {
+		user admin {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"
+			public-keys admin-laptop {
+				type ssh-ed25519
+				key AAAAC3NzaC1lZDI1NTE5AAAAIGV4YW1wbGUtdnlvcy1ndWlkZS1zc2gta2V5LWxhYjA0
+			}
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip ::
+			port 22
+		}
+	}
+	ntp {
+		enabled true
+		server time0 {
+			address time.example.net
+		}
+	}
+	api-server {
+		grpc {
+			enabled true
+			server automation {
+				ip 192.0.2.1
+				port 50051
+			}
+			tls-cert /etc/ze/grpc.crt
+			tls-key /etc/ze/grpc.key
+		}
+	}
+}
+
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 192.0.2.1
+			port 9273
+		}
+		netdata {
+			enabled true
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

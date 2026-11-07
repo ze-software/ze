@@ -1,0 +1,41 @@
+# Test: removing the last `system conntrack module` on reload removes the helper table.
+# VALIDATES: spec-home-cpe-3 AC-5 -- the boot config lists ftp, so
+#            ze_conntrack_helpers holds the ftp ct helper and its assignment;
+#            the reload config keeps the block and lists no module, so the
+#            firewall engine's transaction delivers a system/conntrack section
+#            with no helper and the apply withdraws the tables: `nft list
+#            tables` no longer shows them while the daemon still runs.
+# PREVENTS: a helper that keeps being assigned after the operator removed it
+#           (an empty list read as "nothing to do").
+#
+# Requires CAP_NET_ADMIN and a kernel that provides nf_conntrack_ftp.
+
+# The conntrack-helper-* tests all program the one inet ze_conntrack_helpers
+# table in the node-wide ruleset, and each removes it again (a reload that
+# drops the module, or flush-on-shutdown when the fixture stops the daemon).
+# Run together, one deletes the table a sibling is still asserting on, so the
+# group keeps them apart (TestContendingFunctionalTestsDeclareExclusiveGroup).
+
+option=needs-linux:caps=net-admin
+option=exclusive:group=conntrack-helpers
+
+stdin=ze-bgp:terminator=EOF_CONF
+system {
+	conntrack {
+		module ftp;
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+system {
+	conntrack {
+		table-size 262144;
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=le test fixture firewall/conntrack-helper-removed-on-reload:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=helper table removed on reload
