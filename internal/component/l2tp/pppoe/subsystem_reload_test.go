@@ -38,14 +38,14 @@ func newReloadFixture(t *testing.T) *reloadFixture {
 	t.Helper()
 	f := &reloadFixture{}
 	restore := resolveInterfaceFn
-	resolveInterfaceFn = func(name string) (int, [EthALen]byte, int, error) {
+	resolveInterfaceFn = func(name string) (InterfaceBinding, error) {
 		switch name {
 		case "eth0":
-			return reloadEth0Index, [EthALen]byte{0x02, 0, 0, 0, 0, 0x07}, 1500, nil
+			return InterfaceBinding{Device: "eth0", Ifindex: reloadEth0Index, HWAddr: [EthALen]byte{0x02, 0, 0, 0, 0, 0x07}, MTU: 1500}, nil
 		case "eth1":
-			return reloadEth1Index, [EthALen]byte{0x02, 0, 0, 0, 0, 0x08}, 1500, nil
+			return InterfaceBinding{Device: "eth1", Ifindex: reloadEth1Index, HWAddr: [EthALen]byte{0x02, 0, 0, 0, 0, 0x08}, MTU: 1500}, nil
 		}
-		return 0, [EthALen]byte{}, 0, errors.New("no such interface")
+		return InterfaceBinding{}, errors.New("no such interface")
 	}
 	t.Cleanup(func() { resolveInterfaceFn = restore })
 

@@ -132,9 +132,11 @@ func SendDiscoveryFrame(fd, ifindex int, frame []byte) error {
 	return sendDiscoveryFrame(fd, ifindex, frame)
 }
 
-// PPPoECreate creates a PPPoE session socket.
-func PPPoECreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (int, error) {
-	return pppoeCreate(ifname, sid, remoteMAC)
+// PPPoECreate creates a PPPoE session socket on the kernel device a
+// resolution named. It takes the binding rather than a name so a caller
+// cannot hand it the configured (logical) interface name.
+func PPPoECreate(source InterfaceBinding, sid uint16, remoteMAC [EthALen]byte) (int, error) {
+	return pppoeCreate(source.Device, sid, remoteMAC)
 }
 
 // ClosePPPoxFD closes a PPPoX socket file descriptor.

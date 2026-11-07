@@ -35,8 +35,10 @@ asks a kernel worker to build the PPPoX/L2TP kernel socket before handing fds to
    (`VerifyCookie`, `pppoe/cookie.go`) and service name, dedups a retransmitted PADR by MAC
    against an existing `StateDiscovery` session (`pppoe/server.go`), allocates a session ID
    (`AllocSID`, `pppoe/session.go`), creates a `Session{State: StateDiscovery}`
-   (`pppoe/server.go`), opens the kernel PPPoX socket (`pppoeCreate`,
-   `pppoe/kernel_linux.go`), then `ppp.DevPPPSetup` (`pppoe/server.go`) to obtain the
+   (`pppoe/server.go`), opens the kernel PPPoX socket on the access interface's resolved
+   kernel device, not its configured name (`createTransport` -> `pppoeCreate`,
+   `pppoe/kernel_linux.go`; the device comes from the same `InterfaceBinding` as the
+   discovery ifindex, `pppoe/resolve.go`), then `ppp.DevPPPSetup` (`pppoe/server.go`) to obtain the
    `/dev/ppp` chan/unit fds. **Only after both kernel calls succeed** does it send PADS
    (`BuildPADS`, `pppoe/discovery.go`; `pppoe/server.go`): sending PADS earlier
    and then failing kernel setup would strand the subscriber waiting for LCP that never comes.

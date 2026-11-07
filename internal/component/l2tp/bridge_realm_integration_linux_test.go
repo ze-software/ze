@@ -74,7 +74,7 @@ func newRealmBridgeRig(t *testing.T) *realmBridgeRig {
 
 	// The PPPoE side, as handlePADR builds it for a session that runs PPP
 	// locally first.
-	rig.pppoeFD, err = pppoe.PPPoECreate("zrl0", realmRigSessionID, subscriberMAC)
+	rig.pppoeFD, err = pppoe.PPPoECreate(pppoe.InterfaceBinding{Device: "zrl0"}, realmRigSessionID, subscriberMAC)
 	if err != nil {
 		t.Fatalf("PPPoE session socket: %v; the kernel needs pppoe (CONFIG_PPPOE)", err)
 	}

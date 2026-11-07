@@ -67,6 +67,17 @@ var readDiscoveryFrame = pppoe.ReadDiscoveryFrame
 // tests that observe whether PPP has stopped at the PADT publication boundary.
 var sendDiscoveryFrame = pppoe.SendDiscoveryFrame
 
+// resolveSourceInterface, openDiscoverySocket, setDiscoveryTimeout and
+// createSessionSocket are the remaining kernel calls Dial makes before PPP
+// runs. Tests replace them to drive discovery to the session socket without
+// a NIC, and to read which kernel device that socket is bound to.
+var (
+	resolveSourceInterface = pppoe.ResolveInterface
+	openDiscoverySocket    = pppoe.OpenDiscoverySocket
+	setDiscoveryTimeout    = pppoe.SetRecvTimeout
+	createSessionSocket    = pppoe.PPPoECreate
+)
+
 // Dialer implements iface.PPPoEDialer using the pppoe discovery wire
 // format and ppp /dev/ppp setup.
 type Dialer struct{}
@@ -86,16 +97,20 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		return iface.PPPoESession{}, err
 	}
 
-	ifindex, hwaddr, _, err := pppoe.ResolveInterface(cfg.SourceInterface)
+	// One resolution names the NIC for every kernel call below: discovery
+	// sends and filters on its ifindex, PADT leaves from it, and the session
+	// socket connects to its kernel device. The configured name is a logical
+	// key (os-name, mac match) and never reaches the kernel.
+	source, err := resolveSourceInterface(cfg.SourceInterface)
 	if err != nil {
 		return iface.PPPoESession{}, err
 	}
 
-	discFD, err := pppoe.OpenDiscoverySocket()
+	discFD, err := openDiscoverySocket()
 	if err != nil {
 		return iface.PPPoESession{}, err
 	}
-	if err := pppoe.SetRecvTimeout(discFD, 100*time.Millisecond); err != nil {
+	if err := setDiscoveryTimeout(discFD, 100*time.Millisecond); err != nil {
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
@@ -109,18 +124,18 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 
 	// RFC 2516 Section 5.1: Send PADI to broadcast.
 	var buf [pppoe.EthMaxLen]byte
-	frame := pppoe.BuildPADI(buf[:], hwaddr, cfg.ServiceName, hostUniq[:])
+	frame := pppoe.BuildPADI(buf[:], source.HWAddr, cfg.ServiceName, hostUniq[:])
 	if frame == nil {
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, errors.New("pppoeclient: PADI frame too large")
 	}
-	if err := pppoe.SendDiscoveryFrame(discFD, ifindex, frame); err != nil {
+	if err := sendDiscoveryFrame(discFD, source.Ifindex, frame); err != nil {
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
 
 	// RFC 2516 Section 5.2: Wait for PADO.
-	padoPkt, err := waitForPADO(discFD, ifindex, hostUniq, cfg.ACName, stopCh)
+	padoPkt, err := waitForPADO(discFD, source.Ifindex, hostUniq, cfg.ACName, stopCh)
 	if err != nil {
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
@@ -129,18 +144,18 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	copy(acMAC[:], padoPkt.SrcMAC[:])
 
 	// RFC 2516 Section 5.3: Send PADR to the selected AC.
-	frame = pppoe.BuildPADR(buf[:], hwaddr, &padoPkt, cfg.ServiceName, hostUniq[:])
+	frame = pppoe.BuildPADR(buf[:], source.HWAddr, &padoPkt, cfg.ServiceName, hostUniq[:])
 	if frame == nil {
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, errors.New("pppoeclient: PADR frame too large")
 	}
-	if err := pppoe.SendDiscoveryFrame(discFD, ifindex, frame); err != nil {
+	if err := sendDiscoveryFrame(discFD, source.Ifindex, frame); err != nil {
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
 
 	// RFC 2516 Section 5.4: Wait for PADS.
-	sessID, err := waitForPADS(discFD, ifindex, acMAC, stopCh)
+	sessID, err := waitForPADS(discFD, source.Ifindex, acMAC, stopCh)
 	if err != nil {
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
@@ -151,9 +166,9 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 
 	// Kernel PPPoE session + /dev/ppp setup.
 	// RFC 2516 Section 4: after PADS, the kernel handles session framing.
-	pppoxFD, err := pppoe.PPPoECreate(cfg.SourceInterface, sessID, acMAC)
+	pppoxFD, err := createSessionSocket(source, sessID, acMAC)
 	if err != nil {
-		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, nil)
+		sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, nil)
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
@@ -161,7 +176,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD, cfg.Name)
 	if err != nil {
 		pppoe.ClosePPPoxFD(pppoxFD)
-		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, nil)
+		sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, nil)
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
@@ -181,7 +196,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	if err := prepareClientDescriptors(chanFD, unitFD); err != nil {
 		_ = link.Close() //nolint:errcheck // preparation failed; release the transport once
 		pppoe.ClosePPPoxFD(unitFD)
-		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, link)
+		sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, link)
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
@@ -189,19 +204,19 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	if err != nil {
 		_ = link.Close() //nolint:errcheck // receive startup failed; release the transport once
 		pppoe.ClosePPPoxFD(unitFD)
-		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, link)
+		sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, link)
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
 	discoveryDone := make(chan struct{})
-	go watchPADT(discFD, ifindex, hwaddr, acMAC, sessID, link, stopCh, discoveryDone, logger)
+	go watchPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, link, stopCh, discoveryDone, logger)
 	var cleanupOnce sync.Once
 	cleanup := func() {
 		cleanupOnce.Do(func() {
 			_ = link.Close() //nolint:errcheck // shutdown; descriptors are released once
 			// The reader MUST exit before its discovery fd can be closed or reused.
 			<-discoveryDone
-			sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, link)
+			sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, link)
 			pppoe.CloseDiscoveryFD(discFD)
 			// Close cancels both read requests and result delivery. The raw
 			// read observes closure under the descriptor lifecycle lock.
@@ -238,7 +253,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	if cfg.IPv6.Enabled {
 		// RFC 5072 Section 4.1: the tentative identifier comes from the
 		// source interface's EUI-48 (ppp.TentativeIPv6CPInterfaceID).
-		if err := connected.enableIPv6CP(hwaddr[:], func(mode ppp.NPMode) error {
+		if err := connected.enableIPv6CP(source.HWAddr[:], func(mode ppp.NPMode) error {
 			return link.setIPv6Mode(unitFD, mode)
 		}); err != nil {
 			cleanup()

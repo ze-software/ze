@@ -58,6 +58,7 @@ together is accepted.
 **Source files read:**
 - [ ] `internal/component/iface/pppoe_client.go` - `PPPoEClient.runSession` names the device `textbuf.StrInt("ppp", sess.UnitNum)` for `SetMTU`, `SetAdminUp`, `AddAddressP2P`, `AddRoute`; `PPPoEClient.status` reports the same `pppN` from `c.pppUnit`
 - [ ] `internal/component/l2tp/pppoeclient/dialer.go` `Dial` - `ppp.DevPPPSetup(pppoxFD)` after PADS; the name is never passed down
+- [ ] `internal/component/l2tp/pppoeclient/dialer.go` `Dial`, `internal/component/l2tp/pppoe/resolve.go` `resolveInterface`, `internal/component/l2tp/pppoe/kernel_linux.go` `pppoeCreate` - before 2026-11-07, `Dial` resolved `cfg.SourceInterface` through `iface.Resolve` for the discovery ifindex and MAC, then passed the CONFIGURED name to `pppoe.PPPoECreate`, whose `pppoeCreate` connects `AF_PPPOX` with `SockaddrPPPoE{Dev: ifname}`; `resolveInterface` dropped `Binding.OsName`. The access concentrator did the same (`InterfaceServer.createTransport` passed `ifName`, the configured `pppoe interface` name). With an `os-name` or `mac match` selector the session failed after PADS or bound another NIC. Fixed: `pppoe.InterfaceBinding` carries the resolved device, `PPPoECreate` takes the binding, and the AC keeps `device` beside `ifName`
 - [ ] `internal/component/l2tp/ppp/devppp_linux.go` `DevPPPSetup` - PPPIOCGCHAN, opens /dev/ppp for the channel, PPPIOCATTCHAN, opens /dev/ppp for the unit, PPPIOCNEWUNIT with -1
 - [ ] Linux `drivers/net/ppp/ppp_generic.c` (read from a local copy): `ppp_unit_register` names the device `ppp%i` only when `ifname_is_set` is false; `ppp_nl_newlink` (rtnetlink kind `ppp`, attribute `IFLA_PPP_DEV_FD` on an opened /dev/ppp file with no unit yet) sets `ifname_is_set` true and keeps the name the request carries; it returns EBUSY when `ppp_mutex` is contended (trylock to avoid lock inversion). `IFLA_PPP_DEV_FD` is in `vendor/golang.org/x/sys/unix/ztypes_linux.go`
 - [ ] `internal/component/iface/yang/ze-iface-conf.yang` `list pppoe-client` - description "The name is the list key and it never reaches the kernel"; `leaf name` is `type string` with no length or pattern
@@ -94,6 +95,7 @@ together is accepted.
 | Next-hop activity and reprogramming | `internal/plugins/static/inject.go` `nhState.active`, `programRouteLocked`, `activeNextHops`, `watchBFD` | BFD toggles a next-hop's activity; the route is reprogrammed with the active members, withdrawn when none is active | extends: device presence of a declared dynamic name is the second activity input; a next-hop is active only when BFD allows it AND its device is up |
 | Created kinds named after the config key | `internal/component/iface/config_apply.go` (dummy, veth, tunnel, wireguard, xfrm, bridge creation) | creates the device under its configured name, so it needs no resolver mapping | extends: the pppoe-client joins the created kinds |
 | Shared /dev/ppp setup | `internal/component/l2tp/ppp/devppp_linux.go` `DevPPPSetup` | PPPIOCNEWUNIT with -1, kernel names the unit `pppN` | replaces for the client only (named rtnetlink creation); the LNS and AC keep the unnamed path |
+| PPPoE interface binding | `internal/component/l2tp/pppoe/resolve.go` `resolveInterface` over `iface.Resolve`; used by `pppoeclient.Dialer.Dial` and the AC's `newInterfaceServer` | resolved the logical name to ifindex, MAC and MTU and dropped the kernel device name, so `connect(AF_PPPOX)` took the configured name | extends: `InterfaceBinding` adds `Device` (`Binding.OsName`); one binding feeds discovery, PADT and the session socket, and `PPPoECreate` takes the binding so no configured name can reach it |
 | Interface-name validation | `internal/component/iface/validate.go` `ValidateIfaceName` | validates kernel interface names, used for `source-interface` today | extends: applied to the pppoe-client key |
 | Static next-hop resolvability check | `internal/plugins/static/locrib.go` `checkNextHopResolvable`, called from `staticPath` at apply | a route whose interface does not resolve is skipped at apply (main table); a named-table route is skipped on the backend's error | extends: a next-hop naming a declared dynamic interface is never a skip; it is an inactive member until its device is up |
 | Link event subscription | `internal/component/iface/resolve.go` `Subscribe`, `onLinkEvent` | delivers per-name link events and invalidates the cache | extends: static subscribes once per declared dynamic name its committed routes use, and cancels when no committed route names it |
@@ -181,6 +183,7 @@ together is accepted.
 |-------------|---|--------------|------|
 | `pppoe-client pppoe0` config, real kernel | → | `Dial` named unit creation | `TestDevPPPSetupNamesUnit` (Linux, user namespace) |
 | `pppoe-client pppoe0` with fake dialer | → | `runSession` backend calls use `pppoe0` | `TestPPPoEClientUsesConfiguredDeviceName` |
+| `pppoe-client` `source-interface wan` with `ethernet wan { os-name zec0 }`, real kernel | → | `Dial` discovery and `connect(AF_PPPOX)` on `zec0` | `TestDialOSNameSourceInterface` (Linux, user namespace, `integration` tag) |
 | static route `interface pppoe0` while the session is down, client and route at boot | → | `verifyCandidateStatic` reads the candidate `interface` section; route waits | `test/static/static-interface-nexthop-pppoe-absent.ci` |
 | one reload adding the client and its route together | → | candidate-set verify and apply, independent of apply order | `test/static/static-interface-nexthop-pppoe-same-commit.ci` |
 | device up, down, deleted, recreated (main and named table) | → | static link subscription drives `programRouteLocked` | `TestStaticInterfaceRouteFollowsDevice` (Linux, `resolve_integration_linux_test.go`) |
@@ -205,6 +208,7 @@ together is accepted.
 | AC-7 | pppoe-client key equal to an ethernet, bridge or other configured interface name | refused, message names both entries |
 | AC-8 | `show interface` for the client | the OS name column shows `pppoe0` |
 | AC-9 | iface reload while the session is up | `pppoe0` is not deleted |
+| AC-16 | `pppoe-client` `source-interface` (or `pppoe interface` on the access concentrator) names an `ethernet` entry with an `os-name` or `mac match` selector | discovery and the session socket both use the kernel device the selector picks; the configured name never reaches `connect(AF_PPPOX)`; show, logs and events keep the configured name |
 
 ## End-to-End User Stories
 
@@ -223,6 +227,9 @@ together is accepted.
 | `TestPPPoEClientUsesConfiguredDeviceName` | `internal/component/iface/pppoe_client_test.go` | AC-1, AC-8 with a fake backend | |
 | `TestPPPoEClientNameValidated` | `internal/component/iface/config_test.go` | AC-6, AC-7 | |
 | `TestApplyKeepsPPPoEClientDevice` | `internal/component/iface/config_apply_test.go` | AC-9, A-5 | |
+| `TestDialSessionSocketUsesResolvedDevice` | `internal/component/l2tp/pppoeclient/source_device_test.go` | AC-16, client: logical `wan` resolved to `eth7`; the session socket seam receives `eth7`, and discovery's ifindex comes from the same binding | |
+| `TestInterfaceServerSessionSocketUsesResolvedDevice` | `internal/component/l2tp/pppoe/device_binding_test.go` | AC-16, access concentrator: `createTransport` passes the resolved device, `ifName` stays the configured name | |
+| `TestDialOSNameSourceInterface` | `internal/component/l2tp/pppoeclient/source_device_integration_linux_test.go` | AC-16 against a real kernel: veth `zec0`, logical `wan` mapped by os-name, scripted AC through IPCP | |
 | `TestDeclaredDynamicNames` | `internal/component/iface/config_test.go` | the pure parser answers pppoe-client keys from one `interface` section, nothing for other kinds, nothing for an absent section | |
 | `TestStaticVerifyReadsCandidateInterfaceSection` | `internal/plugins/static/register_test.go` | AC-10: a delivery holding both the client and the route verifies, and the pending delivery carries `pppoe0` in its declared set; a delivery with no `interface` section declares nothing | |
 | `TestStaticApplyIgnoresApplyOrder` | `internal/plugins/static/register_test.go` | AC-10: apply with the resolver still publishing the previous config classifies `pppoe0` as waiting, not skipped | |

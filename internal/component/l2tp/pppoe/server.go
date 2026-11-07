@@ -21,7 +21,13 @@ import (
 // The shared discovery reader goroutine dispatches parsed packets
 // here by ifindex.
 type InterfaceServer struct {
+	// ifName is the configured (logical) access interface name: what show,
+	// logs, events and RADIUS report. device is the kernel device it resolved
+	// to when the server was built, from the same binding as ifIndex and
+	// hwAddr. Every kernel call that takes a device name takes device, never
+	// ifName: with an os-name or mac match selector the two differ.
 	ifName    string
+	device    string
 	ifIndex   int
 	hwAddr    [EthALen]byte
 	mtu       int
@@ -68,7 +74,7 @@ type InterfaceServer struct {
 	// (nil) keeps the real kernel calls. A test sets them to observe which
 	// SESSION_ID and peer MAC the session stage is bound to, which an
 	// unprivileged test cannot create a real socket for.
-	pppoeCreateFn func(ifName string, sid uint16, remoteMAC [EthALen]byte) (int, error)
+	pppoeCreateFn func(device string, sid uint16, remoteMAC [EthALen]byte) (int, error)
 	devPPPSetupFn func(pppoxFD int) (chanFD, unitFD, unitNum int, err error)
 
 	// admitting is the session the PADR in dispatch is admitting, so a
@@ -477,12 +483,13 @@ func (s *InterfaceServer) handleSessionDown(sid uint16) {
 }
 
 // createTransport opens the session-stage socket for an admitted session,
-// through pppoeCreateFn when a test set it.
+// through pppoeCreateFn when a test set it. The socket binds to the resolved
+// kernel device, the one discovery runs on, never to the configured name.
 func (s *InterfaceServer) createTransport(sid uint16, remoteMAC [EthALen]byte) (int, error) {
 	if s.pppoeCreateFn != nil {
-		return s.pppoeCreateFn(s.ifName, sid, remoteMAC)
+		return s.pppoeCreateFn(s.device, sid, remoteMAC)
 	}
-	return pppoeCreate(s.ifName, sid, remoteMAC)
+	return pppoeCreate(s.device, sid, remoteMAC)
 }
 
 // setupPPPChannel attaches the session socket to a PPP channel and unit,

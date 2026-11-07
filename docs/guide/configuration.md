@@ -2852,6 +2852,11 @@ authentication and IPCP before it resumes IPv4 forwarding. The interface worker
 applies changed addresses, MTU and default gateway on the same device.
 Target-kernel and wholesale interoperability proof remain outstanding.
 
+`source-interface` names an interface as you configured it, so an `ethernet`
+entry with an `os-name` or `mac match` selector works: discovery and the PPPoE
+session both run on the kernel device that selector picks.
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dialer.Dial -->
+
 The client key is the name of the kernel device: Ze creates the session device
 as `pppoe0` for `pppoe-client pppoe0`, on every session and every reconnect, so a
 static route, a firewall match or NAT names the WAN by the key the operator wrote.

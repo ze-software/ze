@@ -19,9 +19,9 @@ var (
 	errPppoeReloadNotStarted  = errors.New("pppoe reload: subsystem not started")
 )
 
-// resolveInterfaceFn resolves an access interface name to its index, MAC
-// address and MTU. A test replaces it, because the real resolver reads the
-// kernel's interface table.
+// resolveInterfaceFn resolves an access interface's logical name to the kernel
+// device it names, with that device's index, MAC address and MTU. A test
+// replaces it, because the real resolver reads the kernel's interface table.
 var resolveInterfaceFn = resolveInterface
 
 // Reload applies a committed `pppoe` configuration to the running access
@@ -107,7 +107,7 @@ func (s *Subsystem) checkAddedInterfaces(next *Parameters) error {
 		if s.configuredInterface(name) {
 			continue
 		}
-		if _, _, _, err := resolveInterfaceFn(name); err != nil {
+		if _, err := resolveInterfaceFn(name); err != nil {
 			return fmt.Errorf("pppoe reload: access interface %q does not exist (%w): create it, or remove it with `delete pppoe interface %s`, then commit again", name, err, name)
 		}
 	}
@@ -207,7 +207,7 @@ func (s *Subsystem) reconfiguredServer(old *InterfaceServer, ic *InterfaceConfig
 // configuration p, with a fresh session table and cookie key. MUST be called
 // with mu held after the discovery socket is open.
 func (s *Subsystem) newInterfaceServer(ic *InterfaceConfig, p *Parameters) (*InterfaceServer, error) {
-	ifindex, hwaddr, mtu, err := resolveInterfaceFn(ic.Name)
+	binding, err := resolveInterfaceFn(ic.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -217,9 +217,10 @@ func (s *Subsystem) newInterfaceServer(ic *InterfaceConfig, p *Parameters) (*Int
 	}
 	srv := &InterfaceServer{
 		ifName:    ic.Name,
-		ifIndex:   ifindex,
-		hwAddr:    hwaddr,
-		mtu:       mtu,
+		device:    binding.Device,
+		ifIndex:   binding.Ifindex,
+		hwAddr:    binding.HWAddr,
+		mtu:       binding.MTU,
 		sessions:  newSessionTable(ic.Name, ic.MaxSessions),
 		cookieKey: cookieKey,
 		limiter:   NewPADILimiter(p.PADIRateLimit),

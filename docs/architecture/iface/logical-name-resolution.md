@@ -136,6 +136,23 @@ as an external process, as VRRP does.
 <!-- source: internal/plugins/dhcpserver/doctor.go -- checkDHCPInterfaces -->
 <!-- source: internal/component/iface/doctor_selector.go -- SelectedNetDevice, selectedNetDevice -->
 
+PPPoE binds both ends of a session to ONE resolution. The client's
+`source-interface` and the access concentrator's `pppoe interface` are logical
+names, and `pppoe.ResolveInterface` turns each into an `InterfaceBinding`
+holding the kernel device (`Binding.OsName`), its ifindex, MAC and MTU, read
+together. Discovery sends and filters on the binding's ifindex, and the session
+socket's `connect(AF_PPPOX)`, which takes a device NAME, takes the binding's
+device. Handing it the configured name instead failed the session after PADS
+with an `os-name` or `mac match` selector, or bound it to whichever NIC wore that
+name. `pppoe.PPPoECreate` takes the binding, not a string, so the configured
+name cannot reach it, and the access concentrator keeps the device beside the
+configured name it reports in `show`, logs and events.
+
+<!-- source: internal/component/l2tp/pppoe/resolve.go -- InterfaceBinding, resolveInterface -->
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dialer.Dial -->
+<!-- source: internal/component/l2tp/pppoe/server.go -- InterfaceServer, createTransport -->
+<!-- source: internal/component/l2tp/pppoe/subsystem_reload.go -- newInterfaceServer -->
+
 A tracked interface is the second name VRRP resolves, and it takes the OTHER
 route. `track interface <name>` names a device VRRP only READS, so it calls
 `Resolve` and `Subscribe` directly rather than `ResolveDevice`: nothing is built

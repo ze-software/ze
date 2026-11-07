@@ -40,8 +40,8 @@ func ReadDiscoveryFrame(fd int, buf []byte) (int, int, error) { return readDisco
 func SendDiscoveryFrame(fd, ifindex int, frame []byte) error {
 	return sendDiscoveryFrame(fd, ifindex, frame)
 }
-func PPPoECreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (int, error) {
-	return pppoeCreate(ifname, sid, remoteMAC)
+func PPPoECreate(source InterfaceBinding, sid uint16, remoteMAC [EthALen]byte) (int, error) {
+	return pppoeCreate(source.Device, sid, remoteMAC)
 }
 func ClosePPPoxFD(fd int)                         { closePPPoxFD(fd) }
 func SetRecvTimeout(_ int, _ time.Duration) error { return errNotLinux }
