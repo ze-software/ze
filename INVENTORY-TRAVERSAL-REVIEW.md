@@ -142,3 +142,21 @@ its contribution is contained in what the shared output union already holds.
 The 24,473 repeats it does not prove are mostly ones whose earlier record the
 measurement's size caps dropped. Route A is therefore built on the second rule,
 with the full traversal kept as the fallback whenever the proof is unavailable.
+
+## Depth decision, 2026-11-07
+
+Once Route A, the recursive-type fixpoint and cross-query summaries let the
+inventory reach protobuf's reflection interfaces, the exact depth boundary
+became the limit. The rule "refuse if any path through the type graph exceeds
+depth 128" makes the walk enumerate paths through a large strongly connected
+interface graph: a bounded 240-second run still made 10.7 million expansions
+over about 37,000 distinct states and did not finish.
+
+Thomas decided that the inventory treats the type graph by reachability. Each
+exact type (definition, exact arguments, flags) is walked once per analysis and
+a cycle is a cycle, so a finite graph costs one walk. The depth bound remains
+only for a generic instantiation that grows without end, such as
+`grow[[]T]`, which is the case the guard exists to stop. This replaces the
+earlier constraint that every repair preserve the exact depth boundary. A
+refusal caused only by a long path through a finite cycle no longer occurs, and
+the site of a first refusal can move; the reasons that remain are unchanged.
