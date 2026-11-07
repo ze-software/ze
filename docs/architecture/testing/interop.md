@@ -2399,11 +2399,17 @@ The ping cannot pass outside the tunnel: `xfrmi_xmit2`
 state, so `vti0` has no clear exit. strongSwan's lab interface has IPv6 disabled on
 the IPv4-only network, and its policy-based tunnel decapsulates onto that interface,
 so the checker enables IPv6 there (`writesPeerSysctl`) and puts `fd00:db8:1::2` on
-its loopback with a route through `eth0`. The red walk reverts child 20's
+its loopback with a route through `eth0`. When the route or the ping fails, the
+error carries both peers' kernel state (`vtiIPv6Evidence`): the ping repeated once
+with its stderr, every XFRM policy rather than the `if_id 0x7` records alone,
+`ip -s xfrm state`, `/proc/net/xfrm_stat`, IPv6 routes, rules and addresses, and
+`disable_ipv6`. The full policy dump matters because the first output lookup
+(`xfrm_lookup_route`, called from `ip6_dst_lookup_flow`) runs at `if_id` 0, before
+the packet reaches `vti0`, so a policy bound to no interface decides first. The red walk reverts child 20's
 `state.AFUnspec = true` in `xfrmStateFromParams`, rebuilds the Ze image, and must
 fail at the state row and the ping.
 
-<!-- source: internal/le/interoplab/ipsec/vtiipv6.go -- checkVTIIPv6InnerIPv4Outer, vtiIPv6PeerInner, requireIPv6PoliciesOnIfID, requireAFUnspecStates -->
+<!-- source: internal/le/interoplab/ipsec/vtiipv6.go -- checkVTIIPv6InnerIPv4Outer, vtiIPv6PeerInner, requireIPv6PoliciesOnIfID, requireAFUnspecStates, vtiIPv6Evidence -->
 <!-- source: test/interop-ipsec/scenarios/vti-ipv6-inner-ipv4-outer/swanctl.conf -- local_ts and remote_ts ::/0 -->
 
 ### IPsec virtual-IP leases

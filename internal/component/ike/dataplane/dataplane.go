@@ -149,6 +149,12 @@ const (
 	// it. RFC 4301 Section 5 makes the catch-all the entry a packet meets when
 	// "no policy is found in the SPD that matches" it.
 	PriorityUnmatched = 1<<32 - 1
+	// PriorityUnmatchedXFRMInterface ranks the entries that keep traffic routed into
+	// a bound XFRM interface from meeting the DISCARD catch-all at if_id 0
+	// (engine/unmatched_xfrm_interface.go). It sits one place above the catch-all,
+	// so every Child SA policy and every operator entry (order at most 2147483647)
+	// is still searched before it: an operator's own discard keeps winning.
+	PriorityUnmatchedXFRMInterface = PriorityUnmatched - 1
 )
 
 // kernelXFRMMode converts a Ze dataplane mode to the kernel XFRM mode number.

@@ -443,7 +443,7 @@ traffic in the clear.
 | Disposition | Producer | Linux XFRM | VPP |
 |---|---|---|---|
 | PROTECT | `childPolicies`, from a negotiated Child SA | `allow` with a template | `IPSEC_API_SPD_ACTION_PROTECT` |
-| BYPASS | `ikeBypassPolicies`, the operator `vpn ipsec policy` list, and `unmatchedPolicies` under `vpn ipsec unmatched bypass` | `allow` with no template | `IPSEC_API_SPD_ACTION_BYPASS` |
+| BYPASS | `ikeBypassPolicies`, the operator `vpn ipsec policy` list, `unmatchedPolicies` under `vpn ipsec unmatched bypass`, and `xfrmInterfaceExemptions` under `vpn ipsec unmatched discard` | `allow` with no template | `IPSEC_API_SPD_ACTION_BYPASS` |
 | DISCARD | the operator `vpn ipsec policy` list, and `unmatchedPolicies` under `vpn ipsec unmatched discard` | `block` | `IPSEC_API_SPD_ACTION_DISCARD` |
 
 The template-free XFRM action mapper is called only after `isTemplateFree`
@@ -477,6 +477,28 @@ without the entry an inbound packet meets no SPD-I entry at all (RFC 4301
 Section 5.2). The one bypass neither installed nor refused is on a backend whose
 `CatchAllSupported` answers `dataplane.ErrNoNodeWideSPD` (VPP), one of the two open gaps on
 RFC4301-5.2-1 and RFC4301-5.2-9.
+
+The catch-all sits at if_id 0, and a `vti bind` peer's Child SA policies sit at
+its XFRM interface's if_id (`resolveIfID`). Linux keeps one database per if_id
+(RFC 4301 Section 4.4.1's multiple SPDs) and looks a packet up at if_id 0 before
+it reaches the interface: IPv6 host output in `ip6_dst_lookup_flow`, with the
+flow's oif still 0; IPv4 host output with `flowi4_oif` already the route's
+device; forwarded traffic in fwd and out with the oif from the route
+(`decode_session4`, `decode_session6`). Only `xfrmi_xmit` looks it up again at
+the interface's if_id. So under a DISCARD catch-all, `xfrmInterfaceExemptions`
+(`engine/unmatched_xfrm_interface.go`) is the SPD selection function the section
+requires of a multi-SPD implementation: for each bound interface, BYPASS entries
+at if_id 0 and `PriorityUnmatchedXFRMInterface` (one above the catch-all, below
+every operator order and Child SA policy), out and fwd for both families with
+the selector ifindex set to the interface, and out from each IPv6 address it
+holds. `planXFRMExemptions` reads the interface through the iface resolver
+(`iface.ResolveIndex`, `iface.Addresses`), keeping the held entries of an
+interface whose read fails. `applyConfig` installs new entries before
+re-asserting the catch-all on a reload and prunes stale ones after it; the
+address worker (`followAddress`, on `addr-added`, `addr-removed` and `created`)
+rebuilds them, and `releaseSPD` removes them through the SPD ledger before the
+catch-all. The IPv6 source entry also passes a packet from that address routed
+out of another interface, the residual `docs/guide/ipsec.md` names.
 
 Ze's SPD is one unit with a lifetime of [first apply, exit]. `applyConfig`
 installs the catch-all first and, on the first apply only, the IKE bypass
@@ -530,6 +552,7 @@ it is being dropped.
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig, releaseSPD -->
+<!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, planXFRMExemptions -->
 
 ## Policy ownership
 

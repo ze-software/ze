@@ -76,6 +76,7 @@ type spKey struct {
 	dir              dataplane.SADir
 	upperProto       uint8
 	srcPort, dstPort dataplane.PortMatch
+	ifIndex          int
 }
 
 func keyOf(p dataplane.SPParams) spKey {
@@ -86,6 +87,7 @@ func keyOf(p dataplane.SPParams) spKey {
 		upperProto: p.UpperProto,
 		srcPort:    p.SrcPort,
 		dstPort:    p.DstPort,
+		ifIndex:    p.IfIndex,
 	}
 }
 

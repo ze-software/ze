@@ -1,8 +1,12 @@
 package ipsec
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // vtiIPv6PolicyDump is `ip xfrm policy` in the shape iproute2 prints it for the
@@ -98,5 +102,64 @@ func TestRequireChildIfID(t *testing.T) {
 	}
 	if err := requireChildIfID(records, 8); err == nil {
 		t.Error("if-id 7 was accepted as 8")
+	}
+}
+
+// TestVTIIPv6EvidenceReads proves the evidence a lost ping prints covers the two
+// places the packet can stop before it reaches the tunnel. Method: walk the read list.
+// Each peer must answer its full policy dump (the if_id 0 lookup decides before vti0
+// does) and /proc/net/xfrm_stat, and the list must repeat the probe's ping from vti0's
+// address, whose stderr carries the EPERM a blocking policy answers.
+func TestVTIIPv6EvidenceReads(t *testing.T) {
+	wanted := map[string][]string{
+		zePeer:   {"ip xfrm policy", "cat /proc/net/xfrm_stat", "ip -6 route show table all"},
+		swanPeer: {"ip xfrm policy", "cat /proc/net/xfrm_stat", "ip -6 route show table all"},
+	}
+	seen := make(map[string]map[string]bool, len(wanted))
+	pinged := false
+	for _, read := range vtiIPv6EvidenceReads {
+		line := strings.Join(read.command, " ")
+		if seen[read.peer] == nil {
+			seen[read.peer] = make(map[string]bool)
+		}
+		seen[read.peer][line] = true
+		if read.peer == zePeer && read.command[0] == cmdPing && strings.Contains(line, "-I "+vtiIPv6ZeInner) {
+			pinged = true
+		}
+	}
+	for peer, lines := range wanted {
+		for _, line := range lines {
+			if !seen[peer][line] {
+				t.Errorf("%s evidence lacks %q", peer, line)
+			}
+		}
+	}
+	if !pinged {
+		t.Errorf("the evidence does not repeat the ping from %s", vtiIPv6ZeInner)
+	}
+}
+
+// TestWriteVTIIPv6Read proves one read is reported whole. Method: format a read that
+// printed on both streams and failed, and require the peer, the command, the exit
+// code, stdout, stderr and the error in the report.
+func TestWriteVTIIPv6Read(t *testing.T) {
+	var tb textbuf.Buffer
+	read := vtiIPv6Read{peer: zePeer, command: []string{cmdPing, "-c", "1", vtiIPv6SwanInner}}
+	result := interoplab.CommandResult{
+		Stdout:   "1 packets transmitted, 0 received\n",
+		Stderr:   "ping: sendmsg: Operation not permitted\n",
+		ExitCode: 1,
+	}
+	writeVTIIPv6Read(&tb, read, result, errors.New("exit status 1"))
+	report := tb.String()
+	for _, want := range []string{
+		"== " + zePeer + ": ping -c 1 " + vtiIPv6SwanInner + " (exit 1)",
+		"1 packets transmitted, 0 received",
+		"stderr: ping: sendmsg: Operation not permitted",
+		"error: exit status 1",
+	} {
+		if !strings.Contains(report, want) {
+			t.Errorf("report lacks %q:\n%s", want, report)
+		}
 	}
 }

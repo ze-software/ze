@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -188,10 +189,90 @@ func (l *scenarioLab) vtiIPv6Carries(ctx context.Context, message string) error 
 	if _, err := l.waitOutput(ctx, zePeer, command, xfrmWaitTimeout, description, func(output string) bool {
 		return strings.Contains(output+" ", viaVTI)
 	}); err != nil {
-		return fmt.Errorf("%s: the static route %s via %s never reached the kernel: %w", message, vtiIPv6Prefix, vtiIPv6Interface, err)
+		return fmt.Errorf("%s: the static route %s via %s never reached the kernel: %w\n%s",
+			message, vtiIPv6Prefix, vtiIPv6Interface, err, l.vtiIPv6Evidence(ctx))
 	}
 	probe := pingProbe{peer: zePeer, target: vtiIPv6SwanInner, source: vtiIPv6ZeInner}
-	return l.verifyESPDirectionsToward(ctx, message, probe, espBothDirections)
+	if err := l.verifyESPDirectionsToward(ctx, message, probe, espBothDirections); err != nil {
+		return fmt.Errorf("%w\n%s", err, l.vtiIPv6Evidence(ctx))
+	}
+	return nil
+}
+
+// vtiIPv6Read is one command the evidence runs, and the peer it runs in.
+type vtiIPv6Read struct {
+	peer    string
+	command []string
+}
+
+// vtiIPv6EvidenceReads are the reads that name where a lost IPv6 packet stopped, in
+// the order the packet meets them on each peer:
+//
+//   - The ping again, one echo, with its stderr: the probe keeps stdout alone, and an
+//     outbound policy that blocks the flow answers sendmsg with EPERM there
+//     (xfrm_lookup_with_ifid, net/xfrm/xfrm_policy.c).
+//   - The policies, all of them rather than the if_id 0x7 records: the first output
+//     lookup (xfrm_lookup_route from ip6_dst_lookup_flow) runs at if_id 0, before
+//     the packet reaches vti0, so a policy bound to no interface decides it first.
+//   - The states with their counters, and /proc/net/xfrm_stat, whose nonzero
+//     XfrmOutPolBlock, XfrmOutNoStates, XfrmInNoPols or XfrmInTmplMismatch names the
+//     drop.
+//   - Routes, rules, addresses and disable_ipv6, which decide whether the packet is
+//     routed into the tunnel and accepted once decapsulated.
+var vtiIPv6EvidenceReads = slices.Concat(
+	[]vtiIPv6Read{{zePeer, pingCommand(pingProbe{peer: zePeer, target: vtiIPv6SwanInner, source: vtiIPv6ZeInner}, 1)}},
+	vtiIPv6PeerReads(zePeer, vtiIPv6Interface),
+	[]vtiIPv6Read{{zePeer, []string{"ip", "-d", "-s", "link", ipWordShow, vtiIPv6Interface}}},
+	vtiIPv6PeerReads(swanPeer, containerInterface),
+)
+
+// ipWordShow, ipWordPolicy and ipWordState are the iproute2 words the evidence reads use.
+const (
+	ipWordShow   = "show"
+	ipWordPolicy = "policy"
+	ipWordState  = "state"
+)
+
+// vtiIPv6PeerReads are the reads both peers answer. device is the interface whose
+// disable_ipv6 decides whether the decapsulated packet is accepted: vti0 on Ze, the lab
+// interface on strongSwan, whose policy-based tunnel decapsulates there.
+func vtiIPv6PeerReads(peer, device string) []vtiIPv6Read {
+	return []vtiIPv6Read{
+		{peer, []string{"ip", xfrmCommand, ipWordPolicy}},
+		{peer, []string{"ip", "-s", xfrmCommand, ipWordState}},
+		{peer, []string{"cat", "/proc/net/xfrm_stat"}},
+		{peer, []string{"ip", "-6", "route", ipWordShow, "table", "all"}},
+		{peer, []string{"ip", "-6", "rule", ipWordShow}},
+		{peer, []string{"ip", "-6", ipObjectAddress, ipWordShow}},
+		{peer, []string{"sysctl", "net.ipv6.conf.all.disable_ipv6", "net.ipv6.conf." + device + ".disable_ipv6"}},
+	}
+}
+
+// vtiIPv6Evidence runs every read of vtiIPv6EvidenceReads and answers them as one
+// report for the failure message. A read that fails is reported with its error and
+// whatever it printed, never skipped: the gap is part of the evidence.
+func (l *scenarioLab) vtiIPv6Evidence(ctx context.Context) string {
+	var tb textbuf.Buffer
+	tb.Str("--- kernel state after the lost IPv6 ping ---\n")
+	for _, read := range vtiIPv6EvidenceReads {
+		result, err := l.check.Lab.Exec(ctx, read.peer, read.command, nil)
+		writeVTIIPv6Read(&tb, read, result, err)
+	}
+	return tb.String()
+}
+
+// writeVTIIPv6Read appends one read to the report: a header naming the peer and the
+// command, the exit code, stdout, stderr when it printed any, and the error when the
+// command could not be run.
+func writeVTIIPv6Read(tb *textbuf.Buffer, read vtiIPv6Read, result interoplab.CommandResult, err error) {
+	tb.Str("== ").Str(read.peer).Str(": ").Join(read.command, " ").Str(" (exit ").Int(int64(result.ExitCode)).Str(")\n")
+	if err != nil {
+		tb.Str("error: ").Err(err).Byte('\n')
+	}
+	tb.Str(strings.TrimRight(result.Stdout, "\n")).Byte('\n')
+	if strings.TrimSpace(result.Stderr) != "" {
+		tb.Str("stderr: ").Str(strings.TrimRight(result.Stderr, "\n")).Byte('\n')
+	}
 }
 
 // xfrmBlock is one record of an `ip xfrm policy` or `ip xfrm state` dump: the src and dst

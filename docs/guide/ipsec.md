@@ -1349,6 +1349,45 @@ the entries are then already installed when the catch-all starts dropping. A
 `bypass` entry added or changed once `discard` is in force always crosses the
 window.
 
+#### Route-based tunnels under `discard`
+
+The Linux kernel keeps one policy database for each XFRM `if_id`. The
+catch-all lives at `if_id` 0, and a peer with `vti bind` installs its Child SA
+policies at the `if_id` of that XFRM interface. A packet routed into the
+interface is looked up at `if_id` 0 first, and only reaches the interface's own
+policies once it gets there. Under `discard` it would meet the catch-all on
+the way and be dropped. So for every XFRM interface a peer binds, Ze installs
+`bypass` entries at `if_id` 0, ranked just above the catch-all and below every
+`policy` entry and every Child SA policy:
+
+| Entry | Matches | Why |
+|---|---|---|
+| out and fwd, IPv4 and IPv6 | any address, output device the XFRM interface | Forwarded traffic, and the router's own IPv4 traffic, carry the output device into the lookup |
+| out, IPv6 | source each IPv6 address the XFRM interface holds, any destination | The router's own IPv6 traffic is looked up before the kernel records the output device |
+
+Nothing is installed under `unmatched bypass`, since the catch-all already
+passes the traffic. The entries follow the interface: Ze reads its index and
+addresses through the interface resolver, and reads them again when an
+interface address is added or removed or an interface is created. An address
+the interface loses takes its entry with it, and the entries are removed when
+no peer binds the interface, when `unmatched` turns to `bypass`, and when the
+engine stops. If the interface cannot be read, its entries stay as they were and
+the daemon logs a warning. If an entry cannot be installed, the daemon logs an
+error: the tunnel's traffic is then dropped by the catch-all. On a reload that
+turns `discard` on, the entries go in before the catch-all changes, so a
+running tunnel never loses traffic.
+
+The IPv6 source entry is wider than the interface it stands for. An IPv6
+packet sourced from the XFRM interface's own address but routed out of another
+interface also matches it, and crosses in the clear rather than meeting the
+catch-all. Do not source traffic from the tunnel address towards a destination
+routed elsewhere, or add a `policy` entry with action `discard` for it, which
+outranks the exemption.
+
+<!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, planXFRMExemptions, installXFRMExemptions, pruneXFRMExemptions -->
+<!-- source: internal/component/ike/engine/dynamic_wan.go -- startAddressWorker, followAddress -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityUnmatchedXFRMInterface -->
+
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable, refuseImplicitDiscard, warnImplicitDiscardAtStart -->
 <!-- source: internal/component/ike/ipsec/unmatched_evolution.go -- unmatchedBypassEvolution -->

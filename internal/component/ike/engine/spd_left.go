@@ -21,6 +21,7 @@ type spdSelector struct {
 	upperProto       uint8
 	srcPort, dstPort dataplane.PortMatch
 	ifID             uint32
+	ifIndex          int
 }
 
 func selectorOf(p *dataplane.SPParams) spdSelector {
@@ -36,6 +37,7 @@ func selectorOf(p *dataplane.SPParams) spdSelector {
 	sel.srcPort = p.SrcPort
 	sel.dstPort = p.DstPort
 	sel.ifID = p.IfID
+	sel.ifIndex = p.IfIndex
 	return sel
 }
 
