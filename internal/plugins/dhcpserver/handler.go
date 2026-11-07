@@ -77,23 +77,22 @@ type dhcpHandler struct {
 	// one shared network share one segment (resolveSegment).
 	network     string
 	subnet      subnetConfig
-	serverIP    netip.Addr
 	pxe         pxeConfig
 	pool        *pool
 	leases      *leaseTable
 	staticByMAC map[string]netip.Addr
 }
 
-func newDHCPHandler(sub subnetConfig, serverIP netip.Addr, pxe pxeConfig) *dhcpHandler {
+func newDHCPHandler(sub subnetConfig, pxe pxeConfig) *dhcpHandler {
 	p := newPool(sub.Ranges, sub.StaticMappings)
-	return newDHCPHandlerWithTables(sub, serverIP, pxe, p, newLeaseTable(p, clock.RealClock{}))
+	return newDHCPHandlerWithTables(sub, pxe, p, newLeaseTable(p, clock.RealClock{}))
 }
 
 // newDHCPHandlerWithTables builds a handler for sub over an existing pool and
 // lease table. A reload passes the tables of the previous handler of the same
 // subnet when its address plan is unchanged, so the leases survive while the
 // options and PXE settings are new. lt MUST be the lease table of p.
-func newDHCPHandlerWithTables(sub subnetConfig, serverIP netip.Addr, pxe pxeConfig, p *pool, lt *leaseTable) *dhcpHandler {
+func newDHCPHandlerWithTables(sub subnetConfig, pxe pxeConfig, p *pool, lt *leaseTable) *dhcpHandler {
 	staticByMAC := make(map[string]netip.Addr, len(sub.StaticMappings))
 	for _, sm := range sub.StaticMappings {
 		staticByMAC[string(sm.MAC)] = sm.IP
@@ -101,7 +100,6 @@ func newDHCPHandlerWithTables(sub subnetConfig, serverIP netip.Addr, pxe pxeConf
 
 	return &dhcpHandler{
 		subnet:      sub,
-		serverIP:    serverIP,
 		pxe:         pxe,
 		pool:        p,
 		leases:      lt,
@@ -110,15 +108,18 @@ func newDHCPHandlerWithTables(sub subnetConfig, serverIP netip.Addr, pxe pxeConf
 }
 
 // commitBinding binds addr to mac in this subnet's pool and lease table and
-// answers the DHCPACK. The segment decides that addr is the client's
-// (segment.commit); this only records it.
-func (h *dhcpHandler) commitBinding(pkt []byte, mac net.HardwareAddr, addr netip.Addr) []byte {
+// answers the DHCPACK, identified by serverID. The segment decides that addr
+// is the client's and which identifier the reply carries (segment.commit);
+// this only records it.
+func (h *dhcpHandler) commitBinding(pkt []byte, mac net.HardwareAddr, addr, serverID netip.Addr) []byte {
 	h.pool.reserve(addr, mac)
 	h.leases.add(mac, addr, h.subnet.LeaseTimeSec)
-	return h.buildReply(pkt, msgAck, addr)
+	return h.buildReply(pkt, msgAck, addr, serverID)
 }
 
-func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr netip.Addr) []byte {
+// buildReply answers req with an OFFER or ACK of yiaddr from this subnet. The
+// segment chose serverID (segment.serverID); it fills option 54 and siaddr.
+func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr, serverID netip.Addr) []byte {
 	resp := make([]byte, 1500)
 	resp[0] = opReply
 	resp[1] = req[1]
@@ -136,7 +137,7 @@ func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr netip.Addr) []
 	ip4 := yiaddr.As4()
 	copy(resp[16:20], ip4[:])
 
-	sip := h.serverIP.As4()
+	sip := serverID.As4()
 	copy(resp[20:24], sip[:])
 
 	binary.BigEndian.PutUint32(resp[236:240], magicCookie)
@@ -231,7 +232,9 @@ func (h *dhcpHandler) appendPXEOptions(req, resp []byte, off, limit int) int {
 	return off
 }
 
-func (h *dhcpHandler) buildNak(req []byte) []byte {
+// buildNak answers req with a DHCPNAK identified by serverID, which the
+// segment chose (segment.serverID).
+func (h *dhcpHandler) buildNak(req []byte, serverID netip.Addr) []byte {
 	resp := make([]byte, 300)
 	resp[0] = opReply
 	resp[1] = req[1]
@@ -246,7 +249,7 @@ func (h *dhcpHandler) buildNak(req []byte) []byte {
 	limit := len(resp) - 1
 
 	off = safeAppendOption(resp, off, limit, optMessageType, []byte{msgNak})
-	sip := h.serverIP.As4()
+	sip := serverID.As4()
 	off = safeAppendOption(resp, off, limit, optServerID, sip[:])
 
 	resp[off] = optEnd

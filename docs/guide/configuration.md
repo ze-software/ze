@@ -4282,6 +4282,7 @@ service {
 | `range <name>.stop` | IPv4 address | (none) | Last allocatable address. |
 | `lease-time` | uint32 | `86400` | Lease duration in seconds (60-604800). |
 | `default-router` | IPv4 address | (none) | Default gateway (option 3). |
+| `server-identifier` | IPv4 address | (none) | Address the server identifies itself with in this subnet's replies (option 54). Unset: the listen interface's address in the subnet (see "Several subnets on one interface"). |
 | `dns-server` | leaf-list of IPv4 address | (none) | DNS servers (option 6). |
 | `domain-name` | string | (none) | Domain name for clients (option 15). |
 | `static-mapping <name>` | list | (none) | Static MAC-to-IP binding (excluded from dynamic allocation). |
@@ -4320,6 +4321,38 @@ For each client the server chooses, in this order:
 A client renewing or rebooting with an address that differs from its
 reservation, or that lies in no subnet of the segment, is sent a DHCPNAK and
 starts again, so a reservation added later takes effect at its next renewal.
+
+Every reply names the server with an address the client can reach (option 54,
+the server identifier):
+
+1. The subnet's `server-identifier`, when the listen interface holds that
+   address. When it does not, the server does not answer and logs a warning
+   naming the subnet, the address and the fix: add the address to the
+   interface, or delete the leaf.
+2. Otherwise the interface's own address in the subnet, 10.99.0.1 for a client
+   served from 10.99.0.0/24 in the example above.
+3. For a subnet reached only through a relay, which the interface holds no
+   address in, the interface's primary address.
+
+`default-router` does not choose it. A client's REQUEST that names any of the
+server's addresses on the segment is accepted. A commit refuses a
+`server-identifier` that is not a unicast host address, or that is the network
+or broadcast address of its subnet. Set it when the interface holds several
+addresses in one subnet and clients must use one of them, such as a VRRP
+virtual address:
+
+```
+service {
+    dhcp-server {
+        listen-interface br0;
+        shared-network lan {
+            subnet 10.99.0.0/24 {
+                server-identifier 10.99.0.2;
+            }
+        }
+    }
+}
+```
 
 #### PXE Boot Support
 
@@ -4364,6 +4397,8 @@ BIOS bootfile.
 
 <!-- source: internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang -- DHCP server config schema -->
 <!-- source: internal/plugins/dhcpserver/config.go -- parseConfig, parseRanges, parsePXEConfig -->
+<!-- source: internal/plugins/dhcpserver/config.go -- parseServerIdentifier -->
+<!-- source: internal/plugins/dhcpserver/segment.go -- segment.serverID, segment.serverIDOwner -->
 
 ### TFTP Server
 

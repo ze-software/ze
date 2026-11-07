@@ -58,8 +58,9 @@ func buildLoopbackDiscover(mac net.HardwareAddr, ciaddr netip.Addr, arch uint16)
 	return pkt
 }
 
-// testHandler builds a PXE-enabled handler for the loopback subnet. serverIP and
-// the TFTP server are deliberately distinct so the siaddr assertion proves the
+// testHandler builds a PXE-enabled handler for the loopback subnet. The
+// server's address (127.0.0.1, which lo holds) and the TFTP server are
+// deliberately distinct so the siaddr assertion proves the
 // PXE path overwrote siaddr with the TFTP server address.
 func testHandler() *dhcpHandler {
 	sub := subnetConfig{
@@ -74,7 +75,7 @@ func testHandler() *dhcpHandler {
 		BootfileBIOS: "ipxe.pxe",
 		BootfileUEFI: "ipxe.efi",
 	}
-	return newDHCPHandler(sub, netip.MustParseAddr("127.0.0.1"), pxe)
+	return newDHCPHandler(sub, pxe)
 }
 
 // createDummyForTest creates a dummy interface and registers cleanup, failing

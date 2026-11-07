@@ -44,7 +44,7 @@ func TestDHCPRequestPanicContained(t *testing.T) {
 		Prefix:       netip.MustParsePrefix("127.0.0.0/8"),
 		Ranges:       []addressRange{{Name: "r", Start: netip.MustParseAddr("127.0.0.50"), Stop: netip.MustParseAddr("127.0.0.60")}},
 		LeaseTimeSec: 600,
-	}, netip.MustParseAddr("127.0.0.1"), pxeConfig{})
+	}, pxeConfig{})
 	healthy.network = "loopback"
 
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})

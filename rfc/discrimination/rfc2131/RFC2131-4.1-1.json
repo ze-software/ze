@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2131-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestSelectingAcceptsAnyOwnAddress",
+    "unit-sha": "978fc238da0b8414",
+    "claim-sha": "598a0f96e1ad29b5",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/segment.go::segment.serverIDOwner",
+    "producer-sha": "c8b27db4990680aa",
+    "break": "body of segment.serverIDOwner replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestSelectingAcceptsAnyOwnAddress",
+    "unit-sha": "978fc238da0b8414",
+    "claim-sha": "e0cae8f2cb50f8f9",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/segment.go::segment.serverIDOwner",
+    "producer-sha": "c8b27db4990680aa",
+    "break": "body of segment.serverIDOwner replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -233,21 +233,17 @@ func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, 
 // serveMulti answers the requests conn receives on the kernel device named device,
 // which is the interface a reply to a client with no address is delivered on.
 func serveMulti(conn *net.UDPConn, device string, handlers []*dhcpHandler, log *slog.Logger) {
-	serverIPs := make([]netip.Addr, 0, len(handlers))
-	for _, h := range handlers {
-		serverIPs = append(serverIPs, h.serverIP)
-	}
-
 	server := &requestServer{device: device, handlers: handlers, log: log}
 	buf := make([]byte, 1500)
-	for serveRequests(conn, server, serverIPs, buf, log) {
+	for serveRequests(conn, server, buf, log) {
 		// The pass ended on a contained panic; the next one reads on.
 	}
 }
 
 // dhcpDeviceAddrs answers the IPv4 addresses the kernel device holds, primary
-// addresses first (readDeviceAddrs). It is read for every request that no
-// relay forwarded, so an address added to or removed from the listen interface
+// addresses first (readDeviceAddrs). It is read for every request: for one no
+// relay forwarded it names the segment, and for every request it names the
+// server identifier (segment.serverID), so an address added to or removed from the listen interface
 // is seen by the next request, with no reload and no cached copy to go stale.
 // It is a variable so a test can stand in a device's addresses; nothing else
 // assigns it.
@@ -267,32 +263,44 @@ type requestServer struct {
 	log      *slog.Logger
 	// warned is when the last unserved warning was written (unservedWarnInterval).
 	warned time.Time
+	// warnedWithheld is when the last warning that a segment withheld a reply
+	// was written (segment.withheld), limited the same way.
+	warnedWithheld time.Time
 }
 
 // answer returns the reply to pkt, or nil when the server stays silent.
-// resolved is false when pkt was dropped before a segment was chosen: it is
-// malformed, or no configured subnet holds the relay's address or any
-// address of the receiving device. answer has then logged why, when the
-// reason is one an operator fixes.
+// resolved is false when pkt was dropped before a segment was chosen
+// (resolve). It logs no exchange: serveRequests does, after the reply.
 func (r *requestServer) answer(pkt []byte) (reply []byte, resolved bool) {
-	if !validRequest(pkt) {
+	seg, ok := r.resolve(pkt)
+	if !ok {
 		return nil, false
 	}
+	return seg.serve(pkt), true
+}
+
+// resolve returns the segment that serves pkt. resolved is false when pkt was
+// dropped before a segment was chosen: it is malformed, the receiving device's
+// addresses could not be read, or no configured subnet holds the relay's
+// address or any address of the receiving device. resolve has then logged
+// why, when the reason is one an operator fixes.
+func (r *requestServer) resolve(pkt []byte) (seg segment, resolved bool) {
+	if !validRequest(pkt) {
+		return segment{}, false
+	}
 	giaddr := netip.AddrFrom4([4]byte(pkt[24:28]))
-	var device []netip.Addr
-	if giaddr.IsUnspecified() {
-		addrs, err := dhcpDeviceAddrs(r.device)
-		if err != nil {
-			r.warnUnserved("dhcpserver: no reply, the listen interface's addresses could not be read. "+
-				"The server serves the subnets the interface is addressed in, so it cannot choose one.",
-				"interface", r.device, "error", err)
-			return nil, false
-		}
-		device = addrs
+	device, err := dhcpDeviceAddrs(r.device)
+	if err != nil {
+		r.warnUnserved("dhcpserver: no reply, the listen interface's addresses could not be read. "+
+			"The server serves the subnets the interface is addressed in and identifies itself "+
+			"with one of its addresses, so it cannot answer.",
+			"interface", r.device, "error", err)
+		return segment{}, false
 	}
 	seg, ok := resolveSegment(r.handlers, giaddr, device)
 	if ok {
-		return seg.serve(pkt), true
+		seg.warn = r.warnWithheld
+		return seg, true
 	}
 	if giaddr.IsUnspecified() {
 		r.warnUnserved("dhcpserver: no reply, the listen interface holds no address in any configured subnet. "+
@@ -300,22 +308,35 @@ func (r *requestServer) answer(pkt []byte) (reply []byte, resolved bool) {
 			"Fix: add an address in a configured subnet to the interface, "+
 			"or remove the interface from service dhcp-server listen-interface",
 			"interface", r.device, "addresses", device)
-		return nil, false
+		return segment{}, false
 	}
 	r.warnUnserved("dhcpserver: no reply to a relayed request, no configured subnet holds the relay's address (giaddr).\n"+
 		"Fix: add a subnet that holds the relay's address to a shared-network of service dhcp-server",
 		"interface", r.device, "giaddr", giaddr.String())
-	return nil, false
+	return segment{}, false
 }
 
-// warnUnserved writes a warning at most once per unservedWarnInterval.
+// warnUnserved writes a warning that no segment serves a request, at most
+// once per unservedWarnInterval.
 func (r *requestServer) warnUnserved(msg string, attrs ...any) {
+	warnLimited(r.log, &r.warned, msg, attrs...)
+}
+
+// warnWithheld writes a warning that a segment withheld a reply
+// (segment.withheld), at most once per unservedWarnInterval.
+func (r *requestServer) warnWithheld(msg string, attrs ...any) {
+	warnLimited(r.log, &r.warnedWithheld, msg, attrs...)
+}
+
+// warnLimited writes msg at WARN unless the last warning recorded in last is
+// younger than unservedWarnInterval.
+func warnLimited(log *slog.Logger, last *time.Time, msg string, attrs ...any) {
 	now := time.Now()
-	if !r.warned.IsZero() && now.Sub(r.warned) < unservedWarnInterval {
+	if !last.IsZero() && now.Sub(*last) < unservedWarnInterval {
 		return
 	}
-	r.warned = now
-	r.log.Warn(msg, attrs...)
+	*last = now
+	log.Warn(msg, attrs...)
 }
 
 // serveRequests is the request task: it answers requests until the socket
@@ -323,7 +344,7 @@ func (r *requestServer) warnUnserved(msg string, attrs ...any) {
 // request being handled then gets no reply and its client retransmits. The pool
 // and lease tables hold their mutexes only under defer, so the unwind leaves
 // them free.
-func serveRequests(conn *net.UDPConn, server *requestServer, serverIPs []netip.Addr, buf []byte, log *slog.Logger) (again bool) {
+func serveRequests(conn *net.UDPConn, server *requestServer, buf []byte, log *slog.Logger) (again bool) {
 	var source *net.UDPAddr // the sender of the request being handled
 	describe := func() taskguard.Context {
 		return taskguard.Context{Unit: "request from " + source.String()}
@@ -341,11 +362,12 @@ func serveRequests(conn *net.UDPConn, server *requestServer, serverIPs []netip.A
 		pkt := make([]byte, n)
 		copy(pkt, buf[:n])
 
-		resp, resolved := server.answer(pkt)
-		if resolved {
-			logExchange(log, pkt, resp, serverIPs)
+		seg, resolved := server.resolve(pkt)
+		if !resolved {
+			continue
 		}
-
+		resp := seg.serve(pkt)
+		logExchange(log, pkt, resp, seg.serverIDs())
 		if resp == nil {
 			continue
 		}

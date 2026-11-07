@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/netip"
 	"slices"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -130,12 +129,11 @@ func buildHandlers(cfg serverConfig, previous []*dhcpHandler) []*dhcpHandler {
 	for si := range cfg.SharedNetworks {
 		for subi := range cfg.SharedNetworks[si].Subnets {
 			sub := cfg.SharedNetworks[si].Subnets[subi]
-			serverIP := subnetServerIP(&sub)
 			var h *dhcpHandler
 			if kept := samePlanHandler(previous, &sub); kept != nil {
-				h = newDHCPHandlerWithTables(sub, serverIP, cfg.PXE, kept.pool, kept.leases)
+				h = newDHCPHandlerWithTables(sub, cfg.PXE, kept.pool, kept.leases)
 			} else {
-				h = newDHCPHandler(sub, serverIP, cfg.PXE)
+				h = newDHCPHandler(sub, cfg.PXE)
 			}
 			h.network = cfg.SharedNetworks[si].Name
 			handlers = append(handlers, h)
@@ -191,18 +189,6 @@ func stopLeasesNotIn(handlers, kept []*dhcpHandler) {
 	for _, h := range newLeaseTables(handlers, kept) {
 		h.leases.stop()
 	}
-}
-
-// subnetServerIP is the address the server answers a subnet from: its default
-// router, else the start of its first range, else the subnet address.
-func subnetServerIP(sub *subnetConfig) netip.Addr {
-	if sub.DefaultRouter.IsValid() {
-		return sub.DefaultRouter
-	}
-	if len(sub.Ranges) > 0 && sub.Ranges[0].Start.IsValid() {
-		return sub.Ranges[0].Start
-	}
-	return sub.Prefix.Addr()
 }
 
 func (s *dhcpServer) closeListeners() {

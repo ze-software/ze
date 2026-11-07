@@ -80,7 +80,9 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | NTP servers from DHCP (option 42) | have | |
 | | DHCPv6 proper Renew (not re-solicit) | have | |
 | | DHCP relay | missing | lower |
-| | DHCP server | missing | lower |
+| | DHCPv4 server (RFC 2131) on each `listen-interface`, with pools, static mappings and PXE options | have | <!-- source: internal/plugins/dhcpserver/register.go -- bindListeners, serveRequests --> |
+| | DHCPv4 server: several subnets on one interface (`shared-network`), a static mapping in any subnet of the segment before any pool, new addresses from the subnet of the interface's primary address first; a listener answers only for the shared networks its interface is addressed in | have | <!-- source: internal/plugins/dhcpserver/segment.go -- resolveSegment, segment.discover --> |
+| | DHCPv4 server identifier (option 54) is the interface's own address in the client's subnet, the interface's primary address for a relay-only subnet, or the `server-identifier` leaf while the interface holds it; a REQUEST naming any of the server's addresses on the segment is accepted (RFC 2131 section 4.1) | have | <!-- source: internal/plugins/dhcpserver/segment.go -- segment.serverID, segment.serverIDOwner --> |
 | **Monitoring** | Netlink multicast (link + addr + neigh) | have | |
 | | Virtual iface state detection | have | |
 | | 11 bus topics, JSON payloads | have | |

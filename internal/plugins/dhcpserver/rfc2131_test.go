@@ -120,7 +120,7 @@ func exchange(t *testing.T, h *dhcpHandler, mac net.HardwareAddr, xid uint32) ([
 		t.Fatal("expected DHCPOFFER, got nil")
 	}
 	offered := netip.AddrFrom4([4]byte(offer[16:20]))
-	req := append(ipOpt(optRequestedIP, offered), ipOpt(optServerID, h.serverIP)...)
+	req := append(ipOpt(optRequestedIP, offered), ipOpt(optServerID, serverAddr(h))...)
 	ack := h.handle(buildMsg(msgRequest, mac, xid, netip.Addr{}, 0, req))
 	if ack == nil {
 		t.Fatal("expected DHCPACK, got nil")
@@ -132,7 +132,7 @@ func exchange(t *testing.T, h *dhcpHandler, mac net.HardwareAddr, xid uint32) ([
 // names this server but carries no requested address.
 func nakForSelecting(t *testing.T, h *dhcpHandler, mac net.HardwareAddr, xid uint32) []byte {
 	t.Helper()
-	nak := h.handle(buildMsg(msgRequest, mac, xid, netip.Addr{}, 0, ipOpt(optServerID, h.serverIP)))
+	nak := h.handle(buildMsg(msgRequest, mac, xid, netip.Addr{}, 0, ipOpt(optServerID, serverAddr(h))))
 	if nak == nil {
 		t.Fatal("expected DHCPNAK, got nil")
 	}
@@ -160,7 +160,7 @@ func TestServerIdentifierInEveryReply(t *testing.T) {
 	offer, ack := exchange(t, h, net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x01}, 0x2131)
 	nak := nakForSelecting(t, h, net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x02}, 0x2132)
 
-	want := h.serverIP.As4()
+	want := serverAddr(h).As4()
 	for _, tc := range []struct {
 		name  string
 		reply []byte
@@ -286,7 +286,7 @@ func TestReplyDoesNotEchoClientOptions(t *testing.T) {
 	}
 	offered := netip.AddrFrom4([4]byte(offer[16:20]))
 
-	ackReq := append(ipOpt(optServerID, h.serverIP), loaded(offered)...)
+	ackReq := append(ipOpt(optServerID, serverAddr(h)), loaded(offered)...)
 	ack := h.handle(buildMsg(msgRequest, mac, 0x2136, netip.Addr{}, 0, ackReq))
 	if ack == nil {
 		t.Fatal("expected DHCPACK, got nil")
@@ -503,7 +503,7 @@ func TestOptionsContainedWithinTheirField(t *testing.T) {
 	// after the End marker instead would prove nothing, because the walk breaks on
 	// End before it ever looks at the option.
 	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x13}
-	serverIDOpt := ipOpt(optServerID, h.serverIP)
+	serverIDOpt := ipOpt(optServerID, serverAddr(h))
 	truncated := buildMsg(msgRequest, mac, 0x2142, netip.Addr{}, 0, serverIDOpt)
 	// buildMsg lays out: magic cookie at 236, message-type option at 240..242,
 	// `extra` next, then the End marker. Fail loudly if that layout ever changes,
@@ -588,7 +588,7 @@ func TestRenewalTimersOrderedWithinLease(t *testing.T) {
 			Ranges:       []addressRange{{Name: "pool", Start: netip.MustParseAddr("192.168.1.100"), Stop: netip.MustParseAddr("192.168.1.200")}},
 			LeaseTimeSec: leaseSec,
 		}
-		h := newDHCPHandler(sub, netip.MustParseAddr("192.168.1.1"), pxeConfig{})
+		h := newDHCPHandler(sub, pxeConfig{})
 		offer := h.handle(buildMsg(msgDiscover, net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x15}, 0x2146, netip.Addr{}, 0, nil))
 		h.leases.stop()
 		if offer == nil {
@@ -657,7 +657,7 @@ func TestUnconfiguredParametersOmitted(t *testing.T) {
 		Ranges:       []addressRange{{Name: "pool", Start: netip.MustParseAddr("192.168.1.100"), Stop: netip.MustParseAddr("192.168.1.200")}},
 		LeaseTimeSec: 3600,
 	}
-	h := newDHCPHandler(bare, netip.MustParseAddr("192.168.1.1"), pxeConfig{})
+	h := newDHCPHandler(bare, pxeConfig{})
 	defer h.leases.stop()
 
 	offer := h.handle(buildMsg(msgDiscover, net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x16}, 0x2147, netip.Addr{}, 0, nil))

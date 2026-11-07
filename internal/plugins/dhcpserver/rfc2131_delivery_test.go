@@ -33,7 +33,7 @@ func TestNakBroadcastWhenGiaddrZero(t *testing.T) {
 	ciaddr := netip.MustParseAddr("192.168.1.77")
 	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x41}
 
-	selecting := buildMsg(msgRequest, mac, 0x4101, ciaddr, 0, ipOpt(optServerID, h.serverIP))
+	selecting := buildMsg(msgRequest, mac, 0x4101, ciaddr, 0, ipOpt(optServerID, serverAddr(h)))
 	nak := h.handle(selecting)
 	if nak == nil {
 		t.Fatal("expected DHCPNAK for the SELECTING REQUEST with no requested address, got nil")

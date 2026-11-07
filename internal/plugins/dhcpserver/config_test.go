@@ -617,3 +617,53 @@ func TestParseConfigRejectsNonIPv4(t *testing.T) {
 		})
 	}
 }
+
+// TestServerIdentifierLeafParse proves the server-identifier leaf accepts any
+// unicast host address, inside the subnet or outside it, and refuses the rest
+// with an error that names the leaf, the value, the subnet and the fix.
+// VALIDATES: AC-9 commit half, and the boundary row of the spec: the last host
+// address of the subnet is accepted, its network and broadcast addresses are
+// refused.
+// PREVENTS: option 54 configured to an address no client reaches the server at.
+func TestServerIdentifierLeafParse(t *testing.T) {
+	t.Parallel()
+
+	const subnet = "10.99.0.0/24"
+	for _, value := range []string{"10.99.0.1", "10.99.0.254", "192.168.50.1"} {
+		sub, err := parseSubnet(subnet, map[string]any{"server-identifier": value})
+		if err != nil {
+			t.Errorf("server-identifier %s: %v, want accepted", value, err)
+			continue
+		}
+		if got := sub.ServerIdentifier; got != netip.MustParseAddr(value) {
+			t.Errorf("server-identifier %s parsed as %v", value, got)
+		}
+	}
+	unset, err := parseSubnet(subnet, map[string]any{})
+	if err != nil {
+		t.Fatalf("subnet with no server-identifier: %v", err)
+	}
+	if unset.ServerIdentifier.IsValid() {
+		t.Errorf("no server-identifier leaf parsed as %v, want unset", unset.ServerIdentifier)
+	}
+
+	for _, value := range []string{"10.99.0.0", "10.99.0.255", "224.0.0.1", "255.255.255.255", "0.0.0.0", "127.0.0.1", "169.254.1.1"} {
+		_, err := parseSubnet(subnet, map[string]any{"server-identifier": value})
+		if err == nil {
+			t.Errorf("server-identifier %s accepted, want refused", value)
+			continue
+		}
+		for _, want := range []string{"server-identifier", value, subnet, "Fix:"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("server-identifier %s: error %q does not name %q", value, err, want)
+			}
+		}
+	}
+	for _, value := range []string{"2001:db8::1", "not-an-address"} {
+		if _, err := parseSubnet(subnet, map[string]any{"server-identifier": value}); err == nil {
+			t.Errorf("server-identifier %q accepted, want refused", value)
+		} else if !strings.Contains(err.Error(), "server-identifier") {
+			t.Errorf("server-identifier %q: error %q does not name the leaf", value, err)
+		}
+	}
+}

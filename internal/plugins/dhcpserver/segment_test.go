@@ -10,12 +10,29 @@ import (
 )
 
 // handle serves pkt from a segment that holds h alone, which is what one
-// listener serving one subnet does: the shape the one-subnet tests drive.
+// listener serving one subnet does: the shape the one-subnet tests drive. The
+// listen device holds serverAddr(h) only, so every reply names it in option 54.
 func (h *dhcpHandler) handle(pkt []byte) []byte {
 	if !validRequest(pkt) {
 		return nil
 	}
-	return segment{subnets: []*dhcpHandler{h}}.serve(pkt)
+	giaddr := netip.AddrFrom4([4]byte(pkt[24:28]))
+	seg := segment{
+		subnets: []*dhcpHandler{h},
+		device:  []netip.Addr{serverAddr(h)},
+		relayed: !giaddr.IsUnspecified(),
+	}
+	return seg.serve(pkt)
+}
+
+// serverAddr is the address the one-subnet tests' listen device holds in h's
+// subnet (handle): the subnet's default router, which a home router usually
+// is, else the subnet's first host address.
+func serverAddr(h *dhcpHandler) netip.Addr {
+	if h.subnet.DefaultRouter.IsValid() {
+		return h.subnet.DefaultRouter
+	}
+	return h.subnet.Prefix.Masked().Addr().Next()
 }
 
 var (

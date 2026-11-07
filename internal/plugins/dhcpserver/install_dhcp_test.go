@@ -89,7 +89,6 @@ func installHandler(t *testing.T) *dhcpHandler {
 		LeaseTimeSec:  86400,
 		DefaultRouter: netip.MustParseAddr("198.19.255.1"),
 	}
-	serverIP := sub.DefaultRouter // register.go: default-router wins
 	pxe := pxeConfig{
 		Enabled:       true,
 		TFTPServer:    netip.MustParseAddr("198.19.255.1"),
@@ -97,7 +96,7 @@ func installHandler(t *testing.T) *dhcpHandler {
 		BootfileUEFI:  "ipxe.efi",
 		BootScriptURL: "http://198.19.255.1/install/boot/boot.ipxe",
 	}
-	return newDHCPHandler(sub, serverIP, pxe)
+	return newDHCPHandler(sub, pxe)
 }
 
 // VALIDATES: the booted kernel's ip=dhcp DISCOVER->REQUEST gets an ACK.

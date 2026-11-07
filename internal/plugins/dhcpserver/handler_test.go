@@ -18,8 +18,7 @@ func newTestServer(t *testing.T) *dhcpHandler {
 		DNSServers:    []netip.Addr{netip.MustParseAddr("8.8.8.8"), netip.MustParseAddr("8.8.4.4")},
 		DomainName:    "home.lan",
 	}
-	serverIP := netip.MustParseAddr("192.168.1.1")
-	return newDHCPHandler(sub, serverIP, pxeConfig{})
+	return newDHCPHandler(sub, pxeConfig{})
 }
 
 func newTestServerWithStatic(t *testing.T) *dhcpHandler {
@@ -38,8 +37,7 @@ func newTestServerWithStatic(t *testing.T) *dhcpHandler {
 			},
 		},
 	}
-	serverIP := netip.MustParseAddr("192.168.1.1")
-	return newDHCPHandler(sub, serverIP, pxeConfig{})
+	return newDHCPHandler(sub, pxeConfig{})
 }
 
 func buildDiscover(mac net.HardwareAddr, xid uint32) []byte {
@@ -203,7 +201,7 @@ func TestDHCPRequestAck(t *testing.T) {
 	}
 	offeredIP := netip.AddrFrom4([4]byte(offer[16:20]))
 
-	request := buildRequest(mac, 0xABCD, offeredIP, h.serverIP)
+	request := buildRequest(mac, 0xABCD, offeredIP, serverAddr(h))
 	ack := h.handle(request)
 	if ack == nil {
 		t.Fatal("no ACK")
@@ -264,7 +262,7 @@ func TestDHCPRelease(t *testing.T) {
 	}
 	offeredIP := netip.AddrFrom4([4]byte(offer[16:20]))
 
-	request := buildRequest(mac, 0x2222, offeredIP, h.serverIP)
+	request := buildRequest(mac, 0x2222, offeredIP, serverAddr(h))
 	ack := h.handle(request)
 	if ack == nil {
 		t.Fatal("no ACK")
@@ -290,7 +288,7 @@ func TestDHCPPoolExhaustionSilent(t *testing.T) {
 		Ranges:       []addressRange{{Name: "pool", Start: netip.MustParseAddr("10.0.0.1"), Stop: netip.MustParseAddr("10.0.0.2")}},
 		LeaseTimeSec: 3600,
 	}
-	h := newDHCPHandler(sub, netip.MustParseAddr("10.0.0.1"), pxeConfig{})
+	h := newDHCPHandler(sub, pxeConfig{})
 	defer h.leases.stop()
 
 	for i := range 2 {
@@ -301,7 +299,7 @@ func TestDHCPPoolExhaustionSilent(t *testing.T) {
 			t.Fatalf("no OFFER for client %d", i)
 		}
 		offeredIP := netip.AddrFrom4([4]byte(offer[16:20]))
-		req := buildRequest(mac, uint32(i+1), offeredIP, h.serverIP)
+		req := buildRequest(mac, uint32(i+1), offeredIP, serverAddr(h))
 		ack := h.handle(req)
 		if ack == nil {
 			t.Fatalf("no ACK for client %d", i)
@@ -330,7 +328,7 @@ func TestDHCPStaticOnlySubnet(t *testing.T) {
 			},
 		},
 	}
-	h := newDHCPHandler(sub, netip.MustParseAddr("192.168.1.1"), pxeConfig{})
+	h := newDHCPHandler(sub, pxeConfig{})
 	defer h.leases.stop()
 
 	staticMAC := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
@@ -344,7 +342,7 @@ func TestDHCPStaticOnlySubnet(t *testing.T) {
 		t.Errorf("static-only: offered %v, want 192.168.1.10", offeredIP)
 	}
 
-	request := buildRequest(staticMAC, 0x3333, offeredIP, h.serverIP)
+	request := buildRequest(staticMAC, 0x3333, offeredIP, serverAddr(h))
 	ack := h.handle(request)
 	if ack == nil {
 		t.Fatal("expected ACK for static MAC on static-only subnet")
@@ -482,7 +480,7 @@ func TestDHCPDecline(t *testing.T) {
 	}
 	offeredIP := netip.AddrFrom4([4]byte(offer[16:20]))
 
-	request := buildRequest(mac, 0x8888, offeredIP, h.serverIP)
+	request := buildRequest(mac, 0x8888, offeredIP, serverAddr(h))
 	ack := h.handle(request)
 	if ack == nil {
 		t.Fatal("no ACK")
@@ -590,14 +588,13 @@ func newTestPXEServer(t *testing.T) *dhcpHandler {
 		DefaultRouter: netip.MustParseAddr("192.168.1.1"),
 		DNSServers:    []netip.Addr{netip.MustParseAddr("8.8.8.8")},
 	}
-	serverIP := netip.MustParseAddr("192.168.1.1")
 	pxe := pxeConfig{
 		Enabled:      true,
 		TFTPServer:   netip.MustParseAddr("192.168.1.1"),
 		BootfileBIOS: "ipxe.pxe",
 		BootfileUEFI: "ipxe.efi",
 	}
-	return newDHCPHandler(sub, serverIP, pxe)
+	return newDHCPHandler(sub, pxe)
 }
 
 func buildPXEDiscover(mac net.HardwareAddr, xid uint32, arch uint16) []byte {
@@ -757,8 +754,8 @@ func TestNonPXEDiscoverUnchanged(t *testing.T) {
 	}
 
 	siaddr := netip.AddrFrom4([4]byte(resp[20:24]))
-	if siaddr != h.serverIP {
-		t.Errorf("siaddr = %v, want %v (serverIP, not PXE override)", siaddr, h.serverIP)
+	if siaddr != serverAddr(h) {
+		t.Errorf("siaddr = %v, want %v (serverIP, not PXE override)", siaddr, serverAddr(h))
 	}
 }
 
@@ -915,7 +912,7 @@ func TestPXERequestAck(t *testing.T) {
 	}
 	offeredIP := netip.AddrFrom4([4]byte(offer[16:20]))
 
-	request := buildPXERequest(mac, 0xACDC, offeredIP, h.serverIP, 7)
+	request := buildPXERequest(mac, 0xACDC, offeredIP, serverAddr(h), 7)
 	ack := h.handle(request)
 	if ack == nil {
 		t.Fatal("no ACK")
@@ -1053,7 +1050,6 @@ func newTestPXEServerWithBootScript(t *testing.T) *dhcpHandler {
 		DefaultRouter: netip.MustParseAddr("192.168.1.1"),
 		DNSServers:    []netip.Addr{netip.MustParseAddr("8.8.8.8")},
 	}
-	serverIP := netip.MustParseAddr("192.168.1.1")
 	pxe := pxeConfig{
 		Enabled:       true,
 		TFTPServer:    netip.MustParseAddr("192.168.1.1"),
@@ -1061,7 +1057,7 @@ func newTestPXEServerWithBootScript(t *testing.T) *dhcpHandler {
 		BootfileUEFI:  "ipxe.efi",
 		BootScriptURL: "http://192.168.1.1/install/boot/boot.ipxe",
 	}
-	return newDHCPHandler(sub, serverIP, pxe)
+	return newDHCPHandler(sub, pxe)
 }
 
 func buildIPXEDiscover(mac net.HardwareAddr, xid uint32, arch uint16) []byte {
@@ -1163,8 +1159,8 @@ func TestPXEBootScriptForIPXE(t *testing.T) {
 	}
 
 	siaddr := netip.AddrFrom4([4]byte(resp[20:24]))
-	if siaddr != h.serverIP {
-		t.Errorf("siaddr = %v, want %v (not overwritten to TFTP for iPXE)", siaddr, h.serverIP)
+	if siaddr != serverAddr(h) {
+		t.Errorf("siaddr = %v, want %v (not overwritten to TFTP for iPXE)", siaddr, serverAddr(h))
 	}
 }
 

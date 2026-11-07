@@ -111,16 +111,19 @@ module ze-dhcp-server-conf {
 
                 leaf name {
                     type string;
-                    description "Shared network name, and the key of this list. Ze sorts the groups by this name. The order
-                        decides which subnet answers first when a request matches more than one subnet.";
+                    description "Shared network name, and the key of this list. Ze sorts the groups by this name. After the
+                        subnet holding the listen interface's primary address (or the relay's address), the order
+                        decides which pool a new address comes from next.";
                     ze:help "Shared network name";
                 }
 
                 list subnet {
                     key "prefix";
-                    description "Subnet with address pool and options. Each subnet becomes one handler with its own address
-                        pool and lease table. A request that carries no relay address, no client address and no
-                        requested address matches every subnet. The first handler with a free address answers it.";
+                    description "Subnet with address pool and options. Each subnet has its own address pool and lease
+                        table. A request is served from the subnet the client belongs to on its segment: its static
+                        mapping first, then its current binding, then the requested address when it is free, then
+                        a pool. The listen interface needs an address in a subnet of the segment, unless the
+                        request came through a relay.";
                     ze:help "Subnet with address pool and options";
 
                     leaf prefix {
@@ -182,11 +185,25 @@ module ze-dhcp-server-conf {
                     leaf default-router {
                         type string;
                         ze:validate "ipv4-address";
-                        description "Default gateway address, sent as option 3. Ze also uses it as the DHCP server
-                            identifier of this subnet, in option 54. With no default-router the identifier falls
-                            back to the start address of the first range, and then to the network address of the
-                            prefix. A REQUEST that names a different server identifier is left unanswered.";
+                        description "Default gateway address, sent as option 3. It does not choose the server
+                            identifier (option 54): see server-identifier.";
                         ze:help "Default gateway address (option 3)";
+                    }
+
+                    leaf server-identifier {
+                        type string;
+                        ze:validate "ipv4-address";
+                        description "Address the server identifies itself with in this subnet's replies, sent as
+                            option 54 and in siaddr unless PXE names a TFTP server. Left unset, Ze uses the listen
+                            interface's address inside the subnet, or, for a subnet served only through a relay,
+                            the interface's primary address. Set it to name one address when the interface holds
+                            several in the subnet, such as a VRRP virtual address. A commit rejects a value that
+                            is not a unicast host address, or that is the network or broadcast address of the
+                            subnet. The address need not fall inside the subnet. When the listen interface does not
+                            hold the address at the time of a request, Ze does not answer and logs a warning naming
+                            the subnet, the address and the fix. A REQUEST naming any of the server's addresses on
+                            the segment (RFC 2131 Section 4.1) is accepted as addressed to this server.";
+                        ze:help "Server identifier address (option 54)";
                     }
 
                     leaf-list dns-server {

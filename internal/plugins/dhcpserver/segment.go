@@ -8,6 +8,7 @@ package dhcpserver
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"net"
 	"net/netip"
 	"slices"
@@ -24,14 +25,32 @@ import (
 // Static mappings are read across the whole segment, pools one subnet at a
 // time, so a client reserved in any subnet of its segment gets its
 // reservation, whichever subnet the receiving interface is addressed in.
+//
+// device and relayed decide the server identifier every reply carries
+// (serverID), and which identifiers a SELECTING request may name
+// (serverIDOwner).
 type segment struct {
 	subnets []*dhcpHandler
+	// device lists the receiving device's IPv4 addresses, primary first.
+	device []netip.Addr
+	// relayed is true when a relay forwarded the request (giaddr non-zero).
+	relayed bool
+	// warn records why a reply was withheld; requestServer rate-limits it.
+	// A segment a test builds without one writes nothing.
+	warn func(msg string, attrs ...any)
 }
+
+// errNoServerAddress and errServerIdentifierNotHeld are the two reasons
+// serverID cannot answer.
+var (
+	errNoServerAddress         = errors.New("the listen interface holds no address the client can reach the server at")
+	errServerIdentifierNotHeld = errors.New("the listen interface does not hold the subnet's server-identifier")
+)
 
 // resolveSegment answers the segment a request belongs to, and false when no
 // configured subnet holds giaddr (relayed) or any of device (giaddr zero).
-// device lists the receiving device's IPv4 addresses, primary first; it is
-// not read for a relayed request.
+// device lists the receiving device's IPv4 addresses, primary first; for a
+// relayed request it chooses only the server identifier (serverID).
 func resolveSegment(handlers []*dhcpHandler, giaddr netip.Addr, device []netip.Addr) (segment, bool) {
 	held := subnetsHolding(handlers, device)
 	if !giaddr.IsUnspecified() {
@@ -41,7 +60,7 @@ func resolveSegment(handlers []*dhcpHandler, giaddr netip.Addr, device []netip.A
 		return segment{}, false
 	}
 	home := held[0]
-	seg := segment{subnets: []*dhcpHandler{home}}
+	seg := segment{subnets: []*dhcpHandler{home}, device: device, relayed: !giaddr.IsUnspecified()}
 	for _, h := range handlers {
 		if h == home {
 			continue
@@ -122,20 +141,21 @@ func (s segment) discover(pkt []byte, mac net.HardwareAddr) []byte {
 	// A static mapping anywhere on the segment is that administrative choice,
 	// so it is offered before any hint or pool is read.
 	if h, addr, ok := s.reservation(mac); ok {
-		return h.buildReply(pkt, msgOffer, addr)
+		return s.offer(h, pkt, addr)
 	}
 	// RFC 2131 Section 4.3.1: "The client's current address as recorded in the
 	// client's current binding, ELSE"
 	if h, addr, ok := s.held(mac); ok {
-		return h.buildReply(pkt, msgOffer, addr)
+		return s.offer(h, pkt, addr)
 	}
 	// RFC 2131 Section 4.3.1: "The address requested in the 'Requested IP
 	// Address' option, if that address is valid and not already allocated,
 	// ELSE"
 	if requested := parseOptionAddr(pkt, optRequestedIP); requested.IsValid() {
-		h := s.subnetOf(requested)
-		if h != nil && h.pool.contains(requested) && h.pool.claim(requested, mac) {
-			return h.buildReply(pkt, msgOffer, requested)
+		if h := s.subnetOf(requested); h != nil && h.pool.contains(requested) {
+			if reply := s.offerRequested(h, pkt, mac, requested); reply != nil {
+				return reply
+			}
 		}
 	}
 	// RFC 2131 Section 4.3.1: "A new address allocated from the server's pool
@@ -145,8 +165,13 @@ func (s segment) discover(pkt []byte, mac net.HardwareAddr) []byte {
 	// RFC 2131 Section 4.3.1: "A server is free to choose some other subnet,"
 	// so when the home subnet's pool is full the segment's other pools follow.
 	for _, h := range s.subnets {
+		id, err := s.serverID(h)
+		if err != nil {
+			s.withheld(h, err)
+			continue
+		}
 		if addr, ok := h.pool.allocate(mac); ok {
-			return h.buildReply(pkt, msgOffer, addr)
+			return h.buildReply(pkt, msgOffer, addr, id)
 		}
 	}
 	// RFC 2131 Section 4.3.1: if no address is available, remain silent.
@@ -171,7 +196,7 @@ func (s segment) request(pkt []byte, mac net.HardwareAddr) []byte {
 	if !ciaddr.IsUnspecified() {
 		return s.renewing(pkt, mac, ciaddr)
 	}
-	return s.subnets[0].buildNak(pkt)
+	return s.nak(s.subnets[0], pkt)
 }
 
 // selecting answers a DHCPREQUEST from a client in SELECTING state.
@@ -180,17 +205,21 @@ func (s segment) request(pkt []byte, mac net.HardwareAddr) []byte {
 // in 'server identifier', 'ciaddr' MUST be zero, 'requested IP address' MUST
 // be filled in with the yiaddr value from the chosen DHCPOFFER."
 func (s segment) selecting(pkt []byte, mac net.HardwareAddr, serverID, requested netip.Addr) []byte {
+	// RFC 2131 Section 4.3.2: "If the DHCPREQUEST message contains a 'server
+	// identifier' option, the message is in response to a DHCPOFFER message."
+	// RFC 2131 Section 4.1 (serverIDOwner): any of the server's addresses on
+	// the segment identifies it.
 	owner := s.serverIDOwner(serverID)
 	// The client selected another server's offer.
 	if owner == nil {
 		return nil
 	}
 	if !requested.IsValid() {
-		return owner.buildNak(pkt)
+		return s.nak(owner, pkt)
 	}
 	if h, addr, ok := s.reservation(mac); ok {
 		if addr != requested {
-			return owner.buildNak(pkt)
+			return s.nak(owner, pkt)
 		}
 		return s.commit(h, pkt, mac, addr)
 	}
@@ -198,10 +227,18 @@ func (s segment) selecting(pkt []byte, mac net.HardwareAddr, serverID, requested
 		return s.commit(h, pkt, mac, addr)
 	}
 	h := s.subnetOf(requested)
-	if h != nil && h.pool.contains(requested) && h.pool.claim(requested, mac) {
-		return s.commit(h, pkt, mac, requested)
+	if h != nil && h.pool.contains(requested) {
+		// The identifier is checked before the claim, so a subnet that cannot
+		// answer holds no address for the client.
+		if _, err := s.serverID(h); err != nil {
+			s.withheld(h, err)
+			return nil
+		}
+		if h.pool.claim(requested, mac) {
+			return s.commit(h, pkt, mac, requested)
+		}
 	}
-	return owner.buildNak(pkt)
+	return s.nak(owner, pkt)
 }
 
 // initReboot answers a DHCPREQUEST from a client in INIT-REBOOT state, which
@@ -217,7 +254,7 @@ func (s segment) initReboot(pkt []byte, mac net.HardwareAddr, requested netip.Ad
 	// option value doesn't match reality), then the server SHOULD send a DHCPNAK
 	// message to the client."
 	if h == nil {
-		return s.subnets[0].buildNak(pkt)
+		return s.nak(s.subnets[0], pkt)
 	}
 	// RFC 2131 Section 4.3.2: "If the network is correct, then the DHCP server
 	// should check if the client's notion of its IP address is correct. If not,
@@ -225,13 +262,13 @@ func (s segment) initReboot(pkt []byte, mac net.HardwareAddr, requested netip.Ad
 	// A reservation, then a binding, is the server's record of that address.
 	if owner, addr, ok := s.reservation(mac); ok {
 		if addr != requested {
-			return h.buildNak(pkt)
+			return s.nak(h, pkt)
 		}
 		return s.commit(owner, pkt, mac, addr)
 	}
 	if owner, addr, ok := s.binding(mac); ok {
 		if addr != requested {
-			return h.buildNak(pkt)
+			return s.nak(h, pkt)
 		}
 		return s.commit(owner, pkt, mac, addr)
 	}
@@ -253,10 +290,10 @@ func (s segment) renewing(pkt []byte, mac net.HardwareAddr, ciaddr netip.Addr) [
 	h := s.subnetOf(ciaddr)
 	// An address in no subnet of the segment is on the wrong network.
 	if h == nil {
-		return s.subnets[0].buildNak(pkt)
+		return s.nak(s.subnets[0], pkt)
 	}
 	if !isHostAddress(h.subnet.Prefix, ciaddr) {
-		return h.buildNak(pkt)
+		return s.nak(h, pkt)
 	}
 	// A reservation is the operator's statement of the client's correct
 	// address, so a client renewing another address, for example a pool lease
@@ -264,24 +301,24 @@ func (s segment) renewing(pkt []byte, mac net.HardwareAddr, ciaddr netip.Addr) [
 	// INIT, where its DHCPDISCOVER is offered the reservation.
 	if owner, addr, ok := s.reservation(mac); ok {
 		if addr != ciaddr {
-			return h.buildNak(pkt)
+			return s.nak(h, pkt)
 		}
 		return s.commit(owner, pkt, mac, addr)
 	}
 	if owner, addr, ok := s.binding(mac); ok {
 		if addr != ciaddr {
-			return h.buildNak(pkt)
+			return s.nak(h, pkt)
 		}
 		return s.commit(owner, pkt, mac, addr)
 	}
 	if s.heldByOther(ciaddr, mac) {
-		return h.buildNak(pkt)
+		return s.nak(h, pkt)
 	}
 	// The server holds no record of the client, for example after a restart
 	// that lost its lease table, and nobody else holds ciaddr: the binding is
 	// recorded again.
 	if !h.pool.claim(ciaddr, mac) {
-		return h.buildNak(pkt)
+		return s.nak(h, pkt)
 	}
 	return s.commit(h, pkt, mac, ciaddr)
 }
@@ -317,8 +354,14 @@ func (s segment) decline(pkt []byte, mac net.HardwareAddr) {
 
 // commit binds addr to mac in h and answers the DHCPACK. A client holds one
 // binding on its segment, so an address it holds in another subnet of the
-// segment is released first.
+// segment is released first. When h cannot name a server identifier
+// (serverID) nothing is bound and the request is not answered.
 func (s segment) commit(h *dhcpHandler, pkt []byte, mac net.HardwareAddr, addr netip.Addr) []byte {
+	id, err := s.serverID(h)
+	if err != nil {
+		s.withheld(h, err)
+		return nil
+	}
 	for _, o := range s.subnets {
 		if o == h {
 			continue
@@ -330,7 +373,130 @@ func (s segment) commit(h *dhcpHandler, pkt []byte, mac net.HardwareAddr, addr n
 		o.leases.release(mac)
 		o.pool.release(previous)
 	}
-	return h.commitBinding(pkt, mac, addr)
+	return h.commitBinding(pkt, mac, addr, id)
+}
+
+// offerRequested answers the DHCPOFFER of requested from h when h's pool can
+// claim it for mac, or nil. The identifier is checked before the claim, so a
+// subnet that cannot answer (serverID) takes no address for the client, and
+// the pools are read next.
+func (s segment) offerRequested(h *dhcpHandler, pkt []byte, mac net.HardwareAddr, requested netip.Addr) []byte {
+	id, err := s.serverID(h)
+	if err != nil {
+		s.withheld(h, err)
+		return nil
+	}
+	if !h.pool.claim(requested, mac) {
+		return nil
+	}
+	return h.buildReply(pkt, msgOffer, requested, id)
+}
+
+// offer answers the DHCPOFFER of addr from h, or nil when h cannot name a
+// server identifier (serverID).
+func (s segment) offer(h *dhcpHandler, pkt []byte, addr netip.Addr) []byte {
+	id, err := s.serverID(h)
+	if err != nil {
+		s.withheld(h, err)
+		return nil
+	}
+	return h.buildReply(pkt, msgOffer, addr, id)
+}
+
+// nak answers the DHCPNAK from h, or nil when h cannot name a server
+// identifier (serverID).
+func (s segment) nak(h *dhcpHandler, pkt []byte) []byte {
+	id, err := s.serverID(h)
+	if err != nil {
+		s.withheld(h, err)
+		return nil
+	}
+	return h.buildNak(pkt, id)
+}
+
+// serverID answers the server identifier (option 54) a reply from h carries,
+// one rule for every message:
+//
+//  1. h's server-identifier leaf, when the receiving device holds it. Set and
+//     not held, the reply is withheld (errServerIdentifierNotHeld): the leaf
+//     names the address the operator wants clients to reach, and no other
+//     address is substituted for it in silence.
+//  2. Else the receiving device's address inside h's subnet, the device's
+//     earliest one when it holds several.
+//  3. Else, for a relayed request, the device's primary address: the relay
+//     reached the server on this device, so the relayed client reaches the
+//     server through the relay at that address.
+//
+// A request no relay forwarded is served only from subnets the device is
+// addressed in (resolveSegment), so the third case is the relay's alone, and
+// a device holding no address at all answers errNoServerAddress.
+//
+// RFC 2131 Section 4.1: "To accommodate potentially incomplete network
+// connectivity, a server MUST choose an address as a 'server identifier'
+// that, to the best of the server's knowledge, is reachable from the client."
+func (s segment) serverID(h *dhcpHandler) (netip.Addr, error) {
+	if configured := h.subnet.ServerIdentifier; configured.IsValid() {
+		if !slices.Contains(s.device, configured) {
+			return netip.Addr{}, errServerIdentifierNotHeld
+		}
+		return configured, nil
+	}
+	// RFC 2131 Section 4.1: "For example, if the DHCP server and the DHCP
+	// client are connected to the same subnet (i.e., the 'giaddr' field in the
+	// message from the client is zero), the server SHOULD select the IP
+	// address the server is using for communication on that subnet as the
+	// 'server identifier'."
+	for _, addr := range s.device {
+		if h.subnet.Prefix.Contains(addr) {
+			return addr, nil
+		}
+	}
+	// RFC 2131 Section 4.1: "If the server has received a message through a
+	// DHCP relay agent, the server SHOULD choose an address from the interface
+	// on which the message was recieved as the 'server identifier' (unless the
+	// server has other, better information on which to make its choice)."
+	if s.relayed && len(s.device) > 0 {
+		return s.device[0], nil
+	}
+	return netip.Addr{}, errNoServerAddress
+}
+
+// withheld records that h answers nothing for err (serverID), naming the
+// subnet, the address and the fix.
+func (s segment) withheld(h *dhcpHandler, err error) {
+	// refuse-by-default: guards handle -- a segment the one-subnet tests build has no log to write to
+	if s.warn == nil {
+		return
+	}
+	if errors.Is(err, errServerIdentifierNotHeld) {
+		s.warn("dhcpserver: no reply, "+err.Error()+". "+
+			"The server answers only from an address clients can reach it at.\n"+
+			"Fix: add the server-identifier address to the listen interface, "+
+			"or delete the subnet's server-identifier leaf",
+			"subnet", h.subnet.Prefix.String(), "server-identifier", h.subnet.ServerIdentifier.String(),
+			"addresses", s.device)
+		return
+	}
+	s.warn("dhcpserver: no reply, "+err.Error()+".\n"+
+		"Fix: add an address to the listen interface",
+		"subnet", h.subnet.Prefix.String(), "addresses", s.device)
+}
+
+// serverIDs lists every address serverIDOwner accepts, for the log line that
+// names the identifiers a client did not select (logExchange).
+func (s segment) serverIDs() []netip.Addr {
+	var ids []netip.Addr
+	for _, h := range s.subnets {
+		if id, err := s.serverID(h); err == nil && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	for _, addr := range s.device {
+		if s.subnetOf(addr) != nil && !slices.Contains(ids, addr) {
+			ids = append(ids, addr)
+		}
+	}
+	return ids
 }
 
 // reservation answers the static mapping for mac on the segment and the subnet
@@ -393,15 +559,26 @@ func (s segment) subnetOf(addr netip.Addr) *dhcpHandler {
 	return nil
 }
 
-// serverIDOwner answers the subnet of the segment whose server identifier is
-// serverID, or nil when serverID is none of them.
+// serverIDOwner answers the subnet of the segment that answers a SELECTING
+// request naming serverID, or nil when serverID is not the server's on this
+// segment. The server's addresses are every identifier serverID gives a subnet
+// of the segment (a held server-identifier leaf, the device's address in the
+// subnet, the device's primary address for a relayed request) and every
+// device address inside a subnet of the segment.
+//
+// RFC 2131 Section 4.1: "A server with multiple network addresses MUST be
+// prepared to to accept any of its network addresses as identifying that
+// server in a DHCP message."
 func (s segment) serverIDOwner(serverID netip.Addr) *dhcpHandler {
 	for _, h := range s.subnets {
-		if h.serverIP == serverID {
+		if id, err := s.serverID(h); err == nil && id == serverID {
 			return h
 		}
 	}
-	return nil
+	if !slices.Contains(s.device, serverID) {
+		return nil
+	}
+	return s.subnetOf(serverID)
 }
 
 // isHostAddress reports whether addr can be a host of prefix: neither its

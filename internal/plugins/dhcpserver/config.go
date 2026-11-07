@@ -56,13 +56,17 @@ type addressRange struct {
 }
 
 type subnetConfig struct {
-	Prefix         netip.Prefix
-	Ranges         []addressRange
-	LeaseTimeSec   uint32
-	DefaultRouter  netip.Addr
-	DNSServers     []netip.Addr
-	DomainName     string
-	StaticMappings []staticMapping
+	Prefix        netip.Prefix
+	Ranges        []addressRange
+	LeaseTimeSec  uint32
+	DefaultRouter netip.Addr
+	// ServerIdentifier is the operator's choice of option 54 for this subnet,
+	// invalid when the leaf is unset. Whether the listen device holds it is a
+	// runtime fact, checked for each reply (segment.serverID).
+	ServerIdentifier netip.Addr
+	DNSServers       []netip.Addr
+	DomainName       string
+	StaticMappings   []staticMapping
 }
 
 type staticMapping struct {
@@ -169,8 +173,7 @@ func parseSubnet(prefixStr string, data map[string]any) (subnetConfig, error) {
 	}
 	// This server speaks RFC 2131 only, so a subnet is IPv4. Every address
 	// derived from the prefix reaches buildReply, which narrows it to four
-	// bytes, and the prefix itself is one of the fallbacks register.go picks
-	// the server identifier from. Refuse the family at the boundary so no
+	// bytes. Refuse the family at the boundary so no
 	// client packet can reach a four-byte narrowing of an IPv6 address.
 	if !prefix.Addr().Is4() {
 		return sub, fmt.Errorf("subnet prefix %q: must be IPv4, this server does not speak DHCPv6", prefixStr)
@@ -203,6 +206,14 @@ func parseSubnet(prefixStr string, data map[string]any) (subnetConfig, error) {
 			return sub, err
 		}
 		sub.DefaultRouter = addr
+	}
+
+	if v, ok := data["server-identifier"].(string); ok && v != "" {
+		addr, err := parseServerIdentifier(prefix, v)
+		if err != nil {
+			return sub, err
+		}
+		sub.ServerIdentifier = addr
 	}
 
 	const maxDNSServers = 63
@@ -380,6 +391,35 @@ func parseIPv4Option(field, value string) (netip.Addr, error) {
 	}
 	if !addr.Is4() {
 		return netip.Addr{}, fmt.Errorf("%s %q: must be an IPv4 address", field, value)
+	}
+	return addr, nil
+}
+
+// parseServerIdentifier checks the server-identifier leaf of the subnet
+// prefix: an IPv4 unicast address that is neither the network nor the
+// broadcast address of prefix. It need not fall inside prefix: a subnet served
+// only through a relay holds no address of the server's, and the server is
+// reached at an address of its own segment.
+//
+// RFC 2131 Section 4.1: "To accommodate potentially incomplete network
+// connectivity, a server MUST choose an address as a 'server identifier'
+// that, to the best of the server's knowledge, is reachable from the client."
+// No client reaches the server at a network, broadcast, multicast, loopback,
+// link-local or unspecified address, so a commit refuses each.
+func parseServerIdentifier(prefix netip.Prefix, value string) (netip.Addr, error) {
+	addr, err := parseIPv4Option("server-identifier", value)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	const fix = "Fix: set server-identifier to an address the listen interface holds, or delete the leaf " +
+		"and Ze uses the interface's address in the subnet"
+	if !addr.IsGlobalUnicast() {
+		return netip.Addr{}, fmt.Errorf("subnet %s: server-identifier %s is not a unicast host address, "+
+			"so no client can reach the server at it.\n%s", prefix, addr, fix)
+	}
+	if prefix.Contains(addr) && !isHostAddress(prefix, addr) {
+		return netip.Addr{}, fmt.Errorf("subnet %s: server-identifier %s is the subnet's network or broadcast address, "+
+			"which names no host, so no client can reach the server at it.\n%s", prefix, addr, fix)
 	}
 	return addr, nil
 }

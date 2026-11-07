@@ -27,7 +27,7 @@ func TestNakDeliveredToRelayAgent(t *testing.T) {
 	relay := netip.MustParseAddr("192.168.1.254")
 	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x31}
 
-	relayed := buildMsg(msgRequest, mac, 0x3201, netip.Addr{}, 0, ipOpt(optServerID, h.serverIP))
+	relayed := buildMsg(msgRequest, mac, 0x3201, netip.Addr{}, 0, ipOpt(optServerID, serverAddr(h)))
 	ga := relay.As4()
 	copy(relayed[24:28], ga[:])
 	nak := h.handle(relayed)
@@ -46,7 +46,7 @@ func TestNakDeliveredToRelayAgent(t *testing.T) {
 	}
 
 	direct := nakForSelecting(t, h, mac, 0x3202)
-	directReq := buildMsg(msgRequest, mac, 0x3202, netip.Addr{}, 0, ipOpt(optServerID, h.serverIP))
+	directReq := buildMsg(msgRequest, mac, 0x3202, netip.Addr{}, 0, ipOpt(optServerID, serverAddr(h)))
 	dst = responseAddr(directReq, direct)
 	if dst.IP.String() == relay.String() || dst.Port == 67 {
 		t.Errorf("direct NAK destination = %s, must not be a relay agent on port 67", dst)

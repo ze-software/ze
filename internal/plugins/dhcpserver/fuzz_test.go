@@ -59,7 +59,7 @@ func newFuzzDHCPHandler() *dhcpHandler {
 		LeaseTimeSec:  3600,
 		DefaultRouter: netip.MustParseAddr("192.168.1.1"),
 	}
-	return newDHCPHandler(sub, netip.MustParseAddr("192.168.1.1"), pxeConfig{})
+	return newDHCPHandler(sub, pxeConfig{})
 }
 
 // dhcpSeeds returns valid and malformed DHCP datagrams for the fuzzer, reusing

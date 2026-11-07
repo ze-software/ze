@@ -41,9 +41,9 @@ options. It also carries the PXE options the provisioning path needs.
   network holding a subnet that contains the relay's address; with `giaddr`
   zero, every shared network holding a subnet that contains an address of the
   receiving device. The device's IPv4 addresses are read from netlink
-  (`readDeviceAddrs`, beside the neighbor reads) for each request no relay
-  forwarded, so an address added to the listen interface is served from the
-  next request on, with no reload. A device that holds no address in any
+  (`readDeviceAddrs`, beside the neighbor reads) for each request, relayed or
+  not, because they also choose the server identifier, so an address added to
+  the listen interface is served from the next request on, with no reload. A device that holds no address in any
   configured subnet answers nothing and logs one warning a minute naming the
   interface, its addresses and the fix, and `ze doctor` reports the same
   (`doctor-dhcp-segment-address`). The home subnet is the one holding
@@ -57,7 +57,7 @@ options. It also carries the PXE options the provisioning path needs.
   other subnets' pools in the order Ze sorts them (shared networks by name,
   subnets by prefix text). A DHCPREQUEST is classified as
   RFC 2131 Section 4.3.2 defines it: SELECTING (server identifier present) is
-  ignored when it names none of the segment's server identifiers;
+  ignored when it names none of the server's addresses on the segment;
   INIT-REBOOT (requested address, no server identifier) is refused with a
   DHCPNAK when the address is in no subnet of the segment or differs from the
   client's reservation or binding; RENEWING and REBINDING (`ciaddr` only) are
@@ -70,6 +70,26 @@ options. It also carries the PXE options the provisioning path needs.
   RFC 2131 Section 4.3.2 requires, so after a restart that lost the lease table
   a rebooting client waits for its INIT-REBOOT to time out and sends a
   DHCPDISCOVER.
+- **The server identifier is an address the server holds, chosen per reply.**
+  RFC 2131 Section 4.1 asks for a server identifier "that, to the best of the
+  server's knowledge, is reachable from the client", so option 54 (and siaddr,
+  unless PXE names a TFTP server) is never derived from the configuration
+  alone (`segment.serverID`). It is the subnet's `server-identifier` leaf when
+  the receiving device holds that address; else the device's address inside
+  the subnet the reply is built from; else, for a relayed request to a subnet
+  the device holds no address in, the device's primary address: for a relayed
+  message RFC 2131 Section 4.1 has the server choose an address of the
+  interface the message arrived on. A `server-identifier` the device does not hold withholds the
+  reply, with one warning a minute naming the subnet, the address and the fix,
+  rather than falling back to another address in silence; the check runs
+  before any pool address is claimed. The commit refuses a leaf value that is
+  not a unicast host address, or that is the subnet's network or broadcast
+  address, and accepts one outside the subnet, which a relay-only subnet
+  needs. A SELECTING REQUEST is the server's when its option 54 is any of the
+  identifiers the segment's subnets would send or any device address inside a
+  subnet of the segment (`segment.serverIDOwner`), as RFC 2131 Section 4.1
+  requires of a server with several addresses. The `default-router` leaf plays
+  no part.
 - **In-process only.** The selector table `iface.ResolveDevice` reads is
   filled by the interface plugin inside the daemon's process. A forked copy
   holds an empty table and would bind every logical name as if it were the

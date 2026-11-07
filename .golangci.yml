@@ -99,6 +99,12 @@ linters:
         linters:
           - misspell
         text: "`prefered`"
+      # RFC 2131 Section 4.1 spells "recieved", and the quote above the
+      # server identifier choice is kept verbatim (ai/rules/rfc-compliance.md).
+      - path: "internal/plugins/dhcpserver/segment\\.go"
+        linters:
+          - misspell
+        text: "`recieved`"
       # The gNMI specification Section 2.3.1 spells "serialise", and the quote
       # above the code it governs is kept verbatim. Ze's own prose in these
       # files uses the US spelling.
