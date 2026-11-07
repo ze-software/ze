@@ -58,6 +58,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   owed work, never declined.
 - Full YANG (RFC 7950) coverage runs after the first release. Before it, YANG
   work is limited to what blocks something Ze needs.
+- RFC 9463 (encrypted DNS resolver discovery, DNR) may be added later and is
+  not in the first release. Work done before it shapes learned DNS resolvers
+  so DNR can extend them without undoing anything.
 - A question the RFC text answers is not asked. Where the RFC is silent or
   unclear, the goal is interoperability: Ze must work with BIRD and FRR, so read
   their source and do what lets Ze interoperate with both. freeRtr's source
