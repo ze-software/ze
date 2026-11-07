@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/test/kernelfeature"
+	"github.com/ze-software/ze/internal/test/msslab"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -663,4 +665,95 @@ func nftIntegrationJumpTarget(t *testing.T, tableName, chainName string) string 
 	}
 	t.Fatalf("nft table %q is absent", tableName)
 	return ""
+}
+
+// tcpMSSClampConfig is the operator's config for the clamp proof: a forward
+// base chain whose one term clamps TCP SYNs to 1400. It goes through
+// firewall.ParseFirewallConfig, the parse the daemon runs, so the rule under
+// test is the one `tcp-mss-set 1400;` produces, not a hand-built action.
+const tcpMSSClampConfig = `{"firewall":{"table":{"mss":{"family":"inet","chain":{"forward":{` +
+	`"type":"filter","hook":"forward","priority":"0","policy":"accept",` +
+	`"term":{"clamp":{"from":{"protocol":"tcp","tcp-flags":"syn"},"then":{"tcp-mss-set":"1400"}}}}}}}}}`
+
+// VALIDATES: spec-home-cpe-21 AC-1..AC-3 -- a SYN forwarded through the rule
+// Ze installs for `tcp-mss-set 1400` leaves with MSS 1400 when it arrived with
+// 1460, keeps 1300 when it arrived with 1300, and gains no option when it
+// carried none, for IPv4 and for IPv6.
+// PREVENTS: an MSS clamp that raises a smaller MSS. RFC 9293 Section 3.7.2:
+// "The TCP MSS Option specifies an upper bound for the size of packets that
+// can be received (see [43])." Raising it tells the sender it may send
+// segments the receiver never offered to take.
+//
+// Ze's lowering does not compare: lowerSetTCPMSS emits an immediate and an
+// exthdr write of two bytes at offset 2 of option kind 2. The kernel compares
+// for it, in nft_exthdr_tcp_set_eval (net/netfilter/nft_exthdr.c), inside the
+// two-byte arm only: "if (ntohs(old.v16) <= ntohs(new.v16)) return;". So the
+// no-raise outcome depends on the write length Ze installs, and this test is
+// the proof on the state Ze installs that the stack never raises.
+//
+// The method: one router namespace with two veth pairs (msslab). A SYN is
+// injected on the ingress peer, forwarded by the kernel through the forward
+// chain, and read on the egress peer, so the assertion is on the forwarded
+// packet, never on the ruleset.
+//
+// The two proofs have two breaks in Ze's code, each run red then green:
+//   - lowering (AC-1): lowerAction answers no expressions for
+//     firewall.SetTCPMSS. The 1460 SYN then arrives as 1460.
+//   - no raise (AC-2): lowerSetTCPMSS loads four bytes {2, 4, hi, lo} and
+//     writes them at offset 0 with Len 4. That write takes the four-byte arm
+//     of nft_exthdr_tcp_set_eval, which has no MSS guard, and the 1300 SYN
+//     arrives as 1400.
+//
+// The 1460 case is the positive control for the other two: a lab that
+// forwarded nothing, or a rule that never matched, fails it.
+func TestTCPMSSSetClampsNeverRaises(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	withNftNetNS(t, func() {
+		lab, err := msslab.Open("zemssin", "zemssout")
+		if err != nil {
+			t.Fatalf("build the router: %v", err)
+		}
+		t.Cleanup(func() {
+			if err := lab.Close(); err != nil {
+				t.Errorf("remove the router: %v", err)
+			}
+		})
+
+		tables, err := firewall.ParseFirewallConfig(tcpMSSClampConfig)
+		if err != nil {
+			t.Fatalf("parse the tcp-mss-set config: %v", err)
+		}
+		b := newNftIntegrationBackend(t)
+		if err := b.Apply(tables); err != nil {
+			t.Fatalf("apply the tcp-mss-set table: %v", err)
+		}
+
+		cases := []struct {
+			name string
+			sent msslab.Option
+			want msslab.Option
+		}{
+			{"larger MSS is lowered", msslab.Option{Present: true, Value: 1460}, msslab.Option{Present: true, Value: 1400}},
+			{"smaller MSS is kept", msslab.Option{Present: true, Value: 1300}, msslab.Option{Present: true, Value: 1300}},
+			{"absent MSS stays absent", msslab.Option{}, msslab.Option{}},
+		}
+		for _, family := range []msslab.Family{msslab.FamilyIPv4, msslab.FamilyIPv6} {
+			for _, c := range cases {
+				seen, err := lab.Forward(family, c.sent, 3*time.Second)
+				if err != nil {
+					t.Fatalf("%s, %s: %v", family, c.name, err)
+				}
+				if seen.MSS != c.want {
+					t.Errorf("%s, %s: sent %+v, the forwarded SYN carries %+v, want %+v",
+						family, c.name, c.sent, seen.MSS, c.want)
+				}
+				if !c.sent.Present && seen.HeaderOctets != 20 {
+					t.Errorf("%s, %s: the forwarded TCP header is %d octets, want 20 (no option added)",
+						family, c.name, seen.HeaderOctets)
+				}
+			}
+		}
+	})
 }

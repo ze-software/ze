@@ -1410,10 +1410,22 @@ func lowerTCPFlagsMatch(flags, mask firewall.TCPFlags) ([]expr.Any, error) {
 	}, nil
 }
 
-// lowerSetTCPMSS clamps the TCP MSS option to the given value. The
+// lowerSetTCPMSS clamps the TCP MSS option to at most the given value. The
 // nftables equivalent is `tcp option maxseg size set <mss>`. TCP MSS
 // is option kind 2; the 2-byte size field sits at byte offset 2
 // within the option (after the 1-byte kind and 1-byte length fields).
+//
+// The expression itself does not compare: the kernel does. In
+// nft_exthdr_tcp_set_eval (net/netfilter/nft_exthdr.c), the two-byte write
+// arm skips an MSS option whose value is already at or below the register:
+// "if (ntohs(old.v16) <= ntohs(new.v16)) return;". The guard sits only in the
+// two-byte arm, so the clamp never raising a smaller MSS depends on this
+// write staying two bytes at offset 2: a four-byte write over the whole option
+// takes the unguarded arm and can raise it. TestTCPMSSSetClampsNeverRaises
+// (integration_linux_test.go) proves both halves on a forwarded SYN.
+//
+// RFC 9293 Section 3.7.2: "The TCP MSS Option specifies an upper bound for
+// the size of packets that can be received (see [43])."
 func lowerSetTCPMSS(mss uint16) ([]expr.Any, error) {
 	if mss == 0 {
 		return nil, errTcpMssSetValueMustBe

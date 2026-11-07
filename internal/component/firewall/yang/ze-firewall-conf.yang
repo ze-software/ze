@@ -467,10 +467,13 @@ module ze-firewall-conf {
             type uint16 {
                 range "1..65535";
             }
-            description "The value is 1 to 65535, and verify refuses 0. The table MUST be of family ip, ip6 or
-                inet, because arp, bridge and netdev carry no TCP header to rewrite. A clamp repairs a
-                path whose smallest link cannot carry the segment size the two ends agreed.";
-            ze:help "Clamp TCP Maximum Segment Size option to the given value";
+            description "The value is an upper bound on the TCP MSS option. A larger MSS is lowered to the
+                value, and an MSS already at or below it is left alone, so the clamp never raises the
+                segment size a host offered. A packet with no MSS option is not changed, and only a SYN
+                carries one. The value is 1 to 65535, and verify refuses 0. The table MUST be of family
+                ip, ip6 or inet, because arp, bridge and netdev carry no TCP header to change. A clamp
+                repairs a path whose smallest link cannot carry the segment size the two ends agreed.";
+            ze:help "Clamp the TCP MSS to at most this value (a smaller MSS is kept)";
         }
         container counter {
             presence "Enable per-rule counter";

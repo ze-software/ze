@@ -64,6 +64,7 @@ func init() {
 	Register("policy/policy-set-table", policySetTable)
 	Register("policy/policy-tcp-flags", policySingleTable)
 	Register("policy/policy-tcp-mss", policySingleTable)
+	Register("policy/policy-tcp-mss-clamp", policyTCPMSSClamp)
 
 	Register("static/static-boot-apply-setup", staticSetup("zens0", "192.168.1.2/24", "10.0.0.100/24"))
 	Register("static/static-boot-apply", staticBootApply)

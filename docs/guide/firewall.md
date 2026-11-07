@@ -300,7 +300,7 @@ A trailing `*` on an interface name produces a prefix match. For example,
 | `mark-set` | Set packet mark | `mark-set { value 0x10; }` |
 | `connection-mark-set` | Set connmark | `connection-mark-set { value 0x20/0xff; }` |
 | `dscp-set` | Set DSCP | `dscp-set 46;` |
-| `tcp-mss-set` | Clamp TCP MSS | `tcp-mss-set 1400;` |
+| `tcp-mss-set` | Clamp TCP MSS to at most the value: a larger MSS is lowered, a smaller one is left alone, and only a SYN carries the option | `tcp-mss-set 1400;` |
 | `counter` | Count packets/bytes | `counter;` |
 | `log` | Log packet | `log { prefix "DROPPED"; }` |
 | `limit-rate` | Rate limit | `limit-rate { rate 10/second; burst 5; }` |

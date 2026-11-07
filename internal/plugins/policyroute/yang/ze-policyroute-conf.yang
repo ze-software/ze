@@ -247,15 +247,18 @@ module ze-policyroute-conf {
                         type uint16 {
                             range "1..65535";
                         }
-                        description "Ze writes this value into the TCP MSS option, kind
-                                     2, of every matching packet, and it does not read
-                                     the value already there. A packet that carries no
-                                     MSS option is not changed. The range is 1 to 65535,
-                                     and 0 is refused at commit. This action is not
-                                     terminal, so it combines with accept, drop, table,
-                                     or next-hop in the same rule.";
+                        description "The value is an upper bound on the TCP MSS option,
+                                     kind 2, of every matching packet. A larger MSS is
+                                     lowered to the value, and an MSS already at or
+                                     below it is left alone, so the clamp never raises
+                                     the segment size a host offered. A packet that
+                                     carries no MSS option is not changed, and only a
+                                     SYN carries one, so match tcp-flags syn. The range
+                                     is 1 to 65535, and 0 is refused at commit. This
+                                     action is not terminal, so it combines with accept,
+                                     drop, table, or next-hop in the same rule.";
                         ze:help
-                            "Rewrite the TCP MSS option to this value in bytes.";
+                            "Clamp the TCP MSS to at most this many bytes (a smaller MSS is kept).";
                     }
                 }
             }
