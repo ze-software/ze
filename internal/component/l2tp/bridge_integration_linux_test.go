@@ -7,8 +7,9 @@
 // PPPIOCGCHAN and PPPIOCUNBRIDGECHAN need. Opening /dev/ppp still needs the
 // host grant `./le setup install` applies (its `ppp-access` step puts the node
 // in group dip, mode 0660), so the file keeps the integration tag: a host
-// without that grant fails here on its setup rather than on Ze. The full
-// PPPoE<->pppol2tp bridge is driven by `./le test deployment gokrazy-l2tp-ppp`.
+// without that grant fails here on its setup rather than on Ze. No run drives
+// the full PPPoE<->pppol2tp bridge yet: `./le test deployment l2tp-ppp` and
+// `gokrazy-l2tp-ppp` carry no PPPoE subscriber and no Ze LAC.
 
 package l2tp
 
@@ -37,8 +38,8 @@ func openPPPChannel(t *testing.T) int {
 // TestLACChannelBridge exercises the LAC data-plane bridge helpers against a
 // real kernel: it opens a /dev/ppp channel fd and issues PPPIOCUNBRIDGECHAN
 // (idempotent when no bridge exists on a fresh channel). Establishing a full
-// PPPoE<->pppol2tp bridge requires two connected pppox sockets; that end-to-end
-// path is driven by `./le test deployment gokrazy-l2tp-ppp`.
+// PPPoE<->pppol2tp bridge requires two connected pppox sockets, and no test
+// drives that end-to-end path yet (neither deployment run carries PPPoE).
 //
 // VALIDATES: the PPPIOCBRIDGECHAN/PPPIOCGCHAN constants are the correct arch
 // values and the ioctl wrappers reach the kernel.

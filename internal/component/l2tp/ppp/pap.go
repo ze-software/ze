@@ -276,6 +276,7 @@ func (s *pppSession) runPAPAuthPhase() bool {
 		})
 		return true
 	}
+	s.closeLinkAfterRefusal(resp)
 	var tb textbuf.Buffer
 	s.fail(tb.Str("pap: auth rejected: ").Str(resp.message).String())
 	s.sendAuthEvent(eventAuthFailure{

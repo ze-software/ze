@@ -44,7 +44,7 @@ func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
 		return subscriber.AuthResult{Accept: false}
 	}
 	subscriber.RegisterAuthHandler(local)
-	done := startPPPoEAuthDrain(slog.Default(), driver, subscriber.GetAuthHandler, bus, &pending)
+	done := startPPPoEAuthDrain(slog.Default(), driver, subscriber.GetAuthHandler, bus, &pending, nil)
 	t.Cleanup(func() {
 		driver.Stop()
 		select {
@@ -112,7 +112,7 @@ func TestPPPoEAuthDrainRefusesWithoutProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 	var pending sync.Map
-	done := startPPPoEAuthDrain(slog.Default(), driver, subscriber.GetAuthHandler, bus, &pending)
+	done := startPPPoEAuthDrain(slog.Default(), driver, subscriber.GetAuthHandler, bus, &pending, nil)
 	t.Cleanup(func() {
 		driver.Stop()
 		select {

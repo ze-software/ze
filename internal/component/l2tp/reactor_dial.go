@@ -211,6 +211,28 @@ func (r *l2tpReactor) handleDial(req dialRequest) {
 	}
 
 	r.tunnelsMu.Lock()
+	// AC-10 (spec-home-cpe-14): an incoming call to a remote this LAC already
+	// holds an established tunnel to rides that tunnel, so the sessions of
+	// one remote share one tunnel.
+	// RFC 2661 Section 5.3: "Multiple tunnels may
+	// exist between a given LNS-LAC pair, and multiple sessions may exist
+	// within a tunnel."
+	if req.call != nil && !req.call.outgoing {
+		if t := r.establishedTunnelToLocked(req.target); t != nil {
+			t.pendingCall = req.call
+			sends := r.placePendingCallLocked(t, now)
+			localTID := t.localTID
+			newDeadline := t.engine.NextDeadline()
+			r.tunnelsMu.Unlock()
+			r.transmit(localTID, sends)
+			select {
+			case r.updateCh <- heapUpdate{tunnelID: localTID, deadline: newDeadline}:
+			case <-r.stop:
+			}
+			req.result <- dialResult{localTID: localTID}
+			return
+		}
+	}
 	if r.params.MaxTunnels != 0 && uint16(len(r.tunnelsByLocalID)) >= r.params.MaxTunnels {
 		r.tunnelsMu.Unlock()
 		r.logger.Warn("l2tp: dial rejected; max-tunnels limit reached",
@@ -356,6 +378,9 @@ func (r *l2tpReactor) placePendingCallLocked(t *L2TPTunnel, now time.Time) []sen
 	// establish/teardown signals reach the blocking RPC. A zero localSID
 	// means the call was refused (max-sessions, allocation) -- surface that
 	// synchronously instead of leaving the caller to time out.
+	if localSID == 0 && pc.params.realm != nil {
+		pc.params.realm.end("L2TP call to realm " + pc.params.realm.realm + " refused by this LAC (session limit)")
+	}
 	if pc.result == nil {
 		return sends
 	}
@@ -377,7 +402,17 @@ func (r *l2tpReactor) placePendingCallLocked(t *L2TPTunnel, now time.Time) []sen
 // it carries no result channel. Caller MUST hold tunnelsMu.
 func (t *L2TPTunnel) resolvePendingCall(o callOutcome) {
 	pc := t.pendingCall
-	if pc == nil || pc.result == nil {
+	if pc == nil {
+		return
+	}
+	// A realm call whose tunnel died before the call was placed refuses
+	// its subscriber; it carries no result channel.
+	if pc.params.realm != nil {
+		pc.params.realm.end("L2TP tunnel to realm " + pc.params.realm.realm + " failed before the call was placed")
+		t.pendingCall = nil
+		return
+	}
+	if pc.result == nil {
 		return
 	}
 	pc.result <- o
@@ -401,4 +436,28 @@ func (r *l2tpReactor) transmit(localTID uint16, outbound []sendRequest) {
 				"to", req.to.String(), "len", len(req.bytes), "error", err.Error())
 		}
 	}
+}
+
+// establishedTunnelToLocked returns an established tunnel to target's
+// address that authenticated with target's shared secret and has no call
+// waiting, or nil. The peer's UDP port is not compared: RFC 2661 Section 8.1
+// lets the peer answer from another port than the one dialed. Caller MUST
+// hold tunnelsMu.
+func (r *l2tpReactor) establishedTunnelToLocked(target DialTarget) *L2TPTunnel {
+	for _, t := range r.tunnelsByLocalID {
+		if t.state != L2TPTunnelEstablished {
+			continue
+		}
+		if t.pendingCall != nil {
+			continue
+		}
+		if t.peerAddr.Addr() != target.Remote.Addr() {
+			continue
+		}
+		if t.initiatorSecret != target.SharedSecret {
+			continue
+		}
+		return t
+	}
+	return nil
 }

@@ -444,3 +444,35 @@ func TestHandleOutgoingCall_MissingArgs(t *testing.T) {
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "called")
 }
+
+// TestSessionJSONRelayRealmFields pins the AC-12 keys of spec-home-cpe-14.
+//
+// VALIDATES: a realm-relayed LAC session carries relay-realm, relay-remote,
+// proxy-lcp-sent and proxy-auth-sent, plus proxy-auth-reason when proxy
+// authentication was not sent; a session with no realm relay (a Service-Name
+// relay or a local session) carries none of these keys.
+func TestSessionJSONRelayRealmFields(t *testing.T) {
+	relayKeys := []string{"relay-realm", "relay-remote", "proxy-lcp-sent", "proxy-auth-sent", "proxy-auth-reason"}
+
+	chap := sessionJSON(&l2tppkg.SessionSnapshot{RealmRelay: &l2tppkg.RealmRelaySnapshot{
+		Realm: "example.net", Remote: "lns-a", ProxyLCPSent: true, ProxyAuthSent: true,
+	}}, true)
+	require.Equal(t, "example.net", chap["relay-realm"])
+	require.Equal(t, "lns-a", chap["relay-remote"])
+	require.Equal(t, true, chap["proxy-lcp-sent"])
+	require.Equal(t, true, chap["proxy-auth-sent"])
+	require.NotContains(t, chap, "proxy-auth-reason")
+
+	pap := sessionJSON(&l2tppkg.SessionSnapshot{RealmRelay: &l2tppkg.RealmRelaySnapshot{
+		Realm: "example.net", Remote: "lns-a", ProxyLCPSent: true, ProxyAuthReason: "no-shared-secret",
+	}}, true)
+	require.Equal(t, false, pap["proxy-auth-sent"])
+	require.Equal(t, "no-shared-secret", pap["proxy-auth-reason"])
+
+	for _, detail := range []bool{false, true} {
+		plain := sessionJSON(&l2tppkg.SessionSnapshot{}, detail)
+		for _, k := range relayKeys {
+			require.NotContains(t, plain, k)
+		}
+	}
+}

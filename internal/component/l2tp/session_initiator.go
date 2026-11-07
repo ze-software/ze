@@ -8,9 +8,11 @@ package l2tp
 import (
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/core/callsink"
 )
 
 // callParams carries the local-side attributes stamped into an initiator's
@@ -33,6 +35,28 @@ type callParams struct {
 	// pppol2tp channel (A-4) when the session's kernel resources are created.
 	// Zero for calls not originating from a PPPoE relay.
 	pppoeChannelFD int
+	// realm carries a realm relay's identity, proxy data and handoff. Nil
+	// for a Service-Name relay and every other call.
+	realm *realmCall
+}
+
+// realmCall is what a realm-relayed incoming call carries beside the common
+// call attributes: the binding that matched, the proxy AVPs its ICCN writes
+// (nil when they could not fit, see newICCNProxy), why proxy authentication
+// is not sent (empty when it is), and the PPPoE side's handoff.
+type realmCall struct {
+	realm      string
+	remote     string
+	proxy      *iccnProxy
+	authReason string
+	handoff    callsink.RealmHandoff
+	// canceled is set by Cancel from the PPPoE side; ended guards the one
+	// Ended report. Both are read across goroutines, hence atomic.
+	canceled atomic.Bool
+	ended    atomic.Bool
+	// iccnSent is set by the reactor once the ICCN was enqueued; read under
+	// tunnelsMu by the snapshot.
+	iccnSent bool
 }
 
 // framingOrDefault returns the framing type, defaulting to 1 (synchronous)
@@ -73,7 +97,7 @@ func (t *L2TPTunnel) placeIncomingCall(now time.Time, p callParams, logger *slog
 	}
 	logger.Info("l2tp: ICRQ sent; session wait-reply (LAC incoming)",
 		"local-sid", sess.localSID, "call-serial", p.callSerial)
-	return sess.localSID, []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return sess.localSID, t.enqueuedSend(wire)
 }
 
 // placeOutgoingCall originates an LNS-side outgoing call on an established
@@ -120,7 +144,7 @@ func (t *L2TPTunnel) placeOutgoingCall(now time.Time, p callParams, logger *slog
 	}
 	logger.Info("l2tp: OCRQ sent; session wait-reply (LNS outgoing)",
 		"local-sid", sess.localSID, "called", p.calledNumber)
-	return sess.localSID, []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return sess.localSID, t.enqueuedSend(wire)
 }
 
 // peerFramingAllows reports whether every bit of framingType was advertised by
@@ -175,6 +199,7 @@ func (t *L2TPTunnel) newInitiatorSession(now time.Time, lnsMode bool, p callPara
 		framingType:    p.framingOrDefault(),
 		callingNumber:  p.callingNumber,
 		pppoeChannelFD: p.pppoeChannelFD,
+		realm:          p.realm,
 	}
 	// Record the origination as an FSM transition so the initiator session's
 	// history and metrics reflect it entered wait-reply on our request (AC-5),
@@ -209,15 +234,28 @@ func (t *L2TPTunnel) handleICRP(sess *L2TPSession, payload []byte, now time.Time
 		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
 	}
 	sess.remoteSID = info.assignedSessionID
+	if sess.realm != nil && sess.realm.isCancelled() {
+		// The subscriber left while the call was placed: CDN, no ICCN.
+		logger.Info("l2tp: realm call abandoned by the subscriber before ICCN; sending CDN",
+			"local-sid", sess.localSID, "realm", sess.realm.realm)
+		return t.teardownSession(sess, cdnResultAdministrative, l2tpevents.TerminateCauseUserRequest, now, logger)
+	}
 
 	bodyBuf := GetBuf()
 	defer PutBuf(bodyBuf)
-	n := writeICCNBody(*bodyBuf, sess.txConnectSpeed, sess.framingType)
+	var proxy *iccnProxy
+	if sess.realm != nil {
+		proxy = sess.realm.proxy
+	}
+	n := writeICCNBody(*bodyBuf, sess.txConnectSpeed, sess.framingType, proxy)
 	wire, enqErr := t.engine.Enqueue(sess.remoteSID, (*bodyBuf)[:n], now, false)
 	if enqErr != nil {
 		logger.Warn("l2tp: ICCN enqueue failed; tearing down session",
 			"local-sid", sess.localSID, "error", enqErr.Error())
 		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
+	}
+	if sess.realm != nil {
+		sess.realm.iccnSent = true
 	}
 	sess.transition(L2TPSessionEstablished, "ICRP received")
 	sess.kernelSetupNeeded = true
@@ -226,7 +264,7 @@ func (t *L2TPTunnel) handleICRP(sess *L2TPSession, payload []byte, now time.Time
 	sess.resolveCall(callOutcome{localSID: sess.localSID, remoteSID: sess.remoteSID})
 	logger.Info("l2tp: session established (incoming LAC)",
 		"local-sid", sess.localSID, "remote-sid", sess.remoteSID)
-	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return t.enqueuedSend(wire)
 }
 
 // handleOCRP processes an Outgoing-Call-Reply on an LNS-initiated session in
@@ -282,12 +320,17 @@ func writeICRQBody(buf []byte, localSID uint16, callSerial, bearerType uint32, c
 
 // writeICCNBody writes the AVP body of an ICCN (LAC -> LNS incoming call
 // connected). RFC 2661 Section 7.8 required AVPs: Message Type (12), Tx
-// Connect Speed, Framing Type.
-func writeICCNBody(buf []byte, txConnectSpeed, framingType uint32) int {
+// Connect Speed, Framing Type. A realm-relayed call (proxy non-nil) appends
+// the proxy LCP and authentication AVPs of Section 4.4.5 after them.
+func writeICCNBody(buf []byte, txConnectSpeed, framingType uint32, proxy *iccnProxy) int {
 	off := 0
 	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgICCN))
 	off += WriteAVPUint32(buf, off, true, AVPTxConnectSpeed, txConnectSpeed)
 	off += WriteAVPUint32(buf, off, true, AVPFramingType, framingType)
+	if proxy != nil {
+		// RFC 2661 Section 4.4.5
+		off += writeICCNProxyAVPs(buf, off, proxy)
+	}
 	return off
 }
 

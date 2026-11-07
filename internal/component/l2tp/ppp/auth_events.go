@@ -111,6 +111,10 @@ type EventAuthRequest struct {
 	Challenge  []byte
 	Response   []byte
 	PeerName   string
+	// ProxyLCP is the LCP exchange of a session started with
+	// StartSession.CaptureProxyLCP (a PPPoE AC that has realm relay
+	// bindings), nil otherwise. A realm relay sends it to the LNS.
+	ProxyLCP *ProxyLCPCapture
 }
 
 func (EventAuthRequest) isAuthEvent() {}
@@ -144,6 +148,9 @@ type authResponseMsg struct {
 	accept           bool
 	message          string
 	authResponseBlob []byte
+	// terminate asks the session to close the link with an LCP
+	// Terminate-Request after a reject (Driver.RefuseAuth).
+	terminate bool
 }
 
 // Compile-time exhaustiveness pin. Bumping the array length without

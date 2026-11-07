@@ -114,6 +114,11 @@ type StartSession struct {
 	ProxyLCPLastSent    []byte // AVP 27: Last-Sent-LCP-CONFREQ
 	ProxyLCPLastRecv    []byte // AVP 28: Last-Received-LCP-CONFREQ
 
+	// CaptureProxyLCP asks the session to record its LCP exchange and hand
+	// it out on EventAuthRequest.ProxyLCP, for a LAC that may relay the
+	// subscriber by realm (RFC 2661 Section 4.4.5). False everywhere else.
+	CaptureProxyLCP bool
+
 	// PeerAddr is informational, used for log fields. Not used for
 	// any I/O decision (the chan fd already routes to the peer).
 	PeerAddr netip.AddrPort

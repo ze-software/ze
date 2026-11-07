@@ -8,8 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
@@ -25,6 +28,8 @@ var (
 	errL2tpRemoteMissingAddress         = errors.New("l2tp remote: address is required")
 	errL2tpRemoteDuplicate              = errors.New("l2tp remote: duplicate name")
 	errL2tpRelayUnknownRemote           = errors.New("l2tp relay: references unknown remote")
+	errL2tpRelayRealmInvalid            = errors.New("l2tp relay-realm: invalid realm")
+	errL2tpRelayRealmDuplicate          = errors.New("l2tp relay-realm: duplicate realm")
 )
 
 // Env var registrations. Each YANG leaf under `environment/l2tp/` that has
@@ -166,6 +171,11 @@ type Parameters struct {
 	// Relays bind a PPPoE Service-Name to the remote its subscribers are
 	// relayed to (LAC incoming call). Empty when no `relay` blocks exist.
 	Relays []RelayBinding
+	// RelayRealms bind the realm of a PPP username to the remote its
+	// subscribers are relayed to (wholesale LAC). Empty when no
+	// `relay-realm` blocks exist; with none, a PPPoE session is terminated
+	// locally exactly as before.
+	RelayRealms []RealmRelayBinding
 }
 
 // Remote is a configured L2TP dial target: a remote LNS/LAC endpoint ze
@@ -184,6 +194,17 @@ type Remote struct {
 type RelayBinding struct {
 	Service string
 	Remote  string
+}
+
+// realmLengthMax is the longest realm a binding accepts: a DNS name.
+const realmLengthMax = 253
+
+// RealmRelayBinding maps the realm of a PPP username (the text after its last
+// '@') to the L2TP remote its subscribers are relayed to. Realm is stored case
+// folded, so the match against a username's realm is exact after folding.
+type RealmRelayBinding struct {
+	Realm  string
+	Remote string
 }
 
 // ExtractParameters pulls L2TP configuration out of the parsed config tree.
@@ -415,6 +436,16 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 		return Parameters{}, err
 	}
 
+	// Realm relay bindings: relay-realm list under root l2tp{}. Each binds a
+	// username realm to a remote declared above.
+	for _, rl := range l2tpRoot.GetListOrdered("relay-realm") {
+		remoteName, _ := rl.Value.Get("remote")
+		p.RelayRealms = append(p.RelayRealms, RealmRelayBinding{Realm: rl.Key, Remote: remoteName})
+	}
+	if err := validateRelayRealms(&p); err != nil {
+		return Parameters{}, err
+	}
+
 	// Listener endpoints from environment { l2tp { server ... } }.
 	if envC := tree.GetContainer("environment"); envC != nil {
 		if l2tpEnv := envC.GetContainer("l2tp"); l2tpEnv != nil {
@@ -490,6 +521,66 @@ func appendRemote(p *Parameters, rem Remote) error {
 	}
 	p.Remotes = append(p.Remotes, rem)
 	return nil
+}
+
+// validateRelayRealms checks every realm binding and folds its realm to lower
+// case. A realm is a DNS-style name: 1 to 253 octets, no '@' (the username
+// splits at its last '@', so a realm holding one could never match) and no
+// whitespace. Two bindings that differ only in case would make the match
+// ambiguous, so they are refused. Each binding MUST name a declared remote,
+// for the same reason validateRelays gives.
+func validateRelayRealms(p *Parameters) error {
+	seen := make(map[string]struct{}, len(p.RelayRealms))
+	for i := range p.RelayRealms {
+		rl := &p.RelayRealms[i]
+		if err := checkRealmSyntax(rl.Realm); err != nil {
+			return err
+		}
+		folded := strings.ToLower(rl.Realm)
+		if _, dup := seen[folded]; dup {
+			return fmt.Errorf("%w: %q appears twice once case is ignored; keep one `l2tp relay-realm %s` block", errL2tpRelayRealmDuplicate, rl.Realm, folded)
+		}
+		seen[folded] = struct{}{}
+		rl.Realm = folded
+		if _, ok := p.LookupRemote(rl.Remote); !ok {
+			return fmt.Errorf("%w: relay-realm %q -> remote %q; declare it with `l2tp remote %s { address <ip> }` or name a declared remote", errL2tpRelayUnknownRemote, rl.Realm, rl.Remote, rl.Remote)
+		}
+	}
+	// The reload path reads the list from a map, so its order is random. A
+	// sorted list lets a reload compare the old and new bindings directly.
+	slices.SortFunc(p.RelayRealms, func(a, b RealmRelayBinding) int { return strings.Compare(a.Realm, b.Realm) })
+	return nil
+}
+
+// checkRealmSyntax refuses a realm no username could carry. The YANG pattern
+// refuses the same values on the editor path; this check is the one the daemon
+// and `ze config validate` both run, so a hand-written file is judged too.
+func checkRealmSyntax(realm string) error {
+	if realm == "" {
+		return fmt.Errorf("%w: the realm is empty; write the domain after the '@' of the usernames, such as `l2tp relay-realm example.net`", errL2tpRelayRealmInvalid)
+	}
+	if len(realm) > realmLengthMax {
+		return fmt.Errorf("%w: %q is %d octets, longer than a DNS name (%d); shorten it", errL2tpRelayRealmInvalid, realm, len(realm), realmLengthMax)
+	}
+	if strings.Contains(realm, "@") {
+		return fmt.Errorf("%w: %q holds '@'; a realm is the text after the last '@' of the username, so write only that part, such as `l2tp relay-realm %s`", errL2tpRelayRealmInvalid, realm, realm[strings.LastIndex(realm, "@")+1:])
+	}
+	if strings.IndexFunc(realm, unicode.IsSpace) >= 0 {
+		return fmt.Errorf("%w: %q holds whitespace; a realm is a domain name such as example.net", errL2tpRelayRealmInvalid, realm)
+	}
+	return nil
+}
+
+// LookupRealmRelay returns the binding whose realm equals realm after case
+// folding, and false when none does. The match is exact: x.example.net never
+// matches example.net, so a longer name cannot borrow another network's LNS.
+func (p *Parameters) LookupRealmRelay(realm string) (RealmRelayBinding, bool) {
+	for i := range p.RelayRealms {
+		if strings.EqualFold(p.RelayRealms[i].Realm, realm) {
+			return p.RelayRealms[i], true
+		}
+	}
+	return RealmRelayBinding{}, false
 }
 
 // validateRelays confirms every relay binding references a declared remote.

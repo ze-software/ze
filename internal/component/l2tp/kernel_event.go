@@ -3,7 +3,11 @@
 
 package l2tp
 
-import "net/netip"
+import (
+	"errors"
+	"fmt"
+	"net/netip"
+)
 
 // kernelSetupEvent requests the kernel worker to create kernel resources
 // for a newly established L2TP session. Produced by the reactor when a
@@ -33,6 +37,11 @@ type kernelSetupEvent struct {
 	// channel to this PPPoE channel (PPPIOCBRIDGECHAN) so PPP frames flow
 	// directly between subscriber and LNS. Zero for non-relayed sessions.
 	pppoeChannelFD int
+
+	// realm is the realm relay a LAC incoming call carries (nil otherwise).
+	// The kernel worker asks its handoff to quiesce the subscriber's PPP
+	// before the bridge, and reports the bridge result to it.
+	realm *realmCall
 
 	// RFC 2661 Section 18: proxy LCP AVPs from ICCN. Empty slices when
 	// the peer omitted the AVPs. Carried verbatim through the kernel
@@ -81,4 +90,22 @@ type kernelSetupSucceeded struct {
 	proxyInitialRecvLCPConfReq []byte
 	proxyLastSentLCPConfReq    []byte
 	proxyLastRecvLCPConfReq    []byte
+}
+
+// errRealmCallCancelled is the setup failure of a realm call the subscriber
+// abandoned before the bridge; the session is then torn down with CDN.
+var errRealmCallCancelled = errors.New("l2tp: realm call abandoned by the subscriber before the bridge")
+
+// quiesceRealmSubscriber asks the PPPoE side to stop reading the subscriber's
+// channel before PPPIOCBRIDGECHAN, so only one reader owns the channel at any
+// instant. It returns an error when the subscriber left, and the caller then
+// tears the session down instead of bridging.
+func quiesceRealmSubscriber(rc *realmCall) error {
+	if rc.isCancelled() {
+		return errRealmCallCancelled
+	}
+	if err := rc.handoff.Quiesce(); err != nil {
+		return fmt.Errorf("l2tp: realm %q subscriber could not be quiesced: %w", rc.realm, err)
+	}
+	return nil
 }

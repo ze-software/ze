@@ -217,10 +217,19 @@ func TestSession_IncomingLNS_ICCNMissingTxSpeed(t *testing.T) {
 	n := WriteAVPUint16(buf[:], 0, true, AVPMessageType, uint16(MsgICCN))
 	badICCN := buf[:n]
 
-	out := tun.handleICCN(sess, badICCN, now, logger)
+	// Through Process with Nr=1, as a peer sends it: the acknowledgement of
+	// our ICRP frees the one-packet slow-start window (RFC 2661 Appendix A),
+	// so the CDN leaves at once and carries the ICCN's acknowledgement.
+	wire := sessionMsgWire(sess.localSID, 0, 1, badICCN)
+	hdr, err := ParseMessageHeader(wire)
+	if err != nil {
+		t.Fatalf("parse ICCN header: %v", err)
+	}
+	out := tun.Process(hdr, wire[hdr.PayloadOff:hdr.Length], now, TunnelDefaults{}, nil)
 	if len(out) != 1 {
 		t.Fatalf("expected 1 send (CDN), got %d", len(out))
 	}
+	requireCDN(t, out[0].bytes, cdnResultGeneralError, sess.localSID)
 	if tun.sessionCount() != 0 {
 		t.Fatalf("expected session removed, got %d sessions", tun.sessionCount())
 	}
@@ -258,11 +267,19 @@ func TestSession_MaxSessionsEnforced(t *testing.T) {
 		t.Fatalf("expected 1 session, got %d", tun.sessionCount())
 	}
 
-	// Second ICRQ rejected.
-	out := tun.handleICRQ(buildICRQ(501, 1002), now, logger)
+	// Second ICRQ rejected. It goes through Process with Nr=1, as a peer
+	// sends it: the acknowledgement of the first ICRP frees the one-packet
+	// slow-start window (RFC 2661 Appendix A), so the CDN leaves at once.
+	wire := sessionMsgWire(0, 0, 1, buildICRQ(501, 1002))
+	hdr, err := ParseMessageHeader(wire)
+	if err != nil {
+		t.Fatalf("parse ICRQ header: %v", err)
+	}
+	out := tun.Process(hdr, wire[hdr.PayloadOff:hdr.Length], now, TunnelDefaults{}, nil)
 	if len(out) != 1 {
 		t.Fatalf("expected 1 send (CDN), got %d", len(out))
 	}
+	requireCDN(t, out[0].bytes, cdnResultNoResources, 0)
 	if tun.sessionCount() != 1 {
 		t.Fatalf("expected still 1 session, got %d", tun.sessionCount())
 	}

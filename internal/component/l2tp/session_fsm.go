@@ -183,7 +183,7 @@ func (t *L2TPTunnel) handleICRQ(payload []byte, now time.Time, logger *slog.Logg
 	logger.Info("l2tp: ICRP sent; session wait-connect",
 		"local-sid", localSID, "remote-sid", info.assignedSessionID,
 		"call-serial", info.callSerialNumber)
-	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return t.enqueuedSend(wire)
 }
 
 // handleICCN processes an Incoming-Call-Connected on an LNS-side session
@@ -310,7 +310,7 @@ func (t *L2TPTunnel) handleOCRQ(payload []byte, now time.Time, logger *slog.Logg
 
 	logger.Info("l2tp: OCRP sent; session wait-cs-answer",
 		"local-sid", localSID, "remote-sid", info.assignedSessionID)
-	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return t.enqueuedSend(wire)
 }
 
 // handleOCCN processes an Outgoing-Call-Connected. AC-13.
@@ -526,7 +526,7 @@ func (t *L2TPTunnel) teardownSession(sess *L2TPSession, resultCode uint16, cause
 	logger.Info("l2tp: CDN sent; session destroyed",
 		"local-sid", sess.localSID, "remote-sid", sess.remoteSID,
 		"result-code", resultCode)
-	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return t.enqueuedSend(wire)
 }
 
 // sendCDNNoSession sends a CDN when we don't have a session yet (e.g.,
@@ -543,7 +543,7 @@ func (t *L2TPTunnel) sendCDNNoSession(remoteSID, resultCode uint16, now time.Tim
 		logger.Warn("l2tp: CDN (no-session) enqueue failed", "error", err.Error())
 		return nil
 	}
-	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return t.enqueuedSend(wire)
 }
 
 // ---------------------------------------------------------------------------

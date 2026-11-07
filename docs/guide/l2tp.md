@@ -109,11 +109,77 @@ listener, a dial asks for a restart instead.
 The `relay` binding is the LAC path: a PPPoE subscriber whose Service-Name
 matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
 instead of terminating PPP locally. The subscriber-PPP↔L2TP kernel channel
-bridge that carries frames at the LAC is Linux-only and exercised through
-`./le test deployment l2tp-ppp`. Initiator tunnel interop is proven against
-xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
+bridge that carries frames at the LAC is Linux-only. What proves it today is
+`TestLACChannelBridge`, which shows only that the bridge ioctls reach the
+kernel. No end-to-end run carries a PPPoE subscriber through a Ze LAC yet:
+`./le test deployment l2tp-ppp` has xl2tpd dial Ze as an LNS with no PPPoE
+and no Ze LAC, so it never reaches the bridge. Initiator tunnel interop is
+proven against xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
 
-<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay lists -->
+### Relay by realm (wholesale LAC)
+
+A `relay-realm` binding selects the LNS from the realm of the PPP username,
+the way a wholesale access network does:
+
+```
+l2tp {
+    relay-realm example.net {   // username realm -> L2TP incoming call
+        remote lns-retail;      // must reference an l2tp/remote above
+    }
+}
+```
+
+The realm is the text after the last `@` of the username, compared exactly
+once case is ignored, so `cpe@Example.NET` matches `example.net` and
+`cpe@x.example.net` does not. A Service-Name `relay` that matches at PPPoE
+discovery wins, and a username whose realm names no binding is authenticated
+by the local auth handler as for any PPPoE session.
+
+For a matched realm the LAC runs LCP with the subscriber, starts
+authentication (a CHAP Challenge, or the PAP Authenticate-Request it
+receives, per the PPPoE `authentication-allow` list), dials the bound remote
+and places an incoming call whose ICCN carries the proxy AVPs of RFC 2661
+Section 4.4.5:
+
+| AVP | Name | Content |
+|-----|------|---------|
+| 26 | Initial Received LCP CONFREQ | options of the first Configure-Request the subscriber sent |
+| 27 | Last Sent LCP CONFREQ | options of the LAC's Configure-Request the subscriber Acked |
+| 28 | Last Received LCP CONFREQ | options of the subscriber's Configure-Request the LAC Acked |
+| 29 | Proxy Authen Type | 2 (CHAP) or 3 (PAP) |
+| 30 | Proxy Authen Name | the username |
+| 31 | Proxy Authen Challenge | CHAP only: the challenge the LAC sent |
+| 32 | Proxy Authen ID | the CHAP or PAP Identifier |
+| 33 | Proxy Authen Response | the CHAP response, or the PAP password hidden after a Random Vector |
+
+Every proxy AVP carries M=0. A PAP password travels only hidden, so a PAP
+subscriber's proxy authentication is sent only when the remote has a
+`shared-secret`; without one the ICCN carries AVPs 26 to 28 alone, the LAC
+logs why, and the LNS restarts authentication. An LNS may also ignore the
+proxy data and renegotiate LCP and authentication.
+
+Validation refuses a binding whose remote is not declared, an empty realm, a
+realm holding `@` or whitespace, a realm longer than 253 octets, and two
+bindings that differ only in case. A reload applies to the next
+authentication.
+
+`show l2tp session id <id>` on the LAC adds `relay-realm`, `relay-remote`,
+`proxy-lcp-sent` and `proxy-auth-sent` to a realm-relayed session, and
+`proxy-auth-reason` (`no-shared-secret`, `no-authentication`,
+`proxy-data-too-large`) when proxy authentication was not sent.
+
+**Status: under construction.** The binding and its validation, the realm
+match in the L2TP relay sink, the LCP capture in the PPP driver and the ICCN
+proxy AVPs exist. The PPPoE side does not consult the binding yet: until the
+hand-off from the PPPoE auth drain to the L2TP call is wired, a configured
+`relay-realm` changes nothing and every PPPoE subscriber is terminated
+locally. The end-to-end proof will be the interop scenarios
+`l2tp-lac-realm-relay-accel-ppp` and `l2tp-lac-realm-relay-xl2tpd`.
+
+<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay/relay-realm lists -->
+<!-- source: internal/component/l2tp/config.go -- validateRelayRealms, checkRealmSyntax, LookupRealmRelay -->
+<!-- source: internal/component/l2tp/relay_sink.go -- RelayRealm -->
+<!-- source: internal/component/l2tp/iccn_proxy.go -- newICCNProxy, writeICCNProxyAVPs -->
 <!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->
 
 ## Rejecting a malformed SCCRQ
@@ -159,7 +225,7 @@ datagram whose message type is not SCCRQ keeps its silent drop.
 | `show l2tp tunnels` | Array of tunnel summaries |
 | `show l2tp tunnel <id>` | One tunnel detail (AVPs, capabilities, session list) |
 | `show l2tp sessions` | Array of session summaries (flattened across tunnels) |
-| `show l2tp session id <id>` | One session detail (PPP state, negotiated MRU/auth method, assigned IP, speeds) |
+| `show l2tp session id <id>` | One session detail (PPP state, negotiated MRU/auth method, assigned IP, speeds; the realm relay keys on a realm-relayed LAC session) |
 | `show l2tp statistics` | Protocol counters (tunnel/session counts, per-message stats) |
 | `show l2tp listeners` | Bound UDP endpoints |
 | `show l2tp config` | Effective runtime config, including `mru` and `authentication-allow`; `shared-secret` redacted to `<set>`/`<unset>` |

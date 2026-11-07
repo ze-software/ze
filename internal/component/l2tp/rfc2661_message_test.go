@@ -167,7 +167,7 @@ func writtenBodies() []writtenBody {
 	})
 	add("ICRQ", func(buf []byte) int { return writeICRQBody(buf, 9, 77, 1, "5551000", "5552000") })
 	add("ICRP", func(buf []byte) int { return writeICRPBody(buf, 9) })
-	add("ICCN", func(buf []byte) int { return writeICCNBody(buf, 64000, 1) })
+	add("ICCN", func(buf []byte) int { return writeICCNBody(buf, 64000, 1, nil) })
 	add("OCRQ", func(buf []byte) int { return writeOCRQBody(buf, 9, 77, 9600, 64000, 1, 1, "5551000") })
 	add("OCRP", func(buf []byte) int { return writeOCRPBody(buf, 9) })
 	add("CDN", func(buf []byte) int { return writeCDNBody(buf, 9, 1) })
@@ -204,12 +204,15 @@ var rfc2661MandatoryBit = map[AVPType]bool{
 // RFC requirement: RFC2661-4.4-1 positive -- every AVP a Ze writer emits whose
 // Section 4.4 definition fixes M at 1 carries M=1, Bearer Type, Called Number
 // and Calling Number in the ICRQ included.
-// RFC requirement: RFC2661-4.4-2 positive -- the Tie Breaker AVP, the one
-// M=0 AVP Ze emits, carries M=0.
-// RFC requirement: RFC2661-4.4-3 positive -- no AVP a Ze writer emits carries
-// H=1, so every AVP the RFC forbids hiding is sent with H=0.
-// RFC requirement: RFC2661-4.3-3 positive -- no AVP a Ze writer emits carries
-// H=1; Ze holds no wired shared-secret hiding, so H is never set.
+// RFC requirement: RFC2661-4.4-2 positive -- the Tie Breaker AVP carries M=0.
+// RFC requirement: RFC2661-4.4-3 positive -- no AVP these writers emit carries
+// H=1, so every AVP they emit that the RFC forbids hiding is sent with H=0.
+// RFC requirement: RFC2661-4.3-3 positive -- no AVP these writers emit carries
+// H=1, so none of them sets H without a shared secret.
+//
+// AVP 33 of a PAP realm call, which is hidden, has its own test
+// (TestWriteICCNBodyPAPProxyHiddenOrAbsent).
+//
 // TestRFC2661WrittenAVPFlags walks every AVP of every body Ze writes and
 // checks its M and H bits against Section 4.4.
 func TestRFC2661WrittenAVPFlags(t *testing.T) {

@@ -54,6 +54,7 @@ func (r *l2tpReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSet
 			lnsMode:                    sess.lnsMode,
 			sequencing:                 sess.sequencingRequired,
 			pppoeChannelFD:             sess.pppoeChannelFD,
+			realm:                      sess.realm,
 			proxyInitialRecvLCPConfReq: sess.proxyInitialRecvLCPConfReq,
 			proxyLastSentLCPConfReq:    sess.proxyLastSentLCPConfReq,
 			proxyLastRecvLCPConfReq:    sess.proxyLastRecvLCPConfReq,

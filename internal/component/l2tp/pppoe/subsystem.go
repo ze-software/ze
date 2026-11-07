@@ -68,6 +68,10 @@ type Subsystem struct {
 	pacer pacer.Pacer // paces discoveryReader's retries after a failing read; owned solely by its own goroutine
 
 	pendingAuth sync.Map // pendingAuthKey -> pendingAuthInfo
+	// realmRelay holds the realm relays in flight (realm_relay.go). Set by
+	// startLocked with the PPP driver, cleared by stopLocked after the
+	// drains and the event consumer returned.
+	realmRelay *realmRelay
 }
 
 type pendingAuthKey struct {
@@ -200,8 +204,9 @@ func (s *Subsystem) startLocked() error {
 		if poolH == nil {
 			s.logger.Error("pppoe: no pool handler registered; all IP requests will be rejected")
 		}
+		s.realmRelay = newRealmRelay(s.logger, s.pppDriver, s.realmSubscriber, s.endRelayedSession)
 		s.drainDones = append(s.drainDones,
-			startPPPoEAuthDrain(s.logger, s.pppDriver, subscriber.GetAuthHandler, s.bus, &s.pendingAuth),
+			startPPPoEAuthDrain(s.logger, s.pppDriver, subscriber.GetAuthHandler, s.bus, &s.pendingAuth, s.realmRelay),
 			startPPPoEPoolDrain(s.logger, s.pppDriver, poolH),
 		)
 		s.eventDone = make(chan struct{})
@@ -251,6 +256,10 @@ func (s *Subsystem) stopLocked() {
 		<-done
 	}
 	s.drainDones = nil
+	if s.realmRelay != nil {
+		s.realmRelay.stopAll()
+		s.realmRelay = nil
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.discFD >= 0 {
@@ -500,6 +509,9 @@ func (s *Subsystem) onSessionIPAssigned(e ppp.EventSessionIPAssigned) {
 // The event is published even when the registry holds no session: an address
 // can be allocated before its NCP completes.
 func (s *Subsystem) onSessionDown(e ppp.EventSessionDown) {
+	if s.realmRelay != nil {
+		s.realmRelay.subscriberGone(int(e.TunnelID), e.SessionID)
+	}
 	s.withdrawSubscriber(e.TunnelID, e.SessionID, e.Reason)
 	ifindex := int(e.TunnelID)
 	s.mu.Lock()

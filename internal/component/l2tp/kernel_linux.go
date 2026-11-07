@@ -98,10 +98,24 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 
 	// spec-followup-l2tp-call A-4: a LAC-relayed incoming call bridges the
 	// pppol2tp channel to the subscriber's PPPoE channel in the kernel; no
-	// local PPP unit runs for it. On a kernel lacking PPPIOCBRIDGECHAN the
-	// bridge attempt errors -- surfaced but non-fatal: the session's control
-	// plane is up, so the operator can fall back to the userspace relay.
+	// local PPP unit runs for it. A bridge error fails this kernel setup and
+	// the session is torn down: no userspace frame relay exists. A realm call
+	// first has its PPPoE side quiesce the subscriber's channel reader, so the
+	// bridge is the channel's only consumer, and is told the bridge result.
+	if ev.realm != nil {
+		if qerr := quiesceRealmSubscriber(ev.realm); qerr != nil {
+			unix.Close(chanFD)  //nolint:errcheck // rollback path; primary error is qerr
+			unix.Close(unitFD)  //nolint:errcheck // rollback path; primary error is qerr
+			unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is qerr
+			return pppSessionFDs{}, qerr
+		}
+	}
 	bridged, berr := maybeBridgePPPoE(ev, chanFD)
+	if ev.realm != nil {
+		// A realm call never takes the userspace relay fall-back: the PPPoE
+		// side refuses the subscriber on a bridge error (Bridged(err)).
+		ev.realm.handoff.Bridged(berr)
+	}
 	if berr != nil {
 		return pppSessionFDs{}, fmt.Errorf("l2tp: LAC channel bridge: %w", berr)
 	}

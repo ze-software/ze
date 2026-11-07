@@ -637,6 +637,18 @@ func sessionJSON(s *l2tp.SessionSnapshot, detail bool) map[string]any {
 		m["lns-mode"] = s.LNSMode
 		m["kernel-setup-needed"] = s.KernelSetupNeeded
 	}
+	// A realm-relayed LAC session names its binding and what its ICCN
+	// carried; a Service-Name relay or a local session carries none of these
+	// keys (spec-home-cpe-14 AC-12).
+	if rr := s.RealmRelay; rr != nil {
+		m["relay-realm"] = rr.Realm
+		m["relay-remote"] = rr.Remote
+		m["proxy-lcp-sent"] = rr.ProxyLCPSent
+		m["proxy-auth-sent"] = rr.ProxyAuthSent
+		if rr.ProxyAuthReason != "" {
+			m["proxy-auth-reason"] = rr.ProxyAuthReason
+		}
+	}
 	return m
 }
 

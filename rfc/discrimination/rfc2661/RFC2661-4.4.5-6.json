@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2661-4.4.5-6",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/session_initiator_test.go::TestWriteICCNBodyProxyAVPs",
+    "unit-sha": "5be89c2865a3e5e0",
+    "claim-sha": "c6b1baf206531c23",
+    "route": "revert",
+    "producer": "internal/component/l2tp/iccn_proxy.go::writeICCNProxyCHAP",
+    "producer-sha": "f393e026f551f745",
+    "break": "body of writeICCNProxyCHAP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

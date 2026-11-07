@@ -22,6 +22,17 @@ func (f *fakeSink) Relay(req callsink.Request) (bool, error) {
 	return f.accepted, f.err
 }
 
+// RelayRealm answers that no realm binding matches, so these tests exercise
+// only the service relay of the seam.
+func (f *fakeSink) RelayRealm(callsink.RealmRequest) (callsink.RealmCall, bool, error) {
+	return nil, false, nil
+}
+
+// RealmRelayConfigured reports no realm binding, matching RelayRealm.
+func (f *fakeSink) RealmRelayConfigured() bool { return false }
+
+var _ callsink.Sink = (*fakeSink)(nil)
+
 // VALIDATES: R-1 -- Register/Lookup/Unregister wire a Sink without pppoe
 // importing l2tp; Lookup is nil until a Sink is registered and after it is
 // cleared.

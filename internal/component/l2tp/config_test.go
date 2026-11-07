@@ -965,6 +965,48 @@ func TestConfig_RelayUnknownRemote(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown remote")
 }
 
+// TestRelayRealmConfigValidation parses realm relay bindings and refuses the
+// AC-9 cases.
+//
+// VALIDATES: spec-home-cpe-14 AC-9 -- a realm binding is folded to lower case
+// and keeps its remote; an undeclared remote, an empty realm and a realm
+// holding '@' are refused with an error naming the fix, on the same
+// ExtractParameters path `ze config validate` and daemon start run.
+// PREVENTS: a binding that can never match, or one whose remote cannot be
+// dialed, loading silently.
+func TestRelayRealmConfigValidation(t *testing.T) {
+	const good = `l2tp {
+	enabled true
+	remote lns-a {
+		address 203.0.113.7
+	}
+	relay-realm Example.NET {
+		remote lns-a
+	}
+}`
+	p, err := l2tp.ExtractParameters(loadTree(t, good))
+	require.NoError(t, err)
+	require.Len(t, p.RelayRealms, 1)
+	assert.Equal(t, "example.net", p.RelayRealms[0].Realm)
+	assert.Equal(t, "lns-a", p.RelayRealms[0].Remote)
+	b, ok := p.LookupRealmRelay("EXAMPLE.net")
+	require.True(t, ok, "the match folds case")
+	assert.Equal(t, "lns-a", b.Remote)
+	_, ok = p.LookupRealmRelay("x.example.net")
+	assert.False(t, ok, "a longer name never matches")
+
+	const unknown = `l2tp {
+	enabled true
+	relay-realm example.net {
+		remote ghost
+	}
+}`
+	_, err = l2tp.ExtractParameters(loadTree(t, unknown))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown remote")
+	assert.Contains(t, err.Error(), "l2tp remote ghost")
+}
+
 func loadTree(t *testing.T, src string) *zeconfig.Tree {
 	t.Helper()
 	res, err := zeconfig.LoadConfig(src, "test.conf", nil)

@@ -123,7 +123,9 @@ func (s *pppSession) run(start *StartSession) {
 	)
 	unitStop := make(chan struct{})
 	defer func() {
-		if !s.sessionDownSent {
+		// A released session (Driver.ReleaseSession) reports no teardown:
+		// the transport still carries the subscriber.
+		if !s.sessionDownSent && !s.released.Load() {
 			select {
 			case <-s.sessStop:
 				s.sendEvent(EventSessionDown{
@@ -943,14 +945,22 @@ func (s *pppSession) readUnitFrames(out chan<- []byte, done chan<- error, stop <
 }
 
 // readFrames reads PPP frames from chanFile in a loop and forwards
-// them on the channel. Exits on read error.
+// them on the channel. Exits on read error, which it reports on done,
+// and on a quiesce (Driver.QuiesceSession), which it does not: the session
+// is being handed to a realm relay, not ending.
 func (s *pppSession) readFrames(out chan<- []byte, done chan<- error) {
 	defer close(out)
+	if s.readerGone != nil {
+		defer close(s.readerGone)
+	}
 	for {
 		buf := getFrameBuf()
 		n, err := s.chanFile.Read(buf)
 		if err != nil {
 			putFrameBuf(buf)
+			if s.readerQuiesced() {
+				return
+			}
 			done <- err
 			return
 		}
@@ -962,6 +972,11 @@ func (s *pppSession) readFrames(out chan<- []byte, done chan<- error) {
 		select {
 		case out <- buf[:n]:
 		case <-s.stopCh:
+			putFrameBuf(buf)
+			return
+		case <-s.readerQuiesce:
+			// The frame is dropped: a quiesced channel is read by nobody,
+			// and the subscriber retransmits it after the bridge.
 			putFrameBuf(buf)
 			return
 		}
@@ -1321,6 +1336,9 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 			return false
 		}
 		s.lastLCPReplyReceived = true
+		if pkt.Code == LCPConfigureAck {
+			s.proxyCapture.noteOwnRequestAcked(s.lastLCPRequest[:s.lastLCPRequestLen])
+		}
 	}
 
 	// optsBad chooses between RCR+ and RCR- and carries nothing else. The
@@ -1986,7 +2004,12 @@ func (s *pppSession) sendConfigureAck(req LCPPacket) bool {
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ProtoLCP, nil)
 	off += WriteLCPPacket(buf, off, LCPConfigureAck, req.Identifier, req.Data)
-	return s.writeFrame(buf[:off])
+	if !s.writeFrame(buf[:off]) {
+		return false
+	}
+	s.proxyCapture.noteRequestAnswered(req)
+	s.proxyCapture.noteRequestAcked(req)
+	return true
 }
 
 // LCPNakOrReject picks the reply a Configure-Request ze judged unacceptable
@@ -2091,6 +2114,7 @@ func appendUnlessListed(list []LCPOption, opt LCPOption) []LCPOption {
 }
 
 func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
+	s.proxyCapture.noteRequestAnswered(req)
 	w := WalkLCPOptions(req.Data)
 	if w.Fault.Discards() {
 		// Not reachable from handleLCPPacket, which returns on that verdict

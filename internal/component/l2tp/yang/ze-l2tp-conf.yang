@@ -335,6 +335,41 @@ module ze-l2tp-conf {
                 ze:help "Name of the L2TP remote that matching subscribers are relayed to.";
             }
         }
+
+        list relay-realm {
+            key "realm";
+            description "Realm-to-LNS relay bindings (wholesale LAC role). A PPPoE subscriber that no Service-Name relay
+                took runs LCP and starts authentication with this box; when the realm of the username (the text after
+                its last '@', compared without regard to case) names a binding, the subscriber is relayed into an L2TP
+                incoming call toward the named remote, carrying the proxy LCP and proxy authentication AVPs of RFC 2661
+                Section 4.4.5, instead of being authenticated here. A username whose realm names no binding is
+                authenticated by the local auth handler as for any PPPoE session. A matched realm whose call fails is
+                refused, never authenticated locally. A Service-Name relay binding that matches at discovery wins.";
+            ze:help "Realm-to-LNS relay bindings for a wholesale LAC.";
+
+            leaf realm {
+                type string {
+                    length "1..253";
+                    pattern '[^@\s]+';
+                }
+                description "Realm to match: the text after the last '@' of the PPP username, such as example.net. The
+                    match is exact after case folding, so a longer name such as x.example.net never matches example.net.
+                    A realm holds no '@' and no whitespace.";
+                ze:help "Realm of the PPP username to match, such as example.net.";
+            }
+
+            leaf remote {
+                type string {
+                    length "1..64";
+                }
+                mandatory true;
+                description "Name of the L2TP remote (the retail LNS) that subscribers of this realm are relayed to. It MUST
+                    reference a remote declared under l2tp/remote, and an unknown name is rejected at config validation.
+                    Proxy authentication for a PAP subscriber is sent only when that remote has a shared-secret, because
+                    the password then travels hidden.";
+                ze:help "Name of the L2TP remote that subscribers of this realm are relayed to.";
+            }
+        }
     }
 
     container environment {

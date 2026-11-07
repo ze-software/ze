@@ -93,21 +93,76 @@ func TestICRP_WrongState(t *testing.T) {
 	require.Equal(t, L2TPSessionEstablished, sess.state)
 }
 
-func TestICRP_Malformed_SendsCDN(t *testing.T) {
-	// VALIDATES: a malformed ICRP tears the session down with a CDN.
-	tun := newEstablishedTunnel(t, 0)
-	now := time.Now()
-	logger := slog.Default()
-	localSID, _ := tun.placeIncomingCall(now, callParams{callSerial: 1, framingType: 1}, logger)
-	sess := tun.lookupSession(localSID)
-
-	// ICRP body with Message Type but zero Assigned Session ID -> parse error.
+// malformedICRPBody is an ICRP body with a Message Type but a zero Assigned
+// Session ID, which parseICRP refuses.
+func malformedICRPBody() []byte {
 	bad := make([]byte, 32)
 	off := WriteAVPUint16(bad, 0, true, AVPMessageType, uint16(MsgICRP))
 	off += WriteAVPUint16(bad, off, true, AVPAssignedSessionID, 0)
-	out := tun.handleICRP(sess, bad[:off], now, logger)
-	require.Len(t, out, 1, "CDN emitted")
+	return bad[:off]
+}
+
+// requireCDN parses one outbound datagram as a CDN and checks its Result Code
+// and Assigned Session ID.
+func requireCDN(t *testing.T, wire []byte, resultCode, assignedSID uint16) {
+	t.Helper()
+	hdr, err := ParseMessageHeader(wire)
+	require.NoError(t, err)
+	cdn, err := parseCDN(wire[hdr.PayloadOff:hdr.Length])
+	require.NoError(t, err)
+	require.Equal(t, resultCode, cdn.result, "CDN Result Code")
+	require.Equal(t, assignedSID, cdn.assignedSessionID, "CDN Assigned Session ID")
+}
+
+func TestICRP_Malformed_SendsCDN(t *testing.T) {
+	// VALIDATES: a malformed ICRP tears the session down with a CDN RC=2 that
+	// leaves at once. The ICRP goes through Process with Nr=1, as a peer sends
+	// it, so the reliable engine acknowledges our ICRQ and frees the one-packet
+	// slow-start window (RFC 2661 Appendix A) before the FSM builds the CDN.
+	tun := newEstablishedTunnel(t, 0)
+	now := time.Now()
+	logger := slog.Default()
+	localSID, out := tun.placeIncomingCall(now, callParams{callSerial: 1, framingType: 1}, logger)
+	require.Len(t, out, 1, "ICRQ emitted")
+	require.NotNil(t, tun.lookupSession(localSID))
+
+	wire := sessionMsgWire(localSID, 0, 1, malformedICRPBody())
+	hdr, err := ParseMessageHeader(wire)
+	require.NoError(t, err)
+	out = tun.Process(hdr, wire[hdr.PayloadOff:hdr.Length], now, TunnelDefaults{}, nil)
+	require.Len(t, out, 1, "CDN emitted, carrying the acknowledgement of the ICRP")
+	requireCDN(t, out[0].bytes, cdnResultGeneralError, localSID)
 	require.Nil(t, tun.lookupSession(localSID), "session removed after CDN")
+}
+
+func TestICRP_Malformed_FullWindowQueuesCDN(t *testing.T) {
+	// VALIDATES: when the send window is full, the CDN for a malformed ICRP is
+	// queued in the reliable engine rather than sent as an empty datagram, and
+	// the acknowledgement that opens the window releases that CDN. Our ICRQ is
+	// unacknowledged and CWND starts at one packet (RFC 2661 Appendix A), so
+	// the window is full when the handler runs.
+	tun := newEstablishedTunnel(t, 0)
+	now := time.Now()
+	logger := slog.Default()
+	localSID, out := tun.placeIncomingCall(now, callParams{callSerial: 1, framingType: 1}, logger)
+	require.Len(t, out, 1, "ICRQ emitted")
+	sess := tun.lookupSession(localSID)
+	require.NotNil(t, sess)
+	queued := len(tun.engine.sendQueue)
+
+	out = tun.handleICRP(sess, malformedICRPBody(), now, logger)
+	require.Empty(t, out, "window full: nothing leaves now, and never an empty datagram")
+	require.Len(t, tun.engine.sendQueue, queued+1, "CDN queued in the reliable engine")
+	require.Nil(t, tun.lookupSession(localSID), "session removed after CDN")
+
+	// The peer's ZLB acknowledges the ICRQ (Nr=1) and opens the window.
+	zlb := sessionMsgWire(0, 0, 1, nil)
+	zhdr, err := ParseMessageHeader(zlb)
+	require.NoError(t, err)
+	out = tun.Process(zhdr, zlb[zhdr.PayloadOff:zhdr.Length], now, TunnelDefaults{}, nil)
+	require.Len(t, out, 1, "the queued CDN leaves once the window opens")
+	requireCDN(t, out[0].bytes, cdnResultGeneralError, localSID)
+	require.Len(t, tun.engine.sendQueue, queued, "send queue drained")
 }
 
 // --- LNS outgoing call: OCRQ -> OCRP -> OCCN -> established (AC-4) ---

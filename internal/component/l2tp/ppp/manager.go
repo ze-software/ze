@@ -58,6 +58,11 @@ type sessionKey struct {
 // Tests replace it with a pipe transport.
 var newChanFileFn = NewFDFile
 
+// newQuiescableChanFileFn wraps the channel descriptor of a session that
+// may be handed to a realm relay, in a file whose blocked Read
+// Driver.QuiesceSession can wake. SetNewChanFileForTest replaces it too.
+var newQuiescableChanFileFn = newInterruptibleFDFile
+
 // newUnitFileFn wraps the owned kernel PPP unit descriptor.
 var newUnitFileFn = func(fd int) io.ReadCloser {
 	if fd <= 0 {
@@ -479,10 +484,39 @@ func (d *Driver) spawnSession(start *StartSession) {
 
 	fallback := start.AuthFallbackOrder
 
+	// A session that may be handed to a realm relay records its LCP
+	// exchange and reads its channel through a file a quiesce can wake
+	// (relay_handoff.go). Every other session keeps the plain blocking file.
+	var (
+		capture       *lcpCapture
+		readerQuiesce chan struct{}
+		readerGone    chan struct{}
+	)
+	var chanFile io.ReadWriteCloser
+	if start.CaptureProxyLCP {
+		qf, err := newQuiescableChanFileFn(start.ChanFD, "ppp.chan")
+		if err != nil {
+			d.mu.Unlock()
+			start.closeFiles()
+			d.logger.Warn("ppp: StartSession refused: its channel reader cannot be made interruptible for a realm relay",
+				"tunnel-id", start.TunnelID, "session-id", start.SessionID, "error", err)
+			d.emitRejection(start, err.Error())
+			return
+		}
+		chanFile = qf
+		capture = &lcpCapture{}
+		readerQuiesce = make(chan struct{})
+		readerGone = make(chan struct{})
+	} else {
+		chanFile = newChanFileFn(start.ChanFD, "ppp.chan")
+	}
 	s := &pppSession{
+		proxyCapture:         capture,
 		tunnelID:             start.TunnelID,
 		sessionID:            start.SessionID,
-		chanFile:             newChanFileFn(start.ChanFD, "ppp.chan"),
+		chanFile:             chanFile,
+		readerQuiesce:        readerQuiesce,
+		readerGone:           readerGone,
 		unitFile:             newUnitFileFn(start.UnitFD),
 		chanFD:               start.ChanFD,
 		unitFD:               start.UnitFD,

@@ -62,7 +62,7 @@ func (t *L2TPTunnel) initiate(now time.Time, defaults TunnelDefaults, tieBreaker
 	t.logger.Info("l2tp: SCCRQ sent; tunnel now wait-ctl-reply",
 		"challenge", t.ourChallenge != nil,
 		"tie-breaker", t.tieBreaker != nil)
-	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return t.enqueuedSend(wire)
 }
 
 // handleSCCRP is the wait-ctl-reply -> established transition on the
@@ -172,7 +172,7 @@ func (t *L2TPTunnel) handleSCCRP(now time.Time, defaults TunnelDefaults, payload
 		"peer-host", strconv.Quote(sccrp.HostName),
 		"peer-tid", t.remoteTID,
 		"challenge", ourResponse != nil)
-	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return t.enqueuedSend(wire)
 }
 
 // writeSCCRQBody writes the AVP body of an SCCRQ into buf starting at offset

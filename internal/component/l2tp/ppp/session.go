@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
@@ -112,8 +113,11 @@ type pppSession struct {
 	// lastLCPRequest holds the options emitted by sendConfigureRequest:
 	// MRU (4 octets), Magic-Number (6), and Authentication-Protocol (5).
 	// Replies are checked against these exact bytes before entering the FSM.
-	lastLCPRequest       [4 + 6 + 5]byte
-	lastLCPRequestLen    int
+	lastLCPRequest    [4 + 6 + 5]byte
+	lastLCPRequestLen int
+	// proxyCapture records the LCP exchange for a realm relay; nil unless
+	// StartSession.CaptureProxyLCP. Session goroutine only.
+	proxyCapture         *lcpCapture
 	lastLCPRequestID     uint8
 	lastLCPRequestSent   bool
 	lastLCPReplyReceived bool
@@ -228,6 +232,19 @@ type pppSession struct {
 	// close if a future cleanup path joins StopSession.
 	sessStop     chan struct{}
 	sessStopOnce sync.Once
+
+	// Realm relay handoff (relay_handoff.go). readerQuiesce is closed by
+	// Driver.QuiesceSession through readerQuiesceOnce and tells readFrames
+	// to return without reporting a read error; readerGone is closed by
+	// readFrames when it returns. Both are nil for a session started
+	// without StartSession.CaptureProxyLCP, which cannot be quiesced.
+	// released is set by Driver.ReleaseSession before sessStop closes, and
+	// run's teardown then sends no EventSessionDown: the transport still
+	// carries the subscriber.
+	readerQuiesce     chan struct{}
+	readerQuiesceOnce sync.Once
+	readerGone        chan struct{}
+	released          atomic.Bool
 
 	// done is closed by the goroutine on exit; the manager waits on
 	// it during StopSession to confirm cleanup.

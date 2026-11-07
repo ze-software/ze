@@ -51,6 +51,18 @@ type sendRequest struct {
 	bytes []byte
 }
 
+// enqueuedSend turns the bytes ReliableEngine.Enqueue returned into the
+// datagrams to send now. Enqueue answers nil bytes with a nil error when the
+// peer's receive window is full: the message is queued, and NewSends carries
+// it once an acknowledgement opens the window. Nothing goes out now, so the
+// answer is no datagram, never an empty one.
+func (t *L2TPTunnel) enqueuedSend(wire []byte) []sendRequest {
+	if wire == nil {
+		return nil
+	}
+	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+}
+
 // Process ingests one already-parsed header + its AVP body for this
 // tunnel. It hands the message to the reliable engine for sequencing,
 // dispatches each in-order delivery through the FSM, and collects every
@@ -278,7 +290,7 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 		"peer-tid", t.remoteTID,
 		"peer-framing", fmt.Sprintf("0x%08x", sccrq.FramingCapabilities),
 		"challenge", t.ourChallenge != nil)
-	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return t.enqueuedSend(wire)
 }
 
 // handleSCCCN is the wait-ctl-conn -> established transition. The payload
@@ -397,7 +409,7 @@ func (t *L2TPTunnel) teardownStopCCN(now time.Time, rc ResultCodeValue, cause l2
 	}
 	t.resolvePendingCall(callOutcome{err: failErr, resultCode: resultCode})
 	t.logger.Info("l2tp: StopCCN sent; tunnel closed", "result-code", resultCode)
-	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return t.enqueuedSend(wire)
 }
 
 // sccrqInfo collects the fields parseSCCRQ pulls out of the AVP stream.
@@ -971,5 +983,5 @@ func (t *L2TPTunnel) handleHelloTimer(now time.Time) []sendRequest {
 		return nil
 	}
 	t.logger.Debug("l2tp: HELLO sent on silence timeout")
-	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+	return t.enqueuedSend(wire)
 }

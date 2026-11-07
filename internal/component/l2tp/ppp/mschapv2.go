@@ -470,6 +470,7 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 	// Mirror runCHAPAuthPhase reject path: emit EventSessionDown on
 	// the lifecycle channel via s.fail before EventAuthFailure on the
 	// auth channel, so the transport can tear the session down.
+	s.closeLinkAfterRefusal(decision)
 	var tb textbuf.Buffer
 	s.fail(tb.Str("chap-v2: auth rejected: ").Str(decision.message).String())
 	s.sendAuthEvent(eventAuthFailure{

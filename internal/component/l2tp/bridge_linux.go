@@ -46,8 +46,9 @@ func channelNumber(pppoxFD int) (int, error) {
 // local PPP unit runs for the subscriber.
 //
 // A single PPPIOCBRIDGECHAN establishes the bidirectional link: the kernel
-// records each channel as the other's bridge. On kernels without
-// PPPIOCBRIDGECHAN the caller falls back to relayFramesUserspace.
+// records each channel as the other's bridge. On a kernel without
+// PPPIOCBRIDGECHAN this returns the error and the caller tears the session
+// down: no userspace frame relay exists.
 func bridgeChannels(l2tpChanFD, peerPppoxFD int) error {
 	peerNum, err := channelNumber(peerPppoxFD)
 	if err != nil {
@@ -85,10 +86,10 @@ func maybeBridgePPPoE(ev kernelSetupEvent, l2tpChanFD int) (bridged bool, err er
 		return false, nil
 	}
 	if berr := bridgeChannels(l2tpChanFD, ev.pppoeChannelFD); berr != nil {
-		// A-4 fallback: on a kernel without PPPIOCBRIDGECHAN, a userspace
-		// frame relay between the two channel fds keeps the call functional
-		// (slower). Surfaced to the caller which logs and records the perf
-		// implication; the bridge is still "requested" so PPP is not run.
+		// The bridge was requested, so PPP is not run locally. pppSetupReal
+		// fails the kernel setup on this error and the session is torn
+		// down; no userspace frame relay exists, and a realm call refuses
+		// its subscriber through its handoff instead.
 		return true, berr
 	}
 	return true, nil

@@ -86,6 +86,22 @@ type SessionSnapshot struct {
 	LNSMode            bool
 	KernelSetupNeeded  bool
 	PppInterface       string
+	// RealmRelay is set on a LAC session relayed by realm, nil otherwise. A
+	// session with no realm relay carries no key, as the CLI's sessionJSON
+	// leaves out every relay key for it.
+	RealmRelay *RealmRelaySnapshot `json:",omitempty"`
+}
+
+// RealmRelaySnapshot is the realm relay state of one LAC session.
+// ProxyAuthReason is empty when proxy authentication was sent, and names why
+// it was not otherwise (no-shared-secret, no-authentication,
+// proxy-data-too-large).
+type RealmRelaySnapshot struct {
+	Realm           string
+	Remote          string
+	ProxyLCPSent    bool
+	ProxyAuthSent   bool
+	ProxyAuthReason string
 }
 
 // Snapshot returns a deep copy of the reactor's current state.
@@ -183,7 +199,24 @@ func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
 		LNSMode:            s.lnsMode,
 		KernelSetupNeeded:  s.kernelSetupNeeded,
 		PppInterface:       s.pppInterface,
+		RealmRelay:         s.realm.snapshot(),
 	}
+}
+
+// snapshot returns the realm relay state for show, or nil when rc is nil.
+// The proxy AVPs count as sent once the ICCN carrying them was enqueued.
+func (rc *realmCall) snapshot() *RealmRelaySnapshot {
+	if rc == nil {
+		return nil
+	}
+	out := &RealmRelaySnapshot{Realm: rc.realm, Remote: rc.remote, ProxyAuthReason: rc.authReason}
+	if rc.proxy == nil {
+		out.ProxyAuthReason = proxyAuthReasonTooLarge
+		return out
+	}
+	out.ProxyLCPSent = rc.iccnSent
+	out.ProxyAuthSent = rc.iccnSent && rc.proxy.sendAuth
+	return out
 }
 
 // LookupTunnel returns a deep copy of the named tunnel, or false if no

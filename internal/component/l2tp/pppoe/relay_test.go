@@ -23,6 +23,14 @@ func (f *fakeRelaySink) Relay(req callsink.Request) (bool, error) {
 	return f.accepted, f.err
 }
 
+// RelayRealm answers no realm binding: these tests drive the Service-Name path.
+func (f *fakeRelaySink) RelayRealm(callsink.RealmRequest) (callsink.RealmCall, bool, error) {
+	return nil, false, nil
+}
+
+// RealmRelayConfigured answers no realm binding, as RelayRealm does.
+func (f *fakeRelaySink) RealmRelayConfigured() bool { return false }
+
 // TestRelayToL2TP_ConsultsSink -- AC-3 (R-1 boundary via callsink).
 //
 // VALIDATES: the PPPoE server consults the registered call-sink at PADS

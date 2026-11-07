@@ -433,6 +433,72 @@ func TestReactor_PlaceIncomingCall_AutoICRQ(t *testing.T) {
 	r.tunnelsMu.Unlock()
 }
 
+// TestReactor_IncomingCallsShareTunnelPerRemote -- spec-home-cpe-14 AC-10.
+//
+// VALIDATES: a second incoming call to a remote this LAC already holds an
+// established tunnel to rides that tunnel: no second SCCRQ, the same local
+// tunnel ID, two sessions in it. Method: establish the first call's tunnel,
+// place a second call, then acknowledge the first ICRQ and read the second
+// call's ICRQ. The congestion window is two at that point (RFC 2661 Appendix
+// A: CWND starts at one and grows by one per ACK, and only the SCCRP acked
+// anything), so SCCCN and the first ICRQ fill it: the second ICRQ waits in
+// the send queue until the ZLB opens the window. A queued message sends no
+// datagram meanwhile, so the first datagram read after the second call is
+// never an empty one.
+func TestReactor_IncomingCallsShareTunnelPerRemote(t *testing.T) {
+	ln, r, logs, stop := buildLogReactor(t)
+	defer stop()
+	timer := newTunnelTimer(r.tickCh, r.updateCh)
+	require.NoError(t, timer.Start())
+	defer timer.Stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+	target := DialTarget{Remote: clientAddrPort(t, client)}
+
+	firstTID, err := r.placeIncomingCall(target, callParams{callSerial: 1, bearerType: 1, framingType: 1})
+	require.NoError(t, err)
+	sccrq := readDatagram(t, client)
+	client.Send(t, buildSCCRPForSCCRQ(t, sccrq, 909))
+	waitForLog(t, logs, "ICRQ sent; session wait-reply (LAC incoming)")
+	firstICRQ := readUntilMsgType(t, client, MsgICRQ, 3)
+	firstHdr, err := ParseMessageHeader(firstICRQ)
+	require.NoError(t, err)
+
+	secondTID, err := r.placeIncomingCall(target, callParams{callSerial: 2, bearerType: 1, framingType: 1})
+	require.NoError(t, err)
+	require.Equal(t, firstTID, secondTID, "the second call opened another tunnel to the same remote")
+
+	// Acknowledge everything up to the first ICRQ. The SCCRP was the
+	// client's Ns 0, so this ZLB carries Ns 1.
+	client.Send(t, buildZLBAck(firstTID, 1, firstHdr.Ns+1))
+
+	// The first ICRQ may have been retransmitted before the ZLB landed, so
+	// read ICRQs until the second call's serial shows up.
+	secondSeen := false
+	for range 4 {
+		icrq := readUntilMsgType(t, client, MsgICRQ, 3)
+		hdr, herr := ParseMessageHeader(icrq)
+		require.NoError(t, herr)
+		info, perr := parseICRQ(icrq[hdr.PayloadOff:hdr.Length])
+		require.NoError(t, perr)
+		if info.callSerialNumber == 2 {
+			secondSeen = true
+			break
+		}
+	}
+	require.True(t, secondSeen, "the second call's ICRQ never reached the shared tunnel")
+
+	tun := r.tunnelByLocalID(firstTID)
+	require.NotNil(t, tun)
+	r.tunnelsMu.Lock()
+	sessions := len(tun.sessions)
+	tunnels := len(r.tunnelsByLocalID)
+	r.tunnelsMu.Unlock()
+	require.Equal(t, 2, sessions)
+	require.Equal(t, 1, tunnels)
+}
+
 // TestWildcardFor pins the bind the refusal proposes for each remote family.
 //
 // VALIDATES: IPv4 and IPv4-mapped remotes get 0.0.0.0; an IPv6 remote gets ::,

@@ -14,13 +14,19 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-func startPPPoEAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() subscriber.AuthHandler, bus ze.EventBus, pending *sync.Map) <-chan struct{} {
+// startPPPoEAuthDrain answers the PPP driver's authentication requests. A
+// request whose realm a relay-realm binding names goes to relay first and
+// never reaches the auth handler (realm_relay.go); relay may be nil.
+func startPPPoEAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() subscriber.AuthHandler, bus ze.EventBus, pending *sync.Map, relay *realmRelay) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		for ev := range d.AuthEventsOut() {
 			req, ok := ev.(ppp.EventAuthRequest)
 			if !ok {
+				continue
+			}
+			if relay != nil && relay.decide(&req) {
 				continue
 			}
 			// Plugins can replace the provider after this drain has started.

@@ -352,6 +352,10 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		SubscriberMAC:     net.HardwareAddr(append([]byte(nil), pkt.SrcMAC[:]...)),
 		ServiceName:       pkt.ServiceNameString(),
 		VendorTags:        vendorTagsFromPacket(pkt),
+		// A LAC with relay-realm bindings records the LCP exchange the
+		// realm relay forwards (RFC 2661 Section 4.4.5); the Service-Name
+		// relay above already took every subscriber it binds (AC-7).
+		CaptureProxyLCP: realmRelayConfigured(),
 	}
 
 	// From here the PPP driver owns the channel and unit descriptors.

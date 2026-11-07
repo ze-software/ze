@@ -145,6 +145,12 @@ type L2TPSession struct {
 	// sessions not originating from a PPPoE relay.
 	pppoeChannelFD int
 
+	// realm is set on a realm-relayed incoming call (spec-home-cpe-14): the
+	// binding that matched, the proxy AVPs its ICCN carries, and the PPPoE
+	// side's handoff, which teardown before the bridge reports to. Nil for
+	// every other session.
+	realm *realmCall
+
 	// RADIUS timeout cancellation. Set by handleSessionUp when the
 	// RADIUS Access-Accept carried Session-Timeout or Idle-Timeout.
 	// Canceled on session teardown. nil when no timeout is active.
@@ -294,6 +300,11 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 	// AC-4: an operator call torn down before it established fails its RPC.
 	// No-op once the session established (resolveCall already fired success).
 	sess.resolveCall(callOutcome{err: errCallTornDown})
+	// A realm call reports its end to the PPPoE side: before the bridge the
+	// subscriber is refused, after it the PPPoE session ends (PADT).
+	if sess.realm != nil {
+		sess.realm.end("L2TP session to realm " + sess.realm.realm + " ended")
+	}
 	t.pendingSessionDowns = append(t.pendingSessionDowns, sessionDown{
 		localTID: t.localTID,
 		localSID: sid,

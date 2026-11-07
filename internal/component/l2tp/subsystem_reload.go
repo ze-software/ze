@@ -258,6 +258,14 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 			"previous", len(prev.Relays), "new", len(next.Relays))
 		applied++
 	}
+	// A realm binding is read when a subscriber authenticates, so the next
+	// authentication sees the change and relayed sessions stay up.
+	if !slices.Equal(prev.RelayRealms, next.RelayRealms) {
+		s.params.RelayRealms = next.RelayRealms
+		s.logger.Info("l2tp reload: relay-realm bindings updated (applies to the next authentication)",
+			"previous", len(prev.RelayRealms), "new", len(next.RelayRealms))
+		applied++
+	}
 
 	if applied == 0 && rejected == 0 {
 		s.logger.Debug("l2tp reload: no changes detected")
@@ -500,7 +508,20 @@ func appendRemotesFromProvider(p *Parameters, l2tpRoot map[string]any) error {
 			p.Relays = append(p.Relays, RelayBinding{Service: service, Remote: remoteName})
 		}
 	}
-	return validateRelays(p)
+	if err := validateRelays(p); err != nil {
+		return err
+	}
+	if realms, ok := l2tpRoot["relay-realm"].(map[string]any); ok {
+		for realm, v := range realms {
+			entry, _ := v.(map[string]any)
+			if entry == nil {
+				return fmt.Errorf("l2tp relay-realm %q: unexpected shape", realm)
+			}
+			remoteName, _ := entry["remote"].(string)
+			p.RelayRealms = append(p.RelayRealms, RealmRelayBinding{Realm: realm, Remote: remoteName})
+		}
+	}
+	return validateRelayRealms(p)
 }
 
 // reloadDialSource returns the endpoint a reload checks its remotes against
