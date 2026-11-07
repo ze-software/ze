@@ -27,14 +27,27 @@ const accelLNSLog = "/var/log/accel-ppp.log"
 // accel-ppp hands it in IPCP (client, server, secret, address).
 const accelLNSChapLines = subscriberUser + " * cpe-fixture-password " + subscriberAddress
 
-// accelLNS is accel-ppp answering L2TP on eth1 (link core). The Alpine image
-// carries no ss, so readiness reads the UDP socket table: 06A5 is port 1701.
+// pppdChapLine is the realm-relay scenarios' chap-secrets entry for the pppd
+// subscriber whose realm the LAC relays, in the same form. The stray
+// subscriber has none: the LAC never relays it, and an entry would let a
+// wrong relay succeed.
+const pppdChapLine = pppdUser + " * " + pppdPassword + " " + subscriberAddress
+
+// accelLNS is accel-ppp answering L2TP on eth1 (link core), checking the
+// converted CPE's CHAP.
 func accelLNS() node {
+	return accelLNSFor(accelLNSChapLines)
+}
+
+// accelLNSFor is accel-ppp answering L2TP on eth1 (link core), with chapLines
+// as its chap-secrets. The Alpine image carries no ss, so readiness reads the
+// UDP socket table: 06A5 is port 1701.
+func accelLNSFor(chapLines string) node {
 	return node{name: nodeAccelLNS, image: accelImage, host: 3,
 		config: "accel-ppp.conf", mountedAt: "/etc/accel-ppp.conf",
 		capabilities: []string{capabilityNetAdmin},
 		arguments:    interoplab.PPPDeviceArguments(),
-		prestart:     "mkdir -p /etc/accel-ppp /var/log; printf '%s\\n' '" + accelLNSChapLines + "' > /etc/accel-ppp/chap-secrets",
+		prestart:     "mkdir -p /etc/accel-ppp /var/log; printf '%s\\n' '" + chapLines + "' > /etc/accel-ppp/chap-secrets",
 		ready:        []string{"sh", "-c", "grep -q ':06A5 ' /proc/net/udp"}}
 }
 

@@ -1,0 +1,13 @@
+# Options of the pppd xl2tpd starts for each call, beside the ones xl2tpd adds
+# (control.c control_finish: passive, nodetach, local:remote, auth,
+# require-chap, refuse-pap, name, debug). debug and logfile put every LCP and
+# CHAP packet in the log the checker reads.
+mtu 1492
+mru 1492
+noccp
+nodefaultroute
+noipv6
+lcp-echo-interval 30
+lcp-echo-failure 3
+debug
+logfile /var/log/ppp/pppd-lns.log

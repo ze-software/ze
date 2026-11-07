@@ -58,16 +58,7 @@ func checkAccessWholesale(ctx context.Context, check *interoplab.CheckContext) e
 // (RFC 1661 Section 4.3), answers ze-lns's CHAP and gets its address.
 func checkLCPRenegotiatePPPD(ctx context.Context, check *interoplab.CheckContext) error {
 	subscriber := netip.MustParseAddr(subscriberAddress)
-	if err := pollUntil(ctx, wholesaleWait, "pppd holds "+subscriberAddress+" on ppp0", func() error {
-		answer, err := check.Lab.Query(ctx, nodePPPD, []string{"ip", "-o", "-4", "address", "show", ipWordDev, "ppp0"}, nil)
-		if err != nil {
-			return err
-		}
-		if !strings.Contains(answer, " "+subscriberAddress+" ") && !strings.Contains(answer, " "+subscriberAddress+"/") {
-			return fmt.Errorf("ppp0 holds no %s:\n%s", subscriberAddress, answer)
-		}
-		return nil
-	}); err != nil {
+	if err := waitPPPDAddress(ctx, check); err != nil {
 		return err
 	}
 	if err := waitLogin(ctx, check, pppdUser); err != nil {
@@ -94,10 +85,31 @@ func checkLCPRenegotiatePPPD(ctx context.Context, check *interoplab.CheckContext
 	if err := pppdRenegotiationVerdict(log); err != nil {
 		return err
 	}
+	return pppdPing(ctx, check, lnsCoreAddress)
+}
+
+// waitPPPDAddress waits until the pppd subscriber's ppp0 holds
+// subscriberAddress, the address the LNS hands it in IPCP.
+func waitPPPDAddress(ctx context.Context, check *interoplab.CheckContext) error {
+	return pollUntil(ctx, wholesaleWait, "pppd holds "+subscriberAddress+" on ppp0", func() error {
+		answer, err := check.Lab.Query(ctx, nodePPPD, []string{"ip", "-o", "-4", "address", "show", ipWordDev, "ppp0"}, nil)
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(answer, " "+subscriberAddress+" ") && !strings.Contains(answer, " "+subscriberAddress+"/") {
+			return fmt.Errorf("ppp0 holds no %s:\n%s", subscriberAddress, answer)
+		}
+		return nil
+	})
+}
+
+// pppdPing has the pppd subscriber ping target over its session and judges
+// the answer: its eth0 is flushed, so ppp0 is the only path.
+func pppdPing(ctx context.Context, check *interoplab.CheckContext, target string) error {
 	ping, err := check.Lab.Query(ctx, nodePPPD,
-		[]string{"ping", "-c", strconv.Itoa(pingCount), "-W", "2", lnsCoreAddress}, nil)
+		[]string{"ping", "-c", strconv.Itoa(pingCount), "-W", "2", target}, nil)
 	if err != nil {
-		return fmt.Errorf("pppd ping %s: %w\n%s", lnsCoreAddress, err, ping)
+		return fmt.Errorf("pppd ping %s: %w\n%s", target, err, ping)
 	}
 	return pingVerdict(ping, pingCount)
 }
