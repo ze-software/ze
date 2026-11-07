@@ -178,7 +178,7 @@ func Table() []Action {
 			Does:       doesRun,
 			NativeArgs: runTopologyInterop,
 			Parameters: []leaction.Parameter{{Keyword: topologyScenarioKeyword, Kind: leaction.KindString, Value: "name", Requirement: leaction.Optional,
-				Help: "the one scenario under test/interop-topology/scenarios/ to run"}},
+				Help: "run only this named scenario from test/interop-topology/"}},
 			Summary: "run multi-node topology scenarios on declared links",
 			Why: "several Ze nodes and any suite's registered images on named VLAN links in one scenario, every" +
 				" scenario under test/interop-topology/scenarios/. Needs Docker, NET_ADMIN and, for PPPoE," +
