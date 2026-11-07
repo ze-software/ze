@@ -19,7 +19,8 @@ import (
 // file of their own, each with its reason. The umbrella's Scenarios table
 // is the authority: child 9's pppoe-mss-pmtu is not a home-CPE lab scenario.
 var homeCPEExempt = map[string]string{
-	pppoeMSSPMTUScenario: "spec-home-cpe-9's scenario dials accel-ppp with its own CPE file (umbrella, Scenarios)",
+	pppoeMSSPMTUScenario:  "spec-home-cpe-9's scenario dials accel-ppp with its own CPE file (umbrella, Scenarios)",
+	pppoeDHCPv6PDScenario: "spec-home-cpe-8's scenario dials accel-ppp with its own CPE file, the IPv6 client the converted configuration does not carry",
 }
 
 // checkConversion proves spec-home-cpe-11 AC-1: the record names every line

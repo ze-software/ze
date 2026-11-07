@@ -21,6 +21,9 @@ const (
 	roadWarriorScenario     = "road-warrior"
 	mgmtTunnelScenario      = "mgmt-tunnel"
 	accessReconnectScenario = "access-reconnect"
+	// mgmtTunnelEd25519Scenario is mgmt-tunnel with the CPE holding an
+	// Ed25519 key (AC-9); mgmt-tunnel is the P-256 variant.
+	mgmtTunnelEd25519Scenario = "mgmt-tunnel-ed25519"
 )
 
 // homeLabDirectory holds the home lab's shared peer files and the web and FTP
@@ -93,12 +96,15 @@ func subscriberRoutes(gateway string) string {
 // a node's only path (vacuity trap 4).
 const flushEth0 = "ip -4 address flush dev eth0; ip -6 address flush dev eth0 scope global"
 
-// homeOptions names which of the home lab's optional nodes a scenario runs.
+// homeOptions names which of the home lab's optional nodes a scenario runs,
+// and the algorithm of the key the lab issues the CPE (its zero value is no
+// choice, which the prepare step refuses).
 type homeOptions struct {
 	lan       []node
 	internet  []node
 	dns       *node
 	usersCopy string
+	cpeKey    cpeKeyAlgorithm
 }
 
 // homeLab answers a home-CPE scenario: the access chain (ze-cpe ==PPPoE==
@@ -137,7 +143,7 @@ func homeLab(checker interoplab.Checker, options homeOptions) scenario {
 		links = append(links, interoplab.Link{Name: homeInternetLink, VLAN: 196,
 			IPv4: netip.MustParsePrefix("198.51.100.0/24"), Members: internet})
 	}
-	return scenario{nodes: nodes, links: links, checker: checker, prepare: prepareHomeCPE}
+	return scenario{nodes: nodes, links: links, checker: checker, prepare: prepareHomeCPE(options.cpeKey)}
 }
 
 // convertedCPE is the Ze CPE of every home-CPE scenario: the converted
@@ -248,21 +254,31 @@ func init() {
 				Dockerfile: filepath.Join(testdata, "Dockerfile.wireguard"), Context: testdata, Required: true}
 		}})
 	scenarios[conversionScenario] = homeLab(checkConversion, homeOptions{
-		lan: []node{dhcpClient(nodeLANClient, 21, "")}})
+		lan:    []node{dhcpClient(nodeLANClient, 21, "")},
+		cpeKey: cpeKeyP256})
 	scenarios[lanServicesScenario] = homeLab(checkLANServices, homeOptions{
 		lan: []node{dhcpClient(nodeLANClient, 21, ""), dhcpClient(nodeLANResA, 22, resAMAC),
 			dhcpClient(nodeLANResB, 23, resBMAC), lanStatic()},
-		internet: []node{webServer()}})
+		internet: []node{webServer()},
+		cpeKey:   cpeKeyP256})
 	scenarios[roadWarriorScenario] = homeLab(checkRoadWarrior, homeOptions{
 		lan:      []node{dhcpClient(nodeLANResA, 22, resAMAC)},
-		internet: []node{webServer(), wgClient()}})
+		internet: []node{webServer(), wgClient()},
+		cpeKey:   cpeKeyP256})
 	scenarios[mgmtTunnelScenario] = homeLab(checkMgmtTunnel, homeOptions{
 		lan:      []node{dhcpClient(nodeLANClient, 21, "")},
 		internet: []node{swanResponder()},
-		dns:      dnsServer(true)})
+		dns:      dnsServer(true),
+		cpeKey:   cpeKeyP256})
+	scenarios[mgmtTunnelEd25519Scenario] = homeLab(checkMgmtTunnelEd25519, homeOptions{
+		lan:      []node{dhcpClient(nodeLANClient, 21, "")},
+		internet: []node{swanResponder()},
+		dns:      dnsServer(true),
+		cpeKey:   cpeKeyEd25519})
 	scenarios[accessReconnectScenario] = homeLab(checkAccessReconnect, homeOptions{
 		lan:       []node{lanStatic()},
 		internet:  []node{webServer(), swanResponder()},
 		dns:       dnsServer(false),
-		usersCopy: reconnectUsersTarget})
+		usersCopy: reconnectUsersTarget,
+		cpeKey:    cpeKeyP256})
 }

@@ -50,3 +50,46 @@ func TestPPPDRenegotiationVerdict(t *testing.T) {
 		t.Fatal("no CHAP success accepted")
 	}
 }
+
+// TestAccelRenegotiationVerdict proves the access-wholesale-accel-lns checker
+// needs every step of the renegotiation in accel-ppp's log: the CPE's own
+// Configure-Request, its Configure-Ack of accel-ppp's request, a CHAP
+// Response naming the subscriber and the Success. A log missing any one, as a
+// CPE that ignored accel-ppp's Configure-Request leaves, is refused.
+func TestAccelRenegotiationVerdict(t *testing.T) {
+	lines := map[string]string{
+		"confreq":  "[2026-11-07 10:00:01]: info: ppp0: recv [LCP ConfReq id=1 <mru 1492> <magic 1a2b3c4d>]",
+		"confack":  "[2026-11-07 10:00:01]: info: ppp0: recv [LCP ConfAck id=1 <auth CHAP-md5> <mru 1492> <magic 0a0b0c0d>]",
+		"response": `[2026-11-07 10:00:02]: info: ppp0: recv [CHAP Response id=1 <0123456789abcdef0123456789abcdef>, name="cpe@lab.example.net"]`,
+		"success":  `[2026-11-07 10:00:02]: info: ppp0: send [CHAP Success id=1 "Authentication succeeded"]`,
+	}
+	order := []string{"confreq", "confack", "response", "success"}
+	all := func(skip string) string {
+		var out []string
+		for _, name := range order {
+			if name != skip {
+				out = append(out, lines[name])
+			}
+		}
+		return strings.Join(out, "\n")
+	}
+	if err := accelRenegotiationVerdict(all(""), subscriberUser); err != nil {
+		t.Fatalf("a full renegotiation: %v", err)
+	}
+	want := map[string]string{
+		"confreq":  "no LCP Configure-Request",
+		"confack":  "no LCP Configure-Ack",
+		"response": "no CHAP Response",
+		"success":  "no CHAP Success",
+	}
+	for _, name := range order {
+		err := accelRenegotiationVerdict(all(name), subscriberUser)
+		if err == nil || !strings.Contains(err.Error(), want[name]) {
+			t.Errorf("without %s: err = %v, want %q", name, err, want[name])
+		}
+	}
+	other := strings.Replace(all(""), "cpe@lab.example.net", "other@lab.example.net", 1)
+	if err := accelRenegotiationVerdict(other, subscriberUser); err == nil || !strings.Contains(err.Error(), "no CHAP Response") {
+		t.Errorf("another user's CHAP Response: err = %v, want no CHAP Response", err)
+	}
+}

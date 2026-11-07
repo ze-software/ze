@@ -76,7 +76,7 @@ func checkAccessUp(ctx context.Context, check *interoplab.CheckContext) error {
 	if err := waitResolvers(ctx, check); err != nil {
 		return err
 	}
-	return checkPingAcross(ctx, check, subscriber, pingCount)
+	return checkPingAcross(ctx, check, nodeLNS, subscriber, pingCount)
 }
 
 // checkAccessPool proves access-pool: the subscriber's Access-Accept carries
@@ -130,7 +130,7 @@ func checkAccessAccounting(ctx context.Context, check *interoplab.CheckContext) 
 	if err := waitAccounting(ctx, check, statusStart, 30*time.Second); err != nil {
 		return err
 	}
-	if err := checkPingAcross(ctx, check, subscriber, pingCount, "-s", strconv.Itoa(pingPayload)); err != nil {
+	if err := checkPingAcross(ctx, check, nodeLNS, subscriber, pingCount, "-s", strconv.Itoa(pingPayload)); err != nil {
 		return err
 	}
 	// RFC 2869 Section 5.16: "The value MUST NOT be smaller than 60." The
@@ -403,7 +403,7 @@ func waitResolvers(ctx context.Context, check *interoplab.CheckContext) error {
 // route to the LNS's PPP address leaves on the PPPoE device, it pings that
 // address with no loss, and the LNS's PPP interface toward the subscriber
 // received at least the pings sent, so the pings crossed the LAC's bridge.
-func checkPingAcross(ctx context.Context, check *interoplab.CheckContext, subscriber netip.Addr, count int, extra ...string) error {
+func checkPingAcross(ctx context.Context, check *interoplab.CheckContext, lns string, subscriber netip.Addr, count int, extra ...string) error {
 	eth0, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "-4", ipWordAddress, "show", ipWordDev, "eth0"}, nil)
 	if err != nil {
 		return fmt.Errorf("read ze-cpe's eth0: %w", err)
@@ -418,7 +418,7 @@ func checkPingAcross(ctx context.Context, check *interoplab.CheckContext, subscr
 	if err := routeViaVerdict(route, poolGateway, cpeDevice); err != nil {
 		return err
 	}
-	device, before, err := lnsReceived(ctx, check, subscriber)
+	device, before, err := lnsReceived(ctx, check, lns, subscriber)
 	if err != nil {
 		return err
 	}
@@ -430,35 +430,35 @@ func checkPingAcross(ctx context.Context, check *interoplab.CheckContext, subscr
 	if err := pingVerdict(result.Stdout, count); err != nil {
 		return err
 	}
-	_, after, err := lnsReceived(ctx, check, subscriber)
+	_, after, err := lnsReceived(ctx, check, lns, subscriber)
 	if err != nil {
 		return err
 	}
 	if after < before+uint64(count) {
-		return fmt.Errorf("ze-lns's %s received %d packets during %d pings, so the replies did not come from the session",
+		return fmt.Errorf("%s's %s received %d packets during %d pings, so the replies did not come from the session", lns,
 			device, after-before, count)
 	}
 	return nil
 }
 
-// lnsReceived answers the LNS's PPP device toward subscriber and its
+// lnsReceived answers the PPP device of LNS node lns toward subscriber and its
 // received-packet counter.
-func lnsReceived(ctx context.Context, check *interoplab.CheckContext, subscriber netip.Addr) (string, uint64, error) {
-	addresses, err := check.Lab.Query(ctx, nodeLNS, []string{"ip", "-o", "-4", ipWordAddress, "show"}, nil)
+func lnsReceived(ctx context.Context, check *interoplab.CheckContext, lns string, subscriber netip.Addr) (string, uint64, error) {
+	addresses, err := check.Lab.Query(ctx, lns, []string{"ip", "-o", "-4", ipWordAddress, "show"}, nil)
 	if err != nil {
-		return "", 0, fmt.Errorf("read ze-lns's addresses: %w", err)
+		return "", 0, fmt.Errorf("read %s's addresses: %w", lns, err)
 	}
 	device, found := deviceWithPeer(addresses, subscriber)
 	if !found {
-		return "", 0, fmt.Errorf("ze-lns holds no PPP device with peer %s:\n%s", subscriber, addresses)
+		return "", 0, fmt.Errorf("%s holds no PPP device with peer %s:\n%s", lns, subscriber, addresses)
 	}
-	counter, err := check.Lab.Query(ctx, nodeLNS, []string{commandCat, "/sys/class/net/" + device + "/statistics/rx_packets"}, nil)
+	counter, err := check.Lab.Query(ctx, lns, []string{commandCat, "/sys/class/net/" + device + "/statistics/rx_packets"}, nil)
 	if err != nil {
-		return "", 0, fmt.Errorf("read ze-lns's %s receive counter: %w", device, err)
+		return "", 0, fmt.Errorf("read %s's %s receive counter: %w", lns, device, err)
 	}
 	packets, err := strconv.ParseUint(strings.TrimSpace(counter), 10, 64)
 	if err != nil {
-		return "", 0, fmt.Errorf("ze-lns's %s receive counter %q does not parse: %w", device, counter, err)
+		return "", 0, fmt.Errorf("%s's %s receive counter %q does not parse: %w", lns, device, counter, err)
 	}
 	return device, packets, nil
 }

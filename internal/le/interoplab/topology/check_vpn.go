@@ -6,6 +6,7 @@ package topology
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -103,8 +104,7 @@ func wireGuardDumpVerdict(dump, laptop string) error {
 // established with the CPE's certificate, on UDP 4500 (MOBIKE), its
 // CHILD_SA narrowed to ::/0 on both sides; an IPv6 ping across vti0 loses
 // nothing and each simplex SA's bytes advance on both peers. The Ed25519
-// clause is still owed: Ze signs IKE AUTH with Ed25519 under RFC 8420 since
-// spec-home-cpe-5, but issueLab mints the CPE a P-256 key only.
+// variant is checkMgmtTunnelEd25519.
 func checkMgmtTunnel(ctx context.Context, check *interoplab.CheckContext) error {
 	if _, err := waitCPEAddress(ctx, check, subscriberAddress, func(held netip.Addr) bool { return held.String() == subscriberAddress }); err != nil {
 		return err
@@ -123,6 +123,47 @@ func checkMgmtTunnel(ctx context.Context, check *interoplab.CheckContext) error 
 		return err
 	}
 	return checkESPAcross(ctx, check, subscriberAddress)
+}
+
+// charonEd25519 is charon's signature_scheme_names rendering of SIGN_ED25519,
+// as the IPsec lab's x509-ed25519 scenarios read it (ipsec/eddsa.go).
+const charonEd25519 = "ED25519"
+
+// swanLogLines bounds the strongSwan log tail the Ed25519 verdict reads: the
+// whole of one IKE_SA_INIT and IKE_AUTH exchange at charon's default level.
+const swanLogLines = 2000
+
+// checkMgmtTunnelEd25519 proves spec-home-cpe-11 AC-9 for the Ed25519
+// variant: every clause of checkMgmtTunnel with the CPE holding an Ed25519
+// key, and strongSwan's own account that it verified the CPE's AUTH with
+// Ed25519. The SA coming up says both AUTH payloads verified, not with which
+// scheme, so the checker reads the line pubkey_authenticator.c process()
+// logs only after the signature verified (ipsec/eddsa.go quotes it).
+func checkMgmtTunnelEd25519(ctx context.Context, check *interoplab.CheckContext) error {
+	if err := checkMgmtTunnel(ctx, check); err != nil {
+		return err
+	}
+	logs, err := check.Lab.Logs(ctx, nodeSwan, swanLogLines)
+	if err != nil {
+		return fmt.Errorf("read strongSwan's log: %w", err)
+	}
+	if !logs.Available {
+		return errors.New("strongSwan's log is not readable, so the Ed25519 AUTH cannot be judged")
+	}
+	return swanAuthVerdict(logs.Text, cpeIKEName, charonEd25519)
+}
+
+// swanAuthVerdict accepts a strongSwan log holding the line that says it
+// verified identity's AUTH with scheme.
+func swanAuthVerdict(logs, identity, scheme string) error {
+	want := "authentication of '" + identity + "' with " + scheme + " successful"
+	for line := range strings.SplitSeq(logs, "\n") {
+		if strings.Contains(line, want) {
+			return nil
+		}
+	}
+	return fmt.Errorf("strongSwan logs no %q, so it did not verify the CPE's AUTH with %s:\n%s",
+		want, scheme, interoplab.OutputExcerpt(logs))
 }
 
 // checkAccessReconnect proves spec-home-cpe-11 AC-11: once FreeRADIUS answers

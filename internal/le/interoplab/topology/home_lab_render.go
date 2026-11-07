@@ -6,6 +6,7 @@ package topology
 import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
@@ -169,18 +170,34 @@ type issuedLab struct {
 	files  map[string][]byte
 }
 
+// cpeKeyAlgorithm is the algorithm of the key the lab issues the CPE, which
+// is the key Ze signs its IKE AUTH with. The zero value is no choice, and
+// issuing refuses it.
+type cpeKeyAlgorithm uint8
+
+const (
+	cpeKeyUnspecified cpeKeyAlgorithm = iota
+	// cpeKeyP256 is an ECDSA P-256 key: Ze signs with ECDSA under RFC 7427.
+	cpeKeyP256
+	// cpeKeyEd25519 is an Ed25519 key: Ze signs with pure Ed25519 under
+	// RFC 8420 (mgmt-tunnel-ed25519, spec-home-cpe-11 AC-9).
+	cpeKeyEd25519
+)
+
+// errCPEKeyUnspecified says a scenario declared no CPE key algorithm.
+var errCPEKeyUnspecified = errors.New("the scenario names no CPE key algorithm; declare cpeKeyP256 or cpeKeyEd25519")
+
 // issueLab derives the WireGuard public keys from the lab private keys and
-// issues a fresh P-256 PKI: a CA with path length 0, the responder's
-// certificate for vpn.example.net and the CPE's for cpe.lab.example.net.
-// The CPE key is the P-256 variant the umbrella names. Ze signs IKE AUTH with
-// Ed25519 since spec-home-cpe-5, and the Ed25519 CPE key of spec-home-cpe-11
-// AC-9 is not minted here yet.
-func issueLab(values labValues, now time.Time) (issuedLab, error) {
+// issues a fresh PKI: a P-256 CA with path length 0, the responder's P-256
+// certificate for vpn.example.net, and the CPE's certificate for
+// cpe.lab.example.net with a key of algorithm, the one AC-9 variant the
+// scenario runs.
+func issueLab(values labValues, now time.Time, algorithm cpeKeyAlgorithm) (issuedLab, error) {
 	issued := issuedLab{values: labValues{}, files: map[string][]byte{}}
 	if err := issueWireGuard(values, &issued); err != nil {
 		return issuedLab{}, err
 	}
-	if err := issuePKI(now, &issued); err != nil {
+	if err := issuePKI(now, algorithm, &issued); err != nil {
 		return issuedLab{}, err
 	}
 	return issued, nil
@@ -226,10 +243,11 @@ func wireGuardPublic(values labValues, name string) (string, error) {
 	return base64.StdEncoding.EncodeToString(private.PublicKey().Bytes()), nil
 }
 
-// issuePKI issues the CA, the responder's certificate and the CPE's. Ze's
-// pki leaves take the base64 DER without PEM armour (a certificate) and the
-// SEC 1 DER of an EC key; strongSwan reads PEM.
-func issuePKI(now time.Time, issued *issuedLab) error {
+// issuePKI issues the CA, the responder's certificate and the CPE's, the
+// CPE's with a key of algorithm. Ze's pki leaves take the base64 DER without
+// PEM armour (a certificate) and a key in SEC 1 or PKCS #8 DER; strongSwan
+// reads PEM.
+func issuePKI(now time.Time, algorithm cpeKeyAlgorithm, issued *issuedLab) error {
 	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return fmt.Errorf("generate the lab CA key: %w", err)
@@ -251,11 +269,11 @@ func issuePKI(now time.Time, issued *issuedLab) error {
 	if err != nil {
 		return fmt.Errorf("read back the lab CA: %w", err)
 	}
-	responderDER, responderKey, err := issueLeaf(now, ca, caKey, responderName)
+	responderDER, responderKey, err := issueLeaf(now, ca, caKey, responderName, cpeKeyP256)
 	if err != nil {
 		return err
 	}
-	cpeDER, cpeKey, err := issueLeaf(now, ca, caKey, cpeIKEName)
+	cpeDER, cpeKey, err := issueLeaf(now, ca, caKey, cpeIKEName, algorithm)
 	if err != nil {
 		return err
 	}
@@ -268,12 +286,14 @@ func issuePKI(now time.Time, issued *issuedLab) error {
 	return nil
 }
 
-// issueLeaf issues one end-entity certificate for name, signed by ca, and
-// answers its DER and its key's SEC 1 DER.
-func issueLeaf(now time.Time, ca *x509.Certificate, caKey *ecdsa.PrivateKey, name string) ([]byte, []byte, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+// issueLeaf issues one end-entity certificate for name with a key of
+// algorithm, signed by ca, and answers its DER and its key's DER: SEC 1 for a
+// P-256 key, which the responder's "EC PRIVATE KEY" PEM block carries, and
+// PKCS #8 for an Ed25519 key, which SEC 1 cannot hold.
+func issueLeaf(now time.Time, ca *x509.Certificate, caKey *ecdsa.PrivateKey, name string, algorithm cpeKeyAlgorithm) ([]byte, []byte, error) {
+	public, keyDER, err := leafKey(algorithm)
 	if err != nil {
-		return nil, nil, fmt.Errorf("generate the key of %s: %w", name, err)
+		return nil, nil, fmt.Errorf("the key of %s: %w", name, err)
 	}
 	template, err := certificateTemplate(now, name)
 	if err != nil {
@@ -281,15 +301,41 @@ func issueLeaf(now time.Time, ca *x509.Certificate, caKey *ecdsa.PrivateKey, nam
 	}
 	template.DNSNames = []string{name}
 	template.KeyUsage = x509.KeyUsageDigitalSignature
-	der, err := x509.CreateCertificate(rand.Reader, template, ca, &key.PublicKey, caKey)
+	der, err := x509.CreateCertificate(rand.Reader, template, ca, public, caKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("issue the certificate of %s: %w", name, err)
 	}
-	keyDER, err := x509.MarshalECPrivateKey(key)
-	if err != nil {
-		return nil, nil, fmt.Errorf("encode the key of %s: %w", name, err)
-	}
 	return der, keyDER, nil
+}
+
+// leafKey generates a key of algorithm and answers its public half and the
+// DER of its private half.
+func leafKey(algorithm cpeKeyAlgorithm) (any, []byte, error) {
+	switch algorithm {
+	case cpeKeyUnspecified:
+		return nil, nil, errCPEKeyUnspecified
+	case cpeKeyP256:
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, nil, fmt.Errorf("generate a P-256 key: %w", err)
+		}
+		der, err := x509.MarshalECPrivateKey(key)
+		if err != nil {
+			return nil, nil, fmt.Errorf("encode a P-256 key: %w", err)
+		}
+		return &key.PublicKey, der, nil
+	case cpeKeyEd25519:
+		public, private, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return nil, nil, fmt.Errorf("generate an Ed25519 key: %w", err)
+		}
+		der, err := x509.MarshalPKCS8PrivateKey(private)
+		if err != nil {
+			return nil, nil, fmt.Errorf("encode an Ed25519 key: %w", err)
+		}
+		return public, der, nil
+	}
+	return nil, nil, fmt.Errorf("unknown CPE key algorithm %d", algorithm)
 }
 
 // certificateTemplate is a certificate valid for one day around now, with a
@@ -311,9 +357,10 @@ type renderedCPE struct {
 }
 
 // renderHomeCPE reads the converted configuration and the lab values under
-// root, issues the run's values, and substitutes both. A name both listed and
-// issued is refused, so lab-values can never shadow what the run derived.
-func renderHomeCPE(root string, now time.Time) (renderedCPE, error) {
+// root, issues the run's values with a CPE key of algorithm, and substitutes
+// both. A name both listed and issued is refused, so lab-values can never
+// shadow what the run derived.
+func renderHomeCPE(root string, now time.Time, algorithm cpeKeyAlgorithm) (renderedCPE, error) {
 	directory := filepath.Join(root, filepath.FromSlash(cpeDirectory))
 	template, err := os.ReadFile(filepath.Join(directory, cpeConvertedFile)) //nolint:gosec // the checkout root joined with a fixed name
 	if err != nil {
@@ -327,7 +374,7 @@ func renderHomeCPE(root string, now time.Time) (renderedCPE, error) {
 	if err != nil {
 		return renderedCPE{}, err
 	}
-	issued, err := issueLab(values, now)
+	issued, err := issueLab(values, now, algorithm)
 	if err != nil {
 		return renderedCPE{}, err
 	}
@@ -344,10 +391,18 @@ func renderHomeCPE(root string, now time.Time) (renderedCPE, error) {
 	return renderedCPE{config: config, files: issued.files}, nil
 }
 
-// prepareHomeCPE renders the CPE configuration and the issued files into
+// prepareHomeCPE answers the prepare step of a scenario whose CPE holds a key
+// of algorithm: it renders the CPE configuration and the issued files into
 // directory, for the nodes that mount them (node.prepared).
-func prepareHomeCPE(root, directory string) error {
-	rendered, err := renderHomeCPE(root, time.Now())
+func prepareHomeCPE(algorithm cpeKeyAlgorithm) func(root, directory string) error {
+	return func(root, directory string) error {
+		return writeHomeCPE(root, directory, algorithm)
+	}
+}
+
+// writeHomeCPE is prepareHomeCPE's step for one run.
+func writeHomeCPE(root, directory string, algorithm cpeKeyAlgorithm) error {
+	rendered, err := renderHomeCPE(root, time.Now(), algorithm)
 	if err != nil {
 		return err
 	}

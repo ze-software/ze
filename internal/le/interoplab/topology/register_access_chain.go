@@ -76,7 +76,7 @@ func accessChain(checker interoplab.Checker) scenario {
 	chain := dialChain(checker, convertedCPE())
 	chain.nodes = append(chain.nodes, dhcpClient(nodeLANClient, 21, ""))
 	chain.links = append(chain.links, interoplab.Link{Name: homeLANLink, VLAN: 197, Members: []string{nodeCPE, nodeLANClient}})
-	chain.prepare = prepareHomeCPE
+	chain.prepare = prepareHomeCPE(cpeKeyP256)
 	return chain
 }
 

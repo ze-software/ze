@@ -50,7 +50,7 @@ func checkAccessWholesale(ctx context.Context, check *interoplab.CheckContext) e
 	if err := checkRenegotiated(ctx, check, session); err != nil {
 		return err
 	}
-	return checkPingAcross(ctx, check, subscriber, pingCount)
+	return checkPingAcross(ctx, check, nodeLNS, subscriber, pingCount)
 }
 
 // checkLCPRenegotiatePPPD proves l2tp-lns-lcp-renegotiate-pppd: pppd, Opened

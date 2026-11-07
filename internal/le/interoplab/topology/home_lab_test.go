@@ -2,6 +2,8 @@ package topology
 
 import (
 	"crypto/ecdh"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
@@ -90,7 +92,7 @@ func TestLabValueSubstitution(t *testing.T) {
 // with the CPE's IKE identity.
 func TestRenderHomeCPE(t *testing.T) {
 	root := checkoutRoot(t)
-	rendered, err := renderHomeCPE(root, time.Now())
+	rendered, err := renderHomeCPE(root, time.Now(), cpeKeyP256)
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
@@ -117,7 +119,7 @@ func TestRenderHomeCPE(t *testing.T) {
 	if !strings.Contains(rendered.config, "public-key \""+public+"\"") {
 		t.Fatalf("the rendered CPE does not name the laptop's derived public key %s", public)
 	}
-	issued, err := issueLab(values, time.Now())
+	issued, err := issueLab(values, time.Now(), cpeKeyP256)
 	if err != nil {
 		t.Fatalf("issue: %v", err)
 	}
@@ -157,7 +159,7 @@ func TestHomeCPEScenariosRunTheConvertedFile(t *testing.T) {
 	if err := homeCPEScenariosConverted(); err != nil {
 		t.Fatalf("a home-CPE scenario runs a CPE file of its own:\n%v", err)
 	}
-	for _, name := range []string{conversionScenario, lanServicesScenario, roadWarriorScenario, mgmtTunnelScenario, accessReconnectScenario} {
+	for _, name := range []string{conversionScenario, lanServicesScenario, roadWarriorScenario, mgmtTunnelScenario, mgmtTunnelEd25519Scenario, accessReconnectScenario} {
 		declared := scenarios[name]
 		if declared.prepare == nil {
 			t.Errorf("%s has no prepare step", name)
@@ -290,5 +292,109 @@ func TestWireGuardDumpVerdict(t *testing.T) {
 	}
 	if wireGuardDumpVerdict(dump, "OTHER") == nil {
 		t.Error("another peer key passed")
+	}
+}
+
+// TestIssueLabCPEKey proves each mgmt-tunnel variant hands the CPE a key of
+// its own algorithm (spec-home-cpe-11 AC-9): the issued certificate's public
+// key is that algorithm's, the key placeholder parses as Ze's pki leaf parses
+// it (SEC 1 for P-256, PKCS #8 for Ed25519) to the private half of that same
+// public key, and a scenario that names no algorithm is refused.
+func TestIssueLabCPEKey(t *testing.T) {
+	values := labValues{}
+	for _, name := range []string{wgLaptopPrivate, wgCPEPrivate} {
+		values[name] = base64.StdEncoding.EncodeToString(make([]byte, 32))
+	}
+	values[wgLaptopPSK] = "psk"
+	for _, tc := range []struct {
+		name      string
+		algorithm cpeKeyAlgorithm
+		want      x509.PublicKeyAlgorithm
+	}{
+		{"p256", cpeKeyP256, x509.ECDSA},
+		{"ed25519", cpeKeyEd25519, x509.Ed25519},
+	} {
+		issued, err := issueLab(values, time.Now(), tc.algorithm)
+		if err != nil {
+			t.Fatalf("%s: issue: %v", tc.name, err)
+		}
+		certificateDER, err := base64.StdEncoding.DecodeString(issued.values[pkiCPECertificate])
+		if err != nil {
+			t.Fatalf("%s: decode the CPE certificate: %v", tc.name, err)
+		}
+		certificate, err := x509.ParseCertificate(certificateDER)
+		if err != nil {
+			t.Fatalf("%s: parse the CPE certificate: %v", tc.name, err)
+		}
+		if certificate.PublicKeyAlgorithm != tc.want {
+			t.Fatalf("%s: the CPE certificate holds a %v key, want %v", tc.name, certificate.PublicKeyAlgorithm, tc.want)
+		}
+		keyDER, err := base64.StdEncoding.DecodeString(issued.values[pkiCPEKey])
+		if err != nil {
+			t.Fatalf("%s: decode the CPE key: %v", tc.name, err)
+		}
+		if err := keyMatches(keyDER, certificate.PublicKey); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+	}
+	if _, err := issueLab(values, time.Now(), cpeKeyUnspecified); !errors.Is(err, errCPEKeyUnspecified) {
+		t.Fatalf("an unspecified CPE key algorithm: err = %v, want errCPEKeyUnspecified", err)
+	}
+}
+
+// keyMatches parses keyDER the way Ze's pki leaf does and refuses a key that
+// is not the private half of public.
+func keyMatches(keyDER []byte, public any) error {
+	if key, err := x509.ParseECPrivateKey(keyDER); err == nil {
+		if !key.PublicKey.Equal(public) {
+			return errors.New("the SEC 1 key is not the certificate's")
+		}
+		return nil
+	}
+	parsed, err := x509.ParsePKCS8PrivateKey(keyDER)
+	if err != nil {
+		return errors.New("the key parses neither as SEC 1 nor as PKCS #8")
+	}
+	switch key := parsed.(type) {
+	case ed25519.PrivateKey:
+		half, ok := key.Public().(ed25519.PublicKey)
+		if !ok {
+			return errors.New("the PKCS #8 Ed25519 key answers no Ed25519 public key")
+		}
+		if !half.Equal(public) {
+			return errors.New("the PKCS #8 Ed25519 key is not the certificate's")
+		}
+		return nil
+	case *ecdsa.PrivateKey:
+		return errors.New("a P-256 key arrived as PKCS #8, which the responder's EC PRIVATE KEY block cannot carry")
+	}
+	return errors.New("the PKCS #8 key is neither Ed25519 nor ECDSA")
+}
+
+// TestSwanAuthVerdict proves the Ed25519 variant needs strongSwan's own
+// account of an Ed25519 verification of the CPE: the ECDSA line the P-256
+// variant leaves, and another identity's Ed25519 line, are refused.
+func TestSwanAuthVerdict(t *testing.T) {
+	const ed = "12[IKE] authentication of 'cpe.lab.example.net' with ED25519 successful\n"
+	for _, tc := range []struct {
+		name string
+		logs string
+		want string
+	}{
+		{"ed25519", "10[IKE] received cert\n" + ed, ""},
+		{"ecdsa", "12[IKE] authentication of 'cpe.lab.example.net' with ECDSA_WITH_SHA256_DER successful\n", "did not verify"},
+		{"other identity", "12[IKE] authentication of 'vpn.example.net' with ED25519 successful\n", "did not verify"},
+		{"empty", "", "did not verify"},
+	} {
+		err := swanAuthVerdict(tc.logs, cpeIKEName, charonEd25519)
+		if tc.want == "" {
+			if err != nil {
+				t.Errorf("%s: %v", tc.name, err)
+			}
+			continue
+		}
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v, want %q", tc.name, err, tc.want)
+		}
 	}
 }

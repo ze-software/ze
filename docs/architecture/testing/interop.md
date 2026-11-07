@@ -3131,7 +3131,10 @@ for every suite, so a directory with no declaration is an error.
 | `conversion` | the home-CPE lab (below) with `lan-client` on the CPE's bridge | `conversion-record.md` names every line of `vyos.conf` with its own text and a Ze form or a dropped reason; every scenario whose `ze-cpe` node runs mounts the rendered conversion (only `pppoe-mss-pmtu` is exempt); `ze config validate` passes on the file the CPE mounted; the CPE's `pppoe0` holds `203.0.113.1` and the kernel holds `br0`, `wg0` and `vti0` |
 | `lan-services` | the home-CPE lab with `lan-client`, `lan-res-a` and `lan-res-b` (dhcpcd), `lan-host` (static `192.168.50.10`) and `web` | `lan-client` binds inside `192.168.50.100`-`199`; `lan-res-a` binds `192.168.50.30` and `lan-res-b` `10.99.0.40` (the later subnet); `web` captures `lan-host`'s fetch from `203.0.113.1`; SYNs offered with MSS 1460 and 1300 arrive as 1400 and 1300; `web` gets no answer from `203.0.113.1:22` while the CPE's default-drop counter advances, and `lan-host` completes TCP to `192.168.50.1:22`; an active-mode FTP download completes |
 | `road-warrior` | the home-CPE lab with `lan-res-a`, `web` and `wg-client` | the CPE's `wg show wg0 dump` lists port 51820 and the laptop's key with a preshared key and `10.88.0.2/32`; `wg-client` holds a handshake, pings `lan-res-a` and fetches from `web`, which captures the SYN from `203.0.113.1` |
-| `mgmt-tunnel` | the home-CPE lab with `lan-client`, `strongswan` (`vpn.example.net`) and a `dns` gated shut | no IKE SA while DNS is down; once it answers, strongSwan's SA sits on `203.0.113.1[4500]` with the CHILD_SA narrowed to `::/0` both sides; an IPv6 ping across `vti0` loses nothing and each simplex SA's bytes advance on both peers. P-256 only: Ze signs IKE AUTH with Ed25519 under RFC 8420, and the Ed25519 clause of `spec-home-cpe-11` AC-9 is owed, because the lab mints the CPE a P-256 key only |
+| `mgmt-tunnel` | the home-CPE lab with `lan-client`, `strongswan` (`vpn.example.net`) and a `dns` gated shut | no IKE SA while DNS is down; once it answers, strongSwan's SA sits on `203.0.113.1[4500]` with the CHILD_SA narrowed to `::/0` both sides; an IPv6 ping across `vti0` loses nothing and each simplex SA's bytes advance on both peers. The CPE holds a P-256 key: the P-256 variant of `spec-home-cpe-11` AC-9 |
+| `mgmt-tunnel-ed25519` | `mgmt-tunnel` with the lab issuing the CPE an Ed25519 key (PKCS #8) under the same P-256 CA | every `mgmt-tunnel` clause, and strongSwan's log holds `authentication of 'cpe.lab.example.net' with ED25519 successful`, the line `pubkey_authenticator.c` `process()` writes only after the signature verified, so Ze signed its IKE AUTH with Ed25519 under RFC 8420 |
+| `access-wholesale-accel-lns` | the access chain with `access-wholesale`'s realm-relaying LAC, accel-ppp 1.14.0 as the LNS on link `core` at `192.0.2.3` in place of `ze-lns`, checking CHAP from its own `chap-secrets`, and no FreeRADIUS | the CPE's `pppoe0` holds `203.0.113.1`, the address accel-ppp's `chap-secrets` names; accel-ppp's verbose log holds an LCP Configure-Request and a Configure-Ack it received (the CPE, Opened with the LAC, renegotiated when accel-ppp, which skips the proxy LCP AVPs in `l2tp_recv_ICCN`, sent its own request), a CHAP Response naming `cpe@lab.example.net` and its CHAP Success; the CPE pings `100.64.0.1` across and accel-ppp's PPP device received at least the pings sent |
+| `pppoe-dhcpv6-pd-ze-client` | a Ze CPE with its own file (`pppoe0`, `ipv6` with `accept-ra 2`, `autoconf`, `forwarding` and `dhcpv6 pd length 56`) dialing accel-ppp 1.14.0 on link `access` (VLAN 198, no prefix), accel-ppp running IPv6CP, `ipv6_nd` and `ipv6_dhcp` with a /60 delegate pool | `spec-home-cpe-8` Phases 1 to 3 only: `pppoe0` holds one `fe80::/64` from a non-zero identifier and no `pppN` holds one; `pppoe0`'s `accept_ra` is 2, `forwarding` and `autoconf` 1; `::/0` goes via `fe80::1` (accel-ppp's `ipv6-intf-id`) on `pppoe0`; `pppoe0` holds a SLAAC /64 from `2001:db8:198::/48`; accel-ppp's log holds a Solicit carrying IA-PD with the hint `::/56`, a Request for a /60 from `2001:db8:2000::/40` and the Reply delegating it (RFC 7084 WPD-3). The delegated prefix's use on a LAN waits on the owner's decision, so no LAN node runs |
 | `access-reconnect` | the home-CPE lab with `lan-host`, `web`, `strongswan` and `dns`, FreeRADIUS answering from a writable copy of its users file | after FreeRADIUS is changed to answer `203.0.113.2`, restarted, and the LNS clears the session, the CPE holds `203.0.113.2`, strongSwan's SA sits on it, ESP advances both ways, and `web` captures `lan-host`'s fetch from it |
 
 The home-CPE lab (`spec-home-cpe-11`) runs the CPE every home-CPE scenario
@@ -3139,8 +3142,10 @@ shares: `test/interop-topology/cpe/ze-cpe.conf`, the model's conversion of
 the invented `vyos.conf` with `conversion-record.md` beside it. The file holds
 placeholders, never values: `<<SECRET:name>>` (filled from `lab-values`) and
 `<<LAB:name>>` (issued by the run: a fresh P-256 CA with path length 0, the
-`vpn.example.net` and `cpe.lab.example.net` certificates, and the laptop's
-X25519 public key derived from its lab private key). The scenario's prepare
+`vpn.example.net` certificate with a P-256 key, the `cpe.lab.example.net`
+certificate with the key algorithm the scenario declares, P-256 in SEC 1 or
+Ed25519 in PKCS #8 for `mgmt-tunnel-ed25519`, and the laptop's X25519 public
+key derived from its lab private key). The scenario's prepare
 step renders it into the session scratch before any container starts, and
 the CPE mounts the rendered file, so no scenario carries a CPE file of its
 own: the access chain's scenarios below run it too. The lab adds a `lan` link (VLAN 194, no prefix: the CPE numbers it,
@@ -3189,6 +3194,11 @@ the core's kernel check refuses another.
 <!-- source: internal/le/interoplab/topology/register_access_chain.go -- accessChain, dialChain, captureStart -->
 <!-- source: internal/le/interoplab/topology/check_access.go -- checkAccessUp, checkAccessPool, checkAccessAccounting, waitResolvers -->
 <!-- source: internal/le/interoplab/topology/register_images.go -- freeRADIUSLinkImage -->
+<!-- source: internal/le/interoplab/topology/register_wholesale_accel.go -- wholesaleAccelChain, accelLNS -->
+<!-- source: internal/le/interoplab/topology/check_wholesale_accel.go -- checkAccessWholesaleAccel, accelRenegotiationVerdict -->
+<!-- source: internal/le/interoplab/topology/register_pppoe_dhcpv6_pd.go -- pppoeDHCPv6PDScenario -->
+<!-- source: internal/le/interoplab/topology/check_pppoe_dhcpv6_pd.go -- checkPPPoEDHCPv6PD, delegationVerdict -->
+<!-- source: internal/le/interoplab/topology/check_vpn.go -- checkMgmtTunnelEd25519, swanAuthVerdict -->
 
 `./le test integration interop-topology` runs every scenario;
 `./le test integration interop-topology scenario <name>`, or
