@@ -17,9 +17,11 @@ import (
 	"github.com/ze-software/ze/internal/component/config/system"
 )
 
-// The iface test binary links no DHCP client, so it registers a DHCPv4
-// origin of its own at the DHCP client's rank.
-var testDHCPv4Origin = system.RegisterResolverOrigin("test-dhcpv4", 100)
+// The iface unit test binary links no DHCP client, so it registers a DHCPv4
+// stand-in that ranks before the PPP origin as DHCPv4 does. It takes rank 101,
+// not the DHCP client's 100: the integration tests link the real client
+// (dhcp_v6_selector_renew_integration_linux_test.go), and a shared rank panics.
+var testDHCPv4Origin = system.RegisterResolverOrigin("test-dhcpv4", 101)
 
 type dnsSession struct {
 	client    *PPPoEClient
