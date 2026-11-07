@@ -143,9 +143,21 @@ func negotiateSession(chanFile io.ReadWriteCloser, reader *frameReader, unitFD, 
 	// The unit now receives IPCP. Enable it under the same lifecycle lock
 	// before authorizing another read through the session's existing reader.
 	link.unitConnected = true
+	return connectedResult(state, reader, ipcpCodeRejectID, ipcpIdentifier, lcpIdentifier, papIdentifier), nil
+}
+
+// connectedResult is Dial's result for the negotiated state: every value the
+// phases negotiated, the receive owner, and the identifiers the connected
+// worker continues. A value of state this leaves out never reaches the
+// interface, as the RFC 1877 servers once did not: the session came up with
+// no DNS servers and Ze wrote no resolv.conf.
+func connectedResult(state negotiatedSession, reader *frameReader,
+	ipcpCodeRejectID, ipcpIdentifier, lcpIdentifier, papIdentifier uint8) sessionResult {
 	return sessionResult{
 		localIP:          state.localIP,
 		peerIP:           state.peerIP,
+		primaryDNS:       state.primaryDNS,
+		secondaryDNS:     state.secondaryDNS,
 		negMTU:           state.negMTU,
 		magic:            state.magic,
 		reader:           reader,
@@ -155,7 +167,7 @@ func negotiateSession(chanFile io.ReadWriteCloser, reader *frameReader, unitFD, 
 		lcpIdentifier:    lcpIdentifier,
 		papIdentifier:    papIdentifier,
 		chap:             state.chap,
-	}, nil
+	}
 }
 
 type lcpResult struct {

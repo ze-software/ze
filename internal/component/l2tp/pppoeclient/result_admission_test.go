@@ -5,6 +5,7 @@ package pppoeclient
 import (
 	"errors"
 	"net/netip"
+	"reflect"
 	"strconv"
 	"testing"
 )
@@ -44,5 +45,48 @@ func TestNegotiatedResultMinimum(t *testing.T) {
 				t.Fatal("admission changed the peer address")
 			}
 		})
+	}
+}
+
+// TestConnectedResultCarriesEveryNegotiatedValue guards the hand-written copy
+// from the negotiated state into Dial's result. The copy once dropped the
+// RFC 1877 servers, so a session IPCP gave DNS servers came up with none and
+// Ze wrote no resolv.conf. Method: every field of the state is set, which the
+// first loop enforces so a new field fails here until it is set, and the
+// second loop requires each to reach the result's field of the same name.
+func TestConnectedResultCarriesEveryNegotiatedValue(t *testing.T) {
+	state := negotiatedSession{
+		localIP:      netip.MustParseAddr("192.0.2.2"),
+		peerIP:       netip.MustParseAddr("192.0.2.1"),
+		primaryDNS:   netip.MustParseAddr("192.0.2.53"),
+		secondaryDNS: netip.MustParseAddr("192.0.2.54"),
+		negMTU:       1492,
+		magic:        0x10203040,
+		peerMRU:      1492,
+		chap:         &networkPhaseCHAP{id: 7},
+	}
+	reader := &frameReader{}
+	result := connectedResult(state, reader, 1, 2, 3, 4)
+	source := reflect.ValueOf(state)
+	target := reflect.ValueOf(result)
+	for i := range source.NumField() {
+		name := source.Type().Field(i).Name
+		if source.Field(i).IsZero() {
+			t.Fatalf("negotiatedSession.%s is unset in this test: set it so its copy is checked", name)
+		}
+		field := target.FieldByName(name)
+		if !field.IsValid() {
+			t.Fatalf("sessionResult has no %s field to carry negotiatedSession.%s", name, name)
+		}
+		if !field.Equal(source.Field(i)) {
+			t.Fatalf("sessionResult.%s = %v, want negotiatedSession.%s = %v", name, field, name, source.Field(i))
+		}
+	}
+	if result.reader != reader {
+		t.Fatal("result lost the receive owner")
+	}
+	ids := [4]uint8{result.ipcpCodeRejectID, result.ipcpIdentifier, result.lcpIdentifier, result.papIdentifier}
+	if ids != [4]uint8{1, 2, 3, 4} {
+		t.Fatalf("identifiers = %v, want [1 2 3 4] in code-reject, IPCP, LCP, PAP order", ids)
 	}
 }
