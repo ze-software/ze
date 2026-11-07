@@ -285,6 +285,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			MRU:              s.params.MRU,
 			AuthAllow:        s.params.AuthAllow,
 			AuthRequired:     !s.params.AllowNoAuth,
+			ProxyLCP:         s.params.ProxyLCP,
 			AuthTimeout:      s.params.AuthTimeout,
 			ReauthInterval:   s.params.ReauthInterval,
 			HelloInterval:    s.params.HelloInterval,

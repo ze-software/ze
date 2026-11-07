@@ -32,7 +32,7 @@ var (
 // policy:
 //
 //   - shared-secret, hello-interval, max-tunnels, max-sessions,
-//     auth-method, allow-no-auth: hot-apply. Takes effect on new tunnels,
+//     auth-method, allow-no-auth, proxy-lcp: hot-apply. Takes effect on new tunnels,
 //     new sessions, or new admission decisions. Live tunnels are not
 //     re-keyed or re-timed.
 //   - enabled flip (true<->false): rejected with WARN. Operator must
@@ -192,6 +192,18 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 			r.setPPPPolicy(next.MRU, next.AuthAllow, next.AuthMethod, !next.AllowNoAuth)
 		}
 		s.logger.Info("l2tp reload: PPP policy updated (applies to new sessions only)")
+		applied++
+	}
+
+	// Hot-apply: the proxy LCP policy for new sessions. A session already
+	// past its LCP start keeps the outcome it had.
+	if prev.ProxyLCP != next.ProxyLCP {
+		s.params.ProxyLCP = next.ProxyLCP
+		for _, r := range s.reactors {
+			r.setProxyLCPPolicy(next.ProxyLCP)
+		}
+		s.logger.Info("l2tp reload: proxy-lcp updated (applies to new sessions only)",
+			"previous", prev.ProxyLCP.String(), "new", next.ProxyLCP.String())
 		applied++
 	}
 
@@ -383,6 +395,14 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 	}
 	if p.AuthMethod == ppp.AuthMethodNone && !p.AllowNoAuth {
 		return Parameters{}, errAuthMethodNoneRequiresAllowNo
+	}
+	p.ProxyLCP = ProxyLCPAccept
+	if v, ok := l2tpRoot["proxy-lcp"].(string); ok {
+		policy, perr := ParseProxyLCPPolicy(v)
+		if perr != nil {
+			return Parameters{}, perr
+		}
+		p.ProxyLCP = policy
 	}
 	if authC, ok := l2tpRoot["authentication"].(map[string]any); ok {
 		if v, ok := authC["timeout"].(string); ok {

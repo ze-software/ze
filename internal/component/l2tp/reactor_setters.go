@@ -102,6 +102,14 @@ func (r *l2tpReactor) setPPPPolicy(mru uint16, allow []ppp.AuthMethod, method pp
 	r.tunnelsMu.Unlock()
 }
 
+// setProxyLCPPolicy publishes the `l2tp proxy-lcp` policy for new sessions;
+// a session already handed to the PPP driver keeps the policy it started with.
+func (r *l2tpReactor) setProxyLCPPolicy(policy ProxyLCPPolicy) {
+	r.tunnelsMu.Lock()
+	r.params.ProxyLCP = policy
+	r.tunnelsMu.Unlock()
+}
+
 func (r *l2tpReactor) setAuthTimeout(d time.Duration) {
 	r.tunnelsMu.Lock()
 	r.params.AuthTimeout = d

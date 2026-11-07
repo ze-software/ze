@@ -30,6 +30,43 @@ type EventLCPUp struct {
 	SessionID            uint16
 	NegotiatedMRU        uint16
 	NegotiatedAuthMethod AuthMethod
+	// ProxyLCP says what the session did with the LAC's proxy LCP AVPs when
+	// it started. Every LCP lifetime of a session carries the same value.
+	ProxyLCP ProxyLCPOutcome
+}
+
+// ProxyLCPOutcome records how a session's LCP opened with respect to the
+// proxy LCP AVPs (RFC 2661 Section 4.4.5) the LAC sent in ICCN. The zero value
+// is Unknown, which no session emits: run decides the outcome before LCP can
+// open.
+type ProxyLCPOutcome uint8
+
+const (
+	// ProxyLCPOutcomeUnknown is the zero value; no EventLCPUp carries it.
+	ProxyLCPOutcomeUnknown ProxyLCPOutcome = iota
+	// ProxyLCPOutcomeNone means the session received no proxy LCP AVP.
+	ProxyLCPOutcomeNone
+	// ProxyLCPOutcomeAccepted means LCP opened on the LAC's proxied values.
+	ProxyLCPOutcomeAccepted
+	// ProxyLCPOutcomeRenegotiated means proxy LCP arrived and Ze negotiated
+	// LCP itself: the operator chose `proxy-lcp renegotiate`, or the proxy
+	// data was partial, malformed or outside the auth and MRU policy.
+	ProxyLCPOutcomeRenegotiated
+)
+
+// String returns the `proxy-lcp` value `show l2tp session` reports.
+func (o ProxyLCPOutcome) String() string {
+	switch o {
+	case ProxyLCPOutcomeNone:
+		return "none"
+	case ProxyLCPOutcomeAccepted:
+		return "accepted"
+	case ProxyLCPOutcomeRenegotiated:
+		return "renegotiated"
+	case ProxyLCPOutcomeUnknown:
+		return "unknown"
+	}
+	return "unknown"
 }
 
 func (EventLCPUp) isPPPEvent() {}

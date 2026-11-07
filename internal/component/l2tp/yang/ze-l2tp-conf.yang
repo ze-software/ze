@@ -78,6 +78,21 @@ module ze-l2tp-conf {
             ze:help "Allow PPP LCP to finish with no Auth-Protocol, false by default.";
         }
 
+        leaf proxy-lcp {
+            type enumeration {
+                enum accept { ze:help "Open LCP on valid proxy LCP from the LAC, then authenticate again (default)."; }
+                enum renegotiate { ze:help "Ignore the LAC's proxy LCP and negotiate LCP with the subscriber afresh."; }
+            }
+            default "accept";
+            description "LNS policy for the proxy LCP AVPs (Initial Received, Last Sent and Last Received LCP
+                CONFREQ) a LAC sends in ICCN, RFC 2661 Section 4.4.5. With accept, a complete proxy that meets
+                the auth allow-list and mru opens LCP on the LAC's values; partial, malformed or out-of-policy
+                proxy data is renegotiated anyway. With renegotiate, Ze sends its own LCP Configure-Request with
+                its own Magic-Number, MRU and Auth-Protocol, then authenticates with the configured method. Ze
+                authenticates the subscriber itself under both values. Changes apply to new sessions only.";
+            ze:help "Accept the LAC's proxy LCP, or renegotiate LCP with the subscriber (default accept).";
+        }
+
         leaf shared-secret {
             type string;
             ze:sensitive;

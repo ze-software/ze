@@ -97,13 +97,18 @@ type L2TPSession struct {
 	sequencingRequired bool
 
 	// Proxy LCP state captured from ICCN (phase 6 PPP engine consumes these).
-	// RFC 2661 Section 18.
+	// RFC 2661 Section 4.4.5.
 	proxyInitialRecvLCPConfReq []byte
 	proxyLastSentLCPConfReq    []byte
 	proxyLastRecvLCPConfReq    []byte
 
+	// proxyLCPOutcome is what the PPP driver did with the proxy LCP above,
+	// written from the first EventLCPUp and kept across later LCP lifetimes.
+	// Unknown until LCP first opens. Caller MUST hold tunnelsMu.
+	proxyLCPOutcome ppp.ProxyLCPOutcome
+
 	// Proxy authentication captured from ICCN (phase 6 PPP engine consumes these).
-	// RFC 2661 Section 18.
+	// RFC 2661 Sections 4.4.5 and 9.5.
 	proxyAuthenType      uint16
 	proxyAuthenName      string
 	proxyAuthenChallenge []byte

@@ -629,6 +629,12 @@ func sessionJSON(s *l2tp.SessionSnapshot, detail bool) map[string]any {
 		m["mru"] = int(s.MRU)
 		m["auth-method"] = s.AuthMethod
 	}
+	// What the LNS did with the LAC's proxy LCP (RFC 2661 Section 4.4.5):
+	// accepted, renegotiated or none; null until LCP first opens.
+	m["proxy-lcp"] = nil
+	if s.ProxyLCP != "" {
+		m["proxy-lcp"] = s.ProxyLCP
+	}
 	if detail {
 		m["tx-connect-speed"] = int64(s.TxConnectSpeed)
 		m["rx-connect-speed"] = int64(s.RxConnectSpeed)

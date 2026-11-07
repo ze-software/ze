@@ -145,6 +145,8 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		ProxyLCPInitialRecv: ksucc.proxyInitialRecvLCPConfReq,
 		ProxyLCPLastSent:    ksucc.proxyLastSentLCPConfReq,
 		ProxyLCPLastRecv:    ksucc.proxyLastRecvLCPConfReq,
+		// RFC 2661 Section 4.4.5: the operator's LNS policy for proxy LCP.
+		RenegotiateProxyLCP: policy.ProxyLCP == ProxyLCPRenegotiate,
 		EchoInterval:        policy.CQMEchoInterval,
 	}
 
@@ -273,6 +275,7 @@ func (r *l2tpReactor) handleLCPUp(ev ppp.EventLCPUp) {
 	}
 	sess.negotiatedMRU = ev.NegotiatedMRU
 	sess.negotiatedAuthMethod = ev.NegotiatedAuthMethod
+	sess.proxyLCPOutcome = ev.ProxyLCP
 }
 
 // handleLCPDown clears negotiated values and withdraws any network lifetime

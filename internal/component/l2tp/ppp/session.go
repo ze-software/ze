@@ -131,6 +131,11 @@ type pppSession struct {
 	// it when a new lifetime starts. Goroutine-owned.
 	lcpProxied bool
 
+	// proxyLCPOutcome is what run decided about the LAC's proxy LCP AVPs
+	// before LCP could open. Every EventLCPUp of the session carries it.
+	// Goroutine-owned.
+	proxyLCPOutcome ProxyLCPOutcome
+
 	// Cached authenticator decision, cleared when LCP restarts. Goroutine-owned.
 	papReplyCode uint8
 

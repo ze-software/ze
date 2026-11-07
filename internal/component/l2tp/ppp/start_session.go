@@ -60,9 +60,9 @@ type StartSession struct {
 	// Protocol option and runs the no-wire-auth phase (existing
 	// handler still fires one EventAuthRequest for accounting).
 	//
-	// Proxy LCP may override this choice only when its actual method is in
-	// AuthFallbackOrder and its Last-Sent MRU meets MaxMRU; otherwise Ze
-	// negotiates LCP itself.
+	// Proxy LCP may override this choice only when RenegotiateProxyLCP is
+	// false, its actual method is in AuthFallbackOrder and its Last-Sent MRU
+	// meets MaxMRU; otherwise Ze negotiates LCP itself.
 	AuthMethod AuthMethod
 
 	// AuthRequired closes LCP before Opened if the peer refuses every
@@ -106,13 +106,22 @@ type StartSession struct {
 	// EventSessionDown and an LCP Terminate-Request.
 	IPTimeout time.Duration
 
-	// Proxy LCP bytes from L2TP ICCN AVPs (RFC 2661 Section 18).
-	// When all three are present, the LCP FSM short-circuits to the
-	// Opened state with the proxied options. Empty slices mean no
-	// proxy data; LCP runs the full negotiation.
+	// Proxy LCP bytes from L2TP ICCN AVPs (RFC 2661 Section 4.4.5).
+	// When all three are present and RenegotiateProxyLCP is false, the LCP
+	// FSM short-circuits to the Opened state with the proxied options.
+	// Empty slices mean no proxy data; LCP runs the full negotiation.
 	ProxyLCPInitialRecv []byte // AVP 26: Initial-Received-LCP-CONFREQ
 	ProxyLCPLastSent    []byte // AVP 27: Last-Sent-LCP-CONFREQ
 	ProxyLCPLastRecv    []byte // AVP 28: Last-Received-LCP-CONFREQ
+
+	// RenegotiateProxyLCP is the LNS policy `l2tp proxy-lcp renegotiate`:
+	// the session ignores the three proxy LCP slices and negotiates LCP
+	// itself from the synthetic Open, with its own Magic-Number, MRU and
+	// Auth-Protocol. False is `proxy-lcp accept`, the default, which uses
+	// valid proxy LCP. The slices stay set either way so the outcome
+	// (EventLCPUp.ProxyLCP) can tell a renegotiated session from one that
+	// received no proxy LCP.
+	RenegotiateProxyLCP bool
 
 	// CaptureProxyLCP asks the session to record its LCP exchange and hand
 	// it out on EventAuthRequest.ProxyLCP, for a LAC that may relay the

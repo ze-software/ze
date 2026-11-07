@@ -245,6 +245,7 @@ func TestReloadNoOpOnIdentical(t *testing.T) {
 		EnableIPCP:    true,
 		EnableIPv6CP:  true,
 		NCPTimeout:    DefaultNCPTimeoutSecs * time.Second,
+		ProxyLCP:      ProxyLCPAccept,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
 	})
 	prev := s.params

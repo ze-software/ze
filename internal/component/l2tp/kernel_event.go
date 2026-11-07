@@ -43,7 +43,7 @@ type kernelSetupEvent struct {
 	// before the bridge, and reports the bridge result to it.
 	realm *realmCall
 
-	// RFC 2661 Section 18: proxy LCP AVPs from ICCN. Empty slices when
+	// RFC 2661 Section 4.4.5: proxy LCP AVPs from ICCN. Empty slices when
 	// the peer omitted the AVPs. Carried verbatim through the kernel
 	// worker into the success event so PPP can short-circuit LCP.
 	proxyInitialRecvLCPConfReq []byte
@@ -84,7 +84,7 @@ type kernelSetupSucceeded struct {
 	owner   *pppSessionFDs
 	session *L2TPSession
 
-	// RFC 2661 Section 18: proxy LCP AVPs sourced from L2TPSession at the
+	// RFC 2661 Section 4.4.5: proxy LCP AVPs sourced from L2TPSession at the
 	// time the kernelSetupEvent was enqueued. Empty when the peer omitted
 	// them; PPP runs the full LCP negotiation.
 	proxyInitialRecvLCPConfReq []byte

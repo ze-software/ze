@@ -233,3 +233,39 @@ func lookupMagicNumber(opts []LCPOption) (uint32, bool) {
 	}
 	return binary.BigEndian.Uint32(d[:4]), true
 }
+
+// admitProxyLCP decides whether the session opens LCP on the LAC's proxied
+// values, and names the outcome EventLCPUp reports. It answers isProxy true
+// only on `proxy-lcp accept` with a valid proxy that passes the session's auth
+// and MRU policy; every other session runs the normal LCP path from the
+// synthetic Open. With no proxy AVP at all the outcome is None.
+func (s *pppSession) admitProxyLCP(start *StartSession) (proxyLCPResult, bool, ProxyLCPOutcome) {
+	present := len(start.ProxyLCPInitialRecv) > 0
+	if len(start.ProxyLCPLastSent) > 0 {
+		present = true
+	}
+	if len(start.ProxyLCPLastRecv) > 0 {
+		present = true
+	}
+	if !present {
+		return proxyLCPResult{}, false, ProxyLCPOutcomeNone
+	}
+	// RFC 2661 Section 4.4.5: "Note that the LNS policy may be to enter an
+	// additional round of LCP negotiation and/or authentication if the LAC is not
+	// trusted."
+	if start.RenegotiateProxyLCP {
+		s.logger.Info("ppp: proxy LCP ignored, renegotiating LCP (proxy-lcp renegotiate)")
+		return proxyLCPResult{}, false, ProxyLCPOutcomeRenegotiated
+	}
+	// RFC 2661 Section 4.4.5: "This information may be used to initiate the PPP LCP and authentication
+	// systems on the LNS, allowing PPP to continue without renegotiation of LCP."
+	proxy, err := EvaluateProxyLCP(start.ProxyLCPInitialRecv, start.ProxyLCPLastSent, start.ProxyLCPLastRecv)
+	if err != nil {
+		s.logger.Warn("ppp: proxy LCP unusable, renegotiating LCP", "error", err.Error())
+		return proxyLCPResult{}, false, ProxyLCPOutcomeRenegotiated
+	}
+	if !s.acceptProxyPolicy(proxy) {
+		return proxyLCPResult{}, false, ProxyLCPOutcomeRenegotiated
+	}
+	return proxy, true, ProxyLCPOutcomeAccepted
+}

@@ -3230,7 +3230,7 @@ When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as 
 | `show l2tp tunnels` | run | List all active L2TP tunnels |
 | `show l2tp tunnel <tid>` | run | Show one tunnel by local tunnel ID |
 | `show l2tp sessions` | run | List all active L2TP sessions |
-| `show l2tp session <sid>` | run | Show one session by local session ID |
+| `show l2tp session id <sid>` | run | Show one session by local session ID, including its `proxy-lcp` outcome |
 | `show l2tp statistics` | run | Protocol counters |
 | `show l2tp listeners` | run | Bound UDP listener endpoints |
 | `show l2tp config` | run | Effective runtime configuration |

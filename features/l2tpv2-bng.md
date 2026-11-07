@@ -39,6 +39,15 @@ required authentication closes before LCP opens.
 <!-- source: internal/le/interoplab/l2tp/proxy_mru.go -- checkProxyMRU -->
 <!-- source: internal/le/interoplab/l2tp/lns_policy.go -- checkLNSCHAPOnly -->
 
+The LNS policy for a LAC's proxy LCP (RFC 2661 Section 4.4.5) is the
+`proxy-lcp` leaf: `accept`, the default, opens LCP on valid proxy LCP;
+`renegotiate` ignores it and negotiates LCP with the subscriber afresh,
+then authenticates with the configured method. `show l2tp session id <id>`
+names the outcome (`accepted`, `renegotiated`, `none`). Unit and wiring
+tests prove it; the pppd interop scenario `l2tp-lns-lcp-renegotiate-pppd`
+is not yet run.
+<!-- source: internal/component/l2tp/ppp/proxy.go -- admitProxyLCP -->
+
 The PPP engine's IPv6CP boundary tests negotiate at MRU 1280 with a test
 address provider. Shipped subscriber service remains IPv4-only: the static
 pool declines IPv6 requests. Subscriber IPv6 traffic and prefix delegation

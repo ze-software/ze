@@ -89,7 +89,7 @@ func TestProxyLCPCHAPAlgorithm(t *testing.T) {
 
 // VALIDATES: EvaluateProxyLCP rejects when any of the three slices
 //
-//	is empty (RFC 2661 §18 requires all three).
+//	is empty (RFC 2661 Section 4.4.5 defines all three).
 func TestProxyLCPMissingAVP(t *testing.T) {
 	good := buildOptionStream([]LCPOption{mruOpt(1500)})
 	cases := []struct {

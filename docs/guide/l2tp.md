@@ -26,6 +26,7 @@ l2tp {
     shared-secret <secret>;     // CHAP-MD5 tunnel auth (RFC 2661 S4.2)
     auth-method chap-md5;        // PPP Auth-Protocol first advertised
     allow-no-auth false;         // explicit opt-in required for no-auth
+    proxy-lcp accept;            // LNS: accept the LAC's proxy LCP, or renegotiate
     mru 1500;                   // Information-field octets; 68..1500, IPv6 needs 1280
     authentication {
         allow [ chap-md5 ];     // ordered permitted methods; optional
@@ -160,7 +161,8 @@ Every proxy AVP carries M=0. A PAP password travels only hidden, so a PAP
 subscriber's proxy authentication is sent only when the remote has a
 `shared-secret`; without one the ICCN carries AVPs 26 to 28 alone, the LAC
 logs why, and the LNS restarts authentication. An LNS may also ignore the
-proxy data and renegotiate LCP and authentication.
+proxy data and renegotiate LCP and authentication; a Ze LNS does so under
+`proxy-lcp renegotiate` (see PPP negotiation).
 
 Validation refuses a binding whose remote is not declared, an empty realm, a
 realm holding `@` or whitespace, a realm longer than 253 octets, and two
@@ -229,7 +231,7 @@ datagram whose message type is not SCCRQ keeps its silent drop.
 | `show l2tp tunnels` | Array of tunnel summaries |
 | `show l2tp tunnel <id>` | One tunnel detail (AVPs, capabilities, session list) |
 | `show l2tp sessions` | Array of session summaries (flattened across tunnels) |
-| `show l2tp session id <id>` | One session detail (PPP state, negotiated MRU/auth method, assigned IP, speeds; the realm relay keys on a realm-relayed LAC session) |
+| `show l2tp session id <id>` | One session detail (PPP state, negotiated MRU/auth method, `proxy-lcp` outcome, assigned IP, speeds; the realm relay keys on a realm-relayed LAC session) |
 | `show l2tp statistics` | Protocol counters (tunnel/session counts, per-message stats) |
 | `show l2tp listeners` | Bound UDP endpoints |
 | `show l2tp config` | Effective runtime config, including `mru` and `authentication-allow`; `shared-secret` redacted to `<set>`/`<unset>` |
@@ -447,10 +449,36 @@ alone, and the refusal is logged and counted (see Prometheus metrics).
 <!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
 
 Authentication and NCP have configurable timeouts. LCP negotiation and restart
-timers are fixed. LCP proxy (RFC 2661 Section 4.4.5) is supported: when the LAC provides
-proxy LCP AVPs, Ze validates them and can renegotiate instead of accepting them.
-<!-- source: internal/component/l2tp/ppp/proxy.go -- EvaluateProxyLCP -->
+timers are fixed.
+
+Proxy LCP (RFC 2661 Section 4.4.5) is the LAC's record of the LCP it already
+negotiated with the subscriber, sent in ICCN as AVPs 26 to 28. The RFC lets an
+LNS use it to continue "without renegotiation of LCP", and notes that "the LNS
+policy may be to enter an additional round of LCP negotiation and/or
+authentication if the LAC is not trusted". The `proxy-lcp` leaf picks the
+policy:
+
+| `proxy-lcp` | What the LNS does |
+|-------------|-------------------|
+| `accept` (default) | When all three AVPs parse and the proxied method is in the auth allow-list and the proxied MRU fits `mru`, LCP opens on the LAC's values. Partial, malformed or out-of-policy proxy data is renegotiated. |
+| `renegotiate` | The AVPs are ignored. Ze sends its own Configure-Request with its own Magic-Number, MRU and Auth-Protocol; the subscriber, Opened with the LAC, renegotiates (RFC 1661 Section 4.3). |
+
+Under both values Ze then authenticates the subscriber itself, with a fresh
+CHAP Challenge, or by waiting for a PAP Authenticate-Request. On `renegotiate`
+the method is the configured one, never the LAC's. Ze does not use the proxy
+authentication AVPs (RFC 2661 Section 9.5). `show l2tp session id <id>` reports
+what happened in the `proxy-lcp` key: `accepted`, `renegotiated`, `none` (the
+ICCN carried no proxy LCP), or null before LCP first opens. The leaf is global
+to the LNS, not set per LAC.
+
+```
+l2tp {
+    proxy-lcp renegotiate;
+}
+```
+<!-- source: internal/component/l2tp/ppp/proxy.go -- admitProxyLCP, EvaluateProxyLCP -->
 <!-- source: internal/component/l2tp/ppp/auth.go -- acceptProxyPolicy -->
+<!-- source: internal/component/l2tp/config.go -- ParseProxyLCPPolicy -->
 
 NCP enablement is controlled via the `ncp` container under `l2tp`:
 
@@ -1400,6 +1428,7 @@ each knob according to this policy:
 | `max-sessions` | Hot-apply at next admission decision. |
 | `auth-method` | Hot-apply to new PPP sessions. |
 | `allow-no-auth` | Hot-apply to new PPP sessions. |
+| `proxy-lcp` | Hot-apply to new PPP sessions; a session already started keeps the policy and outcome it had. |
 | `mru` | Hot-apply to new PPP sessions; established sessions retain their requested MRU. |
 | `authentication/allow` | Hot-apply to new PPP sessions; existing sessions retain their policy. |
 | `authentication/timeout` | Hot-apply to new PPP sessions. |

@@ -476,3 +476,22 @@ func TestSessionJSONRelayRealmFields(t *testing.T) {
 		}
 	}
 }
+
+// TestSessionJSONProxyLCPOutcome proves `show l2tp session id <id>` carries
+// the `proxy-lcp` key: the snapshot's accepted, renegotiated or none, and null
+// before LCP first opened.
+//
+// VALIDATES: spec-home-cpe-15 AC-6 (rendering; the reactor side is
+// TestHandleLCPUpRecordsProxyLCPOutcome).
+func TestSessionJSONProxyLCPOutcome(t *testing.T) {
+	for _, want := range []string{"accepted", "renegotiated", "none"} {
+		for _, detail := range []bool{false, true} {
+			m := sessionJSON(&l2tppkg.SessionSnapshot{MRU: 1500, ProxyLCP: want}, detail)
+			require.Equal(t, want, m["proxy-lcp"], "detail=%v", detail)
+		}
+	}
+	m := sessionJSON(&l2tppkg.SessionSnapshot{}, true)
+	v, ok := m["proxy-lcp"]
+	require.True(t, ok, "proxy-lcp key present before LCP opens")
+	require.Nil(t, v, "proxy-lcp is null before LCP opens")
+}

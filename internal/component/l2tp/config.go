@@ -122,13 +122,17 @@ type Parameters struct {
 	// ListenAddrs[i]. Both producers append the two together, so the
 	// indexes stay aligned; an error that tells the operator which server
 	// to change reads the name from here.
-	ListenNames   []string
-	MaxTunnels    uint16
-	MaxSessions   uint16
-	AuthMethod    ppp.AuthMethod
-	MRU           uint16
-	AuthAllow     []ppp.AuthMethod
-	AllowNoAuth   bool
+	ListenNames []string
+	MaxTunnels  uint16
+	MaxSessions uint16
+	AuthMethod  ppp.AuthMethod
+	MRU         uint16
+	AuthAllow   []ppp.AuthMethod
+	AllowNoAuth bool
+	// ProxyLCP is the LNS policy for the proxy LCP AVPs of ICCN
+	// (`l2tp proxy-lcp`). ExtractParameters sets ProxyLCPAccept when the
+	// leaf is absent; only the disabled zero value holds Unspecified.
+	ProxyLCP      ProxyLCPPolicy
 	HelloInterval time.Duration
 	// HelloRetries is the number of consecutive unanswered HELLO keepalive
 	// intervals tolerated before an Established tunnel's peer is declared
@@ -293,6 +297,15 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	}
 	if p.AuthMethod == ppp.AuthMethodNone && !p.AllowNoAuth {
 		return Parameters{}, errL2tpAuthMethodNoneRequiresAllow
+	}
+
+	p.ProxyLCP = ProxyLCPAccept
+	if v, ok := l2tpRoot.Get("proxy-lcp"); ok {
+		policy, err := ParseProxyLCPPolicy(v)
+		if err != nil {
+			return Parameters{}, err
+		}
+		p.ProxyLCP = policy
 	}
 
 	if v, ok := l2tpRoot.Get("hello-interval"); ok {
@@ -652,4 +665,43 @@ func (p *Parameters) LookupRemote(name string) (Remote, bool) {
 		}
 	}
 	return Remote{}, false
+}
+
+// ProxyLCPPolicy is what an LNS does with the proxy LCP AVPs (26, 27 and 28)
+// a LAC sends in ICCN: the `l2tp proxy-lcp` leaf. The zero value is
+// Unspecified, which only a disabled Parameters holds.
+type ProxyLCPPolicy uint8
+
+const (
+	// ProxyLCPUnspecified is the zero value of a disabled subsystem.
+	ProxyLCPUnspecified ProxyLCPPolicy = iota
+	// ProxyLCPAccept opens LCP on valid proxied values, then re-challenges.
+	ProxyLCPAccept
+	// ProxyLCPRenegotiate ignores the proxy LCP and negotiates LCP afresh.
+	ProxyLCPRenegotiate
+)
+
+// String returns the YANG enumeration name of the policy.
+func (p ProxyLCPPolicy) String() string {
+	switch p {
+	case ProxyLCPAccept:
+		return "accept"
+	case ProxyLCPRenegotiate:
+		return "renegotiate"
+	case ProxyLCPUnspecified:
+		return "unspecified"
+	}
+	return "unspecified"
+}
+
+// ParseProxyLCPPolicy converts the `l2tp proxy-lcp` leaf value. The YANG
+// enumeration refuses any other value first; this error is the second check.
+func ParseProxyLCPPolicy(v string) (ProxyLCPPolicy, error) {
+	switch v {
+	case "accept":
+		return ProxyLCPAccept, nil
+	case "renegotiate":
+		return ProxyLCPRenegotiate, nil
+	}
+	return ProxyLCPUnspecified, fmt.Errorf("l2tp proxy-lcp %q: want accept or renegotiate; run 'set l2tp proxy-lcp accept' to restore the default", v)
 }

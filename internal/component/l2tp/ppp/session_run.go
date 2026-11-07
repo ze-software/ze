@@ -189,15 +189,10 @@ func (s *pppSession) run(start *StartSession) {
 		})
 	}
 
-	// RFC 2661 Section 4.4.5: "This information may be used to initiate the PPP LCP and authentication
-	// systems on the LNS, allowing PPP to continue without renegotiation of LCP."
-	proxy, perr := EvaluateProxyLCP(
-		start.ProxyLCPInitialRecv, start.ProxyLCPLastSent, start.ProxyLCPLastRecv,
-	)
-	isProxy := perr == nil
-	if isProxy {
-		isProxy = s.acceptProxyPolicy(proxy)
-	}
+	// RFC 2661 Section 4.4.5: accept the LAC's proxy LCP, or renegotiate LCP
+	// under the operator's `proxy-lcp renegotiate` policy.
+	proxy, isProxy, outcome := s.admitProxyLCP(start)
+	s.proxyLCPOutcome = outcome
 
 	// RFC 1661 Section 4.6: the Restart timer times transmissions of
 	// Configure-Request and Terminate-Request, and "Expiration of the
@@ -241,6 +236,7 @@ func (s *pppSession) run(start *StartSession) {
 			SessionID:            s.sessionID,
 			NegotiatedMRU:        proxy.MRU,
 			NegotiatedAuthMethod: negotiatedMethod,
+			ProxyLCP:             s.proxyLCPOutcome,
 		})
 		if !s.afterLCPOpen() {
 			state := s.currentState()
@@ -1619,6 +1615,7 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 			SessionID:            s.sessionID,
 			NegotiatedMRU:        mru,
 			NegotiatedAuthMethod: s.configuredAuthMethod,
+			ProxyLCP:             s.proxyLCPOutcome,
 		})
 		if !s.afterLCPOpen() {
 			state := s.currentState()

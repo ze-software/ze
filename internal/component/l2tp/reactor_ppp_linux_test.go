@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
@@ -498,4 +499,140 @@ func TestL2TPReactorSessionUpNoLogOnEmptyInterface(t *testing.T) {
 
 	require.False(t, strings.Contains(logs.String(), "l2tp: PPP session up"),
 		"no log expected when pppInterface is empty")
+}
+
+// proxyLCPStreamForTest is a complete proxy LCP CONFREQ stream a LAC relays in
+// ICCN AVPs 26 to 28: MRU 1500, Auth-Protocol CHAP-MD5, Magic-Number
+// 0xCAFEBABE. Under `proxy-lcp accept` it passes the default policy, so LCP
+// would short-circuit.
+var proxyLCPStreamForTest = []byte{
+	0x01, 0x04, 0x05, 0xDC,
+	0x03, 0x05, 0xC2, 0x23, 0x05,
+	0x05, 0x06, 0xCA, 0xFE, 0xBA, 0xBE,
+}
+
+// TestL2TPProxyLCPRenegotiateReachesDriver is the wiring test of
+// `l2tp proxy-lcp renegotiate`: the leaf goes through config extraction and
+// reload into the reactor, the reactor's StartSession carries it with the
+// LAC's proxy LCP, and the production PPP driver then puts its own LCP
+// Configure-Request, with its own Magic-Number, on the channel instead of
+// short-circuiting LCP.
+//
+// VALIDATES: spec-home-cpe-15 wiring row (config -> reactor -> session_run.go
+// non-proxy branch), AC-2.
+// PREVENTS: a leaf that parses but never reaches the driver.
+func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
+	_, r, stop := newUnstartedReactor(t)
+	defer stop()
+	driver := ppp.NewProductionDriver(discardLoggerForTest(), authReloadBackend{})
+	require.NoError(t, driver.Start())
+	t.Cleanup(driver.Stop)
+	r.setPPPDriver(driver)
+	mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
+
+	s := newStartedSubsystem(t, Parameters{
+		Enabled: true, MRU: 1500, AuthMethod: ppp.AuthMethodCHAPMD5,
+		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5}, ProxyLCP: ProxyLCPAccept,
+	})
+	s.reactors = []*l2tpReactor{r}
+	cfg := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {"proxy-lcp": "renegotiate"}}}
+	require.NoError(t, s.Reload(context.Background(), cfg))
+
+	fds, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM, 0)
+	require.NoError(t, err)
+	// Closing the peer releases the driver's blocking reader before
+	// Driver.Stop waits for the session goroutine during cleanup.
+	t.Cleanup(func() { _ = unix.Close(fds[1]) })
+	unit, err := unix.Dup(fds[0])
+	require.NoError(t, err)
+	require.NoError(t, unix.SetsockoptTimeval(fds[1], unix.SOL_SOCKET, unix.SO_RCVTIMEO,
+		&unix.Timeval{Sec: 5}))
+
+	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
+		localTID: 100, localSID: 1001, lnsMode: true,
+		fds:                        pppSessionFDs{pppoxFD: -1, chanFD: fds[0], unitFD: unit, unitNum: 7},
+		proxyInitialRecvLCPConfReq: proxyLCPStreamForTest,
+		proxyLastSentLCPConfReq:    proxyLCPStreamForTest,
+		proxyLastRecvLCPConfReq:    proxyLCPStreamForTest,
+	})
+
+	buf := make([]byte, ppp.MaxFrameLen)
+	n, err := unix.Read(fds[1], buf)
+	require.NoError(t, err, "no frame from the PPP driver: LCP short-circuited or the session failed")
+	proto, payload, _, err := ppp.ParseFrame(buf[:n])
+	require.NoError(t, err)
+	require.Equal(t, ppp.ProtoLCP, proto, "first frame must be LCP, not an auth challenge")
+	req, err := ppp.ParseLCPPacket(payload)
+	require.NoError(t, err)
+	require.Equal(t, ppp.LCPConfigureRequest, req.Code)
+	opts, err := ppp.ParseLCPOptions(req.Data)
+	require.NoError(t, err)
+	for _, o := range opts {
+		if o.Type == ppp.LCPOptMagic {
+			require.NotEqual(t, []byte{0xCA, 0xFE, 0xBA, 0xBE}, o.Data, "Magic-Number inherited from the LAC")
+		}
+	}
+}
+
+// TestReloadAppliesProxyLCPToNewSessions proves a reload that changes
+// `proxy-lcp` reaches the StartSession of the next session and leaves the
+// policy an earlier session started with untouched.
+//
+// VALIDATES: spec-home-cpe-15 AC-5.
+func TestReloadAppliesProxyLCPToNewSessions(t *testing.T) {
+	_, r, stop := newUnstartedReactor(t)
+	defer stop()
+	fake := newFakePPPDriver()
+	r.setPPPDriver(fake)
+	mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
+	s := newStartedSubsystem(t, Parameters{
+		Enabled: true, MRU: 1500, AuthMethod: ppp.AuthMethodCHAPMD5,
+		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5}, ProxyLCP: ProxyLCPAccept,
+	})
+	s.reactors = []*l2tpReactor{r}
+	r.setProxyLCPPolicy(ProxyLCPAccept)
+
+	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: 1001,
+		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7}})
+	first := <-fake.sessionsIn
+
+	for i, step := range []struct {
+		leaf string
+		want bool
+	}{{"renegotiate", true}, {"accept", false}} {
+		cfg := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {"proxy-lcp": step.leaf}}}
+		require.NoError(t, s.Reload(context.Background(), cfg))
+		base := 40 + 10*i
+		deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: uint16(1002 + i),
+			fds: pppSessionFDs{pppoxFD: base, chanFD: base + 1, unitFD: base + 2, unitNum: 8 + i}})
+		next := <-fake.sessionsIn
+		require.Equal(t, step.want, next.RenegotiateProxyLCP, "proxy-lcp %s", step.leaf)
+	}
+	require.False(t, first.RenegotiateProxyLCP, "an earlier session's policy changed")
+}
+
+// TestHandleLCPUpRecordsProxyLCPOutcome proves the reactor keeps the driver's
+// proxy LCP outcome and the session snapshot names it, across an LCP down.
+//
+// VALIDATES: spec-home-cpe-15 AC-6 (producer side).
+func TestHandleLCPUpRecordsProxyLCPOutcome(t *testing.T) {
+	_, r, stop := newUnstartedReactor(t)
+	defer stop()
+	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
+	for i, tc := range []struct {
+		outcome ppp.ProxyLCPOutcome
+		want    string
+	}{
+		{ppp.ProxyLCPOutcomeAccepted, "accepted"},
+		{ppp.ProxyLCPOutcomeRenegotiated, "renegotiated"},
+		{ppp.ProxyLCPOutcomeNone, "none"},
+	} {
+		sid := uint16(2001 + i)
+		sess := &L2TPSession{localSID: sid}
+		tun.addSession(sess)
+		require.Empty(t, sessionSnapshot(100, sess).ProxyLCP, "outcome before LCP opened")
+		r.handleLCPUp(ppp.EventLCPUp{TunnelID: 100, SessionID: sid, NegotiatedMRU: 1500,
+			NegotiatedAuthMethod: ppp.AuthMethodCHAPMD5, ProxyLCP: tc.outcome})
+		require.Equal(t, tc.want, sessionSnapshot(100, sess).ProxyLCP)
+	}
 }

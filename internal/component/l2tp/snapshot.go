@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -86,6 +87,9 @@ type SessionSnapshot struct {
 	LNSMode            bool
 	KernelSetupNeeded  bool
 	PppInterface       string
+	// ProxyLCP is "accepted", "renegotiated" or "none" once LCP first
+	// opened (RFC 2661 Section 4.4.5 proxy LCP), and empty before.
+	ProxyLCP string
 	// RealmRelay is set on a LAC session relayed by realm, nil otherwise. A
 	// session with no realm relay carries no key, as the CLI's sessionJSON
 	// leaves out every relay key for it.
@@ -199,6 +203,7 @@ func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
 		LNSMode:            s.lnsMode,
 		KernelSetupNeeded:  s.kernelSetupNeeded,
 		PppInterface:       s.pppInterface,
+		ProxyLCP:           proxyLCPOutcomeName(s.proxyLCPOutcome),
 		RealmRelay:         s.realm.snapshot(),
 	}
 }
@@ -332,4 +337,13 @@ func FormatFraming(v uint32) string {
 		return fmt.Sprintf("0x%08x", v)
 	}
 	return textbuf.Join(parts, "+")
+}
+
+// proxyLCPOutcomeName renders the session's proxy LCP outcome for show; the
+// empty string is the outcome no LCP opening has reported yet.
+func proxyLCPOutcomeName(o ppp.ProxyLCPOutcome) string {
+	if o == ppp.ProxyLCPOutcomeUnknown {
+		return ""
+	}
+	return o.String()
 }

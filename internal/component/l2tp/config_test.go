@@ -1134,3 +1134,47 @@ environment {
 	require.ErrorIs(t, err, l2tp.ErrDialFromLoopback)
 	assert.True(t, strings.HasSuffix(err.Error(), "\n  set environment l2tp server lab ip ::"), err.Error())
 }
+
+// TestProxyLCPLeafParse proves the `l2tp proxy-lcp` enumeration: absent is
+// accept, renegotiate is carried, and a value outside the enumeration never
+// reaches Parameters.
+//
+// VALIDATES: spec-home-cpe-15 enumeration and default (AC-1, AC-2 input).
+// PREVENTS: a renegotiate leaf that parses but leaves Parameters on accept,
+// or an unknown value read as the default.
+func TestProxyLCPLeafParse(t *testing.T) {
+	const listen = `
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	for _, tc := range []struct {
+		name string
+		leaf string
+		want l2tp.ProxyLCPPolicy
+	}{
+		{name: "absent", leaf: "", want: l2tp.ProxyLCPAccept},
+		{name: "accept", leaf: "\tproxy-lcp accept\n", want: l2tp.ProxyLCPAccept},
+		{name: "renegotiate", leaf: "\tproxy-lcp renegotiate\n", want: l2tp.ProxyLCPRenegotiate},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tree := loadTree(t, "l2tp {\n\tenabled true\n"+tc.leaf+"}"+listen)
+			p, err := l2tp.ExtractParameters(tree)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, p.ProxyLCP)
+		})
+	}
+
+	res, err := zeconfig.LoadConfig("l2tp {\n\tproxy-lcp trust\n}"+listen, "test.conf", nil)
+	if err == nil {
+		_, err = l2tp.ExtractParameters(res.Tree)
+	}
+	require.Error(t, err, "proxy-lcp trust must be refused")
+
+	_, err = l2tp.ParseProxyLCPPolicy("trust")
+	require.ErrorContains(t, err, "want accept or renegotiate")
+}
