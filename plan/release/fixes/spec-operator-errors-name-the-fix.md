@@ -74,6 +74,17 @@ registered operator handler carries the type.
 
 **Behavior to change:** each owned row's message gains its missing part, loses its repeated prefix, or is spoken by the right guard.
 
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Running-config-loss sentinel and next step | `pkg/plugin/sdk/config_tx.go` `ErrRunningConfigLost`, `RunningConfigLostNext`; appended by `internal/plugins/as112/config_tx.go` `refuse` on its listeners-lost branch only | A sentinel plus one fixed next-step string a plugin appends by hand | Extends: folded into the operator error type, so the registration-restore branch of `refuse` carries the next step too (AC-11) |
+| Line-prefix stripper | `internal/component/config/cli/cmd_validate.go` `withoutLinePrefix` | Removes the parser's `line N: ` by text, because a second layer adds it again | Replaces once context is added by one producer; coordinated with `spec-config-enum-refusal-proposes-valid-values` (Required Reading constraint) |
+| Unknown-keyword hint | `internal/component/config/parser.go` `parseBody` hint argument, `TopLevelKeywordHint` | An unknown top-level keyword a compiled-out plugin owns names its build tag | Extends: AC-10 reuses it for the other compiled-out refusals; AC-8 adds the stray-brace case beside the `expected keyword` refusal in `parseBody` |
+| Refusal that names its fix | `internal/component/config/cli/cmd_fmt.go` `setFormRefusal` | Builds a string naming the form and the fixing command | Extends: the shape the operator error type makes checkable instead of ad hoc |
+| One error surface | `docs/architecture/cli/error-surface.md`, "The rule" | Names the one zone per surface where a fault appears | Extends: each boundary renders the three parts into that zone; no second zone |
+| Change-set arch stage | `internal/le/verify/engine/stages.go`, `stage("arch enumeration", "check")` | A check judged over the change set, its tree copies listed by `report` | Extends: `error-wrap` and `operator-error` register the same way (AC-4) |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -320,6 +331,7 @@ No protocol code changes. The `error-message` use cites RFC 7950 Section 7.5.4.1
 | `error-names-no-fix-command.md` | 2026-10-19 | TACACS+ `sendToServers` drops causes |
 | `error-names-no-fix-command.md` | 2026-10-20 | config parser `expected keyword, got RBRACE` |
 | `error-names-no-fix-command.md` | 2026-10-20 | compiled-out feature refusals name no tag |
+| `error-names-no-fix-command.md` | 2026-11-07 | iface `ErrNoBackendLoaded` names no cause or fix |
 | `error-wrapped-twice-with-one-prefix.md` | 2026-10-13 | hub reload `parse config: parse config:` |
 | `error-wrapped-twice-with-one-prefix.md` | 2026-10-13 | `ze config validate` `line N: parse config: line N:` |
 | `earlier-guard-hides-the-better-error.md` | 2026-09-03 | `validateUint` ahead of `handleUnitAdd` |
