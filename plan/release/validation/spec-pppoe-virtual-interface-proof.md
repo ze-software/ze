@@ -16,16 +16,20 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 **Both PPPoE roles allocate the PPP virtual interface after PADS, and no tagged
-test observes the `ppp<N>` unit exist on either side.** The AC allocates it in
+test observes the unit's device exist on either side.** The AC allocates it in
 `internal/component/l2tp/pppoe/server.go::handlePADR` (`pppoeCreate` then
-`ppp.DevPPPSetup`); the Host in `internal/component/l2tp/pppoeclient/dialer.go::Dial`
-(`PPPoECreate` then `DevPPPSetup`). The allocation is AF_PPPOX plus `/dev/ppp` ioctls,
-which run only under QEMU: `socket_other.go` returns an error off Linux, so no unit
-seam reaches it. The proof is an integration-tier tag in the existing harness:
+`ppp.DevPPPSetup` with no name, so `PPPIOCNEWUNIT` and a kernel-named `ppp<N>`);
+the Host in `internal/component/l2tp/pppoeclient/dialer.go::Dial` (`PPPoECreate`
+then `DevPPPSetup` with the `pppoe-client` key, so an rtnetlink link of kind `ppp`
+named after the key, `pppoe0` for `pppoe-client pppoe0`). The allocation is
+AF_PPPOX plus `/dev/ppp` ioctls and rtnetlink, which run only under QEMU:
+`socket_other.go` returns an error off Linux, so no unit seam reaches it. The proof
+is an integration-tier tag in the existing harness:
 `internal/component/l2tp/pppoeclient/dialer_integration_linux_test.go` drives the
-client and `internal/le/qemu/pppoe_accel_linux.go` boots the AC, so the test reads the
-`ppp<N>` interface from netlink on both guests after PADS and asserts it is absent
-before PADI. One record per polarity through `./le rfc record`.
+client and `internal/le/test/qemu/pppoe_accel_linux.go` boots the AC, so the test
+reads from netlink after PADS the AC's `ppp<N>` device and the client's device under
+its configured name, and asserts each is absent before PADI. One record per polarity
+through `./le rfc record`.
 
 ### Requirements this spec covers
 

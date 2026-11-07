@@ -82,7 +82,8 @@ type PPPoEResult struct {
 type PPPoESession struct {
 	SessionID uint16
 	// UnitNum remains reserved until the owner invokes Cleanup, even after Done closes.
-	// The caller may finish configuring ppp<UnitNum> while retaining ownership.
+	// The caller may finish configuring the session device, which carries the
+	// configured name and not ppp<UnitNum>, while retaining ownership.
 	UnitNum int
 	LocalIP netip.Addr
 	PeerIP  netip.Addr

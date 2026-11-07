@@ -281,6 +281,16 @@ A trailing `*` on an interface name produces a prefix match. For example,
 `input-interface "l2tp*"` matches any interface whose name starts with `l2tp`
 (l2tp0, l2tp1, l2tp-peer42, etc.). Without the `*`, the match is exact.
 
+A PPPoE client is matched by its configured name. The session device of
+`pppoe-client pppoe0` is the kernel device `pppoe0` on every session and every
+reconnect, so `output-interface "pppoe0"` matches the WAN, as in a masquerade
+rule. Do not write `ppp*` for the client: the kernel names `pppN` only the
+subscriber sessions of an L2TP LNS or a PPPoE access concentrator, which have
+no configured name. On such a box, `ppp*` matches the subscribers and never the
+client.
+<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerIfaceMatch -->
+
 ## Action Types (then block)
 
 | Config key | Action | Example |

@@ -183,13 +183,16 @@ therefore authenticates against those users, on PPPoE and on L2TP.
 
 ## Interoperability
 
-Two Docker lab scenarios run Ze in each PPPoE role.
-`./le test deployment docker-pppoe-accel` runs both.
+Docker lab scenarios run Ze in each PPPoE role; the table names the two
+baseline ones and the CPE reconnect, and `docs/labs/pppoe-interop.md` lists
+every scenario.
+`./le test deployment docker-pppoe-accel` runs them all.
 
 | Scenario | Ze role | Peer | Proves |
 |----------|---------|------|--------|
-| `01-pppoe-chap-ipv4` | client | accel-ppp | Discovery, LCP, CHAP-MD5, the IPCP address on a kernel `pppN` interface, a ping to the AC gateway through the session, and a clean teardown |
-| `02-ze-ac-pppd-client` | access concentrator | pppd 2.5.4 with the rp-pppoe plugin | Discovery, LCP demanding CHAP-MD5, the credential accepted, an IPCP pool address, ICMP across the session, and a wrong password refused before IPCP |
+| `01-pppoe-chap-ipv4` | client | accel-ppp | Discovery, LCP, CHAP-MD5, the IPCP address on the kernel device `pppoe0`, named after the `pppoe-client` key, a ping to the AC gateway through the session, and a clean teardown |
+| `pppoe-named-device-reconnect-ze-client` | client | accel-ppp | A home CPE: the device is `pppoe0` and the client creates no `pppN`; a static default `next { interface pppoe0 }` reaches the kernel through it; LAN traffic masqueraded on `output-interface "pppoe0"` crosses it and the nft counter rises; after accel-ppp terminates the session, a new `pppoe0` comes up and the route and NAT work again with no reload |
+| `02-ze-ac-pppd-client` | access concentrator | pppd 2.5.5 with the rp-pppoe plugin | Discovery, LCP demanding CHAP-MD5, the credential accepted, an IPCP pool address, ICMP across the session, and a wrong password refused before IPCP |
 
 `./le test qemu pppoe-accel` runs the client half in QEMU, and
 `./le test qemu pppoe` runs the access concentrator's `test/pppoe/` suite on

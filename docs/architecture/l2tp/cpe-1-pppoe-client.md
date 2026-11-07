@@ -128,12 +128,32 @@ the session MTU is the MRU the client proposes.
 <!-- source: internal/component/l2tp/pppoeclient/receive.go -- run -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateSession -->
 
+**The session device carries the configured name.** `Dial` passes the
+`pppoe-client` list key to `ppp.DevPPPSetup`, which creates the unit with an
+rtnetlink `RTM_NEWLINK` of kind `ppp` carrying `IFLA_PPP_DEV_FD` on the opened
+`/dev/ppp` file. The kernel keeps the name the request carries
+(`ppp_nl_newlink` in `drivers/net/ppp/ppp_generic.c`), and `PPPIOCGUNIT` reads
+back the unit number that `PPPIOCCONNECT` needs. The client never calls
+`PPPIOCNEWUNIT`, so it never creates a `pppN` device. Every session and every
+reconnect gets `pppoe0` for `pppoe-client pppoe0`, whatever unit number the
+kernel picks. `runSession` and `show interface` use that name. A static route,
+a firewall match or a masquerade rule that names `pppoe0` therefore reaches the
+session. The creation retries `EBUSY` and `EEXIST` a bounded number of times:
+the kernel answers `EBUSY` when `ppp_mutex` is contended, and `EEXIST` while
+the previous session's device is still being released. A name another program
+holds fails with an error that names the device and the fix. The access
+concentrator and the LNS still use `PPPIOCNEWUNIT`, because a subscriber
+session has no configured name.
+<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup, createPPPLink, sendPPPLinkCreate -->
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial -->
+
 **Session loss stops transport, not unit ownership.** A PADT or keepalive failure
 stops PPP and closes `Done` immediately. The unit descriptor remains open until
 the caller invokes `Cleanup`, because interface setup may still be using the
-returned `UnitNum`. Releasing that descriptor from the asynchronous watcher
-would let another subscriber reuse `pppN` before the old caller finishes its MTU,
-address, or route changes. Cleanup joins the readers and then releases the unit.
+device. If the asynchronous watcher released that descriptor, the device would
+disappear while the old caller was still applying its MTU, address or route
+changes. Cleanup joins the readers and then releases the unit, which removes
+the device. The next session can then create the same name.
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial, sessionLink.Close -->
 <!-- source: internal/component/iface/pppoe_client.go -- PPPoEClient.runSession -->
 

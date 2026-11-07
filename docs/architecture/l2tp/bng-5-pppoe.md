@@ -281,7 +281,13 @@ request union at known offsets.
   yang directory. Blank imports in the CLI handler wire all three.
 - **Shared PPP integration.** Each transport supplies its session fields,
   including the explicit PPPoE LCP policy. Discovery and kernel transport
-  lifetime remain outside the PPP driver; kernel setup is shared.
+  lifetime remain outside the PPP driver. Kernel setup is shared, and the
+  device name decides which path `DevPPPSetup` takes. The L2TP LNS and the
+  PPPoE access concentrator pass no name, so `PPPIOCNEWUNIT` creates the unit
+  and the kernel names it `pppN`: a subscriber session has no configured name.
+  The PPPoE client passes its `pppoe-client` key, so the unit is created by an
+  rtnetlink `RTM_NEWLINK` of kind `ppp` carrying `IFLA_PPP_DEV_FD`, and the
+  device carries the configured name (`docs/architecture/l2tp/cpe-1-pppoe-client.md`).
 
 <!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup -->
 <!-- source: internal/component/l2tp/ppp/devppp_other.go -- non-Linux stub -->
@@ -295,3 +301,6 @@ uses DROP during LCP restart, then PASS after IPCP reaches Opened.
 The shared setup came out of an exact duplicate: L2TP and PPPoE carried
 character-for-character identical ioctl sequences that differed only in the
 error message prefix. Extracting it removed 148 lines with no behavior change.
+The two steps before unit creation (`PPPIOCGCHAN` on the PPPoX socket, then
+`PPPIOCATTCHAN` on a newly opened `/dev/ppp` file) are still common to every
+transport. Only the client creates its unit by name.

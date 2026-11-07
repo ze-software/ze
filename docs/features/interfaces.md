@@ -34,7 +34,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | MACsec | missing | lower |
 | | MACVLAN | missing | lower |
 | | Geneve | missing | lower |
-| | PPPoE | missing | lower |
+| | PPPoE client (`pppoe-client`; the session device carries the configured name, so routes, firewall and NAT name it directly) | have | <!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup --> |
 | | L2TPv3 | missing | lower |
 | | WiFi | missing | lower |
 | | XFRM (route-based IPsec, if_id) | have | |
@@ -355,6 +355,16 @@ The two settings that name a SECOND interface resolve through the same map: a br
 member is enslaved by the kernel device its entry selects, and a mirror sends its copy
 to the capture port's kernel device.
 
+Created kinds need no resolution, because Ze makes the device under its configured
+name: dummy, veth, bridge, tunnel, WireGuard, XFRM, and the `pppoe-client` session
+device. The PPPoE client creates its PPP unit under the list key on every session and
+every reconnect, so `pppoe-client pppoe0` is the kernel device `pppoe0` and never a
+`pppN`. A static route `next { interface pppoe0 }`, a firewall `output-interface
+"pppoe0"` match and a masquerade rule therefore reach the session. The device exists
+only while a session is up. A static route through it waits for the device and follows
+it across a reconnect (`docs/guide/static-routes.md`, "Interface-only next-hops").
+
+<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup, createPPPLink -->
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->

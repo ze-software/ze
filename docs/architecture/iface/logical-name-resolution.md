@@ -209,9 +209,18 @@ absent leaf, so every configuration where `name == os-name`, and every `ze init`
 output, stays a no-op.
 
 `os-name` applies to matched kinds only. The map is built from `Ethernet`
-entries, the physical kind ze matches. Created kinds such as veth, bridge and
-tunnel are made by ze under the logical name, so aliasing them would break
-creation.
+entries, the physical kind ze matches. Created kinds such as veth, bridge,
+tunnel and the `pppoe-client` session device are made by ze under the logical
+name, so aliasing them would break creation. A `pppoe-client` is a created kind
+that comes and goes: the dialer creates its PPP unit under the list key on each
+session through an rtnetlink link of kind `ppp`, and the device disappears when
+the session ends. The resolver therefore holds no mapping for it, and the name
+resolves only while a session is up. The static plugin learns from the
+candidate `interface` section that the name is declared and may be absent
+(`iface.DeclaredDynamicNames`). A route through it then waits for the device
+instead of being skipped.
+<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup, createPPPLink -->
+<!-- source: internal/component/iface/declared_dynamic.go -- DeclaredDynamicNames -->
 
 ## Cache invalidation rides the monitor events
 

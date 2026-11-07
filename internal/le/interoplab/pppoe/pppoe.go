@@ -47,6 +47,9 @@ const (
 	commandAdd   = "add"
 	commandDev   = "dev"
 	commandLink  = "link"
+	commandRoute = "route"
+	// commandAccel is accel-ppp's CLI client, which speaks to its `cli` module.
+	commandAccel = "accel-cmd"
 	// signalTERM asks pkill for a graceful stop.
 	signalTERM = "-TERM"
 	// procNetPPPoE is the kernel's table of PPPoE sessions.
@@ -57,10 +60,11 @@ const (
 
 	// netAdminCapability is what a PPPoE daemon needs beyond Docker's default
 	// grants besides the PPP device (interoplab.PPPDeviceArguments): NET_ADMIN
-	// for PPPIOCNEWUNIT and its addresses and routes. The discovery sockets
-	// need NET_RAW, which Docker grants by default. The modules are the host's:
-	// a lab container never loads one (spec-lab-containers-least-privilege,
-	// D-7).
+	// to create the PPP unit (PPPIOCNEWUNIT for accel-ppp and pppd, an rtnetlink
+	// link of kind ppp for Ze's client), its addresses, routes and nft rules.
+	// The discovery sockets need NET_RAW, which Docker grants by default. The
+	// modules are the host's: a lab container never loads one
+	// (spec-lab-containers-least-privilege, D-7).
 	netAdminCapability = "NET_ADMIN"
 )
 
@@ -149,11 +153,12 @@ var wireCheckers = map[string]interoplab.Checker{}
 
 func checkers() map[string]interoplab.Checker {
 	all := map[string]interoplab.Checker{
-		"01-pppoe-chap-ipv4":               checkZeClient,
-		"02-ze-ac-pppd-client":             checkZeAccessConcentrator,
-		"pppoe-pap-ze-client":              checkZeClientPAP,
-		"pppoe-chap-rechallenge-ze-client": checkCHAPRechallenge,
-		"pppoe-peer-terminate-ze-ac":       checkPeerTerminate,
+		"01-pppoe-chap-ipv4":                     checkZeClient,
+		"02-ze-ac-pppd-client":                   checkZeAccessConcentrator,
+		"pppoe-pap-ze-client":                    checkZeClientPAP,
+		"pppoe-chap-rechallenge-ze-client":       checkCHAPRechallenge,
+		"pppoe-peer-terminate-ze-ac":             checkPeerTerminate,
+		"pppoe-named-device-reconnect-ze-client": checkNamedDeviceReconnect,
 	}
 	maps.Copy(all, wireCheckers)
 	return all

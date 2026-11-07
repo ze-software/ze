@@ -23,7 +23,9 @@ FROM alpine:3.24.3
 # session table over its REST API, which refuses any non-loopback listener (no
 # TLS transport), so the request has to originate inside this container.
 # tcpdump: D-8 lifecycle checks capture at Ze, beyond the client's PADT filter.
-RUN apk add --no-cache tini iproute2 ppp iputils curl tcpdump
+# nftables: pppoe-named-device-reconnect-ze-client reads the masquerade rule's
+# counter from the kernel ruleset with `nft list chain`.
+RUN apk add --no-cache tini iproute2 ppp iputils curl tcpdump nftables
 
 COPY test/interop-pppoe/ze-linux /usr/local/bin/ze
 

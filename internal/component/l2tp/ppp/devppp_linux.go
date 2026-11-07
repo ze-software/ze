@@ -133,7 +133,9 @@ func createPPPLink(unitFD int, name string) error {
 		}
 		time.Sleep(namedUnitBackoff)
 	}
-	return nil
+	// Reached only if namedUnitRetries is not positive: no create was attempted,
+	// so the device does not exist and success would be a lie.
+	return fmt.Errorf("ppp: rtnetlink create kind=ppp name=%s: no attempt made (retry budget %d); this is a Ze defect, report it", name, namedUnitRetries)
 }
 
 // sendPPPLinkCreate issues one RTM_NEWLINK. Its body is IFLA_IFNAME and the
