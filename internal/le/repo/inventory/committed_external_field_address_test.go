@@ -78,9 +78,9 @@ const externalAddressParcel = "type parcel struct {\n\thook func()\n\tsize uint1
 // receiver, then through &box.size on a struct variable whose other field holds
 // the callback, since exposing a variable's location reads the whole variable.
 //
-// MUTATION: (internal/le/repo/inventory/externalexpressions.go,
-// "\t\t\tresult.join(storage)",
-// "\t\t\tresult = externalValue{references: storage.references}")
+// MUTATION: (internal/le/repo/inventory/externaladdresses.go,
+// "\tresult.join(storage)",
+// "\tresult = externalValue{references: storage.references}")
 // drops the field's value and its storage from the address: the registering
 // callback through &p.hook publishes.
 // MUTATION: (internal/le/repo/inventory/externaladdresses.go,

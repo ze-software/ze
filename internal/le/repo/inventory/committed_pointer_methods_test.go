@@ -105,13 +105,13 @@ func TestCommittedPointerMethodIterationRetainsConditionalRefusal(t *testing.T) 
 	}
 }
 
-// TestCommittedPointerMethodUnsupportedOwnersRefuse does not infer implicit
-// addressability, value-method fallback, dereference expressions, aliases,
-// generic/promoted sets or interface values. Reassigned receiver bindings retain
-// the existing conservative refusal.
+// TestCommittedPointerMethodUnsupportedOwnersRefuse does not infer
+// value-method fallback, dereference expressions, aliases, generic/promoted
+// sets or interface values. Reassigned receiver bindings retain the existing
+// conservative refusal. Implicit addressing of a variable is resolved, and
+// TestCommittedPointerMethodImplicitAddressExecutesOwner requires its owner.
 func TestCommittedPointerMethodUnsupportedOwnersRefuse(t *testing.T) {
 	for _, scenario := range []callableOwnerCase{
-		{name: "implicit-address", declarations: "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\nvar packet parcel\n", call: "packet.Deliver()"},
 		{name: "value-method-fallback", declarations: "type parcel struct{}\nfunc (parcel) Deliver() { helper.Install(0) }\nfunc makeParcel() *parcel { return &parcel{} }\nvar packet = makeParcel()\n", call: "packet.Deliver()"},
 		{name: "double-pointer", declarations: "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\nvar first = &parcel{}\nvar packet = &first\n", call: "(*packet).Deliver()"},
 		{name: "type-alias", declarations: "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\ntype alias = parcel\nvar packet *alias\n", call: "packet.Deliver()"},

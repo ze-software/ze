@@ -1,8 +1,32 @@
 // Design: docs/architecture/plugin/feature-gates.md -- the storage an address points into.
-// Related: externalexpressions.go -- the unary address arm that asks for it.
+// Related: externalexpressions.go -- the unary address arm and the implicitly addressed method receiver that ask for it.
 package repoinventory
 
 import "go/ast"
+
+// addressValue is the value of &operand, written at site: the operand's value,
+// marked a reference, joined with the storage it points into, so an external
+// callee or a pointer method that writes through it writes that storage's
+// locations. Both an explicit &x and a pointer method called on an
+// addressable x (methodReceiver) take their address here.
+func (e *externalEffects) addressValue(operand, site sourceExpr, possible bool, depth int) externalValue {
+	result := e.value(operand, possible, depth+1)
+	result.references = true
+	// A literal's address is a fresh allocation no binding names yet; the
+	// value it initializes carries its capabilities.
+	if _, literal := operand.value.(*ast.CompositeLit); literal {
+		return result
+	}
+	storage, reason := e.addressStorage(operand, possible, depth+1)
+	if reason != "" {
+		// This reason replaces the operand's, so its site does too.
+		result.unknown = "address ownership is unresolved: " + reason
+		result.unknownAt = site
+		return result
+	}
+	result.join(storage)
+	return result
+}
 
 // addressStorage answers the locations that &operand points into, in the one
 // location model the evaluator keeps: a retained variable is one location,

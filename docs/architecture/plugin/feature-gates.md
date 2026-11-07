@@ -117,15 +117,22 @@ A method is resolved on any receiver whose static type the analyzer derives:
 a name, a call result or a literal, so `x.Apply(1).Info().Present(0)` and
 `T{}.M()` each reach the declared method. The same refusals hold for every
 receiver form: a callee with more than one result, a generic type or callee,
-an interface, a promoted method, a receiver form that does not match (a
-pointer method on a value, or the reverse), and a method with no body. A
+an interface, a promoted method, a value method on a pointer, and a method
+with no body. A pointer method called on a variable of the value type is
+called on that variable's address, as Go specifies, and its receiver is bound
+to the address, so a write through it reaches the variable's storage. On a
+value Go cannot address, such as a call result or a literal, the pointer
+method stays unresolved, and so does one on a field, element or dereference
+receiver. A range variable resolves the same way, but its receiver formal is
+not yet grounded, because a range element has no retained source equation. A
 selector on a call result that names no such method is a field projection,
 judged by the root-field rules of the external-effect contract below.
 Executing a directly called method executes its receiver first, as Go
 evaluates it before the arguments, so `build().Register()` in an initializer
 runs `build()`. A method value taken through an alias (`f := build().M; f()`)
 ran its receiver where the value was taken, so the call does not run it again.
-<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.valueType -->
+<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.methodReceiver, expression.addressable, expression.valueType -->
+<!-- source: internal/le/repo/inventory/externaladdresses.go -- externalEffects.addressValue -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
 
 ### Approved external-effect contract

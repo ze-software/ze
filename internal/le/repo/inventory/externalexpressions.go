@@ -132,8 +132,16 @@ func (e *externalEffects) expressionValue(source sourceExpr, possible bool, dept
 			result.join(externalValue{reads: map[*ast.Object]bool{object: true}})
 			return result
 		}
-		if function, found := e.source.snapshot.evaluator().method(source); found {
-			receiver := child(value.X)
+		if function, addressed, found := e.source.snapshot.evaluator().methodReceiver(source, 0); found {
+			operand := sourceExpr{value: value.X, file: source.file, pkg: source.pkg}
+			var receiver externalValue
+			if addressed {
+				// Go calls the pointer method on &x, so the receiver is that
+				// address and a write through it reaches x's storage.
+				receiver = e.addressValue(operand, source, possible, depth)
+			} else {
+				receiver = child(value.X)
+			}
 			if e.amb.unknown != "" {
 				return externalValue{unknown: e.amb.unknown}
 			}
@@ -171,27 +179,10 @@ func (e *externalEffects) expressionValue(source sourceExpr, possible bool, dept
 			result.unresolvedFields = "received channel element field ownership requires a retained element summary"
 			return result
 		}
-		result := child(value.X)
 		if value.Op == token.AND {
-			result.references = true
-			// A literal's address is a fresh allocation no binding names yet;
-			// the value it initializes carries its capabilities.
-			if _, literal := value.X.(*ast.CompositeLit); literal {
-				return result
-			}
-			// The address carries the operand's value and the storage it
-			// points into, so an external callee that writes through it
-			// writes that storage's locations.
-			storage, reason := e.addressStorage(sourceExpr{value: value.X, file: source.file, pkg: source.pkg}, possible, depth+1)
-			if reason != "" {
-				// This reason replaces the operand's, so its site does too.
-				result.unknown = "address ownership is unresolved: " + reason
-				result.unknownAt = source
-				return result
-			}
-			result.join(storage)
+			return e.addressValue(sourceExpr{value: value.X, file: source.file, pkg: source.pkg}, source, possible, depth)
 		}
-		return result
+		return child(value.X)
 	case *ast.BinaryExpr:
 		result := child(value.X)
 		result.join(child(value.Y))

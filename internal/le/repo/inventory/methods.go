@@ -10,9 +10,10 @@ import (
 
 // method resolves direct value methods and explicit single-pointer methods on
 // any receiver whose static type valueType derives, a call result or a
-// literal included. Receiver forms must match; implicit addressing,
-// value-method fallback, dynamic interfaces, promotion and generic method sets
-// remain unresolved. A caller that executes the method MUST also execute the
+// literal included. A pointer method also resolves on an addressable value
+// receiver, which Go calls on its address (methodReceiver). Value-method
+// fallback, dynamic interfaces, promotion and generic method sets remain
+// unresolved. A caller that executes the method MUST also execute the
 // receiver expression, because it need not be a name.
 func (e *expression) method(source sourceExpr) (sourceFunction, bool) {
 	return e.methodAt(source, 0)
@@ -21,14 +22,24 @@ func (e *expression) method(source sourceExpr) (sourceFunction, bool) {
 // methodAt is method at its caller's valueType step count, so a method chain
 // stays inside valueType's 64-step bound.
 func (e *expression) methodAt(source sourceExpr, depth int) (sourceFunction, bool) {
+	function, _, found := e.methodReceiver(source, depth)
+	return function, found
+}
+
+// methodReceiver is methodAt that also answers whether the receiver is
+// implicitly addressed. Go specification, "Calls": "If x is addressable and
+// &x's method set contains m, x.m() is shorthand for (&x).m()." A caller that
+// binds the receiver MUST bind that address, not the value, so a write
+// through the pointer reaches the variable.
+func (e *expression) methodReceiver(source sourceExpr, depth int) (sourceFunction, bool, bool) {
 	selector, ok := source.value.(*ast.SelectorExpr)
 	if !ok {
-		return sourceFunction{}, false
+		return sourceFunction{}, false, false
 	}
 	receiver := sourceExpr{value: selector.X, file: source.file, pkg: source.pkg}
 	datatype, found := e.valueType(receiver, depth+1)
 	if !found {
-		return sourceFunction{}, false
+		return sourceFunction{}, false, false
 	}
 	pointer, indirect := datatype.value.(*ast.StarExpr)
 	if indirect {
@@ -36,9 +47,10 @@ func (e *expression) methodAt(source sourceExpr, depth int) (sourceFunction, boo
 	}
 	definition, owner, found := e.concreteType(datatype)
 	if !found {
-		return sourceFunction{}, false
+		return sourceFunction{}, false, false
 	}
 	var result sourceFunction
+	resultAddressed := false
 	for _, file := range owner.files {
 		for _, declaration := range file.File.Decls {
 			function, ok := declaration.(*ast.FuncDecl)
@@ -52,12 +64,20 @@ func (e *expression) methodAt(source sourceExpr, depth int) (sourceFunction, boo
 				continue
 			}
 			if len(function.Recv.List) != 1 {
-				return sourceFunction{}, false
+				return sourceFunction{}, false, false
 			}
 			receiverType := function.Recv.List[0].Type
 			receiverPointer, receiverIndirect := receiverType.(*ast.StarExpr)
+			addressed := false
 			if receiverIndirect != indirect {
-				continue
+				// A value method on a pointer receiver stays unresolved.
+				if indirect {
+					continue
+				}
+				if !e.addressable(receiver) {
+					continue
+				}
+				addressed = true
 			}
 			if receiverIndirect {
 				receiverType = receiverPointer.X
@@ -77,17 +97,39 @@ func (e *expression) methodAt(source sourceExpr, depth int) (sourceFunction, boo
 				continue
 			}
 			if result.decl != nil {
-				return sourceFunction{}, false
+				return sourceFunction{}, false, false
 			}
 			// Bodyless methods are not covered by the package-function assembly
 			// certificate. They must retain unresolved execution ownership.
 			if function.Body == nil {
-				return sourceFunction{}, false
+				return sourceFunction{}, false, false
 			}
 			result = sourceFunction{decl: function, file: file.File, pkg: owner}
+			resultAddressed = addressed
 		}
 	}
-	return result, result.decl != nil
+	return result, resultAddressed, result.decl != nil
+}
+
+// addressable admits the receivers Go can take the address of without a type
+// check: a variable, in parentheses or not. A field, element or dereference
+// receiver stays unresolved. The recursion follows source parentheses only,
+// so the source's own nesting bounds it.
+func (e *expression) addressable(source sourceExpr) bool {
+	switch operand := source.value.(type) {
+	case *ast.ParenExpr:
+		return e.addressable(sourceExpr{value: operand.X, file: source.file, pkg: source.pkg})
+	case *ast.Ident:
+		binding := operand.Obj
+		if binding == nil {
+			binding = callablePackageBinding(source.pkg, operand.Name)
+		}
+		if binding == nil {
+			return false
+		}
+		return binding.Kind == ast.Var
+	}
+	return false
 }
 
 // valueType follows at most 64 declaration edges. It derives static types, not
