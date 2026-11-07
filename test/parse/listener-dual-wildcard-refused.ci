@@ -1,0 +1,26 @@
+# Test: SSH on 0.0.0.0 and :: on one port is refused, naming both entries and the fix
+# VALIDATES: AC-1 -- a dual-stack :: already accepts IPv4, so 0.0.0.0 beside it can never bind
+# PREVENTS: a config that validates and then runs SSH on one of its two listeners
+stdin=config:terminator=EOF_CONF
+environment {
+	ssh {
+		enabled true;
+		server v4 {
+			ip 0.0.0.0;
+			port 2222;
+		}
+		server v6 {
+			ip ::;
+			port 2222;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=listener conflict
+expect=stdout:contains=ssh v4
+expect=stdout:contains=ssh v6
+expect=stdout:contains=already accepts IPv4
+expect=stdout:contains=remove `0.0.0.0` from ssh v4

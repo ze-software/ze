@@ -1,0 +1,173 @@
+# Test: ze config validate ACCEPTS the home CPE's management peer: one Child SA
+# on the xfrm interface vti0 whose traffic-selector list holds one IPv4 entry
+# (0.0.0.0/0 both sides) and one IPv6 entry (::/0 both sides), IPv4 first, with
+# an IPv6 address on vti0 and a static IPv6 route into it.
+#
+# The list names every same-family combination, so validateSelectorCombinations
+# (internal/component/ike/engine/config.go) has nothing to refuse, and the IPv6
+# entry is what lets an IPv4 outer path carry IPv6 at all: a peer with no list
+# proposes only the wildcard of its outer family (docs/guide/ipsec.md, "IPv6
+# inside an IPv4 tunnel on a VTI").
+#
+# A second config proves the first acceptance is not vacuous: the same peer
+# block, binding and interface with a third IPv4 entry (10.0.0.0/8 to
+# 192.168.0.0/16) is refused by the same validator, so the dual-family list
+# reached it and passed on its merits.
+#
+# Validates: RFC 7296 Section 2.9: "When the responder chooses a subset of the
+# traffic proposed by the initiator, it narrows the Traffic Selectors to some
+# subset of the initiator's proposal (provided the set does not become the null
+# set)." The initiator offers both families so the responder can narrow to one.
+# Spec: plan/release/fixes/spec-home-cpe-6-ipsec-ipv6-in-ipv4-vti.md, AC-1
+# (validation half). Unit proof: TestDualFamilySelectorListValidates
+# (internal/component/ike/engine/config_test.go).
+# Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md.
+stdin=dual:terminator=EOF_DUAL
+interface {
+	xfrm vti0 {
+		if-id 7
+		unit 0 {
+			ipv6 {
+				address [ fd00:db8:1::1/128 ]
+			}
+		}
+	}
+}
+static {
+	table default {
+		route fd00:db8:1::/112 {
+			next {
+				interface vti0 {
+				}
+			}
+		}
+	}
+}
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256gcm
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer hq {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				vti {
+					bind vti0
+				}
+				traffic-selector 1 {
+					local {
+						prefix 0.0.0.0/0
+					}
+					remote {
+						prefix 0.0.0.0/0
+					}
+				}
+				traffic-selector 2 {
+					local {
+						prefix ::/0
+					}
+					remote {
+						prefix ::/0
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_DUAL
+
+stdin=incomplete:terminator=EOF_INCOMPLETE
+interface {
+	xfrm vti0 {
+		if-id 7
+		unit 0 {
+			ipv6 {
+				address [ fd00:db8:1::1/128 ]
+			}
+		}
+	}
+}
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256gcm
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer hq {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				vti {
+					bind vti0
+				}
+				traffic-selector 1 {
+					local {
+						prefix 0.0.0.0/0
+					}
+					remote {
+						prefix 0.0.0.0/0
+					}
+				}
+				traffic-selector 2 {
+					local {
+						prefix ::/0
+					}
+					remote {
+						prefix ::/0
+					}
+				}
+				traffic-selector 3 {
+					local {
+						prefix 10.0.0.0/8
+					}
+					remote {
+						prefix 192.168.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_INCOMPLETE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=dual
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=incomplete
+expect=exit:code=1
+expect=stdout:contains=never together

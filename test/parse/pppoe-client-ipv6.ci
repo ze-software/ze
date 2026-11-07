@@ -1,0 +1,36 @@
+# Test: the ipv6 container of a pppoe-client parses and validates
+# spec-home-cpe-8 wiring (AC-1, AC-5, AC-6): enabled negotiates IPv6CP; accept-ra,
+# autoconf and forwarding reach the session device; dhcpv6 with pd runs the
+# DHCPv6 client on pppoe0 with a /56 hint.
+# PLATFORM: pppoe-client is ze:os "linux"; skip on darwin.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username user@isp.example
+            password secret123
+        }
+        ipv6 {
+            enabled true
+            accept-ra 2
+            autoconf true
+            forwarding true
+            dhcpv6 {
+                enabled true
+                pd {
+                    length 56
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

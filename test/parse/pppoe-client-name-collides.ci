@@ -1,0 +1,67 @@
+# The kernel interface namespace is flat, and the pppoe-client key is now the
+# kernel device name, so a pppoe-client may not share its key with any other
+# configured interface. parseIfaceConfig refuses the collision
+# (refuseDuplicateInterfaceNames, internal/component/iface/config.go), which
+# `ze config validate` reaches through the iface in-process verifier.
+#
+# VALIDATES: AC-7 -- an ethernet entry and a pppoe-client entry both keyed
+#            `pppoe0` are refused, and the message names the name, both kinds
+#            and the fix; the same config with the ethernet renamed validates,
+#            so the refusal is the collision and nothing else in the body.
+# PREVENTS: two config entries targeting one kernel device, where the second
+#           apply meets EEXIST or drives the other entry's device.
+# PLATFORM: pppoe-client is ze:os "linux"; skip on darwin.
+option=skip-os:value=darwin
+
+stdin=collide:terminator=EOF_COLLIDE
+interface {
+    backend netlink
+    ethernet eth2 {
+        mac {
+            address 60:be:b4:20:70:6e
+        }
+    }
+    ethernet pppoe0 {
+        mac {
+            address 60:be:b4:20:70:6f
+        }
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username user@example.net
+            password secret123
+        }
+    }
+}
+EOF_COLLIDE
+
+stdin=distinct:terminator=EOF_DISTINCT
+interface {
+    backend netlink
+    ethernet eth2 {
+        mac {
+            address 60:be:b4:20:70:6e
+        }
+    }
+    ethernet eth3 {
+        mac {
+            address 60:be:b4:20:70:6f
+        }
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username user@example.net
+            password secret123
+        }
+    }
+}
+EOF_DISTINCT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=collide
+expect=exit:code=1
+expect=stdout:contains=interface name "pppoe0" appears as both ethernet and pppoe-client; rename one of the two entries
+cmd=foreground:seq=2:exec=ze config validate -:stdin=distinct
+expect=exit:code=0
+expect=stdout:contains=configuration valid

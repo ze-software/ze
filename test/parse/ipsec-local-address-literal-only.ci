@@ -1,0 +1,69 @@
+# Test: ze config validate refuses a site-to-site local-address that is not an address.
+# VALIDATES: AC-9 of spec-home-cpe-4-ike-dynamic-wan. `local-address` names the one address
+#            a peer sends from. An absent leaf already means the source the route to the
+#            peer selects (or the interface address under `vpn ipsec interface`), so a
+#            keyword such as VyOS's `any` would be a second spelling of that fact, and a
+#            name would reach the engine as no address at all.
+# PREVENTS: `local-address any` committing and every connect cycle of the peer failing at
+#           run time with no address to send from.
+# The refusal names the value, says it is not an address, and gives both fixes: delete the
+# leaf for the route-chosen source, or bind an interface.
+# Unit proof: TestLocalAddressMustBeLiteral (internal/component/ike/ipsec/config_test.go).
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-LIT {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-LIT {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-LIT
+				esp-group ESP-LIT
+				local-address any
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=local-address "any" is not an IP address
+expect=stdout:contains=delete vpn ipsec site-to-site peer branch-1 local-address
+expect=stdout:contains=set vpn ipsec interface <name>
+reject=stdout:pattern=configuration valid$

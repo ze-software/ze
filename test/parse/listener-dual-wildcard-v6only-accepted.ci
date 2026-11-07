@@ -1,0 +1,23 @@
+# Test: L2TP on 0.0.0.0 and :: on one port is accepted
+# VALIDATES: AC-5 -- L2TP binds IPv6 with IPV6_V6ONLY (RegisterListenerV6Only), so both bind
+# PREVENTS: the dual-stack refusal reaching a service whose :: is IPv6-only
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+}
+environment {
+	l2tp {
+		server v4 {
+			ip 0.0.0.0
+			port 1701
+		}
+		server v6 {
+			ip ::
+			port 1701
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
