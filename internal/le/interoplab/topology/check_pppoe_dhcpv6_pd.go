@@ -66,16 +66,24 @@ func checkPPPoEDHCPv6PD(ctx context.Context, check *interoplab.CheckContext) err
 	})
 }
 
-// checkWANSysctls reads the three per-device sysctls the ipv6 container
+// checkWANSysctls waits for the three per-device sysctls the ipv6 container
 // writes to pppoe0: an RA is accepted with forwarding on only at accept_ra 2.
+// The client hands each write to the sysctl component over the EventBus when
+// the session device appears, so the write lands after the device exists and
+// a single read can precede it: each value is polled, never read once.
 func checkWANSysctls(ctx context.Context, check *interoplab.CheckContext) error {
 	for _, want := range []struct{ name, value string }{{"accept_ra", "2"}, {"forwarding", "1"}, {"autoconf", "1"}} {
-		answer, err := check.Lab.Query(ctx, nodeCPE, []string{commandCat, "/proc/sys/net/ipv6/conf/" + cpeDevice + "/" + want.name}, nil)
-		if err != nil {
-			return fmt.Errorf("read ze-cpe's %s %s: %w", cpeDevice, want.name, err)
-		}
-		if strings.TrimSpace(answer) != want.value {
-			return fmt.Errorf("ze-cpe's %s %s is %q, want %s", cpeDevice, want.name, strings.TrimSpace(answer), want.value)
+		if err := pollUntil(ctx, sessionUpTimeout, "ze-cpe's "+cpeDevice+" "+want.name+" is "+want.value, func() error {
+			answer, err := check.Lab.Query(ctx, nodeCPE, []string{commandCat, "/proc/sys/net/ipv6/conf/" + cpeDevice + "/" + want.name}, nil)
+			if err != nil {
+				return fmt.Errorf("read ze-cpe's %s %s: %w", cpeDevice, want.name, err)
+			}
+			if strings.TrimSpace(answer) != want.value {
+				return fmt.Errorf("ze-cpe's %s %s is %q, want %s", cpeDevice, want.name, strings.TrimSpace(answer), want.value)
+			}
+			return nil
+		}); err != nil {
+			return err
 		}
 	}
 	return nil

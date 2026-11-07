@@ -44,6 +44,9 @@ type node struct {
 	// prepared are files the node mounts from the directory its scenario's
 	// prepare step wrote for this run, each named relative to it.
 	prepared []sharedFile
+	// appArmorProfile is the registered profile the node runs under, empty
+	// for Docker's default (netSysctlWriter sets it).
+	appArmorProfile string
 }
 
 // sharedFile is one read-only mount of a node: source is a slash path
@@ -184,7 +187,8 @@ func nodePeer(root, directory string, declared *node, suffix string) interoplab.
 		Container: container.Str("ze-topo-").Str(declared.name).Byte('-').Str(suffix).String(),
 		Image:     declared.image, Host: declared.host, Command: declared.command,
 		Capabilities: declared.capabilities, Arguments: declared.arguments, Prestart: declared.prestart,
-		Ready: &interoplab.ReadyProbe{Command: []string{"true"}, Timeout: 30 * time.Second, Interval: time.Second}}
+		AppArmorProfile: declared.appArmorProfile,
+		Ready:           &interoplab.ReadyProbe{Command: []string{"true"}, Timeout: 30 * time.Second, Interval: time.Second}}
 	if declared.config != "" {
 		peer.Mounts = append(peer.Mounts, interoplab.Mount{Source: filepath.Join(directory, declared.config), Target: declared.mountedAt, ReadOnly: true})
 	}
@@ -205,6 +209,18 @@ func nodePeer(root, directory string, declared *node, suffix string) interoplab.
 func zeNode(name string, host uint8, config string, arguments ...string) node {
 	return node{name: name, image: zeImage, host: host, config: config, mountedAt: zeMountedConfig,
 		command: []string{"start", zeMountedConfig}, capabilities: []string{capabilityNetAdmin}, arguments: arguments}
+}
+
+// netSysctlWriter answers declared able to write its own network namespace's
+// sysctls while it runs. Docker mounts /proc/sys read-only, so a Ze node whose
+// configuration writes a device's sysctls at run time (a PPPoE client's
+// accept_ra, autoconf and forwarding on each new session device) would meet a
+// refused write, logged at WARN, and keep the kernel's default. The arguments
+// and the profile go together (interoplab.NetSysctlWriteArguments).
+func netSysctlWriter(declared node) node {
+	declared.arguments = append(slices.Clone(declared.arguments), interoplab.NetSysctlWriteArguments()...)
+	declared.appArmorProfile = interoplab.NetSysctlAppArmorProfileName
+	return declared
 }
 
 const (

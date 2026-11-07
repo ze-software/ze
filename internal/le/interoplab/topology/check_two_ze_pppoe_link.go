@@ -14,8 +14,8 @@ import (
 // checkPPPoELink proves a layer-2 link: the client holds an IPCP address
 // from the server's pool on a ppp device, which the kernel assigns only once
 // IPCP is Opened; the server's kernel PPPoE table holds the session on the
-// link device; and observer, on eth0 alone, received no untagged discovery
-// frame. Every assertion reads state.
+// link device; and observer, on eth0 alone, received no discovery frame that
+// lacks the link's 802.1Q header (untaggedFrames). Every assertion reads state.
 func checkPPPoELink(ctx context.Context, check *interoplab.CheckContext) error {
 	access, err := check.Member("ze-server", "access")
 	if err != nil {
@@ -37,17 +37,39 @@ func checkPPPoELink(ctx context.Context, check *interoplab.CheckContext) error {
 	if !sessionOnDevice(sessions, access.Device) {
 		return fmt.Errorf("ze-server's /proc/net/pppoe holds no session on %s, the access link:\n%s", access.Device, sessions)
 	}
-	frames, err := check.Lab.Exec(ctx, "observer", []string{"tcpdump", "-n", "-r", observerCapture}, nil)
+	frames, err := check.Lab.Exec(ctx, "observer", []string{"tcpdump", "-e", "-n", "-r", observerCapture}, nil)
 	if err != nil {
 		return fmt.Errorf("read observer's capture: %w", err)
 	}
 	if frames.ExitCode != 0 {
 		return fmt.Errorf("observer's capture is unreadable (exit %d): %s", frames.ExitCode, frames.Stderr)
 	}
-	if strings.TrimSpace(frames.Stdout) != "" {
-		return fmt.Errorf("observer, on eth0 alone, received untagged PPPoE discovery, so the access link leaks:\n%s", frames.Stdout)
+	if leaked := untaggedFrames(frames.Stdout); leaked != "" {
+		return fmt.Errorf("observer, on eth0 alone, received untagged PPPoE discovery, so the access link leaks:\n%s", leaked)
 	}
 	return nil
+}
+
+// untaggedFrames answers the lines of a `tcpdump -e` reading that carry no
+// 802.1Q header. The observer's capture holds the access link's own tagged
+// discovery too: veth hands the VLAN tag to the packet socket out of band, so
+// the kernel filter `ether proto 0x8863` matches the inner ethertype, and
+// libpcap writes the tag back into each frame it records. Only `-e` prints that
+// header, so a reading without it shows the link's own broadcast PADI as an
+// untagged one. A frame the link leaked onto eth0 has no tag to print.
+func untaggedFrames(reading string) string {
+	var leaked strings.Builder
+	for line := range strings.SplitSeq(reading, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if strings.Contains(line, "802.1Q") {
+			continue
+		}
+		leaked.WriteString(line)
+		leaked.WriteByte('\n')
+	}
+	return leaked.String()
 }
 
 // pppAddressFromPool reports whether `ip -o -4 address show` lists an

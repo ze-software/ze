@@ -148,14 +148,15 @@ func homeLab(checker interoplab.Checker, options homeOptions) scenario {
 
 // convertedCPE is the Ze CPE of every home-CPE scenario: the converted
 // configuration the prepare step rendered, never a file of its own. IPv6 is
-// enabled for vti0's management address.
+// enabled for vti0's management address, and the node writes its devices'
+// sysctls at run time as a deployed CPE does (netSysctlWriter).
 func convertedCPE() node {
 	cpe := zeNode(nodeCPE, 5, "", append(interoplab.PPPDeviceArguments(),
 		"--sysctl", "net.ipv4.ip_forward=1", "--sysctl", "net.ipv6.conf.all.disable_ipv6=0")...)
 	cpe.config = ""
 	cpe.prepared = []sharedFile{{source: renderedCPEConfig, target: zeMountedConfig}}
 	cpe.prestart = flushEth0
-	return cpe
+	return netSysctlWriter(cpe)
 }
 
 // dhcpClient is a LAN host that dhcpcd numbers (the Knot image carries

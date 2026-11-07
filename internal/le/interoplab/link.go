@@ -19,7 +19,9 @@ import (
 // broadcast (IS-IS, OSPF, PPPoE discovery) meets every container there. A
 // daemon configured on a link meets only the other members, because the
 // kernel of a container with no device on that VLAN never hands a tagged
-// frame to a socket.
+// frame to a protocol socket. A packet socket on eth0 (tcpdump) still
+// receives it: veth carries the tag out of band, so a filter on the inner
+// ethertype matches, and only `tcpdump -e` prints the 802.1Q header.
 //
 // Each member reaches the link as eth<N>, where N counts the links that
 // member joins in declaration order and reaches under no name of Devices (its

@@ -9,8 +9,9 @@ const pppoeLinkScenario = "two-ze-pppoe-link"
 // A Ze PPPoE access concentrator and a Ze PPPoE client on a link with no
 // prefix, the access segment's shape: PPPoE discovery and the session run on
 // each node's eth1 and nothing else. observer sits on eth0 alone and records
-// every untagged PPPoE discovery frame it receives, from before the client
-// starts.
+// every PPPoE discovery frame it receives, from before the client starts:
+// the link's own tagged frames match its filter too (untaggedFrames), and the
+// checker counts only those without an 802.1Q header.
 func init() {
 	scenarios[pppoeLinkScenario] = scenario{
 		nodes: []node{

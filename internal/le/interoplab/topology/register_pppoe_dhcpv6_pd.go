@@ -45,7 +45,7 @@ func init() {
 				capabilities: []string{capabilityNetAdmin},
 				arguments:    append(interoplab.PPPDeviceArguments(), ipv6On...),
 				prestart:     "mkdir -p /etc/accel-ppp /var/log; printf '%s\\n' '" + pdAccelChapLines + "' > /etc/accel-ppp/chap-secrets"},
-			zeNode(nodeCPE, 3, "ze-cpe.conf", append(interoplab.PPPDeviceArguments(), ipv6On...)...),
+			netSysctlWriter(zeNode(nodeCPE, 3, "ze-cpe.conf", append(interoplab.PPPDeviceArguments(), ipv6On...)...)),
 		},
 		links: []interoplab.Link{
 			{Name: accessLink, VLAN: 198, Members: []string{nodeAccel, nodeCPE}},

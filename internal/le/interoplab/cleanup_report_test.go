@@ -117,6 +117,24 @@ func TestPassedAssertionReportsCleanupFailure(t *testing.T) {
 					"code":         float64(1),
 				}
 			}
+			if checkerFails {
+				// A failed scenario also carries per-container diagnostics,
+				// whose text is the fake runner's; require them, then judge
+				// the rest of the report exactly.
+				scenarios, ok := decoded["scenarios"].([]any)
+				if !ok || len(scenarios) != 1 {
+					t.Fatalf("structured report scenarios = %#v, want one", decoded["scenarios"])
+				}
+				scenario, ok := scenarios[0].(map[string]any)
+				if !ok {
+					t.Fatalf("structured report scenario = %#v, want an object", scenarios[0])
+				}
+				diagnostics, ok := scenario["diagnostics"].([]any)
+				if !ok || len(diagnostics) != 1 {
+					t.Fatalf("failed scenario diagnostics = %#v, want one block for lab-peer", scenario["diagnostics"])
+				}
+				delete(scenario, "diagnostics")
+			}
 			if !reflect.DeepEqual(decoded, want) {
 				t.Fatalf("structured report = %s, want %#v", encoded, want)
 			}

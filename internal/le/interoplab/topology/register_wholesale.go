@@ -47,13 +47,16 @@ func wholesaleChain(chain scenario) scenario {
 // pppdSubscriber dials PPPoE on eth1 (link access) with pppd, CHAP only, and
 // keeps retrying until the chain is up. `debug` puts every LCP packet in the
 // log the checker reads, so a second negotiation is visible there. eth0 is
-// flushed so the session is the only path to the LNS.
+// flushed so the session is the only path to the LNS, and `defaultroute`
+// makes it the path: IPCP gives ppp0 the subscriber address and the pool
+// gateway as its peer, so without a default route over it pppd's ping of the
+// LNS's core address 192.0.2.3 meets "Network unreachable".
 func pppdSubscriber() node {
 	arguments := []string{
 		"pppd", "plugin", "pppoe.so", "nic-eth1",
 		"user", pppdUser, "password", pppdPassword,
 		"noauth", "refuse-pap", "refuse-eap", "refuse-mschap", "refuse-mschap-v2",
-		"noipdefault", "nodefaultroute", "noaccomp", "nopcomp",
+		"noipdefault", "defaultroute", "noaccomp", "nopcomp",
 		"mtu", "1492", "mru", "1492",
 		"persist", "holdoff", "2", "maxfail", "0",
 		"nodetach", "debug", "logfile", pppdLog,

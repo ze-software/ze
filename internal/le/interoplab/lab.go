@@ -148,6 +148,9 @@ func (r SuiteReport) Text() string {
 		if !scenario.Passed {
 			out.Str("interop: ").Str(scenario.Name).Str(": FAIL: ").Str(scenario.Error).Byte('\n')
 		}
+		for _, diagnostic := range scenario.Diagnostics {
+			out.Str("interop: ").Str(scenario.Name).Str(": ").Str(diagnostic)
+		}
 		for _, cleanup := range scenario.CleanupErrors {
 			out.Str("interop: ").Str(scenario.Name).Str(": cleanup: ").Str(cleanup).Byte('\n')
 		}
@@ -168,6 +171,11 @@ type ScenarioResult struct {
 	Passed        bool     `json:"passed"`
 	Error         string   `json:"error,omitempty"`
 	CleanupErrors []string `json:"cleanup-errors,omitempty"`
+	// Diagnostics holds one block per container a failed run started
+	// (diagnosePeers), read before the teardown removes them, so the report
+	// names the cause the verdict could not: an exited container, the
+	// daemon's last log lines, a missing device.
+	Diagnostics []string `json:"diagnostics,omitempty"`
 }
 
 // CheckerLab is the protocol-neutral surface a leaf checker consumes. A leaf
@@ -431,6 +439,9 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 	var created createdResources
 	var hostCleanup func() error
 	defer func() {
+		if result.Error != "" {
+			result.Diagnostics = diagnosePeers(cleanupCtx, s.Docker, peers, created.containers)
+		}
 		result.CleanupErrors = lab.cleanup(cleanupCtx, created)
 		if hostCleanup == nil {
 			return
