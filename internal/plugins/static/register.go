@@ -11,6 +11,7 @@ import (
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -29,7 +30,10 @@ const pluginName = "static"
 var sourcesOnce sync.Once
 
 // pendingSection holds the routes the config-verify callback parsed, until the
-// config-apply callback consumes them. Safe for concurrent use.
+// config-apply callback consumes them. Safe for concurrent use. The routes
+// carry the interface classification verify gave them against the candidate
+// interface section (classifyDeclared), so apply never asks iface's published
+// state which names are dynamic.
 //
 // Delivery is tracked apart from the route slice because the two questions have
 // different answers for one value. A reload that DELETES the static section
@@ -188,13 +192,65 @@ func verifyStaticConfig(sections []sdk.ConfigSection) error {
 }
 
 // verifyCandidateStatic verifies the static section against the routing
-// tables of the same delivery.
+// tables of the same delivery, and classifies each interface next-hop against
+// the interface section of the same delivery (classifyDeclared). The routes it
+// answers carry that classification, so whoever holds them (the pending
+// delivery, the apply, the journal's undo) holds the declared set verified
+// with them.
 func verifyCandidateStatic(sections []sdk.ConfigSection) ([]staticRoute, bool, error) {
 	tables, err := candidateTables(sections)
 	if err != nil {
 		return nil, true, err
 	}
-	return verifyStaticSections(sections, tables)
+	routes, found, err := verifyStaticSections(sections, tables)
+	if err != nil {
+		return nil, true, err
+	}
+	if !found {
+		return nil, false, nil
+	}
+	declared, err := candidateDeclaredNames(sections)
+	if err != nil {
+		return nil, true, err
+	}
+	classifyDeclared(routes, declared)
+	return routes, true, nil
+}
+
+// candidateDeclaredNames answers the interface names the delivery's interface
+// section declares as dynamic: devices iface creates on demand and that may be
+// absent. It reads the CANDIDATE section, never the resolver iface publishes at
+// its own apply, for the reason candidateTables gives: the engine does not
+// order participants within an apply, so a pppoe-client added in the same
+// commit as a route through it would otherwise be declared or not by apply
+// order. Which kinds are dynamic is iface's answer (iface.DeclaredDynamicNames);
+// static never names a kind. A delivery with no interface section declares no
+// name, which the zero DeclaredNames states.
+func candidateDeclaredNames(sections []sdk.ConfigSection) (iface.DeclaredNames, error) {
+	for _, section := range sections {
+		if section.Root != iface.ConfigRoot {
+			continue
+		}
+		declared, err := iface.DeclaredDynamicNames(section.Data)
+		if err != nil {
+			return iface.DeclaredNames{}, fmt.Errorf("static: reading the candidate interface section: %w", err)
+		}
+		return declared, nil
+	}
+	return iface.DeclaredNames{}, nil
+}
+
+// classifyDeclared marks every next-hop whose interface the candidate declares
+// dynamic (nextHop.Dynamic), and clears the mark on every other one. A marked
+// next-hop is a waiting member at apply: never resolved, never a skip, inactive
+// until its device is up. An unmarked one keeps the resolve-or-skip path.
+func classifyDeclared(routes []staticRoute, declared iface.DeclaredNames) {
+	for i := range routes {
+		for j := range routes[i].NextHops {
+			nh := &routes[i].NextHops[j]
+			nh.Dynamic = declared.Has(nh.Interface)
+		}
+	}
 }
 
 // candidateTables builds the registry a route's table resolves against from
@@ -283,7 +339,11 @@ func checkBFDProfiles(routes []staticRoute, sections []sdk.ConfigSection) error 
 // iface.GetBackend() == nil for its entire lifetime no matter how the operator
 // configured `interface { backend ... }`, so every interface-next-hop route
 // fails with the misleading "no interface backend loaded" message and nothing
-// else explains why.
+// else explains why. A next-hop naming an interface the config declares
+// dynamic (a device iface creates on demand, such as a pppoe-client) is not
+// resolved at apply: it waits as an inactive member until its device is up,
+// and the news that the device is up is process-local too, so an external
+// static never installs a route through it.
 //
 // Unlike as112 / trafficusage / flowexport -- which REFUSE to start when
 // external, because the same-process call is their whole purpose -- static
@@ -294,7 +354,7 @@ func warnIfExternal(isInternal bool) {
 	if isInternal {
 		return
 	}
-	logger().Warn("static: running as an external plugin process -- routes whose next-hop is an INTERFACE name cannot be resolved (the iface backend lives in the host process, so this process always sees none) and will fail with 'no interface backend loaded'; run static internal if you use interface next-hops. Gateway and device next-hops are unaffected.")
+	logger().Warn("static: running as an external plugin process -- routes whose next-hop is an INTERFACE name cannot be resolved (the iface backend lives in the host process, so this process always sees none) and will fail with 'no interface backend loaded', and routes through an interface the config creates on demand (a pppoe-client) wait for that device and never install; run static internal if you use interface next-hops. Gateway and device next-hops are unaffected.")
 }
 
 func runStaticPlugin(conn net.Conn) int {
@@ -399,11 +459,12 @@ func runStaticPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, &sdk.Registration{
-		// The "interface" root is requested so config-time validation of an
-		// interface-only next-hop's reference is possible (the payload is
-		// otherwise blind to interface config: BuildPluginConfigSections sends
-		// only declared roots). The verify/configure handlers below still skip
-		// non-"static" sections. Static also reads `bfd` (the registry's
+		// The "interface" root is requested so verify can classify an
+		// interface next-hop against the candidate interface section
+		// (candidateDeclaredNames): a name iface declares dynamic waits for
+		// its device rather than being skipped (the payload is otherwise
+		// blind to interface config: BuildPluginConfigSections sends only
+		// declared roots). Static also reads `bfd` (the registry's
 		// ConfigReads, which the server joins to these roots), so a reload that
 		// changes any of static, interface or bfd delivers all three whole
 		// (server reloadConfigSections): an interface-only reload re-parses the
@@ -491,6 +552,10 @@ func (t *staticTx) rollback() error {
 // aborts after this apply succeeded, so the Loc-RIB, and the FIB that follows
 // it, return to the set the previous transaction committed. current is the set
 // the plugin believes is live; each half records its own set there under mu.
+// Each set carries the interface classification its own verify gave it
+// (nextHop.Dynamic), so the undo restores the previous declared set together
+// with the previous routes: a rolled-back commit that added a pppoe-client and
+// a route through it leaves no waiting member behind.
 //
 // applyRoutes isolates a route it cannot program (rm.skipped) and returns nil,
 // so the apply half does not fail on a bad route. Should it ever fail, Record

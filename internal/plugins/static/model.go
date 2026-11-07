@@ -30,6 +30,15 @@ type nextHop struct {
 	Interface  string
 	Weight     uint16
 	BFDProfile string
+	// Dynamic is set by classifyDeclared at verify when the candidate interface
+	// section declares Interface as a device iface creates on demand and that
+	// may be absent (iface.DeclaredDynamicNames). Such a next-hop is a waiting
+	// member: never skipped, inactive until its device is up. False is the
+	// undeclared answer, and keeps the resolve-or-skip path at apply. The flag
+	// travels inside the route, so the pending delivery, the apply and the
+	// journal's undo each carry the declared set verified with their routes, and
+	// routesEqual sees a change of classification as a change of route.
+	Dynamic bool
 }
 
 type staticRoute struct {

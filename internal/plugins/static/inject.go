@@ -17,11 +17,43 @@ import (
 	staticevents "github.com/ze-software/ze/internal/plugins/static/events"
 )
 
+// nhState is one next-hop's membership of its route's ECMP group. active is
+// what programRouteLocked reads (activeNextHops); it is derived from the
+// inputs below by refresh, and never written from one input alone.
 type nhState struct {
 	nh     nextHop
 	active bool
-	handle bfdapi.SessionHandle
-	unsub  func()
+	// bfdUp is BFD's verdict: true while the session is up, and while the
+	// next-hop is not BFD-tracked at all.
+	bfdUp bool
+	// waiting is true for a next-hop the candidate declared dynamic
+	// (nextHop.Dynamic) whose device is not known to be up. Device presence is
+	// not yet an input, so such a next-hop waits for the whole life of its
+	// route: it is never resolved and never skipped, and stays out of the group.
+	waiting bool
+	handle  bfdapi.SessionHandle
+	unsub   func()
+}
+
+// newNHState builds the membership a next-hop starts with: untracked by BFD
+// (setupBFDLocked may track it next), and waiting when it names a declared
+// dynamic interface.
+func newNHState(nh nextHop) nhState {
+	s := nhState{nh: nh, bfdUp: true, waiting: nh.Dynamic}
+	s.refresh()
+	return s
+}
+
+// refresh derives active from the inputs and reports whether it changed, so
+// the caller reprograms the route only on a change. A next-hop is active only
+// while BFD allows it AND it is not waiting for its device.
+func (s *nhState) refresh() bool {
+	want := s.bfdUp && !s.waiting
+	if want == s.active {
+		return false
+	}
+	s.active = want
+	return true
 }
 
 type routeState struct {
@@ -29,6 +61,12 @@ type routeState struct {
 	nhStates []nhState
 	done     chan struct{}
 	emitted  bool
+	// programmed is the route exactly as it was last handed to
+	// applyProgrammed, with its next-hops narrowed to the active members, or
+	// nil while nothing of this route is installed. A withdrawal hands back
+	// this value, never route: route can name a waiting member that was never
+	// installed and whose device cannot be resolved to build the removal.
+	programmed *staticRoute
 }
 
 type routeKey struct {
@@ -142,23 +180,28 @@ func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 	// announcement (the skip branch below). teardownRouteLocked does NOT touch
 	// the backend, so the old kernel route survives a replace.
 	var replacedRoute staticRoute
+	var replacedProgrammed *staticRoute
 	var hasReplaced, replacedEmitted bool
 	if existing := rm.routes[key]; existing != nil {
 		replacedRoute = existing.route
+		replacedProgrammed = existing.programmed
 		hasReplaced = true
 		replacedEmitted = existing.emitted
 		rm.teardownRouteLocked(existing)
 	}
 
+	// The replaced route's install survives its teardown, so the new state
+	// inherits it: a replacement with no active member then withdraws it.
 	rs := &routeState{
-		route: r,
-		done:  make(chan struct{}),
+		route:      r,
+		done:       make(chan struct{}),
+		programmed: replacedProgrammed,
 	}
 
 	if r.Action == actionForward {
 		rs.nhStates = make([]nhState, len(r.NextHops))
 		for i, nh := range r.NextHops {
-			rs.nhStates[i] = nhState{nh: nh, active: true}
+			rs.nhStates[i] = newNHState(nh)
 		}
 		rm.setupBFDLocked(rs)
 	}
@@ -180,9 +223,14 @@ func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 		// UNROUTED and skipped (re-attempted next apply). This is not the 650
 		// flap case: the route is genuinely gone, so a Remove is correct.
 		if hasReplaced {
-			if remErr := rm.withdrawProgrammed(replacedRoute); remErr != nil {
-				logger().Warn("static: replaced route removal failed on skip",
-					"prefix", replacedRoute.Prefix, "table", replacedRoute.Table, "error", remErr)
+			// The failed program left the inherited install in place, so
+			// rs.programmed is still the replaced route's install, or nil when
+			// none of it was installed.
+			if rs.programmed != nil {
+				if remErr := rm.withdrawProgrammed(*rs.programmed); remErr != nil {
+					logger().Warn("static: replaced route removal failed on skip",
+						"prefix", replacedRoute.Prefix, "table", replacedRoute.Table, "error", remErr)
+				}
 			}
 			// Withdraw the old announcement, but only if it was announced.
 			if replacedEmitted {
@@ -198,9 +246,12 @@ func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 
 func (rm *routeManager) removeRouteLocked(rs *routeState) error {
 	rm.teardownRouteLocked(rs)
-	if err := rm.withdrawProgrammed(rs.route); err != nil {
-		logger().Warn("static: remove route failed", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
-		return err
+	if rs.programmed != nil {
+		if err := rm.withdrawProgrammed(*rs.programmed); err != nil {
+			logger().Warn("static: remove route failed", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
+			return err
+		}
+		rs.programmed = nil
 	}
 	if rs.emitted {
 		rm.emitRouteChange(redistevents.ActionRemove, rs.route)
@@ -220,6 +271,8 @@ func (rm *routeManager) programRouteLocked(rs *routeState) error {
 			logger().Warn("static: apply route failed", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
 			return err
 		}
+		installed := rs.route
+		rs.programmed = &installed
 		// A blackhole or reject route is a redistribute source, as in FRR
 		// (zebra_redistribute_check tests no next-hop type) and BIRD
 		// (static_announce_rte announces every r->dest).
@@ -230,11 +283,18 @@ func (rm *routeManager) programRouteLocked(rs *routeState) error {
 		return nil
 	}
 
+	// A route with no active member is withdrawn, and stays in rm.routes: it is
+	// not a skip, so `static show` lists it with its members inactive. A route
+	// none of whose members was ever active (every member waiting, or every BFD
+	// session down from the start) has nothing installed to withdraw.
 	active := activeNextHops(rs)
 	if len(active) == 0 {
-		if err := rm.withdrawProgrammed(rs.route); err != nil {
-			logger().Warn("static: withdraw route (all NHs down)", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
-			return err
+		if rs.programmed != nil {
+			if err := rm.withdrawProgrammed(*rs.programmed); err != nil {
+				logger().Warn("static: withdraw route (all NHs down)", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
+				return err
+			}
+			rs.programmed = nil
 		}
 		if rs.emitted {
 			rm.emitRouteChange(redistevents.ActionRemove, rs.route)
@@ -249,6 +309,7 @@ func (rm *routeManager) programRouteLocked(rs *routeState) error {
 		logger().Warn("static: apply route failed", "prefix", programmed.Prefix, "table", programmed.Table, "error", err)
 		return err
 	}
+	rs.programmed = &programmed
 	if !rs.emitted {
 		rm.emitRouteChange(redistevents.ActionAdd, rs.route)
 		rs.emitted = true
@@ -324,16 +385,17 @@ func (rm *routeManager) watchBFD(key routeKey, nhIdx int, handle bfdapi.SessionH
 
 			// A snapshot (sc.Initial) needs no branch here, and it is a FIX
 			// rather than a hazard: this handler asks only "is the session Up",
-			// compares against what it already believed, and programs on a
-			// difference. A next-hop starts inactive, so a snapshot of Down
-			// changes nothing, and a snapshot of Up activates a next-hop whose
-			// session another client had already brought up -- which this
-			// plugin previously waited for a transition to learn.
-			wasActive := rs.nhStates[nhIdx].active
-			nowActive := sc.State == bfdapi.StateUp
+			// records the answer as BFD's input, and programs when the
+			// next-hop's activity changes. A snapshot of Down takes an
+			// untracked next-hop out of the group, and a snapshot of Up keeps
+			// one whose session another client had already brought up, rather
+			// than waiting for a transition to learn it.
+			// BFD is one input to the next-hop's activity: a next-hop still
+			// waiting for its device stays inactive whatever BFD says.
+			nhs := &rs.nhStates[nhIdx]
+			nhs.bfdUp = sc.State == bfdapi.StateUp
 
-			if wasActive != nowActive {
-				rs.nhStates[nhIdx].active = nowActive
+			if nhs.refresh() {
 				_ = rm.programRouteLocked(rs)
 				logger().Info("static: BFD state change",
 					"prefix", key.prefix,
@@ -351,8 +413,9 @@ func (rm *routeManager) watchBFD(key routeKey, nhIdx int, handle bfdapi.SessionH
 // next-hop still holds handle: the BFD engine stopped (engine.Loop.Stop closes
 // every subscriber channel), so the session is gone. The next-hop forgets the
 // handle, with nothing to release into a loop that no longer exists, and stops
-// being BFD-tracked: it is active again, as a next-hop is when static runs
-// without BFD, and the route is reprogrammed if that changed its next-hop set.
+// being BFD-tracked: BFD allows it again, as it does when static runs without
+// BFD, so it is active unless it waits for its device, and the route is
+// reprogrammed if that changed its next-hop set.
 // RFC 5882 Section 4.2: "If a BFD session transitions from Up state to
 // AdminDown ... clients SHOULD NOT take any control protocol action", and an
 // engine stopping is BFD switched off on this system, not a path failure.
@@ -386,10 +449,10 @@ func (rm *routeManager) endVanishedBFDSession(key routeKey, nhIdx int, handle bf
 		logger().Warn("static: BFD session ended because the BFD engine stopped; next hop no longer BFD-tracked",
 			"prefix", key.prefix, "table", key.table, "nh", nhs.nh.Address)
 	}
-	if nhs.active {
+	nhs.bfdUp = true
+	if !nhs.refresh() {
 		return
 	}
-	nhs.active = true
 	if err := rm.programRouteLocked(rs); err != nil {
 		logger().Warn("static: reprogramming after the BFD engine stopped failed",
 			"prefix", key.prefix, "table", key.table, "error", err)

@@ -299,3 +299,78 @@ func TestStaticWithNoInstallDestinationRefuses(t *testing.T) {
 		t.Error("a main-table route with no install destination must be refused")
 	}
 }
+
+// TestStaticWaitingMemberNotSkipped is AC-3 and AC-14 at the route manager: a
+// member the candidate declared dynamic (nextHop.Dynamic) is inactive and held,
+// never resolved and never a skip. Method, three routes: a main-table mixed
+// ECMP group (gateway plus waiting interface) must reach the Loc-RIB through
+// the gateway alone; a main-table route whose only member waits must insert
+// nothing and stay held; and a named-table route whose only member waits must
+// write nothing to the backend, and withdraw nothing when it is deleted,
+// because nothing of it was installed.
+// PREVENTS: a declared, absent device skipping its route (retried only by an
+// unrelated reload), dropping the gateway member of its group, or a removal
+// of a route that was never written failing on a device that does not resolve.
+func TestStaticWaitingMemberNotSkipped(t *testing.T) {
+	gateway := netip.MustParseAddr("192.0.2.1")
+	waiting := nextHop{Interface: "pppoe0", Weight: 1, Dynamic: true}
+	mixed := staticRoute{
+		Prefix:   netip.MustParsePrefix("0.0.0.0/0"),
+		Action:   actionForward,
+		NextHops: []nextHop{{Address: gateway, Weight: 1}, waiting},
+	}
+	alone := staticRoute{
+		Prefix:   netip.MustParsePrefix("198.51.100.0/24"),
+		Action:   actionForward,
+		NextHops: []nextHop{waiting},
+	}
+	named := staticRoute{
+		Prefix:   netip.MustParsePrefix("203.0.113.0/24"),
+		Table:    100,
+		Action:   actionForward,
+		NextHops: []nextHop{waiting},
+	}
+
+	mb := &mockStaticBackend{}
+	rm := newTestRouteManager(mb)
+	if err := rm.applyRoutes([]staticRoute{mixed, alone, named}); err != nil {
+		t.Fatalf("applyRoutes: %v", err)
+	}
+
+	rm.mu.Lock()
+	if len(rm.skipped) != 0 {
+		t.Errorf("skipped = %+v, want none: a waiting member is never a skip", rm.skipped)
+	}
+	for _, r := range []staticRoute{mixed, alone, named} {
+		rs, held := rm.routes[routeKey{table: r.Table, prefix: r.Prefix}]
+		if !held {
+			t.Errorf("route %v table %d not held, want it held with its member waiting", r.Prefix, r.Table)
+			continue
+		}
+		for _, nhs := range rs.nhStates {
+			if nhs.nh.Dynamic == nhs.active {
+				t.Errorf("route %v member %+v active = %v, want active only for the gateway", r.Prefix, nhs.nh, nhs.active)
+			}
+		}
+	}
+	rm.mu.Unlock()
+
+	if len(mb.paths) != 1 {
+		t.Fatalf("inserted %d Paths, want one: the mixed group through its gateway", len(mb.paths))
+	}
+	if p := mb.paths[0]; p.NextHop != gateway || p.Interface != "" || len(p.ECMP) != 0 {
+		t.Errorf("mixed group Path = next-hop %v interface %q ECMP %+v, want %v alone", p.NextHop, p.Interface, p.ECMP, gateway)
+	}
+	for _, r := range mb.applied {
+		if r.Prefix != mixed.Prefix {
+			t.Errorf("installed %v, want only the mixed group's prefix", r.Prefix)
+		}
+	}
+
+	if err := rm.applyRoutes([]staticRoute{mixed, alone}); err != nil {
+		t.Fatalf("applyRoutes deleting the named-table route: %v", err)
+	}
+	if len(mb.removed) != 0 {
+		t.Errorf("removed %+v, want nothing: the deleted route was never installed", mb.removed)
+	}
+}

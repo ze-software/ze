@@ -56,7 +56,8 @@ func (rm *routeManager) setLocRIB(loc *locrib.RIB, remote routeSink) {
 func (r staticRoute) inMainTable() bool { return r.Table == 0 }
 
 // applyProgrammed installs one route as the operator declared it, with the
-// next-hop set the caller has already narrowed to the members BFD reports up.
+// next-hop set the caller has already narrowed to the active members: those BFD
+// reports up, less any that waits for its device (nhState.refresh).
 //
 // A main-table route becomes a Loc-RIB Path, so Ze's declared distance decides
 // between it and a route another protocol offers for the same prefix, and the FIB
@@ -81,10 +82,10 @@ func (rm *routeManager) withdrawProgrammed(r staticRoute) error {
 // insertPathLocked builds the route's Loc-RIB Path and inserts it.
 //
 // Every reason to REFUSE a route is evaluated here, before the insert, so a route
-// the operator cannot have stays synchronous: the config transaction fails, the
-// route is recorded as skipped, and no Path reaches the Loc-RIB. What moved to
-// the FIB plugin is the netlink write itself, whose failures the FIB reports as
-// fib-sync-failure.
+// the operator cannot have is refused at apply: the route is recorded as skipped
+// (per-route isolation, applyRoutes), no Path reaches the Loc-RIB, and the commit
+// still succeeds. What moved to the FIB plugin is the netlink write itself, whose
+// failures the FIB reports as fib-sync-failure.
 //
 // REQUIRES: the caller holds rm.mu.
 func (rm *routeManager) insertPathLocked(r staticRoute) error {
@@ -196,11 +197,15 @@ func staticPath(r staticRoute) (locrib.Path, error) {
 
 // checkNextHopResolvable refuses a next-hop whose interface no backend can name.
 //
-// The FIB plugin resolves the name again when it programs the route, and that is
-// not a duplicate decision: this one answers the operator at commit time, so a
-// name that cannot resolve fails the transaction instead of leaving a prefix
-// quietly unrouted. Both ask iface.ResolveIndex, so they cannot disagree about
-// what resolves.
+// It runs at APPLY, from staticPath, not at verify, so its refusal does not fail
+// the transaction: applyRoutes records the route as skipped with this reason,
+// which `static show` and the doctor-static-route-skipped check report, and the
+// rest of the section commits. The route is retried on the next apply. It sees
+// only the members programRouteLocked kept active, so a next-hop the candidate
+// declared dynamic (nextHop.Dynamic) never reaches it while it waits for its
+// device. The FIB plugin resolves the name again when it programs the route,
+// because an ifindex is not stable across a device replacement; both ask
+// iface.ResolveIndex, so they cannot disagree about what resolves.
 func checkNextHopResolvable(nh nextHop) error {
 	if nh.Interface == "" {
 		if !nh.Address.IsValid() {

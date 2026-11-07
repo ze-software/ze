@@ -130,6 +130,14 @@ a main-table route is re-inserted into the Loc-RIB with the surviving set, and a
 named-table route is rewritten through the backend. The route is withdrawn only
 when every next hop is down.
 
+BFD is one input to a next hop's activity, not its owner. A next hop is active
+only while BFD allows it (its session is up, or it is not BFD-tracked) and it is
+not a waiting member ("Table selection and interface-only next hops"), so a BFD
+session coming up never brings a waiting member into the group. A withdrawal
+removes what was last written (`routeState.programmed`), never the configured
+route, so a route whose members were never active withdraws nothing, and a
+removal never has to resolve a device that was not installed.
+
 Static asks for the BFD service once, when it starts, and its registration
 starts it after the bfd plugin (`StartAfter: ["bfd"]`) so the service exists by
 then. When the BFD engine stops, every session's subscription closes: the next
@@ -163,6 +171,9 @@ policy routing needs the same mapping and a later VRF feature will absorb it.
 <!-- source: internal/core/routingtable/config.go -- routing-table config parsing -->
 <!-- source: internal/plugins/routingtable/register.go -- plugin registration -->
 <!-- source: internal/plugins/static/register.go -- candidateTables -->
+<!-- source: internal/plugins/static/register.go -- candidateDeclaredNames, classifyDeclared -->
+<!-- source: internal/component/iface/declared_dynamic.go -- DeclaredDynamicNames, dynamicKinds -->
+<!-- source: internal/plugins/static/inject.go -- newNHState, nhState.refresh, programRouteLocked -->
 
 The registry is a package-level `atomic.Pointer[Registry]`. A plugin registers
 itself in `init()`, which rules out constructor injection, and `bfdapi.GetService()`
@@ -192,12 +203,42 @@ installed, so a named table is out of both the Loc-RIB and the redistribute bus.
 
 An interface next hop is resolved TWICE for a main-table route, and the two
 resolutions answer different questions. The static plugin resolves the name at
-config time so an operator who names a device that cannot be resolved is refused
-while the transaction can still fail. The FIB plugin resolves it again when it
-programs the route, because the Loc-RIB carries the device NAME and an ifindex is
-not stable across a device replacement. Both call `iface.ResolveIndex`, or
+APPLY, in `staticPath`, not at verify, so a name that cannot be resolved does not
+fail the transaction: the route is skipped with its reason, the rest of the
+section commits, and the route is retried on the next apply ("One bad route does
+not drop the section"). The FIB plugin resolves it again when it programs the
+route, because the Loc-RIB carries the device NAME and an ifindex is not stable
+across a device replacement. Both call `iface.ResolveIndex`, or
 `iface.ResolveVPPIndex` on a VPP data plane, so they cannot disagree about what
 resolves.
+
+Some interfaces have no device for part of their configured life: iface creates
+a pppoe-client's device only while its session is up. Static learns which names
+are of that kind from the CANDIDATE `interface` section, read beside
+`candidateTables` and for the same reason. `WantsConfig` delivers that section
+with the static one, and verify asks iface's pure function
+`iface.DeclaredDynamicNames` which of its names are dynamic, so static never
+names an interface kind and a kind iface later creates the same way needs no
+static edit. A delivery with no `interface` section declares no name. Verify adds
+no refusal.
+
+Verify records the answer on each next hop (`nextHop.Dynamic`), so the routes the
+pending delivery holds, the apply and the journal's undo each carry the declared
+set they were verified with. Apply classifies from that flag and never from what
+iface has published, so a pppoe-client and a route through it committed together
+do not depend on which participant applies first, and a rollback restores the
+previous declared set with the previous routes. A route whose classification
+changes is a changed route for the diff (`routesEqual`), so a commit that removes
+the client and keeps the route reapplies it.
+
+A next hop naming a declared name is a WAITING member: it is never resolved and
+never skipped, and it stays out of the ECMP group (`nhState.waiting`,
+`nhState.refresh`). Its route is held in the route map like any other: a mixed
+group is programmed through its other active members, and a route with no active
+member is withdrawn, or never written, and `static show` lists it with its
+members inactive and not skipped. A next hop naming an undeclared name keeps the
+resolve-or-skip path above. Device presence is not yet an input, so a waiting
+member stays inactive until the next apply that no longer declares its name.
 
 ## Two data planes, one resolver
 
@@ -242,7 +283,8 @@ A named-table route is skipped for anything its backend refuses, netlink errors
 included. A main-table route is skipped for anything `staticPath` refuses -- an
 unresolvable next-hop device, a next-hop naming neither an address nor a device, a
 metric this build cannot program -- because the Loc-RIB accepts every path it is
-given. A netlink error on a main-table route is reported by the FIB plugin as
+given. A next hop the candidate declares dynamic is never one of those: it waits
+and is not resolved. A netlink error on a main-table route is reported by the FIB plugin as
 `fib-sync-failure` instead, after the config transaction has already succeeded.
 
 <!-- source: internal/plugins/static/diff.go -- diff engine and routesEqual short circuit -->
