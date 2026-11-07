@@ -45,7 +45,7 @@ func signatureHashAlgos(t *testing.T, raw []byte) (algos []uint16, notifies int)
 // check that Ze sent its own list, because Ze always does. This test is what makes that
 // premise a checked fact. Method: Ze's real IKE_SA_INIT request, and the real response Ze's
 // responder answers it with, are each parsed. Each MUST carry exactly one
-// SIGNATURE_HASH_ALGORITHMS notify listing SHA2-256, SHA2-384 and SHA2-512.
+// SIGNATURE_HASH_ALGORITHMS notify listing SHA2-256, SHA2-384, SHA2-512 and Identity.
 //
 // RFC 7427 Section 3: "the peer is only allowed to use this authentication method if the
 // Notify payload of type SIGNATURE_HASH_ALGORITHMS has been sent and received by each
@@ -70,7 +70,9 @@ func TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify(t *testing.T) {
 		t.Fatal("the responder sent no IKE_SA_INIT response")
 	}
 
-	want := []uint16{hashAlgoSHA2256, hashAlgoSHA2384, hashAlgoSHA2512}
+	// Identity (5) joins the SHA-2 values because Ze verifies Ed25519, and RFC 8420
+	// Section 3 then requires it in the notify.
+	want := []uint16{hashAlgoSHA2256, hashAlgoSHA2384, hashAlgoSHA2512, hashAlgoIdentity}
 	for who, raw := range map[string][]byte{"request": request, "response": resp.LastSentMsg} {
 		algos, notifies := signatureHashAlgos(t, raw)
 		if notifies != 1 {

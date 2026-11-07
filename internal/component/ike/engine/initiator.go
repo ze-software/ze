@@ -606,13 +606,19 @@ func parseHashAlgoNotify(data []byte) []uint16 {
 }
 
 // buildSignatureHashAlgosNotify creates a SIGNATURE_HASH_ALGORITHMS notify
-// payload announcing SHA2-256, SHA2-384, SHA2-512.
-// RFC 7427 Section 4.
+// payload announcing every hash identifier a registered signature family needs
+// (announcedHashAlgos): SHA2-256, SHA2-384 and SHA2-512 for RSA and ECDSA, and
+// Identity for Ed25519.
+//
+// RFC 7427 Section 4: "This notification also implicitly indicates support of the
+// new "Digital Signature" algorithm method, as well as the list of hash functions
+// supported by the sending peer."
 func buildSignatureHashAlgosNotify() *wire.PayloadNotify {
-	data := make([]byte, 6)
-	binary.BigEndian.PutUint16(data[0:2], hashAlgoSHA2256)
-	binary.BigEndian.PutUint16(data[2:4], hashAlgoSHA2384)
-	binary.BigEndian.PutUint16(data[4:6], hashAlgoSHA2512)
+	algos := announcedHashAlgos()
+	data := make([]byte, 2*len(algos))
+	for i, id := range algos {
+		binary.BigEndian.PutUint16(data[2*i:], id)
+	}
 	return &wire.PayloadNotify{
 		NotifyMsgType:    wire.NotifySignatureHashAlgorithms,
 		NotificationData: data,

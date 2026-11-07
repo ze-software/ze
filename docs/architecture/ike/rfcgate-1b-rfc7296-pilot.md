@@ -219,7 +219,7 @@ no other implementation computes. A client certificate with no subjectAltName.
 EAP-TLS had never once interoperated while its suite was green. A self-test
 suite cannot find a defect that both ends share.
 
-<!-- source: internal/component/ike/engine/auth.go -- algorithmIdentifierRSA, algorithmIdentifierEC, selectSignatureAlgorithm -->
+<!-- source: internal/component/ike/engine/auth_signature_scheme.go -- algorithmIdentifierRSA, algorithmIdentifierEC, selectSignatureAlgorithm -->
 
 ## Related
 

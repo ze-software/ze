@@ -187,7 +187,7 @@ the MSS option, and a packet without the option is not changed.
 | `subnet <p> subnet-id <n>` | none: dropped | Ze keys a subnet by its prefix | not read | - |
 | `pki ca <n> certificate <b64>` | `pki ca <n> certificate <b64>` | copy the body as it is: Ze takes base64 DER as well as PEM | not read | - |
 | `pki certificate <n> certificate <b64>`, `private key` | `pki certificate <n> certificate <b64>`, `private key` (placeholder) | | not read | - |
-| a certificate with an Ed25519 key, used by IKE | the same entry, but IKE can not sign with it | reissue with ECDSA P-256 or RSA until Ze signs with Ed25519 | conditional | 5 |
+| a certificate with an Ed25519 key, used by IKE | the same entry | IKE signs with it under RFC 7427 and RFC 8420 when the peer announces the Identity hash, as strongSwan with its openssl or curve25519 plugin does; a peer that does not, or that sends no SIGNATURE_HASH_ALGORITHMS notify, needs an ECDSA or RSA certificate | conditional | 5 |
 | `vpn ipsec interface <i>` | `vpn ipsec interface <i>` | | not read | - |
 | `vpn ipsec ike-group <g> key-exchange ikev2`, `proposal <N> encryption`, `hash`, `dh-group` | `vpn ipsec ike-group <g>` with the same leaves | `aes128gcm128` becomes `aes128gcm`, `aes256gcm128` becomes `aes256gcm` | not read | - |
 | `vpn ipsec esp-group <g> proposal <N> encryption`, `pfs` | `vpn ipsec esp-group <g>` with `proposal <N> encryption`, `pfs enable\|disable` | the same encryption renames | not read | - |
@@ -199,6 +199,7 @@ the MSS option, and a packet without the option is not changed.
 
 <!-- source: internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang -- shared-network, subnet, range, static-mapping -->
 <!-- source: internal/component/pki/yang/ze-pki-conf.yang -- ca certificate, certificate private key -->
+<!-- source: internal/component/ike/engine/register_signature_eddsa.go -- chooseEd25519Signature -->
 <!-- source: internal/component/ike/engine/auth_legacy.go -- legacyKeyName -->
 <!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- interface, esp-group pfs, ike-group, site-to-site peer, traffic-selector, vti bind -->
 

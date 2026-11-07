@@ -8,7 +8,6 @@ package engine
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/ed25519"
 	"crypto/fips140"
 	crand "crypto/rand"
 	"crypto/rsa"
@@ -63,12 +62,14 @@ func computeLegacySignatureAuth(sa *SA, certName string, key crypto.PrivateKey, 
 }
 
 // legacyKeyName names, for an operator, a certificate key no legacy method signs
-// with. A key type Ze has no name for is described rather than guessed.
+// with, as the signature family that owns the key names it. A key no family owns is
+// described rather than guessed.
 func legacyKeyName(key crypto.PrivateKey) string {
-	if _, ok := key.(ed25519.PrivateKey); ok {
-		return "an Ed25519 key"
+	scheme, ok := signingScheme(key)
+	if !ok {
+		return "a key of a type IKEv2 defines no legacy signature method for"
 	}
-	return "a key of a type IKEv2 defines no legacy signature method for"
+	return scheme.keyName
 }
 
 // signLegacyRSAAuth signs an RSA Digital Signature (method 1) AUTH payload. The

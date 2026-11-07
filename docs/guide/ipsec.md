@@ -441,13 +441,19 @@ RFC 7427 Digital Signature (method 14). A peer that does not, such as strongSwan
 with `charon.signature_authentication = no`, gets the method that fits Ze's
 certificate key: RSA Digital Signature (method 1, SHA-1) for an RSA key, and
 ECDSA-256, ECDSA-384 or ECDSA-521 (methods 9, 10, 11) for an ECDSA key on P-256,
-P-384 or P-521. Ze signs with RSA and ECDSA keys only: Ed25519 and Ed448 are not
-supported yet for IKEv2 authentication, with either method, and an IKE_AUTH that
-would sign with such a key fails with an unsupported key type. Ze verifies all of these methods from the peer.
+P-384 or P-521. An Ed25519 key signs under RFC 7427 only, as RFC 8420 defines
+it: Ze announces the Identity hash in every IKE_SA_INIT, and when the peer
+announces it too (strongSwan does with its openssl or curve25519 plugin) Ze signs
+the AUTH octets whole with pure Ed25519. A peer that does not announce Identity,
+or sends no notify at all, cannot be signed for with an Ed25519 key, and the
+IKE_AUTH fails with a message naming the peer: use an ECDSA or RSA certificate
+for it. Ed448 is not supported yet. Ze verifies all of these methods from the
+peer, Ed25519 included.
 A ze started with `GODEBUG=fips140=only` refuses method 1, because Go refuses
 SHA-1 signatures in that mode: enable RFC 7427 on the peer instead.
 <!-- source: internal/component/ike/engine/auth_legacy.go -- computeLegacySignatureAuth, signLegacyRSAAuth, verifyLegacyRSAAuth -->
-<!-- source: internal/component/ike/engine/auth.go -- selectSignatureAlgorithm, errUnsupportedKey -->
+<!-- source: internal/component/ike/engine/auth_signature_scheme.go -- selectSignatureAlgorithm, announcedHashAlgos -->
+<!-- source: internal/component/ike/engine/register_signature_eddsa.go -- chooseEd25519Signature, signEd25519, verifyEd25519 -->
 <!-- source: internal/component/ike/engine/auth_ecdsa.go -- signECDSAAuth -->
 
 An `eap-tls` peer whose EAP-TLS client sends its certificate without the
@@ -1630,7 +1636,7 @@ through it. Use the XFRM backend, which is the default and the production path.
 
 ## PKI certificate store
 
-The `pki { }` block stores X.509 certificates, private keys, CA certificates, and the certificate revocation lists each CA published. A `ca` entry holds a CA `certificate` and its `crl` list; a `certificate` entry holds its `certificate`, its `intermediate` list and an optional `private { key }`. Each value is written inline in the config, not read from a file, and is validated at commit time. The key leaf accepts PKCS8, SEC1 and PKCS1 encodings, but IKEv2 signs with RSA and ECDSA keys only: an Ed25519 or Ed448 certificate cannot authenticate an IKE peer yet. The PKI store also serves TLS certificates for the web UI and gRPC API.
+The `pki { }` block stores X.509 certificates, private keys, CA certificates, and the certificate revocation lists each CA published. A `ca` entry holds a CA `certificate` and its `crl` list; a `certificate` entry holds its `certificate`, its `intermediate` list and an optional `private { key }`. Each value is written inline in the config, not read from a file, and is validated at commit time. The key leaf accepts PKCS8, SEC1 and PKCS1 encodings, and IKEv2 signs with RSA, ECDSA and Ed25519 keys (Ed25519 only for a peer that announces RFC 8420's Identity hash): an Ed448 certificate cannot authenticate an IKE peer yet. The PKI store also serves TLS certificates for the web UI and gRPC API.
 
 Health monitoring reports certificate expiry as a warning at 30 days and an error after expiry. Prometheus exposes `ze_pki_certificate_expiry_seconds` and `ze_pki_certificate_valid`.
 

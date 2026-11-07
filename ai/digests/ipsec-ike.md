@@ -185,6 +185,7 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
 | `engine/fsm.go` | `runOnce`/`runInitiator`/`runResponder`, `handleInbound` state switch, IKE_SA_INIT + IKE_AUTH + EAP response handlers |
 | `engine/initiator.go` | IKE_SA_INIT request builder, config↔wire↔crypto proposal conversion, Child SA payload builders |
 | `engine/auth.go` | AUTH payload computation (PSK/X.509/legacy RSA), SK message framing (AEAD/CBC), SK decryption |
+| `engine/auth_signature_scheme.go` | RFC 7427 method 14 signature-family table: selection from the peer's notify, sign, AlgorithmIdentifier recognition, verify, the notify's hash list; families register from `register_signature_{rsa,ecdsa,eddsa}.go` (Ed25519 under RFC 8420's Identity hash) |
 | `engine/sa.go` | `SA` struct, `SAState` enum, SPI/nonce generation |
 | `engine/table.go` | `SATable`: SPI-pair keyed map (insert/lookup/update-key/remove) |
 | `engine/established.go` | post-AUTH lifecycle: first Child SA, DPD/rekey ticker, cleanup |

@@ -172,8 +172,9 @@ type issuedLab struct {
 // issueLab derives the WireGuard public keys from the lab private keys and
 // issues a fresh P-256 PKI: a CA with path length 0, the responder's
 // certificate for vpn.example.net and the CPE's for cpe.lab.example.net.
-// Ed25519 for the CPE waits on spec-home-cpe-5 (Ze cannot sign IKE AUTH with
-// Ed25519 yet), so the CPE key is the P-256 variant the umbrella names.
+// The CPE key is the P-256 variant the umbrella names. Ze signs IKE AUTH with
+// Ed25519 since spec-home-cpe-5, and the Ed25519 CPE key of spec-home-cpe-11
+// AC-9 is not minted here yet.
 func issueLab(values labValues, now time.Time) (issuedLab, error) {
 	issued := issuedLab{values: labValues{}, files: map[string][]byte{}}
 	if err := issueWireGuard(values, &issued); err != nil {

@@ -2,28 +2,20 @@
 // Related: remote_id.go -- remote identity policy and certificate binding
 // Detail: cert_payload.go -- CERT payload assembly, the received-chain bound, Hash and URL
 // Detail: auth_ecdsa.go -- RFC 4754 ECDSA AUTH methods 9, 10 and 11
+// Detail: auth_signature_scheme.go -- the Digital Signature algorithm table method 14 signs and verifies through
 // RFC: rfc/short/rfc7296.md -- Authentication of the IKE SA (Section 2.15)
 // RFC: rfc/short/rfc7427.md -- Digital Signature AUTH method 14
+// RFC: rfc/full/rfc8420.txt -- Ed25519 under the Identity hash (no summary: no release profile lists RFC 8420)
 package engine
 
 import (
-	"bytes"
-	"crypto"
 	"crypto/aes"
 	gocipher "crypto/cipher"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	crand "crypto/rand"
-	"crypto/rsa"
 	"crypto/sha1" //nolint:gosec // required by IKEv2 CERTREQ (RFC 7296 Section 3.7)
-	"crypto/sha256"
-	"crypto/sha512"
-	"encoding/asn1"
 	"errors"
 	"fmt"
-	"hash"
 	"net"
-	"slices"
 	"time"
 
 	ikecrypto "github.com/ze-software/ze/internal/component/ike/crypto"
@@ -383,14 +375,19 @@ func computeX509Auth(sa *SA) (*wire.PayloadAUTH, error) {
 
 	algID, hashFunc, err := selectSignatureAlgorithm(entry.PrivateKey, sa.RemoteHashAlgos)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ike auth: certificate %q cannot sign for peer %q: %w", certName, sa.PeerName, err)
 	}
 
-	h := hashFunc.New()
-	h.Write(signedOctets)
-	digest := h.Sum(nil)
+	// RFC 8420 Section 2: the Identity hash runs no hash, so an EdDSA key signs the
+	// signed octets whole. Every other algorithm signs their digest.
+	input := signedOctets
+	if hashFunc != hashIdentity {
+		h := hashFunc.New()
+		h.Write(signedOctets)
+		input = h.Sum(nil)
+	}
 
-	sig, err := signDigest(entry.PrivateKey, digest, hashFunc)
+	sig, err := signDigest(entry.PrivateKey, input, hashFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -516,6 +513,9 @@ func verifyX509Auth(sa *SA, authData, signedOctets []byte) error {
 		return err
 	}
 
+	// For the Identity hash of RFC 8420 the "digest" is the signed octets whole
+	// (identityHash), and the certificate's family refuses a hash it does not sign
+	// with, so an id-Ed25519 AUTH from an ECDSA certificate fails, and the reverse.
 	h := hashFunc()
 	h.Write(signedOctets)
 	digest := h.Sum(nil)
@@ -786,202 +786,4 @@ func decryptSKPayload(sa *SA, rawMsg []byte, skPayload *wire.PayloadSK) ([]byte,
 		return nil, errInvalidMessage
 	}
 	return padded[:end], nil
-}
-
-// OID constants for ASN.1 AlgorithmIdentifier (RFC 7427 Appendix A).
-//
-// These are the BARE OID encodings. They are the match keys hashFromAlgID
-// compares against, after it has pulled the OID out of whichever form the peer
-// sent. What Ze EMITS is the wrapped form built below, never one of these.
-var (
-	oidSHA256WithRSA, _ = asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11})
-	oidSHA384WithRSA, _ = asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 12})
-	oidSHA512WithRSA, _ = asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 13})
-	oidECDSASHA256, _   = asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2})
-	oidECDSASHA384, _   = asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 3})
-)
-
-// rsaAlgorithmIdentifier and ecAlgorithmIdentifier are the two DER shapes of
-// RFC 5280 Section 4.1.1.2 AlgorithmIdentifier that IKEv2 signature auth uses.
-// They differ only in the parameters field, and the difference is required
-// rather than cosmetic: RFC 4055 Section 5 says the parameters of an
-// RSASSA-PKCS1-v1_5 algorithm MUST be present and MUST be NULL, and RFC 5758
-// Section 3.2 says the parameters of ecdsa-with-SHA256 and ecdsa-with-SHA384
-// MUST be absent.
-type rsaAlgorithmIdentifier struct {
-	Algorithm  asn1.ObjectIdentifier
-	Parameters asn1.RawValue
-}
-
-type ecAlgorithmIdentifier struct {
-	Algorithm asn1.ObjectIdentifier
-}
-
-// AlgorithmIdentifier encodings Ze emits in the AUTH payload.
-//
-// RFC 7427 Section 3 defines the Authentication Data as an ASN.1 Length octet,
-// then an "ASN.1 AlgorithmIdentifier object", then the signature. An
-// AlgorithmIdentifier is a SEQUENCE that wraps the OID, so the bare OID Ze used
-// to emit was not one: strongSwan parses that field as ASN.1 and refuses the
-// payload with "digital signature authentication payload invalid", which failed
-// every certificate-authenticated exchange against it.
-var (
-	algIDSHA256WithRSA = algorithmIdentifierRSA(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11})
-	algIDSHA384WithRSA = algorithmIdentifierRSA(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 12})
-	algIDSHA512WithRSA = algorithmIdentifierRSA(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 13})
-	algIDECDSASHA256   = algorithmIdentifierEC(asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2})
-	algIDECDSASHA384   = algorithmIdentifierEC(asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 3})
-)
-
-// algorithmIdentifierRSA encodes SEQUENCE { OID, NULL }.
-func algorithmIdentifierRSA(oid asn1.ObjectIdentifier) []byte {
-	der, err := asn1.Marshal(rsaAlgorithmIdentifier{Algorithm: oid, Parameters: asn1.NullRawValue})
-	if err != nil {
-		panic("BUG: cannot DER-encode a constant RSA signature AlgorithmIdentifier")
-	}
-	return der
-}
-
-// algorithmIdentifierEC encodes SEQUENCE { OID }.
-func algorithmIdentifierEC(oid asn1.ObjectIdentifier) []byte {
-	der, err := asn1.Marshal(ecAlgorithmIdentifier{Algorithm: oid})
-	if err != nil {
-		panic("BUG: cannot DER-encode a constant ECDSA signature AlgorithmIdentifier")
-	}
-	return der
-}
-
-// Hash algorithm identifiers of IANA's IKEv2 "Hash Algorithms" registry, which is what
-// a SIGNATURE_HASH_ALGORITHMS notify carries (RFC 7427 Section 4). Identifier 0 is
-// RESERVED, so no valid identifier is the zero value. SHA-1 (1) has no constant here
-// because Ze emits no SHA-1 signature: a peer that offers it alone offers nothing Ze
-// can sign with.
-const (
-	hashAlgoSHA2256 uint16 = 2
-	hashAlgoSHA2384 uint16 = 3
-	hashAlgoSHA2512 uint16 = 4
-)
-
-// selectSignatureAlgorithm picks the algorithm for one Digital Signature AUTH payload
-// out of the hash algorithms the peer sent in its SIGNATURE_HASH_ALGORITHMS notify.
-//
-// RFC 7427 Section 4 MUST: "Both ends send their list of supported hash algorithms.
-// When calculating the digital signature, a peer MUST pick one algorithm sent by the
-// other peer." The offered list is therefore the whole population to choose from, and
-// a local capability that is not in it is not a candidate.
-//
-// When the peer offered nothing this key can sign with, the answer is an error rather
-// than a signature. Two narrower answers were available and both are refused here. An
-// RSA key is not signed with SHA-1 to satisfy a SHA-1-only peer, because Ze emits no
-// SHA-1 signature. An ECDSA key is not paired with a hash its curve does not name,
-// because that pairing is one Ze has never emitted and never tested against a peer.
-func selectSignatureAlgorithm(key crypto.PrivateKey, remoteHashAlgos []uint16) (algID []byte, h crypto.Hash, err error) {
-	switch k := key.(type) {
-	case *rsa.PrivateKey:
-		// Strongest offered first.
-		if containsHashAlgo(remoteHashAlgos, hashAlgoSHA2512) {
-			return algIDSHA512WithRSA, crypto.SHA512, nil
-		}
-		if containsHashAlgo(remoteHashAlgos, hashAlgoSHA2384) {
-			return algIDSHA384WithRSA, crypto.SHA384, nil
-		}
-		if containsHashAlgo(remoteHashAlgos, hashAlgoSHA2256) {
-			return algIDSHA256WithRSA, crypto.SHA256, nil
-		}
-		return nil, 0, fmt.Errorf("%w: an RSA key needs SHA2-256, SHA2-384 or SHA2-512, and the peer sent %v",
-			errNoMutualHashAlgo, remoteHashAlgos)
-	case *ecdsa.PrivateKey:
-		// The curve names the hash, as it did before this selection consulted the
-		// peer's list at all. What the list decides is whether that one hash is a
-		// choice the RFC allows here.
-		if k.Curve == elliptic.P384() {
-			if containsHashAlgo(remoteHashAlgos, hashAlgoSHA2384) {
-				return algIDECDSASHA384, crypto.SHA384, nil
-			}
-			return nil, 0, fmt.Errorf("%w: a P-384 key signs with SHA2-384, and the peer sent %v",
-				errNoMutualHashAlgo, remoteHashAlgos)
-		}
-		if containsHashAlgo(remoteHashAlgos, hashAlgoSHA2256) {
-			return algIDECDSASHA256, crypto.SHA256, nil
-		}
-		return nil, 0, fmt.Errorf("%w: a %s key signs with SHA2-256, and the peer sent %v",
-			errNoMutualHashAlgo, k.Curve.Params().Name, remoteHashAlgos)
-	}
-	return nil, 0, errUnsupportedKey
-}
-
-// containsHashAlgo reports whether the peer sent target in its
-// SIGNATURE_HASH_ALGORITHMS notify.
-//
-// An EMPTY list is answered false for every target, because a peer that sent no
-// notify offered no algorithm. This function used to answer true for every target
-// instead, which made "no notify arrived" indistinguishable from "every algorithm is
-// acceptable" and let Ze sign with an algorithm no peer had ever named. RFC 7427
-// Section 4 gives the list the opposite force: a signer MUST pick one algorithm the
-// other peer sent, and nothing sent leaves nothing to pick.
-func containsHashAlgo(algos []uint16, target uint16) bool {
-	return slices.Contains(algos, target)
-}
-
-func signDigest(key crypto.PrivateKey, digest []byte, hashFunc crypto.Hash) ([]byte, error) {
-	switch k := key.(type) {
-	case *rsa.PrivateKey:
-		return rsa.SignPKCS1v15(crand.Reader, k, hashFunc, digest)
-	case *ecdsa.PrivateKey:
-		// RFC 7427 Section 3: "For hash truncation, the method specified in ANSI
-		// X9.62:2005 [X9.62] MUST be used." ecdsa.SignASN1 applies it to the whole
-		// digest, so the digest is never cut here.
-		return ecdsa.SignASN1(crand.Reader, k, digest)
-	}
-	return nil, errUnsupportedKey
-}
-
-func hashFromAlgID(algID []byte) func() hash.Hash {
-	// RFC 7427: algID may be a raw OID (Ze format) or a full AlgorithmIdentifier
-	// SEQUENCE { OID [, params] } (strongSwan format). Extract the OID for matching.
-	oid := algID
-	if len(algID) > 2 && algID[0] == 0x30 {
-		var inner asn1.RawValue
-		if _, err := asn1.Unmarshal(algID, &inner); err == nil {
-			var oidVal asn1.RawValue
-			if _, err := asn1.Unmarshal(inner.Bytes, &oidVal); err == nil && oidVal.Tag == asn1.TagOID {
-				oid = oidVal.FullBytes
-			}
-		}
-	}
-	switch {
-	case bytes.Equal(oid, oidSHA256WithRSA) || bytes.Equal(oid, oidECDSASHA256):
-		return sha256.New
-	case bytes.Equal(oid, oidSHA384WithRSA) || bytes.Equal(oid, oidECDSASHA384):
-		return sha512.New384
-	case bytes.Equal(oid, oidSHA512WithRSA):
-		return sha512.New
-	}
-	return nil
-}
-
-func verifySignature(pubKey crypto.PublicKey, digest, signature []byte, hashFunc func() hash.Hash) error {
-	switch k := pubKey.(type) {
-	case *rsa.PublicKey:
-		h := cryptoHashFromFunc(hashFunc)
-		return rsa.VerifyPKCS1v15(k, h, digest, signature)
-	case *ecdsa.PublicKey:
-		if !ecdsa.VerifyASN1(k, digest, signature) {
-			return errSignatureFailed
-		}
-		return nil
-	}
-	return errUnsupportedKey
-}
-
-func cryptoHashFromFunc(h func() hash.Hash) crypto.Hash {
-	switch h().Size() {
-	case 32:
-		return crypto.SHA256
-	case 48:
-		return crypto.SHA384
-	case 64:
-		return crypto.SHA512
-	}
-	return crypto.SHA256
 }

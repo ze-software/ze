@@ -397,7 +397,26 @@ other key is refused with an error naming the key and the fix. Under
 `GODEBUG=fips140=only`, where Go refuses SHA-1 signatures, method 1 is refused
 with an error naming that mode; Ze sets no FIPS mode itself.
 
+**Method 14's algorithms come from a table of signature families.** Each family
+(RSA, ECDSA, Ed25519) registers from `init()` in its own
+`register_signature_*.go` file, declaring the key type it owns, the hash
+identifiers it needs in Ze's notify, how it picks an algorithm from the peer's
+list, how it signs and verifies, and the AlgorithmIdentifiers it recognises.
+Selection, signing, received-identifier recognition, verification, the notify's
+list and the key name in the legacy refusal are all read from that table. The
+notify therefore carries SHA2-256, SHA2-384, SHA2-512 and RFC 8420's Identity
+(5). An Ed25519 key signs only for a peer that announced Identity, with
+AlgorithmIdentifier `30 05 06 03 2B 65 70` and pure Ed25519 over the signed
+octets whole; a peer without Identity is refused with the fix named, and no
+EdDSA legacy method exists. On receipt the family of the certificate's key
+refuses a hash it does not sign with, so an id-Ed25519 AUTH from an ECDSA
+certificate fails, and so does an ECDSA identifier from an Ed25519 certificate.
+The Ed25519 identifier is matched byte for byte, so one carrying parameters is
+refused. Ed448 is not implemented: the standard library has none.
+
 <!-- source: internal/component/ike/engine/auth.go -- verifyRemoteAuth, verifyX509Auth, computeX509Auth -->
+<!-- source: internal/component/ike/engine/auth_signature_scheme.go -- signatureScheme, registerSignatureScheme, selectSignatureAlgorithm, receivedSignatureAlgorithm, verifySignature, announcedHashAlgos -->
+<!-- source: internal/component/ike/engine/register_signature_eddsa.go -- chooseEd25519Signature, signEd25519, verifyEd25519 -->
 <!-- source: internal/component/ike/engine/auth_legacy.go -- computeLegacySignatureAuth, signLegacyRSAAuth, verifyLegacyRSAAuth, fipsOnlyEnforced -->
 <!-- source: internal/component/ike/engine/auth_ecdsa.go -- verifyECDSAAuth, signECDSAAuth, ecdsa256, ecdsa384, ecdsa521 -->
 <!-- source: internal/component/ike/engine/initiator.go -- parseHashAlgoNotify -->

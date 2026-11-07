@@ -103,7 +103,8 @@ func wireGuardDumpVerdict(dump, laptop string) error {
 // established with the CPE's certificate, on UDP 4500 (MOBIKE), its
 // CHILD_SA narrowed to ::/0 on both sides; an IPv6 ping across vti0 loses
 // nothing and each simplex SA's bytes advance on both peers. The Ed25519
-// clause waits on spec-home-cpe-5: Ze cannot sign IKE AUTH with Ed25519 yet.
+// clause is still owed: Ze signs IKE AUTH with Ed25519 under RFC 8420 since
+// spec-home-cpe-5, but issueLab mints the CPE a P-256 key only.
 func checkMgmtTunnel(ctx context.Context, check *interoplab.CheckContext) error {
 	if _, err := waitCPEAddress(ctx, check, subscriberAddress, func(held netip.Addr) bool { return held.String() == subscriberAddress }); err != nil {
 		return err
