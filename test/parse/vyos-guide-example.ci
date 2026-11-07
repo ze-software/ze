@@ -2,8 +2,9 @@
 #
 # VALIDATES: spec-home-cpe-10-vyos-mapping-guide AC-3. The configuration below
 #            is the guide's "Ze output" with the lab values substituted for its
-#            placeholders, the way the guide's check step does it. Every
-#            construct of the mapping table that has a Ze form appears once:
+#            placeholders, the way the guide's check step does it. It holds
+#            the constructs of the guide's worked example, not every row of
+#            the mapping tables:
 #            ethernet MAC match and offloads, a bridge with addresses, the
 #            pppoe-client named pppoe0 with a static default route through it,
 #            WireGuard with a PSK peer, an xfrm VTI with both families, IKEv2

@@ -103,14 +103,15 @@ the class of the rewrite.
 | behavior change | the Ze form differs in a way the operator sees; the row says what the operator loses or must do |
 | not read | the Ze form is checked against the YANG, but the VyOS producer was not read |
 
-A child number names a spec under `plan/release/fixes/spec-home-cpe-<N>-*.md`.
-When the child lands, its row changes.
+A child number names a spec under `plan/release/fixes/spec-home-cpe-<N>-*.md`,
+and a child name names `plan/release/fixes/spec-<name>.md`. When the child
+lands, its row changes.
 
 ### Interfaces and routes
 
 | VyOS construct | Ze form | Rewrite or note | Class | Child |
 |----------------|---------|-----------------|-------|-------|
-| `interfaces ethernet <n> hw-id <mac>` | `interface ethernet <n> mac match <mac>` | | not read | - |
+| `interfaces ethernet <n> hw-id <mac>` | `interface ethernet <n> mac match <mac>` | Ze never renames the kernel device: `mac match` maps the name `<n>` to the device that holds the MAC, and the device keeps its kernel name. A firewall, NAT or MSS rule that names `<n>` matches that device only while the kernel name is `<n>` (see "Interface names in firewall rules") | conditional | iface-resolution-across-the-plugin-boundary |
 | `interfaces ethernet <n> offload gro\|gso\|tso` | `interface ethernet <n> offload gro\|gso\|tso true` | each VyOS presence leaf becomes a boolean set to `true`; an absent leaf keeps the OS default | not read | - |
 | `interfaces bridge <n> member interface <m>` | `interface bridge <n> member [ <m> ]` | | not read | - |
 | `interfaces <kind> <n> address <a>` | `unit 0 ipv4 address [ <a> ]` or `unit 0 ipv6 address [ <a> ]` under the same interface | one leaf-list per family | not read | - |
@@ -144,7 +145,7 @@ When the child lands, its row changes.
 | `protocol all` | no `protocol` match | VyOS writes no match for `all` | equivalent | - |
 | `protocol tcp_udp` | two terms, one with `protocol tcp` and one with `protocol udp` | | equivalent | - |
 | `state established`, `state related` | `connection-state established,related` | one comma list | equivalent | - |
-| `inbound-interface name <i>`, `outbound-interface name <i>` | `input-interface <i>`, `output-interface <i>` | a PPPoE client is matched by its configured name, as VyOS does | equivalent | - |
+| `inbound-interface name <i>`, `outbound-interface name <i>` | `input-interface <i>`, `output-interface <i>` | a PPPoE client is matched by its configured name, as VyOS does. An ethernet is matched only while its kernel name is the configured name | conditional | iface-resolution-across-the-plugin-boundary |
 | `default-action accept\|drop` | chain `policy accept\|drop` | | equivalent | - |
 | `default-action reject` | a final term `then reject`, chain `policy drop` | Ze's `policy` is accept or drop only | equivalent | - |
 | `default-log` | the final term of the chain carries `counter`, `log prefix "[<family>-<chain>-default-<A>]"` and the verdict of `default-action` (`drop`, `accept` or `reject`) in one `then` block | VyOS writes this rule itself; `<A>` is the first letter of the action in upper case. `log` does not decide the packet, so a term holding only `counter` and `log` lets it through to the chain policy, which never rejects | equivalent | - |
@@ -154,10 +155,10 @@ When the child lands, its row changes.
 | `firewall group port-group <g> port <x>` | the ports inline in the term: `destination-port 22,80,8000-8080` | a Ze `inet-service` set element is one port, and the inline list also takes ranges | equivalent | - |
 | `firewall global-options all-ping`, `broadcast-ping`, `syn-cookies`, `receive-redirects`, `send-redirects`, `source-validation`, `log-martians`, `ipv6-receive-redirects`, `ipv6-src-route` | the same leaf under `firewall global-options` | | not read | - |
 | `firewall global-options ip-src-route disable` | `sysctl setting net.ipv4.conf.all.accept_source_route value 0` | Ze has no IPv4 source-route leaf | not read | - |
-| `nat source rule <N> outbound-interface name <i>`, `source address <p>`, `translation address masquerade` | `table <t> family ip`, `chain postrouting type nat hook postrouting priority 100 policy accept`, `term rule-<N> from output-interface <i> source-address <p> then masquerade` | | not read | - |
-| `interfaces <kind> <n> ip adjust-mss <N>` | a chain `type filter hook postrouting priority -300 policy accept` with `term from output-interface <n> protocol tcp then tcp-mss-set <N>` | Ze writes no MSS comparison and relies on the kernel, which skips a write that would raise the MSS, so both clamp and neither raises; postrouting keeps the router's own SYNs clamped | equivalent | - |
-| `ip adjust-mss clamp-mss-to-pmtu` | the same chain with `then tcp-mss-clamp-to-pmtu` | | equivalent | - |
-| `ipv6 adjust-mss ...` | the same in a `family ip6` table; one `family inet` table when the IPv4 and IPv6 values are the same | | equivalent | - |
+| `nat source rule <N> outbound-interface name <i>`, `source address <p>`, `translation address masquerade` | `table <t> family ip`, `chain postrouting type nat hook postrouting priority 100 policy accept`, `term rule-<N> from output-interface <i> source-address <p> then masquerade` | `output-interface <i>` matches an ethernet only while its kernel name is the configured name | not read | iface-resolution-across-the-plugin-boundary |
+| `interfaces <kind> <n> ip adjust-mss <N>` | a chain `type filter hook postrouting priority -300 policy accept` with `term from output-interface <n> protocol tcp then tcp-mss-set <N>` | Ze writes no MSS comparison and relies on the kernel, which skips a write that would raise the MSS, so both clamp and neither raises; postrouting keeps the router's own SYNs clamped. On an ethernet, `output-interface <n>` matches only while its kernel name is `<n>` | conditional | iface-resolution-across-the-plugin-boundary |
+| `ip adjust-mss clamp-mss-to-pmtu` | the same chain with `then tcp-mss-clamp-to-pmtu` | the same condition as `ip adjust-mss <N>` | conditional | iface-resolution-across-the-plugin-boundary |
+| `ipv6 adjust-mss ...` | the same in a `family ip6` table; one `family inet` table when the IPv4 and IPv6 values are the same | the same condition as `ip adjust-mss <N>` | conditional | iface-resolution-across-the-plugin-boundary |
 | `system conntrack modules ftp\|h323\|pptp\|sip\|tftp` | `system conntrack module <m>`, one line each | Ze builds these helpers into its kernel and assigns only the listed ones, on the same ports as VyOS's `module_map` | equivalent | - |
 | `system conntrack modules nfs\|sqlnet` | none: dropped | no kernel module provides them and Ze has no user-space helper, so Ze refuses the names | behavior change | - |
 
@@ -172,6 +173,23 @@ a prefix as an element and the set schema says it takes prefixes under
 `element 192.0.2.0/24` matches 192.0.2.0 alone. Until that is fixed, write one
 term per prefix.
 <!-- source: internal/plugins/firewall/nft/lower_linux.go -- encodeSetElementKey -->
+
+#### Interface names in firewall rules
+
+The rows that write `input-interface`, `output-interface` or a `mac match`
+are conditional because of a Ze defect. Ze never renames a kernel device: a
+`mac match` or an `os-name` binds the configured name to a device and leaves
+the device's kernel name as it is
+([logical name resolution](../architecture/iface/logical-name-resolution.md)).
+The firewall writes the configured name into the nft rule unchanged, so a rule
+that names `eth0` matches the device the kernel calls `eth0`, which is not the
+device `mac match` chose when the two names differ. A filter, NAT or MSS rule
+on such an ethernet then matches nothing, or matches another device. A
+`pppoe-client` is not affected: Ze creates its kernel device under the
+configured name. Until `spec-iface-resolution-across-the-plugin-boundary`
+lands, check on the router that each converted ethernet name is also its
+kernel name (`ip link show <n>`).
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerIfaceMatch -->
 
 The firewall YANG declares no `tcp-flags` leaf in a term's `from` block, so
 the conversion never writes one. An MSS clamp needs none: only a SYN carries
@@ -296,6 +314,7 @@ its row here.
 |---------|------------|
 | the delegated prefix is requested on the PPPoE WAN and published there, but no LAN interface takes an address or a Router Advertisement from it | child 8 |
 | a network-group becomes one term per prefix, not a set | the fix of the set element defect (`encodeSetElementKey`) |
+| a firewall, NAT or MSS rule names an ethernet by a name that must also be its kernel name | `spec-iface-resolution-across-the-plugin-boundary` |
 
 ## Worked example
 
@@ -519,12 +538,12 @@ system {
 | 31 | `set firewall group network-group TRUSTED network '192.0.2.0/24'` | `firewall table v4-input chain input term rule-20-a from source-address 192.0.2.0/24` | conditional | one term per prefix, not a set |
 | 35 | `set firewall ipv4 input filter default-action 'drop'` | `firewall table v4-input chain input policy drop`; `term default-action then drop` | equivalent | |
 | 36 | `set firewall ipv4 input filter default-log` | `firewall table v4-input chain input term default-action then { counter; log prefix "[ipv4-input-default-D]"; drop; }` | equivalent | the same term as line 35 |
-| 52 | `set firewall ipv6 input filter default-action 'reject'` | `firewall table v6-input chain input policy drop`; `term default-action then reject` | equivalent | no `default-log`, so no `counter` or `log` |
 | 50 | `set firewall ipv4 input filter rule 50 protocol 'all'` | none | equivalent | no `protocol` match |
+| 52 | `set firewall ipv6 input filter default-action 'reject'` | `firewall table v6-input chain input policy drop`; `term default-action then reject` | equivalent | no `default-log`, so no `counter` or `log` |
 | 70 | `set service dhcp-server shared-network-name LAN subnet 192.0.2.0/24 subnet-id '1'` | dropped: Ze keys a subnet by its prefix | not read | |
 | 85 | `set vpn ipsec site-to-site peer hq local-address '203.0.113.2'` | none | behavior change | Ze sends from the address of `vpn ipsec interface pppoe0` and follows it after a reconnect |
 | 87 | `set vpn ipsec site-to-site peer hq vti bind 'vti0'` | `vpn ipsec site-to-site peer hq vti bind vti0`; `traffic-selector 1`, `traffic-selector 2` | not read | both families on the VTI |
 | 92 | `set service https api keys id automation key '<<SECRET:api-automation-key>>'` | dropped: REST automation moves to gRPC over TLS | behavior change | |
 | 96 | `set system conntrack modules nfs` | dropped: no kernel module provides it | behavior change | |
-| 105 | `set system update-check auto-check` | dropped: on gokrazy, gokrazy manages the image updates | - | |
-| 106 | `set policy prefix-list UNUSED rule 10 action 'permit'` | dropped: unused BGP policy | - | |
+| 105 | `set system update-check auto-check` | dropped: on gokrazy, gokrazy manages the image updates | behavior change | the router no longer checks for updates itself |
+| 106 | `set policy prefix-list UNUSED rule 10 action 'permit'` | dropped: unused BGP policy | behavior change | nothing referenced it, so routing does not change; the list is no longer in the configuration |
