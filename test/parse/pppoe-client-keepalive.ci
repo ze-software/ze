@@ -1,0 +1,289 @@
+# Test: pppoe-client keepalive and reconnect leaves, accepted at every bound
+# and refused outside it.
+# VALIDATES: spec-home-cpe-17 AC-1 (valid leaves accepted), AC-4 (delay-max
+#            below delay-min refused, both leaves and the fix named), AC-5
+#            (interval, failures, delay-min, delay-max out of range refused by
+#            the YANG range, with the range in the message).
+# PREVENTS: a zero interval or a zero redial wait reaching the client.
+# PLATFORM: pppoe-client is ze:os "linux"; skip on darwin.
+option=skip-os:value=darwin
+stdin=lowok:terminator=EOF_LOWOK
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+            interval 1
+            failures 1
+        }
+        reconnect {
+            delay-min 1
+            delay-max 1
+        }
+    }
+}
+EOF_LOWOK
+
+stdin=highok:terminator=EOF_HIGHOK
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+            interval 3600
+            failures 255
+        }
+        reconnect {
+            delay-min 3600
+            delay-max 3600
+        }
+    }
+}
+EOF_HIGHOK
+
+stdin=ivzero:terminator=EOF_IVZERO
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+            interval 0
+        }
+        reconnect {
+
+        }
+    }
+}
+EOF_IVZERO
+
+stdin=ivhigh:terminator=EOF_IVHIGH
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+            interval 3601
+        }
+        reconnect {
+
+        }
+    }
+}
+EOF_IVHIGH
+
+stdin=fzero:terminator=EOF_FZERO
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+            failures 0
+        }
+        reconnect {
+
+        }
+    }
+}
+EOF_FZERO
+
+stdin=fhigh:terminator=EOF_FHIGH
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+            failures 256
+        }
+        reconnect {
+
+        }
+    }
+}
+EOF_FHIGH
+
+stdin=dminzero:terminator=EOF_DMINZERO
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+
+        }
+        reconnect {
+            delay-min 0
+        }
+    }
+}
+EOF_DMINZERO
+
+stdin=dminhigh:terminator=EOF_DMINHIGH
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+
+        }
+        reconnect {
+            delay-min 3601
+        }
+    }
+}
+EOF_DMINHIGH
+
+stdin=dmaxzero:terminator=EOF_DMAXZERO
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+
+        }
+        reconnect {
+            delay-max 0
+        }
+    }
+}
+EOF_DMAXZERO
+
+stdin=dmaxhigh:terminator=EOF_DMAXHIGH
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+
+        }
+        reconnect {
+            delay-max 3601
+        }
+    }
+}
+EOF_DMAXHIGH
+
+stdin=maxbelow:terminator=EOF_MAXBELOW
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username subscriber
+            password secret123
+        }
+        keepalive {
+
+        }
+        reconnect {
+            delay-min 10
+            delay-max 5
+        }
+    }
+}
+EOF_MAXBELOW
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=lowok
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=highok
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ivzero
+expect=exit:code=1
+expect=stdout:contains=1..3600
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ivhigh
+expect=exit:code=1
+expect=stdout:contains=1..3600
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=fzero
+expect=exit:code=1
+expect=stdout:contains=1..255
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=fhigh
+expect=exit:code=1
+expect=stdout:contains=1..255
+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=dminzero
+expect=exit:code=1
+expect=stdout:contains=1..3600
+
+cmd=foreground:seq=8:exec=ze config validate -:stdin=dminhigh
+expect=exit:code=1
+expect=stdout:contains=1..3600
+
+cmd=foreground:seq=9:exec=ze config validate -:stdin=dmaxzero
+expect=exit:code=1
+expect=stdout:contains=1..3600
+
+cmd=foreground:seq=10:exec=ze config validate -:stdin=dmaxhigh
+expect=exit:code=1
+expect=stdout:contains=1..3600
+
+cmd=foreground:seq=11:exec=ze config validate -:stdin=maxbelow
+expect=exit:code=1
+expect=stdout:contains=reconnect delay-max 5 is below reconnect delay-min 10
+expect=stdout:contains=set reconnect delay-max to 10 or more

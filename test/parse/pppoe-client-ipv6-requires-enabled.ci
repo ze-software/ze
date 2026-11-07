@@ -1,0 +1,27 @@
+# Test: ipv6 leaves on a pppoe-client without ipv6 enabled true are refused
+# spec-home-cpe-8 wiring: without IPv6CP no IPv6 reaches the session device, so
+# accept-ra would never apply; Ze refuses it at verify and names the fix.
+# PLATFORM: pppoe-client is ze:os "linux"; skip on darwin.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username user@isp.example
+            password secret123
+        }
+        ipv6 {
+            accept-ra 2
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=ipv6: the container sets IPv6 leaves but ipv6 enabled is not true, so no IPv6CP is negotiated and the leaves would never apply; set ipv6 enabled true or remove the ipv6 container
