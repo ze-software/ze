@@ -72,6 +72,9 @@ type loopBackend struct {
 	// installed is the addresses ReplaceAddressWithLifetime put on the device
 	// and RemoveAddress has not taken off.
 	installed []string
+	// links holds the kernel devices other than the rig's own that GetLink
+	// answers, keyed by kernel name; nil answers none.
+	links map[string]iface.InterfaceInfo
 }
 
 // loopOp is one backend effect and the fake-clock instant it happened at.
@@ -130,7 +133,7 @@ func (b *loopBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 // not fail the link read.
 func (b *loopBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
 	if name != b.logical {
-		return nil, fmt.Errorf("loop backend: no interface %q", name)
+		return b.otherLink(name)
 	}
 	b.mu.Lock()
 	stateAt := b.stateAt
@@ -140,6 +143,18 @@ func (b *loopBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
 		info.State = stateAt(b.now())
 	}
 	return info, nil
+}
+
+// otherLink answers a kernel device other than the rig's own from links, and
+// refuses a name links does not hold.
+func (b *loopBackend) otherLink(name string) (*iface.InterfaceInfo, error) {
+	b.mu.Lock()
+	info, ok := b.links[name]
+	b.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("loop backend: no interface %q", name)
+	}
+	return &info, nil
 }
 
 func (b *loopBackend) record(op string) {

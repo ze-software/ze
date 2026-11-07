@@ -21,6 +21,20 @@ func BindResolverEventsForConsumerTest(eb ze.EventBus) func() {
 	return globalResolver.bindEventsUndoable(eb)
 }
 
+// SetResolverMappingForConsumerTest publishes logicalToOS as the shared
+// resolver's os-name selector map, the map a config apply publishes through
+// setResolverConfig, for a CONSUMER package's test. SetResolverMappingForTest in
+// export_test.go is invisible outside this package, and ifacedhcp's
+// TestV6IdentityDeviceResolvesLogicalName needs a logical name that only the
+// os-name selector binds to its device. No production code calls it.
+//
+// The returned function restores the empty mapping; a test MUST call it in its
+// cleanup, because the resolver is process-wide.
+func SetResolverMappingForConsumerTest(logicalToOS map[string]string) func() {
+	globalResolver.setMapping(logicalToOS, nil)
+	return func() { globalResolver.setMapping(nil, nil) }
+}
+
 // bindEventsUndoable is bindEvents plus the function that undoes it, which a
 // config apply never needs: the daemon binds once for its whole life.
 func (r *resolver) bindEventsUndoable(eb ze.EventBus) func() {
