@@ -186,6 +186,9 @@ func TestExternalJoinMergeCompatibility(t *testing.T) {
 		delete(member.callables, rightCallback)
 		delete(member.reads, leftRead)
 		delete(member.reads, rightRead)
+		if member.fields == nil {
+			member.fields = make(map[string]externalValue)
+		}
 		member.fields["New"] = externalValue{}
 		delete(merged.fields["Outer"].fields, "OnlyLeft")
 		if leftMember.callables[leftCallback].value != leftCallback {
@@ -262,18 +265,14 @@ func TestExternalJoinMergeCompatibility(t *testing.T) {
 	})
 }
 
-// TestExternalJoinEmptyAllocationBudget compares an empty join with its required
-// writable empty field map, retaining both outputs through the same sink.
+// TestExternalJoinEmptyAllocationBudget requires an empty join to allocate
+// nothing: join creates each map only when the other value has entries, and a
+// writer that adds a field makes its own table, so an empty input owes no map.
 func TestExternalJoinEmptyAllocationBudget(t *testing.T) {
-	// A buffered channel forces both outputs to escape without global state or
-	// a receiver goroutine. The sink is allocated before either measurement.
+	// A buffered channel forces the output to escape without global state or a
+	// receiver goroutine. The sink is allocated before the measurement.
 	sink := make(chan externalValue, 1)
 	var retained externalValue
-	fieldsOnly := testing.AllocsPerRun(100, func() {
-		value := externalValue{fields: make(map[string]externalValue)}
-		sink <- value
-		retained = <-sink
-	})
 	for _, scenario := range []struct {
 		name  string
 		input externalValue
@@ -297,11 +296,9 @@ func TestExternalJoinEmptyAllocationBudget(t *testing.T) {
 				sink <- value
 				retained = <-sink
 			})
-			// The result remains usable after the measured closure returns.
-			retained.fields["Retained"] = externalValue{}
-			t.Logf("empty join allocations/op=%g; required writable field map control=%g", joined, fieldsOnly)
-			if joined > fieldsOnly {
-				t.Fatalf("empty join allocated %g times/op; required writable field map control allocated %g", joined, fieldsOnly)
+			_ = retained
+			if joined != 0 {
+				t.Fatalf("empty join allocated %g times/op, want 0", joined)
 			}
 		})
 	}
