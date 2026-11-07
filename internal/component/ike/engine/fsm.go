@@ -531,6 +531,11 @@ func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.U
 			log.Debug("ike: no session for responder SA", "peer", sa.PeerName)
 			return
 		}
+		// A successor held beside the owner without a Child SA is established and
+		// answers the peer's requests before the session adopts it (held_successor.go).
+		if ps.handleHeldSuccessorInbound(sa, &msg, pkt, table, tr, log) {
+			return
+		}
 		ps.handleResponderInbound(sa, &msg, pkt, tr, log)
 		return
 	}

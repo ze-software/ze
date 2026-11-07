@@ -1,13 +1,16 @@
 package engine
 
 import (
+	"errors"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -242,7 +245,7 @@ func TestInitiatePeerReauthFailureKeepsOldSA(t *testing.T) {
 		t.Fatal("an IKE_AUTH with the wrong key established the successor")
 	}
 	if len(ps.supersede) != 0 {
-		t.Error("an unauthenticated successor signalled supersede")
+		t.Error("an unauthenticated successor signaled supersede")
 	}
 	if ps.getSA() != old || ps.getChildSA() != oldChild {
 		t.Error("the failed reauthentication disturbed the established SA or its Child SA")
@@ -275,7 +278,7 @@ func TestInitiatePeerReauthChildRefusedKeepsOldSA(t *testing.T) {
 		t.Fatal("setup: the injected refusal still produced a Child SA")
 	}
 	if len(ps.supersede) != 0 {
-		t.Error("a successor with no Child SA signalled supersede, which removes the working Child SA")
+		t.Error("a successor with no Child SA signaled supersede, which removes the working Child SA")
 	}
 	if ps.getSA() != old || ps.getChildSA() != oldChild {
 		t.Error("the old IKE SA and its Child SA lost the session to a childless successor")
@@ -316,7 +319,7 @@ func TestInitiatePeerOldDeletedWhileSuccessorChildlessReconnects(t *testing.T) {
 // VALIDATES: AC-15. A `respond` peer's re-initiation that authenticates with its Child
 // SA refused is held, not adopted: the old IKE SA and Child SA keep ownership, and
 // when the owner loop ends the held successor is retired rather than promoted. Red
-// before the fix: finishResponderEstablish signalled supersede on authentication alone.
+// before the fix: finishResponderEstablish signaled supersede on authentication alone.
 func TestRespondPeerReinitChildRefusedKeepsOldSA(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ps, old, table := ownedResponder(t)
@@ -345,7 +348,7 @@ func TestRespondPeerReinitChildRefusedKeepsOldSA(t *testing.T) {
 		t.Fatal("setup: the injected refusal still produced a Child SA")
 	}
 	if len(ps.supersede) != 0 {
-		t.Error("a childless re-initiation signalled supersede and would remove the working Child SA")
+		t.Error("a childless re-initiation signaled supersede and would remove the working Child SA")
 	}
 	if ps.getSA() != old || ps.getChildSA() != oldChild {
 		t.Error("the old IKE SA and its Child SA lost ownership to a childless re-initiation")
@@ -359,5 +362,417 @@ func TestRespondPeerReinitChildRefusedKeepsOldSA(t *testing.T) {
 	}
 	if table.Lookup(pending.InitiatorSPI, pending.ResponderSPI) != nil {
 		t.Error("the retired successor is still in the SATable")
+	}
+}
+
+// gatewayReadsAuth plays the gateway reading Ze's IKE_AUTH response, so its IKE SA is
+// established and its request counter sits past IKE_AUTH, as a real gateway's does
+// before it sends anything else on the new SA.
+func gatewayReadsAuth(t *testing.T, gw, held *SA) {
+	t.Helper()
+	handleAuthResponse(gw, parseMsg(t, held.LastSentMsg), held.LastSentMsg, nil, nil, slogutil.DiscardLogger())
+	if gw.State != StateEstablished {
+		t.Fatalf("setup: the gateway's end of the successor is %v, want established", gw.State)
+	}
+}
+
+// heldInitiatorSuccessor drives a gateway reauthentication whose IKE_AUTH Child SA Ze
+// refuses (NO_PROPOSAL_CHOSEN from mismatchedESPGroup), so the successor is held beside
+// the owner, then restores the configured esp-group, as an operator's reload of it
+// would (adoptESPGroup), so the gateway's later request can be accepted.
+func heldInitiatorSuccessor(t *testing.T) (ps *PeerSession, old, gw, held *SA, table *SATable) {
+	t.Helper()
+	ps, old, table, gwPeer := ownedInitiator(t)
+	configured := ps.espGroup
+	ps.espGroup = mismatchedESPGroup()
+	gw, pkt := gatewayReauthInit(t, gwPeer, gatewayAddr)
+	held = admitGatewayReauth(t, ps, gw, pkt, table)
+	runGatewayAuth(t, gw, held, table)
+	if held.State != StateEstablished || ps.getPendingChild() != nil || len(ps.supersede) != 0 {
+		t.Fatal("setup: the successor is not held without a Child SA")
+	}
+	gatewayReadsAuth(t, gw, held)
+	ps.espGroup = configured
+	return ps, old, gw, held, table
+}
+
+// peerCreatesChildOnHeld sends the peer's CREATE_CHILD_SA for a new Child SA on the held
+// successor through the dispatch path, checks the peer can read an accepting answer,
+// and returns the Child SA Ze staged.
+func peerCreatesChildOnHeld(t *testing.T, ps *PeerSession, peer, held *SA, table *SATable, source *net.UDPAddr) *ChildSA {
+	t.Helper()
+	group, err := childRekeyDHGroup(peer, testESPGroup())
+	if err != nil {
+		t.Fatalf("childRekeyDHGroup: %v", err)
+	}
+	req, _, err := initiateChildCreate(peer, testESPGroup(), group)
+	if err != nil {
+		t.Fatalf("initiateChildCreate: %v", err)
+	}
+	if id := parseMsg(t, req).Header.MessageID; id != held.ExpectedMsgID {
+		t.Fatalf("setup: the peer's request carries Message ID %d, the held successor expects %d", id, held.ExpectedMsgID)
+	}
+	handleInbound(held, transport.Packet{Data: req, RemoteAddr: source}, table, nil, slogutil.DiscardLogger())
+	if !held.lastResponseSet || held.lastResponseID != parseMsg(t, req).Header.MessageID {
+		t.Fatal("the peer's CREATE_CHILD_SA on the held successor went unanswered (RFC 7296 Section 2.21.3)")
+	}
+	inner, err := decryptAndParse(peer, parseMsg(t, held.lastResponse), held.lastResponse)
+	if err != nil {
+		t.Fatalf("the peer cannot read Ze's answer: %v", err)
+	}
+	rkyFindSA(t, inner)
+	child := ps.getPendingChild()
+	if child == nil {
+		t.Fatal("the Child SA the peer created on the held successor was not staged in the second slot")
+	}
+	return child
+}
+
+// relinquishOwner runs the owner loop of old until it returns on the supersede signal.
+func relinquishOwner(t *testing.T, ps *PeerSession, old *SA, table *SATable) {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() {
+		done <- ps.maintainSA(old, nil, newLifetimeState(3600), newLifetimeState(3600),
+			testIKEGroup(), table, dataplane.Get(), nil, nil, slogutil.DiscardLogger())
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("maintainSA returned %v on supersede, want nil", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the owner loop did not relinquish on the supersede signal")
+	}
+}
+
+// VALIDATES: AC-11. The gateway's reauthentication is held without a Child SA, and the
+// gateway then creates the Child SA on the successor with CREATE_CHILD_SA. Ze installs
+// it, stages it beside the old Child SA (make before break), tells the owner loop to
+// relinquish, and the session adopts the successor with that Child SA.
+// RFC 7296 Section 2.8.3: reauthentication creates "new Child SAs within the new IKE SA
+// (without REKEY_SA Notify payloads)". Red before the fix: handleResponderInbound only
+// replayed cached responses on an established second-slot SA, so the request went
+// unanswered and nothing was staged.
+func TestInitiatePeerHeldSuccessorAdoptedOnPeerChildCreate(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ps, old, gw, held, table := heldInitiatorSuccessor(t)
+	oldChild := ps.getChildSA()
+
+	newChild := peerCreatesChildOnHeld(t, ps, gw, held, table, gatewayAddr)
+	if len(ps.supersede) != 1 {
+		t.Fatal("the owner loop was not told to relinquish once the successor's Child SA was installed")
+	}
+	if ps.getChildSA() != oldChild || ps.getSA() != old {
+		t.Fatal("the old IKE SA or its Child SA lost the session before the owner loop relinquished (make before break)")
+	}
+
+	relinquishOwner(t, ps, old, table)
+	successor := ps.adoptPeerStartedSuccessor(table, dataplane.Get(), nil, log)
+	if successor != held {
+		t.Fatal("the initiate session did not adopt the successor once its Child SA existed")
+	}
+	if ps.getChildSA() != newChild {
+		t.Error("the Child SA created on the successor is not the session's Child SA")
+	}
+	if ps.getPendingSA() != nil || ps.getPendingChild() != nil {
+		t.Error("the second slot was not emptied by the adoption")
+	}
+}
+
+// VALIDATES: AC-16. The same as AC-11 on a `respond` peer: its re-initiation is held
+// without a Child SA, the peer creates one on it, and runResponder's promotion adopts
+// the successor with that Child SA.
+func TestRespondPeerHeldSuccessorAdoptedOnPeerChildCreate(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ps, old, table := ownedResponder(t)
+	oldChild := ps.getChildSA()
+	configured := ps.espGroup
+	ps.espGroup = mismatchedESPGroup()
+
+	ini, pkt := freshInitiatorInit(t)
+	var iSPI, rSPI [8]byte
+	copy(iSPI[:], ini.InitiatorSPI[:])
+	if !tryResponderSAInit(pkt, iSPI, rSPI, table, nil, log) {
+		t.Fatal("parallel init not accepted")
+	}
+	held := ps.getPendingSA()
+	if held == nil {
+		t.Fatal("no pending SA")
+	}
+	iniTable := NewSATable()
+	iniTable.Insert(ini)
+	handleSAInitResponse(ini, parseMsg(t, held.LastSentMsg), held.LastSentMsg, iniTable, nil, nil, log)
+	handleInbound(held, transport.Packet{Data: ini.LastSentMsg, RemoteAddr: pkt.RemoteAddr}, table, nil, log)
+	if held.State != StateEstablished || ps.getPendingChild() != nil || len(ps.supersede) != 0 {
+		t.Fatal("setup: the re-initiation is not held without a Child SA")
+	}
+	gatewayReadsAuth(t, ini, held)
+	ps.espGroup = configured
+
+	newChild := peerCreatesChildOnHeld(t, ps, ini, held, table, pkt.RemoteAddr)
+	if len(ps.supersede) != 1 {
+		t.Fatal("the owner loop was not told to relinquish once the successor's Child SA was installed")
+	}
+	if ps.getChildSA() != oldChild {
+		t.Fatal("the old Child SA was replaced before the owner loop relinquished (make before break)")
+	}
+	relinquishOwner(t, ps, old, table)
+	if got := ps.resolvePendingAfterOwnerLoop(table, dataplane.Get(), nil, log); got != pendingContinue {
+		t.Fatalf("resolvePendingAfterOwnerLoop = %v, want pendingContinue", got)
+	}
+	if ps.getSA() != held || ps.getChildSA() != newChild {
+		t.Error("the respond session did not adopt the successor and the Child SA created on it")
+	}
+}
+
+// VALIDATES: the held successor answers the gateway's liveness probe and its Delete
+// (RFC 7296 Section 1.4: every INFORMATIONAL request is answered). A probe leaves the
+// successor held; a Delete of the successor ends it alone: it leaves the SATable and
+// the second slot, the half-open gate frees for the gateway's next attempt, and the
+// established IKE SA and its Child SA keep the session.
+// RFC 7296 Section 1.4.1: "The response to a request that deletes the IKE SA is an
+// empty INFORMATIONAL response."
+//
+// RFC requirement: RFC7296-1.4-4 positive -- an INFORMATIONAL request on an IKE SA held
+// beside the owner, a liveness probe and a Delete, each draws a response cached at its
+// Message ID that the requesting peer decrypts.
+//
+// RFC requirement: RFC7296-1.4.1-6 positive -- a Delete naming the held IKE SA closes
+// it: it leaves the SATable and the session's second slot.
+func TestHeldSuccessorAnswersLivenessAndDelete(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ps, old, gw, held, table := heldInitiatorSuccessor(t)
+	oldChild := ps.getChildSA()
+
+	send := func(inner []wire.PayloadEntry) {
+		t.Helper()
+		id := held.ExpectedMsgID
+		req, err := buildEncryptedMessageEx(gw, inner, id, wire.ExchangeInformational, initiatorFlag(gw))
+		if err != nil {
+			t.Fatalf("build INFORMATIONAL: %v", err)
+		}
+		handleInbound(held, transport.Packet{Data: req, RemoteAddr: gatewayAddr}, table, nil, log)
+		if !held.lastResponseSet || held.lastResponseID != id {
+			t.Fatalf("the gateway's INFORMATIONAL request %d on the held successor went unanswered", id)
+		}
+	}
+
+	send(nil)
+	answer, err := decryptAndParse(gw, parseMsg(t, held.lastResponse), held.lastResponse)
+	if err != nil {
+		t.Fatalf("the gateway cannot read the liveness answer: %v", err)
+	}
+	if len(answer) != 0 {
+		t.Errorf("the liveness answer carries %d payloads, want an empty INFORMATIONAL", len(answer))
+	}
+	if ps.getPendingSA() != held {
+		t.Fatal("a liveness probe ended the held successor")
+	}
+
+	send([]wire.PayloadEntry{{Payload: &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}}})
+	if ps.getPendingSA() != nil {
+		t.Error("the gateway's Delete left the successor in the second slot")
+	}
+	if table.Lookup(held.InitiatorSPI, held.ResponderSPI) != nil {
+		t.Error("the deleted successor is still in the SATable")
+	}
+	if ps.responderBusy.Load() {
+		t.Error("the half-open gate stayed set, so the gateway's next reauthentication would be dropped")
+	}
+	if ps.getSA() != old || ps.getChildSA() != oldChild {
+		t.Error("the Delete of the held successor disturbed the established IKE SA or its Child SA")
+	}
+}
+
+// failingInstallBackend is a registered dataplane whose every SA install fails, for the
+// install-failure injections of AC-10 and AC-15. The IKE_AUTH Child SA install reads
+// the active backend (dataplane.Get), so the fake is loaded rather than passed.
+var failingInstallBackend struct {
+	sync.Once
+	err    error
+	active *rkyDP
+}
+
+func useFailingInstallDataplane(t *testing.T) *rkyDP {
+	t.Helper()
+	const name = "ike-engine-test-reauth-install-failure"
+	failingInstallBackend.Do(func() {
+		failingInstallBackend.err = dataplane.Register(name, func() (dataplane.Dataplane, error) { return failingInstallBackend.active, nil })
+	})
+	if failingInstallBackend.err != nil {
+		t.Fatal(failingInstallBackend.err)
+	}
+	dp := &rkyDP{installErr: errors.New("injected SA install failure")}
+	failingInstallBackend.active = dp
+	if err := dataplane.Load(name); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := dataplane.CloseBackend(); err != nil {
+			t.Error(err)
+		}
+		failingInstallBackend.active = nil
+	})
+	return dp
+}
+
+// expectChildlessAuthAnswer checks that Ze's IKE_AUTH response gives the peer no Child
+// SA (no SA payload) and names the refusal with an error notify, so the peer installs
+// no half of a pair Ze does not hold and no Delete is owed for one.
+func expectChildlessAuthAnswer(t *testing.T, peer, held *SA) {
+	t.Helper()
+	inner, err := decryptAndParse(peer, parseMsg(t, held.LastSentMsg), held.LastSentMsg)
+	if err != nil {
+		t.Fatalf("the peer cannot read Ze's IKE_AUTH response: %v", err)
+	}
+	refused := false
+	for _, pe := range inner {
+		if _, ok := pe.Payload.(*wire.PayloadSA); ok {
+			t.Error("the IKE_AUTH response gave the peer an SA payload for a Child SA Ze could not install")
+		}
+		// RFC 7296 Section 3.10.1: error types are below 16384.
+		if n, ok := pe.Payload.(*wire.PayloadNotify); ok && n.NotifyMsgType < 16384 {
+			refused = true
+		}
+	}
+	if !refused {
+		t.Error("the IKE_AUTH response names no refusal of the Child SA")
+	}
+}
+
+// VALIDATES: AC-10. The successor authenticates and the dataplane refuses to install
+// its Child SA (injected): the successor is held, not adopted, the old IKE SA and its
+// Child SA keep the session, and the fake dataplane holds no state of the successor.
+// The refusal answered the IKE_AUTH before the peer was given its half, so no Delete
+// for an ESP pair is owed (expectChildlessAuthAnswer).
+// RFC 7296 Section 2.21.2: "This failure does not automatically cause the IKE SA to be
+// deleted."
+func TestInitiatePeerReauthChildInstallFailureKeepsOldSA(t *testing.T) {
+	ps, old, table, gwPeer := ownedInitiator(t)
+	oldChild := ps.getChildSA()
+	dp := useFailingInstallDataplane(t)
+	gw, pkt := gatewayReauthInit(t, gwPeer, gatewayAddr)
+	held := admitGatewayReauth(t, ps, gw, pkt, table)
+	runGatewayAuth(t, gw, held, table)
+
+	if held.State != StateEstablished {
+		t.Fatalf("successor state = %v, want established (only its Child SA failed)", held.State)
+	}
+	if ps.getPendingChild() != nil {
+		t.Fatal("a Child SA whose install failed was staged")
+	}
+	if len(ps.supersede) != 0 {
+		t.Error("a successor whose Child SA install failed signaled supersede")
+	}
+	if ps.getSA() != old || ps.getChildSA() != oldChild || ps.getPendingSA() != held {
+		t.Error("the install failure moved the session off the old IKE SA, or the successor was not held")
+	}
+	if len(dp.installed) != 0 {
+		t.Errorf("the fake dataplane holds %d SA states of the successor, want none", len(dp.installed))
+	}
+	expectChildlessAuthAnswer(t, gw, held)
+}
+
+// VALIDATES: AC-15, the install-failure injection on a `respond` peer's re-initiation.
+func TestRespondPeerReinitChildInstallFailureKeepsOldSA(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ps, old, table := ownedResponder(t)
+	oldChild := ps.getChildSA()
+	dp := useFailingInstallDataplane(t)
+	ini, pkt := freshInitiatorInit(t)
+	var iSPI, rSPI [8]byte
+	copy(iSPI[:], ini.InitiatorSPI[:])
+	if !tryResponderSAInit(pkt, iSPI, rSPI, table, nil, log) {
+		t.Fatal("parallel init not accepted")
+	}
+	held := ps.getPendingSA()
+	if held == nil {
+		t.Fatal("no pending SA")
+	}
+	iniTable := NewSATable()
+	iniTable.Insert(ini)
+	handleSAInitResponse(ini, parseMsg(t, held.LastSentMsg), held.LastSentMsg, iniTable, nil, nil, log)
+	handleInbound(held, transport.Packet{Data: ini.LastSentMsg, RemoteAddr: pkt.RemoteAddr}, table, nil, log)
+
+	if held.State != StateEstablished {
+		t.Fatalf("parallel SA state = %v, want established", held.State)
+	}
+	if ps.getPendingChild() != nil || len(ps.supersede) != 0 {
+		t.Fatal("a Child SA whose install failed was staged or signaled supersede")
+	}
+	if ps.getSA() != old || ps.getChildSA() != oldChild {
+		t.Error("the old IKE SA and its Child SA lost ownership to a re-initiation whose install failed")
+	}
+	if len(dp.installed) != 0 {
+		t.Errorf("the fake dataplane holds %d SA states of the successor, want none", len(dp.installed))
+	}
+	expectChildlessAuthAnswer(t, ini, held)
+}
+
+// VALIDATES: AC-7. After the session adopts the gateway's successor, Ze is the
+// responder of its IKE SA, and a Child SA rekey works started by either side. Ze's own
+// request carries the Initiator flag clear and its own counter at 0, and the gateway
+// decrypts it, which proves the role-dependent keys and counters follow the SA's role,
+// not the peer's connection type. The gateway's request is answered by the owner path.
+// RFC 7296 Section 2.2: "Each endpoint in the IKE Security Association maintains two
+// 'current' Message IDs: the next one to be used for a request it initiates and the
+// next one it expects to see in a request from the other end."
+func TestAdoptedResponderRoleSARekeys(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ps, old, table, gwPeer := ownedInitiator(t)
+	gw, pkt := gatewayReauthInit(t, gwPeer, gatewayAddr)
+	pending := admitGatewayReauth(t, ps, gw, pkt, table)
+	runGatewayAuth(t, gw, pending, table)
+	gatewayReadsAuth(t, gw, pending)
+	relinquishOwner(t, ps, old, table)
+	successor := ps.adoptPeerStartedSuccessor(table, dataplane.Get(), nil, log)
+	if successor != pending {
+		t.Fatal("setup: the successor was not adopted")
+	}
+	zeChild := ps.getChildSA()
+	gwChild, err := createFirstChildSA(gw, testESPGroup(), gwPeer.LocalAddress, gwPeer.RemoteAddress, 1, nil, log)
+	if err != nil {
+		t.Fatalf("the gateway's Child SA: %v", err)
+	}
+	t.Cleanup(gwChild.Clear)
+
+	// Ze rekeys.
+	req, p, err := initiateChildRekey(successor, zeChild)
+	if err != nil {
+		t.Fatalf("Ze could not build a Child SA rekey on the adopted SA: %v", err)
+	}
+	msg := parseMsg(t, req)
+	if msg.Header.Flags&wire.FlagInitiator != 0 {
+		t.Error("Ze set the Initiator flag on an IKE SA the gateway created (RFC 7296 Section 3.1)")
+	}
+	if msg.Header.MessageID != 0 {
+		t.Errorf("Ze's first request on the adopted SA carries Message ID %d, want 0", msg.Header.MessageID)
+	}
+	reqInner, err := decryptAndParse(gw, msg, req)
+	if err != nil {
+		t.Fatalf("the gateway cannot decrypt Ze's rekey, the keys follow the wrong role: %v", err)
+	}
+	answer, _, err := respondChildRekey(gw, reqInner, gwChild, msg.Header.MessageID, nil, log)
+	if err != nil {
+		t.Fatalf("the gateway refused Ze's rekey: %v", err)
+	}
+	ansInner, err := decryptAndParse(successor, parseMsg(t, answer), answer)
+	if err != nil {
+		t.Fatalf("Ze cannot decrypt the gateway's answer: %v", err)
+	}
+	if newChild, err := applyChildRekeyResponse(successor, p, ansInner, nil, log); err != nil || newChild == nil {
+		t.Fatalf("Ze did not complete its rekey on the adopted SA: %v", err)
+	}
+	successor.answerAuthenticatedResponse(msg.Header.MessageID)
+
+	// The gateway rekeys.
+	gwReq, _, err := initiateChildRekey(gw, gwChild)
+	if err != nil {
+		t.Fatalf("the gateway could not build its rekey: %v", err)
+	}
+	out := ps.handleOwnedInbound(successor, transport.Packet{Data: gwReq, RemoteAddr: gatewayAddr}, nil, nil, log)
+	if out.newChild == nil {
+		t.Fatal("Ze, responder of the adopted IKE SA, did not answer the gateway's Child SA rekey")
 	}
 }

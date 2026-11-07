@@ -97,8 +97,10 @@ func (ps *PeerSession) handleResponderInbound(sa *SA, msg *wire.Message, pkt tra
 			ps.handleResponderAuthRound(sa, msg, pkt.Data, tr, pkt.RemoteAddr, log)
 		}
 	case StateEstablished:
-		// Narrow window before runResponder adopts the SA into the owner loop: a
-		// retransmitted final IKE_AUTH is answered from the cached response.
+		// Narrow window before a run loop adopts the SA into the owner loop: a
+		// retransmitted final IKE_AUTH is answered from the cached response. A held
+		// successor never reaches here: handleInbound answers its requests through
+		// handleHeldSuccessorInbound (held_successor.go).
 		replayCachedResponse(sa, msg, pkt, tr, log)
 	case StateAuthSent, StateSAInitSent, StateDead:
 		log.Debug("ike: responder message in unexpected state", "peer", sa.PeerName, "state", sa.State)

@@ -845,10 +845,5 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 
 // hasRekeySANotify reports whether the payload chain contains a REKEY_SA notify.
 func hasRekeySANotify(inner []wire.PayloadEntry) bool {
-	for i := range inner {
-		if n, ok := inner[i].Payload.(*wire.PayloadNotify); ok && n.NotifyMsgType == wire.NotifyRekeySA {
-			return true
-		}
-	}
-	return false
+	return rekeySANotify(inner) != nil
 }

@@ -155,8 +155,6 @@ func (ps *PeerSession) promotePendingSA(pending *SA) {
 //
 // RFC 7296 Section 1.4.1: "Deleting an IKE SA implicitly closes any
 // remaining Child SAs negotiated under it."
-//
-// RFC 7296 Section 2.12: the SA is closed here, so it forgets its keys.
 func (ps *PeerSession) retireHeldSuccessor(pending *SA, table *SATable, log *slog.Logger) {
 	if pending.State == StateEstablished {
 		log.Warn("ike: the established IKE SA ended while its re-initiated successor held no Child SA, deleting the successor",
@@ -164,6 +162,16 @@ func (ps *PeerSession) retireHeldSuccessor(pending *SA, table *SATable, log *slo
 			"fix", "make the peer's traffic selectors and ESP proposals match this peer's configuration; the session reconnects")
 		ps.sendDeleteIKE(pending, ps.ike, log)
 	}
+	ps.forgetSecondSlot(pending, table)
+}
+
+// forgetSecondSlot empties the second slot of an SA that will not be adopted: it leaves
+// the SATable, so no later datagram finds it, and forgets its keys. The caller holds
+// childLifecycleMu and decides whether the peer is told and whether the half-open gate
+// frees.
+//
+// RFC 7296 Section 2.12: the SA is closed here, so it forgets its keys.
+func (ps *PeerSession) forgetSecondSlot(pending *SA, table *SATable) {
 	if table != nil {
 		table.Remove(pending.InitiatorSPI, pending.ResponderSPI)
 	}

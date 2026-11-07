@@ -54,7 +54,15 @@ notify, and `finishResponderEstablish` establishes the IKE SA with a nil Child
 SA. A parallel re-initiation that ends this way is held in the second slot and
 not adopted: `finishResponderEstablish` signals supersede only once the
 successor's Child SA is installed, so the old IKE SA and its Child SA keep the
-session. When the old owner loop ends with the successor still childless,
+session. While it is held, the dispatch path answers the peer's requests on it
+under `childLifecycleMu` (`handleHeldSuccessorInbound`): a CREATE_CHILD_SA for a
+new Child SA is installed, staged as `pendingChild`, and signals supersede, as an
+IKE_AUTH Child SA would; a liveness probe gets an empty INFORMATIONAL; a Delete
+of the successor ends it alone and frees the half-open gate; a Child SA rekey
+draws CHILD_SA_NOT_FOUND and an IKE SA rekey TEMPORARY_FAILURE (RFC 7296 Section
+2.25). Once its Child SA is staged, its messages wait for the adoption, and the
+peer's retransmission reaches the adopted SA's owner loop.
+When the old owner loop ends with the successor still childless,
 `resolvePendingAfterOwnerLoop` (a `respond` peer) or `adoptPeerStartedSuccessor`
 (an `initiate` peer) deletes it (`retireHeldSuccessor`) rather than promote a
 session with no tunnel. A successor whose Child SA install fails is answered with
@@ -65,6 +73,7 @@ The EAP path defers a refusal found on its first IKE_AUTH to the final one.
 <!-- source: internal/component/ike/engine/responder_eap.go -- startResponderEAP -->
 <!-- source: internal/component/ike/engine/fsm.go -- resolvePendingAfterOwnerLoop -->
 <!-- source: internal/component/ike/engine/reauth_receive.go -- adoptPeerStartedSuccessor, retireHeldSuccessor -->
+<!-- source: internal/component/ike/engine/held_successor.go -- handleHeldSuccessorInbound, answerHeldSuccessorCreateChild, answerHeldSuccessorInformational -->
 
 A parallel authenticated handshake installs its Child before publishing
 `pendingChild`. Those operations share `childLifecycleMu` with established-owner

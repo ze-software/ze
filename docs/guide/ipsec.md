@@ -269,7 +269,9 @@ restart instead of waiting for Dead Peer Detection.
 The replacement takes over only once its Child SA is installed. If Ze refuses
 that Child SA (no matching ESP proposal, traffic selectors it cannot accept),
 the new IKE SA is held beside the old one and the old tunnel keeps carrying
-traffic; the log names the refusal and its fix. If the old IKE SA then ends
+traffic; the log names the refusal and its fix. The peer can still create the
+Child SA on the replacement later, and the tunnel then moves onto it; it can also
+delete the replacement, which leaves the old tunnel as it was. If the old IKE SA then ends
 while the replacement still has no Child SA, Ze deletes the replacement and the
 session reconnects.
 
