@@ -31,6 +31,7 @@ This directory contains user guides, feature inventories, implementation referen
 | Check command/API behavior | `guide/command-reference.md`, `architecture/api/commands.md` |
 | Check config syntax | `config-reference.md`, `guide/configuration.md` |
 | Migrate from ExaBGP | `exabgp/exabgp-migration.md`, `exabgp/` |
+| Migrate a home CPE from VyOS | `guide/migrating-from-vyos.md` |
 
 ## Relationships
 

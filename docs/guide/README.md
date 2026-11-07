@@ -17,6 +17,7 @@
 | Manage config through a browser | [Web Interface](web-interface.md) |
 | Automate ze from scripts or tools | [REST and gRPC API](api.md) |
 | Migrate from ExaBGP | [ExaBGP Migration](../exabgp/exabgp-migration.md) |
+| Migrate a home CPE from VyOS | [Migrating from VyOS](migrating-from-vyos.md) |
 | Run Ze in production | [Operations](operations.md) |
 | Run Ze in Docker | [Docker](docker.md) |
 | Build a lab topology with netlab | [netlab](netlab.md) |
@@ -88,6 +89,7 @@
 | [Audit Trail](audit.md) | `show audit`, config commit/discard records, auth-fail records |
 | [Benchmarking](benchmarking.md) | `le perf` cross-implementation latency benchmark |
 | [ExaBGP Migration](../exabgp/exabgp-migration.md) | Config conversion and plugin compatibility bridge |
+| [Migrating from VyOS](migrating-from-vyos.md) | The mapping a model follows to convert a VyOS home-CPE configuration, and the conversion record a reviewer reads |
 | [Chaos Testing](chaos-testing.md) | Fault injection, deterministic replay, property validation |
 | [Fleet Configuration](fleet-config.md) | Centralized config management for multi-node deployments |
 | [TACACS+ AAA](tacacs.md) | RFC 8907 SSH authentication and command accounting |

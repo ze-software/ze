@@ -50,3 +50,10 @@ The packet-insertion action and its `lowerAction` implementation remain feature-
 ## Implementation Ownership
 
 Design and implement only the behavior assigned above. Original wiring, functional, interop, documentation and review obligations for that behavior transfer here with the original criteria. Resolve the recorded open design decisions before readiness; the portfolio move itself selects no new product behavior.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `validated-value-discarded-by-its-caller.md` | 2026-11-07 | `encodeSetElementKey` lowers a `flags-interval` prefix element to its bare address; no config path sets `IntervalEnd` |
+| `unwired-feature.md` | 2026-11-07 | firewall term `tcp-flags` parsed by `firewall/config.go` (`ParseTCPFlags`), absent from the firewall YANG `from-block` |
