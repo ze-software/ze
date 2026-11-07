@@ -12,6 +12,7 @@
 package fibkernel
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -79,7 +80,20 @@ func (n *netlinkBackend) delRoute(prefix string) error {
 		Dst:      cidr,
 		Protocol: rtprotZE,
 	}
-	return n.handle.RouteDel(route)
+	return delOwnedRoute(n.handle, route)
+}
+
+// delOwnedRoute deletes a route Ze installed and treats ESRCH as done. ESRCH
+// is the kernel's answer for a route that is not there: when a device is
+// deleted the kernel flushes every route through it, in every table, so the
+// withdraw sysrib sends next finds nothing. The route is gone, which is what
+// the withdraw asked for, so reporting fib-sync-failure for it would be false
+// (the precedent is the mpls context route removal in mplscontext_linux.go).
+func delOwnedRoute(h *netlink.Handle, route *netlink.Route) error {
+	if err := h.RouteDel(route); err != nil && !errors.Is(err, unix.ESRCH) {
+		return err
+	}
+	return nil
 }
 
 func (n *netlinkBackend) replaceRoute(prefix, nextHop string) error {

@@ -26,10 +26,11 @@ type nhState struct {
 	// bfdUp is BFD's verdict: true while the session is up, and while the
 	// next-hop is not BFD-tracked at all.
 	bfdUp bool
-	// waiting is true for a next-hop the candidate declared dynamic
-	// (nextHop.Dynamic) whose device is not known to be up. Device presence is
-	// not yet an input, so such a next-hop waits for the whole life of its
-	// route: it is never resolved and never skipped, and stays out of the group.
+	// waiting is device presence: true for a next-hop the candidate declared
+	// dynamic (nextHop.Dynamic) while its device is not known to be up. The
+	// route manager's link watch of that name sets it (link.go): LinkUp clears
+	// it, LinkDown (down or deleted) sets it. A waiting next-hop is never
+	// resolved and never skipped, and stays out of the group.
 	waiting bool
 	handle  bfdapi.SessionHandle
 	unsub   func()
@@ -37,9 +38,10 @@ type nhState struct {
 
 // newNHState builds the membership a next-hop starts with: untracked by BFD
 // (setupBFDLocked may track it next), and waiting when it names a declared
-// dynamic interface.
-func newNHState(nh nextHop) nhState {
-	s := nhState{nh: nh, bfdUp: true, waiting: nh.Dynamic}
+// dynamic interface whose device is not up (deviceUp, the link watch's state;
+// ignored for any other next-hop).
+func newNHState(nh nextHop, deviceUp bool) nhState {
+	s := nhState{nh: nh, bfdUp: true, waiting: nh.Dynamic && !deviceUp}
 	s.refresh()
 	return s
 }
@@ -96,6 +98,14 @@ type routeManager struct {
 	// backend above now serves NAMED tables only. See locrib.go.
 	loc    *locrib.RIB
 	remote routeSink
+
+	// links tells the manager whether the device of a declared on-demand
+	// interface is up, and watches holds one subscription per such name that
+	// a route in routes uses (link.go). linkWG counts the watchers, which
+	// shutdown waits for once it has released mu.
+	links   linkSource
+	watches map[string]*linkWatch
+	linkWG  sync.WaitGroup
 }
 
 func newRouteManager(backend routeBackend) *routeManager {
@@ -103,6 +113,8 @@ func newRouteManager(backend routeBackend) *routeManager {
 		backend: backend,
 		routes:  make(map[routeKey]*routeState),
 		skipped: make(map[routeKey]skippedRoute),
+		links:   ifaceLinks{},
+		watches: make(map[string]*linkWatch),
 	}
 }
 
@@ -170,6 +182,10 @@ func (rm *routeManager) applyRoutes(routes []staticRoute) error {
 		}
 	}
 
+	// The link watches follow the committed set: a name no held route uses
+	// any more stops being watched (Data Flow step 10). A rollback re-applies
+	// the previous set through here too, so it re-derives them.
+	rm.pruneLinksLocked()
 	return nil
 }
 
@@ -201,7 +217,11 @@ func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 	if r.Action == actionForward {
 		rs.nhStates = make([]nhState, len(r.NextHops))
 		for i, nh := range r.NextHops {
-			rs.nhStates[i] = newNHState(nh)
+			deviceUp := false
+			if nh.Dynamic {
+				deviceUp = rm.ensureLinkLocked(nh.Interface).up
+			}
+			rs.nhStates[i] = newNHState(nh, deviceUp)
 		}
 		rm.setupBFDLocked(rs)
 	}
@@ -485,13 +505,20 @@ func (rm *routeManager) releaseBFDLocked(rs *routeState) {
 	}
 }
 
+// shutdown withdraws every route and ends every link watch, then waits for
+// the watchers outside mu: a watcher that holds an event is blocked on mu,
+// and exits on its done channel once it takes it.
 func (rm *routeManager) shutdown() {
 	rm.mu.Lock()
-	defer rm.mu.Unlock()
 	for key, rs := range rm.routes {
 		_ = rm.removeRouteLocked(rs)
 		delete(rm.routes, key)
 	}
+	for _, w := range rm.watches {
+		rm.cancelLinkLocked(w)
+	}
+	rm.mu.Unlock()
+	rm.linkWG.Wait()
 }
 
 func activeNextHops(rs *routeState) []nextHop {

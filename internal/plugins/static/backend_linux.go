@@ -6,6 +6,7 @@
 package static
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -52,12 +53,29 @@ func (b *netlinkStaticBackend) applyRoute(r staticRoute) error {
 	return b.handle.RouteReplace(route)
 }
 
+// removeRoute deletes the route static installed for (table, prefix) at its
+// metric, and names no next-hop. Static is the one writer of a named table and
+// holds one route per (table, prefix), so the key is exact; naming the members
+// would resolve each interface first, and a member whose device was deleted
+// (a pppoe-client session that dropped) no longer resolves, which turned the
+// removal of a route the kernel had already flushed into a failure.
+//
+// ESRCH is the kernel's answer for a route that is not there: when a device is
+// deleted the kernel flushes every route through it, so the removal that
+// follows finds nothing. The route is gone, which is what the removal asked
+// for, so it is done (the precedent is the mpls context route removal in
+// internal/plugins/fib/kernel/mplscontext_linux.go).
 func (b *netlinkStaticBackend) removeRoute(r staticRoute) error {
-	route, err := b.buildRoute(r)
+	key := r
+	key.NextHops = nil
+	route, err := b.buildRoute(key)
 	if err != nil {
 		return err
 	}
-	return b.handle.RouteDel(route)
+	if err := b.handle.RouteDel(route); err != nil && !errors.Is(err, unix.ESRCH) {
+		return fmt.Errorf("route %s table %d remove: %w", r.Prefix, r.Table, err)
+	}
+	return nil
 }
 
 func (b *netlinkStaticBackend) listRoutes() ([]installedStaticRoute, error) {

@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
@@ -248,4 +249,138 @@ func TestRouteManagerShutdownRemovesRoutes(t *testing.T) {
 	if len(rm.routes) != 0 {
 		t.Errorf("routes map has %d entries after shutdown, want 0", len(rm.routes))
 	}
+}
+
+// namedOps indexes one event's named-table writes by table, failing the test
+// when a table was written twice: each route owes one write per event.
+func namedOps(t *testing.T, ops []*staticOp) map[uint32]*staticOp {
+	t.Helper()
+	byTable := make(map[uint32]*staticOp, len(ops))
+	for _, op := range ops {
+		if _, dup := byTable[op.route.Table]; dup {
+			t.Fatalf("table %d written twice in one event: %+v", op.route.Table, ops)
+		}
+		byTable[op.route.Table] = op
+	}
+	return byTable
+}
+
+// requireNamedWrite checks one named-table write: its verb and, for an
+// apply, the members it carried in order, each named by its interface, or by
+// its gateway address when it names no interface.
+func requireNamedWrite(t *testing.T, step string, op *staticOp, verb string, members ...string) {
+	t.Helper()
+	if op == nil {
+		t.Fatalf("%s: a route owed a %s and its table was not written", step, verb)
+	}
+	if op.verb != verb {
+		t.Fatalf("%s: table %d verb = %q, want %q (%+v)", step, op.route.Table, op.verb, verb, op.route)
+	}
+	if verb == "remove" {
+		return
+	}
+	got := make([]string, 0, len(op.route.NextHops))
+	for _, nh := range op.route.NextHops {
+		if nh.Interface != "" {
+			got = append(got, nh.Interface)
+			continue
+		}
+		got = append(got, nh.Address.String())
+	}
+	if len(got) != len(members) {
+		t.Fatalf("%s: table %d members = %v, want %v", step, op.route.Table, got, members)
+	}
+	for i := range got {
+		if got[i] != members[i] {
+			t.Fatalf("%s: table %d members = %v, want %v", step, op.route.Table, got, members)
+		}
+	}
+}
+
+// TestStaticNamedTableWaitingMember is AC-13 and AC-15 at the route manager:
+// link events on a declared on-demand interface drive static's own backend
+// for named-table routes. Method: a fake linkSource delivers the events, and a
+// recording backend reports each write on a channel, so every step waits for
+// the write its event owes. Two routes name pppoe0: one alone (table 100,
+// AC-13) and one mixed with gateway 192.0.2.1 (table 101, AC-15). The device
+// starts absent, comes up, is deleted, comes back under a new ifindex, and
+// moves again with its down event lost. Then the routes are removed, which
+// must end the subscription, and shutdown must return, which proves the
+// watcher exited.
+// PREVENTS: a waiting member that stays inactive forever; a session drop that
+// leaves the named-table route installed, or withdraws the mixed route
+// instead of shrinking it; a reconnect that is ignored because the member was
+// already marked active; a subscription or watcher that outlives its routes.
+func TestStaticNamedTableWaitingMember(t *testing.T) {
+	const dev = "pppoe0"
+	gateway := netip.MustParseAddr("192.0.2.1")
+	waiting := nextHop{Interface: dev, Weight: 3, Dynamic: true}
+	alone := staticRoute{
+		Prefix:   netip.MustParsePrefix("0.0.0.0/0"),
+		Table:    100,
+		Action:   actionForward,
+		NextHops: []nextHop{waiting},
+	}
+	mixed := staticRoute{
+		Prefix:   netip.MustParsePrefix("0.0.0.0/0"),
+		Table:    101,
+		Action:   actionForward,
+		NextHops: []nextHop{{Address: gateway, Weight: 1}, waiting},
+	}
+
+	rec := newOpRecorder()
+	links := newFakeLinks()
+	mgr := newLinkTestManager(rec, links)
+
+	if err := mgr.applyRoutes([]staticRoute{alone, mixed}); err != nil {
+		t.Fatalf("applyRoutes: %v", err)
+	}
+	ops := rec.next(t, 1)
+	requireNamedWrite(t, "commit, device absent", ops[0], "apply", gateway.String())
+	if ops[0].route.Table != mixed.Table {
+		t.Fatalf("commit, device absent: wrote table %d, want only the mixed route's %d", ops[0].route.Table, mixed.Table)
+	}
+	rec.none(t)
+	mgr.mu.Lock()
+	skipped := len(mgr.skipped)
+	mgr.mu.Unlock()
+	if skipped != 0 {
+		t.Fatalf("skipped %d routes, want none: a waiting member is never a skip", skipped)
+	}
+
+	links.send(t, dev, iface.LinkUp, 7)
+	byTable := namedOps(t, rec.next(t, 2))
+	requireNamedWrite(t, "device up", byTable[alone.Table], "apply", dev)
+	requireNamedWrite(t, "device up", byTable[mixed.Table], "apply", gateway.String(), dev)
+
+	links.send(t, dev, iface.LinkDown, 7)
+	byTable = namedOps(t, rec.next(t, 2))
+	requireNamedWrite(t, "device deleted", byTable[alone.Table], "remove")
+	requireNamedWrite(t, "device deleted", byTable[mixed.Table], "apply", gateway.String())
+
+	links.send(t, dev, iface.LinkAppeared, 9)
+	links.send(t, dev, iface.LinkUp, 9)
+	byTable = namedOps(t, rec.next(t, 2))
+	requireNamedWrite(t, "device recreated", byTable[alone.Table], "apply", dev)
+	requireNamedWrite(t, "device recreated", byTable[mixed.Table], "apply", gateway.String(), dev)
+
+	// The down event of a second reconnect is lost (a full subscriber channel
+	// keeps the newest): only the new ifindex says the device moved.
+	links.send(t, dev, iface.LinkUp, 11)
+	byTable = namedOps(t, rec.next(t, 2))
+	requireNamedWrite(t, "device moved, down lost", byTable[alone.Table], "apply", dev)
+	requireNamedWrite(t, "device moved, down lost", byTable[mixed.Table], "apply", gateway.String(), dev)
+	rec.none(t)
+
+	if err := mgr.applyRoutes(nil); err != nil {
+		t.Fatalf("applyRoutes removing both routes: %v", err)
+	}
+	rec.next(t, 2)
+	if links.subscribed(dev) {
+		t.Errorf("%s still subscribed after the last route naming it was removed", dev)
+	}
+	if got := links.cancels(dev); got != 1 {
+		t.Errorf("%s subscription ended %d times, want once", dev, got)
+	}
+	mgr.shutdown()
 }

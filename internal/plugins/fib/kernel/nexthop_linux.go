@@ -52,7 +52,7 @@ func (n *netlinkBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error
 	if tableID != 0 {
 		route.Table = int(tableID)
 	}
-	return n.handle.RouteDel(route)
+	return delOwnedRoute(n.handle, route)
 }
 
 func (n *netlinkBackend) replaceRichRoute(r RichRoute) error {

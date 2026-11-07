@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
@@ -372,5 +373,143 @@ func TestStaticWaitingMemberNotSkipped(t *testing.T) {
 	}
 	if len(mb.removed) != 0 {
 		t.Errorf("removed %+v, want nothing: the deleted route was never installed", mb.removed)
+	}
+}
+
+// mainOps indexes one event's Loc-RIB writes by prefix, failing the test when
+// a prefix was written twice: each route owes one write per event.
+func mainOps(t *testing.T, ops []*staticOp) map[netip.Prefix]*staticOp {
+	t.Helper()
+	byPrefix := make(map[netip.Prefix]*staticOp, len(ops))
+	for _, op := range ops {
+		if _, dup := byPrefix[op.route.Prefix]; dup {
+			t.Fatalf("prefix %v written twice in one event: %+v", op.route.Prefix, ops)
+		}
+		byPrefix[op.route.Prefix] = op
+	}
+	return byPrefix
+}
+
+// requireGatewayAlone checks a Loc-RIB insert that carries the gateway as its
+// only member.
+func requireGatewayAlone(t *testing.T, step string, op *staticOp, gateway netip.Addr) {
+	t.Helper()
+	if op == nil {
+		t.Fatalf("%s: the mixed route owed an insert and was not written", step)
+	}
+	if op.verb != "insert" {
+		t.Fatalf("%s: mixed route verb = %q, want insert: a route with one active member is never withdrawn", step, op.verb)
+	}
+	if op.path.NextHop != gateway || op.path.Interface != "" || len(op.path.ECMP) != 0 {
+		t.Fatalf("%s: mixed Path = next-hop %v interface %q ECMP %+v, want %v alone", step, op.path.NextHop, op.path.Interface, op.path.ECMP, gateway)
+	}
+}
+
+// requireBothMembers checks a Loc-RIB insert of the mixed group with both
+// members and their weights.
+func requireBothMembers(t *testing.T, step string, op *staticOp, gateway netip.Addr, dev string) {
+	t.Helper()
+	if op == nil {
+		t.Fatalf("%s: the mixed route owed an insert and was not written", step)
+	}
+	if op.verb != "insert" {
+		t.Fatalf("%s: mixed route verb = %q, want insert", step, op.verb)
+	}
+	if op.path.NextHop != gateway || op.path.Weight != 1 {
+		t.Fatalf("%s: mixed Path first member = %v weight %d, want %v weight 1", step, op.path.NextHop, op.path.Weight, gateway)
+	}
+	if len(op.path.ECMP) != 1 || op.path.ECMP[0].Interface != dev || op.path.ECMP[0].Weight != 3 {
+		t.Fatalf("%s: mixed Path ECMP = %+v, want %s weight 3", step, op.path.ECMP, dev)
+	}
+}
+
+// requireDeviceAlone checks a Loc-RIB insert of the route through the device
+// alone.
+func requireDeviceAlone(t *testing.T, step string, op *staticOp, dev string) {
+	t.Helper()
+	if op == nil {
+		t.Fatalf("%s: the interface route owed an insert and was not written", step)
+	}
+	if op.verb != "insert" {
+		t.Fatalf("%s: interface route verb = %q, want insert", step, op.verb)
+	}
+	if op.path.Interface != dev || op.path.NextHop.IsValid() || len(op.path.ECMP) != 0 {
+		t.Fatalf("%s: interface Path = next-hop %v interface %q ECMP %+v, want %s alone", step, op.path.NextHop, op.path.Interface, op.path.ECMP, dev)
+	}
+}
+
+// TestStaticMainTableFollowsDevice is AC-3 and AC-14 at the route manager:
+// link events on a declared on-demand interface drive the main-table routes
+// through the Loc-RIB. Method: a fake linkSource delivers the events, a
+// recording sink reports each Loc-RIB write on a channel, and a fake iface
+// backend answers the device so the insert-time resolvability check passes,
+// as it does once the device exists. Two routes name the device: one alone
+// (AC-3) and a mixed group with gateway 192.0.2.1 (AC-14). The device starts
+// absent, comes up, is deleted and comes back.
+// PREVENTS: a main-table route through a pppoe-client that never installs,
+// stays in the Loc-RIB after the session drops, or is not re-inserted after
+// the reconnect; a mixed group withdrawn while its gateway is active.
+func TestStaticMainTableFollowsDevice(t *testing.T) {
+	const dev = "zemainppp0" // unique: iface.Resolve caches per logical name
+	loadLinkTestIfaceBackend(t, map[string]int{dev: 7})
+	gateway := netip.MustParseAddr("192.0.2.1")
+	waiting := nextHop{Interface: dev, Weight: 3, Dynamic: true}
+	alone := staticRoute{
+		Prefix:   netip.MustParsePrefix("198.51.100.0/24"),
+		Action:   actionForward,
+		NextHops: []nextHop{waiting},
+	}
+	mixed := staticRoute{
+		Prefix:   netip.MustParsePrefix("0.0.0.0/0"),
+		Action:   actionForward,
+		NextHops: []nextHop{{Address: gateway, Weight: 1}, waiting},
+	}
+
+	rec := newOpRecorder()
+	links := newFakeLinks()
+	mgr := newLinkTestManager(rec, links)
+
+	if err := mgr.applyRoutes([]staticRoute{alone, mixed}); err != nil {
+		t.Fatalf("applyRoutes: %v", err)
+	}
+	ops := rec.next(t, 1)
+	if ops[0].route.Prefix != mixed.Prefix {
+		t.Fatalf("commit, device absent: wrote %v, want only the mixed route %v", ops[0].route.Prefix, mixed.Prefix)
+	}
+	requireGatewayAlone(t, "commit, device absent", ops[0], gateway)
+	rec.none(t)
+	mgr.mu.Lock()
+	skipped := len(mgr.skipped)
+	_, held := mgr.routes[routeKey{prefix: alone.Prefix}]
+	mgr.mu.Unlock()
+	if skipped != 0 {
+		t.Fatalf("skipped %d routes, want none: a waiting member is never a skip", skipped)
+	}
+	if !held {
+		t.Fatalf("route %v not held while its device is absent", alone.Prefix)
+	}
+
+	links.send(t, dev, iface.LinkUp, 7)
+	byPrefix := mainOps(t, rec.next(t, 2))
+	requireDeviceAlone(t, "device up", byPrefix[alone.Prefix], dev)
+	requireBothMembers(t, "device up", byPrefix[mixed.Prefix], gateway, dev)
+
+	links.send(t, dev, iface.LinkDown, 7)
+	byPrefix = mainOps(t, rec.next(t, 2))
+	if op := byPrefix[alone.Prefix]; op == nil || op.verb != "remove" {
+		t.Fatalf("device deleted: interface route write = %+v, want its Loc-RIB path removed", op)
+	}
+	requireGatewayAlone(t, "device deleted", byPrefix[mixed.Prefix], gateway)
+
+	links.send(t, dev, iface.LinkUp, 9)
+	byPrefix = mainOps(t, rec.next(t, 2))
+	requireDeviceAlone(t, "device recreated", byPrefix[alone.Prefix], dev)
+	requireBothMembers(t, "device recreated", byPrefix[mixed.Prefix], gateway, dev)
+	rec.none(t)
+
+	mgr.shutdown()
+	rec.next(t, 2)
+	if got := links.cancels(dev); got != 1 {
+		t.Errorf("%s subscription ended %d times at shutdown, want once", dev, got)
 	}
 }

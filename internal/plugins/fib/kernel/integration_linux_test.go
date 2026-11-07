@@ -17,6 +17,7 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/test/userns"
 )
@@ -609,5 +610,69 @@ func TestNetlinkIntegration_RemoveRichRouteWithMetric(t *testing.T) {
 		// fib-kernel route and only that one.
 		fallback := requireForwards(t, h, dest, prefix, "127.0.0.2", rtproto.Static)
 		assert.Equal(t, 20, fallback.Priority)
+	})
+}
+
+// syncFailuresFor counts the fib-sync-failure errors raised for prefix.
+func syncFailuresFor(prefix string) int {
+	n := 0
+	for _, e := range report.Errors(0) {
+		if e.Code == reportCodeFIBSyncFailure && e.Subject == prefix {
+			n++
+		}
+	}
+	return n
+}
+
+// TestFIBDeleteToleratesESRCH is A-7 for fib-kernel, the main-table removal
+// owner: when a device is deleted the kernel flushes every route through it,
+// and the withdraw sysrib sends next answers ESRCH. That withdraw is complete.
+// Method, in a user and network namespace: a route is installed through
+// processEvent, removed from the kernel behind fib-kernel's back (the flush),
+// then withdrawn through processEvent; no fib-sync-failure may be raised for
+// it and fib-kernel must forget it. Both delete paths are then called for a
+// prefix the kernel never held: delRoute and delRichRoute must answer done.
+// PREVENTS: a correctly absent route reported as fib-sync-failure, and a
+// withdrawn route kept in installed, which would make fib-kernel reassert it.
+func TestFIBDeleteToleratesESRCH(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	withNetNS(t, func() {
+		h, err := netlink.NewHandle()
+		require.NoError(t, err)
+		defer h.Close()
+
+		addLoopback(t, h)
+
+		backend := newTestBackend(h)
+		f := newFIBKernel(backend)
+
+		const prefix = "10.99.77.0/24" // unique: report is process-wide
+		f.processEvent(makeSysribPayload([]incomingChange{
+			addChange(prefix, "127.0.0.1"),
+		}))
+		require.Len(t, zeRoutes(t, h), 1)
+
+		// The kernel flush, as it happens when the device goes away.
+		_, cidr, err := net.ParseCIDR(prefix)
+		require.NoError(t, err)
+		require.NoError(t, h.RouteDel(&netlink.Route{Dst: cidr, Protocol: rtprotZE}))
+		require.Empty(t, zeRoutes(t, h))
+
+		before := syncFailuresFor(prefix)
+		f.processEvent(makeSysribPayload([]incomingChange{
+			withdrawChange(prefix),
+		}))
+		assert.Equal(t, before, syncFailuresFor(prefix), "a withdraw of a route the kernel already flushed raised fib-sync-failure")
+		f.mu.RLock()
+		_, kept := f.installed[prefix]
+		f.mu.RUnlock()
+		assert.False(t, kept, "fib-kernel still records the withdrawn route as installed")
+
+		nb, ok := backend.(*netlinkBackend)
+		require.True(t, ok)
+		assert.NoError(t, nb.delRoute("10.99.78.0/24"), "delRoute of an absent route")
+		assert.NoError(t, nb.delRichRoute(netip.MustParsePrefix("10.99.78.0/24"), 100), "delRichRoute of an absent route in a named table")
 	})
 }

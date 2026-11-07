@@ -30,15 +30,5 @@ func DHCPClientFactoryForTest() func(string, string, ze.EventBus, bool, bool, st
 // subscriptions and lets a later test bind again; a test MUST call it in its
 // cleanup, because the resolver is process-wide and binds only once.
 func BindResolverEventsForTest(eb ze.EventBus) func() {
-	globalResolver.bindEvents(eb)
-	return func() {
-		globalResolver.mu.Lock()
-		unsub := globalResolver.unsub
-		globalResolver.unsub = nil
-		globalResolver.bound = false
-		globalResolver.mu.Unlock()
-		for _, u := range unsub {
-			u()
-		}
-	}
+	return globalResolver.bindEventsUndoable(eb)
 }

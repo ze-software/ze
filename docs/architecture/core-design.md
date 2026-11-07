@@ -2763,6 +2763,13 @@ Route writes and ownership changes hold the same lock as recovery, so a queued
 notification sees completed withdrawals and priority migrations. The monitor
 therefore leaves withdrawn routes and superseded priorities retired.
 
+A withdraw the kernel answers with ESRCH is complete, not a `fib-sync-failure`:
+the route is already gone, typically flushed by the kernel with the device it
+went through, as when a pppoe-client session drops. Static's named-table
+removal treats ESRCH the same way.
+<!-- source: internal/plugins/fib/kernel/backend_linux.go -- delOwnedRoute -->
+<!-- source: internal/plugins/static/backend_linux.go -- removeRoute -->
+
 When `BestChangeEntry` carries rich fields (route type, metric, table ID, ECMP paths,
 MPLS labels, or SRv6 SID), the backend dispatches to `richRouteBackend` which builds
 a full `netlink.Route` with `RTN_BLACKHOLE`/`RTN_UNREACHABLE`/`RTN_PROHIBIT` type,

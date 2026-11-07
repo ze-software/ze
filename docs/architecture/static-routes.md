@@ -130,10 +130,16 @@ a main-table route is re-inserted into the Loc-RIB with the surviving set, and a
 named-table route is rewritten through the backend. The route is withdrawn only
 when every next hop is down.
 
-BFD is one input to a next hop's activity, not its owner. A next hop is active
-only while BFD allows it (its session is up, or it is not BFD-tracked) and it is
-not a waiting member ("Table selection and interface-only next hops"), so a BFD
-session coming up never brings a waiting member into the group. A withdrawal
+A next hop's activity has two inputs, and neither owns it. BFD is the first: it
+allows the next hop while its session is up, or while it is not BFD-tracked.
+Device presence is the second: a next hop naming a declared on-demand interface
+("Table selection and interface-only next hops") is allowed only while its
+device is up. A next hop is active only while both allow it
+(`nhState.refresh`), so a BFD session coming up never brings a member whose
+device is absent into the group, and a device coming up never brings in a member
+whose BFD session is down. A change to either input reprograms the route through
+the same path: re-inserted into the Loc-RIB with the active set, or rewritten
+through the backend, and withdrawn when no member is active. A withdrawal
 removes what was last written (`routeState.programmed`), never the configured
 route, so a route whose members were never active withdraws nothing, and a
 removal never has to resolve a device that was not installed.
@@ -237,8 +243,33 @@ never skipped, and it stays out of the ECMP group (`nhState.waiting`,
 group is programmed through its other active members, and a route with no active
 member is withdrawn, or never written, and `static show` lists it with its
 members inactive and not skipped. A next hop naming an undeclared name keeps the
-resolve-or-skip path above. Device presence is not yet an input, so a waiting
-member stays inactive until the next apply that no longer declares its name.
+resolve-or-skip path above.
+
+The route manager watches each declared name a held route uses, once per name
+however many routes and members use it (`linkWatch`, `link.go`). It subscribes
+through `iface.Subscribe`, then reads the device's first state through
+`iface.Resolve`, so a change between the two still arrives as an event.
+`LinkUp` makes the members naming the device active, and `LinkDown`, which the
+iface monitor also sends when the device is deleted, makes them wait again. Each
+change reprograms the routes whose membership moved, under the lock BFD's
+watchers take. A main-table route is re-inserted into the Loc-RIB, and the FIB
+plugin resolves the device again when it writes, so a session that comes back
+under a new ifindex is followed with no reload. A named-table route is rewritten
+by static's backend, which resolves the device at that write. A device that is
+up again under a new ifindex, with the down event lost to a full subscriber
+channel, still reprograms its routes.
+
+When the device is deleted, the kernel flushes every route through it, so the
+withdrawal that follows finds nothing. Both removal owners answer that ESRCH as
+done (`core-design.md`, section 16). Static's named-table removal names the
+route by table, prefix, metric and protocol and no next hop, so it never has to
+resolve a device that is gone.
+
+Watches follow the committed set. Every apply, and the rollback that re-applies
+the previous set, ends the watch of a name no held route uses any more, and
+`shutdown` ends every watch and waits for its goroutine. Like the BFD service,
+the link events are process-local, so a forked static never hears a device come
+up and a route through it never installs (`warnIfExternal`).
 
 ## Two data planes, one resolver
 
