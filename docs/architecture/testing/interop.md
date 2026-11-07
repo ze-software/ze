@@ -2308,10 +2308,13 @@ and a third cuts strongSwan's reassembly memory (`dropFragmentsAtPeer`,
 `net.ipv4.ipfrag_high_thresh`) so no fragmented datagram is ever reassembled: an
 `iptables -f` rule matches nothing on either container, because conntrack
 defragments before any chain runs. The SA then fails exactly once and the row
-names `sa-failed` and the size.
+names `sa-failed` and the size. Before each lossless ping the checker waits until
+Ze lists the Child SA with its selectors (`waitZeSelectors`): after the SA is
+re-established Ze lists the IKE SA before it installs the Child SA, so a ping sent
+on the IKE state alone can meet no XFRM state.
 
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkMTUTunnelSizingStrongSwan, checkMTUNATInstalledEndpoint, checkIKEPaddedProbeStrongSwan, mtuClampedPath -->
-<!-- source: internal/le/interoplab/ipsec/helpers.go -- exemptICMPFromClamp, dropTooBigToward, dropFragmentsAtPeer, zeShowMTUDetached -->
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- exemptICMPFromClamp, dropTooBigToward, dropFragmentsAtPeer, zeShowMTUDetached, waitZeSelectors -->
 <!-- source: test/interop-ipsec/Dockerfile.ze -- iputils -->
 
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript -->
@@ -2385,7 +2388,7 @@ itself proof that the IPv6 entry reached the wire. The checker asserts:
 
 | Step | State read | Fails when |
 |------|------------|------------|
-| Selectors | `swanctl --list-sas`, and the child of `show vpn ipsec sa \| json` | Either end holds anything but `::/0` on both halves, strongSwan holds an IPv4 selector, or Ze's child does not report `if-id` 7 |
+| Selectors | `swanctl --list-sas`, and the child of `show vpn ipsec sa \| json`, each waited for, because Ze lists its Child SA only once the XFRM install is done (`waitChildSelectors`, `waitZeSelectors`) | Either end holds anything but `::/0` on both halves, strongSwan holds an IPv4 selector, or Ze's child does not report `if-id` 7 |
 | Policies | Ze's `ip xfrm policy`, the records on `if_id 0x7` | They are not exactly one `::/0` policy for each of `out`, `in` and `fwd` |
 | States | Ze's `ip xfrm state`, the records on `if_id 0x7` | Fewer than two, or one without `flag af-unspec` (child 20's `XFRM_STATE_AF_UNSPEC`) |
 | Datapath | `ip -6 route get fd00:db8:1::2` on Ze, a ping from `fd00:db8:1::1`, and the four directed ESP counters | The route does not leave through `vti0`, the ping loses anything, or any simplex SA did not count bytes |
@@ -2635,6 +2638,36 @@ charon's SHA-1 method 1 AUTH.
 <!-- source: test/interop-ipsec/scenarios/x509-legacy-rsa-signature/ -- the method 1 fixtures -->
 <!-- source: test/interop-ipsec/scenarios/x509-legacy-ecdsa-p256-signature/ -- the method 9 fixtures -->
 <!-- source: internal/le/interoplab/ipsec/legacysig.go -- checkLegacySignature -->
+
+### Ed25519 signatures against strongSwan (RFC 8420)
+
+Two scenarios run with RFC 7427 left on, so both sides send
+SIGNATURE_HASH_ALGORITHMS. strongSwan 6.1.0 announces Identity (5) because its
+openssl and curve25519 plugins each register an Identity hasher (`ike_init.c`
+`send_supported_hash_algorithms`), and Ze announces it in every IKE_SA_INIT.
+Each scenario's `pki/` holds one Ed25519 leaf issued by the shared lab P-256 CA,
+beside copies of the shared CA and of the other side's P-256 leaf.
+
+| Scenario | Ze's key | strongSwan's key | Who initiates | charon line the checker requires |
+|----------|----------|------------------|---------------|----------------------------------|
+| `x509-ed25519-ze-initiator` | Ed25519 (`client.pem`) | P-256 (`server.pem`) | Ze | `authentication of 'ze-test-client' with ED25519 successful` |
+| `x509-ed25519-ze-responder` | P-256 (`client.pem`) | Ed25519 (`server.pem`) | strongSwan | `authentication of '172.28.0.3' (myself) with ED25519 successful` |
+
+Both checkers first require the IKE and Child SAs, both kernels' ESP states and
+traffic both ways. charon names a method 14 AUTH by its signature scheme
+(`pubkey_authenticator.c`: `process` logs the scheme it verified, `build` the
+scheme it signed with). In the initiator scenario the line is charon's proof
+that it verified Ze's Ed25519 signature. In the responder scenario it proves
+charon sent an Ed25519 AUTH, which it can only do when Ze announced Identity,
+and Ze installs the Child SA only after verifying that AUTH.
+
+Not yet walked red. The break for the initiator scenario makes
+`chooseEd25519Signature` refuse as if the peer had not announced Identity: Ze
+then fails to build IKE_AUTH and no SA comes up. The break for the responder
+scenario makes `verifyEd25519` refuse every signature: Ze answers
+AUTHENTICATION_FAILED and no Child SA is installed.
+<!-- source: internal/le/interoplab/ipsec/eddsa.go -- checkEd25519ZeSigns, checkEd25519ZeVerifies -->
+<!-- source: test/interop-ipsec/scenarios/x509-ed25519-ze-initiator/ -- the Ed25519 initiator fixtures -->
 
 ### ESP transform kernel proof
 

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -647,7 +648,29 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 			}
 			// A port-translated scenario translates strongSwan alone, port first, with
 			// no DNAT, and leaves Ze on its own address (natport.go).
-			if strings.HasPrefix(source.Name, "real-nat-port-translated-") {
+			// The one exception translates Ze instead: Ze initiates from behind the
+			// port translation and strongSwan reauthenticates through it, so Ze's row
+			// is port first with no DNAT and strongSwan keeps its two-NAT row, which
+			// gives Ze an address to dial on the box (reauth.go).
+			zePortTranslation := natTranslation{
+				real: netip.MustParseAddr(zeIP), public: netip.MustParseAddr(zePublicIP), natPort: natFirstPort,
+			}
+			if source.Name == "real-nat-port-translated-responder-reauths-ze-initiator" {
+				wants = []string{
+					"ip addr add " + zePublicIP + "/24 dev eth0",
+					"ip addr add " + swanPublicIP + "/24 dev eth0",
+					natPortRule("-A", zePortTranslation, natFirstPort),
+					"iptables -t nat -A POSTROUTING -s " + zeIP + " -j SNAT --to-source " + zePublicIP,
+					"iptables -t nat -A PREROUTING -d " + swanPublicIP + " -j DNAT --to-destination " + swanIP,
+					"iptables -t nat -A POSTROUTING -s " + swanIP + " -j SNAT --to-source " + swanPublicIP,
+				}
+				if strings.Contains(nat.Command[len(nat.Command)-1], "PREROUTING -d "+zePublicIP) {
+					t.Errorf("%s DNATs Ze's public address, so strongSwan's reauth could reach Ze without the NAT mapping", source.Name)
+				}
+				if strings.Contains(nat.Command[len(nat.Command)-1], "--sport 4500 -j SNAT --to-source "+swanPublicIP+":") {
+					t.Errorf("%s port-translates strongSwan, so the mapping under test is not Ze's", source.Name)
+				}
+			} else if strings.HasPrefix(source.Name, "real-nat-port-translated-") {
 				wants = []string{
 					"ip addr add " + swanPublicIP + "/24 dev eth0",
 					natPortRule("-A", natPortTranslation, natFirstPort),
@@ -986,22 +1009,25 @@ func TestVerifyESPDirectionsRefusesAnEmptyClaim(t *testing.T) {
 	}
 }
 
-// VALIDATES: pingLoss reads the boundary values ping emits and refuses output it
-// cannot read.
-// PREVENTS: an unreadable summary defaulting to zero loss.
+// VALIDATES: pingLoss reads the boundary values ping emits, including the fractional
+// figure iputils prints for a partial loss, and refuses output it cannot read.
+// PREVENTS: an unreadable summary defaulting to zero loss, and "33.3333% packet loss"
+// read as 3333 because the pattern matched the digits after the decimal point.
 func TestPingLossBoundaries(t *testing.T) {
 	for _, test := range []struct {
 		output string
-		want   int
+		want   float64
 	}{
 		{"4 packets transmitted, 4 packets received, 0% packet loss", 0},
 		{"100 packets transmitted, 99 packets received, 1% packet loss", 1},
 		{"4 packets transmitted, 0 packets received, 100% packet loss", 100},
+		{"3 packets transmitted, 2 received, +1 errors, 33.3333% packet loss, time 2030ms", 33.3333},
+		{"3 packets transmitted, 1 received, 66.6667% packet loss, time 2003ms", 66.6667},
 	} {
 		t.Run(test.output, func(t *testing.T) {
 			got, err := pingLoss(test.output)
 			if err != nil || got != test.want {
-				t.Fatalf("loss = %d, error = %v, want %d", got, err, test.want)
+				t.Fatalf("loss = %g, error = %v, want %g", got, err, test.want)
 			}
 		})
 	}

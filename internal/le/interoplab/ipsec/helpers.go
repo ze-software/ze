@@ -76,7 +76,7 @@ var (
 	xfrmBytes     = regexp.MustCompile(`(\d+)\(bytes\)`)
 	srcDstPattern = regexp.MustCompile(`^src (\S+) dst (\S+)`)
 
-	pingLossPattern = regexp.MustCompile(`(\d+)% packet loss`)
+	pingLossPattern = regexp.MustCompile(`(\d+(?:\.\d+)?)% packet loss`)
 )
 
 type scenarioLab struct {
@@ -437,17 +437,19 @@ func (l *scenarioLab) checkXFRMCount(ctx context.Context, peer string, expected 
 	return nil
 }
 
-// pingLoss reads the loss percentage out of a ping summary.
+// pingLoss reads the loss percentage out of a ping summary. iputils prints a partial
+// loss with a fraction ("33.3333% packet loss", ping_common.c), so the figure is read
+// whole: a pattern for digits alone matched only "3333" of it.
 //
 // An absent summary is a FAILURE and never a pass. A run that printed no summary
 // measured nothing, so reading the missing match as success would make the check
 // answer for a ping that never reported (`ai/rules/principles.md`).
-func pingLoss(output string) (int, error) {
+func pingLoss(output string) (float64, error) {
 	match := pingLossPattern.FindStringSubmatch(output)
 	if match == nil {
 		return 0, fmt.Errorf("printed no packet-loss summary: %s", output)
 	}
-	loss, err := strconv.Atoi(match[1])
+	loss, err := strconv.ParseFloat(match[1], 64)
 	if err != nil {
 		return 0, fmt.Errorf("printed an unreadable packet-loss percentage %q: %s", match[1], output)
 	}
@@ -469,7 +471,7 @@ func (l *scenarioLab) requireLosslessPingFrom(ctx context.Context, probe pingPro
 		return fmt.Errorf("ping from %s to %s %w", probe.peer, probe.target, err)
 	}
 	if loss != 0 {
-		return fmt.Errorf("ping from %s to %s lost %d%% of %d packets: %s", probe.peer, probe.target, loss, count, output)
+		return fmt.Errorf("ping from %s to %s lost %g%% of %d packets: %s", probe.peer, probe.target, loss, count, output)
 	}
 	return nil
 }
@@ -672,6 +674,31 @@ func (l *scenarioLab) assertZeSelectors(ctx context.Context, local, remote strin
 	}
 	return fmt.Errorf("show vpn ipsec sa reports no child sa with ts-local %s and ts-remote %s; answer: %s",
 		local, remote, answer)
+}
+
+// waitZeSelectors waits until ONE Child SA of `show vpn ipsec sa` carries both
+// selectors, under the same rule as assertZeSelectors.
+//
+// A checker that saw strongSwan install its Child SA, or saw ze list the IKE SA
+// established, has not seen ze's Child SA: ze lists the IKE SA when IKE_AUTH
+// completes, and adds the Child SA once its XFRM state and policies are installed
+// (runEstablished, internal/component/ike/engine/established.go). Reading ze once at
+// that moment races the install. The wait ends on ze's own answer, so traffic sent
+// after it meets installed state.
+func (l *scenarioLab) waitZeSelectors(ctx context.Context, local, remote string) error {
+	var tb textbuf.Buffer
+	description := tb.Str("ze Child SA with ts-local ").Str(local).Str(" and ts-remote ").Str(remote).String()
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: childWaitTimeout, Interval: 2 * time.Second, Description: description,
+	}, func(probe context.Context) (bool, error) {
+		// A Child SA not yet listed is a transient Wait absorbs until the timeout;
+		// the last error carries what ze listed instead.
+		if err := l.assertZeSelectors(probe, local, remote); err != nil {
+			return false, err
+		}
+		return true, nil
+	}, func(listed bool) bool { return listed })
+	return err
 }
 
 // zeIKEEncryption returns the encryption transform ze negotiated for its IKE SA with
@@ -1656,7 +1683,7 @@ func (l *scenarioLab) requireLossyPing(ctx context.Context, probe pingProbe) err
 		return fmt.Errorf("ping from %s to %s at %d octets %w", probe.peer, probe.target, probe.size, err)
 	}
 	if loss != 100 {
-		return fmt.Errorf("ping from %s to %s at %d octets lost %d%%, want every packet refused by the clamped path: %s",
+		return fmt.Errorf("ping from %s to %s at %d octets lost %g%%, want every packet refused by the clamped path: %s",
 			probe.peer, probe.target, probe.size, loss, output)
 	}
 	return nil

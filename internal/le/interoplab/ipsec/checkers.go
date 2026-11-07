@@ -33,57 +33,60 @@ type scenarioCheck struct {
 }
 
 var scenarioCheckers = map[string]scenarioCheck{
-	"child-rekey":                                           {run: checkChildRekey},
-	"child-rekey-narrowing":                                 {run: checkChildRekeyNarrowing},
-	"child-rekey-refused-keeps-the-sa":                      {run: checkChildRekeyRefusedKeepsTheSA},
-	"childless-ike-sa-ze-initiator":                         {run: checkChildlessIKESAZeInitiator},
-	"childless-ike-sa-ze-responder":                         {run: checkChildlessIKESAZeResponder},
-	"clear-reestablish":                                     {run: checkClearReestablish},
-	"cookie-challenge":                                      {run: checkCookieChallenge},
-	"dataplane-readback":                                    {run: checkDataplaneReadback},
-	"delete-while-window-held":                              {run: checkDeleteWhileWindowHeld},
-	"eap-mschapv2":                                          {run: checkEAPMSCHAPv2},
-	"eap-nak-method-negotiation":                            {run: checkEAPNakMethodNegotiation},
-	"eap-tls":                                               {run: checkEAPTLS},
-	"eap-tls13":                                             {run: checkEAPTLS13},
-	"esn-both-offered":                                      {run: checkESNBothOffered},
-	"esn-extended-only-refused":                             {run: checkESNExtendedOnlyRefused},
-	"esp-3des-sha1":                                         {run: checkESPKernel("3des", "cbc(des3_ede)", "hmac(sha1)")},
-	"esp-aes-cbc-sha256":                                    {run: checkESPKernel("aes256", "cbc(aes)", "hmac(sha256)")},
-	"esp-chacha20poly1305":                                  {run: checkESPKernel("chacha20poly1305", "rfc7539esp(chacha20,poly1305)")},
-	"esp-form-change":                                       {run: checkESPFormChange},
-	"esp-integrity-only-null":                               {run: checkESPIntegrityOnlyNull},
-	"ike-aes-ccm16":                                         {run: checkIKEAESCCM16},
-	"ike-padded-probe-strongswan":                           {run: checkIKEPaddedProbeStrongSwan, writesPeerSysctl: true},
-	"ike-rekey-retries-in-the-named-group":                  {run: checkIKERekeyRetriesInTheNamedGroup},
-	"initiator-rekey-answer-narrows":                        {run: checkInitiatorRekeyAnswerNarrows},
-	"invalid-ke-retry":                                      {run: checkInvalidKERetry},
-	"ipsec-bgp-redistribute-frr":                            {run: checkIPsecBGPRedistributeFRR},
-	"mobike-initiator":                                      {run: checkMOBIKEInitiator},
-	"mobike-responder":                                      {run: checkMOBIKEResponder},
-	"mtu-nat-installed-endpoint":                            {run: checkMTUNATInstalledEndpoint},
-	"mtu-negotiated-transform":                              {run: checkMTUNegotiatedTransform},
-	"mtu-tunnel-sizing-strongswan":                          {run: checkMTUTunnelSizingStrongSwan},
-	"multiple-auth-ze-initiator":                            {run: checkMultipleAuthZeInitiator},
-	"multiple-auth-ze-responder":                            {run: checkMultipleAuthZeResponder},
-	"natt-transport-inner-checksum":                         {run: checkNATTTransportInnerChecksum},
-	"natt-tunnel-inner-checksum":                            {run: checkNATTTunnelInnerChecksum},
-	"out-of-sa-request-notified-over-sa":                    {run: checkOutOfSARequestNotifiedOverSA},
-	"peer-reload-narrowing":                                 {run: checkPeerReloadNarrowing},
-	"psk-site-to-site":                                      {run: checkPSKSiteToSite},
-	"real-nat-port-translated-eap-ze-responder":             {run: checkRealNATPortTranslatedEAPZeResponder},
-	"real-nat-port-translated-transport-ze-responder":       {run: checkRealNATPortTranslatedTransportZeResponder},
-	"real-nat-port-translated-ze-responder":                 {run: checkRealNATPortTranslatedZeResponder},
-	"real-nat-transport-rekey-after-ike-rekey":              {run: checkRealNATTransportRekeyAfterIKERekey},
-	"real-nat-transport-ze-initiator":                       {run: checkRealNATTransportZeInitiator},
-	"real-nat-transport-ze-initiator-rekey-after-ike-rekey": {run: checkRealNATTransportZeInitiatorRekeyAfterIKERekey},
-	"real-nat-transport-ze-responder":                       {run: checkRealNATTransportZeResponder},
-	"real-nat-tunnel-control":                               {run: checkRealNATTunnelControl},
-	"responder-accepts-reinit":                              {run: checkResponderAcceptsReinit},
-	"responder-reauths-ze-initiator":                        {run: checkResponderReauthsZeInitiator},
-	"responder-eap-mschapv2":                                {run: checkResponderEAPMSCHAPv2},
-	"responder-eap-tls12":                                   {run: checkResponderEAPTLS12},
-	"responder-eap-tls13":                                   {run: checkResponderEAPTLS13},
+	"child-rekey":                                     {run: checkChildRekey},
+	"child-rekey-narrowing":                           {run: checkChildRekeyNarrowing},
+	"child-rekey-refused-keeps-the-sa":                {run: checkChildRekeyRefusedKeepsTheSA},
+	"childless-ike-sa-ze-initiator":                   {run: checkChildlessIKESAZeInitiator},
+	"childless-ike-sa-ze-responder":                   {run: checkChildlessIKESAZeResponder},
+	"clear-reestablish":                               {run: checkClearReestablish},
+	"cookie-challenge":                                {run: checkCookieChallenge},
+	"dataplane-readback":                              {run: checkDataplaneReadback},
+	"delete-while-window-held":                        {run: checkDeleteWhileWindowHeld},
+	"eap-mschapv2":                                    {run: checkEAPMSCHAPv2},
+	"eap-nak-method-negotiation":                      {run: checkEAPNakMethodNegotiation},
+	"eap-tls":                                         {run: checkEAPTLS},
+	"eap-tls13":                                       {run: checkEAPTLS13},
+	"esn-both-offered":                                {run: checkESNBothOffered},
+	"esn-extended-only-refused":                       {run: checkESNExtendedOnlyRefused},
+	"esp-3des-sha1":                                   {run: checkESPKernel("3des", "cbc(des3_ede)", "hmac(sha1)")},
+	"esp-aes-cbc-sha256":                              {run: checkESPKernel("aes256", "cbc(aes)", "hmac(sha256)")},
+	"esp-chacha20poly1305":                            {run: checkESPKernel("chacha20poly1305", "rfc7539esp(chacha20,poly1305)")},
+	"esp-form-change":                                 {run: checkESPFormChange},
+	"esp-integrity-only-null":                         {run: checkESPIntegrityOnlyNull},
+	"ike-aes-ccm16":                                   {run: checkIKEAESCCM16},
+	"ike-padded-probe-strongswan":                     {run: checkIKEPaddedProbeStrongSwan, writesPeerSysctl: true},
+	"ike-rekey-retries-in-the-named-group":            {run: checkIKERekeyRetriesInTheNamedGroup},
+	"initiator-rekey-answer-narrows":                  {run: checkInitiatorRekeyAnswerNarrows},
+	"invalid-ke-retry":                                {run: checkInvalidKERetry},
+	"ipsec-bgp-redistribute-frr":                      {run: checkIPsecBGPRedistributeFRR},
+	"mobike-initiator":                                {run: checkMOBIKEInitiator},
+	"mobike-responder":                                {run: checkMOBIKEResponder},
+	"mtu-nat-installed-endpoint":                      {run: checkMTUNATInstalledEndpoint},
+	"mtu-negotiated-transform":                        {run: checkMTUNegotiatedTransform},
+	"mtu-tunnel-sizing-strongswan":                    {run: checkMTUTunnelSizingStrongSwan},
+	"multiple-auth-ze-initiator":                      {run: checkMultipleAuthZeInitiator},
+	"multiple-auth-ze-responder":                      {run: checkMultipleAuthZeResponder},
+	"natt-transport-inner-checksum":                   {run: checkNATTTransportInnerChecksum},
+	"natt-tunnel-inner-checksum":                      {run: checkNATTTunnelInnerChecksum},
+	"out-of-sa-request-notified-over-sa":              {run: checkOutOfSARequestNotifiedOverSA},
+	"peer-reload-narrowing":                           {run: checkPeerReloadNarrowing},
+	"psk-site-to-site":                                {run: checkPSKSiteToSite},
+	"real-nat-port-translated-eap-ze-responder":       {run: checkRealNATPortTranslatedEAPZeResponder},
+	"real-nat-port-translated-transport-ze-responder": {run: checkRealNATPortTranslatedTransportZeResponder},
+	"real-nat-port-translated-ze-responder":           {run: checkRealNATPortTranslatedZeResponder},
+	// Ze initiates from behind the port translation and strongSwan reauthenticates
+	// through the mapping (reauth.go).
+	"real-nat-port-translated-responder-reauths-ze-initiator": {run: checkRealNATPortTranslatedResponderReauthsZeInitiator},
+	"real-nat-transport-rekey-after-ike-rekey":                {run: checkRealNATTransportRekeyAfterIKERekey},
+	"real-nat-transport-ze-initiator":                         {run: checkRealNATTransportZeInitiator},
+	"real-nat-transport-ze-initiator-rekey-after-ike-rekey":   {run: checkRealNATTransportZeInitiatorRekeyAfterIKERekey},
+	"real-nat-transport-ze-responder":                         {run: checkRealNATTransportZeResponder},
+	"real-nat-tunnel-control":                                 {run: checkRealNATTunnelControl},
+	"responder-accepts-reinit":                                {run: checkResponderAcceptsReinit},
+	"responder-reauths-ze-initiator":                          {run: checkResponderReauthsZeInitiator},
+	"responder-eap-mschapv2":                                  {run: checkResponderEAPMSCHAPv2},
+	"responder-eap-tls12":                                     {run: checkResponderEAPTLS12},
+	"responder-eap-tls13":                                     {run: checkResponderEAPTLS13},
 	// The leaf-only client establishes exactly as responder-eap-tls13 does, so it
 	// runs the same checker: the scenario differs in its chain alone (RFC 5216
 	// Section 5.3, Ze's intermediate-certificate list completes the path).
@@ -112,6 +115,11 @@ var scenarioCheckers = map[string]scenarioCheck{
 	// The same exchange with strongSwan initiating, so Ze signs as the responder
 	// from the notify-free IKE_SA_INIT request it answered (responder.go).
 	"x509-legacy-rsa-signature-ze-responder": {run: checkLegacySignature("RSA signature")},
+	// RFC 8420 Ed25519 under RFC 7427 method 14: Ze signs with an Ed25519 leaf
+	// against strongSwan's P-256 one, then the reverse with strongSwan initiating
+	// (eddsa.go).
+	"x509-ed25519-ze-initiator": {run: checkEd25519ZeSigns},
+	"x509-ed25519-ze-responder": {run: checkEd25519ZeVerifies},
 }
 
 // ScenarioNames returns every typed checker name in lexical selection order.
@@ -2298,7 +2306,7 @@ func readbackAsymmetricTraffic(ctx context.Context, lab *scenarioLab) (result er
 		return err
 	}
 	if loss != 100 {
-		return fmt.Errorf("one-way counter probe lost %d%%, want every echo reply suppressed", loss)
+		return fmt.Errorf("one-way counter probe lost %g%%, want every echo reply suppressed", loss)
 	}
 	return nil
 }
@@ -2722,6 +2730,10 @@ func requireProbeSurvivedRekey(row map[string]any, pathMTU int) error {
 
 // requirePaddedProbeSAAlive refuses unless both daemons list an established IKE SA
 // and the tunnel carries a lossless Don't Fragment ping at the recommended size.
+//
+// The ping waits for ze to list the Child SA first. After a re-establishment ze
+// lists the IKE SA before it installs the Child SA (waitZeSelectors), and a ping
+// sent in between meets no XFRM state and reads as tunnel loss.
 func (l *scenarioLab) requirePaddedProbeSAAlive(ctx context.Context) error {
 	if err := l.requireZeIKEEstablished(ctx, swanConfigPeer); err != nil {
 		return err
@@ -2731,6 +2743,9 @@ func (l *scenarioLab) requirePaddedProbeSAAlive(ctx context.Context) error {
 		return err
 	}
 	if err := requireContains(sas, "ESTABLISHED", "strongSwan lists no ESTABLISHED IKE SA"); err != nil {
+		return err
+	}
+	if err := l.waitZeSelectors(ctx, natTunnelZeInner+"/32", natTunnelSwanInner+"/32"); err != nil {
 		return err
 	}
 	sized := pingProbe{peer: zePeer, target: natTunnelSwanInner, source: natTunnelZeInner, size: mtuGCMUDPRecommended - mtuPingHeaders}

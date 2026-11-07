@@ -250,7 +250,10 @@ func (l *scenarioLab) waitDNSAnswer(ctx context.Context, record dnsRecord) error
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: dnsAnswerTimeout, Interval: time.Second, Description: description,
 	}, func(probe context.Context) (string, error) {
-		return l.exec(probe, dnsPeer, "nslookup", record.name, dnsIP)
+		// -type=a: a bare nslookup also asks for AAAA, which dnsmasq refuses for
+		// an IPv4-only host record, and busybox then exits 1 even though the A
+		// answer printed, so the wait never saw an answer it had.
+		return l.exec(probe, dnsPeer, "nslookup", "-type=a", record.name, dnsIP)
 	}, func(output string) bool {
 		return nslookupAnswers(output, record.address)
 	})

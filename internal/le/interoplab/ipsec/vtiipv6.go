@@ -151,7 +151,7 @@ func (l *scenarioLab) vtiIPv6Negotiated(ctx context.Context) error {
 		return fmt.Errorf("strongSwan installed an IPv4 selector its child config does not name; swanctl --list-sas:\n%s",
 			interoplab.OutputExcerpt(listing))
 	}
-	if err := l.assertZeSelectors(ctx, vtiIPv6Wildcard, vtiIPv6Wildcard); err != nil {
+	if err := l.waitZeSelectors(ctx, vtiIPv6Wildcard, vtiIPv6Wildcard); err != nil {
 		return err
 	}
 	records, answer, err := l.zeIKESAs(ctx)
