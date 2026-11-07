@@ -9,7 +9,7 @@
 | Depends | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (the Ze-image guest this spec reuses) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-23 |
+| Updated | 2026-11-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -70,6 +70,25 @@ Verified at the producer on 2026-10-23.
 - [ ] `internal/test/runner/ports.go` - `LeaseTestPorts`, `ReservePorts`: leases cover `$PORT`/`$PORT2` only. Fixed ports a test or daemon binds itself (REST 18081, IKE UDP 4500), loopback addresses, and lab /24s are not leased.
 - [ ] `internal/component/command/registry/registry.go` - `ResetForTest` empties every root command; no `_test.go` calls it any more (only a comment in `cmd/ze/root_dispatch_test.go`).
 - [ ] `internal/le/test/qemu/run_iso.go` - `alpineISOName`: four guest kinds still boot Alpine.
+
+## Existing Mechanisms (MANDATORY)
+
+Read at the producer on 2026-11-07.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Per-test port lease | `internal/test/runner/ports.go` `LeaseTestPorts`, `reservePortLocksIn`, `portLockDirectory` | Leases `$PORT`..`$PORT3` with per-port `flock` files under `/tmp/le-port-locks-<uid>`, shared by every le process of the user; a taken span moves to the 25000-32760 band. Ports a daemon binds itself (REST 18081, IKE 4500) and addresses are not leased | Extends: addresses and lab subnets get lock files in the same directory (A-1), and fixed ports move onto leases. No second registry |
+| Long-held reservations | `ports.go` `ReservePorts`, `LockPort`; `internal/le/test/qemu/hostport.go` `reserveForwardPort` | A suite range, a web case, and every QEMU host forward hold the same per-port lock for their lifetime | Extends: same registry. The QEMU forwards already use it and need no change |
+| Exclusive groups | `option=exclusive:group=<name>`, `internal/test/runner/exclusive.go` `leaseExclusiveGroup`; `docs/architecture/testing/runner-architecture.md`, "Exclusive-group leases" | Same-user advisory lease in the port-lock directory; tests in one group never overlap, across runner processes. Used for host globals no lease can split, such as the `ze:owned:` macvlan namespace | Extends: stays the route for a host global a sandbox cannot copy. It serializes and does not clean: a serial run (`-p 1`) still meets state an earlier test left, as the 2026-11-07 row shows |
+| Per-test network namespace | `internal/test/runner/runner_exec.go` `runOrchestrated` (netns arm), `netns_linux.go` `enterTestNetns`, `runner_exec_util.go` `netnsModeActive`; `caps.go` `applyNetnsLinkGate` | Opt-in on Linux (`ZE_TEST_NETNS`): every child of a case runs in a fresh namespace, so routes, links and nft state die with the case; `option=netns-link` provisions interfaces there and skips the case when the mode is off. Only `./le test qemu netns` sets it (`internal/le/test/qemu/netns.go`); `./le test qemu all` and the static run that found the 2026-11-07 row do not | Extends: it is the existing per-test scope for kernel state, so the sandbox reuses it for the owned QEMU rows (2026-08-19, 2026-11-07) rather than adding a namespace mechanism. Whether it becomes the default for Linux cases is a design decision this spec still owes |
+| Per-test work directory and config dir | `runner_exec.go` `runTest` (`rec.WorkDir`), `runner.go` `childWorkingDirectory`, `repositoryAnchoredBinary` | Each case gets a directory under the session scratch root; ze and peer children run there with `ze.config.dir=<WorkDir>`. `go` and `./le` steps, the decode spawn (`decoding.go` `decodingRunner.runTest`) and the build still run in the checkout | Extends: the sandbox's cwd and config dir are this directory, and the spawns that bypass it are routed through it |
+| Session scratch root | `runner.go` `NewRunner` (`sessionpath.EnsureScratchRoot`) | Roots a run's scratch in the session directory, or the system temp dir off-session | Extends: sandbox directories are created under it |
+| Child environment helpers | `internal/test/runner/runner_exec_util.go` `childEnv`; `internal/core/env/env.go` `Without`, `ensureCache` | The runner appends its own variables to an inherited environment; `Without` drops every spelling of named keys; an inherited dotted spelling beats an undotted one | Replaces the inherited base with an allow-list derived from `env.MustRegister`; `Without` stays the spelling-safe filter |
+| Loopback alias setup | `runner_exec.go` `ensureBindAddresses`, `loopback_bsd.go` `ensureLoopbackAlias` | Adds an IPv4 alias when privileged, otherwise fails the case naming `./le setup install` | Extends: leased addresses pass through it; it stays the one place an alias is added |
+| Bin shims | `runner.go` `setupBinShims`, `childPathEnv` | A per-run directory of `ze` and `le` symlinks first on every child's PATH | Does not apply: already per run, outside the checkout |
+| Process-group kill | `internal/component/plugin` `KillGroupOnCancel`, `KillProcessGroup`; `internal/test/cli/cmd_exabgp_process.go` `stopExaProcess` | The exabgp runner forks each child in its own group and signals the whole group on stop or cancel; Linux adds `Pdeathsig` | Extends: AC-5 applies the same fork and stop to every spawn the runner makes |
+| Registry snapshot and restore | `ai/doors/plugin-infra.md`, Traps (`registry.Snapshot()` in `t.Cleanup`); `internal/component/command/registry/registry.go` `ResetForTest` | A test that mutates a plugin registry is expected to snapshot and restore it; `ResetForTest` empties the root registries and has no test caller | Extends: the per-test registry scope generalizes snapshot and restore to every registering package (AC-8) |
+| QEMU run guest | `internal/le/test/qemu/run.go` `Run.Plan`, `run_iso.go` `ensureISO`, `alpineISOName`; the docker-lab guest (`internal/appliance/dockerhost`) | `run`, `all-tests`, `stress` and `mobike` boot an Alpine ISO and install Go in the guest; docker-lab already boots Ze's image | Replaces: those guest kinds boot Ze's image and `run_iso.go` is deleted (AC-7) |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -204,6 +223,7 @@ Runner to child process (environment, cwd); runner to host kernel (addresses, po
 | parallel-copies-collide-on-a-deterministic-port.md | 2026-10-04 | check_labeled_withdraw.go and bgp-labeled-withdraw-compatibility-frr/inject |
 | parallel-copies-collide-on-a-deterministic-port.md | 2026-08-19 | test/plugin/rest-api-commands.ci |
 | parallel-copies-collide-on-a-deterministic-port.md | 2026-08-19 | test/static, test/plugin, QEMU VM |
+| parallel-copies-collide-on-a-deterministic-port.md | 2026-11-07 | test/static kernel-distance and rollback tests, QEMU VM |
 | parallel-copies-collide-on-a-deterministic-port.md | 2026-08-10 | test tooling |
 | parallel-copies-collide-on-a-deterministic-port.md | 2026-08-24 | global_cleanup (test/interop-ipsec/lab.py (retired; now internal/le/interop |
 | parallel-copies-collide-on-a-deterministic-port.md | 2026-09-17 | test/ipsec/ipsec-status-show.ci, the IKE NAT-T listener on UDP 4500 |
