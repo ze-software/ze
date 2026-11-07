@@ -160,6 +160,8 @@ func checkers() map[string]interoplab.Checker {
 		"pppoe-chap-rechallenge-ze-client":       checkCHAPRechallenge,
 		"pppoe-peer-terminate-ze-ac":             checkPeerTerminate,
 		"pppoe-named-device-reconnect-ze-client": checkNamedDeviceReconnect,
+		"pppoe-ipv6cp-ze-client":                 checkZeClientIPv6CP,
+		"pppoe-ipv6cp-rejected-ze-client":        checkZeClientIPv6CPRejected,
 	}
 	maps.Copy(all, wireCheckers)
 	return all

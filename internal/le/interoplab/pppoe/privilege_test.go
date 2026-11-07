@@ -22,8 +22,10 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-// VALIDATES: AC-4 for the peers. Every peer of every scenario holds NET_ADMIN
-// and --device /dev/ppp, runs no --privileged, and mounts no /lib/modules.
+// VALIDATES: AC-4 for the peers. Every peer of every scenario holds exactly
+// NET_ADMIN and --device /dev/ppp, plus the IPv6 grants peerGrants names only
+// where the scenario carries the ipv6-session marker, runs no --privileged,
+// and mounts no /lib/modules.
 // PREVENTS: a peer silently regaining --privileged or the host's module tree.
 func TestPPPoELabPeersRunWithoutPrivilege(t *testing.T) {
 	root, err := lepath.Root()
@@ -42,8 +44,12 @@ func TestPPPoELabPeersRunWithoutPrivilege(t *testing.T) {
 		if err != nil {
 			t.Fatalf("plan %s: %v", source.Name, err)
 		}
+		ipv6, err := ipv6SessionScenario(source)
+		if err != nil {
+			t.Fatalf("plan %s: %v", source.Name, err)
+		}
 		for _, peer := range plan.Peers {
-			want := grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
+			want := peerGrants(peer.Name, ipv6)
 			for _, problem := range grantcheck.Problems(grantcheck.ParsePeer(peer, grantcheck.StagedRoots(t)...), want) {
 				t.Errorf("%s: peer %s %s", source.Name, peer.Name, problem)
 			}
@@ -52,6 +58,62 @@ func TestPPPoELabPeersRunWithoutPrivilege(t *testing.T) {
 					t.Errorf("%s: peer %s mounts the host's /lib/modules", source.Name, peer.Name)
 				}
 			}
+		}
+	}
+}
+
+// peerGrants is the exact set of grants a peer of a PPPoE scenario holds:
+// NET_ADMIN and /dev/ppp for every peer, and, only in a scenario carrying the
+// ipv6-session marker, the namespace's IPv6 default kept enabled
+// (ipv6SessionArguments) on both peers, plus the generic net-sysctl write
+// grant on Ze alone, because the client writes accept_ra, autoconf and
+// forwarding on each session device it creates. accel-ppp writes no sysctl
+// the scenario relies on, so it never gets the write grant.
+func peerGrants(peer string, ipv6 bool) grantcheck.Grants {
+	grants := grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
+	if !ipv6 {
+		return grants
+	}
+	grants.Sysctls = grantcheck.Parse(nil, ipv6SessionArguments()).Sysctls
+	if peer == zeImageName {
+		grants.SecurityOptions = grantcheck.Parse(nil, interoplab.NetSysctlWriteArguments()).SecurityOptions
+		grants.AppArmorProfile = interoplab.NetSysctlAppArmorProfileName
+	}
+	return grants
+}
+
+// VALIDATES: the IPv6 grant is exact and confined. Some scenario carries the
+// ipv6-session marker (so the grant above is exercised, not dead), and every
+// sysctl the Ze client writes on its session device is one the
+// ze-lab-net-sysctl profile admits.
+// PREVENTS: a marker that grants writes the profile then denies, and a grant
+// list that no scenario reaches.
+func TestPPPoEIPv6SessionGrantIsConfined(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources, err := interoplab.Discover(filepath.Join(root, suitePath, "scenarios"), "", checkers())
+	if err != nil {
+		t.Fatal(err)
+	}
+	marked := 0
+	for _, source := range sources {
+		ipv6, err := ipv6SessionScenario(source)
+		if err != nil {
+			t.Fatalf("%s: %v", source.Name, err)
+		}
+		if ipv6 {
+			marked++
+		}
+	}
+	if marked == 0 {
+		t.Fatal("no PPPoE scenario carries the ipv6-session marker")
+	}
+	for _, suffix := range []string{"accept_ra", "autoconf", "forwarding"} {
+		key := "net.ipv6.conf.pppoe0." + suffix
+		if !interoplab.NetSysctlGranted(key) {
+			t.Errorf("%s is denied by %s", key, interoplab.NetSysctlAppArmorProfileName)
 		}
 	}
 }

@@ -51,6 +51,23 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 		{Source: zeConfig, Target: zeConfigPath, ReadOnly: true},
 	}
 
+	accelArguments := interoplab.PPPDeviceArguments()
+	zeArguments := append(interoplab.PPPDeviceArguments(), "-e", "ze.log.interface=debug")
+	zeAppArmorProfile := ""
+	ipv6, err := ipv6SessionScenario(source)
+	if err != nil {
+		return nil, err
+	}
+	if ipv6 {
+		accelArguments = append(accelArguments, ipv6SessionArguments()...)
+		zeArguments = append(zeArguments, ipv6SessionArguments()...)
+		// The client writes accept_ra, autoconf and forwarding on the session
+		// device each time a session creates it, so the writes happen at run
+		// time and cannot be --sysctl arguments (apparmor_netsysctl.go).
+		zeArguments = append(zeArguments, interoplab.NetSysctlWriteArguments()...)
+		zeAppArmorProfile = interoplab.NetSysctlAppArmorProfileName
+	}
+
 	return []interoplab.PeerConfig{
 		{
 			Name:         accelImageName,
@@ -59,7 +76,7 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 			Host:         accelHost,
 			Mounts:       accelMounts,
 			Capabilities: []string{netAdminCapability},
-			Arguments:    interoplab.PPPDeviceArguments(),
+			Arguments:    accelArguments,
 			Ready: &interoplab.ReadyProbe{
 				Command:  []string{"accel-cmd", commandShow, "stat"},
 				Timeout:  60 * time.Second,
@@ -67,19 +84,50 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 			},
 		},
 		{
-			Name:         zeImageName,
-			Container:    containers.ze,
-			Image:        zeImageTag,
-			Host:         zeHost,
-			Mounts:       zeMounts,
-			Capabilities: []string{netAdminCapability},
-			Arguments: append(interoplab.PPPDeviceArguments(),
-				"-e",
-				"ze.log.interface=debug",
-			),
-			Command: []string{"start", zeConfigPath},
+			Name:            zeImageName,
+			Container:       containers.ze,
+			Image:           zeImageTag,
+			Host:            zeHost,
+			Mounts:          zeMounts,
+			Capabilities:    []string{netAdminCapability},
+			Arguments:       zeArguments,
+			AppArmorProfile: zeAppArmorProfile,
+			Command:         []string{"start", zeConfigPath},
 		},
 	}, nil
+}
+
+// ipv6SessionMarker names the scenario file whose presence says the session
+// negotiates IPv6CP. Its content is a comment for the reader; only its
+// presence is read.
+const ipv6SessionMarker = "ipv6-session"
+
+// ipv6SessionScenario reports whether the scenario carries ipv6SessionMarker,
+// and refuses a marker it cannot read or that is a directory.
+func ipv6SessionScenario(source interoplab.ScenarioSource) (bool, error) {
+	info, err := os.Stat(filepath.Join(source.Directory, ipv6SessionMarker))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("read %s in %s: %w", ipv6SessionMarker, source.Name, err)
+	}
+	if info.IsDir() {
+		return false, fmt.Errorf("%s in %s is a directory: write it as a file", ipv6SessionMarker, source.Name)
+	}
+	return true, nil
+}
+
+// ipv6SessionArguments keeps IPv6 enabled on the PPP device each peer creates
+// at run time. A PPP device takes its disable_ipv6 from the namespace default
+// when the kernel creates it, and Docker may disable IPv6 in a container on
+// a network that carries none, which would leave the device without the
+// link-local address IPv6CP negotiates and without Router Advertisements.
+// The default is set once before the daemon starts, inside the container's
+// own network namespace, so it is a --sysctl argument and needs no write
+// grant.
+func ipv6SessionArguments() []string {
+	return []string{"--sysctl", "net.ipv6.conf.default.disable_ipv6=0"}
 }
 
 func prepareZeAccessConcentrator(

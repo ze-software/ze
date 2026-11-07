@@ -1,0 +1,3 @@
+# Marker read by internal/le/interoplab/pppoe/scenarios.go (ipv6SessionScenario):
+# its presence keeps IPv6 enabled on the PPP devices both peers create, and lets
+# the Ze client write accept_ra, autoconf and forwarding on its session device.

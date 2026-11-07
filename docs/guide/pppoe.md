@@ -226,6 +226,11 @@ A PPP device has no hardware address, so the DHCPv6 client builds its DUID-LL
 and IAIDs from the source interface unless `dhcpv6 duid` is set. The delegated
 prefix is published as a lease on `pppoe0`; nothing yet assigns it to a LAN
 interface.
+
+The interop scenarios `pppoe-ipv6cp-ze-client` and
+`pppoe-ipv6cp-rejected-ze-client` prove this against accel-ppp: the first the
+negotiated link-local address, the RA default route and SLAAC, the second an
+access concentrator that rejects IPv6CP (`docs/labs/pppoe-interop.md`).
 <!-- source: internal/component/iface/pppoe_client_ipv6.go -- parsePPPoEClientIPv6, applyPPPoEClientSysctls -->
 <!-- source: internal/component/iface/register.go -- reconcileDHCP, pppoeClientDHCPUnit -->
 

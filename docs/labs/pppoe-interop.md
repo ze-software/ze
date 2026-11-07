@@ -386,6 +386,50 @@ The lab cannot lose a frame on demand, so the retry itself stays proven by the
 discriminated unit tests in `pppoeclient`; this scenario proves the PAP path
 interoperates. `spec-pppoe-client-pap-retry`.
 
+### pppoe-ipv6cp-ze-client
+
+Ze dials accel-ppp with `ipv6 enabled true`, `accept-ra 2`, `autoconf true`
+and `forwarding true` on its `pppoe-client`. accel-ppp runs `ipv6=prefer`,
+so the session starts only once IPv6CP opened. Its own identifier is
+`0:0:0:1`, and `ipv6-peer-intf-id=0:0:0:5a` with
+`ipv6-accept-peer-intf-id=0` makes it Nak any other identifier the client
+offers with `0:0:0:5a` (`ipaddr_recv_conf_req` in accel-ppp's
+`ppp/ipv6cp_opt_intfid.c`). Ze starts from its source MAC's EUI-64, so the
+Nak is always exercised. `ipv6pool` hands the session the first /64 of
+`2001:db8:100::/56`, and `ipv6_nd` advertises it with the autonomous flag.
+
+The checker reads accel-ppp's own trace for, in order: Ze's Configure-Request
+with one non-zero Interface-Identifier and no other option, accel-ppp's
+Configure-Nak of that request suggesting `0:0:0:5a`, Ze's next request
+carrying exactly `0:0:0:5a` (RFC 5072 Section 4.1), and accel-ppp's
+Configure-Ack of it, plus Ze's Configure-Ack of accel-ppp's own request.
+In Ze's container it then requires the device to be `pppoe0`, `fe80::5a/64`
+on it, `accept_ra` 2 and `forwarding` 1 on it, a default route via `fe80::1`
+(accel-ppp's link-local) through it, a global address SLAAC formed in
+`2001:db8:100::/64`, and an IPv6 ping to `fe80::1` across the session. The
+IPv4 session proof of `01-pppoe-chap-ipv4` follows.
+
+### pppoe-ipv6cp-rejected-ze-client
+
+The same Ze client against an accel-ppp with `ipv6=deny`, which answers every
+IPv6CP packet with an LCP Protocol-Reject (`ipv6cp_recv` in accel-ppp's
+`ppp/ppp_ipv6cp.c`). The checker waits for that reject, pings the IPv4
+gateway five times (longer than Ze's 3-second IPv6CP Restart timer), then
+requires from accel-ppp's trace exactly one Protocol-Reject of IPv6CP, so the
+client stopped sending it (RFC 1661 Section 5.7), no LCP Terminate-Request
+either way, and exactly one CHAP success, so there was no second session.
+`pppoe0` must hold no link-local address. The IPv4 session proof follows
+(RFC 7084 WLL-3).
+
+Both scenarios carry an `ipv6-session` file. Its presence makes the lab set
+`net.ipv6.conf.default.disable_ipv6=0` in both containers, so the PPP devices
+they create at run time keep IPv6, and run Ze under the lab's net-sysctl
+grant, because the client writes its session device's sysctls each time a
+session creates it (`scenarios.go`, `ipv6SessionScenario`). accel-ppp has no
+command that closes IPv6CP alone, and once IPv6CP has opened accel-ppp ends
+the whole session when it closes (`ipv6cp_layer_finished`), so an IPv6CP
+close under a live IPCP stays proven by the `pppoeclient` unit tests.
+
 ### ipv6cp-zero-identifier and ipv6cp-missing-option
 
 Written and registered against RFC 5072 Section 4.1's zero-identifier Nak
