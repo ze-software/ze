@@ -248,21 +248,30 @@ func (e *externalEffects) externalParameters(node ast.Node, source sourceExpr) {
 				e.problem(datatype, "external parameter capability is unknown: "+reason)
 				continue
 			}
-			if shape != externalFormalScalar {
-				ambient := e.amb
-				if shape == externalFormalCallable {
-					// Function values have no selectable fields. Their captured
-					// authorities remain in the flattened union and lexical owners.
-					ambient = externalFlat(e.amb, 0)
-				}
-				value.join(ambient)
-			}
 			for _, name := range field.Names {
 				if !e.formalExternal[name.Obj] {
 					e.formalExternal[name.Obj] = true
 					e.changed = true
 				}
 				e.bind(name.Obj, value)
+				if shape == externalFormalScalar {
+					continue
+				}
+				// Binding the methods and then the pool equals binding their
+				// union: join is monotone and its first-wins facts keep the
+				// same order. A parameter that absorbed this pool version
+				// already holds all of it, so only a growth is joined again.
+				if e.formalAmbient[name.Obj] == e.ambient+1 {
+					continue
+				}
+				ambient := e.amb
+				if shape == externalFormalCallable {
+					// Function values have no selectable fields. Their captured
+					// authorities remain in the flattened union and lexical owners.
+					ambient = externalFlat(e.amb, 0)
+				}
+				e.bind(name.Obj, ambient)
+				e.formalAmbient[name.Obj] = e.ambient + 1
 			}
 		}
 	}

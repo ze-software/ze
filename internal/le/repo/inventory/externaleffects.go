@@ -40,6 +40,11 @@ type externalEffects struct {
 	// ambient counts growths of amb, so a settled type value read from one
 	// pool is never answered once the pool has grown (growAmbient).
 	ambient int
+	// formalAmbient records, for each external parameter, one more than the
+	// ambient version its binding last absorbed the pool at. Bindings only
+	// grow and the pool only grows, so a parameter at the current version
+	// gains nothing from absorbing it again (externalParameters).
+	formalAmbient map[*ast.Object]int
 	// settledTypes keeps settled type frames for the whole analysis
 	// (externalTypeWalk.settle).
 	settledTypes map[int32]externalTypeSettled
@@ -110,6 +115,7 @@ func newExternalEffects(source *externalSource) *externalEffects {
 		formals:         make(map[*ast.Object]externalFormal),
 		formalDemand:    make(map[*ast.Object]bool),
 		formalExternal:  make(map[*ast.Object]bool),
+		formalAmbient:   make(map[*ast.Object]int),
 		formalIndirect:  make(map[ast.Node]sourceExpr),
 		formalUnbound:   make(map[ast.Node]sourceExpr),
 		formalInvalid:   make(map[ast.Node]string),
