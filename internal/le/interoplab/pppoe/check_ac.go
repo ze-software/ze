@@ -315,6 +315,31 @@ func zeSessions(
 	lab interoplab.CheckerLab,
 ) ([]zeSession, error) {
 	command := "show pppoe sessions"
+	data, err := zeRESTData(ctx, lab, command)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 || string(data) == "null" {
+		return []zeSession{}, nil
+	}
+	var sessions []zeSession
+	if err := json.Unmarshal(data, &sessions); err != nil {
+		return nil, fmt.Errorf("show pppoe sessions returned a non-list: %s", data)
+	}
+	return sessions, nil
+}
+
+// zeRESTData runs command through Ze's REST execute endpoint inside the Ze
+// container and answers the data member of a successful reply. The REST
+// server refuses a non-loopback listener, so the request originates in the
+// container. An unreachable server, a non-JSON body and an error reply are
+// each refused; an absent data member is answered as it is, for the caller
+// to judge.
+func zeRESTData(
+	ctx context.Context,
+	lab interoplab.CheckerLab,
+	command string,
+) (json.RawMessage, error) {
 	var tb textbuf.Buffer
 	endpoint := tb.Str("http://127.0.0.1:").Int(int64(zeRESTPort)).
 		Str("/api/v1/execute").String()
@@ -344,14 +369,7 @@ func zeSessions(
 	if response.Status == "error" {
 		return nil, fmt.Errorf("REST %s: %s", command, response.Error)
 	}
-	if len(response.Data) == 0 || string(response.Data) == "null" {
-		return []zeSession{}, nil
-	}
-	var sessions []zeSession
-	if err := json.Unmarshal(response.Data, &sessions); err != nil {
-		return nil, fmt.Errorf("show pppoe sessions returned a non-list: %s", response.Data)
-	}
-	return sessions, nil
+	return response.Data, nil
 }
 
 func waitZeRESTReady(ctx context.Context, lab interoplab.CheckerLab) error {

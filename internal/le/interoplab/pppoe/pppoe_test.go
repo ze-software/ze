@@ -147,7 +147,15 @@ func TestZeClientScenarioProvesAccelAndDataplane(t *testing.T) {
 			return interoplab.CommandResult{}, errors.New("unexpected command: " + peer + " " + command)
 		}
 	}
+	showAsked := false
 	lab.queryFn = func(peer string, argv []string) (string, error) {
+		if isShowPPPoEClientQuery(peer, argv) {
+			if stopped {
+				return "", errors.New("show interface pppoe-client asked after Ze stopped")
+			}
+			showAsked = true
+			return zeShowPPPoEClientLearned, nil
+		}
 		if peer != accelImageName || strings.Join(argv, " ") != "accel-cmd show sessions" {
 			return "", errors.New("unexpected query")
 		}
@@ -167,6 +175,9 @@ func TestZeClientScenarioProvesAccelAndDataplane(t *testing.T) {
 	err := checkZeClient(context.Background(), &interoplab.CheckContext{Lab: lab})
 	if err != nil {
 		t.Fatalf("check Ze client scenario: %v", err)
+	}
+	if !showAsked {
+		t.Fatal("checker never read dns-servers from show interface pppoe-client")
 	}
 	if !pinged {
 		t.Fatal("checker never exercised the PPPoE dataplane ping")

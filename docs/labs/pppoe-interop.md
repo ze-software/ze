@@ -145,6 +145,18 @@ Ze authenticates as `alice` with CHAP-MD5. IPCP assigns `10.11.0.2` with
 point-to-point address, a route through it, ICMP to the peer, an accel-ppp
 session for `alice`, and removal of that session after Ze stops.
 
+accel-ppp's `[dns]` section offers `192.0.2.53` and `192.0.2.54`, which it
+Naks into Ze's IPCP request. While the session is up, and before it stops Ze,
+the checker requires Ze's `/tmp/resolv.conf` to list them in that order after
+the generated header. It then runs `show interface pppoe-client` through Ze's
+REST execute endpoint (enabled in the scenario's `ze.conf` on `127.0.0.1:9099`,
+so the `curl` runs inside the Ze container) and requires `pppoe0`'s
+`dns-servers` to be `["192.0.2.53", "192.0.2.54"]`. It reads the raw JSON, so
+an absent key or a `null` is refused. `pppoe-ipcp-dns-rejected-ze-client` runs
+the same checks against an accel-ppp that Rejects both DNS options: no
+resolv.conf entry, and `dns-servers` an empty list.
+<!-- source: internal/le/interoplab/pppoe/check_client.go -- checkZeClient, checkZeClientDNSRejected, checkZeClientShowDNS, pppoeClientDNSServers -->
+
 The checker also reads accel-ppp's verbose trace and requires, in order, its
 LCP Configure-Request with `<auth CHAP-md5>`, Ze's Configure-Ack carrying that
 option, a CHAP Challenge, Ze's Response naming `alice`, and a CHAP Success.

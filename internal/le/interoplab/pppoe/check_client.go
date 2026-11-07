@@ -4,8 +4,10 @@ package pppoe
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -25,17 +27,37 @@ type accelSessions struct {
 	count int
 }
 
+// zeClientDevice is the pppoe-client key every Ze-client scenario configures,
+// and so the name `show interface pppoe-client` reports it under.
+const zeClientDevice = "pppoe0"
+
 // checkZeClient MUST measure CHAP-MD5 authentication in addition to the
 // shared session proof, which deliberately does not choose an auth method.
+// 01-pppoe-chap-ipv4's accel-ppp offers dns1 192.0.2.53 and dns2
+// 192.0.2.54, so both resolv.conf and `show interface pppoe-client` carry
+// them, primary first.
 func checkZeClient(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkZeClientCHAP(ctx, check, "nameserver 192.0.2.53\nnameserver 192.0.2.54\n")
+	if err := checkZeClientResolvers(ctx, check, "nameserver 192.0.2.53\nnameserver 192.0.2.54\n"); err != nil {
+		return err
+	}
+	if err := checkZeClientShowDNS(ctx, check, []string{"192.0.2.53", "192.0.2.54"}); err != nil {
+		return err
+	}
+	return checkZeClientCHAPSession(ctx, check)
 }
 
 // checkZeClientDNSRejected proves a session against an access concentrator
 // that Rejects both DNS options: the client drops them (RFC 1661 Section
-// 5.4), IPCP opens, and no learned server reaches resolv.conf.
+// 5.4), IPCP opens, no learned server reaches resolv.conf, and
+// `show interface pppoe-client` answers dns-servers as an empty list.
 func checkZeClientDNSRejected(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkZeClientCHAP(ctx, check, "")
+	if err := checkZeClientResolvers(ctx, check, ""); err != nil {
+		return err
+	}
+	if err := checkZeClientShowDNS(ctx, check, []string{}); err != nil {
+		return err
+	}
+	return checkZeClientCHAPSession(ctx, check)
 }
 
 // checkZeClientCHAP proves the CHAP session and that Ze's resolv.conf lists
@@ -45,6 +67,93 @@ func checkZeClientCHAP(ctx context.Context, check *interoplab.CheckContext, reso
 	if err := checkZeClientResolvers(ctx, check, resolvers); err != nil {
 		return err
 	}
+	return checkZeClientCHAPSession(ctx, check)
+}
+
+// checkZeClientShowDNS waits until Ze's own `show interface pppoe-client`,
+// run through the daemon's REST execute endpoint, reports dns-servers for
+// zeClientDevice equal to want, in order. It MUST run before the session
+// check stops the client. The scenario's ze.conf MUST enable the REST
+// server on zeRESTPort with zeRESTToken.
+func checkZeClientShowDNS(ctx context.Context, check *interoplab.CheckContext, want []string) error {
+	if check == nil || check.Lab == nil {
+		return errors.New("PPPoE Ze-client checker has no lab")
+	}
+	var last string
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout:     30 * time.Second,
+		Interval:    time.Second,
+		Description: "dns-servers in show interface pppoe-client",
+	}, func(probeCtx context.Context) ([]string, error) {
+		data, err := zeRESTData(probeCtx, check.Lab, pppoeClientShowCommand)
+		if err != nil {
+			last = err.Error()
+			return nil, err
+		}
+		servers, err := pppoeClientDNSServers(data, zeClientDevice)
+		if err != nil {
+			last = err.Error()
+			return nil, err
+		}
+		last = "[" + strings.Join(servers, " ") + "]"
+		return servers, nil
+	}, func(servers []string) bool {
+		return slices.Equal(servers, want)
+	})
+	if err != nil {
+		return appendDiagnostics(ctx, check.Lab,
+			fmt.Errorf("%s: %s dns-servers = %s, want [%s]: %w",
+				pppoeClientShowCommand, zeClientDevice, last, strings.Join(want, " "), err),
+			zeImageName, accelImageName)
+	}
+	return nil
+}
+
+// pppoeClientShowCommand is the operator command whose answer carries the
+// servers each PPPoE client learned (iface.PPPoEClientCommand).
+const pppoeClientShowCommand = "show interface pppoe-client"
+
+// pppoeClientDNSServers reads the dns-servers of the client named name from
+// data, the answer of pppoeClientShowCommand: a list with one object per
+// configured client. It reads the raw JSON, so an absent key or a null
+// cannot pass as the empty list a client that learned no server owes.
+func pppoeClientDNSServers(data json.RawMessage, name string) ([]string, error) {
+	var clients []map[string]json.RawMessage
+	if err := json.Unmarshal(data, &clients); err != nil {
+		return nil, fmt.Errorf("%s answered no list of clients: %.200s", pppoeClientShowCommand, data)
+	}
+	for _, client := range clients {
+		var clientName string
+		if err := json.Unmarshal(client["name"], &clientName); err != nil {
+			return nil, fmt.Errorf("%s answered a client with no name: %.200s", pppoeClientShowCommand, data)
+		}
+		if clientName != name {
+			continue
+		}
+		return pppoeClientServerList(client["dns-servers"], name)
+	}
+	return nil, fmt.Errorf("%s answered no client %s: %.200s", pppoeClientShowCommand, name, data)
+}
+
+// pppoeClientServerList decodes one client's dns-servers member, refusing an
+// absent key, a null and anything that is not a list of strings.
+func pppoeClientServerList(raw json.RawMessage, name string) ([]string, error) {
+	if raw == nil {
+		return nil, fmt.Errorf("%s: client %s has no dns-servers key", pppoeClientShowCommand, name)
+	}
+	if string(raw) == "null" {
+		return nil, fmt.Errorf("%s: client %s dns-servers is null, want a list", pppoeClientShowCommand, name)
+	}
+	var servers []string
+	if err := json.Unmarshal(raw, &servers); err != nil {
+		return nil, fmt.Errorf("%s: client %s dns-servers is not a list of addresses: %s", pppoeClientShowCommand, name, raw)
+	}
+	return servers, nil
+}
+
+// checkZeClientCHAPSession runs the shared session proof, then requires
+// accel-ppp's own trace of a completed CHAP-MD5 exchange.
+func checkZeClientCHAPSession(ctx context.Context, check *interoplab.CheckContext) error {
 	if err := checkZeClientSession(ctx, check); err != nil {
 		return err
 	}
