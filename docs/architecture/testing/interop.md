@@ -2395,7 +2395,12 @@ static route for `fd00:db8:1::/112` through it. strongSwan's child config names
 received one, and `traffic_selector.c` `get_subset` answers NULL when the two types
 differ. Ze's unconfigured wildcard over an IPv4 outer pair would be `0.0.0.0/0`
 alone, which this child config cannot accept, so the established `::/0` child is
-itself proof that the IPv6 entry reached the wire. The checker asserts:
+itself proof that the IPv6 entry reached the wire. Ze's esp-group sets `pfs enable`,
+so strongSwan's `esp_proposals` name MODP_2048: the IKE_AUTH child carries no key
+exchange either way, but the rekey below does, because strongSwan 6.1.0's
+`child_create.c` `build_i` takes the child config's first key exchange method for a
+CREATE_CHILD_SA, and Ze's `respondChildRekey` refuses an offer with no group while
+PFS is on. With `aes256gcm16` alone the rekey drew `N(NO_PROP)`. The checker asserts:
 
 | Step | State read | Fails when |
 |------|------------|------------|
@@ -2421,7 +2426,8 @@ the packet reaches `vti0`, so a policy bound to no interface decides first. The 
 fail at the state row and the ping.
 
 <!-- source: internal/le/interoplab/ipsec/vtiipv6.go -- checkVTIIPv6InnerIPv4Outer, vtiIPv6PeerInner, requireIPv6PoliciesOnIfID, requireAFUnspecStates, vtiIPv6Evidence -->
-<!-- source: test/interop-ipsec/scenarios/vti-ipv6-inner-ipv4-outer/swanctl.conf -- local_ts and remote_ts ::/0 -->
+<!-- source: test/interop-ipsec/scenarios/vti-ipv6-inner-ipv4-outer/swanctl.conf -- local_ts and remote_ts ::/0, esp_proposals -->
+<!-- source: internal/component/ike/engine/rekey.go -- respondChildRekey -->
 
 ### IPsec virtual-IP leases
 
