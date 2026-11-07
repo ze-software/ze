@@ -242,6 +242,18 @@ type PeerSession struct {
 	done     chan struct{}
 	stopOnce sync.Once
 
+	// handshakeWake tells runInitiator's handshake wait that the dispatch goroutine
+	// handled a message of the handshake, so the loop reads sa.State now rather than
+	// when its retransmit timer next fires. Buffered 1: wakeHandshake drops a second
+	// token, because one pending wake already makes the loop read the state.
+	//
+	// Without it the loop saw an IKE_AUTH response only at its retransmit time, up to
+	// retransmitBase later, and in that window the SA was listed established while
+	// no Child SA, XFRM state or route existed and the peer's traffic and requests
+	// were dropped. A session built without the channel (a test literal) waits on
+	// the timer alone, as before.
+	handshakeWake chan struct{}
+
 	// supersede signals the owner loop (maintainSA) to relinquish the established SA
 	// because a parallel IKE_SA_INIT authenticated (RFC 7296 Section 2.4). Buffered 1.
 	supersede chan struct{}
@@ -427,6 +439,16 @@ func (ps *PeerSession) setPendingIKESwap(newSA *SA) {
 	// AND the DH private value, nonces and EAP key that could recompute them.
 	ps.pendingIKESwap.forgetKeys()
 	ps.pendingIKESwap = newSA
+}
+
+// wakeHandshake wakes runInitiator's handshake wait (awaitHandshake). It never blocks:
+// the dispatch goroutine calls it for every handshake message it handles, and a token
+// already pending wakes the loop just the same. Safe for concurrent use.
+func (ps *PeerSession) wakeHandshake() {
+	select {
+	case ps.handshakeWake <- struct{}{}:
+	default:
+	}
 }
 
 func (ps *PeerSession) setChildSA(c *ChildSA) {
@@ -816,6 +838,7 @@ func startPeerSession(
 		stopCh:         make(chan struct{}),
 		done:           make(chan struct{}),
 		supersede:      make(chan struct{}, 1),
+		handshakeWake:  make(chan struct{}, 1),
 		// Unbuffered on purpose: see the field.
 		probeRequests: make(chan probeRequest),
 		espReloads:    make(chan espReload),

@@ -271,10 +271,8 @@ func (ps *PeerSession) runInitiator(
 			continue
 		}
 
-		select {
-		case <-ps.stopCh:
-			return errStopped
-		case <-afterFunc(timeout):
+		if err := ps.awaitHandshake(timeout); err != nil {
+			return err
 		}
 	}
 
@@ -320,6 +318,24 @@ func (ps *PeerSession) runInitiator(
 	// zeroed RetransmitCount, and runEstablished never writes it.
 	emitSADown(bus, sa, log)
 	return ps.continueOnPeerStartedSuccessors(peer, ikeGroup, table, tr, bus, log, err)
+}
+
+// awaitHandshake blocks runInitiator's handshake loop until the retransmit timeout
+// passes or the dispatch goroutine handled a message of the handshake
+// (handleInbound calls wakeHandshake), so an IKE_AUTH response is acted on when it
+// arrives and not at the next retransmit time. It answers errStopped when the
+// session stops, and nil otherwise: the caller then reads sa.State and the
+// retransmit time again, so a wake for a message that changed nothing costs one
+// pass of the loop.
+func (ps *PeerSession) awaitHandshake(timeout time.Duration) error {
+	select {
+	case <-ps.stopCh:
+		return errStopped
+	case <-ps.handshakeWake:
+		return nil
+	case <-afterFunc(timeout):
+		return nil
+	}
 }
 
 // continueOnPeerStartedSuccessors runs the rest of an `initiate` cycle once its owner
@@ -579,6 +595,14 @@ func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.U
 		}
 		ps.handleResponderInbound(sa, &msg, pkt, tr, log)
 		return
+	}
+
+	// runInitiator's handshake loop waits on its retransmit timer. The switch below
+	// may move the handshake on (an IKE_AUTH response establishes the SA, a refusal
+	// kills it), so the loop is woken to read the state now (awaitHandshake). The
+	// wake is deferred so it follows the state the handler wrote.
+	if ps := lookupPeerSession(sa.PeerName); ps != nil {
+		defer ps.wakeHandshake()
 	}
 
 	switch sa.State {

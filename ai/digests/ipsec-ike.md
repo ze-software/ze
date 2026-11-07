@@ -127,7 +127,10 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
     the MSK, by `verifyAuthFromSharedSecret` inside `verifyRemoteAuth`
     (`auth.go`) on the next `handleAuthResponse` pass.
 11. **SA established.** `runInitiator`'s wait loop exits when `sa.State ==
-    StateEstablished` (`fsm.go`), emits `vpn-ipsec/sa-up` (`fsm.go`,
+    StateEstablished` (`fsm.go`). The responses are handled on the dispatch
+    goroutine (`handleInbound`), which wakes the loop through
+    `PeerSession.wakeHandshake` so it reads the state when the response lands,
+    not at its next retransmit time (`awaitHandshake`, `fsm.go`). It then emits `vpn-ipsec/sa-up` (`fsm.go`,
     `events.go`), then calls `ps.runEstablished` (`fsm.go`,
     `established.go`).
 12. **First Child SA + XFRM install.** `runEstablished` resolves the XFRM if_id from
