@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // PPPoE client session states.
@@ -155,7 +154,12 @@ func (c *PPPoEClient) status() pppoeClientStatus {
 
 	pppIface := ""
 	if c.pppUnit >= 0 {
-		pppIface = textbuf.StrInt("ppp", int64(c.pppUnit))
+		// The kernel device carries the configured name once the dialer
+		// creates it through RTM_NEWLINK kind "ppp" with IFLA_IFNAME. For a
+		// client that has never completed Dial (pppUnit still -1) the OS
+		// name column stays empty, which is what status reported before
+		// child-1 phase 2. See plan/release/fixes/spec-home-cpe-1-logical-interface-name.md.
+		pppIface = c.cfg.Name
 	}
 
 	var uptime time.Duration

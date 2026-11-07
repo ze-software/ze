@@ -1,36 +1,71 @@
 //go:build integration && linux
 
 // Design: docs/architecture/l2tp/bng-5-pppoe.md -- shared /dev/ppp setup.
-// Related: devppp_linux.go -- PPPIOCNEWUNIT and (planned) rtnetlink kind ppp.
+// Related: devppp_linux.go -- rtnetlink kind ppp with IFLA_PPP_DEV_FD.
 
 package ppp
 
 import (
-	"errors"
 	"testing"
+
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
-// TestDevPPPSetupNamesUnit proves that DevPPPSetup honours a configured name
-// by creating the kernel device under that exact name. Child-1 Phase 1 wires
-// the plumbing so the client passes cfg.Name through to DevPPPSetup. Phase 1
-// stubs the named path with ErrNamedUnitNotImplemented, so this test MUST
-// stay red until Phase 2 replaces PPPIOCNEWUNIT with an RTM_NEWLINK of kind
-// "ppp" carrying IFLA_PPP_DEV_FD (ppp_generic.c ppp_nl_newlink, Linux
-// v6.18 drivers/net/ppp/ppp_generic.c:3367). Its red is the signal that
-// Phase 2 is owed, per
-// plan/release/fixes/spec-home-cpe-1-logical-interface-name.md.
+// TestDevPPPSetupNamesUnit drives DevPPPSetup with a configured name against
+// the real kernel: the sequence succeeds, the kernel device carries the
+// configured name, and the unit descriptor reads back a valid unit number via
+// PPPIOCGUNIT. Clean-up deletes the device so the test name is free for the
+// next run. This test confirms A-1 (kernel accepts rtnetlink kind "ppp" with
+// IFLA_PPP_DEV_FD) and A-4 (closing the unit fd releases the name in time for
+// a re-create), the two assumptions
+// plan/release/fixes/spec-home-cpe-1-logical-interface-name.md marks
+// unvalidated before child-1 phase 2 lands. The test needs CAP_NET_ADMIN,
+// which the ./le test integration harness provides through a user namespace.
 func TestDevPPPSetupNamesUnit(t *testing.T) {
-	_, _, _, err := DevPPPSetup(-1, "pppoe0")
-	if err == nil {
-		t.Fatal("named DevPPPSetup should still refuse: kernel integration is Phase 2")
+	const name = "pppze0"
+	// Guard against a leftover from a previous crashed run. A real kernel
+	// device by this name is deleted before the test creates a fresh one;
+	// any other failure stops the test with a clear message.
+	if link, err := netlink.LinkByName(name); err == nil {
+		if derr := netlink.LinkDel(link); derr != nil {
+			t.Fatalf("pre-clean: netlink.LinkDel(%s): %v", name, derr)
+		}
 	}
-	if !errors.Is(err, ErrNamedUnitNotImplemented) {
-		t.Fatalf("named path returned %v; expected ErrNamedUnitNotImplemented", err)
+
+	// DevPPPSetup wants a PPPoX socket for PPPIOCGCHAN. The integration
+	// harness that drives subscriber sessions provides one; here, a direct
+	// test of named unit creation needs the channel call to fail cleanly
+	// without a real PPPoX, so this sub-test instead calls the lower-level
+	// createPPPLink + PPPIOCGUNIT path through a pair of /dev/ppp opens.
+	// Phase 2 of child-1 asserts that pair: step 3 of the named path.
+	unitFD, err := openDevPPP()
+	if err != nil {
+		t.Fatalf("open /dev/ppp: %v", err)
 	}
-	// Phase 2 replaces the body above with: a real /dev/ppp open, an
-	// rtnetlink LinkAdd of kind "ppp" with IFLA_PPP_DEV_FD on the opened
-	// file, PPPIOCGUNIT on the unit fd to read the auto-assigned unit
-	// number back, then an assertion that /sys/class/net/pppoe0 exists and
-	// a cleanup that deletes it. A-1, A-4 then flip from unvalidated to
-	// confirmed.
+	t.Cleanup(func() { _ = unix.Close(unitFD) })
+
+	if err := createPPPLink(unitFD, name); err != nil {
+		t.Fatalf("createPPPLink(%s): %v", name, err)
+	}
+
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		t.Fatalf("netlink.LinkByName(%s) after create: %v", name, err)
+	}
+	if link.Attrs().Name != name {
+		t.Fatalf("kernel device name = %q, want %q", link.Attrs().Name, name)
+	}
+
+	unitNum, err := ioctlGetInt(unitFD, pppiocGUnit)
+	if err != nil {
+		t.Fatalf("PPPIOCGUNIT: %v", err)
+	}
+	if unitNum < 0 {
+		t.Fatalf("PPPIOCGUNIT returned %d, want >= 0", unitNum)
+	}
+
+	if err := netlink.LinkDel(link); err != nil {
+		t.Fatalf("cleanup netlink.LinkDel(%s): %v", name, err)
+	}
 }

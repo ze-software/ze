@@ -165,7 +165,7 @@ func TestPPPoEClientSessionChanges(t *testing.T) {
 				if status.PeerIP != tc.result.PeerIP {
 					t.Errorf("status peer = %s, want %s", status.PeerIP, tc.result.PeerIP)
 				}
-				if status.PPPInterface != "ppp7" {
+				if status.PPPInterface != "wan" {
 					t.Errorf("session device changed: %+v", status)
 				}
 				if status.SessionID != 42 {

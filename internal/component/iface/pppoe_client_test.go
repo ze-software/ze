@@ -296,7 +296,7 @@ func TestPPPoEClientLifecycle(t *testing.T) {
 	status := client.status()
 	assert.Equal(t, "up", status.State)
 	assert.Equal(t, uint16(42), status.SessionID)
-	assert.Equal(t, "ppp0", status.PPPInterface)
+	assert.Equal(t, "pppoe0", status.PPPInterface)
 
 	client.Stop()
 

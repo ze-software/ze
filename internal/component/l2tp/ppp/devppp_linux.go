@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 	"unsafe"
 
+	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 )
 
@@ -17,7 +19,19 @@ const (
 	pppiocGChan   = 0x80047437 // PPPIOCGCHAN: _IOR('t', 55, int)
 	pppiocAttChan = 0x40047438 // PPPIOCATTCHAN: _IOW('t', 56, int)
 	pppiocNewUnit = 0xc004743e // PPPIOCNEWUNIT: allocate PPP unit (creates pppN)
+	pppiocGUnit   = 0x80047456 // PPPIOCGUNIT: _IOR('t', 86, int)
 	pppiocSNPMODE = 0x4008744b // PPPIOCSNPMODE: _IOW('t', 75, struct npioctl)
+)
+
+// namedUnitRetries bounds the EBUSY (ppp_mutex contention, ppp_nl_newlink uses
+// mutex_trylock to avoid lock inversion) and EEXIST (previous session's device
+// not yet released) retries a named RTM_NEWLINK survives. The budget is
+// deliberate: an operator misconfiguration that collides a configured name
+// with a persistent kernel device must surface quickly, so the error names the
+// device and the fix.
+const (
+	namedUnitRetries = 5
+	namedUnitBackoff = 20 * time.Millisecond
 )
 
 // SetIPv4Mode controls IPv4 in both directions without detaching the PPP unit.
@@ -41,36 +55,25 @@ func SetIPv4Mode(unitFD int, mode NPMode) error {
 	return nil
 }
 
-// ErrNamedUnitNotImplemented is returned when a caller asks for a unit under a
-// configured name. The named-creation path (rtnetlink kind "ppp" with
-// IFLA_PPP_DEV_FD, see Linux drivers/net/ppp/ppp_generic.c ppp_nl_newlink)
-// lands in a follow-up commit. Phase 1 of child-1 wires the plumbing so the
-// PPPoE client passes its configured name through to DevPPPSetup; the kernel
-// device still carries the auto-assigned pppN until that follow-up commit
-// replaces PPPIOCNEWUNIT with the rtnetlink creation.
-// plan/release/fixes/spec-home-cpe-1-logical-interface-name.md.
-var ErrNamedUnitNotImplemented = errors.New("ppp: named PPP unit creation is not yet implemented")
-
 // DevPPPSetup opens /dev/ppp, attaches the PPP channel from the PPPoX
 // socket (L2TP or PPPoE), allocates a PPP unit, and returns the channel fd,
 // unit fd, and unit number.
 //
-// When name is empty, the ioctl sequence is identical for PPPoL2TP and PPPoE
-// and the kernel names the device pppN:
+// When name is empty, the kernel names the device pppN through PPPIOCNEWUNIT:
 //  1. PPPIOCGCHAN on pppoxFD -> channel index
 //  2. open /dev/ppp, PPPIOCATTCHAN -> channel fd
 //  3. open /dev/ppp, PPPIOCNEWUNIT -> unit fd + pppN interface
 //
-// When name is non-empty, DevPPPSetup returns ErrNamedUnitNotImplemented.
-// The follow-up commit replaces step 3 with an RTM_NEWLINK of kind "ppp"
-// carrying IFLA_PPP_DEV_FD on the opened /dev/ppp file (child-1 phase 2,
-// plan/release/fixes/spec-home-cpe-1-logical-interface-name.md).
+// When name is non-empty, step 3 instead sends RTM_NEWLINK with kind "ppp"
+// and IFLA_PPP_DEV_FD on the opened /dev/ppp file so the kernel keeps the
+// name the request carries (Linux drivers/net/ppp/ppp_generic.c
+// ppp_nl_newlink, v6.18). PPPIOCGUNIT on the unit descriptor then reads back
+// the auto-assigned unit number PPPIOCCONNECT needs. EBUSY (ppp_mutex
+// contention, ppp_nl_newlink uses mutex_trylock) and EEXIST (previous
+// session's device still pending teardown) retry with a bounded backoff.
 //
 // PPPIOCCONNECT (step 4) is deferred to after LCP completes.
 func DevPPPSetup(pppoxFD int, name string) (chanFD, unitFD, unitNum int, err error) {
-	if name != "" {
-		return -1, -1, -1, ErrNamedUnitNotImplemented
-	}
 	chanIdx, err := ioctlGetInt(pppoxFD, pppiocGChan)
 	if err != nil {
 		return -1, -1, -1, fmt.Errorf("ppp: PPPIOCGCHAN: %w", err)
@@ -90,15 +93,63 @@ func DevPPPSetup(pppoxFD int, name string) (chanFD, unitFD, unitNum int, err err
 		unix.Close(chanFD) //nolint:errcheck // rollback
 		return -1, -1, -1, err
 	}
-	unitNum = -1
-	unitNum, err = ioctlGetSetInt(unitFD, pppiocNewUnit, unitNum)
+	if name == "" {
+		unitNum, err = ioctlGetSetInt(unitFD, pppiocNewUnit, -1)
+		if err != nil {
+			unix.Close(unitFD) //nolint:errcheck // rollback
+			unix.Close(chanFD) //nolint:errcheck // rollback
+			return -1, -1, -1, fmt.Errorf("ppp: PPPIOCNEWUNIT: %w", err)
+		}
+		return chanFD, unitFD, unitNum, nil
+	}
+	if err := createPPPLink(unitFD, name); err != nil {
+		unix.Close(unitFD) //nolint:errcheck // rollback
+		unix.Close(chanFD) //nolint:errcheck // rollback
+		return -1, -1, -1, err
+	}
+	unitNum, err = ioctlGetInt(unitFD, pppiocGUnit)
 	if err != nil {
 		unix.Close(unitFD) //nolint:errcheck // rollback
 		unix.Close(chanFD) //nolint:errcheck // rollback
-		return -1, -1, -1, fmt.Errorf("ppp: PPPIOCNEWUNIT: %w", err)
+		return -1, -1, -1, fmt.Errorf("ppp: PPPIOCGUNIT on %s: %w; the configured pppoe-client name matches a kernel device another program created, rename the entry so its key is unique", name, err)
 	}
-
 	return chanFD, unitFD, unitNum, nil
+}
+
+// createPPPLink sends RTM_NEWLINK kind "ppp" with IFLA_PPP_DEV_FD so the
+// kernel keeps the configured name. EBUSY and EEXIST retry with a bounded
+// backoff; any other error names the condition and the fix.
+func createPPPLink(unitFD int, name string) error {
+	for attempt := range namedUnitRetries {
+		err := sendPPPLinkCreate(unitFD, name)
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, unix.EBUSY) && !errors.Is(err, unix.EEXIST) {
+			return fmt.Errorf("ppp: rtnetlink create kind=ppp name=%s: %w", name, err)
+		}
+		if attempt == namedUnitRetries-1 {
+			return fmt.Errorf("ppp: rtnetlink create kind=ppp name=%s: %w after %d attempts; a previous session device with the same name is still being released, or another program holds the name, rename the pppoe-client entry or wait for the kernel to release it", name, err, namedUnitRetries)
+		}
+		time.Sleep(namedUnitBackoff)
+	}
+	return nil
+}
+
+// sendPPPLinkCreate issues one RTM_NEWLINK. Its body is IFLA_IFNAME and the
+// IFLA_LINKINFO{IFLA_INFO_KIND="ppp", IFLA_INFO_DATA{IFLA_PPP_DEV_FD=unitFD}}
+// nest the kernel's ppp_nl_newlink parser expects.
+func sendPPPLinkCreate(unitFD int, name string) error {
+	req := nl.NewNetlinkRequest(unix.RTM_NEWLINK, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+	req.AddData(nl.NewIfInfomsg(unix.AF_UNSPEC))
+	req.AddData(nl.NewRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(name)))
+	linkInfo := nl.NewRtAttr(unix.IFLA_LINKINFO, nil)
+	linkInfo.AddRtAttr(nl.IFLA_INFO_KIND, nl.NonZeroTerminated("ppp"))
+	infoData := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+	infoData.AddRtAttr(unix.IFLA_PPP_DEV_FD, nl.Uint32Attr(uint32(unitFD)))
+	req.AddData(linkInfo)
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
 }
 
 func openDevPPP() (int, error) {
