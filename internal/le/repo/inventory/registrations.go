@@ -195,6 +195,20 @@ func (r *registrations) node(node ast.Node, function initializationScope, condit
 			}
 			return err
 		}
+		// A method's receiver may be a call or a literal (method resolves
+		// any typed receiver), and Go evaluates it before the arguments, so
+		// x().M() executes x() here. Through an alias (f := x().M; f()) the
+		// receiver ran where the method value was taken, so it is not run
+		// again at the call.
+		if selector, selected := callee.value.(*ast.SelectorExpr); selected {
+			if ast.Unparen(current.Fun) == callee.value {
+				if _, imported := r.eval.callableImport(callee, selector); !imported {
+					if err := r.node(selector.X, function, conditional); err != nil {
+						return err
+					}
+				}
+			}
+		}
 		for _, argument := range current.Args {
 			if err := r.node(argument, function, conditional); err != nil {
 				return err

@@ -4,8 +4,11 @@ package repoinventory
 import "testing"
 
 // TestCommittedExternalCollectionKeysCannotBorrowMethodOwner distinguishes a
-// real bound method from a fabricated field named by a collection key. Direct
-// literal receivers may refuse under the bounded method-owner contract.
+// real bound method from a fabricated field named by a collection key. A
+// direct literal receiver resolves its real method as its named form does:
+// the method's own body decides, so an installing Fire refuses as a
+// registration reaching external code and an inert Fire publishes, which a
+// key projected as an inert field could not tell apart.
 func TestCommittedExternalCollectionKeysCannotBorrowMethodOwner(t *testing.T) {
 	for _, shape := range []struct{ name, declarations, literal string }{
 		{"array", "type parcelCollection [1]uint32\nconst Fire = 0\n", "parcelCollection{Fire: 0}"},
@@ -16,23 +19,39 @@ func TestCommittedExternalCollectionKeysCannotBorrowMethodOwner(t *testing.T) {
 			t.Run(shape.name+"/"+kind, func(t *testing.T) {
 				fixture := externalEffectsFixture(t, kind)
 				externalPhantomMethodControl(t, fixture, shape.declarations, shape.literal)
-				for _, method := range []struct{ name, body string }{{"installer", "install(0)"}, {"inert", ""}} {
-					t.Run(method.name, func(t *testing.T) {
-						declarations := shape.declarations + "func (parcelCollection) Fire() { " + method.body + " }\n"
-						call := "store.Callback = (" + shape.literal + ").Fire; parcel, fault := remote.Stat(\".\"); _ = parcel; _ = fault"
-						fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations, call))
-						commitInventoryFixture(t, fixture.root)
-						externalEffectsRefusal(t, fixture, "ownership")
-					})
-				}
+				externalLiteralMethodOwner(t, fixture, shape.declarations, shape.literal)
 			})
 		}
 	}
 }
 
+// externalLiteralMethodOwner selects Fire directly on the literal: the
+// installing method refuses as a registration, the inert one publishes.
+func externalLiteralMethodOwner(t *testing.T, fixture *asmInventoryFixture, shapes, literal string) {
+	t.Helper()
+	for _, method := range []struct {
+		name, body string
+		installs   bool
+	}{{"installer", "install(0)", true}, {"inert", "", false}} {
+		t.Run(method.name, func(t *testing.T) {
+			declarations := shapes + "func (parcelCollection) Fire() { " + method.body + " }\n"
+			call := "store.Callback = (" + literal + ").Fire; parcel, fault := remote.Stat(\".\"); _ = parcel; _ = fault"
+			fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations, call))
+			commitInventoryFixture(t, fixture.root)
+			if method.installs {
+				externalEffectsRefusal(t, fixture, "registration")
+				return
+			}
+			externalEffectsPositive(t, fixture)
+		})
+	}
+}
+
 // TestCommittedExternalAggregateFieldsCannotBorrowMethodOwner covers type and
 // value aggregation of nested fields. A collection element or named child field
-// does not add that child's fields to its holder's actual selector namespace.
+// does not add that child's fields to its holder's actual selector namespace:
+// Fire selected on the holder literal is the holder's own method, whose body
+// decides (externalLiteralMethodOwner).
 func TestCommittedExternalAggregateFieldsCannotBorrowMethodOwner(t *testing.T) {
 	const element = "type parcelElement struct { Fire uint32 }\n"
 	for _, shape := range []struct{ name, declarations, literal string }{
@@ -45,15 +64,7 @@ func TestCommittedExternalAggregateFieldsCannotBorrowMethodOwner(t *testing.T) {
 			t.Run(shape.name+"/"+kind, func(t *testing.T) {
 				fixture := externalEffectsFixture(t, kind)
 				externalPhantomMethodControl(t, fixture, shape.declarations, shape.literal)
-				for _, method := range []struct{ name, body string }{{"installer", "install(0)"}, {"inert", ""}} {
-					t.Run(method.name, func(t *testing.T) {
-						declarations := shape.declarations + "func (parcelCollection) Fire() { " + method.body + " }\n"
-						call := "store.Callback = (" + shape.literal + ").Fire; parcel, fault := remote.Stat(\".\"); _ = parcel; _ = fault"
-						fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declarations, call))
-						commitInventoryFixture(t, fixture.root)
-						externalEffectsRefusal(t, fixture, "ownership")
-					})
-				}
+				externalLiteralMethodOwner(t, fixture, shape.declarations, shape.literal)
 			})
 		}
 	}

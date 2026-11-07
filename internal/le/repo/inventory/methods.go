@@ -8,19 +8,25 @@ import (
 	"go/types"
 )
 
-// method resolves direct value methods and explicit single-pointer methods.
-// Receiver forms must match; implicit addressing, value-method fallback,
-// dynamic interfaces, promotion and generic method sets remain unresolved.
+// method resolves direct value methods and explicit single-pointer methods on
+// any receiver whose static type valueType derives, a call result or a
+// literal included. Receiver forms must match; implicit addressing,
+// value-method fallback, dynamic interfaces, promotion and generic method sets
+// remain unresolved. A caller that executes the method MUST also execute the
+// receiver expression, because it need not be a name.
 func (e *expression) method(source sourceExpr) (sourceFunction, bool) {
+	return e.methodAt(source, 0)
+}
+
+// methodAt is method at its caller's valueType step count, so a method chain
+// stays inside valueType's 64-step bound.
+func (e *expression) methodAt(source sourceExpr, depth int) (sourceFunction, bool) {
 	selector, ok := source.value.(*ast.SelectorExpr)
 	if !ok {
 		return sourceFunction{}, false
 	}
-	if _, ok := selector.X.(*ast.Ident); !ok {
-		return sourceFunction{}, false
-	}
 	receiver := sourceExpr{value: selector.X, file: source.file, pkg: source.pkg}
-	datatype, found := e.valueType(receiver, 0)
+	datatype, found := e.valueType(receiver, depth+1)
 	if !found {
 		return sourceFunction{}, false
 	}
@@ -117,7 +123,11 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		}
 		return sourceExpr{value: &ast.StarExpr{Star: operand.value.Pos(), X: operand.value}, file: operand.file, pkg: operand.pkg}, true
 	case *ast.CallExpr:
-		function, found := e.declaredFunction(sourceExpr{value: value.Fun, file: source.file, pkg: source.pkg})
+		callee := sourceExpr{value: value.Fun, file: source.file, pkg: source.pkg}
+		function, found := e.declaredFunction(callee)
+		if !found {
+			function, found = e.methodAt(callee, depth+1)
+		}
 		if !found {
 			// Go specification, "Conversions": "An explicit conversion is an
 			// expression of the form T(x) where T is a type and x is an

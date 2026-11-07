@@ -113,6 +113,21 @@ an address) leaves the call a closure alias, which refuses.
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
 <!-- source: internal/le/repo/inventory/mutations.go -- expression.callableImmutable, expression.writes -->
 
+A method is resolved on any receiver whose static type the analyzer derives:
+a name, a call result or a literal, so `x.Apply(1).Info().Present(0)` and
+`T{}.M()` each reach the declared method. The same refusals hold for every
+receiver form: a callee with more than one result, a generic type or callee,
+an interface, a promoted method, a receiver form that does not match (a
+pointer method on a value, or the reverse), and a method with no body. A
+selector on a call result that names no such method is a field projection,
+judged by the root-field rules of the external-effect contract below.
+Executing a directly called method executes its receiver first, as Go
+evaluates it before the arguments, so `build().Register()` in an initializer
+runs `build()`. A method value taken through an alias (`f := build().M; f()`)
+ran its receiver where the value was taken, so the call does not run it again.
+<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.valueType -->
+<!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
+
 ### Approved external-effect contract
 
 The Git-only external-effect analysis below is the approved implementation
