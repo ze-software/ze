@@ -201,9 +201,9 @@ registration).
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Kernel 7.x has no automatic helper assignment | `v7.3` `__nf_ct_try_assign_helper` assigns only from a template's helper (read 2026-11-02) | slipstreaming exposure would be wider than stated | source read; `TestConntrackHelperNotAssignedWhenUnlisted` on Ze's kernel | source-confirmed, test owed |
-| A-2 | An inet `ct helper` object resolves both family helpers and refuses only when neither exists | `v7.3` `nft_ct_helper_obj_init` (`NFPROTO_INET` case, "only error if INET found neither ipv4 or ipv6") | per-family tables needed (ip and ip6 as VyOS does) | source read; `TestConntrackHelperAssignment` IPv6 rows | source-confirmed, test owed |
-| A-3 | The NAT companions are selected by default once the helper is `=y` with `NF_NAT=y` | `v7.3` Kconfig: `NF_NAT_{FTP,SIP,TFTP,IRC,AMANDA}` default `NF_NAT && NF_CONNTRACK_X`; `NF_NAT_{PPTP,H323}` default `NF_CONNTRACK_X`; `NF_NAT_SNMP_BASIC` also needs `NETFILTER_ADVANCED` | FTP through masquerade still breaks | `runtime.config` and `runtime.require` list each companion; `TestConntrackHelperFTPThroughMasquerade` | source-confirmed, test owed |
+| A-1 | Kernel 7.x has no automatic helper assignment | `v7.3` `__nf_ct_try_assign_helper` assigns only from a template's helper (read 2026-11-02) | slipstreaming exposure would be wider than stated | source read; `TestConntrackHelperNotAssignedWhenUnlisted` on Ze's kernel | source-confirmed; test written in `internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go`, not run |
+| A-2 | An inet `ct helper` object resolves both family helpers and refuses only when neither exists | `v7.3` `nft_ct_helper_obj_init` (`NFPROTO_INET` case, "only error if INET found neither ipv4 or ipv6") | per-family tables needed (ip and ip6 as VyOS does) | source read; `TestConntrackHelperAssignment` IPv6 rows | source-confirmed; test written in `internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go`, not run |
+| A-3 | The NAT companions are selected by default once the helper is `=y` with `NF_NAT=y` | `v7.3` Kconfig: `NF_NAT_{FTP,SIP,TFTP,IRC,AMANDA}` default `NF_NAT && NF_CONNTRACK_X`; `NF_NAT_{PPTP,H323}` default `NF_CONNTRACK_X`; `NF_NAT_SNMP_BASIC` also needs `NETFILTER_ADVANCED` | FTP through masquerade still breaks | `runtime.config` and `runtime.require` list each companion; `TestConntrackHelperFTPThroughMasquerade` | source-confirmed; test written in `internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go`, not run |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -272,9 +272,9 @@ registration).
 | `conntrack-helper-ftp-assigned` | `test/firewall/conntrack-helper-ftp-assigned.ci` | AC-1, AC-9 | |
 | `conntrack-helper-removed-on-reload` | `test/firewall/conntrack-helper-removed-on-reload.ci` | AC-5 | |
 | `conntrack-helper-block-deleted-on-reload` | `test/firewall/conntrack-helper-block-deleted-on-reload.ci` | AC-5: the second config has no `system conntrack` block at all | |
-| `TestConntrackHelperAssignment` | `internal/component/config/system/conntrack_helpers_integration_linux_test.go` (`integration && linux`) | AC-2, AC-11: one subtest per row, family, protocol and port; installs the lowered tables through the nft backend in a throwaway netns, opens the connection, reads the helper name from the conntrack entry; IPv4-only rows also assert the IPv6 connection carries none | |
-| `TestConntrackHelperNotAssignedWhenUnlisted` | same file | A-1, R-3, AC-5: with the helpers built in and the list empty, a connection to tcp 21 carries no helper and a PORT command creates no expectation | |
-| `TestConntrackHelperFTPThroughMasquerade` | same file | AC-6 in both families (PORT over IPv4, EPRT over IPv6): client netns, masquerading router netns, server netns; the data connection completes; red phase: the ftp row removed from the configured list, the data connection fails | |
+| `TestConntrackHelperAssignment` | `internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go` (`integration && linux`, package `firewallnft`: the test drives the nft backend, which `config/system` cannot import, and reuses `withNftNetNS`, `loopbackUp` and `userns.Enter`) | AC-2, AC-3, AC-4, AC-11, AC-12: every module of the YANG enumeration listed, `firewall.ConntrackHelperTables` verified with `ValidateTables` and applied through the backend in a throwaway netns; one loopback connection per row, transport, port and family (probes derived from the enumeration and `system.ConntrackHelperByName`, no hand list); the helper name read from the conntrack entry over ctnetlink; an IPv4-only row's IPv6 connection is tracked and carries none; every ct helper object read back from the kernel sits in an inet table for a dual-family row and in an ip table only for an IPv4-only row. Red walks: delete the output base chain from `newConntrackHelperTable` (every probe loses its helper); put an IPv4-only row in the inet table in `ConntrackHelperTables` (object family check red for irc, netbios-ns, pptp, snmp) | written, not yet run |
+| `TestConntrackHelperNotAssignedWhenUnlisted` | same file | A-1, R-3, AC-5: a tracking table references ct so entries exist; with the list empty, no connection to any row's port in either family carries a helper and an FTP PORT over tcp 21 creates no expectation. Positive control first: ftp alone listed, the ftp connections carry `ftp`, the PORT creates one `ftp` expectation, every other row carries none (each helper enabled separately). Red walks in `ConntrackHelperTables`: lower every declared helper when the list is empty (empty leg red); lower every helper whatever the list (ftp leg red on every other row) | written, not yet run |
+| `TestConntrackHelperFTPThroughMasquerade` | same file | AC-6 in both families (PORT over IPv4, EPRT over IPv6): client netns, masquerading router netns (the test's own), server netns with no route back to the client; with ftp listed the command reaches the server rewritten to the masquerade address and the server's data connection delivers the payload; the leg without ftp (the spec's red phase) asserts the command arrives naming the client's own address and the data connection fails. Red walk in the producing code: delete the prerouting base chain from `newConntrackHelperTable`; the forwarded control connection then carries no helper | written, not yet run |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -302,7 +302,7 @@ messages is the kernel's code and is not re-proven per helper here.
 
 ## Files to Create
 - `internal/component/config/system/conntrack_helpers.go`, `conntrack_helpers_test.go`
-- `internal/component/config/system/conntrack_helpers_integration_linux_test.go`
+- `internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go` (the three integration tests; beside the nft backend they drive)
 - `test/firewall/conntrack-helper-ftp-assigned.ci`, `conntrack-helper-removed-on-reload.ci`
 
 ### Integration Checklist
@@ -417,7 +417,7 @@ messages is the kernel's code and is not re-proven per helper here.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] Targeted tests pass: `./le test unit plugins`; `./le test firewall`; `./le test integration firewall`; on Ze's kernel, `./le test qemu run kernel tmp/kernel/build/vmlinuz packages "nftables iproute2 libcap" timeout 1200s command 'go test -tags integration -count=1 -run TestConntrackHelper ./internal/component/config/system/'`; then `./le verify changed` over the closing commits
+- [ ] Targeted tests pass: `./le test unit plugins`; `./le test firewall`; `./le test integration firewall`; on Ze's kernel, `./le test qemu run kernel tmp/kernel/build/vmlinuz packages "nftables iproute2 libcap" timeout 1200s command 'go test -tags "integration <feature tags>" -count=1 -run TestConntrackHelper ./internal/plugins/firewall/nft/'`; then `./le verify changed` over the closing commits
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD
