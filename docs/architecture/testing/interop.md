@@ -1070,7 +1070,7 @@ kept as it is, because it names a daemon on purpose (the QEMU docker-lab's
 forwarded socket is one), and the kernel check stays the gate that judges that
 daemon's kernel. `ze appliance build`, which every QEMU verb that builds an
 appliance runs (`./le test qemu installer` and its siblings,
-`vpp-hugepages`, `mpls-boot`, the two `crash-capture-*` verbs), runs
+`vpp-hugepages`, `mpls-boot`, `appliance-hostname`, the two `crash-capture-*` verbs), runs
 under the same selection. ffmpeg, which `le site terminal-demo` runs, is no Docker
 client and runs under le's own environment.
 <!-- source: internal/le/dockerhost/dockerhost.go -- Environment, Inherited, ZeSocket, DockerHostStart -->

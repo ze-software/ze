@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"sync"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	zepki "github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -25,6 +27,7 @@ const (
 	svcMCP  = "mcp"
 	svcREST = "rest"
 	svcGRPC = "grpc"
+	svcSSH  = "ssh"
 )
 
 // Reconfigurable is implemented by any server that supports live listener migration.
@@ -90,6 +93,12 @@ type listenerMigrator struct {
 	grpc   Reconfigurable
 	logger *slog.Logger
 
+	// ssh is set from the infrastructure hook (setupInfraHook), which runs
+	// during plugin startup on another goroutine than the reload workers, so
+	// it is guarded by sshMu. Read it through sshHandle.
+	sshMu sync.Mutex
+	ssh   Reconfigurable
+
 	// authAtBoot records, per service name, whether the boot guard
 	// (mgmt_guard.go) classified that surface as gating every request. It is
 	// the reload guard's source for a service whose authentication is fixed at
@@ -143,6 +152,8 @@ func (m *listenerMigrator) hasService(name string) bool {
 		return m.rest != nil
 	case svcGRPC:
 		return m.grpc != nil
+	case svcSSH:
+		return m.sshHandle() != nil
 	default:
 		return false
 	}
@@ -317,6 +328,36 @@ func (m *listenerMigrator) setREST(s Reconfigurable) {
 }
 
 // setGRPC updates the gRPC API server reference.
+// setSSH records the running SSH server, so a reload that changes the SSH
+// listener list moves it (buildChanges). SSH authenticates every session, so
+// the exposure guard has no record for it and never refuses its move: an SSH
+// listener on a new address is never served unauthenticated. Safe for
+// concurrent use.
+func (m *listenerMigrator) setSSH(s Reconfigurable) {
+	m.sshMu.Lock()
+	m.ssh = s
+	m.sshMu.Unlock()
+}
+
+// attachSSH records a built SSH server handle when it can move its listeners.
+// The gated *zessh.Server always can; a handle that cannot is reported, since
+// an SSH listener change would then need a restart.
+func (m *listenerMigrator) attachSSH(srv sshServer) {
+	r, ok := srv.(Reconfigurable)
+	if !ok {
+		m.log().Warn("SSH server cannot move its listeners on reload; restart ze to apply an SSH listener change")
+		return
+	}
+	m.setSSH(r)
+}
+
+// sshHandle answers the running SSH server, or nil when none was built.
+func (m *listenerMigrator) sshHandle() Reconfigurable {
+	m.sshMu.Lock()
+	defer m.sshMu.Unlock()
+	return m.ssh
+}
+
 func (m *listenerMigrator) setGRPC(s Reconfigurable) {
 	m.grpc = s
 	m.registerAuthReporter(svcGRPC, s)
@@ -500,6 +541,8 @@ func (m *listenerMigrator) serviceAddresses(name string) []string {
 		return m.rest.Addresses()
 	case svcGRPC:
 		return m.grpc.Addresses()
+	case svcSSH:
+		return m.sshHandle().Addresses()
 	default:
 		return nil
 	}
@@ -518,7 +561,8 @@ func checkServiceExposure(name string, addrs []string, authenticated, known bool
 }
 
 // buildChanges collects the per-service listen-address change set the reloaded
-// tree asks for. A service the tree does not describe keeps its listeners.
+// tree asks for: web, looking glass, MCP, REST, gRPC and SSH. A service the
+// tree does not describe keeps its listeners.
 func (m *listenerMigrator) buildChanges(tree *zeconfig.Tree) []serviceChange {
 	var changes []serviceChange
 
@@ -557,6 +601,17 @@ func (m *listenerMigrator) buildChanges(tree *zeconfig.Tree) []serviceChange {
 				if sc, ok := m.buildChange(svcGRPC, m.grpc, apiListenToAddrs(apiCfg.GRPC)); ok {
 					changes = append(changes, sc)
 				}
+			}
+		}
+	}
+
+	if sshSrv := m.sshHandle(); sshSrv != nil {
+		// A config without an SSH block, or with an empty server list, does
+		// not describe the listeners, and the server keeps the ones it has,
+		// as every other service here does.
+		if sshCfg := infra.ExtractSSHConfig(tree); sshCfg.HasConfig && len(sshCfg.ListenAddrs) > 0 {
+			if sc, ok := m.buildChange(svcSSH, sshSrv, sshCfg.ListenAddrs); ok {
+				changes = append(changes, sc)
 			}
 		}
 	}

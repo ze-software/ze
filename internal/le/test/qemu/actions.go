@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md -- the qemu area, as one command
 // Detail: hugepages.go -- the proof this table reaches
 // Detail: mplsboot.go -- the appliance MPLS boot proof
+// Detail: hostname.go -- the appliance kernel host name proof
 // Detail: crashcapture.go -- the two kernel crash-capture proofs
 // Detail: run.go -- the host harness this table reaches
 // Detail: install.go -- the four import-linked installer proofs
@@ -77,6 +78,11 @@ var actions = leaction.New(area,
 		" answers over the Ze CLI, which a daemon the kernel capability gate refused cannot." +
 		" Self-skips like vpp-hugepages",
 		Answer: runMPLSBootHere},
+	leaction.Action{Verb: "appliance-hostname", Does: doesRun, Summary: "test the appliance host name follows system host", Why: "the appliance's kernel host name follows `system host`, end to end: build an appliance whose" +
+		" seed adds `set system host cpe-lab`, boot it, assert `show host all` reports cpe-lab, upload the same" +
+		" configuration with cpe-lab2 through the web UI and assert the name changes without a reboot, then boot an" +
+		" appliance with `system host` unset and assert it keeps the image's own name. Self-skips like vpp-hugepages",
+		Answer: runHostnameHere},
 	leaction.Action{Verb: "crash-capture-panic-harvest", Does: doesRun, Summary: "test kernel crash capture survives a panic", Why: "kernel crash capture survives a panic, end to end:" +
 		" build an appliance that reserves a crash region, boot it, inject an NMI the seed turns into a" +
 		" kernel panic, and assert the next boot harvested a kernel artifact carrying the panic into" +
@@ -287,6 +293,25 @@ func runMPLSBootHere() (any, int) {
 		return nil, 1
 	}
 	report, err := newMPLSBoot(root).Run()
+	if err != nil {
+		leaction.ReportError(err)
+		return report, 1
+	}
+	if report.Verdict == VerdictFail || report.Verdict == VerdictUnspecified {
+		return report, 1
+	}
+	return report, 0
+}
+
+// runHostnameHere proves the appliance's kernel host name follows system host,
+// over the checkout this command was run in.
+func runHostnameHere() (any, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	report, err := newHostname(root).Run()
 	if err != nil {
 		leaction.ReportError(err)
 		return report, 1

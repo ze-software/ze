@@ -85,7 +85,7 @@ func registerAAAAccountingProvider(bundle *aaa.Bundle) {
 // and optional SSH. It never reads the candidate ConfigProvider.
 // owner MUST be the fresh hub server, before engine/plugin startup. Its seal
 // callback joins a constructor racing Stop; resource hooks need no ordering.
-func setupInfraHook(owner *pluginserver.Server, recorder audit.Recorder, reloadFn func() error, liveUsers func() ([]aaa.UserCredential, error)) {
+func setupInfraHook(owner *pluginserver.Server, recorder audit.Recorder, reloadFn func() error, liveUsers func() ([]aaa.UserCredential, error), lm *listenerMigrator) {
 	var builders sync.Mutex
 	var stopped bool
 	if _, err := owner.OnStop(func() {
@@ -104,6 +104,12 @@ func setupInfraHook(owner *pluginserver.Server, recorder audit.Recorder, reloadF
 		sshSrv := infraSetup(params, recorder, reloadFn, liveUsers)
 		if sshSrv == nil {
 			return
+		}
+		// A reload that changes the SSH listener list moves the server
+		// through the listener migration. A nil lm is a test that drives
+		// the hook without a reload path.
+		if lm != nil {
+			lm.attachSSH(sshSrv)
 		}
 		stop := func() {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

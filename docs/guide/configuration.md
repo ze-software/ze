@@ -3901,6 +3901,68 @@ env var > CLI flag > config file > YANG default.
 <!-- source: internal/component/config/environment.go — ParseCompoundListen -->
 <!-- source: cmd/ze/hub/main.go — runYANGConfig env/CLI/config resolution for webAddrs, lgAddrs, mcpAddrs -->
 
+#### `::` beside an IPv4 address
+
+On most services `::` is dual-stack: one socket accepts IPv6 clients and IPv4
+clients, so `::` alone serves both families. Because that socket also holds the
+IPv4 port, `0.0.0.0` (or any IPv4 address) on the same protocol and port can
+never bind beside it. `ze config validate` and a commit refuse the pair, naming
+both entries and the fix:
+
+```
+listener conflict: ssh v6 (tcp [::]:22) and ssh v4 (tcp 0.0.0.0:22) cannot both bind: `::` on ssh v6 is dual-stack and already accepts IPv4 on port 22, ...; remove `0.0.0.0` from ssh v4, or replace `::` with the IPv6 addresses to serve
+```
+
+List `::` alone to serve both families, or list specific addresses of each
+family (`192.0.2.1` and `2001:db8::1` on one port both bind). L2TP and the web
+server bind IPv6 sockets IPv6-only, so for them `0.0.0.0` and `::` on one port
+are accepted and both bind.
+
+#### SSH listeners: all or none, and on reload
+
+SSH binds every `server` entry or none. When one address cannot bind (it is not
+on the host, or another process holds the port), SSH does not start, every
+address it had bound is released, and one warn line names the address and the
+bind error; `ze doctor`'s listener check reports the address. The daemon runs
+on without SSH, as it does when the first entry fails.
+
+A commit that changes the SSH `server` list moves the running SSH server
+without a restart. Every new address binds before any removed one closes; if
+one cannot bind, the reload is refused naming it, SSH keeps serving its
+previous addresses, and any other listener the same reload already moved goes
+back. Moving one port between families (`127.0.0.1:22` to `0.0.0.0:22`) cannot
+bind while the old listener holds the port, so make that change in two commits:
+add the new address on another port first, or remove the old one first.
+
+### System Host Name
+
+`system host` names the router. Ze uses it as its own identity everywhere (the
+prompt, BMP `sysName`, archives), and it supports `$ENV_VAR` expansion:
+
+```
+system {
+    host cpe-lab;
+}
+```
+
+The value, after expansion, must be a valid host name (RFC 1123 Section 2.1,
+RFC 952): letters, digits and hyphens in dot-separated labels, no label starting
+or ending with a hyphen, at most 63 bytes per label and 64 in all (the kernel's
+limit). `ze config validate` and a commit refuse anything else, naming the value
+and the rule. A `$ENV_VAR` that is not set when the config is validated is left
+for the daemon, which keeps the literal value as Ze's identity.
+
+On the appliance build, Ze also sets the kernel host name (what `uname -n`,
+syslog and the shell prompt show) from `system host` at start and on every
+reload that changes it. With `system host` unset, the kernel keeps the image's
+name. If setting it fails (ze lacks `CAP_SYS_ADMIN`), the kernel keeps its name,
+one warn line names the value, the error and the fix, and `ze doctor` reports
+`doctor-system-host-not-applied`; the commit is not refused.
+
+On a distro install (any build without the appliance tag), the operating system
+owns the host name: Ze never calls `sethostname`, and `system host` changes
+only Ze's own identity.
+
 ### DNS Name Servers
 
 Configure static DNS name servers and resolver tuning under `system {}`:

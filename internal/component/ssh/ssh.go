@@ -18,6 +18,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -49,6 +50,7 @@ import (
 var (
 	errHostKeyPathCannotBeResolved       = errors.New("host-key path cannot be resolved: set host-key in config or run from a standard install location")
 	errSshServerAlreadyStarted           = errors.New("SSH server already started")
+	errSSHServerNotRunning               = errors.New("SSH server is not running, so its listeners cannot move: restart ze to start it on the new addresses")
 	errHostCertificateFileDoesNotContain = errors.New("host-certificate file does not contain an SSH certificate")
 	errSessionModelOwnerMissing          = errors.New("interactive SSH session owner missing: reconnect to the daemon")
 	errModelDrainOverdue                 = errors.New("an SSH editor session's storage write did not finish in time: check the disk holding the configuration store")
@@ -75,9 +77,6 @@ func getSessionAuthorizer(sess ssh.Session) plugin.Authorizer {
 	authorizer, _ := sess.Context().Value(sessionAuthorizerKey{}).(plugin.Authorizer)
 	return authorizer
 }
-
-// Compile-time interface check.
-var _ ze.Subsystem = (*Server)(nil)
 
 // Default configuration values.
 const (
@@ -180,6 +179,7 @@ type Server struct {
 	modelDrainLimit          time.Duration  // how long Stop joins model cleanup
 	listener                 net.Listener   // bound listener (for address resolution)
 	extraListeners           []net.Listener // additional listeners for multi-address binding
+	addresses                []string       // configured address of listener, then of each extra listener, in order
 	logger                   *slog.Logger
 	activeSessions           atomic.Int32
 	executorFactory          CommandExecutorFactory   // set after reactor starts; creates per-session executors
@@ -459,7 +459,9 @@ func (s *Server) LoginWarningsFunc() LoginWarningsFunc {
 	return s.loginWarningsFunc
 }
 
-// Start launches the SSH server. It implements ze.Subsystem.
+// Start launches the SSH server, with the ze.Subsystem Start shape. The SSH
+// server is not a ze.Subsystem: its listener changes reach it through
+// Reconfigure, the reload listener migration, not a Reload call.
 // The listener is created synchronously so bind failures are reported immediately.
 // Every bound listener is registered by Serve before Start returns, so an
 // immediate Stop cannot race a listener WaitGroup Add or miss that listener.
@@ -556,41 +558,182 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 		return fmt.Errorf("create SSH server: %w", err)
 	}
 
-	// Bind synchronously so Start() returns an error if the port is unavailable.
-	var lc net.ListenConfig
-	ln, err := lc.Listen(ctx, "tcp", s.config.Listen)
+	// Bind every configured address before serving any, so Start answers all
+	// or none: a set the kernel only half accepts is an error, never a server
+	// that runs on part of its config.
+	addrs := s.configuredAddresses()
+	bound, err := bindListeners(ctx, addrs)
 	if err != nil {
-		return fmt.Errorf("bind SSH server: %w", err)
+		return err
 	}
 
 	s.wish = srv
-	s.listener = ln
-
-	if err := s.serveListener(srv, ln); err != nil {
+	if err := s.serveListeners(srv, bound); err != nil {
 		s.wish = nil
-		s.listener = nil
 		return fmt.Errorf("serve SSH server: %w", err)
 	}
+	s.setListeners(addrs, bound)
+	return nil
+}
 
-	// Bind additional listen addresses (if configured).
-	// The first address is already bound above via config.Listen.
-	if len(s.config.ListenAddrs) > 1 {
-		for _, addr := range s.config.ListenAddrs[1:] {
-			extraLn, listenErr := lc.Listen(ctx, "tcp", addr)
-			if listenErr != nil {
-				s.logger.Error("SSH extra listener failed to bind", "address", addr, "error", listenErr)
-				continue
-			}
-			if err := s.serveListener(srv, extraLn); err != nil {
-				// Serve closes a listener it refuses before registration.
-				// Extra listeners remain best-effort, as bind failures are.
-				continue
-			}
-			s.extraListeners = append(s.extraListeners, extraLn)
+// configuredAddresses answers the addresses the config names, the primary
+// first. ListenAddrs carries the whole list when the config has one; Listen
+// alone is the single-address form.
+func (s *Server) configuredAddresses() []string {
+	if len(s.config.ListenAddrs) > 0 {
+		return slices.Clone(s.config.ListenAddrs)
+	}
+	return []string{s.config.Listen}
+}
+
+// bindListeners binds every address, or none. On the first failure it closes
+// the listeners already bound and answers an error naming the address, so a
+// caller never holds a partial set.
+func bindListeners(ctx context.Context, addrs []string) ([]net.Listener, error) {
+	var lc net.ListenConfig
+	bound := make([]net.Listener, 0, len(addrs))
+	for _, addr := range addrs {
+		ln, err := lc.Listen(ctx, "tcp", addr)
+		if err != nil {
+			closeListeners(bound)
+			return nil, fmt.Errorf("bind SSH server on %s: %w", addr, err)
+		}
+		bound = append(bound, ln)
+	}
+	return bound, nil
+}
+
+// serveListeners hands every bound listener to the running SSH server. On a
+// failure it closes every listener of the set, served or not: Serve already
+// closed the one it refused, and closing a served listener ends its Serve.
+func (s *Server) serveListeners(network *ssh.Server, bound []net.Listener) error {
+	for i, ln := range bound {
+		if err := s.serveListener(network, ln); err != nil {
+			closeListeners(bound[:i])
+			closeListeners(bound[i+1:])
+			return err
+		}
+	}
+	return nil
+}
+
+// closeListeners closes each listener. A close error has no caller that could
+// act on it: the socket is being dropped, and the descriptor is gone either way.
+func closeListeners(listeners []net.Listener) {
+	for _, ln := range listeners {
+		_ = ln.Close() //nolint:errcheck // Dropping the socket; nothing can act on a close error.
+	}
+}
+
+// setListeners records the serving set: the first listener answers Address,
+// and addrs answers Addresses. The caller MUST hold s.mu.
+func (s *Server) setListeners(addrs []string, listeners []net.Listener) {
+	s.addresses = addrs
+	s.listener = listeners[0]
+	s.extraListeners = slices.Clone(listeners[1:])
+}
+
+// Addresses answers the configured listen addresses the server is serving, in
+// config order, or nil when it is not running. The reload listener migration
+// compares them with the reloaded config (cmd/ze/hub/listener_migrate.go).
+// Safe for concurrent use.
+func (s *Server) Addresses() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.addresses)
+}
+
+// Reconfigure moves the running server to newAddrs, all or none. It binds
+// every added address before it closes any removed one, so on a bind failure
+// it closes what it bound and answers the error with the previous set still
+// serving; only then does it close the removed listeners. An empty newAddrs
+// is the built-in default, as at construction. It is the reload half of
+// Start: the hub's listener migration calls it (Reconfigurable,
+// cmd/ze/hub/listener_migrate.go), and rolls back the services it already
+// moved when this one fails.
+//
+// An address that moves between families on one port (127.0.0.1:22 to
+// 0.0.0.0:22) cannot bind while the old listener holds the port, so that
+// change is refused and the old set keeps serving.
+func (s *Server) Reconfigure(ctx context.Context, newAddrs []string) error {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.wish == nil {
+		return errSSHServerNotRunning
+	}
+	if len(newAddrs) == 0 {
+		newAddrs = []string{defaultListen}
+	}
+	if dup, ok := firstDuplicate(newAddrs); ok {
+		return fmt.Errorf("SSH listener %s is listed twice: remove one of the two entries", dup)
+	}
+
+	current := make(map[string]net.Listener, len(s.addresses))
+	for i, addr := range s.addresses {
+		current[addr] = s.listenerAt(i)
+	}
+	var added []string
+	for _, addr := range newAddrs {
+		if _, kept := current[addr]; !kept {
+			added = append(added, addr)
 		}
 	}
 
+	bound, err := bindListeners(ctx, added)
+	if err != nil {
+		return err
+	}
+	if err := s.serveListeners(s.wish, bound); err != nil {
+		return fmt.Errorf("serve SSH listener: %w", err)
+	}
+
+	fresh := make(map[string]net.Listener, len(added))
+	for i, addr := range added {
+		fresh[addr] = bound[i]
+	}
+	next := make([]net.Listener, 0, len(newAddrs))
+	for _, addr := range newAddrs {
+		if ln, kept := current[addr]; kept {
+			next = append(next, ln)
+			delete(current, addr)
+			continue
+		}
+		next = append(next, fresh[addr])
+	}
+
+	// What remains in current is the removed set, closed only now that every
+	// new address serves.
+	for addr, ln := range current {
+		if err := ln.Close(); err != nil {
+			s.logger.Warn("SSH listener removed by a reload did not close cleanly", "address", addr, "error", err)
+		}
+	}
+	s.setListeners(slices.Clone(newAddrs), next)
 	return nil
+}
+
+// listenerAt answers the listener serving s.addresses[i]. The caller MUST
+// hold s.mu.
+func (s *Server) listenerAt(i int) net.Listener {
+	if i == 0 {
+		return s.listener
+	}
+	return s.extraListeners[i-1]
+}
+
+// firstDuplicate answers the first address that appears twice.
+func firstDuplicate(addrs []string) (string, bool) {
+	seen := make(map[string]struct{}, len(addrs))
+	for _, addr := range addrs {
+		if _, ok := seen[addr]; ok {
+			return addr, true
+		}
+		seen[addr] = struct{}{}
+	}
+	return "", false
 }
 
 // Stop seals model admission, shuts down the network, and joins all admitted
@@ -630,14 +773,9 @@ func (s *Server) Stop(ctx context.Context) error {
 	s.wish = nil
 	s.listener = nil
 	s.extraListeners = nil
+	s.addresses = nil
 	s.mu.Unlock()
 	return err
-}
-
-// Reload applies configuration changes. It implements ze.Subsystem.
-func (s *Server) Reload(_ context.Context, _ ze.ConfigProvider) error {
-	// SSH server config changes require restart; no hot-reload for v1.
-	return nil
 }
 
 // resolveHostKeyOption returns the Wish host key option.

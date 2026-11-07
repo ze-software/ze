@@ -5,6 +5,7 @@
 package infra
 
 import (
+	"net"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -41,7 +42,10 @@ func ExtractSSHConfig(tree *config.Tree) SSHExtractedConfig {
 			if v, ok := s.Value.Get("port"); ok && v != "" {
 				port = v
 			}
-			cfg.ListenAddrs = append(cfg.ListenAddrs, ip+":"+port)
+			// JoinHostPort brackets an IPv6 address: "::" and "22" joined
+			// by hand give ":::22", which net.Listen refuses as "too many
+			// colons in address", so an IPv6 entry never bound.
+			cfg.ListenAddrs = append(cfg.ListenAddrs, net.JoinHostPort(ip, port))
 		}
 		cfg.Listen = cfg.ListenAddrs[0]
 	} else if addrs := sshContainer.GetSlice("listen"); len(addrs) > 0 {

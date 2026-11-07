@@ -846,8 +846,9 @@ that error before it exits with the signal's code.
 ### The SSH forward's host port
 
 Every QEMU forward this package starts binds `127.0.0.1`: the SSH forward of
-`run`, `docker-lab`, `installer`, hugepages, MPLS boot and crash capture,
-the `installer` web forward, and the crash-capture HTTP forward and monitor.
+`run`, `docker-lab`, `installer`, hugepages, MPLS boot, the hostname proof and
+crash capture, the `installer` and hostname-proof web forwards, and the
+crash-capture HTTP forward and monitor.
 Every client dials `127.0.0.1` too, and nothing reaches a forward from off the
 host. One address is what keeps two VMs off one port. Two forwards on one
 address collide at QEMU's bind, which is loud. A wildcard forward beside a
@@ -868,7 +869,7 @@ before this run's QEMU binds it, and so does a second forward of the same run:
 the `installer` SSH and web forwards once got the same port. The lock
 covers the VM only while its le lives. A `run` or `docker-lab` VM dies with its
 le on Linux and is stopped by the next run's reap on macOS (below). The
-`installer`, hugepages, crash-capture and MPLS boot VMs carry neither
+`installer`, hugepages, crash-capture, MPLS boot and hostname-proof VMs carry neither
 mechanism, so a le killed outright leaves them running on their port with no
 lock. The second check covers them: it binds the port on `127.0.0.1` and on the
 wildcard, IPv4, with `SO_REUSEADDR` cleared, and so finds a port another
@@ -877,9 +878,10 @@ with it. With the option set, as Go sets it by default, macOS lets the probe
 bind beside a listening holder.
 
 When every port in the band fails a check, the error names the fixed-port
-setting of each action that reaches it (`ze.qemu.ssh.port` for `run`,
-`docker-lab` and MPLS boot, `ze.install.ssh.port` for `installer`,
-`ze.vpp.hp.ssh.port` for hugepages; crash capture has none), and `lsof +D
+setting of each action that reaches it (`ze.qemu.ssh.port` for `run` and
+`docker-lab`, `ze.install.ssh.port` for `installer`, `ze.vpp.hp.ssh.port` for
+hugepages, MPLS boot and the hostname proof; crash capture and the hostname
+proof's web forward have none), and `lsof +D
 /tmp/le-port-locks-<euid>` to name the le processes holding reservations.
 <!-- source: internal/le/test/qemu/hostport.go -- forwardHost, reserveForwardPort, reserveForwardPortIn, forwardPortFree -->
 <!-- source: internal/test/runner/ports.go -- LockPort -->
@@ -908,7 +910,7 @@ that its output stream stopped accepting writes, when, and why, and that the
 run's captured output is intact: the same holds for an ENOSPC on a job log. A
 staged record a killed `le` left before its rename is removed by the reap once
 it is older than ten minutes. The VMs that `installer`, the hugepages proof,
-crash capture and the MPLS boot start outside `Run` carry neither mechanism.
+crash capture, the MPLS boot and the hostname proof start outside `Run` carry neither mechanism.
 <!-- source: internal/le/test/qemu/vmrecord.go -- recordVM, reapOrphanVMs, reapOne, reapUnreadable, removeStaleStaged -->
 <!-- source: internal/le/test/qemu/vmrecord_other.go -- processStartTime -->
 <!-- source: internal/le/test/qemu/run.go -- terminalWriter, runHostCommand -->

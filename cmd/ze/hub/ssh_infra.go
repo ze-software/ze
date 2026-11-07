@@ -87,6 +87,9 @@ type sshStandaloneInputs struct {
 	Dispatch      plugin.CommandDispatcher
 	ReloadFn      func() error
 	Log           *slog.Logger
+	// Migrator receives the started server, so a reload that changes the SSH
+	// listener list moves it. Nil leaves the server out of the migration.
+	Migrator *listenerMigrator
 }
 
 // sshBuild builds and starts the ssh server, returning a handle (or nil if ssh

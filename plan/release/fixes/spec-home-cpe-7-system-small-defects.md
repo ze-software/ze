@@ -161,7 +161,7 @@ hostname and Ze leaves it alone, as today.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Every `ze:listener` service other than L2TP binds `::` dual-stack | Go default; grep for `IPV6_V6ONLY` finds only L2TP | a V6ONLY service would get a false refusal | grep `IPV6_V6ONLY` and `ListenConfig.Control` across services at implementation | unvalidated |
+| A-1 | Every `ze:listener` service other than L2TP binds `::` dual-stack | Go default; grep for `IPV6_V6ONLY` finds only L2TP | a V6ONLY service would get a false refusal | grep `IPV6_V6ONLY` and `ListenConfig.Control` across services at implementation | broken for web: `listenAddr` (`internal/component/web/server.go`) binds a bracketed address with `tcp6`, which Go binds IPV6_V6ONLY, so web registers V6ONLY (`internal/component/web/register_listener.go`); SSH, LG, REST, gRPC, gNMI, DNS, telemetry and BGP listen with `tcp`/`udp` (dual-stack) |
 | A-2 | Ze runs as root, or with `CAP_SYS_ADMIN` in the initial UTS namespace, on the appliance | gokrazy runs packages as root; `dropPrivileges` is a no-op without `ze.user` | `sethostname` fails EPERM | appliance boot test | unvalidated |
 | A-3 | Existing configs in `test/` and `docs/` do not list `::` with an IPv4 address on one port for a dual-stack service | none | tests go red under the new refusal | grep before Phase 2; each hit is a config that never fully worked | unvalidated |
 
@@ -265,6 +265,10 @@ hostname and Ze leaves it alone, as today.
 - `internal/component/config/system/doctor.go` - the hostname mismatch check, registered in `registerSystemDoctorChecks`
 - `cmd/ze/hub/main.go`, `cmd/ze/hub/main_reload.go` - call sites of the hostname applier beside `applyConsole` and `applyConsoleFromMap`
 - `internal/le/test/qemu/actions.go` - the `appliance-hostname` action
+- `internal/le/test/qemu/mplsboot.go` - its image build becomes `buildSeededImage`, which the hostname proof shares
+- `internal/le/test/qemu/hostport.go` - the port-exhaustion fix named `ze.qemu.ssh.port` for the MPLS boot, which reads `ze.vpp.hp.ssh.port`; it now names the hugepage key for the MPLS boot and hostname proofs
+- `docs/architecture/testing/qemu-integration.md` - declared by `hostname.go`; its forward-port and VM-reap paragraphs gain the hostname proof and its web forward, and the fixed-port key list is corrected the same way as `hostport.go`
+- `docs/architecture/appliance/gokrazy-build-pins.md` ("Which boot proof asserts what") and `docs/architecture/testing/interop.md` (the list of verbs that run `ze appliance build`) - gain `appliance-hostname`
 - `docs/guide/configuration.md`, `docs/guide/appliance.md`
 - `docs/architecture/config/syntax.md` - declared by `listener.go` and `system.go`. The `ze:listener` row says `ValidateListenerConflicts` "rejects overlapping `ip:port` pairs"; it stays true but gains the dual-stack rule (`::` on a service without V6ONLY overlaps every IPv4 address) and the V6ONLY registration. Nothing it says about `system host` becomes wrong
 - `docs/architecture/system-architecture.md` - declared by `ssh.go`; it describes the SSH subsystem, not the extra-listener bind, so nothing becomes wrong; checked at implementation against the all-or-none bind
@@ -377,7 +381,7 @@ No open row records either defect (grep of `plan/journal/` for `EADDRINUSE`, `du
 
 | Question | Evidence | Reading this spec proceeds under |
 |----------|----------|----------------------------------|
-| Should an SSH bind failure at boot fail `ze start`, rather than leave the daemon running without SSH? | `sshBuildImpl` (`cmd/ze/hub/service_ssh.go`) logs "SSH server failed to start" at warn and returns no server when `Server.Start` errors, which is today's behaviour for a primary-listener failure; the Task's "never a log line" cannot hold at boot without changing that policy for every SSH start error | keep the hub's policy: an extra listener's failure now behaves exactly as a primary-listener failure (no SSH, one warn line naming the address), and the doctor's listener probe reports the address. Changing the boot policy is the owner's call |
+| Should an SSH bind failure at boot fail `ze start`, rather than leave the daemon running without SSH? | `sshBuildImpl` (`cmd/ze/hub/service_ssh.go`) logs "SSH server failed to start" at warn and returns no server when `Server.Start` errors, which is today's behaviour for a primary-listener failure; the Task's "never a log line" cannot hold at boot without changing that policy for every SSH start error | keep the hub's policy: an extra listener's failure now behaves exactly as a primary-listener failure (no SSH, one warn line naming the address), and the doctor's listener probe reports the address. Changing the boot policy is the owner's call. **Taken by default, pending the owner** (2026-11-07): implemented this way, `sshBuildImpl` and `sshBuildStandaloneImpl` unchanged |
 
 ## Known Limitations
 

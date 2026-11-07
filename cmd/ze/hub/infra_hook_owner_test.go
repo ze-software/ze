@@ -127,7 +127,7 @@ func TestInfraHookJoinsRefusedSSHOwner(t *testing.T) {
 		}
 		setupInfraHook(owner, nil, nil, func() ([]aaa.UserCredential, error) {
 			return []aaa.UserCredential{operator}, nil
-		})
+		}, nil)
 		params := infra.HookParams{
 			Reactor:   &authWiringReactor{},
 			SSHConfig: infra.SSHExtractedConfig{HasConfig: true},
@@ -207,7 +207,7 @@ func TestInfraHookRefusesFirstConstructionAfterStop(t *testing.T) {
 	setupInfraHook(owner, nil, nil, func() ([]aaa.UserCredential, error) {
 		liveCalls++
 		return []aaa.UserCredential{{Name: "operator"}}, nil
-	})
+	}, nil)
 	owner.Stop()
 	infra.Run(infra.HookParams{
 		Reactor:   &authWiringReactor{},

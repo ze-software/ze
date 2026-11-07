@@ -9,6 +9,13 @@
 
 package system
 
+import "github.com/ze-software/ze/internal/component/config"
+
 func init() {
 	registerSystemDoctorChecks()
+	// The host name check runs wherever a config is validated (ze config
+	// validate, a commit, a reload), before an applier sets the kernel name.
+	if err := config.RegisterTreeValidator("system-host-name", validateSystemHostTree); err != nil {
+		panic("BUG: system host name validator registration refused: " + err.Error())
+	}
 }

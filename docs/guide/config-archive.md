@@ -113,7 +113,7 @@ system {
 }
 ```
 
-If the environment variable is empty or unset, the literal string is kept (e.g., `$HOSTNAME` stays as-is). When `host` is not configured, it defaults to `unknown`. No `os.Hostname()` fallback is used.
+If the environment variable is empty or unset, the literal string is kept (e.g., `$HOSTNAME` stays as-is). When `host` is not configured, it defaults to the machine's host name (`os.Hostname()`), or `unknown` when that cannot be read.
 <!-- source: internal/component/config/system/system.go -- ExpandEnvValue, ExtractSystemConfig -->
 
 ## CLI Usage

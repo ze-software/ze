@@ -10,6 +10,10 @@ import (
 )
 
 func init() {
+	// UDPListener.Start (listener.go) binds every IPv6 listener with
+	// IPV6_V6ONLY, so `0.0.0.0` and `::` on one port both bind. Conflict
+	// validation must know it, or it refuses the pair as a dual-stack overlap.
+	config.RegisterListenerV6Only("l2tp")
 	if err := config.RegisterTreeValidator("l2tp-mru-policy", validateMRUPolicy); err != nil {
 		panic("BUG: registering l2tp MRU policy: " + err.Error())
 	}

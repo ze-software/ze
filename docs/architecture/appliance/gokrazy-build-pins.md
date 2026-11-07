@@ -289,8 +289,10 @@ cache written before the flag existed needs a one-time
 |-------|--------------|------------|
 | `./le test qemu vpp-hugepages` | Builds a real image through `ze appliance build`, boots it in QEMU, asserts the kernel command line and the reserved hugepage count | The default boot proof |
 | `./le test qemu mpls-boot` | Builds a real image whose seed adds `set fib kernel` and `set ldp`, boots it in QEMU, asserts `show ldp neighbor \| json` answers over the Ze CLI | The appliance kernel carries MPLS, so the kernel capability gate lets Ze start |
+| `./le test qemu appliance-hostname` | Builds an image whose seed adds `set system host cpe-lab` and one that leaves it unset. Boots the first in QEMU, asserts `show host all \| json` reports `cpe-lab`, uploads the same config with `cpe-lab2` through the web UI's `/config/upload` and asserts the name changes without a reboot, then boots the second and asserts the name stays the `Hostname` of `gokrazy/ze/config.json` | The kernel host name follows `system host` at start and on reload (`reconcileKernelHostname`, `cmd/ze/hub/main_system_hostname.go`) |
 | `./le test deployment gokrazy-l2tp-ppp` | Builds the appliance and boots it against a real LAC | The L2TP path |
 | `test/appliance/serial-login.ci` | Boots nothing. Its header says the QEMU plan applies "when appliance serial test infrastructure is ready"; it asserts the argv[0] shell-invocation gate offline | Never a boot proof |
+<!-- source: internal/le/test/qemu/hostname.go -- Hostname.Run, hostnameOf, imageHostName, Hostname.upload -->
 
 An image build alone is not a boot proof.
 

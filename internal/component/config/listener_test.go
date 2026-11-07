@@ -91,6 +91,26 @@ func TestValidateListenerConflicts_NoConflict(t *testing.T) {
 				{Service: "ssh", IP: net.ParseIP("::1"), Port: 8443},
 			},
 		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateListenerConflicts(tt.endpoints)
+			assert.NoError(t, err)
+		})
+	}
+}
+
+// TestValidateListenerConflicts_DualStackWildcard holds the case that left
+// TestValidateListenerConflicts_NoConflict: a `::` endpoint with V6Only unset is
+// a dual-stack socket on Linux (Go leaves IPV6_V6ONLY off for "tcp" on
+// "[::]:N"), so it owns IPv4 port N and an IPv4 address on N cannot bind.
+// VALIDATES: AC-2 -- `::` beside a specific IPv4 address on one port is refused.
+// PREVENTS: a config that validates and then binds only one of its listeners.
+func TestValidateListenerConflicts_DualStackWildcard(t *testing.T) {
+	tests := []struct {
+		name      string
+		endpoints []ListenerEndpoint
+	}{
 		{
 			name: "cross-family ipv6-wildcard vs ipv4-specific",
 			endpoints: []ListenerEndpoint{
@@ -102,9 +122,101 @@ func TestValidateListenerConflicts_NoConflict(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateListenerConflicts(tt.endpoints)
-			assert.NoError(t, err)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "already accepts IPv4")
 		})
 	}
+}
+
+// TestIPsConflictDualStackWildcard walks the dual-stack rule over the pairs an
+// operator writes. Method: build endpoints directly, so no registration leaks in,
+// and judge each pair in both orders, since the bind fails whichever runs first.
+// VALIDATES: AC-1, AC-2, AC-4 -- `::` with any IPv4 address on one port and
+// protocol is refused and the error names both entries and the fix; distinct
+// specific addresses of the two families, another port, or another protocol pass.
+// PREVENTS: a half-bound service reported as validated.
+func TestIPsConflictDualStackWildcard(t *testing.T) {
+	ep := func(service, ip string, port uint16, protocol string) ListenerEndpoint {
+		return ListenerEndpoint{Service: service, Protocol: protocol, IP: net.ParseIP(ip), Port: port}
+	}
+	refused := []struct {
+		name string
+		a, b ListenerEndpoint
+		v4   string
+	}{
+		{"both wildcards", ep("ssh a", "0.0.0.0", 22, ProtocolTCP), ep("ssh b", "::", 22, ProtocolTCP), "0.0.0.0"},
+		{"wildcard and specific ipv4", ep("ssh a", "::", 22, ProtocolTCP), ep("ssh b", "192.0.2.1", 22, ProtocolTCP), "192.0.2.1"},
+		{"across services", ep("looking-glass", "::", 8443, ProtocolTCP), ep("api-server-rest", "127.0.0.1", 8443, ProtocolTCP), "127.0.0.1"},
+		{"udp", ep("dns a", "::", 53, ProtocolUDP), ep("dns b", "0.0.0.0", 53, ProtocolUDP), "0.0.0.0"},
+	}
+	for _, tt := range refused {
+		for _, pair := range [][]ListenerEndpoint{{tt.a, tt.b}, {tt.b, tt.a}} {
+			t.Run(tt.name, func(t *testing.T) {
+				c := FindListenerConflict(pair)
+				require.NotNil(t, c, "`::` beside %s on one port must be refused", tt.v4)
+				msg := c.Err.Error()
+				assert.Contains(t, msg, tt.a.Service)
+				assert.Contains(t, msg, tt.b.Service)
+				assert.Contains(t, msg, "already accepts IPv4")
+				assert.Contains(t, msg, "remove `"+tt.v4+"`")
+			})
+		}
+	}
+
+	accepted := []struct {
+		name string
+		a, b ListenerEndpoint
+	}{
+		{"specific addresses of both families", ep("ssh a", "192.0.2.1", 22, ProtocolTCP), ep("ssh b", "2001:db8::1", 22, ProtocolTCP)},
+		{"ipv4 wildcard and specific ipv6", ep("ssh a", "0.0.0.0", 22, ProtocolTCP), ep("ssh b", "::1", 22, ProtocolTCP)},
+		{"different ports", ep("ssh a", "::", 22, ProtocolTCP), ep("ssh b", "0.0.0.0", 2222, ProtocolTCP)},
+		{"different protocols", ep("dns a", "::", 53, ProtocolUDP), ep("dns b", "0.0.0.0", 53, ProtocolTCP)},
+		{"wildcard alone", ep("ssh a", "::", 22, ProtocolTCP), ep("web", "::", 3443, ProtocolTCP)},
+	}
+	for _, tt := range accepted {
+		for _, pair := range [][]ListenerEndpoint{{tt.a, tt.b}, {tt.b, tt.a}} {
+			t.Run(tt.name, func(t *testing.T) {
+				assert.Nil(t, FindListenerConflict(pair))
+			})
+		}
+	}
+}
+
+// TestIPsConflictV6OnlyService proves the V6Only registration reaches the rule:
+// a service that binds IPv6 with IPV6_V6ONLY keeps `::` and `0.0.0.0` on one
+// port, while a service that did not register is refused for the same pair.
+// Method: register a test-only service name and collect through the endpoint
+// constructors that read the registry.
+// VALIDATES: AC-5 -- the l2tp shape (`0.0.0.0` and `::` on 1701) is accepted.
+// PREVENTS: a service name list inside the rule, or a registration that never
+// reaches the endpoint.
+func TestIPsConflictV6OnlyService(t *testing.T) {
+	const v6only = "test-v6only-service"
+	const dual = "test-dual-stack-service"
+	RegisterListenerV6Only(v6only)
+	t.Cleanup(func() {
+		listenerV6OnlyMu.Lock()
+		delete(listenerV6Only, v6only)
+		listenerV6OnlyMu.Unlock()
+	})
+
+	build := func(service string) []ListenerEndpoint {
+		var out []ListenerEndpoint
+		for _, ip := range []string{"0.0.0.0", "::"} {
+			ep := defaultListenerEndpoint(service, ProtocolUDP, ip, ip, "1701")
+			require.NotNil(t, ep)
+			out = append(out, *ep)
+		}
+		return out
+	}
+
+	v6 := build(v6only)
+	for _, e := range v6 {
+		assert.True(t, e.V6Only, "endpoint %s must carry the registration", e.Service)
+	}
+	assert.NoError(t, ValidateListenerConflicts(v6))
+
+	assert.Error(t, ValidateListenerConflicts(build(dual)))
 }
 
 // TestValidateListenerConflicts_BGPPeer verifies BGP peer local endpoint participates.

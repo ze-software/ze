@@ -927,7 +927,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// stopHooks.run alone can return while another caller is still draining.
 	stopAPI := sync.OnceFunc(apiServer.Stop)
 	defer stopAPI()
-	setupInfraHook(apiServer, auditLog, sessionReload, liveAcceptedLocalUsers)
+	// The listener migrator exists before the infrastructure hook, which hands
+	// it the SSH server it builds (setupInfraHook).
+	lm := newListenerMigrator()
+	setupInfraHook(apiServer, auditLog, sessionReload, liveAcceptedLocalUsers, lm)
 	apiServer.SetProcessSpawner(pm)
 	apiServer.Dispatcher().SetAuditRecorder(auditLog)
 	registry.SetPluginServer(apiServer)
@@ -1087,6 +1090,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	startSmartManager(loadResult.Tree)
 	defer stopSmartManager()
 	applyConsole(&sc)
+	applyKernelHostname(loadResult.Tree)
 	applyConntrack(&sc, apiServer)
 	setIdentityStore(store)
 	startUpdateChecker(&sc)
@@ -1094,7 +1098,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	startArchiveScheduler(loadResult.Tree, configPath, store, apiServer)
 	defer stopArchiveScheduler()
 
-	lm := newListenerMigrator()
 	// commitReloads holds the store open until every commit-driven reload has
 	// returned (reloadGate, main_reload.go). Shutdown closes it below, after
 	// the SIGHUP worker, and before Run returns to the store's Close.
@@ -1203,6 +1206,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			Dispatch:      sshDispatch,
 			ReloadFn:      reloadAfterCommit,
 			Log:           slogutil.Logger("hub.ssh"),
+			Migrator:      lm,
 		}
 		if stop := sshBuildStandalone(inputs); stop != nil {
 			defer stop()

@@ -176,22 +176,27 @@ func (m *MPLSBoot) workDir() (string, error) {
 	return os.MkdirTemp(parent, "run-")
 }
 
-// buildImage initializes an appliance, writes its architecture, memory and
-// seed configuration, and builds the image.
+// buildImage builds the appliance image whose seed is seed.
 func (m *MPLSBoot) buildImage(host, work, seed string) (string, error) {
-	dir := filepath.Join(work, "appliances")
-	environment, err := m.run.applianceEnv(dir)
+	return buildSeededImage(m.run, host, filepath.Join(work, "appliances"), seed)
+}
+
+// buildSeededImage initializes an appliance under dir, writes the run's
+// architecture and memory and the seed configuration, and builds the image.
+// The MPLS boot and hostname proofs share it: each differs only in its seed.
+func buildSeededImage(run *Hugepages, host, dir, seed string) (string, error) {
+	environment, err := run.applianceEnv(dir)
 	if err != nil {
 		return "", err
 	}
 
-	if out, err := m.run.appliance(context.Background(), host, environment, "init"); err != nil {
+	if out, err := run.appliance(context.Background(), host, environment, "init"); err != nil {
 		return "", applianceStepError("init", "", out, err)
 	}
 	applianceDir := filepath.Join(dir, ApplianceName)
 	err = editImageConfig(filepath.Join(applianceDir, "appliance.json"), func(image map[string]any) {
-		image["arch"] = m.run.Arch
-		image["memory"] = m.run.Memory
+		image["arch"] = run.Arch
+		image["memory"] = run.Memory
 	})
 	if err != nil {
 		return "", err
@@ -200,7 +205,7 @@ func (m *MPLSBoot) buildImage(host, work, seed string) (string, error) {
 	if err := os.WriteFile(filepath.Join(applianceDir, "ze.conf"), []byte(seed), 0o600); err != nil {
 		return "", err
 	}
-	out, err := m.run.appliance(context.Background(), host, environment, zeApplianceVerbBuild)
+	out, err := run.appliance(context.Background(), host, environment, zeApplianceVerbBuild)
 	if err != nil {
 		return "", applianceStepError(zeApplianceVerbBuild, buildHint(out), out, err)
 	}

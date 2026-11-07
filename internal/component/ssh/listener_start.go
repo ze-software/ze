@@ -51,6 +51,12 @@ func (s *Server) serveListener(network *ssh.Server, listener net.Listener) error
 		if errors.Is(err, ssh.ErrServerClosed) {
 			return
 		}
+		// Reconfigure closes a listener a reload removed, and a failed
+		// Start or Reconfigure closes the set it bound: Serve then answers
+		// the closed listener's Accept error, which is the stop, not a fault.
+		if errors.Is(err, net.ErrClosed) {
+			return
+		}
 		s.logger.Error("SSH server error", "address", listener.Addr().String(), "error", err)
 	}()
 	return <-started

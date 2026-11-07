@@ -97,10 +97,10 @@ func reserveForwardPortIn(first, last int) (int, error) {
 		Str("` names the processes holding a reservation, and `lsof -nP -iTCP:").Int(int64(first)).
 		Str("-").Int(int64(last)).Str("` the programs bound in the band. ").
 		Str("Fix: stop a VM or le run you no longer need, or set a free port outside the band: ").
-		Str("ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) for run, docker-lab and the MPLS boot, ").
+		Str("ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) for run and docker-lab, ").
 		Str("ze.install.ssh.port (ZE_INSTALL_SSH_PORT) for installer, ").
-		Str("ze.vpp.hp.ssh.port (ZE_VPP_HP_SSH_PORT) for the hugepages proof. ").
-		Str("Crash capture has no fixed-port setting and needs free ports in the band.").String())
+		Str("ze.vpp.hp.ssh.port (ZE_VPP_HP_SSH_PORT) for the hugepages, MPLS boot and hostname proofs. ").
+		Str("Crash capture and the hostname proof's web forward have no fixed-port setting and need free ports in the band.").String())
 }
 
 // forwardProbeHosts are the addresses the probe binds: the forward's own, and

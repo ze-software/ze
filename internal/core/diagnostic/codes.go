@@ -1235,6 +1235,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-config-platform-mismatch"},
 	},
 	{
+		Code:        "doctor-system-host-not-applied",
+		Title:       "Kernel host name differs from system host",
+		Description: "On the appliance, Ze sets the kernel host name from system host at start and on every reload. The kernel still carries another name, so setting it failed: the warn line in the log names the error and the fix.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-system-host-not-applied"},
+	},
+	{
 		Code:        CodeDoctorMachineIDMissing,
 		Title:       "Machine ID missing",
 		Description: "The platform expects /etc/machine-id to exist and contain a stable machine identifier, but it is missing or empty.",

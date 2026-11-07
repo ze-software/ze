@@ -298,6 +298,9 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 		log.Warn("SSH server failed to start", "error", startErr)
 		return nil
 	}
+	if in.Migrator != nil {
+		in.Migrator.setSSH(srv)
+	}
 	log.Info("SSH server listening", "address", srv.Address())
 	if in.EphemeralFile != "" {
 		if writeErr := os.WriteFile(in.EphemeralFile, []byte(srv.Address()), 0o600); writeErr != nil {

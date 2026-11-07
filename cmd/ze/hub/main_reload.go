@@ -780,6 +780,7 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 
 	applyHostTuningFromMap(newTree)
 	applyConsoleFromMap(newTree)
+	applyKernelHostnameFromMap(newTree)
 	applyConntrackFromMap(newTree, s)
 	applyUpdateCheckerFromMap(newTree)
 	startArchiveScheduler(parsedTree, configPath, store, s)

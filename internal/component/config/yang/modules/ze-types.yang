@@ -173,10 +173,14 @@ module ze-types {
         leaf ip {
             type ip-address;
             description "The listener binds this address. 0.0.0.0 binds every IPv4 address of
-                         the host, and :: binds every IPv6 address. Config validation refuses
-                         two listeners that share a protocol and a port when their addresses
-                         overlap. A wildcard address overlaps every address of its own family,
-                         and an IPv4 address never overlaps an IPv6 address.";
+                         the host, and :: binds every IPv6 address. On most services :: is
+                         dual-stack: it also accepts IPv4 clients, so :: alone serves both
+                         families. Config validation refuses two listeners that share a
+                         protocol and a port when their addresses overlap. A wildcard address
+                         overlaps every address of its own family, and a dual-stack :: also
+                         overlaps every IPv4 address, so list :: alone rather than :: beside
+                         0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)
+                         accepts :: beside an IPv4 address on the same port.";
             ze:help "Listen IP address";
         }
         leaf port {

@@ -33,6 +33,11 @@ type ListenerEndpoint struct {
 	// (RegisterListenerFreebind), so on Linux its address may be absent from
 	// the host and still bind.
 	Freebind bool
+	// V6Only is set when the service binds its IPv6 sockets with IPV6_V6ONLY
+	// (RegisterListenerV6Only), so its `::` accepts IPv6 alone and leaves the
+	// IPv4 port free. Without it `::` is a dual-stack socket that owns the
+	// IPv4 port as well (conflicts, dualStackPair).
+	V6Only bool
 }
 
 // ListenerService describes one ze:listener service the YANG schema declares: its
@@ -300,6 +305,39 @@ func listenerFreebindFor(serviceName string) bool {
 	return ok
 }
 
+// listenerV6Only holds the ze:listener services whose IPv6 sockets bind with
+// IPV6_V6ONLY. Guarded by listenerV6OnlyMu.
+var (
+	listenerV6OnlyMu sync.RWMutex
+	listenerV6Only   = map[string]struct{}{}
+)
+
+// RegisterListenerV6Only records that a named ze:listener service binds its
+// IPv6 endpoints with IPV6_V6ONLY, so its `::` accepts IPv6 alone and an IPv4
+// endpoint on the same port binds beside it. A service that does not register
+// binds `::` dual-stack: Go's net.Listen("tcp", "[::]:N") on Linux, with
+// net.ipv6.bindv6only=0 (the default), opens one socket that accepts IPv4 as
+// mapped addresses and holds the IPv4 port, so conflicts refuses `::` beside
+// any IPv4 address of that port.
+//
+// Like RegisterListenerFreebind, it is called from the service's own
+// register file, and it states what the service's socket code already does.
+func RegisterListenerV6Only(serviceName string) {
+	listenerV6OnlyMu.Lock()
+	listenerV6Only[serviceName] = struct{}{}
+	listenerV6OnlyMu.Unlock()
+}
+
+// listenerV6OnlyFor reports whether a named service registered with
+// RegisterListenerV6Only; every ListenerEndpoint built for it carries the
+// answer. Safe for concurrent use.
+func listenerV6OnlyFor(serviceName string) bool {
+	listenerV6OnlyMu.RLock()
+	defer listenerV6OnlyMu.RUnlock()
+	_, ok := listenerV6Only[serviceName]
+	return ok
+}
+
 // CollectListeners walks the config tree and collects all listener endpoints
 // from services marked with ze:listener in the YANG schema. Services with
 // enabled=false are skipped.
@@ -364,6 +402,7 @@ func CollectListeners(tree *Tree, schema *Schema) []ListenerEndpoint {
 						IP:       net.IPv4zero,
 						Port:     uint16(port), //nolint:gosec // ParseUint bitSize=16 bounds value
 						Freebind: listenerFreebindFor(svc.Name),
+						V6Only:   listenerV6OnlyFor(svc.Name),
 					})
 				}
 			}
@@ -412,7 +451,14 @@ func parseListenerEntry(service, protocol, key string, entry *Tree) *ListenerEnd
 		return nil
 	}
 
-	return &ListenerEndpoint{Service: listenerEndpointName(service, key), Protocol: protocol, IP: ip, Port: port, Freebind: listenerFreebindFor(service)}
+	return &ListenerEndpoint{
+		Service:  listenerEndpointName(service, key),
+		Protocol: protocol,
+		IP:       ip,
+		Port:     port,
+		Freebind: listenerFreebindFor(service),
+		V6Only:   listenerV6OnlyFor(service),
+	}
 }
 
 // ListenerConflict describes a pair of conflicting listener endpoints.
@@ -424,9 +470,11 @@ type ListenerConflict struct {
 
 // ValidateListenerConflicts checks a slice of endpoints for overlapping
 // protocol:ip:port bindings. Wildcard addresses (0.0.0.0 for IPv4, :: for IPv6)
-// conflict with any address in the same family. Cross-family (0.0.0.0 vs ::1)
-// does NOT conflict. Cross-protocol (TCP:N vs UDP:N) never conflicts either.
-// Returns an error naming both conflicting services if a conflict is found.
+// conflict with any address in the same family. `::` on a service that did not
+// register RegisterListenerV6Only is dual-stack and conflicts with every IPv4
+// address too; otherwise IPv4 and IPv6 addresses do not conflict.
+// Cross-protocol (TCP:N vs UDP:N) never conflicts. Returns an error naming both
+// conflicting entries, and the fix, if a conflict is found.
 func ValidateListenerConflicts(endpoints []ListenerEndpoint) error {
 	if c := FindListenerConflict(endpoints); c != nil {
 		return c.Err
@@ -440,11 +488,9 @@ func FindListenerConflict(endpoints []ListenerEndpoint) *ListenerConflict {
 		for j := i + 1; j < len(endpoints); j++ {
 			if conflicts(endpoints[i], endpoints[j]) {
 				return &ListenerConflict{
-					A: endpoints[i],
-					B: endpoints[j],
-					Err: fmt.Errorf("listener conflict: %s (%s %s:%d) and %s (%s %s:%d) bind to the same endpoint",
-						endpoints[i].Service, ProtocolLabel(endpoints[i].Protocol), endpoints[i].IP, endpoints[i].Port,
-						endpoints[j].Service, ProtocolLabel(endpoints[j].Protocol), endpoints[j].IP, endpoints[j].Port),
+					A:   endpoints[i],
+					B:   endpoints[j],
+					Err: conflictError(endpoints[i], endpoints[j]),
 				}
 			}
 		}
@@ -473,12 +519,72 @@ func conflicts(a, b ListenerEndpoint) bool {
 	if a.Port != b.Port {
 		return false
 	}
+	if _, _, ok := dualStackPair(a, b); ok {
+		return true
+	}
 	return ipsConflict(a.IP, b.IP)
+}
+
+// conflictError says why two conflicting endpoints cannot both bind, and for the
+// dual-stack case what to remove. Both entries are named so the operator finds
+// them in the config.
+func conflictError(a, b ListenerEndpoint) error {
+	protocol := ProtocolLabel(a.Protocol)
+	if wide, v4, ok := dualStackPair(a, b); ok {
+		return fmt.Errorf("listener conflict: %s (%s %s) and %s (%s %s) cannot both bind: "+
+			"`::` on %s is dual-stack and already accepts IPv4 on port %d, so the IPv4 bind fails "+
+			"with \"address already in use\"; remove `%s` from %s, or replace `::` with the IPv6 addresses to serve",
+			wide.Service, protocol, endpointHostPort(wide), v4.Service, protocol, endpointHostPort(v4),
+			wide.Service, wide.Port, v4.IP, v4.Service)
+	}
+	return fmt.Errorf("listener conflict: %s (%s %s) and %s (%s %s) bind to the same endpoint",
+		a.Service, protocol, endpointHostPort(a), b.Service, ProtocolLabel(b.Protocol), endpointHostPort(b))
+}
+
+// endpointHostPort renders an endpoint the way the operator writes it to a
+// client, with an IPv6 address in brackets.
+func endpointHostPort(e ListenerEndpoint) string {
+	return net.JoinHostPort(e.IP.String(), textbuf.StringUint16(e.Port))
+}
+
+// dualStackPair reports whether one endpoint is `::` bound dual-stack and the
+// other an IPv4 address, answering them in that order. On Linux, Go's
+// net.Listen("tcp", "[::]:N") leaves IPV6_V6ONLY off, so the socket accepts
+// IPv4 as mapped addresses and owns the IPv4 port N: a second bind of any IPv4
+// address on N fails with EADDRINUSE, whichever comes first. A service that
+// registered RegisterListenerV6Only binds `::` IPv6-only and is not dual-stack.
+// The caller has already matched protocol and port.
+func dualStackPair(a, b ListenerEndpoint) (wide, v4 ListenerEndpoint, ok bool) {
+	if isDualStackWildcard(a) && isIPv4(b.IP) {
+		return a, b, true
+	}
+	if isDualStackWildcard(b) && isIPv4(a.IP) {
+		return b, a, true
+	}
+	return ListenerEndpoint{}, ListenerEndpoint{}, false
+}
+
+// isDualStackWildcard reports whether an endpoint is the IPv6 unspecified
+// address on a service that binds it dual-stack.
+func isDualStackWildcard(e ListenerEndpoint) bool {
+	if e.V6Only {
+		return false
+	}
+	if isIPv4(e.IP) {
+		return false
+	}
+	return e.IP.Equal(net.IPv6unspecified)
+}
+
+// isIPv4 reports whether an address is IPv4, the IPv4-mapped form included.
+func isIPv4(ip net.IP) bool {
+	return ip != nil && ip.To4() != nil
 }
 
 // ipsConflict returns true if two IPs would conflict when binding on the same port.
 // Wildcard (0.0.0.0 or ::) conflicts with any address in the same family.
-// Cross-family never conflicts.
+// It judges addresses alone; the dual-stack `::`, which also owns the IPv4 port,
+// depends on the service and is judged by dualStackPair in conflicts.
 func ipsConflict(a, b net.IP) bool {
 	// Normalize to 16-byte form for consistent comparison.
 	a = a.To16()
@@ -490,7 +596,8 @@ func ipsConflict(a, b net.IP) bool {
 	aV4 := a.To4() != nil
 	bV4 := b.To4() != nil
 
-	// Cross-family: IPv4 and IPv6 never conflict.
+	// Cross-family addresses do not overlap; dualStackPair, run first by
+	// conflicts, catches the dual-stack `::` that owns the IPv4 port anyway.
 	if aV4 != bV4 {
 		return false
 	}
@@ -726,5 +833,6 @@ func defaultListenerEndpoint(service, protocol, key, defIP, defPort string) *Lis
 		IP:       ip,
 		Port:     uint16(port), //nolint:gosec // ParseUint bitSize=16 bounds value
 		Freebind: listenerFreebindFor(service),
+		V6Only:   listenerV6OnlyFor(service),
 	}
 }
