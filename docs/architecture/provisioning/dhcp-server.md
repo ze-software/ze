@@ -270,6 +270,30 @@ The server has no DHCPv6 path, so there is no second listener to guard.
 <!-- source: internal/plugins/dhcpserver/panic_guard.go -- dhcpGuard, requestTask -->
 <!-- source: internal/plugins/dhcpserver/register.go -- serveMulti, serveRequests -->
 
+## Functional tests
+
+A `.ci` under `test/dhcp/` drives the server through a real listener with the
+compiled probe `internal/test/dhcpprobe`, because no DHCP client can be told
+which RFC 2131 Section 4.3.2 state to be in. `le test fixture dhcp/link
+<name> <cidr>...` creates the veth pair `<name>`/`<name>p` before the daemon
+starts and addresses the server end in the order given, so the first is the
+primary. `le test fixture dhcp/probe <name> <step>...` then writes each
+request on the probe end with AF_PACKET and reads the server's reply on the
+wire. A step `x,<label>,type=...,mac=...,expect=<type|none>` sends one
+request carrying only the fields it names (`ciaddr`, `giaddr`, `requested`,
+`server-id`, `broadcast`) and checks the reply fields it names (`yiaddr`,
+`sid`, `router`, `mask`, `dns`, `to`); MAC addresses use hyphens, because a
+`cmd=` line refuses a `:<word>=` span. Other steps add or remove a server
+address, route a relay prefix, write a permanent neighbour entry for a
+unicast reply, name a sentinel client, or reload (`config2.conf` over
+`ze-bgp.conf`, then SIGHUP). An expected silence is proven by the sentinel's
+DHCPDISCOVER, which the listener answers after the silent request, or else by
+retransmitting across a three-second window. The probe needs CAP_NET_ADMIN and
+CAP_NET_RAW, so these tests carry `option=needs-linux:caps=net-admin,net-raw`.
+<!-- source: internal/test/dhcpprobe/step.go -- ParseStep, Exchange.Check -->
+<!-- source: internal/test/dhcpprobe/probe_linux.go -- CreateLink, Probe.Run, Probe.silent -->
+<!-- source: internal/test/fixture/dhcp_fixture_probe_linux.go -- dhcpLinkDriver, dhcpProbeDriver -->
+
 ## Related
 
 - `pxe-staging.md` for the two-stage PXE path this handler implements
