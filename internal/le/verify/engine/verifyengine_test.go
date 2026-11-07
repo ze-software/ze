@@ -17,7 +17,7 @@ import (
 func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 	want := []string{
 		"go lint/run", "arch tier/check", "rfc/check", "arch iface-resolution",
-		"plugin boundary/check", "config coercion/check", "arch fs-persistence/check",
+		"plugin boundary/check", "config coercion/check", "deps/check", "arch fs-persistence/check",
 		"cli stdio/check", "config ports/check", "go version-pin/check", "go patch-stamps/check", "config claims",
 		"test sensitivity/check",
 		"go staticcheck/check/part/1/of/6",

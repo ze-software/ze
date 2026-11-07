@@ -189,6 +189,7 @@ func fullStages() []Stage {
 		stage("arch iface-resolution"),
 		stage("plugin boundary", "check"),
 		stage("config coercion", "check"),
+		stage("deps", "check"),
 		stage("arch fs-persistence", "check"),
 		stage("cli stdio", "check"),
 		stage("config ports", "check"),

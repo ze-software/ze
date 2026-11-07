@@ -352,6 +352,13 @@ command for each unit. `rfc-change-ok "<reason>"` admits the commit with one
 units it judged is refused even then, because it has nothing to record. A row a landed commit already carries as a trailer approves
 nothing further, and the next successful commit drops it from the file.
 
+`dependencyRefusal` (`internal/le/commit/dependencies.go`) refuses a commit
+whose Go adds a third-party import `dependency-ledger.txt` does not approve for
+the importing directory, a ledger row no `./le deps approve` recorded, or the
+ledger's removal. It names the package, the module, the importer and the
+command Thomas runs (`docs/contributing/dependency-approval.md`).
+<!-- source: internal/le/commit/dependencies.go -- dependencyRefusal -->
+
 A list keyword buys one thing: a population too large to type stays explicit. It
 broadens nothing else. Every line is validated as its own path, and the script
 spells each one in its block marker and in its index entries. Write the list

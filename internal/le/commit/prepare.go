@@ -271,6 +271,11 @@ func Create(root string, options *Options) (Prepared, error) {
 		if err := specMechanismsRefusal(root, paths, removed, selection, content.before); err != nil {
 			return result, err
 		}
+		// A third-party import is approved only for its approved use
+		// (ai/META-DECISIONS.md, "Code and dependencies").
+		if err := dependencyRefusal(root, paths, removed, selection, content.before); err != nil {
+			return result, err
+		}
 		carried, err := ledgerCarriedTrailers(root, options.LedgerCarried, paths, removed)
 		if err != nil {
 			return result, err

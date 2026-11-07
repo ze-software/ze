@@ -600,8 +600,13 @@ is unreleased, so no compatibility shim exists (`ai/rules/go-standards.md`).
 Only the plugin API contract freezes, and only after the first release.
 
 No new third-party import enters until Thomas agrees, because each one adds a
-supply-chain, safety, performance and install cost. Existing dependencies are
+supply-chain, safety, performance and install cost. A module is approved only
+for its approved use, so each new importing directory is a new approval:
+`./le commit create` refuses an import `dependency-ledger.txt` does not list
+for its directory (`dependency-approval.md`). Existing dependencies are
 vendored, so a build never reaches the network.
+<!-- source: internal/le/commit/dependencies.go -- dependencyRefusal -->
+
 
 Repository tooling is Go under `internal/le/`: an `./le <area> <action>` backed
 by a callable package, with fixtures under its `testdata/` or
