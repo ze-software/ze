@@ -2692,6 +2692,38 @@ AUTHENTICATION_FAILED and no Child SA is installed.
 <!-- source: internal/le/interoplab/ipsec/eddsa.go -- checkEd25519ZeSigns, checkEd25519ZeVerifies -->
 <!-- source: test/interop-ipsec/scenarios/x509-ed25519-ze-initiator/ -- the Ed25519 initiator fixtures -->
 
+### Ed448 signatures against strongSwan (RFC 8420)
+
+The Ed448 twins of the two Ed25519 scenarios. strongSwan 6.1.0's openssl plugin
+provides Ed448 private and public keys, `PRIVKEY_SIGN` and `PUBKEY_VERIFY` for
+`SIGN_ED448`, and the Identity hasher (`openssl_plugin.c`, under OpenSSL 1.1.1 or
+later), and the lab image builds with `--enable-openssl`. The Ed448 leaves were
+minted with `openssl genpkey -algorithm ed448` and issued by the shared lab P-256
+CA. `crypto/x509` parses such a leaf without reading its key, and Ze reads the key
+from the raw SubjectPublicKeyInfo.
+
+| Scenario | Ze's key | strongSwan's key | Who initiates | What the checker requires |
+|----------|----------|------------------|---------------|---------------------------|
+| `x509-ed448-ze-initiator` | Ed448 (`client.pem`) | P-256 (`server.pem`) | Ze | `authentication of 'ze-test-client' with ED448 successful` |
+| `x509-ed448-ze-responder` | P-256 (`client.pem`) | Ed448 (`server.pem`), then Ed448 (`server-untrusted.pem`) | strongSwan | `authentication of '172.28.0.3' (myself) with ED448 successful` for `ze`; for `untrusted`, charon's `received AUTHENTICATION_FAILED notify error`, Ze's `ike: initiator AUTH verification failed` with `peer=swan` and `certificate signed by unknown authority`, and no new ESP state on Ze |
+
+The responder scenario's second connection, `untrusted`, carries the same
+identity with an Ed448 leaf from `untrusted-ca.example.net`
+(`pki/untrusted-ca.pem`), a CA Ze does not hold. The lab mounts
+`server-untrusted.pem` and `server-untrusted-key.pem` into strongSwan when a
+scenario's `pki/` carries them. The checker initiates `untrusted` only after the
+trusted tunnel carries traffic.
+
+Not yet walked red. The break for the initiator scenario makes
+`chooseEd448Signature` refuse as if the peer had not announced Identity. The
+break for the responder scenario makes `verifyEd448` refuse every signature,
+which takes the trusted tunnel down. The break for the untrusted half makes
+`getRemoteCert` skip its `cert.Verify` chain check: `untrusted` then
+establishes, and Ze logs no refusal.
+<!-- source: internal/le/interoplab/ipsec/eddsa.go -- checkEd448ZeSigns, checkEd448ZeVerifies -->
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- the optional server-untrusted mounts -->
+<!-- source: test/interop-ipsec/scenarios/x509-ed448-ze-responder/ -- the Ed448 responder fixtures -->
+
 ### ESP transform kernel proof
 
 `esp-aes-cbc-sha256`, `esp-chacha20poly1305` and `esp-3des-sha1` offer one

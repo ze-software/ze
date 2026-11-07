@@ -456,7 +456,7 @@ func certDetailMap(name, typ string, cert *x509.Certificate, hasKey bool, now ti
 		"serial":          cert.SerialNumber.String(),
 		"not-before":      cert.NotBefore.UTC().Format(time.RFC3339),
 		fieldNotAfter:     cert.NotAfter.UTC().Format(time.RFC3339),
-		"key-algorithm":   cert.PublicKeyAlgorithm.String(),
+		"key-algorithm":   keyAlgorithmName(cert),
 		"key-size":        keySize(cert),
 		"sans":            sans,
 		"key-usage":       keyUsageStrings(cert.KeyUsage),

@@ -1,0 +1,45 @@
+# An Ed448 key and its certificate load into the PKI store, and an Ed448 key
+# beside another key's certificate is refused. spec home-cpe-5-ike-eddsa AC-9.
+#
+# crypto/x509 reads neither the Ed448 PKCS8 key nor the certificate's Ed448 key
+# (it parses the certificate and leaves its key unread), so both are read by
+# internal/core/ed448. The certificate is the lab Ed448 leaf the P-256 lab CA
+# issued (test/interop-ipsec/scenarios/x509-ed448-ze-responder/pki/server.pem).
+# The second config pairs it with the untrusted leaf's Ed448 key: a store that
+# accepted any Ed448 key without comparing it would pass the first half and
+# fail this one.
+stdin=config:terminator=EOF_CONF
+pki {
+	ca lab-ca {
+		certificate MIIBhTCCASugAwIBAgIUXM86IRy86IueiG1hNR/7Dsc6aVUwCgYIKoZIzj0EAwIwGDEWMBQGA1UEAwwNemUtaW50ZXJvcC1jYTAeFw0yNjA1MjExNzM3MTJaFw0zNjA1MTgxNzM3MTJaMBgxFjAUBgNVBAMMDXplLWludGVyb3AtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQATYvwgmSkWYjcHzsaL6GSYuxrgt7XLXt84gMIyCm1iL6+DlCUiLogHNAt5B+L44YWhmpTejd9GCrIxqiPlY5co1MwUTAdBgNVHQ4EFgQUbom/YTjzZ1p9A5plbDBo6GLpeykwHwYDVR0jBBgwFoAUbom/YTjzZ1p9A5plbDBo6GLpeykwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBFAiEAh60rK0x5DrfflRiOftEUEgTwaSwbVjn+i2R5cTJHRdECIBc/csfAtLbMdL9L5IAntg3IX+ELwDkx0gVQjMhjZRzu
+	}
+	certificate ed448-leaf {
+		certificate MIIBaDCCAQ6gAwIBAgIQVDP4NMHG8rL7foEO6TkjdDAKBggqhkjOPQQDAjAYMRYwFAYDVQQDDA16ZS1pbnRlcm9wLWNhMB4XDTI2MTEwNzIzMzU0NFoXDTM2MTEwNDIzMzU0NFowFTETMBEGA1UEAwwKMTcyLjI4LjAuMzBDMAUGAytlcQM6AGWC/1j8w3Db91bu2CVpCbq/0vw+x5ksFXX6dDBM2OPZgFD42s10x+jpoou4zQTNODMgaKQ1W/8RgKNTMFEwDwYDVR0RBAgwBocErBwAAzAdBgNVHQ4EFgQUVPrsMAZ+YU0rsU8q7LR7CrPAGJwwHwYDVR0jBBgwFoAUbom/YTjzZ1p9A5plbDBo6GLpeykwCgYIKoZIzj0EAwIDSAAwRQIhAPzqL6z3eR6a6eNwxAskQ6JEcIz+dZ68keeni0tBFWGuAiADSA2xuoOZwkAt8MYHqCKdRFy8jtWBaP++kYdpr8zIrg==
+		private {
+			key MEcCAQAwBQYDK2VxBDsEOVbgJ+qY7I56ugnIp4LSFJxVJkNgfW9pI26jJE5MSQvutqB+0VGxmh4/SNe9KFGBtFvYdjOHV0cN8g==
+		}
+	}
+}
+EOF_CONF
+
+stdin=mismatch:terminator=EOF_MISMATCH
+pki {
+	ca lab-ca {
+		certificate MIIBhTCCASugAwIBAgIUXM86IRy86IueiG1hNR/7Dsc6aVUwCgYIKoZIzj0EAwIwGDEWMBQGA1UEAwwNemUtaW50ZXJvcC1jYTAeFw0yNjA1MjExNzM3MTJaFw0zNjA1MTgxNzM3MTJaMBgxFjAUBgNVBAMMDXplLWludGVyb3AtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQATYvwgmSkWYjcHzsaL6GSYuxrgt7XLXt84gMIyCm1iL6+DlCUiLogHNAt5B+L44YWhmpTejd9GCrIxqiPlY5co1MwUTAdBgNVHQ4EFgQUbom/YTjzZ1p9A5plbDBo6GLpeykwHwYDVR0jBBgwFoAUbom/YTjzZ1p9A5plbDBo6GLpeykwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBFAiEAh60rK0x5DrfflRiOftEUEgTwaSwbVjn+i2R5cTJHRdECIBc/csfAtLbMdL9L5IAntg3IX+ELwDkx0gVQjMhjZRzu
+	}
+	certificate ed448-leaf {
+		certificate MIIBaDCCAQ6gAwIBAgIQVDP4NMHG8rL7foEO6TkjdDAKBggqhkjOPQQDAjAYMRYwFAYDVQQDDA16ZS1pbnRlcm9wLWNhMB4XDTI2MTEwNzIzMzU0NFoXDTM2MTEwNDIzMzU0NFowFTETMBEGA1UEAwwKMTcyLjI4LjAuMzBDMAUGAytlcQM6AGWC/1j8w3Db91bu2CVpCbq/0vw+x5ksFXX6dDBM2OPZgFD42s10x+jpoou4zQTNODMgaKQ1W/8RgKNTMFEwDwYDVR0RBAgwBocErBwAAzAdBgNVHQ4EFgQUVPrsMAZ+YU0rsU8q7LR7CrPAGJwwHwYDVR0jBBgwFoAUbom/YTjzZ1p9A5plbDBo6GLpeykwCgYIKoZIzj0EAwIDSAAwRQIhAPzqL6z3eR6a6eNwxAskQ6JEcIz+dZ68keeni0tBFWGuAiADSA2xuoOZwkAt8MYHqCKdRFy8jtWBaP++kYdpr8zIrg==
+		private {
+			key MEcCAQAwBQYDK2VxBDsEOa2VIcBBWJLBcIU95Rwxl81zkcNfe3ORMtnNjZ74jp7rPYcIIJ2ye1nXz/YahS3nHDhUFZc2fi2DVQ==
+		}
+	}
+}
+EOF_MISMATCH
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=mismatch
+expect=exit:code=1
+expect=stdout:contains=private key does not match certificate public key

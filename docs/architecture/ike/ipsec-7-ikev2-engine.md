@@ -398,7 +398,7 @@ other key is refused with an error naming the key and the fix. Under
 with an error naming that mode; Ze sets no FIPS mode itself.
 
 **Method 14's algorithms come from a table of signature families.** Each family
-(RSA, ECDSA, Ed25519) registers from `init()` in its own
+(RSA, ECDSA, Ed25519, Ed448) registers from `init()` in its own
 `register_signature_*.go` file, declaring the key type it owns, the hash
 identifiers it needs in Ze's notify, how it picks an algorithm from the peer's
 list, how it signs and verifies, and the AlgorithmIdentifiers it recognises.
@@ -412,11 +412,23 @@ EdDSA legacy method exists. On receipt the family of the certificate's key
 refuses a hash it does not sign with, so an id-Ed25519 AUTH from an ECDSA
 certificate fails, and so does an ECDSA identifier from an Ed25519 certificate.
 The Ed25519 identifier is matched byte for byte, so one carrying parameters is
-refused. Ed448 is not implemented: the standard library has none.
+refused. Ed448 is the same family shape with AlgorithmIdentifier
+`30 05 06 03 2B 65 71`, a 114-octet pure Ed448 signature with an empty context,
+and the same refusals. The standard library has no Ed448, so
+`internal/core/ed448` holds it, Ze's only importer of `cloudflare/circl`
+(`sign/ed448`), and no circl type leaves that package. `crypto/x509` parses a
+certificate whose key is id-Ed448 and leaves its `PublicKey` nil, so a family may
+declare `certificateKey`, which reads its key from the raw SubjectPublicKeyInfo:
+`certificatePublicKey` asks each family that declares one, and a key none reads
+is refused. The chain check is unchanged, so an Ed448 leaf a P-256 or RSA CA
+issued verifies, and a chain carrying an Ed448 signature does not, because
+`crypto/x509` has no Ed448 signature algorithm.
 
 <!-- source: internal/component/ike/engine/auth.go -- verifyRemoteAuth, verifyX509Auth, computeX509Auth -->
-<!-- source: internal/component/ike/engine/auth_signature_scheme.go -- signatureScheme, registerSignatureScheme, selectSignatureAlgorithm, receivedSignatureAlgorithm, verifySignature, announcedHashAlgos -->
+<!-- source: internal/component/ike/engine/auth_signature_scheme.go -- signatureScheme, registerSignatureScheme, selectSignatureAlgorithm, receivedSignatureAlgorithm, verifySignature, announcedHashAlgos, certificatePublicKey -->
 <!-- source: internal/component/ike/engine/register_signature_eddsa.go -- chooseEd25519Signature, signEd25519, verifyEd25519 -->
+<!-- source: internal/component/ike/engine/register_signature_ed448.go -- chooseEd448Signature, signEd448, verifyEd448, ed448CertificateKey -->
+<!-- source: internal/core/ed448/ed448.go -- Sign, Verify, ParsePKIXPublicKey, ParsePKCS8PrivateKey -->
 <!-- source: internal/component/ike/engine/auth_legacy.go -- computeLegacySignatureAuth, signLegacyRSAAuth, verifyLegacyRSAAuth, fipsOnlyEnforced -->
 <!-- source: internal/component/ike/engine/auth_ecdsa.go -- verifyECDSAAuth, signECDSAAuth, ecdsa256, ecdsa384, ecdsa521 -->
 <!-- source: internal/component/ike/engine/initiator.go -- parseHashAlgoNotify -->

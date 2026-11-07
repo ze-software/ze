@@ -331,6 +331,18 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 				}
 				mounts = append(mounts, interoplab.Mount{Source: path, Target: mount.target, ReadOnly: true})
 			}
+			// A scenario that gives strongSwan a second identity, such as a leaf from
+			// a CA Ze does not trust (x509-ed448-ze-responder), carries the pair under
+			// these names; every other scenario has neither file.
+			for _, mount := range []struct{ source, target string }{
+				{"server-untrusted.pem", "/etc/swanctl/x509/server-untrusted.pem"},
+				{"server-untrusted-key.pem", "/etc/swanctl/private/server-untrusted-key.pem"},
+			} {
+				path := filepath.Join(pkiDir, mount.source)
+				if fileExists(path) {
+					mounts = append(mounts, interoplab.Mount{Source: path, Target: mount.target, ReadOnly: true})
+				}
+			}
 		}
 		// A checker that writes strongSwan's sysctls while the scenario runs
 		// (dropFragmentsAtPeer cuts its reassembly marks, vtiIPv6PeerInner enables

@@ -10,6 +10,8 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/ed448"
 )
 
 // Keys in the plugin.Map payload the show handlers return, and in the report
@@ -92,7 +94,7 @@ func certSummary(name, typ string, cert *x509.Certificate, valid bool) CertSumma
 		SubjectCN: cert.Subject.CommonName,
 		IssuerCN:  cert.Issuer.CommonName,
 		NotAfter:  cert.NotAfter.UTC().Format(time.RFC3339),
-		KeyAlgo:   cert.PublicKeyAlgorithm.String(),
+		KeyAlgo:   keyAlgorithmName(cert),
 		Valid:     valid,
 	}
 }
@@ -120,13 +122,20 @@ func keyUsageStrings(ku x509.KeyUsage) []string {
 }
 
 func keySize(cert *x509.Certificate) int {
-	switch pub := cert.PublicKey.(type) {
+	public, err := certificatePublicKey(cert)
+	if err != nil {
+		// refuse-by-default: guards certDetailMap -- key-size 0 is its "no size known" value, as the default arm below answers
+		return 0
+	}
+	switch pub := public.(type) {
 	case *rsa.PublicKey:
 		return pub.Size() * 8
 	case *ecdsa.PublicKey:
 		return pub.Curve.Params().BitSize
 	case ed25519.PublicKey:
 		return len(pub) * 8
+	case ed448.PublicKey:
+		return len(pub.Bytes()) * 8
 	default:
 		return 0
 	}

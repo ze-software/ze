@@ -120,6 +120,10 @@ var scenarioCheckers = map[string]scenarioCheck{
 	// (eddsa.go).
 	"x509-ed25519-ze-initiator": {run: checkEd25519ZeSigns},
 	"x509-ed25519-ze-responder": {run: checkEd25519ZeVerifies},
+	// The same two directions with Ed448 (RFC 8420), the responder also refusing
+	// an Ed448 leaf from a CA Ze does not trust (eddsa.go).
+	"x509-ed448-ze-initiator": {run: checkEd448ZeSigns},
+	"x509-ed448-ze-responder": {run: checkEd448ZeVerifies},
 }
 
 // ScenarioNames returns every typed checker name in lexical selection order.

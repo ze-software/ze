@@ -524,7 +524,15 @@ func verifyX509Auth(sa *SA, authData, signedOctets []byte) error {
 	// X9.62:2005 [X9.62] MUST be used." The digest goes on whole: for an ECDSA key
 	// whose order is shorter than the hash (P-256 with ecdsa-with-SHA384),
 	// ecdsa.VerifyASN1 keeps its leftmost bits, which is that method.
-	return verifySignature(cert.PublicKey, digest, signature, hashFunc)
+	publicKey, err := certificatePublicKey(cert)
+	if err != nil {
+		return err
+	}
+	// RFC 7427 Section 3: the AUTH is computed "using a private key associated with the public key sent in the Certificate payload"
+	if err := requireKeyFamilyNamesAlgorithm(publicKey, algID); err != nil {
+		return err
+	}
+	return verifySignature(publicKey, digest, signature, hashFunc)
 }
 
 // buildCertRequest builds a CERTREQ payload with the SHA-1 hash of the configured CA's public key.

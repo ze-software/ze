@@ -250,6 +250,18 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 		supplied++
 	}
 
+	// crypto/x509 has no Ed448 signature algorithm (nor any other it does not
+	// name), so a certificate an Ed448 CA signed fails the chain check below with
+	// "signed by unknown authority", which names neither cause nor fix. Name both
+	// here. The leaf's own key may be Ed448: that is read later, by its family.
+	if cert.SignatureAlgorithm == x509.UnknownSignatureAlgorithm {
+		return nil, fmt.Errorf(
+			"ike auth: peer %q sent a certificate whose issuer %q signs with an algorithm Ze "+
+				"cannot check, such as Ed448. Issue the peer's certificate from an RSA, ECDSA or "+
+				"Ed25519 CA: the certificate's own key may still be Ed448",
+			sa.PeerName, cert.Issuer.String())
+	}
+
 	// KeyUsages is stated rather than inherited. An empty field means
 	// ExtKeyUsageServerAuth in crypto/x509, and an IKE peer is not a TLS server. That
 	// default accepts a certificate with no extension, which is what gen-pki.sh mints,

@@ -18,6 +18,7 @@ import (
 	"golang.org/x/crypto/ocsp"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/ed448"
 )
 
 const maxNameLen = 255
@@ -412,6 +413,12 @@ func parsePrivateKey(value string) (any, error) {
 		return key, nil
 	}
 
+	// crypto/x509 reads no id-Ed448 key (RFC 8410 Section 7), so internal/core/ed448
+	// reads that PKCS #8 shape.
+	if key, pErr := ed448.ParsePKCS8PrivateKey(der); pErr == nil {
+		return key, nil
+	}
+
 	if key, pErr := x509.ParseECPrivateKey(der); pErr == nil {
 		return key, nil
 	}
@@ -438,6 +445,15 @@ func verifyKeyMatchesCert(privKey any, cert *x509.Certificate) error {
 	case ed25519.PrivateKey:
 		pub, ok := cert.PublicKey.(ed25519.PublicKey)
 		if !ok || !pub.Equal(ed25519.PublicKey(k[32:])) {
+			return errPKIKeyMismatch
+		}
+	case ed448.PrivateKey:
+		// crypto/x509 leaves an Ed448 certificate's PublicKey nil.
+		public, err := certificatePublicKey(cert)
+		if err != nil {
+			return errPKIKeyMismatch
+		}
+		if !k.Public().Equal(public) {
 			return errPKIKeyMismatch
 		}
 	default:

@@ -3,6 +3,7 @@
 // Detail: register_signature_rsa.go -- RSASSA-PKCS1-v1_5 with SHA2-256, SHA2-384 and SHA2-512
 // Detail: register_signature_ecdsa.go -- ECDSA with the hash its curve names
 // Detail: register_signature_eddsa.go -- Ed25519 under the Identity hash
+// Detail: register_signature_ed448.go -- Ed448 under the Identity hash
 // RFC: rfc/short/rfc7427.md -- Digital Signature AUTH method 14
 // RFC: rfc/full/rfc8420.txt -- the Identity hash (no summary: no release profile lists RFC 8420)
 package engine
@@ -10,7 +11,9 @@ package engine
 import (
 	"bytes"
 	"crypto"
+	"crypto/x509"
 	"encoding/asn1"
+	"errors"
 	"fmt"
 	"hash"
 	"slices"
@@ -50,7 +53,16 @@ type signatureScheme struct {
 	verify func(pub crypto.PublicKey, input, signature []byte, h crypto.Hash) error
 	// algorithms are every algorithm the family recognises in a received AUTH.
 	algorithms []signatureAlgorithm
+	// certificateKey reads the family's public key out of a certificate's DER
+	// SubjectPublicKeyInfo, for a key type crypto/x509 does not parse (it leaves
+	// Certificate.PublicKey nil). It answers errNotThisFamily for a key of another
+	// family. Nil means crypto/x509 parses the family's keys itself.
+	certificateKey func(spki []byte) (crypto.PublicKey, error)
 }
+
+// errNotThisFamily is a certificateKey's answer for a SubjectPublicKeyInfo whose
+// algorithm belongs to another family.
+var errNotThisFamily = errors.New("ike auth: the certificate key belongs to another signature family")
 
 // signatureAlgorithm is one algorithm of a family.
 type signatureAlgorithm struct {
@@ -114,6 +126,30 @@ func verifyingScheme(pub crypto.PublicKey) (*signatureScheme, bool) {
 		}
 	}
 	return nil, false
+}
+
+// certificatePublicKey answers the public key of cert: the one crypto/x509 parsed,
+// or, for a key type it leaves unparsed, the one a registered family reads out of
+// the raw SubjectPublicKeyInfo. A key no family reads is errUnsupportedKey, never
+// a nil key handed to a verifier.
+func certificatePublicKey(cert *x509.Certificate) (crypto.PublicKey, error) {
+	if cert.PublicKey != nil {
+		return cert.PublicKey, nil
+	}
+	for _, s := range signatureSchemes {
+		if s.certificateKey == nil {
+			continue
+		}
+		pub, err := s.certificateKey(cert.RawSubjectPublicKeyInfo)
+		if errors.Is(err, errNotThisFamily) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%w: the certificate's %s does not decode: %w", errUnsupportedKey, s.keyName, err)
+		}
+		return pub, nil
+	}
+	return nil, fmt.Errorf("%w: crypto/x509 and no signature family read the certificate's public key", errUnsupportedKey)
 }
 
 // announcedHashAlgos answers the hash identifiers Ze's SIGNATURE_HASH_ALGORITHMS
@@ -183,27 +219,71 @@ func signDigest(key crypto.PrivateKey, input []byte, h crypto.Hash) ([]byte, err
 // families that match on the OID alone. A family that leaves oid nil is matched on its
 // whole encoding, so its parameters are exactly the ones the RFC fixes.
 func receivedSignatureAlgorithm(algID []byte) (signatureAlgorithm, bool) {
-	oid := algID
-	if len(algID) > 2 && algID[0] == 0x30 {
-		var inner asn1.RawValue
-		if _, err := asn1.Unmarshal(algID, &inner); err == nil {
-			var oidVal asn1.RawValue
-			if _, err := asn1.Unmarshal(inner.Bytes, &oidVal); err == nil && oidVal.Tag == asn1.TagOID {
-				oid = oidVal.FullBytes
-			}
-		}
-	}
 	for _, s := range signatureSchemes {
-		for _, alg := range s.algorithms {
-			if bytes.Equal(algID, alg.algID) {
-				return alg, true
-			}
-			if alg.oid != nil && bytes.Equal(oid, alg.oid) {
-				return alg, true
-			}
+		if alg, ok := s.recognizes(algID); ok {
+			return alg, true
 		}
 	}
 	return signatureAlgorithm{}, false
+}
+
+// recognizes answers the family's algorithm a received AlgorithmIdentifier names,
+// and false when it names none of the family's.
+func (s *signatureScheme) recognizes(algID []byte) (signatureAlgorithm, bool) {
+	oid := receivedOID(algID)
+	for _, alg := range s.algorithms {
+		if bytes.Equal(algID, alg.algID) {
+			return alg, true
+		}
+		if alg.oid != nil && bytes.Equal(oid, alg.oid) {
+			return alg, true
+		}
+	}
+	return signatureAlgorithm{}, false
+}
+
+// receivedOID answers the OID of a received AlgorithmIdentifier SEQUENCE, or algID
+// itself when it is not one (a bare OID).
+func receivedOID(algID []byte) []byte {
+	if len(algID) <= 2 {
+		return algID
+	}
+	if algID[0] != 0x30 {
+		return algID
+	}
+	var inner asn1.RawValue
+	if _, err := asn1.Unmarshal(algID, &inner); err != nil {
+		return algID
+	}
+	var oidVal asn1.RawValue
+	if _, err := asn1.Unmarshal(inner.Bytes, &oidVal); err != nil {
+		return algID
+	}
+	if oidVal.Tag != asn1.TagOID {
+		return algID
+	}
+	return oidVal.FullBytes
+}
+
+// requireKeyFamilyNamesAlgorithm refuses a received AlgorithmIdentifier that the
+// family of the certificate's key does not own.
+//
+// RFC 7427 Section 3: "Computed as specified in Section 2.15 of [RFC7296] using a private
+// key associated with the public key sent in the Certificate payload". The
+// AlgorithmIdentifier names the signature algorithm, so it has to be one of the
+// certificate key's own family. The hash does not decide this: Ed25519 and Ed448
+// both sign under the Identity hash, so an Ed448 signature labeled id-Ed25519 from
+// an Ed448 certificate would otherwise verify under a name it does not carry.
+func requireKeyFamilyNamesAlgorithm(pubKey crypto.PublicKey, algID []byte) error {
+	scheme, ok := verifyingScheme(pubKey)
+	if !ok {
+		return errUnsupportedKey
+	}
+	if _, ok := scheme.recognizes(algID); !ok {
+		return fmt.Errorf("%w: the certificate holds %s, and the AlgorithmIdentifier % x names another family's algorithm",
+			errSignatureFailed, scheme.keyName, algID)
+	}
+	return nil
 }
 
 // hashFromAlgID answers the hash a received AlgorithmIdentifier names, as the
@@ -222,8 +302,9 @@ func hashFromAlgID(algID []byte) func() hash.Hash {
 }
 
 // verifySignature checks signature over digest with pubKey's family. The family
-// refuses a hash it does not sign with, which is what refuses an AlgorithmIdentifier
-// that disagrees with the certificate's key type.
+// refuses a hash it does not sign with. verifyX509Auth first refuses an
+// AlgorithmIdentifier the key's family does not own (requireKeyFamilyNamesAlgorithm),
+// which the hash alone cannot decide when two families share the Identity hash.
 func verifySignature(pubKey crypto.PublicKey, digest, signature []byte, hashFunc func() hash.Hash) error {
 	scheme, ok := verifyingScheme(pubKey)
 	if !ok {

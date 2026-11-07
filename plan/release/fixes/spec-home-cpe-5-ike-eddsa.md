@@ -193,7 +193,7 @@ with RFC 7427.
 | AC-10 | Ze initiator, Ed25519 leaf under a P-256 CA, strongSwan responder with P-256 cert | IKE SA and Child SA established; strongSwan logs an Ed25519 signature verified |
 | AC-11 | strongSwan initiator with an Ed25519 cert, Ze responder | Established; Ze verified EdDSA |
 | AC-12 | Ed448 variant of AC-10 | Established |
-| AC-13 | `docs/guide/ipsec.md` | PKI example uses the YANG leaves that exist; the signature paragraph states Ed25519 and Ed448 sign under RFC 7427 with a peer that announces Identity, and cannot sign for a peer without the notify. Where it stands: the Ed25519 half is met by `docs/guide/ipsec.md` (an Ed25519 key signs under RFC 7427 only, with pure Ed25519, for a peer that announces Identity; it says Ed448 is not supported yet); the Ed448 half waits on owner decision O-2 |
+| AC-13 | `docs/guide/ipsec.md` | PKI example uses the YANG leaves that exist; the signature paragraph states Ed25519 and Ed448 sign under RFC 7427 with a peer that announces Identity, and cannot sign for a peer without the notify. Where it stands: met by `docs/guide/ipsec.md` now that O-2 is decided: an Ed25519 or Ed448 key signs under RFC 7427 only, pure, for a peer that announces Identity, and an Ed448 certificate must come from a CA that does not sign with Ed448 |
 | AC-14 | strongSwan initiator with an Ed448 leaf issued by the lab P-256 CA, Ze responder trusting that CA | Ze verifies the chain and the Ed448 AUTH (AlgorithmIdentifier 30 05 06 03 2B 65 71); IKE SA and Child SA established |
 | AC-15 | strongSwan initiator with an Ed448 leaf issued by a CA Ze does not trust | Refused: Ze answers AUTHENTICATION_FAILED, no Child SA is installed, and the log names the peer and the chain failure |
 
@@ -212,14 +212,21 @@ with RFC 7427.
 |------|------|-----------|--------|
 | `TestSignatureHashNotifyAnnouncesIdentity` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-1 | |
 | `TestComputeX509AuthSignsWithEd25519UnderIdentity` | same | AC-2, RFC 8032 Section 7.1 vector on fixed octets | |
-| `TestComputeX509AuthSignsWithEd448UnderIdentity` | same | AC-3, RFC 8032 Section 7.4 vector | |
-| `TestEdDSARefusedWithoutIdentity` | same | AC-4 | |
-| `TestVerifyX509AuthAcceptsEd25519`, `...Ed448` | same | AC-6 both polarities | |
-| `TestVerifyRefusesEdDSAAlgIDWithMismatchedKey` | same | AC-7 | |
-| `TestVerifyRefusesEdDSAAlgIDWithParameters` | same | AC-8 | |
-| `TestVerifyX509AuthAcceptsEd448LeafUnderP256CA` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-14, A-3: Ed448 leaf issued by a P-256 test CA verifies through `getRemoteCert` and the Ed448 AUTH | |
-| `TestVerifyX509AuthRefusesEd448LeafFromUntrustedCA` | same | AC-15, A-3: the same leaf under a CA the store does not hold fails `verifyRemoteAuth` | |
-| `TestPKIAcceptsEd448KeyAndCertificate` | `internal/component/pki/config_test.go` | AC-9, A-2 | |
+| `TestComputeX509AuthSignsWithEd448UnderIdentity` | `internal/component/ike/engine/auth_ed448_test.go` | AC-3 | written |
+| `TestSignMatchesRFC8032Ed448Vectors` | `internal/core/ed448/ed448_test.go` | AC-3, RFC 8032 Section 7.4 "Blank" and "1 octet" vectors byte for byte, through the PKCS #8 and SubjectPublicKeyInfo parsers (A-5) | passes |
+| `TestVerifyRefusesAlteredInput`, `TestParseRefusesOtherAlgorithmsAndMalformedKeys` | `internal/core/ed448/ed448_test.go` | Ed448 verify refusals and length boundaries; id-Ed448 with parameters refused (RFC 8410 Section 3) | passes |
+| `TestEdDSARefusedWithoutIdentity` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-4 | |
+| `TestEd448RefusedWithoutIdentity` | `internal/component/ike/engine/auth_ed448_test.go` | AC-4 for Ed448 | written |
+| `TestVerifyX509AuthAcceptsEd25519` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-6 both polarities | |
+| `TestVerifyX509AuthAcceptsEd448` | `internal/component/ike/engine/auth_ed448_test.go` | AC-6 both polarities for Ed448; 113 and 115 octets refused | written |
+| `TestVerifyRefusesEdDSAAlgIDWithMismatchedKey` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-7 | |
+| `TestVerifyRefusesEd448AlgIDWithMismatchedKey` | `internal/component/ike/engine/auth_ed448_test.go` | AC-7 for Ed448: id-Ed448 from an Ed25519 certificate, id-Ed25519 and ecdsa-with-SHA256 from an Ed448 certificate. Its first run found the id-Ed25519 case accepted, because both families share the Identity hash; fixed by `requireKeyFamilyNamesAlgorithm` in `verifyX509Auth` | written, fix not yet rerun |
+| `TestVerifyRefusesEdDSAAlgIDWithParameters` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-8 | |
+| `TestVerifyRefusesEd448AlgIDWithParameters` | `internal/component/ike/engine/auth_ed448_test.go` | AC-8 for Ed448 | written |
+| `TestVerifyX509AuthAcceptsEd448LeafUnderP256CA` | `internal/component/ike/engine/auth_ed448_test.go` | AC-14, A-2, A-3: the openssl-minted Ed448 leaf issued by the P-256 lab CA verifies through `getRemoteCert` and the Ed448 AUTH | written |
+| `TestVerifyX509AuthRefusesEd448LeafFromUntrustedCA` | same | AC-15, A-3: an Ed448 leaf from a CA the store does not hold fails `verifyRemoteAuth` with `x509.UnknownAuthorityError` naming the peer | written |
+| `TestGetRemoteCertNamesEd448SignedChain` | same | Known Limitations: a leaf an Ed448 CA signed is refused naming the peer, the issuer and the fix | written |
+| `TestPKIAcceptsEd448KeyAndCertificate` | `internal/component/pki/config_ed448_test.go` | AC-9, A-2 | passes |
 | existing `TestRFC7427SignatureAlgorithmIsOneThePeerSent` | `internal/component/ike/engine/` | unchanged, still green | |
 
 ### Boundary Tests (numeric inputs)
@@ -239,8 +246,8 @@ with RFC 7427.
 |----------|-----------|-------------|----------------|--------|
 | `x509-ed25519-ze-initiator` | `test/interop-ipsec/scenarios/x509-ed25519-ze-initiator/`, checker `checkEd25519ZeSigns` (`internal/le/interoplab/ipsec/checkers.go`) | strongSwan 6.1.0, P-256 server cert | AC-10, the CPE case | written, not run |
 | `x509-ed25519-ze-responder` | `test/interop-ipsec/scenarios/x509-ed25519-ze-responder/`, checker `checkEd25519ZeVerifies` | strongSwan with Ed25519 client cert | AC-11 | written, not run |
-| `x509-ed448-ze-initiator` | same | strongSwan 6.1.0 (OpenSSL Ed448) | AC-12 | |
-| `x509-ed448-ze-responder` | same | strongSwan 6.1.0 initiator, two connections: `trusted` with an Ed448 leaf issued by the lab P-256 CA, `untrusted` with an Ed448 leaf issued by a second CA only strongSwan holds | AC-14 (the trusted connection establishes and ping crosses it), AC-15 (the untrusted one is answered AUTHENTICATION_FAILED and strongSwan logs it) | |
+| `x509-ed448-ze-initiator` | `test/interop-ipsec/scenarios/x509-ed448-ze-initiator/`, checker `checkEd448ZeSigns` (`internal/le/interoplab/ipsec/eddsa.go`) | strongSwan 6.1.0 (openssl plugin: `PRIVKEY_SIGN`/`PUBKEY_VERIFY SIGN_ED448`, `HASHER HASH_IDENTITY`) | AC-12 | written, not run |
+| `x509-ed448-ze-responder` | `test/interop-ipsec/scenarios/x509-ed448-ze-responder/`, checker `checkEd448ZeVerifies` | strongSwan 6.1.0 initiator, two connections: `ze` with an Ed448 leaf issued by the lab P-256 CA, `untrusted` with an Ed448 leaf from `untrusted-ca.example.net` (`server-untrusted.pem`, mounted by `internal/le/interoplab/ipsec/ipsec.go`) | AC-14 (the `ze` connection establishes and traffic crosses it), AC-15 (charon logs `received AUTHENTICATION_FAILED notify error`, Ze logs the refusal with `peer=swan` and the unknown authority, no new ESP state) | written, not run |
 
 Each scenario runs alone with `IPSEC_INTEROP_SCENARIO=<name> ./le test integration interop-ipsec` (`docs/functional-tests.md`, the IPsec interop row), for example `IPSEC_INTEROP_SCENARIO=x509-ed448-ze-responder ./le test integration interop-ipsec`.
 
