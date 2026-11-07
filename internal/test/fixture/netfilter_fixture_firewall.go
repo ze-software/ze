@@ -487,19 +487,23 @@ func firewallPersist(ctx context.Context, table string, sig syscall.Signal, phas
 // installed first, then the daemon reloads config2.conf, which lists none, and
 // the fixture waits until `nft list table inet ze_conntrack_helpers` fails
 // because the table is gone (RFC 4787 Section 7 REQ-10: no ALG unless listed).
-// Both reload drafts use it: one keeps the `system conntrack` block and drops
+// Both reload tests use it: one keeps the `system conntrack` block and drops
 // the module, the other deletes the block. A daemon that died also loses the
 // table, so the daemon MUST still run once the table is gone.
 //
-// The waits add up to 13 s (5 s for the daemon, 3 s for the first table, 5 s
-// for the withdrawal), under the 20 s timeout both drafts give the fixture.
+// The waits add up to 15 s (5 s for the daemon, 5 s for the first table, as
+// registerTableSnapshot gives conntrack-helper-ftp-assigned, and 5 s for the
+// withdrawal), under the 20 s timeout both tests give the fixture. The three
+// conntrack-helper tests share the one node-wide table, so they declare one
+// exclusive group: a sibling's reload or flush-on-shutdown otherwise deletes
+// the table this fixture is waiting for.
 func conntrackHelperRemovedOnReload(ctx context.Context, _ []string) error {
 	pid, err := waitDaemon(ctx, 100)
 	if err != nil {
 		return err
 	}
 	var before string
-	if !Poll(ctx, 60, 50*time.Millisecond, func() bool {
+	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
 		before, err = netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_conntrack_helpers")
 		return err == nil && strings.Contains(before, `ct helper set "ftp-tcp"`)
 	}) {

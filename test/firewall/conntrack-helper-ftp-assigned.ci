@@ -15,7 +15,14 @@
 # the 20 s timeout. Without the helper the kernel refuses the ct helper object,
 # the table is never created, and the fixture's `nft list table` fails.
 
+# The conntrack-helper-* tests all program the one inet ze_conntrack_helpers
+# table in the node-wide ruleset, and each removes it again (a reload that
+# drops the module, or flush-on-shutdown when the fixture stops the daemon).
+# Run together, one deletes the table a sibling is still asserting on, so the
+# group keeps them apart (TestContendingFunctionalTestsDeclareExclusiveGroup).
+
 option=needs-linux:caps=net-admin
+option=exclusive:group=conntrack-helpers
 
 stdin=ze-bgp:terminator=EOF_CONF
 system {

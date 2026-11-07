@@ -1333,6 +1333,18 @@ that race fails the test rather than passing it.
 <!-- source: internal/plugins/flowspec-firewall/state.go -- tableName, the constant no .ci can vary -->
 <!-- source: internal/component/firewall/legacy_tables.go -- legacyTables, the names any ze daemon removes once -->
 
+The conntrack helper cluster (`option=exclusive:group=conntrack-helpers`) is the
+ratchet's eighth row. `system conntrack module` lowers to one table,
+`ze_conntrack_helpers`, a name no `.ci` can vary, and every member removes it
+again: the reload tests withdraw it on purpose, and flush-on-shutdown deletes it
+when a fixture stops its daemon. Run together on 2026-11-07 in one QEMU guest,
+`conntrack-helper-ftp-assigned` and `conntrack-helper-block-deleted-on-reload`
+passed and removed the table, and `conntrack-helper-removed-on-reload` then
+polled `nft list table` for 3 s against a table that no longer existed.
+Membership is "declares `option=needs-linux:caps=net-admin`".
+<!-- source: internal/component/firewall/conntrack_helpers.go -- conntrackHelperTableInet, the constant no .ci can vary -->
+<!-- source: internal/component/firewall/registry.go -- flushOnShutdown, a clean stop removes ze-owned tables -->
+
 The withdrawal-removal observer first checks both selected rules, sends its
 unique wire marker, and checks that only the withdrawn rule left both hooks.
 It then stops only the `le test peer` process running from its own case

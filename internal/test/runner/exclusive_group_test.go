@@ -128,6 +128,13 @@ func TestContendingFunctionalTestsDeclareExclusiveGroup(t *testing.T) {
 		// a false red on a rare race is cheaper than serializing 12 irr tests
 		// against these.
 		{"firewall", "firewall-legacy-table-*.ci", "option=needs-linux:caps=net-admin", "option=exclusive:group=flowspec-nft", "the `table inet flowspec` it seeds, which any concurrent ze daemon sweeps", 1},
+		// The conntrack helper engine names one table, ze_conntrack_helpers,
+		// and every member writes it and then removes it: a reload that lists
+		// no module withdraws it, and flush-on-shutdown deletes it when the
+		// fixture stops the daemon. Run together on 2026-11-07 in one QEMU
+		// guest, the siblings' removals left conntrack-helper-removed-on-reload
+		// polling for a table that no longer existed.
+		{"firewall", "conntrack-helper-*.ci", "option=needs-linux:caps=net-admin", "option=exclusive:group=conntrack-helpers", "the one ze_conntrack_helpers table they each program and remove in the node-wide nftables ruleset", 2},
 	}
 
 	for _, c := range clusters {

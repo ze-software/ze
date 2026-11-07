@@ -12,7 +12,14 @@
 #
 # Requires CAP_NET_ADMIN and a kernel that provides nf_conntrack_ftp.
 
+# The conntrack-helper-* tests all program the one inet ze_conntrack_helpers
+# table in the node-wide ruleset, and each removes it again (a reload that
+# drops the module, or flush-on-shutdown when the fixture stops the daemon).
+# Run together, one deletes the table a sibling is still asserting on, so the
+# group keeps them apart (TestContendingFunctionalTestsDeclareExclusiveGroup).
+
 option=needs-linux:caps=net-admin
+option=exclusive:group=conntrack-helpers
 
 stdin=ze-bgp:terminator=EOF_CONF
 system {
