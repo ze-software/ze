@@ -118,9 +118,14 @@ type RealmHandoff interface {
 	Ended(reason string)
 }
 
-// RealmCall is a realm relay the sink accepted. Cancel abandons it when the
-// subscriber leaves first: the sink sends CDN for any call it placed and
-// never bridges. Cancel is idempotent and safe after the call ended.
+// RealmCall is a realm relay the sink accepted. The caller MUST call Cancel
+// when the subscriber leaves (PADT, PPP session down) or the caller stops,
+// in every phase. Before the bridge the sink sends CDN for any call it placed
+// and never bridges. After Bridged(nil) the sink tears the L2TP session down
+// with CDN, as for a subscriber that hung up. Cancel is idempotent, safe for
+// concurrent use, and a no-op after the call ended. A teardown it causes
+// reports Ended before Cancel returns, so the caller MUST NOT hold a lock
+// its Ended takes.
 type RealmCall interface {
 	Cancel()
 }

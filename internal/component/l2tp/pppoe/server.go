@@ -46,6 +46,13 @@ type InterfaceServer struct {
 	pppDriver *ppp.Driver
 	logger    *slog.Logger
 
+	// peerLeft reports a subscriber PADT to the subsystem, so a realm
+	// relay cancels its call (realm_relay.go subscriberGone). A session the
+	// PPP driver released into an L2TP bridge produces no PPP session-down,
+	// so PADT is the only news of its end. Nil in tests that build a bare
+	// server.
+	peerLeft func(ifindex int, sid uint16)
+
 	// sendFrameFn, when set, replaces the real discovery-socket write.
 	// sendFrame calls it instead of sendDiscoveryFrame. Production code
 	// never sets it, so the zero value (nil) keeps the real send path.
@@ -267,11 +274,10 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	}
 	s.admitting = admission{sid: sid}
 
-	if s.pppDriver == nil {
-		s.logger.Warn("pppoe: no PPP driver, session will not start", "sid", sid)
-		closePPPoxFD(s.sessions.Remove(sid))
-		return
-	}
+	// No PPP driver check here: a Service-Name relay needs only the session
+	// socket and the PPP channel below, never the driver, so a LAC with no
+	// interface backend still relays the subscribers its bindings name. The
+	// paths that need the driver refuse after the relay decision.
 
 	// RFC 2516 Section 4: "For PPP session traffic, this field MUST contain
 	// the peer's unicast address as determined from the Discovery stage."
@@ -297,9 +303,12 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	sess.UnitNum = unitNum
 	s.admitting.chanFD, s.admitting.unitFD, s.admitting.pppFDsOpen = chanFD, unitFD, true
 
-	// Send PADS only after kernel setup succeeds. If we sent it
-	// earlier and kernel setup failed, the subscriber would wait
-	// for LCP that never comes.
+	// Send PADS only after kernel setup succeeds and the session has a
+	// taker (the L2TP relay or the PPP driver). If we sent it earlier and
+	// setup failed, or nothing could run the session, the subscriber would
+	// wait for LCP that never comes. The frame is built before the relay
+	// decision, so a relay is never placed for a session whose PADS cannot
+	// be sent.
 	var buf [EthMaxLen]byte
 	frame := BuildPADS(buf[:], s.hwAddr, pkt, s.acName, sid)
 	if frame == nil {
@@ -308,14 +317,6 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		closePPPoxFD(s.sessions.Remove(sid))
 		return
 	}
-	s.admitting.padsSent = true
-	s.sendFrame(frame)
-
-	// Through the table's lock, not as a bare field write: handleSessionDown
-	// marks StateTeardown from the event-consumer goroutine and
-	// matchLiveCookie reads State from this one, both under that lock, so a
-	// third accessor outside it would leave the field unsynchronized.
-	s.sessions.markSession(sid)
 
 	// spec-followup-l2tp-call AC-3: if a relay binding matches this service,
 	// hand the subscriber to the L2TP subsystem (LAC incoming call) instead
@@ -324,12 +325,41 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	// l2tp). The subscriber's pppox socket fd travels with the request so the
 	// L2TP side can bridge its PPP channel to the pppol2tp channel (A-4). The
 	// unused local PPP unit is closed; the channel + pppox fds stay open (the
-	// bridge needs them) and are released when the PPPoE session ends.
+	// bridge needs them) and are released when the PPPoE session ends. The
+	// PPP driver plays no part, so a LAC with none still relays.
 	if s.relayToL2TP(pkt, sid, pppoxFD) {
 		closePPPoxFD(unitFD)
+		s.admitting.pppFDsOpen = false
+		s.sendPADS(sid, frame)
 		s.logger.Info("pppoe: subscriber relayed to L2TP; local PPP not started", "sid", sid)
 		return
 	}
+
+	// Local termination needs the PPP driver, and so does a realm relay: it
+	// decides only after local LCP and authentication have run on the driver
+	// (realm_relay.go decide, called from the auth drain). Without one the
+	// subscriber is refused now, before any PADS, with the tag RFC 2516
+	// Section 5.4 names for an AC that cannot perform the request:
+	// AC-System-Error "indicates that the Access Concentrator experienced
+	// some error in performing the Host request (For example insufficient
+	// resources ...) It MAY be included in PADS packets." No session was
+	// started, so SESSION_ID is 0, as for the other refusals above.
+	if s.pppDriver == nil {
+		s.logger.Warn("pppoe: PADR refused: no PPP driver, so this subscriber can be neither terminated locally nor relayed by realm. "+
+			"The PPP driver needs an interface backend, and none is loaded. "+
+			"Fix: set interface backend netlink, or bind the subscriber's Service-Name to an L2TP relay",
+			"src", net.HardwareAddr(pkt.SrcMAC[:]), "service", pkt.ServiceNameString())
+		closePPPoxFD(chanFD)
+		closePPPoxFD(unitFD)
+		s.admitting.pppFDsOpen = false
+		closePPPoxFD(s.sessions.Remove(sid))
+		refusal := BuildPADSError(buf[:], s.hwAddr, pkt, s.acName, TagACSystemError)
+		if refusal != nil {
+			s.sendFrame(refusal)
+		}
+		return
+	}
+	s.sendPADS(sid, frame)
 
 	// AuthMethod is what the AC advertises in its own LCP Configure-Request:
 	// without it every subscriber reaches the accounting-only no-auth phase,
@@ -363,6 +393,19 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	s.pppDriver.SessionsIn() <- start
 }
 
+// sendPADS sends the admitting PADS frame built for session sid and marks
+// the session established: handlePADR calls it once the session has a taker.
+func (s *InterfaceServer) sendPADS(sid uint16, frame []byte) {
+	s.admitting.padsSent = true
+	s.sendFrame(frame)
+
+	// Through the table's lock, not as a bare field write: handleSessionDown
+	// marks StateTeardown from the event-consumer goroutine and
+	// matchLiveCookie reads State from this one, both under that lock, so a
+	// third accessor outside it would leave the field unsynchronized.
+	s.sessions.markSession(sid)
+}
+
 func (s *InterfaceServer) handlePADT(pkt *Packet) {
 	if pkt.SID == 0 {
 		return
@@ -393,6 +436,9 @@ func (s *InterfaceServer) handlePADT(pkt *Packet) {
 
 	if s.pppDriver != nil {
 		_ = s.pppDriver.StopSession(uint16(s.ifIndex), pkt.SID)
+	}
+	if s.peerLeft != nil {
+		s.peerLeft(s.ifIndex, pkt.SID)
 	}
 	closePPPoxFD(s.sessions.Remove(pkt.SID))
 }
@@ -461,14 +507,16 @@ func (s *InterfaceServer) sendFrame(frame []byte) {
 	}
 }
 
-// relayToL2TP consults the registered call-sink to decide whether a
-// PADS-completed subscriber should be relayed into an L2TP tunnel rather than
-// terminated locally. pppoxFD is the subscriber's PPPoE pppox socket, passed
-// so the L2TP side can derive its PPP channel number for the kernel bridge.
+// relayToL2TP consults the registered call-sink to decide whether an admitted
+// subscriber, whose PADS is built but not yet sent, should be relayed into an
+// L2TP tunnel rather than terminated locally. pppoxFD is the subscriber's
+// PPPoE pppox socket, passed so the L2TP side can derive its PPP channel
+// number for the kernel bridge.
 // Returns true when the subscriber was handed off to L2TP (an incoming call
 // was originated). A nil sink (no L2TP subsystem) or an unmatched service
 // returns false; a matched-but-failed relay logs and returns false so the
-// subscriber falls back to local termination.
+// subscriber falls back to local termination, or to the refusal handlePADR
+// answers when no PPP driver exists.
 func (s *InterfaceServer) relayToL2TP(pkt *Packet, sid uint16, pppoxFD int) bool {
 	sink := callsink.Lookup()
 	if sink == nil {

@@ -218,8 +218,17 @@ func (r *l2tpReactor) handleDial(req dialRequest) {
 	// exist between a given LNS-LAC pair, and multiple sessions may exist
 	// within a tunnel."
 	if req.call != nil && !req.call.outgoing {
+		// A tunnel to the same remote still connecting takes the call into
+		// its queue; it is placed when that tunnel establishes.
+		if t := r.connectingTunnelToLocked(req.target); t != nil {
+			t.pendingCalls = append(t.pendingCalls, req.call)
+			localTID := t.localTID
+			r.tunnelsMu.Unlock()
+			req.result <- dialResult{localTID: localTID}
+			return
+		}
 		if t := r.establishedTunnelToLocked(req.target); t != nil {
-			t.pendingCall = req.call
+			t.pendingCalls = append(t.pendingCalls, req.call)
 			sends := r.placePendingCallLocked(t, now)
 			localTID := t.localTID
 			newDeadline := t.engine.NextDeadline()
@@ -259,7 +268,9 @@ func (r *l2tpReactor) handleDial(req dialRequest) {
 		r.reliableConfig(), r.logger, now)
 	t.maxSessions = r.params.MaxSessions
 	t.initiatorSecret = req.target.SharedSecret
-	t.pendingCall = req.call
+	if req.call != nil {
+		t.pendingCalls = []*pendingCall{req.call}
+	}
 	r.tunnelsByLocalID[localTID] = t
 
 	// A random 8-byte Tie Breaker lets a simultaneous open (the peer sends
@@ -356,17 +367,25 @@ func wildcardFor(remote netip.Addr) string {
 // on delivery, so a small buffer only smooths brief bursts.
 const dialChanDepth = 16
 
-// placePendingCallLocked originates a tunnel's pending call (set at dial time)
-// the moment the tunnel reaches established, and clears it so it fires once.
-// Returns the ICRQ/OCRQ send. Caller MUST hold tunnelsMu and MUST have
-// verified the tunnel just transitioned to established. No-op when there is no
-// pending call.
+// placePendingCallLocked originates every call queued on a tunnel (the dial's
+// own, then those that joined it while it connected), in arrival order, the
+// moment the tunnel reaches established, and clears the queue so each fires
+// once. Returns the ICRQ/OCRQ sends. Caller MUST hold tunnelsMu and MUST have
+// verified the tunnel just transitioned to established, or that it is
+// established. No-op when the queue is empty.
 func (r *l2tpReactor) placePendingCallLocked(t *L2TPTunnel, now time.Time) []sendRequest {
-	pc := t.pendingCall
-	if pc == nil {
-		return nil
+	calls := t.pendingCalls
+	t.pendingCalls = nil
+	var sends []sendRequest
+	for _, pc := range calls {
+		sends = append(sends, r.placeOnePendingCallLocked(t, pc, now)...)
 	}
-	t.pendingCall = nil
+	return sends
+}
+
+// placeOnePendingCallLocked originates one queued call on the established
+// tunnel t and returns its ICRQ/OCRQ send. Caller MUST hold tunnelsMu.
+func (r *l2tpReactor) placeOnePendingCallLocked(t *L2TPTunnel, pc *pendingCall, now time.Time) []sendRequest {
 	var localSID uint16
 	var sends []sendRequest
 	if pc.outgoing {
@@ -394,29 +413,28 @@ func (r *l2tpReactor) placePendingCallLocked(t *L2TPTunnel, now time.Time) []sen
 	return sends
 }
 
-// resolvePendingCall delivers a failure outcome to a call still waiting for
-// its tunnel to establish (the pendingCall was never placed on a session)
-// and clears it. Used by the tunnel-teardown paths (auth reject, tie-breaker
-// loss, retransmit exhaustion) so a blocking placeOutgoingCallSync learns the
-// tunnel died instead of timing out. No-op when there is no pending call or
-// it carries no result channel. Caller MUST hold tunnelsMu.
+// resolvePendingCall delivers a failure outcome to every call still waiting
+// for its tunnel to establish (none was placed on a session) and clears the
+// queue. Used by the tunnel-teardown paths (auth reject, tie-breaker loss,
+// retransmit exhaustion) so a blocking placeOutgoingCallSync learns the
+// tunnel died instead of timing out, and each queued realm call refuses its
+// subscriber. A call with no result channel and no realm needs no report.
+// Caller MUST hold tunnelsMu.
 func (t *L2TPTunnel) resolvePendingCall(o callOutcome) {
-	pc := t.pendingCall
-	if pc == nil {
-		return
+	calls := t.pendingCalls
+	t.pendingCalls = nil
+	for _, pc := range calls {
+		// A realm call whose tunnel died before the call was placed refuses
+		// its subscriber; it carries no result channel.
+		if pc.params.realm != nil {
+			pc.params.realm.end("L2TP tunnel to realm " + pc.params.realm.realm + " failed before the call was placed")
+			continue
+		}
+		if pc.result == nil {
+			continue
+		}
+		pc.result <- o
 	}
-	// A realm call whose tunnel died before the call was placed refuses
-	// its subscriber; it carries no result channel.
-	if pc.params.realm != nil {
-		pc.params.realm.end("L2TP tunnel to realm " + pc.params.realm.realm + " failed before the call was placed")
-		t.pendingCall = nil
-		return
-	}
-	if pc.result == nil {
-		return
-	}
-	pc.result <- o
-	t.pendingCall = nil
 }
 
 // transmit sends every outbound datagram for a tunnel, mirroring the
@@ -438,17 +456,43 @@ func (r *l2tpReactor) transmit(localTID uint16, outbound []sendRequest) {
 	}
 }
 
+// pendingCallsMax bounds the calls one connecting tunnel queues. A call past
+// it opens a tunnel of its own, which RFC 2661 Section 5.3 allows ("Multiple
+// tunnels may exist between a given LNS-LAC pair"). One PPPoE subscriber
+// queues at most one call, so the bound is subscribers authenticating while
+// one SCCRQ is answered.
+const pendingCallsMax = 256
+
+// connectingTunnelToLocked returns a tunnel this LAC initiated to target's
+// address with target's shared secret that is still waiting for SCCRP, with
+// room in its call queue, or nil. Caller MUST hold tunnelsMu.
+func (r *l2tpReactor) connectingTunnelToLocked(target DialTarget) *L2TPTunnel {
+	for _, t := range r.tunnelsByLocalID {
+		if t.state != L2TPTunnelWaitCtlReply {
+			continue
+		}
+		if len(t.pendingCalls) >= pendingCallsMax {
+			continue
+		}
+		if t.peerAddr.Addr() != target.Remote.Addr() {
+			continue
+		}
+		if t.initiatorSecret != target.SharedSecret {
+			continue
+		}
+		return t
+	}
+	return nil
+}
+
 // establishedTunnelToLocked returns an established tunnel to target's
-// address that authenticated with target's shared secret and has no call
-// waiting, or nil. The peer's UDP port is not compared: RFC 2661 Section 8.1
+// address that authenticated with target's shared secret, or nil. An
+// established tunnel has already placed its queued calls. The peer's UDP port is not compared: RFC 2661 Section 8.1
 // lets the peer answer from another port than the one dialed. Caller MUST
 // hold tunnelsMu.
 func (r *l2tpReactor) establishedTunnelToLocked(target DialTarget) *L2TPTunnel {
 	for _, t := range r.tunnelsByLocalID {
 		if t.state != L2TPTunnelEstablished {
-			continue
-		}
-		if t.pendingCall != nil {
 			continue
 		}
 		if t.peerAddr.Addr() != target.Remote.Addr() {

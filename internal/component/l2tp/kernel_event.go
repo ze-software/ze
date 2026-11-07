@@ -93,8 +93,10 @@ type kernelSetupSucceeded struct {
 }
 
 // errRealmCallCancelled is the setup failure of a realm call the subscriber
-// abandoned before the bridge; the session is then torn down with CDN.
-var errRealmCallCancelled = errors.New("l2tp: realm call abandoned by the subscriber before the bridge")
+// abandoned before the bridge completed (before quiesce, or while the
+// kernel worker bridged it: realmCall.markBridged); the session is then
+// torn down with CDN.
+var errRealmCallCancelled = errors.New("l2tp: realm call abandoned by the subscriber before the bridge completed")
 
 // quiesceRealmSubscriber asks the PPPoE side to stop reading the subscriber's
 // channel before PPPIOCBRIDGECHAN, so only one reader owns the channel at any

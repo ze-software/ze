@@ -1,6 +1,7 @@
 package pppoe
 
 import (
+	"errors"
 	"log/slog"
 	"net"
 	"testing"
@@ -8,6 +9,10 @@ import (
 
 	"github.com/ze-software/ze/internal/core/metrics"
 )
+
+// errInjectedSocketSetup is the session socket failure a test injects through
+// pppoeCreateFn to stop an admission before its PADS.
+var errInjectedSocketSetup = errors.New("injected test failure: session socket setup")
 
 // VALIDATES: handlePADT tears a session down only when the PADT's
 // SESSION_ID and source MAC both match the stored session.
@@ -215,12 +220,14 @@ func TestPADRWithoutServiceNameGetsServiceNameError(t *testing.T) {
 //
 // This test was written RED against a stub admitPerMACCap that admitted
 // everything (spec-pppoe-padr-replay-allocates-unbounded-sessions phase 1),
-// and the red was exactly the shape below: no PPP driver is configured, so a
-// PADR that reaches the allocation path returns from server.go's "no PPP
-// driver" branch before building any frame, and `sent` stays empty. Deleting
-// the admitPerMACCap call in handlePADR reproduces that red today, which is
-// what makes the len(sent) == 1 assertion discriminate rather than merely
-// pass.
+// and the red was exactly the shape below: no kernel setup is faked, so a
+// PADR that reaches the allocation path stops at the session socket setup
+// before building any frame, and `sent` stays empty. Deleting the
+// admitPerMACCap call in handlePADR reproduces that red today, which is what
+// makes the len(sent) == 1 assertion discriminate rather than merely pass;
+// on a host where that setup succeeds, the refusal handlePADR then answers
+// for want of a PPP driver frees the session but does not count
+// per-mac-cap-reached, so the scrape assertion still goes red.
 func TestPADRAtPerMACCapAnswersError(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 	previous := pppoeMetricsPtr.Swap(initPPPoEMetrics(reg))
@@ -374,12 +381,14 @@ func TestPADRReplayAfterPPPReturnsExistingSID(t *testing.T) {
 // server.go, via SessionTable.markTeardown) must not be handed back to a
 // PADR replaying that session's cookie: the mitigation is "the dedup branch
 // answers only sessions the table still holds ... a session in teardown is
-// treated as absent." maxSessionsPerMAC is set well above 1 and no pppDriver
-// is configured, so if the fix correctly treats the teardown session as
-// absent, the PADR falls through toward a fresh admission attempt and sends
-// nothing (the same "no PPP driver" branch TestPADRAtPerMACCapAnswersError's
-// comment documents) -- any frame at all would have to be the wrongly-deduped
-// PADS naming the dying session's real SID, so len(sent) == 0 is the proof.
+// treated as absent." maxSessionsPerMAC is set well above 1 and the session
+// socket setup (pppoeCreateFn) fails, so if the fix correctly treats the
+// teardown session as absent, the PADR falls through toward a fresh admission
+// attempt that stops at that setup and sends nothing -- any frame at all would
+// have to be the wrongly-deduped PADS naming the dying session's real SID, so
+// len(sent) == 0 is the proof. The failing setup is injected rather than left
+// to the host, so a privileged run that could open a real socket still stops
+// there.
 func TestPADRReplayDuringTeardownIsNotDeduped(t *testing.T) {
 	key := CookieKey{}
 	hwAddr := [EthALen]byte{0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
@@ -415,6 +424,9 @@ func TestPADRReplayDuringTeardownIsNotDeduped(t *testing.T) {
 		logger:            slog.Default(),
 		sendFrameFn: func(frame []byte) {
 			sent = append(sent, frame)
+		},
+		pppoeCreateFn: func(string, uint16, [EthALen]byte) (int, error) {
+			return -1, errInjectedSocketSetup
 		},
 	}
 

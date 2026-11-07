@@ -508,3 +508,71 @@ func TestWildcardFor(t *testing.T) {
 	require.Equal(t, "0.0.0.0", wildcardFor(netip.MustParseAddr("::ffff:192.0.2.1")))
 	require.Equal(t, "::", wildcardFor(netip.MustParseAddr("2001:db8::1")))
 }
+
+// TestReactor_CallsQueueOnConnectingTunnel -- AC-10 (spec-home-cpe-14).
+//
+// VALIDATES: two incoming calls to one remote placed before its tunnel
+// established share the one tunnel: the second dial sends no second SCCRQ,
+// and both calls' ICRQs leave on that tunnel once SCCRP arrives.
+// PREVENTS: a burst of subscribers to one realm opening one tunnel each.
+func TestReactor_CallsQueueOnConnectingTunnel(t *testing.T) {
+	ln, r, _, stop := buildLogReactor(t)
+	defer stop()
+	timer := newTunnelTimer(r.tickCh, r.updateCh)
+	require.NoError(t, timer.Start())
+	defer timer.Stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+	target := DialTarget{Remote: clientAddrPort(t, client)}
+
+	firstTID, err := r.placeIncomingCall(target, callParams{callSerial: 1, bearerType: 1, framingType: 1})
+	require.NoError(t, err)
+	sccrq := readDatagram(t, client)
+	require.Equal(t, MsgSCCRQ, msgTypeOf(t, sccrq))
+
+	// The tunnel is still waiting for SCCRP: the second call joins it.
+	secondTID, err := r.placeIncomingCall(target, callParams{callSerial: 2, bearerType: 1, framingType: 1})
+	require.NoError(t, err)
+	require.Equal(t, firstTID, secondTID, "a call to a connecting remote opened another tunnel")
+	r.tunnelsMu.Lock()
+	tunnels := len(r.tunnelsByLocalID)
+	queued := len(r.tunnelsByLocalID[firstTID].pendingCalls)
+	r.tunnelsMu.Unlock()
+	require.Equal(t, 1, tunnels)
+	require.Equal(t, 2, queued, "both calls wait on the connecting tunnel")
+
+	client.Send(t, buildSCCRPForSCCRQ(t, sccrq, 909))
+
+	// Ze's SCCCN and the ICRQs share the send window, so acknowledge
+	// whatever arrives until both serials were seen.
+	serials := map[uint32]bool{}
+	clientNs := uint16(1)
+	for range 12 {
+		if serials[1] && serials[2] {
+			break
+		}
+		msg := readDatagram(t, client)
+		hdr, herr := ParseMessageHeader(msg)
+		require.NoError(t, herr)
+		if hdr.Length <= ControlHeaderLen {
+			continue
+		}
+		client.Send(t, buildZLBAck(firstTID, clientNs, hdr.Ns+1))
+		if msgTypeOf(t, msg) != MsgICRQ {
+			continue
+		}
+		info, perr := parseICRQ(msg[hdr.PayloadOff:hdr.Length])
+		require.NoError(t, perr)
+		serials[info.callSerialNumber] = true
+	}
+	require.True(t, serials[1], "the dial's own call was never placed")
+	require.True(t, serials[2], "the queued call was never placed")
+
+	r.tunnelsMu.Lock()
+	defer r.tunnelsMu.Unlock()
+	require.Len(t, r.tunnelsByLocalID, 1)
+	tun := r.tunnelsByLocalID[firstTID]
+	require.Len(t, tun.sessions, 2)
+	require.Empty(t, tun.pendingCalls, "the queue drains on establishment")
+}

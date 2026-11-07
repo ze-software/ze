@@ -44,9 +44,11 @@ func (rs *relaySink) Relay(req callsink.Request) (bool, error) {
 
 	if !matched {
 		// No relay binding for this service: terminate locally.
+		countRelay(relayKindService, relayOutcomeNoMatch)
 		return false, nil
 	}
 	if reactor == nil {
+		countRelay(relayKindService, relayOutcomeRefused)
 		return false, errRelayNoListener
 	}
 
@@ -57,8 +59,10 @@ func (rs *relaySink) Relay(req callsink.Request) (bool, error) {
 	// are created.
 	params := callParams{callingNumber: req.SubscriberMAC, pppoeChannelFD: req.ChannelFD}
 	if _, err := reactor.placeIncomingCall(target, params); err != nil {
+		countRelay(relayKindService, relayOutcomeRefused)
 		return false, err
 	}
+	countRelay(relayKindService, relayOutcomePlaced)
 	rs.s.logger.Info("l2tp: relaying PPPoE subscriber into L2TP incoming call",
 		"service", req.Service, "remote", rem.Name, "subscriber", req.SubscriberMAC,
 		"interface", req.Interface)
@@ -107,17 +111,21 @@ func (rs *relaySink) RelayRealm(req callsink.RealmRequest) (callsink.RealmCall, 
 	rs.s.mu.Unlock()
 
 	if !matched {
+		countRelay(relayKindRealm, relayOutcomeNoMatch)
 		return nil, false, nil
 	}
 	if !remoteKnown {
+		countRelay(relayKindRealm, relayOutcomeRefused)
 		// validateRelayRealms refuses this at load; a reload that dropped
 		// the remote between the two reads lands here.
 		return nil, false, fmt.Errorf("%w: realm %q -> remote %q", errRelayRealmNoRemote, binding.Realm, binding.Remote)
 	}
 	if reactor == nil {
+		countRelay(relayKindRealm, relayOutcomeRefused)
 		return nil, false, errRelayNoListener
 	}
 	if req.Auth.Kind == callsink.AuthKindUnspecified {
+		countRelay(relayKindRealm, relayOutcomeRefused)
 		return nil, false, errRelayRealmNoAuth
 	}
 
@@ -133,22 +141,60 @@ func (rs *relaySink) RelayRealm(req callsink.RealmRequest) (callsink.RealmCall, 
 			"realm", binding.Realm, "remote", rem.Name,
 			"fix", "set `l2tp remote "+rem.Name+" shared-secret <secret>` on both ends")
 	}
-	rc := &realmCall{realm: binding.Realm, remote: rem.Name, proxy: proxy, authReason: authReason, handoff: req.Handoff}
+	rc := &realmCall{
+		realm: binding.Realm, remote: rem.Name, proxy: proxy, authReason: authReason,
+		handoff: req.Handoff, teardown: reactor.teardownRealmSession,
+	}
 	target := DialTarget{Remote: rem.Address, SharedSecret: rem.SharedSecret}
 	params := callParams{callingNumber: req.SubscriberMAC, pppoeChannelFD: req.ChannelFD, realm: rc}
 	if _, err := reactor.placeIncomingCall(target, params); err != nil {
+		countRelay(relayKindRealm, relayOutcomeRefused)
 		return nil, false, err
 	}
+	countRelay(relayKindRealm, relayOutcomePlaced)
 	rs.s.logger.Info("l2tp: relaying PPPoE subscriber by realm into L2TP incoming call",
 		"realm", binding.Realm, "remote", rem.Name, "subscriber", req.SubscriberMAC,
 		"interface", req.Interface, "proxy-auth", authReason == "")
 	return rc, true, nil
 }
 
-// Cancel abandons the realm call: the next event the reactor or the kernel
-// worker sees for it (ICRP, the bridge) tears the call down with CDN instead
-// of going on. Idempotent; safe for concurrent use.
-func (rc *realmCall) Cancel() { rc.canceled.Store(true) }
+// Cancel ends the realm call for a subscriber that left (callsink.RealmCall).
+// Before the bridge, the next event the reactor or the kernel worker sees
+// for it (ICRP, the bridge) tears the call down with CDN instead of going
+// on. After the bridge, Cancel tears the bridged session down now: nothing
+// else would, because the PPP driver released the subscriber and the
+// kernel forwards its frames to an LNS that never hears it left.
+// Idempotent; safe for concurrent use. Caller MUST NOT hold tunnelsMu.
+func (rc *realmCall) Cancel() {
+	rc.bridgeMu.Lock()
+	rc.canceled.Store(true)
+	bridged, tid, sid := rc.bridged, rc.bridgedTID, rc.bridgedSID
+	rc.bridged = false
+	rc.bridgeMu.Unlock()
+	if !bridged {
+		return
+	}
+	if rc.teardown == nil {
+		panic("BUG: l2tp realm call bridged with no teardown")
+	}
+	rc.teardown(tid, sid)
+}
+
+// markBridged records that the kernel worker bridged session tid/sid, so a
+// later Cancel tears it down. It answers false when Cancel already ran: the
+// caller then fails the setup, which sends CDN, instead of reporting a
+// bridge nobody owns.
+func (rc *realmCall) markBridged(tid, sid uint16) bool {
+	rc.bridgeMu.Lock()
+	defer rc.bridgeMu.Unlock()
+	if rc.canceled.Load() {
+		return false
+	}
+	rc.bridged = true
+	rc.bridgedTID = tid
+	rc.bridgedSID = sid
+	return true
+}
 
 // isCancelled reports whether the PPPoE side abandoned the call.
 func (rc *realmCall) isCancelled() bool { return rc.canceled.Load() }

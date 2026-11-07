@@ -32,6 +32,9 @@ type l2tpMetrics struct {
 	lcpEchoRTTSecs   metrics.HistogramVec
 	lcpEchoLossRatio metrics.GaugeVec
 	bucketState      metrics.GaugeVec
+
+	// relayTotal is ze_l2tp_relay_total (relay_metrics.go).
+	relayTotal metrics.CounterVec
 }
 
 // labelUsername is the Prometheus label carrying the subscriber login.
@@ -69,6 +72,8 @@ func bindL2TPMetrics(reg metrics.Registry) {
 		lcpEchoRTTSecs:   reg.HistogramVec("ze_l2tp_lcp_echo_rtt_seconds", "LCP echo round-trip time in seconds.", echoRTTBuckets, []string{labelUsername}),
 		lcpEchoLossRatio: reg.GaugeVec("ze_l2tp_lcp_echo_loss_ratio", "Current 100s bucket echo loss ratio per login.", []string{labelUsername}),
 		bucketState:      reg.GaugeVec("ze_l2tp_bucket_state", "Current CQM bucket state per login (established=0, negotiating=1, down=2).", []string{labelUsername}),
+
+		relayTotal: bindRelayMetrics(reg),
 	}
 	l2tpMetricsPtr.Store(m)
 }

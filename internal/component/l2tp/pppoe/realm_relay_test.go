@@ -179,6 +179,23 @@ func (h *realmHarness) waitRefusal(t *testing.T) string {
 	}
 }
 
+// waitReleased waits until the driver released the PPP session into the
+// bridge, so the subscriber-gone that follows meets the bridged handoff.
+func waitReleased(t *testing.T, h *realmHarness) {
+	t.Helper()
+	deadline := time.After(2 * time.Second)
+	for {
+		if released, _ := h.driver.counts(); released > 0 {
+			return
+		}
+		select {
+		case <-h.driver.changed:
+		case <-deadline:
+			t.Fatal("the bridge did not release the PPP session")
+		}
+	}
+}
+
 // TestRelayRealmHandoffCancelledInEachPhase walks the rows of the spec's
 // handoff table (AC-15) with a fake sink and driver: each cancellation
 // leads to its row's outcome, and the handoff goroutine ends.
@@ -229,6 +246,26 @@ func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 		h.relay.stopAll()
 		if released, refusals := h.driver.counts(); released != 1 || len(refusals) != 0 {
 			t.Fatalf("released=%d refusals=%v, want one release and no refusal", released, refusals)
+		}
+	})
+	t.Run("bridged, subscriber leaves", func(t *testing.T) {
+		// The Bridged row: a PADT after the bridge MUST reach the sink,
+		// which tears the L2TP session down with CDN (callsink.RealmCall).
+		// Twice reported (PADT, then a PPP session-down) is one cancel.
+		h := newRealmHarness(t, nil)
+		h.handoff().Bridged(nil)
+		waitReleased(t, h)
+		h.relay.subscriberGone(3, 5)
+		h.relay.subscriberGone(3, 5)
+		waitSignal(t, h.sink.canceled, "the call cancel after the bridge")
+		h.relay.stopAll()
+		if released, refusals := h.driver.counts(); released != 1 || len(refusals) != 0 {
+			t.Fatalf("released=%d refusals=%v, want one release and no refusal", released, refusals)
+		}
+		select {
+		case sid := <-h.ended:
+			t.Fatalf("PPPoE session %d ended by the relay; the server already ends it on PADT", sid)
+		default:
 		}
 	})
 	t.Run("placing, daemon stops", func(t *testing.T) {

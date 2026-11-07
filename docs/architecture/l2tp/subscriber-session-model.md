@@ -111,14 +111,24 @@ PPP records the request username only when the authentication handler accepts
 the request. Each IP-assigned event carries that accepted username to the
 transport, which publishes it in the subscriber registry and lifecycle events.
 L2TP also uses it for subscriber routes and accounting. A rejected request
-cannot replace the accepted username.
+cannot replace the accepted username. A PPPoE session a realm relay takes
+never reaches the handler: the drain hands it to the L2TP call, PPP records
+no username, and the session is released to the LNS without an
+authentication reply (`docs/guide/l2tp.md`, "Relay by realm").
+
+While a decision is pending, PPP keeps serving the link: it answers LCP
+Echo-Request, drops a retransmitted CHAP Response or PAP
+Authenticate-Request (the decision answers it), and ends the wait on an LCP
+Terminate-Request or a renegotiation. A realm relay's decision can take a
+dial and an ICRQ, ICRP and ICCN round trip, so the keepalive matters there.
 
 Explicit no-auth admission has an empty username. L2TP retains a proxy identity
 supplied for the current transport until PPP supplies an accepted username.
 LCP-down clears the accepted username and the transport's network-lifetime
 identity, so replacement admission cannot reuse the previous subscriber.
 
-<!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision -->
+<!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision, serveFrameAwaitingDecision -->
+<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmRelay.decide -->
 <!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, resetNCP -->
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned, handleLCPDown -->
 

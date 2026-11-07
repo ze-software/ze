@@ -203,10 +203,115 @@ func TestRelaySinkRealmDialFailureReportsRefusal(t *testing.T) {
 
 	handoff := &fakeRealmHandoff{}
 	rc := &realmCall{realm: "example.net", remote: "lns-a", handoff: handoff}
-	tun := &L2TPTunnel{pendingCall: &pendingCall{params: callParams{realm: rc}}}
+	tun := &L2TPTunnel{pendingCalls: []*pendingCall{{params: callParams{realm: rc}}}}
 	tun.resolvePendingCall(callOutcome{err: errCallTunnelSetupFailed})
 	require.Len(t, handoff.ended, 1, "a tunnel that died before the call reports Ended once")
 	require.Contains(t, handoff.ended[0], "example.net")
 	rc.end("again")
 	require.Len(t, handoff.ended, 1, "Ended is reported once")
+}
+
+// TestRealmCallCancelOrdersAgainstBridge -- the Bridged row of the handoff
+// table (AC-15).
+//
+// VALIDATES: Cancel before the bridge never tears a session down and makes
+// markBridged refuse, so the kernel worker fails the setup (CDN) instead of
+// reporting a bridge; Cancel after markBridged tears the bridged session
+// tid/sid down exactly once.
+// PREVENTS: a subscriber PADT after the bridge leaving the L2TP session up,
+// and a Cancel racing the bridge leaving it up too.
+func TestRealmCallCancelOrdersAgainstBridge(t *testing.T) {
+	type torn struct{ tid, sid uint16 }
+	var got []torn
+	newCall := func() *realmCall {
+		return &realmCall{realm: "example.net", handoff: &fakeRealmHandoff{},
+			teardown: func(tid, sid uint16) { got = append(got, torn{tid, sid}) }}
+	}
+
+	got = nil
+	rc := newCall()
+	rc.Cancel()
+	require.Empty(t, got, "Cancel before the bridge tears nothing down")
+	require.False(t, rc.markBridged(4, 9), "a cancelled call MUST NOT be marked bridged")
+	require.True(t, rc.isCancelled())
+
+	got = nil
+	rc = newCall()
+	require.True(t, rc.markBridged(4, 9))
+	rc.Cancel()
+	require.Equal(t, []torn{{4, 9}}, got, "Cancel after the bridge tears the bridged session down")
+	rc.Cancel()
+	require.Len(t, got, 1, "Cancel is idempotent")
+}
+
+// TestRealmCallCancelAfterBridgeSendsCDN -- the Bridged row on the wire.
+//
+// VALIDATES: a realm call placed through the relay sink, once marked bridged
+// by the kernel worker, sends the LNS a CDN with Result Code 1 (RFC 2661
+// Section 4.4.2, "Call disconnected due to loss of carrier") for its own
+// session when the PPPoE side cancels it, and reports Ended to the handoff.
+// PREVENTS: a subscriber hang-up that the LNS never hears about.
+func TestRealmCallCancelAfterBridgeSendsCDN(t *testing.T) {
+	ln, r, logs, stop := buildLogReactor(t)
+	defer stop()
+	timer := newTunnelTimer(r.tickCh, r.updateCh)
+	require.NoError(t, timer.Start())
+	defer timer.Stop()
+	client := newClient(t, ln)
+	defer client.Close()
+
+	s := &Subsystem{
+		params: Parameters{
+			Remotes:     []Remote{{Name: "lns-a", Address: clientAddrPort(t, client)}},
+			RelayRealms: []RealmRelayBinding{{Realm: "example.net", Remote: "lns-a"}},
+		},
+		reactors: []*l2tpReactor{r},
+		logger:   slog.Default(),
+	}
+	handoff := &fakeRealmHandoff{}
+	call, accepted, err := (&relaySink{s: s}).RelayRealm(callsink.RealmRequest{
+		Realm: "example.net", Username: "cpe@example.net", SubscriberMAC: "aa:bb:cc:dd:ee:ff",
+		ChannelFD: 7,
+		Auth:      callsink.ProxyAuth{Kind: callsink.AuthKindCHAP, Identifier: 1, Challenge: []byte{1}, Response: []byte{2}},
+		Handoff:   handoff,
+	})
+	require.NoError(t, err)
+	require.True(t, accepted)
+
+	sccrq := readDatagram(t, client)
+	zeTIDBytes := extractAVP(t, sccrq, AVPAssignedTunnelID)
+	zeTID := uint16(zeTIDBytes[0])<<8 | uint16(zeTIDBytes[1])
+	client.Send(t, buildSCCRPForSCCRQ(t, sccrq, 909))
+	waitForLog(t, logs, "ICRQ sent; session wait-reply (LAC incoming)")
+	icrq := readUntilMsgType(t, client, MsgICRQ, 3)
+	zeSIDBytes := extractAVP(t, icrq, AVPAssignedSessionID)
+	zeSID := uint16(zeSIDBytes[0])<<8 | uint16(zeSIDBytes[1])
+
+	body := icrpBody(707)
+	pkt := make([]byte, ControlHeaderLen+len(body))
+	WriteControlHeader(pkt, 0, uint16(len(pkt)), zeTID, zeSID, 1, 3)
+	copy(pkt[ControlHeaderLen:], body)
+	client.Send(t, pkt)
+	readUntilMsgType(t, client, MsgICCN, 4)
+	// Acknowledge the ICCN so the CDN is not queued behind it.
+	client.Send(t, buildZLBAck(zeTID, 2, 4))
+
+	rc, ok := call.(*realmCall)
+	require.True(t, ok)
+	require.True(t, rc.markBridged(zeTID, zeSID), "the kernel worker's mark on a live call")
+	call.Cancel()
+
+	cdn := readUntilMsgType(t, client, MsgCDN, 4)
+	hdr, err := ParseMessageHeader(cdn)
+	require.NoError(t, err)
+	require.Equal(t, uint16(707), hdr.SessionID, "the CDN is addressed to the LNS's session")
+	result := extractAVP(t, cdn, AVPResultCode)
+	require.GreaterOrEqual(t, len(result), 2)
+	require.Equal(t, uint16(1), uint16(result[0])<<8|uint16(result[1]), "Result Code 1: loss of carrier")
+	require.Equal(t, zeSIDBytes, extractAVP(t, cdn, AVPAssignedSessionID))
+
+	handoff.mu.Lock()
+	ended := len(handoff.ended)
+	handoff.mu.Unlock()
+	require.Equal(t, 1, ended, "the teardown reports Ended once")
 }

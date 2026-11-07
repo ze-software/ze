@@ -8,6 +8,7 @@ package l2tp
 import (
 	"fmt"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -50,10 +51,22 @@ type realmCall struct {
 	proxy      *iccnProxy
 	authReason string
 	handoff    callsink.RealmHandoff
+	// teardown ends the bridged L2TP session tid/sid with CDN. Set by the
+	// relay sink to the reactor that placed the call; nil only in tests
+	// that never bridge.
+	teardown func(tid, sid uint16)
 	// canceled is set by Cancel from the PPPoE side; ended guards the one
 	// Ended report. Both are read across goroutines, hence atomic.
 	canceled atomic.Bool
 	ended    atomic.Bool
+	// bridgeMu orders Cancel against markBridged, so a Cancel that lands
+	// while the kernel worker bridges either stops the bridge or tears the
+	// bridged session down, never neither. bridged, bridgedTID and
+	// bridgedSID are guarded by it.
+	bridgeMu   sync.Mutex
+	bridged    bool
+	bridgedTID uint16
+	bridgedSID uint16
 	// iccnSent is set by the reactor once the ICCN was enqueued; read under
 	// tunnelsMu by the snapshot.
 	iccnSent bool

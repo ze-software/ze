@@ -111,9 +111,20 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 		}
 	}
 	bridged, berr := maybeBridgePPPoE(ev, chanFD)
+	if ev.realm != nil && berr == nil && !ev.realm.markBridged(ev.localTID, ev.localSID) {
+		// The subscriber left while the bridge was issued. Closing the
+		// pppol2tp channel undoes the bridge; the setup failure sends CDN.
+		unix.Close(chanFD)  //nolint:errcheck // rollback path; primary error is the cancel
+		unix.Close(unitFD)  //nolint:errcheck // rollback path; primary error is the cancel
+		unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is the cancel
+		return pppSessionFDs{}, errRealmCallCancelled
+	}
 	if ev.realm != nil {
 		// A realm call never takes the userspace relay fall-back: the PPPoE
 		// side refuses the subscriber on a bridge error (Bridged(err)).
+		// markBridged ran first, so a Cancel the PPPoE side sends once it
+		// saw Bridged(nil) tears the bridged session down.
+		countRealmBridge(berr)
 		ev.realm.handoff.Bridged(berr)
 	}
 	if berr != nil {

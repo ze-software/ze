@@ -263,3 +263,41 @@ func TestDriverRelayRefusalClosesLCP(t *testing.T) {
 	}
 	waitForEventOfTypeOrFail[EventSessionDown](t, d.EventsOut())
 }
+
+// TestAuthDecisionWaitAnswersLCPEcho checks the first row of the handoff
+// table (spec-home-cpe-14): while the authentication decision is pending,
+// which for a realm relay spans the dial and the ICRQ/ICRP/ICCN round trip,
+// the driver answers LCP Echo-Request (RFC 1661 Section 5.8) and does not
+// report a retransmitted Authenticate-Request a second time.
+// Method: the peer retransmits its PAP request, then sends an Echo-Request.
+// Frames are served in order, so once the Echo-Reply arrives the retransmit
+// was already handled, and the auth channel MUST still be empty.
+func TestAuthDecisionWaitAnswersLCPEcho(t *testing.T) {
+	d, peer, _, _ := startRelaySession(t, 16005)
+	// One deadline for every pipe operation: without the fix nothing drains
+	// the frames, so the writes block and MUST fail rather than hang.
+	if err := peer.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("deadline: %v", err)
+	}
+
+	if _, err := peer.Write(buildPAPRequestFrame(42, "cpe@example.net", "s3cret")); err != nil {
+		t.Fatalf("peer write PAP retransmit: %v", err)
+	}
+	// RFC 1661 Section 5.8: the Magic-Number is the peer's, zero when it
+	// negotiated none (relayPeerOptions carries only MRU); any other value
+	// is dropped as a looped-back link (session_run.go handleLCPPacket).
+	magic := []byte{0, 0, 0, 0}
+	relayPeerWriteLCP(t, peer, LCPEchoRequest, 6, magic)
+	reply := relayPeerReadLCP(t, peer, LCPEchoReply)
+	if reply == nil {
+		t.Fatal("no Echo-Reply while the authentication decision was pending")
+	}
+	if reply.Identifier != 6 {
+		t.Fatalf("Echo-Reply identifier %d, want 6", reply.Identifier)
+	}
+	select {
+	case ev := <-d.AuthEventsOut():
+		t.Fatalf("a retransmitted Authenticate-Request was reported again: %T", ev)
+	default:
+	}
+}

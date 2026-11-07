@@ -25,6 +25,32 @@ channel with its Ns and Nr sequence numbers. The reference summary is
 call to `callsink`, and L2TP registers the implementation. Neither component
 imports the other.
 
+**A Service-Name relay needs no PPP driver.** `handlePADR` sets up the session
+socket and the PPP channel, builds the PADS, and asks `Sink.Relay` before it
+sends that PADS. A relayed subscriber then gets its PADS and its unused PPP unit
+is closed, whether or not the box has a PPP driver, so a LAC with no interface
+backend still relays. Local termination and the realm relay both run LCP on
+the PPP driver. With no driver, a subscriber no Service-Name binding relays
+gets a PADS with AC-System-Error and SESSION_ID 0 (RFC 2516 Section 5.4), and
+a WARN names the missing interface backend and the
+`set interface backend netlink` that fixes it.
+
+<!-- source: internal/component/l2tp/pppoe/server.go -- handlePADR, relayToL2TP, sendPADS -->
+
+**A realm relay crosses the same sink, after local LCP.** `Sink.RelayRealm`
+takes a request the PPPoE auth drain makes once the subscriber's
+authentication arrived, before any credential check. The sink places the
+incoming call with the proxy AVPs; the kernel worker asks the PPPoE side to
+quiesce the subscriber's channel reader, bridges, then reports the result. The
+returned `RealmCall.Cancel` is the PPPoE side's one report that the subscriber
+left: before the bridge it abandons the call, after it the sink tears the L2TP
+session down with CDN. A call to a remote whose tunnel is established or still
+connecting rides that tunnel, so one remote's subscribers share one tunnel.
+
+<!-- source: internal/component/l2tp/relay_sink.go -- relaySink.RelayRealm, realmCall.Cancel, realmCall.markBridged -->
+<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmRelay.decide, realmHandoff.run -->
+<!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, connectingTunnelToLocked, placePendingCallLocked -->
+
 **A call is an operational event, not config.** The operator surface is the
 remote dial-target list plus a `request l2tp outgoing-call` RPC. A config-driven
 auto-dial was rejected because it turns an event into state.

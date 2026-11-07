@@ -225,6 +225,7 @@ func (s *Subsystem) newInterfaceServer(ic *InterfaceConfig, p *Parameters) (*Int
 		limiter:   NewPADILimiter(p.PADIRateLimit),
 		discFD:    s.discFD,
 		pppDriver: s.pppDriver,
+		peerLeft:  s.peerLeftSession,
 		logger:    s.logger.With("interface", ic.Name),
 	}
 	applyInterfaceConfig(srv, ic, p)

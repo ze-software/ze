@@ -332,30 +332,99 @@ func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (auth
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
-	select {
-	case decision := <-s.authRespCh:
-		if decision.accept {
-			s.authenticatedUsername = req.Username
+	// The decision can take a dial and an ICRQ/ICRP/ICCN round trip (a
+	// realm relay, spec-home-cpe-14) or a RADIUS exchange, so the session
+	// keeps serving the link while it waits: LCP Echo is answered and a
+	// Terminate-Request or a renegotiation ends the wait, as in
+	// waitCHAPLike. A nil channel (the reader quiesced or ended) is never
+	// selected again; the run loop learns of a read error on its own.
+	frames, unitFrames := s.framesIn, s.unitFramesIn
+	lcpState := s.currentState()
+	for {
+		// A decision already delivered wins over a frame queued behind it:
+		// select picks among ready cases at random, and the frames that
+		// follow belong to the phase after the answer
+		// (TestPAPDecisionEndsWhenLCPInterruptsNCP), so they MUST NOT
+		// pre-empt it.
+		select {
+		case decision := <-s.authRespCh:
+			return s.acceptAuthDecision(decision, req), true
+		default:
 		}
-		return decision, true
-	case <-s.stopCh:
-		return authResponseMsg{}, false
-	case <-s.sessStop:
-		return authResponseMsg{}, false
-	case <-timer.C:
-		var tb textbuf.Buffer
-		if label != "" {
-			tb.Str(label).Str(": ")
+		select {
+		case decision := <-s.authRespCh:
+			return s.acceptAuthDecision(decision, req), true
+		case f, ok := <-frames:
+			if !ok {
+				frames = nil
+				continue
+			}
+			if s.serveFrameAwaitingDecision(f, lcpState) {
+				return authResponseMsg{}, false
+			}
+		case f := <-unitFrames:
+			if s.serveFrameAwaitingDecision(f, lcpState) {
+				return authResponseMsg{}, false
+			}
+		case <-s.stopCh:
+			return authResponseMsg{}, false
+		case <-s.sessStop:
+			return authResponseMsg{}, false
+		case <-timer.C:
+			return s.authDecisionTimedOut(label, timeout)
 		}
-		reason := tb.Str("auth timeout after ").Str(timeout.String()).String()
-		s.fail(reason)
-		s.sendAuthEvent(eventAuthFailure{
-			TunnelID:  s.tunnelID,
-			SessionID: s.sessionID,
-			Reason:    "timeout",
-		})
-		return authResponseMsg{}, false
 	}
+}
+
+// acceptAuthDecision records the username of an accepted decision and
+// returns the decision for awaitAuthDecision to hand back.
+func (s *pppSession) acceptAuthDecision(decision authResponseMsg, req EventAuthRequest) authResponseMsg {
+	if decision.accept {
+		s.authenticatedUsername = req.Username
+	}
+	return decision
+}
+
+// authDecisionTimedOut ends a session whose authentication decision did
+// not arrive within timeout. label is awaitAuthDecision's.
+func (s *pppSession) authDecisionTimedOut(label string, timeout time.Duration) (authResponseMsg, bool) {
+	var tb textbuf.Buffer
+	if label != "" {
+		tb.Str(label).Str(": ")
+	}
+	reason := tb.Str("auth timeout after ").Str(timeout.String()).String()
+	s.fail(reason)
+	s.sendAuthEvent(eventAuthFailure{
+		TunnelID:  s.tunnelID,
+		SessionID: s.sessionID,
+		Reason:    "timeout",
+	})
+	return authResponseMsg{}, false
+}
+
+// serveFrameAwaitingDecision handles one frame that arrived while the
+// session waits for an authentication decision, and reports whether the
+// wait must end (the frame terminated the session or changed LCP state).
+// An authentication frame is dropped: the request was already reported, so
+// a retransmitted CHAP Response or PAP Authenticate-Request is not reported
+// twice, and the decision answers it. Every other frame goes to handleFrame,
+// which answers LCP Echo-Request (RFC 1661 Section 5.8) from LCP state.
+func (s *pppSession) serveFrameAwaitingDecision(f []byte, lcpState LCPState) bool {
+	defer putFrameBuf(f)
+	proto, _, _, err := ParseFrame(f)
+	if err == nil {
+		if proto == ProtoCHAP {
+			return false
+		}
+		if proto == ProtoPAP {
+			return false
+		}
+	}
+	term := s.handleFrame(f)
+	if term {
+		return true
+	}
+	return s.currentState() != lcpState
 }
 
 // waitCHAPLike reads ProtoCHAP frames from framesIn until parse yields

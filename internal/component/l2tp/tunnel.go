@@ -145,13 +145,16 @@ type L2TPTunnel struct {
 	// (l2tp, session-down) per entry after it releases tunnelsMu.
 	pendingSessionDowns []sessionDown
 
-	// pendingCall is a call the reactor must originate the moment this
-	// initiated tunnel reaches established (a dial issued via
-	// placeIncomingCall / PlaceOutgoingCall). Nil for answering tunnels and
-	// for a bare Dial. Consumed once by the reactor's establishment hook.
+	// pendingCalls are the calls the reactor must originate the moment this
+	// initiated tunnel reaches established: the one its dial was issued for
+	// (placeIncomingCall / PlaceOutgoingCall), then every incoming call to
+	// the same remote that arrived while it was connecting, in arrival
+	// order (AC-10, spec-home-cpe-14), at most pendingCallsMax. Empty for
+	// answering tunnels, for a bare Dial, and once established. Consumed
+	// once by the reactor's establishment hook.
 	//
 	// Caller MUST hold the owning reactor's tunnelsMu. Set at dial time.
-	pendingCall *pendingCall
+	pendingCalls []*pendingCall
 }
 
 // newTunnel constructs a tunnel in the idle state with a pre-wired

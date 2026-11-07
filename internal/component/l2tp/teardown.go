@@ -224,6 +224,38 @@ func (r *l2tpReactor) emitSessionDowns(downs []sessionDown) {
 //
 // cause carries the same obligation teardownSessionByID states.
 func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16, cause l2tpevents.TerminateCause) error {
+	return r.teardownSessionOnTunnelWith(localTID, localSID, cdnResultAdministrative, cause)
+}
+
+// teardownRealmSession ends a bridged realm-relay session whose PPPoE
+// subscriber left (PADT, or the PPPoE side stopped). It is the realm call's
+// teardown hook (relay_sink.go realmCall.Cancel), so a subscriber hang-up
+// reaches the LNS. Caller MUST NOT hold tunnelsMu. A session or tunnel
+// already gone means the LNS ended the call first, which is the outcome
+// wanted, so only another failure is logged.
+func (r *l2tpReactor) teardownRealmSession(localTID, localSID uint16) {
+	// RFC 2661 Section 6.12: "The Call-Disconnect-Notify (CDN) message is an
+	// L2TP control message sent by either the LAC or LNS to request
+	// disconnection of a specific call within the tunnel." The subscriber's
+	// link is gone, so the Result Code is 1 (Section 4.4.2, "Call
+	// disconnected due to loss of carrier").
+	err := r.teardownSessionOnTunnelWith(localTID, localSID, cdnResultLossOfCarrier, l2tpevents.TerminateCauseUserRequest)
+	if err == nil {
+		return
+	}
+	if errors.Is(err, ErrSessionNotFound) {
+		return
+	}
+	if errors.Is(err, ErrTunnelNotFound) {
+		return
+	}
+	r.logger.Warn("l2tp: realm relay session not torn down after the subscriber left",
+		"local-tid", localTID, "local-sid", localSID, "error", err)
+}
+
+// teardownSessionOnTunnelWith is teardownSessionOnTunnel with the CDN
+// Result Code named by the caller.
+func (r *l2tpReactor) teardownSessionOnTunnelWith(localTID, localSID, result uint16, cause l2tpevents.TerminateCause) error {
 	r.tunnelsMu.Lock()
 	t, ok := r.tunnelsByLocalID[localTID]
 	if !ok {
@@ -236,7 +268,7 @@ func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16, cause l
 		return fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, localSID)
 	}
 	now := r.params.Clock()
-	outbound := t.teardownSession(sess, cdnResultAdministrative, cause, now, r.logger)
+	outbound := t.teardownSession(sess, result, cause, now, r.logger)
 	teardowns, downs := t.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 

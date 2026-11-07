@@ -182,7 +182,9 @@ func (r *realmRelay) decide(req *ppp.EventAuthRequest) bool {
 }
 
 // subscriberGone tells the handoff of a PPPoE session that ended (PADT, PPP
-// session down) to abandon its call.
+// session down) to cancel its call. A bridged session reaches it only
+// through PADT: the PPP driver released it, so no PPP session-down comes.
+// A second report for the same session is dropped.
 func (r *realmRelay) subscriberGone(ifindex int, sid uint16) {
 	r.mu.Lock()
 	h := r.calls[pendingAuthKey{ifindex: ifindex, sessionID: sid}]
@@ -190,7 +192,7 @@ func (r *realmRelay) subscriberGone(ifindex int, sid uint16) {
 	if h == nil {
 		return
 	}
-	h.post(realmEvent{kind: realmEventSubscriberGone})
+	h.goneOnce.Do(func() { h.post(realmEvent{kind: realmEventSubscriberGone}) })
 }
 
 // stopAll cancels every relay still in flight and waits for every handoff
@@ -219,7 +221,7 @@ const (
 )
 
 // realmEventsMax bounds a handoff's queue: the sink posts at most one
-// Bridged and one Ended, and the server one subscriber-gone.
+// Bridged and one Ended, and the server one subscriber-gone (goneOnce).
 const realmEventsMax = 3
 
 type realmEvent struct {
@@ -241,6 +243,10 @@ type realmHandoff struct {
 	callMu   sync.Mutex
 	call     callsink.RealmCall
 	canceled bool
+
+	// goneOnce posts the one subscriber-gone event: PADT and the PPP
+	// session-down can both report the same session.
+	goneOnce sync.Once
 }
 
 // Quiesce stops the PPP driver's reader on the subscriber's channel and
@@ -273,19 +279,23 @@ func (h *realmHandoff) post(ev realmEvent) {
 
 func (h *realmHandoff) setCall(call callsink.RealmCall) {
 	h.callMu.Lock()
-	defer h.callMu.Unlock()
 	h.call = call
-	if h.canceled && call != nil {
+	canceled := h.canceled
+	h.callMu.Unlock()
+	// Cancel runs outside callMu: after the bridge it tears the L2TP
+	// session down, which reports Ended back into this handoff.
+	if canceled && call != nil {
 		call.Cancel()
 	}
 }
 
 func (h *realmHandoff) cancelCall() {
 	h.callMu.Lock()
-	defer h.callMu.Unlock()
 	h.canceled = true
-	if h.call != nil {
-		h.call.Cancel()
+	call := h.call
+	h.callMu.Unlock()
+	if call != nil {
+		call.Cancel()
 	}
 }
 
@@ -341,9 +351,10 @@ func (h *realmHandoff) run() {
 				h.refuse("the L2TP call ended before the bridge (" + ev.reason + ")")
 				return
 			case realmEventSubscriberGone:
-				if !bridged {
-					h.cancelCall()
-				}
+				// Before the bridge the sink abandons the call; after it
+				// the sink tears the bridged L2TP session down with CDN
+				// (callsink.RealmCall). Either way the LNS learns.
+				h.cancelCall()
 				return
 			case realmEventUnspecified:
 				panic("BUG: realm relay event with no kind")
@@ -365,6 +376,15 @@ func (s *Subsystem) realmSubscriber(ifindex int, sid uint16) (realmSubscriber, b
 		return realmSubscriber{}, false
 	}
 	return srv.sessions.relaySubscriber(sid, srv.ifName)
+}
+
+// peerLeftSession is the servers' PADT report (InterfaceServer.peerLeft): a
+// realm relay for the session cancels its call, which after the bridge
+// tears the L2TP session down with CDN.
+func (s *Subsystem) peerLeftSession(ifindex int, sid uint16) {
+	if s.realmRelay != nil {
+		s.realmRelay.subscriberGone(ifindex, sid)
+	}
 }
 
 // endRelayedSession ends a PPPoE session whose L2TP call ended after the

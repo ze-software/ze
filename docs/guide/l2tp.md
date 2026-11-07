@@ -174,18 +174,35 @@ authentication.
 `proxy-auth-reason` (`no-shared-secret`, `no-authentication`,
 `proxy-data-too-large`) when proxy authentication was not sent.
 
-**Status: under construction.** The binding and its validation, the realm
-match in the L2TP relay sink, the LCP capture in the PPP driver and the ICCN
-proxy AVPs exist. The PPPoE side does not consult the binding yet: until the
-hand-off from the PPPoE auth drain to the L2TP call is wired, a configured
-`relay-realm` changes nothing and every PPPoE subscriber is terminated
-locally. The end-to-end proof will be the interop scenarios
-`l2tp-lac-realm-relay-accel-ppp` and `l2tp-lac-realm-relay-xl2tpd`.
+While the call is placed the LAC keeps the subscriber's link served: it
+answers LCP Echo-Request and drops a retransmitted CHAP Response or PAP
+Authenticate-Request, which the pending decision answers. Once the L2TP
+session is ready the LAC stops reading the subscriber's PPP channel, bridges
+it to the L2TP session, and from then on sends the subscriber nothing itself:
+the LNS continues the PPP session. A matched realm whose call fails (no
+listener, a refused tunnel, a CDN or a bridge error before the bridge) is
+refused with a CHAP Failure or PAP Authenticate-Nak naming the realm, then an
+LCP Terminate-Request; it is never authenticated locally. After the bridge, a
+subscriber PADT ends the L2TP session with CDN Result Code 1 (loss of
+carrier), and an L2TP session the LNS ends sends the subscriber PADT.
+Subscribers of one remote share one tunnel, including those that arrive
+while it is still connecting. `ze_l2tp_relay_total` counts each decision (see
+Metrics).
+
+**Status: under construction.** The PPPoE side consults the binding and the
+hand-off described above is wired and unit-tested, but no test has yet run
+it against a real LNS: the end-to-end proof will be the interop scenarios
+`l2tp-lac-realm-relay-accel-ppp` and `l2tp-lac-realm-relay-xl2tpd`, and the
+Linux tests of the bridge after local LCP are not written yet.
 
 <!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay/relay-realm lists -->
 <!-- source: internal/component/l2tp/config.go -- validateRelayRealms, checkRealmSyntax, LookupRealmRelay -->
-<!-- source: internal/component/l2tp/relay_sink.go -- RelayRealm -->
+<!-- source: internal/component/l2tp/relay_sink.go -- RelayRealm, realmCall.Cancel -->
 <!-- source: internal/component/l2tp/iccn_proxy.go -- newICCNProxy, writeICCNProxyAVPs -->
+<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmHandoff.run, subscriberGone -->
+<!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision, serveFrameAwaitingDecision -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownRealmSession -->
+<!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, connectingTunnelToLocked -->
 <!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->
 
 ## Rejecting a malformed SCCRQ
@@ -1243,6 +1260,14 @@ L2TP exposes metrics under the `ze_l2tp_*` and `ze_radius_*` namespaces.
 | `ze_l2tp_lcp_echo_rtt_seconds` | histogram | LCP echo round-trip time |
 | `ze_l2tp_lcp_echo_loss_ratio` | gauge | Current 100s bucket echo loss ratio |
 | `ze_l2tp_bucket_state` | gauge | CQM bucket state (established=0, negotiating=1, down=2) |
+
+### Relay counter (labels: kind, outcome)
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ze_l2tp_relay_total` | counter | PPPoE relay decisions on a LAC. `kind` is `service` (a `relay` binding, decided at discovery) or `realm` (a `relay-realm` binding, decided at authentication). `outcome` is `no-match` (terminated locally), `refused` (a binding matched but the call could not start), `placed` (the incoming call was placed), and for `realm` also `bridged` or `bridge-failed` |
+
+<!-- source: internal/component/l2tp/relay_metrics.go -- bindRelayMetrics, relayOutcome.label -->
 
 ### PPP negotiation counters (labels: reason)
 
