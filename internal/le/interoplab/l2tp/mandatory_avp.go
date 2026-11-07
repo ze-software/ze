@@ -32,7 +32,7 @@ func avpRelayPeer(suffix string, network interoplab.Network) (interoplab.PeerCon
 	}
 	return interoplab.PeerConfig{
 		Name: peerAVPRelay, Container: "ze-l2tp-avp-relay-" + suffix,
-		Image: "avp-relay", Host: 4,
+		Image: imageAVPRelay, Host: 4,
 		Command: []string{netip.AddrPortFrom(ze, 1701).String(), netip.AddrPortFrom(lac, 1702).String()},
 		Ready: &interoplab.ReadyProbe{
 			Command: []string{"test", "-f", "/run/ready"}, Timeout: 15 * time.Second, Interval: time.Second,

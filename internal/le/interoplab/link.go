@@ -1,0 +1,363 @@
+// Design: docs/architecture/testing/interop.md -- separate links between daemons.
+// Related: lab.go -- runScenario validates the links and wraps each member's start.
+// Related: docker.go -- PeerConfig.Prestart and the image start the wrapper execs.
+package interoplab
+
+import (
+	"encoding/json"
+	"errors"
+	"net/netip"
+	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+// Link is one layer-2 segment of a scenario that only its members join: a
+// VLAN over the scenario's one network. Every container sits on the network's
+// untagged eth0, so a protocol that finds its neighbors by multicast or
+// broadcast (IS-IS, OSPF, PPPoE discovery) meets every container there. A
+// daemon configured on a link meets only the other members, because the
+// kernel of a container with no device on that VLAN never hands a tagged
+// frame to a socket.
+//
+// Each member reaches the link as eth<N>, where N counts the links that
+// member joins in declaration order (its first link is eth1). A link with an
+// IPv4 prefix gives each member its host number in the last octet; one with
+// an IPv6 prefix gives each member the /64 address whose last octet is its
+// host number. A link with neither prefix is a pure layer-2 segment (PPPoE, a
+// LAN that DHCP numbers): its members hold the device up with no address.
+// The scenario's files name those devices and addresses.
+type Link struct {
+	// Name is how a refusal and a checker name the link.
+	Name string `json:"name"`
+	VLAN uint16 `json:"vlan"`
+	// IPv4 is the link's network, at most a /24, or the zero Prefix for none.
+	IPv4 netip.Prefix `json:"ipv4,omitzero"`
+	// IPv6 is the link's /64, or the zero Prefix for none.
+	IPv6 netip.Prefix `json:"ipv6,omitzero"`
+	// Members are the names of the planned peers that join the link.
+	Members []string `json:"members"`
+}
+
+// LinkMembership is one member's place on one link: the device it reaches
+// the link as and the addresses it holds there, each the zero Addr when the
+// link carries no prefix of that family.
+type LinkMembership struct {
+	Link   string     `json:"link"`
+	Device string     `json:"device"`
+	IPv4   netip.Addr `json:"ipv4,omitzero"`
+	IPv6   netip.Addr `json:"ipv6,omitzero"`
+}
+
+// linkVLANMax is the highest usable 802.1Q VLAN identifier; 0 and 4095 are
+// reserved.
+const linkVLANMax = 4094
+
+// linkIPv4BitsMax keeps a member's host number inside the link's network.
+const linkIPv4BitsMax = 24
+
+// linkIPv6Bits is the one IPv6 prefix length a link takes: the member's host
+// number fills the last octet of a /64, as Docker numbers the network itself.
+const linkIPv6Bits = 64
+
+// linkHostMax is the highest host number a member may hold on a link: 255 is
+// the broadcast address of a /24.
+const linkHostMax = 254
+
+// ValidateLinks refuses a link the harness cannot build as declared: a VLAN
+// outside 1 to 4094 or used twice, an IPv4 prefix that is not a network of at
+// most /24, an IPv6 prefix that is not a /64 network, fewer than two members,
+// a member named twice, a member the scenario does not plan, or a member whose
+// host number cannot hold an address. Each such link would carry nothing, and
+// the checker would read a silent lab as the daemon's fault, so the scenario
+// fails before any container starts.
+func ValidateLinks(scenario string, links []Link, peers []PeerConfig) error {
+	hosts := make(map[string]uint8, len(peers))
+	for index := range peers {
+		hosts[peers[index].Name] = peers[index].Host
+	}
+	vlans := make(map[uint16]string, len(links))
+	for index := range links {
+		if err := validateLink(scenario, &links[index], vlans, hosts); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateLink is ValidateLinks' refusal of one declared link.
+func validateLink(scenario string, link *Link, vlans map[uint16]string, hosts map[string]uint8) error {
+	var reason textbuf.Buffer
+	reason.Str(scenario).Str("'s link ").Str(link.Name).Str(" on VLAN ").Int(int64(link.VLAN))
+	if link.Name == "" {
+		return errors.New(reason.Str(" has no name; name it so a refusal and a checker can say which link").String())
+	}
+	if link.VLAN == 0 {
+		return errors.New(reason.Str(" is not a usable VLAN; declare one from 1 to 4094 in the scenario's Links").String())
+	}
+	if link.VLAN > linkVLANMax {
+		return errors.New(reason.Str(" is not a usable VLAN; declare one from 1 to 4094 in the scenario's Links").String())
+	}
+	if other, seen := vlans[link.VLAN]; seen {
+		return errors.New(reason.Str(" reuses the VLAN of link ").Str(other).Str("; give each link of the scenario its own VLAN").String())
+	}
+	vlans[link.VLAN] = link.Name
+	if err := validateLinkIPv4(&reason, link.IPv4); err != nil {
+		return err
+	}
+	if err := validateLinkIPv6(&reason, link.IPv6); err != nil {
+		return err
+	}
+	if len(link.Members) < 2 {
+		return errors.New(reason.Str(" has fewer than two members, so nothing can cross it; name both ends").String())
+	}
+	named := make(map[string]bool, len(link.Members))
+	for _, member := range link.Members {
+		if named[member] {
+			return errors.New(reason.Str(" names ").Str(member).Str(" twice; name each member once").String())
+		}
+		named[member] = true
+		host, planned := hosts[member]
+		if !planned {
+			return errors.New(reason.Str(" names ").Str(member).
+				Str(", and the scenario does not plan that peer; plan it, or name a planned peer").String())
+		}
+		if host == 0 {
+			return errors.New(reason.Str(" names ").Str(member).Str(", whose host number 0 holds no address; give it a host from 1 to 254").String())
+		}
+		if host > linkHostMax {
+			return errors.New(reason.Str(" names ").Str(member).Str(", whose host number ").Int(int64(host)).
+				Str(" is the /24 broadcast; give it a host from 1 to 254").String())
+		}
+	}
+	return nil
+}
+
+// validateLinkIPv4 refuses an IPv4 prefix a member's address cannot be built
+// in. The zero Prefix is a link with no IPv4 address.
+func validateLinkIPv4(reason *textbuf.Buffer, prefix netip.Prefix) error {
+	if !prefix.IsValid() {
+		return nil
+	}
+	if !prefix.Addr().Is4() {
+		return errors.New(reason.Str(" carries ").Str(prefix.String()).Str(" as its IPv4 prefix; write an IPv4 network, as in 10.101.0.0/24").String())
+	}
+	if prefix.Masked() != prefix {
+		return errors.New(reason.Str(" names the host ").Str(prefix.String()).Str(", not a network; write ").Str(prefix.Masked().String()).String())
+	}
+	if prefix.Bits() > linkIPv4BitsMax {
+		return errors.New(reason.Str(" has an IPv4 prefix longer than a /24, so a member's host number may not fit; use a /24").String())
+	}
+	return nil
+}
+
+// validateLinkIPv6 refuses an IPv6 prefix that is not a /64 network. The zero
+// Prefix is a link with no IPv6 address.
+func validateLinkIPv6(reason *textbuf.Buffer, prefix netip.Prefix) error {
+	if !prefix.IsValid() {
+		return nil
+	}
+	if !prefix.Addr().Is6() {
+		return errors.New(reason.Str(" carries ").Str(prefix.String()).Str(" as its IPv6 prefix; write an IPv6 /64, as in fd00:101::/64").String())
+	}
+	if prefix.Addr().Is4In6() {
+		return errors.New(reason.Str(" carries ").Str(prefix.String()).Str(" as its IPv6 prefix; write an IPv6 /64, as in fd00:101::/64").String())
+	}
+	if prefix.Bits() != linkIPv6Bits {
+		return errors.New(reason.Str(" has an IPv6 prefix that is not a /64; use a /64, as in fd00:101::/64").String())
+	}
+	if prefix.Masked() != prefix {
+		return errors.New(reason.Str(" names the host ").Str(prefix.String()).Str(", not a network; write ").Str(prefix.Masked().String()).String())
+	}
+	return nil
+}
+
+// LinkMemberships answers, in declaration order, the links peer joins and
+// what it holds on each, from links ValidateLinks accepted.
+func LinkMemberships(links []Link, peer string, host uint8) []LinkMembership {
+	var memberships []LinkMembership
+	for index := range links {
+		link := &links[index]
+		if !linkHasMember(link, peer) {
+			continue
+		}
+		var device textbuf.Buffer
+		membership := LinkMembership{Link: link.Name,
+			Device: device.Str("eth").Int(int64(len(memberships) + 1)).String()}
+		if link.IPv4.IsValid() {
+			octets := link.IPv4.Addr().As4()
+			octets[3] = host
+			membership.IPv4 = netip.AddrFrom4(octets)
+		}
+		if link.IPv6.IsValid() {
+			octets := link.IPv6.Addr().As16()
+			octets[15] = host
+			membership.IPv6 = netip.AddrFrom16(octets)
+		}
+		memberships = append(memberships, membership)
+	}
+	return memberships
+}
+
+func linkHasMember(link *Link, peer string) bool {
+	for _, member := range link.Members {
+		if member == peer {
+			return true
+		}
+	}
+	return false
+}
+
+// linkScript renders the commands that put one member on each of its links:
+// the VLAN subinterface of eth0, its addresses, then the device up. IPv6 is
+// added nodad, so a daemon that binds the address at start never meets it
+// tentative.
+func linkScript(links []Link, memberships []LinkMembership) string {
+	var script textbuf.Buffer
+	for _, membership := range memberships {
+		vlan := linkVLAN(links, membership.Link)
+		script.Str("ip link add link eth0 name ").Str(membership.Device).Str(" type vlan id ").Int(int64(vlan)).Byte('\n')
+		if membership.IPv4.IsValid() {
+			bits := linkIPv4Bits(links, membership.Link)
+			script.Str("ip address add ").Addr(membership.IPv4).Byte('/').Int(int64(bits)).
+				Str(" dev ").Str(membership.Device).Byte('\n')
+		}
+		if membership.IPv6.IsValid() {
+			script.Str("ip -6 address add ").Addr(membership.IPv6).Str("/64 dev ").Str(membership.Device).Str(" nodad\n")
+		}
+		script.Str("ip link set ").Str(membership.Device).Str(" up\n")
+	}
+	return script.String()
+}
+
+func linkVLAN(links []Link, name string) uint16 {
+	for index := range links {
+		if links[index].Name == name {
+			return links[index].VLAN
+		}
+	}
+	panic("BUG: link membership names a link that is not declared: " + name)
+}
+
+func linkIPv4Bits(links []Link, name string) int {
+	for index := range links {
+		if links[index].Name == name {
+			return links[index].IPv4.Bits()
+		}
+	}
+	panic("BUG: link membership names a link that is not declared: " + name)
+}
+
+// ImageStart is what an image runs when the container passes no override:
+// its Config.Entrypoint and Config.Cmd as `docker image inspect` reports them,
+// always in exec form (Docker stores a shell-form ENTRYPOINT as
+// ["/bin/sh", "-c", "<line>"]).
+type ImageStart struct {
+	Entrypoint []string `json:"Entrypoint"`
+	Command    []string `json:"Cmd"`
+}
+
+// parseImageStart reads the `{{json .Config}}` answer of an image inspect.
+// An image that declares neither an entrypoint nor a command starts nothing
+// a wrapper could exec, so it is refused rather than wrapped into a shell
+// that exits at once.
+func parseImageStart(image, answer string) (ImageStart, error) {
+	var start ImageStart
+	if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &start); err != nil {
+		var reason textbuf.Buffer
+		return ImageStart{}, errors.New(reason.Str("image ").Str(image).Str(" inspect answered no readable Config (").
+			Err(err).Str("); run `docker image inspect ").Str(image).Str("` to see what the daemon holds").String())
+	}
+	if len(start.Entrypoint) == 0 && len(start.Command) == 0 {
+		var reason textbuf.Buffer
+		return ImageStart{}, errors.New(reason.Str("image ").Str(image).
+			Str(" declares no ENTRYPOINT and no CMD, so a link member's wrapper has nothing to exec; add one to its Dockerfile").String())
+	}
+	return start, nil
+}
+
+// ComposeStart answers peer with its start wrapped for the links it joins and
+// its Prestart (wrapStart), against the image start the container would run.
+// It is the composition runScenario applies to every link member and every
+// peer with a Prestart, so a suite's test reads the start a container gets.
+func ComposeStart(peer PeerConfig, links []Link, start ImageStart) PeerConfig {
+	wrapStart(&peer, linkScript(links, LinkMemberships(links, peer.Name, peer.Host)), start)
+	return peer
+}
+
+// wrapStart replaces peer's start with one shell that builds its links, runs
+// its Prestart, and then execs the start Docker would have run: the peer's
+// own --entrypoint when its arguments pass one (Docker then drops the image's
+// CMD), the image's entrypoint otherwise, followed by the peer's command or,
+// when it passes none, the image's. The exec takes its argv from "$@", so no
+// entrypoint or argument is ever re-quoted into the script. The script runs
+// with errexit on, so a link that cannot be built stops the container before
+// its daemon starts.
+func wrapStart(peer *PeerConfig, links string, start ImageStart) {
+	entrypoint := start.Entrypoint
+	imageCommand := start.Command
+	arguments := make([]string, 0, len(peer.Arguments)+2)
+	for index := 0; index < len(peer.Arguments); index++ {
+		argument := peer.Arguments[index]
+		if argument == entrypointFlag && index+1 < len(peer.Arguments) {
+			entrypoint = []string{peer.Arguments[index+1]}
+			imageCommand = nil
+			index++
+			continue
+		}
+		if value, found := strings.CutPrefix(argument, entrypointFlag+"="); found {
+			entrypoint = []string{value}
+			imageCommand = nil
+			continue
+		}
+		arguments = append(arguments, argument)
+	}
+	command := peer.Command
+	if len(command) == 0 {
+		command = imageCommand
+	}
+	var script textbuf.Buffer
+	script.Str(links)
+	if prestart := strings.TrimRight(peer.Prestart, "\n"); prestart != "" {
+		script.Str(prestart).Byte('\n')
+	}
+	script.Str(`exec "$@"`)
+	wrapped := make([]string, 0, 3+len(entrypoint)+len(command))
+	wrapped = append(wrapped, wrapperErrexit, script.String(), wrapperArgumentsStart)
+	wrapped = append(wrapped, entrypoint...)
+	wrapped = append(wrapped, command...)
+	peer.Arguments = append(arguments, entrypointFlag, wrapperShell)
+	peer.Command = wrapped
+	peer.Prestart = ""
+}
+
+const (
+	// entrypointFlag is Docker's flag that replaces an image's entrypoint.
+	entrypointFlag = "--entrypoint"
+	// wrapperShell runs the wrapper; every link member's image carries it,
+	// which the image probe proves before the scenario starts.
+	wrapperShell = "/bin/sh"
+	// wrapperErrexit runs the script with errexit on.
+	wrapperErrexit = "-ec"
+	// wrapperArgumentsStart becomes the script's $0, so every word after it
+	// reaches the script as "$@".
+	wrapperArgumentsStart = "--"
+)
+
+// linkToolProbe is the command a link member's image runs to prove it can
+// build a link: the wrapper's shell, and ip from iproute2 (busybox's ip
+// applet adds a VLAN subinterface the same way).
+var linkToolProbe = []string{"-c", "command -v ip"}
+
+// linkToolRefusal names the image that cannot build a link and its fix.
+func linkToolRefusal(image, peer string, build ImageBuild, cause error) error {
+	var reason textbuf.Buffer
+	reason.Str("image ").Str(image).Str(" cannot build link member ").Str(peer).
+		Str("'s VLAN devices: it has no ").Str(wrapperShell).Str(" or no ip (").Err(cause).Str("). Fix: ")
+	if build.Dockerfile != "" {
+		reason.Str("install iproute2 in ").Str(build.Dockerfile)
+	} else {
+		reason.Str("build ").Str(build.Tag).Str(" from a Dockerfile that installs iproute2")
+	}
+	return errors.New(reason.String())
+}

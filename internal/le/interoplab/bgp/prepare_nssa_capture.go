@@ -3,7 +3,6 @@ package bgp
 
 import (
 	"errors"
-	"net/netip"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
@@ -16,16 +15,24 @@ func prepareNSSAPeers(peers []interoplab.PeerConfig, _ string) ([]interoplab.Pee
 	for index := range peers {
 		switch peers[index].Name {
 		case "ze":
-			if ze >= 0 { return peers, errors.New("NSSA capture topology has two Ze peers") }
+			if ze >= 0 {
+				return peers, errors.New("NSSA capture topology has two Ze peers")
+			}
 			ze = index
 		case peerFRR:
 			foreign++
 		}
 	}
-	if ze < 0 { return peers, errors.New("NSSA capture has no Ze peer") }
-	if foreign != 1 { return peers, errors.New("NSSA capture needs exactly one native FRR") }
+	if ze < 0 {
+		return peers, errors.New("NSSA capture has no Ze peer")
+	}
+	if foreign != 1 {
+		return peers, errors.New("NSSA capture needs exactly one native FRR")
+	}
 	prestart, err := nssaPacketCapture.prestart()
-	if err != nil { return peers, err }
-	wrapStart(&peers[ze], linkLocalOwners[zeLinkLocalOwner], netip.Addr{}, prestart)
+	if err != nil {
+		return peers, err
+	}
+	peers[ze].Prestart += prestart
 	return peers, nil
 }

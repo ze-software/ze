@@ -28,6 +28,7 @@ import (
 	interopradius "github.com/ze-software/ze/internal/le/interoplab/radius"
 	interopradiussubscriber "github.com/ze-software/ze/internal/le/interoplab/radiussubscriber"
 	interoprsvpte "github.com/ze-software/ze/internal/le/interoplab/rsvpte"
+	interoptopology "github.com/ze-software/ze/internal/le/interoplab/topology"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -114,6 +115,13 @@ func runRADIUSInterop(ctx context.Context, root string) (any, int) {
 
 func runRADIUSSubscriberInterop(ctx context.Context, root string) (any, int) {
 	report := interopradiussubscriber.RunAt(ctx, root, "")
+	return report, report.Code
+}
+
+// runTopologyInterop runs the topology suite, or the one scenario named by
+// the verb's `scenario <name>` keyword, which wins over TOPOLOGY_INTEROP_SCENARIO.
+func runTopologyInterop(ctx context.Context, root string, args leaction.Arguments) (any, int) {
+	report := interoptopology.RunAt(ctx, root, interoptopology.Options{Scenario: args.One(topologyScenarioKeyword)})
 	return report, report.Code
 }
 

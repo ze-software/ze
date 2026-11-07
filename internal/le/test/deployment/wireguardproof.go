@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/netip"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -24,7 +23,7 @@ import (
 // needs to configure its own links.
 const (
 	capabilityNetAdmin   = "NET_ADMIN"
-	wireguardImage       = "wireguard"
+	wireguardImage       = "ze-vpn-wireguard"
 	wireguardLink        = "wg-proof"
 	wireguardLeft        = "left"
 	wireguardRight       = "right"
@@ -49,11 +48,7 @@ func runWireGuardProof(ctx context.Context, root string) interoplab.SuiteReport 
 		Docker: interoplab.NewDocker(), Checkout: root,
 		Preflight: interoplab.StageBinaries(root, false, interopipsec.LabBinaries()...),
 		StagedZe:  interoplab.StagedZePath(root, interopipsec.LabBinaries()),
-		Images: []interoplab.ImageBuild{{
-			Name: wireguardImage, Tag: "ze-vpn-wireguard",
-			Dockerfile: filepath.Join(root, "internal", "le", "test", "deployment", "testdata", "Dockerfile.wireguard"),
-			Context:    root, Required: true,
-		}},
+		Images:    interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),
 		Scenarios: []interoplab.ScenarioPlan{{
 			Source: interoplab.ScenarioSource{Name: "wireguard-kernel-ping", Checker: checkWireGuardProof},
 			Network: interoplab.NetworkSpec{

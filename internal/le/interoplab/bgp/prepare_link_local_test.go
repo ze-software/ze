@@ -73,9 +73,9 @@ func TestLinkLocalAssignmentFollowsThePlaceholders(t *testing.T) {
 					t.Error(cleanupErr)
 				}
 			})
-			requireLinkLocalStart(t, prepared.Peers, "ze", zeAddress, scenario.wrapZe, "exec ze ", nil)
-			requireLinkLocalStart(t, prepared.Peers, peerFRR, frrAddress, scenario.wrapFRR,
-				"exec /sbin/tini ", []string{"--", "/usr/lib/frr/docker-start"})
+			requireLinkLocalStart(t, composedPeers(t, prepared.Peers, nil), "ze", zeAddress, scenario.wrapZe, "tini -- ze", nil)
+			requireLinkLocalStart(t, composedPeers(t, prepared.Peers, nil), peerFRR, frrAddress, scenario.wrapFRR,
+				"/sbin/tini --", []string{"/sbin/tini", "--", "/usr/lib/frr/docker-start"})
 		})
 	}
 }
@@ -111,8 +111,11 @@ func requireLinkLocalStart(t *testing.T, peers []interoplab.PeerConfig, name, ad
 	if want := "ip -6 address add " + address + "/64 dev eth0 nodad\n"; !strings.HasPrefix(peer.Command[1], want) {
 		t.Fatalf("%s's script = %q, want it to open with %q", name, peer.Command[1], want)
 	}
-	if !strings.Contains(peer.Command[1], exec) {
-		t.Fatalf("%s's script = %q, want it to %q", name, peer.Command[1], exec)
+	if !strings.HasSuffix(peer.Command[1], wrapperExec) {
+		t.Fatalf("%s's script = %q, want it to end with %q", name, peer.Command[1], wrapperExec)
+	}
+	if !strings.HasPrefix(strings.Join(peer.Command[3:], " "), exec) {
+		t.Fatalf("%s's start execs %q, want %q", name, peer.Command[3:], exec)
 	}
 	if imageCommand != nil && !slices.Equal(peer.Command[3:], imageCommand) {
 		t.Fatalf("%s's start passes %q, want the image's own command %q", name, peer.Command[3:], imageCommand)
@@ -155,19 +158,19 @@ func TestRFC2545ScenarioPreparesAsBefore(t *testing.T) {
 			t.Error(cleanupErr)
 		}
 	})
-	ze := slices.IndexFunc(prepared.Peers, func(peer interoplab.PeerConfig) bool { return peer.Name == "ze" })
+	ze := slices.IndexFunc(composedPeers(t, prepared.Peers, nil), func(peer interoplab.PeerConfig) bool { return peer.Name == "ze" })
 	if ze < 0 {
 		t.Fatal("no ze peer in the prepared scenario")
 	}
 	wantArguments := []string{"--sysctl", "net.ipv6.conf.all.disable_ipv6=0", "--sysctl", "net.ipv6.conf.default.disable_ipv6=0", dockerEntrypointFlag, "/bin/sh"}
-	if !slices.Equal(prepared.Peers[ze].Arguments, wantArguments) {
-		t.Fatalf("ze's arguments = %q, want %q", prepared.Peers[ze].Arguments, wantArguments)
+	if !slices.Equal(composedPeers(t, prepared.Peers, nil)[ze].Arguments, wantArguments) {
+		t.Fatalf("ze's arguments = %q, want %q", composedPeers(t, prepared.Peers, nil)[ze].Arguments, wantArguments)
 	}
-	wantCommand := []string{shellErrexitCommand, "ip -6 address add fe80::fd00:1e:2c:2/64 dev eth0 nodad\nexec ze \"$@\"", "--", "start", "/etc/ze/bgp.conf"}
-	if !slices.Equal(prepared.Peers[ze].Command, wantCommand) {
-		t.Fatalf("ze's command = %q, want %q", prepared.Peers[ze].Command, wantCommand)
+	wantCommand := []string{shellErrexitCommand, "ip -6 address add fe80::fd00:1e:2c:2/64 dev eth0 nodad\n" + wrapperExec, "--", "tini", "--", "ze", "start", "/etc/ze/bgp.conf"}
+	if !slices.Equal(composedPeers(t, prepared.Peers, nil)[ze].Command, wantCommand) {
+		t.Fatalf("ze's command = %q, want %q", composedPeers(t, prepared.Peers, nil)[ze].Command, wantCommand)
 	}
-	requireLinkLocalStart(t, prepared.Peers, peerFRR, "", false, "", nil)
+	requireLinkLocalStart(t, composedPeers(t, prepared.Peers, nil), peerFRR, "", false, "", nil)
 	rendered := filepath.Join(root, "tmp", interoplab.RenderedConfigDirectory, scenarioName+"-fixture", zeConfigFile)
 	config, err := os.ReadFile(rendered)
 	if err != nil {
@@ -221,7 +224,7 @@ func TestPrestartRunsBeforeTheDaemon(t *testing.T) {
 			"ip -6 address add fe80::fd00:1e:2c:2/64 dev eth1 nodad\n",
 			"ip -6 address add fe80::fd00:1e:2c:2/64 dev eth2 nodad\n",
 			"udp dport 3784 @th,128,32 0 drop\n",
-			"exec ze ",
+			wrapperExec,
 		}},
 		{peerFRR, []string{
 			"ip -6 address add fe80::fd00:1e:2c:3/64 dev eth0 nodad\n",
@@ -229,14 +232,14 @@ func TestPrestartRunsBeforeTheDaemon(t *testing.T) {
 			"ip link add link eth0 name eth2 type vlan id 102\n",
 			"ip -6 address add fe80::fd00:1e:2c:3/64 dev eth1 nodad\n",
 			"ip -6 address add fe80::fd00:1e:2c:3/64 dev eth2 nodad\n",
-			"exec /sbin/tini ",
+			wrapperExec,
 		}},
 	} {
-		index := slices.IndexFunc(prepared.Peers, func(p interoplab.PeerConfig) bool { return p.Name == want.peer })
+		index := slices.IndexFunc(composedPeers(t, prepared.Peers, nil), func(p interoplab.PeerConfig) bool { return p.Name == want.peer })
 		if index < 0 {
 			t.Fatalf("no %s peer prepared", want.peer)
 		}
-		command := prepared.Peers[index].Command
+		command := composedPeers(t, prepared.Peers, nil)[index].Command
 		if len(command) < 2 || command[0] != shellErrexitCommand {
 			t.Fatalf("%s start = %q, want a %s wrapper", want.peer, command, shellErrexitCommand)
 		}

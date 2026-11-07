@@ -59,25 +59,21 @@ func prepareVirtualLinkPeers(peers []interoplab.PeerConfig, scenario string) ([]
 		peer := &peers[i]
 		switch peer.Name {
 		case "ze":
-			peer.Arguments = append(peer.Arguments, dockerEntrypointFlag, "/bin/sh")
-			peer.Command = append([]string{shellErrexitCommand, virtualLinkZeSetup + "exec ze \"$@\"", "--"}, peer.Command...)
+			peer.Prestart += virtualLinkZeSetup
 		case peerFRR:
 			endpoints++
-			peer.Arguments = append(peer.Arguments, dockerEntrypointFlag, "/bin/sh")
-			peer.Command = []string{shellErrexitCommand, virtualLinkEndpointSetup + "exec /sbin/tini -- /usr/lib/frr/docker-start"}
+			peer.Prestart += virtualLinkEndpointSetup
 		case peerBIRD:
 			endpoints++
 			peer.Host = 3
 			peer.Arguments = append(peer.Arguments, ipv6Sysctls()...)
-			peer.Arguments = append(peer.Arguments, dockerEntrypointFlag, "/bin/sh")
-			peer.Command = []string{shellErrexitCommand, virtualLinkEndpointSetup + "exec tini -- bird -f -c /etc/bird/bird.conf"}
+			peer.Prestart += virtualLinkEndpointSetup
 		case peerFRRTransit:
 			// Docker applies namespace sysctls before mounting /proc/sys read-only.
 			peer.Arguments = append(peer.Arguments,
 				dockerSysctlFlag, "net.ipv4.ip_forward=1",
-				dockerSysctlFlag, "net.ipv6.conf.all.forwarding=1",
-				dockerEntrypointFlag, "/bin/sh")
-			peer.Command = []string{shellErrexitCommand, virtualLinkTransitSetup + "exec /sbin/tini -- /usr/lib/frr/docker-start"}
+				dockerSysctlFlag, "net.ipv6.conf.all.forwarding=1")
+			peer.Prestart += virtualLinkTransitSetup
 		}
 	}
 	if endpoints != 1 {

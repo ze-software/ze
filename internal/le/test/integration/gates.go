@@ -174,6 +174,17 @@ func Table() []Action {
 				" the host's /dev/ppp. RADIUS_SUBSCRIBER_INTEROP_SCENARIO=<name> runs one scenario",
 		},
 		{
+			Verb:       "interop-topology",
+			Does:       doesRun,
+			NativeArgs: runTopologyInterop,
+			Parameters: []leaction.Parameter{{Keyword: topologyScenarioKeyword, Kind: leaction.KindString, Value: "name", Requirement: leaction.Optional,
+				Help: "the one scenario under test/interop-topology/scenarios/ to run"}},
+			Summary: "run multi-node topology scenarios on declared links",
+			Why: "several Ze nodes and any suite's registered images on named VLAN links in one scenario, every" +
+				" scenario under test/interop-topology/scenarios/. Needs Docker, NET_ADMIN and, for PPPoE," +
+				" the host's /dev/ppp. scenario <name>, or TOPOLOGY_INTEROP_SCENARIO=<name>, runs one scenario",
+		},
+		{
 			Verb:    "interop-rsvpte",
 			Does:    doesRun,
 			Native:  runRSVPTEInterop,
@@ -313,3 +324,8 @@ func Table() []Action {
 		},
 	}
 }
+
+// topologyScenarioKeyword introduces the one scenario the interop-topology
+// verb runs. It is a keyword, not a positional value, because a positional
+// string could be mistaken for any keyword (leaction checkPositional).
+const topologyScenarioKeyword = "scenario"

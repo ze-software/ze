@@ -206,6 +206,11 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		plans = append(plans, scenarioPlan(root, environment.Suffix, source))
 	}
 
+	images, _, err := interoplab.ResolveImages(interoplab.ImageContext{Root: root},
+		[]string{zeImage, interoplab.FreeRADIUSImageName})
+	if err != nil {
+		return interoplab.Suite{}, err
+	}
 	return interoplab.Suite{
 		SuffixVariable: environment.SuffixVariable,
 		Docker:         docker,
@@ -214,10 +219,7 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		// no kernel module, because nothing on the admin login path needs one;
 		// Suite.Run still checks the daemon's kernel with the staged ze.
 		Preflight: interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...),
-		Images: []interoplab.ImageBuild{
-			{Name: zePeer, Tag: zeImage, Dockerfile: filepath.Join(root, labDirectory, "Dockerfile.ze"), Context: root, Required: true},
-			{Name: serverPeer, Tag: interoplab.FreeRADIUSImage, Pull: true, Required: true},
-		},
+		Images:    images,
 		Scenarios: plans,
 		NoBuild:   environment.NoBuild,
 	}, nil
@@ -249,7 +251,7 @@ func serverPeerConfig(root string, source interoplab.ScenarioSource, container s
 	return interoplab.PeerConfig{
 		Name:      serverPeer,
 		Container: container,
-		Image:     serverPeer,
+		Image:     interoplab.FreeRADIUSImageName,
 		Host:      3,
 		Mounts: []interoplab.Mount{
 			{Source: filepath.Join(lab, "clients.conf"), Target: "/etc/raddb/clients.conf", ReadOnly: true},
@@ -277,7 +279,7 @@ func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab
 	return interoplab.PeerConfig{
 		Name:      zePeer,
 		Container: container,
-		Image:     zePeer,
+		Image:     zeImage,
 		Host:      2,
 		// Only the input file is mounted; its writable, container-owned parent
 		// isolates the database tree from the source checkout and other peers.

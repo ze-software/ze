@@ -53,9 +53,6 @@ const (
 	netAdminCapability = "NET_ADMIN"
 )
 
-// imageLAC is the lab image the xl2tpd LAC runs from.
-const imageLAC = "lac"
-
 func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 	return map[string]interoplab.Checker{
 		scenarioPPPIPv4:             checker(checkPPPIPv4, timeout, peerZe, peerLAC),
@@ -254,7 +251,7 @@ func zePeer(suffix, config string) interoplab.PeerConfig {
 	return interoplab.PeerConfig{
 		Name:         peerZe,
 		Container:    tb.Str("ze-l2tp-ze-").Str(suffix).String(),
-		Image:        "ze",
+		Image:        imageZe,
 		Host:         2,
 		Mounts:       mounts,
 		Capabilities: []string{netAdminCapability},
@@ -323,7 +320,7 @@ func frrPeer(root, suffix, directory string) interoplab.PeerConfig {
 	return interoplab.PeerConfig{
 		Name:      peerFRR,
 		Container: container,
-		Image:     "frr",
+		Image:     imageFRR,
 		Host:      4,
 		Mounts: []interoplab.Mount{
 			{Source: filepath.Join(directory, "frr.conf"), Target: "/etc/frr/frr.conf", ReadOnly: true},
@@ -352,7 +349,7 @@ func radiusPeer(suffix string) interoplab.PeerConfig {
 	return interoplab.PeerConfig{
 		Name:      peerRadius,
 		Container: tb.Str("ze-l2tp-radius-").Str(suffix).String(),
-		Image:     "radius",
+		Image:     imageRadius,
 		Host:      5,
 		Ready: &interoplab.ReadyProbe{
 			Command:  []string{"sh", "-c", "grep -q ':0714 ' /proc/net/udp"},
@@ -370,7 +367,7 @@ func knotPeer(suffix, directory string) interoplab.PeerConfig {
 	return interoplab.PeerConfig{
 		Name:      peerKnot,
 		Container: tb.Str("ze-l2tp-knot-").Str(suffix).String(),
-		Image:     peerKnot,
+		Image:     imageKnot,
 		Host:      7,
 		Mounts: []interoplab.Mount{
 			{Source: filepath.Join(directory, "knot.conf"), Target: "/etc/knot/knot.conf", ReadOnly: true},
@@ -393,43 +390,25 @@ func LabBinaries() []interoplab.LabBinary {
 	}
 }
 
+// imageBuilds answers the images plans run: the Ze and LAC images always,
+// each other registered image only when a scenario that needs it is planned,
+// and FRR from the run's environment reference.
 func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) []interoplab.ImageBuild {
+	needed := map[string]bool{imageZe: true, imageLAC: true}
 	needFRR := false
-	needRadius := false
-	needAVPRelay := false
-	needKnot := false
 	for _, plan := range plans {
 		needFRR = needFRR || plan.Source.Name == scenarioBGPRedistribute
-		needRadius = needRadius || plan.Source.Name == scenarioRadiusAttrs ||
+		needed[imageRadius] = needed[imageRadius] || plan.Source.Name == scenarioRadiusAttrs ||
 			plan.Source.Name == scenarioLNSMRU || plan.Source.Name == scenarioLNSOmittedMRU ||
 			plan.Source.Name == scenarioLNSNegotiatedMRU || plan.Source.Name == scenarioLNSCHAPOnly
-		needAVPRelay = needAVPRelay || plan.Source.Name == scenarioUnknownMandatoryAVP ||
+		needed[imageAVPRelay] = needed[imageAVPRelay] || plan.Source.Name == scenarioUnknownMandatoryAVP ||
 			plan.Source.Name == scenarioPPPCodeReject
-		needKnot = needKnot || plan.Source.Name == scenarioDNSResolver
+		needed[imageKnot] = needed[imageKnot] || plan.Source.Name == scenarioDNSResolver
 	}
-	labRoot := filepath.Join(root, "test", "interop-l2tp")
-	builds := []interoplab.ImageBuild{
-		{Name: "ze", Tag: "ze-l2tp-interop", Dockerfile: filepath.Join(labRoot, "Dockerfile.ze"), Context: root, Required: true},
-		{Name: imageLAC, Tag: "ze-l2tp-lac", Dockerfile: filepath.Join(labRoot, "Dockerfile.lac"), Context: labRoot, Required: true},
-	}
+	builds := slices.DeleteFunc(interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),
+		func(build interoplab.ImageBuild) bool { return !needed[build.Name] })
 	if needFRR {
-		builds = append(builds, interoplab.ImageBuild{Name: "frr", Tag: frrImage, Pull: true, Required: true})
-	}
-	if needRadius {
-		builds = append(builds, interoplab.ImageBuild{Name: "radius", Tag: "ze-l2tp-radius", Dockerfile: filepath.Join(root, "internal", "le", "interoplab", "l2tp", "radiusmock", "Dockerfile"), Context: root, Required: true})
-	}
-	if needAVPRelay {
-		builds = append(builds, interoplab.ImageBuild{
-			Name: "avp-relay", Tag: "ze-l2tp-avp-relay", Required: true, Context: root,
-			Dockerfile: filepath.Join(root, "internal", "le", "interoplab", "l2tp", "avprelay", "Dockerfile"),
-		})
-	}
-	if needKnot {
-		interopRoot := filepath.Join(root, "test", "interop")
-		builds = append(builds, interoplab.ImageBuild{
-			Name: peerKnot, Tag: "ze-l2tp-knot", Required: true, Context: interopRoot,
-			Dockerfile: filepath.Join(interopRoot, "Dockerfile.knot"),
-		})
+		builds = append(builds, interoplab.ImageBuild{Name: imageFRR, Tag: frrImage, Pull: true, Required: true})
 	}
 	return builds
 }

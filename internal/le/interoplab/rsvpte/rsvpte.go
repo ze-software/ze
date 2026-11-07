@@ -38,9 +38,6 @@ const (
 	peerRelay   = "relay"
 	peerEgress  = "egress"
 
-	imageZe      = "ze"
-	imageFreeRtr = "freertr"
-
 	// netAdminCapability is what a Ze node needs beyond Docker's default
 	// grants: MPLS routes, VLAN links and addresses. Its raw RSVP socket and
 	// tcpdump take NET_RAW, which Docker grants by default.
@@ -125,7 +122,6 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		}
 		plans = append(plans, plan)
 	}
-	labRoot := filepath.Join(root, labDirectory)
 	return interoplab.Suite{
 		SuffixVariable: environment.SuffixVariable,
 		Docker:         docker,
@@ -133,10 +129,7 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		// The MPLS probe runs first: a host kernel without mpls_router cannot
 		// run this lab, and refusing it before the cross-compile costs nothing.
 		Preflight: interoplab.Preflights(mplsPreflight(), interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)),
-		Images: []interoplab.ImageBuild{
-			{Name: imageZe, Tag: "ze-rsvpte-interop", Dockerfile: filepath.Join(labRoot, "Dockerfile.ze"), Context: root, Required: true},
-			{Name: imageFreeRtr, Tag: "ze-rsvpte-freertr", Dockerfile: filepath.Join(labRoot, "Dockerfile.freertr"), Context: labRoot, Required: true},
-		},
+		Images:    interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),
 		Scenarios: plans,
 		NoBuild:   environment.NoBuild,
 	}, nil

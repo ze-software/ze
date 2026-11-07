@@ -116,19 +116,10 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 		Docker:         interoplab.NewDocker(),
 		Preflight:      interoplab.StageBinaries(root, options.NoBuild, LabBinaries()...),
 		StagedZe:       interoplab.StagedZePath(root, LabBinaries()),
-		Images: append([]interoplab.ImageBuild{
-			{Name: "ze", Tag: "ze-interop", Dockerfile: filepath.Join(producer, "Dockerfile.ze"), Context: root, Required: true},
-			{Name: peerBIRD, Tag: "bird-interop", Dockerfile: filepath.Join(producer, "Dockerfile.bird"), Context: producer, Required: true},
-			{Name: peerGoBGP, Tag: "gobgp-interop", Dockerfile: filepath.Join(producer, "Dockerfile.gobgp"), Context: producer},
-			{Name: peerKeepalived, Tag: "keepalived-interop", Dockerfile: filepath.Join(producer, "Dockerfile.keepalived"), Context: producer, Required: true},
-			{Name: peerDnsmasq, Tag: "dnsmasq-interop", Dockerfile: filepath.Join(producer, "Dockerfile.dnsmasq"), Context: producer},
-			{Name: peerKea, Tag: "kea-interop", Dockerfile: filepath.Join(producer, "Dockerfile.kea"), Context: producer},
-			{Name: peerKnot, Tag: "knot-interop", Dockerfile: filepath.Join(producer, "Dockerfile.knot"), Context: producer},
-			{Name: peerUnbound, Tag: "unbound-interop", Dockerfile: filepath.Join(producer, "Dockerfile.unbound"), Context: producer},
-			{Name: peerStayRTR, Tag: "stayrtr-interop", Dockerfile: filepath.Join(producer, "Dockerfile.stayrtr"), Context: producer},
-			{Name: peerFRR, Tag: environment.Image, Pull: true, Required: true},
-			{Name: peerPMACCT, Tag: defaultPMACCTImage, Pull: true},
-		}, pinned...),
+		// The registered images (register_images.go), then the FRR this run
+		// names and each FRR release a selected scenario pins.
+		Images: append(append(interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),
+			interoplab.ImageBuild{Name: peerFRR, Tag: environment.Image, Pull: true, Required: true}), pinned...),
 		Scenarios:      plans,
 		NoBuild:        options.NoBuild,
 		ImagesOnDemand: options.Scenario != "",

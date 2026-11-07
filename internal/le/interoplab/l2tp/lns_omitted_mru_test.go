@@ -134,7 +134,7 @@ func TestLNSOmittedMRUScenarioPreparation(t *testing.T) {
 		}
 	}
 	for _, image := range imageBuilds(root, plans, environment.Image) {
-		if image.Name == peerRadius && image.Required {
+		if image.Name == imageRadius && image.Required {
 			return
 		}
 	}

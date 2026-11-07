@@ -104,6 +104,7 @@ func scenarioPlans(root, producer, suffix string, sources []interoplab.ScenarioS
 			Source:     sourceCopy,
 			Network:    interoplab.NetworkSpec{Name: networkName, Candidates: subnets},
 			Containers: containers,
+			Links:      linkDeclarations[source.Name],
 			Prepare: func(_ context.Context, prepare interoplab.PrepareContext) (interoplab.PreparedScenario, error) {
 				return prepareScenario(root, producer, suffix, prepare)
 			},
@@ -282,27 +283,21 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 	if err != nil {
 		return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, err
 	}
-	links, linksErr := renderLinks(prepare.Source.Name, scenarioLinks[prepare.Source.Name], peers)
-	if linksErr != nil {
-		return interoplab.PreparedScenario{Cleanup: cleanup}, linksErr
-	}
 	// A container owns the link-local its placeholder names because some file
 	// of the scenario uses that address, never because of the scenario's name.
-	// It is assigned before the daemon starts, so the daemon's first interface
-	// snapshot already holds it. The owner's links (scenarioLinks) are built
-	// after it, and its prestart runs last. A container with links and no
-	// link-local is wrapped too, with no eth0 address.
+	// It is assigned in the container's Prestart, which the core's start
+	// wrapper runs after the scenario's links (linkDeclarations) and before
+	// the daemon, so the daemon's first interface snapshot already holds it.
+	// The owner's scenario prestart follows it, and a prestart a registered
+	// preparer set (a capture) runs last.
 	for owner := range linkLocalOwners {
-		var address netip.Addr
-		if linkLocals[owner] {
-			address = labconfig.LinkLocalAt(prepare.Network.IPv6, linkLocalOwners[owner].host)
-		}
-		if !address.IsValid() && links[owner] == "" {
+		if !linkLocals[owner] {
 			continue
 		}
+		address := labconfig.LinkLocalAt(prepare.Network.IPv6, linkLocalOwners[owner].host)
 		for i := range peers {
 			if peers[i].Name == linkLocalOwners[owner].peer {
-				wrapStart(&peers[i], linkLocalOwners[owner], address, links[owner]+prestarts[owner])
+				peers[i].Prestart = linkLocalPrestart(address, prestarts[owner]) + peers[i].Prestart
 			}
 		}
 	}
@@ -800,21 +795,18 @@ const (
 	frrHostNumber = labconfig.FRRHost
 )
 
-// linkLocalOwner is the container a link-local placeholder names: its peer,
-// its host number, and the start its image runs when no peer argument
-// replaces it (the image's entrypoint, and its command when the peer passes
-// none), which the assignment wrapper execs after assigning the address.
+// linkLocalOwner is the container a link-local placeholder names: its peer
+// and its host number. The start its image runs is read from the image by
+// the core's start wrapper (interoplab.ImageStart), never kept here.
 type linkLocalOwner struct {
-	placeholder  string
-	peer         string
-	host         uint8
-	entrypoint   string
-	imageCommand []string
+	placeholder string
+	peer        string
+	host        uint8
 }
 
 // zeLinkLocalOwner, frrLinkLocalOwner and frrSinkLinkLocalOwner name each
-// owner's index, so a table indexed by owner (ownerPrestarts, a labLink's
-// members) is written by name, never by position. They are the indexes the
+// owner's index, so a table indexed by owner (ownerPrestarts) is written by
+// name, never by position. They are the indexes the
 // placeholder grammar declares (labconfig.LinkLocals).
 const (
 	zeLinkLocalOwner      = labconfig.ZeLinkLocal
@@ -822,22 +814,14 @@ const (
 	frrSinkLinkLocalOwner = labconfig.FRRSinkLinkLocal
 )
 
-// linkLocalOwners is every link-local placeholder and its owner. Ze's image
-// runs `tini -- ze` and the wrapper execs ze directly, as the RFC 2545
-// scenario always has. FRR's pinned image (interoplab.FRRImage, read at 10.3.1
-// on 2026-10-15 and at 10.7.1 on 2026-10-22 with `docker image inspect`) has Entrypoint ["/sbin/tini","--"]
-// and Cmd ["/usr/lib/frr/docker-start"]; Docker drops that Cmd once
-// --entrypoint replaces the entrypoint, so the wrapper passes it back. The
-// second FRR, frr-sink, runs the same image, so its start is FRR's.
+// linkLocalOwners is every link-local placeholder and its owner.
 var linkLocalOwners = [len(labconfig.LinkLocals)]linkLocalOwner{
 	zeLinkLocalOwner: {placeholder: labconfig.LinkLocals[zeLinkLocalOwner].Placeholder, peer: "ze",
-		host: labconfig.LinkLocals[zeLinkLocalOwner].Host, entrypoint: "ze"},
+		host: labconfig.LinkLocals[zeLinkLocalOwner].Host},
 	frrLinkLocalOwner: {placeholder: labconfig.LinkLocals[frrLinkLocalOwner].Placeholder, peer: peerFRR,
-		host: labconfig.LinkLocals[frrLinkLocalOwner].Host, entrypoint: "/sbin/tini",
-		imageCommand: []string{"--", "/usr/lib/frr/docker-start"}},
+		host: labconfig.LinkLocals[frrLinkLocalOwner].Host},
 	frrSinkLinkLocalOwner: {placeholder: labconfig.LinkLocals[frrSinkLinkLocalOwner].Placeholder, peer: peerFRRSink,
-		host: labconfig.LinkLocals[frrSinkLinkLocalOwner].Host, entrypoint: "/sbin/tini",
-		imageCommand: []string{"--", "/usr/lib/frr/docker-start"}},
+		host: labconfig.LinkLocals[frrSinkLinkLocalOwner].Host},
 }
 
 // renderedLinkLocals records, by index into linkLocalOwners, which
@@ -846,9 +830,9 @@ type renderedLinkLocals = labconfig.RenderedLinkLocals
 
 // ownerPrestarts holds, by index into linkLocalOwners, the shell one scenario
 // runs in each owner's container before its daemon starts, empty for an owner
-// that runs none. It runs inside the wrapper that assigns that container's
-// link-local (wrapStart), after the eth0 assignment and the links and before the exec
-// of the daemon, with errexit on. It is what a scenario needs in place before
+// that runs none. It joins the owner's PeerConfig.Prestart after the eth0
+// link-local assignment, so the core's start wrapper runs it after the links
+// and before the exec of the daemon, with errexit on. It is what a scenario needs in place before
 // the first packet goes there (a second link, an nft table). It is Go, not a
 // scenario file, because the interop tree carries no interpreted helper
 // (TestInteropTreeUsesOnlyCompiledHelpers), and it may carry the link-local
@@ -859,6 +843,13 @@ type ownerPrestarts [len(linkLocalOwners)]string
 // scenario name. A scenario's register file adds its entry, so prepare.go
 // names no scenario.
 var scenarioPrestarts = map[string]ownerPrestarts{}
+
+// linkDeclarations holds the links of each scenario that has some, by
+// scenario name, in the core's declaration (interoplab.Link). A scenario's
+// register file adds its entry, so prepare.go names no scenario, and the plan
+// hands it to the core, which builds the links in each member's start
+// wrapper. A scenario with no entry runs every daemon on eth0 alone.
+var linkDeclarations = map[string][]interoplab.Link{}
 
 // renderPrestarts renders a scenario's prestarts for network. A prestart runs
 // inside the wrapper that assigns its container's link-local, so one for an
@@ -884,36 +875,13 @@ func renderPrestarts(scenario string, prestarts ownerPrestarts, linkLocals rende
 	return rendered, nil
 }
 
-// wrapStart wraps peer's start in a shell that assigns address to eth0 (none
-// when address is the zero Addr, for a container that owns no link-local),
-// runs prestart (the owner's rendered links and ownerPrestarts entry, empty
-// when it has neither) and then execs the start it replaced: the peer's own
-// --entrypoint when it passes one, the image's otherwise, with the peer's
-// command or the image's.
-func wrapStart(peer *interoplab.PeerConfig, owner linkLocalOwner, address netip.Addr, prestart string) {
-	entrypoint := owner.entrypoint
-	arguments := make([]string, 0, len(peer.Arguments)+2)
-	for i := 0; i < len(peer.Arguments); i++ {
-		if peer.Arguments[i] == dockerEntrypointFlag && i+1 < len(peer.Arguments) {
-			entrypoint = peer.Arguments[i+1]
-			i++
-			continue
-		}
-		arguments = append(arguments, peer.Arguments[i])
-	}
-	command := peer.Command
-	if len(command) == 0 {
-		command = owner.imageCommand
-	}
+// linkLocalPrestart is the Prestart that assigns a link-local owner's address
+// to eth0 before its daemon starts, then runs the owner's scenario prestart.
+func linkLocalPrestart(address netip.Addr, prestart string) string {
 	var script textbuf.Buffer
-	if address.IsValid() {
-		script.Str("ip -6 address add ").Addr(address).Str("/64 dev eth0 nodad\n")
-	}
+	script.Str("ip -6 address add ").Addr(address).Str("/64 dev eth0 nodad\n")
 	if prestart != "" {
 		script.Str(strings.TrimRight(prestart, "\n")).Byte('\n')
 	}
-	script.Str("exec ").Str(entrypoint).Str(` "$@"`)
-	arguments = append(arguments, dockerEntrypointFlag, "/bin/sh")
-	peer.Arguments = arguments
-	peer.Command = append([]string{shellErrexitCommand, script.String(), "--"}, command...)
+	return script.String()
 }

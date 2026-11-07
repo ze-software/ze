@@ -42,7 +42,11 @@ type ScenarioPlan struct {
 	Network    NetworkSpec    `json:"network"`
 	Peers      []PeerConfig   `json:"peers,omitempty"`
 	Containers []string       `json:"containers,omitempty"`
-	Prepare    Preparer       `json:"-"`
+	// Links are the scenario's VLAN segments (Link). Their members name the
+	// planned peers, the prepared ones when Prepare is set, and runScenario
+	// refuses a link it cannot build before any container starts.
+	Links   []Link   `json:"links,omitempty"`
+	Prepare Preparer `json:"-"`
 }
 
 // PreflightCheck proves host capabilities before image builds consume time.
@@ -190,6 +194,24 @@ type CheckContext struct {
 	// that root's session scratch. Empty means the caller declared none, and
 	// such a checker MUST refuse rather than fall back to the working directory.
 	Checkout string
+	// Links are the scenario's declared links, and Memberships what each
+	// member holds on them, by peer name, so a checker reads a member's
+	// device and address from the declaration rather than from a literal.
+	Links       []Link
+	Memberships map[string][]LinkMembership
+}
+
+// Member answers what peer holds on link, and refuses a pair the scenario
+// did not declare, so a checker never probes an address nobody assigned.
+func (c *CheckContext) Member(peer, link string) (LinkMembership, error) {
+	for _, membership := range c.Memberships[peer] {
+		if membership.Link == link {
+			return membership, nil
+		}
+	}
+	var reason textbuf.Buffer
+	return LinkMembership{}, errors.New(reason.Str(c.Source.Name).Str(" declares no link ").Str(link).
+		Str(" with member ").Str(peer).Str("; name a link and member the scenario's Links declare").String())
 }
 
 // Lab exposes peer commands, fail-closed queries, and bounded log reads.
@@ -282,11 +304,12 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		line.Reset()
 		s.progress(line.Str("interop: images ready (").Str(time.Since(preparing).Round(time.Second).String()).Byte(')'))
 	}
+	starts := make(map[string]ImageStart)
 	for index, plan := range s.Scenarios {
 		line.Reset()
 		s.progress(scenarioLine(&line, index, len(s.Scenarios), plan.Source.Name).Str(": running"))
 		started := time.Now()
-		result := s.runScenario(ctx, plan, references, &report.Images)
+		result := s.runScenario(ctx, plan, references, &report.Images, starts)
 		report.Scenarios = append(report.Scenarios, result)
 		for _, cleanup := range result.CleanupErrors {
 			report.Code = 1
@@ -370,7 +393,10 @@ func scenarioLine(line *textbuf.Buffer, index, total int, name string) *textbuf.
 	return line.Str("interop: [").Int(int64(index + 1)).Byte('/').Int(int64(total)).Str("] ").Str(name)
 }
 
-func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references map[string]string, images *[]ImageResult) (result ScenarioResult) {
+// runScenario runs one scenario. starts caches, by image reference, the
+// start each wrapped peer's image runs and whether it passed the link probe,
+// so each image is inspected and probed once for the suite.
+func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references map[string]string, images *[]ImageResult, starts map[string]ImageStart) (result ScenarioResult) {
 	result.Name = plan.Source.Name
 	if plan.Source.Name == "" {
 		result.Error = "scenario has no name"
@@ -389,6 +415,10 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 	}
 	if plan.Prepare == nil {
 		if err := validatePeers(peers); err != nil {
+			result.Error = err.Error()
+			return result
+		}
+		if err := ValidateLinks(plan.Source.Name, plan.Links, peers); err != nil {
 			result.Error = err.Error()
 			return result
 		}
@@ -433,6 +463,10 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 			result.Error = err.Error()
 			return result
 		}
+		if err := ValidateLinks(plan.Source.Name, plan.Links, peers); err != nil {
+			result.Error = err.Error()
+			return result
+		}
 	}
 	if s.ImagesOnDemand {
 		if err := s.preparePeerImages(ctx, peers, references, images); err != nil {
@@ -440,7 +474,13 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 			return result
 		}
 	}
+	declared := peers
 	peers = resolvedPeers(peers, references)
+	memberships, err := s.wrapStarts(ctx, plan.Links, declared, peers, starts)
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
 	lab.setPeers(peers)
 	for index := range peers {
 		peer := &peers[index]
@@ -463,13 +503,63 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 			return result
 		}
 	}
-	check := &CheckContext{Source: plan.Source, Network: network, Lab: lab, Checkout: s.Checkout}
+	check := &CheckContext{Source: plan.Source, Network: network, Lab: lab, Checkout: s.Checkout,
+		Links: plan.Links, Memberships: memberships}
 	if err := plan.Source.Checker(ctx, check); err != nil {
 		result.Error = err.Error()
 		return result
 	}
 	result.Passed = true
 	return result
+}
+
+// wrapStarts gives every peer that joins a link or carries a Prestart one
+// start wrapper (wrapStart): its links first, then its Prestart, then the
+// image's own start read from the resolved image. A link member's image is
+// probed for the wrapper's shell and ip first, so an image that cannot build
+// a link is refused, naming its Dockerfile, before any container starts.
+// declared holds the peers before image resolution, whose Image is the
+// suite's logical name, so a refusal names the declaration.
+func (s Suite) wrapStarts(ctx context.Context, links []Link, declared, peers []PeerConfig, starts map[string]ImageStart) (map[string][]LinkMembership, error) {
+	memberships := make(map[string][]LinkMembership, len(peers))
+	probed := make(map[string]bool, len(peers))
+	for index := range peers {
+		peer := &peers[index]
+		joined := LinkMemberships(links, peer.Name, peer.Host)
+		if len(joined) == 0 && peer.Prestart == "" {
+			continue
+		}
+		memberships[peer.Name] = joined
+		start, known := starts[peer.Image]
+		if !known {
+			if len(joined) > 0 && !probed[peer.Image] {
+				if err := s.Docker.probeLinkTools(ctx, peer.Image); err != nil {
+					return memberships, linkToolRefusal(peer.Image, peer.Name, s.imageDeclaration(declared[index].Image), err)
+				}
+				probed[peer.Image] = true
+			}
+			read, err := s.Docker.ImageStart(ctx, peer.Image)
+			if err != nil {
+				return memberships, err
+			}
+			start = read
+			starts[peer.Image] = start
+		}
+		*peer = ComposeStart(*peer, links, start)
+	}
+	return memberships, nil
+}
+
+// imageDeclaration answers the suite's declaration of the image named name,
+// or a declaration carrying only that name as its tag when the suite runs an
+// image it does not declare (a pulled reference).
+func (s Suite) imageDeclaration(name string) ImageBuild {
+	for index := range s.Images {
+		if s.Images[index].Name == name {
+			return s.Images[index]
+		}
+	}
+	return ImageBuild{Name: name, Tag: name}
 }
 
 func resolvedPeers(peers []PeerConfig, references map[string]string) []PeerConfig {

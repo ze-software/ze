@@ -646,35 +646,7 @@ func (l *scenarioLab) waitPolicyPair(ctx context.Context, peer, first, second st
 }
 
 func (l *scenarioLab) zeCLI(ctx context.Context, command string) (string, error) {
-	return l.query(ctx, zePeer, zeCLICommand(command)...)
-}
-
-// zeCLICommand builds the argv that asks the ze daemon one question. It is separate
-// from the query so a test scripting a lab answers the same argv the checker sends,
-// rather than a second spelling of it that can drift (ai/rules/principles.md).
-func zeCLICommand(command string) []string {
-	var tb textbuf.Buffer
-	seed := tb.Str("printf '%s\\n%s\\n127.0.0.1\\n%s\\n' ").Str(zeCLIUser).Byte(' ').
-		Str(zeCLIPassword).Byte(' ').Str(zeCLIPort).Str(" | ZE_CONFIG_DIR=").
-		Str(zeCLIStore).Str(" ze init").String()
-	run := tb.Reset().Str("ZE_CONFIG_DIR=").Str(zeCLIStore).Str(" ZE_SSH_PASSWORD=").
-		Str(zeCLIPassword).Str(" ze cli -c ").Str(shellQuote(command)).String()
-	shell := tb.Reset().Str("[ -d ").Str(zeCLIStore).Str(" ] || ").Str(seed).
-		Str(" >/dev/null; ").Str(run).String()
-	return []string{"sh", "-c", shell}
-}
-
-func shellQuote(value string) string {
-	var tb textbuf.Buffer
-	tb.Byte('\'')
-	for index := range len(value) {
-		if value[index] == '\'' {
-			tb.Str("'\\''")
-			continue
-		}
-		tb.Byte(value[index])
-	}
-	return tb.Byte('\'').String()
+	return l.query(ctx, zePeer, interoplab.ZeCLICommand(command)...)
 }
 
 // assertZeSelectors refuses unless ONE Child SA of `show vpn ipsec sa` carries both
@@ -1039,7 +1011,7 @@ func (l *scenarioLab) deliverMarker(ctx context.Context, protocol string, port i
 	number := strconv.Itoa(port)
 	file := "/run/ze-flow-" + protocol + ".txt"
 	listen := "rm -f " + file + "; nc " + options + "-l -p " + number + " > " + file + " 2>&1 < /dev/null"
-	send := "printf '%s\\n' " + shellQuote(nattMarker) + " | nc " + options + "-w 3 " + zeIP + " " + number
+	send := "printf '%s\\n' " + interoplab.ShellQuoted(nattMarker) + " | nc " + options + "-w 3 " + zeIP + " " + number
 	read := []string{"sh", "-c", "cat " + file + " 2>/dev/null; echo"}
 
 	if err := l.check.Lab.ExecDetached(ctx, zePeer, []string{"sh", "-c", listen}, nil); err != nil {
@@ -2002,7 +1974,7 @@ func (l *scenarioLab) zeShowMTUDetached(ctx context.Context, during func(context
 	if _, err := l.exec(ctx, zePeer, "rm", "-f", zeShowMTUOutput, zeShowMTUDone); err != nil {
 		return nil, "", fmt.Errorf("clear the previous detached show mtu answer: %w", err)
 	}
-	argv := zeCLICommand("show mtu | json")
+	argv := interoplab.ZeCLICommand("show mtu | json")
 	var tb textbuf.Buffer
 	shell := tb.Str("{ ").Str(argv[len(argv)-1]).Str(" ; } > ").Str(zeShowMTUOutput).Str(" 2>&1; echo done > ").Str(zeShowMTUDone).String()
 	if err := l.check.Lab.ExecDetached(ctx, zePeer, []string{"sh", "-c", shell}, nil); err != nil {

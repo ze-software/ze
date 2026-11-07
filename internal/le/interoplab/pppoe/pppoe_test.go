@@ -515,7 +515,7 @@ func TestScenarioPlansPreserveImagesConfigsAndArguments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if clientPeers[0].Image != accelImageName || clientPeers[1].Image != zeImageName {
+	if clientPeers[0].Image != accelImageTag || clientPeers[1].Image != zeImageTag {
 		t.Fatalf("Ze-client peer order = %q then %q", clientPeers[0].Image, clientPeers[1].Image)
 	}
 	if got := clientPeers[0].Ready.Command; !reflect.DeepEqual(got, []string{"accel-cmd", "show", "stat"}) {
@@ -542,7 +542,7 @@ func TestScenarioPlansPreserveImagesConfigsAndArguments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if acPeers[0].Image != zeImageName || acPeers[1].Image != clientImageName {
+	if acPeers[0].Image != zeImageTag || acPeers[1].Image != clientImageTag {
 		t.Fatalf("Ze-AC peer order = %q then %q", acPeers[0].Image, acPeers[1].Image)
 	}
 	wantACArguments := []string{

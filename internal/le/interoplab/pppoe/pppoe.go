@@ -186,37 +186,10 @@ func LabBinaries() []interoplab.LabBinary {
 	}
 }
 
-// imageBuilds declares the three images this suite builds. None of them sets a
-// Timeout, so each takes the machine build budget that BUILD_TIMEOUT names
-// (`interoplab.Docker`). That field lengthens a bound for an image slower than
-// the machine budget, and none of these three needs it: all three are one
-// `apk add` on alpine plus a COPY, because the ze binary is cross-compiled on
-// the host before the build rather than compiled inside the image.
+// imageBuilds answers the three images this suite builds, from its
+// registrations (register_images.go).
 func imageBuilds(root string) []interoplab.ImageBuild {
-	directory := filepath.Join(root, suitePath)
-	return []interoplab.ImageBuild{
-		{
-			Name:       zeImageName,
-			Tag:        zeImageTag,
-			Dockerfile: filepath.Join(directory, "Dockerfile.ze"),
-			Context:    root,
-			Required:   true,
-		},
-		{
-			Name:       accelImageName,
-			Tag:        accelImageTag,
-			Dockerfile: filepath.Join(directory, "Dockerfile.accel"),
-			Context:    directory,
-			Required:   true,
-		},
-		{
-			Name:       clientImageName,
-			Tag:        clientImageTag,
-			Dockerfile: filepath.Join(directory, "Dockerfile.client"),
-			Context:    directory,
-			Required:   true,
-		},
-	}
+	return interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root})
 }
 
 func preflight() interoplab.PreflightCheck {

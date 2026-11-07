@@ -226,7 +226,7 @@ func (l *mobikeNativeLab) peerCommand(name string, argv []string, environ []inte
 	// The shared checker uses its Docker-local store path in a shell command.
 	// Remap only that path, leaving the CLI command and assertions unchanged.
 	for index := 4; index < len(command); index++ {
-		command[index] = strings.ReplaceAll(command[index], zeCLIStore, filepath.Join(l.directory, "cli"))
+		command[index] = strings.ReplaceAll(command[index], interoplab.ZeCLIStore, filepath.Join(l.directory, "cli"))
 	}
 	extra := make([]string, 0, len(environ))
 	for _, variable := range environ {

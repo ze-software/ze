@@ -206,6 +206,12 @@ type PeerConfig struct {
 	// AppArmorProfile names the registered Ze profile the container runs
 	// under on a daemon that applies AppArmor; empty keeps docker-default.
 	AppArmorProfile string `json:"apparmor-profile,omitempty"`
+	// Prestart is shell the container runs before its daemon starts, after
+	// its links are built: what a scenario needs in place before the first
+	// packet (an eth0 link-local, a capture, an nft table). runScenario
+	// composes it with the peer's links into one start wrapper (wrapStart),
+	// with errexit on. It is Go-authored, never read from a scenario file.
+	Prestart string `json:"prestart,omitempty"`
 }
 
 // OneShotContainer is a bounded foreground container: a host preflight, the
@@ -700,6 +706,28 @@ func (d *Docker) RemoveNetwork(ctx context.Context, name string) error {
 		}
 	}
 	return d.confirmRemoval(ctx, resourceNetwork, name, err)
+}
+
+// ImageStart reads what image runs when a container passes no override, from
+// the image Docker holds under that reference, so a start wrapper execs the
+// image's own entrypoint and command rather than a copy of them kept here.
+func (d *Docker) ImageStart(ctx context.Context, image string) (ImageStart, error) {
+	result, err := d.command(ctx, dockerCommandTimeout,
+		DockerExecutable, "image", "inspect", "--format", "{{json .Config}}", image)
+	if err != nil {
+		return ImageStart{}, err
+	}
+	return parseImageStart(image, result.Stdout)
+}
+
+// probeLinkTools proves image can run a link member's start wrapper: it has
+// the wrapper's shell and ip. It runs the image once, with the shell as its
+// entrypoint, and answers the failure for linkToolRefusal to name.
+func (d *Docker) probeLinkTools(ctx context.Context, image string) error {
+	arguments := []string{entrypointFlag, wrapperShell}
+	_, err := d.RunOneShot(ctx, OneShotContainer{Image: image, Arguments: arguments,
+		Command: linkToolProbe, Timeout: dockerCommandTimeout})
+	return err
 }
 
 // runContainer starts one peer at a deterministic address on the selected network.

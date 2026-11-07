@@ -129,7 +129,11 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 	for _, source := range sources {
 		plans = append(plans, scenarioPlan(root, environment.Suffix, source))
 	}
-	lab := filepath.Join(root, labDirectory)
+	images, _, err := interoplab.ResolveImages(interoplab.ImageContext{Root: root},
+		[]string{zeImage, interoplab.FreeRADIUSImageName, lacImage})
+	if err != nil {
+		return interoplab.Suite{}, err
+	}
 	return interoplab.Suite{
 		SuffixVariable: environment.SuffixVariable,
 		Docker:         docker,
@@ -139,11 +143,7 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		// Suite.Run checks the kernel capabilities (l2tp, l2tp-ppp) itself.
 		Preflight: interoplab.Preflights(preflight(),
 			interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)),
-		Images: []interoplab.ImageBuild{
-			{Name: peerZe, Tag: zeImage, Dockerfile: filepath.Join(lab, "Dockerfile.ze"), Context: root, Required: true},
-			{Name: peerServer, Tag: interoplab.FreeRADIUSImage, Pull: true, Required: true},
-			{Name: peerLAC, Tag: lacImage, Dockerfile: filepath.Join(lab, "Dockerfile.lac"), Context: lab, Required: true},
-		},
+		Images:    images,
 		Scenarios: plans,
 		NoBuild:   environment.NoBuild,
 	}, nil
@@ -181,7 +181,7 @@ func serverPeerConfig(root, container string) interoplab.PeerConfig {
 	return interoplab.PeerConfig{
 		Name:      peerServer,
 		Container: container,
-		Image:     peerServer,
+		Image:     interoplab.FreeRADIUSImageName,
 		Host:      serverHost,
 		Mounts: []interoplab.Mount{
 			{Source: filepath.Join(lab, "clients.conf"), Target: "/etc/raddb/clients.conf", ReadOnly: true},
@@ -206,7 +206,7 @@ func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab
 	return interoplab.PeerConfig{
 		Name:      peerZe,
 		Container: container,
-		Image:     peerZe,
+		Image:     zeImage,
 		Host:      zeHost,
 		// Only the input file is mounted; its writable, container-owned parent
 		// holds the database tree.
@@ -238,7 +238,7 @@ func lacPeerConfig(root, container string) interoplab.PeerConfig {
 	return interoplab.PeerConfig{
 		Name:      peerLAC,
 		Container: container,
-		Image:     peerLAC,
+		Image:     lacImage,
 		Host:      lacHost,
 		Mounts: []interoplab.Mount{
 			{Source: filepath.Join(lab, "xl2tpd.conf"), Target: "/etc/xl2tpd/xl2tpd.conf", ReadOnly: true},

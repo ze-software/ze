@@ -55,7 +55,7 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 		{
 			Name:         accelImageName,
 			Container:    containers.accel,
-			Image:        accelImageName,
+			Image:        accelImageTag,
 			Host:         accelHost,
 			Mounts:       accelMounts,
 			Capabilities: []string{netAdminCapability},
@@ -69,7 +69,7 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 		{
 			Name:         zeImageName,
 			Container:    containers.ze,
-			Image:        zeImageName,
+			Image:        zeImageTag,
 			Host:         zeHost,
 			Mounts:       zeMounts,
 			Capabilities: []string{netAdminCapability},
@@ -99,7 +99,7 @@ func prepareZeAccessConcentrator(
 		{
 			Name:         zeImageName,
 			Container:    containers.ze,
-			Image:        zeImageName,
+			Image:        zeImageTag,
 			Host:         zeHost,
 			Mounts:       zeMounts,
 			Capabilities: []string{netAdminCapability},
@@ -114,7 +114,7 @@ func prepareZeAccessConcentrator(
 		{
 			Name:         clientImageName,
 			Container:    containers.client,
-			Image:        clientImageName,
+			Image:        clientImageTag,
 			Host:         clientHost,
 			Capabilities: []string{netAdminCapability},
 			Arguments:    interoplab.PPPDeviceArguments(),

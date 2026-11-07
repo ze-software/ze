@@ -44,8 +44,13 @@ func scriptedKernel(stdout string, exit int, runErr error) *recordingRunner {
 		if slices.Contains(command.Arguments, "info") {
 			return ProcessResult{Stdout: "6.8.0-117-generic\n"}, nil
 		}
-		// The orphan cleanup's labeled listings find nothing on this daemon.
+		// The orphan inspection's labeled listings find nothing on this daemon.
 		if slices.Contains(command.Arguments, "label="+labelMarker) {
+			return ProcessResult{}, nil
+		}
+		// Suite.Run's inspection is dry, and a dry inspection also lists the
+		// run-owned tags that predate the labels; this daemon holds none.
+		if slices.Contains(command.Arguments, "reference="+retainedTagRepository) {
 			return ProcessResult{}, nil
 		}
 		return ProcessResult{Stdout: stdout, ExitCode: exit}, runErr

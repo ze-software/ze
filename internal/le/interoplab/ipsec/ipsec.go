@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -40,10 +41,6 @@ const (
 	// Raw sockets (rawprobe, ping -M do) are CAP_NET_RAW, which Docker grants.
 	capabilityNetAdmin = "NET_ADMIN"
 
-	zeCLIStore     = "/tmp/ze-cli-store"
-	zeCLIUser      = "interop"
-	zeCLIPassword  = "testpass"
-	zeCLIPort      = "2222"
 	zePasswordHash = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO" // #nosec G101 -- published bcrypt hash for the fixture-only testpass account, not a secret.
 
 	// swanLabConfig holds the charon settings every strongSwan peer in this lab
@@ -181,21 +178,12 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 		}
 	}
 
-	images := []interoplab.ImageBuild{
-		{Name: zePeer, Tag: zeImage, Dockerfile: filepath.Join(root, "test", "interop-ipsec", "Dockerfile.ze"), Context: root, Required: true},
-		{Name: swanPeer, Tag: swanImage, Dockerfile: filepath.Join(root, "test", "interop-ipsec", "Dockerfile.strongswan"), Context: filepath.Join(root, "test", "interop-ipsec"), Required: true},
-	}
+	// The Ze and strongSwan images always, the NAT image only when a planned
+	// scenario carries a NAT config, and FRR from the run's environment.
+	images := slices.DeleteFunc(interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),
+		func(build interoplab.ImageBuild) bool { return build.Name == natImage && !needNAT })
 	if needFRR {
 		images = append(images, interoplab.ImageBuild{Name: frrPeer, Tag: environment.Image, Required: true, Pull: true})
-	}
-	if needNAT {
-		images = append(images, interoplab.ImageBuild{
-			Name:       natPeer,
-			Tag:        natImage,
-			Dockerfile: filepath.Join(root, "test", "interop-ipsec", "Dockerfile.nat"),
-			Context:    filepath.Join(root, "test", "interop-ipsec"),
-			Required:   true,
-		})
 	}
 
 	suite := interoplab.Suite{
@@ -274,7 +262,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		peers = append(peers, interoplab.PeerConfig{
 			Name:         natPeer,
 			Container:    natContainer,
-			Image:        natPeer,
+			Image:        natImage,
 			Host:         natHost,
 			Capabilities: []string{capabilityNetAdmin},
 			Arguments:    natSysctlArguments(),
@@ -322,7 +310,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		peers = append(peers, interoplab.PeerConfig{
 			Name:         swanPeer,
 			Container:    swanContainer,
-			Image:        swanPeer,
+			Image:        swanImage,
 			Host:         3,
 			Mounts:       mounts,
 			Capabilities: []string{capabilityNetAdmin},
@@ -367,7 +355,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 	peers = append(peers, interoplab.PeerConfig{
 		Name:      zePeer,
 		Container: zeContainer,
-		Image:     zePeer,
+		Image:     zeImage,
 		Host:      2,
 		// Mount only the input file; /etc/ze remains container-owned and writable
 		// for the database tree created beside that explicit configuration.
@@ -427,10 +415,10 @@ func renderZeConfig(source, pkiDir, destination string) error {
 
 func zeCLIConfig() string {
 	var tb textbuf.Buffer
-	return tb.Str("\nsystem {\n\tauthentication {\n\t\tuser ").Str(zeCLIUser).
+	return tb.Str("\nsystem {\n\tauthentication {\n\t\tuser ").Str(interoplab.ZeCLIUser).
 		Str(" {\n\t\t\tpassword ").Quoted(zePasswordHash).
 		Str("\n\t\t}\n\t}\n}\n\nenvironment {\n\tssh {\n\t\tenabled true\n").
-		Str("\t\tserver main {\n\t\t\tip 127.0.0.1;\n\t\t\tport ").Str(zeCLIPort).
+		Str("\t\tserver main {\n\t\t\tip 127.0.0.1;\n\t\t\tport ").Str(interoplab.ZeCLIPort).
 		Str(";\n\t\t}\n\t}\n}\n").String()
 }
 

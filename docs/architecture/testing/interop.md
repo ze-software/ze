@@ -23,8 +23,9 @@ This page is the infrastructure it is owed against.
 | RADIUS (admin login: PAP, CHAP, EAP, Filter-Id) | Docker: FreeRADIUS | `test/interop-radius/scenarios/` | `./le test integration interop-radius` |
 | RADIUS (subscriber: accounting, CoA and Disconnect) | Docker: FreeRADIUS, an xl2tpd + pppd LAC | `test/interop-radius-subscriber/scenarios/` | `./le test integration interop-radius-subscriber` |
 | RSVP-TE (Ze as transit) | Docker: freeRouter, ingress and egress | `test/interop-rsvpte/scenarios/` | `./le test integration interop-rsvpte` |
+| Multi-node topologies (several Ze nodes, any suite's images, named links) | Docker: any registered image | `test/interop-topology/scenarios/` | `./le test integration interop-topology` |
 
-<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius, interop-radius-subscriber and interop-rsvpte verbs -->
+<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius, interop-radius-subscriber, interop-topology and interop-rsvpte verbs -->
 <!-- source: internal/le/test/deployment/actions.go -- l2tp, l2tp-ppp, docker-pppoe-accel verbs -->
 
 Every suite discovers its scenarios the same way. `Discover`
@@ -1342,8 +1343,8 @@ A scenario's prestart is Go, not a scenario file: its register file adds an
 interpreted helper (`TestInteropTreeUsesOnlyCompiledHelpers`), so the harness
 compiled into `le` holds it. The fragment's link-local placeholders render as
 they do in the scenario's files, and it runs inside that owner's wrapper, under
-`sh -e`, after the `eth0` assignment and the owner's lab links (below), and
-before the exec. It is where a
+`sh -e`, after the scenario's links (below) and the `eth0` assignment, and before
+the image's own start. It is where a
 scenario builds what must exist before its daemon sends a packet: a second
 link, a link-local on it, an nft table. A prestart for an owner whose
 placeholder no scenario file carries would never run, so preparation refuses
@@ -1359,7 +1360,7 @@ the on-link route via that owned link-local address. A second prefix uses an
 off-link global next hop and must decode as global-only; the IPv6 session must
 remain established after both assertions. These are two routes on one session,
 not identical UPDATEs differing only in their next-hop length.
-<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, wrapStart, ownerPrestarts, scenarioPrestarts, renderPrestarts -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, ownerPrestarts, scenarioPrestarts, renderPrestarts, linkLocalPrestart -->
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkRFC2545NextHops -->
 
 `bgp-rfc2545-third-party-linklocal-frr` is the same sentence for a next hop that
@@ -1472,27 +1473,37 @@ until that peer exits; they cannot stand in for a surviving PPP data session.
 ### Separate links between daemons
 
 Every container sits on the lab bridge's untagged `eth0`, so a protocol that
-finds its neighbors by multicast (IS-IS, OSPF) meets every daemon of the
-scenario there. A scenario that must keep two peers apart, so that one can
-learn the other's routes only through Ze, declares links: one VLAN over the
-bridge per link, joined only by its members. Its register file adds a
-`scenarioLinks` entry under the scenario's name, one `labLink` per link with
-its VLAN, its IPv4 /24 and its members (owners from the link-local table
-above: `ze`, `frr`, `frr-sink`). A member reaches its Nth link as `eth<N>`, in
-declaration order, at its host number on the link's subnet, and the scenario's
-files name those devices and addresses.
+finds its neighbors by multicast (IS-IS, OSPF, PPPoE discovery) meets every
+daemon of the scenario there. A scenario that must keep peers apart declares
+links in the shared core, whatever suite it belongs to: `ScenarioPlan.Links`,
+one `interoplab.Link` per link with its name, its VLAN, an optional IPv4
+prefix of at most /24, an optional IPv6 /64, and its members, which are the
+names of any planned peers, whatever image they run. A link with no prefix is
+a pure layer-2 segment, which a PPPoE session or a LAN that DHCP numbers
+needs. A member reaches its Nth link as `eth<N>`, N its ordinal among the
+links it joins in declaration order, at its host number on each prefix (the
+IPv6 address `nodad`), and the scenario's files name those devices and
+addresses. A checker reads them from `CheckContext.Member` rather than from a
+literal.
 
-The links are built in the member's start wrapper, after any eth0 link-local
-and before its prestart and its daemon, so the daemon's first hello already
-goes out on them. A container on a link and with no link-local is wrapped too,
-with no eth0 address. Preparation refuses a link it cannot build as declared:
-a VLAN outside 1 to 4094 or used twice, a subnet that is not an IPv4 network
-of at most /24, fewer than two members, a member named twice, or a member whose
-config file the scenario does not carry, because that link would carry nothing
-and the checker would read a silent lab as the daemon's fault. A scenario with
-no entry runs every daemon on `eth0` alone, as before.
-<!-- source: internal/le/interoplab/bgp/prepare_links.go -- labLink, scenarioLinks, renderLinks, validateLink -->
-<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, wrapStart -->
+`runScenario` builds one start wrapper per peer that joins a link or carries a
+`PeerConfig.Prestart`: the links first, then the prestart (the BGP suite's
+eth0 link-local and its scenario prestarts are such prestarts), then the
+image's own entrypoint and command, read once per image from the pinned
+image (`docker image inspect`), in exec form or shell form. The daemon's first
+hello therefore already goes out on its links. Before any container starts,
+the scenario is refused when a link cannot be built as declared: a VLAN
+outside 1 to 4094 or used twice, an IPv4 prefix longer than /24, an IPv6
+prefix that is not a /64, fewer than two members, a member named twice, or a
+member the scenario does not plan, because that link would carry nothing and
+the checker would read a silent lab as the daemon's fault. Each refusal names
+the link, the fault and the fix. A member's image is probed once for `sh` and
+`ip`, and an image lacking either is refused naming its Dockerfile. A scenario
+with no links runs every daemon on `eth0` alone.
+<!-- source: internal/le/interoplab/link.go -- Link, LinkMembership, ValidateLinks, validateLink, LinkMemberships, linkScript, parseImageStart, ComposeStart, wrapStart, linkToolRefusal -->
+<!-- source: internal/le/interoplab/lab.go -- ScenarioPlan, CheckContext.Member, runScenario, wrapStarts -->
+<!-- source: internal/le/interoplab/docker.go -- PeerConfig, ImageStart, probeLinkTools -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, linkDeclarations, linkLocalPrestart -->
 
 `isis-import-policy-frr` is the one user: FRR-A (`frr`) meets Ze on VLAN 101
 (`10.101.0.0/24`, Ze's `eth1`) and FRR-B (`frr-sink`) on VLAN 102
@@ -1511,7 +1522,7 @@ only neighbor is Ze, so that last assertion is the proof that Ze still floods
 the LSP whose prefix its own import chain hid.
 <!-- source: internal/le/interoplab/bgp/check_import_policy.go -- checkISISImportPolicy, waitRIBCandidates, waitFRRISISRoute -->
 <!-- source: internal/le/interoplab/bgp/check_rib_candidates_predicate.go -- ribCandidatesVerdict, frrISISRouteVerdict -->
-<!-- source: internal/le/interoplab/bgp/register_import_policy.go -- scenarioLinks entry -->
+<!-- source: internal/le/interoplab/bgp/register_import_policy.go -- the linkDeclarations entry -->
 
 `ospf-import-policy-bird` reads the same JSON per path: the tagged external
 10.88.1.0/24 holds exactly an OSPF path at the distance 200 the modify set,
@@ -1927,7 +1938,7 @@ with the code as it is and failed at assertion 2, FRR's peer on `eth1` still
 unchanged, and `sendZone` returning `""` with `pinsToLink` returning false
 (Ze then logs `sendmsg: invalid argument` for every send).
 <!-- source: internal/le/interoplab/bgp/check_bfd_link_local.go -- checkBFDLinkLocal, checkBFDLinkLocalTwoLinks, checkBFDLinkLocalOn, zeLinkLocalLinks, zeLinkLocalSession, requireCrossedDiscriminators -->
-<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPrestarts, renderPrestarts, wrapStart -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPrestarts, renderPrestarts, linkLocalPrestart -->
 <!-- source: test/interop/scenarios/bfd-link-local-frr/ -- ze.conf, frr.conf -->
 <!-- source: test/interop/scenarios/bfd-link-local-two-links-frr/ -- ze.conf, frr.conf -->
 <!-- source: internal/le/interoplab/bgp/prepare_bfd_link_local.go -- bfdLinkLocalTwoLinksZePrestart, bfdLinkLocalTwoLinksFRRPrestart -->
@@ -2949,6 +2960,47 @@ capture held Ze's message and freeRouter never relayed it.
 <!-- source: internal/le/interoplab/rsvpte/zenode.go -- freeRtrScript, zeNodeScript, readZeNodeNet -->
 <!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the three test-only RESV knobs -->
 <!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- freeRtrEnvironment reads <role>-env.txt -->
+
+### The topology suite
+
+The topology suite (`internal/le/interoplab/topology`) runs the scenarios no
+single protocol suite owns: several Ze nodes, each with its own name and its
+own configuration file, beside peers whose images other suites declare, on
+named links (see "Separate links between daemons"). A scenario directory
+under `test/interop-topology/scenarios/` carries only the nodes'
+configuration files. Its Go register file declares the nodes in start order
+(name, registered image, host number, configuration file), the links and the
+checker, and `Discover` joins the directory with that declaration as it does
+for every suite, so a directory with no declaration is an error.
+
+| Scenario | Nodes and links | What the checker proves |
+|----------|-----------------|-------------------------|
+| `ze-static-link-chain` | Ze nodes `ze-a`, `ze-b`, `ze-c` on links `a-b` (VLAN 181, `10.181.1.0/24`) and `b-c` (VLAN 182, `10.181.2.0/24`), B forwarding; `outside` on `eth0` alone | each node answers `show interface brief` by name; A pings C through B; `outside` cannot reach a link address |
+| `two-ze-pppoe-link` | a Ze PPPoE client and a Ze PPPoE server on a link with no prefix; an observer on `eth0` alone | the client holds an address from the server's pool on a ppp device (assigned only once IPCP is Opened), the server's kernel PPPoE table holds the session on the link device, and the observer received no untagged PPPoE discovery frame |
+
+`./le test integration interop-topology` runs every scenario;
+`./le test integration interop-topology scenario <name>`, or
+`TOPOLOGY_INTEROP_SCENARIO=<name>`, runs one. The suite asks each Ze node's
+CLI through `interoplab.ZeCLICommand`, the same argv the IPsec lab sends, so
+every Ze configuration in the suite serves that SSH account on
+`127.0.0.1` port 2222.
+
+Images are registered by name in the core. Each suite registers the images it
+builds from `init()` in its `register_images.go` (`interoplab.RegisterImage`),
+under a name no other suite uses (the image's tag), and derives its own list
+from the registry (`SuiteImages`, or `ResolveImages` where it also runs a
+core registration such as `interoplab.FreeRADIUSImageName`). A topology node
+names any registered image, and the suite resolves the names its plans use
+once each, so an image another suite declares is built from that one
+declaration. A name nobody registered is refused before any build, naming
+the registered images; two registrations of one name panic at init, naming
+both owners. FRR is not registered: its reference comes from each run's
+environment.
+<!-- source: internal/le/interoplab/topology/topology.go -- node, scenario, RunAt, scenarioPlan, zeNode -->
+<!-- source: internal/le/interoplab/topology/register_catalog.go -- scenarioDirectory, selectorVariable -->
+<!-- source: internal/le/interoplab/imageregistry.go -- RegisterImage, SuiteImages, ResolveImages -->
+<!-- source: internal/le/interoplab/zecli.go -- ZeCLICommand -->
+<!-- source: internal/le/test/integration/gates.go -- interop-topology verb -->
 
 ### Typed checker operations
 

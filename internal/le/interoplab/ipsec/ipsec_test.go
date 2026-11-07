@@ -184,7 +184,7 @@ func ccmScriptedLab(swanLog, zeEncryption string) *fakeCheckerLab {
 	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
 	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
 	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, losslessPing(4))
-	fake.answer(zePeer, zeCLICommand("show vpn ipsec sa | json"),
+	fake.answer(zePeer, interoplab.ZeCLICommand("show vpn ipsec sa | json"),
 		`[{"peer-name":"swan","encryption":"`+zeEncryption+`"}]`)
 	return fake
 }
@@ -606,12 +606,12 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 			}
 		}
 		ze := ipsecPeerByName(t, prepared.Peers, zePeer)
-		if ze.Host != 2 || ze.Image != zePeer ||
+		if ze.Host != 2 || ze.Image != zeImage ||
 			!reflect.DeepEqual(ze.Command, []string{"start", "/etc/ze/ze.conf"}) {
 			t.Errorf("%s Ze peer = %#v", source.Name, ze)
 		}
 		swan := ipsecPeerByName(t, prepared.Peers, swanPeer)
-		if swan.Host != 3 || swan.Image != swanPeer {
+		if swan.Host != 3 || swan.Image != swanImage {
 			t.Errorf("%s strongSwan peer = %#v", source.Name, swan)
 		}
 		hasFRR := fileExists(filepath.Join(source.Directory, "frr.conf"))
@@ -629,7 +629,7 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 		hasNAT := fileExists(filepath.Join(source.Directory, natConfigName))
 		if hasNAT {
 			nat := ipsecPeerByName(t, prepared.Peers, natPeer)
-			if nat.Host != natHost || nat.Image != natPeer {
+			if nat.Host != natHost || nat.Image != natImage {
 				t.Errorf("%s NAT peer = %#v", source.Name, nat)
 			}
 			if prepared.Peers[0].Name != natPeer {
@@ -1460,7 +1460,7 @@ func negotiatedScriptedLab(swanLog, zeESPEncryption string) *fakeCheckerLab {
 	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
 	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
 	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, losslessPing(4))
-	fake.answer(zePeer, zeCLICommand("show vpn ipsec sa | json"),
+	fake.answer(zePeer, interoplab.ZeCLICommand("show vpn ipsec sa | json"),
 		`[{"peer-name":"swan","encryption":"aes-gcm","child-sa":{"esp-encryption":"`+zeESPEncryption+`"}}]`)
 	return fake
 }

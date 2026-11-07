@@ -272,7 +272,7 @@ func TestLNSPolicyScenarioPreparation(t *testing.T) {
 			}
 			radiusBuilt := false
 			for _, image := range imageBuilds(root, plans, environment.Image) {
-				if image.Name == peerRadius {
+				if image.Name == imageRadius {
 					radiusBuilt = image.Required
 				}
 			}
