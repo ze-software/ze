@@ -76,22 +76,29 @@ func (p *ownedProcess) observeExit(wait func() error) error {
 
 // retire revokes every alias's permission to signal, even if final cleanup fails.
 // clean is permitted only while an unreaped leader pins the group identity
-// (beforeReap). An absent group is benign; other signal errors reach the owner.
+// (beforeReap). An absent group is benign, and so is a group whose only members
+// are zombies, which Darwin answers with EPERM (exitedGroupSignalErr). Other
+// signal errors reach the owner.
 func (p *ownedProcess) retire(clean bool) error {
 	p.signalMu.Lock()
 	defer p.signalMu.Unlock()
 	if p.retired {
 		return nil
 	}
-	var err error
-	if clean {
-		err = p.groupSignal(-p.cmd.Process.Pid, syscall.SIGKILL)
+	if !clean {
+		p.retired = true
+		return nil
 	}
+	pgid := p.cmd.Process.Pid
+	err := p.groupSignal(-pgid, syscall.SIGKILL)
 	p.retired = true
+	if err == nil {
+		return nil
+	}
 	if errors.Is(err, syscall.ESRCH) {
 		return nil
 	}
-	return err
+	return exitedGroupSignalErr(pgid, err)
 }
 
 // Wait joins the sole reaper and returns only Cmd.Wait's result for exit-status

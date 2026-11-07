@@ -84,19 +84,32 @@ func TestServerProcessSignalOutcomes(t *testing.T) {
 // TestServerProcessNaturalExitSignalOutcomes releases a real child through stdin
 // only after installing the final group-cleanup verdict. Close must retain a
 // genuine retirement failure after the sole reap, but an absent group is benign.
+//
+// The permission-denied case leaves a live background member in the group and
+// injects EPERM without delivering the real SIGKILL first. A refusal is only
+// genuine while a member is still alive: on Darwin the real kill of a group
+// whose only member is the zombie leader answers EPERM itself (XNU killpg1
+// skips zombies), which retire correctly treats as benign, so a real kill
+// there would answer before the injected verdict and leave nothing to refuse.
+// A cleanup kills the live member so it does not outlive the test.
 func TestServerProcessNaturalExitSignalOutcomes(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		verdict error
-		wantErr error
+		name       string
+		verdict    error
+		wantErr    error
+		liveMember bool
 	}{
-		{name: "permission-denied", verdict: syscall.EPERM, wantErr: syscall.EPERM},
+		{name: "permission-denied", verdict: syscall.EPERM, wantErr: syscall.EPERM, liveMember: true},
 		{name: "absent-group", verdict: syscall.ESRCH},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, "/bin/sh", "-c", "IFS= read -r release; exit 0")
+			script := "IFS= read -r release; exit 0"
+			if test.liveMember {
+				script = "sleep 30 </dev/null >/dev/null 2>&1 & IFS= read -r release; exit 0"
+			}
+			cmd := exec.CommandContext(ctx, "/bin/sh", "-c", script)
 			release, err := cmd.StdinPipe()
 			if err != nil {
 				t.Fatal(err)
@@ -118,11 +131,22 @@ func TestServerProcessNaturalExitSignalOutcomes(t *testing.T) {
 				// The exact first and repeated Close verdicts are asserted below.
 				_ = server.Close() //nolint:errcheck // Cleanup must also join after an earlier assertion aborts.
 			})
+			if test.liveMember {
+				t.Cleanup(func() {
+					err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+					if err != nil && !errors.Is(err, syscall.ESRCH) {
+						t.Errorf("kill the live group member: %v", err)
+					}
+				})
+			}
 			var signals atomic.Int32
 			server.process.signalMu.Lock()
 			signal := server.process.groupSignal
 			server.process.groupSignal = func(pid int, sig syscall.Signal) error {
 				signals.Add(1)
+				if test.liveMember {
+					return test.verdict
+				}
 				if err := signal(pid, sig); err != nil {
 					if !errors.Is(err, syscall.ESRCH) {
 						return err

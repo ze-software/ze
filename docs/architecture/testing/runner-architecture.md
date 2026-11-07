@@ -82,7 +82,15 @@ On Linux and Darwin, the owner observes exit with `waitid(WNOWAIT)`, attempts to
 kill remaining group members while the leader still reserves its PID, and retires
 numeric signaling before the sole `Cmd.Wait` reaps it. A final group-signal error
 other than `ESRCH` is cached as a lifecycle failure; numeric signaling is still
-retired and the child is still reaped. Deadline cancellation, lifetime expiry and
+retired and the child is still reaped. Darwin is the one exception: XNU's
+`killpg1` skips zombie members and answers `EPERM` when it signalled none, so a
+group left holding only the exited leader answers `EPERM` where Linux answers
+success. On that `EPERM` the owner lists the group through `kern.proc.pgrp` and
+accepts it only when every member is a zombie or already exiting (`P_WEXIT`).
+The exiting case is real: `proc_prepareexit` hides a dying process from
+`proc_find` before it becomes a zombie, so `killpg1` skips it while the listing
+still shows it running. A live member, or a listing that fails, keeps the error.
+<!-- source: internal/test/runner/process_group_darwin.go -- exitedGroupSignalErr, darwinExitedGroupSignalErr, darwinMemberGone --> Deadline cancellation, lifetime expiry and
 deferred cleanup share the retirement lock. A late cleanup cannot signal a
 recycled group number. Darwin uses a local binding because x/sys/unix
 does not wrap its waitid syscall. FreeBSD uses `wait4(WNOWAIT)`. OpenBSD uses
