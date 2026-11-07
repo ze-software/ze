@@ -1392,6 +1392,21 @@ extra prefix.
 
 <!-- source: internal/component/ike/engine/config.go -- validateSelectorCombinations -->
 
+The inner family of a tunnel does not have to match its outer family. RFC 4301
+Section 5.1.2: "IPsec allows the IP version of the encapsulating header to be
+different from that of the inner header." On Linux, a tunnel-mode SA Ze installs
+carries IPv4 or IPv6 inner traffic over an outer pair of either family, so one Child
+SA whose selectors hold an IPv4 and an IPv6 pair carries both. The two outer
+addresses of a tunnel always share one family.
+
+What you can configure today is narrower, because Ze's IKE sockets are IPv4 only: a
+tunnel has an IPv4 outer pair and carries IPv4 or IPv6 inside it. IPv4 inside an
+IPv6 outer pair works in the kernel datapath, but no configuration reaches it until
+IKE runs over IPv6.
+
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
+<!-- source: internal/component/ike/transport/udp.go -- newTransport -->
+
 As responder, Ze narrows the initiator's proposed TSi and TSr to a subset the list allows,
 and leads the answer with the initiator's first choices. When the pairs it accepts are not
 every combination of their own selectors, it answers the largest part that is, starting

@@ -418,10 +418,12 @@ For a `library` entry, read the module in the module cache:
 - **Limitation:** The netlink library's XFRM code mis-reads and mis-writes
   state and policy messages Ze relies on: the state reader ignores the
   extended sequence number replay attribute, and the policy and state readers
-  lose the selector family and port masks. The kernel is not the limit.
+  lose the selector family and port masks. The state writer has no way to
+  set `XFRM_STATE_AF_UNSPEC`. The kernel is not the limit.
 - **Blocks:** reading back an SA that uses extended sequence numbers, a replay
-  window above 32, transport-mode templates without a destination, and
-  dual-family policy dumps, through the unpatched library.
+  window above 32, transport-mode templates without a destination,
+  dual-family policy dumps, and a tunnel-mode SA carrying an inner family
+  other than its outer one, through the unpatched library.
 - **Evidence:** library, `xfrm_state_linux.go`: the writer sends
   `out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))`,
   while the reader's attribute switch handles only `case nl.XFRMA_REPLAY_VAL:`

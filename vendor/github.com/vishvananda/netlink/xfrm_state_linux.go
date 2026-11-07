@@ -123,8 +123,12 @@ type XfrmState struct {
 	ESN           bool
 	DontEncapDSCP bool
 	OSeqMayWrap   bool
-	Replay        *XfrmReplayState
-	Selector      *XfrmPolicy
+	// AFUnspec sets XFRM_STATE_AF_UNSPEC. Without it the kernel gives a state
+	// with no selector family the outer family, so a tunnel-mode state carries
+	// inner packets of that family only.
+	AFUnspec bool
+	Replay   *XfrmReplayState
+	Selector *XfrmPolicy
 }
 
 func (sa XfrmState) String() string {
@@ -517,6 +521,7 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	state.Reqid = int(msg.Reqid)
 	state.ReplayWindow = int(msg.ReplayWindow)
 	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
+	state.AFUnspec = msg.Flags&nl.XFRM_STATE_AF_UNSPEC != 0
 	lftToLimits(&msg.Lft, &state.Limits)
 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
 	state.Selector = &XfrmPolicy{
@@ -712,6 +717,9 @@ func xfrmUsersaInfoFromXfrmState(state *XfrmState) *nl.XfrmUsersaInfo {
 	msg.Sel = nl.XfrmSelector{}
 	if state.Selector != nil {
 		selFromPolicy(&msg.Sel, state.Selector)
+	}
+	if state.AFUnspec {
+		msg.Flags |= nl.XFRM_STATE_AF_UNSPEC
 	}
 	return msg
 }

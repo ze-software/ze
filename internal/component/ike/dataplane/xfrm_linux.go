@@ -185,7 +185,8 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 	// unicast) instead of only flows whose daddr equals p.Dst. A transport-mode IKE
 	// Child SA sets it to its negotiated selector (RFC 4301 Section 4.4.2), and the
 	// kernel then drops a decrypted packet outside it (XfrmInStateMismatch). A
-	// tunnel-mode IKE Child SA leaves p.Sel nil, so msg.Sel stays the zero value.
+	// tunnel-mode IKE Child SA leaves p.Sel nil; the branch after this one marks
+	// that state as serving either inner family.
 	if p.Sel != nil {
 		srcPort, err := xfrmSelectorPort("state source", p.Sel.SrcPort)
 		if err != nil {
@@ -202,6 +203,21 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 			SrcPort: srcPort,
 			DstPort: dstPort,
 		}
+	}
+	// A zero selector is not "any family". The kernel's copy_from_user_state
+	// (net/xfrm/xfrm_user.c) sets "x->sel.family = p->family" unless the message
+	// carries XFRM_STATE_AF_UNSPEC, and xfrm_state_look_at then skips the state for
+	// a flow of the other family: an IPv6 packet routed into an IPv4-outer SA finds
+	// no state (XfrmOutNoStates). With the flag the selector family stays AF_UNSPEC,
+	// __xfrm_init_state fills the tunnel inner mode of both families, and
+	// xfrm_ip2inner_mode picks one per decapsulated packet. The SPD policies, one
+	// per negotiated selector pair and bound to the Child SA's if_id, still decide
+	// what enters the state. Transport mode keeps its explicit selector above, and
+	// a tunnel-mode caller that hands a selector keeps that selector's family.
+	if p.Mode == ModeTunnel && p.Sel == nil {
+		// RFC 4301 Section 5.1.2: "IPsec allows the IP version of the
+		// encapsulating header to be different from that of the inner header."
+		state.AFUnspec = true
 	}
 
 	// RFC 4302 (AH) vs RFC 4303 (ESP): AH sets an integrity transform only, ESP

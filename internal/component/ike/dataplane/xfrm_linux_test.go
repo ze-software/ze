@@ -281,3 +281,47 @@ func TestXFRMStateRefusesUnknownAlgorithm(t *testing.T) {
 		t.Errorf("the known pair: xfrmStateFromParams err = %v, want a state", err)
 	}
 }
+
+// TestXFRMStateFlagsForTunnelWithoutSelector proves the builder asks for
+// XFRM_STATE_AF_UNSPEC exactly where the kernel would otherwise narrow the state
+// to the outer family: tunnel mode with no selector. Transport mode, and any state
+// that hands an explicit selector (the OSPF RFC 4552 installer, a transport-mode
+// IKE Child SA), keep the selector they give and carry no flag.
+// METHOD: build the netlink state for each mode and selector combination and read
+// the field the vendored writer turns into xfrm_usersa_info.flags. The kernel side
+// is TestXFRMTunnelStateIsInstalledAFUnspec.
+func TestXFRMStateFlagsForTunnelWithoutSelector(t *testing.T) {
+	sel := &SASelector{
+		Src: &net.IPNet{IP: net.ParseIP("192.0.2.1").To4(), Mask: net.CIDRMask(32, 32)},
+		Dst: &net.IPNet{IP: net.ParseIP("198.51.100.1").To4(), Mask: net.CIDRMask(32, 32)},
+	}
+	cases := []struct {
+		what   string
+		mode   uint8
+		sel    *SASelector
+		unspec bool
+	}{
+		{what: "tunnel mode with no selector", mode: ModeTunnel, sel: nil, unspec: true},
+		{what: "tunnel mode with an explicit selector", mode: ModeTunnel, sel: sel, unspec: false},
+		{what: "transport mode with an explicit selector", mode: ModeTransport, sel: sel, unspec: false},
+		{what: "transport mode with no selector", mode: ModeTransport, sel: nil, unspec: false},
+	}
+	for _, tc := range cases {
+		state, err := xfrmStateFromParams(SAParams{
+			SPI: 0x2000, Src: net.ParseIP("192.0.2.1"), Dst: net.ParseIP("198.51.100.1"),
+			Proto: ProtoESP, Mode: tc.mode, Sel: tc.sel,
+			EncAlgo: "aes256", EncKey: make([]byte, 32),
+			AuthAlgo: "sha256", AuthKey: make([]byte, 32),
+		})
+		if err != nil {
+			t.Fatalf("%s: xfrmStateFromParams: %v", tc.what, err)
+		}
+		if state.AFUnspec != tc.unspec {
+			t.Errorf("%s: AFUnspec = %t, want %t", tc.what, state.AFUnspec, tc.unspec)
+		}
+		if (tc.sel == nil) != (state.Selector == nil) {
+			t.Errorf("%s: selector present = %t, want %t; the flag must not replace or invent a selector",
+				tc.what, state.Selector != nil, tc.sel != nil)
+		}
+	}
+}

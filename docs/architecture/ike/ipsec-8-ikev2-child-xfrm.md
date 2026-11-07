@@ -106,6 +106,29 @@ carries the selector itself (`SAParams.Sel`, the XFRM `x->sel`), built from the
 inbound policies' own fields so the two cannot disagree, and a packet outside it is
 dropped as `XfrmInStateMismatch`. strongSwan makes the same split.
 
+**A tunnel-mode state with no selector carries `XFRM_STATE_AF_UNSPEC`.** A zero
+selector is not "any family" to the kernel. `copy_from_user_state`
+(`net/xfrm/xfrm_user.c`) runs `if (!x->sel.family && !(p->flags &
+XFRM_STATE_AF_UNSPEC)) x->sel.family = p->family;`, so without the flag the state
+takes the outer family. `xfrm_state_look_at` then skips it for a flow of the other
+family (`x->sel.family != family`), and an IPv6 packet routed into an IPv4-outer
+Child SA is dropped as `XfrmOutNoStates` while the SA reports up. RFC 4301 Section
+5.1.2 says "IPsec allows the IP version of the encapsulating header to be different
+from that of the inner header." With the flag the selector family stays
+`AF_UNSPEC`, `__xfrm_init_state` fills the tunnel inner mode of both families, and
+`xfrm_ip2inner_mode` picks one for each decapsulated packet. `xfrmStateFromParams`
+sets the flag (`netlink.XfrmState.AFUnspec`, a field Ze's vendored-module patch
+`internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` adds) only for tunnel
+mode with a nil `SAParams.Sel`. Transport mode, the OSPF RFC 4552 states and any
+state given a selector keep that selector and its family. What enters the state is
+still decided by the policies: one per negotiated selector pair and direction,
+bound to the Child SA's `if_id`. The outer pair stays one family, and
+`xfrmStateFromParams` refuses a mixed pair (RFC 4301 Section 4.4.2.1). Readback
+decodes the endpoints with the message family, never the selector's, so a flagged
+state is still reported with its outer family.
+
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
+
 **Every negotiated selector pair gets its own policy, in each direction.** A peer
 that answers several TSi/TSr pairs negotiated several values. `childInstalledPolicies`
 builds inbound and outbound policies for each pair, plus a forward policy when the
@@ -296,6 +319,11 @@ corrections (Linux limitation `LL-NETLINK-XFRM-DECODE`,
   nested selector's family for its prefixes. The same address conversion serves
   the policy reader, so `2001:db8::` remains distinct from `32.1.13.184` even when
   SPI, protocol and interface id agree. Nested selectors retain raw port masks.
+- `XfrmState` gains `AFUnspec`. The state writer sets `XFRM_STATE_AF_UNSPEC` in
+  `xfrm_usersa_info.flags` when it is true, and the state reader reports the flag.
+  Upstream sets no flag but `XFRM_STATE_ESN`, so a tunnel-mode state with no
+  selector could not be stored as serving both inner families (see "A tunnel-mode
+  state with no selector carries `XFRM_STATE_AF_UNSPEC`" above).
 <!-- source: internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch -- XFRM state and policy decoding corrections -->
 
 `TestXFRMReadbackPolicyTunnelAddressFamily` installs an IPv4 policy with IPv6

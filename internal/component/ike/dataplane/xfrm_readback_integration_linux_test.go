@@ -617,3 +617,74 @@ func TestXFRMReadbackSAAddressFamilies(t *testing.T) {
 	}
 	check(nil)
 }
+
+// VALIDATES: a tunnel-mode state stored with XFRM_STATE_AF_UNSPEC, whose selector
+// family is therefore 0, is still reported with its OUTER family: ListSAs decodes
+// the endpoints with the message family, never with the selector's, and the
+// vendored decoder reports the flag it read.
+// PREVENTS: show vpn ipsec sa and the dataplane inspection reading an IPv6 outer
+// pair as IPv4 once the selector stops naming a family.
+func TestXFRMReadbackOfAFUnspecState(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	const ifID = 0x5ead1004
+	b := &xfrmBackend{}
+	cases := []struct {
+		spi      uint32
+		src, dst string
+	}{
+		{0x5ead0004, "192.0.2.4", "198.51.100.4"},
+		{0x5ead0005, "2001:db8:4::1", "2001:db8:4::2"},
+	}
+	for _, tc := range cases {
+		dst := net.ParseIP(tc.dst)
+		if err := b.InstallSA(SAParams{
+			SPI: tc.spi, Src: net.ParseIP(tc.src), Dst: dst,
+			Proto: ProtoESP, Mode: ModeTunnel, IfID: ifID, ReqID: readbackReqID,
+			EncAlgo: "aes256", EncKey: make([]byte, 32),
+			AuthAlgo: "sha256", AuthKey: make([]byte, 32),
+		}); err != nil {
+			t.Fatalf("install %s SA: %v", tc.dst, err)
+		}
+		t.Cleanup(func() { _ = b.RemoveSA(tc.spi, dst, ProtoESP) })
+	}
+	observed, err := b.ListSAs(ifID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := netlink.XfrmStateList(netlink.FAMILY_ALL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range cases {
+		wantSrc, wantDst := net.ParseIP(tc.src), net.ParseIP(tc.dst)
+		wantV4 := wantDst.To4() != nil
+		found := false
+		for _, got := range observed {
+			if got.SPI != tc.spi {
+				continue
+			}
+			found = true
+			if !got.Src.Equal(wantSrc) || !got.Dst.Equal(wantDst) {
+				t.Errorf("SA %#x endpoints = %s -> %s, want %s -> %s", tc.spi, got.Src, got.Dst, wantSrc, wantDst)
+			}
+			if (got.Dst.To4() != nil) != wantV4 || (got.Src.To4() != nil) != wantV4 {
+				t.Errorf("SA %#x reported %s -> %s in the wrong family: the outer family comes from the message, never from the selector",
+					tc.spi, got.Src, got.Dst)
+			}
+		}
+		if !found {
+			t.Errorf("ListSAs did not report the installed SA %#x", tc.spi)
+		}
+		flagged := false
+		for i := range decoded {
+			if uint32(decoded[i].Spi) == tc.spi {
+				flagged = decoded[i].AFUnspec
+			}
+		}
+		if !flagged {
+			t.Errorf("SA %#x decoded without AFUnspec; the decoder must report the XFRM_STATE_AF_UNSPEC flag it read", tc.spi)
+		}
+	}
+}
