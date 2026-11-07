@@ -14,8 +14,9 @@ func TestExternalJoinMergeCompatibility(t *testing.T) {
 		if initialized.join(externalValue{}) {
 			t.Fatal("an empty join reported semantic growth")
 		}
-		// Literal construction writes fields after an otherwise empty join.
-		initialized.fields["Empty"] = externalValue{}
+		// A writer that adds a field makes the table itself (join allocates it
+		// only when the other value carries fields), as literal construction does.
+		initialized.fields = map[string]externalValue{"Empty": {}}
 		var merged externalValue
 		if !merged.join(initialized) {
 			t.Fatal("a new empty named field did not report semantic growth")
