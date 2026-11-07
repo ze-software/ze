@@ -58,7 +58,7 @@ func TestClientCodeRejectInitialSequence(t *testing.T) {
 		unit := w.unit
 		reader := testFrameReader(t, w.frames, unit)
 		w.unit = w.frames // Initial IPCP uses the unconnected channel.
-		cfg := sessionConfig{mtu: 1492}
+		cfg := sessionConfig{mtu: 1492, keepaliveInterval: testKeepaliveInterval, keepaliveFailures: testKeepaliveFailures}
 		stop := make(chan struct{})
 		defer close(stop)
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))

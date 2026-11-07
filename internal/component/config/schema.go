@@ -184,20 +184,20 @@ func (n *LeafNode) Kind() NodeKind { return NodeLeaf }
 // ContainerNode represents a group of child nodes.
 type ContainerNode struct {
 	children     map[string]Node
-	order        []string          // preserve definition order
-	AllowUnknown bool              // accept arbitrary key-value pairs (ze:allow-unknown-fields)
-	Hidden       bool              // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
-	Ephemeral    bool              // ze:ephemeral — present in schema, not persisted to config file
-	Presence     bool              // YANG presence container: accepts flag (;), value (word;), or block ({})
-	Flatten      bool              // ze:flatten — printed as "<container> <child> ..." rather than a nested block (see serialize_flatten.go)
-	ShortHelp    string            // One-line summary from the ze:help extension, for tooltips
-	Description  string            // Long explanation from the YANG description statement
-	Backend      []string          // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
-	Related      []*RelatedTool    // ze:related — operator tools attached to this container (see related.go)
-	cases        choiceMembers     // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
-	relocated    map[string]string // child name -> this container's name, for children that moved to a top-level root of the same name (see relocated.go)
-	retired      map[string]string // retired leaf name -> its refusal hint (see retired_leaf.go)
-	otherOS      map[string]string // child name -> the GOOS whose ze:os the build pruned it for (see os_restricted.go)
+	order        []string                // preserve definition order
+	AllowUnknown bool                    // accept arbitrary key-value pairs (ze:allow-unknown-fields)
+	Hidden       bool                    // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
+	Ephemeral    bool                    // ze:ephemeral — present in schema, not persisted to config file
+	Presence     bool                    // YANG presence container: accepts flag (;), value (word;), or block ({})
+	Flatten      bool                    // ze:flatten — printed as "<container> <child> ..." rather than a nested block (see serialize_flatten.go)
+	ShortHelp    string                  // One-line summary from the ze:help extension, for tooltips
+	Description  string                  // Long explanation from the YANG description statement
+	Backend      []string                // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
+	Related      []*RelatedTool          // ze:related — operator tools attached to this container (see related.go)
+	cases        choiceMembers           // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
+	relocated    map[string]string       // child name -> this container's name, for children that moved to a top-level root of the same name (see relocated.go)
+	retired      map[string]string       // retired leaf name -> its refusal hint (see retired_leaf.go)
+	otherOS      map[string]otherOSChild // child name -> the GOOS whose ze:os the build pruned it for, and the node it converted (see os_restricted.go)
 }
 
 func (n *ContainerNode) Kind() NodeKind { return NodeContainer }
@@ -238,9 +238,9 @@ type ListNode struct {
 	Related     []*RelatedTool // ze:related -- operator tools attached to this list (see related.go)
 	children    map[string]Node
 	order       []string
-	cases       choiceMembers     // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
-	retired     map[string]string // retired leaf name -> its refusal hint (see retired_leaf.go)
-	otherOS     map[string]string // child name -> the GOOS whose ze:os the build pruned it for (see os_restricted.go)
+	cases       choiceMembers           // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
+	retired     map[string]string       // retired leaf name -> its refusal hint (see retired_leaf.go)
+	otherOS     map[string]otherOSChild // child name -> the GOOS whose ze:os the build pruned it for, and the node it converted (see os_restricted.go)
 }
 
 func (n *ListNode) Kind() NodeKind { return NodeList }

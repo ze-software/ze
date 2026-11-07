@@ -88,7 +88,7 @@ func (w *connectedExchange) passes() int {
 
 func (w *connectedExchange) session(t *testing.T) (*connectedSession, sessionResult) {
 	t.Helper()
-	cfg := sessionConfig{mtu: 1492, username: "subscriber", password: "secret"}
+	cfg := sessionConfig{mtu: 1492, username: "subscriber", password: "secret", keepaliveInterval: testKeepaliveInterval, keepaliveFailures: testKeepaliveFailures}
 	initial := sessionResult{
 		reader: testFrameReader(t, w.frames, w.unit), localIP: netip.MustParseAddr("192.0.2.2"),
 		peerIP: netip.MustParseAddr("192.0.2.1"), negMTU: 1492, peerMRU: 1492,
@@ -278,7 +278,7 @@ func TestConnectedExchangeRestarts(t *testing.T) {
 		magic, identifier := initial.magic, initial.ipcpIdentifier
 		for epoch, auth := range []uint16{ppp.ProtoCHAP, ppp.ProtoPAP, 0, ppp.ProtoCHAP} {
 			// sleep(timer): synctest advances the production echo ticker deterministically.
-			time.Sleep(2 * echoInterval)
+			time.Sleep(2 * testKeepaliveInterval)
 			synctest.Wait()
 			for id := uint8(1); id <= 2; id++ {
 				echo := w.take(t, ppp.ProtoLCP, 9)

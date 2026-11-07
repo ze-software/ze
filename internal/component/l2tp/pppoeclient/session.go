@@ -20,19 +20,22 @@ const (
 	lcpNegotiationTimeout = 30 * time.Second
 	authTimeout           = 30 * time.Second
 	ncpTimeout            = 30 * time.Second
-	echoInterval          = 10 * time.Second
-	echoMaxFailures       = 3
 	papRetryInterval      = 3 * time.Second
 	papRequestsMax        = 5
 )
 
-// sessionConfig carries parameters for negotiateSession.
+// sessionConfig carries parameters for negotiateSession and the connected
+// session. keepaliveInterval and keepaliveFailures come from the pppoe-client
+// keepalive leaves; newConnectedSession refuses a zero of either, so no zero
+// interval reaches the echo ticker.
 type sessionConfig struct {
-	name     string
-	mtu      uint16
-	username string
-	password string
-	chanFD   int
+	name              string
+	mtu               uint16
+	username          string
+	password          string
+	chanFD            int
+	keepaliveInterval time.Duration
+	keepaliveFailures int
 }
 
 // sessionResult is Dial's stable initial outcome and receive owner.

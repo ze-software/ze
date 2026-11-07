@@ -259,7 +259,8 @@ func TestPPPoEReconnectBackoff(t *testing.T) {
 		{100, 60 * time.Second},
 	}
 	for _, tt := range tests {
-		got := ReconnectDelay(tt.attempt)
+		got, err := testPPPoETiming.reconnectDelay(tt.attempt)
+		require.NoError(t, err)
 		assert.Equal(t, tt.want, got, "attempt=%d", tt.attempt)
 	}
 }

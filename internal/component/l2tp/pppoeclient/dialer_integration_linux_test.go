@@ -50,7 +50,7 @@ func dialWithWatchdog(t *testing.T, cfg iface.PPPoEClientConfig) error {
 }
 
 func TestDialBogusInterface(t *testing.T) {
-	err := dialWithWatchdog(t, iface.PPPoEClientConfig{SourceInterface: "ze-nope-xyz0"})
+	err := dialWithWatchdog(t, iface.PPPoEClientConfig{SourceInterface: "ze-nope-xyz0", Timing: testDialTiming})
 	if err == nil {
 		t.Error("Dial on a non-existent interface should return an error")
 	}
@@ -60,7 +60,7 @@ func TestDialLoopbackDiscovery(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	err := dialWithWatchdog(t, iface.PPPoEClientConfig{SourceInterface: "lo"})
+	err := dialWithWatchdog(t, iface.PPPoEClientConfig{SourceInterface: "lo", Timing: testDialTiming})
 	if err == nil {
 		t.Error("Dial on loopback with no PPPoE server should return an error")
 	}

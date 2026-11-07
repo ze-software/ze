@@ -281,9 +281,27 @@ Failure (Section 4.2), and the client stops using it rather than wait.
 
 **Reconciliation follows the DHCP shape.** Desired against active map diffing, a
 config-change check that restarts affected clients, and a shutdown loop that
-stops all of them.
+stops all of them. `pppoeClientConfigChanged` compares every
+`PPPoEClientConfig` field except `Timing`, so a new field restarts the client
+on change with no edit to the check. A change to `Timing` alone keeps the
+running session: the reconcile hands it to `setTiming`, which stores it under
+`c.mu`. `runSession` snapshots the config under the same lock before each
+`Dial`, and the next redial wait reads the stored timing.
 
-<!-- source: internal/component/iface/pppoe_client.go -- pppoeClientConfigChanged, ReconnectDelay -->
+**Keepalive and reconnect timing come from the config.** The parse applies the
+YANG defaults of the `keepalive` and `reconnect` containers (an interval of
+10 s, 3 failures, and a redial wait of 1 to 60 s), then validates the result.
+`Dial` validates the same `PPPoEClientTiming` again, and `newConnectedSession`
+refuses a zero interval or a zero failure count, so no session can start with
+a ticker of zero or a check that never fires. `keepaliveLoop` ends the session
+on the Nth unanswered Echo-Request in a row, N being the failure count, and
+any Echo-Reply resets the count. After a session ends or a dial fails, the
+wait before the next discovery starts at `delay-min` and doubles on each
+further failure up to `delay-max`.
+
+<!-- source: internal/component/iface/pppoe_client.go -- pppoeClientConfigChanged, setTiming, run -->
+<!-- source: internal/component/iface/pppoe_client_timing.go -- PPPoEClientTiming.Validate, reconnectDelay -->
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
 
 **The discovery wait blocks rather than polls.** `Dial` sets `SO_RCVTIMEO` to
 ~100ms on the discovery socket before `waitForPADO` or `waitForPADS` ever runs,

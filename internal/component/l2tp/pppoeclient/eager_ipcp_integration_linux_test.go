@@ -50,7 +50,7 @@ func TestDialAcknowledgesFirstEagerIPCP(t *testing.T) {
 		}
 	})
 	session, err := (&Dialer{}).Dial(iface.PPPoEClientConfig{
-		SourceInterface: "zec0", MTU: 1492, Username: "subscriber", AuthSecret: "secret",
+		SourceInterface: "zec0", MTU: 1492, Timing: testDialTiming, Username: "subscriber", AuthSecret: "secret",
 	}, ctx.Done(), slog.Default())
 	if err != nil {
 		t.Fatal(err)

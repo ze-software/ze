@@ -181,6 +181,21 @@ owner: `l2tp-auth-radius` claims it when a RADIUS server is configured, and
 therefore authenticates against those users, on PPPoE and on L2TP.
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
 
+### PPPoE client keepalive and redial
+
+A `pppoe-client` entry detects a dead access concentrator with LCP
+Echo-Requests. `keepalive interval` sets the seconds between two requests
+(default 10), and `keepalive failures` sets how many unanswered requests in a
+row end the session (default 3), so the default detection time is about 30
+seconds. These are the settings pppd calls `lcp-echo-interval` and
+`lcp-echo-failure`. After a session ends or a dial fails, the client waits
+before it dials again: the first wait is `reconnect delay-min` (default 1
+second), and each further failure doubles it up to `reconnect delay-max`
+(default 60 seconds). A change to any of these leaves keeps the running
+session up: the next session and the next wait use the new values. Every leaf
+and its range is listed in [Configuration](configuration.md), "PPPoE Client".
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client keepalive, reconnect -->
+
 ## Interoperability
 
 Docker lab scenarios run Ze in each PPPoE role; the table names the two

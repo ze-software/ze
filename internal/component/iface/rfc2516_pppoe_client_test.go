@@ -63,7 +63,7 @@ func TestRFC2516HostReturnsToDiscoveryForTheNextSession(t *testing.T) {
 		firstDone:  make(chan struct{}),
 		secondDial: make(chan struct{}),
 	}
-	client := NewPPPoEClient(PPPoEClientConfig{Name: "pppoe0", SourceInterface: "eth0"}, d, nil, slog.Default())
+	client := NewPPPoEClient(PPPoEClientConfig{Name: "pppoe0", SourceInterface: "eth0", Timing: testPPPoETiming}, d, nil, slog.Default())
 	d.client = client
 	client.Start()
 	defer client.Stop()
@@ -71,7 +71,7 @@ func TestRFC2516HostReturnsToDiscoveryForTheNextSession(t *testing.T) {
 	// End the first PPP session: this is "LCP terminates" as the client sees it.
 	close(d.firstDone)
 
-	// The client reconnects after ReconnectDelay(1), one second.
+	// The client reconnects after the default delay-min, one second.
 	select {
 	case <-d.secondDial:
 	case <-time.After(5 * time.Second):

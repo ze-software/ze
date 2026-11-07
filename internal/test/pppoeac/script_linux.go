@@ -82,12 +82,15 @@ type Session struct {
 	peer   *Peer
 	remote [pppoe.EthALen]byte
 	echo   echoState
+	// padiAt is when the first PADI of this discovery arrived.
+	padiAt time.Time
 }
 
 // Accept answers discovery until PADS establishes a session.
 // RFC 2516 Section 5: "When the Access Concentrator sends the Confirmation packet, it may proceed to the PPP Session Stage."
 func (p *Peer) Accept(ctx context.Context) (*Session, error) {
 	var incoming [pppoe.EthMaxLen]byte
+	var padiAt time.Time
 	// Discovery ends at PADS or the caller's deadline.
 	for {
 		n, err := p.receiveFrame(ctx, incoming[:])
@@ -102,8 +105,13 @@ func (p *Peer) Accept(ctx context.Context) (*Session, error) {
 		if err != nil {
 			return nil, err
 		}
+		if code == pppoe.CodePADI {
+			if padiAt.IsZero() {
+				padiAt = time.Now()
+			}
+		}
 		if code == pppoe.CodePADR {
-			s := &Session{peer: p}
+			s := &Session{peer: p, padiAt: padiAt}
 			copy(s.remote[:], incoming[6:12])
 			return s, nil
 		}

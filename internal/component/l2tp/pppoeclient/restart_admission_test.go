@@ -97,7 +97,7 @@ func TestRestartEchoSequence(t *testing.T) {
 		go keepaliveLoop(s, done, stop, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		synctest.Wait()
 		// sleep(timer): advance the real worker's ticker in synctest fake time.
-		time.Sleep(echoInterval)
+		time.Sleep(testKeepaliveInterval)
 		first := w.take(t, ppp.ProtoLCP, 9)
 		if first[3] != 1 {
 			t.Fatalf("first Echo Identifier = %d", first[3])
@@ -109,7 +109,7 @@ func TestRestartEchoSequence(t *testing.T) {
 		magic := w.openLCP(t, 0, initial.magic)
 		w.openIPCP(t, initial.ipcpIdentifier, 0)
 		// sleep(timer): reach the first tick after the completed restart.
-		time.Sleep(echoInterval)
+		time.Sleep(testKeepaliveInterval)
 		next := w.take(t, ppp.ProtoLCP, 9)
 		if next[3] != 2 {
 			t.Fatalf("post-restart Echo Identifier = %d, want 2", next[3])

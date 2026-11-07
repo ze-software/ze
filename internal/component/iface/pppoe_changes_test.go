@@ -82,6 +82,7 @@ func newChangeSession(t *testing.T, cfg PPPoEClientConfig) *changeSession {
 	}
 	cfg.Name = "wan"
 	cfg.RoutePriority = 73
+	cfg.Timing = testPPPoETiming
 	dialer := &fakeDialer{sess: PPPoESession{
 		SessionID: 42, UnitNum: 7, NegMTU: 1492,
 		LocalIP: netip.MustParseAddr("192.0.2.2"),

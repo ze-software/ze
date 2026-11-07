@@ -574,7 +574,7 @@ func TestPPPoERoutePriorityBounds(t *testing.T) {
 			"source-interface": "eth0",
 			"authentication":   map[string]any{"username": "user", "password": "pass"},
 			"route-priority":   value,
-		})
+		}, testPPPoEClientSchema(t))
 		require.Error(t, err, "route-priority %q must be refused", value)
 		assert.Contains(t, err.Error(), "route-priority")
 	}

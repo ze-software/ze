@@ -80,6 +80,11 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	if err != nil {
 		return iface.PPPoESession{}, err
 	}
+	// The iface parse validates the keepalive and reconnect leaves; this is
+	// the second check of the pair, before any socket opens.
+	if err := cfg.Timing.Validate(); err != nil {
+		return iface.PPPoESession{}, err
+	}
 
 	ifindex, hwaddr, _, err := pppoe.ResolveInterface(cfg.SourceInterface)
 	if err != nil {
@@ -208,11 +213,13 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	}
 
 	sessCfg := sessionConfig{
-		name:     cfg.Name,
-		mtu:      mtu,
-		username: cfg.Username,
-		password: cfg.AuthSecret,
-		chanFD:   chanFD,
+		name:              cfg.Name,
+		mtu:               mtu,
+		username:          cfg.Username,
+		password:          cfg.AuthSecret,
+		chanFD:            chanFD,
+		keepaliveInterval: cfg.Timing.KeepaliveInterval,
+		keepaliveFailures: cfg.Timing.KeepaliveFailures,
 	}
 	result, negErr := negotiateSession(link, reader, unitFD, unitNum, sessCfg, link.stopped, logger)
 	if negErr != nil {

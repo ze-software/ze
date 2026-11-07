@@ -100,7 +100,7 @@ func TestPPPoEClientChangeReconnect(t *testing.T) {
 						cleanups.Add(1)
 					},
 				}, times: make(chan time.Time, 4)}
-				c := NewPPPoEClient(PPPoEClientConfig{Name: "wan"}, d, b, slog.New(slog.NewTextHandler(io.Discard, nil)))
+				c := NewPPPoEClient(PPPoEClientConfig{Name: "wan", Timing: testPPPoETiming}, d, b, slog.New(slog.NewTextHandler(io.Discard, nil)))
 				c.Start()
 				t.Cleanup(c.Stop)
 				synctest.Wait()
@@ -116,12 +116,12 @@ func TestPPPoEClientChangeReconnect(t *testing.T) {
 					t.Fatal("reconnected without backoff")
 				}
 				// sleep(test-clock): Advance the real run loop's reconnect timer.
-				time.Sleep(ReconnectDelay(1))
+				time.Sleep(testPPPoETiming.ReconnectDelayMin)
 				synctest.Wait()
 				if len(d.times) != 1 {
 					t.Fatalf("new dial attempts = %d, want 1", len(d.times))
 				}
-				if delay := (<-d.times).Sub(failedAt); delay != ReconnectDelay(1) {
+				if delay := (<-d.times).Sub(failedAt); delay != testPPPoETiming.ReconnectDelayMin {
 					t.Fatalf("reconnect delay = %s", delay)
 				}
 			})
@@ -143,7 +143,7 @@ func TestPPPoEClientInitialRouteRetry(t *testing.T) {
 			PeerIP: initial.PeerIP, NegMTU: initial.NegMTU,
 			Changes: changes, Done: make(chan struct{}), Cleanup: func() { cleanups++ },
 		}}
-		c := NewPPPoEClient(PPPoEClientConfig{Name: "wan"}, d, b, slog.New(slog.NewTextHandler(&logs, nil)))
+		c := NewPPPoEClient(PPPoEClientConfig{Name: "wan", Timing: testPPPoETiming}, d, b, slog.New(slog.NewTextHandler(&logs, nil)))
 		c.Start()
 		t.Cleanup(c.Stop)
 		synctest.Wait()
@@ -195,7 +195,7 @@ func TestPPPoEClientNewestPendingChange(t *testing.T) {
 			PeerIP: initial.PeerIP, NegMTU: initial.NegMTU,
 			Changes: changes, Done: make(chan struct{}), Cleanup: func() {},
 		}}
-		c := NewPPPoEClient(PPPoEClientConfig{Name: "wan"}, d, b, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		c := NewPPPoEClient(PPPoEClientConfig{Name: "wan", Timing: testPPPoETiming}, d, b, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		c.Start()
 		synctest.Wait()
 		changes <- changedResult("192.0.2.3", "192.0.2.8", 1400)

@@ -1817,6 +1817,73 @@ module ze-iface-conf {
                 ze:help "Route metric of the default route installed after IPCP completes.";
             }
 
+            container keepalive {
+                description "Ze sends an LCP Echo-Request on the session every interval and
+                             counts the requests the access concentrator leaves unanswered. Any
+                             Echo-Reply resets the count. The session ends on the unanswered
+                             request that reaches the failure count, and the client then
+                             reconnects. A change to these leaves keeps the running session up:
+                             the next session uses the new values. Detection takes about interval
+                             times failures seconds. A small interval with failures 1 can end
+                             a session on a lossy line that is still usable.";
+                ze:help "Dead-peer detection by LCP Echo-Request (RFC 1661 Section 5.8).";
+
+                leaf interval {
+                    type uint16 {
+                        range "1..3600";
+                    }
+                    units seconds;
+                    default 10;
+                    description "Ze sends one LCP Echo-Request each interval while the session is
+                                 up. The range is 1 to 3600 seconds and the default is 10.";
+                    ze:help "Seconds between two LCP Echo-Requests.";
+                }
+
+                leaf failures {
+                    type uint8 {
+                        range "1..255";
+                    }
+                    default 3;
+                    description "The session ends when this many Echo-Requests in a row have no
+                                 Echo-Reply. The range is 1 to 255 and the default is 3, so the
+                                 default detection time is about 30 seconds.";
+                    ze:help "Unanswered Echo-Requests in a row that end the session.";
+                }
+            }
+
+            container reconnect {
+                description "After a session ends or a dial fails, ze waits before the next
+                             discovery. The first wait is delay-min. Each further failure doubles
+                             the wait, up to delay-max. A session that reaches the up state resets
+                             the wait to delay-min. delay-max must not be below delay-min. A change
+                             to these leaves keeps the running session up and applies to the next
+                             wait.";
+                ze:help "Hold-off between two dial attempts after a session ends.";
+
+                leaf delay-min {
+                    type uint16 {
+                        range "1..3600";
+                    }
+                    units seconds;
+                    default 1;
+                    description "The wait before the first redial after a failure. The range is 1
+                                 to 3600 seconds and the default is 1.";
+                    ze:help "Seconds to wait before the first redial.";
+                }
+
+                leaf delay-max {
+                    type uint16 {
+                        range "1..3600";
+                    }
+                    units seconds;
+                    default 60;
+                    description "The doubling wait stops growing at this value. The range is 1 to
+                                 3600 seconds and the default is 60. It must be equal to or above
+                                 delay-min.";
+                    ze:help "Longest wait between two redials.";
+                }
+            }
+
             uses interface-common;
         }
 

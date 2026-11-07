@@ -219,7 +219,7 @@ func TestConnectedRestartEchoDeadline(t *testing.T) {
 		go keepaliveLoop(s, done, stop, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		synctest.Wait()
 		// sleep(timer): position restart just before the old echo deadline.
-		time.Sleep(echoInterval - time.Second)
+		time.Sleep(testKeepaliveInterval - time.Second)
 		w.openLCP(t, ppp.ProtoCHAP, initial.magic)
 		// sleep(timer): cross that deadline while authentication owns the transport.
 		time.Sleep(2 * time.Second)
@@ -227,7 +227,7 @@ func TestConnectedRestartEchoDeadline(t *testing.T) {
 		w.authenticate(t, ppp.ProtoCHAP, true)
 		w.openIPCP(t, initial.ipcpIdentifier, 0)
 		// sleep(timer): no keepalive is due until a full fresh interval elapsed.
-		time.Sleep(echoInterval - time.Nanosecond)
+		time.Sleep(testKeepaliveInterval - time.Nanosecond)
 		w.quiet(t)
 		// sleep(timer): reach the fresh ticker's first deadline exactly.
 		time.Sleep(time.Nanosecond)

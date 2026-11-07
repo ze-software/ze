@@ -61,6 +61,15 @@ func newConnectedSession(transport io.ReadWriteCloser, initial sessionResult,
 	if setIPv4Mode == nil {
 		return nil, errors.New("pppoe-client: missing connected IPv4 mode control")
 	}
+	// A zero interval would panic the echo ticker, and zero failures would
+	// end the session on its first Echo-Request. Dial validates both from
+	// config; this refuses a caller that skipped it.
+	if cfg.keepaliveInterval <= 0 {
+		return nil, errors.New("pppoe-client: missing keepalive interval")
+	}
+	if cfg.keepaliveFailures < 1 {
+		return nil, errors.New("pppoe-client: missing keepalive failure count")
+	}
 	current, err := newNegotiatedSession(initial, cfg)
 	if err != nil {
 		return nil, err

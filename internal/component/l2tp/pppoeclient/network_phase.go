@@ -101,6 +101,11 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 		return
 	}
 
+	// RFC 1661 Section 5.8: "Echo-Request and Echo-Reply packets MUST only be
+	// sent in the LCP Opened state." This loop runs only after LCP opened.
+	// The interval and the failure count come from the pppoe-client
+	// keepalive leaves through sessionConfig.
+	echoInterval := session.cfg.keepaliveInterval
 	echoTicker := time.NewTicker(echoInterval)
 	defer echoTicker.Stop()
 
@@ -123,7 +128,8 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 				return
 			}
 			echoFails++
-			if echoFails >= echoMaxFailures {
+			// The session ends on the Nth unanswered request, not the one after.
+			if echoFails >= session.cfg.keepaliveFailures {
 				logger.Warn("pppoe-client: echo timeout", "failures", echoFails)
 				return
 			}

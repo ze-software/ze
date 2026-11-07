@@ -407,12 +407,20 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 
 	// Skip nodes restricted to a different OS via ze:os extension.
 	// The parent records the name, so the parser refuses it as a node of
-	// another OS rather than as an unknown field (os_restricted.go).
+	// another OS rather than as an unknown field (os_restricted.go). It also
+	// keeps the node built, so LookupDeclared can answer what the schema
+	// declares about it, such as its defaults.
 	if requiredOS := getOSExtension(entry); requiredOS != "" && requiredOS != schemaOS {
-		recordOtherOSNode(path, requiredOS)
+		recordOtherOSNode(path, requiredOS, yangToNodeOfAnyOS(entry, path))
 		return nil
 	}
+	return yangToNodeOfAnyOS(entry, path)
+}
 
+// yangToNodeOfAnyOS converts a non-nil YANG entry to a schema node whatever
+// its own ze:os names. A child's ze:os still prunes that child, because the
+// child goes through yangToNode.
+func yangToNodeOfAnyOS(entry *gyang.Entry, path string) Node {
 	// Check for ze:syntax extension in YANG entry
 	syntax := getSyntaxExtension(entry)
 

@@ -39,7 +39,8 @@ interface {
 // startPPPoEConfig delivers operator config through the registered server runner.
 // The caller MUST enter userns first and keep its peer alive until cleanup.
 // Each caller runs in its own child process, isolating plugin-owned globals.
-func startPPPoEConfig(t *testing.T, input string) {
+// The returned server takes a reload through ReloadConfig.
+func startPPPoEConfig(t *testing.T, input string) *pluginserver.Server {
 	t.Helper()
 	if _, _, observed := iface.PPPoEStartupCountsForTest(); observed {
 		t.Fatal("PPPoE startup observer already holds a delivery; use a fresh userns child")
@@ -117,4 +118,5 @@ func startPPPoEConfig(t *testing.T, input string) {
 	if active != 1 {
 		t.Fatalf("reconciler started %d clients, want one", active)
 	}
+	return srv
 }

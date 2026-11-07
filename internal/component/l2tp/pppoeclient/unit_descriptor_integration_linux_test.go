@@ -116,7 +116,7 @@ func TestClientAnswersIPCPOnTheUnitDescriptor(t *testing.T) {
 			t.Errorf("wire peer: %v", err)
 		}
 	})
-	sess, err := (&Dialer{}).Dial(iface.PPPoEClientConfig{SourceInterface: "zec0", MTU: 1492}, ctx.Done(), slog.Default())
+	sess, err := (&Dialer{}).Dial(iface.PPPoEClientConfig{SourceInterface: "zec0", MTU: 1492, Timing: testDialTiming}, ctx.Done(), slog.Default())
 	if err != nil {
 		t.Fatalf("real Dial: %v", err)
 	}

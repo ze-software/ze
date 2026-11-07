@@ -2868,6 +2868,32 @@ The counter `ze_pppoe_client_renegotiations_total` uses the configured client
 so repeated access-network renegotiation remains visible when IPCP cannot finish.
 <!-- source: internal/component/l2tp/pppoeclient/metrics.go -- bindClientMetrics, countRenegotiation -->
 
+Two blocks tune dead-peer detection and the redial hold-off of each client.
+`keepalive interval` (1 to 3600 seconds, default 10) is the time between two
+LCP Echo-Requests, and `keepalive failures` (1 to 255, default 3) ends the
+session on that many unanswered requests in a row; any Echo-Reply resets the
+count. `reconnect delay-min` (1 to 3600 seconds, default 1) is the wait before
+the first redial, doubled for each further failure up to `reconnect delay-max`
+(1 to 3600 seconds, default 60). A session that comes up resets the wait.
+`ze config validate` refuses a value outside its range, and a `delay-max`
+below `delay-min`. A change to these leaves alone keeps the running session:
+the next session and the next wait use the new values. Any other change to the
+client restarts it.
+
+```
+interface {
+    pppoe-client pppoe0 {
+        source-interface eth2;
+        authentication { username user; password secret; }
+        keepalive { interval 5; failures 4; }
+        reconnect { delay-min 5; delay-max 120; }
+    }
+}
+```
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client keepalive, reconnect -->
+<!-- source: internal/component/iface/pppoe_client_timing.go -- PPPoEClientTiming, parsePPPoEClientTiming, reconnectDelay -->
+<!-- source: internal/component/iface/pppoe_client.go -- reconcilePPPoEClients, pppoeClientConfigChanged, setTiming -->
+
 ### Route Priority
 
 The `route-priority` leaf on a unit sets the Linux route metric for default routes

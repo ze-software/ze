@@ -50,7 +50,7 @@ func TestNetworkReceiveFailureDiagnostic(t *testing.T) {
 					initial := sessionResult{reader: reader, localIP: netip.MustParseAddr("192.0.2.2"),
 						peerIP: netip.MustParseAddr("192.0.2.1"), negMTU: 1492}
 					session, err := newConnectedSession(link, initial,
-						sessionConfig{name: "wan-receive", mtu: 1492}, func(ppp.NPMode) error {
+						sessionConfig{name: "wan-receive", mtu: 1492, keepaliveInterval: testKeepaliveInterval, keepaliveFailures: testKeepaliveFailures}, func(ppp.NPMode) error {
 							t.Error("receive failure changed forwarding mode")
 							return nil
 						})

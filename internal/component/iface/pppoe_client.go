@@ -27,12 +27,6 @@ const (
 
 var errStopped = errors.New("pppoe-client: stopped")
 
-// Reconnect backoff constants.
-const (
-	reconnectBaseDelay = 1 * time.Second
-	reconnectMaxDelay  = 60 * time.Second
-)
-
 // PPPoEClientConfig holds the configuration for a PPPoE client session.
 type PPPoEClientConfig struct {
 	Name            string
@@ -49,6 +43,11 @@ type PPPoEClientConfig struct {
 	// concentrator does not land on the metric an operator's static default
 	// occupies.
 	RoutePriority int
+	// Timing is the keepalive and reconnect timing. A reload that changes
+	// only Timing keeps the running session: reconcilePPPoEClients stores the
+	// new value through setTiming, the next Dial and the next redial wait
+	// read it. Readers outside the run goroutine MUST hold mu.
+	Timing PPPoEClientTiming
 }
 
 // pppoeClientStatus is a snapshot of the client state for show commands.
@@ -226,8 +225,14 @@ func (c *PPPoEClient) run() {
 		c.state = sessStateDisconnected
 		c.lastErr = err
 		c.attempts++
-		delay := ReconnectDelay(c.attempts)
+		delay, delayErr := c.cfg.Timing.reconnectDelay(c.attempts)
 		c.mu.Unlock()
+
+		if delayErr != nil {
+			c.logger.Error("pppoe-client: the redial wait is invalid, so the client stops",
+				"error", delayErr, "fix", "correct the reconnect and keepalive values and commit")
+			return
+		}
 
 		c.logger.Info("pppoe-client: session ended, reconnecting",
 			"error", err, "delay", delay, "attempt", c.attempts)
@@ -240,14 +245,12 @@ func (c *PPPoEClient) run() {
 	}
 }
 
-// ReconnectDelay computes exponential backoff clamped to reconnectMaxDelay.
-func ReconnectDelay(attempt int) time.Duration {
-	if attempt <= 0 {
-		return reconnectBaseDelay
-	}
-	shift := min(attempt-1, 6)
-	d := reconnectBaseDelay * time.Duration(1<<uint(shift))
-	return min(d, reconnectMaxDelay)
+// setTiming stores a reloaded timing for the next session and the next redial
+// wait. The running session keeps the keepalive values it was dialed with.
+func (c *PPPoEClient) setTiming(timing PPPoEClientTiming) {
+	c.mu.Lock()
+	c.cfg.Timing = timing
+	c.mu.Unlock()
 }
 
 // runSession executes one complete PPPoE client session: discovery,
@@ -259,21 +262,19 @@ func (c *PPPoEClient) runSession() error {
 	c.pppUnit = -1
 	c.localIP = netip.Addr{}
 	c.peerIP = netip.Addr{}
+	// setTiming writes cfg.Timing from the reconcile goroutine.
+	dialCfg := c.cfg
 	c.mu.Unlock()
 
 	// PPPoE Discovery + LCP + Auth + NCP via the Dialer abstraction.
-	sess, err := c.dialer.Dial(c.cfg, c.stopCh, c.logger)
+	sess, err := c.dialer.Dial(dialCfg, c.stopCh, c.logger)
 	if err != nil {
 		return err
 	}
 	defer sess.Cleanup()
 
-	// The backend names the device by its configured name (plan child-1,
-	// plan/release/fixes/spec-home-cpe-1-logical-interface-name.md). Phase 2
-	// replaces PPPIOCNEWUNIT with an rtnetlink creation that gives the kernel
-	// device this exact name. Until that commit lands the kernel device is
-	// still pppN, so DevPPPSetup refuses this path and runSession never
-	// reaches a real backend call with a configured name.
+	// The dialer creates the kernel device under its configured name through
+	// rtnetlink, so every backend call below addresses the device by that name.
 	ifname := c.cfg.Name
 	mtuApplied := int(sess.NegMTU)
 	if c.cfg.MTU > 0 {
@@ -452,6 +453,11 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b B
 			log.Info("pppoe-client: restarting client (config changed)", "name", name)
 			client.Stop()
 			delete(active, name)
+			continue
+		}
+		if client.cfg.Timing != entry.Timing {
+			log.Info("pppoe-client: keepalive or reconnect changed; the next session uses it", "name", name)
+			client.setTiming(entry.Timing)
 		}
 	}
 
@@ -460,31 +466,35 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b B
 		if _, running := active[name]; running {
 			continue
 		}
-		clientCfg := PPPoEClientConfig{
-			Name:            entry.Name,
-			SourceInterface: entry.SourceInterface,
-			Username:        entry.Username,
-			AuthSecret:      entry.AuthSecret,
-			ServiceName:     entry.ServiceName,
-			ACName:          entry.ACName,
-			NoDefaultRoute:  entry.NoDefaultRoute,
-			MTU:             entry.MTU,
-			RoutePriority:   entry.RoutePriority,
-		}
-		client := NewPPPoEClient(clientCfg, pppoeDialerVar, b, log)
+		client := NewPPPoEClient(pppoeClientConfigFrom(entry), pppoeDialerVar, b, log)
 		client.Start()
 		active[name] = client
 		log.Info("pppoe-client: started client", "name", name, "src-iface", entry.SourceInterface)
 	}
 }
 
+// pppoeClientConfigFrom builds the client config one parsed entry declares.
+func pppoeClientConfigFrom(entry pppoeClientEntry) PPPoEClientConfig {
+	return PPPoEClientConfig{
+		Name:            entry.Name,
+		SourceInterface: entry.SourceInterface,
+		Username:        entry.Username,
+		AuthSecret:      entry.AuthSecret,
+		ServiceName:     entry.ServiceName,
+		ACName:          entry.ACName,
+		NoDefaultRoute:  entry.NoDefaultRoute,
+		MTU:             entry.MTU,
+		RoutePriority:   entry.RoutePriority,
+		Timing:          entry.Timing,
+	}
+}
+
+// pppoeClientConfigChanged reports whether entry needs a restart of the
+// running client. It compares every field but Timing, so a field added to
+// PPPoEClientConfig restarts the client on change with no edit here. Timing
+// alone never restarts: reconcilePPPoEClients hands it to setTiming instead.
 func pppoeClientConfigChanged(running PPPoEClientConfig, entry pppoeClientEntry) bool {
-	return running.SourceInterface != entry.SourceInterface ||
-		running.Username != entry.Username ||
-		running.AuthSecret != entry.AuthSecret ||
-		running.ServiceName != entry.ServiceName ||
-		running.ACName != entry.ACName ||
-		running.NoDefaultRoute != entry.NoDefaultRoute ||
-		running.MTU != entry.MTU ||
-		running.RoutePriority != entry.RoutePriority
+	desired := pppoeClientConfigFrom(entry)
+	desired.Timing = running.Timing
+	return running != desired
 }

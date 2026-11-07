@@ -64,7 +64,7 @@ func TestConnectedChangesReachConsumerNewest(t *testing.T) {
 			UnitNum: 7, SessionID: 42, LocalIP: initial.localIP, PeerIP: initial.peerIP,
 			NegMTU: initial.negMTU, Changes: s.changes, Done: done, Cleanup: func() {},
 		}}
-		c := iface.NewPPPoEClient(iface.PPPoEClientConfig{Name: "wan"}, d, b, logger)
+		c := iface.NewPPPoEClient(iface.PPPoEClientConfig{Name: "wan", Timing: testDialTiming}, d, b, logger)
 		c.Start()
 		// Always release the setup gate before joining the interface worker.
 		defer func() {

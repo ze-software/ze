@@ -7,6 +7,7 @@
 package config
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
 
@@ -67,8 +68,18 @@ func SetSchemaOSForTest(goos string) (restore func()) {
 
 // otherOSNode is one node a schema build pruned for its ze:os.
 type otherOSNode struct {
-	path string // the schema path of the pruned node, as yangToNode received it
+	path  string // the schema path of the pruned node, as yangToNode received it
+	child otherOSChild
+}
+
+// otherOSChild is what a parent records about one child the build pruned for
+// its ze:os: the GOOS that carries it, and the node as this build converts it.
+// The parsers read only os, to refuse the name. LookupDeclared reads node, to
+// answer what the schema declares about it. A child pruned inside that node
+// for its own ze:os is not in node.
+type otherOSChild struct {
 	os   string
+	node Node
 }
 
 var (
@@ -84,10 +95,10 @@ func resetOtherOSNodes() {
 }
 
 // recordOtherOSNode records a node yangToNode pruned because its ze:os names
-// another OS.
-func recordOtherOSNode(path, goos string) {
+// another OS, with the node it converted.
+func recordOtherOSNode(path, goos string, node Node) {
 	otherOSNodesMu.Lock()
-	otherOSNodes = append(otherOSNodes, otherOSNode{path: path, os: goos})
+	otherOSNodes = append(otherOSNodes, otherOSNode{path: path, child: otherOSChild{os: goos, node: node}})
 	otherOSNodesMu.Unlock()
 }
 
@@ -103,40 +114,88 @@ func markOtherOSNodes(schema *Schema) {
 		segments := SplitPath(node.path)
 		name := segments[len(segments)-1]
 		if len(segments) == 1 {
-			schema.root.otherOS = withOtherOS(schema.root.otherOS, name, node.os)
+			schema.root.otherOS = withOtherOS(schema.root.otherOS, name, node.child)
 			continue
 		}
 		switch parent := schema.LookupTokenPath(segments[:len(segments)-1]).(type) {
 		case *ContainerNode:
-			parent.otherOS = withOtherOS(parent.otherOS, name, node.os)
+			parent.otherOS = withOtherOS(parent.otherOS, name, node.child)
 		case *ListNode:
-			parent.otherOS = withOtherOS(parent.otherOS, name, node.os)
+			parent.otherOS = withOtherOS(parent.otherOS, name, node.child)
 		}
 	}
 }
 
-// withOtherOS answers marks with name recorded as carried by goos.
-func withOtherOS(marks map[string]string, name, goos string) map[string]string {
+// withOtherOS answers marks with child recorded under name.
+func withOtherOS(marks map[string]otherOSChild, name string, child otherOSChild) map[string]otherOSChild {
 	if marks == nil {
-		marks = make(map[string]string)
+		marks = make(map[string]otherOSChild)
 	}
-	marks[name] = goos
+	marks[name] = child
 	return marks
 }
 
 // nodeOfAnotherOS answers the refusal for name under parent when the schema
 // pruned it for its ze:os, and nil when parent never had such a child.
 func nodeOfAnotherOS(parent Node, parentName, name string, line int) error {
-	var marks map[string]string
+	var marks map[string]otherOSChild
 	switch p := parent.(type) {
 	case *ContainerNode:
 		marks = p.otherOS
 	case *ListNode:
 		marks = p.otherOS
 	}
-	goos, pruned := marks[name]
+	child, pruned := marks[name]
 	if !pruned {
 		return nil
 	}
+	goos := child.os
 	return &NodeOfAnotherOSError{Line: line, Parent: parentName, Name: name, OS: goos, HostOS: schemaOS}
+}
+
+// LookupDeclared finds a node by path as Lookup does, and also through a node
+// this build pruned for its ze:os. It answers what the schema declares, such
+// as a container's defaults, to code that holds a config of a node another OS
+// carries and needs its declared values whatever host it runs on. The parsers
+// never use it: they still refuse a node of another OS (nodeOfAnotherOS). A
+// node pruned inside a pruned node for its own ze:os is not reachable, and is
+// refused as unknown.
+func (s *Schema) LookupDeclared(path string) (Node, error) {
+	var current Node = s.root
+	for _, part := range SplitPath(path) {
+		child, err := declaredChild(current, part)
+		if err != nil {
+			return nil, err
+		}
+		current = child
+	}
+	return current, nil
+}
+
+// declaredChild answers the child of parent called name: the built child, or
+// the node the build pruned for its ze:os.
+func declaredChild(parent Node, name string) (Node, error) {
+	var child Node
+	var marks map[string]otherOSChild
+	switch p := parent.(type) {
+	case *ContainerNode:
+		child, marks = p.Get(name), p.otherOS
+	case *ListNode:
+		child, marks = p.Get(name), p.otherOS
+	case *LeafNode:
+		return nil, fmt.Errorf("cannot traverse into leaf at: %s", name)
+	default:
+		return nil, fmt.Errorf("unknown node type at: %s", name)
+	}
+	if child != nil {
+		return child, nil
+	}
+	pruned, ok := marks[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown path element: %s", name)
+	}
+	if pruned.node == nil {
+		return nil, fmt.Errorf("unknown path element: %s (it exists only on %s, and this build could not convert it)", name, pruned.os)
+	}
+	return pruned.node, nil
 }
