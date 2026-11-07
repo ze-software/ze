@@ -193,7 +193,7 @@ with RFC 7427.
 | AC-10 | Ze initiator, Ed25519 leaf under a P-256 CA, strongSwan responder with P-256 cert | IKE SA and Child SA established; strongSwan logs an Ed25519 signature verified |
 | AC-11 | strongSwan initiator with an Ed25519 cert, Ze responder | Established; Ze verified EdDSA |
 | AC-12 | Ed448 variant of AC-10 | Established |
-| AC-13 | `docs/guide/ipsec.md` | PKI example uses the YANG leaves that exist; the signature paragraph states Ed25519 and Ed448 sign under RFC 7427 with a peer that announces Identity, and cannot sign for a peer without the notify |
+| AC-13 | `docs/guide/ipsec.md` | PKI example uses the YANG leaves that exist; the signature paragraph states Ed25519 and Ed448 sign under RFC 7427 with a peer that announces Identity, and cannot sign for a peer without the notify. Where it stands: the Ed25519 half is met by `docs/guide/ipsec.md` (an Ed25519 key signs under RFC 7427 only, with pure Ed25519, for a peer that announces Identity; it says Ed448 is not supported yet); the Ed448 half waits on owner decision O-2 |
 | AC-14 | strongSwan initiator with an Ed448 leaf issued by the lab P-256 CA, Ze responder trusting that CA | Ze verifies the chain and the Ed448 AUTH (AlgorithmIdentifier 30 05 06 03 2B 65 71); IKE SA and Child SA established |
 | AC-15 | strongSwan initiator with an Ed448 leaf issued by a CA Ze does not trust | Refused: Ze answers AUTHENTICATION_FAILED, no Child SA is installed, and the log names the peer and the chain failure |
 
@@ -237,8 +237,8 @@ with RFC 7427.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `x509-ed25519-ze-initiator` | `test/interop-ipsec/scenarios/` | strongSwan 6.1.0, P-256 server cert | AC-10, the CPE case | |
-| `x509-ed25519-ze-responder` | same | strongSwan with Ed25519 client cert | AC-11 | |
+| `x509-ed25519-ze-initiator` | `test/interop-ipsec/scenarios/x509-ed25519-ze-initiator/`, checker `checkEd25519ZeSigns` (`internal/le/interoplab/ipsec/checkers.go`) | strongSwan 6.1.0, P-256 server cert | AC-10, the CPE case | written, not run |
+| `x509-ed25519-ze-responder` | `test/interop-ipsec/scenarios/x509-ed25519-ze-responder/`, checker `checkEd25519ZeVerifies` | strongSwan with Ed25519 client cert | AC-11 | written, not run |
 | `x509-ed448-ze-initiator` | same | strongSwan 6.1.0 (OpenSSL Ed448) | AC-12 | |
 | `x509-ed448-ze-responder` | same | strongSwan 6.1.0 initiator, two connections: `trusted` with an Ed448 leaf issued by the lab P-256 CA, `untrusted` with an Ed448 leaf issued by a second CA only strongSwan holds | AC-14 (the trusted connection establishes and ping crosses it), AC-15 (the untrusted one is answered AUTHENTICATION_FAILED and strongSwan logs it) | |
 

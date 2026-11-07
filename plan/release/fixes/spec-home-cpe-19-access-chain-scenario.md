@@ -106,7 +106,7 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 2. The LAC's PPPoE server hands the session to `relaySink.Relay`; the L2TP subsystem opens (or reuses) a tunnel to the LNS remote with the tunnel secret and places an ICRQ.
 3. On ICCN the LAC bridges the PPPoE channel to the PPPoL2TP channel in the kernel.
 4. LCP runs CPE to LNS across the bridge; the LNS challenges with CHAP; `authradius` sends Access-Request to FreeRADIUS.
-5. The Access-Accept's Framed-IP-Address (or the pool) feeds IPCP; the CPE installs the address on its `pppN`.
+5. The Access-Accept's Framed-IP-Address (or the pool) feeds IPCP; the CPE installs the address on its `pppoe0`.
 6. The LNS sends Accounting-Start, interim updates at the configured interval, and Accounting-Stop at teardown; FreeRADIUS writes each to `ze_detail`.
 
 ### Boundaries Crossed
@@ -123,7 +123,7 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers | Yes | the CPE's eth0 holds no address; the ping's route is read from the CPE (`dev pppN`) |
+| No bypassed layers | Yes | the CPE's eth0 holds no address; the ping's route is read from the CPE (`dev pppoe0`) |
 | No unintended coupling | Yes | scenario files and checkers only |
 | No duplicated functionality | Yes | FreeRADIUS image and detail module reused from the subscriber suite |
 | Zero-copy preserved where applicable | N-A | tooling |
@@ -145,7 +145,7 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The relay data path is broken (never proven) | `access-up` red at LCP | that red is the finding: fixed as owed work under completion, journaled to the owning child if it is a separate mechanism |
-| R-2 | The CPE reaches the LNS over eth0 | ping green with the bridge broken | eth0 flushed by the CPE's prestart; checker refuses a route not via `pppN` |
+| R-2 | The CPE reaches the LNS over eth0 | ping green with the bridge broken | eth0 flushed by the CPE's prestart; checker refuses a route not via `pppoe0` |
 | R-3 | A pass rests on one stimulus (trap 5) | every clause satisfied by IPCP alone | each clause reads a different producer: FreeRADIUS detail, CPE address, LNS session table, LAC bridge state |
 
 ## Blast Radius
@@ -171,14 +171,14 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 | AC-1 | CPE dials with no Service-Name | a capture on the LAC's access device holds a PADO whose Service-Name tag has length 0, and a PADS with a non-zero session id |
 | AC-2 | `access-up` running | the LAC holds one L2TP tunnel and one session toward the LNS, and its PPPoE session is bridged (the LAC's session table shows the relay bound) |
 | AC-3 | `access-up` running | FreeRADIUS's log or detail shows Access-Accept for `cpe@lab.example.net` with the NAS-Identifier and source address the LNS configured; the LNS's session table names that user |
-| AC-4 | `access-up` running | the CPE's `pppN` holds 203.0.113.1/32, an address outside the pool, so it came from Framed-IP-Address |
-| AC-5 | `access-up` running | with the CPE's eth0 holding no address, the CPE pings the LNS's PPP-side address with 0% loss, the CPE's route to it is via `pppN`, and the LNS's PPP interface packet counters advance by at least the pings sent |
+| AC-4 | `access-up` running | the CPE's `pppoe0` holds 203.0.113.1/32, an address outside the pool, so it came from Framed-IP-Address |
+| AC-5 | `access-up` running | with the CPE's eth0 holding no address, the CPE pings the LNS's PPP-side address with 0% loss, the CPE's route to it is via `pppoe0`, and the LNS's PPP interface packet counters advance by at least the pings sent |
 | AC-6 | `access-up` after child 13 lands | the CPE's resolver holds the DNS address the LNS sent in IPCP |
-| AC-7 | `access-pool`: second user, Accept without Framed-IP-Address | the CPE's `pppN` holds an address in 100.64.0.0/24 and the LNS pool shows it allocated |
+| AC-7 | `access-pool`: second user, Accept without Framed-IP-Address | the CPE's `pppoe0` holds an address in 100.64.0.0/24 and the LNS pool shows it allocated |
 | AC-8 | `access-accounting`: LNS `acct-interval 60`, the CPE sends a known volume across the session, then the checker tears the session down from the CPE | FreeRADIUS's `ze_detail` holds Start, at least one Interim-Update and Stop with the same Acct-Session-Id; Framed-IP-Address 203.0.113.1 in each; Acct-Input-Octets and Acct-Output-Octets in Stop at least the volume sent |
 | AC-9 | Each scenario's red walk (table below) | the scenario goes red with the named failure; restored, it goes green; both image IDs recorded |
 | AC-10 | `docs/guide/l2tp.md` and the comment of `TestLACChannelBridge` (`internal/component/l2tp/bridge_integration_linux_test.go`) | neither says `l2tp-ppp` or `gokrazy-l2tp-ppp` exercises the LAC bridge; both name `access-up` as the relay data-path proof. This spec owns the correction because it lands before child 14 (umbrella order); child 14 only adds its realm scenarios |
-| AC-11 | `access-up` running, LNS configured `l2tp { mru 1492; authentication { allow [ chap-md5 ] } }` | `ze show l2tp session id <id>` on the LNS carries `mru` 1492 and `auth-method` `chap-md5` (child 16 AC-15 keys); the CPE's `pppN` MTU is 1492; a capture on the core link holds the LNS's LCP Configure-Request with MRU option 1492 |
+| AC-11 | `access-up` running, LNS configured `l2tp { mru 1492; authentication { allow [ chap-md5 ] } }` | `ze show l2tp session id <id>` on the LNS carries `mru` 1492 and `auth-method` `chap-md5` (child 16 AC-15 keys); the CPE's `pppoe0` MTU is 1492; a capture on the core link holds the LNS's LCP Configure-Request with MRU option 1492 |
 | AC-12 | `access-up` running | FreeRADIUS's Access-Request for `cpe@lab.example.net` carries CHAP-Password and no User-Password, so the method the LNS negotiated is the one RADIUS checked. The refusal of a PAP-only client is not asserted here: Ze's `pppoe-client` has no leaf that refuses CHAP (its `authentication` container holds `username` and `password` only), so child 16 proves the refusal with pppd in `pppoe-chap-only-pap-client` and xl2tpd in `l2tp-lns-chap-only-xl2tpd` |
 
 ### Red walks
@@ -199,7 +199,7 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 |------|------|-----------|--------|
 | `TestAccessChainDetailVerdict` | `internal/le/interoplab/topology/check_access_test.go` | the detail-file parser and the AC-8 verdict over recorded fixtures, red and green | |
 | `TestAccessChainPADOVerdict` | `internal/le/interoplab/topology/check_access_test.go` | empty Service-Name tag judged from a capture fixture | |
-| `TestAccessChainRouteVerdict` | `internal/le/interoplab/topology/check_access_test.go` | refuses a route to the LNS not via `pppN` | |
+| `TestAccessChainRouteVerdict` | `internal/le/interoplab/topology/check_access_test.go` | refuses a route to the LNS not via `pppoe0` | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |

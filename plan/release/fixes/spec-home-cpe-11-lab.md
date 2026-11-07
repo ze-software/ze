@@ -42,7 +42,8 @@ walk is recorded then. Clamp-to-PMTU is child 9's own scenario,
 | `conversion` | topology | the converted CPE configuration passes `ze config validate`; Ze starts with it (commit-time verifiers run); every line of the VyOS source appears in the conversion record as mapped or dropped with a reason; the CPE file of every home-CPE lab scenario is that configuration with lab values substituted | 10 |
 | `lan-services` | topology | range lease; both reservations honoured, one per subnet on the one bridge; masquerade to the web server; MSS 1400 written on a SYN carrying more and a smaller MSS left alone; WAN input dropped while the same port answers from the LAN; FTP through NAT via the helper | 2, 21, 3 |
 | `road-warrior` | topology | the committed WireGuard configuration is in the kernel (interface, keys, peers, allowed-ips); wg-client with PSK handshakes with the CPE's WAN address; it reaches a LAN host and the web server, masqueraded | 18, `spec-wireguard-runtime-proof` |
-| `mgmt-tunnel` | topology | Ed25519 authentication (and the P-256 variant); selectors narrowed by strongSwan to `::/0`; IPv6 ping across vti0 with ESP counters read per direction; IKE moved to UDP 4500 by MOBIKE; a CPE booted while DNS is down establishes once DNS answers | 4, 5, 6, 20 |
+| `mgmt-tunnel-ed25519` | topology | the Ed25519 proof: the CPE holds an Ed25519 key and strongSwan logs its Ed25519 verification of the CPE (`TestSwanAuthVerdict`, `TestIssueLabCPEKey`); otherwise the same clauses as `mgmt-tunnel`. Status: written, not run | 4, 5, 6, 20 |
+| `mgmt-tunnel` | topology | the P-256 variant of the CPE's authentication; selectors narrowed by strongSwan to `::/0`; IPv6 ping across vti0 with ESP counters read per direction; IKE moved to UDP 4500 by MOBIKE; a CPE booted while DNS is down establishes once DNS answers | 4, 5, 6, 20 |
 | `access-wholesale` | topology | LAC runs LCP and CHAP and picks the LNS by realm; LNS renegotiates LCP and re-challenges; the CPE comes up | 12, 14, 15 |
 | `access-reconnect` | topology | the LNS drops the session; the CPE reconnects with a new address; the IKE SA follows the new address and masquerade uses it | 4, 18 |
 
@@ -200,7 +201,7 @@ clause is unconditional.
 | AC-6 | `lan-services`, the internet host connects to the CPE's SSH port on 203.0.113.1, and a LAN host to the same port on the CPE's LAN address | the internet attempt gets no answer and the CPE's drop counter for that term advances; the LAN attempt completes the TCP handshake |
 | AC-7 | `lan-services`, FTP from a LAN host through NAT (active mode), with `system conntrack module ftp` in the converted configuration | the data connection completes |
 | AC-8 | `road-warrior` | spec-wireguard-runtime-proof AC-1 (kernel readback of the committed configuration) and AC-2 (handshake with PSK, traffic); wg-client reaches lan-res-a, and the web server sees source 203.0.113.1 for wg-client's fetch |
-| AC-9 | `mgmt-tunnel` | Ze authenticates with an Ed25519 certificate and, in the variant, P-256; the CHILD_SA's selectors are `::/0` both sides; an IPv6 ping across vti0 loses nothing and each direction's SA counters advance on both peers; the IKE SA sits on UDP 4500; with DNS stopped at CPE boot and started later, the SA establishes after DNS answers |
+| AC-9 | `mgmt-tunnel-ed25519` and `mgmt-tunnel` | Ze authenticates with an Ed25519 certificate in `mgmt-tunnel-ed25519` (the Ed25519 proof: strongSwan logs its Ed25519 verification of the CPE, judged by `TestSwanAuthVerdict`) and with P-256 in `mgmt-tunnel` (the P-256 variant); each variant hands the CPE a key of its own algorithm (`TestIssueLabCPEKey`); the CHILD_SA's selectors are `::/0` both sides; an IPv6 ping across vti0 loses nothing and each direction's SA counters advance on both peers; the IKE SA sits on UDP 4500; with DNS stopped at CPE boot and started later, the SA establishes after DNS answers |
 | AC-10 | `access-wholesale` | the LAC completes LCP and CHAP with the CPE, selects the LNS by the realm `lab.example.net`, sends proxy AVPs; the LNS renegotiates LCP and challenges again; the CPE reaches IPCP Opened and pings the LNS |
 | AC-11 | `access-reconnect`, the LNS disconnects the session and RADIUS returns a new address | the CPE comes back with the new address; the IKE SA's local address is the new one and ESP traffic resumes; the web server sees the new address as source |
 | AC-12 | `access-wholesale-accel-lns` (child 12's scenario) | runs with the converted CPE file and is green in the Goal Validation run; its assertions and red walk are child 12's |
@@ -231,6 +232,8 @@ clause is unconditional.
 | `TestLabValueSubstitution` | `internal/le/interoplab/topology/check_conversion_test.go` | placeholders replaced, nothing else changed; an unknown placeholder refused | |
 | `TestMSSVerdict` | `internal/le/interoplab/topology/check_lan_test.go` | AC-5 from capture fixtures: the lowering clause and the no-raise clause judged separately | |
 | `TestReservationVerdict` | `internal/le/interoplab/topology/check_lan_test.go` | AC-3 from lease fixtures | |
+| `TestIssueLabCPEKey` | `internal/le/interoplab/topology/home_lab_test.go` | AC-9: each mgmt-tunnel variant issues the CPE a key of its own algorithm (P-256 or Ed25519) that parses as Ze's pki leaf parses it; a scenario naming no algorithm is refused | written, not run |
+| `TestSwanAuthVerdict` | `internal/le/interoplab/topology/home_lab_test.go` | AC-9: the Ed25519 variant needs strongSwan's Ed25519 verification line for the CPE; the P-256 ECDSA line and another identity's Ed25519 line are refused | written, not run |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -250,7 +253,8 @@ clause is unconditional.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `mgmt-tunnel` | `test/interop-topology/scenarios/mgmt-tunnel/` | strongSwan | IKEv2 EdDSA, narrowed selectors, IPv6 in IPv4 VTI, MOBIKE | |
+| `mgmt-tunnel-ed25519` | `test/interop-topology/scenarios/mgmt-tunnel-ed25519/` | strongSwan | IKEv2 Ed25519 (RFC 8420), narrowed selectors, IPv6 in IPv4 VTI, MOBIKE | written, not run |
+| `mgmt-tunnel` | `test/interop-topology/scenarios/mgmt-tunnel/` | strongSwan | the P-256 variant: IKEv2 ECDSA, narrowed selectors, IPv6 in IPv4 VTI, MOBIKE | written, not run |
 | `road-warrior` | `test/interop-topology/scenarios/road-warrior/` | wireguard-tools | WireGuard with PSK from config commit | |
 | `lan-services` | `test/interop-topology/scenarios/lan-services/` | dhcpcd; the FTP daemon of the web and FTP image | DHCPv4 reservations across subnets; active FTP through masquerade with the helper | |
 | `access-wholesale-accel-lns` | owned by child 12, topology suite | accel-ppp as LNS | LCP renegotiation in Opened against third-party software | |

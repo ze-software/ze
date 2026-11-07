@@ -203,8 +203,8 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `show-interface-pppoe-client` | `test/plugin/show-interface-pppoe-client.ci` (`option=needs-linux`: the dialer is linked only on Linux) | an operator with a `pppoe-client` on a link with no access concentrator runs `show interface pppoe-client` and gets the client's object with `state` `discovery` and `dns-servers` `[]` | |
-| (session up) | - | a `.ci` cannot host an access concentrator, so the populated `dns-servers` is asserted by the `01-pppoe-chap-ipv4` checker, which runs `ze show interface pppoe-client` in the Ze container | |
+| `show-interface-pppoe-client` | drafted at `test/draft/plugin/show-interface-pppoe-client.ci`, promotes to `test/plugin/show-interface-pppoe-client.ci` (`option=needs-linux:caps=net-admin`: the dialer is linked only on Linux); fixture `plugin/show-interface-pppoe-client` (`internal/test/fixture/register_show_interface_pppoe_client.go`) | an operator with a `pppoe-client` on a link with no access concentrator runs `show interface pppoe-client` and gets the client's object with `state` `discovery` and `dns-servers` `[]`. Proves the empty `dns-servers` half of AC-11 only | drafted, not run |
+| (session up) | - | a `.ci` cannot host an access concentrator, so the populated `dns-servers` half is owed in the `01-pppoe-chap-ipv4` checker (`checkZeClient`, `internal/le/interoplab/pppoe/check_client.go`). Today that checker reads only Ze's `resolv.conf` through `checkZeClientCHAP`; it does not run `show interface pppoe-client` | owed, not written |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
