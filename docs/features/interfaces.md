@@ -166,7 +166,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go — CreateTunnel for 8 tunnel kinds via Gretun/Gretap/Iptun/Sittun/Ip6tnl -->
 <!-- source: internal/plugins/iface/netlink/wireguard_linux.go — CreateWireguardDevice (netlink), ConfigureWireguardDevice and GetWireguardDevice (wgctrl) -->
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go — netlink multicast subscription -->
-<!-- source: internal/plugins/iface/netlink/bridge_linux.go — bridge ports, STP via sysfs -->
+<!-- source: internal/plugins/iface/netlink/bridge_linux.go — bridge ports, STP over rtnetlink (IFLA_BR_STP_STATE) -->
 <!-- source: internal/component/sysctl/backend_linux.go -- per-interface sysctl writes -->
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go — traffic mirroring via tc -->
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go — VPP Backend implementation (lazy GoVPP channel) -->
@@ -1303,7 +1303,7 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `ListNeighbors` | real | err (pending ip_neighbor_dump) | err |
 | **Bridge** | `BridgeAddPort` | real | real (SwInterfaceSetL2Bridge) | err |
 | | `BridgeDelPort` | real | real (SwInterfaceSetL2Bridge) | err |
-| | `BridgeSetSTP` | real (sysfs) | err (VPP STP varies by version) | err |
+| | `BridgeSetSTP` | real (rtnetlink IFLA_BR_STP_STATE; works with a read-only /sys) | err (VPP STP varies by version) | err |
 | **Mirror** | `SetupMirror` | real (tc mirred) | real (device SPAN) | err |
 | | `RemoveMirror` | real | real (device SPAN) | err |
 | | `ListMirrors` | real (tc filter dump) | real (SwInterfaceSpanDump) | err |

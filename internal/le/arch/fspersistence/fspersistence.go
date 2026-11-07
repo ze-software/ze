@@ -80,7 +80,6 @@ func exemptionRules() map[string]string {
 // would have passed every one of them.
 var fileAllowlist = map[string]string{
 	// --- kernel / device control interfaces (must stay raw) ---
-	"internal/plugins/iface/netlink/bridge_linux.go":                 "sysfs bridge stp_state write",
 	"internal/plugins/ntp/clock_linux.go":                            "writes the /dev/rtc0 hardware clock",
 	"internal/component/host/tuning_linux.go":                        "sysfs cpu governor + procfs IRQ affinity",
 	"internal/component/iface/offload_linux.go":                      "sysfs/ethtool offload knobs",
