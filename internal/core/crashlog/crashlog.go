@@ -62,6 +62,19 @@ func Init() {
 	})
 }
 
+// initForTest is the body SetCrashDirForTest runs inside initOnce in place of
+// Init's. It sets the state a crash record needs (the start time the report's
+// uptime is measured from, the retention count rotation keeps, the stderr a
+// crash-path diagnostic is written to) and nothing that reaches outside the
+// test: it resolves no crash directory, arms no runtime crash output, dials no
+// syslog, and leaves os.Stderr as it found it. os.Stderr is only read here, so
+// a goroutine that reads it at the same moment does not race with this.
+func initForTest() {
+	startTime = time.Now()
+	origStderr = os.Stderr
+	crashKeep = parseCrashKeep()
+}
+
 // writeMsg writes a message to w, ignoring errors (crash-path output).
 //
 //nolint:errcheck // crash-path and pre-logger startup output

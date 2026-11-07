@@ -116,12 +116,26 @@ func CrashKind(name string) string {
 // a daemon and unreachable for a test in another package: the surfaces that
 // build a listing payload live in internal/plugins/crashes, and they have no way
 // to reach the resolved directory otherwise.
+//
+// The Once that Init resolves the directory in is consumed here first, and on
+// purpose: a later first call to Init from the code under test would otherwise
+// overwrite what this function just set. Consuming it removes an ordering hazard
+// every caller would otherwise have to know about, and turns every later Init in
+// the test binary into a no-op.
+//
+// It consumes the Once with initForTest, never with Init. Init replaces the
+// process-wide os.Stderr with the relay pipe, which is correct as the first call
+// in main and a data race anywhere else: a test binary has already started
+// goroutines (loggers, plugin connections) that read os.Stderr. It also arms the
+// runtime crash output and harvests pending files in the resolved crash
+// directory, which a test has no business touching. No caller of this function
+// reads the relay: they record and list crash files in dir.
+//
+// Not safe for concurrent use with itself or with a reader of the crash
+// directory: it writes package state, so a test that calls it does not run
+// in parallel with another that does.
 func SetCrashDirForTest(dir string) (restore func()) {
-	// Init runs first, and on purpose. It resolves the directory inside a
-	// sync.Once, so a later first call from the code under test would overwrite
-	// what this function just set. Consuming the Once here removes an ordering
-	// hazard every caller would otherwise have to know about.
-	Init()
+	initOnce.Do(initForTest)
 
 	previous := crashDir
 	crashDir = dir
