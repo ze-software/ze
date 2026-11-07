@@ -3090,7 +3090,7 @@ for every suite, so a directory with no declaration is an error.
 | `ze-static-link-chain` | Ze nodes `ze-a`, `ze-b`, `ze-c` on links `a-b` (VLAN 181, `10.181.1.0/24`) and `b-c` (VLAN 182, `10.181.2.0/24`), B forwarding; `outside` on `eth0` alone | each node answers `show interface brief` by name; A pings C through B; `outside` cannot reach a link address |
 | `two-ze-pppoe-link` | a Ze PPPoE client and a Ze PPPoE server on a link with no prefix; an observer on `eth0` alone | the client holds an address from the server's pool on a ppp device (assigned only once IPCP is Opened), the server's kernel PPPoE table holds the session on the link device, and the observer received no untagged PPPoE discovery frame |
 | `pppoe-mss-pmtu` | Ze CPE `ze-cpe` dialing accel-ppp `accel` on link `access` (VLAN 184, no prefix) with MTU 1492; `lan-host` behind Ze on link `lan` (VLAN 185, `10.185.1.0/24`); `server` beyond accel-ppp on link `core` (VLAN 186, `10.186.1.0/24`), capturing SYNs | Ze's `pppoe0` holds an IPCP address and reports MTU 1492, its table lists `tcp option maxseg size set rt mtu`, and the server captures the SYN lan-host offered with MSS 1460 as 1452 and the one offered with 1200 as 1200 |
-| `access-up` | the access chain (below): Ze CPE `ze-cpe`, running the home-CPE lab's converted configuration, on link `access` (VLAN 191, no prefix) and on link `lan` (VLAN 197, no prefix) with `lan-client`, to Ze LAC `ze-lac`, which relays the empty Service-Name over link `core` (VLAN 192, `192.0.2.0/24`) to Ze LNS `ze-lns`, which checks CHAP with `freeradius` on the same link | the LAC's access capture holds a PADO with a zero-length Service-Name and a PADS with a non-zero session; the LAC holds one tunnel to the LNS with one session, the kernel PPPoE session on its access device, and no addressed PPP device; FreeRADIUS logged an Accept for `cpe@lab.example.net` with a CHAP-Password, no User-Password, NAS-Identifier `ze-lns` and NAS-IP-Address and source `192.0.2.3`; the LNS session names the user and holds `203.0.113.1`, its detail reports `mru` 1492 and `auth-method` `chap-md5`, its core capture holds its LCP Configure-Request with MRU 1492; the CPE's `pppoe0` holds `203.0.113.1` with MTU 1492, its resolv.conf lists the two DNS servers IPCP offered, its eth0 holds no address, its route to `100.64.0.1` leaves on `pppoe0`, it pings that address with no loss, and the LNS's PPP device toward the subscriber received at least the pings sent |
+| `access-up` | the access chain (below): Ze CPE `ze-cpe`, running the home-CPE lab's converted configuration, on link `access` (VLAN 191, no prefix) and on link `lan` (VLAN 197, no prefix) with `lan-client`, to Ze LAC `ze-lac`, which relays the empty Service-Name over link `core` (VLAN 192, `192.0.2.0/24`) to Ze LNS `ze-lns`, which checks CHAP with `freeradius` on the same link | the LAC's access capture holds a PADO with a zero-length Service-Name and a PADS with a non-zero session; the LAC holds one tunnel to the LNS with one session, the kernel PPPoE session on its access device, and no addressed PPP device; FreeRADIUS logged an Accept for `cpe@lab.example.net` with a CHAP-Password, no User-Password, NAS-Identifier `ze-lns` and NAS-IP-Address and source `192.0.2.3`; the LNS session names the user and holds `203.0.113.1`, its detail reports `mru` 1492 and `auth-method` `chap-md5`, its core capture holds its LCP Configure-Request with MRU 1492; the CPE's `pppoe0` holds `203.0.113.1` with MTU 1492, its `show interface pppoe-client` reports `pppoe0` up with `dns-servers` `192.0.2.53` then `192.0.2.54`, the two servers the LNS offered in IPCP, while its resolv.conf holds only the converted configuration's static `system name-server 192.0.2.53`, because a static server wins over every learned one, its eth0 holds no address, its route to `100.64.0.1` leaves on `pppoe0`, it pings that address with no loss, and the LNS's PPP device toward the subscriber received at least the pings sent |
 | `access-pool` | the access chain, with FreeRADIUS answering `cpe@lab.example.net` with no Framed-IP-Address | the CPE's `pppoe0` holds an address in `100.64.0.0/24`, the LNS session holds the same one, and `show l2tp pool` reports one address allocated, to that session |
 | `access-accounting` | the access chain, with the LNS's `acct-interval 60` | FreeRADIUS's `ze_detail` holds the session's Start, an Interim-Update and, once the CPE is stopped (its PPPoE client sends PADT), the Stop, all under one Acct-Session-Id and carrying `203.0.113.1`, the Stop counting at least the 20 560 octets a 20-packet ping of 1000-octet payloads carried each way |
 | `access-wholesale` | the access chain with the scenario's own LAC, which relays the realm `lab.example.net` (`relay-realm`) and so hands the LNS the proxy LCP AVPs of RFC 2661 Section 4.4.5, and an LNS set `proxy-lcp renegotiate` | the CPE's `pppoe0` holds `203.0.113.1`; FreeRADIUS logged the LNS's CHAP Accept for `cpe@lab.example.net`; the LNS session detail reports `mru` 1492, `auth-method` `chap-md5` and `proxy-lcp` `renegotiated`; the LNS's core capture holds its own LCP Configure-Request with MRU 1492, which an LNS that accepted the proxy never sends; the subscriber pings across |
@@ -3154,7 +3154,7 @@ kernel, with PPPoE, L2TP and PPPoL2TP (`spec-docker-hosts-run-the-ze-kernel`);
 the core's kernel check refuses another.
 <!-- source: internal/le/interoplab/topology/register_wholesale.go -- wholesaleChain, pppdSubscriber -->
 <!-- source: internal/le/interoplab/topology/register_access_chain.go -- accessChain, dialChain, captureStart -->
-<!-- source: internal/le/interoplab/topology/check_access.go -- checkAccessUp, checkAccessPool, checkAccessAccounting -->
+<!-- source: internal/le/interoplab/topology/check_access.go -- checkAccessUp, checkAccessPool, checkAccessAccounting, waitResolvers -->
 <!-- source: internal/le/interoplab/topology/register_images.go -- freeRADIUSLinkImage -->
 
 `./le test integration interop-topology` runs every scenario;
@@ -3162,8 +3162,12 @@ the core's kernel check refuses another.
 `TOPOLOGY_INTEROP_SCENARIO=<name>`, runs one. A checker that asks a Ze
 node's CLI does so through `interoplab.ZeCLICommand`, the same argv the IPsec
 lab sends, and that node's configuration serves the SSH account on
-`127.0.0.1` port 2222. The access chain's checkers read each Ze node through
-its REST surface instead (`POST /api/v1/execute` on `127.0.0.1` port 17012,
+`127.0.0.1` port 2222. A node whose configuration is not the lab's own names
+its account with `interoplab.ZeCLICommandAs`: the home CPE's converted
+configuration serves user `admin` on port 22, its password read from
+`test/interop-topology/cpe/lab-values`, and `access-up` asks it
+`show interface pppoe-client` that way. The access chain's checkers read the
+LAC and the LNS through their REST surface instead (`POST /api/v1/execute` on `127.0.0.1` port 17012,
 the `api-server` block its configurations carry), which answers the
 `show l2tp` commands as JSON.
 
@@ -3181,7 +3185,7 @@ environment.
 <!-- source: internal/le/interoplab/topology/topology.go -- node, scenario, RunAt, scenarioPlan, zeNode -->
 <!-- source: internal/le/interoplab/topology/register_catalog.go -- scenarioDirectory, selectorVariable -->
 <!-- source: internal/le/interoplab/imageregistry.go -- RegisterImage, SuiteImages, ResolveImages -->
-<!-- source: internal/le/interoplab/zecli.go -- ZeCLICommand -->
+<!-- source: internal/le/interoplab/zecli.go -- ZeCLICommand, ZeCLICommandAs, ZeCLILogin -->
 <!-- source: internal/le/test/integration/gates.go -- interop-topology verb -->
 
 ### Typed checker operations

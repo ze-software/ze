@@ -42,9 +42,14 @@ const (
 	poolNetwork       = "100.64.0.0/24"
 	dnsPrimary        = "192.0.2.53"
 	dnsSecondary      = "192.0.2.54"
-	subscriberUser    = "cpe@lab.example.net"
-	lnsNASIdentifier  = "ze-lns"
-	sessionMRU        = 1492
+	// cpeStaticNameServer is the converted ze-cpe.conf's `system name-server`
+	// (VyOS `set system name-server`). It is also the LNS's primary, so the
+	// learned secondary alone tells a resolv.conf that kept static precedence
+	// from one that merged the IPCP servers in.
+	cpeStaticNameServer = "192.0.2.53"
+	subscriberUser      = "cpe@lab.example.net"
+	lnsNASIdentifier    = "ze-lns"
+	sessionMRU          = 1492
 	// cpeDevice is the logical name the converted ze-cpe.conf gives its
 	// PPPoE client.
 	cpeDevice = "pppoe0"

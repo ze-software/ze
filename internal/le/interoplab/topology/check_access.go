@@ -11,6 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -320,17 +322,79 @@ func checkNegotiated(ctx context.Context, check *interoplab.CheckContext, sessio
 	return lcpMRUVerdict(frames, netip.MustParseAddr(lnsCoreAddress), sessionMRU)
 }
 
-// waitResolvers judges AC-6: Ze's resolv.conf on the CPE lists the two DNS
-// servers the LNS pool offers in IPCP (RFC 1877), primary first. The CPE has
-// no static name server, so IPCP is the only source of these lines.
-func waitResolvers(ctx context.Context, check *interoplab.CheckContext) error {
-	resolv, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: 20 * time.Second, Interval: time.Second, Description: "ze-cpe's resolv.conf listing the IPCP DNS servers",
-	}, func(probe context.Context) (string, error) {
-		return check.Lab.Query(probe, nodeCPE, []string{commandCat, "/tmp/resolv.conf"}, nil)
-	}, func(text string) bool { return text == resolvConfWant })
+// The CLI account the converted ze-cpe.conf declares (`system authentication
+// user admin`, `environment ssh server main` on `::` port 22, which answers
+// the loopback too), and the lab-values name its password placeholder reads.
+// cpeCLIStore is the account's own client store: the lab's fixture account
+// (interoplab.ZeCLIStore) does not exist on the CPE.
+const (
+	cpeCLIUser          = "admin"
+	cpeCLIPasswordValue = "user-admin-password"
+	cpeCLIPort          = "22"
+	cpeCLIStore         = "/tmp/ze-cli-store-admin"
+)
+
+// cpeCLILogin answers the CPE's CLI account, its password read from the
+// lab-values file under root that the prepare step rendered into ze-cpe.conf.
+func cpeCLILogin(root string) (interoplab.ZeCLILogin, error) {
+	if root == "" {
+		return interoplab.ZeCLILogin{}, errors.New("reading ze-cpe's CLI password needs the checkout's lab-values; the caller declared no checkout")
+	}
+	listed, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(cpeDirectory), cpeLabValuesFile)) //nolint:gosec // the checkout root joined with fixed names
 	if err != nil {
-		return fmt.Errorf("ze-cpe's /tmp/resolv.conf never read %q (last %q): %w", resolvConfWant, resolv, err)
+		return interoplab.ZeCLILogin{}, fmt.Errorf("read the lab values for ze-cpe's CLI password: %w", err)
+	}
+	values, err := parseLabValues(string(listed))
+	if err != nil {
+		return interoplab.ZeCLILogin{}, err
+	}
+	password, found := values[cpeCLIPasswordValue]
+	if !found {
+		return interoplab.ZeCLILogin{}, fmt.Errorf("%s/%s lists no %s, the password ze-cpe.conf gives user %s; add it", cpeDirectory, cpeLabValuesFile, cpeCLIPasswordValue, cpeCLIUser)
+	}
+	return interoplab.ZeCLILogin{User: cpeCLIUser, Password: password, Port: cpeCLIPort, Store: cpeCLIStore}, nil
+}
+
+// waitResolvers judges AC-6 in two clauses, each from its own producer.
+// First the CPE's PPPoE client reports, in `show interface pppoe-client`,
+// that it is up on pppoe0 with the two servers the LNS pool offered in IPCP
+// (RFC 1877), primary first: only an IPCP exchange that requested them puts
+// them there. Then resolv.conf holds the converted configuration's static
+// `system name-server` alone, because static servers win over every learned
+// one (child 13, RFC 3646 Section 6 precedent): the learned secondary
+// 192.0.2.54 in the file would mean the precedence broke. The client reports
+// up only after it handed the servers to resolv.conf's writer, so the file
+// read after the first clause already reflects the lease.
+func waitResolvers(ctx context.Context, check *interoplab.CheckContext) error {
+	login, err := cpeCLILogin(check.Checkout)
+	if err != nil {
+		return err
+	}
+	var verdict error
+	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: 20 * time.Second, Interval: time.Second, Description: "ze-cpe's show interface pppoe-client listing the IPCP DNS servers",
+	}, func(probe context.Context) ([]pppoeClientStatus, error) {
+		answer, err := check.Lab.Query(probe, nodeCPE, interoplab.ZeCLICommandAs(login, "show interface pppoe-client | json"), nil)
+		if err != nil {
+			return nil, err
+		}
+		return parsePPPoEClients(answer)
+	}, func(clients []pppoeClientStatus) bool {
+		verdict = learnedDNSVerdict(clients, cpeDevice, []string{dnsPrimary, dnsSecondary})
+		return !errors.Is(verdict, errDNSNotLearned)
+	})
+	if err != nil {
+		return waitFailure("ze-cpe's PPPoE client never reported the IPCP DNS servers", verdict, err)
+	}
+	if verdict != nil {
+		return fmt.Errorf("ze-cpe: %w", verdict)
+	}
+	resolv, err := check.Lab.Query(ctx, nodeCPE, []string{commandCat, "/tmp/resolv.conf"}, nil)
+	if err != nil {
+		return fmt.Errorf("read ze-cpe's /tmp/resolv.conf: %w", err)
+	}
+	if err := resolvConfVerdict(resolv, []string{cpeStaticNameServer}); err != nil {
+		return fmt.Errorf("ze-cpe's /tmp/resolv.conf: %w", err)
 	}
 	return nil
 }
