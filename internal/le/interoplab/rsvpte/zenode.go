@@ -2,10 +2,12 @@
 // Related: rsvpte.go -- zePeer and freeRtrPeer, which run the commands built here
 //
 // zenode.go builds the commands each lab container runs before its daemon
-// starts. A Ze node writes the MPLS sysctls every Ze node needs, creates the
-// VLANs and adds the routes its scenario declares in <role>-net.txt, then execs
-// ze. A freeRouter node joins eth0 to the jar through rawInt.bin. The commands
-// are built here, from typed values, so no scenario carries a shell script.
+// starts. A Ze node writes the MPLS sysctls every Ze node needs, on eth0 and
+// on each device of the links its scenario declares (labLinks, built by the
+// core's start wrapper before this script runs), adds the routes its
+// <role>-net.txt declares, then execs ze. A freeRouter node joins eth0 to the
+// jar through rawInt.bin. The commands are built here, from typed values, so
+// no scenario carries a shell script.
 
 package rsvpte
 
@@ -15,7 +17,6 @@ import (
 	"io/fs"
 	"net/netip"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -24,32 +25,17 @@ import (
 const (
 	// zeNodeInterface is the container's link on the lab segment.
 	zeNodeInterface = "eth0"
-	// vlanNameOctetsMax is IFNAMSIZ less its terminating NUL: Linux refuses a
-	// longer interface name.
-	vlanNameOctetsMax = 15
-	// vlanIDMax is the largest VLAN ID 802.1Q leaves usable; 0 and 4095 are reserved.
-	vlanIDMax = 4094
 
-	// The two line forms of <role>-net.txt, by first word and full shape.
-	netLineVLAN  = "vlan"
+	// The one line form of <role>-net.txt, by first word and full shape.
 	netLineRoute = "route"
-	vlanUsage    = "want vlan <name> id <1-4094> address <address/length>"
 	routeUsage   = "want route <prefix> via <gateway>"
 )
 
 // zeNodeNet is what a Ze node's optional <role>-net.txt declares beyond the
-// sysctls every Ze node writes: the VLANs it creates on eth0 and the routes it
-// adds. A missing file declares neither.
+// sysctls every Ze node writes: the routes it adds. A missing file declares
+// none.
 type zeNodeNet struct {
-	vlans  []zeVLAN
 	routes []zeRoute
-}
-
-// zeVLAN is one 802.1Q link on eth0 with the one address the node holds on it.
-type zeVLAN struct {
-	name    string
-	id      uint16
-	address netip.Prefix
 }
 
 // zeRoute is one static route the node adds on eth0 before its daemon starts.
@@ -58,14 +44,14 @@ type zeRoute struct {
 	gateway netip.Addr
 }
 
-// readZeNodeNet reads a Ze role's <role>-net.txt. Each line is one of
+// readZeNodeNet reads a Ze role's <role>-net.txt. Each line is
 //
-//	vlan <name> id <1-4094> address <address/length>
 //	route <prefix> via <gateway>
 //
 // with `#` comments and blank lines skipped. A missing file declares nothing;
 // any other line refuses the plan, so a typo cannot run a scenario without the
-// route or VLAN it depends on.
+// route it depends on. A VLAN is a link of the scenario (labLinks), never a
+// line here.
 func readZeNodeNet(path string) (zeNodeNet, error) {
 	content, err := os.ReadFile(path) //nolint:gosec // a scenario file in the checkout under test
 	if errors.Is(err, fs.ErrNotExist) {
@@ -90,57 +76,18 @@ func readZeNodeNet(path string) (zeNodeNet, error) {
 	return network, nil
 }
 
-// add appends the VLAN or route one line declares.
+// add appends the route one line declares.
 func (n *zeNodeNet) add(fields []string) error {
-	switch fields[0] {
-	case netLineVLAN:
-		vlan, err := parseZeVLAN(fields[1:])
-		if err != nil {
-			return err
-		}
-		n.vlans = append(n.vlans, vlan)
-		return nil
-	case netLineRoute:
-		route, err := parseZeRoute(fields[1:])
-		if err != nil {
-			return err
-		}
-		n.routes = append(n.routes, route)
-		return nil
+	if fields[0] != netLineRoute {
+		return errors.New("the first word must be " + netLineRoute +
+			"; declare a VLAN as one of the scenario's links in labLinks (internal/le/interoplab/rsvpte/rsvpte.go)")
 	}
-	return errors.New("the first word must be " + netLineVLAN + " or " + netLineRoute)
-}
-
-// parseZeVLAN reads `<name> id <1-4094> address <address/length>`.
-func parseZeVLAN(fields []string) (zeVLAN, error) {
-	if len(fields) != 5 {
-		return zeVLAN{}, errors.New(vlanUsage)
-	}
-	if fields[1] != "id" {
-		return zeVLAN{}, errors.New(vlanUsage)
-	}
-	if fields[3] != "address" {
-		return zeVLAN{}, errors.New(vlanUsage)
-	}
-	name := fields[0]
-	if !validLinkName(name) {
-		return zeVLAN{}, fmt.Errorf("VLAN name %q must be 1 to %d lowercase letters and digits", name, vlanNameOctetsMax)
-	}
-	id, err := strconv.ParseUint(fields[2], 10, 16)
+	route, err := parseZeRoute(fields[1:])
 	if err != nil {
-		return zeVLAN{}, fmt.Errorf("VLAN id %q: %w", fields[2], err)
+		return err
 	}
-	if id == 0 {
-		return zeVLAN{}, fmt.Errorf("VLAN id %d is reserved: use 1 to %d", id, vlanIDMax)
-	}
-	if id > vlanIDMax {
-		return zeVLAN{}, fmt.Errorf("VLAN id %d is above %d", id, vlanIDMax)
-	}
-	address, err := netip.ParsePrefix(fields[4])
-	if err != nil {
-		return zeVLAN{}, fmt.Errorf("VLAN address: %w", err)
-	}
-	return zeVLAN{name: name, id: uint16(id), address: address}, nil
+	n.routes = append(n.routes, route)
+	return nil
 }
 
 // parseZeRoute reads `<prefix> via <gateway>`.
@@ -165,57 +112,29 @@ func parseZeRoute(fields []string) (zeRoute, error) {
 	return zeRoute{prefix: prefix, gateway: gateway}, nil
 }
 
-// validLinkName answers whether name is a usable interface name made of
-// lowercase letters and digits, so it is one shell word without quoting.
-func validLinkName(name string) bool {
-	if name == "" {
-		return false
-	}
-	if len(name) > vlanNameOctetsMax {
-		return false
-	}
-	for _, c := range name {
-		if !isLowerAlnum(c) {
-			return false
-		}
-	}
-	return true
-}
-
-func isLowerAlnum(c rune) bool {
-	if c >= 'a' && c <= 'z' {
-		return true
-	}
-	return c >= '0' && c <= '9'
-}
-
 // zeNodeSysctls answers every key=value a Ze node writes: MPLS label space,
-// MPLS input on eth0 and on each VLAN, and IPv4 forwarding. The privilege test
-// checks each key against the profile the node runs under.
-func zeNodeSysctls(vlans []zeVLAN) []string {
-	sysctls := make([]string, 0, 3+len(vlans))
+// MPLS input on eth0 and on each of its link devices, and IPv4 forwarding.
+// The privilege test checks each key against the profile the node runs under.
+func zeNodeSysctls(devices []string) []string {
+	sysctls := make([]string, 0, 3+len(devices))
 	sysctls = append(sysctls, "net.mpls.platform_labels=1048575", "net.mpls.conf."+zeNodeInterface+".input=1")
-	for _, vlan := range vlans {
-		sysctls = append(sysctls, "net.mpls.conf."+vlan.name+".input=1")
+	for _, device := range devices {
+		sysctls = append(sysctls, "net.mpls.conf."+device+".input=1")
 	}
 	return append(sysctls, "net.ipv4.ip_forward=1")
 }
 
 // zeNodeScript is the shell a Ze node's container runs: start the capture,
-// create each VLAN, write the sysctls (after the VLANs, whose MPLS input they
-// name), add the routes, then exec the daemon. One command per line, so the
-// privilege test reads each sysctl write on its own.
-func zeNodeScript(network zeNodeNet) string {
+// write the sysctls, add the routes, then exec the daemon. devices are the
+// node's link devices, which the core's start wrapper has built before this
+// script runs, so the sysctl naming their MPLS input finds them. One command
+// per line, so the privilege test reads each sysctl write on its own.
+func zeNodeScript(network zeNodeNet, devices []string) string {
 	var tb textbuf.Buffer
 	tb.Str("mkdir -p /run/fr\n")
 	tb.Str("tcpdump -i eth0 -nn -l -vvv 'ip proto 46 or mpls' > ").Str(captureFile).Str(" 2> /run/fr/tcpdump.err &\n")
 	tb.Str("set -eu\n")
-	for _, vlan := range network.vlans {
-		tb.Str("ip link add link ").Str(zeNodeInterface).Str(" name ").Str(vlan.name).Str(" type vlan id ").Int(int64(vlan.id)).Byte('\n')
-		tb.Str("ip addr add ").Str(vlan.address.String()).Str(" dev ").Str(vlan.name).Byte('\n')
-		tb.Str("ip link set ").Str(vlan.name).Str(" up\n")
-	}
-	tb.Str("sysctl -w ").Str(strings.Join(zeNodeSysctls(network.vlans), " ")).Byte('\n')
+	tb.Str("sysctl -w ").Str(strings.Join(zeNodeSysctls(devices), " ")).Byte('\n')
 	for _, route := range network.routes {
 		tb.Str("ip route add ").Str(route.prefix.String()).Str(" via ").Str(route.gateway.String()).Str(" dev ").Str(zeNodeInterface).Byte('\n')
 	}

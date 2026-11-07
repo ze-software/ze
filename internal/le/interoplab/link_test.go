@@ -203,3 +203,142 @@ func TestLinkToolRefusalNamesTheDockerfile(t *testing.T) {
 }
 
 var errExample = errors.New("exit status 127")
+
+// VALIDATES: a link may have one member when a planned peer that is not a
+// member terminates it in its own stack (External), and is refused when that
+// end is missing, not planned, also a member, or the only end. The external
+// end joins no wrapper and holds nothing on the link.
+// Method: one declaration per refusal, one accepted declaration, and the
+// memberships of both ends of the accepted one.
+// PREVENTS: a one-sided link to freeRouter refused as having fewer than two
+// members, and an external end that silently gets a device it never reads.
+func TestLinkExternalEnd(t *testing.T) {
+	v4 := netip.MustParsePrefix("10.0.14.0/24")
+	for _, tc := range []struct {
+		name string
+		link Link
+		want string
+	}{
+		{"one member, no external end", Link{Name: "l", VLAN: 100, Members: []string{"a"}}, "fewer than two members"},
+		{"external end not planned", Link{Name: "l", VLAN: 100, Members: []string{"a"}, External: "ghost"},
+			"names ghost as its external end, and the scenario does not plan that peer"},
+		{"external end also a member", Link{Name: "l", VLAN: 100, Members: []string{"a", "b"}, External: "b"},
+			"names b both as a member and as its external end"},
+		{"external end alone", Link{Name: "l", VLAN: 100, External: "b"}, "has an external end and no member"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateLinks("fixture", []Link{tc.link}, linkPeers())
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %v, want it to contain %q", err, tc.want)
+			}
+		})
+	}
+	links := []Link{{Name: "protected", VLAN: 100, IPv4: v4, Members: []string{"a"}, External: "b"}}
+	if err := ValidateLinks("fixture", links, linkPeers()); err != nil {
+		t.Fatal(err)
+	}
+	want := []LinkMembership{{Link: "protected", Device: "eth1", IPv4: netip.MustParseAddr("10.0.14.2")}}
+	if got := LinkMemberships(links, "a", 2); !slices.Equal(got, want) {
+		t.Fatalf("member's memberships = %+v, want %+v", got, want)
+	}
+	if got := LinkMemberships(links, "b", 3); len(got) != 0 {
+		t.Fatalf("the external end holds %+v, want nothing", got)
+	}
+}
+
+// VALIDATES: Devices gives a member the device name a file outside the
+// harness already names, on that link only; the member's other links keep
+// eth<N> numbered with no gap, and the rendered script builds the named
+// device with the link's VLAN and the member's address.
+// Method: member a joins three links, the second under the name prot0, and
+// read its memberships and script.
+// PREVENTS: a checker or daemon configuration naming a device the harness
+// built under another name, and an override that shifts or collides with
+// the numbered devices.
+func TestLinkDeviceNames(t *testing.T) {
+	links := []Link{
+		{Name: "lan", VLAN: 10, Members: []string{"a", "b"}},
+		{Name: "protected", VLAN: 100, IPv4: netip.MustParsePrefix("10.0.14.0/24"), Members: []string{"a", "b"},
+			Devices: map[string]string{"a": "prot0"}},
+		{Name: "core", VLAN: 20, Members: []string{"a", "b"}},
+	}
+	if err := ValidateLinks("fixture", links, linkPeers()); err != nil {
+		t.Fatal(err)
+	}
+	memberships := LinkMemberships(links, "a", 2)
+	want := []LinkMembership{
+		{Link: "lan", Device: "eth1"},
+		{Link: "protected", Device: "prot0", IPv4: netip.MustParseAddr("10.0.14.2")},
+		{Link: "core", Device: "eth2"},
+	}
+	if !slices.Equal(memberships, want) {
+		t.Fatalf("a's memberships = %+v, want %+v", memberships, want)
+	}
+	if got := LinkMemberships(links, "b", 3); len(got) != 3 || got[1].Device != "eth2" {
+		t.Fatalf("b's memberships = %+v, want the protected link as its own eth2", got)
+	}
+	script := linkScript(links, memberships)
+	wantProtected := "ip link add link eth0 name prot0 type vlan id 100\n" +
+		"ip address add 10.0.14.2/24 dev prot0\n" +
+		"ip link set prot0 up\n"
+	if !strings.Contains(script, wantProtected) {
+		t.Fatalf("script =\n%s\nwant it to build\n%s", script, wantProtected)
+	}
+}
+
+// VALIDATES: ValidateLinks refuses every device name a member cannot hold:
+// one for a peer that is not a member, a name Linux or the shell refuses, a
+// name the harness numbers or the container holds, and a name the member
+// holds on another link; and accepts the boundary names.
+// Method: one declaration per refusal, then one per accepted name.
+// PREVENTS: a container whose wrapper fails at `ip link add`, a name the
+// shell splits, and two links of one member built as one device.
+func TestLinkDeviceNameRefusals(t *testing.T) {
+	both := []string{"a", "b"}
+	named := func(device string) []Link {
+		return []Link{{Name: "l", VLAN: 101, Members: both, Devices: map[string]string{"a": device}}}
+	}
+	for _, tc := range []struct {
+		name  string
+		links []Link
+		want  string
+	}{
+		{"not a member", []Link{{Name: "l", VLAN: 101, Members: both, Devices: map[string]string{"far": "prot0"}}},
+			"names device prot0 for far, which is not a member"},
+		{"empty", named(""), "a device name is 1 to 15 lowercase letters and digits"},
+		{"sixteen octets", named("abcdefghijklmnop"), "a device name is 1 to 15 lowercase letters and digits"},
+		{"uppercase", named("Prot0"), "a device name is 1 to 15 lowercase letters and digits"},
+		{"shell word", named("prot0;reboot"), "a device name is 1 to 15 lowercase letters and digits"},
+		{"eth0", named("eth0"), "eth<N> is the name the harness numbers"},
+		{"eth3", named("eth3"), "eth<N> is the name the harness numbers"},
+		{"loopback", named("lo"), "every container holds lo already"},
+		{"twice on one member", []Link{
+			{Name: "l", VLAN: 101, Members: both, Devices: map[string]string{"a": "prot0"}},
+			{Name: "m", VLAN: 102, Members: both, Devices: map[string]string{"a": "prot0"}},
+		}, "names device prot0 for a, which a holds on link l already"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateLinks("fixture", tc.links, linkPeers())
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %v, want it to contain %q", err, tc.want)
+			}
+			if !strings.HasPrefix(err.Error(), "fixture's link ") {
+				t.Fatalf("error = %v, want it to name the scenario and the link", err)
+			}
+		})
+	}
+	for _, device := range []string{"p", "abcdefghijklmno", "eth", "ethx1", "prot0"} {
+		t.Run("accepts "+device, func(t *testing.T) {
+			if err := ValidateLinks("fixture", named(device), linkPeers()); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	twoMembers := []Link{
+		{Name: "l", VLAN: 101, Members: both, Devices: map[string]string{"a": "prot0"}},
+		{Name: "m", VLAN: 102, Members: both, Devices: map[string]string{"b": "prot0"}},
+	}
+	if err := ValidateLinks("fixture", twoMembers, linkPeers()); err != nil {
+		t.Fatalf("one name on two members' own containers: %v", err)
+	}
+}

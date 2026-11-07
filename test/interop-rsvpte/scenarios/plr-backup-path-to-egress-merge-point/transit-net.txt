@@ -1,5 +1,0 @@
-# Ze PLR (transit.conf) for plr-backup-path-to-egress-merge-point. prot0 is the
-# protected link, VLAN 100 to the freeRouter egress (10.0.14.14). The bypass
-# runs untagged through the freeRouter relay to the same egress, which is the
-# merge point. The checker takes prot0 down to trigger local repair.
-vlan prot0 id 100 address 10.0.14.3/24

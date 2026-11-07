@@ -1487,7 +1487,16 @@ needs. A member reaches its Nth link as `eth<N>`, N its ordinal among the
 links it joins in declaration order, at its host number on each prefix (the
 IPv6 address `nodad`), and the scenario's files name those devices and
 addresses. A checker reads them from `CheckContext.Member` rather than from a
-literal.
+literal. Two fields cover an end the harness does not number. `Devices` gives
+a member, on that link only, the device name a file the harness does not
+write already names (a daemon configuration, a checker that takes the device
+down); the member's other links keep `eth<N>`, numbered with no gap.
+`External` names a planned peer that terminates the link in its own stack on
+no device the harness builds, as freeRouter does: `rawInt.bin` hands every
+frame of its container's `eth0`, tagged ones included, to the jar, whose own
+configuration holds the VLAN subinterface and its address. The external end
+joins no wrapper and holds no membership, so a link with one needs only one
+member.
 
 `runScenario` builds one start wrapper per peer that joins a link or carries a
 `PeerConfig.Prestart`: the links first, then the prestart (the BGP suite's
@@ -1497,18 +1506,22 @@ image (`docker image inspect`), in exec form or shell form. The daemon's first
 hello therefore already goes out on its links. Before any container starts,
 the scenario is refused when a link cannot be built as declared: a VLAN
 outside 1 to 4094 or used twice, an IPv4 prefix longer than /24, an IPv6
-prefix that is not a /64, fewer than two members, a member named twice, or a
-member the scenario does not plan, because that link would carry nothing and
+prefix that is not a /64, fewer than two ends (an external end counts), a
+member named twice, a member or external end the scenario does not plan, an
+external end that is also a member, or a device name a member cannot hold
+(one for a peer that is not a member, anything but 1 to 15 lowercase letters
+and digits, `eth<N>`, `lo`, or a name the member already holds on another
+link), because that link would carry nothing and
 the checker would read a silent lab as the daemon's fault. Each refusal names
 the link, the fault and the fix. A member's image is probed once for `sh` and
 `ip`, and an image lacking either is refused naming its Dockerfile. A scenario
 with no links runs every daemon on `eth0` alone.
-<!-- source: internal/le/interoplab/link.go -- Link, LinkMembership, ValidateLinks, validateLink, LinkMemberships, linkScript, parseImageStart, ComposeStart, wrapStart, linkToolRefusal -->
+<!-- source: internal/le/interoplab/link.go -- Link, LinkMembership, ValidateLinks, validateLink, validateLinkExternal, validateLinkDevices, LinkMemberships, linkScript, parseImageStart, ComposeStart, wrapStart, linkToolRefusal -->
 <!-- source: internal/le/interoplab/lab.go -- ScenarioPlan, CheckContext.Member, runScenario, wrapStarts -->
 <!-- source: internal/le/interoplab/docker.go -- PeerConfig, ImageStart, probeLinkTools -->
 <!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, linkDeclarations, linkLocalPrestart -->
 
-`isis-import-policy-frr` is the one user: FRR-A (`frr`) meets Ze on VLAN 101
+`isis-import-policy-frr` declares two links: FRR-A (`frr`) meets Ze on VLAN 101
 (`10.101.0.0/24`, Ze's `eth1`) and FRR-B (`frr-sink`) on VLAN 102
 (`10.102.0.0/24`, Ze's `eth2`). FRR-A originates the hidden prefix
 10.77.1.0/24 and the control 10.77.2.0/24; Ze's `isis filter import` rejects
@@ -2918,14 +2931,23 @@ and MAC: its container command (`freeRtrScript`) makes the container's `eth0`
 promiscuous and joins it to the jar through the upstream `rawInt.bin`, so the
 suite needs Docker alone, never host root, a TAP device or a network namespace,
 and no container runs privileged: a freeRouter holds `NET_ADMIN` and `NET_RAW`.
-A Ze node holds `NET_ADMIN` to program MPLS labels and VLANs. Its container
-command (`zeNodeScript`) creates the VLANs and adds the routes the role's
-optional `<role>-net.txt` declares, one `vlan <name> id <1-4094> address
-<address/length>` or `route <prefix> via <gateway>` per line, and a line of any
-other shape refuses the run. The command writes its MPLS sysctls at run time
-(one names a VLAN it creates first), so it runs under `ze-lab-net-sysctl` with
-`/proc/sys` writable. No scenario carries a shell script: the commands are
-built in Go from those typed lines. The preflight
+A Ze node holds `NET_ADMIN` to program MPLS labels and VLANs. A VLAN is a link
+of the shared core ("Separate links between daemons"): `labLinks` holds each
+scenario's `interoplab.Link` declarations, and the core's start wrapper builds
+a member's devices before its container command runs. The one user is
+`plr-backup-path-to-egress-merge-point`, whose protected link is VLAN 100 on
+`10.0.14.0/24` with the Ze PLR (`transit`, host 3, so `10.0.14.3`) as its one
+member under the device name `prot0` (`Devices`), because `transit.conf` and
+the checker name it, and the freeRouter egress as its `External` end: the
+egress's `rtr-sw.txt` holds `interface ethernet1.100` at `10.0.14.14`, reached
+over `rawInt.bin`, so its container gets no device. The node's container
+command (`zeNodeScript`) adds the routes the role's optional
+`<role>-net.txt` declares, one `route <prefix> via <gateway>` per line, and a
+line of any other shape, a `vlan` line included, refuses the run. The command
+writes its MPLS sysctls at run time, input on `eth0` and on each link device
+the wrapper built (`linkDevices`, from `interoplab.LinkMemberships`), so it
+runs under `ze-lab-net-sysctl` with `/proc/sys` writable. No scenario carries
+a shell script: the commands are built in Go from typed declarations. The preflight
 reads `/proc/sys/net/mpls/platform_labels` with no grant, loads no module, and
 refuses a host kernel without MPLS routing with the host command that loads it.
 
@@ -2991,7 +3013,7 @@ sends both objects (`buildPathErr`, `buildReservationControl`), so both
 scenarios pass against the unpatched image. Before Ze carried them, freeRouter's
 capture held Ze's message and freeRouter never relayed it.
 
-<!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- the suite, its topology and its MPLS preflight -->
+<!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- the suite, its topology, labLinks, linkDevices and its MPLS preflight -->
 <!-- source: internal/le/interoplab/rsvpte/checkers.go -- every observation, read from a peer's capture -->
 <!-- source: internal/le/interoplab/rsvpte/zenode.go -- freeRtrScript, zeNodeScript, readZeNodeNet -->
 <!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the three test-only RESV knobs -->

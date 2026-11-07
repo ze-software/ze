@@ -60,6 +60,43 @@ type labRole struct {
 // ingress sends meets nodes that already listen.
 var labRoles = []labRole{{peerEgress, 4}, {peerTransit, 3}, {peerRelay, 5}, {peerIngress, 2}}
 
+// deviceProtected is the PLR's device on the protected link of
+// plr-backup-path-to-egress-merge-point. It is named, not numbered, because
+// that scenario's transit.conf runs RSVP-TE on it and checkBackupPathToMP
+// takes it down.
+const deviceProtected = "prot0"
+
+// labLinks holds the links of each scenario that has some, by scenario name,
+// in the core's declaration (interoplab.Link), which builds each member's
+// devices in its start wrapper. A scenario with no entry runs every node on
+// eth0 alone.
+var labLinks = map[string][]interoplab.Link{
+	// The protected link: VLAN 100 from the Ze PLR (10.0.14.3) to the
+	// freeRouter egress, whose rtr-sw.txt holds the far end as
+	// `interface ethernet1.100` at 10.0.14.14 over rawInt, so the egress is
+	// the link's external end. The bypass runs untagged on eth0 through the
+	// freeRouter relay to the same egress, the merge point.
+	scenarioBackupPathToMP: {{
+		Name:     "protected",
+		VLAN:     100,
+		IPv4:     netip.MustParsePrefix("10.0.14.0/24"),
+		Members:  []string{peerTransit},
+		External: peerEgress,
+		Devices:  map[string]string{peerTransit: deviceProtected},
+	}},
+}
+
+// linkDevices answers the devices role holds on links, in declaration order:
+// the names the core's wrapper builds, which the node's MPLS sysctls name.
+func linkDevices(links []interoplab.Link, role labRole) []string {
+	memberships := interoplab.LinkMemberships(links, role.name, role.host)
+	devices := make([]string, 0, len(memberships))
+	for _, membership := range memberships {
+		devices = append(devices, membership.Device)
+	}
+	return devices
+}
+
 func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 	return map[string]interoplab.Checker{
 		scenarioLooseExpansion:  checker(checkLooseExpansion, timeout),
@@ -150,7 +187,8 @@ func containerName(role, suffix string) string {
 
 // scenarioPlan starts every role the scenario fills, downstream first. A role
 // with <role>.conf is a Ze node and one with <role>-sw.txt a freeRouter node;
-// a role with neither is absent from the scenario.
+// a role with neither is absent from the scenario. The scenario's labLinks
+// entry becomes the plan's links, which runScenario validates and builds.
 func scenarioPlan(suffix string, source interoplab.ScenarioSource) (interoplab.ScenarioPlan, error) {
 	plan := interoplab.ScenarioPlan{
 		Source: source,
@@ -158,6 +196,7 @@ func scenarioPlan(suffix string, source interoplab.ScenarioSource) (interoplab.S
 			Name:       containerName("net", suffix),
 			Candidates: []interoplab.Subnet{{IPv4: labNetwork}},
 		},
+		Links: labLinks[source.Name],
 	}
 	for _, role := range labRoles {
 		var peer interoplab.PeerConfig
@@ -167,7 +206,7 @@ func scenarioPlan(suffix string, source interoplab.ScenarioSource) (interoplab.S
 			if err != nil {
 				return interoplab.ScenarioPlan{}, err
 			}
-			peer = zePeer(role.name, role.host, suffix, source.Directory, network)
+			peer = zePeer(role.name, role.host, suffix, source.Directory, network, linkDevices(plan.Links, role))
 		case fileExists(filepath.Join(source.Directory, role.name+"-sw.txt")):
 			environment, err := freeRtrEnvironment(filepath.Join(source.Directory, role.name+"-env.txt"))
 			if err != nil {
@@ -238,11 +277,12 @@ func freeRtrPeer(role string, host uint8, suffix, directory string) interoplab.P
 	}
 }
 
-// zePeer runs zeNodeScript, which enables MPLS, creates the VLANs and adds the
-// routes <role>-net.txt declares, and execs the daemon on <role>.conf. tcpdump
-// records the RSVP the node sends and receives in the same capture file a
-// freeRouter node writes.
-func zePeer(role string, host uint8, suffix, directory string, network zeNodeNet) interoplab.PeerConfig {
+// zePeer runs zeNodeScript, which enables MPLS on eth0 and on devices (the
+// node's link devices, built before it by the core's start wrapper), adds the
+// routes <role>-net.txt declares, and execs the daemon on <role>.conf.
+// tcpdump records the RSVP the node sends and receives in the same capture
+// file a freeRouter node writes.
+func zePeer(role string, host uint8, suffix, directory string, network zeNodeNet, devices []string) interoplab.PeerConfig {
 	return interoplab.PeerConfig{
 		Name:      role,
 		Container: containerName(role, suffix),
@@ -251,14 +291,14 @@ func zePeer(role string, host uint8, suffix, directory string, network zeNodeNet
 		Mounts: []interoplab.Mount{
 			{Source: filepath.Join(directory, role+".conf"), Target: "/etc/ze/ze.conf", ReadOnly: true},
 		},
-		// The node writes net.mpls.conf.<link>.input for a VLAN it creates
-		// first, so the writes happen at run time and cannot be
-		// --sysctl arguments.
+		// The node writes net.mpls.conf.<device>.input for a link device the
+		// start wrapper creates first, so the writes happen at run time and
+		// cannot be --sysctl arguments.
 		Capabilities:    []string{netAdminCapability},
 		Arguments:       interoplab.NetSysctlWriteArguments(),
 		AppArmorProfile: interoplab.NetSysctlAppArmorProfileName,
 		Environment:     []interoplab.EnvironmentVariable{{Name: "ze.log.rsvp-te", Value: "debug"}},
-		Command:         []string{"sh", "-c", zeNodeScript(network)},
+		Command:         []string{"sh", "-c", zeNodeScript(network, devices)},
 		Ready: &interoplab.ReadyProbe{
 			// Ze listens on a raw IPv4 socket for protocol 46 once RSVP-TE runs.
 			Command:  []string{"sh", "-c", "grep -q ':002E ' /proc/net/raw"},

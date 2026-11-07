@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -21,12 +22,19 @@ import (
 // frame to a socket.
 //
 // Each member reaches the link as eth<N>, where N counts the links that
-// member joins in declaration order (its first link is eth1). A link with an
+// member joins in declaration order and reaches under no name of Devices (its
+// first such link is eth1). A link with an
 // IPv4 prefix gives each member its host number in the last octet; one with
 // an IPv6 prefix gives each member the /64 address whose last octet is its
 // host number. A link with neither prefix is a pure layer-2 segment (PPPoE, a
 // LAN that DHCP numbers): its members hold the device up with no address.
 // The scenario's files name those devices and addresses.
+//
+// One end of a link may be a planned peer that is not a member: External,
+// which terminates the VLAN inside its own stack on no device the harness
+// builds. freeRouter is one: rawInt.bin hands every frame of its container's
+// eth0, tagged ones included, to the jar, whose own configuration holds the
+// VLAN subinterface and its address.
 type Link struct {
 	// Name is how a refusal and a checker name the link.
 	Name string `json:"name"`
@@ -37,6 +45,15 @@ type Link struct {
 	IPv6 netip.Prefix `json:"ipv6,omitzero"`
 	// Members are the names of the planned peers that join the link.
 	Members []string `json:"members"`
+	// External names the planned peer that terminates the link in its own
+	// stack, or is empty when every end is a member. The harness builds
+	// nothing for it and numbers nothing on it, so a link with an external
+	// end needs only one member.
+	External string `json:"external,omitempty"`
+	// Devices names, by member, the device that member reaches the link as
+	// in place of eth<N>, for a device a file the harness does not write
+	// names already (a daemon configuration, a checker that takes it down).
+	Devices map[string]string `json:"devices,omitempty"`
 }
 
 // LinkMembership is one member's place on one link: the device it reaches
@@ -64,25 +81,45 @@ const linkIPv6Bits = 64
 // the broadcast address of a /24.
 const linkHostMax = 254
 
+// linkDeviceOctetsMax is IFNAMSIZ less its terminating NUL: Linux refuses a
+// longer interface name.
+const linkDeviceOctetsMax = 15
+
+// linkDevicePrefix is the name the harness numbers a member's devices under.
+const linkDevicePrefix = "eth"
+
 // ValidateLinks refuses a link the harness cannot build as declared: a VLAN
 // outside 1 to 4094 or used twice, an IPv4 prefix that is not a network of at
-// most /24, an IPv6 prefix that is not a /64 network, fewer than two members,
-// a member named twice, a member the scenario does not plan, or a member whose
-// host number cannot hold an address. Each such link would carry nothing, and
-// the checker would read a silent lab as the daemon's fault, so the scenario
-// fails before any container starts.
+// most /24, an IPv6 prefix that is not a /64 network, fewer than two ends, a
+// member named twice, a member or external end the scenario does not plan, an
+// external end that is also a member, a member whose host number cannot hold
+// an address, or a device name a member cannot hold. Each such link would
+// carry nothing, and the checker would read a silent lab as the daemon's
+// fault, so the scenario fails before any container starts.
 func ValidateLinks(scenario string, links []Link, peers []PeerConfig) error {
 	hosts := make(map[string]uint8, len(peers))
 	for index := range peers {
 		hosts[peers[index].Name] = peers[index].Host
 	}
 	vlans := make(map[uint16]string, len(links))
+	devices := make(map[linkDevice]string, len(links))
 	for index := range links {
-		if err := validateLink(scenario, &links[index], vlans, hosts); err != nil {
+		link := &links[index]
+		if err := validateLink(scenario, link, vlans, hosts); err != nil {
+			return err
+		}
+		if err := validateLinkDevices(scenario, link, devices); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// linkDevice is one device a member holds, the key ValidateLinks refuses a
+// second device name on.
+type linkDevice struct {
+	member string
+	device string
 }
 
 // validateLink is ValidateLinks' refusal of one declared link.
@@ -108,8 +145,8 @@ func validateLink(scenario string, link *Link, vlans map[uint16]string, hosts ma
 	if err := validateLinkIPv6(&reason, link.IPv6); err != nil {
 		return err
 	}
-	if len(link.Members) < 2 {
-		return errors.New(reason.Str(" has fewer than two members, so nothing can cross it; name both ends").String())
+	if err := validateLinkExternal(&reason, link, hosts); err != nil {
+		return err
 	}
 	named := make(map[string]bool, len(link.Members))
 	for _, member := range link.Members {
@@ -131,6 +168,115 @@ func validateLink(scenario string, link *Link, vlans map[uint16]string, hosts ma
 		}
 	}
 	return nil
+}
+
+// validateLinkExternal refuses a link with fewer than two ends, counting its
+// external end, and an external end the scenario does not plan or that is
+// also a member, which would then get a device the far end never reads.
+func validateLinkExternal(reason *textbuf.Buffer, link *Link, hosts map[string]uint8) error {
+	if link.External == "" {
+		if len(link.Members) < 2 {
+			return errors.New(reason.Str(" has fewer than two members, so nothing can cross it; name both ends, " +
+				"or name the planned peer that terminates it in its own stack as External").String())
+		}
+		return nil
+	}
+	if _, planned := hosts[link.External]; !planned {
+		return errors.New(reason.Str(" names ").Str(link.External).
+			Str(" as its external end, and the scenario does not plan that peer; plan it, or name a planned peer").String())
+	}
+	if linkHasMember(link, link.External) {
+		return errors.New(reason.Str(" names ").Str(link.External).
+			Str(" both as a member and as its external end; a member gets a device the harness builds, " +
+				"an external end builds its own, so name it once").String())
+	}
+	if len(link.Members) == 0 {
+		return errors.New(reason.Str(" has an external end and no member, so the harness builds nothing on it; " +
+			"name the member that meets ").Str(link.External).String())
+	}
+	return nil
+}
+
+// validateLinkDevices refuses a device name link gives a member that the
+// member cannot hold: one for a peer that is not a member, a name Linux or
+// the shell would refuse, one the harness numbers or the container holds
+// already, or a name the member holds on another link. devices carries the
+// names already given across the scenario's links.
+func validateLinkDevices(scenario string, link *Link, devices map[linkDevice]string) error {
+	members := make([]string, 0, len(link.Devices))
+	for member := range link.Devices {
+		members = append(members, member)
+	}
+	slices.Sort(members)
+	for _, member := range members {
+		device := link.Devices[member]
+		var reason textbuf.Buffer
+		reason.Str(scenario).Str("'s link ").Str(link.Name).Str(" names device ").Str(device).Str(" for ").Str(member)
+		if !linkHasMember(link, member) {
+			return errors.New(reason.Str(", which is not a member; name a device only for a member of the link").String())
+		}
+		if !linkDeviceNameValid(device) {
+			return errors.New(reason.Str("; a device name is 1 to ").Int(linkDeviceOctetsMax).
+				Str(" lowercase letters and digits, so Linux takes it and the shell reads it as one word").String())
+		}
+		if linkDeviceNumbered(device) {
+			return errors.New(reason.Str("; eth<N> is the name the harness numbers each member's links under, " +
+				"so choose a name outside it").String())
+		}
+		if device == "lo" {
+			return errors.New(reason.Str("; every container holds lo already, so choose another name").String())
+		}
+		key := linkDevice{member: member, device: device}
+		if other, seen := devices[key]; seen {
+			return errors.New(reason.Str(", which ").Str(member).Str(" holds on link ").Str(other).
+				Str(" already; give each of its links its own device").String())
+		}
+		devices[key] = link.Name
+	}
+	return nil
+}
+
+// linkDeviceNameValid answers whether name is an interface name Linux takes
+// that is also one shell word without quoting: 1 to 15 lowercase letters and
+// digits.
+func linkDeviceNameValid(name string) bool {
+	if name == "" {
+		return false
+	}
+	if len(name) > linkDeviceOctetsMax {
+		return false
+	}
+	for _, c := range name {
+		if !linkDeviceOctet(c) {
+			return false
+		}
+	}
+	return true
+}
+
+func linkDeviceOctet(c rune) bool {
+	if c >= 'a' && c <= 'z' {
+		return true
+	}
+	return c >= '0' && c <= '9'
+}
+
+// linkDeviceNumbered answers whether name is eth followed by digits only, the
+// form of the names LinkMemberships gives (and of eth0, the scenario network).
+func linkDeviceNumbered(name string) bool {
+	digits, found := strings.CutPrefix(name, linkDevicePrefix)
+	if !found {
+		return false
+	}
+	if digits == "" {
+		return false
+	}
+	for _, c := range digits {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // validateLinkIPv4 refuses an IPv4 prefix a member's address cannot be built
@@ -173,17 +319,25 @@ func validateLinkIPv6(reason *textbuf.Buffer, prefix netip.Prefix) error {
 }
 
 // LinkMemberships answers, in declaration order, the links peer joins and
-// what it holds on each, from links ValidateLinks accepted.
+// what it holds on each, from links ValidateLinks accepted. A link whose
+// Devices names peer's device gives that name and takes no eth<N>, so the
+// numbered devices stay eth1, eth2 and on with no gap. An external end is not
+// a member and holds nothing.
 func LinkMemberships(links []Link, peer string, host uint8) []LinkMembership {
 	var memberships []LinkMembership
+	numbered := 0
 	for index := range links {
 		link := &links[index]
 		if !linkHasMember(link, peer) {
 			continue
 		}
-		var device textbuf.Buffer
-		membership := LinkMembership{Link: link.Name,
-			Device: device.Str("eth").Int(int64(len(memberships) + 1)).String()}
+		device, named := link.Devices[peer]
+		if !named {
+			numbered++
+			var numberedDevice textbuf.Buffer
+			device = numberedDevice.Str(linkDevicePrefix).Int(int64(numbered)).String()
+		}
+		membership := LinkMembership{Link: link.Name, Device: device}
 		if link.IPv4.IsValid() {
 			octets := link.IPv4.Addr().As4()
 			octets[3] = host

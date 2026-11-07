@@ -852,7 +852,7 @@ func checkBackupPathToMP(ctx context.Context, lab interoplab.CheckerLab, timeout
 		return err
 	}
 	cutIndex := len(parseCapture(beforeCut))
-	if _, err := lab.Query(ctx, peerTransit, []string{"sh", "-c", "ip link set prot0 down && echo down"}, nil); err != nil {
+	if _, err := lab.Query(ctx, peerTransit, []string{"sh", "-c", "ip link set " + deviceProtected + " down && echo down"}, nil); err != nil {
 		return fmt.Errorf("take the protected link down: %w", err)
 	}
 	cutAt := time.Now()
