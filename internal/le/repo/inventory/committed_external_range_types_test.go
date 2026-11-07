@@ -68,10 +68,10 @@ func TestCommittedExternalRangeMapKeysPublish(t *testing.T) {
 // MUTATION: (internal/le/repo/inventory/methods.go,
 // "return universeType(shape, \"rune\")", "return sourceExpr{}, false")
 // loses the string's rune: the string rows refuse.
-// MUTATION: (internal/le/repo/inventory/methods.go,
-// "case token.INT:\n\t\t\treturn universeType(source, \"int\")",
-// "case token.INT:\n\t\t\treturn sourceExpr{}, false") leaves an integer
-// literal untyped: the integer literal row refuses.
+// MUTATION: (internal/le/repo/inventory/constanttypes.go,
+// "case token.INT:\n\t\t\treturn untypedConstant(source, untypedInt)",
+// "case token.INT:\n\t\t\treturn sourceExpr{}, constantUnspecified, false")
+// leaves an integer literal untyped: the integer literal row refuses.
 // MUTATION: (internal/le/repo/inventory/methods.go,
 // "return named, true", "return shape, true") gives a named integer's
 // variable the underlying int, which has no text method: the row refuses.

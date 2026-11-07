@@ -93,24 +93,12 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 	switch value := source.value.(type) {
 	case *ast.ParenExpr:
 		return e.valueType(sourceExpr{value: value.X, file: source.file, pkg: source.pkg}, depth+1)
-	case *ast.BasicLit:
-		// An untyped constant takes its default type where a variable is
-		// declared from it or a range ranges over it (Go specification,
-		// "Constants"): x := 3 is an int, and range "ab" ranges a string.
-		//exhaustive:ignore
-		switch value.Kind {
-		case token.INT:
-			return universeType(source, "int")
-		case token.CHAR:
-			return universeType(source, "rune")
-		case token.STRING:
-			return universeType(source, "string")
-		case token.FLOAT:
-			return universeType(source, "float64")
-		case token.IMAG:
-			return universeType(source, "complex128")
-		}
-		return sourceExpr{}, false
+	case *ast.BasicLit, *ast.BinaryExpr:
+		// A constant form has its declared type, or the default type of its
+		// kind where a variable is declared from it or a range ranges over it
+		// (Go specification, "Constants"): x := 3 is an int, and range "ab"
+		// ranges a string.
+		return e.constantDefault(source, depth)
 	case *ast.CompositeLit:
 		return sourceExpr{value: value.Type, file: source.file, pkg: source.pkg}, value.Type != nil
 	case *ast.FuncLit:
@@ -118,9 +106,10 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 	case *ast.UnaryExpr:
 		// The static type of &operand is a pointer to the operand's type, so
 		// x := &T{} resolves x.Method exactly as var x *T does. The pointer
-		// spans the operand's type, in the file that declares that type.
+		// spans the operand's type, in the file that declares that type. Any
+		// other unary operator keeps its operand's type, as constantType says.
 		if value.Op != token.AND {
-			return sourceExpr{}, false
+			return e.constantDefault(source, depth)
 		}
 		operand, found := e.valueType(sourceExpr{value: value.X, file: source.file, pkg: source.pkg}, depth+1)
 		if !found {
@@ -130,7 +119,13 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 	case *ast.CallExpr:
 		function, found := e.declaredFunction(sourceExpr{value: value.Fun, file: source.file, pkg: source.pkg})
 		if !found {
-			return sourceExpr{}, false
+			// Go specification, "Conversions": "An explicit conversion is an
+			// expression of the form T(x) where T is a type and x is an
+			// expression that can be converted to type T."
+			if len(value.Args) != 1 {
+				return sourceExpr{}, false
+			}
+			return e.conversionType(sourceExpr{value: value.Fun, file: source.file, pkg: source.pkg})
 		}
 		if function.decl.Type.TypeParams.NumFields() != 0 {
 			return sourceExpr{}, false
@@ -144,8 +139,14 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		if binding == nil {
 			binding = callablePackageBinding(source.pkg, value.Name)
 		}
+		if _, constant := predeclaredConstant(source, value.Name); constant {
+			return e.constantDefault(source, depth)
+		}
 		if binding == nil {
 			return sourceExpr{}, false
+		}
+		if binding.Kind == ast.Con {
+			return e.constantDefault(source, depth)
 		}
 		if binding.Kind == ast.Fun {
 			// A package function's static type is its signature; a generic one
@@ -213,6 +214,45 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		}
 	}
 	return sourceExpr{}, false
+}
+
+// conversionType answers T for a conversion T(x) whose callee the source
+// names as a type: a predeclared basic type, a retained concrete type, a type
+// literal, a pointer to a named type, or a parenthesised form of one. Any
+// other callee is no type, so it refuses. It strips at most 64 parentheses.
+func (e *expression) conversionType(callee sourceExpr) (sourceExpr, bool) {
+	for range 64 {
+		switch value := callee.value.(type) {
+		case *ast.ParenExpr:
+			callee.value = value.X
+			continue
+		case *ast.ArrayType, *ast.MapType, *ast.ChanType, *ast.FuncType, *ast.StructType, *ast.InterfaceType:
+			return callee, true
+		case *ast.StarExpr:
+			// (*T)(x) converts to a pointer type when T names a type.
+			if !e.namesType(sourceExpr{value: value.X, file: callee.file, pkg: callee.pkg}) {
+				return sourceExpr{}, false
+			}
+			return callee, true
+		case *ast.Ident, *ast.SelectorExpr:
+			if !e.namesType(callee) {
+				return sourceExpr{}, false
+			}
+			return callee, true
+		}
+		return sourceExpr{}, false
+	}
+	return sourceExpr{}, false
+}
+
+// namesType reports whether source names a predeclared basic type or a
+// retained concrete type, as concreteType admits one.
+func (e *expression) namesType(source sourceExpr) bool {
+	if _, basic := basicType(source); basic {
+		return true
+	}
+	_, _, found := e.concreteType(source)
+	return found
 }
 
 // rangedType answers the static type of the range variable named variable,

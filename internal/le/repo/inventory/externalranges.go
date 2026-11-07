@@ -155,10 +155,11 @@ func (walk *externalRangeWalk) binding(source sourceExpr, depth int) (externalRa
 	if object.Kind == ast.Fun {
 		return externalRangeIterator, ""
 	}
+	if object.Kind == ast.Con {
+		return walk.constantKind(source, depth+1)
+	}
 	if object.Kind != ast.Var {
-		if object.Kind != ast.Con {
-			return externalRangeUnresolved, "range declaration is not a retained value"
-		}
+		return externalRangeUnresolved, "range declaration is not a retained value"
 	}
 	if datatype, known := walk.effects.types[object]; known {
 		return walk.datatype(datatype, depth+1)
@@ -171,6 +172,19 @@ func (walk *externalRangeWalk) binding(source sourceExpr, depth int) (externalRa
 		return externalRangeUnresolved, "range declaration initializer is unresolved: " + err.Error()
 	}
 	return walk.expression(resolved, depth+1)
+}
+
+// constantKind answers the range kind of a declared constant from its type,
+// which valueType derives: the ConstSpec's declared type, or the default type
+// of its value, including an omitted expression an iota group repeats. A
+// constant executes nothing, so its type alone decides what the range runs; a
+// constant whose type is unknown refuses.
+func (walk *externalRangeWalk) constantKind(source sourceExpr, depth int) (externalRangeKind, string) {
+	datatype, known := walk.effects.resolver.valueType(source, 0)
+	if !known {
+		return externalRangeUnresolved, "range constant type is unresolved"
+	}
+	return walk.datatype(datatype, depth)
 }
 
 func (walk *externalRangeWalk) call(source sourceExpr, call *ast.CallExpr, depth int) (externalRangeKind, string) {
