@@ -264,7 +264,7 @@ evidence. This mapping does not claim RFC discrimination or target-kernel proof.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| No `.ci` carrier added | - | Registered startup delivery is exercised in isolated integration processes, not through the full daemon CLI | Full CLI workflow not demonstrated here |
+| `pppoe-client-lcp-renegotiation` | `test/draft/pppoe/pppoe-client-lcp-renegotiation.ci` (promotes to `test/pppoe/`), fixture `internal/test/fixture/pppoe_client_renegotiation_linux.go` | AC-4/5 through the daemon: a `pppoe-client` in the operator config dials the scripted concentrator (`internal/test/pppoeac`) over a netns veth pair; after `show interface pppoe-client` reports it up, the concentrator sends a network-phase Configure-Request, and Ze must answer on session 44 (its own request and an unmodified Ack), answer a fresh CHAP challenge and rerun IPCP; `show interface pppoe-client` then reports the new address on the same session id and device, and the kernel holds that pair alone on the same ifindex with the new MTU | Written, not run. Runs only under `./le test qemu netns suites pppoe` (netns-link). Red walk owed: `network_phase.go` `case ppp.LCPConfigureRequest` body replaced by `continue` must turn it red at the renegotiation LCP read |
 | `TestDialRenegotiatesLCPInNetworkPhase` | `internal/component/iface/pppoe_packets_integration_linux_test.go` | AC-4/5/9: operator config through registered startup, retained SID/ifindex, changed state, bidirectional IPv4 PASS before/after and DROP during LCP/PAP/IPCP | Race PASS on 7.2.9-ze. Target 7.3 remains owed |
 | `TestPPPoEConfigRenegotiatesKernelState` | `internal/component/iface/pppoe_kernel_integration_linux_test.go` | AC-4/5: two CHAP epochs, exact local/peer pair, gateway, metric, protocol and MTU on one device | Race PASS on 7.2.9-ze. Startup omission/duplication mutations were red |
 | `TestDialAcknowledgesFirstEagerIPCP`, `TestOrderedDescriptorDispatch` | `internal/component/l2tp/pppoeclient/eager_ipcp_integration_linux_test.go`, `internal/component/l2tp/pppoeclient/receive_order_integration_linux_test.go` | Issue 6: first eager peer request acknowledged without retransmission, plus raw descriptor ordering | Prior race PASS on 7.2.9-ze, not target 7.3 |
@@ -272,7 +272,7 @@ evidence. This mapping does not claim RFC discrimination or target-kernel proof.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `access-wholesale-accel-lns` | `test/interop-topology/scenarios/access-wholesale-accel-lns/` (child 18's topology suite; this spec owns the directory, its checker and its red walk) | Ze LAC (child 14) relaying to accel-ppp as LNS, which ignores proxy LCP and renegotiates | third-party renegotiation and re-challenge reach Ze and the CPE comes up | Open. No passing scenario or red walk claimed |
+| `access-wholesale-accel-lns` | `test/interop-topology/scenarios/access-wholesale-accel-lns/` (child 18's topology suite; this spec owns the directory, its checker and its red walk) | Ze LAC (child 14) relaying to accel-ppp as LNS, which ignores proxy LCP and renegotiates | third-party renegotiation and re-challenge reach Ze and the CPE comes up | Written, not run, red walk owed |
 | `access-wholesale` | `test/interop-topology/scenarios/access-wholesale/`, owned by child 15 | Ze LAC and Ze LNS with child 15's renegotiate option | the umbrella's wholesale scenario; not this spec's closure evidence | Owned by child 15 |
 
 No accel-ppp setting renegotiates LCP on a direct PPPoE session (A-4), so the
@@ -299,7 +299,17 @@ table uses.
 - `internal/component/iface/pppoe_kernel_integration_linux_test.go`, `pppoe_packets_integration_linux_test.go` - installed-state and IPv4 traffic scenarios
 - `internal/component/l2tp/pppoeclient/receive.go`, `receive_linux.go`, `receive_other.go` - one request/delivery worker and platform descriptor operations
 - `internal/test/pppoeac/` - the scripted access concentrator `TestDialRenegotiatesLCPInNetworkPhase` drives (PADI to PADS, LCP, CHAP, IPCP, a Configure-Request on demand, Echo control), a test helper package beside `internal/test/userns` so child 17's `TestPPPoEClientKeepaliveConfigEndToEnd` reuses the same copy
-- `test/interop-topology/scenarios/access-wholesale-accel-lns/` - `ze-cpe.conf`, `ze-lac.conf`, the accel-ppp LNS configuration
+- `test/interop-topology/scenarios/access-wholesale-accel-lns/` - `ze-lac.conf` and `accel-ppp.conf` only: no `ze-cpe.conf` and no FreeRADIUS, since accel-ppp checks CHAP from the `chap-secrets` the node's prestart in `register_wholesale_accel.go` writes
+- `test/draft/pppoe/pppoe-client-lcp-renegotiation.ci` (promoted to `test/pppoe/`, and named in `netnsPPPoE` in `internal/le/test/qemu/netns_linux.go`) - the daemon-level functional test
+- `internal/test/fixture/pppoe_client_renegotiation_linux.go`, `register_pppoe_client_renegotiation_linux.go` - the observer that plays the scripted concentrator and reads `show interface pppoe-client` and the kernel
+
+Design pages the code above declares and this work leaves true:
+`docs/architecture/testing/interop.md` (declared by `register_wholesale_accel.go`;
+its `access-wholesale-accel-lns` row names the realm-relaying LAC, accel-ppp
+checking CHAP from its own `chap-secrets`, and no FreeRADIUS) and
+`docs/features/interfaces.md` (declared by `internal/component/iface/register.go`;
+its PPPoE client rows name the session device and the per-lease DNS on
+renegotiation, which this spec's change records keep).
 - `internal/le/interoplab/topology/register_wholesale_accel.go`, `check_wholesale_accel.go` - the scenario's nodes, links and checker in child 18's topology suite
 
 ### Integration Checklist

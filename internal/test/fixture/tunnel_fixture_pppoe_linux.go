@@ -28,17 +28,27 @@ func init() {
 const tunnelPPPoEDefaultInterface = "veth-sub"
 
 type tunnelPPPoEWire struct {
-	fd      int
-	ifindex int
-	mac     net.HardwareAddr
+	fd        int
+	ifindex   int
+	mac       net.HardwareAddr
+	etherType uint16
 }
 
+// tunnelPPPoEOpen opens the discovery stage socket (RFC 2516 Section 4,
+// ETHER_TYPE 0x8863).
 func tunnelPPPoEOpen(interfaceName string) (*tunnelPPPoEWire, error) {
+	return tunnelPPPoEOpenEtherType(interfaceName, tunnelPPPoEEtherType)
+}
+
+// tunnelPPPoEOpenEtherType opens a packet socket on interfaceName that sends
+// and receives only frames of etherType: 0x8863 for discovery, 0x8864 for the
+// session stage.
+func tunnelPPPoEOpenEtherType(interfaceName string, etherType uint16) (*tunnelPPPoEWire, error) {
 	link, err := net.InterfaceByName(interfaceName)
 	if err != nil {
 		return nil, err
 	}
-	protocol := tunnelNetwork16(tunnelPPPoEEtherType)
+	protocol := tunnelNetwork16(etherType)
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(protocol))
 	if err != nil {
 		return nil, fmt.Errorf("open PPPoE packet socket: %w", err)
@@ -51,7 +61,7 @@ func tunnelPPPoEOpen(interfaceName string) (*tunnelPPPoEWire, error) {
 		_ = unix.Close(fd)
 		return nil, err
 	}
-	return &tunnelPPPoEWire{fd: fd, ifindex: link.Index, mac: append(net.HardwareAddr(nil), link.HardwareAddr...)}, nil
+	return &tunnelPPPoEWire{fd: fd, ifindex: link.Index, mac: append(net.HardwareAddr(nil), link.HardwareAddr...), etherType: etherType}, nil
 }
 
 func tunnelNetwork16(value uint16) uint16 { return value<<8 | value>>8 }
@@ -62,12 +72,12 @@ func (wire *tunnelPPPoEWire) send(destination net.HardwareAddr, payload []byte) 
 	frame := make([]byte, 14+len(payload))
 	copy(frame[:6], destination)
 	copy(frame[6:12], wire.mac)
-	binary.BigEndian.PutUint16(frame[12:14], tunnelPPPoEEtherType)
+	binary.BigEndian.PutUint16(frame[12:14], wire.etherType)
 	copy(frame[14:], payload)
 	var address [8]byte
 	copy(address[:], destination)
 	return unix.Sendto(wire.fd, frame, 0, &unix.SockaddrLinklayer{
-		Protocol: tunnelNetwork16(tunnelPPPoEEtherType), Ifindex: wire.ifindex,
+		Protocol: tunnelNetwork16(wire.etherType), Ifindex: wire.ifindex,
 		Halen: 6, Addr: address,
 	})
 }

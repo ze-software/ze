@@ -22,6 +22,8 @@ func init() {
 	Register("ipsec/error-notify-no-loop", tunnelIPsecErrorNotify)
 	Register("ipsec/peer-reload-applies-selectors", tunnelIPsecReloadSelectors)
 	Register("ipsec/peer-reload-leaves-tunnel-alone", tunnelIPsecReloadQuiet)
+	Register("ipsec/respond-reinit-supersede/established", tunnelIPsecReinitEstablished)
+	Register("ipsec/respond-reinit-supersede/superseded", tunnelIPsecReinitSuperseded)
 	Register("ipsec/teardown-leaves-nothing/cycle", tunnelIPsecTeardownCycle)
 	Register("ipsec/teardown-leaves-nothing/residue", tunnelIPsecTeardownResidue)
 }
