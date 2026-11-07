@@ -1,0 +1,148 @@
+# Test: on a segment with two subnets, each RFC 2131 client state is answered
+#       from the reservation and the binding the server records, one exchange
+#       per state, each asserted on its own reply.
+# VALIDATES: spec-home-cpe-2 AC-5, AC-6, AC-7, AC-14, AC-15, AC-16
+#            (RFC2131-4.3.2-3), AC-17 and AC-18 (RFC2131-4.3.2-6) --
+#            serveRequests -> segment.discover, segment.selecting,
+#            segment.initReboot and segment.renewing
+#            (internal/plugins/dhcpserver/segment.go), through a real listener.
+#            RFC 2131 Section 4.3.2: "If the DHCP server has no record of this
+#            client, then it MUST remain silent, and MAY output a warning to
+#            the network administrator."
+#            RFC 2131 Section 4.3.2: "The DHCP server SHOULD check 'ciaddr'
+#            for correctness before replying to the DHCPREQUEST."
+# PREVENTS: a hint (Requested IP Address) that beats a reservation, an
+#           INIT-REBOOT answered for a client the server has no record of, a
+#           renewal ACKed for an address outside the segment or bound to
+#           another client, and a pool lease kept after the operator reserved
+#           another address for the client.
+#
+# zedhreq holds 192.168.50.1/24 (primary) and 10.99.0.1/24. The clients:
+#   02-..-22  reserved 10.99.0.20 (camera)
+#   02-..-23  unreserved, asks for 10.99.0.50 from the 10.99.0.0/24 pool
+#   02-..-24  unreserved, never bound
+#   02-..-25  bound to 192.168.50.30 from the pool, then reserved 10.99.0.25
+#             by a reload (config2.conf)
+#   02-..-26  unreserved, renews 02-..-25's address
+#
+# Each silence is proven with a sentinel: a DHCPDISCOVER from the reserved
+# camera follows the silent request on the same listener, and the server
+# answers one listener's requests in order, so once the sentinel's OFFER is
+# read a reply to the silent request would already have been.
+#
+# AC-17 needs the reservation added while the client holds its pool lease, so
+# the probe's reload step copies config2.conf over ze-bgp.conf and sends
+# SIGHUP. Only 10.99.0.0/24's address plan changes, so 192.168.50.0/24 keeps
+# its lease table (config_tx.go sameAddressPlan) and the binding survives.
+# The renewal after the reload is sent until it draws the DHCPNAK (attempts=):
+# until the reload is applied the old config ACKs it, which is the state the
+# test waits on, not a delay.
+#
+# A RENEWING reply goes to ciaddr (RFC 2131 Section 4.1), so the probe writes
+# a permanent neighbour entry for 192.168.50.30 naming its own end (neigh),
+# and the reply reaches it without ARP. REBINDING is the same request
+# broadcast; the server reads the two states from the same fields.
+#
+# Breaks that turn it red: segment.discover reading the Requested IP before
+# the reservation (ac14 offers 192.168.50.77's subnet pool); segment.initReboot
+# NAKing or ACKing a client with no record (ac16 is answered); segment.renewing
+# claiming ciaddr without heldByOther (ac18-other is ACKed); segment.renewing
+# reading the binding before the reservation (ac17-renew is ACKed after the
+# reload, and the attempts run out).
+#
+# Requires CAP_NET_ADMIN (veth, addresses, neighbour) and CAP_NET_RAW
+# (AF_PACKET).
+
+option=needs-linux:caps=net-admin,net-raw
+option=timeout:value=60s
+option=env:var=ze.log.dhcpserver:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface zedhreq
+        shared-network home {
+            subnet 192.168.50.0/24 {
+                range household {
+                    start 192.168.50.30
+                    stop 192.168.50.40
+                }
+                lease-time 3600
+                default-router 192.168.50.1
+            }
+            subnet 10.99.0.0/24 {
+                range isolated {
+                    start 10.99.0.50
+                    stop 10.99.0.60
+                }
+                lease-time 3600
+                default-router 10.99.0.1
+                static-mapping camera {
+                    mac-address 02:00:00:00:00:22
+                    ip-address 10.99.0.20
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+service {
+    dhcp-server {
+        enabled true
+        listen-interface zedhreq
+        shared-network home {
+            subnet 192.168.50.0/24 {
+                range household {
+                    start 192.168.50.30
+                    stop 192.168.50.40
+                }
+                lease-time 3600
+                default-router 192.168.50.1
+            }
+            subnet 10.99.0.0/24 {
+                range isolated {
+                    start 10.99.0.50
+                    stop 10.99.0.60
+                }
+                lease-time 3600
+                default-router 10.99.0.1
+                static-mapping camera {
+                    mac-address 02:00:00:00:00:22
+                    ip-address 10.99.0.20
+                }
+                static-mapping printer {
+                    mac-address 02:00:00:00:00:25
+                    ip-address 10.99.0.25
+                }
+            }
+        }
+    }
+}
+EOF_CONF2
+
+cmd=foreground:seq=1:exec=le test fixture dhcp/link zedhreq 192.168.50.1/24 10.99.0.1/24:exit=0
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=le test fixture dhcp/probe zedhreq sentinel,02-00-00-00-00-22 neigh,192.168.50.30 x,ac14,type=discover,mac=02-00-00-00-00-22,requested=192.168.50.77,expect=offer,yiaddr=10.99.0.20,sid=10.99.0.1 x,ac15,type=discover,mac=02-00-00-00-00-23,requested=10.99.0.50,expect=offer,yiaddr=10.99.0.50,sid=10.99.0.1 x,ac7-foreign,type=request,mac=02-00-00-00-00-23,server-id=192.0.2.9,requested=10.99.0.50,expect=none x,ac7-other-own,type=request,mac=02-00-00-00-00-23,server-id=192.168.50.1,requested=10.99.0.50,expect=ack,yiaddr=10.99.0.50,sid=10.99.0.1 x,ac5-wrong,type=request,mac=02-00-00-00-00-22,requested=192.168.50.77,expect=nak,to=255.255.255.255:68 x,ac5-right,type=request,mac=02-00-00-00-00-22,requested=10.99.0.20,expect=ack,yiaddr=10.99.0.20 x,ac6,type=request,mac=02-00-00-00-00-24,requested=172.31.0.9,expect=nak,to=255.255.255.255:68 x,ac16,type=request,mac=02-00-00-00-00-24,requested=192.168.50.77,expect=none x,bind-offer,type=discover,mac=02-00-00-00-00-25,requested=192.168.50.30,expect=offer,yiaddr=192.168.50.30 x,bind-select,type=request,mac=02-00-00-00-00-25,server-id=192.168.50.1,requested=192.168.50.30,expect=ack,yiaddr=192.168.50.30 x,ac18-renew,type=request,mac=02-00-00-00-00-25,ciaddr=192.168.50.30,expect=ack,yiaddr=192.168.50.30,to=192.168.50.30:68 x,ac18-rebind,type=request,mac=02-00-00-00-00-25,ciaddr=192.168.50.30,broadcast=true,expect=ack,yiaddr=192.168.50.30 x,ac18-outside,type=request,mac=02-00-00-00-00-25,ciaddr=172.31.0.5,expect=nak,to=255.255.255.255:68 x,ac18-other,type=request,mac=02-00-00-00-00-26,ciaddr=192.168.50.30,expect=nak reload x,ac17-renew,type=request,mac=02-00-00-00-00-25,ciaddr=192.168.50.30,attempts=20,expect=nak x,ac17-discover,type=discover,mac=02-00-00-00-00-25,expect=offer,yiaddr=10.99.0.25,sid=10.99.0.1:timeout=50s
+expect=exit:code=0
+expect=stdout:contains=dhcp ac14 sent=discover reply=offer yiaddr=10.99.0.20 sid=10.99.0.1
+expect=stdout:contains=dhcp ac15 sent=discover reply=offer yiaddr=10.99.0.50 sid=10.99.0.1
+expect=stdout:contains=dhcp ac7-foreign sent=request reply=none
+expect=stdout:contains=dhcp ac7-other-own sent=request reply=ack yiaddr=10.99.0.50 sid=10.99.0.1
+expect=stdout:contains=dhcp ac5-wrong sent=request reply=nak
+expect=stdout:contains=dhcp ac5-right sent=request reply=ack yiaddr=10.99.0.20
+expect=stdout:contains=dhcp ac6 sent=request reply=nak
+expect=stdout:contains=dhcp ac16 sent=request reply=none
+expect=stdout:contains=dhcp bind-select sent=request reply=ack yiaddr=192.168.50.30
+expect=stdout:contains=dhcp ac18-renew sent=request reply=ack yiaddr=192.168.50.30
+expect=stdout:contains=dhcp ac18-rebind sent=request reply=ack yiaddr=192.168.50.30
+expect=stdout:contains=dhcp ac18-outside sent=request reply=nak
+expect=stdout:contains=dhcp ac18-other sent=request reply=nak
+expect=stdout:contains=dhcp ac17-renew sent=request reply=nak
+expect=stdout:contains=dhcp ac17-discover sent=discover reply=offer yiaddr=10.99.0.25 sid=10.99.0.1
+expect=stderr:pattern=dhcpserver: config applied.*subnets-kept=1 subnets-restarted=1
+expect=stderr:pattern=dhcpserver: no reply to REQUEST \(client selected another DHCP server\).*mac=02:00:00:00:00:23
+expect=stderr:pattern=dhcpserver: no reply to REQUEST \(not for our subnet\).*mac=02:00:00:00:00:24
+reject=stderr:pattern=panic

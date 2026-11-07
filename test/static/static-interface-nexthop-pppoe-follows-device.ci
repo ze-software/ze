@@ -1,0 +1,98 @@
+# Test: main-table static routes through a declared pppoe-client follow its
+#       device: absent at boot, created, deleted, recreated.
+# VALIDATES: spec-home-cpe-1-logical-interface-name AC-3 and AC-14 through the
+#            real pipeline (static, the Loc-RIB, sysrib, fib-kernel). Boot with
+#            pppoe-client pppoe0 declared and no access concentrator, so the
+#            dialer never creates pppoe0. The fixture stands in for the session
+#            with a dummy device named pppoe0: it creates and sets it up, deletes
+#            it, and recreates it, and after each step reads the kernel main
+#            table. 198.18.76.0/24 (interface pppoe0 alone) is absent while the
+#            device is, and proto 250 out of pppoe0 while it is up.
+#            198.18.75.0/24 (hop 192.0.2.1 weight 1, interface pppoe0 weight 3)
+#            is never withdrawn: via the gateway alone while the device is
+#            absent, multipath through both members while it is up.
+# PREVENTS: a route skipped at commit and never retried; a route that stays
+#           withdrawn after the device returns; a removal that fails, or is
+#           reported as fib-sync-failure, for a route the kernel flushed with
+#           its device; the mixed route withdrawn while its gateway is active.
+#
+# The dummy cannot be confounded by iface's prune: the prune deletes only names
+# in the previous config's managed set (config_apply.go, removedManagedNames),
+# and desiredState puts no pppoe-client name in that set, so nothing but the
+# fixture creates or deletes pppoe0.
+#
+# The gateway member needs a covering route in the Loc-RIB. With pppoe0 up the
+# group has a device-only member, and sysrib then keeps only the members its
+# resolver proves (ecmpCollectResolved), so an uncovered 192.0.2.1 would leave
+# the group. zentk's own 192.0.2.2/24 predates the daemon: the interface monitor
+# announces it as addr-added when it starts (its startup address dump), and
+# `connected` publishes 192.0.2.0/24 into the Loc-RIB. This test is therefore
+# also the proof that an address assigned before Ze starts proves a gateway.
+#
+# Requires Linux and CAP_NET_ADMIN: the setup creates zentk (the gateway's
+# subnet and the client's source interface), the fixture creates and deletes
+# pppoe0, and fib-kernel programs through netlink.
+option=needs-linux:caps=net-admin
+option=timeout:value=60s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external static-follow-device-test {
+		run "le test fixture static/static-interface-nexthop-pppoe-follows-device"
+		encoder json
+	}
+	internal rib {
+		use rib
+	}
+	internal fib-kernel {
+		use fib-kernel
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client pppoe0 {
+		source-interface zentk
+		authentication {
+			username u
+			password p
+		}
+	}
+}
+
+connected {
+}
+
+static {
+	table default {
+		route 198.18.76.0/24 {
+			next { interface pppoe0 { } }
+		}
+		route 198.18.75.0/24 {
+			next {
+				hop 192.0.2.1 { weight 1; }
+				interface pppoe0 { weight 3; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+option=env:var=ze.log.fib.kernel:value=info
+
+cmd=foreground:seq=1:exec=le test fixture static/static-kernel-setup
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=static routes loaded
+expect=stderr:contains=OK: boot, device absent:
+expect=stderr:contains=OK: device up:
+expect=stderr:contains=OK: device deleted:
+expect=stderr:contains=OK: device recreated:
+reject=stderr:pattern=fib-sync-failure
+reject=stderr:pattern=del route failed
+reject=stderr:pattern=remove route failed
+reject=stderr:pattern=withdraw route
+reject=stderr:pattern=route skipped
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

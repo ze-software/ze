@@ -1,0 +1,74 @@
+# Test: a listen interface that holds no address in any configured subnet
+#       answers no client that no relay forwarded, logs one warning naming
+#       the interface, its addresses and the fix, and `ze doctor` reports the
+#       same. Once an address in a configured subnet is added, the next
+#       request is served, with no reload.
+# VALIDATES: spec-home-cpe-2 AC-11 -- serveRequests -> requestServer.resolve
+#            (internal/plugins/dhcpserver/register.go): resolveSegment finds
+#            no subnet holding a device address and giaddr is zero, so the
+#            request is dropped with warnUnserved; ze doctor ->
+#            checkDHCPSegmentAddress (doctor.go), code
+#            doctor-dhcp-segment-address; and the per-request read of the
+#            device's addresses (readDeviceAddrs), which serves the address
+#            added afterwards.
+# PREVENTS: the defect behind the spec, a listener answering for subnets it is
+#           not on, returning through an "answer anyway" fallback; a silent
+#           drop the operator cannot diagnose; and a device address list
+#           cached at boot.
+#
+# zedhnoa holds 172.31.255.1/24 only; the server's one subnet is
+# 192.168.50.0/24. ze doctor runs in the same namespace before the daemon
+# starts, reading the same config file and the device the daemon listens on.
+# The probe's first DISCOVER must draw no reply. No sentinel can close that
+# window, because the server answers no non-relayed client on this interface,
+# so the probe sends it once a second across its silent window (3s,
+# dhcpprobe.silentWindow), and the warning on stderr is the proof the request
+# reached the server rather than an unbound socket. The probe then adds
+# 192.168.50.1/24 and the same client is offered an address, which also
+# proves the listener was bound throughout.
+#
+# Wire and fixtures as in dhcpserver-shared-segment-reservation.ci.
+#
+# Breaks that turn it red: resolveSegment falling back to every subnet when
+# no device address matches (unaddressed is answered); dropping the
+# warnUnserved call (the stderr expect fails); dhcpDeviceAddrs cached at
+# listener start (addressed draws no reply and the attempts run out).
+#
+# Requires CAP_NET_ADMIN (veth, addresses) and CAP_NET_RAW (AF_PACKET).
+
+option=needs-linux:caps=net-admin,net-raw
+option=timeout:value=40s
+option=env:var=ze.log.dhcpserver:value=info
+
+tmpfs=dhcp.conf:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface zedhnoa
+        shared-network home {
+            subnet 192.168.50.0/24 {
+                range household {
+                    start 192.168.50.100
+                    stop 192.168.50.110
+                }
+                lease-time 3600
+                default-router 192.168.50.1
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture dhcp/link zedhnoa 172.31.255.1/24:exit=0
+cmd=foreground:seq=2:exec=ze doctor --json config dhcp.conf
+expect=stdout:contains=doctor-dhcp-segment-address
+expect=stdout:contains=DHCP server listen interface zedhnoa holds no IPv4 address in any configured subnet (addresses: 172.31.255.1), so it answers only relayed clients
+expect=stdout:contains=add an address in a configured subnet to interface zedhnoa, or remove zedhnoa from service dhcp-server listen-interface
+cmd=background:seq=3:exec=ze start dhcp.conf
+cmd=foreground:seq=4:exec=le test fixture dhcp/probe zedhnoa x,unaddressed,type=discover,mac=02-00-00-00-00-41,expect=none addr-add,192.168.50.1/24 x,addressed,type=discover,mac=02-00-00-00-00-41,expect=offer,yiaddr=192.168.50.100,sid=192.168.50.1:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=dhcp unaddressed sent=discover reply=none
+expect=stdout:contains=dhcp addressed sent=discover reply=offer yiaddr=192.168.50.100 sid=192.168.50.1
+expect=stderr:pattern=dhcpserver: no reply, the listen interface holds no address in any configured subnet.*interface=zedhnoa addresses=\[172.31.255.1\]
+expect=stderr:contains=Fix: add an address in a configured subnet to the interface, or remove the interface from service dhcp-server listen-interface
+reject=stderr:pattern=panic

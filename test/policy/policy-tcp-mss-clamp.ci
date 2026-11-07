@@ -1,0 +1,83 @@
+# Test: policy-routing tcp-mss 1400 clamps the MSS of a forwarded SYN and
+#       never raises it.
+# VALIDATES: spec-home-cpe-21 AC-4 -- through the daemon, a SYN arriving on the
+#            policy's interface with MSS 1460 leaves with 1400, one with 1300
+#            leaves with 1300, and one with no MSS option leaves with none and
+#            a 20-octet TCP header, for IPv4 and IPv6.
+# PREVENTS: a policy tcp-mss that raises a smaller MSS. RFC 9293 Section
+#           3.7.2 makes the MSS an upper bound the receiver chose.
+#
+# policy-tcp-mss.ci proves the rule is in the ruleset. This test proves what
+# the rule does to a packet: the fixture (policyTCPMSSClamp,
+# internal/test/fixture/netfilter_fixture_policy_mss.go) waits for the ze_pr
+# rule, builds a router in this test's namespace with internal/test/msslab
+# (veth zemssin carries the SYN in, veth zemssout carries it out), injects
+# each SYN on zemssinp and reads the forwarded one on zemssoutp.
+#
+# The path: config -> policyroute buildActions (internal/plugins/policyroute/
+# translate.go) appends firewall.SetTCPMSS -> lowerSetTCPMSS
+# (internal/plugins/firewall/nft/lower_linux.go) -> the kernel's two-byte
+# exthdr write, which skips a value already at or below 1400.
+#
+# The rule has no terminal action, so it sets no fwmark and the SYN keeps the
+# main table, where the lab's host route forwards it out of zemssout.
+#
+# In a QEMU guest this test runs in the guest's root namespace, which keeps
+# the devices and routes earlier suites left behind (a leftover zentk holding
+# 198.51.100.2/24 once took the probe away from zemssout). msslab therefore
+# pins .10 and .20 with host routes and refuses to probe unless
+# `ip route get` sends the SYN out of zemssout.
+#
+# Breaks that turn it red, each made in Ze's code:
+#   - buildActions drops the SetTCPMSS action: the 1460 SYN leaves as 1460
+#     (the ze_pr wait fails first, as the rule no longer carries maxseg).
+#   - lowerSetTCPMSS writes four bytes {2, 4, hi, lo} at option offset 0: the
+#     write takes the unguarded arm of nft_exthdr_tcp_set_eval and the 1300
+#     SYN leaves as 1400.
+#
+# The interface needs no option=netns-link: the fixture creates it, and an
+# iifname match compares packet metadata.
+#
+# Requires CAP_NET_ADMIN.
+#
+# ISOLATION: read the header of policy-boot-apply.ci. Every test in test/policy/
+# writes the same `inet ze_pr` table and the same global ip-rule table, so the
+# suite runs serial with a per-test namespace. Do NOT raise its parallelism.
+
+option=needs-linux:caps=net-admin
+option=timeout:value=40s
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+}
+policy {
+	route mss-clamp {
+		interface zemssin;
+		rule clamp {
+			from {
+				protocol tcp;
+				tcp-flags syn;
+			}
+			then {
+				tcp-mss 1400;
+			}
+		}
+	}
+}
+EOF_CONF
+
+# The key is DOTTED: policy-boot-apply.ci carries the explanation.
+option=env:var=ze.log.policy.routes:value=info
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=policy routes applied
+cmd=foreground:seq=2:exec=le test fixture policy/policy-tcp-mss-clamp:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=mss ipv4 sent=1460 forwarded=1400 header=24
+expect=stdout:contains=mss ipv4 sent=1300 forwarded=1300 header=24
+expect=stdout:contains=mss ipv4 sent=none forwarded=none header=20
+expect=stdout:contains=mss ipv6 sent=1460 forwarded=1400 header=24
+expect=stdout:contains=mss ipv6 sent=1300 forwarded=1300 header=24
+expect=stdout:contains=mss ipv6 sent=none forwarded=none header=20

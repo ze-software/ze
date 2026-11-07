@@ -1,0 +1,139 @@
+# Test: option 54 (server identifier) is an address the listen interface
+#       holds: its address in the subnet when the subnet has no
+#       default-router, the subnet's server-identifier leaf while the
+#       interface holds it, and no reply at all once it does not. The commit
+#       refuses a leaf that names no host.
+# VALIDATES: spec-home-cpe-2 AC-8 and AC-9 (RFC2131-4.1-2) -- config ->
+#            parseServerIdentifier (internal/plugins/dhcpserver/config.go) at
+#            commit; serveRequests -> segment.serverID and segment.withheld
+#            (segment.go) at reply time, over the device addresses read from
+#            netlink for each request.
+#            RFC 2131 Section 4.1: "To accommodate potentially incomplete
+#            network connectivity, a server MUST choose an address as a
+#            'server identifier' that, to the best of the server's knowledge,
+#            is reachable from the client."
+# PREVENTS: option 54 derived from config alone (the first host, a pool
+#           address, the default-router), a server-identifier leaf the
+#           server keeps sending after the interface lost the address, and a
+#           commit that accepts the network, broadcast or a multicast address
+#           as the identifier.
+#
+# zedhsid holds 192.168.50.7/24 (primary: deliberately not .1, so an
+# identifier derived from the prefix's first host is visible), 10.99.0.1/24
+# and 10.99.0.2/24. The 10.99.0.0/24 subnet sets server-identifier 10.99.0.2,
+# so the leaf, not the address in the subnet (10.99.0.1, also held), decides.
+# Then the probe removes 10.99.0.2 from the interface: the server reads its
+# addresses for each request, so the next DISCOVER from the reserved client
+# must draw no reply and the warning naming the subnet, the address and the
+# fix. The silence is proven with a sentinel: a DISCOVER from 02-..-11, whose
+# subnet is untouched, follows the silent one on the same listener, and the
+# server answers one listener's requests in order, so once the sentinel's
+# OFFER is read a reply to the reserved client would already have been.
+#
+# Wire and fixtures as in dhcpserver-shared-segment-reservation.ci.
+#
+# Breaks that turn it red: serverID returning the leaf without the held check
+# (ac9-not-held is answered with sid 10.99.0.2); serverID returning the
+# primary address for a non-relayed request (ac8's sid is 192.168.50.7 either
+# way, so ac9-held's sid becomes 192.168.50.7); serverID reading the first
+# host of the prefix (ac8's sid is 192.168.50.1).
+#
+# Requires CAP_NET_ADMIN (veth, addresses) and CAP_NET_RAW (AF_PACKET).
+
+option=needs-linux:caps=net-admin,net-raw
+option=timeout:value=40s
+option=env:var=ze.log.dhcpserver:value=info
+
+# --- The commit refuses an identifier that names no host. ------------------
+stdin=network:terminator=EOF_NETWORK
+service {
+    dhcp-server {
+        enabled true
+        listen-interface zedhsid
+        shared-network home {
+            subnet 10.99.0.0/24 {
+                server-identifier 10.99.0.0
+            }
+        }
+    }
+}
+EOF_NETWORK
+
+stdin=broadcast:terminator=EOF_BROADCAST
+service {
+    dhcp-server {
+        enabled true
+        listen-interface zedhsid
+        shared-network home {
+            subnet 10.99.0.0/24 {
+                server-identifier 10.99.0.255
+            }
+        }
+    }
+}
+EOF_BROADCAST
+
+stdin=multicast:terminator=EOF_MULTICAST
+service {
+    dhcp-server {
+        enabled true
+        listen-interface zedhsid
+        shared-network home {
+            subnet 10.99.0.0/24 {
+                server-identifier 224.0.0.1
+            }
+        }
+    }
+}
+EOF_MULTICAST
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=network:exit=1
+expect=stdout:contains=subnet 10.99.0.0/24: server-identifier 10.99.0.0 is the subnet's network or broadcast address
+cmd=foreground:seq=2:exec=ze config validate -:stdin=broadcast:exit=1
+expect=stdout:contains=subnet 10.99.0.0/24: server-identifier 10.99.0.255 is the subnet's network or broadcast address
+cmd=foreground:seq=3:exec=ze config validate -:stdin=multicast:exit=1
+expect=stdout:contains=subnet 10.99.0.0/24: server-identifier 224.0.0.1 is not a unicast host address
+expect=stdout:contains=Fix: set server-identifier to an address the listen interface holds
+
+# --- The running server. ----------------------------------------------------
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface zedhsid
+        shared-network home {
+            subnet 192.168.50.0/24 {
+                range household {
+                    start 192.168.50.100
+                    stop 192.168.50.110
+                }
+                lease-time 3600
+            }
+            subnet 10.99.0.0/24 {
+                range isolated {
+                    start 10.99.0.100
+                    stop 10.99.0.110
+                }
+                lease-time 3600
+                default-router 10.99.0.1
+                server-identifier 10.99.0.2
+                static-mapping camera {
+                    mac-address 02:00:00:00:00:12
+                    ip-address 10.99.0.20
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=4:exec=le test fixture dhcp/link zedhsid 192.168.50.7/24 10.99.0.1/24 10.99.0.2/24:exit=0
+cmd=background:seq=5:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=6:exec=le test fixture dhcp/probe zedhsid x,ac8,type=discover,mac=02-00-00-00-00-11,expect=offer,yiaddr=192.168.50.100,sid=192.168.50.7 x,ac9-held,type=discover,mac=02-00-00-00-00-12,expect=offer,yiaddr=10.99.0.20,sid=10.99.0.2,router=10.99.0.1 sentinel,02-00-00-00-00-11 addr-del,10.99.0.2/24 x,ac9-not-held,type=discover,mac=02-00-00-00-00-12,expect=none:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=dhcp ac8 sent=discover reply=offer yiaddr=192.168.50.100 sid=192.168.50.7 router=absent mask=255.255.255.0
+expect=stdout:contains=dhcp ac9-held sent=discover reply=offer yiaddr=10.99.0.20 sid=10.99.0.2 router=10.99.0.1
+expect=stdout:contains=dhcp ac9-not-held sent=discover reply=none
+expect=stderr:pattern=dhcpserver: no reply, the listen interface does not hold the subnet's server-identifier.*subnet=10.99.0.0/24 server-identifier=10.99.0.2
+expect=stderr:contains=Fix: add the server-identifier address to the listen interface
+reject=stderr:pattern=panic

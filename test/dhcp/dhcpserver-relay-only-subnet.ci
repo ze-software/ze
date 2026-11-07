@@ -1,0 +1,92 @@
+# Test: a relayed request is served from the shared network holding the
+#       relay's address (giaddr), even when the listen interface holds no
+#       address in that subnet, and the reply goes to the relay with the
+#       interface's primary address as the server identifier, which the
+#       client's SELECTING request then names.
+# VALIDATES: spec-home-cpe-2 AC-19 and AC-12 -- serveRequests ->
+#            resolveSegment with giaddr set (segment.go) -> segment.discover
+#            and segment.selecting -> segment.serverID's relayed arm, and
+#            responseAddr's giaddr arm (register.go), through a real listener.
+#            RFC 2131 Section 4.1: "If the server has received a message
+#            through a DHCP relay agent, the server SHOULD choose an address
+#            from the interface on which the message was recieved as the
+#            'server identifier' (unless the server has other, better
+#            information on which to make its choice)."
+# PREVENTS: a relayed request served from the receiving interface's own
+#           subnet, a relay-only subnet that draws no reply because the
+#           interface holds no address in it, and a SELECTING request that
+#           names the identifier the server sent and is then ignored.
+#
+# zedhrel holds 192.168.50.1/24 only. The relay is the probe: it writes each
+# request with giaddr set and hops 1 from port 67, and reads the reply the
+# server unicasts to giaddr port 67. The probe routes both relay subnets
+# through zedhrel and writes a permanent neighbour entry for each relay
+# address naming its own end (route, neigh), so the unicast reaches it
+# without ARP. A local DISCOVER, giaddr zero, is served from 192.168.50.0/24
+# beside them.
+#
+# Wire and fixtures as in dhcpserver-shared-segment-reservation.ci.
+#
+# Breaks that turn it red: resolveSegment ignoring giaddr (ac19-offer is
+# offered 192.168.50.x); serverID returning errNoServerAddress for a relayed
+# request into an unaddressed subnet (ac19-offer draws no reply);
+# serverIDOwner accepting only identifiers inside a segment subnet
+# (ac19-select is ignored).
+#
+# Requires CAP_NET_ADMIN (veth, addresses, routes, neighbours) and
+# CAP_NET_RAW (AF_PACKET).
+
+option=needs-linux:caps=net-admin,net-raw
+option=timeout:value=40s
+option=env:var=ze.log.dhcpserver:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface zedhrel
+        shared-network home {
+            subnet 192.168.50.0/24 {
+                range household {
+                    start 192.168.50.100
+                    stop 192.168.50.110
+                }
+                lease-time 3600
+                default-router 192.168.50.1
+            }
+        }
+        shared-network branch {
+            subnet 172.16.5.0/24 {
+                range branch {
+                    start 172.16.5.100
+                    stop 172.16.5.110
+                }
+                lease-time 3600
+                default-router 172.16.5.1
+            }
+        }
+        shared-network lab {
+            subnet 10.99.0.0/24 {
+                range lab {
+                    start 10.99.0.100
+                    stop 10.99.0.110
+                }
+                lease-time 3600
+                default-router 10.99.0.254
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture dhcp/link zedhrel 192.168.50.1/24:exit=0
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=le test fixture dhcp/probe zedhrel route,172.16.5.0/24 route,10.99.0.0/24 neigh,172.16.5.1 neigh,10.99.0.254 x,local,type=discover,mac=02-00-00-00-00-33,expect=offer,yiaddr=192.168.50.100,sid=192.168.50.1 x,ac19-offer,type=discover,mac=02-00-00-00-00-31,giaddr=172.16.5.1,expect=offer,yiaddr=172.16.5.100,sid=192.168.50.1,router=172.16.5.1,to=172.16.5.1:67 x,ac19-select,type=request,mac=02-00-00-00-00-31,giaddr=172.16.5.1,server-id=192.168.50.1,requested=172.16.5.100,expect=ack,yiaddr=172.16.5.100,sid=192.168.50.1,to=172.16.5.1:67 x,ac12,type=discover,mac=02-00-00-00-00-32,giaddr=10.99.0.254,expect=offer,yiaddr=10.99.0.100,sid=192.168.50.1,router=10.99.0.254,to=10.99.0.254:67:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=dhcp local sent=discover reply=offer yiaddr=192.168.50.100 sid=192.168.50.1
+expect=stdout:contains=dhcp ac19-offer sent=discover reply=offer yiaddr=172.16.5.100 sid=192.168.50.1 router=172.16.5.1 mask=255.255.255.0 dns=absent to=172.16.5.1:67
+expect=stdout:contains=dhcp ac19-select sent=request reply=ack yiaddr=172.16.5.100 sid=192.168.50.1
+expect=stdout:contains=to=172.16.5.1:67
+expect=stdout:contains=dhcp ac12 sent=discover reply=offer yiaddr=10.99.0.100 sid=192.168.50.1 router=10.99.0.254 mask=255.255.255.0 dns=absent to=10.99.0.254:67
+expect=stderr:pattern=dhcpserver: lease.*request=REQUEST reply=ACK mac=02:00:00:00:00:31 ip=172.16.5.100
+reject=stderr:pattern=panic
