@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | 0/2 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-07 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
@@ -159,9 +159,9 @@ implementation waits on another spec.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Without the flag, outbound IPv6 through an IPv4-outer SA finds no state | `xfrm_state_look_at` and `copy_from_user_state` in Linux 7.2.9, read 2026-10-31 | The defect lies elsewhere (policy, template, if_id); the red test shows where | `TestXFRMTunnelCarriesTheOtherInnerFamily` red before the fix, with the counter that moved | source-read, unmeasured |
-| A-2 | Inbound IPv6 inner over an IPv4 SA is also mishandled without the flag | `xfrm_ip2inner_mode` returns the single inner mode | Only the outbound half is broken; the fix is the same | Same test, inbound direction, counter `XfrmInStateModeError` or delivery | unvalidated |
+| A-2 | Inbound IPv6 inner over an IPv4 SA is also mishandled without the flag | `xfrm_ip2inner_mode` returns the single inner mode | Only the outbound half is broken; the fix is the same | Linux v7.3 source (stable tree, read 2026-11-07): decapsulation succeeds for either inner family, because `xfrm_inner_mode_encap_remove` (`net/xfrm/xfrm_input.c`) picks `xfrm4_remove_tunnel_encap` or `xfrm6_remove_tunnel_encap` by the ESP next header, not by the state. The drop comes after: `__xfrm_policy_check` (`net/xfrm/xfrm_policy.c`) matches every secpath state with `xfrm_selector_match(&x->sel, &fl, family)`, which opens "if (family != sel->family && sel->family != AF_UNSPEC) return false;", so an IPv6 inner packet through an AF_INET-selector state counts `XfrmInStateMismatch`, not `XfrmInStateModeError`. On a cross-netns xfrm interface `xfrmi_rcv_cb` calls `xfrm_ip2inner_mode` only when the selector family is AF_UNSPEC, so the same mismatch follows. The red walk cannot observe it: the outbound half drops first | confirmed by source read (counter corrected to `XfrmInStateMismatch`); unmeasured |
 | A-3 | strongSwan sets AF_UNSPEC on tunnel SAs | strongSwan 6.1.0 (the tag the lab image builds) `src/libcharon/plugins/kernel_netlink/kernel_netlink_ipsec.c` `add_sa`: for `MODE_TUNNEL` and `MODE_IPTFS` it ORs `XFRM_STATE_AF_UNSPEC` into the SA flags (read 2026-11-02) | Interop still proves Ze's half | Source read; child 6's scenario run shows the peer half carrying IPv6 | source-read |
-| A-4 | Upstream `vishvananda/netlink` has no field for the flag at the vendored version | `XfrmState` struct in the vendored file | If a newer release has one, bump instead of patching | Read upstream's latest `xfrm_state_linux.go` | unvalidated |
+| A-4 | Upstream `vishvananda/netlink` has no field for the flag at the vendored version | `XfrmState` struct in the vendored file | If a newer release has one, bump instead of patching | Read 2026-11-07 through the Go module proxy: the latest release is v1.3.1 (`@latest`, the version `go.mod` requires), and upstream `main` at `v1.3.2-0.20261102090517-2cd1a50c5846` still defines `XFRM_STATE_AF_UNSPEC = 32` in `nl/xfrm_state_linux.go` and sets no flag but `XFRM_STATE_ESN` in `xfrmUsersaInfoFromXfrmState` (`xfrm_state_linux.go`) | confirmed: no release or upstream commit carries it, so the vendor patch stays |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -221,7 +221,7 @@ implementation waits on another spec.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N-A | the datapath needs a kernel; proven by the integration test above and by child 6's interop scenario | | |
+| `ipsec-show-dataplane-kernel` (existing) | `test/ipsec/ipsec-show-dataplane-kernel.ci` | The daemon path: a Child SA established through two `ze` daemons, whose responder installs a tunnel-mode state through the real XFRM backend (now flagged) and `show vpn ipsec dataplane sa` reads it back by its outer addresses (AC-7 through the user entry point, and no regression in install). The cross-family datapath itself needs two namespaces and is proven by the integration test above and child 6's interop scenario | owed: run in the QEMU guest on Ze's kernel (`option=needs-linux:caps=net-admin`) |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -321,7 +321,7 @@ The kernel's own name for "any family" is a flag, not a selector value.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| - | - | No row exists for this defect (grep of `plan/journal/` for AF_UNSPEC, cross-family and inner family on 2026-10-31 found none). Implementation writes one row in `kernel-refuses-what-the-installer-sends.md` when the red run is recorded, and lists it here |
+| `kernel-refuses-what-the-installer-sends.md` | 2026-11-07 | `xfrmStateFromParams` installed tunnel states with no selector and no `XFRM_STATE_AF_UNSPEC` (row `fixed:`, citing 0db8414cfd) |
 
 ## Key Design Decisions
 
@@ -340,6 +340,18 @@ The kernel's own name for "any family" is a flag, not a selector value.
 The builder line carries `// RFC 4301 Section 5.1.2.1: "IPsec allows the IP
 version of the encapsulating header to be different from that of the inner
 header."` above the flag.
+
+## Recorded evidence
+
+| Date | What ran | Where | Result |
+|------|----------|-------|--------|
+| 2026-11-07 | `TestXFRMTunnelCarriesTheOtherInnerFamily` (subtests `ipv6_inside_ipv4`, `ipv4_inside_ipv6`, `ipv4_inside_ipv4`), `TestXFRMTunnelStateIsInstalledAFUnspec`, `TestXFRMReadbackOfAFUnspecState`, with the fix of 0db8414cfd | `./le test qemu run kernel tmp/kernel/build/vmlinuz`, guest reporting Ze's runtime kernel 7.3 | PASS, all three (AC-2, AC-3, AC-5, AC-6, AC-7 at the dataplane) |
+| 2026-11-07 | Interop scenario `vti-ipv6-inner-ipv4-outer` (child 6), after d0c2738a48 "ike: traffic into an xfrm interface passes the discard catch-all" and 3c23153b48 "interop-ipsec: vti IPv6 scenario offers MODP_2048 for its PFS rekey" | Ze's Docker host, `./le test integration interop-ipsec` | PASS, reported by the main thread. Its red walk with this fix reverted belongs to child 6 (AC-6 there) |
+
+Owed before closure:
+
+- **AC-1 red walk, not yet run.** Break: in `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`), comment out `state.AFUnspec = true`, so the vendored encoder sends no flag (the alternative break is the three-line `if state.AFUnspec` block in the vendored `xfrmUsersaInfoFromXfrmState`, which also reddens `TestPatchedVendorModulesMatchUpstream`). Run the three tests above in the same guest. Expected red: `ipv6_inside_ipv4` and `ipv4_inside_ipv6` fail with no answer and `XfrmOutNoStates` among the counters the test prints; `ipv4_inside_ipv4` stays green (the control); `TestXFRMTunnelStateIsInstalledAFUnspec` fails on the missing flag. Restore by hand (no `git restore`), confirm the file matches HEAD, rerun green, and paste the red output into the commit that records it.
+- `test/ipsec/ipsec-show-dataplane-kernel.ci` in the QEMU guest (Functional Tests).
 
 ## Checklist
 
