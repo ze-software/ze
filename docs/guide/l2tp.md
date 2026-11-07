@@ -164,9 +164,10 @@ logs why, and the LNS restarts authentication. An LNS may also ignore the
 proxy data and renegotiate LCP and authentication; a Ze LNS does so under
 `proxy-lcp renegotiate` (see PPP negotiation).
 
-Validation refuses a binding whose remote is not declared, an empty realm, a
-realm holding `@` or whitespace, a realm longer than 253 octets, and two
-bindings that differ only in case. A reload applies to the next
+`ze config validate`, a commit and the daemon at start refuse a binding
+whose remote is not declared, an empty realm, a realm holding `@` or
+whitespace, a realm longer than 253 octets, and two bindings that differ only
+in case, each with the change that fixes it. A reload applies to the next
 authentication.
 
 `show l2tp session id <id>` on the LAC adds `relay-realm`, `relay-remote`,
@@ -182,7 +183,11 @@ it to the L2TP session, and from then on sends the subscriber nothing itself:
 the LNS continues the PPP session. A matched realm whose call fails (no
 listener, a refused tunnel, a CDN or a bridge error before the bridge) is
 refused with a CHAP Failure or PAP Authenticate-Nak naming the realm, then an
-LCP Terminate-Request; it is never authenticated locally. After the bridge, a
+LCP Terminate-Request; it is never authenticated locally. An MS-CHAPv2
+subscriber of a matched realm is refused the same way, because RFC 2661
+Section 4.4.5 defines no Proxy Authen Type for MS-CHAPv2; its Failure carries
+the RFC 2759 Section 6 fields (`E=691 R=0 C=<the challenge sent> V=3`) with
+the realm in the `M=` text. After the bridge, a
 subscriber PADT ends the L2TP session with CDN Result Code 1 (loss of
 carrier), and an L2TP session the LNS ends sends the subscriber PADT.
 Subscribers of one remote share one tunnel, including those that arrive
@@ -197,10 +202,12 @@ Linux tests of the bridge after local LCP are not written yet.
 
 <!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay/relay-realm lists -->
 <!-- source: internal/component/l2tp/config.go -- validateRelayRealms, checkRealmSyntax, LookupRealmRelay -->
+<!-- source: internal/component/l2tp/config_policy.go -- validateParameters -->
 <!-- source: internal/component/l2tp/relay_sink.go -- RelayRealm, realmCall.Cancel -->
 <!-- source: internal/component/l2tp/iccn_proxy.go -- newICCNProxy, writeICCNProxyAVPs -->
 <!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmHandoff.run, subscriberGone -->
 <!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision, serveFrameAwaitingDecision -->
+<!-- source: internal/component/l2tp/ppp/mschapv2.go -- mschapv2RefusalMessage -->
 <!-- source: internal/component/l2tp/teardown.go -- teardownRealmSession -->
 <!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, connectingTunnelToLocked -->
 <!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->

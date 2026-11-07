@@ -497,7 +497,16 @@ func (w *kernelWorker) teardownSessionFDsLocked(key sessionKey, fds *pppSessionF
 			w.logger.Warn("l2tp: close pppox fd", "fd", fds.pppoxFD, "error", err.Error())
 		}
 	}
-	if err := w.ops.sessionDelete(key.tunnelID, key.sessionID); err != nil {
+	// Closing the pppox socket above already deletes the kernel session
+	// (net/l2tp/l2tp_ppp.c pppol2tp_release calls l2tp_session_delete), and
+	// that delete may finish before this request: genl then answers ENODEV,
+	// which is the end state this delete asks for, not a failure.
+	// TestLACRealmBridgeAfterLocalLCP met it on Ze's 7.3 kernel.
+	err := w.ops.sessionDelete(key.tunnelID, key.sessionID)
+	if err != nil && errors.Is(err, unix.ENODEV) && fds.pppoxFD >= 0 {
+		err = nil
+	}
+	if err != nil {
 		w.logger.Warn("l2tp: kernel session delete failed",
 			"tunnel-id", key.tunnelID, "session-id", key.sessionID,
 			"error", err.Error())

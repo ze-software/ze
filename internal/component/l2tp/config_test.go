@@ -257,9 +257,7 @@ environment {
 		}
 	}
 }`
-	tree := loadTree(t, src)
-	_, err := l2tp.ExtractParameters(tree)
-	require.Error(t, err)
+	err := extractRefusal(t, src)
 	assert.Contains(t, err.Error(), "port")
 }
 
@@ -896,8 +894,9 @@ func TestConfig_RemotePortBoundary(t *testing.T) {
 // TestConfig_RemoteMissingAddress rejects a remote with no address.
 //
 // VALIDATES: AC-6 -- address is mandatory (a dial target needs an endpoint).
-// The YANG schema marks it mandatory (RFC 7950 Section 7.6.5), so the config
-// loader refuses it before ExtractParameters is reached.
+// The YANG schema marks it mandatory (RFC 7950 Section 7.6.5), and the
+// l2tp-parameters tree validator, which runs before the schema walk, refuses
+// it through ExtractParameters first; either way the message names the path.
 func TestConfig_RemoteMissingAddress(t *testing.T) {
 	const src = `l2tp {
 	enabled true
@@ -960,8 +959,7 @@ func TestConfig_RelayUnknownRemote(t *testing.T) {
 		remote ghost
 	}
 }`
-	_, err := l2tp.ExtractParameters(loadTree(t, src))
-	require.Error(t, err)
+	err := extractRefusal(t, src)
 	assert.Contains(t, err.Error(), "unknown remote")
 }
 
@@ -1001,8 +999,7 @@ func TestRelayRealmConfigValidation(t *testing.T) {
 		remote ghost
 	}
 }`
-	_, err = l2tp.ExtractParameters(loadTree(t, unknown))
-	require.Error(t, err)
+	err = extractRefusal(t, unknown)
 	assert.Contains(t, err.Error(), "unknown remote")
 	assert.Contains(t, err.Error(), "l2tp remote ghost")
 }
@@ -1012,6 +1009,23 @@ func loadTree(t *testing.T, src string) *zeconfig.Tree {
 	res, err := zeconfig.LoadConfig(src, "test.conf", nil)
 	require.NoError(t, err)
 	return res.Tree
+}
+
+// extractRefusal answers the error ExtractParameters refuses src with, read
+// from a tree parsed without the registered tree validators, so the refusal
+// is proven at ExtractParameters itself. It then proves LoadConfig, which runs
+// those validators (l2tp-parameters among them, the walk `ze config validate`
+// shares), refuses the same config with the same message.
+func extractRefusal(t *testing.T, src string) error {
+	t.Helper()
+	tree, err := zeconfig.ParseTreeForValidation(src)
+	require.NoError(t, err)
+	_, extractErr := l2tp.ExtractParameters(tree)
+	require.Error(t, extractErr)
+	_, loadErr := zeconfig.LoadConfig(src, "test.conf", nil)
+	require.Error(t, loadErr, "LoadConfig accepted a config ExtractParameters refuses")
+	assert.Contains(t, loadErr.Error(), extractErr.Error())
+	return extractErr
 }
 
 // TestConfig_LoopbackListenerRefusesOffHostRemote proves a config whose
@@ -1040,7 +1054,7 @@ environment {
 		}
 	}
 }`
-	_, err := l2tp.ExtractParameters(loadTree(t, src))
+	err := extractRefusal(t, src)
 	require.ErrorIs(t, err, l2tp.ErrDialFromLoopback)
 	message := err.Error()
 	assert.Contains(t, message, `remote "xl2tpd" at 172.29.0.3:17010`)
@@ -1130,7 +1144,7 @@ environment {
 		}
 	}
 }`
-	_, err := l2tp.ExtractParameters(loadTree(t, src))
+	err := extractRefusal(t, src)
 	require.ErrorIs(t, err, l2tp.ErrDialFromLoopback)
 	assert.True(t, strings.HasSuffix(err.Error(), "\n  set environment l2tp server lab ip ::"), err.Error())
 }

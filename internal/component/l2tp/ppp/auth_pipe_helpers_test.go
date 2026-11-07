@@ -64,7 +64,9 @@ func readPeerFrame(t *testing.T, peerEnd net.Conn) (uint16, []byte) {
 	}
 	ch := make(chan readResult, 1)
 	go func() {
-		buf := make([]byte, MaxFrameLen)
+		// A full frame is the Protocol field plus a MaxFrameLen Information
+		// field; a MaxFrameLen buffer would cut the last two octets.
+		buf := make([]byte, MaxFrameBufLen)
 		n, err := peerEnd.Read(buf)
 		ch <- readResult{buf[:n], err}
 	}()

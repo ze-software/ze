@@ -1,6 +1,14 @@
-# Test: ze config validate accepts port 0 in L2TP server block
-# Note: port 0 means "OS-assigned"; YANG range now allows 0..65535
-stdin=config:terminator=EOF_CONF
+# Test: ze config validate refuses port 0 in an L2TP server block, as the
+# daemon does at start.
+# VALIDATES: the YANG range admits 0 (a shared listener type), but the L2TP
+# listener parser refuses it (parseListen, internal/component/l2tp/config.go:
+# "must be 1-65535"), and `ze config validate` now runs that parser through the
+# l2tp-parameters tree validator, so validation and start agree. The refusal
+# names the server and the command that fixes it.
+# PREVENTS: a config that validates and then fails to start: the previous
+# expectation (exit 0, "port 0 means OS-assigned") described a listener the
+# daemon never accepted.
+stdin=config:refused=config-validator-unavailable:terminator=EOF_CONF
 l2tp {
 	enabled true
 }
@@ -15,4 +23,6 @@ environment {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
-expect=exit:code=0
+expect=exit:code=1
+expect=stdout:contains=l2tp server "main"
+expect=stdout:contains=set environment l2tp server main port 1701

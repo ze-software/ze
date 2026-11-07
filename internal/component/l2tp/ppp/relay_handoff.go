@@ -112,7 +112,9 @@ func (d *Driver) ReleaseSession(tunnelID, sessionID uint16) error {
 // RefuseAuth rejects the pending authentication like AuthResponse with
 // accept=false, and then closes the link: the session writes CHAP Failure
 // (or PAP Authenticate-Nak) carrying message, then one LCP Terminate-Request,
-// and ends with EventSessionDown. A realm relay that could not carry the
+// and ends with EventSessionDown. message is display text: on an MS-CHAPv2
+// session it becomes the M= text of a structured RFC 2759 Section 6 Failure
+// (mschapv2RefusalMessage), so the caller never formats one. A realm relay that could not carry the
 // subscriber refuses it this way, whether or not the session was quiesced.
 //
 // Safe for concurrent use. Non-blocking, with AuthResponse's
@@ -123,7 +125,7 @@ func (d *Driver) RefuseAuth(tunnelID, sessionID uint16, message string) error {
 		return err
 	}
 	select {
-	case s.authRespCh <- authResponseMsg{message: message, terminate: true}:
+	case s.authRespCh <- authResponseMsg{message: message, terminate: true, displayText: true}:
 		return nil
 	default: // buffered(1) already full: a decision is already pending
 		return ErrAuthResponsePending

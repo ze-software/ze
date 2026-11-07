@@ -7,9 +7,14 @@
 // PPPIOCGCHAN and PPPIOCUNBRIDGECHAN need. Opening /dev/ppp still needs the
 // host grant `./le setup install` applies (its `ppp-access` step puts the node
 // in group dip, mode 0660), so the file keeps the integration tag: a host
-// without that grant fails here on its setup rather than on Ze. No run drives
-// the full PPPoE<->pppol2tp bridge yet: `./le test deployment l2tp-ppp` and
-// `gokrazy-l2tp-ppp` carry no PPPoE subscriber and no Ze LAC.
+// without that grant fails here on its setup rather than on Ze. The realm
+// relay tests in bridge_realm_integration_linux_test.go build the whole kernel
+// path the LAC bridges: a PPPoE session socket on a veth pair whose far end is
+// a raw subscriber, and a kernel L2TP tunnel and session over loopback UDP
+// with a pppol2tp socket. They live in package l2tp_test because the PPPoE
+// package they drive imports this one.
+// `./le test deployment l2tp-ppp` and `gokrazy-l2tp-ppp` carry no PPPoE
+// subscriber and no Ze LAC, so they prove none of this.
 
 package l2tp
 

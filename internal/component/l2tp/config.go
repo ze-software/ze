@@ -474,7 +474,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 				}
 				addr, err := parseListen(ip, port)
 				if err != nil {
-					return Parameters{}, fmt.Errorf("l2tp server %q: %w", s.Key, err)
+					return Parameters{}, fmt.Errorf("l2tp server %q: %w; run 'set environment l2tp server %s port 1701'", s.Key, err, s.Key)
 				}
 				p.ListenAddrs = append(p.ListenAddrs, addr)
 				p.ListenNames = append(p.ListenNames, s.Key)
@@ -509,7 +509,7 @@ func parseListen(ip, port string) (netip.AddrPort, error) {
 // parseListen's IP+port validation.
 func buildRemote(name, address, port, secret string, outgoing bool) (Remote, error) {
 	if address == "" {
-		return Remote{}, fmt.Errorf("%w (remote %q)", errL2tpRemoteMissingAddress, name)
+		return Remote{}, fmt.Errorf("%w: l2tp/remote[%s]/address is missing; run 'set l2tp remote %s address <ip>'", errL2tpRemoteMissingAddress, name, name)
 	}
 	addr, err := parseListen(address, port)
 	if err != nil {

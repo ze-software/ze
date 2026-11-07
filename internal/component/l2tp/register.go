@@ -20,6 +20,9 @@ func init() {
 	if err := config.RegisterTreeValidator("l2tp-auth-policy", validateAuthPolicy); err != nil {
 		panic("BUG: registering l2tp authentication policy: " + err.Error())
 	}
+	if err := config.RegisterTreeValidator("l2tp-parameters", validateParameters); err != nil {
+		panic("BUG: registering l2tp parameters: " + err.Error())
+	}
 	health.Register("l2tp", checkHealth)
 	// Register the redistribute source at init so `import l2tp` resolves during
 	// `ze config validate`, which imports plugins but does not start their engines.

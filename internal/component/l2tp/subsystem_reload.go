@@ -604,7 +604,7 @@ func appendListenersFromEnv(p *Parameters, env map[string]any) error {
 		}
 		addr, err := parseListen(ip, port)
 		if err != nil {
-			return fmt.Errorf("l2tp server %q: %w", name, err)
+			return fmt.Errorf("l2tp server %q: %w; run 'set environment l2tp server %s port 1701'", name, err, name)
 		}
 		p.ListenAddrs = append(p.ListenAddrs, addr)
 		p.ListenNames = append(p.ListenNames, name)

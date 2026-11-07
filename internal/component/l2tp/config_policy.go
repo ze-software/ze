@@ -97,6 +97,18 @@ func validateAuthPolicy(tree *config.Tree) error {
 	return nil
 }
 
+// validateParameters runs the parser the daemon runs at startup over the
+// original tree, so `ze config validate`, commit and load refuse what the L2TP
+// subsystem would refuse at start: a relay or relay-realm binding naming an
+// undeclared remote, a malformed or case-duplicated realm, a remote with no
+// address, a dialing listener on the loopback. The two policy validators above
+// stay, because they judge the explicit layer before defaults conceal it. It is
+// safe for concurrent use and MUST NOT modify tree.
+func validateParameters(tree *config.Tree) error {
+	_, err := ExtractParameters(tree)
+	return err
+}
+
 // providerAuthAllow refuses malformed explicit policy rather than deriving a
 // broader default from values that a permissive leaf-list decoder would drop.
 func providerAuthAllow(root map[string]any) ([]string, error) {

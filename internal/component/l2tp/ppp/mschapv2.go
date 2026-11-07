@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"strconv"
 	"strings"
@@ -440,6 +441,9 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 		// RFC 2759 Section 6 makes the error fields protocol-significant.
 		// Only M= display text can be shortened; never cut C= or the other
 		// structured fields to make an invalid failure fit a small link.
+		if decision.displayText {
+			message = mschapv2RefusalMessage(value[:], message)
+		}
 		var fits bool
 		message, fits = fitMSCHAPv2FailureMessage(message, len(replyBuf)-rOff-mschapv2HeaderLen)
 		if !fits {
@@ -479,6 +483,42 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 		Reason:    decision.message,
 	})
 	return false
+}
+
+// mschapv2ErrorAuthenticationFailure is the RFC 2759 Section 6 error code a
+// refusal Ze writes itself carries: 691 ERROR_AUTHENTICATION_FAILURE.
+const mschapv2ErrorAuthenticationFailure = 691
+
+// mschapv2PasswordChangeVersion is the V= field. RFC 2759 Section 6: "For
+// MS-CHAP-V2, this value SHOULD always be 3."
+const mschapv2PasswordChangeVersion = 3
+
+// mschapv2RefusalMessage formats display text Ze wrote itself (a realm relay
+// refusing a subscriber, Driver.RefuseAuth) as the Message field of an
+// MS-CHAPv2 Failure. A free-text Failure is not one a peer can parse, and,
+// with no M= field, fitMSCHAPv2FailureMessage cannot shorten it, so a long
+// one never reaches the wire.
+//
+// RFC 2759 Section 6: "There is, however, formatted text stored in the
+// Message field which, contrary to the standard CHAP rules, does affect the
+// operation of the protocol."
+//
+//	"E=eeeeeeeeee R=r C=cccccccccccccccccccccccccccccccc V=vvvvvvvvvv M=<msg>"
+//
+// R is 0: Ze offers no retry, because the refusal closes the link (RFC 1661
+// Section 3.5). C is the Authenticator Challenge this exchange sent, in the
+// upper case hexadecimal Section 5 writes. RFC 2759 Section 6: "This field
+// MUST be exactly 32 octets long and MUST be present." challenge is
+// mschapv2ChallengeValueLen (16) octets, so its hexadecimal form is 32.
+func mschapv2RefusalMessage(challenge []byte, text string) string {
+	if len(challenge) != mschapv2ChallengeValueLen {
+		panic("BUG: mschapv2RefusalMessage: challenge is not the 16-octet Authenticator Challenge")
+	}
+	var tb textbuf.Buffer
+	tb.Str("E=").Int(mschapv2ErrorAuthenticationFailure).Str(" R=0 C=")
+	tb.Str(strings.ToUpper(hex.EncodeToString(challenge)))
+	tb.Str(" V=").Int(mschapv2PasswordChangeVersion).Str(" M=").Str(text)
+	return tb.String()
 }
 
 // fitMSCHAPv2FailureMessage preserves every fitting handler message. For an

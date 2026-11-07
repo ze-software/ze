@@ -3,6 +3,7 @@ package ppp
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"net"
 	"strings"
@@ -1336,4 +1337,73 @@ func TestMSCHAPv2DrawChallengePanicsOnShortDst(t *testing.T) {
 	}()
 	short := make([]byte, mschapv2ChallengeValueLen-1)
 	_ = drawMSCHAPv2Challenge(short)
+}
+
+// TestMSCHAPv2RelayRefusalIsStructured checks that a refusal Ze writes
+// itself (Driver.RefuseAuth, a realm relay that cannot carry the subscriber)
+// reaches an MS-CHAPv2 peer as the RFC 2759 Section 6 field set, with the
+// text in M= and C= holding this exchange's Authenticator Challenge.
+// Method: drive runMSCHAPv2AuthPhase to its decision and answer it the way
+// RefuseAuth does, with display text longer than any frame. Before the fix
+// the free text had no M= field to shorten, so fitMSCHAPv2FailureMessage
+// refused it and no Failure left the LAC; the text is therefore 2000 octets.
+func TestMSCHAPv2RelayRefusalIsStructured(t *testing.T) {
+	peerEnd, driverEnd := net.Pipe()
+	defer closeConn(peerEnd)
+	s, authEventsOut := newAuthTestSession(driverEnd)
+
+	handlerDone := make(chan bool, 1)
+	go func() {
+		handlerDone <- s.runMSCHAPv2AuthPhase()
+	}()
+
+	_, payload := readPeerFrame(t, peerEnd)
+	challengeID := payload[1]
+	// Challenge body: Value-Size (1 octet) then the 16-octet value.
+	challenge := bytes.Clone(payload[mschapv2HeaderLen+1 : mschapv2HeaderLen+1+mschapv2ChallengeValueLen])
+
+	pc := bytes.Repeat([]byte{0x11}, mschapv2PeerChallengeLen)
+	nt := bytes.Repeat([]byte{0x22}, mschapv2NTResponseLen)
+	respPayload := buildMSCHAPv2ResponsePayload(challengeID, pc, nt, "cpe@example.net")
+	peerWrite := make([]byte, MaxFrameLen)
+	off := WriteFrame(peerWrite, 0, ProtoCHAP, nil)
+	copy(peerWrite[off:], respPayload)
+	off += len(respPayload)
+	if _, err := peerEnd.Write(peerWrite[:off]); err != nil {
+		t.Fatalf("peer write response: %v", err)
+	}
+	select {
+	case <-authEventsOut:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for EventAuthRequest")
+	}
+
+	text := "realm example.net: " + strings.Repeat("x", 2000)
+	s.authRespCh <- authResponseMsg{message: text, terminate: true, displayText: true}
+
+	_, payload = readPeerFrame(t, peerEnd)
+	if payload[0] != MSCHAPv2CodeFailure {
+		t.Fatalf("reply code = %d, want MSCHAPv2CodeFailure", payload[0])
+	}
+	if payload[1] != challengeID {
+		t.Errorf("reply identifier = 0x%02x, want 0x%02x", payload[1], challengeID)
+	}
+	length := int(binary.BigEndian.Uint16(payload[2:4]))
+	got := string(payload[mschapv2HeaderLen:length])
+	preface := "E=691 R=0 C=" + strings.ToUpper(hex.EncodeToString(challenge)) + " V=3 M="
+	if !strings.HasPrefix(got, preface) {
+		t.Fatalf("Failure message %q, want the prefix %q", got[:min(len(got), 80)], preface)
+	}
+	if !strings.HasPrefix(text, got[len(preface):]) || len(got) == len(preface) {
+		t.Errorf("M= text %q is not a non-empty prefix of the refusal text", got[len(preface):min(len(got), len(preface)+40)])
+	}
+	// The refusal closes the link (RFC 1661 Section 3.5): the next frame is
+	// the LCP Terminate-Request.
+	proto, lcp := readPeerFrame(t, peerEnd)
+	if proto != ProtoLCP || lcp[0] != LCPTerminateRequest {
+		t.Errorf("frame after the Failure: proto 0x%04x code %d, want LCP Terminate-Request", proto, lcp[0])
+	}
+	if <-handlerDone {
+		t.Errorf("runMSCHAPv2AuthPhase returned true, want false on a refusal")
+	}
 }

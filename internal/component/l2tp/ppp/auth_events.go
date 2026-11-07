@@ -151,6 +151,11 @@ type authResponseMsg struct {
 	// terminate asks the session to close the link with an LCP
 	// Terminate-Request after a reject (Driver.RefuseAuth).
 	terminate bool
+	// displayText marks message as human-readable text Ze wrote itself
+	// (Driver.RefuseAuth), not a handler's reply. An MS-CHAPv2 reject wraps
+	// such text in the RFC 2759 Section 6 field set; a handler's message is
+	// sent as the handler wrote it.
+	displayText bool
 }
 
 // Compile-time exhaustiveness pin. Bumping the array length without
