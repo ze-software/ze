@@ -52,6 +52,7 @@ Goals:
 1. Make the Restart timer, Max-Terminate, Max-Configure and Max-Failure operator-configurable, with the RFC's SHOULD values as the schema defaults, on both PPP transports (L2TP and PPPoE).
 2. Build the Restart counter the automaton depends on, so `irc`, `zrc`, `TO+` and `TO-` carry their RFC meaning instead of being unreachable table entries.
 3. Make the counter's terminal actions reachable: `tld` tells the upper layers that LCP left Opened.
+4. Carry goal 1 to the PPPoE client, the third PPP implementation in the tree. `RFC1661-4.6-1` binds every PPP implementation, and the client is one: its LCP negotiation in `internal/component/l2tp/pppoeclient/session.go` retransmits on a fixed `time.NewTicker(3 * time.Second)` and its IPv6CP on the `ipv6cpRestartInterval` constant (`ipv6cp_client.go`, 3 s), and no `pppoe-client` leaf reaches either. Goals 1 to 3 name the LNS-side `ppp` package (L2TP and the PPPoE access concentrator); the client has its own negotiator, so it owes its own leaf on the `pppoe-client` entry (`internal/component/iface/yang/ze-iface-conf.yang`). Recorded as the 2026-11-07 row of `plan/journal/rfc-extension-not-implemented.md`, which this spec owns.
 
 ### The automaton question, and why it is in scope
 
@@ -123,6 +124,19 @@ a no-op: nothing in this spec reaches the Starting state.
 - `sendConfigureNakOrReject` counts Naks sent and converts to Reject at Max-Failure.
 - `tld` emits an LCP-down notification to the upper layers.
 - `defaultNegoTimeout` and its `negoTimer` are DELETED. Max-Configure times the Restart timer is the RFC's bound on the same thing, and keeping both is the layering `ai/rules/no-layering.md` forbids.
+
+## Existing Mechanisms (MANDATORY)
+
+Added 2026-11-07 when goal 4 (the PPPoE client) joined this spec. The Current Behavior list above predates the 2026-09-20 restart-counter fix recorded in `plan/journal/silent-fall-through.md` (row 2026-09-04): the bare ticker it describes is gone, so the implementing phase re-reads `session_run.go` before it designs anything.
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| LCP Restart counter and timer | `internal/component/l2tp/ppp/session_run.go` `spendRestartCount`, `stopRestartTimer`, `restartTimerRuns`, `handleRestartTimeout` | books each Configure-Request and Terminate-Request against `restartCount`, re-arms a one-shot Restart timer, raises TO+ or TO- into the table, stops the timer in states without a TO edge | extends: the timer period, Max-Configure and Max-Terminate become configured values the counter and timer read, instead of constants |
+| RFC 1661 automaton | `internal/component/l2tp/ppp/ppp_fsm.go` `LCPDoTransition` | the full ten-state table, pure | does not apply: the table is correct and is not edited |
+| Per-session PPP inputs | `internal/component/l2tp/ppp/start_session.go` `StartSession` | carries `EchoInterval`, `EchoFailures`, `AuthTimeout` and the auth policy; no restart field | extends: the four configured values ride here from both LNS-side transports |
+| L2TP config parse | `internal/component/l2tp/config.go` `Parameters` | reads the `authentication` and `ncp` containers | extends: reads the shared LCP grouping |
+| PPPoE client LCP negotiation | `internal/component/l2tp/pppoeclient/session.go` (fixed `time.NewTicker(3 * time.Second)`), `ipv6cp_client.go` `ipv6cpRestartInterval` | the client's own negotiator, outside the `ppp` package, retransmits on a fixed 3 s | extends (goal 4): its Restart timer reads the same grouping on the `pppoe-client` entry, carried through `sessionConfig` the way the keepalive leaves are |
+| PPPoE client timing leaves | `internal/component/iface/yang/ze-iface-conf.yang` `pppoe-client` `keepalive`, `reconnect`; `internal/component/iface/config.go` `PPPoEClientTiming` | parse, default and carry the echo and redial timing to the client | extends (goal 4): the precedent for adding the client's LCP timing leaves |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -476,6 +490,12 @@ written by `./le rfc record` and stored under `rfc/discrimination/`.
 - The RFC's own text supplies the arming rule, so no design choice is needed for it. Section 4.2 names `scr`, `str` and `zrc` as the three actions that start or re-start the timer, and states that it stops on leaving a timer-running state. The current ticker is a different mechanism that happens to retransmit.
 - `irc` needs no per-state table. The transition already carries the accompanying action: `str` beside `irc` means Max-Terminate, and `scr` beside it means Max-Configure. A table would be a second declaration of `LCPDoTransition`.
 - The RFC's SHOULD defaults multiply out to today's behavior. Ten transmissions at three seconds is the 30 seconds `defaultNegoTimeout` currently enforces by a different route, which is why the second bound can be deleted rather than reconciled.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `rfc-extension-not-implemented.md` | 2026-11-07 | PPPoE client Restart timer fixed at 3 s, no `pppoe-client` leaf (goal 4) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

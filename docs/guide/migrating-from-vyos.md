@@ -20,7 +20,10 @@ does what the VyOS construct did. So the VyOS side of a row is read in VyOS's
 own source, not inferred from its CLI. The rows were read in vyos-1x, branch
 `rolling`, `git describe` `vyos/1.5dev0-5530-g611550d23` (commit of
 2026-09-01). The MSS and conntrack rows were first read at
-`vyos/1.5dev0-5851-gdb29bdc89`, and the files below did not change for them.
+`vyos/1.5dev0-5851-gdb29bdc89`, and the files below did not change for them. The PPPoE
+`holdoff` and keepalive rows were read at `rolling` commit `d6902e6423ec`
+(2026-11-07), with pppd's `pppd/lcp.c` `LcpSendEchoRequest` from
+`ppp-project/ppp` `master` for the echo count.
 
 | vyos-1x file | Read for |
 |--------------|----------|
@@ -31,7 +34,8 @@ own source, not inferred from its CLI. The rows were read in vyos-1x, branch
 | `src/conf_mode/system_conntrack.py` `module_map`; `data/templates/conntrack/nftables-helpers.j2` | `system conntrack modules` |
 | `data/templates/ssh/sshd_config.j2` | `service ssh listen-address` |
 | `src/conf_mode/system_login.py` | `encrypted-password` |
-| `src/conf_mode/interfaces_pppoe.py`; `data/templates/pppoe/peer.j2` | `no-default-route` |
+| `src/conf_mode/interfaces_pppoe.py`; `data/templates/pppoe/peer.j2` | `no-default-route`; `holdoff` and the fixed `lcp-echo-interval` and `lcp-echo-failure` |
+| `interface-definitions/interfaces_pppoe.xml.in` | `holdoff` range and default |
 | `python/vyos/utils/strip_config.py`; `src/helpers/strip-private.py` | redaction |
 
 A row whose VyOS producer is not in this table carries the class `not read`.
@@ -118,6 +122,8 @@ lands, its row changes.
 | `interfaces pppoe <n> source-interface`, `authentication username`, `authentication password`, `mtu` | `interface pppoe-client <n>` with `source-interface`, `authentication username`, `authentication password` (placeholder), `mtu` | keep the VyOS name: Ze creates the kernel device under the configured name | not read | - |
 | `interfaces pppoe <n> no-default-route` | `interface pppoe-client <n> no-default-route` | | equivalent | - |
 | `interfaces pppoe <n> default-route-distance <d>` | `interface pppoe-client <n> route-priority <d>` | | not read | - |
+| `interfaces pppoe <n> holdoff <h>` | `interface pppoe-client <n> reconnect` with `delay-min <h>` and `delay-max <h>` | VyOS hands `holdoff` to pppd, which waits that fixed time before it redials; equal bounds give Ze the same fixed wait instead of its doubling one. VyOS defaults `holdoff` to 30, so a config without the leaf still waits 30 s: write `delay-min 30` and `delay-max 30` to keep that, or leave both out for Ze's 1 to 60 s doubling. VyOS takes 0 to 86400 and Ze 1 to 3600, so `holdoff 0` becomes 1 and a value above 3600 becomes 3600 | behavior change | - |
+| none: VyOS has no keepalive leaf; its pppd template fixes `lcp-echo-interval 20` and `lcp-echo-failure 3` | `interface pppoe-client <n> keepalive` with `interval 20` and `failures 4` | pppd declares the peer dead when it is about to send a request while 3 are unanswered, so a silent peer is dropped about 80 s after its last reply. Ze ends the session when it sends the request that reaches `failures`, so `failures 4` drops it at the same 80 s. Leaving both out gives Ze's default of 10 s and 3, about 30 s | equivalent | - |
 | `interfaces pppoe <n> no-peer-dns` | none: dropped | Ze always asks for DNS servers in IPCP and ranks the learned servers after the static `system name-server` entries | behavior change | 13 |
 | `interfaces pppoe <n> ipv6 address autoconf`, `dhcpv6-options pd <i> length <l>` | `interface pppoe-client <n> ipv6` with `enabled true`, `autoconf true`, `accept-ra 2`, `forwarding true`, `dhcpv6 enabled true` and `dhcpv6 pd length <l>` | Ze negotiates IPv6CP beside IPCP and runs the DHCPv6 client on the session device; `accept-ra 2` keeps the Router Advertisement default route while the box forwards. The delegated prefix is published as a lease on `<n>` and nothing uses it yet | not read | - |
 | `interfaces pppoe <n> dhcpv6-options pd <i> interface <lan> address`, `sla-id` | none: dropped | Ze assigns no part of the delegated prefix to a LAN interface and advertises none of it yet | conditional | 8 |
@@ -127,7 +133,7 @@ lands, its row changes.
 | `interfaces wireguard <n> peer <p> public-key`, `preshared-key`, `allowed-ips`, `persistent-keepalive` | `interface wireguard <n> peer <p>` with the same four leaves | `preshared-key` is a placeholder; `allowed-ips` is a bracket list | not read | - |
 | `interfaces vti <n> address <a>` | `interface xfrm <n>` with `if-id <id>` and `unit 0` addresses | choose any `if-id` from 1 up, unique per xfrm interface | not read | - |
 
-<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet mac match, offload, bridge member, unit ipv4/ipv6 address, pppoe-client, pppoe-client ipv6, grouping ipv6-host, wireguard, xfrm if-id -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet mac match, offload, bridge member, unit ipv4/ipv6 address, pppoe-client, pppoe-client keepalive and reconnect, pppoe-client ipv6, grouping ipv6-host, wireguard, xfrm if-id -->
 <!-- source: internal/component/iface/register.go -- reconcileDHCP -->
 <!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop, startIPv6CP -->
 <!-- source: internal/plugins/static/yang/ze-static-conf.yang -- table route distance, next hop, next interface -->

@@ -221,7 +221,7 @@ Its three subtests assert what the access concentrator observes, not timing:
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | `features/` PPPoE client entry |
+| 1 | New user-facing feature? | Yes | `features/interfaces.md` (the declaration that carries the PPPoE client): a keepalive and reconnect paragraph, `test/parse/pppoe-client-keepalive.ci` in its Real-path tests, and a fresh Doc review (done 2026-11-07) |
 | 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`, interfaces guide |
 | 3 | CLI command added/changed? | No | |
 | 4 | API/RPC added/changed? | No | |
@@ -237,7 +237,7 @@ Its three subtests assert what the access concentrator observes, not timing:
 | 14 | Prometheus counters? | No | |
 | 15 | Registered plugin/event/command changed? | No | |
 | 16 | Source anchors | Yes | derived at implementation |
-| 17 | Existing examples for this area? | Yes | VyOS mapping guide (child 10) maps the VyOS keepalive and holdoff settings to these leaves |
+| 17 | Existing examples for this area? | Yes | VyOS mapping guide (`docs/guide/migrating-from-vyos.md`, child 10) maps VyOS `holdoff` (pppd's fixed redial wait, default 30, range 0 to 86400) to equal `reconnect delay-min` and `delay-max`, and VyOS's fixed pppd `lcp-echo-interval 20` and `lcp-echo-failure 3` to `keepalive interval 20; failures 4`, because pppd declares the peer dead at the request after the third unanswered one (`pppd/lcp.c` `LcpSendEchoRequest`) while `keepaliveLoop` ends on the request that reaches `failures`. Read at vyos-1x `rolling` `d6902e6423ec` (done 2026-11-07) |
 
 ## Implementation Steps
 
@@ -295,7 +295,7 @@ new state.
 | Container names `keepalive` and `reconnect` | flat `echo-interval` leaves | groups related leaves; names checked against `ai/rules/config.md` at implementation |
 
 ## Known Limitations
-- The client's Configure-Request restart timer (3 s for IPCP, the LCP negotiator's own) and the 30 s phase timeouts stay fixed. RFC 1661 says the Restart timer MUST be configurable; `plan/release/fixes/spec-lcp-restart-counters.md` owns that obligation for the LNS side and does not name the client. The main thread checks whether it should cover the client and adds a journal row if not.
+- The client's Configure-Request restart timer and the 30 s phase timeouts stay fixed. RFC 1661 Section 4.6 (`rfc/full/rfc1661.txt`): "The Restart timer MUST be configurable, but SHOULD default to three (3) seconds." The client's LCP negotiation ticks a fixed `time.NewTicker(3 * time.Second)` (`internal/component/l2tp/pppoeclient/session.go`) and its IPv6CP the `ipv6cpRestartInterval` constant (`ipv6cp_client.go`). That is an absent requirement of an implemented RFC, so it is owed work, not a limitation this spec can keep: the 2026-11-07 row of `plan/journal/rfc-extension-not-implemented.md` records it, and `plan/release/fixes/spec-lcp-restart-counters.md` owns it beside the LNS side it already covered.
 
 ## Checklist
 

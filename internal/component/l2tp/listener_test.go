@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/metrics"
 )
@@ -100,6 +101,62 @@ func TestListener_SendBeforeStart(t *testing.T) {
 	peer := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 1)
 	err := ln.Send(peer, []byte{0x00})
 	require.Error(t, err)
+}
+
+// TestUDPListenerV6OnlyBesideIPv4Wildcard proves AC-5 of the home-CPE
+// system defects spec: an L2TP `server` listener list with `0.0.0.0` and
+// `::` on one port is accepted by validation because L2TP registers that it
+// binds IPv6 sockets IPV6_V6ONLY, so the two listeners must both bind and
+// each must serve its own family.
+//
+// Method: bind `0.0.0.0` on a kernel-chosen port, then `::` on the same
+// port, through the production newUDPListener and Start. Both Starts must
+// succeed. A successful bind alone does not discriminate, because Start
+// also sets SO_REUSEPORT, which lets a dual-stack `::` share the port with
+// `0.0.0.0`: so the test reads IPV6_V6ONLY back from the `::` socket, and
+// then sends one datagram per family and asserts each arrives on the
+// listener of that family. The host needs an IPv6 loopback.
+func TestUDPListenerV6OnlyBesideIPv4Wildcard(t *testing.T) {
+	v4 := newUDPListener(netip.AddrPortFrom(netip.IPv4Unspecified(), 0), nil)
+	require.NoError(t, v4.Start(context.Background()), "0.0.0.0 must bind")
+	defer v4.Stop() //nolint:errcheck // test cleanup
+	port := v4.Addr().Port()
+	require.NotEqual(t, uint16(0), port, "the IPv4 wildcard listener reports no bound port")
+
+	v6 := newUDPListener(netip.AddrPortFrom(netip.IPv6Unspecified(), port), nil)
+	require.NoError(t, v6.Start(context.Background()), ":: must bind beside 0.0.0.0 on port %d", port)
+	defer v6.Stop() //nolint:errcheck // test cleanup
+	assert.Equal(t, port, v6.Addr().Port(), "the IPv6 wildcard listener is not on the shared port")
+
+	fd, err := v6.SocketFD()
+	require.NoError(t, err)
+	v6only, err := unix.GetsockoptInt(fd, unix.IPPROTO_IPV6, unix.IPV6_V6ONLY)
+	require.NoError(t, err)
+	assert.Equal(t, 1, v6only, "the :: listener is dual-stack; L2TP registers V6ONLY, so validation would accept a pair the kernel then shares")
+
+	assertDatagramArrives(t, "udp4", netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), port), v4, "0.0.0.0")
+	assertDatagramArrives(t, "udp6", netip.AddrPortFrom(netip.IPv6Loopback(), port), v6, "::")
+}
+
+// assertDatagramArrives sends one datagram over network to target and
+// requires it on the RX channel of want, the listener named label.
+func assertDatagramArrives(t *testing.T, network string, target netip.AddrPort, want *UDPListener, label string) {
+	t.Helper()
+	client, err := net.ListenUDP(network, nil)
+	require.NoError(t, err)
+	defer client.Close() //nolint:errcheck // test cleanup
+
+	payload := []byte{0xC8, 0x02, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, byte(len(label))}
+	_, err = client.WriteToUDPAddrPort(payload, target)
+	require.NoError(t, err)
+
+	select {
+	case pkt := <-want.RX():
+		assert.Equal(t, payload, pkt.bytes, "datagram to %s reached the %s listener altered", target, label)
+		pkt.release()
+	case <-time.After(2 * time.Second):
+		t.Fatalf("datagram to %s never reached the %s listener", target, label)
+	}
 }
 
 // TestListenerReadLoopPacesAFailingSocket proves AC-1: a socket that

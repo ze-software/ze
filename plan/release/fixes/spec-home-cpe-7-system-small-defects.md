@@ -212,7 +212,7 @@ hostname and Ze leaves it alone, as today.
 |---|-----------|--------------------|-----------------------|
 | 1 | Pastes a converted VyOS SSH block with both wildcards | validate → refusal with fix → `::` only → SSH on both families | `listener-dual-wildcard-refused.ci`, `TestStartServesDualStackWildcardOverBothFamilies` |
 | 2 | Sets the CPE's name | commit → hostname applier → kernel | `./le test qemu appliance-hostname` |
-| 3 | Moves SSH to another address with a reload | commit → listener migration → SSH rebound, or refused with the old listeners kept | `TestReloadSSHListenerBindFailureKeepsPrevious`, `TestReloadSSHListenerMoves` |
+| 3 | Moves SSH to another address with a reload | commit → listener migration → SSH rebound, or refused with the old listeners kept | `TestReloadSSHListenerBindFailureKeepsPrevious`, `TestReloadSSHListenerMoves`, and through the real daemon `test/reload/listener-migration-ssh.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -224,7 +224,7 @@ hostname and Ze leaves it alone, as today.
 | `TestValidateListenerConflicts_NoConflict` (changed) | `internal/component/config/listener_test.go` | its subtest "cross-family ipv6-wildcard vs ipv4-specific" moves to the refused cases; the ipv4-wildcard vs ipv6-specific subtest stays accepted. Owes a `ze-test-judge` approval | |
 | `TestStartServesDualStackWildcardOverBothFamilies` | `internal/component/ssh/ssh_test.go` | AC-3: `Start` on `[::]` with a free port; an SSH handshake succeeds over `127.0.0.1` and over `::1` | |
 | `TestStartBindsSpecificAddressesOfBothFamilies` | `internal/component/ssh/ssh_test.go` | AC-4: `127.0.0.1` and `::1` on one port, both reachable | |
-| `TestUDPListenerV6OnlyBesideIPv4Wildcard` | `internal/component/l2tp/listener_test.go` | AC-5: `newUDPListener` on `0.0.0.0` and on `::` with one port, both `Start` without error | |
+| `TestUDPListenerV6OnlyBesideIPv4Wildcard` | `internal/component/l2tp/listener_test.go` | AC-5: `newUDPListener` on `0.0.0.0` and on `::` with one port, both `Start` without error; `IPV6_V6ONLY` read back as 1 on the `::` socket (both binds succeed without it, because `Start` also sets `SO_REUSEPORT`), and one datagram per family arrives on the listener of that family | written 2026-11-07, run owed |
 | `TestStartFailsWhenExtraListenerFails` | `internal/component/ssh/ssh_test.go` | AC-6: the error names the address; the first listener's port is free again afterwards | |
 | `TestReconfigureAllOrNone` | `internal/component/ssh/ssh_test.go` | AC-11 server half: `Reconfigure` to a set with an unbindable address fails, `Addresses` is unchanged and the old listener still completes a handshake | |
 | `TestReloadSSHListenerBindFailureKeepsPrevious` | `cmd/ze/hub/listener_migrate_ssh_test.go` | AC-11: failed-reload preservation through `listenerMigrator.reloadListeners`, with a second fake `Reconfigurable` service applied first and asserted rolled back | |
@@ -246,6 +246,7 @@ hostname and Ze leaves it alone, as today.
 |------|----------|-------------------|--------|
 | `listener-dual-wildcard-refused` | `test/parse/listener-dual-wildcard-refused.ci` | AC-1, AC-2 | |
 | `listener-dual-wildcard-v6only-accepted` | `test/parse/listener-dual-wildcard-v6only-accepted.ci` | AC-5 | |
+| `listener-migration-ssh` | `test/reload/listener-migration-ssh.ci` (drafted at `test/draft/reload/`, fixture `reload/listener-migration-ssh` in `internal/test/fixture/listener_migration_ssh_fixture.go`): the real daemon, SSH on `127.0.0.1:$PORT`, a SIGHUP reload naming `::1:$PORT2`; after the accepted verdict `::1:$PORT2` sends the SSH identification line and `127.0.0.1:$PORT` refuses. Exercises the production `attachSSH` (`cmd/ze/hub/infra_setup.go`) and the reload's `buildChanges`, which the `cmd/ze/hub` unit tests replace with a fake | AC-12 | written 2026-11-07, run and promotion owed |
 | `appliance-hostname` | `./le test qemu appliance-hostname` (new action, `internal/le/test/qemu/hostname.go`, registered in `internal/le/test/qemu/actions.go` beside `mpls-boot`): boots an image with `system host cpe-lab`, reads `uname -n`, commits `cpe-lab2`, reads it again, then boots one with the leaf unset | AC-7, AC-8 | |
 
 ### Interop Tests (Scope: protocol)
@@ -282,6 +283,8 @@ hostname and Ze leaves it alone, as today.
 - `cmd/ze/hub/listener_migrate_ssh_test.go`
 - `test/parse/listener-dual-wildcard-refused.ci`, `listener-dual-wildcard-v6only-accepted.ci`
 - `internal/le/test/qemu/hostname.go`, `hostname_test.go` - the booted appliance proof
+- `internal/test/fixture/listener_migration_ssh_fixture.go` (registered in `register_listener_migration.go`) and `test/reload/listener-migration-ssh.ci` - the real-daemon SSH move (AC-12)
+- `features/appliance-hostname.md` - the feature declaration
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -302,7 +305,7 @@ hostname and Ze leaves it alone, as today.
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | `features/` system entry (appliance hostname) |
+| 1 | New user-facing feature? | Yes | `features/appliance-hostname.md` (written 2026-11-07, level experimental; the booted QEMU proof is its Supported extra criterion) |
 | 2 | Config syntax changed? | No | semantics only |
 | 3 | CLI command added/changed? | No | none |
 | 4 | API/RPC added/changed? | No | none |
