@@ -227,21 +227,27 @@ func (p *Probe) neigh(addr netip.Addr) error {
 
 // exchange sends ex until a reply of the expected type arrives, then checks
 // every field the exchange names. A reply of another type on the last
-// attempt, or none at all, is an error.
+// attempt, or none at all, is an error. Attempts start replyWait apart, as a
+// retransmitting client's do: a wrong-type reply arrives at once, and resending
+// at once would spend every attempt before a reload the exchange waits for has
+// applied.
 func (p *Probe) exchange(ex *Exchange, emit func(string)) error {
 	var last Reply
 	got := false
-	for range ex.Attempts {
+	for attempt := range ex.Attempts {
+		sent := time.Now()
 		reply, ok, err := p.transact(&ex.Request)
 		if err != nil {
 			return err
 		}
-		if !ok {
-			continue
+		if ok {
+			last, got = reply, true
+			if reply.Type == ex.Want.Type {
+				break
+			}
 		}
-		last, got = reply, true
-		if reply.Type == ex.Want.Type {
-			break
+		if attempt < ex.Attempts-1 {
+			time.Sleep(time.Until(sent.Add(replyWait)))
 		}
 	}
 	if !got {

@@ -58,7 +58,8 @@ type Exchange struct {
 	Want   Reply
 	// Attempts is how many times the request is sent until the reply has the
 	// expected type: a client retransmits, and after a reload the first
-	// answers can still come from the replaced config.
+	// answers can still come from the replaced config. Attempts start
+	// replyWait apart, so attempts=N waits up to N seconds for that state.
 	Attempts int
 }
 
