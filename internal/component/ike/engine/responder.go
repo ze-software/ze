@@ -1216,7 +1216,13 @@ func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byt
 	// about this pending child and keeps them (established.go). An earlier version of
 	// this comment claimed the isolation was automatic, and it was not -- the promoted
 	// Child SA came up with states and no policy, which sends traffic in the clear.
-	parallel := ps.ownedSA.Load() != nil
+	//
+	// A successor in the second slot is parallel with no owner loop running too: an
+	// `initiate` session keeps the gateway's reauthentication in flight across its
+	// reconnect (adoptPeerStartedSuccessor), and the reconnect's own SA, not this one,
+	// takes the session's slots. Its Child SA is staged and supersede signaled, so the
+	// next owner loop, or the next cycle, adopts it (RFC 7296 Section 2.8.3).
+	parallel := ps.ownedSA.Load() != nil || ps.getPendingSA() == sa
 	if parallel {
 		ps.setPendingChild(child)
 	} else {

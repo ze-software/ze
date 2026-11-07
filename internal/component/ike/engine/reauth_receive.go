@@ -22,6 +22,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -99,9 +100,11 @@ func authModeIsEAP(mode ipsec.AuthMode) bool {
 // adoptPeerStartedSuccessor runs after an `initiate` session's owner loop returned, and
 // answers the IKE SA the session continues on, or nil when the cycle ends. A successor
 // the gateway started (its reauthentication, admitted by matchReauthenticatingPeer) is
-// adopted when it authenticated and its Child SA is installed; anything else in the
-// second slot is retired, because an initiator's run loop does not poll a half-open
-// handshake and a session never stays up with no Child SA. It is adopted whatever ended
+// adopted when it authenticated and its Child SA is installed. A handshake still in
+// flight is kept in the second slot across the reconnect, since the successor the
+// gateway started wins over Ze's reconnect (relinquishToSuccessor); anything else there
+// (a failed handshake, or a successor held without a Child SA) is retired, because a
+// session never stays up with no Child SA. It is adopted whatever ended
 // the owner loop, supersede or the gateway's Delete of the old IKE SA, because the two
 // race: strongSwan deletes the old SA as soon as its reauthentication completes
 // (ike_reauth_complete.c build_i).
@@ -117,16 +120,30 @@ func (ps *PeerSession) adoptPeerStartedSuccessor(table *SATable, dp dataplane.Da
 	}
 	ps.childLifecycleMu.Lock()
 	defer ps.childLifecycleMu.Unlock()
+	ps.crossedSuccessor = nil
 	pending := ps.getPendingSA()
 	if pending == nil {
 		ps.responderBusy.Store(false)
 		return nil
 	}
-	ps.responderBusy.Store(false)
 	if ps.getPendingChild() == nil {
+		// A handshake still in flight is the gateway's reauthentication crossing the
+		// reconnect this cycle's end starts. It stays in the second slot, its half-open
+		// gate still held: Ze never ends the successor the gateway started, which wins
+		// whichever of the two completes first (runInitiator, relinquishToSuccessor).
+		// The reaper at the top of the next cycle bounds one the gateway abandons. A
+		// handshake that already failed (StateDead) is no longer in flight, and is
+		// retired below.
+		if pending.State != StateEstablished && pending.State != StateDead {
+			log.Info("ike: keeping the gateway's reauthentication in flight across the reconnect",
+				"peer", ps.peerName, "ispi", SPIHex(pending.InitiatorSPI))
+			return nil
+		}
+		ps.responderBusy.Store(false)
 		ps.retireHeldSuccessor(pending, table, log)
 		return nil
 	}
+	ps.responderBusy.Store(false)
 	ps.promotePendingSA(pending)
 	log.Info("ike: adopting the IKE SA the gateway created to reauthenticate, retiring the old one",
 		"peer", ps.peerName, "ispi", SPIHex(pending.InitiatorSPI), "rspi", SPIHex(pending.ResponderSPI))
@@ -177,4 +194,57 @@ func (ps *PeerSession) forgetSecondSlot(pending *SA, table *SATable) {
 	}
 	pending.forgetKeys()
 	ps.setPendingSA(nil)
+}
+
+// successorReady reports whether the second slot holds a successor that authenticated
+// with its Child SA installed, the only state finishResponderEstablish signals supersede
+// for. A Child SA is staged only after authentication, so the SA's state, which the
+// dispatch goroutine writes, is not read here.
+func (ps *PeerSession) successorReady() bool {
+	return ps.getPendingSA() != nil && ps.getPendingChild() != nil
+}
+
+// recordCrossing notes that the owner's IKE SA has just become a replacement Ze started
+// (its reconnect in runInitiator, or its own IKE SA rekey in maintainSA), against the
+// peer-started successor in the second slot at that moment, or nil when there is none.
+// relinquishToSuccessor deletes that replacement if the same successor supersedes.
+// It runs on the session goroutine, which owns crossedSuccessor.
+func (ps *PeerSession) recordCrossing() {
+	ps.crossedSuccessor = ps.getPendingSA()
+}
+
+// relinquishToSuccessor ends the owner loop's hold on sa once a successor the peer
+// started has authenticated with its Child SA installed (the supersede signal). Only
+// the old Child SA is removed, keeping the policies the successor's Child SA shares
+// (make before break). The run loop then promotes the successor.
+//
+// RFC 7296 Section 2.8.3: "IKEv2 does not have any special support for
+// reauthentication." Nothing in the RFC picks a winner when the peer's reauthentication
+// crosses a replacement Ze started (its own IKE SA rekey, or its reconnect), so the
+// peer-started successor wins, decided by who started each SA and never by completion
+// order: strongSwan deletes the old IKE SA once its reauthentication completes and never
+// deletes a duplicate Ze created (ike_reauth_complete.c, ike_sa_manager.c
+// check_uniqueness). When sa is such a crossing replacement, recorded in
+// ps.crossedSuccessor against this same successor, Ze deletes it, because the peer would
+// otherwise keep it beside the successor. The IKE SA the peer reauthenticated is the
+// peer's to delete, and is not deleted here.
+//
+// RFC 7296 Section 1.4.1: "Deleting an IKE SA implicitly closes any
+// remaining Child SAs negotiated under it."
+//
+// Runs on the owner goroutine, which owns sa's message IDs and keys.
+func (ps *PeerSession) relinquishToSuccessor(sa *SA, table *SATable, tr *transport.UDPTransport, dp dataplane.Dataplane, bus ze.EventBus, log *slog.Logger) {
+	crossed := ps.crossedSuccessor
+	ps.crossedSuccessor = nil
+	if crossed != nil && crossed == ps.getPendingSA() {
+		log.Info("ike: the peer's reauthentication crossed a replacement Ze started, deleting Ze's replacement and keeping the peer's",
+			"peer", ps.peerName, "ispi", SPIHex(sa.InitiatorSPI), "rspi", SPIHex(sa.ResponderSPI),
+			"successor-ispi", SPIHex(crossed.InitiatorSPI))
+		ps.sayGoodbye(sa, tr, dp, log)
+		if table != nil {
+			table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+		}
+	}
+	ps.cleanupChild(dp, bus, log)
+	log.Info("ike: superseded by a re-initiated SA, relinquishing owner loop", "peer", ps.peerName)
 }

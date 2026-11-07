@@ -91,21 +91,27 @@ func (t *SATable) Remove(initiator, responder [8]byte) *SA {
 	return sa
 }
 
-// removeByPeer deletes every SA of one peer session, and returns how many it
-// removed. A session that ends removes what it owns, whatever SPI pair its SA
+// removeByPeerExcept deletes every SA of one peer session but keep, and returns how
+// many it removed. A session that ends removes what it owns, whatever SPI pair its SA
 // carries by then. The responder SPI arrives after the handshake starts, and an IKE
 // rekey replaces the SA with a different one under a new pair.
 //
 // One session runs per peer name, because the engine keys its session map by that
 // name. The entries of one name are the entries of one session.
 //
-// A responder session can hold a second, parallel SA of the same name while it
-// supersedes the first. A responder removes by SPI pair, and never calls this.
-func (t *SATable) removeByPeer(peerName string) int {
+// keep is the session's second slot, or nil. An `initiate` session (runInitiator) keeps
+// a reauthentication the gateway started that is still in flight across a reconnect
+// (RFC 7296 Section 2.8.3). A responder session can hold a second, parallel SA of the
+// same name while it supersedes the first; a responder removes by SPI pair, and never
+// calls this.
+func (t *SATable) removeByPeerExcept(peerName string, keep *SA) int {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	removed := 0
 	for key, sa := range t.bySPI {
+		if sa == keep {
+			continue
+		}
 		if sa.PeerName == peerName {
 			delete(t.bySPI, key)
 			removed++

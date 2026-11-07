@@ -143,6 +143,16 @@ type PeerSession struct {
 	pendingRekey    *pendingRekey
 	supersededChild *ChildSA
 
+	// crossedSuccessor is the peer-started successor (the second slot) that was already
+	// admitted when the owner loop's IKE SA became a replacement Ze started: Ze's own IKE
+	// SA rekey (maintainSA) or Ze's reconnect (runInitiator) completing while the peer's
+	// reauthentication was in flight. When that same successor supersedes, the
+	// replacement Ze started is the loser, and Ze deletes it so the peer does not keep a
+	// second IKE SA for this session (relinquishToSuccessor, reauth_receive.go). nil when
+	// the owner's SA crossed nothing. Owned by the session goroutine, which runs both
+	// runInitiator and maintainSA, so it takes no lock.
+	crossedSuccessor *SA
+
 	// rebindRekeyOwed records that the peer's endpoint moved after establishment and the
 	// current Child SA pair could not be migrated to it (rebindChildSAs), so it still sits
 	// on the old ports and a Child SA rekey is owed. The owner tick raises the rekey while

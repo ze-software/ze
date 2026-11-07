@@ -34,7 +34,10 @@ func (ps *PeerSession) runEstablished(
 	// prior owner loop was already exiting (e.g. DPD) would fire on THIS SA's first
 	// select and tear it down with nothing to promote. maintainSA is the sole receiver
 	// of ps.supersede, so a len>0 check guarantees the receive cannot block.
-	if len(ps.supersede) > 0 {
+	// A token is not stale when the second slot holds a successor ready to adopt: it
+	// completed while no owner loop ran (an `initiate` session's reconnect crossing the
+	// gateway's reauthentication), and this SA is the replacement that loses to it.
+	if len(ps.supersede) > 0 && !ps.successorReady() {
 		<-ps.supersede
 		log.Debug("ike: drained stale supersede token", "peer", ps.peerName)
 	}
@@ -280,12 +283,26 @@ func (ps *PeerSession) maintainSA(
 	routeReannounce := time.NewTicker(30 * time.Second)
 	defer routeReannounce.Stop()
 
+	// supersedeDeferred records a supersede signal that arrived while an IKE SA rekey Ze
+	// started was outstanding (the supersede arm below). It is taken at the top of the
+	// pass after that exchange ended, whatever its answer was.
+	supersedeDeferred := false
+
 	for {
 		// RFC 7296 Section 2.21.4: the dispatch goroutine finds this session for a
 		// suspicious message by the endpoint the SA uses now. Published at the top of
 		// every pass, so an endpoint the last event moved is visible before this loop
 		// waits again, and the rekey arm's swapped sa is published on the next pass.
 		ps.publishSAEndpoint(sa)
+		if supersedeDeferred && ps.pendingRekey == nil {
+			supersedeDeferred = false
+			// The peer may have deleted its successor while the rekey was answered
+			// (handleHeldSuccessorInbound); this SA then keeps the session.
+			if ps.successorReady() {
+				ps.relinquishToSuccessor(sa, table, tr, dp, bus, log)
+				return nil
+			}
+		}
 		select {
 		case <-ps.stopCh:
 			// RFC 7296 Section 1.4: on an operator `clear` (graceful) say goodbye so the
@@ -329,8 +346,21 @@ func (ps *PeerSession) maintainSA(
 			// gateway reauthenticated (RFC 7296 Section 2.8.3). Remove only ours
 			// (make-before-break, so traffic is not dropped before the new tunnel is up,
 			// R-2).
-			ps.cleanupChild(dp, bus, log)
-			log.Info("ike: superseded by a re-initiated SA, relinquishing owner loop", "peer", ps.peerName)
+			//
+			// An IKE SA rekey Ze started is still unanswered: relinquishing now would
+			// leave the peer holding the replacement its answer creates, which no loop
+			// would read or delete. The supersede waits for that answer instead, bounded
+			// by the rekey's own retransmit budget (serviceRekeyRetransmit), and is
+			// taken at the top of the loop once the exchange ends: a replacement it
+			// created is then deleted by relinquishToSuccessor, since the successor the
+			// peer started wins (spec-home-cpe-22, "Simultaneous replacements").
+			if p := ps.pendingRekey; p != nil && p.kind == rekeyIKE {
+				supersedeDeferred = true
+				log.Info("ike: superseded while an IKE SA rekey is outstanding, relinquishing once it is answered",
+					"peer", ps.peerName, "msgid", p.messageID)
+				continue
+			}
+			ps.relinquishToSuccessor(sa, table, tr, dp, bus, log)
 			return nil
 		case <-routeReannounce.C:
 			if child := ps.getChildSA(); child != nil {
@@ -428,6 +458,13 @@ func (ps *PeerSession) maintainSA(
 				// RFC 7296 §2.8: the rekeyed IKE SA replaces the loop's SA, and the
 				// retired one closes, its virtual-IP lease moved first.
 				ps.adoptRekeyedIKESA(sa, out.newSA, table, log)
+				// Ze is the initiator of an IKE SA its own rekey created (RFC 7296
+				// Section 2.18). One that completed while a reauthentication the peer
+				// started sits in the second slot is a replacement crossing it, and is
+				// the one Ze deletes if that successor supersedes.
+				if out.newSA.IsInitiator {
+					ps.recordCrossing()
+				}
 				sa = out.newSA
 				ikeLT = newLifetimeState(ikeGroup.Lifetime)
 				ps.incRekeyCount()
@@ -923,7 +960,8 @@ func (ps *PeerSession) serviceRekeyRetransmit(sa *SA, tr *transport.UDPTransport
 // responderBusy and the SATable slot free up for a future re-initiation. It reads
 // only pendingSA.CreatedAt (immutable) and never pendingSA.State: a pending SA that
 // authenticated would have returned the owner loop via the supersede case before this
-// runs, so a pending still present past the timeout is dead. Runs on the owner loop.
+// runs, so a pending still present past the timeout is dead. Runs on the session
+// goroutine: in the owner loop, and at the top of each `initiate` cycle (runInitiator).
 // RFC 7296 Section 2.4.
 func (ps *PeerSession) reapStalePending(now time.Time, table *SATable, dp dataplane.Dataplane, log *slog.Logger) {
 	ps.childLifecycleMu.Lock()

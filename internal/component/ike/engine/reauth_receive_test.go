@@ -25,9 +25,17 @@ var gatewayAddr = &net.UDPAddr{IP: net.ParseIP("10.0.0.2"), Port: 500}
 // gateway reauthenticates. gwPeer is the gateway's mirrored configuration.
 func ownedInitiator(t *testing.T) (ps *PeerSession, old *SA, table *SATable, gwPeer ipsec.SiteToSitePeer) {
 	t.Helper()
+	ps, old, _, table, gwPeer = ownedInitiatorAndGateway(t)
+	return ps, old, table, gwPeer
+}
+
+// ownedInitiatorAndGateway is ownedInitiator that also returns gwOld, the gateway's end
+// of the old IKE SA, for a test that plays the gateway's half of an exchange on it.
+func ownedInitiatorAndGateway(t *testing.T) (ps *PeerSession, old, gwOld *SA, table *SATable, gwPeer ipsec.SiteToSitePeer) {
+	t.Helper()
 	// The COOKIE challenge is the admission gate, proven by rfc7296_cookie_test.go.
 	admitWithoutCookieChallenge(t)
-	old, _, respPS := establishPSK(t)
+	old, gwOld, respPS := establishPSK(t)
 	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "rekey-psk")
 	ps = &PeerSession{peerName: "ze", peerCfg: iniPeer, ikeGroup: testIKEGroup(), espGroup: testESPGroup()}
 	ps.stopCh = make(chan struct{})
@@ -43,7 +51,7 @@ func ownedInitiator(t *testing.T) (ps *PeerSession, old *SA, table *SATable, gwP
 	ps.saEndpoint.Store(gatewayAddr)
 	setActivePeers(map[string]*PeerSession{ps.peerName: ps})
 	t.Cleanup(func() { setActivePeers(nil) })
-	return ps, old, table, respPeer
+	return ps, old, gwOld, table, respPeer
 }
 
 // gatewayReauthInit builds the gateway's fresh IKE_SA_INIT request, a new IKE SA from
@@ -290,7 +298,10 @@ func TestInitiatePeerReauthChildRefusedKeepsOldSA(t *testing.T) {
 
 // VALIDATES: AC-12. The old IKE SA ends while the successor is still held childless:
 // the session does not stay up childless (owner decision Q-5), so the successor is
-// retired, it leaves the SATable, and the cycle ends so the initiator reconnects.
+// retired, it leaves the SATable, and the cycle ends so the initiator reconnects. The
+// gateway is told: Ze's session socket (ps.ike) is a loopback stand-in for the gateway
+// (rtxPeerLink), and the next datagram it reads is a Delete of the successor, protected
+// under the successor's keys (RFC 7296 Section 1.4.1).
 func TestInitiatePeerOldDeletedWhileSuccessorChildlessReconnects(t *testing.T) {
 	ps, old, table, gwPeer := ownedInitiator(t)
 	ps.espGroup = mismatchedESPGroup()
@@ -300,11 +311,16 @@ func TestInitiatePeerOldDeletedWhileSuccessorChildlessReconnects(t *testing.T) {
 	if pending.State != StateEstablished {
 		t.Fatalf("setup: successor state = %v, want established", pending.State)
 	}
+	gatewayReadsAuth(t, gw, pending)
+	peerTr, myTr := rtxPeerLink(t, pending)
+	ps.ike = myTr
+	pending.peerEndpoint = loopbackOf(t, peerTr)
 
 	// The owner loop ended (the gateway deleted the old IKE SA).
 	if got := ps.adoptPeerStartedSuccessor(table, nil, nil, slogutil.DiscardLogger()); got != nil {
 		t.Fatal("a childless successor was adopted when the old SA ended")
 	}
+	expectIKEDelete(t, peerTr, gw, "the childless successor")
 	if ps.getPendingSA() != nil {
 		t.Error("the childless successor was left in the second slot")
 	}

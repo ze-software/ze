@@ -248,7 +248,7 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
   half-open SA's packets are not misdelivered to the established SA's owner loop, and it
   stays correct across an IKE-rekey swap. On the AUTHENTICATED IKE_AUTH,
   `finishResponderEstablish` stages the new child and signals `ps.supersede` only once that Child SA is installed (a childless successor is held, its requests answered on the dispatch path by `handleHeldSuccessorInbound`, `held_successor.go`, where a peer CREATE_CHILD_SA stages its Child SA and signals supersede, and `retireHeldSuccessor`, `reauth_receive.go`, deletes it when the owner loop ends); `maintainSA`
-  relinquishes (removing only the old child, make-before-break) and `runResponder`
+  relinquishes (removing only the old child, make-before-break; `relinquishToSuccessor` also deletes a replacement Ze started that crossed the peer's successor, recorded by `recordCrossing`, and a supersede waits for an unanswered IKE SA rekey) and `runResponder`
   promotes the pending SA. Abandoned parallel handshakes are reaped by time
   (`reapStalePending`, timed from the immutable CreatedAt, and never reaping an established pending SA, so a held successor waits for its Child SA or its Delete). The
   initiator emits INITIAL_CONTACT on every first IKE_AUTH request (`auth.go`,

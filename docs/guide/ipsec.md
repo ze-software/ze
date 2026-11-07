@@ -283,9 +283,12 @@ The new IKE SA authenticates with the same peer configuration, and Ze moves the
 tunnel onto it, new Child SA first, without reconnecting. A peer that
 authenticates with EAP refuses it, because RFC 7296 says reauthentication then
 has to come from the side that started the original IKE SA: set
-`reauth_time = 0s` on a strongSwan gateway for such a peer.
+`reauth_time = 0s` on a strongSwan gateway for such a peer. If the gateway's
+reauthentication crosses Ze's own IKE SA rekey, or Ze's reconnect after it gave
+the old SA up, Ze keeps the IKE SA the gateway started and deletes its own, in
+whichever order the two complete, so one tunnel remains.
 
-<!-- source: internal/component/ike/engine/reauth_receive.go -- matchReauthenticatingPeer, adoptPeerStartedSuccessor -->
+<!-- source: internal/component/ike/engine/reauth_receive.go -- matchReauthenticatingPeer, adoptPeerStartedSuccessor, relinquishToSuccessor -->
 <!-- source: internal/component/ike/engine/responder.go -- finishResponderEstablish -->
 
 

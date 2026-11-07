@@ -69,10 +69,31 @@ session with no tunnel. A successor whose Child SA install fails is answered wit
 the same refusal before anything is sent, so the peer holds no half of that pair.
 The EAP path defers a refusal found on its first IKE_AUTH to the final one.
 
+The peer's reauthentication can cross a replacement Ze started for the same
+session: Ze's own IKE SA rekey, or Ze's reconnect after it declared the old SA
+dead. RFC 7296 Section 2.8.3 gives reauthentication no special support, so the
+winner follows strongSwan, which always keeps the successor it started: the
+successor the peer started wins, whatever order the two complete in, and Ze
+deletes the replacement it started. `recordCrossing` notes the successor in the
+second slot when the owner's SA becomes a Ze-started replacement (an IKE SA rekey
+whose new SA Ze initiates, or the reconnect's handshake), and
+`relinquishToSuccessor` sends that replacement a Delete when the same successor
+supersedes; the IKE SA the peer reauthenticated is the peer's to delete. A
+supersede that arrives while Ze's IKE SA rekey is unanswered waits for the answer,
+bounded by the rekey's retransmit budget, so a replacement the answer creates is
+deleted rather than left to the peer. A half-open successor survives the end of
+the owner loop and the reconnect: `adoptPeerStartedSuccessor` keeps it, the
+cycle-end removal of the SATable spares it, its IKE_AUTH stages its Child SA and
+signals supersede with no owner loop running, the reconnect's owner loop keeps
+that signal, and a cycle that starts with a ready successor adopts it without
+dialing. The reaper at the top of each `initiate` cycle drops one the peer
+abandoned.
+
 <!-- source: internal/component/ike/engine/responder.go -- buildAuthResponse, buildChildlessAuthResponse, finishResponderEstablish -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- startResponderEAP -->
 <!-- source: internal/component/ike/engine/fsm.go -- resolvePendingAfterOwnerLoop -->
-<!-- source: internal/component/ike/engine/reauth_receive.go -- adoptPeerStartedSuccessor, retireHeldSuccessor -->
+<!-- source: internal/component/ike/engine/reauth_receive.go -- adoptPeerStartedSuccessor, retireHeldSuccessor, recordCrossing, relinquishToSuccessor -->
+<!-- source: internal/component/ike/engine/established.go -- maintainSA -->
 <!-- source: internal/component/ike/engine/held_successor.go -- handleHeldSuccessorInbound, answerHeldSuccessorCreateChild, answerHeldSuccessorInformational -->
 
 A parallel authenticated handshake installs its Child before publishing

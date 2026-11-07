@@ -80,6 +80,7 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"real-nat-transport-ze-responder":                       {run: checkRealNATTransportZeResponder},
 	"real-nat-tunnel-control":                               {run: checkRealNATTunnelControl},
 	"responder-accepts-reinit":                              {run: checkResponderAcceptsReinit},
+	"responder-reauths-ze-initiator":                        {run: checkResponderReauthsZeInitiator},
 	"responder-eap-mschapv2":                                {run: checkResponderEAPMSCHAPv2},
 	"responder-eap-tls12":                                   {run: checkResponderEAPTLS12},
 	"responder-eap-tls13":                                   {run: checkResponderEAPTLS13},

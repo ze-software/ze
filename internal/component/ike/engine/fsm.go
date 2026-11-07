@@ -141,6 +141,17 @@ func (ps *PeerSession) runInitiator(
 	// resolved (it may be a DNS name) and the local address (the literal, or the
 	// route-chosen source). A failure ends the cycle, and run backs off and retries, so
 	// a name that does not resolve yet is tried again rather than given up on.
+	// RFC 7296 Section 2.8.3: a reauthentication the gateway started before the last
+	// owner loop ended is kept in the second slot across the reconnect
+	// (adoptPeerStartedSuccessor). One the gateway abandoned is dropped here, since no
+	// owner loop's reaper ran in between; one that completed while no owner loop ran is
+	// adopted rather than dialed around, so the gateway's successor wins whichever
+	// completes first.
+	ps.reapStalePending(time.Now(), table, dataplane.Get(), log)
+	if ps.successorReady() {
+		ps.crossedSuccessor = nil
+		return ps.continueOnPeerStartedSuccessors(peer, ikeGroup, table, tr, bus, log, nil)
+	}
 	pair, err := resolveCyclePair(ps.peerName, peer)
 	if err != nil {
 		// WARN, because the backoff line run writes is INFO and Ze logs at WARN: a CPE
@@ -199,7 +210,12 @@ func (ps *PeerSession) runInitiator(
 	// cycle with nothing of its own left behind. ps.sa stays on every exit that
 	// returns from the handshake loop below, because reconnectDelay reads its
 	// retransmit count; the established exit clears it, and says there why.
-	defer table.removeByPeer(sa.PeerName)
+	//
+	// The one entry kept is the second slot: a reauthentication the gateway started is
+	// still in flight across the reconnect, and removing it would make Ze, not the
+	// gateway, decide which of the two replacements survives (RFC 7296 Section 2.8.3).
+	// The closure reads the slot when the cycle ends, not when the defer is written.
+	defer func() { table.removeByPeerExcept(sa.PeerName, ps.getPendingSA()) }()
 
 	remote := pair.remote
 
@@ -271,6 +287,12 @@ func (ps *PeerSession) runInitiator(
 	log.Info("ike: SA established", "peer", ps.peerName,
 		"ispi", SPIHex(sa.InitiatorSPI), "rspi", SPIHex(sa.ResponderSPI))
 
+	// This reconnect is a replacement Ze started. A reauthentication the gateway started
+	// before the previous owner loop ended may still be in flight in the second slot, and
+	// when it supersedes, this SA is the one Ze deletes (relinquishToSuccessor). Recorded
+	// before runEstablished so the supersede it may already have signaled is kept.
+	ps.recordCrossing()
+
 	if bus != nil {
 		if _, emitErr := SAUp.Emit(bus, &SAEvent{
 			PeerName:      sa.PeerName,
@@ -297,10 +319,24 @@ func (ps *PeerSession) runInitiator(
 	// clear. reconnectDelay reads the same answer either way: the establishment above
 	// zeroed RetransmitCount, and runEstablished never writes it.
 	emitSADown(bus, sa, log)
-	// The gateway may have reauthenticated the SA that just ended by creating a new IKE
-	// SA (matchReauthenticatingPeer). The session continues on that successor rather
-	// than reconnecting, for as many reauthentications as the gateway runs.
-	// RFC 7296 Section 2.8.3
+	return ps.continueOnPeerStartedSuccessors(peer, ikeGroup, table, tr, bus, log, err)
+}
+
+// continueOnPeerStartedSuccessors runs the rest of an `initiate` cycle once its owner
+// loop ended, or before any handshake when a successor completed while no owner loop
+// ran. The gateway may have reauthenticated the SA that just ended by creating a new
+// IKE SA (matchReauthenticatingPeer). The session continues on that successor rather
+// than reconnecting, for as many reauthentications as the gateway runs. err is the
+// answer of the owner loop that ended, nil when none ran (RFC 7296 Section 2.8.3).
+func (ps *PeerSession) continueOnPeerStartedSuccessors(
+	peer ipsec.SiteToSitePeer,
+	ikeGroup ipsec.IKEGroup,
+	table *SATable,
+	tr *transport.UDPTransport,
+	bus ze.EventBus,
+	log *slog.Logger,
+	err error,
+) error {
 	for {
 		finished := ps.getSA()
 		successor := ps.adoptPeerStartedSuccessor(table, dataplane.Get(), bus, log)
@@ -323,6 +359,11 @@ func (ps *PeerSession) runInitiator(
 		}
 		err = ps.runEstablished(successor, peer, ikeGroup, table, tr, bus, log)
 		emitSADown(bus, successor, log)
+	}
+	// The last SA run here leaves the table. runInitiator's deferred removal covers the
+	// SA its own handshake built, but not a successor adopted before any handshake ran.
+	if finished := ps.getSA(); finished != nil {
+		table.Remove(finished.InitiatorSPI, finished.ResponderSPI)
 	}
 	ps.setSA(nil)
 	// A nil answer ends the session for good (PeerSession.run). The owner loop answers
