@@ -35,6 +35,13 @@ command instead, `show interface rate` (`iface.RateCommand`, forwarded with
 rewired, `iface.ListRates` and `GetRate` are deleted. Handed over from
 spec-command-surface-parity at its closure.
 
+The nft firewall backend is the same defect with no resolver call at all:
+`lowerIfaceMatch` (`internal/plugins/firewall/nft/lower_linux.go`) writes the
+configured name into the `iifname`/`oifname` comparison, so a firewall or NAT
+match on an `ethernet` entry with `os-name` or `mac match` matches nothing.
+Its fix resolves the name through the same boundary-safe path. Handed over
+from spec-home-cpe-1-logical-interface-name.
+
 ## Required Reading
 
 - [ ] `docs/architecture/iface/logical-name-resolution.md`, the selector table
@@ -225,6 +232,7 @@ boundary gate (`./le plugin boundary check`).
 | `process-global-read-across-the-plugin-boundary.md` | 2026-10-29 | `iface.Resolve` and `ResolveDevice` callers in forked plugins read an empty selector table |
 | `process-global-read-across-the-plugin-boundary.md` | 2026-11-02 | `trafficstat` `Service.tick` reads the daemon's empty rate tracker |
 | `process-global-read-across-the-plugin-boundary.md` | 2026-11-02 | web interfaces page rate columns read the daemon's empty rate tracker |
+| `identity-default-hides-a-mapping.md` | 2026-11-02 | firewall and NAT `lowerIfaceMatch` names an `os-name` or `mac match` ethernet by its configured name, never resolved (handed over from spec-home-cpe-1-logical-interface-name) |
 
 ## Checklist
 

@@ -68,6 +68,9 @@ Also owed:
   → Decision: the ICCN parser (`session_fsm.go::parseICCN`) stores the proxy
   AVPs and the reactor hands them to `ppp.StartSession`; the PPP driver
   decides what to do with them.
+- [ ] `docs/architecture/testing/interop.md` - the access chain and scenario
+  discovery: the design page `register_wholesale.go` declares for the
+  `access-wholesale` scenarios
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc2661.md` - exists. Section 4.4.5: "This information may
@@ -442,7 +445,7 @@ files with Section 4.4.5.
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/l2tp/...`, `./le test functional l2tp`, and `./le verify changed` over the closing commits. The full verification is Thomas's release check
+- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/l2tp/...`, `./le test functional l2tp`, and the interop scenario this spec names. No agent runs `./le verify`; the full verification is Thomas's release check, run by GitHub CI/CD on a pushed commit
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

@@ -371,7 +371,8 @@ mapping at all.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| none yet | - | grep of `plan/journal/` finds no row for the pppoe-client name or for static/FIB not reinstalling an interface route; the main thread adds one row for each and lists them here |
+| `identity-default-hides-a-mapping.md` | 2026-11-02 | `pppoe-client` configured name never reached the kernel device (fixed by this spec) |
+| `queued-request-waits-for-an-unrelated-trigger.md` | 2026-11-02 | static route through a PPPoE device not reinstalled after a reconnect (fixed by this spec) |
 
 ## Key Design Decisions
 
@@ -385,7 +386,7 @@ mapping at all.
 | Keep IPCP-learned default route unchanged | move it to static | out of scope; `spec-iface-route-arbitration.md` owns route arbitration |
 
 ## Known Limitations
-- Found while surveying, not in this child's scope as the umbrella states it ("any non-ethernet name"): an `ethernet` entry with `os-name` or `mac match` is named literally by firewall and NAT (`lowerIfaceMatch` takes the configured name), so `input-interface wan` with `ethernet wan { os-name eth2 }` matches nothing. Needs a journal row and an owner; the main thread decides whether this spec takes it.
+- Found while surveying, not in this child's scope as the umbrella states it ("any non-ethernet name"): an `ethernet` entry with `os-name` or `mac match` is named literally by firewall and NAT (`lowerIfaceMatch` takes the configured name), so `input-interface wan` with `ethernet wan { os-name eth2 }` matches nothing. Recorded as an open row in `plan/journal/identity-default-hides-a-mapping.md` (2026-11-02), owned by `spec-iface-resolution-across-the-plugin-boundary.md`.
 - L2TP LNS and PPPoE AC subscriber devices stay `pppN`: they have no configured name.
 - Device presence drives only a next-hop that NAMES the declared interface. A gateway next-hop (`hop 192.0.2.1`) whose address is reachable only through the session is not tied to the device, as today: its activity stays BFD's. BIRD ties a gateway to its neighbor's interface (`neigh_find` scope); whether Ze should is a separate defect class, not this spec's goal, and gets a journal row from the main thread if wanted.
 - Other non-ethernet kinds checked: dummy, veth, tunnel, wireguard, xfrm, bridge are all created under their configured name (`config_apply.go`), so they need nothing.
@@ -407,7 +408,7 @@ mapping at all.
 - [ ] AC-1..AC-15 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
-- [ ] Targeted tests pass; `./le verify changed` over the closing commits
+- [ ] Targeted tests pass: the scoped package tests, tagged units and functional tests of the components this change reaches. No agent runs `./le verify`; the full verification is Thomas's release check, run by GitHub CI/CD on a pushed commit
 - [ ] Every A-N confirmed or broken
 
 ### TDD

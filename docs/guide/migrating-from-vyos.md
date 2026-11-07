@@ -118,14 +118,17 @@ When the child lands, its row changes.
 | `interfaces pppoe <n> no-default-route` | `interface pppoe-client <n> no-default-route` | | equivalent | - |
 | `interfaces pppoe <n> default-route-distance <d>` | `interface pppoe-client <n> route-priority <d>` | | not read | - |
 | `interfaces pppoe <n> no-peer-dns` | none: dropped | Ze always asks for DNS servers in IPCP and ranks the learned servers after the static `system name-server` entries | behavior change | 13 |
-| `interfaces pppoe <n> ipv6 ...`, `dhcpv6-options pd ...` | none: dropped | IPv6CP, DHCPv6-PD and RAs from the delegated prefix are not in Ze yet | conditional | 8 |
+| `interfaces pppoe <n> ipv6 address autoconf`, `dhcpv6-options pd <i> length <l>` | `interface pppoe-client <n> ipv6` with `enabled true`, `autoconf true`, `accept-ra 2`, `forwarding true`, `dhcpv6 enabled true` and `dhcpv6 pd length <l>` | Ze negotiates IPv6CP beside IPCP and runs the DHCPv6 client on the session device; `accept-ra 2` keeps the Router Advertisement default route while the box forwards. The delegated prefix is published as a lease on `<n>` and nothing uses it yet | not read | - |
+| `interfaces pppoe <n> dhcpv6-options pd <i> interface <lan> address`, `sla-id` | none: dropped | Ze assigns no part of the delegated prefix to a LAN interface and advertises none of it yet | conditional | 8 |
 | `protocols static route <p> interface <n> distance <d>` | `static table default route <p>` with `distance <d>` and `next interface <n>` | a route through a `pppoe-client` waits for the session instead of failing | not read | - |
 | `protocols static route <p> next-hop <a>` | `static table default route <p> next hop <a>` | | not read | - |
 | `interfaces wireguard <n> port`, `private-key` | `interface wireguard <n> listen-port`, `private-key` (placeholder) | | not read | - |
 | `interfaces wireguard <n> peer <p> public-key`, `preshared-key`, `allowed-ips`, `persistent-keepalive` | `interface wireguard <n> peer <p>` with the same four leaves | `preshared-key` is a placeholder; `allowed-ips` is a bracket list | not read | - |
 | `interfaces vti <n> address <a>` | `interface xfrm <n>` with `if-id <id>` and `unit 0` addresses | choose any `if-id` from 1 up, unique per xfrm interface | not read | - |
 
-<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet mac match, offload, bridge member, unit ipv4/ipv6 address, pppoe-client, wireguard, xfrm if-id -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet mac match, offload, bridge member, unit ipv4/ipv6 address, pppoe-client, pppoe-client ipv6, grouping ipv6-host, wireguard, xfrm if-id -->
+<!-- source: internal/component/iface/register.go -- reconcileDHCP -->
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop, startIPv6CP -->
 <!-- source: internal/plugins/static/yang/ze-static-conf.yang -- table route distance, next hop, next interface -->
 <!-- source: internal/component/config/system/resolv.go -- RegisterResolverOrigin -->
 
@@ -184,23 +187,26 @@ the MSS option, and a packet without the option is not changed.
 | `subnet <p> range <r> start <a> stop <b>` | `subnet <p> range <r> start <a> stop <b>` | the range name is any string, so VyOS's number is kept | not read | - |
 | `subnet <p> option default-router`, `option name-server`, `option domain-name`, `lease` | `default-router`, `dns-server`, `domain-name`, `lease-time` | | not read | - |
 | `subnet <p> static-mapping <m> mac <x> ip-address <a>` | `subnet <p> static-mapping <m> mac-address <x> ip-address <a>` | | not read | - |
+| `subnet <p> option server-identifier <a>` | `subnet <p> server-identifier <a>` | the listen interface must hold `<a>`: while it does not, Ze answers nothing for the subnet and logs a warning | not read | - |
 | `subnet <p> subnet-id <n>` | none: dropped | Ze keys a subnet by its prefix | not read | - |
 | `pki ca <n> certificate <b64>` | `pki ca <n> certificate <b64>` | copy the body as it is: Ze takes base64 DER as well as PEM | not read | - |
 | `pki certificate <n> certificate <b64>`, `private key` | `pki certificate <n> certificate <b64>`, `private key` (placeholder) | | not read | - |
-| a certificate with an Ed25519 key, used by IKE | the same entry | IKE signs with it under RFC 7427 and RFC 8420 when the peer announces the Identity hash, as strongSwan with its openssl or curve25519 plugin does; a peer that does not, or that sends no SIGNATURE_HASH_ALGORITHMS notify, needs an ECDSA or RSA certificate | conditional | 5 |
+| a certificate with an Ed25519 key, used by IKE | the same entry | IKE signs with it under RFC 7427 and RFC 8420 when the peer announces the Identity hash, as strongSwan with its openssl or curve25519 plugin does; a peer that does not, or that sends no SIGNATURE_HASH_ALGORITHMS notify, needs an ECDSA or RSA certificate | not read | - |
 | `vpn ipsec interface <i>` | `vpn ipsec interface <i>` | | not read | - |
 | `vpn ipsec ike-group <g> key-exchange ikev2`, `proposal <N> encryption`, `hash`, `dh-group` | `vpn ipsec ike-group <g>` with the same leaves | `aes128gcm128` becomes `aes128gcm`, `aes256gcm128` becomes `aes256gcm` | not read | - |
 | `vpn ipsec esp-group <g> proposal <N> encryption`, `pfs` | `vpn ipsec esp-group <g>` with `proposal <N> encryption`, `pfs enable\|disable` | the same encryption renames | not read | - |
 | a peer with no ESP group | an explicit `esp-group` with `pfs disable` and the IKE group's encryption, named on the peer | Ze needs the peer's group named, and its `pfs` default is `enable` | not read | - |
 | `site-to-site peer <p> remote-address <a>`, `ike-group`, `authentication remote-id` | `site-to-site peer <p>` with the same leaves | | not read | - |
-| `site-to-site peer <p> local-address <a>` | no `local-address` | Ze fills it from `vpn ipsec interface`; a peer's `local-address` takes only an address literal | conditional | 4 |
+| `site-to-site peer <p> local-address <a>` | no `local-address` | Ze sends from the address of `vpn ipsec interface` and follows it: when the address changes, as after a PPPoE reconnect, Ze binds the new address and starts the peer's session again from it, and while the interface has none the peer waits. A peer that keeps a literal `local-address` stays on that literal | behavior change | - |
 | `site-to-site peer <p> authentication mode x509`, `x509 ca-certificate`, `x509 certificate` | `authentication mode x509`, `ca-certificate`, `certificate` directly under `authentication` | the `x509` container is deprecated in Ze | not read | - |
 | `site-to-site peer <p> vti bind <v>` | `vti bind <v>`, plus two `traffic-selector` entries, `0.0.0.0/0` to `0.0.0.0/0` and `::/0` to `::/0` | without the IPv6 selector a VTI over IPv4 carries IPv4 only | not read | - |
 
-<!-- source: internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang -- shared-network, subnet, range, static-mapping -->
+<!-- source: internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang -- shared-network, subnet, range, static-mapping, server-identifier -->
+<!-- source: internal/plugins/dhcpserver/segment.go -- segment.serverID, segment.withheld -->
 <!-- source: internal/component/pki/yang/ze-pki-conf.yang -- ca certificate, certificate private key -->
 <!-- source: internal/component/ike/engine/register_signature_eddsa.go -- chooseEd25519Signature -->
 <!-- source: internal/component/ike/engine/auth_legacy.go -- legacyKeyName -->
+<!-- source: internal/component/ike/engine/dynamic_wan.go -- peerPlan, followAddress -->
 <!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- interface, esp-group pfs, ike-group, site-to-site peer, traffic-selector, vti bind -->
 
 ### System
@@ -234,9 +240,8 @@ Each of these lines goes to the record as `dropped:` with the reason given.
 |----------------|--------|
 | `system conntrack modules nfs`, `sqlnet` | no kernel module provides them, and Ze refuses the names |
 | `service dhcp-server ... subnet-id` | Ze keys a subnet by its prefix |
-| `service dhcp-server ... option server-identifier` | Ze has no leaf for it |
 | `interfaces pppoe <n> no-peer-dns` | Ze has no leaf to refuse IPCP DNS (child 13) |
-| `interfaces pppoe <n> ipv6 ...`, `dhcpv6-options ...`; `service router-advert ...` | no Ze form until child 8 |
+| `interfaces pppoe <n> dhcpv6-options pd <i> interface ...`; `service router-advert ...` that advertises the delegated prefix | Ze uses no delegated prefix on a LAN interface until child 8 |
 | `pki ca <n> private key` | a Ze `pki ca` entry holds no private key |
 | `service https ...` (REST API, its keys and its listener) | REST automation moves to gRPC over TLS |
 | `container ...` (monitoring) | the Prometheus exporter with Netdata metrics replaces it |
@@ -289,9 +294,7 @@ its row here.
 
 | Rewrite | Removed by |
 |---------|------------|
-| a peer's `local-address` is left out and filled from `vpn ipsec interface` once, at apply; it does not follow a new WAN address after a PPPoE reconnect | child 4 |
-| an Ed25519 certificate is reissued with ECDSA P-256 or RSA for IKE | child 5 |
-| IPv6 on the PPPoE WAN (IPv6CP, DHCPv6-PD, RAs) is dropped | child 8 |
+| the delegated prefix is requested on the PPPoE WAN and published there, but no LAN interface takes an address or a Router Advertisement from it | child 8 |
 | a network-group becomes one term per prefix, not a set | the fix of the set element defect (`encodeSetElementKey`) |
 
 ## Worked example
@@ -519,7 +522,7 @@ system {
 | 52 | `set firewall ipv6 input filter default-action 'reject'` | `firewall table v6-input chain input policy drop`; `term default-action then reject` | equivalent | no `default-log`, so no `counter` or `log` |
 | 50 | `set firewall ipv4 input filter rule 50 protocol 'all'` | none | equivalent | no `protocol` match |
 | 70 | `set service dhcp-server shared-network-name LAN subnet 192.0.2.0/24 subnet-id '1'` | dropped: Ze keys a subnet by its prefix | not read | |
-| 85 | `set vpn ipsec site-to-site peer hq local-address '203.0.113.2'` | none | conditional | filled from `vpn ipsec interface pppoe0` (child 4) |
+| 85 | `set vpn ipsec site-to-site peer hq local-address '203.0.113.2'` | none | behavior change | Ze sends from the address of `vpn ipsec interface pppoe0` and follows it after a reconnect |
 | 87 | `set vpn ipsec site-to-site peer hq vti bind 'vti0'` | `vpn ipsec site-to-site peer hq vti bind vti0`; `traffic-selector 1`, `traffic-selector 2` | not read | both families on the VTI |
 | 92 | `set service https api keys id automation key '<<SECRET:api-automation-key>>'` | dropped: REST automation moves to gRPC over TLS | behavior change | |
 | 96 | `set system conntrack modules nfs` | dropped: no kernel module provides it | behavior change | |
