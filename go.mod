@@ -22,6 +22,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/chromedp/chromedp v0.21.0
 	github.com/cilium/ebpf v0.22.0
+	github.com/cloudflare/circl v1.6.5
 	github.com/creack/pty v1.1.24
 	github.com/gaissmai/bart v0.30.0
 	github.com/gokrazy/tools v0.0.0-20261026191944-942a8faaca93
