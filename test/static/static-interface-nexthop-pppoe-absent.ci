@@ -1,0 +1,57 @@
+# Test: a default route through a declared pppoe-client whose session is down
+#       is accepted at commit and waits; it is not skipped.
+# VALIDATES: spec-home-cpe-1-logical-interface-name AC-3 at commit. The boot
+#            config declares pppoe-client pppoe0 and routes 0.0.0.0/0 through
+#            interface pppoe0; no access concentrator answers on zentk, so the
+#            device never exists. `show static` must list the route in the main
+#            table, NOT skipped, with its one member (interface pppoe0) inactive.
+# PREVENTS: the pre-fix behavior, where verify and apply saw no device named
+#           pppoe0, skipped the route with a skip-reason, and left the WAN
+#           default unrouted until an unrelated reload.
+#
+# Requires Linux and CAP_NET_ADMIN: pppoe-client is a Linux-only kind, the
+# netlink interface backend runs, and the setup creates zentk, the client's
+# source interface.
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external static-pppoe-test {
+		run "le test fixture static/static-interface-nexthop-pppoe-absent"
+		encoder json
+	}
+	internal rib {
+		use rib
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client pppoe0 {
+		source-interface zentk
+		authentication {
+			username u
+			password p
+		}
+	}
+}
+
+static {
+	table default {
+		route 0.0.0.0/0 {
+			next { interface pppoe0 { } }
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+
+cmd=foreground:seq=1:exec=le test fixture static/static-kernel-setup
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=static routes loaded
+expect=stderr:contains=OK: boot, no session: 0.0.0.0/0 waits for pppoe0: member inactive, route not skipped
+reject=stderr:pattern=route skipped
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

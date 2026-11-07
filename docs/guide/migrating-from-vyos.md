@@ -144,7 +144,7 @@ When the child lands, its row changes.
 | `inbound-interface name <i>`, `outbound-interface name <i>` | `input-interface <i>`, `output-interface <i>` | a PPPoE client is matched by its configured name, as VyOS does | equivalent | - |
 | `default-action accept\|drop` | chain `policy accept\|drop` | | equivalent | - |
 | `default-action reject` | a final term `then reject`, chain `policy drop` | Ze's `policy` is accept or drop only | equivalent | - |
-| `default-log` | a final term `then counter`, `log prefix "[<family>-<chain>-default-<A>]"` and the default action | VyOS writes this rule itself; `<A>` is the first letter of the action in upper case | equivalent | - |
+| `default-log` | the final term of the chain carries `counter`, `log prefix "[<family>-<chain>-default-<A>]"` and the verdict of `default-action` (`drop`, `accept` or `reject`) in one `then` block | VyOS writes this rule itself; `<A>` is the first letter of the action in upper case. `log` does not decide the packet, so a term holding only `counter` and `log` lets it through to the chain policy, which never rejects | equivalent | - |
 | `firewall group address-group <g> address <a>` | `set <g> type ipv4` with one `element <a>` per address, in every table that names the group; the term writes `@<g>` | a set belongs to one table, so declare it in each table that uses it | equivalent | - |
 | `address-group` holding a range `<a>-<b>` | one element per address of the range | a set element in Ze config is one address | equivalent | - |
 | `firewall group network-group <g> network <p>` | one term per prefix, each with `source-address <p>` or `destination-address <p>` | do not use a set: Ze programs a prefix element as its bare address | conditional | - |
@@ -441,6 +441,34 @@ static {
     }
 }
 firewall {
+    table v4-input {
+        family ip
+        chain input {
+            type filter
+            hook input
+            priority 0
+            policy drop
+            term default-action {
+                then {
+                    counter
+                    log { prefix "[ipv4-input-default-D]"; }
+                    drop
+                }
+            }
+        }
+    }
+    table v6-input {
+        family ip6
+        chain input {
+            type filter
+            hook input
+            priority 0
+            policy drop
+            term default-action {
+                then { reject; }
+            }
+        }
+    }
     table wan-mss {
         family inet
         chain mss {
@@ -486,7 +514,8 @@ system {
 | 11 | `set interfaces pppoe pppoe0 ipv6 adjust-mss 'clamp-mss-to-pmtu'` | the same term as line 10 | equivalent | |
 | 31 | `set firewall group network-group TRUSTED network '192.0.2.0/24'` | `firewall table v4-input chain input term rule-20-a from source-address 192.0.2.0/24` | conditional | one term per prefix, not a set |
 | 35 | `set firewall ipv4 input filter default-action 'drop'` | `firewall table v4-input chain input policy drop`; `term default-action then drop` | equivalent | |
-| 36 | `set firewall ipv4 input filter default-log` | `firewall table v4-input chain input term default-action then counter log prefix "[ipv4-input-default-D]"` | equivalent | |
+| 36 | `set firewall ipv4 input filter default-log` | `firewall table v4-input chain input term default-action then { counter; log prefix "[ipv4-input-default-D]"; drop; }` | equivalent | the same term as line 35 |
+| 52 | `set firewall ipv6 input filter default-action 'reject'` | `firewall table v6-input chain input policy drop`; `term default-action then reject` | equivalent | no `default-log`, so no `counter` or `log` |
 | 50 | `set firewall ipv4 input filter rule 50 protocol 'all'` | none | equivalent | no `protocol` match |
 | 70 | `set service dhcp-server shared-network-name LAN subnet 192.0.2.0/24 subnet-id '1'` | dropped: Ze keys a subnet by its prefix | not read | |
 | 85 | `set vpn ipsec site-to-site peer hq local-address '203.0.113.2'` | none | conditional | filled from `vpn ipsec interface pppoe0` (child 4) |

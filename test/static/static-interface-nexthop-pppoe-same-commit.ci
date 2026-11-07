@@ -1,0 +1,54 @@
+# Test: one reload adds a pppoe-client and the default route through it; the
+#       reload is accepted and the route waits, whichever plugin applies first.
+# VALIDATES: spec-home-cpe-1-logical-interface-name AC-10. The daemon boots
+#            with no pppoe-client and a main table holding one unrelated route
+#            (so static is loaded). The fixture confirms `show static` lists no
+#            0.0.0.0/0, rewrites ze-bgp.conf to add pppoe-client pppoe0 and
+#            route 0.0.0.0/0 next interface pppoe0 in the same file, and sends
+#            SIGHUP. `show static` must then list 0.0.0.0/0 NOT skipped, with its
+#            pppoe0 member inactive. A refused reload keeps the boot config,
+#            which holds no such route, so the wait cannot pass on a failure.
+# PREVENTS: static verifying or classifying against the resolver iface
+#           publishes during its own apply, so a route added with its client
+#           passes or is skipped by apply order instead of reading the
+#           candidate interface section.
+#
+# Requires Linux and CAP_NET_ADMIN: pppoe-client is a Linux-only kind, the
+# netlink interface backend runs, and the setup creates zentk, the client's
+# source interface and the unrelated route's device.
+option=needs-linux:caps=net-admin
+option=timeout:value=45s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external static-pppoe-test {
+		run "le test fixture static/static-interface-nexthop-pppoe-same-commit"
+		encoder json
+	}
+	internal rib {
+		use rib
+	}
+}
+
+interface {
+	backend netlink
+}
+
+static {
+	table default {
+		route 198.18.77.0/24 {
+			next { interface zentk { } }
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+
+cmd=foreground:seq=1:exec=le test fixture static/static-kernel-setup
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=45s
+expect=exit:code=0
+expect=stderr:contains=OK: after one reload adding client and route: 0.0.0.0/0 waits for pppoe0: member inactive, route not skipped
+reject=stderr:pattern=route skipped
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

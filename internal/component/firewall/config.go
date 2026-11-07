@@ -357,16 +357,46 @@ func parseFromBlock(m map[string]any) ([]Match, error) {
 	return matches, nil
 }
 
+// thenPresenceMap reads a presence container of the then block whose children
+// are all optional (counter, log, reject). The config parser stores the block
+// form `reject { with tcp-reset }` as a map, and the flag form, a bare `reject`
+// on its own line, as the string "true"; JSON carries it as "". Both flag forms
+// are the container with no children set, so they answer an empty map. Any
+// other value is refused, because reading it as absent would silently drop the
+// action the operator wrote.
+func thenPresenceMap(name string, v any) (map[string]any, error) {
+	if children, ok := v.(map[string]any); ok {
+		return children, nil
+	}
+	flag, ok := v.(string)
+	if !ok {
+		return nil, fmt.Errorf("then %s: expected a block or a bare %s, got %T", name, name, v)
+	}
+	if flag == "" || flag == "true" {
+		return map[string]any{}, nil
+	}
+	return nil, fmt.Errorf("then %s: takes no value, got %q; write a bare %s, or %s { ... } with its fields",
+		name, flag, name, name)
+}
+
 func parseThenBlock(m map[string]any) ([]Action, error) {
 	var actions []Action
 
 	// Modifiers (non-terminal, processed first).
-	if counterMap, ok := m["counter"].(map[string]any); ok {
+	if counterVal, ok := m["counter"]; ok {
+		counterMap, err := thenPresenceMap("counter", counterVal)
+		if err != nil {
+			return nil, err
+		}
 		name, _ := counterMap["name"].(string)
 		actions = append(actions, Counter{Name: name})
 	}
 
-	if logMap, ok := m[thenBlockKeys.Log].(map[string]any); ok {
+	if logVal, ok := m[thenBlockKeys.Log]; ok {
+		logMap, err := thenPresenceMap(thenBlockKeys.Log, logVal)
+		if err != nil {
+			return nil, err
+		}
 		lg, err := parseLogAction(logMap)
 		if err != nil {
 			return nil, err
@@ -486,7 +516,11 @@ func parseThenBlock(m map[string]any) ([]Action, error) {
 		actions = append(actions, Goto{Target: v})
 	}
 
-	if rejMap, ok := m["reject"].(map[string]any); ok {
+	if rejVal, ok := m["reject"]; ok {
+		rejMap, err := thenPresenceMap("reject", rejVal)
+		if err != nil {
+			return nil, err
+		}
 		r := Reject{}
 		if w, ok := rejMap["with"].(string); ok {
 			r.Type = w

@@ -132,6 +132,47 @@ func TestParseThenReject(t *testing.T) {
 	}
 }
 
+// VALIDATES: a bare presence container in a then block (`reject`, `counter`,
+// `log` on its own line) yields its action. The config parser stores that flag
+// form as the string "true", and the parser used to read only the map form, so
+// the action vanished: a final `reject` term failed verify with "at least one
+// action required", and a bare `counter` beside `drop` was silently lost.
+// PREVENTS: an operator-written action dropped without an error.
+func TestParseThenBarePresenceActions(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{"term":{"rule1":{"then":{"counter":"true","log":"true","reject":"true"}}}}}}}}}`
+	tables, err := ParseFirewallConfig(data)
+	if err != nil {
+		t.Fatalf("ParseFirewallConfig: %v", err)
+	}
+	actions := tables[0].Chains[0].Terms[0].Actions
+	if len(actions) != 3 {
+		t.Fatalf("got %d actions %#v, want counter, log and reject", len(actions), actions)
+	}
+	if c, ok := actions[0].(Counter); !ok || c.Name != "" {
+		t.Errorf("actions[0] = %#v, want anonymous Counter", actions[0])
+	}
+	if lg, ok := actions[1].(Log); !ok || lg.Prefix != "" || lg.Level != nil {
+		t.Errorf("actions[1] = %#v, want Log with no fields", actions[1])
+	}
+	if r, ok := actions[2].(Reject); !ok || r.Type != "" || r.Code != 0 {
+		t.Errorf("actions[2] = %#v, want Reject with no fields", actions[2])
+	}
+}
+
+// VALIDATES: a then-block presence container given a word other than its flag
+// form is refused, never read as absent.
+// PREVENTS: `reject icmp;` silently dropping the reject.
+func TestParseThenPresenceValueRefused(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{"term":{"rule1":{"then":{"reject":"icmp"}}}}}}}}}`
+	_, err := ParseFirewallConfig(data)
+	if err == nil {
+		t.Fatal("ParseFirewallConfig accepted `reject icmp`, want a refusal")
+	}
+	if !strings.Contains(err.Error(), "then reject: takes no value") {
+		t.Errorf("error = %v, want it to name the reject value", err)
+	}
+}
+
 // VALIDATES: AC-6 "Config term with mark set 0x10".
 // PREVENTS: modifier parsing broken.
 func TestParseThenMarkSet(t *testing.T) {
