@@ -610,7 +610,70 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 	if err := cfg.resolveUnnumbered(); err != nil {
 		return nil, err
 	}
+	if err := cfg.refuseDuplicateInterfaceNames(); err != nil {
+		return nil, err
+	}
 	return cfg, nil
+}
+
+// refuseDuplicateInterfaceNames ensures that no two configured interface
+// entries share a name across kinds. The kernel interface namespace is flat,
+// and the pppoe-client is now a created kind that carries the configured
+// name onto the kernel device (child-1), so a collision with an ethernet,
+// bridge, dummy, veth, tunnel, wireguard, xfrm or another pppoe-client entry
+// would mean two config entries target the same device and the second apply
+// would EEXIST. Refuse at parse time and name both entries so the operator
+// can rename one before the commit reaches apply.
+func (c *ifaceConfig) refuseDuplicateInterfaceNames() error {
+	seen := make(map[string]string, len(c.Ethernet)+len(c.PPPoEClient))
+	record := func(name, kind string) error {
+		if prev, dup := seen[name]; dup {
+			return fmt.Errorf("iface: interface name %q appears as both %s and %s; rename one of the two entries", name, prev, kind)
+		}
+		seen[name] = kind
+		return nil
+	}
+	for i := range c.Ethernet {
+		if err := record(c.Ethernet[i].Name, "ethernet"); err != nil {
+			return err
+		}
+	}
+	for i := range c.Dummy {
+		if err := record(c.Dummy[i].Name, "dummy"); err != nil {
+			return err
+		}
+	}
+	for i := range c.Veth {
+		if err := record(c.Veth[i].Name, "veth"); err != nil {
+			return err
+		}
+	}
+	for i := range c.Bridge {
+		if err := record(c.Bridge[i].Name, "bridge"); err != nil {
+			return err
+		}
+	}
+	for i := range c.Tunnel {
+		if err := record(c.Tunnel[i].Name, "tunnel"); err != nil {
+			return err
+		}
+	}
+	for i := range c.Wireguard {
+		if err := record(c.Wireguard[i].Name, "wireguard"); err != nil {
+			return err
+		}
+	}
+	for i := range c.XFRM {
+		if err := record(c.XFRM[i].Name, "xfrm"); err != nil {
+			return err
+		}
+	}
+	for i := range c.PPPoEClient {
+		if err := record(c.PPPoEClient[i].Name, "pppoe-client"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // parseTunnelEntry walks the JSON tree for one tunnel list entry and produces

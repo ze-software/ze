@@ -1711,17 +1711,25 @@ module ze-iface-conf {
             ze:backend "netlink";
             description "The client dials an access concentrator over a physical Ethernet interface,
                          negotiates LCP, authentication and IPCP, and presents the PPP session as a
-                         routable interface with server-assigned addresses. The kernel creates the pppN
-                         interface dynamically. The name leaf is a config key only, and the OS interface
-                         name is pppN.";
+                         routable interface with server-assigned addresses. Ze creates the kernel
+                         device under the configured name through rtnetlink (kind ppp with
+                         IFLA_PPP_DEV_FD), so the name an operator writes is the name static routes,
+                         firewall matches and NAT see on every session and every reconnect.";
             ze:help "PPPoE client interface (RFC 2516).";
 
             leaf name {
-                type string;
-                description "The name is the list key and it never reaches the kernel. The kernel
-                             names the session device pppN, and ze reports that OS name in the show
-                             output.";
-                ze:help "Config-level interface name (e.g. pppoe0)";
+                type string {
+                    length "1..15";
+                    pattern '[A-Za-z][A-Za-z0-9_.-]*';
+                }
+                description "Ze creates the PPP session device under this name through rtnetlink
+                             (kind ppp with IFLA_PPP_DEV_FD), so the operator names the kernel
+                             device, not a logical alias. Every consumer that names an interface
+                             (static routes, firewall matches, NAT) reaches the session through this
+                             name, and the name follows a PPPoE unit renumber. The kernel limits an
+                             interface name to 15 octets (IFNAMSIZ 16 including NUL). The name must
+                             not collide with another configured interface of any kind.";
+                ze:help "Configured interface name (e.g. pppoe0), carried onto the kernel device.";
             }
 
             leaf source-interface {

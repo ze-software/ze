@@ -989,7 +989,9 @@ func validateLengths(value string, lengths []NumericRange) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("value length %d is outside allowed length %s", n, formatNumericRanges(lengths))
+	allowed := formatNumericRanges(lengths)
+	return fmt.Errorf("value length %d is outside allowed length %s; write a value of %s characters",
+		n, allowed, allowed)
 }
 
 // ValidateListKey validates a list key against the full key leaf restrictions

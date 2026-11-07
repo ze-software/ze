@@ -144,7 +144,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | **Security** | 802.1X / EAPoL | missing | lower |
 | | Storm control | missing | lower |
 | **Configuration** | YANG model (all types + units) | have | |
-| | Input validation (name, VLAN, MTU) | have | |
+| | Input validation (name, VLAN, MTU) | have | A `pppoe-client` key is the kernel device name, so it is 1 to 15 octets (IFNAMSIZ), starts with a letter, holds only letters, digits, `_`, `.` and `-`, and may not repeat the key of any other configured interface of any kind |
 | **Platform** | Pluggable backend interface | have | |
 | | Linux netlink backend (default) | have | |
 | | YANG `backend` leaf (config-driven selection) | have | `backend vpp` starts the VPP component with the interface plugin. A build without `ze_vpp` refuses it when the config is validated, committed or booted, naming the leaf and the tag, rather than at apply |

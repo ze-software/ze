@@ -308,7 +308,7 @@ func (v *Validator) validateString(path string, yangType *yang.YangType, value a
 			return &ValidationError{
 				Path:     path,
 				Type:     ErrTypeLength,
-				Message:  textbuf.StrIntStr("string length ", int64(strLen), " is outside allowed range"),
+				Message:  lengthRefusal(strLen, yangType.Length.String()),
 				Expected: yangType.Length.String(),
 				Got:      strconv.Itoa(int(strLen)),
 			}
@@ -337,6 +337,15 @@ func (v *Validator) validateString(path string, yangType *yang.YangType, value a
 	}
 
 	return nil
+}
+
+// lengthRefusal is the message for a string whose length the YANG `length`
+// statement refuses. It names the allowed range, because "outside allowed
+// range" alone leaves the operator guessing which length to write.
+func lengthRefusal(got uint64, allowed string) string {
+	var b textbuf.Buffer
+	return b.Str("string length ").Int(int64(got)).Str(" is outside allowed range ").Str(allowed).
+		Str("; write a value of ").Str(allowed).Str(" characters").String()
 }
 
 // msgExpectedUnsigned is the diagnostic every rejected unsigned value carries.

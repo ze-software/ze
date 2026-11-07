@@ -891,3 +891,66 @@ func TestInterfaceExistsReadErrorIsNotAbsence(t *testing.T) {
 	require.ErrorContains(t, err, `"unread0"`)
 	require.ErrorContains(t, err, "ze show interface unread0")
 }
+
+// pppoeReloadConfig is the interface section of a CPE: the upstream NIC, a
+// pppoe-client dialling over it, and optionally a dummy the reload drops.
+func pppoeReloadConfig(t *testing.T, withDummy bool) *ifaceConfig {
+	t.Helper()
+	dummy := ""
+	if withDummy {
+		dummy = `"dummy": {"dum-old": {}},`
+	}
+	return mustParseIfaceJSON(t, `{
+		"interface": {
+			`+dummy+`
+			"ethernet": {"eth0": {}},
+			"pppoe-client": {
+				"pppoe0": {
+					"source-interface": "eth0",
+					"authentication": {"username": "u", "password": "p"}
+				}
+			}
+		}
+	}`)
+}
+
+// TestApplyKeepsPPPoEClientDevice proves an interface reload leaves the live
+// PPPoE session device alone. Since child-1 the session device carries the
+// configured key (`pppoe0`), so it sits in the same namespace as the devices
+// the apply creates and prunes. It is owned by the pppoe-client reconciler,
+// and closing its PPP unit is what removes it, never the iface prune.
+//
+// Method: the fake kernel holds the session device (kind "ppp", up, with the
+// IPCP address the client installed) and a dummy the previous config made.
+// The reload keeps the client and drops the dummy, so the prune phase runs
+// and deletes something; the session device and its address must survive it.
+//
+// VALIDATES: AC-9, A-5 -- a reload while the session is up does not delete
+// pppoe0 and does not strip its negotiated address.
+// PREVENTS: a prune or address reconcile that reads a named PPP device as a
+// Ze-created link no longer in config, cutting the WAN on every commit.
+func TestApplyKeepsPPPoEClientDevice(t *testing.T) {
+	resetAddressOwners(t)
+	b := &fakeBackend{
+		ifaces: map[string]fakeIface{
+			"eth0":    {name: "eth0", linkType: zeTypeEthernet, mac: "02:00:00:00:00:01", state: "up"},
+			"pppoe0":  {name: "pppoe0", linkType: "ppp", state: "up", mtu: 1492},
+			"dum-old": {name: "dum-old", linkType: TypeDummy},
+		},
+		addrs: map[string][]string{"pppoe0": {"100.64.0.2/32"}},
+	}
+
+	previous := pppoeReloadConfig(t, true)
+	cfg := pppoeReloadConfig(t, false)
+
+	errs := applyConfig(cfg, previous, b)
+	require.Empty(t, errs, "the reload must apply cleanly")
+
+	// The prune phase ran: without this the keep below proves nothing.
+	require.True(t, b.deleted["dum-old"], "the dummy the reload dropped must be pruned")
+
+	require.False(t, b.deleted["pppoe0"], "the reload deleted the live pppoe-client session device")
+	require.Contains(t, b.ifaces, "pppoe0", "the session device must still exist after the reload")
+	require.Contains(t, b.addrs["pppoe0"], "100.64.0.2/32",
+		"the reload stripped the address the pppoe-client negotiated")
+}

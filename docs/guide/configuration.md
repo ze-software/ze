@@ -2851,7 +2851,15 @@ renegotiation from the access network on the existing PPP session. It repeats
 authentication and IPCP before it resumes IPv4 forwarding. The interface worker
 applies changed addresses, MTU and default gateway on the same device.
 Target-kernel and wholesale interoperability proof remain outstanding.
+
+The client key is the name of the kernel device: Ze creates the session device
+as `pppoe0` for `pppoe-client pppoe0`, on every session and every reconnect, so a
+static route, a firewall match or NAT names the WAN by the key the operator wrote.
+The kernel limits that name to 15 octets, so `ze config validate` refuses a
+longer key, a key outside the interface-name pattern, and a key that another
+configured interface (ethernet, bridge, dummy and the rest) already uses.
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client -->
+<!-- source: internal/component/iface/config.go -- refuseDuplicateInterfaceNames -->
 <!-- source: internal/component/l2tp/pppoeclient/connected_session.go -- restart -->
 <!-- source: internal/component/iface/pppoe_client.go -- runSession -->
 

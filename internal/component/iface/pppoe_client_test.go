@@ -363,6 +363,46 @@ func TestPPPoEClientUsesConfiguredDeviceName(t *testing.T) {
 	assert.Equal(t, 1492, backend.mtuSet["pppoe0"], "SetMTU did not name pppoe0")
 }
 
+// TestPPPoEClientNameValidated proves AC-6 (IFNAMSIZ limit) and AC-7
+// (cross-kind collision refused): the parser refuses a pppoe-client key
+// longer than 15 octets and a key equal to another configured interface's
+// key, so the kernel never meets a name it will refuse at RTM_NEWLINK.
+// VALIDATES: AC-6, AC-7.
+func TestPPPoEClientNameValidated(t *testing.T) {
+	t.Run("too-long", func(t *testing.T) {
+		_, err := parseIfaceConfig(`{
+			"interface": {
+				"pppoe-client": {
+					"pppoe-0123456789": {
+						"source-interface": "eth0",
+						"authentication": {"username": "u", "password": "p"}
+					}
+				}
+			}
+		}`)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "length")
+		assert.Contains(t, err.Error(), "pppoe-0123456789")
+	})
+	t.Run("collides-with-ethernet", func(t *testing.T) {
+		_, err := parseIfaceConfig(`{
+			"interface": {
+				"ethernet": {"pppoe0": {"mac": {"address": "00:11:22:33:44:55"}}},
+				"pppoe-client": {
+					"pppoe0": {
+						"source-interface": "eth0",
+						"authentication": {"username": "u", "password": "p"}
+					}
+				}
+			}
+		}`)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ethernet")
+		assert.Contains(t, err.Error(), "pppoe-client")
+		assert.Contains(t, err.Error(), "pppoe0")
+	})
+}
+
 // TestPPPoEClientDisable verifies the disable flag is parsed.
 func TestPPPoEClientDisable(t *testing.T) {
 	cfg := mustParseIfaceJSON(t, `{
