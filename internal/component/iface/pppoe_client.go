@@ -263,7 +263,13 @@ func (c *PPPoEClient) runSession() error {
 	}
 	defer sess.Cleanup()
 
-	ifname := textbuf.StrInt("ppp", int64(sess.UnitNum))
+	// The backend names the device by its configured name (plan child-1,
+	// plan/release/fixes/spec-home-cpe-1-logical-interface-name.md). Phase 2
+	// replaces PPPIOCNEWUNIT with an rtnetlink creation that gives the kernel
+	// device this exact name. Until that commit lands the kernel device is
+	// still pppN, so DevPPPSetup refuses this path and runSession never
+	// reaches a real backend call with a configured name.
+	ifname := c.cfg.Name
 	mtuApplied := int(sess.NegMTU)
 	if c.cfg.MTU > 0 {
 		mtuApplied = min(mtuApplied, c.cfg.MTU)

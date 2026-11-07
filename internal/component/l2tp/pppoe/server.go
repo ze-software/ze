@@ -438,10 +438,13 @@ func (s *InterfaceServer) createTransport(sid uint16, remoteMAC [EthALen]byte) (
 // setupPPPChannel attaches the session socket to a PPP channel and unit,
 // through devPPPSetupFn when a test set it.
 func (s *InterfaceServer) setupPPPChannel(pppoxFD int) (chanFD, unitFD, unitNum int, err error) {
+	// The PPPoE AC serves subscriber sessions whose device stays pppN:
+	// subscribers have no configured name. Only the PPPoE client passes a
+	// non-empty name to DevPPPSetup (plan child-1).
 	if s.devPPPSetupFn != nil {
 		return s.devPPPSetupFn(pppoxFD)
 	}
-	return ppp.DevPPPSetup(pppoxFD)
+	return ppp.DevPPPSetup(pppoxFD, "")
 }
 
 func (s *InterfaceServer) sendFrame(frame []byte) {

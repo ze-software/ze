@@ -40,8 +40,8 @@ func TestPPPoEClientSimultaneousRouteFailures(t *testing.T) {
 		h.changes <- latest
 		synctest.Wait()
 		wantRoutes := []changeCall{
-			{op: "route-add", device: "ppp7", local: "0.0.0.0/0", peer: "192.0.2.10", metric: 73, proto: rtproto.Iface},
-			{op: "route-remove", device: "ppp7", local: "0.0.0.0/0", peer: "192.0.2.1", metric: 73, proto: rtproto.Iface},
+			{op: "route-add", device: "wan", local: "0.0.0.0/0", peer: "192.0.2.10", metric: 73, proto: rtproto.Iface},
+			{op: "route-remove", device: "wan", local: "0.0.0.0/0", peer: "192.0.2.1", metric: 73, proto: rtproto.Iface},
 		}
 		if len(h.backend.calls) != 4 {
 			t.Fatalf("failed change calls = %+v", h.backend.calls)
@@ -60,7 +60,7 @@ func TestPPPoEClientSimultaneousRouteFailures(t *testing.T) {
 				if !strings.Contains(line, "gateway="+gateway) {
 					continue
 				}
-				if strings.Contains(line, "device=ppp7") {
+				if strings.Contains(line, "device=wan") {
 					matched = true
 				}
 			}
@@ -104,9 +104,9 @@ func TestPPPoEClientRouteReturnsToPendingGateway(t *testing.T) {
 			h.changes <- changedResult("192.0.2.2", gateway, 1492)
 			synctest.Wait()
 			want := []changeCall{
-				{op: "address-add", device: "ppp7", local: "192.0.2.2/32", peer: gateway + "/32"},
-				{op: "route-add", device: "ppp7", local: "0.0.0.0/0", peer: gateway, metric: 73, proto: rtproto.Iface},
-				{op: "route-remove", device: "ppp7", local: "0.0.0.0/0", peer: "192.0.2.1", metric: 73, proto: rtproto.Iface},
+				{op: "address-add", device: "wan", local: "192.0.2.2/32", peer: gateway + "/32"},
+				{op: "route-add", device: "wan", local: "0.0.0.0/0", peer: gateway, metric: 73, proto: rtproto.Iface},
+				{op: "route-remove", device: "wan", local: "0.0.0.0/0", peer: "192.0.2.1", metric: 73, proto: rtproto.Iface},
 			}
 			if len(h.backend.calls) != 4 {
 				t.Fatalf("replacement calls = %+v", h.backend.calls)
@@ -122,9 +122,9 @@ func TestPPPoEClientRouteReturnsToPendingGateway(t *testing.T) {
 		h.changes <- original
 		synctest.Wait()
 		want := []changeCall{
-			{op: "address-add", device: "ppp7", local: "192.0.2.2/32", peer: "192.0.2.1/32"},
-			{op: "route-add", device: "ppp7", local: "0.0.0.0/0", peer: "192.0.2.1", metric: 73, proto: rtproto.Iface},
-			{op: "address-remove", device: "ppp7", local: "192.0.2.2/32", peer: "192.0.2.11/32"},
+			{op: "address-add", device: "wan", local: "192.0.2.2/32", peer: "192.0.2.1/32"},
+			{op: "route-add", device: "wan", local: "0.0.0.0/0", peer: "192.0.2.1", metric: 73, proto: rtproto.Iface},
+			{op: "address-remove", device: "wan", local: "192.0.2.2/32", peer: "192.0.2.11/32"},
 		}
 		if len(h.backend.calls) != len(want) {
 			t.Fatalf("return calls = %+v", h.backend.calls)

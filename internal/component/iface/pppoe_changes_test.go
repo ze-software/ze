@@ -116,10 +116,10 @@ func changedResult(local, peer string, mtu uint16) PPPoEResult {
 // checks exact calls, ordering, device identity and operator-visible addresses.
 func TestPPPoEClientSessionChanges(t *testing.T) {
 	address := func(op, local, peer string) changeCall {
-		return changeCall{op: op, device: "ppp7", local: local + "/32", peer: peer + "/32"}
+		return changeCall{op: op, device: "wan", local: local + "/32", peer: peer + "/32"}
 	}
 	route := func(op, peer string) changeCall {
-		return changeCall{op: op, device: "ppp7", local: "0.0.0.0/0", peer: peer, metric: 73, proto: rtproto.Iface}
+		return changeCall{op: op, device: "wan", local: "0.0.0.0/0", peer: peer, metric: 73, proto: rtproto.Iface}
 	}
 	for _, tc := range []struct {
 		name   string
@@ -139,7 +139,7 @@ func TestPPPoEClientSessionChanges(t *testing.T) {
 			route("route-remove", "192.0.2.1"), address("address-remove", "192.0.2.2", "192.0.2.1"),
 		}},
 		{"mtu", PPPoEClientConfig{}, changedResult("192.0.2.2", "192.0.2.1", 1400), []changeCall{
-			{op: "mtu", device: "ppp7", mtu: 1400},
+			{op: "mtu", device: "wan", mtu: 1400},
 		}},
 		{"mtu-capped", PPPoEClientConfig{MTU: 1300}, changedResult("192.0.2.2", "192.0.2.1", 1400), nil},
 		{"unchanged", PPPoEClientConfig{}, changedResult("192.0.2.2", "192.0.2.1", 1492), nil},

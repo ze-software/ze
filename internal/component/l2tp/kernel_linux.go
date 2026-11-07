@@ -87,7 +87,10 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 		}
 	}
 
-	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD)
+	// An L2TP LNS and LAC name their subscriber sessions pppN: the name is
+	// not set by config here, only the PPPoE client passes a configured
+	// name (plan child-1).
+	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD, "")
 	if err != nil {
 		unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is err
 		return pppSessionFDs{}, err

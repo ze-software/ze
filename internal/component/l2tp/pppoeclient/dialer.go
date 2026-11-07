@@ -153,7 +153,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		return iface.PPPoESession{}, err
 	}
 
-	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD)
+	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD, cfg.Name)
 	if err != nil {
 		pppoe.ClosePPPoxFD(pppoxFD)
 		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, nil)

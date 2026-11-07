@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Accepted configuration does the wrong thing: `pppoe-client pppoe0` validates, yet a static route, a firewall match or a masquerade rule that names `pppoe0` never matches the session device, which the kernel calls `pppN`. The guide's own example (`docs/guide/static-routes.md`, `interface pppoe0`) does not work. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-07 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 

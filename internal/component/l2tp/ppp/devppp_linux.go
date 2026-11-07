@@ -5,6 +5,7 @@
 package ppp
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"unsafe"
@@ -40,17 +41,36 @@ func SetIPv4Mode(unitFD int, mode NPMode) error {
 	return nil
 }
 
+// ErrNamedUnitNotImplemented is returned when a caller asks for a unit under a
+// configured name. The named-creation path (rtnetlink kind "ppp" with
+// IFLA_PPP_DEV_FD, see Linux drivers/net/ppp/ppp_generic.c ppp_nl_newlink)
+// lands in a follow-up commit. Phase 1 of child-1 wires the plumbing so the
+// PPPoE client passes its configured name through to DevPPPSetup; the kernel
+// device still carries the auto-assigned pppN until that follow-up commit
+// replaces PPPIOCNEWUNIT with the rtnetlink creation.
+// plan/release/fixes/spec-home-cpe-1-logical-interface-name.md.
+var ErrNamedUnitNotImplemented = errors.New("ppp: named PPP unit creation is not yet implemented")
+
 // DevPPPSetup opens /dev/ppp, attaches the PPP channel from the PPPoX
-// socket (L2TP or PPPoE), allocates a PPP unit (creating the pppN
-// interface), and returns the channel fd, unit fd, and unit number.
+// socket (L2TP or PPPoE), allocates a PPP unit, and returns the channel fd,
+// unit fd, and unit number.
 //
-// The ioctl sequence is identical for PPPoL2TP and PPPoE:
+// When name is empty, the ioctl sequence is identical for PPPoL2TP and PPPoE
+// and the kernel names the device pppN:
 //  1. PPPIOCGCHAN on pppoxFD -> channel index
 //  2. open /dev/ppp, PPPIOCATTCHAN -> channel fd
 //  3. open /dev/ppp, PPPIOCNEWUNIT -> unit fd + pppN interface
 //
+// When name is non-empty, DevPPPSetup returns ErrNamedUnitNotImplemented.
+// The follow-up commit replaces step 3 with an RTM_NEWLINK of kind "ppp"
+// carrying IFLA_PPP_DEV_FD on the opened /dev/ppp file (child-1 phase 2,
+// plan/release/fixes/spec-home-cpe-1-logical-interface-name.md).
+//
 // PPPIOCCONNECT (step 4) is deferred to after LCP completes.
-func DevPPPSetup(pppoxFD int) (chanFD, unitFD, unitNum int, err error) {
+func DevPPPSetup(pppoxFD int, name string) (chanFD, unitFD, unitNum int, err error) {
+	if name != "" {
+		return -1, -1, -1, ErrNamedUnitNotImplemented
+	}
 	chanIdx, err := ioctlGetInt(pppoxFD, pppiocGChan)
 	if err != nil {
 		return -1, -1, -1, fmt.Errorf("ppp: PPPIOCGCHAN: %w", err)

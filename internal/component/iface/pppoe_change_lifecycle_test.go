@@ -33,7 +33,7 @@ func TestPPPoEClientChangeRouteRetry(t *testing.T) {
 		if h.cleanups != 0 {
 			t.Fatal("route failure released the unit")
 		}
-		for _, text := range []string{"level=WARN", "0.0.0.0/0", "192.0.2.9", "ppp7"} {
+		for _, text := range []string{"level=WARN", "0.0.0.0/0", "192.0.2.9", "wan"} {
 			if !strings.Contains(logs.String(), text) {
 				t.Errorf("warning lacks %q: %s", text, logs.String())
 			}
@@ -150,7 +150,7 @@ func TestPPPoEClientInitialRouteRetry(t *testing.T) {
 		if c.status().State != "up" {
 			t.Fatal("initial route failure ended PPP")
 		}
-		for _, text := range []string{"level=WARN", "0.0.0.0/0", "192.0.2.1", "ppp7"} {
+		for _, text := range []string{"level=WARN", "0.0.0.0/0", "192.0.2.1", "wan"} {
 			if !strings.Contains(logs.String(), text) {
 				t.Errorf("initial warning lacks %q: %s", text, logs.String())
 			}
@@ -283,11 +283,11 @@ func TestPPPoEClientPendingRouteRemovalBoundsOwnership(t *testing.T) {
 		h.changes <- latest
 		synctest.Wait()
 		wantCalls := []changeCall{
-			{op: "mtu", device: "ppp7", mtu: 1300},
-			{op: "address-add", device: "ppp7", local: "192.0.2.4/32", peer: "192.0.2.10/32"},
-			{op: "route-add", device: "ppp7", local: "0.0.0.0/0", peer: "192.0.2.10", metric: 73, proto: rtproto.Iface},
-			{op: "route-remove", device: "ppp7", local: "0.0.0.0/0", peer: "192.0.2.1", metric: 73, proto: rtproto.Iface},
-			{op: "address-remove", device: "ppp7", local: "192.0.2.3/32", peer: "192.0.2.9/32"},
+			{op: "mtu", device: "wan", mtu: 1300},
+			{op: "address-add", device: "wan", local: "192.0.2.4/32", peer: "192.0.2.10/32"},
+			{op: "route-add", device: "wan", local: "0.0.0.0/0", peer: "192.0.2.10", metric: 73, proto: rtproto.Iface},
+			{op: "route-remove", device: "wan", local: "0.0.0.0/0", peer: "192.0.2.1", metric: 73, proto: rtproto.Iface},
+			{op: "address-remove", device: "wan", local: "192.0.2.3/32", peer: "192.0.2.9/32"},
 		}
 		if len(h.backend.calls) != len(wantCalls) {
 			t.Fatalf("replacement calls = %+v, want %+v", h.backend.calls, wantCalls)
@@ -308,7 +308,7 @@ func TestPPPoEClientPendingRouteRemovalBoundsOwnership(t *testing.T) {
 			t.Fatalf("recovery calls = %+v", h.backend.calls)
 		}
 		wantCleanup := changeCall{
-			op: "route-remove", device: "ppp7", local: "0.0.0.0/0",
+			op: "route-remove", device: "wan", local: "0.0.0.0/0",
 			peer: "192.0.2.1", metric: 73, proto: rtproto.Iface,
 		}
 		if h.backend.calls[0] != wantCleanup {

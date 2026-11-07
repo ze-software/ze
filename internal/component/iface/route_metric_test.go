@@ -694,7 +694,7 @@ func TestPPPoEDefaultRouteTakesTheLearnedMetric(t *testing.T) {
 			})
 
 			call := recorder.waitForAdd(t)
-			assert.Equal(t, routeCall{"ppp0", "0.0.0.0/0", "192.0.2.1", tc.want, rtproto.Iface}, call)
+			assert.Equal(t, routeCall{"pppoe0", "0.0.0.0/0", "192.0.2.1", tc.want, rtproto.Iface}, call)
 		})
 	}
 }

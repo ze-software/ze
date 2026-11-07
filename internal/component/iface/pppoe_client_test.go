@@ -316,6 +316,53 @@ func (d *fakeDialer) Dial(_ PPPoEClientConfig, stopCh <-chan struct{}, _ *slog.L
 	return d.sess, nil
 }
 
+// TestPPPoEClientUsesConfiguredDeviceName verifies child-1 Phase 1 wiring:
+// runSession names the device by the configured key (here pppoe0), not by
+// the kernel-chosen pppN. The fake dialer returns a session with unit num 7
+// so a regression that keeps textbuf.StrInt("ppp", 7) would reach the
+// backend with "ppp7" and the assertions below fail. The configured name
+// must appear on every backend call runSession makes after Dial returns.
+// VALIDATES: AC-1, AC-8 with a fake dialer
+// (plan/release/fixes/spec-home-cpe-1-logical-interface-name.md).
+func TestPPPoEClientUsesConfiguredDeviceName(t *testing.T) {
+	cfg := PPPoEClientConfig{
+		Name:            "pppoe0",
+		SourceInterface: "eth2",
+		Username:        "user",
+		AuthSecret:      "secret",
+	}
+	done := make(chan struct{})
+	dialer := &fakeDialer{
+		sess: PPPoESession{
+			SessionID: 42,
+			UnitNum:   7,
+			NegMTU:    1492,
+			LocalIP:   netip.MustParseAddr("192.0.2.2"),
+			PeerIP:    netip.MustParseAddr("192.0.2.1"),
+			Done:      done,
+			Cleanup:   func() {},
+		},
+	}
+	backend := &fakeBackend{ifaces: map[string]fakeIface{
+		"pppoe0": {name: "pppoe0", linkType: "ppp", state: "down"},
+	}}
+
+	client := NewPPPoEClient(cfg, dialer, backend, slog.Default())
+	client.Start()
+	assert.Eventually(t, func() bool { return client.status().State == "up" },
+		time.Second, 5*time.Millisecond, "client did not reach up")
+	client.Stop()
+
+	require.Len(t, backend.routeAdds, 1, "AddRoute was not called")
+	assert.Equal(t, "pppoe0", backend.routeAdds[0].ifaceName,
+		"AddRoute carried kernel name, not the configured key")
+	assert.Equal(t, "up", backend.adminSet["pppoe0"],
+		"SetAdminUp did not name pppoe0")
+	_, hasPppN := backend.ifaces["ppp7"]
+	assert.False(t, hasPppN, "a backend call named ppp7 instead of pppoe0")
+	assert.Equal(t, 1492, backend.mtuSet["pppoe0"], "SetMTU did not name pppoe0")
+}
+
 // TestPPPoEClientDisable verifies the disable flag is parsed.
 func TestPPPoEClientDisable(t *testing.T) {
 	cfg := mustParseIfaceJSON(t, `{

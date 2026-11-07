@@ -46,7 +46,7 @@ func TestPPPoEClientDesiredRouteProgress(t *testing.T) {
 		logs.Reset()
 		h.changes <- changedResult("192.0.2.5", "192.0.2.11", 1300)
 		synctest.Wait()
-		for _, text := range []string{"level=WARN", "gateway=192.0.2.11", "device=ppp7"} {
+		for _, text := range []string{"level=WARN", "gateway=192.0.2.11", "device=wan"} {
 			if !strings.Contains(logs.String(), text) {
 				t.Errorf("desired-install warning lacks %q: %s", text, logs.String())
 			}
