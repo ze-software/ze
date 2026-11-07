@@ -52,6 +52,16 @@ func (r *registrations) callableSource(call *ast.CallExpr, scope initializationS
 			case ast.Typ:
 				return source, false, nil
 			case ast.Var:
+				// A local closure called only through its name executes
+				// its own literal, as zstd's fatalErr(binary.Read(...))
+				// does; any other use of the name keeps the alias refusal.
+				if !aliased {
+					if literal, bound := externalClosureBinding(value); bound {
+						if closureCalledOnly(source.file, binding) {
+							return sourceExpr{value: literal, file: source.file, pkg: source.pkg}, true, nil
+						}
+					}
+				}
 				if !callableAliasBinding(binding) {
 					return sourceExpr{}, false, r.eval.problem(origin, "callable parameter or variable "+value.Name+" has unresolved execution ownership")
 				}

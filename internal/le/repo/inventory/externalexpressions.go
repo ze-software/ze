@@ -174,15 +174,22 @@ func (e *externalEffects) expressionValue(source sourceExpr, possible bool, dept
 		result := child(value.X)
 		if value.Op == token.AND {
 			result.references = true
-			if object := e.object(sourceExpr{value: value.X, file: source.file, pkg: source.pkg}); object != nil {
-				result.join(externalLocation(object))
+			// A literal's address is a fresh allocation no binding names yet;
+			// the value it initializes carries its capabilities.
+			if _, literal := value.X.(*ast.CompositeLit); literal {
 				return result
 			}
-			if _, literal := value.X.(*ast.CompositeLit); !literal {
+			// The address carries the operand's value and the storage it
+			// points into, so an external callee that writes through it
+			// writes that storage's locations.
+			storage, reason := e.addressStorage(sourceExpr{value: value.X, file: source.file, pkg: source.pkg}, possible, depth+1)
+			if reason != "" {
 				// This reason replaces the operand's, so its site does too.
-				result.unknown = "address ownership is unresolved"
+				result.unknown = "address ownership is unresolved: " + reason
 				result.unknownAt = source
+				return result
 			}
+			result.join(storage)
 		}
 		return result
 	case *ast.BinaryExpr:

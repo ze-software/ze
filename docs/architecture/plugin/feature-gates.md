@@ -105,6 +105,10 @@ without publishing partial membership; this is not a method or value interpreter
 Following a callable initializer also requires an immutable binding: a reused
 short declaration is a write to its existing object, and an escaping address
 refuses rather than guessing which function a pointer write installs.
+A local closure `name := func(...) {...}` whose name is used only as a callee
+executes its own literal; any other use of the name (a copy, a reassignment,
+an address) leaves the call a closure alias, which refuses.
+<!-- source: internal/le/repo/inventory/externalformals.go -- externalClosureBinding, closureCalledOnly -->
 <!-- source: internal/le/repo/inventory/callablealiases.go -- registrations.callableSource, registrations.callableImport -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
 <!-- source: internal/le/repo/inventory/mutations.go -- expression.callableImmutable, expression.writes -->
@@ -355,6 +359,16 @@ the same way; a send whose channel location is unresolved refuses. A receive
 carries that root-field obligation too, so a received whole value cannot borrow
 an earlier inert field from the same binding. A received value passed as an
 argument to a retained function still refuses its formal provenance.
+An address carries its operand's value and the storage it points into, so an
+external callee that writes through it, as `binary.Read(r, order, &s.f)` does,
+writes those locations. `&x` points into `x`. `&s.f`, `&a[i]` and `&*p` point
+into their holder: the holder variable's own location joined with the
+locations its value refers to, so a struct or array variable, a pointer and a
+slice all name their storage, and an anonymous pointee (`p := &T{}`) is the
+pointer variable its field reads are recorded against. An address whose holder
+yields no location, such as a field of a returned pointer, refuses as `address
+ownership is unresolved`, as an assignment through that holder does.
+<!-- source: internal/le/repo/inventory/externaladdresses.go -- externalEffects.addressStorage -->
 Flattening copies every visited node's capabilities into one output-owned union,
 dropping field names and their selector obligations at each node. Its unchanged
 128-edge cutoff excludes that node's capabilities, preserves the first unknown
@@ -404,6 +418,11 @@ refuse instead of silently reducing that caller population. A method value
 `x.M` is the one indirect use that binds part of the population: it fixes M's
 receiver to `x` where it is taken, with the equation a call `x.M()` writes,
 while M's parameters still come from the value's unseen callers and refuse.
+A local closure declared as `name := func(...) {...}` is a direct callee: each
+call `name(args)` writes its argument equations as a call of the literal does,
+and its declaration is not a use. Any other use of the name (a copy, a
+reassignment, a reused short declaration) is indirect and refuses.
+<!-- source: internal/le/repo/inventory/externalformals.go -- externalClosureBinding, externalEffects.formalTarget -->
 Primitive scalar
 parameters acquire their own type methods without borrowing ambient references;
 reference-bearing parameters exposed externally retain the full ambient union.
