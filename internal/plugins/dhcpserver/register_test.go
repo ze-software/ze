@@ -199,3 +199,89 @@ func TestBindListenersAtBootServesWhatBinds(t *testing.T) {
 		t.Errorf("expected a listen-failed log for the down interface: %s", buf.String())
 	}
 }
+
+// TestListenerIgnoresOtherSegments serves DISCOVERs through the request
+// server of three listeners: two each addressed in its own shared network,
+// one addressed in none.
+// VALIDATES: AC-10: a listener answers only from the shared network its
+// device is addressed in, and never offers a reservation of another segment;
+// AC-11: a listener whose device holds no address in a configured subnet
+// answers nothing and writes one warning naming the interface, its addresses
+// and the fix, however many requests arrive.
+// PREVENTS: every listener answering for every configured subnet.
+func TestListenerIgnoresOtherSegments(t *testing.T) {
+	previous := dhcpDeviceAddrs
+	dhcpDeviceAddrs = func(device string) ([]netip.Addr, error) {
+		switch device {
+		case "eth-a":
+			return []netip.Addr{netip.MustParseAddr("192.168.50.1")}, nil
+		case "eth-b":
+			return []netip.Addr{netip.MustParseAddr("192.168.60.1")}, nil
+		default:
+			return []netip.Addr{netip.MustParseAddr("203.0.113.1")}, nil
+		}
+	}
+	t.Cleanup(func() { dhcpDeviceAddrs = previous })
+
+	reservedB := net.HardwareAddr{0x02, 0, 0, 0, 0x60, 0x20}
+	subnet := func(prefix, start, stop string, statics ...staticMapping) subnetConfig {
+		return subnetConfig{
+			Prefix:         netip.MustParsePrefix(prefix),
+			Ranges:         []addressRange{{Name: "pool", Start: netip.MustParseAddr(start), Stop: netip.MustParseAddr(stop)}},
+			LeaseTimeSec:   600,
+			StaticMappings: statics,
+		}
+	}
+	handlers := buildHandlers(serverConfig{Enabled: true, SharedNetworks: []sharedNetwork{
+		{Name: "lan-a", Subnets: []subnetConfig{subnet("192.168.50.0/24", "192.168.50.100", "192.168.50.199")}},
+		{Name: "lan-b", Subnets: []subnetConfig{subnet("192.168.60.0/24", "192.168.60.100", "192.168.60.199",
+			staticMapping{Name: "printer", MAC: reservedB, IP: netip.MustParseAddr("192.168.60.20")})}},
+	}}, nil)
+	t.Cleanup(func() {
+		for _, h := range handlers {
+			h.leases.stop()
+		}
+	})
+
+	var logged bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logged, nil))
+	serve := func(device string, mac net.HardwareAddr) ([]byte, bool) {
+		r := &requestServer{device: device, handlers: handlers, log: log}
+		return r.answer(buildDiscover(mac, 0x6001))
+	}
+
+	for _, tc := range []struct {
+		device string
+		mac    net.HardwareAddr
+		within string
+	}{
+		{"eth-a", net.HardwareAddr{0x02, 0, 0, 0, 0x50, 0x01}, "192.168.50.0/24"},
+		{"eth-b", net.HardwareAddr{0x02, 0, 0, 0, 0x60, 0x01}, "192.168.60.0/24"},
+		// The lan-b reservation is not offered on lan-a's interface.
+		{"eth-a", reservedB, "192.168.50.0/24"},
+	} {
+		offer, resolved := serve(tc.device, tc.mac)
+		if !resolved || offer == nil {
+			t.Fatalf("%s, %s: no OFFER (resolved %v)", tc.device, tc.mac, resolved)
+		}
+		if got := netip.AddrFrom4([4]byte(offer[16:20])); !netip.MustParsePrefix(tc.within).Contains(got) {
+			t.Errorf("%s, %s: offered %v, want an address of %s", tc.device, tc.mac, got, tc.within)
+		}
+	}
+
+	r := &requestServer{device: "eth-c", handlers: handlers, log: log}
+	for range 3 {
+		if offer, resolved := r.answer(buildDiscover(net.HardwareAddr{0x02, 0, 0, 0, 0x70, 0x01}, 0x6002)); offer != nil || resolved {
+			t.Fatalf("eth-c holds no address in a configured subnet: reply %d bytes, resolved %v", len(offer), resolved)
+		}
+	}
+	lines := strings.Split(strings.TrimSpace(logged.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("log lines = %d, want one rate-limited warning:\n%s", len(lines), logged.String())
+	}
+	for _, want := range []string{"level=WARN", "interface=eth-c", "203.0.113.1", "Fix: add an address in a configured subnet", "listen-interface"} {
+		if !strings.Contains(lines[0], want) {
+			t.Errorf("warning lacks %q:\n%s", want, lines[0])
+		}
+	}
+}

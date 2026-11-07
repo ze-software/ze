@@ -4154,7 +4154,7 @@ service {
 |---------|------|---------|-------------|
 | `enabled` | boolean | `false` | Enable DHCP server. |
 | `listen-interface` | leaf-list | (none) | Interfaces to serve DHCP on. |
-| `shared-network <name>` | list | (none) | Named grouping of subnets. |
+| `shared-network <name>` | list | (none) | The subnets of one physical segment (see "Several subnets on one interface"). |
 | `subnet <prefix>` | IPv4 prefix | (none) | Subnet with address pool and options. |
 | `range <name>` | list | (none) | Named dynamic address pool. Multiple ranges per subnet for disjoint pools. |
 | `range <name>.start` | IPv4 address | (none) | First allocatable address. |
@@ -4171,6 +4171,34 @@ IPv6 value is refused when the config is validated.
 Multiple named ranges allow disjoint address pools within a single subnet.
 Ranges must not overlap and are allocated in order (first range fills before
 the second is used). Up to 10 ranges per subnet are supported.
+
+#### Several subnets on one interface
+
+A `shared-network` holds the subnets of one physical segment, as in ISC dhcpd
+and Kea. A LAN bridge addressed 192.168.50.1/24 and 10.99.0.1/24 serves both
+subnets when they sit in one shared network. A listen interface serves only
+the shared networks it holds an address in, so a second LAN interface never
+hands out the first LAN's addresses. An interface that holds no IPv4 address in
+any configured subnet answers only relayed clients: the server logs a warning
+and `ze doctor` reports `doctor-dhcp-segment-address`. Add an address in a
+configured subnet to the interface, or remove it from `listen-interface`. A
+relayed request (non-zero `giaddr`) is served from the shared network holding
+the relay's address.
+
+For each client the server chooses, in this order:
+
+1. A `static-mapping` for the client's MAC in any subnet of the segment, so a
+   reservation in the second subnet wins over the first subnet's pool.
+2. The address the server already holds for the client.
+3. For a DHCPDISCOVER, the requested address when it is free in a pool of the
+   segment.
+4. A new address from the pool of the subnet holding the interface's primary
+   address (relayed: the relay's address), then the other subnets' pools in
+   the order Ze sorts them: shared networks by name, subnets by prefix text.
+
+A client renewing or rebooting with an address that differs from its
+reservation, or that lies in no subnet of the segment, is sent a DHCPNAK and
+starts again, so a reservation added later takes effect at its next renewal.
 
 #### PXE Boot Support
 

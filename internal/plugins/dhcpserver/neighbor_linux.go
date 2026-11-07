@@ -1,5 +1,6 @@
 // Design: docs/architecture/provisioning/dhcp-server.md -- Reply delivery to a client with no address
 // Related: register.go -- replyDestination, the caller that falls back to broadcast
+// Related: segment.go -- resolveSegment, which readDeviceAddrs feeds
 
 //go:build linux
 
@@ -11,6 +12,7 @@ import (
 	"net/netip"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 // installNeighbor writes the neighbor entry addr -> hardware on the interface
@@ -70,6 +72,41 @@ func readNeighbor(iface string, addr netip.Addr) (neighborEntry, error) {
 		return neighborEntry{held: true, hardware: neighbors[i].HardwareAddr}, nil
 	}
 	return neighborEntry{}, nil
+}
+
+// readDeviceAddrs answers the IPv4 addresses the interface named iface holds:
+// its primary addresses first, then its secondary ones, each in the order the
+// kernel lists them. The first is the device's primary address, which decides
+// the home subnet of a segment (resolveSegment). It uses the same netlink
+// package calls as the neighbor reads above, no second client. Safe for
+// concurrent use: each call is one netlink dump.
+func readDeviceAddrs(iface string) ([]netip.Addr, error) {
+	link, err := netlink.LinkByName(iface)
+	if err != nil {
+		return nil, fmt.Errorf("find interface %q: %w", iface, err)
+	}
+	addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+	if err != nil {
+		return nil, fmt.Errorf("list addresses on %q: %w", iface, err)
+	}
+	var primary, secondary []netip.Addr
+	for i := range addrs {
+		// The kernel answers every IPv4 address with its IPNet; one without is
+		// no address to serve from.
+		if addrs[i].IPNet == nil {
+			continue
+		}
+		ip, ok := netip.AddrFromSlice(addrs[i].IP)
+		if !ok {
+			continue
+		}
+		if addrs[i].Flags&unix.IFA_F_SECONDARY != 0 {
+			secondary = append(secondary, ip.Unmap())
+			continue
+		}
+		primary = append(primary, ip.Unmap())
+	}
+	return append(primary, secondary...), nil
 }
 
 // neighborHeld reports whether a neighbor entry in state is one NeighSet must

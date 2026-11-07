@@ -373,6 +373,10 @@ func TestDHCPInitReboot(t *testing.T) {
 
 	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}
 	reqIP := netip.MustParseAddr("192.168.1.150")
+	// The server holds a binding for the client at the address it asks to
+	// keep; a client with no record draws silence (TestInitRebootNoRecordSilent).
+	h.pool.reserve(reqIP, mac)
+	h.leases.add(mac, reqIP, h.subnet.LeaseTimeSec)
 
 	request := buildRequest(mac, 0x5555, reqIP, netip.Addr{})
 	ack := h.handle(request)
@@ -396,19 +400,24 @@ func TestDHCPInitRebootWrongSubnet(t *testing.T) {
 
 	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}
 
-	// Wrong-subnet IP is filtered by matchesSubnet, so handler returns nil.
-	// In serveMulti, no handler matches, resulting in silence.
+	// RFC 2131 Section 4.3.2: a requested address on the wrong network draws a
+	// DHCPNAK, so the client stops using it at once (AC-6).
 	wrongIP := netip.MustParseAddr("10.0.0.50")
 	request := buildRequest(mac, 0x6666, wrongIP, netip.Addr{})
 	resp := h.handle(request)
-	if resp != nil {
-		t.Error("expected nil for wrong-subnet INIT-REBOOT (filtered by matchesSubnet)")
+	if resp == nil {
+		t.Fatal("expected DHCPNAK for wrong-subnet INIT-REBOOT, got no reply")
+	}
+	if getResponseMsgType(resp) != msgNak {
+		t.Errorf("wrong-subnet INIT-REBOOT: reply %d, want NAK", getResponseMsgType(resp))
 	}
 
-	// An IP inside the subnet but outside the pool range still gets ACK
-	// (commitBinding reserves it). This matches RFC 2131: server with
-	// record should respond, server without should be silent.
+	// An address inside the subnet but outside the pool range, which the server
+	// holds bound to this client, gets a DHCPACK: RFC 2131 Section 4.3.2 has a
+	// server with a record of the client answer, and one without stay silent.
 	inSubnetIP := netip.MustParseAddr("192.168.1.50")
+	h.pool.reserve(inSubnetIP, mac)
+	h.leases.add(mac, inSubnetIP, h.subnet.LeaseTimeSec)
 	request2 := buildRequest(mac, 0x6667, inSubnetIP, netip.Addr{})
 	resp2 := h.handle(request2)
 	if resp2 == nil {
@@ -416,6 +425,9 @@ func TestDHCPInitRebootWrongSubnet(t *testing.T) {
 	}
 	if getResponseMsgType(resp2) != msgAck {
 		t.Errorf("expected ACK, got %d", getResponseMsgType(resp2))
+	}
+	if got := netip.AddrFrom4([4]byte(resp2[16:20])); got != inSubnetIP {
+		t.Errorf("in-subnet INIT-REBOOT: yiaddr = %v, want %v", got, inSubnetIP)
 	}
 }
 
@@ -452,68 +464,6 @@ func TestDHCPRenew(t *testing.T) {
 	ciaddr := netip.AddrFrom4([4]byte(ack[12:16]))
 	if ciaddr != clientIP {
 		t.Errorf("ACK ciaddr = %v, want %v (echoed from request)", ciaddr, clientIP)
-	}
-}
-
-func TestMatchesSubnet(t *testing.T) {
-	t.Parallel()
-
-	h := newTestServer(t)
-	t.Cleanup(h.leases.stop)
-
-	tests := []struct {
-		name   string
-		giaddr netip.Addr
-		ciaddr netip.Addr
-		reqIP  netip.Addr
-		want   bool
-	}{
-		{"giaddr in subnet", netip.MustParseAddr("192.168.1.1"), netip.Addr{}, netip.Addr{}, true},
-		{"giaddr outside", netip.MustParseAddr("10.0.0.1"), netip.Addr{}, netip.Addr{}, false},
-		{"ciaddr in subnet", netip.Addr{}, netip.MustParseAddr("192.168.1.50"), netip.Addr{}, true},
-		{"ciaddr outside", netip.Addr{}, netip.MustParseAddr("10.0.0.50"), netip.Addr{}, false},
-		{"requestedIP in subnet", netip.Addr{}, netip.Addr{}, netip.MustParseAddr("192.168.1.100"), true},
-		{"requestedIP outside", netip.Addr{}, netip.Addr{}, netip.MustParseAddr("10.0.0.100"), false},
-		{"no hints (fallback true)", netip.Addr{}, netip.Addr{}, netip.Addr{}, true},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			pkt := make([]byte, 300)
-			pkt[0] = opRequest
-			pkt[1] = htypeEthernet
-			pkt[2] = hlenEthernet
-			binary.BigEndian.PutUint32(pkt[236:240], magicCookie)
-
-			if tc.giaddr.IsValid() {
-				gi := tc.giaddr.As4()
-				copy(pkt[24:28], gi[:])
-			}
-			if tc.ciaddr.IsValid() {
-				ci := tc.ciaddr.As4()
-				copy(pkt[12:16], ci[:])
-			}
-
-			off := 240
-			pkt[off] = optMessageType
-			pkt[off+1] = 1
-			pkt[off+2] = msgDiscover
-			off += 3
-			if tc.reqIP.IsValid() {
-				pkt[off] = optRequestedIP
-				pkt[off+1] = 4
-				rip := tc.reqIP.As4()
-				copy(pkt[off+2:off+6], rip[:])
-				off += 6
-			}
-			pkt[off] = optEnd
-
-			got := h.matchesSubnet(pkt)
-			if got != tc.want {
-				t.Errorf("matchesSubnet = %v, want %v", got, tc.want)
-			}
-		})
 	}
 }
 

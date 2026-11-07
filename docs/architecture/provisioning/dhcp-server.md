@@ -20,7 +20,7 @@ options. It also carries the PXE options the provisioning path needs.
   addresses to PPP sessions. DHCP needs static-mapping exclusion, MAC-to-address
   tracking, reservation on INIT-REBOOT, and a way to mark an address
   unavailable. Sharing would couple two unrelated domains.
-- **One socket per listen interface, with multi-handler dispatch.** Each
+- **One socket per listen interface, serving one segment per request.** Each
   interface gets one UDP socket, bound with `SO_BINDTODEVICE` on Linux. A
   `listen-interface` names a logical interface, which an `os-name` or
   `mac-match` selector can bind to a kernel device of another name, so the
@@ -33,10 +33,43 @@ options. It also carries the PXE options the provisioning path needs.
   is empty, so it reads the selector from the config tree through
   `iface.SelectedNetDevice`, the helper the interface check uses, and probes
   the device it names. An unmatched selector is a warning, an ambiguous one an
-  error. The
-  serving goroutine tries each subnet handler in order, routing on the relay
-  address, the client address, or the requested-IP option. A bare DISCOVER with
-  no hint falls through to the first handler that has pool space.
+  error.
+- **A request is served from its segment, which a shared network names.** The
+  subnets of one `shared-network` share one physical segment, the meaning ISC
+  dhcpd and Kea give it. For each request the serving goroutine resolves the
+  segment (`resolveSegment` in `segment.go`): with `giaddr` set, the shared
+  network holding a subnet that contains the relay's address; with `giaddr`
+  zero, every shared network holding a subnet that contains an address of the
+  receiving device. The device's IPv4 addresses are read from netlink
+  (`readDeviceAddrs`, beside the neighbor reads) for each request no relay
+  forwarded, so an address added to the listen interface is served from the
+  next request on, with no reload. A device that holds no address in any
+  configured subnet answers nothing and logs one warning a minute naming the
+  interface, its addresses and the fix, and `ze doctor` reports the same
+  (`doctor-dhcp-segment-address`). The home subnet is the one holding
+  `giaddr`, else the one holding the device's primary address.
+- **Within the segment, reservations first, then the request's state.** A
+  static mapping for the client's MAC in any subnet of the segment wins over
+  every hint and every pool, the administrative choice RFC 2131 Section 4.3.1
+  allows on a segment with several subnets. A DISCOVER is then offered the
+  address a pool already holds for the client, then a free requested address,
+  then a new address from the home subnet's pool and, when that is full, the
+  other subnets' pools in the order Ze sorts them (shared networks by name,
+  subnets by prefix text). A DHCPREQUEST is classified as
+  RFC 2131 Section 4.3.2 defines it: SELECTING (server identifier present) is
+  ignored when it names none of the segment's server identifiers;
+  INIT-REBOOT (requested address, no server identifier) is refused with a
+  DHCPNAK when the address is in no subnet of the segment or differs from the
+  client's reservation or binding; RENEWING and REBINDING (`ciaddr` only) are
+  refused when `ciaddr` is in no subnet of the segment, differs from the
+  client's reservation or binding, or is held by another client, and a free
+  `ciaddr` is bound again, as after a restart that lost the lease table. A
+  client holds one binding per segment: the DHCPACK for one subnet releases an
+  address it held in another. An INIT-REBOOT for an address on the segment
+  from a client with neither a reservation nor a binding draws no reply, as
+  RFC 2131 Section 4.3.2 requires, so after a restart that lost the lease table
+  a rebooting client waits for its INIT-REBOOT to time out and sends a
+  DHCPDISCOVER.
 - **In-process only.** The selector table `iface.ResolveDevice` reads is
   filled by the interface plugin inside the daemon's process. A forked copy
   holds an empty table and would bind every logical name as if it were the

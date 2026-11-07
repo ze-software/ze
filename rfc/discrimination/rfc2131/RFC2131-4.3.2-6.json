@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2131-4.3.2-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestRebindingChecksCiaddr",
+    "unit-sha": "a58ca349b9e86d30",
+    "claim-sha": "f88d3006c8322999",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/segment.go::segment.renewing",
+    "producer-sha": "8ec61405367a864a",
+    "break": "body of segment.renewing replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-4.3.2-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestRebindingChecksCiaddr",
+    "unit-sha": "a58ca349b9e86d30",
+    "claim-sha": "431fd998820a8759",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/segment.go::segment.renewing",
+    "producer-sha": "8ec61405367a864a",
+    "break": "body of segment.renewing replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

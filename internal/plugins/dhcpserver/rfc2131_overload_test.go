@@ -85,6 +85,11 @@ func TestOverloadFieldsCarryOptions(t *testing.T) {
 			defer h.leases.stop()
 
 			mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x52, byte(i)}
+			// The server holds a binding for this client at the address the
+			// request asks to keep, recorded without any overloaded request, so
+			// the INIT-REBOOT is one RFC 2131 Section 4.3.2 has it answer.
+			h.pool.reserve(want, mac)
+			h.leases.add(mac, want, h.subnet.LeaseTimeSec)
 			pkt := overloadedMsg(t, mac, 0x5200+uint32(i), tlv(optOverload, tc.overload), tc.file, tc.sname)
 
 			// RFC requirement: RFC2131-4.1-15 positive -- under option 52 value 1 the file field, under 2 the sname field, and under 3 both are read for options: the message type (53) and requested address (50) placed there are found.

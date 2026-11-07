@@ -21,6 +21,16 @@ func installNeighbor(string, netip.Addr, net.HardwareAddr) error {
 	return errNoNeighborInstall
 }
 
+// errNoDeviceAddrs is the answer of a platform where ze reads no interface
+// address. A request no relay forwarded then draws no reply and a warning.
+var errNoDeviceAddrs = errors.New("reading an interface's addresses is implemented on Linux only")
+
+// readDeviceAddrs cannot read an interface's addresses off Linux, so it
+// refuses.
+func readDeviceAddrs(string) ([]netip.Addr, error) {
+	return nil, errNoDeviceAddrs
+}
+
 // readNeighbor cannot read a neighbor table off Linux, so it refuses and the
 // caller broadcasts.
 func readNeighbor(string, netip.Addr) (neighborEntry, error) {

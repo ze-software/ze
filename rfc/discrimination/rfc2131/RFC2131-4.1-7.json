@@ -3,12 +3,12 @@
     "rid": "RFC2131-4.1-7",
     "polarity": "positive",
     "unit": "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions",
-    "unit-sha": "33b070c770d6b9fd",
+    "unit-sha": "9a625921d9900af3",
     "claim-sha": "c4fd49c53638f376",
     "route": "revert",
     "producer": "internal/plugins/dhcpserver/options.go::findOption",
     "producer-sha": "d39ca40e41373b40",
-    "break": "body of findOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of findOption replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2131-4.1-7",

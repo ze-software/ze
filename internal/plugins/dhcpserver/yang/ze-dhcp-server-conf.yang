@@ -26,8 +26,10 @@ module ze-dhcp-server-conf {
 
         container dhcp-server {
             description "DHCP server settings. Ze speaks DHCPv4 only (RFC 2131 and RFC 2132), so every address leaf under
-                         this container is IPv4. The server binds one listener for each name in listen-interface, and
-                         every listener answers for every configured subnet.";
+                         this container is IPv4. The server binds one listener for each name in listen-interface. A
+                         listener answers a client no relay forwarded only from the shared networks that hold a
+                         subnet its interface is addressed in, and a relayed client from the shared network that
+                         holds the relay's address (giaddr).";
             ze:help "DHCP server settings";
 
             leaf enabled {
@@ -100,9 +102,11 @@ module ze-dhcp-server-conf {
 
             list shared-network {
                 key "name";
-                description "Named network grouping of subnets. The name is a label for the operator, and Ze puts it on no
-                    packet. Ze sorts the groups by name and builds one handler for each subnet in that order. A
-                    request is answered by the first handler that accepts it.";
+                description "The subnets of one physical segment. The name is a label for the operator, and Ze puts it on no
+                    packet. A static mapping in any subnet of the segment is offered before any pool, and a new
+                    address comes from the subnet holding the listen interface's primary address (or the relay's
+                    address), then from the other subnets in the order Ze sorts them: shared networks by name,
+                    subnets by prefix text.";
                 ze:help "Named network grouping of subnets";
 
                 leaf name {

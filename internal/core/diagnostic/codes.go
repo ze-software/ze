@@ -890,6 +890,14 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-dhcp-iface"},
 	},
 	{
+		Code:  "doctor-dhcp-segment-address",
+		Title: "DHCP listen interface holds no address in a configured subnet",
+		Description: "The DHCP server answers a client that no relay forwarded only from the subnets of the shared networks " +
+			"the receiving interface holds an address in. This listen interface holds no IPv4 address in any configured " +
+			"subnet, so it answers relayed clients only.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-dhcp-segment-address"},
+	},
+	{
 		Code:  CodeDoctorIPsecIface,
 		Title: "IPsec interface missing",
 		Description: "vpn ipsec interface names an interface that does not exist on the system, " +

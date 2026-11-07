@@ -69,7 +69,13 @@ const dhcpHeaderLen = 236
 // Minimum valid DHCP packet: header + magic cookie + message type option + end.
 const minPacketLen = dhcpHeaderLen + 4 + 3 + 1
 
+// dhcpHandler is one configured subnet: its pool, its lease table and the
+// replies it builds. A segment (segment.go) chooses which handler serves a
+// request; a handler never decides that itself.
 type dhcpHandler struct {
+	// network names the shared network the subnet belongs to. The subnets of
+	// one shared network share one segment (resolveSegment).
+	network     string
 	subnet      subnetConfig
 	serverIP    netip.Addr
 	pxe         pxeConfig
@@ -103,124 +109,13 @@ func newDHCPHandlerWithTables(sub subnetConfig, serverIP netip.Addr, pxe pxeConf
 	}
 }
 
-func (h *dhcpHandler) handle(pkt []byte) []byte {
-	if len(pkt) < minPacketLen {
-		return nil
-	}
-	if pkt[0] != opRequest {
-		return nil
-	}
-	if binary.BigEndian.Uint32(pkt[236:240]) != magicCookie {
-		return nil
-	}
-	if pkt[2] == 0 {
-		return nil
-	}
-
-	if !h.matchesSubnet(pkt) {
-		return nil
-	}
-
-	msgType := parseMsgType(pkt)
-	mac := extractMAC(pkt)
-
-	switch msgType {
-	case msgDiscover:
-		return h.handleDiscover(pkt, mac)
-	case msgRequest:
-		return h.handleRequest(pkt, mac)
-	case msgRelease:
-		h.handleRelease(mac)
-		return nil
-	case msgDecline:
-		h.handleDecline(pkt, mac)
-		return nil
-	default:
-		return nil
-	}
-}
-
-func (h *dhcpHandler) matchesSubnet(pkt []byte) bool {
-	giaddr := netip.AddrFrom4([4]byte(pkt[24:28]))
-	if giaddr.IsValid() && !giaddr.IsUnspecified() {
-		return h.subnet.Prefix.Contains(giaddr)
-	}
-	ciaddr := netip.AddrFrom4([4]byte(pkt[12:16]))
-	if ciaddr.IsValid() && !ciaddr.IsUnspecified() {
-		return h.subnet.Prefix.Contains(ciaddr)
-	}
-	requestedIP := parseOptionAddr(pkt, optRequestedIP)
-	if requestedIP.IsValid() {
-		return h.subnet.Prefix.Contains(requestedIP)
-	}
-	return true
-}
-
-// RFC 2131 Section 4.3.1: if no address available, remain silent.
-func (h *dhcpHandler) handleDiscover(pkt []byte, mac net.HardwareAddr) []byte {
-	addr, ok := h.allocateForClient(mac)
-	if !ok {
-		return nil
-	}
-	return h.buildReply(pkt, msgOffer, addr)
-}
-
-func (h *dhcpHandler) handleRequest(pkt []byte, mac net.HardwareAddr) []byte {
-	requestedIP := parseOptionAddr(pkt, optRequestedIP)
-	serverID := parseOptionAddr(pkt, optServerID)
-
-	// RFC 2131 Section 4.3.2: SELECTING state (server identifier present).
-	if serverID.IsValid() {
-		if serverID != h.serverIP {
-			return nil
-		}
-		if !requestedIP.IsValid() {
-			return h.buildNak(pkt)
-		}
-		return h.commitBinding(pkt, mac, requestedIP)
-	}
-
-	// RFC 2131 Section 4.3.2: INIT-REBOOT (requested IP present, no server ID).
-	if requestedIP.IsValid() {
-		if !h.subnet.Prefix.Contains(requestedIP) {
-			return h.buildNak(pkt)
-		}
-		return h.commitBinding(pkt, mac, requestedIP)
-	}
-
-	// RFC 2131 Section 4.3.2: RENEWING/REBINDING (ciaddr filled in).
-	ciaddr := netip.AddrFrom4([4]byte(pkt[12:16]))
-	if ciaddr.IsValid() && !ciaddr.IsUnspecified() {
-		return h.commitBinding(pkt, mac, ciaddr)
-	}
-
-	return h.buildNak(pkt)
-}
-
+// commitBinding binds addr to mac in this subnet's pool and lease table and
+// answers the DHCPACK. The segment decides that addr is the client's
+// (segment.commit); this only records it.
 func (h *dhcpHandler) commitBinding(pkt []byte, mac net.HardwareAddr, addr netip.Addr) []byte {
 	h.pool.reserve(addr, mac)
 	h.leases.add(mac, addr, h.subnet.LeaseTimeSec)
 	return h.buildReply(pkt, msgAck, addr)
-}
-
-func (h *dhcpHandler) handleRelease(mac net.HardwareAddr) {
-	h.leases.release(mac)
-}
-
-// RFC 2131 Section 4.3.3: mark the declined address as not available.
-func (h *dhcpHandler) handleDecline(pkt []byte, mac net.HardwareAddr) {
-	declined := parseOptionAddr(pkt, optRequestedIP)
-	if declined.IsValid() {
-		h.pool.markUnavailable(declined)
-	}
-	h.leases.release(mac)
-}
-
-func (h *dhcpHandler) allocateForClient(mac net.HardwareAddr) (netip.Addr, bool) {
-	if ip, ok := h.staticByMAC[string(mac)]; ok {
-		return ip, true
-	}
-	return h.pool.allocate(mac)
 }
 
 func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr netip.Addr) []byte {

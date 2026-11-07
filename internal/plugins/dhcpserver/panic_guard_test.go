@@ -20,10 +20,12 @@ import (
 // request is served, and the panic is counted and crash-recorded on the real
 // guard.
 // METHOD: serveMulti runs over an unprivileged loopback socket with two
-// handlers. The first owns 10.0.0.0/24 and has no pool, a state only a defect
-// produces since newDHCPHandler always builds one. A DISCOVER whose ciaddr is in
-// that subnet reaches the nil pool and panics; a second DISCOVER whose ciaddr is
-// in 127.0.0.0/8 must then be answered by the healthy handler, which allocates.
+// handlers on two segments. The first owns 10.0.0.0/24 and has no pool, a state
+// only a defect produces since newDHCPHandler always builds one. A DISCOVER
+// relayed from 10.0.0.5 selects that segment, reaches the nil pool and panics;
+// a second DISCOVER, which no relay forwarded, must then be answered by the
+// healthy handler of 127.0.0.0/8, the subnet of the listen device's stood-in
+// address, which allocates.
 // PREVENTS: a request-driven panic killing the daemon, or ending the listener
 // and with it every later DHCP answer on that interface.
 func TestDHCPRequestPanicContained(t *testing.T) {
@@ -33,12 +35,17 @@ func TestDHCPRequestPanicContained(t *testing.T) {
 	}
 	t.Cleanup(crashlog.SetCrashDirForTest(t.TempDir()))
 
-	defective := &dhcpHandler{subnet: subnetConfig{Prefix: netip.MustParsePrefix("10.0.0.0/24")}}
+	previous := dhcpDeviceAddrs
+	dhcpDeviceAddrs = func(string) ([]netip.Addr, error) { return []netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil }
+	t.Cleanup(func() { dhcpDeviceAddrs = previous })
+
+	defective := &dhcpHandler{network: "broken", subnet: subnetConfig{Prefix: netip.MustParsePrefix("10.0.0.0/24")}}
 	healthy := newDHCPHandler(subnetConfig{
 		Prefix:       netip.MustParsePrefix("127.0.0.0/8"),
 		Ranges:       []addressRange{{Name: "r", Start: netip.MustParseAddr("127.0.0.50"), Stop: netip.MustParseAddr("127.0.0.60")}},
 		LeaseTimeSec: 600,
 	}, netip.MustParseAddr("127.0.0.1"), pxeConfig{})
+	healthy.network = "loopback"
 
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
@@ -64,7 +71,9 @@ func TestDHCPRequestPanicContained(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = client.Close() })
 
-	first := buildMsg(msgDiscover, net.HardwareAddr{2, 0, 0, 0, 0, 1}, 1, netip.MustParseAddr("10.0.0.5"), 0, nil)
+	first := buildMsg(msgDiscover, net.HardwareAddr{2, 0, 0, 0, 0, 1}, 1, netip.Addr{}, 0, nil)
+	relay := netip.MustParseAddr("10.0.0.5").As4()
+	copy(first[24:28], relay[:]) // giaddr
 	if _, err := client.Write(first); err != nil {
 		t.Fatalf("send the DISCOVER that panics: %v", err)
 	}

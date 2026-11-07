@@ -749,3 +749,146 @@ func TestEachParameterEmittedOnce(t *testing.T) {
 		}
 	}
 }
+
+// bindOnLAN runs a DISCOVER and a SELECTING REQUEST for mac on seg and
+// answers the address the client is bound to.
+func bindOnLAN(t *testing.T, seg segment, mac net.HardwareAddr, xid uint32) netip.Addr {
+	t.Helper()
+	offer := seg.serve(buildDiscover(mac, xid))
+	expectReply(t, "DISCOVER from "+mac.String(), offer, msgOffer)
+	offered := yiaddrOf(offer)
+	ack := seg.serve(buildRequest(mac, xid, offered, parseOptionAddr(offer, optServerID)))
+	expectReply(t, "SELECTING REQUEST from "+mac.String(), ack, msgAck)
+	return offered
+}
+
+// TestInitRebootReservedElsewhereNaks sends INIT-REBOOT REQUESTs from a client
+// reserved in the second subnet of its segment.
+// VALIDATES: AC-5: asking a household address draws a DHCPNAK, broadcast
+// since giaddr is zero, and asking the reservation draws a DHCPACK for it;
+// AC-6: asking an address in no subnet of the segment draws a DHCPNAK.
+// PREVENTS: an INIT-REBOOT that keeps a client on the wrong subnet's address.
+func TestInitRebootReservedElsewhereNaks(t *testing.T) {
+	t.Parallel()
+	seg := lanSegment(t, sharedLAN(t, householdPool))
+
+	wrong := buildRequest(macReservedB, 0x7001, netip.MustParseAddr("192.168.50.77"), netip.Addr{})
+	nak := seg.serve(wrong)
+	expectReply(t, "INIT-REBOOT asking 192.168.50.77", nak, msgNak)
+	if dst := responseAddr(wrong, nak); !dst.IP.Equal(net.IPv4bcast) || dst.Port != 68 {
+		t.Errorf("NAK destination %s, want 255.255.255.255:68", dst)
+	}
+
+	ack := seg.serve(buildRequest(macReservedB, 0x7002, netip.MustParseAddr("10.99.0.20"), netip.Addr{}))
+	expectReply(t, "INIT-REBOOT asking the reservation 10.99.0.20", ack, msgAck)
+	if got := yiaddrOf(ack); got != netip.MustParseAddr("10.99.0.20") {
+		t.Errorf("yiaddr %v, want 10.99.0.20", got)
+	}
+
+	outside := seg.serve(buildRequest(macPlain, 0x7003, netip.MustParseAddr("172.31.0.9"), netip.Addr{}))
+	expectReply(t, "INIT-REBOOT asking 172.31.0.9, in no subnet of the segment", outside, msgNak)
+}
+
+// TestRenewingReservedElsewhereNaks renews a household lease after a reload
+// added a reservation for the same client in the device subnet.
+// VALIDATES: AC-17: the RENEWING REQUEST for the household address draws a
+// DHCPNAK, the client's next DISCOVER is offered the reservation, and the
+// DHCPACK for it releases the household lease.
+// PREVENTS: a client keeping a pool lease of the wrong subnet for ever once its
+// reservation is configured.
+func TestRenewingReservedElsewhereNaks(t *testing.T) {
+	t.Parallel()
+	before := sharedLAN(t, householdPool)
+	bound := bindOnLAN(t, lanSegment(t, before), macPlain, 0x7101)
+
+	reserved := netip.MustParseAddr("10.99.0.30")
+	cfg := sharedLANConfig(householdPool)
+	device := &cfg.SharedNetworks[1].Subnets[1]
+	device.StaticMappings = append(device.StaticMappings, staticMapping{Name: "camera", MAC: macPlain, IP: reserved})
+	after := buildHandlers(cfg, before)
+	t.Cleanup(func() {
+		for _, h := range after {
+			h.leases.stop()
+		}
+	})
+	seg := lanSegment(t, after)
+
+	renew := seg.serve(buildMsg(msgRequest, macPlain, 0x7102, bound, 0, nil))
+	expectReply(t, "RENEWING REQUEST for the household lease "+bound.String(), renew, msgNak)
+
+	offer := seg.serve(buildDiscover(macPlain, 0x7103))
+	expectReply(t, "DISCOVER after the DHCPNAK", offer, msgOffer)
+	if got := yiaddrOf(offer); got != reserved {
+		t.Fatalf("yiaddr %v, want the reservation %v", got, reserved)
+	}
+	ack := seg.serve(buildRequest(macPlain, 0x7103, reserved, parseOptionAddr(offer, optServerID)))
+	expectReply(t, "SELECTING REQUEST for the reservation", ack, msgAck)
+	if l := seg.subnets[0].leases.lookup(macPlain); l != nil {
+		t.Errorf("household lease %v survives the DHCPACK for the reservation", l.addr)
+	}
+}
+
+// TestRebindingChecksCiaddr sends DHCPREQUESTs carrying only ciaddr, the form
+// RENEWING and REBINDING clients send, first for the client's own binding,
+// then for addresses the client does not hold.
+// VALIDATES: AC-18: such a request whose ciaddr is the client's own binding
+// draws a DHCPACK with the broadcast bit clear and set; ciaddr in no subnet of
+// the segment, or bound to another client, draws a DHCPNAK.
+// PREVENTS: the server committing whatever ciaddr a client claims.
+func TestRebindingChecksCiaddr(t *testing.T) {
+	t.Parallel()
+	seg := lanSegment(t, sharedLAN(t, householdPool))
+	bound := bindOnLAN(t, seg, macPlain, 0x7201)
+
+	// RFC requirement: RFC2131-4.3.2-6 positive -- a DHCPREQUEST carrying only ciaddr (no server identifier, no requested address), the form RENEWING and REBINDING clients send, sent once with the flags broadcast bit clear and once with it set, whose ciaddr is the address bound to the same client, draws a DHCPACK for ciaddr each time, and the client's binding stays that address.
+	for _, flags := range []uint16{0x0000, 0x8000} {
+		ack := seg.serve(buildMsg(msgRequest, macPlain, 0x7202, bound, flags, nil))
+		expectReply(t, "REQUEST renewing the client's own binding", ack, msgAck)
+		if got := yiaddrOf(ack); got != bound {
+			t.Errorf("flags %#04x: yiaddr %v, want %v", flags, got, bound)
+		}
+		if l := seg.subnets[0].leases.lookup(macPlain); l == nil || l.addr != bound {
+			t.Errorf("flags %#04x: binding after the DHCPACK is %v, want %v", flags, l, bound)
+		}
+	}
+
+	// RFC requirement: RFC2131-4.3.2-6 negative -- a DHCPREQUEST carrying only ciaddr, with the flags broadcast bit set, whose ciaddr is in no subnet of the segment, or is the address bound to another client, draws a DHCPNAK, and that address stays bound to the client that held it.
+	outside := seg.serve(buildMsg(msgRequest, macPlain, 0x7203, netip.MustParseAddr("172.31.0.9"), 0x8000, nil))
+	expectReply(t, "ciaddr-only REQUEST for 172.31.0.9, in no subnet of the segment", outside, msgNak)
+	stolen := seg.serve(buildMsg(msgRequest, macOther, 0x7204, bound, 0x8000, nil))
+	expectReply(t, "ciaddr-only REQUEST from another client for "+bound.String(), stolen, msgNak)
+	if l := seg.subnets[0].leases.lookupByAddr(bound); l == nil || !bytes.Equal(l.mac, macPlain) {
+		t.Errorf("binding of %v after the refused REBINDING is %v, want %s's", bound, l, macPlain)
+	}
+}
+
+// TestInitRebootNoRecordSilent sends an INIT-REBOOT REQUEST for an address on
+// the client's own segment from a client the server holds no record of, then
+// the same request once the client holds a binding there.
+// VALIDATES: AC-16: no reply and no binding for the client with no record;
+// once a binding exists, the same request draws a DHCPACK, so the silence comes
+// from the missing record and not from the request.
+// PREVENTS: a server acknowledging an address another, non-communicating server
+// on the same wire handed out.
+func TestInitRebootNoRecordSilent(t *testing.T) {
+	t.Parallel()
+	seg := lanSegment(t, sharedLAN(t, householdPool))
+	asked := netip.MustParseAddr("192.168.50.77")
+
+	// RFC requirement: RFC2131-4.3.2-3 positive -- an INIT-REBOOT REQUEST asking an address inside a subnet of the segment, from a client with no reservation and no binding on the segment, draws no reply and leaves no binding for that client.
+	if resp := seg.serve(buildRequest(macPlain, 0x7301, asked, netip.Addr{})); resp != nil {
+		t.Fatalf("INIT-REBOOT from a client with no record: reply %s, want none", msgTypeName(getResponseMsgType(resp)))
+	}
+	if _, addr, ok := seg.binding(macPlain); ok {
+		t.Errorf("the unanswered INIT-REBOOT left a binding at %v", addr)
+	}
+
+	// RFC requirement: RFC2131-4.3.2-3 negative -- the same INIT-REBOOT REQUEST from a client the segment holds a binding for at that address is not silent: it draws a DHCPACK for the address.
+	seg.subnets[0].pool.reserve(asked, macPlain)
+	seg.subnets[0].leases.add(macPlain, asked, seg.subnets[0].subnet.LeaseTimeSec)
+	ack := seg.serve(buildRequest(macPlain, 0x7302, asked, netip.Addr{}))
+	expectReply(t, "INIT-REBOOT from a client bound to "+asked.String(), ack, msgAck)
+	if got := yiaddrOf(ack); got != asked {
+		t.Errorf("yiaddr %v, want %v", got, asked)
+	}
+}

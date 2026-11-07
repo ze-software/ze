@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -237,10 +238,84 @@ func serveMulti(conn *net.UDPConn, device string, handlers []*dhcpHandler, log *
 		serverIPs = append(serverIPs, h.serverIP)
 	}
 
+	server := &requestServer{device: device, handlers: handlers, log: log}
 	buf := make([]byte, 1500)
-	for serveRequests(conn, device, handlers, serverIPs, buf, log) {
+	for serveRequests(conn, server, serverIPs, buf, log) {
 		// The pass ended on a contained panic; the next one reads on.
 	}
+}
+
+// dhcpDeviceAddrs answers the IPv4 addresses the kernel device holds, primary
+// addresses first (readDeviceAddrs). It is read for every request that no
+// relay forwarded, so an address added to or removed from the listen interface
+// is seen by the next request, with no reload and no cached copy to go stale.
+// It is a variable so a test can stand in a device's addresses; nothing else
+// assigns it.
+var dhcpDeviceAddrs = readDeviceAddrs
+
+// unservedWarnInterval is the least time between two warnings of one listener
+// that a request found no segment to serve it, so a client retransmitting, or
+// a flood, writes one line a minute rather than one per packet.
+const unservedWarnInterval = time.Minute
+
+// requestServer answers the requests one listener receives on device. It is
+// owned by the listener's one request task, which serveMulti runs, and is not
+// safe for concurrent use.
+type requestServer struct {
+	device   string
+	handlers []*dhcpHandler
+	log      *slog.Logger
+	// warned is when the last unserved warning was written (unservedWarnInterval).
+	warned time.Time
+}
+
+// answer returns the reply to pkt, or nil when the server stays silent.
+// resolved is false when pkt was dropped before a segment was chosen: it is
+// malformed, or no configured subnet holds the relay's address or any
+// address of the receiving device. answer has then logged why, when the
+// reason is one an operator fixes.
+func (r *requestServer) answer(pkt []byte) (reply []byte, resolved bool) {
+	if !validRequest(pkt) {
+		return nil, false
+	}
+	giaddr := netip.AddrFrom4([4]byte(pkt[24:28]))
+	var device []netip.Addr
+	if giaddr.IsUnspecified() {
+		addrs, err := dhcpDeviceAddrs(r.device)
+		if err != nil {
+			r.warnUnserved("dhcpserver: no reply, the listen interface's addresses could not be read. "+
+				"The server serves the subnets the interface is addressed in, so it cannot choose one.",
+				"interface", r.device, "error", err)
+			return nil, false
+		}
+		device = addrs
+	}
+	seg, ok := resolveSegment(r.handlers, giaddr, device)
+	if ok {
+		return seg.serve(pkt), true
+	}
+	if giaddr.IsUnspecified() {
+		r.warnUnserved("dhcpserver: no reply, the listen interface holds no address in any configured subnet. "+
+			"The server answers a client that no relay forwarded only from the subnets of the interface's own segment.\n"+
+			"Fix: add an address in a configured subnet to the interface, "+
+			"or remove the interface from service dhcp-server listen-interface",
+			"interface", r.device, "addresses", device)
+		return nil, false
+	}
+	r.warnUnserved("dhcpserver: no reply to a relayed request, no configured subnet holds the relay's address (giaddr).\n"+
+		"Fix: add a subnet that holds the relay's address to a shared-network of service dhcp-server",
+		"interface", r.device, "giaddr", giaddr.String())
+	return nil, false
+}
+
+// warnUnserved writes a warning at most once per unservedWarnInterval.
+func (r *requestServer) warnUnserved(msg string, attrs ...any) {
+	now := time.Now()
+	if !r.warned.IsZero() && now.Sub(r.warned) < unservedWarnInterval {
+		return
+	}
+	r.warned = now
+	r.log.Warn(msg, attrs...)
 }
 
 // serveRequests is the request task: it answers requests until the socket
@@ -248,7 +323,7 @@ func serveMulti(conn *net.UDPConn, device string, handlers []*dhcpHandler, log *
 // request being handled then gets no reply and its client retransmits. The pool
 // and lease tables hold their mutexes only under defer, so the unwind leaves
 // them free.
-func serveRequests(conn *net.UDPConn, device string, handlers []*dhcpHandler, serverIPs []netip.Addr, buf []byte, log *slog.Logger) (again bool) {
+func serveRequests(conn *net.UDPConn, server *requestServer, serverIPs []netip.Addr, buf []byte, log *slog.Logger) (again bool) {
 	var source *net.UDPAddr // the sender of the request being handled
 	describe := func() taskguard.Context {
 		return taskguard.Context{Unit: "request from " + source.String()}
@@ -266,22 +341,17 @@ func serveRequests(conn *net.UDPConn, device string, handlers []*dhcpHandler, se
 		pkt := make([]byte, n)
 		copy(pkt, buf[:n])
 
-		var resp []byte
-		for _, h := range handlers {
-			resp = h.handle(pkt)
-			if resp != nil {
-				break
-			}
+		resp, resolved := server.answer(pkt)
+		if resolved {
+			logExchange(log, pkt, resp, serverIPs)
 		}
-
-		logExchange(log, pkt, resp, serverIPs)
 
 		if resp == nil {
 			continue
 		}
 
 		// RFC 2131 Section 4.1
-		dst := replyDestination(device, pkt, resp, log)
+		dst := replyDestination(server.device, pkt, resp, log)
 		if _, writeErr := conn.WriteToUDP(resp, dst); writeErr != nil {
 			log.Debug("dhcpserver: write failed", "dst", dst.String(), "error", writeErr)
 		}

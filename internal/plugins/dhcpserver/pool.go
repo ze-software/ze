@@ -141,6 +141,61 @@ func (p *pool) reserve(addr netip.Addr, mac net.HardwareAddr) bool {
 	return true
 }
 
+// addrFor answers the address the pool holds for mac, offered or bound, and
+// false when it holds none. Safe for concurrent use.
+func (p *pool) addrFor(mac net.HardwareAddr) (netip.Addr, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	addr, ok := p.macToAddr[string(mac)]
+	return addr, ok
+}
+
+// contains reports whether addr falls inside one of the pool's ranges. Safe
+// for concurrent use: the ranges never change after newPool.
+func (p *pool) contains(addr netip.Addr) bool {
+	return p.findSegment(addr) != nil
+}
+
+// claim takes addr for mac and reports whether it could. addr is free when it
+// is already mac's, or when no other client holds it: inside a range, its bit
+// is clear and it is no static mapping or declined address; outside every
+// range, no other MAC is offered or bound to it. A refused claim changes
+// nothing. Safe for concurrent use.
+func (p *pool) claim(addr netip.Addr, mac net.HardwareAddr) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	key := string(mac)
+	if held, ok := p.macToAddr[key]; ok && held == addr {
+		return true
+	}
+	for other, held := range p.macToAddr {
+		if held == addr && other != key {
+			return false
+		}
+	}
+	seg := p.findSegment(addr)
+	if seg == nil {
+		p.macToAddr[key] = addr
+		return true
+	}
+	a := addrToUint32(addr)
+	if seg.staticSet[a] {
+		return false
+	}
+	idx := a - addrToUint32(seg.start)
+	word := idx / 64
+	bit := idx % 64
+	if seg.bitmap[word]&(1<<bit) != 0 {
+		return false
+	}
+	seg.bitmap[word] |= 1 << bit
+	seg.allocated++
+	p.macToAddr[key] = addr
+	return true
+}
+
 func (p *pool) markUnavailable(addr netip.Addr) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

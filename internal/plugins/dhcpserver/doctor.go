@@ -12,6 +12,7 @@ package dhcpserver
 
 import (
 	"net"
+	"net/netip"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -25,6 +26,11 @@ import (
 // internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
 // doctor-dhcp-iface` answers.
 const codeDHCPIface = "doctor-dhcp-iface"
+
+// codeDHCPSegmentAddress names a listen interface whose device holds no IPv4
+// address in any configured subnet, so it answers no client that a relay did
+// not forward. internal/core/diagnostic/codes.go declares it.
+const codeDHCPSegmentAddress = "doctor-dhcp-segment-address"
 
 // listenInterfacePath is the config path every diagnostic below names.
 const listenInterfacePath = "service/dhcp-server/listen-interface"
@@ -46,7 +52,7 @@ var dhcpDoctorCheck = diagnostic.DoctorCheck{
 	Component:    "dhcpserver",
 	Dependencies: []string{"network-device"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{codeDHCPIface},
+	Codes:        []string{codeDHCPIface, codeDHCPSegmentAddress},
 	Check:        checkDHCPInterfaces,
 }
 
@@ -73,6 +79,7 @@ func checkDHCPInterfaces(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 
 	var diags []diagnostic.Diagnostic
 	var tb textbuf.Buffer
+	subnets := configuredSubnets(dhcp)
 	for _, name := range dhcp.GetSlice("listen-interface") {
 		if strings.ContainsAny(name, "/\x00") || strings.Contains(name, "..") {
 			diags = append(diags, diagnostic.Diagnostic{
@@ -109,9 +116,81 @@ func checkDHCPInterfaces(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 				Message:  dhcpNotFound(&tb, name, device),
 				Path:     listenInterfacePath,
 			})
+			continue
+		}
+		if diag, unserved := checkDHCPSegmentAddress(&tb, name, device, subnets); unserved {
+			diags = append(diags, diag)
 		}
 	}
 	return diags
+}
+
+// configuredSubnets answers the subnet prefixes of every shared network of
+// the dhcp-server tree. A key that does not parse is skipped: the server's
+// verifier refuses it at commit, so no committed tree holds one.
+func configuredSubnets(dhcp *config.Tree) []netip.Prefix {
+	var subnets []netip.Prefix
+	for _, network := range dhcp.GetList("shared-network") {
+		for key := range network.GetList("subnet") {
+			prefix, err := netip.ParsePrefix(key)
+			if err != nil {
+				continue
+			}
+			subnets = append(subnets, prefix)
+		}
+	}
+	return subnets
+}
+
+// checkDHCPSegmentAddress reports a listen interface whose device holds no
+// IPv4 address in any configured subnet, or whose addresses cannot be read.
+// The server answers a client that no relay forwarded only from the subnets
+// the receiving device is addressed in (resolveSegment), so such an interface
+// serves relayed clients alone. It is a warning: a relay-only interface is a
+// valid design.
+func checkDHCPSegmentAddress(tb *textbuf.Buffer, name, device string, subnets []netip.Prefix) (diagnostic.Diagnostic, bool) {
+	// A server with no subnet serves no client whatever addresses its
+	// interfaces hold, so there is no segment address to miss.
+	if len(subnets) == 0 {
+		return diagnostic.Diagnostic{}, false
+	}
+	help := "add an address in a configured subnet to interface " + name +
+		", or remove " + name + " from service dhcp-server listen-interface"
+	addrs, err := dhcpDeviceAddrs(device)
+	if err != nil {
+		return diagnostic.Diagnostic{
+			Code:     codeDHCPSegmentAddress,
+			Severity: diagnostic.SeverityWarning,
+			Message: tb.Reset().Str("DHCP server listen interface ").Str(name).
+				Str(": its addresses could not be read, so whether it holds one in a configured subnet is unknown: ").
+				Str(err.Error()).String(),
+			Path: listenInterfacePath,
+			Help: help,
+		}, true
+	}
+	for _, addr := range addrs {
+		for _, prefix := range subnets {
+			if prefix.Contains(addr) {
+				return diagnostic.Diagnostic{}, false
+			}
+		}
+	}
+	tb.Reset().Str("DHCP server listen interface ").Str(name).
+		Str(" holds no IPv4 address in any configured subnet (addresses:")
+	for _, addr := range addrs {
+		tb.Str(" ").Str(addr.String())
+	}
+	if len(addrs) == 0 {
+		tb.Str(" none")
+	}
+	tb.Str("), so it answers only relayed clients")
+	return diagnostic.Diagnostic{
+		Code:     codeDHCPSegmentAddress,
+		Severity: diagnostic.SeverityWarning,
+		Message:  tb.String(),
+		Path:     listenInterfacePath,
+		Help:     help,
+	}, true
 }
 
 // dhcpNotFound words the report for a listen interface whose kernel device the

@@ -161,6 +161,12 @@ func TestListenDHCPDeviceFilter(t *testing.T) {
 		return
 	}
 	createDummyForTest(t, "zedhcpd0")
+	// The dummy holds no address, and a listener whose device holds none in a
+	// configured subnet answers nothing anyway. The stand-in address keeps the
+	// device filter the only reason this listener can stay silent.
+	previous := dhcpDeviceAddrs
+	dhcpDeviceAddrs = func(string) ([]netip.Addr, error) { return []netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil }
+	t.Cleanup(func() { dhcpDeviceAddrs = previous })
 
 	conn, err := listenDHCP("zedhcpd0")
 	if err != nil {
@@ -188,5 +194,102 @@ func TestListenDHCPDeviceFilter(t *testing.T) {
 	buf := make([]byte, 1500)
 	if n, _, err := cli.ReadFromUDP(buf); err == nil {
 		t.Fatalf("expected no OFFER from device-bound socket over lo, got %d bytes", n)
+	}
+}
+
+// TestSharedSegmentReservationOverLoopback serves two subnets of one shared
+// network through a real listener whose device holds an address in each, and
+// reads the device's addresses from the kernel.
+// VALIDATES: the wiring of AC-1 and AC-3: serveMulti reads lo's addresses
+// over netlink (readDeviceAddrs), resolves the segment holding 127.0.0.0/8 and
+// 10.99.0.0/24, offers a client reserved in the second subnet its reservation
+// with that subnet's server identifier, and offers an unreserved client an
+// address of the subnet of lo's primary address.
+// PREVENTS: the first subnet's handler claiming a client reserved in the
+// second, which is what the first-answer dispatch did.
+// METHOD: lo gets 10.99.0.1/24 beside 127.0.0.1/8 in the test's own network
+// namespace. ciaddr carries the client's loopback address only so the OFFER
+// is unicast back to it; the selection reads no hint ahead of a reservation.
+func TestSharedSegmentReservationOverLoopback(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	lo, err := netlink.LinkByName("lo")
+	if err != nil {
+		t.Fatalf("find lo: %v", err)
+	}
+	second, err := netlink.ParseAddr("10.99.0.1/24")
+	if err != nil {
+		t.Fatalf("parse 10.99.0.1/24: %v", err)
+	}
+	if err := netlink.AddrAdd(lo, second); err != nil {
+		t.Fatalf("add 10.99.0.1/24 to lo: %v", err)
+	}
+
+	reserved := net.HardwareAddr{0x02, 0, 0, 0, 0, 0x02}
+	handlers := buildHandlers(serverConfig{Enabled: true, SharedNetworks: []sharedNetwork{{Name: "lan", Subnets: []subnetConfig{
+		{
+			Prefix:        netip.MustParsePrefix("127.0.0.0/8"),
+			Ranges:        []addressRange{{Name: "r", Start: netip.MustParseAddr("127.0.0.50"), Stop: netip.MustParseAddr("127.0.0.60")}},
+			LeaseTimeSec:  600,
+			DefaultRouter: netip.MustParseAddr("127.0.0.1"),
+		},
+		{
+			Prefix:         netip.MustParsePrefix("10.99.0.0/24"),
+			Ranges:         []addressRange{{Name: "r", Start: netip.MustParseAddr("10.99.0.50"), Stop: netip.MustParseAddr("10.99.0.60")}},
+			LeaseTimeSec:   600,
+			DefaultRouter:  netip.MustParseAddr("10.99.0.1"),
+			StaticMappings: []staticMapping{{Name: "printer", MAC: reserved, IP: netip.MustParseAddr("10.99.0.20")}},
+		},
+	}}}}, nil)
+	defer func() {
+		for _, h := range handlers {
+			h.leases.stop()
+		}
+	}()
+
+	conn, err := listenDHCP("lo")
+	if err != nil {
+		t.Fatalf("bind lo:67: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+	go serveMulti(conn, "lo", handlers, slogutil.DiscardLogger())
+
+	cli, err := net.ListenUDP("udp4", &net.UDPAddr{IP: clientAddr.AsSlice(), Port: 68})
+	if err != nil {
+		t.Fatalf("bind client 127.0.0.2:68: %v", err)
+	}
+	defer func() { _ = cli.Close() }()
+
+	for _, tc := range []struct {
+		mac      net.HardwareAddr
+		yiaddr   func(netip.Addr) bool
+		want     string
+		serverID string
+	}{
+		{reserved, func(a netip.Addr) bool { return a == netip.MustParseAddr("10.99.0.20") }, "the reservation 10.99.0.20", "10.99.0.1"},
+		{net.HardwareAddr{0x02, 0, 0, 0, 0, 0x03}, netip.MustParsePrefix("127.0.0.0/8").Contains, "an address of 127.0.0.0/8", "127.0.0.1"},
+	} {
+		if _, err := cli.WriteToUDP(buildLoopbackDiscover(tc.mac, clientAddr, 0), &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 67}); err != nil {
+			t.Fatalf("send DISCOVER: %v", err)
+		}
+		if err := cli.SetReadDeadline(time.Now().Add(3 * time.Second)); err != nil {
+			t.Fatalf("set deadline: %v", err)
+		}
+		buf := make([]byte, 1500)
+		n, _, err := cli.ReadFromUDP(buf)
+		if err != nil {
+			t.Fatalf("%s: read OFFER: %v", tc.mac, err)
+		}
+		offer := buf[:n]
+		if got := parseMsgType(offer); got != msgOffer {
+			t.Fatalf("%s: message type %d, want OFFER", tc.mac, got)
+		}
+		if got := netip.AddrFrom4([4]byte(offer[16:20])); !tc.yiaddr(got) {
+			t.Errorf("%s: yiaddr %v, want %s", tc.mac, got, tc.want)
+		}
+		if got := parseOptionAddr(offer, optServerID); got != netip.MustParseAddr(tc.serverID) {
+			t.Errorf("%s: server identifier %v, want %s", tc.mac, got, tc.serverID)
+		}
 	}
 }

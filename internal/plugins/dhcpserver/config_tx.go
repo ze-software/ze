@@ -120,20 +120,25 @@ func (s *dhcpServer) restore(served []dhcpListener, cause error) error {
 		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...), sdk.RunningConfigLostNext)
 }
 
-// buildHandlers returns one handler per subnet of cfg, each with cfg's
-// options and PXE settings. A subnet whose address plan equals that of a
-// handler of previous shares that handler's pool and lease table.
+// buildHandlers returns one handler per subnet of cfg, in configuration order,
+// each with cfg's options and PXE settings and the name of its shared network,
+// which groups the subnets of one segment (resolveSegment). A subnet whose
+// address plan equals that of a handler of previous shares that handler's pool
+// and lease table.
 func buildHandlers(cfg serverConfig, previous []*dhcpHandler) []*dhcpHandler {
 	var handlers []*dhcpHandler
 	for si := range cfg.SharedNetworks {
 		for subi := range cfg.SharedNetworks[si].Subnets {
 			sub := cfg.SharedNetworks[si].Subnets[subi]
 			serverIP := subnetServerIP(&sub)
+			var h *dhcpHandler
 			if kept := samePlanHandler(previous, &sub); kept != nil {
-				handlers = append(handlers, newDHCPHandlerWithTables(sub, serverIP, cfg.PXE, kept.pool, kept.leases))
-				continue
+				h = newDHCPHandlerWithTables(sub, serverIP, cfg.PXE, kept.pool, kept.leases)
+			} else {
+				h = newDHCPHandler(sub, serverIP, cfg.PXE)
 			}
-			handlers = append(handlers, newDHCPHandler(sub, serverIP, cfg.PXE))
+			h.network = cfg.SharedNetworks[si].Name
+			handlers = append(handlers, h)
 		}
 	}
 	return handlers

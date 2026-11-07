@@ -6,6 +6,7 @@ package dhcpserver
 import (
 	"errors"
 	"net"
+	"net/netip"
 	"slices"
 	"strings"
 	"testing"
@@ -148,5 +149,53 @@ func TestDHCPDoctorCheckRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
 	if diagnostic.Lookup(codeDHCPIface) == nil {
 		t.Fatalf("diagnostic code %q is not registered", codeDHCPIface)
+	}
+}
+
+// TestCheckDHCPInterfacesReportsNoSegmentAddress drives the check over a
+// server whose listen interface exists and holds no address in its subnet,
+// then the same interface addressed in it.
+//
+// VALIDATES: AC-11: the diagnostic carries doctor-dhcp-segment-address at
+// warning severity, names the interface and its addresses, and its help names
+// both fixes; an interface addressed in a configured subnet draws none.
+// PREVENTS: a listener that answers nothing with `ze doctor` silent about it.
+func TestCheckDHCPInterfacesReportsNoSegmentAddress(t *testing.T) {
+	withHostInterfaces(t, "br0")
+	held := []netip.Addr{netip.MustParseAddr("203.0.113.1")}
+	previous := dhcpDeviceAddrs
+	dhcpDeviceAddrs = func(string) ([]netip.Addr, error) { return held, nil }
+	t.Cleanup(func() { dhcpDeviceAddrs = previous })
+
+	tree := dhcpServerTree(true, "br0")
+	network := config.NewTree()
+	network.AddListEntry("subnet", "192.168.50.0/24", config.NewTree())
+	tree.GetContainerPath(configRootService+"/dhcp-server").AddListEntry("shared-network", "lan", network)
+
+	diags := checkDHCPInterfaces(diagnostic.DoctorCheckContext{Tree: tree})
+	if len(diags) != 1 {
+		t.Fatalf("diagnostics = %d, want 1: %+v", len(diags), diags)
+	}
+	d := diags[0]
+	if d.Code != codeDHCPSegmentAddress {
+		t.Errorf("code = %q, want %q", d.Code, codeDHCPSegmentAddress)
+	}
+	if d.Severity != diagnostic.SeverityWarning {
+		t.Errorf("severity = %v, want warning", d.Severity)
+	}
+	for _, want := range []string{"br0", "203.0.113.1"} {
+		if !strings.Contains(d.Message, want) {
+			t.Errorf("message %q lacks %q", d.Message, want)
+		}
+	}
+	for _, want := range []string{"add an address in a configured subnet", "listen-interface"} {
+		if !strings.Contains(d.Help, want) {
+			t.Errorf("help %q lacks %q", d.Help, want)
+		}
+	}
+
+	held = []netip.Addr{netip.MustParseAddr("192.168.50.1")}
+	if diags := checkDHCPInterfaces(diagnostic.DoctorCheckContext{Tree: tree}); len(diags) != 0 {
+		t.Fatalf("addressed in its subnet: diagnostics = %d, want 0: %+v", len(diags), diags)
 	}
 }
