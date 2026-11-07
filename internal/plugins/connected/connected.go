@@ -49,12 +49,18 @@ type routeObserver struct {
 
 	mu sync.Mutex
 	// emitMu orders a replay against the incremental emits. Each incremental
-	// emit holds it shared, after its prefix count changed under mu; reemitAll
-	// holds it exclusive from its snapshot to its last emit. A Remove whose
-	// count dropped after the snapshot is then published after the replay's
+	// emit holds it shared, after its prefix's address set changed under mu;
+	// reemitAll holds it exclusive from its snapshot to its last emit. A Remove
+	// whose set emptied after the snapshot is then published after the replay's
 	// Add, never before it, so the replay cannot revive the prefix.
-	emitMu   sync.RWMutex
-	prefixes map[netip.Prefix]int
+	emitMu sync.RWMutex
+	// prefixes holds, for each connected prefix, the addresses that cover it.
+	// It is a SET rather than a count of events, because the kernel announces
+	// one address more than once: the iface monitor's startup dump can overlap
+	// a live RTM_NEWADDR for the same address, and an IPv6 address is
+	// re-announced each time its lifetimes change. Counting those would leave a
+	// prefix in the Loc-RIB after its last address went.
+	prefixes map[netip.Prefix]map[connectedAddr]struct{}
 
 	// loc and remote are where a connected prefix is published: the shared
 	// Loc-RIB in-process, or the engine over RPC when connected runs forked.
@@ -63,10 +69,18 @@ type routeObserver struct {
 	remote routeSink
 }
 
+// connectedAddr names one address on one interface unit, the identity the
+// prefix set counts.
+type connectedAddr struct {
+	name    string
+	unit    int
+	address netip.Addr
+}
+
 func newRouteObserver(bus ze.EventBus) *routeObserver {
 	return &routeObserver{
 		bus:      bus,
-		prefixes: make(map[netip.Prefix]int),
+		prefixes: make(map[netip.Prefix]map[connectedAddr]struct{}),
 	}
 }
 
@@ -75,19 +89,26 @@ func (o *routeObserver) handleAddrAdded(payload any) {
 	if !ok {
 		return
 	}
-	prefix, ok := o.toNetworkPrefix(p)
+	key, prefix, ok := o.toNetworkPrefix(p)
 	if !ok {
 		return
 	}
 	o.mu.Lock()
-	o.prefixes[prefix]++
-	count := o.prefixes[prefix]
+	covering := o.prefixes[prefix]
+	if covering == nil {
+		covering = make(map[connectedAddr]struct{})
+		o.prefixes[prefix] = covering
+	}
+	_, known := covering[key]
+	covering[key] = struct{}{}
+	first := !known && len(covering) == 1
 	o.mu.Unlock()
-	if count == 1 {
+	if first {
 		// The prefix becomes visible to route arbitration and to recursive
 		// next-hop resolution the first time an address covers it, and stays
-		// visible until the last one goes. Both halves are refcounted here so a
-		// second address in the same prefix inserts nothing new.
+		// visible until the last one goes. Both halves follow the address set,
+		// so a second address in the same prefix, or the same address announced
+		// again, inserts nothing new.
 		o.insertPath(prefix)
 		o.emit(redistevents.ActionAdd, prefix)
 	}
@@ -98,18 +119,26 @@ func (o *routeObserver) handleAddrRemoved(payload any) {
 	if !ok {
 		return
 	}
-	prefix, ok := o.toNetworkPrefix(p)
+	key, prefix, ok := o.toNetworkPrefix(p)
 	if !ok {
 		return
 	}
 	o.mu.Lock()
-	o.prefixes[prefix]--
-	count := o.prefixes[prefix]
-	if count <= 0 {
+	covering, held := o.prefixes[prefix]
+	if !held {
+		// A removal for a prefix no address covers withdraws nothing: the
+		// prefix was never inserted, or its last address already went.
+		o.mu.Unlock()
+		return
+	}
+	_, known := covering[key]
+	delete(covering, key)
+	last := known && len(covering) == 0
+	if last {
 		delete(o.prefixes, prefix)
 	}
 	o.mu.Unlock()
-	if count <= 0 {
+	if last {
 		o.removePath(prefix)
 		o.emit(redistevents.ActionRemove, prefix)
 	}
@@ -132,20 +161,22 @@ func (o *routeObserver) parsePayload(payload any) (addrPayload, bool) {
 	return p, true
 }
 
-func (o *routeObserver) toNetworkPrefix(p addrPayload) (netip.Prefix, bool) {
+// toNetworkPrefix answers the address an event names, as the key the prefix
+// set counts, and the connected prefix that address covers.
+func (o *routeObserver) toNetworkPrefix(p addrPayload) (connectedAddr, netip.Prefix, bool) {
 	addr, err := netip.ParseAddr(p.Address)
 	if err != nil {
-		return netip.Prefix{}, false
+		return connectedAddr{}, netip.Prefix{}, false
 	}
 	addr = addr.Unmap()
 	if p.PrefixLength <= 0 {
-		return netip.Prefix{}, false
+		return connectedAddr{}, netip.Prefix{}, false
 	}
 	prefix, err := addr.Prefix(p.PrefixLength)
 	if err != nil {
-		return netip.Prefix{}, false
+		return connectedAddr{}, netip.Prefix{}, false
 	}
-	return prefix, true
+	return connectedAddr{name: p.Name, unit: p.Unit, address: addr}, prefix, true
 }
 
 func (o *routeObserver) emit(action redistevents.RouteAction, prefix netip.Prefix) {
@@ -236,8 +267,8 @@ func (o *routeObserver) reemitAll(replayID uint64) {
 	defer o.emitMu.Unlock()
 	o.mu.Lock()
 	prefixes := make([]netip.Prefix, 0, len(o.prefixes))
-	for p, count := range o.prefixes {
-		if count > 0 {
+	for p, covering := range o.prefixes {
+		if len(covering) > 0 {
 			prefixes = append(prefixes, p)
 		}
 	}

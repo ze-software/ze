@@ -101,7 +101,22 @@ func (m *monitor) start() error {
 		m.started.Store(false)
 		return fmt.Errorf("iface monitor: link subscribe: %w", err)
 	}
+	// ListExisting dumps every address the kernel already holds through the
+	// same subscription, as addr-added events, before the changes that follow.
+	// The subscription alone delivers only CHANGES, and the monitor starts
+	// after boot-time applyConfig has assigned the operator's addresses, so
+	// without the dump no consumer heard of any address that predated it: the
+	// connected plugin published no prefix for them, sysrib's resolver could
+	// prove no gateway inside them, and a gateway member of a multipath group
+	// beside a device-only member was dropped from the group. Zebra reads the
+	// same table at startup for the same reason. The dump is requested on the
+	// subscribed socket, so an address changed while it runs is never missed;
+	// it may be announced twice, which consumers of addr-added already meet
+	// when the kernel re-announces an address. The dumped updates wait in
+	// addrCh until run starts, after seedLinkNames, so each one resolves its
+	// interface name.
 	if err := netlink.AddrSubscribeWithOptions(addrCh, m.stopCh, netlink.AddrSubscribeOptions{
+		ListExisting:      true,
 		ReceiveBufferSize: monitorReceiveBufferBytes,
 	}); err != nil {
 		m.stopFn.Do(func() { close(m.stopCh) })

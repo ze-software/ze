@@ -40,8 +40,18 @@ type followStep struct {
 // the Loc-RIB, sysrib, fib-kernel): a main-table route through the declared
 // pppoe-client alone, and a mixed group with the gateway 192.0.2.1. The device
 // is absent at boot, then created and set up, deleted, and recreated; after
-// each step the kernel main table is read for both routes at proto 250.
+// each step the kernel main table is read for both routes at proto 250. The
+// gateway member is proved by the 192.0.2.0/24 prefix `connected` publishes for
+// kernelLink's own address, which the interface monitor announces when it
+// starts.
+//
+// The fixture removes the pppoe0 it created when it returns, whatever the
+// verdict. The functional suites share one guest, and a dummy pppoe0 left
+// behind is a device every later test that declares pppoe0 meets: the
+// pppoe-absent and same-commit tests then see their member active with no
+// session up.
 func staticFollowDevice(ctx context.Context, _ *sdk.Plugin) error {
+	defer followRemoveDevice(ctx)
 	if err := followWait(ctx, "boot, device absent", false); err != nil {
 		return err
 	}
@@ -62,6 +72,19 @@ func staticFollowDevice(ctx context.Context, _ *sdk.Plugin) error {
 		}
 	}
 	return nil
+}
+
+// followRemoveDevice deletes the dummy pppoe0 when it exists. A device that is
+// already gone (the run failed before creating it, or at the deleted step) is
+// the state wanted; a delete that fails on a present device is reported,
+// because the next test in the guest would meet it.
+func followRemoveDevice(ctx context.Context) {
+	if _, err := runIP(ctx, ipObjectLink, "show", followDevice); err != nil {
+		return
+	}
+	if out, err := runIP(ctx, ipObjectLink, argDel, followDevice); err != nil {
+		fmt.Fprintln(os.Stderr, "WARN: cleanup: ip link del "+followDevice+" failed, later tests in this guest will meet it: "+err.Error()+": "+out)
+	}
 }
 
 // followWait waits for the kernel state one step owes. With the device up, the

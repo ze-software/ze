@@ -215,3 +215,30 @@ func TestConnectedPrefixIsWhatTheResolverTerminatesOn(t *testing.T) {
 		t.Errorf("NextHop = %v, want none: a valid one makes the resolver recurse instead of terminating", path.NextHop)
 	}
 }
+
+// TestConnectedAddressAnnouncedTwiceWithdrawsOnItsRemoval pins the address
+// set: the kernel announces one address more than once (the iface monitor's
+// startup dump overlapping a live RTM_NEWADDR, an IPv6 lifetime refresh), and
+// counting the announcements kept the prefix in the Loc-RIB after the only
+// address covering it was removed. One address announced twice is still one
+// address, so its one removal withdraws the prefix.
+func TestConnectedAddressAnnouncedTwiceWithdrawsOnItsRemoval(t *testing.T) {
+	obs, sink := observerWithSink(t)
+
+	obs.handleAddrAdded(makePayload("10.0.0.1", 24))
+	obs.handleAddrAdded(makePayload("10.0.0.1", 24))
+	if len(sink.inserted) != 1 {
+		t.Fatalf("inserted %d paths for one address announced twice, want 1", len(sink.inserted))
+	}
+
+	obs.handleAddrRemoved(makePayload("10.0.0.1", 24))
+	if len(sink.removed) != 1 {
+		t.Fatalf("withdrew %d prefixes after the only address went, want 1", len(sink.removed))
+	}
+
+	// A removal the set does not hold withdraws nothing a second time.
+	obs.handleAddrRemoved(makePayload("10.0.0.1", 24))
+	if len(sink.removed) != 1 {
+		t.Errorf("withdrew %d prefixes after a repeated removal, want 1", len(sink.removed))
+	}
+}

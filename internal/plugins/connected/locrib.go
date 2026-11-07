@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- connected prefixes in the shared Loc-RIB
-// Related: connected.go -- routeObserver, which refcounts the prefixes inserted here
+// Related: connected.go -- routeObserver, which tracks the addresses covering each prefix inserted here
 // Related: events/events.go -- the OS-installed declaration sysrib reads
 
 package connected
@@ -36,8 +36,9 @@ func (o *routeObserver) setLocRIB(loc *locrib.RIB, remote routeSink) {
 }
 
 // pathInstance is the within-protocol identifier every connected Path carries.
-// The observer refcounts by prefix and inserts once per prefix, so there is
-// never a second connected path for one prefix to tell apart.
+// The observer tracks the addresses covering each prefix and inserts once per
+// prefix, so there is never a second connected path for one prefix to tell
+// apart.
 const pathInstance uint32 = 0
 
 // insertPath publishes one connected prefix into the shared Loc-RIB.

@@ -1126,7 +1126,7 @@ A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
 | `interface/created` | First RTM_NEWLINK for an index | name, unit, type, index, mtu |
 | `interface/up` | OperUp or OperUnknown+IFF_UP | name, unit, index |
 | `interface/down` | Other oper states or RTM_DELLINK | name, unit, index; deletion also carries type and mtu |
-| `interface/addr-added` | RTM_NEWADDR (DAD complete) | name, unit, index, address, prefix-length, family, origin |
+| `interface/addr-added` | RTM_NEWADDR (DAD complete), and once for every address the kernel holds when the monitor starts | name, unit, index, address, prefix-length, family, origin |
 | `interface/addr-removed` | RTM_DELADDR | name, unit, index, address, prefix-length, family, origin |
 | `interface/dhcp-acquired` | DHCPv4 ACK | name, unit, address, prefix-length, router, dns, lease-time |
 | `interface/dhcp-renewed` | Renewal success | name, unit, address, prefix-length, router, dns, lease-time |
@@ -1134,6 +1134,21 @@ A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
 
 <!-- source: internal/core/iface/events/events.go -- interface event names -->
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- event payloads -->
+
+The netlink monitor starts after the boot-time apply has assigned the
+configured addresses, and a netlink subscription delivers only changes. It
+therefore asks the kernel for every existing address on the subscribed socket
+when it starts, and announces each as `interface/addr-added` before any later
+change. Without that dump no consumer heard of an address that predated the
+monitor: `connected` published no prefix for it, so the system RIB could not
+prove a static gateway inside it, and a multipath group that also names a
+device-only next-hop dropped that gateway. A consumer can meet the same address
+announced twice (the dump overlapping a live change, or the kernel announcing
+an IPv6 address again when its lifetimes change), so a consumer that counts
+addresses keys them by identity: `connected` keeps the set of addresses that
+cover each prefix, not a count of events.
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- start, ListExisting -->
+<!-- source: internal/plugins/connected/connected.go -- routeObserver.prefixes, handleAddrAdded, handleAddrRemoved -->
 
 Neighbor table changes are not a bus topic. These topics come from the
 interface monitor, which starts only when an `interface` block configures a
