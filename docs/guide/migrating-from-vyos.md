@@ -214,7 +214,7 @@ the MSS option, and a packet without the option is not changed.
 | `service ntp server <s>` | `environment ntp enabled true`, `server <name> address <s>` | | not read | - |
 | `system config-management commit-revisions <N>` | `system commit-revisions <N>` | | not read | - |
 | `system config-management commit-archive location <url>` | `system archive <name> location <url>` | | not read | - |
-| `service https api keys ...` | `environment api-server grpc server <n>` with `ip`, `port`, `tls-cert`, `tls-key` | REST scripts move to gRPC over TLS; the API key line is dropped | behavior change | - |
+| `service https api keys ...` | `environment api-server grpc server <n>` with `ip` and `port`; `tls-cert` and `tls-key` beside it under `grpc` | REST scripts move to gRPC over TLS; the API key line is dropped | behavior change | - |
 | `container name <n> ...` used for monitoring | `telemetry prometheus enabled true`, `server <n>`, `netdata enabled true` | Netdata-named metrics replace the container | behavior change | - |
 
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment ssh server, public-keys -->
@@ -222,7 +222,7 @@ the MSS option, and a packet without the option is not changed.
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- user password, plaintext-password -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- host, domain, name-server, commit-revisions, archive -->
 <!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- server address -->
-<!-- source: internal/component/api/grpc/yang/ze-grpc-conf.yang -- server tls-cert tls-key -->
+<!-- source: internal/component/api/grpc/yang/ze-grpc-conf.yang -- grpc server, grpc tls-cert, grpc tls-key -->
 <!-- source: internal/component/telemetry/exporter/yang/ze-telemetry-conf.yang -- prometheus server, netdata enabled -->
 
 ## Dropped constructs
