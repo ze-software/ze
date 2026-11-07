@@ -2892,6 +2892,14 @@ interface {
 ```
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client keepalive, reconnect -->
 <!-- source: internal/component/iface/pppoe_client_timing.go -- PPPoEClientTiming, parsePPPoEClientTiming, reconnectDelay -->
+
+The `ipv6` container of a `pppoe-client` takes `enabled` (boolean, default
+false: negotiate IPv6CP and install the link-local address), the shared IPv6
+host leaves `autoconf`, `accept-ra` (0 to 2) and `forwarding`, and the
+`dhcpv6` block with `enabled`, `pd length` (48 to 64) and `duid`, the same
+leaves a unit's `ipv6` carries. Ze refuses them while `enabled` is not true.
+The full example is in [PPPoE](pppoe.md), "PPPoE client IPv6".
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- grouping ipv6-host, pppoe-client ipv6 -->
 <!-- source: internal/component/iface/pppoe_client.go -- reconcilePPPoEClients, pppoeClientConfigChanged, setTiming -->
 
 ### Route Priority

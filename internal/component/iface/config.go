@@ -146,6 +146,8 @@ type pppoeClientEntry struct {
 	// Timing carries the keepalive and reconnect leaves, defaults included:
 	// parsePPPoEClientEntry applies the YANG defaults before it reads them.
 	Timing PPPoEClientTiming
+	// IPv6 is the ipv6 container; its zero value negotiates no IPv6CP.
+	IPv6 PPPoEClientIPv6
 }
 
 // ifaceEntry represents a configured interface (ethernet or dummy).
@@ -1113,6 +1115,11 @@ func parsePPPoEClientEntry(name string, m map[string]any, pppoeSchema pppoeClien
 		return entry, err
 	}
 	entry.Timing = timing
+	ipv6, err := parsePPPoEClientIPv6(m)
+	if err != nil {
+		return entry, err
+	}
+	entry.IPv6 = ipv6
 
 	return entry, nil
 }

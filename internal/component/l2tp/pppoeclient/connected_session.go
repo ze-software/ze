@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/netip"
 	"reflect"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -31,6 +32,14 @@ type connectedSession struct {
 	papIdentifier    uint8
 	ipcpCodeRejectID uint8
 	changes          chan iface.PPPoEResult
+	// ipv6 is nil when the pppoe-client configures no ipv6: that nil is a
+	// guard, keepaliveLoop then drops IPv6CP like any unconfigured protocol.
+	// enableIPv6CP sets it with setIPv6Mode.
+	ipv6        *clientIPv6CP
+	setIPv6Mode func(ppp.NPMode) error
+	// linkLocal is the local link-local address while IPv6CP is Opened, the
+	// invalid address otherwise; publish carries it in every result.
+	linkLocal netip.Addr
 }
 
 // newConnectedSession admits the complete initial result without doing I/O.
@@ -165,6 +174,13 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 		return fmt.Errorf("pppoe-client: cannot resume IPv4 after LCP restart: %w", err)
 	}
 	s.current = next
+	s.publish()
+	return nil
+}
+
+// publish replaces the one pending result with the session's complete current
+// state: the IPCP values and the IPv6CP link-local address.
+func (s *connectedSession) publish() {
 	// The worker is the only sender. A consumer can only create more room,
 	// so replacing the one pending value never waits for interface operations.
 	select {
@@ -172,8 +188,8 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 	default: // No previous completion is pending.
 	}
 	s.changes <- iface.PPPoEResult{
-		LocalIP: next.localIP, PeerIP: next.peerIP, NegMTU: next.negMTU,
-		PrimaryDNS: next.primaryDNS, SecondaryDNS: next.secondaryDNS,
+		LocalIP: s.current.localIP, PeerIP: s.current.peerIP, NegMTU: s.current.negMTU,
+		PrimaryDNS: s.current.primaryDNS, SecondaryDNS: s.current.secondaryDNS,
+		LinkLocal: s.linkLocal,
 	}
-	return nil
 }

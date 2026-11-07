@@ -134,7 +134,7 @@ func TestDHCPv6AdminDownDuringDADBeforeItsEventNotDeclined(t *testing.T) {
 	if factory == nil {
 		t.Fatal("no DHCP client factory is installed: the ifacedhcp blank import did not run its init")
 	}
-	client, err := factory(v6sbLogical, "0", &v6sbBus{}, false, true, "", "", true, 56, "", 0)
+	client, err := factory(v6sbLogical, "0", &v6sbBus{}, false, true, "", "", true, 56, "", "", 0)
 	if err != nil {
 		t.Fatalf("start the DHCPv6 client on %s: %v", v6sbLogical, err)
 	}

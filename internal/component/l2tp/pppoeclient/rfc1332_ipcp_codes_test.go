@@ -1,5 +1,5 @@
 // Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- IPCP negotiation.
-// Related: session.go -- negotiateIPCP and sendIPCPCodeReject under test
+// Related: session.go -- negotiateIPCP and sendNCPCodeReject under test
 // Related: ipcp_reply_test.go -- ipcpFrame and recordedIPCP
 //
 // Drives the PPPoE client's IPCP negotiation with packets RFC 1332 tells it

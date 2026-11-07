@@ -19,7 +19,7 @@ func SetResolverMappingForTest(logicalToOS map[string]string) {
 // DHCPClientFactoryForTest returns the factory SetDHCPClientFactory installed,
 // the one the interface plugin calls for a unit with dhcp or dhcpv6 enabled.
 // It is nil until the ifacedhcp package is linked in.
-func DHCPClientFactoryForTest() func(string, string, ze.EventBus, bool, bool, string, string, bool, int, string, int) (DHCPStopper, error) {
+func DHCPClientFactoryForTest() func(string, string, ze.EventBus, bool, bool, string, string, bool, int, string, string, int) (DHCPStopper, error) {
 	return dhcpClientFactory
 }
 

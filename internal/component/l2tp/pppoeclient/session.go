@@ -815,7 +815,7 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 			// RFC 1661 Section 5.6: "The Identifier field MUST be changed for
 			// each Code-Reject sent."
 			*codeRejectID++
-			if err := sendIPCPCodeReject(w, buf, pkt, *codeRejectID, peerMRU); err != nil {
+			if err := sendNCPCodeReject(w, buf, ppp.ProtoIPCP, pkt, *codeRejectID, peerMRU); err != nil {
 				return ipcpResult{}, err
 			}
 			continue
@@ -1139,7 +1139,8 @@ func sendIPCPRequest(w io.Writer, buf []byte, id uint8, options ppp.IPCPOptions)
 	return off, nil
 }
 
-// sendIPCPCodeReject answers an IPCP packet whose Code is not one IPCP uses.
+// sendNCPCodeReject answers an NCP packet (IPCP or IPv6CP, named by proto)
+// whose Code is not one that NCP uses.
 //
 // RFC 1332 Section 2: "Other Codes should be treated as unrecognized and
 // should result in Code-Rejects."
@@ -1165,17 +1166,17 @@ func sendIPCPRequest(w io.Writer, buf []byte, id uint8, options ppp.IPCPOptions)
 //
 // RFC 1661 Section 5.6: "The Identifier field MUST be changed for each
 // Code-Reject sent." The caller owns the counter and passes the next value.
-func sendIPCPCodeReject(w io.Writer, buf []byte, rejected ppp.LCPPacket, id uint8, peerMRU uint16) error {
+func sendNCPCodeReject(w io.Writer, buf []byte, proto uint16, rejected ppp.LCPPacket, id uint8, peerMRU uint16) error {
 	mru := int(peerMRU)
 	if mru == 0 {
 		mru = ppp.MaxFrameLen
 	}
 	room := min(mru+ppp.ProtoFieldLen, len(buf)) - ppp.ProtoFieldLen - 4
 	if room < 4 {
-		return errors.New("pppoe-client: IPCP Code-Reject: no room for the Rejected-Packet header")
+		return errors.New("pppoe-client: NCP Code-Reject: no room for the Rejected-Packet header")
 	}
 
-	off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
+	off := ppp.WriteFrame(buf, 0, proto, nil)
 	// The Rejected-Packet is written where WriteLCPPacket needs its Data
 	// field, so the copy that call makes is onto itself.
 	data := buf[off+4:]
@@ -1185,7 +1186,7 @@ func sendIPCPCodeReject(w io.Writer, buf []byte, rejected ppp.LCPPacket, id uint
 	n := 4 + copy(data[4:room], rejected.Data)
 	off += ppp.WriteLCPPacket(buf, off, ppp.LCPCodeReject, id, data[:n])
 	if err := writeClientPacket(w, buf[:off]); err != nil {
-		return fmt.Errorf("pppoe-client: IPCP Code-Reject: %w", err)
+		return fmt.Errorf("pppoe-client: NCP Code-Reject: %w", err)
 	}
 	return nil
 }

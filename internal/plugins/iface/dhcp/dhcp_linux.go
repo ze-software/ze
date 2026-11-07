@@ -30,6 +30,7 @@ type dHCPConfig struct {
 	PDRequested bool              // DHCPv6 pd container configured: every message carries an IA_PD
 	PDLength    int               // DHCPv6 prefix-length hint of that IA_PD (0 = no hint, server decides)
 	DUID        string            // DHCPv6 DUID override
+	DUIDDevice  string            // device whose MAC builds the DUID-LL and IAIDs (empty = the client's own device)
 	Resolvers   *system.Resolvers // resolv.conf writer the leases' DNS servers go to (nil = the process one)
 	RouteMetric int               // metric for DHCP-installed default routes (0 = kernel default)
 }

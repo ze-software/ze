@@ -199,6 +199,87 @@ module ze-iface-conf {
         }
     }
 
+    grouping ipv6-host {
+        description "The IPv6 host settings a unit and a pppoe-client share: SLAAC, Router
+                     Advertisement acceptance, forwarding and the DHCPv6 client. Ze turns
+                     autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl
+                     writes, which it emits on the event bus for the sysctl plugin to perform.";
+
+        leaf autoconf {
+            ze:backend "netlink";
+            type boolean;
+            description "The kernel learns an address only when a Router Advertisement reaches
+                         the device it owns, so this leaf needs the netlink backend. On the vpp
+                         backend, the NIC belongs to VPP, and no advertisement reaches the Linux
+                         Control Plane tap.";
+            ze:help "Enable IPv6 stateless autoconfiguration.";
+        }
+
+        leaf accept-ra {
+            ze:backend "netlink";
+            type uint8 {
+                range "0..2";
+            }
+            default 0;
+            description "This leaf needs the netlink backend, for the same reason as autoconf:
+                         the two leaves describe one behavior.";
+            ze:help "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.";
+        }
+
+        leaf forwarding {
+            type boolean;
+            description "The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA
+                         acceptance, unless accept-ra is set to 2.";
+            ze:help "Allow this interface to forward IPv6 packets between interfaces.";
+        }
+
+        container dhcpv6 {
+            ze:backend "netlink";
+            description "The client requests addresses, delegated prefixes, or both, from a
+                         DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.";
+            ze:help "DHCPv6 stateful client (RFC 8415).";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Ze starts a DHCPv6 client on this interface when the leaf is true. The
+                             client sends a Solicit that carries the Rapid Commit option, and
+                             it takes a Reply directly when the server answers with one.
+                             Otherwise it sends a Request after the Advertise.";
+                ze:help "Enable DHCPv6 client";
+            }
+
+            container pd {
+                description "Request a delegated prefix. Every Solicit, Request, Renew and
+                             Rebind Ze sends carries an IA_PD option, and Ze publishes each
+                             delegated prefix as a lease on this interface.";
+                ze:help "Prefix delegation";
+
+                leaf length {
+                    type uint8 {
+                        range "48..64";
+                    }
+                    description "The prefix length ze asks for, from 48 to 64, sent as an IA
+                                 Prefix hint (::/length) in the IA_PD. Without it the IA_PD
+                                 carries no hint and the server chooses the length.";
+                    ze:help "Requested prefix length";
+                }
+            }
+
+            leaf duid {
+                type string {
+                    pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){2,129}';
+                }
+                description "When the leaf is omitted, ze generates a DUID-LL from the interface
+                             MAC. Set the leaf when the DHCP server binds a lease to a specific
+                             DUID. Write it as colon-separated hex octets, such as
+                             00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to
+                             128 octets of identifier (RFC 9915 Section 11.1).";
+                ze:help "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).";
+            }
+        }
+    }
+
     grouping interface-unit {
         description "Logical interface unit properties";
 
@@ -447,33 +528,7 @@ module ze-iface-conf {
                     ze:help "IPv6 addresses in CIDR notation (e.g., fd00::1/64)";
                 }
 
-                leaf autoconf {
-                    ze:backend "netlink";
-                    type boolean;
-                    description "The kernel learns an address only when a Router Advertisement reaches
-                                 the device it owns, so this leaf needs the netlink backend. On the vpp
-                                 backend, the NIC belongs to VPP, and no advertisement reaches the Linux
-                                 Control Plane tap.";
-                    ze:help "Enable IPv6 stateless autoconfiguration.";
-                }
-
-                leaf accept-ra {
-                    ze:backend "netlink";
-                    type uint8 {
-                        range "0..2";
-                    }
-                    default 0;
-                    description "This leaf needs the netlink backend, for the same reason as autoconf:
-                                 the two leaves describe one behavior.";
-                    ze:help "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.";
-                }
-
-                leaf forwarding {
-                    type boolean;
-                    description "The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA
-                                 acceptance, unless accept-ra is set to 2.";
-                    ze:help "Allow this interface to forward IPv6 packets between interfaces.";
-                }
+                uses ipv6-host;
 
                 leaf rpf-check {
                     type enumeration {
@@ -486,52 +541,6 @@ module ze-iface-conf {
                                  no route at all. disable performs no source address validation.";
                     ze:backend "netlink";
                     ze:help "Reverse path filtering mode, enforced by an nftables fib lookup.";
-                }
-
-                container dhcpv6 {
-                    ze:backend "netlink";
-                    description "The client requests addresses, delegated prefixes, or both, from a
-                                 DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.";
-                    ze:help "DHCPv6 stateful client (RFC 8415).";
-
-                    leaf enabled {
-                        type boolean;
-                        default false;
-                        description "Ze starts a DHCPv6 client on this unit when the leaf is true. The
-                                     client sends a Solicit that carries the Rapid Commit option, and
-                                     it takes a Reply directly when the server answers with one.
-                                     Otherwise it sends a Request after the Advertise.";
-                        ze:help "Enable DHCPv6 client";
-                    }
-
-                    container pd {
-                        description "Request a delegated prefix. Every Solicit, Request, Renew and
-                                     Rebind Ze sends carries an IA_PD option, and Ze publishes each
-                                     delegated prefix as a lease on this unit.";
-                        ze:help "Prefix delegation";
-
-                        leaf length {
-                            type uint8 {
-                                range "48..64";
-                            }
-                            description "The prefix length ze asks for, from 48 to 64, sent as an IA
-                                         Prefix hint (::/length) in the IA_PD. Without it the IA_PD
-                                         carries no hint and the server chooses the length.";
-                            ze:help "Requested prefix length";
-                        }
-                    }
-
-                    leaf duid {
-                        type string {
-                            pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){2,129}';
-                        }
-                        description "When the leaf is omitted, ze generates a DUID-LL from the interface
-                                     MAC. Set the leaf when the DHCP server binds a lease to a specific
-                                     DUID. Write it as colon-separated hex octets, such as
-                                     00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to
-                                     128 octets of identifier (RFC 9915 Section 11.1).";
-                        ze:help "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).";
-                    }
                 }
 
                 container router-advertisement {
@@ -1710,8 +1719,9 @@ module ze-iface-conf {
             ze:os "linux";
             ze:backend "netlink";
             description "The client dials an access concentrator over a physical Ethernet interface,
-                         negotiates LCP, authentication and IPCP, and presents the PPP session as a
-                         routable interface with server-assigned addresses. Ze creates the kernel
+                         negotiates LCP, authentication, IPCP and, when ipv6 is enabled, IPv6CP, and
+                         presents the PPP session as a routable interface with server-assigned
+                         addresses. Ze creates the kernel
                          device under the configured name through rtnetlink (kind ppp with
                          IFLA_PPP_DEV_FD), so the name an operator writes is the name static routes,
                          firewall matches and NAT see on every session and every reconnect.";
@@ -1882,6 +1892,30 @@ module ze-iface-conf {
                                  delay-min.";
                     ze:help "Longest wait between two redials.";
                 }
+            }
+
+            container ipv6 {
+                description "When enabled is true, the client negotiates IPv6CP (RFC 5072) beside IPCP
+                             and independently of it, and installs on the session device the
+                             link-local address formed from the negotiated interface identifier. An
+                             access concentrator that rejects or ignores IPv6CP leaves the IPv4
+                             session up. Ze writes autoconf, accept-ra and forwarding to the session
+                             device each time a session creates it. Write accept-ra 2 with forwarding
+                             true for a router that learns its default route from the access
+                             concentrator's Router Advertisements. The DHCPv6 client runs on the
+                             session device and takes its DUID-LL from the source interface, because
+                             a PPP device has no hardware address.";
+                ze:help "IPv6 on the PPPoE session: IPv6CP, SLAAC, RA and DHCPv6 client.";
+
+                leaf enabled {
+                    type boolean;
+                    default false;
+                    description "Ze refuses the other ipv6 leaves while enabled is not true, because
+                                 without IPv6CP no IPv6 reaches the session device.";
+                    ze:help "Negotiate IPv6CP on the session.";
+                }
+
+                uses ipv6-host;
             }
 
             uses interface-common;

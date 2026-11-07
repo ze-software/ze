@@ -310,6 +310,11 @@ type dhcpUnitKey struct {
 	unit      string
 }
 
+// pppoeClientDHCPUnit is the unit label of a pppoe-client's DHCPv6 client and
+// of the leases it publishes. A pppoe-client has no units; "0" is the label a
+// unit-less interface's addresses carry elsewhere.
+const pppoeClientDHCPUnit = "0"
+
 // routerKey identifies an IPv6 router discovered via NDP neighbor events.
 type routerKey struct {
 	ifaceName string
@@ -1094,11 +1099,11 @@ type DHCPStopper interface {
 // SetDHCPClientFactory. It returns a started DHCP client or an error.
 // The interface plugin calls this to create clients without importing
 // the ifacedhcp package.
-var dhcpClientFactory func(ifaceName string, unit string, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdRequested bool, pdLength int, duid string, routeMetric int) (DHCPStopper, error)
+var dhcpClientFactory func(ifaceName string, unit string, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdRequested bool, pdLength int, duid, duidDevice string, routeMetric int) (DHCPStopper, error)
 
 // SetDHCPClientFactory registers the factory function used to create
 // DHCP clients. Called from ifacedhcp's init().
-func SetDHCPClientFactory(f func(string, string, ze.EventBus, bool, bool, string, string, bool, int, string, int) (DHCPStopper, error)) {
+func SetDHCPClientFactory(f func(string, string, ze.EventBus, bool, bool, string, string, bool, int, string, string, int) (DHCPStopper, error)) {
 	dhcpClientFactory = f
 }
 
@@ -1110,6 +1115,10 @@ type dhcpParams struct {
 	pdRequested        bool
 	pdLength           int
 	duid               string
+	// duidDevice is the kernel device whose hardware address builds the
+	// DUID-LL and the IAIDs, empty for the unit's own device. A
+	// pppoe-client names its source interface: the PPP device has none.
+	duidDevice string
 	// routePriority is the kernel metric of the default route the lease
 	// installs: defaultLearnedRouteMetric unless the unit sets route-priority.
 	routePriority int
@@ -1171,6 +1180,29 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 		}
 		desired[key] = p
 	})
+	// A pppoe-client's DHCPv6 client runs on its session device, named by
+	// the client. The worker retries the device until a session creates it
+	// and IPv6CP installs the link-local it binds to (dhcp v6Worker.open).
+	// The device has no hardware address, so the DUID-LL and the IAIDs come
+	// from the source interface the session rides on.
+	for i := range cfg.PPPoEClient {
+		e := &cfg.PPPoEClient[i]
+		if e.Disable {
+			continue
+		}
+		if !e.IPv6.Enabled {
+			continue
+		}
+		if !e.IPv6.DHCPv6.Enabled {
+			continue
+		}
+		key := dhcpUnitKey{ifaceName: e.Name, unit: pppoeClientDHCPUnit}
+		desired[key] = dhcpParams{
+			v6: true, routePriority: e.RoutePriority,
+			pdRequested: e.IPv6.DHCPv6.PDRequested, pdLength: e.IPv6.DHCPv6.PDLength,
+			duid: e.IPv6.DHCPv6.DUID, duidDevice: e.SourceInterface,
+		}
+	}
 
 	// Auto-discovery: if dhcp-auto is true and no explicit DHCP is configured,
 	// find the first ethernet interface and run DHCPv4 on it.
@@ -1217,7 +1249,7 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 		if _, running := active[key]; running {
 			continue
 		}
-		client, err := dhcpClientFactory(key.ifaceName, key.unit, eb, p.v4, p.v6, p.hostname, p.clientID, p.pdRequested, p.pdLength, p.duid, p.routePriority)
+		client, err := dhcpClientFactory(key.ifaceName, key.unit, eb, p.v4, p.v6, p.hostname, p.clientID, p.pdRequested, p.pdLength, p.duid, p.duidDevice, p.routePriority)
 		if err != nil {
 			log.Warn("interface: DHCP client creation failed",
 				"iface", key.ifaceName, "unit", key.unit, "err", err)

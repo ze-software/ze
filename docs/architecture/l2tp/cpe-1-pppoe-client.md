@@ -2,7 +2,7 @@
 
 The client half of PPPoE, for the customer-premises case: dial an access
 concentrator over a physical Ethernet interface, negotiate LCP, authentication
-and IPCP, and present the resulting PPP session as a routable interface with
+and IPCP (and IPv6CP when `ipv6 enabled` is true), and present the resulting PPP session as a routable interface with
 server-assigned addresses.
 
 <!-- source: internal/component/iface/pppoe_client.go -- PPPoEClient, PPPoEClientConfig, PPPoEDialer, reconcilePPPoEClients -->
@@ -117,6 +117,30 @@ poll hold the lifecycle lock, so Close cannot recycle a descriptor during a sysc
 Initial negotiation failures have no phase worker to join.
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial, cleanupConnected -->
 <!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop, answerOpenedIPCP -->
+
+### IPv6CP
+
+When the `pppoe-client` sets `ipv6 enabled true`, the network-phase worker
+runs IPv6CP (RFC 5072) beside IPCP and independently of it (RFC 7084 WLL-3).
+It starts once IPCP is Opened: IPv6 is set to discard on the unit
+(`PPPIOCSNPMODE` for protocol 0x57, `ppp.SetIPv6Mode`), then the first
+Configure-Request goes out carrying exactly one Interface-Identifier. The
+tentative identifier is the modified EUI-64 of the source interface's MAC
+(RFC 5072 Section 4.1 case 1), or a random value with the "u" bit clear when
+there is none. The peer's request is answered by the Section 4.1 comparison:
+a different non-zero identifier is Acknowledged, an equal or zero one is Naked
+with a suggestion. A Nak adopts the suggested identifier, unless it equals the
+client's own last Nak, when a new one is chosen. On Opened IPv6 passes on the
+unit and the session result carries the link-local address `fe80::<id>`,
+which the iface worker installs as a /64 on the device. A Protocol-Reject of
+IPv6CP, a Configure-Reject of the identifier, ten unanswered requests or a
+Terminate-Request stop IPv6CP only: IPCP and the IPv4 addresses stay. An LCP
+restart takes IPv6CP down with it and starts it again after IPCP reopens.
+During initial IPCP negotiation an IPv6CP frame from the access concentrator
+is not answered; its Restart timer resends it into the network phase.
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- clientIPv6CP, enableIPv6CP, startIPv6CP, applyIPv6CP -->
+<!-- source: internal/component/l2tp/ppp/ipv6cp_client.go -- TentativeIPv6CPInterfaceID, IPv6LinkLocal -->
+<!-- source: internal/component/iface/pppoe_client_ipv6.go -- applyPPPoELinkLocal, applyPPPoEClientSysctls -->
 
 The lifecycle lock remains held during each 100ms poll. Independently started
 writes, IPv4 mode changes and Close can wait for that poll to finish.

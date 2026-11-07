@@ -235,6 +235,16 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		cleanup()
 		return iface.PPPoESession{}, err
 	}
+	if cfg.IPv6.Enabled {
+		// RFC 5072 Section 4.1: the tentative identifier comes from the
+		// source interface's EUI-48 (ppp.TentativeIPv6CPInterfaceID).
+		if err := connected.enableIPv6CP(hwaddr[:], func(mode ppp.NPMode) error {
+			return link.setIPv6Mode(unitFD, mode)
+		}); err != nil {
+			cleanup()
+			return iface.PPPoESession{}, err
+		}
+	}
 	keepaliveDone := make(chan struct{})
 	// Snapshot every initial value before the connected worker can run.
 	session := iface.PPPoESession{

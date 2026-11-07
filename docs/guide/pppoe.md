@@ -196,6 +196,39 @@ session up: the next session and the next wait use the new values. Every leaf
 and its range is listed in [Configuration](configuration.md), "PPPoE Client".
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client keepalive, reconnect -->
 
+### PPPoE client IPv6
+
+`ipv6 enabled true` on a `pppoe-client` negotiates IPv6CP beside IPCP. The
+client installs the link-local address formed from the negotiated interface
+identifier on the session device. An access concentrator that rejects or
+ignores IPv6CP leaves the IPv4 session up. The same container takes
+`accept-ra`, `autoconf` and `forwarding`, written to the session device each
+time a session creates it, and a `dhcpv6` block that runs the DHCPv6 client on
+the session device. Ze refuses the other `ipv6` leaves while `enabled` is not
+true. For a router that learns its default route from the access
+concentrator's Router Advertisements and asks for a delegated /56:
+
+```
+pppoe-client pppoe0 {
+    source-interface eth2
+    authentication { username user@isp.example; password secret; }
+    ipv6 {
+        enabled true
+        accept-ra 2
+        autoconf true
+        forwarding true
+        dhcpv6 { enabled true; pd { length 56; } }
+    }
+}
+```
+
+A PPP device has no hardware address, so the DHCPv6 client builds its DUID-LL
+and IAIDs from the source interface unless `dhcpv6 duid` is set. The delegated
+prefix is published as a lease on `pppoe0`; nothing yet assigns it to a LAN
+interface.
+<!-- source: internal/component/iface/pppoe_client_ipv6.go -- parsePPPoEClientIPv6, applyPPPoEClientSysctls -->
+<!-- source: internal/component/iface/register.go -- reconcileDHCP, pppoeClientDHCPUnit -->
+
 ## Interoperability
 
 Docker lab scenarios run Ze in each PPPoE role; the table names the two

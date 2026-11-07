@@ -50,6 +50,9 @@ type PPPoEClientConfig struct {
 	// new value through setTiming, the next Dial and the next redial wait
 	// read it. Readers outside the run goroutine MUST hold mu.
 	Timing PPPoEClientTiming
+	// IPv6 is the ipv6 container: IPv6CP, the device's IPv6 sysctls and the
+	// DHCPv6 client (reconcileDHCP) on the session device.
+	IPv6 PPPoEClientIPv6
 }
 
 // PPPoEClientStatus is a snapshot of one client's state, the answer of
@@ -87,6 +90,10 @@ type PPPoEResult struct {
 	// invalid address means the access concentrator supplied none.
 	PrimaryDNS   netip.Addr
 	SecondaryDNS netip.Addr
+	// LinkLocal is the local IPv6 link-local address IPv6CP negotiated
+	// (RFC 5072 Section 5), invalid while IPv6CP is not Opened or when the
+	// client configures no ipv6.
+	LinkLocal netip.Addr
 }
 
 // PPPoESession represents a fully negotiated PPPoE+PPP session.
@@ -315,6 +322,8 @@ func (c *PPPoEClient) runSession() error {
 	// AddRoute replaces the fixed prefix/metric slot, so successful installs
 	// cannot accumulate routes while this one cleanup remains pending.
 	var routeRetired netip.Addr
+	// An invalid linkLocalApplied means no IPv6CP link-local is installed.
+	var linkLocalApplied netip.Addr
 
 	// AC-7: Set MTU on the ppp interface.
 	if c.backend != nil {
@@ -323,6 +332,12 @@ func (c *PPPoEClient) runSession() error {
 		}
 		if err := c.backend.SetAdminUp(ifname); err != nil {
 			return err
+		}
+		if c.cfg.IPv6.Enabled {
+			// The device is new on every session, so its accept_ra,
+			// autoconf and forwarding are written before IPv6CP opens and
+			// the access concentrator's Router Advertisements arrive.
+			applyPPPoEClientSysctls(ifname, c.cfg.IPv6)
 		}
 		// AC-5: Apply server-assigned address as P2P link.
 		if sess.LocalIP.IsValid() {
@@ -427,6 +442,13 @@ func (c *PPPoEClient) runSession() error {
 					}
 					pairApplied = pair
 				}
+				// RFC 5072 Section 5: the link-local follows IPv6CP, and
+				// IPv4 is untouched by it (RFC 7084 WLL-3).
+				applied, err := applyPPPoELinkLocal(c.backend, ifname, linkLocalApplied, next.LinkLocal)
+				if err != nil {
+					return err
+				}
+				linkLocalApplied = applied
 			}
 			// A renegotiation that changed only the DNS servers still
 			// replaces the lease; an equal list makes no call.
@@ -561,6 +583,7 @@ func pppoeClientConfigFrom(entry pppoeClientEntry) PPPoEClientConfig {
 		MTU:             entry.MTU,
 		RoutePriority:   entry.RoutePriority,
 		Timing:          entry.Timing,
+		IPv6:            entry.IPv6,
 	}
 }
 

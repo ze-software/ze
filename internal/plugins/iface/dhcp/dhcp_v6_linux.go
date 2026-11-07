@@ -125,6 +125,18 @@ func (w *v6Worker) identify() bool {
 	}
 	closeV6Link(link, w.c.ifaceName)
 	mac := w.lastMAC
+	if w.c.config.DUIDDevice != "" {
+		// The client's own device carries no hardware address (a PPP
+		// session device): the identity comes from the device named for it,
+		// which is stable across sessions as RFC 9915 Section 11 asks.
+		source, err := net.InterfaceByName(w.c.config.DUIDDevice)
+		if err != nil {
+			logger.Error("iface dhcp v6: the device that names the DHCPv6 identity cannot be read, DHCPv6 is off on this interface -- check the source-interface exists, or set dhcpv6 duid",
+				"iface", w.c.ifaceName, "identity-device", w.c.config.DUIDDevice, "err", err)
+			return false
+		}
+		mac = source.HardwareAddr
+	}
 
 	w.iaidNA = v6IAIDFromMAC(mac)
 	w.iaidPD = w.iaidNA
