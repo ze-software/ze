@@ -662,12 +662,23 @@ octets an accepted exchange carried.
 
 ## Following a dynamic WAN address
 
-`dynamic_wan.go` holds the address worker. `startAddressWorker` subscribes to
-`interface/addr-added` and `interface/addr-removed` and feeds a one-slot trigger
-channel drained by one goroutine; the event is a trigger and
-`resolveInterfaceAddrFn` is the truth, so a burst costs one read. Every writer of
-`ikeEngineState` (an apply, the deferred startup reconcile, the worker) holds
-`applyMu`.
+`dynamic_wan.go` holds the address worker. Two sources feed its one-slot trigger
+channel, drained by one goroutine:
+
+- the kernel address table watch (`network.WatchAddresses`, the one the BGP
+  reactor uses), which the worker opens itself and starts again 5 s after it
+  fails or ends. It is the source that always runs: the iface component's
+  monitor starts only from an `interface` block, and a WAN named only by
+  `vpn ipsec interface` has none, so with the bus alone a WAN that appeared after
+  start was never followed;
+- `interface/addr-added`, `interface/addr-removed` and `interface/created` on the
+  bus, for what the kernel table does not carry: an interface created with no
+  address, and the addresses a VPP backend reports.
+
+A signal is a trigger and `resolveInterfaceAddrFn` is the truth, so a burst
+costs one read. A build with no address watcher (not Linux) logs a warning once
+and follows the bus alone. Every writer of `ikeEngineState` (an apply, the
+deferred startup reconcile, the worker) holds `applyMu`.
 
 `planPeers` derives, from the configuration as written and the interface address,
 which peers run, the local address each sends from, and the socket pair each holds:

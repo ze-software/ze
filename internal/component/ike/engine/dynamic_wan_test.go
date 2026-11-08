@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"net"
 	"sync"
@@ -44,15 +45,27 @@ func (b *addrBus) Emit(namespace, eventType string, payload any) (int, error) {
 }
 
 // fakeInterface is the address resolveInterfaceAddrFn answers for the configured
-// interface; the test moves it as the iface monitor would see the kernel move it.
+// interface; the test moves it as the iface monitor would see the kernel move it. A
+// non-nil missing is the lookup error of an interface the host does not have.
 type fakeInterface struct {
-	mu   sync.Mutex
-	addr string
+	mu      sync.Mutex
+	addr    string
+	missing error
 }
 
 func (f *fakeInterface) set(addr string) {
 	f.mu.Lock()
 	f.addr = addr
+	f.missing = nil
+	f.mu.Unlock()
+}
+
+// remove makes the interface absent: the resolver answers err, as iface.Addresses does
+// for a device the kernel does not have.
+func (f *fakeInterface) remove(err error) {
+	f.mu.Lock()
+	f.addr = ""
+	f.missing = err
 	f.mu.Unlock()
 }
 
@@ -63,6 +76,9 @@ func (f *fakeInterface) install(t *testing.T) {
 	resolveInterfaceAddrFn = func(string) (string, error) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
+		if f.missing != nil {
+			return "", f.missing
+		}
 		return f.addr, nil
 	}
 	t.Cleanup(func() { resolveInterfaceAddrFn = previous })
@@ -161,6 +177,75 @@ func TestInterfaceAddressArrivalStartsPeers(t *testing.T) {
 	if _, err := bus.Emit(ifaceevents.Namespace, ifaceevents.EventAddrAdded, `{"name":"wan0"}`); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
+
+	ps := waitForPeer(t, state, "test-peer")
+	if ps.peerCfg.LocalAddress != "127.0.0.1" {
+		t.Fatalf("the peer runs with local-address %q, want the interface address", ps.peerCfg.LocalAddress)
+	}
+	state.applyMu.Lock()
+	defer state.applyMu.Unlock()
+	if state.listeners.host != "127.0.0.1" || state.listeners.ike == nil {
+		t.Fatalf("listener at %q (ike=%v), want 127.0.0.1", state.listeners.host, state.listeners.ike)
+	}
+	if ps.ike != state.listeners.ike {
+		t.Fatal("the peer does not hold the socket bound at the interface address")
+	}
+}
+
+// installAddressTableWatch swaps watchAddressTableFn for the test's life with a watch
+// that signals only when the test sends on the returned channel, as the kernel address
+// table watch signals after each address update.
+func installAddressTableWatch(t *testing.T) chan<- struct{} {
+	t.Helper()
+	changes := make(chan struct{}, 1)
+	previous := watchAddressTableFn
+	watchAddressTableFn = func(context.Context) (<-chan struct{}, error) {
+		return changes, nil
+	}
+	t.Cleanup(func() { watchAddressTableFn = previous })
+	return changes
+}
+
+// VALIDATES: AC-1 and AC-2 for a WAN named only by `vpn ipsec interface`, with no
+// `interface` block: the daemon starts while the interface does not exist, and the
+// interface then appears with its address. The peer starts from that address.
+//
+// Method: no event bus is wired, which is what the engine meets when the configuration
+// has no `interface` block, because the iface monitor that publishes
+// `interface/addr-added` starts only from that block. The resolver answers "no such
+// device" until the test creates the interface, and the change reaches the worker only
+// through the kernel address table watch, which the test drives.
+//
+// RED before the fix: the worker heard only the bus, so with no monitor nothing re-read
+// the interface after the startup WARN, and the peer waited until a restart
+// (test/draft/ipsec/ipsec-follows-wan-address.ci: "no Child SA from 198.18.250.1 after
+// the address appeared").
+func TestInterfaceAppearingWithoutMonitorStartsPeers(t *testing.T) {
+	state := applyTestState(t)
+	wan := &fakeInterface{}
+	wan.remove(errors.New(`iface: get "wan0": iface: interface not found (no such device)`))
+	wan.install(t)
+	changes := installAddressTableWatch(t)
+	state.worker = startAddressWorker(state, nil)
+	t.Cleanup(func() {
+		state.worker.Stop()
+		state.worker = nil
+	})
+
+	if err := state.applyConfig(interfaceConfig(applyTestPeer("")), applyStartup); err != nil {
+		t.Fatalf("startup apply with the interface absent: %v", err)
+	}
+	startDeferred(state)
+	if ps := runningPeer(state, "test-peer"); ps != nil {
+		t.Fatal("a peer started while its interface does not exist")
+	}
+	if wait := interfaceWaitPtr.Load(); wait == nil || len(wait.peers) != 1 || wait.peers[0] != "test-peer" {
+		t.Fatalf("the doctor is not told the peer waits: %+v", wait)
+	}
+
+	// The interface is created and gains its address; the kernel reports the address.
+	wan.set("127.0.0.1")
+	changes <- struct{}{}
 
 	ps := waitForPeer(t, state, "test-peer")
 	if ps.peerCfg.LocalAddress != "127.0.0.1" {

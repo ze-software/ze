@@ -8,6 +8,8 @@
 package engine
 
 import (
+	"context"
+	"errors"
 	"maps"
 	"net"
 	"slices"
@@ -17,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -25,6 +28,15 @@ import (
 // number of events: a send that finds the slot full drops the event, and the re-read the
 // pending trigger causes already sees what it announced.
 const addressQueueDepth = 1
+
+// watchAddressTableFn starts the watch of the kernel address table the worker keeps open.
+// It is network.WatchAddresses; a test replaces it and restores it in t.Cleanup, because
+// the watcher registry is a one-shot slot the netlink backend's init() fills.
+var watchAddressTableFn = network.WatchAddresses
+
+// addressWatchRetry is the wait before the worker starts the address table watch again
+// after one failed to start or ended on its own.
+const addressWatchRetry = 5 * time.Second
 
 // peerPlan is what one configuration means for the address the engine has now: which
 // peers run, each with the local address it sends from, which socket pair each peer
@@ -123,29 +135,41 @@ func publishWaiting(cfg *ipsec.IPsecConfig, plan *peerPlan) {
 }
 
 // addressWorker follows interface addresses for one engine: it re-reads the configured
-// interface and the bound XFRM interfaces on every `interface/addr-added`,
-// `interface/addr-removed` and `interface/created` event, and refreshes the `respond`
-// peers' names every respondNameRefresh.
+// interface and the bound XFRM interfaces on every change of the kernel address table,
+// on every `interface/addr-added`, `interface/addr-removed` and `interface/created`
+// event, and refreshes the `respond` peers' names every respondNameRefresh.
+//
+// The kernel address table watch is the source that always runs. The bus events come
+// from the iface component's monitor, which starts only when the configuration has an
+// `interface` block: `vpn ipsec interface ppp0` with no such block (the WAN is named only
+// here) has no monitor, so with the bus alone a WAN that came up after start was never
+// followed. The bus subscriptions stay because they carry what the kernel table does
+// not: an interface created with no address, and the addresses a VPP backend reports.
 //
 // Lifecycle: startAddressWorker creates the trigger channel, subscribes, and starts the
-// one goroutine; kick enqueues without blocking; Stop unsubscribes, closes stop and
-// waits for the goroutine. The goroutine reaches engine state only through
+// one goroutine, which opens the address table watch and keeps it open; kick enqueues
+// without blocking; Stop unsubscribes, cancels the watch, closes stop and waits for the
+// goroutine. The goroutine reaches engine state only through
 // ikeEngineState.followAddress, which takes applyMu, so it never runs beside an apply.
 type addressWorker struct {
 	trigger chan struct{}
 	stop    chan struct{}
 	done    chan struct{}
 	unsub   []func()
+	// cancel ends the address table watch; the watcher then closes its channel.
+	cancel context.CancelFunc
 }
 
 // startAddressWorker subscribes to the interface address events on bus and starts the
-// worker. A nil bus (a unit test that wires none) starts the worker with no subscription,
-// so only kick reaches it.
+// worker, which watches the kernel address table whether or not bus is set. A nil bus (a
+// unit test that wires none) starts the worker with no subscription.
 func startAddressWorker(s *ikeEngineState, bus ze.EventBus) *addressWorker {
+	ctx, cancel := context.WithCancel(context.Background())
 	w := &addressWorker{
 		trigger: make(chan struct{}, addressQueueDepth),
 		stop:    make(chan struct{}),
 		done:    make(chan struct{}),
+		cancel:  cancel,
 	}
 	if bus != nil {
 		// The payload is not read: it names a kernel device, while the configured
@@ -160,7 +184,7 @@ func startAddressWorker(s *ikeEngineState, bus ze.EventBus) *addressWorker {
 			bus.Subscribe(ifaceevents.Namespace, ifaceevents.EventCreated, trigger),
 		)
 	}
-	go w.run(s)
+	go w.run(ctx, s)
 	return w
 }
 
@@ -173,15 +197,36 @@ func (w *addressWorker) kick() {
 	}
 }
 
-// run is the worker loop. It ends only when stop closes.
-func (w *addressWorker) run(s *ikeEngineState) {
+// run is the worker loop. It ends only when stop closes. A nil changes channel is a watch
+// that is not running: the select never picks it, and the retry timer starts it again.
+func (w *addressWorker) run(ctx context.Context, s *ikeEngineState) {
 	defer close(w.done)
 	ticker := time.NewTicker(respondNameRefresh)
 	defer ticker.Stop()
+
+	retry := time.NewTimer(addressWatchRetry)
+	retry.Stop()
+	defer retry.Stop()
+
+	changes := w.watchAddresses(ctx, s, retry)
 	for {
 		select {
 		case <-w.stop:
 			return
+		case _, open := <-changes:
+			if open {
+				w.kick()
+				continue
+			}
+			// The watcher closed the channel while the engine runs: its kernel
+			// subscription failed, so the table is no longer watched.
+			s.log.Warn("ike: the kernel interface address table watch ended, ze starts it again",
+				"interface", interfaceName(s), "retry", addressWatchRetry,
+				"fix", "none if the next line reports the watch running; if this repeats, look for the netlink error ze logged before it, and for kernel messages with: dmesg | grep -i netlink")
+			changes = nil
+			retry.Reset(addressWatchRetry)
+		case <-retry.C:
+			changes = w.watchAddresses(ctx, s, retry)
 		case <-w.trigger:
 			s.followAddress()
 			resolveRespondNames(respondNames.queries(), w.stop, s.log)
@@ -191,12 +236,50 @@ func (w *addressWorker) run(s *ikeEngineState) {
 	}
 }
 
-// Stop unsubscribes and waits for the worker to return. MUST be called before the engine
-// stops its peers (ikeEngineState.shutdown), so no event restarts one behind the stop.
+// watchAddresses opens the kernel address table watch and answers its channel, then kicks
+// the worker, because the table may have moved while no watch ran. When the watch cannot
+// open it answers nil: it arms retry for a failure that can pass, and leaves it unarmed in
+// a build with no watcher, which stays so for the life of the process. Called only from
+// run.
+func (w *addressWorker) watchAddresses(ctx context.Context, s *ikeEngineState, retry *time.Timer) <-chan struct{} {
+	changes, err := watchAddressTableFn(ctx)
+	if errors.Is(err, network.ErrAddressWatchNotRegistered) {
+		s.log.Warn("ike: the kernel interface address table is not watched, so a `vpn ipsec interface` address that appears or changes is followed only through the interface monitor",
+			"interface", interfaceName(s), "error", err,
+			"fix", "run ze on Linux, where the netlink interface backend watches the table; elsewhere configure the WAN under `interface` so its monitor reports the address")
+		return nil
+	}
+	// refuse-by-default: guards run -- a nil channel is the watch that is not running, which run's select never picks until the retry armed here starts it again
+	if err != nil {
+		s.log.Warn("ike: cannot watch the kernel interface address table, ze tries again",
+			"interface", interfaceName(s), "retry", addressWatchRetry, "error", err,
+			"fix", "none if the watch starts on the next try; if this repeats, look for kernel messages with: dmesg | grep -i netlink")
+		retry.Reset(addressWatchRetry)
+		return nil
+	}
+	w.kick()
+	return changes
+}
+
+// interfaceName is the `vpn ipsec interface` the engine last applied, for a log line, or
+// empty before the first apply and when none is configured.
+func interfaceName(s *ikeEngineState) string {
+	s.applyMu.Lock()
+	defer s.applyMu.Unlock()
+	if s.applied == nil {
+		return ""
+	}
+	return s.applied.Interface
+}
+
+// Stop unsubscribes, ends the address table watch and waits for the worker to return.
+// MUST be called before the engine stops its peers (ikeEngineState.shutdown), so no event
+// restarts one behind the stop.
 func (w *addressWorker) Stop() {
 	for _, unsub := range w.unsub {
 		unsub()
 	}
+	w.cancel()
 	close(w.stop)
 	<-w.done
 }

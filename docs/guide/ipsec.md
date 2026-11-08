@@ -1958,6 +1958,11 @@ With `interface` set:
 - A peer with its own `local-address` has its own socket and is never restarted
   by any of this.
 
+Ze hears these changes from the kernel's interface address table, so it follows
+the interface whether or not the configuration has an `interface` block for it,
+and also when the interface does not exist yet at boot. While Ze cannot find the
+interface, each re-read logs a warning and the running peers are left alone.
+
 A reload whose interface has no IPv4 address is still refused: an address that
 arrives later is followed without a commit.
 
