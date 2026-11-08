@@ -40,10 +40,13 @@ type externalEffects struct {
 	// ambient counts growths of amb, so a settled type value read from one
 	// pool is never answered once the pool has grown (growAmbient).
 	ambient int
-	// formalAmbient records, for each external parameter, one more than the
-	// ambient version its binding last absorbed the pool at. Bindings only
-	// grow and the pool only grows, so a parameter at the current version
-	// gains nothing from absorbing it again (externalParameters).
+	// ambientGrowths keeps each value that grew amb, in order: growth n is
+	// ambientGrowths[n-1]. The pool only grows, so the pool at version v is
+	// the pool at an earlier version u joined with growths u+1 to v.
+	ambientGrowths []externalValue
+	// formalAmbient records, for each external parameter, the ambient version
+	// its binding last absorbed the pool at. Bindings only grow, so a
+	// parameter joins only the growths after that version (externalParameters).
 	formalAmbient map[*ast.Object]int
 	// settledTypes keeps settled type frames for the whole analysis
 	// (externalTypeWalk.settle).
@@ -566,5 +569,10 @@ func (e *externalEffects) growAmbient(value externalValue) bool {
 		return false
 	}
 	e.ambient++
+	// The log holds its own copy, so a caller that later grows value cannot
+	// change a growth already recorded.
+	var growth externalValue
+	growth.join(value)
+	e.ambientGrowths = append(e.ambientGrowths, growth)
 	return true
 }

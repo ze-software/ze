@@ -9,20 +9,26 @@ import (
 // TestExternalParametersAbsorbEachAmbientGrowthOnce checks how an exposed
 // callable's parameters take the ambient pool: a callable parameter takes its
 // flattened union, a holder takes it whole, and a scalar takes none. A second
-// exposure at the same pool version joins nothing new. The test proves that
-// by placing a callable in the pool without a growth, which a re-join would
-// copy. A growth is absorbed at once. The test drives externalParameters over
-// an authored package, because an actual-root run that reaches it takes
-// minutes.
+// exposure at the same pool version joins nothing new, and a later exposure
+// joins only the growths since. The test proves both by placing a callable in
+// the pool without a growth, which a full re-join would copy. A growth is
+// absorbed at once. The test drives externalParameters over an authored
+// package, because an actual-root run that reaches it takes minutes.
 //
-// MUTATION: (externalbindings.go, `if e.formalAmbient[name.Obj] == e.ambient+1 {`,
-// `if false {`): every exposure joins the pool again, so the callable placed
-// without a growth reaches the parameter.
-// MUTATION: (externalbindings.go, `if e.formalAmbient[name.Obj] == e.ambient+1 {`,
-// `if e.formalAmbient[name.Obj] != 0 {`): a parameter that absorbed the pool
-// once never absorbs it again, so the second growth's callable is missing.
-// MUTATION: (externalbindings.go, `ambient = externalFlat(e.amb, 0)`,
-// `ambient = e.amb`): the callable parameter takes the pool unflattened, so
+// MUTATION: (externalbindings.go, `if !seen {`, `if !seen || true {`): every exposure
+// joins the whole pool again, so the callable placed without a growth
+// reaches the parameter.
+// MUTATION: (externalbindings.go,
+// `for index := absorbed; index < len(e.ambientGrowths); index++ {`,
+// `for index := absorbed + len(e.ambientGrowths); index < len(e.ambientGrowths); index++ {`):
+// a parameter that absorbed the pool once never absorbs a growth, so the
+// second growth's callable is missing.
+// MUTATION: (externalbindings.go,
+// `e.bind(name.Obj, externalFormalAmbient(e.ambientGrowths[index], shape))`,
+// `e.bind(name.Obj, externalFormalAmbient(e.amb, shape))`): a growth joins the
+// whole pool, so the callable placed without a growth arrives with it.
+// MUTATION: (externalbindings.go, `return externalFlat(value, 0)`,
+// `return value`): the callable parameter takes the pool unflattened, so
 // the nested callable stays under a field name it cannot select.
 // MUTATION: (externalbindings.go, `if shape == externalFormalScalar {`,
 // `if false {`): the scalar parameter takes the pool.
@@ -109,5 +115,8 @@ func Expose(callback func(), holder *box, count int) {}
 	}
 	if effects.bindings[callback].callables[first].value != first {
 		t.Fatal("a later growth lost the earlier callable")
+	}
+	if _, joined := effects.bindings[callback].callables[unannounced]; joined {
+		t.Fatal("a growth joined the whole pool rather than the growths since")
 	}
 }

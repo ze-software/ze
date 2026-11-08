@@ -220,6 +220,16 @@ func (e *externalEffects) referenceType(source sourceExpr, depth int) bool {
 	return walk.references
 }
 
+// externalFormalAmbient is the part of an ambient value a parameter of shape
+// holds. Function values have no selectable fields: their captured
+// authorities remain in the flattened union and lexical owners.
+func externalFormalAmbient(value externalValue, shape externalFormalShape) externalValue {
+	if shape == externalFormalCallable {
+		return externalFlat(value, 0)
+	}
+	return value
+}
+
 // externalParameters admits arbitrary values reachable under the same ambient
 // authority, including methods of the declared parameter/receiver types.
 func (e *externalEffects) externalParameters(node ast.Node, source sourceExpr) {
@@ -259,19 +269,18 @@ func (e *externalEffects) externalParameters(node ast.Node, source sourceExpr) {
 				}
 				// Binding the methods and then the pool equals binding their
 				// union: join is monotone and its first-wins facts keep the
-				// same order. A parameter that absorbed this pool version
-				// already holds all of it, so only a growth is joined again.
-				if e.formalAmbient[name.Obj] == e.ambient+1 {
+				// same order. A parameter that absorbed the pool at version v
+				// already holds all of it, so it joins only the growths since.
+				absorbed, seen := e.formalAmbient[name.Obj]
+				if !seen {
+					e.bind(name.Obj, externalFormalAmbient(e.amb, shape))
+					e.formalAmbient[name.Obj] = e.ambient
 					continue
 				}
-				ambient := e.amb
-				if shape == externalFormalCallable {
-					// Function values have no selectable fields. Their captured
-					// authorities remain in the flattened union and lexical owners.
-					ambient = externalFlat(e.amb, 0)
+				for index := absorbed; index < len(e.ambientGrowths); index++ {
+					e.bind(name.Obj, externalFormalAmbient(e.ambientGrowths[index], shape))
 				}
-				e.bind(name.Obj, ambient)
-				e.formalAmbient[name.Obj] = e.ambient + 1
+				e.formalAmbient[name.Obj] = e.ambient
 			}
 		}
 	}
