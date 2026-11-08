@@ -21,6 +21,13 @@ import (
 // default.
 var appliedOverride atomic.Pointer[ipsec.ApplicationOverride]
 
+// overrideRefusal is the refusal of the last apply that asked for deny and could not
+// attach the guard, for the doctor check: a first apply that fails this way records
+// no appliedOverride, so without it a host with no cgroup2 mounted, or a ze without
+// CAP_BPF, would leave IPsec down with nothing in `ze doctor` saying why. Nil after an
+// apply that put the guard in the state it asked for, and after releaseSPD.
+var overrideRefusal atomic.Pointer[string]
+
 // errOverrideUnspecified refuses a configuration that names no override value. The
 // parser and EmptyConfig always write one, so only a configuration built by hand can
 // carry the zero value.
@@ -41,6 +48,8 @@ func applyApplicationOverride(dp dataplane.Dataplane, override ipsec.Application
 	switch override {
 	case ipsec.ApplicationOverrideDeny:
 		if err := attachOverrideGuard(dp); err != nil {
+			refusal := err.Error()
+			overrideRefusal.Store(&refusal)
 			return err
 		}
 	case ipsec.ApplicationOverrideAllow:
@@ -56,6 +65,7 @@ func applyApplicationOverride(dp dataplane.Dataplane, override ipsec.Application
 	}
 	value := override
 	appliedOverride.Store(&value)
+	overrideRefusal.Store(nil)
 	return nil
 }
 
@@ -95,6 +105,7 @@ func detachOverrideGuard(dp dataplane.Dataplane) error {
 // be called after the catch-all leaves, so the guard is the last thing Ze holds.
 func releaseApplicationOverride(dp dataplane.Dataplane, log *slog.Logger) {
 	appliedOverride.Store(nil)
+	overrideRefusal.Store(nil)
 	if err := detachOverrideGuard(dp); err != nil {
 		log.Warn("ike: the application override guard did not detach; it closes when ze exits", "error", err)
 	}

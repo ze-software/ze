@@ -36,8 +36,17 @@ var procRoot = "/proc"
 // `deny` it reports a guard that is not attached (an error: any CAP_NET_ADMIN holder
 // can then exempt its sockets), and every per-socket policy Ze cannot attribute to
 // itself (a warning: one set before the guard attached, or while `allow` held, lives
-// until its socket closes, and the kernel cannot remove it).
+// until its socket closes, and the kernel cannot remove it). An apply that asked for
+// `deny` and could not attach the guard is an error too, carrying the apply's refusal,
+// which names the cause and the three ways out.
 func checkIPsecApplicationOverride(_ registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
+	if refusal := overrideRefusal.Load(); refusal != nil {
+		return []rpc.DoctorCheckDiagnostic{{
+			Code:     diagnostic.CodeDoctorIPsecOverrideGuard,
+			Severity: severityError,
+			Message:  "The last IPsec apply was refused: " + *refusal,
+		}}
+	}
 	applied := appliedOverride.Load()
 	if applied == nil || *applied != ipsec.ApplicationOverrideDeny {
 		return nil

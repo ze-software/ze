@@ -232,6 +232,13 @@ const (
 	zeImage            = "ze"
 	zeMountedConfig    = "/etc/ze/ze.conf"
 	capabilityNetAdmin = "NET_ADMIN"
+	// capabilityBPF is what a Ze node whose configuration carries `vpn ipsec`
+	// holds beside NET_ADMIN: `vpn ipsec application-override` defaults to deny,
+	// and the guard that enforces it is a cgroup setsockopt BPF program the
+	// kernel loads only for CAP_BPF (internal/component/ike/dataplane,
+	// override_guard_linux.go). Without it the IPsec apply fails and ze exits at
+	// startup.
+	capabilityBPF = "BPF"
 	// suffixVariable sets this lab's container and network name suffix.
 	suffixVariable = "ZE_TOPOLOGY_INTEROP_SUFFIX"
 )

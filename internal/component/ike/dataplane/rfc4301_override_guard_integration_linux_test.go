@@ -178,7 +178,7 @@ func socketOverridePolicy(family int) *nl.XfrmUserpolicyInfo {
 			SoftPacketLimit: xfrmInfinity,
 			HardPacketLimit: xfrmInfinity,
 		},
-		Dir:    0, // XFRM_POLICY_OUT
+		Dir:    1, // XFRM_POLICY_OUT
 		Action: xfrmPolicyActionAllow,
 	}
 }

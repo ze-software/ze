@@ -167,10 +167,16 @@ func homeLab(checker interoplab.Checker, options homeOptions) scenario {
 // a lab name, and Ze writes /tmp/resolv.conf by rename, so no bind mount can
 // follow it. The prepared file names the same server (cpeStaticNameServer),
 // and access-up proves Ze's own /tmp/resolv.conf holds exactly that server.
+//
+// It holds BPF beside NET_ADMIN because its configuration carries `vpn ipsec`
+// (capabilityBPF).
 func convertedCPE() node {
 	cpe := zeNode(nodeCPE, 5, "", append(interoplab.PPPDeviceArguments(),
 		dockerSysctl, "net.ipv4.ip_forward=1", dockerSysctl, "net.ipv6.conf.all.disable_ipv6=0")...)
 	cpe.config = ""
+	// ze-cpe.conf carries `vpn ipsec` with no application-override, so the
+	// default deny attaches the override guard (capabilityBPF).
+	cpe.capabilities = append(cpe.capabilities, capabilityBPF)
 	cpe.prepared = []sharedFile{{source: renderedCPEConfig, target: zeMountedConfig},
 		{source: renderedCPEResolvConf, target: systemResolvConf}}
 	cpe.prestart = flushEth0

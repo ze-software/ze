@@ -53,6 +53,13 @@ command; in a login shell it leaves the real GOROOT, where a build of
 <!-- source: internal/le/test/qemu/run.go -- guestPatchedTree, setupCommand -->
 <!-- source: internal/le/test/qemu/run_exec.go -- keepAliveProfile -->
 
+The setup command also mounts cgroup2 at `/sys/fs/cgroup` when no cgroup2 is
+mounted (`guestCgroup2Mount`). Ze's own system mounts it at boot (gokrazy's
+`mountfs`), as systemd does, but the Alpine guest's OpenRC does not, and without
+it the default `vpn ipsec application-override deny` cannot attach its guard, so
+every IPsec apply in the guest would be refused.
+<!-- source: internal/le/test/qemu/run.go -- guestCgroup2Mount, setupCommand -->
+
 Prerequisites: `qemu` (`brew install qemu` on macOS). On macOS the run uses HVF
 acceleration when it is available and falls back to TCG software emulation.
 

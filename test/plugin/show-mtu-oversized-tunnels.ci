@@ -18,9 +18,11 @@
 # 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
 # the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
 # root (`./le test qemu all`) and skips in the unprivileged merge gate. The
+# daemon's `vpn ipsec` attaches the application-override guard (default deny),
+# a cgroup BPF program, so it needs CAP_BPF too. The
 # fixture removes the namespaces when the daemon exits, whatever its exit code.
 
-option=needs-linux:caps=net-admin,net-raw
+option=needs-linux:caps=net-admin,net-raw,bpf
 
 option=exclusive:group=ipsec-xfrm
 option=env:var=ze_test_ike_port:value=$PORT2

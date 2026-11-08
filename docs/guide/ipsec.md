@@ -1470,13 +1470,18 @@ Ze by its process id inside Ze's own PID namespace, so the exception holds when
 Ze runs in a container.
 
 `deny` needs `CAP_BPF` and `CAP_NET_ADMIN`, a cgroup2 mount (Ze finds it in
-`/proc/self/mountinfo`; gokrazy mounts it at `/sys/fs/cgroup`) and a kernel with
+`/proc/self/mountinfo`; gokrazy's init and systemd both mount it at
+`/sys/fs/cgroup` at boot) and a kernel with
 `CONFIG_CGROUP_BPF`, which Ze's kernel carries. When any of them is missing the
 apply fails rather than run without the guard:
 
 ```
 vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (<kernel error>). Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. Run ze with CAP_BPF and CAP_NET_ADMIN, mount cgroup2 at /sys/fs/cgroup, or set `vpn ipsec application-override allow` to accept that risk.
 ```
+
+Until an apply succeeds, `ze doctor` reports the same refusal as
+`doctor-ipsec-override-guard`, so a boot that left IPsec down on such a host says
+why.
 
 A reload moves between the two values with no restart, and removing `vpn ipsec`
 detaches the program after the catch-all leaves.

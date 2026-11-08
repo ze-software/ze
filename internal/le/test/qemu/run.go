@@ -749,6 +749,10 @@ const guestStdpatchCache = "/workspace/cache/stdpatch"
 // guestStdpatchCache, so its presence says the mount is in place.
 const guestStdpatchMarker = guestStdpatchCache + "/.guest-only"
 
+// guestCgroup2Mount mounts the unified cgroup hierarchy where gokrazy and systemd
+// put it, unless one is already mounted.
+const guestCgroup2Mount = "{ grep -qs ' - cgroup2 ' /proc/self/mountinfo || mount -t cgroup2 none /sys/fs/cgroup; }"
+
 const runBootstrapCommand = "setup-interfaces -a 2>/dev/null; ifup eth0 2>/dev/null; ifup lo 2>/dev/null; echo nameserver 8.8.8.8 > /etc/resolv.conf; apk add --no-cache openssh; echo PermitRootLogin yes >> /etc/ssh/sshd_config; echo PermitEmptyPasswords yes >> /etc/ssh/sshd_config; passwd -d root; ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N '' 2>/dev/null; ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N '' 2>/dev/null; /usr/sbin/sshd; echo SSHD_READY"
 
 func shellQuote(value string) string {
@@ -796,6 +800,12 @@ func (r *Run) setupCommand(goRelease string) (string, error) {
 		"{ modprobe nft_chain_nat 2>/dev/null || true; }",
 		"{ modprobe nf_conntrack 2>/dev/null || true; }",
 		"{ modprobe nf_conntrack_netlink 2>/dev/null || true; }",
+		// Ze's own system mounts cgroup2 at boot (gokrazy's mountfs), and so does
+		// systemd; the Alpine guest's OpenRC does not. Without it IPsec's default
+		// `application-override deny` cannot attach its guard and refuses every
+		// apply, so the guest mounts it as Ze's system would. Required: a guest
+		// with no cgroup2 is not the system the tests measure.
+		guestCgroup2Mount,
 		"{ [ -w /proc/sys/net/netfilter/nf_conntrack_acct ] && echo 1 > /proc/sys/net/netfilter/nf_conntrack_acct || true; }",
 		"{ nft add table inet ztrack 2>/dev/null || true; }",
 		"{ nft 'add chain inet ztrack out { type filter hook output priority -150 ; policy accept ; }' 2>/dev/null || true; }",

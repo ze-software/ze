@@ -98,6 +98,44 @@ func TestDoctorApplicationOverride(t *testing.T) {
 	}
 }
 
+// TestDoctorReportsRefusedDeny proves the doctor names a deny the apply could not
+// honour, carrying the apply's own refusal, and stops once an apply succeeds.
+//
+// VALIDATES: overrideRefusal, set by applyApplicationOverride and read by
+// checkIPsecApplicationOverride; the first apply on a host with no cgroup2 mounted
+// records no appliedOverride, so only the refusal can reach the doctor.
+// PREVENTS: IPsec down at boot on such a host with `ze doctor` silent about why.
+func TestDoctorReportsRefusedDeny(t *testing.T) {
+	previous := appliedOverride.Load()
+	appliedOverride.Store(nil)
+	t.Cleanup(func() {
+		appliedOverride.Store(previous)
+		overrideRefusal.Store(nil)
+	})
+	dp := &socketPolicyDP{bypassDP: bypassDP{guardErr: errors.New("no cgroup2 file system is mounted (mount -t cgroup2 none /sys/fs/cgroup)")}}
+	loadFailClosedBackend(t, dp)
+
+	if err := applyApplicationOverride(dp, ipsec.ApplicationOverrideDeny); err == nil {
+		t.Fatal("deny applied with a guard the backend refused")
+	}
+	diags := checkIPsecApplicationOverride(registry.DoctorCheckContext{})
+	if got, want := diagnosticCodes(diags), "error:"+diagnostic.CodeDoctorIPsecOverrideGuard; got != want {
+		t.Fatalf("diagnostics = %q, want %q (%v)", got, want, diags)
+	}
+	for _, part := range []string{"no cgroup2 file system is mounted", "mount -t cgroup2 none /sys/fs/cgroup", "set `vpn ipsec application-override allow`"} {
+		if !strings.Contains(diags[0].Message, part) {
+			t.Errorf("the diagnostic does not name %q: %q", part, diags[0].Message)
+		}
+	}
+
+	if err := applyApplicationOverride(dp, ipsec.ApplicationOverrideAllow); err != nil {
+		t.Fatalf("allow apply: %v", err)
+	}
+	if diags := checkIPsecApplicationOverride(registry.DoctorCheckContext{}); len(diags) != 0 {
+		t.Fatalf("the refusal outlived a successful apply: %v", diags)
+	}
+}
+
 // TestDoctorSPDWritersReadsProc proves the writer scan over a fake procfs.
 //
 // VALIDATES: AC-21: another CAP_NET_ADMIN holder in Ze's network namespace is named by

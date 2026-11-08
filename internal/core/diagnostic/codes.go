@@ -966,8 +966,10 @@ var builtinCodes = []CodeMeta{
 			"holding CAP_NET_ADMIN in Ze's network namespace can then set IP_XFRM_POLICY or " +
 			"IPV6_XFRM_POLICY on its socket and take that socket out of every SPD entry, the " +
 			"DISCARD catch-all included (RFC 4301 Section 4.4.1). A process holding CAP_BPF or " +
-			"CAP_SYS_ADMIN can detach the guard. Restart ze; if this persists, run ze doctor --json " +
-			"and read the attach error.",
+			"CAP_SYS_ADMIN can detach the guard. It is also raised, carrying the apply's refusal, when " +
+			"an apply asked for deny and the guard could not attach (no cgroup2 mounted, no CAP_BPF): " +
+			"follow the fix that refusal names. Otherwise restart ze; if this persists, run " +
+			"ze doctor --json and read the attach error.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-override-guard"},
 	},
 	{

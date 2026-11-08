@@ -1206,7 +1206,7 @@ A failed scenario reads every container it started before the teardown
 removes them, and its result carries one block per container in
 `diagnostics`, which the terminal report prints under the verdict: the
 state `docker inspect` reports (status, exit code, OOM kill, runtime
-error), the last 40 log lines, and, while the container still runs,
+error), its container log, and, while the container still runs,
 `ip -d -o link show` and `ip -br address show` from its namespace. A
 daemon that logs to a file rather than its stdout (accel-ppp's `[log]
 log-file`, xl2tpd's redirected stderr, a pppd `logfile`) leaves the
@@ -1214,8 +1214,16 @@ container log empty, so the scenario that configures the file declares it
 on its peer (`PeerConfig.LogFiles`, a topology node's `logFiles`), and the
 block then carries `tail -n 40` of each declared file. A checker's verdict names what it waited for; the blocks name why it never
 came, such as a daemon that exited at start or a link device that is
-missing. A read that fails is printed in place of its answer.
-<!-- source: internal/le/interoplab/diagnose.go -- diagnosePeers, diagnosePeer, logFileProbe, Docker.ContainerState -->
+missing. A read that fails is printed in place of its answer. The container
+log is read whole (`docker logs --tail all`) and printed whole when it holds
+at most 80 lines; a longer one is printed as its first 40 lines, the error
+lines among the lines cut (a Ze `level=ERROR` record, the `error:` line ze
+prints before it exits, a Go `panic:`; at most 20, with their count), and its
+last 40 lines. A daemon that exits at startup prints its cause near the top
+and a cascade of follow-on failures after it, so a tail alone can hide the
+cause.
+<!-- source: internal/le/interoplab/diagnose.go -- diagnosePeers, diagnosePeer, writePeerLog, isErrorLogLine, logFileProbe, Docker.ContainerState -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.LogsWhole -->
 
 One `./le test integration <action>` invocation returns that action's full report.
 Multiple action names return a combined summary.
@@ -3273,7 +3281,10 @@ rename cannot be followed by a bind mount. `access-up` proves Ze's own file
 names the same single server. The converted configuration sets
 `vpn ipsec unmatched bypass`, because VyOS installs no SPD catch-all and Ze's
 defaults to discard, which would drop the CPE's own DNS and ping in the
-clear. A `lan-client` dhcpcd node starts with
+clear. It names no `application-override`, so the default deny attaches
+Ze's setsockopt guard, and the CPE holds `BPF` beside `NET_ADMIN`
+(`capabilityBPF`, `internal/le/interoplab/topology/topology.go`): without it
+the guard's map cannot be created and ze exits at startup. A `lan-client` dhcpcd node starts with
 `net.ipv4.conf.default.promote_secondaries=1`, because dhcpcd's `if_init`
 writes that sysctl for its interface when it reads anything else, and Docker's
 `/proc/sys` is read-only. Every node beyond the

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -24,7 +25,7 @@ func (f *fakeDiagnosticSource) ContainerState(_ context.Context, name string) (s
 	return state, nil
 }
 
-func (f *fakeDiagnosticSource) Logs(_ context.Context, name string, _ int) (LogResult, error) {
+func (f *fakeDiagnosticSource) LogsWhole(_ context.Context, name string) (LogResult, error) {
 	return LogResult{Text: f.logs[name], Available: true}, nil
 }
 
@@ -75,6 +76,60 @@ func TestDiagnosePeersNamesTheCause(t *testing.T) {
 	want := []string{"c-lac ip -d -o link show", "c-lac ip -br address show"}
 	if !slices.Equal(source.execs, want) {
 		t.Errorf("execs = %q, want only the running container's probes %q", source.execs, want)
+	}
+}
+
+// TestDiagnosePeerShowsTheFirstErrorOfALongLog proves a long container log is
+// reported with its first lines, the error lines among those cut, and its last
+// lines, so the cause a daemon printed before a cascade of follow-on failures
+// is in the report; a short log is printed whole. Method: the ze-cpe startup
+// failure that a 40-line tail hid, shaped as a log whose cause line sits in
+// the middle, before 40 cascade lines.
+func TestDiagnosePeerShowsTheFirstErrorOfALongLog(t *testing.T) {
+	var log strings.Builder
+	log.WriteString("Starting ze with config: /etc/ze/ze.conf\n")
+	for index := range 60 {
+		log.WriteString("time=t level=INFO msg=\"loading\" step=")
+		log.WriteString(strconv.Itoa(index))
+		log.WriteString("\n")
+	}
+	log.WriteString("time=t level=ERROR msg=\"auto-load config path plugin startup failed\" error=\"plugin ike failed\"\n")
+	log.WriteString("    error: config-path plugin startup failed: plugin ike failed\n")
+	for index := range 40 {
+		log.WriteString("time=t level=WARN msg=\"internal plugin exited\" plugin=p")
+		log.WriteString(strconv.Itoa(index))
+		log.WriteString("\n")
+	}
+	source := &fakeDiagnosticSource{
+		states: map[string]string{"c-cpe": "exited exit=1 oom=false", "c-short": "exited exit=1 oom=false"},
+		logs:   map[string]string{"c-cpe": log.String(), "c-short": "one\ntwo\n"},
+	}
+	peers := []PeerConfig{{Name: "ze-cpe", Container: "c-cpe"}, {Name: "short", Container: "c-short"}}
+	blocks := diagnosePeers(context.Background(), source, peers, []string{"c-cpe", "c-short"})
+	if len(blocks) != 2 {
+		t.Fatalf("got %d blocks, want 2:\n%s", len(blocks), strings.Join(blocks, ""))
+	}
+	block := blocks[0]
+	parts := []string{
+		"  log (103 lines), first 40 lines:\n    Starting ze with config: /etc/ze/ze.conf\n",
+		"  log, the 23 lines between not shown, the first 2 of their 2 error lines:\n" +
+			"    time=t level=ERROR msg=\"auto-load config path plugin startup failed\" error=\"plugin ike failed\"\n" +
+			"        error: config-path plugin startup failed: plugin ike failed\n",
+		"  log, last 40 lines:\n    time=t level=WARN msg=\"internal plugin exited\" plugin=p0\n",
+	}
+	at := 0
+	for _, part := range parts {
+		index := strings.Index(block[at:], part)
+		if index < 0 {
+			t.Fatalf("block lacks, in order, %q:\n%s", part, block)
+		}
+		at += index + len(part)
+	}
+	if strings.Contains(block, "step=39\n") || !strings.Contains(block, "step=38\n") {
+		t.Errorf("the head is not exactly the first 40 lines:\n%s", block)
+	}
+	if !strings.Contains(blocks[1], "  log (all 2 lines):\n    one\n    two\n") {
+		t.Errorf("a short log is not printed whole:\n%s", blocks[1])
 	}
 }
 

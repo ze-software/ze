@@ -1173,8 +1173,21 @@ func (d *Docker) Logs(ctx context.Context, name string, lines int) (LogResult, e
 	if lines <= 0 {
 		return LogResult{}, errors.New("Docker log line count must be positive")
 	}
+	return d.logs(ctx, name, strconv.Itoa(lines))
+}
+
+// LogsWhole reads the container's whole log, so a reader that must show the
+// daemon's first lines (diagnosePeer) does not see only a tail. Available is
+// true even when a readable log is empty.
+func (d *Docker) LogsWhole(ctx context.Context, name string) (LogResult, error) {
+	return d.logs(ctx, name, "all")
+}
+
+// logs runs `docker logs --tail <tail>`, where tail is a positive count or
+// Docker's word "all".
+func (d *Docker) logs(ctx context.Context, name, tail string) (LogResult, error) {
 	result, err := d.command(ctx, dockerLogsTimeout,
-		DockerExecutable, "logs", name, "--tail", strconv.Itoa(lines))
+		DockerExecutable, "logs", name, "--tail", tail)
 	if err != nil {
 		return LogResult{}, err
 	}

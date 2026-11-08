@@ -431,6 +431,9 @@ func TestRunBuildsBootstrapSetupAndSSHCommands(t *testing.T) {
 		"apk add --no-cache xl2tpd ppp", "go" + fixtureGoRelease + ".linux-amd64.tar.gz",
 		"export GOCACHE=\"/workspace/cache/go-cache\"",
 		"mount -t tmpfs tmpfs /workspace/tmp/evidence",
+		// The guest mounts cgroup2 as Ze's system does, so IPsec's default
+		// application-override deny can attach its guard.
+		"mount -t cgroup2 none /sys/fs/cgroup",
 	} {
 		if !strings.Contains(plan.SetupCommand, needle) {
 			t.Errorf("setup command misses %q", needle)
