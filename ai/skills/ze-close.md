@@ -19,10 +19,10 @@ phase itself.
   `subagent_type: ze-read` or `ze-work`, hand it the spec path, then stop. Do not
   run the steps below inline. You do not need to ask permission first
   (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
-- **CLOSE ONE SPEC AT A TIME.** Closure is the most expensive phase in this
-  repository and it ends in a commit, so two closures running at once contend for
-  the build cache, the ports and the index files. Wait for one to land
-  before starting the next.
+- **AT MOST THREE CLOSURES AT ONCE.** Closure is the most expensive phase in
+  this repository and it ends in a commit. Up to three may run together, each
+  on a different spec in its own agent with its own claim (`ai/META-DECISIONS.md`);
+  a fourth waits for one to land.
 - **This skill MUST NOT spawn a subagent, and the agent running it MUST NOT
   either (owner directive, 2026-08-15).** Every step below, the Review Gate at
   step 5 included, runs INLINE in the one agent that owns the closure. Neither

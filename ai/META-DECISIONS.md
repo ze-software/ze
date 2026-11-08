@@ -413,6 +413,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   in-progress count for that claim, closes the spec in the same run and
   releases the claim. That is not a raise of the cap, and it is never used to
   start work.
+- Up to three spec closures may run at once, each on a different spec in its
+  own agent with its own claim. The main thread still runs every test.
 - A handover lives in the repository (`plan/handover/`) and is committed in the
   turn it is written, never only in a session directory.
 - Test selectively: run only the tests the change reaches (its packages, its
