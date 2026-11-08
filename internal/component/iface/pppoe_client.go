@@ -88,6 +88,9 @@ type PPPoEDialer interface {
 // PPPoEResult carries every negotiated interface setting as an immutable value.
 // It contains no transport ownership or mutable authentication state.
 type PPPoEResult struct {
+	// LocalIP and PeerIP are invalid, with both DNS servers, while IPCP is
+	// Stopped and IPv6CP holds the session (RFC 7084 WLL-3): the consumer
+	// then withdraws the IPv4 route, address pair and DNS lease.
 	LocalIP netip.Addr
 	PeerIP  netip.Addr
 	NegMTU  uint16
@@ -398,7 +401,6 @@ func (c *PPPoEClient) runSession() error {
 			if !ok {
 				return errors.New("pppoe-client: session change source closed")
 			}
-			pair := [2]netip.Addr{next.LocalIP, next.PeerIP}
 			if c.backend != nil {
 				mtu := int(next.NegMTU)
 				if c.cfg.MTU > 0 {
@@ -410,45 +412,16 @@ func (c *PPPoEClient) runSession() error {
 					}
 					mtuApplied = mtu
 				}
-				if pair != pairApplied {
-					if err := c.backend.AddAddressP2P(ifname,
-						netip.PrefixFrom(next.LocalIP, 32).String(),
-						netip.PrefixFrom(next.PeerIP, 32).String()); err != nil {
+				if next.LocalIP.IsValid() {
+					if err := c.applyPPPoEIPv4(ifname, next, &routeApplied, &routeRetired, &pairApplied); err != nil {
 						return err
 					}
-				}
-				if !c.cfg.NoDefaultRoute {
-					if next.PeerIP != routeApplied {
-						if err := c.backend.AddRoute(ifname, "0.0.0.0/0", next.PeerIP.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
-							c.warnRouteApply(ifname, next.PeerIP, err)
-						} else {
-							// Linux fib_table_insert replaces the prefix/metric slot.
-							// Keep one failed cleanup, not a backlog of replaced gateways.
-							if !routeRetired.IsValid() {
-								routeRetired = routeApplied
-							}
-							routeApplied = next.PeerIP
-							if routeRetired == routeApplied {
-								// This gateway is desired again. Never remove it later.
-								routeRetired = netip.Addr{}
-							}
-						}
-					}
-					if routeRetired.IsValid() {
-						if err := c.backend.RemoveRoute(ifname, "0.0.0.0/0", routeRetired.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
-							c.warnRouteRemoval(ifname, routeRetired, err)
-						} else {
-							routeRetired = netip.Addr{}
-						}
-					}
-				}
-				if pair != pairApplied {
-					if err := c.backend.RemoveAddressP2P(ifname,
-						netip.PrefixFrom(pairApplied[0], 32).String(),
-						netip.PrefixFrom(pairApplied[1], 32).String()); err != nil {
+				} else {
+					// RFC 7084 Section 4.2 WLL-3: IPCP is down while IPv6CP
+					// holds the session, so IPv4 alone is withdrawn.
+					if err := c.withdrawPPPoEIPv4(ifname, &routeApplied, &routeRetired, &pairApplied); err != nil {
 						return err
 					}
-					pairApplied = pair
 				}
 				// RFC 5072 Section 5: the link-local follows IPv6CP, and
 				// IPv4 is untouched by it (RFC 7084 WLL-3).
@@ -459,7 +432,8 @@ func (c *PPPoEClient) runSession() error {
 				linkLocalApplied = applied
 			}
 			// A renegotiation that changed only the DNS servers still
-			// replaces the lease; an equal list makes no call.
+			// replaces the lease; an equal list makes no call. A result
+			// without IPv4 names no server, so the lease is withdrawn.
 			if dns := pppoeDNSServers(next.PrimaryDNS, next.SecondaryDNS); !slices.Equal(dns, dnsLeased) {
 				c.leaseDNS(dns)
 				dnsLeased = dns
@@ -470,6 +444,97 @@ func (c *PPPoEClient) runSession() error {
 			c.mu.Unlock()
 		}
 	}
+}
+
+// withdrawPPPoEIPv4 removes the IPv4 state a session result no longer
+// carries: the installed default route, a retired one still awaiting cleanup,
+// then the point-to-point address pair. A failed route removal keeps its
+// ownership for the next result to retry; a failed address removal ends the
+// session as every address error does. Called only from runSession's worker.
+//
+// RFC 7084 Section 4.2 WLL-3: "If the WAN interface supports PPP
+// encapsulation, in a dual-stack environment with IPCP and IPV6CP running
+// over one PPP logical channel, the Network Control Protocols (NCPs) MUST be
+// treated as independent of each other and start and terminate
+// independently."
+func (c *PPPoEClient) withdrawPPPoEIPv4(ifname string, routeApplied, routeRetired *netip.Addr, pairApplied *[2]netip.Addr) error {
+	// A route is owned only after a successful install, so an owned route
+	// is removed even when no-default-route would not install it again.
+	if routeApplied.IsValid() {
+		if err := c.backend.RemoveRoute(ifname, "0.0.0.0/0", routeApplied.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+			c.warnRouteRemoval(ifname, *routeApplied, err)
+		} else {
+			*routeApplied = netip.Addr{}
+		}
+	}
+	if routeRetired.IsValid() {
+		if err := c.backend.RemoveRoute(ifname, "0.0.0.0/0", routeRetired.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+			c.warnRouteRemoval(ifname, *routeRetired, err)
+		} else {
+			*routeRetired = netip.Addr{}
+		}
+	}
+	if pairApplied[0].IsValid() {
+		if err := c.backend.RemoveAddressP2P(ifname,
+			netip.PrefixFrom(pairApplied[0], 32).String(),
+			netip.PrefixFrom(pairApplied[1], 32).String()); err != nil {
+			return err
+		}
+		*pairApplied = [2]netip.Addr{}
+	}
+	return nil
+}
+
+// applyPPPoEIPv4 installs the address pair and default gateway of a result
+// that carries IPv4, new values before the removal of old ones. Called only
+// from runSession's worker.
+func (c *PPPoEClient) applyPPPoEIPv4(ifname string, next PPPoEResult, routeApplied, routeRetired *netip.Addr, pairApplied *[2]netip.Addr) error {
+	pair := [2]netip.Addr{next.LocalIP, next.PeerIP}
+	if pair != *pairApplied {
+		if err := c.backend.AddAddressP2P(ifname,
+			netip.PrefixFrom(next.LocalIP, 32).String(),
+			netip.PrefixFrom(next.PeerIP, 32).String()); err != nil {
+			return err
+		}
+	}
+	if !c.cfg.NoDefaultRoute {
+		if next.PeerIP != *routeApplied {
+			if err := c.backend.AddRoute(ifname, "0.0.0.0/0", next.PeerIP.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+				c.warnRouteApply(ifname, next.PeerIP, err)
+			} else {
+				// Linux fib_table_insert replaces the prefix/metric slot.
+				// Keep one failed cleanup, not a backlog of replaced gateways.
+				if !routeRetired.IsValid() {
+					*routeRetired = *routeApplied
+				}
+				*routeApplied = next.PeerIP
+				if *routeRetired == *routeApplied {
+					// This gateway is desired again. Never remove it later.
+					*routeRetired = netip.Addr{}
+				}
+			}
+		}
+		if routeRetired.IsValid() {
+			if err := c.backend.RemoveRoute(ifname, "0.0.0.0/0", routeRetired.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+				c.warnRouteRemoval(ifname, *routeRetired, err)
+			} else {
+				*routeRetired = netip.Addr{}
+			}
+		}
+	}
+	if pair != *pairApplied {
+		// A session that came up without IPv4, or whose IPv4 was withdrawn,
+		// holds no pair, and an absent pair has nothing to remove.
+		if pairApplied[0].IsValid() {
+			if err := c.backend.RemoveAddressP2P(ifname,
+				netip.PrefixFrom(pairApplied[0], 32).String(),
+				netip.PrefixFrom(pairApplied[1], 32).String()); err != nil {
+				return err
+			}
+		}
+		*pairApplied = pair
+	}
+	return nil
 }
 
 // pppoeDNSServers lists the servers IPCP learned for resolv.conf, primary

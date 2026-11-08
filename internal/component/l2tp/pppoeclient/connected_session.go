@@ -40,6 +40,11 @@ type connectedSession struct {
 	// linkLocal is the local link-local address while IPv6CP is Opened, the
 	// invalid address otherwise; publish carries it in every result.
 	linkLocal netip.Addr
+	// ipcpStopped is true while IPCP is out of Opened on the connected link
+	// and LCP stays up (handleIPCP): IPv4 is discarded and publish withdraws
+	// it. False, the zero value, is the Opened state newConnectedSession
+	// admits and restart reaches.
+	ipcpStopped bool
 }
 
 // newConnectedSession admits the complete initial result without doing I/O.
@@ -175,6 +180,7 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 		return fmt.Errorf("pppoe-client: cannot resume IPv4 after LCP restart: %w", err)
 	}
 	s.current = next
+	s.ipcpStopped = false
 	// IPv6CP ran beside IPCP inside negotiatePhases with IPv6 discarded
 	// (keepaliveLoop applied lowerDown before this restart). It passes only
 	// now, if it reached Opened; otherwise keepaliveLoop goes on negotiating.
@@ -188,7 +194,8 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 }
 
 // publish replaces the one pending result with the session's complete current
-// state: the IPCP values and the IPv6CP link-local address.
+// state: the IPCP values, invalid while IPCP is Stopped, and the IPv6CP
+// link-local address.
 func (s *connectedSession) publish() {
 	// The worker is the only sender. A consumer can only create more room,
 	// so replacing the one pending value never waits for interface operations.
@@ -196,9 +203,10 @@ func (s *connectedSession) publish() {
 	case <-s.changes:
 	default: // No previous completion is pending.
 	}
-	s.changes <- iface.PPPoEResult{
-		LocalIP: s.current.localIP, PeerIP: s.current.peerIP, NegMTU: s.current.negMTU,
-		PrimaryDNS: s.current.primaryDNS, SecondaryDNS: s.current.secondaryDNS,
-		LinkLocal: s.linkLocal,
+	result := iface.PPPoEResult{NegMTU: s.current.negMTU, LinkLocal: s.linkLocal}
+	if !s.ipcpStopped {
+		result.LocalIP, result.PeerIP = s.current.localIP, s.current.peerIP
+		result.PrimaryDNS, result.SecondaryDNS = s.current.primaryDNS, s.current.secondaryDNS
 	}
+	s.changes <- result
 }

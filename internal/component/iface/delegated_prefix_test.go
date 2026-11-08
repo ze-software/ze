@@ -11,6 +11,11 @@ import (
 // from a delegated prefix (RFC 7084 L-2, AC-7). Method: derive from a /56 with
 // the default and an explicit interface identifier, from a delegation shorter
 // than the hint, and refuse an id the server's delegation cannot hold.
+//
+// RFC requirement: RFC7084-4.3-5 positive -- deriveDelegatedAddress turns a
+// subnet-id into its own /64 inside the delegated prefix, written in the bits
+// between the delegated length and 64, with the interface identifier as host
+// part.
 func TestDelegatedSubnetDerivation(t *testing.T) {
 	one := netip.MustParseAddr("::1")
 	two := netip.MustParseAddr("::2")
@@ -103,6 +108,9 @@ func TestDelegatedPrefixVerify(t *testing.T) {
 			t.Fatalf("subnet-id 65535 with no pd length refused: %v", err)
 		}
 	})
+	// RFC requirement: RFC7084-4.3-5 negative -- two LAN units taking subnet-id 1
+	// of the same pppoe0 delegation, so one /64 for both, are refused, and the
+	// refusal names both units.
 	t.Run("duplicate source and id names both units", func(t *testing.T) {
 		cfg := mustParseIfaceJSON(t, delegatedUnitJSON(`{"pppoe0": {"subnet-id": "1"}}`, `{"pppoe0": {"subnet-id": "1"}}`))
 		withPPPoESource(cfg, 56)

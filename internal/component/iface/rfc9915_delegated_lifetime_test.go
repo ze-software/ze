@@ -45,6 +45,12 @@ func delegatedTestUnit() *unitEntry {
 // /64 and its lifetimes at chosen later moments.
 // PREVENTS: an address or advertisement carrying the lease's full lifetime
 // after part of it has run, which outlives the delegation.
+//
+// RFC requirement: RFC9915-6.3-1 positive -- 1000.4 seconds after a Reply
+// delegating 2001:db8:aa00::/56 with valid lifetime 3600 and preferred 1800,
+// the advert claimed for the LAN unit's address 2001:db8:aa00:1::1/64 gives
+// valid lifetime 2599 and preferred 799, never above what remains of the
+// delegation.
 func TestRFC9915DelegatedLifetimeBound(t *testing.T) {
 	received := time.Unix(1_800_000_000, 0)
 	delegated := netip.MustParsePrefix("2001:db8:aa00::/56")
@@ -96,6 +102,9 @@ func TestRFC9915DelegatedLifetimeBound(t *testing.T) {
 		assert.Equal(t, uint32(300), preferred)
 	})
 
+	// RFC requirement: RFC9915-6.3-1 negative -- 61 seconds after a Reply
+	// delegating the /56 with valid lifetime 60, no advert is claimed for the
+	// LAN unit, so no address outlives the delegation.
 	t.Run("an expired delegation numbers nothing", func(t *testing.T) {
 		withCleanDelegations(t)
 		heldDelegations.record("pppoe0", delegated, received, 60, 30)

@@ -38,8 +38,9 @@ const (
 )
 
 // clientIPv6CP is the PPPoE client's IPv6CP automaton (RFC 5072 over the RFC
-// 1661 option negotiation). It runs beside IPCP and never ends the session:
-// a peer that rejects or ignores IPv6CP leaves IPv4 up.
+// 1661 option negotiation). It runs beside IPCP and ends the session only
+// when IPCP is down too (connectedSession.ncpsRemaining): a peer that rejects
+// or ignores IPv6CP leaves IPv4 up.
 //
 // RFC 7084 Section 4.2 WLL-3: "If the WAN interface supports PPP
 // encapsulation, in a dual-stack environment with IPCP and IPV6CP running
@@ -114,6 +115,21 @@ func (c *clientIPv6CP) lowerDown() ipv6cpEvent {
 		return ipv6cpClosed
 	}
 	return ipv6cpUnchanged
+}
+
+// running reports whether IPv6CP is Opened or still on its way there or out:
+// every RFC 1661 Section 4.1 state before This-Layer-Finished. Initial,
+// Starting, Closed and Stopped have finished, so IPv6CP then keeps no link up
+// (connectedSession.ncpsRemaining).
+func (c *clientIPv6CP) running() bool {
+	switch c.state {
+	case ppp.LCPStateReqSent, ppp.LCPStateAckRcvd, ppp.LCPStateAckSent, ppp.LCPStateOpened,
+		ppp.LCPStateClosing, ppp.LCPStateStopping:
+		return true
+	case ppp.LCPStateInitial, ppp.LCPStateStarting, ppp.LCPStateClosed, ppp.LCPStateStopped:
+		return false
+	}
+	panic("BUG: invalid IPv6CP automaton state")
 }
 
 // protocolRejected stops IPv6CP after an LCP Protocol-Reject that names it.

@@ -1,6 +1,7 @@
 // Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- network phase: keepalive, CHAP re-challenge, IPv6CP
 // Related: session.go -- negotiation that hands its frame channel to keepaliveLoop
 // Related: ipv6cp_client.go -- the IPv6CP automaton keepaliveLoop feeds
+// Related: ipcp_independent.go -- connected IPCP, which closes and reopens on its own
 //
 // RFC: rfc/short/rfc1994.md
 
@@ -128,6 +129,35 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 		ipv6Restart = restart.C
 	}
 
+	// reenter returns the session to Link Establishment for an admitted LCP
+	// Configure-Request, met here or inside an IPCP renegotiation, and
+	// reports whether the session goes on.
+	reenter := func(reentry *lcpReentry) bool {
+		echoTicker.Stop()
+		if session.ipv6 != nil {
+			// RFC 1661 Section 3.4: leaving the network phase takes
+			// every NCP down, IPv6CP included.
+			if err := session.applyIPv6CP(session.ipv6.lowerDown(), logger); err != nil {
+				logger.Warn("pppoe-client: IPv6CP could not be taken down for the LCP restart; the client will reconnect", "error", err)
+				return false
+			}
+		}
+		// RFC 1661 Sections 3.4-3.6: DROP precedes scr and sca/scn.
+		// restart starts IPv6CP again beside IPCP and applies the
+		// state it reached.
+		if err := session.restart(reentry, stopCh, logger); err != nil {
+			logger.Warn("pppoe-client: LCP restart failed; the client will reconnect", "error", err)
+			return false
+		}
+		// RFC 1661 Section 5.8: "On transmission, the Identifier field MUST
+		// be changed whenever the content of the Data field changes, and
+		// whenever a valid reply has been received for a previous request."
+		// Retain the sequence across restart, including an acknowledged Echo.
+		echoFails = 0
+		echoTicker.Reset(echoInterval)
+		return true
+	}
+
 	for {
 		select {
 		case <-stopCh:
@@ -149,6 +179,10 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 		case <-ipv6Restart:
 			if err := session.ipv6.tick(session.transport, frameBuf[:], logger); err != nil {
 				logger.Warn("pppoe-client: IPv6CP write failed", "error", err)
+				return
+			}
+			if err := session.ncpsRemaining(); err != nil {
+				logger.Warn("pppoe-client: IPv6CP gave up while IPCP is down", "error", err)
 				return
 			}
 		case frame, ok := <-session.reader.next():
@@ -190,11 +224,25 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 					logger.Warn("pppoe-client: IPv6CP state could not be applied; the client will reconnect", "error", err)
 					return
 				}
+				if err := session.ncpsRemaining(); err != nil {
+					logger.Warn("pppoe-client: IPv6CP closed while IPCP is down", "error", err)
+					return
+				}
 				continue
 			}
 			if proto == ppp.ProtoIPCP {
 				// RFC 1332 Section 2: connected IPCP uses the same ordered source.
-				if !answerOpenedIPCP(session.transport, frameBuf[:], pkt, &session.ipcpCodeRejectID, session.current.peerMRU, logger) {
+				// RFC 7084 Section 4.2 WLL-3: IPCP terminates and opens again
+				// on its own, with LCP and IPv6CP up (handleIPCP).
+				err := session.handleIPCP(frameBuf[:], pkt, stopCh, logger)
+				if reentry, ok := errors.AsType[*lcpReentry](err); ok {
+					if !reenter(reentry) {
+						return
+					}
+					continue
+				}
+				if err != nil {
+					logger.Warn("pppoe-client: IPCP ended the session", "error", err)
 					return
 				}
 				continue
@@ -217,28 +265,9 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 				if !admitted {
 					continue
 				}
-				echoTicker.Stop()
-				if session.ipv6 != nil {
-					// RFC 1661 Section 3.4: leaving the network phase takes
-					// every NCP down, IPv6CP included.
-					if err := session.applyIPv6CP(session.ipv6.lowerDown(), logger); err != nil {
-						logger.Warn("pppoe-client: IPv6CP could not be taken down for the LCP restart; the client will reconnect", "error", err)
-						return
-					}
-				}
-				// RFC 1661 Sections 3.4-3.6: DROP precedes scr and sca/scn.
-				// restart starts IPv6CP again beside IPCP and applies the
-				// state it reached.
-				if err := session.restart(reentry, stopCh, logger); err != nil {
-					logger.Warn("pppoe-client: LCP restart failed; the client will reconnect", "error", err)
+				if !reenter(reentry) {
 					return
 				}
-				// RFC 1661 Section 5.8: "On transmission, the Identifier field MUST
-				// be changed whenever the content of the Data field changes, and
-				// whenever a valid reply has been received for a previous request."
-				// Retain the sequence across restart, including an acknowledged Echo.
-				echoFails = 0
-				echoTicker.Reset(echoInterval)
 			case ppp.LCPEchoReply:
 				echoFails = 0
 			case ppp.LCPEchoRequest:
@@ -259,6 +288,10 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 					logger.Warn("pppoe-client: IPv6CP state could not be applied; the client will reconnect", "error", err)
 					return
 				}
+				if err := session.ncpsRemaining(); err != nil {
+					logger.Warn("pppoe-client: IPv6CP rejected while IPCP is down", "error", err)
+					return
+				}
 			}
 		}
 	}
@@ -275,41 +308,6 @@ func (session *connectedSession) warnReceiveFailure(err error, stopCh <-chan str
 		logger.Warn("pppoe-client: cannot receive session packets; the client will reconnect",
 			"name", session.cfg.name, "error", err)
 	}
-}
-
-// answerOpenedIPCP answers one IPCP packet received once IPCP is Opened, and
-// reports whether the session goes on. Only an LCP request restarts the phase
-// owner. An independent IPCP packet that takes IPCP out of Opened
-// (RFC 1661 Section 4.1: RCR, RCA, RCN, RTR,
-// RTA and RXJ- all leave Opened through tld) ends the session, and the dialer
-// brings up a new one.
-func answerOpenedIPCP(w io.Writer, buf []byte, pkt ppp.LCPPacket, codeRejectID *uint8, peerMRU uint16,
-	logger *slog.Logger) bool {
-	// RFC 1332 Section 2: "Other Codes should be treated as unrecognized and
-	// should result in Code-Rejects."
-	if ipcpCodeUnrecognized(pkt.Code) {
-		// RFC 1661 Section 5.6: "The Identifier field MUST be changed for
-		// each Code-Reject sent."
-		*codeRejectID++
-		if err := sendNCPCodeReject(w, buf, ppp.ProtoIPCP, pkt, *codeRejectID, peerMRU); err != nil {
-			logger.Warn("pppoe-client: IPCP Code-Reject write failed", "error", err)
-			return false
-		}
-		return true
-	}
-	if pkt.Code == ppp.LCPTerminateRequest {
-		// RFC 1661 Section 5.5: "Upon reception of a Terminate-Request, a
-		// Terminate-Ack MUST be transmitted."
-		off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
-		off += ppp.WriteLCPPacket(buf, off, ppp.LCPTerminateAck, pkt.Identifier, nil)
-		if err := writeClientPacket(w, buf[:off]); err != nil {
-			logger.Warn("pppoe-client: IPCP Terminate-Ack write failed", "error", err)
-		}
-		logger.Info("pppoe-client: server sent IPCP Terminate-Request")
-		return false
-	}
-	logger.Info("pppoe-client: IPCP left Opened, ending the session", "code", ppp.LCPCodeName(pkt.Code))
-	return false
 }
 
 // ipcpCodeUnrecognized reports whether code is none of the seven IPCP uses.

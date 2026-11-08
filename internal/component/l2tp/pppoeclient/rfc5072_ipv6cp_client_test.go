@@ -69,6 +69,10 @@ func startedIPv6CP(t *testing.T) (*clientIPv6CP, *ipv6cpWire, []byte) {
 // first Configure-Request carries exactly one Interface-Identifier option,
 // non-zero, built from the source interface's EUI-48. Method: start the
 // automaton and parse the one frame it writes.
+//
+// RFC requirement: RFC5072-4.1-1 positive -- the PPPoE client's first IPv6CP
+// Configure-Request carries exactly one 10-octet Interface-Identifier option,
+// holding the modified EUI-64 of the source interface's EUI-48.
 func TestRFC5072ClientConfigureRequestOneIdentifier(t *testing.T) {
 	_, w, _ := startedIPv6CP(t)
 	if len(w.frames) != 1 {
@@ -110,6 +114,10 @@ func TestRFC5072ClientTentativeWithoutMACClearsUBit(t *testing.T) {
 // TestRFC5072ClientAdoptsNakSuggestion checks AC-2: after a Configure-Nak
 // that suggests an identifier, the next Configure-Request carries it, under a
 // new Identifier.
+//
+// RFC requirement: RFC5072-4.1-7 positive -- after a Configure-Nak suggesting
+// identifier 02:00:00:00:00:00:00:77, the PPPoE client's next IPv6CP
+// Configure-Request carries that identifier, under a new Identifier.
 func TestRFC5072ClientAdoptsNakSuggestion(t *testing.T) {
 	c, w, buf := startedIPv6CP(t)
 	first := lastIPv6CP(t, w)

@@ -107,16 +107,28 @@ Linux then queues IPCP on the unit, not the channel (`ppp_input` and
 
 In the network phase, the consumer answers
 an IPCP packet with an unknown Code with a Code-Reject whose Identifier goes on
-from the last one IPCP negotiation sent, answers an IPCP Terminate-Request with
-a Terminate-Ack and ends the session, and ends the session on any other IPCP
-packet that takes IPCP out of Opened independently of LCP. Only an LCP
-Configure-Request starts in-session renegotiation. Cleanup stops transport,
+from the last one IPCP negotiation sent. Any other IPCP packet takes IPCP out
+of Opened on its own (RFC 7084 WLL-3, RFC 1661 Section 4.1): IPv4 is set to
+discard on the unit and the next published result carries no IPv4 address,
+peer or DNS server, while LCP and IPv6CP stay up. A Configure-Request,
+Configure-Ack, Configure-Nak, Configure-Reject or Terminate-Ack starts IPCP
+again at once on the same reader, with IPv6CP events still applied as they
+arrive; a Terminate-Request is answered with a Terminate-Ack, and a
+Code-Reject with a Terminate-Request, and IPCP then waits Stopped until the
+access concentrator sends a Configure-Request. A renegotiation that the peer
+terminates, refuses the address for, or never completes leaves IPCP Stopped.
+The session ends only when no NCP is left: IPCP Stopped and IPv6CP neither
+Opened nor negotiating, as accel-ppp ends a link once every layer has finished
+(`accel-pppd/ppp/ppp.c`, `ppp_layer_finished`). An IPv4-only session therefore
+still ends on an IPCP Terminate-Request. An LCP Configure-Request starts
+in-session renegotiation of every phase. Cleanup stops transport,
 joins the phase worker, joins the receive worker, and closes the unit last.
 Cancellation releases request and delivery waits. Raw reads and each bounded
 poll hold the lifecycle lock, so Close cannot recycle a descriptor during a syscall.
 Initial negotiation failures have no phase worker to join.
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial, cleanupConnected -->
-<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop, answerOpenedIPCP -->
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
+<!-- source: internal/component/l2tp/pppoeclient/ipcp_independent.go -- handleIPCP, leaveOpenedIPCP, answerStoppedIPCP, renegotiateIPCP, ncpsRemaining -->
 
 ### IPv6CP
 
@@ -306,7 +318,16 @@ desired gateway. Netlink replaces the fixed default-route prefix and metric slot
 so the worker retains one cleanup request rather than a backlog of replaced gateways.
 An unchanged record makes no backend call when every field is already applied.
 It can retry a previously failed route install or removal.
-<!-- source: internal/component/iface/pppoe_client.go -- runSession, warnRouteApply, warnRouteRemoval -->
+
+A result without IPv4 (IPCP Stopped while IPv6CP holds the session, RFC 7084
+WLL-3) withdraws IPv4 alone: the worker removes the default route it installed
+and any retired route still awaiting cleanup, then the point-to-point address
+pair, and the empty DNS server list withdraws the resolv.conf lease. The MTU
+and the IPv6CP link-local stay as they are. A failed route removal keeps its
+ownership for the next result to retry; a failed address removal ends the
+session. When IPCP opens again, the next complete result installs the pair and
+the default route as on a new session: there is no old pair left to remove.
+<!-- source: internal/component/iface/pppoe_client.go -- runSession, withdrawPPPoEIPv4, applyPPPoEIPv4, warnRouteApply, warnRouteRemoval -->
 
 `ze_pppoe_client_renegotiations_total` counts network-phase LCP restarts by
 configured client `name`, including attempts that fail. The registration hook

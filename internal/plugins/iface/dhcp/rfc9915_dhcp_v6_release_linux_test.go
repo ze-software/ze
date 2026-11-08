@@ -14,6 +14,14 @@ import (
 // left with nothing to release sends no Release.
 // METHOD: filter a lease through releasableLease with a chosen in-use answer.
 // PREVENTS: releasing a /56 while LAN hosts still hold addresses from it.
+//
+// RFC requirement: RFC9915-6.3-3 positive -- releasableLease, which builds the
+// shutdown Release, leaves out the delegated prefix the in-use answer reports
+// a LAN unit took space from, and a lease whose only prefix is in use leaves
+// nothing to release.
+// RFC requirement: RFC9915-6.3-3 negative -- releasableLease keeps the
+// delegated prefix no LAN unit took space from, and with no prefix in use it
+// keeps both, so only space a LAN unit took is held back.
 func TestRFC9915NoReleaseWhileDelegated(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
 	used := netip.MustParsePrefix("2001:db8:aa00::/56")

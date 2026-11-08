@@ -68,6 +68,21 @@ func findRoute(cfg ndp.RAConfig, p netip.Prefix) (ndp.RouteInfo, bool) {
 // METHOD: build the advertisement for each W and P with a fixed clock.
 // PREVENTS: a CE advertising itself as a default router with no way out, or
 // with no prefix for its hosts to source from.
+//
+// RFC requirement: RFC7084-4.1-4 positive -- a CE-role unit whose WAN holds no
+// default route advertises Router Lifetime 0, with or without a prefix.
+// RFC requirement: RFC7084-4.1-4 negative -- with the WAN default route and a
+// prefix, the unit advertises its configured Router Lifetime 1800, and a unit
+// naming no WAN keeps 1800 whatever the WAN state.
+// RFC requirement: RFC7084-4.3-7 positive -- a CE-role unit with no prefix
+// configured or delegated advertises Router Lifetime 0, even with the WAN
+// default route.
+// RFC requirement: RFC7084-4.3-7 negative -- a CE-role unit with a delegated
+// or operator prefix and the WAN default route advertises its configured
+// Router Lifetime 1800.
+// RFC requirement: RFC7084-4.3-6 positive -- while the delegation holds, the
+// unit's advertisement carries a Route Information Option for the delegated
+// prefix, with and without the WAN default route.
 func TestRFC7084RouterLifetimeMatrix(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -117,6 +132,10 @@ func TestRFC7084RouterLifetimeMatrix(t *testing.T) {
 // L set, and the RIO lifetime is the delegation's remaining valid lifetime.
 // PREVENTS: an advertisement that keeps the lease's original lifetimes while
 // the delegation runs down.
+//
+// RFC requirement: RFC9915-6.3-2 positive -- 1500.7 seconds into a delegation
+// with valid lifetime 3600 and preferred 7200, the PIO of the derived /64
+// advertises valid and preferred lifetime 2099, never above what remains.
 func TestRFC9915AdvertisedLifetimeBound(t *testing.T) {
 	adv := &advertiser{spec: ceSpec(t, time.Hour, 2*time.Hour, false)}
 	later := testNow.Add(1500*time.Second + 700*time.Millisecond)
@@ -150,6 +169,12 @@ func TestRFC9915AdvertisedLifetimeBound(t *testing.T) {
 // METHOD: drive the advertiser through sent, a WAN loss, and an update.
 // PREVENTS: hosts keeping Ze as their default router until the next periodic
 // advertisement, up to MaxRtrAdvInterval after the WAN went away.
+//
+// RFC requirement: RFC7084-4.1-5 positive -- after an advertisement with Router
+// Lifetime 1800 went out, losing the WAN default route makes the next
+// advertisement urgent, and it carries Router Lifetime 0.
+// RFC requirement: RFC7084-4.1-5 negative -- after the same advertisement went
+// out, a WAN that still holds its default route makes nothing urgent.
 func TestRFC7084G5ImmediateZeroLifetime(t *testing.T) {
 	adv := &advertiser{spec: ceSpec(t, time.Hour, time.Hour, false)}
 	first := adv.build(testNow, true)
@@ -233,5 +258,64 @@ func TestRFC7084G4RouterLifetimeFollowsWANDefault(t *testing.T) {
 	late.seed([]routewatch.RouteEvent{defaultRoute(9, mainRouteTable, routewatch.ActionAdd)})
 	if late.holds(9) {
 		t.Fatal("a seed read before a removal must not restore the route")
+	}
+}
+
+// VALIDATES: RFC 7084 L-3 (RFC7084-4.3-6) once the delegation ends: the
+// Route Information Option for the delegated prefix is withdrawn once with
+// lifetime 0, and the advertisement after that carries none.
+// METHOD: send an advertisement while the delegation holds, drop it with an
+// update, and build the next two advertisements.
+// PREVENTS: a CE that keeps advertising itself as a router for a prefix it no
+// longer holds, or never tells hosts the route is gone.
+//
+// RFC requirement: RFC7084-4.3-6 negative -- after the delegation is dropped,
+// the next advertisement carries the delegated prefix's Route Information
+// Option once with lifetime 0, and the one after it carries none.
+func TestRFC7084L3DroppedDelegationRIO(t *testing.T) {
+	adv := &advertiser{spec: ceSpec(t, time.Hour, time.Hour, false)}
+	held := adv.build(testNow, true)
+	if rio, ok := findRoute(held, testDelegated); !ok || rio.Lifetime != 3600 {
+		t.Fatalf("setup: RIO %+v (present %v), want lifetime 3600", rio, ok)
+	}
+	adv.sent(held)
+
+	adv.update(ceSpec(t, 0, 0, false))
+	withdrawn := adv.build(testNow, true)
+	rio, ok := findRoute(withdrawn, testDelegated)
+	if !ok {
+		t.Fatal("the dropped delegation's RIO must go out once to withdraw the route")
+	}
+	if rio.Lifetime != 0 {
+		t.Fatalf("withdrawn RIO lifetime = %d, want 0", rio.Lifetime)
+	}
+	adv.sent(withdrawn)
+	if rio, ok := findRoute(adv.build(testNow, true), testDelegated); ok {
+		t.Fatalf("RIO %+v still advertised after the withdrawal went out", rio)
+	}
+}
+
+// VALIDATES: RFC 9915 Section 6.3 (RFC9915-6.3-2) past the end of the
+// delegation: the derived /64 is advertised with lifetimes 0, never the
+// lease's original 3600.
+// METHOD: build the advertisement 3601 seconds into a delegation whose valid
+// lifetime is 3600 and preferred lifetime 7200.
+// PREVENTS: hosts keeping addresses from a prefix whose delegation expired.
+//
+// RFC requirement: RFC9915-6.3-2 negative -- 3601 seconds into a delegation
+// with valid lifetime 3600, the PIO of the derived /64 advertises valid and
+// preferred lifetime 0, not 3600.
+func TestRFC9915AdvertisedLifetimeExpired(t *testing.T) {
+	adv := &advertiser{spec: ceSpec(t, time.Hour, 2*time.Hour, false)}
+	cfg := adv.build(testNow.Add(3601*time.Second), true)
+	pio, ok := findPrefix(cfg, testSubnet.Masked())
+	if !ok {
+		t.Fatal("no PIO for the delegated /64")
+	}
+	if pio.ValidLifetime != 0 {
+		t.Fatalf("valid = %d, want 0 once the delegation expired", pio.ValidLifetime)
+	}
+	if pio.PreferredLifetime != 0 {
+		t.Fatalf("preferred = %d, want 0 once the delegation expired", pio.PreferredLifetime)
 	}
 }

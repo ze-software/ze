@@ -745,6 +745,12 @@ func learnedDNS(requested bool, value netip.Addr) netip.Addr {
 // applies it (connectedSession.enableIPv6CP, connectedSession.restart). IPv6
 // stays discarded on the unit for the whole call.
 func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU uint16, chap *networkPhaseCHAP, identifier *uint8, stopCh <-chan struct{}, logger *slog.Logger, codeRejectID *uint8, ipv6 *clientIPv6CP) (ipcpResult, error) {
+	return runIPCP(w, reader, buf, magic, peerMRU, chap, identifier, stopCh, logger, codeRejectID, ipcpRun{ipv6: ipv6})
+}
+
+// runIPCP is negotiateIPCP with the run said by run; see ipcpRun.
+func runIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU uint16, chap *networkPhaseCHAP, identifier *uint8, stopCh <-chan struct{}, logger *slog.Logger, codeRejectID *uint8, run ipcpRun) (ipcpResult, error) {
+	ipv6 := run.ipv6
 	var result ipcpResult
 	requested := ipcpInitialRequest()
 	// RFC 1332 Section 2 uses the LCP exchange mechanism. A new exchange
@@ -768,9 +774,12 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 		// An access concentrator that holds IPv6CP passive (accel-ppp with
 		// ipv6=allow) activates the session as soon as IPCP opens; it MUST
 		// have seen this request by then, or it brings the session up IPv4-only.
-		ipv6.peerMRU = peerMRU
-		if err := ipv6.start(w, buf); err != nil {
-			return ipcpResult{}, err
+		// A connected renegotiation of IPCP alone leaves IPv6CP where it is.
+		if run.applyIPv6 == nil {
+			ipv6.peerMRU = peerMRU
+			if err := ipv6.start(w, buf); err != nil {
+				return ipcpResult{}, err
+			}
 		}
 	}
 
@@ -784,13 +793,23 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 	// RFC 1332 Section 2 uses the LCP exchange mechanism. Keep the exact
 	// outstanding request until a valid reply changes it (RFC 1661 Section 5).
 	for state != ppp.LCPStateOpened {
+		if run.queued != nil {
+			// RFC 1661 Section 4.1: the Configure-Request that took IPCP out
+			// of Opened or Stopped is answered after this side's scr.
+			pkt := *run.queued
+			run.queued = nil
+			if err := answerIPCPRequest(w, buf, pkt, &result, &state); err != nil {
+				return ipcpResult{}, err
+			}
+			continue
+		}
 		var frame readFrame
 		var ok bool
 		select {
 		case <-stopCh:
 			return ipcpResult{}, errors.New("pppoe-client: stopped during IPCP")
 		case <-deadline.C:
-			return ipcpResult{}, errors.New("pppoe-client: IPCP timeout")
+			return ipcpResult{}, ipcpStoppedError{reason: "pppoe-client: IPCP timeout"}
 		case <-restart.C:
 			if state == ppp.LCPStateAckRcvd {
 				*identifier++
@@ -844,10 +863,13 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 				if !rejectsIPv6CP(pkt) {
 					continue
 				}
-				// The automaton was never applied to the unit, so its event
-				// changes nothing yet; the caller applies the final state.
+				// In the initial negotiation the automaton was never applied to
+				// the unit, so its event changes nothing yet; the caller applies
+				// the final state. A connected renegotiation applies it now.
 				logger.Info("pppoe-client: the access concentrator rejected IPv6CP; IPv4 continues")
-				ipv6.protocolRejected()
+				if err := run.apply(ipv6.protocolRejected()); err != nil {
+					return ipcpResult{}, err
+				}
 			}
 			continue
 		}
@@ -856,9 +878,14 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 				continue
 			}
 			// RFC 7084 Section 4.2 WLL-3: IPv6CP negotiates beside IPCP; its
-			// outcome never ends IPCP. The event is not applied here: IPv6
-			// stays discarded until the caller applies the final state.
-			if _, err := ipv6.handle(w, buf, pkt, logger); err != nil {
+			// outcome never ends IPCP. In the initial negotiation the event is
+			// not applied: IPv6 stays discarded until the caller applies the
+			// final state. A connected renegotiation applies it now.
+			event, err := ipv6.handle(w, buf, pkt, logger)
+			if err != nil {
+				return ipcpResult{}, err
+			}
+			if err := run.apply(event); err != nil {
 				return ipcpResult{}, err
 			}
 			continue
@@ -901,41 +928,8 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 
 		switch pkt.Code {
 		case ppp.LCPConfigureRequest:
-			options, err := ppp.ParseIPCPOptions(pkt.Data)
-			if err != nil {
-				continue
-			}
-			// This client negotiates IP-Address only. Preserve unsupported
-			// options byte-for-byte in a Reject (RFC 1661 Section 5.4).
-			rejected := 0
-			for data := pkt.Data; len(data) != 0; {
-				length := int(data[1]) // ParseIPCPOptions checked each boundary.
-				if data[0] != ppp.IPCPOptIPAddress {
-					rejected += copy(buf[6+rejected:], data[:length])
-				}
-				data = data[length:]
-			}
-			if rejected != 0 {
-				off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
-				off += ppp.WriteLCPPacket(buf, off, ppp.LCPConfigureReject, pkt.Identifier, buf[6:6+rejected])
-				if err := writeClientPacket(w, buf[:off]); err != nil {
-					return ipcpResult{}, err
-				}
-				if state == ppp.LCPStateAckSent {
-					state = ppp.LCPStateReqSent
-				}
-				continue
-			}
-			result.peerIP = options.IPAddress
-			off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
-			off += ppp.WriteLCPPacket(buf, off, ppp.LCPConfigureAck, pkt.Identifier, pkt.Data)
-			if err := writeClientPacket(w, buf[:off]); err != nil {
+			if err := answerIPCPRequest(w, buf, pkt, &result, &state); err != nil {
 				return ipcpResult{}, err
-			}
-			if state == ppp.LCPStateAckRcvd {
-				state = ppp.LCPStateOpened
-			} else {
-				state = ppp.LCPStateAckSent
 			}
 		case ppp.LCPConfigureAck:
 			// ValidateLCPReply matched the Ack to the outstanding request
@@ -992,7 +986,7 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 				continue
 			}
 			if rejected.HasIPAddress {
-				return ipcpResult{}, errors.New("pppoe-client: the access concentrator rejected the IPCP IP-Address option, so no IPv4 address can be assigned; configure an address pool for PPPoE sessions on the access concentrator")
+				return ipcpResult{}, ipcpStoppedError{reason: "pppoe-client: the access concentrator rejected the IPCP IP-Address option, so no IPv4 address can be assigned; configure an address pool for PPPoE sessions on the access concentrator"}
 			}
 			// RFC 1661 Section 5.4: "Reception of a valid Configure-Reject indicates that when a new Configure-Request is sent, it MUST NOT include any of the Configuration Options listed in the Configure-Reject."
 			// A server with no DNS to offer Rejects 129 and 131; the session
@@ -1017,7 +1011,7 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 			if err := writeClientPacket(w, buf[:off]); err != nil {
 				return ipcpResult{}, err
 			}
-			return ipcpResult{}, errors.New("pppoe-client: server terminated IPCP")
+			return ipcpResult{}, ipcpStoppedError{reason: "pppoe-client: server terminated IPCP"}
 		}
 	}
 	if !result.localIP.IsGlobalUnicast() {

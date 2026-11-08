@@ -10,6 +10,11 @@ import (
 // router sends for its delegated prefix. Method: encode an RA with one route
 // of each Length class (/0, /56, /96) and read every field back at the offsets
 // RFC 4191 Section 2.3 gives, after the 16-octet header and one PIO.
+//
+// RFC requirement: RFC7084-4.3-6 positive -- BuildRA writes each route as a
+// Route Information Option laid out as RFC 4191 Section 2.3 gives: the Route
+// Information type, Length 1, 2 or 3 units for a /0, /56 or /96, the Prefix
+// Length, a zero preference octet, the Route Lifetime and the prefix octets.
 func TestRFC7084L3RouteInformationOption(t *testing.T) {
 	cases := []struct {
 		name   string
