@@ -109,6 +109,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   local route stays for when the daemon is unreachable. A command whose result
   lives on the caller's side gets a daemon form designed for it, never an
   exclusion.
+- `ze doctor` reports every problem an operator can hit, so it can be used to
+  find any problem on the box: each one with its cause and the command that
+  fixes it. A problem class found in code, a lab or a test that doctor does not
+  report is a gap owed a doctor check, never left to the logs.
 - An operator adds a peer, with any of its settings, to the running
   configuration without restarting Ze, as every other routing implementation
   allows. A reload that refuses a new peer because of what it configures is a
