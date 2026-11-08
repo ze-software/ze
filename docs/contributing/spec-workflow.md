@@ -605,9 +605,48 @@ evidence, an unavailable model or an unusable verdict is UNJUDGEABLE and refuses
 acceptance, not proof of coverage. The source-read hook binds current source
 bytes but does not prove understanding or census completeness; `le spec review`
 records and checks review artifacts rather than running the model judgment.
+The native check judges only the floor of that semantic judgment, the shape
+the spec states about itself, described below.
 <!-- source: ai/skills/ze-spec.md -- Design admission judgment -->
 <!-- source: internal/le/hookruntime/designevidence.go -- designEvidenceProblem -->
 <!-- source: internal/le/spec/actions.go -- ReviewArea -->
+
+A spec written from the current template owes a native structural judgment of
+its census and criteria too. The pre-write hook `writeSpecMechanisms` and
+`./le commit create` apply it through the same `Problem` predicate, over the
+same edited specs and the same `design`, `ready`, `in-progress` and
+`verification` statuses as the Existing Mechanisms rule. The current template
+is recognized by its own structures: a `### Changed-Wire Census` heading, or an
+Acceptance Criteria table whose header carries a `Permitted Survivors and Why`
+column. A spec that carries either owes both, so a spec that drops one cannot
+escape the other. A spec written before the template carried them holds
+neither, and its verdict is unchanged.
+
+| Section | Refused |
+|---------|---------|
+| `### Changed-Wire Census` | The section is missing. Or it holds no data row and states no reason (any prose other than the unfilled `**Search evidence:**` prompt). Or it has rows but no filled `**Search evidence:**` line. Or a row names no wire, no `writer` or `reader` in its Role cell, or no carrier. Or a wire has no writer row or no reader row. A Wire cell of `same` continues the wire of the row above |
+| `## Acceptance Criteria` | No row sits under the `Permitted Survivors` header. Or a row's Expected Behavior is empty or a bracketed prompt. Or every outcome clause of that cell carries a negation (`no`, `not`, `never`, `nothing`, `none`, `without`, a `n't` contraction). Or a row's Permitted Survivors and Why cell is empty, a dash or a prompt |
+
+Every wire has two ends, so a census that names a wire and leaves out the only
+row for one end has left out a speaker it knows of, whether that speaker is Go,
+shell or Python. A census copied from Files to Modify usually lists one end
+only, and is refused that way. A wire whose reader is outside the repository,
+such as a protocol peer or a third-party plugin, still owes that reader row.
+The check cannot see a speaker the census never mentions, such as a second
+reader of a wire that already has one: that remains the harness-model
+judgment's job.
+
+The criteria judgment splits the Expected Behavior cell into clauses at
+punctuation and at `and`, `but` and condition words. It skips a clause opened
+by a condition (`when`, `if`, `unless`, `until`, ...), because that clause says
+when the outcome holds rather than what it is. One clause with no negation is
+the positive observable, so `the route is installed, and no withdrawal is sent`
+and `returns an error when no peer matches` pass. `never panics when the input
+is short` is refused.
+<!-- source: internal/le/spec/mechanisms/specmechanisms.go -- Problem, currentTemplate -->
+<!-- source: internal/le/spec/mechanisms/census.go -- censusProblem, censusWires -->
+<!-- source: internal/le/spec/mechanisms/criteria.go -- criteriaProblem, absenceOnly -->
+<!-- source: internal/le/spec/one_off_proof_test.go -- TestWireCensusIncludesNonGoSpeakers, TestCriteriaNamePositiveBehavior -->
 
 The manual harness-model regression inputs live in
 `internal/le/spec/testdata/design-admission.json`. For each frozen model input,

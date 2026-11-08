@@ -108,6 +108,10 @@ Record the search scope, terms and a known producer/consumer control. If no
 wire changes, give the source-supported reason instead of a fictitious census.
 The harness-model design judgment compares these rows with current source
 evidence; the source-read hook alone does not establish completeness.
+From `design` onward the spec tooling refuses this census when it is missing,
+holds rows with no filled search evidence, or names a wire with no writer row
+or no reader row (`internal/le/spec/mechanisms`). A reader outside the
+repository, such as a peer or a third-party plugin, is still a row.
 
 **Search evidence:** [scope, terms, positive control and source findings]
 
@@ -172,7 +176,10 @@ evidence; the source-read hook alone does not establish completeness.
      never only the mechanism or the absence of the defect. Name what remains
      permitted and why; if there are no permitted survivors, state the reason.
      Dropping or rejecting every input must not satisfy an AC for useful output.
-     The harness-model design judgment checks meaning, not acceptance words. -->
+     The harness-model design judgment checks meaning, not acceptance words.
+     From `design` onward the spec tooling also refuses a row whose Expected
+     Behavior states only an absence, or whose Permitted Survivors cell is
+     empty (`internal/le/spec/mechanisms`). -->
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | [what triggers the behavior] | [positive observable outcome] | [what remains permitted and why, or why none] |

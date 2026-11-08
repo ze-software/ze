@@ -16,7 +16,9 @@ import (
 )
 
 // specMechanismsRefusal refuses edited carried specs with invalid Status
-// metadata or missing required Existing Mechanisms rows (specmechanisms.Problem).
+// metadata, missing required Existing Mechanisms rows, or, for a spec written
+// from the current template, an incomplete Changed-Wire Census or an
+// absence-only Acceptance Criterion (specmechanisms.Problem).
 // Only specs in paths are judged, read as the commit carries them.
 // A carried spec whose text is not an
 // edit is not judged either: the text HEAD holds at the same path, or the text

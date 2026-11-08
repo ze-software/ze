@@ -24,7 +24,9 @@ const (
 // writeSpecMechanisms refuses a Write, Edit or MultiEdit of a spec under plan/
 // (specpath.IsSpec) whose content after the edit claims a design (Status
 // design, ready, in-progress or verification) and carries no Existing
-// Mechanisms table row (specmechanisms.Problem). The same proposed content
+// Mechanisms table row, or, written from the current template, a Changed-Wire
+// Census that omits a writer or reader or an absence-only Acceptance Criterion
+// (specmechanisms.Problem). The same proposed content
 // also owes functional entry-point proof when daemonProofProblem identifies a
 // runtime change. An untouched spec is never judged; an Edit whose old_string
 // the file does not hold changes nothing and passes to the tool's own failure.
