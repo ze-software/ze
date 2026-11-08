@@ -224,6 +224,12 @@ func interfaceSPDCatchAllForTest(t *testing.T, b *xfrmBackend, action SPAction) 
 	installForTest(t, b, SPParams{Src: any6, Dst: any6, Dir: SADirOut, Action: action, Priority: PriorityUnmatched, IfID: xfrmiTestIfID})
 }
 
+// RFC requirement: RFC4301-4.4.1-3 positive -- on a real Linux XFRM stack, a DISCARD
+// entry the xfrm backend installs at an XFRM interface's if_id, ranked at
+// PriorityUnmatched, blocks an IPv4 and an IPv6 write routed into that interface that
+// nothing else in its SPD matches (XfrmOutPolBlock rises), and a Child SA policy at
+// PriorityChildSA for one destination is matched ahead of it.
+//
 // TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel measures AC-1, AC-3 and A-1 on a
 // real XFRM stack. With no if_id 0 entry at all, traffic routed into the XFRM interface
 // passes the if_id 0 lookup and is looked up again at the interface's if_id by

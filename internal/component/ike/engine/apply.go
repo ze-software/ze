@@ -378,9 +378,18 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// ahead of the exemptions, so a catch-all turning to DISCARD never drops a bound
 	// tunnel's traffic, and the stale ones come out AFTER it, so a catch-all turning to
 	// BYPASS never does either. On the first apply the catch-all still goes in first.
+	//
+	// An interface catch-all the backend refuses fails the apply, as the node-wide one
+	// does: the interface's SPD would have no final entry (installXFRMInterfaceEntries).
+	// On a reload the refusal comes before the node catch-all is re-asserted, so the
+	// running disposition stays. On the first apply the node catch-all, the IKE bypass
+	// and the prune have run, so the SPD state matches discardInForce, and releaseSPD
+	// removes them on exit.
 	interfaceEntries := s.planXFRMInterfaceEntries(cfg)
 	if s.spdApplied {
-		s.installXFRMInterfaceEntries(dataplane.Get(), interfaceEntries)
+		if err := s.installXFRMInterfaceEntries(dataplane.Get(), interfaceEntries); err != nil {
+			return err
+		}
 	}
 	s.spdApplied = true
 	if err := installUnmatched(dataplane.Get(), cfg.Unmatched, s.log); err != nil {
@@ -390,9 +399,12 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		installIKEBypass(dataplane.Get(), s.log)
 		s.ikeBypassInstalled = true
 	}
-	s.installXFRMInterfaceEntries(dataplane.Get(), interfaceEntries)
+	interfaceErr := s.installXFRMInterfaceEntries(dataplane.Get(), interfaceEntries)
 	s.pruneXFRMInterfaceEntries(dataplane.Get(), interfaceEntries)
 	s.discardInForce.Store(cfg.Unmatched == dataplane.SPActionDiscard)
+	if interfaceErr != nil {
+		return interfaceErr
+	}
 	if phase == applyStartup {
 		// The start is never verified, so refuseImplicitDiscard cannot run here.
 		warnImplicitDiscardAtStart(cfg, s.log)

@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -327,6 +328,12 @@ func wantInterfaceCatchAll(ifID uint32) []string {
 	return want
 }
 
+// RFC requirement: RFC4301-4.4.1-3 positive -- the final entry interfaceSPDCatchAll
+// builds for a bound XFRM interface's SPD is DISCARD in, out and fwd for IPv4 and IPv6
+// at that interface's if_id, ranked at PriorityUnmatched below every Child SA policy,
+// with any address, protocol, port and device, so it matches what the SPD otherwise
+// leaves unmatched and discards it.
+//
 // VALIDATES: AC-1 and AC-2 at the builder: one interface SPD's final entry is six
 // DISCARD entries, in, out and fwd for both families, at the interface's if_id, ranked
 // last, any protocol and port; the largest if_id is carried unchanged (boundary).
@@ -384,6 +391,11 @@ func TestInterfaceSPDCatchAllRefusesIfIDZero(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC4301-4.4.1-3 positive -- a commit with a peer bound to an XFRM
+// interface under `unmatched discard` leaves that interface's SPD holding its final
+// DISCARD entry, in, out and fwd for IPv4 and IPv6 at the interface's if_id, beside the
+// node-wide DISCARD catch-all.
+//
 // VALIDATES: wiring row 1 (AC-1): a commit with a peer bound to vti0 under
 // `unmatched discard` reaches planXFRMInterfaceEntries and leaves vti0's SPD holding its
 // own DISCARD catch-all, beside the if_id 0 exemptions and the DISCARD node catch-all,
@@ -483,6 +495,85 @@ func TestInterfaceSPDCatchAllPrecedesTheExemptions(t *testing.T) {
 	}
 }
 
+// failInterfaceCatchAllInstallDP refuses, while refuse is set, the install of any
+// interface SPD catch-all entry, as a kernel would refuse a daemon without
+// CAP_NET_ADMIN, and installs every other entry.
+type failInterfaceCatchAllInstallDP struct {
+	catchAllDP
+	refuse bool
+}
+
+func (d *failInterfaceCatchAllInstallDP) InstallPolicy(p dataplane.SPParams) error {
+	if d.refuse && p.Priority == int(dataplane.PriorityUnmatched) && p.IfID != 0 {
+		return errors.New("test: operation not permitted")
+	}
+	return d.catchAllDP.InstallPolicy(p)
+}
+
+// RFC requirement: RFC4301-4.4.1-3 negative -- a commit whose bound XFRM interface's
+// SPD cannot receive its final DISCARD entry is not reported applied (applyConfig
+// answers an error naming the interface and the catch-all, on the first apply and on a
+// reload), and no if_id 0 exemption hands that interface's SPD any traffic.
+//
+// VALIDATES: a refused interface catch-all fails the apply as a refused node catch-all
+// does (TestUnmatchedInstallFailureFailsTheApply), the reload leaving the running node
+// catch-all in place, and no exemption of that interface goes in.
+// Method: over a backend that refuses only interface catch-all entries, apply a vti0-bound
+// discard configuration to a fresh engine (first apply); then, on another engine, apply
+// an unbound bypass configuration cleanly and reload to the vti0-bound discard one.
+// PREVENTS: an interface SPD with no final entry reported applied, the case where the
+// kernel accepts an unmatched inbound packet under a transport-mode or offloaded state.
+func TestInterfaceSPDCatchAllInstallFailureFailsTheApply(t *testing.T) {
+	t.Run("first apply", func(t *testing.T) {
+		dp := &failInterfaceCatchAllInstallDP{refuse: true}
+		loadFailClosedBackend(t, dp)
+		stub := stubXFRMInterfaceReads(t)
+		stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
+		state := applyTestState(t)
+
+		err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload)
+		if err == nil {
+			t.Fatal("an interface SPD whose catch-all the backend refused was reported applied")
+		}
+		if !strings.Contains(err.Error(), "vti0") || !strings.Contains(err.Error(), "catch-all") {
+			t.Errorf("error %q does not name the interface and its catch-all", err)
+		}
+		if got := liveInterfaceCatchAll(t, &dp.catchAllDP); len(got) != 0 {
+			t.Errorf("interface catch-all entries live after a refused install: %q", got)
+		}
+		if got := liveExemptions(&dp.catchAllDP); len(got) != 0 {
+			t.Errorf("exemptions hand traffic to an interface SPD with no final entry: %q", got)
+		}
+	})
+	t.Run("reload", func(t *testing.T) {
+		dp := &failInterfaceCatchAllInstallDP{}
+		loadFailClosedBackend(t, dp)
+		stub := stubXFRMInterfaceReads(t)
+		stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
+		state := applyTestState(t)
+
+		unbound := testIPsecConfig(applyTestPeer("127.0.0.1"))
+		unbound.Unmatched = dataplane.SPActionBypass
+		if err := state.applyConfig(unbound, applyReload); err != nil {
+			t.Fatalf("unbound apply: %v", err)
+		}
+		dp.refuse = true
+		err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload)
+		if err == nil {
+			t.Fatal("a reload whose interface SPD catch-all the backend refused was reported applied")
+		}
+		if !strings.Contains(err.Error(), "vti0") || !strings.Contains(err.Error(), "catch-all") {
+			t.Errorf("error %q does not name the interface and its catch-all", err)
+		}
+		if got := liveExemptions(&dp.catchAllDP); len(got) != 0 {
+			t.Errorf("exemptions hand traffic to an interface SPD with no final entry: %q", got)
+		}
+		if got := liveCatchAll(t, &dp.catchAllDP); got != dataplane.SPActionBypass {
+			t.Errorf("node catch-all action %d after a refused reload, want the running bypass", got)
+		}
+	})
+}
+
 // failInterfaceCatchAllRemovalDP refuses the removal of any interface SPD catch-all
 // entry, as a kernel would refuse a daemon without CAP_NET_ADMIN.
 type failInterfaceCatchAllRemovalDP struct {
@@ -496,6 +587,10 @@ func (d *failInterfaceCatchAllRemovalDP) RemovePolicyParams(p dataplane.SPParams
 	return d.catchAllDP.RemovePolicyParams(p)
 }
 
+// RFC requirement: RFC4301-4.4.1-3 positive -- when releaseSPD cannot remove a bound
+// XFRM interface's SPD catch-all, the node-wide SPD keeps its DISCARD final entry
+// installed, and the SPD ledger names every interface catch-all entry left behind.
+//
 // VALIDATES: AC-8 for the interface SPD: releaseSPD removes the interface catch-all
 // with the exemptions, before the node catch-all; when that removal fails, the SPD
 // ledger holds the entry and the node catch-all stays beneath it. The clean leg also

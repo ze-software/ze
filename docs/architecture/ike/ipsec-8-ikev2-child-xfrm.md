@@ -515,7 +515,14 @@ with its `dataplane.PolicyRole`: `interface-catch-all` always,
 interface whose read fails, the exemptions only while the catch-all still
 discards. `installXFRMInterfaceEntries` installs by role, the interface
 catch-all before the exemptions, and `pruneXFRMInterfaceEntries` removes in the
-reverse order. `applyConfig` installs new entries before re-asserting the node
+reverse order. An interface catch-all the backend refuses is an error
+`installXFRMInterfaceEntries` returns, and `applyConfig` returns it as it does
+`installUnmatched`'s: the interface's SPD would have no final entry, and
+`__xfrm_policy_check` accepts an unmatched inbound packet whose secpath holds
+only transport-mode or offloaded states. No exemption of that interface is
+installed in the same pass, so nothing is handed to the SPD that lacks its
+final entry. The address worker has no commit to refuse, so it logs the error,
+and the next apply retries. `applyConfig` installs new entries before re-asserting the node
 catch-all on a reload and prunes stale ones after it; the address worker
 (`followAddress`, on `addr-added`, `addr-removed` and `created`) rebuilds them,
 and `releaseSPD` removes them through the SPD ledger after the Child SA policies

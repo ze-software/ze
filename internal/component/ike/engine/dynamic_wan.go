@@ -325,7 +325,12 @@ func (s *ikeEngineState) followAddress() {
 	// index or if_id, needs its SPD entries and its tunnel-source guard rebuilt
 	// (unmatched_xfrm_interface.go, source_guard.go).
 	entries := s.planXFRMInterfaceEntries(s.applied)
-	s.installXFRMInterfaceEntries(dataplane.Get(), entries)
+	if err := s.installXFRMInterfaceEntries(dataplane.Get(), entries); err != nil {
+		// No commit to refuse here: the refused entries stay out of the record, so the
+		// next commit or address change retries them, and that commit fails until they go in.
+		s.log.Error("ike: after an address change an XFRM interface SPD has no final entry",
+			"error", err)
+	}
 	s.pruneXFRMInterfaceEntries(dataplane.Get(), entries)
 	s.restartVanishedRouteSources()
 }

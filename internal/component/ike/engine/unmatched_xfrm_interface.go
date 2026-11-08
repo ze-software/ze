@@ -306,10 +306,19 @@ func exemptionSource(p *dataplane.SPParams) (netip.Addr, bool) {
 // yet, role by role in xfrmInterfaceRoleOrder, and records each one the backend took.
 // One that failed is left out of the record, so the next apply or address event tries
 // it again. A failed exemption is logged at error level because it fails closed: the
-// bound tunnel's traffic meets the DISCARD catch-all. A failed interface catch-all is
-// logged at error level too: the interface's SPD then has no final entry the operator
-// can see, and the kernel drops what reaches it unmatched for its own reasons
-// (xfrmi_xmit, __xfrm_policy_check).
+// bound tunnel's traffic meets the DISCARD catch-all.
+//
+// A failed interface catch-all is an error the caller returns, as installUnmatched's is
+// for the node-wide SPD: the interface's SPD then has no final entry. The kernel drops
+// most of what reaches such an SPD unmatched for its own reasons (xfrmi_xmit finds no
+// state; __xfrm_policy_check rejects a tunnel-mode secpath no entry matched), but not
+// all of it: __xfrm_policy_check accepts an unmatched inbound packet whose secpath holds
+// only transport-mode states, or a crypto-offload state (net/xfrm/xfrm_policy.c, the
+// `if (!pol)` branch). RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final
+// entry that matches anything that is otherwise unmatched, and discards it." So the
+// apply fails closed rather than report applied an SPD without it, and no exemption is
+// installed for that interface in the same pass: an exemption would hand traffic on to
+// the SPD that lacks its final entry.
 //
 // A backend that declares it holds no SPD entry bound to no interface
 // (catchAllUnsupported, the VPP backend) gets no interface catch-all: such a backend
@@ -319,15 +328,18 @@ func exemptionSource(p *dataplane.SPParams) (netip.Addr, bool) {
 // and a source exemption whose address the guard does not hold is not installed: no
 // instant holds a source BYPASS without its guard (source_guard.go). The caller holds
 // applyMu.
-func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, plan xfrmInterfacePlan) {
+func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, plan xfrmInterfacePlan) error {
 	if dp == nil {
-		return
+		// refuse-by-default: guards installUnmatched -- every apply refuses a missing dataplane there
+		return nil
 	}
 	next := plan.entries
 	if s.xfrmEntries == nil {
 		s.xfrmEntries = make(map[spdSelector]xfrmInterfaceEntry)
 	}
 	noIfIDSPD := catchAllUnsupported(dp)
+	// noFinalEntry names each interface whose catch-all the backend refused in this pass.
+	noFinalEntry := make(map[string]error)
 	for _, role := range xfrmInterfaceRoleOrder {
 		if role == dataplane.PolicyRoleInterfaceCatchAll && noIfIDSPD != nil {
 			s.warnNoInterfaceCatchAll(next, noIfIDSPD)
@@ -347,17 +359,44 @@ func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, pla
 			if source, isSource := exemptionSource(&entry.params); isSource && role == dataplane.PolicyRoleInterfaceExemption && !guarded[source] {
 				continue
 			}
+			if role == dataplane.PolicyRoleInterfaceExemption {
+				// The catch-all role ran first, so noFinalEntry is complete for this pass.
+				if _, refused := noFinalEntry[entry.iface]; refused {
+					continue
+				}
+			}
 			if err := dp.InstallPolicy(entry.params); err != nil {
 				s.log.Error("ike: could not install an SPD entry of a bound XFRM interface; "+
 					"an exemption that is missing drops the traffic routed into it at the DISCARD catch-all, "+
-					"a catch-all that is missing leaves the interface SPD without its final entry; "+
+					"a catch-all that is missing leaves the interface SPD without its final entry and fails the apply; "+
 					"the daemon needs CAP_NET_ADMIN to install it, and the next commit or address change retries it",
 					"interface", entry.iface, "role", entry.role.String(), "dir", entry.params.Dir, "error", err)
+				if role == dataplane.PolicyRoleInterfaceCatchAll {
+					noFinalEntry[entry.iface] = err
+				}
 				continue
 			}
 			s.xfrmEntries[sel] = entry
 		}
 	}
+	return interfaceCatchAllRefused(noFinalEntry)
+}
+
+// interfaceCatchAllRefused answers the error installXFRMInterfaceEntries returns for
+// the interfaces whose SPD catch-all the backend refused, naming the first in sorted
+// order and how many there are, or nil when there is none.
+func interfaceCatchAllRefused(noFinalEntry map[string]error) error {
+	if len(noFinalEntry) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(noFinalEntry))
+	for name := range noFinalEntry {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return fmt.Errorf("the SPD of XFRM interface %s (one of %d refused) has no final entry: "+
+		"its catch-all could not be installed: %w; the daemon needs CAP_NET_ADMIN to install it, then commit again",
+		names[0], len(names), noFinalEntry[names[0]])
 }
 
 // warnNoInterfaceCatchAll says, once per install pass that has one to place, that the

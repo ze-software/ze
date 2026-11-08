@@ -1389,8 +1389,17 @@ the interface loses takes its entry with it, and the entries are removed when
 no peer binds the interface and when the engine stops; the `if_id` 0 entries also
 leave when `unmatched` turns to `bypass`. An interface that reports `if_id` 0 is
 treated as one that cannot be read, because `if_id` 0 is the node-wide database. If the interface cannot be read, its entries stay as they were and
-the daemon logs a warning. If an entry cannot be installed, the daemon logs an
-error: the tunnel's traffic is then dropped by the catch-all. On a reload that
+the daemon logs a warning. If an `if_id` 0 entry cannot be installed, the daemon
+logs an error: the tunnel's traffic is then dropped by the catch-all. If an
+interface's own final entry cannot be installed, which includes a daemon without
+`CAP_NET_ADMIN`, the apply fails as it does for the node-wide catch-all: a
+commit is refused, at startup the configure step returns the error, and no
+`if_id` 0 entry hands that interface any traffic. Without its final entry the
+kernel would still accept an unmatched inbound packet that arrived under a
+transport-mode or offloaded state. Fix: give the daemon `CAP_NET_ADMIN`, then
+commit again. An interface address change meets the same failure with no commit
+to refuse, so the daemon logs it as an error and the next commit fails until
+the entry goes in. On a reload that
 turns `discard` on, the entries go in before the catch-all changes, so a
 running tunnel never loses traffic.
 
