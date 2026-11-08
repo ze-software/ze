@@ -6,9 +6,9 @@
     "unit-sha": "41f83d2803ab9c34",
     "claim-sha": "d365ba83e91f2525",
     "route": "mutant",
-    "producer": "internal/plugins/dnsresolver/forward.go::exchange",
-    "producer-sha": "be20e1ad5539bf94",
-    "break": "line 126: \"continue\" -\u003e \"if replyMatches(query, r) { return r, nil }; continue\""
+    "producer": "internal/plugins/dnsresolver/forward.go::exchangeWire",
+    "producer-sha": "2fdc063382c32d63",
+    "break": "line 145: \"continue\" -\u003e \"if replyMatches(query, r) { return r, buf[:n], nil }; continue\""
   },
   {
     "rid": "RFC1035-4.1.4-5",
