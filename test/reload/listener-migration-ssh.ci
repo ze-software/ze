@@ -1,0 +1,20 @@
+# Test: a SIGHUP reload moves the SSH listener to another address
+# VALIDATES: AC-12 of the home-CPE system defects spec through the real daemon:
+#   SSH runs on 127.0.0.1:$PORT, a reload names ::1:$PORT2, and once the daemon
+#   prints the accepted verdict ::1:$PORT2 sends the SSH identification line
+#   while 127.0.0.1:$PORT refuses the connection. This exercises the production
+#   wiring (the hub's attachSSH handing the built server to the listener
+#   migrator, then buildChanges on reload), which the unit tests in
+#   cmd/ze/hub/listener_migrate_ssh_test.go replace with a fake.
+# PREVENTS: an SSH listener change that needs a daemon restart, or one that
+#   leaves the old address open.
+#
+# The fixture (internal/test/fixture/listener_migration_ssh_fixture.go) starts
+# the daemon itself on the two ports the runner leased. Every wait is on state:
+# an identification line read, a reload verdict printed. It returns an error,
+# reported through ZE-OBSERVER-FAIL, at the first check that does not hold.
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture reload/listener-migration-ssh $PORT $PORT2:timeout=90s
+expect=exit:code=0
+expect=stdout:contains=OK: ssh moved from 127.0.0.1:
