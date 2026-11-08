@@ -147,6 +147,54 @@ func TestDriverProxyLCPRenegotiateSendsConfReq(t *testing.T) {
 	}
 }
 
+// TestDriverProxyLCPRenegotiateNoProxyIsNormalPath proves `proxy-lcp
+// renegotiate` on a session whose ICCN carried no proxy LCP AVP runs today's
+// normal path: Ze sends its own Configure-Request, LCP opens only after the
+// subscriber's Configure-Ack, and the outcome is none, not renegotiated.
+//
+// VALIDATES: spec-home-cpe-15 AC-4, and the `none` value of AC-6 at the driver.
+// PREVENTS: a session with no proxy data reported as renegotiated, which would
+// count it under the wrong ze_l2tp_session_lcp_opened_total label.
+func TestDriverProxyLCPRenegotiateNoProxyIsNormalPath(t *testing.T) {
+	reg := newPipeRegistry()
+	installPipeRegistry(t, reg)
+	pair := newPipePair(reg, 1105)
+	defer closeConn(pair.peerEnd)
+	ops, _, _ := newFakeOps()
+	d := makeTestDriver(&fakeBackend{}, ops)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer d.Stop()
+
+	d.SessionsIn() <- proxyStart(1105, nil, true)
+
+	proto, payload := readDriverFrame(t, pair.peerEnd)
+	if proto != ProtoLCP {
+		t.Fatalf("first frame protocol = 0x%04x, want LCP", proto)
+	}
+	req, err := ParseLCPPacket(payload)
+	if err != nil || req.Code != LCPConfigureRequest {
+		t.Fatalf("first frame = code %d err %v, want Configure-Request", req.Code, err)
+	}
+	select {
+	case ev := <-d.EventsOut():
+		t.Fatalf("event %T before the subscriber acknowledged Ze's Configure-Request", ev)
+	default:
+	}
+
+	writePeerLCP(t, pair.peerEnd, LCPConfigureAck, req.Identifier, req.Data)
+	writePeerLCP(t, pair.peerEnd, LCPConfigureRequest, 1, buildOptionStream([]LCPOption{mruOpt(1500)}))
+	proto, payload = readDriverFrame(t, pair.peerEnd)
+	if ack, err := ParseLCPPacket(payload); proto != ProtoLCP || err != nil || ack.Code != LCPConfigureAck {
+		t.Fatalf("Ze's answer to the subscriber's Configure-Request: proto 0x%04x code %d err %v", proto, ack.Code, err)
+	}
+	up := waitLCPUp(t, d.EventsOut())
+	if up.ProxyLCP != ProxyLCPOutcomeNone {
+		t.Fatalf("EventLCPUp.ProxyLCP = %s, want none", up.ProxyLCP)
+	}
+}
+
 // TestDriverProxyLCPRenegotiateOwnMagic proves the renegotiated
 // Configure-Request carries a Magic-Number Ze drew itself, not the LAC's.
 //
