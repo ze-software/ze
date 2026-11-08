@@ -186,6 +186,42 @@ func TestDHCPDiscoverOffer(t *testing.T) {
 	}
 }
 
+// TestOption15AbsentWhenUnconfigured proves RFC 5625 Section 5.2 on the reply
+// builder: a subnet with no domain-name sends no option 15 in its OFFER, and a
+// subnet with one sends it with that value. Method: a DISCOVER to a handler
+// built from each subnet, with option 15 read from each reply.
+func TestOption15AbsentWhenUnconfigured(t *testing.T) {
+	t.Parallel()
+
+	bare := newTestServerWithStatic(t)
+	defer bare.leases.stop()
+	named := newTestServer(t)
+	defer named.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x77}
+	resp := bare.handle(buildDiscover(mac, 0x5625))
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER from the subnet with no domain-name, got nil")
+	}
+	// RFC requirement: RFC5625-5.2-1 positive -- "this option MUST NOT be sent
+	// to clients when no value is configured." The OFFER of a subnet with no
+	// domain-name carries no option 15.
+	if got := getResponseOption(resp, optDomainName); got != nil {
+		t.Fatalf("option 15 = %q on a subnet with no domain-name, want none", got)
+	}
+
+	resp = named.handle(buildDiscover(mac, 0x5626))
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER from the subnet with domain-name home.lan, got nil")
+	}
+	// RFC requirement: RFC5625-5.2-1 negative -- the rule withholds option 15
+	// only while no value is configured: a subnet whose domain-name is home.lan
+	// sends option 15 carrying exactly that value.
+	if got := getResponseOption(resp, optDomainName); string(got) != "home.lan" {
+		t.Fatalf("option 15 = %q on a subnet with domain-name home.lan, want home.lan", got)
+	}
+}
+
 func TestDHCPRequestAck(t *testing.T) {
 	t.Parallel()
 

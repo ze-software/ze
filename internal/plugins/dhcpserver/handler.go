@@ -166,6 +166,10 @@ func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr, serverID neti
 			off = safeAppendOption(resp, off, limit, optDNS, dns)
 		}
 
+		// RFC 5625 Section 5.2: "it is RECOMMENDED that the default value for
+		// this option SHOULD be empty, and that this option MUST NOT be sent to
+		// clients when no value is configured." Option 15 is written only for a
+		// subnet whose domain-name is set.
 		if h.subnet.DomainName != "" {
 			off = safeAppendOption(resp, off, limit, optDomainName, []byte(h.subnet.DomainName))
 		}

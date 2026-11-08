@@ -112,6 +112,8 @@ Child spec files, all in `plan/release/fixes/`:
 | 20 | `spec-home-cpe-20-xfrm-cross-family-tunnel-state.md` |
 | 21 | `spec-home-cpe-21-mss-clamp-not-raise.md` |
 | 22 | `spec-home-cpe-22-ike-responder-reauth.md` |
+| 23 | `spec-home-cpe-23-dns-source-fall-through.md` (23a: the resolver registry, the router consumer, RFC 5625) |
+| 23b | `spec-home-cpe-23b-dns-source-consumers.md` (the LAN resolver, DHCPv4, RA and subscriber consumers, RADIUS DNS, `show system dns`; depends on 23) |
 
 Review correction and completion (2026-11-06): the owner found eight defects
 in the earlier child16 closure. The follow-up
