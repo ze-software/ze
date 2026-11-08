@@ -125,16 +125,19 @@ lands, its row changes.
 | `interfaces pppoe <n> holdoff <h>` | `interface pppoe-client <n> reconnect` with `delay-min <h>` and `delay-max <h>` | VyOS hands `holdoff` to pppd, which waits that fixed time before it redials; equal bounds give Ze the same fixed wait instead of its doubling one. VyOS defaults `holdoff` to 30, so a config without the leaf still waits 30 s: write `delay-min 30` and `delay-max 30` to keep that, or leave both out for Ze's 1 to 60 s doubling. VyOS takes 0 to 86400 and Ze 1 to 3600, so `holdoff 0` becomes 1 and a value above 3600 becomes 3600 | behavior change | - |
 | none: VyOS has no keepalive leaf; its pppd template fixes `lcp-echo-interval 20` and `lcp-echo-failure 3` | `interface pppoe-client <n> keepalive` with `interval 20` and `failures 4` | pppd declares the peer dead when it is about to send a request while 3 are unanswered, so a silent peer is dropped about 80 s after its last reply. Ze ends the session when it sends the request that reaches `failures`, so `failures 4` drops it at the same 80 s. Leaving both out gives Ze's default of 10 s and 3, about 30 s | equivalent | - |
 | `interfaces pppoe <n> no-peer-dns` | none: dropped | Ze always asks for DNS servers in IPCP and ranks the learned servers after the static `system name-server` entries | behavior change | 13 |
-| `interfaces pppoe <n> ipv6 address autoconf`, `dhcpv6-options pd <i> length <l>` | `interface pppoe-client <n> ipv6` with `enabled true`, `autoconf true`, `accept-ra 2`, `forwarding true`, `dhcpv6 enabled true` and `dhcpv6 pd length <l>` | Ze negotiates IPv6CP beside IPCP and runs the DHCPv6 client on the session device; `accept-ra 2` keeps the Router Advertisement default route while the box forwards. The delegated prefix is published as a lease on `<n>` and nothing uses it yet | not read | - |
-| `interfaces pppoe <n> dhcpv6-options pd <i> interface <lan> sla-id <s>`, `address <a>` | `interface ethernet <lan> unit 0 ipv6 delegated-prefix <n>` with `subnet-id <s>` and `interface-identifier ::<a>` | without `address`, VyOS forms an EUI-64 host part and Ze uses `::1`. Ze refuses a `subnet-id` the `pd length` cannot hold and two units sharing one; the unit advertises the /64 once `router-advertisement` is enabled on it | behavior change | - |
+| `interfaces pppoe <n> ipv6 address autoconf`, `dhcpv6-options pd <i> length <l>` | `interface pppoe-client <n> ipv6` with `enabled true`, `autoconf true`, `accept-ra 2`, `forwarding true`, `dhcpv6 enabled true` and `dhcpv6 pd length <l>` | Ze negotiates IPv6CP beside IPCP and runs the DHCPv6 client on the session device; `accept-ra 2` keeps the Router Advertisement default route while the box forwards. The delegated prefix is published as a lease on `<n>`, and a LAN unit numbers itself from it with the next row | not read | - |
+| `interfaces pppoe <n> dhcpv6-options pd <i> interface <lan> sla-id <s>`, `address <a>` | `interface ethernet <lan> unit 0 ipv6 delegated-prefix <n>` with `subnet-id <s>` and `interface-identifier ::<a>` | without `address`, VyOS forms an EUI-64 host part and Ze uses `::1`. Ze refuses a `subnet-id` the `pd length` cannot hold and two units sharing one. The address takes the lifetimes that remain of the delegation and goes when the lease ends. Ze installs it and advertises it, but no interop run has yet shown a LAN host taking an address from it, so check on the router that `<lan>` holds the /64 (`ip -6 addr show <lan>`) | conditional | 8 |
+| `service router-advert interface <lan> prefix ::/64` on a LAN numbered from the delegated prefix | `interface ethernet <lan> unit 0 ipv6` with `forwarding true` and `router-advertisement enabled true` | Ze advertises the unit's delegated /64 in a Prefix Information option with the lifetimes left of the delegation, and also the whole delegated prefix in a Route Information option. No `prefix` entry is written: the delegated /64 is added on its own. The same condition as the `sla-id` row holds | conditional | 8 |
 | `protocols static route <p> interface <n> distance <d>` | `static table default route <p>` with `distance <d>` and `next interface <n>` | a route through a `pppoe-client` waits for the session instead of failing | not read | - |
 | `protocols static route <p> next-hop <a>` | `static table default route <p> next hop <a>` | | not read | - |
 | `interfaces wireguard <n> port`, `private-key` | `interface wireguard <n> listen-port`, `private-key` (placeholder) | | not read | - |
 | `interfaces wireguard <n> peer <p> public-key`, `preshared-key`, `allowed-ips`, `persistent-keepalive` | `interface wireguard <n> peer <p>` with the same four leaves | `preshared-key` is a placeholder; `allowed-ips` is a bracket list | not read | - |
 | `interfaces vti <n> address <a>` | `interface xfrm <n>` with `if-id <id>` and `unit 0` addresses | choose any `if-id` from 1 up, unique per xfrm interface | not read | - |
 
-<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet mac match, offload, bridge member, unit ipv4/ipv6 address, pppoe-client, pppoe-client keepalive and reconnect, pppoe-client ipv6, grouping ipv6-host, wireguard, xfrm if-id -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet mac match, offload, bridge member, unit ipv4/ipv6 address, unit ipv6 delegated-prefix, unit ipv6 router-advertisement, pppoe-client, pppoe-client keepalive and reconnect, pppoe-client ipv6, grouping ipv6-host, wireguard, xfrm if-id -->
 <!-- source: internal/component/iface/register.go -- reconcileDHCP -->
+<!-- source: internal/component/iface/delegated_consumer.go -- applyDelegatedAddresses, installDelegatedAddress -->
+<!-- source: internal/plugins/iface/ra/advertiser.go -- delegatedPrefixInfo -->
 <!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateIPCP -->
 <!-- source: internal/plugins/static/yang/ze-static-conf.yang -- table route distance, next hop, next interface -->
@@ -184,9 +187,10 @@ term per prefix.
 #### Interface names in firewall rules
 
 The rows that write `input-interface`, `output-interface` or a `mac match`
-are conditional because of a Ze defect. Ze never renames a kernel device: a
-`mac match` or an `os-name` binds the configured name to a device and leaves
-the device's kernel name as it is
+are conditional because of a Ze defect. The NAT source row names the same
+child but keeps the class `not read`, because its VyOS producer was not read.
+Ze never renames a kernel device: a `mac match` or an `os-name` binds the
+configured name to a device and leaves the device's kernel name as it is
 ([logical name resolution](../architecture/iface/logical-name-resolution.md)).
 The firewall writes the configured name into the nft rule unchanged, so a rule
 that names `eth0` matches the device the kernel calls `eth0`, which is not the
@@ -267,7 +271,6 @@ Each of these lines goes to the record as `dropped:` with the reason given.
 | `system conntrack modules nfs`, `sqlnet` | no kernel module provides them, and Ze refuses the names |
 | `service dhcp-server ... subnet-id` | Ze keys a subnet by its prefix |
 | `interfaces pppoe <n> no-peer-dns` | Ze has no leaf to refuse IPCP DNS (child 13) |
-| `interfaces pppoe <n> dhcpv6-options pd <i> interface ...`; `service router-advert ...` that advertises the delegated prefix | Ze uses no delegated prefix on a LAN interface until child 8 |
 | `pki ca <n> private key` | a Ze `pki ca` entry holds no private key |
 | `service https ...` (REST API, its keys and its listener) | REST automation moves to gRPC over TLS |
 | `container ...` (monitoring) | the Prometheus exporter with Netdata metrics replaces it |
@@ -320,7 +323,7 @@ its row here.
 
 | Rewrite | Removed by |
 |---------|------------|
-| the delegated prefix is requested on the PPPoE WAN and published there, but no LAN interface takes an address or a Router Advertisement from it | child 8 |
+| a LAN unit takes its /64 and its Router Advertisements from the delegated prefix, but no interop run has yet shown a LAN host taking an address from it, so the operator checks the address on the router | child 8 |
 | a network-group becomes one term per prefix, not a set | the fix of the set element defect (`encodeSetElementKey`) |
 | a firewall, NAT or MSS rule names an ethernet by a name that must also be its kernel name | `spec-iface-resolution-across-the-plugin-boundary` |
 
