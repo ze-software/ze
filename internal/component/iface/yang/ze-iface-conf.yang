@@ -550,7 +550,10 @@ module ze-iface-conf {
 
                     leaf source {
                         type string;
-                        description "The name of a pppoe-client whose ipv6 dhcpv6 pd container is set.";
+                        ze:reference "pppoe-client-delegation";
+                        description "The name of a pppoe-client whose ipv6 dhcpv6 pd container is set.
+                                     The editor completes the pppoe-clients that request a delegated
+                                     prefix; commit refuses any other name at interface verify.";
                         ze:help "The pppoe-client that leases the delegated prefix.";
                     }
 

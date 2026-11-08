@@ -781,6 +781,7 @@ func (c *completion) listKeyCompletions(listName, prefix string, contextPath []s
 		taken[config.ListKeyFirstValue(keyLeaves, entry.Key)] = true
 	}
 	vocabulary := enumKeyVocabulary(keyEntry, c.enumValueSummaries(keyEntry), taken)
+	vocabulary = append(vocabulary, c.referenceKeyVocabulary(listPath, keyEntry, keyLeaves, taken)...)
 
 	// Single entry with no prefix — auto-select, no key needed.
 	// A list whose vocabulary still has an unused key is the exception: there
@@ -899,6 +900,37 @@ func enumKeyVocabulary(keyEntry *gyang.Entry, help map[string]string, taken map[
 			continue
 		}
 		options = append(options, enumKeyOption{name: name, help: help[name]})
+	}
+	return options
+}
+
+// referenceKeyVocabulary answers the keys a list whose single key leaf is a
+// reference leaf (a leafref, or a ze:reference source) may still take: the
+// names the reference walk offers for a new entry, less those taken. It is
+// the list-key form of referenceCompletions, so a key such as a
+// delegated-prefix source completes the names commit accepts before the entry
+// exists. A list with a multi-leaf key, or whose key is no reference, has none.
+func (c *completion) referenceKeyVocabulary(listPath []string, keyEntry *gyang.Entry, keyLeaves []string, taken map[string]bool) []enumKeyOption {
+	if len(keyLeaves) != 1 {
+		return nil
+	}
+	if !yang.IsReferenceLeaf(keyEntry) {
+		return nil
+	}
+	leafPath, ok := c.referenceDataPath(listPath)
+	// refuse-by-default: guards listKeyCompletions -- a list path the schema does not describe offers no key, and the existing entries still speak
+	if !ok {
+		return nil
+	}
+	// A new entry has no key yet: the empty address reads as an empty entry,
+	// from which the walk resolves the key leaf's reference.
+	leafPath = append(leafPath, "", keyLeaves[0])
+	var options []enumKeyOption
+	for _, name := range yang.NewValidator(c.schema).ReferenceInstances(c.data(), leafPath) {
+		if taken[name] {
+			continue
+		}
+		options = append(options, enumKeyOption{name: name, help: "configured " + keyEntry.Name})
 	}
 	return options
 }

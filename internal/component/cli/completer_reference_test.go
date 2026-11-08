@@ -37,6 +37,8 @@ const referenceProbeModule = `module ze-test-reference-conf {
             leaf pool { type leafref { path "../../pool/name"; } }
             leaf tint { type string; ze:reference "cli-probe-tint"; }
         }
+        list feed { key source; leaf source { type string; ze:reference "cli-probe-tint"; } }
+        list binding { key pool; leaf pool { type leafref { path "../../pool/name"; } } }
     }
 }`
 
@@ -112,6 +114,32 @@ func TestCompleterReferenceValues(t *testing.T) {
 	asked := slices.Clone(tintAsked)
 	tintMu.Unlock()
 	assert.Contains(t, asked, []string{"test-reference", "site", "eu name a", "tint"})
+}
+
+// TestCompleterReferenceListKeys checks that a list whose key leaf is a
+// reference completes, before the entry exists, the names commit accepts for
+// that key. Method: the probe module over referenceTree, completing a new key
+// of a list keyed by a ze:reference leaf (feed) and of one keyed by a leafref
+// (binding), with a prefix so the wildcard row stays out of the answer.
+//
+// VALIDATES: completion.listKeyCompletions offers referenceKeyVocabulary's
+// names, filtered by prefix and less the keys the tree already holds.
+// PREVENTS: a delegated-prefix source, or any reference-keyed list, offering
+// only the new-key hint where the referenced names are known.
+// Break: drop the referenceKeyVocabulary append in listKeyCompletions; every
+// assertion below then reads no completion and goes red.
+func TestCompleterReferenceListKeys(t *testing.T) {
+	c := referenceCompleter(t)
+	tree := referenceTree()
+
+	assert.Equal(t, []string{"teal"}, completionTexts(c.Complete(tree, "set test-reference feed t", nil)))
+	assert.Equal(t, []string{"p1", "p2"}, completionTexts(c.Complete(tree, "set test-reference binding p", nil)))
+
+	probe := tree.GetContainer("test-reference")
+	require.NotNil(t, probe)
+	probe.AddListEntry("feed", "amber", config.NewTree())
+	assert.Equal(t, []string{"amber"}, completionTexts(c.Complete(tree, "set test-reference feed a", nil)),
+		"a configured key is offered once, as the existing entry")
 }
 
 // TestCompleterReferenceNoInstances checks that a leafref with nothing to

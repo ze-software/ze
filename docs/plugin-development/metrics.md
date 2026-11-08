@@ -232,6 +232,9 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_iface_config_apply_started_total` | Counter | | iface (config apply) |
 | `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
 | `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
+| `ze_iface_delegated_prefixes_held` | GaugeVec | name | iface (delegated-prefix table) |
+| `ze_pppoe_client_renegotiations_total` | CounterVec | name | l2tp-pppoe-client |
+| `ze_pppoe_client_ipv6cp_opened` | GaugeVec | name | l2tp-pppoe-client |
 | `ze_radius_unsigned_eap_discards_total` | Counter | | radius (client) |
 | `ze_radius_unsigned_response_discards_total` | CounterVec | server | radius (client): one per Access answer discarded for carrying no Message-Authenticator |
 | `ze_dns_resolver_queries_total` | CounterVec | transport, rcode | dnsresolver: one per query answered |
@@ -282,6 +285,22 @@ hosts join the link.
 
 <!-- source: internal/plugins/iface/ra/ifacera.go -- incSent, incSolicited -->
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- send call sites -->
+
+`ze_iface_delegated_prefixes_held{name}` counts the delegated prefixes the
+DHCPv6 lease of the pppoe-client `name` holds. It is set each time the client
+binds, renews or loses a prefix, so 0 means no LAN unit that takes a /64 from
+that client has one. `ze_pppoe_client_ipv6cp_opened{name}` is 1 while that
+client's IPv6CP is Opened and IPv6 passes on the session, and 0 before it
+opens, after the access concentrator rejects or closes it, during an LCP
+restart and once the session ends. Read together: a client at 1 on IPv6CP and
+0 on delegated prefixes has IPv6 on the WAN but no delegation for the LAN.
+`ze_pppoe_client_renegotiations_total{name}` counts network-phase LCP
+renegotiations the client started.
+
+<!-- source: internal/component/iface/delegated_lease.go -- delegations.record, publishHeld -->
+<!-- source: internal/component/l2tp/pppoeclient/metrics.go -- bindClientMetrics, recordIPv6CPOpened, countRenegotiation -->
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- applyIPv6CP -->
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
 
 The LAN resolver's `ze_dns_resolver_queries_total` counts answered queries
 only: a query dropped by the rate or the outstanding bound gets no reply and

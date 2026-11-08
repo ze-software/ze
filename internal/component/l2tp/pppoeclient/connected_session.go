@@ -210,6 +210,7 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 		if err := s.setIPv6Mode(ppp.NPModePass); err != nil {
 			return fmt.Errorf("pppoe-client: cannot pass IPv6 after IPv6CP opened: %w", err)
 		}
+		recordIPv6CPOpened(s.cfg.name, true)
 		logger.Info("pppoe-client: IPv6CP opened", "link-local", s.linkLocal)
 	}
 	return nil

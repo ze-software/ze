@@ -103,6 +103,11 @@ type ifaceMetrics struct {
 	// counter has no such window: an event counted here arrived during the
 	// wait, whatever else did.
 	linkEventsQueuedWhileBlocked metrics.CounterVec
+	// delegatedPrefixes counts the delegated prefixes a pppoe-client's DHCPv6
+	// lease holds, by the client's configured name (delegated_lease.go,
+	// delegations.record). 0 says the client holds no delegation, so no LAN
+	// unit numbered from it has a /64 (RFC 9915 Section 6.3).
+	delegatedPrefixes metrics.GaugeVec
 }
 
 var ifaceMetricsPtr atomic.Pointer[ifaceMetrics]
@@ -135,6 +140,8 @@ func bindMetricsRegistry(reg metrics.Registry) {
 			"Oldest resolver link events discarded to make room on a full subscriber channel", []string{metricLabelName}),
 		linkEventsQueuedWhileBlocked: reg.CounterVec("ze_iface_link_events_queued_while_blocked_total",
 			"Link events that arrived while the worker was waiting for the lock a config commit holds", []string{metricLabelName}),
+		delegatedPrefixes: reg.GaugeVec("ze_iface_delegated_prefixes_held",
+			"Delegated prefixes the DHCPv6 lease of a pppoe-client holds, by client name", []string{metricLabelName}),
 		configApplies: reg.Counter("ze_iface_config_apply_started_total",
 			"Config applies that STARTED the DHCP and RA reconcile, counted as they take the lock link event handling needs. No completion counter exists, so a wedged reconcile reads the same as a healthy one"),
 	}

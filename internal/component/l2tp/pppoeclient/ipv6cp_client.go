@@ -554,10 +554,14 @@ func (s *connectedSession) applyIPv6CP(event ipv6cpEvent, logger *slog.Logger) e
 			return fmt.Errorf("pppoe-client: cannot pass IPv6 after IPv6CP opened: %w", err)
 		}
 		s.linkLocal = s.ipv6.linkLocal()
+		recordIPv6CPOpened(s.cfg.name, true)
 		logger.Info("pppoe-client: IPv6CP opened", "link-local", s.linkLocal)
 		s.publish()
 		return nil
 	case ipv6cpClosed:
+		// The gauge drops before the mode change: IPv6CP left Opened, so the
+		// session no longer carries IPv6 whether or not the discard succeeds.
+		recordIPv6CPOpened(s.cfg.name, false)
 		if err := s.setIPv6Mode(ppp.NPModeDrop); err != nil {
 			return fmt.Errorf("pppoe-client: cannot discard IPv6 after IPv6CP closed: %w", err)
 		}

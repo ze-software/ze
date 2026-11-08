@@ -13,6 +13,8 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+
+	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
 // delegatedInterfaceIDDefault is the YANG default of interface-identifier. The
@@ -157,10 +159,7 @@ func verifyDelegatedPrefixes(cfg *ifaceConfig) error {
 	sources := make(map[string]dhcpv6UnitConfig, len(cfg.PPPoEClient))
 	for i := range cfg.PPPoEClient {
 		c := &cfg.PPPoEClient[i]
-		if !c.IPv6.DHCPv6.Enabled {
-			continue
-		}
-		if !c.IPv6.DHCPv6.PDRequested {
+		if !requestsDelegation(c.IPv6.DHCPv6) {
 			continue
 		}
 		sources[c.Name] = c.IPv6.DHCPv6
@@ -184,6 +183,54 @@ func verifyDelegatedPrefixes(cfg *ifaceConfig) error {
 		}
 	})
 	return err
+}
+
+// requestsDelegation reports whether a pppoe-client's DHCPv6 settings make it
+// a delegated-prefix source: its DHCPv6 client runs and asks for a prefix.
+// Verify and the editor's completion both ask it, so they agree on the set.
+func requestsDelegation(d dhcpv6UnitConfig) bool {
+	if !d.Enabled {
+		return false
+	}
+	return d.PDRequested
+}
+
+// DelegationSourceReference names the ze:reference source the delegated-prefix
+// source leaf declares (`ze:reference "pppoe-client-delegation"`).
+const DelegationSourceReference = "pppoe-client-delegation"
+
+// delegationSourceReference answers the pppoe-clients a delegated-prefix entry
+// may name: those of the candidate whose ipv6 dhcpv6 requests a delegated
+// prefix, the set verifyDelegatedPrefixes accepts. root holds one entry per
+// top-level section, as Tree.ToPluginMap lowers it, so a list is a map keyed
+// by entry name. An entry whose ipv6 container does not parse is not offered;
+// verify reports its error. Safe for concurrent use: it only reads root.
+func delegationSourceReference(root map[string]any, _ []string) yang.ReferenceAnswer {
+	section, _ := root["interface"].(map[string]any) // no interface section: no source
+	clients, _ := section["pppoe-client"].(map[string]any)
+	names := make([]string, 0, len(clients))
+	for name, value := range clients {
+		entry, _ := value.(map[string]any) // an empty entry configures no ipv6
+		v6, err := parsePPPoEClientIPv6(entry)
+		if err != nil {
+			continue
+		}
+		if !requestsDelegation(v6.DHCPv6) {
+			continue
+		}
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return yang.ReferenceAnswer{Names: names, Check: acceptDelegationSource}
+}
+
+// acceptDelegationSource is the commit judge of the reference: it accepts
+// every value, because verifyDelegatedEntry refuses an unknown source with the
+// unit that names it and the pppoe-client config that fixes it, which the
+// reference walk cannot say.
+func acceptDelegationSource(string) error {
+	// refuse-by-default: guards verifyDelegatedEntry -- the interface verify refuses an unknown source with the unit and the fix
+	return nil
 }
 
 // verifyDelegatedEntry judges one entry of one unit and records its claim.

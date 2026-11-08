@@ -384,6 +384,25 @@ at zero from the moment the component has a metrics registry.
 | `config-confirm` | `write` | One config write on the commit-confirm worker (a gNMI Set, an SSH, web or API commit, an accept, an abort, a managed push): its caller gets an error saying the write may be partly applied and naming the `ze show crashes` command; the worker serves the next write and the open window's deadline |
 <!-- source: internal/component/config/confirm/panic_guard.go -- writeTask, writeEndedByPanic -->
 
+### PPPoE Client IPv6 Metrics
+
+A home CPE on a PPPoE WAN publishes whether IPv6 reached the WAN and whether
+the WAN holds a prefix for the LAN, one series per `pppoe-client` name:
+
+| Metric | Type | Meaning |
+|--------|------|---------|
+| `ze_pppoe_client_ipv6cp_opened{name}` | gauge | 1 while IPv6CP is Opened and IPv6 passes on the session; 0 before it opens, after the access concentrator rejects or closes it, during an LCP restart, and once the session ends |
+| `ze_iface_delegated_prefixes_held{name}` | gauge | The delegated prefixes the client's DHCPv6 lease holds. 0 means no LAN unit whose `ipv6 delegated-prefix` names this client has a /64 |
+| `ze_pppoe_client_renegotiations_total{name}` | counter | Network-phase LCP renegotiations the client started |
+
+An alert on `ze_pppoe_client_ipv6cp_opened == 1 and
+ze_iface_delegated_prefixes_held == 0` finds a WAN with IPv6 whose ISP has not
+delegated a prefix. `show interface pppoe-client` shows the prefixes and the
+lifetimes that remain.
+
+<!-- source: internal/component/l2tp/pppoeclient/metrics.go -- bindClientMetrics, recordIPv6CPOpened -->
+<!-- source: internal/component/iface/delegated_lease.go -- delegations.record, publishHeld -->
+
 ### Loc-RIB Import Policy Metrics
 
 An import chain (`<protocol> filter import`, `rib filter import`) can hide a

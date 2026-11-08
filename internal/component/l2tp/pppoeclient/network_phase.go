@@ -102,6 +102,11 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 		logger.Error("pppoe-client: uninitialized connected session; restart the PPPoE client")
 		return
 	}
+	if session.ipv6 != nil {
+		// The session ends here, and IPv6 with it: the gauge that applyIPv6CP
+		// and restart raise reads 0 once no session carries IPv6.
+		defer recordIPv6CPOpened(session.cfg.name, false)
+	}
 
 	// RFC 1661 Section 5.8: "Echo-Request and Echo-Reply packets MUST only be
 	// sent in the LCP Opened state." This loop runs only after LCP opened.

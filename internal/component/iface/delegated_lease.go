@@ -138,6 +138,9 @@ var heldDelegations = &delegations{
 func (t *delegations) record(source string, prefix netip.Prefix, received time.Time, validSeconds, preferredSeconds int) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	// Deferred after the unlock above, so it runs first, still under the lock:
+	// the gauge reads the held count this record left.
+	defer t.publishHeld(source)
 	if validSeconds == 0 {
 		delete(t.held[source], prefix)
 		delete(t.inUse[source], prefix)
@@ -151,6 +154,20 @@ func (t *delegations) record(source string, prefix netip.Prefix, received time.T
 		valid:     newLifetimeDeadline(received, validSeconds),
 		preferred: newLifetimeDeadline(received, preferredSeconds),
 	}
+}
+
+// publishHeld sets ze_iface_delegated_prefixes_held for source to the number
+// of delegated prefixes its lease holds. The caller MUST hold t.mu. No
+// registry means telemetry is disabled, and the table still works.
+func (t *delegations) publishHeld(source string) {
+	m := ifaceMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	if m.delegatedPrefixes == nil {
+		return
+	}
+	m.delegatedPrefixes.With(source).Set(float64(len(t.held[source])))
 }
 
 // chosen returns the delegation a unit numbers from: the lowest live prefix

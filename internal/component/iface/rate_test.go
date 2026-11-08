@@ -2,6 +2,7 @@ package iface
 
 import (
 	"math"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -204,13 +205,18 @@ func (v *fakeGaugeVec) Delete(labels ...string) bool {
 }
 
 func TestIfaceMetrics_BindRegistry(t *testing.T) {
-	var registered int
-	reg := &fakeRegistry{onGaugeVec: func() { registered++ }}
+	var registered []string
+	reg := &fakeRegistry{onGaugeVec: func(name string) { registered = append(registered, name) }}
 	bindMetricsRegistry(reg)
 	defer ifaceMetricsPtr.Store(nil)
 
-	if registered != 13 {
-		t.Errorf("registered %d gauges, want 13", registered)
+	if len(registered) != 14 {
+		t.Errorf("registered %d gauges %v, want 14", len(registered), registered)
+	}
+	// The delegated-prefix gauge is named, not only counted: a count stays
+	// right when one gauge replaces another.
+	if !slices.Contains(registered, "ze_iface_delegated_prefixes_held") {
+		t.Errorf("ze_iface_delegated_prefixes_held not registered: %v", registered)
 	}
 
 	m := ifaceMetricsPtr.Load()
@@ -220,15 +226,15 @@ func TestIfaceMetrics_BindRegistry(t *testing.T) {
 }
 
 type fakeRegistry struct {
-	onGaugeVec func()
+	onGaugeVec func(name string)
 }
 
 func (r *fakeRegistry) Counter(string, string) metrics.Counter                 { return nil }
 func (r *fakeRegistry) Gauge(string, string) metrics.Gauge                     { return nil }
 func (r *fakeRegistry) CounterVec(string, string, []string) metrics.CounterVec { return nil }
-func (r *fakeRegistry) GaugeVec(string, string, []string) metrics.GaugeVec {
+func (r *fakeRegistry) GaugeVec(name, _ string, _ []string) metrics.GaugeVec {
 	if r.onGaugeVec != nil {
-		r.onGaugeVec()
+		r.onGaugeVec(name)
 	}
 	return newFakeGaugeVec()
 }
