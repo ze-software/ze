@@ -505,7 +505,7 @@ func (c *PPPoEClient) leaseDNS(servers []string) {
 	c.mu.Lock()
 	c.dnsServers = servers
 	c.mu.Unlock()
-	if err := c.resolvers.SetLease(PPPoEResolverSource(c.cfg.Name), servers); err != nil {
+	if err := c.resolvers.SetLease(PPPoEResolverSource(c.cfg.Name), servers, system.UntilWithdrawn); err != nil {
 		c.logger.Warn("pppoe-client: failed to write the learned DNS servers to resolv.conf; name resolution may use stale servers; inspect with ze show interface pppoe-client",
 			"dns-servers", servers, "error", err)
 	}

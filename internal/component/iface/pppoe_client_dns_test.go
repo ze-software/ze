@@ -43,7 +43,7 @@ func newDNSSession(t *testing.T, primary, secondary string) *dnsSession {
 		done:      make(chan struct{}),
 		ended:     make(chan error, 1),
 	}
-	if err := h.resolvers.SetLease(testDHCPv4Origin.Source("eth0", "0"), []string{"198.51.100.1"}); err != nil {
+	if err := h.resolvers.SetLease(testDHCPv4Origin.Source("eth0", "0"), []string{"198.51.100.1"}, system.UntilWithdrawn); err != nil {
 		t.Fatal(err)
 	}
 	sess := PPPoESession{

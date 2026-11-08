@@ -15,6 +15,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/nclient4"
 
+	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -579,7 +580,7 @@ func (c *DHCPClient) installV4Lease(w *v4State, lease *v4Lease, topic string) bo
 
 	// RFC 2132 Section 3.8: the ACK's servers replace this lease's servers
 	// in resolv.conf; an ACK with none withdraws them.
-	c.setV4Resolvers(payload.DNSAll)
+	c.setV4Resolvers(payload.DNSAll, v4ResolverValidity(lease))
 
 	c.publishDHCP(topic, payload)
 
@@ -657,7 +658,7 @@ func (c *DHCPClient) teardownV4(w *v4State) {
 	c.removeV4Route(&w.route)
 	c.settleV4Address("")
 	// The lease's DNS servers leave resolv.conf; other sources' stay.
-	c.setV4Resolvers(nil)
+	c.setV4Resolvers(nil, system.UntilWithdrawn)
 }
 
 // claimV4Address registers cidr as this client's lease. The address it

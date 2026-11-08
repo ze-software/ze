@@ -19,6 +19,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Class names the role of a source of resolver addresses in a consumer's
@@ -56,6 +57,22 @@ const (
 	// already listed not repeated. A later source is an addition.
 	ModeMerge
 )
+
+// ParseClass reads the word an operator writes for a class. A word that
+// names no class answers false, and the caller refuses it rather than guess.
+func ParseClass(word string) (Class, bool) {
+	if slices.Contains(classes, Class(word)) {
+		return Class(word), true
+	}
+	return "", false
+}
+
+// classes is every class, in the order the YANG enumeration lists them.
+var classes = []Class{ClassReceived, ClassConfigured, ClassSelf, ClassRadius}
+
+// Classes answers every class an operator can write, for a message that
+// lists them. The slice is a copy.
+func Classes() []Class { return slices.Clone(classes) }
 
 // String answers the word an operator writes for the mode. It is for a human
 // and a JSON field; nothing compares against it.
@@ -117,6 +134,9 @@ type List struct {
 	mode    Mode
 	family  Family
 	stated  bool // a built-in default, not an operator-written list
+	// interfaces narrows the received class to the records learned on these
+	// interfaces, in this order (received-interface). Empty: every interface.
+	interfaces []string
 }
 
 // errNoFamily refuses a list that admits no address family: it could select
@@ -175,6 +195,80 @@ func (l List) Mode() Mode { return l.mode }
 
 // Stated reports whether the list is the consumer's built-in default.
 func (l List) Stated() bool { return l.stated }
+
+// ReceivedInterfaces answers the interfaces the received class is narrowed
+// to, in order; empty means every interface. The slice is a copy.
+func (l List) ReceivedInterfaces() []string { return slices.Clone(l.interfaces) }
+
+// IsZero reports whether l was built by neither NewList nor StatedDefault,
+// which refuse a list naming no source. A consumer that holds a zero List
+// holds no list at all, and MUST refuse to select from it.
+func (l List) IsZero() bool { return len(l.sources) == 0 }
+
+// Written is a dns-source container as the operator wrote it, read from the
+// config tree by its consumer. A nil Written means the container is absent.
+type Written struct {
+	Sources            []Class
+	Mode               Mode
+	ReceivedInterfaces []string
+}
+
+// Refusal is a class a consumer cannot use, with the reason and the fix the
+// operator reads when a list names it. Each consumer declares its own, so
+// this package names no consumer.
+type Refusal struct {
+	Class Class
+	Why   string
+	Fix   string
+}
+
+// NewWrittenList validates the dns-source container an operator wrote at
+// path and answers the list. It refuses, in this order: a class in refused
+// (*ClassRefusedError), a received-interface with no received source
+// (*ReceivedInterfaceError), then what NewList refuses. The consumer calls
+// it from every place its config is checked, so validate, commit and boot
+// give one verdict.
+func NewWrittenList(path string, family Family, written *Written, refused ...Refusal) (List, error) {
+	for _, source := range written.Sources {
+		for i := range refused {
+			if refused[i].Class == source {
+				return List{}, &ClassRefusedError{Path: path, Refusal: refused[i]}
+			}
+		}
+	}
+	if len(written.ReceivedInterfaces) > 0 && !slices.Contains(written.Sources, ClassReceived) {
+		return List{}, &ReceivedInterfaceError{Path: path, Interfaces: slices.Clone(written.ReceivedInterfaces)}
+	}
+	list, err := NewList(path, family, written.Mode, written.Sources...)
+	if err != nil {
+		return List{}, err
+	}
+	list.interfaces = slices.Clone(written.ReceivedInterfaces)
+	return list, nil
+}
+
+// Received answers the received class's entries for this list over records
+// at now. With no received-interface it is ReceivedAddresses. With one, only
+// the records learned on the named interfaces count, ordered by the
+// interface's place in the list, then origin rank, then unit; an interface
+// that holds no record contributes nothing (it may learn one later).
+func (l List) Received(records []Record, now time.Time) []netip.Addr {
+	if len(l.interfaces) == 0 {
+		return ReceivedAddresses(records, now)
+	}
+	var narrowed []Record
+	for _, name := range l.interfaces {
+		var held []Record
+		for i := range records {
+			if records[i].Interface == name {
+				held = append(held, records[i])
+			}
+		}
+		slices.SortStableFunc(held, func(a, b Record) int { return CompareRecords(&a, &b) })
+		narrowed = append(narrowed, held...)
+	}
+	return liveAddresses(narrowed, now)
+}
 
 // Candidates holds, for each class a consumer can name, the addresses that
 // class offers it, in the class's own order. A class absent from the map
@@ -307,4 +401,55 @@ type RepeatedSourceError struct {
 func (e *RepeatedSourceError) Error() string {
 	return e.Path + " names the source " + string(e.Source) + " twice: its second place can never contribute a server\n" +
 		"delete the second " + e.Path + " source " + string(e.Source)
+}
+
+// ClassRefusedError refuses a list naming a class its consumer cannot use.
+// The consumer's Refusal carries the reason and the fix.
+type ClassRefusedError struct {
+	Path    string
+	Refusal Refusal
+}
+
+// What says what the operator wrote.
+func (e *ClassRefusedError) What() string {
+	return e.Path + " names " + string(e.Refusal.Class)
+}
+
+// Error renders what, why and the fix, the fix on a line of its own.
+func (e *ClassRefusedError) Error() string {
+	return e.What() + ": " + e.Refusal.Why + "\n" + e.Refusal.Fix
+}
+
+// ReceivedInterfaceError refuses a received-interface on a list that does
+// not name received: the filter narrows only that class, so it would select
+// nothing.
+type ReceivedInterfaceError struct {
+	Path       string
+	Interfaces []string
+}
+
+// What says what the operator wrote.
+func (e *ReceivedInterfaceError) What() string {
+	return e.Path + " names received-interface " + strings.Join(e.Interfaces, ", ") +
+		" but its source list does not name received"
+}
+
+// Why says why Ze refuses it.
+func (e *ReceivedInterfaceError) Why() string {
+	return "received-interface only narrows the received source, so without it the filter selects nothing"
+}
+
+// Fix gives the two commands that settle it. With one interface the delete
+// names it; with several it deletes the whole leaf-list.
+func (e *ReceivedInterfaceError) Fix() string {
+	remove := "delete " + e.Path + " received-interface"
+	if len(e.Interfaces) == 1 {
+		remove += " " + e.Interfaces[0]
+	}
+	return "set " + e.Path + " source received, or " + remove
+}
+
+// Error renders the three parts, the fix on a line of its own.
+func (e *ReceivedInterfaceError) Error() string {
+	return e.What() + ": " + e.Why() + "\n" + e.Fix()
 }

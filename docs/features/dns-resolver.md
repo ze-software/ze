@@ -54,7 +54,8 @@ system {
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `name-server` | (none) | Static DNS servers. When set, they are the router's servers: the internal resolver asks them in order, and resolv.conf lists them all. |
+| `name-server` | (none) | Static DNS servers: the `configured` source of the router's list. Under the default list, when set, they are the router's servers: the internal resolver asks them in order, and resolv.conf lists them all. |
+| `dns-source` | `source [ configured received ]`, `mode first-usable` | The ordered sources of the router's servers and how they combine (next section). |
 | `resolv-conf-path` | `/tmp/resolv.conf` | Path for resolv.conf. Default suits gokrazy (read-only rootfs). Empty disables writing. |
 | `timeout` | 5 | Query timeout in seconds for each server asked (1-60) |
 | `cache-size` | 10000 | Maximum cached entries (0 disables caching) |
@@ -65,23 +66,75 @@ system {
 Ze keeps the static `name-server` list and, apart from it, one record per
 learned source: one per DHCP client (DHCPv4 or DHCPv6, per interface and
 unit), one per PPPoE client session (the servers IPCP supplied, RFC 1877,
-primary first), and one for the host's own `/etc/resolv.conf`. On every change, one rule selects the router's servers
-from them. The rule takes the configured servers first, and the learned
-records only when no server is configured:
+primary first), and one for the host's own `/etc/resolv.conf`. A record
+carries how long it stays valid: a DHCPv4 lease until the lease expires
+(until withdrawn for an infinite lease), a DHCPv6 Reply until the valid
+lifetime of its last binding runs out, an IPCP lease and the host's file
+until withdrawn. When a record's validity ends, Ze withdraws it at that
+moment, whether or not its client said so.
 
-| Situation | The router's servers |
+On every change, one rule selects the router's servers from them, walking
+the list `system dns-source` names. Two classes of source can be named
+there: `configured` (the `name-server` list) and `received` (every learned
+record, DHCPv4 first, then DHCPv6, then PPPoE, then the host's file, each by
+interface then unit, in the order each source sent them). The `mode` says
+how two classes combine:
+
+| `mode` | The router's servers |
+|--------|----------------------|
+| `first-usable` | the first class in the list that holds a usable server, alone; a later class is a backup, used only while the earlier ones hold none |
+| `merge` | every class, in list order, a server already listed not repeated; Ze's internal resolver tries a later server when an earlier one does not answer |
+
+With no `dns-source` written, the default is `source [ configured received ]`
+with `mode first-usable`. That is what Ze always did:
+
+| Situation, under the default | The router's servers |
 |-----------|----------------------|
 | `name-server` configured | the static servers alone; a learned server never overrides them (RFC 3646 Section 6) |
-| no `name-server` | every learned record's servers: DHCPv4 first, then DHCPv6, then PPPoE, then the host's `/etc/resolv.conf`, each by interface then unit, in the order each source sent them. A server already listed is not repeated |
-| a renewal reply omits the DNS option, or a lease ends | that lease's servers leave the selection; the other sources' stay (RFC 9915 Section 18.2.10.5 for DHCPv6) |
+| no `name-server` | every learned record's servers, in the received order above |
+| a renewal reply omits the DNS option, or a lease ends or expires | that lease's servers leave the selection; the other sources' stay (RFC 9915 Section 18.2.10.5 for DHCPv6) |
 | every source withdrawn | no server: queries fail closed, and resolv.conf holds the ze header with no `nameserver` line once ze has written it. A file ze never wrote is left alone |
+
+Two examples. To keep your own resolvers and fall back to the ISP's only
+when none is configured, write nothing: that is the default. To prefer the
+ISP's and keep your own as a backup asked after them:
+
+```
+system {
+    name-server [ 198.51.100.53 ]
+    dns-source {
+        source [ received configured ]
+        mode merge
+    }
+}
+```
+
+`received-interface [ eth1 ]` narrows `received` to the leases learned on the
+named interfaces, in the order listed, then by origin, then by unit. An
+interface that holds no lease yet is accepted, because it may learn one
+later.
+
+Ze refuses, at `ze config validate`, at commit, at boot and at reload:
+
+| Written | Refusal |
+|---------|---------|
+| two sources and no `mode` | `system dns-source names 2 sources (configured, received) and no mode`: Ze cannot tell whether a later source is a backup or an addition. Set `mode first-usable` or `mode merge` |
+| `received-interface` without `received` in `source` | the filter would select nothing. Add `source received`, or delete `received-interface` |
+| `source self` | Ze cannot be its own upstream. Name upstream servers with `name-server`, or use `source received` |
+| `source radius` | RADIUS resolvers belong to one PPP subscriber, not the router |
+
+A list naming one source needs no `mode`, because both modes give it the
+same answer.
+
+<!-- source: internal/component/config/system/dns_source.go -- RouterDNSSource, routerDNSSourceRefusals, validateRouterDNSSourceTree -->
+<!-- source: internal/core/dnssource/select.go -- NewWrittenList, List.Received, ModeRequiredError, ReceivedInterfaceError, ClassRefusedError -->
 
 An address that cannot name a resolver (the unspecified address, a multicast
 address, 255.255.255.255) is skipped, whatever its source. A loopback
 address such as the 127.0.0.53 of a host stub resolver stays, because Ze's
 own lookups can reach it.
 
-<!-- source: internal/component/config/system/resolv.go -- Resolvers, routerDefault, Resolvers.records -->
+<!-- source: internal/component/config/system/resolv.go -- Resolvers, routerDefault, Resolvers.records, ValidUntil, Resolvers.armExpiryLocked -->
 <!-- source: internal/core/dnssource/select.go -- Select, Usable -->
 <!-- source: internal/plugins/iface/dhcp/resolv_linux.go -- setV4Resolvers, setV6Resolvers -->
 
@@ -146,9 +199,12 @@ In `monitor traceroute | log` mode, they enrich the hop legend.
 
 ## Reload behavior
 
-A reload that changes `name-server` reaches the internal resolver and
-resolv.conf at once: the reload re-runs the selection, and removing every
-static server hands both back to the learned records. The `dns` settings
+A reload that changes `name-server` or `dns-source` reaches the internal
+resolver and resolv.conf at once: the reload re-runs the selection with the
+new list, and under the default list removing every static server hands both
+back to the learned records. A reload whose `dns-source` Ze refuses is
+refused whole, and the running list stays. The `dns` settings
 (`timeout`, `cache-size`, `cache-ttl`) are applied at startup, and a change to
 them needs a process restart.
 <!-- source: cmd/ze/hub/main_system.go -- applyResolvConf, newResolvers -->
+<!-- source: internal/component/config/system/system.go -- ExtractSystemConfig, SystemConfig.DNSSource -->

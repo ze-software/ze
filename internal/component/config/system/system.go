@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -23,6 +24,13 @@ type SystemConfig struct {
 
 	// Static DNS name servers (from system { name-server [...] }).
 	NameServers []string
+
+	// DNSSource is the router's resolver source list (system { dns-source }),
+	// or the built-in default when the container is absent. It is the zero
+	// List only when the written list is refused, which the system-dns-source
+	// tree validator refuses first on every load path; Resolvers.Configure
+	// refuses the zero List.
+	DNSSource dnssource.List
 
 	// DNS resolver tuning (from system { dns {} }).
 	DNSTimeout       uint16
@@ -193,11 +201,19 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 		DNSSECValidation: "off",
 		PeeringDBURL:     "https://www.peeringdb.com",
 		PeeringDBMargin:  10,
+		DNSSource:        routerDefault,
 	}
 
 	sys := tree.GetContainer("system")
 	if sys == nil {
 		return sc
+	}
+
+	if list, err := RouterDNSSource(sys); err != nil {
+		sc.DNSSource = dnssource.List{}
+		slogutil.Logger("resolv").Error("system dns-source refused; the router keeps its current resolvers", "err", err)
+	} else {
+		sc.DNSSource = list
 	}
 
 	if host, ok := sys.Get("host"); ok {

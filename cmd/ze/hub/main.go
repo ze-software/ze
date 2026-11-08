@@ -1084,7 +1084,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		command.SetOriginResolver(cymruOriginAdapter{resolvers.Cymru})
 	}
 
-	if err := system.ProcessResolvers().Configure(sc.ResolvConfPath, sc.NameServers); err != nil {
+	if err := system.ProcessResolvers().Configure(sc.ResolvConfPath, sc.NameServers, sc.DNSSource); err != nil {
 		slogutil.Logger("hub").Warn("resolv.conf write failed", "path", sc.ResolvConfPath, "err", err)
 	}
 

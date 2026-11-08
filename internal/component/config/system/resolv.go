@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
@@ -88,10 +89,38 @@ type ResolverSource struct {
 	unit   string
 }
 
-// lease is what one source supplied, and when.
+// lease is what one source supplied, when, and until when.
 type lease struct {
 	servers  []netip.Addr
 	received time.Time
+	validity LeaseValidity
+}
+
+// LeaseValidity is how long a lease's servers stay usable. Build a bounded
+// one with ValidUntil; the zero value is UntilWithdrawn, a named state.
+type LeaseValidity struct {
+	expires time.Time
+	bounded bool
+}
+
+// UntilWithdrawn keeps a lease's servers until its producer sets or
+// withdraws the source again: an IPCP lease, the host's resolv.conf, an
+// infinite DHCP lease.
+var UntilWithdrawn = LeaseValidity{}
+
+// ValidUntil keeps a lease's servers until expires, when the registry
+// withdraws them as if the producer had sent an empty list. An instant at or
+// before now withdraws the source at once.
+func ValidUntil(expires time.Time) LeaseValidity {
+	return LeaseValidity{expires: expires, bounded: true}
+}
+
+// expired reports whether the validity ended at or before now.
+func (v LeaseValidity) expired(now time.Time) bool {
+	if !v.bounded {
+		return false
+	}
+	return !now.Before(v.expires)
 }
 
 // routerDNSSourcePath is the config path of the router consumer's list.
@@ -120,13 +149,20 @@ var routerDefault = dnssource.StatedDefault(routerDNSSourcePath, dnssource.Famil
 // host's own resolv.conf), each group by interface then unit, each in the
 // order its source sent them, and a server already listed is not repeated.
 //
+// A lease with a bounded validity is withdrawn when it ends, by one timer
+// armed to the earliest end (no goroutine per lease): an expired lease never
+// reaches the file, the internal resolver or the event.
+//
 // The zero value is ready to use: it writes nothing until Configure names a
-// path, and it reads no host resolv.conf. Safe for concurrent use.
+// path, it reads no host resolv.conf, and it selects with the router's
+// built-in default list until Configure hands it another. Safe for
+// concurrent use.
 type Resolvers struct {
 	mu       sync.Mutex
 	path     string                   // empty: writing disabled
 	hostPath string                   // the host's resolv.conf; empty: none is read
 	static   []netip.Addr             // system { name-server }
+	list     dnssource.List           // system dns-source; zero: the built-in default
 	leases   map[ResolverSource]lease // non-empty server lists only
 	// written is a guard: an empty server set rewrites the file only once ze
 	// has written servers to it, so a resolv.conf ze never managed is never
@@ -134,6 +170,8 @@ type Resolvers struct {
 	written  bool
 	last     []string           // the servers the file holds, valid when written
 	snapshot dnssource.Snapshot // the current published state
+	clock    clock.Clock        // nil: the real clock
+	expiry   clock.Timer        // armed to the earliest lease end; nil until one is bounded
 
 	// notifyMu serializes delivery to watchers, so each watcher sees the
 	// snapshots in sequence order. It is taken before mu, never inside it.
@@ -159,36 +197,48 @@ var processResolvers = Resolvers{hostPath: hostResolvConfPath}
 // it.
 func ProcessResolvers() *Resolvers { return &processResolvers }
 
-// Configure sets the resolv.conf path (empty disables writing) and the
-// static name-servers, re-reads the host's resolv.conf, then rewrites the
-// file. The hub calls it at startup and on every reload. A name-server that
-// is not an IP address is dropped with a warning: YANG types the leaf as an
-// address, so only a Ze defect reaches that branch.
-func (r *Resolvers) Configure(path string, static []string) error {
+// errNoRouterList refuses a Configure with no router list: the config's
+// system dns-source was not read (ExtractSystemConfig logged why), so the
+// registry keeps the list it selects with now rather than guess one.
+var errNoRouterList = errors.New("the router's dns-source list could not be read from the config, so Ze keeps its current resolvers\n" +
+	"run ze config validate to see why system dns-source is refused")
+
+// Configure sets the resolv.conf path (empty disables writing), the static
+// name-servers and the router's dns-source list, re-reads the host's
+// resolv.conf, then rewrites the file. The hub calls it at startup and on
+// every reload. A name-server that is not an IP address is dropped with a
+// warning: YANG types the leaf as an address, so only a Ze defect reaches
+// that branch. A zero list is refused and changes nothing.
+func (r *Resolvers) Configure(path string, static []string, list dnssource.List) error {
+	if list.IsZero() {
+		return errNoRouterList
+	}
 	r.mu.Lock()
+	r.list = list
 	if path != r.path {
 		r.written = false
 	}
 	r.path = path
 	r.static = parseServers(static, "system name-server", "")
-	r.setLeaseLocked(hostResolverOrigin.Source("", ""), r.readHost())
+	r.setLeaseLocked(hostResolverOrigin.Source("", ""), r.readHost(), UntilWithdrawn)
 	err := r.refresh()
 	r.mu.Unlock()
 	r.deliver()
 	return err
 }
 
-// SetLease records the servers source's lease now carries and rewrites the
-// file. An empty list withdraws the source: its lease ended, or its latest
-// reply carried no resolver servers. A server that is not an IP address is
-// dropped with a warning naming the source.
-func (r *Resolvers) SetLease(source ResolverSource, servers []string) error {
+// SetLease records the servers source's lease now carries, valid as validity
+// says, and rewrites the file. An empty list, or a validity already ended,
+// withdraws the source: its lease ended, or its latest reply carried no
+// resolver servers. A server that is not an IP address is dropped with a
+// warning naming the source.
+func (r *Resolvers) SetLease(source ResolverSource, servers []string, validity LeaseValidity) error {
 	if source.origin.rank == 0 {
 		return errUnnamedResolverSource
 	}
 	parsed := parseServers(servers, source.origin.name, source.iface)
 	r.mu.Lock()
-	r.setLeaseLocked(source, parsed)
+	r.setLeaseLocked(source, parsed, validity)
 	err := r.refresh()
 	r.mu.Unlock()
 	r.deliver()
@@ -196,16 +246,72 @@ func (r *Resolvers) SetLease(source ResolverSource, servers []string) error {
 }
 
 // setLeaseLocked records servers for source, or withdraws it when there are
-// none. The caller MUST hold r.mu.
-func (r *Resolvers) setLeaseLocked(source ResolverSource, servers []netip.Addr) {
+// none or validity already ended. The caller MUST hold r.mu.
+func (r *Resolvers) setLeaseLocked(source ResolverSource, servers []netip.Addr, validity LeaseValidity) {
+	now := r.now()
 	if len(servers) == 0 {
+		delete(r.leases, source)
+		return
+	}
+	if validity.expired(now) {
 		delete(r.leases, source)
 		return
 	}
 	if r.leases == nil {
 		r.leases = make(map[ResolverSource]lease)
 	}
-	r.leases[source] = lease{servers: servers, received: time.Now()}
+	r.leases[source] = lease{servers: servers, received: now, validity: validity}
+}
+
+// now answers the registry's clock's time.
+func (r *Resolvers) now() time.Time {
+	if r.clock == nil {
+		return time.Now()
+	}
+	return r.clock.Now()
+}
+
+// expire is the expiry timer's callback: it withdraws every lease whose
+// validity ended, then publishes the change as SetLease does.
+func (r *Resolvers) expire() {
+	r.mu.Lock()
+	err := r.refresh()
+	r.mu.Unlock()
+	if err != nil {
+		slogutil.Logger("resolv").Warn("resolv.conf write failed after a lease expired", "path", r.path, "err", err)
+	}
+	r.deliver()
+}
+
+// armExpiryLocked arms the one expiry timer to the earliest end of a bounded
+// lease, or stops it when no lease ends. The caller MUST hold r.mu.
+func (r *Resolvers) armExpiryLocked(now time.Time) {
+	var earliest time.Time
+	for _, held := range r.leases {
+		if !held.validity.bounded {
+			continue
+		}
+		if earliest.IsZero() || held.validity.expires.Before(earliest) {
+			earliest = held.validity.expires
+		}
+	}
+	if earliest.IsZero() {
+		if r.expiry != nil {
+			r.expiry.Stop()
+		}
+		return
+	}
+	wait := earliest.Sub(now)
+	if r.expiry == nil {
+		clk := r.clock
+		if clk == nil {
+			clk = clock.RealClock{}
+		}
+		r.expiry = clk.AfterFunc(wait, r.expire)
+		return
+	}
+	r.expiry.Stop()
+	r.expiry.Reset(wait)
 }
 
 // Servers answers the servers resolv.conf lists for the recorded sources.
@@ -286,18 +392,34 @@ func (r *Resolvers) deliver() {
 	}
 }
 
-// refresh recomputes the snapshot from the recorded sources and writes the
-// file when its servers changed. The caller MUST hold r.mu.
+// refresh withdraws every lease whose validity ended, re-arms the expiry
+// timer, recomputes the snapshot from the recorded sources with the router's
+// list, and writes the file when its servers changed. The caller MUST hold
+// r.mu.
 func (r *Resolvers) refresh() error {
+	now := r.now()
+	for source, held := range r.leases {
+		if held.validity.expired(now) {
+			delete(r.leases, source)
+		}
+	}
+	r.armExpiryLocked(now)
+	list := r.list
+	// The zero Resolvers selects with the built-in default until Configure
+	// hands it a list it read; Configure itself refuses a zero list.
+	// refuse-by-default: guards Configure -- a zero list here is the zero Resolvers, never a refused config
+	if list.IsZero() {
+		list = routerDefault
+	}
 	records := r.records()
-	selection := dnssource.Select(routerDefault, dnssource.Candidates{
+	selection := dnssource.Select(list, dnssource.Candidates{
 		dnssource.ClassConfigured: r.static,
-		dnssource.ClassReceived:   dnssource.ReceivedAddresses(records, time.Now()),
+		dnssource.ClassReceived:   list.Received(records, now),
 	})
 	r.snapshot = dnssource.Snapshot{
 		Sequence: r.snapshot.Sequence + 1,
 		Records:  records,
-		Router:   dnssource.NewRouterSelection(routerDefault, selection),
+		Router:   dnssource.NewRouterSelection(list, selection),
 	}
 	return r.flush(serverTexts(selection.Servers))
 }
@@ -314,6 +436,7 @@ func (r *Resolvers) records() []dnssource.Record {
 			Unit:      source.unit,
 			Addresses: slices.Clone(held.servers),
 			Received:  held.received,
+			Expires:   held.validity.expires,
 		})
 	}
 	slices.SortFunc(records, func(a, b dnssource.Record) int { return dnssource.CompareRecords(&a, &b) })

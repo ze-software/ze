@@ -168,11 +168,11 @@ func TestResolverLeavesSystemNameServers(t *testing.T) {
 	if err := os.WriteFile(resolvConf, []byte("nameserver 192.0.2.53\n"), 0o600); err != nil {
 		t.Fatalf("seed the stub resolver file: %v", err)
 	}
-	if err := system.ProcessResolvers().Configure(resolvConf, stub); err != nil {
+	if err := system.ProcessResolvers().Configure(resolvConf, stub, system.DefaultRouterDNSSource()); err != nil {
 		t.Fatalf("configure the stub: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := system.ProcessResolvers().Configure("", nil); err != nil {
+		if err := system.ProcessResolvers().Configure("", nil, system.DefaultRouterDNSSource()); err != nil {
 			t.Errorf("reset the stub: %v", err)
 		}
 	})

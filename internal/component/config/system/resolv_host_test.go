@@ -40,7 +40,7 @@ func hostRecord(r *Resolvers) (dnssource.Record, bool) {
 // PREVENTS: a hardcoded fallback resolver when the host has none.
 func TestHostRecordAbsentFileRegistersNothing(t *testing.T) {
 	r := hostRegistry(filepath.Join(t.TempDir(), "missing-resolv.conf"))
-	if err := r.Configure("", nil); err != nil {
+	if err := r.Configure("", nil, routerDefault); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	if record, ok := hostRecord(r); ok {
@@ -60,7 +60,7 @@ func TestHostRecordNoNameserverRegistersNothing(t *testing.T) {
 	hostPath := filepath.Join(t.TempDir(), "resolv.conf")
 	writeFile(t, hostPath, "# managed elsewhere\nsearch example.net\noptions ndots:1\nnameserver\n")
 	r := hostRegistry(hostPath)
-	if err := r.Configure("", nil); err != nil {
+	if err := r.Configure("", nil, routerDefault); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	if record, ok := hostRecord(r); ok {
@@ -80,7 +80,7 @@ func TestHostRecordServersInFileOrder(t *testing.T) {
 	hostPath := filepath.Join(t.TempDir(), "resolv.conf")
 	writeFile(t, hostPath, "nameserver 198.51.100.2\nsearch example.net\nnameserver 2001:db8::53\nnameserver 192.0.2.7\n")
 	r := hostRegistry(hostPath)
-	if err := r.Configure("", nil); err != nil {
+	if err := r.Configure("", nil, routerDefault); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	record, ok := hostRecord(r)
@@ -114,7 +114,7 @@ func TestHostRecordSkipsZesOwnResolvConf(t *testing.T) {
 
 	for _, hostPath := range []string{own, link} {
 		r := hostRegistry(hostPath)
-		if err := r.Configure(own, nil); err != nil {
+		if err := r.Configure(own, nil, routerDefault); err != nil {
 			t.Fatalf("configure: %v", err)
 		}
 		if record, ok := hostRecord(r); ok {
@@ -141,7 +141,7 @@ func TestHostRecordAloneFeedsTheResolver(t *testing.T) {
 	if len(seen) != 0 {
 		t.Fatalf("before configure the watcher saw %v", seen)
 	}
-	if err := r.Configure("", nil); err != nil {
+	if err := r.Configure("", nil, routerDefault); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	want := []string{"198.51.100.2", "198.51.100.3"}
@@ -151,7 +151,7 @@ func TestHostRecordAloneFeedsTheResolver(t *testing.T) {
 
 	// A configured name-server wins over the host record (the default list
 	// puts configured first), and the watcher follows the change.
-	if err := r.Configure("", []string{"192.0.2.53"}); err != nil {
+	if err := r.Configure("", []string{"192.0.2.53"}, routerDefault); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	if want := []string{"192.0.2.53"}; !slices.Equal(seen, want) {

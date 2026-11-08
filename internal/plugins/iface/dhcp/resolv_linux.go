@@ -23,8 +23,8 @@ func (c *DHCPClient) resolvers() *system.Resolvers {
 // RFC 2132 Section 3.8: "The domain name server option specifies a list of
 // Domain Name System (STD 13, RFC 1035 [8]) name servers available to the
 // client." Each ACK's list replaces the previous one.
-func (c *DHCPClient) setV4Resolvers(servers []string) {
-	if err := c.resolvers().SetLease(dhcpv4ResolverOrigin.Source(c.ifaceName, c.unit), servers); err != nil {
+func (c *DHCPClient) setV4Resolvers(servers []string, validity system.LeaseValidity) {
+	if err := c.resolvers().SetLease(dhcpv4ResolverOrigin.Source(c.ifaceName, c.unit), servers, validity); err != nil {
 		loggerPtr.Load().Warn("iface dhcp v4: resolv.conf write failed", "iface", c.ifaceName, "err", err)
 	}
 }
@@ -41,8 +41,34 @@ func (c *DHCPClient) setV4Resolvers(servers []string) {
 // configuration option that it previously received in a Reply, the client
 // SHOULD stop using the previously received configuration information." The
 // lease's list is empty after such a Reply, so the servers leave the file.
-func (c *DHCPClient) setV6Resolvers(servers []string) {
-	if err := c.resolvers().SetLease(dhcpv6ResolverOrigin.Source(c.ifaceName, c.unit), servers); err != nil {
+func (c *DHCPClient) setV6Resolvers(servers []string, validity system.LeaseValidity) {
+	if err := c.resolvers().SetLease(dhcpv6ResolverOrigin.Source(c.ifaceName, c.unit), servers, validity); err != nil {
 		loggerPtr.Load().Warn("iface dhcp v6: resolv.conf write failed", "iface", c.ifaceName, "err", err)
 	}
+}
+
+// v4ResolverValidity is how long a DHCPv4 lease's servers stay usable: until
+// the lease expires, or until withdrawn for an infinite lease. The client
+// withdraws them itself when the lease ends; the registry's own expiry is
+// the backstop for a client that stops before it can.
+func v4ResolverValidity(lease *v4Lease) system.LeaseValidity {
+	if lease.infinite {
+		return system.UntilWithdrawn
+	}
+	return system.ValidUntil(lease.expireAt)
+}
+
+// v6ResolverValidity is how long a DHCPv6 Reply's servers stay usable: until
+// every binding's valid lifetime has run out. A lease with no binding (a
+// stateless Information-Request) or with an infinite binding holds them
+// until the client withdraws them.
+func v6ResolverValidity(lease *v6Lease) system.LeaseValidity {
+	if lease.empty() {
+		return system.UntilWithdrawn
+	}
+	last := lease.lastExpiry()
+	if last.never {
+		return system.UntilWithdrawn
+	}
+	return system.ValidUntil(last.at)
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/insomniacslk/dhcp/iana"
 
+	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/clock"
 )
@@ -350,7 +351,7 @@ func (w *v6Worker) maintain() {
 		if w.lease.empty() {
 			w.lease = nil
 			w.moveDue = v6Never()
-			w.c.setV6Resolvers(nil)
+			w.c.setV6Resolvers(nil, system.UntilWithdrawn)
 			return
 		}
 		t1, t2 := w.lease.renewTimes()
@@ -534,7 +535,7 @@ func (w *v6Worker) effect(applied v6Applied, topic string) {
 	}
 	// RFC 9915 Section 18.2.10.5: the Reply's servers replace the lease's;
 	// a Reply without the option withdraws them.
-	w.c.setV6Resolvers(w.lease.dns)
+	w.c.setV6Resolvers(w.lease.dns, v6ResolverValidity(w.lease))
 }
 
 // v6Seconds is a lifetime as the kernel takes it: 0xffffffff is infinite.
@@ -630,7 +631,7 @@ func (w *v6Worker) shutdown() {
 		}
 	}
 	w.lease = nil
-	w.c.setV6Resolvers(nil)
+	w.c.setV6Resolvers(nil, system.UntilWithdrawn)
 	if err := w.registerLeased(); err != nil {
 		loggerPtr.Load().Debug("iface dhcp v6: leased-address registration failed", "iface", w.c.ifaceName, "err", err)
 	}

@@ -197,7 +197,7 @@ func applyResolvConf(parsedTree *zeconfig.Tree) {
 	}
 	sc := system.ExtractSystemConfig(parsedTree)
 	// Removing every name-server hands resolv.conf back to the DHCP leases.
-	if err := system.ProcessResolvers().Configure(sc.ResolvConfPath, sc.NameServers); err != nil {
+	if err := system.ProcessResolvers().Configure(sc.ResolvConfPath, sc.NameServers, sc.DNSSource); err != nil {
 		slogutil.Logger("hub").Warn("resolv.conf write failed (reload)", "path", sc.ResolvConfPath, "err", err)
 	}
 }

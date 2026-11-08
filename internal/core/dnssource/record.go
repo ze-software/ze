@@ -89,7 +89,16 @@ func CompareRecords(a, b *Record) int {
 // record's addresses in the order its source sent them. Repeats are kept;
 // Select removes them. records is not modified.
 func ReceivedAddresses(records []Record, now time.Time) []netip.Addr {
-	live := make([]*Record, 0, len(records))
+	ordered := slices.Clone(records)
+	slices.SortStableFunc(ordered, func(a, b Record) int { return CompareRecords(&a, &b) })
+	return liveAddresses(ordered, now)
+}
+
+// liveAddresses answers the addresses of each unexpired plain-DNS record, in
+// the order records holds them. A record with a Transport is skipped: it is
+// not plain DNS on port 53.
+func liveAddresses(records []Record, now time.Time) []netip.Addr {
+	var out []netip.Addr
 	for i := range records {
 		record := &records[i]
 		if record.Expired(now) {
@@ -98,11 +107,6 @@ func ReceivedAddresses(records []Record, now time.Time) []netip.Addr {
 		if len(record.Transport) > 0 {
 			continue
 		}
-		live = append(live, record)
-	}
-	slices.SortStableFunc(live, CompareRecords)
-	var out []netip.Addr
-	for _, record := range live {
 		out = append(out, record.Addresses...)
 	}
 	return out
@@ -118,6 +122,8 @@ type RouterSelection struct {
 	Mode    string  `json:"mode"`
 	// Default is true while the built-in default list applies.
 	Default bool `json:"default"`
+	// ReceivedInterfaces narrows received, in order; empty: every interface.
+	ReceivedInterfaces []string `json:"received-interfaces,omitempty"`
 	// Used are the classes that contributed a server.
 	Used []Class `json:"used"`
 	// Servers are the router's resolvers, in the order Ze asks them.
@@ -127,12 +133,13 @@ type RouterSelection struct {
 // NewRouterSelection pairs list with what it selected.
 func NewRouterSelection(list List, selection Selection) RouterSelection {
 	return RouterSelection{
-		Path:    list.Path(),
-		Sources: list.Sources(),
-		Mode:    list.Mode().String(),
-		Default: list.Stated(),
-		Used:    slices.Clone(selection.Used),
-		Servers: slices.Clone(selection.Servers),
+		Path:               list.Path(),
+		Sources:            list.Sources(),
+		Mode:               list.Mode().String(),
+		Default:            list.Stated(),
+		ReceivedInterfaces: list.ReceivedInterfaces(),
+		Used:               slices.Clone(selection.Used),
+		Servers:            slices.Clone(selection.Servers),
 	}
 }
 

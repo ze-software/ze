@@ -93,7 +93,7 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	defer unwatchResolvers()
 	// Web-only mode runs no daemon and learns no lease: the host resolv.conf
 	// is its only source of resolvers. No path: it writes no file.
-	if err := system.ProcessResolvers().Configure("", nil); err != nil {
+	if err := system.ProcessResolvers().Configure("", nil, system.DefaultRouterDNSSource()); err != nil {
 		slogutil.Logger("web").Warn("resolvers not configured", "err", err)
 	}
 	if resolvers.DNS != nil {

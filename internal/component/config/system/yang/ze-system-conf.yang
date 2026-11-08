@@ -35,11 +35,26 @@ module ze-system-conf {
 
         leaf-list name-server {
             type zt:ip-address;
-            description "Ze writes each address to the resolv.conf file named by
-                         dns/resolv-conf-path, and its own resolver asks these servers.
+            description "The configured source of the router's resolvers. Under the
+                         default dns-source list, Ze writes each address to the
+                         resolv.conf file named by dns/resolv-conf-path, and its own
+                         resolver asks these servers, whenever any is set.
                          When environment mtu reference-address is not set, show mtu
                          measures the first server as its reference address.";
             ze:help "Static DNS name servers, written to resolv.conf and used by ze internal resolver.";
+        }
+
+        uses zt:dns-source {
+            refine dns-source {
+                description "The sources of the router's own resolvers: what Ze writes to
+                             resolv.conf and what its internal resolver asks, in order.
+                             configured is system name-server; received is every resolver
+                             Ze learned by DHCPv4, DHCPv6 or IPCP, then the host's own
+                             resolv.conf. self and radius are refused here. With the
+                             container absent the default is source configured, then
+                             received, mode first-usable: the name-servers when any are
+                             set, otherwise the learned resolvers.";
+            }
         }
 
         container dns {

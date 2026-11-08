@@ -27,7 +27,7 @@ func TestResolverOriginRegistryOrdersByRank(t *testing.T) {
 		{v6.Source("eth0", "0"), "2001:db8::2"},
 		{v4.Source("eth0", "0"), "192.0.2.1"},
 	} {
-		if err := r.SetLease(lease.source, []string{lease.server}); err != nil {
+		if err := r.SetLease(lease.source, []string{lease.server}, UntilWithdrawn); err != nil {
 			t.Fatalf("set lease %v: %v", lease.source, err)
 		}
 	}
@@ -55,7 +55,7 @@ func TestResolverOriginRegistryOrdersByRank(t *testing.T) {
 		})
 	}
 
-	if err := r.SetLease(ResolverOrigin{}.Source("eth0", "0"), []string{"192.0.2.9"}); err == nil {
+	if err := r.SetLease(ResolverOrigin{}.Source("eth0", "0"), []string{"192.0.2.9"}, UntilWithdrawn); err == nil {
 		t.Fatal("a source of the zero origin was recorded")
 	}
 }

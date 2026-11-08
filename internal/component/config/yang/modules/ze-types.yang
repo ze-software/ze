@@ -591,4 +591,75 @@ module ze-types {
         }
         description "Subsequent Address Family Identifier";
     }
+
+    typedef dns-source-class {
+        type enumeration {
+            enum received {
+                ze:help "Resolvers Ze learned from the network, by DHCPv4, DHCPv6 or IPCP.";
+            }
+            enum configured {
+                ze:help "The resolvers configured on this consumer itself.";
+            }
+            enum self {
+                ze:help "Ze's own address on the interface the client is on.";
+            }
+            enum radius {
+                ze:help "The resolvers RADIUS gives one PPP subscriber.";
+            }
+        }
+        description "The role of a source of DNS resolver addresses in a dns-source
+                     list. A class names a role, never a protocol: every learned
+                     protocol appears inside received, ordered by its registered rank.
+                     Each consumer refuses the classes it cannot use.";
+    }
+
+    grouping dns-source {
+        container dns-source {
+            description "The ordered list of sources this consumer takes its DNS resolver
+                         addresses from, and how it combines them. With the container
+                         absent, the consumer uses its built-in default list, which its
+                         own description states. Once any source is written, the default
+                         no longer applies, its mode included.";
+            ze:help "Where this consumer's DNS resolvers come from, and in what order.";
+
+            leaf-list source {
+                type dns-source-class;
+                ordered-by user;
+                description "The source classes in the order the consumer falls through
+                             them. A class may appear once. Two or more classes need a mode:
+                             Ze refuses the list without one, because it cannot tell whether
+                             a later source is a backup or an addition.";
+                ze:help "A source class, in fall-through order: received, configured, self, radius.";
+            }
+
+            leaf mode {
+                type enumeration {
+                    enum first-usable {
+                        ze:help "The first source with a usable server wins; later ones are backups.";
+                    }
+                    enum merge {
+                        ze:help "Every source's servers, in list order, each server listed once.";
+                    }
+                }
+                description "How a list of two or more sources combines them. first-usable
+                             takes the first source that holds a usable server and ignores
+                             the rest; merge takes every source in list order. The leaf has
+                             no default: a list naming one source needs none, and a list
+                             naming more is refused without it.";
+                ze:help "How two or more sources combine: first-usable or merge.";
+            }
+
+            leaf-list received-interface {
+                type node-name;
+                ordered-by user;
+                description "Narrows the received source to the resolvers learned on these
+                             interfaces, in this order, then by origin rank, then by unit.
+                             With none listed, received takes every interface. Ze refuses
+                             the leaf when the source list does not name received. An
+                             interface that holds no lease yet is accepted: it may learn one
+                             later.";
+                ze:help "Take received resolvers only from these interfaces, in this order.";
+            }
+        }
+    }
 }

@@ -1923,8 +1923,11 @@ order the source sent them, and the time it was `received`. An `expires`
 member, when present, is the end of the record's validity; when absent, the
 record is valid until its source withdraws it. `router` is the router's
 list (`sources` and `mode`, with `default` true while the built-in default
-applies), the classes that supplied a server (`used`), and the `servers` Ze
-asks, in order.
+applies, and `received-interfaces` when `received-interface` narrows the
+received class), the classes that supplied a server (`used`), and the
+`servers` Ze asks, in order. `mode` is `unspecified` for a one-source list
+written without one. A record whose validity ended is withdrawn before the
+next snapshot, so no published record is ever expired.
 
 A plugin emits `snapshot-request` once it has subscribed, so a plugin that
 starts late or restarts gets the state without waiting for a change. One
