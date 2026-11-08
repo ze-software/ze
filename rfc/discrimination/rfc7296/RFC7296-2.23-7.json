@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-2.23-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/nat_dns_test.go::TestDNSRemoteSendsNATDetection",
+    "unit-sha": "ed5d682f812e6877",
+    "claim-sha": "8d682820f0aa86d7",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/initiator.go::encodeSAInitRequest",
+    "producer-sha": "5c44ca37885fea5d",
+    "break": "line 94: \"cycleRemoteAddress(sa)\" -\u003e \"net.ParseIP(sa.PeerCfg.RemoteAddress)\""
+  }
+]

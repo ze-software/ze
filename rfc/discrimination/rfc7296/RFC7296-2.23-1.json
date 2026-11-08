@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC7296-2.23-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/nat_dns_test.go::TestDNSRemoteNATMismatchFloats",
+    "unit-sha": "eec1acc77332abdb",
+    "claim-sha": "6bfad5d922026a2c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/fsm.go::handleSAInitResponse",
+    "producer-sha": "37e182ce0c81c6a7",
+    "break": "line 742: \"cycleRemoteAddress(sa)\" -\u003e \"net.ParseIP(sa.PeerCfg.RemoteAddress)\""
+  },
+  {
+    "rid": "RFC7296-2.23-1",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads",
     "unit-sha": "4ea7c16fc765e4e0",

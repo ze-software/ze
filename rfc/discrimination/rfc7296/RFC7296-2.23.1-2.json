@@ -20,5 +20,16 @@
     "producer": "internal/component/ike/engine/ts_nat_substitute.go::substituteInitiatorSelectors",
     "producer-sha": "2a9202329270ba1f",
     "break": "body of substituteInitiatorSelectors replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/transport_mode_test.go::TestTransportModeDNSRemoteProposesResolvedPair",
+    "unit-sha": "e17d4087b51277f5",
+    "claim-sha": "ff6a67dd88907c10",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/transport_mode.go::transportSelectorPairs",
+    "producer-sha": "618e1735922e7fb0",
+    "break": "line 62: \"ipToFullNet(local)\" -\u003e \"ipToFullNet(remote)\""
   }
 ]

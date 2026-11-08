@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC7296-2.23-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/nat_dns_test.go::TestDNSRemoteNATMismatchFloats",
+    "unit-sha": "eec1acc77332abdb",
+    "claim-sha": "6eced69d6d0157c8",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/fsm.go::handleSAInitResponse",
+    "producer-sha": "37e182ce0c81c6a7",
+    "break": "line 754: \"sa.floatToNATTPort()\" -\u003e \"_ = sa.floatToNATTPort\""
+  },
+  {
+    "rid": "RFC7296-2.23-8",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc7296_natt_test.go::TestNattFloatedSAWithoutNATTSocketSendsNothing",
     "unit-sha": "54ac15491662aa36",
