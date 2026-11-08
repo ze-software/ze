@@ -1,17 +1,17 @@
 {
-  "note": "Judge 2026-09-30 (cont 7 re-judge). AC half unchanged and enforced (handleSessionDown removes the session and sends its PADT; an unknown SID leaves it). Host half, the gap of the prior weak verdict: TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates drives production superviseNetworkPhase (extracted from Dial's anonymous goroutine with no behaviour change: keepaliveLoop then link.Close, same order, same args) with an AC Terminate-Request: exactly one Terminate-Ack, channel closed once, Done published, link.Write refused, a later Echo-Reply not written (the fake channel accepts writes after Close, so only the session guard refuses). Observed red under a revert of superviseNetworkPhase. Negative TestRFC2516HostKeepsTheSessionUntilLCPTerminates: an Echo-Request and a stray Terminate-Ack leave Done open and the Host answering; only the following Terminate-Request ends it, so the stop is tied to LCP termination and not to any LCP frame. Observed red under a revert of keepaliveLoop.",
+  "note": "Re-judged after a02374d9ad changed TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates against RFC 2516 Section 7 (\"When LCP terminates, the Host and Access concentrator MUST stop using that PPPoE session.\"). The only change: the post-termination sendEchoReply result, previously discarded, must now satisfy errors.Is(err, io.ErrClosedPipe). That error is produced only by sessionLink.Write's closed guard (dialer.go), passed through writeClientPacket unwrapped and by sendEchoReply with %w, so the check pins the session's own refusal; the hostChannel still accepts writes after Close, so neither this nor the zero-later-frames check can pass unless superviseNetworkPhase closed the link after keepaliveLoop returned on the Terminate-Request. Every earlier assertion is kept (exactly one Terminate-Ack for Identifier 5, one channel close, Done published, link.Write refused, no frame after the Ack): strictly stronger. Negative TestRFC2516HostKeepsTheSessionUntilLCPTerminates unchanged: Echo-Request and stray Terminate-Ack leave Done open and the Host answering, only the Terminate-Request ends it, so the stop is tied to LCP termination. AC half unchanged: handleSessionDown removes the session and sends its PADT (exact CODE, SESSION_ID, destination MAC); an unknown SID sends nothing and removes nothing. Discrimination records (re-taken 45025b3639) replace whole producer bodies with a panic, which proves only that the units reach the producers; the specific break (dropping link.Close from superviseNetworkPhase) was judged by reading: it leaves link.stopped open and Write succeeding, so three assertions go red.",
   "requirement_sha": "0c0a57401e445c44",
   "tests": {
     "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "e5818bbbd45fc77f",
     "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "e5818bbbd45fc77f",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates": "864a1b2a0d38ed69",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates": "864a1b2a0d38ed69"
+    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates": "457d2ec8baa66b63",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates": "457d2ec8baa66b63"
   },
   "units": {
     "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "acfed3d0bdabd176",
     "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "b69dc75510f54662",
     "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates": "5d0496edc6a9683c",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates": "461d9c689e49fa93"
+    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates": "9a61f0a795a9dd9e"
   },
   "verdict": "enforced"
 }

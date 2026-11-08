@@ -5,8 +5,8 @@
     "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADT": "b7c2fae4a50abe95",
     "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "e5818bbbd45fc77f",
     "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "e5818bbbd45fc77f",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNamesItsAccessConcentratorAndSession": "864a1b2a0d38ed69",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession": "864a1b2a0d38ed69"
+    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNamesItsAccessConcentratorAndSession": "457d2ec8baa66b63",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession": "457d2ec8baa66b63"
   },
   "units": {
     "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADT": "4af5887b466efb6a",
