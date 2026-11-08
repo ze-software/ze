@@ -7,7 +7,7 @@
     "claim-sha": "1128014dc76805d2",
     "route": "revert",
     "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::installV4Lease",
-    "producer-sha": "f393c18ac3247b7f",
+    "producer-sha": "026c4ee98d89daea",
     "break": "body of installV4Lease replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
