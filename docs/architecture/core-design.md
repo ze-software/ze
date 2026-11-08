@@ -2145,7 +2145,7 @@ Connection collision detection follows RFC 4271 S6.8: when both sides connect si
 
 ## 13. DNS Resolution
 
-Ze includes a built-in DNS resolver component (`internal/component/dns/`) that provides cached
+Ze includes a built-in DNS resolver component (`internal/component/resolve/dns/`) that provides cached
 DNS queries to all Ze components. It is cross-cutting infrastructure, not a plugin.
 
 | Concept | Description |
@@ -2154,14 +2154,19 @@ DNS queries to all Ze components. It is cross-cutting infrastructure, not a plug
 | **Cache** | O(1) LRU using `container/list`, struct keys, mutex-protected |
 | **TTL** | Respects response TTL, caps at configured max, honors TTL=0 (RFC 1035: do not cache) |
 | **Config** | YANG under `system/name-server` (servers) and `system/dns` (timeout, cache-size, cache-ttl, resolv-conf-path) |
-| **Concurrency** | Thread-safe. Immutable fields after construction, mutex on cache |
-| **System fallback** | Reads `/etc/resolv.conf` once at construction when no server configured |
+| **Servers** | An ordered list, asked in turn: a server that gives no answer passes the query to the next. An empty list fails closed with `no DNS server configured` |
+| **Server source** | The router's selection in `system.Resolvers`: configured `name-server` first, else the learned records (DHCPv4, DHCPv6, PPPoE IPCP, then the host's `/etc/resolv.conf`). The hub's `newResolvers` watches it and calls `SetServers` on each change. The resolver reads no resolv.conf itself |
+| **Selection rule** | `internal/core/dnssource`: the record shape, the source classes and `Select`, shared by every consumer of resolver addresses. The registry publishes each change as the `system-dns` `snapshot` event |
+| **Concurrency** | Thread-safe. Server list swapped atomically (a query in flight keeps the list it started with), mutex on cache |
 
 The resolver exposes `Resolve(name, qtype)` and convenience methods (`ResolveA`, `ResolveTXT`,
 `ResolvePTR`, etc.). Consumers receive a `*dns.Resolver` instance; they never import miekg/dns
 directly. NXDOMAIN returns empty results (not an error) and is not cached.
 
 <!-- source: internal/component/resolve/dns/resolver.go -- Resolver type, NewResolver, Resolve -->
+<!-- source: internal/component/config/system/resolv.go -- Resolvers, routerDefault, Watch, PublishOn -->
+<!-- source: internal/core/dnssource/select.go -- Select -->
+<!-- source: cmd/ze/hub/main_system.go -- newResolvers -->
 <!-- source: internal/component/resolve/dns/cache.go -- O(1) LRU cache with TTL and eviction -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system DNS config -->
 

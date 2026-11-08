@@ -6,9 +6,12 @@
 package dns
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
+	"sync/atomic"
 	"time"
 
 	mdns "github.com/miekg/dns"
@@ -19,11 +22,16 @@ import (
 
 // ResolverConfig holds DNS resolver configuration from YANG.
 type ResolverConfig struct {
-	Server         string // DNS server address (e.g., "8.8.8.8:53"). Empty uses system default.
-	ResolvConfPath string // Path to resolv.conf (empty uses /etc/resolv.conf).
-	Timeout        uint16 // Query timeout in seconds.
-	CacheSize      uint32 // Max cached entries. 0 disables caching.
-	CacheTTL       uint32 // Max cache TTL in seconds. 0 means use response TTL only.
+	// Servers are the DNS servers asked, in order ("192.0.2.53" or
+	// "192.0.2.53:5353"; a server with no port is asked on 53). None means
+	// every query fails with "no DNS server configured" until SetServers
+	// names one: the resolver never reads a resolv.conf of its own. In the
+	// daemon the hub keeps them equal to the router's selection
+	// (system.Resolvers).
+	Servers   []string
+	Timeout   uint16 // Query timeout in seconds, for each server asked.
+	CacheSize uint32 // Max cached entries. 0 disables caching.
+	CacheTTL  uint32 // Max cache TTL in seconds. 0 means use response TTL only.
 	// DNSSECValidation controls upstream-answer DNSSEC handling (RFC 4035 stub
 	// model): "off" (default) leaves behavior unchanged; "permissive" and
 	// "strict" set the EDNS0 DO bit and rely on a validating upstream (CD=0) to
@@ -150,11 +158,35 @@ func statusFromRcode(rcode int) Status {
 // Resolver provides DNS query services to Ze components.
 // Safe for concurrent use. Caller MUST call Close when done.
 type Resolver struct {
-	client *mdns.Client
-	server string
-	cache  *cache
-	logger *slog.Logger
-	dnssec string // one of dnssecOff/dnssecPermissive/dnssecStrict
+	client  *mdns.Client
+	servers atomic.Pointer[[]string] // host:port, in the order asked; never nil after NewResolver
+	cache   *cache
+	logger  *slog.Logger
+	dnssec  string // one of dnssecOff/dnssecPermissive/dnssecStrict
+}
+
+// SetServers replaces the servers the resolver asks, in order. A query in
+// flight finishes on the list it started with. Safe for concurrent use.
+func (r *Resolver) SetServers(servers []string) {
+	withPorts := make([]string, len(servers))
+	for i, server := range servers {
+		withPorts[i] = serverWithPort(server)
+	}
+	r.servers.Store(&withPorts)
+}
+
+// Servers answers the servers the resolver asks, in order, each with its
+// port. The slice is the caller's.
+func (r *Resolver) Servers() []string {
+	return slices.Clone(*r.servers.Load())
+}
+
+// serverWithPort answers server with port 53 added when it names none.
+func serverWithPort(server string) string {
+	if _, _, err := net.SplitHostPort(server); err == nil {
+		return server
+	}
+	return net.JoinHostPort(server, "53")
 }
 
 // NewResolver creates a DNS resolver with the given configuration.
@@ -165,35 +197,22 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		timeout = 5 * time.Second
 	}
 
-	server := cfg.Server
-	if server == "" {
-		resolvPath := cfg.ResolvConfPath
-		if resolvPath == "" {
-			resolvPath = "/etc/resolv.conf"
-		}
-		server = resolveSystemDNS(resolvPath)
-	} else {
-		// Ensure server has a port.
-		if _, _, err := net.SplitHostPort(server); err != nil {
-			server = net.JoinHostPort(server, "53")
-		}
-	}
-
 	dnssec := cfg.DNSSECValidation
 	if dnssec == "" {
 		dnssec = dnssecOff
 	}
 
-	return &Resolver{
+	r := &Resolver{
 		client: &mdns.Client{
 			Net:     "udp",
 			Timeout: timeout,
 		},
-		server: server,
 		cache:  newCache(cfg.CacheSize, cfg.CacheTTL),
 		logger: slogutil.Logger("dns"),
 		dnssec: dnssec,
 	}
+	r.SetServers(cfg.Servers)
+	return r
 }
 
 // dnssecDecision decides how a resolver in mode should treat a response with the
@@ -217,24 +236,6 @@ func dnssecDecision(rcode int, _ bool, mode string) (warn string, reject error) 
 		}
 	}
 	return "", nil
-}
-
-// resolveSystemDNS reads the system DNS server from the configured resolv.conf path.
-// Falls back to /etc/resolv.conf when the configured path has no servers (e.g.,
-// gokrazy default /tmp/resolv.conf absent before DHCP, or on macOS dev machines).
-// Returns an empty server when neither path yields a nameserver.
-func resolveSystemDNS(resolvConfPath string) string {
-	config, err := mdns.ClientConfigFromFile(resolvConfPath)
-	if err == nil && len(config.Servers) > 0 {
-		return net.JoinHostPort(config.Servers[0], config.Port)
-	}
-	if resolvConfPath != "/etc/resolv.conf" {
-		config, err = mdns.ClientConfigFromFile("/etc/resolv.conf")
-		if err == nil && len(config.Servers) > 0 {
-			return net.JoinHostPort(config.Servers[0], config.Port)
-		}
-	}
-	return ""
 }
 
 // CacheStats returns a snapshot of DNS cache counters.
@@ -365,11 +366,45 @@ func (r *Resolver) ResolvePTR(address string) ([]string, error) {
 // name, and any error. Every error return carries StatusUnspecified: an error
 // means the exchange produced no answer, so there is nothing for a status to
 // describe.
+//
+// The servers are asked in order, each within the configured timeout. A server
+// that gives no answer (a transport error, a timeout) passes the query to the
+// next; the first answer, whatever its RCODE, is the answer. When none
+// answers, the error names the last failure.
 func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, Status, error) {
-	if r.server == "" {
+	servers := *r.servers.Load()
+	if len(servers) == 0 {
 		return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: no DNS server configured", name, mdns.TypeToString[qtype])
 	}
 
+	var lastErr error
+	for _, server := range servers {
+		records, ttl, status, err := r.queryServer(server, name, qtype)
+		if err == nil {
+			return records, ttl, status, nil
+		}
+		var unanswered *unansweredError
+		if !errors.As(err, &unanswered) {
+			return nil, 0, StatusUnspecified, err
+		}
+		r.logger.Warn("DNS server did not answer, asking the next", "server", server, "name", name, "err", err)
+		lastErr = err
+	}
+	return nil, 0, StatusUnspecified, lastErr
+}
+
+// unansweredError is a query a server never answered: the next server may.
+type unansweredError struct {
+	err error
+}
+
+func (e *unansweredError) Error() string { return e.err.Error() }
+func (e *unansweredError) Unwrap() error { return e.err }
+
+// queryServer asks one server. A failure to obtain an answer is an
+// *unansweredError; an answer refused by DNSSEC policy is not, because another
+// server would be refused for the same chain.
+func (r *Resolver) queryServer(server, name string, qtype uint16) ([]string, uint32, Status, error) {
 	fqdn := mdns.Fqdn(name)
 
 	validating := r.dnssec != "" && r.dnssec != dnssecOff
@@ -382,13 +417,13 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, Status, e
 	// chain (CD stays 0). Off mode keeps today's non-DNSSEC query exactly.
 	m.SetEdns0(4096, validating)
 
-	resp, _, err := r.client.Exchange(m, r.server)
+	resp, _, err := r.client.Exchange(m, server)
 	if err != nil {
-		return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: %w", name, mdns.TypeToString[qtype], err)
+		return nil, 0, StatusUnspecified, &unansweredError{fmt.Errorf("dns query %s %s to %s: %w", name, mdns.TypeToString[qtype], server, err)}
 	}
 
 	if resp == nil {
-		return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: nil response", name, mdns.TypeToString[qtype])
+		return nil, 0, StatusUnspecified, &unansweredError{fmt.Errorf("dns query %s %s to %s: nil response", name, mdns.TypeToString[qtype], server)}
 	}
 
 	if resp.Truncated {

@@ -15,7 +15,7 @@ import (
 // PREVENTS: Multiple DNS resolvers created at hub startup.
 func TestResolvers_SingleDNSInstance(t *testing.T) {
 	dnsResolver := dns.NewResolver(dns.ResolverConfig{
-		Server:    "127.0.0.1:53",
+		Servers:   []string{"127.0.0.1:53"},
 		Timeout:   1,
 		CacheSize: 0,
 	})

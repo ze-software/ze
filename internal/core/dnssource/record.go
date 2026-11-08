@@ -1,0 +1,152 @@
+// Design: docs/features/dns-resolver.md -- where Ze's resolver servers come from
+// Related: select.go -- the selection rule that reads these records
+
+package dnssource
+
+import (
+	"cmp"
+	"net/netip"
+	"slices"
+	"strings"
+	"time"
+)
+
+// Namespace is the EventBus namespace the resolver registry publishes on.
+// A consumer registers its typed handles with these names; Register is
+// idempotent for the same payload type, so producer and consumers each hold
+// their own handle (internal/core/events).
+const Namespace = "system-dns"
+
+// SnapshotEventType carries a *Snapshot: every learned record and the
+// router's selection, after every change.
+const SnapshotEventType = "snapshot"
+
+// SnapshotRequestEventType is a signal a consumer emits after it subscribes;
+// the registry answers it by publishing the current snapshot again, so a
+// consumer that starts late or restarts never waits for the next change.
+const SnapshotRequestEventType = "snapshot-request"
+
+// Record is one learned set of resolver addresses: what one client of one
+// registered origin learned on one interface and unit. It is a value: it
+// holds no pointer into the producer's state, so it crosses a process
+// boundary as it is.
+type Record struct {
+	// Origin is the registered origin's name (dhcpv4, dhcpv6, ppp, ...).
+	Origin string `json:"origin"`
+	// Rank is the origin's registered rank: a lower rank lists first.
+	Rank uint16 `json:"rank"`
+	// Interface and Unit name the lease owner; both are empty for a record
+	// that belongs to no interface (the host's own resolv.conf).
+	Interface string `json:"interface"`
+	Unit      string `json:"unit"`
+	// Addresses are the servers in the order the source sent them.
+	Addresses []netip.Addr `json:"addresses"`
+	// Received is when the producer last set the record.
+	Received time.Time `json:"received"`
+	// Expires is the absolute end of validity. Its zero value is a named
+	// state, not a missing one: valid until the producer withdraws it.
+	Expires time.Time `json:"expires,omitzero"`
+
+	// The fields below are reserved for RFC 9463 (DNR) records. A record
+	// with a non-empty Transport is not plain DNS on port 53, and a consumer
+	// that speaks plain DNS skips it (ReceivedAddresses does).
+
+	// Priority is the DNR Service Priority; 0 means not a DNR record.
+	Priority uint16 `json:"priority,omitempty"`
+	// Name is the DNR authentication domain name.
+	Name string `json:"name,omitempty"`
+	// Transport names the encrypted transports; empty means DNS over UDP
+	// and TCP on port 53.
+	Transport []string `json:"transport,omitempty"`
+	// Port and Path are the DNR SvcParams port and dohpath.
+	Port uint16 `json:"port,omitempty"`
+	Path string `json:"path,omitempty"`
+}
+
+// ValidUntilWithdrawn reports whether the record carries no expiry.
+func (r *Record) ValidUntilWithdrawn() bool { return r.Expires.IsZero() }
+
+// Expired reports whether the record's validity ended at or before now.
+func (r *Record) Expired(now time.Time) bool {
+	if r.ValidUntilWithdrawn() {
+		return false
+	}
+	return !now.Before(r.Expires)
+}
+
+// CompareRecords orders records the way the received class lists them: by
+// origin rank, then interface, then unit.
+func CompareRecords(a, b *Record) int {
+	return cmp.Or(
+		cmp.Compare(a.Rank, b.Rank),
+		strings.Compare(a.Interface, b.Interface),
+		strings.Compare(a.Unit, b.Unit),
+	)
+}
+
+// ReceivedAddresses answers the received class's entries over records at
+// now: each unexpired plain-DNS record, ordered by CompareRecords, each
+// record's addresses in the order its source sent them. Repeats are kept;
+// Select removes them. records is not modified.
+func ReceivedAddresses(records []Record, now time.Time) []netip.Addr {
+	live := make([]*Record, 0, len(records))
+	for i := range records {
+		record := &records[i]
+		if record.Expired(now) {
+			continue
+		}
+		if len(record.Transport) > 0 {
+			continue
+		}
+		live = append(live, record)
+	}
+	slices.SortStableFunc(live, CompareRecords)
+	var out []netip.Addr
+	for _, record := range live {
+		out = append(out, record.Addresses...)
+	}
+	return out
+}
+
+// RouterSelection is the router consumer's answer as it is published: the
+// list it evaluated and what that list chose.
+type RouterSelection struct {
+	// Path is the config path of the router's dns-source container.
+	Path string `json:"path"`
+	// Sources and Mode are the list evaluated, Mode in its operator word.
+	Sources []Class `json:"sources"`
+	Mode    string  `json:"mode"`
+	// Default is true while the built-in default list applies.
+	Default bool `json:"default"`
+	// Used are the classes that contributed a server.
+	Used []Class `json:"used"`
+	// Servers are the router's resolvers, in the order Ze asks them.
+	Servers []netip.Addr `json:"servers"`
+}
+
+// NewRouterSelection pairs list with what it selected.
+func NewRouterSelection(list List, selection Selection) RouterSelection {
+	return RouterSelection{
+		Path:    list.Path(),
+		Sources: list.Sources(),
+		Mode:    list.Mode().String(),
+		Default: list.Stated(),
+		Used:    slices.Clone(selection.Used),
+		Servers: slices.Clone(selection.Servers),
+	}
+}
+
+// Snapshot is the registry's published state: every learned record, in
+// received-class order, and the router's selection. Each snapshot is a fresh
+// value; a subscriber may keep it and MUST NOT modify it, because in process
+// every subscriber receives the same pointer.
+//
+// Sequence grows by one on every change. A snapshot can be published twice
+// (once for the change, once again to answer a snapshot request), and the
+// two can reach a subscriber out of order, so a subscriber MUST drop a
+// snapshot whose Sequence is below the last one it applied.
+type Snapshot struct {
+	Sequence uint64          `json:"sequence"`
+	Records  []Record        `json:"records"`
+	Router   RouterSelection `json:"router"`
+}

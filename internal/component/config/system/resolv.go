@@ -1,15 +1,22 @@
-// Design: docs/architecture/config/syntax.md -- resolv.conf generation
+// Design: docs/features/dns-resolver.md -- the router's resolvers: resolv.conf and Ze's own lookups
 // Related: resolv_linux.go -- the file write on Linux
+// Related: resolv_host.go -- the host's own resolv.conf as a received record
+// Related: register_dns.go -- the host origin and the system-dns event handles
 // Related: system.go -- ExtractSystemConfig, the static name-servers and the path
 
 package system
 
 import (
-	"cmp"
 	"errors"
+	"net/netip"
 	"slices"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/ze-software/ze/internal/core/dnssource"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // ResolverOrigin is a lease protocol registered with RegisterResolverOrigin.
@@ -81,110 +88,244 @@ type ResolverSource struct {
 	unit   string
 }
 
-// Resolvers is the only writer of resolv.conf. It records the resolver
-// servers each source supplied and rewrites the file from them on every
-// change, so withdrawing one source removes that source's servers and no
-// other's.
-//
-// The file lists the static name-servers alone when any are configured:
+// lease is what one source supplied, and when.
+type lease struct {
+	servers  []netip.Addr
+	received time.Time
+}
+
+// routerDNSSourcePath is the config path of the router consumer's list.
+const routerDNSSourcePath = "system dns-source"
+
+// routerDefault is the router consumer's built-in default list: the static
+// name-servers when any are configured, else every learned record.
 // RFC 3646 Section 6: "Where DNS parameters such as the domain searchlist or
 // DNS servers have been manually configured, these parameters SHOULD NOT be
-// overridden by DHCP." Otherwise it lists every lease's servers, ordered by
-// the rank of each source's registered origin (DHCPv4, then DHCPv6, then
-// PPP), each group by interface then unit, each
-// lease's servers in the order the server sent them, and a server a
-// previous source already listed is not repeated.
+// overridden by DHCP." First-usable over configured then received is exactly
+// that order.
+var routerDefault = dnssource.StatedDefault(routerDNSSourcePath, dnssource.FamilyAll,
+	dnssource.ModeFirstUsable, dnssource.ClassConfigured, dnssource.ClassReceived)
+
+// Resolvers is the router's resolver registry and the only writer of
+// resolv.conf. It records the resolver servers each source supplied, selects
+// the router's servers from them with the shared rule (dnssource.Select over
+// the router's list), rewrites the file from that selection, and hands every
+// change to its watchers (Ze's internal resolver) and, once PublishOn wires a
+// bus, to the system-dns event. Withdrawing one source removes that source's
+// servers and no other's.
 //
-// The zero value is ready to use and writes nothing until Configure names a
-// path. Safe for concurrent use.
+// Under the router's built-in default the selection is the static
+// name-servers alone when any are configured, otherwise every learned
+// record's servers ordered by origin rank (DHCPv4, DHCPv6, PPP, then the
+// host's own resolv.conf), each group by interface then unit, each in the
+// order its source sent them, and a server already listed is not repeated.
+//
+// The zero value is ready to use: it writes nothing until Configure names a
+// path, and it reads no host resolv.conf. Safe for concurrent use.
 type Resolvers struct {
-	mu     sync.Mutex
-	path   string                      // empty: writing disabled
-	static []string                    // system { name-server }
-	leases map[ResolverSource][]string // non-empty server lists only
+	mu       sync.Mutex
+	path     string                   // empty: writing disabled
+	hostPath string                   // the host's resolv.conf; empty: none is read
+	static   []netip.Addr             // system { name-server }
+	leases   map[ResolverSource]lease // non-empty server lists only
 	// written is a guard: an empty server set rewrites the file only once ze
 	// has written servers to it, so a resolv.conf ze never managed is never
 	// replaced by an empty one.
-	written bool
-	last    []string // the servers the file holds, valid when written
+	written  bool
+	last     []string           // the servers the file holds, valid when written
+	snapshot dnssource.Snapshot // the current published state
+
+	// notifyMu serializes delivery to watchers, so each watcher sees the
+	// snapshots in sequence order. It is taken before mu, never inside it.
+	notifyMu    sync.Mutex
+	delivered   uint64
+	watchers    map[uint64]func(*dnssource.Snapshot)
+	watcherNext uint64
 }
 
 // errUnnamedResolverSource refuses the zero ResolverSource: servers recorded
 // under it could never be withdrawn by the lease that supplied them.
 var errUnnamedResolverSource = errors.New("resolver servers from an unnamed source: build the source with Source on the origin RegisterResolverOrigin returned")
 
-var processResolvers Resolvers
+// hostResolvConfPath is where a standard Linux host keeps its resolvers.
+const hostResolvConfPath = "/etc/resolv.conf"
 
-// ProcessResolvers answers the daemon's resolv.conf writer: the hub
-// configures it and every lease producer (the DHCP and PPPoE clients) sets
-// its lease on it.
+// processResolvers reads the host's resolv.conf as a received record, so a
+// Ze on a distribution host with no name-server and no lease keeps resolving.
+var processResolvers = Resolvers{hostPath: hostResolvConfPath}
+
+// ProcessResolvers answers the daemon's resolver registry: the hub configures
+// it and every lease producer (the DHCP and PPPoE clients) sets its lease on
+// it.
 func ProcessResolvers() *Resolvers { return &processResolvers }
 
 // Configure sets the resolv.conf path (empty disables writing) and the
-// static name-servers, then rewrites the file. The hub calls it at startup
-// and on every reload.
+// static name-servers, re-reads the host's resolv.conf, then rewrites the
+// file. The hub calls it at startup and on every reload. A name-server that
+// is not an IP address is dropped with a warning: YANG types the leaf as an
+// address, so only a Ze defect reaches that branch.
 func (r *Resolvers) Configure(path string, static []string) error {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if path != r.path {
 		r.written = false
 	}
 	r.path = path
-	r.static = slices.Clone(static)
-	return r.flush()
+	r.static = parseServers(static, "system name-server", "")
+	r.setLeaseLocked(hostResolverOrigin.Source("", ""), r.readHost())
+	err := r.refresh()
+	r.mu.Unlock()
+	r.deliver()
+	return err
 }
 
 // SetLease records the servers source's lease now carries and rewrites the
 // file. An empty list withdraws the source: its lease ended, or its latest
-// reply carried no resolver servers.
+// reply carried no resolver servers. A server that is not an IP address is
+// dropped with a warning naming the source.
 func (r *Resolvers) SetLease(source ResolverSource, servers []string) error {
 	if source.origin.rank == 0 {
 		return errUnnamedResolverSource
 	}
+	parsed := parseServers(servers, source.origin.name, source.iface)
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.setLeaseLocked(source, parsed)
+	err := r.refresh()
+	r.mu.Unlock()
+	r.deliver()
+	return err
+}
+
+// setLeaseLocked records servers for source, or withdraws it when there are
+// none. The caller MUST hold r.mu.
+func (r *Resolvers) setLeaseLocked(source ResolverSource, servers []netip.Addr) {
 	if len(servers) == 0 {
 		delete(r.leases, source)
-		return r.flush()
+		return
 	}
 	if r.leases == nil {
-		r.leases = make(map[ResolverSource][]string)
+		r.leases = make(map[ResolverSource]lease)
 	}
-	r.leases[source] = slices.Clone(servers)
-	return r.flush()
+	r.leases[source] = lease{servers: servers, received: time.Now()}
 }
 
 // Servers answers the servers resolv.conf lists for the recorded sources.
 func (r *Resolvers) Servers() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.servers()
+	return serverTexts(r.snapshot.Router.Servers)
 }
 
-// servers renders the recorded sources in file order. The caller MUST hold
+// Snapshot answers the current state: every record and the router's
+// selection. The value is shared; the caller MUST NOT modify its slices.
+func (r *Resolvers) Snapshot() dnssource.Snapshot {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.snapshot
+}
+
+// Watch registers fn, calls it at once with the current snapshot, then on
+// every change, in sequence order, until the returned stop is called. fn
+// runs on the goroutine that made the change and MUST NOT call back into r
+// (Configure, SetLease, Watch). The caller MUST call stop when fn's receiver
+// goes away.
+func (r *Resolvers) Watch(fn func(*dnssource.Snapshot)) (stop func()) {
+	r.notifyMu.Lock()
+	defer r.notifyMu.Unlock()
+	if r.watchers == nil {
+		r.watchers = make(map[uint64]func(*dnssource.Snapshot))
+	}
+	id := r.watcherNext
+	r.watcherNext++
+	r.watchers[id] = fn
+	current := r.Snapshot()
+	fn(&current)
+	return func() {
+		r.notifyMu.Lock()
+		defer r.notifyMu.Unlock()
+		delete(r.watchers, id)
+	}
+}
+
+// PublishOn emits every snapshot on bus as (system-dns, snapshot), starting
+// with the current one, and answers each (system-dns, snapshot-request) by
+// emitting the current snapshot again, so a consumer plugin that subscribes
+// late, in this process or another, gets the state without waiting for a
+// change. The caller MUST call the returned stop before bus goes away.
+func (r *Resolvers) PublishOn(bus ze.EventBus) (stop func()) {
+	stopWatch := r.Watch(func(snapshot *dnssource.Snapshot) { emitDNSSnapshot(bus, snapshot) })
+	stopRequests := dnsSnapshotRequest.Subscribe(bus, func() {
+		current := r.Snapshot()
+		emitDNSSnapshot(bus, &current)
+	})
+	return func() {
+		stopRequests()
+		stopWatch()
+	}
+}
+
+// emitDNSSnapshot publishes one snapshot. Delivery is best effort: a failure
+// is logged at WARN, and the next change or request publishes again.
+func emitDNSSnapshot(bus ze.EventBus, snapshot *dnssource.Snapshot) {
+	if _, err := dnsSnapshotEvent.Emit(bus, snapshot); err != nil {
+		slogutil.Logger("resolv").Warn("system-dns snapshot not published", "sequence", snapshot.Sequence, "err", err)
+	}
+}
+
+// deliver hands the current snapshot to every watcher when it is newer than
+// the last one delivered. It MUST be called without r.mu held.
+func (r *Resolvers) deliver() {
+	r.notifyMu.Lock()
+	defer r.notifyMu.Unlock()
+	current := r.Snapshot()
+	if current.Sequence == r.delivered {
+		return
+	}
+	r.delivered = current.Sequence
+	for _, fn := range r.watchers {
+		fn(&current)
+	}
+}
+
+// refresh recomputes the snapshot from the recorded sources and writes the
+// file when its servers changed. The caller MUST hold r.mu.
+func (r *Resolvers) refresh() error {
+	records := r.records()
+	selection := dnssource.Select(routerDefault, dnssource.Candidates{
+		dnssource.ClassConfigured: r.static,
+		dnssource.ClassReceived:   dnssource.ReceivedAddresses(records, time.Now()),
+	})
+	r.snapshot = dnssource.Snapshot{
+		Sequence: r.snapshot.Sequence + 1,
+		Records:  records,
+		Router:   dnssource.NewRouterSelection(routerDefault, selection),
+	}
+	return r.flush(serverTexts(selection.Servers))
+}
+
+// records answers every recorded lease as a fresh record, in received-class
+// order. The caller MUST hold r.mu.
+func (r *Resolvers) records() []dnssource.Record {
+	records := make([]dnssource.Record, 0, len(r.leases))
+	for source, held := range r.leases {
+		records = append(records, dnssource.Record{
+			Origin:    source.origin.name,
+			Rank:      source.origin.rank,
+			Interface: source.iface,
+			Unit:      source.unit,
+			Addresses: slices.Clone(held.servers),
+			Received:  held.received,
+		})
+	}
+	slices.SortFunc(records, func(a, b dnssource.Record) int { return dnssource.CompareRecords(&a, &b) })
+	return records
+}
+
+// flush writes servers to the file when they changed. The caller MUST hold
 // r.mu.
-func (r *Resolvers) servers() []string {
-	if len(r.static) > 0 {
-		return appendServers(nil, r.static)
-	}
-	sources := make([]ResolverSource, 0, len(r.leases))
-	for source := range r.leases {
-		sources = append(sources, source)
-	}
-	slices.SortFunc(sources, compareResolverSources)
-	var out []string
-	for _, source := range sources {
-		out = appendServers(out, r.leases[source])
-	}
-	return out
-}
-
-// flush writes the file when its servers changed. The caller MUST hold r.mu.
-func (r *Resolvers) flush() error {
+func (r *Resolvers) flush(servers []string) error {
 	if r.path == "" {
 		return nil
 	}
-	servers := r.servers()
 	if len(servers) == 0 && !r.written {
 		return nil
 	}
@@ -199,26 +340,30 @@ func (r *Resolvers) flush() error {
 	return nil
 }
 
-// appendServers appends each server out does not already hold. A server
-// carrying a line break is skipped: it would inject a directive into the
-// file.
-func appendServers(out, servers []string) []string {
-	for _, s := range servers {
-		if strings.ContainsAny(s, "\n\r") {
+// parseServers converts the server texts a source supplied into addresses,
+// in order. A text that is not an IP address (a line break included, which
+// would inject a directive into resolv.conf) cannot be a resolver: it is
+// dropped with a warning naming the source.
+func parseServers(texts []string, origin, iface string) []netip.Addr {
+	out := make([]netip.Addr, 0, len(texts))
+	for _, text := range texts {
+		addr, err := netip.ParseAddr(strings.TrimSpace(text))
+		if err != nil {
+			slogutil.Logger("resolv").Warn("resolver server dropped: not an IP address",
+				"origin", origin, "interface", iface, "server", text, "err", err)
 			continue
 		}
-		if slices.Contains(out, s) {
-			continue
-		}
-		out = append(out, s)
+		out = append(out, addr)
 	}
 	return out
 }
 
-func compareResolverSources(a, b ResolverSource) int {
-	return cmp.Or(
-		cmp.Compare(a.origin.rank, b.origin.rank),
-		strings.Compare(a.iface, b.iface),
-		strings.Compare(a.unit, b.unit),
-	)
+// serverTexts renders addresses in the canonical text resolv.conf and the
+// internal resolver take.
+func serverTexts(servers []netip.Addr) []string {
+	out := make([]string, len(servers))
+	for i, addr := range servers {
+		out[i] = addr.String()
+	}
+	return out
 }

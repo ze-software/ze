@@ -939,6 +939,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// handle that is backed by the same fan-out path as plugin-process
 	// stream events. This is the replacement for the standalone Bus.
 	registry.SetEventBus(apiServer)
+	// The resolver registry publishes its records and the router selection on
+	// (system-dns, snapshot), and answers a snapshot-request, so a consumer
+	// plugin in this process or a forked one reads them from the bus.
+	stopDNSPublish := system.ProcessResolvers().PublishOn(apiServer)
+	defer stopDNSPublish()
 
 	// Reactor-independent `request shutdown`: a BGP daemon stops via the reactor,
 	// but a reactorless daemon (BFD-only, DHCP-only, OSPF-only) needs the command
@@ -1067,8 +1072,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	// Create shared resolvers for web UI, looking glass, and MCP.
 	sc := system.ExtractSystemConfig(loadResult.Tree)
-	resolvers := newResolvers(&sc)
+	resolvers, unwatchResolvers := newResolvers(&sc)
 	defer resolvers.Close()
+	defer unwatchResolvers()
 	resolvecmd.SetResolvers(resolvers)
 	registerPluginDNSResolver(resolvers)
 	if resolvers.DNS != nil {

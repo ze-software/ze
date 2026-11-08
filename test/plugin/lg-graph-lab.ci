@@ -28,8 +28,10 @@ EOF_PEER
 # ze bgp configuration with LG enabled
 stdin=ze-bgp:terminator=EOF_CONF
 system {
-	# newResolvers (cmd/ze/hub/main_system.go) reads NameServers[0] into the
-	# resolver the Cymru lookup uses, so every ASN name comes from the stub.
+	# A configured server comes before any learned one (routerDefault,
+	# internal/component/config/system/resolv.go), and newResolvers
+	# (cmd/ze/hub/main_system.go) hands that selection to the resolver the
+	# Cymru lookup uses, so every ASN name comes from the stub.
 	name-server 127.0.0.1;
 	dns {
 		# An empty path stops Ze writing a resolv.conf. The runner's container is

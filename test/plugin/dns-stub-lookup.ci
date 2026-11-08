@@ -24,9 +24,11 @@ option=timeout:value=30s
 
 stdin=ze-dns:terminator=EOF_CONF
 system {
-	# newResolvers (cmd/ze/hub/main_system.go) reads NameServers[0] into
-	# ResolverConfig.Server, and NewResolver appends port 53 to a value that
-	# carries none. This is what points every lookup at the stub.
+	# The router's default list takes the configured servers before any
+	# learned one (routerDefault, internal/component/config/system/resolv.go),
+	# newResolvers (cmd/ze/hub/main_system.go) hands that selection to the
+	# internal resolver, and SetServers adds port 53 to a server that carries
+	# none. This is what points every lookup at the stub.
 	name-server 127.0.0.1;
 	dns {
 		# An empty path stops Ze writing a resolv.conf. The runner's container is

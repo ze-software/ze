@@ -31,7 +31,7 @@ func TestRFC4035SecurityAwareQueryInEveryValidatingMode(t *testing.T) {
 
 	for _, mode := range []string{"permissive", "strict"} {
 		t.Run(mode, func(t *testing.T) {
-			r := NewResolver(ResolverConfig{Server: addr, DNSSECValidation: mode})
+			r := NewResolver(ResolverConfig{Servers: []string{addr}, DNSSECValidation: mode})
 			defer r.Close()
 			records, err := r.ResolveA("large.test")
 			if err != nil {
@@ -84,7 +84,7 @@ func TestRFC4035ResponseCDAndADBitsChangeNothing(t *testing.T) {
 	}))
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, DNSSECValidation: "strict"})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, DNSSECValidation: "strict"})
 	defer r.Close()
 
 	// RFC requirement: RFC4035-4.6-3 positive -- a NOERROR answer with AD=1 and CD=1 returns exactly the records of the same answer with AD=0 and CD=0: neither bit changes the result.

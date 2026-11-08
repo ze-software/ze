@@ -43,7 +43,7 @@ func TestDNSSECStrictRejectsBogus(t *testing.T) {
 	addr, cleanup := testDNSServer(t, dnssecUpstream(&sawDO))
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, DNSSECValidation: "strict"})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, DNSSECValidation: "strict"})
 	defer r.Close()
 	if _, err := r.ResolveA("bogus.test"); err == nil {
 		t.Fatal("strict dnssec-validation accepted a bogus (SERVFAIL) answer, want error")
@@ -60,7 +60,7 @@ func TestDNSSECPermissiveLogsBogus(t *testing.T) {
 	addr, cleanup := testDNSServer(t, dnssecUpstream(&sawDO))
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, DNSSECValidation: "permissive"})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, DNSSECValidation: "permissive"})
 	defer r.Close()
 	recs, err := r.ResolveA("bogus.test")
 	if err != nil {
@@ -77,7 +77,7 @@ func TestDNSSECStrictResolvesSecure(t *testing.T) {
 	addr, cleanup := testDNSServer(t, dnssecUpstream(&sawDO))
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, DNSSECValidation: "strict"})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, DNSSECValidation: "strict"})
 	defer r.Close()
 	recs, err := r.ResolveA("secure.test")
 	if err != nil {
@@ -95,7 +95,7 @@ func TestDNSSECOffIsUnchanged(t *testing.T) {
 	addr, cleanup := testDNSServer(t, dnssecUpstream(&sawDO))
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr}) // default off
+	r := NewResolver(ResolverConfig{Servers: []string{addr}}) // default off
 	defer r.Close()
 	recs, err := r.ResolveA("bogus.test")
 	if err != nil {

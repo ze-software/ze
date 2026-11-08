@@ -46,7 +46,7 @@ func TestRFC4035_QueryCarriesEDNS0DOAndClearAD(t *testing.T) {
 	}))
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, DNSSECValidation: "strict"})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, DNSSECValidation: "strict"})
 	defer r.Close()
 	if _, err := r.ResolveA("edns.test"); err != nil {
 		t.Fatalf("resolve: %v", err)
@@ -104,7 +104,7 @@ func TestRFC4035_LargeUDPResponseAccepted(t *testing.T) {
 	}))
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, DNSSECValidation: "strict"})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, DNSSECValidation: "strict"})
 	defer r.Close()
 	recs, err := r.ResolveA("bigresponse.test")
 	if err != nil {
@@ -142,7 +142,7 @@ func TestRFC4035_ResponseADBitDisregarded(t *testing.T) {
 	}))
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, DNSSECValidation: "strict"})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, DNSSECValidation: "strict"})
 	defer r.Close()
 
 	// RFC requirement: RFC4035-4.6-3 positive -- ze disregards the AD bit's
@@ -202,7 +202,7 @@ func TestRFC4035_StubHandlesDNSSECRRTypes(t *testing.T) {
 	}))
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, DNSSECValidation: "strict"})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, DNSSECValidation: "strict"})
 	defer r.Close()
 
 	// RFC requirement: RFC4035-4.9-1 positive -- a response carrying an RRSIG

@@ -1,0 +1,205 @@
+package dnssource
+
+import (
+	"errors"
+	"net/netip"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+)
+
+func addrs(t *testing.T, texts ...string) []netip.Addr {
+	t.Helper()
+	out := make([]netip.Addr, len(texts))
+	for i, text := range texts {
+		out[i] = netip.MustParseAddr(text)
+	}
+	return out
+}
+
+func mustList(t *testing.T, family Family, mode Mode, sources ...Class) List {
+	t.Helper()
+	list, err := NewList("system dns-source", family, mode, sources...)
+	if err != nil {
+		t.Fatalf("NewList: %v", err)
+	}
+	return list
+}
+
+// TestSelectFirstNonEmptyClass: under first-usable the first class holding a
+// usable entry of the list's family wins alone, in its own order; a class whose
+// entries are all unusable or of the wrong family is skipped; no usable entry
+// anywhere answers an empty selection.
+//
+// VALIDATES: the first-usable rule, the family filter and the validity filter
+// (spec-home-cpe-23, Data Flow "Source classes", AC-4's rule).
+// PREVENTS: a backup class leaking into the answer while an earlier class is
+// usable, and an unusable or wrong-family entry making a class win.
+func TestSelectFirstNonEmptyClass(t *testing.T) {
+	list := mustList(t, FamilyIPv4, ModeFirstUsable, ClassReceived, ClassConfigured, ClassSelf)
+
+	got := Select(list, Candidates{
+		ClassReceived:   addrs(t, "192.0.2.53", "192.0.2.54"),
+		ClassConfigured: addrs(t, "198.51.100.53"),
+	})
+	if want := addrs(t, "192.0.2.53", "192.0.2.54"); !slices.Equal(got.Servers, want) {
+		t.Fatalf("servers = %v, want %v (first class only, its order)", got.Servers, want)
+	}
+	if want := []Class{ClassReceived}; !slices.Equal(got.Used, want) {
+		t.Fatalf("used = %v, want %v", got.Used, want)
+	}
+
+	// Received holds only entries this IPv4 list cannot use: unspecified,
+	// multicast, broadcast and an IPv6 server. Configured wins.
+	got = Select(list, Candidates{
+		ClassReceived:   addrs(t, "0.0.0.0", "224.0.0.1", "255.255.255.255", "2001:db8::53"),
+		ClassConfigured: addrs(t, "198.51.100.53"),
+	})
+	if want := addrs(t, "198.51.100.53"); !slices.Equal(got.Servers, want) {
+		t.Fatalf("servers = %v, want %v (received unusable for IPv4)", got.Servers, want)
+	}
+	if want := []Class{ClassConfigured}; !slices.Equal(got.Used, want) {
+		t.Fatalf("used = %v, want %v", got.Used, want)
+	}
+
+	// A class absent from the candidates falls through like an empty one.
+	got = Select(list, Candidates{ClassSelf: addrs(t, "192.0.2.1")})
+	if want := addrs(t, "192.0.2.1"); !slices.Equal(got.Servers, want) {
+		t.Fatalf("servers = %v, want %v (fall through to the last class)", got.Servers, want)
+	}
+
+	got = Select(list, Candidates{ClassReceived: addrs(t, "2001:db8::53")})
+	if len(got.Servers) != 0 || len(got.Used) != 0 {
+		t.Fatalf("selection = %+v, want empty: no usable IPv4 entry", got)
+	}
+
+	// The router admits both families and keeps loopback (Ze's own lookups
+	// can reach 127.0.0.53).
+	router := mustList(t, FamilyAll, ModeFirstUsable, ClassConfigured, ClassReceived)
+	got = Select(router, Candidates{ClassConfigured: addrs(t, "127.0.0.53", "2001:db8::53")})
+	if want := addrs(t, "127.0.0.53", "2001:db8::53"); !slices.Equal(got.Servers, want) {
+		t.Fatalf("router servers = %v, want %v", got.Servers, want)
+	}
+}
+
+// TestSelectMergeInOrderDeduplicated: under merge every class contributes in
+// list order, a server a previous class listed is not repeated, and the family
+// filter applies to every class.
+//
+// VALIDATES: the merge rule (spec-home-cpe-23 AC-17's rule).
+// PREVENTS: merge stopping at the first class, reordering, or repeating a
+// server two sources carry.
+func TestSelectMergeInOrderDeduplicated(t *testing.T) {
+	list := mustList(t, FamilyIPv4, ModeMerge, ClassReceived, ClassConfigured)
+	got := Select(list, Candidates{
+		ClassReceived:   addrs(t, "192.0.2.53", "2001:db8::53", "192.0.2.53"),
+		ClassConfigured: addrs(t, "198.51.100.53", "192.0.2.53"),
+	})
+	if want := addrs(t, "192.0.2.53", "198.51.100.53"); !slices.Equal(got.Servers, want) {
+		t.Fatalf("servers = %v, want %v", got.Servers, want)
+	}
+	if want := []Class{ClassReceived, ClassConfigured}; !slices.Equal(got.Used, want) {
+		t.Fatalf("used = %v, want %v", got.Used, want)
+	}
+
+	// A class that only repeats earlier servers contributed nothing.
+	got = Select(list, Candidates{
+		ClassReceived:   addrs(t, "192.0.2.53"),
+		ClassConfigured: addrs(t, "192.0.2.53"),
+	})
+	if want := []Class{ClassReceived}; !slices.Equal(got.Used, want) {
+		t.Fatalf("used = %v, want %v (configured added nothing)", got.Used, want)
+	}
+}
+
+// TestModeRequiredForMultiSourceList: two sources without a mode are refused
+// with the what, why and fix parts naming the list's path; one source without
+// a mode, and two with a mode, are accepted; a default must state its mode.
+//
+// VALIDATES: AC-16's rule and its message (owner decision D-1).
+// PREVENTS: Ze silently choosing backup or addition for the operator.
+func TestModeRequiredForMultiSourceList(t *testing.T) {
+	_, err := NewList("system dns-source", FamilyAll, ModeUnspecified, ClassConfigured, ClassReceived)
+	var refused *ModeRequiredError
+	if !errors.As(err, &refused) {
+		t.Fatalf("two sources without a mode: err = %v, want *ModeRequiredError", err)
+	}
+	if want := "system dns-source names 2 sources (configured, received) and no mode"; refused.What() != want {
+		t.Fatalf("what = %q, want %q", refused.What(), want)
+	}
+	if want := "Ze cannot tell whether a later source is a backup or an addition"; refused.Why() != want {
+		t.Fatalf("why = %q, want %q", refused.Why(), want)
+	}
+	if want := "set system dns-source mode first-usable (a later source is used only when the earlier ones have no usable server), or set system dns-source mode merge (every source, in list order)"; refused.Fix() != want {
+		t.Fatalf("fix = %q, want %q", refused.Fix(), want)
+	}
+	if !strings.Contains(err.Error(), "\nset system dns-source mode first-usable") {
+		t.Fatalf("error %q does not put the fix on a line of its own", err)
+	}
+
+	one, err := NewList("system dns-source", FamilyAll, ModeUnspecified, ClassReceived)
+	if err != nil {
+		t.Fatalf("one source without a mode refused: %v", err)
+	}
+	got := Select(one, Candidates{ClassReceived: addrs(t, "192.0.2.53", "192.0.2.54")})
+	if want := addrs(t, "192.0.2.53", "192.0.2.54"); !slices.Equal(got.Servers, want) {
+		t.Fatalf("one-source list servers = %v, want %v", got.Servers, want)
+	}
+
+	for _, mode := range []Mode{ModeFirstUsable, ModeMerge} {
+		if _, err := NewList("system dns-source", FamilyAll, mode, ClassConfigured, ClassReceived); err != nil {
+			t.Fatalf("two sources with mode %v refused: %v", mode, err)
+		}
+	}
+
+	var empty *EmptyListError
+	if _, err := NewList("system dns-source", FamilyAll, ModeMerge); !errors.As(err, &empty) {
+		t.Fatalf("empty list: err = %v, want *EmptyListError", err)
+	}
+	var repeated *RepeatedSourceError
+	if _, err := NewList("system dns-source", FamilyAll, ModeMerge, ClassReceived, ClassReceived); !errors.As(err, &repeated) {
+		t.Fatalf("repeated source: err = %v, want *RepeatedSourceError", err)
+	}
+	if _, err := NewList("system dns-source", 0, ModeMerge, ClassReceived); err == nil {
+		t.Fatal("a list admitting no family was accepted")
+	}
+
+	stated := StatedDefault("system dns-source", FamilyAll, ModeFirstUsable, ClassConfigured, ClassReceived)
+	if !stated.Stated() || stated.Mode() != ModeFirstUsable {
+		t.Fatalf("stated default = %+v, want stated and first-usable", stated)
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("a stated default with no mode did not panic")
+		}
+	}()
+	StatedDefault("system dns-source", FamilyAll, ModeUnspecified, ClassReceived)
+}
+
+// TestReceivedAddressesOrderAndExpiry: the received class lists unexpired
+// plain-DNS records by rank, interface, unit, each in its source's order.
+//
+// VALIDATES: the received-class order (rank DHCPv4, DHCPv6, PPP) and that an
+// expired or encrypted-transport record never reaches a plain-DNS consumer.
+// PREVENTS: a stale lease being selected after its expiry.
+func TestReceivedAddressesOrderAndExpiry(t *testing.T) {
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	records := []Record{
+		{Origin: "ppp", Rank: 300, Interface: "pppoe0", Addresses: addrs(t, "192.0.2.3")},
+		{Origin: "dhcpv4", Rank: 100, Interface: "eth1", Unit: "0", Addresses: addrs(t, "192.0.2.2")},
+		{Origin: "dhcpv4", Rank: 100, Interface: "eth0", Unit: "0", Addresses: addrs(t, "192.0.2.1", "192.0.2.9")},
+		{Origin: "dhcpv6", Rank: 200, Interface: "eth0", Unit: "0", Addresses: addrs(t, "2001:db8::1"), Expires: now},
+		{Origin: "dnr", Rank: 600, Addresses: addrs(t, "192.0.2.99"), Transport: []string{"dot"}},
+	}
+	got := ReceivedAddresses(records, now)
+	if want := addrs(t, "192.0.2.1", "192.0.2.9", "192.0.2.2", "192.0.2.3"); !slices.Equal(got, want) {
+		t.Fatalf("received = %v, want %v", got, want)
+	}
+	if records[0].Origin != "ppp" {
+		t.Fatal("ReceivedAddresses reordered its input")
+	}
+	if !records[3].Expired(now) || records[3].Expired(now.Add(-time.Second)) {
+		t.Fatal("Expired is not inclusive of its end")
+	}
+}

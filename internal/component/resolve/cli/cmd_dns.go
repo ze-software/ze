@@ -47,9 +47,7 @@ func cmdDNS(args []string) int {
 	name := remaining[1]
 
 	cfg := resolveDNS.ResolverConfig{DNSSECValidation: *dnssec}
-	if *dnsServer != "" {
-		cfg.Server = *dnsServer
-	}
+	cfg.Servers = localServers(*dnsServer)
 
 	resolver := resolveDNS.NewResolver(cfg)
 	defer resolver.Close()

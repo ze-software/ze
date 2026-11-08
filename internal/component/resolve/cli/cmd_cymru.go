@@ -45,9 +45,7 @@ func cmdCymru(args []string) int {
 	}
 
 	cfg := resolveDNS.ResolverConfig{}
-	if *dnsServer != "" {
-		cfg.Server = *dnsServer
-	}
+	cfg.Servers = localServers(*dnsServer)
 
 	dns := resolveDNS.NewResolver(cfg)
 	defer dns.Close()

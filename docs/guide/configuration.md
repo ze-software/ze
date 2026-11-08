@@ -4070,32 +4070,37 @@ system {
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `name-server` | leaf-list ip-address | (none) | Static DNS servers. First server used by ze internal resolver, and measured by `show mtu` as its reference address when `environment { mtu { reference-address } }` is not set. All written to resolv.conf at startup and after every config commit/reload. |
+| `name-server` | leaf-list ip-address | (none) | Static DNS servers. When set, they are the router's servers: the internal resolver asks them in order, and all are written to resolv.conf at startup and after every config commit/reload. The first is measured by `show mtu` as its reference address when `environment { mtu { reference-address } }` is not set. |
 | `resolv-conf-path` | string | `/tmp/resolv.conf` | Path for resolv.conf output. Default suits gokrazy (read-only rootfs). Empty disables. |
-| `timeout` | uint16 | `5` | Query timeout in seconds. Range: 1-60. |
+| `timeout` | uint16 | `5` | Query timeout in seconds, for each server asked. Range: 1-60. |
 | `cache-size` | uint32 | `10000` | Maximum cached entries. 0 disables caching entirely. |
 | `cache-ttl` | uint32 | `86400` | Maximum cache entry TTL in seconds. 0 means use only the response TTL. |
 
 The cache respects DNS response TTLs: entries expire at `min(response TTL, cache-ttl)`.
 Records with TTL=0 from the server are not cached (per RFC 1035).
 
-When static name servers are configured, DHCP-discovered DNS servers do not
-overwrite resolv.conf. When no static servers are configured, resolv-conf-path
-lists the servers of every DHCP lease and every PPPoE client session, DHCPv4
-first, then DHCPv6, then the servers a PPPoE client learned from IPCP
-(RFC 1877, primary first). A lease whose renewal omits DNS, a PPPoE
-renegotiation whose access concentrator offers none, or a lease or session
-that ends takes only its own servers out
-(`docs/features/dns-resolver.md`, "DHCP interaction").
+The router's servers come from one selection, which both the internal
+resolver and resolv-conf-path follow. When static name servers are
+configured, they are the router's servers, and a learned server never
+overrides them. When none are configured, the router's servers are those of
+every DHCP lease and every PPPoE client session, DHCPv4 first, then DHCPv6,
+then the servers a PPPoE client learned from IPCP (RFC 1877, primary first),
+then the servers of the host's `/etc/resolv.conf`. Ze reads the host file at
+startup and on reload, and never when it is the same file as
+`resolv-conf-path`. A lease whose renewal omits DNS, a PPPoE renegotiation
+whose access concentrator offers none, or a lease or session that ends takes
+only its own servers out (`docs/features/dns-resolver.md`, "Where the
+router's servers come from").
 
-The internal resolver never falls back to a public recursive resolver. If no
-static name server exists and the configured resolv.conf path is missing or
-empty, DNS queries fail with `no DNS server configured` until DHCP or config
-provides a server.
+The internal resolver asks the servers in order, and passes a query to the
+next server when one gives no answer. It never falls back to a public
+recursive resolver: when no source supplies a server, DNS queries fail with
+`no DNS server configured` until a lease or the config provides one.
 
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system DNS config -->
-<!-- source: internal/component/resolve/dns/resolver.go -- NewResolver, Resolve -->
-<!-- source: cmd/ze/hub/main.go -- newResolvers wiring -->
+<!-- source: internal/component/resolve/dns/resolver.go -- NewResolver, Resolver.query -->
+<!-- source: internal/component/config/system/resolv.go -- routerDefault, Resolvers.refresh -->
+<!-- source: cmd/ze/hub/main_system.go -- newResolvers -->
 
 ### Firmware Update Check and Self-Update
 

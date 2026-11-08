@@ -88,9 +88,11 @@ option=timeout:value=30s
 
 stdin=ze-fw:terminator=EOF_CONF
 system {
-	# The resolver the hub builds reads NameServers[0] as its server
-	# (newResolvers, cmd/ze/hub/main_system.go), so this is what points every
-	# lookup at the fixture's stub instead of at the host's real DNS.
+	# A configured server comes before any learned one (routerDefault,
+	# internal/component/config/system/resolv.go), and the resolver the hub
+	# builds asks that selection (newResolvers, cmd/ze/hub/main_system.go), so
+	# this is what points every lookup at the fixture's stub instead of at the
+	# host's real DNS.
 	name-server 127.0.0.1;
 	dns {
 		# An empty path stops Ze writing a resolv.conf. The container this test

@@ -1892,6 +1892,47 @@ permission to receive their events.
 <!-- source: internal/component/plugin/server/subscribe.go -- (*PeerFilter).Matches, (*SubscriptionManager).getMatching -->
 <!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs -->
 
+### The `system-dns` namespace
+
+The router's resolver registry (`system.Resolvers`) publishes its state on
+the `system-dns` namespace, so a plugin in the engine process or in its own
+process reads the resolver addresses Ze learned without importing the
+registry.
+
+| Event | Direction | Payload |
+|-------|-----------|---------|
+| `snapshot` | engine to plugin, after every change | the whole state: `sequence`, `records`, `router` |
+| `snapshot-request` | plugin to engine | none. The engine answers by publishing the current `snapshot` again |
+
+```
+{"sequence":7,
+ "records":[{"origin":"dhcpv4","rank":100,"interface":"eth0","unit":"0",
+             "addresses":["192.0.2.53"],"received":"2026-11-08T10:15:15Z"}],
+ "router":{"path":"system dns-source","sources":["configured","received"],
+           "mode":"first-usable","default":true,"used":["received"],
+           "servers":["192.0.2.53"]}}
+```
+
+<!-- source: internal/core/dnssource/record.go -- Namespace, SnapshotEventType, SnapshotRequestEventType, Record, RouterSelection, Snapshot -->
+<!-- source: internal/component/config/system/register_dns.go -- dnsSnapshotEvent, dnsSnapshotRequest -->
+
+A `records` entry is one learned source: its `origin` and the origin's
+`rank` (a lower rank lists first), the `interface` and `unit` that learned
+it (both empty for the host's `/etc/resolv.conf`), the `addresses` in the
+order the source sent them, and the time it was `received`. An `expires`
+member, when present, is the end of the record's validity; when absent, the
+record is valid until its source withdraws it. `router` is the router's
+list (`sources` and `mode`, with `default` true while the built-in default
+applies), the classes that supplied a server (`used`), and the `servers` Ze
+asks, in order.
+
+A plugin emits `snapshot-request` once it has subscribed, so a plugin that
+starts late or restarts gets the state without waiting for a change. One
+state can therefore arrive twice, and the two copies can arrive out of
+order: a plugin MUST drop a `snapshot` whose `sequence` is below the last
+one it applied.
+<!-- source: internal/component/config/system/resolv.go -- PublishOn, emitDNSSnapshot -->
+
 ### Enveloped Delivery
 
 `SubscribeEventsInput.envelope` (opt-in, default false; SDK `SetEnvelope(true)`)

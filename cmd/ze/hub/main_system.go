@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -29,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
 	zestorage "github.com/ze-software/ze/internal/component/storage"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
+	"github.com/ze-software/ze/internal/core/dnssource"
 	coreenv "github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/identity"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -69,21 +71,34 @@ func monitorStdinEOF(sigCh chan<- os.Signal) {
 	}
 }
 
-// newResolvers creates a shared Resolvers struct with a single DNS instance
-// and a Cymru resolver wired to it. Called once at hub startup.
-func newResolvers(sc *system.SystemConfig) *resolve.Resolvers {
+// newResolvers creates the shared Resolvers with one DNS instance and a Cymru
+// resolver wired to it. The DNS instance asks the router's selection
+// (system.ProcessResolvers), every server in order, and follows it on every
+// lease change and reload until the returned unwatch is called. The caller
+// MUST call unwatch before closing the resolvers.
+func newResolvers(sc *system.SystemConfig) (resolvers *resolve.Resolvers, unwatch func()) {
 	cfg := resolveDNS.ResolverConfig{
 		Timeout:          sc.DNSTimeout,
-		ResolvConfPath:   sc.ResolvConfPath,
 		CacheSize:        sc.DNSCacheSize,
 		CacheTTL:         sc.DNSCacheTTL,
 		DNSSECValidation: sc.DNSSECValidation,
 	}
-	if len(sc.NameServers) > 0 {
-		cfg.Server = sc.NameServers[0]
-	}
 
 	dnsResolver := resolveDNS.NewResolver(cfg)
+	var applied atomic.Uint64
+	unwatch = system.ProcessResolvers().Watch(func(snapshot *dnssource.Snapshot) {
+		// Watch delivers in order; the sequence check is the subscriber's
+		// half of the Snapshot contract all the same.
+		if snapshot.Sequence < applied.Load() {
+			return
+		}
+		applied.Store(snapshot.Sequence)
+		servers := make([]string, len(snapshot.Router.Servers))
+		for i, addr := range snapshot.Router.Servers {
+			servers[i] = addr.String()
+		}
+		dnsResolver.SetServers(servers)
+	})
 
 	// Wrap DNS ResolveTXT to match Cymru's TXTResolver signature (adds context).
 	txtResolver := func(_ context.Context, name string) ([]string, error) {
@@ -95,7 +110,7 @@ func newResolvers(sc *system.SystemConfig) *resolve.Resolvers {
 		Cymru:     cymru.New(txtResolver, nil),
 		PeeringDB: peeringdb.NewPeeringDB(sc.PeeringDBURL),
 		IRR:       irr.NewIRR(""),
-	}
+	}, unwatch
 }
 
 // cymruOriginAdapter bridges cymru.CymruResolver to command.OriginResolver.

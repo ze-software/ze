@@ -88,8 +88,14 @@ func buildWebService(deps *serviceDeps) (Service, error) {
 }
 
 func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
-	resolvers := newResolvers(&system.SystemConfig{DNSTimeout: 5, DNSCacheSize: 10000, DNSCacheTTL: 86400})
+	resolvers, unwatchResolvers := newResolvers(&system.SystemConfig{DNSTimeout: 5, DNSCacheSize: 10000, DNSCacheTTL: 86400})
 	defer resolvers.Close()
+	defer unwatchResolvers()
+	// Web-only mode runs no daemon and learns no lease: the host resolv.conf
+	// is its only source of resolvers. No path: it writes no file.
+	if err := system.ProcessResolvers().Configure("", nil); err != nil {
+		slogutil.Logger("web").Warn("resolvers not configured", "err", err)
+	}
 	if resolvers.DNS != nil {
 		command.SetPTRResolver(resolvers.DNS)
 	}

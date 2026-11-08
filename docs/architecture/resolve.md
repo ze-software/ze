@@ -27,6 +27,10 @@ and is constructed explicitly at hub startup.
 ## Construction
 
 Hub startup creates a single `Resolvers` struct with one shared DNS instance.
+The DNS instance asks the router's resolver selection, every server in order,
+and `newResolvers` keeps it equal to that selection on each lease change and
+reload by watching `system.ProcessResolvers` (`docs/features/dns-resolver.md`,
+"Where the router's servers come from").
 Cymru receives a TXT resolver function wired to the DNS resolver. PeeringDB
 takes the URL `system/peeringdb/url` declares. The IRR client takes an empty
 server and falls back to `whois.radb.net`: no config leaf reaches the hub's IRR

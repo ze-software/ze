@@ -3,7 +3,6 @@ package dns
 import (
 	"context"
 	"net"
-	"os"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -120,7 +119,7 @@ func TestResolveWithConfiguredServer(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 100,
 		CacheTTL:  3600,
@@ -132,87 +131,6 @@ func TestResolveWithConfiguredServer(t *testing.T) {
 	assert.Contains(t, records, "93.184.216.34")
 }
 
-// TestResolveDefaultServer verifies resolver falls back to system DNS.
-//
-// VALIDATES: AC-2 -- no dns config section, resolver uses system default.
-// PREVENTS: Resolver failing when no server configured.
-func TestResolveDefaultServer(t *testing.T) {
-	// Empty server string means system default.
-	r := NewResolver(ResolverConfig{
-		Server:    "",
-		Timeout:   2,
-		CacheSize: 0,
-		CacheTTL:  0,
-	})
-	defer r.Close()
-
-	// Verify system DNS was resolved at construction.
-	// On any system with /etc/resolv.conf, server should be non-empty.
-	// On systems without it (containers), server will be empty and queries will
-	// return a clear error. Either way, the resolver was created without panic.
-	assert.NotNil(t, r)
-}
-
-// TestResolveSystemDNSNoPublicFallback verifies that appliance mode does not
-// silently send DNS queries to a public resolver when resolv.conf is absent.
-//
-// VALIDATES: missing system DNS does not use a hardcoded public resolver.
-// PREVENTS: implicit fallback to Google Public DNS or any other public
-// resolver outside operator configuration.
-func TestResolveSystemDNSNoPublicFallback(t *testing.T) {
-	server := resolveSystemDNS(t.TempDir() + "/missing-resolv.conf")
-
-	// The invariant is "every server ze returns came from a resolv.conf", not
-	// "the server is never a public address". resolveSystemDNS falls back to the
-	// host's real /etc/resolv.conf (resolver.go:123-128), so on a host whose
-	// resolv.conf legitimately names 8.8.8.8 -- the Alpine/QEMU default, which is
-	// what the VM has -- the old blocklist assertion fired on the OPERATOR's
-	// configuration and called it a ze fallback. It passed on the dev machine only
-	// because that machine's resolver happens not to be a public one.
-	//
-	// Comparing against /etc/resolv.conf instead is both environment-independent
-	// and strictly stronger: a hardcoded fallback of ANY address (public or not)
-	// fails it, where the blocklist only caught five specific addresses.
-	if server == "" {
-		return // no resolv.conf anywhere: correctly fails closed
-	}
-	want := resolveSystemDNS("/etc/resolv.conf")
-	assert.Equal(t, want, server,
-		"resolveSystemDNS returned %q, which is not what /etc/resolv.conf yields (%q); a server ze did not read from a resolv.conf is a hardcoded fallback",
-		server, want)
-}
-
-// TestResolveSystemDNSFailClosed verifies that queries fail with a clear error
-// when no resolv.conf provides a nameserver. On gokrazy pre-DHCP, both
-// /tmp/resolv.conf and /etc/resolv.conf are absent.
-func TestResolveSystemDNSFailClosed(t *testing.T) {
-	dir := t.TempDir()
-	emptyResolv := dir + "/resolv.conf"
-	etcResolv := dir + "/etc-resolv.conf"
-	require.NoError(t, os.WriteFile(emptyResolv, []byte("# empty\n"), 0o644))
-	require.NoError(t, os.WriteFile(etcResolv, []byte("# empty\n"), 0o644))
-
-	server := resolveSystemDNS(emptyResolv)
-	if server == "" {
-		// Primary path failed and /etc/resolv.conf fallback also returned empty
-		// (or found the real /etc/resolv.conf on dev machines). Test the resolver
-		// end-to-end with no server.
-		r := NewResolver(ResolverConfig{
-			ResolvConfPath: emptyResolv,
-			Timeout:        1,
-		})
-		defer r.Close()
-		if r.server == "" {
-			_, err := r.ResolveA("example.com")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "no DNS server configured")
-		}
-		return
-	}
-	// On dev machines with /etc/resolv.conf, the fallback gives a valid server.
-	// The no-public-DNS check above covers that path.
-}
-
 // TestResolveTXT verifies TXT record resolution.
 //
 // VALIDATES: AC-3 -- TXT query for valid domain returns TXT record content.
@@ -222,7 +140,7 @@ func TestResolveTXT(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 100,
 		CacheTTL:  3600,
@@ -243,7 +161,7 @@ func TestResolveA(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 100,
 		CacheTTL:  3600,
@@ -264,7 +182,7 @@ func TestResolveAAAA(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 100,
 		CacheTTL:  3600,
@@ -285,7 +203,7 @@ func TestResolvePTR(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 100,
 		CacheTTL:  3600,
@@ -303,7 +221,7 @@ func TestResolvePTR(t *testing.T) {
 // PREVENTS: Panic or confusing error on malformed input.
 func TestResolvePTRInvalidAddress(t *testing.T) {
 	r := NewResolver(ResolverConfig{
-		Server:    "127.0.0.1:53",
+		Servers:   []string{"127.0.0.1:53"},
 		Timeout:   1,
 		CacheSize: 0,
 		CacheTTL:  0,
@@ -324,7 +242,7 @@ func TestResolveNXDOMAIN(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 100,
 		CacheTTL:  3600,
@@ -354,7 +272,7 @@ func TestResolveNXDOMAINNotCached(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 100,
 		CacheTTL:  3600,
@@ -374,7 +292,7 @@ func TestResolveNXDOMAINNotCached(t *testing.T) {
 func TestResolveTimeout(t *testing.T) {
 	// Use a non-routable address to trigger timeout.
 	r := NewResolver(ResolverConfig{
-		Server:    "192.0.2.1:53", // RFC 5737 TEST-NET, guaranteed non-routable.
+		Servers:   []string{"192.0.2.1:53"}, // RFC 5737 TEST-NET, guaranteed non-routable.
 		Timeout:   1,
 		CacheSize: 0,
 		CacheTTL:  0,
@@ -411,7 +329,7 @@ func TestResolveCacheIntegration(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 100,
 		CacheTTL:  3600,
@@ -437,14 +355,14 @@ func TestResolveCacheIntegration(t *testing.T) {
 // PREVENTS: Connection failure when user omits port in config.
 func TestResolveServerPortAppended(t *testing.T) {
 	r := NewResolver(ResolverConfig{
-		Server:    "127.0.0.1",
+		Servers:   []string{"127.0.0.1"},
 		Timeout:   1,
 		CacheSize: 0,
 		CacheTTL:  0,
 	})
 	defer r.Close()
 
-	assert.Equal(t, "127.0.0.1:53", r.server, "port :53 should be appended when missing")
+	assert.Equal(t, "127.0.0.1:53", r.Servers()[0], "port :53 should be appended when missing")
 }
 
 // TestResolveTimeoutZeroDefault verifies Timeout=0 defaults to 5 seconds.
@@ -453,7 +371,7 @@ func TestResolveServerPortAppended(t *testing.T) {
 // PREVENTS: Zero timeout causing instant failure.
 func TestResolveTimeoutZeroDefault(t *testing.T) {
 	r := NewResolver(ResolverConfig{
-		Server:    "127.0.0.1:53",
+		Servers:   []string{"127.0.0.1:53"},
 		Timeout:   0,
 		CacheSize: 0,
 		CacheTTL:  0,
@@ -480,7 +398,7 @@ func TestResolveBoundaryTimeout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := NewResolver(ResolverConfig{
-				Server:    "127.0.0.1:" + strconv.Itoa(53),
+				Servers:   []string{"127.0.0.1:" + strconv.Itoa(53)},
 				Timeout:   tt.timeout,
 				CacheSize: 0,
 				CacheTTL:  0,
@@ -500,7 +418,7 @@ func TestResolveCNAME(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 0,
 		CacheTTL:  0,
@@ -521,7 +439,7 @@ func TestResolveMX(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 0,
 		CacheTTL:  0,
@@ -542,7 +460,7 @@ func TestResolveNS(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 0,
 		CacheTTL:  0,
@@ -563,7 +481,7 @@ func TestResolveSRV(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 0,
 		CacheTTL:  0,
@@ -584,7 +502,7 @@ func TestResolveMultipleRecords(t *testing.T) {
 	defer cleanup()
 
 	r := NewResolver(ResolverConfig{
-		Server:    addr,
+		Servers:   []string{addr},
 		Timeout:   5,
 		CacheSize: 0,
 		CacheTTL:  0,
@@ -631,7 +549,7 @@ func TestResolveWithTTLSurfacesRcode(t *testing.T) {
 	addr, cleanup := testDNSServer(t, handler)
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, Timeout: 5, CacheSize: 100, CacheTTL: 3600})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, Timeout: 5, CacheSize: 100, CacheTTL: 3600})
 	defer r.Close()
 
 	cases := []struct {
@@ -664,7 +582,7 @@ func TestResolveWithTTLSurfacesRcode(t *testing.T) {
 // read the status without checking the error would otherwise see a plausible
 // value invented at the point of failure.
 func TestResolveWithTTLErrorCarriesNoStatus(t *testing.T) {
-	r := NewResolver(ResolverConfig{Server: "192.0.2.1:53", Timeout: 1, CacheSize: 10, CacheTTL: 60})
+	r := NewResolver(ResolverConfig{Servers: []string{"192.0.2.1:53"}, Timeout: 1, CacheSize: 10, CacheTTL: 60})
 	defer r.Close()
 
 	records, ttl, status, err := r.ResolveWithTTL("example.com", mdns.TypeA)
@@ -683,7 +601,7 @@ func TestResolveWithTTLCacheHitIsSuccess(t *testing.T) {
 	addr, cleanup := testDNSServer(t, testHandler())
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, Timeout: 5, CacheSize: 100, CacheTTL: 3600})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, Timeout: 5, CacheSize: 100, CacheTTL: 3600})
 	defer r.Close()
 
 	_, _, first, err := r.ResolveWithTTL("example.com", mdns.TypeA)
@@ -716,7 +634,7 @@ func TestQueryExistingCallersUnaffected(t *testing.T) {
 	addr, cleanup := testDNSServer(t, handler)
 	defer cleanup()
 
-	r := NewResolver(ResolverConfig{Server: addr, Timeout: 5, CacheSize: 100, CacheTTL: 3600})
+	r := NewResolver(ResolverConfig{Servers: []string{addr}, Timeout: 5, CacheSize: 100, CacheTTL: 3600})
 	defer r.Close()
 
 	v4, err := r.ResolveA("example.com")
