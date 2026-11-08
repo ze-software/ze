@@ -2,7 +2,7 @@
   {
     "rid": "RFC2661-4.4.5-4",
     "polarity": "positive",
-    "unit": "internal/component/l2tp/session_initiator_test.go::TestWriteICCNBodyProxyAVPs",
+    "unit": "internal/component/l2tp/rfc2661_session_initiator_test.go::TestWriteICCNBodyProxyAVPs",
     "unit-sha": "5be89c2865a3e5e0",
     "claim-sha": "39a65e959b4d0a1c",
     "route": "revert",

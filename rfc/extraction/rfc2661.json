@@ -947,34 +947,32 @@
     {
       "id": "4.4.5:1",
       "quote": "The M-bit for this AVP MUST be set to 0.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
-      "mapped-to": "RFC2661-4.4-2"
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.5-7"
     },
     {
       "id": "4.4.5:2",
       "quote": "The M-bit for this AVP MUST be set to 0.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
-      "mapped-to": "RFC2661-4.4-2"
+      "reason": "Section 4.4.5 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" for each proxy AVP 26 to 33; RFC2661-4.4.5-7 carries that obligation for the proxy AVPs a LAC realm call sends, mapped at site 4.4.5:1.",
+      "mapped-to": "RFC2661-4.4.5-7"
     },
     {
       "id": "4.4.5:3",
       "quote": "The M-bit for this AVP MUST be set to 0.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
-      "mapped-to": "RFC2661-4.4-2"
+      "reason": "Section 4.4.5 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" for each proxy AVP 26 to 33; RFC2661-4.4.5-7 carries that obligation for the proxy AVPs a LAC realm call sends, mapped at site 4.4.5:1.",
+      "mapped-to": "RFC2661-4.4.5-7"
     },
     {
       "id": "4.4.5:4",
       "quote": "The M-bit for this AVP MUST be set to 0.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
-      "mapped-to": "RFC2661-4.4-2"
+      "reason": "Section 4.4.5 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" for each proxy AVP 26 to 33; RFC2661-4.4.5-7 carries that obligation for the proxy AVPs a LAC realm call sends, mapped at site 4.4.5:1.",
+      "mapped-to": "RFC2661-4.4.5-7"
     },
     {
       "id": "4.4.5:5",
@@ -993,8 +991,8 @@
       "quote": "The M-bit for this AVP MUST be set to 0.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
-      "mapped-to": "RFC2661-4.4-2"
+      "reason": "Section 4.4.5 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" for each proxy AVP 26 to 33; RFC2661-4.4.5-7 carries that obligation for the proxy AVPs a LAC realm call sends, mapped at site 4.4.5:1.",
+      "mapped-to": "RFC2661-4.4.5-7"
     },
     {
       "id": "4.4.5:8",
@@ -1007,8 +1005,8 @@
       "quote": "The M-bit for this AVP MUST be set to 0.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
-      "mapped-to": "RFC2661-4.4-2"
+      "reason": "Section 4.4.5 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" for each proxy AVP 26 to 33; RFC2661-4.4.5-7 carries that obligation for the proxy AVPs a LAC realm call sends, mapped at site 4.4.5:1.",
+      "mapped-to": "RFC2661-4.4.5-7"
     },
     {
       "id": "4.4.5:10",
@@ -1027,8 +1025,8 @@
       "quote": "The M-bit for this AVP MUST be set to 0.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
-      "mapped-to": "RFC2661-4.4-2"
+      "reason": "Section 4.4.5 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" for each proxy AVP 26 to 33; RFC2661-4.4.5-7 carries that obligation for the proxy AVPs a LAC realm call sends, mapped at site 4.4.5:1.",
+      "mapped-to": "RFC2661-4.4.5-7"
     },
     {
       "id": "4.4.5:13",
@@ -1041,8 +1039,8 @@
       "quote": "The M-bit for this AVP MUST be set to 0.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
-      "mapped-to": "RFC2661-4.4-2"
+      "reason": "Section 4.4.5 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" for each proxy AVP 26 to 33; RFC2661-4.4.5-7 carries that obligation for the proxy AVPs a LAC realm call sends, mapped at site 4.4.5:1.",
+      "mapped-to": "RFC2661-4.4.5-7"
     },
     {
       "id": "4.4.6:1",

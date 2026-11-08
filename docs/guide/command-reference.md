@@ -3234,7 +3234,7 @@ When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as 
 | `show l2tp tunnels` | run | List all active L2TP tunnels |
 | `show l2tp tunnel <tid>` | run | Show one tunnel by local tunnel ID |
 | `show l2tp sessions` | run | List all active L2TP sessions |
-| `show l2tp session id <sid>` | run | Show one session by local session ID, including its `proxy-lcp` outcome |
+| `show l2tp session id <sid>` | run | Show one session by local session ID, including its `proxy-lcp` outcome; on a LAC, a session relayed by realm adds `relay-realm`, `relay-remote`, `proxy-lcp-sent`, `proxy-auth-sent` and, when no proxy authentication was sent, `proxy-auth-reason` (`no-shared-secret`, `no-authentication`, `proxy-data-too-large`); a Service-Name relay or a local session carries none of these keys |
 | `show l2tp statistics` | run | Protocol counters |
 | `show l2tp listeners` | run | Bound UDP listener endpoints |
 | `show l2tp config` | run | Effective runtime configuration |
@@ -3254,7 +3254,8 @@ The `clear l2tp session id` command accepts optional keyword arguments:
 - `cause <code>`: RADIUS Disconnect-Cause value (uint16), recorded alongside the reason
 
 <!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->
-<!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs -->
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs, sessionJSON -->
+<!-- source: internal/component/l2tp/iccn_proxy.go -- proxyAuthReasonNoSharedSecret, proxyAuthReasonNoAuth, proxyAuthReasonTooLarge -->
 
 ### PPPoE Commands
 

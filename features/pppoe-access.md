@@ -15,7 +15,7 @@
 | Interop | pppoe/01-pppoe-chap-ipv4, pppoe/02-ze-ac-pppd-client, pppoe/pppoe-empty-service-name, pppoe/pppoe-padr-replay, topology/access-reconnect |
 | RFCs | rfc2516, rfc1334, rfc1661, rfc1877, rfc5072 |
 | Docs | docs/guide/pppoe.md |
-| Doc review | 2026-11-08: re-read after the home-CPE lab commit added topology/access-reconnect; checkAccessReconnect clears the LNS session and waits for the CPE's new address, through the pppoe and relay blocks of test/interop-topology/access-chain/ze-lac.conf; the checkZeAccessConcentrator anchor moved to internal/le/interoplab/pppoe/check_ac.go and now says so; auth-method (default chap-md5) and allow-no-auth (default false) in ze-l2tp-conf.yang, ExtractParameters and extractAuthAllow in config.go, applyInterfaceConfig in subsystem_reload.go and PPPoEMaxMTU 1492 in discovery.go hold the described behavior. Earlier, 2026-10-07: checked auth-method default chap-md5 and allow-no-auth in internal/component/l2tp/yang/ze-l2tp-conf.yang; every source anchor resolves |
+| Doc review | 2026-11-08: the realm relay paragraph checked against server.go (CaptureProxyLCP from realmRelayConfigured), startPPPoEAuthDrain (decide runs before the auth handler), realmFromUsername, proxyAuthFrom and decide in realm_relay.go (no realm or no binding authenticates locally; a matched failed call or MS-CHAPv2 is refused through RefuseAuth, which terminates LCP) and LookupRealmRelay. Earlier the same day: re-read after the home-CPE lab commit added topology/access-reconnect; checkAccessReconnect clears the LNS session and waits for the CPE's new address, through the pppoe and relay blocks of test/interop-topology/access-chain/ze-lac.conf; the checkZeAccessConcentrator anchor moved to internal/le/interoplab/pppoe/check_ac.go and now says so; auth-method (default chap-md5) and allow-no-auth (default false) in ze-l2tp-conf.yang, ExtractParameters and extractAuthAllow in config.go, applyInterfaceConfig in subsystem_reload.go and PPPoEMaxMTU 1492 in discovery.go hold the described behavior. Earlier, 2026-10-07: checked auth-method default chap-md5 and allow-no-auth in internal/component/l2tp/yang/ze-l2tp-conf.yang; every source anchor resolves |
 | Defect review | 2026-10-07: open: spec-pppoe-padt-ends-session, spec-pppoe-lcp-option-reject, spec-pppoe-subscribers-produce-no-accounting-or-telemetry; journal rows naming a Component, not each re-verified here: blanket-mechanism-hid-missing-cases.md:8, false-synchronization-claim.md:35, feature-test-missing-build-tag.md:13, gate-excludes-part-of-its-population.md:12, gate-excludes-part-of-its-population.md:140, plugin-startup-barrier-deadlock.md:3, registry-read-outruns-its-lazy-creation.md:11, unwired-feature.md:9, unwired-feature.md:80 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
@@ -34,3 +34,21 @@ Configurations relying on implicit PAP fallback must explicitly include PAP.
 The PPPoE MRU ceiling remains 1492.
 <!-- source: internal/component/l2tp/pppoe/config.go -- ExtractParameters, extractAuthAllow -->
 <!-- source: internal/component/l2tp/pppoe/subsystem_reload.go -- applyInterfaceConfig -->
+
+On a LAC with an `l2tp relay-realm` binding, the PPPoE AC records each new
+session's LCP exchange and, when the subscriber authenticates, asks the L2TP
+subsystem to relay it by the realm of its username (the text after the last
+`@`, matched exactly once case is ignored) before any auth handler sees the
+credential. A matched realm is relayed: the AC has run LCP and started CHAP
+or PAP per `authentication-allow`, and L2TP places an incoming call whose
+ICCN carries the subscriber's LCP and authentication as proxy AVPs, then the
+PPPoE channel is bridged to the L2TP session. A username with no realm, or
+whose realm names no binding, is authenticated locally by the configured auth
+handler; a matched realm whose call cannot start, and an MS-CHAPv2
+subscriber of a matched realm, are refused with an authentication failure
+and an LCP Terminate-Request, never authenticated locally. The L2TPv2 BNG
+feature carries the L2TP half and the `show l2tp session` keys.
+<!-- source: internal/component/l2tp/pppoe/server.go -- CaptureProxyLCP: realmRelayConfigured -->
+<!-- source: internal/component/l2tp/pppoe/drain.go -- startPPPoEAuthDrain -->
+<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmFromUsername, proxyAuthFrom, decide -->
+<!-- source: internal/component/l2tp/config.go -- LookupRealmRelay -->

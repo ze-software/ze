@@ -13,7 +13,7 @@
   {
     "rid": "RFC2661-4.3-3",
     "polarity": "positive",
-    "unit": "internal/component/l2tp/session_initiator_test.go::TestWriteICCNBodyPAPProxyHiddenOrAbsent",
+    "unit": "internal/component/l2tp/rfc2661_session_initiator_test.go::TestWriteICCNBodyPAPProxyHiddenOrAbsent",
     "unit-sha": "4bfc0d1758d4682c",
     "claim-sha": "a046f52229c198c0",
     "route": "revert",

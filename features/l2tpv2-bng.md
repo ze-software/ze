@@ -15,7 +15,7 @@
 | Interop | l2tp/01-ppp-ipv4, l2tp/02-ppp-bgp-redistribute-frr, l2tp/03-ze-lac-xl2tpd-lns, l2tp/04-radius-acct-attrs, topology/access-up, topology/access-pool, topology/access-accounting, topology/access-wholesale |
 | RFCs | rfc2661, rfc2865, rfc2866, rfc2869, rfc1334, rfc1661, rfc1877, rfc5072, rfc5176 |
 | Docs | docs/guide/l2tp.md |
-| Doc review | 2026-11-08: the access-chain paragraph checked against checkAccessUp, checkAccessPool and checkAccessAccounting, and the three topology Interop entries resolve; the guide's relay paragraph names access-up as the relay data-path proof; every source anchor resolves (handleTick, nasPortIDFormat, answerRefusedSCCRQ, stopCCNSlot, bngRegister); the tunnel-id-zero StopCCN and NAS-Port-Id each have a listed test |
+| Doc review | 2026-11-08: the LAC realm relay paragraph checked against LookupRealmRelay and validateRelayRealms (exact, case-folded match, refused bindings), RelayRealm and newICCNProxy (AVPs 26 to 33, no-shared-secret withholds PAP proxy auth), realmFromUsername and decide (last @, no realm or no binding authenticates locally, a matched failed call is refused), sessionJSON (the AC-12 keys) and checkAccessWholesale; every new source anchor resolves. Earlier the same day: the access-chain paragraph checked against checkAccessUp, checkAccessPool and checkAccessAccounting, and the three topology Interop entries resolve; the guide's relay paragraph names access-up as the relay data-path proof; every source anchor resolves (handleTick, nasPortIDFormat, answerRefusedSCCRQ, stopCCNSlot, bngRegister); the tunnel-id-zero StopCCN and NAS-Port-Id each have a listed test |
 | Defect review | 2026-10-07: open: spec-radius-rfc-defects; l2tp journal rows name internal/component/l2tp; journal rows naming a Component, not each re-verified here: assertion-reads-state-the-scheduler-owns.md:10, assertion-reads-state-the-scheduler-owns.md:11, blanket-mechanism-hid-missing-cases.md:8, bulk-rename-corruption.md:13, claim-outlives-the-evidence-it-cites.md:21, claim-outlives-the-evidence-it-cites.md:24, claim-outlives-the-evidence-it-cites.md:32, closure-deletes-a-cited-document.md:6, concurrent-session-corruption.md:26, crypto-rand-read-error-branch-is-dead-code.md:3, declared-format-contradicts-payload.md:21, design-claim-never-measured.md:17, false-synchronization-claim.md:35, feature-test-missing-build-tag.md:13, field-carries-two-meanings.md:31, full-disk-false-red.md:27, gate-excludes-part-of-its-population.md:12, gate-excludes-part-of-its-population.md:47, gate-excludes-part-of-its-population.md:96, gate-excludes-part-of-its-population.md:140, gate-excludes-part-of-its-population.md:143, gate-excludes-part-of-its-population.md:146, grace-bound-hides-a-missing-signal.md:3, grace-bound-hides-a-missing-signal.md:4, green-that-could-not-have-been-red.md:179, green-that-could-not-have-been-red.md:206, green-that-could-not-have-been-red.md:207, guard-added-to-one-half-of-a-pair.md:34, guard-added-to-one-half-of-a-pair.md:36, guard-added-to-one-half-of-a-pair.md:38, guard-added-to-one-half-of-a-pair.md:86, guard-added-to-one-half-of-a-pair.md:91, guard-added-to-one-half-of-a-pair.md:92, helper-bypassed-by-an-open-coded-copy.md:14, helper-bypassed-by-an-open-coded-copy.md:36, index-key-derived-from-mutable-field.md:10, lint-contract-not-applied.md:21, mutating-a-guard-runs-the-unguarded-path.md:3, plugin-startup-barrier-deadlock.md:3, reference-checked-claim-unchecked.md:16, reference-checked-claim-unchecked.md:18, registry-contamination.md:7, registry-contamination.md:14, registry-read-outruns-its-lazy-creation.md:11, reply-sent-per-request-with-no-rate-limit.md:16, reply-sized-by-the-peer-it-answers.md:18, rollback-forgets-partial-apply.md:3, rollback-forgets-partial-apply.md:5, silent-fall-through.md:5, silent-fall-through.md:21, silent-fall-through.md:41, silent-fall-through.md:59, silent-fall-through.md:60, silent-fall-through.md:61, stale-spec-claims-done.md:4, fixture-encodes-an-impossible-state.md:45, transient-failure-treated-as-fatal.md:13, tree-state-claim-published-unverified.md:54, unwired-feature.md:7, unwired-feature.md:8, unwired-feature.md:9, unwired-feature.md:21, unwired-feature.md:25, unwired-feature.md:45, unwired-feature.md:54, unwired-feature.md:72, unwired-feature.md:73, unwired-feature.md:76, unwired-feature.md:80, unwired-feature.md:81, unwired-feature.md:121, validated-value-discarded-by-its-caller.md:26, zero-value-as-valid-answer.md:15, zero-value-as-valid-answer.md:68, zero-value-as-valid-answer.md:70 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
@@ -57,6 +57,36 @@ names the outcome (`accepted`, `renegotiated`, `none`). Unit and wiring
 tests prove it; the pppd interop scenario `l2tp-lns-lcp-renegotiate-pppd`
 is not yet run.
 <!-- source: internal/component/l2tp/ppp/proxy.go -- admitProxyLCP -->
+
+As a LAC, Ze can choose the LNS from the realm of the subscriber's PPP
+username, the way a wholesale access network does: an `l2tp relay-realm
+<realm> { remote <name>; }` binding names a declared remote. The realm is the
+text after the last `@` of the username, matched exactly once case is
+ignored, so `cpe@Example.NET` matches `example.net` and `cpe@x.example.net`
+does not. For a matched realm the LAC runs LCP and starts authentication with
+the subscriber itself, then places an incoming call to the bound remote whose
+ICCN carries the RFC 2661 Section 4.4.5 proxy AVPs: the three LCP
+Configure-Requests (AVPs 26 to 28) and the proxy authentication type, name,
+challenge, Identifier and response (AVPs 29 to 33), each with M=0. A PAP
+password travels only hidden, so with no `shared-secret` on the remote a PAP
+subscriber's proxy authentication is left out and the LNS restarts it. Once
+the session is up the LAC bridges the subscriber's PPP channel to it and the
+LNS carries on the PPP session. A username with no realm, or whose realm
+names no binding, is authenticated locally as for any PPPoE session, and a
+Service-Name `relay` that matched at discovery wins over the realm. A matched
+realm whose call cannot start, and an MS-CHAPv2 subscriber of a matched
+realm, are refused, never authenticated locally. `show l2tp session id <id>`
+on the LAC adds `relay-realm`, `relay-remote`, `proxy-lcp-sent`,
+`proxy-auth-sent` and, when no proxy authentication was sent,
+`proxy-auth-reason`. The `access-wholesale` topology scenario proves the relay
+with a Ze LNS; the accel-ppp and xl2tpd LNS scenarios are written and not yet
+run.
+<!-- source: internal/component/l2tp/config.go -- validateRelayRealms, LookupRealmRelay -->
+<!-- source: internal/component/l2tp/relay_sink.go -- RelayRealm -->
+<!-- source: internal/component/l2tp/iccn_proxy.go -- newICCNProxy -->
+<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmFromUsername, decide -->
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionJSON -->
+<!-- source: internal/le/interoplab/topology/check_wholesale.go -- checkAccessWholesale -->
 
 The PPP engine's IPv6CP boundary tests negotiate at MRU 1280 with a test
 address provider. Shipped subscriber service remains IPv4-only: the static
