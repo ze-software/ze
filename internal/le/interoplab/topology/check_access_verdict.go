@@ -248,14 +248,23 @@ func routeViaVerdict(answer, target, device string) error {
 	return fmt.Errorf("ze-cpe's route to %s names no device: %q", target, strings.TrimSpace(answer))
 }
 
-// pingVerdict judges busybox ping's summary: every one of sent packets was
-// received, "N packets transmitted, N packets received, 0% packet loss".
+// pingVerdict judges a ping summary: every one of sent packets was received.
+// Two pingers run in this lab and word the line differently: busybox (the Ze
+// image) prints "N packets transmitted, N packets received, 0% packet loss",
+// and iputils (the pppd subscriber's Debian image) prints "N packets
+// transmitted, N received, 0% packet loss, time ...". Either full-delivery
+// line passes; anything else, a lossy line included, is refused.
 func pingVerdict(output string, sent int) error {
-	want := strconv.Itoa(sent) + " packets transmitted, " + strconv.Itoa(sent) + " packets received, 0% packet loss"
-	if !strings.Contains(output, want) {
-		return fmt.Errorf("ze-cpe's ping did not report %q:\n%s", want, output)
+	count := strconv.Itoa(sent)
+	busybox := count + " packets transmitted, " + count + " packets received, 0% packet loss"
+	iputils := count + " packets transmitted, " + count + " received, 0% packet loss"
+	if strings.Contains(output, busybox) {
+		return nil
 	}
-	return nil
+	if strings.Contains(output, iputils) {
+		return nil
+	}
+	return fmt.Errorf("the ping did not report %q (busybox) or %q (iputils):\n%s", busybox, iputils, output)
 }
 
 // pppAddressOn answers the IPv4 address `ip -o -4 address show dev <device>`

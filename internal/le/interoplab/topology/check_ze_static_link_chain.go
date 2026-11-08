@@ -16,7 +16,10 @@ import (
 // node answers `show interface brief` by its own name and lists each link
 // device the declaration gives it; A pings C's address on the far link,
 // which only B's forwarding can carry; and outside, on eth0 alone, cannot
-// reach a link address. Every assertion reads state, never a delay.
+// reach a link address. outside has no default route and routes link a-b's
+// prefix onto eth0 (outsidePrestart), so its ping ARPs on the lab network:
+// a reply proves a-b leaks onto eth0's segment, and the Docker host's own
+// routing cannot answer it. Every assertion reads state, never a delay.
 func checkStaticLinkChain(ctx context.Context, check *interoplab.CheckContext) error {
 	for _, name := range []string{nodeA, nodeB, nodeC} {
 		if err := waitInterfaceBrief(ctx, check, name); err != nil {

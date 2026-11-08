@@ -87,7 +87,7 @@ form or dropped reason. Every value is invented.
 | 76 | `set vpn ipsec ike-group IKE-MGMT proposal 1 dh-group '19'` | `vpn ipsec ike-group IKE-MGMT proposal 1 dh-group 19` | equivalent | |
 | 77 | `set vpn ipsec ike-group IKE-MGMT proposal 1 encryption 'aes128gcm128'` | `vpn ipsec ike-group IKE-MGMT proposal 1 encryption aes128gcm` | equivalent | `aes128gcm` for `aes128gcm128` |
 | 78 | `set vpn ipsec ike-group IKE-MGMT proposal 1 hash 'sha256'` | `vpn ipsec ike-group IKE-MGMT proposal 1 hash sha256` | equivalent | |
-| 79 | `set vpn ipsec interface 'pppoe0'` | `vpn ipsec interface pppoe0` | equivalent | |
+| 79 | `set vpn ipsec interface 'pppoe0'` | `vpn ipsec interface pppoe0`; `vpn ipsec unmatched bypass` | equivalent | VyOS's strongSwan installs no SPD catch-all, so the router's own DNS, NTP, ICMP and PPP-side traffic crosses in the clear; Ze's catch-all defaults to discard, so `bypass` keeps that |
 | 80 | `set vpn ipsec site-to-site peer mgmt authentication local-id 'cpe.lab.example.net'` | `vpn ipsec site-to-site peer mgmt authentication local-id cpe.lab.example.net` | equivalent | |
 | 81 | `set vpn ipsec site-to-site peer mgmt authentication mode 'x509'` | `peer mgmt authentication mode x509` | equivalent | |
 | 82 | `set vpn ipsec site-to-site peer mgmt authentication remote-id 'vpn.example.net'` | `peer mgmt authentication remote-id vpn.example.net` | equivalent | |

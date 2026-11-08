@@ -78,6 +78,42 @@ func TestDiagnosePeersNamesTheCause(t *testing.T) {
 	}
 }
 
+// TestDiagnosePeerReadsDeclaredLogFiles proves a peer that logs to files
+// gets the tail of each declared file in its block, after the namespace
+// reads and in declaration order, so an LNS whose stdout is empty still
+// shows why its call failed; a container that is not running is not
+// probed. Method: a fake source records each Exec; one running peer
+// declares two files, one exited peer declares one.
+func TestDiagnosePeerReadsDeclaredLogFiles(t *testing.T) {
+	source := &fakeDiagnosticSource{
+		states: map[string]string{"c-lns": "running exit=0 oom=false", "c-dead": "exited exit=1 oom=false"},
+		logs:   map[string]string{},
+	}
+	peers := []PeerConfig{
+		{Name: "lns", Container: "c-lns", LogFiles: []string{"/var/log/xl2tpd.log", "/var/log/ppp/pppd-lns.log"}},
+		{Name: "dead", Container: "c-dead", LogFiles: []string{"/var/log/accel-ppp.log"}},
+	}
+	blocks := diagnosePeers(context.Background(), source, peers, []string{"c-lns", "c-dead"})
+	if len(blocks) != 2 {
+		t.Fatalf("got %d blocks, want 2:\n%s", len(blocks), strings.Join(blocks, ""))
+	}
+	want := []string{
+		"c-lns ip -d -o link show",
+		"c-lns ip -br address show",
+		"c-lns tail -n 40 /var/log/xl2tpd.log",
+		"c-lns tail -n 40 /var/log/ppp/pppd-lns.log",
+	}
+	if !slices.Equal(source.execs, want) {
+		t.Errorf("execs = %q, want %q", source.execs, want)
+	}
+	if !strings.Contains(blocks[0], "  tail -n 40 /var/log/ppp/pppd-lns.log:\n    answer of tail -n 40 /var/log/ppp/pppd-lns.log") {
+		t.Errorf("the pppd log tail is not in the LNS block:\n%s", blocks[0])
+	}
+	if !strings.Contains(blocks[1], "log files: not read, the container is not running") {
+		t.Errorf("the exited peer does not say why its log file was not read:\n%s", blocks[1])
+	}
+}
+
 // TestSuiteReportTextPrintsDiagnostics proves the terminal report prints a
 // failed scenario's diagnostic blocks under its name, after its verdict.
 func TestSuiteReportTextPrintsDiagnostics(t *testing.T) {

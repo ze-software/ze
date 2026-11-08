@@ -48,7 +48,8 @@ func accelLNSFor(chapLines string) node {
 		capabilities: []string{capabilityNetAdmin},
 		arguments:    interoplab.PPPDeviceArguments(),
 		prestart:     "mkdir -p /etc/accel-ppp /var/log; printf '%s\\n' '" + chapLines + "' > /etc/accel-ppp/chap-secrets",
-		ready:        []string{"sh", "-c", "grep -q ':06A5 ' /proc/net/udp"}}
+		ready:        []string{"sh", "-c", "grep -q ':06A5 ' /proc/net/udp"},
+		logFiles:     []string{accelLNSLog}}
 }
 
 // wholesaleAccelChain is access-wholesale with accel-ppp in place of ze-lns

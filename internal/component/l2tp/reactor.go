@@ -729,6 +729,16 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 				"hello-retries", r.params.HelloRetries,
 				"hello-interval", r.params.HelloInterval.String(),
 				"since-liveness", now.Sub(tunnel.lastLiveness).String())
+		} else if tunnel.state != L2TPTunnelClosed {
+			// The peer never acknowledged a control message, an unanswered
+			// SCCRQ included: an LNS that discards the LAC's address (accel-ppp
+			// outside its client-ip-range) or a blocked path. The StopCCN
+			// below is logged at Info, so without this line the operator sees
+			// only that the tunnel failed, never that the peer was silent.
+			r.logger.Warn("l2tp: peer never acknowledged a control message, so the tunnel is torn down; check that the peer accepts L2TP from this address and that UDP reaches it",
+				"tunnel", tunnel.localTID,
+				"peer", tunnel.peerAddr.String(),
+				"state", tunnel.state.String())
 		}
 		if tunnel.state != L2TPTunnelClosed {
 			// Both branches are the peer no longer answering: the keepalive

@@ -198,8 +198,16 @@ func checkLACRelays(ctx context.Context, check *interoplab.CheckContext) error {
 	if len(tunnels) != 1 {
 		return fmt.Errorf("ze-lac holds %d L2TP tunnels, want 1 to ze-lns", len(tunnels))
 	}
-	if tunnels[0].Peer != lnsCoreAddress {
-		return fmt.Errorf("ze-lac's tunnel goes to %s, want ze-lns at %s", tunnels[0].Peer, lnsCoreAddress)
+	// `show l2tp tunnels` reports the peer as the address and UDP port the
+	// tunnel's control channel reaches (l2tp TunnelSnapshot.PeerAddr, a
+	// netip.AddrPort), so the LNS is its core address on the L2TP port.
+	want := netip.AddrPortFrom(netip.MustParseAddr(lnsCoreAddress), l2tpPort)
+	peer, err := netip.ParseAddrPort(tunnels[0].Peer)
+	if err != nil {
+		return fmt.Errorf("ze-lac's tunnel peer %q is not an address and port: %w", tunnels[0].Peer, err)
+	}
+	if peer != want {
+		return fmt.Errorf("ze-lac's tunnel goes to %s, want ze-lns at %s", peer, want)
 	}
 	if tunnels[0].SessionCount != 1 {
 		return fmt.Errorf("ze-lac's tunnel to ze-lns carries %d sessions, want 1", tunnels[0].SessionCount)
@@ -404,12 +412,16 @@ func waitResolvers(ctx context.Context, check *interoplab.CheckContext) error {
 // address with no loss, and the LNS's PPP interface toward the subscriber
 // received at least the pings sent, so the pings crossed the LAC's bridge.
 func checkPingAcross(ctx context.Context, check *interoplab.CheckContext, lns string, subscriber netip.Addr, count int, extra ...string) error {
-	eth0, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "-4", ipWordAddress, "show", ipWordDev, "eth0"}, nil)
+	// Exec, not Query: an eth0 with no IPv4 address is the answer this clause
+	// wants, and `ip` prints nothing for it with exit 0, which Query refuses as
+	// unmeasured (EmptyAnswerError). Exec still fails on a non-zero exit, so a
+	// missing device or a dead container is not read as "no address".
+	eth0, err := check.Lab.Exec(ctx, nodeCPE, []string{"ip", "-o", "-4", ipWordAddress, "show", ipWordDev, "eth0"}, nil)
 	if err != nil {
 		return fmt.Errorf("read ze-cpe's eth0: %w", err)
 	}
-	if strings.TrimSpace(eth0) != "" {
-		return fmt.Errorf("ze-cpe's eth0 holds an IPv4 address, so a ping could bypass the session:\n%s", eth0)
+	if strings.TrimSpace(eth0.Stdout) != "" {
+		return fmt.Errorf("ze-cpe's eth0 holds an IPv4 address, so a ping could bypass the session:\n%s", eth0.Stdout)
 	}
 	route, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", ipWordRoute, "get", poolGateway}, nil)
 	if err != nil {

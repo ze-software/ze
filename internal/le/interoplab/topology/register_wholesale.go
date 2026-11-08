@@ -82,7 +82,8 @@ func pppdSubscriberAs(name, user string, host uint8) node {
 		capabilities: []string{capabilityNetAdmin},
 		arguments:    append(interoplab.PPPDeviceArguments(), "--entrypoint", "sh"),
 		command:      []string{"-c", shell},
-		prestart:     "ip -4 address flush dev eth0; ip -6 address flush dev eth0 scope global"}
+		prestart:     "ip -4 address flush dev eth0; ip -6 address flush dev eth0 scope global",
+		logFiles:     []string{pppdLog}}
 }
 
 // The realm-relay scenarios of spec-home-cpe-14: a pppd subscriber whose
@@ -155,7 +156,8 @@ func xl2tpdLNS() node {
 			{source: directory + "/ppp-options", target: xl2tpdPPPOptions},
 			{source: directory + "/chap-secrets", target: "/etc/ppp/chap-secrets"},
 		},
-		ready: []string{"sh", "-c", "grep -q ':06A5 ' /proc/net/udp"}}
+		ready:    []string{"sh", "-c", "grep -q ':06A5 ' /proc/net/udp"},
+		logFiles: []string{xl2tpdLNSLog, xl2tpdPPPDLog}}
 }
 
 func init() {

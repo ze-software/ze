@@ -292,7 +292,7 @@ func TestAccessChainLoginVerdict(t *testing.T) {
 // AC-4, AC-5 and AC-7. pppAddressOn answers the one address on pppoe0 and
 // refuses none; deviceWithPeer finds the LNS device toward the subscriber;
 // pingVerdict refuses a lossy run.
-// Method: ip -o -4 address and busybox ping output as fixtures.
+// Method: ip -o -4 address, busybox ping and iputils ping output as fixtures.
 // PREVENTS: an address read from another device, and a lossy ping passing.
 func TestAccessChainStateReaders(t *testing.T) {
 	cpe := "5: pppoe0    inet 203.0.113.1 peer 100.64.0.1/32 scope global pppoe0\\       valid_lft forever\n"
@@ -314,6 +314,13 @@ func TestAccessChainStateReaders(t *testing.T) {
 	}
 	if err := pingVerdict("20 packets transmitted, 19 packets received, 5% packet loss\n", pingCount); err == nil {
 		t.Error("pingVerdict passed a lossy ping")
+	}
+	// iputils, the pppd subscriber's pinger, words the summary without "packets".
+	if err := pingVerdict("20 packets transmitted, 20 received, 0% packet loss, time 19435ms\n", pingCount); err != nil {
+		t.Error(err)
+	}
+	if err := pingVerdict("20 packets transmitted, 19 received, 5% packet loss, time 19435ms\n", pingCount); err == nil {
+		t.Error("pingVerdict passed a lossy iputils ping")
 	}
 }
 

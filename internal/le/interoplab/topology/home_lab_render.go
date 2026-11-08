@@ -36,7 +36,17 @@ const (
 	cpeRecordFile     = "conversion-record.md"
 	cpeLabValuesFile  = "lab-values"
 	renderedCPEConfig = "ze-cpe.conf"
+	// renderedCPEResolvConf is the resolv.conf convertedCPE mounts at
+	// systemResolvConf, naming the converted configuration's static server.
+	renderedCPEResolvConf = "resolv.conf"
+	systemResolvConf      = "/etc/resolv.conf"
 )
+
+// cpeResolvConf is the content of renderedCPEResolvConf: the one static
+// server, with one one-second attempt, so a query while the lab's DNS is still
+// gated shut fails fast and mgmt-tunnel measures Ze's backoff rather than the
+// resolver's retries.
+const cpeResolvConf = "nameserver " + cpeStaticNameServer + "\noptions timeout:1 attempts:1\n"
 
 // The two placeholder kinds of the conversion: a secret the owner fills on the
 // router, and a value the lab issues at run time.
@@ -406,7 +416,7 @@ func writeHomeCPE(root, directory string, algorithm cpeKeyAlgorithm) error {
 	if err != nil {
 		return err
 	}
-	files := map[string][]byte{renderedCPEConfig: []byte(rendered.config)}
+	files := map[string][]byte{renderedCPEConfig: []byte(rendered.config), renderedCPEResolvConf: []byte(cpeResolvConf)}
 	maps.Copy(files, rendered.files)
 	for name, content := range files {
 		path := filepath.Join(directory, filepath.FromSlash(name))

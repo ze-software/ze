@@ -212,6 +212,12 @@ type PeerConfig struct {
 	// composes it with the peer's links into one start wrapper (wrapStart),
 	// with errexit on. It is Go-authored, never read from a scenario file.
 	Prestart string `json:"prestart,omitempty"`
+	// LogFiles are files inside the container a daemon logs to instead of
+	// its stdout (accel-ppp's [log] log-file, xl2tpd's redirected stderr, a
+	// pppd `logfile`). A failed scenario prints the tail of each beside the
+	// container log (diagnosePeer); the scenario that configures the file
+	// declares it, so no central list names a daemon's log.
+	LogFiles []string `json:"log-files,omitempty"`
 }
 
 // OneShotContainer is a bounded foreground container: a host preflight, the

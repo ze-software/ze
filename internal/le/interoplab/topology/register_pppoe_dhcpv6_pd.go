@@ -44,7 +44,8 @@ func init() {
 			{name: nodeAccel, image: accelImage, host: 2, config: "accel-ppp.conf", mountedAt: "/etc/accel-ppp.conf",
 				capabilities: []string{capabilityNetAdmin},
 				arguments:    append(interoplab.PPPDeviceArguments(), ipv6On...),
-				prestart:     "mkdir -p /etc/accel-ppp /var/log; printf '%s\\n' '" + pdAccelChapLines + "' > /etc/accel-ppp/chap-secrets"},
+				prestart:     "mkdir -p /etc/accel-ppp /var/log; printf '%s\\n' '" + pdAccelChapLines + "' > /etc/accel-ppp/chap-secrets",
+				logFiles:     []string{pdAccelLog}},
 			netSysctlWriter(zeNode(nodeCPE, 3, "ze-cpe.conf", append(interoplab.PPPDeviceArguments(), ipv6On...)...)),
 		},
 		links: []interoplab.Link{

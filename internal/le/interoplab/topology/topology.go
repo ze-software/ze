@@ -47,6 +47,10 @@ type node struct {
 	// appArmorProfile is the registered profile the node runs under, empty
 	// for Docker's default (netSysctlWriter sets it).
 	appArmorProfile string
+	// logFiles are the files inside the container the node's daemon logs
+	// to, which a failed scenario's diagnostics print
+	// (interoplab.PeerConfig.LogFiles).
+	logFiles []string
 }
 
 // sharedFile is one read-only mount of a node: source is a slash path
@@ -187,8 +191,8 @@ func nodePeer(root, directory string, declared *node, suffix string) interoplab.
 		Container: container.Str("ze-topo-").Str(declared.name).Byte('-').Str(suffix).String(),
 		Image:     declared.image, Host: declared.host, Command: declared.command,
 		Capabilities: declared.capabilities, Arguments: declared.arguments, Prestart: declared.prestart,
-		AppArmorProfile: declared.appArmorProfile,
-		Ready:           &interoplab.ReadyProbe{Command: []string{"true"}, Timeout: 30 * time.Second, Interval: time.Second}}
+		AppArmorProfile: declared.appArmorProfile, LogFiles: declared.logFiles,
+		Ready: &interoplab.ReadyProbe{Command: []string{"true"}, Timeout: 30 * time.Second, Interval: time.Second}}
 	if declared.config != "" {
 		peer.Mounts = append(peer.Mounts, interoplab.Mount{Source: filepath.Join(directory, declared.config), Target: declared.mountedAt, ReadOnly: true})
 	}

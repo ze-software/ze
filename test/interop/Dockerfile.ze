@@ -35,8 +35,12 @@ FROM alpine:3.24.3
 # tcpdump observes native DelayOpen timing and the NSSA's first OSPF exchange.
 # GNU timeout owns and joins that capture, including SIGINT flush at the bound;
 # BusyBox timeout's detached watchdog does not provide that lifetime contract.
+# wireguard-tools-wg (`wg` alone, no wg-quick): the topology suite's road-warrior checker reads the CPE's
+# kernel WireGuard state with `wg show wg0 dump`, the kernel's own record of
+# the port, the peer key, its preshared key and its allowed IPs, which Ze's
+# configuration only claims.
 # These tools run only inside this lab container, never through a host sudo.
-RUN apk add --no-cache tini nftables iproute2 tcpreplay tcpdump coreutils=9.11-r0
+RUN apk add --no-cache tini nftables iproute2 tcpreplay tcpdump coreutils=9.11-r0 wireguard-tools-wg
 
 COPY test/interop/ze-linux /usr/local/bin/ze
 # The file MUST be named le: cmd/ze selects its personality from the name it

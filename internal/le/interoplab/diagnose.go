@@ -5,6 +5,7 @@ package interoplab
 import (
 	"context"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -55,8 +56,9 @@ func diagnosePeers(ctx context.Context, source peerDiagnosticSource, peers []Pee
 	return blocks
 }
 
-// diagnosePeer renders one peer's block: its state, its log tail, and the
-// namespace reads when the container still runs.
+// diagnosePeer renders one peer's block: its state, its log tail, and, when
+// the container still runs, the namespace reads and the tail of each log file
+// the peer declared.
 func diagnosePeer(ctx context.Context, source peerDiagnosticSource, peer *PeerConfig) string {
 	var block textbuf.Buffer
 	block.Str("peer ").Str(peer.Name).Str(" (container ").Str(peer.Container).Str("): ")
@@ -77,19 +79,35 @@ func diagnosePeer(ctx context.Context, source peerDiagnosticSource, peer *PeerCo
 		indented(&block, logs.Text)
 	}
 	if !strings.HasPrefix(state, containerRunning) {
-		block.Str("  links and addresses: not read, the container is not running\n")
+		block.Str("  links, addresses and log files: not read, the container is not running\n")
 		return block.String()
 	}
-	for _, probe := range [][]string{peerLinkProbe, peerAddressProbe} {
+	probes := make([][]string, 0, 2+len(peer.LogFiles))
+	probes = append(probes, peerLinkProbe, peerAddressProbe)
+	for _, file := range peer.LogFiles {
+		probes = append(probes, logFileProbe(file))
+	}
+	for _, probe := range probes {
 		block.Str("  ").Join(probe, " ").Str(":\n")
 		answer, err := source.Exec(ctx, peer.Container, probe, nil)
 		if err != nil {
 			block.Str("    failed: ").Err(err).Byte('\n')
 			continue
 		}
+		if strings.TrimSpace(answer.Stdout) == "" {
+			block.Str("    (empty)\n")
+			continue
+		}
 		indented(&block, answer.Stdout)
 	}
 	return block.String()
+}
+
+// logFileProbe reads the last peerLogLines lines of a log file the peer
+// declared (PeerConfig.LogFiles). tail answers non-zero for a file the
+// daemon never created, which the block reports as a failed read.
+func logFileProbe(file string) []string {
+	return []string{"tail", "-n", strconv.Itoa(peerLogLines), file}
 }
 
 // indented writes text into block, each line under four spaces.

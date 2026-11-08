@@ -1206,10 +1206,14 @@ removes them, and its result carries one block per container in
 state `docker inspect` reports (status, exit code, OOM kill, runtime
 error), the last 40 log lines, and, while the container still runs,
 `ip -d -o link show` and `ip -br address show` from its namespace. A
-checker's verdict names what it waited for; the blocks name why it never
+daemon that logs to a file rather than its stdout (accel-ppp's `[log]
+log-file`, xl2tpd's redirected stderr, a pppd `logfile`) leaves the
+container log empty, so the scenario that configures the file declares it
+on its peer (`PeerConfig.LogFiles`, a topology node's `logFiles`), and the
+block then carries `tail -n 40` of each declared file. A checker's verdict names what it waited for; the blocks name why it never
 came, such as a daemon that exited at start or a link device that is
 missing. A read that fails is printed in place of its answer.
-<!-- source: internal/le/interoplab/diagnose.go -- diagnosePeers, diagnosePeer, Docker.ContainerState -->
+<!-- source: internal/le/interoplab/diagnose.go -- diagnosePeers, diagnosePeer, logFileProbe, Docker.ContainerState -->
 
 One `./le test integration <action>` invocation returns that action's full report.
 Multiple action names return a combined summary.
@@ -3175,7 +3179,7 @@ for every suite, so a directory with no declaration is an error.
 
 | Scenario | Nodes and links | What the checker proves |
 |----------|-----------------|-------------------------|
-| `ze-static-link-chain` | Ze nodes `ze-a`, `ze-b`, `ze-c` on links `a-b` (VLAN 181, `10.181.1.0/24`) and `b-c` (VLAN 182, `10.181.2.0/24`), B forwarding; `outside` on `eth0` alone. Each node's file carries `interface { backend netlink; }`: with no `interface` block the interface component loads no backend, and `show interface brief` answers `iface: no backend loaded` | each node answers `show interface brief` by name; A pings C through B; `outside` cannot reach a link address |
+| `ze-static-link-chain` | Ze nodes `ze-a`, `ze-b`, `ze-c` on links `a-b` (VLAN 181, `10.181.1.0/24`) and `b-c` (VLAN 182, `10.181.2.0/24`), B forwarding; `outside` on `eth0` alone, its default route removed and `10.181.1.0/24` routed straight onto `eth0`, so its ping ARPs on the lab network and only a frame of link `a-b` leaking there could answer, whatever the Docker host routes. Each node's file carries `interface { backend netlink; }`: with no `interface` block the interface component loads no backend, and `show interface brief` answers `iface: no backend loaded` | each node answers `show interface brief` by name; A pings C through B; `outside` cannot reach a link address |
 | `two-ze-pppoe-link` | a Ze PPPoE client and a Ze PPPoE server on a link with no prefix; an observer on `eth0` alone | the client holds an address from the server's pool on a ppp device (assigned only once IPCP is Opened), the server's kernel PPPoE table holds the session on the link device, and the observer received no untagged PPPoE discovery frame. Its capture filter also matches the link's own tagged frames, because veth hands the tag to the packet socket out of band, so the checker reads the capture with `tcpdump -e` and counts only lines without an 802.1Q header |
 | `pppoe-mss-pmtu` | Ze CPE `ze-cpe` dialing accel-ppp `accel` on link `access` (VLAN 184, no prefix) with MTU 1492; `lan-host` behind Ze on link `lan` (VLAN 185, `10.185.1.0/24`); `server` beyond accel-ppp on link `core` (VLAN 186, `10.186.1.0/24`), capturing SYNs | Ze's `pppoe0` holds an IPCP address and reports MTU 1492, its table lists `tcp option maxseg size set rt mtu`, and the server captures the SYN lan-host offered with MSS 1460 as 1452 and the one offered with 1200 as 1200 |
 | `access-up` | the access chain (below): Ze CPE `ze-cpe`, running the home-CPE lab's converted configuration, on link `access` (VLAN 191, no prefix) and on link `lan` (VLAN 197, no prefix) with `lan-client`, to Ze LAC `ze-lac`, which relays the empty Service-Name over link `core` (VLAN 192, `192.0.2.0/24`) to Ze LNS `ze-lns`, which checks CHAP with `freeradius` on the same link | the LAC's access capture holds a PADO with a zero-length Service-Name and a PADS with a non-zero session; the LAC holds one tunnel to the LNS with one session, the kernel PPPoE session on its access device, and no addressed PPP device; FreeRADIUS logged an Accept for `cpe@lab.example.net` with a CHAP-Password, no User-Password, NAS-Identifier `ze-lns` and NAS-IP-Address and source `192.0.2.3`; the LNS session names the user and holds `203.0.113.1`, its detail reports `mru` 1492 and `auth-method` `chap-md5`, its core capture holds its LCP Configure-Request with MRU 1492; the CPE's `pppoe0` holds `203.0.113.1` with MTU 1492, its `show interface pppoe-client` reports `pppoe0` up with `dns-servers` `192.0.2.53` then `192.0.2.54`, the two servers the LNS offered in IPCP, while its resolv.conf holds only the converted configuration's static `system name-server 192.0.2.53`, because a static server wins over every learned one, its eth0 holds no address, its route to `100.64.0.1` leaves on `pppoe0`, it pings that address with no loss, and the LNS's PPP device toward the subscriber received at least the pings sent |
@@ -3209,7 +3213,20 @@ the CPE mounts the rendered file, so no scenario carries a CPE file of its
 own: the access chain's scenarios below run it too. The lab adds a `lan` link (VLAN 194, no prefix: the CPE numbers it,
 `br0` on `eth2`) and an `internet` link (VLAN 196, `198.51.100.0/24`) the LNS
 routes, beside the access chain's `access` (VLAN 193) and `core` (VLAN 195);
-`dns` (Knot, `192.0.2.53`) answers `vpn.example.net`. Every node beyond the
+`dns` (Knot, `192.0.2.53`) answers `vpn.example.net`. The prepare step also
+writes a `resolv.conf` naming the converted configuration's static
+`system name-server`, which the CPE mounts at `/etc/resolv.conf`: on the
+appliance that path links to `/tmp/resolv.conf`, the file Ze writes, so Go's
+resolver (the one IKE uses for the remote-address name) asks the configured
+server, while Docker's own file names only `127.0.0.11`, and Ze's write by
+rename cannot be followed by a bind mount. `access-up` proves Ze's own file
+names the same single server. The converted configuration sets
+`vpn ipsec unmatched bypass`, because VyOS installs no SPD catch-all and Ze's
+defaults to discard, which would drop the CPE's own DNS and ping in the
+clear. A `lan-client` dhcpcd node starts with
+`net.ipv4.conf.default.promote_secondaries=1`, because dhcpcd's `if_init`
+writes that sysctl for its interface when it reads anything else, and Docker's
+`/proc/sys` is read-only. Every node beyond the
 LNS flushes its `eth0`, so the links are its only path. The web and FTP
 server and `lan-host` run `ze-topology-webftp` (Debian, busybox httpd,
 vsftpd active-only, curl, bash), registered from

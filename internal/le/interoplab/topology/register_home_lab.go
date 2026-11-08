@@ -84,6 +84,13 @@ const (
 	reconnectAddress   = "203.0.113.2"
 	webCapture         = "/run/web.pcap"
 	dnsGate            = "/run/dns-go"
+	// dockerSysctl is the docker run flag that sets a namespaced sysctl, and
+	// sleepForever the argument that keeps a sleep-only node running.
+	dockerSysctl = "--sysctl"
+	sleepForever = "infinity"
+	commandSleep = "sleep"
+	// dockerEntrypoint is the docker run flag that replaces the image entrypoint.
+	dockerEntrypoint = "--entrypoint"
 )
 
 // subscriberRoutes is the prestart line that sends the subscriber prefixes to
@@ -113,7 +120,7 @@ type homeOptions struct {
 // the internet nodes the LNS routes. The CPE starts after every server, so
 // what it dials is listening; the LAN nodes start last.
 func homeLab(checker interoplab.Checker, options homeOptions) scenario {
-	lns := zeNode(nodeLNS, 3, "", append(interoplab.PPPDeviceArguments(), "--sysctl", "net.ipv4.ip_forward=1")...)
+	lns := zeNode(nodeLNS, 3, "", append(interoplab.PPPDeviceArguments(), dockerSysctl, "net.ipv4.ip_forward=1")...)
 	lns.config = ""
 	lns.shared = []sharedFile{{source: "test/interop-topology/scenarios/access-up/ze-lns.conf", target: zeMountedConfig}}
 	lns.ready = []string{"sh", "-c", "ss -lun | grep -q ':1701 '"}
@@ -150,11 +157,22 @@ func homeLab(checker interoplab.Checker, options homeOptions) scenario {
 // configuration the prepare step rendered, never a file of its own. IPv6 is
 // enabled for vti0's management address, and the node writes its devices'
 // sysctls at run time as a deployed CPE does (netSysctlWriter).
+//
+// It also mounts the prepared resolv.conf at /etc/resolv.conf. On the gokrazy
+// appliance /etc/resolv.conf is a link to /tmp/resolv.conf, the file Ze writes
+// from `system name-server` (the YANG default of `system dns
+// resolv-conf-path`), so Go's resolver, which IKE uses for the
+// `vpn.example.net` remote-address, asks the configured server. A container's
+// /etc/resolv.conf is Docker's own file naming 127.0.0.11, which cannot answer
+// a lab name, and Ze writes /tmp/resolv.conf by rename, so no bind mount can
+// follow it. The prepared file names the same server (cpeStaticNameServer),
+// and access-up proves Ze's own /tmp/resolv.conf holds exactly that server.
 func convertedCPE() node {
 	cpe := zeNode(nodeCPE, 5, "", append(interoplab.PPPDeviceArguments(),
-		"--sysctl", "net.ipv4.ip_forward=1", "--sysctl", "net.ipv6.conf.all.disable_ipv6=0")...)
+		dockerSysctl, "net.ipv4.ip_forward=1", dockerSysctl, "net.ipv6.conf.all.disable_ipv6=0")...)
 	cpe.config = ""
-	cpe.prepared = []sharedFile{{source: renderedCPEConfig, target: zeMountedConfig}}
+	cpe.prepared = []sharedFile{{source: renderedCPEConfig, target: zeMountedConfig},
+		{source: renderedCPEResolvConf, target: systemResolvConf}}
 	cpe.prestart = flushEth0
 	return netSysctlWriter(cpe)
 }
@@ -166,8 +184,15 @@ func dhcpClient(name string, host uint8, mac string) node {
 	if mac != "" {
 		prestart += "\nip link set eth1 down; ip link set eth1 address " + mac + "; ip link set eth1 up"
 	}
+	// dhcpcd's if_init (src/if-linux.c) reads the link's
+	// net.ipv4.conf.<if>.promote_secondaries and writes 1 when it is not 1; a
+	// failed write ends dhcpcd ("if_init_os: Read-only file system"), because
+	// Docker mounts /proc/sys read-only. The link joins the namespace after
+	// start, so it inherits the default this argument sets, and dhcpcd reads
+	// 1 and writes nothing.
 	return node{name: name, image: knotImage, host: host, capabilities: []string{capabilityNetAdmin},
-		command: []string{"sleep", "infinity"}, prestart: prestart}
+		arguments: []string{dockerSysctl, "net.ipv4.conf.default.promote_secondaries=1"},
+		command:   []string{commandSleep, sleepForever}, prestart: prestart}
 }
 
 // lanStatic is the LAN host the checkers drive TCP from: a fixed address
@@ -175,7 +200,7 @@ func dhcpClient(name string, host uint8, mac string) node {
 // connect.
 func lanStatic() node {
 	return node{name: nodeLANStatic, image: webFTPImage, host: 24, capabilities: []string{capabilityNetAdmin},
-		arguments: []string{"--entrypoint", "sleep"}, command: []string{"infinity"},
+		arguments: []string{dockerEntrypoint, commandSleep}, command: []string{sleepForever},
 		prestart: flushEth0 + "\nip address add " + lanStaticAddress + "/24 dev eth1; ip route add default via " + cpeLANGateway}
 }
 
@@ -208,7 +233,7 @@ func wgClient() node {
 // run's PKI, narrowing to ::/0, holding the management address on a dummy.
 func swanResponder() node {
 	return node{name: nodeSwan, image: swanImage, host: 30, capabilities: []string{capabilityNetAdmin},
-		arguments: []string{"--sysctl", "net.ipv6.conf.all.disable_ipv6=0"},
+		arguments: []string{dockerSysctl, "net.ipv6.conf.all.disable_ipv6=0"},
 		prestart: flushEth0 + "\n" + subscriberRoutes(lnsInternetAddress) + "\n" +
 			"ip link add inner type dummy; ip link set inner up; ip -6 address add " + swanManagement + "/128 dev inner nodad\n" +
 			"ip -6 route add fd00:db8:1::/112 dev eth1",
