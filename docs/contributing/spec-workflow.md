@@ -554,7 +554,12 @@ segment is no top-level directory of the checkout, such as
 path suffix against the files git tracks (`trackedSuffixMatches`): one match is
 the producer to read, no match leaves nothing to read (the file was deleted or
 the name is no path), and several matches refuse, naming each, until the spec
-writes the full path. A name that starts at a top-level directory keeps the
+writes the full path. Ambiguity is judged only where the proposed text cites
+the name, as a missing path is: an ambiguous name in the selected file names no
+producer, so the edit that replaces it with the full path or drops it is never
+refused by it. A name the edit keeps refuses even on a line the edit does not
+touch, because accepting it would let the spec go on citing a producer nobody
+reads; the edit that writes the full path is the way out. A name that starts at a top-level directory keeps the
 rule above. Source identities are normalized checkout-relative paths with
 symlinks resolved; a source outside this checkout cannot supply evidence.
 

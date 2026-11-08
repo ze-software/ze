@@ -121,6 +121,12 @@ func (r sourceRead) validRange() bool {
 // tracked match is the producer and must be read. No tracked match leaves
 // nothing to read, whether the name was deleted or was never a path. Several
 // matches refuse, naming each, because the spec does not say which it means.
+// Ambiguity is judged only where the proposed text cites the name, as an
+// absent path is: the current text's ambiguous name names no producer, so the
+// edit that replaces it with the full path, or drops it, has nothing to read
+// for it and is never refused by the citation it repairs. A name the edit keeps
+// or adds still refuses, untouched lines included, so no later edit lands
+// while the spec cites a producer nobody can tell apart.
 func designSubjects(ctx context, repository *os.Root, current, proposed string) ([]string, error) {
 	var subjects []string
 	for _, source := range []struct {
@@ -151,6 +157,10 @@ func designSubjects(ctx context, repository *os.Root, current, proposed string) 
 						continue
 					}
 					if len(matches) > 1 {
+						// The proposed pass judges every ambiguous name the edit keeps or adds.
+						if !source.proposed {
+							continue
+						}
 						return nil, fmt.Errorf("%s: package-relative producer is ambiguous, it matches %s; write the full path", named, strings.Join(matches, ", "))
 					}
 					path = matches[0]
@@ -337,7 +347,7 @@ func designEvidenceProblem(ctx context) *verdict {
 	subjects, err := designSubjects(ctx, repository, string(current), proposed)
 	if err != nil {
 		return &verdict{2, "❌ BLOCKED: cannot establish design source subjects: " + err.Error() +
-			"\n  Make each existing producer readable inside this checkout, then read it in this context and retry. Only genuinely new Files to Create paths, Current Behavior or Files to Modify paths whose last commit deleted them, and paths the edit stops citing, may be absent. A package-relative name (reactor/x.go) is matched against tracked files and must name one; write the full path when it matches several.\n  ai/rules/evidence.md"}
+			"\n  Make each existing producer readable inside this checkout, then read it in this context and retry. Only genuinely new Files to Create paths, Current Behavior or Files to Modify paths whose last commit deleted them, and paths the edit stops citing, may be absent. A package-relative name (reactor/x.go) is matched against tracked files and must name one; write the full path when it matches several, and an edit that replaces it with the full path is accepted.\n  ai/rules/evidence.md"}
 	}
 	reads := currentSourceReads(ctx, repository)
 	if len(subjects) == 0 && len(reads) != 0 {

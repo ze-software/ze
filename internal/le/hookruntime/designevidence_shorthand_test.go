@@ -1,10 +1,13 @@
 // Design: docs/contributing/spec-workflow.md -- a package-relative producer name
 // VALIDATES: a spec name whose first segment is no top-level directory
 // (reactor/x.go) resolves as a path suffix over tracked files: one live match
-// must be read, a deleted or unmatched name is skipped, several matches refuse,
-// and a root-anchored path keeps the root rule.
+// must be read, a deleted or unmatched name is skipped, several matches refuse
+// where the proposed text cites the name (kept or added), and a root-anchored
+// path keeps the root rule.
 // PREVENTS: a spec naming reactor/filter_format.go being checked at the root,
-// where git never held it, and so refusing every edit of the spec.
+// where git never held it, and so refusing every edit of the spec; and an
+// ambiguous name in the selected spec refusing the edit that writes its full
+// path.
 package hookruntime
 
 import (
@@ -102,5 +105,74 @@ func TestDesignEvidenceRootAnchoredPathKeepsRootRule(t *testing.T) {
 	message := observedDesignGate(t, root, "## Current Behavior\n`reactor/filter_live.go`\n", 2)
 	if !strings.Contains(message, "reactor/filter_live.go: inspect producer") || !strings.Contains(message, "git history never deleted it") {
 		t.Fatalf("a root-anchored path did not keep the root rule: %s", message)
+	}
+}
+
+// TestDesignEvidenceAcceptsEditReplacingAmbiguousName checks that an edit
+// replacing an ambiguous package-relative name with one of its full paths is
+// judged on the full path alone: refused until that producer is read, accepted
+// once it is. Dropping the name owes nothing for it.
+//
+// MUTATION: (internal/le/hookruntime/designevidence.go, "if !source.proposed {\n\t\t\t\t\t\t\tcontinue\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn nil", "if source.proposed && !source.proposed {\n\t\t\t\t\t\t\tcontinue\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn nil")
+// turns it red: the current pass refuses the ambiguous name the edit repairs.
+func TestDesignEvidenceAcceptsEditReplacingAmbiguousName(t *testing.T) {
+	for _, heading := range []string{"Current Behavior", "Files to Modify"} {
+		t.Run(heading+"/full-path", func(t *testing.T) {
+			root := shorthandFixture(t)
+			writeHookFixture(t, root, evidenceProbeSpec, "## "+heading+"\n- `reactor/dup.go` - the check\n")
+			repaired := "## " + heading + "\n- `" + shorthandDupOne + "` - the check\n"
+			message := observedDesignGate(t, root, repaired, 2)
+			if !strings.Contains(message, "Missing current subject evidence: "+shorthandDupOne) || strings.Contains(message, "ambiguous") {
+				t.Fatalf("the repaired full path is not the only subject: %s", message)
+			}
+			recordObservedRead(t, root, filepath.Join(root, shorthandDupOne), shorthandContent, 1, 2, 2)
+			observedDesignGate(t, root, repaired, 0)
+		})
+		t.Run(heading+"/dropped", func(t *testing.T) {
+			root := shorthandFixture(t)
+			writeHookFixture(t, root, evidenceProbeSpec, "## "+heading+"\n- `reactor/dup.go` - the check\n")
+			observedDesignGate(t, root, "## "+heading+"\nNone.\n", 0)
+		})
+	}
+}
+
+// TestDesignEvidenceRefusesEditAddingAmbiguousName checks that an edit of a
+// clean spec that adds an ambiguous package-relative name refuses, naming
+// every match.
+//
+// MUTATION: (internal/le/hookruntime/designevidence.go, "}{{current, false}, {proposed, true}} {", "}{{current, false}, {proposed, false}} {")
+// turns it red: the proposed text's ambiguous name is skipped like the current text's.
+func TestDesignEvidenceRefusesEditAddingAmbiguousName(t *testing.T) {
+	root := shorthandFixture(t)
+	clean := "## Files to Modify\n`" + evidenceProbeB + "`\n"
+	writeHookFixture(t, root, evidenceProbeSpec, clean)
+	message := observedDesignGate(t, root, clean+"`reactor/dup.go`\n", 2)
+	for _, want := range []string{"reactor/dup.go: package-relative producer is ambiguous", shorthandDupOne, shorthandDupTwo} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("an added ambiguous name refusal does not name %q: %s", want, message)
+		}
+	}
+}
+
+// TestDesignEvidenceRefusesEditKeepingAmbiguousName checks the rule for an
+// ambiguous name the edit leaves untouched while it changes another line: it
+// refuses, as a kept absent path does. The spec cites a producer nobody can
+// tell apart, so no read can be owed for it; accepting the edit would let the
+// spec go on naming it with no producer ever read. The refusal names the full
+// paths, and the edit that writes one is accepted (see
+// TestDesignEvidenceAcceptsEditReplacingAmbiguousName), so the spec is never
+// locked.
+//
+// MUTATION: (internal/le/hookruntime/designevidence.go, "if !source.proposed {\n\t\t\t\t\t\t\tcontinue\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn nil", "if true {\n\t\t\t\t\t\t\tcontinue\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn nil")
+// turns it red: the kept ambiguous name is skipped in both passes.
+func TestDesignEvidenceRefusesEditKeepingAmbiguousName(t *testing.T) {
+	root := shorthandFixture(t)
+	kept := "## Files to Modify\n- `reactor/dup.go` - the check\n"
+	writeHookFixture(t, root, evidenceProbeSpec, "## Task\nOld wording.\n\n"+kept)
+	message := observedDesignGate(t, root, "## Task\nNew wording.\n\n"+kept, 2)
+	for _, want := range []string{"ambiguous", shorthandDupOne, shorthandDupTwo} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("a kept ambiguous name refusal does not name %q: %s", want, message)
+		}
 	}
 }
