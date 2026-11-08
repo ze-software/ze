@@ -37,6 +37,8 @@ own source, not inferred from its CLI. The rows were read in vyos-1x, branch
 | `src/conf_mode/interfaces_pppoe.py`; `data/templates/pppoe/peer.j2` | `no-default-route`; `holdoff` and the fixed `lcp-echo-interval` and `lcp-echo-failure` |
 | `interface-definitions/interfaces_pppoe.xml.in` | `holdoff` range and default |
 | `python/vyos/utils/strip_config.py`; `src/helpers/strip-private.py` | redaction |
+| `data/templates/dhcp-client/ipv6.j2` `id-assoc pd`; `interface-definitions/include/interface/dhcpv6-options.xml.i` | `dhcpv6-options pd <i> interface` `sla-id` and `address` |
+| `data/templates/router-advert/radvd.conf.j2`; `interface-definitions/service_router-advert.xml.in` | `service router-advert interface <i> prefix ::/64`, its lifetimes and `default-lifetime` |
 
 A row whose VyOS producer is not in this table carries the class `not read`.
 Its Ze form is verified against the YANG, but nobody has compared the behavior
@@ -126,8 +128,8 @@ lands, its row changes.
 | none: VyOS has no keepalive leaf; its pppd template fixes `lcp-echo-interval 20` and `lcp-echo-failure 3` | `interface pppoe-client <n> keepalive` with `interval 20` and `failures 4` | pppd declares the peer dead when it is about to send a request while 3 are unanswered, so a silent peer is dropped about 80 s after its last reply. Ze ends the session when it sends the request that reaches `failures`, so `failures 4` drops it at the same 80 s. Leaving both out gives Ze's default of 10 s and 3, about 30 s | equivalent | - |
 | `interfaces pppoe <n> no-peer-dns` | none: dropped | Ze always asks for DNS servers in IPCP and ranks the learned servers after the static `system name-server` entries | behavior change | 13 |
 | `interfaces pppoe <n> ipv6 address autoconf`, `dhcpv6-options pd <i> length <l>` | `interface pppoe-client <n> ipv6` with `enabled true`, `autoconf true`, `accept-ra 2`, `forwarding true`, `dhcpv6 enabled true` and `dhcpv6 pd length <l>` | Ze negotiates IPv6CP beside IPCP and runs the DHCPv6 client on the session device; `accept-ra 2` keeps the Router Advertisement default route while the box forwards. The delegated prefix is published as a lease on `<n>`, and a LAN unit numbers itself from it with the next row | not read | - |
-| `interfaces pppoe <n> dhcpv6-options pd <i> interface <lan> sla-id <s>`, `address <a>` | `interface ethernet <lan> unit 0 ipv6 delegated-prefix <n>` with `subnet-id <s>` and `interface-identifier ::<a>` | without `address`, VyOS forms an EUI-64 host part and Ze uses `::1`. Ze refuses a `subnet-id` the `pd length` cannot hold and two units sharing one. The address takes the lifetimes that remain of the delegation and goes when the lease ends. Ze installs it and advertises it, but no interop run has yet shown a LAN host taking an address from it, so check on the router that `<lan>` holds the /64 (`ip -6 addr show <lan>`) | conditional | 8 |
-| `service router-advert interface <lan> prefix ::/64` on a LAN numbered from the delegated prefix | `interface ethernet <lan> unit 0 ipv6` with `forwarding true` and `router-advertisement enabled true` | Ze advertises the unit's delegated /64 in a Prefix Information option with the lifetimes left of the delegation, and also the whole delegated prefix in a Route Information option. No `prefix` entry is written: the delegated /64 is added on its own. The same condition as the `sla-id` row holds | conditional | 8 |
+| `interfaces pppoe <n> dhcpv6-options pd <i> interface <lan> sla-id <s>`, `address <a>` | `interface ethernet <lan> unit 0 ipv6 delegated-prefix <n>` with `subnet-id <s>` and `interface-identifier ::<a, written in hex>` | VyOS hands `address` to dhcp6c as `ifid`, which reads it as a decimal number, so `address 10` is the host part `::a`. Without `address`, VyOS forms an EUI-64 host part and Ze uses `::1`. Without `sla-id`, VyOS numbers the LAN interfaces of one `pd` 0, 1, 2 in order, and Ze needs that number written as `subnet-id`. Ze refuses a `subnet-id` the `pd length` cannot hold and two units sharing one. The address takes the lifetimes that remain of the delegation and goes when the lease ends. No interop run has yet shown a LAN host taking an address from it, so check on the router that the LAN device holds the /64 (`ip -6 addr show <dev>`, where `<dev>` is `<lan>` unless the LAN came from a `hw-id` row: see "Interface names in firewall rules") | behavior change | 8 |
+| `service router-advert interface <lan> prefix ::/64` on a LAN numbered from the delegated prefix | `interface ethernet <lan> unit 0 ipv6` with `forwarding true` and `router-advertisement enabled true` | no `prefix` entry is written: Ze adds the unit's delegated /64 on its own. Three differences the LAN hosts see. VyOS advertises the prefix with fixed lifetimes (valid 2592000, preferred 14400, `DecrementLifetimes off`), and Ze bounds both by what remains of the delegation. Ze always adds a Route Information option for the whole delegated prefix, and VyOS sends none unless `route` is configured. Ze sends Router Lifetime 0 while no WAN holds a default route or the unit has no live prefix, and VyOS's radvd template writes no condition on it: `AdvDefaultLifetime` when `default-lifetime` is set, radvd's own default otherwise. The same interop condition as the `sla-id` row holds | behavior change | 8 |
 | `protocols static route <p> interface <n> distance <d>` | `static table default route <p>` with `distance <d>` and `next interface <n>` | a route through a `pppoe-client` waits for the session instead of failing | not read | - |
 | `protocols static route <p> next-hop <a>` | `static table default route <p> next hop <a>` | | not read | - |
 | `interfaces wireguard <n> port`, `private-key` | `interface wireguard <n> listen-port`, `private-key` (placeholder) | | not read | - |
@@ -137,7 +139,7 @@ lands, its row changes.
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet mac match, offload, bridge member, unit ipv4/ipv6 address, unit ipv6 delegated-prefix, unit ipv6 router-advertisement, pppoe-client, pppoe-client keepalive and reconnect, pppoe-client ipv6, grouping ipv6-host, wireguard, xfrm if-id -->
 <!-- source: internal/component/iface/register.go -- reconcileDHCP -->
 <!-- source: internal/component/iface/delegated_consumer.go -- applyDelegatedAddresses, installDelegatedAddress -->
-<!-- source: internal/plugins/iface/ra/advertiser.go -- delegatedPrefixInfo -->
+<!-- source: internal/plugins/iface/ra/advertiser.go -- delegatedPrefixInfo, withRoute, routerLifetime -->
 <!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateIPCP -->
 <!-- source: internal/plugins/static/yang/ze-static-conf.yang -- table route distance, next hop, next interface -->
@@ -323,7 +325,7 @@ its row here.
 
 | Rewrite | Removed by |
 |---------|------------|
-| a LAN unit takes its /64 and its Router Advertisements from the delegated prefix, but no interop run has yet shown a LAN host taking an address from it, so the operator checks the address on the router | child 8 |
+| a LAN numbered from the delegated prefix is not yet proven against a LAN host; check its /64 on the router | child 8 |
 | a network-group becomes one term per prefix, not a set | the fix of the set element defect (`encodeSetElementKey`) |
 | a firewall, NAT or MSS rule names an ethernet by a name that must also be its kernel name | `spec-iface-resolution-across-the-plugin-boundary` |
 
