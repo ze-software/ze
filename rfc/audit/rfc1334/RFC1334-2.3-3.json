@@ -2,8 +2,8 @@
   "note": "RFC 1334 Section 2.2.2: \"The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply.\" Rejudged after 83deb89129, which changed the two rfc1334_pap_test.go units and left TestPAPReanswersAfterAuthentication as it was. TestPAPRequestEmitsEvent asserts 0x42 on Ack and TestPAPRejectWritesNak asserts 0x77 on Nak, so a hardcoded value goes red on the first-reply path. TestPAPReanswersAfterAuthentication drives handleFrame in AckSent and Opened and asserts replies 0x5a, 0x5b, 0x5c, so a cached initial Identifier in reanswerPAP goes red by reading. That unit carries both tags on one assertion, and the distinct positives in the other two units keep the polarity pair real. It answers Ack only; reanswerPAP passes payload[1] to writePAPReply whatever the cached Code. Caveat on proof: all four records panic reanswerPAP or writePAPReply, so none observes a wrong Identifier, and the MUTATION comment's cached-Identifier break has no record. The doc comment references to pap.go:132, 138, 147, 259 and 262 now match the source.",
   "requirement_sha": "7beeec6de3934fde",
   "tests": {
-    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "8e29592e5f428395",
-    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "8e29592e5f428395",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "f5fde5c23bd5f38f",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "f5fde5c23bd5f38f",
     "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "bcead1076c8ea0bc",
     "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "bcead1076c8ea0bc"
   },

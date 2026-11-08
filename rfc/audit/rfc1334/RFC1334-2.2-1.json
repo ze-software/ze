@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: a reissued Authenticate-Request carrying the previous Identifier. TestClientPAPRetriesUntilMatchingReply lets the first request go unanswered, advances the production retry timer, and asserts packets[0].Identifier != packets[1].Identifier with the credentials unchanged; the negative half asserts no third request after the matching Ack.",
+  "note": "Rejudge 2026-11-08: TestClientPAPRetriesUntilMatchingReply changed only in plumbing (frames through testFrameReader; runClientAuth now takes the shared Identifier counter, new(uint8)). runClientAuth increments that counter before the first request and before each retransmission (session.go). Assertions unchanged: the unanswered first request is reissued by the production timer with packets[0].Identifier != packets[1].Identifier and identical credentials; the negative half asserts no third request after the matching Ack.",
   "requirement_sha": "d8ed39810ec9c589",
   "tests": {
-    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply": "6868de7d83650d56",
-    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply#2": "6868de7d83650d56"
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply": "81da0d5ef7e624d3",
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply#2": "81da0d5ef7e624d3"
   },
   "units": {
-    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply": "de79106e38a6b1d8",
-    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply#2": "de79106e38a6b1d8"
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply": "1957ce66669662c4",
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply#2": "1957ce66669662c4"
   },
   "verdict": "enforced"
 }

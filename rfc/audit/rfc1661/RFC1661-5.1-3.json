@@ -1,17 +1,17 @@
 {
-  "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. (a) options change -> new Identifier: TestLCPConfigureRequestIdentifierLifecycle goes red when changed.Identifier == retry.Identifier; (b) valid reply -> new Identifier: red when afterAck.Identifier == changed.Identifier (server), and the client units go red when the post-Nak / post-Reject request keeps first.Identifier. Negative: timeout retransmission keeps the request, stale Ack does not advance.",
+  "note": "Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. (a) options change -> new Identifier: TestLCPConfigureRequestIdentifierLifecycle red when changed.Identifier == retry.Identifier; (b) valid reply -> new Identifier: server red when afterAck.Identifier == changed.Identifier, client units TestClientLCPRejectRemovesOnlyRejectedOptions and TestClientLCPNakChangesIdentifierAndDropsStaleReply red when the post-Reject / post-Nak request keeps first.Identifier. Negative: timeout retransmission keeps the request byte-identical, a stale Ack does not advance.",
   "requirement_sha": "5bc700d2390ce180",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle#2": "6e1e87cfaa4fb86b",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "94dbfbde4e1ef3d7",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "c295ecb2e2c43e2e",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "c295ecb2e2c43e2e"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "d6c7b7fef05afe2a",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle#2": "d6c7b7fef05afe2a",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "d3962be51c53da88",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "2beede0ab5264f31",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "9324e5b6c9bfaef7"
   },
   "verdict": "enforced"
 }

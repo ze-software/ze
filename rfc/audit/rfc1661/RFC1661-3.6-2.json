@@ -1,10 +1,12 @@
 {
-  "note": "{single-polarity} justified. Forbidden: answering or acting on an IPv4/IPv6 packet whose (enabled) NCP is not Opened. TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened goes red on any written frame (rec.count() != 0), on session termination, or on an LCP state change.",
+  "note": "Rejudge 2026-11-08: new client-role positive TestDialRenegotiatesLCPInNetworkPhase (iface, userns, real PPPoE through the kernel PPP channel, operator config through plugin delivery): IPv4 in both directions is delivered before renegotiation and after IPCP reopens, and is NOT delivered while LCP, PAP and IPCP renegotiate with each Ack held back; the inbound drop window fails on any delivered datagram, and a late one also fails the next stage's payload match. Producer: connected_session.go/ipcp_independent.go set NPModeDrop on restart; NPModePass there turns the inbound DROP checks red. {single-polarity} stands. TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened (ppp) unchanged. Client IPv6 while IPv6CP is not Opened is not covered by any tag of this row (other units exercise setIPv6Mode, untagged).",
   "requirement_sha": "618e28be52287bb1",
   "tests": {
+    "internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go::TestDialRenegotiatesLCPInNetworkPhase": "f652f0c6862fd6de",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened": "86bc304723db0e98"
   },
   "units": {
+    "internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go::TestDialRenegotiatesLCPInNetworkPhase": "120f679d37753f9c",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened": "6688a0532ab5b215"
   },
   "verdict": "enforced"

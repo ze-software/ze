@@ -1,13 +1,15 @@
 {
-  "note": "Forbidden: after a peer Nak with a suggestion, resending the old identifier or none. TestIPv6CPResendsCRWithNakSuggestedID fails when the resent CR lacks the option or opts.InterfaceID != suggested. Negative TestIPv6CPNakInvalidSuggestionNotAdopted fails if an all-zero suggestion is adopted, bounding the rule to usable suggestions.",
+  "note": "Rejudge 2026-11-08: new client positive TestRFC5072ClientAdoptsNakSuggestion: a Nak suggesting 02:00:00:00:00:00:00:77 (different from any Nak the client sent, the condition of the sentence) makes the next Configure-Request carry exactly that identifier under a new Identifier. Server side unchanged: TestIPv6CPResendsCRWithNakSuggestedID requires the suggested value; negative TestIPv6CPNakInvalidSuggestionNotAdopted refuses an all-zero suggestion.",
   "requirement_sha": "041756c7bba9b99f",
   "tests": {
     "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted": "99a68f4293234999",
-    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID": "99a68f4293234999"
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID": "99a68f4293234999",
+    "internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientAdoptsNakSuggestion": "f59976b31e1a3b92"
   },
   "units": {
     "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted": "9614ddb5c554e086",
-    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID": "042b811a6567c60c"
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID": "042b811a6567c60c",
+    "internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientAdoptsNakSuggestion": "ca8154378a7e9d84"
   },
   "verdict": "enforced"
 }
