@@ -1,64 +1,65 @@
-# Handover: home-CPE umbrella implementation (2026-11-07)
+# Handover: home-CPE umbrella implementation (2026-11-07 to 2026-11-08)
 
 Umbrella: `plan/release/fixes/spec-home-cpe-0-umbrella.md`. Goal set by Thomas:
-complete the home-cpe implementation, all testing in the main thread, order
-chosen by the session (the umbrella's executable order, with independent
-children run in parallel).
+complete the home-CPE implementation; all testing in the main thread, one
+CPU-heavy job at a time; agents develop in parallel while tests run.
 
-## What landed today (commits on main, not pushed)
+## How to run things (learned the hard way)
 
-| Child | Commits | State |
-|-------|---------|-------|
-| 1 logical interface name | 1d7b88a626, a65e5c69c6, a8932e4e13, 71fac007f6, 5982501268, 69ecaa5a44 | implementation complete; Linux tests, static drafts, parse drafts and the `pppoe-named-device-reconnect-ze-client` scenario not yet run |
-| 2 DHCP shared subnets | 10e9995d31 | phases 1-3 done; phases 4 (server identifier), 5 (interop), 6 (docs) owed; no DHCP probe client exists for `.ci` |
-| 3 conntrack helpers | fb65e64acf | done in the firewall transaction; integration netns tests not written; drafts unrun; kernel rebuild unproven |
-| 4 IKE dynamic WAN | 67700fd37e | most ACs; interop `fqdn-remote-*` need a DNS harness in the IPsec lab; RFC 7296 2.23 tags not recorded |
-| 6 IPv6 in IPv4 VTI | e8faddced1 | done; scenario and red walk unrun; parse draft unrun |
-| 7 system small defects | 7ff7614e5f | done; QEMU `appliance-hostname` unrun; drafts unrun |
-| 8 IPv6 CPE chain | 69551c0e7f (ppp codec in 79e3205310) | phases 1-3; phases 4-5 wait on owner (RFC 9915 6.3 decline) |
-| 9 clamp to PMTU | ba972d0bb6 | done; Linux tests, draft, scenario unrun; site golden may need judged refresh |
-| 10 VyOS guide | a83df302de | done; parse draft unrun (skips darwin) |
-| 13 IPCP DNS | 518401eb75 | done except LAN resolver use (owner decision) and interop runs |
-| 14 LAC realm relay | 79e3205310 | partial: bridged-session teardown, connecting-tunnel queue, interop scenarios, `.ci` drafts owed |
-| 17 keepalive config | db2ea98439 | done; Linux end-to-end and parse draft unrun |
-| 18 interop topology | 60c615ead1, f765f6e9fd (help fix) | done except AC-7b (RSVP-TE VLAN to freeRouter rawInt needs an external-end link form) |
-| 19 access chain | 93362da68e | written; needs Docker host on Ze's kernel |
-| 20 XFRM AF_UNSPEC | 0db8414cfd | done; Linux kernel tests and red walk unrun |
-| 21 MSS clamp proof | f19ada1079 | done; netns tests unrun |
-| 22 IKE responder reauth | 67700fd37e | core only; CREATE_CHILD_SA/DPD/Delete on a held successor, simultaneous replacement, interop owed |
-| 12 | 86bc403a4e (earlier) | code landed; closure waits on 14 and 18 scenario `access-wholesale-accel-lns` |
+- Go tests: `tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"`, run through `./le job run label <x> command go test -tags "$tags" ...`. Linux-only tests add the `integration` tag and run in QEMU.
+- QEMU: `./le test qemu run kernel /Users/thomas/.cache/ze/runtime-kernel/7.3-runtime-arm64-runtime-docker-a9caebdd-0d1d6496/vmlinuz packages "nftables iproute2 libcap git" timeout 55m command "sh <script>"` with the sandbox off. The guest has no bash (use sh). Scripts used: `tmp/session/2026-11-07-104251/scratch/lx*.sh`.
+- `.ci` fixtures and interop labs run the `le` built from HEAD, never the working tree: commit fixture and lab code before a `.ci` or scenario can use it, then wait for the new build (`ls bin/builds/*-<sha>`; a `.failed-<sha>.log` names a startup refusal).
+- The guest builds its own linux-arm64 `le` from HEAD in the background; the guest script waits for `bin/builds/*-<HEAD>-linux-arm64`.
+- `./le test qemu netns suites pppoe` and `./le test qemu all test <path>` run only inside the guest, and need host-built `bin/ze-linux-arm64` and `bin/ze-stripped` first (not done yet: find the le build step that produces them).
+- IPsec interop selects one scenario with `IPSEC_INTEROP_SCENARIO=<name>`; PPPoE with `./le test deployment docker-pppoe-accel` (`ZE_PPPOE_INTEROP_SCENARIO=<name>`); topology with `./le test integration interop-topology [scenario <name>]`.
+- Never run a plain `go mod vendor`: it drops the vendor patches. Use `./le setup install`.
+- The Ze Docker host is the Colima `ze` profile (`./le setup docker host start`).
 
-Defects fixed on the way: crashlog test setup raced process stderr (8fdc144540);
-stale web L2TP golden (3817635b77); L2TP sent a zero-length datagram whenever the
-send window was full (79e3205310); IKE rebind opened before closing (67700fd37e).
+## Proven today (Linux or interop, committed)
 
-## Not started
+| Child | Evidence |
+|-------|----------|
+| 1 | static follows-device .ci; named-device reconnect against accel-ppp; PPPoE session socket binds the resolved device (TestDialOSNameSourceInterface on Ze 7.3); connected sees addresses that predate the monitor (red walk recorded) |
+| 2 | five dhcpserver .ci promoted and green on Ze 7.3 |
+| 3 | three conntrack kernel tests green; conntrack .ci trio green |
+| 4 | fqdn-remote-dynamic-local and fqdn-remote-real-nat pass against strongSwan |
+| 5 | Ed25519 and Ed448 both directions pass against strongSwan (circl v1.6.5, owner-approved, ledger row) |
+| 6, 20 | vti-ipv6-inner-ipv4-outer passes (after the xfrm-interface catch-all fix and the MODP_2048 rekey fix); child 20 AC-1 red walk recorded |
+| 7 | appliance-hostname QEMU proof; V6ONLY L2TP listener test |
+| 8 | IPv6CP scenarios pass against accel-ppp; DHCPv6 identity device resolves through the logical name |
+| 9, 21 | clamp tests and policy-tcp-mss-clamp.ci green; child 21 AC-1 red walk recorded |
+| 13 | DNS kept in the session result; DNS scenarios pass (PPPoE suite 14/16, the 2 reds are Ze-as-AC IPv6CP owned by post-release spec-l2tp-ipv6-subscriber) |
+| 14 | realm relay Linux tests 5/5; relay-realm-config validates offline |
+| 22 | responder-reauths-ze-initiator and the port-translated NAT reauth pass |
+| IPsec suite | 71/72 then the last red fixed: full suite green apart from what later runs show |
 
-- Child 15 (LNS proxy-lcp renegotiate): an agent was implementing it at handover; check `git status internal/component/l2tp` for its uncommitted work.
-- Child 5 (EdDSA): spec in design, registration redesign awaits Thomas.
-- Child 11 (the lab): composes every other child's scenarios.
+## Open work
 
-## Uncommitted, owed
+| Item | What is left |
+|------|--------------|
+| Topology lab (11, 12, 14, 15, 18, 19) | rerun in progress at handover (`topo-full4.log`); xl2tpd LNS and DHCPv6-PD default route need the new log-file diagnostics read |
+| Netns runs | child 12 `pppoe-client-lcp-renegotiation`, child 14 `pppoe-realm-relay-nomatch` (both in test/pppoe and the netns list), child 22 `ipsec-respond-reinit-supersede` and child 4 `ipsec-follows-wan-address` drafts: need host-built ze binaries, then run in the guest |
+| Child 8 phases 4-5 | groundwork committed (config, RA RIO, lease lifetimes); LAN consumer, RA Update, Release hold (RFC 9915 6.3-3), interop: design in the session state file `tmp/session/2026-11-07-104251/state/session-state-home-cpe-8-...` |
+| Child 21 | AC-2 red walk (four-byte write) |
+| Child 3 | red walks and RFC 4787 REQ-10 records |
+| Child 4 | RFC 7296 2.23 records |
+| Child 10 | review round 2 (round 1 findings fixed) then closure |
+| Child 7 | listener-migration-ssh draft run and promote |
+| Closures | children 1, 2, 5, 6, 7, 10, 13, 17, 20, 22 once their remaining items land (ze-close; all five checked children are still `design`, and the WIP cap is full: close before claiming) |
+| SPD selection spec | phases 2 and 4 written, uncommitted (engine interface catch-all, internal/core/iprule move, policyroute uses it; 4 old netlinkint files to `remove`); phases 3, 5, 6, 7 left; guard table range collides with operator tables 3000-3999 (fix: refuse from iprule.ZeTableRanges) |
+| Child 23 DNS | design; decisions recorded: O-1 explicit fall-through mode, default pass-through, O-6 own spec after the umbrella, RFC 5625 inside child 23; open: O-3, O-4, O-5, O-8, O-9 |
+| New specs | ze doctor audit of every operator-reachable problem (being written), RFC 8420 enrolment as part of the vpn-concentrator work (being written), IPv6 subscriber DNS (after the umbrella) |
 
-- `plan/journal/unwired-feature.md`: the 2026-09-04 `remote-address` row rewrite (line 66) and the new 2026-11-07 IKE-over-IPv6 row (line 67) are trimmed but uncommitted: the IPv6 row has no owner. Add it to `spec-home-cpe-4-ike-dynamic-wan.md`'s Owned journal rows (or `spec-yang-single-source-of-truth.md` line 215, which still lists the pre-split row); both spec gates need their doors read first. Specs 6 and 20 still cite "the 2026-09-04 row, second finding".
-- `plan/journal/README` cap is 600 characters per row.
+## Owner decisions taken today (all recorded where they belong)
 
-## Blocking for Thomas
+- ai/META-DECISIONS.md: a third-party module is approved only for its approved use; RFC 9463 DNR not in the first release; ze doctor reports every problem an operator can hit.
+- SPD selection: the complete multi-SPD design, implement it.
+- RFC 9915 6.3 rows are requirements (the "2026-10-19 decline" had no decision behind it).
+- circl approved for Ed448 in IKE only; the dependency ledger and `./le deps approve` gate built.
+- Taken by default, not overruled: child 7 SSH boot policy, child 3 all ten helpers built in, child 17 keepalive counts N lost echoes.
 
-| Decision | Why |
-|----------|-----|
-| Allow the QEMU guest outside the shell sandbox (`./le test qemu run` fails: "clean child process group before reap: operation not permitted"; the unsandboxed retry was refused by the permission classifier) | Every Linux-only proof above (netns, kernel, parse drafts that skip darwin, appliance boot) is blocked |
-| Docker host on Ze's kernel (`spec-docker-hosts-run-the-ze-kernel`) | Every interop/topology scenario |
-| Child 7: an extra SSH listener failing at boot keeps today's policy (no SSH, one warning) | taken by default, pending you |
-| Child 3 D-1: all ten accepted helpers built into Ze's kernel | taken under your Option A |
-| Child 8 phases 4-5: lift RFC 9915 6.3 decline | your scope call |
-| Child 13: LAN dns-resolver forwards to IPCP-learned servers? | your call |
-| Child 5: EdDSA registration redesign | awaiting approval |
-| Child 18 AC-7b: external-end link form vs narrowing the AC | proposed: build the external-end form |
+## Known reds that are not this work
 
-## Process notes
-
-- Run Go tests with the feature tags: `tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"`; an untagged run gives phantom reds.
-- Known environmental reds on this Mac: MOBIKE tests needing 127.0.0.2, `cmd/ze/hub TestStreamingOneShotAnswersCarryData` (raw ICMP), qemu/deployment tests the sandbox breaks, `TestEveryIntegrationPackageIsNamed` (internal/le/site, internal/test/pppoeac).
-- Agents that edit RFC-tagged tests must get an independent judge first; the judge may pre-approve narrowed wording and apply it.
-- Build commit file lists from explicit paths, not whole directories: 79e3205310 swept in child 8's untracked files.
+- Five internal/le/commit tests since 3475223c4b and 8c64ad2d4a (fixture specs without a metadata table; attestation script text).
+- TestEveryIntegrationPackageIsNamed names internal/le/site.
+- Two MOBIKE tests need a 127.0.0.2 loopback alias on macOS.
