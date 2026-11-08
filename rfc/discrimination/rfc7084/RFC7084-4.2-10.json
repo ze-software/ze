@@ -29,7 +29,7 @@
     "claim-sha": "8fde8b53a4c0b817",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/ipv6cp_client.go::applyIPv6CP",
-    "producer-sha": "ed3acc71e17e1eb6",
-    "break": "line 561: \"s.setIPv6Mode(ppp.NPModeDrop)\" -\u003e \"s.setIPv4Mode(ppp.NPModeDrop)\""
+    "producer-sha": "21fd790554618f09",
+    "break": "line 565: \"s.setIPv6Mode(ppp.NPModeDrop)\" -\u003e \"s.setIPv4Mode(ppp.NPModeDrop)\""
   }
 ]

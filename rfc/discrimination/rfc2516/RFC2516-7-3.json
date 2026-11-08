@@ -29,7 +29,7 @@
     "claim-sha": "024dcca280653fe1",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "8d7ad771bd20a88d",
+    "producer-sha": "d7b4f1e42da1c9a5",
     "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
