@@ -21,6 +21,16 @@ import (
 // Also returns the set of Ze-managed interface names (dummy, veth, bridge, VLAN)
 // that should exist. Physical interfaces (ethernet) are never in the managed set.
 //
+// Each device's addresses are a list in the order the config writes them,
+// units in config order, a duplicate kept at its first position. The order is
+// what the apply paths install in, and the first address installed is the
+// interface's primary: the kernel lists it first, the DHCP server takes the
+// segment's home subnet from it (resolveSegment in internal/plugins/dhcpserver),
+// and source-address selection prefers it. Plugin-registered addresses
+// (address_owner.go) follow the configured ones, sorted, because a registry
+// has no order of its own. A device key present with an empty list still
+// means "remove every address this config does not name".
+//
 // devices is bindDevices' answer for this config: it turns each logical
 // entry name into the kernel device the entry's hardware selector names, so
 // every key here is a device the operator selected rather than a name they
@@ -32,9 +42,26 @@ import (
 // through unchanged -- see clearStaleIfaces for why callers that reconcile
 // against this exact snapshot must use it, not a fresh read of the live
 // registry, to clear staleIfaces afterward.
-func (cfg *ifaceConfig) desiredState(devices map[string]string) (addrs map[string]map[string]bool, managed map[string]bool, staleNames []string) {
-	addrs = make(map[string]map[string]bool)
+func (cfg *ifaceConfig) desiredState(devices map[string]string) (addrs map[string][]string, managed map[string]bool, staleNames []string) {
+	addrs = make(map[string][]string)
 	managed = make(map[string]bool)
+
+	// want records osName as a device whose addresses this config decides,
+	// and appends each of cidrs not already listed, keeping the first
+	// position of a duplicate.
+	want := func(osName string, cidrs []string) {
+		list, held := addrs[osName]
+		if !held {
+			list = make([]string, 0, len(cidrs))
+		}
+		for _, a := range cidrs {
+			if slices.Contains(list, a) {
+				continue
+			}
+			list = append(list, a)
+		}
+		addrs[osName] = list
+	}
 
 	addIfaceAddrs := func(name string, units []unitEntry) {
 		device, bound := deviceFor(devices, name)
@@ -50,12 +77,7 @@ func (cfg *ifaceConfig) desiredState(devices map[string]string) (addrs map[strin
 			if u.VLANID > 0 {
 				managed[osName] = true
 			}
-			if addrs[osName] == nil {
-				addrs[osName] = make(map[string]bool)
-			}
-			for _, a := range u.Addresses {
-				addrs[osName][a] = true
-			}
+			want(osName, u.Addresses)
 		}
 	}
 
@@ -116,46 +138,38 @@ func (cfg *ifaceConfig) desiredState(devices map[string]string) (addrs map[strin
 			if u.Disable {
 				continue
 			}
-			if addrs["lo"] == nil {
-				addrs["lo"] = make(map[string]bool)
-			}
-			for _, a := range u.Addresses {
-				addrs["lo"][a] = true
-			}
+			want("lo", u.Addresses)
 		}
 	}
 
-	// Merge plugin-registered addresses (address_owner.go) on top of the
-	// YANG-derived set. A registered owner's addresses are desired for as
+	// Merge plugin-registered addresses (address_owner.go) after the
+	// YANG-derived list. A registered owner's addresses are desired for as
 	// long as the registration exists, without a duplicated YANG
-	// declaration; an address present in both sources counts once.
+	// declaration; an address present in both sources counts once, at its
+	// configured position.
 	owned, staleNames := ownedAddresses()
 	for ifaceName, ownedAddrs := range owned {
-		if addrs[ifaceName] == nil {
-			addrs[ifaceName] = make(map[string]bool, len(ownedAddrs))
-		}
-		for a := range ownedAddrs {
-			addrs[ifaceName][a] = true
-		}
+		want(ifaceName, slices.Sorted(maps.Keys(ownedAddrs)))
 	}
 
 	return addrs, managed, staleNames
 }
 
-// currentAddrSet builds a map of OS interface name -> set of current CIDR addresses.
-func currentAddrSet(infos []InterfaceInfo) map[string]map[string]bool {
-	result := make(map[string]map[string]bool)
+// currentAddrLists builds a map of OS interface name -> current CIDR
+// addresses, in the order the backend listed them, so a pass that walks them
+// (the stale-address removal) runs in the same order every time.
+func currentAddrLists(infos []InterfaceInfo) map[string][]string {
+	result := make(map[string][]string)
 	for i := range infos {
 		if len(infos[i].Addresses) == 0 {
 			continue
 		}
-		m := make(map[string]bool, len(infos[i].Addresses))
+		list := make([]string, 0, len(infos[i].Addresses))
 		for _, a := range infos[i].Addresses {
 			var bCidr textbuf.Buffer
-			cidr := bCidr.Reset().Str(a.Address).Byte('/').Int(int64(a.PrefixLength)).String()
-			m[cidr] = true
+			list = append(list, bCidr.Reset().Str(a.Address).Byte('/').Int(int64(a.PrefixLength)).String())
 		}
-		result[infos[i].Name] = m
+		result[infos[i].Name] = list
 	}
 	return result
 }
@@ -182,7 +196,7 @@ func currentAddrSet(infos []InterfaceInfo) map[string]map[string]bool {
 // before: an address an operator added by hand, or one a previous run of Ze
 // installed from a config that no longer names it. A backend that reports no
 // lifetime (vpp) leaves only the link-local rule in force.
-func learnedAddrSet(infos []InterfaceInfo, previousAddrs map[string]map[string]bool) map[string]map[string]bool {
+func learnedAddrSet(infos []InterfaceInfo, previousAddrs map[string][]string) map[string]map[string]bool {
 	result := make(map[string]map[string]bool)
 	for i := range infos {
 		name := infos[i].Name
@@ -190,7 +204,7 @@ func learnedAddrSet(infos []InterfaceInfo, previousAddrs map[string]map[string]b
 			a := &infos[i].Addresses[j]
 			var bCidr textbuf.Buffer
 			cidr := bCidr.Reset().Str(a.Address).Byte('/').Int(int64(a.PrefixLength)).String()
-			if !addrLearned(a, previousAddrs[name][cidr]) {
+			if !addrLearned(a, slices.Contains(previousAddrs[name], cidr)) {
 				continue
 			}
 			if result[name] == nil {
@@ -1687,11 +1701,11 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
 
-	currentAddrs := currentAddrSet(currentInfos)
+	currentAddrs := currentAddrLists(currentInfos)
 
 	// The config being replaced names the link-local addresses Ze installed,
 	// so dropping one from config still removes it (learnedAddrSet).
-	var previousAddrs map[string]map[string]bool
+	var previousAddrs map[string][]string
 	if previous != nil {
 		previousAddrs, _, _ = previous.desiredState(previousDevices)
 	}
@@ -1723,11 +1737,14 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 		return errs, false
 	}
 
-	// Add missing addresses on configured interfaces.
-	for osName, desired := range desiredAddrs {
+	// Add missing addresses on configured interfaces, in configured order: the
+	// first address added becomes the interface's primary (desiredState).
+	// Devices go in name order so a pass is the same sequence every time.
+	desiredNames := slices.Sorted(maps.Keys(desiredAddrs))
+	for _, osName := range desiredNames {
 		current := currentAddrs[osName]
-		for addr := range desired {
-			if current != nil && current[addr] {
+		for _, addr := range desiredAddrs[osName] {
+			if slices.Contains(current, addr) {
 				continue
 			}
 			if err := applyBackendStep(journal, func() error {
@@ -1743,11 +1760,12 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 
 	// Remove extra addresses on configured interfaces. An address the kernel
 	// or a protocol client installed (a DHCP lease, SLAAC, the kernel's IPv6
-	// link-local) is not the config's to remove: learnedAddrSet.
-	for osName, desired := range desiredAddrs {
-		current := currentAddrs[osName]
-		for addr := range current {
-			if desired[addr] {
+	// link-local) is not the config's to remove: learnedAddrSet. Removal walks
+	// the backend's listing order, so it is deterministic too.
+	for _, osName := range desiredNames {
+		desired := desiredAddrs[osName]
+		for _, addr := range currentAddrs[osName] {
+			if slices.Contains(desired, addr) {
 				continue
 			}
 			if learnedAddrs[osName][addr] {
@@ -2219,8 +2237,10 @@ func recreateManagedVLAN(parent string, units []unitEntry, name string, b Backen
 func addDesiredAddresses(cfg *ifaceConfig, b Backend, devices map[string]string) {
 	log := loggerPtr.Load()
 	desiredAddrs, _, _ := cfg.desiredState(devices)
-	for osName, addrs := range desiredAddrs {
-		for addr := range addrs {
+	// Configured order, as reconcileOnReadyWithJournal installs: the first
+	// address added is the interface's primary.
+	for _, osName := range slices.Sorted(maps.Keys(desiredAddrs)) {
+		for _, addr := range desiredAddrs[osName] {
 			if err := b.AddAddress(osName, addr); err != nil {
 				log.Debug("iface config: add address", "iface", osName, "addr", addr, "err", err)
 			}

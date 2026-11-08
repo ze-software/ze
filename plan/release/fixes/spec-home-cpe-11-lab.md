@@ -396,10 +396,12 @@ passed in `topo-full5.log` (2026-11-08 01:29).
 
 ## Owned journal rows
 
-None: `grep -rn 'home-cpe\|road-warrior\|masquerade.*proof\|MSS.*Ze in the path' plan/journal/` finds no open row.
+This lab exposed the address-order row below, so this spec owns it.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `output-not-byte-stable.md` | 2026-11-08 | fixed: iface installed a unit's addresses in map order, so br0's primary varied |
+| `output-not-byte-stable.md` | 2026-11-08 | open: reordering a live interface's addresses does not move its primary |
 
 ## Key Design Decisions
 

@@ -54,7 +54,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
    mirror (`700`) application. Phase 2c (`721-742`) brings every non-disabled interface
    administratively up via `SetAdminUp` -- required before DHCP or PPP can send packets.
 6. **Address reconcile + prune (Phase 3+4).** `reconcileOnReadyWithJournal` (`814`) computes
-   `cfg.desiredState()` (`24`) -- OS-name → desired CIDR set, plus the set of Ze-managed names --
+   `cfg.desiredState()` (`24`) -- OS-name → desired CIDR list in configured order (the first is installed first and is the primary), plus the set of Ze-managed names --
    merged with `address_owner.go`'s `ownedAddresses()` (`119-127`), diffs against
    `b.ListInterfaces()` (`821`), adds missing / removes stale addresses (`838-873`), then deletes
    any interface Ze managed in the previous config but absent from this one

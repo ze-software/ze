@@ -220,9 +220,12 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 		ops = append(ops, ifaceInterfaceOperation(operationAddInterface, ifaceName, ifType))
 	}
 
+	// Additions keep configured order (desiredState), and the solver keeps
+	// the order of operations within one phase (popLowestPhase), so the
+	// first configured address is installed first and becomes the primary.
 	for _, ifaceName := range sortedAddressIfaces(candidateAddrs) {
-		for _, cidr := range sortedAddressCIDRs(candidateAddrs[ifaceName]) {
-			if activeAddrs[ifaceName][cidr] {
+		for _, cidr := range candidateAddrs[ifaceName] {
+			if slices.Contains(activeAddrs[ifaceName], cidr) {
 				continue
 			}
 			if configureCreates[ifaceName] {
@@ -238,8 +241,8 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 	// is an address no binder is ever told about (DisturbedAddresses in
 	// internal/component/config/transaction/operation.go).
 	for _, ifaceName := range sortedAddressIfaces(activeAddrs) {
-		for _, cidr := range sortedAddressCIDRs(activeAddrs[ifaceName]) {
-			if candidateAddrs[ifaceName][cidr] {
+		for _, cidr := range activeAddrs[ifaceName] {
+			if slices.Contains(candidateAddrs[ifaceName], cidr) {
 				continue
 			}
 			ops = append(ops, ifaceAddressOperation(operationRemoveAddress, ifaceName, cidr))
@@ -542,22 +545,13 @@ func ifaceTypeSupportsOperations(ifType string) bool {
 	}
 }
 
-func sortedAddressIfaces(addrs map[string]map[string]bool) []string {
+func sortedAddressIfaces(addrs map[string][]string) []string {
 	ifaces := make([]string, 0, len(addrs))
 	for ifaceName := range addrs {
 		ifaces = append(ifaces, ifaceName)
 	}
 	slices.Sort(ifaces)
 	return ifaces
-}
-
-func sortedAddressCIDRs(addrs map[string]bool) []string {
-	cidrs := make([]string, 0, len(addrs))
-	for cidr := range addrs {
-		cidrs = append(cidrs, cidr)
-	}
-	slices.Sort(cidrs)
-	return cidrs
 }
 
 func sanitizeOperationID(value string) string {

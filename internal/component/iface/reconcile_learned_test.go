@@ -27,7 +27,7 @@ func TestLearnedAddrSet(t *testing.T) {
 			{Address: "169.254.7.7", PrefixLength: 16, Family: "ipv4"},
 		},
 	}}
-	previous := map[string]map[string]bool{"eth0": {"fe80::99/64": true}}
+	previous := map[string][]string{"eth0": {"fe80::99/64"}}
 
 	got := learnedAddrSet(infos, previous)["eth0"]
 	want := map[string]bool{

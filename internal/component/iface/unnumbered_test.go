@@ -2,6 +2,7 @@ package iface
 
 import (
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 
@@ -37,7 +38,7 @@ func TestUnnumberedInstallsDonorSlash32(t *testing.T) {
 				t.Fatalf("parse: %v", err)
 			}
 			addrs, _, _ := cfg.desiredState(map[string]string{"eth0": "eth0", "dummy0": "dummy0"})
-			if !addrs["eth0"][tc.want] {
+			if !slices.Contains(addrs["eth0"], tc.want) {
 				t.Fatalf("eth0 desired addresses %v, want %s", addrs["eth0"], tc.want)
 			}
 			if len(addrs["eth0"]) != 1 {

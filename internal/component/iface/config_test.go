@@ -2610,7 +2610,7 @@ func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 				// e.g. "10.0.0.1/24"). Split back into bare address +
 				// prefix length here to match the real backend's contract
 				// (netlink/show_linux.go addrList: Address is a.IP.String(),
-				// PrefixLength is the mask size) -- currentAddrSet()
+				// PrefixLength is the mask size) -- currentAddrLists()
 				// reconstructs "Address/PrefixLength", so returning the
 				// already-slashed string verbatim as Address would produce
 				// a double-slash CIDR that never matches desiredState()'s
@@ -3713,8 +3713,7 @@ func TestDesiredState_PerFamilyAddresses(t *testing.T) {
 	}
 	addrs, managed, _ := cfg.desiredState(nil)
 	assert.True(t, managed["dum0"])
-	assert.True(t, addrs["dum0"]["10.0.0.1/24"])
-	assert.True(t, addrs["dum0"]["fd00::1/64"])
+	assert.Equal(t, []string{"10.0.0.1/24", "fd00::1/64"}, addrs["dum0"])
 }
 
 // VALIDATES: AC-1 -- per-family addresses on ethernet (most common interface type).

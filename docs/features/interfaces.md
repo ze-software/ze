@@ -499,6 +499,17 @@ one `dhcp-expired` for each, and solicits again.
   MTU less the encapsulation for a tunnel (1476 for gre).
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, applyVLANMTU, readVLANMTUs, restoreVLANMTUs -->
 <!-- source: internal/component/iface/config.go -- parseIfaceEntry -->
+- **The first configured address is the primary.** A unit's `address` leaf-list is installed
+  in the order it is written, IPv4 before IPv6, so the first address is added first and the
+  kernel lists it first. That address is the interface's primary: the DHCPv4 server takes the
+  segment's home subnet from it, and source-address selection prefers it. Every install path
+  keeps the order: the commit's reconcile, the reconcile after a VPP connect or a registry
+  change, the additive pass a not-ready backend takes, and the transaction's add-address
+  operations. Addresses a plugin registers follow the configured ones. A reconcile adds only
+  the addresses missing from the device, so reordering the leaf-list of a live interface does
+  not move an address that is already installed.
+<!-- source: internal/component/iface/config_apply.go -- desiredState, reconcileOnReadyWithJournal, addDesiredAddresses -->
+<!-- source: internal/component/iface/operation.go -- decomposeIfaceOperations -->
 - **Make-before-break.** Migration adds new address, waits for BGP readiness, then removes old.
   Prevents session loss during address moves.
 - **Same-subnet renumbers keep working.** Because the new address is added first, a renumber

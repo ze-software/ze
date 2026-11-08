@@ -57,7 +57,7 @@ func TestDesiredStateKeysBySelectedDevice(t *testing.T) {
 	addrs, _, _ := cfg.desiredState(cfg.bindDevices(infos))
 
 	require.Contains(t, addrs, "enp1s0", "the desired map must be keyed by the selected device")
-	assert.Equal(t, map[string]bool{"10.0.0.1/24": true}, addrs["enp1s0"])
+	assert.Equal(t, []string{"10.0.0.1/24"}, addrs["enp1s0"])
 	assert.NotContains(t, addrs, "wan", "the logical name must not key anything")
 }
 
