@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7084-4.3-5",
+    "polarity": "negative",
+    "unit": "internal/component/iface/rfc7084_delegated_prefix_test.go::TestDelegatedPrefixVerify",
+    "unit-sha": "5ed54d6539b8294f",
+    "claim-sha": "6762be477aff1601",
+    "route": "mutant",
+    "producer": "internal/component/iface/delegated_prefix.go::verifyDelegatedEntry",
+    "producer-sha": "5ac071f80ae989e9",
+    "break": "line 206: \"if other, taken := claimed[use]; taken {\" -\u003e \"if other, taken := claimed[use]; taken \u0026\u0026 false {\""
+  },
+  {
+    "rid": "RFC7084-4.3-5",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc7084_delegated_prefix_test.go::TestDelegatedSubnetDerivation",
+    "unit-sha": "1a5c173b340aa218",
+    "claim-sha": "962d65373e073e9f",
+    "route": "mutant",
+    "producer": "internal/component/iface/delegated_prefix.go::deriveDelegatedAddress",
+    "producer-sha": "c20e2a8509496f23",
+    "break": "line 138: \"binary.BigEndian.Uint64(network[:8])|uint64(subnetID)\" -\u003e \"binary.BigEndian.Uint64(network[:8])\""
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7084-4.2-10",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence",
+    "unit-sha": "d914c3e00925b0ff",
+    "claim-sha": "195686baff3ad080",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/ipcp_independent.go::leaveOpenedIPCP",
+    "producer-sha": "e18d066b8ddce06a",
+    "break": "line 142: \"return s.waitForIPCP()\" -\u003e \"return errors.New(\\\"pppoe-client: IPCP left Opened\\\")\""
+  },
+  {
+    "rid": "RFC7084-4.2-10",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence",
+    "unit-sha": "d914c3e00925b0ff",
+    "claim-sha": "557ea362d7f23f3e",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/ipcp_independent.go::ncpsRemaining",
+    "producer-sha": "a1ce200dfb96ee33",
+    "break": "line 248: \"if !s.ipcpStopped {\" -\u003e \"if true || !s.ipcpStopped {\""
+  },
+  {
+    "rid": "RFC7084-4.2-10",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3NCPIndependence",
+    "unit-sha": "a65baadfceaad5a2",
+    "claim-sha": "8fde8b53a4c0b817",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/ipv6cp_client.go::applyIPv6CP",
+    "producer-sha": "ed3acc71e17e1eb6",
+    "break": "line 561: \"s.setIPv6Mode(ppp.NPModeDrop)\" -\u003e \"s.setIPv4Mode(ppp.NPModeDrop)\""
+  }
+]

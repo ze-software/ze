@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7084-4.1-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/ra/rfc7084_router_lifetime_test.go::TestRFC7084G5ImmediateZeroLifetime",
+    "unit-sha": "bea39dd9caf5ae9f",
+    "claim-sha": "82faad8b25c6d05b",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/ra/advertiser.go::urgent",
+    "producer-sha": "aae260ee05df1fb8",
+    "break": "line 172: \"return (a.lastLifetime \u003e 0) != (next \u003e 0)\" -\u003e \"return false \u0026\u0026 (a.lastLifetime \u003e 0) != (next \u003e 0)\""
+  },
+  {
+    "rid": "RFC7084-4.1-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/ra/rfc7084_router_lifetime_test.go::TestRFC7084G5ImmediateZeroLifetime",
+    "unit-sha": "bea39dd9caf5ae9f",
+    "claim-sha": "e8b9696f6d5dc2e2",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/ra/advertiser.go::urgent",
+    "producer-sha": "aae260ee05df1fb8",
+    "break": "line 172: \"return (a.lastLifetime \u003e 0) != (next \u003e 0)\" -\u003e \"return true || (a.lastLifetime \u003e 0) != (next \u003e 0)\""
+  }
+]

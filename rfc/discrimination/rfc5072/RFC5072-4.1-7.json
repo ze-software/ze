@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5072-4.1-7",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientAdoptsNakSuggestion",
+    "unit-sha": "82613ddecee7ae64",
+    "claim-sha": "41aaf62450805635",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/ipv6cp_client.go::receiveNak",
+    "producer-sha": "576be58df6cecb3c",
+    "break": "line 462: \"c.local = suggested\" -\u003e \"_ = suggested\""
+  }
+]

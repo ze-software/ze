@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7084-4.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/ra/rfc7084_router_lifetime_test.go::TestRFC7084RouterLifetimeMatrix",
+    "unit-sha": "badc86c851b356ad",
+    "claim-sha": "d55d34076fc0a9de",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/ra/advertiser.go::routerLifetime",
+    "producer-sha": "2d27806488cf69dc",
+    "break": "line 141: \"if !wanDefault {\" -\u003e \"if false \u0026\u0026 !wanDefault {\""
+  },
+  {
+    "rid": "RFC7084-4.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/ra/rfc7084_router_lifetime_test.go::TestRFC7084RouterLifetimeMatrix",
+    "unit-sha": "badc86c851b356ad",
+    "claim-sha": "63192c89f91c2629",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/ra/advertiser.go::routerLifetime",
+    "producer-sha": "2d27806488cf69dc",
+    "break": "line 147: \"return configured\" -\u003e \"return 0\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9915-6.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc9915_delegated_lifetime_test.go::TestRFC9915DelegatedLifetimeBound",
+    "unit-sha": "41058af01a083268",
+    "claim-sha": "079c6bb685e98a80",
+    "route": "mutant",
+    "producer": "internal/component/iface/delegated_lease.go::Remaining",
+    "producer-sha": "d71864b278eecfb9",
+    "break": "line 55: \"seconds := left / time.Second\" -\u003e \"seconds := (left + time.Second - 1) / time.Second\""
+  },
+  {
+    "rid": "RFC9915-6.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/iface/rfc9915_delegated_lifetime_test.go::TestRFC9915DelegatedLifetimeBound",
+    "unit-sha": "41058af01a083268",
+    "claim-sha": "c5df25f635dcac14",
+    "route": "mutant",
+    "producer": "internal/component/iface/delegated_lease.go::chosen",
+    "producer-sha": "b889bc7ada3fe0d6",
+    "break": "line 164: \"if d.valid.Remaining(now) \u003e 0 {\" -\u003e \"if true || d.valid.Remaining(now) \u003e 0 {\""
+  }
+]

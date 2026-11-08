@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9915-6.3-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_release_linux_test.go::TestRFC9915NoReleaseWhileDelegated",
+    "unit-sha": "2394129d0b6b16e5",
+    "claim-sha": "a25d722366412fbb",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_linux.go::releasableLease",
+    "producer-sha": "143913f0b4cbe763",
+    "break": "line 690: \"if b.kind == v6KindPrefix \u0026\u0026 inUse(b.prefix.Masked()) {\" -\u003e \"if b.kind == v6KindPrefix \u0026\u0026 false \u0026\u0026 inUse(b.prefix.Masked()) {\""
+  },
+  {
+    "rid": "RFC9915-6.3-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_release_linux_test.go::TestRFC9915NoReleaseWhileDelegated",
+    "unit-sha": "2394129d0b6b16e5",
+    "claim-sha": "625569880b87f7bb",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_linux.go::releasableLease",
+    "producer-sha": "143913f0b4cbe763",
+    "break": "line 690: \"if b.kind == v6KindPrefix \u0026\u0026 inUse(b.prefix.Masked()) {\" -\u003e \"if b.kind == v6KindPrefix {\""
+  }
+]

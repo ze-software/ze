@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7084-4.3-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/ra/rfc7084_router_lifetime_test.go::TestRFC7084RouterLifetimeMatrix",
+    "unit-sha": "badc86c851b356ad",
+    "claim-sha": "5cca15bb77bd2ec5",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/ra/advertiser.go::routerLifetime",
+    "producer-sha": "2d27806488cf69dc",
+    "break": "line 144: \"if !a.hasPrefix(now) {\" -\u003e \"if false \u0026\u0026 !a.hasPrefix(now) {\""
+  },
+  {
+    "rid": "RFC7084-4.3-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/ra/rfc7084_router_lifetime_test.go::TestRFC7084RouterLifetimeMatrix",
+    "unit-sha": "badc86c851b356ad",
+    "claim-sha": "e53767b05424204c",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/ra/advertiser.go::hasPrefix",
+    "producer-sha": "833f1ce48151aed6",
+    "break": "line 118: \"if d.Valid.Remaining(now) \u003e 0 {\" -\u003e \"if false \u0026\u0026 d.Valid.Remaining(now) \u003e 0 {\""
+  }
+]

@@ -20,5 +20,16 @@
     "producer": "internal/component/l2tp/ppp/ncp.go::evalIPv6CPRequest",
     "producer-sha": "6b0dde65bfa2c5ce",
     "break": "body of evalIPv6CPRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5072-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientConfigureRequestOneIdentifier",
+    "unit-sha": "baec4ac314e4ef00",
+    "claim-sha": "b5f269ae6688a990",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/ipv6cp_client.go::sendRequest",
+    "producer-sha": "95fd8bf91f78f05c",
+    "break": "line 188: \"ppp.WriteIPv6CPInterfaceID(option[:], 0, c.local)\" -\u003e \"ppp.WriteIPv6CPInterfaceID(option[:], 0, ppp.IPv6CPInterfaceID{})\""
   }
 ]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9915-6.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/ra/rfc7084_router_lifetime_test.go::TestRFC9915AdvertisedLifetimeBound",
+    "unit-sha": "3ba89f3425289b7c",
+    "claim-sha": "aa04145e28d75436",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/ra/advertiser.go::build",
+    "producer-sha": "6c8682ae5879fdea",
+    "break": "line 60: \"valid, preferred := d.Lifetimes(now)\" -\u003e \"valid, preferred := d.Lifetimes(now.Add(-time.Hour))\""
+  },
+  {
+    "rid": "RFC9915-6.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/ra/rfc7084_router_lifetime_test.go::TestRFC9915AdvertisedLifetimeExpired",
+    "unit-sha": "0a606e46f69c2fc0",
+    "claim-sha": "df7374a229669aac",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/ra/advertiser.go::build",
+    "producer-sha": "6c8682ae5879fdea",
+    "break": "line 60: \"valid, preferred := d.Lifetimes(now)\" -\u003e \"valid, preferred := d.Lifetimes(now.Add(-time.Hour))\""
+  }
+]
