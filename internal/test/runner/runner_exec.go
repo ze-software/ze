@@ -1377,8 +1377,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	// Gracefully stop remaining processes (daemons). The daemon that the test's
 	// own observer asks to stop is given that chance first: see
-	// selfStopGrace and terminateAfterSelfExit.
-	selfStop := fgProc != nil && !daemonStopped && tmpfsRequestsDaemonShutdown(rec.TmpfsFiles)
+	// selfStopGrace and terminateAfterSelfExit. The observer is either a script
+	// the .ci embeds, which carries the command, or a compiled fixture that
+	// declared it at registration (recordStartsSelfStoppingFixture).
+	selfStop := fgProc != nil && !daemonStopped &&
+		(tmpfsRequestsDaemonShutdown(rec.TmpfsFiles) || recordStartsSelfStoppingFixture(rec))
 	if selfStop {
 		terminateAfterSelfExit(fgProc, selfStopGrace(r.withParallelHeadroom(testBudget)))
 	}

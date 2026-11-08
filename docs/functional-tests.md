@@ -2625,6 +2625,27 @@ barrier. A transport error, engine refusal or non-done status fails the observer
 The observer reports `ZE-OBSERVER-FAIL` before it requests shutdown, while the
 daemon can still relay the report.
 <!-- source: internal/test/fixture/fixture.go -- observeConfigured, ReportFailure -->
+
+The runner gives a daemon that its test stops itself a share of the test's
+budget (`selfStopGrace`) to exit before it signals it; otherwise it signals the daemon as soon as the peers
+are done, which in a test with no peer is about a second after start. It knows
+the daemon stops itself in two ways. An observer script the `.ci` embeds carries
+`request shutdown` in its own text. A compiled fixture carries the command in
+its Go body, which no text of the `.ci` shows, so it declares it at
+registration: `Register(name, driver, StopsDaemon)`. The runner reads both: it
+scans the embedded files for the command, and it finds every fixture the `.ci`
+starts, in the `run` of an `external` plugin block in any embedded
+configuration and in an `exec=` step, and asks that declaration. Today only
+`reload/live-stages` declares `StopsDaemon`. Other fixtures that send
+`request shutdown` themselves, most of them through `Observe`, do not declare
+it yet, so a test with no peer that uses one can be signaled before it ends.
+<!-- source: internal/test/fixture/fixture.go -- Register, StopsDaemon -->
+<!-- source: internal/test/fixture/register_live_stages.go -- init -->
+<!-- source: internal/test/fixturedecl/fixturedecl.go -- DeclareStopsDaemon, StopsDaemon, FixtureOf -->
+<!-- source: internal/test/runner/self_stop_fixture.go -- recordStartsSelfStoppingFixture -->
+<!-- source: internal/test/runner/runner_exec_util.go -- tmpfsRequestsDaemonShutdown, selfStopGrace -->
+<!-- test: internal/test/runner/self_stop_fixture_test.go -- TestRecordStartsSelfStoppingFixture -->
+<!-- test: internal/test/fixture/register_live_stages_test.go -- TestLiveStagesDeclaresItStopsTheDaemon -->
 <!-- source: internal/test/fixture/plugin_fixture_05.go -- p05RunActivePlugin, p05CustomFlowspecPlugin, p05DDoSFlowspecAnnounce -->
 
 Custom observers that stop the daemon also need a checked quiesce after their

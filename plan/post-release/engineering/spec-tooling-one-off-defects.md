@@ -271,6 +271,7 @@ before execution. The responsible component remains unestablished.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `invariant-enforced-by-an-absent-call-site` | 2026-11-08 | 531 compiled fixtures send `request shutdown` without declaring `StopsDaemon`, so a peerless `.ci` is signaled early |
 | guard-keyed-on-a-field-its-consumer-ignores.md | 2026-11-06 | weakening gate keys a unit by directory base name, a judge by Go package name |
 | `container-build-leaves-root-owned-scratch` | 2026-11-04 | poster proof default entrypoint rewrites shared SSH config and chowns shared scratch |
 | `gate-red-where-nothing-blocks-on-it` | 2026-11-04 | tracked historical filter-a6 shell recipe is the new native-helper census red |

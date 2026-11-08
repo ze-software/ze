@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
+	"github.com/ze-software/ze/internal/test/fixturedecl"
 	"github.com/ze-software/ze/internal/test/sessionpath"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -64,15 +65,41 @@ var (
 	drivers   = make(map[string]Driver)
 )
 
-// Register adds one compiled fixture driver. Duplicate names are defects.
-func Register(name string, driver Driver) {
+// Property is something a fixture declares about itself at registration, for
+// the functional runner to read before the fixture runs.
+type Property uint8
+
+const (
+	propertyUnspecified Property = iota
+	// StopsDaemon declares that the fixture ends the daemon it runs inside, as
+	// every driver built on Observe does: it dispatches `request shutdown`
+	// after its scenario. The runner then waits for the daemon to exit on its
+	// own instead of signaling it once its peers are done, which in a peerless
+	// test is about a second after start (fixturedecl.StopsDaemon,
+	// runner.recordStartsSelfStoppingFixture).
+	StopsDaemon
+)
+
+// Register adds one compiled fixture driver and the properties it declares.
+// Duplicate names are defects.
+func Register(name string, driver Driver, properties ...Property) {
 	if name == "" || strings.ContainsAny(name, " \t") || driver == nil {
-		panic("fixture.Register: invalid driver")
+		panic("BUG: fixture.Register: invalid driver")
 	}
 	driversMu.Lock()
 	defer driversMu.Unlock()
 	if _, exists := drivers[name]; exists {
-		panic("fixture.Register: duplicate driver " + name)
+		panic("BUG: fixture.Register: duplicate driver " + name)
+	}
+	for _, property := range properties {
+		switch property {
+		case StopsDaemon:
+			fixturedecl.DeclareStopsDaemon(name)
+		case propertyUnspecified:
+			panic("BUG: fixture.Register: unspecified property for " + name)
+		default:
+			panic("BUG: fixture.Register: unknown property for " + name)
+		}
 	}
 	drivers[name] = driver
 }
@@ -172,7 +199,7 @@ func refuseRepoRoot(fixture string) error {
 }
 
 // fixtureStep is how a .ci exec= value starts a fixture.
-const fixtureStep = "le test fixture "
+const fixtureStep = fixturedecl.Command + " "
 
 // fixtureTestCommands answers the command that runs each .ci test whose exec=
 // step starts fixture, one test per command, in directory then file order.
