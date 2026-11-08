@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
@@ -35,10 +36,18 @@ type l2tpMetrics struct {
 
 	// relayTotal is ze_l2tp_relay_total (relay_metrics.go).
 	relayTotal metrics.CounterVec
+
+	// sessionLCPOpenedTotal is ze_l2tp_session_lcp_opened_total, stepped
+	// by countSessionLCPOpened.
+	sessionLCPOpenedTotal metrics.CounterVec
 }
 
 // labelUsername is the Prometheus label carrying the subscriber login.
 const labelUsername = "username"
+
+// labelProxyLCP is the Prometheus label carrying what the LNS did with the
+// LAC's proxy LCP AVPs; its values are ppp.ProxyLCPOutcome's String forms.
+const labelProxyLCP = "proxy_lcp"
 
 var sessionLabels = []string{"sid", "ifname", labelUsername, "ip", "caller_id"}
 
@@ -74,8 +83,26 @@ func bindL2TPMetrics(reg metrics.Registry) {
 		bucketState:      reg.GaugeVec("ze_l2tp_bucket_state", "Current CQM bucket state per login (established=0, negotiating=1, down=2).", []string{labelUsername}),
 
 		relayTotal: bindRelayMetrics(reg),
+
+		sessionLCPOpenedTotal: reg.CounterVec("ze_l2tp_session_lcp_opened_total",
+			"Sessions whose LCP first reached Opened, by what the LNS did with the LAC's proxy LCP (proxy_lcp: none, accepted, renegotiated).",
+			[]string{labelProxyLCP}),
 	}
 	l2tpMetricsPtr.Store(m)
+}
+
+// countSessionLCPOpened steps ze_l2tp_session_lcp_opened_total for a
+// session whose LCP reached Opened for the first time. The caller (the
+// reactor's handleLCPUp) MUST call it once per session, not on each LCP
+// reopen, and never with ppp.ProxyLCPOutcomeUnknown, which no EventLCPUp the
+// driver emits carries. Safe for concurrent use; a no-op until the metrics
+// registry is bound, as every L2TP metric is.
+func countSessionLCPOpened(outcome ppp.ProxyLCPOutcome) {
+	m := l2tpMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	m.sessionLCPOpenedTotal.With(outcome.String()).Inc()
 }
 
 // observeCQMBucket records CQM metrics from a finalized bucket.

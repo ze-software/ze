@@ -275,7 +275,21 @@ func (r *l2tpReactor) handleLCPUp(ev ppp.EventLCPUp) {
 	}
 	sess.negotiatedMRU = ev.NegotiatedMRU
 	sess.negotiatedAuthMethod = ev.NegotiatedAuthMethod
+	// The outcome is decided once per session, before LCP first opens, and
+	// every later reopen reports the same value; an Unknown recorded outcome
+	// is therefore what marks the first open, which the metric counts.
+	firstOpen := sess.proxyLCPOutcome == ppp.ProxyLCPOutcomeUnknown
 	sess.proxyLCPOutcome = ev.ProxyLCP
+	if !firstOpen {
+		return
+	}
+	// refuse-by-default: guards countSessionLCPOpened -- an event with no outcome is no session-establishment fact to count
+	if ev.ProxyLCP == ppp.ProxyLCPOutcomeUnknown {
+		r.logger.Warn("l2tp: LCP opened with no proxy LCP outcome; not counted",
+			"tunnel-id", ev.TunnelID, "session-id", ev.SessionID)
+		return
+	}
+	countSessionLCPOpened(ev.ProxyLCP)
 }
 
 // handleLCPDown clears negotiated values and withdraws any network lifetime

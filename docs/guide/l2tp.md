@@ -1276,6 +1276,16 @@ L2TP exposes metrics under the `ze_l2tp_*` and `ze_radius_*` namespaces.
 
 <!-- source: internal/component/l2tp/relay_metrics.go -- bindRelayMetrics, relayOutcome.label -->
 
+### Session establishment counter (labels: proxy_lcp)
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ze_l2tp_session_lcp_opened_total` | counter | Sessions whose LCP reached Opened for the first time, counted once per session (a later LCP reopen does not count again). `proxy_lcp` is the same value `show l2tp session id <id>` reports as `proxy-lcp`: `none` (the LAC sent no proxy LCP), `accepted` (LCP opened on the LAC's proxy LCP) or `renegotiated` (Ze negotiated LCP with the subscriber itself, because `proxy-lcp renegotiate` is set or the proxy LCP was malformed or outside the `mru` and authentication policy) |
+
+<!-- source: internal/component/l2tp/metrics.go -- bindL2TPMetrics, countSessionLCPOpened -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPUp -->
+<!-- source: internal/component/l2tp/ppp/events.go -- ProxyLCPOutcome.String -->
+
 ### PPP negotiation counters (labels: reason)
 
 | Metric | Type | Description |
