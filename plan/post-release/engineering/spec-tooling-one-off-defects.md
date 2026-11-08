@@ -33,6 +33,20 @@ Earlier references below to pending design approval describe the review history
 and are superseded by this gate. This checkpoint records approval only; it claims
 no implementation, runtime proof or incident closure.
 
+## Scope decision — 2026-11-08
+
+Thomas ruled on the obligations that only missing historical evidence blocks,
+under the rule now in `ai/META-DECISIONS.md` (an incident not investigated in
+the session that met it is not recorded):
+
+| Obligation | Decision |
+|------------|----------|
+| AC-27 / P-27, the executable integrity incident | Dropped: never investigated in its own session, and another session may have caused it. Its archives need no further preservation |
+| The June technique and fuzz inventories (AC-16), the post-OSPF lint population (AC-26), the authentic October originals and naming proof archive (AC-16, AC-34), the wider GoBGP four-peer captures (AC-12), and load-red members whose failure output is lost (AC-35) | Moved to `plan/post-release/engineering/spec-tooling-historical-evidence.md`, to be completed later |
+
+Every other part of AC-12, AC-16, AC-26, AC-34 and AC-35 stays here. Phase 13
+therefore holds no obligation of this spec, and this spec closes without it.
+
 ## Inventory traversal decision — 2026-11-06
 
 Thomas chose to measure first, then take Route A. Route B is not pursued. The
@@ -202,7 +216,7 @@ The verification-debt shards, the session directory, the hook registry.
 | AC-24 | spec speaker population | The spec template asks for every reader and writer of a wire found by search, not the files opened first |
 | AC-25 | missing RFC summaries x8 | Each named document gets a summary and the retired rows return to it, or `rfc/corrections/` states why not |
 | AC-26 | standing reds x6 (site goconst, cli-grammar unblocked, post-OSPF lint, repo check/audit/doc verify, le fixtures, `pluginOwnershipGate`) | Each gate is green at HEAD or runs in a blocking set with a baseline, and the le fixtures pass |
-| AC-27 | executable bytes disagree with their Go content identity | Trace the corruption to its writer or storage boundary and demonstrate the repair; a successful rebuild alone does not close the incident |
+| AC-27 | executable bytes disagree with their Go content identity | Dropped 2026-11-08 by Thomas's rule ("Scope decision" above); no obligation remains |
 | AC-28 | generated bulk UPDATE session attributes | Ordinary generated bulk announcements include LOCAL_PREF on iBGP and omit it on eBGP, proven through the real peer handshake for IPv4 and IPv6; intentional raw-hex injection remains unchanged |
 
 ## 🧪 TDD Test Plan
@@ -235,6 +249,8 @@ The verification-debt shards, the session directory, the hook registry.
 3. Red test, fix, green, page edit, journal cell closed with the commit.
 
 ## Executable integrity incident
+
+Dropped 2026-11-08 ("Scope decision" above): the record below is history, and its archives need no further preservation.
 
 Two terminal-demo builds on 2026-10-26 exited successfully but produced damaged
 executables. The first failed in `runtime.moduledataverify1` before initialization;
@@ -1342,7 +1358,7 @@ need their existing proof checked, not a second implementation.
 | 10. Committed inventories and extraction — 17 CodeQL, 32 | Proposed `internal/le/repo/inventory/` and `internal/le/repo/codeql/`; reuse/extract roadmap object reads and declarations AST resolution; `internal/le/plugin/coupling/scan.go`, site inventory, `.github/workflows/codeql.yml`, featuretags generator | P-32 complete committed population/refusal tests; P-17 derived inputs/dependency guard and future CI extraction sentinels. No compile/export/copy to read inventory. Update feature-gates/plugin inventory design and CodeQL workflow documentation; refresh generated inventory pages only after producer proof |
 | 11. Publication, fixture and deterministic views — 13, 17 theme, 19, 26 named fixtures, 34, 38 | `internal/le/site/{demo,build}.go`, terminaldemo/chaos, DNS and action/manifest/home/lab-pin fixtures; `docs/features/ai-first.md`, help_ai.go printSummary/Recipes/CommonErrors and `features/ai-first-design.md` evidence | P-13 clock/poster, P-17 theme, P-19 generator/discovery/workflow, P-26 fixtures, P-34 contracts/DNS and H's completed source-review corrections, P-38 replacement/verified-byte proofs. Apply prose and help-producer corrections, validate selected-path claims, then truthful review date; no date-only refresh. Independent DNS judge remains owed |
 | 12. Remaining tool inputs/reports — 4 launcher/watchdog/stress, 14, 20, 21, 37 | Launcher/helper selection and `internal/le/test/stressrepro/run.go`; existing toolchain/vendor/schema registration and lint input guard; `internal/perf/report`, `internal/perf/cli/cmd_report.go`, reached site convergence readers | P-4 exact argv/fresh entry, P-14 owned patches/schema/l2tp census, P-20 pass identity/empty refusal/loss before dedup across renderers, P-21 filename collisions and P-37 actual lint-input distinction. Update running-commands, performance/benchmarking and exact schema/vendor pages; finish consumer census before declaring publication proof complete |
-| 13. Incident proof closure — 16 census, 26 aggregate, 27, 35 | Recovered evidence companion and original incident producers; no speculative generic integrity repair | Recover named originals or attributable recurrence for AC-27; reconcile every remaining June/lint/load member. Execute only the identified affected cases once cause is known. Keep unresolved obligations open; historical greens or current gate passes are not substitutes |
+| 13. Incident proof closure — moved 2026-11-08: AC-27 dropped, the evidence-only parts of 16, 26 and 35 moved to `spec-tooling-historical-evidence.md` ("Scope decision" above) | Recovered evidence companion and original incident producers; no speculative generic integrity repair | Recover named originals or attributable recurrence for AC-27; reconcile every remaining June/lint/load member. Execute only the identified affected cases once cause is known. Keep unresolved obligations open; historical greens or current gate passes are not substitutes |
 
 **Phase 7 current work is complete:** implementation, scoped independent review
 and real-entry proof are complete, as recorded in the
