@@ -213,7 +213,7 @@ recorded in this spec's closure, not through `./le rfc record`.
 | Proof | Break (producer) | Expected red | Why it discriminates |
 |-------|------------------|--------------|----------------------|
 | Lowering (AC-1) | the term's `SetTCPMSS` action is not lowered (`lowerAction` returns no expressions for it) | the 1460 SYN arrives as 1460 | a correct stack writes 1400; only an absent write leaves 1460 |
-| No raise (AC-2) | `lowerSetTCPMSS` writes four bytes from option offset 0 (kind 2, length 4, the value) instead of two bytes at offset 2 | the 1300 SYN arrives as 1400 | the four-byte write takes the `case 4:` arm of `nft_exthdr_tcp_set_eval`, which has no MSS guard, so only the two-byte shape Ze installs keeps 1300 |
+| No raise (AC-2) | `lowerSetTCPMSS` replaces `tcpMSSWrite()` with a raw two-byte payload write at transport header offset 22 (the MSS value when MSS is the first option), inet checksum at offset 16 (`rwinv/c11-mss-raises-payload`); guest run pending | the 1300 SYN arrives as 1400 | a payload write bypasses `nft_exthdr_tcp_set_eval`, whose two-byte arm alone carries the MSS guard, so only the option write Ze installs keeps 1300. The earlier break, a four-byte option write at offset 0, is no break: Ze's 7.3 kernel refuses that rule when the table is applied (`operation not supported`, child 21's walk, 2026-11-08) |
 
 The earlier proposal, changing the configured value from 1400 to 1500, is not
 a break: 1300 stays 1300 under both values on a correct stack and on a broken

@@ -699,10 +699,13 @@ const tcpMSSClampConfig = `{"firewall":{"table":{"mss":{"family":"inet","chain":
 // The two proofs have two breaks in Ze's code, each run red then green:
 //   - lowering (AC-1): lowerAction answers no expressions for
 //     firewall.SetTCPMSS. The 1460 SYN then arrives as 1460.
-//   - no raise (AC-2): lowerSetTCPMSS loads four bytes {2, 4, hi, lo} and
-//     writes them at offset 0 with Len 4. That write takes the four-byte arm
-//     of nft_exthdr_tcp_set_eval, which has no MSS guard, and the 1300 SYN
-//     arrives as 1400.
+//   - no raise (AC-2): lowerSetTCPMSS replaces its TCP option write with a
+//     raw two-byte payload write at transport header offset 22 (the MSS value
+//     when MSS is the first option), with the inet checksum at offset 16. No
+//     MSS guard covers a payload write, so the 1300 SYN should arrive as 1400.
+//     A four-byte option write at offset 0 is no break: Ze's 7.3 kernel
+//     refuses that rule when the table is applied ("operation not
+//     supported", measured 2026-11-08).
 //
 // The 1460 case is the positive control for the other two: a lab that
 // forwarded nothing, or a rule that never matched, fails it.

@@ -1477,9 +1477,13 @@ func lowerTCPFlagsMatch(flags, mask firewall.TCPFlags) ([]expr.Any, error) {
 // arm skips an MSS option whose value is already at or below the register:
 // "if (ntohs(old.v16) <= ntohs(new.v16)) return;". The guard sits only in the
 // two-byte arm, so the clamp never raising a smaller MSS depends on this
-// write staying two bytes at offset 2: a four-byte write over the whole option
-// takes the unguarded arm and can raise it. TestTCPMSSSetClampsNeverRaises
-// (integration_linux_test.go) proves both halves on a forwarded SYN.
+// write staying two bytes at offset 2. A four-byte write over the whole option
+// does not reach an unguarded arm on Ze's 7.3 kernel: the kernel refuses that
+// rule when the table is applied, with "operation not supported" (measured
+// 2026-11-08 in a netns on that kernel). TestTCPMSSSetClampsNeverRaises
+// (integration_linux_test.go) asserts on a forwarded SYN that a smaller MSS
+// is kept; its red walk replaces this write with a raw two-byte payload write
+// at the MSS value's TCP header offset, which no MSS guard covers.
 //
 // RFC 9293 Section 3.7.2: "The TCP MSS Option specifies an upper bound for
 // the size of packets that can be received (see [43])."
