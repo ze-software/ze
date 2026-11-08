@@ -78,7 +78,10 @@ func checkPPPoEDHCPv6PD(ctx context.Context, check *interoplab.CheckContext) err
 	}); err != nil {
 		return err
 	}
-	return checkDelegatedLAN(ctx, check, delegated)
+	if err := checkDelegatedLAN(ctx, check, delegated); err != nil {
+		return fmt.Errorf("%w\n%s", err, pdLANEvidence(ctx, check))
+	}
+	return nil
 }
 
 // checkWANSysctls waits for the three per-device sysctls the ipv6 container

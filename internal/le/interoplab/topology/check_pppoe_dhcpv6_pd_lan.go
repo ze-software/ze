@@ -672,3 +672,41 @@ func zeroLifetimeVerdict(advertisements []advertisement, since time.Time) error 
 	}
 	return nil
 }
+
+// pdLANEvidence answers the state a failed LAN step leaves, for the failure
+// report: whether the CPE still holds a WAN default route (the matrix's W
+// input), what lan0 holds, what Ze says it holds of the delegation, the RAs
+// it sent with their Router Lifetime, PIO and RIO, and what dhcpcd heard and
+// installed. The harness's own dump shows only links and addresses. Each
+// command's failure is printed in its place: evidence is best effort and
+// never replaces the error it follows.
+func pdLANEvidence(ctx context.Context, check *interoplab.CheckContext) string {
+	probes := []struct {
+		peer string
+		argv []string
+	}{
+		{nodeCPE, []string{"ip", "-6", ipWordRoute, wordShow}},
+		{nodeCPE, []string{"ip", "-6", ipWordAddress, wordShow, ipWordDev, pdLANDevice}},
+		{nodeCPE, []string{"sh", "-c", "for f in /proc/sys/net/ipv6/conf/all/forwarding /proc/sys/net/ipv6/conf/pppoe0/accept_ra /proc/sys/net/ipv6/conf/pppoe0/forwarding /proc/sys/net/ipv6/conf/lan0/forwarding; do echo \"$f $(cat $f)\"; done"}},
+		{nodeCPE, interoplab.ZeCLICommand("show interface delegated-prefix")},
+		{nodeCPE, interoplab.ZeCLICommand("show interface pppoe-client")},
+		{nodeCPE, []string{"tcpdump", "-n", "-tt", "-v", "-r", pdLANCapture}},
+		{nodeSLAACHost, []string{"ip", "-6", ipWordRoute, wordShow}},
+		{nodeSLAACHost, []string{commandCat, pdDHCPCDLog}},
+	}
+	var report strings.Builder
+	for _, probe := range probes {
+		report.WriteString("--- " + probe.peer + ": " + strings.Join(probe.argv, " ") + "\n")
+		result, err := check.Lab.Exec(ctx, probe.peer, probe.argv, nil)
+		if err != nil {
+			report.WriteString("(not run: " + err.Error() + ")\n")
+			continue
+		}
+		report.WriteString(interoplab.OutputExcerpt(result.Stdout))
+		if result.Stderr != "" {
+			report.WriteString("\nstderr: " + interoplab.OutputExcerpt(result.Stderr))
+		}
+		report.WriteString("\nexit " + strconv.Itoa(result.ExitCode) + "\n")
+	}
+	return report.String()
+}
