@@ -584,14 +584,26 @@ below.
 Native `le test <suite>` and `le test bgp <suite>` runners use the same
 selection contract after the suite name: `--list`, `--all`, `--start ID`,
 `--pattern TEXT`, or positional `ID_OR_NAME...`. This is not the
-`le test functional <suite>` action surface. A positional name selects that
-exact test; `--pattern` selects every matching id, name or path substring.
+`le test functional <suite>` action surface: a suite action runs its whole
+suite under its budget and takes no selector. `./le test functional plugin
+--pattern data-` is refused before anything builds, and the refusal names the
+suite's own runner, `./le test bgp plugin --pattern TEXT`. Type that form to run
+some tests of a suite. A positional name selects that exact test; `--pattern`
+selects every test whose id or name contains `TEXT`, and the `.ci` record
+suites (`encode`, `plugin`, `reload` and the suites `le test <suite>` runs from
+`test/<suite>/*.ci`) also match a substring of the file path. The `parse`,
+`decode`, `editor` and `web` runners match the id and the name only. A pattern
+that matches no test is refused with `no tests matching pattern`, never run as
+an empty selection.
 `--start` selects the named test and every later test in suite order.
 `--list` prints each test as `N/TOTAL ID NAME`; ids are one-based positions,
 so use the test name in saved commands. Each run prints one completion line
 per test with elapsed time, `N/TOTAL`, result, id and name, plus periodic
 progress while tests are still running.
 <!-- source: internal/test/runner/selection.go -- Selection -->
+<!-- source: internal/test/runner/selection.go -- recordMatches, genericMatches -->
+<!-- source: internal/le/test/functional/actions.go -- refusedSelector -->
+<!-- source: internal/le/test/functional/suites.go -- Suite.SelectCommand -->
 <!-- source: internal/test/runner/display.go -- Status, TestFinished -->
 <!-- source: internal/test/cli/cmd_web.go -- webMain parallel via ParallelRunner -->
 

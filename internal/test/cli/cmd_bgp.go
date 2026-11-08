@@ -212,12 +212,7 @@ func zeTestRunSimpleTests(ctx context.Context, cli *zeTestRunCLIFlags, baseDir s
 		return nil
 	}
 
-	selected, err := tests.Select(runner.Selection{
-		All:     cli.all,
-		Start:   cli.start,
-		Pattern: cli.pattern,
-		Args:    cli.testArgs,
-	})
+	selected, err := tests.Select(cli.selection())
 	if err != nil {
 		return err
 	}
@@ -285,12 +280,7 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 		return nil
 	}
 
-	selected, err := tests.Select(runner.Selection{
-		All:     cli.all,
-		Start:   cli.start,
-		Pattern: cli.pattern,
-		Args:    cli.testArgs,
-	})
+	selected, err := tests.Select(cli.selection())
 	if err != nil {
 		return err
 	}
@@ -560,6 +550,18 @@ type zeTestRunCLIFlags struct {
 	// (test/draft/README.md).
 	draft    bool
 	testArgs []string
+}
+
+// selection is the selection contract this command line asks for. Both suite
+// drivers hand it to Select, so `--all`, `--start`, `--pattern` and the
+// positional ids reach the runner through this one mapping.
+func (cli *zeTestRunCLIFlags) selection() runner.Selection {
+	return runner.Selection{
+		All:     cli.all,
+		Start:   cli.start,
+		Pattern: cli.pattern,
+		Args:    cli.testArgs,
+	}
 }
 
 func zeTestParseRunCLI(args []string) (*zeTestRunCLIFlags, error) {

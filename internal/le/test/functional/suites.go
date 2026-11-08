@@ -52,6 +52,22 @@ func (s Suite) Rerun() string {
 	return tb.Str("./le test functional ").Str(s.Name).String()
 }
 
+// SelectCommand is the command that runs chosen tests of this suite: the
+// harness line up to its `--all`, which a selector (`--pattern TEXT`,
+// `--start ID` or positional ids) takes the place of. A suite action runs the
+// whole suite, so this is the line a reader who wants some of it types.
+func (s Suite) SelectCommand() string {
+	var tb textbuf.Buffer
+	tb.Str("./le ").Str(leTestWord)
+	for _, arg := range s.Args {
+		if arg == allTests {
+			break
+		}
+		tb.Byte(' ').Str(arg)
+	}
+	return tb.String()
+}
+
 // Command is the suite's own command: the bare binary name and its arguments.
 //
 // The name rather than a path, because the path depends on which isolated set

@@ -15,6 +15,7 @@ package testfunctional
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -302,8 +303,10 @@ func Subs() string {
 
 // Answer is the `le test functional` command.
 //
-// One table dispatches, lists, helps and refuses, so nothing here reads the
-// command line. A line naming one action runs that action. A line naming
+// One table dispatches, lists, helps and refuses. The one word read here is a
+// selector after a suite verb (refusedSelector), which the table would refuse
+// without naming the command that selects. A line naming one action runs that
+// action. A line naming
 // several sweeps them in the order they were typed, and stops at the first
 // failure.
 func Answer(args []string) (any, int) {
@@ -315,10 +318,39 @@ func Answer(args []string) (any, int) {
 	if len(args) == 0 {
 		return Actions(), 0
 	}
+	if refusedSelector(args) {
+		return nil, 2
+	}
 
 	current := newSession(args)
 	defer current.release()
 	return table(current).AnswerOrSweep(args, leaction.StopAtFirstFailure)
+}
+
+// refusedSelector reports a selector typed after a suite verb, such as
+// `le test functional plugin --pattern data-`, and answers true when it did.
+// A suite action runs its whole suite under its budget and takes no selector;
+// the suite's own runner does (Suite.SelectCommand). Without this the line met
+// the table's generic refusal, which names the area's verbs and never the
+// command that selects a test. Nothing has run when it answers, so the refusal
+// costs no build.
+func refusedSelector(args []string) bool {
+	suite, ok := suiteForVerb(args[0])
+	if !ok {
+		return false
+	}
+	for _, word := range args[1:] {
+		if !strings.HasPrefix(word, "-") {
+			continue
+		}
+		var tb textbuf.Buffer
+		tb.Str(Area).Byte(' ').Str(suite.Name).Str(" runs the whole suite and takes no selector, got ").Quoted(word).
+			Str("; select tests with the suite's own runner: ").Str(suite.SelectCommand()).
+			Str(" --pattern TEXT (or --start ID, or ID_OR_NAME...)")
+		leaction.ReportError(errors.New(tb.String()))
+		return true
+	}
+	return false
 }
 
 // newSession reads the whole command line before anything runs.

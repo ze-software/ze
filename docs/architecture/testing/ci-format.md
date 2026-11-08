@@ -298,6 +298,16 @@ block is piped, so `ze config validate -` and `ze bgp decode pcap -` test the
 form the operator types.
 <!-- source: internal/test/runner/runner_exec_util.go -- routeStdinBlock -->
 
+The route changes how the block travels, never what the runner reads from it.
+Whether a check peer lingers (`option=linger:value=true`, which the
+`then=stop` fence below waits on) is read from the `.ci` block itself with the
+peer's own parser, so a peer given the block as a file lingers exactly as one
+given it on standard input. `TestPeerLingerSurvivesStdinRouting`
+(`internal/test/runner/one_off_proof_test.go`) runs both routes through the
+fence.
+<!-- source: internal/test/runner/peer_contract.go -- peerLingers -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+
 The first daemon block uses `ze-bgp.conf` in the test work directory, so a
 fixture rewriting that bare name still edits the source the daemon reads.
 Further distinct blocks use `daemon-2/ze-<block>.conf`, `daemon-3/…`, each
