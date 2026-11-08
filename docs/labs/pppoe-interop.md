@@ -153,9 +153,15 @@ REST execute endpoint (enabled in the scenario's `ze.conf` on `127.0.0.1:9099`,
 so the `curl` runs inside the Ze container) and requires `pppoe0`'s
 `dns-servers` to be `["192.0.2.53", "192.0.2.54"]`. It reads the raw JSON, so
 an absent key or a `null` is refused. `pppoe-ipcp-dns-rejected-ze-client` runs
-the same checks against an accel-ppp that Rejects both DNS options: no
-resolv.conf entry, and `dns-servers` an empty list.
-<!-- source: internal/le/interoplab/pppoe/check_client.go -- checkZeClient, checkZeClientDNSRejected, checkZeClientShowDNS, pppoeClientDNSServers -->
+the same checks against an accel-ppp that Rejects both DNS options, so the
+session leases no server and `dns-servers` must be an empty list. With no lease
+listing a server, Ze falls back to the host's own resolvers, so the checker
+reads the Ze container's `/etc/resolv.conf` (Docker's, which Ze never writes)
+and requires Ze's resolv.conf to be the generated header followed by exactly
+those servers, in that order. It refuses a host list that holds accel-ppp's
+`10.11.0.1`, because that server would match whether or not the client dropped
+the Rejected options.
+<!-- source: internal/le/interoplab/pppoe/check_client.go -- checkZeClient, checkZeClientDNSRejected, zeHostResolvers, checkZeClientShowDNS, pppoeClientDNSServers -->
 
 The checker also reads accel-ppp's verbose trace and requires, in order, its
 LCP Configure-Request with `<auth CHAP-md5>`, Ze's Configure-Ack carrying that

@@ -153,6 +153,12 @@ type PPPoEClient struct {
 
 	// resolvers is the resolv.conf writer the learned servers go to.
 	resolvers *system.Resolvers
+	// sessionEnded is called with the client's name when a session ends,
+	// beside the IPCP lease's withdrawal, so the RA record learned over the
+	// session device leaves with it: runEngine passes the RA RDNSS
+	// producer's withdrawPPPoESession. Nil calls nothing, as in a test that
+	// drives the client alone. Set before Start and never written after.
+	sessionEnded func(name string)
 
 	stopCh chan struct{}
 	done   chan struct{}
@@ -319,8 +325,8 @@ func (c *PPPoEClient) runSession() error {
 		return err
 	}
 	defer sess.Cleanup()
-	// The lease ends with the session, on every return path below.
-	defer c.leaseDNS(nil)
+	// The leases end with the session, on every return path below.
+	defer c.endSessionLeases()
 
 	// The dialer creates the kernel device under its configured name through
 	// rtnetlink, so every backend call below addresses the device by that name.
@@ -580,6 +586,19 @@ func (c *PPPoEClient) leaseDNS(servers []string) {
 	}
 }
 
+// endSessionLeases withdraws the resolver records a session held: the IPCP
+// lease, then, through sessionEnded, the RA record learned over the session
+// device, which is gone with the session. The DHCPv6 lease is not among
+// them: its client keeps it across the device's loss, as a possible move to
+// a new link (RFC 9915 Section 18.2.12). Called only from runSession's
+// worker, once per session.
+func (c *PPPoEClient) endSessionLeases() {
+	c.leaseDNS(nil)
+	if c.sessionEnded != nil {
+		c.sessionEnded(c.cfg.Name)
+	}
+}
+
 // warnRouteApply keeps a failed route install visible without ending PPP.
 func (c *PPPoEClient) warnRouteApply(device string, gateway netip.Addr, err error) {
 	c.logger.Warn("pppoe-client: failed to add default route; traffic may fail until a later session result retries it; inspect with ze show interface",
@@ -601,8 +620,10 @@ var pppoeDialerVar PPPoEDialer
 func SetPPPoEDialer(d PPPoEDialer) { pppoeDialerVar = d }
 
 // reconcilePPPoEClients starts clients for new config entries, stops
-// clients whose config was removed or disabled. Caller holds pppoeMu.
-func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b Backend, log *slog.Logger) {
+// clients whose config was removed or disabled. Each client it starts calls
+// sessionEnded with its name when a session ends (PPPoEClient.sessionEnded);
+// nil calls nothing. Caller holds pppoeMu.
+func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b Backend, log *slog.Logger, sessionEnded func(name string)) {
 	if pppoeDialerVar == nil {
 		return
 	}
@@ -641,6 +662,7 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b B
 			continue
 		}
 		client := NewPPPoEClient(pppoeClientConfigFrom(entry), pppoeDialerVar, b, log)
+		client.sessionEnded = sessionEnded
 		client.Start()
 		active[name] = client
 		log.Info("pppoe-client: started client", "name", name, "src-iface", entry.SourceInterface)

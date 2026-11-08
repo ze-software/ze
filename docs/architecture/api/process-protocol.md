@@ -1921,7 +1921,11 @@ A `records` entry is one learned source: its `origin` and the origin's
 it (both empty for the host's `/etc/resolv.conf`), the `addresses` in the
 order the source sent them, and the time it was `received`. An `expires`
 member, when present, is the end of the record's validity; when absent, the
-record is valid until its source withdraws it. `router` is the router's
+record is valid until its source withdraws it. A `fallback` member set to
+true (the host's `/etc/resolv.conf`) marks a record the received class lists
+only while no other record lists an address; a plugin that selects from
+`records` itself applies the same rule, as `dnssource.ReceivedAddresses`
+does. `router` is the router's
 list (`sources` and `mode`, with `default` true while the built-in default
 applies, and `received-interfaces` when `received-interface` narrows the
 received class), the classes that supplied a server (`used`), and the

@@ -222,7 +222,9 @@ module ze-iface-conf {
             }
             default 0;
             description "This leaf needs the netlink backend, for the same reason as autoconf:
-                         the two leaves describe one behavior.";
+                         the two leaves describe one behavior. Above 0 it also makes the
+                         device's RDNSS options (RFC 8106) an ra record of the router's
+                         received DNS servers, on a unit and on a pppoe-client session alike.";
             ze:help "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.";
         }
 

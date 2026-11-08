@@ -46,6 +46,11 @@ type Record struct {
 	// Expires is the absolute end of validity. Its zero value is a named
 	// state, not a missing one: valid until the producer withdraws it.
 	Expires time.Time `json:"expires,omitzero"`
+	// Fallback marks a record of an origin registered as a fallback (the
+	// host's own resolv.conf): the received class lists it only while no
+	// other record would list an address. The origin declares it at
+	// registration, so the rule names no origin.
+	Fallback bool `json:"fallback,omitempty"`
 
 	// The fields below are reserved for RFC 9463 (DNR) records. A record
 	// with a non-empty Transport is not plain DNS on port 53, and a consumer
@@ -86,8 +91,9 @@ func CompareRecords(a, b *Record) int {
 
 // ReceivedAddresses answers the received class's entries over records at
 // now: each unexpired plain-DNS record, ordered by CompareRecords, each
-// record's addresses in the order its source sent them. Repeats are kept;
-// Select removes them. records is not modified.
+// record's addresses in the order its source sent them. A fallback record
+// counts only when no other record lists an address (liveAddresses). Repeats
+// are kept; Select removes them. records is not modified.
 func ReceivedAddresses(records []Record, now time.Time) []netip.Addr {
 	ordered := slices.Clone(records)
 	slices.SortStableFunc(ordered, func(a, b Record) int { return CompareRecords(&a, &b) })
@@ -96,20 +102,41 @@ func ReceivedAddresses(records []Record, now time.Time) []netip.Addr {
 
 // liveAddresses answers the addresses of each unexpired plain-DNS record, in
 // the order records holds them. A record with a Transport is skipped: it is
-// not plain DNS on port 53.
+// not plain DNS on port 53. A Fallback record is skipped while any other
+// record lists an address, so the host's resolv.conf stands in only for a
+// lease Ze does not hold, and returns when the last lease expires.
 func liveAddresses(records []Record, now time.Time) []netip.Addr {
+	leased := false
+	for i := range records {
+		if !records[i].Fallback && records[i].lists(now) {
+			leased = true
+			break
+		}
+	}
 	var out []netip.Addr
 	for i := range records {
 		record := &records[i]
-		if record.Expired(now) {
+		if !record.lists(now) {
 			continue
 		}
-		if len(record.Transport) > 0 {
+		if record.Fallback && leased {
 			continue
 		}
 		out = append(out, record.Addresses...)
 	}
 	return out
+}
+
+// lists reports whether the record offers a plain-DNS address at now: it is
+// unexpired, carries no Transport, and holds at least one address.
+func (r *Record) lists(now time.Time) bool {
+	if r.Expired(now) {
+		return false
+	}
+	if len(r.Transport) > 0 {
+		return false
+	}
+	return len(r.Addresses) > 0
 }
 
 // RouterSelection is the router consumer's answer as it is published: the

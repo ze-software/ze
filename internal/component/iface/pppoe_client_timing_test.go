@@ -176,7 +176,7 @@ func startTimingClients(t *testing.T, cfg *ifaceConfig, d PPPoEDialer) map[strin
 	SetPPPoEDialer(d)
 	t.Cleanup(func() { pppoeDialerVar = previous })
 	active := map[string]*PPPoEClient{}
-	reconcilePPPoEClients(cfg, active, nil, slog.Default())
+	reconcilePPPoEClients(cfg, active, nil, slog.Default(), nil)
 	t.Cleanup(func() {
 		for _, c := range active {
 			c.Stop()
@@ -245,7 +245,7 @@ func TestPPPoEClientReloadKeepsSessionOnTimerChange(t *testing.T) {
 
 		timers, err := pppoeTimingJSON(t, `"failures": "3", "interval": "7"`, `"delay-max": "9"`)
 		require.NoError(t, err)
-		reconcilePPPoEClients(timers, active, nil, slog.Default())
+		reconcilePPPoEClients(timers, active, nil, slog.Default(), nil)
 		synctest.Wait()
 		assert.Same(t, running, active["pppoe0"], "a timer-only reload must keep the client")
 		configs, _ := d.snapshot()
@@ -258,7 +258,7 @@ func TestPPPoEClientReloadKeepsSessionOnTimerChange(t *testing.T) {
 		other := *timers
 		other.PPPoEClient = append([]pppoeClientEntry(nil), timers.PPPoEClient...)
 		other.PPPoEClient[0].MTU = 1400
-		reconcilePPPoEClients(&other, active, nil, slog.Default())
+		reconcilePPPoEClients(&other, active, nil, slog.Default(), nil)
 		synctest.Wait()
 		assert.NotSame(t, running, active["pppoe0"], "any other change must restart the client")
 		configs, _ = d.snapshot()

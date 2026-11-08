@@ -23,10 +23,13 @@ import (
 // ResolverOrigin is a lease protocol registered with RegisterResolverOrigin.
 // Its rank is the order that protocol's sources appear in resolv.conf. The
 // zero value is no registered origin: a source built from it names nothing
-// and Resolvers.SetLease refuses it.
+// and Resolvers.SetLease refuses it. A fallback origin's records stand in
+// only while no other origin's record lists a server (dnssource.Record
+// Fallback).
 type ResolverOrigin struct {
-	rank uint16
-	name string
+	rank     uint16
+	name     string
+	fallback bool
 }
 
 // resolverOriginRegistry holds every registered origin. Each lease producer
@@ -47,10 +50,18 @@ var resolverOrigins resolverOriginRegistry
 // rank zero, an empty name, or a name or rank already registered is a Ze
 // defect, and it panics.
 func RegisterResolverOrigin(name string, rank uint16) ResolverOrigin {
-	return resolverOrigins.register(name, rank)
+	return resolverOrigins.register(name, rank, false)
 }
 
-func (g *resolverOriginRegistry) register(name string, rank uint16) ResolverOrigin {
+// RegisterFallbackResolverOrigin registers name like RegisterResolverOrigin,
+// as a fallback: its records are used only while no record of another origin
+// lists a server, so they stand in for a lease rather than join one. The
+// same calling rules and panics apply.
+func RegisterFallbackResolverOrigin(name string, rank uint16) ResolverOrigin {
+	return resolverOrigins.register(name, rank, true)
+}
+
+func (g *resolverOriginRegistry) register(name string, rank uint16, fallback bool) ResolverOrigin {
 	if name == "" {
 		panic("BUG: resolver origin registered with no name")
 	}
@@ -71,7 +82,7 @@ func (g *resolverOriginRegistry) register(name string, rank uint16) ResolverOrig
 	}
 	g.names[name] = rank
 	g.ranks[rank] = name
-	return ResolverOrigin{rank: rank, name: name}
+	return ResolverOrigin{rank: rank, name: name, fallback: fallback}
 }
 
 // Source names the lease of this origin's client on iface and unit.
@@ -437,6 +448,7 @@ func (r *Resolvers) records() []dnssource.Record {
 			Addresses: slices.Clone(held.servers),
 			Received:  held.received,
 			Expires:   held.validity.expires,
+			Fallback:  source.origin.fallback,
 		})
 	}
 	slices.SortFunc(records, func(a, b dnssource.Record) int { return dnssource.CompareRecords(&a, &b) })

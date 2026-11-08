@@ -88,6 +88,27 @@ A manually added IPv6 address with a finite valid and preferred lifetime has
 integration test classifies `origin=slaac` against the real kernel with no
 radvd and no RA daemon.
 
+## RA options the kernel hands up
+
+The netlink monitor also joins `RTNLGRP_ND_USEROPT`. For every Router
+Advertisement the kernel accepts (its `accept_ra` lets it process the RA,
+`ndisc_router_discovery` in `net/ipv6/ndisc.c`), the kernel sends each option
+it does not consume itself (RDNSS, DNSSL, Prefix Information, PREF64) as one
+`RTM_NEWNDUSEROPT` message. The monitor emits each as an
+`(interface, nd-user-option)` event carrying the device name, the RA's source
+address and the option bytes as received. It reads that socket on a goroutine
+of its own, apart from the link, address and neighbor loop, so the subscriber
+may do its one registry write on it.
+
+The interface component consumes the RDNSS options: a unit with `accept-ra`
+set above 0, and an enabled pppoe-client whose `ipv6 accept-ra` is above 0
+(matched by its session device, which the dialer names after the client),
+gets an `ra` resolver record (`docs/features/dns-resolver.md`,
+"Where the router's servers come from"). The other option types have no
+consumer yet.
+<!-- source: internal/plugins/iface/netlink/nduseropt_linux.go -- decodeNDUserOpt, readNDUserOpts, handleNDUserOpt -->
+<!-- source: internal/component/iface/ra_rdnss.go -- raRDNSS.handle, raRDNSS.setTargets, raRDNSS.targetFor -->
+
 ## Carrier events are queued per interface, never dropped
 
 The event bus dispatches a subscriber synchronously on the emitter's goroutine,

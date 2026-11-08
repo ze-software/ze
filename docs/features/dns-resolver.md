@@ -21,7 +21,7 @@ The client side shares no configuration and no cache with any of them.
 | Feature | Description |
 |---------|-------------|
 | Static name servers | `system { name-server [8.8.8.8 1.1.1.1]; }` sets upstream DNS servers |
-| Router resolver selection | One rule picks the router's servers: the configured `name-server` list when it has an entry, else every learned record (DHCPv4, DHCPv6, PPPoE IPCP, then the host's `/etc/resolv.conf`) |
+| Router resolver selection | One rule picks the router's servers: the configured `name-server` list when it has an entry, else every learned record (DHCPv4, DHCPv6, PPPoE IPCP, RA RDNSS), and the host's `/etc/resolv.conf` only while none of those lists a server |
 | resolv.conf writer | Writes the router's servers to resolv-conf-path, and rewrites it whenever a source changes |
 | Learned DNS | Static servers take priority over the servers a DHCP lease or a PPPoE session supplied |
 | Query types | A, AAAA, TXT, PTR, CNAME, MX, NS, SRV |
@@ -66,18 +66,46 @@ system {
 Ze keeps the static `name-server` list and, apart from it, one record per
 learned source: one per DHCP client (DHCPv4 or DHCPv6, per interface and
 unit), one per PPPoE client session (the servers IPCP supplied, RFC 1877,
-primary first), and one for the host's own `/etc/resolv.conf`. A record
+primary first), one per unit that accepts Router Advertisements (the RDNSS
+servers, RFC 8106), and one for the host's own `/etc/resolv.conf`. A record
 carries how long it stays valid: a DHCPv4 lease until the lease expires
 (until withdrawn for an infinite lease), a DHCPv6 Reply until the valid
-lifetime of its last binding runs out, an IPCP lease and the host's file
-until withdrawn. When a record's validity ends, Ze withdraws it at that
-moment, whether or not its client said so.
+lifetime of its last binding runs out, an RA record until its last
+server's Lifetime runs out (a pppoe-client's until its session ends, if
+that comes first), an IPCP lease and the host's file until withdrawn. When a record's validity ends, Ze withdraws it at that moment,
+whether or not its client said so.
+
+An RA record exists only for a unit whose `ipv6 accept-ra` is set above 0,
+or for an enabled `pppoe-client` whose `ipv6 accept-ra` is set above 0: the
+RAs of that client's WAN session arrive on its session device, which carries
+the client's name, and the record is named after the client.
+The kernel processes the RA, and only when its `accept_ra` lets it; it then
+hands the RDNSS option to Ze. Ze checks the option as RFC 8106 Section 5.3.1
+says (a Length of at least 3 and odd, unicast addresses) and discards an
+invalid one with a warning naming the interface and the Length. Each server
+lives for the option's Lifetime from receipt, a later RA with the same
+server moves its expiry, Lifetime 0 removes it at once, and a new server is
+listed first (RFC 8106 Section 6.2). One unit keeps at most 8 RA servers;
+past that, the one that expires first is dropped. A unit that loses its
+`accept-ra`, or is removed, has its RA record withdrawn on that commit, and
+so does a pppoe-client. A pppoe-client's RA record is also withdrawn when
+its session ends, together with its IPCP lease, whatever Lifetime its
+servers had left: they were reached over the session device, which ends
+with the session, and the next session's RAs build a fresh record. An
+interface unit's RA record is not tied to its device that way: it stays
+until its Lifetime runs out, a Lifetime 0 arrives, or a commit removes the
+unit.
+<!-- source: internal/component/iface/ra_rdnss.go -- raRDNSS.handle, raServerList.apply, raRDNSS.withdrawPPPoESession -->
+<!-- source: internal/component/iface/pppoe_client.go -- PPPoEClient.runSession, PPPoEClient.endSessionLeases -->
+<!-- source: internal/core/ndp/rdnss.go -- ParseRDNSS -->
 
 On every change, one rule selects the router's servers from them, walking
 the list `system dns-source` names. Two classes of source can be named
 there: `configured` (the `name-server` list) and `received` (every learned
-record, DHCPv4 first, then DHCPv6, then PPPoE, then the host's file, each by
-interface then unit, in the order each source sent them). The `mode` says
+record, DHCPv4 first, then DHCPv6, then PPPoE, then RA RDNSS, each by
+interface then unit, in the order each source sent them). The host's file
+is a fallback inside `received`: its servers are listed only while no other
+learned record lists a server. The `mode` says
 how two classes combine:
 
 | `mode` | The router's servers |
@@ -139,12 +167,18 @@ own lookups can reach it.
 <!-- source: internal/plugins/iface/dhcp/resolv_linux.go -- setV4Resolvers, setV6Resolvers -->
 
 The host's `/etc/resolv.conf` keeps a Ze on a standard distribution
-resolving when no `name-server` is configured and no lease supplies one. Ze
-reads it at startup and on every config reload, not when the file changes.
+resolving when no `name-server` is configured and no lease supplies one. It
+stands in for a lease and never joins one: while a DHCPv4, DHCPv6, PPPoE or
+RA record lists a server, the host's servers are left out, so a container's
+resolver (Docker's 127.0.0.11) is never written beside the servers IPCP
+supplied. When the last such record expires or is withdrawn, the host's
+servers return. Ze reads it at startup and on every config reload, not when the file changes.
 Ze never reads it when it is the same file as `resolv-conf-path` (symlinks
 are followed), because Ze would then read back the servers it wrote.
 <!-- source: internal/component/config/system/resolv_host.go -- readHost, sameFile -->
 <!-- source: internal/component/config/system/register_dns.go -- hostResolverOrigin -->
+<!-- source: internal/component/config/system/resolv.go -- RegisterFallbackResolverOrigin -->
+<!-- source: internal/core/dnssource/record.go -- liveAddresses -->
 
 The selection is the one source of truth for every reader:
 

@@ -11,8 +11,10 @@ import (
 
 // hostResolverOrigin is the origin of the host's own resolv.conf. Rank 500
 // lists it after every protocol Ze learns resolvers from itself (DHCPv4 100,
-// DHCPv6 200, PPP 300, RA 400), so a lease Ze holds always comes first.
-var hostResolverOrigin = RegisterResolverOrigin("host", 500)
+// DHCPv6 200, PPP 300, RA 400). It is a fallback: its record is used only
+// while no lease of another origin lists a server, so a container's or the
+// installer's resolver never joins the servers a lease supplied.
+var hostResolverOrigin = RegisterFallbackResolverOrigin("host", 500)
 
 // dnsSnapshotEvent carries the registry's state to every consumer, in this
 // process or a plugin process; dnsSnapshotRequest asks for it again.

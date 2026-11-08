@@ -37,7 +37,17 @@ type PPPoEClientIPv6 struct {
 	Sysctls [pppoeClientSysctlMax]pppoeClientSysctl
 	// DHCPv6 is the dhcpv6 container; DHCPv6.Enabled false runs no client.
 	DHCPv6 dhcpv6UnitConfig
+	// AcceptRA is the accept-ra leaf as a number (0, 1 or 2). Its zero is
+	// both "absent" and "0", and acceptsRA reads either as "not processing
+	// RAs", which is what both mean for RA-learned resolvers.
+	AcceptRA int
 }
+
+// acceptsRA reports whether the configured accept-ra leaf lets the kernel
+// process Router Advertisements on the session device: written, and above 0.
+// An absent leaf leaves the kernel's own default, which Ze does not read, so
+// the session is then no target for RA-learned resolvers (ra_rdnss.go).
+func (v *PPPoEClientIPv6) acceptsRA() bool { return v.AcceptRA > 0 }
 
 // errPPPoEClientIPv6Disabled refuses IPv6 leaves on a client that does not
 // negotiate IPv6CP, which would otherwise configure a device that never
@@ -71,6 +81,7 @@ func parsePPPoEClientIPv6(m map[string]any) (PPPoEClientIPv6, error) {
 			return PPPoEClientIPv6{}, errors.New("ipv6 accept-ra " + v + ": out of range; write 0, 1 or 2")
 		}
 		out.Sysctls[slot] = pppoeClientSysctl{Suffix: "accept_ra", Value: v}
+		out.AcceptRA = n
 		slot++
 	}
 	if v, ok := v6["forwarding"].(string); ok {

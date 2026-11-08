@@ -2903,9 +2903,15 @@ false: negotiate IPv6CP and install the link-local address), the shared IPv6
 host leaves `autoconf`, `accept-ra` (0 to 2) and `forwarding`, and the
 `dhcpv6` block with `enabled`, `pd length` (48 to 64) and `duid`, the same
 leaves a unit's `ipv6` carries. Ze refuses them while `enabled` is not true.
+On a unit and on a pppoe-client session alike, `accept-ra` above 0 also feeds
+the router's DNS: the RDNSS servers of each accepted Router Advertisement
+become an `ra` record of the `received` class (RFC 8106, see
+[DNS resolver](../features/dns-resolver.md)), and setting it back to 0
+withdraws them.
 The full example is in [PPPoE](pppoe.md), "PPPoE client IPv6".
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- grouping ipv6-host, pppoe-client ipv6 -->
 <!-- source: internal/component/iface/pppoe_client.go -- reconcilePPPoEClients, pppoeClientConfigChanged, setTiming -->
+<!-- source: internal/component/iface/ra_rdnss.go -- raRDNSS.setTargets -->
 
 ### Route Priority
 
@@ -3321,7 +3327,9 @@ advertisement installs them again.
 `ze doctor` reports `doctor-iface-ra-forwarding` for each advertising interface
 whose device `forwarding` is 0, and for each one whose kernel forwards no IPv6
 (`all.forwarding` 0 and the device's `force_forwarding` not 1). Leave
-`accept-ra` at 0 unless the same interface also learns from another router.
+`accept-ra` at 0 unless the same interface also learns from another router:
+`accept-ra` above 0 also takes the RDNSS servers of that router's
+advertisements into the router's `received` DNS servers.
 
 <!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
 <!-- source: internal/component/sysctl/sysctl.go -- write, reapplyManaged -->

@@ -14,9 +14,9 @@ import (
 // producers silently sharing one place in resolv.conf.
 func TestResolverOriginRegistryOrdersByRank(t *testing.T) {
 	var registry resolverOriginRegistry
-	ppp := registry.register("ppp", 300)
-	v4 := registry.register("dhcpv4", 100)
-	v6 := registry.register("dhcpv6", 200)
+	ppp := registry.register("ppp", 300, false)
+	v4 := registry.register("dhcpv4", 100, false)
+	v6 := registry.register("dhcpv6", 200, false)
 
 	var r Resolvers
 	for _, lease := range []struct {
@@ -51,7 +51,7 @@ func TestResolverOriginRegistryOrdersByRank(t *testing.T) {
 					t.Fatalf("register(%q, %d) did not panic", tc.name, tc.rank)
 				}
 			}()
-			registry.register(tc.name, tc.rank)
+			registry.register(tc.name, tc.rank, false)
 		})
 	}
 

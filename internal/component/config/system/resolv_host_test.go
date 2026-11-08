@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/dnssource"
 )
@@ -156,5 +157,48 @@ func TestHostRecordAloneFeedsTheResolver(t *testing.T) {
 	}
 	if want := []string{"192.0.2.53"}; !slices.Equal(seen, want) {
 		t.Fatalf("watcher saw %v, want %v", seen, want)
+	}
+}
+
+// TestHostRecordIsFallback: the host record stands in for a lease and never
+// joins one. With a live lease of another origin the host's servers are left
+// out; with none they are used; when the last lease expires they return.
+// Method: a registry with a host file and a manual clock, a bounded DHCPv4
+// lease set over it, then the clock moved past the lease's end.
+//
+// VALIDATES: spec-home-cpe-23 D-13 as a fallback: "used only while no other
+// received record (dhcpv4, dhcpv6, ppp, ra) is live".
+// PREVENTS: a container's resolver (Docker's 127.0.0.11) written beside the
+// IPCP-learned servers, as the PPPoE interop lab found.
+func TestHostRecordIsFallback(t *testing.T) {
+	hostPath := filepath.Join(t.TempDir(), "resolv.conf")
+	writeFile(t, hostPath, "nameserver 127.0.0.11\n")
+	clk := &manualClock{now: time.Unix(1_000_000, 0)}
+	r := &Resolvers{hostPath: hostPath, clock: clk}
+	if err := r.Configure("", nil, routerDefault); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if got, want := r.Servers(), []string{"127.0.0.11"}; !slices.Equal(got, want) {
+		t.Fatalf("no lease: servers = %v, want the host's %v", got, want)
+	}
+
+	ends := clk.Now().Add(10 * time.Second)
+	if err := r.SetLease(routerTestDHCPv4.Source("eth0", "0"), []string{"192.0.2.53", "192.0.2.54"}, ValidUntil(ends)); err != nil {
+		t.Fatalf("SetLease: %v", err)
+	}
+	if got, want := r.Servers(), []string{"192.0.2.53", "192.0.2.54"}; !slices.Equal(got, want) {
+		t.Fatalf("lease live: servers = %v, want only the lease's %v", got, want)
+	}
+	record, ok := hostRecord(r)
+	if !ok {
+		t.Fatal("lease live: the host record left the snapshot; it is still learned, only not selected")
+	}
+	if !record.Fallback {
+		t.Fatalf("host record %+v does not carry Fallback", record)
+	}
+
+	clk.advance(10 * time.Second)
+	if got, want := r.Servers(), []string{"127.0.0.11"}; !slices.Equal(got, want) {
+		t.Fatalf("lease expired: servers = %v, want the host's %v back", got, want)
 	}
 }

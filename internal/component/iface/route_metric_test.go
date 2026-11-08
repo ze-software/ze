@@ -686,7 +686,7 @@ func TestPPPoEDefaultRouteTakesTheLearnedMetric(t *testing.T) {
 
 			recorder := &routeRecorder{}
 			activeClients := map[string]*PPPoEClient{}
-			reconcilePPPoEClients(cfg, activeClients, recorder, slog.Default())
+			reconcilePPPoEClients(cfg, activeClients, recorder, slog.Default(), nil)
 			t.Cleanup(func() {
 				for _, c := range activeClients {
 					c.Stop()

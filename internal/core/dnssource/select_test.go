@@ -203,3 +203,45 @@ func TestReceivedAddressesOrderAndExpiry(t *testing.T) {
 		t.Fatal("Expired is not inclusive of its end")
 	}
 }
+
+// TestReceivedAddressesFallback: a Fallback record lists only while no other
+// record lists an address. Method: the same fallback record over each other
+// record shape, live and not.
+//
+// VALIDATES: spec-home-cpe-23 D-13 as a fallback, in the core rule every
+// consumer reads (ReceivedAddresses and List.Received).
+// PREVENTS: the host's resolver joining a lease's servers, and a record that
+// lists nothing (expired, empty, encrypted transport) hiding the fallback.
+func TestReceivedAddressesFallback(t *testing.T) {
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	host := Record{Origin: "host", Rank: 500, Fallback: true, Addresses: addrs(t, "127.0.0.11")}
+	cases := []struct {
+		name  string
+		other Record
+		want  []string
+	}{
+		{"live lease hides the fallback",
+			Record{Origin: "ppp", Rank: 300, Interface: "pppoe0", Addresses: addrs(t, "192.0.2.53")},
+			[]string{"192.0.2.53"}},
+		{"expired lease does not",
+			Record{Origin: "dhcpv4", Rank: 100, Interface: "eth0", Unit: "0", Addresses: addrs(t, "192.0.2.1"), Expires: now},
+			[]string{"127.0.0.11"}},
+		{"empty lease does not",
+			Record{Origin: "ra", Rank: 400, Interface: "eth0", Unit: "0"},
+			[]string{"127.0.0.11"}},
+		{"encrypted-transport record does not",
+			Record{Origin: "dnr", Rank: 600, Addresses: addrs(t, "192.0.2.99"), Transport: []string{"dot"}},
+			[]string{"127.0.0.11"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ReceivedAddresses([]Record{host, tc.other}, now)
+			if want := addrs(t, tc.want...); !slices.Equal(got, want) {
+				t.Fatalf("received = %v, want %v", got, want)
+			}
+		})
+	}
+	if got, want := ReceivedAddresses([]Record{host}, now), addrs(t, "127.0.0.11"); !slices.Equal(got, want) {
+		t.Fatalf("fallback alone: received = %v, want %v", got, want)
+	}
+}

@@ -39,6 +39,9 @@ func TestPPPoEClientIPv6Parse(t *testing.T) {
 	if got.Sysctls != want {
 		t.Fatalf("sysctls %+v, want %+v", got.Sysctls, want)
 	}
+	if got.AcceptRA != 2 || !got.acceptsRA() {
+		t.Fatalf("accept-ra parsed as %d (acceptsRA %v), want 2 (true)", got.AcceptRA, got.acceptsRA())
+	}
 	if !got.DHCPv6.Enabled || !got.DHCPv6.PDRequested || got.DHCPv6.PDLength != 56 {
 		t.Fatalf("dhcpv6 %+v, want enabled with pd length 56", got.DHCPv6)
 	}

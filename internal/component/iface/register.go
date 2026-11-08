@@ -42,6 +42,14 @@ import (
 // DHCP client already supplies.
 var pppoeClientResolverOrigin = system.RegisterResolverOrigin("ppp", 300)
 
+// raResolverOrigin is the resolv.conf origin of the servers RDNSS options
+// carry in the Router Advertisements a unit with accept-ra accepts (RFC
+// 8106). Rank 400 lists them after DHCPv4, DHCPv6 and PPP.
+// RFC 8106 Section 5.3.1: "The DNS options from RAs and DHCP SHOULD be
+// stored in the DNS Repository and Resolver Repository so that information
+// from DHCP appears there first and therefore takes precedence."
+var raResolverOrigin = system.RegisterResolverOrigin("ra", 400)
+
 var (
 	errInterfaceNoBackendConfiguredAndNo   = diagnostic.HostVerdict(errors.New("interface: no backend configured and no OS default available"))
 	errInterfaceConfigApplyNoBackendLoaded = errors.New("interface config apply: no backend loaded")
@@ -163,6 +171,7 @@ func init() {
 		ifaceevents.EventDHCPAcquired, ifaceevents.EventDHCPRenewed,
 		ifaceevents.EventDHCPExpired, ifaceevents.EventRollback,
 		ifaceevents.EventRouterDiscovered, ifaceevents.EventRouterLost,
+		ifaceevents.EventNDUserOption,
 	)
 
 	d := slogutil.DiscardLogger()
@@ -437,6 +446,10 @@ func runEngine(conn net.Conn) int {
 	// client stop and start -- costs the intermediate transitions and never
 	// the state a subject ended in. See link_queue.go.
 	linkQueue := newLinkEventQueue(log)
+	// raRDNSSProducer turns the RDNSS options of RAs accepted on a unit with
+	// accept-ra into ra records (ra_rdnss.go). Its targets follow every
+	// config apply beside the DHCP clients.
+	raRDNSSProducer := newRARDNSS(system.ProcessResolvers(), log)
 	// vppReconcileCh coalesces vpp-lifecycle reconcile requests into at most
 	// one pending work item. The vppReadyWorker goroutine drains it and
 	// calls reconcileOnVPPReady so the actual GoVPP I/O runs outside the
@@ -610,7 +623,7 @@ func runEngine(conn net.Conn) int {
 		// Reconcile PPPoE clients.
 		pppoeMu.Lock()
 		parsedPPPoE := len(cfg.PPPoEClient)
-		reconcilePPPoEClients(cfg, activePPPoE, b, log)
+		reconcilePPPoEClients(cfg, activePPPoE, b, log, raRDNSSProducer.withdrawPPPoESession)
 		observePPPoEStartup(parsedPPPoE, len(activePPPoE))
 		pppoeMu.Unlock()
 
@@ -628,6 +641,7 @@ func runEngine(conn net.Conn) int {
 		reconcileDHCP(cfg, eb, activeDHCP, log)
 		suppressRAForConfig(cfg, suppressedRA, activeRouters, raRoutePriority, eb, log)
 		dhcpMu.Unlock()
+		raRDNSSProducer.setTargets(cfg)
 
 		// Start Router Advertisement senders for units that advertise.
 		raMu.Lock()
@@ -685,6 +699,10 @@ func runEngine(conn net.Conn) int {
 				nonBlockingNotify(registryReconcileCh)
 			}
 		})...)
+
+		// RDNSS options the netlink monitor hands up from accepted RAs.
+		unsubscribers = append(unsubscribers, eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventNDUserOption,
+			events.AsString(raRDNSSProducer.handle)))
 
 		// Subscribe once to vpp lifecycle events so reconciliation that was
 		// deferred during initial apply (vpp handshake still in flight) runs
@@ -793,7 +811,7 @@ func runEngine(conn net.Conn) int {
 				activeCfg.Store(rollbackCfg)
 				nonBlockingNotify(unnumberedCh)
 				pppoeMu.Lock()
-				reconcilePPPoEClients(rollbackCfg, activePPPoE, b, log)
+				reconcilePPPoEClients(rollbackCfg, activePPPoE, b, log, raRDNSSProducer.withdrawPPPoESession)
 				pppoeMu.Unlock()
 				if eb := GetEventBus(); eb != nil {
 					// A rollback re-applies the previous config through the
@@ -805,6 +823,7 @@ func runEngine(conn net.Conn) int {
 					suppressRAForConfig(rollbackCfg, suppressedRA, activeRouters, raRoutePriority, eb, log)
 					dhcpMu.Unlock()
 				}
+				raRDNSSProducer.setTargets(rollbackCfg)
 				raMu.Lock()
 				reconcileRA(rollbackCfg, activeRA, log)
 				raMu.Unlock()
@@ -833,7 +852,7 @@ func runEngine(conn net.Conn) int {
 
 		// Reconcile PPPoE clients on reload.
 		pppoeMu.Lock()
-		reconcilePPPoEClients(cfg, activePPPoE, b, log)
+		reconcilePPPoEClients(cfg, activePPPoE, b, log, raRDNSSProducer.withdrawPPPoESession)
 		pppoeMu.Unlock()
 
 		// Reconcile DHCP clients and IPv6 RA suppression after successful reload.
@@ -854,6 +873,7 @@ func runEngine(conn net.Conn) int {
 			suppressRAForConfig(cfg, suppressedRA, activeRouters, raRoutePriority, eb, log)
 			dhcpMu.Unlock()
 		}
+		raRDNSSProducer.setTargets(cfg)
 
 		// Reconcile Router Advertisement senders after a successful reload.
 		// This is the send side, independent of the accept_ra suppression
@@ -1001,6 +1021,9 @@ func runEngine(conn net.Conn) int {
 
 	// Stop the link event worker. It applies what is still pending first.
 	linkQueue.stop()
+
+	// Stop the RA RDNSS expiry timer; the records stay with the registry.
+	raRDNSSProducer.stop()
 
 	// Stop vpp-ready reconcile worker. Must happen after the vpp-events
 	// unsubscribers above have run so no further sends race the close.

@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -44,6 +45,10 @@ type monitor struct {
 	known        sync.Map // map[int]struct{} — known link indices
 	linkNames    sync.Map // map[int]string — index to name, updated by link events
 	knownRouters sync.Map // map[neighKey]struct{} — neighbors seen with NTF_ROUTER
+	// ndSock is the RTNLGRP_ND_USEROPT socket; ndDone closes when its reader
+	// ends (nduseropt_linux.go).
+	ndSock *nl.NetlinkSocket
+	ndDone chan struct{}
 }
 
 // neighKey identifies a neighbor entry, for NTF_ROUTER tracking here and for
@@ -130,6 +135,11 @@ func (m *monitor) start() error {
 		m.started.Store(false)
 		return fmt.Errorf("iface monitor: neigh subscribe: %w", err)
 	}
+	if err := m.startNDUserOpts(); err != nil {
+		m.stopFn.Do(func() { close(m.stopCh) })
+		m.started.Store(false)
+		return fmt.Errorf("iface monitor: nd user option subscribe: %w", err)
+	}
 
 	m.seedLinkNames()
 
@@ -183,6 +193,10 @@ func (m *monitor) stop() {
 		return
 	}
 	m.stopFn.Do(func() { close(m.stopCh) })
+	if m.ndSock != nil {
+		m.ndSock.Close()
+		<-m.ndDone
+	}
 	<-m.done
 }
 

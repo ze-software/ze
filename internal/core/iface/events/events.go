@@ -20,4 +20,8 @@ const (
 	EventRollback         = "rollback"
 	EventRouterDiscovered = "router-discovered"
 	EventRouterLost       = "router-lost"
+	// EventNDUserOption carries one Neighbor Discovery option the kernel
+	// handed to userspace from a Router Advertisement it accepted
+	// (RTM_NEWNDUSEROPT): RDNSS among them.
+	EventNDUserOption = "nd-user-option"
 )
