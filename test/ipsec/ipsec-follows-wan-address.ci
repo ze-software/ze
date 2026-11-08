@@ -1,0 +1,225 @@
+# Functional test: an IPsec peer bound to `vpn ipsec interface` follows the WAN address.
+# VALIDATES: spec-home-cpe-4-ike-dynamic-wan AC-1 to AC-5 against real XFRM state, under
+#            the default SPD catch-all DISCARD (no `unmatched` leaf is written):
+#            - AC-1: the interface exists with no address, so the interface-bound peer
+#              sends nothing and no ESP state names the address;
+#            - AC-2: an address appears, and the peer establishes from it;
+#            - AC-3: the address changes, the peer restarts from the new one, and the
+#              Child SA from the old one leaves the kernel;
+#            - AC-4: the address leaves, and the peer's Child SA is removed;
+#            - AC-5: a peer with its own literal local-address keeps its ESP SPIs
+#              through every step, because it holds its own socket pair.
+# PREVENTS: the CPE that boots before its PPPoE or DHCP WAN has an address, whose IKE
+#           peers then never come up, and the address change that strands them.
+#
+# WHY THE RESPONDER HAS ONE PEER PER ADDRESS. A `respond` peer is matched by the source of
+# the IKE_SA_INIT (matchResponderPeer), so peer-b names both WAN addresses, with the same
+# key and selectors, and the interface-bound peer is accepted from either.
+#
+# WHY THE TWO WAN PEERS CARRY DIFFERENT POLICY PRIORITIES. peer-a stops its session
+# without a Delete when the address moves (stopSessionsOn takes the silent Stop, as a
+# config change does), so peer-b's wan-first keeps its Child SA: no DPD is configured,
+# and INITIAL_CONTACT supersedes only within one configured peer. Two peers holding
+# identical tunnels at one priority is the overlap the RFC 3948 Section 5.1 guard refuses
+# (innerSelectorRegistry.conflictLocked), so wan-second's Child SA would be answered
+# TS_UNACCEPTABLE for as long as wan-first lives. Distinct priorities order the two
+# policies (RFC 4301 Section 4.4.1, operatorOrdered), which the guard admits, and peer-b
+# runs the noop dataplane, so nothing reaches the kernel. Every assertion reads peer-a.
+#
+# WHY ONE DATAPLANE AND NOT TWO. Both ends of one Child SA are the same two kernel
+# states, so a second XfrmStateAdd answers EEXIST: peer-a runs the real xfrm backend and
+# peer-b the noop one, and the fixture reads peer-a's states.
+#
+# WHY THESE PREFIXES. The policies are node-wide for the life of the test, so they are
+# quarters of 100.64.250.0/24, which no other ipsec test installs. The WAN addresses are
+# from 198.18.0.0/15 (RFC 2544), held only by the dummy interface the fixture creates and
+# deletes.
+#
+# Gated option=needs-linux:caps=net-admin: peer-a programs real XFRM state and the fixture
+# creates a dummy interface, so this SKIPs on an unprivileged host and runs as root in the
+# QEMU VM.
+option=needs-linux:caps=net-admin
+# Serialize against every other real-XFRM ipsec test: `ip xfrm state` is node-wide.
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=180s
+option=env:var=ze_log_ike:value=info
+
+# -- peer-b (background, noop dataplane): binds 127.0.0.2 --
+stdin=peer-b:terminator=EOF_PEER_B
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer wan-first {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				policy-priority 2000
+				local-address 127.0.0.2
+				remote-address 198.18.250.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 100.64.250.64/26
+					}
+					remote {
+						prefix 100.64.250.0/26
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-wan
+				}
+			}
+			peer wan-second {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				policy-priority 1500
+				local-address 127.0.0.2
+				remote-address 198.18.250.7
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 100.64.250.64/26
+					}
+					remote {
+						prefix 100.64.250.0/26
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-wan
+				}
+			}
+			peer literal {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 100.64.250.192/26
+					}
+					remote {
+						prefix 100.64.250.128/26
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-lit
+				}
+			}
+		}
+	}
+}
+EOF_PEER_B
+
+# -- peer-a (background, REAL xfrm): the interface-bound and the literal peer --
+stdin=peer-a:terminator=EOF_PEER_A
+vpn {
+	ipsec {
+		# Created by the fixture after both daemons run, so the engine starts
+		# with an interface that holds no address.
+		interface zewantest0
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			# Names no local-address, so it sends from the interface address.
+			peer wan {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 100.64.250.0/26
+					}
+					remote {
+						prefix 100.64.250.64/26
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-wan
+				}
+			}
+			# Carries its own literal, so no interface event may touch it (AC-5).
+			peer literal {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 100.64.250.128/26
+					}
+					remote {
+						prefix 100.64.250.192/26
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-lit
+				}
+			}
+		}
+	}
+}
+EOF_PEER_A
+
+cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-b:name=peer-b
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+
+cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+
+cmd=foreground:seq=3:exec=le test fixture ipsec/follows-wan-address:timeout=170s
+expect=stdout:contains=LITERAL:
+expect=stdout:contains=ARRIVED:
+expect=stdout:contains=MOVED:
+expect=stdout:contains=REMOVED:
+expect=stdout:contains=LITERAL-STABLE:
+reject=stdout:pattern=BOUNCED
+reject=stdout:pattern=CLEANUP-FAILED
+
+# signal=term so peer-a releases its node-wide policies on the way out of runEngine.
+cmd=stop:seq=4:name=peer-a:signal=term
+cmd=stop:seq=5:name=peer-b:signal=term
