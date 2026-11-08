@@ -1,21 +1,21 @@
 {
-  "note": "Re-judged 2026-11-08 (independent auditor) after ed52d128eb strengthened TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue. Section 6.4: \"If the Magic-Number is equal to the one sent in the last Configure-Nak, the possibility of a looped-back link is increased, and a new Magic-Number MUST be chosen.\" The client unit reflects ze's own Configure-Nak (suggestion S for the server's zero Magic) back as a Nak of ze's request, which is exactly the looped case; it now requires the next Configure-Request's Magic to be nonzero, different from clientMagic and different from S, and the Echo-Reply to carry it. The prior finding (a client adopting S passed) is resolved: adopting S, keeping the old value or sending zero each fails it. Client producer read: negotiateLCP's Magic Nak branch calls generateDifferentMagic(localMagic), a fresh crypto/rand draw that is nonzero and not the previous value, and never adopts the suggestion. The verdict rests on the ppp pair, unchanged: TestRFC1661LoopedNakMagicChoosesNewMagic (+) and TestRFC1661LoopedNakMagicRefusesRepeatedDraw (-, forced repeated draw), plus TestMagicNumberRedrawnOnNak. Observation, not a finding: the client unit's two tags sit on the same assertions, and its draws are random, so dropping the magic != previous guard in generateDifferentMagic would survive it (only a 2^-32 draw shows it); the forced-repeat negative exists for the ppp role only.",
+  "note": "Re-judged (independent auditor) after a02374d9ad, which changed the client unit only by checking that sendEchoReply returns nil on the healthy frameLog writer (sendEchoReply now returns its write error); every Magic assertion is unchanged. Section 6.4: \"If the Magic-Number is equal to the one sent in the last Configure-Nak, the possibility of a looped-back link is increased, and a new Magic-Number MUST be chosen.\" The client unit reflects ze's own Configure-Nak back as a Nak of ze's request (the looped case) and requires the next Configure-Request's Magic to be nonzero, different from clientMagic and from the suggestion, and the Echo-Reply to carry it. Producer re-read: negotiateLCP's LCPOptMagic Nak branch still calls generateDifferentMagic(localMagic) (crypto/rand, refuses the previous value, errors after 8 repeats) and never adopts the suggestion. The ppp pair is unchanged: TestRFC1661LoopedNakMagicChoosesNewMagic (+), TestRFC1661LoopedNakMagicRefusesRepeatedDraw (-, forced repeated draw), plus TestMagicNumberRedrawnOnNak. Observation kept: the client unit's two tags sit on the same assertions and its draws are random, so dropping the magic != previous guard in generateDifferentMagic survives it; the forced-repeat negative exists for the ppp role only. The client revert record no longer verifies (unit-changed) and owes a re-take.",
   "requirement_sha": "94435eed625a075f",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak": "9702a8b651d08d9e",
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak#2": "9702a8b651d08d9e",
     "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicChoosesNewMagic": "7e6e02d9deb55d37",
     "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicRefusesRepeatedDraw": "7e6e02d9deb55d37",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "26cf3d1698d7665f",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "26cf3d1698d7665f"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "067be5620fa22bc3",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "067be5620fa22bc3"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak": "a341047d5a329a15",
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak#2": "a341047d5a329a15",
     "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicChoosesNewMagic": "8c97fbfa5b8c2c18",
     "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicRefusesRepeatedDraw": "39a7cddb75d7c02c",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "202953de2da9b723",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "202953de2da9b723"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "ade67185e5d928b3",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "ade67185e5d928b3"
   },
   "verdict": "enforced"
 }
