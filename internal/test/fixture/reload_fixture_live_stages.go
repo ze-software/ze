@@ -115,9 +115,18 @@ func liveStagesReload(ctx context.Context, plugin *sdk.Plugin, source string) er
 	if err != nil {
 		return err
 	}
-	baseline := reloadGeneration(ctx, plugin)
-	if baseline < 0 {
-		return errors.New("before the reload: show reload-status returned no generation")
+	// The baseline is polled, as the save and REST observers poll theirs: a
+	// script whose first step is a reload reads it as soon as every plugin is
+	// ready, with no peer session or earlier poll to have waited behind, and
+	// one refused read must not fail the run. The reason of the last read is
+	// kept, so a read that never answers names what it got.
+	baseline := int64(-1)
+	reason := "no read"
+	if !Poll(ctx, liveStagesPollAttempts, liveStagesPollDelay, func() bool {
+		baseline, reason = reloadGenerationAnswer(ctx, plugin)
+		return baseline >= 0
+	}) {
+		return fmt.Errorf("before the reload: show reload-status returned no generation; last read: %s", reason)
 	}
 	if err := os.WriteFile(fileBGPConf, data, 0o600); err != nil {
 		return err

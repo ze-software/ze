@@ -192,16 +192,31 @@ func restStatus(ctx context.Context, port int, token string) int {
 	return response.StatusCode
 }
 
+// reloadGeneration answers the reload generation `show reload-status`
+// reports, or -1 when it reports none. A caller that must say why reads
+// reloadGenerationAnswer instead.
 func reloadGeneration(ctx context.Context, plugin *sdk.Plugin) int64 {
+	generation, _ := reloadGenerationAnswer(ctx, plugin)
+	return generation
+}
+
+// reloadGenerationAnswer answers the reload generation, or -1 with the reason
+// the read gave none: the dispatch error, the status, or the answer that held
+// no generation. A failure message that names only "no generation" leaves the
+// next reader unable to tell a refused dispatch from a wrong answer.
+func reloadGenerationAnswer(ctx context.Context, plugin *sdk.Plugin) (int64, string) {
 	status, value, err := dispatchMap(ctx, plugin, "show reload-status")
-	if err != nil || status != statusDone {
-		return -1
+	if err != nil {
+		return -1, "dispatch error: " + err.Error()
+	}
+	if status != statusDone {
+		return -1, "status " + status
 	}
 	generation, ok := value["generation"].(float64)
 	if !ok {
-		return -1
+		return -1, fmt.Sprint("answer has no numeric generation: ", value)
 	}
-	return int64(generation)
+	return int64(generation), ""
 }
 
 func runReloadRESTScenario(ctx context.Context, plugin *sdk.Plugin, mode reloadRESTMode, port int) error {

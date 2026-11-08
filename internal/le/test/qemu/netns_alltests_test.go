@@ -241,6 +241,42 @@ func TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs(t *testing.T) {
 	}
 }
 
+// VALIDATES: the whole-suite preparation lets the dropped daemon open /dev/ppp,
+// as the focused `./le test qemu netns` preparation does, and only inside the
+// QEMU guest whose /workspace is the 9p share.
+// PREVENTS: a per-test namespace daemon (uid 1000, holding cap_net_admin,
+// cap_net_raw and cap_net_bind_service but not cap_dac_override) failing
+// DevPPPSetup on the 0600 root /dev/ppp devtmpfs creates. The PPPoE client
+// then sent PADT and redialed after every PADS, so on Ze's own image
+// pppoe-client-lcp-renegotiation and dns-source-router-follows-lease timed out
+// in their concentrator's LCP read with "context deadline exceeded".
+// METHOD: run the preparation against the recorder and read the one shell
+// line it emits.
+func TestThePreparationLetsTheDroppedDaemonOpenDevPPP(t *testing.T) {
+	run := vmFixture(t)
+	rec := &recorder{}
+	run.Run = rec.run
+	run.Execute()
+
+	if len(rec.calls) == 0 {
+		t.Fatal("the run emitted no command at all")
+	}
+	first := strings.Join(rec.calls[0], " ")
+	widen := strings.Index(first, "chmod 0666 /dev/ppp")
+	if widen < 0 {
+		t.Fatalf("the preparation leaves /dev/ppp 0600, so the dropped daemon cannot open it"+
+			" and every PPPoE client session ends after PADS:\n  %s", first)
+	}
+	guard := strings.Index(first, "' /workspace 9p ' /proc/mounts")
+	if guard < 0 {
+		t.Fatalf("the preparation widens /dev/ppp without first checking it runs in the QEMU"+
+			" guest, where the widened node dies with the VM:\n  %s", first)
+	}
+	if guard > widen {
+		t.Errorf("the QEMU guest check runs after the chmod, so it guards nothing:\n  %s", first)
+	}
+}
+
 // A guest without libcap cannot give ze its capabilities, and the run says so
 // before it boots through an hour of suites that would each fail on it.
 func TestAGuestWithoutSetcapIsRefusedBeforeAnythingRuns(t *testing.T) {

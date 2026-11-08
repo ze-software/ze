@@ -378,10 +378,20 @@ capability on a `nosuid` mount and gokrazy, the init of Ze's own image, mounts
 `/tmp` with `nosuid`: there the copies ran as uid 1000 with no capability, and
 an ipsec daemon's XFRM install answered `operation not permitted`. The
 preparation refuses a `nosuid` mount it finds on `/tmp/zebin`.
+
+Both `test qemu all` and `test qemu netns` also make `/dev/ppp` mode 0666
+(`netnsDevPPPScript`). devtmpfs creates it 0600 root, and the dropped user's
+capabilities carry no `cap_dac_override`, so its PPPoE client could not open it
+after PADS: it sent PADT and redialed, and on Ze's own image
+`pppoe-client-lcp-renegotiation` timed out in its concentrator's LCP read. The
+chmod runs only where `/workspace` is the 9p share, so it never widens the
+device on a machine that outlives the run.
 <!-- source: internal/le/test/qemu/netns.go -- netnsCapMountScript -->
+<!-- source: internal/le/test/qemu/netns.go -- netnsDevPPPScript -->
 <!-- source: internal/le/test/qemu/netns.go -- netnsHarnessSource -->
-<!-- test: internal/le/test/qemu/netns_alltests_test.go -- TestTheCapabilityCopiesLandOnATmpfsThatHonorsFileCapabilities, TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs -->
+<!-- test: internal/le/test/qemu/netns_alltests_test.go -- TestTheCapabilityCopiesLandOnATmpfsThatHonorsFileCapabilities, TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs, TestThePreparationLetsTheDroppedDaemonOpenDevPPP -->
 <!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsBinaries -->
+<!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsState -->
 <!-- source: internal/le/test/qemu/netns.go -- allTestsRun.prepareNamespace -->
 
 Routing a suite also un-skips its `option=netns-link` tests. Outside this mode

@@ -156,20 +156,6 @@ func prepareNetnsBinaries(ctx context.Context, binaries netnsBinaries) error {
 	return nil
 }
 
-func inThrowawayGuest() bool {
-	data, err := os.ReadFile("/proc/mounts")
-	if err != nil {
-		return false
-	}
-	for line := range strings.SplitSeq(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) >= 3 && fields[1] == "/workspace" && fields[2] == "9p" {
-			return true
-		}
-	}
-	return false
-}
-
 func prepareNetnsState(ctx context.Context) error {
 	var tb textbuf.Buffer
 	line := tb.Str("rm -rf ").Str(netnsStateDir).Str(" && mkdir -p ").Str(netnsStateDir).
@@ -181,20 +167,12 @@ func prepareNetnsState(ctx context.Context) error {
 	if result.Code != 0 {
 		return fmt.Errorf("prepare %s failed with exit %d", netnsStateDir, result.Code)
 	}
-	if _, err := os.Stat("/dev/ppp"); errors.Is(err, os.ErrNotExist) {
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("inspect /dev/ppp: %w", err)
-	}
-	if !inThrowawayGuest() {
-		return errors.New("refusing to chmod 0666 /dev/ppp: this is not the QEMU evidence VM, and the widened node would persist for every local user. Run: ./le test qemu pppoe")
-	}
-	result, err = guestRun(ctx, "", []string{"sh", "-c", "chmod 0666 /dev/ppp"}, nil)
+	result, err = guestRun(ctx, "", []string{"sh", "-c", netnsDevPPPScript()}, nil)
 	if err != nil {
 		return err
 	}
 	if result.Code != 0 {
-		return fmt.Errorf("chmod /dev/ppp failed with exit %d", result.Code)
+		return fmt.Errorf("open /dev/ppp to the dropped user failed with exit %d: %s", result.Code, strings.TrimSpace(result.Stderr))
 	}
 	return nil
 }

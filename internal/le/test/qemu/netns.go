@@ -62,6 +62,26 @@ func netnsCapMountScript() string {
 	return tb.String()
 }
 
+// netnsDevPPPScript answers the shell that lets the dropped user open
+// /dev/ppp, for both callers of the mode (prepareNetnsState and
+// allTestsRun.prepareNamespace). A guest with no /dev/ppp is left alone: the
+// PPPoE tests then fail on their own ENOENT.
+//
+// devtmpfs creates /dev/ppp 0600 root, and the per-test namespace daemon runs
+// as netnsUID with netnsCapabilities, which hold no cap_dac_override. Its PPPoE
+// client failed DevPPPSetup after every PADS, sent PADT and redialed, so on
+// Ze's own image pppoe-client-lcp-renegotiation timed out in its
+// concentrator's LCP read. The widened node persists for every local user
+// until the device is recreated, so the script refuses unless /workspace is
+// the 9p share only the throwaway QEMU guest mounts.
+func netnsDevPPPScript() string {
+	return "if [ -c /dev/ppp ]; then" +
+		" grep -qs ' /workspace 9p ' /proc/mounts" +
+		" || { echo \"qemu: refusing to chmod 0666 /dev/ppp: this is not the QEMU guest (no 9p /workspace)," +
+		" and the widened node would persist for every local user. Run: ./le test qemu all\" >&2; exit 1; };" +
+		" chmod 0666 /dev/ppp; fi"
+}
+
 // netnsHarnessSource answers the le to copy into netnsCapDir, for both callers
 // of the mode (prepareNetnsBinaries and allTestsRun.prepareNamespace). The
 // suite's daemon runs as netnsUID, and a .ci whose plugin block runs
@@ -198,8 +218,8 @@ func (a *allTestsRun) usesPerTestNamespace(suites []vmSuite) bool {
 
 // prepareNamespace gives the per-test namespace launcher what it needs: a
 // capability-carrying copy of ze, ze-stripped and the running le on a
-// filesystem that keeps an extended attribute, and a state directory the
-// dropped user owns.
+// filesystem that keeps an extended attribute, a state directory the
+// dropped user owns, and a /dev/ppp that user can open (netnsDevPPPScript).
 //
 // le is copied for the reason netnsHarnessSource gives: the runner puts
 // netnsCapDir on the daemon's PATH (it is ZE_BIN's directory), and without a
@@ -228,7 +248,8 @@ func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error
 		Str("; rm -rf ").Str(netnsStateDir).
 		Str("; mkdir -p ").Str(netnsStateDir).
 		Str("; chown ").Str(netnsUID).Byte(':').Str(netnsUID).Byte(' ').Str(netnsStateDir).
-		Str("; chmod 0750 ").Str(netnsStateDir)
+		Str("; chmod 0750 ").Str(netnsStateDir).
+		Str("; ").Str(netnsDevPPPScript())
 	for _, binary := range []struct{ name, source string }{
 		{zeName, a.workspacePath(a.ZeBin)},
 		{zeStrippedName, a.workspacePath(a.StrippedBin)},
