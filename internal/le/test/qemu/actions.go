@@ -369,7 +369,7 @@ var runParameters = []leaction.Parameter{
 var dockerLabParameters = []leaction.Parameter{
 	{Keyword: keywordLab, Kind: leaction.KindWords, Help: "the le command line of the Docker lab to run in the guest", Value: "le-words", Requirement: leaction.Optional},
 	{Keyword: keywordEnv, Kind: leaction.KindString, Help: "NAME=value pairs the lab runs with", Value: "NAME=value ...", Requirement: leaction.Optional},
-	{Keyword: keywordCommand, Kind: leaction.KindString, Help: "one guest shell command, as root with harness or root; excludes lab", Value: "shell-command", Requirement: leaction.Optional},
+	{Keyword: keywordCommand, Kind: leaction.KindString, Help: "one guest shell command; root with harness or root; no lab", Value: "shell-command", Requirement: leaction.Optional},
 	{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "matching runtime vmlinuz; only with command", Value: "vmlinuz-path", Requirement: leaction.Optional},
 	{Keyword: KeywordHarness, Kind: leaction.KindSwitch, Help: "run command as root with the guest le at /workspace"},
 	{Keyword: KeywordRoot, Kind: leaction.KindSwitch, Help: "run command as root, with no guest le or /workspace"},
