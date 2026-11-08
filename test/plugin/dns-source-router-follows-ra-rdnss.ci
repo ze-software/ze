@@ -1,0 +1,69 @@
+# Test: with no system name-server, Ze's own lookups follow the DNS server an
+#       accepted Router Advertisement's RDNSS option names, and stop when a
+#       later advertisement gives it Lifetime 0.
+# Spec: spec-home-cpe-23-dns-source-fall-through -- Phase 2a, AC-21, AC-22
+# VALIDATES: the whole RA RDNSS path through the daemon. The netlink monitor
+#            subscribes to RTNLGRP_ND_USEROPT (nduseropt_linux.go) and emits
+#            nd-user-option; the interface component's raRDNSS producer
+#            (ra_rdnss.go) turns the option of a unit with accept-ra above 0
+#            into an ra record; the registry (config/system/resolv.go) selects
+#            it under the built-in default, and the internal resolver asks it.
+#            The compiled fixture first refuses the stub's record for
+#            `show dns lookup web.example.test type A`, then advertises from
+#            zerdnss1 an RA whose RDNSS option names 2001:db8:53::53 (Lifetime
+#            600), where only the stub serves 203.0.113.10. The lookup must
+#            then answer it. A second RA with Lifetime 0 must withdraw it
+#            (RFC 8106 Section 5.1), so the lookup no longer answers it.
+# PREVENTS: RDNSS options the kernel hands up and nobody reads, and a server
+#           kept after its router withdrew it.
+#
+# The daemon creates the veth pair zerdnss0/zerdnss1 and writes accept_ra 2 on
+# zerdnss0. The fixture creates the stub's dummy link zerdnssdns0, binds the
+# stub on port 53 (an RDNSS option carries no port), sends the RAs from the
+# far end over raw ICMPv6 with hop limit 255, and deletes the dummy link when
+# it returns. With an RA record live, the host's /etc/resolv.conf is a
+# fallback only (D-13), so the guest's own resolver never answers the lookup;
+# .test is reserved (RFC 6761 Section 6.2), so no resolver but the stub can.
+#
+# Requires Linux and CAP_NET_ADMIN (veth, dummy, accept_ra), CAP_NET_RAW (raw
+# ICMPv6) and CAP_NET_BIND_SERVICE (port 53).
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=timeout:value=90s
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	dns {
+		# An empty path stops Ze writing a resolv.conf: the resolver never
+		# reads one, and the test shares the guest's filesystem.
+		resolv-conf-path "";
+	}
+}
+
+plugin {
+	external dns-source-router-follows-ra-rdnss-test {
+		run "le test fixture plugin/dns-source-router-follows-ra-rdnss"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	veth zerdnss0 {
+		peer zerdnss1
+		unit 0 {
+			ipv6 {
+				accept-ra 2
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+
+# NO NEEDLE MAY HOLD A COLON: the runner splits a directive on ':'.
+expect=stderr:contains=web.example.test type A -> 203.0.113.10 through the RA RDNSS server, then withdrawn at Lifetime 0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
