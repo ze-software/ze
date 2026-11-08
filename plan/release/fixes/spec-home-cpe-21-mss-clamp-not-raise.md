@@ -10,11 +10,11 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-07 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 21).
 
-RFC gaps: none. RFC 9293 Section 3.7.1 and RFC 6691 explain why raising is
+RFC gaps: none. RFC 9293 Sections 3.7.1 and 3.7.2 and RFC 6691 explain why raising is
 harmful; Ze is a middlebox here and holds no requirement row.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -78,7 +78,7 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] no `rfc/short/` summary exists for RFC 9293, RFC 879 or RFC 6691, and none is written (RFC validation scope does not grow; no profile lists them for a middlebox). The texts are in `rfc/full/rfc9293.txt` and `rfc/full/rfc6691.txt`
-  → Constraint: RFC 9293 Section 3.7.1: "The TCP MSS Option specifies an upper bound for the size of packets that can be received (see [43])." Raising the value tells the sender it may send segments the receiver did not offer to take; lowering it only shrinks segments
+  → Constraint: RFC 9293 Section 3.7.2: "The TCP MSS Option specifies an upper bound for the size of packets that can be received (see [43])." Raising the value tells the sender it may send segments the receiver did not offer to take; lowering it only shrinks segments
   → Constraint: RFC 6691 Section 2: "When calculating the value to put in the TCP MSS option, the MTU value SHOULD be decreased by only the size of the fixed IP and TCP headers and SHOULD NOT be decreased to account for any possible IP or TCP options" - the operator's value for a 1492-byte PPPoE MTU is 1452 (IPv4) and 1432 (IPv6), which the guide's example states
 
 **Key insights:**
@@ -149,7 +149,7 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Ze's kernel (7.2.9, 7.3 runtime builds) carries the MSS guard in `nft_exthdr_tcp_set_eval`, for two-byte writes only | upstream source read 2026-10-31; `v7.3` stable tag read 2026-11-02 (same guard, inside `case 2:`) | Ze raises MSS: the spec becomes the P1 fix (lower a `tcp option maxseg size gt N` comparison before the write) | the netns test of AC-2 on Ze's kernel | unvalidated |
+| A-1 | Ze's kernel (7.2.9, 7.3 runtime builds) carries the MSS guard in `nft_exthdr_tcp_set_eval`, for two-byte writes only | upstream source read 2026-10-31; `v7.3` stable tag read 2026-11-02 (same guard, inside `case 2:`) | Ze raises MSS: the spec becomes the P1 fix (lower a `tcp option maxseg size gt N` comparison before the write) | the netns test of AC-2 on Ze's kernel | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -232,7 +232,7 @@ one, so it cannot turn AC-2 red.
 - `docs/guide/firewall.md`, `docs/guide/policy-routing.md` - one sentence each
 - `docs/architecture/core-design.md` - declared by `lower_linux.go` (nftables expression lowering); it says nothing about the MSS action, and the expression is unchanged, so nothing becomes wrong
 - `docs/architecture/policyroute/policy-routing.md` - declared by `translate.go`; "`tcp-mss N` ... adjusts MSS" stays true and `translate.go` is unchanged, so nothing becomes wrong
-- `docs/architecture/firewall/fw-6-firewall-vpp.md` - declared by `vpp/verify.go`; the VPP refusal is preserved, so nothing becomes wrong
+- `docs/architecture/firewall/fw-6-firewall-vpp.md` - declared by `internal/plugins/firewall/vpp/verify.go`; the VPP refusal is preserved, so nothing becomes wrong
 
 ## Files to Create
 - `test/policy/policy-tcp-mss-clamp.ci`
@@ -320,7 +320,7 @@ No journal row records this (grep of `plan/journal/` for `tcp-mss`, `TCPMSS`, `M
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| No set (raise) semantics | a `mode set` leaf | the kernel cannot raise through `exthdr` set; nobody asked for it; RFC 9293 Section 3.7.1 makes the MSS an upper bound the receiver chose |
+| No set (raise) semantics | a `mode set` leaf | the kernel cannot raise through `exthdr` set; nobody asked for it; RFC 9293 Section 3.7.2 makes the MSS an upper bound the receiver chose |
 | Keep the lowering as is | lower an explicit `gt` comparison now | redundant on every kernel Ze builds; kept as the fallback if A-1 fails on a supported distro kernel |
 | Leaf names unchanged | rename `tcp-mss-set` to `tcp-mss-clamp` | a rename breaks configurations for a word; the description carries the meaning |
 
@@ -328,6 +328,22 @@ No journal row records this (grep of `plan/journal/` for `tcp-mss`, `TCPMSS`, `M
 
 - VPP backend: no MSS action; unchanged, refused at verify.
 - Clamp to the route MTU is child 9 (`spec-home-cpe-9-mss-clamp-to-pmtu.md`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | the spec cited Section 3.7.1 for the upper-bound sentence | it is in 3.7.2 | closure review against rfc/full/rfc9293.txt | citations corrected |
+
+## Evidence
+
+| Item | Result |
+|------|--------|
+| `TestTCPMSSSetClampsNeverRaises` | passes on Ze's 7.3 kernel in QEMU |
+| `TestTCPMSSClampToPMTU` | passes on Ze's 7.3 kernel in QEMU |
+| `test/policy/policy-tcp-mss-clamp.ci` | passes on Ze's kernel in QEMU |
+| AC-1 red walk | recorded 2026-11-07: with `lowerSetTCPMSS` not called (the action not lowered), `TestTCPMSSSetClampsNeverRaises` went red; restored, green |
+| AC-2 red walk | still owed: the four-byte write break of the TDD Test Plan has not been run |
 
 ## Checklist
 
