@@ -37,16 +37,16 @@ CPU-heavy job at a time; agents develop in parallel while tests run.
 
 | Item | What is left |
 |------|--------------|
-| Topology lab (11, 12, 14, 15, 18, 19) | rerun in progress at handover (`topo-full4.log`); xl2tpd LNS and DHCPv6-PD default route need the new log-file diagnostics read |
-| Netns runs | child 12 `pppoe-client-lcp-renegotiation`, child 14 `pppoe-realm-relay-nomatch` (both in test/pppoe and the netns list), child 22 `ipsec-respond-reinit-supersede` and child 4 `ipsec-follows-wan-address` drafts: need host-built ze binaries, then run in the guest |
-| Child 8 phases 4-5 | groundwork committed (config, RA RIO, lease lifetimes); LAN consumer, RA Update, Release hold (RFC 9915 6.3-3), interop: design in the session state file `tmp/session/2026-11-07-104251/state/session-state-home-cpe-8-...` |
+| Topology lab (11, 12, 14, 15, 18, 19) | done: every scenario green against current builds (access-up and lan-services after lab fixes; pppoe-dhcpv6-pd-ze-client after the PPPoE client opened IPv6CP beside IPCP and the checker learned Rapid Commit) |
+| Netns runs | netns PPPoE 10/10 on Ze 7.3 (children 12 and 14 included). Still owed: child 22 `ipsec-respond-reinit-supersede` and child 4 `ipsec-follows-wan-address` drafts through the docker-lab harness |
+| Child 8 phases 4-5 | product code committed and its Linux units green on Ze 7.3; LAN-node interop leg being written (LAN /64, RA PIO/RIO, Router Lifetime 0 after terminate, two red walks); `show interface` delegated prefix still owed |
 | Child 21 | AC-2 red walk (four-byte write) |
 | Child 3 | red walks and RFC 4787 REQ-10 records |
 | Child 4 | RFC 7296 2.23 records |
 | Child 10 | review round 2 (round 1 findings fixed) then closure |
-| Child 7 | listener-migration-ssh draft run and promote |
+| Child 7 | done: listener-migration-ssh promoted (QEMU, host, 60 stress runs) |
 | Closures | children 1, 2, 5, 6, 7, 10, 13, 17, 20, 22 once their remaining items land (ze-close; all five checked children are still `design`, and the WIP cap is full: close before claiming) |
-| SPD selection spec | phases 2 and 4 written, uncommitted (engine interface catch-all, internal/core/iprule move, policyroute uses it; 4 old netlinkint files to `remove`); phases 3, 5, 6, 7 left; guard table range collides with operator tables 3000-3999 (fix: refuse from iprule.ZeTableRanges) |
+| SPD selection spec | phases 1 to 7 committed and green (units, Ze 7.3 kernel tests, three strongSwan scenarios, RFC4301-4.4.1-5 records). Interop found and fixed three Ze defects: the guard routed only the first selector pair, its drop caught the packet entering the transform, route events and rekeys carried only the first pair. Left: the spec's red-walk row for the leak scenario (the guard alone cannot leak; break the transform term instead), then closure |
 | Child 23 DNS | design; decisions recorded: O-1 explicit fall-through mode, default pass-through, O-6 own spec after the umbrella, RFC 5625 inside child 23; open: O-3, O-4, O-5, O-8, O-9 |
 | New specs | ze doctor audit of every operator-reachable problem (being written), RFC 8420 enrolment as part of the vpn-concentrator work (being written), IPv6 subscriber DNS (after the umbrella) |
 
