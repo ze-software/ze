@@ -313,8 +313,9 @@ one, so it cannot turn AC-2 red.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `plan/journal/design-claim-never-measured.md` | 2026-11-08 | the comment above `lowerSetTCPMSS` and the AC-2 break: the kernel refused the four-byte write in child 11's lab |
 
-No journal row records this (grep of `plan/journal/` for `tcp-mss`, `TCPMSS`, `MSS`).
+Before 2026-11-08 no journal row recorded this (grep of `plan/journal/` for `tcp-mss`, `TCPMSS`, `MSS`).
 
 ## Key Design Decisions
 
@@ -343,7 +344,7 @@ No journal row records this (grep of `plan/journal/` for `tcp-mss`, `TCPMSS`, `M
 | `TestTCPMSSClampToPMTU` | passes on Ze's 7.3 kernel in QEMU |
 | `test/policy/policy-tcp-mss-clamp.ci` | passes on Ze's kernel in QEMU |
 | AC-1 red walk | recorded 2026-11-07: with `lowerSetTCPMSS` not called (the action not lowered), `TestTCPMSSSetClampsNeverRaises` went red; restored, green |
-| AC-2 red walk | still owed: the four-byte write break of the TDD Test Plan has not been run |
+| AC-2 red walk | still owed. The four-byte write break of the TDD Test Plan was run in child 11's `lan-services` lab on 2026-11-08 (walk `c11-mss-raises`): the kernel refused the rule (`firewallnft: flush: ... netlink receive: operation not supported`), so it cannot prove the no-raise clause. Child 11's replacement break, a transport-header payload write of the register over the MSS value (walk `c11-mss-raises-payload`), is the candidate for this walk too |
 
 ## Checklist
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | blocked |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Validation: the lab is the evidence that a Ze router converted from a VyOS home CPE does the job end to end (umbrella goal 3), and it carries the first runtime proof of shipped features that have none (WireGuard road warrior, masquerade and MSS with Ze in the path, the LAC relay). |
@@ -10,7 +10,7 @@
 | Depends | `spec-home-cpe-18-interoplab-multi-link-topology.md`, `spec-home-cpe-19-access-chain-scenario.md`, `spec-home-cpe-10-vyos-mapping-guide.md`; per scenario (table below): children 2, 3, 4, 5, 6, 12, 14, 15, 20, 21; `plan/release/validation/spec-wireguard-runtime-proof.md`; `plan/release/validation/spec-ipsec-0-umbrella.md`; `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` |
 | Phase | 0/7 |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-08 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 11).
 
@@ -75,7 +75,7 @@ reaches it only through the PPP session.
 - [ ] `plan/release/fixes/spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`, Interop Tests and A-4
   → Decision: `access-wholesale-accel-lns` is child 12's scenario and its red walk is child 12's; this spec only requires that it runs the converted CPE file and is green in the Goal Validation run.
 - [ ] `plan/release/fixes/spec-home-cpe-21-mss-clamp-not-raise.md`, Finding and the TDD red walks
-  → Constraint: the kernel never raises an MSS through the two-byte write Ze installs, so the no-raise clause's red walk must break Ze's lowering to a four-byte write; a configured-value change is not a break.
+  → Constraint: the kernel never raises an MSS through the two-byte write Ze installs, so the no-raise clause's red walk must break Ze's lowering to a write no MSS guard covers; a configured-value change is not a break. The four-byte option write child 21 names is refused by the kernel (run 2026-11-08), so the walk uses a transport-header payload write.
 - [ ] `docs/architecture/testing/interop.md` "Prove a scenario discriminates", "IPsec address movement", "The IPsec NAT box", "The fifth trap" text under the vacuity table
   → Constraint: ESP proof reads each simplex SA by its own source and destination, never an SPI-keyed aggregate (`verifyESPDirections`, `internal/le/interoplab/ipsec/helpers.go`).
 - [ ] `docs/guide/configuration.md`, the `ze config validate` paragraph on plugin verifiers
@@ -212,16 +212,37 @@ clause is unconditional.
 | Scenario | Break (producer) | Expected red | Trap ruled out |
 |----------|------------------|--------------|----------------|
 | `conversion` | change one source line in the VyOS file without updating the record | record coverage clause red | - |
-| `lan-services` | static-mapping lookup restricted to the first subnet (today's defect, child 2) | lan-res-b gets a range lease from the first subnet | trap 3: the reservation is in a later subnet, not the first |
-| `lan-services` (lowering clause) | the `SetTCPMSS` action not lowered by the nft backend | the 1460 SYN arrives as 1460 | trap 2: the 1300 SYN is read beside it |
-| `lan-services` (no-raise clause) | `lowerSetTCPMSS` writes four bytes from option offset 0 (kind, length, value) instead of two bytes at offset 2, which escapes the kernel's MSS guard (child 21) | the 1300 SYN arrives as 1400 | trap 2: the 1460 SYN gives a present rewrite to read beside it |
-| `lan-services` | the WAN input term removed | the internet attempt completes | trap 2: the LAN attempt is the positive control |
-| `lan-services` | `ftp` removed from `system conntrack module` | the active-mode data connection fails | trap 2: the control connection still completes |
-| `road-warrior` | the CPE peer's preshared-key not installed | no handshake | - |
-| `road-warrior` | masquerade term removed | the web server sees 10.88.0.x or nothing | trap 4: the server has no route to 10.88.0.0/24 except through the CPE |
-| `mgmt-tunnel` | the cross-family tunnel state as today (child 20) | IPv6 ping lost while the SA is up | trap 5: counters read per direction |
-| `access-wholesale` | the LNS accepts proxy LCP instead of renegotiating | no second Configure-Request from the LNS | - |
-| `access-reconnect` | IKE keeps the address fixed at apply (today's defect, child 4) | ESP traffic does not resume | - |
+| `lan-services` | child 2's fix undone: the static-mapping lookup in `internal/plugins/dhcpserver/segment.go` ranges over the first subnet only | lan-res-b binds a range address of 192.168.50.0/24, not its reservation 10.99.0.40 | trap 3: the reservation is in a later subnet, not the first |
+| `lan-services` (lowering clause) | the `SetTCPMSS` action not lowered by the nft backend (`lower_linux.go`, the `firewall.SetTCPMSS` case returns no expression) | the 1460 SYN arrives as 1460 | trap 2: the 1300 SYN is read beside it |
+| `lan-services` (no-raise clause) | `lowerSetTCPMSS` writes the register with a transport-header payload write over the MSS value (offset 22, two bytes, inet checksum at 16) in place of the TCP-option write, so no kernel MSS guard runs. The four-byte option write first planned here (child 21) is refused by the kernel, so it cannot reach the clause | the 1300 SYN arrives as 1400 | trap 2: the 1460 SYN gives a present rewrite to read beside it |
+| `lan-services` | the converted configuration carries no separate WAN input term (its input chain drops by policy), so the break leaves every input-hook chain unhooked in the nft backend (`backend_linux.go`) | the internet attempt completes | trap 2: the LAN attempt is the positive control |
+| `lan-services` | child 3's break `c3-ftp-no-prerouting`: the helper-assignment chain in `internal/component/firewall/conntrack_helpers.go` hooked at output instead of prerouting, so forwarded FTP never gets the helper | the active-mode data connection fails | trap 2: the control connection still completes |
+| `road-warrior` | the CPE peer's preshared key not installed (`internal/plugins/iface/netlink/wireguard_linux.go`) | the kernel readback finds the CPE's wg0 peer holding no preshared key, before any handshake is read | - |
+| `road-warrior` | masquerade not lowered by the nft backend | the web server sees 10.88.0.x or nothing | trap 4: the server has no route to 10.88.0.0/24 except through the CPE |
+| `mgmt-tunnel` | child 20's fix undone: the tunnel-mode state keeps the outer family (`internal/component/ike/dataplane/xfrm_linux.go`, `AFUnspec` false) | IPv6 ping lost while the SA is up | trap 5: counters read per direction |
+| `access-wholesale` | the LNS adopts the proxy LCP instead of renegotiating (`internal/component/l2tp/ppp/proxy.go`, the `RenegotiateProxyLCP` branch never taken) | the core capture holds no LCP Configure-Request from the LNS (`checkNegotiated`), before the session report is read | - |
+| `access-reconnect` | IKE plans for the first interface address and never follows a later change (`internal/component/ike/engine/dynamic_wan.go`, `followAddress`) | the first SA on 203.0.113.1 establishes, then the IKE SA does not follow the CPE to 203.0.113.2 | - |
+
+### Red walk evidence (2026-11-08)
+
+Driver `tmp/session/2026-11-07-104251/scratch/rwinv/c11-interop.sh`, overlays
+from `rwinv/gen-c11.sh`, logs in `rwinv/out-c11-interop/` (each log carries the
+image IDs of its run). Green runs of all six scenarios before the breaks:
+`clean-<scenario>.log`, each "1 passed, 0 failed".
+
+| Walk | Observed red (the FAIL line) | Judged against the row |
+|------|------------------------------|------------------------|
+| `c11-conversion-line-changed` | record row 1 quotes "...description 'WAN'", but vyos.conf line 1 reads "...description 'WAN uplink'" | the named clause. `vyos.conf` restored and cmp-checked against HEAD |
+| `c11-reservation-first-subnet` | lan-res-b bound 192.168.50.101, want its reservation 10.99.0.40 | the named clause |
+| `c11-mss-not-lowered` | the SYN offered MSS 1460 and arrived with MSS 1460, want 1400 | the named clause |
+| `c11-mss-raises` (four-byte option write) | ze-cpe's pppoe0 never held 203.0.113.1: the firewall flush failed with `netlink receive: operation not supported`, so the kernel refused the rule and Ze never came up | NOT the clause: this walk proves only that the kernel refuses the break. The row now names the payload-write break (`c11-mss-raises-payload`), owed a run. Child 21's own AC-2 walk does not cover it: it is still owed and planned on the same refused write (journal row in `plan/journal/design-claim-never-measured.md`, owned by child 21) |
+| `c11-input-unhooked` | the web server completed TCP to the CPE's SSH port on 203.0.113.1 | the named clause |
+| `c3-ftp-no-prerouting` | curl exit 30: control completed (220, 230, 257), then vsftpd answered "500 Illegal PORT command" to the unrewritten 192.168.50.10 | the named clause, with its control |
+| `c11-wg-psk-dropped` | the CPE's wg0 peer holds no preshared key | the corrected clause (readback first) |
+| `c11-masquerade-not-lowered` | wg-client fetched nothing from the web server across the tunnel | the named clause |
+| `c11-vti-af-unspec-off` | the CPE's IPv6 ping across vti0 to fd00:db8:1::1 lost packets | the named clause |
+| `c11-proxy-lcp-adopted` | the capture holds no frame of the kind the check reads: no LCP Configure-Request from 192.0.2.3 | the corrected clause (`checkNegotiated` reads the core capture before `renegotiatedVerdict`) |
+| `c11-ike-address-fixed` (no plan on any address change) | strongSwan holds no established IKE SA with the CPE on 203.0.113.1 | NOT the clause: the CPE gets its first address after the IKE apply, so this break fails the first SA and never reaches the reconnect. The row now names the narrower break (`c11-ike-change-not-followed`, which still plans the first address), owed a run |
 
 ## 🧪 TDD Test Plan
 
@@ -343,6 +364,35 @@ clause is unconditional.
 | Check | What to look for |
 |-------|-----------------|
 | Secrets | the VyOS source and the lab values hold invented secrets only; the model's output holds placeholders |
+
+## Blocker
+
+AC-13 is not met for two rows of the Red walks table: their first breaks went
+red before the clause they exist to prove (Red walk evidence above). The
+closure agent built the two narrower breaks; they need one lab run each, which
+only the main thread starts.
+
+| What blocks | Producer | What clears it |
+|-------------|----------|----------------|
+| `lan-services` no-raise clause unproven | `lowerSetTCPMSS` (`internal/plugins/firewall/nft/lower_linux.go`); the four-byte option write is refused by the kernel | `sh tmp/session/2026-11-07-104251/scratch/rwinv/c11-narrow.sh` (walk `c11-mss-raises-payload`) red with "the 1300 SYN ... arrived with MSS 1400, want 1300", after the 1460 probe reads 1400 |
+| `access-reconnect` reconnect clause unproven | `followAddress` (`internal/component/ike/engine/dynamic_wan.go`) | the same script (walk `c11-ike-change-not-followed`) red with the IKE SA not following the CPE to 203.0.113.2, after the first SA on 203.0.113.1 established |
+
+If a narrower break does not go red at its clause, the checker for that clause
+is the defect, and it is fixed before closure.
+
+Still owed at closure, after those runs: the closure sections
+(`plan/templates/TEMPLATE-CLOSURE.md`); the Review Gate over the lab diff (the
+files under Files to Create, landed in `a0e83e12a1` and the
+`interop-topology:` commits after it, whose `Spec-work:` trailers name other
+specs); the scoped package test
+`./le job run label unit-pkg command go test -count=1 ./internal/le/interoplab/topology/`
+(the host units `TestIssueLabCPEKey` and `TestSwanAuthVerdict` passed
+2026-11-08). Composed scenarios are green on 2026-11-08 in separate runs, not
+one run: `access-up`, `access-pool`, `access-accounting`
+(`rwinv/out-interop/c13-access-up-dns-clean.log`, `c19-pool-clean.log`,
+`c19-acct-octets-clean.log`), `access-wholesale-accel-lns`
+(`rwinv/out-c2-12-interop/rerun-wholesale.log`); `mgmt-tunnel-ed25519` last
+passed in `topo-full5.log` (2026-11-08 01:29).
 
 ## Owned journal rows
 
