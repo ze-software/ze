@@ -1,14 +1,19 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
@@ -337,6 +342,128 @@ func TestInterfaceAddressRemovalStopsPeers(t *testing.T) {
 	state.followAddress()
 	if runningPeer(state, "test-peer") == nil {
 		t.Fatal("the peer did not start when the address returned")
+	}
+}
+
+// errWANDeleted is what the resolver answers once the WAN device is gone: the backend read
+// the link table and found no such device.
+var errWANDeleted = fmt.Errorf(`iface: get "wan0": %w (no such device)`, iface.ErrInterfaceNotFound)
+
+// VALIDATES: AC-4 when the address leaves with its device, as a PPPoE `ppp0` is deleted
+// when the session ends: the peers that took the address stop, the socket closes, the
+// doctor names the waiting peer, and the peers start again when the interface returns.
+//
+// Method: the resolver answers an error wrapping iface.ErrInterfaceNotFound, the
+// backend's one answer for an absent device, and the test drives followAddress.
+//
+// RED before the fix: followAddress read every resolver error as a transient fault and
+// kept the peers on the vanished address ("keeping the current address").
+func TestInterfaceDeletionStopsPeers(t *testing.T) {
+	state := applyTestState(t)
+	wan := &fakeInterface{addr: "127.0.0.1"}
+	wan.install(t)
+
+	if err := state.applyConfig(interfaceConfig(applyTestPeer("")), applyReload); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	old := runningPeer(state, "test-peer")
+	if old == nil {
+		t.Fatal("setup: the peer did not start")
+	}
+	oldIKE := state.listeners.ike
+
+	wan.remove(errWANDeleted)
+	state.followAddress()
+
+	if !old.stopped() || runningPeer(state, "test-peer") != nil {
+		t.Fatal("the peer still runs after its interface was deleted")
+	}
+	if err := sendOn(oldIKE); !errors.Is(err, transport.ErrClosed) {
+		t.Fatalf("the socket at the deleted interface's address is still open: %v", err)
+	}
+	if wait := interfaceWaitPtr.Load(); wait == nil || len(wait.peers) != 1 || wait.peers[0] != "test-peer" {
+		t.Fatalf("the doctor is not told the peer waits: %+v", wait)
+	}
+
+	wan.set("127.0.0.1")
+	state.followAddress()
+	if runningPeer(state, "test-peer") == nil {
+		t.Fatal("the peer did not start when the interface returned")
+	}
+}
+
+// VALIDATES: a read that did not answer is not an absence: a resolver error that does
+// not wrap iface.ErrInterfaceNotFound keeps the running peer and its address.
+//
+// RED if readInterfaceAddr took every error as absence, which would take every tunnel
+// down for a transient netlink fault.
+func TestInterfaceReadFaultKeepsPeers(t *testing.T) {
+	state := applyTestState(t)
+	wan := &fakeInterface{addr: "127.0.0.1"}
+	wan.install(t)
+
+	if err := state.applyConfig(interfaceConfig(applyTestPeer("")), applyReload); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	running := runningPeer(state, "test-peer")
+	if running == nil {
+		t.Fatal("setup: the peer did not start")
+	}
+
+	wan.remove(errors.New("iface: get \"wan0\": netlink receive: no buffer space available"))
+	state.followAddress()
+
+	if running.stopped() || runningPeer(state, "test-peer") != running {
+		t.Fatal("a transient read fault stopped the peer")
+	}
+	if state.ifAddr != "127.0.0.1" {
+		t.Fatalf("a transient read fault moved the address to %q", state.ifAddr)
+	}
+}
+
+// VALIDATES: an absent interface is logged once per absence, not on every address event
+// while it lasts: present, then missing (one line), re-read many times (no more), a read
+// fault while missing (no absence line), present again, then missing (a second line).
+//
+// RED before the rate limit: each followAddress logged the absence again, and the kernel
+// address table watch calls it after every address change on the host.
+func TestInterfaceAbsenceLoggedOncePerAbsence(t *testing.T) {
+	state := applyTestState(t)
+	var logged bytes.Buffer
+	state.log = slog.New(slog.NewTextHandler(&logged, nil))
+	wan := &fakeInterface{addr: "127.0.0.1"}
+	wan.install(t)
+
+	if err := state.applyConfig(interfaceConfig(applyTestPeer("")), applyReload); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	absences := func() int {
+		return strings.Count(logged.String(), "the interface does not exist")
+	}
+
+	wan.remove(errWANDeleted)
+	for range 5 {
+		state.followAddress()
+	}
+	if got := absences(); got != 1 {
+		t.Fatalf("one absence logged %d times, want once", got)
+	}
+
+	wan.remove(errors.New("iface: netlink receive: interrupted dump"))
+	state.followAddress()
+	wan.remove(errWANDeleted)
+	state.followAddress()
+	if got := absences(); got != 1 {
+		t.Fatalf("a read fault inside one absence logged it again: %d lines, want 1", got)
+	}
+
+	wan.set("127.0.0.1")
+	state.followAddress()
+	wan.remove(errWANDeleted)
+	state.followAddress()
+	state.followAddress()
+	if got := absences(); got != 2 {
+		t.Fatalf("two absences logged %d times, want twice", got)
 	}
 }
 

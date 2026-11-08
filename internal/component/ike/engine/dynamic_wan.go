@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
@@ -293,6 +294,8 @@ func (w *addressWorker) Stop() {
 //
 // The event is a trigger and the resolver is the truth, so a burst of events, or an event
 // for another interface, costs one read and changes nothing (R-1: act only on a change).
+// An interface that no longer exists holds no address (readInterfaceAddr), so its peers
+// stop and wait as they do when the address leaves.
 func (s *ikeEngineState) followAddress() {
 	s.applyMu.Lock()
 	defer s.applyMu.Unlock()
@@ -300,11 +303,13 @@ func (s *ikeEngineState) followAddress() {
 		return
 	}
 	if s.applied.Interface != "" {
-		ifIP, err := resolveInterfaceAddrFn(s.applied.Interface)
+		ifIP, err := s.readInterfaceAddr()
 		switch {
 		case err != nil:
-			// A failed read is not "no address": keep what runs. Taking every tunnel
-			// down for a transient lookup fault is what the reload refusal prevents.
+			// A read that did not answer is not "no address": keep what runs. Taking
+			// every tunnel down for a transient lookup fault is what the reload refusal
+			// prevents. A device the backend reports absent is not this case: it
+			// arrives here as the empty address (readInterfaceAddr).
 			s.log.Warn("ike: cannot read interface addresses, keeping the current address",
 				"interface", s.applied.Interface, "address", s.ifAddr, "error", err)
 		case ifIP != s.ifAddr:
@@ -323,6 +328,42 @@ func (s *ikeEngineState) followAddress() {
 	s.installXFRMInterfaceEntries(dataplane.Get(), entries)
 	s.pruneXFRMInterfaceEntries(dataplane.Get(), entries)
 	s.restartVanishedRouteSources()
+}
+
+// readInterfaceAddr reads the address of the configured interface for followAddress.
+//
+// An interface the backend reports absent (iface.ErrInterfaceNotFound: it read the link
+// table and found no such device, as when a PPPoE session ends and `ppp0` is deleted)
+// holds no address, so it answers the empty address with no error, and the peers that
+// took the address stop and wait (AC-4). Every other error is a read that did not
+// answer, and is returned for the caller to keep what runs.
+//
+// The absence is logged once when it begins, not on every address event while it lasts:
+// the worker re-reads the interface after any change of the host's address table. A read
+// that finds the interface again ends the absence, so the next one is logged again. The
+// caller holds applyMu.
+func (s *ikeEngineState) readInterfaceAddr() (string, error) {
+	ifIP, err := resolveInterfaceAddrFn(s.applied.Interface)
+	if err == nil {
+		s.ifMissing = false
+		return ifIP, nil
+	}
+	if !interfaceAbsent(err) {
+		return "", err
+	}
+	if !s.ifMissing {
+		s.log.Warn("ike: the interface does not exist, so the peers without local-address stop and wait for its address",
+			"interface", s.applied.Interface, "address", s.ifAddr, "error", err,
+			"fix", "create the interface, or bring up the WAN session (PPPoE, DHCP) that creates it; `ze doctor` lists the waiting peers")
+	}
+	s.ifMissing = true
+	return "", nil
+}
+
+// interfaceAbsent reports whether err is the backend's answer that the device does not
+// exist, as opposed to a read that did not answer (iface.ErrInterfaceNotFound).
+func interfaceAbsent(err error) bool {
+	return errors.Is(err, iface.ErrInterfaceNotFound)
 }
 
 // literalPairIncomplete reports whether a literal pair failed to bind its IKE socket,

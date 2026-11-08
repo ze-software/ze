@@ -1960,8 +1960,15 @@ With `interface` set:
 
 Ze hears these changes from the kernel's interface address table, so it follows
 the interface whether or not the configuration has an `interface` block for it,
-and also when the interface does not exist yet at boot. While Ze cannot find the
-interface, each re-read logs a warning and the running peers are left alone.
+and also when the interface does not exist yet at boot.
+
+An interface that is deleted, as `ppp0` is when a PPPoE session ends, holds no
+address: its peers stop and wait exactly as when the address leaves, and start
+again when the interface returns with an address. Ze logs one warning when the
+interface goes missing, not one for every address change while it stays
+missing. A read of the interface that fails for another reason (a netlink
+error) is not taken as absence: the running peers are kept, and Ze logs a
+warning.
 
 A reload whose interface has no IPv4 address is still refused: an address that
 arrives later is followed without a commit.

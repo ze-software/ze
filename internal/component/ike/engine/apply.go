@@ -213,8 +213,13 @@ type ikeEngineState struct {
 	applied *ipsec.IPsecConfig
 
 	// ifAddr is the interface address the current plan was derived for, empty when the
-	// interface has none.
+	// interface has none or does not exist.
 	ifAddr string
+
+	// ifMissing records that the last read found the configured interface absent
+	// (iface.ErrInterfaceNotFound), so readInterfaceAddr logs an absence once, when it
+	// begins. Written under applyMu.
+	ifMissing bool
 
 	// plan is the current plan, the one the running sessions follow.
 	plan *peerPlan
@@ -297,8 +302,9 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	case cfg.Interface == "":
 		// No interface is configured, so no peer takes its local address from one.
 	case ifErr != nil, ifIP == "":
-		// The lookup failed, or the interface has no IPv4 address. Every peer that
-		// named no local-address of its own is now unbindable.
+		// The lookup failed (the interface is absent, or the read did not answer), or
+		// the interface has no IPv4 address. Every peer that named no local-address of
+		// its own is now unbindable.
 		//
 		// A RELOAD refuses that, because of what it would otherwise do. The peers keep
 		// the empty LocalAddress the parser gave them, peerConfigChanged compares that
@@ -407,6 +413,8 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	plan := planPeers(cfg, ifIP)
 	s.applied = cfg
 	s.ifAddr = ifIP
+	// The interface check above already logged an absent interface.
+	s.ifMissing = interfaceAbsent(ifErr)
 	s.rebindListeners(plan)
 	s.plan = plan
 	publishWaiting(cfg, plan)

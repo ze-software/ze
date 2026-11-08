@@ -677,7 +677,17 @@ channel, drained by one goroutine:
 
 A signal is a trigger and `resolveInterfaceAddrFn` is the truth, so a burst
 costs one read. A build with no address watcher (not Linux) logs a warning once
-and follows the bus alone. Every writer of `ikeEngineState` (an apply, the
+and follows the bus alone.
+
+`readInterfaceAddr` separates two failures of that read. An error wrapping
+`iface.ErrInterfaceNotFound` is the backend's answer that the device does not
+exist (the resolver's MAC selector answers the same when the list it read holds
+no such device), and a device that does not exist holds no address: the read
+answers the empty address, and the peers that took it stop and wait (AC-4, the
+`ppp0` a PPPoE session deletes when it ends). Any other error is a read that
+did not answer, and `followAddress` keeps what runs. The absence is logged
+once when it begins (`ikeEngineState.ifMissing`), because the watch re-reads
+the interface after every address change on the host. Every writer of `ikeEngineState` (an apply, the
 deferred startup reconcile, the worker) holds `applyMu`.
 
 `planPeers` derives, from the configuration as written and the interface address,

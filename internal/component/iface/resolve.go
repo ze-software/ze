@@ -273,7 +273,9 @@ func (r *resolver) matchByMAC(name, want string) (*InterfaceInfo, error) {
 	matched := devicesWithMAC(infos, want)
 	switch len(matched) {
 	case 0:
-		return nil, fmt.Errorf("iface: no device with MAC %s for logical interface %q", target, name)
+		// The interface list was read and holds no such device: that is absence, so
+		// the answer wraps the one sentinel that says so (ErrInterfaceNotFound).
+		return nil, fmt.Errorf("iface: no device with MAC %s for logical interface %q (%w)", target, name, ErrInterfaceNotFound)
 	case 1:
 		info := infos[matched[0]]
 		return &info, nil
