@@ -2,6 +2,17 @@
   {
     "rid": "RFC2661-4.4-1",
     "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_iccn_proxy_flags_test.go::TestRFC2661ProxyICCNAVPFlags",
+    "unit-sha": "f5bb3eb1921d9b12",
+    "claim-sha": "a4a2940d6b8d55da",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/iccn_proxy.go::writeAVPRandomVector",
+    "producer-sha": "b836c43121d9b4bf",
+    "break": "line 210: \"FlagMandatory, 0, AVPRandomVector\" -\u003e \"0, 0, AVPRandomVector\""
+  },
+  {
+    "rid": "RFC2661-4.4-1",
+    "polarity": "positive",
     "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags",
     "unit-sha": "3edd0f9577ed6309",
     "claim-sha": "837dc340db84256d",

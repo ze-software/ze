@@ -2,6 +2,17 @@
   {
     "rid": "RFC4301-4.4.1-3",
     "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_xfrm_xfrmi_catchall_integration_linux_test.go::TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel",
+    "unit-sha": "743707e6208a58cc",
+    "claim-sha": "46c01f36c5612b87",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyAction",
+    "producer-sha": "610ae1d0993ef1c0",
+    "break": "line 567: \"netlink.XFRM_POLICY_BLOCK, nil\" -\u003e \"netlink.XFRM_POLICY_ALLOW, nil\""
+  },
+  {
+    "rid": "RFC4301-4.4.1-3",
+    "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_final_entry_test.go::TestRFC4301DefaultFinalSPDEntryDiscards",
     "unit-sha": "3ace9661d9011512",
     "claim-sha": "486fbbef34626bb4",
@@ -29,7 +40,51 @@
     "claim-sha": "4cc894c702d8299f",
     "route": "mutant",
     "producer": "internal/component/ike/engine/apply.go::shutdown",
-    "producer-sha": "ba1436a4aa6f56e7",
-    "break": "line 487: \"s.stopAllPeers()\" -\u003e \"s.releaseSPD(dataplane.Get(), log); s.stopAllPeers()\""
+    "producer-sha": "e686f939a34f103f",
+    "break": "line 664: \"s.stopAllPeers()\" -\u003e \"s.releaseSPD(dataplane.Get(), log); s.stopAllPeers()\""
+  },
+  {
+    "rid": "RFC4301-4.4.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestApplyInstallsInterfaceSPDCatchAllAndGuard",
+    "unit-sha": "fa840694138c073a",
+    "claim-sha": "356a45e4ede0a9cb",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/unmatched_xfrm_interface.go::planXFRMInterfaceEntries",
+    "producer-sha": "fc2c270dce819845",
+    "break": "line 272: \"range interfaceSPDCatchAll(facts.ifID) {\" -\u003e \"range interfaceSPDCatchAll(facts.ifID)[:0] {\""
+  },
+  {
+    "rid": "RFC4301-4.4.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestInterfaceSPDCatchAllEntries",
+    "unit-sha": "6db2ae26cace7a1f",
+    "claim-sha": "0ce2c5a9a3edd9b7",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/unmatched_xfrm_interface.go::interfaceSPDCatchAll",
+    "producer-sha": "e3cdb1c9a934a6e9",
+    "break": "line 154: \"spdCatchAllEntries(family, dataplane.SPActionDiscard, ifID)\" -\u003e \"spdCatchAllEntries(family, dataplane.SPActionBypass, ifID)\""
+  },
+  {
+    "rid": "RFC4301-4.4.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestInterfaceSPDCatchAllInstallFailureFailsTheApply",
+    "unit-sha": "a35be63c5759c51e",
+    "claim-sha": "3d3e0ba174229b3a",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries",
+    "producer-sha": "4c6b759fb4649fa2",
+    "break": "line 375: \"noFinalEntry[entry.iface] = err\" -\u003e \"_, _ = noFinalEntry, err\""
+  },
+  {
+    "rid": "RFC4301-4.4.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestReleaseRemovesInterfaceSPDAndGuard",
+    "unit-sha": "2be7e0730a6e6ff2",
+    "claim-sha": "21e1bc1eb32dab92",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/apply.go::releaseSPD",
+    "producer-sha": "9dc34fca6a11bf38",
+    "break": "line 698: \"if warnSPDLeft(dp, log) {\" -\u003e \"if warnSPDLeft(dp, log) \u0026\u0026 false {\""
   }
 ]
