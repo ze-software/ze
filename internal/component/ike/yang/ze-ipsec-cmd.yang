@@ -76,8 +76,11 @@ names one direction. The value 0 is refused.";
                         config false;
                         ze:command "ze-ike:show-vpn-ipsec-dataplane-policy";
                         description "Lists each policy with its selector prefixes
-and ports, direction, priority, upper-layer protocol, if_id, tunnel endpoints,
-and the peer that installed it. A policy with no matching SA is the failure
+and ports, direction, priority, upper-layer protocol, if_id, interface index,
+tunnel endpoints, and the peer that installed it. Each policy also names the SPD
+that holds it (spd: node for if_id 0, the bound XFRM interface, or if-id and the
+number) and the job Ze installed it for (role), which reads unknown for a policy
+Ze did not install. A policy with no matching SA is the failure
 this command exists to show. RFC 4301 Section 4.4 keeps the SPD and the SAD
 separate, and so does this tree.";
                         ze:help "Show the Security Policy Database the kernel holds.";

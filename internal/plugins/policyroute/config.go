@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/iprule"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -23,9 +24,6 @@ var (
 )
 
 const (
-	tableReservedMin = 1000
-	tableReservedMax = 2999
-
 	// maxEncodableTable is the largest table value this build can program.
 	// netlink.Rule.Table is a Go int and the encoder emits FRA_TABLE only for
 	// Table >= 256 and the compat byte only for 0 <= Table < 256
@@ -217,8 +215,11 @@ func validateActionTable(tbl, maxEncodable uint64) error {
 	if tbl >= 253 && tbl <= 255 {
 		return fmt.Errorf("table: value %d is a kernel system table (253=default, 254=main, 255=local)", tbl)
 	}
-	if tbl >= tableReservedMin && tbl <= tableReservedMax {
-		return fmt.Errorf("table: value %d is in ze-reserved range %d-%d", tbl, tableReservedMin, tableReservedMax)
+	if tbl <= math.MaxUint32 {
+		if r, reserved := iprule.Reserved(uint32(tbl)); reserved {
+			return fmt.Errorf("table: value %d is in the ze-reserved range %d-%d, whose tables Ze allocates and rewrites; "+
+				"choose a table ID outside this range and every other ze-reserved range", tbl, r.First, r.Last)
+		}
 	}
 	if tbl > maxEncodable {
 		return fmt.Errorf("table: value %d exceeds %d, the largest this build can program through netlink", tbl, maxEncodable)

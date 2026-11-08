@@ -42,9 +42,10 @@ import (
 // SPD instead of deciding it in the node-wide one.
 
 // xfrmInterfaceFacts is one bound XFRM interface as the iface resolver reads it: the
-// kernel index of its device, the if_id that names its SPD, and the addresses it holds.
-// readXFRMInterface never answers an ifID of 0 (boundInterfaceIfID).
+// kernel name and index of its device, the if_id that names its SPD, and the addresses
+// it holds. readXFRMInterface never answers an ifID of 0 (boundInterfaceIfID).
 type xfrmInterfaceFacts struct {
+	device    string
 	ifIndex   int
 	ifID      uint32
 	addresses []netip.Addr
@@ -92,7 +93,9 @@ var xfrmExemptionDirections = [...]dataplane.SADir{dataplane.SADirOut, dataplane
 // place above the catch-all, so Child SA policies and operator entries still decide
 // first. The source-address entry is wider than the device it stands for: an IPv6
 // packet sourced from the interface's address but routed out of another interface
-// meets it too and crosses in the clear. docs/guide/ipsec.md names that residual.
+// meets it too. The tunnel-source guard (source_guard.go) closes that path: a source
+// entry is installed only while its address is guarded, so a packet from the address
+// leaves only through the interface, where its own SPD decides it.
 func xfrmInterfaceExemptions(facts xfrmInterfaceFacts) []dataplane.SPParams {
 	out := make([]dataplane.SPParams, 0, len(ikeBypassFamilies)*len(xfrmExemptionDirections)+len(facts.addresses))
 	for _, family := range ikeBypassFamilies {
@@ -103,6 +106,7 @@ func xfrmInterfaceExemptions(facts xfrmInterfaceFacts) []dataplane.SPParams {
 				Dst:      anyNet,
 				Dir:      dir,
 				Action:   dataplane.SPActionBypass,
+				Role:     dataplane.PolicyRoleInterfaceExemption,
 				Priority: dataplane.PriorityUnmatchedXFRMInterface,
 				SrcPort:  dataplane.AnyPortMatch(),
 				DstPort:  dataplane.AnyPortMatch(),
@@ -119,6 +123,7 @@ func xfrmInterfaceExemptions(facts xfrmInterfaceFacts) []dataplane.SPParams {
 			Dst:      anyNetFor(net.IPv6zero),
 			Dir:      dataplane.SADirOut,
 			Action:   dataplane.SPActionBypass,
+			Role:     dataplane.PolicyRoleInterfaceExemption,
 			Priority: dataplane.PriorityUnmatchedXFRMInterface,
 			SrcPort:  dataplane.AnyPortMatch(),
 			DstPort:  dataplane.AnyPortMatch(),
@@ -190,6 +195,10 @@ func readXFRMInterface(name string) (xfrmInterfaceFacts, error) {
 	if err != nil {
 		return xfrmInterfaceFacts{}, err
 	}
+	device, err := iface.ResolveDevice(name)
+	if err != nil {
+		return xfrmInterfaceFacts{}, err
+	}
 	ifID, err := boundInterfaceIfID(name)
 	if err != nil {
 		return xfrmInterfaceFacts{}, err
@@ -198,7 +207,7 @@ func readXFRMInterface(name string) (xfrmInterfaceFacts, error) {
 	if err != nil {
 		return xfrmInterfaceFacts{}, err
 	}
-	facts := xfrmInterfaceFacts{ifIndex: index, ifID: ifID, addresses: make([]netip.Addr, 0, len(addrs))}
+	facts := xfrmInterfaceFacts{device: device, ifIndex: index, ifID: ifID, addresses: make([]netip.Addr, 0, len(addrs))}
 	for _, a := range addrs {
 		addr, err := netip.ParseAddr(a.Address)
 		if err != nil {
@@ -209,8 +218,16 @@ func readXFRMInterface(name string) (xfrmInterfaceFacts, error) {
 	return facts, nil
 }
 
+// xfrmInterfacePlan is what the bound XFRM interfaces of a configuration need now: their
+// SPD entries, and under a DISCARD catch-all the tunnel-source guard of each interface
+// that has an IPv6 address to exempt.
+type xfrmInterfacePlan struct {
+	entries map[spdSelector]xfrmInterfaceEntry
+	guards  map[string]sourceGuardSpec
+}
+
 // planXFRMInterfaceEntries answers the SPD entries the bound XFRM interfaces of cfg
-// need now. Every bound interface gets its own SPD's catch-all (interfaceSPDCatchAll),
+// need now, and their guards. Every bound interface gets its own SPD's catch-all (interfaceSPDCatchAll),
 // whatever `unmatched` says. Only while the if_id 0 catch-all discards does it also get
 // the if_id 0 exemptions (xfrmInterfaceExemptions): under a bypass catch-all the
 // traffic reaches the interface without them.
@@ -221,9 +238,11 @@ func readXFRMInterface(name string) (xfrmInterfaceFacts, error) {
 // what followAddress refuses for the IKE address too. An interface that does not exist
 // yet is the same failure; the address worker reads it again when its addresses or its
 // link appear. A read answering an if_id of 0 is refused like a failed read, because an
-// entry built for it would sit in the node-wide SPD. The caller holds applyMu.
-func (s *ikeEngineState) planXFRMInterfaceEntries(cfg *ipsec.IPsecConfig) map[spdSelector]xfrmInterfaceEntry {
+// entry built for it would sit in the node-wide SPD. A failed read keeps the interface's
+// guard as held too, while the catch-all discards. The caller holds applyMu.
+func (s *ikeEngineState) planXFRMInterfaceEntries(cfg *ipsec.IPsecConfig) xfrmInterfacePlan {
 	next := make(map[spdSelector]xfrmInterfaceEntry)
+	plan := xfrmInterfacePlan{entries: next, guards: make(map[string]sourceGuardSpec)}
 	discards := cfg.Unmatched == dataplane.SPActionDiscard
 	for _, name := range boundXFRMInterfaces(cfg) {
 		facts, err := readXFRMInterfaceFn(name)
@@ -244,10 +263,16 @@ func (s *ikeEngineState) planXFRMInterfaceEntries(cfg *ipsec.IPsecConfig) map[sp
 				}
 				next[sel] = held
 			}
+			if spec, held := guards.heldSpec(name); held && discards {
+				plan.guards[name] = spec
+			}
 			continue
 		}
 		// RFC 4301 Section 4.4.1, Section 5.2: the interface SPD's final entry.
 		for _, p := range interfaceSPDCatchAll(facts.ifID) {
+			// The catch-all names its SPD, and every other entry at this if_id (the
+			// Child SA policies) is named from it when the dataplane is read.
+			p.SPD = name
 			next[selectorOf(&p)] = xfrmInterfaceEntry{iface: name, role: dataplane.PolicyRoleInterfaceCatchAll, params: p}
 		}
 		if !discards {
@@ -257,8 +282,24 @@ func (s *ikeEngineState) planXFRMInterfaceEntries(cfg *ipsec.IPsecConfig) map[sp
 		for _, p := range xfrmInterfaceExemptions(facts) {
 			next[selectorOf(&p)] = xfrmInterfaceEntry{iface: name, role: dataplane.PolicyRoleInterfaceExemption, params: p}
 		}
+		if sources := guardSources(name, facts, cfg, s.log); len(sources) > 0 {
+			plan.guards[name] = sourceGuardSpec{iface: name, device: facts.device, ifIndex: facts.ifIndex, ifID: facts.ifID, sources: sources}
+		}
 	}
-	return next
+	return plan
+}
+
+// exemptionSource answers the source address of an if_id 0 source exemption entry, and
+// false for an interface-index entry, which carries no source.
+func exemptionSource(p *dataplane.SPParams) (netip.Addr, bool) {
+	if p.IfIndex != 0 {
+		return netip.Addr{}, false
+	}
+	addr, ok := netip.AddrFromSlice(p.Src.IP)
+	if !ok {
+		return netip.Addr{}, false
+	}
+	return addr.Unmap(), true
 }
 
 // installXFRMInterfaceEntries installs every entry of next the engine does not hold
@@ -272,11 +313,17 @@ func (s *ikeEngineState) planXFRMInterfaceEntries(cfg *ipsec.IPsecConfig) map[sp
 //
 // A backend that declares it holds no SPD entry bound to no interface
 // (catchAllUnsupported, the VPP backend) gets no interface catch-all: such a backend
-// keeps no if_id SPD for the entry to close. The caller holds applyMu.
-func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, next map[spdSelector]xfrmInterfaceEntry) {
+// keeps no if_id SPD for the entry to close.
+//
+// The tunnel-source guards go in between the interface catch-alls and the exemptions,
+// and a source exemption whose address the guard does not hold is not installed: no
+// instant holds a source BYPASS without its guard (source_guard.go). The caller holds
+// applyMu.
+func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, plan xfrmInterfacePlan) {
 	if dp == nil {
 		return
 	}
+	next := plan.entries
 	if s.xfrmEntries == nil {
 		s.xfrmEntries = make(map[spdSelector]xfrmInterfaceEntry)
 	}
@@ -286,11 +333,18 @@ func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, nex
 			s.warnNoInterfaceCatchAll(next, noIfIDSPD)
 			continue
 		}
+		var guarded map[netip.Addr]bool
+		if role == dataplane.PolicyRoleInterfaceExemption {
+			guarded = guards.install(plan.guards, s.log)
+		}
 		for sel, entry := range next {
 			if entry.role != role {
 				continue
 			}
 			if _, held := s.xfrmEntries[sel]; held {
+				continue
+			}
+			if source, isSource := exemptionSource(&entry.params); isSource && role == dataplane.PolicyRoleInterfaceExemption && !guarded[source] {
 				continue
 			}
 			if err := dp.InstallPolicy(entry.params); err != nil {
@@ -324,10 +378,15 @@ func (s *ikeEngineState) warnNoInterfaceCatchAll(next map[spdSelector]xfrmInterf
 // interface lost, a device that moved to another index or if_id, or an exemption under
 // a catch-all that no longer discards. A removal is reported to the SPD ledger
 // (removeZePolicy), so a failed one keeps the if_id 0 catch-all in place at exit. The
-// caller holds applyMu.
-func (s *ikeEngineState) pruneXFRMInterfaceEntries(dp dataplane.Dataplane, next map[spdSelector]xfrmInterfaceEntry) {
+// caller holds applyMu. The tunnel-source guards come out after the exemptions they
+// guard and before the interface catch-alls.
+func (s *ikeEngineState) pruneXFRMInterfaceEntries(dp dataplane.Dataplane, plan xfrmInterfacePlan) {
+	next := plan.entries
 	for i := len(xfrmInterfaceRoleOrder) - 1; i >= 0; i-- {
 		role := xfrmInterfaceRoleOrder[i]
+		if role == dataplane.PolicyRoleInterfaceCatchAll {
+			guards.prune(plan.guards, s.log)
+		}
 		for sel, held := range s.xfrmEntries {
 			if held.role != role {
 				continue

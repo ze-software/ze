@@ -8,7 +8,11 @@
 // other.
 package iprule
 
-import "net/netip"
+import (
+	"net/netip"
+
+	"github.com/ze-software/ze/internal/core/rtproto"
+)
 
 // Mark is an IPv4 fwmark rule: `fwmark <Mark>/<Mask> lookup <Table>` at Priority.
 type Mark struct {
@@ -44,12 +48,14 @@ func (r TableRange) Overlaps(other TableRange) bool {
 	return r.First <= other.Last && other.First <= r.Last
 }
 
-// The table ranges Ze producers allocate from. Each is declared once, here, so a
-// new producer is checked against every other (TestTableRangesAreDisjoint).
-// docs/architecture/policyroute/policy-routing.md names the operator side: VRF
-// tables take 1000 to 1999, and an operator table ID in 1000 to 2999 is refused at
-// parse time as Ze-reserved.
+// The table ranges Ze reserves. Each is declared once, here, so a new producer is
+// checked against every other (TestTableRangesAreDisjoint), and every operator table
+// ID is refused inside any of them (Reserved).
 var (
+	// VRFTables is held for VRF tables, one per VRF. No producer allocates from it
+	// yet; it is reserved so an operator table placed there today does not collide
+	// with the VRF tables later.
+	VRFTables = TableRange{First: 1000, Last: 1999}
 	// PolicyRouteAutoTables is where the policy routing plugin places its auto
 	// tables, one per next hop.
 	PolicyRouteAutoTables = TableRange{First: 2000, Last: 2999}
@@ -58,7 +64,37 @@ var (
 	IPsecSourceGuardTables = TableRange{First: 3000, Last: 3999}
 )
 
-// ZeTableRanges lists every range above, for the disjointness check.
+// ZeTableRanges lists every range above.
 func ZeTableRanges() []TableRange {
-	return []TableRange{PolicyRouteAutoTables, IPsecSourceGuardTables}
+	return []TableRange{VRFTables, PolicyRouteAutoTables, IPsecSourceGuardTables}
+}
+
+// Reserved answers the Ze range that holds table, and false when no range does. An
+// operator table inside one is refused: Ze would overwrite or flush it.
+func Reserved(table uint32) (TableRange, bool) {
+	for _, r := range ZeTableRanges() {
+		if r.Contains(table) {
+			return r, true
+		}
+	}
+	return TableRange{}, false
+}
+
+// IPsecSourceGuardPriority is the `ip rule` priority of the IKE engine's source
+// rules. It sits after the local table's rule (priority 0), so a packet for one of
+// the box's own addresses is still delivered locally, and before main (32766). The
+// policy routing plugin places its fwmark rules from priority 100 upward, one per
+// rule, so a guard rule never shares a priority with one of them.
+const IPsecSourceGuardPriority = 30000
+
+// Route is one route in a table a Ze producer owns: a device route to Dst through
+// the link at LinkIndex, or, with Unreachable, an unreachable route that answers a
+// sender with an error instead of falling through to another table. Protocol names
+// the producer, so a delete matches only Ze's own route.
+type Route struct {
+	Table       uint32
+	Dst         netip.Prefix
+	LinkIndex   int
+	Unreachable bool
+	Protocol    rtproto.Proto
 }

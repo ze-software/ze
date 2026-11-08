@@ -1394,14 +1394,31 @@ error: the tunnel's traffic is then dropped by the catch-all. On a reload that
 turns `discard` on, the entries go in before the catch-all changes, so a
 running tunnel never loses traffic.
 
-The IPv6 source entry is wider than the interface it stands for. An IPv6
+The IPv6 source entry is wider than the interface it stands for: an IPv6
 packet sourced from the XFRM interface's own address but routed out of another
-interface also matches it, and crosses in the clear rather than meeting the
-catch-all. Do not source traffic from the tunnel address towards a destination
-routed elsewhere, or add a `policy` entry with action `discard` for it, which
-outranks the exemption.
+interface would match it too. Under `unmatched discard` Ze therefore guards each
+such address, and installs its source entry only while the guard holds:
+
+- A rule `from <address>/128` looks the packet up in a routing table Ze owns
+  for the interface (tables 3000 to 3999, routes marked `ze-ipsec-guard`). The
+  table holds a route into the interface for every IPv6 remote traffic selector
+  of a Child SA bound to it, and ends in `unreachable ::/0`. A program that
+  binds the tunnel address as its source is sent into the tunnel, or told the
+  destination is unreachable.
+- The nft table `ze_ipsec_source_guard` drops, at postrouting, IPv6 from the
+  address leaving through any other interface. This catches the packet whose
+  source the kernel picked after routing it, which no source rule sees.
+
+So traffic from a tunnel address leaves only through its tunnel, and the
+operator's own routing table IDs 1000 to 3999 are refused because Ze reserves
+them. A peer whose `local-address` is an address of an interface some peer
+binds with `vti bind` is refused at commit: the guard would send its IKE
+traffic into its own tunnel. Set `local-address` to an address of the WAN
+interface instead.
 
 <!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, interfaceSPDCatchAll, planXFRMInterfaceEntries, installXFRMInterfaceEntries, pruneXFRMInterfaceEntries -->
+<!-- source: internal/component/ike/engine/source_guard.go -- guardSources, refuseTunnelAddressAsIKEEndpoint, install, prune, sourceGuardTerms, guardTunnelRoute -->
+<!-- source: internal/core/iprule/iprule.go -- IPsecSourceGuardTables, IPsecSourceGuardPriority, Reserved -->
 <!-- source: internal/component/ike/engine/dynamic_wan.go -- startAddressWorker, followAddress -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityUnmatchedXFRMInterface -->
 
@@ -1712,7 +1729,7 @@ the kernel refused, a state it expired, and a policy that outlived its owner.
 | Command | What it reads |
 |---|---|
 | `show vpn ipsec dataplane sa [spi <spi>]` | The Security Association Database: SPI, addresses, if-id, mode, algorithms, replay window, byte and packet counters, and timestamps. `spi <spi>` selects every matching SPI, which can occur under different destinations or interfaces. SPI 0 is refused under RFC 4303 Section 2.1 |
-| `show vpn ipsec dataplane policy` | The Security Policy Database: selector prefixes and ports, direction, priority, upper-layer protocol, if-id, tunnel endpoints, and the peer that installed each policy. A policy Ze did not install reports its owner as unknown |
+| `show vpn ipsec dataplane policy` | The Security Policy Database: selector prefixes and ports, direction, priority, upper-layer protocol, if-id, if-index, tunnel endpoints, and the peer that installed each policy. `spd` names the SPD holding the policy (`node` for if-id 0, the XFRM interface a peer binds with `vti bind`, or `if-id <n>` for one no bound interface has), and `role` names the job Ze installed it for (`catch-all`, `interface-catch-all`, `interface-exemption`, `ike-bypass`, `child-sa`, `operator`, `ospf`). A policy Ze did not install reports its owner and its role as unknown |
 | `show vpn ipsec dataplane drift` | Each expected Child SA identity absent from the kernel. The command exits non-zero when it finds drift, so a script can test it |
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
 

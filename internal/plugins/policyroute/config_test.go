@@ -141,7 +141,7 @@ func TestParsePolicyConfigNextHop(t *testing.T) {
 }
 
 func TestParsePolicyConfigRejectReservedTable(t *testing.T) {
-	for _, tbl := range []string{"1000", "1500", "2000", "2999"} {
+	for _, tbl := range []string{"1000", "1500", "2000", "2999", "3000", "3999"} {
 		input := `{
 			"policy": {
 				"route": {
@@ -378,7 +378,7 @@ func TestParsePolicyConfigTableBoundMatchesBuild(t *testing.T) {
 }
 
 func TestParsePolicyConfigAllowNonReservedTable(t *testing.T) {
-	for _, tbl := range []string{"1", "100", "999", "3000", "4000"} {
+	for _, tbl := range []string{"1", "100", "999", "4000", "5000"} {
 		input := `{
 			"policy": {
 				"route": {

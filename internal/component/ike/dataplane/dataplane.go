@@ -430,6 +430,19 @@ type SPParams struct {
 	// before this field existed.
 	Owner string
 
+	// Role names why the installer built this entry, and SPD names the XFRM interface
+	// whose SPD holds it. A backend that can list its SPD records both against the
+	// selector at install and joins them back on read (policyOwners.label), so
+	// `show vpn ipsec dataplane policy` can say which SPD and which job each entry has.
+	// Neither takes part in the selector: the kernel identifies a policy without them.
+	//
+	// SPD is empty for an entry at if_id 0, the node-wide SPD, and may be empty at an
+	// interface if_id when the installer does not hold the interface name (a Child SA
+	// policy): the read then names the SPD from another entry Ze recorded at the same
+	// if_id (nameInterfaceSPDs). A zero Role reads as "unknown".
+	Role PolicyRole
+	SPD  string
+
 	// Priority ranks this policy against every other policy whose selector also
 	// matches. LOWER VALUE MEANS HIGHER PRECEDENCE. Use PriorityIKEBypass or
 	// PriorityChildSA; a bare 0 ties with every other unset policy and the winner is
@@ -602,6 +615,15 @@ type PolicyInfo struct {
 	// "not ours" (ai/rules/evidence.md).
 	Owner      string
 	OwnerKnown bool
+
+	// Role is the job the installer recorded for this entry. An entry Ze did not
+	// install, or one installed with no role, carries PolicyRoleUnspecified, which
+	// renders as "unknown", never as a blank cell.
+	//
+	// SPDInterface names the XFRM interface whose SPD holds the entry, when Ze knows
+	// one at this if_id. SPDName (policy_role.go) renders the SPD for a reader.
+	Role         PolicyRole
+	SPDInterface string
 }
 
 // TunnelMigration changes only the outer addresses and ESP encapsulation of one

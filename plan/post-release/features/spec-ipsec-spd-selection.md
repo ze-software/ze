@@ -95,7 +95,7 @@ its own, before this spec closes: the main thread asks Thomas which.
   → Constraint: the page is wrong once interface SPDs are named; it is edited in the same phase
 - [ ] `docs/architecture/policyroute/policy-routing.md` - the `ip rule` writer
   → Decision: the rule encoder must start from `netlink.NewRule()` (`newIPRule`), and the table conversion is per architecture (`netlinkTableInt`)
-  → Constraint: the auto table range is 2000 to 2999 and an operator table may use 1000 to 2999; a new owner of tables needs a range disjoint from both
+  → Constraint: Ze reserves three table ranges, each declared once in `internal/core/iprule` (`ZeTableRanges`): 1000 to 1999 for VRFs, 2000 to 2999 for policy-routing auto tables, and 3000 to 3999 for the IPsec source guard; an operator table may use none of them, and a new owner of tables needs a range disjoint from all three
 - [ ] `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` - nft table ownership
   → Constraint: a producer's table name carries the `ze_` prefix (Rule 2, enforced by `RegisterTables`); teardown belongs to the firewall engine (Rule 3); the registry is process-local
 - [ ] `docs/architecture/core-design.md`, section 19 - allowed imports

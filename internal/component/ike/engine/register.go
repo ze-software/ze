@@ -515,6 +515,12 @@ func runEngine(conn net.Conn) int {
 		if err := refuseImplicitDiscard(cfg, state.discardInForce.Load()); err != nil {
 			return fmt.Errorf("ike config: %w", err)
 		}
+		// AC-12 of spec-ipsec-spd-selection: an IKE local address that is a tunnel
+		// address would be steered into its own tunnel by the source guard
+		// (refuseTunnelAddressAsIKEEndpoint, source_guard.go).
+		if err := refuseTunnelAddressAsIKEEndpoint(cfg); err != nil {
+			return fmt.Errorf("ike config: %w", err)
+		}
 		staging.stage(cfg)
 		return nil
 	})

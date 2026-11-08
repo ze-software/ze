@@ -4,6 +4,7 @@
 package iprule
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -86,4 +87,86 @@ func (s Source) Rule() (*netlink.Rule, error) {
 func prefixIPNet(p netip.Prefix) *net.IPNet {
 	bits := p.Addr().BitLen()
 	return &net.IPNet{IP: p.Addr().AsSlice(), Mask: net.CIDRMask(p.Bits(), bits)}
+}
+
+// Add installs the source rule. A rule the kernel already holds answers nil: the
+// state Add asked for is in place, as after a restart that left Ze's rule behind.
+func (s Source) Add() error {
+	rule, err := s.Rule()
+	if err != nil {
+		return err
+	}
+	if err := netlink.RuleAdd(rule); err != nil && !errors.Is(err, unix.EEXIST) {
+		return fmt.Errorf("ip rule add from %s lookup %d: %w", s.From, s.Table, err)
+	}
+	return nil
+}
+
+// Delete removes the source rule. A rule the kernel does not hold answers nil: the
+// state Delete asked for is in place.
+func (s Source) Delete() error {
+	rule, err := s.Rule()
+	if err != nil {
+		return err
+	}
+	if err := netlink.RuleDel(rule); err != nil && !errors.Is(err, unix.ENOENT) {
+		return fmt.Errorf("ip rule del from %s lookup %d: %w", s.From, s.Table, err)
+	}
+	return nil
+}
+
+// Replace installs the route, replacing one with the same table and destination.
+func (r Route) Replace() error {
+	route, err := r.netlinkRoute()
+	if err != nil {
+		return err
+	}
+	if err := netlink.RouteReplace(route); err != nil {
+		return fmt.Errorf("ip route replace %s table %d: %w", r.Dst, r.Table, err)
+	}
+	return nil
+}
+
+// Delete removes the route. One the kernel does not hold answers nil.
+func (r Route) Delete() error {
+	route, err := r.netlinkRoute()
+	if err != nil {
+		return err
+	}
+	if err := netlink.RouteDel(route); err != nil && !errors.Is(err, unix.ESRCH) && !errors.Is(err, unix.ENOENT) {
+		return fmt.Errorf("ip route del %s table %d: %w", r.Dst, r.Table, err)
+	}
+	return nil
+}
+
+// netlinkRoute encodes the route. The table goes through the same bounded conversion
+// a rule's does (tableInt), and a destination that is not a valid prefix is refused.
+func (r Route) netlinkRoute() (*netlink.Route, error) {
+	if !r.Dst.IsValid() {
+		return nil, fmt.Errorf("route in table %d has no valid destination", r.Table)
+	}
+	tableID, err := tableInt(r.Table)
+	if err != nil {
+		return nil, err
+	}
+	family := netlink.FAMILY_V6
+	if r.Dst.Addr().Is4() {
+		family = netlink.FAMILY_V4
+	}
+	route := &netlink.Route{
+		Dst:      prefixIPNet(r.Dst.Masked()),
+		Table:    tableID,
+		Family:   family,
+		Protocol: netlink.RouteProtocol(r.Protocol),
+	}
+	if r.Unreachable {
+		route.Type = unix.RTN_UNREACHABLE
+		return route, nil
+	}
+	if r.LinkIndex <= 0 {
+		return nil, fmt.Errorf("route %s in table %d names no device", r.Dst, r.Table)
+	}
+	route.LinkIndex = r.LinkIndex
+	route.Scope = netlink.SCOPE_LINK
+	return route, nil
 }

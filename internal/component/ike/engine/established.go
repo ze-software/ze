@@ -169,6 +169,7 @@ func (ps *PeerSession) runEstablished(
 		}
 		emitChildUp(bus, ps.peerName, child, log)
 		emitRouteAdd(bus, child.TSRemote, log)
+		guardTunnelRoute(true, ps.peerName, child, log)
 		childLT = newLifetimeState(ps.getESPGroup().Lifetime)
 	}
 
@@ -365,6 +366,7 @@ func (ps *PeerSession) maintainSA(
 		case <-routeReannounce.C:
 			if child := ps.getChildSA(); child != nil {
 				emitRouteAdd(bus, child.TSRemote, log)
+				guardTunnelRoute(true, ps.peerName, child, log)
 			}
 		case request := <-ps.probeRequests:
 			// A padded path probe asked for by the MTU diagnostic through the
@@ -476,12 +478,14 @@ func (ps *PeerSession) maintainSA(
 				childLT = newLifetimeState(ps.getESPGroup().Lifetime)
 				emitChildUp(bus, ps.peerName, out.createdChild, log)
 				emitRouteAdd(bus, out.createdChild.TSRemote, log)
+				guardTunnelRoute(true, ps.peerName, out.createdChild, log)
 			}
 			if out.newChild != nil {
 				childLT = newLifetimeState(ps.getESPGroup().Lifetime)
 				ps.incRekeyCount()
 				emitChildRekey(bus, ps.peerName, out.newChild, log)
 				emitRouteAdd(bus, out.newChild.TSRemote, log)
+				guardTunnelRoute(true, ps.peerName, out.newChild, log)
 			}
 		case now := <-ticker.C:
 			// Drop a parallel half-open handshake the peer abandoned before it could
@@ -1063,6 +1067,7 @@ func (ps *PeerSession) cleanupChild(dp dataplane.Dataplane, bus ze.EventBus, log
 		removeChildSAExcept(live, firstSharingSelector(live, pending), dp, log)
 		emitChildDown(bus, ps.peerName, live, log)
 		emitRouteRemove(bus, live.TSRemote, log)
+		guardTunnelRoute(false, ps.peerName, live, log)
 		log.Info("ike: tunnel routes withdrawn", "peer", ps.peerName)
 		ps.setChildSA(nil)
 	}

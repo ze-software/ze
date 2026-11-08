@@ -218,11 +218,18 @@ func policyInfoToMap(p *dataplane.PolicyInfo) map[string]any {
 		"upper-proto": p.UpperProto,
 		"priority":    p.Priority,
 		jsonKeyIfID:   p.IfID,
-		"action":      policyActionName(p.Action),
-		jsonKeyMode:   ipsecModeName(p.Mode),
-		"reqid":       p.ReqID,
-		"tunnel-src":  ipString(p.TunnelSrc),
-		"tunnel-dst":  ipString(p.TunnelDst),
+		"if-index":    p.IfIndex,
+		// RFC 4301 Section 4.4.1: the SPD selection function. Ze holds one SPD per
+		// if_id, so each row names the SPD it sits in ("node", the bound XFRM
+		// interface, or "if-id <n>") and the job Ze installed it for. A row Ze did
+		// not install reads role "unknown", never a blank cell.
+		"spd":        p.SPDName(),
+		"role":       p.Role.String(),
+		"action":     policyActionName(p.Action),
+		jsonKeyMode:  ipsecModeName(p.Mode),
+		"reqid":      p.ReqID,
+		"tunnel-src": ipString(p.TunnelSrc),
+		"tunnel-dst": ipString(p.TunnelDst),
 		// A policy ze did not install is the common case on a node running
 		// another IKE daemon. It is reported as unknown, never as a blank cell
 		// that reads as unowned (ai/rules/evidence.md). owner-known keeps the

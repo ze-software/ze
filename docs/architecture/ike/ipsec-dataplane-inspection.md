@@ -154,6 +154,31 @@ Wildcard prefixes use the same normalized identity at installation and lookup.
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- policyKey, cidrKey -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- policyInfoFromKernel -->
 
+## Decision: a policy names its SPD and its role
+
+Ze holds more than one SPD: the kernel keeps one per XFRM if_id, if_id 0 is the
+node-wide SPD, and every XFRM interface a peer binds with `vti bind` is a
+further SPD at its own if_id. Each policy row therefore carries three keys
+beside the selector:
+
+| Key | Value |
+|-----|-------|
+| `spd` | `node` for if_id 0; the bound XFRM interface's name for an if_id Ze bound an interface to; `if-id <n>` for an if_id no bound interface has |
+| `role` | The job Ze installed the entry for: `catch-all` (the node-wide final entry `unmatched` configures), `interface-catch-all` (an interface SPD's final DISCARD entry), `interface-exemption` (the if_id 0 BYPASS that hands traffic routed into a bound interface on to its SPD), `ike-bypass`, `child-sa`, `operator` (a `vpn ipsec policy` entry), `ospf` (an OSPFv3 RFC 4552 manual-SA policy), or `unknown` for an entry Ze did not install |
+| `if-index` | The selector's interface index; 0 matches every interface |
+
+The role is recorded where the entry is built, never inferred from its
+priority: an operator `order` can take any priority. The dataplane keeps it
+against the selector for every entry Ze installs, template-free ones included,
+from the moment the kernel accepts the entry until the kernel confirms its
+removal, and joins it back on each read. A Child SA policy carries no interface
+name, so its `spd` is taken from the interface catch-all Ze recorded at the same
+if_id; a foreign entry at that if_id is named the same way. The role names live
+in one table, `policyRoleNames`.
+<!-- source: internal/component/ike/dataplane/policy_role.go -- PolicyRole, policyRoleNames, SPDName, nameInterfaceSPDs -->
+<!-- source: internal/component/ike/dataplane/policy_owner.go -- label, annotate, deleteThenRelease -->
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- policyInfoToMap -->
+
 ## Trap: SPI zero is refused as a selector
 
 RFC 4303 Section 2.1 reserves SPI value zero for local use and forbids sending

@@ -60,6 +60,7 @@ func spdPolicyDirection(p ipsec.SPDPolicy, dir dataplane.SADir) dataplane.SPPara
 		Dst:    dst,
 		Dir:    dir,
 		Action: p.Action,
+		Role:   dataplane.PolicyRoleOperator,
 		// RFC 4301 Section 4.4.1: the management interface "MUST support (total)
 		// ordering of these entries, as seen via this interface". The operator's
 		// order IS the kernel priority; ValidateSPDPolicies has already refused a

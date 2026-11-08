@@ -16,16 +16,21 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 )
 
-// xfrmInterfaceStub stands fixed interface facts in place of the iface resolver. A test
-// changes facts or err between applies to move an address or fail a read.
+// xfrmInterfaceStub stands fixed interface facts in place of the iface resolver, and a
+// recorder in place of the tunnel-source guard's kernel side (source_guard_test.go). A
+// test changes facts or err between applies to move an address or fail a read.
 type xfrmInterfaceStub struct {
 	facts map[string]xfrmInterfaceFacts
 	err   map[string]error
+	guard *guardRecorder
 }
 
 func stubXFRMInterfaceReads(t *testing.T) *xfrmInterfaceStub {
 	t.Helper()
-	stub := &xfrmInterfaceStub{facts: map[string]xfrmInterfaceFacts{}, err: map[string]error{}}
+	stub := &xfrmInterfaceStub{facts: map[string]xfrmInterfaceFacts{}, err: map[string]error{}, guard: newGuardRecorder()}
+	previousGuards := guards
+	guards = newSourceGuards(stub.guard)
+	t.Cleanup(func() { guards = previousGuards })
 	previous := readXFRMInterfaceFn
 	readXFRMInterfaceFn = func(name string) (xfrmInterfaceFacts, error) {
 		if err := stub.err[name]; err != nil {
@@ -169,7 +174,7 @@ func TestXFRMExemptionsFollowApplyAddressAndRelease(t *testing.T) {
 	dp := &catchAllDP{}
 	loadFailClosedBackend(t, dp)
 	stub := stubXFRMInterfaceReads(t)
-	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
+	stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
 	state := applyTestState(t)
 
 	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
@@ -190,7 +195,7 @@ func TestXFRMExemptionsFollowApplyAddressAndRelease(t *testing.T) {
 		t.Fatalf("catch-all action %d, want discard", got)
 	}
 
-	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::2")}}
+	stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::2")}}
 	state.followAddress()
 	want = slices.Sorted(slices.Values(append(slices.Clone(base), out+" 2001:db8::2/128 -> ::/0 ifindex 0")))
 	if got := liveExemptions(dp); !slices.Equal(got, want) {
@@ -236,7 +241,7 @@ func TestXFRMExemptionsPrecedeADiscardCatchAllOnReload(t *testing.T) {
 	dp := &catchAllDP{}
 	loadFailClosedBackend(t, dp)
 	stub := stubXFRMInterfaceReads(t)
-	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID}
+	stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID}
 	state := applyTestState(t)
 
 	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionBypass), applyReload); err != nil {
@@ -381,15 +386,16 @@ func TestInterfaceSPDCatchAllRefusesIfIDZero(t *testing.T) {
 
 // VALIDATES: wiring row 1 (AC-1): a commit with a peer bound to vti0 under
 // `unmatched discard` reaches planXFRMInterfaceEntries and leaves vti0's SPD holding its
-// own DISCARD catch-all, beside the if_id 0 exemptions and the DISCARD node catch-all.
-// Phase 5 adds the source guard to this test.
+// own DISCARD catch-all, beside the if_id 0 exemptions and the DISCARD node catch-all,
+// and vti0's IPv6 address under its tunnel-source guard: its rule, its table's
+// unreachable default and the nft pass and drop terms naming vti0.
 // Method: applyConfig over the fake backend with a stubbed vti0, then read the live set.
 // PREVENTS: an interface SPD with no final entry.
 func TestApplyInstallsInterfaceSPDCatchAllAndGuard(t *testing.T) {
 	dp := &catchAllDP{}
 	loadFailClosedBackend(t, dp)
 	stub := stubXFRMInterfaceReads(t)
-	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
+	stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
 	state := applyTestState(t)
 
 	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
@@ -404,6 +410,7 @@ func TestApplyInstallsInterfaceSPDCatchAllAndGuard(t *testing.T) {
 	if got := liveCatchAll(t, dp); got != dataplane.SPActionDiscard {
 		t.Errorf("node catch-all action %d, want discard", got)
 	}
+	assertGuarded(t, stub.guard, "2001:db8::1")
 }
 
 // VALIDATES: wiring row 2 (AC-2): under `unmatched bypass` vti0's SPD still gets its
@@ -415,7 +422,7 @@ func TestApplyInstallsInterfaceSPDCatchAllUnderBypass(t *testing.T) {
 	dp := &catchAllDP{}
 	loadFailClosedBackend(t, dp)
 	stub := stubXFRMInterfaceReads(t)
-	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
+	stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
 	state := applyTestState(t)
 
 	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionBypass), applyReload); err != nil {
@@ -430,6 +437,12 @@ func TestApplyInstallsInterfaceSPDCatchAllUnderBypass(t *testing.T) {
 	if got := liveCatchAll(t, dp); got != dataplane.SPActionBypass {
 		t.Errorf("node catch-all action %d, want bypass", got)
 	}
+	if got := stub.guard.ruleSources(); len(got) != 0 {
+		t.Errorf("tunnel-source rules installed under a bypass catch-all: %q", got)
+	}
+	if stub.guard.publishCount != 0 {
+		t.Errorf("the guard published its nft table %d times under a bypass catch-all; it guards nothing", stub.guard.publishCount)
+	}
 }
 
 // VALIDATES: the interface catch-all is installed before the if_id 0 exemptions hand
@@ -441,7 +454,7 @@ func TestInterfaceSPDCatchAllPrecedesTheExemptions(t *testing.T) {
 	dp := &catchAllDP{}
 	loadFailClosedBackend(t, dp)
 	stub := stubXFRMInterfaceReads(t)
-	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID}
+	stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID}
 	state := applyTestState(t)
 
 	unbound := testIPsecConfig(applyTestPeer("127.0.0.1"))
@@ -485,8 +498,8 @@ func (d *failInterfaceCatchAllRemovalDP) RemovePolicyParams(p dataplane.SPParams
 
 // VALIDATES: AC-8 for the interface SPD: releaseSPD removes the interface catch-all
 // with the exemptions, before the node catch-all; when that removal fails, the SPD
-// ledger holds the entry and the node catch-all stays beneath it. Phase 5 adds the
-// guard's removal to this test.
+// ledger holds the entry and the node catch-all stays beneath it. The clean leg also
+// proves the tunnel-source guard leaves: no rule, no route and no nft term remain.
 // Method: apply discard, release over a backend that removes cleanly, then apply and
 // release again over one that refuses the interface catch-all removal.
 // PREVENTS: an interface catch-all that outlives the daemon unreported.
@@ -495,12 +508,22 @@ func TestReleaseRemovesInterfaceSPDAndGuard(t *testing.T) {
 		dp := &catchAllDP{}
 		loadFailClosedBackend(t, dp)
 		stub := stubXFRMInterfaceReads(t)
-		stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID}
+		stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
 		state := applyTestState(t)
 		if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
 			t.Fatalf("discard apply: %v", err)
 		}
+		assertGuarded(t, stub.guard, "2001:db8::1")
 		state.releaseSPD(dp, state.log)
+		if got := stub.guard.ruleSources(); len(got) != 0 {
+			t.Errorf("releaseSPD left tunnel-source rules: %q", got)
+		}
+		if len(stub.guard.routes) != 0 {
+			t.Errorf("releaseSPD left tunnel-source table routes: %v", stub.guard.routes)
+		}
+		if len(stub.guard.terms) != 0 {
+			t.Errorf("releaseSPD left the nft guard terms: %d", len(stub.guard.terms))
+		}
 		if got := liveInterfaceCatchAll(t, dp); len(got) != 0 {
 			t.Errorf("releaseSPD left the interface catch-all installed: %q", got)
 		}
@@ -512,7 +535,7 @@ func TestReleaseRemovesInterfaceSPDAndGuard(t *testing.T) {
 		dp := &failInterfaceCatchAllRemovalDP{}
 		loadFailClosedBackend(t, dp)
 		stub := stubXFRMInterfaceReads(t)
-		stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID}
+		stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID}
 		state := applyTestState(t)
 		if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
 			t.Fatalf("discard apply: %v", err)

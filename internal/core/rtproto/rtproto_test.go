@@ -12,6 +12,8 @@ func TestRouteProtocolsAreDistinct(t *testing.T) {
 		{Static, "static"},
 		{PolicyRoute, "policy-route"},
 		{int(Iface), "iface"},
+		{int(GTSM), "gtsm"},
+		{int(IPsecSourceGuard), "ipsec-source-guard"},
 	}
 	for _, p := range protocols {
 		protocol, name := p.protocol, p.name
@@ -23,7 +25,7 @@ func TestRouteProtocolsAreDistinct(t *testing.T) {
 }
 
 func TestIsZe(t *testing.T) {
-	for _, protocol := range []int{FIBKernel, Static, PolicyRoute} {
+	for _, protocol := range []int{FIBKernel, Static, PolicyRoute, int(GTSM), int(IPsecSourceGuard)} {
 		if !IsZe(protocol) {
 			t.Fatalf("IsZe(%d) = false, want true", protocol)
 		}
@@ -57,5 +59,16 @@ func TestAnyIsTheUnsetProtocol(t *testing.T) {
 	}
 	if _, ok := Name(int(Any)); ok {
 		t.Fatal("Name(Any) reported a name: Any is a match rule, not a producer")
+	}
+}
+
+// VALIDATES: the IPsec source-guard routes carry a Ze-owned protocol with a name, so
+// routewatch does not report them as foreign churn and route output names their owner.
+func TestIPsecSourceGuardProtocolIsZeOwnedAndNamed(t *testing.T) {
+	if !IsZe(int(IPsecSourceGuard)) {
+		t.Fatal("IsZe(IPsecSourceGuard) = false, want true")
+	}
+	if name, ok := Name(int(IPsecSourceGuard)); !ok || name != "ze-ipsec-guard" {
+		t.Fatalf("Name(IPsecSourceGuard) = %q, %v; want ze-ipsec-guard, true", name, ok)
 	}
 }

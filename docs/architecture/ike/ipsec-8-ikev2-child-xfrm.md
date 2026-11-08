@@ -519,8 +519,28 @@ reverse order. `applyConfig` installs new entries before re-asserting the node
 catch-all on a reload and prunes stale ones after it; the address worker
 (`followAddress`, on `addr-added`, `addr-removed` and `created`) rebuilds them,
 and `releaseSPD` removes them through the SPD ledger after the Child SA policies
-(`stopAllPeers` ran first) and before the node catch-all. The IPv6 source entry also passes a packet from that address routed
-out of another interface, the residual `docs/guide/ipsec.md` names.
+(`stopAllPeers` ran first) and before the node catch-all.
+
+The IPv6 source entry would also pass a packet from that address routed out of
+another interface, so under DISCARD each source address gets a tunnel-source
+guard (`source_guard.go`), and `installXFRMInterfaceEntries` installs a source
+entry only for an address `sourceGuards.install` answers as guarded. The guard
+is three kernel objects: the nft table `ze_ipsec_source_guard` (registered with
+`firewall.RegisterTables`, one postrouting chain, per address a pass term for
+its own device and a drop term for any other), one `iprule.Source` rule per
+address at `iprule.IPsecSourceGuardPriority`, and one table per interface from
+`iprule.IPsecSourceGuardTables` holding `unreachable ::/0` and a device route
+for every IPv6 remote selector of a Child SA at the interface's if_id
+(`guardTunnelRoute`, called beside `emitRouteAdd` and `emitRouteRemove`; routes
+carry `rtproto.IPsecSourceGuard`). Install runs the nft table, then routes,
+then rules, between the interface catch-alls and the exemptions; prune runs
+after the exemptions and before the interface catch-alls, so no source BYPASS
+is ever live without its guard. The rule steers a packet whose socket chose the
+tunnel source (`ip6_dst_lookup_tail` looks the route up with the source set);
+when the kernel picks the source it keeps the route found with none, and the
+nft drop stops it. A guard address that is also a peer's IKE local address is
+skipped with a warning, and the same configuration is refused at verify
+(`refuseTunnelAddressAsIKEEndpoint`).
 
 Ze's SPD is one unit with a lifetime of [first apply, exit]. `applyConfig`
 installs the catch-all first and, on the first apply only, the IKE bypass

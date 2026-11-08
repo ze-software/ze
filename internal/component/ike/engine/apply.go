@@ -674,7 +674,7 @@ func (s *ikeEngineState) releaseSPD(dp dataplane.Dataplane, log *slog.Logger) {
 	}
 	removeIKEBypass(dp, log)
 	removeSPDPolicies(dp, s.installedSPD, log)
-	s.pruneXFRMInterfaceEntries(dp, nil)
+	s.pruneXFRMInterfaceEntries(dp, xfrmInterfacePlan{})
 	if warnSPDLeft(dp, log) {
 		return
 	}

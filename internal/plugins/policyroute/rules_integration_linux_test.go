@@ -105,10 +105,10 @@ func TestApplyAutoRoutesResolvesTheNextHopInsideItsAutoTable(t *testing.T) {
 	if len(marked) != 1 {
 		t.Fatalf("the marked lookup answered with %d routes, want 1", len(marked))
 	}
-	if marked[0].Table < autoTableBase {
+	if int64(marked[0].Table) < int64(autoTableBase) {
 		t.Fatalf("the marked lookup resolved in table %d, want one in %d-%d: the ip rule did not steer it", marked[0].Table, autoTableBase, autoTableMax)
 	}
-	if marked[0].Table > autoTableMax {
+	if int64(marked[0].Table) > int64(autoTableMax) {
 		t.Fatalf("the marked lookup resolved in table %d, want one in %d-%d: the ip rule did not steer it", marked[0].Table, autoTableBase, autoTableMax)
 	}
 	if !marked[0].Gw.Equal(net.IP(nextHop.AsSlice())) {

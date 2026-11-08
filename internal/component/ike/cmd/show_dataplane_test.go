@@ -433,6 +433,61 @@ func TestShowDataplanePolicyBypassRendersAsBypass(t *testing.T) {
 		"a bypass policy passes traffic in the clear; reporting it as protect would say the opposite")
 }
 
+// TestShowDataplanePolicyNamesSPDAndRole is AC-9 of spec-ipsec-spd-selection: every
+// row names the SPD that holds it and the job Ze installed it for, beside its
+// interface index, and every key the listing carried before is still there. A row Ze
+// did not install reads role "unknown", never blank, and an if_id no bound interface
+// has is named by its number rather than shown as the node-wide SPD. Method: a
+// scripted dataplane returns one row per SPD kind and one foreign row, and the test
+// reads the handler's rows and their public JSON rendering.
+func TestShowDataplanePolicyNamesSPDAndRole(t *testing.T) {
+	useDataplane(t, &fakeDataplane{policies: []dataplane.PolicyInfo{
+		{Dir: dataplane.SADirOut, Action: dataplane.SPActionDiscard, Role: dataplane.PolicyRoleCatchAll},
+		{Dir: dataplane.SADirFwd, Action: dataplane.SPActionBypass, IfIndex: 12, Role: dataplane.PolicyRoleInterfaceExemption},
+		{Dir: dataplane.SADirIn, Action: dataplane.SPActionDiscard, IfID: 7, SPDInterface: "xfrm0", Role: dataplane.PolicyRoleInterfaceCatchAll},
+		{Dir: dataplane.SADirOut, IfID: 7, SPDInterface: "xfrm0", Owner: "peer-a", OwnerKnown: true, Role: dataplane.PolicyRoleChildSA},
+		{Dir: dataplane.SADirOut, IfID: 9},
+	}})
+
+	resp, err := handleShowVPNIPsecDataplanePolicy(nil, commandtest.Args())
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+	rows := rowsOf(t, resp, "policies")
+	want := []struct {
+		spd, role string
+		ifIndex   int
+	}{
+		{"node", "catch-all", 0},
+		{"node", "interface-exemption", 12},
+		{"xfrm0", "interface-catch-all", 0},
+		{"xfrm0", "child-sa", 0},
+		{"if-id 9", "unknown", 0},
+	}
+	require.Len(t, rows, len(want))
+	existing := []string{
+		"src", "dst", "src-port", "dst-port", "direction", "upper-proto", "priority",
+		"if-id", "action", "mode", "reqid", "tunnel-src", "tunnel-dst", "owner", "owner-known",
+	}
+	for i, w := range want {
+		require.Equal(t, w.spd, rows[i]["spd"], "row %d spd", i)
+		require.Equal(t, w.role, rows[i]["role"], "row %d role", i)
+		require.Equal(t, w.ifIndex, rows[i]["if-index"], "row %d if-index", i)
+		for _, key := range existing {
+			require.Contains(t, rows[i], key, "row %d lost the %q key", i, key)
+		}
+	}
+
+	payload, err := json.Marshal(resp.Data)
+	require.NoError(t, err)
+	_, renderJSON, errMsg := command.ProcessPipesDefaultFormatChecked("show vpn ipsec dataplane policy | json", "")
+	require.Empty(t, errMsg)
+	var publicRows []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(renderJSON(string(payload))), &publicRows))
+	require.Len(t, publicRows, len(want))
+	require.Equal(t, "unknown", publicRows[4]["role"], "a foreign row must read unknown, never blank")
+	require.Equal(t, "if-id 9", publicRows[4]["spd"])
+}
+
 // TestDriftCleanReportsNothing is AC-4.
 func TestDriftCleanReportsNothing(t *testing.T) {
 	usePeerInfo(t, map[string]engine.PeerInfo{

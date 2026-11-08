@@ -3,6 +3,8 @@ package routingtable
 import (
 	"math"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/iprule"
 )
 
 func TestResolveDefault(t *testing.T) {
@@ -104,7 +106,8 @@ func TestRejectUnencodableTableID(t *testing.T) {
 		maxEncode  uint64
 		wantReject bool
 	}{
-		{"below bound", 1000, maxInt32, false},
+		{"below bound", 4000, maxInt32, false},
+		{"ze-reserved range refused", 3000, maxInt32, true},
 		{"at bound", math.MaxInt32, maxInt32, false},
 		{"one above bound", math.MaxInt32 + 1, maxInt32, true},
 		{"max uint32 on 32-bit", math.MaxUint32, maxInt32, true},
@@ -136,7 +139,7 @@ func TestRejectUnencodableTableID(t *testing.T) {
 // example by being wired to a hardcoded 32-bit constant that would reject
 // kernel-legal table IDs on the 64-bit targets Ze ships.
 func TestValidateTableIDUsesBuildIntBound(t *testing.T) {
-	for _, id := range []uint32{1, 256, 1000, 1 << 31, math.MaxUint32} {
+	for _, id := range []uint32{1, 256, 4000, 1 << 31, math.MaxUint32} {
 		got, err := ValidateTableID(id)
 		if fits := tableIDFitsInInt(id); fits != (err == nil) {
 			t.Errorf("ValidateTableID(%d): fits in int = %v, accepted = %v", id, fits, err == nil)
@@ -184,5 +187,25 @@ func TestGetSetRegistry(t *testing.T) {
 	}
 	if id != 42 {
 		t.Errorf("Resolve(test) = %d, want 42", id)
+	}
+}
+
+// VALIDATES: an operator routing-table ID inside any Ze-reserved range (VRF tables,
+// policy routing auto tables, IPsec source-guard tables) is refused, naming the range,
+// and the IDs just outside the ranges are accepted.
+// PREVENTS: an operator static-route table landing on a table a Ze producer allocates
+// and rewrites, such as an IPsec source-guard table.
+func TestValidateTableIDRefusesZeReservedRanges(t *testing.T) {
+	for _, r := range iprule.ZeTableRanges() {
+		for _, id := range []uint32{r.First, r.Last} {
+			if _, err := ValidateTableID(id); err == nil {
+				t.Errorf("ValidateTableID(%d) accepted an ID in the ze-reserved range %d-%d", id, r.First, r.Last)
+			}
+		}
+	}
+	for _, id := range []uint32{999, 4000} {
+		if _, err := ValidateTableID(id); err != nil {
+			t.Errorf("ValidateTableID(%d) refused an ID outside every ze-reserved range: %v", id, err)
+		}
 	}
 }

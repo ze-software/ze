@@ -59,6 +59,12 @@ func unmatchedPolicies(family net.IP, action dataplane.SPAction) ([]dataplane.SP
 // caller has already judged action: this builder checks nothing.
 func spdCatchAllEntries(family net.IP, action dataplane.SPAction, ifID uint32) []dataplane.SPParams {
 	anyNet := anyNetFor(family)
+	// The SPD decides the role: the final entry of the node-wide SPD is the catch-all
+	// `unmatched` configures, and one at an interface if_id is that interface's own.
+	role := dataplane.PolicyRoleInterfaceCatchAll
+	if ifID == 0 {
+		role = dataplane.PolicyRoleCatchAll
+	}
 	out := make([]dataplane.SPParams, 0, len(unmatchedDirections))
 	for _, dir := range unmatchedDirections {
 		out = append(out, dataplane.SPParams{
@@ -66,6 +72,7 @@ func spdCatchAllEntries(family net.IP, action dataplane.SPAction, ifID uint32) [
 			Dst:      anyNet,
 			Dir:      dir,
 			Action:   action,
+			Role:     role,
 			Priority: dataplane.PriorityUnmatched,
 			SrcPort:  dataplane.AnyPortMatch(),
 			DstPort:  dataplane.AnyPortMatch(),

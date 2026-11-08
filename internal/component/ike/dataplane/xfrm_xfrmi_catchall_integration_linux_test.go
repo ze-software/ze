@@ -13,7 +13,8 @@
 // (engine/unmatched_xfrm_interface.go, interfaceSPDCatchAll) blocks what reaches the
 // interface unmatched and ranks below a Child SA policy there, and a BYPASS at that
 // if_id carries no cleartext (TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel,
-// TestInterfaceSPDBypassCarriesNoCleartextInKernel).
+// TestInterfaceSPDBypassCarriesNoCleartextInKernel), and a packet arriving through the
+// interface is judged in that SPD, not in SPD 0 (TestRFC4301InboundSelectsTheInterfaceSPDInKernel).
 
 //go:build linux
 
@@ -307,4 +308,168 @@ func xfrmiStats(t *testing.T) netlink.LinkStatistics {
 		t.Fatalf("%s reports no link statistics", xfrmiTestLink)
 	}
 	return *link.Attrs().Statistics
+}
+
+// The tunnel endpoints of the inbound proof. Both are held on loopback, so the ESP
+// packet the XFRM interface sends to inboundTunnelDst is delivered back to this
+// namespace and decrypted by the same state.
+const (
+	inboundTunnelSrc = "192.0.2.1"
+	inboundTunnelDst = "192.0.2.2"
+	inboundSPI       = 0x7007
+	inboundReqID     = 7
+)
+
+// writeNetSysctl writes one value under /proc/sys/net in the test's own namespace.
+func writeNetSysctl(t *testing.T, key, value string) {
+	t.Helper()
+	if err := os.WriteFile("/proc/sys/net/"+key, []byte(value), 0o644); err != nil {
+		t.Fatalf("set net.%s=%s in the test namespace: %v", strings.ReplaceAll(key, "/", "."), value, err)
+	}
+}
+
+// inboundLoop builds the loop that hands this namespace an ESP packet arriving through
+// the XFRM interface: a datagram routed into zexfi0 meets the Child SA out policy at
+// the interface's if_id, is encrypted to inboundTunnelDst (a local address), comes back
+// in, is decrypted by the same state (if_id 7), and re-enters the stack on zexfi0
+// (xfrmi_rcv_cb sets skb->dev). Its inner destination is not local, so ip_forward runs
+// the fwd policy check. Its inner source is zexfi0's own address, which the martian
+// source check refuses unless accept_local is set.
+func inboundLoop(t *testing.T, b *xfrmBackend) {
+	t.Helper()
+	setupXFRMInterface(t)
+	lo, err := netlink.LinkByName("lo")
+	if err != nil {
+		t.Fatalf("find lo: %v", err)
+	}
+	addNoDADAddr(t, lo, inboundTunnelSrc+"/32")
+	addNoDADAddr(t, lo, inboundTunnelDst+"/32")
+	writeNetSysctl(t, "ipv4/ip_forward", "1")
+	writeNetSysctl(t, "ipv4/conf/all/accept_local", "1")
+
+	if err := b.InstallSA(SAParams{
+		SPI: inboundSPI, Src: net.ParseIP(inboundTunnelSrc), Dst: net.ParseIP(inboundTunnelDst),
+		IfID: xfrmiTestIfID, Proto: ProtoESP, Mode: ModeTunnel, ReqID: inboundReqID,
+		EncAlgo: "aes256", EncKey: make([]byte, 32), AuthAlgo: "sha256", AuthKey: make([]byte, 32),
+	}); err != nil {
+		t.Fatalf("install the loop state: %v", err)
+	}
+	t.Cleanup(func() { _ = b.RemoveSA(inboundSPI, net.ParseIP(inboundTunnelDst), ProtoESP) })
+	installForTest(t, b, inboundChildSAPolicy(t, SADirOut))
+}
+
+// inboundChildSAPolicy is the Child SA policy of the interface's SPD for the loop's
+// destination, with the template the loop state satisfies.
+func inboundChildSAPolicy(t *testing.T, dir SADir) SPParams {
+	t.Helper()
+	return SPParams{
+		Src: mustCIDR(t, xfrmiTestRange4), Dst: mustCIDR(t, xfrmiTestPeer4+"/32"), Dir: dir,
+		Proto: ProtoESP, Mode: ModeTunnel, IfID: xfrmiTestIfID, ReqID: inboundReqID,
+		TunnelSrc: net.ParseIP(inboundTunnelSrc), TunnelDst: net.ParseIP(inboundTunnelDst),
+		Priority: PriorityChildSA,
+	}
+}
+
+// inboundCounters are the three outcomes of __xfrm_policy_check for a tunnel-mode
+// packet: no policy in the SPD searched (XfrmInNoPols), a DISCARD matched
+// (XfrmInPolBlock), or a template-free BYPASS matched, whose tunnel secpath it
+// cannot accept (XfrmInTmplMismatch).
+type inboundCounters struct{ noPols, polBlock, tmplMismatch int }
+
+func readInboundCounters(t *testing.T) inboundCounters {
+	t.Helper()
+	return inboundCounters{
+		noPols:       xfrmStat(t, "XfrmInNoPols"),
+		polBlock:     xfrmStat(t, "XfrmInPolBlock"),
+		tmplMismatch: xfrmStat(t, "XfrmInTmplMismatch"),
+	}
+}
+
+// sendThroughLoop sends one datagram into the loop and answers how far each inbound
+// counter and zexfi0's received packets moved.
+func sendThroughLoop(t *testing.T) (inboundCounters, uint64) {
+	t.Helper()
+	before, rxBefore := readInboundCounters(t), xfrmiStats(t).RxPackets
+	blockedSend(t, "udp4", net.ParseIP("198.51.100.65"), xfrmiTestPeer4)
+	after, rxAfter := readInboundCounters(t), xfrmiStats(t).RxPackets
+	return inboundCounters{
+		noPols:       after.noPols - before.noPols,
+		polBlock:     after.polBlock - before.polBlock,
+		tmplMismatch: after.tmplMismatch - before.tmplMismatch,
+	}, rxAfter - rxBefore
+}
+
+// TestRFC4301InboundSelectsTheInterfaceSPDInKernel measures AC-4 and A-4 on a real XFRM
+// stack: a packet decrypted by an SA of an XFRM interface is judged in that interface's
+// SPD (its if_id), not in the node-wide SPD at if_id 0. RFC 4301 Section 5.2 step 2: "If
+// multiple SPDs are employed, the tag assigned to the packet in step 1 is used to select
+// the appropriate SPD-I (and cache) to search."
+//
+// The kernel path: __xfrm_policy_check takes the if_id from xfrmi_decode_session, which
+// answers the interface's if_id for a packet with a secpath that arrived on it, and
+// xfrm_policy_match requires an equal if_id. Each leg reads which of the three outcome
+// counters moved, because a drop alone cannot tell the SPDs apart: a template-free
+// BYPASS at if_id 0 also rejects a tunnel-mode packet.
+//
+// The fwd direction is measured: the inner destination is routed back into zexfi0, so
+// a forwarded packet loops through the tunnel until its TTL ends. The in direction runs
+// the same check with the same if_id source and is not measured here, because it needs
+// a locally delivered inner destination that this one-namespace loop cannot route into
+// the interface.
+func TestRFC4301InboundSelectsTheInterfaceSPDInKernel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	b := &xfrmBackend{}
+	inboundLoop(t, b)
+	ranges := func(dir SADir, action SPAction, ifID uint32) SPParams {
+		return SPParams{
+			Src: mustCIDR(t, xfrmiTestRange4), Dst: mustCIDR(t, xfrmiTestRange4), Dir: dir,
+			Action: action, Priority: PriorityUnmatched, IfID: ifID,
+		}
+	}
+
+	// LEG 1, selection: only SPD 0 holds an entry, a BYPASS that matches the inner
+	// header. A packet judged in SPD 0 would meet it (XfrmInTmplMismatch); judged in
+	// the interface's empty SPD it meets nothing (XfrmInNoPols).
+	installForTest(t, b, ranges(SADirFwd, SPActionBypass, 0))
+	delta, rx := sendThroughLoop(t)
+	if rx == 0 {
+		t.Fatal("no packet arrived through the XFRM interface; the loop did not run and nothing below measures inbound selection")
+	}
+	if delta.tmplMismatch != 0 {
+		t.Errorf("a packet that arrived through the XFRM interface was judged in SPD 0 (XfrmInTmplMismatch +%d): inbound selection ignored the interface", delta.tmplMismatch)
+	}
+	if delta.noPols == 0 {
+		t.Errorf("a packet that arrived through the XFRM interface was not judged in the interface's empty SPD (XfrmInNoPols unchanged, %+v)", delta)
+	}
+
+	// LEG 2, AC-4: the interface SPD's catch-all discards it, while the SPD 0 BYPASS
+	// stays in place and would match.
+	installForTest(t, b, ranges(SADirFwd, SPActionDiscard, xfrmiTestIfID))
+	installForTest(t, b, ranges(SADirIn, SPActionDiscard, xfrmiTestIfID))
+	delta, _ = sendThroughLoop(t)
+	if delta.polBlock == 0 {
+		t.Errorf("the interface SPD catch-all did not discard a packet that arrived through its interface (XfrmInPolBlock unchanged, %+v)", delta)
+	}
+	if delta.tmplMismatch != 0 {
+		t.Errorf("the SPD 0 BYPASS judged a packet that arrived through the XFRM interface (XfrmInTmplMismatch +%d)", delta.tmplMismatch)
+	}
+
+	// LEG 3, positive: the Child SA's fwd entry in the interface SPD outranks the
+	// catch-all and accepts the packet its state decrypted, so no outcome counter moves.
+	installForTest(t, b, inboundChildSAPolicy(t, SADirFwd))
+	delta, rx = sendThroughLoop(t)
+	if rx == 0 {
+		t.Fatal("no packet arrived through the XFRM interface in the positive leg")
+	}
+	if delta.polBlock != 0 {
+		t.Errorf("a packet the Child SA's fwd entry covers met the interface catch-all (XfrmInPolBlock +%d)", delta.polBlock)
+	}
+	if delta.noPols != 0 {
+		t.Errorf("a packet the Child SA's fwd entry covers found no policy (XfrmInNoPols +%d)", delta.noPols)
+	}
+	if delta.tmplMismatch != 0 {
+		t.Errorf("a packet the Child SA's fwd entry covers failed its template (XfrmInTmplMismatch +%d)", delta.tmplMismatch)
+	}
 }

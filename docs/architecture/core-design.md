@@ -3324,7 +3324,7 @@ Cross-component coupling follows a strict hierarchy:
 | config | plugin, plugin/registry, command |
 | hub | everything (orchestrator) |
 | iface | config/yang, plugin, plugin/registry |
-| ike | command, config (and config/yang, config/secret, config/redistribute), iface, kernelcap, pki (callbacks), plugin, plugin/registry, plugin/server (CLI RPCs), vpp; publishes its live tunnels through the `internal/core/ipsecinventory` leaf and its padded path probe through the `internal/core/ikeprobe` leaf rather than being imported for either |
+| ike | command, config (and config/yang, config/secret, config/redistribute), firewall (the tunnel-source guard's nft table), iface, kernelcap, pki (callbacks), plugin, plugin/registry, plugin/server (CLI RPCs), vpp; publishes its live tunnels through the `internal/core/ipsecinventory` leaf and its padded path probe through the `internal/core/ikeprobe` leaf rather than being imported for either; writes the tunnel-source guard's fib rules and table routes through the `internal/core/iprule` leaf |
 | l2tp | config/yang, plugin/server (CLI RPCs), events (observer, route-change), web (handler_l2tp) |
 | mcp | audit |
 | mtu | command, config/yang (the two YANG modules register), iface (dispatch calls only), plugin, plugin/server (CLI RPC), sysctl (`Read`), ike/crypto and ike/ipsec (untagged leaves, for the transform ids); reads live tunnels through the `internal/core/ipsecinventory` leaf, probes through `internal/core/probe`, asks a live SA to confirm a figure through the `internal/core/ikeprobe` leaf, and never imports `ike/engine` |

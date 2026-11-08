@@ -398,6 +398,9 @@ func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 		}
 		return fmt.Errorf("xfrm: policy update: %w", err)
 	}
+	// Labelled only once the kernel holds the entry, so a refused install leaves no
+	// role behind for a read to show.
+	b.policies.label(p)
 	return nil
 }
 
@@ -695,11 +698,13 @@ func (b *xfrmBackend) ListPolicies() ([]PolicyInfo, error) {
 	for i := range policies {
 		out = append(out, b.policyInfoFromKernel(&policies[i]))
 	}
+	nameInterfaceSPDs(out)
 	return out, nil
 }
 
 // policyInfoFromKernel maps one kernel SPD record onto PolicyInfo and resolves
-// the peer that installed it.
+// the peer that installed it, and the role and SPD name Ze recorded for it
+// (policyOwners.annotate).
 //
 // THE OWNER JOIN IS THE POINT. The kernel identifies a policy by its selector
 // alone and stores no installer, so the only way to name one is to invert the
@@ -748,16 +753,7 @@ func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
 			info.Mode = mode
 		}
 	}
-	info.Owner, info.OwnerKnown = b.policies.ownerOf(SPParams{
-		Src:        info.Src,
-		Dst:        info.Dst,
-		Dir:        info.Dir,
-		UpperProto: info.UpperProto,
-		SrcPort:    info.SrcPort,
-		DstPort:    info.DstPort,
-		IfIndex:    info.IfIndex,
-		IfID:       info.IfID,
-	})
+	b.policies.annotate(&info)
 	return info
 }
 

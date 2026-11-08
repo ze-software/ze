@@ -130,22 +130,25 @@ func (d *recordingDataplane) ListPolicies() ([]PolicyInfo, error) {
 	for key := range d.policies {
 		p := d.policies[key]
 		out = append(out, PolicyInfo{
-			Src:        p.Src,
-			Dst:        p.Dst,
-			SrcPort:    p.SrcPort,
-			DstPort:    p.DstPort,
-			Dir:        p.Dir,
-			UpperProto: p.UpperProto,
-			Priority:   p.Priority,
-			IfIndex:    p.IfIndex,
-			IfID:       p.IfID,
-			Action:     p.Action,
-			Mode:       p.Mode,
-			ReqID:      p.ReqID,
-			Owner:      p.Owner,
-			OwnerKnown: true,
+			Src:          p.Src,
+			Dst:          p.Dst,
+			SrcPort:      p.SrcPort,
+			DstPort:      p.DstPort,
+			Dir:          p.Dir,
+			UpperProto:   p.UpperProto,
+			Priority:     p.Priority,
+			IfIndex:      p.IfIndex,
+			IfID:         p.IfID,
+			Action:       p.Action,
+			Mode:         p.Mode,
+			ReqID:        p.ReqID,
+			Owner:        p.Owner,
+			OwnerKnown:   true,
+			Role:         p.Role,
+			SPDInterface: p.SPD,
 		})
 	}
+	nameInterfaceSPDs(out)
 	slices.SortFunc(out, func(a, b PolicyInfo) int {
 		if c := cmp.Compare(a.Priority, b.Priority); c != 0 {
 			return c

@@ -234,7 +234,8 @@ func (s *ikeEngineState) followAddress() {
 		}
 	}
 	// A bound XFRM interface that gained or lost an address, or came back under a new
-	// index or if_id, needs its SPD entries rebuilt (unmatched_xfrm_interface.go).
+	// index or if_id, needs its SPD entries and its tunnel-source guard rebuilt
+	// (unmatched_xfrm_interface.go, source_guard.go).
 	entries := s.planXFRMInterfaceEntries(s.applied)
 	s.installXFRMInterfaceEntries(dataplane.Get(), entries)
 	s.pruneXFRMInterfaceEntries(dataplane.Get(), entries)

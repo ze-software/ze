@@ -680,6 +680,7 @@ func buildIPsecPolicies(ifindex int, c ipsecInterfaceConfig) []dataplane.SPParam
 			ReqID:      reqid,
 			UpperProto: ospfv3transport.Protocol, // 89: only OSPF traffic
 			IfIndex:    ifindex,                  // §6: scope to this interface only
+			Role:       dataplane.PolicyRoleOSPF,
 		}
 	}
 	return []dataplane.SPParams{

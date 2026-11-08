@@ -31,6 +31,11 @@ const (
 	// the IPv6 RA default-route manager, the PPPoE client, and PPP NCPs.
 	// It is deliberately NOT a value IsZe reports true for -- see IsZe.
 	Iface Proto = 253
+	// IPsecSourceGuard marks the routes the IKE engine installs in the per-interface
+	// tables of the IPv6 tunnel-source guard (internal/component/ike/engine,
+	// source_guard.go): one per Child SA remote traffic selector, plus the
+	// unreachable default that ends each table.
+	IPsecSourceGuard Proto = 248
 )
 
 // IsZe reports whether protocol is one of Ze's producer-specific route owners.
@@ -43,7 +48,7 @@ func IsZe(protocol int) bool {
 	// Only Ze-owned protocols suppress route notifications; interface and foreign routes remain visible.
 	//exhaustive:ignore
 	switch Proto(protocol) {
-	case GTSM, FIBKernel, Static, PolicyRoute:
+	case GTSM, FIBKernel, Static, PolicyRoute, IPsecSourceGuard:
 		return true
 	case Any, Iface:
 		return false
@@ -60,9 +65,10 @@ func Name(protocol int) (string, bool) {
 }
 
 var names = map[Proto]string{
-	GTSM:        "ze-gtsm",
-	FIBKernel:   "ze-fib",
-	Static:      "ze-static",
-	PolicyRoute: "ze-policy-route",
-	Iface:       "ze-iface",
+	GTSM:             "ze-gtsm",
+	FIBKernel:        "ze-fib",
+	Static:           "ze-static",
+	PolicyRoute:      "ze-policy-route",
+	Iface:            "ze-iface",
+	IPsecSourceGuard: "ze-ipsec-guard",
 }

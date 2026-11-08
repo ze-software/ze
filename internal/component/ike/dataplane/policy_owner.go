@@ -77,10 +77,66 @@ func cidrKey(n *net.IPNet, ipv6 bool) string {
 // (xfrmBackend.InstallPolicy), they are byte-identical, and they carry no per-peer
 // identity to conflict over.
 //
+// It also keeps, for EVERY entry Ze installed, template-free ones included, the role
+// and SPD name the installer gave it (labels), so a read can say which job and which
+// SPD each kernel row has. A label refuses nothing: ownership stays limited to
+// template-carrying policies, and the label only follows the kernel's lifetime of the
+// entry, written once the kernel accepted the install and dropped once the kernel
+// confirmed the removal.
+//
 // Safe for concurrent use: one PeerSession goroutine per peer reaches it.
 type policyOwners struct {
 	mu     sync.Mutex
 	owners map[policySelectorKey]policyHolder
+	labels map[policySelectorKey]policyLabel
+}
+
+// policyLabel is what an installer said about one entry: why it built it and which
+// XFRM interface's SPD holds it (SPParams.Role, SPParams.SPD).
+type policyLabel struct {
+	role PolicyRole
+	spd  string
+}
+
+// label records p's role and SPD name against p's selector. The caller MUST call it
+// only after the kernel accepted p: a label written before would outlive a refused
+// install and name an entry the kernel does not hold. A re-install of the same
+// selector (a Child SA rekey, a re-asserted catch-all) overwrites the label.
+func (o *policyOwners) label(p SPParams) {
+	key := policyKey(p)
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.labels == nil {
+		o.labels = make(map[policySelectorKey]policyLabel)
+	}
+	o.labels[key] = policyLabel{role: p.Role, spd: p.SPD}
+}
+
+// annotate joins one kernel row back to what Ze recorded for its selector: the owner
+// of a template-carrying entry, and the role and SPD name of any entry Ze installed.
+// A row Ze holds no record for keeps OwnerKnown false and PolicyRoleUnspecified,
+// which a renderer shows as "unknown" (ai/rules/evidence.md).
+func (o *policyOwners) annotate(info *PolicyInfo) {
+	key := policyKey(SPParams{
+		Src:        info.Src,
+		Dst:        info.Dst,
+		Dir:        info.Dir,
+		UpperProto: info.UpperProto,
+		SrcPort:    info.SrcPort,
+		DstPort:    info.DstPort,
+		IfIndex:    info.IfIndex,
+		IfID:       info.IfID,
+	})
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if held, ok := o.owners[key]; ok {
+		info.Owner, info.OwnerKnown = held.owner, true
+	}
+	if label, ok := o.labels[key]; ok {
+		info.Role, info.SPDInterface = label.role, label.spd
+	}
 }
 
 // policyHolder is the record for one claimed selector: who installed it, and whether
@@ -256,10 +312,18 @@ func (o *policyOwners) release(p SPParams) error {
 // del is not called at all for a selector a DIFFERENT owner holds: a refused delete must
 // not reach the kernel.
 func (o *policyOwners) deleteThenRelease(p SPParams, del func() error) error {
-	if p.Action.isTemplateFree() {
-		return del()
-	}
 	key := policyKey(p)
+	if p.Action.isTemplateFree() {
+		delErr := del()
+		if delErr != nil && !errors.Is(delErr, syscall.ENOENT) {
+			// The kernel still holds the entry, so its label stays.
+			return delErr
+		}
+		o.mu.Lock()
+		delete(o.labels, key)
+		o.mu.Unlock()
+		return delErr
+	}
 
 	// The lock spans del, so check, delete and drop are one atomic step.
 	//
@@ -284,6 +348,7 @@ func (o *policyOwners) deleteThenRelease(p SPParams, del func() error) error {
 		return delErr
 	}
 	delete(o.owners, key)
+	delete(o.labels, key)
 	// The ENOENT still reaches the caller. It is a fact about the kernel -- ze asked it
 	// to remove a policy it did not have -- and swallowing it would make that
 	// indistinguishable from a routine removal. Only the RECORD's fate turns on it.
@@ -305,6 +370,11 @@ func (o *policyOwners) releaseBySelector(src, dst *net.IPNet, dir SADir) {
 	for key := range o.owners {
 		if key.src == selector.src && key.dst == selector.dst && key.dir == selector.dir {
 			delete(o.owners, key)
+		}
+	}
+	for key := range o.labels {
+		if key.src == selector.src && key.dst == selector.dst && key.dir == selector.dir {
+			delete(o.labels, key)
 		}
 	}
 }

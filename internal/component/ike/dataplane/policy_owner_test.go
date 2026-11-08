@@ -1,9 +1,113 @@
 package dataplane
 
 import (
+	"errors"
 	"net"
+	"syscall"
 	"testing"
 )
+
+// TestPolicyOwnersRecordRoleAndSPD proves the ledger keeps the role and SPD name of
+// every entry Ze installs, template-free ones included, joins them back onto a kernel
+// row by its selector, names every entry of an interface SPD from the one that
+// carries the name, and reads a row Ze holds no record for as role "unknown" in an SPD
+// that is still named. It then proves the label follows the kernel's lifetime: a
+// confirmed removal drops it, a refused one keeps it. Method: label entries the way
+// InstallPolicy does after the kernel accepted them, then read them back as
+// policyInfoFromKernel and ListPolicies do (annotate, then nameInterfaceSPDs).
+func TestPolicyOwnersRecordRoleAndSPD(t *testing.T) {
+	const ifID = 7
+	any4 := overlapTestNet(t, "0.0.0.0/0")
+	child := SPParams{
+		Src: overlapTestNet(t, "10.1.0.0/16"), Dst: overlapTestNet(t, "10.2.0.0/16"),
+		Dir: SADirOut, Mode: ModeTunnel, IfID: ifID, Owner: "peer-a", Role: PolicyRoleChildSA,
+	}
+	catchAll := SPParams{
+		Src: any4, Dst: any4, Dir: SADirOut, Action: SPActionDiscard,
+		IfID: ifID, Role: PolicyRoleInterfaceCatchAll, SPD: "xfrm0",
+	}
+	bypass := SPParams{
+		Src: any4, Dst: any4, Dir: SADirIn, Action: SPActionBypass,
+		UpperProto: 17, DstPort: ExactPortMatch(500), Role: PolicyRoleIKEBypass,
+	}
+
+	var o policyOwners
+	if _, err := o.claim(child); err != nil {
+		t.Fatalf("claim(child): %v", err)
+	}
+	for _, p := range []SPParams{child, catchAll, bypass} {
+		o.label(p)
+	}
+
+	asRead := func(p SPParams) PolicyInfo {
+		return PolicyInfo{
+			Src: p.Src, Dst: p.Dst, Dir: p.Dir, UpperProto: p.UpperProto,
+			SrcPort: p.SrcPort, DstPort: p.DstPort, IfIndex: p.IfIndex, IfID: p.IfID,
+		}
+	}
+	foreignSameSPD := asRead(SPParams{Src: overlapTestNet(t, "192.0.2.0/24"), Dst: any4, Dir: SADirFwd, IfID: ifID})
+	foreignOtherSPD := asRead(SPParams{Src: any4, Dst: any4, Dir: SADirOut, IfID: 9})
+	foreignNode := asRead(SPParams{Src: overlapTestNet(t, "198.51.100.0/24"), Dst: any4, Dir: SADirOut})
+	rows := []PolicyInfo{asRead(child), asRead(catchAll), asRead(bypass), foreignSameSPD, foreignOtherSPD, foreignNode}
+	for i := range rows {
+		o.annotate(&rows[i])
+	}
+	nameInterfaceSPDs(rows)
+
+	want := []struct {
+		name, role, spd string
+		ownerKnown      bool
+	}{
+		{"child sa", "child-sa", "xfrm0", true},
+		{"interface catch-all", "interface-catch-all", "xfrm0", false},
+		{"ike bypass", "ike-bypass", "node", false},
+		{"foreign entry in a bound SPD", "unknown", "xfrm0", false},
+		{"foreign entry in an unbound SPD", "unknown", "if-id 9", false},
+		{"foreign entry in the node SPD", "unknown", "node", false},
+	}
+	for i, w := range want {
+		if got := rows[i].Role.String(); got != w.role {
+			t.Errorf("%s: role %q, want %q", w.name, got, w.role)
+		}
+		if got := rows[i].SPDName(); got != w.spd {
+			t.Errorf("%s: spd %q, want %q", w.name, got, w.spd)
+		}
+		if rows[i].OwnerKnown != w.ownerKnown {
+			t.Errorf("%s: owner-known %v, want %v", w.name, rows[i].OwnerKnown, w.ownerKnown)
+		}
+	}
+
+	roleOf := func(p SPParams) PolicyRole {
+		info := asRead(p)
+		o.annotate(&info)
+		return info.Role
+	}
+	// A removal the kernel refused leaves the entry, so its label stays.
+	refused := errors.New("kernel refused")
+	if err := o.deleteThenRelease(catchAll, func() error { return refused }); !errors.Is(err, refused) {
+		t.Fatalf("deleteThenRelease(refused) = %v, want the kernel's refusal", err)
+	}
+	if got := roleOf(catchAll); got != PolicyRoleInterfaceCatchAll {
+		t.Fatalf("after a refused removal the catch-all reads %v, want it kept", got)
+	}
+	// ENOENT says the kernel holds no such entry, so the label goes with it.
+	if err := o.deleteThenRelease(catchAll, func() error { return syscall.ENOENT }); !errors.Is(err, syscall.ENOENT) {
+		t.Fatalf("deleteThenRelease(ENOENT) = %v, want ENOENT passed on", err)
+	}
+	if got := roleOf(catchAll); got != PolicyRoleUnspecified {
+		t.Fatalf("after the kernel lost the catch-all it reads %v, want unknown", got)
+	}
+	if err := o.deleteThenRelease(child, func() error { return nil }); err != nil {
+		t.Fatalf("deleteThenRelease(child): %v", err)
+	}
+	if got := roleOf(child); got != PolicyRoleUnspecified {
+		t.Fatalf("after removal the child SA policy reads %v, want unknown", got)
+	}
+	o.releaseBySelector(bypass.Src, bypass.Dst, bypass.Dir)
+	if got := roleOf(bypass); got != PolicyRoleUnspecified {
+		t.Fatalf("after releaseBySelector the bypass reads %v, want unknown", got)
+	}
+}
 
 func overlapTestNet(t *testing.T, cidr string) *net.IPNet {
 	t.Helper()

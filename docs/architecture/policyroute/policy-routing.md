@@ -58,19 +58,22 @@ decides nothing, and the `order` leaf keeps deciding which rule runs first.
 The fwmark range is `0x50000` to `0x5FFFF`. The auto table range is 2000 to 2999.
 Allocation is sequential with dedup: the same next hop reuses a table.
 
-VRF tables (1000 to 1999) and policy-routing auto tables (2000 to 2999) do not
-overlap by construction. An operator-supplied table ID in 1000 to 2999
-(ze-reserved) or 253 to 255 (kernel system) is rejected at PARSE time, not at
-apply time.
-
-The auto table range is declared in `internal/core/iprule`
-(`PolicyRouteAutoTables`), beside every other range a Ze producer allocates
-from, and `TestTableRangesAreDisjoint` checks them against each other. The
+Ze reserves three table ranges: VRF tables (1000 to 1999, held for VRFs, no
+producer yet), policy-routing auto tables (2000 to 2999) and the IKE engine's
+IPv6 tunnel-source guard tables (3000 to 3999). Each is declared once in
+`internal/core/iprule` (`VRFTables`, `PolicyRouteAutoTables`,
+`IPsecSourceGuardTables`), `TestTableRangesAreDisjoint` checks them against each
+other, and `iprule.Reserved` answers the range that holds a table ID. An
+operator-supplied table ID inside any of them is refused at PARSE time, not at
+apply time: a policy route `then table` (`validateActionTable`) and a
+`routing-table` id (`routingtable.ValidateTableID`) both ask `iprule.Reserved`.
+Table IDs 253 to 255 (kernel system) are refused too. The
 `ip rule` encoder lives there too (`iprule.Mark.Rule`): the IKE engine builds
 source-prefix rules with the same encoder (`iprule.Source.Rule`), and a gated
 component cannot import this gated plugin.
 
-<!-- source: internal/core/iprule/iprule.go -- TableRange, PolicyRouteAutoTables, Mark -->
+<!-- source: internal/core/iprule/iprule.go -- TableRange, PolicyRouteAutoTables, IPsecSourceGuardTables, Reserved, Mark -->
+<!-- source: internal/core/routingtable/registry.go -- validateTableID -->
 <!-- source: internal/core/iprule/iprule_linux.go -- newRule, Mark.Rule, Source.Rule -->
 
 ### One terminal action per rule

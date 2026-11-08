@@ -938,6 +938,7 @@ func childPairPolicy(child *ChildSA, dir dataplane.SADir, pair policyPair) datap
 		// contrast with the IKE bypass (bypass.go) legible.
 		Action:     dataplane.SPActionProtect,
 		Owner:      child.Owner,
+		Role:       dataplane.PolicyRoleChildSA,
 		Proto:      protoESP,
 		Mode:       mode,
 		IfID:       child.IfID,

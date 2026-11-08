@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math"
 	"sync/atomic"
+
+	"github.com/ze-software/ze/internal/core/iprule"
 )
 
 // maxEncodableTableID is the largest table ID this build can program into the
@@ -68,6 +70,10 @@ func validateTableID(id uint32, maxEncodable uint64) (uint32, error) {
 	}
 	if id >= 253 && id <= 255 {
 		return 0, fmt.Errorf("table ID %d is reserved (253=default, 254=main, 255=local)", id)
+	}
+	if r, reserved := iprule.Reserved(id); reserved {
+		return 0, fmt.Errorf("table ID %d is in the ze-reserved range %d-%d, whose tables Ze allocates and rewrites; "+
+			"choose a table ID outside this range and every other ze-reserved range", id, r.First, r.Last)
 	}
 	if uint64(id) > maxEncodable {
 		return 0, fmt.Errorf("table ID %d exceeds %d, the largest this build can program through netlink", id, maxEncodable)

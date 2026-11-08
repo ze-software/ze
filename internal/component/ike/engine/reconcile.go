@@ -762,6 +762,7 @@ func stopPeerSession(
 		removeChildSA(child, dp, log)
 		emitChildDown(bus, name, child, log)
 		emitRouteRemove(bus, child.TSRemote, log)
+		guardTunnelRoute(false, name, child, log)
 		ps.setChildSA(nil)
 	}
 	// getSA (mutex-guarded): a responder's ps.sa is written by the dispatch goroutine,

@@ -48,11 +48,15 @@ module ze-routing-table-conf {
                 description
                     "The leaf is mandatory. The range refuses 0 and 253 to 255, because
                      253 is the kernel default table, 254 is the main table and 255 is
-                     the local table. Ze also refuses an identifier this build cannot
+                     the local table. Ze also refuses an identifier inside a range Ze
+                     reserves for its own tables (internal/core/iprule, ZeTableRanges:
+                     VRF tables, policy routing auto tables, IPsec source-guard tables),
+                     and an identifier this build cannot
                      program through netlink without truncation.";
                 ze:help "Kernel routing table ID. Reserved IDs
                          excluded: 0 (use 'default'), 253-255
-                         (kernel reserved).";
+                         (kernel reserved), and the ranges Ze
+                         reserves for its own tables.";
             }
         }
     }

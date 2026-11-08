@@ -57,7 +57,10 @@ programs Ze does not control, so most mistakes here are about ownership.
   forked plugin ships them over the route-install RPC because `locrib.Default()`
   is nil in a subprocess (`docs/architecture/forked-route-install.md`). The one
   exception is a static route in a named table, which keeps its direct write
-  (`docs/architecture/static-routes.md`). MPLS label entries reach the kernel
+  (`docs/architecture/static-routes.md`). The IKE engine's tunnel-source guard
+  writes its own tables (3000 to 3999, `rtproto.IPsecSourceGuard`) and their
+  `ip rule` entries through `internal/core/iprule`: they steer traffic from a
+  tunnel address, not forwarded routes (`docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`). MPLS label entries reach the kernel
   only as `(mpls-fib, entry)` events that `fib-kernel` consumes
   (`internal/core/mplsfib/events.go`).
 - **Exact or refuse, at verify.** Feature support is declared with `ze:backend`
