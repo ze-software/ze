@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5625-4.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc5625_resolver_test.go::TestRFC5625ResolverUnknownTypeAndClass",
+    "unit-sha": "55be9569187661d7",
+    "claim-sha": "0c449d87f0eb517c",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::resolve",
+    "producer-sha": "db342944d951a619",
+    "break": "line 114: \"q.Qtype\" -\u003e \"dns.TypeA\""
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5625-4.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc5625_resolver_test.go::TestRFC5625ResolverUnknownTypeAndClass",
+    "unit-sha": "55be9569187661d7",
+    "claim-sha": "5973f567fa5d2ee7",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::absorb",
+    "producer-sha": "59fb61b76048d264",
+    "break": "line 216: \"q.Qclass\" -\u003e \"dns.ClassINET\""
+  }
+]
