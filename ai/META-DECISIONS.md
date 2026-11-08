@@ -399,6 +399,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   spec that will fix it: an existing spec whose mechanism fits, or a new one.
   Then close the work in hand and stop, with no ask. A commit that adds or
   changes an open row no spec owns is refused.
+- A crash, corruption or other incident that was not investigated in the
+  session that met it is not recorded: another session may have caused it,
+  and with its evidence gone nobody can investigate it. A spec item whose only
+  remaining blocker is missing historical evidence moves to a spec of its own,
+  to be completed later, so the spec that held it can close.
 - Sessions share the one `main` checkout. No worktree per session: fix
   shared-checkout friction inside that model.
 - Close in-progress specs before opening new ones. The WIP cap is lowered as
