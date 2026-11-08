@@ -186,6 +186,8 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 			return sourceExpr{}, false
 		}
 		return sourceExpr{value: function.decl.Type.Results.List[0].Type, file: function.file, pkg: function.pkg}, true
+	case *ast.SelectorExpr:
+		return e.fieldType(source, value, depth)
 	case *ast.Ident:
 		binding := value.Obj
 		if binding == nil {
@@ -215,9 +217,10 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		if binding.Kind != ast.Var {
 			return sourceExpr{}, false
 		}
-		if err := e.immutable(source); err != nil {
-			return sourceExpr{}, false
-		}
+		// A write never changes a variable's static type. Go specification,
+		// "Assignment statements": "each value must be assignable to the type
+		// of the operand to which it is assigned". So a written variable keeps
+		// the type its declaration gives it, and no write check applies here.
 		// Package declarations may live in a different retained file; imports
 		// in their types and initializers belong to that file, not the caller.
 		for _, file := range source.pkg.files {
@@ -389,6 +392,46 @@ func (e *expression) underlyingType(source sourceExpr, depth int) (sourceExpr, b
 			return sourceExpr{}, false
 		}
 		source = sourceExpr{value: definition.Type, file: file, pkg: owner}
+	}
+	return sourceExpr{}, false
+}
+
+// fieldType answers the static type of a field selector x.f. Go
+// specification, "Selectors": "For a value x of type T or *T where T is not a
+// pointer or interface type, x.f denotes the field or method at the shallowest
+// depth in T where there is such an f." Only depth zero is answered: a direct
+// field of a retained, non-generic struct type, through at most one pointer.
+// An imported name, a method, an embedded or promoted field, and a holder
+// whose type is unknown or not such a struct refuse.
+func (e *expression) fieldType(source sourceExpr, selector *ast.SelectorExpr, depth int) (sourceExpr, bool) {
+	if _, imported := e.callableImport(source, selector); imported {
+		return sourceExpr{}, false
+	}
+	holder, found := e.valueType(sourceExpr{value: selector.X, file: source.file, pkg: source.pkg}, depth+1)
+	if !found {
+		return sourceExpr{}, false
+	}
+	if pointer, indirect := holder.value.(*ast.StarExpr); indirect {
+		holder.value = pointer.X
+	}
+	definition, owner, found := e.concreteType(holder)
+	if !found {
+		return sourceExpr{}, false
+	}
+	structure, isStruct := definition.Type.(*ast.StructType)
+	if !isStruct {
+		return sourceExpr{}, false
+	}
+	file, declared := declaringFile(owner, definition)
+	if !declared {
+		return sourceExpr{}, false
+	}
+	for _, field := range structure.Fields.List {
+		for _, name := range field.Names {
+			if name.Name == selector.Sel.Name {
+				return sourceExpr{value: field.Type, file: file, pkg: owner}, true
+			}
+		}
 	}
 	return sourceExpr{}, false
 }

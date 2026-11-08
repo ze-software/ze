@@ -152,15 +152,15 @@ func TestCommittedExternalRangedMapElementCarriesRegistration(t *testing.T) {
 // TestCommittedExternalRangeUntypedOperandRefuses keeps the refusal for a
 // range variable whose operand valueType cannot type. Method: the range kind
 // is proved (a slice field of a retained struct), so the range itself runs,
-// but no declaration gives the selected field's value a static type here; the
-// value then reaches an opaque call, and the report must refuse with today's
-// reason.
+// but the field is promoted from an embedded struct, which valueType leaves
+// untyped; the value then reaches an opaque call, and the report must refuse
+// with today's reason.
 //
 // MUTATION: (internal/le/repo/inventory/externalexpressions.go,
 // "return externalValue{unknown: \"range capability ownership is unsupported\"}",
 // "return externalValue{}") publishes the untyped variable.
 func TestCommittedExternalRangeUntypedOperandRefuses(t *testing.T) {
-	const declarations = "type holder struct{ values []string }\nvar box = holder{values: []string{\"a\"}}\n"
+	const declarations = "type inner struct{ values []string }\ntype holder struct{ inner }\nvar box = holder{inner: inner{values: []string{\"a\"}}}\n"
 	const call = "var names []string; for _, value := range box.values { names = append(names, value) }; order.Slice(names, func(i, j int) bool { return false })"
 	for _, kind := range []string{"plugin", "yang"} {
 		t.Run(kind, func(t *testing.T) {

@@ -131,7 +131,16 @@ Executing a directly called method executes its receiver first, as Go
 evaluates it before the arguments, so `build().Register()` in an initializer
 runs `build()`. A method value taken through an alias (`f := build().M; f()`)
 ran its receiver where the value was taken, so the call does not run it again.
-<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.methodReceiver, expression.addressable, expression.valueType -->
+
+A static type comes from declarations alone. A variable keeps the type its
+declaration gives it however often it is written, because Go only accepts a
+value assignable to that type. A field selector `x.f` has the declared type of
+field `f`, when `f` is declared directly in the retained, non-generic struct
+type of `x`, reached through at most one pointer. An imported name, a method,
+an embedded or promoted field, and a holder whose type is unknown stay
+untyped. So `n := (b.nBits + 7) >> 3` is a `uint8` when `b` is a `*writer`,
+and so is `i` in `for i := range n`.
+<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.methodReceiver, expression.addressable, expression.valueType, expression.fieldType -->
 <!-- source: internal/le/repo/inventory/externaladdresses.go -- externalEffects.addressValue -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
 
