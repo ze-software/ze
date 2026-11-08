@@ -36,7 +36,7 @@ var actions = leaction.New(area,
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyPackage, Kind: leaction.KindString, Help: "the third-party package import path", Value: "<import path>", Requirement: leaction.Required},
-			{Keyword: keyImporter, Kind: leaction.KindString, Help: "the Ze directory allowed to import it, relative to the checkout", Value: "<directory>", Requirement: leaction.Required},
+			{Keyword: keyImporter, Kind: leaction.KindString, Help: "the Ze directory allowed to import it, from the repo root", Value: "<directory>", Requirement: leaction.Required},
 			{Keyword: keyReason, Kind: leaction.KindString, Help: "why Ze needs it there, one line", Value: keyReason, Requirement: leaction.Required},
 		},
 		PrepareArgs: approveAnswer},
