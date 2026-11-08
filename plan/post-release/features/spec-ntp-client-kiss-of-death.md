@@ -36,6 +36,11 @@ does, and quotes the deciding function. The 2026-10-19 row in
 `error-answered-with-another-errors-code.md` (unsynchronised chrony, no kiss
 code) is a separate occurrence on the same function.
 
+RATE needs a poll interval per server, which Ze does not have.
+`plan/post-release/features/spec-ntp-per-server-poll-interval.md` adds it with
+configured RFC 5905 minimum and maximum exponents; RATE lengthens the interval
+within that maximum. Whichever spec lands first adds the per-server poll state.
+
 ### The full NTPv4 client
 
 The summary walk of 2026-10-26 had marked three more rows declined under the

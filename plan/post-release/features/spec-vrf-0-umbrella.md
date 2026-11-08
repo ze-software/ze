@@ -79,8 +79,8 @@ and default route, while BGP peering and subscriber routing happen in the defaul
 
 | Area | Reason |
 |------|--------|
-| Route-target based VRF assignment | Phase 2 -- config-based peer-to-VRF mapping first |
-| MPLS/VPNv4 label distribution | Requires MPLS infrastructure |
+| Route-target based VRF assignment | Moved to phase 9 (2026-11-08). No owner decision declined it, and RFC 4364 is enrolled with its PE obligations owed (`rfc/short/rfc4364.md`), so it is a gap with an owner, not an exclusion |
+| MPLS/VPNv4 label distribution | Moved to phase 9 (2026-11-08). The original reason, "requires MPLS infrastructure", no longer holds: Ze has LDP, RSVP-TE and `(mpls-fib, entry)` label programming, and already encodes VPN-IPv4/IPv6 with RD, label and RT |
 | Per-subscriber VRFs (BNG) | Future, requires L2TP completion |
 
 ### Child Specs
@@ -95,6 +95,12 @@ and default route, while BGP peering and subscriber routing happen in the defaul
 | 6 | `spec-vrf-6-dynamic.md` | Runtime VRF create/delete. Graceful drain. Hot reconfiguration | vrf-4 |
 | 7 | `spec-vrf-7-redistribution.md` | Route redistribution between VRFs. Import/export policy. Cross-VRF EventBus subscriptions | vrf-3 |
 | 8 | `spec-vrf-8-conntrack-zones.md` | Per-VRF conntrack zone assignment. VRF orchestrator assigns zone IDs, firewall generates `ct zone set` rules in raw/prerouting. Per-VRF `ct timeout` objects for timeout overrides. Depends on global conntrack (spec-cpe-4) for helpers and table-size | vrf-3, cpe-4 |
+| 9 | `spec-vrf-9-l3vpn.md` | BGP/MPLS IP VPN PE (RFC 4364): per-VRF RD, Route-Target import and export (an `import`, `export` or `both` form, the last written as both lists), VPN label allocation and the pop-into-VRF entry, VRF route export to VPN-IPv4/IPv6 and import back by RT with an import policy, the PE MUSTs `rfc/short/rfc4364.md` lists as owed, and VPN re-origination between two domains (VyOS T9338 `l3vpn-multi-domain-switching`). Interop against FRR as the remote PE | vrf-3, vrf-7 |
+
+Phase 7 owes, beyond the row above (VyOS T9410, T9345): an import policy per
+address family on a leak, IPv6 as well as IPv4 (FRR `route-map vrf import`
+under `ipv6-unicast`), and a refusal at verify of an address family a named VRF
+does not carry.
 
 `plan/post-release/features/spec-vrf.md` is the live owner of phase 2; `spec-vrf-2-device.md` was a
 proposed filename, not a second deliverable. The other child filenames remain
@@ -175,6 +181,20 @@ Phases are strictly ordered within dependencies. Independent specs (5, 7) can pr
 - New VRF plugin orchestrates per-VRF stack lifecycle
 - CLI gains `vrf <name>` prefix for VRF-scoped commands
 - YANG schemas wrapped in `vrf <name> {}` container for named VRFs
+
+## Existing Mechanisms
+
+Added 2026-11-08 with the L3VPN and route-leak gap below; the rows name what
+exists today, and each child spec refines its own.
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| VPN-IPv4/IPv6 NLRI codec | `internal/component/bgp/plugins/nlri/vpn` | Encodes and decodes SAFI 128 with RD, label and Route-Target | Extends (phase 9): the PE imports and exports VRF routes through it |
+| VPN route reflection | `internal/component/bgp/plugins/rr` | Reflects VPN routes | Unchanged: a PE is a client of it |
+| MPLS label programming | `internal/core/mplsfib` `(mpls-fib, entry)`, `fib-kernel` | LDP and RSVP-TE install labels | Extends (phase 9): VPN labels and the VRF lookup they pop into |
+| System RIB and FIB import gate | `internal/component/sysrib`, `fibimport.go` | One system RIB, main table | Extends (phases 3 and 7): one per VRF, and the import path between them |
+| Interface `vrf` leaf | `internal/component/iface`, `spec-vrf.md` | Refused as unimplemented | Replaced by phase 2 |
+| Redistribution bus | `internal/core/redistevents` | Moves routes between protocols with import rules | Extends (phase 7): a VRF import is a redistribution with a per-family policy |
 
 ## Data Flow (MANDATORY)
 
@@ -283,12 +303,16 @@ The following global state in `internal/component/bgp/reactor/` was analyzed for
 | AC-21 | Two VRFs with overlapping 5-tuples | Connections tracked independently via conntrack zones (zone 0 vs zone 100) |
 | AC-22 | VRF context includes zone ID | `vrf.zone` field present in config delivered to firewall component |
 | AC-23 | Firewall generates ct zone rules | raw/prerouting chain contains `ct zone set <N>` for each VRF's interfaces |
+| AC-24 | VRF `blue` imports from VRF `red` with an import policy that permits 10.1.0.0/16 only, IPv4 and IPv6 each with their own policy | Only the permitted prefixes appear in `blue`'s table, per family; a policy change re-evaluates without a restart (phase 7) |
+| AC-25 | VRF with RD and RT `both 65000:1` | Exported VPN routes carry RT 65000:1, and VPN routes carrying it are imported (phase 9) |
+| AC-26 | Ze as PE against an FRR PE over an LDP core | CE routes cross the VPN in both directions and traffic is label-switched into the right VRF table; interop proven red with the VRF import reverted (phase 9) |
+| AC-27 | A CE attaches an RT it is not allowed to use | The PE filters or strips it as RFC 4364 Section 4.3.1 requires (phase 9) |
 
 ## Open Questions
 
 | # | Question | Options | Status |
 |---|----------|---------|--------|
-| Q1 | Peer-to-VRF mapping model | Config-based (one peer = one VRF), route-target (one peer feeds multiple VRFs via RT communities), or both | Config-based first. Route-targets out of scope |
+| Q1 | Peer-to-VRF mapping model | Config-based (one peer = one VRF), route-target (one peer feeds multiple VRFs via RT communities), or both | Config-based first. Route-targets: phase 9, not out of scope (corrected 2026-11-08: the earlier answer had no owner decision behind it) |
 | Q2 | ~~Process model~~ | ~~Goroutine-based shared state vs separate plugin instances~~ | **Resolved:** one process per component per VRF. Easier to understand and debug |
 | Q3 | ~~Implicit default~~ | ~~Explicit wrapper required vs top-level = default~~ | **Resolved:** implicit default. Top-level config belongs to vrf default (table 254). Can change later to explicit-only |
 | Q4 | ~~Service socket binding~~ | ~~SO_BINDTODEVICE vs tcp_l3mdev_accept vs multiple listeners~~ | **Resolved:** SO_BINDTODEVICE. Per-socket, per-service, no global sysctl |
@@ -574,7 +598,7 @@ standard TDD cycle (write test, fail, implement, pass) inside its own spec.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-23 all demonstrated (across the child specs vrf-1..vrf-8)
+- [ ] AC-1..AC-27 all demonstrated (across the child specs vrf-1..vrf-9)
 - [ ] Wiring Test table complete -- every row has a concrete `.ci` test, none deferred
 - [ ] `./le verify worktree` passes (lint + all ze tests) after each child lands
 - [ ] Feature code integrated (`internal/*`) and reachable from the config/CLI entry points

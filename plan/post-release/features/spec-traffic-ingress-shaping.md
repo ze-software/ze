@@ -133,6 +133,20 @@ it is removed.
 - `show traffic control` reports both directions, each class's rate and ceil read back from the kernel, the IFB device, and for percentages the configured share and the speed used.
 - The login banner shows a traffic-shaping notice derived from the applied config, on every SSH startup path.
 
+## Existing Mechanisms (MANDATORY)
+
+Added 2026-11-08 when the VyOS T6393 lessons were folded in (see "VyOS reference" below). Each row restates what Required Reading above already established.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Traffic control model and backend | `internal/component/traffic/register.go` `OnConfigVerify`, `OnConfigApply`; `internal/component/traffic/model.go` (`InterfaceQoS`) | Verifies, applies `Apply(desired)` inside an `sdk.Journal`, restores removed interfaces | Extends: `ingress { qdisc { } }` is one more direction of the same entry and the same desired-state `Apply` |
+| Root qdisc translation | `internal/plugins/traffic/netlink/translate_linux.go` `translateQdisc` | Builds the egress root and classes | Extends: the IFB root uses the same translator, no second one |
+| Original qdisc snapshot and restore | `docs/architecture/traffic/tc-original-qdisc-restore.md`, `internal/plugins/traffic/netlink/backend_linux.go` `ensureSnapshot`, `restoreOriginalLocked` | Restores the qdisc Ze replaced | Extends: removal also removes the redirect and the IFB |
+| Shared clsact ingress hook, one priority per owner | `internal/plugins/iface/netlink/mirror_linux.go` (mirror, priority 1), flow sampling (100), `internal/plugins/traffic/netlink/policer_linux.go` `applyIngressPolicer` (L2TP policer, 200) | Each owner adds and deletes its own filter at its own priority and never deletes the clsact | Extends: the redirect is a fourth owner at priority 150, add-tolerate-EEXIST and delete-tolerate-absent. AC-25 adds the re-commit ordering proof |
+| Owned-device alias convention | `internal/component/iface/device_owner.go`, alias `ze:owned:<owner>` | Marks Ze-created devices so orphans are found from the kernel | Extends: the IFB carries `ze:owned:traffic` |
+| VPP traffic verifier | `internal/plugins/traffic/vpp/verify.go` | Refuses what VPP cannot do | Extends: refuses `ingress` |
+| Kernel capability requirement | `internal/component/kernelcap/kernelcap.go`, `internal/appliance/kernelreq.go` | Declares kernel features Ze needs | Extends: `CONFIG_IFB` |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -248,6 +262,8 @@ it is removed.
 | AC-22 | SSH login after the traffic config is removed | No traffic notice |
 | AC-23 | SSH login with BGP prefix warnings and no traffic config | Banner identical to today's |
 | AC-24 | Kernel without the `ifb` link kind, ingress configured | `ze doctor` names the missing `CONFIG_IFB`; daemon start behaves per kernelcap's existing policy with the code and the fix |
+| AC-25 | The AC-10 config (mirror at 1, redirect at 150 on eth0), then in turn: an `interface` commit that changes only the mirror, a `traffic` commit that changes only the ingress rate, and a daemon restart (in whichever order the iface and traffic applies run) | After each one, the priority-1 mirror filter and the priority-150 redirect filter are both present on eth0's clsact ingress hook, and the download stays capped. Neither owner's apply recreates the clsact or drops the other's filter (VyOS T6393 `31e0ace5d`: every QoS commit, boot included, re-created the ingress qdisc and lost the redirect) |
+| AC-26 | A `traffic` commit that changes only the IFB rate | The redirect filter is not deleted and re-added: only the IFB root or class changes, so no window of unshaped download opens |
 
 ## End-to-End User Stories
 
@@ -376,7 +392,7 @@ N-A: no protocol peer and no wire-visible protocol change. Goal validation is th
 | 13 | Route metadata keys added/changed? | N-A | None |
 | 14 | Prometheus counters added/changed? | N-A | None |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | kernelcap capability: `docs/guide/status.md` if it lists doctor checks |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Design docs declared by files this spec changes: `docs/architecture/traffic/fw-7-traffic-vpp.md` (declared by `vpp/verify.go`; UPDATE: its rejection list gains ingress shaping and percentage rates beside the ingress-policer paragraph); `docs/architecture/hub-architecture.md` (declared by `cmd/ze/hub/service_ssh.go`, `session_factory.go`, `config/infra/hook.go`; UPDATE: the login-warning hook is replaced by the `loginnotice` registry on both SSH paths); `docs/architecture/config/syntax.md` (declared by `bgp/config/loader.go`, `loader_create.go`; unaffected: the change moves the banner registration and touches no config loading, verify at implementation); `docs/features/ai-first.md` (declared by `internal/core/diagnostic/codes.go`; unaffected unless it lists diagnostic codes, verify at implementation). Source anchors: run `./le spec citation anchors spec plan/post-release/features/spec-traffic-ingress-shaping.md` at implementation |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Design docs declared by files this spec changes: `docs/architecture/traffic/fw-7-traffic-vpp.md` (declared by `internal/plugins/traffic/vpp/verify.go`; UPDATE: its rejection list gains ingress shaping and percentage rates beside the ingress-policer paragraph); `docs/architecture/hub-architecture.md` (declared by `cmd/ze/hub/service_ssh.go`, `session_factory.go`, `config/infra/hook.go`; UPDATE: the login-warning hook is replaced by the `loginnotice` registry on both SSH paths); `docs/architecture/config/syntax.md` (declared by `bgp/config/loader.go`, `loader_create.go`; unaffected: the change moves the banner registration and touches no config loading, verify at implementation); `docs/features/ai-first.md` (declared by `internal/core/diagnostic/codes.go`; unaffected unless it lists diagnostic codes, verify at implementation). Source anchors: run `./le spec citation anchors spec plan/post-release/features/spec-traffic-ingress-shaping.md` at implementation |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/traffic-control.md` examples; `docs/guide/command-reference.md` show example |
 
 ## Implementation Steps
@@ -433,6 +449,7 @@ N-A: no protocol peer and no wire-visible protocol change. Goal validation is th
 
 - VyOS's redirect lifecycle deletes the whole ingress qdisc on every update. Copying it would reopen the defect Ze closed in `fixit-mirror-clsact-ownership`.
 - `show traffic control` has always reported `class-count` 0, because `ListQdiscs` reads back only the root type. The show phase fixes it as part of goal 4.
+- VyOS reference, added 2026-11-08 (vyos-1x read at `611550d23`). T6393 `c099da63a` "qos: police ingress traffic before redirecting it": with an ingress limiter and `redirect` on one interface, the redirect filter ran first and took all traffic, so the limiter never applied; VyOS now polices first and redirects what conforms. Ze reaches the same correctness by refusing the combination (AC-11, R-7) while its only ingress policer is the L2TP session policer. Any later operator-facing ingress policer MUST chain police-then-redirect on one filter rather than sit beside the redirect, or keep the refusal. T6393 `31e0ace5d` "qos: keep redirect filter when applying an ingress policy": an interface with both an ingress QoS policy and `redirect` lost the redirect on every QoS commit, boot included, because QoS re-created the ingress qdisc after the interface code installed the redirect. AC-25 and AC-26 prove Ze's per-priority ownership prevents it across both components and a restart.
 
 ## Key Design Decisions
 

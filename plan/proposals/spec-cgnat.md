@@ -93,6 +93,7 @@ basic SNAT/DNAT/masquerade wired. CGNAT extends this to carrier scale with alloc
 - [ ] `internal/component/firewall/config.go` - parseNATSpec (addr, addr range, port, port range), parseMasquerade, parseThenBlock handles snat/dnat/masquerade/redirect/exclude keywords
 - [ ] `internal/component/firewall/backend.go` - Backend interface (Apply, ListTables, GetCounters, Close), Verifier, registry
 - [ ] `internal/component/flowexport/` - conntrack worker, IPFIX/NF9/sFlow encoders, exporter with collectors, sampling, enrichment
+  → Correction (2026-11-08): no `internal/component/flowexport/` exists today; flow export is the system plugin `internal/plugins/flowexport/` (`conntrackWorker` in `conntrack_worker.go`), so the NAT event source of AC-7 reaches it as a plugin, across the process boundary, not as a component import
 
 **Behavior to preserve:**
 - Existing SNAT, DNAT, masquerade, redirect firewall actions continue to work unchanged
@@ -169,6 +170,17 @@ basic SNAT/DNAT/masquerade wired. CGNAT extends this to carrier scale with alloc
 | AC-8 | Pool exhaustion: more subscribers than port capacity | Config verify rejects with clear error message showing arithmetic (N subscribers * M ports > pool capacity) |
 | AC-9 | Show command when no CGNAT configured | Clean "CGNAT not configured" message, not an error |
 | AC-10 | CGNAT config with VPP backend, port-block allocation logging enabled | Periodic dump of user-to-port-block mapping written to syslog/audit and available via CLI |
+| AC-11 | External port range given as a single port, a service name, or a range whose start is above its end | Refused at verify: only a numeric range inside 1-65535 is accepted, and a reversed range gets its own error naming both ends, never a misleading "not enough ports" (VyOS `c4796091f`) |
+| AC-12 | Internal or external pool range written as a prefix with host bits set (100.64.0.1/29) | Refused at verify naming the value: a range is either a network prefix or an address range (VyOS `cf084ddad`, where it crashed the commit) |
+| AC-13 | A rule with an empty translation node, or no external pool | Refused at verify as a missing pool, checked the same way as the source pool (VyOS `d058eea82`) |
+| AC-14 | One external address listed in two ranges of one pool, or in the pools of two rules whose port ranges overlap | Refused at verify naming both ranges: ports are allocated per range, so the address would be handed out twice and two subscribers would share an address and port block. The capacity arithmetic of AC-1 and AC-8 counts each address once. Pools of different rules may share an address when their port ranges are disjoint (VyOS `9365e7cdc`) |
+| AC-15 | One internal address in two ranges, of one pool or of the pools of two rules | Refused at verify naming both ranges and their pools, never left to fail later as a backend syntax error (VyOS `036bed6e0`) |
+| AC-16 | An external range that overlaps an internal range of the pools in use | Refused at verify: a subscriber could otherwise be translated to another subscriber's address (VyOS `a95094379`) |
+| AC-17 | Ports-per-user of 1, then the allocation and session show commands | Each allocation is shown as a range of one port; the reader handles a backend that stores a single-port block as a plain port rather than a range (VyOS `898938ecf`, where the show command crashed) |
+
+AC-11 to AC-17 come from VyOS task T9473 (October 2026), seven defects its
+CGNAT verify and show code shipped with. Each one is a check Ze's verify or show
+path owes from the start.
 
 ## 🧪 TDD Test Plan
 
