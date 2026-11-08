@@ -238,7 +238,7 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 		undo.reactorRestored = true
 	}
 	if len(diff.Removed) != 0 {
-		removed := s.collectProcessesForRemovedConfigPaths(slices.Sorted(maps.Keys(diff.Removed)))
+		removed := s.collectProcessesForRemovedConfigPaths(slices.Sorted(maps.Keys(diff.Removed)), undo.before)
 		if err := s.stopCollectedProcesses(removed); err != nil {
 			return err
 		}

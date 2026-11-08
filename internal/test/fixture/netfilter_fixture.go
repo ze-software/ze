@@ -22,6 +22,7 @@ func init() {
 	registerTableSnapshot("firewall/conntrack-helper-ftp-assigned", "inet", "ze_conntrack_helpers")
 	Register("firewall/conntrack-helper-removed-on-reload", conntrackHelperRemovedOnReload)
 	Register("firewall/conntrack-helper-block-deleted-on-reload", conntrackHelperRemovedOnReload)
+	Register("firewall/conntrack-deleted-firewall-kept-on-reload", conntrackDeletedFirewallKeptOnReload)
 	registerTableSnapshot("firewall/firewall-boot-apply", "inet", "ze_fw10_001")
 	registerTableSnapshot("firewall/firewall-byte-rate-limit", "inet", "ze_fw10_010")
 	Register("firewall/firewall-cli-show", firewallCLIShow)

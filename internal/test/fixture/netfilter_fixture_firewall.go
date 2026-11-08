@@ -528,3 +528,59 @@ func conntrackHelperRemovedOnReload(ctx context.Context, _ []string) error {
 	fmt.Printf("helper table removed on reload: before=%d bytes\n", len(before))
 	return signalProcess(pid, syscall.SIGTERM)
 }
+
+// conntrackDeletedFirewallKeptOnReload proves a reload that deletes the
+// `system conntrack` block while the `firewall {}` block stays withdraws the
+// helper tables and keeps the firewall plugin and its tables. The firewall
+// owns both roots, and a plugin stops on a reload only when the new config
+// holds none of its roots (rootRemovalStopsOwner); a stop here would run
+// flushOnStop, which flushes every firewall table the operator still has.
+//
+// Method: the boot config holds ze_fwkeep (a dport 22 rule) and the ftp
+// helper. config2.conf drops the conntrack block, and the fixture waits until
+// the helper table is gone with the daemon alive. A stopped plugin flushes
+// after that apply, so the second reload is the fence: config3.conf moves the
+// rule to dport 443, and only a running firewall plugin can program it.
+// Reloads run one at a time, so the 443 rule lands after the first reload's
+// stop decision. The waits add up to 15 s, under the 25 s fixture timeout.
+func conntrackDeletedFirewallKeptOnReload(ctx context.Context, _ []string) error {
+	pid, err := waitDaemon(ctx, 100)
+	if err != nil {
+		return err
+	}
+	var helpers, table string
+	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
+		helpers, err = netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_conntrack_helpers")
+		if err != nil || !strings.Contains(helpers, `ct helper set "ftp-tcp"`) {
+			return false
+		}
+		table, err = netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_fwkeep")
+		return err == nil && reloadRule22.MatchString(table)
+	}) {
+		return fmt.Errorf("initial state lacks the ftp helper or the dport 22 rule; helpers:\n%s\nfirewall:\n%s (err %w)", helpers, table, err)
+	}
+	if err := reloadWith(pid, "config2.conf"); err != nil {
+		return err
+	}
+	var tables string
+	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
+		tables, err = netfilterCommandOutput(ctx, "nft", "list", "tables")
+		return err == nil && !strings.Contains(tables, "ze_conntrack_helpers")
+	}) {
+		return fmt.Errorf("deleting system conntrack left the helper table in place; nft list tables:\n%s (err %w)", tables, err)
+	}
+	if !processAlive(pid) {
+		return fmt.Errorf("the helper table is gone because the daemon exited during the reload")
+	}
+	if err := reloadWith(pid, "config3.conf"); err != nil {
+		return err
+	}
+	if !Poll(ctx, 200, 50*time.Millisecond, func() bool {
+		table, err = netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_fwkeep")
+		return err == nil && !strings.Contains(table, "dport 22 ") && reloadRule443.MatchString(table)
+	}) {
+		return fmt.Errorf("the firewall did not take the next reload, so deleting system conntrack stopped it; ze_fwkeep:\n%s (err %w)", table, err)
+	}
+	fmt.Printf("firewall kept after system conntrack deleted: helpers=%d bytes\n", len(helpers))
+	return signalProcess(pid, syscall.SIGTERM)
+}

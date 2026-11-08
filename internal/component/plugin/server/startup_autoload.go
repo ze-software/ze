@@ -398,8 +398,11 @@ func collectContainerMapPaths(m map[string]any, prefix string, paths *[]string) 
 
 // collectProcessesForRemovedConfigPaths returns every process that removal of
 // the config roots would stop, including transitive orphan dependencies.
-// It does not change process or registry state.
-func (s *Server) collectProcessesForRemovedConfigPaths(removedRoots []string) map[string]bool {
+// tree is the config the removal leaves (the new tree of a reload, the
+// restored tree of a compensation): an owner one of whose roots it still
+// holds keeps running (rootRemovalStopsOwner). It does not change process or
+// registry state.
+func (s *Server) collectProcessesForRemovedConfigPaths(removedRoots []string, tree map[string]any) map[string]bool {
 	removedSet := make(map[string]bool, len(removedRoots))
 	for _, root := range removedRoots {
 		removedSet[root] = true
@@ -415,14 +418,33 @@ func (s *Server) collectProcessesForRemovedConfigPaths(removedRoots []string) ma
 		if s.hasConfiguredPlugin(pluginName) || pm.GetProcess(pluginName) == nil {
 			continue
 		}
-		for _, root := range roots {
-			if removedSet[root] || parentRemoved(root, removedSet) {
-				stopped[pluginName] = true
-				break
-			}
+		if rootRemovalStopsOwner(roots, removedSet, tree) {
+			stopped[pluginName] = true
 		}
 	}
 	return s.collectOrphanedDependencies(pm, stopped)
+}
+
+// rootRemovalStopsOwner reports whether removing the paths in removedSet stops
+// the plugin that owns roots: one of its roots (or an ancestor of one) was
+// removed, and tree, the config the removal leaves, holds none of them. A
+// plugin owning several roots serves every one of them, so it stops only with
+// the last: the firewall owns `firewall` and `system/conntrack`, and stopping
+// it on `system conntrack` alone would run its stop flush over the tables the
+// remaining `firewall {}` block still configures. Presence is the test
+// removal recovery uses (navigateNestedMap, restoreRemovedPlugin).
+func rootRemovalStopsOwner(roots []string, removedSet map[string]bool, tree map[string]any) bool {
+	removed := false
+	for _, root := range roots {
+		if removedSet[root] || parentRemoved(root, removedSet) {
+			removed = true
+			continue
+		}
+		if navigateNestedMap(tree, root) != nil {
+			return false
+		}
+	}
+	return removed
 }
 
 // stopCollectedProcesses reverses the startup dependency tiers so each running
@@ -469,9 +491,10 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 	return nil
 }
 
-// autoStopForRemovedConfigPaths stops plugins whose config sections were removed.
-func (s *Server) autoStopForRemovedConfigPaths(removedRoots []string) error {
-	return s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedRoots))
+// autoStopForRemovedConfigPaths stops plugins whose config sections were
+// removed and of whose roots tree, the config the removal leaves, holds none.
+func (s *Server) autoStopForRemovedConfigPaths(removedRoots []string, tree map[string]any) error {
+	return s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedRoots, tree))
 }
 
 // autoStopPluginNames stops the exact plugin processes that a failed reload

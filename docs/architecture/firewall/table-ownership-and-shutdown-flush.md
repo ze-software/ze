@@ -151,8 +151,12 @@ Its post-`Run` path then removes only its own two owners, the firewall tables
 and the helper tables, and leaves every other owner's. The engine can stop
 while the daemon lives on, because a reload that deletes the `system conntrack`
 block stops it, and a full flush there would take copp's and policy routing's
-tables with it.
+tables with it. That stop happens only with no `firewall` section: a plugin
+stops on a reload only when the new config holds none of its roots, so with a
+`firewall` block left in place the engine keeps running, and the reload's apply
+withdraws the helper tables while the firewall tables stay.
 <!-- source: internal/component/firewall/engine.go -- flushOnStop -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- rootRemovalStopsOwner -->
 
 ## Rule 4: an attack-response table is cleared at the next start
 

@@ -358,7 +358,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		}
 	}
 
-	preflightStopped := s.collectProcessesForRemovedConfigPaths(removedKeys)
+	preflightStopped := s.collectProcessesForRemovedConfigPaths(removedKeys, newTree)
 	if caller := reloadCallerFromContext(ctx); caller != nil && preflightStopped[caller.Name()] {
 		return fmt.Errorf("config reload would stop calling plugin %q", caller.Name())
 	}
@@ -432,7 +432,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		// No plugins care about these changes. Recompute orphan ownership after
 		// auto-load, stop removed config owners, then update the running config.
 		logger().Info("config reload: no affected plugins, updating config")
-		if err := s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys)); err != nil {
+		if err := s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys, newTree)); err != nil {
 			return errors.Join(err, s.compensateReload(ctx))
 		}
 		s.reactor.SetConfigTree(newTree)
@@ -471,7 +471,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 
 	// Transaction committed. Recompute against the post-auto-load process set
 	// so new dependents keep shared dependencies alive.
-	if err := s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys)); err != nil {
+	if err := s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys, newTree)); err != nil {
 		return errors.Join(err, s.compensateReload(ctx))
 	}
 

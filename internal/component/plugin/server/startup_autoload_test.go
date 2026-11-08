@@ -365,7 +365,7 @@ func TestAutoStopForRemovedConfigPathsRollsBackRuntimeClaims(t *testing.T) {
 	s, pm := newAutoloadTeardownTestServer()
 	installAutoloadTeardownClaims(t, s, pm, pluginName, commandName)
 
-	require.NoError(t, s.autoStopForRemovedConfigPaths([]string{configRoot}))
+	require.NoError(t, s.autoStopForRemovedConfigPaths([]string{configRoot}, nil))
 
 	assert.Nil(t, pm.GetProcess(pluginName))
 	assert.Empty(t, s.registry.LookupCommand(commandName))
@@ -1025,7 +1025,7 @@ func TestRemovingLastConfigPluginDoesNotStopServer(t *testing.T) {
 	s.procManager.Store(pm)
 	s.markPluginLoaded(pluginName)
 
-	require.NoError(t, s.autoStopForRemovedConfigPaths([]string{configRoot}))
+	require.NoError(t, s.autoStopForRemovedConfigPaths([]string{configRoot}, nil))
 
 	assert.Nil(t, pm.GetProcess(pluginName))
 	assert.False(t, s.isPluginLoaded(pluginName))

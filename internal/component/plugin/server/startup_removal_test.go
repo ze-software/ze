@@ -200,7 +200,7 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 		{Name: middle, Internal: true, Encoder: plugin.EncodingJSON},
 		{Name: producer, Internal: true, Encoder: plugin.EncodingJSON},
 	}))
-	require.NoError(t, s.autoStopForRemovedConfigPaths([]string{root}))
+	require.NoError(t, s.autoStopForRemovedConfigPaths([]string{root}, nil))
 	s.wg.Wait()
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
