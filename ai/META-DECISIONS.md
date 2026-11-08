@@ -202,11 +202,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   upstream pull request and is never a dependency.
 - A new third-party Go module lands in a commit of its own (`go.mod`, `go.sum`
   and its `vendor/` tree, nothing else), before the commit that first uses it.
-- A third-party module is approved for the use Thomas approved, and nothing
-  more. A module being present in `go.mod` or `vendor/` is never permission to
-  use another of its packages or features, or to import it from another Ze
-  package: each new use is put to Thomas with what it is for, before the code
-  is written.
+- A third-party module that is experimental and implements cryptography (the
+  Cloudflare `circl` module) is approved for the use Thomas approved, and
+  nothing more. Its presence in `go.mod` or `vendor/` is never permission to use another of
+  its packages or features, or to import it from another Ze package: each new
+  use is put to Thomas with what it is for, before the code is written. Every
+  other module already in `go.mod`, `vishvananda/netlink` included, may be used
+  in full.
 - An RFC sentence quoted in a comment stays byte-exact, its full stop inside the
   quote included, and is never edited to satisfy a linter.
 - Every route-processing step is a filter in the peer's filter list. A
