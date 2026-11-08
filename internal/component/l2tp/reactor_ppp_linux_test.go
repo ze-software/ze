@@ -119,6 +119,17 @@ func deliverOwnedKernelSuccess(r *l2tpReactor, event kernelSetupSucceeded) {
 	r.handleKernelSuccess(event)
 }
 
+// attachReactor adds r to s, built by newStartedSubsystem, and publishes s's
+// PPP and proxy LCP policy to r through the setters Reload uses, so r starts
+// with the policy Start would have given it. A reload that leaves those fields
+// unchanged does not push them, so a bare reactor would otherwise run its
+// sessions with no MRU and no permitted auth method.
+func attachReactor(s *Subsystem, r *l2tpReactor) {
+	s.reactors = append(s.reactors, r)
+	r.setPPPPolicy(s.params.MRU, s.params.AuthAllow, s.params.AuthMethod, !s.params.AllowNoAuth)
+	r.setProxyLCPPolicy(s.params.ProxyLCP)
+}
+
 // TestReactorPPPPolicyReloadIsolation observes the real kernel-success dispatch
 // consumer, proving new sessions change policy without mutating an earlier one.
 func TestReactorPPPPolicyReloadIsolation(t *testing.T) {
@@ -518,6 +529,20 @@ var proxyLCPStreamForTest = []byte{
 // Configure-Request, with its own Magic-Number, on the channel instead of
 // short-circuiting LCP.
 //
+// Method: the reactor holds the subsystem's PPP policy (CHAP-MD5, MRU 1500,
+// allow CHAP-MD5) through attachReactor, under which the LAC's proxy LCP
+// passes the driver's proxy policy. The accept subtest is the positive
+// control: the same delivery under `proxy-lcp accept` short-circuits LCP and
+// the first frame is a CHAP Challenge. Only `proxy-lcp renegotiate` then
+// turns that first frame into an LCP Configure-Request, so the renegotiate
+// subtest cannot pass on a policy refusal.
+//
+// MUTATION: in reactor_kernel.go, handleKernelSuccess, change
+// `RenegotiateProxyLCP: policy.ProxyLCP == ProxyLCPRenegotiate` to
+// `RenegotiateProxyLCP: policy.ProxyLCP == ProxyLCPRenegotiate && false`.
+// The renegotiate subtest goes red (its first frame is a CHAP Challenge),
+// and the accept subtest stays green.
+//
 // VALIDATES: spec-home-cpe-15 wiring row (config -> reactor -> session_run.go
 // non-proxy branch), AC-2.
 // PREVENTS: a leaf that parses but never reaches the driver.
@@ -534,10 +559,41 @@ func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 		Enabled: true, MRU: 1500, AuthMethod: ppp.AuthMethodCHAPMD5,
 		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5}, ProxyLCP: ProxyLCPAccept,
 	})
-	s.reactors = []*l2tpReactor{r}
-	cfg := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {"proxy-lcp": "renegotiate"}}}
-	require.NoError(t, s.Reload(context.Background(), cfg))
+	attachReactor(s, r)
 
+	t.Run("accept", func(t *testing.T) {
+		proto, payload := firstProxyLCPSessionFrame(t, r, 1001, 7)
+		require.Equal(t, ppp.ProtoCHAP, proto,
+			"under proxy-lcp accept the proxy must short-circuit LCP and authentication start")
+		require.NotEmpty(t, payload)
+		require.Equal(t, ppp.CHAPCodeChallenge, payload[0], "first CHAP packet must be a Challenge")
+	})
+
+	t.Run("renegotiate", func(t *testing.T) {
+		cfg := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {"proxy-lcp": "renegotiate"}}}
+		require.NoError(t, s.Reload(context.Background(), cfg))
+
+		proto, payload := firstProxyLCPSessionFrame(t, r, 1002, 8)
+		require.Equal(t, ppp.ProtoLCP, proto, "first frame must be LCP, not an auth challenge")
+		req, err := ppp.ParseLCPPacket(payload)
+		require.NoError(t, err)
+		require.Equal(t, ppp.LCPConfigureRequest, req.Code)
+		opts, err := ppp.ParseLCPOptions(req.Data)
+		require.NoError(t, err)
+		for _, o := range opts {
+			if o.Type == ppp.LCPOptMagic {
+				require.NotEqual(t, []byte{0xCA, 0xFE, 0xBA, 0xBE}, o.Data, "Magic-Number inherited from the LAC")
+			}
+		}
+	})
+}
+
+// firstProxyLCPSessionFrame delivers a kernel-setup success for session sid on
+// tunnel 100, carrying proxyLCPStreamForTest as all three proxy LCP AVPs, over
+// a fresh socketpair whose far end stands for the PPP channel. It returns the
+// protocol and payload of the first frame the PPP driver writes there.
+func firstProxyLCPSessionFrame(t *testing.T, r *l2tpReactor, sid uint16, unitNum int) (uint16, []byte) {
+	t.Helper()
 	fds, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM, 0)
 	require.NoError(t, err)
 	// Closing the peer releases the driver's blocking reader before
@@ -549,8 +605,8 @@ func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 		&unix.Timeval{Sec: 5}))
 
 	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
-		localTID: 100, localSID: 1001, lnsMode: true,
-		fds:                        pppSessionFDs{pppoxFD: -1, chanFD: fds[0], unitFD: unit, unitNum: 7},
+		localTID: 100, localSID: sid, lnsMode: true,
+		fds:                        pppSessionFDs{pppoxFD: -1, chanFD: fds[0], unitFD: unit, unitNum: unitNum},
 		proxyInitialRecvLCPConfReq: proxyLCPStreamForTest,
 		proxyLastSentLCPConfReq:    proxyLCPStreamForTest,
 		proxyLastRecvLCPConfReq:    proxyLCPStreamForTest,
@@ -558,20 +614,10 @@ func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 
 	buf := make([]byte, ppp.MaxFrameLen)
 	n, err := unix.Read(fds[1], buf)
-	require.NoError(t, err, "no frame from the PPP driver: LCP short-circuited or the session failed")
+	require.NoError(t, err, "no frame from the PPP driver: the session failed or wrote nothing")
 	proto, payload, _, err := ppp.ParseFrame(buf[:n])
 	require.NoError(t, err)
-	require.Equal(t, ppp.ProtoLCP, proto, "first frame must be LCP, not an auth challenge")
-	req, err := ppp.ParseLCPPacket(payload)
-	require.NoError(t, err)
-	require.Equal(t, ppp.LCPConfigureRequest, req.Code)
-	opts, err := ppp.ParseLCPOptions(req.Data)
-	require.NoError(t, err)
-	for _, o := range opts {
-		if o.Type == ppp.LCPOptMagic {
-			require.NotEqual(t, []byte{0xCA, 0xFE, 0xBA, 0xBE}, o.Data, "Magic-Number inherited from the LAC")
-		}
-	}
+	return proto, payload
 }
 
 // TestReloadAppliesProxyLCPToNewSessions proves a reload that changes
@@ -589,8 +635,7 @@ func TestReloadAppliesProxyLCPToNewSessions(t *testing.T) {
 		Enabled: true, MRU: 1500, AuthMethod: ppp.AuthMethodCHAPMD5,
 		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5}, ProxyLCP: ProxyLCPAccept,
 	})
-	s.reactors = []*l2tpReactor{r}
-	r.setProxyLCPPolicy(ProxyLCPAccept)
+	attachReactor(s, r)
 
 	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: 1001,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7}})
