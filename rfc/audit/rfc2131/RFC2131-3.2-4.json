@@ -1,13 +1,13 @@
 {
-  "note": "positive relays a SELECTING REQUEST with giaddr 192.168.1.254 and asserts responseAddr gives 192.168.1.254:67 for the resulting NAK; negative asserts the same NAK with giaddr zero goes to 255.255.255.255:68, not to a relay",
+  "note": "Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). RFC 2131 Section 3.2: 'Otherwise, the server MUST send the DHCPNAK message to the IP address of the BOOTP relay agent, as recorded in giaddr.' TestNakDeliveredToRelayAgent changed only serverAddr(h) for h.serverIP in its two REQUESTs. The relayed SELECTING REQUEST with no requested address reaches segment.selecting, whose owner is the shim device address, and draws a NAK; responseAddr must send it to 192.168.1.254:67, and the same NAK with giaddr zero must not go to a relay. Records on register.go::responseAddr (positive and negative) are current. Prior judgement: positive relays a SELECTING REQUEST with giaddr 192.168.1.254 and asserts responseAddr gives 192.168.1.254:67 for the resulting NAK; negative asserts the same NAK with giaddr zero goes to 255.255.255.255:68, not to a relay",
   "requirement_sha": "066d0698cabb7a1d",
   "tests": {
-    "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent": "482103f2b84d410a",
-    "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent#2": "482103f2b84d410a"
+    "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent": "49cf96301c0e8933",
+    "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent#2": "49cf96301c0e8933"
   },
   "units": {
-    "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent": "20b652f3498fa673",
-    "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent#2": "20b652f3498fa673"
+    "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent": "93a98862406e73e1",
+    "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent#2": "93a98862406e73e1"
   },
   "verdict": "enforced"
 }

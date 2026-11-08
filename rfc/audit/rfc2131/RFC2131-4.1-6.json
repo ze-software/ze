@@ -1,17 +1,17 @@
 {
-  "note": "positive: TestRFC2131EveryReplyOptionContainedInItsField walks OFFER, ACK and the separately built DHCPNAK by length octets to End inside the options field and requires sname/file all zero with no option 52; TestOptionsContainedWithinTheirField keeps the OFFER/ACK walk. negative: a 300-octet bootfile; judge overlay removing the 255 guard in safeAppendOption reddens it ('option code 98 at offset 555 declares length 98, overrunning the options field'). Receiver side: TestOptionsContainedWithinTheirField negative, an overrunning received option is not read past the field. Config refuses bootfile-bios/uefi over 255 (TestParsePXEConfigInvalid)",
+  "note": "Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP in the truncated-request case of TestOptionsContainedWithinTheirField; the OFFER/ACK walk and the receiver-side overrun refusal are unchanged. Records on safeAppendOption and parseOptionAddr are current. Prior judgement: positive: TestRFC2131EveryReplyOptionContainedInItsField walks OFFER, ACK and the separately built DHCPNAK by length octets to End inside the options field and requires sname/file all zero with no option 52; TestOptionsContainedWithinTheirField keeps the OFFER/ACK walk. negative: a 300-octet bootfile; judge overlay removing the 255 guard in safeAppendOption reddens it ('option code 98 at offset 555 declares length 98, overrunning the options field'). Receiver side: TestOptionsContainedWithinTheirField negative, an overrunning received option is not read past the field. Config refuses bootfile-bios/uefi over 255 (TestParsePXEConfigInvalid)",
   "requirement_sha": "8f5d3302ba626476",
   "tests": {
-    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField": "b5a39ec9f84423c9",
-    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField#2": "b5a39ec9f84423c9",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "8365c04cdfc2a046",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "8365c04cdfc2a046"
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField": "dccaaa2d0b83fd7f",
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField#2": "dccaaa2d0b83fd7f",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "58ec8a3bd79857ea",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "58ec8a3bd79857ea"
   },
   "units": {
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField": "45cadecdc056e081",
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField#2": "45cadecdc056e081",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "319a69f7f334107b",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "319a69f7f334107b"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "168777587480d952",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "168777587480d952"
   },
   "verdict": "enforced"
 }

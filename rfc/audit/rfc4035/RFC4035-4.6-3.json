@@ -1,17 +1,17 @@
 {
-  "note": "Re-judged 2026-09-30. Both bits now: under strict validation a NOERROR answer with AD=1 CD=1 yields exactly the records of the clear answer (a resolver requiring or honouring AD would differ), and SERVFAIL with AD, CD or both is refused, so no response bit lets a failure through. Records: query (+) and dnssecDecision (-) reverts observed red.",
+  "note": "Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. A SERVFAIL refused by DNSSEC policy is not an unansweredError, so it is not passed to a next server; the AD/CD assertions are unchanged. Prior judgement: Re-judged 2026-09-30. Both bits now: under strict validation a NOERROR answer with AD=1 CD=1 yields exactly the records of the clear answer (a resolver requiring or honouring AD would differ), and SERVFAIL with AD, CD or both is refused, so no response bit lets a failure through. Records: query (+) and dnssecDecision (-) reverts observed red.",
   "requirement_sha": "6d85ed1cc63e7cbe",
   "tests": {
-    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing": "746f59740ccc2275",
-    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing#2": "746f59740ccc2275",
-    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded": "1b164a1a570b2a91",
-    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded#2": "1b164a1a570b2a91"
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing": "da99691c1d93cfe1",
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing#2": "da99691c1d93cfe1",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded": "c76ad7acfc59d884",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded#2": "c76ad7acfc59d884"
   },
   "units": {
-    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing": "18f9c2b6c5c044e8",
-    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing#2": "18f9c2b6c5c044e8",
-    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded": "8c57c20275588fc1",
-    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded#2": "8c57c20275588fc1"
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing": "c65e393f048a521f",
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing#2": "c65e393f048a521f",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded": "02db205d01d5e9f2",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded#2": "02db205d01d5e9f2"
   },
   "verdict": "enforced"
 }

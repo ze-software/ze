@@ -1,12 +1,12 @@
 {
-  "note": "positive: the NAK's option walk holds no 51; negative: a REQUEST carrying option 51 that is NAKed still yields a NAK without 51",
+  "note": "Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP in the SELECTING request; every assertion is unchanged. The NAK request (ciaddr 192.168.1.50, requested 10.9.9.9, no server identifier) now reaches segment.initReboot, not a ciaddr path, and an address in no subnet of the segment still draws a DHCPNAK, which the test asserts by message type before checking option 51 is absent. Stale comment (not a verdict change): 'ciaddr places the client on our subnet' no longer describes why the server NAKs. Prior judgement: positive: the NAK's option walk holds no 51; negative: a REQUEST carrying option 51 that is NAKed still yields a NAK without 51",
   "requirement_sha": "ea6216b789644e5a",
   "tests": {
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "8365c04cdfc2a046",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "8365c04cdfc2a046"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "58ec8a3bd79857ea",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "58ec8a3bd79857ea"
   },
   "units": {
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "46dba8081b60e55f",
     "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
   },
   "verdict": "enforced"

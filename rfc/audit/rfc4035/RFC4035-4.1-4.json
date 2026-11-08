@@ -1,13 +1,13 @@
 {
-  "note": "Re-judged 2026-09-30. Same unit: 4096 advertised in both validating modes, and a ~2900-octet uncompressed UDP answer is accepted whole (all 110 records), tying the advertised size to what the receive path accepts (the earlier finding). Record: query revert observed red. {single-polarity} holds.",
+  "note": "Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. 4096 is still required in both validating modes and the ~2900-octet answer must still arrive whole. Annotation finding (not a verdict change): its resolver.go:261 reference is stale; SetEdns0 is now at resolver.go:418, in queryServer. Prior judgement: Re-judged 2026-09-30. Same unit: 4096 advertised in both validating modes, and a ~2900-octet uncompressed UDP answer is accepted whole (all 110 records), tying the advertised size to what the receive path accepts (the earlier finding). Record: query revert observed red. {single-polarity} holds.",
   "requirement_sha": "6893035753d68473",
   "tests": {
-    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "746f59740ccc2275",
-    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "1b164a1a570b2a91"
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "da99691c1d93cfe1",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "c76ad7acfc59d884"
   },
   "units": {
-    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "c9a01f3e6c6e622b",
-    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "075584d2fc9ab234"
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "c4f5ff8b9cad75e9",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "ea6a111a3e5a38a9"
   },
   "verdict": "enforced"
 }

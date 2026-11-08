@@ -1,13 +1,13 @@
 {
-  "note": "TestRFC2661WrittenAVPFlags compares every AVP of the ten writers to the Section 4.4 M-bit table, and TestRFC2661HelloAVPMandatoryBits closes the one emitted body that walk missed (HELLO). Every Message Type emission site is covered. Single-polarity marker accepted: a sender obligation with no receiver refusal.",
+  "note": "Re-judged 2026-11-08 (independent auditor) after 79e3205310 (LAC realm relay). writeICCNBody now takes an *iccnProxy, and a realm call's ICCN carries AVPs 26 to 33 and, toward a remote with a shared secret, a Random Vector (AVP 36) ahead of a hidden AVP 33 (iccn_proxy.go writeICCNProxyAVPs, writeAVPRandomVector). TestRFC2661WrittenAVPFlags still walks only writeICCNBody(buf, 64000, 1, nil), and its tag comments were narrowed to 'these writers'. FINDING (weak): RFC 2661 Section 4.4 fixes the Random Vector's M-bit at 1, and Ze now emits a Random Vector in every PAP realm ICCN toward a remote with a secret. Neither tagged unit reaches writeAVPRandomVector: a mutant writing that AVP with M=0 leaves TestRFC2661WrittenAVPFlags and TestRFC2661HelloAVPMandatoryBits green. The M=1 check exists only in TestWriteICCNBodyHiddenAVP33 (session_initiator_test.go), which is tagged RFC2661-4.3-1/4.3-3, not this row. Every other emitted body is still compared to the Section 4.4 table. The revert record on TestRFC2661HelloAVPMandatoryBits no longer verifies (producer-changed, ./le rfc check) and owes a re-take. Fix: add the proxy ICCN (newICCNProxy with a secret) to writtenBodies with Random Vector in rfc2661MandatoryBit, or tag TestWriteICCNBodyHiddenAVP33 for this row. Prior judgement: TestRFC2661WrittenAVPFlags compares every AVP of the ten writers to the Section 4.4 M-bit table, and TestRFC2661HelloAVPMandatoryBits closes the one emitted body that walk missed (HELLO). Every Message Type emission site is covered. Single-polarity marker accepted: a sender obligation with no receiver refusal.",
   "requirement_sha": "591358fa378b8919",
   "tests": {
-    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "d54398d7e62b2795",
+    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "4e174bad1e56ede1",
     "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661HelloAVPMandatoryBits": "055162183ff6df00"
   },
   "units": {
-    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "e66f097d3cc22261",
+    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "43b253f492948c30",
     "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661HelloAVPMandatoryBits": "45f808619ffc7c89"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

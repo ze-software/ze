@@ -1,11 +1,11 @@
 {
-  "note": "Forbidden = an M=0-defined AVP (Tie Breaker, the one Ze emits) sent with M=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags compares the emitted M bit to rfc2661MandatoryBit (false for Tie Breaker) over the SCCRQ writer that emits it. Row carries single-polarity.",
+  "note": "Re-judged 2026-11-08 (independent auditor) after 79e3205310 (LAC realm relay). writeICCNBody now takes an *iccnProxy, and a realm call's ICCN carries AVPs 26 to 33 and, toward a remote with a shared secret, a Random Vector (AVP 36) ahead of a hidden AVP 33 (iccn_proxy.go writeICCNProxyAVPs, writeAVPRandomVector). TestRFC2661WrittenAVPFlags still walks only writeICCNBody(buf, 64000, 1, nil), and its tag comments were narrowed to 'these writers'. The change does not reach this row: the Tie Breaker, the one M=0 AVP of Section 4.4 proper that Ze emits, is still compared to rfc2661MandatoryBit (false) over the SCCRQ writer, and the record is current. The annotation's split holds: AVPs 26 to 33 are RFC2661-4.4.5-7 (M=0 for AVP 33 is also asserted in TestWriteICCNBodyHiddenAVP33). Prior judgement: Forbidden = an M=0-defined AVP (Tie Breaker, the one Ze emits) sent with M=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags compares the emitted M bit to rfc2661MandatoryBit (false for Tie Breaker) over the SCCRQ writer that emits it. Row carries single-polarity.",
   "requirement_sha": "96f0fd4eda3281c8",
   "tests": {
-    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "d54398d7e62b2795"
+    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "4e174bad1e56ede1"
   },
   "units": {
-    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "e66f097d3cc22261"
+    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "43b253f492948c30"
   },
   "verdict": "enforced"
 }

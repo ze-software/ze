@@ -1,12 +1,12 @@
 {
-  "note": "positive: neither OFFER nor ACK carries option 61; negative: requests carrying option 61 still draw OFFER/ACK without it. The NAK column (MAY) is correctly left unasserted",
+  "note": "Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP; OFFER and ACK are still required to carry no option 61 after requests that carry it, and the NAK (Table 3: MAY) is still correctly left unasserted. Prior judgement: positive: neither OFFER nor ACK carries option 61; negative: requests carrying option 61 still draw OFFER/ACK without it. The NAK column (MAY) is correctly left unasserted",
   "requirement_sha": "658fd497873e6d4d",
   "tests": {
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "8365c04cdfc2a046",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "8365c04cdfc2a046"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "58ec8a3bd79857ea",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "58ec8a3bd79857ea"
   },
   "units": {
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "46dba8081b60e55f",
     "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
   },
   "verdict": "enforced"

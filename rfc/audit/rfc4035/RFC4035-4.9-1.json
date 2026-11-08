@@ -1,13 +1,13 @@
 {
-  "note": "an A+RRSIG answer must return exactly the A record and a DNSSEC-only answer (RRSIG, NSEC, DNSKEY) must yield no records and no error, so mishandling either way goes red",
+  "note": "Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. The A+RRSIG and DNSSEC-only assertions are unchanged. Prior judgement: an A+RRSIG answer must return exactly the A record and a DNSSEC-only answer (RRSIG, NSEC, DNSKEY) must yield no records and no error, so mishandling either way goes red",
   "requirement_sha": "2358e5a8859362cf",
   "tests": {
-    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes": "1b164a1a570b2a91",
-    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes#2": "1b164a1a570b2a91"
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes": "c76ad7acfc59d884",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes#2": "c76ad7acfc59d884"
   },
   "units": {
-    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes": "a5da57d36af22e7a",
-    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes#2": "a5da57d36af22e7a"
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes": "c647f8a202d9ec95",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes#2": "c647f8a202d9ec95"
   },
   "verdict": "enforced"
 }

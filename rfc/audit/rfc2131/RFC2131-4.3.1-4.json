@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: returning a value for a parameter the server has no value for (neither configured nor a Host Requirements default). TestUnconfiguredParametersOmitted builds a handler with no router, DNS or domain name configured; the negative tag sends a DISCOVER whose parameter request list explicitly names optRouter, optDNS and optDomainName and asserts askedCodes[code] is false for each, so any emitted option for them (including an empty or zero-valued one, since replyOptionCodes records presence by code) goes red. The positive tag asserts the same absence for an unrequested DISCOVER. None of the three has a Host Requirements default, so the ELSE branch applies.",
+  "note": "Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only newDHCPHandler lost its server-address argument; the bare handler still has no router, DNS or domain name, and both polarities (bare DISCOVER, and one whose parameter request list names 3, 6 and 15) still require no such option in the OFFER. Prior judgement: Forbidden: returning a value for a parameter the server has no value for (neither configured nor a Host Requirements default). TestUnconfiguredParametersOmitted builds a handler with no router, DNS or domain name configured; the negative tag sends a DISCOVER whose parameter request list explicitly names optRouter, optDNS and optDomainName and asserts askedCodes[code] is false for each, so any emitted option for them (including an empty or zero-valued one, since replyOptionCodes records presence by code) goes red. The positive tag asserts the same absence for an unrequested DISCOVER. None of the three has a Host Requirements default, so the ELSE branch applies.",
   "requirement_sha": "181063877d093e23",
   "tests": {
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "8365c04cdfc2a046",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted#2": "8365c04cdfc2a046"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "58ec8a3bd79857ea",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted#2": "58ec8a3bd79857ea"
   },
   "units": {
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "e8e630b69239f509",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted#2": "e8e630b69239f509"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "9cbb592270f13849",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted#2": "9cbb592270f13849"
   },
   "verdict": "enforced"
 }
