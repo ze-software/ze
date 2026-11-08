@@ -25,11 +25,11 @@
     "rid": "RFC1332-2.1-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase",
-    "unit-sha": "0ce7ea71d7abe63c",
-    "claim-sha": "416a64d24cfd9874",
+    "unit-sha": "d4add5dc5df278ad",
+    "claim-sha": "223e30ec7064e37f",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::runAuthPhase",
     "producer-sha": "16b68ded075d3f96",
-    "break": "body of runAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of runAuthPhase replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

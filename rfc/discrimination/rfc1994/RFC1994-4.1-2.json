@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC1994-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1994_chap_retransmit_test.go::TestCHAPChallengeRetransmittedUntilResponse",
+    "unit-sha": "151fe83e18753ad4",
+    "claim-sha": "9defdca36ce0cbdf",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/auth.go::waitCHAPLike",
+    "producer-sha": "8b6d584ca759345a",
+    "break": "line 569: \"wantID, ok = challenge()\" -\u003e \"ok = true\""
+  }
+]
