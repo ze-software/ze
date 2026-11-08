@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Accepted configuration does the wrong thing: `pppoe-client pppoe0` validates, yet a static route, a firewall match or a masquerade rule that names `pppoe0` never matches the session device, which the kernel calls `pppN`. The guide's own example (`docs/guide/static-routes.md`, `interface pppoe0`) does not work. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-07 |
+| Updated | 2026-11-08 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
@@ -366,6 +366,45 @@ together is accepted.
 | A-1 broken | STOP: return to the owner with the kernel evidence |
 | Test fails on behavior mismatch | Re-read the source in Current Behavior |
 | 3 fix attempts failed | STOP. Report all 3 approaches |
+
+## Blocker
+
+Closure attempt 2026-11-08 (`/ze-close`): every AC is implemented in committed
+code, and every planned test exists and has passed. What blocks closure is the
+red phase `ai/rules/interop-and-goal-validation.md` requires before an interop
+or functional test may be claimed to validate the change: none is recorded for
+this spec's scenario or `.ci` files. `docs/labs/pppoe-interop.md`
+("pppoe-named-device-reconnect-ze-client", last paragraph) says so itself: a
+red run against a rebuilt defective producer must be recorded before the
+behavior is claimed proved. A closure subagent may not run the Docker lab or
+QEMU, so the main thread owes these runs.
+
+| # | Test | Break (producer) | Expected red | Run |
+|---|------|------------------|--------------|-----|
+| 1 | interop `pppoe-named-device-reconnect-ze-client` | `pppoeclient.Dialer.Dial` (`internal/component/l2tp/pppoeclient/dialer.go`) passes `""` instead of `cfg.Name` to `ppp.DevPPPSetup`; rebuild the Ze image | the checker (`check_named_device.go` `checkNamedDeviceReconnect`) finds a `pppN` and no `pppoe0` | `ZE_PPPOE_INTEROP_SCENARIO=pppoe-named-device-reconnect-ze-client ./le test deployment docker-pppoe-accel` |
+| 2 | the same scenario | the static link watch (`internal/plugins/static/link.go`, its `iface.Subscribe` call) answers a channel that never fires; rebuild | after `accel-cmd terminate` the default route does not come back without a reload | same |
+| 3 | `test/static/static-interface-nexthop-pppoe-absent.ci`, `static-interface-nexthop-pppoe-same-commit.ci` | `iface.DeclaredDynamicNames` (`internal/component/iface/declared_dynamic.go`) answers no names | the route lands in the skipped set instead of waiting | QEMU guest, the two files |
+| 4 | `test/static/static-interface-nexthop-pppoe-follows-device.ci` | the link-watch break of row 2 | the `proto 250` route does not return after the fixture recreates `pppoe0` | QEMU guest |
+| 5 | `test/parse/pppoe-client-name-too-long.ci`, `pppoe-client-name-collides.ci` | remove the key's YANG `length`/`pattern` and the cross-kind check `ifaceConfig.refuseDuplicateInterfaceNames` (`internal/component/iface/config.go`) | the config is accepted | QEMU guest, the two files |
+
+Clears when each row's red is observed and recorded (in the commit body that
+restores the code), and `docs/labs/pppoe-interop.md` replaces "The scenario is
+authored ..." with the passing run (PPPoE suite run 2026-11-07:
+`pppoe-named-device-reconnect-ze-client: pass (11s)`, 14 of 16, the two reds
+owned by `spec-l2tp-ipv6-subscriber`) and the red result. Then `/ze-close`
+resumes at step 1.
+
+Verified at this attempt, so the next closure need not repeat it:
+
+| AC | Producer | Evidence |
+|----|----------|----------|
+| AC-1, AC-2 | `ppp.createPPPLink` (`devppp_linux.go`: RTM_NEWLINK kind ppp, bounded EBUSY/EEXIST retry); `Dialer.Dial` passes `cfg.Name` | `TestDevPPPSetupNamesUnit` PASS on Ze 7.3 in QEMU (2026-11-07); interop pass |
+| AC-3, AC-13, AC-14, AC-15 | `internal/plugins/static/link.go`, `inject.go` `programRouteLocked`; ESRCH as done in `netlinkStaticBackend.removeRoute` and fib-kernel `delOwnedRoute` | `TestStaticInterfaceRouteFollowsDevice`, `TestStaticMixedECMPFollowsDevice`, `TestStaticRemoveRouteToleratesESRCH`, `TestFIBDeleteToleratesESRCH` PASS on Ze 7.3; follows-device `.ci` passed (6d194604f9) |
+| AC-4, AC-10, AC-11, AC-12 | `register.go` `verifyCandidateStatic`, `candidateDeclaredNames`, `classifyDeclared` over `iface.DeclaredDynamicNames` | `register_test.go` units; absent and same-commit `.ci` passed on Linux (fb9671a9f9) |
+| AC-5 | nft keeps the literal name (`lowerIfaceMatch`), the device carries it | interop pass: masquerade counter rises before and after the reconnect |
+| AC-6, AC-7, AC-9 | YANG `length "1..15"` and `pattern` on `list pppoe-client` `leaf name`; key validation in `config.go`; prune keeps the device | parse `.ci` passed on Linux (5ee1ebb500); `TestPPPoEClientNameValidated`, `TestApplyKeepsPPPoEClientDevice` |
+| AC-8 | `PPPoEClient.status` reports `c.cfg.Name` | `TestPPPoEClientUsesConfiguredDeviceName` |
+| AC-16 | `pppoe.InterfaceBinding.Device`; `PPPoECreate` takes the binding (289007ccf5) | `TestDialOSNameSourceInterface` PASS on Ze 7.3 in QEMU (2026-11-07) |
 
 ## Design Insights
 
