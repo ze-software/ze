@@ -160,6 +160,12 @@ and proxied PAP is proven against a real client.
 | CLI session output | reader | `snapshot.go`, `l2tp/cli` | prints `Username` | Change: accepted identity, plus a separate field for the claim |
 | Subscriber route log | reader | `route_observer.go` | logs `username` | Change: accepted identity |
 | IPv6CP to a peer | writer | `session_run.go` `handleFrame` | Protocol-Reject | Change: per lifetime |
+| RADIUS User-Name in accounting | reader | the operator's RADIUS accounting server, outside the repository (FreeRADIUS in `interop-radius-subscriber`) | joins Start, Interim and Stop by the User-Name that `acct.go` `acctSession.username` holds | Change: it receives the accepted identity, else the LAC's claim, else no attribute |
+| RADIUS User-Name in Access-Request | reader | the operator's RADIUS server, outside the repository | authenticates the name `handler.go` writes with `radius.AttrUserName` from `req.Username` | Preserve |
+| CoA User-Name | writer | the operator's RFC 5176 dynamic-authorization client, outside the repository | sends the User-Name that `coa.go` compares with `sess.Username` | Change: it sends the name accounting sent, which `coa.go` then matches |
+| CLI session output | writer | `cmd/l2tp.go` `sessionJSON` | writes `"username"` from `snapshot.go` `Username` | Change: accepted identity, plus a separate field for the claim |
+| Subscriber route log | writer | `route_observer.go`, the log calls that write the `username` key | writes `r.username` | Change: accepted identity |
+| IPv6CP to a peer | reader | the PPP peer, outside the repository (`pppd` in the interop lab) | receives the Protocol-Reject `handleFrame` sends | Change: per lifetime |
 
 ### Integration Points
 - `resetNCP` - the reset.
@@ -192,7 +198,7 @@ and proxied PAP is proven against a real client.
 | R-1 | An operator reads the LAC's name in User-Name as authenticated | A billing dispute over a no-auth session | The guide says User-Name is the LAC's claim when nothing authenticated; the CLI labels identity and claim apart |
 | R-2 | The relay grows into a LAC | Its size and its comment | It keeps no L2TP state: PPP only, and the hold is a dropped datagram |
 | R-3 | The scenario depends on 6 s of timing | Flakes under load | It asserts the outcome, with the lab's own timeout, never the delay |
-| R-4 | `plan/release/fixes/spec-home-cpe-15-lns-lcp-renegotiation.md` still lists this seeding as behavior to preserve | A review of that spec | Its line was repointed here when this spec was written |
+| R-4 | `spec-home-cpe-15-lns-lcp-renegotiation` (closed 2026-11-08) listed this seeding as behavior to preserve | A review of that spec | Its line was repointed here when this spec was written |
 
 ## Blast Radius
 
@@ -224,7 +230,7 @@ and proxied PAP is proven against a real client.
 | AC-8 | `enable-ipv6cp false` | IPv6CP stays refused in every lifetime, and the handler is never asked | None: the operator chose |
 | AC-9 | Real `pppd` finishes PAP with the LAC role, then ICCN carries proxy LCP naming PAP | Ze renegotiates LCP, `pppd` authenticates again, IPCP opens, and an ICMP round trip crosses the session | None |
 | AC-10 | The same with `pppd` still sending its PAP request | Ze answers that request and no renegotiation happens | None |
-| AC-11 | No Proxy Authen Name and no authenticated name | The Accounting-Request carries no User-Name | None: there is no name to send |
+| AC-11 | No Proxy Authen Name and no authenticated name | Ze sends the Accounting-Request Start and Stop with `Acct-Session-Id` and `Calling-Station-Id` as usual, and with the User-Name attribute left out | None: there is no name to send, and every other attribute of the record stays |
 
 ## End-to-End User Stories
 

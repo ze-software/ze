@@ -104,7 +104,7 @@ Child spec files, all in `plan/release/fixes/`:
 | 12 | `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` |
 | 13 | `spec-home-cpe-13-pppoe-client-ipcp-dns.md` |
 | 14 | `spec-home-cpe-14-lac-realm-relay.md` |
-| 15 | `spec-home-cpe-15-lns-lcp-renegotiation.md` |
+| 15 | Closed (2026-11-08): `spec-home-cpe-15-lns-lcp-renegotiation`; the `l2tp proxy-lcp` leaf, its session outcome and its counter label documented in `docs/guide/l2tp.md` ("PPP negotiation") |
 | 16 | Closed (2026-11-04): `spec-home-cpe-16-lns-mru-and-auth-allow-list`; policy and MRU controls documented in `docs/guide/l2tp.md` and `docs/guide/pppoe.md` |
 | 17 | `spec-home-cpe-17-pppoe-client-keepalive-config.md` |
 | 18 | `spec-home-cpe-18-interoplab-multi-link-topology.md` |
@@ -411,7 +411,7 @@ Each child owns its wiring tests; the rows below name one per child from its spe
 | LCP Configure-Request during CHAP (`spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`) | → | renegotiation | `TestRFC1661ClientRenegotiatesLCPDuringAuth` |
 | IPCP Configure-Nak with DNS (`spec-home-cpe-13-pppoe-client-ipcp-dns.md`) | → | resolver lease | `TestPPPoEClientSetsResolverLease` |
 | realm relay config and subscriber (`spec-home-cpe-14-lac-realm-relay.md`) | → | realm match, proxy LCP | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` |
-| `proxy-lcp renegotiate` (`spec-home-cpe-15-lns-lcp-renegotiation.md`) | → | non-proxy session branch | `TestL2TPProxyLCPRenegotiateReachesDriver` |
+| `proxy-lcp renegotiate` (`spec-home-cpe-15-lns-lcp-renegotiation`, closed; `docs/guide/l2tp.md`) | → | non-proxy session branch | `TestL2TPProxyLCPRenegotiateReachesDriver` |
 | `l2tp { mru 1492 }` (`docs/guide/l2tp.md`, "PPP negotiation") | → | session MRU | `TestReactorPPPPolicyReloadIsolation`, `TestConfiguredMRUNakInformationFloor`; interop `l2tp-lns-mru-xl2tpd` |
 | `keepalive interval 2; failures 2` (`spec-home-cpe-17-pppoe-client-keepalive-config.md`) | → | keepalive loop | `TestPPPoEClientKeepaliveFromConfig` |
 | `./le test integration interop-topology ze-static-link-chain` (`spec-home-cpe-18-interoplab-multi-link-topology.md`) | → | topology runner | scenario `ze-static-link-chain` |

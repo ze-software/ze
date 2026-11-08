@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Adds an LNS policy RFC 2661 permits but does not require (renegotiating LCP instead of accepting the LAC's proxy LCP). It corrects a guide sentence that claims the option already exists. |
@@ -468,16 +468,6 @@ files with Section 4.4.5.
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-home-cpe-15-lns-lcp-renegotiation.md` only, in the same `./le commit create` script
 
-## Blocker
-
-| Field | Value |
-|-------|-------|
-| What blocks | AC-5 and the reactor wiring have no green run on today's code. `TestReloadAppliesProxyLCPToNewSessions`, `TestHandleLCPUpRecordsProxyLCPOutcome` and the rest of `internal/component/l2tp/reactor_ppp_linux_test.go` last ran on 2026-11-08 at 10:50 UTC (`rwinv/out-qemu/clean-l2tp.log`, PASS). e71c333447 (11:01 UTC) then changed the reload test's setup to `attachReactor`, which now also calls `setPPPPolicy`, and a02374d9ad (19:13 UTC) changed the same file again. The 19:48 guest run (`rwinv/qemu-c12-c15.sh`) ran only `TestL2TPProxyLCPRenegotiateReachesDriver` in that package. It compiled the file but did not run the other tests |
-| Producer | `internal/component/l2tp/reactor_ppp_linux_test.go` `TestReloadAppliesProxyLCPToNewSessions`, `attachReactor`; the code under test is `internal/component/l2tp/subsystem_reload.go` (the `ProxyLCP` hot-apply) and `reactor_setters.go` `setProxyLCPPolicy` |
-| What clears it | The main thread runs this in the Ze-kernel QEMU guest: `go test -race -tags "<feature tags>" -count=1 -v ./internal/component/l2tp/` (whole package, because the Linux files are only compiled there), and records PASS for `TestReloadAppliesProxyLCPToNewSessions`, `TestHandleLCPUpRecordsProxyLCPOutcome` and `TestL2TPProxyLCPRenegotiateReachesDriver`. Then it sets this spec back to `in-progress`, and a closure agent fills the AC-5 evidence row and lands commits A and B. Everything else below is done. The review artifact (`tmp/review/home-cpe-15-lns-lcp-renegotiation-7e292f27-ced0-427f-a7b6-3a931db211f9.md`, CLEAN, 2 rounds) stays valid while those 40 files keep their hashes |
-
-Owed at closure besides that run: commit A repoints the citers before commit B removes this file. The umbrella's child 15 row becomes `Closed (<date>): spec-home-cpe-15-lns-lcp-renegotiation; ...`, as the child 16 row is. The umbrella's wiring row for `proxy-lcp renegotiate`, and the R-4 row of `plan/release/fixes/spec-l2tp-proxied-pap-interop-and-identity.md`, take the bare stem.
-
 ## Implementation Summary
 
 ### What Was Implemented
@@ -508,7 +498,7 @@ Owed at closure besides that run: commit A repoints the citers before commit B r
 |------|---------------|----------------------|----------------|--------|
 | approach | This spec's commits carry other specs' `Spec-work:` trailers: 0cf6ed47ad carries `home-cpe-1-logical-interface-name`, and f9ae2b9b88 and e71c333447 carry `home-cpe-23-dns-source-fall-through`, because each was created under another spec's claim | They implement child 15 | `git log` at closure | Recorded here. The push discharge of a `Review-owed:` finds commit A through `Spec-work:`, so these three commits are judged under the other stems |
 | approach | AC-4 (renegotiate with no proxy AVPs) had no driver test, although the TDD plan mapped it to the normal-path tests | No test set the flag without proxy data | Closure review, round 1 | b58db96452 |
-| approach | A test-body change (e71c333447) landed after the last green Linux run of its package, and the next guest run filtered to one test | The other Linux tests of the package did not run on the new body | Closure audit of the run logs | Blocker above |
+| approach | A test-body change (e71c333447) landed after the last green Linux run of its package, and the next guest run filtered to one test | The other Linux tests of the package did not run on the new body | Closure audit of the run logs | The closure was handed back (a8e4ade2be) until the whole package ran in the Ze 7.3 guest: 602 PASS, 0 FAIL, 0 SKIP (`rwinv/out-gb3/c15-l2tp.log`) |
 
 ## Implementation Audit
 
@@ -528,7 +518,7 @@ Owed at closure besides that run: commit A repoints the citers before commit B r
 | AC-2 | Done | `TestDriverProxyLCPRenegotiateSendsConfReq`, `TestDriverProxyLCPRenegotiateOwnMagic`; interop `l2tp-lns-lcp-renegotiate-pppd` | |
 | AC-3 | Done | `TestDriverProxyLCPRenegotiateUsesConfiguredAuth`; `access-wholesale` | |
 | AC-4 | Done | `TestDriverProxyLCPRenegotiateNoProxyIsNormalPath` (b58db96452) | |
-| AC-5 | Partial | `TestReloadAppliesProxyLCPToNewSessions` | Blocker: its current body has not run |
+| AC-5 | Done | `TestReloadAppliesProxyLCPToNewSessions` | PASS in the whole-package Linux run (`rwinv/out-gb3/c15-l2tp.log`) |
 | AC-6 | Done | `TestSessionJSONProxyLCPOutcome`, `TestHandleLCPUpRecordsProxyLCPOutcome`; `check_wholesale.go` `renegotiatedVerdict` on the live session | |
 | AC-7 | Done | the guide's "PPP negotiation"; citation grep empty | |
 
@@ -542,7 +532,7 @@ Owed at closure besides that run: commit A repoints the citers before commit B r
 | `TestNonLCPBeforeOpenedDiscarded` | Done | `ppp/proxy_renegotiate_test.go` | |
 | `TestProxyLCPPAPWaitsForRetransmittedRequest` | Changed | `ppp/proxy_renegotiate_test.go` | file moved |
 | `TestProxyLCPLeafParse` | Done | `config_test.go` | |
-| `TestReloadAppliesProxyLCPToNewSessions` | Changed | `reactor_ppp_linux_test.go` | file moved; rerun owed (Blocker) |
+| `TestReloadAppliesProxyLCPToNewSessions` | Changed | `reactor_ppp_linux_test.go` | file moved; PASS in `rwinv/out-gb3/c15-l2tp.log` |
 | `TestL2TPProxyLCPRenegotiateReachesDriver` | Done | `reactor_ppp_linux_test.go` | |
 | `TestSessionJSONProxyLCPOutcome` | Done | `cmd/l2tp_test.go` | |
 | `lns-proxy-lcp-config` | Done | `test/l2tp/lns-proxy-lcp-config.ci` | a6d26a1fa0 |
@@ -557,8 +547,8 @@ Owed at closure besides that run: commit A repoints the citers before commit B r
 
 ### Audit Summary
 - **Total items:** 33
-- **Done:** 28
-- **Partial:** 1 (AC-5, the Blocker; a rerun, not missing work)
+- **Done:** 29
+- **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 4 (recorded in Deviations)
 
@@ -607,7 +597,7 @@ Run 2, over b58db96452: 0 BLOCKER, 0 ISSUE. NOTEs: the interop row's directory w
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-1 to AC-4 | driver behavior | `go test -race` with the feature tags, `internal/component/l2tp/ppp`, 8 proxy LCP tests PASS (`scratch/c15-close/ac4-clean.log`, 2026-11-08 ~20:10 UTC) |
-| AC-5 | reload | owed (Blocker) |
+| AC-5 | reload | `go test -race` with every feature tag and `integration` over `./internal/component/l2tp/` in the Ze 7.3 QEMU guest, after b58db96452 and every later l2tp change: 602 PASS, 0 FAIL, 0 SKIP, including `TestReloadAppliesProxyLCPToNewSessions`, `TestHandleLCPUpRecordsProxyLCPOutcome` and both subtests of `TestL2TPProxyLCPRenegotiateReachesDriver` (`rwinv/out-gb3/c15-l2tp.log`, 2026-11-08 ~22:00) |
 | AC-6 | session JSON | `cmd/l2tp.go` `sessionJSON` writes `proxy-lcp`; `TestSessionJSONProxyLCPOutcome` in the host unit run (`scratch/c15-units.log`) |
 | AC-7 | guide and citations | grep for `can renegotiate`, `S18`, `Section 18` and `§18` returns nothing |
 
