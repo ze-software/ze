@@ -69,7 +69,8 @@ type resolver struct {
 	flights   flightTable
 	limits    limiter
 	stats     resolverStats
-	listeners listenerStates // which listener sockets are bound, for show and the gauge
+	listeners listenerStates           // which listener sockets are bound, for show and the gauge
+	signed    *dnsserver.SignedQueries // the signed queries the listeners read, for passThrough
 	now       func() time.Time
 
 	quit chan struct{}
@@ -84,6 +85,7 @@ func newResolver(now func() time.Time) *resolver {
 		negatives: newLRU(defaultCacheSize),
 		flights:   flightTable{flights: make(map[cacheKey]*flight)},
 		limits:    limiter{clients: make(map[clientKey]clientWindow)},
+		signed:    dnsserver.NewSignedQueries(),
 		now:       now,
 		quit:      make(chan struct{}),
 		done:      make(chan struct{}),

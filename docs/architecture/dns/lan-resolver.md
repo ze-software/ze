@@ -135,6 +135,59 @@ swept, is dropped. A rate of 0 sets no limit and keeps no table.
 
 <!-- source: internal/plugins/dnsresolver/limit.go -- limiter.admit, clientsMax, rateExcessPassEvery -->
 
+## A query carrying TSIG or TKEY
+
+A query that carries a TSIG RR, a TKEY question or a TKEY RR never reaches
+`resolver.answer`: the wrapper hands it to `resolver.passThrough`
+([the server harness](server-harness.md#a-query-carrying-transaction-security-passes-through-unchanged)).
+RFC 5625 Section 4.5 asks a proxy to "forward packets unchanged (as
+recommended above) or fully implement TSIG", and the resolver shares no key
+with its clients, so it forwards. dnsmasq, the proxy most home gateways run,
+draws the same line: `find_pseudoheader` in `src/edns0.c` marks a TKEY
+question or a last-position TSIG RR as signed, "we cannot change a single bit
+before forwarding".
+
+`passThrough` runs steps 1 to 3 of the request path (`admit`), refuses a
+query without exactly one question with FORMERR, and takes an outstanding
+slot. It does not judge RD (RFC 2930 Section 4: a TKEY query "SHOULD NOT be
+flagged as recursive"), and it neither reads nor fills the cache: a cached
+answer carries no signature. `forwardUnchanged` sends the client's bytes to
+each upstream in order, over the transport the query arrived on, with a
+fresh random Query ID that the reply gets back as the client's (RFC 5625
+Section 6.1: "changing the Query ID is acceptable and compatible with
+proxying TSIG-signed packets"). The first matching reply is returned
+whatever its RCODE, so a TSIG error reaches the client, and its TC bit
+reaches the client as the upstream set it. No upstream answering is SERVFAIL.
+
+A TKEY query with more than two additional records (a Diffie-Hellman TKEY
+with its KEY RR and an OPT) still meets `RecursiveAccept`'s bound of two and
+draws the library's FORMERR.
+
+<!-- source: internal/plugins/dnsresolver/passthrough.go -- resolver.passThrough, resolver.forwardUnchanged -->
+<!-- source: internal/plugins/dnsresolver/server.go -- resolver.admit, recursiveHandler -->
+<!-- test: internal/plugins/dnsresolver/rfc5625_passthrough_test.go -- TestRFC5625SignedQueryForwardedUnchanged, TestRFC5625TKEYQueryProxied -->
+
+## RFC 5625 on the resolver
+
+| Row | What reaches the client and the upstream | Test |
+|-----|-------------------------------------------|------|
+| RFC5625-4.1-1 | A query with AD, CD and Z set is answered as usual | `TestRFC5625ResolverUnknownFlags` |
+| RFC5625-4.2-1 | A compressed upstream reply reaches the client | `TestRFC5625ResolverCompressedReply` |
+| RFC5625-4.3-1, RFC5625-4.3-2 | An unknown QTYPE and class CH reach the upstream; an unknown TYPE and class reach the client | `TestRFC5625ResolverUnknownTypeAndClass` |
+| RFC5625-4.4-1, RFC5625-4.4-2 | An answer longer than the client's datagram limit is cut with TC set (`dnsserver.Recursive`, `send`); one that fits carries no TC | `TestRFC5625ResolverTruncationSetsTC` |
+| RFC5625-4.4-3 | An upstream reply with TC is fetched again over TCP; when that fails the client gets SERVFAIL, never the cut answer with TC cleared | `TestRFC5625ResolverNeverDropsTC` |
+| RFC5625-4.4.1-1, RFC5625-4.4.2-1 | A TCP query, and one with an OPT, are answered | `TestRFC5625ProxyTCPAndOPT` |
+| RFC5625-4.5-1 | A TSIG-signed query reaches the upstream byte for byte, its signed reply the client | `TestRFC5625SignedQueryForwardedUnchanged` |
+| RFC5625-4.5-2 | A TKEY query and its TKEY record reach the upstream, its TKEY answer the client | `TestRFC5625TKEYQueryProxied` |
+
+A TCP client's query is still forwarded over UDP first (Forwarding, below),
+which RFC5625-4.4.1-2 and RFC5625-4.4.1-3 advise against: an optional-figure
+gap. A pass-through query uses the client's own transport.
+
+<!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.forward -->
+<!-- source: internal/core/dnsserver/handler.go -- send -->
+<!-- test: internal/plugins/dnsresolver/rfc5625_resolver_test.go -- TestRFC5625ResolverUnknownFlags, TestRFC5625ResolverCompressedReply, TestRFC5625ResolverUnknownTypeAndClass, TestRFC5625ResolverTruncationSetsTC, TestRFC5625ResolverNeverDropsTC, TestRFC5625ProxyTCPAndOPT -->
+
 ## Forwarding
 
 `resolver.forward` sends the question to the `forward server` entries in the
@@ -175,7 +228,7 @@ ignored and the read continues until the attempt's deadline. On TCP the stream
 carries one reply, so a mismatch fails the exchange and the next upstream is
 tried.
 
-<!-- source: internal/plugins/dnsresolver/forward.go -- exchange, replyMatches -->
+<!-- source: internal/plugins/dnsresolver/forward.go -- exchange, exchangeWire, replyMatches -->
 <!-- test: internal/plugins/dnsresolver/forward_test.go -- TestReplyMatching -->
 
 ## The work budget

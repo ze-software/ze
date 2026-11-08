@@ -4,6 +4,8 @@
 package dnsresolver
 
 import (
+	"strconv"
+	"sync/atomic"
 	"testing"
 
 	"github.com/miekg/dns"
@@ -122,5 +124,90 @@ func TestRFC5625ProxyTCPAndOPT(t *testing.T) {
 	// is answered NOERROR with the upstream's record, not FORMERR.
 	if reply == nil || reply.Rcode != dns.RcodeSuccess || len(reply.Answer) != 1 {
 		t.Fatalf("reply %v to a query with an OPT RR, want NOERROR with one A record", reply)
+	}
+}
+
+// manyA returns n A records owned by name, an answer longer than 512 octets
+// for n of 30 and shorter than the resolver's 1232-octet upstream buffer.
+func manyA(name string, n int) []string {
+	rrs := make([]string, n)
+	for i := range n {
+		rrs[i] = name + " 300 IN A 192.0.2." + strconv.Itoa(i+1)
+	}
+	return rrs
+}
+
+// TestRFC5625ResolverTruncationSetsTC proves RFC 5625 Section 4.4 on the
+// resolver path: an answer that does not fit the client's datagram limit is
+// cut and carries TC, and an answer that fits carries no TC. Method: an
+// upstream that answers 30 A records (about 750 octets), asked over UDP
+// with no OPT (a 512-octet limit), then over TCP, where nothing is cut.
+func TestRFC5625ResolverTruncationSetsTC(t *testing.T) {
+	up := newFakeUpstream(t, func(q *dns.Msg, _ bool) []fakeReply {
+		return []fakeReply{{msg: answerWith(q, manyA(q.Question[0].Name, 60)...)}}
+	})
+	r := newTestResolver(t, testConfig(up), newTestClock())
+
+	reply := ask(r, query("big.test", dns.TypeA), "127.0.0.1", false)
+	if reply == nil {
+		t.Fatal("no reply over UDP")
+	}
+	// RFC requirement: RFC5625-4.4-1 positive -- "Where the required
+	// portions of a response would not fit inside that limit, the DNS server
+	// MUST set the "TrunCation" (TC) bit in the DNS response header to
+	// indicate that truncation has occurred."
+	// RFC requirement: RFC5625-4.4-2 positive -- "If a proxy must
+	// unilaterally truncate a response, then the proxy MUST set the TC bit."
+	// The 60-record answer (about 1000 octets compressed) is cut to fit 512 octets, and TC is set.
+	if !reply.Truncated || len(reply.Answer) >= 60 || reply.Len() > dns.MinMsgSize {
+		t.Fatalf("UDP reply %s TC=%v with %d of 60 records in %d octets, want TC set and the answer cut to fit 512", rcodeName(reply.Rcode), reply.Truncated, len(reply.Answer), reply.Len())
+	}
+
+	reply = ask(r, query("big.test", dns.TypeA), "127.0.0.1", true)
+	// RFC requirement: RFC5625-4.4-1 negative -- an answer that fits its
+	// transport is not marked truncated: over TCP all 60 records, TC clear.
+	// RFC requirement: RFC5625-4.4-2 negative -- nothing was cut, so TC is
+	// clear.
+	if reply == nil || reply.Truncated || len(reply.Answer) != 60 {
+		t.Fatalf("TCP reply %v, want all 60 records with TC clear", reply)
+	}
+}
+
+// TestRFC5625ResolverNeverDropsTC proves RFC 5625 Section 4.4 on the resolver
+// path: an upstream reply the upstream marked truncated never reaches the
+// client as a complete answer. Method: an upstream whose UDP reply carries TC
+// and one of its records and whose TCP side closes without answering, so
+// the resolver cannot fetch the whole answer; then one whose TCP side
+// answers, so it can.
+func TestRFC5625ResolverNeverDropsTC(t *testing.T) {
+	var tcpAnswers atomic.Bool
+	up := newFakeUpstream(t, func(q *dns.Msg, tcp bool) []fakeReply {
+		if !tcp {
+			m := answerWith(q, q.Question[0].Name+" 300 IN A 192.0.2.1")
+			m.Truncated = true
+			return []fakeReply{{msg: m}}
+		}
+		if !tcpAnswers.Load() {
+			return nil
+		}
+		return []fakeReply{{msg: answerWith(q, q.Question[0].Name+" 300 IN A 192.0.2.1", q.Question[0].Name+" 300 IN A 192.0.2.2")}}
+	})
+	r := newTestResolver(t, testConfig(up), newTestClock())
+
+	reply := ask(r, query("cut.test", dns.TypeA), "127.0.0.1", false)
+	// RFC requirement: RFC5625-4.4-3 positive -- "Similarly, proxies MUST NOT
+	// remove the TC bit from responses." The truncated upstream reply is
+	// never passed on with TC cleared: with no whole answer to be had, the
+	// client gets SERVFAIL, not the one record as if it were the answer.
+	if reply == nil || reply.Rcode != dns.RcodeServerFailure || len(reply.Answer) != 0 {
+		t.Fatalf("reply %v, want SERVFAIL with no record", reply)
+	}
+
+	tcpAnswers.Store(true)
+	reply = ask(r, query("whole.test", dns.TypeA), "127.0.0.1", false)
+	// RFC requirement: RFC5625-4.4-3 negative -- TC is cleared only on the
+	// whole answer the resolver fetched over TCP.
+	if reply == nil || reply.Truncated || len(reply.Answer) != 2 {
+		t.Fatalf("reply %v, want the whole two-record answer with TC clear", reply)
 	}
 }

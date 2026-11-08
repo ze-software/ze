@@ -99,6 +99,21 @@ type Options struct {
 	// opcode or a question count other than one itself. A recursive service
 	// passes RecursiveAccept, so its handler answers those in its own shape.
 	MsgAcceptFunc dns.MsgAcceptFunc
+
+	// Signed, when not nil, makes every plain UDP and TCP listener keep a
+	// copy of each TSIG-signed query it reads, for the pass-through of a
+	// recursive service (PassThrough, RFC 5625 Section 4.5). Nil keeps none:
+	// the authoritative services answer a signed query themselves.
+	Signed *SignedQueries
+}
+
+// decorateReader is the reader decorator the plain listeners run: the one
+// that keeps signed queries when Options.Signed is set, else none.
+func (m *Manager) decorateReader() dns.DecorateReader {
+	if m.opts.Signed == nil {
+		return nil
+	}
+	return m.opts.Signed.decorate
 }
 
 // Manager owns the bound UDP+TCP listeners for a dns.Handler. The handler is
@@ -214,6 +229,7 @@ func (m *Manager) bind(ep string, listen netip.AddrPort) error {
 		Handler:           m.handler,
 		UDPSize:           m.opts.UDPSize,
 		MsgAcceptFunc:     m.opts.MsgAcceptFunc,
+		DecorateReader:    m.decorateReader(),
 		NotifyStartedFunc: func() { close(udpStarted) },
 	}
 	ln, err := lc.Listen(context.Background(), "tcp", ep)
@@ -232,6 +248,7 @@ func (m *Manager) bind(ep string, listen netip.AddrPort) error {
 		IdleTimeout:       func() time.Duration { return tcpIdleTimeout },
 		MaxTCPQueries:     tcpQueriesMax,
 		MsgAcceptFunc:     m.opts.MsgAcceptFunc,
+		DecorateReader:    m.decorateReader(),
 		NotifyStartedFunc: func() { close(tcpStarted) },
 	}
 	m.servers = append(m.servers, udp, tcp)

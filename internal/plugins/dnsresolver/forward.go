@@ -80,6 +80,19 @@ const (
 
 // exchange sends query to up over network ("udp" or "tcp") and returns the
 // first reply that matches it, before deadline.
+func exchange(network string, up netip.AddrPort, query *dns.Msg, deadline time.Time) (*dns.Msg, error) {
+	wire, err := query.Pack()
+	if err != nil {
+		return nil, err
+	}
+	reply, _, err := exchangeWire(network, up, query, wire, upstreamUDPSize, deadline)
+	return reply, err
+}
+
+// exchangeWire sends wire, the packed form of query, to up over network
+// ("udp" or "tcp") and returns the first reply that matches query, parsed
+// and as received, before deadline. A datagram reply is read into
+// datagramOctets; a stream reply may be as long as a DNS message can be.
 //
 // RFC 5452 Section 9.2: "Use an unpredictable source port for outgoing
 // queries from the range of available ports (53, or 1024 and above) that is
@@ -88,48 +101,54 @@ const (
 // Each exchange dials its own socket, so the kernel picks a fresh
 // ephemeral source port for it, and the socket is connected, so a datagram
 // from any other address or port never reaches the read. On UDP a reply
-// that does not match is ignored and the read goes on until the deadline;
-// on TCP the stream carries one reply, so a mismatch fails the exchange.
-func exchange(network string, up netip.AddrPort, query *dns.Msg, deadline time.Time) (*dns.Msg, error) {
+// that does not match, or does not parse, is ignored and the read goes on
+// until the deadline; on TCP the stream carries one reply, so a mismatch
+// fails the exchange.
+func exchangeWire(network string, up netip.AddrPort, query *dns.Msg, wire []byte, datagramOctets int, deadline time.Time) (*dns.Msg, []byte, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 
 	var d net.Dialer
 	c, err := d.DialContext(ctx, network, up.String())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer func() { _ = c.Close() }()
 
 	if err := c.SetDeadline(deadline); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	co := &dns.Conn{Conn: c, UDPSize: upstreamUDPSize}
-	if err := co.WriteMsg(query); err != nil {
-		return nil, err
+	co := &dns.Conn{Conn: c}
+	if _, err := co.Write(wire); err != nil {
+		return nil, nil, err
+	}
+	buf := make([]byte, datagramOctets)
+	if network != networkUDP {
+		buf = make([]byte, dns.MaxMsgSize)
 	}
 	// Bounded by the socket deadline: every read returns by then.
 	for {
-		r, err := co.ReadMsg()
+		n, err := co.Read(buf)
 		if err != nil {
 			var ne net.Error
 			if errors.As(err, &ne) && ne.Timeout() {
-				return nil, errUpstreamTimeout
+				return nil, nil, errUpstreamTimeout
 			}
+			return nil, nil, err
+		}
+		r := new(dns.Msg)
+		if err := r.Unpack(buf[:n]); err != nil {
 			if network != networkUDP {
-				return nil, err
-			}
-			if errors.As(err, &ne) {
-				return nil, err
+				return nil, nil, err
 			}
 			// A datagram that does not parse is not the reply; keep reading.
 			continue
 		}
 		if replyMatches(query, r) {
-			return r, nil
+			return r, buf[:n], nil
 		}
 		if network != networkUDP {
-			return nil, errReplyMismatch
+			return nil, nil, errReplyMismatch
 		}
 	}
 }

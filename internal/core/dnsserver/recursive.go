@@ -46,16 +46,22 @@ const RecursiveUDPSize = 1232
 // version other than 0 draws BADVERS, before the opcode check (RFC 6891
 // Section 6.1.3). Neither reaches fn.
 //
+// A query carrying transaction security (a TSIG RR or a TKEY RR) that passes
+// those checks never reaches fn when pass is not nil: passThrough forwards it
+// unchanged through pass.Forward and writes the upstream's reply unchanged
+// (RFC 5625 Section 4.5). With pass nil it reaches fn like any other query.
+//
 // rejected, when not nil, is called once for each reply Recursive writes
-// without consulting fn (the Format error, Not Implemented and BADVERS
-// replies above), so the consumer counts every query it answers and not only
+// without consulting fn or pass (the Format error, Not Implemented and
+// BADVERS replies above, and the SERVFAIL for a signed query whose received
+// copy is gone), so the consumer counts every query it answers and not only
 // those fn saw.
 //
 // If fn panics, queryGuard contains it as it does for Authoritative: the panic
 // is logged, counted and recorded, and no reply is written.
 //
 // A nil log discards the write-failure line (see send), never the panic line.
-func Recursive(log *slog.Logger, fn AnswerFunc, rejected RejectFunc) dns.HandlerFunc {
+func Recursive(log *slog.Logger, fn AnswerFunc, pass *PassThrough, rejected RejectFunc) dns.HandlerFunc {
 	if log == nil {
 		log = slogutil.DiscardLogger()
 	}
@@ -93,6 +99,11 @@ func Recursive(log *slog.Logger, fn AnswerFunc, rejected RejectFunc) dns.Handler
 		msg := new(dns.Msg)
 		msg.SetReply(r)
 		shapeRecursive(msg, r)
+		if pass != nil && carriesTransactionSecurity(r) {
+			// RFC 5625 Section 4.5
+			passThrough(w, r, msg, pass, rejected, log)
+			return
+		}
 		if !fn(msg, r, w) {
 			return
 		}

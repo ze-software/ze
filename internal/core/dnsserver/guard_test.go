@@ -87,7 +87,7 @@ func TestQueryPanicNeverSilent(t *testing.T) {
 		wrap func(*slog.Logger, AnswerFunc) dns.HandlerFunc
 	}{
 		{taskAuthoritativeQuery, Authoritative},
-		{taskRecursiveQuery, func(log *slog.Logger, fn AnswerFunc) dns.HandlerFunc { return Recursive(log, fn, nil) }},
+		{taskRecursiveQuery, func(log *slog.Logger, fn AnswerFunc) dns.HandlerFunc { return Recursive(log, fn, nil, nil) }},
 	}
 	for _, wrapper := range wrappers {
 		t.Run(wrapper.task, func(t *testing.T) {

@@ -122,13 +122,43 @@ so `Recursive` answers the opcode and the answer function the question count,
 both shaped. It keeps the default's other protections: a response is ignored,
 and a header claiming more than 16 questions, more than one answer or
 authority record, or more than two additional records still draws miekg's
-unshaped FORMERR before anything is unpacked at length. `Recursive`'s third
+unshaped FORMERR before anything is unpacked at length. `Recursive`'s fourth
 argument, a `RejectFunc`, is told of each reply the wrapper wrote without
 calling the answer function, so the consumer counts it. A nil
 `MsgAcceptFunc` keeps miekg's default, which the authoritative consumers use.
 
+### A query carrying transaction security passes through unchanged
+
+`Recursive`'s third argument, a `*PassThrough`, routes a query that carries a
+TSIG RR, a TKEY question or a TKEY RR (`carriesTransactionSecurity`) past the
+answer function, once the OPT and opcode checks have passed. RFC 5625
+Section 4.5 says "DNS proxies MUST implement Section 4.7 of [RFC2845] and
+either forward packets unchanged (as recommended above) or fully implement
+TSIG.", and a recursive service holds no key its clients sign with, so
+`passThrough` hands the query's bytes to `PassThrough.Forward` and writes the
+bytes it returns with `Write`, never through the shape: a reply whose AA, RA,
+AD or OPT the shape touched would fail the client's TSIG check. Forward may
+instead return no bytes, and the shaped skeleton (a refusal, a SERVFAIL) is
+written. A datagram reply longer than the client offered is the one reply
+cut, by `Msg.Truncate`, which sets TC (RFC 5625 Section 4.4).
+
+A TSIG MAC covers the message as the client packed it, name compression
+included, so the bytes forwarded are the ones the listener read, not the
+parsed message packed again. `Options.Signed` makes every plain UDP and TCP
+listener run a reader decorator that walks each message's header and records
+without unpacking (`lastIsTSIG`) and keeps a copy of a signed one in
+`SignedQueries`, found again by the client's address and the TSIG MAC. The
+store holds 64 copies for five seconds. A signed query whose copy is gone,
+or one that arrived on DoT or DoH, whose listeners keep none, is answered
+SERVFAIL rather than forwarded from its parsed form. An unsigned TKEY query
+is packed again: no signature covers its bytes. A nil `*PassThrough` sends
+those queries to the answer function like any other.
+
+<!-- source: internal/core/dnsserver/signed.go -- PassFunc, PassThrough, carriesTransactionSecurity, passThrough, passWire, sendUnchanged, SignedQueries, lastIsTSIG -->
+<!-- test: internal/core/dnsserver/signed_test.go -- TestLastIsTSIG, TestSignedQueriesTake, FuzzLastIsTSIG -->
+
 <!-- source: internal/core/dnsserver/recursive.go -- Recursive, RejectFunc, RecursiveAccept, shapeRecursive, recursiveReplyLimit, RecursiveUDPSize, rejectRecursive, recursiveEDNSVersion -->
-<!-- source: internal/core/dnsserver/manager.go -- Options.UDPSize, Options.MsgAcceptFunc -->
+<!-- source: internal/core/dnsserver/manager.go -- Options.UDPSize, Options.MsgAcceptFunc, Options.Signed -->
 <!-- test: internal/core/dnsserver/recursive_test.go -- TestRecursiveShape, TestRecursiveOpcode, TestRecursiveUDPSize, TestRecursiveBadVersion, TestRecursiveTwoOPT, TestRecursiveAccept -->
 <!-- test: internal/core/dnsserver/handler_test.go -- TestAuthoritativeUnchanged -->
 

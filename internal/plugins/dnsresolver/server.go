@@ -20,29 +20,9 @@ import (
 // cache, and only then an upstream.
 func (r *resolver) answer(msg, q *dns.Msg, p dnsserver.Peer) bool {
 	transport := p.RemoteAddr().Network()
-	pol := r.policy.Load()
-	if pol == nil {
-		// No policy is published yet, so no answer can be built.
-		// RFC 1035 Section 4.1.1: "Server failure - The name server was
-		// unable to process this query due to a problem with the name
-		// server."
-		msg.Rcode = dns.RcodeServerFailure
-		r.countQuery(transport, msg.Rcode)
-		return true
-	}
-
-	source := dnsserver.RemoteAddr(p)
-	if _, ok := pol.allow.Lookup(source); !ok {
-		// RFC 1035 Section 4.1.1: "Refused - The name server refuses to
-		// perform the specified operation for policy reasons."
-		msg.Rcode = dns.RcodeRefused
-		r.countRefused(refuseACL)
-		r.countQuery(transport, msg.Rcode)
-		return true
-	}
-	if !r.limits.admit(source, pol.clientRate, r.now()) {
-		r.countRateLimited()
-		return false
+	pol, decided, send := r.admit(msg, p)
+	if decided {
+		return send
 	}
 	// The question count is judged before RD, so a query with no question or
 	// two draws Format error whatever its RD bit, as Unbound orders it:
@@ -93,6 +73,39 @@ func (r *resolver) answer(msg, q *dns.Msg, p dnsserver.Peer) bool {
 	return true
 }
 
+// admit runs the checks every query meets first, a pass-through one
+// included: a policy is published, the source is allowed, and the source is
+// under its rate. decided is true when one of them ended the query, with
+// send saying whether msg, then holding the answer, is written.
+func (r *resolver) admit(msg *dns.Msg, p dnsserver.Peer) (pol *policy, decided, send bool) {
+	transport := p.RemoteAddr().Network()
+	pol = r.policy.Load()
+	if pol == nil {
+		// No policy is published yet, so no answer can be built.
+		// RFC 1035 Section 4.1.1: "Server failure - The name server was
+		// unable to process this query due to a problem with the name
+		// server."
+		msg.Rcode = dns.RcodeServerFailure
+		r.countQuery(transport, msg.Rcode)
+		return nil, true, true
+	}
+
+	source := dnsserver.RemoteAddr(p)
+	if _, ok := pol.allow.Lookup(source); !ok {
+		// RFC 1035 Section 4.1.1: "Refused - The name server refuses to
+		// perform the specified operation for policy reasons."
+		msg.Rcode = dns.RcodeRefused
+		r.countRefused(refuseACL)
+		r.countQuery(transport, msg.Rcode)
+		return pol, true, true
+	}
+	if !r.limits.admit(source, pol.clientRate, r.now()) {
+		r.countRateLimited()
+		return pol, true, false
+	}
+	return pol, false, false
+}
+
 // resolverTCPConnMax is how many TCP connections one resolver listener holds
 // at once. LAN clients ask over UDP and fall back to TCP only for a truncated
 // answer, so the cap sits well above that load while bounding a flood.
@@ -120,6 +133,9 @@ type resolverServer struct {
 // them: the ACL is checked per query, after the connection is accepted, so
 // without the cap a source outside the ACL could still hold descriptors.
 //
+// Signed makes every listener keep the bytes of each TSIG-signed query it
+// reads, which passThrough forwards unchanged (RFC 5625 Section 4.5).
+//
 // OnListenerChange records each bind and unbind edge, a crashed listener's
 // included, in res.listeners, which show dns resolver and
 // ze_dns_resolver_listener_up read.
@@ -130,15 +146,18 @@ func newResolverServer(log *slog.Logger, res *resolver) *resolverServer {
 		TCPConnMax:       resolverTCPConnMax,
 		OnListenerChange: res.listeners.change,
 		MsgAcceptFunc:    dnsserver.RecursiveAccept,
+		Signed:           res.signed,
 	})}
 }
 
 // recursiveHandler is the handler every listener serves: res's answer
 // function inside the harness's recursive wrapper, which reports the
 // Format error (more than one OPT RR), BADVERS and Not Implemented replies it
-// writes itself to countRejected.
+// writes itself to countRejected. A query carrying a TSIG or a TKEY RR goes
+// to res.passThrough instead (RFC 5625 Section 4.5).
 func recursiveHandler(log *slog.Logger, res *resolver) dns.HandlerFunc {
-	return dnsserver.Recursive(log, res.answer, res.countRejected)
+	pass := &dnsserver.PassThrough{Signed: res.signed, Forward: res.passThrough}
+	return dnsserver.Recursive(log, res.answer, pass, res.countRejected)
 }
 
 // countRejected counts a query the recursive wrapper answered without

@@ -115,6 +115,12 @@ func (u *fakeUpstream) serveUDP() {
 			time.Sleep(rep.delay)
 			wire := rep.wire
 			if wire == nil {
+				// A real upstream answers a datagram within the size the
+				// query advertised (RFC 6891 Section 6.2.5), cutting it with
+				// TC set when it does not fit; Msg.Truncate does both.
+				if limit := datagramLimitOf(q); rep.msg.Len() > limit {
+					rep.msg.Truncate(limit)
+				}
 				packed, err := rep.msg.Pack()
 				if err != nil {
 					u.t.Error(err)
@@ -148,6 +154,15 @@ func (u *fakeUpstream) serveTCP() {
 		}
 		_ = c.Close()
 	}
+}
+
+// datagramLimitOf is the largest datagram reply q allows: its OPT's size,
+// never below 512 octets (RFC 6891 Section 6.2.5).
+func datagramLimitOf(q *dns.Msg) int {
+	if opt := q.IsEdns0(); opt != nil && int(opt.UDPSize()) > dns.MinMsgSize {
+		return int(opt.UDPSize())
+	}
+	return dns.MinMsgSize
 }
 
 // answerWith builds a reply to q carrying rrs in the answer section.
