@@ -40,7 +40,7 @@
     "claim-sha": "ae425c3a25ba84f0",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/dialer.go::superviseNetworkPhase",
-    "producer-sha": "ce8b7747c15844e3",
+    "producer-sha": "6004f0695d91048e",
     "break": "body of superviseNetworkPhase replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

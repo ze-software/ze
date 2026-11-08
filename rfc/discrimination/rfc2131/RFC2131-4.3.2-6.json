@@ -7,7 +7,7 @@
     "claim-sha": "f88d3006c8322999",
     "route": "revert",
     "producer": "internal/plugins/dhcpserver/segment.go::segment.renewing",
-    "producer-sha": "8ec61405367a864a",
+    "producer-sha": "65b5772e173b4185",
     "break": "body of segment.renewing replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "431fd998820a8759",
     "route": "revert",
     "producer": "internal/plugins/dhcpserver/segment.go::segment.renewing",
-    "producer-sha": "8ec61405367a864a",
+    "producer-sha": "65b5772e173b4185",
     "break": "body of segment.renewing replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

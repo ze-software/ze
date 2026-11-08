@@ -7,7 +7,7 @@
     "claim-sha": "fb045b4a00a2bef1",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
-    "producer-sha": "9276f793a0008843",
+    "producer-sha": "acca5af3920e9a56",
     "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -17,8 +17,8 @@
     "unit-sha": "f23a5cc16ed88119",
     "claim-sha": "54cbfb8b464c3cbf",
     "route": "revert",
-    "producer": "internal/component/ike/engine/auth.go::selectSignatureAlgorithm",
-    "producer-sha": "5e501f12672e08e2",
+    "producer": "internal/component/ike/engine/auth_signature_scheme.go::selectSignatureAlgorithm",
+    "producer-sha": "7a4ad368e41be871",
     "break": "body of selectSignatureAlgorithm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -28,8 +28,8 @@
     "unit-sha": "f23a5cc16ed88119",
     "claim-sha": "594fba7cfc3600df",
     "route": "revert",
-    "producer": "internal/component/ike/engine/auth.go::selectSignatureAlgorithm",
-    "producer-sha": "5e501f12672e08e2",
+    "producer": "internal/component/ike/engine/auth_signature_scheme.go::selectSignatureAlgorithm",
+    "producer-sha": "7a4ad368e41be871",
     "break": "body of selectSignatureAlgorithm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

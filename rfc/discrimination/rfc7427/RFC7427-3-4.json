@@ -7,19 +7,19 @@
     "claim-sha": "211ed16e6810b816",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
-    "producer-sha": "9276f793a0008843",
+    "producer-sha": "acca5af3920e9a56",
     "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7427-3-4",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc7427_notify_sent_test.go::TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify",
-    "unit-sha": "36ac3b612663b936",
+    "unit-sha": "62d0fa137d86b1f9",
     "claim-sha": "7db3f1d91dec0ee8",
     "route": "revert",
     "producer": "internal/component/ike/engine/initiator.go::buildSignatureHashAlgosNotify",
-    "producer-sha": "c3bd257487ab2a94",
-    "break": "body of buildSignatureHashAlgosNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "55b8f2760075937e",
+    "break": "body of buildSignatureHashAlgosNotify replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7427-3-4",
@@ -29,7 +29,7 @@
     "claim-sha": "5537e76e9f384a03",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
-    "producer-sha": "9276f793a0008843",
+    "producer-sha": "acca5af3920e9a56",
     "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "2d18abefc67fd778",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
-    "producer-sha": "9276f793a0008843",
+    "producer-sha": "acca5af3920e9a56",
     "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -3,22 +3,22 @@
     "rid": "RFC1661-5.1-3",
     "polarity": "negative",
     "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply",
-    "unit-sha": "2915b1939697684f",
+    "unit-sha": "29b7bb64e0e8b4c2",
     "claim-sha": "c28e8e52063ccaf7",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "70d629859ce41f84",
+    "producer-sha": "9ccef2d011ba9eab",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1661-5.1-3",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions",
-    "unit-sha": "f0e6b3584b0f7d3c",
+    "unit-sha": "01f3359cf6353b4f",
     "claim-sha": "18003b84565e4ee9",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "70d629859ce41f84",
+    "producer-sha": "9ccef2d011ba9eab",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

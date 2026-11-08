@@ -31,5 +31,38 @@
     "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
     "producer-sha": "796174bb0f8b3d29",
     "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-4.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringAuth",
+    "unit-sha": "118dc6998d7c2dc1",
+    "claim-sha": "37c4741197e13eb6",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
+    "producer-sha": "7150e36133372ef9",
+    "break": "line 560: \"if !admitted {\" -\u003e \"if true || !admitted {\""
+  },
+  {
+    "rid": "RFC1661-4.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringIPCP",
+    "unit-sha": "7fd1021f7b708705",
+    "claim-sha": "f330bf85c3fdd1d8",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateIPCP",
+    "producer-sha": "54763ce50843f40d",
+    "break": "line 831: \"if !admitted {\" -\u003e \"if true || !admitted {\""
+  },
+  {
+    "rid": "RFC1661-4.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase",
+    "unit-sha": "e1349087780d009a",
+    "claim-sha": "90e28605fa63fbc4",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
+    "producer-sha": "1452afbdbe7ad8ea",
+    "break": "line 217: \"if !admitted {\" -\u003e \"if true || !admitted {\""
   }
 ]
