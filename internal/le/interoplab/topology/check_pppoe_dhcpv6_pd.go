@@ -16,7 +16,9 @@ import (
 
 // pdWait bounds each IPv6 state poll: IPv6CP opens with IPCP, the first RA
 // arrives within accel-ppp's initial advertisement interval, and DHCPv6
-// runs Solicit, Advertise, Request and Reply after the device is up.
+// runs Solicit, Advertise, Request and Reply after the device is up, or the
+// Rapid Commit Solicit and Reply followed by the CPE's Renew at T1, which
+// accel-ppp.conf's pref-lifetime of 60 puts 30 seconds after the Reply.
 const pdWait = 90 * time.Second
 
 // checkPPPoEDHCPv6PD proves spec-home-cpe-8 Phases 1 to 3 against accel-ppp:
@@ -24,8 +26,9 @@ const pdWait = 90 * time.Second
 // interface identifier while no pppN device holds one (AC-1); pppoe0 runs
 // accept_ra 2 with forwarding and autoconf on, routes ::/0 via accel-ppp's
 // link-local and holds a SLAAC address from the RA's prefix (AC-5); and the
-// DHCPv6 client on pppoe0 asked for IA_PD with a /56 hint and requested the
-// /60 accel-ppp offered, which accel-ppp then delegated (AC-6, WPD-3).
+// DHCPv6 client on pppoe0 asked for IA_PD with a /56 hint and took the /60
+// accel-ppp delegated (AC-6, WPD-3): by requesting it after an Advertise, or,
+// after a Rapid Commit Reply, by renewing it (delegationVerdict).
 func checkPPPoEDHCPv6PD(ctx context.Context, check *interoplab.CheckContext) error {
 	if err := pollUntil(ctx, sessionUpTimeout, cpeDevice+" holds a link-local address", func() error {
 		answer, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "-6", ipWordAddress, wordShow}, nil)
@@ -182,43 +185,148 @@ func slaacVerdict(answer string, pool netip.Prefix) error {
 // errNoSolicitHint says the CPE's Solicit carried no IA_PD with the length hint.
 var errNoSolicitHint = errors.New("accel-ppp received no DHCPv6 Solicit carrying IA-PD with the hint IA-Prefix ::/" + strconv.Itoa(pdHintLength))
 
-// delegationVerdict reads accel-ppp's DHCPv6 log, which dhcpv6_packet_print
+// The tokens accel-ppp's dhcpv6_packet_print writes for the messages and the
+// option the verdict reads (dhcpv6_packet.c, its message and option names).
+const (
+	accelRecvSolicit  = "recv [DHCPv6 Solicit"
+	accelRecvRequest  = "recv [DHCPv6 Request"
+	accelRecvRenew    = "recv [DHCPv6 Renew"
+	accelRecvRebind   = "recv [DHCPv6 Rebind"
+	accelSendReply    = "send [DHCPv6 Reply"
+	accelRapidCommit  = "<Rapid-Commit>"
+	accelIAPDOption   = "IA-PD"
+	accelIAPrefixWord = "IA-Prefix "
+)
+
+// delegationLog is what accel-ppp's DHCPv6 log says about the delegation:
+// each prefix is the last one in the delegate pool a message of that kind
+// carried, and the zero prefix where none did.
+type delegationLog struct {
+	// hint: a Solicit carried IA-PD with the hint ::/pdHintLength.
+	hint bool
+	// rapidSolicit: that Solicit also carried the Rapid Commit option.
+	rapidSolicit bool
+	// requested: the CPE's Request (the four-message path).
+	requested netip.Prefix
+	// replied: accel-ppp's latest Reply of any kind.
+	replied netip.Prefix
+	// rapidReplied: accel-ppp's Reply carrying Rapid Commit, the answer to
+	// a Solicit (the two-message path).
+	rapidReplied netip.Prefix
+	// extended: the CPE's Renew or Rebind after the Rapid Commit Reply.
+	extended netip.Prefix
+}
+
+// readDelegationLog reads accel-ppp's DHCPv6 log, which dhcpv6_packet_print
 // writes one message to a line ("recv [DHCPv6 Solicit XID=... <IA-PD ...
-// <IA-Prefix ::/56 ...>>]"). It accepts a Solicit carrying IA-PD with the
-// /56 hint (RFC 9915 Section 21.22, the unspecified prefix with a length), a
-// Request carrying an IA-Prefix of the delegated length from pool, which a
-// client sends only for the prefix an Advertise offered, so the different
-// length was taken (RFC 7084 WPD-3), and a Reply delegating that prefix.
-func delegationVerdict(log string, pool netip.Prefix) error {
-	hint := false
-	var requested, replied netip.Prefix
+// {IA-Prefix ::/56 ...}>]").
+func readDelegationLog(log string, pool netip.Prefix) delegationLog {
+	var seen delegationLog
 	for line := range strings.SplitSeq(log, "\n") {
+		prefix, inPool := iaPrefixIn(line, pool)
 		switch {
-		case strings.Contains(line, "recv [DHCPv6 Solicit"):
-			if strings.Contains(line, "IA-PD") && strings.Contains(line, "IA-Prefix ::/"+strconv.Itoa(pdHintLength)+" ") {
-				hint = true
+		case strings.Contains(line, accelRecvSolicit):
+			if !strings.Contains(line, accelIAPDOption) {
+				continue
 			}
-		case strings.Contains(line, "recv [DHCPv6 Request"):
-			if prefix, ok := iaPrefixIn(line, pool); ok {
-				requested = prefix
+			if !strings.Contains(line, accelIAPrefixWord+"::/"+strconv.Itoa(pdHintLength)+" ") {
+				continue
 			}
-		case strings.Contains(line, "send [DHCPv6 Reply"):
-			if prefix, ok := iaPrefixIn(line, pool); ok {
-				replied = prefix
+			seen.hint = true
+			seen.rapidSolicit = seen.rapidSolicit || strings.Contains(line, accelRapidCommit)
+		case strings.Contains(line, accelRecvRequest):
+			if inPool {
+				seen.requested = prefix
+			}
+		case strings.Contains(line, accelSendReply):
+			if !inPool {
+				continue
+			}
+			seen.replied = prefix
+			if strings.Contains(line, accelRapidCommit) {
+				seen.rapidReplied = prefix
+			}
+		case strings.Contains(line, accelRecvRenew), strings.Contains(line, accelRecvRebind):
+			// Only a Renew or Rebind after the Rapid Commit Reply speaks
+			// for what the CPE kept from it.
+			if inPool && seen.rapidReplied.IsValid() {
+				seen.extended = prefix
 			}
 		}
 	}
-	if !hint {
+	return seen
+}
+
+// delegationVerdict reads accel-ppp's DHCPv6 log and accepts a delegation of
+// a /pdDelegatedLength from pool that the CPE took although it hinted
+// /pdHintLength (RFC 7084 WPD-3). Both paths open with a Solicit carrying
+// IA-PD with the /56 hint (RFC 9915 Section 21.22, the unspecified prefix
+// with a length).
+//
+// The four-message path: a Request carrying an IA-Prefix of the delegated
+// length from pool, which a client sends only for the prefix an Advertise
+// offered, so the different length was taken, and a Reply delegating that
+// prefix.
+//
+// The two-message path, RFC 9915 Section 18.2.1: "A client that wishes to
+// use the Rapid Commit two-message exchange includes a Rapid Commit option
+// (see Section 21.14) in its Solicit message." Section 18.3.1: "If the
+// client has included a Rapid Commit option in the Solicit message and the
+// server has been configured to respond with committed assignments of leases
+// and other resources, the server responds to the Solicit with a Reply
+// message." No Request is sent, so the server's log alone cannot show the CPE
+// kept the different length. The CPE's own word is its next Renew or Rebind,
+// Section 18.2.4: "The client includes IA Prefix options (see Section 21.22)
+// within IA_PD options (see Section 21.21) for the delegated prefixes
+// assigned to the IAs." and "The client MUST NOT include addresses and
+// prefixes in any IA option that the client did not obtain from the server or
+// that are no longer valid (that have a valid lifetime of 0)." So the path is
+// accepted only when the Solicit carried Rapid Commit, accel-ppp's Rapid
+// Commit Reply delegated a /pdDelegatedLength from pool, and a later Renew or
+// Rebind from the CPE names exactly that prefix: a Reply the CPE never
+// adopted leaves its Renew carrying the hint, which fails.
+func delegationVerdict(log string, pool netip.Prefix) error {
+	seen := readDelegationLog(log, pool)
+	if !seen.hint {
 		return fmt.Errorf("%w:\n%s", errNoSolicitHint, interoplab.OutputExcerpt(log))
 	}
-	if !requested.IsValid() {
-		return fmt.Errorf("the CPE sent no DHCPv6 Request for a prefix in %s, so it did not take the /%d offered:\n%s", pool, pdDelegatedLength, interoplab.OutputExcerpt(log))
+	if seen.requested.IsValid() {
+		return fourMessageVerdict(seen, log)
 	}
-	if requested.Bits() != pdDelegatedLength {
-		return fmt.Errorf("the CPE requested %s, want a /%d", requested, pdDelegatedLength)
+	if seen.rapidReplied.IsValid() {
+		return rapidCommitVerdict(seen, log)
 	}
-	if replied != requested {
-		return fmt.Errorf("accel-ppp's Reply delegated %v, want the requested %s:\n%s", replied, requested, interoplab.OutputExcerpt(log))
+	return fmt.Errorf("the CPE sent no DHCPv6 Request for a prefix in %s and accel-ppp sent no Rapid Commit Reply delegating one, so it did not take the /%d offered:\n%s", pool, pdDelegatedLength, interoplab.OutputExcerpt(log))
+}
+
+// fourMessageVerdict judges Solicit, Advertise, Request, Reply: the CPE
+// requested the delegated length and accel-ppp's Reply delegated that prefix.
+func fourMessageVerdict(seen delegationLog, log string) error {
+	if seen.requested.Bits() != pdDelegatedLength {
+		return fmt.Errorf("the CPE requested %s, want a /%d", seen.requested, pdDelegatedLength)
+	}
+	if seen.replied != seen.requested {
+		return fmt.Errorf("accel-ppp's Reply delegated %v, want the requested %s:\n%s", seen.replied, seen.requested, interoplab.OutputExcerpt(log))
+	}
+	return nil
+}
+
+// rapidCommitVerdict judges the Rapid Commit Solicit and Reply: the Solicit
+// asked for it, the Reply delegated the delegated length, and the CPE's later
+// Renew or Rebind names that exact prefix, which it includes only when it
+// holds the lease.
+func rapidCommitVerdict(seen delegationLog, log string) error {
+	if !seen.rapidSolicit {
+		return fmt.Errorf("accel-ppp sent a Rapid Commit Reply for %s, but no Solicit carrying the /%d hint also carried the Rapid Commit option:\n%s", seen.rapidReplied, pdHintLength, interoplab.OutputExcerpt(log))
+	}
+	if seen.rapidReplied.Bits() != pdDelegatedLength {
+		return fmt.Errorf("accel-ppp's Rapid Commit Reply delegated %s, want a /%d", seen.rapidReplied, pdDelegatedLength)
+	}
+	if !seen.extended.IsValid() {
+		return fmt.Errorf("the CPE sent no DHCPv6 Renew or Rebind naming %s after accel-ppp's Rapid Commit Reply, so nothing shows it adopted the /%d delegated:\n%s", seen.rapidReplied, pdDelegatedLength, interoplab.OutputExcerpt(log))
+	}
+	if seen.extended != seen.rapidReplied {
+		return fmt.Errorf("the CPE's Renew or Rebind named %s, want the %s accel-ppp's Rapid Commit Reply delegated:\n%s", seen.extended, seen.rapidReplied, interoplab.OutputExcerpt(log))
 	}
 	return nil
 }
@@ -228,7 +336,7 @@ func delegationVerdict(log string, pool netip.Prefix) error {
 func iaPrefixIn(line string, pool netip.Prefix) (netip.Prefix, bool) {
 	rest := line
 	for {
-		_, after, found := strings.Cut(rest, "IA-Prefix ")
+		_, after, found := strings.Cut(rest, accelIAPrefixWord)
 		if !found {
 			return netip.Prefix{}, false
 		}

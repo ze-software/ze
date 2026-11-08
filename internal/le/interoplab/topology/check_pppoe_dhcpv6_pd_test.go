@@ -11,7 +11,10 @@ import (
 // checker refuses the state a broken CPE leaves: no link-local or one on a
 // kernel pppN device (AC-1), a default route not via accel-ppp on pppoe0 or
 // no SLAAC address (AC-5), and a Solicit without the /56 hint, no Request for
-// the offered /60, or a Reply for another prefix (AC-6).
+// the offered /60, or a Reply for another prefix (AC-6). On the Rapid Commit
+// path it accepts only a Reply delegating a /60 that the CPE's later Renew or
+// Rebind names, and refuses one the CPE never renewed, one it renewed under
+// another prefix, and a Reply of another length.
 func TestPPPoEDHCPv6PDVerdicts(t *testing.T) {
 	linkLocal := "7: pppoe0    inet6 fe80::a1b2:c3d4:e5f6:1/64 scope link \\       valid_lft forever preferred_lft forever\n"
 	if err := linkLocalVerdict(linkLocal, cpeDevice); err != nil {
@@ -58,5 +61,34 @@ func TestPPPoEDHCPv6PDVerdicts(t *testing.T) {
 		if err := delegationVerdict(log, delegate); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+	rapidSolicit := strings.Replace(solicit, "<Elapsed-Time 0>", "<Elapsed-Time 0> <Rapid-Commit>", 1)
+	rapidReply := strings.Replace(reply, "XID=2", "XID=1 <Rapid-Commit>", 1)
+	renew := "[t]: info: pppoe0: recv [DHCPv6 Renew XID=3 <IA-PD 1 T1=0 T2=0 {IA-Prefix 2001:db8:2000::/60 pref_lifetime=60 valid_lifetime=120}>]"
+	rebind := strings.Replace(renew, "Renew XID=3", "Rebind XID=4", 1)
+	hintRenew := strings.Replace(renew, "2001:db8:2000::/60", "::/56", 1)
+	for name, log := range map[string]string{
+		"Rapid Commit, renewed": strings.Join([]string{rapidSolicit, rapidReply, renew}, "\n"),
+		"Rapid Commit, rebound": strings.Join([]string{rapidSolicit, rapidReply, rebind}, "\n"),
+	} {
+		if err := delegationVerdict(log, delegate); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	for name, log := range map[string]string{
+		"Rapid Commit, no Renew":            strings.Join([]string{rapidSolicit, rapidReply}, "\n"),
+		"Rapid Commit, Renew of the hint":   strings.Join([]string{rapidSolicit, rapidReply, hintRenew}, "\n"),
+		"Rapid Commit, Renew of another":    strings.Join([]string{rapidSolicit, rapidReply, strings.Replace(renew, "2001:db8:2000::/60", "2001:db8:2010::/60", 1)}, "\n"),
+		"Rapid Commit, Renew before Reply":  strings.Join([]string{rapidSolicit, renew, rapidReply}, "\n"),
+		"Rapid Commit, wrong length":        strings.Join([]string{rapidSolicit, strings.Replace(rapidReply, "/60", "/56", 1), strings.Replace(renew, "/60", "/56", 1)}, "\n"),
+		"Rapid Commit Reply, plain Solicit": strings.Join([]string{solicit, rapidReply, renew}, "\n"),
+	} {
+		if err := delegationVerdict(log, delegate); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	noHint := strings.Replace(rapidSolicit, "::/56", "::/64", 1)
+	if err := delegationVerdict(strings.Join([]string{noHint, rapidReply, renew}, "\n"), delegate); !errors.Is(err, errNoSolicitHint) {
+		t.Errorf("a Rapid Commit Solicit hinting /64: err = %v, want errNoSolicitHint", err)
 	}
 }
