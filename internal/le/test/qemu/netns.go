@@ -29,11 +29,37 @@ import (
 //
 // The binaries are COPIED off the 9p mount. File capabilities are an extended
 // attribute, and the 9p share does not carry one, so a setcap on /workspace
-// silently buys nothing. /tmp is a tmpfs in the guest and does.
+// silently buys nothing. netnsCapDir is a tmpfs of its own, mounted by
+// netnsCapMountScript, because the /tmp beneath it may ignore the capability.
 const (
 	netnsCapDir   = "/tmp/zebin"
 	netnsStateDir = "/tmp/zestate"
 )
+
+// netnsCapMountScript answers the shell that gives netnsCapDir a tmpfs of its
+// own, then refuses a mount there that would ignore file capabilities. The
+// caller creates the directory first and owns it after.
+//
+// The kernel grants a file capability only when the binary's mount allows
+// set-user-ID: a nosuid mount makes exec ignore it. gokrazy, the init of Ze's
+// own image, mounts /tmp with MS_NOSUID, so a copy setcap'd on that /tmp ran
+// as uid 1000 holding no capability at all. The daemon warned "running without
+// root; missing capabilities" and its ike plugin failed with "xfrm: policy
+// update: operation not permitted", while getcap still printed the set. A
+// mount made here carries no nosuid whatever /tmp carries, and a later run in
+// the same guest finds it in /proc/self/mounts and reuses it.
+func netnsCapMountScript() string {
+	var tb textbuf.Buffer
+	tb.Str("grep -qs ' ").Str(netnsCapDir).Str(" ' /proc/self/mounts").
+		Str(" || mount -t tmpfs -o mode=0750,nodev tmpfs ").Str(netnsCapDir).
+		Str("; awk -v dir=").Str(netnsCapDir).
+		Str(" '$2 == dir { options = $4 } END { exit options ~ /(^|,)nosuid(,|$)/ }' /proc/self/mounts").
+		Str(" || { echo \"qemu: ").Str(netnsCapDir).
+		Str(" is mounted nosuid, so the kernel ignores the file capabilities set on ze there and the").
+		Str(" per-test namespace daemon cannot program XFRM, nftables or interfaces: run umount ").
+		Str(netnsCapDir).Str(" in the guest, then run again\" >&2; exit 1; }")
+	return tb.String()
+}
 
 // netnsCapabilities is the set ze needs to program netlink, nftables and a
 // privileged port while running as an ordinary user inside the namespace.
@@ -164,6 +190,7 @@ func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error
 	var tb textbuf.Buffer
 	tb.Str("set -e").
 		Str("; mkdir -p ").Str(netnsCapDir).
+		Str("; ").Str(netnsCapMountScript()).
 		Str("; chown 0:").Str(netnsUID).Byte(' ').Str(netnsCapDir).
 		Str("; chmod 0750 ").Str(netnsCapDir).
 		Str("; rm -rf ").Str(netnsStateDir).

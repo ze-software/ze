@@ -158,6 +158,36 @@ func TestTheCapabilityCopiesAreMadeBeforeTheFirstSuite(t *testing.T) {
 	}
 }
 
+// The capability copies land on a tmpfs the preparation mounted itself, before
+// the first setcap. gokrazy mounts the guest's /tmp nosuid, and exec ignores a
+// file capability on a nosuid mount, so a copy on that /tmp ran as uid 1000
+// with no capability and its XFRM install answered EPERM.
+func TestTheCapabilityCopiesLandOnATmpfsThatHonorsFileCapabilities(t *testing.T) {
+	run := vmFixture(t)
+	rec := &recorder{}
+	run.Run = rec.run
+	run.Execute()
+
+	if len(rec.calls) == 0 {
+		t.Fatal("the run emitted no command at all")
+	}
+	first := strings.Join(rec.calls[0], " ")
+	mount := strings.Index(first, "mount -t tmpfs -o mode=0750,nodev tmpfs "+netnsCapDir)
+	if mount < 0 {
+		t.Fatalf("the preparation mounts no tmpfs of its own on %s:\n  %s", netnsCapDir, first)
+	}
+	if strings.Contains(first[mount:strings.Index(first[mount:], ";")+mount], "nosuid") {
+		t.Errorf("the preparation mounts %s nosuid, which drops every file capability:\n  %s", netnsCapDir, first)
+	}
+	if !strings.Contains(first, "nosuid(,|$)") {
+		t.Errorf("the preparation does not refuse a nosuid mount already on %s:\n  %s", netnsCapDir, first)
+	}
+	setcap := strings.Index(first, setcapCommand+" ")
+	if setcap < mount {
+		t.Errorf("setcap runs before the tmpfs is mounted, so it marks the copies on the nosuid /tmp:\n  %s", first)
+	}
+}
+
 // A guest without libcap cannot give ze its capabilities, and the run says so
 // before it boots through an hour of suites that would each fail on it.
 func TestAGuestWithoutSetcapIsRefusedBeforeAnythingRuns(t *testing.T) {

@@ -115,6 +115,12 @@ func prepareNetnsBinaries(ctx context.Context, binaries netnsBinaries) error {
 	if err := os.MkdirAll(netnsCapDir, 0o750); err != nil {
 		return fmt.Errorf("create %s: %w", netnsCapDir, err)
 	}
+	if result, err := guestRun(ctx, "", []string{"sh", "-c", netnsCapMountScript()}, nil); err != nil || result.Code != 0 {
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("mount a tmpfs that honors file capabilities on %s failed with exit %d", netnsCapDir, result.Code)
+	}
 	if err := os.Chown(netnsCapDir, 0, 1000); err != nil {
 		return fmt.Errorf("make %s traversable by the credential-dropped test group: %w", netnsCapDir, err)
 	}

@@ -365,7 +365,15 @@ The runner enters the namespace itself, once per test (`enterTestNetns`,
 with a non-root `ZE_TEST_UID`. `test qemu all` sets both for a routed suite, copies
 `ze` and `ze-stripped` to the guest's own tmpfs (a 9p mount carries no extended
 attribute, so a `setcap` on `/workspace` would buy nothing), and gives the
-dropped user a state directory to write in.
+dropped user a state directory to write in. That tmpfs is mounted on
+`/tmp/zebin` itself (`netnsCapMountScript`), because the kernel ignores a file
+capability on a `nosuid` mount and gokrazy, the init of Ze's own image, mounts
+`/tmp` with `nosuid`: there the copies ran as uid 1000 with no capability, and
+an ipsec daemon's XFRM install answered `operation not permitted`. The
+preparation refuses a `nosuid` mount it finds on `/tmp/zebin`.
+<!-- source: internal/le/test/qemu/netns.go -- netnsCapMountScript -->
+<!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsBinaries -->
+<!-- source: internal/le/test/qemu/netns.go -- allTestsRun.prepareNamespace -->
 
 Routing a suite also un-skips its `option=netns-link` tests. Outside this mode
 the runner SKIPS them (`applyNetnsLinkGate`, `internal/test/runner/caps.go`),
