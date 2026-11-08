@@ -1,6 +1,28 @@
 [
   {
     "rid": "RFC4301-4.4.1-8",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_override_guard_integration_linux_test.go::TestRFC4301ApplicationOverrideAllowedInKernel",
+    "unit-sha": "ca64ba008cfb6318",
+    "claim-sha": "c7d00a1c805caca7",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/policy_role.go::socketPolicyRole",
+    "producer-sha": "1b7f82d09b8f4f6a",
+    "break": "line 72: \"priority == PriorityESPFormSocket\" -\u003e \"true || priority == PriorityESPFormSocket\""
+  },
+  {
+    "rid": "RFC4301-4.4.1-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_override_guard_integration_linux_test.go::TestRFC4301ApplicationOverrideDeniedInKernel",
+    "unit-sha": "7c9ccfeb8627ac92",
+    "claim-sha": "59cf06ebb1db1506",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/override_guard_linux.go::overrideGuardInstructions",
+    "producer-sha": "c535ad3a2f588ace",
+    "break": "line 349: \"asm.Mov.Imm(asm.R0, 0)\" -\u003e \"asm.Mov.Imm(asm.R0, 1)\""
+  },
+  {
+    "rid": "RFC4301-4.4.1-8",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_application_override_test.go::TestRFC4301OverrideLeafSelectsTheGuard",
     "unit-sha": "cea002a70809a68c",
