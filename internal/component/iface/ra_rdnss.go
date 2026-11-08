@@ -127,8 +127,9 @@ func (l *raServerList) addresses() []string {
 // validity answers the lease validity of the whole list: until withdrawn when
 // an entry is infinite, else the latest Expiration-time. The producer's own
 // timer withdraws each earlier entry at its time, so the registry never ends
-// a lease before its last address.
-func (l *raServerList) validity() system.LeaseValidity {
+// a lease before its last address. now is the clock the Expiration-times
+// were read on; the registry takes the span that remains.
+func (l *raServerList) validity(now time.Time) system.LeaseValidity {
 	var latest time.Time
 	for _, s := range l.servers {
 		if s.infinite {
@@ -138,7 +139,7 @@ func (l *raServerList) validity() system.LeaseValidity {
 			latest = s.expires
 		}
 	}
-	return system.ValidUntil(latest)
+	return system.ValidFor(latest.Sub(now))
 }
 
 // nextExpiry answers the earliest Expiration-time in the list, and false when
@@ -375,7 +376,7 @@ func (p *raRDNSS) targetFor(device string) (raTarget, bool) {
 // withdraws it. The caller MUST hold p.mu.
 func (p *raRDNSS) publishLocked(key rdnssUnitKey, list *raServerList) {
 	source := raResolverOrigin.Source(key.iface, key.unit)
-	if err := p.resolvers.SetLease(source, list.addresses(), list.validity()); err != nil {
+	if err := p.resolvers.SetLease(source, list.addresses(), list.validity(time.Now())); err != nil {
 		p.log.Warn("interface: RA resolver lease write failed", "iface", key.iface, "unit", key.unit, "err", err)
 	}
 }

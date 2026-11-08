@@ -535,7 +535,7 @@ func (w *v6Worker) effect(applied v6Applied, topic string) {
 	}
 	// RFC 9915 Section 18.2.10.5: the Reply's servers replace the lease's;
 	// a Reply without the option withdraws them.
-	w.c.setV6Resolvers(w.lease.dns, v6ResolverValidity(w.lease))
+	w.c.setV6Resolvers(w.lease.dns, v6ResolverValidity(w.lease, w.c.clock.Now()))
 }
 
 // v6Seconds is a lifetime as the kernel takes it: 0xffffffff is infinite.

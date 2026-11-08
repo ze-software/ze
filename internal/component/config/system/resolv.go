@@ -104,14 +104,19 @@ type ResolverSource struct {
 type lease struct {
 	servers  []netip.Addr
 	received time.Time
-	validity LeaseValidity
+	end      leaseEnd
 }
 
-// LeaseValidity is how long a lease's servers stay usable. Build a bounded
-// one with ValidUntil; the zero value is UntilWithdrawn, a named state.
+// LeaseValidity is how long a lease's servers stay usable, counted from the
+// moment the registry records them. Build a bounded one with ValidFor; the
+// zero value is UntilWithdrawn, a named state.
+//
+// It is a span, never an instant: a producer reads its own clock, which need
+// not be the registry's, and an instant read on one clock and compared on
+// the other ends the lease early or late.
 type LeaseValidity struct {
-	expires time.Time
-	bounded bool
+	lifetime time.Duration
+	bounded  bool
 }
 
 // UntilWithdrawn keeps a lease's servers until its producer sets or
@@ -119,19 +124,35 @@ type LeaseValidity struct {
 // infinite DHCP lease.
 var UntilWithdrawn = LeaseValidity{}
 
-// ValidUntil keeps a lease's servers until expires, when the registry
-// withdraws them as if the producer had sent an empty list. An instant at or
-// before now withdraws the source at once.
-func ValidUntil(expires time.Time) LeaseValidity {
-	return LeaseValidity{expires: expires, bounded: true}
+// ValidFor keeps a lease's servers for lifetime from the moment the registry
+// records them, measured on the registry's clock, after which the registry
+// withdraws them as if the producer had sent an empty list. A lifetime of
+// zero or less withdraws the source at once.
+func ValidFor(lifetime time.Duration) LeaseValidity {
+	return LeaseValidity{lifetime: lifetime, bounded: true}
 }
 
-// expired reports whether the validity ended at or before now.
-func (v LeaseValidity) expired(now time.Time) bool {
+// from anchors the validity on now, the registry's time of receipt.
+func (v LeaseValidity) from(now time.Time) leaseEnd {
 	if !v.bounded {
+		return leaseEnd{}
+	}
+	return leaseEnd{at: now.Add(v.lifetime), bounded: true}
+}
+
+// leaseEnd is the registry-clock instant a recorded lease ends; the zero
+// value is a lease that stays until withdrawn.
+type leaseEnd struct {
+	at      time.Time
+	bounded bool
+}
+
+// expired reports whether the lease ended at or before now.
+func (e leaseEnd) expired(now time.Time) bool {
+	if !e.bounded {
 		return false
 	}
-	return !now.Before(v.expires)
+	return !now.Before(e.at)
 }
 
 // routerDNSSourcePath is the config path of the router consumer's list.
@@ -264,14 +285,15 @@ func (r *Resolvers) setLeaseLocked(source ResolverSource, servers []netip.Addr, 
 		delete(r.leases, source)
 		return
 	}
-	if validity.expired(now) {
+	end := validity.from(now)
+	if end.expired(now) {
 		delete(r.leases, source)
 		return
 	}
 	if r.leases == nil {
 		r.leases = make(map[ResolverSource]lease)
 	}
-	r.leases[source] = lease{servers: servers, received: now, validity: validity}
+	r.leases[source] = lease{servers: servers, received: now, end: end}
 }
 
 // now answers the registry's clock's time.
@@ -299,11 +321,11 @@ func (r *Resolvers) expire() {
 func (r *Resolvers) armExpiryLocked(now time.Time) {
 	var earliest time.Time
 	for _, held := range r.leases {
-		if !held.validity.bounded {
+		if !held.end.bounded {
 			continue
 		}
-		if earliest.IsZero() || held.validity.expires.Before(earliest) {
-			earliest = held.validity.expires
+		if earliest.IsZero() || held.end.at.Before(earliest) {
+			earliest = held.end.at
 		}
 	}
 	if earliest.IsZero() {
@@ -410,7 +432,7 @@ func (r *Resolvers) deliver() {
 func (r *Resolvers) refresh() error {
 	now := r.now()
 	for source, held := range r.leases {
-		if held.validity.expired(now) {
+		if held.end.expired(now) {
 			delete(r.leases, source)
 		}
 	}
@@ -447,7 +469,7 @@ func (r *Resolvers) records() []dnssource.Record {
 			Unit:      source.unit,
 			Addresses: slices.Clone(held.servers),
 			Received:  held.received,
-			Expires:   held.validity.expires,
+			Expires:   held.end.at,
 			Fallback:  source.origin.fallback,
 		})
 	}

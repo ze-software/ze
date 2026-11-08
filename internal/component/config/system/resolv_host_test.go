@@ -182,8 +182,7 @@ func TestHostRecordIsFallback(t *testing.T) {
 		t.Fatalf("no lease: servers = %v, want the host's %v", got, want)
 	}
 
-	ends := clk.Now().Add(10 * time.Second)
-	if err := r.SetLease(routerTestDHCPv4.Source("eth0", "0"), []string{"192.0.2.53", "192.0.2.54"}, ValidUntil(ends)); err != nil {
+	if err := r.SetLease(routerTestDHCPv4.Source("eth0", "0"), []string{"192.0.2.53", "192.0.2.54"}, ValidFor(10*time.Second)); err != nil {
 		t.Fatalf("SetLease: %v", err)
 	}
 	if got, want := r.Servers(), []string{"192.0.2.53", "192.0.2.54"}; !slices.Equal(got, want) {

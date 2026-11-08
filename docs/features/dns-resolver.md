@@ -162,7 +162,7 @@ address, 255.255.255.255) is skipped, whatever its source. A loopback
 address such as the 127.0.0.53 of a host stub resolver stays, because Ze's
 own lookups can reach it.
 
-<!-- source: internal/component/config/system/resolv.go -- Resolvers, routerDefault, Resolvers.records, ValidUntil, Resolvers.armExpiryLocked -->
+<!-- source: internal/component/config/system/resolv.go -- Resolvers, routerDefault, Resolvers.records, ValidFor, Resolvers.armExpiryLocked -->
 <!-- source: internal/core/dnssource/select.go -- Select, Usable -->
 <!-- source: internal/plugins/iface/dhcp/resolv_linux.go -- setV4Resolvers, setV6Resolvers -->
 

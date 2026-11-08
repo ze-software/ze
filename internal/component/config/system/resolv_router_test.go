@@ -139,10 +139,10 @@ func TestRecordExpiryWithdraws(t *testing.T) {
 	defer stop()
 
 	ends := clk.Now().Add(10 * time.Second)
-	if err := r.SetLease(routerTestDHCPv4.Source("eth0", "0"), []string{"192.0.2.53"}, ValidUntil(ends)); err != nil {
+	if err := r.SetLease(routerTestDHCPv4.Source("eth0", "0"), []string{"192.0.2.53"}, ValidFor(10*time.Second)); err != nil {
 		t.Fatalf("SetLease: %v", err)
 	}
-	if err := r.SetLease(routerTestPPP.Source("wan0", ""), []string{"192.0.2.54"}, ValidUntil(ends.Add(time.Minute))); err != nil {
+	if err := r.SetLease(routerTestPPP.Source("wan0", ""), []string{"192.0.2.54"}, ValidFor(10*time.Second+time.Minute)); err != nil {
 		t.Fatalf("SetLease: %v", err)
 	}
 	if got, want := routerServers(t, r), addrList("192.0.2.53", "192.0.2.54"); !slices.Equal(got, want) {
@@ -175,11 +175,58 @@ func TestRecordExpiryWithdraws(t *testing.T) {
 	}
 
 	// A validity that already ended withdraws at once.
-	if err := r.SetLease(routerTestDHCPv4.Source("eth0", "0"), []string{"192.0.2.53"}, ValidUntil(clk.Now())); err != nil {
+	if err := r.SetLease(routerTestDHCPv4.Source("eth0", "0"), []string{"192.0.2.53"}, ValidFor(0)); err != nil {
 		t.Fatalf("SetLease: %v", err)
 	}
 	if got, want := routerServers(t, r), addrList("198.51.100.53"); !slices.Equal(got, want) {
 		t.Fatalf("ended validity: servers = %v, want %v", got, want)
+	}
+}
+
+// TestLeaseValidityCountsOnTheRegistryClock: a lease's lifetime starts when
+// the registry records it, on the registry's clock, whatever the producer's
+// clock reads. Method: a registry whose clock is far from the producer's
+// (a DHCP client on a test clock, a host clock stepped by NTP) takes a 30s
+// lease, and the record must end 30s after the registry's receipt.
+//
+// VALIDATES: the cross-clock contract of SetLease (spec-home-cpe-23).
+// PREVENTS: the regression where a producer handed an instant read on its
+// own clock, which the registry compared with its own: a DHCPv6 lease from
+// a client whose clock lagged was dropped at once, so its server never
+// reached resolv.conf (TestRFC9915Section182105RenewWithoutDNSStopsUsingIt).
+func TestLeaseValidityCountsOnTheRegistryClock(t *testing.T) {
+	clk := &manualClock{now: time.Unix(1_000_000, 0)}
+	r := &Resolvers{clock: clk}
+	if err := r.Configure("", nil, routerDefault); err != nil {
+		t.Fatalf("Configure: %v", err)
+	}
+	received := clk.Now()
+	if err := r.SetLease(routerTestDHCPv4.Source("eth0", "0"), []string{"192.0.2.53"}, ValidFor(30*time.Second)); err != nil {
+		t.Fatalf("SetLease: %v", err)
+	}
+	records := r.Snapshot().Records
+	if len(records) != 1 {
+		t.Fatalf("records = %+v, want the one lease", records)
+	}
+	if got := records[0].Received; !got.Equal(received) {
+		t.Fatalf("record received = %v, want the registry's %v", got, received)
+	}
+	if got, want := records[0].Expires, received.Add(30*time.Second); !got.Equal(want) {
+		t.Fatalf("record expires = %v, want %v", got, want)
+	}
+	clk.advance(29 * time.Second)
+	if got, want := routerServers(t, r), addrList("192.0.2.53"); !slices.Equal(got, want) {
+		t.Fatalf("one second before the lifetime ends: servers = %v, want %v", got, want)
+	}
+	clk.advance(time.Second)
+	if got := routerServers(t, r); len(got) != 0 {
+		t.Fatalf("at the end of the lifetime: servers = %v, want none", got)
+	}
+	if err := r.SetLease(routerTestDHCPv4.Source("eth0", "0"), []string{"192.0.2.53"}, ValidFor(-time.Second)); err != nil {
+		t.Fatalf("SetLease: %v", err)
+	}
+	if got := routerServers(t, r); len(got) != 0 {
+		t.Fatalf("negative lifetime: servers = %v, want none", got)
 	}
 }
 

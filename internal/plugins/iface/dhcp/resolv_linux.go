@@ -6,6 +6,8 @@
 package ifacedhcp
 
 import (
+	"time"
+
 	"github.com/ze-software/ze/internal/component/config/system"
 )
 
@@ -50,19 +52,22 @@ func (c *DHCPClient) setV6Resolvers(servers []string, validity system.LeaseValid
 // v4ResolverValidity is how long a DHCPv4 lease's servers stay usable: until
 // the lease expires, or until withdrawn for an infinite lease. The client
 // withdraws them itself when the lease ends; the registry's own expiry is
-// the backstop for a client that stops before it can.
-func v4ResolverValidity(lease *v4Lease) system.LeaseValidity {
+// the backstop for a client that stops before it can. now is the client's
+// clock: the expiry instant is on it, so the span is measured on it too and
+// the registry anchors that span on its own clock.
+func v4ResolverValidity(lease *v4Lease, now time.Time) system.LeaseValidity {
 	if lease.infinite {
 		return system.UntilWithdrawn
 	}
-	return system.ValidUntil(lease.expireAt)
+	return system.ValidFor(lease.expireAt.Sub(now))
 }
 
 // v6ResolverValidity is how long a DHCPv6 Reply's servers stay usable: until
 // every binding's valid lifetime has run out. A lease with no binding (a
 // stateless Information-Request) or with an infinite binding holds them
-// until the client withdraws them.
-func v6ResolverValidity(lease *v6Lease) system.LeaseValidity {
+// until the client withdraws them. now is the client's clock, as for
+// v4ResolverValidity.
+func v6ResolverValidity(lease *v6Lease, now time.Time) system.LeaseValidity {
 	if lease.empty() {
 		return system.UntilWithdrawn
 	}
@@ -70,5 +75,5 @@ func v6ResolverValidity(lease *v6Lease) system.LeaseValidity {
 	if last.never {
 		return system.UntilWithdrawn
 	}
-	return system.ValidUntil(last.at)
+	return system.ValidFor(last.at.Sub(now))
 }

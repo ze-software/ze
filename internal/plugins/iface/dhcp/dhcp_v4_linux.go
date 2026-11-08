@@ -580,7 +580,7 @@ func (c *DHCPClient) installV4Lease(w *v4State, lease *v4Lease, topic string) bo
 
 	// RFC 2132 Section 3.8: the ACK's servers replace this lease's servers
 	// in resolv.conf; an ACK with none withdraws them.
-	c.setV4Resolvers(payload.DNSAll, v4ResolverValidity(lease))
+	c.setV4Resolvers(payload.DNSAll, v4ResolverValidity(lease, c.clock.Now()))
 
 	c.publishDHCP(topic, payload)
 
