@@ -1969,6 +1969,15 @@ Sends SIGTERM to the daemon process. Reads PID from `daemon.pid` in the tmpfs di
 HTTP checks validate web endpoint responses after all `cmd=` processes have started.
 Executed in `seq` order with automatic retry on connection errors (server starting up).
 
+Under the per-test namespace mode (`./le test qemu netns`) the daemon listens on
+the namespace's own loopback. net/http dials from a goroutine of its own, which
+does not run on the runner's locked thread, so the runner's transport opens each
+socket inside the test's namespace (`netnsDialContext`). Before it did, every
+`http=` line in a namespace test was refused.
+<!-- source: internal/test/runner/runner_validate.go -- httpClientForCheck -->
+<!-- source: internal/test/runner/netns_linux.go -- netnsDialContext -->
+<!-- test: internal/test/runner/netns_linux_test.go -- TestNetnsDialContextReachesTheTestNamespace -->
+
 ### Assertion Checks (get/post)
 
 ```

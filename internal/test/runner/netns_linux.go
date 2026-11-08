@@ -7,7 +7,9 @@
 package runner
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"net/netip"
 	"runtime"
 
@@ -232,4 +234,53 @@ func testNetnsName(nick string, port int) string {
 	}
 	var pb textbuf.Buffer
 	return pb.Str(name).Byte('-').Int(int64(port)).String()
+}
+
+// netnsDialContext answers a DialContext whose socket is opened inside the
+// named per-test namespace. enterTestNetns moves only the test's locked
+// thread, and net/http dials from a goroutine of its own
+// (Transport.dialConnFor) on whatever thread the scheduler picks, so an
+// http= check against a daemon listening on the namespace's 127.0.0.1 reached
+// the host's loopback instead and was refused. The dial locks its own thread,
+// enters the namespace for socket and connect, then restores the thread
+// before it unlocks it. A socket keeps the namespace it was created in, so the
+// connection stays in the test's namespace after the thread leaves it.
+//
+// FallbackDelay is negative so a name that resolves to both families is
+// dialled serially on this thread: the dual-stack racer starts goroutines of
+// its own, which would dial from the host namespace again.
+func netnsDialContext(name string) func(ctx context.Context, network, address string) (net.Conn, error) {
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		target, err := netns.GetFromName(name)
+		if err != nil {
+			return nil, fmt.Errorf("open per-test network namespace %q for an HTTP check: %w", name, err)
+		}
+		defer target.Close() //nolint:errcheck // a read-only namespace handle, nothing to flush
+
+		runtime.LockOSThread()
+		orig, err := netns.Get()
+		if err != nil {
+			runtime.UnlockOSThread()
+			return nil, fmt.Errorf("read the dialling thread's network namespace: %w", err)
+		}
+		defer orig.Close() //nolint:errcheck // a read-only namespace handle, nothing to flush
+
+		if err := netns.Set(target); err != nil {
+			runtime.UnlockOSThread()
+			return nil, fmt.Errorf("enter per-test network namespace %q for an HTTP check: %w", name, err)
+		}
+		dialer := net.Dialer{FallbackDelay: -1}
+		conn, dialErr := dialer.DialContext(ctx, network, address)
+		if err := netns.Set(orig); err != nil {
+			// The thread is still in the test namespace, so it stays locked:
+			// the runtime ends a locked thread when its goroutine exits,
+			// rather than handing it to another goroutine.
+			if conn != nil {
+				_ = conn.Close() //nolint:errcheck // the restore error is the one reported
+			}
+			return nil, fmt.Errorf("leave per-test network namespace %q after an HTTP dial: %w", name, err)
+		}
+		runtime.UnlockOSThread()
+		return conn, dialErr
+	}
 }

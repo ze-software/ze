@@ -5,7 +5,11 @@
 
 package runner
 
-import "errors"
+import (
+	"context"
+	"errors"
+	"net"
+)
 
 // errNetnsUnsupported is returned by enterTestNetns on non-Linux platforms.
 // The runner only calls enterTestNetns when runtime.GOOS == "linux", so this is
@@ -25,3 +29,9 @@ func testNetnsName(string, int) string { return "" }
 // provisionNetnsLinks is unsupported off Linux; see the linux build. The runner
 // only calls it inside netns mode, which is Linux-only.
 func provisionNetnsLinks([]NetnsLinkSpec) error { return errNetnsUnsupported }
+
+// netnsDialContext is unsupported off Linux; see the linux build. The runner
+// only calls it inside netns mode, which is Linux-only.
+func netnsDialContext(string) func(context.Context, string, string) (net.Conn, error) {
+	return func(context.Context, string, string) (net.Conn, error) { return nil, errNetnsUnsupported }
+}

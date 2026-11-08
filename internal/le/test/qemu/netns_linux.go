@@ -62,7 +62,8 @@ var netnsSelections = map[string][]string{
 }
 
 // netnsBinaries names the two daemon binaries the launcher copies with
-// capabilities. The harness is the running le itself (guestLeLink).
+// capabilities. The harness, the running le itself, is copied beside them by
+// prepareNetnsBinaries (netnsHarnessSource).
 type netnsBinaries struct {
 	Ze       string
 	Stripped string
@@ -117,10 +118,17 @@ func prepareNetnsBinaries(ctx context.Context, binaries netnsBinaries) error {
 	if err := os.Chown(netnsCapDir, 0, 1000); err != nil {
 		return fmt.Errorf("make %s traversable by the credential-dropped test group: %w", netnsCapDir, err)
 	}
+	harness, err := netnsHarnessSource()
+	if err != nil {
+		return err
+	}
 	var tb textbuf.Buffer
-	for _, pair := range []struct{ name, source string }{{"ze", binaries.Ze}, {"ze-stripped", binaries.Stripped}} {
+	copies := []struct{ name, source string }{{"ze", binaries.Ze}, {"ze-stripped", binaries.Stripped}, {leName, harness}}
+	for _, pair := range copies {
 		destination := filepath.Join(netnsCapDir, pair.name)
-		copyLine := tb.Str("cp ").Str(pair.source).Byte(' ').Str(destination).
+		// rm first: cp onto a binary a previous run still executes fails
+		// with ETXTBSY, and an unlinked inode stays valid for that run.
+		copyLine := tb.Str("rm -f ").Str(destination).Str(" && cp ").Str(pair.source).Byte(' ').Str(destination).
 			Str(" && chmod 0755 ").Str(destination).String()
 		tb.Reset()
 		if result, err := guestRun(ctx, "", []string{"sh", "-c", copyLine}, nil); err != nil || result.Code != 0 {
@@ -140,6 +148,24 @@ func prepareNetnsBinaries(ctx context.Context, binaries netnsBinaries) error {
 		return fmt.Errorf("inspect ze capabilities: %w", err)
 	}
 	return nil
+}
+
+// netnsHarnessSource answers the le to copy into netnsCapDir. The suite's
+// daemon runs as netnsUID, and a .ci whose plugin block runs
+// "le test fixture ..." makes that daemon exec le by name. A link to the
+// running le pointed into the 9p checkout, whose root keeps the host owner's
+// 0700 mode, so the dropped user could not reach it and /bin/sh answered
+// "le: Permission denied" (pppoe-client-lcp-renegotiation). The copy is
+// reachable through netnsCapDir's group, and it carries the daemons' file
+// capabilities because such a fixture opens the AF_PACKET or netlink sockets
+// the daemon itself needs: file capabilities, not the dropped user's empty
+// ambient set, are what an exec under that user receives.
+func netnsHarnessSource() (string, error) {
+	self, err := os.Executable()
+	if err != nil {
+		return "", errors.New("the guest le does not know its own executable: " + err.Error())
+	}
+	return self, nil
 }
 
 func inThrowawayGuest() bool {
@@ -210,11 +236,9 @@ func runNetnsSuite(ctx context.Context, binaries netnsBinaries, suiteName string
 	// runNetnsGuest validates registry membership before invoking a suite.
 	suite, _ := testfunctional.SuiteNamed(suiteName)
 	suiteArgs := suite.Args
-	harness, err := guestLeLink(netnsCapDir)
-	if err != nil {
-		gaterun.Note("link the guest le into " + netnsCapDir + ": " + err.Error())
-		return 1
-	}
+	// prepareNetnsBinaries copied the harness here with the daemons' file
+	// capabilities (netnsHarnessSource).
+	harness := filepath.Join(netnsCapDir, leName)
 	// The suite runs inside the slot the host's run holds (guestJobParent).
 	parent, err := guestJobParent(netnsCapDir)
 	if err != nil {

@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -112,9 +114,21 @@ func tunnelPPPoEFloodReplay(ctx context.Context, args []string) error {
 		time.Sleep(remaining)
 	}
 
+	// The AC answers every replay with the session's PADS (matchLiveCookie),
+	// so the packet socket now holds a backlog of PADS frames, as many as its
+	// receive buffer kept. exchange reads one frame per attempt and spends the
+	// attempt on any frame that is not the one it waits for, and the PADI
+	// limiter drops a resent PADI from this MAC inside one second, so a
+	// backlog longer than an attempt budget failed the fresh-PADI probe below
+	// with "exchange attempt budget exhausted" while the AC was healthy.
+	// Draining until the socket is quiet makes each exchange below read the
+	// AC's answer to its own packet.
+	if _, err := wire.drainUntilQuiet(); err != nil {
+		return fmt.Errorf("drain the PADS backlog the flood left: %w", err)
+	}
+
 	// A fresh PADR carrying the same cookie proves the AC is still
-	// answering this session coherently after the flood, and its own reply
-	// drains one straggler PADS the send loop above did not wait to read.
+	// answering this session coherently after the flood.
 	_, confirmSID, _, err := wire.exchange(ctx, server, packet, tunnelPPPoEPADS, 6)
 	if err != nil {
 		return fmt.Errorf("no PADS received after the flood: %w", err)
@@ -146,6 +160,33 @@ func tunnelPPPoEFloodReplay(ctx context.Context, args []string) error {
 	}
 	tb.Reset().Str("OK: the AC answered a new PADI after the flood\n")
 	return tb.StdOut()
+}
+
+// tunnelPPPoEFloodDrainMax bounds drainUntilQuiet: at most one PADS for each
+// replay and for each of the fixture's own frames the packet socket sees
+// leaving, with headroom for discovery traffic.
+const tunnelPPPoEFloodDrainMax = 2*tunnelPPPoEFloodReplayCount + 64
+
+// drainUntilQuiet reads and discards frames until the socket stays empty for
+// one receive timeout (SO_RCVTIMEO, set by tunnelPPPoEOpenEtherType), and
+// answers how many it discarded. It refuses a socket that never goes quiet
+// within tunnelPPPoEFloodDrainMax frames rather than read forever.
+func (wire *tunnelPPPoEWire) drainUntilQuiet() (int, error) {
+	buffer := make([]byte, 1518)
+	for frames := range tunnelPPPoEFloodDrainMax {
+		_, _, err := unix.Recvfrom(wire.fd, buffer, 0)
+		if err == nil {
+			continue
+		}
+		if errors.Is(err, unix.EAGAIN) {
+			return frames, nil
+		}
+		if errors.Is(err, unix.EINTR) {
+			continue
+		}
+		return frames, err
+	}
+	return tunnelPPPoEFloodDrainMax, fmt.Errorf("the packet socket still held frames after %d reads", tunnelPPPoEFloodDrainMax)
 }
 
 // tunnelPPPoEProcessOpenFDs reads the standard client_golang process

@@ -598,7 +598,7 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 	// still keeps the authored relative paths.
 	for i := range checks {
 		chk := &checks[i]
-		client := r.httpClientForCheck(chk)
+		client := r.httpClientForCheck(chk, rec)
 		url := ExpandPorts(chk.URL, rec.Port)
 		// Resolve bodyfile and sendfile paths relative to .ci file directory.
 		if chk.BodyFile != "" && !filepath.IsAbs(chk.BodyFile) {
@@ -625,18 +625,22 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 	return nil
 }
 
-func (r *Runner) httpClientForCheck(chk *httpCheck) *http.Client {
+func (r *Runner) httpClientForCheck(chk *httpCheck, rec *Record) *http.Client {
 	// Scale the per-request budget by the parallel headroom (identity for serial
 	// runs): a server that is listening but slow to respond under oversubscription
 	// must not trip a net timeout, which isTransientConnError treats as
 	// non-retryable so the check would fail immediately.
 	client := &http.Client{Timeout: r.withParallelHeadroom(5 * time.Second)}
-	if !chk.InsecureTLS {
-		return client
+	transport := &http.Transport{}
+	if netnsModeActive() {
+		// The daemon listens inside the test's own namespace, which the
+		// transport's dialling goroutine is not in (netnsDialContext).
+		transport.DialContext = netnsDialContext(testNetnsName(rec.Nick, rec.Port))
 	}
-	client.Transport = &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test runner for self-signed local web servers
+	if chk.InsecureTLS {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // test runner for self-signed local web servers
 	}
+	client.Transport = transport
 	return client
 }
 
@@ -782,7 +786,7 @@ func (r *Runner) executeHTTPWaits(ctx context.Context, rec *Record) error {
 	// range-copy per iteration.
 	for i := range waits {
 		w := &waits[i]
-		client := r.httpClientForCheck(w)
+		client := r.httpClientForCheck(w, rec)
 		url := ExpandPorts(w.URL, rec.Port)
 		if err := r.executeOneHTTPWait(ctx, client, w, url); err != nil {
 			return err

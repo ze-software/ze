@@ -400,6 +400,14 @@ The selector does not move the whole plugin suite into namespaces.
 `./le test qemu netns suites <names>` is the same launcher over a named subset,
 and it also asserts the guest root nft ruleset is unchanged by the run. It is
 the tight loop; `test qemu all` retains the whole-suite namespace table above.
+It copies `ze`, `ze-stripped` and itself, as `le`, into its guest-local
+binary directory (`netnsCapDir`) with the same file capabilities, and runs the
+suite through that copy. The daemon runs as uid 1000, and a `.ci` whose plugin
+block runs `le test fixture ...` makes it exec `le` by name: a link into the
+checkout failed with `le: Permission denied`, because the 9p root keeps the
+host owner's 0700 mode, and such a fixture also needs the capabilities for its
+AF_PACKET socket, which a dropped user receives only from the file.
+<!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsBinaries, netnsHarnessSource, runNetnsSuite -->
 
 The plugin subset is scheduled in `qemu-nightly.yml`'s
 `runtime-kernel-labs` job, alongside the PPPoE proof. Run the same action inside

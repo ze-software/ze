@@ -7,12 +7,14 @@ package runner
 
 import (
 	"net"
+	"net/http"
 	"net/netip"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
@@ -169,5 +171,76 @@ func TestProvisionNetnsLinksMakesNextHopRoutable(t *testing.T) {
 	gw := net.IPv4(10, 0, 0, 1)
 	if err := netlink.RouteAdd(&netlink.Route{Gw: gw, Table: 2000}); err != nil {
 		t.Fatalf("RouteAdd(default via 10.0.0.1 table 2000) after provisioning: %v -- the next-hop is still unreachable", err)
+	}
+}
+
+// TestNetnsDialContextReachesTheTestNamespace proves an http= check reaches a
+// daemon listening on the per-test namespace's loopback. Method: a listener is
+// opened on 127.0.0.1 inside a fresh named namespace and the thread returns to
+// the original namespace, as the runner's locked thread does not hold the
+// transport's dialling goroutine. A client built the way the runner builds it
+// in netns mode must answer 200; a plain client on the same address must be
+// refused, which is the defect the dialer exists to fix (pppoe-service-name,
+// pppoe-per-mac-cap and pppoe-realm-relay-nomatch were refused this way).
+func TestNetnsDialContextReachesTheTestNamespace(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	const nsName = "ze-http-dial"
+
+	runtime.LockOSThread()
+	origNS, err := netns.Get()
+	if err != nil {
+		runtime.UnlockOSThread()
+		t.Fatalf("get current network namespace: %v", err)
+	}
+	newNS, err := netns.NewNamed(nsName)
+	if err != nil {
+		origNS.Close() //nolint:errcheck // best-effort close on the failure path
+		runtime.UnlockOSThread()
+		t.Fatalf("create network namespace %q: %v", nsName, err)
+	}
+	t.Cleanup(func() {
+		newNS.Close()             //nolint:errcheck // best-effort close on cleanup path
+		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
+	})
+	if err := bringLoopbackUp(); err != nil {
+		t.Fatalf("bring loopback up in %q: %v", nsName, err)
+	}
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen inside %q: %v", nsName, err)
+	}
+	if err := netns.Set(origNS); err != nil {
+		t.Fatalf("return to the original namespace: %v", err)
+	}
+	origNS.Close() //nolint:errcheck // read-only namespace handle
+	runtime.UnlockOSThread()
+
+	server := &http.Server{ReadHeaderTimeout: 5 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})}
+	served := make(chan error, 1)
+	go func() { served <- server.Serve(listener) }() //nolint:gocritic // one server for the test's lifetime
+	t.Cleanup(func() {
+		_ = server.Close() //nolint:errcheck // test teardown
+		<-served
+	})
+	url := "http://" + listener.Addr().String() + "/"
+
+	inside := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{DialContext: netnsDialContext(nsName)}}
+	response, err := inside.Get(url) //nolint:noctx // the client timeout bounds the request
+	if err != nil {
+		t.Fatalf("GET %s through netnsDialContext: %v", url, err)
+	}
+	response.Body.Close() //nolint:errcheck // empty body
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("GET %s through netnsDialContext: status %d, want 200", url, response.StatusCode)
+	}
+
+	outside := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{}}
+	if response, err := outside.Get(url); err == nil { //nolint:noctx // the client timeout bounds the request
+		response.Body.Close() //nolint:errcheck // empty body
+		t.Fatalf("GET %s from the original namespace answered %d: the listener is not inside %q, so this test proves nothing", url, response.StatusCode, nsName)
 	}
 }
