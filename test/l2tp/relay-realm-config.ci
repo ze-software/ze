@@ -1,0 +1,96 @@
+# Test: an l2tp relay-realm binding reaches `ze config validate`, which
+# accepts a well-formed binding and refuses each AC-9 case with its fix.
+# VALIDATES: spec-home-cpe-14 AC-9 and the wiring row "ze config validate ->
+# ExtractParameters realm checks": a binding to a declared remote validates,
+# with a Service-Name relay beside it; an undeclared remote, a realm holding
+# '@', a realm one octet over a DNS name (254) and two bindings that differ
+# only in case are refused, each naming what to change.
+# PREVENTS: a relay-realm list the schema accepts but nothing validates, so a
+# typo in the remote name only shows at the first subscriber.
+# The listener binds 0.0.0.0 because the remotes are off-host and ze refuses a
+# loopback listener that would have to dial them (validateDialSources).
+
+stdin=good:terminator=EOF_GOOD
+l2tp {
+    enabled true;
+    remote lns-a {
+        address 203.0.113.10;
+        shared-secret retail-a-secret;
+    }
+    remote lns-b {
+        address 203.0.113.11;
+    }
+    relay wholesale {
+        remote lns-a;
+    }
+    relay-realm example.net {
+        remote lns-a;
+    }
+    relay-realm retail.example.org {
+        remote lns-b;
+    }
+}
+environment {
+    l2tp { server main { ip 0.0.0.0; port 1701; } }
+}
+EOF_GOOD
+
+stdin=undeclared:refused=config-validator-unavailable:terminator=EOF_UNDECLARED
+l2tp {
+    enabled true;
+    remote lns-a { address 203.0.113.10; }
+    relay-realm example.net { remote lns-missing; }
+}
+environment {
+    l2tp { server main { ip 0.0.0.0; port 1701; } }
+}
+EOF_UNDECLARED
+
+stdin=at:refused=config-parse:terminator=EOF_AT
+l2tp {
+    enabled true;
+    remote lns-a { address 203.0.113.10; }
+    relay-realm cpe@example.net { remote lns-a; }
+}
+environment {
+    l2tp { server main { ip 0.0.0.0; port 1701; } }
+}
+EOF_AT
+
+stdin=long:refused=config-parse:terminator=EOF_LONG
+l2tp {
+    enabled true;
+    remote lns-a { address 203.0.113.10; }
+    relay-realm aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.net { remote lns-a; }
+}
+environment {
+    l2tp { server main { ip 0.0.0.0; port 1701; } }
+}
+EOF_LONG
+
+stdin=duplicate:refused=config-validator-unavailable:terminator=EOF_DUPLICATE
+l2tp {
+    enabled true;
+    remote lns-a { address 203.0.113.10; }
+    relay-realm example.net { remote lns-a; }
+    relay-realm Example.NET { remote lns-a; }
+}
+environment {
+    l2tp { server main { ip 0.0.0.0; port 1701; } }
+}
+EOF_DUPLICATE
+
+# Each validation owns its exit expectation, so a later success cannot hide a
+# refusal that silently became accepted.
+cmd=foreground:seq=1:exec=ze config validate -:stdin=good:exit=0
+cmd=foreground:seq=2:exec=ze config validate -:stdin=undeclared:exit=1
+expect=stdout:contains=lns-missing
+expect=stdout:contains=l2tp remote lns-missing
+cmd=foreground:seq=3:exec=ze config validate -:stdin=at:exit=1
+expect=stdout:contains=relay-realm
+expect=stdout:contains=cpe@example.net
+cmd=foreground:seq=4:exec=ze config validate -:stdin=long:exit=1
+expect=stdout:contains=relay-realm
+expect=stdout:contains=253
+cmd=foreground:seq=5:exec=ze config validate -:stdin=duplicate:exit=1
+expect=stdout:contains=appears twice once case is ignored

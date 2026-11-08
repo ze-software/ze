@@ -1,0 +1,29 @@
+# L2TPv2 wire decode: ICCN of a realm-relayed CHAP call (spec-home-cpe-14)
+# VALIDATES: AC-2 as an operator reads it -- `ze l2tp decode` shows an ICCN
+#            carrying the proxy AVPs of RFC 2661 Section 4.4.5: 26, 27 and 28
+#            (LCP Configure-Request options, no LCP header), 29 type 2
+#            (CHAP), 30 the username, 31 the challenge, 32 the Identifier with
+#            its most significant octet 0, 33 the response; every proxy AVP
+#            with M=0 ("The M-bit for this AVP MUST be set to 0.") and H=0.
+# The proxy AVP bytes are the ones TestWriteICCNBodyProxyAVPs
+# (internal/component/l2tp/rfc2661_session_initiator_test.go) pins for
+# writeICCNBody's output on the same inputs, behind a control header and the
+# Message Type, Tx Connect Speed and Framing Type AVPs writeICCNBody writes
+# first. The writer itself is proven by that unit test and, on a live call,
+# by the realm relay interop scenarios.
+# PREVENTS: a decoder that drops, renames or re-flags the proxy AVPs, so an
+#           operator debugging a wholesale LNS reads a wrong ICCN.
+stdin=payload:hex=c80200980007000900020001800800000000000c800a000000180000fa00800a0000001300000001000a0000001a010405dc000b0000001b0305c22305000a0000001c010405d400080000001d000200150000001e637065406578616d706c652e6e657400160000001f1111111111111111111111111111111100080000002000ff00160000002122222222222222222222222222222222
+cmd=foreground:seq=1:exec=ze l2tp decode:stdin=payload
+expect=exit:code=0
+expect=stdout:contains="is-control":true
+expect=stdout:contains="length":152
+expect=stdout:contains={"vendor-id":0,"type":0,"name":"message-type","mandatory":true,"hidden":false,"value":"000c"}
+expect=stdout:contains={"vendor-id":0,"type":26,"name":"initial-received-lcp-confreq","mandatory":false,"hidden":false,"value":"010405dc"}
+expect=stdout:contains={"vendor-id":0,"type":27,"name":"last-sent-lcp-confreq","mandatory":false,"hidden":false,"value":"0305c22305"}
+expect=stdout:contains={"vendor-id":0,"type":28,"name":"last-received-lcp-confreq","mandatory":false,"hidden":false,"value":"010405d4"}
+expect=stdout:contains={"vendor-id":0,"type":29,"name":"proxy-authen-type","mandatory":false,"hidden":false,"value":"0002"}
+expect=stdout:contains={"vendor-id":0,"type":30,"name":"proxy-authen-name","mandatory":false,"hidden":false,"value":"637065406578616d706c652e6e6574"}
+expect=stdout:contains={"vendor-id":0,"type":31,"name":"proxy-authen-challenge","mandatory":false,"hidden":false,"value":"11111111111111111111111111111111"}
+expect=stdout:contains={"vendor-id":0,"type":32,"name":"proxy-authen-id","mandatory":false,"hidden":false,"value":"00ff"}
+expect=stdout:contains={"vendor-id":0,"type":33,"name":"proxy-authen-response","mandatory":false,"hidden":false,"value":"22222222222222222222222222222222"}
