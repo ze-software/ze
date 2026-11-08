@@ -2,7 +2,7 @@
   {
     "rid": "RFC4787-7-2",
     "polarity": "positive",
-    "unit": "internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go::TestConntrackHelperNotAssignedWhenUnlisted",
+    "unit": "internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go::TestConntrackHelperNotAssignedWhenUnlisted",
     "unit-sha": "4eecd17000a55445",
     "claim-sha": "fd20d359175440aa",
     "route": "mutant",

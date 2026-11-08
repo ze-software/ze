@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Priority | P2 |
 | Release reason | Release fix: `system conntrack module ftp` is accepted and does nothing on Ze's kernel (no helper built in, none assigned), so FTP, SIP, H.323, PPTP and TFTP through NAT break while the configuration says otherwise |
@@ -10,7 +10,7 @@
 | Depends | `plan/release/delivery/spec-ze-loads-kernel-modules-on-vendor-kernels.md` (AC-22, the helper kernel row and the `nfs`/`sqlnet` removal) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-08 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 3).
 
@@ -21,7 +21,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 The owner decided Option A on 2026-11-02: build the helpers in and assign them
 explicitly. The decision is settled; the umbrella and the lab (child 11) carry
 it, and the lab's FTP clause is unconditional. One question the decision left
-open, which helpers beyond the five VyOS assigns stay offered, is D-1 below.
+open, which helpers beyond the five VyOS assigns stay offered, was D-1, settled
+below as option (a) by the shipped design.
 
 Ze's kernel leaves every conntrack helper out, against NAT slipstreaming. A
 home CPE that masquerades its LAN needs at least the FTP helper for active FTP,
@@ -46,11 +47,29 @@ and lets the operator turn on the one ALG a home line needs. Under Option B the
 configuration leaf would refuse on the appliance and work on a distro kernel,
 which is a surprising split for one leaf.
 
-## Open decision
+## Decision D-1 (settled by the shipped design: option (a))
+
+D-1 is decided as option (a), all ten helpers built in, because that is the
+design the tree already ships; it is no longer owed to Thomas. The evidence,
+read on 2026-11-08:
+
+- `internal/component/config/system/conntrack_helpers.go`, `conntrackHelpers`,
+  declares ten rows: amanda, ftp, h323, irc, netbios-ns, pptp, sane, sip,
+  snmp, tftp. The `system conntrack module` enumeration in
+  `ze-system-conf.yang` offers the same ten.
+- `gokrazy/kernel/kernel.config` sets `CONFIG_NF_CONNTRACK_{FTP,H323,PPTP,SIP,TFTP}=y`
+  and, in a second block whose comment reads "every name the leaf-list accepts
+  works on Ze's kernel", `CONFIG_NF_CONNTRACK_{AMANDA,IRC,NETBIOS_NS,SNMP,SANE}=y`
+  and `CONFIG_NF_NAT_SNMP_BASIC=y`.
+- `gokrazy/kernel/kernel.require` pins all ten helpers and the companions
+  `NF_NAT_{FTP,H323,PPTP,SIP,TFTP,AMANDA,IRC,SNMP_BASIC}`.
+- `docs/guide/configuration.md` lists the same ten valid modules and says Ze's
+  kernel builds in every one, with its NAT companion where one exists (sane and
+  netbios-ns have none).
 
 | ID | Question | Options | Evidence | Effect |
 |----|----------|---------|----------|--------|
-| D-1 | The YANG enumeration also offers `irc`, `sane`, `amanda`, `netbios-ns` and `snmp`, which VyOS does not assign and the Option A kernel row leaves `=n`. Which applies? | (a) build all ten in, so every offered name works on Ze's kernel; (b) stop offering the five, in the same enumeration change the kernel-modules spec makes for `nfs` and `sqlnet`; (c) keep offering them, refused on Ze's kernel by AC-7 and working on a distro kernel | VyOS `src/conf_mode/system_conntrack.py` `module_map` (vyos-1x `1.5dev0-5851-gdb29bdc89`) assigns only ftp, h323, nfs, pptp, rtsp, sip, sqlnet, tftp; AC-22 of the kernel-modules spec says the kernel "builds in the helpers it still offers"; Option A's rationale rejects a leaf that works on a distro kernel and refuses on the appliance, which is what (c) produces; slipstreaming exposure grows with each helper built in, even unassigned (R-3) | (a): five more `=y` rows and their NAT companions. (b): the five rows leave the helper table and the enumeration. (c): the five rows stay, marked distro-kernel only. The tests below cover every row that remains, whichever option is chosen. Owed to Thomas |
+| D-1 | The YANG enumeration also offers `irc`, `sane`, `amanda`, `netbios-ns` and `snmp`, which VyOS does not assign and the Option A kernel row leaves `=n`. Which applies? Decided: (a), as shipped | (a) build all ten in, so every offered name works on Ze's kernel; (b) stop offering the five, in the same enumeration change the kernel-modules spec makes for `nfs` and `sqlnet`; (c) keep offering them, refused on Ze's kernel by AC-7 and working on a distro kernel | VyOS `src/conf_mode/system_conntrack.py` `module_map` (vyos-1x `1.5dev0-5851-gdb29bdc89`) assigns only ftp, h323, nfs, pptp, rtsp, sip, sqlnet, tftp; AC-22 of the kernel-modules spec says the kernel "builds in the helpers it still offers"; Option A's rationale rejects a leaf that works on a distro kernel and refuses on the appliance, which is what (c) produces; slipstreaming exposure grows with each helper built in, even unassigned (R-3) | (a): five more `=y` rows and their NAT companions. (b): the five rows leave the helper table and the enumeration. (c): the five rows stay, marked distro-kernel only. The tests below cover every row that remains. Decided (a) by the shipped design, evidence above |
 
 ## Task
 
@@ -201,9 +220,9 @@ registration).
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Kernel 7.x has no automatic helper assignment | `v7.3` `__nf_ct_try_assign_helper` assigns only from a template's helper (read 2026-11-02) | slipstreaming exposure would be wider than stated | source read; `TestConntrackHelperNotAssignedWhenUnlisted` on Ze's kernel | source-confirmed; test written in `internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go`, not run |
-| A-2 | An inet `ct helper` object resolves both family helpers and refuses only when neither exists | `v7.3` `nft_ct_helper_obj_init` (`NFPROTO_INET` case, "only error if INET found neither ipv4 or ipv6") | per-family tables needed (ip and ip6 as VyOS does) | source read; `TestConntrackHelperAssignment` IPv6 rows | source-confirmed; test written in `internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go`, not run |
-| A-3 | The NAT companions are selected by default once the helper is `=y` with `NF_NAT=y` | `v7.3` Kconfig: `NF_NAT_{FTP,SIP,TFTP,IRC,AMANDA}` default `NF_NAT && NF_CONNTRACK_X`; `NF_NAT_{PPTP,H323}` default `NF_CONNTRACK_X`; `NF_NAT_SNMP_BASIC` also needs `NETFILTER_ADVANCED` | FTP through masquerade still breaks | `runtime.config` and `runtime.require` list each companion; `TestConntrackHelperFTPThroughMasquerade` | source-confirmed; test written in `internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go`, not run |
+| A-1 | Kernel 7.x has no automatic helper assignment | `v7.3` `__nf_ct_try_assign_helper` assigns only from a template's helper (read 2026-11-02) | slipstreaming exposure would be wider than stated | source read; `TestConntrackHelperNotAssignedWhenUnlisted` on Ze's kernel | source-confirmed; test written in `internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go`, not run |
+| A-2 | An inet `ct helper` object resolves both family helpers and refuses only when neither exists | `v7.3` `nft_ct_helper_obj_init` (`NFPROTO_INET` case, "only error if INET found neither ipv4 or ipv6") | per-family tables needed (ip and ip6 as VyOS does) | source read; `TestConntrackHelperAssignment` IPv6 rows | source-confirmed; test written in `internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go`, not run |
+| A-3 | The NAT companions are selected by default once the helper is `=y` with `NF_NAT=y` | `v7.3` Kconfig: `NF_NAT_{FTP,SIP,TFTP,IRC,AMANDA}` default `NF_NAT && NF_CONNTRACK_X`; `NF_NAT_{PPTP,H323}` default `NF_CONNTRACK_X`; `NF_NAT_SNMP_BASIC` also needs `NETFILTER_ADVANCED` | FTP through masquerade still breaks | `runtime.config` and `runtime.require` list each companion; `TestConntrackHelperFTPThroughMasquerade` | source-confirmed; test written in `internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go`, not run |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -272,7 +291,7 @@ registration).
 | `conntrack-helper-ftp-assigned` | `test/firewall/conntrack-helper-ftp-assigned.ci` | AC-1, AC-9 | |
 | `conntrack-helper-removed-on-reload` | `test/firewall/conntrack-helper-removed-on-reload.ci` | AC-5 | |
 | `conntrack-helper-block-deleted-on-reload` | `test/firewall/conntrack-helper-block-deleted-on-reload.ci` | AC-5: the second config has no `system conntrack` block at all | |
-| `TestConntrackHelperAssignment` | `internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go` (`integration && linux`, package `firewallnft`: the test drives the nft backend, which `config/system` cannot import, and reuses `withNftNetNS`, `loopbackUp` and `userns.Enter`) | AC-2, AC-3, AC-4, AC-11, AC-12: every module of the YANG enumeration listed, `firewall.ConntrackHelperTables` verified with `ValidateTables` and applied through the backend in a throwaway netns; one loopback connection per row, transport, port and family (probes derived from the enumeration and `system.ConntrackHelperByName`, no hand list); the helper name read from the conntrack entry over ctnetlink; an IPv4-only row's IPv6 connection is tracked and carries none; every ct helper object read back from the kernel sits in an inet table for a dual-family row and in an ip table only for an IPv4-only row. Red walks: delete the output base chain from `newConntrackHelperTable` (every probe loses its helper); put an IPv4-only row in the inet table in `ConntrackHelperTables` (object family check red for irc, netbios-ns, pptp, snmp) | written, not yet run |
+| `TestConntrackHelperAssignment` | `internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go` (`integration && linux`, package `firewallnft`: the test drives the nft backend, which `config/system` cannot import, and reuses `withNftNetNS`, `loopbackUp` and `userns.Enter`) | AC-2, AC-3, AC-4, AC-11, AC-12: every module of the YANG enumeration listed, `firewall.ConntrackHelperTables` verified with `ValidateTables` and applied through the backend in a throwaway netns; one loopback connection per row, transport, port and family (probes derived from the enumeration and `system.ConntrackHelperByName`, no hand list); the helper name read from the conntrack entry over ctnetlink; an IPv4-only row's IPv6 connection is tracked and carries none; every ct helper object read back from the kernel sits in an inet table for a dual-family row and in an ip table only for an IPv4-only row. Red walks: delete the output base chain from `newConntrackHelperTable` (every probe loses its helper); put an IPv4-only row in the inet table in `ConntrackHelperTables` (object family check red for irc, netbios-ns, pptp, snmp) | written, not yet run |
 | `TestConntrackHelperNotAssignedWhenUnlisted` | same file | A-1, R-3, AC-5: a tracking table references ct so entries exist; with the list empty, no connection to any row's port in either family carries a helper and an FTP PORT over tcp 21 creates no expectation. Positive control first: ftp alone listed, the ftp connections carry `ftp`, the PORT creates one `ftp` expectation, every other row carries none (each helper enabled separately). Red walks in `ConntrackHelperTables`: lower every declared helper when the list is empty (empty leg red); lower every helper whatever the list (ftp leg red on every other row) | written, not yet run |
 | `TestConntrackHelperFTPThroughMasquerade` | same file | AC-6 in both families (PORT over IPv4, EPRT over IPv6): client netns, masquerading router netns (the test's own), server netns with no route back to the client; with ftp listed the command reaches the server rewritten to the masquerade address and the server's data connection delivers the payload; the leg without ftp (the spec's red phase) asserts the command arrives naming the client's own address and the data connection fails. Red walk in the producing code: delete the prerouting base chain from `newConntrackHelperTable`; the forwarded control connection then carries no helper | written, not yet run |
 
@@ -302,7 +321,7 @@ messages is the kernel's code and is not re-proven per helper here.
 
 ## Files to Create
 - `internal/component/config/system/conntrack_helpers.go`, `conntrack_helpers_test.go`
-- `internal/plugins/firewall/nft/conntrack_helpers_integration_linux_test.go` (the three integration tests; beside the nft backend they drive)
+- `internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go` (the three integration tests; beside the nft backend they drive)
 - `test/firewall/conntrack-helper-ftp-assigned.ci`, `conntrack-helper-removed-on-reload.ci`
 
 ### Integration Checklist
@@ -412,7 +431,7 @@ messages is the kernel's code and is not re-proven per helper here.
 - [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
 - [ ] Existing Mechanisms table names every mechanism this spec extends
 - [ ] No code snippets
-- [ ] D-1 answered by Thomas before Phase 3
+- [ ] D-1 settled before Phase 3 (option (a), the shipped design)
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-12 all demonstrated
