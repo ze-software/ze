@@ -84,6 +84,24 @@ func checkZeClientCHAP(ctx context.Context, check *interoplab.CheckContext, reso
 	return checkZeClientCHAPSession(ctx, check)
 }
 
+// checkZeClientCHAPHostFallback proves the CHAP session for a scenario whose
+// access concentrator supplies no DNS server: with no lease listing one, Ze's
+// resolv.conf lists exactly the container's own /etc/resolv.conf servers, the
+// host fallback record (dnssource liveAddresses), and nothing IPCP or an RA
+// could have added. zeHostResolvers refuses a host list that holds
+// accelGateway, so an access concentrator server cannot pass as a host one.
+func checkZeClientCHAPHostFallback(ctx context.Context, check *interoplab.CheckContext) error {
+	host, err := zeHostResolvers(ctx, check.Lab)
+	if err != nil {
+		return err
+	}
+	var want strings.Builder
+	for _, server := range host {
+		want.WriteString("nameserver " + server + "\n")
+	}
+	return checkZeClientCHAP(ctx, check, want.String())
+}
+
 // checkZeClientShowDNS waits until Ze's own `show interface pppoe-client`,
 // run through the daemon's REST execute endpoint, reports dns-servers for
 // zeClientDevice equal to want, in order. It MUST run before the session

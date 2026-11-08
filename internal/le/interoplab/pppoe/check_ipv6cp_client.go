@@ -62,7 +62,7 @@ func checkZeClientIPv6CP(ctx context.Context, check *interoplab.CheckContext) er
 	if err := checkZeClientIPv6(ctx, check.Lab); err != nil {
 		return appendDiagnostics(ctx, check.Lab, err, zeImageName, accelImageName)
 	}
-	return checkZeClientCHAP(ctx, check, "")
+	return checkZeClientCHAPHostFallback(ctx, check)
 }
 
 // checkZeClientIPv6 is the IPv6 half of checkZeClientIPv6CP, run while the
@@ -124,7 +124,7 @@ func checkZeClientIPv6CPRejected(ctx context.Context, check *interoplab.CheckCon
 	if err := checkZeClientIPv6Rejected(ctx, check.Lab); err != nil {
 		return appendDiagnostics(ctx, check.Lab, err, zeImageName, accelImageName)
 	}
-	return checkZeClientCHAP(ctx, check, "")
+	return checkZeClientCHAPHostFallback(ctx, check)
 }
 
 // checkZeClientIPv6Rejected is the IPv6 half of checkZeClientIPv6CPRejected,
