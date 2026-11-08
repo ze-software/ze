@@ -1,15 +1,15 @@
 {
-  "note": "Rejudge 2026-10-02 (independent judge). Opened clause: positive TestIPResponseConfiguresInterface (completeIPCP -> AddAddressP2P ppp42 10.0.0.1/32 10.0.0.2/32, EventSessionIPAssigned, SetAdminUp after EventSessionUp; revert sendIPAssigned observed red). Negative TestIPCPNoAddressBeforeOpened holds IPCP at Ack-Rcvd and fails on EventSessionIPAssigned, any AddAddressP2P or any SetAdminUp (SetAdminUp runs only after runNCPPhase returns, session_run.go). Recorded on the mutant route: gomu 0.1.0 report over ncp.go (552 mutants, 315 killed; this mutant TIMED_OUT in the full package run) mutant ncp.go_245, handleNCPPacket line 540 `tr.NewState == LCPStateOpened` -> `!=`; judge re-ran it under a Go overlay: red on the unit's own assertion 'EventSessionIPAssigned emitted before IPCP reached Opened'. Network-phase clause: TestNCPHeldUntilNetworkPhase/ipv4 (runAuthPhase revert observed red). Ruling 2 receive side: a supported IPv4 packet before NCP Opened is discarded, TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened under RFC1661-3.6-2 (supportsProtocol revert recorded). Claim nit, not a verdict defect: 'so the kernel has no interface to carry IP on' is a rationale the fake backend does not assert; pppN exists but stays down.",
+  "note": "Rejudged 2026-11-08 after 14d3df65a7 against RFC 1332 Section 2.1 \"Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state.\" Network-phase clause: TestNCPHeldUntilNetworkPhase/ipv4 holds CHAP pending 3 s; onlyChallengesUntil fails on any frame but a CHAP Challenge (Code 1) with a changed Identifier (RFC 1994 4.1 retransmission), so any IPCP 0x8021 or IP frame fails it; it also asserts no EventIPRequest and no AddAddressP2P (-); runAuthPhase revert recorded. Tightened window isolates the rule better than the old one. Opened clause, units unchanged: TestIPCPNoAddressBeforeOpened holds IPCP at Ack-Rcvd and fails on EventSessionIPAssigned, any AddAddressP2P or SetAdminUp (-, mutant ncp.go handleNCPPacket NewState == Opened -> != recorded); TestIPResponseConfiguresInterface installs ppp42 10.0.0.1/32 peer 10.0.0.2/32 and brings it up after Opened (+, sendIPAssigned revert recorded). Receive side: TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened under RFC1661-3.6-2.",
   "requirement_sha": "3568b51e3865902e",
   "tests": {
     "internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened": "99a68f4293234999",
     "internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface": "99a68f4293234999",
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "d6b4e2cbd1b095e9"
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "682b78fb127362e1"
   },
   "units": {
     "internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened": "e2a7b24bc970dacb",
     "internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface": "5bd68df15f1a63ac",
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "8a0f8d564218620c"
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "c06fa2f8d905e8f7"
   },
   "verdict": "enforced"
 }
