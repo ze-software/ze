@@ -99,7 +99,7 @@ summary exists to name.
   → Constraint: REQ-12 "Receipt of any sort of ICMP message MUST NOT terminate the NAT mapping."
   → Constraint: REQ-13 "If the packet received on an internal IP address has DF=1, the NAT MUST send back an ICMP message "Fragmentation needed and DF set" to the host, as described in [RFC0792]." and 13a "If the packet has DF=0, the NAT MUST fragment the packet and SHOULD send the fragments in order."
   → Constraint: REQ-14 "A NAT MUST support receiving in-order and out-of-order fragments, so it MUST have "Received Fragment Out of Order" behavior." and 14a on fragment DoS
-  → Decision: REQ-10 (SHOULD turn UDP ALGs off) is already met: every `CONFIG_NF_CONNTRACK_<helper>` is `=n` in `gokrazy/kernel/kernel.config`, and `/proc/sys/net/netfilter/nf_conntrack_helper` is empty
+  → Decision: REQ-10 (SHOULD turn UDP ALGs off) is already met by default: Ze's kernel builds the conntrack helpers in, but since Linux 6.0 the kernel assigns none on its own, and Ze assigns a helper only when `system conntrack module` lists it, an empty list by default (`internal/component/firewall/conntrack_helpers.go`, `ConntrackHelperTables`; RFC4787-7-1 and RFC4787-7-2 in `rfc/short/rfc4787.md`)
 - [ ] `rfc/full/rfc5382.txt` Sections 5 and 8 - TCP requirements and timer phases
   → Constraint: REQ-1 "A NAT MUST have an "Endpoint-Independent Mapping" behavior for TCP."
   → Constraint: REQ-2 "A NAT MUST support all valid sequences of TCP packets (defined in [RFC0793]) for connections initiated both internally as well as externally when the connection is permitted by the NAT." with 2a simultaneous open

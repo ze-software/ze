@@ -449,3 +449,149 @@ messages is the kernel's code and is not re-proven per helper here.
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
+
+## Implementation Summary
+
+### What Was Implemented
+- One helper declaration, `internal/component/config/system/conntrack_helpers.go` (`conntrackHelpers`, `ConntrackHelperByName`): ten rows, each with its kernel helper names, transports, ports and families; the YANG enumeration is tested against it (`TestHelperTableMatchesModel`), and `nfs` and `sqlnet` are gone from it (`TestHelperTableRefusesRemovedNames`).
+- Lowering, `internal/component/firewall/conntrack_helpers.go` (`ConntrackHelperTables`, `newConntrackHelperTable`, `addConntrackHelper`): an `inet` table `ze_conntrack_helpers` and an `ip` table `ze_conntrack_helpers_ip`, one `ct helper` object per kernel helper and transport, one term per port in prerouting and output at priority -5; an empty list answers no table.
+- Model and backends: `CtHelper` and `SetCtHelper` in `internal/component/firewall/model.go`, validated in `validate.go`; nft lowering in `internal/plugins/firewall/nft/lower_linux.go` (`lowerCtHelper`, `lowerSetCtHelper`, objects added before rules); VPP refuses both in `internal/plugins/firewall/vpp/verify.go`.
+- Transaction: the firewall engine takes `system/conntrack` as a second config root (`register.go`; `engine.go` `registerConfigTables`; `conntrackSectionModules`), so verify, apply, rollback and stop carry the helper tables under owner `conntrack-helpers`; a failed reconcile names the helpers and both fixes (`conntrackHelperApplyError`).
+- Show: `show system conntrack` gains `helpers`, from `assignedConntrackHelpers`, which reads `LastApplied`.
+- Kernel: `gokrazy/kernel/kernel.config` and `kernel.require` build all ten helpers and their NAT companions in (D-1 option (a)).
+
+### Bugs Found/Fixed
+- `conntrack-helper-block-deleted-on-reload.ci` passed whether the reload's apply path or the plugin-stop flush withdrew the tables; it now also requires the `firewall config reloaded ... conntrack-helpers=[]` line (166969ee93, judged and approved).
+
+### Documentation Updates
+- `docs/guide/configuration.md` `system conntrack` section, `docs/guide/firewall.md`, `docs/guide/command-reference.md` (`helpers` in `show system conntrack`), `docs/architecture/core-design.md` 14a and 14b, `docs/architecture/firewall/fw-6-firewall-vpp.md`, `docs/architecture/firewall/table-ownership-and-shutdown-flush.md`: all in fb65e64acf, anchored `<!-- source: internal/component/config/system/conntrack_helpers.go -- conntrackHelpers -->`.
+- Closure repair: `features/connection-tracking-management.md` still described modprobe-only loading and listed `nfs` and `sqlnet`; corrected in commit A (Mistake Log row 1).
+
+### Deviations from Plan
+- AC-7 is met at commit, not at verify: a helper the kernel lacks makes the reconcile fail, and the commit is refused naming the listed helpers, the `modprobe` and the `delete system conntrack module` fixes (`conntrackHelperApplyError`, `TestHelperApplyFailureNamesTheFix`). The verify-time presence answer is the kernel-modules spec's enrolment, as Data Flow step 3 assigned it (Work Not Done).
+- The kernel rows went into `kernel.config` and `kernel.require`, not `runtime.config` and `runtime.require` as Files to Modify said; the guest proofs ran on Ze's 7.3 runtime kernel built with them.
+- AC-9 is proven by `TestHelperTablesInstallWithdrawAndShow`, not by `conntrack-helper-ftp-assigned.ci`, which asserts the nft tables only.
+- R-2's mitigation (a verify warning for an operator chain below -5) was not built because R-2 does not hold: every base chain on a hook runs, an accept in an earlier chain ends only that chain, so the -5 chain still assigns the helper, and a drop ends the packet whatever the priority.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation phase changed the feature's behaviour and left `features/connection-tracking-management.md` describing modprobe-only loading and the removed `nfs` and `sqlnet` | The documentation rule wants the page edit in the same piece of work | Closure documentation review | Fixed in commit A |
+| approach | Implementation commits carried `Spec-work: home-cpe-1-logical-interface-name` (fb65e64acf, 60f9aaf27a, d6770f52f5) and `home-cpe-23-dns-source-fall-through` (166969ee93) | They are this spec's work | Closure `git log` over the trailers | Recorded here; history is not rewritten |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Helper exists in the kernel | Done | `gokrazy/kernel/kernel.config`, `kernel.require` | ten helpers, NAT companions |
+| nft `ct helper` object declared per helper | Done | `internal/component/firewall/conntrack_helpers.go` `addConntrackHelper` | |
+| New connections assigned, in every family the helper registers | Done | `ConntrackHelperTables` (inet or ip by `Family`) | |
+| `nfs`, `sqlnet` refused at parse | Done | YANG enumeration; `TestHelperTableRefusesRemovedNames` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `conntrack-helper-ftp-assigned.ci`; `TestHelperLowering` | |
+| AC-2 | Done | `TestConntrackHelperAssignment` (object family check; the IPv6 probe carries no helper) | |
+| AC-3 | Done | `TestHelperLowering`, `TestConntrackHelperAssignment` | |
+| AC-4 | Done | same | |
+| AC-5 | Done | `conntrack-helper-removed-on-reload.ci`, `conntrack-helper-block-deleted-on-reload.ci`, `TestConntrackSectionRemovedWithdrawsHelpers`, `TestConntrackHelperNotAssignedWhenUnlisted` | |
+| AC-6 | Done | `TestConntrackHelperFTPThroughMasquerade`; lab `lan-services` | |
+| AC-7 | Changed | `TestHelperApplyFailureNamesTheFix` | refused at commit; the verify-time half is in Work Not Done |
+| AC-8 | Done | `TestVPPRefusesCtHelper`, `TestVerifyRunsBackendVerifierOverHelperTables` | |
+| AC-9 | Done | `TestHelperTablesInstallWithdrawAndShow` | |
+| AC-10 | Done | `docs/guide/configuration.md`, "Helper modules" | |
+| AC-11 | Done | `TestConntrackHelperAssignment` | |
+| AC-12 | Done | `TestHelperLowering`, `TestConntrackHelperAssignment` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestHelperTableMatchesModel` | Done | `internal/component/config/system/conntrack_helpers_test.go` | |
+| `TestHelperLowering` | Done | `internal/component/firewall/conntrack_helpers_test.go` | beside the lowering it tests |
+| `TestLowerCtHelperObject` | Done | `internal/plugins/firewall/nft/cthelper_linux_test.go` | |
+| `TestVPPRefusesCtHelper` | Done | `internal/plugins/firewall/vpp/verify_cthelper_test.go` | |
+| the three `.ci` | Done | `test/firewall/conntrack-helper-*.ci` | |
+| the three integration tests | Done | `internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every other file in Files to Modify and Files to Create | Done | fb65e64acf, 60f9aaf27a, e43cf44f11; `runtime.*` became `kernel.*` (Deviations); `cmd/ze/hub/main_system.go` keeps module loading and sysctls only |
+| `plan/post-release/features/spec-nat44-customer-napt.md` | Done | REQ-10 Decision line repointed in commit A; it still said every helper is `=n` |
+
+### Audit Summary
+- **Total items:** 26
+- **Done:** 25
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-7; Deviations and Work Not Done)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A listed helper works through NAT on Ze's kernel | interop | lab `lan-services`: active FTP from a LAN host through the masquerading CPE passes (`tmp/session/2026-11-07-104251/scratch/rwinv/out-c11-interop/clean-lan-services.log`, 2026-11-08 20:06); with the prerouting chain deleted (`c3-ftp-no-prerouting`), `curl --ftp-port -` fails with exit 30 (`c11-ftp-broken.log`, 20:17) |
+| Each helper assigned in exactly the families it registers | integration on Ze's 7.3 kernel | `TestConntrackHelperAssignment` PASS; red under `assign-no-output` and `assign-v4only-in-inet` (`rwinv/out-qb2/c3.log`, 2026-11-08 20:27) |
+| Nothing assigned unless listed (RFC 4787 REQ-10) | integration | `TestConntrackHelperNotAssignedWhenUnlisted` PASS; red under `empty-lowers-all` and `list-ignored` (same log) |
+| Removal withdraws the assignment | functional | `conntrack-helper-block-deleted-on-reload.ci` with its new stderr expect: clean PASS (`scratch/g2/clean.log`, 2026-11-08 11:58) and red with `if delivered && len(modules) > 0` in `engine.go` (`scratch/g2/c3-broken.log`, 12:02, step 4 stderr-regex fails). The `.ci` was edited at 11:48 (file mtime and the editing agent's transcript), so both runs judged the text 166969ee93 committed at 12:05 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-7 at verify, and the `ze doctor` finding for a listed helper the kernel lacks | Data Flow step 3 makes the kernel-modules enrolment the presence answer; that spec plans the helpers enrolment, and its one enrolment feeds doctor, start, reload and `ze config validate` | `plan/release/delivery/spec-ze-loads-kernel-modules-on-vendor-kernels.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-3-conntrack-helpers-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (spec, feature declaration, NAT44 spec) |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | logic and wiring over `conntrack_helpers.go` (both packages) and `engine.go` `registerConfigTables`; nft lowering and the VPP refusal; exposure (assignment only on listed ports, empty default) and fail-open (a reconcile failure refuses the commit); style pass over the new Go: no `panic`, errors wrapped with context |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Feature declaration stale (modprobe only, `nfs` and `sqlnet`) | `features/connection-tracking-management.md` | commit A |
+| 2 | ISSUE | The NAT44 spec's REQ-10 Decision still cited every helper `=n` as its evidence, a Files to Modify item left undone | `plan/post-release/features/spec-nat44-customer-napt.md` line 102 | commit A |
+
+NOTEs: (1) the lab's ze-cpe logs `conntrack module load failed ... modprobe nf_conntrack_ftp: exit status 1` on Ze's kernel, where the helper is built in; that is `LoadConntrackModules`, whose comment still says gokrazy skips modprobe, and the kernel-modules spec deletes it (journal row `plan/journal/silent-fall-through.md` 2026-10-29). (2) The YANG `conntrack` container description says Ze writes each value to a sysctl key, which is not true of `module`; the same spec rewrites that description.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/config/system/conntrack_helpers.go`, `conntrack_helpers_test.go` | Yes | ls: 5.3K, 3.3K |
+| `internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go` | Yes | ls: 38K |
+| `test/firewall/conntrack-helper-ftp-assigned.ci`, `-removed-on-reload.ci`, `-block-deleted-on-reload.ci` | Yes | ls: 2.3K, 1.6K, 2.2K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5, AC-7..AC-9, AC-12 | unit level | `./le job run label c3-close-units command go test -count=1 ./internal/component/firewall/ ./internal/component/config/system/ ./internal/plugins/firewall/vpp/`, 2026-11-08: all three ok |
+| AC-2, AC-6, AC-11 | kernel level | `rwinv/out-qb2/c3.log`: three PASS, five breaks red |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `system conntrack module ftp` | `conntrack-helper-ftp-assigned.ci` | read: asserts `table inet ze_conntrack_helpers`, `ct helper "ftp-tcp"`, both hooks at -5, `tcp dport 21 ... ct helper set "ftp-tcp"`; PASS in Ze's guest (`scratch/qemu-func7.log`) |
+| the block deleted on reload | `conntrack-helper-block-deleted-on-reload.ci` | `g2/clean.log` PASS, `g2/c3-broken.log` red |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestConntrackHelperNotAssignedWhenUnlisted` PASS on Ze's 7.3 kernel |
+| A-2 | confirmed | `TestConntrackHelperAssignment` IPv6 rows PASS from the inet table |
+| A-3 | confirmed | `TestConntrackHelperFTPThroughMasquerade` PASS; lab `lan-services` FTP pass |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| the guide lists exactly the accepted names | `configuration.md` "Valid modules: amanda, ftp, h323, irc, netbios-ns, pptp, sane, sip, snmp, tftp" against `conntrackHelpers` and the YANG enumeration | Yes |
+| `docs/comparison.md` ALG row | grep for `ALG` and `conntrack helper`: no row | No row, nothing to update |
+| RFC 4787 REQ-10 | `./le rfc check`: no rfc4787 line refused; records `rfc/discrimination/rfc4787/RFC4787-7-1.json`, `RFC4787-7-2.json` | Yes |
