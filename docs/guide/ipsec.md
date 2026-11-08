@@ -1621,6 +1621,11 @@ router's own IPv4 traffic never enters vti0. An answer wider than the entry Ze p
 is refused. `show vpn ipsec sa` reports the narrowed selectors and the if-id. The
 `vti-ipv6-inner-ipv4-outer` interop scenario runs this configuration against strongSwan,
 with a ping before and after a Child SA rekey.
+The `mgmt-tunnel` and `mgmt-tunnel-ed25519` topology scenarios run the same shape
+from a CPE behind PPPoE, authenticating with a P-256 and an Ed25519 certificate:
+strongSwan narrows the selectors to `::/0`, an IPv6 ping crosses vti0 with each
+direction's ESP counters advancing, and MOBIKE moves the IKE SA to UDP 4500.
+<!-- source: internal/le/interoplab/topology/check_vpn.go -- checkMgmtTunnel, checkMgmtTunnelEd25519 -->
 
 <!-- source: internal/component/ike/engine/rekey.go -- proposeChildTSPayloads -->
 <!-- source: internal/component/ike/engine/ts_narrow.go -- recordInitiatorSelectorsIn -->

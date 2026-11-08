@@ -195,6 +195,10 @@ second), and each further failure doubles it up to `reconnect delay-max`
 session up: the next session and the next wait use the new values. Every leaf
 and its range is listed in [Configuration](configuration.md), "PPPoE Client".
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client keepalive, reconnect -->
+The `access-reconnect` topology scenario proves the redial: after the LNS
+drops the session and RADIUS hands out a new address, the CPE comes back with
+it, the IKE SA follows it and masquerade uses it.
+<!-- source: internal/le/interoplab/topology/check_vpn.go -- checkAccessReconnect -->
 
 ### PPPoE client IPv6
 

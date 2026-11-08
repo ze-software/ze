@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Validation: the lab is the evidence that a Ze router converted from a VyOS home CPE does the job end to end (umbrella goal 3), and it carries the first runtime proof of shipped features that have none (WireGuard road warrior, masquerade and MSS with Ze in the path, the LAC relay). |
@@ -42,7 +42,7 @@ walk is recorded then. Clamp-to-PMTU is child 9's own scenario,
 | `conversion` | topology | the converted CPE configuration passes `ze config validate`; Ze starts with it (commit-time verifiers run); every line of the VyOS source appears in the conversion record as mapped or dropped with a reason; the CPE file of every home-CPE lab scenario is that configuration with lab values substituted | 10 |
 | `lan-services` | topology | range lease; both reservations honoured, one per subnet on the one bridge; masquerade to the web server; MSS 1400 written on a SYN carrying more and a smaller MSS left alone; WAN input dropped while the same port answers from the LAN; FTP through NAT via the helper | 2, 21, 3 |
 | `road-warrior` | topology | the committed WireGuard configuration is in the kernel (interface, keys, peers, allowed-ips); wg-client with PSK handshakes with the CPE's WAN address; it reaches a LAN host and the web server, masqueraded | 18, `spec-wireguard-runtime-proof` |
-| `mgmt-tunnel-ed25519` | topology | the Ed25519 proof: the CPE holds an Ed25519 key and strongSwan logs its Ed25519 verification of the CPE (`TestSwanAuthVerdict`, `TestIssueLabCPEKey`); otherwise the same clauses as `mgmt-tunnel`. Status: written, not run | 4, 5, 6, 20 |
+| `mgmt-tunnel-ed25519` | topology | the Ed25519 proof: the CPE holds an Ed25519 key and strongSwan logs its Ed25519 verification of the CPE (`TestSwanAuthVerdict`, `TestIssueLabCPEKey`); otherwise the same clauses as `mgmt-tunnel` | 4, 5, 6, 20 |
 | `mgmt-tunnel` | topology | the P-256 variant of the CPE's authentication; selectors narrowed by strongSwan to `::/0`; IPv6 ping across vti0 with ESP counters read per direction; IKE moved to UDP 4500 by MOBIKE; a CPE booted while DNS is down establishes once DNS answers | 4, 5, 6, 20 |
 | `access-wholesale` | topology | LAC runs LCP and CHAP and picks the LNS by realm; LNS renegotiates LCP and re-challenges; the CPE comes up | 12, 14, 15 |
 | `access-reconnect` | topology | the LNS drops the session; the CPE reconnects with a new address; the IKE SA follows the new address and masquerade uses it | 4, 18 |
@@ -154,8 +154,8 @@ RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-2 | A synthetic VyOS configuration covering every umbrella construct exercises the guide as the owner's would | umbrella: nothing drawn from the owner's configuration | a construct of a real CPE is missed | the guide's construct inventory (child 10) is the checklist the synthetic source covers | unvalidated |
-| A-4 | MOBIKE moves the IKE SA to 4500 with no NAT in the path | strongSwan behaviour with MOBIKE on | the float clause needs the IPsec NAT box | read RFC 4555 and the existing `mobike` scenario before writing the clause | unvalidated |
+| A-2 | A synthetic VyOS configuration covering every umbrella construct exercises the guide as the owner's would | umbrella: nothing drawn from the owner's configuration | a construct of a real CPE is missed | the guide's construct inventory (child 10) is the checklist the synthetic source covers | broken (closure, 2026-11-08): the source omits guide constructs; Pre-Commit Verification, Assumptions Resolved |
+| A-4 | MOBIKE moves the IKE SA to 4500 with no NAT in the path | strongSwan behaviour with MOBIKE on | the float clause needs the IPsec NAT box | read RFC 4555 and the existing `mobike` scenario before writing the clause | confirmed: `mgmt-tunnel` passes its port-4500 clause with no NAT box |
 
 A-1 (accel-ppp renegotiates LCP on a direct session) is gone with the direct
 scenario: child 12's A-4 records that it does not. A-3 (the FTP clause
@@ -221,7 +221,7 @@ clause is unconditional.
 | `road-warrior` | masquerade not lowered by the nft backend | the web server sees 10.88.0.x or nothing | trap 4: the server has no route to 10.88.0.0/24 except through the CPE |
 | `mgmt-tunnel` | child 20's fix undone: the tunnel-mode state keeps the outer family (`internal/component/ike/dataplane/xfrm_linux.go`, `AFUnspec` false) | IPv6 ping lost while the SA is up | trap 5: counters read per direction |
 | `access-wholesale` | the LNS adopts the proxy LCP instead of renegotiating (`internal/component/l2tp/ppp/proxy.go`, the `RenegotiateProxyLCP` branch never taken) | the core capture holds no LCP Configure-Request from the LNS (`checkNegotiated`), before the session report is read | - |
-| `access-reconnect` | IKE plans for the first interface address and never follows a later change (`internal/component/ike/engine/dynamic_wan.go`, `followAddress`) | the first SA on 203.0.113.1 establishes, then the IKE SA does not follow the CPE to 203.0.113.2 | - |
+| `access-reconnect` | both paths that move the IKE SA to a new WAN address are broken together: `followAddress` (`internal/component/ike/engine/dynamic_wan.go`) plans the first address and never a later change, and `serviceMobike` (`internal/component/ike/engine/mobike.go`) never re-picks the source as the original initiator. Either path alone moves the SA, so breaking one keeps the walk green | the first SA on 203.0.113.1 establishes, then the IKE SA does not follow the CPE to 203.0.113.2 | - |
 
 ### Red walk evidence (2026-11-08)
 
@@ -242,7 +242,16 @@ image IDs of its run). Green runs of all six scenarios before the breaks:
 | `c11-masquerade-not-lowered` | wg-client fetched nothing from the web server across the tunnel | the named clause |
 | `c11-vti-af-unspec-off` | the CPE's IPv6 ping across vti0 to fd00:db8:1::1 lost packets | the named clause |
 | `c11-proxy-lcp-adopted` | the capture holds no frame of the kind the check reads: no LCP Configure-Request from 192.0.2.3 | the corrected clause (`checkNegotiated` reads the core capture before `renegotiatedVerdict`) |
-| `c11-ike-address-fixed` (no plan on any address change) | strongSwan holds no established IKE SA with the CPE on 203.0.113.1 | NOT the clause: the CPE gets its first address after the IKE apply, so this break fails the first SA and never reaches the reconnect. The row now names the narrower break (`c11-ike-change-not-followed`, which still plans the first address), owed a run |
+| `c11-ike-address-fixed` (no plan on any address change) | strongSwan holds no established IKE SA with the CPE on 203.0.113.1 | NOT the clause: the CPE gets its first address after the IKE apply, so this break fails the first SA and never reaches the reconnect. Superseded by `c11-ike-change-not-followed` |
+| `c11-mss-raises-payload` (transport-header payload write, `rwinv/c11-narrow2.log`, log `c11-mss-noraise-payload-broken.log`) | the SYN to 198.51.100.10.9102: offered MSS 1300 and arrived with MSS 1400, want 1300 | the named clause. The 9101 probe (1460 lowered to 1400) runs first in `lanMSSProbes` order and passed, so the rewrite was present beside the red |
+| `c11-ike-change-not-followed` (`followAddress` plans the first address only, and `serviceMobike`'s re-pick disabled; log `c11-reconnect-change-broken.log`) | the IKE SA did not follow the CPE to 203.0.113.2: strongSwan's IKE SA sits on CPE address 203.0.113.1, want 203.0.113.2 | the named clause, after the first SA on 203.0.113.1 established. An earlier run of the same walk with only the `followAddress` break stayed green, because MOBIKE alone moved the SA; the row names both producers |
+
+Address-order defect met during the walks: in 2 of 11 lab runs (the count in `3745936efa`'s message) br0 came up with
+10.99.0.1 as its primary and lan-client leased from the wrong subnet, because
+iface installed a unit's addresses in map order. Fixed by `3745936efa`
+(`desiredState`, `internal/component/iface/config_apply.go`); the reorder of a
+live interface it leaves open is owned by
+`plan/release/fixes/spec-iface-address-reorder-moves-primary.md`.
 
 ## 🧪 TDD Test Plan
 
@@ -253,8 +262,8 @@ image IDs of its run). Green runs of all six scenarios before the breaks:
 | `TestLabValueSubstitution` | `internal/le/interoplab/topology/check_conversion_test.go` | placeholders replaced, nothing else changed; an unknown placeholder refused | |
 | `TestMSSVerdict` | `internal/le/interoplab/topology/check_lan_test.go` | AC-5 from capture fixtures: the lowering clause and the no-raise clause judged separately | |
 | `TestReservationVerdict` | `internal/le/interoplab/topology/check_lan_test.go` | AC-3 from lease fixtures | |
-| `TestIssueLabCPEKey` | `internal/le/interoplab/topology/home_lab_test.go` | AC-9: each mgmt-tunnel variant issues the CPE a key of its own algorithm (P-256 or Ed25519) that parses as Ze's pki leaf parses it; a scenario naming no algorithm is refused | written, not run |
-| `TestSwanAuthVerdict` | `internal/le/interoplab/topology/home_lab_test.go` | AC-9: the Ed25519 variant needs strongSwan's Ed25519 verification line for the CPE; the P-256 ECDSA line and another identity's Ed25519 line are refused | written, not run |
+| `TestIssueLabCPEKey` | `internal/le/interoplab/topology/home_lab_test.go` | AC-9: each mgmt-tunnel variant issues the CPE a key of its own algorithm (P-256 or Ed25519) that parses as Ze's pki leaf parses it; a scenario naming no algorithm is refused | pass (`scratch/c1118v.log`) |
+| `TestSwanAuthVerdict` | `internal/le/interoplab/topology/home_lab_test.go` | AC-9: the Ed25519 variant needs strongSwan's Ed25519 verification line for the CPE; the P-256 ECDSA line and another identity's Ed25519 line are refused | pass (`scratch/c1118v.log`) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -274,8 +283,8 @@ image IDs of its run). Green runs of all six scenarios before the breaks:
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `mgmt-tunnel-ed25519` | `test/interop-topology/scenarios/mgmt-tunnel-ed25519/` | strongSwan | IKEv2 Ed25519 (RFC 8420), narrowed selectors, IPv6 in IPv4 VTI, MOBIKE | written, not run |
-| `mgmt-tunnel` | `test/interop-topology/scenarios/mgmt-tunnel/` | strongSwan | the P-256 variant: IKEv2 ECDSA, narrowed selectors, IPv6 in IPv4 VTI, MOBIKE | written, not run |
+| `mgmt-tunnel-ed25519` | `test/interop-topology/scenarios/mgmt-tunnel-ed25519/` | strongSwan | IKEv2 Ed25519 (RFC 8420), narrowed selectors, IPv6 in IPv4 VTI, MOBIKE | pass (`rwinv/topo-full-ac12.log`, [13/18]) |
+| `mgmt-tunnel` | `test/interop-topology/scenarios/mgmt-tunnel/` | strongSwan | the P-256 variant: IKEv2 ECDSA, narrowed selectors, IPv6 in IPv4 VTI, MOBIKE | pass (`rwinv/topo-full-ac12.log`, [12/18]) |
 | `road-warrior` | `test/interop-topology/scenarios/road-warrior/` | wireguard-tools | WireGuard with PSK from config commit | |
 | `lan-services` | `test/interop-topology/scenarios/lan-services/` | dhcpcd; the FTP daemon of the web and FTP image | DHCPv4 reservations across subnets; active FTP through masquerade with the helper | |
 | `access-wholesale-accel-lns` | owned by child 12, topology suite | accel-ppp as LNS | LCP renegotiation in Opened against third-party software | |
@@ -284,7 +293,7 @@ image IDs of its run). Green runs of all six scenarios before the breaks:
 
 | Umbrella goal | Evidence this lab provides |
 |---------------|----------------------------|
-| 1. Ze implements every capability a home CPE of this kind uses, correctly | each capability row of the umbrella maps to a scenario clause: WAN (`access-up`, `access-reconnect`, `access-wholesale`, `access-wholesale-accel-lns`), LAN and firewall (`lan-services`), VPN (`road-warrior`, `mgmt-tunnel`), system (`conversion` starts Ze with SSH, users, NTP, name servers and the archive configured). IPv6 is proven by child 8's own tests, and clamp-to-PMTU by child 9's `TestTCPMSSClampToPMTU` and its scenario `pppoe-mss-pmtu` |
+| 1. Ze implements every capability a home CPE of this kind uses, correctly | each capability row of the umbrella maps to a scenario clause: WAN (`access-up`, `access-reconnect`, `access-wholesale`, `access-wholesale-accel-lns`), LAN and firewall (`lan-services`), VPN (`road-warrior`, `mgmt-tunnel`), system (`conversion` starts Ze with SSH, users and name servers configured; NTP and the archive are not in the synthetic source, owned by `plan/release/validation/spec-home-cpe-lab-guide-construct-coverage.md`). IPv6 is proven by child 8's own tests, and clamp-to-PMTU by child 9's `TestTCPMSSClampToPMTU` and its scenario `pppoe-mss-pmtu` |
 | 2. The mapping guide makes the conversion reproducible and reviewable | `conversion`: the record covers every source line, and the configuration produced by following the guide is the one every home-CPE lab scenario runs |
 | 3. The lab proves the converted router works | every home-CPE lab scenario runs the converted configuration, each with a recorded red walk |
 
@@ -365,43 +374,29 @@ image IDs of its run). Green runs of all six scenarios before the breaks:
 |-------|-----------------|
 | Secrets | the VyOS source and the lab values hold invented secrets only; the model's output holds placeholders |
 
-## Blocker
+## Closure evidence (2026-11-08)
 
-AC-13 is not met for two rows of the Red walks table: their first breaks went
-red before the clause they exist to prove (Red walk evidence above). The
-closure agent built the two narrower breaks; they need one lab run each, which
-only the main thread starts.
+The blocker this spec was handed back with (two red walks that went red
+before their clause) is cleared. Logs are under
+`tmp/session/2026-11-07-104251/scratch/`.
 
-| What blocks | Producer | What clears it |
-|-------------|----------|----------------|
-| `lan-services` no-raise clause unproven | `lowerSetTCPMSS` (`internal/plugins/firewall/nft/lower_linux.go`); the four-byte option write is refused by the kernel | `sh tmp/session/2026-11-07-104251/scratch/rwinv/c11-narrow.sh` (walk `c11-mss-raises-payload`) red with "the 1300 SYN ... arrived with MSS 1400, want 1300", after the 1460 probe reads 1400 |
-| `access-reconnect` reconnect clause unproven | `followAddress` (`internal/component/ike/engine/dynamic_wan.go`) | the same script (walk `c11-ike-change-not-followed`) red with the IKE SA not following the CPE to 203.0.113.2, after the first SA on 203.0.113.1 established |
-
-If a narrower break does not go red at its clause, the checker for that clause
-is the defect, and it is fixed before closure.
-
-Still owed at closure, after those runs: the closure sections
-(`plan/templates/TEMPLATE-CLOSURE.md`); the Review Gate over the lab diff (the
-files under Files to Create, landed in `a0e83e12a1` and the
-`interop-topology:` commits after it, whose `Spec-work:` trailers name other
-specs); the scoped package test
-`./le job run label unit-pkg command go test -count=1 ./internal/le/interoplab/topology/`
-(the host units `TestIssueLabCPEKey` and `TestSwanAuthVerdict` passed
-2026-11-08). Composed scenarios are green on 2026-11-08 in separate runs, not
-one run: `access-up`, `access-pool`, `access-accounting`
-(`rwinv/out-interop/c13-access-up-dns-clean.log`, `c19-pool-clean.log`,
-`c19-acct-octets-clean.log`), `access-wholesale-accel-lns`
-(`rwinv/out-c2-12-interop/rerun-wholesale.log`); `mgmt-tunnel-ed25519` last
-passed in `topo-full5.log` (2026-11-08 01:29).
+| Evidence | Where | What it shows |
+|----------|-------|---------------|
+| Address-order fix | `3745936efa` (`desiredState`, `internal/component/iface/config_apply.go`; `decomposeIfaceOperations`, `operation.go`) | a unit's addresses install in configured order, so br0's primary is 192.168.50.1 on every run |
+| Narrow red walks | `rwinv/c11-narrow2.log` | `c11-mss-raises-payload` and `c11-ike-change-not-followed` red for their named reasons (Red walk evidence) |
+| AC-12, one full run | `rwinv/topo-full-ac12.log` | the whole `interop-topology` suite, 18 passed, 0 failed, after `3745936efa`: every scenario this spec owns, child 19's three and `access-wholesale-accel-lns` |
+| Host units | `scratch/c1118v.log`, `scratch/c19-topo-all.log` | `TestIssueLabCPEKey`, `TestSwanAuthVerdict` pass; the topology package passes |
+| Scoped packages, at closure | `./le job run ... go test -count=1 ./internal/component/iface/ ./internal/le/interoplab/topology/` | both `ok` |
 
 ## Owned journal rows
 
-This lab exposed the address-order row below, so this spec owns it.
+This lab exposed the address-order row below, so this spec owns it. The open
+row it also exposed (a live leaf-list reorder leaves the old primary) moved to
+`plan/release/fixes/spec-iface-address-reorder-moves-primary.md`.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `output-not-byte-stable.md` | 2026-11-08 | fixed: iface installed a unit's addresses in map order, so br0's primary varied |
-| `output-not-byte-stable.md` | 2026-11-08 | open: reordering a live interface's addresses does not move its primary |
 
 ## Key Design Decisions
 
@@ -444,3 +439,152 @@ This lab exposed the address-order row below, so this spec owns it.
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
+
+## Implementation Summary
+
+### What Was Implemented
+- The six scenarios this spec owns (`conversion`, `lan-services`, `road-warrior`, `mgmt-tunnel` with its `mgmt-tunnel-ed25519` variant, `access-wholesale`, `access-reconnect`), their checkers in `internal/le/interoplab/topology/` (`checkConversion`, `checkLANServices`, `checkRoadWarrior`, `checkMgmtTunnel`, `checkMgmtTunnelEd25519`, `checkAccessWholesale`, `checkAccessReconnect`), the registration in `register_home_lab.go`, the CPE files under `test/interop-topology/cpe/` and the web and FTP image `test/interop-topology/home-lab/Dockerfile.webftp`. Landed in `a0e83e12a1` and the `interop-topology:` commits after it.
+- Every red walk run against its producer, eleven red at their named clause (Red walk evidence).
+
+### Bugs Found/Fixed
+- iface installed a unit's addresses in map order, so br0's primary varied and lan-client leased from the wrong subnet: fixed by `3745936efa`, covered by `config_apply_order_test.go`.
+- The no-raise walk first planned (four-byte option write) is refused by the kernel; the walk moved to a transport-header payload write. The reconnect walk first planned broke one of two paths that move the SA; the walk now breaks both.
+
+### Documentation Updates
+- `docs/guide/l2tp.md` (Relay by realm: `access-wholesale`), `docs/guide/pppoe.md` (keepalive and redial: `access-reconnect`), `docs/guide/firewall.md` (TCP MSS Clamping: `lan-services`), `docs/guide/ipsec.md` (IPv6 inside an IPv4 tunnel on a VTI: `mgmt-tunnel`, `mgmt-tunnel-ed25519`), `docs/guide/configuration.md` (Connection Tracking: `lan-services`), each with a source anchor to its checker.
+- `features/` Interop entries: `ipsec-mobike.md`, `ikev2-engine.md` (`topology/mgmt-tunnel`, `topology/mgmt-tunnel-ed25519`), `dhcp-server-shared-segment.md` (`topology/lan-services`), `firewall.md` (new Interop row: `topology/lan-services`, `topology/road-warrior`), `pppoe-access.md` (`topology/access-reconnect`), `l2tpv2-bng.md` (`topology/access-wholesale`), `interfaces.md` (`topology/road-warrior`).
+- `docs/architecture/testing/interop.md` already carried the home-CPE lab rows (grep names all seven scenarios).
+- `./le doc check all`: red on command-contract findings (`clear debug` operator availability) that name none of these pages; no finding names an edited page or anchor.
+
+### Deviations from Plan
+- `register_lab.go` is `register_home_lab.go`; `test/interop-topology/Dockerfile.webftp` is `test/interop-topology/home-lab/Dockerfile.webftp`.
+- The no-raise red walk uses the payload write, not the option write child 21 named (the kernel refuses that one).
+- A-2 broken: the synthetic source covers part of the guide's inventory, homed in a new spec (Work Not Done).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: the synthetic VyOS source was taken to cover every construct the guide maps | it omits address and port groups, `ip-src-route`, `clamp-mss-to-pmtu`, `ipv6 adjust-mss`, router advertisements, NTP, the commit archive and three dropped rows | closure grep of each guide construct against `vyos.conf` | new spec `plan/release/validation/spec-home-cpe-lab-guide-construct-coverage.md` |
+| approach | the reconnect walk broke `followAddress` alone | MOBIKE's re-pick in `serviceMobike` moves the SA by itself | the first narrow walk stayed green | the walk breaks both paths |
+| approach | the guide pages and feature Interop entries named in Files to Modify were left to closure | they belonged to the phase that landed each scenario | closure documentation review | written at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| every scenario of the table, in the topology suite, on the converted configuration | Done | `register_home_lab.go`, `homeCPEScenariosConverted` (`check_conversion.go`) | 18 passed in one run |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `conversion` pass, `checkConversion` | |
+| AC-2 | Done | `lan-services` pass, `checkLease` | |
+| AC-3 | Done | `lan-services` pass; walk `c11-reservation-first-subnet` red | |
+| AC-4 | Done | `lan-services` pass, `checkMasquerade` | |
+| AC-5 | Done | `lan-services` pass, `lanMSSProbes`; walks `c11-mss-not-lowered`, `c11-mss-raises-payload` red | |
+| AC-6 | Done | `lan-services` pass, `checkWANInputDropped`; walk `c11-input-unhooked` red | |
+| AC-7 | Done | `lan-services` pass, `checkActiveFTP`; walk `c3-ftp-no-prerouting` red | |
+| AC-8 | Done | `road-warrior` pass, `checkRoadWarrior`; walks `c11-wg-psk-dropped`, `c11-masquerade-not-lowered` red | |
+| AC-9 | Done | `mgmt-tunnel`, `mgmt-tunnel-ed25519` pass; `TestIssueLabCPEKey`, `TestSwanAuthVerdict` pass; walk `c11-vti-af-unspec-off` red | |
+| AC-10 | Done | `access-wholesale` pass, `checkAccessWholesale`; walk `c11-proxy-lcp-adopted` red | |
+| AC-11 | Done | `access-reconnect` pass, `checkAccessReconnect`; walk `c11-ike-change-not-followed` red | |
+| AC-12 | Done | `access-wholesale-accel-lns` pass in `rwinv/topo-full-ac12.log` | |
+| AC-13 | Done | Red walk evidence, every row red at its clause; image IDs in each log | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestConversionRecordCoversSource`, `TestLabValueSubstitution` | Done | `check_conversion_test.go` | topology package ok |
+| `TestMSSVerdict`, `TestReservationVerdict` | Done | `check_lan_test.go` | topology package ok |
+| `TestIssueLabCPEKey`, `TestSwanAuthVerdict` | Done | `home_lab_test.go` | `scratch/c1118v.log` |
+| the six scenarios | Done | `test/interop-topology/scenarios/` | `rwinv/topo-full-ac12.log` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `test/interop-topology/cpe/` (four files) | Done | |
+| `test/interop-topology/scenarios/{conversion,lan-services,road-warrior,mgmt-tunnel,access-wholesale,access-reconnect}/` | Done | plus `mgmt-tunnel-ed25519/` |
+| `register_lab.go` | Changed | `register_home_lab.go` |
+| `check_conversion.go`, `check_lan.go`, `check_vpn.go`, `check_wholesale.go` and tests | Done | |
+| `Dockerfile.webftp` | Changed | under `test/interop-topology/home-lab/` |
+| guide pages, `features/*.md`, `interop.md` | Done | closure documentation review |
+
+### Audit Summary
+- **Total items:** 26
+- **Done:** 24
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| every scenario of the table green in the topology suite on the converted configuration | interop | `rwinv/topo-full-ac12.log`: `interop: 18 passed, 0 failed`, including the seven scenarios this spec owns and the four it composes |
+| each scenario's assertions discriminate | interop red walks | Red walk evidence: every walk red at its named clause, logs in `rwinv/out-c11-interop/` with image IDs |
+| the CPE runs the model's conversion, not a hand-edited file | interop | `conversion` pass: `homeCPEScenariosConverted` refuses a home-CPE scenario with its own CPE file; walk `c11-conversion-line-changed` red |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A live reorder of an interface's addresses moves its primary (journal row in `plan/journal/output-not-byte-stable.md`, open) | found by this lab; the fix for a fresh install landed in `3745936efa`, the live reorder is a separate reconcile change | `plan/release/fixes/spec-iface-address-reorder-moves-primary.md` |
+| The synthetic VyOS source covers every construct the guide maps or drops, with a check (A-2 broken) | found at closure | `plan/release/validation/spec-home-cpe-lab-guide-construct-coverage.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-11-lab-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (28 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | logic and ordering of the iface fix (`desiredState`, the reconcile add and remove passes, `addDesiredAddresses`, `decomposeIfaceOperations`); docs claims against producers; spec record against the logs; style pass over the changed Go (no `panic`, no new goroutine, no allocation on a hot path beyond the per-commit lists) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Goal Validation claimed `conversion` starts Ze with NTP and the archive configured; neither is in `vyos.conf` | this spec, Goal Validation (umbrella goals) row 1 | corrected; gap homed in `spec-home-cpe-lab-guide-construct-coverage.md` |
+| 2 | ISSUE | Files to Modify promised scenario sentences on five guide pages and feature Interop entries; none existed | `docs/guide/{l2tp,pppoe,firewall,ipsec,configuration}.md`, `features/*.md` | written at closure, each anchored to its checker |
+
+NOTEs: `slices.Contains` in the reconcile passes is quadratic in a device's
+address count, which is a handful per commit; the feature check now asks a
+fresh Doc review of `firewall.md`, `ikev2-engine.md`, `ipsec-mobike.md` and
+`pppoe-access.md`, whose descriptions this closure did not re-read (named in
+the commit).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/interop-topology/cpe/{vyos.conf,ze-cpe.conf,conversion-record.md,lab-values}` | Yes | `ls test/interop-topology/cpe/` lists all four |
+| the seven scenario directories | Yes | `ls -d test/interop-topology/scenarios/...` lists all seven |
+| `register_home_lab.go`, `check_conversion.go`, `check_lan.go`, `check_vpn.go`, `check_wholesale.go` | Yes | `ls internal/le/interoplab/topology/` |
+| `test/interop-topology/home-lab/Dockerfile.webftp` | Yes | `git ls-files` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-12 | scenarios green | `rwinv/topo-full-ac12.log`: `[1/18]`..`[18/18]` pass, `18 passed, 0 failed` |
+| AC-5, AC-11 | the two narrow walks red at their clause | `rwinv/c11-narrow2.log` FAIL lines quoted in Red walk evidence |
+| AC-9 | host units | `scratch/c1118v.log` PASS; topology package `ok` at closure |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le test integration interop-topology <scenario>` (seven rows) | no `.ci`: interop scenarios registered in `register_home_lab.go` | each listed pass in `rwinv/topo-full-ac12.log` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-2 | broken | grep of the guide's construct rows against `vyos.conf`: `address-group`, `port-group`, `ip-src-route`, `clamp-mss-to-pmtu`, `router-advert`, `ntp server`, `commit-archive` and others absent; Mistake Log, Deviations, Work Not Done |
+| A-4 | confirmed | `check_vpn.go` refuses an IKE SA whose port is not 4500 (`sa.remotePort != "4500"`), and `mgmt-tunnel` passes with no NAT box in its topology |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| guide sentences on five pages | each anchors its checker (`checkAccessWholesale`, `checkAccessReconnect`, `checkLANServices`/`checkMasquerade`, `checkMgmtTunnel`/`checkMgmtTunnelEd25519`, `checkActiveFTP`); `lanMSSProbes` holds 1460→1400 and 1300→1300 | Yes |
+| feature Interop entries | `./le feature check` raises no Interop refusal for the seven edited files | Yes |
+| RFC behavior newly proven (checklist row 9) | no scenario carries an `RFC requirement:` tag (grep of `internal/le/interoplab/topology/`), so no record is owed | Yes |

@@ -11,7 +11,7 @@
 | Level | experimental |
 | Components | internal/plugins/dhcpserver |
 | Real-path tests | test/dhcp/dhcpserver-shared-segment-reservation.ci, test/dhcp/dhcpserver-request-states.ci, test/dhcp/dhcpserver-server-identifier.ci, test/dhcp/dhcpserver-relay-only-subnet.ci, test/dhcp/dhcpserver-no-segment-address.ci |
-| Interop | bgp/dhcpv4-server-shared-segment-dhcpcd |
+| Interop | bgp/dhcpv4-server-shared-segment-dhcpcd, topology/lan-services |
 | RFCs | rfc2131 |
 | Docs | docs/guide/configuration.md |
 | Doc review | 2026-11-08: "Several subnets on one interface" in docs/guide/configuration.md checked against resolveSegment and the server identifier choice in internal/plugins/dhcpserver/segment.go, and the server-identifier leaf in internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang |

@@ -166,6 +166,10 @@ subscriber's proxy authentication is sent only when the remote has a
 logs why, and the LNS restarts authentication. An LNS may also ignore the
 proxy data and renegotiate LCP and authentication; a Ze LNS does so under
 `proxy-lcp renegotiate` (see PPP negotiation).
+The `access-wholesale` topology scenario proves the relay end to end: a Ze LAC
+runs LCP and CHAP with a Ze CPE, picks the LNS by the realm, and the LNS
+renegotiates LCP and challenges again before the CPE reaches IPCP Opened.
+<!-- source: internal/le/interoplab/topology/check_wholesale.go -- checkAccessWholesale -->
 
 `ze config validate`, a commit and the daemon at start refuse a binding
 whose remote is not declared, an empty realm, a realm holding `@` or

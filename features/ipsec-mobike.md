@@ -11,7 +11,7 @@
 | Scope gaps | IPv6 and transport-mode peers do not advertise MOBIKE, kernels without XFRM_MSG_MIGRATE_STATE and CONFIG_XFRM_MIGRATE do not advertise it, the RFC 4555 ledger entry is Partial |
 | Level | experimental |
 | Components | internal/component/ike/engine/mobike.go, internal/component/ike/dataplane |
-| Interop | ipsec/mobike-initiator, ipsec/mobike-responder |
+| Interop | ipsec/mobike-initiator, ipsec/mobike-responder, topology/mgmt-tunnel, topology/mgmt-tunnel-ed25519 |
 | RFCs | rfc4555 |
 | Docs | docs/guide/ipsec.md |
 | Doc review | 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; XFRM_MSG_MIGRATE_STATE (xfrmMsgMigrateState in internal/component/ike/dataplane/xfrm_migrate_linux.go), TunnelMigrator in dataplane.go and mobike.go still hold the described behavior; the description still matches |

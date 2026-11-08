@@ -335,6 +335,12 @@ to its source, less the fixed headers (40 bytes for IPv4, 60 for IPv6, as
 RFC 6691 asks). It is the nftables `tcp option maxseg size set rt mtu`, and
 what VyOS writes for `adjust-mss clamp-mss-to-pmtu` on an interface.
 
+The `lan-services` topology scenario proves `tcp-mss-set 1400` and
+`masquerade` on a CPE converted from VyOS: a SYN offering 1460 arrives at the
+server with 1400, one offering 1300 arrives unchanged, and the server sees the
+CPE's WAN address as the source.
+<!-- source: internal/le/interoplab/topology/check_lan.go -- checkLANServices, checkMasquerade -->
+
 Both forms are clamps. An MSS already at or below the bound is left alone,
 because the kernel skips a two-byte MSS write that would raise the value, and a
 SYN without the option is not changed. A term carries one of the two, never

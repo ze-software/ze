@@ -12,7 +12,7 @@
 | Level | experimental |
 | Components | internal/component/l2tp |
 | Real-path tests | test/l2tp/handshake-full.ci, test/l2tp/session-incoming-lns.ci, test/l2tp/auth-radius-basic.ci, test/l2tp/radius-acct-wire.ci, test/l2tp/radius-nas-port-id.ci, test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci, test/l2tp/session-stopccn-cascade.ci, test/l2tp/shaper-upload-rate.ci |
-| Interop | l2tp/01-ppp-ipv4, l2tp/02-ppp-bgp-redistribute-frr, l2tp/03-ze-lac-xl2tpd-lns, l2tp/04-radius-acct-attrs, topology/access-up, topology/access-pool, topology/access-accounting |
+| Interop | l2tp/01-ppp-ipv4, l2tp/02-ppp-bgp-redistribute-frr, l2tp/03-ze-lac-xl2tpd-lns, l2tp/04-radius-acct-attrs, topology/access-up, topology/access-pool, topology/access-accounting, topology/access-wholesale |
 | RFCs | rfc2661, rfc2865, rfc2866, rfc2869, rfc1334, rfc1661, rfc1877, rfc5072, rfc5176 |
 | Docs | docs/guide/l2tp.md |
 | Doc review | 2026-11-08: the access-chain paragraph checked against checkAccessUp, checkAccessPool and checkAccessAccounting, and the three topology Interop entries resolve; the guide's relay paragraph names access-up as the relay data-path proof; every source anchor resolves (handleTick, nasPortIDFormat, answerRefusedSCCRQ, stopCCNSlot, bngRegister); the tunnel-id-zero StopCCN and NAS-Port-Id each have a listed test |

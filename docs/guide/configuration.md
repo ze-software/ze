@@ -3655,6 +3655,9 @@ Since Linux 6.0 the kernel never assigns a helper on its own, so loading a modul
 
 The helper tables belong to the firewall's config transaction, with or without a `firewall {}` block. `ze config validate` and the commit refuse a helper the firewall backend cannot hold, a failed commit or a rollback puts the previous helpers back, and a clean daemon stop removes them unless `firewall { flush-on-shutdown false; }` is set. When the kernel refuses a helper, the commit error names the `modprobe` command that loads it and the `delete system conntrack module` command that stops assigning it.
 
+The `lan-services` topology scenario proves the `ftp` helper through NAT: an active-mode FTP transfer from a LAN host through the masquerading CPE completes its data connection.
+<!-- source: internal/le/interoplab/topology/check_lan.go -- checkActiveFTP -->
+
 | Module | Kernel helper | Assigned on | Families |
 |--------|---------------|-------------|----------|
 | amanda | `amanda` | udp 10080 | IPv4, IPv6 |
