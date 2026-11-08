@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5625-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc5625_resolver_test.go::TestRFC5625ResolverUnknownFlags",
+    "unit-sha": "91f258b3e4367260",
+    "claim-sha": "1f48b43e1ca0a238",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/server.go::answer",
+    "producer-sha": "7c98aa151453bae5",
+    "break": "line 38: \"if !q.RecursionDesired {\" -\u003e \"if !q.RecursionDesired || q.Zero {\""
+  }
+]

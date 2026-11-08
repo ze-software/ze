@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5625-4.4.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc5625_resolver_test.go::TestRFC5625ProxyTCPAndOPT",
+    "unit-sha": "e3e151dfff5f62b2",
+    "claim-sha": "f49dd6722db7c58d",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/recursive.go::Recursive",
+    "producer-sha": "ecb1ac6b2725d52d",
+    "break": "line 89: \"opt.Version() != recursiveEDNSVersion\" -\u003e \"true\""
+  }
+]

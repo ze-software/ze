@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5625-4.5-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc5625_passthrough_test.go::TestRFC5625TKEYQueryProxied",
+    "unit-sha": "c16b1ad8b9a30d6a",
+    "claim-sha": "6912efd74ce4dcf1",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/recursive.go::Recursive",
+    "producer-sha": "ecb1ac6b2725d52d",
+    "break": "line 102: \"carriesTransactionSecurity(r)\" -\u003e \"false\""
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5625-4.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc5625_passthrough_test.go::TestRFC5625SignedQueryForwardedUnchanged",
+    "unit-sha": "397b41a34890584c",
+    "claim-sha": "f399b123a15ed57f",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/signed.go::passWire",
+    "producer-sha": "8750cdd509842fbf",
+    "break": "line 110: \"t := r.IsTsig()\" -\u003e \"t := (*dns.TSIG)(nil)\""
+  }
+]

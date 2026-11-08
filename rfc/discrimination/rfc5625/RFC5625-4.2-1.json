@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5625-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc5625_resolver_test.go::TestRFC5625ResolverCompressedReply",
+    "unit-sha": "87933e6f8e95bebc",
+    "claim-sha": "bdb1d2d44a4d0676",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/forward.go::exchangeWire",
+    "producer-sha": "2fdc063382c32d63",
+    "break": "line 147: \"if replyMatches(query, r) {\" -\u003e \"if replyMatches(query, r) \u0026\u0026 n \u003e= r.Len() {\""
+  }
+]

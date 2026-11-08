@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5625-4.4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc5625_resolver_test.go::TestRFC5625ProxyTCPAndOPT",
+    "unit-sha": "e3e151dfff5f62b2",
+    "claim-sha": "f747497f308c76a7",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/server.go::admit",
+    "producer-sha": "9b971dcad42fad24",
+    "break": "line 102: \"if !r.limits.admit(source, pol.clientRate, r.now()) {\" -\u003e \"if transport == networkTCP || !r.limits.admit(source, pol.clientRate, r.now()) {\""
+  }
+]

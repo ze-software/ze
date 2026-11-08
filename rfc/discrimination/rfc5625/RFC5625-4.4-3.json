@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5625-4.4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc5625_resolver_test.go::TestRFC5625ResolverNeverDropsTC",
+    "unit-sha": "69179dde9d811857",
+    "claim-sha": "16d230425755153a",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::forward",
+    "producer-sha": "9345b8a5b2ba9227",
+    "break": "line 155: \"if err == nil \u0026\u0026 reply.Truncated {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC5625-4.4-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc5625_resolver_test.go::TestRFC5625ResolverNeverDropsTC",
+    "unit-sha": "69179dde9d811857",
+    "claim-sha": "b4c0b153f99b175c",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::forward",
+    "producer-sha": "9345b8a5b2ba9227",
+    "break": "line 164: \"reply, err = exchange(networkTCP, addr, query, attemptEnd)\" -\u003e \"reply, err = exchange(networkUDP, addr, query, attemptEnd)\""
+  }
+]
