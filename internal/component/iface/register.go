@@ -500,6 +500,19 @@ func runEngine(conn net.Conn) int {
 	unnumberedStop := make(chan struct{})
 	unnumberedDone := make(chan struct{})
 	go runUnnumberedWorker(unnumberedCh, unnumberedStop, unnumberedDone, &activeCfg)
+	// delegationQueue carries DHCPv6 delegated-prefix lease events to the
+	// worker that numbers each LAN unit from its delegation
+	// (delegated_consumer.go). Each pass ends with an RA reconcile, so a
+	// unit's advertisement follows its address and its remaining lifetimes.
+	delegationQ := newDelegationQueue()
+	delegationStop := make(chan struct{})
+	delegationDone := make(chan struct{})
+	refreshDelegatedRA := func() {
+		raMu.Lock()
+		reconcileRA(activeCfg.Load(), activeRA, log)
+		raMu.Unlock()
+	}
+	go runDelegationWorker(delegationQ, delegationStop, delegationDone, &activeCfg, refreshDelegatedRA, log)
 	// The owned-device registry (device_owner.go) shares the SAME reconcile
 	// channel and worker: reconcileOnReadyWithJournal reconciles BOTH
 	// registries from snapshots on every pass, so one worker serves both and a
@@ -620,6 +633,8 @@ func runEngine(conn net.Conn) int {
 		raMu.Lock()
 		reconcileRA(cfg, activeRA, log)
 		raMu.Unlock()
+		// A unit the apply added may number from a delegation already held.
+		delegationQ.wake()
 
 		// Subscribe to DHCP lease events to track gateways for link failover.
 		// Handlers only update the map (no I/O), so mutex is sufficient.
@@ -633,6 +648,18 @@ func runEngine(conn net.Conn) int {
 				dhcpMu.Lock()
 				handleDHCPLeaseEvent(data, activeDHCP, log)
 				dhcpMu.Unlock()
+			})),
+			// A delegated prefix numbers the LAN units that name its source.
+			// The handlers only record the event; the delegation worker does
+			// the address and advertisement work.
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPAcquired, events.AsString(func(data string) {
+				delegationQ.pushLease(data, log)
+			})),
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPRenewed, events.AsString(func(data string) {
+				delegationQ.pushLease(data, log)
+			})),
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPExpired, events.AsString(func(data string) {
+				delegationQ.pushLease(data, log)
 			})),
 			// A registered owned-macvlan parent APPEARING (first RTM_NEWLINK)
 			// re-triggers a reconcile pass so the device is created once its
@@ -781,6 +808,8 @@ func runEngine(conn net.Conn) int {
 				raMu.Lock()
 				reconcileRA(rollbackCfg, activeRA, log)
 				raMu.Unlock()
+				// A unit the apply added may number from a delegation already held.
+				delegationQ.wake()
 				// Emit rollback event so downstream plugins react.
 				eb := GetEventBus()
 				if eb != nil {
@@ -832,6 +861,8 @@ func runEngine(conn net.Conn) int {
 		raMu.Lock()
 		reconcileRA(cfg, activeRA, log)
 		raMu.Unlock()
+		// A unit the apply added may number from a delegation already held.
+		delegationQ.wake()
 
 		return j, nil
 	}
@@ -993,6 +1024,10 @@ func runEngine(conn net.Conn) int {
 	<-registryReconcileDone
 	close(unnumberedStop)
 	<-unnumberedDone
+	// The delegation worker stops BEFORE the RA senders: its pass ends in an
+	// RA reconcile, which would start a sender the stop below then misses.
+	close(delegationStop)
+	<-delegationDone
 
 	// Stop all PPPoE clients on shutdown.
 	pppoeMu.Lock()

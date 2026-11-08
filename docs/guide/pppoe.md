@@ -224,8 +224,40 @@ pppoe-client pppoe0 {
 
 A PPP device has no hardware address, so the DHCPv6 client builds its DUID-LL
 and IAIDs from the source interface unless `dhcpv6 duid` is set. The delegated
-prefix is published as a lease on `pppoe0`; nothing yet assigns it to a LAN
-interface.
+prefix is published as a lease on `pppoe0`.
+
+A LAN unit takes a /64 from it with `ipv6 delegated-prefix`, named after the
+`pppoe-client`:
+
+```
+interface ethernet eth1 {
+    unit 0 {
+        ipv6 {
+            forwarding true
+            delegated-prefix pppoe0 { subnet-id 1; interface-identifier ::1; }
+            router-advertisement { enabled true; }
+        }
+    }
+}
+```
+
+With `2001:db8:aa00::/56` delegated, `eth1` holds `2001:db8:aa00:1::1/64`. The
+subnet id sits in the bits between the delegated length and 64, so a /56 holds
+ids 0 to 255; `interface-identifier` defaults to `::1`. The address takes the
+lifetimes that remain of the delegation, and a renew refreshes them (RFC 9915
+Section 6.3). When the lease ends the address is removed. Config verify refuses a
+`subnet-id` the `pd length` cannot hold, two units taking the same id from one
+source, and a source that is not a `pppoe-client` asking for a prefix. A server
+may delegate a longer prefix than the hint; when it is too small for the id, Ze
+logs an error naming the unit and the fix, and the unit gets no /64.
+
+With `router-advertisement` enabled, the unit advertises the /64 for SLAAC and a
+Route Information option for the whole delegated prefix, both bounded by what
+remains of the delegation. Its Router Lifetime is the configured one only while
+`pppoe0` holds an IPv6 default route and the unit has a prefix, and an
+advertisement with Router Lifetime 0 leaves at once when either is lost (RFC 7084
+G-4, G-5, L-4). While a LAN unit holds space from the prefix, the client never
+releases it.
 
 The interop scenarios `pppoe-ipv6cp-ze-client` and
 `pppoe-ipv6cp-rejected-ze-client` prove this against accel-ppp: the first the
@@ -233,6 +265,10 @@ negotiated link-local address, the RA default route and SLAAC, the second an
 access concentrator that rejects IPv6CP (`docs/labs/pppoe-interop.md`).
 <!-- source: internal/component/iface/pppoe_client_ipv6.go -- parsePPPoEClientIPv6, applyPPPoEClientSysctls -->
 <!-- source: internal/component/iface/register.go -- reconcileDHCP, pppoeClientDHCPUnit -->
+<!-- source: internal/component/iface/delegated_consumer.go -- runDelegationWorker, installDelegatedAddress -->
+<!-- source: internal/component/iface/delegated_prefix.go -- deriveDelegatedAddress, verifyDelegatedPrefixes -->
+<!-- source: internal/plugins/iface/ra/advertiser.go -- build, routerLifetime -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- releasableLease -->
 
 ## Interoperability
 

@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/ndp"
+	"github.com/ze-software/ze/internal/core/routewatch"
 )
 
 // allRoutersGroup is the all-routers multicast address a router joins so it
@@ -41,11 +43,14 @@ const rsReadBufferSize = 256
 // Sender advertises on one interface unit. One goroutine owns the socket and
 // every timer, so a stopped Sender holds no socket and no multicast group join.
 type Sender struct {
-	spec   iface.RASenderSpec
-	log    *slog.Logger
-	cancel context.CancelFunc
-	done   chan struct{}
-	once   sync.Once
+	spec iface.RASenderSpec
+	log  *slog.Logger
+	// updates carries a replacement spec to the send loop. Depth 1, and the
+	// latest wins: Update drains a spec the loop has not read yet.
+	updates chan iface.RASenderSpec
+	cancel  context.CancelFunc
+	done    chan struct{}
+	once    sync.Once
 }
 
 // NewSender starts a Router Advertisement sender for spec. It returns an error
@@ -65,16 +70,33 @@ func NewSender(spec iface.RASenderSpec, log *slog.Logger) (*Sender, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Sender{
-		spec:   spec,
-		log:    log,
-		cancel: cancel,
-		done:   make(chan struct{}),
+		spec:    spec,
+		log:     log,
+		updates: make(chan iface.RASenderSpec, 1),
+		cancel:  cancel,
+		done:    make(chan struct{}),
 	}
 
 	solicitations := make(chan struct{}, 1)
 	go readSolicitations(ctx, pc, solicitations)
 	go s.run(ctx, conn, pc, binding, solicitations)
 	return s, nil
+}
+
+// Update hands the send loop a new spec without stopping it, so a lease renew
+// never sends Stop's zero Router Lifetime. The interface component is the one
+// caller, under its RA lock, so after the drain the slot is free and the send
+// never blocks, even once the loop has ended.
+func (s *Sender) Update(spec iface.RASenderSpec) {
+	select {
+	case <-s.updates:
+	default:
+	}
+	select {
+	case s.updates <- spec:
+	default:
+		s.log.Warn("iface-ra: advertisement update dropped, the update slot was taken", "iface", s.spec.Interface)
+	}
 }
 
 // Stop ends the sender and waits for its goroutine to finish, which happens
@@ -209,24 +231,55 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 	dst := &net.UDPAddr{IP: net.ParseIP(allNodesGroup), Zone: binding.OsName}
 	control := &ipv6.ControlMessage{IfIndex: binding.Ifindex, HopLimit: ndp.MessageHopLimit}
 
-	advertisement := s.spec.Advertisement
+	adv := &advertiser{spec: s.spec}
 	// RFC 4861 Section 4.6.1: the advertisement carries the sending
 	// interface's link-layer address, which saves each receiver a neighbor
 	// solicitation. The resolver already read it, so no second lookup happens.
-	advertisement.SourceLinkLayerAddress = parseMAC(binding.OperMAC)
+	sourceMAC := parseMAC(binding.OperMAC)
 
-	buf := make([]byte, ndp.RALen(advertisement))
+	// The buffer grows when an update adds options: control-plane rate, at
+	// most once per larger advertisement.
+	var buf []byte
 	//nolint:gosec // the seed drives timer jitter, never a security decision
 	random := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), uint64(binding.Ifindex)))
 
 	links, unsubscribe := iface.Subscribe(s.spec.Interface)
 	defer unsubscribe()
 
+	// A CE-role unit follows the WAN default route (RFC 7084 G-4). The watch
+	// starts with the first spec that names a WAN and lasts the sender's life.
+	defaults := newWANDefaults()
+	routeChanges := make(chan struct{}, 1)
+	var unwatch func()
+	defer func() {
+		if unwatch != nil {
+			unwatch()
+		}
+	}()
+	watchWAN := func() {
+		if unwatch != nil {
+			return
+		}
+		if len(adv.spec.WANs) == 0 {
+			return
+		}
+		unwatch = s.watchDefaultRoutes(defaults, routeChanges)
+	}
+	watchWAN()
+	build := func() ndp.RAConfig {
+		cfg := adv.build(time.Now(), wanHoldsDefault(adv.spec.WANs, defaults))
+		cfg.SourceLinkLayerAddress = sourceMAC
+		return cfg
+	}
+
 	state := &senderState{scheduled: time.Now()}
 	timer := time.NewTimer(0)
 	defer timer.Stop()
 
 	send := func(cfg ndp.RAConfig, solicited bool) {
+		if need := ndp.RALen(cfg); need > len(buf) {
+			buf = make([]byte, need)
+		}
 		n := ndp.BuildRA(buf, 0, cfg)
 		if n == 0 {
 			s.log.Error("iface-ra: advertisement did not fit its buffer, nothing sent",
@@ -237,6 +290,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 			s.log.Debug("iface-ra: send failed", "iface", s.spec.Interface, "error", err)
 			return
 		}
+		adv.sent(cfg)
 		state.sent++
 		state.lastSent = time.Now()
 		incSent(s.spec.Interface)
@@ -253,11 +307,37 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 		timer.Reset(time.Until(at))
 	}
 
+	// hurry brings the next advertisement forward when the content changed in
+	// a way hosts must hear at once (advertiser.urgent), within the rate limit
+	// sendFinal also keeps (ndp.CeaseWait).
+	hurry := func() {
+		if state.linkDown {
+			return
+		}
+		now := time.Now()
+		if !adv.urgent(now, wanHoldsDefault(adv.spec.WANs, defaults)) {
+			return
+		}
+		at := now.Add(ndp.CeaseWait(state.lastSent, now))
+		if at.Before(state.scheduled) {
+			rearm(at)
+		}
+	}
+
+	// The loop runs until ctx ends: one iteration per event, timer or update.
 	for {
 		select {
 		case <-ctx.Done():
-			s.sendFinal(send, advertisement, state.linkDown, state.lastSent)
+			s.sendFinal(send, build(), state.linkDown, state.lastSent)
 			return
+
+		case spec := <-s.updates:
+			adv.update(spec)
+			watchWAN()
+			hurry()
+
+		case <-routeChanges:
+			hurry()
 
 		case ev := <-links:
 			s.onLinkEvent(ev, state, rearm)
@@ -291,8 +371,8 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 			}
 			solicited := state.solicitedPending
 			state.solicitedPending = false
-			send(advertisement, solicited)
-			rearm(time.Now().Add(ndp.UnsolicitedInterval(s.spec.MinimumInterval, s.spec.MaximumInterval, state.sent, random)))
+			send(build(), solicited)
+			rearm(time.Now().Add(ndp.UnsolicitedInterval(adv.spec.MinimumInterval, adv.spec.MaximumInterval, state.sent, random)))
 		}
 	}
 }
@@ -380,4 +460,55 @@ func parseMAC(mac string) []byte {
 		return nil
 	}
 	return hw
+}
+
+// watchDefaultRoutes follows the main table's IPv6 default routes through the
+// shared route watcher, signals each change on changed, and returns the
+// function that ends the watch. The watcher lists existing routes only when
+// it subscribes, and the kernel or fib-kernel plugin may have started it long
+// before, so the routes present now are read once from the kernel.
+func (s *Sender) watchDefaultRoutes(defaults *wanDefaults, changed chan<- struct{}) func() {
+	notify := func() {
+		select {
+		case changed <- struct{}{}:
+		default:
+		}
+	}
+	w := routewatch.Global()
+	unregister := w.Register(func(ev routewatch.RouteEvent) {
+		if defaults.observe(ev) {
+			notify()
+		}
+	})
+	// Start runs once per process; a later call is a no-op.
+	w.Start(func(err error) {
+		s.log.Warn("iface-ra: route watcher error, the WAN default route state may be stale",
+			"iface", s.spec.Interface, "error", err)
+	})
+	existing, err := w.ListRoutes(netip.PrefixFrom(netip.IPv6Unspecified(), 0))
+	if err != nil {
+		// Unknown is read as no default route: the Router Lifetime stays 0,
+		// the answer G-4 gives, until a route event says otherwise.
+		s.log.Warn("iface-ra: existing IPv6 default routes not read, Router Lifetime stays 0 until a default route event",
+			"iface", s.spec.Interface, "error", err)
+	}
+	defaults.seed(existing)
+	notify()
+	return unregister
+}
+
+// wanHoldsDefault reports whether a default route leaves through the device
+// of any WAN the unit names. A WAN with no device holds no route, which is
+// the answer itself: its session is down.
+func wanHoldsDefault(wans []string, defaults *wanDefaults) bool {
+	for _, name := range wans {
+		binding, err := iface.Resolve(name)
+		if err != nil {
+			continue
+		}
+		if defaults.holds(binding.Ifindex) {
+			return true
+		}
+	}
+	return false
 }

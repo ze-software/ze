@@ -105,7 +105,9 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | Prefix Information options for SLAAC | have | |
 | | RDNSS resolver option (RFC 8106) | have | |
 | | Router Solicitation answers with rate limit | have | |
-| | Route Information option (RFC 4191) | missing | lower |
+| | Route Information option (RFC 4191), for the delegated prefix of a unit that numbers from one | have | |
+| | A LAN /64 from a DHCPv6 delegated prefix, with lifetimes bounded by the delegation (RFC 7084 L-2, RFC 9915 Section 6.3) | have | |
+| | CE Router Lifetime: 0 without a WAN default route or a prefix, and an immediate zero-lifetime RA when either is lost (RFC 7084 G-4, G-5, L-4) | have | |
 | **Traffic Mirroring** | Ingress/egress via tc mirred | have | |
 | | Idempotent setup/cleanup | have | |
 | | Traffic redirect (vs mirror) | missing | lower |
@@ -438,7 +440,10 @@ hex octets, the 2-octet type code then 1 to 128 octets of identifier (RFC 9915
 Section 11.1), and a commit refuses any other form. Ze changed from a fresh
 time-stamped DUID per Solicit to this stable one, so a server hands out one new
 binding once after the upgrade. On stop the client removes its addresses, then sends
-a Release and waits at most 3 s for the answer.
+a Release and waits at most 3 s for the answer. A delegated prefix a LAN unit took a
+/64 from is left out of that Release, and when nothing else is held no Release is
+sent: RFC 9915 Section 6.3 forbids releasing a delegated prefix while any of its
+space is outstanding.
 
 The kernel runs duplicate address detection on every leased address the client
 installs. The client reads the outcome while the address is tentative: when the
@@ -1040,6 +1045,26 @@ one as well.
 
 Nothing leaves a link that is down. The next link-up event restarts the initial
 burst.
+
+A config change or a lease renew updates a running sender in place. It is never
+restarted, because a restart would send the zero Router Lifetime above and
+withdraw Ze from every host for nothing.
+
+A unit with `ipv6 delegated-prefix <wan>` is in the CE role. Its advertisement
+carries the unit's /64 with the L and A flags, and a Route Information option
+(RFC 4191) for the whole delegated prefix. Both carry the lifetimes that remain of
+the delegation at the moment of each send, so they never outlive it (RFC 9915
+Section 6.3). Its Router Lifetime is the configured value only while the main table
+holds an IPv6 default route through the WAN device and the unit advertises a prefix;
+otherwise it is 0 (RFC 7084 G-4 and L-4). When either is lost after a non-zero
+Router Lifetime went out, an advertisement with Router Lifetime 0 leaves at once
+rather than at the next periodic one (G-5), still carrying the prefix and route
+while the delegation holds (L-3). A /64 whose delegation ended is advertised once
+with zero lifetimes, then dropped. A unit without `delegated-prefix` keeps its
+configured Router Lifetime whatever the WAN does.
+
+<!-- source: internal/plugins/iface/ra/advertiser.go -- build, routerLifetime, urgent, wanDefaults -->
+<!-- source: internal/component/iface/delegated_consumer.go -- runDelegationWorker, installDelegatedAddress -->
 
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- openRASocket, run, sendFinal -->
 <!-- source: internal/core/ndp/schedule.go -- SolicitedDelay, SolicitedSendTime, MinDelayBetweenRAs -->

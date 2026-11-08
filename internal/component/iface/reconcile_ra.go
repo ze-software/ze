@@ -13,11 +13,16 @@ import (
 	"github.com/ze-software/ze/internal/core/ndp"
 )
 
-// RAStopper is the part of the iface-ra plugin's sender the interface
+// RASender is the part of the iface-ra plugin's sender the interface
 // component uses. Declaring it here keeps the component free of any import of
 // the plugin, so removing the plugin leaves the factory unset and reconcileRA a
 // no-op.
-type RAStopper interface {
+type RASender interface {
+	// Update replaces the advertisement a running sender sends, without
+	// stopping it. A restart would send the final zero Router Lifetime of
+	// Stop, withdrawing the router from every host on each lease renew.
+	// Only the reconcile calls it, under raMu; the latest spec wins.
+	Update(spec RASenderSpec)
 	// Stop ends the sender. RFC 4861 Section 6.2.5 asks a router that stops
 	// advertising to send a final advertisement with a Router Lifetime of
 	// zero, so the implementation sends that before it closes its socket.
@@ -41,16 +46,25 @@ type RASenderSpec struct {
 	// unsolicited advertisements (RFC 4861 Section 6.2.4).
 	MinimumInterval time.Duration
 	MaximumInterval time.Duration
+	// WANs are the delegated-prefix sources the unit names. A unit with one
+	// is in the CE role: its Router Lifetime follows the WAN default route
+	// and its prefixes (RFC 7084 G-4, L-4). Empty keeps the configured value.
+	WANs []string
+	// Delegated is the /64 the unit holds from each live delegation. The
+	// sender advertises each with the lifetimes that remain at every send.
+	Delegated []DelegatedAdvert
 }
 
 // Equal reports whether two specs describe the same advertisement, so reconcile
-// restarts a sender only when something an operator changed reaches the wire.
+// updates a sender only when something reaching the wire changed.
 // The generated == is unavailable because the advertisement holds slices.
 func (s RASenderSpec) Equal(other RASenderSpec) bool {
 	return s.Interface == other.Interface &&
 		s.Unit == other.Unit &&
 		s.MinimumInterval == other.MinimumInterval &&
 		s.MaximumInterval == other.MaximumInterval &&
+		slices.Equal(s.WANs, other.WANs) &&
+		slices.EqualFunc(s.Delegated, other.Delegated, DelegatedAdvert.Equal) &&
 		raAdvertisementEqual(s.Advertisement, other.Advertisement)
 }
 
@@ -72,11 +86,11 @@ func raAdvertisementEqual(a, b ndp.RAConfig) bool {
 // raSenderFactory is set by the ifacera package at init time through
 // SetRASenderFactory. It returns a started sender or an error. Leaving it nil
 // is the supported state when the plugin is not built in.
-var raSenderFactory func(spec RASenderSpec) (RAStopper, error)
+var raSenderFactory func(spec RASenderSpec) (RASender, error)
 
 // SetRASenderFactory registers the factory the interface component calls to
 // start Router Advertisement senders. Called from the ifacera plugin's init.
-func SetRASenderFactory(f func(RASenderSpec) (RAStopper, error)) {
+func SetRASenderFactory(f func(RASenderSpec) (RASender, error)) {
 	raSenderFactory = f
 }
 
@@ -89,42 +103,52 @@ type raUnitKey struct {
 // raEntry tracks a running sender and the spec it was started with, so
 // reconcile can tell a changed advertisement from an unchanged one.
 type raEntry struct {
-	sender RAStopper
+	sender RASender
 	spec   RASenderSpec
 }
 
 // reconcileRA starts senders for units that newly advertise, stops senders for
-// units that stopped advertising, and restarts a sender whose advertisement
-// changed. Called from OnConfigure and OnConfigApply beside reconcileDHCP.
+// units that stopped advertising, and updates a running sender whose
+// advertisement changed. Called from OnConfigure and OnConfigApply beside
+// reconcileDHCP, and by the delegation worker after a lease changes.
 func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logger) {
 	if raSenderFactory == nil {
 		return
 	}
 
+	now := time.Now()
 	desired := make(map[raUnitKey]RASenderSpec)
 	forEachEnabledUnit(cfg, func(ifaceName string, u *unitEntry) {
 		if u.IPv6 == nil || u.IPv6.RouterAdvertisement == nil || !u.IPv6.RouterAdvertisement.Enabled {
 			return
 		}
 		key := raUnitKey{ifaceName: ifaceName, unit: u.Label}
-		desired[key] = raSpecFor(ifaceName, u.Label, u.IPv6.RouterAdvertisement)
+		spec := raSpecFor(ifaceName, u.Label, u.IPv6.RouterAdvertisement)
+		for _, dp := range u.IPv6.DelegatedPrefixes {
+			spec.WANs = append(spec.WANs, dp.Source)
+		}
+		spec.Delegated, _ = claimDelegatedAdverts(u, now) // the delegation worker reports refusals
+		desired[key] = spec
 	})
 
 	for key := range active {
 		entry := active[key]
 		newSpec, stillDesired := desired[key]
-		if stillDesired && entry.spec.Equal(newSpec) {
-			continue
-		}
-		if stillDesired {
-			log.Info("interface: restarting router advertisement sender (config changed)",
-				"iface", key.ifaceName, "unit", key.unit)
-		} else {
+		if !stillDesired {
 			log.Info("interface: stopping router advertisement sender",
 				"iface", key.ifaceName, "unit", key.unit)
+			entry.sender.Stop()
+			delete(active, key)
+			continue
 		}
-		entry.sender.Stop()
-		delete(active, key)
+		if entry.spec.Equal(newSpec) {
+			continue
+		}
+		log.Info("interface: updating router advertisement sender",
+			"iface", key.ifaceName, "unit", key.unit)
+		entry.sender.Update(newSpec)
+		entry.spec = newSpec
+		active[key] = entry
 	}
 
 	for key, spec := range desired {

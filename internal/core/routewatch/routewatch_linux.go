@@ -217,3 +217,74 @@ func (w *Watcher) subscribeOnce() error {
 		}
 	}
 }
+
+// ListRoutes returns the main-table routes for prefix as add events, read
+// once from the kernel in the watcher's namespace. The subscription lists the
+// existing routes only when it opens, so a handler registered after Start
+// reads them here. It MUST be called after Start, which pins the namespace.
+func (w *Watcher) ListRoutes(prefix netip.Prefix) ([]RouteEvent, error) {
+	family := netlink.FAMILY_V4
+	if prefix.Addr().Is6() {
+		family = netlink.FAMILY_V6
+	}
+	filter := &netlink.Route{Table: unix.RT_TABLE_MAIN}
+	var routes []netlink.Route
+	var err error
+	if w.platform.ns.IsOpen() {
+		h, herr := netlink.NewHandleAt(w.platform.ns)
+		if herr != nil {
+			return nil, fmt.Errorf("list routes: open a handle in the watched namespace: %w", herr)
+		}
+		defer h.Close()
+		routes, err = h.RouteListFiltered(family, filter, netlink.RT_FILTER_TABLE)
+	} else {
+		routes, err = netlink.RouteListFiltered(family, filter, netlink.RT_FILTER_TABLE)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list routes for %s: %w", prefix, err)
+	}
+	want := prefix.Masked()
+	var out []RouteEvent
+	for i := range routes {
+		r := &routes[i]
+		dst, ok := routeDst(r, prefix.Addr().Is6())
+		if !ok {
+			continue
+		}
+		if dst != want {
+			continue
+		}
+		var nextHop netip.Addr
+		if nh, ok := netip.AddrFromSlice(r.Gw); ok {
+			nextHop = nh.Unmap()
+		}
+		out = append(out, RouteEvent{
+			Prefix:     dst,
+			NextHop:    nextHop,
+			Protocol:   int(r.Protocol),
+			Metric:     uint32(r.Priority), //nolint:gosec // the kernel metric is a u32
+			TableID:    uint32(r.Table),    //nolint:gosec // the kernel table id is a u32
+			OutIfindex: r.LinkIndex,
+			Action:     ActionAdd,
+		})
+	}
+	return out, nil
+}
+
+// routeDst returns a listed route's destination. The library reports a
+// default route with no destination at all, which is the zero-length prefix
+// of the listed family.
+func routeDst(r *netlink.Route, v6 bool) (netip.Prefix, bool) {
+	if r.Dst == nil {
+		if v6 {
+			return netip.PrefixFrom(netip.IPv6Unspecified(), 0), true
+		}
+		return netip.PrefixFrom(netip.IPv4Unspecified(), 0), true
+	}
+	ip, ok := netip.AddrFromSlice(r.Dst.IP)
+	if !ok {
+		return netip.Prefix{}, false
+	}
+	ones, _ := r.Dst.Mask.Size()
+	return netip.PrefixFrom(ip.Unmap(), ones), true
+}

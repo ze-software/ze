@@ -11,11 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// stubRASender records that it was started and whether it was stopped.
+// stubRASender records that it was started, every spec it was updated to,
+// and whether it was stopped.
 type stubRASender struct {
 	spec    RASenderSpec
+	updates []RASenderSpec
 	stopped bool
 }
+
+func (s *stubRASender) Update(spec RASenderSpec) { s.updates = append(s.updates, spec) }
 
 func (s *stubRASender) Stop() { s.stopped = true }
 
@@ -32,7 +36,7 @@ func newRAFactoryRecorder(t *testing.T) *raFactoryRecorder {
 	r := &raFactoryRecorder{}
 	previous := raSenderFactory
 	t.Cleanup(func() { raSenderFactory = previous })
-	SetRASenderFactory(func(spec RASenderSpec) (RAStopper, error) {
+	SetRASenderFactory(func(spec RASenderSpec) (RASender, error) {
 		if r.err != nil {
 			return nil, r.err
 		}
@@ -50,9 +54,10 @@ func raTestConfig(t *testing.T, body string) *ifaceConfig {
 
 // VALIDATES: spec AC-5 and assumption A-5. reconcileRA starts a sender for a
 // unit that enables Router Advertisements, stops it when the config goes away,
-// and restarts it when the advertised values change.
-// PREVENTS: a config reload that leaves the old advertisement on the wire, and
-// a stopped sender that keeps its socket and its multicast group join.
+// and updates the running sender when the advertised values change.
+// PREVENTS: a config reload that leaves the old advertisement on the wire, a
+// restart that withdraws the router with a zero Router Lifetime, and a stopped
+// sender that keeps its socket and its multicast group join.
 func TestReconcileRA(t *testing.T) {
 	log := slog.New(slog.DiscardHandler)
 
@@ -131,21 +136,28 @@ func TestReconcileRA(t *testing.T) {
 		{"resolver list", `{"enabled": "true", "rdnss": {"server": ["2001:4860:4860::8888"]}}`},
 	}
 	for _, tt := range changes {
-		t.Run("restarts the sender when the "+tt.name+" changes", func(t *testing.T) {
+		t.Run("updates the running sender when the "+tt.name+" changes", func(t *testing.T) {
 			rec := newRAFactoryRecorder(t)
 			active := make(map[raUnitKey]raEntry)
 			reconcileRA(raTestConfig(t, `{"enabled": "true"}`), active, log)
 			require.Len(t, rec.started, 1)
 
-			reconcileRA(raTestConfig(t, tt.body), active, log)
+			want := raTestConfig(t, tt.body)
+			reconcileRA(want, active, log)
 
-			require.Len(t, rec.started, 2, "a changed advertisement must restart the sender")
-			assert.True(t, rec.started[0].stopped, "the old sender must stop before the new one starts")
+			// A restart would send Stop's final zero Router Lifetime, so a
+			// change reaches the wire through Update on the same sender.
+			require.Len(t, rec.started, 1, "a changed advertisement must not restart the sender")
+			assert.False(t, rec.started[0].stopped, "the sender must keep running")
+			require.Len(t, rec.started[0].updates, 1, "the changed advertisement must reach the sender")
+			got := rec.started[0].updates[0]
+			assert.False(t, got.Equal(rec.started[0].spec), "the update must carry the changed advertisement")
+			assert.True(t, got.Equal(active[raUnitKey{ifaceName: "eth0", unit: "0"}].spec), "the active entry must record the spec it sent")
 			assert.Len(t, active, 1)
 		})
 	}
 
-	t.Run("a prefix whose lifetime changes restarts the sender", func(t *testing.T) {
+	t.Run("a prefix whose lifetime changes updates the sender", func(t *testing.T) {
 		rec := newRAFactoryRecorder(t)
 		active := make(map[raUnitKey]raEntry)
 		reconcileRA(raTestConfig(t, `{"enabled": "true", "prefix": {"2001:db8:1::/64": {"valid-lifetime": "3600", "preferred-lifetime": "1800"}}}`), active, log)
@@ -153,8 +165,11 @@ func TestReconcileRA(t *testing.T) {
 
 		reconcileRA(raTestConfig(t, `{"enabled": "true", "prefix": {"2001:db8:1::/64": {"valid-lifetime": "7200", "preferred-lifetime": "1800"}}}`), active, log)
 
-		require.Len(t, rec.started, 2)
-		assert.True(t, rec.started[0].stopped)
+		require.Len(t, rec.started, 1)
+		assert.False(t, rec.started[0].stopped)
+		require.Len(t, rec.started[0].updates, 1)
+		require.Len(t, rec.started[0].updates[0].Advertisement.Prefixes, 1)
+		assert.Equal(t, uint32(7200), rec.started[0].updates[0].Advertisement.Prefixes[0].ValidLifetime)
 	})
 
 	t.Run("a failing factory leaves nothing running", func(t *testing.T) {

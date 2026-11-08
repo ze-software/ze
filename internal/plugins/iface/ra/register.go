@@ -62,7 +62,7 @@ func init() {
 
 // newSenderFromFactory starts one sender, bridging the interface component's
 // factory callback to this package's concrete type.
-func newSenderFromFactory(spec iface.RASenderSpec) (iface.RAStopper, error) {
+func newSenderFromFactory(spec iface.RASenderSpec) (iface.RASender, error) {
 	return NewSender(spec, loggerPtr.Load())
 }
 

@@ -610,7 +610,8 @@ func (w *v6Worker) expireDue() {
 	}
 }
 
-// shutdown removes the leased addresses and then releases the lease.
+// shutdown removes the leased addresses and then releases the lease, less
+// any delegated prefix a LAN unit took space from (releasableLease).
 //
 // RFC 9915 Section 18.2.7: "The client MUST stop using all of the leases
 // being released before the client begins the Release message exchange
@@ -633,11 +634,19 @@ func (w *v6Worker) shutdown() {
 	if err := w.registerLeased(); err != nil {
 		loggerPtr.Load().Debug("iface dhcp v6: leased-address registration failed", "iface", w.c.ifaceName, "err", err)
 	}
-	if len(lease.live(v6KindAddress, now)) == 0 && len(lease.live(v6KindPrefix, now)) == 0 {
+	// RFC 9915 Section 6.3
+	release := releasableLease(lease, func(prefix netip.Prefix) bool {
+		return iface.DelegatedPrefixInUse(w.c.ifaceName, prefix)
+	})
+	if len(release.bindings) < len(lease.bindings) {
+		loggerPtr.Load().Info("iface dhcp v6: delegated prefix kept out of the Release, a LAN unit numbers from it",
+			"iface", w.c.ifaceName)
+	}
+	if len(release.live(v6KindAddress, now)) == 0 && len(release.live(v6KindPrefix, now)) == 0 {
 		return
 	}
 
-	msg, err := w.buildFromLease(dhcpv6.MessageTypeRelease, lease, now)
+	msg, err := w.buildFromLease(dhcpv6.MessageTypeRelease, release, now)
 	if err != nil {
 		loggerPtr.Load().Debug("iface dhcp v6: cannot build Release", "iface", w.c.ifaceName, "err", err)
 		return
@@ -663,6 +672,26 @@ func (w *v6Worker) shutdown() {
 	if out.end != v6EndAnswered {
 		loggerPtr.Load().Debug("iface dhcp v6: Release unanswered", "iface", w.c.ifaceName)
 	}
+}
+
+// releasableLease returns a copy of lease without the delegated prefixes
+// inUse reports, so the Release names only what Ze stopped using.
+//
+// RFC 9915 Section 6.3: "A client that has delegated any of the address space
+// received through DHCP Prefix Delegation MUST NOT issue a DHCP Release on the
+// relevant delegated prefix while any of the address space is outstanding."
+// A lease left with no binding yields no Release at all.
+func releasableLease(lease *v6Lease, inUse func(netip.Prefix) bool) *v6Lease {
+	out := *lease
+	out.bindings = make([]v6Binding, 0, len(lease.bindings))
+	for i := range lease.bindings {
+		b := lease.bindings[i]
+		if b.kind == v6KindPrefix && inUse(b.prefix.Masked()) {
+			continue
+		}
+		out.bindings = append(out.bindings, b)
+	}
+	return &out
 }
 
 // completionMatcher accepts any identified Reply: the status of a Release or

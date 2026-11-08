@@ -2740,9 +2740,14 @@ and messages other than NEWROUTE or DELROUTE. Registered consumers receive
 Each event carries the kernel table and priority so consumers can identify the
 affected route, and the output device's interface index (`OutIfindex`, from
 RTA_OIF) so a consumer can ask whether a route leaves through a given device.
-Both `fib-kernel` (route recovery) and `kernel` (BGP redistribution)
-register as consumers. Late registration is supported: each event uses a snapshot
-of the handlers. On non-Linux, `subscribe()` blocks without delivering events.
+Three consumers register: `fib-kernel` (route recovery), `kernel` (BGP
+redistribution) and the `iface-ra` sender of a unit that numbers from a
+delegated prefix, which follows the main-table IPv6 default route through its
+WAN device for the RFC 7084 G-4 Router Lifetime and starts the watcher itself
+when no other consumer has. Late registration is supported: each event uses a
+snapshot of the handlers. A late consumer misses the routes the subscription
+listed when it opened, so `Watcher.ListRoutes` reads the routes for one prefix
+once from the kernel, in the watched namespace. On non-Linux, `subscribe()` blocks without delivering events.
 
 The watcher retries in two ways, because it has two failures. A subscription that was
 created and then died is re-created once a second, for as long as the process runs.

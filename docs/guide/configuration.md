@@ -3329,6 +3329,14 @@ together.
 
 <!-- source: internal/component/iface/config_ra.go -- raValidate, raParsePrefixEntry -->
 
+A unit with `ipv6 delegated-prefix <pppoe-client> { subnet-id <id>; }` numbers
+itself from that client's DHCPv6 delegated prefix and advertises the /64 with
+lifetimes bounded by the delegation. Its Router Lifetime then follows the WAN
+default route (RFC 7084 G-4). The PPPoE guide has the example
+([PPPoE client IPv6](pppoe.md#pppoe-client-ipv6)).
+
+<!-- source: internal/component/iface/delegated_prefix.go -- parseDelegatedPrefixes, verifyDelegatedPrefixes -->
+
 See [Interface Management](../features/interfaces.md#ipv6-router-advertisements)
 for the send loop, the counters, and the RFC references.
 
