@@ -117,8 +117,11 @@ and no Ze LAC, so it never reaches the bridge. The end-to-end proof of the
 relay data path is the topology scenario `access-up`
 (`./le test integration interop-topology scenario access-up`): a Ze CPE
 dials with no Service-Name, a Ze LAC relays it with `relay ""` to a Ze LNS,
-and the CPE pings the LNS across the session. It needs a Docker host running
-Ze's kernel and has not yet run green. Initiator tunnel interop is
+and the CPE pings the LNS across the session. It runs on a Docker host
+running Ze's kernel, and it goes red when the LAC skips the bridge: the LNS
+then logs an LCP negotiation timeout and the CPE never holds its address.
+`access-pool` proves the LNS pool fallback and `access-accounting` the
+RADIUS Start, Interim-Update and Stop over the same chain. Initiator tunnel interop is
 proven against xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
 
 ### Relay by realm (wholesale LAC)

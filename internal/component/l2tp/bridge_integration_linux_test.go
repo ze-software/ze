@@ -14,7 +14,9 @@
 // with a pppol2tp socket. They live in package l2tp_test because the PPPoE
 // package they drive imports this one.
 // `./le test deployment l2tp-ppp` and `gokrazy-l2tp-ppp` carry no PPPoE
-// subscriber and no Ze LAC, so they prove none of this.
+// subscriber and no Ze LAC, so they prove none of this. The end-to-end proof
+// of the relay data path is the topology scenario access-up
+// (`./le test integration interop-topology scenario access-up`).
 
 package l2tp
 

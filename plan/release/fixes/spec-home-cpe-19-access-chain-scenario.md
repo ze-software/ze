@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Validation of shipped behaviour: the PPPoE-to-L2TP relay (LAC, `l2tp relay`) ships, and its data path has no end-to-end proof. The only LAC scenario (`03-ze-lac-xl2tpd-lns`) proves the control connection alone, and `./le test deployment l2tp-ppp` runs a Ze LNS against xl2tpd and pppd with no PPPoE and no relay. |
 | RFC gaps | - |
 | Depends | Implementation: `spec-home-cpe-18-interoplab-multi-link-topology.md` (topology suite); `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (in-progress). The LNS's `mru 1492`, CHAP-only `authentication allow [ chap-md5 ]` and negotiated `show l2tp session id` keys AC-11 reads are implemented (`docs/guide/l2tp.md`, "PPP negotiation", "Authentication" and "Read commands"). Closure: none beyond those. The DNS clause of `access-up` (AC-6) is owned by `spec-home-cpe-13-pppoe-client-ipcp-dns.md` and holds that spec's closure, not this one's |
-| Phase | 0/3 |
+| Phase | 3/3 |
 | Handoff | - |
-| Updated | 2026-11-04 |
+| Updated | 2026-11-08 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 19).
 
@@ -135,11 +135,11 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Ze's LAC relays LCP and CHAP transparently (no proxy LCP) when the relay is bound | `bridge_linux.go` Design header (RFC 2661 Section 2) | the LAC terminates LCP and child 14 is a prerequisite | `access-up` | unvalidated |
-| A-2 | The LNS sends DNS in IPCP when configured | umbrella node table | the DNS clause cannot be asserted even after child 13 | read the IPCP producer before writing the clause | unvalidated |
-| A-3 | The CPE learns DNS only after child 13 | umbrella capability table | clause already passable | the clause is gated on child 13's landing and named as such | unvalidated |
+| A-1 | Ze's LAC relays LCP and CHAP transparently (no proxy LCP) when the relay is bound | `bridge_linux.go` Design header (RFC 2661 Section 2) | the LAC terminates LCP and child 14 is a prerequisite | `access-up` | confirmed |
+| A-2 | The LNS sends DNS in IPCP when configured | umbrella node table | the DNS clause cannot be asserted even after child 13 | read the IPCP producer before writing the clause | confirmed |
+| A-3 | The CPE learns DNS only after child 13 | umbrella capability table | clause already passable | the clause is gated on child 13's landing and named as such | confirmed |
 | A-4 | Interim accounting cannot be faster than 60 s | RFC 2869 Section 5.16 MUST; `clampAcctInterval` | none | read above | validated |
-| A-5 | Docker hosts run Ze's kernel with PPPoE, L2TP and PPPoL2TP | `spec-docker-hosts-run-the-ze-kernel` D-5 | `Suite.Run` refuses the host | the kernel probe | unvalidated |
+| A-5 | Docker hosts run Ze's kernel with PPPoE, L2TP and PPPoL2TP | `spec-docker-hosts-run-the-ze-kernel` D-5 | `Suite.Run` refuses the host | the kernel probe | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -185,8 +185,8 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 
 | Scenario | Break (producer) | Expected red | Trap it rules out |
 |----------|------------------|--------------|-------------------|
-| `access-up` | `maybeBridgePPPoE` returns before `bridgeChannels` | no LCP Opened at the CPE; AC-5 times out | trap 4: the ping cannot reach the LNS another way because eth0 has no address |
-| `access-up` | `relayTargetLocked` treats the empty service as no match | no PADO to an empty Service-Name (AC-1) | trap 2: the assertion is a present PADO, not an absence |
+| `access-up` | `maybeBridgePPPoE` skips `bridgeChannels` | no LCP Opened across the LAC (the LNS logs "LCP negotiation timeout"); the first clause, the AC-4 address wait, times out before AC-5 is reached | trap 4 is ruled out by AC-5's own eth0 and route clauses (`checkPingAcross`, `TestAccessChainRouteVerdict`), not by this walk, which never reaches the ping |
+| `access-up` | `relayTargetLocked` treats the empty service as no match | the LAC terminates the session locally after PADR (its own PPP rejects CHAP: no local users), so the CPE never holds 203.0.113.1 (AC-4) and the LAC carries no L2TP session (AC-2). A PADO is still sent: the relay decision is made at PADR (`InterfaceServer.relayToL2TP`, `internal/component/l2tp/pppoe/server.go`), so AC-1 cannot go red here | trap 2: the assertion is a present address, not an absence |
 | `access-up` | `authradius` drops Framed-IP-Address from the Accept | CPE gets a pool address; AC-4 red | trap 5: the address clause reads RADIUS's attribute, not IPCP alone |
 | `access-pool` | pool fallback returns no address | IPCP fails; AC-7 red | - |
 | `access-accounting` | interim scheduling never fires | no Interim-Update in `ze_detail` | trap 2: asserts a present record |
@@ -344,3 +344,163 @@ None: `grep -rn 'relay data\|LAC bridge\|l2tp-ppp' plan/journal/` finds no open 
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Three topology scenarios, `access-up`, `access-pool` and `access-accounting`, registered in `internal/le/interoplab/topology/register_access_chain.go` (`accessChain`, `dialChain`), with checkers `checkAccessUp`, `checkAccessPool`, `checkAccessAccounting` (`check_access.go`), verdicts (`check_access_verdict.go`) and capture parsing (`check_access_capture.go`). Landed in 93362da68e, 42a8e2ff74 (AC-6 DNS), a0e83e12a1, 79e0c3ee1d, 8e2c5c8dca, df706464b6.
+- Closure: `features/l2tpv2-bng.md` gains the three `topology/` Interop entries and an access-chain paragraph; `docs/guide/l2tp.md` no longer says `access-up` has not run; `TestLACChannelBridge`'s header names `access-up` as the relay data-path proof (AC-10).
+
+### Bugs Found/Fixed
+- None in Ze through this spec's checkers. The 12:51 and 14:23 lab runs failed because ze-cpe lacked `CAP_BPF`, fixed by 9167d499fd; they are not cited.
+
+### Documentation Updates
+- `docs/guide/l2tp.md` relay paragraph: access-up, access-pool and access-accounting named with what each proves.
+- `features/l2tpv2-bng.md`: Interop entries and a paragraph anchored at `check_access.go -- checkAccessUp, checkAccessPool, checkAccessAccounting`; Doc review re-dated.
+- `./le feature check`: no refusal for `l2tpv2-bng`. `./le doc check all`: no finding on the edited files (its one CLAIM, the `enableIPv6Forwarding` anchor in `interop.md`, belongs to the DHCPv6-PD scenario, not this spec).
+
+### Deviations from Plan
+- `register_access.go` is `register_access_chain.go`; the scenarios hold only `users` and `ze-lns.conf`, because the CPE runs the home-CPE lab's converted configuration and `ze-lac.conf` is shared under `test/interop-topology/access-chain/`.
+- Red walk `c19-empty-service-nomatch`: the spec predicted "no PADO". A PADO is still sent, because the relay is decided at PADR (`InterfaceServer.relayToL2TP`, `internal/component/l2tp/pppoe/server.go`). The red is the local termination instead (Red walks table corrected).
+- Red walk `c14-bridge-skipped`: the spec predicted "AC-5 times out". The first clause of `checkAccessUp` is the AC-4 address wait, which times out first; the LNS log shows the cause, "LCP negotiation timeout after 30s". Trap 4 is ruled out by AC-5's eth0 and route clauses, not by this walk.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The spec stayed at `design`, Phase 0/3, while six commits implemented it under `Spec-work: home-cpe-1-logical-interface-name` | its implementation and closure bookkeeping were never joined | closure found the status `design` | status moved ready then in-progress by claim; closure records the commits |
+| assumption | Two red walk predictions named the wrong clause | relay decided at PADR; the address wait precedes the ping | reading the broken logs' FAIL lines | Red walks table corrected |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `access-up` | Done | `check_access.go` `checkAccessUp` | green 2026-11-08 |
+| `access-pool` | Done | `check_access.go` `checkAccessPool` | green |
+| `access-accounting` | Done | `check_access.go` `checkAccessAccounting` | green |
+| every scenario broken once at the producer | Done | red walks below | six walks |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `checkDiscovery` over `discoveryVerdict` | PADO Service-Name length 0, PADS non-zero |
+| AC-2 | Done | `checkLACRelays` | one tunnel to 192.0.2.3 port 1701, one session, PPPoE session on the access device, no addressed ppp device |
+| AC-3 | Done | `waitLogin`, `loginVerdict`, `lnsSessionOf` | NAS-Identifier `ze-lns`, NAS-IP and source 192.0.2.3 |
+| AC-4 | Done | `waitCPEAddress` with 203.0.113.1 | outside the pool |
+| AC-5 | Done | `checkPingAcross` | eth0 empty, route `dev pppoe0`, 0% loss, LNS rx_packets advance |
+| AC-6 | Done | `waitResolvers` (42a8e2ff74) | learned 192.0.2.53, 192.0.2.54; resolv.conf static only |
+| AC-7 | Done | `checkAccessPool` | `show l2tp pool` allocated 1 to the session |
+| AC-8 | Done | `waitAccounting`, `accountingVerdict` | Start, Interim, Stop, one Acct-Session-Id, octets at least 20560 |
+| AC-9 | Done | red walks table below | image IDs recorded |
+| AC-10 | Done | `docs/guide/l2tp.md` relay paragraph, `bridge_integration_linux_test.go` header | both name access-up |
+| AC-11 | Done | `checkNegotiated`, `lcpMRUVerdict` | mru 1492, chap-md5, CPE MTU 1492, LCP Configure-Request MRU 1492 on core |
+| AC-12 | Done | `loginVerdict` | CHAP-Password present, User-Password absent |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestAccessChainDetailVerdict` | Done | `check_access_test.go` | PASS 2026-11-08 (see Pre-Commit Verification) |
+| `TestAccessChainPADOVerdict` | Done | `check_access_test.go` | as above |
+| `TestAccessChainRouteVerdict` | Done | `check_access_test.go` | as above |
+| `access-up`, `access-pool`, `access-accounting` | Done | `test/interop-topology/scenarios/` | green 2026-11-08 about 18:00 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `register_access.go` | Changed | `register_access_chain.go` |
+| `check_access.go`, `check_access_test.go` | Done | plus `check_access_verdict.go`, `check_access_capture.go` |
+| scenario directories | Changed | `users` and `ze-lns.conf`; CPE and LAC configs shared |
+| `docs/guide/l2tp.md`, `docs/architecture/testing/interop.md` | Done | interop.md scenario inventory rows for the three scenarios |
+
+### Audit Summary
+- **Total items:** 23
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| a subscriber's PPP session crosses Ze's LAC and terminates on Ze's LNS | interop | `access-up` 1 passed (log `rwinv/out-interop/c19-up-bridge-clean.log`, ze image sha256:eccb83541e13); with the bridge skipped it goes red and the LNS logs LCP negotiation timeout |
+| pool fallback | interop | `access-pool` 1 passed (`c19-pool-clean.log`); red with the pool empty ("ipcp: handler rejected: pool exhausted") |
+| accounting Start, interim, Stop with octets | interop | `access-accounting` 1 passed (`c19-acct-interim-clean.log`, 1m51s); red without interims and with zero octets |
+
+### Red walks (run 2026-11-08 from 17:35, after 9167d499fd; logs under `tmp/session/2026-11-07-104251/scratch/rwinv/out-interop/`)
+
+Each overlay copy was diffed against today's source: each differs from it in the one named line only.
+
+| Walk | Break | Clean (ze image) | Broken (ze image) | Red observed | Named failure? |
+|------|-------|------------------|-------------------|--------------|----------------|
+| c19-up-bridge | `maybeBridgePPPoE` calls no `bridgeChannels` | pass, sha256:eccb83541e13 | FAIL, sha256:67d00d5ffc10 | pppoe0 never held 203.0.113.1; LNS: "LCP negotiation timeout after 30s" three times | yes: no LCP across the LAC; the address wait fires before AC-5 |
+| c19-up-empty-service | `relayTargetLocked` refuses `""` | pass, sha256:0352b017a941 | FAIL, sha256:f9eefcb3dbf8 | pppoe0 does not exist; LAC (`subsystem=pppoe`) "chap: auth rejected: no users configured" | yes: local termination instead of relay |
+| c19-up-framed-ip | `extract.go` drops `meta.FramedIP` | pass, sha256:7424e4fc1ec5 | FAIL, sha256:1ffee23b7b29 | pppoe0 holds 100.64.0.2, not 203.0.113.1 | yes: AC-4 |
+| c19-pool | `pool.go` allocate always exhausted | pass, sha256:be2ef6390ad2 | FAIL, sha256:bd1d4e962bbd | no 100.64.0.0/24 address; LNS "pool exhausted" | yes: AC-7 |
+| c19-acct-interim | `runAccounting` skips `interimLoop` | pass, sha256:e2b6db1327e9 | FAIL, sha256:60f140d7d435 | the session's Acct-Session-Id has no Interim-Update | yes: AC-8 |
+| c19-acct-octets | Stop and Interim octets forced to 0 | pass, sha256:e84572a4c825 | FAIL, sha256:33b09db9e029 | Stop Acct-Input-Octets 0 below 20560 | yes: AC-8 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC demonstrated | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-19-access-chain-scenario-7e292f27-ced0-427f-a7b6-3a931db211f9.md` |
+| `./le spec review check` | clean, over the spec and the three closure files |
+| Rounds | 1 |
+| Reviewer lenses used | logic and vacuity of each checker clause, bounds of the capture parsers (`discoveryOfFrame`, `udpFrom`, `l2tpPayload`, `lcpMRUOption`), style pass over `check_access*.go` and `register_access_chain.go` (no panic, no reachable unchecked slice) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | the guide said `access-up` had not run green | `docs/guide/l2tp.md` relay paragraph | rewritten in closure |
+| 2 | ISSUE | AC-10: `TestLACChannelBridge`'s header did not name `access-up` | `bridge_integration_linux_test.go` | header names it |
+
+NOTEs: `loginVerdict` judges the user's first logged answer, so a reject before an accept fails the wait rather than waiting on; the `accountingVerdict` octet check ignores Gigawords, which cannot be set at 20 560 octets.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/interoplab/topology/register_access_chain.go`, `check_access.go`, `check_access_test.go` | yes | `ls internal/le/interoplab/topology/` 2026-11-08 |
+| `test/interop-topology/scenarios/access-{up,pool,accounting}/` | yes | each holds `users`, `ze-lns.conf` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-8, AC-11, AC-12 | asserted by the checkers named in the audit | three scenarios 1 passed in the clean logs above |
+| AC-9 | six reds | broken logs, FAIL lines quoted in the red walks table |
+| AC-10 | both texts name access-up | `grep -n access-up docs/guide/l2tp.md internal/component/l2tp/bridge_integration_linux_test.go` |
+| unit tests | `TestAccessChain*` pass | `./le job run label c19-topo command go test -tags <ze_core zetest and every ze_ gate> -count=1 -v -run TestAccessChain ./internal/le/interoplab/topology/`: ok, 9 tests PASS (`tmp/session/2026-11-07-104251/scratch/c19-topo.log`); the whole package ok (`c19-topo-all.log`), 2026-11-08 about 18:40 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le test integration interop-topology scenario access-up` (and the two others) | scenario directories, no `.ci` | the driver ran this exact command for each clean and broken log |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | access-up green; `checkLACRelays` finds no addressed ppp device on the LAC |
+| A-2 | confirmed | `waitResolvers` reads 192.0.2.53 then 192.0.2.54 learned in IPCP |
+| A-3 | confirmed | AC-6 clause added in 42a8e2ff74 after child 13's client landed |
+| A-4 | confirmed | `clampAcctInterval`; interim waited 100 s |
+| A-5 | confirmed | the 2026-11-08 runs passed on a Ze-kernel Docker host |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1 feature evidence | `features/l2tpv2-bng.md` Interop; `./le feature check` no l2tpv2-bng refusal | yes |
+| 6 user guide | `docs/guide/l2tp.md` relay paragraph vs `checkAccessUp` | yes |
+| 9 RFC behaviour | No: no tagged unit added (`grep -rln 'RFC requirement' internal/le/interoplab/topology` empty); `./le rfc check` lines for rfc2661 and rfc2516 name other specs' units | yes |
+| 10 test infrastructure | `docs/architecture/testing/interop.md` rows for the three scenarios | yes |
+| 17 relay example | `list relay` key `service`, length 0..255, in `ze-l2tp-conf.yang` | yes |
