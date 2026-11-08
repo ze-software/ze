@@ -21,8 +21,9 @@ const showPPPoEClientDevice = "pppoe0"
 // showInterfacePPPoEClient proves spec-home-cpe-13 AC-11 for a client with no
 // session: `show interface pppoe-client` answers one object for pppoe0, in
 // state discovery, on its source interface, whose dns-servers key is present
-// and an empty list, never absent and never null. It reads the raw JSON, so a
-// missing key cannot decode as an empty slice.
+// and an empty list, never absent and never null, and whose delegated-prefixes
+// key is the same. It reads the raw JSON, so a missing key cannot decode as an
+// empty slice.
 func showInterfacePPPoEClient(ctx context.Context, plugin *sdk.Plugin) error {
 	var last string
 	var clients []map[string]json.RawMessage
@@ -44,6 +45,8 @@ func showInterfacePPPoEClient(ctx context.Context, plugin *sdk.Plugin) error {
 		{"state", `"discovery"`},
 		{"source-interface", `"` + kernelLink + `"`},
 		{"dns-servers", `[]`},
+		// No session, so no DHCPv6 lease: the key is present and empty.
+		{"delegated-prefixes", `[]`},
 	}
 	for _, field := range want {
 		got, present := client[field.key]
@@ -56,6 +59,6 @@ func showInterfacePPPoEClient(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	var tb textbuf.Buffer
 	tb.Str("OK: show interface pppoe-client: ").Str(showPPPoEClientDevice).
-		Str(" in discovery on ").Str(kernelLink).Str(", dns-servers []\n").StdErr()
+		Str(" in discovery on ").Str(kernelLink).Str(", dns-servers [], delegated-prefixes []\n").StdErr()
 	return nil
 }

@@ -259,6 +259,17 @@ advertisement with Router Lifetime 0 leaves at once when either is lost (RFC 708
 G-4, G-5, L-4). While a LAN unit holds space from the prefix, the client never
 releases it.
 
+`show interface pppoe-client` lists, under `delegated-prefixes`, each prefix the
+client's lease holds with its `valid-lifetime` and `preferred-lifetime`: the
+whole seconds that remain when you ask, 4294967295 meaning infinite.
+`show interface delegated-prefix` answers one row per `delegated-prefix` entry
+of an enabled unit, naming the `interface`, `unit`, `source` and `subnet-id`.
+A unit whose `state` is `installed` also carries its `address`, the derived /64
+as `prefix`, the whole `delegated` prefix and the lifetimes that remain. The
+other states carry a `reason`: `waiting` (the source holds no delegated prefix),
+`too-small` (the delegated prefix cannot hold the subnet id, with the fix) and
+`not-installed` (the address install failed, and the log names why).
+
 The interop scenarios `pppoe-ipv6cp-ze-client` and
 `pppoe-ipv6cp-rejected-ze-client` prove this against accel-ppp: the first the
 negotiated link-local address, the RA default route and SLAAC, the second an
@@ -267,6 +278,8 @@ access concentrator that rejects IPv6CP (`docs/labs/pppoe-interop.md`).
 <!-- source: internal/component/iface/register.go -- reconcileDHCP, pppoeClientDHCPUnit -->
 <!-- source: internal/component/iface/delegated_consumer.go -- runDelegationWorker, installDelegatedAddress -->
 <!-- source: internal/component/iface/delegated_prefix.go -- deriveDelegatedAddress, verifyDelegatedPrefixes -->
+<!-- source: internal/component/iface/delegated_lease.go -- DelegatedPrefixStatus, statusOf -->
+<!-- source: internal/component/iface/delegated_prefix_command.go -- delegatedUnitRowOf, delegatedUnitStatusOf -->
 <!-- source: internal/plugins/iface/ra/advertiser.go -- build, routerLifetime -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- releasableLease -->
 

@@ -198,6 +198,46 @@ func (t *delegations) claimed(source string, prefix netip.Prefix, now time.Time)
 	return valid.Remaining(now) > 0
 }
 
+// DelegatedPrefixStatus is one delegated prefix a pppoe-client's DHCPv6 lease
+// holds, as `show interface pppoe-client` reports it. The lifetimes are the
+// whole seconds that remain at the moment of the answer, never the values the
+// Reply carried, and 4294967295 is infinite (RFC 9915 Section 7.7).
+type DelegatedPrefixStatus struct {
+	Prefix            netip.Prefix `json:"prefix"`
+	ValidLifetime     uint32       `json:"valid-lifetime"`
+	PreferredLifetime uint32       `json:"preferred-lifetime"`
+}
+
+// statusOf returns the live delegations of source at now, sorted by prefix.
+// It is never nil, so a client that holds none answers an empty list. A
+// delegation whose valid lifetime ran out is not listed: the client no longer
+// holds it, even before the expiry event removes it from the table.
+func (t *delegations) statusOf(source string, now time.Time) []DelegatedPrefixStatus {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out := make([]DelegatedPrefixStatus, 0, len(t.held[source]))
+	for _, d := range t.held[source] {
+		valid := d.valid.Remaining(now)
+		if valid == 0 {
+			continue
+		}
+		out = append(out, DelegatedPrefixStatus{
+			Prefix:        d.prefix,
+			ValidLifetime: valid,
+			// RFC 4861 Section 4.6.2: the preferred lifetime never exceeds
+			// the valid one, the bound DelegatedAdvert.Lifetimes keeps too.
+			PreferredLifetime: min(d.preferred.Remaining(now), valid),
+		})
+	}
+	slices.SortFunc(out, func(a, b DelegatedPrefixStatus) int {
+		if c := a.Prefix.Addr().Compare(b.Prefix.Addr()); c != 0 {
+			return c
+		}
+		return a.Prefix.Bits() - b.Prefix.Bits()
+	})
+	return out
+}
+
 // DelegatedPrefixInUse reports whether a unit took space from prefix, which
 // the DHCPv6 client of source holds, and that space can still be in use: an
 // address on a unit, or a host's address formed from an advertised /64. The

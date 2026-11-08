@@ -57,6 +57,7 @@ func TestIfaceInterfaceCmdSchemaOwnsInterface(t *testing.T) {
 		`ze:command "ze-iface:show-interface-errors"`,
 		`ze:command "ze-iface:show-interface-rate"`,
 		`ze:command "ze-iface:show-interface-scan"`,
+		`ze:command "ze-iface:show-interface-delegated-prefix"`,
 		`ze:command "ze-iface:show-interface-detail"`,
 		`ze:command "ze-iface:show-interface-counters"`,
 		`ze:command "ze-iface:monitor-interface-rate"`,

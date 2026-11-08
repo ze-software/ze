@@ -10,6 +10,9 @@ module ze-iface-interface-cmd {
     // clear verb roots. See ai/rules/plugin-self-containment.md.
     description "The show interface, monitor interface rate, and clear interface counters command tree.";
     // The model now states the grammar, and the generated usage line reads it.
+    // The WAN side reports what its DHCPv6 lease delegated, and the LAN side the
+    // /64 each unit derived from it, with the lifetimes that remain.
+    revision 2026-11-08 { description "show interface pppoe-client reports delegated-prefixes; show interface delegated-prefix reports each LAN unit's derived /64 and its source."; }
     revision 2026-10-17 { description "clear interface counters alone is refused; clear interface counters all resets every interface."; }
     revision 2026-08-29 { description "Declare the value the description spelled in prose."; }
     // The show interface family, monitor interface rate, and clear interface
@@ -34,7 +37,7 @@ module ze-iface-interface-cmd {
             ze:command "ze-iface:show-interface";
             description "Without arguments, returns all interfaces with full detail.
 Subcommands: brief, type <t>, errors, rate [<name>], pppoe-client,
-name <name> detail, name <name> counters.";
+delegated-prefix, name <name> detail, name <name> counters.";
             ze:help "Show network interfaces on this box.";
 
             container brief {
@@ -61,8 +64,28 @@ views. Use it during initial setup to see what the box has.";
 interface, session id, local and peer address, uptime, and the DNS servers
 learned from IPCP (RFC 1877), primary first. dns-servers is an empty list
 when the access concentrator supplied none; a configured system name-server
-still takes precedence in resolv.conf.";
-                ze:help "Show PPPoE client sessions and the DNS servers they learned.";
+still takes precedence in resolv.conf. delegated-prefixes lists each prefix
+the client's DHCPv6 lease holds (RFC 9915 IA_PD) as prefix, valid-lifetime and
+preferred-lifetime, sorted by prefix: the lifetimes are the whole seconds that
+remain at the moment of the answer, 4294967295 meaning infinite, and the list
+is empty when no prefix is delegated.";
+                ze:help "Show PPPoE client sessions, the DNS servers they learned and their delegated prefixes.";
+            }
+
+            container delegated-prefix {
+                config false;
+                ze:command "ze-iface:show-interface-delegated-prefix";
+                description "One object per delegated-prefix entry of every enabled
+unit, sorted by interface, unit and source: interface, unit, source (the
+pppoe-client whose lease delegates the prefix), subnet-id, and state. state is
+installed when the unit holds its address, which adds device, address (the
+unit's address with its /64 length), prefix (the derived /64), delegated (the
+whole delegated prefix), valid-lifetime and preferred-lifetime (whole seconds
+remaining, 4294967295 meaning infinite). waiting means the source holds no
+delegated prefix; too-small means the delegated prefix cannot hold the
+subnet-id; not-installed means the address install failed. Each of those
+three carries a reason, and the last two name the delegated prefix.";
+                ze:help "Show the /64 each LAN unit takes from a delegated prefix, and its source.";
             }
 
             container type {

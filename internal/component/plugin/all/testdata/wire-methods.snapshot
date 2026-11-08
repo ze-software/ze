@@ -175,8 +175,10 @@ ze-iface:show-arp
 ze-iface:show-interface
 ze-iface:show-interface-brief
 ze-iface:show-interface-counters
+ze-iface:show-interface-delegated-prefix
 ze-iface:show-interface-detail
 ze-iface:show-interface-errors
+ze-iface:show-interface-pppoe-client
 ze-iface:show-interface-rate
 ze-iface:show-interface-scan
 ze-iface:show-interface-type

@@ -123,11 +123,16 @@ func newDelegatedState() *delegatedState {
 
 // runDelegationWorker numbers each unit from its delegated prefix. Create the
 // queue, start this worker once, push events from the bus, then close stop
-// and wait on done. After each pass it calls refreshRA, so a unit's
-// advertisement follows its address. The loop runs until stop closes.
+// and wait on done. After each pass it publishes each entry's rows for
+// DelegatedPrefixCommand and calls refreshRA, so a unit's advertisement
+// follows its address. The loop runs until stop closes, and the rows are
+// withdrawn then, so no answer outlives the worker that produced it.
 func runDelegationWorker(q *delegationQueue, stop <-chan struct{}, done chan<- struct{}, activeCfg *atomic.Pointer[ifaceConfig], refreshRA func(), log *slog.Logger) {
 	defer close(done)
+	defer globalDelegatedUnits.Store(nil)
 	state := newDelegatedState()
+	empty := []delegatedUnitRow{}
+	globalDelegatedUnits.Store(&empty)
 	for {
 		select {
 		case <-stop:
@@ -135,7 +140,11 @@ func runDelegationWorker(q *delegationQueue, stop <-chan struct{}, done chan<- s
 		case <-q.notify:
 		}
 		recordDelegationEvents(q.take(), log)
-		applyDelegatedAddresses(activeCfg.Load(), state, time.Now(), log)
+		cfg := activeCfg.Load()
+		now := time.Now()
+		applyDelegatedAddresses(cfg, state, now, log)
+		rows := delegatedUnitRows(cfg, state, now)
+		globalDelegatedUnits.Store(&rows)
 		refreshRA()
 	}
 }

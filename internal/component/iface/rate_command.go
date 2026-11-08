@@ -16,6 +16,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -58,7 +59,11 @@ func commandDecls() []sdk.CommandDecl {
 		},
 		{
 			Name:      PPPoEClientCommand,
-			ShortHelp: "Show each PPPoE client: session, addresses and learned DNS servers.",
+			ShortHelp: "Show each PPPoE client: session, addresses, learned DNS servers and delegated prefixes.",
+		},
+		{
+			Name:      DelegatedPrefixCommand,
+			ShortHelp: "Show the /64 each LAN unit takes from a delegated prefix, and its source.",
 		},
 	}
 }
@@ -71,6 +76,13 @@ func executeCommand(command string, args []string) (string, any, error) {
 			return "error", nil, err
 		}
 		return "done", statuses, nil
+	}
+	if strings.EqualFold(command, DelegatedPrefixCommand) {
+		rows, err := delegatedPrefixAnswer(globalDelegatedUnits.Load(), time.Now())
+		if err != nil {
+			return "error", nil, err
+		}
+		return "done", rows, nil
 	}
 	if !strings.EqualFold(command, RateCommand) {
 		var tb textbuf.Buffer

@@ -71,6 +71,11 @@ type PPPoEClientStatus struct {
 	// primary first. It is never nil, so the key is an empty list when the
 	// access concentrator supplied none.
 	DNSServers []string `json:"dns-servers"`
+	// DelegatedPrefixes are the prefixes the client's DHCPv6 lease holds
+	// (RFC 9915 IA_PD), with the lifetimes that remain, sorted by prefix. It
+	// is never nil, so the key is an empty list when the client requests no
+	// prefix or the server delegated none.
+	DelegatedPrefixes []DelegatedPrefixStatus `json:"delegated-prefixes"`
 }
 
 // PPPoEDialer abstracts the platform-specific PPPoE discovery and kernel
@@ -207,6 +212,9 @@ func (c *PPPoEClient) status() PPPoEClientStatus {
 		SessionID:       c.sessID,
 		Uptime:          uptime,
 		DNSServers:      append([]string{}, c.dnsServers...),
+		// The lease events are keyed by the client's name, the source a
+		// LAN unit's delegated-prefix entry names.
+		DelegatedPrefixes: heldDelegations.statusOf(c.cfg.Name, time.Now()),
 	}
 }
 

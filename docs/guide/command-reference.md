@@ -805,7 +805,11 @@ ze show interface rate             # Per-second rate data for all interfaces
 ze show interface rate <name>      # Per-second rate data for one interface
 ze show interface pppoe-client     # Each PPPoE client: name, state, source-interface, ppp-interface,
                                    # session-id, local-ip, peer-ip, uptime, dns-servers (IPCP-learned,
-                                   # primary first, [] when none)
+                                   # primary first, [] when none), delegated-prefixes (DHCPv6 IA_PD:
+                                   # prefix, valid-lifetime, preferred-lifetime remaining, [] when none)
+ze show interface delegated-prefix # Each LAN unit's delegated-prefix entry: interface, unit, source,
+                                   # subnet-id, state; installed adds device, address, prefix (the /64),
+                                   # delegated, valid-lifetime, preferred-lifetime; others add a reason
 ze show interface --json           # JSON output
 ze interface create dummy <name>   # Create a dummy interface
 ze interface create veth <n> <p>   # Create a veth pair
