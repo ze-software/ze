@@ -927,11 +927,15 @@ func TestOwnDockerCommandRunsAsRunner(t *testing.T) {
 func TestQEMUNightlyScheduleActionsCachesAndBudgets(t *testing.T) {
 	const name = "qemu-nightly.yml"
 	// Advisory is the schedule-only trigger, so requireScheduledOnly is the
-	// whole of it. This workflow's three jobs still carry
-	// `continue-on-error: true`. The 2026-09-02 repair covered
-	// evidence-nightly.yml alone, and widening it here is a decision nobody
-	// has taken.
+	// whole of it, and each job states its own verdict: a job-level
+	// `continue-on-error: true` would report a failed run as a success.
+	//
+	// MUTATION: (.github/workflows/qemu-nightly.yml,
+	// "    runs-on: ubuntu-latest\n    timeout-minutes: 180",
+	// "    runs-on: ubuntu-latest\n    continue-on-error: true\n    timeout-minutes: 180"):
+	// the needs-linux job reports success when it fails, and this test refuses it.
 	requireScheduledOnly(t, name)
+	requireEveryJobStatesItsOwnVerdict(t, name)
 	source := workflowSource(t, name)
 	for _, budget := range []string{"timeout-minutes: 180", "timeout-minutes: 120", "timeout-minutes: 150"} {
 		if !strings.Contains(source, budget) {

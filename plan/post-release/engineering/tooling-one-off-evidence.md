@@ -961,6 +961,29 @@ that an accepted line executes successfully, or that a writing action has the
 correct effect metadata. P-34/P-38 must retain those separate boundaries when
 recording current native entry-point results.
 
+P-34 carriers added 2026-11-08, written and not yet run. Each is membership
+over the live producer, with no count or order:
+
+| Obligation | Carrier | Boundary |
+| --- | --- | --- |
+| Action contracts | `TestActionsCarryTheirContracts` (`internal/le/site/terminaldemo/actions_contract_test.go`), same name as the retired snapshot, membership form | Asserts the area name, `check` read-only and `build`/`render` writing, `render` takes arguments, `pty` alone forwards. No `Why` prose, no `pty` writes claim. Does not restore the retired four-row snapshot |
+| Renamed callers | `TestRenamedCallersReachRegisteredActions` (`internal/le/one_off_proof_test.go`) | Every rename-map row that names a new action reaches a verb its command's table declares, and no retired spelling is still served. The three callers the 2026-10-27 row named were already moved: `test/runner/verify-scope-freshness-scoped.ci` calls `verify status record`, `ui_fixture_le_binary_dispatches.go` requires doc index `check`/`update`, `le-discovery-answers` calls `update`. No scan of `.ci` or fixture Go argv; workflows resolve through `workflowcheck.actionExists` |
+| Lab grouping | `TestLabPinReportDoesNotWrite` (`internal/le/lab/pin/group_test.go`) | `lab pin` is registered under `GroupGenerate` (register.go); the test refuses `GroupReport` while a row writes. `TestReportAreasWriteNothing` remains the all-area rule |
+
+## Retired workflow, discovery and probe assertions (P-19)
+
+Found with `git log -S` on each name. Coverage dispositions read from source,
+not new runtime results. None of the three commits carries a
+`Weakening-approved:` trailer, so each row still owes an independent
+`ze-test-judge` verdict.
+
+| Retired assertion | Removed in | Approval and current disposition |
+| --- | --- | --- |
+| `workflowcheck.requireEveryJobAdvisory` in `TestEvidenceNightlyScheduleActionsAndPrivileges`: every `evidence-nightly.yml` job carries `continue-on-error: true` | `6df62d6f73` (2026-09-13) | The commit body shows the old expectation wrong against its producer: `7682286f9b` removed the key on 2026-09-02 because the workflow reported success while five of six jobs failed. The property the name meant (no merge waits on the job) is `requireScheduledOnly`: `schedule:` present, no `push:` or `pull_request:`. The inverted key is now `requireEveryJobStatesItsOwnVerdict`, which refuses job-level `continue-on-error: true`. Independent judge, 2026-11-08: APPROVE (b) |
+| The same helper in `TestQEMUNightlyScheduleActionsCachesAndBudgets`: every `qemu-nightly.yml` job carries the key | `6df62d6f73` | Independent judge, 2026-11-08: REFUSE, because the key had no assertion either way while the three jobs still carried it, so a failed nightly job reported success. Repaired: the key is removed from all three jobs and the test now calls `requireEveryJobStatesItsOwnVerdict` after `requireScheduledOnly` |
+| `le-discovery-answers` `gitChangedFiles`: the router's `changed` list equals live-checkout `git status --porcelain` paths | `3815463353` (2026-10-05) | The old expectation was wrong against its producer: `616e397902` made `le doc wiring` judge the unpushed range, so any unpushed commit reddened it. Replaced by `leDiscoveryWiringTree` (`internal/test/fixture/ui_fixture_le_discovery_answers.go`, called at line 53, compared at line 177). It builds an owned repository with a published `origin/HEAD` baseline, one unpushed commit, a staged, an unstaged and an untracked file, and requires the routed list to equal exactly those four. This proves more than the old live comparison, which could not hold an unpushed commit. Independent judge, 2026-11-08: APPROVE (a) |
+| `TestProbeUnclaimedRoutes`, `TestProbeSharedHeader`, `TestProbeAuthoredPages` (`internal/le/site/zzprobe_p10b_test.go`) and `TestScratchDocsDest`, `TestScratchProducerCensus` (`zzscratch_census_test.go`) | `16efe2aa68` (2026-09-13) | Every finding went to `t.Logf`, which cannot fail. Most `t.Fatal` calls checked the probe's own I/O; the three that reached the product (errors from `docsProducerPages`, `sharedHeaderHTML`, `renderAuthoredPages`) are still asserted in `docs_test.go`, `nav_test.go` and `authored_test.go`. Independent judge, 2026-11-08: APPROVE (a); the units are deleted, so the verdict rides in the commit body |
+
 ## Contemporary review follow-up: not recovered historical evidence
 
 The following observations concern the current repair, not the missing June or

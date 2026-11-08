@@ -14,7 +14,6 @@ permissions:
 jobs:
   needs-linux:
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 180
     steps:
       - name: Checkout
@@ -97,7 +96,6 @@ jobs:
 
   protocol-labs:
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 120
     steps:
       - name: Checkout
@@ -170,7 +168,6 @@ jobs:
 
   runtime-kernel-labs:
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 150
     steps:
       - name: Checkout
