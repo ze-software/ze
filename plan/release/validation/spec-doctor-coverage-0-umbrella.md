@@ -78,7 +78,8 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 
 **Behavior to change:**
 - doctor reports every problem class the audit finds, through registered checks (children 2..N)
-- runtime state is checked inside the daemon, and the local route says when it could not reach it (child 1)
+- runtime state is checked inside the daemon; local `ze doctor` asks a reachable daemon, and says when it could not reach one (child 1, O-1)
+- every Warn and Error log line carries a doctor code, with no transient marker; a transient class shows as a recent-event row from the report bus (child 1, O-2)
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -145,7 +146,7 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The audit grows without end (about 3,200 Warn and Error log call sites under `internal/component`, `internal/plugins` and `cmd/ze`, counted by grep on 2026-11-08) | child 1 inventory not converging | the gate's report enumerates the mechanical sites; the manual walk covers silent states per area; rows are grouped into classes, never one row per log line |
-| R-2 | A runtime check answers healthy on the local route because it cannot see daemon state | a local run with a broken daemon reads ready | child 1: `runtime` phase never runs locally, and the local route reports that it did not check |
+| R-2 | A runtime check answers healthy on the local route because it cannot see daemon state | a local run with a broken daemon reads ready | child 1: `runtime` phase never runs in the local process; the local route asks a reachable daemon for it and, when none answers, reports that it did not check (owner decision 2026-11-08, child 1 O-1) |
 | R-3 | Doctor turns slow with many runtime checks | `show doctor` over the per-check timeout | each check keeps the existing per-check timeout; reads are snapshots, no probes on a hot path |
 
 ## Blast Radius
@@ -278,7 +279,7 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Umbrella with children by door area | one spec for the whole tree | the spec doors gate and context economy: one context cannot read every door and hold the whole audit |
-| Placement in `release/validation` | `post-release/engineering` | the owner rule makes doctor coverage part of operating the shipped NOS; owner question O-3 in child 1 confirms the timing of the area children |
+| Placement in `release/validation` | `post-release/engineering` | the owner rule makes doctor coverage part of operating the shipped NOS; Thomas decided on 2026-11-08 (child 1, O-3) that every area child is release work, P2 in `release/validation` |
 
 ## Known Limitations
 - The area children do not exist yet; child 1 AC-6 creates them from the inventory.

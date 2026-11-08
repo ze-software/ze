@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-11-08 |
 
-Related: the other vpn-concentrator specs, `plan/post-release/features/spec-ike-eap-only-authentication.md` (RFC 5998) and `plan/post-release/features/spec-ike-multiple-authentication-eap-rounds.md` (RFC 4739). No vpn-concentrator umbrella spec exists (searched `plan/` on 2026-11-08); see Open decisions O-2.
+Parent: plan/post-release/features/spec-vpn-concentrator-0-umbrella.md (written on Thomas's decision O-2, 2026-11-08). Siblings: `plan/post-release/features/spec-ike-eap-only-authentication.md` (RFC 5998) and `plan/post-release/features/spec-ike-multiple-authentication-eap-rounds.md` (RFC 4739).
 
 Implementation came from `plan/release/fixes/spec-home-cpe-5-ike-eddsa.md` (commits `987f0e052b` Ed25519, `bfc6dfe868` circl vendor, `091e347f4b` Ed448). This spec answers that spec's open decision O-1.
 
@@ -26,8 +26,8 @@ Thomas decided that RFC 8420 (EdDSA, Ed25519 and Ed448, in IKEv2) gets its own
 spec, done as part of the vpn-concentrator work. Ze already implements it. This
 spec brings it onto the RFC ledger:
 
-1. List RFC 8420 in the vpn-concentrator profile, required or optional per the
-   profile rules in `ai/META-DECISIONS.md`. The vpn-endpoint profile stays as
+1. List RFC 8420 in the vpn-concentrator profile as OPTIONAL (owner decision
+   O-1, 2026-11-08). The vpn-endpoint profile stays as
    Thomas left it: this spec decides nothing there and lists nothing there.
 2. Write `rfc/short/rfc8420.md` with verbatim row quotes, walk the RFC text, and
    record the extraction sign-off `rfc/extraction/rfc8420.json`.
@@ -71,7 +71,7 @@ spec brings it onto the RFC ledger:
   → Decision: RFC 8420 joins the same aggregate (`ikev2-ipsec`) with its own `Support area`, and declares `Implementation: ze`, as RFC 7427 does. Every RFC 8420 obligation is IKE logic in Ze's Go; the EdDSA arithmetic (Go's `crypto/ed25519`, circl through `internal/core/ed448`) is RFC 8032's, which is not a row here.
   → Constraint: `TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify` already carries `RFC requirement: RFC7427-3-4 positive`. A second tag on it for RFC8420-3-2 leaves the RFC 7427 tag and its record untouched.
 - [ ] `rfc/short/rfc7634.md`, `rfc/short/rfc8031.md`, `rfc/short/rfc7383.md` - IKE algorithm and extension RFCs already listed for vpn-concentrator
-  → Decision: each is an optional algorithm or extension and is listed under `Optional use cases`, never `Use cases`. RFC 7634 is implemented and so is `Enrolment: enrolled` while optional; RFC 8031 and 7383 are unimplemented and `out-of-scope`. RFC 8420 is the RFC 7634 case: optional and enrolled (Key Design Decisions, O-1).
+  → Decision: each is an optional algorithm or extension and is listed under `Optional use cases`, never `Use cases`. RFC 7634 is implemented and so is `Enrolment: enrolled` while optional; RFC 8031 and 7383 are unimplemented and `out-of-scope`. RFC 8420 is the RFC 7634 case: optional and enrolled (Key Design Decisions; owner decision O-1, 2026-11-08).
 
 **Key insights:**
 - Every RFC 8420 obligation is met by Ze's own Go in `ike/engine` today; what is missing is the ledger (summary, sign-off, tags, records) and four tests.
@@ -167,7 +167,7 @@ spec brings it onto the RFC ledger:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | RFC 8420 belongs under `Optional use cases`, not `Use cases`, for vpn-concentrator | META "Goal and scope": an RFC for an optional feature is listed as optional; RFC 7634, 8031 and 7383 are listed that way; RFC 8420 adds an optional signature algorithm, and RFC 8247 (the IKE algorithm requirements, listed as required) names no EdDSA requirement (grep of `rfc/full/rfc8247.txt` for Ed25519 and Ed448 found none) | The row moves to `Use cases`, and RFC 8420 counts in vpn-concentrator's required figure. Nothing else changes | Thomas's answer to O-1 | unvalidated |
+| A-1 | RFC 8420 belongs under `Optional use cases`, not `Use cases`, for vpn-concentrator | META "Goal and scope": an RFC for an optional feature is listed as optional; RFC 7634, 8031 and 7383 are listed that way; RFC 8420 adds an optional signature algorithm, and RFC 8247 (the IKE algorithm requirements, listed as required) names no EdDSA requirement (grep of `rfc/full/rfc8247.txt` for Ed25519 and Ed448 found none) | The row moves to `Use cases`, and RFC 8420 counts in vpn-concentrator's required figure. Nothing else changes | Thomas's answer to O-1: optional (2026-11-08) | validated (O-1) |
 | A-2 | Ze's EdDSA support counts as "supported and configured" in every build, so Section 3's MUST holds unconditionally | Both EdDSA families register from `ike/engine` with no config knob, and Ze verifies an EdDSA AUTH from any peer; the notify goes out before the peer's certificate is known. strongSwan 6.1.0 announces Identity the same way (`spec-home-cpe-5-ike-eddsa.md` A-4, source-read) | A config knob would be owed, and the MUST NOT row's test would gain a config case | Read `feature-gates.txt` for any tag that drops one EdDSA family alone | unvalidated |
 | A-3 | A test that swaps `signatureSchemes` proves the derivation rule the shipped code runs | `announcedHashAlgos` reads only the table; the shipped build is one population among those the rule covers | The Section 3 MUST NOT and SHOULD NOT rows would need an exclusion instead (Key Design Decisions) | The record: a break in `announcedHashAlgos` turns the swapped-table test red | unvalidated |
 | A-4 | `crypto/ed25519` produces an Ed25519ph signature for the verify-half test through `ed25519.PrivateKey.Sign` with `ed25519.Options` naming SHA-512, over a SHA-512 digest | Go standard library documentation of `ed25519.Options` | The test takes RFC 8032 Section 7.3's Ed25519ph vector instead | The test, cross-checked against RFC 8032 Section 7.3 | unvalidated |
@@ -205,7 +205,7 @@ spec brings it onto the RFC ledger:
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | `rfc/short/rfc8420.md` Meta | `Use cases` is `-` and `Optional use cases` is `vpn-concentrator` (the reverse if O-1 says required); `vpn-endpoint` appears in neither row; `Support` is `ikev2-ipsec` with a `Support area`; `Implementation` is `ze` with a reason naming `ike/engine`; `Enrolment` is `enrolled` with a reason; `Depends on` names RFC 7296, 7427, 8032 and 8410 | `rfc/profiles/vpn-concentrator.md` and `vpn-endpoint.md` stay byte-identical, because a profile lists no member |
+| AC-1 | `rfc/short/rfc8420.md` Meta | `Use cases` is `-` and `Optional use cases` is `vpn-concentrator` (owner decision O-1); `vpn-endpoint` appears in neither row; `Support` is `ikev2-ipsec` with a `Support area`; `Implementation` is `ze` with a reason naming `ike/engine`; `Enrolment` is `enrolled` with a reason; `Depends on` names RFC 7296, 7427, 8032 and 8410 | `rfc/profiles/vpn-concentrator.md` and `vpn-endpoint.md` stay byte-identical, because a profile lists no member |
 | AC-2 | `rfc/extraction/rfc8420.json` | Every section has a disposition: 2 and 3 walked; front, 1, 1.1 (boilerplate), 4 (IANA), 5 (references), A, A.1, A.2 skipped or walked with a reason; every keyword site maps to one of the five rows; register `rfc2119`; `./le rfc check` accepts it | Appendix A's "Parameters are absent." is not a row: it is RFC 8410's obligation, repeated for convenience |
 | AC-3 | Compliance Checklist | Exactly five rows, each quote verbatim. RFC8420-2-1 [MUST NOT] "Ed25519 and Ed448 are only defined with the "Identity" hash and MUST NOT be sent to a receiver that has not indicated support for the "Identity" hash." (§2). RFC8420-2-2 [MUST NOT] "The prehashed versions of Ed25519 and Ed448 (Ed25519ph and Ed448ph, respectively) MUST NOT be used in IKE." (§2). RFC8420-3-1 [MUST NOT] "It MUST NOT be used if none of the supported and configured algorithms have this property." (§3). RFC8420-3-2 [MUST] "For this reason, implementations MUST have the "Identity" value in the SIGNATURE_HASH_ALGORITHMS notification when EdDSA is supported and configured." (§3). RFC8420-3-3 [SHOULD NOT] "Implementations SHOULD NOT have other hash algorithms in the notification if all supported and configured signature algorithms have this property." (§3). `checkRowQuotes` accepts all five | No `{gap}` row, because the research found every requirement met in code; a row the walk shows unmet becomes `{gap}` naming the absent producer |
 | AC-4 | RFC8420-2-1 | Tagged `negative` on `TestEdDSARefusedWithoutIdentity` and `TestEd448RefusedWithoutIdentity`, `positive` on `TestComputeX509AuthSignsWithEd25519UnderIdentity` and `TestComputeX509AuthSignsWithEd448UnderIdentity`; each has a record whose break is the Identity check in that family's `choose` | none |
@@ -369,17 +369,20 @@ without a seam.
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| `Optional use cases: vpn-concentrator`, `Enrolment: enrolled` | `Use cases: vpn-concentrator`; or optional and `out-of-scope` | META lists an optional feature as optional; RFC 7634 sets the precedent that an implemented optional RFC is enrolled and gated, counted in the optional tier. Thomas confirms in O-1 |
+| `Optional use cases: vpn-concentrator`, `Enrolment: enrolled` | `Use cases: vpn-concentrator`; or optional and `out-of-scope` | META lists an optional feature as optional; RFC 7634 sets the precedent that an implemented optional RFC is enrolled and gated, counted in the optional tier. Thomas decided optional (O-1, 2026-11-08) |
+| A vpn-concentrator umbrella parents this spec and the RFC 5998 and RFC 4739 specs | a Related line between siblings | Thomas decided (O-2, 2026-11-08); `plan/post-release/features/spec-vpn-concentrator-0-umbrella.md` |
 | Tag the unit tests, cite the interop scenarios | Tag the interop checkers in `internal/le/interoplab/ipsec/eddsa.go` | A unit record is cheap and runs alone; an interop record runs a strongSwan lab per break. The scenarios stay as goal validation |
 | Test Section 3's conditional rows by swapping `signatureSchemes` | Exclude them because Ze never builds such a table | `announcedHashAlgos` is Ze's producer and can regress; an exclusion proves nothing and rests on the condition never arising, which a future gated family would break |
 | Ed448ph verify test in `internal/core/ed448` | In `ike/engine` | Only `internal/core/ed448` may import circl |
 
-## Open decisions for the owner
+## Owner decisions
 
-| ID | Decision | Options and effect |
-|----|----------|--------------------|
-| O-1 | RFC 8420 under `Optional use cases` or `Use cases` for vpn-concentrator | Optional (recommended): matches META's optional-feature rule and RFC 7634, 8031 and 7383; its rows show in the optional figure. Required: they count in vpn-concentrator's required figure. vpn-concentrator is `Release: no`, so neither changes a release figure |
-| O-2 | No vpn-concentrator umbrella spec exists | Leave this spec beside its siblings with a Related line (as now), or have an umbrella written that parents this spec and the RFC 5998 and RFC 4739 specs |
+Thomas answered "yes to all recommendations" on 2026-11-08. No owner question remains open.
+
+| ID | Decision | Owner's answer (2026-11-08) | Where it lands |
+|----|----------|-----------------------------|----------------|
+| O-1 | RFC 8420 under `Optional use cases` or `Use cases` for vpn-concentrator | Optional: `Optional use cases: vpn-concentrator`, `Use cases: -`; its rows count in the optional figure. vpn-concentrator is `Release: no`, so no release figure changes | Task step 1, A-1, AC-1, Key Design Decisions |
+| O-2 | A vpn-concentrator umbrella | Written: `plan/post-release/features/spec-vpn-concentrator-0-umbrella.md` parents this spec, `spec-ike-eap-only-authentication.md` and `spec-ike-multiple-authentication-eap-rounds.md` | Parent line above, Key Design Decisions |
 
 ## Known Limitations
 - RFC 8410's obligations (absent parameters, the OIDs) are tested by the implementing spec but stay off the ledger: RFC 8410 has no summary and no profile lists it.

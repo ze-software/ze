@@ -8,7 +8,7 @@
 | Release reason | `ai/META-DECISIONS.md`: `ze doctor` reports every problem an operator can hit, with cause and fix; this child finds every problem class, gives runtime state a phase that cannot read healthy when unseen, and stops new classes landing without a check |
 | RFC gaps | - |
 | Depends | - |
-| Phase | design: owner questions O-1, O-2, O-3 open |
+| Phase | design: owner questions O-1, O-2, O-3 decided 2026-11-08 (see "Owner Decisions") |
 | Handoff | - |
 | Updated | 2026-11-08 |
 
@@ -47,7 +47,10 @@ This child owns four things, in this order:
   → Constraint: the fixing command sits on a line of its own; JSON carries no color
 - [ ] `ai/META-DECISIONS.md`
   → Decision: a refusal that judges what the commit itself adds stands, while no gate refuses a commit for a red; the gate judges added sites only
-  → Constraint: every operator command runs through the daemon on every surface, and the local route stays for an unreachable daemon (O-1 asks how far `ze doctor` delegates)
+  → Constraint: every operator command runs through the daemon on every surface, and the local route stays for an unreachable daemon
+  → Decision (O-1, owner 2026-11-08): local `ze doctor` asks a reachable daemon for the runtime checks, and falls back to the local answer with the `doctor-runtime-not-checked` warning when no daemon answers
+  → Decision (O-2, owner 2026-11-08): every Warn and Error log line carries a doctor code, with no transient marker; a transient class shows as a recent-event row read from the report bus
+  → Decision (O-3, owner 2026-11-08): every area child is release work (P2, `plan/release/validation/`)
 
 **Key insights:**
 - On the daemon route `runChecks` still loads the config FILE from the store (`loadDoctorConfig`), not the running configuration, so a `runtime` check must read its owner's live state and never infer live state from `ctx.Tree`
@@ -73,8 +76,9 @@ This child owns four things, in this order:
 **Behavior to change:**
 - a `runtime` phase that runs only inside the daemon
 - a `fix` field carried from every check to every surface
-- the local route reports that runtime checks did not run, instead of silence
-- a commit that adds an uncovered problem site is refused, naming the site and the two ways to cover it
+- the local route asks a reachable daemon for the runtime checks (O-1); when no daemon answers, it reports that runtime checks did not run, instead of silence
+- a commit that adds an uncovered problem site is refused, naming the site and the one way to cover it: a doctor code (O-2, no exempt marker)
+- a transient problem class (a peer reset that recovers, one retry) is reported as a recent-event row read from the report bus, so its doctor code has a check that answers for it (O-2)
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -87,7 +91,8 @@ This child owns four things, in this order:
 | Diagnostic record | `internal/core/diagnostic/types.go` `Diagnostic` | Has `Help`, `Repair`, no fix command field | extends: adds `Fix`; `Help` stays for config validation help text, which is not a command |
 | Diagnostic code registry | `internal/core/diagnostic/registry.go` `Register`; `ze show diagnostic` | Explains each code | extends: the gate resolves every covered code through it |
 | Enumeration gate | `internal/le/arch/enumeration`, `./le arch enumeration check` and `report`, exempt marker | AST scan of the tree with a report and a check form | extends as a model: `./le arch doctor-coverage` copies its check and report shape |
-| Report bus | `internal/core/report/report.go` `RaiseWarning`, `RaiseError` | Coded operator issues | extends: each raise is a problem site whose code must be a doctor code |
+| Report bus | `internal/core/report/report.go` `RaiseWarning`, `RaiseError`, `Warnings`, `Errors` (the error ring) | Coded operator issues: active warnings, and an error ring of recent events | extends: each raise is a problem site whose code must be a doctor code; a transient class raises its event here, and one `runtime` bridge check renders the ring's recent events as doctor rows (O-2) |
+| Daemon reach from the local CLI | the client `ze` already uses to send a command to a running daemon (`docs/architecture/api/commands.md`, "Served by the daemon too"; the client symbol is named at implementation) | `ze <verb>` commands answered by the daemon | extends: the local doctor route sends `show doctor` through it when the daemon answers (O-1) |
 | Live health registry | `internal/core/health/registry.go` `Register`, `RegisterWhen` | Degraded rows with a reason | extends: each registration is a problem site the inventory maps to a doctor check |
 | Dependency inventory test | `internal/component/doctor/doctor_checks_test.go` `TestDoctorDependencyInventory` | Expected total of dependencies | does not apply: kept as is; it counts dependencies, not problem classes |
 | Commit-time added-content refusals | `./le commit create` (journal owned-rows refusal, `plan/journal/README.md` "Owned rows") | Refuses what the commit itself adds | extends: the doctor-coverage check joins as a refusal of added sites |
@@ -101,7 +106,8 @@ This child owns four things, in this order:
 
 ### Transformation Path
 1. `HandleDoctor` calls `doctor.Answer` with a runtime closure that runs plugin checks and the `runtime` registry checks
-2. `runChecks` never runs `runtime` checks; on the local route `Answer` adds one `doctor-runtime-not-checked` warning whose fix names `show doctor` (O-1 decides whether the local route asks the daemon first)
+2. `runChecks` never runs `runtime` checks. On the local route (O-1, decided) `ze doctor` first asks the daemon: when the daemon's socket answers and `config` names no file outside the daemon's config directories, the answer is the daemon's `show doctor` answer, drawn locally. When no daemon answers, `Answer` runs the local checks and adds one `doctor-runtime-not-checked` warning whose fix names `ze start` to run the daemon, then `show doctor`
+2a. Transient classes (O-2): the `runtime` bridge check `doctor-recent-events` reads `report.Errors` and the active `report.Warnings`, and answers one warning row per recent event under the event's own code, with its subject and time in the message, so a transient problem is reported without making the box read not ready
 3. Each diagnostic carries `fix`; `renderDoctor` prints it on its own line after the message; JSON carries the `fix` key
 4. Gate: the scan parses non-test Go under `internal/component`, `internal/plugins` and `cmd/ze`, finds problem sites, resolves each site's code against the codes of every registered doctor check (in-tree and plugin), and lists the uncovered ones; the check form refuses only sites the commit adds against `HEAD^`
 
@@ -124,7 +130,7 @@ This child owns four things, in this order:
 | `ze doctor --json` / `show doctor` JSON | writer | `diagnostic.Diagnostic` | `DoctorResult.Diagnostics` | add `fix` (omitempty), kebab-case |
 
 ### Integration Points
-- `doctor.Answer` - adds the runtime-not-checked row on the local route
+- `doctor.Answer` and the local route - ask a reachable daemon first (O-1); add the runtime-not-checked row only when no daemon answers
 - `./le commit create` - runs the doctor-coverage refusal over the staged set
 
 ### Architectural Verification
@@ -149,8 +155,10 @@ This child owns four things, in this order:
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The gate refuses ordinary new log lines and slows every session | refusals on lines that are not problems | the refusal message names both covers (a doctor code, or the event marker O-2 decides); a `plan/learned/HOOK-FRICTION.md` row if friction appears |
-| R-2 | A local run with a dead daemon reads ready | no row about runtime checks | `doctor-runtime-not-checked` is a warning, always present on the local route when `runtime` checks are registered |
+| R-1 | The gate refuses ordinary new log lines and slows every session | refusals on lines that are not problems | O-2 (owner): there is no marker, a Warn or Error line is a problem the operator can see, and it carries a doctor code; the refusal names that cover and, for a transient class, the report-bus raise that `doctor-recent-events` reports; a `plan/learned/HOOK-FRICTION.md` row if friction appears |
+| R-2 | A local run with a dead daemon reads ready | no row about runtime checks | `doctor-runtime-not-checked` is a warning, always present on the local fallback when `runtime` checks are registered |
+| R-5 | The local route reaches a daemon that answers from a different config than the operator named | `config <file>` outside the daemon's config directories | the local route asks the daemon only when `config` names no such file, otherwise it answers locally with the warning row (O-1) |
+| R-6 | Recent-event rows grow without bound | many rows from a flapping peer | the rows come from the bounded report-bus ring (`ze.report.errors.max`); one row per (source, code, subject) with a count |
 | R-3 | The inventory is one row per log line and unusable | thousands of rows | group by problem class and owner; the report keeps the per-site list |
 | R-4 | A forked plugin's `runtime` check is called while the plugin is stopped | `doctor-plugin-unreachable` | existing behavior: that row already says the plugin did not answer |
 
@@ -167,7 +175,9 @@ This child owns four things, in this order:
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `show doctor` | → | `HandleDoctor` running a registered `runtime` check | `test/plugin/show-doctor-runtime-checks.ci` |
-| `ze doctor --json` | → | `Answer` adding `doctor-runtime-not-checked` | `TestDoctorRuntimePhaseNotRunLocally` |
+| `ze doctor --json`, no daemon | → | `Answer` adding `doctor-runtime-not-checked` | `TestDoctorRuntimePhaseNotRunLocally`, `test/ui/doctor-runtime-not-checked.ci` |
+| `ze doctor`, daemon running | → | the local route asking the daemon's `show doctor` | `TestDoctorLocalRouteAsksReachableDaemon`, `test/plugin/doctor-local-asks-daemon.ci` |
+| a report-bus error event, `show doctor` | → | the `doctor-recent-events` runtime check | `TestDoctorRecentEventsRowsFromReportRing` |
 | plugin doctor callback | → | `collectPluginDoctorChecks` mapping `fix` | `TestCollectPluginDoctorChecksCarriesFix` |
 | `./le arch doctor-coverage check` | → | the site scan and code resolution | `TestDoctorCoverageRefusesAddedUncoveredSite` |
 | `./le commit create` | → | the added-site refusal | `TestCommitCreateRefusesUncoveredProblemSite` |
@@ -177,11 +187,14 @@ This child owns four things, in this order:
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | A check registered with phase `runtime`, `show doctor` | the daemon runs it and its diagnostics appear with code, severity, message and fix | none |
-| AC-2 | The same check, `ze doctor --json` locally | the check does not run; one warning `doctor-runtime-not-checked` says runtime checks need the running daemon and its fix line reads `show doctor` (or, under O-1 option B, the local route answers from the daemon) | none |
+| AC-2 | The same check, `ze doctor --json` locally with no daemon answering | the check does not run; the local checks run; one warning `doctor-runtime-not-checked` says runtime checks need the running daemon and its fix line names the command that starts it | none |
+| AC-10 | The same check, `ze doctor` locally while the daemon runs, no `config` keyword (O-1) | the answer is the daemon's `show doctor` answer, the runtime row included, drawn by the local renderer with the local exit code; no `doctor-runtime-not-checked` row | `config <file>` naming a file outside the daemon's config directories answers locally with the warning row, because the daemon would read another file (R-5) |
+| AC-11 | A report-bus error event raised with a doctor code, then `show doctor` (O-2) | `doctor-recent-events` answers one warning row under that code naming subject, count and last time; `ready` is unchanged by it | none |
+| AC-12 | A fixture commit adding a Warn log line with an exempt or transient marker comment (O-2) | refused like an uncovered line: no marker is accepted | none |
 | AC-3 | A plugin check returning a diagnostic with `fix` | text output prints the fix on its own line after the message; JSON carries `"fix"`; on every surface through `show doctor` | none |
-| AC-4 | A fixture commit adding a Warn log line in `internal/plugins/<x>` with no doctor code | `./le arch doctor-coverage check` and `./le commit create` refuse it, naming file and line, and print the two covers | a site the commit did not add is reported by `report`, never refused |
+| AC-4 | A fixture commit adding a Warn log line in `internal/plugins/<x>` with no doctor code | `./le arch doctor-coverage check` and `./le commit create` refuse it, naming file and line, and print the cover: a `code` attribute naming a code a registered doctor check declares, and for a transient class the report-bus raise under that code (O-2) | a site the commit did not add is reported by `report`, never refused |
 | AC-5 | `./le arch doctor-coverage report` | lists every uncovered site grouped by owner package and door area, with counts | none |
-| AC-6 | Audit done | `plan/audits/doctor-problem-inventory.md` holds one row per problem class with columns area, owner package, class, state it reads, route (local or runtime), existing check and code or `gap`, source sites; and one spec per door area with gap rows exists at `plan/release/validation/spec-doctor-coverage-<n>-<area>.md`, each listing its rows as ACs | an area with no gap row gets no spec |
+| AC-6 | Audit done | `plan/audits/doctor-problem-inventory.md` holds one row per problem class with columns area, owner package, class, state it reads, route (local or runtime), existing check and code or `gap`, source sites; and one spec per door area with gap rows exists at `plan/release/validation/spec-doctor-coverage-<n>-<area>.md`, each listing its rows as ACs, each with `Priority` P2 as release work whatever release profile its feature sits in (O-3) | an area with no gap row gets no spec |
 | AC-7 | Every check added under this umbrella | its unit test asserts a non-empty fix that names a `ze` command or a `set`/`delete` config path | none |
 | AC-9 | An existing check that reads daemon state while registered at `pre-config`, `parsed-config` or `post-config` | the audit lists it with its owner; it moves to `runtime` in its area child (IKE's `ipsec-virtual-ip-pool` and `ipsec-udp-encap` move in child 2), so the local route never reads that state as empty and healthy | none |
 | AC-8 | Docs | `docs/architecture/doctor-and-health-checks.md` documents the `runtime` phase, the fix field, the local-route row and the gate; `docs/plugin-development/` documents `fix` and `runtime` for plugin authors | none |
@@ -202,6 +215,9 @@ This child owns four things, in this order:
 | `TestDoctorCoverageReadsPluginCodes` | `internal/le/arch/doctorcoverage/check_test.go` | A-2 | |
 | `TestDoctorCoverageReportGroupsByOwner` | `internal/le/arch/doctorcoverage/report_test.go` | AC-5 | |
 | `TestCommitCreateRefusesUncoveredProblemSite` | the `./le commit create` refusal tests | AC-4 through the commit entry | |
+| `TestDoctorLocalRouteAsksReachableDaemon` | `internal/component/doctor/answer_test.go` | AC-10: a stub daemon answer is drawn and no warning row is added; an unreachable daemon gives AC-2; a `config` file outside the daemon's directories answers locally | |
+| `TestDoctorRecentEventsRowsFromReportRing` | the `doctor-recent-events` owner's test | AC-11: rows per code from `report.Errors` and `report.Warnings`, readiness unchanged | |
+| `TestDoctorCoverageRefusesMarkedSite` | `internal/le/arch/doctorcoverage/check_test.go` | AC-12: a marker comment is not a cover | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -212,13 +228,15 @@ This child owns four things, in this order:
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `show-doctor-runtime-checks` | `test/plugin/show-doctor-runtime-checks.ci` | operator runs `show doctor` on a daemon and reads a runtime row with its fix | |
-| `doctor-runtime-not-checked` | `test/ui/doctor-runtime-not-checked.ci` | operator runs `ze doctor` with no daemon and is told to run `show doctor` | |
+| `doctor-runtime-not-checked` | `test/ui/doctor-runtime-not-checked.ci` | operator runs `ze doctor` with no daemon and is told runtime checks did not run, with the command that starts the daemon | |
+| `doctor-local-asks-daemon` | `test/plugin/doctor-local-asks-daemon.ci` | operator runs `ze doctor` on a box whose daemon runs and reads the runtime row (AC-10) | |
 
 ## Files to Modify
 - `pkg/plugin/rpc/types.go` - `runtime` phase, `Valid`, `DoctorCheckDiagnostic.Fix`
 - `internal/core/diagnostic/types.go` - `Diagnostic.Fix`
 - `internal/core/diagnostic/doctor_registry.go` - alias `DoctorPhaseRuntime`; phase rank
-- `internal/component/doctor/answer.go` - local-route row, fix rendering
+- `internal/component/doctor/answer.go` - the local route asks a reachable daemon first (O-1), local-route row on fallback, fix rendering
+- the owner of the report bus bridge check (`doctor-recent-events`, `runtime` phase, registered from its owner's `init()`; the owning package is chosen at implementation so `internal/core/report` stays a leaf) (O-2)
 - `internal/component/doctor/doctor.go` - `runChecks` skips `runtime`
 - `internal/component/doctor/checks_plugin_registry.go` - carry `fix`
 - `internal/component/doctor/cmd/show.go` - run `runtime` registry checks; carry `fix`
@@ -229,8 +247,9 @@ This child owns four things, in this order:
 - `internal/le/arch/doctorcoverage/` - the scan, `check` and `report` actions, registered from `init()`
 - `test/plugin/show-doctor-runtime-checks.ci`
 - `test/ui/doctor-runtime-not-checked.ci`
+- `test/plugin/doctor-local-asks-daemon.ci`
 - `plan/audits/doctor-problem-inventory.md` - the inventory
-- `plan/release/validation/spec-doctor-coverage-<n>-<area>.md` - one per door area with gaps
+- `plan/release/validation/spec-doctor-coverage-<n>-<area>.md` - one per door area with gaps, all release work, P2 (O-3)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -286,7 +305,7 @@ This child owns four things, in this order:
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | every door area walked; every inventory row has a state it reads |
-| Correctness | no `runtime` check runs on the local route; the local row always appears when a `runtime` check exists |
+| Correctness | no `runtime` check runs in the local process; the local route answers from the daemon when it answers, and the warning row always appears on the local fallback when a `runtime` check exists |
 | Naming | JSON key `fix`, phase `runtime`, code `doctor-runtime-not-checked`, kebab-case |
 | Data flow | the gate derives codes from registries, never a list |
 | Rule: user-facing-errors | the gate's refusal names the site, why, and the two covers on their own lines |
@@ -317,13 +336,15 @@ This child owns four things, in this order:
 
 - The daemon route re-reads the config file, so "running state" and "config on disk" can disagree; a runtime check reports live state and, where it compares against config, compares against the running configuration the owner applied.
 
-## Owner Questions
+## Owner Decisions
 
-| # | Question | Options | Recommendation and evidence | What each answer changes |
-|---|----------|---------|-----------------------------|--------------------------|
-| O-1 | Does local `ze doctor` ask the running daemon for its runtime checks? `ai/META-DECISIONS.md` says every command runs through the daemon on every daemon surface and that "the local route stays for when the daemon is unreachable"; it does not say whether the local route asks a reachable daemon first | A: local stays local and prints `doctor-runtime-not-checked` with fix `show doctor`. B: local asks the daemon when its socket answers and `config` names no file outside the daemon's config directories; it falls back to A when unreachable | B: an operator typing `ze doctor` on a broken box expects the box's real state, and B costs one daemon call on a route `show doctor` already serves. A is simpler | B adds a client call in `answer.go` and a test with a live daemon; A only the warning row |
-| O-2 | May a problem site be marked as a transient event that owes no doctor check (a peer reset that recovers, one retry)? | A: no marker; every Warn and Error carries a doctor code, and a transient class is reported as a recent-event row read from the report bus ring. B: a marker comment naming the reason, judged by review like the enumeration exempt marker | A matches "doctor reports every problem"; B keeps transient noise out of doctor | A makes the report bus the event store for doctor and adds one bridge check; B adds a marker the gate accepts |
-| O-3 | Release timing of the area children | A: every area child is release work (P2). B: area children for features in a declared release profile are P2, the rest post-release | A follows "doctor reports every problem"; B follows the release-profile rule for scope | moves area children between `release/validation` and `post-release/features` |
+Thomas answered "yes to all recommendations" on 2026-11-08. No owner question remains open.
+
+| # | Question | Decision (owner, 2026-11-08) | Where it lands in this spec |
+|---|----------|------------------------------|-----------------------------|
+| O-1 | Does local `ze doctor` ask the running daemon for its runtime checks? | Yes (option B): the local route asks the daemon when its socket answers and `config` names no file outside the daemon's config directories; when no daemon answers it falls back to the local checks with the `doctor-runtime-not-checked` warning | Transformation Path step 2, AC-2, AC-10, R-5, `TestDoctorLocalRouteAsksReachableDaemon`, `test/plugin/doctor-local-asks-daemon.ci` |
+| O-2 | May a problem site be marked as a transient event that owes no doctor check? | No marker (option A): every Warn and Error log line carries a doctor code, and a transient class is reported as a recent-event row read from the report bus ring | Transformation Path step 2a, AC-4, AC-11, AC-12, R-1, R-6, the `doctor-recent-events` check |
+| O-3 | Release timing of the area children | Every area child is release work (option A): P2 in `plan/release/validation/`, whatever release profile its feature sits in | AC-6, Files to Create |
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
@@ -336,6 +357,9 @@ This child owns four things, in this order:
 | `Fix` as its own field | put the fix in `Help`, or only in the message | `Help` carries config validation help text, not a command; a separate field lets the renderer put the command on its own line on every surface |
 | Gate judges added sites, report lists all | refuse every uncovered site in the tree | `ai/META-DECISIONS.md`: no gate refuses a commit for a red; a refusal that judges what the commit adds stands |
 | Gate as an AST scan with registry lookup | a runtime registry of degraded states each mapped to a check | a runtime registry misses a new problem that never registers; the scan sees every new log line and raise |
+| Local `ze doctor` asks a reachable daemon, falls back locally with the warning row (O-1) | local stays local and only prints the warning | owner decision: an operator on a broken box expects the box's real state; the local route stays for an unreachable daemon, as `ai/META-DECISIONS.md` requires |
+| No transient marker; transient classes are recent-event rows from the report bus (O-2) | an exempt marker comment judged by review | owner decision: doctor reports every problem; the bus ring is already bounded and coded, so one bridge check reports it |
+| Every area child is release work (O-3) | split by release profile | owner decision |
 
 ## Known Limitations
 - The area children's content is the audit's output; they are named by AC-6.
@@ -356,7 +380,7 @@ This child owns four things, in this order:
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-9 all demonstrated
+- [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests pass in the main checkout: `./le job run label doctor command go test -tags <tags> ./internal/component/doctor/... ./pkg/plugin/rpc/...`, `./le job run label le-arch command go test ./internal/le/arch/doctorcoverage/...`, `./le test functional plugin` and `./le test functional ui` for the two `.ci` files, with the tags `./le repo changed scope print both` names
 - [ ] Every A-N confirmed or broken, none `unvalidated`

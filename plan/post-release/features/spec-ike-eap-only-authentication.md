@@ -9,7 +9,9 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-26 |
+| Updated | 2026-11-08 |
+
+Parent: plan/post-release/features/spec-vpn-concentrator-0-umbrella.md (owner decision O-2 of `spec-ike-rfc8420-eddsa-conformance.md`, 2026-11-08).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
