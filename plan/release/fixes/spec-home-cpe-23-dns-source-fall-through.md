@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Ze's own name lookups never follow learned resolvers: `cmd/ze/hub/main_system.go` `newResolvers` ("Called once at hub startup", from `cmd/ze/hub/main.go`) fixes ONE server, the first static `system name-server`, else the first server `resolveSystemDNS` reads once from resolv.conf. A CPE whose resolvers arrive later by DHCP or IPCP resolves with whatever the file held at boot, never fails over to a second server, and ignores a reload of `name-server`. That is incorrect behaviour on an accepted configuration (P1). The per-consumer source lists, the RADIUS-supplied subscriber DNS and the learned upstreams for the LAN resolver are the feature half; see "Split" below |
@@ -81,6 +81,18 @@ still open. Each is recorded as his decision:
 | D-10 | 23b goes to `release/fixes` after 23a | At the move to `ready`, 23b is written as its own spec in `plan/release/fixes/` (P3, `Depends` on 23a), beside the other home-CPE children, not in `post-release/features` | O-9 |
 | D-11 | `received` gains an optional per-interface filter | The `dns-source` grouping gains one optional leaf-list `received-interface` beside `source` and `mode`. When set, `received` takes only records learned on the named interfaces, ordered by the leaf-list, then origin rank, then unit. When absent, `received` takes every learning interface as approved under D-5. The approved `source` leaf-list and `mode` leaf are unchanged. It restores the VyOS `system name-server <if>`, `service dns forwarding dhcp <if>` and `no-peer-dns` mappings to equivalent | the per-interface difference recorded under D-5 |
 
+Recorded at the start of implementation (2026-11-08). D-12 is Thomas's one-off
+permission; D-13 to D-16 are the main session's calls on the questions Phase 1
+raised, each with its reason in its row:
+
+| # | Decision | Reading recorded in this spec | Answers |
+|---|----------|-------------------------------|---------|
+| D-12 | Thomas: a one-off permission to claim this spec over the WIP cap to implement it (2026-11-08) | Applies to this spec only; it is not a rule and does not raise the cap | the WIP cap refusal at claim |
+| D-13 | The host's resolv.conf becomes a record of the `received` class, origin `host` | Deleting `resolveSystemDNS` (no layering) left Ze with no server where no source ever reached the registry: a Ze on a stock distribution with no `name-server` and no lease, whose `resolv-conf-path` (default `/tmp/resolv.conf`) is not the file the host manages, and web-only mode (`runWebOnly`, `cmd/ze/hub/service_web.go`), which has no daemon. This is the main session's correctness call: a Ze on a distribution host must keep resolving, and a lookup that fails where it worked before is a regression this spec would introduce. The host's `/etc/resolv.conf` is read as one `host` record, registered with `RegisterResolverOrigin` by its producer like every other origin, ranked after `ra` (400), valid until withdrawn. It is read only when it is not Ze's own `resolv-conf-path`, compared after symlinks are resolved, so Ze never reads back the file it writes. Web-only mode gets the same record. The approved YANG is unchanged: `host` is an origin inside `received`, not a class | the distribution and web-only cases the deletion of `resolveSystemDNS` left without a server |
+| D-14 | The three tests of `resolveSystemDNS` are replaced only after a `ze-test-judge` verdict | `TestResolveDefaultServer`, `TestResolveSystemDNSNoPublicFallback` and `TestResolveSystemDNSFailClosed` (`internal/component/resolve/dns/resolver_test.go`) test the function this spec deletes. The replacement is one test: a resolver given no servers fails closed with `no DNS server configured`, which keeps the fail-closed and no-hardcoded-fallback guarantees. The verdict is recorded with `./le test weakened approve` before the edit (`ai/rules/testing.md`) | the test deletion `ai/rules/testing.md` gates |
+| D-15 | The lease for `test/plugin/dns-source-router-follows-lease.ci` comes from `pppoeac`'s scripted IPCP, extended to Nak with DNS | No fixture under `internal/test/` gives Ze a DHCPv4 lease with option 6 (`dhcpprobe` is a client probe), and `pppoeac` offers no DNS today (`internal/test/pppoeac/script_linux.go`, "This server offers no DNS"). Its scripted IPCP gains Primary and Secondary DNS in a Configure-Nak, so the `.ci` drives the real `ppp` lease path (the PPPoE client's `SetLease`), with the DNS stub `le mock dns --port 53` and `show dns lookup` as in `test/plugin/dns-stub-lookup.ci`. The Wiring Test row's entry point therefore reads "an IPCP lease with DNS" where it says "DHCPv4 lease with option 6" | the missing lease fixture |
+| D-16 | A consumer that hands addresses to another host never hands out a loopback or an unscoped link-local address, whatever its origin | The consumers that hand addresses on are the LAN resolver's upstream exposure, DHCPv4 option 6, RA RDNSS and subscriber DNS. A loopback address (127.0.0.0/8, ::1) and an IPv6 link-local address with no zone are wrong on all of them: a configured 127.0.0.1 is as wrong as the host's 127.0.0.53 (D-13), because either names a server only Ze itself can reach. The shared selection rule drops them for those consumers only, as part of "usable": each consumer's list states at construction whether it serves Ze or hands addresses on, and the router consumer keeps loopback and link-local, because Ze's own lookups can reach them. Each drop is logged with the consumer path and the address. It lands in 23b, as AC-27, in phases 4 (LAN resolver), 5 (DHCPv4 option 6 and RA RDNSS) and 6 (subscriber), tested by `TestSelectDropsHostOnlyAddressesForHandedOutLists` in the core leaf and by one case in each consumer's pass-through test | a host-only address handed to a LAN client or a subscriber |
+
 ### Split
 
 `plan/README.md` asks for a split when obligations belong to different release
@@ -99,7 +111,7 @@ The split plan (D-10), recorded now and executed at the move to `ready`:
 | Spec | Folder, priority | Depends | Owns |
 |------|------------------|---------|------|
 | 23a (this file, renamed) | `release/fixes/`, P1 | child 13 | registry, record expiry, the RA RDNSS origin (D-7), the list grammar with `received-interface` (D-11), router consumer, RFC 5625: AC-1 to AC-5, AC-16 (router), AC-17, AC-18, AC-19, AC-21 to AC-24 |
-| 23b (new file) | `release/fixes/`, P3 (D-10) | 23a | LAN resolver, DHCPv4 option 6 with the lease shortening (D-9), RA RDNSS consumer, subscriber pool, RADIUS MS DNS, RFC 2548 summary (D-8), `show system dns`, doctor, metrics: AC-6 to AC-15, AC-16 (other consumers), AC-20, AC-25, AC-26 |
+| 23b (new file) | `release/fixes/`, P3 (D-10) | 23a | LAN resolver, DHCPv4 option 6 with the lease shortening (D-9), RA RDNSS consumer, subscriber pool, RADIUS MS DNS, RFC 2548 summary (D-8), `show system dns`, doctor, metrics: AC-6 to AC-15, AC-16 (other consumers), AC-20, AC-25, AC-26, AC-27 (D-16) |
 
 Every AC below lands in exactly one of them. The design stays in one document
 until then because the record shape and the list grammar are one decision.
@@ -443,7 +455,7 @@ protocols. Protocols join through `RegisterResolverOrigin` and appear inside
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| DHCPv4 lease with option 6, no `name-server` | → | registry, router selection, internal resolver | `test/plugin/dns-source-router-follows-lease.ci` |
+| An IPCP lease carrying DNS from the PPPoE client (D-15), no `name-server` | → | registry, router selection, internal resolver | `test/plugin/dns-source-router-follows-lease.ci` |
 | `system dns-source` sources `received`, `configured`, mode `first-usable`, both present | → | selection rule | `TestRouterSourceOrderReceivedFirst` |
 | `system dns-source` sources `received`, `configured`, mode `merge` | → | selection rule, internal resolver order | `TestRouterSourceMerge`, `test/plugin/dns-source-router-merge.ci` |
 | `system dns-source` with two sources and no `mode`, through `ze config validate` and `ze start` | → | the core-leaf mode check from the verifier and the boot parse | `test/parse/dns-source-mode-required.ci` |
@@ -467,7 +479,7 @@ protocols. Protocols join through `RegisterResolverOrigin` and appear inside
 | AC-2 | `name-server` changed by reload | the internal resolver uses the new list without a restart | none |
 | AC-3 | A lease expires with no renewal | its servers leave resolv.conf and the internal resolver at expiry, and the next class in the list is used | none |
 | AC-4 | `system dns-source` sources `received`, `configured`, mode `first-usable`, both present | received servers are used; configured only when no received entry is usable | none |
-| AC-5 | No consumer has a `dns-source` container, and no learned or RADIUS DNS exists | resolv.conf, option 6, RDNSS and IPCP bytes equal today's | none |
+| AC-5 | No consumer has a `dns-source` container, and no learned or RADIUS DNS exists | resolv.conf, option 6, RDNSS and IPCP bytes equal today's, for every address written in canonical form | Two differences, both deliberate. The registry holds addresses as `netip.Addr`, so an address is written in the canonical text `netip.Addr.String` produces: an IPv6 address written in another form (upper-case hex, uncompressed zeros) is written canonically, where today's file copies the configured text. A lease address that does not parse as an IP address is dropped with a WARN log line naming the origin, interface, unit and value, where today it is written to resolv.conf: it cannot be a resolver, and the validity check (R-6) refuses it. YANG types `name-server` as `zt:ip-address`, so a configured address always parses |
 | AC-6 | `forward dns-source source received` with a `ppp` lease | the LAN resolver forwards to the IPCP servers; withdrawing the lease moves it to the next class without rebinding a listener | none |
 | AC-7 | DHCP subnet 192.0.2.0/24 served on an interface where Ze holds 192.0.2.1, `dns-source source self`; and an RA unit with `rdnss dns-source source self` where Ze holds 2001:db8:1::1 | option 6 carries 192.0.2.1 (D-6); the RA's RDNSS carries 2001:db8:1::1; a unit with no global or unique-local address advertises no RDNSS from `self` and falls through | none |
 | AC-8 | RA `rdnss dns-source source received` with a DHCPv6 lease carrying 2001:db8::53 | RDNSS carries 2001:db8::53 with a Lifetime not above the lease's remaining valid lifetime; on withdrawal one RA carries it with Lifetime 0 | none |
@@ -488,6 +500,7 @@ protocols. Protocols join through `RegisterResolverOrigin` and appear inside
 | AC-23 | A malformed RDNSS option (Length below 3, or not odd) (RFC8106-5.3.1-1) | discarded with a log line naming the interface and the length; no record changes | none |
 | AC-24 | `system dns-source source received`, `received-interface eth1`, `mode` absent; leases on eth0 (192.0.2.53) and eth1 (198.51.100.53) (D-11); then `received-interface` with no `received` in `source` | resolv.conf and the internal resolver hold 198.51.100.53 alone; the second config is refused at `ze config validate`, commit and boot with the what, why and fix text above | none |
 | AC-25 | DHCP subnet with no `dns-server`, no `dns-source`, configured lease time 3600, no usable `received` entry; then a WAN DHCPv4 lease with 192.0.2.53 arrives (D-9) | replies carry lease time 60 and no option 6; after the WAN lease, replies carry lease time 3600 and option 6 192.0.2.53; a subnet with `dns-server` set keeps 3600 throughout | none |
+| AC-27 | A WAN lease or the `host` record carries 127.0.0.53 and fe80::1 with no zone, a subnet `dns-server` is absent, and `system name-server` names 127.0.0.1 (D-16) | option 6, RDNSS, the subscriber's IPCP DNS and the LAN resolver's handed-out list carry neither address, and the next usable entry or class is used; each drop is logged with the consumer path and the address; resolv.conf and Ze's internal resolver keep 127.0.0.1 | none |
 | AC-26 | `rfc/short/rfc2548.md` (D-8) | `Optional use cases: lns`; every row a verbatim span; the MS-Primary-DNS-Server and MS-Secondary-DNS-Server rows tagged on `TestExtractMSDNSServers` and `TestPoolIPCPDNSFromRadius` with discrimination records; other attributes' rows are gaps; `./le rfc check` green | none |
 
 ## End-to-End User Stories
@@ -534,6 +547,7 @@ protocols. Protocols join through `RegisterResolverOrigin` and appear inside
 | `TestReceivedInterfaceWithoutReceivedRefused` | the core leaf's package test | AC-24 refusal, its what, why and fix parts | |
 | `TestSelfIsAddressOnClientInterface` | dhcpserver `handler_test.go`, iface `reconcile_ra_test.go`, pool `register_test.go` | AC-7, D-6 for each consumer | |
 | `TestLeaseShortWhileReceivedUnusable` | dhcpserver `handler_test.go` | AC-25 | |
+| `TestSelectDropsHostOnlyAddressesForHandedOutLists` | the core leaf's package test | AC-27, D-16: a handed-out list drops loopback and zone-less IPv6 link-local and falls through; a router list keeps both | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -655,9 +669,9 @@ protocols. Protocols join through `RegisterResolverOrigin` and appear inside
 2. **Phase: Router consumer (23a)** - lifetime on `SetLease`, expiry sweeper, `system dns-source` with `mode` and `received-interface` (D-11), stated default, the mode and filter refusals at validate, commit and boot, reload. AC-1 to AC-5, AC-16 (router), AC-17, AC-24
 2a. **Phase: RA RDNSS source (23a, D-7)** - validate A-7 against Ze's kernel source first; the RDNSS parser in `internal/core/ndp`, the iface ND user-option listener, the `ra` origin; the RFC 8106 host rows re-judged and tagged. AC-21 to AC-23, proven in QEMU on Ze's kernel
 3. **Phase: RFC 5625 (23a)** - write `rfc/short/rfc5625.md` through `/ze-rfc` with use case `fttx-edge`, run the extraction walk both ways, then implement and test every row it binds to the LAN resolver and the DHCP server, recording each break with `./le rfc record`. AC-18, AC-19
-4. **Phase: LAN resolver** - forward `dns-source` over the event, the D-5 default, the `self` refusal, no rebind. AC-6, AC-13, AC-20
-5. **Phase: DHCPv4 option 6 and RA RDNSS (23b)** - D-5 defaults and explicit lists, `self` per D-6, the 60-second lease of D-9. AC-7, AC-8, AC-14, AC-15, AC-25
-6. **Phase: Subscriber (23b)** - MS DNS extraction, pool `dns-source`, default `radius`, `configured`, `received`; `rfc/short/rfc2548.md` through `/ze-rfc` with `Optional use cases: lns`, its walk and records (D-8). AC-9, AC-10, AC-26, interop
+4. **Phase: LAN resolver** - forward `dns-source` over the event, the D-5 default, the `self` refusal, no rebind, the D-16 drop. AC-6, AC-13, AC-20, AC-27 (LAN resolver)
+5. **Phase: DHCPv4 option 6 and RA RDNSS (23b)** - D-5 defaults and explicit lists, `self` per D-6, the 60-second lease of D-9, the D-16 drop. AC-7, AC-8, AC-14, AC-15, AC-25, AC-27 (option 6, RDNSS)
+6. **Phase: Subscriber (23b)** - MS DNS extraction, pool `dns-source`, default `radius`, `configured`, `received`; `rfc/short/rfc2548.md` through `/ze-rfc` with `Optional use cases: lns`, its walk and records (D-8), the D-16 drop. AC-9, AC-10, AC-26, AC-27 (subscriber), interop
 7. **Phase: Conversion** - every repository user of the changed defaults converted or re-validated (Files to Modify), in the same work as phases 5 and 6
 8. **Phase: Show, doctor, metrics, docs** - AC-11, AC-12, AC-16 for every consumer
 
