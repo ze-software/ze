@@ -576,10 +576,25 @@ package identity. Unknown preprocessing, relevant remapping, ambiguous
 definitions and unsupported frame/ABI forms refuse. The three admitted header
 spellings, `textflag.h`, `funcdata.h` and `go_asm.h`, share one declared compiler
 language boundary. Any committed local shadow, including a tree or symlink,
-invalidates its include proof without reading a header payload. Assembly bytes
-and header-presence evidence stay separate
+invalidates its include proof without reading a header payload. Any other
+quoted include is a package-local header, such as `cloudflare/circl`'s
+`fp448/fp_amd64.h`, and is read as text at the include line, as `cmd/asm`
+does: its `Input.include` opens the quoted name in the package directory, where
+`cmd/go` runs the assembler, and pushes the file onto its input. The header is
+the committed regular `.h` blob beside the including `.s` file, read from the
+commit and never the host disk, and its `#define` and `#undef` lines become
+that file's local macros under the rules below. A name with a `/`, a `\` or
+`..`, a name no committed regular file beside the `.s` file carries (absent,
+only in the working tree, or in another directory), a header holding a nested
+`#include`, a conditional or any statement other than `#define` and `#undef`,
+and a header whose last line has no newline refuse, and a refusal on a header
+line names the header and that line. Refusing a nested include also leaves no
+include cycle to form. Assembly bytes, local header text and header-presence
+evidence stay separate
 from report paths and Go ASTs. Callback/interface execution without resolved
 ownership also refuses rather than publishing a subset.
+<!-- source: internal/le/repo/inventory/assemblylocalinclude.go -- assemblyNamespace.includeLocal, assemblyNamespace.localHeaderStatement -->
+<!-- source: internal/le/repo/inventory/source.go -- sourceObjects -->
 
 A bodyless declaration with no assembly definition is admitted on one other
 proof: exactly one pull-style `//go:linkname <local> <target>` whose target

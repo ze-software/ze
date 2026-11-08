@@ -110,10 +110,12 @@ func (unit *assemblyNamespace) undefine(raw string) error {
 	return nil
 }
 
+// include applies a quoted `#include`. A compiler header contributes its
+// declared bindings; any other name is a package-local header, read as text.
 func (unit *assemblyNamespace) include(name string) error {
 	header := assemblyHeaderNamed(name)
 	if header == nil {
-		return fmt.Errorf("unproved assembly include %q", name)
+		return unit.includeLocal(name)
 	}
 	if unit.headers.snapshot.headerPresence[path.Join(unit.pkg.dir, name)] {
 		return fmt.Errorf("committed local %s shadows the compiler header", name)

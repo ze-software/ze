@@ -48,6 +48,10 @@ type Snapshot struct {
 	headerPresence     map[string]bool
 	assemblyInvalid    map[string]string
 	assemblyPredefines []string
+	// localHeaders names every committed regular .h blob not spelled like a
+	// compiler header; its payload is in blobs. Only assemblyNamespace.includeLocal
+	// reads one, as the text of a quoted #include.
+	localHeaders map[string]bool
 }
 
 type sourcePackage struct {
@@ -96,9 +100,13 @@ func ReadCommitted(ctx context.Context, root string) (*Snapshot, error) {
 		revision: revision, paths: population.reportPaths, blobs: make(map[string][]byte, len(population.payloadPaths)),
 		fset: token.NewFileSet(), packages: make(map[string]*sourcePackage), directories: make(map[string][]string),
 		headerPresence: population.headers, assemblyInvalid: population.invalidAssembly,
+		localHeaders: make(map[string]bool, len(population.localHeaders)),
 	}
 	for index, name := range population.payloadPaths {
 		snapshot.blobs[name] = payloads[index]
+	}
+	for _, name := range population.localHeaders {
+		snapshot.localHeaders[name] = true
 	}
 	for _, names := range [][]string{population.reportPaths, population.assemblyPaths} {
 		for _, name := range names {
@@ -144,11 +152,14 @@ func (s *Snapshot) Sources() ([]SourceFile, *token.FileSet) {
 func (s *Snapshot) Gates() pluginimports.GateIndex { return s.gates }
 
 // sourcePopulation keeps assembly evidence separate from report inputs. Header
-// presence is sufficient to refuse a shadow; no header payload is needed.
+// presence is sufficient to refuse a shadow; no compiler-header payload is
+// needed. A local header's payload is read, because a quoted include of it is
+// text the assembler reads at the include line.
 type sourcePopulation struct {
 	reportPaths     []string
 	payloadPaths    []string
 	assemblyPaths   []string
+	localHeaders    []string
 	ids             []string
 	headers         map[string]bool
 	invalidAssembly map[string]string
@@ -187,14 +198,25 @@ func sourceObjects(ctx context.Context, root, revision string) (sourcePopulation
 		report := inventoryInput(rel)
 		identity := rel == "go.work" || strings.HasSuffix(rel, "/go.mod") || rel == "vendor/modules.txt"
 		assembly := strings.HasSuffix(rel, ".s")
+		localHeader := strings.HasSuffix(rel, ".h") && assemblyHeaderNamed(path.Base(rel)) == nil
 		if !report {
 			if !assembly {
 				if !identity {
-					continue
+					if !localHeader {
+						continue
+					}
 				}
 			}
 		}
 		regular := fields[1] == "blob" && (fields[0] == "100644" || fields[0] == "100755")
+		if localHeader {
+			// A symlink or gitlink header is left out, so an include of it
+			// names no committed header and refuses; nothing follows it.
+			if !regular {
+				continue
+			}
+			population.localHeaders = append(population.localHeaders, rel)
+		}
 		if assembly {
 			population.assemblyPaths = append(population.assemblyPaths, rel)
 			if !regular {
