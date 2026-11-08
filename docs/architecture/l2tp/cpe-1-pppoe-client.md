@@ -455,7 +455,7 @@ renegotiation. It withholds the LCP, PAP and IPCP replies to measure discard in
 each phase, then checks resumed traffic and the changed installed state.
 Both tests exercise registered startup config delivery inside their isolated
 test processes; they do not launch the full daemon CLI.
-<!-- source: internal/component/iface/pppoe_packets_integration_linux_test.go -- TestDialRenegotiatesLCPInNetworkPhase, packetProbe -->
+<!-- source: internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go -- TestDialRenegotiatesLCPInNetworkPhase, packetProbe -->
 
 On 2026-11-03, both scenarios passed with race instrumentation on `7.2.9-ze`.
 Omitting interface sections in `Server.deliverConfigRPC` made both fail with
@@ -476,7 +476,7 @@ the feature tags declared in `feature-gates.txt`. Each mutation run used the
 same selector and flags. This proves startup config delivery and the retained
 cardinality checks, not an independent mutation of each packet assertion.
 <!-- source: internal/component/iface/pppoe_kernel_integration_linux_test.go -- TestPPPoEConfigRenegotiatesKernelState -->
-<!-- source: internal/component/iface/pppoe_packets_integration_linux_test.go -- TestDialRenegotiatesLCPInNetworkPhase -->
+<!-- source: internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go -- TestDialRenegotiatesLCPInNetworkPhase -->
 
 ## Traps this code exists to avoid
 
