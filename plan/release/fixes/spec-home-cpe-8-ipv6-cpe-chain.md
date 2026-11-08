@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Feature: a dual-stack home CPE on a PPPoE WAN. Owner timing: a missing RFC feature may wait until after the first release. The rows it closes are recorded gaps of enrolled RFCs (RFC 7084 G-4, G-5, WLL-2, WLL-3, L-2, L-3, L-4; RFC 5072 on the client side). |
 | RFC gaps | rfc5072, RFC7084-4.1-4, RFC7084-4.1-5, RFC7084-4.2-9, RFC7084-4.2-10, RFC7084-4.3-5, RFC7084-4.3-6, RFC7084-4.3-7, RFC9915-6.3-1, RFC9915-6.3-2, RFC9915-6.3-3 |
 | Depends | Implementation: `spec-home-cpe-1-logical-interface-name.md` (the PPPoE client's kernel device carries its configured name, which every IPv6 action, the DHCPv6 lease and the delegated-prefix source name). Proof and closure: `spec-home-cpe-18-interoplab-multi-link-topology.md` (the `topology` suite and its `interop-topology` verb that run `pppoe-dhcpv6-pd-ze-client`); `plan/release/validation/spec-ppp-ipv6-link-local-never-assigned.md` (its live proof validates A-2) |
-| Phase | 3/5 |
+| Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-11-07 |
+| Updated | 2026-11-08 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 8).
 
@@ -388,9 +388,9 @@ OD-1 (a) and OD-2 (a).
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `pppoe-ipv6cp-ze-client` | `test/interop-pppoe/scenarios/pppoe-ipv6cp-ze-client/`, checker `checkZeClientIPv6CP` (`internal/le/interoplab/pppoe/check_ipv6cp_client.go`) | accel-ppp, which Naks every Interface-Identifier but its own `ipv6-peer-intf-id` 0:0:0:5a | AC-1, AC-2, AC-5: Ze adopts the Nak's identifier and opens IPv6CP, `pppoe0` holds fe80::5a, RA default route and SLAAC address, IPv6 ping to accel-ppp. Red walks owed: `negotiateIPCP` never calls `clientIPv6CP.start`; `receiveNak` keeps `c.local` instead of adopting the suggestion | written, not run |
-| `pppoe-ipv6cp-rejected-ze-client` | `test/interop-pppoe/scenarios/pppoe-ipv6cp-rejected-ze-client/`, checker `checkZeClientIPv6CPRejected` | accel-ppp with IPv6 denied, which Protocol-Rejects IPv6CP | NCP independence (AC-3): one Protocol-Reject, no LCP Terminate-Request, one CHAP Success, IPv4 ping after the reject, no link-local address. Red walk owed: the `ppp.LCPProtocolReject` arm of `keepaliveLoop` returns instead of stopping IPv6CP | written, not run |
-| `pppoe-dhcpv6-pd-ze-client` | `test/interop-topology/scenarios/` (suite and verb from child 18; this spec owns the scenario) | accel-ppp, dhcpcd | PD on `pppoe0`, LAN /64, RA PIO and RIO, LAN host traffic; after `accel-cmd` terminates the session, the next LAN RA carries Router Lifetime 0 and dhcpcd drops Ze as default router. Red walks: lifetime bound removed (advertised valid lifetime above remaining); W input forced true (Router Lifetime stays non-zero after the session ends) | written, not run, for Phases 1 to 3 only: the scenario (`test/interop-topology/scenarios/pppoe-dhcpv6-pd-ze-client/`, `register_pppoe_dhcpv6_pd.go`, checker `checkPPPoEDHCPv6PD`) proves IPv6CP, the WAN RA and SLAAC, and DHCPv6 PD on `pppoe0` (AC-1, AC-5, AC-6: IA_PD with a /56 hint, the /60 accel-ppp offered requested and delegated). No LAN node runs yet: the LAN /64, RA PIO and RIO, the terminate step and the two red walks above belong to Phases 4 and 5, which are in scope (owner ruling) and extend this scenario with a LAN node. AC-6 gap: no show command reports the lease's valid and preferred lifetimes on Ze's side, so the checker does not observe the published lifetimes |
+| `pppoe-ipv6cp-ze-client` | `test/interop-pppoe/scenarios/pppoe-ipv6cp-ze-client/`, checker `checkZeClientIPv6CP` (`internal/le/interoplab/pppoe/check_ipv6cp_client.go`) | accel-ppp, which Naks every Interface-Identifier but its own `ipv6-peer-intf-id` 0:0:0:5a | AC-1, AC-2, AC-5: Ze adopts the Nak's identifier and opens IPv6CP, `pppoe0` holds fe80::5a, RA default route and SLAAC address, IPv6 ping to accel-ppp. Red walks: `receiveNak` keeps `c.local` instead of adopting the suggestion (red "IPv6CP never opened on the identifier accel-ppp suggested"); and both IPv6CP starts broken, `ipv6.start` in `runIPCP` and `c.start` in `clientIPv6CP.receiveRequest` (red, same message). That second walk proves Ze never opens IPv6CP at all, which is wider than the planned break: breaking `negotiateIPCP`'s start alone was off-path, because accel-ppp with `ipv6=prefer` opens IPv6CP actively and `receiveRequest` starts Ze's side (Deviations) | green 2026-11-08 after fdae5b498e and 36c64b0804 (`tmp/session/2026-11-07-104251/scratch/rwinv/c4c8-ipv6cp-clean.log`); reds `rwinv/c4c8-ipv6cp-nak-not-adopted.log`, `rwinv/c4c8-ipv6cp-never-started.log` |
+| `pppoe-ipv6cp-rejected-ze-client` | `test/interop-pppoe/scenarios/pppoe-ipv6cp-rejected-ze-client/`, checker `checkZeClientIPv6CPRejected` | accel-ppp with IPv6 denied, which Protocol-Rejects IPv6CP | NCP independence (AC-3): one Protocol-Reject, no LCP Terminate-Request, one CHAP Success, IPv4 ping after the reject, no link-local address. Red walk: the `ppp.LCPProtocolReject` arm of `runIPCP` (session.go) no longer stops IPv6CP, red "accel-ppp sent 6 Protocol-Rejects for IPv6CP, want 1: Ze MUST stop sending IPv6CP after the first (RFC 1661 Section 5.7)". The planned break in `keepaliveLoop` was off-path, because IPv6CP now opens beside IPCP and the reject arrives during `runIPCP` | green 2026-11-08 (`rwinv/c4c8-ipv6cp-rejected-clean.log`); red `rwinv/c4c8-ipv6cp-protocol-reject.log` |
+| `pppoe-dhcpv6-pd-ze-client` | `test/interop-topology/scenarios/` (suite and verb from child 18; this spec owns the scenario) | accel-ppp, dhcpcd | PD on `pppoe0`, LAN /64, RA PIO and RIO, LAN host traffic; after `accel-cmd` terminates the session, the next LAN RA carries Router Lifetime 0 and dhcpcd drops Ze as default router. Red walks: lifetime bound removed (advertised valid lifetime above remaining); W input forced true (Router Lifetime stays non-zero after the session ends) | green 2026-11-08 in the full topology run (`rwinv/topo-full-ac12.log`, 18 passed). The checker (`checkPPPoEDHCPv6PD`, then `checkDelegatedLAN` in `internal/le/interoplab/topology/check_pppoe_dhcpv6_pd_lan.go`) judges AC-1, AC-5, AC-6 on `pppoe0`, then on `lan0` the unit's address (AC-7), RA lifetimes bounded by the delegation (RFC 9915 Section 6.3), dhcpcd's SLAAC address and RIO route and an IPv6 ping to accel-ppp (AC-8, AC-13), and the Router Lifetime 0 RA after `accel-cmd terminate` (G-5, AC-11). Its accel-ppp runs `ipv6=allow`, which holds IPv6CP passive, so the scenario also judges that Ze opens IPv6CP beside IPCP (journal `ncp-started-behind-another-ncp.md`). Reds: lifetime bound removed (`scratch/rw8-lifetime.log`: "advertises a PIO valid lifetime of 120s, 1.9s after accel-ppp's Reply granted 120s, so above the 118.1s that remained"); W forced true (`scratch/rw8-w.log`: "no RA with Router Lifetime 0 since the session was terminated") |
 
 AC-4 (IPv6CP closes while IPCP is Opened) has no interop form: accel-ppp ends the whole session when an IPv6CP it started finishes (`accel-pppd/ppp/ppp_ipv6cp.c`, `ipv6cp_layer_finished` calls `ap_session_terminate` once `ipv6cp->started`), so no accel-ppp run can close IPv6CP alone. `TestRFC7084WLL3NCPIndependence` proves AC-4 by driving the close through the automaton and the session glue.
 
@@ -541,6 +541,33 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output): the scoped package tests of `internal/component/l2tp/pppoeclient`, `internal/component/iface`, `internal/core/ndp`, `internal/plugins/iface/ra`, `internal/plugins/iface/dhcp` and `internal/core/routewatch` under `./le job run`, `./le test functional parse` for the three parse tests, the interop scenarios through `./le test deployment docker-pppoe-accel` and `./le test integration interop-topology pppoe-dhcpv6-pd-ze-client`, then `./le verify changed` over the closing commits
+
+## Blocker
+
+Closure was attempted on 2026-11-08 and handed back before commit A. The code
+is committed (2bebae34b5, ee9d52da6e, 5aa5b17adb, 6e7ba09a0f, 7361ba2192,
+a5adb4ca2c, 2652d989f8, a02374d9ad and the interop-topology commits), all under
+`Spec-work: home-cpe-1-logical-interface-name`, so no review artifact names
+this spec. Five things block commits A and B:
+
+| # | What blocks | Producer | What clears it |
+|---|-------------|----------|----------------|
+| 1 | The two parse red walks never ran. `iface-delegated-prefix-unknown-source` and `iface-delegated-prefix-subnet-id-invalid` carry `skip-os=darwin`, so on the Mac both the broken and the clean runs SKIP (`rwinv/home-cpe-8-*-parse/run.log`) | `verifyDelegatedEntry` (`internal/component/iface/delegated_prefix.go`), its unknown-source and subnet-id refusals | On Linux (the Ze-kernel QEMU guest): `GOFLAGS=-overlay=<checkout>/tmp/session/2026-11-07-104251/scratch/rwinv/home-cpe-8-unknown-source-parse/overlay.json ./le job run label c8parse command bin/le test bgp parse iface-delegated-prefix-unknown-source` and the same with `home-cpe-8-subnet-id-parse` and `iface-delegated-prefix-subnet-id-invalid`, each wanting FAIL; then both, and `pppoe-client-ipv6`, without the overlay, wanting pass. The overlay files name host paths under `/Users/thomas/...`, so they are rewritten for the guest mount |
+| 2 | The Review Gate has not run. No `/ze-review` covers the implementation, about 8,000 changed lines | the commits above | A fresh closure agent runs `/ze-review` over those commits and records `./le spec review record` over the files commit A carries |
+| 3 | Two Integration Checklist rows marked Yes are not implemented: Prometheus metrics for the IPv6CP state per session and for a delegated prefix being present (`internal/component/l2tp/pppoeclient/metrics.go` registers only `ze_pppoe_client_renegotiations_total`), and editor completion of the `delegated-prefix source` name (the `source` leaf in `ze-iface-conf.yang` carries no completion) | `metrics.go`; `list delegated-prefix` | Implement both, with `docs/guide/monitoring.md`, or home each in a spec the Work Not Done table names |
+| 4 | Pages the checklist names were not updated: `features/ipv6-router-advertisements.md` and `features/interfaces.md` do not mention the Route Information option, the CE Router Lifetime matrix or delegated-prefix use; `docs/comparison.md` has no IPv6 CPE row. `features/pppoe-access.md` declares the access concentrator (Components `internal/component/l2tp/pppoe`), not the client, so the client's IPv6 has no feature declaration; `docs/guide/pppoe.md` documents it | the feature declarations | Edit the declarations and decide the comparison row in the closure run, with `./le doc check all` |
+| 5 | `./le rfc check` (2026-11-08, `scratch/c8close-rfccheck.log`) reports, on stems this spec touched, a STALE audit verdict for `RFC5072-3-1` (its test `TestNCPHeldUntilNetworkPhase` changed in 14d3df65a7, `Spec-work: ppp-l2tp-aaa-one-off-defects`) and a producer-changed record for `RFC9915-21.6-3` (`dhcp_v6_linux.go` `effect` changed in 7854ccf79b, `Spec-work: home-cpe-23-dns-source-fall-through`). Neither is this spec's tag, and every RFC 7084, 9915 and 5072 unit this spec tagged verifies | the commits named | The owning specs re-take them; this closure only checks they are not its own |
+
+Evidence already gathered for the closure run: the interop rows above (green
+runs and reds, each with its log); the tagged-unit records re-taken 2026-11-08
+(`scratch/rw8rec/rec.log`, `rwinv/home-cpe-8-rfc*`); and the owned journal row
+in `ncp-started-behind-another-ncp.md`, which is `fixed:`. Deviation to record
+at closure: the `ipv6cp-never-started` walk breaks both IPv6CP starts and
+proves "Ze never opens IPv6CP", wider than the single `negotiateIPCP` break
+planned. The passive-peer case, where Ze must open IPv6CP itself, is the
+`ipv6=allow` accel-ppp of `pppoe-dhcpv6-pd-ze-client`. That scenario has no
+logged red walk for the old order, where IPv6CP started after IPCP opened:
+the journal row states the red, but no log exists.
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
