@@ -30,6 +30,15 @@ const (
 	xfrmInfinity          = ^uint64(0)
 )
 
+// espFormListenNetwork is the raw-socket network the ESP form reader opens: IPv4,
+// protocol 50 (ProtoESP). It names the protocol by number, never as "ip4:esp".
+// Go resolves a protocol name through /etc/protocols and otherwise only through a
+// built-in table of icmp, igmp, tcp, udp and ipv6-icmp (net/lookup.go `protocols`),
+// so on Ze's gokrazy image, which ships no /etc/protocols, "ip4:esp" fails with
+// "unknown IP protocol specified" and every SA that asks for both ESP forms refuses
+// to install. A number needs no lookup on any system.
+const espFormListenNetwork = "ip4:50"
+
 // errNoESPFormReceiver reports that this backend was built without the receiver that
 // serves the second ESP form, so it cannot honor SAParams.AcceptBothESPForms.
 var errNoESPFormReceiver = errors.New("dataplane: no ESP form receiver, so this SA would receive one ESP wire form only")
@@ -264,7 +273,7 @@ func (r *espFormReceiver) startLocked() error {
 	// socket is opened once at receiver start and lives until Close, so there is no
 	// deadline to carry and Background is the honest context here.
 	var lc net.ListenConfig
-	conn, err := lc.ListenPacket(context.Background(), "ip4:esp", "0.0.0.0")
+	conn, err := lc.ListenPacket(context.Background(), espFormListenNetwork, "0.0.0.0")
 	if err != nil {
 		return err
 	}

@@ -165,7 +165,7 @@ func encapKernelVerdict(t *testing.T, spi uint32, encapsulated bool) string {
 			t.Fatalf("send encapsulated ESP: %v", err)
 		}
 	} else {
-		c, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
+		c, err := (&net.ListenConfig{}).ListenPacket(t.Context(), espFormListenNetwork, encapLoopbackAddr)
 		if err != nil {
 			t.Fatalf("open a raw ESP socket in the test's own namespace: %v", err)
 		}

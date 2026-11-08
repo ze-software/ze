@@ -158,7 +158,7 @@ func TestEncapOneStateAcceptsBothForms(t *testing.T) {
 		}
 	}()
 
-	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
+	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), espFormListenNetwork, encapLoopbackAddr)
 	if err != nil {
 		// See encapInjectRaw above: inside the namespace a refusal is a defect.
 		t.Fatalf("open a raw ESP socket in the test's own namespace: %v", err)
@@ -250,7 +250,7 @@ func TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated(t *testing.T) {
 		t.Fatalf("add templated state: %v", err)
 	}
 
-	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
+	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), espFormListenNetwork, encapLoopbackAddr)
 	if err != nil {
 		t.Fatalf("open a raw ESP socket in the test's own namespace: %v", err)
 	}

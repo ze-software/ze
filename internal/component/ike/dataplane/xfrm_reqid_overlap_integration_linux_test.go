@@ -244,7 +244,7 @@ func overlapInNoStates(t *testing.T, spi uint32) int {
 	t.Helper()
 	before := encapStat(t, encapStatNoStates)
 
-	c, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
+	c, err := (&net.ListenConfig{}).ListenPacket(t.Context(), espFormListenNetwork, encapLoopbackAddr)
 	if err != nil {
 		t.Fatalf("open a raw ESP socket in the test's own namespace: %v", err)
 	}

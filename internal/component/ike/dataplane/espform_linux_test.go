@@ -6,6 +6,8 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -130,5 +132,28 @@ func TestESPFormBypassRefusesANonIPSocket(t *testing.T) {
 
 	if err := espFormBypassInboundPolicy(pc); err == nil {
 		t.Fatal("a UDP socket was reported as exempt from the inbound IPsec policy check; the exemption applies to the raw IP socket alone")
+	}
+}
+
+// VALIDATES: the ESP form reader names its raw-socket protocol by number, and that
+// number is ProtoESP (50).
+// PREVENTS: "ip4:esp" coming back. Go resolves a protocol name through /etc/protocols,
+// falling back only to icmp, igmp, tcp, udp and ipv6-icmp, so on Ze's gokrazy image (no
+// /etc/protocols) the name failed with "unknown IP protocol specified" and every Child SA
+// asking for both ESP forms refused to install.
+func TestESPFormListenNetworkIsNumeric(t *testing.T) {
+	family, proto, found := strings.Cut(espFormListenNetwork, ":")
+	if !found {
+		t.Fatalf("espFormListenNetwork %q has no protocol part", espFormListenNetwork)
+	}
+	if family != "ip4" {
+		t.Errorf("espFormListenNetwork family %q, want ip4", family)
+	}
+	number, err := strconv.Atoi(proto)
+	if err != nil {
+		t.Fatalf("espFormListenNetwork protocol %q is a name, which needs /etc/protocols: %v", proto, err)
+	}
+	if number != int(ProtoESP) {
+		t.Errorf("espFormListenNetwork protocol %d, want ProtoESP (%d)", number, ProtoESP)
 	}
 }
