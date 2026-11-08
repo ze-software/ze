@@ -342,6 +342,22 @@ because the generated `register.go` of each `yang/` package blank-imports the
 packages registering its modules' imports (`command-ownership.md`, "YANG as
 Data, Not Code").
 
+A test binary is one of those callers, and it links only what its own blank
+imports reach, so the resolve error is the one place a module it lacks is
+named. `TestEverySchemaResolvingCallerChecksTheResolveError`
+(`internal/component/config/yang/schema_census_test.go`) holds every caller to
+that, tests included. It derives the functions that answer the schema from the
+two producer packages' source: each package-level function of `config/yang`
+and `config` that answers a `*Resolved` or `*Schema` with an error and reaches
+`resolveDefault`. It then walks the tree and refuses any call that assigns
+their error to `_` or drops it, unless the line carries a reviewed
+`//nolint:errcheck // <reason>`. `TestThisBinaryLinksEveryModuleItsSchemaImports`
+(`internal/component/config/cli/schema_link_test.go`) resolves the schema in
+the binary of the schema-dependent config CLI cases, so a module that binary
+does not register is named there before any case reads a path.
+<!-- source: internal/component/config/yang/schema_census_test.go -- TestEverySchemaResolvingCallerChecksTheResolveError, schemaResolvers -->
+<!-- source: internal/component/config/cli/schema_link_test.go -- TestThisBinaryLinksEveryModuleItsSchemaImports -->
+
 `DefaultLoader()` resolves once per registered module set and hands the same
 `Resolved`, or the same error, to every caller in the process. Every CLI
 model, editor session, restart, completer and value validator asks for that

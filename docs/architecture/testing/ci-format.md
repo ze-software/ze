@@ -416,8 +416,22 @@ including when a narrowed exclusion test would not select that file.
 
 ### Mode Defaults
 
-Files default to `0644`. Use an explicit `mode=` only when the test needs a
-different permission.
+A file with no `mode=` takes its mode from its extension: `0755` for `.py`,
+`.sh`, `.bash`, `.zsh`, `.pl`, `.rb` and `.run`, `0644` for anything else. Use
+an explicit `mode=` when the test needs a different permission, such as an
+extensionless shim (`wg`, `ip`) put on `PATH`, which only `mode=755` makes
+executable.
+
+Both routes a `.ci` takes write the block's bytes unchanged and keep the mode
+the block declared: the parse suite writes the parsed tmpfs as it is, and every
+other suite rebuilds it per run (to expand `$PORT`) with the mode the record
+carries, never one derived again from the path.
+`TestTmpfsContentAndModeReachBothRoutes` (`internal/test/runner/one_off_proof_test.go`)
+runs an extensionless `mode=755` shim and a control with no `mode=` through
+both routes and compares the bytes and the execute bit that reached disk.
+<!-- source: internal/test/tmpfs/tmpfs.go -- defaultModeForPath, WriteTo -->
+<!-- source: internal/test/runner/runner_exec.go -- tmpfsForRecord -->
+<!-- source: internal/test/runner/parsing.go -- setupWorkDir -->
 
 ### Terminator Rules
 

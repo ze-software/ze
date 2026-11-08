@@ -28,7 +28,7 @@ var (
 // This is the hot path: tokenize input → longest-prefix match → handler execution.
 func BenchmarkDispatch(b *testing.B) {
 	d := NewDispatcher()
-	if err := registerDefaultHandlers(d, internalBuildTestWireToPath()); err != nil {
+	if err := registerDefaultHandlers(d, internalBuildTestWireToPath(b)); err != nil {
 		b.Fatal(err)
 	}
 
@@ -86,7 +86,7 @@ func BenchmarkDispatch(b *testing.B) {
 // Isolates the longest-prefix matching cost from handler processing.
 func BenchmarkDispatchLookup(b *testing.B) {
 	d := NewDispatcher()
-	if err := registerDefaultHandlers(d, internalBuildTestWireToPath()); err != nil {
+	if err := registerDefaultHandlers(d, internalBuildTestWireToPath(b)); err != nil {
 		b.Fatal(err)
 	}
 
@@ -172,7 +172,7 @@ func BenchmarkPluginStartup(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		d := NewDispatcher()
-		if err := registerDefaultHandlers(d, internalBuildTestWireToPath()); err != nil {
+		if err := registerDefaultHandlers(d, internalBuildTestWireToPath(b)); err != nil {
 			b.Fatal(err)
 		}
 		benchCmd = d.Lookup("peer list")
@@ -184,7 +184,7 @@ func BenchmarkPluginStartup(b *testing.B) {
 // the minimal per-session setup cost.
 func BenchmarkConnect(b *testing.B) {
 	d := NewDispatcher()
-	if err := registerDefaultHandlers(d, internalBuildTestWireToPath()); err != nil {
+	if err := registerDefaultHandlers(d, internalBuildTestWireToPath(b)); err != nil {
 		b.Fatal(err)
 	}
 
@@ -217,7 +217,7 @@ func BenchmarkMemoryPerConnection(b *testing.B) {
 
 	for b.Loop() {
 		d := NewDispatcher()
-		if err := registerDefaultHandlers(d, internalBuildTestWireToPath()); err != nil {
+		if err := registerDefaultHandlers(d, internalBuildTestWireToPath(b)); err != nil {
 			b.Fatal(err)
 		}
 		ctx := &CommandContext{

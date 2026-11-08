@@ -1555,3 +1555,65 @@ The full signed-fixture regression, remaining discriminators, measured coverage,
 documentation checks and isolated publication remain owed. Tests, formatting and
 profiling ran only in MAIN through serialized native admission. The broader spec
 stays open.
+
+### Phase 12 P-14 and P-17 tmpfs source census on 2026-11-08
+
+Source-only census by a subagent of MAIN session
+`4d1dfc24-d1d9-4943-9205-0cedaf520caf`. No test, build, lint or formatter ran
+for these rows; each names the command MAIN owes. A row records what source
+holds today, not a passing run.
+
+**P-14 L2TP `unused` population.** The original finding is the
+`bulk-rename-corruption` 2026-08-10 row: `golangci-lint` red on
+`writeAVPUint8` and `readAVPUint8` after commit `3c9644e15` unexported them.
+That row named every package the rename touched as the wider risk, so the L2TP
+population is every identifier `3c9644e15` unexported under
+`internal/component/l2tp/` (`git show 3c9644e15 -- internal/component/l2tp/`,
+lowercase words on `+` lines that no `-` line carries, which holds every
+renamed identifier and some comment words): 91 names. Each
+was counted against current non-test source under `internal/component/l2tp/`.
+
+| Member | Current source | Resolution |
+|--------|----------------|------------|
+| `writeAVPUint8`, `readAVPUint8` (`avp.go`) | Absent; `avp.go` keeps the comment "No writeAVPUint8 exists" | Removed under the 2026-08-12 `unwired-feature` row: RFC 2661 defines no 1-octet Attribute Value. The only two `unused` members of the population |
+| `unregisterShaperHandler` (`subscriber/handler_registry.go`) | Defined, called only by `handler_registry_test.go` | Not an `unused` finding: `.golangci.yml` sets no `tests:`, so golangci-lint loads test files and sees the caller. Test-only helper, left as it is |
+| `getPoolStatsProvider`, `registerPoolStatsProvider`, `unregisterPrefixHandler`, `unregisterPrefixReleaser`, `lookupByMAC`, `iPCPOptions`, `lCPNegPolicy` | No occurrence anywhere in `internal/` or `cmd/` | Removed or renamed after `3c9644e15`; nothing left to be unused |
+| The other 81 names | Two or more whole-word occurrences in non-test source under `internal/component/l2tp/` | Live, or a comment word; no `unused` shape. A name used only inside its own body would also count twice, so the lint run below stays the proof |
+
+No member is still present and unused, so no source change was owed. The
+proof that the package is green is `./le go lint run scope "./internal/component/l2tp/..."`,
+which MAIN owes. The `bulk-rename-corruption` row's other packages are outside
+this L2TP population and are not certified here.
+
+**P-14 schema registration census.** The `_ = l.LoadRegistered()` and
+`_ = l.Resolve()` discards the `silent-fall-through` 2026-09-04 row named are
+gone: `resolveDefault` (`internal/component/config/yang/loader.go`) joins both
+errors, and `TestDefaultLoaderReportsEveryRegisteredFailure` proves an import
+nobody registers is an error. Two schema-resolving test binaries still
+discarded that error: `buildTestWireToPath` in
+`internal/component/plugin/server/all_import_test.go` and
+`internalBuildTestWireToPath` in `benchmark_support_test.go`. With a nil
+loader `TestYANGPathsAreUnique` passed with nothing checked. Both now fail on
+the error. `TestEverySchemaResolvingCallerChecksTheResolveError` derives the
+schema-answering functions from the producers' source and refuses any
+discarded resolve error in the tree; `TestThisBinaryLinksEveryModuleItsSchemaImports`
+resolves the config/cli binary's own registrations. The generated `register.go`
+of each `yang/` package blank-imports the packages registering its modules'
+imports, so dropping the `bgp/config` blank import from config/cli does not
+unlink `ze-bgp-conf` today (`plugin/all` links `bgp/yang` directly and through
+`rib/yang`); that test's recorded break is a renamed module statement instead.
+
+**P-17 tmpfs.** `TestParsingSuiteHonorsTmpfsMode` derived executability from
+the `.sh` extension and checked no bytes; `TestOrchestratedSuiteHonorsTmpfsMode`
+checked the rebuild, not runTest's execution, and no bytes.
+`TestTmpfsContentAndModeReachBothRoutes` (`internal/test/runner/one_off_proof_test.go`)
+adds the missing carrier: an extensionless `mode=755` shim and a control with no
+`mode=`, exact bytes and execute bits through `setupWorkDir` and through
+`runTest`, which executes the shim. `docs/architecture/testing/ci-format.md`,
+"Mode Defaults", said every file defaults to `0644`; it now states the
+extension-derived default the code applies.
+
+The CodeQL Go-extraction sentinel of P-17 is not attempted here: it is proven
+only by a GitHub `CodeQL` workflow run on a pushed commit whose Go extraction
+log shows an authored sentinel extracted and a `gokrazy/modcache` sentinel
+absent.

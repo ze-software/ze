@@ -14,8 +14,15 @@ import (
 )
 
 // buildTestWireToPath creates a WireMethod->path map from the shared YANG loader.
-func buildTestWireToPath() map[string]string {
-	loader, _ := yang.DefaultLoader()
+// It fails the test when the schema does not resolve: a nil loader maps no RPC,
+// which would fail every RPC with the wrong cause and pass the uniqueness check
+// with nothing checked.
+func buildTestWireToPath(t *testing.T) map[string]string {
+	t.Helper()
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		t.Fatalf("resolve the YANG schema this binary links: %v", err)
+	}
 	return yang.WireMethodToPath(loader)
 }
 
@@ -24,7 +31,7 @@ func buildTestWireToPath() map[string]string {
 // VALIDATES: All builtin RPCs (except editor-internal) have YANG path mappings.
 // PREVENTS: RPCs registered without YANG schema, invisible to CLI dispatch and authz.
 func TestEveryRPCHasYANGPath(t *testing.T) {
-	wireToPath := buildTestWireToPath()
+	wireToPath := buildTestWireToPath(t)
 
 	for _, reg := range pluginserver.AllBuiltinRPCs() {
 		if strings.HasPrefix(reg.WireMethod, "ze-cli:editor-") {
@@ -40,7 +47,7 @@ func TestEveryRPCHasYANGPath(t *testing.T) {
 // VALIDATES: YANG-derived CLI paths are unique across all builtin RPCs.
 // PREVENTS: Two RPCs mapping to the same CLI path, causing dispatch ambiguity.
 func TestYANGPathsAreUnique(t *testing.T) {
-	wireToPath := buildTestWireToPath()
+	wireToPath := buildTestWireToPath(t)
 
 	pathToWire := make(map[string]string)
 	for _, reg := range pluginserver.AllBuiltinRPCs() {
