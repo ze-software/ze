@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Release fix: an accepted configuration (two subnets on one LAN, a static reservation in the second) hands the reserved client a pool lease from the first subnet, and every listener answers for every subnet of every interface |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-08 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 2).
 
@@ -83,7 +83,7 @@ optional `server-identifier` leaf lets the operator name that address.
 - [ ] `internal/plugins/dhcpserver/config_tx.go` - `buildHandlers` makes one handler per subnet of every shared network, with no interface association; `subnetServerIP` answers `default-router`, else the first range start, else the subnet address
 - [ ] `internal/plugins/dhcpserver/handler.go` - `dhcpHandler.handle` calls `dhcpHandler.matchesSubnet`, which answers by `giaddr`, then `ciaddr`, then Requested IP, and answers true when all three are absent; `handleDiscover` calls `allocateForClient`, which checks only its own subnet's `staticByMAC`, then its pool, and never reads the Requested IP; `handleRequest` drops a SELECTING request whose option 54 differs from its single `serverIP`; in INIT-REBOOT it commits any requested address inside its prefix without consulting the lease table or a reservation held for the MAC elsewhere, so a client the server has no record of draws an ACK (`RFC2131-4.3.2-3`); in RENEWING and REBINDING it commits `ciaddr` with no correctness check (`RFC2131-4.3.2-6`)
 - [ ] `internal/plugins/dhcpserver/config.go` - `serverConfig`, `sharedNetwork`, `subnetConfig`, `staticMapping`; no interface or server-identifier field
-- [ ] `test/dhcp/dhcp-server-multi-subnet.ci` - parse-only; no test serves two subnets
+- [ ] `test/parse/dhcp-server-multi-subnet.ci` - parse-only; no test serves two subnets
 - [ ] `test/interop/scenarios/dns-resolver-dhcp-lan/` - dhcpcd against Ze, one subnet
 
 **Behavior to preserve:**
@@ -167,9 +167,9 @@ optional `server-identifier` leaf lets the operator name that address.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | For requests with `giaddr` zero, the listen interface holds an IPv4 address inside at least one configured subnet in every working deployment (relayed requests need none, AC-19) | RFC 2131 Section 4.1 SHOULD (server uses its address on the subnet); ISC and Kea refuse to serve a segment they hold no address on | configs that relied on serving a subnet the router is not addressed in stop answering | grep of `test/dhcp/*.ci` and the interop scenarios for listen devices with no address in the subnet, before Phase 2 | validated 2026-11-07: no functional test sends a DHCP packet (every `test/` file naming `dhcp-server` only validates config or binds a listener: `test/dhcp/dhcp-range-inside-subnet.ci`, `test/install/dhcp-*.ci`, `test/reload/dhcpserver-*.ci`), and both serving interop scenarios address their listen device in the served subnet (`dns-resolver-dhcp-lan`: lab `eth0` in 172.30.0.0/24; `dhcpv4-server-shared-segment-dhcpcd`: 172.30.0.2/24 and 10.99.0.1/24). R-1 does not occur |
-| A-2 | `shared-network` groups subnets of one segment in operator intent | ISC/Kea semantics; VyOS `shared-network-name` | a config with two segments in one shared network would mix reservations across segments | read every `shared-network` example in `docs/` and `test/` | unvalidated |
-| A-3 | dhcpcd sends DISCOVER with no Requested IP on first boot and an INIT-REBOOT REQUEST with its old address on restart | dhcpcd behaviour in the existing scenario | the interop test would not exercise step 3 or step 2 | the interop scenario captures both | unvalidated |
-| A-4 | A reload that adds an address to the listen device is seen without rebinding | netlink address events | a new subnet stays unserved until reload | unit test with a fake address source plus the `.ci` | unvalidated |
+| A-2 | `shared-network` groups subnets of one segment in operator intent | ISC/Kea semantics; VyOS `shared-network-name` | a config with two segments in one shared network would mix reservations across segments | read every `shared-network` example in `docs/` and `test/` | confirmed 2026-11-08: every config with several subnets in one shared network (`test/interop-topology/cpe/ze-cpe.conf` LAN 192.168.50.0/24 and 10.99.0.0/24 on one bridge, `test/reload/dhcpserver-range-reload.ci`, `test/parse/dhcp-server-multi-subnet.ci`, the five `test/dhcp/dhcpserver-*.ci`) puts them on one segment |
+| A-3 | dhcpcd sends DISCOVER with no Requested IP on first boot and an INIT-REBOOT REQUEST with its old address on restart | dhcpcd behaviour in the existing scenario | the interop test would not exercise step 3 or step 2 | the interop scenario captures both | confirmed 2026-11-08: the clean `dhcpv4-server-shared-segment-dhcpcd` run passes assertion 5 of `checkDHCPSharedSegment` (`internal/le/interoplab/bgp/check_dhcp_shared_segment.go`), which requires dhcpcd's `NAK:` log for the printer's rebooted wrong-subnet lease before it binds its reservation |
+| A-4 | A reload that adds an address to the listen device is seen without rebinding | netlink address events | a new subnet stays unserved until reload | unit test with a fake address source plus the `.ci` | confirmed 2026-11-08: the device's addresses are read from netlink for each request (`readDeviceAddrs` through `dhcpDeviceAddrs`, `register.go`), and `test/dhcp/dhcpserver-no-segment-address.ci` serves the client once an address is added, with no reload (green in the netns guest) |
 | A-5 | Kea, which VyOS configurations run on, NAKs a renewal whose address differs from the client's host reservation, as AC-17 does | Kea ARM, "Conflicts in DHCPv4 Reservations" (documentation, not source); no Kea or dnsmasq checkout is on this host | AC-17 still stands on RFC 2131 Section 4.3.2 (`ciaddr` correctness) and the reservation as the administrative choice; only the claim "same as Kea" falls | read Kea `src/lib/dhcpsrv/alloc_engine.cc` (`AllocEngine::renewLease4` and the reservation checks it calls) at the release the VyOS image ships, before Phase 3, and quote the deciding function here | validated 2026-11-07 against Kea-2.4.1 and Kea-2.6.1, whose deciding block is identical (which of the two the VyOS image ships was not checked). `renewLease4` decides nothing: the check is in `AllocEngine::requestLease4`, which a RENEWING request reaches with `ciaddr` as the hint (`Dhcpv4Srv::assignLease`, `src/bin/dhcp4/dhcp4_srv.cc`: "} else if (!query->getCiaddr().isV4Zero()) { hint = query->getCiaddr();"). `requestLease4`: "If the reserved address is not in use, i.e. the lease doesn't exist or is expired, and the client is requesting a different address, return NULL. The client should go back to the DHCPDISCOVER and the reserved address will be offered." A NULL lease makes `assignLease` answer `resp->setType(DHCPNAK)`. Kea NAKs as AC-17 does, with one difference: when the reserved address is leased to another client, Kea renews the old address, where Ze still NAKs |
 
 ### Risks
@@ -258,16 +258,16 @@ optional `server-identifier` leaf lets the operator name that address.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `dhcpserver-shared-segment-reservation` | `test/dhcp/dhcpserver-shared-segment-reservation.ci` | AC-1..AC-4 through a real listener, asserting the reply on the wire and the server's own record of each offer (the `dhcpserver: lease` log line, `logExchange`): the server has no lease-table `show` command, so there is no `show` output to assert | drafted in `test/draft/dhcp/`, not yet run |
-| `dhcpserver-server-identifier` | `test/dhcp/dhcpserver-server-identifier.ci` | AC-8, AC-9: the commit refusals through `ze config validate`, the held leaf, and the withheld reply with its warning once the probe removes the address | drafted in `test/draft/dhcp/`, not yet run |
-| `dhcpserver-request-states` | `test/dhcp/dhcpserver-request-states.ci` | AC-5, AC-6, AC-7, AC-14, AC-15, AC-16, AC-17, AC-18: one exchange per state (DISCOVER, SELECTING, INIT-REBOOT, RENEWING, REBINDING), each asserted separately on the reply type and fields; AC-17 adds the reservation by a SIGHUP reload while the binding is held | drafted in `test/draft/dhcp/`, not yet run |
-| `dhcpserver-relay-only-subnet` | `test/dhcp/dhcpserver-relay-only-subnet.ci` | AC-19, AC-12: relayed DISCOVER and SELECTING REQUEST for a subnet the listen device holds no address in, each reply asserted at the relay address | drafted in `test/draft/dhcp/`, not yet run |
-| `dhcpserver-no-segment-address` | `test/dhcp/dhcpserver-no-segment-address.ci` | AC-11 warning and doctor finding, then the same client served once an address in the subnet is added, with no reload | drafted in `test/draft/dhcp/`, not yet run |
+| `dhcpserver-shared-segment-reservation` | `test/dhcp/dhcpserver-shared-segment-reservation.ci` | AC-1..AC-4 through a real listener, asserting the reply on the wire and the server's own record of each offer (the `dhcpserver: lease` log line, `logExchange`): the server has no lease-table `show` command, so there is no `show` output to assert | promoted in 6d194604f9; green in the netns guest on Ze's kernel 2026-11-08 11:12, red under its break 11:15-11:17 |
+| `dhcpserver-server-identifier` | `test/dhcp/dhcpserver-server-identifier.ci` | AC-8, AC-9: the commit refusals through `ze config validate`, the held leaf, and the withheld reply with its warning once the probe removes the address | promoted in 6d194604f9; green in the netns guest on Ze's kernel 2026-11-08 11:12, red under its break 11:15-11:17 |
+| `dhcpserver-request-states` | `test/dhcp/dhcpserver-request-states.ci` | AC-5, AC-6, AC-7, AC-14, AC-15, AC-16, AC-17, AC-18: one exchange per state (DISCOVER, SELECTING, INIT-REBOOT, RENEWING, REBINDING), each asserted separately on the reply type and fields; AC-17 adds the reservation by a SIGHUP reload while the binding is held | promoted in 6d194604f9; green in the netns guest on Ze's kernel 2026-11-08 11:12, red under its break 11:15-11:17 |
+| `dhcpserver-relay-only-subnet` | `test/dhcp/dhcpserver-relay-only-subnet.ci` | AC-19, AC-12: relayed DISCOVER and SELECTING REQUEST for a subnet the listen device holds no address in, each reply asserted at the relay address | promoted in 6d194604f9; green in the netns guest on Ze's kernel 2026-11-08 11:12, red under its break 11:15-11:17 |
+| `dhcpserver-no-segment-address` | `test/dhcp/dhcpserver-no-segment-address.ci` | AC-11 warning and doctor finding, then the same client served once an address in the subnet is added, with no reload | promoted in 6d194604f9; green in the netns guest on Ze's kernel 2026-11-08 11:12, red under its break 11:15-11:17 |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `dhcpv4-server-shared-segment-dhcpcd` | `test/interop/scenarios/dhcpv4-server-shared-segment-dhcpcd/` | dhcpcd (three clients: two with fixed MACs reserved one per subnet, one unreserved) | each reserved client binds its reservation, the unreserved client binds from the primary subnet, a restarted client that held a wrong-subnet lease is NAKed and rebinds its reservation. Red phase: revert the selection step, rebuild the Ze image, the 10.99 client binds a 192.168.50 lease | |
+| `dhcpv4-server-shared-segment-dhcpcd` | `test/interop/scenarios/dhcpv4-server-shared-segment-dhcpcd/` | dhcpcd (three clients: two with fixed MACs reserved one per subnet, one unreserved) | each reserved client binds its reservation, the unreserved client binds from the primary subnet, a restarted client that held a wrong-subnet lease is NAKed and rebinds its reservation. Red phase: revert the selection step, rebuild the Ze image, the 10.99 client binds a 192.168.50 lease | green 2026-11-08 (clean first run and clean rerun at 12:18); red under `c2-reservation-skipped` at 12:05 |
 
 ## Files to Modify
 - `internal/plugins/dhcpserver/register.go` - `serveRequests` resolves the segment and selects; `bindListeners` records device addresses
@@ -428,3 +428,165 @@ Add `// RFC 2131 Section 4.1: "..."` above the server identifier choice and the 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/plugins/dhcpserver/segment.go` (`resolveSegment`, `segment.serve`, `discover`, `selecting`, `initReboot`, `renewing`, `serverID`, `serverIDOwner`): a request resolves its segment from `giaddr` or the receiving device's addresses, then follows the Data Flow state matrix, reservation first (10e9995d31).
+- Option 54 from the segment's own address, the relay-only case and the `server-identifier` leaf with its held check; `subnetServerIP` and the per-handler `serverIP` deleted (47f14d5ede).
+- `requestServer.resolve` (`register.go`) reads the device's addresses through `dhcpDeviceAddrs` (`readDeviceAddrs`, `neighbor_linux.go`) for each request, and warns at most once a minute (`warnLimited`).
+- `checkDHCPSegmentAddress` (`doctor.go`), code `doctor-dhcp-segment-address` in `internal/core/diagnostic/codes.go`.
+- DHCPv4 probe client `internal/test/dhcpprobe` and fixtures `dhcp/link`, `dhcp/probe` (5f40b09b40, 4c01e35c08); five `.ci` promoted to `test/dhcp/` (6d194604f9).
+- Interop scenario `dhcpv4-server-shared-segment-dhcpcd` (`internal/le/interoplab/bgp/check_dhcp_shared_segment.go`).
+- RFC 2131 rows 4.1-1, 4.1-2, 4.3.2-3, 4.3.2-6 tagged, recorded under `rfc/discrimination/rfc2131/`, audit verdicts re-stamped (0c0391e2bb).
+
+### Bugs Found/Fixed
+- The defect this spec names (first subnet answers for every request): covered by `TestSelectReservationAcrossSubnets` and `test/dhcp/dhcpserver-shared-segment-reservation.ci`.
+
+### Documentation Updates
+- `docs/guide/configuration.md`, "Several subnets on one interface", and the `server-identifier` row of the subnet table.
+- `docs/architecture/provisioning/dhcp-server.md`, "Decisions": segment resolution and selection replace the first-handler dispatch.
+- `docs/features/interfaces.md` rows for several subnets per interface and option 54; `docs/guide/migrating-from-vyos.md` anchor to `segment.serverID`.
+- `docs/architecture/testing/interop.md`: dhcpcd peer row and the scenario's registration row.
+- YANG `server-identifier` leaf and its description in `ze-dhcp-server-conf.yang`.
+- Closure added `features/dhcp-server-shared-segment.md` (Documentation checklist row 1 was not done by implementation); `./le feature report` lists it at `experimental`, and `./le feature check` names no refusal for it.
+
+### Deviations from Plan
+- Data Flow step 2 planned a read at bind refreshed on address events. The code reads the device's addresses from netlink for each request (`dhcpDeviceAddrs`), so there is no cached copy to refresh and R-3 cannot occur. A-4 holds through it.
+- The interop scenario uses 172.30.0.0/24 as its household subnet (the lab's network) rather than 192.168.50.0/24.
+- `test/parse/dhcp-server-multi-subnet.ci` was cited at `test/dhcp/` in Current Behavior; corrected at closure.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Documentation checklist row 1 (a `features/` entry) was left undone by implementation | no `features/` declaration named several subnets per segment | closure step 4 grep of `features/` | closure wrote `features/dhcp-server-shared-segment.md` |
+| approach | the implementation commits carry `Spec-work: home-cpe-1-logical-interface-name` | they are this spec's work (subject suffix `(child-2)`) | `git log --grep` found no commit tagged with this spec | recorded here; history is not rewritten |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Choose the subnet the client belongs to (relay, client address, requested address) | Done | `segment.go` `resolveSegment`, `subnetOf`, `request` | |
+| Reservation in any segment subnet before any pool | Done | `segment.go` `discover`, `segment.reservation` | |
+| Allocate from the subnet the interface is addressed in | Done | `resolveSegment` home subnet, `discover` pool loop | |
+| Server identifier the client can reach | Done | `segment.serverID` | |
+| Optional `server-identifier` leaf | Done | YANG leaf; `config.go` parse; `serverID` held check | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-2 | Done | `TestSelectReservationAcrossSubnets`; `dhcpserver-shared-segment-reservation.ci` | |
+| AC-3, AC-4 | Done | `TestSelectPrimaryPoolThenOthers`; same `.ci` | |
+| AC-5, AC-6 | Done | `TestInitRebootReservedElsewhereNaks`; `dhcpserver-request-states.ci` | |
+| AC-7 | Done | `TestSelectingAcceptsAnyOwnAddress` (`RFC2131-4.1-1`) | |
+| AC-8 | Done | `TestServerIdentifierIsSegmentAddress` (`RFC2131-4.1-2`); `dhcpserver-server-identifier.ci` | |
+| AC-9 | Done | `TestServerIdentifierLeafParse`, `TestServerIdentifierLeafNotHeld`; `dhcpserver-server-identifier.ci` | |
+| AC-10, AC-11 | Done | `TestListenerIgnoresOtherSegments`; `dhcpserver-no-segment-address.ci`; `checkDHCPSegmentAddress` | |
+| AC-12, AC-19 | Done | `TestServerIdentifierRelayOnlySubnet`; `dhcpserver-relay-only-subnet.ci` | |
+| AC-13 | Done | the existing one-subnet RFC 2131 tests pass with unchanged inputs and assertions (judged, `RFC-approved:` lines in 47f14d5ede) | |
+| AC-14 | Done | `TestDiscoverReservationBeatsRequestedIP` | |
+| AC-15 | Done | `TestDiscoverRequestedIPIsCandidate` | |
+| AC-16 | Done | `TestInitRebootNoRecordSilent` (`RFC2131-4.3.2-3`) | |
+| AC-17 | Done | `TestRenewingReservedElsewhereNaks`; `dhcpserver-request-states.ci` (reservation added by reload) | |
+| AC-18 | Done | `TestRebindingChecksCiaddr` (`RFC2131-4.3.2-6`) | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 16 unit tests of the Unit Tests table | Done | `segment_test.go`, `rfc2131_test.go`, `rfc2131_identity_options_test.go`, `config_test.go`, `register_test.go` | each found by `grep -n 'func Test'` at closure |
+| 5 functional tests | Done | `test/dhcp/dhcpserver-*.ci` | |
+| interop `dhcpv4-server-shared-segment-dhcpcd` | Done | `test/interop/scenarios/dhcpv4-server-shared-segment-dhcpcd/`, `check_dhcp_shared_segment.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `register.go`, `handler.go`, `config_tx.go`, `config.go`, `neighbor_linux.go`, `doctor.go`, YANG | Done | |
+| `segment.go`, `segment_test.go` | Done | |
+| `internal/test/dhcpprobe/`, fixture drivers | Done | |
+| `rfc/short/rfc2131.md` | Done | no `{gap` on the four rows |
+| `docs/architecture/provisioning/dhcp-server.md` | Done | |
+
+### Audit Summary
+- **Total items:** 5 requirements, 19 ACs, 22 tests, 11 file groups
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (Deviations: per-request address read, interop subnet)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A client reserved in the second subnet is offered its reservation | interop + functional | `dhcpv4-server-shared-segment-dhcpcd` green; red under `c2-reservation-skipped` (dhcpcd offered pool 172.30.0.100, then NAKed, never bound); `dhcpserver-shared-segment-reservation.ci` red under the same break: "yiaddr 192.168.50.100, want 10.99.0.20" |
+| A listener serves only its own segment | functional | `dhcpserver-no-segment-address.ci` green, red under `c2-no-segment-silent` |
+| Option 54 is reachable, any own address accepted | functional | `dhcpserver-server-identifier.ci` green, red under `c2-server-id-unchecked`; `dhcpserver-relay-only-subnet.ci` green, red under `c2-relay-only-accepted` |
+| Request states follow RFC 2131 4.3.2 | functional | `dhcpserver-request-states.ci` green, red under `c2-norecord-acked` |
+
+Evidence logs: `tmp/session/2026-11-07-104251/scratch/rwinv/c2-12-netns.log`, `c2-12-interop.log`, overlays `rwinv/c2-*`.
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-2-dhcp-shared-interface-subnets-7e292f27-ced0-427f-a7b6-3a931db211f9.md` |
+| `./le spec review check` | clean (`review_gate: OK`, hashes match), re-recorded after this edit |
+| Rounds | 1 |
+| Reviewer lenses used | logic of the state matrix against RFC 2131 4.3.1 and 4.3.2, security (forged giaddr, flood), style, docs against source |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | Security checklist row 1 asks that a forged `giaddr` reach no other shared network unless the packet arrived unicast from a relay. `resolveSegment` selects by `giaddr` whatever the arrival, and the listener reads no destination address (no `IP_PKTINFO`). The agreed Data Flow step 3 selects by `giaddr` alone, the behaviour before this spec was the same, the reply goes to the relay at `giaddr` and never to the forger, and Kea accepts every relayed message (`Dhcpv4Srv::acceptDirectRequest`, Kea 2.6.1: "// Accept all relayed messages."). A broadcast-arrival refusal is a product choice no RFC answers: handed to the main thread | `segment.go` `resolveSegment` | not changed |
+| 2 | NOTE | Each request dumps the device's addresses over netlink; a flood costs one dump per packet, bounded by the one request task per listener | `register.go` `requestServer.resolve` | not changed |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/dhcpserver/segment.go`, `segment_test.go` | yes | `gopls symbols segment.go` lists `resolveSegment` at 54:6 |
+| `test/dhcp/dhcpserver-{shared-segment-reservation,server-identifier,request-states,relay-only-subnet,no-segment-address}.ci` | yes | `ls test/dhcp/` at closure |
+| `internal/test/dhcpprobe/{frame.go,frame_test.go,probe_linux.go}`, `internal/test/fixture/{dhcp_fixture_probe_linux.go,register_dhcp_probe_linux.go}` | yes | `find`/`ls` at closure |
+| `test/interop/scenarios/dhcpv4-server-shared-segment-dhcpcd/ze.conf` | yes | `ls` at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| all | package tests pass | job `p23-3`: `go test -race -tags "<ze_core zetest and every feature gate>" -count=1 ./internal/plugins/dhcpserver/` ok 1.442s at 2026-11-08 17:06, after the last edit to the package (handler.go 14:34) |
+| AC-7, AC-8, AC-16, AC-18 | RFC rows tagged and recorded | `grep 'RFC requirement: RFC2131-(4.1-[12]|4.3.2-[36])'` finds positive and negative tags; `./le rfc check` names none of the four rows' records or audits |
+| AC-1..AC-19 | functional | netns guest clean run: the five `.ci` pass; each red under its break (`c2-12-netns.log`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| two subnets, reservation in the second | `test/dhcp/dhcpserver-shared-segment-reservation.ci` | the probe step asserts `yiaddr=10.99.0.20,sid=10.99.0.1` through the daemon's listener; red under `c2-reservation-skipped` |
+| `server-identifier` leaf | `test/dhcp/dhcpserver-server-identifier.ci` | red under `c2-server-id-unchecked` |
+| dhcpcd on one bridge, two subnets | interop `dhcpv4-server-shared-segment-dhcpcd` | green clean, red broken, green rerun (`c2-12-interop.log`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Assumptions table, 2026-11-07 |
+| A-2 | confirmed | Assumptions table, 2026-11-08 |
+| A-3 | confirmed | interop assertion 5 (dhcpcd `NAK:` then reservation) |
+| A-4 | confirmed | per-request read; `dhcpserver-no-segment-address.ci` |
+| A-5 | confirmed | Kea 2.4.1 and 2.6.1 `AllocEngine::requestLease4` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| configuration guide selection order | `segment.discover` order: reservation, binding, requested, pools | yes |
+| `dhcp-server.md` per-request netlink read | `dhcpDeviceAddrs` comment and `requestServer.resolve` | yes |
+| `features/dhcp-server-shared-segment.md` | `./le feature report` row `dhcp-server-shared-segment experimental` | yes |
+| doc anchors for changed files | `./le spec citation anchors spec <this spec>`: `plugin-system.md`, `pxe-staging.md`, `interfaces.md`, `migrating-from-vyos.md`; the last two carry this spec's claims, re-read at closure | yes |
+| No: CLI, API, SDK, wire format, comparison | no command, RPC or SDK change; grep of `docs/comparison.md` for dhcp shared-network finds no claim to change | yes |
