@@ -21,3 +21,37 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=0
+
+# `ze config validate -` above only proves the pair is ACCEPTED. The readback
+# dumps the parsed tree and asserts what it STORES: both wildcard listeners,
+# 0.0.0.0 and ::, each kept as its own server entry on port 1701. A parser or
+# listener-conflict path that accepted the config but dropped or merged one
+# of the two entries fails here. IPV6_V6ONLY is not a config value: it is how
+# L2TP binds (RegisterListenerV6Only), so the stored pair is what config holds.
+#
+# `show config dump - | json` resolves the BGP tree and refuses a config with
+# no bgp { } block, so the readback runs on a copy that adds a minimal one.
+stdin=readback:terminator=EOF_READBACK
+bgp { router-id 192.0.2.1; }
+l2tp {
+	enabled true
+}
+environment {
+	l2tp {
+		server v4 {
+			ip 0.0.0.0
+			port 1701
+		}
+		server v6 {
+			ip ::
+			port 1701
+		}
+	}
+}
+EOF_READBACK
+
+cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=readback:exit=0
+# The dump renders every leaf as a JSON string, a list entry under its key,
+# and Go sorts map keys, so "ip" precedes "port" inside each entry.
+expect=stdout:pattern="v4":\s*\{[^}]*"ip":\s*"0\.0\.0\.0"[^}]*"port":\s*"1701"
+expect=stdout:pattern="v6":\s*\{[^}]*"ip":\s*"::"[^}]*"port":\s*"1701"
