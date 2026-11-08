@@ -16,7 +16,8 @@ Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md. This spec answers the
 umbrella's open decision "Learned DNS for LAN clients (child 13)".
 
 RFC gaps, in full: RFC7084-4.3-12 (L-11) is closed for its RDNSS half only,
-when a list names a received or system source; the DNSSL half stays with
+when the unit's selection comes from the `received` class (the D-5 default
+on a unit with no `rdnss server`, or an explicit list); the DNSSL half stays with
 `post-release/features/spec-router-advertisement-options-out-of-scope.md`.
 RFC 5625 (BCP 152) is followed in this spec (owner decision D-2); its
 requirement ids do not exist until its summary is written, which is owed work
@@ -64,8 +65,9 @@ and one ordered fall-through list per consumer, evaluated by one shared rule.
 |---|-------------------|-------------------------------|---------|
 | D-1 | "The fall-through rule should be explicitly configured." | Every consumer's `dns-source` container carries a `mode` leaf the operator sets: `first-usable` (the first source with usable entries wins) or `merge` (every source, in list order). The leaf has no YANG default. A list naming more than one source without `mode` is refused at `ze config validate`, commit and boot, with the fix in the message. A one-source list needs no `mode`, because both modes give the same answer for it | O-1 |
 | D-2 | "RFC 5625 inside child 23" | RFC 5625 (BCP 152) is followed in this spec, and it is listed for the home-CPE role (the `fttx-edge` profile, which already carries RFC 7084) as decided in scope. Writing its summary and enrolling it is owed work here, through the RFC tooling | O-7 |
-| D-3 | "By default the behavior should be to pass the DNS through." | With no `dns-source` config, each downstream consumer passes on the DNS it received rather than substituting Ze's own address or its configured servers: a PPP subscriber gets the RADIUS-supplied DNS, then the pool's configured servers when RADIUS gives none; LAN clients (DHCPv4 option 6, RA RDNSS) get the WAN-learned servers, then the configured ones when nothing was learned. Each built-in default is a stated list with a stated mode, documented and shown, never a hidden choice. **Interpretation flagged for Thomas's confirmation** (P-1, P-2 under "Open owner questions") | O-2 |
+| D-3 | "By default the behavior should be to pass the DNS through." | With no `dns-source` config, a consumer passes on the DNS it received rather than substituting Ze's own address. Each built-in default is a stated list with a stated mode, documented and shown, never a hidden choice. D-5 fixes where configured servers stand against received ones | O-2 |
 | D-4 | "spec of its own ... I don't want to delay it, but I don't want to hold back the [home-CPE] umbrella completion. We need the feature, but not for the test I want to do in my house." | IPv6 subscriber DNS is a separate spec, `plan/post-release/features/spec-l2tp-ipv6-subscriber-dns.md`, queued after the home-CPE umbrella, which it does not block. This spec excludes it | O-6 |
+| D-5 | "We should have a default behavior of we can be passed through our local DNS with the default DNS being passed through therefore the behavior should be passed through by default and if you config DNS, they will only become actively passed through." Then, on the YANG shape under "YANG shape": "lgtm" | Configured beats received when set, on every consumer, the LAN resolver's upstreams included. The approved shape: a typedef `dns-source-class` (`received`, `configured`, `self`, `radius`) and a grouping `dns-source` declared once in the shared types module `ze-types`, `uses`d by each consumer beside its existing configured-server leaves. With the container absent, a consumer uses its configured servers when any are set on it, otherwise it passes the received ones through: `source [configured received] mode first-usable`. The subscriber pool's default is `radius`, then `configured`, then `received`. `mode` is required once `source` names two or more classes, and `self` is refused on the system consumer, because Ze cannot be its own upstream | P-1, P-2 |
 
 ### Split
 
@@ -73,7 +75,7 @@ and one ordered fall-through list per consumer, evaluated by one shared rule.
 categories. The router consumer (AC-1 to AC-5) fixes the defect in the Release
 reason and is a release fix, together with the router half of the `mode`
 refusal (AC-16, AC-17). The other consumers, the RADIUS source, the
-pass-through defaults (AC-14, AC-15) and a received RA source are features. The
+pass-through defaults (AC-14, AC-15, AC-20) and a received RA source are features. The
 RFC 5625 work (AC-18, AC-19) binds the LAN resolver and the DHCP server, both
 shipped, so a MUST they miss is a defect in an implemented capability and
 lands in 23a. At the move to `ready` this spec splits into 23a (registry,
@@ -116,9 +118,9 @@ shape and the list grammar are one decision.
   → Constraint: Section 6, quoted above `system.Resolvers`: "Where DNS parameters such as the domain searchlist or DNS servers have been manually configured, these parameters SHOULD NOT be overridden by DHCP." It fixes the router default order (configured before received)
 - [ ] RFC 5625 (BCP 152; text at `rfc/full/rfc5625.txt`; no summary yet, written by this spec)
   → Decision (D-2): followed in this spec and listed for `fttx-edge` as in scope. Its summary, extraction walk and profile enrolment are owed here ("RFC 5625 in this spec")
-  → Constraint: Section 3: "Except when required to enforce an active security or network policy (such as maintaining a pre-authentication "walled garden"), end-users SHOULD be able to send their DNS queries to specified upstream resolvers, thereby bypassing the proxy altogether." The pass-through defaults (D-3) of the DHCPv4 and RA consumers are this sentence: a LAN client is handed the upstream servers, not Ze's address
-  → Constraint: Section 5.1: "It is therefore RECOMMENDED that gateways SHOULD support device- administrator configuration of values for the "Domain Name Server" DHCP option." The `configured` class and the explicit list keep it: an operator who wants `dns-server` to win writes it first
-  → Constraint: Section 5.3: "If the DHCP lease is obtained whilst the WAN link is down, then the DHCP client (and hence the DNS client) will not receive the correct values until the DHCP lease is renewed." Under the pass-through default a LAN client that leased before the WAN came up holds the configured servers (or none) until it renews; R-2 and O-8 carry it
+  → Constraint: Section 3: "Except when required to enforce an active security or network policy (such as maintaining a pre-authentication "walled garden"), end-users SHOULD be able to send their DNS queries to specified upstream resolvers, thereby bypassing the proxy altogether." The pass-through defaults (D-3, D-5) of the DHCPv4 and RA consumers are this sentence: with no server configured on the subnet or unit, a LAN client is handed the upstream servers, not Ze's address
+  → Constraint: Section 5.1: "It is therefore RECOMMENDED that gateways SHOULD support device- administrator configuration of values for the "Domain Name Server" DHCP option." The `configured` class keeps it: under the D-5 default a set `dns-server` wins, with no `dns-source` written
+  → Constraint: Section 5.3: "If the DHCP lease is obtained whilst the WAN link is down, then the DHCP client (and hence the DNS client) will not receive the correct values until the DHCP lease is renewed." Under the pass-through default a LAN client on a subnet with no `dns-server` that leased before the WAN came up holds no server until it renews; R-2 and O-8 carry it
   → Constraint: Section 5.2: "it is RECOMMENDED that the default value for this option SHOULD be empty, and that this option MUST NOT be sent to clients when no value is configured." Binds the DHCP server's option 15 (`domain-name`), audited in AC-19
   → Constraint: Sections 4.1 to 4.5 and 6.1 to 6.3 bind a DNS proxy: "proxies MUST ignore any unknown DNS flags and proxy those packets as usual" (4.1), "DNS proxies MUST therefore be prepared to receive and forward queries over TCP" (4.4.1), "As per Section 4.1, proxies MUST NOT refuse to proxy such packets" (4.4.2, the OPT RR), "proxies SHOULD be capable of forwarding UDP packets up to a payload size of at least 4096 octets" (4.4.3), "The DNS proxy in a gateway SHOULD NOT, by default, be accessible from the WAN interfaces of the device" (6.2). Ze's LAN resolver is a caching forwarder that originates its own upstream query (`docs/architecture/dns/lan-resolver.md` "The upstream query": OPT at 1232 octets, DO clear, client CD never forwarded), so which proxy rows bind it, and how, is decided by the extraction walk against the RFC text, never assumed here (AC-18)
 - [ ] RFC 9463 (DNR; not in the first release; text not in the tree)
@@ -145,8 +147,9 @@ shape and the list grammar are one decision.
 - [ ] vyos-1x 611550d23 (2026-09-01): `src/conf_mode/system_host-name.py` `get_config`: `system name-server` takes an IP or an interface name; an interface name adds the `dhcp-<if>` and `dhcpv6-<if>` hostsd tags (servers learned there) in list order. `src/etc/ppp/ip-up.d/98-vyos-pppoe-setup-nameservers`: PPPoE peer DNS is stored under tag `dhcp-<if>` unless `no-peer-dns`. `src/conf_mode/service_dns_forwarding.py` `apply`: recursor tags in order: its own `name-server`, then `system` if set, then `dhcp-<if>`/`dhcpv6-<if>` for each `dhcp <if>`. `data/templates/accel-ppp/config_name_server.j2`: PPPoE/L2TP server `name-server` writes accel-ppp `[dns]` and `[ipv6-dns]`
 
 **Behavior to preserve:**
-- With no new config, the router (resolv.conf) and the LAN resolver's upstreams select exactly what they select today (default lists below)
-- With no new config and no learned or RADIUS DNS present, DHCPv4 option 6, RA RDNSS and subscriber IPCP carry exactly what they carry today, because their pass-through defaults fall through to `configured`
+- With no new config, the router (resolv.conf) selects exactly what it selects today (D-5 default below)
+- With no new config, a consumer that has configured servers (`forward server`, `dns-server`, `rdnss server`) carries exactly what it carries today, because the D-5 default uses `configured` whenever any is set
+- With no new config and no learned or RADIUS DNS present, every consumer, subscriber IPCP included, carries exactly what it carries today
 - resolv.conf written only by `system.Resolvers`; a source withdraws only its own servers
 - Origin rank order DHCPv4, DHCPv6, PPP inside the received class
 - The LAN resolver keeps its sockets when only its upstream list changes
@@ -155,19 +158,20 @@ shape and the list grammar are one decision.
 - Ze's internal resolver follows the router selection live, every server in order
 - Each consumer gains a `dns-source` container: an ordered `source` list and an explicit `mode` (D-1); learned records carry an expiry and are dropped when stale
 - A `dns-source` list naming more than one source without `mode` is refused at validate, commit and boot (D-1)
-- Pass-through by default (D-3): with no `dns-source` config, LAN clients receive the WAN-learned servers before the subnet's or unit's configured ones, and a PPP subscriber receives the RADIUS MS-Primary/Secondary-DNS-Server before the pool's. Today the DHCP server hands out only its configured `dns-server`, the RA only its configured `rdnss server`, and the pool only its `dns-primary`/`dns-secondary`. Every repository user of those leaves is converted or re-validated in the same work (`ai/META-DECISIONS.md`, "A change to what Ze does"), listed under "Files to Modify"
+- Pass-through by default (D-3, D-5): with no `dns-source` config, a consumer with no configured servers passes the received ones through: the LAN resolver with no `forward server` forwards to the learned servers, a subnet with no `dns-server` hands them out as option 6, and a unit with no `rdnss server` advertises them as RDNSS. A PPP subscriber receives the RADIUS MS-Primary/Secondary-DNS-Server before the pool's `dns-primary`/`dns-secondary`, and the learned servers when neither exists. Today each of those consumers offers nothing when its configured leaf is absent, and the pool offers only its `dns-primary`/`dns-secondary`. Every repository user of those leaves is converted or re-validated in the same work (`ai/META-DECISIONS.md`, "A change to what Ze does"), listed under "Files to Modify"
 
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
 |-----------|------------------------------------------|--------------------|-----------|
 | Resolver origin registry | `internal/component/config/system/resolv.go` `RegisterResolverOrigin`, `ResolverOrigin`, `ResolverSource` | each lease protocol registers a name and rank from its own package | extends: each record gains family, lifetime and the reserved DNR fields; registration stays the only way a protocol joins |
-| resolv.conf writer | `resolv.go` `Resolvers.SetLease`, `servers`, `flush` | static list wins, else leases by rank | extends: `servers()` becomes the router consumer's evaluation of its list by the shared rule; the built-in default `configured, received` with mode `first-usable` reproduces today's output byte for byte, because today's rule (static list alone when non-empty, else every lease) is exactly first-usable over those two classes |
+| resolv.conf writer | `resolv.go` `Resolvers.SetLease`, `servers`, `flush` | static list wins, else leases by rank | extends: `servers()` becomes the router consumer's evaluation of its list by the shared rule; the D-5 default `configured, received` with mode `first-usable` reproduces today's output byte for byte, because today's rule (static list alone when non-empty, else every lease) is exactly first-usable over those two classes |
 | Internal resolver | `cmd/ze/hub/main_system.go` `newResolvers`; `internal/component/resolve/dns/resolver.go` `NewResolver`, `resolveSystemDNS` | one server fixed at startup | replaces: the single server and `resolveSystemDNS` are deleted (no layering); the resolver holds the ordered router selection, updated on every change and reload, and tries each in order within its timeout |
 | DHCP lease events | iface `TopicDHCPLease*`, `DHCPPayload.DNSAll` | announce leases with their DNS on the EventBus | does not apply as the carrier: the registry publishes after merge and expiry, so no consumer re-derives lease state; the events stay for their existing readers |
 | Cross-process delivery | `internal/core/events` `RegisterNamespace`, `events.Register[T]`; `system-rib` `best-change` + `replay-request` | typed events to in-process and external subscribers | extends: a new namespace carries the record set and the selections, with replay on subscribe |
 | LAN resolver upstreams | dnsresolver `resolver.forward`, `resolverInstaller.install` (`docs/architecture/dns/lan-resolver.md`) | forwards to `forward server` in order | extends: the forward list is the evaluated list; `configured` is `forward server`; a change republishes without rebinding |
 | DHCPv4 option 6 | `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` `dns-server` | static per subnet | extends: option 6 is the subnet's evaluated list; `configured` is `dns-server` |
+| Shared YANG types | `internal/component/config/yang/modules/ze-types.yang` (typedefs, and the `listener` grouping other modules `uses`) | the types every `-conf` module imports | extends: the `dns-source-class` typedef and the `dns-source` grouping are declared here once (D-5) |
 | RA RDNSS | `internal/component/iface/yang/ze-iface-conf.yang` `rdnss`; the ndp encoder `BuildRA` | static per unit, one option, max 8 | extends: RDNSS is the unit's evaluated IPv6 list; a withdrawn address is advertised once with Lifetime 0 |
 | Subscriber IPCP DNS | `internal/component/l2tp/plugins/pool/register.go` IP response; `l2tp.AuthMetadata` | pool `dns-primary`/`dns-secondary` | extends: the evaluated list fills primary then secondary; `radius` reads two new `AuthMetadata` fields |
 | RADIUS Access-Accept extraction | `internal/component/l2tp/plugins/authradius/extract.go` `extractAuthMetadata` | Framed-* attributes into `AuthMetadata` | extends: vendor 311 types 28 and 29 (type 169 is D-4's separate spec) |
@@ -208,10 +212,13 @@ A consumer that speaks plain DNS only skips a record whose `transport` is not em
 | Class | Meaning | Allowed in |
 |-------|---------|-----------|
 | `configured` | the consumer's own static list: router `system name-server`; resolver `forward server`; DHCP subnet `dns-server`; RA `rdnss server`; pool `dns-primary`, `dns-secondary` | every consumer |
-| `received` | every unexpired learned record, by origin rank, interface, unit; an optional `interface` leaf-list narrows it to named interfaces (the VyOS `name-server <if>` and `dhcp <if>` forms) | every consumer |
-| `system` | the router consumer's current selection | every consumer except the router |
-| `self` | Ze's LAN resolver address on the consumer's link (O-3 fixes which address) | DHCP subnet, RA, pool; the router only when the resolver listens on loopback |
-| `radius` | the subscriber's MS-Primary/Secondary-DNS-Server (IPv4 only; IPv6 subscriber DNS is D-4's separate spec) | pool only |
+| `received` | every unexpired learned record, by origin rank, interface, unit | every consumer |
+| `self` | Ze's LAN resolver address on the consumer's link (O-3 fixes which address) | DHCP subnet, RA, pool. Refused on the system consumer (D-5: Ze cannot be its own upstream), and on the LAN resolver's `forward` for the same reason |
+| `radius` | the subscriber's MS-Primary/Secondary-DNS-Server (IPv4 only; IPv6 subscriber DNS is D-4's separate spec) | pool only; elsewhere no subscriber exists to carry it |
+
+The vocabulary is the `dns-source-class` typedef, four classes (D-5). A list
+names classes only: it holds no per-interface filter and no class that reads
+another consumer's selection.
 
 A source's entries are **usable** when they are unexpired, of the consumer's
 family, and pass the validity check (unicast, not unspecified, no line break:
@@ -236,7 +243,7 @@ no received entry is usable.
 
 | `dns-source` config | `mode` | Verdict |
 |---------------------|--------|---------|
-| container absent | n/a | the consumer's built-in default (next table): a stated list with a stated mode |
+| container absent | n/a | the consumer's built-in default (D-5, next table): a stated list with a stated mode |
 | one `source` | absent or set | accepted; both modes give the same answer, so nothing is chosen silently. A set `mode` is kept, so adding a second source later needs no new leaf |
 | two or more `source` entries | set | accepted |
 | two or more `source` entries | absent | refused at `ze config validate`, commit and boot |
@@ -254,9 +261,28 @@ calls it from its `InProcessConfigVerifier` (so `ze config validate` refuses),
 from its `OnConfigVerify` (commit and reload) and from the config parse its
 startup runs (boot), because the in-process verifier does not run at daemon
 startup (`ai/doors/config-yang.md`, Traps). The same three call sites carry the
-per-consumer class check (AC-11).
+per-consumer class check (AC-11). The `self` refusal on the system consumer
+reads:
 
-### Built-in default lists (D-1, D-3)
+| Part | Text |
+|------|------|
+| What | `system dns-source names self` |
+| Why | `self is Ze's own LAN resolver, and Ze cannot be its own upstream: its lookups would loop back to itself` |
+| Fix | `delete system dns-source source self, and name the upstream servers with set system name-server <address> or take them from the network with set system dns-source source received` |
+
+The LAN resolver's refusal names `service dns-resolver forward dns-source` and
+the fix `set service dns-resolver forward server <address>`.
+
+### Built-in default lists (D-1, D-3, D-5)
+
+Thomas (D-5): "the behavior should be passed through by default and if you
+config DNS, they will only become actively passed through." With the
+container absent, a consumer uses its configured servers when any are set on
+that consumer, otherwise it passes the received servers through. That is the
+list `configured`, `received` with mode `first-usable`, stated as such, and it
+is one rule for every consumer except the subscriber pool, whose default puts
+`radius` first. It settles P-1 (configured beats received when set) and P-2
+(the LAN resolver's upstreams follow the same rule).
 
 A default applies only while the consumer's `dns-source` container is absent.
 Once the operator writes any `source`, the default is gone entirely: it never
@@ -267,30 +293,36 @@ mode choice is hidden.
 
 | Consumer | YANG home | Default list | Default mode | Against today |
 |----------|-----------|--------------|--------------|---------------|
-| 1 Router (resolv.conf and Ze's own lookups) | `system dns-source` | `configured`, `received` | `first-usable` | same output (RFC 3646 Section 6 order) |
-| 2 LAN resolver upstreams | `service dns-resolver forward dns-source` | `configured` | n/a (one source) | same (P-2 asks Thomas to confirm the pass-through reading leaves it so) |
-| 3 DHCPv4 option 6 | `service dhcp-server shared-network subnet dns-source` | `received`, `configured` | `first-usable` | changes: WAN-learned IPv4 servers are handed out while one is usable; `dns-server` only when none is (P-1) |
-| 4 RA RDNSS | `interface ... unit ... ipv6 router-advertisement rdnss dns-source` | `received`, `configured` | `first-usable` | changes: WAN-learned IPv6 servers are advertised while one is usable; `rdnss server` only when none is (P-1) |
-| 5 Subscriber IPCP (LNS and PPPoE server) | `l2tp pool ipv4 dns-source`, `l2tp pool named-pool dns-source` | `radius`, `configured` | `first-usable` | changes: an Access-Accept's MS-Primary/Secondary-DNS-Server are offered; the pool's `dns-primary`/`dns-secondary` only when RADIUS gives none |
+| 1 Router (resolv.conf and Ze's own lookups) | `system dns-source`, beside `system name-server` | `configured`, `received` | `first-usable` | same output (RFC 3646 Section 6 order) |
+| 2 LAN resolver upstreams | `service dns-resolver forward dns-source`, beside `forward server` | `configured`, `received` | `first-usable` | same while any `forward server` is set; changes with none: the resolver forwards to the learned servers instead of having no upstream |
+| 3 DHCPv4 option 6 | `service dhcp-server shared-network subnet dns-source`, beside `dns-server` | `configured`, `received` | `first-usable` | same while `dns-server` is set; changes with none: the WAN-learned IPv4 servers are handed out instead of no option 6 |
+| 4 RA RDNSS | `interface ... unit ... ipv6 router-advertisement rdnss dns-source`, beside `rdnss server` | `configured`, `received` | `first-usable` | same while `rdnss server` is set; changes with none: the WAN-learned IPv6 servers are advertised instead of no RDNSS option |
+| 5 Subscriber IPCP (LNS and PPPoE server) | `l2tp pool ipv4 dns-source` and `l2tp pool named-pool dns-source`, beside `dns-primary`, `dns-secondary` | `radius`, `configured`, `received` | `first-usable` | changes: an Access-Accept's MS-Primary/Secondary-DNS-Server are offered; the pool's `dns-primary`/`dns-secondary` only when RADIUS gives none; the learned servers only when neither exists |
 
-`first-usable` is the default mode of every multi-source default because it is
-the literal reading of "backup" in the Task and of "pass through": the
-received value is handed on as received, and the backup appears only when
-nothing was received. With no learned or RADIUS DNS present, consumers 3 to 5
-fall through to `configured` and match today byte for byte (AC-5).
+`first-usable` is the default mode of every default because it is the literal
+reading of "backup" in the Task and of D-5's "if you config DNS, they will
+only become actively passed through": the first class with a usable entry is
+handed on as it is, and a later class appears only when the earlier ones hold
+nothing usable. With no learned or RADIUS DNS present, every consumer matches
+today byte for byte (AC-5).
 
-YANG shape: one grouping declared once in `ze-system-conf.yang` and `uses`d by
-each consumer module. It defines a container `dns-source` holding a leaf
-`mode` (enumeration `first-usable`, `merge`; no default) and an
-ordered-by-user `list source` keyed by `class` (enumeration of the five
-classes), with an optional `leaf-list interface` valid only under `received`.
-The `set` forms read `set system dns-source source received`,
-`set system dns-source source configured`,
-`set system dns-source mode first-usable`. The class and mode checks are the
-verifier calls above, not YANG `must`: no `-conf` module in the tree uses
-`must` today, and a verifier gives the refusal its fix text. The class
-vocabulary is closed on purpose: it names roles of a source, not protocols.
-Protocols join through `RegisterResolverOrigin` and appear inside `received`.
+### YANG shape (approved, D-5)
+
+| Part | Declared in | Shape |
+|------|-------------|-------|
+| `typedef dns-source-class` | `ze-types` (`internal/component/config/yang/modules/ze-types.yang`) | enumeration `received`, `configured`, `self`, `radius` |
+| `grouping dns-source` | `ze-types` | `container dns-source` holding `leaf-list source` (type `dns-source-class`, `ordered-by user`) and `leaf mode` (enumeration `first-usable`, `merge`; no default) |
+| consumer `uses dns-source` | each consumer module, beside its existing configured-server leaves | `system` beside `name-server` (`ze-system-conf.yang`); `service dns-resolver forward` beside `server` (`ze-dns-resolver-conf.yang`); `service dhcp-server ... subnet` beside `dns-server` (`ze-dhcp-server-conf.yang`); `router-advertisement rdnss` beside `server` (`ze-iface-conf.yang`); `l2tp pool ipv4` and each `named-pool` beside `dns-primary`, `dns-secondary` (`ze-l2tp-pool-conf.yang`) |
+
+The `set` forms read `set system dns-source source configured`,
+`set system dns-source source received`,
+`set system dns-source mode first-usable`. Each consumer's container
+`description` states that consumer's default list and mode. The class and
+mode checks are the verifier calls above, not YANG `must`: no `-conf` module
+in the tree uses `must` today, and a verifier gives the refusal its fix text.
+The class vocabulary is closed on purpose: it names roles of a source, not
+protocols. Protocols join through `RegisterResolverOrigin` and appear inside
+`received`.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -304,9 +336,10 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 | Wire | Role (writer / reader) | Carrier | Source evidence | Migration or preservation disposition |
 |------|------------------------|---------|-----------------|---------------------------------------|
 | resolv.conf | writer | `resolv.go` `flush` | sole writer | preserve: identical bytes under default lists |
-| DHCPv4 option 6 | writer | dhcpserver reply builder | static leaf-list today | content changes under the pass-through default while a received IPv4 server is usable (D-3); identical when none is; encoding unchanged |
-| RA RDNSS option | writer | ndp `BuildRA` | static today | content changes under the pass-through default while a received IPv6 server is usable (D-3); identical when none is; adds the Lifetime 0 withdrawal |
-| IPCP options 129/131 from the LNS | writer | pool IP response | pool leaves today | content changes under the pass-through default when the Access-Accept carries MS DNS (D-3); identical when it does not |
+| DHCPv4 option 6 | writer | dhcpserver reply builder | static leaf-list today | identical while `dns-server` is set (D-5); a subnet with none now carries the received IPv4 servers instead of no option 6; encoding unchanged |
+| RA RDNSS option | writer | ndp `BuildRA` | static today | identical while `rdnss server` is set (D-5); a unit with none now advertises the received IPv6 servers instead of no option; adds the Lifetime 0 withdrawal |
+| IPCP options 129/131 from the LNS | writer | pool IP response | pool leaves today | content changes under the default when the Access-Accept carries MS DNS, or when neither RADIUS nor the pool names a server and a received one exists (D-5); identical otherwise |
+| LAN resolver upstream queries | writer | dnsresolver `resolver.forward` | `forward server` today | identical while any `forward server` is set (D-5); a resolver with none now forwards to the received servers |
 | RADIUS vendor 311 types 28/29 | reader | `extractAuthMetadata` | not read today | new read |
 | EventBus `system-dns` | writer and reader | registry, consumers | new | new; the plugin protocol owes no backward compatibility before release |
 
@@ -341,9 +374,9 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Default lists change today's output | golden diff of resolv.conf, option 6, RDNSS, IPCP | AC-5 asserts byte equality under defaults |
-| R-2 | A LAN DHCP client keeps a received server after the WAN source is gone, or keeps the configured one after the WAN comes up (RFC 5625 Section 5.3). The pass-through default (D-3) makes this the common case, not an opt-in | stale option 6 in a client lease | O-8; the guide states the lease-length interaction |
-| R-8 | A box that is not a CPE (a PXE provisioning server with `dns-server` set, itself a DHCP client on its management port) starts handing its management lease's resolvers to the provisioned hosts under the pass-through default | option 6 differs from `dns-server` on a provisioning box | P-1 asks Thomas which reading he meant; until he answers, the guide names the explicit `dns-source source configured` that keeps today's behaviour, and the conversion of repository configs keeps every existing expectation |
-| R-3 | A loop: router `self` while the LAN resolver forwards to `system` | the resolver forwarding to itself | a `must` refuses the pair; unit test |
+| R-2 | A LAN DHCP client keeps a received server after the WAN source is gone, or holds no server when it leased before the WAN came up (RFC 5625 Section 5.3). The pass-through default (D-3, D-5) makes this the common case on a subnet with no `dns-server`, not an opt-in | stale option 6 in a client lease | O-8; the guide states the lease-length interaction |
+| R-8 | A box that is not a CPE (a PXE provisioning server, itself a DHCP client on its management port) with no `dns-server` on a subnet starts handing its management lease's resolvers to the provisioned hosts under the pass-through default. A subnet with `dns-server` set is unaffected (D-5) | option 6 present on a subnet that sent none | the guide names `dns-source source configured`, which keeps a subnet with no `dns-server` sending no option 6; the conversion of repository configs keeps every existing expectation |
+| R-3 | A loop: Ze's own lookups or the LAN resolver's upstreams pointed at Ze's LAN resolver | the resolver forwarding to itself | `self` refused on the system consumer and on `forward dns-source` by the verifier check (D-5); unit test |
 | R-4 | One timer per record leaks goroutines | goroutine count grows with leases | one long-lived sweeper (`ai/rules/goroutine-lifecycle.md`) |
 | R-5 | A consumer in another process misses the first selection | empty upstream list after restart | replay on subscribe; AC-13 |
 | R-6 | RADIUS sends a non-unicast or 0.0.0.0 DNS | subscriber gets an unusable resolver | the same validity check as `isValidSubscriberIP`; invalid values ignored with a log line |
@@ -367,9 +400,11 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 | `system dns-source` with two sources and no `mode`, through `ze config validate` and `ze start` | → | the core-leaf mode check from the verifier and the boot parse | `test/parse/dns-source-mode-required.ci` |
 | `service dns-resolver forward dns-source source received` | → | dnsresolver forward list from the event | `test/plugin/dns-resolver-forward-received.ci` |
 | subnet `dns-source source self` | → | dhcpserver option 6 | `test/dhcp/dhcp-server-dns-source-self.ci` |
-| subnet with `dns-server` and no `dns-source`, WAN DHCPv4 lease with option 6 | → | dhcpserver option 6 under the pass-through default | `test/dhcp/dhcp-server-dns-pass-through.ci` |
+| subnet with no `dns-server` and no `dns-source`, WAN DHCPv4 lease with option 6; then `dns-server` added | → | dhcpserver option 6 under the D-5 default | `test/dhcp/dhcp-server-dns-pass-through.ci` |
+| `service dns-resolver` with no `forward server` and no `dns-source`, a WAN DHCPv4 lease | → | dnsresolver forward list under the D-5 default | `test/plugin/dns-resolver-forward-default.ci` |
+| `system dns-source source self` through `ze config validate` and `ze start` | → | the core-leaf class check from the verifier and the boot parse | `test/parse/dns-source-class-refused.ci` |
 | RA `rdnss dns-source source received`, then the lease withdrawn | → | RA sender, Lifetime 0 | `TestRDNSSWithdrawnAdvertisedLifetimeZero` |
-| Access-Accept with MS-Primary-DNS-Server, pool with no `dns-source` | → | `extractAuthMetadata`, pool response under the default `radius`, `configured` | `TestPoolIPCPDNSFromRadius`, `test/l2tp/l2tp-pool-dns-source-radius.ci`, interop scenario `radius-subscriber-dns` under `test/interop-radius-subscriber/` |
+| Access-Accept with MS-Primary-DNS-Server, pool with no `dns-source` | → | `extractAuthMetadata`, pool response under the default `radius`, `configured`, `received` | `TestPoolIPCPDNSFromRadius`, `test/l2tp/l2tp-pool-dns-source-radius.ci`, interop scenario `radius-subscriber-dns` under `test/interop-radius-subscriber/` |
 | A LAN client query to the LAN resolver over TCP, and with an OPT RR | → | dnsresolver listener and forward path | `TestRFC5625ProxyTCPAndOPT` (dnsresolver), plus each further row the RFC 5625 walk binds (AC-18) |
 
 ## Acceptance Criteria
@@ -384,13 +419,14 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 | AC-6 | `forward dns-source source received` with a `ppp` lease | the LAN resolver forwards to the IPCP servers; withdrawing the lease moves it to the next class without rebinding a listener | none |
 | AC-7 | DHCP subnet `dns-source source self` | option 6 carries the LAN resolver address chosen under O-3 | none |
 | AC-8 | RA `rdnss dns-source source received` with a DHCPv6 lease carrying 2001:db8::53 | RDNSS carries 2001:db8::53 with a Lifetime not above the lease's remaining valid lifetime; on withdrawal one RA carries it with Lifetime 0 | none |
-| AC-9 | Access-Accept with MS-Primary-DNS-Server 198.51.100.53, pool with no `dns-source` (default `radius`, `configured`, `first-usable`) | the subscriber's IPCP Configure-Nak offers 198.51.100.53 as primary | none |
-| AC-10 | Access-Accept with no DNS attribute, same pool | the pool's `dns-primary` is offered | none |
-| AC-11 | A list naming a class its consumer refuses (`radius` under `system dns-source`) | `ze config validate`, commit and boot refuse it, naming the path and the allowed classes | none |
+| AC-9 | Access-Accept with MS-Primary-DNS-Server 198.51.100.53, pool with no `dns-source` (default `radius`, `configured`, `received`, `first-usable`) | the subscriber's IPCP Configure-Nak offers 198.51.100.53 as primary | none |
+| AC-10 | Access-Accept with no DNS attribute, same pool | the pool's `dns-primary` is offered; with no `dns-primary`/`dns-secondary` on the pool and a WAN lease carrying 192.0.2.53, 192.0.2.53 is offered | none |
+| AC-11 | A list naming a class its consumer refuses (`radius` under `system dns-source`; `self` under `system dns-source` or `forward dns-source`) | `ze config validate`, commit and boot refuse it, naming the path and the allowed classes; the `self` refusal carries the what, why and fix text above | none |
 | AC-12 | `show system dns` | answers records and every consumer's selection with its list, mode, the `default` marker where the built-in default applies, and the class used, on every command surface | none |
 | AC-13 | A consumer plugin restarts while leases exist | it applies the current selection from the replay before answering | none |
-| AC-14 | DHCP subnet with `dns-server 198.51.100.1` and no `dns-source`; a WAN DHCPv4 lease carries 192.0.2.53 | option 6 carries 192.0.2.53; once the lease is withdrawn or expires, the next reply carries 198.51.100.1 | none |
-| AC-15 | RA unit with `rdnss server 2001:db8:1::53` and no `dns-source`; a WAN DHCPv6 lease carries 2001:db8::53 | RDNSS carries 2001:db8::53; on withdrawal one RA carries it with Lifetime 0 and the next carries 2001:db8:1::53 | none |
+| AC-14 | DHCP subnet with no `dns-server` and no `dns-source`; a WAN DHCPv4 lease carries 192.0.2.53 | option 6 carries 192.0.2.53; once `dns-server 198.51.100.1` is committed on the subnet, the next reply carries 198.51.100.1 alone (D-5); once the lease is withdrawn or expires with no `dns-server`, no reply carries option 6 | none |
+| AC-15 | RA unit with no `rdnss server` and no `dns-source`; a WAN DHCPv6 lease carries 2001:db8::53 | RDNSS carries 2001:db8::53; once `rdnss server 2001:db8:1::53` is committed, the next RA carries 2001:db8:1::53 and one RA carries 2001:db8::53 with Lifetime 0; on withdrawal of the lease with no `rdnss server`, one RA carries 2001:db8::53 with Lifetime 0 | none |
+| AC-20 | `service dns-resolver` with no `forward server` and no `forward dns-source`; a WAN DHCPv4 lease carries 192.0.2.53 | the LAN resolver forwards to 192.0.2.53; once `forward server 198.51.100.53` is committed it forwards to 198.51.100.53 alone, without rebinding a listener (D-5) | none |
 | AC-16 | Any consumer's `dns-source` with two sources and no `mode` | `ze config validate`, commit and `ze start` refuse it with the what, why and fix text above, naming that consumer's path; the same list with `mode` set is accepted; a one-source list without `mode` is accepted | none |
 | AC-17 | `system dns-source` sources `received`, `configured`, mode `merge`, lease 192.0.2.53, `name-server 198.51.100.53` | resolv.conf lists 192.0.2.53 then 198.51.100.53; the internal resolver queries 198.51.100.53 when 192.0.2.53 does not answer | none |
 | AC-18 | The RFC 5625 summary's rows that bind the LAN resolver (Sections 4 and 6, as the walk decides) | each bound MUST is met by the LAN resolver and has a test that a recorded break turns red (`./le rfc record`); a SHOULD it misses is reported in the optional figure | none |
@@ -400,9 +436,9 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Home user sets no DNS; WAN is PPPoE | IPCP lease → registry → resolv.conf and internal resolver; LAN DHCPv4 clients get the IPCP servers by the pass-through default | `access-up` DNS clause (child 19), extended to Ze's own lookups and to option 6 |
+| 1 | Home user sets no DNS; WAN is PPPoE | IPCP lease → registry → resolv.conf and internal resolver; LAN DHCPv4 clients on a subnet with no `dns-server` get the IPCP servers by the pass-through default (D-5) | `access-up` DNS clause (child 19), extended to Ze's own lookups and to option 6 |
 | 2 | Operator prefers own resolvers, ISP's as backup | `system dns-source` sources `configured`, `received`, mode `first-usable` | `TestRouterSourceOrderConfiguredFirst` and `test/plugin/dns-source-router-follows-lease.ci` |
-| 3 | LNS operator's RADIUS sets a subscriber's DNS, with no DNS config on the pool beyond its `dns-primary` | Access-Accept → `AuthMetadata` → pool default `radius`, `configured` | interop `radius-subscriber-dns` |
+| 3 | LNS operator's RADIUS sets a subscriber's DNS, with no DNS config on the pool beyond its `dns-primary` | Access-Accept → `AuthMetadata` → pool default `radius`, `configured`, `received` | interop `radius-subscriber-dns` |
 | 4 | Operator writes two sources and forgets the mode | `ze config validate` refuses with the fix | `test/parse/dns-source-mode-required.ci` |
 
 ## 🧪 TDD Test Plan
@@ -417,6 +453,9 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 | `TestRouterSourceMerge` | system package `resolv_test.go` | AC-17 | |
 | `TestOption6PassThroughDefault` | dhcpserver `handler_test.go` | AC-14 | |
 | `TestRDNSSPassThroughDefault` | iface `reconcile_ra_test.go` | AC-15 | |
+| `TestForwardPassThroughDefault` | dnsresolver `config_tx_test.go` | AC-20 | |
+| `TestDefaultConfiguredBeatsReceived` | the core leaf's package test | D-5: an absent container with configured servers set answers them alone; with none set, the received ones | |
+| `TestSelfRefusedOnSystemAndForward` | the core leaf's package test | AC-11, the `self` refusal's what, why and fix parts for both consumers | |
 | `TestModeRequiredEachConsumer` | each consumer's config test | AC-16 through the consumer's verifier and its boot parse | |
 | `TestRFC5625ProxyTCPAndOPT` | dnsresolver `forward_test.go` | AC-18, the Section 4.4.1 and 4.4.2 rows if the walk binds them; one test per further bound row | |
 | `TestOption15AbsentWhenUnconfigured` | dhcpserver `handler_test.go` | AC-19 | |
@@ -444,10 +483,11 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 | `dns-source-router-follows-lease` | `test/plugin/dns-source-router-follows-lease.ci` | AC-1, AC-2, AC-3 through the daemon | |
 | `dns-resolver-forward-received` | `test/plugin/dns-resolver-forward-received.ci` | AC-6, AC-13 | |
 | `dhcp-server-dns-source-self` | `test/dhcp/dhcp-server-dns-source-self.ci` | AC-7 | |
-| `dns-source-class-refused` | `test/parse/dns-source-class-refused.ci` | AC-11 | |
+| `dns-source-class-refused` | `test/parse/dns-source-class-refused.ci` | AC-11, `radius` and `self` under `system dns-source` | |
 | `dns-source-mode-required` | `test/parse/dns-source-mode-required.ci` | AC-16 through `ze config validate` and `ze start` | |
 | `dns-source-router-merge` | `test/plugin/dns-source-router-merge.ci` | AC-17 through the daemon | |
 | `dhcp-server-dns-pass-through` | `test/dhcp/dhcp-server-dns-pass-through.ci` | AC-14 | |
+| `dns-resolver-forward-default` | `test/plugin/dns-resolver-forward-default.ci` | AC-20 | |
 | `show-system-dns` | `test/plugin/show-system-dns.ci` | AC-12 | |
 | `l2tp-pool-dns-source-radius` | `test/l2tp/l2tp-pool-dns-source-radius.ci` | AC-9, AC-10 through the LNS | |
 
@@ -459,7 +499,8 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 
 ## Files to Modify
 - `internal/component/config/system/resolv.go` - record shape, expiry sweeper, router evaluation, event publish
-- `internal/component/config/system/yang/ze-system-conf.yang` - the `dns-source` grouping (container, `mode`, `source` list) and `system dns-source`; correct the `name-server` description
+- `internal/component/config/yang/modules/ze-types.yang` - the `dns-source-class` typedef and the `dns-source` grouping (container, `source` leaf-list, `mode`), D-5
+- `internal/component/config/system/yang/ze-system-conf.yang` - `uses dns-source` beside `name-server`; correct the `name-server` description
 - system package `system.go` - extract the router list
 - `cmd/ze/hub/main_system.go`, `cmd/ze/hub/main.go` - hand the selection to the internal resolver at start and on change; reload path
 - `internal/component/resolve/dns/resolver.go` - ordered server list, failover; `resolveSystemDNS` deleted
@@ -471,8 +512,8 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 - `internal/component/l2tp/plugins/authradius/extract.go`, and l2tp `session_metadata.go` - DNS fields
 - `internal/component/l2tp/plugins/pool/register.go`, `internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang` - pool `dns-source`
 - `docs/architecture/dns/lan-resolver.md`, `docs/guide/dns-resolver.md`, `docs/guide/l2tp.md`, `docs/guide/pppoe.md`, `docs/features/interfaces.md`, `docs/architecture/config/syntax.md`
-- every `dns-source` container's YANG `description` states that consumer's built-in default list and mode (D-3), and `docs/guide/dns-resolver.md`, `docs/guide/l2tp.md`, `docs/guide/pppoe.md` and the DHCP server guide state the pass-through default, the change against today, and the explicit `source configured` that keeps the old behaviour
-- Repository users of the changed defaults (D-3), converted or re-validated in the same work: the configs and `.ci` bodies naming `dns-server`, `rdnss` or `dns-primary`/`dns-secondary` (17, 2 and 26 files under `test/` today, including `test/parse/`, `test/l2tp/`, `test/plugin/`, `test/interop/scenarios/dhcpv4-rebind-two-servers-dnsmasq/`, `test/interop/scenarios/dhcpv4-renew-nak-dnsmasq/`, `test/interop/scenarios/dns-resolver-dhcp-lan/`, `test/interop-pppoe/scenarios/`, `test/interop-topology/cpe/`, `test/interop-topology/scenarios/two-ze-pppoe-link/`; the set is re-derived by grep at implementation). Each one whose expectation would now change because a learned or RADIUS DNS is present gets either its expectation corrected to the pass-through answer, or an explicit `dns-source` stating what it tests; a test that stays green only because no learned source exists is re-checked that it still proves what it claims
+- every `dns-source` container's YANG `description` states that consumer's built-in default list and mode (D-3, D-5), and `docs/guide/dns-resolver.md`, `docs/guide/l2tp.md`, `docs/guide/pppoe.md` and the DHCP server guide state the pass-through default, the change against today (only a consumer with no configured server changes, and the pool), and the explicit `source configured` that keeps the old behaviour
+- Repository users of the changed defaults (D-3), converted or re-validated in the same work: the configs and `.ci` bodies naming `dns-server`, `rdnss` or `dns-primary`/`dns-secondary` (17, 2 and 26 files under `test/` today, including `test/parse/`, `test/l2tp/`, `test/plugin/`, `test/interop/scenarios/dhcpv4-rebind-two-servers-dnsmasq/`, `test/interop/scenarios/dhcpv4-renew-nak-dnsmasq/`, `test/interop/scenarios/dns-resolver-dhcp-lan/`, `test/interop-pppoe/scenarios/`, `test/interop-topology/cpe/`, `test/interop-topology/scenarios/two-ze-pppoe-link/`; the set is re-derived by grep at implementation). Under D-5 a test that sets the configured leaf keeps its answer; each one whose expectation would now change (no configured leaf while a learned DNS is present, or a pool test whose Access-Accept carries MS DNS) gets either its expectation corrected to the pass-through answer, or an explicit `dns-source` stating what it tests; a test that stays green only because no learned source exists is re-checked that it still proves what it claims
 - `rfc/short/rfc5625.md` (new, through `/ze-rfc`), `rfc/extraction/rfc5625.json` (the extraction walk), the `fttx-edge` listing and any `dns` technology listing the RFC tooling derives from the summary's use-case field
 - `docs/architecture/hub-architecture.md` (declared by the `cmd/ze/hub` files: the internal resolver wiring), `docs/architecture/l2tp/bng-1-radius-attributes.md` (declared by authradius: the MS DNS attributes), `docs/research/l2tpv2-ze-integration.md` (declared by the l2tp code: checked, edited only if it describes subscriber DNS)
 
@@ -484,16 +525,16 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | the grouping in `ze-system-conf.yang`, its uses in four consumer modules, and the `show system dns` command YANG in its owning package (A-5) |
-| YANG validation constraints | Yes | a `must` per consumer restricting classes; `interface` only under `received` |
-| YANG custom validators | Yes | `interface` entries completed from the iface name resolver (`docs/architecture/iface/logical-name-resolution.md`) |
+| YANG schema (new RPCs/config) | Yes | the typedef and grouping in `ze-types.yang`, `uses` in the five consumer modules, and the `show system dns` command YANG in its owning package (A-5) |
+| YANG validation constraints | No | the per-consumer class check and the mode check are verifier calls from the core leaf, not `must` (Key Design Decisions) |
+| YANG custom validators | No | the class values are the `dns-source-class` enumeration |
 | CLI commands/flags | Yes | `show system dns` |
-| CLI grammar (keyword before value) | Yes | `source <class>`, then `interface <name>` |
-| Editor autocomplete | Yes | enum classes automatic; interface names by `CompleteFn` |
+| CLI grammar (keyword before value) | Yes | `source <class>`, `mode <mode>` |
+| Editor autocomplete | Yes | enum classes and modes automatic |
 | Functional test for new RPC/API | Yes | `test/plugin/show-system-dns.ci` |
 | Pipe completeness | Yes | the show answer goes through the pipe processor |
 | Env var registration | No | no env var |
-| Doctor check for runtime dependencies | Yes | a check that warns when the router selection is empty while a LAN consumer lists `system` or `received`; no file, socket or port is added |
+| Doctor check for runtime dependencies | Yes | a check that warns when a consumer's selection is empty while its list (written or default) names `received`; no file, socket or port is added |
 | Prometheus counters/metrics | Yes | `ze_dns_source_records` gauge by origin; `ze_dns_source_selection_changes_total` by consumer |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no BGP |
 
@@ -523,24 +564,24 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 | VyOS (vyos-1x 611550d23) | Ze form | Class |
 |--------------------------|---------|-------|
 | `system name-server 192.0.2.53` | `system name-server 192.0.2.53` | equivalent |
-| `system name-server eth0` (servers learned on eth0) | `system dns-source source received interface eth0` | equivalent once implemented |
-| `system name-server 192.0.2.53` plus `system name-server eth0` | `system dns-source` sources `configured`, then `received interface eth0`, mode `merge` | equivalent: VyOS merges by tag order, and the migration writes `merge` explicitly |
-| `interfaces pppoe pppoe0 no-peer-dns` | leave that interface out of `received` | conditional on child 13 |
+| `system name-server eth0` (servers learned on eth0) | `system dns-source source received` | equivalent when eth0 is the only interface that learns DNS; otherwise a difference: a list names classes only (D-5), so `received` takes every learning interface, in origin rank order |
+| `system name-server 192.0.2.53` plus `system name-server eth0` | `system dns-source` sources `configured`, then `received`, mode `merge` | equivalent under the same condition: VyOS merges by tag order, and the migration writes `merge` explicitly |
+| `interfaces pppoe pppoe0 no-peer-dns` | the PPPoE client registers no `ppp` lease for that interface | conditional on child 13; the list itself cannot leave one interface out (D-5) |
 | `service dns forwarding name-server X` | `service dns-resolver forward server X` | equivalent |
-| `service dns forwarding system` (with `name-server X`) | `forward dns-source` sources `configured`, `system`, mode `merge` | equivalent |
-| `service dns forwarding dhcp eth0` | `forward dns-source source received interface eth0` (mode `merge` when listed with other sources) | equivalent |
-| `service dhcp-server ... option name-server X` | subnet `dns-server X` and `dns-source source configured` | equivalent only with the explicit list: without it Ze's pass-through default (D-3) hands out WAN-learned servers first, which VyOS does not |
-| `service pppoe-server name-server X`, `vpn l2tp remote-access name-server X` | `l2tp pool ipv4 dns-primary`, `dns-secondary` | equivalent for two IPv4 servers when RADIUS sends no MS DNS; with it, Ze's default (D-3) offers RADIUS's, as accel-ppp does |
-| accel-ppp RADIUS MS DNS override | pool default `radius`, `configured`, `first-usable` | equivalent when RADIUS sends both servers or neither. accel-ppp overwrites each option independently, so RADIUS sending only the primary keeps the configured secondary there; Ze's `first-usable` offers the RADIUS primary alone and `merge` offers the RADIUS primary then the pool's primary. Neither mode copies the per-slot overwrite, which is recorded as a difference |
+| `service dns forwarding system` (with `name-server X`) | `forward server X` plus each `system name-server` entry, and `forward dns-source` sources `configured`, `received`, mode `merge` | equivalent in the servers asked; the migration copies the `system name-server` entries into `forward server`, because no class reads the router's selection (D-5) |
+| `service dns forwarding dhcp eth0` | `forward dns-source source received` (mode `merge` when listed with other sources) | equivalent when eth0 is the only interface that learns DNS; otherwise the per-interface difference above |
+| `service dhcp-server ... option name-server X` | subnet `dns-server X` | equivalent: under the D-5 default a set `dns-server` wins |
+| `service pppoe-server name-server X`, `vpn l2tp remote-access name-server X` | `l2tp pool ipv4 dns-primary`, `dns-secondary` | equivalent for two IPv4 servers when RADIUS sends no MS DNS; with it, Ze's default (D-5) offers RADIUS's, as accel-ppp does |
+| accel-ppp RADIUS MS DNS override | pool default `radius`, `configured`, `received`, `first-usable` | equivalent when RADIUS sends both servers or neither. accel-ppp overwrites each option independently, so RADIUS sending only the primary keeps the configured secondary there; Ze's `first-usable` offers the RADIUS primary alone and `merge` offers the RADIUS primary then the pool's primary. Neither mode copies the per-slot overwrite, which is recorded as a difference |
 
 ## Implementation Steps
 
 1. **Phase: Wiring** - core leaf with the record type, the rule in both modes and the mode check; registry publishes the event; internal resolver takes a list. Tests: `TestSelectFirstNonEmptyClass`, `TestSelectMergeInOrderDeduplicated`, `TestModeRequiredForMultiSourceList`, `TestInternalResolverFollowsSelection`, `test/plugin/dns-source-router-follows-lease.ci`, all failing first
 2. **Phase: Router consumer (23a)** - lifetime on `SetLease`, expiry sweeper, `system dns-source` with `mode`, stated default, the mode refusal at validate, commit and boot, reload. AC-1 to AC-5, AC-16 (router), AC-17
 3. **Phase: RFC 5625 (23a)** - write `rfc/short/rfc5625.md` through `/ze-rfc` with use case `fttx-edge`, run the extraction walk both ways, then implement and test every row it binds to the LAN resolver and the DHCP server, recording each break with `./le rfc record`. AC-18, AC-19
-4. **Phase: LAN resolver** - forward `dns-source` over the event, no rebind. AC-6, AC-13
-5. **Phase: DHCPv4 option 6 and RA RDNSS** - pass-through defaults and explicit lists. AC-7, AC-8, AC-14, AC-15
-6. **Phase: Subscriber** - MS DNS extraction, pool `dns-source`, default `radius`, `configured`. AC-9, AC-10, interop
+4. **Phase: LAN resolver** - forward `dns-source` over the event, the D-5 default, the `self` refusal, no rebind. AC-6, AC-13, AC-20
+5. **Phase: DHCPv4 option 6 and RA RDNSS** - D-5 defaults and explicit lists. AC-7, AC-8, AC-14, AC-15
+6. **Phase: Subscriber** - MS DNS extraction, pool `dns-source`, default `radius`, `configured`, `received`. AC-9, AC-10, interop
 7. **Phase: Conversion** - every repository user of the changed defaults converted or re-validated (Files to Modify), in the same work as phases 5 and 6
 8. **Phase: Show, doctor, metrics, docs** - AC-11, AC-12, AC-16 for every consumer
 
@@ -565,7 +606,7 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 |-------|-----------------|
 | Input validation | learned and RADIUS addresses are unicast, carry no line break (the existing `appendServers` guard stays), and are bounded per consumer |
 | Rogue source | a LAN host cannot become a `received` source: only clients Ze runs on configured interfaces register records |
-| Loop | `self` and `system` combinations that make the resolver forward to itself are refused (R-3) |
+| Loop | `self` on the system consumer and on `forward dns-source`, which would make Ze or its resolver forward to itself, is refused (R-3, D-5) |
 
 ### Failure Routing
 
@@ -592,12 +633,12 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 |----------|------------------------|-----------|
 | One registry; each consumer evaluates its own list with one shared rule | a central evaluator that reads every consumer's config path | the central form names features in shared code (`ai/META-DECISIONS.md`, modular engine); each consumer owns its list in its own YANG |
 | Records reach plugins as an EventBus event with replay | plugins call `system.ProcessResolvers()` | the plugins can run forked; a Go call writes a dead copy (`ai/doors/system.md`) |
-| A closed class vocabulary over an open protocol set | per-consumer lists of protocol names (`dhcpv4`, `ppp`) | protocols register; a class names a role, so a new protocol needs no YANG edit; the `interface` filter covers the VyOS per-interface form |
+| A closed class vocabulary over an open protocol set: the `dns-source-class` typedef and the `dns-source` grouping, declared once in `ze-types` and `uses`d by each consumer beside its configured-server leaves (D-5) | per-consumer lists of protocol names (`dhcpv4`, `ppp`); a grouping in `ze-system-conf.yang`; a `system` class and a per-interface filter | protocols register; a class names a role, so a new protocol needs no YANG edit. Thomas approved the shape ("lgtm"); the VyOS per-interface forms map with a recorded difference |
 | The operator states the fall-through mode: `mode first-usable` or `mode merge`, no YANG default, required once a list names two sources (D-1) | one fixed rule (first-usable); a defaulted `mode` leaf | Thomas: "The fall-through rule should be explicitly configured." A defaulted leaf would be the silent choice he ruled out, and a one-source list has nothing to choose, so it needs no mode |
 | The mode refusal and the class check run from the core leaf in each consumer's in-process verifier, `OnConfigVerify` and boot parse | YANG `must` | no `-conf` module uses `must` today, a verifier gives the fix text, and the in-process verifier alone misses boot (`ai/doors/config-yang.md`, Traps) |
-| Downstream consumers pass the DNS through by default: DHCPv4 and RA `received`, `configured`; pool `radius`, `configured`; all `first-usable` (D-3, interpretation flagged as P-1) | keep `configured` alone, as today | Thomas: "By default the behavior should be to pass the DNS through." RFC 5625 Section 3: "end-users SHOULD be able to send their DNS queries to specified upstream resolvers, thereby bypassing the proxy altogether." This supersedes the earlier row that kept `configured` for LAN consumers |
-| The router and the LAN resolver keep today's defaults | pass-through for them too | the router already passes received servers through when nothing is configured (RFC 3646 Section 6 order); the LAN resolver is the proxy itself, not a downstream consumer (P-2) |
-| Built-in defaults are stated lists with stated modes, shown with a `default` marker, and never lend their mode to a written list | an implicit mode for absent config | D-1 and D-3 together: the default is documented, not hidden |
+| Every consumer's default is `configured`, `received`, `first-usable`; the pool's is `radius`, `configured`, `received`, `first-usable` (D-5) | received before configured on LAN consumers; `configured` alone on the LAN resolver | Thomas: "the behavior should be passed through by default and if you config DNS, they will only become actively passed through." Configured beats received when set; with nothing configured the received servers pass through (RFC 5625 Section 3: "end-users SHOULD be able to send their DNS queries to specified upstream resolvers, thereby bypassing the proxy altogether."). The router's default is today's rule (RFC 3646 Section 6 order) |
+| Built-in defaults are stated lists with stated modes, shown with a `default` marker, and never lend their mode to a written list | an implicit mode for absent config | D-1, D-3 and D-5 together: the default is documented, not hidden |
+| `self` is refused on the system consumer and on the LAN resolver's `forward dns-source` | allowed, as the earlier "router when the resolver listens on loopback" row did | D-5: Ze cannot be its own upstream. The LAN resolver forwarding to its own address is the same loop, so the same refusal applies there |
 | RFC 5625 is followed here and listed for `fttx-edge`; which proxy rows bind the LAN resolver is decided by the extraction walk (D-2) | guidance only, unlisted | Thomas: "RFC 5625 inside child 23" |
 | IPv6 subscriber DNS is a separate spec after the umbrella (D-4) | in this spec | Thomas: "spec of its own"; subscriber IPv6 does not come up before `spec-l2tp-ipv6-subscriber` anyway |
 | Delete the single-server internal resolver | keep `Server` as a fallback | `ai/rules/no-layering.md` |
@@ -613,14 +654,10 @@ Protocols join through `RegisterResolverOrigin` and appear inside `received`.
 ## Open owner questions
 
 Decided on 2026-11-08 (see "Owner decisions"): O-1 by D-1, O-2 by D-3, O-6 by
-D-4, O-7 by D-2.
-
-Confirmation of the D-3 reading:
-
-| # | Decision | Options | What each answer changes |
-|---|----------|---------|--------------------------|
-| P-1 | Pass-through for LAN clients when the operator also configured servers on the subnet or unit | (a) `received`, `configured`: the WAN-learned servers win and `dns-server`/`rdnss server` are the backup (recorded now: "rather than ... the configured servers"); (b) `configured`, `received`: a configured server wins and the WAN-learned ones pass through only when none is configured | (a) changes option 6 and RDNSS on every box that both learns DNS and sets `dns-server`, a PXE provisioning box included (R-8); (b) changes them only where nothing was configured. AC-14, AC-15 and the defaults table follow the answer |
-| P-2 | Whether pass-through also covers the LAN resolver's upstreams | (a) no, it keeps `configured` (recorded now: the resolver is the proxy, not a downstream consumer); (b) yes, `configured`, `system` or `received`, `configured` | (b) makes a resolver with no `forward server` forward to the learned servers instead of having no upstream |
+D-4, O-7 by D-2, and the two confirmations of the D-3 reading by D-5: P-1
+(configured beats received when set, on the LAN consumers too) and P-2 (the
+LAN resolver's upstreams follow the same rule, so a resolver with no
+`forward server` forwards to the received servers).
 
 Still open:
 
