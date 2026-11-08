@@ -152,9 +152,12 @@ func TestConntrackHelperAssignment(t *testing.T) {
 // Red walks, each in ConntrackHelperTables
 // (internal/component/firewall/conntrack_helpers.go):
 //   - lower every helper the model declares when the list is empty: the empty
-//     leg reads helpers on every probe and an ftp expectation.
+//     leg fails before any probe, on the helper tables an empty list lowered.
 //   - lower every helper the model declares whatever the list holds: the ftp
 //     leg reads a helper on every non-ftp probe.
+//
+// RFC requirement: RFC4787-7-1 positive -- with no helper listed, no connection to any helper's port in either family carries a conntrack helper and an FTP PORT creates no expectation.
+// RFC requirement: RFC4787-7-2 positive -- with ftp alone listed, the ftp connections carry the ftp helper and every other helper's connections carry none.
 func TestConntrackHelperNotAssignedWhenUnlisted(t *testing.T) {
 	if !userns.Enter(t) {
 		return
