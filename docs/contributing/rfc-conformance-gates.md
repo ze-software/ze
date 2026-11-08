@@ -2177,6 +2177,27 @@ re-executes itself passes the flag on, so a producer only the child reaches
 still appears as executed. Without it the binary picks a private directory the
 child never learns, and the recorder refuses the unit as never reaching its
 producer.
+
+A unit that can run only as root in the guest, such as one that loads a cgroup
+BPF program and attaches it at the cgroup2 root, says so itself: its test
+function's doc comment carries the directive line `//ze:guest-root`
+(`unitDeclaresGuestRoot`). The recorder then adds docker-lab's `root` switch,
+which runs the script through `sudo -n env` and sends the interrupt through
+`sudo -n kill`, and does nothing else (`guestRunArgv`). An undeclared unit keeps
+the owner's UID, because a re-executed user namespace maps it and a test that
+means something only unprivileged needs it. A declared unit the host would run
+is refused with the `kernel` fix (`requireRootInGuest`): the host run is
+unprivileged. The own-system identity check refuses a guest with no cgroup2
+hierarchy mounted, which gokrazy's init mounts at boot.
+
+A Go unit that skips observes nothing, on either placement. `go test` exits 0
+for a skip, so the clean run and the run under the break each refuse a
+`--- SKIP:` line naming the unit or one of its subtests, with the reason the
+test printed above it (`unitSkipped`). Before 2026-11-08 a root-gated unit run
+unprivileged in the guest skipped twice and was refused as "stayed GREEN under
+the break", which blamed the test for a run that never reached it.
+<!-- source: internal/le/rfc/discriminate_guest.go -- unitDeclaresGuestRoot, requireRootInGuest, guestRunArgv -->
+<!-- source: internal/le/rfc/discriminate_observe.go -- unitSkipped, skipReason -->
 <!-- source: internal/test/userns/userns_linux.go -- Enter fails on re-exec errors -->
 <!-- source: internal/le/rfc/discriminate_guest.go -- guestScript, guestLocalDir --> Attribution is unchanged: the red must
 name the unit. A guest proof MUST boot Ze's runtime kernel, so the recorder

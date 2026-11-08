@@ -212,7 +212,7 @@ var actions = leaction.New(area,
 		AnswerArgs: runNetnsHere,
 	},
 	leaction.Action{
-		Verb:    "pppoe",
+		Verb:    netnsPPPoE,
 		Does:    doesRun,
 		Summary: "run the PPPoE subset on ze's runtime kernel",
 		Why: "run the PPPoE functional subset through the same guest network-namespace" +
@@ -369,9 +369,10 @@ var runParameters = []leaction.Parameter{
 var dockerLabParameters = []leaction.Parameter{
 	{Keyword: keywordLab, Kind: leaction.KindWords, Help: "the le command line of the Docker lab to run in the guest", Value: "le-words", Requirement: leaction.Optional},
 	{Keyword: keywordEnv, Kind: leaction.KindString, Help: "NAME=value pairs the lab runs with", Value: "NAME=value ...", Requirement: leaction.Optional},
-	{Keyword: keywordCommand, Kind: leaction.KindString, Help: "one guest shell command, as root with harness; excludes lab", Value: "shell-command", Requirement: leaction.Optional},
+	{Keyword: keywordCommand, Kind: leaction.KindString, Help: "one guest shell command, as root with harness or root; excludes lab", Value: "shell-command", Requirement: leaction.Optional},
 	{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "matching runtime vmlinuz; only with command", Value: "vmlinuz-path", Requirement: leaction.Optional},
 	{Keyword: KeywordHarness, Kind: leaction.KindSwitch, Help: "run command as root with the guest le at /workspace"},
+	{Keyword: KeywordRoot, Kind: leaction.KindSwitch, Help: "run command as root, with no guest le or /workspace"},
 	{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
 }
 

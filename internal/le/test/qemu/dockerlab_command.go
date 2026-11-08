@@ -53,6 +53,9 @@ func dockerLabMode(args leaction.Arguments) error {
 	if args.Has(KeywordHarness) {
 		return errors.New("docker-lab harness is only valid with command. Fix: supply the guest command it prepares for")
 	}
+	if args.Has(KeywordRoot) {
+		return errors.New("docker-lab root is only valid with command. Fix: supply the guest command to run as root")
+	}
 	return nil
 }
 
@@ -104,7 +107,9 @@ func runDockerLabCommand(ctx context.Context, root, arch string, options RunOpti
 			leaction.ReportError(err)
 			return nil, 1
 		}
-		options.Command = dockerLabHarnessCommand(options.Command)
+	}
+	if options.guestCommandAsRoot() {
+		options.Command = dockerLabRootCommand(options.Command)
 	}
 	options.Kernel = kernel.Selected
 	report, err := dockerLabHost.boot(ctx, NewRun(root, options), image, kernel)
@@ -156,14 +161,15 @@ const (
 	guestHarnessScratchDir = "/tmp"
 )
 
-// dockerLabHarnessCommand answers command as the guest runs it under the harness:
-// as root, because `test qemu all` prepares kernel state and refuses anything
-// else, under the environment the action reads. sudo resets the environment, so
+// dockerLabRootCommand answers command as the guest runs it under the harness or
+// KeywordRoot: as root, because `test qemu all` prepares kernel state and refuses
+// anything else, and a root-declared Go unit loads what only root may, under the
+// environment the action reads. sudo resets the environment, so
 // everything travels through env, the job stand-in included
 // (guestRunParentSetup). HOME and TMPDIR name the guest's own /tmp: the root is
 // read-only, and a work directory on the share would carry the host's UID.
 // GOFLAGS drops the VCS stamp because the image carries no git.
-func dockerLabHarnessCommand(command string) string {
+func dockerLabRootCommand(command string) string {
 	var b textbuf.Buffer
 	return b.Str("sudo -n env ").Str(job.ParentVariable).Str("=\"$").Str(job.ParentVariable).Str("\"").
 		Str(" HOME=").Str(guestHarnessScratchDir).Str(" TMPDIR=").Str(guestHarnessScratchDir).
@@ -363,6 +369,10 @@ func (r *Run) dockerLabCommand(ctx context.Context, image string, kernel *docker
 		{"root filesystem", "filesystem=$(stat -f -c %T /) && printf '%s\\n' \"$filesystem\" && test \"$filesystem\" = squashfs"},
 		{"runtime modules", "test -d " + shellQuote("/lib/modules/"+kernel.Release)},
 		{"Docker socket absent", "test ! -S /var/run/docker.sock"},
+		// gokrazy's init mounts cgroup2 at boot and only logs a failure, so a
+		// command that attaches a cgroup program, or a Docker lab, would meet its
+		// absence as an unexplained red.
+		{"cgroup2 mounted", "grep -qs ' - cgroup2 ' /proc/self/mountinfo"},
 	} {
 		observed, err := session.remote(boot, identity.command, nil)
 		if err != nil {
@@ -378,7 +388,7 @@ func (r *Run) dockerLabCommand(ctx context.Context, image string, kernel *docker
 	if r.Options.GuestHarness {
 		setup += " && " + dockerLabHarnessSetup(r.Tree)
 	}
-	command := RunReport{Plan: RunPlan{SSHPort: vm.sshPort, SetupCommand: setup, commandSession: &session, rootCommand: r.Options.GuestHarness}}
+	command := RunReport{Plan: RunPlan{SSHPort: vm.sshPort, SetupCommand: setup, commandSession: &session, rootCommand: r.Options.guestCommandAsRoot()}}
 	ended, err := r.runGuestCommand(ctx, &command)
 	report.CommandExit = ended.GuestExitCode
 	report.Interrupted = ctx.Err() != nil

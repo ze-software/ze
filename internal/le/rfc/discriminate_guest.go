@@ -16,7 +16,10 @@
 package rfc
 
 import (
+	"go/ast"
 	"go/build"
+	"go/parser"
+	"go/token"
 	"os"
 	"path"
 	"path/filepath"
@@ -47,6 +50,72 @@ const guestCICommandTimeout = "3000s"
 // running it: the guest's own writable /tmp. The ordinary guest owner creates
 // the copy and counter directory; neither is executed from the shared checkout.
 const guestLocalDir = "/tmp"
+
+// guestRootDirective is the line a Go test's doc comment carries when the test
+// can run only as root in the guest: loading a cgroup BPF program, or anything
+// else no user namespace grants. It is a Go directive (`//tool:name`, no space),
+// so godoc hides it and gofmt keeps it in the comment. The unit declares it,
+// because the unit is what knows; no list here names a unit.
+const guestRootDirective = "//ze:guest-root"
+
+// unitDeclaresGuestRoot answers whether the test function unit in file carries
+// guestRootDirective in its doc comment.
+//
+// A function the file does not declare is refused rather than answered false:
+// the answer would then decide an unprivileged run for a unit nobody read.
+func unitDeclaresGuestRoot(file, unit string) (bool, error) {
+	parsed, err := parser.ParseFile(token.NewFileSet(), file, nil, parser.ParseComments)
+	if err != nil {
+		var tb textbuf.Buffer
+		return false, parseErr(tb.Str("cannot read ").Str(file).
+			Str(" to learn whether ").Str(unit).Str(" needs root: ").Err(err))
+	}
+	for _, declaration := range parsed.Decls {
+		function, isFunction := declaration.(*ast.FuncDecl)
+		if !isFunction {
+			continue
+		}
+		if function.Recv != nil {
+			continue
+		}
+		if function.Name.Name != unit {
+			continue
+		}
+		return docCarriesGuestRoot(function.Doc), nil
+	}
+	var tb textbuf.Buffer
+	return false, parseErr(tb.Str(file).Str(" declares no function ").Str(unit).
+		Str(", so whether it needs root in the guest cannot be read"))
+}
+
+// docCarriesGuestRoot answers whether a doc comment holds guestRootDirective as
+// one whole line.
+func docCarriesGuestRoot(doc *ast.CommentGroup) bool {
+	if doc == nil {
+		return false
+	}
+	for _, line := range doc.List {
+		if strings.TrimSpace(line.Text) == guestRootDirective {
+			return true
+		}
+	}
+	return false
+}
+
+// requireRootInGuest refuses a root-declared unit placed on this host: the host
+// run is unprivileged, so the unit would skip and observe nothing.
+func requireRootInGuest(unit string, guest, root bool) error {
+	if !root {
+		return nil
+	}
+	if guest {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return parseErr(tb.Str(unit).Str(" declares `").Str(guestRootDirective).
+		Str("`, so it runs only as root in the Linux guest, and this host run is unprivileged: pass `").
+		Str(keyKernel).Str(" <vmlinuz>`, which `ze appliance kernel` builds, to run it there"))
+}
 
 // placementContexts answers the two build contexts a tagged unit's file is
 // asked of: this host under the tag set the host run passes, and the guest.
@@ -227,10 +296,19 @@ func (o *observationRunner) guestScript(binary, profile string) string {
 // guestRunArgv answers the command that boots the guest on the runtime kernel
 // and runs one script there. It re-executes this le binary on the qemu action,
 // as carrierArgv does for interop, so the guest lifecycle has one owner.
+//
+// A unit whose test declares guestRootDirective runs under docker-lab's root
+// switch, which elevates the command and its interrupt and does nothing else.
+// Every other unit keeps the ordinary owner's UID, which a re-executed user
+// namespace maps and which a test that means something only unprivileged needs.
 func (o *observationRunner) guestRunArgv(script string) []string {
+	argv := make([]string, 0, 9)
+	argv = append(argv, o.self, leTestCommand, "qemu", "docker-lab", keyKernel, o.kernel)
+	if o.root {
+		argv = append(argv, testqemu.KeywordRoot)
+	}
 	var tb textbuf.Buffer
-	return []string{o.self, leTestCommand, "qemu", "docker-lab", keyKernel, o.kernel,
-		"command", tb.Str("sh ").Str(singleQuoted(o.guestPath(script))).String()}
+	return append(argv, "command", tb.Str("sh ").Str(singleQuoted(o.guestPath(script))).String())
 }
 
 // guestPath preserves a unit input's absolute main-checkout path. The own-system

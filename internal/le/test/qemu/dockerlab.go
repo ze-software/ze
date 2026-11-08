@@ -44,6 +44,11 @@ const (
 	// guest le built, the checkout at GuestWorkspace, the command run as root. A
 	// host caller outside this package places it in its docker-lab argv.
 	KeywordHarness = "harness"
+	// KeywordRoot asks the command branch to run the command as root and
+	// nothing more: no guest le, no checkout at GuestWorkspace. A guest-placed
+	// Go unit whose test declares it needs root is the caller
+	// (internal/le/rfc, guestRunArgv). Harness already runs as root.
+	KeywordRoot = "root"
 	// keywordEnv carries NAME=value assignments the lab runs under, such as
 	// IPSEC_INTEROP_SCENARIO=mobike-initiator: the suites select one scenario
 	// from the environment.
@@ -285,6 +290,7 @@ func runDockerLab(ctx context.Context, root string, args leaction.Arguments, boo
 	if command := args.One(keywordCommand); command != "" {
 		options.Kernel = args.One(keywordKernel)
 		options.GuestHarness = args.Has(KeywordHarness)
+		options.GuestRoot = args.Has(KeywordRoot)
 		if !options.GuestHarness {
 			return runDockerLabCommand(ctx, root, goarch, options)
 		}

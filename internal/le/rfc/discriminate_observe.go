@@ -63,6 +63,9 @@ type observationRunner struct {
 	guest bool
 	// kernel is the runtime kernel a guest run boots, empty for a host run.
 	kernel string
+	// root is true when the unit's test declares guestRootDirective, so its
+	// guest run is elevated (guestRunArgv).
+	root bool
 }
 
 // newObservationRunner resolves everything one observation needs before any of
@@ -95,6 +98,12 @@ func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, 
 		if err != nil {
 			return nil, err
 		}
+		if runner.unitName != "" {
+			runner.root, err = unitDeclaresGuestRoot(treePath(tree, tag.File), runner.unitName)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	if carrier.Kind == kindFunctional {
 		runner.guest, err = functionalNeedsGuest(carrier, treePath(tree, tag.File), testrunner.NeedsGuest)
@@ -103,6 +112,9 @@ func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, 
 		}
 	}
 	if err := requireGuestKernel(record.Unit, runner.guest, kernel); err != nil {
+		return nil, err
+	}
+	if err := requireRootInGuest(record.Unit, runner.guest, runner.root); err != nil {
 		return nil, err
 	}
 	runner.names = runner.unitName
@@ -925,6 +937,9 @@ func (o *observationRunner) cleanRunUnobserved(output string) string {
 	if o.scenario != "" {
 		return o.interopCleanUnobserved(output)
 	}
+	if why := o.unitSkipped(output, "the clean run"); why != "" {
+		return why
+	}
 	if !o.readsResultLine() {
 		return ""
 	}
@@ -945,6 +960,9 @@ func (o *observationRunner) brokenRunUnobserved(output string) string {
 	if o.scenario != "" {
 		return o.interopBrokenUnobserved(output)
 	}
+	if why := o.unitSkipped(output, "the run under the break"); why != "" {
+		return why
+	}
 	if !o.readsResultLine() {
 		return ""
 	}
@@ -956,6 +974,59 @@ func (o *observationRunner) brokenRunUnobserved(output string) string {
 		return describeUnobservedBreak(o.record.Unit, describeCIResult(o.names, result), output)
 	}
 	return ""
+}
+
+// unitSkipped answers why a Go unit's run observed nothing because the unit, or
+// one of its subtests, skipped, or the empty string when it did not.
+//
+// A skipped test exits 0 like one that passed. A skip proves nothing either way:
+// in the clean run it is no green, and under the break it is no "stayed green",
+// which is how a root-gated unit run unprivileged in the guest was refused as a
+// test that does not discriminate its claim. A skipped subtest counts too: the
+// claim is the unit's, and part of it ran nowhere. argv and guestScript both run
+// `-v`, which streams the skip reason on the indented lines above `--- SKIP:`.
+func (o *observationRunner) unitSkipped(output, run string) string {
+	if o.carrier.Kind != kindUnit {
+		return ""
+	}
+	if o.unitName == "" {
+		return ""
+	}
+	at := goTestLineNames(output, "--- SKIP: ", o.unitName)
+	if at < 0 {
+		return ""
+	}
+	var tb textbuf.Buffer
+	tb.Str(o.record.Unit).Str(" observed nothing in ").Str(run).Str(": the unit skipped: ").
+		Str(skipReason(output[:at])).
+		Str(". A skip proves nothing either way, so nothing is written. Fix: run it where it does not skip")
+	if o.guest {
+		tb.Str("; a unit that skips unless it is root declares `").Str(guestRootDirective).
+			Str("` on its own line in the test function's doc comment")
+	}
+	return tb.Byte(':').Byte('\n').Str(excerpt(output)).String()
+}
+
+// skipReason answers the indented log lines `go test -v` printed directly above
+// a `--- SKIP:` line, which before holds the output up to that line. The test's
+// t.Skip text is the last of them.
+func skipReason(before string) string {
+	lines := strings.Split(strings.TrimRight(before, "\n"), "\n")
+	first := len(lines)
+	for first > 0 {
+		if !strings.HasPrefix(lines[first-1], "    ") {
+			break
+		}
+		first--
+	}
+	reason := make([]string, 0, len(lines)-first)
+	for _, line := range lines[first:] {
+		reason = append(reason, strings.TrimSpace(line))
+	}
+	if len(reason) == 0 {
+		return "it printed no reason"
+	}
+	return strings.Join(reason, " ")
 }
 
 // describeUnobservedBreak words the refusal of a broken run that did not run

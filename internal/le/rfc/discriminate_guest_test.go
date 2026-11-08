@@ -254,3 +254,102 @@ func TestCIResultLineDecidesWhatWasObserved(t *testing.T) {
 		t.Errorf("exabgp red naming the file refused: %v", err)
 	}
 }
+
+// VALIDATES: a unit's own doc comment decides whether its guest run is elevated: the
+// guestRootDirective line selects root, its absence keeps the ordinary owner, and a
+// function the file does not declare is refused rather than answered unprivileged.
+// METHOD: unitDeclaresGuestRoot over a fixture file, then guestRunArgv for each answer.
+// PREVENTS: a root-gated unit (a cgroup BPF attach) run unprivileged in the guest, where
+// it skips and the record reads the skip as "stayed GREEN under the break".
+func TestGuestRootIsDeclaredByTheUnit(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "guard_linux_test.go")
+	source := "package widget\n\nimport \"testing\"\n\n" +
+		"// TestGuardDenied attaches a cgroup program.\n//\n//ze:guest-root\nfunc TestGuardDenied(t *testing.T) {}\n\n" +
+		"// TestGuardUnprivileged means something only without root.\nfunc TestGuardUnprivileged(t *testing.T) {}\n\n" +
+		"type fixture struct{}\n\n//ze:guest-root\nfunc (fixture) TestGuardMethod(t *testing.T) {}\n"
+	if err := os.WriteFile(file, []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for unit, want := range map[string]bool{"TestGuardDenied": true, "TestGuardUnprivileged": false} {
+		got, err := unitDeclaresGuestRoot(file, unit)
+		if err != nil || got != want {
+			t.Errorf("%s: root %v, %v; want %v", unit, got, err, want)
+		}
+	}
+	// A method of the same name is not the test function: the go command runs no method.
+	if _, err := unitDeclaresGuestRoot(file, "TestGuardMethod"); err == nil {
+		t.Error("a method was read as the test function")
+	}
+	if _, err := unitDeclaresGuestRoot(file, "TestAbsent"); err == nil {
+		t.Error("a function the file does not declare was answered")
+	}
+
+	runner := &observationRunner{self: "/bin/le", kernel: "vmlinuz", guest: true, root: true}
+	wantRun := []string{"/bin/le", "test", "qemu", "docker-lab", "kernel", "vmlinuz",
+		testqemu.KeywordRoot, "command", "sh 'guest-1.sh'"}
+	if run := runner.guestRunArgv("guest-1.sh"); !slices.Equal(run, wantRun) {
+		t.Errorf("root guest run argv\n got %q\nwant %q", run, wantRun)
+	}
+	runner.root = false
+	if run := runner.guestRunArgv("guest-1.sh"); slices.Contains(run, testqemu.KeywordRoot) {
+		t.Errorf("an undeclared unit was elevated: %q", run)
+	}
+}
+
+// VALIDATES: a root-declared unit placed on the host is refused before any run, with
+// the kernel fix, and a guest placement or an undeclared unit passes.
+// PREVENTS: an unprivileged host run of a root-only unit, which can only skip.
+func TestRequireRootInGuest(t *testing.T) {
+	if err := requireRootInGuest("u", false, true); err == nil ||
+		!strings.Contains(err.Error(), guestRootDirective) || !strings.Contains(err.Error(), keyKernel) {
+		t.Errorf("root on the host answered %v, want the refusal naming the directive and kernel", err)
+	}
+	if err := requireRootInGuest("u", true, true); err != nil {
+		t.Errorf("root in the guest refused: %v", err)
+	}
+	if err := requireRootInGuest("u", false, false); err != nil {
+		t.Errorf("an undeclared host unit refused: %v", err)
+	}
+}
+
+// VALIDATES: a Go unit that skips observes nothing in either run: the clean run is no
+// green and a skip under the break is no "stayed GREEN", and the refusal carries the
+// skip reason. A skipped subtest counts, a sibling's skip does not, and a pass is a pass.
+// METHOD: cleanRunUnobserved and judgeRed over `go test -v` output shapes.
+// PREVENTS: the 2026-11-07 refusal of RFC4301-4.4.1-8, where a root-gated unit run
+// unprivileged in the guest skipped twice and was reported as not discriminating.
+func TestGoUnitSkipObservesNothing(t *testing.T) {
+	const reason = "requires privileged QEMU: CAP_BPF"
+	skipped := "=== RUN   TestGuard\n    guard_linux_test.go:265: " + reason + "\n--- SKIP: TestGuard (0.00s)\nPASS\n"
+	runner := &observationRunner{carrier: Carrier{Kind: kindUnit}, unitName: "TestGuard", guest: true,
+		record: DiscriminationRecord{Unit: "internal/widget/guard_linux_test.go::TestGuard",
+			Break: "return nil", Producer: "internal/widget/guard.go::Attach"}}
+
+	why := runner.cleanRunUnobserved(skipped)
+	if !strings.Contains(why, "the unit skipped: guard_linux_test.go:265: "+reason) {
+		t.Errorf("clean skip answered %q, want the skip refusal with its reason", why)
+	}
+	if !strings.Contains(why, guestRootDirective) {
+		t.Errorf("guest skip refusal %q does not name the root declaration", why)
+	}
+	err := runner.judgeRed(true, skipped)
+	if err == nil || !strings.Contains(err.Error(), "the unit skipped") || strings.Contains(err.Error(), "stayed GREEN") {
+		t.Errorf("skip under the break answered %v, want the skip refusal, never stayed GREEN", err)
+	}
+	subtest := "=== RUN   TestGuard\n=== RUN   TestGuard/v6\n        guard_linux_test.go:9: no IPv6\n" +
+		"    --- SKIP: TestGuard/v6 (0.00s)\n--- PASS: TestGuard (0.01s)\nPASS\n"
+	if why := runner.cleanRunUnobserved(subtest); !strings.Contains(why, "the unit skipped: guard_linux_test.go:9: no IPv6") {
+		t.Errorf("subtest skip answered %q, want the skip refusal", why)
+	}
+	for _, output := range []string{
+		"=== RUN   TestGuard\n--- PASS: TestGuard (0.01s)\nPASS\n",
+		"=== RUN   TestGuardSibling\n--- SKIP: TestGuardSibling (0.00s)\n=== RUN   TestGuard\n--- PASS: TestGuard (0.01s)\n",
+	} {
+		if why := runner.cleanRunUnobserved(output); why != "" {
+			t.Errorf("run %q refused: %s", output, why)
+		}
+	}
+	if got := skipReason("=== RUN   TestGuard\n"); got != "it printed no reason" {
+		t.Errorf("a skip with no log line answered %q", got)
+	}
+}

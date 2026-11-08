@@ -23,6 +23,7 @@ func TestDockerLabCommandNamesTheFailedIdentity(t *testing.T) {
 		{"root filesystem", "stat -f -c %T /"},
 		{"runtime modules", "test -d"},
 		{"Docker socket absent", "test ! -S"},
+		{"cgroup2 mounted", "' - cgroup2 '"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			run, _, _ := fakeDockerLabRun(t)

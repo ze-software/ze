@@ -17,7 +17,8 @@ func TestRecordExplicitKernelSelectsCompatibleGuest(t *testing.T) {
 	}
 	const rel = "internal/le/rfc/discriminate_guest_selection_test.go"
 	tag := Tag{File: rel}
-	record := DiscriminationRecord{Unit: tag.File + "::TestSelection"}
+	// The unit names this test itself: placement reads the unit's declaration, so it must exist.
+	record := DiscriminationRecord{Unit: tag.File + "::TestRecordExplicitKernelSelectsCompatibleGuest"}
 	for _, kernel := range []string{"", "tmp/kernel/build/vmlinuz"} {
 		t.Run(kernel, func(t *testing.T) {
 			runner, err := newObservationRunner(root, newSourceReader(root), newScopeIndex(),

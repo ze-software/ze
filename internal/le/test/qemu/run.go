@@ -133,6 +133,19 @@ type RunOptions struct {
 	HardwareOnly bool
 	// GuestHarness is the docker-lab command branch's KeywordHarness.
 	GuestHarness bool
+	// GuestRoot is the docker-lab command branch's KeywordRoot.
+	GuestRoot bool
+}
+
+// guestCommandAsRoot answers whether the docker-lab command runs under sudo:
+// the harness needs root for `test qemu all`, and KeywordRoot asks for it alone.
+// The command wrapper and the interrupt both read this one answer, so a root
+// command is never signalled as the unprivileged user.
+func (o *RunOptions) guestCommandAsRoot() bool {
+	if o.GuestHarness {
+		return true
+	}
+	return o.GuestRoot
 }
 
 // parseRunArguments validates the qemu run keyword values.

@@ -71,7 +71,7 @@ func TestDockerLabHarnessRunsTheCommandAsRootWithItsEnvironment(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bin, "sudo"), []byte(fake), 0o700); err != nil { //nolint:gosec // the fake sudo must be executable
 		t.Fatal(err)
 	}
-	line := "ZE_RUN_JOB=/tmp/ze-host-job; export LOST=yes; " + dockerLabHarnessCommand(
+	line := "ZE_RUN_JOB=/tmp/ze-host-job; export LOST=yes; " + dockerLabRootCommand(
 		"GOCACHE=/workspace/tmp/own; printf '%s\\n' \"$ZE_RUN_JOB\" \"$HOME\" \"$TMPDIR\" \"$GOMODCACHE\" \"$GOFLAGS\" \"$GOCACHE\" \"[$LOST]\"")
 	command := exec.CommandContext(t.Context(), "sh", "-c", line)
 	command.Env = []string{"PATH=" + bin + ":" + os.Getenv("PATH")}
@@ -275,7 +275,8 @@ func TestDockerLabHarnessHoldsAHostSlot(t *testing.T) {
 // reaches only the session's own shell, so the run waits out the teardown grace with
 // the guest action still running.
 func TestDockerLabHarnessBootMountsAndInterruptsAsRoot(t *testing.T) {
-	for _, harness := range []bool{false, true} {
+	for _, mode := range []struct{ harness, root bool }{{false, false}, {true, false}, {false, true}} {
+		harness := mode.harness
 		run, tree, _ := fakeDockerLabRun(t)
 		runtimeTree := dockerLabRuntimeFixture(t)
 		kernel, err := dockerLabCommandKernel(filepath.Join(runtimeTree, "vmlinuz"), runtimeTree)
@@ -286,6 +287,7 @@ func TestDockerLabHarnessBootMountsAndInterruptsAsRoot(t *testing.T) {
 		run.Options.Kernel = kernel.Selected
 		run.Options.Command = "guest-action"
 		run.Options.GuestHarness = harness
+		run.Options.GuestRoot = mode.root
 
 		ctx, cancel := context.WithCancel(t.Context())
 		t.Cleanup(cancel)
@@ -313,19 +315,69 @@ func TestDockerLabHarnessBootMountsAndInterruptsAsRoot(t *testing.T) {
 
 		report, err := run.dockerLabCommand(ctx, image, kernel)
 		if err == nil || !report.Interrupted {
-			t.Errorf("harness=%v: an interrupted run answered %+v, %v", harness, report, err)
+			t.Errorf("harness=%v root=%v: an interrupted run answered %+v, %v", harness, mode.root, report, err)
 		}
 		setup := guestRunParentSetup(guestRunJobParent)
 		wantInterrupt := guestInterruptRemote(guestCommandGroupFile)
 		if harness {
 			setup += " && " + dockerLabHarnessSetup(tree)
+		}
+		if harness || mode.root {
+			// root alone binds nothing, but its interrupt must reach a root process.
 			wantInterrupt = guestRootInterruptRemote(guestCommandGroupFile)
 		}
 		if want := "sh -c " + shellQuote(guestCommandBody(guestCommandGroupFile, setup, "guest-action")); command != want {
-			t.Errorf("harness=%v: guest command\n got %q\nwant %q", harness, command, want)
+			t.Errorf("harness=%v root=%v: guest command\n got %q\nwant %q", harness, mode.root, command, want)
 		}
 		if interrupt != wantInterrupt {
-			t.Errorf("harness=%v: interrupt %q, want %q", harness, interrupt, wantInterrupt)
+			t.Errorf("harness=%v root=%v: interrupt %q, want %q", harness, mode.root, interrupt, wantInterrupt)
 		}
+	}
+}
+
+// TestDockerLabRootIsOnlyValidWithCommand requires the root mode refusal: root
+// with no command elevates nothing, and root with a command is accepted.
+func TestDockerLabRootIsOnlyValidWithCommand(t *testing.T) {
+	err := dockerLabMode(leaction.Arguments{KeywordRoot: nil})
+	if err == nil || !strings.Contains(err.Error(), "root is only valid with command") {
+		t.Fatalf("root without command answered %v, want the root mode refusal", err)
+	}
+	accepted := leaction.Arguments{KeywordRoot: nil, keywordCommand: {"true"}, keywordKernel: {"vmlinuz"}}
+	if err := dockerLabMode(accepted); err != nil {
+		t.Fatalf("root with command and kernel refused: %v", err)
+	}
+}
+
+// TestDockerLabRootRunsTheCommandAsRootWithoutTheHarness drives the verb's body
+// with the root switch over the stubbed host steps.
+// VALIDATES: the switch reaches the boot's options, the command the boot receives
+// is the sudo wrapper, and no guest le is built: root is the elevation alone.
+// PREVENTS: a root-declared guest Go unit running unprivileged and skipping.
+func TestDockerLabRootRunsTheCommandAsRootWithoutTheHarness(t *testing.T) {
+	entry := filepath.Join(t.TempDir(), "parent.job")
+	if err := os.WriteFile(entry, []byte("LABEL=outer\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	nameParent(t, entry)
+	tree := dockerLabRuntimeFixture(t)
+	const guestAction = "sh 'guest-1.sh'"
+	typed := leaction.Arguments{keywordKernel: {filepath.Join(tree, "vmlinuz")},
+		keywordCommand: {guestAction}, KeywordRoot: nil}
+	recorded := stubDockerLabHost(t, tree)
+	if _, code := runDockerLab(t.Context(), t.TempDir(), typed, ""); code != 5 {
+		t.Fatalf("root command answered %d, want the guest's 5", code)
+	}
+	if got := strings.Join(recorded.steps, " "); got != "image boot" {
+		t.Errorf("root command ran %q, want no guest le", got)
+	}
+	options := recorded.run.Options
+	if !options.GuestRoot {
+		t.Error("the root switch did not reach the boot")
+	}
+	if options.GuestHarness {
+		t.Error("the root switch turned on the harness")
+	}
+	if want := dockerLabRootCommand(guestAction); options.Command != want {
+		t.Errorf("root command reached the boot as %q, want %q", options.Command, want)
 	}
 }

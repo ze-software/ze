@@ -754,8 +754,11 @@ supplies its root PARTUUID; le does not guess a `/dev/vda2` root or silently boo
 the embedded kernel instead. The report records requested and selected kernel
 paths (original request and actual private payload), the SHA256 identity and the
 module release. Before execution, le checks
-the release, `/gokrazy/init` as PID 1, a squashfs root, runtime modules, and no
-Docker socket. A refusal names the failed check and includes its output.
+the release, `/gokrazy/init` as PID 1, a squashfs root, runtime modules, no
+Docker socket, and a cgroup2 hierarchy mounted. gokrazy's init mounts cgroup2 at
+`/sys/fs/cgroup` during boot and only logs a failure, so the check makes its
+absence a named refusal rather than a red in a command that attaches a cgroup
+program. A refusal names the failed check and includes its output.
 The PID 1 executable probe uses `sudo -n readlink /proc/1/exe`: PID 1 belongs
 to root, so procfs's ptrace credential check refuses its executable link to
 the ordinary cidata user. SSH and the requested command still run as `ze`;
@@ -803,6 +806,14 @@ the forwarded SIGINT goes through `sudo -n kill`: the kernel refuses that user a
 signal to a root process, and `kill` still answers success once the shell alone
 receives it.
 
+The `root` switch runs the command through the same `sudo -n env` wrapper and
+the same `sudo -n kill` interrupt, and does nothing else: no guest le is built,
+and nothing is bound at `/workspace`. `harness` already implies it. Its caller
+is `le rfc record` for a guest-placed Go unit whose test declares it needs
+root (`docs/contributing/rfc-conformance-gates.md`, the guest unit paragraph).
+<!-- source: internal/le/test/qemu/run.go -- RunOptions.guestCommandAsRoot -->
+<!-- test: internal/le/test/qemu/dockerlab_harness_test.go TestDockerLabRootRunsTheCommandAsRootWithoutTheHarness, TestDockerLabRootIsOnlyValidWithCommand -->
+
 Ze's image carries no Go and no git, and `go test` runs in three phases of a
 whole `test qemu all`. A whole run therefore names a Go tree the guest can read
 and a cache on the share. The nightly copies the patched tree with `cp -RL` into
@@ -814,7 +825,7 @@ command's own shell expands the assignment. A selected `.ci` compiles nothing an
 to a tool the image lacks (the image ships `ip`, `nft`, `setcap`, `getcap`, sudo,
 iptables and busybox) fails there: the fix is that test's dependency or the image,
 never a move back to another guest.
-<!-- source: internal/le/test/qemu/dockerlab_command.go -- dockerLabHarnessSetup, dockerLabHarnessCommand, runDockerLabCommand, GuestRuntimeKernel -->
+<!-- source: internal/le/test/qemu/dockerlab_command.go -- dockerLabHarnessSetup, dockerLabRootCommand, runDockerLabCommand, GuestRuntimeKernel -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
 <!-- source: internal/le/test/qemu/run_admit.go -- admitQEMURun, dockerLabArgv -->
 <!-- source: internal/le/test/qemu/run_guestcommand.go -- guestRootInterruptRemote, Run.interruptGuest -->

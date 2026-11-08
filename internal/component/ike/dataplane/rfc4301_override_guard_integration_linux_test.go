@@ -386,6 +386,8 @@ func openESPFormSocket(t *testing.T) error {
 // whether or not a user or application can override (default) system policies."
 //
 // TestRFC4301ApplicationOverrideDeniedInKernel measures AC-14, AC-15, AC-16 and A8-1.
+//
+//ze:guest-root
 func TestRFC4301ApplicationOverrideDeniedInKernel(t *testing.T) {
 	nsFile := enterGuardNetns(t)
 	b := &xfrmBackend{}
@@ -482,6 +484,8 @@ func TestRFC4301ApplicationOverrideDeniedInKernel(t *testing.T) {
 // RFC requirement: RFC4301-4.4.1-8 negative -- with no guard attached (application-override allow), a process in Ze's network namespace sets an ALLOW socket policy through IP_XFRM_POLICY and IPV6_XFRM_POLICY, its traffic then passes the SPD's DISCARD entry, and the listing reads its policy as socket-override, direction out, SPD socket.
 //
 // TestRFC4301ApplicationOverrideAllowedInKernel measures AC-17 and AC-20.
+//
+//ze:guest-root
 func TestRFC4301ApplicationOverrideAllowedInKernel(t *testing.T) {
 	nsFile := enterGuardNetns(t)
 	b := &xfrmBackend{}
@@ -520,6 +524,8 @@ func TestRFC4301ApplicationOverrideAllowedInKernel(t *testing.T) {
 // VALIDATES: espFormBypassInboundPolicy's Priority, and socketPolicyRole over the dump.
 // PREVENTS: a mark the kernel drops, which would list Ze's own receive path as an
 // application's override.
+//
+//ze:guest-root
 func TestESPFormSocketPolicyCarriesZeMarkInKernel(t *testing.T) {
 	enterGuardNetns(t)
 	b := &xfrmBackend{}
