@@ -1,0 +1,81 @@
+# Test: with no system name-server, Ze's own lookups follow the DNS server a
+#       PPPoE lease supplied through IPCP.
+# Spec: spec-home-cpe-23-dns-source-fall-through -- Wiring Test, D-15
+# VALIDATES: the router consumer's built-in default (routerDefault,
+#            internal/component/config/system/resolv.go): configured is empty,
+#            so the received class answers, and the PPPoE client's lease
+#            (SetLease, internal/component/iface/pppoe_client.go) puts its
+#            server first. The compiled fixture first asks
+#            `show dns lookup web.example.test type A` and refuses the stub's
+#            record, because no lease names the stub yet. It then plays the
+#            access concentrator on zeac0 (internal/test/pppoeac): discovery
+#            (session 44), LCP with CHAP-MD5, CHAP, and IPCP that Naks the
+#            client's 0.0.0.0 Primary-DNS request with 192.0.2.53
+#            (IPCPWithDNS, RFC 1877 Section 1.1). The same lookup must then
+#            answer 203.0.113.10, which only the stub on 192.0.2.53 serves.
+# PREVENTS: an internal resolver that keeps the server it read at startup, or
+#           reads a resolv.conf of its own, instead of following the registry's
+#           selection on every lease change.
+#
+# 192.0.2.53 sits on a dummy link of the per-test namespace. It is not a
+# loopback address because the PPPoE client adopts only a global unicast DNS
+# server (adoptNakDNS, internal/component/l2tp/pppoeclient/session.go). The
+# stub binds port 53 because IPCP carries no port. The runner keeps the
+# background stub privileged in netns mode and the address is per namespace,
+# so no exclusive group is needed. The suite is pppoe, not plugin, because
+# only a per-test-namespace suite honours option=netns-link (the plugin suite
+# runs in the guest's own namespace).
+#
+# Requires Linux, CAP_NET_ADMIN for the PPP device, CAP_NET_RAW for both
+# AF_PACKET sockets and CAP_NET_BIND_SERVICE for the stub. keepalive interval
+# 3600 keeps Echo-Requests off the wire while the fixture negotiates.
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=netns-link:name=zecpe0:peer=zeac0
+option=netns-link:name=zedns0:address=192.0.2.53/32
+option=timeout:value=90s
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	dns {
+		# An empty path stops Ze writing a resolv.conf: the resolver never
+		# reads one, and the namespace shares the guest's filesystem.
+		resolv-conf-path "";
+	}
+}
+
+plugin {
+	external dns-source-router-follows-lease-test {
+		run "le test fixture pppoe/dns-source-router-follows-lease"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client zedns1 {
+		source-interface zecpe0
+		authentication {
+			username subscriber
+			password secret
+		}
+		mtu 1450
+		keepalive {
+			interval 3600
+			failures 255
+		}
+		reconnect {
+			delay-min 1
+			delay-max 1
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock dns --port 53 --address 192.0.2.53
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+
+# NO NEEDLE MAY HOLD A COLON: the runner splits a directive on ':'.
+expect=stderr:contains=web.example.test type A -> records 203.0.113.10 status NOERROR through the IPCP lease's server 192.0.2.53
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
